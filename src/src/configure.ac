@@ -15,6 +15,7 @@ AC_PROG_CC
 # Checks for libraries.
 AC_CHECK_LIB([event_core], [event_base_new])
 AC_CHECK_LIB([getdns], [getdns_context_create])
+AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str])
 
 # Checks for header files.
 AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h])
