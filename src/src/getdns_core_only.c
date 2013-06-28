@@ -1,3 +1,6 @@
+/* getdns_core_only.c
+ */
+
 #include <getdns_libevent.h>
 
 /* stuff to make it compile pedantically */
@@ -401,3 +404,4 @@ getdns_extension_set_libevent_base(
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(this_event_base); return GETDNS_RETURN_GOOD; }
 
+/* getdns_core_only.c */
