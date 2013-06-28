@@ -12,6 +12,7 @@ The goals of this implemtation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API described by Paul Hoffman at <http://www.vpnc.org/getdns-api/>
 * Initial support for FreeBSD x.y, MS-Windows Ver. X, OSX 10.x, Linux (CentOS/RHEL R6uX, Ubuntu Ver X) via functional "configure" script
+* Initial support to include the Android platform
 * Include examples and tests as part of the build
 * Document code using doxygen
 * Leverage github as much as possible for project coordination
@@ -21,10 +22,10 @@ The goals of this implemtation of the getdns API are:
  
 Contributors
 ============
-Neel Goyal, Verisign, Inc.
-Allison Mankin, Verisign, Inc.
-Melinda Shore
-Glen Wiley, Verisign, Inc.
+* Neel Goyal, Verisign, Inc.
+* Allison Mankin, Verisign, Inc.
+* Melinda Shore
+* Glen Wiley, Verisign, Inc.
 
 External Dependencies
 =====================
