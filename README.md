@@ -18,6 +18,8 @@ The goals of this implemtation of the getdns API are:
 * Leverage github as much as possible for project coordination
 * Coding style/standards follow the [BSD coding style](ftp://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/share/misc/style)
 * Follow the git flow branching model described at <http://nvie.com/posts/a-successful-git-branching-model/>
+** the master branch is always in a production ready state
+** the develop branch contains the latest development changes which are merged from develop into master once they are considered production ready
 * Both synchronous and asynchronous entry points with an early focus on the asynchronous model
  
 Contributors

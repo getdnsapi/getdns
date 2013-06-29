@@ -1,8 +1,10 @@
-/* example-simple-answers.c
+/** 
+ * /brief demonstrate asynchronous use of the API for fetching DNS data
  *
  * Originally taken from the getdns API description pseudo implementation.
- *
- * The MIT License (MIT)
+ */
+
+/* The MIT License (MIT)
  * Copyright (c) 2013 Verisign, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -124,4 +126,5 @@ main()
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 } /* main */
+
 /* example-simple-answers.c */
