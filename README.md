@@ -12,10 +12,11 @@ The goals of this implemtation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API described by Paul Hoffman at <http://www.vpnc.org/getdns-api/>
 * Initial support for FreeBSD x.y, MS-Windows Ver. X, OSX 10.x, Linux (CentOS/RHEL R6uX, Ubuntu Ver X) via functional "configure" script
+* Initial support to include the Android platform
 * Include examples and tests as part of the build
 * Document code using doxygen
 * Leverage github as much as possible for project coordination
-* Coding style/standards follow the BSD coding style
+* Coding style/standards follow the [BSD coding style](ftp://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/share/misc/style)
 * Follow the git flow branching model described at <http://nvie.com/posts/a-successful-git-branching-model/>
 * Both synchronous and asynchronous entry points with an early focus on the asynchronous model
  
@@ -36,7 +37,13 @@ Although [libevent](http://libevent.org) is used initially to implement the asyn
 
 Current State of the Implementation
 ===================================
-TBD
+We are currently in the early stages of building the API so the code should be considered incomplete.  The current target platforms and the personal primarily responsible for ensuring it builds and runs on that platform include:
+
+* Android, Neel Goyal
+* FreeBSD, Melinda Shore
+* Linux RHEL/CentOS 6.x, Glen Wiley
+* MS-Windows 8, Neel Goyal
+* OSX 10.8, Glen Wiley
 
 --
 end README
