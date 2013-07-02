@@ -116,57 +116,6 @@ getdns_cancel_callback(
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(transaction_id); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t
-getdns_general_sync(
-  getdns_context_t       context,
-  const char             *name,
-  uint16_t               request_type,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
-)
-{ UNUSED_PARAM(context); UNUSED_PARAM(name); UNUSED_PARAM(request_type); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
-
-getdns_return_t
-getdns_address_sync(
-  getdns_context_t       context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
-)
-{ UNUSED_PARAM(context); UNUSED_PARAM(name); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
-
-getdns_return_t
-getdns_hostname_sync(
-  getdns_context_t       context,
-  struct getdns_dict     *address,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
-)
-{ UNUSED_PARAM(context); UNUSED_PARAM(address); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
-
-getdns_return_t
-getdns_service_sync(
-  getdns_context_t       context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
-)
-{ UNUSED_PARAM(context); UNUSED_PARAM(name); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
-
-void
-getdns_free_sync_request_memory(
-  struct getdns_dict     *response
-)
-{ UNUSED_PARAM(response); }
-
 getdns_return_t getdns_list_get_length(struct getdns_list *this_list, size_t *answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
