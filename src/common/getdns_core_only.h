@@ -1,4 +1,31 @@
-/* Created at 2013-04-02-16-59-04*/
+/**
+ * \file
+ * \brief include this header in your application to use getdns API
+ * This source was taken from the original pseudo-implementation by
+ * Paul Hoffman.
+ */
+/* The MIT License (MIT)
+ * Copyright (c) 2013 Verisign, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -9,7 +36,10 @@
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
-/* Return values */
+/**
+ * \defgroup returnvalues return values
+ * @{
+ */
 #define GETDNS_RETURN_GOOD 0
 #define GETDNS_RETURN_GOOD_TEXT Good
 #define GETDNS_RETURN_GENERIC_ERROR 1
@@ -35,7 +65,13 @@
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT A query was made with a context that is using stub resolution and a DNSSEC extension specified.
 
-/* DNSSEC values */
+/** @}
+ */
+
+/**
+ * \defgroup dnssecvalues DNSSEC values
+ * @{
+ */
 #define GETDNS_DNSSEC_SECURE 400
 #define GETDNS_DNSSEC_SECURE_TEXT The record was determined to be secure in DNSSEC
 #define GETDNS_DNSSEC_BOGUS 401
@@ -46,8 +82,13 @@
 #define GETDNS_DNSSEC_INSECURE_TEXT The record was determined to be insecure in DNSSEC
 #define GETDNS_DNSSEC_NOT_PERFORMED 404
 #define GETDNS_DNSSEC_NOT_PERFORMED_TEXT DNSSEC validation was not performed (only used for debugging)
+/** @}
+ */
 
-/* Context Variables */
+/**
+ * \defgroup contextvars Context variables
+ * @{
+ */
 #define GETDNS_CONTEXT_NAMESPACE_DNS 500
 #define GETDNS_CONTEXT_NAMESPACE_DNS_TEXT See getdns_context_set_namespaces()
 #define GETDNS_CONTEXT_NAMESPACE_LOCALNAMES 501
@@ -82,8 +123,13 @@
 #define GETDNS_CONTEXT_GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES 516
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES_TEXT See getdns_context_set_append_name()
+/** @}
+ */
 
-/* Context codes */
+/**
+ * \defgroup contextcodes Context codes for getdns_context_set_context_update_callback()
+ * @{
+ */
 #define GETDNS_CONTEXT_CODE_NAMESPACES 600
 #define GETDNS_CONTEXT_CODE_NAMESPACES_TEXT Change related to getdns_context_set_namespaces
 #define GETDNS_CONTEXT_CODE_RESOLUTION_TYPE 601
@@ -120,8 +166,13 @@
 #define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR_TEXT Change related to getdns_context_set_memory_deallocator
 #define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR 617
 #define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR_TEXT Change related to getdns_context_set_memory_reallocator
+/** @}
+ */
 
-/* Callback Type Variables */
+/**
+ * \defgroup callbacktypes Callback Type Variables
+ * @{
+ */
 #define GETDNS_CALLBACK_COMPLETE 700
 #define GETDNS_CALLBACK_COMPLETE_TEXT The response has the requested data in it
 #define GETDNS_CALLBACK_CANCEL 701
@@ -130,14 +181,24 @@
 #define GETDNS_CALLBACK_TIMEOUT_TEXT The requested action timed out; response is NULL
 #define GETDNS_CALLBACK_ERROR 703
 #define GETDNS_CALLBACK_ERROR_TEXT The requested action had an error; response is NULL
+/** @}
+ */
 
-/* Type Of Name Services */
+/**
+ * \defgroup nametype Types of name services
+ * @{
+ */
 #define GETDNS_NAMETYPE_DNS 800
 #define GETDNS_NAMETYPE_DNS_TEXT Normal DNS (RFC 1035)
 #define GETDNS_NAMETYPE_WINS 801
 #define GETDNS_NAMETYPE_WINS_TEXT The WINS name service (some reference needed)
+/** @}
+ */
 
-/* Status Codes for Responses */
+/**
+ * \defgroup respstatus Status Codes for Responses 
+ * @{
+ */
 #define GETDNS_RESPSTATUS_GOOD 900
 #define GETDNS_RESPSTATUS_GOOD_TEXT At least one response was returned
 #define GETDNS_RESPSTATUS_NO_NAME 901
@@ -146,23 +207,37 @@
 #define GETDNS_RESPSTATUS_ALL_TIMEOUT_TEXT All queries for the name timed out
 #define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS 903
 #define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS_TEXT The context setting for getting only secure responses was specified, and at least one DNS response was received, but no DNS response was determined to be secure through DNSSEC.
+/** @}
+ */
 
-/* Values Associated With Extensions */
+/**
+ * \defgroup extvals Values Associated With Extensions 
+ * @{
+ */
 #define GETDNS_EXTENSION_TRUE 1000
 #define GETDNS_EXTENSION_TRUE_TEXT Turn on the extension
 #define GETDNS_EXTENSION_FALSE 1001
 #define GETDNS_EXTENSION_FALSE_TEXT Do not turn on the extension
+/** @}
+ */
 
-/* Values Associated With DNS Errors Found By The API */
+/**
+ * \defgroup dnserrors Values Associated With DNS Errors Found By The API
+ * @{
+ */
 #define GETDNS_BAD_DNS_CNAME_IN_TARGET 1100
 #define GETDNS_BAD_DNS_CNAME_IN_TARGET_TEXT A DNS query type that does not allow a target to be a CNAME pointed to a CNAME
 #define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL 1101
 #define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL_TEXT One or more labels in a returned domain name is all-numeric; this is not legal for a hostname
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT A DNS query for a type other than CNAME returned a CNAME response
+/** @}
+ */
 
-/* Defines for RRtypes (from 2012-12) */
-
+/**
+ * \defgroup rrtypes RR Types
+ * @{
+ */
 #define GETDNS_RRTYPE_A 1
 #define GETDNS_RRTYPE_NS 2
 #define GETDNS_RRTYPE_MD 3
@@ -238,6 +313,9 @@
 #define GETDNS_RRTYPE_CAA 257
 #define GETDNS_RRTYPE_TA 32768
 #define GETDNS_RRTYPE_DLV 32769
+/** @}
+ */
+
 
 /* Various typedefs  */
 typedef struct getdns_context_t *getdns_context_t;
@@ -255,8 +333,13 @@ typedef struct getdns_list some_list;
 
 /* Helper functions for data structures */
 
-/* Lists: get the length, get the data_type of the value at a given
-   position, and get the data at a given position */
+/**
+ * @param this_list list of any of the supported data types
+ * @param answer pointer to previsouly allocated storage for size_t
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if name argument doesnt exist in the dictionary
+ * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the requested data type doesn't match the contents of the indexed argument or name
+ */
 getdns_return_t getdns_list_get_length(struct getdns_list *this_list, size_t *answer);
 getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list, size_t index, getdns_data_type *answer);
 getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
@@ -355,6 +438,25 @@ getdns_cancel_callback(
   getdns_transaction_t   transaction_id
 );
 
+/**
+ * \defgroup syncfuns Synchronous API functions that do not use callbacks
+ * These functions do not use callbacks, when the application calls one of these
+ * functions the library retrieves all of the data before returning.  Return 
+ * values are exactly the same as if you had used a callback with the 
+ * asynchronous functions.
+ * @{
+ */
+
+/**
+ * retrieve general DNS data
+ * @param context pointer to a previously created context to be used for this call
+ * @param name the ASCII based domain name to lookup
+ * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
+ * @param extensions dict data structures, NULL to use no extensions
+ * @param response_length response length
+ * @param response response
+ * @return GETDNS_RETURN_GOOD on success
+ */
 getdns_return_t
 getdns_general_sync(
   getdns_context_t       context,
@@ -365,6 +467,15 @@ getdns_general_sync(
   struct getdns_dict     *response
 );
 
+/**
+ * retrieve address assigned to a DNS name
+ * @param context pointer to a previously created context to be used for this call
+ * @param name the ASCII based domain name to lookup
+ * @param extensions dict data structures, NULL to use no extensions
+ * @param response_length response length
+ * @param response response
+ * @return GETDNS_RETURN_GOOD on success
+ */
 getdns_return_t
 getdns_address_sync(
   getdns_context_t       context,
@@ -374,6 +485,15 @@ getdns_address_sync(
   struct getdns_dict     *response
 );
 
+/**
+ * retrieve hostname assigned to an IP address
+ * @param context pointer to a previously created context to be used for this call
+ * @param name the ASCII based domain name to lookup
+ * @param extensions dict data structures, NULL to use no extensions
+ * @param response_length response length
+ * @param response response
+ * @return GETDNS_RETURN_GOOD on success
+ */
 getdns_return_t
 getdns_hostname_sync(
   getdns_context_t       context,
@@ -383,6 +503,15 @@ getdns_hostname_sync(
   struct getdns_dict     *response
 );
 
+/**
+ * retrieve a service assigned to a DNS name
+ * @param context pointer to a previously created context to be used for this call
+ * @param name the ASCII based domain name to lookup
+ * @param extensions dict data structures, NULL to use no extensions
+ * @param response_length response length
+ * @param response response
+ * @return GETDNS_RETURN_GOOD on success
+ */
 getdns_return_t
 getdns_service_sync(
   getdns_context_t       context,
@@ -396,6 +525,9 @@ void
 getdns_free_sync_request_memory(
   struct getdns_dict     *response
 );
+
+/** @}
+ */
 
 char *
 getdns_convert_dns_name_to_fqdn(
