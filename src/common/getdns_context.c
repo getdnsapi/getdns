@@ -399,4 +399,19 @@ getdns_extension_set_libevent_base(
     return GETDNS_RETURN_GOOD;
 } /* getdns_extension_set_libevent_base */
 
+/*
+ * getdns_cancel_callback
+ *
+ */
+getdns_return_t
+getdns_cancel_callback(
+	getdns_context_t           context,
+	getdns_transaction_t       transaction_id
+)
+{
+    UNUSED_PARAM(context);
+    UNUSED_PARAM(transaction_id);
+    return GETDNS_RETURN_GOOD;
+} /* getdns_cancel_callback */
+
 /* getdns_context.c */
