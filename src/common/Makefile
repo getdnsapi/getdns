@@ -15,17 +15,19 @@ srcdir = .
 
 
 CC=gcc
-CFLAGS=-g -I$(srcdir)/ -std=c99
+CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -std=c99
 LDFLAGS=-L. 
 LDLIBS=-levent_core -lldns -lgetdns
 PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
 
+.SUFFIXES: .c .o .a .lo .h
+
+.c.o:
+	$(CC) $(CFLAGS) -c $< -o $@
+
 all: libgetdns example-simple-answers example-tree example-all-functions example-synchronous
 
-getdns_core_only.o: getdns_core_only.c
-	$(CC) -c -Wall -fPIC $(CFLAGS) $^
-
-libgetdns: getdns_core_only.c
+libgetdns: getdns_core_only.o getdns_sync.o getdns_context.o
 	$(CC) $(CFLAGS) -shared -o libgetdns.so $^
 
 clean:
