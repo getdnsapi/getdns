@@ -20,9 +20,6 @@ LDFLAGS=-L.
 LDLIBS=-levent_core -lldns -lgetdns
 PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
 
-# example-simple-answers.c  example-tree.c
-# example-all-functions.c  example-synchronous.c	   getdns_core_only.c
-
 all: libgetdns example-simple-answers example-tree example-all-functions example-synchronous
 
 getdns_core_only.o: getdns_core_only.c
@@ -57,11 +54,11 @@ distcheck: $(distdir).tar.gz
 	rm -rf $(distdir)
 	@echo "*** Package $(distdir).tar.gz is ready for distribution"
 
-Makefile: Makefile.in config.status
-	./config.status $@
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status $@
 
 configure.status: configure
-	./config.status --recheck
+	cd .. && ./config.status --recheck
 
 .PHONY: clean
 

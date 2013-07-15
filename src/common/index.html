@@ -107,9 +107,9 @@ of this new API are:</p>
 </ul>
 
 <p>There is more background into the design and future goals of this API
-<a href="index.html#Commentary">later in this document</a>.</p>
+<a href="#Commentary">later in this document</a>.</p>
 
-<p>This document was discussed on the <a href="../mailman/listinfo/getdns-api">
+<p>This document was discussed on the <a href="http://www.vpnc.org/mailman/listinfo/getdns-api">
 getdns-api mailing list</a>; future versions of the API might be discussed there as well.
 (If you
 want to contact the editor off-list, please send mail to <a
@@ -147,7 +147,7 @@ getdns_general(
 
 <p class=define><code><b>context</b></code></p>
 <p class=descrip>A pointer to the DNS context that is to be used with this call. DNS contexts are
-described <a href="index.html#Contexts">later in this document</a>. Note that a context <i>must</i> be created
+described <a href="#Contexts">later in this document</a>. Note that a context <i>must</i> be created
 before calling the function.</p>
 
 <p class=define><code><b>*name</b></code></p>
@@ -167,7 +167,7 @@ defined macros for most of the RRtypes by name; the definition names all start w
 
 <p class=define><code><b>*extensions</b></code></p>
 <p class=descrip>Specifies the extensions for this request; the value may be NULL if there are no
-extensions. See <a href="index.html#Extensions">the section below</a> for information on how to specify
+extensions. See <a href="#Extensions">the section below</a> for information on how to specify
 the extensions used for a request.</p>
 
 <p class=define><code><b>*userarg</b></code></p>
@@ -197,7 +197,7 @@ the function was bad, <code>GETDNS_RETURN_BAD_CONTEXT</code> if the context poin
 <code>GETDNS_RETURN_NO_SUCH_EXTENSION</code> if one or more extensions do not exist, or
 <code>GETDNS_RETURN_EXTENSION_MISFORMAT</code> if the contents of one or more of the
 extensions is incorrect. All of the return values are given <a
-href="index.html#ReturnCodes">later in this document</a>.</p>
+href="#ReturnCodes">later in this document</a>.</p>
 
 <h2>1.2 <code>getdns_address()</code></h2>
 
@@ -281,8 +281,8 @@ typedef void (*getdns_callback_t)(
 
 <p class=define><code><b>context</b></code></p>
 <p class=descrip>The DNS context that was used in the calling function. See <a
-href="index.html#ContextInitial">below</a> for a description of the basic use of contexts, and <a
-href="index.html#Contexts">later</a> for more advanced use.</p>
+href="#ContextInitial">below</a> for a description of the basic use of contexts, and <a
+href="#Contexts">later</a> for more advanced use.</p>
 
 <p class=define><code><b>callback_type</b></code></p>
 <p class=descrip>Supplies the reason for the callback. See below for the codes and reasons.</p>
@@ -875,7 +875,7 @@ bindata), <code>type</code> (an int), <code>class</code> (an int), <code>ttl</co
 <code>rdata</code> (a dict); there is no name equivalent to the RDLENGTH field.</p>
 
 <p>The <code>rdata</code> dict has different names for each response type. There is a <a
-href="index.html#TypeList">complete list of the types defined</a> in the API. For names that end in
+href="#TypeList">complete list of the types defined</a> in the API. For names that end in
 "-obsolete" or "-unknown", the bindata is the entire RDATA field. For example, the
 <code>rdata</code> for an A record has a name <code>ipv4_address</code> (a bindata); the
 <code>rdata</code> for an SRV record has the names <code>priority</code> (an int),
@@ -1758,7 +1758,7 @@ context for use on a different thread. It is just fine for an application to hav
 and some DNS-heavy applications will certainly want to have many even if the application uses
 a single thread.</p>
 
-<p>See <a href="index.html#ContextInitial">above</a> for the method for creating and destroying
+<p>See <a href="#ContextInitial">above</a> for the method for creating and destroying
 contexts. When the context is used in the API for the first time and <code>set_from_os</code> is
 <code>true</code>, the API starts replacing some of the values with values from the OS, such as
 those that would be found in res_query(3), /etc/resolv.conf, and so on, then proceeds with the new
@@ -1805,7 +1805,7 @@ called when any context is changed. Such changes might be from automatic
 changes from the API (such as changes to /etc/resolv.conf), or might be from any of the
 API functions in this section being called. The second argument to the callback function
 specifies which of the context changed; the context codes are listed
-<a href="index.html#ContextCodes">later in this document</a>.</p>
+<a href="#ContextCodes">later in this document</a>.</p>
 
 <h2>8.3 Contexts for Basic Resolution</h2>
 

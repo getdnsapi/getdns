@@ -1,19 +1,19 @@
 #
-# @configure_input@
+# Makefile.  Generated from Makefile.in by configure.
 #
 
 
-package = @PACKAGE_NAME@
-version = @PACKAGE_VERSION@
-tarname	= @PACKAGE_TARNAME@
+package = getdns
+version = 0.320
+tarname	= getdns
 distdir	= $(tarname)-$(version)
 
-prefix = @prefix@
-exec_prefix = @exec_prefix@
-bindir = @bindir@
+prefix = /usr/local
+exec_prefix = ${prefix}
+bindir = ${exec_prefix}/bin
 
-srcdir = @srcdir@
-VPATH = @srcdir@
+srcdir = .
+
 
 all clean getdns:
 	cd common && $(MAKE) $@

@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2013-06-20
+* Date:    2013-06-27
 * GitHub:  <https://github.com/verisign/getdns> 
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the [MIT license](http://opensource.org/licenses/MIT).
@@ -27,16 +27,16 @@ Non-goals (things we will not be doing) include:
 
 Contributors
 ============
-* Neel Goyal, Verisign, Inc.
-* Allison Mankin, Verisign, Inc.
-* Melinda Shore
-* Glen Wiley, Verisign, Inc.
+Neel Goyal, Verisign, Inc.
+Allison Mankin, Verisign, Inc.
+Melinda Shore, No Mountain Software LLC
+Glen Wiley, Verisign, Inc.
 
 External Dependencies
 =====================
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).
 
-The project relies on [libdns from NL](https://www.nlnetlabs.nl/projects/ldns/) for parsing and constructing DNS packets.  Version 1.6.16
+The project relies on [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) for parsing and constructing DNS packets.  Version 1.6.16 (note that building ldns may require openssl headers and libraries)
 
 Although [libevent](http://libevent.org) is used initially to implement the asynchronous model, future work may include a move to other mechanisms (epoll based etc.).  Version 2.0.21 stable
 
