@@ -27,7 +27,7 @@ PROGRAMS=example-simple-answers example-tree example-all-functions example-synch
 
 all: libgetdns example-simple-answers example-tree example-all-functions example-synchronous
 
-libgetdns: getdns_core_only.o getdns_sync.o getdns_context.o
+libgetdns: getdns_sync.o getdns_context.o getdns_list.o getdns_dict.o getdns_address.o getdns_convert.o getdns_general.o getdns_hostname.o getdns_service.o getdns_validate_dnssec.o
 	$(CC) $(CFLAGS) -shared -o libgetdns.so $^
 
 clean:
