@@ -1,0 +1,65 @@
+proposed getdns cache design
+Glen Wiley <gwiley@verisign.com>
+
+API Description Requirements
+============================
+Considerations regarding cache are slightly different depending on
+whether we are operating as a stub resolver or a recursive resolver.
+The API description requires that we operate as a recursive resolver
+and considers stub resolver behavior optional.
+
+Recursive Resolver Cache
+========================
+Caching is arguably an important feature for most recursive resolvers.
+In this case we are not intending a replacement for the fully
+functional recursive resolvers already available (BIND, Unbound, etc.)
+so we shoudl limit a cache implementation to behaviors important to
+proper operation of a recursive resolver.
+
+DNSSEC validation can potentially triggers more queries than a simple
+request for a A RR so I think it makes sense to cache root and TLD
+data.  Once we have gone that far it isn't much of a reach to cache
+at each layer in the hierarchy (depth will not increase the coding
+effort or defect rates).
+
+Bear in mind that this resolver will only answer local processes,
+it is not listening for queries over the network.
+
+Stub Resolver Cache
+===================
+One well supported poition is that a stub resolver should not cache
+DNS replies as it relies on a proximate recursive resolver for
+iterative resolution and caching.  DNSSEC validation introduces
+a potential use case for caching even when we would prefer to not
+cache DNS replies in the stub resolver.  I'd like to avoid a 
+religious debate about whether a stub resolver should have a cache
+and focus on what we need to make the getdns API best suited to
+its intended focus.
+
+Since a cache makes sense for a recursive resolver we will need 
+to implement it anyway.  With that in mind I recommend that we
+use a configuration setting to enable caching and control its 
+behavior when running as a stub resolver.
+
+Cache Design Points
+===================
+If we assume that we need a cache implementation (which I concede is
+not yet decided) then I would recommend the following design points:
+
+Local configuration via API or local file (e.g. /etc/getdns.conf, ~/.getdnsrc)
+    - turn cache on/off
+    - turn negative cache on/off
+    - use a per user cache vs. system wide cache
+    - max TTL/TTL override (separate for pos/neg cache entries)
+    - inclusions (use cache for specified domains) (maybe over-eng)
+    - exceptions (avoid ache for specified domains) (maybe over-eng)
+    - persistant vs. transitory cache
+
+- cache data store via Berkely db to allow for persistance
+
+- negative cache TTL derived from SOA
+
+- positive cache TTL
+
+- max entries - flush oldest entries when max reached
+
