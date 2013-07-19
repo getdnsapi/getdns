@@ -33,6 +33,10 @@ libgetdns: getdns_sync.o getdns_context.o getdns_list.o getdns_dict.o getdns_add
 clean:
 	rm -f *.o $(PROGRAMS) libgetdns.so
 
+distclean : clean
+	rm -f Makefile config.status config.log
+	rm -Rf autom4te.cache
+
 $(distdir): FORCE
 	mkdir -p $(distdir)/src
 	cp configure.ac $(distdir)

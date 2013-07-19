@@ -15,8 +15,24 @@ bindir = ${exec_prefix}/bin
 srcdir = .
 
 
-all clean getdns:
+default:
+	cd common && $(MAKE)
+
+all : default test 
+
+test:
+	cd test && $(MAKE) $@
+
+clean:
 	cd common && $(MAKE) $@
+	cd test && $(MAKE) $@
+	rm -f *.o
+
+distclean:
+	cd common && $(MAKE) $@
+	cd test && $(MAKE) $@
+	rm -f libgetdns*.so config.log config.status Makefile
+	rm -fR autom4te.cache
 
 $(distdir): FORCE
 	mkdir -p $(distdir)/src
@@ -47,4 +63,4 @@ Makefile: Makefile.in config.status
 configure.status: configure
 	./config.status --recheck
 
-.PHONY: all clean
+.PHONY: all distclean clean default

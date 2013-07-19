@@ -1,37 +1,46 @@
 #
-# common/Makefile.  Generated from Makefile.in by configure.
+# @configure_input@
 #
+# TODO: OSX, fix DYLD_LIBRARY_PATH problem
 
-package = getdns
-version = 0.320
-tarname = getdns
+package = @PACKAGE_NAME@
+version = @PACKAGE_VERSION@
+tarname = @PACKAGE_TARNAME@
 distdir = $(tarname)-$(version)
 
-prefix = /usr/local
-exec_prefix = ${prefix}
-bindir = ${exec_prefix}/bin
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
 
-srcdir = .
-
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 CC=gcc
-CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -std=c99
-LDFLAGS=-L. 
-LDLIBS=-levent_core -lldns -lgetdns
-PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
+CFLAGS=-Wall -g -I./ -I../common -I$(srcdir)/ -std=c99
+LDFLAGS=-L../common 
+LDLIBS=-lgetdns
+PROGRAMS=tests_list
 
-.SUFFIXES: .c .o .a .lo .h
+.SUFFIXES: .c .o .a .lo .h .can .out .res
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
-all: libgetdns example-simple-answers example-tree example-all-functions example-synchronous
+.out.res:
+	diff $< $(basename $<).can > $@
 
-libgetdns: getdns_sync.o getdns_context.o getdns_list.o getdns_dict.o getdns_address.o getdns_convert.o getdns_general.o getdns_hostname.o getdns_service.o getdns_validate_dnssec.o
-	$(CC) $(CFLAGS) -shared -o libgetdns.so $^
+all: tests_list tests_list.res
+
+tests_list: tests_list.o ../common/libgetdns.so testmessages.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^
+
+# we want the library that was just built to be used in the tests
+# NOT one that is installed on the system
+tests_list.out : tests_list
+	DYLD_LIBRARY_PATH=../common; ./tests_list > tests_list.out
 
 clean:
-	rm -f *.o $(PROGRAMS) libgetdns.so
+	rm -f *.o *.out *.res $(PROGRAMS)
 
 distclean : clean
 	rm -f Makefile config.status config.log
@@ -66,5 +75,5 @@ Makefile: Makefile.in ../config.status
 configure.status: configure
 	cd .. && ./config.status --recheck
 
-.PHONY: clean
+.PHONY: all clean distclean
 

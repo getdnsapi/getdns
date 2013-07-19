@@ -65,6 +65,7 @@
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT A query was made with a context that is using stub resolution and a DNSSEC extension specified.
 
+
 /** @}
  */
 
@@ -238,114 +239,171 @@
  * \defgroup rrtypes RR Types
  * @{
  */
-#define GETDNS_RRTYPE_A 1
-#define GETDNS_RRTYPE_NS 2
-#define GETDNS_RRTYPE_MD 3
-#define GETDNS_RRTYPE_MF 4
-#define GETDNS_RRTYPE_CNAME 5
-#define GETDNS_RRTYPE_SOA 6
-#define GETDNS_RRTYPE_MB 7
-#define GETDNS_RRTYPE_MG 8
-#define GETDNS_RRTYPE_MR 9
-#define GETDNS_RRTYPE_NULL 10
-#define GETDNS_RRTYPE_WKS 11
-#define GETDNS_RRTYPE_PTR 12
-#define GETDNS_RRTYPE_HINFO 13
-#define GETDNS_RRTYPE_MINFO 14
-#define GETDNS_RRTYPE_MX 15
-#define GETDNS_RRTYPE_TXT 16
-#define GETDNS_RRTYPE_RP 17
-#define GETDNS_RRTYPE_AFSDB 18
-#define GETDNS_RRTYPE_X25 19
-#define GETDNS_RRTYPE_ISDN 20
-#define GETDNS_RRTYPE_RT 21
-#define GETDNS_RRTYPE_NSAP 22
-#define GETDNS_RRTYPE_SIG 24
-#define GETDNS_RRTYPE_KEY 25
-#define GETDNS_RRTYPE_PX 26
-#define GETDNS_RRTYPE_GPOS 27
-#define GETDNS_RRTYPE_AAAA 28
-#define GETDNS_RRTYPE_LOC 29
-#define GETDNS_RRTYPE_NXT 30
-#define GETDNS_RRTYPE_EID 31
-#define GETDNS_RRTYPE_NIMLOC 32
-#define GETDNS_RRTYPE_SRV 33
-#define GETDNS_RRTYPE_ATMA 34
-#define GETDNS_RRTYPE_NAPTR 35
-#define GETDNS_RRTYPE_KX 36
-#define GETDNS_RRTYPE_CERT 37
-#define GETDNS_RRTYPE_A6 38
-#define GETDNS_RRTYPE_DNAME 39
-#define GETDNS_RRTYPE_SINK 40
-#define GETDNS_RRTYPE_OPT 41
-#define GETDNS_RRTYPE_APL 42
-#define GETDNS_RRTYPE_DS 43
-#define GETDNS_RRTYPE_SSHFP 44
-#define GETDNS_RRTYPE_IPSECKEY 45
-#define GETDNS_RRTYPE_RRSIG 46
-#define GETDNS_RRTYPE_NSEC 47
-#define GETDNS_RRTYPE_DNSKEY 48
-#define GETDNS_RRTYPE_DHCID 49
-#define GETDNS_RRTYPE_NSEC3 50
+#define GETDNS_RRTYPE_A         1
+#define GETDNS_RRTYPE_NS        2
+#define GETDNS_RRTYPE_MD        3
+#define GETDNS_RRTYPE_MF        4
+#define GETDNS_RRTYPE_CNAME     5
+#define GETDNS_RRTYPE_SOA       6
+#define GETDNS_RRTYPE_MB        7
+#define GETDNS_RRTYPE_MG        8
+#define GETDNS_RRTYPE_MR        9
+#define GETDNS_RRTYPE_NULL      10
+#define GETDNS_RRTYPE_WKS       11
+#define GETDNS_RRTYPE_PTR       12
+#define GETDNS_RRTYPE_HINFO     13
+#define GETDNS_RRTYPE_MINFO     14
+#define GETDNS_RRTYPE_MX        15
+#define GETDNS_RRTYPE_TXT       16
+#define GETDNS_RRTYPE_RP        17
+#define GETDNS_RRTYPE_AFSDB     18
+#define GETDNS_RRTYPE_X25       19
+#define GETDNS_RRTYPE_ISDN      20
+#define GETDNS_RRTYPE_RT        21
+#define GETDNS_RRTYPE_NSAP      22
+#define GETDNS_RRTYPE_SIG       24
+#define GETDNS_RRTYPE_KEY       25
+#define GETDNS_RRTYPE_PX        26
+#define GETDNS_RRTYPE_GPOS      27
+#define GETDNS_RRTYPE_AAAA      28
+#define GETDNS_RRTYPE_LOC       29
+#define GETDNS_RRTYPE_NXT       30
+#define GETDNS_RRTYPE_EID       31
+#define GETDNS_RRTYPE_NIMLOC    32
+#define GETDNS_RRTYPE_SRV       33
+#define GETDNS_RRTYPE_ATMA      34
+#define GETDNS_RRTYPE_NAPTR     35
+#define GETDNS_RRTYPE_KX        36
+#define GETDNS_RRTYPE_CERT      37
+#define GETDNS_RRTYPE_A6        38
+#define GETDNS_RRTYPE_DNAME     39
+#define GETDNS_RRTYPE_SINK      40
+#define GETDNS_RRTYPE_OPT       41
+#define GETDNS_RRTYPE_APL       42
+#define GETDNS_RRTYPE_DS        43
+#define GETDNS_RRTYPE_SSHFP     44
+#define GETDNS_RRTYPE_IPSECKEY  45
+#define GETDNS_RRTYPE_RRSIG     46
+#define GETDNS_RRTYPE_NSEC      47
+#define GETDNS_RRTYPE_DNSKEY    48
+#define GETDNS_RRTYPE_DHCID     49
+#define GETDNS_RRTYPE_NSEC3     50
 #define GETDNS_RRTYPE_NSEC3PARAM 51
-#define GETDNS_RRTYPE_TLSA 52
-#define GETDNS_RRTYPE_HIP 55
-#define GETDNS_RRTYPE_NINFO 56
-#define GETDNS_RRTYPE_RKEY 57
-#define GETDNS_RRTYPE_TALINK 58
-#define GETDNS_RRTYPE_CDS 59
-#define GETDNS_RRTYPE_SPF 99
-#define GETDNS_RRTYPE_UINFO 100
-#define GETDNS_RRTYPE_UID 101
-#define GETDNS_RRTYPE_GID 102
-#define GETDNS_RRTYPE_UNSPEC 103
-#define GETDNS_RRTYPE_NID 104
-#define GETDNS_RRTYPE_L32 105
-#define GETDNS_RRTYPE_L64 106
-#define GETDNS_RRTYPE_LP 107
-#define GETDNS_RRTYPE_TKEY 249
-#define GETDNS_RRTYPE_TSIG 250
-#define GETDNS_RRTYPE_IXFR 251
-#define GETDNS_RRTYPE_AXFR 252
-#define GETDNS_RRTYPE_MAILB 253
-#define GETDNS_RRTYPE_MAILA 254
-#define GETDNS_RRTYPE_URI 256
-#define GETDNS_RRTYPE_CAA 257
-#define GETDNS_RRTYPE_TA 32768
-#define GETDNS_RRTYPE_DLV 32769
+#define GETDNS_RRTYPE_TLSA      52
+#define GETDNS_RRTYPE_HIP       55
+#define GETDNS_RRTYPE_NINFO     56
+#define GETDNS_RRTYPE_RKEY      57
+#define GETDNS_RRTYPE_TALINK    58
+#define GETDNS_RRTYPE_CDS       59
+#define GETDNS_RRTYPE_SPF       99
+#define GETDNS_RRTYPE_UINFO     100
+#define GETDNS_RRTYPE_UID       101
+#define GETDNS_RRTYPE_GID       102
+#define GETDNS_RRTYPE_UNSPEC    103
+#define GETDNS_RRTYPE_NID       104
+#define GETDNS_RRTYPE_L32       105
+#define GETDNS_RRTYPE_L64       106
+#define GETDNS_RRTYPE_LP        107
+#define GETDNS_RRTYPE_TKEY      249
+#define GETDNS_RRTYPE_TSIG      250
+#define GETDNS_RRTYPE_IXFR      251
+#define GETDNS_RRTYPE_AXFR      252
+#define GETDNS_RRTYPE_MAILB     253
+#define GETDNS_RRTYPE_MAILA     254
+#define GETDNS_RRTYPE_URI       256
+#define GETDNS_RRTYPE_CAA       257
+#define GETDNS_RRTYPE_TA        32768
+#define GETDNS_RRTYPE_DLV       32769
 /** @}
  */
 
-
-/* Various typedefs  */
 typedef struct getdns_context_t *getdns_context_t;
 typedef uint16_t   getdns_return_t;
 typedef uint64_t   getdns_transaction_t;
-typedef enum some_data_type {
-    t_dict, t_list, t_int, t_bindata
+typedef enum getdns_data_type {
+    t_dict, t_list, t_int, t_bindata, t_invalid
 } getdns_data_type;
 typedef struct getdns_bindata {
     size_t size;
-    uint8_t *binary_stuff;
-} some_bindata;
-typedef struct getdns_dict some_dict;
-typedef struct getdns_list some_list;
-
-/* Helper functions for data structures */
+    uint8_t *data;
+} getdns_bindata;
+typedef struct getdns_dict getdns_dict;
 
 /**
- * @param this_list list of any of the supported data types
- * @param answer pointer to previsouly allocated storage for size_t
+ * translate an error code to a string value, not in the original api description
+ * but seems like a nice thing to have
+ * @param err return code from GETDNS_RETURN_* defines
+ * @param buf buffer to which to copy the error string
+ * @param buflen length of buf
  * @return GETDNS_RETURN_GOOD on success
- * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if name argument doesnt exist in the dictionary
- * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the requested data type doesn't match the contents of the indexed argument or name
  */
-getdns_return_t getdns_list_get_length(struct getdns_list *this_list, size_t *answer);
+getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
+
+#define GETDNS_LIST_BLOCKSZ 10
+
+/**
+ * getdns list data type
+ * Use helper functions getdns_list_* to manipulate and iterate lists
+ * lists are implemented as arrays internally since the helper functions
+ * like to reference indexes in the list.  Elements are allocated in blocks
+ * and then marked valid as they are used and invalid as they are not used
+ * The use cases do not justify working too hard at shrinking the structures.
+ * Indexes are 0 based.
+ */
+typedef struct getdns_list {
+    int numalloc;
+    int numinuse;
+    struct getdns_list_item *items;
+} getdns_list;
+struct getdns_list_item {
+    int inuse;
+    getdns_data_type dtype;
+    union {
+        getdns_list    *list;
+        getdns_dict    *dict;
+        int            n;
+        getdns_bindata *bindata;
+    } data;
+};
+
+/**
+ * @param list list of any of the supported data types
+ * @param answer number of valid items in the list
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is not valid or params are NULL
+ */
+getdns_return_t getdns_list_get_length(struct getdns_list *list, size_t *answer);
+/**
+ * return the enumerated data type of the indexed list item
+ * @param list the list from which to fetch the data type
+ * @param index the item in the list from which to fetch the data type
+ * @param *answer assigned the value of the data type on success
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
+ */
 getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list, size_t index, getdns_data_type *answer);
 getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
+/**
+ * retrieve the list value of the specified list item
+ * @param list the list from which to fetch the value
+ * @param index the item in the list from which to fetch the value
+ * @param **answer assigned a pointer to the list value of the indexed element
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
+ * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
+ */
 getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index, struct getdns_list **answer);
 getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
-getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index, uint32_t *answer);
+/**
+ * retrieve the integer value of the specified list item
+ * @param list the list from which to fetch the item
+ * @param index the index of the element in the list to fetch from
+ * @param *answer assigned the integer value of the indexed element
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
+ * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
+ */
+getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index, uint32_t *answer);
 
 /* Dicts: get the list of names, get the data_type of the
    value at a given name, and get the data at a given name */
@@ -357,13 +415,33 @@ getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *nam
 getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, uint32_t *answer);
 
 
-/* Lists: create, destroy, and set the data at a given position */
+/**
+ * create a new list with no items
+ * @return pointer to an allocated list, NULL if insufficient memory
+ */
 struct getdns_list * getdns_list_create();
+/**
+ * free memory allocated to the list
+ */
 void getdns_list_destroy(struct getdns_list *this_list);
-getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict);
-getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, struct getdns_list *child_list);
-getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata *child_bindata);
-getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index, uint32_t child_uint32);
+/**
+ * add an item to the tail of a list - note that this was not in the getdns API
+ * description but the list_set functions seem to be designed to modify an existing
+ * item in the list.  The newly added item has no data type.
+ * @param *index assigned to the index of the newly added item on success
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
+ */
+getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t *index);
+getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, struct getdns_dict *child_dict);
+getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index, struct getdns_list *child_list);
+getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index, struct getdns_bindata *child_bindata);
+/**
+ * set the integrer value of the indexed item (zero based index)
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
+ */
+getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index, uint32_t child_uint32);
 
 /* Dicts: create, destroy, and set the data at a given name */
 struct getdns_dict * getdns_dict_create();
