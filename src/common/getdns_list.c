@@ -28,6 +28,7 @@
  * THE SOFTWARE.
  */
 
+#include <string.h>
 #include <getdns_libevent.h>
 #include "getdns_core_only.h"
 
@@ -86,8 +87,24 @@ getdns_list_get_list(struct getdns_list *list, size_t index, struct getdns_list 
     return retval;
 } /* getdns_list_get_list */
 
-getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer)
-{ UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
+/*---------------------------------------- getdns_list_get_bindata */
+getdns_return_t getdns_list_get_bindata(struct getdns_list *list, size_t index, struct getdns_bindata **answer)
+{
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+    if(list != NULL && index < list->numinuse)
+    {
+        if(list->items[index].dtype != t_bindata)
+            retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+        else
+        {
+            *answer = list->items[index].data.bindata;
+            retval = GETDNS_RETURN_GOOD;
+        }
+    }
+
+    return retval;
+} /* getdns_list_get_bindata */
 
 /*---------------------------------------- getdns_list_get_int */
 getdns_return_t
@@ -142,7 +159,71 @@ getdns_list_realloc(struct getdns_list *list)
     }
 
     return retval;
-} /* getdns_list_alloc */
+} /* getdns_list_realloc */
+
+/*---------------------------------------- getdns_list_copy */
+/**
+  * private function (API users should not be calling this), this uses library
+  * routines to make a copy of the list - would be faster to make the copy directly
+  * @param list pointer to list to copy
+  * @param newlist pointer to pointer to list to receive the copy (will be allocated)
+  * @return GETDNS_RETURN_GOOD on success
+  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
+  * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
+  */
+getdns_return_t
+getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist)
+{
+    int i;
+    size_t index;
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+    if(srclist != NULL && *dstlist != NULL)
+    {
+        *dstlist = getdns_list_create();
+        if(*dstlist != NULL)
+        {
+            retval = GETDNS_RETURN_GOOD;
+            for(i=0; i<srclist->numinuse; i++)
+            {
+                if(getdns_list_add_item(*dstlist, &index) == GETDNS_RETURN_GOOD)
+                {
+                    (*dstlist)->items[index].inuse = true;
+                    (*dstlist)->items[index].dtype = srclist->items[i].dtype;
+
+                    if(srclist->items[i].dtype == t_int)
+                        (*dstlist)->items[index].data.n = srclist->items[i].data.n;
+                    else if(srclist->items[i].dtype == t_list)
+                        retval = getdns_list_copy(srclist->items[index].data.list
+                         , &((*dstlist)->items[i].data.list));
+                    else if(srclist->items[i].dtype == t_bindata)
+                    {
+                        (*dstlist)->items[i].data.bindata = (struct getdns_bindata *) 
+                         malloc(sizeof(getdns_bindata));
+                        (*dstlist)->items[i].data.bindata->size = srclist->items[i].data.bindata->size;
+                        (*dstlist)->items[i].data.bindata->data = (uint8_t *) 
+                         malloc(srclist->items[i].data.bindata->size);
+                        if((*dstlist)->items[i].data.bindata->data != NULL)
+                            memcpy(srclist->items[i].data.bindata->data
+                             , (*dstlist)->items[i].data.bindata->data
+                             , srclist->items[i].data.bindata->size);
+                        else
+                            retval = GETDNS_RETURN_GENERIC_ERROR;
+                    }
+                }
+                else
+                    retval = GETDNS_RETURN_GENERIC_ERROR;
+
+                if(retval != GETDNS_RETURN_GOOD)
+                    break;
+            }
+        }
+        else
+            retval = GETDNS_RETURN_GENERIC_ERROR;
+    }
+
+    return retval;
+} /* getdns_list_copy */
 
 /*---------------------------------------- getdns_list_create */
 struct getdns_list *
@@ -167,10 +248,28 @@ getdns_list_create()
 void
 getdns_list_destroy(struct getdns_list *list)
 {
+    int i;
+
     if(list != NULL)
     {
         if(list->items != NULL)
+        {
+            for(i=0; i<list->numinuse; i++)
+            {
+                if(list->items[i].dtype == t_list)
+                {
+                    if(list->items[i].dtype == t_list)
+                        getdns_list_destroy(list->items[i].data.list);
+                }
+                else if(list->items[i].dtype == t_bindata)
+                {
+                    if(list->items[i].data.bindata->size > 0)
+                        free(list->items[i].data.bindata->data);
+                    free(list->items[i].data.bindata);
+                }
+            }
             free(list->items);
+        }
         free(list);
     }
 } /* getdns_list_destroy */
@@ -200,13 +299,54 @@ getdns_list_add_item(struct getdns_list *list, size_t *index)
 getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_dict); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, struct getdns_list *child_list)
-{ UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_list); return GETDNS_RETURN_GOOD; }
+/*---------------------------------------- getdns_set_list */
+getdns_return_t
+getdns_list_set_list(struct getdns_list *list, size_t index, struct getdns_list *child_list)
+{
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata *child_bindata)
-{ UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_bindata); return GETDNS_RETURN_GOOD; }
+    if(list != NULL && child_list != NULL)
+    {
+        if(list->numinuse > index)
+        {
+            list->items[index].dtype = t_list;
+            retval = getdns_list_copy(child_list, &(list->items[index].data.list));
+        }
+    }
 
-/*---------------------------------------- getdns_list_set */
+    return retval;
+} /* getdns_set_list */
+
+/*---------------------------------------- getdns_list_set_bindata */
+getdns_return_t
+getdns_list_set_bindata(struct getdns_list *list, size_t index, struct getdns_bindata *child_bindata)
+{
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+    if(list != NULL && child_bindata != NULL)
+    {
+        if(list->numinuse > index)
+        {
+            list->items[index].dtype = t_bindata;
+            list->items[index].data.bindata = (struct getdns_bindata *) 
+             malloc(sizeof(struct getdns_bindata));
+            if(list->items[index].data.bindata != NULL)
+            {
+                list->items[index].data.bindata->size = child_bindata->size;
+                list->items[index].data.bindata->data = (uint8_t *) malloc(child_bindata->size 
+                 * sizeof(uint8_t));
+                memcpy(list->items[index].data.bindata->data, child_bindata->data, child_bindata->size);
+                retval = GETDNS_RETURN_GOOD;
+            }
+            else
+                retval = GETDNS_RETURN_GENERIC_ERROR;
+        }
+    }
+
+    return retval;
+} /* getdns_list_set_bindata */
+
+/*---------------------------------------- getdns_list_set_int */
 getdns_return_t
 getdns_list_set_int(struct getdns_list *list, size_t index, uint32_t child_uint32)
 {
@@ -218,6 +358,7 @@ getdns_list_set_int(struct getdns_list *list, size_t index, uint32_t child_uint3
         {
             list->items[index].dtype = t_int;
             list->items[index].data.n = child_uint32;
+            retval = GETDNS_RETURN_GOOD;
         }
     }
 

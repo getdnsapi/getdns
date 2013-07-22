@@ -367,6 +367,7 @@ struct getdns_list_item {
 };
 
 /**
+ * get the length of the specified list (returned in *answer)
  * @param list list of any of the supported data types
  * @param answer number of valid items in the list
  * @return GETDNS_RETURN_GOOD on success
@@ -374,7 +375,7 @@ struct getdns_list_item {
  */
 getdns_return_t getdns_list_get_length(struct getdns_list *list, size_t *answer);
 /**
- * return the enumerated data type of the indexed list item
+ * get the enumerated data type of the indexed list item
  * @param list the list from which to fetch the data type
  * @param index the item in the list from which to fetch the data type
  * @param *answer assigned the value of the data type on success
@@ -384,7 +385,9 @@ getdns_return_t getdns_list_get_length(struct getdns_list *list, size_t *answer)
 getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list, size_t index, getdns_data_type *answer);
 getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
 /**
- * retrieve the list value of the specified list item
+ * retrieve the list value of the specified list item, the caller must not free
+ * storage associated with the return value.  When the list is destroyed any
+ * list data is also free()'d - keep this in mind when using this function.
  * @param list the list from which to fetch the value
  * @param index the item in the list from which to fetch the value
  * @param **answer assigned a pointer to the list value of the indexed element
@@ -393,6 +396,17 @@ getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
 getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index, struct getdns_list **answer);
+/**
+ * retrieve the binary data value of the specified list item, the caller must not
+ * free storage associated with the return value.  When the list is destroyed any
+ * bindata data is also free()'d - keep this in mind when using this function.
+ * @param list the list from which to fetch the value
+ * @param index the item in the list from which to fetch the value
+ * @param **answer assigned a pointer to the list value of the indexed element
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
+ * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
+ */
 getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
 /**
  * retrieve the integer value of the specified list item
@@ -421,7 +435,11 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, u
  */
 struct getdns_list * getdns_list_create();
 /**
- * free memory allocated to the list
+ * free memory allocated to the list (also frees all children of the list)
+ * note that lists and bindata retrieved from the list via the getdns_list_get_*
+ * helper functions will be destroyed as well - if you fetched them previously 
+ * you MUST copy those instances BEFORE you destroy the list else
+ * unpleasant things will happen at run-time
  */
 void getdns_list_destroy(struct getdns_list *this_list);
 /**
@@ -434,6 +452,15 @@ void getdns_list_destroy(struct getdns_list *this_list);
  */
 getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t *index);
 getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, struct getdns_dict *child_dict);
+/**
+ * assign the child_list to an item in a parent list, the parent list copies 
+ * the child list and will free the copy when the list is destroyed
+ * @param list list contiaining the item to which child_list is to be assigned 
+ * @param index index of the item within list to which child_list is to be assigned
+ * @param *child_list list to assign to the item
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
+ */
 getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index, struct getdns_list *child_list);
 getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index, struct getdns_bindata *child_bindata);
 /**

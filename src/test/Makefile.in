@@ -37,7 +37,7 @@ tests_list: tests_list.o ../common/libgetdns.so testmessages.o
 # we want the library that was just built to be used in the tests
 # NOT one that is installed on the system
 tests_list.out : tests_list
-	DYLD_LIBRARY_PATH=../common; ./tests_list > tests_list.out
+	export DYLD_LIBRARY_PATH=../common; ./tests_list > tests_list.out
 
 clean:
 	rm -f *.o *.out *.res $(PROGRAMS)

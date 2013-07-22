@@ -1,6 +1,8 @@
 /**
  * \file
- * \brief unit tests for getdns_list helper routines 
+ * unit tests for getdns_list helper routines, these should be used to
+ * perform regression tests, output must be unchanged from canonical output
+ * stored with the sources
  */
 /* The MIT License (MIT)
  * Copyright (c) 2013 Verisign, Inc.
@@ -26,17 +28,173 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "testmessages.h"
 #include "getdns_core_only.h"
 
 #define TSTMSGBUF 80
 
-/*---------------------------------------- tst_setget */
+/*---------------------------------------- tst_bindatasetget */
 /**
- * test the routines that set and get values of items in the list
+ * test the list get and set routines 
  */
 void
-tst_setget(void)
+tst_bindatasetget(void)
+{
+    char   msg[TSTMSGBUF];
+    size_t index;
+    getdns_return_t    retval;
+    struct getdns_list *list = NULL;
+    struct getdns_bindata *new_bindata = NULL; 
+    struct getdns_bindata *ans_bindata = NULL; 
+
+    tstmsg_case_begin("tst_bindatasetget");
+
+    list = getdns_list_create();
+
+    /* test get function against empty list and with bogus params */
+
+    tstmsg_case_msg("getdns_list_get_bindata() empty list");
+    retval = getdns_list_get_bindata(NULL, index, &ans_bindata);
+    sprintf(msg, "getdns_list_get_bindata(NULL, index, &ans_bindata),retval = %d"
+     , retval);
+    tstmsg_case_msg(msg);
+
+    retval = getdns_list_get_bindata(list, index, NULL);
+    sprintf(msg, "getdns_list_get_bindata(list, index, NULL),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_get_bindata(list, 0, &ans_bindata)");
+    retval = getdns_list_get_bindata(list, 0, &ans_bindata);
+    sprintf(msg, "getdns_list_get_bindata,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_get_bindata(list, 1, &ans_bindata)");
+    retval = getdns_list_get_bindata(list, 1, &ans_bindata);
+    sprintf(msg, "getdns_list_get_bindata,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test set function against empty list with bogus params */
+
+    tstmsg_case_msg("getdns_list_set_bindata() empty list");
+    retval = getdns_list_set_bindata(NULL, index, NULL);
+    sprintf(msg, "getdns_list_set_bindata(NULL, index, ans_bindata),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_bindata(list, 0, ans_bindata)");
+    retval = getdns_list_set_bindata(list, 0, NULL);
+    sprintf(msg, "getdns_list_set_bindata,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_bindata(list, 1, ans_bindata)");
+    retval = getdns_list_set_bindata(list, 1, NULL);
+    sprintf(msg, "getdns_list_set_bindata,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test set and get legitimate use case */
+
+    new_bindata = (struct getdns_bindata *) malloc(sizeof(struct getdns_bindata));
+    new_bindata->size = strlen("foobar") + 1;
+    new_bindata->data = (uint8_t *) strdup("foobar");
+    new_bindata->data[strlen("foobar")] = '\0';
+
+    getdns_list_add_item(list, &index);
+    getdns_list_set_bindata(list, index, new_bindata);
+    retval = getdns_list_get_bindata(list, index, &ans_bindata);
+    sprintf(msg, "getdns_list_set/get_bindata,retval = %d, bindata->data = %d,%s"
+     , retval, (int) ans_bindata->size, (char *) ans_bindata->data);
+    tstmsg_case_msg(msg);
+
+    getdns_list_destroy(list);
+
+    tstmsg_case_end();
+
+    return;
+} /* tst_bindatasetget */
+
+/*---------------------------------------- tst_listsetget */
+/**
+ * test the list get and set routines 
+ */
+void
+tst_listsetget(void)
+{
+    char   msg[TSTMSGBUF];
+    size_t index;
+    getdns_return_t    retval;
+    uint32_t ans_int; 
+    struct getdns_list *list = NULL;
+    struct getdns_list *new_list = NULL; 
+    struct getdns_list *ans_list = NULL; 
+
+    tstmsg_case_begin("tst_listsetget");
+
+    list = getdns_list_create();
+
+    /* test get function against empty list and with bogus params */
+
+    tstmsg_case_msg("getdns_list_get_list() empty list");
+    retval = getdns_list_get_list(NULL, index, &ans_list);
+    sprintf(msg, "getdns_list_get_list(NULL, index, &ans_list),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    retval = getdns_list_get_list(list, index, NULL);
+    sprintf(msg, "getdns_list_get_list(list, index, NULL),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_get_list(list, 0, &ans_list)");
+    retval = getdns_list_get_list(list, 0, &ans_list);
+    sprintf(msg, "getdns_list_get_list,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_get_list(list, 1, &ans_list)");
+    retval = getdns_list_get_list(list, 1, &ans_list);
+    sprintf(msg, "getdns_list_get_list,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test set function against empty list with bogus params */
+
+    tstmsg_case_msg("getdns_list_set_list() empty list");
+    retval = getdns_list_set_list(NULL, index, NULL);
+    sprintf(msg, "getdns_list_set_list(NULL, index, ans_list),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_list(list, 0, ans_list)");
+    retval = getdns_list_set_list(list, 0, NULL);
+    sprintf(msg, "getdns_list_set_list,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_list(list, 1, ans_list)");
+    retval = getdns_list_set_list(list, 1, NULL);
+    sprintf(msg, "getdns_list_set_list,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test set and get legitimate use case */
+
+    new_list = getdns_list_create();
+    getdns_list_add_item(new_list, &index);
+    getdns_list_set_int(new_list, index, 42);
+
+    getdns_list_add_item(list, &index);
+    getdns_list_set_list(list, index, new_list);
+    retval = getdns_list_get_list(list, index, &ans_list);
+    getdns_list_get_int(ans_list, 0, &ans_int);
+    sprintf(msg, "getdns_list_set/get_list,retval = %d, ans[0] = %d", retval, ans_int);
+    tstmsg_case_msg(msg);
+
+    getdns_list_destroy(list);
+
+    tstmsg_case_end();
+
+    return;
+} /* tst_listsetget */
+
+/*---------------------------------------- tst_intsetget */
+/**
+ * test the int get and set routines 
+ */
+void
+tst_intsetget(void)
 {
     char   msg[TSTMSGBUF];
     size_t index;
@@ -44,11 +202,11 @@ tst_setget(void)
     getdns_return_t    retval;
     struct getdns_list *list = NULL;
 
-    tstmsg_case_begin("tst_setget");
+    tstmsg_case_begin("tst_intsetget");
 
     list = getdns_list_create();
 
-    /* test get functions against empty list and with bogus params */
+    /* test int get function against empty list and with bogus params */
 
     tstmsg_case_msg("getdns_list_get_int() empty list");
     retval = getdns_list_get_int(NULL, index, &ans_int);
@@ -66,7 +224,32 @@ tst_setget(void)
 
     tstmsg_case_msg("getdns_list_get_int(list, 1, &ans_int)");
     retval = getdns_list_get_int(list, 1, &ans_int);
+    sprintf(msg, "getdns_list_get_int,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test int set function against empty list with bogus params */
+
+    tstmsg_case_msg("getdns_list_set_int() empty list");
+    retval = getdns_list_set_int(NULL, index, ans_int);
+    sprintf(msg, "getdns_list_set_int(NULL, index, ans_int),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_int(list, 0, ans_int)");
+    retval = getdns_list_set_int(list, 0, ans_int);
     sprintf(msg, "getdns_list_set_int,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_int(list, 1, ans_int)");
+    retval = getdns_list_set_int(list, 1, ans_int);
+    sprintf(msg, "getdns_list_set_int,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test set and get legitimate use case */
+
+    getdns_list_add_item(list, &index);
+    getdns_list_set_int(list, index, 42);
+    retval = getdns_list_get_int(list, index, &ans_int);
+    sprintf(msg, "getdns_list_set/get_int,retval = %d, ans = %d", retval, ans_int);
     tstmsg_case_msg(msg);
 
     getdns_list_destroy(list);
@@ -74,7 +257,7 @@ tst_setget(void)
     tstmsg_case_end();
 
     return;
-} /* tst_setget */
+} /* tst_intsetget */
 
 /*---------------------------------------- tst_create */
 /**
@@ -153,6 +336,7 @@ tst_create(void)
     return;
 } /* tst_create */
 
+/*---------------------------------------- main */
 /**
  *  runs unit tests against list management routines
  */
@@ -163,7 +347,11 @@ main(int argc, char *argv[])
 
     tst_create();
 
-    tst_setget();
+    tst_intsetget();
+
+    tst_listsetget();
+
+    tst_bindatasetget();
 
     tstmsg_prog_end();
 

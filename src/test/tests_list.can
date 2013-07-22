@@ -11,13 +11,36 @@ TESTCASE tests_list:tst_create BEGIN
   tests_list:tst_create: NUll, NULL, retval = 304
   tests_list:tst_create: list, NULL, retval = 304
 TESTCASE tests_list:tst_create END
-TESTCASE tests_list:tst_setget BEGIN
-  tests_list:tst_setget: getdns_list_get_int() empty list
-  tests_list:tst_setget: getdns_list_get_int(NULL, index, &ans_int),retval = 304
-  tests_list:tst_setget: getdns_list_get_int(list, index, NULL),retval = 304
-  tests_list:tst_setget: getdns_list_get_int(list, 0, &ans_int)
-  tests_list:tst_setget: getdns_list_get_int,retval = 304
-  tests_list:tst_setget: getdns_list_get_int(list, 1, &ans_int)
-  tests_list:tst_setget: getdns_list_set_int,retval = 304
-TESTCASE tests_list:tst_setget END
+TESTCASE tests_list:tst_intsetget BEGIN
+  tests_list:tst_intsetget: getdns_list_get_int() empty list
+  tests_list:tst_intsetget: getdns_list_get_int(NULL, index, &ans_int),retval = 304
+  tests_list:tst_intsetget: getdns_list_get_int(list, index, NULL),retval = 304
+  tests_list:tst_intsetget: getdns_list_get_int(list, 0, &ans_int)
+  tests_list:tst_intsetget: getdns_list_get_int,retval = 304
+  tests_list:tst_intsetget: getdns_list_get_int(list, 1, &ans_int)
+  tests_list:tst_intsetget: getdns_list_get_int,retval = 304
+  tests_list:tst_intsetget: getdns_list_set_int() empty list
+  tests_list:tst_intsetget: getdns_list_set_int(NULL, index, ans_int),retval = 304
+  tests_list:tst_intsetget: getdns_list_set_int(list, 0, ans_int)
+  tests_list:tst_intsetget: getdns_list_set_int,retval = 304
+  tests_list:tst_intsetget: getdns_list_set_int(list, 1, ans_int)
+  tests_list:tst_intsetget: getdns_list_set_int,retval = 304
+  tests_list:tst_intsetget: getdns_list_set/get_int,retval = 0, ans = 42
+TESTCASE tests_list:tst_intsetget END
+TESTCASE tests_list:tst_listsetget BEGIN
+  tests_list:tst_listsetget: getdns_list_get_list() empty list
+  tests_list:tst_listsetget: getdns_list_get_list(NULL, index, &ans_list),retval = 304
+  tests_list:tst_listsetget: getdns_list_get_list(list, index, NULL),retval = 304
+  tests_list:tst_listsetget: getdns_list_get_list(list, 0, &ans_list)
+  tests_list:tst_listsetget: getdns_list_get_list,retval = 304
+  tests_list:tst_listsetget: getdns_list_get_int(list, 1, &ans_list)
+  tests_list:tst_listsetget: getdns_list_get_list,retval = 304
+  tests_list:tst_listsetget: getdns_list_set_list() empty list
+  tests_list:tst_listsetget: getdns_list_set_list(NULL, index, ans_list),retval = 304
+  tests_list:tst_listsetget: getdns_list_set_list(list, 0, ans_list)
+  tests_list:tst_listsetget: getdns_list_set_list,retval = 304
+  tests_list:tst_listsetget: getdns_list_set_list(list, 1, ans_list)
+  tests_list:tst_listsetget: getdns_list_set_list,retval = 304
+  tests_list:tst_listsetget: getdns_list_set/get_list,retval = 0, ans[0] = 42
+TESTCASE tests_list:tst_listsetget END
 TESTPROG tests_list END
