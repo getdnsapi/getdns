@@ -5,9 +5,8 @@
 
 AC_PREREQ([2.68])
 AC_INIT([getdns], [0.320], [melinda.shore@nomountain.net])
-AM_INIT_AUTOMAKE([getkey], [0.320])
+# AM_INIT_AUTOMAKE([getkey], [0.320])
 AC_CONFIG_SRCDIR([configure.ac])
-AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CC
@@ -28,5 +27,5 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile src/common/Makefile src/test/Makefile])
 AC_OUTPUT

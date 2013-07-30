@@ -1,10 +1,6 @@
 /**
- *
- * /brief getdns core functions
- * 
- * This is the meat of the API
- * Originally taken from the getdns API description pseudo implementation.
- *
+ * \file
+ * \brief display messages to support unit testing
  */
 /* The MIT License (MIT)
  * Copyright (c) 2013 Verisign, Inc.
@@ -28,51 +24,35 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_libevent.h>
+#ifndef TESTMESSAGES_H
+#define TESTMESSAGES_H 1
 
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
+/**
+ * call at the start of a test program to display start message
+ */
+void tstmsg_prog_begin(char *prognm);
+/**
+ * call at the end of a test program to display end message
+ */
+void tstmsg_prog_end();
 
-char *
-getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
-)
-{ UNUSED_PARAM(name_from_dns_response); return NULL; }
+/**
+ * call at the start of a test case (after test_prog_begin)
+ * to display case start message
+ */
+void tstmsg_case_begin(char *casenm);
+/**
+ * call at the end of a test case (after test_prog_begin/test_case_begin)
+ * to display case end message
+ */
+void tstmsg_case_end();
 
-char *
-getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
-)
-{ UNUSED_PARAM(fqdn_as_string); return NULL; }
+/**
+ * call to display message regarding the current test case
+ * to display case end message
+ */
+void tstmsg_case_msg(char *msg);
 
-char *
-getdns_convert_ulabel_to_alabel(
-	char  *ulabel
-)
-{ UNUSED_PARAM(ulabel); return NULL; }
+#endif
 
-char *
-getdns_convert_alabel_to_ulabel(
-	char  *alabel
-)
-{ UNUSED_PARAM(alabel); return NULL; }
-
-char *
-getdns_display_ip_address(
-  struct getdns_bindata    *bindata_of_ipv4_or_ipv6_address
-)
-{ UNUSED_PARAM(bindata_of_ipv4_or_ipv6_address); return NULL; }
-
-getdns_return_t
-getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
-{
-    getdns_return_t retval = GETDNS_RETURN_GOOD;
-
-    /* TODO: make this produce an actual string */
-
-    snprintf(buf, buflen, "%d", retval);
-
-    return retval;
-} /* getdns_strerror */
-
-/* getdns_core_only.c */
+/* testmessages.h */

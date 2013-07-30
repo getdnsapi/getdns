@@ -15,8 +15,8 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=gcc
-CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -std=c99
-LDFLAGS=-L. 
+CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -I /usr/local/include -std=c99
+LDFLAGS=-L. -L/usr/local/lib
 LDLIBS=-levent_core -lldns -lgetdns
 PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
 
@@ -28,10 +28,14 @@ PROGRAMS=example-simple-answers example-tree example-all-functions example-synch
 all: libgetdns example-simple-answers example-tree example-all-functions example-synchronous
 
 libgetdns: getdns_sync.o getdns_context.o getdns_list.o getdns_dict.o getdns_address.o getdns_convert.o getdns_general.o getdns_hostname.o getdns_service.o getdns_validate_dnssec.o
-	$(CC) $(CFLAGS) -shared -o libgetdns.so $^
+	$(CC) $(CFLAGS) -shared -o libgetdns.so $?
 
 clean:
 	rm -f *.o $(PROGRAMS) libgetdns.so
+
+distclean : clean
+	rm -f Makefile config.status config.log
+	rm -Rf autom4te.cache
 
 $(distdir): FORCE
 	mkdir -p $(distdir)/src

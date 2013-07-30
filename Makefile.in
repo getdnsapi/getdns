@@ -1,22 +1,33 @@
 #
-# Makefile.  Generated from Makefile.in by configure.
+# @configure_input@
 #
 
 
-package = getdns
-version = 0.320
-tarname	= getdns
+package = @PACKAGE_NAME@
+version = @PACKAGE_VERSION@
+tarname	= @PACKAGE_TARNAME@
 distdir	= $(tarname)-$(version)
 
-prefix = /usr/local
-exec_prefix = ${prefix}
-bindir = ${exec_prefix}/bin
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
 
-srcdir = .
+srcdir = @srcdir@
+VPATH = @srcdir@
 
+default:
+	cd src && $(MAKE) $@
 
-all clean getdns:
-	cd common && $(MAKE) $@
+all : default 
+
+clean:
+	cd src && $(MAKE) $@
+	rm -f *.o
+
+distclean:
+	cd src && $(MAKE) $@
+	rm -f config.log config.status Makefile
+	rm -fR autom4te.cache
 
 $(distdir): FORCE
 	mkdir -p $(distdir)/src
@@ -34,8 +45,8 @@ distcheck: $(distdir).tar.gz
 	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst uninstall
 	@remaining="`find $${PWD}/$(distdir)/_inst -type f | wc -l`"; \
 	if test "$${remaining}" -ne	0; then
-	  echo "@@@	$${remaining} file(s) remaining	in stage directory!"; \
-	  exit 1; \
+	echo "@@@	$${remaining} file(s) remaining	in stage directory!"; \
+	exit 1; \
 	fi
 	cd $(distdir) && $(MAKE) clean
 	rm -rf $(distdir)
@@ -43,8 +54,8 @@ distcheck: $(distdir).tar.gz
 
 Makefile: Makefile.in config.status
 	./config.status $@
-
+ 
 configure.status: configure
 	./config.status --recheck
 
-.PHONY: all clean
+.PHONY: all distclean clean default

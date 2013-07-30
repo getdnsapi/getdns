@@ -1,0 +1,22 @@
+The programs in this directory are intended to provide a regression
+test suite - we should be adding tests here as we build the package.
+
+When building unit tests one approach that makes regression testing
+easy is to generate canonical output and maintain that with the
+code.  Changes to the code should produce output that matches the
+canonical output, if it doesn't then the developer needs to look at
+the differences to determine whether something broke or is fixed.  Once
+the new output is verified it can replace the canonical output.
+
+A typical flow might be illustrated via tests_list:
+    - build tests_list (an executable linked against the library)
+    - run the regression tests
+        ./tests_list > tests_list.out
+    - compare output to canonical output
+        diff tests_list.out tests_list.can > tests_list.res
+    - if there are any diffs then a change affected the output
+    - verify the new output and copy it to tests_list.can
+    - commit the new canonical output to the repository
+
+Some of the tests that remain to be implemented:
+- memory leak testing integrated into the test progs

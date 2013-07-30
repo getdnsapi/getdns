@@ -16,7 +16,7 @@ The goals of this implementation of the getdns API are:
 * Include examples and tests as part of the build
 * Document code using doxygen
 * Leverage github as much as possible for project coordination
-* Coding style/standards follow the [BSD coding style](ftp://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/share/misc/style)
+* Coding style/standards follow the BSD coding style <ftp://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/share/misc/style>
 * Follow the git flow branching model described at <http://nvie.com/posts/a-successful-git-branching-model/>
 ** the master branch is always in a production ready state
 ** the develop branch contains the latest development changes which are merged from develop into master once they are considered production ready
@@ -27,10 +27,10 @@ Non-goals (things we will not be doing) include:
 
 Contributors
 ============
-Neel Goyal, Verisign, Inc.
-Allison Mankin, Verisign, Inc.
-Melinda Shore, No Mountain Software LLC
-Glen Wiley, Verisign, Inc.
+* Neel Goyal, Verisign, Inc.
+* Allison Mankin, Verisign, Inc.
+* Melinda Shore, No Mountain Software LLC
+* Glen Wiley, Verisign, Inc.
 
 External Dependencies
 =====================
@@ -41,6 +41,8 @@ The project relies on [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/)
 Although [libevent](http://libevent.org) is used initially to implement the asynchronous model, future work may include a move to other mechanisms (epoll based etc.).  Version 2.0.21 stable
 
 Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
+
+GNU autoconf is used to generate the configure script (and consequently the Makefiles)
 
 Current State of the Implementation
 ===================================

@@ -1,6 +1,7 @@
 #
 # @configure_input@
 #
+# TODO: OSX, fix DYLD_LIBRARY_PATH problem
 
 package = @PACKAGE_NAME@
 version = @PACKAGE_VERSION@
@@ -15,21 +16,41 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=gcc
-CFLAGS=-g -I. -std=c99
-LDFLAGS=-L. 
-LDLIBS=-levent_core -lldns -lgetdns
-PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
+CFLAGS=-Wall -g -I./ -I../common -I$(srcdir)/ -std=c99
+LDFLAGS=-L../common 
+LDLIBS=-lgetdns
+PROGRAMS=tests_list tests_dict
 
-all: libgetdns example-simple-answers example-tree example-all-functions example-synchronous
+.SUFFIXES: .c .o .a .lo .h .can .out .res
 
-getdns_core_only.o: getdns_core_only.c
-	$(CC) -c -Wall -fPIC $(CFLAGS) $^
+.c.o:
+	$(CC) $(CFLAGS) -c $< -o $@
 
-libgetdns: getdns_core_only.c
-	$(CC) $(CFLAGS) -shared -o libgetdns.so $^
+.out.res:
+	diff $< $(basename $<).can > $@
+
+all: tests_list tests_list.res tests_dict tests_dict.res
+
+tests_list: tests_list.o ../common/libgetdns.so testmessages.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^
+
+tests_dict: tests_dict.o ../common/libgetdns.so testmessages.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^
+
+# we want the library that was just built to be used in the tests
+# NOT one that is installed on the system
+tests_list.out : tests_list
+	export DYLD_LIBRARY_PATH=../common; ./tests_list > tests_list.out
+
+tests_dict.out : tests_dict
+	export DYLD_LIBRARY_PATH=../common; ./tests_dict > tests_dict.out
 
 clean:
-	rm -f *.o $(PROGRAMS) libgetdns.so
+	rm -f *.o *.out *.res $(PROGRAMS)
+
+distclean : clean
+	rm -f Makefile config.status config.log
+	rm -Rf autom4te.cache
 
 $(distdir): FORCE
 	mkdir -p $(distdir)/src
@@ -60,5 +81,5 @@ Makefile: Makefile.in ../config.status
 configure.status: configure
 	cd .. && ./config.status --recheck
 
-.PHONY: clean
+.PHONY: all clean distclean
 
