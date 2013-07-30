@@ -27,5 +27,5 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-AC_CONFIG_FILES([Makefile common/Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile src/common/Makefile src/test/Makefile])
 AC_OUTPUT

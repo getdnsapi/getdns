@@ -3628,7 +3628,7 @@ _ACEOF
   esac
 
 
-ac_config_files="$ac_config_files Makefile common/Makefile test/Makefile"
+ac_config_files="$ac_config_files Makefile src/common/Makefile src/test/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -4336,8 +4336,8 @@ for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
-    "common/Makefile") CONFIG_FILES="$CONFIG_FILES common/Makefile" ;;
-    "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
+    "src/common/Makefile") CONFIG_FILES="$CONFIG_FILES src/common/Makefile" ;;
+    "src/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/test/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
