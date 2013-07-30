@@ -3,3 +3,9 @@ Makefile
 aclocal.m4
 depcomp
 .deps/
+config.status
+example-all-functions
+example-simple-answers
+example-synchronous
+example-tree
+
