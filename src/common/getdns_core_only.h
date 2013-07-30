@@ -327,7 +327,31 @@ typedef struct getdns_bindata {
     size_t size;
     uint8_t *data;
 } getdns_bindata;
-typedef struct getdns_dict getdns_dict;
+
+/**
+ * this structure represents a single item in a dictionary type
+ */
+struct getdns_dict_item {
+    char *key;
+    getdns_data_type dtype;
+    union {
+        struct getdns_list    *list;
+        struct getdns_dict    *dict;
+        int                   n;
+        struct getdns_bindata *bindata;
+    } data;
+};
+
+/**
+ * getdns dictionary data type
+ * Use helper functions getdns_dict_* to manipulate and iterate dictionaries
+ * dict is implemented using the t*() functions for manipulating binary search
+ * trees in the std library.  The internal implementation may change so the
+ * application should stick to the helper functions.
+ */
+typedef struct getdns_dict {
+    void *rootp;
+} getdns_dict;
 
 /**
  * translate an error code to a string value, not in the original api description
@@ -355,6 +379,10 @@ typedef struct getdns_list {
     int numinuse;
     struct getdns_list_item *items;
 } getdns_list;
+
+/**
+ * this structure represents a single item in a list
+ */
 struct getdns_list_item {
     int inuse;
     getdns_data_type dtype;
@@ -419,15 +447,63 @@ getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t in
  */
 getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index, uint32_t *answer);
 
-/* Dicts: get the list of names, get the data_type of the
-   value at a given name, and get the data at a given name */
-getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict, struct getdns_list **answer);
+/**
+ * fetch a list of names from the dictionary, this list must be freed by the caller
+ * via a call to getdns_list_destroy
+ * @param dict dictionary from which to produce the list of names
+ * @param **answer a pointer to the new list will be assigned to *answer
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid
+ */
+getdns_return_t getdns_dict_get_names(struct getdns_dict *dict, struct getdns_list **answer);
+/**
+ * fetch the data type for the data associated with the specified name
+ * @param dict dictionary from which to fetch the data type
+ * @param name a name/key value to look up in the dictionary
+ * @param *answer data type will be stored at this address
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
 getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *name, getdns_data_type *answer);
+/**
+ * fetch the dictionary associated with the specified name, the dictionary should
+ * be free()'d by the caller via getdns_dict_destroy()
+ * @param dict dictionary from which to fetch the dictionary
+ * @param name a name/key value to look up in the dictionary
+ * @param **answer a copy of the dictionary will be stored at this address
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
 getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer);
+/**
+ * fetch the list associated with the specified name, the list should be free()'d
+ * by the caller via getdns_list_destroy()
+ * @param dict dictionary from which to fetch the list
+ * @param name a name/key value to look up in the dictionary
+ * @param **answer a copy of the list will be stored at this address
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
 getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, struct getdns_list **answer);
+/**
+ * fetch the bindata associated with the specified name, the bindata should be 
+ * free()'d by the caller 
+ * @param dict dictionary from which to fetch the bindata
+ * @param name a name/key value to look up in the dictionary
+ * @param **answer a copy of the bindata will be stored at this address
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
 getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer);
+/**
+ * fetch the integer value associated with the specified name
+ * @param dict dictionary from which to fetch the integer
+ * @param name a name/key value to look up in the dictionary
+ * @param *answer the integer will be stored at this address
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
 getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, uint32_t *answer);
-
 
 /**
  * create a new list with no items
@@ -462,6 +538,15 @@ getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, str
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
 getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index, struct getdns_list *child_list);
+/**
+ * assign the child_bindata to an item in a parent list, the parent list copies 
+ * the child data and will free the copy when the list is destroyed
+ * @param list list contiaining the item to which child_list is to be assigned 
+ * @param index index of the item within list to which child_list is to be assigned
+ * @param *child_bindata data to assign to the item
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
+ */
 getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index, struct getdns_bindata *child_bindata);
 /**
  * set the integrer value of the indexed item (zero based index)
@@ -470,9 +555,20 @@ getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index, 
  */
 getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index, uint32_t child_uint32);
 
-/* Dicts: create, destroy, and set the data at a given name */
-struct getdns_dict * getdns_dict_create();
+/**
+ * create a new dictionary with no items
+ * @return pointer to an allocated dictionary, NULL if insufficient memory
+ */
+struct getdns_dict *getdns_dict_create();
+
+/**
+ * destroy a dictionary and all items within that dictionary
+ * be aware that if you have fetched any data from the dictionary it will
+ * no longer be available (you are likely to experience bad things if you try)
+ * @return pointer to an allocated dictionary, NULL if insufficient memory
+ */
 void getdns_dict_destroy(struct getdns_dict *this_dict);
+
 getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict);
 getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list);
 getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata);

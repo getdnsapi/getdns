@@ -1,5 +1,5 @@
 #
-# Makefile.  Generated from Makefile.in by configure.
+# common/Makefile.  Generated from Makefile.in by configure.
 #
 
 package = getdns

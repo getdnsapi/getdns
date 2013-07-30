@@ -19,7 +19,7 @@ CC=gcc
 CFLAGS=-Wall -g -I./ -I../common -I$(srcdir)/ -std=c99
 LDFLAGS=-L../common 
 LDLIBS=-lgetdns
-PROGRAMS=tests_list
+PROGRAMS=tests_list tests_dict
 
 .SUFFIXES: .c .o .a .lo .h .can .out .res
 
@@ -29,15 +29,21 @@ PROGRAMS=tests_list
 .out.res:
 	diff $< $(basename $<).can > $@
 
-all: tests_list tests_list.res
+all: tests_list tests_list.res tests_dict tests_dict.res
 
 tests_list: tests_list.o ../common/libgetdns.so testmessages.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^
+
+tests_dict: tests_dict.o ../common/libgetdns.so testmessages.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $^
 
 # we want the library that was just built to be used in the tests
 # NOT one that is installed on the system
 tests_list.out : tests_list
 	export DYLD_LIBRARY_PATH=../common; ./tests_list > tests_list.out
+
+tests_dict.out : tests_dict
+	export DYLD_LIBRARY_PATH=../common; ./tests_dict > tests_dict.out
 
 clean:
 	rm -f *.o *.out *.res $(PROGRAMS)
