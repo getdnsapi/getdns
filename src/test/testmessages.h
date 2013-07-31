@@ -50,6 +50,7 @@ void tstmsg_case_end();
 /**
  * call to display message regarding the current test case
  * to display case end message
+ * TODO: add macro to automatically output source file line
  */
 void tstmsg_case_msg(char *msg);
 

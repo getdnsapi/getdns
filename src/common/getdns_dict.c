@@ -33,8 +33,11 @@
 #include <string.h>
 #include <getdns_libevent.h>
 
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
+/* TODO: change this to make the walk safe for reentrant/multi-thread calls */
+struct getdns_list *walkresultlist;
+struct getdns_dict *walkresultdict;
+char *walkresultchar;
+int  walkresultcharlen;
 
 /*---------------------------------------- getdns_dict_cmp */
 /**
@@ -104,27 +107,91 @@ getdns_dict_find(struct getdns_dict *dict, char *key, bool addifnotfnd)
             ret = *item;
     }
 
-    return *item;
-} /* getdns_dict_set_int */
+    return ret;
+} /* getdns_dict_find */
 
-getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict, struct getdns_list **answer)
-{ UNUSED_PARAM(this_dict); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
+/*---------------------------------------- getdns_dict_visit */
+/**
+ * private function called by the tree walk function invoked by getdns_dict_get_names
+ * it is called as each node is visited.  twalk() calls 3x for each node and passes order
+ * to tell us whether it is a pre/in/post order
+ */
+void
+getdns_dict_visit(const void *node, VISIT order, int level)
+{
+    struct getdns_dict_item *item;
+    size_t index;
+
+    item = *(struct getdns_dict_item **) node;
+    /* postorder is mis-named - it results in in-order traversal */
+    if(order == postorder || order == leaf)
+    {
+        if(getdns_list_add_item(walkresultlist, &index) == GETDNS_RETURN_GOOD)
+        {
+            switch(item->dtype)
+            {
+                case t_bindata:
+                    getdns_list_set_bindata(walkresultlist, index, item->data.bindata);
+                    break;
+
+                case t_dict:
+                    getdns_list_set_dict(walkresultlist, index, item->data.dict);
+                    break;
+
+                case t_int:
+                    getdns_list_set_int(walkresultlist, index, item->data.n);
+                    break;
+
+                case t_list:
+                    getdns_list_set_list(walkresultlist, index, item->data.list);
+                    break;
+
+                case t_invalid:
+                default:
+                    // TODO: this is a fault of some kind, for now ignore it
+                    break;
+            }
+        }
+    }
+
+    return;
+} /* getdns_dict_visit */
+
+/*---------------------------------------- getdns_dict_get_names
+ TODO: this needs to be made thread safe by creating a thread specific list
+ the binary search tree implementation in the 
+*/
+getdns_return_t
+getdns_dict_get_names(struct getdns_dict *dict, struct getdns_list **answer)
+{
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    if(dict != NULL && answer != NULL)
+    {
+        *answer = getdns_list_create();
+        walkresultlist = *answer;
+
+        twalk(dict->rootp, getdns_dict_visit);
+
+        retval = GETDNS_RETURN_GOOD;
+    }
+
+    return retval;
+} /* getdns_dict_get_names */
 
 /*---------------------------------------- getdns_dict_get_data_type */
 getdns_return_t
 getdns_dict_get_data_type(struct getdns_dict *dict, char *name, getdns_data_type *answer)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
+    struct getdns_dict_item *item;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
     if(dict != NULL && name != NULL && answer != NULL)
     {
-        keyitem.key = name;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(item != NULL && *item != NULL)
+        item = getdns_dict_find(dict, name, false);
+        if(item != NULL)
         {
-            *answer = (*item)->dtype;
+            *answer = item->dtype;
             retval = GETDNS_RETURN_GOOD;
         }
     }
@@ -136,21 +203,19 @@ getdns_dict_get_data_type(struct getdns_dict *dict, char *name, getdns_data_type
 getdns_return_t
 getdns_dict_get_dict(struct getdns_dict *dict, char *name, struct getdns_dict **answer)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
+    struct getdns_dict_item *item;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
     if(dict != NULL && name != NULL && answer != NULL)
     {
-        keyitem.key = name;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(item != NULL && *item != NULL)
+        item = getdns_dict_find(dict, name, false);
+        if(item != NULL)
         {
-            if((*item)->dtype != t_dict)
+            if(item->dtype != t_dict)
                 retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
             else
             {
-                *answer = (*item)->data.dict;
+                *answer = item->data.dict;
                 retval = GETDNS_RETURN_GOOD;
             }
         }
@@ -163,21 +228,19 @@ getdns_dict_get_dict(struct getdns_dict *dict, char *name, struct getdns_dict **
 getdns_return_t
 getdns_dict_get_list(struct getdns_dict *dict, char *name, struct getdns_list **answer)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
+    struct getdns_dict_item *item;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
     if(dict != NULL && name != NULL && answer != NULL)
     {
-        keyitem.key = name;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(item != NULL && *item != NULL)
+        item = getdns_dict_find(dict, name, false);
+        if(item != NULL)
         {
-            if((*item)->dtype != t_list)
+            if(item->dtype != t_list)
                 retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
             else
             {
-                *answer = (*item)->data.list;
+                *answer = item->data.list;
                 retval = GETDNS_RETURN_GOOD;
             }
         }
@@ -190,21 +253,19 @@ getdns_dict_get_list(struct getdns_dict *dict, char *name, struct getdns_list **
 getdns_return_t
 getdns_dict_get_bindata(struct getdns_dict *dict, char *name, struct getdns_bindata **answer)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
+    struct getdns_dict_item *item;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
     if(dict != NULL && name != NULL && answer != NULL)
     {
-        keyitem.key = name;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(item != NULL && *item != NULL)
+        item = getdns_dict_find(dict, name, false);
+        if(item != NULL)
         {
-            if((*item)->dtype != t_bindata)
+            if(item->dtype != t_bindata)
                 retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
             else
             {
-                *answer = (*item)->data.bindata;
+                *answer = item->data.bindata;
                 retval = GETDNS_RETURN_GOOD;
             }
         }
@@ -217,21 +278,19 @@ getdns_dict_get_bindata(struct getdns_dict *dict, char *name, struct getdns_bind
 getdns_return_t
 getdns_dict_get_int(struct getdns_dict *dict, char *name, uint32_t *answer)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
+    struct getdns_dict_item *item;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
     if(dict != NULL && name != NULL && answer != NULL)
     {
-        keyitem.key = name;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(item != NULL && *item != NULL)
+        item = getdns_dict_find(dict, name, false);
+        if(item != NULL)
         {
-            if((*item)->dtype != t_int)
+            if(item->dtype != t_int)
                 retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
             else
             {
-                *answer = (*item)->data.n;
+                *answer = item->data.n;
                 retval = GETDNS_RETURN_GOOD;
             }
         }
@@ -252,24 +311,75 @@ getdns_dict_create()
     return dict;
 } /* getdns_dict_create */
 
+/*---------------------------------------- getdns_dict_visit_copyitem */
+/**
+ * private function called by getdns_dict_copy() through the tree walk function 
+ * is called as each node is visited.  twalk() calls 3x for each node and passes order
+ * to tell us whether it is a pre/in/post order. We use this to copy the dictionary one item at
+ * a time - this could be sped up
+ */
+void
+getdns_dict_visit_copyitem(const void *node, VISIT order, int level)
+{
+    struct getdns_dict_item *item;
+
+    item = *(struct getdns_dict_item **) node;
+    /* postorder is mis-named - it results in in-order traversal */
+    if(order == postorder || order == leaf)
+    {
+        switch(item->dtype)
+        {
+            case t_bindata:
+                getdns_dict_set_bindata(walkresultdict, item->key, item->data.bindata);
+                break;
+
+            case t_dict:
+                getdns_dict_set_dict(walkresultdict, item->key, item->data.dict);
+                break;
+
+            case t_int:
+                getdns_dict_set_int(walkresultdict, item->key, item->data.n);
+                break;
+
+            case t_list:
+                getdns_dict_set_list(walkresultdict, item->key, item->data.list);
+                break;
+
+            case t_invalid:
+            default:
+                // TODO: this is a fault of some kind, for now ignore it
+                break;
+        }
+    }
+
+    return;
+} /* getdns_dict_visit_copyitem */
+
 /*---------------------------------------- getdns_dict_copy */
 /**
- * private function used to make a copy of a dict structure
+ * private function used to make a copy of a dict structure, the caller is responsible
+ * for freeing storage allocated to returned value
+ * NOTE: not thread safe - this needs to be fixed to be thread safe
  * @param srcdict the dictionary structure to copy
  * @return the address of the copy of the dictionary structure on success
  * @return NULL on error (out of memory, invalid srcdict)
  */
-struct getdns_dict *
-getdns_dict_copy(struct getdns_dict *srcdict)
+getdns_return_t
+getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
 {
-    struct getdns_dict *newdict = NULL;
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-    if(srcdict != NULL)
+    if(srcdict != NULL && dstdict != NULL)
     {
-        
+        *dstdict = getdns_dict_create();
+        walkresultdict = *dstdict;
+
+        twalk(srcdict->rootp, getdns_dict_visit_copyitem);
+
+        retval = GETDNS_RETURN_GOOD;
     }
 
-    return newdict;
+    return retval;
 } /* getdns_dict_copy */
 
 /*---------------------------------------- getdns_dict_item_free */
@@ -331,37 +441,85 @@ getdns_dict_destroy(struct getdns_dict *dict)
 getdns_return_t
 getdns_dict_set_dict(struct getdns_dict *dict, char *name, struct getdns_dict *child_dict)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
+    struct getdns_dict_item *item;
+    struct getdns_dict      *newdict;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-    if(dict != NULL && name != NULL && child_dict != NULL)
+    if(dict != NULL && name != NULL)
     {
-        /* we try to find it first, if we do then clear the existing data */
-        keyitem.key = name;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(item != NULL && *item != NULL)
+        item = getdns_dict_find(dict, name, true);
+        if(item != NULL)
         {
-            getdns_dict_item_free(*item);
-        }
-        else
-        {
-            /* tsearch will add a node automatically for us */
-            item = tsearch(&keyitem, &(dict->rootp), getdns_dict_cmp);
-            (*item)->key   = strdup(keyitem.key);
-            (*item)->dtype = t_dict;
-            (*item)->data.dict = getdns_dict_copy(child_dict);
+            retval = getdns_dict_copy(child_dict, &newdict);
+            if(retval == GETDNS_RETURN_GOOD)
+            {
+                item->dtype     = t_dict;
+                item->data.dict = newdict;
+            }
+            else
+                item->dtype = t_invalid;
         }
     }
 
     return retval;
 } /* getdns_dict_set_dict */
 
-getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list)
-{ UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_list); return GETDNS_RETURN_GOOD; }
+/*---------------------------------------- getdns_dict_set_list */
+getdns_return_t
+getdns_dict_set_list(struct getdns_dict *dict, char *name, struct getdns_list *child_list)
+{ 
+    struct getdns_dict_item *item;
+    struct getdns_list      *newlist;
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata)
-{ UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_bindata); return GETDNS_RETURN_GOOD; }
+    if(dict != NULL && name != NULL)
+    {
+        item = getdns_dict_find(dict, name, true);
+        if(item != NULL)
+        {
+            retval = getdns_list_copy(child_list, &newlist);
+            if(retval == GETDNS_RETURN_GOOD)
+            {
+                item->dtype     = t_list;
+                item->data.list = newlist;
+            }
+            else
+                item->dtype = t_invalid;
+        }
+    }
+
+    return retval;
+} /* getdns_dict_set_list */
+
+/*---------------------------------------- getdns_dict_set_bindata */
+getdns_return_t
+getdns_dict_set_bindata(struct getdns_dict *dict, char *name, struct getdns_bindata *child_bindata)
+{ 
+    struct getdns_dict_item *item;
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    if(dict != NULL && name != NULL && child_bindata != NULL)
+    {
+        item = getdns_dict_find(dict, name, true);
+        if(item != NULL)
+        {
+            item->dtype  = t_bindata;
+            item->data.bindata = (struct getdns_bindata *) malloc(sizeof(struct getdns_bindata));
+            if(item->data.bindata != NULL)
+            {
+                item->data.bindata->data = (void *) malloc(item->data.bindata->size);
+                if(item->data.bindata->data != NULL)
+                {
+                    item->data.bindata->size =  child_bindata->size;
+                    memcpy(item->data.bindata->data, child_bindata->data, child_bindata->size);
+                    retval = GETDNS_RETURN_GOOD;
+                }
+            }
+        }
+    }
+
+    return retval;
+} /* getdns_dict_set_bindata */
 
 /*---------------------------------------- getdns_dict_set_int */
 getdns_return_t
@@ -370,21 +528,106 @@ getdns_dict_set_int(struct getdns_dict *dict, char *name, uint32_t child_uint32)
     struct getdns_dict_item *item;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-    item = getdns_dict_find(dict, name, true);
     if(dict != NULL && name != NULL)
     {
-        item->dtype  = t_int;
-        item->data.n = child_uint32;
-        retval = GETDNS_RETURN_GOOD;
+        item = getdns_dict_find(dict, name, true);
+        if(item != NULL)
+        {
+            item->dtype  = t_int;
+            item->data.n = child_uint32;
+            retval = GETDNS_RETURN_GOOD;
+        }
     }
 
     return retval;
 } /* getdns_dict_set_int */
 
+/*---------------------------------------- getdns_dict_visit_print */
+/**
+ * private function called by the tree walk function invoked by getdns_pretty_print_dict
+ * it is called as each node is visited.  twalk() calls 3x for each node and passes order
+ * to tell us whether it is a pre/in/post order
+ * TODO: need to handle nested non-trivial data types
+ */
+void
+getdns_dict_visit_print(const void *node, VISIT order, int level)
+{
+    struct getdns_dict_item *item;
+    int    newlen;
+    char   *dtypestr = NULL;
+    char   *valstr   = NULL;
+    char   *itemstr  = NULL;
+
+    item = *(struct getdns_dict_item **) node;
+    /* postorder is mis-named - it results in in-order traversal */
+    if(order == postorder || order == leaf)
+    {
+        switch(item->dtype)
+        {
+            case t_bindata:
+                dtypestr = "bindata";
+                valstr = strdup("NOT IMPLEMENTED");
+                break;
+
+            case t_dict:
+                dtypestr = "dict";
+                valstr = strdup("NOT IMPLEMENTED");
+                break;
+
+            case t_int:
+                dtypestr = "int";
+                asprintf(&valstr, "%d", item->data.n);
+                break;
+
+            case t_list:
+                dtypestr = "list";
+                valstr = strdup("NOT IMPLEMENTED");
+                break;
+
+            case t_invalid:
+            default:
+                dtypestr = "invalid";
+                valstr = strdup("");
+                break;
+        }
+
+        newlen = asprintf(&itemstr, "key=\"%s\", type=\"%s\", value=\"%s\"\n", item->key, dtypestr, valstr);
+        if(newlen != -1)
+        {
+            walkresultchar = (char *) realloc(walkresultchar, walkresultcharlen + newlen + 1);
+            memcpy(walkresultchar + walkresultcharlen, itemstr, newlen);
+            walkresultcharlen += newlen;
+            walkresultchar[walkresultcharlen] = '\0';
+        }
+        // else
+            // TODO: this is a fault - do something
+
+        free(valstr);
+    }
+
+    return;
+} /* getdns_dict_visit_print */
+
+/*---------------------------------------- getdns_pretty_print_dict */
 char *
-getdns_pretty_print_dict(
-	struct getdns_dict     *some_dict
-)
-{ UNUSED_PARAM(some_dict); return NULL; }
+getdns_pretty_print_dict(struct getdns_dict *dict)
+{
+    char *retval = NULL;
+
+    walkresultcharlen = 0;
+    walkresultchar    = NULL;
+
+    if(dict != NULL && dict->rootp != NULL)
+    {
+        twalk(dict->rootp, getdns_dict_visit_print);
+        if(walkresultcharlen > 0)
+        {
+            retval = strdup(walkresultchar);
+            free(walkresultchar);
+        }
+    }
+
+    return retval;
+} /* getdns_pretty_print_dict */
 
 /* getdns_dict.c */

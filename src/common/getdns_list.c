@@ -32,10 +32,7 @@
 #include <getdns_libevent.h>
 #include "getdns_core_only.h"
 
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
-
-
+/*---------------------------------------- getdns_list_get_length */
 getdns_return_t
 getdns_list_get_length(struct getdns_list *list, size_t *answer)
 {
@@ -64,8 +61,25 @@ getdns_list_get_data_type(struct getdns_list *list, size_t index, getdns_data_ty
     return retval;
 } /* getdns_list_get_data_type */
 
-getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer)
-{ UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
+/*---------------------------------------- getdns_list_get_dict */
+getdns_return_t
+getdns_list_get_dict(struct getdns_list *list, size_t index, struct getdns_dict **answer)
+{
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+    if(list != NULL && index < list->numinuse)
+    {
+        if(list->items[index].dtype != t_dict)
+            retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+        else
+        {
+            *answer = list->items[index].data.dict;
+            retval = GETDNS_RETURN_GOOD;
+        }
+    }
+
+    return retval;
+} /* getdns_list_get_dict */
 
 /*---------------------------------------- getdns_list_get_list */
 getdns_return_t
@@ -162,15 +176,6 @@ getdns_list_realloc(struct getdns_list *list)
 } /* getdns_list_realloc */
 
 /*---------------------------------------- getdns_list_copy */
-/**
-  * private function (API users should not be calling this), this uses library
-  * routines to make a copy of the list - would be faster to make the copy directly
-  * @param list pointer to list to copy
-  * @param newlist pointer to pointer to list to receive the copy (will be allocated)
-  * @return GETDNS_RETURN_GOOD on success
-  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
-  * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
-  */
 getdns_return_t
 getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist)
 {
@@ -178,7 +183,7 @@ getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist)
     size_t index;
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-    if(srclist != NULL && *dstlist != NULL)
+    if(srclist != NULL && dstlist != NULL)
     {
         *dstlist = getdns_list_create();
         if(*dstlist != NULL)
@@ -296,8 +301,23 @@ getdns_list_add_item(struct getdns_list *list, size_t *index)
     return retval;
 } /* getdns_list_add_item */
 
-getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict)
-{ UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_dict); return GETDNS_RETURN_GOOD; }
+/*---------------------------------------- getdns_list_set_dict */
+getdns_return_t
+getdns_list_set_dict(struct getdns_list *list, size_t index, struct getdns_dict *child_dict)
+{
+    getdns_return_t retval = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+    if(list != NULL && child_dict != NULL)
+    {
+        if(list->numinuse > index)
+        {
+            list->items[index].dtype = t_dict;
+            retval = getdns_dict_copy(child_dict, &(list->items[index].data.dict));
+        }
+    }
+
+    return retval;
+} /* getdns_list_set_dict */
 
 /*---------------------------------------- getdns_set_list */
 getdns_return_t

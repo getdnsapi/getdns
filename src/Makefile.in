@@ -16,7 +16,7 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 default:
-	cd common && $(MAKE)
+	cd common && $(MAKE) $@
 
 all : default test 
 
@@ -57,10 +57,10 @@ distcheck: $(distdir).tar.gz
 	rm -rf $(distdir)
 	@echo "*** Package $(distdir).tar.gz is ready for distribution"
 
-Makefile: Makefile.in config.status
-	./config.status $@
+#Makefile: Makefile.in config.status
+#	./config.status $@
 
-configure.status: configure
-	./config.status --recheck
+#configure.status: configure
+#	./config.status --recheck
 
-.PHONY: all distclean clean default
+.PHONY: all distclean clean default test
