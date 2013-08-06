@@ -1,0 +1,53 @@
+The problem of how to fetch the trust anchor for DNSSEC validation can
+be solved in a number of different ways.  RFC 5011 provides a process
+for updating the trust anchor, however the fundamental problem of how
+to boot strap a trust anchor is a little more difficult.
+
+Each of the solutions spans a continuum from easy for the operator but
+offering weak security to hard for the operator but offering strong
+security.  Some of the options we considered are:
+
+
+Manual
+------
+If the system operator manually fetches the KSK from a well trusted
+source and places it on the system he can rest assured that the trust
+anchor is the most reliable.  This is also the most difficult approach
+and fits least well with our goal of providing an easy to use library
+for non-DNS experts.
+
+Manual fetching can be done via a web browser, if the user ensures
+that he handles the certificate for the ICANN website then it is a
+respectably secure approach.
+
+
+Key Fetch Tool in Source
+------------------------
+An application can be provided with the library that the system
+operator can invoke to bootstrap the key material.  This application
+would include the ICANN website and could perform the key retrieval
+using a valid certificate. Although the certificate may be included in
+the source tree, the certificates are typically longer lived than the
+root KSK.
+
+
+Key in Source
+-------------
+The KSK can be placed in the sources which is probably the easiest for
+the system operator and is sufficiently secure provided the source
+deliver process is secure.
+
+One downside to this approach is that the soruce package becomes stale
+following a KSK roll.  This can be partially mitigated by providing
+clear diagnostic messages for the user if they attempt to validate
+DNSSEC responses with outdated keys.
+
+
+Automatically Fetch Key Via ICANN Website
+-----------------------------------------
+One of the easiest approaches is to embed the url from which we fetch
+the KSK into the sources, the library can quietly fetch the KSK if one
+isn't available on the system.  This has some potential security
+risks.
+
+

@@ -63,3 +63,6 @@ Local configuration via API or local file (e.g. /etc/getdns.conf, ~/.getdnsrc)
 
 - max entries - flush oldest entries when max reached
 
+- if a TTL for an entry in the cache is within 1 minute of expiring the
+  library should refresh that cache entry after answering the query so
+  that the next request for that entry does not experience latency
