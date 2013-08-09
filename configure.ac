@@ -1,12 +1,16 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
+# known to work with autconf version: autoconf (GNU Autoconf) 2.69
+#
 # @configure_input@
 #
 
 AC_PREREQ([2.68])
 AC_INIT([getdns], [0.320], [melinda.shore@nomountain.net])
-# AM_INIT_AUTOMAKE([getkey], [0.320])
-AC_CONFIG_SRCDIR([configure.ac])
+AC_CONFIG_SRCDIR([src/common/getdns_general.c])
+AM_INIT_AUTOMAKE
+LT_INIT
+AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
 AC_PROG_CC
@@ -27,5 +31,6 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-AC_CONFIG_FILES([Makefile src/common/Makefile src/test/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/common/Makefile src/example/Makefile src/test/Makefile])
+AC_CONFIG_SUBDIRS([src/ src/common/ src/example/ src/test/])
 AC_OUTPUT

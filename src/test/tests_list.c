@@ -34,6 +34,9 @@
 
 #define TSTMSGBUF 80
 
+/* TODO: might want a separate unit test for getdns_list_copy() - right now the code gets
+   covered as a result of other tests */
+
 /*---------------------------------------- tst_bindatasetget */
 /**
  * test the list get and set routines 
@@ -111,6 +114,82 @@ tst_bindatasetget(void)
 
     return;
 } /* tst_bindatasetget */
+
+/*---------------------------------------- tst_dictsetget */
+/**
+ * test the dict get and set routines 
+ */
+void
+tst_dictsetget(void)
+{
+    char   msg[TSTMSGBUF];
+    size_t index;
+    uint32_t ans_int; 
+    getdns_return_t    retval;
+    struct getdns_list *list = NULL;
+    struct getdns_dict *dict = NULL;
+    struct getdns_dict *ansdict = NULL;
+
+    tstmsg_case_begin("tst_dictsetget");
+
+    list = getdns_list_create();
+    dict = getdns_dict_create();
+
+    /* test dict get function against empty list and with bogus params */
+
+    tstmsg_case_msg("getdns_list_get_dict() empty list");
+    retval = getdns_list_get_dict(NULL, index, &dict);
+    sprintf(msg, "getdns_list_get_dict(NULL, index, &dict),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    retval = getdns_list_get_dict(list, index, NULL);
+    sprintf(msg, "getdns_list_get_dict(list, index, NULL),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_get_dict(list, 0, &dict)");
+    retval = getdns_list_get_dict(list, 0, &dict);
+    sprintf(msg, "getdns_list_get_dict,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_get_dict(list, 1, &dict)");
+    retval = getdns_list_get_dict(list, 1, &dict);
+    sprintf(msg, "getdns_list_get_dict,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test int set function against empty list with bogus params */
+
+    tstmsg_case_msg("getdns_list_set_dict() empty list");
+    retval = getdns_list_set_dict(NULL, index, dict);
+    sprintf(msg, "getdns_list_set_dict(NULL, index, dict),retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_dict(list, 0, dict)");
+    retval = getdns_list_set_dict(list, 0, dict);
+    sprintf(msg, "getdns_list_set_dict,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    tstmsg_case_msg("getdns_list_set_dict(list, 1, dict)");
+    retval = getdns_list_set_dict(list, 1, dict);
+    sprintf(msg, "getdns_list_set_dict,retval = %d", retval);
+    tstmsg_case_msg(msg);
+
+    /* test set and get legitimate use case */
+
+    getdns_dict_set_int(dict, "foo", 42);
+    getdns_list_add_item(list, &index);
+    getdns_list_set_dict(list, index, dict);
+    retval = getdns_list_get_dict(list, index, &ansdict);
+    getdns_dict_get_int(ansdict, "foo", &ans_int);
+    sprintf(msg, "getdns_list_set/get_dict,retval=%d, ans=%d", retval, ans_int);
+    tstmsg_case_msg(msg);
+
+    getdns_dict_destroy(dict);
+    getdns_list_destroy(list);
+
+    tstmsg_case_end();
+
+    return;
+} /* tst_dictsetget */
 
 /*---------------------------------------- tst_listsetget */
 /**
@@ -347,11 +426,13 @@ main(int argc, char *argv[])
 
     tst_create();
 
+    tst_bindatasetget();
+
+    tst_dictsetget();
+
     tst_intsetget();
 
     tst_listsetget();
-
-    tst_bindatasetget();
 
     tstmsg_prog_end();
 
