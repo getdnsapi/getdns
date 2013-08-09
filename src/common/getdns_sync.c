@@ -27,7 +27,7 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_libevent.h>
+#include <getdns_core_only.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))

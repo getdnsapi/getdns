@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <getdns_libevent.h>
+#include <getdns_core_only.h>
 
 #define UNUSED_PARAM(x) ((void)(x))
 

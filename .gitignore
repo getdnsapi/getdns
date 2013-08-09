@@ -1,4 +1,7 @@
 *~
+getdns*.tar.gz
+*.o
+.*.swp
 .deps/
 .libs/
 Makefile

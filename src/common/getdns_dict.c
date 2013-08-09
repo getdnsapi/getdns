@@ -31,7 +31,7 @@
 
 #include <search.h>
 #include <string.h>
-#include <getdns_libevent.h>
+#include <getdns_core_only.h>
 
 /* TODO: change this to make the walk safe for reentrant/multi-thread calls */
 struct getdns_list *walkresultlist;
