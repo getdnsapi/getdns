@@ -10,6 +10,7 @@ config.guess
 config.sub
 config.status
 config.log
+autom4te.cache
 missing
 libtool
 ltmain.sh
