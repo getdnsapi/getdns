@@ -16,9 +16,15 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_PROG_CC
 
 # Checks for libraries.
-AC_CHECK_LIB([event_core], [event_base_new])
-AC_CHECK_LIB([getdns], [getdns_context_create])
-AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str])
+found_all_libs=1
+AC_MSG_NOTICE([Checking for dependencies ldns and libevent])
+AC_CHECK_LIB([event_core], [event_base_new], [], [found_all_libs=0])
+AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
+
+if test $found_all_libs == 0
+then
+    AC_MSG_ERROR([One more dependencies is missing])
+fi
 
 # Checks for header files.
 AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h])

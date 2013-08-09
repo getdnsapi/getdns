@@ -29,6 +29,7 @@
  */
 
 #include <getdns_core_only.h>
+#include <stdio.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))

@@ -218,7 +218,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = -Wall -g -fPIC -I$(srcdir)/ -I/usr/local/include -I../common -std=c99
+AM_CPPFLAGS = -Wall -Werror -g -fPIC -I$(srcdir)/ -I/usr/local/include -I../common -std=c99
 AM_LDFLAGS = -L../common -L/usr/local/lib -lgetdns -lldns -levent
 example_all_functions_SOURCES = example_all_functions.c		
 example_synchronous_SOURCES = example_synchronous.c

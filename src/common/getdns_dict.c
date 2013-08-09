@@ -29,6 +29,7 @@
  * THE SOFTWARE.
  */
 
+#include <stdio.h>
 #include <search.h>
 #include <string.h>
 #include <getdns_core_only.h>

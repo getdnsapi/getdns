@@ -12058,6 +12058,9 @@ fi
 
 
 # Checks for libraries.
+found_all_libs=1
+{ $as_echo "$as_me:${as_lineno-$LINENO}: Checking for dependencies ldns and libevent" >&5
+$as_echo "$as_me: Checking for dependencies ldns and libevent" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for event_base_new in -levent_core" >&5
 $as_echo_n "checking for event_base_new in -levent_core... " >&6; }
 if ${ac_cv_lib_event_core_event_base_new+:} false; then :
@@ -12101,51 +12104,8 @@ _ACEOF
 
   LIBS="-levent_core $LIBS"
 
-fi
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for getdns_context_create in -lgetdns" >&5
-$as_echo_n "checking for getdns_context_create in -lgetdns... " >&6; }
-if ${ac_cv_lib_getdns_getdns_context_create+:} false; then :
-  $as_echo_n "(cached) " >&6
 else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lgetdns  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char getdns_context_create ();
-int
-main ()
-{
-return getdns_context_create ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_getdns_getdns_context_create=yes
-else
-  ac_cv_lib_getdns_getdns_context_create=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_getdns_getdns_context_create" >&5
-$as_echo "$ac_cv_lib_getdns_getdns_context_create" >&6; }
-if test "x$ac_cv_lib_getdns_getdns_context_create" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBGETDNS 1
-_ACEOF
-
-  LIBS="-lgetdns $LIBS"
-
+  found_all_libs=0
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ldns_dname_new_frm_str in -lldns" >&5
@@ -12191,8 +12151,15 @@ _ACEOF
 
   LIBS="-lldns $LIBS"
 
+else
+  found_all_libs=0
 fi
 
+
+if test $found_all_libs == 0
+then
+    as_fn_error $? "One more dependencies is missing" "$LINENO" 5
+fi
 
 # Checks for header files.
 for ac_header in inttypes.h netinet/in.h stdint.h stdlib.h string.h
