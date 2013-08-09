@@ -9,6 +9,7 @@ depcomp
 config.guess
 config.sub
 config.status
+config.log
 missing
 libtool
 ltmain.sh
