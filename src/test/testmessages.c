@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <strings.h>
+#include <string.h>
 #include "testmessages.h"
 
 static char *testprog = NULL;
