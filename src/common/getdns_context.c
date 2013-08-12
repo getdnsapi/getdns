@@ -28,10 +28,37 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_libevent.h>
+#include <string.h>
+#include <getdns_context.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
+
+/**
+ * Helper to get default lookup namespaces.
+ * TODO: Determine from OS
+ */
+static uint16_t* create_default_namespaces() {
+    uint16_t *result = malloc(2 * sizeof(uint16_t));
+    result[0] = GETDNS_CONTEXT_NAMESPACE_LOCALNAMES;
+    result[1] = GETDNS_CONTEXT_NAMESPACE_DNS;
+    return result;
+}
+
+/**
+ * Helper to get the default root servers.
+ * TODO: Implement
+ */
+static struct getdns_list* create_default_root_servers() {
+    return NULL;
+}
+
+/**
+ * Helper to parse resolv conf
+ */
+static struct getdns_dict* parse_resolv_conf() {
+    return NULL;
+}
 
 /*
  * getdns_context_create
@@ -44,8 +71,43 @@ getdns_context_create(
     bool                   set_from_os
 )
 {
-    UNUSED_PARAM(context);
     UNUSED_PARAM(set_from_os);
+    getdns_context_t result = NULL;
+    getdns_dict* resolv_conf = NULL;
+    if (context == NULL) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
+    resolv_conf = parse_resolv_conf();
+
+    /** common init **/
+    result = malloc(sizeof(struct getdns_context_t));
+    result->resolution_type = GETDNS_CONTEXT_RECURSING;
+    result->namespaces = create_default_namespaces();
+    result->dns_transport = GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
+    result->limit_outstanding_queries = 0;
+    result->timeout = 5000;
+    result->follow_redirects = GETDNS_CONTEXT_FOLLOW_REDIRECTS;
+    result->dns_root_servers = create_default_root_servers();
+    result->append_name = GETDNS_CONTEXT_APPEND_NAME_ALWAYS;
+    result->suffix = NULL;
+    
+    result->dnssec_trust_anchors = NULL;
+    result->dnssec_allow_skew = 0;
+    result->upstream_list = NULL;
+    result->edns_maximum_udp_payload_size = 512;
+    result->edns_extended_rcode = 0;
+    result->edns_version = 0;
+    result->edns_do_bit = 0;
+
+    result->update_callback = NULL;
+    result->memory_allocator = malloc;
+    result->memory_deallocator = free;
+    result->memory_reallocator = realloc;
+
+    *context = result;
+
+    getdns_dict_destroy(resolv_conf);
 
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_create */
@@ -61,7 +123,19 @@ getdns_context_destroy(
 	getdns_context_t       context
 )
 {
-    UNUSED_PARAM(context);
+    if (context == NULL) {
+        return;
+    }
+    if (context->namespaces) {
+        context->memory_deallocator(context->namespaces);
+    }
+    getdns_list_destroy(context->dns_root_servers);
+    getdns_list_destroy(context->suffix);
+    getdns_list_destroy(context->dnssec_trust_anchors);
+    getdns_list_destroy(context->upstream_list);
+    
+    free(context);
+    return;
 } /* getdns_context_destroy */
 
 /*
@@ -74,14 +148,13 @@ getdns_context_set_context_update_callback(
   void                   (*value)(getdns_context_t context, uint16_t changed_item)
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    context->update_callback = value;
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_context_update_callback */
 
 /*
  * getdns_context_set_context_update
- *
+ * 
  */
 getdns_return_t
 getdns_context_set_context_update(
@@ -94,6 +167,16 @@ getdns_context_set_context_update(
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_context_update */
 
+/**
+ * Helper to dispatch the updated callback
+ */
+static void dispatch_updated(getdns_context_t context,
+                             uint16_t item) {
+    if (context->update_callback) {
+        context->update_callback(context, item);
+    }
+}
+
 /*
  * getdns_context_set_resolution_type
  *
@@ -104,8 +187,14 @@ getdns_context_set_resolution_type(
   uint16_t               value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    if (value != GETDNS_CONTEXT_STUB && 
+        value != GETDNS_CONTEXT_RECURSING) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+    
+    context->resolution_type = value;
+    
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_RESOLUTION_TYPE);
     
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_resolution_type */
@@ -121,10 +210,21 @@ getdns_context_set_namespaces(
   uint16_t               *namespaces
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(namespace_count);
-    UNUSED_PARAM(namespaces);
-
+    size_t namespaces_size;
+    if (namespace_count == 0 || namespaces == NULL) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+    
+    /** clean up old namespaces **/
+    context->memory_deallocator(context->namespaces);
+    
+    /** duplicate **/
+    namespaces_size = namespace_count * sizeof(uint16_t);
+    context->namespaces = context->memory_allocator(namespaces_size);
+    memcpy(context->namespaces, namespaces, namespaces_size);
+    
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_namespaces */
 
@@ -138,9 +238,17 @@ getdns_context_set_dns_transport(
   uint16_t               value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    if (value != GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP &&
+        value != GETDNS_CONTEXT_UDP_ONLY &&
+        value != GETDNS_CONTEXT_TCP_ONLY &&
+        value != GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
     
+    context->dns_transport = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_dns_transport */
 
@@ -154,8 +262,10 @@ getdns_context_set_limit_outstanding_queries(
   uint16_t               limit
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(limit);
+    context->limit_outstanding_queries = limit;
+    
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_limit_outstanding_queries */
 
@@ -169,8 +279,10 @@ getdns_context_set_timeout(
   uint16_t               timeout
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(timeout);
+    context->timeout = timeout;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TIMEOUT);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_timeout */
 
@@ -184,8 +296,10 @@ getdns_context_set_follow_redirects(
   uint16_t               value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    context->follow_redirects = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_follow_redirects */
 
@@ -199,8 +313,11 @@ getdns_context_set_dns_root_servers(
   struct getdns_list     *addresses
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(addresses);
+    getdns_list_destroy(context->dns_root_servers);
+    context->dns_root_servers = addresses;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_dns_root_servers */
 
@@ -214,8 +331,18 @@ getdns_context_set_append_name(
   uint16_t               value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    if (value != GETDNS_CONTEXT_APPEND_NAME_ALWAYS &&
+        value != GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE &&
+        value != GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE &&
+        value != GETDNS_CONTEXT_DO_NOT_APPEND_NAMES) {
+    
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->append_name = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_APPEND_NAME);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_append_name */
 
@@ -229,8 +356,12 @@ getdns_context_set_suffix(
   struct getdns_list     *value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    getdns_list_destroy(context->suffix);
+
+    context->suffix = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_suffix */
 
@@ -244,8 +375,12 @@ getdns_context_set_dnssec_trust_anchors(
   struct getdns_list     *value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    getdns_list_destroy(context->dnssec_trust_anchors);
+
+    context->dnssec_trust_anchors = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_dnssec_trust_anchors */
 
@@ -259,8 +394,10 @@ getdns_context_set_dnssec_allowed_skew(
   uint16_t               value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    context->dnssec_allow_skew = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_dnssec_allowed_skew */
 
@@ -274,8 +411,17 @@ getdns_context_set_stub_resolution(
   struct getdns_list     *upstream_list
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(upstream_list);
+    if (upstream_list == NULL) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    getdns_context_set_resolution_type(context, GETDNS_CONTEXT_STUB);
+    
+    getdns_list_destroy(context->upstream_list);
+    context->upstream_list = upstream_list;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_stub_resolution */
 
@@ -289,8 +435,15 @@ getdns_context_set_edns_maximum_udp_payload_size(
   uint16_t               value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    /* check for < 512.  uint16_t won't let it go above max) */
+    if (value < 512) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->edns_maximum_udp_payload_size = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_edns_maximum_udp_payload_size */
 
@@ -304,8 +457,10 @@ getdns_context_set_edns_extended_rcode(
   uint8_t                value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    context->edns_extended_rcode = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_EXTENDED_RCODE);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_edns_extended_rcode */
 
@@ -319,8 +474,10 @@ getdns_context_set_edns_version(
   uint8_t                value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    context->edns_version = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_VERSION);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_edns_version */
 
@@ -334,8 +491,15 @@ getdns_context_set_edns_do_bit(
   uint8_t                value
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(value);
+    /* 0 or 1 */
+    if (value > 1) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->edns_do_bit = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_DO_BIT);
+    
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_set_edns_do_bit */
 
@@ -351,7 +515,7 @@ getdns_context_set_memory_allocator(
 {
     UNUSED_PARAM(context);
     UNUSED_PARAM(value);
-    return GETDNS_RETURN_GOOD;
+    return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 } /* getdns_context_set_memory_allocator */
 
 /*
@@ -366,7 +530,7 @@ getdns_context_set_memory_deallocator(
 {
     UNUSED_PARAM(context);
     UNUSED_PARAM(value);
-    return GETDNS_RETURN_GOOD;
+    return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 } /* getdns_context_set_memory_deallocator */
 
 /*
@@ -381,7 +545,7 @@ getdns_context_set_memory_reallocator(
 {
     UNUSED_PARAM(context);
     UNUSED_PARAM(value);
-    return GETDNS_RETURN_GOOD;
+    return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 } /* getdns_context_set_memory_reallocator */
 
 /*
@@ -394,8 +558,9 @@ getdns_extension_set_libevent_base(
     struct event_base      *this_event_base
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(this_event_base);
+    /* TODO: cancel anything on an existing event base */
+    context->event_base = this_event_base;
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_extension_set_libevent_base */
 

@@ -120,8 +120,8 @@
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE 514
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
-#define GETDNS_CONTEXT_GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE 515
-#define GETDNS_CONTEXT_GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
+#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE 515
+#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES 516
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES_TEXT See getdns_context_set_append_name()
 /** @}
@@ -141,8 +141,8 @@
 #define GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS_TEXT Change related to getdns_context_set_upstream_recursive_servers
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS 604
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS_TEXT Change related to getdns_context_set_dns_root_servers
-#define GETDNS_CONTEXT_CODE_USE_UDP_TCP 605
-#define GETDNS_CONTEXT_CODE_USE_UDP_TCP_TEXT Change related to getdns_context_set_use_udp_tcp
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT 605
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT_TEXT Change related to getdns_context_set_dns_transport
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES 606
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES_TEXT Change related to getdns_context_set_limit_outstanding_queries
 #define GETDNS_CONTEXT_CODE_APPEND_NAME 607
@@ -167,6 +167,8 @@
 #define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR_TEXT Change related to getdns_context_set_memory_deallocator
 #define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR 617
 #define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR_TEXT Change related to getdns_context_set_memory_reallocator
+#define GETDNS_CONTEXT_CODE_TIMEOUT 618
+#define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT Change related to getdns_context_set_timeout
 /** @}
  */
 
