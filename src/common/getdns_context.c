@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include <getdns_context.h>
+#include <ldns/ldns.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -53,11 +54,78 @@ static struct getdns_list* create_default_root_servers() {
     return NULL;
 }
 
-/**
- * Helper to parse resolv conf
- */
-static struct getdns_dict* parse_resolv_conf() {
-    return NULL;
+static struct getdns_dict* create_ipaddr_dict_from_rdf(ldns_rdf* rdf) {
+    ldns_rdf_type rt = ldns_rdf_get_type(rdf);
+    size_t sz = ldns_rdf_size(rdf);
+    getdns_dict *result = getdns_dict_create();
+    /* set type */
+    if (rt == LDNS_RDF_TYPE_A) {
+        getdns_bindata type_bin = { (size_t) strlen(GETDNS_STR_IPV4), 
+                                    (uint8_t*) GETDNS_STR_IPV4 };
+        getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_TYPE, &type_bin);
+    } else {
+        getdns_bindata type_bin = { (size_t) strlen(GETDNS_STR_IPV6), 
+                                    (uint8_t*) GETDNS_STR_IPV6 };
+        getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_TYPE, &type_bin);
+    }
+    /* set data */
+    getdns_bindata data_bin = { sz, ldns_rdf_data(rdf) };
+    getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_DATA, &data_bin);
+    return result;
+}
+
+static struct getdns_list* create_from_ldns_list(ldns_rdf** ldns_list, size_t count) {
+    size_t i = 0;
+    size_t idx = 0;
+    struct getdns_list *result = getdns_list_create();
+    for (i = 0; i < count; ++i) {
+        ldns_rdf* rdf = ldns_list[i];
+        switch (ldns_rdf_get_type(rdf)) {
+            case LDNS_RDF_TYPE_A:
+            case LDNS_RDF_TYPE_AAAA:
+            {
+                getdns_dict *ipaddr = create_ipaddr_dict_from_rdf(rdf);
+                getdns_list_add_item(result, &idx);
+                getdns_list_set_dict(result, idx, ipaddr);
+                getdns_dict_destroy(ipaddr);
+            }
+            break;
+            case LDNS_RDF_TYPE_DNAME:
+            {
+                getdns_bindata item;
+                char* srch = ldns_rdf2str(rdf);
+                item.size = strlen(srch);
+                item.data = (uint8_t*) srch;
+                getdns_list_add_item(result, &idx);
+                getdns_list_set_bindata(result, idx, &item);
+                free(srch);
+            }
+            break;
+            default:
+            break;
+        }
+    }
+    return result;
+}
+
+static getdns_return_t set_os_defaults(getdns_context_t context) {
+    ldns_resolver *lr = NULL;
+    if (ldns_resolver_new_frm_file(&lr, NULL) != LDNS_STATUS_OK) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    ldns_rdf **rdf_list= ldns_resolver_nameservers(lr);
+    size_t rdf_list_sz = ldns_resolver_nameserver_count(lr);
+    if (rdf_list_sz > 0) {
+        context->upstream_list = create_from_ldns_list(rdf_list, rdf_list_sz);
+    }
+    rdf_list = ldns_resolver_searchlist(lr);
+    rdf_list_sz = ldns_resolver_searchlist_count(lr);
+    if (rdf_list_sz > 0) {
+        context->suffix = create_from_ldns_list(rdf_list, rdf_list_sz);
+    }
+    /** cleanup **/
+    ldns_resolver_free(lr);
+    return GETDNS_RETURN_GOOD;
 }
 
 /*
@@ -73,14 +141,12 @@ getdns_context_create(
 {
     UNUSED_PARAM(set_from_os);
     getdns_context_t result = NULL;
-    getdns_dict* resolv_conf = NULL;
+
     if (context == NULL) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
 
-    resolv_conf = parse_resolv_conf();
-
-    /** common init **/
+    /** default init **/
     result = malloc(sizeof(struct getdns_context_t));
     result->resolution_type = GETDNS_CONTEXT_RECURSING;
     result->namespaces = create_default_namespaces();
@@ -105,9 +171,14 @@ getdns_context_create(
     result->memory_deallocator = free;
     result->memory_reallocator = realloc;
 
-    *context = result;
+    if (set_from_os) {
+        if (GETDNS_RETURN_GOOD != set_os_defaults(result)) {
+            getdns_context_destroy(result);
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+    }
 
-    getdns_dict_destroy(resolv_conf);
+    *context = result;
 
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_create */

@@ -238,6 +238,17 @@
  */
 
 /**
+ * \defgroup strings String Constants
+ * @{
+ */
+#define GETDNS_STR_IPV4 "IPv4"
+#define GETDNS_STR_IPV6 "IPv6"
+#define GETDNS_STR_ADDRESS_TYPE "address_type"
+#define GETDNS_STR_ADDRESS_DATA "address_data"
+/** @}
+ */
+
+/**
  * \defgroup rrtypes RR Types
  * @{
  */
