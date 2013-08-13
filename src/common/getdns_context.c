@@ -90,6 +90,7 @@ static struct getdns_list* create_from_ldns_list(ldns_rdf** ldns_list, size_t co
                 getdns_dict_destroy(ipaddr);
             }
             break;
+            
             case LDNS_RDF_TYPE_DNAME:
             {
                 getdns_bindata item;
@@ -101,6 +102,7 @@ static struct getdns_list* create_from_ldns_list(ldns_rdf** ldns_list, size_t co
                 free(srch);
             }
             break;
+            
             default:
             break;
         }
