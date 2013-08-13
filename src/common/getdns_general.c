@@ -28,7 +28,25 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_core_only.h>
+#include <getdns_context.h>
+#include <ldns/ldns.h>
+
+/* outbound request */
+typedef struct getdns_outbound_req {
+
+    /* stub or recursive */
+    uint16_t req_type;
+    /* transaction id */
+    getdns_transaction_t transaction_id;
+    /* callback */
+    getdns_callback_t callback;
+    /* user arg to pass to callback */
+    void* userarg;
+    /* list of servers this can send to */
+    getdns_list *upstream;
+    
+
+} getdns_async_req;
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -47,13 +65,22 @@ getdns_general(
   getdns_callback_t          callback
 )
 {
-    UNUSED_PARAM(context);
+    /* Default to zero */
+    if (transaction_id != NULL) {
+        *transaction_id = 0;
+    }
+    if (context->event_base == NULL ||
+        callback == NULL) {
+        /* Can't do async without an event loop
+         * or callback
+         */
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
     UNUSED_PARAM(name);
     UNUSED_PARAM(request_type);
     UNUSED_PARAM(extensions);
     UNUSED_PARAM(userarg);
-    UNUSED_PARAM(transaction_id);
-    UNUSED_PARAM(callback);
     return GETDNS_RETURN_GOOD;
 } /* getdns_general */
 

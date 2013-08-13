@@ -141,10 +141,14 @@ getdns_context_create(
     bool                   set_from_os
 )
 {
-    UNUSED_PARAM(set_from_os);
     getdns_context_t result = NULL;
 
     if (context == NULL) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
+    getdns_dict *outbound_reqs = getdns_dict_create();
+    if (outbound_reqs == NULL) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
 
@@ -167,6 +171,9 @@ getdns_context_create(
     result->edns_extended_rcode = 0;
     result->edns_version = 0;
     result->edns_do_bit = 0;
+
+    result->event_base = NULL;
+    result->outbound_reqs = outbound_reqs; 
 
     result->update_callback = NULL;
     result->memory_allocator = malloc;
@@ -207,6 +214,8 @@ getdns_context_destroy(
     getdns_list_destroy(context->dnssec_trust_anchors);
     getdns_list_destroy(context->upstream_list);
     
+    getdns_dict_destroy(context->outbound_reqs);
+
     free(context);
     return;
 } /* getdns_context_destroy */
