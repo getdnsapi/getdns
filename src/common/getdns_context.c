@@ -386,6 +386,13 @@ getdns_context_set_dns_root_servers(
   struct getdns_list     *addresses
 )
 {
+    getdns_list *copy = NULL;
+    if (addresses != NULL) {
+        if (getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+        addresses = copy;
+    }
     getdns_list_destroy(context->dns_root_servers);
     context->dns_root_servers = addresses;
 
@@ -429,8 +436,14 @@ getdns_context_set_suffix(
   struct getdns_list     *value
 )
 {
+    getdns_list *copy = NULL;
+    if (value != NULL) {
+        if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+        value = copy;
+    }
     getdns_list_destroy(context->suffix);
-
     context->suffix = value;
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
@@ -448,8 +461,14 @@ getdns_context_set_dnssec_trust_anchors(
   struct getdns_list     *value
 )
 {
+    getdns_list *copy = NULL;
+    if (value != NULL) {
+        if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+        value = copy;
+    }
     getdns_list_destroy(context->dnssec_trust_anchors);
-
     context->dnssec_trust_anchors = value;
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
@@ -487,6 +506,11 @@ getdns_context_set_stub_resolution(
     if (upstream_list == NULL) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
+    getdns_list *copy = NULL;
+    if (getdns_list_copy(upstream_list, &copy) != GETDNS_RETURN_GOOD) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+    upstream_list = copy;
 
     getdns_context_set_resolution_type(context, GETDNS_CONTEXT_STUB);
     

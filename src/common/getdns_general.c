@@ -57,4 +57,38 @@ getdns_general(
     return GETDNS_RETURN_GOOD;
 } /* getdns_general */
 
+
+/*
+ * getdns_address
+ *
+ */
+getdns_return_t
+getdns_address(
+  getdns_context_t           context,
+  const char                 *name,
+  struct getdns_dict         *extensions,
+  void                       *userarg,
+  getdns_transaction_t       *transaction_id,
+  getdns_callback_t          callback
+)
+{
+    int cleanup_extensions = 0;
+    if (!extensions) {
+        extensions = getdns_dict_create();
+        cleanup_extensions = 1;
+    }
+    getdns_dict_set_int(extensions,
+                        GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6,
+                        GETDNS_EXTENSION_TRUE);
+
+    getdns_return_t result = 
+        getdns_general(context, name, GETDNS_RRTYPE_A,
+                       extensions, userarg, transaction_id,
+                       callback);
+    if (cleanup_extensions) {
+        getdns_dict_destroy(extensions);
+    }
+    return result;
+} 
+
 /* getdns_general.c */
