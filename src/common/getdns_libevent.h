@@ -1,4 +1,5 @@
-#include <event2/event.h>
+
+#include <event.h>
 #include <getdns_core_only.h>
 
 /* For libevent, which we are using for these examples */

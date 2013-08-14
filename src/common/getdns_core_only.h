@@ -696,10 +696,9 @@ getdns_service(
   getdns_callback_t      callbackfn
 );
 
-getdns_return_t
-getdns_context_create(
+getdns_return_t getdns_context_create(
   getdns_context_t       *context,
-  bool                   set_from_os
+  int                   set_from_os
 );
 
 void

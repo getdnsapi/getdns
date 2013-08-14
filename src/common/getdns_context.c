@@ -135,10 +135,9 @@ static getdns_return_t set_os_defaults(getdns_context_t context) {
  *
  * call this to initialize the context that is used in other getdns calls
  */
-getdns_return_t
-getdns_context_create(
+getdns_return_t getdns_context_create(
     getdns_context_t       *context,
-    bool                   set_from_os
+    int                   set_from_os
 )
 {
     getdns_context_t result = NULL;
@@ -173,6 +172,7 @@ getdns_context_create(
     result->edns_do_bit = 0;
 
     result->event_base = NULL;
+    result->resolver_socket = 0;
     result->outbound_reqs = outbound_reqs; 
 
     result->update_callback = NULL;
@@ -215,6 +215,12 @@ getdns_context_destroy(
     getdns_list_destroy(context->upstream_list);
     
     getdns_dict_destroy(context->outbound_reqs);
+
+    /* TODO: cancel all events */
+
+    if (context->resolver_socket != 0) {
+        evutil_closesocket(context->resolver_socket);
+    }
 
     free(context);
     return;
