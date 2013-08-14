@@ -1,4 +1,5 @@
 *~
+Makefile.in
 getdns*.tar.gz
 *.o
 .*.swp
