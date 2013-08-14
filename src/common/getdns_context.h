@@ -40,7 +40,12 @@ struct getdns_context_t {
 
     /* Event loop */
     struct event_base* event_base;
+    
+    /* outbound request dict (transaction -> req struct) */
+    getdns_dict *outbound_reqs;
 
+    /* socket */
+    evutil_socket_t resolver_socket;
 } ;
 
 #endif

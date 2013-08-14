@@ -135,16 +135,19 @@ static getdns_return_t set_os_defaults(getdns_context_t context) {
  *
  * call this to initialize the context that is used in other getdns calls
  */
-getdns_return_t
-getdns_context_create(
+getdns_return_t getdns_context_create(
     getdns_context_t       *context,
-    bool                   set_from_os
+    int                   set_from_os
 )
 {
-    UNUSED_PARAM(set_from_os);
     getdns_context_t result = NULL;
 
     if (context == NULL) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
+    getdns_dict *outbound_reqs = getdns_dict_create();
+    if (outbound_reqs == NULL) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
 
@@ -167,6 +170,10 @@ getdns_context_create(
     result->edns_extended_rcode = 0;
     result->edns_version = 0;
     result->edns_do_bit = 0;
+
+    result->event_base = NULL;
+    result->resolver_socket = 0;
+    result->outbound_reqs = outbound_reqs; 
 
     result->update_callback = NULL;
     result->memory_allocator = malloc;
@@ -207,6 +214,14 @@ getdns_context_destroy(
     getdns_list_destroy(context->dnssec_trust_anchors);
     getdns_list_destroy(context->upstream_list);
     
+    getdns_dict_destroy(context->outbound_reqs);
+
+    /* TODO: cancel all events */
+
+    if (context->resolver_socket != 0) {
+        evutil_closesocket(context->resolver_socket);
+    }
+
     free(context);
     return;
 } /* getdns_context_destroy */
@@ -386,6 +401,13 @@ getdns_context_set_dns_root_servers(
   struct getdns_list     *addresses
 )
 {
+    getdns_list *copy = NULL;
+    if (addresses != NULL) {
+        if (getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+        addresses = copy;
+    }
     getdns_list_destroy(context->dns_root_servers);
     context->dns_root_servers = addresses;
 
@@ -429,8 +451,14 @@ getdns_context_set_suffix(
   struct getdns_list     *value
 )
 {
+    getdns_list *copy = NULL;
+    if (value != NULL) {
+        if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+        value = copy;
+    }
     getdns_list_destroy(context->suffix);
-
     context->suffix = value;
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
@@ -448,8 +476,14 @@ getdns_context_set_dnssec_trust_anchors(
   struct getdns_list     *value
 )
 {
+    getdns_list *copy = NULL;
+    if (value != NULL) {
+        if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+        value = copy;
+    }
     getdns_list_destroy(context->dnssec_trust_anchors);
-
     context->dnssec_trust_anchors = value;
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
@@ -487,6 +521,11 @@ getdns_context_set_stub_resolution(
     if (upstream_list == NULL) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
+    getdns_list *copy = NULL;
+    if (getdns_list_copy(upstream_list, &copy) != GETDNS_RETURN_GOOD) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+    upstream_list = copy;
 
     getdns_context_set_resolution_type(context, GETDNS_CONTEXT_STUB);
     

@@ -217,9 +217,9 @@
  * \defgroup extvals Values Associated With Extensions 
  * @{
  */
-#define GETDNS_EXTENSION_TRUE 1000
+#define GETDNS_EXTENSION_TRUE  1
 #define GETDNS_EXTENSION_TRUE_TEXT Turn on the extension
-#define GETDNS_EXTENSION_FALSE 1001
+#define GETDNS_EXTENSION_FALSE 0
 #define GETDNS_EXTENSION_FALSE_TEXT Do not turn on the extension
 /** @}
  */
@@ -245,6 +245,8 @@
 #define GETDNS_STR_IPV6 "IPv6"
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
 #define GETDNS_STR_ADDRESS_DATA "address_data"
+#define GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6 "return_both_v4_and_v6"
+
 /** @}
  */
 
@@ -694,10 +696,9 @@ getdns_service(
   getdns_callback_t      callbackfn
 );
 
-getdns_return_t
-getdns_context_create(
+getdns_return_t getdns_context_create(
   getdns_context_t       *context,
-  bool                   set_from_os
+  int                   set_from_os
 );
 
 void
