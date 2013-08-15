@@ -28,26 +28,33 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_core_only.h>
+#include <getdns/getdns.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
 /*
- * getdns_validate_dnssec
+ * getdns_hostname
  *
  */
 getdns_return_t
-getdns_validate_dnssec(
-  struct getdns_bindata  *record_to_validate,
-  struct getdns_list     *bundle_of_support_records,
-  struct getdns_list     *trust_anchor_rdatas
+getdns_hostname(
+  getdns_context_t           context,
+  struct getdns_dict         *address,
+  struct getdns_dict         *extensions,
+  void                       *userarg,
+  getdns_transaction_t       *transaction_id,
+  getdns_callback_t          callback
 )
 {
-    UNUSED_PARAM(record_to_validate);
-    UNUSED_PARAM(bundle_of_support_records);
-    UNUSED_PARAM(trust_anchor_rdatas);
+    UNUSED_PARAM(context);
+    UNUSED_PARAM(address);
+    UNUSED_PARAM(extensions);
+    UNUSED_PARAM(userarg);
+    UNUSED_PARAM(transaction_id);
+    UNUSED_PARAM(callback);
+    
     return GETDNS_RETURN_GOOD;
-} /* getdns_validate_dnssec */
+} /* getdns_hostname */
 
-/* getdns_validate_dnssec.c */
+/* getdns_hostname.c */

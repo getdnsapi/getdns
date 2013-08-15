@@ -7,7 +7,7 @@
 
 AC_PREREQ([2.68])
 AC_INIT([getdns], [0.320], [melinda.shore@nomountain.net])
-AC_CONFIG_SRCDIR([src/common/getdns_general.c])
+AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 AM_INIT_AUTOMAKE
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
@@ -37,6 +37,6 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-AC_CONFIG_FILES([Makefile src/Makefile src/common/Makefile src/example/Makefile src/test/Makefile])
-AC_CONFIG_SUBDIRS([src/ src/common/ src/example/ src/test/])
+AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile])
+AC_CONFIG_SUBDIRS([src/ src/getdns/ src/example/ src/test/])
 AC_OUTPUT

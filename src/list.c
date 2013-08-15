@@ -29,7 +29,7 @@
  */
 
 #include <string.h>
-#include <getdns_core_only.h>
+#include <getdns/getdns.h>
 
 /*---------------------------------------- getdns_list_get_length */
 getdns_return_t

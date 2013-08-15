@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <event.h>
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
@@ -964,6 +965,14 @@ getdns_return_t
 getdns_context_set_memory_reallocator(
   getdns_context_t       context,
   void                   (*value)(void*)
+);
+
+/* Extension - refactor to abstract async evt loop */
+/* For libevent, which we are using for these examples */
+getdns_return_t
+getdns_extension_set_libevent_base(
+  getdns_context_t       context,
+  struct event_base      *this_event_base
 );
 
 #endif /* GETDNS_H */
