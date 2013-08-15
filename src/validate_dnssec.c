@@ -28,52 +28,26 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_core_only.h>
-#include <stdio.h>
+#include <getdns/getdns.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
-char *
-getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
-)
-{ UNUSED_PARAM(name_from_dns_response); return NULL; }
-
-char *
-getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
-)
-{ UNUSED_PARAM(fqdn_as_string); return NULL; }
-
-char *
-getdns_convert_ulabel_to_alabel(
-	char  *ulabel
-)
-{ UNUSED_PARAM(ulabel); return NULL; }
-
-char *
-getdns_convert_alabel_to_ulabel(
-	char  *alabel
-)
-{ UNUSED_PARAM(alabel); return NULL; }
-
-char *
-getdns_display_ip_address(
-  struct getdns_bindata    *bindata_of_ipv4_or_ipv6_address
-)
-{ UNUSED_PARAM(bindata_of_ipv4_or_ipv6_address); return NULL; }
-
+/*
+ * getdns_validate_dnssec
+ *
+ */
 getdns_return_t
-getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
+getdns_validate_dnssec(
+  struct getdns_bindata  *record_to_validate,
+  struct getdns_list     *bundle_of_support_records,
+  struct getdns_list     *trust_anchor_rdatas
+)
 {
-    getdns_return_t retval = GETDNS_RETURN_GOOD;
+    UNUSED_PARAM(record_to_validate);
+    UNUSED_PARAM(bundle_of_support_records);
+    UNUSED_PARAM(trust_anchor_rdatas);
+    return GETDNS_RETURN_GOOD;
+} /* getdns_validate_dnssec */
 
-    /* TODO: make this produce an actual string */
-
-    snprintf(buf, buflen, "%d", retval);
-
-    return retval;
-} /* getdns_strerror */
-
-/* getdns_core_only.c */
+/* getdns_validate_dnssec.c */

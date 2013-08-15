@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
-#include "getdns_core_only.h"
+#include <getdns/getdns.h>
 
 #define TSTMSGBUF 80
 

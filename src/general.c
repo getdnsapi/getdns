@@ -58,7 +58,7 @@
  * Version: 0.1b
  */
 
-#include <getdns_context.h>
+#include "getdns_context.h"
 #include <ldns/ldns.h>
 
 /* useful macros */

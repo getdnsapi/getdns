@@ -29,7 +29,7 @@
  */
 
 #include <string.h>
-#include <getdns_context.h>
+#include "getdns_context.h"
 #include <ldns/ldns.h>
 
 /* stuff to make it compile pedantically */

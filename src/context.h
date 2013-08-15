@@ -5,7 +5,7 @@
 #ifndef _GETDNS_CONTEXT_H_
 #define _GETDNS_CONTEXT_H_
 
-#include <getdns_libevent.h>
+#include <getdns/getdns.h>
 
 /** function pointer typedefs */
 typedef void (*getdns_update_callback)(getdns_context_t context, uint16_t changed_item);
