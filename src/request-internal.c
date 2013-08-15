@@ -35,11 +35,11 @@
 #define gd_malloc(sz) context->memory_allocator(sz)
 #define gd_free(ptr) context->memory_deallocator(ptr)
 
-void network_req_free(getdns_context_t context,
-                      getdns_network_req* net_req) {
+void network_req_free(getdns_network_req* net_req) {
     if (!net_req) {
         return;
     }
+    getdns_context_t context = net_req->context;
     if (net_req->pkt) {
         ldns_pkt_free(net_req->pkt);
     }
@@ -66,7 +66,7 @@ getdns_network_req* network_req_new(getdns_context_t context,
     pkt = create_new_pkt(context, name, request_type, extensions);
     if (!pkt) {
         /* free up the req */
-        network_req_free(context, net_req);
+        network_req_free(net_req);
         return NULL;
     }
     net_req->pkt = pkt;
@@ -78,12 +78,12 @@ getdns_network_req* network_req_new(getdns_context_t context,
     return net_req;
 }
 
-void dns_req_free(getdns_context_t context,
-                         getdns_dns_req* req) {
+void dns_req_free(getdns_dns_req* req) {
     if (!req) {
         return;
     }
-    network_req_free(context, req->current_req);
+    getdns_context_t context = req->context;
+    network_req_free(req->current_req);
     gd_free(req);
 }
 
@@ -108,7 +108,7 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
     net_req = network_req_new(context, name, request_type,
                               extensions, transaction_id);
     if (!net_req) {
-        dns_req_free(context, result);
+        dns_req_free(result);
         result = NULL;
     }
     

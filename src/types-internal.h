@@ -65,7 +65,7 @@ typedef struct getdns_nameserver {
 	int requests_inflight;
 } getdns_nameserver;
 
-/* network request - state for a network request and referenced
+/* network request - state for a single network request and referenced
  * by the the outbound_req
  */
 typedef struct getdns_network_req {
@@ -114,7 +114,7 @@ typedef struct getdns_dns_req {
 /* utility methods */
 
 /* network request utilities */
-void network_req_free(getdns_context_t context, getdns_network_req* net_req);
+void network_req_free(getdns_network_req* net_req);
 
 getdns_network_req* network_req_new(getdns_context_t context,
                                     const char* name,
@@ -131,8 +131,12 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
                             getdns_transaction_t *transaction_id);
 
 
-void dns_req_free(getdns_context_t context,
-                  getdns_dns_req* req);
+void dns_req_free(getdns_dns_req* req);
+
+/* nameserver utils */
+getdns_nameserver* nameserver_new_from_ip_dict(getdns_dict* ip_dict);
+
+void nameserver_free(getdns_nameserver* nameserver);
 
 
 #endif

@@ -1,4 +1,5 @@
 *~
+.DS_Store
 Makefile.in
 getdns*.tar.gz
 *.o
