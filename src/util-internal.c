@@ -30,6 +30,15 @@
 
 #include "util-internal.h"
 
+getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
+                                            char* value) {
+    char data[strlen(value) + 1];
+    data[strlen(value)] = 0;
+    memcpy(data, value, strlen(value));
+    getdns_bindata type_bin = { strlen(value) + 1, (uint8_t*) data };
+    return getdns_dict_set_bindata(dict, name, &type_bin);
+}
+
 getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output) {
     struct getdns_bindata *address_type = NULL;
     struct getdns_bindata *address_data = NULL;
@@ -42,7 +51,7 @@ getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* outpu
     if (!address_type || !address_data) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    if (strcmp((char*) address_type->data, GETDNS_STR_IPV4)) {
+    if (strcmp((char*) address_type->data, GETDNS_STR_IPV4) == 0) {
         /* data is an in_addr_t */
         struct sockaddr_in* addr = (struct sockaddr_in*) output;
         addr->sin_family = AF_INET;
@@ -75,5 +84,14 @@ ldns_pkt *create_new_pkt(getdns_context_t context,
     return pkt;
 }
 
-
+getdns_dict *create_getdns_response(ldns_pkt* pkt) {
+    char* data = ldns_pkt2str(pkt);
+    getdns_dict* result = getdns_dict_create();
+    getdns_bindata bindata = {
+        strlen(data), (uint8_t*) data
+    };
+    getdns_dict_set_bindata(result, "pkt", &bindata);
+    free(data);
+    return result;
+}
 

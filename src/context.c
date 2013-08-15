@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include "context.h"
+#include "util-internal.h"
 #include <ldns/ldns.h>
 
 /* stuff to make it compile pedantically */
@@ -60,13 +61,9 @@ static struct getdns_dict* create_ipaddr_dict_from_rdf(ldns_rdf* rdf) {
     getdns_dict *result = getdns_dict_create();
     /* set type */
     if (rt == LDNS_RDF_TYPE_A) {
-        getdns_bindata type_bin = { (size_t) strlen(GETDNS_STR_IPV4), 
-                                    (uint8_t*) GETDNS_STR_IPV4 };
-        getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_TYPE, &type_bin);
+        getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE, GETDNS_STR_IPV4);
     } else {
-        getdns_bindata type_bin = { (size_t) strlen(GETDNS_STR_IPV6), 
-                                    (uint8_t*) GETDNS_STR_IPV6 };
-        getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_TYPE, &type_bin);
+        getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE, GETDNS_STR_IPV6);
     }
     /* set data */
     getdns_bindata data_bin = { sz, ldns_rdf_data(rdf) };

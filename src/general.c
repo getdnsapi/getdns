@@ -64,25 +64,83 @@
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
+/* libevent callback for a network request */
+static void dns_req_callback(int fd, short events, void *arg) {
+    getdns_dns_req *request = (getdns_dns_req*) arg;
+    uint8_t data[1500];
+    if (events & EV_READ) {
+        while (1) {
+            ssize_t r = recv(fd, data, sizeof(data), MSG_DONTWAIT);
+            if (r < 0) {
+                if (errno == EAGAIN) return;
+                /* otherwise failed */
+                request->user_callback(request->context,
+                                       GETDNS_CALLBACK_ERROR,
+                                       NULL, request->user_pointer,
+                                       request->trans_id);
+            }
+            /* parse a packet */
+            ldns_pkt* pkt = NULL;
+            ldns_wire2pkt(&pkt, data, r);
+            if (pkt == NULL) {
+                /* otherwise failed */
+                request->user_callback(request->context,
+                                       GETDNS_CALLBACK_ERROR,
+                                       NULL, request->user_pointer,
+                                       request->trans_id);
+            } else {
+                /* success */
+                getdns_dict* response = create_getdns_response(pkt);
+                ldns_pkt_free(pkt);
+                request->user_callback(request->context, GETDNS_CALLBACK_COMPLETE,
+                                       response, request->user_pointer,
+                                       request->trans_id);
+            }
+        }
+    } else if (events & EV_TIMEOUT) {
+        request->user_callback(request->context, GETDNS_CALLBACK_TIMEOUT,
+                               NULL, request->user_pointer, request->trans_id);
+    }
+    /* clean up ns since right now it's 1:1 with the request */
+    nameserver_free(request->current_req->ns);
+    /* cleanup the request */
+    dns_req_free(request);
+}
+
 /* submit a new request to the event loop */
 static getdns_return_t submit_new_dns_req(getdns_dns_req *request) {
-    getdns_dict *nameserver = NULL;
+    getdns_dict *ip_dict = NULL;
     getdns_context_t context = request->context;
-    struct sockaddr_storage sockdata;
+    uint8_t* data = NULL;
+    size_t data_len = 0;
+    struct timeval timeout = { 5, 0 };
     
     /* get first upstream server */
-    getdns_list_get_dict(context->upstream_list, 0, &nameserver);
-    if (!nameserver) {
+    getdns_list_get_dict(context->upstream_list, 0, &ip_dict);
+    if (!ip_dict) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
     
-    /* setup socket */
-    if (dict_to_sockaddr(nameserver, &sockdata) != GETDNS_RETURN_GOOD) {
+    /* get the nameserver */
+    getdns_nameserver *ns = nameserver_new_from_ip_dict(context, ip_dict);
+    if (!ns) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    evutil_socket_t sock = socket(sockdata.ss_family, SOCK_DGRAM, 0);
-    evutil_make_socket_closeonexec(sock);
-    evutil_make_socket_nonblocking(sock);
+    
+    request->current_req->ns = ns;
+
+    /* schedule on the loop */
+    ns->event = event_new(context->event_base, request->current_req->ns->socket,
+                          EV_READ | EV_TIMEOUT,
+                          dns_req_callback, request);
+    
+    event_add(ns->event, &timeout);
+    
+    /* send data */
+    ldns_pkt *pkt = request->current_req->pkt;
+    ldns_pkt2wire(&data, pkt, &data_len);
+    send(ns->socket, data, data_len, MSG_DONTWAIT);
+    free(data);
     
     return GETDNS_RETURN_GOOD;
 }

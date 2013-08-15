@@ -49,8 +49,7 @@ void network_req_free(getdns_network_req* net_req) {
 getdns_network_req* network_req_new(getdns_context_t context,
                                     const char* name,
                                     uint16_t request_type,
-                                    struct getdns_dict* extensions,
-                                    getdns_transaction_t *transaction_id) {
+                                    struct getdns_dict* extensions) {
     getdns_network_req *net_req = NULL;
     ldns_pkt *pkt = NULL;
     net_req = gd_malloc(sizeof(getdns_network_req));
@@ -70,10 +69,6 @@ getdns_network_req* network_req_new(getdns_context_t context,
         return NULL;
     }
     net_req->pkt = pkt;
-    net_req->trans_id = ldns_pkt_id(pkt);
-    if (transaction_id) {
-        *transaction_id = net_req->trans_id;
-    }
     
     return net_req;
 }
@@ -106,12 +101,17 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
     
     /* create the initial network request */
     net_req = network_req_new(context, name, request_type,
-                              extensions, transaction_id);
+                              extensions);
     if (!net_req) {
         dns_req_free(result);
         result = NULL;
     }
     
+    result->trans_id = ldns_pkt_id(net_req->pkt);
+    if (transaction_id) {
+        *transaction_id = result->trans_id;
+    }
+
     result->current_req = net_req;
     net_req->owner = result;
     

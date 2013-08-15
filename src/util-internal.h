@@ -38,3 +38,10 @@ ldns_pkt *create_new_pkt(getdns_context_t context,
                          const char* name,
                          uint16_t request_type,
                          struct getdns_dict* extensions);
+
+getdns_dict *create_getdns_response(ldns_pkt* pkt);
+
+/* dict util */
+getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
+                                            char* value);
+

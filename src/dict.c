@@ -508,7 +508,7 @@ getdns_dict_set_bindata(struct getdns_dict *dict, char *name, struct getdns_bind
             item->data.bindata = (struct getdns_bindata *) malloc(sizeof(struct getdns_bindata));
             if(item->data.bindata != NULL)
             {
-                item->data.bindata->data = (void *) malloc(item->data.bindata->size);
+                item->data.bindata->data = (void *) malloc(child_bindata->size);
                 if(item->data.bindata->data != NULL)
                 {
                     item->data.bindata->size =  child_bindata->size;

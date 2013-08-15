@@ -46,9 +46,9 @@ typedef struct getdns_nameserver {
     
 	int failed_times;  /* number of times which we have given this server a chance */
 	int timedout;  /* number of times in a row a request has timed out */
-	struct event event;
+	
+    struct event* event;
     
-	struct event timeout_event;  /* used to keep the timeout for */
     /* when we next probe this server. */
     /* Valid if state == 0 */
 	/* Outstanding probe request for this nameserver, if any */
@@ -76,12 +76,7 @@ typedef struct getdns_network_req {
 	int tx_count;  /* the number of times that this packet has been sent */
 	
     /* not owned */
-    struct nameserver *ns;	/* the server which we last sent it (unused) */
-    getdns_dict *upstream_server;
-    
-	struct event timeout_event;
-    
-	getdns_transaction_t trans_id;  /* the transaction id */
+    getdns_nameserver *ns;	/* the server which we sent to */
 	
 	unsigned transmit_me :1;  /* needs to be transmitted */
     
@@ -102,6 +97,8 @@ typedef struct getdns_dns_req {
     /* callback data */
     getdns_callback_t user_callback;
     void *user_pointer;
+    
+    getdns_transaction_t trans_id;  /* the transaction id */
 	
     
 	int pending_cb; /* Waiting for its callback to be invoked; not
@@ -119,8 +116,7 @@ void network_req_free(getdns_network_req* net_req);
 getdns_network_req* network_req_new(getdns_context_t context,
                                     const char* name,
                                     uint16_t request_type,
-                                    struct getdns_dict* extensions,
-                                    getdns_transaction_t *transaction_id);
+                                    struct getdns_dict* extensions);
 
 
 /* dns request utils */
@@ -134,9 +130,12 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
 void dns_req_free(getdns_dns_req* req);
 
 /* nameserver utils */
-getdns_nameserver* nameserver_new_from_ip_dict(getdns_dict* ip_dict);
+getdns_nameserver* nameserver_new_from_ip_dict(getdns_context_t context,
+                                               getdns_dict* ip_dict);
 
 void nameserver_free(getdns_nameserver* nameserver);
+
+getdns_dict* nameserver_to_dict(getdns_nameserver* nameserver);
 
 
 #endif
