@@ -32,11 +32,25 @@
 
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
                                             char* value) {
-    char data[strlen(value) + 1];
-    data[strlen(value)] = 0;
-    memcpy(data, value, strlen(value));
-    getdns_bindata type_bin = { strlen(value) + 1, (uint8_t*) data };
+    getdns_bindata type_bin = { strlen(value), (uint8_t*) value };
     return getdns_dict_set_bindata(dict, name, &type_bin);
+}
+
+getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,
+                                            char** result) {
+    struct getdns_bindata *bindata = NULL;
+    if (!result) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    *result = NULL;
+    getdns_dict_get_bindata(dict, name, &bindata);
+    if (!bindata) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    *result = malloc(bindata->size + 1);
+    *result[bindata->size] = 0;
+    memcpy(*result, bindata->data, bindata->size);
+    return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output) {
@@ -51,7 +65,7 @@ getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* outpu
     if (!address_type || !address_data) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    if (strcmp((char*) address_type->data, GETDNS_STR_IPV4) == 0) {
+    if (strncmp(GETDNS_STR_IPV4, (char*) address_type->data, strlen(GETDNS_STR_IPV4)) == 0) {
         /* data is an in_addr_t */
         struct sockaddr_in* addr = (struct sockaddr_in*) output;
         addr->sin_family = AF_INET;
