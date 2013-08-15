@@ -595,7 +595,7 @@ PACKAGE_STRING='getdns 0.320'
 PACKAGE_BUGREPORT='melinda.shore@nomountain.net'
 PACKAGE_URL=''
 
-ac_unique_file="src/common/getdns_general.c"
+ac_unique_file="src/getdns/getdns.h"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -767,7 +767,7 @@ LDFLAGS
 LIBS
 CPPFLAGS
 CPP'
-ac_subdirs_all='src/ src/common/ src/example/ src/test/'
+ac_subdirs_all='src/ src/getdns/ src/example/ src/test/'
 
 # Initialize some variables set by options.
 ac_init_help=
@@ -12336,11 +12336,11 @@ _ACEOF
   esac
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/common/Makefile src/example/Makefile src/test/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile"
 
 
 
-subdirs="$subdirs src/ src/common/ src/example/ src/test/"
+subdirs="$subdirs src/ src/getdns/ src/example/ src/test/"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -13368,7 +13368,7 @@ do
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
-    "src/common/Makefile") CONFIG_FILES="$CONFIG_FILES src/common/Makefile" ;;
+    "src/getdns/Makefile") CONFIG_FILES="$CONFIG_FILES src/getdns/Makefile" ;;
     "src/example/Makefile") CONFIG_FILES="$CONFIG_FILES src/example/Makefile" ;;
     "src/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/test/Makefile" ;;
 

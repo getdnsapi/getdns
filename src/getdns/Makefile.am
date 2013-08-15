@@ -1,1 +1,1 @@
-include_HEADERS = getdns.h
+pkginclude_HEADERS = getdns.h

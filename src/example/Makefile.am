@@ -1,5 +1,5 @@
-AM_CPPFLAGS = -Wall -Werror -g -fPIC -I$(srcdir)/ -I/usr/local/include -I../common -std=c99
-AM_LDFLAGS = -L../common -L/usr/local/lib -lgetdns -lldns -levent
+AM_CPPFLAGS = -Wall -Werror -g -fPIC -I$(srcdir)/ -I/usr/local/include -I$(top_srcdir)/src -std=c99
+AM_LDFLAGS =-L$(top_srcdir)/src -L/usr/local/lib -lgetdns -lldns -levent
 bin_PROGRAMS = example_all_functions example_synchronous \
     example_simple_answers example_tree
 example_all_functions_SOURCES = example_all_functions.c		
