@@ -740,7 +740,7 @@ getdns_general_sync(
   uint16_t               request_type,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 /**
@@ -758,7 +758,7 @@ getdns_address_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 /**
@@ -776,7 +776,7 @@ getdns_hostname_sync(
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 /**
@@ -794,7 +794,7 @@ getdns_service_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 void

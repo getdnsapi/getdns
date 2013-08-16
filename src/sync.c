@@ -28,9 +28,47 @@
  */
 
 #include <getdns/getdns.h>
+#include <pthread.h>
+#include "types-internal.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
+
+/* struct used for the request */
+typedef struct sync_request_data {
+    getdns_context_t context;
+    const char* name;
+    uint16_t request_type;
+    getdns_dict *extensions;
+    getdns_return_t response_status;
+    getdns_dict **response;
+} sync_request_data;
+
+static void sync_callback_func(getdns_context_t context,
+                               uint16_t callback_type,
+                               struct getdns_dict *response,
+                               void *userarg,
+                               getdns_transaction_t transaction_id) {
+    sync_request_data* req_data = userarg;
+    *(req_data->response) = response;
+}
+
+static void * request_thread_start(void *arg) {
+    struct sync_request_data *req_data = arg;
+    struct event_base *event_base = event_base_new();
+    
+    getdns_extension_set_libevent_base(req_data->context, event_base);
+    req_data->response_status = getdns_general(req_data->context,
+                                               req_data->name,
+                                               req_data->request_type,
+                                               req_data->extensions,
+                                               req_data,
+                                               NULL,
+                                               sync_callback_func);
+    
+    event_base_dispatch(event_base);
+    return NULL;
+}
 
 
 getdns_return_t
@@ -40,10 +78,44 @@ getdns_general_sync(
   uint16_t               request_type,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 )
-{ UNUSED_PARAM(context); UNUSED_PARAM(name); UNUSED_PARAM(request_type); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
+{
+    /* we will cheat and spawn a thread */
+    /* get the old event base */
+    struct event_base* orig_base = context->event_base;
+    pthread_t thread;
+    pthread_attr_t attr;
+    sync_request_data req_data = {
+        context, name, request_type,
+        extensions,
+        GETDNS_RETURN_GOOD,
+        response
+    };
+    
+    /* create the thread */
+    int ret = pthread_attr_init(&attr);
+    if (ret != 0) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    ret = pthread_create(&thread, &attr, request_thread_start, &req_data);
+    if (ret != 0) {
+        pthread_attr_destroy(&attr);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    /* wait for the thread */
+    ret = pthread_join(thread, NULL);
+    /* delete attr */
+    pthread_attr_destroy(&attr);
+    if (ret != 0) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    
+    /* set the old event loop */
+    getdns_extension_set_libevent_base(context, orig_base);
+    
+    return req_data.response_status;
+}
 
 getdns_return_t
 getdns_address_sync(
@@ -51,10 +123,26 @@ getdns_address_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 )
-{ UNUSED_PARAM(context); UNUSED_PARAM(name); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
+{
+    int cleanup_extensions = 0;
+    if (!extensions) {
+        extensions = getdns_dict_create();
+        cleanup_extensions = 1;
+    }
+    getdns_dict_set_int(extensions,
+                        GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6,
+                        GETDNS_EXTENSION_TRUE);
+    
+    getdns_return_t result =
+    getdns_general_sync(context, name, GETDNS_RRTYPE_A,
+                        extensions, response_length, response);
+    if (cleanup_extensions) {
+        getdns_dict_destroy(extensions);
+    }
+    return result;
+}
 
 getdns_return_t
 getdns_hostname_sync(
@@ -62,7 +150,7 @@ getdns_hostname_sync(
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(address); UNUSED_PARAM(extensions);
 UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
@@ -73,10 +161,14 @@ getdns_service_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 )
-{ UNUSED_PARAM(context); UNUSED_PARAM(name); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
+{
+    
+    return getdns_general_sync(context, name, GETDNS_RRTYPE_SRV, extensions,
+                               response_length, response);
+
+}
 
 void
 getdns_free_sync_request_memory(

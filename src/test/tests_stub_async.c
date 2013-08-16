@@ -44,11 +44,10 @@ void this_callbackfn(struct getdns_context_t *this_context,
         getdns_bindata* bindata = NULL;
         getdns_dict_get_bindata(this_response, "pkt", &bindata);
         if (bindata) {
-            char* data = malloc(1 + bindata->size);
+            char* data = (char*) bindata->data;
             data[bindata->size] = 0;
             memcpy(data, bindata->data, bindata->size);
             fprintf(stdout, "The packet %s\n", data);
-            free(data);
         }
 	}
 	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
