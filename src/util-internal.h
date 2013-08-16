@@ -32,6 +32,7 @@
 
 /* convert an ip address dict to a sock storage */
 getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output);
+getdns_return_t sockaddr_to_dict(struct sockaddr_storage* sockaddr, getdns_dict** output);
 
 /* create a dns packet for the given request type and extensions */
 ldns_pkt *create_new_pkt(getdns_context_t context,
@@ -42,11 +43,10 @@ ldns_pkt *create_new_pkt(getdns_context_t context,
 getdns_dict *create_getdns_response(ldns_pkt* pkt);
 
 /* dict util */
-/* set a string as bindata - non null terminated */
+/* set a string as bindata */
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
                                             char* value);
 
-/* get a string which was a non null terminated bindata. *result must
- * be freed if the call is successful */
+/* get a string from a dict.  result is valid as long as dict is valid */
 getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,
                                             char** result);

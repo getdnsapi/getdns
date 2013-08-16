@@ -90,8 +90,12 @@ void nameserver_free(getdns_nameserver* nameserver) {
 
 }
 
-/* TODO */
 getdns_dict* nameserver_to_dict(getdns_nameserver* nameserver) {
-    return NULL;
+    if (!nameserver) {
+        return NULL;
+    }
+    getdns_dict* result = NULL;
+    sockaddr_to_dict(&nameserver->address, &result);
+    return result;
 }
 

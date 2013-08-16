@@ -32,7 +32,8 @@
 
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
                                             char* value) {
-    getdns_bindata type_bin = { strlen(value), (uint8_t*) value };
+    /* account for the null term */
+    getdns_bindata type_bin = { strlen(value) + 1, (uint8_t*) value };
     return getdns_dict_set_bindata(dict, name, &type_bin);
 }
 
@@ -47,37 +48,68 @@ getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,
     if (!bindata) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    *result = malloc(bindata->size + 1);
-    *result[bindata->size] = 0;
-    memcpy(*result, bindata->data, bindata->size);
+    *result = (char*) bindata->data;
     return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output) {
-    struct getdns_bindata *address_type = NULL;
+    char* address_type = NULL;
     struct getdns_bindata *address_data = NULL;
-    uint16_t port = htons(53);
+    uint32_t port = 53;
     memset(output, 0, sizeof(struct sockaddr_storage));
     output->ss_family = AF_UNSPEC;
     
-    getdns_dict_get_bindata(ns, GETDNS_STR_ADDRESS_TYPE, &address_type);
+    uint32_t prt = 0;
+    if (getdns_dict_get_int(ns, GETDNS_STR_PORT, &prt) == GETDNS_RETURN_GOOD) {
+        port = prt;
+    }
+    
+    getdns_dict_util_get_string(ns, GETDNS_STR_ADDRESS_TYPE, &address_type);
     getdns_dict_get_bindata(ns, GETDNS_STR_ADDRESS_DATA, &address_data);
     if (!address_type || !address_data) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    if (strncmp(GETDNS_STR_IPV4, (char*) address_type->data, strlen(GETDNS_STR_IPV4)) == 0) {
+    if (strncmp(GETDNS_STR_IPV4, address_type, strlen(GETDNS_STR_IPV4)) == 0) {
         /* data is an in_addr_t */
         struct sockaddr_in* addr = (struct sockaddr_in*) output;
         addr->sin_family = AF_INET;
-        addr->sin_port = port;
+        addr->sin_port = htons((uint16_t)port);
         memcpy(&(addr->sin_addr), address_data->data, address_data->size);
     } else {
         /* data is a v6 addr in host order */
         struct sockaddr_in6* addr = (struct sockaddr_in6*) output;
         addr->sin6_family = AF_INET6;
-        addr->sin6_port = port;
+        addr->sin6_port = htons((uint16_t)port);
         memcpy(&(addr->sin6_addr), address_data->data, address_data->size);
     }
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t sockaddr_to_dict(struct sockaddr_storage* address, getdns_dict** output) {
+    if (!output || !address) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    getdns_bindata addr_data;
+    *output = NULL;
+    getdns_dict* result = getdns_dict_create();
+    if (address->ss_family == AF_INET) {
+        struct sockaddr_in* addr = (struct sockaddr_in*) address;
+        getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE, GETDNS_STR_IPV4);
+        addr_data.size = sizeof(addr->sin_addr);
+        addr_data.data = (uint8_t*) &(addr->sin_addr);
+        getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_DATA, &addr_data);
+    } else if (address->ss_family == AF_INET6) {
+        struct sockaddr_in6* addr = (struct sockaddr_in6*) address;
+        getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE, GETDNS_STR_IPV6);
+        addr_data.size = sizeof(addr->sin6_addr);
+        addr_data.data = (uint8_t*) &(addr->sin6_addr);
+        getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_DATA, &addr_data);
+    } else {
+        // invalid
+        getdns_dict_destroy(result);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    *output = result;
     return GETDNS_RETURN_GOOD;
 }
 
