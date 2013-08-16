@@ -120,9 +120,13 @@ ldns_pkt *create_new_pkt(getdns_context_t context,
                          struct getdns_dict* extensions) {
     ldns_pkt *pkt = NULL;
     ldns_rr_type type = (ldns_rr_type) request_type;
+    uint16_t flags = 0;
+    if (context->resolution_type == GETDNS_CONTEXT_STUB) {
+        flags |= LDNS_RD;
+    }
     ldns_pkt_query_new_frm_str(&pkt, name,
                                type,
-                               LDNS_RR_CLASS_IN, 0);
+                               LDNS_RR_CLASS_IN, flags);
     if (pkt) {
         /* id */
         ldns_pkt_set_id(pkt, ldns_get_random());
