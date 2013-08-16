@@ -47,14 +47,9 @@ getdns_service(
   getdns_callback_t          callback
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(name);
-    UNUSED_PARAM(extensions);
-    UNUSED_PARAM(userarg);
-    UNUSED_PARAM(transaction_id);
-    UNUSED_PARAM(callback);
-    
-    return GETDNS_RETURN_GOOD;
+    return getdns_general(context, name, GETDNS_RRTYPE_SRV,
+                          extensions, userarg, transaction_id,
+                          callback);
 } /* getdns_service */
 
 /* getdns_core_only.c */
