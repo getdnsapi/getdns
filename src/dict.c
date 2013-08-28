@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <search.h>
 #include <string.h>
-#include <getdns_core_only.h>
+#include <getdns/getdns.h>
 
 /* TODO: change this to make the walk safe for reentrant/multi-thread calls */
 struct getdns_list *walkresultlist;
@@ -508,7 +508,7 @@ getdns_dict_set_bindata(struct getdns_dict *dict, char *name, struct getdns_bind
             item->data.bindata = (struct getdns_bindata *) malloc(sizeof(struct getdns_bindata));
             if(item->data.bindata != NULL)
             {
-                item->data.bindata->data = (void *) malloc(item->data.bindata->size);
+                item->data.bindata->data = (void *) malloc(child_bindata->size);
                 if(item->data.bindata->data != NULL)
                 {
                     item->data.bindata->size =  child_bindata->size;

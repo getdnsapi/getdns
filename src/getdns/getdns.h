@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <event.h>
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
@@ -120,8 +121,8 @@
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE 514
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
-#define GETDNS_CONTEXT_GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE 515
-#define GETDNS_CONTEXT_GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
+#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE 515
+#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES 516
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES_TEXT See getdns_context_set_append_name()
 /** @}
@@ -141,8 +142,8 @@
 #define GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS_TEXT Change related to getdns_context_set_upstream_recursive_servers
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS 604
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS_TEXT Change related to getdns_context_set_dns_root_servers
-#define GETDNS_CONTEXT_CODE_USE_UDP_TCP 605
-#define GETDNS_CONTEXT_CODE_USE_UDP_TCP_TEXT Change related to getdns_context_set_use_udp_tcp
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT 605
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT_TEXT Change related to getdns_context_set_dns_transport
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES 606
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES_TEXT Change related to getdns_context_set_limit_outstanding_queries
 #define GETDNS_CONTEXT_CODE_APPEND_NAME 607
@@ -167,6 +168,8 @@
 #define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR_TEXT Change related to getdns_context_set_memory_deallocator
 #define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR 617
 #define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR_TEXT Change related to getdns_context_set_memory_reallocator
+#define GETDNS_CONTEXT_CODE_TIMEOUT 618
+#define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT Change related to getdns_context_set_timeout
 /** @}
  */
 
@@ -215,9 +218,9 @@
  * \defgroup extvals Values Associated With Extensions 
  * @{
  */
-#define GETDNS_EXTENSION_TRUE 1000
+#define GETDNS_EXTENSION_TRUE  1
 #define GETDNS_EXTENSION_TRUE_TEXT Turn on the extension
-#define GETDNS_EXTENSION_FALSE 1001
+#define GETDNS_EXTENSION_FALSE 0
 #define GETDNS_EXTENSION_FALSE_TEXT Do not turn on the extension
 /** @}
  */
@@ -232,6 +235,20 @@
 #define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL_TEXT One or more labels in a returned domain name is all-numeric; this is not legal for a hostname
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT A DNS query for a type other than CNAME returned a CNAME response
+/** @}
+ */
+
+/**
+ * \defgroup strings String Constants
+ * @{
+ */
+#define GETDNS_STR_IPV4 "IPv4"
+#define GETDNS_STR_IPV6 "IPv6"
+#define GETDNS_STR_ADDRESS_TYPE "address_type"
+#define GETDNS_STR_ADDRESS_DATA "address_data"
+#define GETDNS_STR_PORT "port"
+#define GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6 "return_both_v4_and_v6"
+
 /** @}
  */
 
@@ -681,10 +698,9 @@ getdns_service(
   getdns_callback_t      callbackfn
 );
 
-getdns_return_t
-getdns_context_create(
+getdns_return_t getdns_context_create(
   getdns_context_t       *context,
-  bool                   set_from_os
+  int                   set_from_os
 );
 
 void
@@ -724,7 +740,7 @@ getdns_general_sync(
   uint16_t               request_type,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 /**
@@ -742,7 +758,7 @@ getdns_address_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 /**
@@ -760,7 +776,7 @@ getdns_hostname_sync(
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 /**
@@ -778,7 +794,7 @@ getdns_service_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 void
@@ -950,6 +966,14 @@ getdns_return_t
 getdns_context_set_memory_reallocator(
   getdns_context_t       context,
   void                   (*value)(void*)
+);
+
+/* Extension - refactor to abstract async evt loop */
+/* For libevent, which we are using for these examples */
+getdns_return_t
+getdns_extension_set_libevent_base(
+  getdns_context_t       context,
+  struct event_base      *this_event_base
 );
 
 #endif /* GETDNS_H */

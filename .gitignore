@@ -1,4 +1,6 @@
 *~
+.DS_Store
+Makefile.in
 getdns*.tar.gz
 *.o
 .*.swp
@@ -9,6 +11,7 @@ aclocal.m4
 depcomp
 *.lo
 *.la
+configure
 config.guess
 config.sub
 config.status

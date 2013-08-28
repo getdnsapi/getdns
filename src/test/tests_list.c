@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
-#include "getdns_core_only.h"
+#include <getdns/getdns.h>
 
 #define TSTMSGBUF 80
 
@@ -45,7 +45,7 @@ void
 tst_bindatasetget(void)
 {
     char   msg[TSTMSGBUF];
-    size_t index;
+    size_t index = 0;
     getdns_return_t    retval;
     struct getdns_list *list = NULL;
     struct getdns_bindata *new_bindata = NULL; 
@@ -123,7 +123,7 @@ void
 tst_dictsetget(void)
 {
     char   msg[TSTMSGBUF];
-    size_t index;
+    size_t index = 0;
     uint32_t ans_int; 
     getdns_return_t    retval;
     struct getdns_list *list = NULL;
@@ -199,7 +199,7 @@ void
 tst_listsetget(void)
 {
     char   msg[TSTMSGBUF];
-    size_t index;
+    size_t index = 0;
     getdns_return_t    retval;
     uint32_t ans_int; 
     struct getdns_list *list = NULL;
@@ -276,7 +276,7 @@ void
 tst_intsetget(void)
 {
     char   msg[TSTMSGBUF];
-    size_t index;
+    size_t index = 0;
     uint32_t ans_int; 
     getdns_return_t    retval;
     struct getdns_list *list = NULL;

@@ -1,7 +1,7 @@
 /**
  *
- * /brief getdns core functions
- * 
+ * /brief getdns contect management functions
+ *
  * This is the meat of the API
  * Originally taken from the getdns API description pseudo implementation.
  *
@@ -15,10 +15,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,52 +28,25 @@
  * THE SOFTWARE.
  */
 
-#include <getdns_core_only.h>
-#include <stdio.h>
+#include "types-internal.h"
 
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
+/* convert an ip address dict to a sock storage */
+getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output);
+getdns_return_t sockaddr_to_dict(struct sockaddr_storage* sockaddr, getdns_dict** output);
 
-char *
-getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
-)
-{ UNUSED_PARAM(name_from_dns_response); return NULL; }
+/* create a dns packet for the given request type and extensions */
+ldns_pkt *create_new_pkt(getdns_context_t context,
+                         const char* name,
+                         uint16_t request_type,
+                         struct getdns_dict* extensions);
 
-char *
-getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
-)
-{ UNUSED_PARAM(fqdn_as_string); return NULL; }
+getdns_dict *create_getdns_response(ldns_pkt* pkt);
 
-char *
-getdns_convert_ulabel_to_alabel(
-	char  *ulabel
-)
-{ UNUSED_PARAM(ulabel); return NULL; }
+/* dict util */
+/* set a string as bindata */
+getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
+                                            char* value);
 
-char *
-getdns_convert_alabel_to_ulabel(
-	char  *alabel
-)
-{ UNUSED_PARAM(alabel); return NULL; }
-
-char *
-getdns_display_ip_address(
-  struct getdns_bindata    *bindata_of_ipv4_or_ipv6_address
-)
-{ UNUSED_PARAM(bindata_of_ipv4_or_ipv6_address); return NULL; }
-
-getdns_return_t
-getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
-{
-    getdns_return_t retval = GETDNS_RETURN_GOOD;
-
-    /* TODO: make this produce an actual string */
-
-    snprintf(buf, buflen, "%d", retval);
-
-    return retval;
-} /* getdns_strerror */
-
-/* getdns_core_only.c */
+/* get a string from a dict.  result is valid as long as dict is valid */
+getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,
+                                            char** result);
