@@ -37,7 +37,7 @@ The KSK can be placed in the sources which is probably the easiest for
 the system operator and is sufficiently secure provided the source
 deliver process is secure.
 
-One downside to this approach is that the soruce package becomes stale
+One downside to this approach is that the source package becomes stale
 following a KSK roll.  This can be partially mitigated by providing
 clear diagnostic messages for the user if they attempt to validate
 DNSSEC responses with outdated keys.
@@ -45,7 +45,7 @@ DNSSEC responses with outdated keys.
 
 Automatically Fetch Key Via ICANN Website
 -----------------------------------------
-One of the easiest approaches is to embed the url from which we fetch
+One of the easiest approaches is to embed the URL from which we fetch
 the KSK into the sources, the library can quietly fetch the KSK if one
 isn't available on the system.  This has some potential security
 risks.
