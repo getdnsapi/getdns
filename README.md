@@ -44,6 +44,8 @@ Doxygen is used to generate documentation, while this is not technically necessa
 
 GNU autoconf is used to generate the configure script (and consequently the Makefiles)
 
+Automake 1.12 is required if you are building the distribution tarball.
+
 Current State of the Implementation
 ===================================
 We are currently in the early stages of building the API so the code should be considered incomplete.  The current target platforms and the personal primarily responsible for ensuring it builds and runs on that platform include:
