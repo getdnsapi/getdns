@@ -70,7 +70,7 @@ main()
 
 	/* Make the call */
 	getdns_return_t dns_request_return = getdns_general_sync(this_context, this_name, this_request_type,
-		this_extensions, &this_response_length, this_response);
+		this_extensions, &this_response_length, &this_response);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
 	{
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
