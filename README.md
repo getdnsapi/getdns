@@ -4,7 +4,9 @@ getdns API
 * Date:    2013-06-27
 * GitHub:  <https://github.com/verisign/getdns> 
 
-getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the [MIT license](http://opensource.org/licenses/MIT).
+getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
+
+The [getdns-api mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api) is a good place to engage in discussions regarding the design of the API.
 
 This file captures the goals and direction of the project and the current state of the implementation.
 
