@@ -1,0 +1,77 @@
+#
+# @configure_input@
+#
+
+package = @PACKAGE_NAME@
+version = @PACKAGE_VERSION@
+tarname = @PACKAGE_TARNAME@
+distdir = $(tarname)-$(version)
+cflags = @CFLAGS@
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+CC=gcc
+CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -I /usr/local/include -std=c99
+# LDFLAGS=-L. -L/usr/local/lib
+# LDLIBS=-levent_core -lldns -lgetdns
+# PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
+
+.SUFFIXES: .c .o .a .lo .h
+
+.c.o:
+	$(CC) $(CFLAGS) -c $< -o $@
+
+default: all
+
+all: libgetdns 
+	cd test && $(MAKE) $@
+	cd example && $(MAKE) $@
+
+libgetdns: sync.o context.o list.o dict.o convert.o general.o hostname.o service.o \
+	validate_dnssec.o nameserver-internal.o request-internal.o util-internal.o getdns_error.o
+	$(CC) $(CFLAGS) -shared -o libgetdns.so $?
+
+clean:
+	rm -f *.o $(PROGRAMS) libgetdns.so
+
+distclean : clean
+	cd test && $(MAKE) $@
+	cd example && $(MAKE) $@
+	rm -f Makefile config.status config.log
+	rm -Rf autom4te.cache
+
+$(distdir): FORCE
+	mkdir -p $(distdir)/src
+	cp configure.ac $(distdir)
+	cp configure $(distdir)
+	cp Makefile.in $(distdir)
+	cp src/Makefile.in $(distdir)/src
+
+distcheck: $(distdir).tar.gz
+	gzip -cd $(distdir).tar.gz | tar xvf -
+	cd $(distdir) && ./configure
+	cd $(distdir) && $(MAKE) all
+	cd $(distdir) && $(MAKE) check
+	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst install
+	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst uninstall
+	@remaining="`find $${PWD}/$(distdir)/_inst -type f | wc -l`"; \
+	if test "$${remaining}" -ne 0; then
+	  echo "@@@ $${remaining} file(s) remaining in stage directory!"; \
+	  exit 1; \
+	fi
+	cd $(distdir) && $(MAKE) clean
+	rm -rf $(distdir)
+	@echo "*** Package $(distdir).tar.gz is ready for distribution"
+
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status $@
+
+configure.status: configure
+	cd .. && ./config.status --recheck
+
+.PHONY: clean
