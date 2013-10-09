@@ -1,6 +1,7 @@
 /**
  * \file
- * \brief include this header in your application to use getdns API
+ * \brief Public interfaces to getdns - include this in your application to use getdns API.
+ *
  * This source was taken from the original pseudo-implementation by
  * Paul Hoffman.
  */

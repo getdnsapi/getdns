@@ -1,4 +1,4 @@
-getdns API
+getdns API  {#mainpage}
 ==========
 
 * Date:    2013-06-27

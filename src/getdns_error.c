@@ -1,6 +1,6 @@
 /**
- *
- * /brief getdns error code to string functon
+ * \file getdns_error.c
+ * @brief getdns error code to string function
  * 
  */
 

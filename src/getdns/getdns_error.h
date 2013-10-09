@@ -1,6 +1,7 @@
 /**
  * \file
- * \brief include this header in your application to use getdns API
+ * \brief defines and data structure for getdns_error_str_by_id()
+ *
  * This source was taken from the original pseudo-implementation by
  * Paul Hoffman.
  */

@@ -32,7 +32,7 @@ PROJECT_NAME           = "getdns API"
 # This could be handy for archiving the generated documentation or
 # if some version control system is used.
 
-PROJECT_NUMBER         =
+PROJECT_NUMBER         = 0.320
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer
@@ -365,7 +365,7 @@ LOOKUP_CACHE_SIZE      = 0
 # Private class members and static file members will be hidden unless
 # the EXTRACT_PRIVATE and EXTRACT_STATIC tags are set to YES
 
-EXTRACT_ALL            = NO
+EXTRACT_ALL            = YES
 
 # If the EXTRACT_PRIVATE tag is set to YES all private members of a class
 # will be included in the documentation.
@@ -445,7 +445,7 @@ INTERNAL_DOCS          = NO
 # in case and if your file system supports case sensitive file names. Windows
 # and Mac users are advised to set this option to NO.
 
-CASE_SENSE_NAMES       = NO
+CASE_SENSE_NAMES       = YES
 
 # If the HIDE_SCOPE_NAMES tag is set to NO (the default) then Doxygen
 # will show members with their full class and namespace scopes in the
@@ -475,7 +475,7 @@ INLINE_INFO            = YES
 # alphabetically by member name. If set to NO the members will appear in
 # declaration order.
 
-SORT_MEMBER_DOCS       = YES
+SORT_MEMBER_DOCS       = NO
 
 # If the SORT_BRIEF_DOCS tag is set to YES then doxygen will sort the
 # brief documentation of file, namespace and class members alphabetically
@@ -668,7 +668,11 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  =
+INPUT                  = . \
+                         getdns/ \
+                         example/ \
+                         test/ \
+                         ../README.md
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding, which is
@@ -728,7 +732,7 @@ EXCLUDE_SYMBOLS        =
 # directories that contain example code fragments that are included (see
 # the \include command).
 
-EXAMPLE_PATH           =
+EXAMPLE_PATH           = example/
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp
@@ -791,7 +795,7 @@ FILTER_SOURCE_PATTERNS =
 # This can be useful if you have a project on for instance GitHub and want reuse
 # the introduction page also for the doxygen output.
 
-USE_MDFILE_AS_MAINPAGE = README.md
+USE_MDFILE_AS_MAINPAGE = ../README.md
 
 #---------------------------------------------------------------------------
 # configuration options related to source browsing
@@ -802,7 +806,7 @@ USE_MDFILE_AS_MAINPAGE = README.md
 # Note: To get rid of all source code in the generated output, make sure also
 # VERBATIM_HEADERS is set to NO.
 
-SOURCE_BROWSER         = NO
+SOURCE_BROWSER         = YES
 
 # Setting the INLINE_SOURCES tag to YES will include the body
 # of functions and classes directly in the documentation.
@@ -1434,7 +1438,7 @@ RTF_EXTENSIONS_FILE    =
 # If the GENERATE_MAN tag is set to YES (the default) Doxygen will
 # generate man pages
 
-GENERATE_MAN           = NO
+GENERATE_MAN           = YES
 
 # The MAN_OUTPUT tag is used to specify where the man pages will be put.
 # If a relative path is entered the value of OUTPUT_DIRECTORY will be
