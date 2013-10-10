@@ -44,8 +44,8 @@ int  walkresultcharlen;
 /**
  * private function used by the t*() functions for managing binary trees
  * behaves similar to strcmp() 
- * @param itemp1 pointer to pointer to getdns_dict_item to compare
- * @param itemp2 pointer to pointer to getdns_dict_item to compare
+ * @param item1 pointer to pointer to getdns_dict_item to compare
+ * @param item2 pointer to pointer to getdns_dict_item to compare
  * @return results of lexicographic comparison between item1->key and item2->key
  */
 int
@@ -362,6 +362,7 @@ getdns_dict_visit_copyitem(const void *node, VISIT order, int level)
  * for freeing storage allocated to returned value
  * NOTE: not thread safe - this needs to be fixed to be thread safe
  * @param srcdict the dictionary structure to copy
+ * @param dstdict the copy destination
  * @return the address of the copy of the dictionary structure on success
  * @return NULL on error (out of memory, invalid srcdict)
  */
@@ -386,7 +387,7 @@ getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
 /*---------------------------------------- getdns_dict_item_free */
 /**
  * private function used to release storage associated with a dictionary item
- * @param all memory in this structure and its children will be freed
+ * @param item all memory in this structure and its children will be freed
  * @return void
  */
 void

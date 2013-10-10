@@ -426,7 +426,7 @@ getdns_return_t getdns_list_get_length(struct getdns_list *list, size_t *answer)
   * caller must ensure that dstlist points to unallocated storage - the address will
   * be overwritten by a new list via a call to getdns_list_create()
   * @param srclist pointer to list to copy
-  * @param srclist pointer to pointer to list to receive the copy (will be allocated)
+  * @param dstlist pointer to pointer to list to receive the copy (will be allocated)
   * @return GETDNS_RETURN_GOOD on success
   * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
   * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
@@ -500,7 +500,7 @@ getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index, uint
 getdns_return_t getdns_dict_get_names(struct getdns_dict *dict, struct getdns_list **answer);
 /**
  * fetch the data type for the data associated with the specified name
- * @param dict dictionary from which to fetch the data type
+ * @param this_dict dictionary from which to fetch the data type
  * @param name a name/key value to look up in the dictionary
  * @param *answer data type will be stored at this address
  * @return GETDNS_RETURN_GOOD on success
@@ -511,7 +511,7 @@ getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *n
  * fetch the dictionary associated with the specified name, the dictionary should
  * not be free()'d by the caller, it will be freed when the parent dictionary is
  * free()'d
- * @param dict dictionary from which to fetch the dictionary
+ * @param this_dict dictionary from which to fetch the dictionary
  * @param name a name/key value to look up in the dictionary
  * @param **answer a copy of the dictionary will be stored at this address
  * @return GETDNS_RETURN_GOOD on success
@@ -522,7 +522,7 @@ getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, 
  * fetch the list associated with the specified name
  * the list should not be free()'d by the caller, when the dictionary is destroyed
  * the list will also be destroyed
- * @param dict dictionary from which to fetch the list
+ * @param this_dict dictionary from which to fetch the list
  * @param name a name/key value to look up in the dictionary
  * @param **answer a copy of the list will be stored at this address
  * @return GETDNS_RETURN_GOOD on success
@@ -532,7 +532,7 @@ getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, 
 /**
  * fetch the bindata associated with the specified name, the bindata should not be 
  * free()'d by the caller 
- * @param dict dictionary from which to fetch the bindata
+ * @param this_dict dictionary from which to fetch the bindata
  * @param name a name/key value to look up in the dictionary
  * @param **answer a copy of the bindata will be stored at this address
  * @return GETDNS_RETURN_GOOD on success
@@ -541,7 +541,7 @@ getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, 
 getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer);
 /**
  * fetch the integer value associated with the specified name
- * @param dict dictionary from which to fetch the integer
+ * @param this_dict dictionary from which to fetch the integer
  * @param name a name/key value to look up in the dictionary
  * @param *answer the integer will be stored at this address
  * @return GETDNS_RETURN_GOOD on success
@@ -566,6 +566,7 @@ void getdns_list_destroy(struct getdns_list *list);
  * add an item to the tail of a list - note that this was not in the getdns API
  * description but the list_set functions seem to be designed to modify an existing
  * item in the list.  The newly added item has no data type.
+ * @param list list containing the item to which child_list is to be added
  * @param *index assigned to the index of the newly added item on success
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
@@ -575,7 +576,7 @@ getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, str
 /**
  * assign the child_list to an item in a parent list, the parent list copies 
  * the child list and will free the copy when the list is destroyed
- * @param list list contiaining the item to which child_list is to be assigned 
+ * @param list list containing the item to which child_list is to be assigned 
  * @param index index of the item within list to which child_list is to be assigned
  * @param *child_list list to assign to the item
  * @return GETDNS_RETURN_GOOD on success
