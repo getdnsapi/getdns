@@ -35,6 +35,10 @@ then
     AC_MSG_ERROR([One more dependencies is missing])
 fi
 
+AC_CHECK_PROGS([DOXYGEN], [doxygen])
+if test -z "$DOXYGEN";
+    then AC_MSG_WARN([Doxygen not found, continuing without])
+fi
 
 # Checks for header files.
 AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h])
@@ -48,5 +52,9 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile])
+if [ test -n "$DOXYGEN" ]
+    then AC_CONFIG_FILES([src/Doxyfile])
+fi
+
 AC_CONFIG_SUBDIRS([src/ src/getdns/ src/example/ src/test/])
 AC_OUTPUT
