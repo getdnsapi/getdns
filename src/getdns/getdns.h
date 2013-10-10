@@ -752,6 +752,7 @@ getdns_general_sync(
  * @param response_length response length
  * @param response response
  * @return GETDNS_RETURN_GOOD on success
+
  */
 getdns_return_t
 getdns_address_sync(
@@ -765,7 +766,7 @@ getdns_address_sync(
 /**
  * retrieve hostname assigned to an IP address
  * @param context pointer to a previously created context to be used for this call
- * @param name the ASCII based domain name to lookup
+ * @param address the address to look up
  * @param extensions dict data structures, NULL to use no extensions
  * @param response_length response length
  * @param response response
