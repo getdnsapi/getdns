@@ -34,7 +34,8 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <stdbool.h>
-#include <event2/event.h>
+
+struct event_base;
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <getdns/getdns.h>
+#include <event2/event.h>
 
 #define UNUSED_PARAM(x) ((void)(x))
 

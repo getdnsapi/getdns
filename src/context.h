@@ -32,6 +32,9 @@
 
 #include <getdns/getdns.h>
 
+struct event_base;
+struct ub_ctx;
+
 /** function pointer typedefs */
 typedef void (*getdns_update_callback)(getdns_context_t context, uint16_t changed_item);
 typedef void* (*getdns_memory_allocator)(size_t size);
@@ -43,17 +46,14 @@ struct getdns_context_t {
     /* Context values */
     uint16_t resolution_type;
     uint16_t *namespaces;
-    uint16_t dns_transport;
-    uint16_t limit_outstanding_queries;
     uint16_t timeout;
     uint16_t follow_redirects;
     struct getdns_list *dns_root_servers;
     uint16_t append_name;
     struct getdns_list *suffix;
     struct getdns_list *dnssec_trust_anchors;
-    uint16_t dnssec_allow_skew;
     struct getdns_list *upstream_list;
-    uint16_t edns_maximum_udp_payload_size;
+    
     uint8_t edns_extended_rcode;
     uint8_t edns_version;
     uint8_t edns_do_bit;
@@ -63,14 +63,15 @@ struct getdns_context_t {
     getdns_memory_deallocator memory_deallocator;
     getdns_memory_reallocator memory_reallocator;
 
-    /* Event loop */
-    struct event_base* event_base;
+    /* Event loop for sync requests */
+    struct event_base* event_base_sync;
     
-    /* outbound request dict (transaction -> req struct) */
-    getdns_dict *outbound_reqs;
-
-    /* socket */
-    evutil_socket_t resolver_socket;
+    /* The underlying unbound contexts that do
+       the real work */
+    struct ub_ctx *unbound_sync;
+    struct ub_ctx *unbound_async;
+    uint8_t async_set;
+    
 } ;
 
 #endif

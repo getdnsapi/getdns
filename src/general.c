@@ -58,93 +58,107 @@
  * Version: 0.1b
  */
 
-#include "types-internal.h"
+#include <string.h>
+#include <unbound.h>
+#include <unbound-event.h>
+#include <ldns/ldns.h>
+#include "context.h"
 #include "util-internal.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
-/* libevent callback for a network request */
-static void dns_req_callback(int fd, short events, void *arg) {
-    getdns_dns_req *request = (getdns_dns_req*) arg;
-    uint8_t data[1500];
-    if (events & EV_READ) {
-        while (1) {
-            ssize_t r = recv(fd, data, sizeof(data), MSG_DONTWAIT);
-            if (r < 0) {
-                if (errno == EAGAIN) return;
-                /* otherwise failed */
-                request->user_callback(request->context,
-                                       GETDNS_CALLBACK_ERROR,
-                                       NULL, request->user_pointer,
-                                       request->trans_id);
-            }
-            /* parse a packet */
-            ldns_pkt* pkt = NULL;
-            ldns_wire2pkt(&pkt, data, r);
-            if (pkt == NULL) {
-                /* otherwise failed */
-                request->user_callback(request->context,
-                                       GETDNS_CALLBACK_ERROR,
-                                       NULL, request->user_pointer,
-                                       request->trans_id);
-            } else {
-                /* success */
-                getdns_dict* response = create_getdns_response(pkt);
-                ldns_pkt_free(pkt);
-                request->user_callback(request->context, GETDNS_CALLBACK_COMPLETE,
-                                       response, request->user_pointer,
-                                       request->trans_id);
-            }
-        }
-    } else if (events & EV_TIMEOUT) {
-        request->user_callback(request->context, GETDNS_CALLBACK_TIMEOUT,
-                               NULL, request->user_pointer, request->trans_id);
-    }
-    /* clean up ns since right now it's 1:1 with the request */
-    nameserver_free(request->current_req->ns);
-    /* cleanup the request */
-    dns_req_free(request);
+typedef struct getdns_ub_req {
+  struct ub_ctx *unbound;
+  getdns_context_t context;
+  char* name;
+  void* userarg;
+  getdns_callback_t callback;
+  getdns_transaction_t transaction_id;
+} getdns_ub_req;
+
+static void getdns_ub_req_free(getdns_ub_req* req) {
+  free(req->name);
+  free(req);
 }
 
-/* submit a new request to the event loop */
-static getdns_return_t submit_new_dns_req(getdns_dns_req *request) {
-    getdns_dict *ip_dict = NULL;
-    getdns_context_t context = request->context;
-    uint8_t* data = NULL;
-    size_t data_len = 0;
-    struct timeval timeout = { 5, 0 };
-    
-    /* get first upstream server */
-    getdns_list_get_dict(context->upstream_list, 0, &ip_dict);
-    if (!ip_dict) {
-        return GETDNS_RETURN_GENERIC_ERROR;
+void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec, char* bogus) {
+  getdns_ub_req* req = (getdns_ub_req*) arg;
+  ldns_pkt* pkt = NULL;
+  if (err) {
+    req->callback(req->context,
+                  GETDNS_CALLBACK_ERROR,
+                  NULL, 
+                  req->userarg,
+                  req->transaction_id);
+  } else {
+    /* parse */
+    ldns_status r = ldns_buffer2pkt_wire(&pkt, result);
+    if (r != LDNS_STATUS_OK) {
+      req->callback(req->context,
+                    GETDNS_CALLBACK_ERROR,
+                    NULL, 
+                    req->userarg,
+                    req->transaction_id);
+    } else {
+      getdns_dict* response = create_getdns_response(pkt);
+      ldns_pkt_free(pkt);
+      req->callback(req->context, 
+                    GETDNS_CALLBACK_COMPLETE,
+                    response, 
+                    req->userarg,
+                    req->transaction_id);
     }
-    
-    /* get the nameserver */
-    getdns_nameserver *ns = nameserver_new_from_ip_dict(context, ip_dict);
-    if (!ns) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    
-    request->current_req->ns = ns;
+  }
+  /* cleanup */
+  getdns_ub_req_free(req);
+}
 
-    /* schedule on the loop */
-    ns->event = event_new(context->event_base, request->current_req->ns->socket,
-                          EV_READ | EV_TIMEOUT,
-                          dns_req_callback, request);
-    
-    event_add(ns->event, &timeout);
-    
-    /* send data */
-    ldns_pkt *pkt = request->current_req->pkt;
-    ldns_pkt2wire(&data, pkt, &data_len);
-    send(ns->socket, data, data_len, MSG_DONTWAIT);
-    free(data);
-    
+getdns_return_t
+getdns_general_ub(
+  struct ub_ctx*         unbound,
+  getdns_context_t       context,
+  const char             *name,
+  uint16_t               request_type,
+  struct getdns_dict     *extensions,
+  void                   *userarg,
+  getdns_transaction_t   *transaction_id,
+  getdns_callback_t      callbackfn
+) {
+
+    int r;
+    int async_id = 0;
+
+    /* request state */
+    getdns_ub_req* req = (getdns_ub_req*) malloc(sizeof(getdns_ub_req));
+    req->unbound = unbound;
+    req->context = context;
+    req->name = strdup(name);
+    req->userarg = userarg;
+    req->callback = callbackfn;
+
+    /* TODO: 
+       setup root or stub 
+       handle immediate callback
+       A + AAAA
+     */
+
+    r = ub_resolve_event(unbound, req->name, request_type,
+                         LDNS_RR_CLASS_IN, req, ub_resolve_callback,
+                         &async_id);
+
+    if (transaction_id) {
+      *transaction_id = async_id;
+    }
+    req->transaction_id = async_id;
+
+
+    if (r != 0) {
+      getdns_ub_req_free(req);
+      return GETDNS_RETURN_GENERIC_ERROR;
+    }
     return GETDNS_RETURN_GOOD;
 }
-
 
 /*
  * getdns_general
@@ -160,36 +174,24 @@ getdns_general(
   getdns_callback_t          callback
 )
 {
-    /* Default to zero */
-    if (transaction_id != NULL) {
-        *transaction_id = 0;
-    }
-    if (!context || context->event_base == NULL ||
-        callback == NULL ||
-        context->resolution_type != GETDNS_CONTEXT_STUB) {
+    
+    if (!context || context->async_set == 0 ||
+        callback == NULL) {
         /* Can't do async without an event loop
-         * or callback
-         *
-         * Only supports stub right now.
+         * or callback        
          */
         return GETDNS_RETURN_BAD_CONTEXT;
     }
     
+    return getdns_general_ub(context->unbound_async,
+                             context,
+                             name,
+                             request_type,
+                             extensions,
+                             userarg,
+                             transaction_id,
+                             callback);
 
-    /* create a req */
-    getdns_dns_req *dns_req = dns_req_new(context, name, request_type,
-                                          extensions, transaction_id);
-    if (dns_req == NULL) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    
-    dns_req->user_callback = callback;
-    dns_req->user_pointer = userarg;
-    
-    /* submit it */
-    submit_new_dns_req(dns_req);
-
-    return GETDNS_RETURN_GOOD;
 } /* getdns_general */
 
 

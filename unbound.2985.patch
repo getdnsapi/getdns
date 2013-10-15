@@ -1,0 +1,118 @@
+Index: Makefile.in
+===================================================================
+--- Makefile.in	(revision 2985)
++++ Makefile.in	(working copy)
+@@ -280,7 +280,7 @@
+ longtest:	tests
+ 	if test -x "`which bash`"; then bash testcode/do-tests.sh; else sh testcode/do-tests.sh; fi
+ 
+-lib:	libunbound.la unbound.h
++lib:	libunbound.la unbound.h unbound-event.h
+ 
+ libunbound.la:	$(LIBUNBOUND_OBJ_LINK)
+ 	$(LINK_LIB) $(UBSYMS) -o $@ $(LIBUNBOUND_OBJ_LINK) -rpath $(libdir) -lssl $(LIBS)
+@@ -348,6 +348,9 @@
+ unbound.h:	$(srcdir)/libunbound/unbound.h
+ 	sed -e 's/@''UNBOUND_VERSION_MAJOR@/$(UNBOUND_VERSION_MAJOR)/' -e 's/@''UNBOUND_VERSION_MINOR@/$(UNBOUND_VERSION_MINOR)/' -e 's/@''UNBOUND_VERSION_MICRO@/$(UNBOUND_VERSION_MICRO)/' < $(srcdir)/libunbound/unbound.h > $@
+ 
++unbound-event.h: $(srcdir)/libunbound/unbound-event.h
++	sed -e 's/@''UNBOUND_VERSION_MAJOR@/$(UNBOUND_VERSION_MAJOR)/' -e 's/@''UNBOUND_VERSION_MINOR@/$(UNBOUND_VERSION_MINOR)/' -e 's/@''UNBOUND_VERSION_MICRO@/$(UNBOUND_VERSION_MICRO)/' < $(srcdir)/libunbound/unbound-event.h > $@
++
+ unbound-control-setup:	$(srcdir)/smallapp/unbound-control-setup.sh
+ 	sed -e 's:^DESTDIR=.*$$:DESTDIR=$(UNBOUND_RUN_DIR):' < $(srcdir)/smallapp/unbound-control-setup.sh > $@
+ 	-chmod +x $@
+@@ -496,6 +499,7 @@
+ 	$(INSTALL) -c -m 755 unbound-control-setup $(DESTDIR)$(sbindir)/unbound-control-setup
+ 	if test ! -e $(DESTDIR)$(configfile); then $(INSTALL) -d `dirname $(DESTDIR)$(configfile)`; $(INSTALL) -c -m 644 doc/example.conf $(DESTDIR)$(configfile); fi
+ 	$(LIBTOOL) --mode=install cp unbound.h $(DESTDIR)$(includedir)/unbound.h
++	$(LIBTOOL) --mode=install cp unbound-event.h $(DESTDIR)$(includedir)/unbound-event.h
+ 	$(LIBTOOL) --mode=install cp libunbound.la $(DESTDIR)$(libdir)
+ 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
+ 
+Index: libunbound/ubsyms.def
+===================================================================
+--- libunbound/ubsyms.def	(revision 2985)
++++ libunbound/ubsyms.def	(working copy)
+@@ -29,3 +29,4 @@
+ ub_ctx_data_add
+ ub_ctx_data_remove
+ ub_version
++ub_ctx_set_event
+Index: libunbound/unbound-event.h
+===================================================================
+--- libunbound/unbound-event.h	(revision 2985)
++++ libunbound/unbound-event.h	(working copy)
+@@ -63,9 +63,9 @@
+ struct ub_ctx;
+ struct ub_result;
+ struct event_base;
+-struct ldns_buffer;
++struct ldns_struct_buffer;
+ 
+-typedef void (*ub_event_callback_t)(void*, int, struct ldns_buffer*, int, char*);
++typedef void (*ub_event_callback_t)(void*, int, struct ldns_struct_buffer*, int, char*);
+ 
+ /**
+  * Create a resolving and validation context.
+@@ -82,6 +82,15 @@
+ struct ub_ctx* ub_ctx_create_event(struct event_base* base);
+ 
+ /**
++ * Set a new event_base on a context created with ub_ctx_create_event.
++ * Any outbound queries will be canceled.
++ * @param ctx the ub_ctx to update.  Must have been created with ub_ctx_create_event
++ * @param base the new event_base to attach to the ctx
++ * @return 0 if OK, else error
++ */
++int ub_ctx_set_event(struct ub_ctx* ctx, struct event_base* base); 
++
++/**
+  * Perform resolution and validation of the target name.
+  * Asynchronous, after a while, the callback will be called with your
+  * data and the result.  Uses the event_base user installed by creating the
+Index: libunbound/libunbound.c
+===================================================================
+--- libunbound/libunbound.c	(revision 2985)
++++ libunbound/libunbound.c	(working copy)
+@@ -656,15 +656,14 @@
+ 			return r;
+ 		}
+ 	}
++	lock_basic_unlock(&ctx->cfglock);
+ 	if(!ctx->event_worker) {
+ 		ctx->event_worker = libworker_create_event(ctx,
+ 			ctx->event_base);
+ 		if(!ctx->event_worker) {
+-			lock_basic_unlock(&ctx->cfglock);
+ 			return UB_INITFAIL;
+ 		}
+ 	}
+-	lock_basic_unlock(&ctx->cfglock);
+ 
+ 	/* create new ctx_query and attempt to add to the list */
+ 	q = context_new(ctx, name, rrtype, rrclass, (ub_callback_t)callback,
+@@ -1212,3 +1211,24 @@
+ {
+ 	return PACKAGE_VERSION;
+ }
++
++int 
++ub_ctx_set_event(struct ub_ctx* ctx, struct event_base* base) {
++	if (!ctx || !ctx->event_base || !base) {
++		return UB_INITFAIL;
++	}
++	if (ctx->event_base == base) {
++		/* already set */
++		return UB_NOERROR;
++	}
++	
++	lock_basic_lock(&ctx->cfglock);
++	/* destroy the current worker - safe to pass in NULL */
++	libworker_delete_event(ctx->event_worker);
++	ctx->event_worker = NULL;
++	ctx->event_base = base;	
++	ctx->created_bg = 0;
++	ctx->dothread = 1;
++	lock_basic_unlock(&ctx->cfglock);
++	return UB_NOERROR;
++}
