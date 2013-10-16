@@ -91,13 +91,13 @@ main()
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
 		return(GETDNS_RETURN_GENERIC_ERROR);
 	}
-    dns_request_return = getdns_service(this_context, this_name, NULL, this_userarg, &this_transaction_id,
-                                        this_callbackfn);
-    if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
-	{
-		fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
-		return(GETDNS_RETURN_GENERIC_ERROR);
-	}
+//    dns_request_return = getdns_service(this_context, this_name, NULL, this_userarg, &this_transaction_id,
+//                                        this_callbackfn);
+//    if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
+//	{
+//		fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
+//		return(GETDNS_RETURN_GENERIC_ERROR);
+//	}
 	else
 	{
 		/* Call the event loop */

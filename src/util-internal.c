@@ -29,6 +29,7 @@
  */
 
 #include "util-internal.h"
+#include "types-internal.h"
 
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
                                             const char* value) {
@@ -58,12 +59,12 @@ getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* outpu
     uint32_t port = 53;
     memset(output, 0, sizeof(struct sockaddr_storage));
     output->ss_family = AF_UNSPEC;
-    
+
     uint32_t prt = 0;
     if (getdns_dict_get_int(ns, GETDNS_STR_PORT, &prt) == GETDNS_RETURN_GOOD) {
         port = prt;
     }
-    
+
     getdns_dict_util_get_string(ns, GETDNS_STR_ADDRESS_TYPE, &address_type);
     getdns_dict_get_bindata(ns, GETDNS_STR_ADDRESS_DATA, &address_data);
     if (!address_type || !address_data) {
@@ -113,28 +114,8 @@ getdns_return_t sockaddr_to_dict(struct sockaddr_storage* address, getdns_dict**
     return GETDNS_RETURN_GOOD;
 }
 
-/* TODO: flags */
-ldns_pkt *create_new_pkt(getdns_context_t context,
-                         const char* name,
-                         uint16_t request_type,
-                         struct getdns_dict* extensions) {
-    ldns_pkt *pkt = NULL;
-    ldns_rr_type type = (ldns_rr_type) request_type;
-    uint16_t flags = 0;
-    if (context->resolution_type == GETDNS_CONTEXT_STUB) {
-        flags |= LDNS_RD;
-    }
-    ldns_pkt_query_new_frm_str(&pkt, name,
-                               type,
-                               LDNS_RR_CLASS_IN, flags);
-    if (pkt) {
-        /* id */
-        ldns_pkt_set_id(pkt, ldns_get_random());
-    }
-    return pkt;
-}
-
-getdns_dict *create_getdns_response(ldns_pkt* pkt) {
+getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request) {
+    ldns_pkt* pkt = completed_request->first_req->result;
     char* data = ldns_pkt2str(pkt);
     getdns_dict* result = getdns_dict_create();
     getdns_bindata bindata = {

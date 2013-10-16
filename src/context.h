@@ -34,6 +34,8 @@
 
 struct event_base;
 struct ub_ctx;
+struct ldns_rbtree_t;
+struct getdns_dns_req;
 
 /** function pointer typedefs */
 typedef void (*getdns_update_callback)(getdns_context_t context, uint16_t changed_item);
@@ -53,11 +55,11 @@ struct getdns_context_t {
     struct getdns_list *suffix;
     struct getdns_list *dnssec_trust_anchors;
     struct getdns_list *upstream_list;
-    
+
     uint8_t edns_extended_rcode;
     uint8_t edns_version;
     uint8_t edns_do_bit;
-    
+
     getdns_update_callback update_callback;
     getdns_memory_allocator memory_allocator;
     getdns_memory_deallocator memory_deallocator;
@@ -65,18 +67,23 @@ struct getdns_context_t {
 
     /* Event loop for sync requests */
     struct event_base* event_base_sync;
-    
+
     /* The underlying unbound contexts that do
        the real work */
     struct ub_ctx *unbound_sync;
     struct ub_ctx *unbound_async;
     /* whether an async event base was set */
     uint8_t async_set;
-    /* which resolution type the contexts are configured for 
+
+    /* which resolution type the contexts are configured for
      * 0 means nothing set
      */
     uint8_t resolution_type_set;
-    
+
+    /*
+     * outbound requests -> transaction to getdns_dns_req
+     */
+    struct ldns_rbtree_t* outbound_requests;
 } ;
 
 /** internal functions **/
@@ -85,6 +92,11 @@ struct getdns_context_t {
  * if needed.
  */
 getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t context);
+
+/* track an outbound request */
+getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req* req);
+/* clear the outbound request from being tracked - does not cancel it */
+getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req* req);
 
 #endif
 

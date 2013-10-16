@@ -35,18 +35,13 @@
 #include <ldns/ldns.h>
 #include "context.h"
 
+struct getdns_dns_req;
 
 /* convert an ip address dict to a sock storage */
 getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output);
 getdns_return_t sockaddr_to_dict(struct sockaddr_storage* sockaddr, getdns_dict** output);
 
-/* create a dns packet for the given request type and extensions */
-ldns_pkt *create_new_pkt(getdns_context_t context,
-                         const char* name,
-                         uint16_t request_type,
-                         struct getdns_dict* extensions);
-
-getdns_dict *create_getdns_response(ldns_pkt* pkt);
+getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request);
 
 /* dict util */
 /* set a string as bindata */

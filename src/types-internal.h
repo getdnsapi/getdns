@@ -36,76 +36,68 @@
 
 /* declarations */
 struct getdns_dns_req;
-struct getdns_nameserver;
 struct getdns_network_req;
+struct ub_ctx;
 
-typedef struct getdns_nameserver {
-	evutil_socket_t socket;	 /* a connected UDP socket */
-	struct sockaddr_storage address;
-	ev_socklen_t addrlen;
-    
-	int failed_times;  /* number of times which we have given this server a chance */
-	int timedout;  /* number of times in a row a request has timed out */
-	
-    struct event* event;
-    
-    /* when we next probe this server. */
-    /* Valid if state == 0 */
-	/* Outstanding probe request for this nameserver, if any */
-	struct getdns_dns_req *probe_request;
-	char state;  /* zero if we think that this server is down */
-	char choked;  /* true if we have an EAGAIN from this server's socket */
-	char write_waiting;  /* true if we are waiting for EV_WRITE events */
-	
-    /* getdns context */
-    getdns_context_t context;
-    
-	/* Number of currently inflight requests: used
-	 * to track when we should add/del the event. */
-	int requests_inflight;
-} getdns_nameserver;
+typedef enum network_req_state_enum {
+    NET_REQ_NOT_SENT,
+    NET_REQ_IN_FLIGHT,
+    NET_REQ_FINISHED
+} network_req_state;
 
-/* network request - state for a single network request and referenced
- * by the the outbound_req
- */
+/**
+ * Request data for unbound
+ **/
 typedef struct getdns_network_req {
-	ldns_pkt *pkt;  /* the dns packet data */
-	uint16_t request_type; /* query type */
-    
-	int reissue_count;
-	int tx_count;  /* the number of times that this packet has been sent */
-	
-    /* not owned */
-    getdns_nameserver *ns;	/* the server which we sent to */
-	
-	unsigned transmit_me :1;  /* needs to be transmitted */
-    
-	getdns_context_t context;
-    
-	struct getdns_dns_req *owner;
-    
+	/* the async_id from unbound */
+    int unbound_id;
+    /* state var */
+    network_req_state state;
+    /* owner request (contains name) */
+    struct getdns_dns_req* owner;
+
+    /* request type */
+    uint16_t request_type;
+
+    /* request class */
+    uint16_t request_class;
+
+    /* result */
+    ldns_pkt* result;
+
+    /* next request to issue after this one */
+    struct getdns_network_req* next;
 } getdns_network_req;
 
-/* outbound request - manages recursion and stub reqs */
+/* dns request - manages a number of network requests and
+ * the initial data passed to getdns_general
+ */
 typedef struct getdns_dns_req {
-    
+
+    /* name */
+    char *name;
+
+    /* current network request */
 	struct getdns_network_req *current_req;
+
+    /* first request in list */
+    struct getdns_network_req *first_req;
+
+    /* context that owns the request */
     getdns_context_t context;
-    
-    uint16_t resolver_type;
-    
+
+    /* ub_ctx issuing the request */
+    struct ub_ctx* unbound;
+
+    /* request extensions */
+    getdns_dict *extensions;
+
     /* callback data */
     getdns_callback_t user_callback;
     void *user_pointer;
-    
+
     getdns_transaction_t trans_id;  /* the transaction id */
-	
-    
-	int pending_cb; /* Waiting for its callback to be invoked; not
-                     * owned by event base any more. */
-    
-	/* search not supported.. yet */
-    
+
 } getdns_dns_req;
 
 /* utility methods */
@@ -113,29 +105,23 @@ typedef struct getdns_dns_req {
 /* network request utilities */
 void network_req_free(getdns_network_req* net_req);
 
-getdns_network_req* network_req_new(getdns_context_t context,
-                                    const char* name,
+getdns_network_req* network_req_new(getdns_dns_req* owner,
                                     uint16_t request_type,
+                                    uint16_t request_class,
                                     struct getdns_dict* extensions);
 
 
 /* dns request utils */
 getdns_dns_req* dns_req_new(getdns_context_t context,
+                            struct ub_ctx* unbound,
                             const char* name,
                             uint16_t request_type,
-                            struct getdns_dict *extensions,
-                            getdns_transaction_t *transaction_id);
+                            struct getdns_dict *extensions);
 
 
 void dns_req_free(getdns_dns_req* req);
 
-/* nameserver utils */
-getdns_nameserver* nameserver_new_from_ip_dict(getdns_context_t context,
-                                               getdns_dict* ip_dict);
-
-void nameserver_free(getdns_nameserver* nameserver);
-
-getdns_dict* nameserver_to_dict(getdns_nameserver* nameserver);
-
+/* cancel the request */
+getdns_return_t dns_req_cancel(getdns_dns_req* req);
 
 #endif
