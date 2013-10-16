@@ -31,7 +31,7 @@
 #include "util-internal.h"
 
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
-                                            char* value) {
+                                            const char* value) {
     /* account for the null term */
     getdns_bindata type_bin = { strlen(value) + 1, (uint8_t*) value };
     return getdns_dict_set_bindata(dict, name, &type_bin);

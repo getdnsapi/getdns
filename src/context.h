@@ -70,9 +70,21 @@ struct getdns_context_t {
        the real work */
     struct ub_ctx *unbound_sync;
     struct ub_ctx *unbound_async;
+    /* whether an async event base was set */
     uint8_t async_set;
+    /* which resolution type the contexts are configured for 
+     * 0 means nothing set
+     */
+    uint8_t resolution_type_set;
     
 } ;
+
+/** internal functions **/
+/**
+ * Sets up the unbound contexts with stub or recursive behavior
+ * if needed.
+ */
+getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t context);
 
 #endif
 

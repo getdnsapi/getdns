@@ -37,6 +37,7 @@
 #include <event2/event.h>
 #include <unbound.h>
 #include <unbound-event.h>
+#include <arpa/inet.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -60,6 +61,34 @@ static struct getdns_list* create_default_root_servers() {
     return NULL;
 }
 
+static getdns_return_t add_ip_str(getdns_dict* ip) {
+    struct sockaddr_storage storage;
+    char buff[256];
+    getdns_return_t r = dict_to_sockaddr(ip, &storage);
+    if (r != GETDNS_RETURN_GOOD) {
+        return r;
+    }
+    if (storage.ss_family == AF_INET) {
+        struct sockaddr_in* addr = (struct sockaddr_in*) &storage;
+        const char* ipStr = inet_ntop(AF_INET, &(addr->sin_addr), buff, 256);
+        if (!ipStr) {
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+        getdns_dict_util_set_string(ip, GETDNS_STR_ADDRESS_STRING, ipStr);
+    } else if (storage.ss_family == AF_INET6) {
+        struct sockaddr_in6* addr = (struct sockaddr_in6*) &storage;
+        const char* ipStr = inet_ntop(AF_INET6, &(addr->sin6_addr), buff, 256);
+        if (!ipStr) {
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+        getdns_dict_util_set_string(ip, GETDNS_STR_ADDRESS_STRING, ipStr);
+    } else {
+        /* unknown */
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
 static struct getdns_dict* create_ipaddr_dict_from_rdf(ldns_rdf* rdf) {
     ldns_rdf_type rt = ldns_rdf_get_type(rdf);
     size_t sz = ldns_rdf_size(rdf);
@@ -73,6 +102,7 @@ static struct getdns_dict* create_ipaddr_dict_from_rdf(ldns_rdf* rdf) {
     /* set data */
     getdns_bindata data_bin = { sz, ldns_rdf_data(rdf) };
     getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_DATA, &data_bin);
+    add_ip_str(result);
     return result;
 }
 
@@ -164,6 +194,7 @@ getdns_return_t getdns_context_create(
     /* create the async one also so options are kept up to date */
     result->unbound_async = ub_ctx_create_event(result->event_base_sync);
     result->async_set = 0;
+    result->resolution_type_set = 0;
 
     result->resolution_type = GETDNS_CONTEXT_RECURSING;
     result->namespaces = create_default_namespaces();
@@ -259,6 +290,15 @@ static void set_ub_number_opt(getdns_context_t ctx, char* opt, uint16_t value) {
     char buffer[64];
     snprintf(buffer, 64, "%hu", value);
     set_ub_string_opt(ctx, opt, buffer);
+}
+
+/*
+ * Clear the resolution type set flag if needed
+ */
+static inline void clear_resolution_type_set_flag(getdns_context_t context, uint16_t type) {
+    if (context->resolution_type_set == type) {
+        context->resolution_type_set = 0;
+    }
 }
 
 /*
@@ -418,6 +458,7 @@ getdns_context_set_follow_redirects(
 {
     context->follow_redirects = value;
 
+    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_RECURSING);
     dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
     
     return GETDNS_RETURN_GOOD;
@@ -434,14 +475,39 @@ getdns_context_set_dns_root_servers(
 )
 {
     getdns_list *copy = NULL;
+    size_t count = 0;
     if (addresses != NULL) {
         if (getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
             return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         }
         addresses = copy;
+        getdns_list_get_length(addresses, &count);
+        if (count == 0) {
+            getdns_list_destroy(addresses);
+            addresses = NULL;
+        } else {
+            size_t i = 0;
+            getdns_return_t r = GETDNS_RETURN_GOOD;
+            /* validate and add ip str */
+            for (i = 0; i < count; ++i) {
+                getdns_dict* dict = NULL;
+                getdns_list_get_dict(addresses, i, &dict);        
+                r = add_ip_str(dict);
+                if (r != GETDNS_RETURN_GOOD) {
+                    break;
+                }
+            }
+            if (r != GETDNS_RETURN_GOOD) {
+                getdns_list_destroy(addresses);
+                return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+            }
+        }
     }
+
     getdns_list_destroy(context->dns_root_servers);
     context->dns_root_servers = addresses;
+
+    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_RECURSING);
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
 
@@ -491,6 +557,8 @@ getdns_context_set_suffix(
     }
     getdns_list_destroy(context->suffix);
     context->suffix = value;
+
+    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_STUB);
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
     
@@ -549,19 +617,36 @@ getdns_context_set_stub_resolution(
   struct getdns_list     *upstream_list
 )
 {
-    if (upstream_list == NULL) {
+    size_t count = 0;
+    size_t i = 0;
+    getdns_return_t r = getdns_list_get_length(upstream_list, &count);
+    if (count == 0 || r != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     getdns_list *copy = NULL;
     if (getdns_list_copy(upstream_list, &copy) != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+    }    
     upstream_list = copy;
+    /* validate and add ip str */
+    for (i = 0; i < count; ++i) {
+        getdns_dict* dict = NULL;
+        getdns_list_get_dict(upstream_list, i, &dict);        
+        r = add_ip_str(dict);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
+    }
 
-    getdns_context_set_resolution_type(context, GETDNS_CONTEXT_STUB);
-    
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_list_destroy(upstream_list);
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
     getdns_list_destroy(context->upstream_list);
     context->upstream_list = upstream_list;
+
+    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_STUB);
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
     
@@ -726,5 +811,49 @@ getdns_cancel_callback(
     UNUSED_PARAM(transaction_id);
     return GETDNS_RETURN_GOOD;
 } /* getdns_cancel_callback */
+
+static void ub_setup_stub(struct ub_ctx* ctx, getdns_list* upstreams, size_t count) {
+    size_t i;
+    /* reset forwarding servers */    
+    ub_ctx_set_fwd(ctx, NULL);
+    for (i = 0 ; i < count; ++i) {
+        getdns_dict* dict = NULL;
+        char* ip_str = NULL;
+        getdns_list_get_dict(upstreams, i, &dict);
+        getdns_dict_util_get_string(dict, GETDNS_STR_ADDRESS_STRING, &ip_str);
+        ub_ctx_set_fwd(ctx, ip_str);
+    }
+}
+
+getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t context) {
+    if (context->resolution_type_set == context->resolution_type) {
+        /* already set and no config changes have caused this to be
+         * bad.
+         */
+         return GETDNS_RETURN_GOOD;
+    }
+    if (context->resolution_type == GETDNS_CONTEXT_STUB) {
+        size_t upstream_len = 0;
+        getdns_return_t r = getdns_list_get_length(context->upstream_list, &upstream_len);
+        if (r != GETDNS_RETURN_GOOD || upstream_len == 0) {
+            return GETDNS_RETURN_BAD_CONTEXT;
+        }
+        /* set upstreams */
+        ub_setup_stub(context->unbound_async, context->upstream_list, upstream_len);
+        ub_setup_stub(context->unbound_sync, context->upstream_list, upstream_len);
+
+    } else if (context->resolution_type == GETDNS_CONTEXT_RECURSING) {
+        /* set recursive */
+        /* TODO: use the root servers via root hints file */
+        ub_ctx_set_fwd(context->unbound_async, NULL);
+        ub_ctx_set_fwd(context->unbound_sync, NULL);
+
+    } else {
+        /* bogus? */
+        return GETDNS_RETURN_BAD_CONTEXT;
+    }
+    context->resolution_type_set = context->resolution_type;
+    return GETDNS_RETURN_GOOD;
+}
 
 /* getdns_context.c */

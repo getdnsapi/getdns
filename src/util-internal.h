@@ -51,7 +51,7 @@ getdns_dict *create_getdns_response(ldns_pkt* pkt);
 /* dict util */
 /* set a string as bindata */
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
-                                            char* value);
+                                            const char* value);
 
 /* get a string from a dict.  result is valid as long as dict is valid */
 getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,

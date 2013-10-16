@@ -137,6 +137,8 @@ getdns_general_ub(
     req->userarg = userarg;
     req->callback = callbackfn;
 
+    getdns_context_prepare_for_resolution(context);
+
     /* TODO: 
        setup root or stub 
        handle immediate callback
