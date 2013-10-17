@@ -106,28 +106,41 @@ static void handle_dns_request_complete(getdns_dns_req* dns_req) {
     /* clean up the request */
     getdns_context_clear_outbound_request(dns_req);
     dns_req_free(dns_req);
+    if (response) {
+        cb(context,
+           GETDNS_CALLBACK_COMPLETE,
+           response,
+           user_arg,
+           trans_id);
+    } else {
+        cb(context,
+           GETDNS_CALLBACK_ERROR,
+           NULL,
+           user_arg,
+           trans_id);
+    }
 
-    cb(context,
-       GETDNS_CALLBACK_COMPLETE,
-       response,
-       user_arg,
-       trans_id);
 }
 
 static int submit_network_request(getdns_network_req* netreq) {
     getdns_dns_req *dns_req = netreq->owner;
-    netreq->state = NET_REQ_IN_FLIGHT;
-    return ub_resolve_event(dns_req->unbound,
+    int r = ub_resolve_event(dns_req->unbound,
                             dns_req->name,
                             netreq->request_type,
                             netreq->request_class,
                             netreq,
                             ub_resolve_callback,
                             &(netreq->unbound_id));
+    netreq->state = NET_REQ_IN_FLIGHT;
+    return r;
 }
 
 static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec, char* bogus) {
     getdns_network_req* netreq = (getdns_network_req*) arg;
+    /* if netreq->state == NET_REQ_NOT_SENT here, that implies
+     * that ub called us back immediately - probably from a local file.
+     * This most likely means that getdns_general has not returned
+     */
     netreq->state = NET_REQ_FINISHED;
     if (err) {
         handle_network_request_error(netreq, err);
@@ -153,13 +166,13 @@ static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec
 
 getdns_return_t
 getdns_general_ub(struct ub_ctx* unbound,
-    getdns_context_t       context,
-    const char             *name,
-    uint16_t               request_type,
-    struct getdns_dict     *extensions,
-    void                   *userarg,
-    getdns_transaction_t   *transaction_id,
-    getdns_callback_t      callbackfn) {
+                  getdns_context_t context,
+                  const char *name,
+                  uint16_t request_type,
+                  struct getdns_dict *extensions,
+                  void *userarg,
+                  getdns_transaction_t *transaction_id,
+                  getdns_callback_t callbackfn) {
 
     getdns_return_t gr;
     int r;
@@ -181,10 +194,6 @@ getdns_general_ub(struct ub_ctx* unbound,
 
     req->user_pointer = userarg;
     req->user_callback = callbackfn;
-
-    /* TODO:
-       handle immediate callback
-     */
 
     if (transaction_id) {
         *transaction_id = req->trans_id;
@@ -221,7 +230,7 @@ getdns_general_ub(struct ub_ctx* unbound,
         /* Can't do async without an event loop
          * or callback
          */
-     return GETDNS_RETURN_BAD_CONTEXT;
+        return GETDNS_RETURN_BAD_CONTEXT;
     }
 
     return getdns_general_ub(context->unbound_async,

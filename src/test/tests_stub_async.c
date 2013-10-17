@@ -42,14 +42,10 @@ void this_callbackfn(struct getdns_context_t *this_context,
 {
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE)  /* This is a callback with data */
 	{
-        getdns_bindata* bindata = NULL;
-        getdns_dict_get_bindata(this_response, "pkt", &bindata);
-        if (bindata) {
-            char* data = (char*) bindata->data;
-            data[bindata->size] = 0;
-            memcpy(data, bindata->data, bindata->size);
-            fprintf(stdout, "The packet %s\n", data);
-        }
+        char* res = getdns_pretty_print_dict(this_response);
+        fprintf(stdout, "%s", res);
+        getdns_dict_destroy(this_response);
+
 	}
 	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr, "The callback with ID %lld was cancelled. Exiting.", this_transaction_id);
@@ -82,7 +78,7 @@ main()
 	const char * this_name  = "www.google.com";
 	char* this_userarg = "somestring"; // Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
-    
+
 	/* Make the call */
 	getdns_return_t dns_request_return = getdns_address(this_context, this_name,
                                                         NULL, this_userarg, &this_transaction_id, this_callbackfn);

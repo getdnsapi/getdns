@@ -822,6 +822,23 @@ getdns_extension_set_libevent_base(
     return GETDNS_RETURN_GOOD;
 } /* getdns_extension_set_libevent_base */
 
+/* cancel the request */
+static void cancel_dns_req(getdns_dns_req* req) {
+    getdns_network_req* netreq = req->first_req;
+    while (netreq) {
+        if (netreq->state == NET_REQ_IN_FLIGHT) {
+            /* for ev based ub, this should always prevent
+             * the callback from firing */
+            ub_cancel(req->unbound, netreq->unbound_id);
+            netreq->state = NET_REQ_CANCELED;
+        } else if (netreq->state == NET_REQ_NOT_SENT) {
+            netreq->state = NET_REQ_CANCELED;
+        }
+        netreq = netreq->next;
+    }
+    req->canceled = 1;
+}
+
 /*
  * getdns_cancel_callback
  *
@@ -832,8 +849,35 @@ getdns_cancel_callback(
 	getdns_transaction_t       transaction_id
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(transaction_id);
+    getdns_dns_req *req = NULL;
+    getdns_callback_t cb = NULL;
+    void* user_pointer = NULL;
+
+    /* delete the node from the tree */
+    ldns_rbnode_t* node = ldns_rbtree_delete(context->outbound_requests,
+                                             &transaction_id);
+
+    if (!node) {
+        return GETDNS_RETURN_UNKNOWN_TRANSACTION;
+    }
+    req = (getdns_dns_req*) node->data;
+    /* do the cancel */
+
+    cancel_dns_req(req);
+    cb = req->user_callback;
+    user_pointer = req->user_pointer;
+
+    /* clean up */
+    context->memory_deallocator(node);
+    dns_req_free(req);
+
+    /* fire callback */
+    cb(context,
+       GETDNS_CALLBACK_CANCEL,
+       NULL,
+       user_pointer,
+       transaction_id);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_cancel_callback */
 

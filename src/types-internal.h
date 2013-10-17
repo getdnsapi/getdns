@@ -42,7 +42,8 @@ struct ub_ctx;
 typedef enum network_req_state_enum {
     NET_REQ_NOT_SENT,
     NET_REQ_IN_FLIGHT,
-    NET_REQ_FINISHED
+    NET_REQ_FINISHED,
+    NET_REQ_CANCELED
 } network_req_state;
 
 /**
@@ -77,6 +78,9 @@ typedef struct getdns_dns_req {
     /* name */
     char *name;
 
+    /* canceled flag */
+    int canceled;
+
     /* current network request */
 	struct getdns_network_req *current_req;
 
@@ -96,7 +100,8 @@ typedef struct getdns_dns_req {
     getdns_callback_t user_callback;
     void *user_pointer;
 
-    getdns_transaction_t trans_id;  /* the transaction id */
+    /* the transaction id */
+    getdns_transaction_t trans_id;
 
 } getdns_dns_req;
 
@@ -120,8 +125,5 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
 
 
 void dns_req_free(getdns_dns_req* req);
-
-/* cancel the request */
-getdns_return_t dns_req_cancel(getdns_dns_req* req);
 
 #endif

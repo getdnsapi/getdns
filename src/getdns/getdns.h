@@ -252,6 +252,38 @@ struct event_base;
 #define GETDNS_STR_PORT "port"
 #define GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6 "return_both_v4_and_v6"
 
+#define GETDNS_STR_KEY_STATUS "status"
+#define GETDNS_STR_KEY_REPLIES_TREE "replies_tree"
+#define GETDNS_STR_KEY_REPLIES_FULL "replies_full"
+#define GETDNS_STR_KEY_JUST_ADDRS "just_address_answers"
+#define GETDNS_STR_KEY_CANONICAL_NM "canonical_name"
+#define GETDNS_STR_KEY_ANSWER_TYPE "answer_type"
+#define GETDNS_STR_KEY_INTERM_ALIASES "intermediate_aliases"
+#define GETDNS_STR_KEY_NAME "name"
+#define GETDNS_STR_KEY_HEADER "header"
+#define GETDNS_STR_KEY_QUESTION "question"
+#define GETDNS_STR_KEY_ANSWER "answer"
+#define GETDNS_STR_KEY_ID "id"
+#define GETDNS_STR_KEY_QR "qr"
+#define GETDNS_STR_KEY_OPC "opcode"
+#define GETDNS_STR_KEY_TYPE "type"
+#define GETDNS_STR_KEY_CLASS "class"
+#define GETDNS_STR_KEY_TTL "ttl"
+#define GETDNS_STR_KEY_RDATA "rdata"
+#define GETDNS_STR_KEY_V4_ADDR "ipv4_address"
+#define GETDNS_STR_KEY_V6_ADDR "ipv6_address"
+#define GETDNS_STR_KEY_RDATA_RAW "rdata_raw"
+#define GETDNS_STR_KEY_AUTHORITY "authority"
+#define GETDNS_STR_KEY_ADDITIONAL "additional"
+#define GETDNS_STR_KEY_QTYPE "qtype"
+#define GETDNS_STR_KEY_QCLASS "qclass"
+#define GETDNS_STR_KEY_QNAME "qname"
+
+
+
+
+
+
 /** @}
  */
 

@@ -30,6 +30,7 @@
 
 #include "types-internal.h"
 #include "util-internal.h"
+#include <unbound.h>
 
 /* useful macros */
 #define gd_malloc(sz) context->memory_allocator(sz)
@@ -111,6 +112,7 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
     result->name = strdup(name);
     result->context = context;
     result->unbound = unbound;
+    result->canceled = 0;
     result->current_req = NULL;
     result->first_req = NULL;
     result->trans_id = ldns_get_random();
