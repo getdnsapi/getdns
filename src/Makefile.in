@@ -17,8 +17,7 @@ VPATH = @srcdir@
 
 CC=gcc
 CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -I /usr/local/include -std=c99
-# LDFLAGS=-L. -L/usr/local/lib
-# LDLIBS=-levent_core -lldns -lgetdns
+LDFLAGS=-levent_core -lldns -lunbound
 # PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
 
 .SUFFIXES: .c .o .a .lo .h
@@ -28,13 +27,13 @@ CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -I /usr/local/include -std=c99
 
 default: all
 
-all: libgetdns 
+all: libgetdns
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
 
-libgetdns: sync.o context.o list.o dict.o convert.o general.o hostname.o service.o \
-	validate_dnssec.o nameserver-internal.o request-internal.o util-internal.o getdns_error.o
-	$(CC) $(CFLAGS) -shared -o libgetdns.so $?
+libgetdns: sync.o context.o list.o dict.o convert.o general.o hostname.o service.o request-internal.o \
+	validate_dnssec.o util-internal.o getdns_error.o
+	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o libgetdns.so $?
 
 clean:
 	rm -f *.o $(PROGRAMS) libgetdns.so

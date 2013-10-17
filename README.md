@@ -40,6 +40,8 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 
 The project relies on [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) for parsing and constructing DNS packets.  Version 1.6.16 (note that building ldns may require openssl headers and libraries)
 
+The project also relies on [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/).  Currently it relies on svn revision 2985.  The unbound.2985.patch must be applied to the source tree as well.  The ./configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only)
+
 Although [libevent](http://libevent.org) is used initially to implement the asynchronous model, future work may include a move to other mechanisms (epoll based etc.).  Version 2.0.21 stable
 
 Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.

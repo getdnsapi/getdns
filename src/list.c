@@ -214,6 +214,11 @@ getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist)
                         else
                             retval = GETDNS_RETURN_GENERIC_ERROR;
                     }
+                    else if (srclist->items[i].dtype == t_dict) 
+                    {
+                        retval = getdns_dict_copy(srclist->items[index].data.dict,
+                            &((*dstlist)->items[i].data.dict));
+                    }
                 }
                 else
                     retval = GETDNS_RETURN_GENERIC_ERROR;

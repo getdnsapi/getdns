@@ -27,27 +27,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef _GETDNS_GENERAL_H_
+#define _GETDNS_GENERAL_H_
 
-/*
-#include "types-internal.h"
-*/
+#include <getdns/getdns.h>
 
-#include <ldns/ldns.h>
-#include "context.h"
+struct ub_ctx;
 
-struct getdns_dns_req;
+getdns_return_t
+getdns_general_ub(
+  struct ub_ctx*         unbound,
+  getdns_context_t       context,
+  const char             *name,
+  uint16_t               request_type,
+  struct getdns_dict     *extensions,
+  void                   *userarg,
+  getdns_transaction_t   *transaction_id,
+  getdns_callback_t      callbackfn
+);
 
-/* convert an ip address dict to a sock storage */
-getdns_return_t dict_to_sockaddr(getdns_dict* ns, struct sockaddr_storage* output);
-getdns_return_t sockaddr_to_dict(struct sockaddr_storage* sockaddr, getdns_dict** output);
-
-getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request);
-
-/* dict util */
-/* set a string as bindata */
-getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
-                                            const char* value);
-
-/* get a string from a dict.  result is valid as long as dict is valid */
-getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,
-                                            char** result);
+#endif

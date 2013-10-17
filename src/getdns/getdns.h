@@ -14,10 +14,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -34,7 +34,8 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <stdbool.h>
-#include <event2/event.h>
+
+struct event_base;
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
@@ -201,7 +202,7 @@
  */
 
 /**
- * \defgroup respstatus Status Codes for Responses 
+ * \defgroup respstatus Status Codes for Responses
  * @{
  */
 #define GETDNS_RESPSTATUS_GOOD 900
@@ -216,7 +217,7 @@
  */
 
 /**
- * \defgroup extvals Values Associated With Extensions 
+ * \defgroup extvals Values Associated With Extensions
  * @{
  */
 #define GETDNS_EXTENSION_TRUE  1
@@ -247,8 +248,41 @@
 #define GETDNS_STR_IPV6 "IPv6"
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
 #define GETDNS_STR_ADDRESS_DATA "address_data"
+#define GETDNS_STR_ADDRESS_STRING "address_string"
 #define GETDNS_STR_PORT "port"
 #define GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6 "return_both_v4_and_v6"
+
+#define GETDNS_STR_KEY_STATUS "status"
+#define GETDNS_STR_KEY_REPLIES_TREE "replies_tree"
+#define GETDNS_STR_KEY_REPLIES_FULL "replies_full"
+#define GETDNS_STR_KEY_JUST_ADDRS "just_address_answers"
+#define GETDNS_STR_KEY_CANONICAL_NM "canonical_name"
+#define GETDNS_STR_KEY_ANSWER_TYPE "answer_type"
+#define GETDNS_STR_KEY_INTERM_ALIASES "intermediate_aliases"
+#define GETDNS_STR_KEY_NAME "name"
+#define GETDNS_STR_KEY_HEADER "header"
+#define GETDNS_STR_KEY_QUESTION "question"
+#define GETDNS_STR_KEY_ANSWER "answer"
+#define GETDNS_STR_KEY_ID "id"
+#define GETDNS_STR_KEY_QR "qr"
+#define GETDNS_STR_KEY_OPC "opcode"
+#define GETDNS_STR_KEY_TYPE "type"
+#define GETDNS_STR_KEY_CLASS "class"
+#define GETDNS_STR_KEY_TTL "ttl"
+#define GETDNS_STR_KEY_RDATA "rdata"
+#define GETDNS_STR_KEY_V4_ADDR "ipv4_address"
+#define GETDNS_STR_KEY_V6_ADDR "ipv6_address"
+#define GETDNS_STR_KEY_RDATA_RAW "rdata_raw"
+#define GETDNS_STR_KEY_AUTHORITY "authority"
+#define GETDNS_STR_KEY_ADDITIONAL "additional"
+#define GETDNS_STR_KEY_QTYPE "qtype"
+#define GETDNS_STR_KEY_QCLASS "qclass"
+#define GETDNS_STR_KEY_QNAME "qname"
+
+
+
+
+
 
 /** @}
  */
@@ -530,8 +564,8 @@ getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, 
  */
 getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, struct getdns_list **answer);
 /**
- * fetch the bindata associated with the specified name, the bindata should not be 
- * free()'d by the caller 
+ * fetch the bindata associated with the specified name, the bindata should not be
+ * free()'d by the caller
  * @param this_dict dictionary from which to fetch the bindata
  * @param name a name/key value to look up in the dictionary
  * @param **answer a copy of the bindata will be stored at this address
@@ -557,7 +591,7 @@ struct getdns_list * getdns_list_create();
 /**
  * free memory allocated to the list (also frees all children of the list)
  * note that lists and bindata retrieved from the list via the getdns_list_get_*
- * helper functions will be destroyed as well - if you fetched them previously 
+ * helper functions will be destroyed as well - if you fetched them previously
  * you MUST copy those instances BEFORE you destroy the list else
  * unpleasant things will happen at run-time
  */
@@ -574,9 +608,9 @@ void getdns_list_destroy(struct getdns_list *list);
 getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t *index);
 getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, struct getdns_dict *child_dict);
 /**
- * assign the child_list to an item in a parent list, the parent list copies 
+ * assign the child_list to an item in a parent list, the parent list copies
  * the child list and will free the copy when the list is destroyed
- * @param list list containing the item to which child_list is to be assigned 
+ * @param list list containing the item to which child_list is to be assigned
  * @param index index of the item within list to which child_list is to be assigned
  * @param *child_list list to assign to the item
  * @return GETDNS_RETURN_GOOD on success
@@ -584,9 +618,9 @@ getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, str
  */
 getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index, struct getdns_list *child_list);
 /**
- * assign the child_bindata to an item in a parent list, the parent list copies 
+ * assign the child_bindata to an item in a parent list, the parent list copies
  * the child data and will free the copy when the list is destroyed
- * @param list list contiaining the item to which child_list is to be assigned 
+ * @param list list contiaining the item to which child_list is to be assigned
  * @param index index of the item within list to which child_list is to be assigned
  * @param *child_bindata data to assign to the item
  * @return GETDNS_RETURN_GOOD on success
@@ -611,7 +645,7 @@ struct getdns_dict *getdns_dict_create();
  * for freeing storage allocated to returned value
  * NOTE: not thread safe - this needs to be fixed to be thread safe
  * @param srcdict the dictionary structure to copy
- * @param dstdict pointer to the location to write pointer to new dictionary 
+ * @param dstdict pointer to the location to write pointer to new dictionary
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
@@ -719,8 +753,8 @@ getdns_cancel_callback(
 /**
  * \defgroup syncfuns Synchronous API functions that do not use callbacks
  * These functions do not use callbacks, when the application calls one of these
- * functions the library retrieves all of the data before returning.  Return 
- * values are exactly the same as if you had used a callback with the 
+ * functions the library retrieves all of the data before returning.  Return
+ * values are exactly the same as if you had used a callback with the
  * asynchronous functions.
  * @{
  */

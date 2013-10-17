@@ -1,7 +1,7 @@
 /**
  *
  * /brief getdns core functions for synchronous use
- * 
+ *
  * Originally taken from the getdns API description pseudo implementation.
  *
  */
@@ -14,10 +14,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -29,7 +29,10 @@
 
 #include <getdns/getdns.h>
 #include <pthread.h>
-#include "types-internal.h"
+#include <event2/event.h>
+#include <unbound-event.h>
+#include "context.h"
+#include "general.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -55,18 +58,17 @@ static void sync_callback_func(getdns_context_t context,
 
 static void * request_thread_start(void *arg) {
     struct sync_request_data *req_data = arg;
-    struct event_base *event_base = event_base_new();
-    
-    getdns_extension_set_libevent_base(req_data->context, event_base);
-    req_data->response_status = getdns_general(req_data->context,
-                                               req_data->name,
-                                               req_data->request_type,
-                                               req_data->extensions,
-                                               req_data,
-                                               NULL,
-                                               sync_callback_func);
-    
-    event_base_dispatch(event_base);
+
+    req_data->response_status = getdns_general_ub(req_data->context->unbound_sync,
+                                                  req_data->context,
+                                                  req_data->name,
+                                                  req_data->request_type,
+                                                  req_data->extensions,
+                                                  req_data,
+                                                  NULL,
+                                                  sync_callback_func);
+
+    event_base_dispatch(req_data->context->event_base_sync);
     return NULL;
 }
 
@@ -82,8 +84,8 @@ getdns_general_sync(
 )
 {
     /* we will cheat and spawn a thread */
-    /* get the old event base */
-    struct event_base* orig_base = context->event_base;
+    /* set up for sync resolution */
+
     pthread_t thread;
     pthread_attr_t attr;
     sync_request_data req_data = {
@@ -92,7 +94,7 @@ getdns_general_sync(
         GETDNS_RETURN_GOOD,
         response
     };
-    
+
     /* create the thread */
     int ret = pthread_attr_init(&attr);
     if (ret != 0) {
@@ -110,10 +112,7 @@ getdns_general_sync(
     if (ret != 0) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    
-    /* set the old event loop */
-    getdns_extension_set_libevent_base(context, orig_base);
-    
+
     return req_data.response_status;
 }
 
@@ -134,7 +133,7 @@ getdns_address_sync(
     getdns_dict_set_int(extensions,
                         GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6,
                         GETDNS_EXTENSION_TRUE);
-    
+
     getdns_return_t result =
     getdns_general_sync(context, name, GETDNS_RRTYPE_A,
                         extensions, response_length, response);
@@ -164,7 +163,7 @@ getdns_service_sync(
   struct getdns_dict     **response
 )
 {
-    
+
     return getdns_general_sync(context, name, GETDNS_RRTYPE_SRV, extensions,
                                response_length, response);
 
