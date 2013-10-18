@@ -29,6 +29,7 @@
  */
 
 #include <getdns/getdns.h>
+#include <getdns/getdns_error.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <util-internal.h>
@@ -96,9 +97,12 @@ getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
 {
     getdns_return_t retval = GETDNS_RETURN_GOOD;
 
-    /* TODO: make this produce an actual string */
+    const char* err_str = getdns_get_errorstr_by_id(err);
+    if (!err_str) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
 
-    snprintf(buf, buflen, "%d", retval);
+    snprintf(buf, buflen, "%s", err_str);
 
     return retval;
 } /* getdns_strerror */

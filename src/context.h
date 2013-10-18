@@ -67,13 +67,13 @@ struct getdns_context_t {
 
     /* Event loop for sync requests */
     struct event_base* event_base_sync;
+    /* Event loop for async requests */
+    struct event_base* event_base_async;
 
     /* The underlying unbound contexts that do
        the real work */
     struct ub_ctx *unbound_sync;
     struct ub_ctx *unbound_async;
-    /* whether an async event base was set */
-    uint8_t async_set;
 
     /* which resolution type the contexts are configured for
      * 0 means nothing set
@@ -97,6 +97,10 @@ getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t context);
 getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req* req);
 /* clear the outbound request from being tracked - does not cancel it */
 getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req* req);
+/* cancel callback internal - flag to indicate if req should be freed and callback fired */
+getdns_return_t getdns_context_cancel_request(getdns_context_t context,
+                                              getdns_transaction_t transaction_id,
+                                              int fire_callback);
 
 #endif
 

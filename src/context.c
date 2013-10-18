@@ -214,8 +214,8 @@ getdns_return_t getdns_context_create(
     result->unbound_sync = ub_ctx_create_event(result->event_base_sync);
     /* create the async one also so options are kept up to date */
     result->unbound_async = ub_ctx_create_event(result->event_base_sync);
+    result->event_base_async = NULL;
 
-    result->async_set = 0;
     result->resolution_type_set = 0;
 
     result->outbound_requests = ldns_rbtree_create(transaction_id_cmp);
@@ -814,10 +814,10 @@ getdns_extension_set_libevent_base(
 {
     if (this_event_base) {
         ub_ctx_set_event(context->unbound_async, this_event_base);
-        context->async_set = 1;
+        context->event_base_async = this_event_base;
     } else {
         ub_ctx_set_event(context->unbound_async, context->event_base_sync);
-        context->async_set = 0;
+        context->event_base_async = NULL;
     }
     return GETDNS_RETURN_GOOD;
 } /* getdns_extension_set_libevent_base */
@@ -839,19 +839,10 @@ static void cancel_dns_req(getdns_dns_req* req) {
     req->canceled = 1;
 }
 
-/*
- * getdns_cancel_callback
- *
- */
-getdns_return_t
-getdns_cancel_callback(
-	getdns_context_t           context,
-	getdns_transaction_t       transaction_id
-)
-{
+getdns_return_t getdns_context_cancel_request(getdns_context_t context,
+                                              getdns_transaction_t transaction_id,
+                                              int fire_callback) {
     getdns_dns_req *req = NULL;
-    getdns_callback_t cb = NULL;
-    void* user_pointer = NULL;
 
     /* delete the node from the tree */
     ldns_rbnode_t* node = ldns_rbtree_delete(context->outbound_requests,
@@ -864,21 +855,39 @@ getdns_cancel_callback(
     /* do the cancel */
 
     cancel_dns_req(req);
-    cb = req->user_callback;
-    user_pointer = req->user_pointer;
 
-    /* clean up */
-    context->memory_deallocator(node);
-    dns_req_free(req);
+    if (fire_callback) {
+        getdns_callback_t cb = NULL;
+        void* user_pointer = NULL;
 
-    /* fire callback */
-    cb(context,
-       GETDNS_CALLBACK_CANCEL,
-       NULL,
-       user_pointer,
-       transaction_id);
+        cb = req->user_callback;
+        user_pointer = req->user_pointer;
 
+        /* clean up */
+        context->memory_deallocator(node);
+        dns_req_free(req);
+
+        /* fire callback */
+        cb(context,
+           GETDNS_CALLBACK_CANCEL,
+           NULL,
+           user_pointer,
+           transaction_id);
+    }
     return GETDNS_RETURN_GOOD;
+}
+
+/*
+ * getdns_cancel_callback
+ *
+ */
+getdns_return_t
+getdns_cancel_callback(
+	getdns_context_t           context,
+	getdns_transaction_t       transaction_id
+)
+{
+    return getdns_context_cancel_request(context, transaction_id, 1);
 } /* getdns_cancel_callback */
 
 static void ub_setup_stub(struct ub_ctx* ctx, getdns_list* upstreams, size_t count) {

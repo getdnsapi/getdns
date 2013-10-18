@@ -61,6 +61,7 @@
 #include <string.h>
 #include <unbound.h>
 #include <unbound-event.h>
+#include <event2/event.h>
 #include <ldns/ldns.h>
 #include "context.h"
 #include "types-internal.h"
@@ -70,13 +71,34 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* declarations */
- static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec, char* bogus);
- static void handle_network_request_error(getdns_network_req* netreq, int err);
- static void handle_dns_request_complete(getdns_dns_req* dns_req);
- static int submit_network_request(getdns_network_req* netreq);
+static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec, char* bogus);
+static void handle_network_request_error(getdns_network_req* netreq, int err);
+static void handle_dns_request_complete(getdns_dns_req* dns_req);
+static int submit_network_request(getdns_network_req* netreq);
+
+/* cancel, cleanup and send timeout to callback */
+static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg) {
+    getdns_dns_req *dns_req = (getdns_dns_req*) arg;
+    getdns_context_t context = dns_req->context;
+    getdns_transaction_t trans_id = dns_req->trans_id;
+    getdns_callback_t cb = dns_req->user_callback;
+    void* user_arg = dns_req->user_pointer;
+
+    /* cancel the req - also clears it from outbound */
+    getdns_context_cancel_request(context, trans_id, 0);
+
+    /* cleanup */
+    dns_req_free(dns_req);
+
+    cb(context,
+       GETDNS_CALLBACK_TIMEOUT,
+       NULL,
+       user_arg,
+       trans_id);
+}
 
 /* cleanup and send an error to the user callback */
- static void handle_network_request_error(getdns_network_req* netreq, int err) {
+static void handle_network_request_error(getdns_network_req* netreq, int err) {
     getdns_dns_req *dns_req = netreq->owner;
     getdns_context_t context = dns_req->context;
     getdns_transaction_t trans_id = dns_req->trans_id;
@@ -166,6 +188,7 @@ static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec
 
 getdns_return_t
 getdns_general_ub(struct ub_ctx* unbound,
+                  struct event_base* ev_base,
                   getdns_context_t context,
                   const char *name,
                   uint16_t request_type,
@@ -173,7 +196,8 @@ getdns_general_ub(struct ub_ctx* unbound,
                   void *userarg,
                   getdns_transaction_t *transaction_id,
                   getdns_callback_t callbackfn) {
-
+    /* timeout */
+    struct timeval tv;
     getdns_return_t gr;
     int r;
 
@@ -201,6 +225,12 @@ getdns_general_ub(struct ub_ctx* unbound,
 
     getdns_context_track_outbound_request(req);
 
+    /* assign a timeout */
+    req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
+    tv.tv_sec = context->timeout / 1000;
+    tv.tv_usec = (context->timeout % 1000) * 1000;
+    evtimer_add(req->timeout, &tv);
+
     /* issue the first network req */
     r = submit_network_request(req->first_req);
 
@@ -225,7 +255,7 @@ getdns_general_ub(struct ub_ctx* unbound,
                 getdns_transaction_t *transaction_id,
                 getdns_callback_t callback) {
 
-    if (!context || context->async_set == 0 ||
+    if (!context || !context->event_base_async ||
         callback == NULL) {
         /* Can't do async without an event loop
          * or callback
@@ -234,6 +264,7 @@ getdns_general_ub(struct ub_ctx* unbound,
     }
 
     return getdns_general_ub(context->unbound_async,
+                             context->event_base_async,
                              context,
                              name,
                              request_type,

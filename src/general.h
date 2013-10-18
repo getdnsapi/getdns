@@ -32,18 +32,22 @@
 
 #include <getdns/getdns.h>
 
+/* private inner helper used by sync and async */
+
 struct ub_ctx;
+struct event_base;
 
 getdns_return_t
 getdns_general_ub(
-  struct ub_ctx*         unbound,
-  getdns_context_t       context,
-  const char             *name,
-  uint16_t               request_type,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
+    struct ub_ctx*         unbound,
+    struct event_base*     ev_base,
+    getdns_context_t       context,
+    const char             *name,
+    uint16_t               request_type,
+    struct getdns_dict     *extensions,
+    void                   *userarg,
+    getdns_transaction_t   *transaction_id,
+    getdns_callback_t      callbackfn
 );
 
 #endif

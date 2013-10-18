@@ -11,10 +11,10 @@
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -39,7 +39,6 @@ main()
 	struct getdns_list      *just_the_addresses_ptr;
 	size_t                  num_addresses = 0;
 	size_t                  rec_count;
-    struct getdns_dict      *this_address;
     struct getdns_bindata   *this_address_data;
     struct getdns_context_t *this_context      = NULL;
 	uint32_t                this_error        = 0;
@@ -91,16 +90,20 @@ main()
         if (num_addresses > 0)  {
             for (rec_count = 0; rec_count < num_addresses; ++rec_count )
             {
+            	char * display =  getdns_display_ip_address(this_address_data);
                 this_ret = getdns_list_get_bindata(just_the_addresses_ptr, rec_count, &this_address_data);  // Ignore any error
                 /* Just print the address */
-                printf("The address is %s\n", getdns_display_ip_address(this_address_data));
+                printf("The address is %s\n", display);
+                if (display) {
+                	free(display);
+                }
             }
         }
 	}
 
 	/* Clean up */
 	getdns_context_destroy(this_context);
-	getdns_free_sync_request_memory(this_response); 
+	getdns_free_sync_request_memory(this_response);
 
 	exit(EXIT_SUCCESS);
 } /* main */

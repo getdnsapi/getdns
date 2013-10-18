@@ -61,6 +61,7 @@ static void * request_thread_start(void *arg) {
     struct sync_request_data *req_data = arg;
 
     req_data->response_status = getdns_general_ub(req_data->context->unbound_sync,
+                                                  req_data->context->event_base_sync,
                                                   req_data->context,
                                                   req_data->name,
                                                   req_data->request_type,

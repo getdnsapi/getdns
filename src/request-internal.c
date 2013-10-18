@@ -31,6 +31,7 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include <unbound.h>
+#include <event2/event.h>
 
 /* useful macros */
 #define gd_malloc(sz) context->memory_allocator(sz)
@@ -86,6 +87,12 @@ void dns_req_free(getdns_dns_req* req) {
         net_req = next;
     }
 
+    /* cleanup timeout */
+    if (req->timeout) {
+        event_del(req->timeout);
+        event_free(req->timeout);
+    }
+
     /* free strduped name */
     free(req->name);
 
@@ -116,6 +123,7 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
     result->current_req = NULL;
     result->first_req = NULL;
     result->trans_id = ldns_get_random();
+    result->timeout = NULL;
 
     getdns_dict_copy(extensions, &result->extensions);
 

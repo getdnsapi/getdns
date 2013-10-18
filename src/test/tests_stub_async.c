@@ -65,7 +65,9 @@ main()
 		return(GETDNS_RETURN_GENERIC_ERROR);
 	}
     getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
-	/* Create an event base and put it in the context using the unknown function name */
+	
+    getdns_context_set_timeout(this_context, 5000);
+    /* Create an event base and put it in the context using the unknown function name */
 	struct event_base *this_event_base;
 	this_event_base = event_base_new();
 	if (this_event_base == NULL)
