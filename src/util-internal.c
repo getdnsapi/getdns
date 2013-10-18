@@ -231,6 +231,7 @@ static getdns_dict *create_dict_from_rr(ldns_rr* rr) {
     if (rd_count >= 1) {
         getdns_dict* rdata = create_dict_from_rdf(ldns_rr_rdf(rr, 0));
         r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_RDATA, rdata);
+        getdns_dict_destroy(rdata);
     }
     /* TODO - if more than one, is rdata a list? */
 
@@ -251,8 +252,10 @@ static getdns_list *create_list_from_rr_list(ldns_rr_list* rr_list) {
     getdns_list *result = getdns_list_create();
     for (i = 0; i < ldns_rr_list_rr_count(rr_list); ++i) {
         ldns_rr *rr = ldns_rr_list_rr(rr_list, i);
+        getdns_dict* rrdict = create_dict_from_rr(rr);
         r |= getdns_list_add_item(result, &idx);
-        r |= getdns_list_set_dict(result, idx, create_dict_from_rr(rr));
+        r |= getdns_list_set_dict(result, idx, rrdict);
+        getdns_dict_destroy(rrdict);
     }
     if (r != 0) {
         getdns_list_destroy(result);
@@ -272,9 +275,12 @@ static getdns_return_t add_only_addresses(getdns_list* addrs, ldns_rr_list* rr_l
         for (j = 0; j < rd_count; ++j) {
             size_t item_idx = 0;
             ldns_rdf* rdf = ldns_rr_rdf(rr, j);
-            getdns_bindata rbin = { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
-            r |= getdns_list_add_item(addrs, &item_idx);
-            r |= getdns_list_set_bindata(addrs, item_idx, &rbin);
+            if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A ||
+                ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_AAAA) {
+                getdns_bindata rbin = { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
+                r |= getdns_list_add_item(addrs, &item_idx);
+                r |= getdns_list_set_bindata(addrs, item_idx, &rbin);
+            }
         }
     }
     return r;
@@ -424,6 +430,7 @@ getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request) {
         getdns_dict *reply = create_reply_dict(netreq, just_addrs);
         r |= getdns_list_add_item(replies_tree, &idx);
         r |= getdns_list_set_dict(replies_tree, idx, reply);
+        getdns_dict_destroy(reply);
         /* buffer */
         if (s == LDNS_STATUS_OK) {
             r |= getdns_list_add_item(replies_full, &idx);
@@ -441,6 +448,11 @@ getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request) {
     if (just_addrs) {
         r |= getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs);
     }
+    
+    /* cleanup */
+    getdns_list_destroy(replies_tree);
+    getdns_list_destroy(replies_full);
+    getdns_list_destroy(just_addrs);
 
     if (r != 0) {
         getdns_dict_destroy(result);

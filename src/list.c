@@ -208,8 +208,8 @@ getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist)
                         (*dstlist)->items[i].data.bindata->data = (uint8_t *) 
                          malloc(srclist->items[i].data.bindata->size);
                         if((*dstlist)->items[i].data.bindata->data != NULL)
-                            memcpy(srclist->items[i].data.bindata->data
-                             , (*dstlist)->items[i].data.bindata->data
+                            memcpy((*dstlist)->items[i].data.bindata->data,
+                            srclist->items[i].data.bindata->data
                              , srclist->items[i].data.bindata->size);
                         else
                             retval = GETDNS_RETURN_GENERIC_ERROR;
