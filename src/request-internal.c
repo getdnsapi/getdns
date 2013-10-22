@@ -79,6 +79,9 @@ void dns_req_free(getdns_dns_req* req) {
     getdns_network_req *net_req = NULL;
     getdns_context_t context = req->context;
 
+    /* free extensions */
+    getdns_dict_destroy(req->extensions);
+
     /* free network requests */
     net_req = req->first_req;
     while (net_req) {

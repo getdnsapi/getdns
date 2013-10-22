@@ -2,6 +2,7 @@
 .DS_Store
 getdns*.tar.gz
 *.o
+*.so
 .*.swp
 .deps/
 .libs/
