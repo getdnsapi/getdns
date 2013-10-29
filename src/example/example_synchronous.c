@@ -90,8 +90,9 @@ main()
         if (num_addresses > 0)  {
             for (rec_count = 0; rec_count < num_addresses; ++rec_count )
             {
-            	char * display =  getdns_display_ip_address(this_address_data);
+            	char * display;
                 this_ret = getdns_list_get_bindata(just_the_addresses_ptr, rec_count, &this_address_data);  // Ignore any error
+	       	display = getdns_display_ip_address(this_address_data);
                 /* Just print the address */
                 printf("The address is %s\n", display);
                 if (display) {
