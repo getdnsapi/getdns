@@ -381,29 +381,10 @@ typedef struct getdns_bindata {
 } getdns_bindata;
 
 /**
- * this structure represents a single item in a dictionary type
- */
-struct getdns_dict_item {
-    char *key;
-    getdns_data_type dtype;
-    union {
-        struct getdns_list    *list;
-        struct getdns_dict    *dict;
-        int                   n;
-        struct getdns_bindata *bindata;
-    } data;
-};
-
-/**
  * getdns dictionary data type
  * Use helper functions getdns_dict_* to manipulate and iterate dictionaries
- * dict is implemented using the t*() functions for manipulating binary search
- * trees in the std library.  The internal implementation may change so the
- * application should stick to the helper functions.
  */
-typedef struct getdns_dict {
-    void *rootp;
-} getdns_dict;
+typedef struct getdns_dict getdns_dict;
 
 /**
  * translate an error code to a string value, not in the original api description
@@ -415,36 +396,13 @@ typedef struct getdns_dict {
  */
 getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
 
-#define GETDNS_LIST_BLOCKSZ 10
 
 /**
  * getdns list data type
  * Use helper functions getdns_list_* to manipulate and iterate lists
- * lists are implemented as arrays internally since the helper functions
- * like to reference indexes in the list.  Elements are allocated in blocks
- * and then marked valid as they are used and invalid as they are not used
- * The use cases do not justify working too hard at shrinking the structures.
  * Indexes are 0 based.
  */
-typedef struct getdns_list {
-    int numalloc;
-    int numinuse;
-    struct getdns_list_item *items;
-} getdns_list;
-
-/**
- * this structure represents a single item in a list
- */
-struct getdns_list_item {
-    int inuse;
-    getdns_data_type dtype;
-    union {
-        getdns_list    *list;
-        getdns_dict    *dict;
-        int            n;
-        getdns_bindata *bindata;
-    } data;
-};
+typedef struct getdns_list getdns_list;
 
 /**
  * get the length of the specified list (returned in *answer)

@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <search.h>
 #include <string.h>
-#include <getdns/getdns.h>
+#include "dict.h"
 
 /* TODO: change this to make the walk safe for reentrant/multi-thread calls */
 struct getdns_list *walkresultlist;
