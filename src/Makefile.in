@@ -6,7 +6,6 @@ package = @PACKAGE_NAME@
 version = @PACKAGE_VERSION@
 tarname = @PACKAGE_TARNAME@
 distdir = $(tarname)-$(version)
-cflags = @CFLAGS@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -16,8 +15,8 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=gcc
-CFLAGS=-Wall -g -fPIC -I$(srcdir)/ -I /usr/local/include -std=c99
-LDFLAGS=-levent_core -lldns -lunbound
+CFLAGS=@CFLAGS@ -Wall -g -fPIC -I$(srcdir)/ -I/usr/local/include -std=c99
+LDFLAGS=@LDFLAGS@ -levent_core -lldns -lunbound
 # PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
 
 .SUFFIXES: .c .o .a .lo .h
