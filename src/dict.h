@@ -31,19 +31,23 @@
 #define _GETDNS_DICT_H_
 
 #include <getdns/getdns.h>
+#include <ldns/rbtree.h>
+
+union getdns_item {
+    struct getdns_list    *list;
+    struct getdns_dict    *dict;
+    int                   n;
+    struct getdns_bindata *bindata;
+};
 
 /**
  * this structure represents a single item in a dictionary type
  */
 struct getdns_dict_item {
+    ldns_rbnode_t node;
     char *key;
     getdns_data_type dtype;
-    union {
-        struct getdns_list    *list;
-        struct getdns_dict    *dict;
-        int                   n;
-        struct getdns_bindata *bindata;
-    } data;
+    union getdns_item data;
 };
 
 /**
@@ -54,7 +58,7 @@ struct getdns_dict_item {
  * application should stick to the helper functions.
  */
 struct getdns_dict {
-    void *rootp;
+    ldns_rbtree_t root;
 };
 
 
