@@ -33,6 +33,7 @@
 #include <getdns/getdns.h>
 
 #define TSTMSGBUF 80
+#define GETDNS_LIST_BLOCKSZ 10
 
 /* TODO: might want a separate unit test for getdns_list_copy() - right now the code gets
    covered as a result of other tests */
