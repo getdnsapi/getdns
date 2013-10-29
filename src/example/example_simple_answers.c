@@ -49,11 +49,11 @@ void this_callbackfn(struct getdns_context_t *this_context,
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE)  /* This is a callback with data */
 	{
 		/* Be sure the search returned something */
-		uint32_t * this_error = NULL;
-		this_ret = getdns_dict_get_int(this_response, "status", this_error);  // Ignore any error
-		if (*this_error != GETDNS_RESPSTATUS_GOOD)  // If the search didn't return "good"
+		uint32_t this_error;
+		this_ret = getdns_dict_get_int(this_response, "status", &this_error);  // Ignore any error
+		if (this_error != GETDNS_RESPSTATUS_GOOD)  // If the search didn't return "good"
 		{
-			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.", *this_error);
+			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.", this_error);
 			return;
 		}
 		struct getdns_list * just_the_addresses_ptr;
@@ -63,17 +63,14 @@ void this_callbackfn(struct getdns_context_t *this_context,
 			fprintf(stderr, "Trying to get the answers failed: %d", this_ret);
 			return;
 		}
-		size_t * num_addresses_ptr = NULL;
-		this_ret = getdns_list_get_length(just_the_addresses_ptr, num_addresses_ptr);  // Ignore any error
+		size_t num_addresses = 0;
+		this_ret = getdns_list_get_length(just_the_addresses_ptr, &num_addresses);  // Ignore any error
 		/* Go through each record */
-		for ( size_t rec_count = 0; rec_count <= *num_addresses_ptr; ++rec_count )
+		for ( size_t rec_count = 0; rec_count < num_addresses; ++rec_count )
 		{
-			struct getdns_dict * this_address;
-			this_ret = getdns_list_get_dict(just_the_addresses_ptr, rec_count, &this_address);  // Ignore any error
-			/* Just print the address */
 			struct getdns_bindata * this_address_data;
-			this_ret = getdns_dict_get_bindata(this_address, "address_data", &this_address_data); // Ignore any error
-			printf("The address is %s", getdns_display_ip_address(this_address_data));
+			this_ret = getdns_list_get_bindata(just_the_addresses_ptr, rec_count, &this_address_data);  // Ignore any error
+			printf("The address is %s\n", getdns_display_ip_address(this_address_data));
 		}
 	}
 	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
