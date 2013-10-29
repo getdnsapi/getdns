@@ -28,7 +28,6 @@
  */
 
 #include <getdns/getdns.h>
-#include <pthread.h>
 #include <event2/event.h>
 #include <unbound-event.h>
 #include "context.h"
@@ -38,42 +37,14 @@
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
-/* struct used for the request */
-typedef struct sync_request_data {
-    getdns_context_t context;
-    char* name;
-    uint16_t request_type;
-    getdns_dict *extensions;
-    getdns_return_t response_status;
-    getdns_dict **response;
-} sync_request_data;
-
 static void sync_callback_func(getdns_context_t context,
                                uint16_t callback_type,
                                struct getdns_dict *response,
                                void *userarg,
                                getdns_transaction_t transaction_id) {
-    sync_request_data* req_data = userarg;
-    *(req_data->response) = response;
+
+    *((getdns_dict **)userarg) = response;
 }
-
-static void * request_thread_start(void *arg) {
-    struct sync_request_data *req_data = arg;
-
-    req_data->response_status = getdns_general_ub(req_data->context->unbound_sync,
-                                                  req_data->context->event_base_sync,
-                                                  req_data->context,
-                                                  req_data->name,
-                                                  req_data->request_type,
-                                                  req_data->extensions,
-                                                  req_data,
-                                                  NULL,
-                                                  sync_callback_func);
-
-    event_base_dispatch(req_data->context->event_base_sync);
-    return NULL;
-}
-
 
 getdns_return_t
 getdns_general_sync(
@@ -85,41 +56,15 @@ getdns_general_sync(
   struct getdns_dict     **response
 )
 {
-    /* we will cheat and spawn a thread */
-    /* set up for sync resolution */
-    pthread_t thread;
-    pthread_attr_t attr;
-    sync_request_data req_data = {
-        context,
-        strdup(name),
-        request_type,
-        extensions,
-        GETDNS_RETURN_GOOD,
-        response
-    };
+    getdns_return_t response_status;
 
-    /* create the thread */
-    int ret = pthread_attr_init(&attr);
-    if (ret != 0) {
-        free(req_data.name);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    ret = pthread_create(&thread, &attr, request_thread_start, &req_data);
-    if (ret != 0) {
-        pthread_attr_destroy(&attr);
-        free(req_data.name);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    /* wait for the thread */
-    ret = pthread_join(thread, NULL);
-    /* delete attr */
-    pthread_attr_destroy(&attr);
-    if (ret != 0) {
-        free(req_data.name);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    free(req_data.name);
-    return req_data.response_status;
+    response_status = getdns_general_ub(context->unbound_sync, context->event_base_sync,
+                                        context, name, request_type, extensions,
+                                        (void *)response, NULL, sync_callback_func);
+
+    event_base_dispatch(context->event_base_sync);
+
+    return response_status;
 }
 
 getdns_return_t
