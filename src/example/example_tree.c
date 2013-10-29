@@ -21,25 +21,25 @@ void this_callbackfn(struct getdns_context_t *this_context,
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE)  /* This is a callback with data */
 	{
 		/* Be sure the search returned something */
-		uint32_t * this_error = NULL;
-		this_ret = getdns_dict_get_int(this_response, "status", this_error);  // Ignore any error
-		if (*this_error != GETDNS_RESPSTATUS_GOOD)  // If the search didn't return "good"
+		uint32_t this_error;
+		this_ret = getdns_dict_get_int(this_response, "status", &this_error);  // Ignore any error
+		if (this_error != GETDNS_RESPSTATUS_GOOD)  // If the search didn't return "good"
 		{
-			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.", *this_error);
+			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.", this_error);
 			return;
 		}
 		/* Find all the answers returned */
 		struct getdns_list * these_answers;
-		this_ret = getdns_dict_get_list(this_response, "replies-tree", &these_answers);
+		this_ret = getdns_dict_get_list(this_response, "replies_tree", &these_answers);
 		if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
 		{
-			fprintf(stderr, "Weird: the response had no error, but also no replies-tree. Exiting.");
+			fprintf(stderr, "Weird: the response had no error, but also no replies_tree. Exiting.");
 			return;
 		}
-		size_t * num_answers_ptr = NULL;
-		this_ret = getdns_list_get_length(these_answers, num_answers_ptr);
+		size_t num_answers;
+		this_ret = getdns_list_get_length(these_answers, &num_answers);
 		/* Go through each answer */
-		for ( size_t rec_count = 0; rec_count <= *num_answers_ptr; ++rec_count )
+		for ( size_t rec_count = 0; rec_count < num_answers; ++rec_count )
 		{
 			struct getdns_dict * this_record;
 			this_ret = getdns_list_get_dict(these_answers, rec_count, &this_record);  // Ignore any error
@@ -47,9 +47,9 @@ void this_callbackfn(struct getdns_context_t *this_context,
 			struct getdns_list * this_answer;
 			this_ret = getdns_dict_get_list(this_record, "answer", &this_answer);  // Ignore any error
 			/* Get each RR in the answer section */
-			size_t * num_rrs_ptr = NULL;
-			this_ret = getdns_list_get_length(this_answer, num_rrs_ptr);
-			for ( size_t rr_count = 0; rr_count <= *num_rrs_ptr; ++rr_count )
+			size_t num_rrs_ptr;
+			this_ret = getdns_list_get_length(this_answer, &num_rrs_ptr);
+			for ( size_t rr_count = 0; rr_count < num_rrs_ptr; ++rr_count )
 			{
 				struct getdns_dict * this_rr = NULL;
 				this_ret = getdns_list_get_dict(this_answer, rr_count, &this_rr);  // Ignore any error
@@ -57,10 +57,10 @@ void this_callbackfn(struct getdns_context_t *this_context,
 				struct getdns_dict * this_rdata = NULL;
 				this_ret = getdns_dict_get_dict(this_rr, "rdata", &this_rdata);  // Ignore any error
 				/* Get the RDATA type */
-				uint32_t * this_type = NULL;
-				this_ret = getdns_dict_get_int(this_rdata, "type", this_type);  // Ignore any error
+				uint32_t this_type;
+				this_ret = getdns_dict_get_int(this_rr, "type", &this_type);  // Ignore any error
 				/* If it is type A or AAAA, print the value */
-				if (*this_type == GETDNS_RRTYPE_A)
+				if (this_type == GETDNS_RRTYPE_A)
 				{
 					struct getdns_bindata * this_a_record = NULL;
 					this_ret = getdns_dict_get_bindata(this_rdata, "ipv4_address", &this_a_record);
@@ -70,9 +70,9 @@ void this_callbackfn(struct getdns_context_t *this_context,
 							(int) rr_count, (int) rec_count);
 						return;
 					}
-					printf("The IPv4 address is %s", getdns_display_ip_address(this_a_record));
+					printf("The IPv4 address is %s\n", getdns_display_ip_address(this_a_record));
 				}
-				else if (*this_type == GETDNS_RRTYPE_AAAA)
+				else if (this_type == GETDNS_RRTYPE_AAAA)
 				{
 					struct getdns_bindata * this_aaaa_record = NULL;
 					this_ret = getdns_dict_get_bindata(this_rdata, "ipv6_address", &this_aaaa_record);
@@ -82,7 +82,7 @@ void this_callbackfn(struct getdns_context_t *this_context,
 							(int) rr_count, (int) rec_count);
 						return;
 					}
-					printf("The IPv6 address is %s", getdns_display_ip_address(this_aaaa_record));
+					printf("The IPv6 address is %s\n", getdns_display_ip_address(this_aaaa_record));
 				}
 			}
 		}
