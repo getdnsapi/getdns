@@ -30,6 +30,7 @@
  */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include "dict.h"
 
@@ -233,9 +234,8 @@ getdns_dict_create()
 
 /*---------------------------------------- getdns_dict_copy */
 /**
- * private function used to make a copy of a dict structure, the caller is responsible
- * for freeing storage allocated to returned value
- * NOTE: not thread safe - this needs to be fixed to be thread safe
+ * private function used to make a copy of a dict structure,
+ * the caller is responsible * for freeing storage allocated to returned value
  * @param srcdict the dictionary structure to copy
  * @param dstdict the copy destination
  * @return the address of the copy of the dictionary structure on success
@@ -435,62 +435,151 @@ getdns_dict_set_int(struct getdns_dict *dict, char *name, uint32_t child_uint32)
     return retval;
 } /* getdns_dict_set_int */
 
+const char *
+getdns_indent(size_t indent)
+{
+    static const char *spaces = "                                        "
+                                "                                        ";
+    return spaces + 80 - (indent < 80 ? indent : 0);
+}
+
+int
+getdns_snprintf(char **str, size_t *size, int* total, const char *format, ...)
+{
+    va_list ap;
+    int written;
+
+    va_start(ap, format);
+    written = vsnprintf(*str, *size, format, ap);
+    va_end(ap);
+
+    if(written < 0) {
+        *total = written;
+        return written;
+    }
+    *total += written;
+    if(written <= *size) {
+        *str  += written;
+        *size -= written;
+    } else {
+        *str += *size;
+        *size = 0;
+    }
+    return 0;
+}
+
+/*---------------------------------------- getdns_snprint_dict */
+/**
+ * private function to pretty print dict to a buffer, moving the buffer pointer
+ * forward in the process.
+ * @param str    destination character buffer.
+ *               str will be increased with the number of characters written
+ * @param size   bytes available in destination character buffer.
+ *               the number of characters written will be substracted from size
+ * @param total  the number of characters written will be added to toal 
+ * @param indent number of spaces to append after newline
+ * @param dict   the dict to print
+ * @return       zero on successi
+ *               if an output error is encountered, a negative value is returned
+ */
+int
+getdns_snprint_dict(char **str, size_t *size, int *total, size_t indent, struct getdns_dict *dict)
+{
+    struct getdns_dict_item *item;
+    size_t i;
+
+    if(dict == NULL)
+        return *total;
+
+    if(getdns_snprintf(str, size, total, "{"))
+        return *total;
+
+    i = 0;
+    indent += 2;
+    LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(dict->root))
+    {
+        /*
+        fprintf(stderr, "%s\n%s\"%s\":", (i ? "," : ""),
+                getdns_indent(indent), item->node.key);
+        */
+        if(getdns_snprintf(str, size, total,
+                           "%s\n%s\"%s\":", (i ? "," : ""),
+                           getdns_indent(indent), item->node.key))
+            return *total;
+
+        switch(item->dtype)
+        {
+            case t_bindata:
+                if(getdns_snprintf(str, size, total, " <bindata %d>",
+                                   (int)item->data.bindata->size))
+                    return *total;
+                break;
+
+            case t_dict:
+                if(getdns_snprintf(str, size, total,
+                            "\n%s", getdns_indent(indent)))
+                    return *total;
+
+                if(getdns_snprint_dict(str, size, total, indent, item->data.dict))
+                    return *total;
+
+            case t_int:
+                if(getdns_snprintf(str, size, total, " %d", (int)item->data.n))
+                    return *total;
+                break;
+
+            case t_list:
+                if(getdns_snprintf(str, size, total, " [<not implemented yet>]"))
+                    return *total;
+                break;
+
+            case t_invalid:
+            default:
+                if(getdns_snprintf(str, size, total, " <invalid>"))
+                    return *total;
+                break;
+        }
+        i++;
+    }
+    indent -= 2;
+    if (getdns_snprintf(str, size, total, i ? "\n%s}" : "}",
+                getdns_indent(indent)))
+        return *total;
+
+    return 0;
+} /* getdns_snprint_dict */
+
 /*---------------------------------------- getdns_pretty_print_dict */
 char *
 getdns_pretty_print_dict(struct getdns_dict *dict)
 {
-    struct getdns_dict_item *item;
-    char buf[8192];
-    size_t i;
-    char* tmp;
+    size_t size = 1024;
+    char buf[1024];
+    char *str, *newstr;
+    int total = 0;
 
-    buf[0] = 0;
+    str = buf;
+    if(getdns_snprint_dict(&str, &size, &total, 0, dict))
+        return NULL;
 
-    if(dict != NULL)
-    {
-        i = 0;
-        strcat(buf, "{");
-        LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(dict->root))
-        {
-            if (i)
-                strcat(buf, ", \"");
-            else
-                strcat(buf, " \"");
-            strcat(buf, item->node.key);
-            strcat(buf, "\": ");
-            switch(item->dtype)
-            {
-                case t_bindata:
-                    sprintf(buf + strlen(buf), "<bindata %d>", (int)item->data.bindata->size);
-                    break;
+    if(total == 0)
+        return strdup("");
 
-                case t_dict:
-                    tmp = getdns_pretty_print_dict(item->data.dict);
-                    strcat(buf, tmp);
-                    free(tmp);
-                    break;
+    if(total <= size)
+        return strdup(buf);
 
-                case t_int:
-                    sprintf(buf + strlen(buf), "%d", item->data.n);
-                    break;
+    total += 1;
+    str = newstr = (char *)malloc((size_t) total * sizeof(char));
+    if(!str)
+        return NULL;
 
-                case t_list:
-                    strcat(buf, "[<not implemented>]");
-                    break;
-
-                case t_invalid:
-                default:
-                    strcat(buf, "<invalid>");
-                    break;
-            }
-            i++;
-        }
-        if(i)
-            strcat(buf, " ");
-        strcat(buf, "}");
+    size  = total;
+    total = 0;
+    if (getdns_snprint_dict(&str, &size, &total, 0, dict)) {
+        free(newstr);
+        return NULL;
     }
-
-    return strdup(buf);
+    return newstr;
 } /* getdns_pretty_print_dict */
 
 /* getdns_dict.c */
