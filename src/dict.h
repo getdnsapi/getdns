@@ -45,7 +45,6 @@ union getdns_item {
  */
 struct getdns_dict_item {
     ldns_rbnode_t node;
-    char *key;
     getdns_data_type dtype;
     union getdns_item data;
 };

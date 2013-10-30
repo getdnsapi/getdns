@@ -35,13 +35,6 @@
 #include <string.h>
 #include "dict.h"
 
-/*---------------------------------------- getdns_dict_cmp */
-int
-getdns_dict_cmp(const void *item1, const void *item2)
-{ 
-    return strcmp((const char *)item1, (const char *)item2);
-} /* getdns_dict_comp */
-
 /*---------------------------------------- getdns_dict_find */
 /**
  * private function used to locate a key in a dictionary
@@ -63,8 +56,7 @@ getdns_dict_find(struct getdns_dict *dict, char *key, bool addifnotfnd)
         {
             /* tsearch will add a node automatically for us */
             item = (struct getdns_dict_item *) malloc(sizeof(struct getdns_dict_item));
-            item->key      = strdup(key);
-            item->node.key = item->key;
+            item->node.key = strdup(key);
             item->dtype    = t_invalid;
             item->data.n   = 0;
             ldns_rbtree_insert(&(dict->root), (ldns_rbnode_t *)item);
@@ -91,8 +83,8 @@ getdns_dict_get_names(struct getdns_dict *dict, struct getdns_list **answer)
             if(getdns_list_add_item(*answer, &index) == GETDNS_RETURN_GOOD)
             {
                 struct getdns_bindata bindata;
-                bindata.size =  strlen(item->key);
-                bindata.data = (void *)item->key;
+                bindata.size =  strlen(item->node.key);
+                bindata.data = (void *)item->node.key;
                 getdns_list_set_bindata(*answer, index, &bindata);
             }
         }
@@ -228,7 +220,6 @@ getdns_dict_create()
     struct getdns_dict *dict;
 
     dict = (struct getdns_dict *) malloc(sizeof(struct getdns_dict));
-    //ldns_rbtree_init(&(dict->root), getdns_dict_cmp);
     ldns_rbtree_init(&(dict->root), (int (*)(const void *, const void *))strcmp);
     return dict;
 } /* getdns_dict_create */
@@ -247,6 +238,7 @@ getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
 {
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
     struct getdns_dict_item *item;
+    char *key;
 
     if(srcdict != NULL && dstdict != NULL)
     {
@@ -254,22 +246,23 @@ getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
 
         LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(srcdict->root))
         {
+            key = (const *)item->node.key;
             switch(item->dtype)
             {
                 case t_bindata:
-                    getdns_dict_set_bindata(*dstdict, item->key, item->data.bindata);
+                    getdns_dict_set_bindata(*dstdict, key, item->data.bindata);
                     break;
 
                 case t_dict:
-                    getdns_dict_set_dict(*dstdict, item->key, item->data.dict);
+                    getdns_dict_set_dict(*dstdict, key, item->data.dict);
                     break;
 
                 case t_int:
-                    getdns_dict_set_int(*dstdict, item->key, item->data.n);
+                    getdns_dict_set_int(*dstdict, key, item->data.n);
                     break;
 
                 case t_list:
-                    getdns_dict_set_list(*dstdict, item->key, item->data.list);
+                    getdns_dict_set_list(*dstdict, key, item->data.list);
                     break;
 
                 case t_invalid:
@@ -312,8 +305,8 @@ getdns_dict_item_free(ldns_rbnode_t *node, void *arg)
             getdns_list_destroy(item->data.list);
         }
 
-        if(item->key != NULL)
-            free(item->key);
+        if(item->node.key != NULL)
+            free((char *)item->node.key);
         free(item);
     }
 } /* getdns_dict_item_free */
