@@ -36,7 +36,7 @@
 union getdns_item {
     struct getdns_list    *list;
     struct getdns_dict    *dict;
-    int                   n;
+    uint32_t               n;
     struct getdns_bindata *bindata;
 };
 
