@@ -51,3 +51,4 @@ getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
 /* get a string from a dict.  result is valid as long as dict is valid */
 getdns_return_t getdns_dict_util_get_string(getdns_dict* dict, char* name,
                                             char** result);
+char *reverse_address(char *addr_str);

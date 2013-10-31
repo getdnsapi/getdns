@@ -29,6 +29,11 @@
  */
 
 #include <getdns/getdns.h>
+#include "context.h"
+#include "general.h"
+#include "util-internal.h"
+#include <string.h>
+
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -47,13 +52,27 @@ getdns_hostname(
   getdns_callback_t          callback
 )
 {
-    UNUSED_PARAM(context);
-    UNUSED_PARAM(address);
-    UNUSED_PARAM(extensions);
-    UNUSED_PARAM(userarg);
-    UNUSED_PARAM(transaction_id);
-    UNUSED_PARAM(callback);
-    
+    struct getdns_bindata *address_data;
+    struct getdns_bindata *address_type;
+    uint16_t req_type;
+    char *name;
+    getdns_return_t retval;
+
+
+    if ((retval = getdns_dict_get_bindata(address, "address_data", &address_data)) != GETDNS_RETURN_GOOD)
+        return retval;
+    if ((retval = getdns_dict_get_bindata(address, "address_type", &address_type)) != GETDNS_RETURN_GOOD)
+        return retval;
+    if ((strncmp(GETDNS_STR_IPV4, (char *)address_type->data, strlen(GETDNS_STR_IPV4)) == 0) ||
+        (strncmp(GETDNS_STR_IPV6, (char *)address_type->data, strlen(GETDNS_STR_IPV6)) == 0))  
+        req_type = GETDNS_RRTYPE_PTR;
+    else
+        return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+    if ((name = reverse_address((char *)address_data->data)) == 0)
+        return GETDNS_RETURN_GENERIC_ERROR;
+    return getdns_general(context, name, req_type, extensions,
+                          userarg, transaction_id, callback);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_hostname */
 

@@ -102,8 +102,29 @@ getdns_hostname_sync(
   uint32_t               *response_length,
   struct getdns_dict     **response
 )
-{ UNUSED_PARAM(context); UNUSED_PARAM(address); UNUSED_PARAM(extensions);
-UNUSED_PARAM(response_length); UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
+{
+    struct getdns_bindata *address_data;
+    struct getdns_bindata *address_type;
+    uint16_t req_type;
+    char *name;
+    getdns_return_t retval;
+
+
+    if ((retval = getdns_dict_get_bindata(address, "address_data", &address_data)) != GETDNS_RETURN_GOOD)
+        return retval;
+    if ((retval = getdns_dict_get_bindata(address, "address_type", &address_type)) != GETDNS_RETURN_GOOD)
+        return retval;
+    if ((strncmp(GETDNS_STR_IPV4, (char *)address_type->data, strlen(GETDNS_STR_IPV4)) == 0) ||
+        (strncmp(GETDNS_STR_IPV6, (char *)address_type->data, strlen(GETDNS_STR_IPV6)) == 0))
+        req_type = GETDNS_RRTYPE_PTR;
+    else
+        return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+    if ((name = reverse_address((char *)address_data)) == 0)
+        return GETDNS_RETURN_GENERIC_ERROR;
+    return getdns_general_sync(context, name, req_type, extensions,
+                        response_length, response);
+}
+
 
 getdns_return_t
 getdns_service_sync(
