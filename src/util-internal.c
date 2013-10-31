@@ -463,32 +463,30 @@ getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request) {
 }
 
 /*
- * temporary, cheesy function to reverse an IPv4 address
- * and slap "in-addr.arpa" on it.  Will replace
- *           XXX
+ *    reverse an IP address for PTR lookup
  */
+
 
 char *
 reverse_address(char *addr_str)
 {
-    char *res_buf;
-    char *src_start = 0;
-    char *dest_start;
+    ldns_rdf *addr_rdf;
+    ldns_rdf *rev_rdf;
+    char *rev_str;
 
-    /* magic number 9 = 3 '.' + 5 'in-addr.arpa' + null terminator */
-    if ((res_buf = (char *)malloc(strlen(addr_str)+17)) == (char *)0)
-        return 0;
-    dest_start=res_buf;
-    while ((src_start = strrchr(addr_str, '.')) != 0)  {
-        strcpy(dest_start, src_start+1);
-        *src_start = 0;
-        dest_start = dest_start + strlen(dest_start);
-        *dest_start++ = '.';
+    addr_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A, addr_str);
+    if (! addr_rdf) {
+        addr_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_AAAA, addr_str);
+        if (! addr_rdf)
+            return NULL;
     }
-    strcpy(dest_start, addr_str);
-    dest_start = dest_start + strlen(dest_start);
-    strcpy(dest_start, ".in-addr.arpa");
 
-    return res_buf;
-}
+    rev_rdf = ldns_rdf_address_reverse(addr_rdf);
+    ldns_rdf_deep_free(addr_rdf);
+    if (! rev_rdf)
+        return NULL;
 
+    rev_str = ldns_rdf2str(rev_rdf);
+    ldns_rdf_deep_free(rev_rdf);
+    return rev_str;
+} 
