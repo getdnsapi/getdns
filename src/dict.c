@@ -29,10 +29,8 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdarg.h>
 #include <ctype.h>
-#include <string.h>
+#include <ldns/buffer.h>
 #include "dict.h"
 
 /*---------------------------------------- getdns_dict_find */
@@ -246,7 +244,7 @@ getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
 
         LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(srcdict->root))
         {
-            key = (const *)item->node.key;
+            key = (char *)item->node.key;
             switch(item->dtype)
             {
                 case t_bindata:
@@ -429,117 +427,93 @@ getdns_dict_set_int(struct getdns_dict *dict, char *name, uint32_t child_uint32)
     return retval;
 } /* getdns_dict_set_int */
 
+/*---------------------------------------- getdns_pp_dict */
+/**
+ * private function to help with indenting. 
+ * @param indent number of spaces to return
+ * @return       a character string containing min(80, indent) spaces
+ */
 static const char *
 getdns_indent(size_t indent)
 {
     static const char *spaces = "                                        "
                                 "                                        ";
     return spaces + 80 - (indent < 80 ? indent : 0);
-}
+} /* getdns_indent */
 
-static int
-getdns_snprintf(char **str, size_t *size, int* total, const char *format, ...)
-{
-    va_list ap;
-    int written;
-
-    va_start(ap, format);
-    written = vsnprintf(*str, *size, format, ap);
-    va_end(ap);
-
-    if(written < 0) {
-        *total = written;
-        return written;
-    }
-    *total += written;
-    if(written <= *size) {
-        *str  += written;
-        *size -= written;
-    } else {
-        *str += *size;
-        *size = 0;
-    }
-    return 0;
-}
-
-static int
-getdns_snprint_item(char **str, size_t *size, int *total, size_t indent, getdns_data_type dtype, union getdns_item item);
-
-/*---------------------------------------- getdns_snprint_dict */
+/*---------------------------------------- getdns_pp_bindata */
 /**
- * private function to pretty print dict to a buffer, moving the buffer pointer
- * forward in the process.
- * @param str    destination character buffer.
- *               str will be increased with the number of characters written
- * @param size   bytes available in destination character buffer.
- *               the number of characters written will be substracted from size
- * @param total  the number of characters written will be added to toal 
- * @param indent number of spaces to append after newline
- * @param dict   the dict to print
- * @return       zero on successi
- *               if an output error is encountered, a negative value is returned
+ * private function to pretty print bindata to a ldns_buffer
+ * @param buf     buffer to write to
+ * @param indent  number of spaces to append after newline
+ * @param bindata the bindata to print
+ * @return        on success the number of written characters
+ *                if an output error is encountered, a negative value
  */
 static int
-getdns_snprint_dict(char **str, size_t *size, int *total, size_t indent, struct getdns_dict *dict)
+getdns_pp_bindata(ldns_buffer *buf, size_t indent, struct getdns_bindata *bindata)
 {
-    struct getdns_dict_item *item;
-    size_t i, length;
+    size_t i, p = ldns_buffer_position(buf);
+    uint8_t *dptr;
 
-    if(dict == NULL)
-        return 0;
+    if(ldns_buffer_printf(buf, " <bindata ") < 0)
+        return -1;
 
-    if(getdns_snprintf(str, size, total, "{"))
-        return *total;
-
+    /* Walk through all printable characters */
     i = 0;
-    indent += 2;
-    LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(dict->root))
-    {
-        if(getdns_snprintf(str, size, total,
-                           "%s\n%s\"%s\":", (i ? "," : ""),
-                           getdns_indent(indent), item->node.key))
-            return *total;
+    if(bindata->size && bindata->data[bindata->size - 1] == 0)
+        while(i < bindata->size - 1 && isprint(bindata->data[i]))
+            i++;
 
-        do {
-            if(item->dtype == t_list) {
-                if(getdns_list_get_length(item->data.list, &length) != GETDNS_RETURN_GOOD)
+    if(i >= bindata->size - 1) { /* all chars were printable */
+        if(ldns_buffer_printf(buf, "for \"%s\">", bindata->data) < 0)
+            return -1;
+    } else {
+        if(ldns_buffer_printf(buf, "of 0x") < 0)
+            return -1;
+        for(dptr = bindata->data; dptr < bindata->data + bindata->size; dptr++) {
+            if(dptr - bindata->data >= 16) {
+                if(ldns_buffer_printf(buf, "...") < 0)
                     return -1;
-                if(length == 0) {
-                    if(getdns_snprintf(str, size, total, " []"))
-                        return *total;
-                    break;
-                }
+                break;
             }
-            if(item->dtype == t_dict || item->dtype == t_list)
-                if(getdns_snprintf(str, size, total, "\n%s", getdns_indent(indent)))
-                    return *total;
-
-            getdns_snprint_item(str, size, total, indent, item->dtype, item->data);
-
-        } while(false);
-
-        i++;
+            if(ldns_buffer_printf(buf, "%.2x", *dptr) < 0)
+                return -1;
+        }
+        if(ldns_buffer_printf(buf, ">") < 0)
+            return -1;
     }
-    indent -= 2;
-    if (getdns_snprintf(str, size, total, i ? "\n%s}" : "}",
-                getdns_indent(indent)))
-        return *total;
+    return ldns_buffer_position(buf) - p;
+} /* getdns_pp_bindata */
 
-    return 0;
-} /* getdns_snprint_dict */
 
 static int
-getdns_snprint_list(char **str, size_t *size, int *total, size_t indent, struct getdns_list *list)
+getdns_pp_dict(ldns_buffer *buf, size_t indent, struct getdns_dict *dict);
+
+/*---------------------------------------- getdns_pp_list */
+/**
+ * private function to pretty print list to a ldns_buffer
+ * @param buf    buffer to write to
+ * @param indent number of spaces to append after newline
+ * @param list   the to list print
+ * @return       on success the number of written characters
+ *               if an output error is encountered, a negative value
+ */
+static int
+getdns_pp_list(ldns_buffer *buf, size_t indent, struct getdns_list *list)
 {
+    size_t i, length, p = ldns_buffer_position(buf);
     getdns_data_type dtype;
-    union getdns_item data;
-    size_t i, length;
+    struct getdns_dict *dict_item;
+    struct getdns_list *list_item;
+    struct getdns_bindata *bindata_item;
+    uint32_t int_item;
 
     if(list == NULL)
         return 0;
 
-    if(getdns_snprintf(str, size, total, "["))
-        return *total;
+    if(ldns_buffer_printf(buf, "[") < 0)
+        return -1;
 
     if (getdns_list_get_length(list, &length) != GETDNS_RETURN_GOOD)
         return -1;
@@ -547,123 +521,156 @@ getdns_snprint_list(char **str, size_t *size, int *total, size_t indent, struct 
     indent += 2;
     for(i = 0; i < length; i++)
     {
-        if(getdns_snprintf(str, size, total,
-                    "%s\n%s", (i ? "," : ""), getdns_indent(indent)))
-            return *total;
+        if(ldns_buffer_printf(buf, "%s\n%s", (i ? "," : ""),
+                                             getdns_indent(indent)) < 0)
+            return -1;
 
         if(getdns_list_get_data_type(list, i, &dtype) != GETDNS_RETURN_GOOD)
             return -1;
 
-        if((dtype == t_bindata &&
-                 getdns_list_get_bindata(list, i, &data.bindata) != GETDNS_RETURN_GOOD) ||
-                (dtype == t_dict &&
-                 getdns_list_get_dict(list, i, &data.dict) != GETDNS_RETURN_GOOD) ||
-                (dtype == t_int &&
-                 getdns_list_get_int(list, i, &data.n) != GETDNS_RETURN_GOOD) ||
-                (dtype == t_list &&
-                 getdns_list_get_list(list, i, &data.list) != GETDNS_RETURN_GOOD))
-            return -1;
+        switch(dtype) {
+        case t_int    : if (getdns_list_get_int(list, i, &int_item) !=
+                                GETDNS_RETURN_GOOD)
+                        if(ldns_buffer_printf(buf, " %d", (int)int_item) < 0)
+                            return -1;
+                        break;
 
-        if(getdns_snprint_item(str, size, total, indent, dtype, data))
-            return *total;
+        case t_bindata: if (getdns_list_get_bindata(list, i, &bindata_item) !=
+                                GETDNS_RETURN_GOOD)
+                            return -1;
+                        if (getdns_pp_bindata(buf, indent, bindata_item) < 0)
+                            return -1;
+                        break;
+
+        case t_list   : if (getdns_list_get_list(list, i, &list_item) !=
+                                GETDNS_RETURN_GOOD)
+                            return -1;
+                        if (getdns_pp_list(buf, indent, list_item) < 0)
+                            return -1;
+                        break;
+
+        case t_dict   : if (getdns_list_get_dict(list, i, &dict_item) !=
+                                GETDNS_RETURN_GOOD)
+                            return -1;
+                        if (getdns_pp_dict(buf, indent, dict_item) < 0)
+                            return -1;
+                        break;
+
+        case t_invalid: 
+        default       : if(ldns_buffer_printf(buf, " <invalid>") < 0)
+                            return -1;
+        }
         i++;
     }
     indent -= 2;
-    if (getdns_snprintf(str, size, total, i ? "\n%s]" : "]",
-                getdns_indent(indent)))
-        return *total;
+    if (ldns_buffer_printf(buf, i ? "\n%s]" : "]", getdns_indent(indent)) < 0)
+        return -1;
 
-    return 0;
-} /* getdns_snprint_dict */
+    return ldns_buffer_position(buf) - p;
+} /* getdns_pp_list */
 
 
+/*---------------------------------------- getdns_pp_dict */
+/**
+ * private function to pretty print dict to a ldns_buffer
+ * @param buf    buffer to write to
+ * @param indent number of spaces to append after newline
+ * @param dict   the dict to print
+ * @return       on success the number of written characters
+ *               if an output error is encountered, a negative value
+ */
 static int
-getdns_snprint_item(char **str, size_t *size, int *total, size_t indent, getdns_data_type dtype, union getdns_item item)
+getdns_pp_dict(ldns_buffer *buf, size_t indent, struct getdns_dict *dict)
 {
-    size_t i;
+    size_t i, length, p = ldns_buffer_position(buf);
+    struct getdns_dict_item *item;
 
-    switch(dtype)
+    if(dict == NULL)
+        return 0;
+
+    if(ldns_buffer_printf(buf, "{") < 0)
+        return -1;
+
+    i = 0;
+    indent += 2;
+    LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(dict->root))
     {
-        case t_bindata:
-            if(getdns_snprintf(str, size, total, " <bindata ", (int)item.bindata->size))
-                return *total;
-            i = 0;
-            if(item.bindata->size && item.bindata->data[item.bindata->size - 1] == 0)
-                while(i < item.bindata->size - 1 && isprint(item.bindata->data[i]))
-                    i++;
-            if(i >= item.bindata->size - 1) {
-                if(getdns_snprintf(str, size, total, "\"%s\">", item.bindata->data))
-                    return *total;
-                break;
-            }
-            for(i = 0; i < item.bindata->size; i++) {
-                if(i >= 16) {
-                    if(getdns_snprintf(str, size, total, "..."))
-                        return *total;
-                    break;
-                }
-                if(getdns_snprintf(str, size, total, "%.2X", (int)item.bindata->data[i]))
-                    return *total;
-            }
-            if(getdns_snprintf(str, size, total, ">"))
-                return *total;
-            break;
+        if(ldns_buffer_printf(buf, "%s\n%s\"%s\":", (i ? "," : "")
+                                                  , getdns_indent(indent)
+                                                  , item->node.key) < 0)
+            return -1;
 
-        case t_dict:
-            if(getdns_snprint_dict(str, size, total, indent, item.dict))
-                return *total;
-            break;
+        switch(item->dtype) {
+        case t_int    : if(ldns_buffer_printf(buf, " %d", item->data.n) < 0)
+                            return -1;
+                        break;
 
-        case t_int:
-            if(getdns_snprintf(str, size, total, " %d", (int)item.n))
-                return *total;
-            break;
+        case t_bindata: if (getdns_pp_bindata(buf, indent,
+                                              item->data.bindata) < 0)
+                            return -1;
+                        break;
 
-        case t_list:
-            if(getdns_snprint_list(str, size, total, indent, item.list))
-                return *total;
-            break;
+        case t_list   : /* Don't put empty lists on a new line */
 
-        case t_invalid:
-        default:
-            if(getdns_snprintf(str, size, total, " <invalid>"))
-                return *total;
-            break;
+                        if(getdns_list_get_length(item->data.list,
+                                                  &length) != GETDNS_RETURN_GOOD)
+                            return -1;
+                        if(length == 0) {
+                            if(ldns_buffer_printf(buf, " []") < 0)
+                                return -1;
+                            break;
+                        }
+                        if(ldns_buffer_printf(buf, "\n%s", getdns_indent(indent)) < 0)
+                            return -1;
+                        if(getdns_pp_list(buf, indent, item->data.list) < 0)
+                            return -1;
+                        break;
+
+        case t_dict   : if(ldns_buffer_printf(buf, "\n%s", getdns_indent(indent)) < 0)
+                            return -1;
+                        if(getdns_pp_dict(buf, indent, item->data.dict) < 0)
+                            return -1;
+                        break;
+
+        case t_invalid: 
+        default       : if(ldns_buffer_printf(buf, " <invalid>") < 0)
+                            return -1;
+        }
+        i++;
     }
-    return 0;
-}
+    indent -= 2;
+    if (ldns_buffer_printf(buf, i ? "\n%s}" : "}", getdns_indent(indent)) < 0)
+        return -1;
+
+    return ldns_buffer_position(buf) - p;
+} /* getdns_pp_dict */
+
 
 /*---------------------------------------- getdns_pretty_print_dict */
+/**
+ * Return a character string containing a "human readable" representation
+ * of dict.
+ * @param dict   the dict to pretty print
+ * @return       the "human readable" representation of dict
+ *               or NULL on error
+ */
 char *
 getdns_pretty_print_dict(struct getdns_dict *dict)
 {
-    size_t size = 1024;
-    char buf[1024];
-    char *str, *newstr;
-    int total = 0;
+    ldns_buffer *buf;
+    char *ret;
 
-    str = buf;
-    if(getdns_snprint_dict(&str, &size, &total, 0, dict))
+    buf  = ldns_buffer_new(100);
+    if (! buf)
         return NULL;
 
-    if(total == 0)
-        return strdup("");
-
-    if(total <= size)
-        return strdup(buf);
-
-    total += 1;
-    str = newstr = (char *)malloc((size_t) total * sizeof(char));
-    if(!str)
-        return NULL;
-
-    size  = total;
-    total = 0;
-    if (getdns_snprint_dict(&str, &size, &total, 0, dict)) {
-        free(newstr);
+    if (getdns_pp_dict(buf, 0, dict) < 0) {
+        ldns_buffer_free(buf);
         return NULL;
     }
-    return newstr;
+    ret = (char *)ldns_buffer_export(buf);
+    ldns_buffer_free(buf); 
+    return ret;
 } /* getdns_pretty_print_dict */
 
 /* getdns_dict.c */
