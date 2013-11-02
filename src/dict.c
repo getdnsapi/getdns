@@ -29,47 +29,9 @@
  * THE SOFTWARE.
  */
 
-#include <stdio.h>
-#include <search.h>
-#include <string.h>
+#include <ctype.h>
+#include <ldns/buffer.h>
 #include "dict.h"
-
-/* TODO: change this to make the walk safe for reentrant/multi-thread calls */
-struct getdns_list *walkresultlist;
-struct getdns_dict *walkresultdict;
-char *walkresultchar;
-int  walkresultcharlen;
-
-/*---------------------------------------- getdns_dict_cmp */
-/**
- * private function used by the t*() functions for managing binary trees
- * behaves similar to strcmp() 
- * @param item1 pointer to pointer to getdns_dict_item to compare
- * @param item2 pointer to pointer to getdns_dict_item to compare
- * @return results of lexicographic comparison between item1->key and item2->key
- */
-int
-getdns_dict_cmp(const void *item1, const void *item2)
-{ 
-    int retval = 0;
-
-    if(item1 == NULL)
-    {
-        if(item2 == NULL)
-            retval = 0;
-        else
-            retval = -1;
-    }
-    else if(item2 == NULL)
-        retval = 1;
-    else
-    {
-        retval = strcmp(((struct getdns_dict_item *) item1)->key
-         , ((struct getdns_dict_item *) item2)->key);
-    }
-
-    return retval;
-} /* getdns_dict_comp */
 
 /*---------------------------------------- getdns_dict_find */
 /**
@@ -83,100 +45,49 @@ getdns_dict_cmp(const void *item1, const void *item2)
 struct getdns_dict_item *
 getdns_dict_find(struct getdns_dict *dict, char *key, bool addifnotfnd)
 { 
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item **item;
-    struct getdns_dict_item *newitem;
-    struct getdns_dict_item *ret = NULL;
+    struct getdns_dict_item *item = NULL;
 
     if(dict != NULL && key != NULL)
     {
-        /* we try to find it first, if we do then clear the existing data */
-        keyitem.key    = key;
-        keyitem.dtype  = t_invalid;
-        keyitem.data.n = 0;
-        item = tfind(&keyitem, &(dict->rootp), getdns_dict_cmp);
-        if(addifnotfnd == true && (item == NULL || *item == NULL))
+        item = (struct getdns_dict_item *)ldns_rbtree_search(&(dict->root), key);
+        if(addifnotfnd == true && item == NULL)
         {
             /* tsearch will add a node automatically for us */
-            newitem = (struct getdns_dict_item *) malloc(sizeof(struct getdns_dict_item));
-            newitem->key    = strdup(key);
-            newitem->dtype  = t_invalid;
-            newitem->data.n = 0;
-            item = tsearch(newitem, &(dict->rootp), getdns_dict_cmp);
+            item = (struct getdns_dict_item *) malloc(sizeof(struct getdns_dict_item));
+            item->node.key = strdup(key);
+            item->dtype    = t_invalid;
+            item->data.n   = 0;
+            ldns_rbtree_insert(&(dict->root), (ldns_rbnode_t *)item);
         }
-        if(item != NULL)
-            ret = *item;
     }
-
-    return ret;
+    return item;
 } /* getdns_dict_find */
 
-/*---------------------------------------- getdns_dict_visit */
-/**
- * private function called by the tree walk function invoked by getdns_dict_get_names
- * it is called as each node is visited.  twalk() calls 3x for each node and passes order
- * to tell us whether it is a pre/in/post order
- */
-void
-getdns_dict_visit(const void *node, VISIT order, int level)
-{
-    struct getdns_dict_item *item;
-    size_t index;
-
-    item = *(struct getdns_dict_item **) node;
-    /* postorder is mis-named - it results in in-order traversal */
-    if(order == postorder || order == leaf)
-    {
-        if(getdns_list_add_item(walkresultlist, &index) == GETDNS_RETURN_GOOD)
-        {
-            switch(item->dtype)
-            {
-                case t_bindata:
-                    getdns_list_set_bindata(walkresultlist, index, item->data.bindata);
-                    break;
-
-                case t_dict:
-                    getdns_list_set_dict(walkresultlist, index, item->data.dict);
-                    break;
-
-                case t_int:
-                    getdns_list_set_int(walkresultlist, index, item->data.n);
-                    break;
-
-                case t_list:
-                    getdns_list_set_list(walkresultlist, index, item->data.list);
-                    break;
-
-                case t_invalid:
-                default:
-                    // TODO: this is a fault of some kind, for now ignore it
-                    break;
-            }
-        }
-    }
-
-    return;
-} /* getdns_dict_visit */
-
 /*---------------------------------------- getdns_dict_get_names
- TODO: this needs to be made thread safe by creating a thread specific list
- the binary search tree implementation in the 
 */
 getdns_return_t
 getdns_dict_get_names(struct getdns_dict *dict, struct getdns_list **answer)
 {
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
+    struct getdns_dict_item *item;
+    size_t index;
 
     if(dict != NULL && answer != NULL)
     {
         *answer = getdns_list_create();
-        walkresultlist = *answer;
 
-        twalk(dict->rootp, getdns_dict_visit);
-
+        LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(dict->root))
+        {
+            if(getdns_list_add_item(*answer, &index) == GETDNS_RETURN_GOOD)
+            {
+                struct getdns_bindata bindata;
+                bindata.size =  strlen(item->node.key);
+                bindata.data = (void *)item->node.key;
+                getdns_list_set_bindata(*answer, index, &bindata);
+            }
+        }
         retval = GETDNS_RETURN_GOOD;
     }
-
     return retval;
 } /* getdns_dict_get_names */
 
@@ -307,60 +218,14 @@ getdns_dict_create()
     struct getdns_dict *dict;
 
     dict = (struct getdns_dict *) malloc(sizeof(struct getdns_dict));
-    dict->rootp = NULL;
-
+    ldns_rbtree_init(&(dict->root), (int (*)(const void *, const void *))strcmp);
     return dict;
 } /* getdns_dict_create */
 
-/*---------------------------------------- getdns_dict_visit_copyitem */
-/**
- * private function called by getdns_dict_copy() through the tree walk function 
- * is called as each node is visited.  twalk() calls 3x for each node and passes order
- * to tell us whether it is a pre/in/post order. We use this to copy the dictionary one item at
- * a time - this could be sped up
- */
-void
-getdns_dict_visit_copyitem(const void *node, VISIT order, int level)
-{
-    struct getdns_dict_item *item;
-
-    item = *(struct getdns_dict_item **) node;
-    /* postorder is mis-named - it results in in-order traversal */
-    if(order == postorder || order == leaf)
-    {
-        switch(item->dtype)
-        {
-            case t_bindata:
-                getdns_dict_set_bindata(walkresultdict, item->key, item->data.bindata);
-                break;
-
-            case t_dict:
-                getdns_dict_set_dict(walkresultdict, item->key, item->data.dict);
-                break;
-
-            case t_int:
-                getdns_dict_set_int(walkresultdict, item->key, item->data.n);
-                break;
-
-            case t_list:
-                getdns_dict_set_list(walkresultdict, item->key, item->data.list);
-                break;
-
-            case t_invalid:
-            default:
-                // TODO: this is a fault of some kind, for now ignore it
-                break;
-        }
-    }
-
-    return;
-} /* getdns_dict_visit_copyitem */
-
 /*---------------------------------------- getdns_dict_copy */
 /**
- * private function used to make a copy of a dict structure, the caller is responsible
- * for freeing storage allocated to returned value
- * NOTE: not thread safe - this needs to be fixed to be thread safe
+ * private function used to make a copy of a dict structure,
+ * the caller is responsible * for freeing storage allocated to returned value
  * @param srcdict the dictionary structure to copy
  * @param dstdict the copy destination
  * @return the address of the copy of the dictionary structure on success
@@ -370,14 +235,40 @@ getdns_return_t
 getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
 {
     getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
+    struct getdns_dict_item *item;
+    char *key;
 
     if(srcdict != NULL && dstdict != NULL)
     {
         *dstdict = getdns_dict_create();
-        walkresultdict = *dstdict;
 
-        twalk(srcdict->rootp, getdns_dict_visit_copyitem);
+        LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(srcdict->root))
+        {
+            key = (char *)item->node.key;
+            switch(item->dtype)
+            {
+                case t_bindata:
+                    getdns_dict_set_bindata(*dstdict, key, item->data.bindata);
+                    break;
 
+                case t_dict:
+                    getdns_dict_set_dict(*dstdict, key, item->data.dict);
+                    break;
+
+                case t_int:
+                    getdns_dict_set_int(*dstdict, key, item->data.n);
+                    break;
+
+                case t_list:
+                    getdns_dict_set_list(*dstdict, key, item->data.list);
+                    break;
+
+                case t_invalid:
+                default:
+                    // TODO: this is a fault of some kind, for now ignore it
+                    break;
+            }
+        }
         retval = GETDNS_RETURN_GOOD;
     }
 
@@ -391,8 +282,10 @@ getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict)
  * @return void
  */
 void
-getdns_dict_item_free(struct getdns_dict_item *item)
+getdns_dict_item_free(ldns_rbnode_t *node, void *arg)
 {
+    (void) arg;
+    struct getdns_dict_item *item = (struct getdns_dict_item *)node;
     if(item != NULL)
     {
         if(item->dtype == t_bindata)
@@ -410,8 +303,8 @@ getdns_dict_item_free(struct getdns_dict_item *item)
             getdns_list_destroy(item->data.list);
         }
 
-        if(item->key != NULL)
-            free(item->key);
+        if(item->node.key != NULL)
+            free((char *)item->node.key);
         free(item);
     }
 } /* getdns_dict_item_free */
@@ -420,19 +313,9 @@ getdns_dict_item_free(struct getdns_dict_item *item)
 void
 getdns_dict_destroy(struct getdns_dict *dict)
 {
-    struct getdns_dict_item keyitem;
-    struct getdns_dict_item *item;
-
-    if(dict != NULL && dict->rootp != NULL)
+    if(dict != NULL)
     {
-        while(dict->rootp != NULL)
-        {
-            item = *((struct getdns_dict_item **) dict->rootp);
-            keyitem.key = item->key;
-            tdelete(&keyitem, &(dict->rootp), getdns_dict_cmp);
-            getdns_dict_item_free(item);
-        }
-
+        ldns_traverse_postorder(&(dict->root), getdns_dict_item_free, NULL);
         free(dict);
     }
 
@@ -544,92 +427,250 @@ getdns_dict_set_int(struct getdns_dict *dict, char *name, uint32_t child_uint32)
     return retval;
 } /* getdns_dict_set_int */
 
-/*---------------------------------------- getdns_dict_visit_print */
+/*---------------------------------------- getdns_pp_dict */
 /**
- * private function called by the tree walk function invoked by getdns_pretty_print_dict
- * it is called as each node is visited.  twalk() calls 3x for each node and passes order
- * to tell us whether it is a pre/in/post order
- * TODO: need to handle nested non-trivial data types
+ * private function to help with indenting. 
+ * @param indent number of spaces to return
+ * @return       a character string containing min(80, indent) spaces
  */
-void
-getdns_dict_visit_print(const void *node, VISIT order, int level)
+static const char *
+getdns_indent(size_t indent)
 {
-    struct getdns_dict_item *item;
-    int    newlen;
-    char   *dtypestr = NULL;
-    char   *valstr   = NULL;
-    char   *itemstr  = NULL;
+    static const char *spaces = "                                        "
+                                "                                        ";
+    return spaces + 80 - (indent < 80 ? indent : 0);
+} /* getdns_indent */
 
-    item = *(struct getdns_dict_item **) node;
-    /* postorder is mis-named - it results in in-order traversal */
-    if(order == postorder || order == leaf)
-    {
-        switch(item->dtype)
-        {
-            case t_bindata:
-                dtypestr = "bindata";
-                valstr = strdup("NOT IMPLEMENTED");
-                break;
+/*---------------------------------------- getdns_pp_bindata */
+/**
+ * private function to pretty print bindata to a ldns_buffer
+ * @param buf     buffer to write to
+ * @param indent  number of spaces to append after newline
+ * @param bindata the bindata to print
+ * @return        on success the number of written characters
+ *                if an output error is encountered, a negative value
+ */
+static int
+getdns_pp_bindata(ldns_buffer *buf, size_t indent, struct getdns_bindata *bindata)
+{
+    size_t i, p = ldns_buffer_position(buf);
+    uint8_t *dptr;
 
-            case t_dict:
-                dtypestr = "dict";
-                valstr = strdup("NOT IMPLEMENTED");
-                break;
+    if(ldns_buffer_printf(buf, " <bindata ") < 0)
+        return -1;
 
-            case t_int:
-                dtypestr = "int";
-                asprintf(&valstr, "%d", item->data.n);
-                break;
+    /* Walk through all printable characters */
+    i = 0;
+    if(bindata->size && bindata->data[bindata->size - 1] == 0)
+        while(i < bindata->size - 1 && isprint(bindata->data[i]))
+            i++;
 
-            case t_list:
-                dtypestr = "list";
-                valstr = strdup("NOT IMPLEMENTED");
+    if(i >= bindata->size - 1) { /* all chars were printable */
+        if(ldns_buffer_printf(buf, "for \"%s\">", bindata->data) < 0)
+            return -1;
+    } else {
+        if(ldns_buffer_printf(buf, "of 0x") < 0)
+            return -1;
+        for(dptr = bindata->data; dptr < bindata->data + bindata->size; dptr++) {
+            if(dptr - bindata->data >= 16) {
+                if(ldns_buffer_printf(buf, "...") < 0)
+                    return -1;
                 break;
-
-            case t_invalid:
-            default:
-                dtypestr = "invalid";
-                valstr = strdup("");
-                break;
+            }
+            if(ldns_buffer_printf(buf, "%.2x", *dptr) < 0)
+                return -1;
         }
-
-        newlen = asprintf(&itemstr, "key=\"%s\", type=\"%s\", value=\"%s\"\n", item->key, dtypestr, valstr);
-        if(newlen != -1)
-        {
-            walkresultchar = (char *) realloc(walkresultchar, walkresultcharlen + newlen + 1);
-            memcpy(walkresultchar + walkresultcharlen, itemstr, newlen);
-            walkresultcharlen += newlen;
-            walkresultchar[walkresultcharlen] = '\0';
-        }
-        // else
-            // TODO: this is a fault - do something
-
-        free(valstr);
+        if(ldns_buffer_printf(buf, ">") < 0)
+            return -1;
     }
+    return ldns_buffer_position(buf) - p;
+} /* getdns_pp_bindata */
 
-    return;
-} /* getdns_dict_visit_print */
+
+static int
+getdns_pp_dict(ldns_buffer *buf, size_t indent, struct getdns_dict *dict);
+
+/*---------------------------------------- getdns_pp_list */
+/**
+ * private function to pretty print list to a ldns_buffer
+ * @param buf    buffer to write to
+ * @param indent number of spaces to append after newline
+ * @param list   the to list print
+ * @return       on success the number of written characters
+ *               if an output error is encountered, a negative value
+ */
+static int
+getdns_pp_list(ldns_buffer *buf, size_t indent, struct getdns_list *list)
+{
+    size_t i, length, p = ldns_buffer_position(buf);
+    getdns_data_type dtype;
+    struct getdns_dict *dict_item;
+    struct getdns_list *list_item;
+    struct getdns_bindata *bindata_item;
+    uint32_t int_item;
+
+    if(list == NULL)
+        return 0;
+
+    if(ldns_buffer_printf(buf, "[") < 0)
+        return -1;
+
+    if (getdns_list_get_length(list, &length) != GETDNS_RETURN_GOOD)
+        return -1;
+
+    indent += 2;
+    for(i = 0; i < length; i++)
+    {
+        if(ldns_buffer_printf(buf, "%s\n%s", (i ? "," : ""),
+                                             getdns_indent(indent)) < 0)
+            return -1;
+
+        if(getdns_list_get_data_type(list, i, &dtype) != GETDNS_RETURN_GOOD)
+            return -1;
+
+        switch(dtype) {
+        case t_int    : if (getdns_list_get_int(list, i, &int_item) !=
+                                GETDNS_RETURN_GOOD)
+                        if(ldns_buffer_printf(buf, " %d", (int)int_item) < 0)
+                            return -1;
+                        break;
+
+        case t_bindata: if (getdns_list_get_bindata(list, i, &bindata_item) !=
+                                GETDNS_RETURN_GOOD)
+                            return -1;
+                        if (getdns_pp_bindata(buf, indent, bindata_item) < 0)
+                            return -1;
+                        break;
+
+        case t_list   : if (getdns_list_get_list(list, i, &list_item) !=
+                                GETDNS_RETURN_GOOD)
+                            return -1;
+                        if (getdns_pp_list(buf, indent, list_item) < 0)
+                            return -1;
+                        break;
+
+        case t_dict   : if (getdns_list_get_dict(list, i, &dict_item) !=
+                                GETDNS_RETURN_GOOD)
+                            return -1;
+                        if (getdns_pp_dict(buf, indent, dict_item) < 0)
+                            return -1;
+                        break;
+
+        case t_invalid: 
+        default       : if(ldns_buffer_printf(buf, " <invalid>") < 0)
+                            return -1;
+        }
+        i++;
+    }
+    indent -= 2;
+    if (ldns_buffer_printf(buf, i ? "\n%s]" : "]", getdns_indent(indent)) < 0)
+        return -1;
+
+    return ldns_buffer_position(buf) - p;
+} /* getdns_pp_list */
+
+
+/*---------------------------------------- getdns_pp_dict */
+/**
+ * private function to pretty print dict to a ldns_buffer
+ * @param buf    buffer to write to
+ * @param indent number of spaces to append after newline
+ * @param dict   the dict to print
+ * @return       on success the number of written characters
+ *               if an output error is encountered, a negative value
+ */
+static int
+getdns_pp_dict(ldns_buffer *buf, size_t indent, struct getdns_dict *dict)
+{
+    size_t i, length, p = ldns_buffer_position(buf);
+    struct getdns_dict_item *item;
+
+    if(dict == NULL)
+        return 0;
+
+    if(ldns_buffer_printf(buf, "{") < 0)
+        return -1;
+
+    i = 0;
+    indent += 2;
+    LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(dict->root))
+    {
+        if(ldns_buffer_printf(buf, "%s\n%s\"%s\":", (i ? "," : "")
+                                                  , getdns_indent(indent)
+                                                  , item->node.key) < 0)
+            return -1;
+
+        switch(item->dtype) {
+        case t_int    : if(ldns_buffer_printf(buf, " %d", item->data.n) < 0)
+                            return -1;
+                        break;
+
+        case t_bindata: if (getdns_pp_bindata(buf, indent,
+                                              item->data.bindata) < 0)
+                            return -1;
+                        break;
+
+        case t_list   : /* Don't put empty lists on a new line */
+
+                        if(getdns_list_get_length(item->data.list,
+                                                  &length) != GETDNS_RETURN_GOOD)
+                            return -1;
+                        if(length == 0) {
+                            if(ldns_buffer_printf(buf, " []") < 0)
+                                return -1;
+                            break;
+                        }
+                        if(ldns_buffer_printf(buf, "\n%s", getdns_indent(indent)) < 0)
+                            return -1;
+                        if(getdns_pp_list(buf, indent, item->data.list) < 0)
+                            return -1;
+                        break;
+
+        case t_dict   : if(ldns_buffer_printf(buf, "\n%s", getdns_indent(indent)) < 0)
+                            return -1;
+                        if(getdns_pp_dict(buf, indent, item->data.dict) < 0)
+                            return -1;
+                        break;
+
+        case t_invalid: 
+        default       : if(ldns_buffer_printf(buf, " <invalid>") < 0)
+                            return -1;
+        }
+        i++;
+    }
+    indent -= 2;
+    if (ldns_buffer_printf(buf, i ? "\n%s}" : "}", getdns_indent(indent)) < 0)
+        return -1;
+
+    return ldns_buffer_position(buf) - p;
+} /* getdns_pp_dict */
+
 
 /*---------------------------------------- getdns_pretty_print_dict */
+/**
+ * Return a character string containing a "human readable" representation
+ * of dict.
+ * @param dict   the dict to pretty print
+ * @return       the "human readable" representation of dict
+ *               or NULL on error
+ */
 char *
 getdns_pretty_print_dict(struct getdns_dict *dict)
 {
-    char *retval = NULL;
+    ldns_buffer *buf;
+    char *ret;
 
-    walkresultcharlen = 0;
-    walkresultchar    = NULL;
+    buf  = ldns_buffer_new(100);
+    if (! buf)
+        return NULL;
 
-    if(dict != NULL && dict->rootp != NULL)
-    {
-        twalk(dict->rootp, getdns_dict_visit_print);
-        if(walkresultcharlen > 0)
-        {
-            retval = strdup(walkresultchar);
-            free(walkresultchar);
-        }
+    if (getdns_pp_dict(buf, 0, dict) < 0) {
+        ldns_buffer_free(buf);
+        return NULL;
     }
-
-    return retval;
+    ret = (char *)ldns_buffer_export(buf);
+    ldns_buffer_free(buf); 
+    return ret;
 } /* getdns_pretty_print_dict */
 
 /* getdns_dict.c */
