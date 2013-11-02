@@ -32,6 +32,7 @@
 #include <unbound-event.h>
 #include "context.h"
 #include "general.h"
+#include "util-internal.h"
 #include <string.h>
 
 /* stuff to make it compile pedantically */
