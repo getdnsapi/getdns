@@ -1,7 +1,7 @@
 getdns API  {#mainpage}
 ==========
 
-* Date:    2013-06-27
+* Date:    2013-11-03
 * GitHub:  <https://github.com/verisign/getdns> 
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
@@ -27,16 +27,25 @@ The goals of this implementation of the getdns API are:
 Non-goals (things we will not be doing) include:
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
-Contributors
-============
-* Neel Goyal, Verisign, Inc.
-* Allison Mankin, Verisign, Inc.
-* Melinda Shore, No Mountain Software LLC
-* Glen Wiley, Verisign, Inc.
+Releases
+========
+Release numbering follows the [Semantic Versioning](http://semver.org/) approach.  We are currently in the early stages of building the API so the code should be considered incomplete.  
+
+The 0.1.0 release will be issued when the repository is opened to the public, our goal is to meet the following requirements prior to opening the repository:
+
+* code compiles cleanly on at least the primary target platforms: RHEL/CentOS 6.3 Linux, FreeBSD 9.2
+* examples must compile and be clean
+* clearly document supported/unsupported elements of the API 
+
+Tickets/Bug Reports
+===================
+Tickets and bug reports from external contacts are received via a mailing list and managed in the git issues list.
+
+TBD: mailing list address
 
 External Dependencies
 =====================
-External dependencies are linked outside the getdns API build tree (we rely on configure to find them).
+External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
 The project relies on [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) for parsing and constructing DNS packets.  Version 1.6.16 (note that building ldns may require openssl headers and libraries)
 
@@ -50,15 +59,38 @@ GNU autoconf is used to generate the configure script (and consequently the Make
 
 Automake 1.12 is required if you are building the distribution tarball.
 
-Current State of the Implementation
-===================================
-We are currently in the early stages of building the API so the code should be considered incomplete.  The current target platforms and the personal primarily responsible for ensuring it builds and runs on that platform include:
 
-* Android, Neel Goyal
-* FreeBSD, Melinda Shore
-* Linux RHEL/CentOS 6.x, Glen Wiley
-* MS-Windows 8, Neel Goyal
-* OSX 10.8, Glen Wiley
+#Supported Platforms
+
+The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.
+
+Where at all possible we need to make sure that both 32 and 64 bit implementations work.
+
+* Android, Neel
+* FreeBSD 9.2, gcc/clang Melinda
+* FreeBSD 10.0 (not yet released), gcc/clang Melinda
+* Linux RHEL/CentOS 6.x, Glen
+* MS-Windows 8, cygwin, Neel
+* NetBSD x.x, Wouter
+* OpenBSD 5.3, Wouter
+* OSX 10.8, Glen
+* OSX 10.9, Allison
+* Ubuntu 12.x, Melinda
+
+The NLNet folks offered to build on a number of legacy platforms as well to help ensure that the code is clean.  These include some big endian hardware and a few more obscure operating systems which will not be publicly supported but might work if someone wants to try them.
+
+##Build Reports
+
+TBD
+
+Contributors
+============
+* Neel Goyal, Verisign, Inc.
+* Allison Mankin, Verisign, Inc.
+* Melinda Shore, No Mountain Software LLC
+* Willem Toorop, NLNet Labs
+* Glen Wiley, Verisign, Inc.
+* Wouter Wijngaards, NLNet Labs
 
 --
 end README
