@@ -43,22 +43,27 @@ Tickets and bug reports from external contacts are received via a mailing list a
 
 TBD: mailing list address
 
+
 External Dependencies
 =====================
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
-The project relies on [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) for parsing and constructing DNS packets.  Version 1.6.16 (note that building ldns may require openssl headers and libraries)
+* [libevent](http://libevent.org) version 2.0.21 stable
+* [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.16 (ldns may require openssl headers and libraries)
+* [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 2985, configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only).  The unbound.2985.patch included with getdns must be applied to the source tree prior to building libunbound.
+* Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
-The project also relies on [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/).  Currently it relies on svn revision 2985.  The unbound.2985.patch must be applied to the source tree as well.  The ./configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only)
-
-Although [libevent](http://libevent.org) is used initially to implement the asynchronous model, future work may include a move to other mechanisms (epoll based etc.).  Version 2.0.21 stable
-
-Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
-
-GNU autoconf is used to generate the configure script (and consequently the Makefiles)
-
-Automake 1.12 is required if you are building the distribution tarball.
-
+Assuming that the getdns sources are in a diretory named getdns in your home directory, to build libunbound (note that the svn checkout may take a while):
+```
+# mkdir unbound
+# cd unbound
+# svn checkout -r 2985 http://unbound.nlnetlabs.nl/svn
+# cd svn/trunk
+# patch -p0 < ~/getdns/unbound.2985.patch
+# ./configure --with-libevent --with-libunbound-only
+# make
+# make install
+```
 
 #Supported Platforms
 

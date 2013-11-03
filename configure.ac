@@ -26,13 +26,22 @@ AC_PROG_CPP
 
 # Checks for libraries.
 found_all_libs=1
-AC_MSG_NOTICE([Checking for dependencies libevent, ldns and unbound])
+AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
 AC_CHECK_LIB([event_core], [event_base_new], [], [found_all_libs=0])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
-AC_CHECK_LIB([unbound], [ub_ctx_set_event], [], [found_all_libs=0])
 if test $found_all_libs == 0
 then
     AC_MSG_ERROR([One more dependencies is missing])
+fi
+
+# break out libunbound from other libraries since we are currently using a 
+# patch to the sources
+found_libunbound=1
+AC_MSG_NOTICE([Checking for dependency libunbound])
+AC_CHECK_LIB([unbound], [ub_ctx_set_event], [], [found_libunbound=0])
+if test $found_libunbound == 0
+then
+    AC_MSG_ERROR([libunbound is missing or does not incude event code, you may need to patch your libunbound sources and rebuild.  See the getdns build instructions])
 fi
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
