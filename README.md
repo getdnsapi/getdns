@@ -2,7 +2,7 @@ getdns API  {#mainpage}
 ==========
 
 * Date:    2013-11-03
-* GitHub:  <https://github.com/verisign/getdns> 
+* GitHub:  <https://github.com/verisign/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
 
@@ -23,19 +23,19 @@ The goals of this implementation of the getdns API are:
 ** the master branch is always in a production ready state
 ** the develop branch contains the latest development changes which are merged from develop into master once they are considered production ready
 * Both synchronous and asynchronous entry points with an early focus on the asynchronous model
- 
+
 Non-goals (things we will not be doing) include:
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
 Releases
 ========
-Release numbering follows the [Semantic Versioning](http://semver.org/) approach.  We are currently in the early stages of building the API so the code should be considered incomplete.  
+Release numbering follows the [Semantic Versioning](http://semver.org/) approach.  We are currently in the early stages of building the API so the code should be considered incomplete.
 
 The 0.1.0 release will be issued when the repository is opened to the public, our goal is to meet the following requirements prior to opening the repository:
 
 * code compiles cleanly on at least the primary target platforms: RHEL/CentOS 6.3 Linux, FreeBSD 9.2
 * examples must compile and be clean
-* clearly document supported/unsupported elements of the API 
+* clearly document supported/unsupported elements of the API
 
 Tickets/Bug Reports
 ===================
@@ -50,7 +50,7 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 
 * [libevent](http://libevent.org) version 2.0.21 stable
 * [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.16 (ldns may require openssl headers and libraries)
-* [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 2985, configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only).  The unbound.2985.patch included with getdns must be applied to the source tree prior to building libunbound.
+* [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 3012, configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only).
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 Assuming that the getdns sources are in a diretory named getdns in your home directory, to build libunbound (note that the svn checkout may take a while):
