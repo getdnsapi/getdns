@@ -152,6 +152,7 @@ void
 getdns_free_sync_request_memory(
   struct getdns_dict     *response
 )
-{ UNUSED_PARAM(response); }
-
-/* sync.c */
+{
+    getdns_dict_destroy(response);
+}
+/* getdns_core_sync.c */

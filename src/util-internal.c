@@ -423,7 +423,7 @@ static char* get_canonical_name(const char* name) {
         return NULL;
     }
     char* result = convert_rdf_to_str(rdf);
-    ldns_rdf_free(rdf);
+    ldns_rdf_deep_free(rdf);
     return result;
 }
 
@@ -433,7 +433,7 @@ getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request) {
     getdns_list* just_addrs = NULL;
     getdns_list* replies_tree = getdns_list_create();
     getdns_network_req *netreq = completed_request->first_req;
-
+    char* canonical_name = NULL;
 
     int r = 0;
 
@@ -443,7 +443,9 @@ getdns_dict *create_getdns_response(struct getdns_dns_req* completed_request) {
     }
 
     r |= getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS, GETDNS_RESPSTATUS_GOOD);
-    r |= getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM, get_canonical_name(completed_request->name));
+    canonical_name = get_canonical_name(completed_request->name);
+    r |= getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM, canonical_name);
+    free(canonical_name);
     r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE, GETDNS_NAMETYPE_DNS);
 
     while (netreq) {

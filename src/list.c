@@ -226,8 +226,11 @@ getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist)
                             &((*dstlist)->items[i].data.dict));
                     }
                 }
-                else
+                else {
                     retval = GETDNS_RETURN_GENERIC_ERROR;
+                    getdns_list_destroy(*dstlist);
+                    *dstlist = NULL;
+                }
 
                 if(retval != GETDNS_RETURN_GOOD)
                     break;
@@ -281,6 +284,10 @@ getdns_list_destroy(struct getdns_list *list)
                     if(list->items[i].data.bindata->size > 0)
                         free(list->items[i].data.bindata->data);
                     free(list->items[i].data.bindata);
+                }
+                else if(list->items[i].dtype == t_dict)
+                {
+                    getdns_dict_destroy(list->items[i].data.dict);
                 }
             }
             free(list->items);

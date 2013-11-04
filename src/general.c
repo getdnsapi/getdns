@@ -208,6 +208,10 @@ getdns_general_ub(struct ub_ctx* unbound,
     getdns_return_t gr;
     int r;
 
+    if (!name) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
     gr = getdns_context_prepare_for_resolution(context);
     if (gr != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_BAD_CONTEXT;
