@@ -89,10 +89,6 @@ retregular = getdns_context_create(
   boolarg
 );
 
-getdns_context_destroy(
-  contextarg
-);
-
 retregular = getdns_cancel_callback(
   contextarg,
   txidarg
@@ -150,18 +146,19 @@ retregular = getdns_dict_get_bindata(dictarg, charstararg, bindataptrarg);
 retregular = getdns_dict_get_int(dictarg, charstararg, uint32ptrarg);
 
 listarg = getdns_list_create();
-getdns_list_destroy(listarg);
 retregular =  getdns_list_set_dict(listarg, sizetarg, dictarg);
 retregular =  getdns_list_set_list(listarg, sizetarg, listarg);
 retregular =  getdns_list_set_bindata(listarg, sizetarg, bindataarg);
 retregular =  getdns_list_set_int(listarg, sizetarg, uint32arg);
 
 dictarg = getdns_dict_create();
-getdns_dict_destroy(dictarg);
 retregular =  getdns_dict_set_dict(dictarg, charstararg, dictarg);
 retregular =  getdns_dict_set_list(dictarg, charstararg, listarg);
 retregular =  getdns_dict_set_bindata(dictarg, charstararg, bindataarg);
 retregular =  getdns_dict_set_int(dictarg, charstararg, uint32arg);
+retcharstar = getdns_pretty_print_dict(
+  dictarg
+);
 
 retcharstar =  getdns_convert_fqdn_to_dns_name(
   charstararg
@@ -183,10 +180,6 @@ retregular = getdns_validate_dnssec(
   bindataarg,
   listarg,
   listarg
-);
-
-retcharstar = getdns_pretty_print_dict(
-  dictarg
 );
 
 retcharstar = getdns_display_ip_address(
@@ -293,5 +286,9 @@ retregular = getdns_context_set_memory_reallocator(
   contextarg,
   deallocfunctionarg
 );
+
+getdns_list_destroy(listarg);
+getdns_dict_destroy(dictarg);
+getdns_context_destroy(contextarg);
 
 return(0); }  /* End of main() */

@@ -660,6 +660,10 @@ getdns_pretty_print_dict(struct getdns_dict *dict)
     ldns_buffer *buf;
     char *ret;
 
+    if (!dict) {
+        return NULL;
+    }
+
     buf  = ldns_buffer_new(100);
     if (! buf)
         return NULL;
