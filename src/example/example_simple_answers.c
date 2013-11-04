@@ -69,14 +69,20 @@ void this_callbackfn(struct getdns_context_t *this_context,
 		for ( size_t rec_count = 0; rec_count < num_addresses; ++rec_count )
 		{
 			struct getdns_bindata * this_address_data;
+			char* ipAddr = NULL;
 			this_ret = getdns_list_get_bindata(just_the_addresses_ptr, rec_count, &this_address_data);  // Ignore any error
-			printf("The address is %s\n", getdns_display_ip_address(this_address_data));
+			ipAddr = getdns_display_ip_address(this_address_data);
+			printf("The address is %s\n", ipAddr);
+			free(ipAddr);
 		}
 	}
 	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr, "The callback with ID %"PRIu64" was cancelled. Exiting.", this_transaction_id);
 	else
 		fprintf(stderr, "The callback got a callback_type of %d. Exiting.", this_callback_type);
+
+	/* clean up */
+	getdns_dict_destroy(this_response);
 }
 
 int
@@ -121,6 +127,7 @@ main()
 	}
 	/* Clean up */
 	getdns_context_destroy(this_context);
+	event_base_free(this_event_base);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 } /* main */
