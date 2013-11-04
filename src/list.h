@@ -57,7 +57,7 @@ struct getdns_list_item {
  * The use cases do not justify working too hard at shrinking the structures.
  * Indexes are 0 based.
  */
-typedef struct getdns_list {
+struct getdns_list {
     int numalloc;
     int numinuse;
     struct getdns_list_item *items;
