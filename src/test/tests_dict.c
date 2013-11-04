@@ -208,13 +208,15 @@ tst_getnames(void)
 
     tstmsg_case_msg("getdns_dict_get_names(NULL, &list)");
     getdns_dict_get_names(NULL, &list);
+    getdns_list_destroy(list);
 
     tstmsg_case_msg("getdns_dict_get_names(dict, NULL)");
     getdns_dict_get_names(dict, NULL);
 
     tstmsg_case_msg("getdns_dict_get_names(dict, &list), empty dictionary");
     getdns_dict_get_names(dict, &list);
-
+    getdns_list_destroy(list);
+    
     /* legit use case, add items out of order to exercise tree */
     /* TODO: add elements of type dict, bindata, list to the dict */
 
@@ -263,6 +265,7 @@ tst_getnames(void)
     }
 
     getdns_dict_destroy(dict);
+    getdns_list_destroy(list);
 
     tstmsg_case_end();
 } /* tst_getnames */
@@ -452,6 +455,7 @@ tst_copy(void)
     getdns_dict_copy(NULL, NULL);
     dict1 = getdns_dict_create();
     getdns_dict_copy(dict1, &dict2);
+    getdns_dict_destroy(dict2);
     getdns_dict_copy(NULL, &dict1);
 
     tstmsg_case_msg("dict1 populate");

@@ -49,6 +49,7 @@ void
 tstmsg_prog_end()
 {
     printf("TESTPROG %s END\n", testprog);
+    free(testprog);
 } /* tstmsg_prog_end */
 
 void
