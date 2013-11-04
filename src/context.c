@@ -159,7 +159,7 @@ static getdns_return_t set_os_defaults(getdns_context_t context) {
         context->suffix = create_from_ldns_list(rdf_list, rdf_list_sz);
     }
     /** cleanup **/
-    ldns_resolver_free(lr);
+    ldns_resolver_deep_free(lr);
     return GETDNS_RETURN_GOOD;
 }
 
