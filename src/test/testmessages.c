@@ -70,7 +70,11 @@ tstmsg_case_end(void)
         printf("TESTCASE %s:%s END\n", testprog, cases[ncases-1]);
         ncases--;
         free(cases[ncases]);
-        cases = (char **) realloc(cases, sizeof(char *) * ncases);
+        if (ncases) {
+            cases = (char **) realloc(cases, sizeof(char *) * ncases);
+        } else {
+            cases = NULL;
+        }
     }
 } /* tstmsg_case_end */
 
