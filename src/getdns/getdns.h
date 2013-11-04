@@ -1,30 +1,36 @@
 /**
  * \file
- * \brief Public interfaces to getdns - include this in your application to use getdns API.
+ * \brief Public interfaces to getdns, include in your application to use getdns API.
  *
  * This source was taken from the original pseudo-implementation by
  * Paul Hoffman.
  */
-/* The MIT License (MIT)
- * Copyright (c) 2013 Verisign, Inc.
+
+/*
+ * Copyright (c) 2013, NLNet Labs, Versign, Inc.
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * * Neither the name of the <organization> nor the
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef GETDNS_H
@@ -64,7 +70,7 @@ struct event_base;
 #define GETDNS_RETURN_NO_SUCH_EXTENSION 307
 #define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT A name in the extensions dict is not a valid extension.
 #define GETDNS_RETURN_EXTENSION_MISFORMAT 308
-#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT One or more of the extensions is has a bad format.
+#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT One or more of the extensions has a bad format.
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT A query was made with a context that is using stub resolution and a DNSSEC extension specified.
 
@@ -278,12 +284,6 @@ struct event_base;
 #define GETDNS_STR_KEY_QTYPE "qtype"
 #define GETDNS_STR_KEY_QCLASS "qclass"
 #define GETDNS_STR_KEY_QNAME "qname"
-
-
-
-
-
-
 /** @}
  */
 
@@ -372,6 +372,9 @@ struct event_base;
 typedef struct getdns_context_t *getdns_context_t;
 typedef uint16_t   getdns_return_t;
 typedef uint64_t   getdns_transaction_t;
+/**
+ * used to check data types within complex types (dict, list)
+ */
 typedef enum getdns_data_type {
     t_dict, t_list, t_int, t_bindata, t_invalid
 } getdns_data_type;
