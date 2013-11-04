@@ -33,13 +33,10 @@
 #include <getdns/getdns.h>
 
 static void print_response(getdns_dict* response) {
-    getdns_bindata* bindata = NULL;
-    getdns_dict_get_bindata(response, "pkt", &bindata);
-    if (bindata) {
-        char* data = (char*) bindata->data;
-        data[bindata->size] = 0;
-        memcpy(data, bindata->data, bindata->size);
-        fprintf(stdout, "The packet %s\n", data);
+    char *dict_str = getdns_pretty_print_dict(response);
+    if (dict_str) {
+        fprintf(stdout, "The packet %s\n", dict_str);
+        free(dict_str);
     }
 }
 
