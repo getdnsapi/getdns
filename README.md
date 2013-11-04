@@ -57,9 +57,8 @@ Assuming that the getdns sources are in a diretory named getdns in your home dir
 ```
 # mkdir unbound
 # cd unbound
-# svn checkout -r 2985 http://unbound.nlnetlabs.nl/svn
+# svn checkout -r 3012 http://unbound.nlnetlabs.nl/svn
 # cd svn/trunk
-# patch -p0 < ~/getdns/unbound.2985.patch
 # ./configure --with-libevent --with-libunbound-only
 # make
 # make install
