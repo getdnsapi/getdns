@@ -39,6 +39,7 @@ struct getdns_dns_req;
 struct getdns_network_req;
 struct ub_ctx;
 struct event;
+struct event_base;
 
 typedef enum network_req_state_enum {
     NET_REQ_NOT_SENT,
@@ -90,6 +91,12 @@ typedef struct getdns_dns_req {
 
     /* request timeout event */
     struct event* timeout;
+
+    /* local callback timer */
+    struct event* local_cb_timer;
+
+    /* event base this req is scheduled on */
+    struct event_base* ev_base;
 
     /* context that owns the request */
     getdns_context_t context;

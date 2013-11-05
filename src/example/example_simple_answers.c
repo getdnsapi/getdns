@@ -53,19 +53,26 @@ void this_callbackfn(struct getdns_context_t *this_context,
 		this_ret = getdns_dict_get_int(this_response, "status", &this_error);  // Ignore any error
 		if (this_error != GETDNS_RESPSTATUS_GOOD)  // If the search didn't return "good"
 		{
-			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.", this_error);
+			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.\n", this_error);
+			getdns_dict_destroy(this_response);
 			return;
 		}
 		struct getdns_list * just_the_addresses_ptr;
 		this_ret = getdns_dict_get_list(this_response, "just_address_answers", &just_the_addresses_ptr);
 		if (this_ret != GETDNS_RETURN_GOOD)  // This check is really not needed, but prevents a compiler error under "pedantic"
 		{
-			fprintf(stderr, "Trying to get the answers failed: %d", this_ret);
+			fprintf(stderr, "Trying to get the answers failed: %d\n", this_ret);
+			getdns_dict_destroy(this_response);
 			return;
 		}
 		size_t num_addresses = 0;
 		this_ret = getdns_list_get_length(just_the_addresses_ptr, &num_addresses);  // Ignore any error
 		/* Go through each record */
+		if (num_addresses == 0) {
+			fprintf(stderr, "There are no addresses.\n");
+			getdns_dict_destroy(this_response);
+			return;
+		}
 		for ( size_t rec_count = 0; rec_count < num_addresses; ++rec_count )
 		{
 			struct getdns_bindata * this_address_data;
@@ -77,9 +84,9 @@ void this_callbackfn(struct getdns_context_t *this_context,
 		}
 	}
 	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
-		fprintf(stderr, "The callback with ID %"PRIu64" was cancelled. Exiting.", this_transaction_id);
+		fprintf(stderr, "The callback with ID %"PRIu64" was cancelled. Exiting.\n", this_transaction_id);
 	else
-		fprintf(stderr, "The callback got a callback_type of %d. Exiting.", this_callback_type);
+		fprintf(stderr, "The callback got a callback_type of %d. Exiting.\n", this_callback_type);
 
 	/* clean up */
 	getdns_dict_destroy(this_response);
@@ -101,7 +108,7 @@ main()
 	this_event_base = event_base_new();
 	if (this_event_base == NULL)
 	{
-		fprintf(stderr, "Trying to create the event base failed.");
+		fprintf(stderr, "Trying to create the event base failed.\n");
 		return(GETDNS_RETURN_GENERIC_ERROR);
 	}
 	(void)getdns_extension_set_libevent_base(this_context, this_event_base);
@@ -110,12 +117,17 @@ main()
 	char* this_userarg = "somestring"; // Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
 
+	// getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
+
 	/* Make the call */
 	getdns_return_t dns_request_return = getdns_address(this_context, this_name,
 		NULL, this_userarg, &this_transaction_id, this_callbackfn);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
 	{
-		fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
+		fprintf(stderr, "A bad domain name was used: %s. Exiting.\n", this_name);
+		return(GETDNS_RETURN_GENERIC_ERROR);
+	} else if (dns_request_return != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "The context is not setup properly.\n");
 		return(GETDNS_RETURN_GENERIC_ERROR);
 	}
 	else

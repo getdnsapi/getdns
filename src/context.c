@@ -919,6 +919,9 @@ getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t context) 
         /* set upstreams */
         ub_setup_stub(context->unbound_async, context->upstream_list, upstream_len);
         ub_setup_stub(context->unbound_sync, context->upstream_list, upstream_len);
+        /* use /etc/hosts */
+        ub_ctx_hosts(context->unbound_sync, NULL);
+        ub_ctx_hosts(context->unbound_async, NULL);
 
     } else if (context->resolution_type == GETDNS_CONTEXT_RECURSING) {
         /* set recursive */

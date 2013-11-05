@@ -96,6 +96,11 @@ void dns_req_free(getdns_dns_req* req) {
         event_free(req->timeout);
     }
 
+    if (req->local_cb_timer) {
+        event_del(req->local_cb_timer);
+        event_free(req->local_cb_timer);
+    }
+
     /* free strduped name */
     free(req->name);
 
@@ -127,6 +132,8 @@ getdns_dns_req* dns_req_new(getdns_context_t context,
     result->first_req = NULL;
     result->trans_id = ldns_get_random();
     result->timeout = NULL;
+    result->local_cb_timer = NULL;
+    result->ev_base = NULL;
 
     getdns_dict_copy(extensions, &result->extensions);
 

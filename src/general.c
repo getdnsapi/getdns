@@ -28,36 +28,6 @@
  * THE SOFTWARE.
  */
 
-/**
- * Much of this is based on / duplicated code from libevent evdns.  Credits to
- * Nick Mathewson and Niels Provos
- *
- * https://github.com/libevent/libevent/
- *
- * libevent dns is based on software by Adam Langly. Adam's original message:
- *
- * Async DNS Library
- * Adam Langley <agl@imperialviolet.org>
- * http://www.imperialviolet.org/eventdns.html
- * Public Domain code
- *
- * This software is Public Domain. To view a copy of the public domain dedication,
- * visit http://creativecommons.org/licenses/publicdomain/ or send a letter to
- * Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
- *
- * I ask and expect, but do not require, that all derivative works contain an
- * attribution similar to:
- *	Parts developed by Adam Langley <agl@imperialviolet.org>
- *
- * You may wish to replace the word "Parts" with something else depending on
- * the amount of original code.
- *
- * (Derivative works does not include programs which link against, run or include
- * the source verbatim in their source distributions)
- *
- * Version: 0.1b
- */
-
 #include <string.h>
 #include <unbound.h>
 #include <unbound-event.h>
@@ -66,15 +36,27 @@
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
+#include <stdio.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* declarations */
 static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec, char* bogus);
+static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg);
+static void ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg);
+
 static void handle_network_request_error(getdns_network_req* netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req* dns_req);
 static int submit_network_request(getdns_network_req* netreq);
+
+typedef struct netreq_cb_data {
+     getdns_network_req *netreq;
+     int err;
+     ldns_buffer* result;
+     int sec;
+     char* bogus;
+} netreq_cb_data;
 
 /* cancel, cleanup and send timeout to callback */
 static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg) {
@@ -95,6 +77,27 @@ static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg) {
        NULL,
        user_arg,
        trans_id);
+}
+
+static void ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg) {    
+    netreq_cb_data* cb_data = (netreq_cb_data*) arg;
+    
+    /* cleanup the local timer here since the memory may be
+     * invalid after calling ub_resolve_callback
+     */
+    getdns_dns_req* dnsreq = cb_data->netreq->owner;
+    event_free(dnsreq->local_cb_timer);
+    dnsreq->local_cb_timer = NULL;
+
+    /* just call ub_resolve_callback */
+    ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->result, cb_data->sec, cb_data->bogus);
+
+    /* cleanup the state */
+    ldns_buffer_free(cb_data->result);
+    if (cb_data->bogus) {
+        free(cb_data->bogus);
+    }     
+    free(cb_data);
 }
 
 /* cleanup and send an error to the user callback */
@@ -157,12 +160,45 @@ static int submit_network_request(getdns_network_req* netreq) {
     return r;
 }
 
+
+
 static void ub_resolve_callback(void* arg, int err, ldns_buffer* result, int sec, char* bogus) {
     getdns_network_req* netreq = (getdns_network_req*) arg;
     /* if netreq->state == NET_REQ_NOT_SENT here, that implies
      * that ub called us back immediately - probably from a local file.
      * This most likely means that getdns_general has not returned
      */
+    if (netreq->state == NET_REQ_NOT_SENT) {
+        /* just do a very short timer since this was called immediately.
+         * we can make this less hacky, but it gets interesting when multiple 
+         * netreqs need to be issued and some resolve immediately vs. not.
+         */        
+        struct timeval tv;
+        getdns_dns_req* dnsreq = netreq->owner;
+        netreq_cb_data* cb_data = (netreq_cb_data*) malloc(sizeof(netreq_cb_data));
+
+        cb_data->netreq = netreq;
+        cb_data->err = err;
+        cb_data->sec = sec;
+        cb_data->result = NULL;
+        cb_data->bogus = NULL; /* unused but here in case we need it */
+        if (result) {
+            cb_data->result = ldns_buffer_new(ldns_buffer_limit(result));
+            if (!cb_data->result) {
+                cb_data->err = GETDNS_RETURN_GENERIC_ERROR;
+            } else {
+                /* copy */
+                ldns_buffer_copy(cb_data->result, result);
+            }
+        }
+        /* schedule the timeout */
+        dnsreq->local_cb_timer = evtimer_new(dnsreq->ev_base, ub_local_resolve_timeout, cb_data);
+        tv.tv_sec = 0;
+        /* half ms */
+        tv.tv_usec = 500;
+        evtimer_add(dnsreq->local_cb_timer, &tv);
+        return;
+    }
     netreq->state = NET_REQ_FINISHED;
     if (err) {
         handle_network_request_error(netreq, err);
@@ -230,12 +266,14 @@ getdns_general_ub(struct ub_ctx* unbound,
     getdns_context_track_outbound_request(req);
 
     /* assign a timeout */
+    req->ev_base = ev_base;
     req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
     tv.tv_sec = context->timeout / 1000;
     tv.tv_usec = (context->timeout % 1000) * 1000;
     evtimer_add(req->timeout, &tv);
 
     /* issue the first network req */
+
     r = submit_network_request(req->first_req);
 
     if (r != 0) {
