@@ -37,15 +37,17 @@
 /**
  * this structure represents a single item in a list
  */
-struct getdns_list_item {
-    int inuse;
-    getdns_data_type dtype;
-    union {
-        getdns_list    *list;
-        getdns_dict    *dict;
-        int            n;
-        getdns_bindata *bindata;
-    } data;
+struct getdns_list_item
+{
+	int inuse;
+	getdns_data_type dtype;
+	union
+	{
+		getdns_list *list;
+		getdns_dict *dict;
+		int n;
+		getdns_bindata *bindata;
+	} data;
 };
 
 /**
@@ -57,11 +59,11 @@ struct getdns_list_item {
  * The use cases do not justify working too hard at shrinking the structures.
  * Indexes are 0 based.
  */
-struct getdns_list {
-    int numalloc;
-    int numinuse;
-    struct getdns_list_item *items;
+struct getdns_list
+{
+	int numalloc;
+	int numinuse;
+	struct getdns_list_item *items;
 };
 
 #endif
-

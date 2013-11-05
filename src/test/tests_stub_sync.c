@@ -32,50 +32,57 @@
 #include "testmessages.h"
 #include <getdns/getdns.h>
 
-static void print_response(getdns_dict* response) {
-    char *dict_str = getdns_pretty_print_dict(response);
-    if (dict_str) {
-        fprintf(stdout, "The packet %s\n", dict_str);
-        free(dict_str);
-    }
+static void
+print_response(getdns_dict * response)
+{
+	char *dict_str = getdns_pretty_print_dict(response);
+	if (dict_str) {
+		fprintf(stdout, "The packet %s\n", dict_str);
+		free(dict_str);
+	}
 }
 
-int main()
+int
+main()
 {
 	/* Create the DNS context for this call */
 	struct getdns_context_t *this_context = NULL;
-	getdns_return_t context_create_return = getdns_context_create(&this_context, true);
-	if (context_create_return != GETDNS_RETURN_GOOD)
-	{
-		fprintf(stderr, "Trying to create the context failed: %d", context_create_return);
-		return(GETDNS_RETURN_GENERIC_ERROR);
+	getdns_return_t context_create_return =
+	    getdns_context_create(&this_context, true);
+	if (context_create_return != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Trying to create the context failed: %d",
+		    context_create_return);
+		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-    getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
-	
-    getdns_dict* response = NULL;
-    uint32_t responseLen = 0;
-    getdns_return_t ret = getdns_address_sync(this_context, "www.google.com", NULL, &responseLen, &response);
-    
-    if (ret != GETDNS_RETURN_GOOD || response == NULL) {
-        fprintf(stderr, "Address sync returned error.\n");
-        exit(EXIT_FAILURE);
-    }
-    print_response(response);
-    getdns_dict_destroy(response);
-    
-	ret = getdns_service_sync(this_context, "www.google.com", NULL, &responseLen, &response);
-    if (ret != GETDNS_RETURN_GOOD || response == NULL) {
-        fprintf(stderr, "Service sync returned error.\n");
-        exit(EXIT_FAILURE);
-    }
-    print_response(response);
-    getdns_dict_destroy(response);
-    
-    /* Clean up */
+	getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
+
+	getdns_dict *response = NULL;
+	uint32_t responseLen = 0;
+	getdns_return_t ret =
+	    getdns_address_sync(this_context, "www.google.com", NULL,
+	    &responseLen, &response);
+
+	if (ret != GETDNS_RETURN_GOOD || response == NULL) {
+		fprintf(stderr, "Address sync returned error.\n");
+		exit(EXIT_FAILURE);
+	}
+	print_response(response);
+	getdns_dict_destroy(response);
+
+	ret =
+	    getdns_service_sync(this_context, "www.google.com", NULL,
+	    &responseLen, &response);
+	if (ret != GETDNS_RETURN_GOOD || response == NULL) {
+		fprintf(stderr, "Service sync returned error.\n");
+		exit(EXIT_FAILURE);
+	}
+	print_response(response);
+	getdns_dict_destroy(response);
+
+	/* Clean up */
 	getdns_context_destroy(this_context);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
-} /* main */
+}				/* main */
 
 /* example-simple-answers.c */
-

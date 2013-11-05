@@ -38,20 +38,22 @@
 #include <getdns/getdns.h>
 #include <ldns/rbtree.h>
 
-union getdns_item {
-    struct getdns_list    *list;
-    struct getdns_dict    *dict;
-    uint32_t               n;
-    struct getdns_bindata *bindata;
+union getdns_item
+{
+	struct getdns_list *list;
+	struct getdns_dict *dict;
+	uint32_t n;
+	struct getdns_bindata *bindata;
 };
 
 /**
  * this structure represents a single item in a dictionary type
  */
-struct getdns_dict_item {
-    ldns_rbnode_t node;
-    getdns_data_type dtype;
-    union getdns_item data;
+struct getdns_dict_item
+{
+	ldns_rbnode_t node;
+	getdns_data_type dtype;
+	union getdns_item data;
 };
 
 /**
@@ -61,10 +63,10 @@ struct getdns_dict_item {
  * trees in the std library.  The internal implementation may change so the
  * application should stick to the helper functions.
  */
-struct getdns_dict {
-    ldns_rbtree_t root;
+struct getdns_dict
+{
+	ldns_rbtree_t root;
 };
-
 
 #endif
 

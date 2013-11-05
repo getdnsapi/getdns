@@ -74,7 +74,6 @@ struct event_base;
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT A query was made with a context that is using stub resolution and a DNSSEC extension specified.
 
-
 /** @}
  */
 
@@ -370,17 +369,19 @@ struct event_base;
  */
 
 typedef struct getdns_context_t *getdns_context_t;
-typedef uint16_t   getdns_return_t;
-typedef uint64_t   getdns_transaction_t;
+typedef uint16_t getdns_return_t;
+typedef uint64_t getdns_transaction_t;
 /**
  * used to check data types within complex types (dict, list)
  */
-typedef enum getdns_data_type {
-    t_dict, t_list, t_int, t_bindata, t_invalid
+typedef enum getdns_data_type
+{
+	t_dict, t_list, t_int, t_bindata, t_invalid
 } getdns_data_type;
-typedef struct getdns_bindata {
-    size_t size;
-    uint8_t *data;
+typedef struct getdns_bindata
+{
+	size_t size;
+	uint8_t *data;
 } getdns_bindata;
 
 /**
@@ -399,7 +400,6 @@ typedef struct getdns_dict getdns_dict;
  */
 getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
 
-
 /**
  * getdns list data type
  * Use helper functions getdns_list_* to manipulate and iterate lists
@@ -414,7 +414,8 @@ typedef struct getdns_list getdns_list;
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is not valid or params are NULL
  */
-getdns_return_t getdns_list_get_length(struct getdns_list *list, size_t *answer);
+getdns_return_t getdns_list_get_length(struct getdns_list *list,
+    size_t * answer);
 /**
   * private function (API users should not be calling this), this uses library
   * routines to make a copy of the list - would be faster to make the copy directly
@@ -426,7 +427,8 @@ getdns_return_t getdns_list_get_length(struct getdns_list *list, size_t *answer)
   * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
   * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
   */
-getdns_return_t getdns_list_copy(struct getdns_list *srclist, struct getdns_list **dstlist);
+getdns_return_t getdns_list_copy(struct getdns_list *srclist,
+    struct getdns_list **dstlist);
 /**
  * get the enumerated data type of the indexed list item
  * @param list the list from which to fetch the data type
@@ -435,7 +437,8 @@ getdns_return_t getdns_list_copy(struct getdns_list *srclist, struct getdns_list
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  */
-getdns_return_t getdns_list_get_data_type(struct getdns_list *list, size_t index, getdns_data_type *answer);
+getdns_return_t getdns_list_get_data_type(struct getdns_list *list,
+    size_t index, getdns_data_type * answer);
 /**
  * retrieve the dictionary value of the specified list item, the caller must not free
  * storage associated with the return value.  When the list is destroyed this
@@ -447,7 +450,8 @@ getdns_return_t getdns_list_get_data_type(struct getdns_list *list, size_t index
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_dict(struct getdns_list *list, size_t index, struct getdns_dict **answer);
+getdns_return_t getdns_list_get_dict(struct getdns_list *list, size_t index,
+    struct getdns_dict **answer);
 
 /**
  * retrieve the list value of the specified list item, the caller must not free
@@ -460,7 +464,8 @@ getdns_return_t getdns_list_get_dict(struct getdns_list *list, size_t index, str
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_list(struct getdns_list *list, size_t index, struct getdns_list **answer);
+getdns_return_t getdns_list_get_list(struct getdns_list *list, size_t index,
+    struct getdns_list **answer);
 /**
  * retrieve the binary data value of the specified list item, the caller must not
  * free storage associated with the return value.  When the list is destroyed any
@@ -472,7 +477,8 @@ getdns_return_t getdns_list_get_list(struct getdns_list *list, size_t index, str
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_bindata(struct getdns_list *list, size_t index, struct getdns_bindata **answer);
+getdns_return_t getdns_list_get_bindata(struct getdns_list *list, size_t index,
+    struct getdns_bindata **answer);
 /**
  * retrieve the integer value of the specified list item
  * @param list the list from which to fetch the item
@@ -482,7 +488,8 @@ getdns_return_t getdns_list_get_bindata(struct getdns_list *list, size_t index, 
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index, uint32_t *answer);
+getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index,
+    uint32_t * answer);
 
 /**
  * fetch a list of names from the dictionary, this list must be freed by the caller
@@ -492,7 +499,8 @@ getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index, uint
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or empty
  */
-getdns_return_t getdns_dict_get_names(struct getdns_dict *dict, struct getdns_list **answer);
+getdns_return_t getdns_dict_get_names(struct getdns_dict *dict,
+    struct getdns_list **answer);
 /**
  * fetch the data type for the data associated with the specified name
  * @param this_dict dictionary from which to fetch the data type
@@ -501,7 +509,8 @@ getdns_return_t getdns_dict_get_names(struct getdns_dict *dict, struct getdns_li
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *name, getdns_data_type *answer);
+getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict,
+    char *name, getdns_data_type * answer);
 /**
  * fetch the dictionary associated with the specified name, the dictionary should
  * not be free()'d by the caller, it will be freed when the parent dictionary is
@@ -512,7 +521,8 @@ getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *n
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer);
+getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name,
+    struct getdns_dict **answer);
 /**
  * fetch the list associated with the specified name
  * the list should not be free()'d by the caller, when the dictionary is destroyed
@@ -523,7 +533,8 @@ getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, 
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, struct getdns_list **answer);
+getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name,
+    struct getdns_list **answer);
 /**
  * fetch the bindata associated with the specified name, the bindata should not be
  * free()'d by the caller
@@ -533,7 +544,8 @@ getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, 
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer);
+getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict,
+    char *name, struct getdns_bindata **answer);
 /**
  * fetch the integer value associated with the specified name
  * @param this_dict dictionary from which to fetch the integer
@@ -542,13 +554,14 @@ getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *nam
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, uint32_t *answer);
+getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
+    uint32_t * answer);
 
 /**
  * create a new list with no items
  * @return pointer to an allocated list, NULL if insufficient memory
  */
-struct getdns_list * getdns_list_create();
+struct getdns_list *getdns_list_create();
 /**
  * free memory allocated to the list (also frees all children of the list)
  * note that lists and bindata retrieved from the list via the getdns_list_get_*
@@ -566,8 +579,9 @@ void getdns_list_destroy(struct getdns_list *list);
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
  */
-getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t *index);
-getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, struct getdns_dict *child_dict);
+getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
+getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index,
+    struct getdns_dict *child_dict);
 /**
  * assign the child_list to an item in a parent list, the parent list copies
  * the child list and will free the copy when the list is destroyed
@@ -577,7 +591,8 @@ getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index, str
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index, struct getdns_list *child_list);
+getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index,
+    struct getdns_list *child_list);
 /**
  * assign the child_bindata to an item in a parent list, the parent list copies
  * the child data and will free the copy when the list is destroyed
@@ -587,13 +602,15 @@ getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index, str
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index, struct getdns_bindata *child_bindata);
+getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index,
+    struct getdns_bindata *child_bindata);
 /**
  * set the integer value of the indexed item (zero based index)
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index, uint32_t child_uint32);
+getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index,
+    uint32_t child_uint32);
 
 /**
  * create a new dictionary with no items
@@ -619,7 +636,8 @@ getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
  */
 void getdns_dict_destroy(struct getdns_dict *dict);
 
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *dict, char *name, struct getdns_dict *child_dict);
+getdns_return_t getdns_dict_set_dict(struct getdns_dict *dict, char *name,
+    struct getdns_dict *child_dict);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_list
@@ -628,7 +646,8 @@ getdns_return_t getdns_dict_set_dict(struct getdns_dict *dict, char *name, struc
  * @param child_list value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_list(struct getdns_dict *dict, char *name, struct getdns_list *child_list);
+getdns_return_t getdns_dict_set_list(struct getdns_dict *dict, char *name,
+    struct getdns_list *child_list);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_bindata
@@ -637,7 +656,8 @@ getdns_return_t getdns_dict_set_list(struct getdns_dict *dict, char *name, struc
  * @param child_bindata value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *dict, char *name, struct getdns_bindata *child_bindata);
+getdns_return_t getdns_dict_set_bindata(struct getdns_dict *dict, char *name,
+    struct getdns_bindata *child_bindata);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * @param dict dictionary in which to add or change the value
@@ -645,71 +665,51 @@ getdns_return_t getdns_dict_set_bindata(struct getdns_dict *dict, char *name, st
  * @param child_uint32 value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_int(struct getdns_dict *dict, char *name, uint32_t child_uint32);
+getdns_return_t getdns_dict_set_int(struct getdns_dict *dict, char *name,
+    uint32_t child_uint32);
 
 /* Callback arguments */
-typedef void (*getdns_callback_t)(
-                                  getdns_context_t       context,
-                                  uint16_t               callback_type,
-                                  struct getdns_dict     *response,
-                                  void                   *userarg,
-                                  getdns_transaction_t   transaction_id);
+typedef void (*getdns_callback_t) (getdns_context_t context,
+    uint16_t callback_type,
+    struct getdns_dict * response,
+    void *userarg, getdns_transaction_t transaction_id);
 
 /* Function definitions */
 
 getdns_return_t
-getdns_general(
-  getdns_context_t       context,
-  const char             *name,
-  uint16_t               request_type,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
-);
+getdns_general(getdns_context_t context,
+    const char *name,
+    uint16_t request_type,
+    struct getdns_dict *extensions,
+    void *userarg,
+    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 getdns_return_t
-getdns_address(
-  getdns_context_t       context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
-);
+getdns_address(getdns_context_t context,
+    const char *name,
+    struct getdns_dict *extensions,
+    void *userarg,
+    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 getdns_return_t
-getdns_hostname(
-  getdns_context_t       context,
-  struct getdns_dict     *address,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
-);
+getdns_hostname(getdns_context_t context,
+    struct getdns_dict *address,
+    struct getdns_dict *extensions,
+    void *userarg,
+    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 getdns_return_t
-getdns_service(
-  getdns_context_t       context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
-);
+getdns_service(getdns_context_t context,
+    const char *name,
+    struct getdns_dict *extensions,
+    void *userarg,
+    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 
-getdns_return_t getdns_context_create(
-  getdns_context_t       *context,
-  int                   set_from_os
-);
+getdns_return_t getdns_context_create(getdns_context_t * context,
+    int set_from_os);
 
-void
-getdns_context_destroy(
-  getdns_context_t        context
-);
+void getdns_context_destroy(getdns_context_t context);
 
 getdns_return_t
-getdns_cancel_callback(
-  getdns_context_t       context,
-  getdns_transaction_t   transaction_id
-);
+getdns_cancel_callback(getdns_context_t context,
+    getdns_transaction_t transaction_id);
 
 /**
  * \defgroup syncfuns Synchronous API functions that do not use callbacks
@@ -731,14 +731,11 @@ getdns_cancel_callback(
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_general_sync(
-  getdns_context_t       context,
-  const char             *name,
-  uint16_t               request_type,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     **response
-);
+getdns_general_sync(getdns_context_t context,
+    const char *name,
+    uint16_t request_type,
+    struct getdns_dict *extensions,
+    uint32_t * response_length, struct getdns_dict **response);
 
 /**
  * retrieve address assigned to a DNS name
@@ -751,13 +748,10 @@ getdns_general_sync(
 
  */
 getdns_return_t
-getdns_address_sync(
-  getdns_context_t       context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     **response
-);
+getdns_address_sync(getdns_context_t context,
+    const char *name,
+    struct getdns_dict *extensions,
+    uint32_t * response_length, struct getdns_dict **response);
 
 /**
  * retrieve hostname assigned to an IP address
@@ -769,13 +763,10 @@ getdns_address_sync(
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_hostname_sync(
-  getdns_context_t       context,
-  struct getdns_dict     *address,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     **response
-);
+getdns_hostname_sync(getdns_context_t context,
+    struct getdns_dict *address,
+    struct getdns_dict *extensions,
+    uint32_t * response_length, struct getdns_dict **response);
 
 /**
  * retrieve a service assigned to a DNS name
@@ -787,48 +778,28 @@ getdns_hostname_sync(
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_service_sync(
-  getdns_context_t       context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     **response
-);
+getdns_service_sync(getdns_context_t context,
+    const char *name,
+    struct getdns_dict *extensions,
+    uint32_t * response_length, struct getdns_dict **response);
 
-void
-getdns_free_sync_request_memory(
-  struct getdns_dict     *response
-);
+void getdns_free_sync_request_memory(struct getdns_dict *response);
 
 /** @}
  */
 
-char *
-getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
-);
+char *getdns_convert_dns_name_to_fqdn(char *name_from_dns_response);
 
-char *
-getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
-);
+char *getdns_convert_fqdn_to_dns_name(char *fqdn_as_string);
 
-char *
-getdns_convert_ulabel_to_alabel(
-  char  *ulabel
-);
+char *getdns_convert_ulabel_to_alabel(char *ulabel);
 
-char *
-getdns_convert_alabel_to_ulabel(
-  char  *alabel
-);
+char *getdns_convert_alabel_to_ulabel(char *alabel);
 
 getdns_return_t
-getdns_validate_dnssec(
-  struct getdns_bindata  *record_to_validate,
-  struct getdns_list     *bundle_of_support_records,
-  struct getdns_list     *trust_anchor_rdatas
-);
+getdns_validate_dnssec(struct getdns_bindata *record_to_validate,
+    struct getdns_list *bundle_of_support_records,
+    struct getdns_list *trust_anchor_rdatas);
 
 /**
  * creates a string that describes the dictionary in a human readable form
@@ -837,141 +808,91 @@ getdns_validate_dnssec(
  * @param dict dictionary to pretty print
  * @return character array (caller must free this) containing pretty string
  */
-char *
-getdns_pretty_print_dict(struct getdns_dict *dict);
+char *getdns_pretty_print_dict(struct getdns_dict *dict);
 
-char *
-getdns_display_ip_address(
-  struct getdns_bindata        *bindata_of_ipv4_or_ipv6_address
-);
+char *getdns_display_ip_address(struct getdns_bindata
+    *bindata_of_ipv4_or_ipv6_address);
 
 getdns_return_t
-getdns_context_set_context_update_callback(
-  getdns_context_t       context,
-  void                   (*value)(getdns_context_t context, uint16_t changed_item)
-);
+getdns_context_set_context_update_callback(getdns_context_t context,
+    void (*value) (getdns_context_t context, uint16_t changed_item)
+    );
 
 getdns_return_t
-getdns_context_set_resolution_type(
-  getdns_context_t       context,
-  uint16_t               value
-);
+getdns_context_set_resolution_type(getdns_context_t context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_namespaces(
-  getdns_context_t       context,
-  size_t                 namespace_count,
-  uint16_t               *namespaces
-);
+getdns_context_set_namespaces(getdns_context_t context,
+    size_t namespace_count, uint16_t * namespaces);
 
 getdns_return_t
-getdns_context_set_dns_transport(
-  getdns_context_t       context,
-  uint16_t               value
-);
+getdns_context_set_dns_transport(getdns_context_t context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_limit_outstanding_queries(
-  getdns_context_t       context,
-  uint16_t               limit
-);
+getdns_context_set_limit_outstanding_queries(getdns_context_t context,
+    uint16_t limit);
 
 getdns_return_t
-getdns_context_set_timeout(
-  getdns_context_t       context,
-  uint16_t               timeout
-);
+getdns_context_set_timeout(getdns_context_t context, uint16_t timeout);
 
 getdns_return_t
-getdns_context_set_follow_redirects(
-  getdns_context_t       context,
-  uint16_t               value
-);
+getdns_context_set_follow_redirects(getdns_context_t context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_dns_root_servers(
-  getdns_context_t       context,
-  struct getdns_list     *addresses
-);
+getdns_context_set_dns_root_servers(getdns_context_t context,
+    struct getdns_list *addresses);
 
 getdns_return_t
-getdns_context_set_append_name(
-  getdns_context_t       context,
-  uint16_t               value
-);
+getdns_context_set_append_name(getdns_context_t context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_suffix(
-  getdns_context_t       context,
-  struct getdns_list     *value
-);
+getdns_context_set_suffix(getdns_context_t context, struct getdns_list *value);
 
 getdns_return_t
-getdns_context_set_dnssec_trust_anchors(
-  getdns_context_t       context,
-  struct getdns_list     *value
-);
+getdns_context_set_dnssec_trust_anchors(getdns_context_t context,
+    struct getdns_list *value);
 
 getdns_return_t
-getdns_context_set_dnssec_allowed_skew(
-  getdns_context_t       context,
-  uint16_t               value
-);
+getdns_context_set_dnssec_allowed_skew(getdns_context_t context,
+    uint16_t value);
 
 getdns_return_t
-getdns_context_set_stub_resolution(
-  getdns_context_t       context,
-  struct getdns_list     *upstream_list
-);
+getdns_context_set_stub_resolution(getdns_context_t context,
+    struct getdns_list *upstream_list);
 
 getdns_return_t
-getdns_context_set_edns_maximum_udp_payload_size(
-  getdns_context_t       context,
-  uint16_t               value
-);
+getdns_context_set_edns_maximum_udp_payload_size(getdns_context_t context,
+    uint16_t value);
 
 getdns_return_t
-getdns_context_set_edns_extended_rcode(
-  getdns_context_t       context,
-  uint8_t                value
-);
+getdns_context_set_edns_extended_rcode(getdns_context_t context,
+    uint8_t value);
 
 getdns_return_t
-getdns_context_set_edns_version(
-  getdns_context_t       context,
-  uint8_t                value
-);
+getdns_context_set_edns_version(getdns_context_t context, uint8_t value);
 
 getdns_return_t
-getdns_context_set_edns_do_bit(
-  getdns_context_t       context,
-  uint8_t                value
-);
+getdns_context_set_edns_do_bit(getdns_context_t context, uint8_t value);
 
 getdns_return_t
-getdns_context_set_memory_allocator(
-  getdns_context_t       context,
-  void                   (*value)(size_t somesize)
-);
+getdns_context_set_memory_allocator(getdns_context_t context,
+    void (*value) (size_t somesize)
+    );
 
 getdns_return_t
-getdns_context_set_memory_deallocator(
-  getdns_context_t       context,
-  void                   (*value)(void*)
-);
+getdns_context_set_memory_deallocator(getdns_context_t context,
+    void (*value) (void *)
+    );
 
 getdns_return_t
-getdns_context_set_memory_reallocator(
-  getdns_context_t       context,
-  void                   (*value)(void*)
-);
+getdns_context_set_memory_reallocator(getdns_context_t context,
+    void (*value) (void *)
+    );
 
 /* Extension - refactor to abstract async evt loop */
 /* For libevent, which we are using for these examples */
 getdns_return_t
-getdns_extension_set_libevent_base(
-  getdns_context_t       context,
-  struct event_base      *this_event_base
-);
+getdns_extension_set_libevent_base(getdns_context_t context,
+    struct event_base *this_event_base);
 
 #endif /* GETDNS_H */

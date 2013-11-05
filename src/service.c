@@ -38,18 +38,14 @@
  *
  */
 getdns_return_t
-getdns_service(
-  getdns_context_t           context,
-  const char                 *name,
-  struct getdns_dict         *extensions,
-  void                       *userarg,
-  getdns_transaction_t       *transaction_id,
-  getdns_callback_t          callback
-)
+getdns_service(getdns_context_t context,
+    const char *name,
+    struct getdns_dict * extensions,
+    void *userarg,
+    getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
-    return getdns_general(context, name, GETDNS_RRTYPE_SRV,
-                          extensions, userarg, transaction_id,
-                          callback);
-} /* getdns_service */
+	return getdns_general(context, name, GETDNS_RRTYPE_SRV,
+	    extensions, userarg, transaction_id, callback);
+}				/* getdns_service */
 
 /* getdns_core_only.c */

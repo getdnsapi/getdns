@@ -38,73 +38,76 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 char *
-getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
-)
-{ UNUSED_PARAM(name_from_dns_response); return NULL; }
-
-char *
-getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
-)
-{ UNUSED_PARAM(fqdn_as_string); return NULL; }
-
-char *
-getdns_convert_ulabel_to_alabel(
-	char  *ulabel
-)
-{ UNUSED_PARAM(ulabel); return NULL; }
-
-char *
-getdns_convert_alabel_to_ulabel(
-	char  *alabel
-)
-{ UNUSED_PARAM(alabel); return NULL; }
-
-char *
-getdns_display_ip_address(
-  struct getdns_bindata    *bindata_of_ipv4_or_ipv6_address
-)
+getdns_convert_dns_name_to_fqdn(char *name_from_dns_response)
 {
-    char buff[256];
-    if (!bindata_of_ipv4_or_ipv6_address ||
-        bindata_of_ipv4_or_ipv6_address->size == 0 ||
-        !bindata_of_ipv4_or_ipv6_address->data) {
-        return NULL;
-    }
-    if (bindata_of_ipv4_or_ipv6_address->size == 4) {
-        const char* ipStr = inet_ntop(AF_INET,
-                                      bindata_of_ipv4_or_ipv6_address->data,
-                                      buff,
-                                      256);
-        if (ipStr) {
-            return strdup(ipStr);
-        }
-    } else if (bindata_of_ipv4_or_ipv6_address->size == 16) {
-        const char* ipStr = inet_ntop(AF_INET6,
-                                      bindata_of_ipv4_or_ipv6_address->data,
-                                      buff,
-                                      256);
-        if (ipStr) {
-            return strdup(ipStr);
-        }
-    }
-    return NULL;
+	UNUSED_PARAM(name_from_dns_response);
+	return NULL;
+}
+
+char *
+getdns_convert_fqdn_to_dns_name(char *fqdn_as_string)
+{
+	UNUSED_PARAM(fqdn_as_string);
+	return NULL;
+}
+
+char *
+getdns_convert_ulabel_to_alabel(char *ulabel)
+{
+	UNUSED_PARAM(ulabel);
+	return NULL;
+}
+
+char *
+getdns_convert_alabel_to_ulabel(char *alabel)
+{
+	UNUSED_PARAM(alabel);
+	return NULL;
+}
+
+char *
+getdns_display_ip_address(struct getdns_bindata
+    *bindata_of_ipv4_or_ipv6_address)
+{
+	char buff[256];
+	if (!bindata_of_ipv4_or_ipv6_address ||
+	    bindata_of_ipv4_or_ipv6_address->size == 0 ||
+	    !bindata_of_ipv4_or_ipv6_address->data) {
+		return NULL;
+	}
+	if (bindata_of_ipv4_or_ipv6_address->size == 4) {
+		const char *ipStr = inet_ntop(AF_INET,
+		    bindata_of_ipv4_or_ipv6_address->data,
+		    buff,
+		    256);
+		if (ipStr) {
+			return strdup(ipStr);
+		}
+	} else if (bindata_of_ipv4_or_ipv6_address->size == 16) {
+		const char *ipStr = inet_ntop(AF_INET6,
+		    bindata_of_ipv4_or_ipv6_address->data,
+		    buff,
+		    256);
+		if (ipStr) {
+			return strdup(ipStr);
+		}
+	}
+	return NULL;
 }
 
 getdns_return_t
 getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
 {
-    getdns_return_t retval = GETDNS_RETURN_GOOD;
+	getdns_return_t retval = GETDNS_RETURN_GOOD;
 
-    const char* err_str = getdns_get_errorstr_by_id(err);
-    if (!err_str) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
+	const char *err_str = getdns_get_errorstr_by_id(err);
+	if (!err_str) {
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
 
-    snprintf(buf, buflen, "%s", err_str);
+	snprintf(buf, buflen, "%s", err_str);
 
-    return retval;
-} /* getdns_strerror */
+	return retval;
+}				/* getdns_strerror */
 
 /* getdns_core_only.c */

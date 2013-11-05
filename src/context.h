@@ -38,69 +38,72 @@ struct ldns_rbtree_t;
 struct getdns_dns_req;
 
 /** function pointer typedefs */
-typedef void (*getdns_update_callback)(getdns_context_t context, uint16_t changed_item);
-typedef void* (*getdns_memory_allocator)(size_t size);
-typedef void (*getdns_memory_deallocator)(void*);
-typedef void* (*getdns_memory_reallocator)(void* ptr, size_t size);
+typedef void (*getdns_update_callback) (getdns_context_t context,
+    uint16_t changed_item);
+typedef void *(*getdns_memory_allocator) (size_t size);
+typedef void (*getdns_memory_deallocator) (void *);
+typedef void *(*getdns_memory_reallocator) (void *ptr, size_t size);
 
-struct getdns_context_t {
+struct getdns_context_t
+{
 
-    /* Context values */
-    uint16_t resolution_type;
-    uint16_t *namespaces;
-    uint16_t timeout;
-    uint16_t follow_redirects;
-    struct getdns_list *dns_root_servers;
-    uint16_t append_name;
-    struct getdns_list *suffix;
-    struct getdns_list *dnssec_trust_anchors;
-    struct getdns_list *upstream_list;
+	/* Context values */
+	uint16_t resolution_type;
+	uint16_t *namespaces;
+	uint16_t timeout;
+	uint16_t follow_redirects;
+	struct getdns_list *dns_root_servers;
+	uint16_t append_name;
+	struct getdns_list *suffix;
+	struct getdns_list *dnssec_trust_anchors;
+	struct getdns_list *upstream_list;
 
-    uint8_t edns_extended_rcode;
-    uint8_t edns_version;
-    uint8_t edns_do_bit;
+	uint8_t edns_extended_rcode;
+	uint8_t edns_version;
+	uint8_t edns_do_bit;
 
-    getdns_update_callback update_callback;
-    getdns_memory_allocator memory_allocator;
-    getdns_memory_deallocator memory_deallocator;
-    getdns_memory_reallocator memory_reallocator;
+	getdns_update_callback update_callback;
+	getdns_memory_allocator memory_allocator;
+	getdns_memory_deallocator memory_deallocator;
+	getdns_memory_reallocator memory_reallocator;
 
-    /* Event loop for sync requests */
-    struct event_base* event_base_sync;
-    /* Event loop for async requests */
-    struct event_base* event_base_async;
+	/* Event loop for sync requests */
+	struct event_base *event_base_sync;
+	/* Event loop for async requests */
+	struct event_base *event_base_async;
 
-    /* The underlying unbound contexts that do
-       the real work */
-    struct ub_ctx *unbound_sync;
-    struct ub_ctx *unbound_async;
+	/* The underlying unbound contexts that do
+	 * the real work */
+	struct ub_ctx *unbound_sync;
+	struct ub_ctx *unbound_async;
 
-    /* which resolution type the contexts are configured for
-     * 0 means nothing set
-     */
-    uint8_t resolution_type_set;
+	/* which resolution type the contexts are configured for
+	 * 0 means nothing set
+	 */
+	uint8_t resolution_type_set;
 
-    /*
-     * outbound requests -> transaction to getdns_dns_req
-     */
-    struct ldns_rbtree_t* outbound_requests;
-} ;
+	/*
+	 * outbound requests -> transaction to getdns_dns_req
+	 */
+	struct ldns_rbtree_t *outbound_requests;
+};
 
 /** internal functions **/
 /**
  * Sets up the unbound contexts with stub or recursive behavior
  * if needed.
  */
-getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t context);
+getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t
+    context);
 
 /* track an outbound request */
-getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req* req);
+getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
+    *req);
 /* clear the outbound request from being tracked - does not cancel it */
-getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req* req);
+getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
+    *req);
 /* cancel callback internal - flag to indicate if req should be freed and callback fired */
 getdns_return_t getdns_context_cancel_request(getdns_context_t context,
-                                              getdns_transaction_t transaction_id,
-                                              int fire_callback);
+    getdns_transaction_t transaction_id, int fire_callback);
 
 #endif
-

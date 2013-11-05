@@ -38,16 +38,14 @@
  *
  */
 getdns_return_t
-getdns_validate_dnssec(
-  struct getdns_bindata  *record_to_validate,
-  struct getdns_list     *bundle_of_support_records,
-  struct getdns_list     *trust_anchor_rdatas
-)
+getdns_validate_dnssec(struct getdns_bindata * record_to_validate,
+    struct getdns_list * bundle_of_support_records,
+    struct getdns_list * trust_anchor_rdatas)
 {
-    UNUSED_PARAM(record_to_validate);
-    UNUSED_PARAM(bundle_of_support_records);
-    UNUSED_PARAM(trust_anchor_rdatas);
-    return GETDNS_RETURN_GOOD;
-} /* getdns_validate_dnssec */
+	UNUSED_PARAM(record_to_validate);
+	UNUSED_PARAM(bundle_of_support_records);
+	UNUSED_PARAM(trust_anchor_rdatas);
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_validate_dnssec */
 
 /* getdns_validate_dnssec.c */
