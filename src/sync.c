@@ -65,12 +65,16 @@ getdns_general_sync(
 {
     getdns_return_t response_status;
 
-    response_status = getdns_general_ub(context->unbound_sync, context->event_base_sync,
-                                        context, name, request_type, extensions,
-                                        (void *)response, NULL, sync_callback_func);
+    response_status = validate_extensions(extensions);
+    if (response_status == GETDNS_RETURN_GOOD) {
+        response_status = getdns_general_ub(context->unbound_sync,
+                                            context->event_base_sync,
+                                            context, name, request_type,
+                                            extensions, (void *)response,
+                                            NULL, sync_callback_func);
 
-    event_base_dispatch(context->event_base_sync);
-
+        event_base_dispatch(context->event_base_sync);
+    }
     return response_status;
 }
 

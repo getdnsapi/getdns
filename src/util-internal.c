@@ -44,18 +44,19 @@
 /**
   * this is a comprehensive list of extensions and their data types
   * used by validate_extensions()
+  * The list has to be in sorted order for bsearch lookup in function
+  * validate_extensions.
   */
 getdns_extension_format extformats[] = {
-    {"dnssec_return_status",               t_int},
-    {"dnssec_return_only_secure",          t_int},
-    {"dnssec_return_supporting_responses", t_int},
-    {"return_both_v4_and_v6",              t_int},
     {"add_opt_parameters",                 t_dict},
     {"add_warning_for_bad_dns",            t_int},
-    {"specify_class",                      t_int},
+    {"dnssec_return_only_secure",          t_int},
+    {"dnssec_return_status",               t_int},
+    {"dnssec_return_supporting_responses", t_int},
     {"return_api_information",             t_int},
+    {"return_both_v4_and_v6",              t_int},
     {"return_call_debugging",              t_int},
-    {"",                                   t_invalid}
+    {"specify_class",                      t_int},
 };
 
 getdns_return_t getdns_dict_util_set_string(getdns_dict* dict, char* name,
@@ -521,41 +522,34 @@ reverse_address(char *addr_str)
     return rev_str;
 } 
 
+static int extformatcmp(const void *a, const void *b)
+{
+    return strcmp(((getdns_extension_format *)a)->extstring,
+                  ((getdns_extension_format *)b)->extstring);
+}
+
 /*---------------------------------------- validate_extensions */
 getdns_return_t
 validate_extensions(getdns_dict *extensions)
 {
-    int retval = GETDNS_RETURN_GOOD;
-    int i = 0;
-    ldns_rbnode_t *node; 
+    struct getdns_dict_item *item;
+    getdns_extension_format *extformat;
 
-    if(extensions == NULL)
-        return retval;
+    if(extensions)
+        LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(extensions->root)) {
+            getdns_extension_format key;
+            key.extstring = (char *)item->node.key;
+            extformat = bsearch(&key,  extformats,
+                                sizeof(extformats) /
+                                sizeof(getdns_extension_format),
+                                sizeof(getdns_extension_format), extformatcmp);
+            if (! extformat)
+                return GETDNS_RETURN_NO_SUCH_EXTENSION;
 
-    node = ldns_rbtree_first(&(extensions->root));
-    while(retval == GETDNS_RETURN_GOOD && node != NULL)
-    {
-        i = 0;
-        while(extformats[i].exttype != t_invalid)
-        {
-            if(strcmp(extformats[i].extstring, node->key) == 0)
-            {
-                if(((struct getdns_dict_item *) node->data)->dtype != extformats[i].exttype)
-                {
-                    retval = GETDNS_RETURN_EXTENSION_MISFORMAT;
-                }
-                break;
-            }
-            i++;
+            if (item->dtype != extformat->exttype)
+                return GETDNS_RETURN_EXTENSION_MISFORMAT;
         }
-
-        if(extformats[i].exttype == t_invalid)
-            retval = GETDNS_RETURN_NO_SUCH_EXTENSION;
-        else
-            node = ldns_rbtree_next(node);
-    } // while retval && node
-
-    return retval;
+    return GETDNS_RETURN_GOOD;
 } /* validate_extensions */
 
 /* util-internal.c */
