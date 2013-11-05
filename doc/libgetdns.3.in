@@ -1,0 +1,70 @@
+.TH libgetdns 3 "November 2013" "getdns 0.0.0" getdns
+.SH NAME
+libgetdns
+.Sh LIBRARY
+DNS Resolver library (libgetdns, -lgetdns)
+
+.SH SYNOPSIS
+.Lb libgetdns
+#include <getdns.h>
+
+THe public entry points are captured in separate man pages.
+
+.SH DESCRIPTION
+
+.LP
+THIS IS A WORK IN PROGRESS - LOTS TO ADD
+
+.LP
+This document describes a modern asynchronous DNS API. This new API is intended to be useful to application developers and operating system distributors as a way of making all types of DNS information easily available in many types of programs. The major features of this new API are:
+
+.RS 3
+    Full support for event-driven programming
+    Supports DNSSEC in multiple ways
+    Mirroring of the resolution in getaddrinfo()
+    Easily supports all RRtypes, even those yet to be defined
+.RE
+
+.LP
+This implementation of the getdns API is licensed under the BSD license.
+
+.SH FILES
+.br /etc/hosts
+.br /etc/resolv.conf
+
+.SH EXAMPLES
+TBD
+
+.SH DIAGNOSTICS
+TBD
+
+.SH "SEE ALSO"
+.BR getdns_address (3),
+.BR getdns_address_sync (3),
+.BR getdns_general (3),
+.BR getdns_general_sync (3),
+.BR getdns_hostname (3),
+.BR getdns_hostname_sync (3),
+.BR getdns_service (3),
+.BR getdns_service_sync (3).
+
+.SH REPORTING PROBLEMS
+Bug reports should be sent to the getdns-bugs@getdns.net
+
+.SH AUTHORS
+
+The getdns API was documented by Paul Hoffman.  This implementation of the getdns API was written by:
+.LP
+.RS 3
+.br
+Neel Goyal, Verisign Inc.
+.br
+Melinda Shore, No Mountain Software, LLC
+.br
+Willem Toorop, NLNet Labs
+.br
+Wouter Wijngaards, NLNet Labs
+.br
+Glen Wiley, Verisign Inc.
+.RE
+

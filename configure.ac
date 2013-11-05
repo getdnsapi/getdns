@@ -6,7 +6,7 @@
 #
 
 AC_PREREQ([2.68])
-AC_INIT([getdns], [0.320], [melinda.shore@nomountain.net])
+AC_INIT([getdns], [0.1.0], [melinda.shore@nomountain.net])
 AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 # AM_INIT_AUTOMAKE
 # LT_INIT
@@ -60,10 +60,10 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
 
-AC_CONFIG_SUBDIRS([src/ src/getdns/ src/example/ src/test/])
+AC_CONFIG_SUBDIRS([src/ src/getdns/ src/example/ src/test/ doc/])
 AC_OUTPUT

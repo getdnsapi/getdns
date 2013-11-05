@@ -1,0 +1,46 @@
+.TH libgetdns 3 "November 2013" "getdns 0.0.0" getdns
+.SH NAME
+getdns_address
+.SH LIBRARY
+DNS Resolver library (libgetdns, -lgetdns)
+
+.SH SYNOPSIS
+#include <getdns.h>
+
+getdns_return_t 
+.br
+.B getdns_address
+(getdns_context_t context, const char *name, struct getdns_dict *extensions, void *userarg, getdns_transaction_t *transaction_id, getdns_callback_t callbackfn);
+
+.SH DESCRIPTION
+
+.LP
+THIS IS A WORK IN PROGRESS - MUCH TO ADD
+
+.LP
+The getdns_address(3) and getdns_address_sync functions provide public entry points into the getdns API library to retrieve the address given a host name.  It always returns both IPv4 and IPv6 addresses.
+
+.SH FILES
+.br
+/etc/hosts
+.br
+/etc/resolv.conf
+
+.SH EXAMPLES
+
+TBD
+
+.SH DIAGNOSTICS
+
+TBD
+
+.SH SEE ALSO
+.BR libgetdns (3),
+.BR getdns_address_sync (3),
+.BR getdns_general (3),
+.BR getdns_general_sync (3),
+.BR getdns_hostname (3),
+.BR getdns_hostname_sync (3),
+.BR getdns_service (3),
+.BR getdns_service_sync (3).
+

@@ -1,31 +1,37 @@
 /**
  *
- * /brief getdns core functions
+ * /brief getdns_general and related support functions
  *
- * This is the meat of the API
- * Originally taken from the getdns API description pseudo implementation.
- *
+ * The getdns_general function is called by most of the other public entry
+ * points to the library.  Private support functions are also included in this
+ * file where they are directly logically related to the getdns_general implementation.
  */
-/* The MIT License (MIT)
- * Copyright (c) 2013 Verisign, Inc.
+
+/*
+ * Copyright (c) 2013, Versign, Inc.
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * * Neither the name of the <organization> nor the
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <string.h>
@@ -231,7 +237,8 @@ getdns_general_ub(struct ub_ctx* unbound,
                   struct getdns_dict *extensions,
                   void *userarg,
                   getdns_transaction_t *transaction_id,
-                  getdns_callback_t callbackfn) {
+                  getdns_callback_t callbackfn)
+{
     /* timeout */
     struct timeval tv;
     getdns_return_t gr;
@@ -283,9 +290,9 @@ getdns_general_ub(struct ub_ctx* unbound,
         return GETDNS_RETURN_GENERIC_ERROR;
     }
     return GETDNS_RETURN_GOOD;
-}
+} /* getdns_general_ub */
 
-/*
+/**
  * getdns_general
  */
  getdns_return_t
@@ -295,7 +302,9 @@ getdns_general_ub(struct ub_ctx* unbound,
                 struct getdns_dict *extensions,
                 void *userarg,
                 getdns_transaction_t *transaction_id,
-                getdns_callback_t callback) {
+                getdns_callback_t callback)
+{
+    int extcheck = GETDNS_RETURN_GOOD;
 
     if (!context || !context->event_base_async ||
         callback == NULL) {
@@ -304,6 +313,10 @@ getdns_general_ub(struct ub_ctx* unbound,
          */
         return GETDNS_RETURN_BAD_CONTEXT;
     }
+
+    extcheck = validate_extensions(extensions);
+    if(extcheck != GETDNS_RETURN_GOOD)
+        return extcheck;
 
     return getdns_general_ub(context->unbound_async,
                              context->event_base_async,
@@ -316,7 +329,6 @@ getdns_general_ub(struct ub_ctx* unbound,
                              callback);
 
 } /* getdns_general */
-
 
 /*
  * getdns_address
