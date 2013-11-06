@@ -28,19 +28,35 @@
  * THE SOFTWARE.
  */
 
+#include <arpa/inet.h>
+
+#include <event2/event.h>
+#include <ldns/ldns.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "context.h"
-#include "util-internal.h"
-#include "types-internal.h"
-#include <ldns/ldns.h>
-#include <event2/event.h>
-#include <unbound.h>
 #include <unbound-event.h>
-#include <arpa/inet.h>
+#include <unbound.h>
 
-/* stuff to make it compile pedantically */
+#include "context.h"
+#include "types-internal.h"
+#include "util-internal.h"
+
+/* Private functions */
+static uint16_t *create_default_namespaces();
+static struct getdns_list *create_default_root_servers();
+static getdns_return_t add_ip_str(getdns_dict *);
+static struct getdns_dict *create_ipaddr_dict_from_rdf(ldns_rdf *);
+static struct getdns_list *create_from_ldns_list(ldns_rdf **, size_t);
+static getdns_return_t set_os_defaults(getdns_context_t);
+static int transaction_id_cmp(const void *, const void *);
+static void set_ub_string_opt(getdns_context_t, char *, char *);
+static void set_ub_number_opt(getdns_context_t, char *, uint16_t);
+static inline void clear_resolution_type_set_flag(getdns_context_t, uint16_t);
+static void dispatch_updated(getdns_context_t, uint16_t);
+static void cancel_dns_req(getdns_dns_req *);
+
+/* Stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
 /**
@@ -210,7 +226,7 @@ transaction_id_cmp(const void *id1, const void *id2)
 /*
  * getdns_context_create
  *
- * call this to initialize the context that is used in other getdns calls
+ * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
 getdns_context_create(getdns_context_t * context, int set_from_os)
@@ -279,8 +295,8 @@ getdns_context_create(getdns_context_t * context, int set_from_os)
 /*
  * getdns_context_destroy
  *
- * call this to dispose of resources associated with a context once you
- * are done with it
+ * Call this to dispose of resources associated with a context once you
+ * are done with it.
  */
 void
 getdns_context_destroy(getdns_context_t context)

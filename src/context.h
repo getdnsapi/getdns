@@ -33,16 +33,15 @@
 #include <getdns/getdns.h>
 
 struct event_base;
-struct ub_ctx;
-struct ldns_rbtree_t;
 struct getdns_dns_req;
+struct ldns_rbtree_t;
+struct ub_ctx;
 
 /** function pointer typedefs */
-typedef void (*getdns_update_callback) (getdns_context_t context,
-    uint16_t changed_item);
-typedef void *(*getdns_memory_allocator) (size_t size);
+typedef void (*getdns_update_callback) (getdns_context_t, uint16_t);
+typedef void *(*getdns_memory_allocator) (size_t);
 typedef void (*getdns_memory_deallocator) (void *);
-typedef void *(*getdns_memory_reallocator) (void *ptr, size_t size);
+typedef void *(*getdns_memory_reallocator) (void *, size_t);
 
 struct getdns_context_t
 {
@@ -106,4 +105,4 @@ getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
 getdns_return_t getdns_context_cancel_request(getdns_context_t context,
     getdns_transaction_t transaction_id, int fire_callback);
 
-#endif
+#endif /* _GETDNS_CONTEXT_H_ */
