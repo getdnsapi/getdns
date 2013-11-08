@@ -44,6 +44,7 @@ this_callbackfn(struct getdns_context_t *this_context,
 		char *res = getdns_pretty_print_dict(this_response);
 		fprintf(stdout, "%s", res);
 		getdns_dict_destroy(this_response);
+		free(res);
 
 	} else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,

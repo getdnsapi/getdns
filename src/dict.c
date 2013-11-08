@@ -234,48 +234,43 @@ getdns_dict_create()
 getdns_return_t
 getdns_dict_copy(struct getdns_dict * srcdict, struct getdns_dict ** dstdict)
 {
-	getdns_return_t retval = GETDNS_RETURN_NO_SUCH_DICT_NAME;
 	struct getdns_dict_item *item;
 	char *key;
 
-	if (srcdict != NULL && dstdict != NULL) {
-		*dstdict = getdns_dict_create();
-
-		LDNS_RBTREE_FOR(item, struct getdns_dict_item *,
-		    &(srcdict->root))
-		{
-			key = (char *) item->node.key;
-			switch (item->dtype) {
-			case t_bindata:
-				getdns_dict_set_bindata(*dstdict, key,
-				    item->data.bindata);
-				break;
-
-			case t_dict:
-				getdns_dict_set_dict(*dstdict, key,
-				    item->data.dict);
-				break;
-
-			case t_int:
-				getdns_dict_set_int(*dstdict, key,
-				    item->data.n);
-				break;
-
-			case t_list:
-				getdns_dict_set_list(*dstdict, key,
-				    item->data.list);
-				break;
-
-			case t_invalid:
-			default:
-				// TODO: this is a fault of some kind, for now ignore it
-				break;
-			}
-		}
-		retval = GETDNS_RETURN_GOOD;
+	if (dstdict == NULL)
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if (srcdict == NULL) {
+		*dstdict = NULL;
+		return GETDNS_RETURN_GOOD;
 	}
+	*dstdict = getdns_dict_create();
+	LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(srcdict->root)) {
+		key = (char *) item->node.key;
+		switch (item->dtype) {
+		case t_bindata:
+			getdns_dict_set_bindata(*dstdict, key,
+			    item->data.bindata);
+			break;
 
-	return retval;
+		case t_dict:
+			getdns_dict_set_dict(*dstdict, key, item->data.dict);
+			break;
+
+		case t_int:
+			getdns_dict_set_int(*dstdict, key, item->data.n);
+			break;
+
+		case t_list:
+			getdns_dict_set_list(*dstdict, key, item->data.list);
+			break;
+
+		case t_invalid:
+		default:
+			// TODO: this is a fault of some kind, for now ignore it
+			break;
+		}
+	}
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_copy */
 
 /*---------------------------------------- getdns_dict_item_free */
