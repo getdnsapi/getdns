@@ -59,7 +59,7 @@ getdns_general_sync(getdns_context_t context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
-    uint32_t * response_length, struct getdns_dict **response)
+    struct getdns_dict **response)
 {
 	getdns_return_t response_status;
 
@@ -79,7 +79,7 @@ getdns_return_t
 getdns_address_sync(getdns_context_t context,
     const char *name,
     struct getdns_dict * extensions,
-    uint32_t * response_length, struct getdns_dict ** response)
+    struct getdns_dict ** response)
 {
 	int cleanup_extensions = 0;
 	if (!extensions) {
@@ -91,7 +91,7 @@ getdns_address_sync(getdns_context_t context,
 
 	getdns_return_t result =
 	    getdns_general_sync(context, name, GETDNS_RRTYPE_A,
-	    extensions, response_length, response);
+	    extensions, response);
 	if (cleanup_extensions) {
 		getdns_dict_destroy(extensions);
 	}
@@ -102,7 +102,7 @@ getdns_return_t
 getdns_hostname_sync(getdns_context_t context,
     struct getdns_dict * address,
     struct getdns_dict * extensions,
-    uint32_t * response_length, struct getdns_dict ** response)
+    struct getdns_dict ** response)
 {
 	struct getdns_bindata *address_data;
 	struct getdns_bindata *address_type;
@@ -128,18 +128,18 @@ getdns_hostname_sync(getdns_context_t context,
 	if ((name = reverse_address((char *) address_data)) == 0)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	return getdns_general_sync(context, name, req_type, extensions,
-	    response_length, response);
+	    response);
 }
 
 getdns_return_t
 getdns_service_sync(getdns_context_t context,
     const char *name,
     struct getdns_dict * extensions,
-    uint32_t * response_length, struct getdns_dict ** response)
+    struct getdns_dict ** response)
 {
 
 	return getdns_general_sync(context, name, GETDNS_RRTYPE_SRV,
-	    extensions, response_length, response);
+	    extensions, response);
 
 }
 

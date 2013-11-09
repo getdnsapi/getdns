@@ -46,7 +46,6 @@ main()
 	const char *this_name = "www.example.com";
 	uint8_t this_request_type = GETDNS_RRTYPE_A;
 	struct getdns_dict *this_response = NULL;
-	uint32_t this_response_length;
 	getdns_return_t this_ret;
 
 	/* Create the DNS context for this call */
@@ -73,7 +72,7 @@ main()
 	/* Make the call */
 	getdns_return_t dns_request_return =
 	    getdns_general_sync(this_context, this_name, this_request_type,
-	    this_extensions, &this_response_length, &this_response);
+	    this_extensions, &this_response);
 	/* free the extensions */
 	getdns_dict_destroy(this_extensions);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {

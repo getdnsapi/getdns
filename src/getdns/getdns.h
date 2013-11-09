@@ -726,7 +726,6 @@ getdns_cancel_callback(getdns_context_t context,
  * @param name the ASCII based domain name to lookup
  * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
  * @param extensions dict data structures, NULL to use no extensions
- * @param response_length response length
  * @param response response
  * @return GETDNS_RETURN_GOOD on success
  */
@@ -735,14 +734,13 @@ getdns_general_sync(getdns_context_t context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
-    uint32_t * response_length, struct getdns_dict **response);
+    struct getdns_dict **response);
 
 /**
  * retrieve address assigned to a DNS name
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param extensions dict data structures, NULL to use no extensions
- * @param response_length response length
  * @param response response
  * @return GETDNS_RETURN_GOOD on success
 
@@ -751,14 +749,13 @@ getdns_return_t
 getdns_address_sync(getdns_context_t context,
     const char *name,
     struct getdns_dict *extensions,
-    uint32_t * response_length, struct getdns_dict **response);
+    struct getdns_dict **response);
 
 /**
  * retrieve hostname assigned to an IP address
  * @param context pointer to a previously created context to be used for this call
  * @param address the address to look up
  * @param extensions dict data structures, NULL to use no extensions
- * @param response_length response length
  * @param response response
  * @return GETDNS_RETURN_GOOD on success
  */
@@ -766,14 +763,13 @@ getdns_return_t
 getdns_hostname_sync(getdns_context_t context,
     struct getdns_dict *address,
     struct getdns_dict *extensions,
-    uint32_t * response_length, struct getdns_dict **response);
+    struct getdns_dict **response);
 
 /**
  * retrieve a service assigned to a DNS name
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param extensions dict data structures, NULL to use no extensions
- * @param response_length response length
  * @param response response
  * @return GETDNS_RETURN_GOOD on success
  */
@@ -781,7 +777,7 @@ getdns_return_t
 getdns_service_sync(getdns_context_t context,
     const char *name,
     struct getdns_dict *extensions,
-    uint32_t * response_length, struct getdns_dict **response);
+    struct getdns_dict **response);
 
 void getdns_free_sync_request_memory(struct getdns_dict *response);
 
