@@ -117,13 +117,13 @@ struct event_base;
 #define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS 508
 #define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS_TEXT See getdns_context_set_follow_redirects()
 #define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP 509
-#define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_UDP_ONLY 510
-#define GETDNS_CONTEXT_UDP_ONLY_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_UDP_ONLY_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_TCP_ONLY 511
-#define GETDNS_CONTEXT_TCP_ONLY_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_TCP_ONLY_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN 512
-#define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS 513
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE 514
