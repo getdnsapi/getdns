@@ -39,7 +39,6 @@
  */
 struct getdns_list_item
 {
-	int inuse;
 	getdns_data_type dtype;
 	union
 	{
@@ -64,6 +63,7 @@ struct getdns_list
 	int numalloc;
 	int numinuse;
 	struct getdns_list_item *items;
+	getdns_context_t context;
 };
 
 #endif

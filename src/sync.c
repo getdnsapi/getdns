@@ -83,7 +83,7 @@ getdns_address_sync(getdns_context_t context,
 {
 	int cleanup_extensions = 0;
 	if (!extensions) {
-		extensions = getdns_dict_create();
+		extensions = getdns_dict_create_with_context(context);
 		cleanup_extensions = 1;
 	}
 	getdns_dict_set_int(extensions,

@@ -104,8 +104,7 @@ tst_bindatasetget(void)
 	new_bindata =
 	    (struct getdns_bindata *) malloc(sizeof(struct getdns_bindata));
 	new_bindata->size = strlen("foobar") + 1;
-	new_bindata->data = (uint8_t *) strdup("foobar");
-	new_bindata->data[strlen("foobar")] = '\0';
+	new_bindata->data = (uint8_t *) "foobar";
 
 	getdns_list_add_item(list, &index);
 	getdns_list_set_bindata(list, index, new_bindata);
@@ -403,6 +402,7 @@ tst_create(void)
 				    i, (int) index, retval);
 				tstmsg_case_msg(msg);
 			}
+			getdns_list_set_int(list, index, 0);
 		}
 	}
 
@@ -413,7 +413,7 @@ tst_create(void)
 
 	tstmsg_case_msg("getdns_list_get_length()");
 	retval = getdns_list_get_length(NULL, &index);
-	sprintf(msg, "NUll, &i, retval = %d", retval);
+	sprintf(msg, "NUll, %i, retval = %d", (int)index, retval);
 	tstmsg_case_msg(msg);
 
 	retval = getdns_list_get_length(NULL, NULL);

@@ -66,6 +66,7 @@ struct getdns_dict_item
 struct getdns_dict
 {
 	ldns_rbtree_t root;
+	getdns_context_t context;
 };
 
 #endif

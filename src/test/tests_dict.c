@@ -271,12 +271,12 @@ tst_getnames(void)
 			printf("t_int, value=%d\n", ansint);
 			break;
 
-		case t_invalid:
-			printf("data type invalid");
-			break;
-
 		case t_list:
 			printf("NOTIMPLEMENTED");
+			break;
+
+		default:
+			printf("data type invalid");
 			break;
 		}
 	}
@@ -493,7 +493,7 @@ tst_copy(void)
 	dict1 = getdns_dict_create();
 	getdns_dict_copy(dict1, &dict2);
 	getdns_dict_destroy(dict2);
-	getdns_dict_copy(NULL, &dict1);
+	/* getdns_dict_copy(NULL, &dict1); */
 
 	tstmsg_case_msg("dict1 populate");
 
@@ -502,7 +502,7 @@ tst_copy(void)
 	getdns_dict_set_int(dict1, "quz", 62);
 
 	dictstr = getdns_pretty_print_dict(dict1);
-	printf("%s", dictstr);
+	printf("%s\n", dictstr);
 	free(dictstr);
 
 	tstmsg_case_msg("getdns_dict_copy(dict1, &dict2)");
@@ -510,7 +510,7 @@ tst_copy(void)
 	getdns_dict_copy(dict1, &dict2);
 
 	dictstr = getdns_pretty_print_dict(dict2);
-	printf("%s", dictstr);
+	printf("%s\n", dictstr);
 	free(dictstr);
 
 	getdns_dict_destroy(dict1);

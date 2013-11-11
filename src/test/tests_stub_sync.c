@@ -57,10 +57,8 @@ main()
 	getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
 
 	getdns_dict *response = NULL;
-	uint32_t responseLen = 0;
 	getdns_return_t ret =
-	    getdns_address_sync(this_context, "www.google.com", NULL,
-	    &responseLen, &response);
+	    getdns_address_sync(this_context, "www.google.com", NULL, &response);
 
 	if (ret != GETDNS_RETURN_GOOD || response == NULL) {
 		fprintf(stderr, "Address sync returned error.\n");
@@ -70,8 +68,7 @@ main()
 	getdns_dict_destroy(response);
 
 	ret =
-	    getdns_service_sync(this_context, "www.google.com", NULL,
-	    &responseLen, &response);
+	    getdns_service_sync(this_context, "www.google.com", NULL, &response);
 	if (ret != GETDNS_RETURN_GOOD || response == NULL) {
 		fprintf(stderr, "Service sync returned error.\n");
 		exit(EXIT_FAILURE);

@@ -62,9 +62,9 @@ struct getdns_context_t
 	uint8_t edns_do_bit;
 
 	getdns_update_callback update_callback;
-	getdns_memory_allocator memory_allocator;
-	getdns_memory_deallocator memory_deallocator;
-	getdns_memory_reallocator memory_reallocator;
+	getdns_memory_allocator malloc;
+	getdns_memory_reallocator realloc;
+	getdns_memory_deallocator free;
 
 	/* Event loop for sync requests */
 	struct event_base *event_base_sync;
@@ -87,6 +87,19 @@ struct getdns_context_t
 	struct ldns_rbtree_t *outbound_requests;
 };
 
+#define GETDNS_XMALLOC(context, type, count)		\
+    ((context) ? ((type *) (*(context)->malloc)((count) * sizeof(type))) \
+               : ((type *) malloc((count) * sizeof(type))))
+#define GETDNS_MALLOC(context, type)			\
+    GETDNS_XMALLOC(context, type, 1)
+#define GETDNS_XREALLOC(context, ptr, type, count)	\
+    ((context) ? ((type *) (*(context)->realloc)((ptr), (count) * sizeof(type))) \
+               : ((type *) realloc((ptr), (count) * sizeof(type))))
+#define GETDNS_REALLOC(context, ptr, type)		\
+    GETDNS_XREALLOC(context, ptr, type, 1);
+#define GETDNS_FREE(context, ptr)			\
+    ((context) ? ((*(context)->free)(ptr)) : free(ptr))
+
 /** internal functions **/
 /**
  * Sets up the unbound contexts with stub or recursive behavior
@@ -104,5 +117,13 @@ getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
 /* cancel callback internal - flag to indicate if req should be freed and callback fired */
 getdns_return_t getdns_context_cancel_request(getdns_context_t context,
     getdns_transaction_t transaction_id, int fire_callback);
+
+char *getdns_strdup(getdns_context_t, const char *str);
+
+struct getdns_bindata *getdns_bindata_copy(getdns_context_t,
+    const struct getdns_bindata *src);
+
+void getdns_bindata_destroy(getdns_context_t context,
+    struct getdns_bindata *bindata);
 
 #endif /* _GETDNS_CONTEXT_H_ */

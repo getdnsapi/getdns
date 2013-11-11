@@ -169,13 +169,9 @@ struct event_base;
 #define GETDNS_CONTEXT_CODE_EDNS_DO_BIT_TEXT Change related to getdns_context_set_edns_do_bit
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW 614
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT Change related to getdns_context_set_dnssec_allowed_skew
-#define GETDNS_CONTEXT_CODE_MEMORY_ALLOCATOR 615
-#define GETDNS_CONTEXT_CODE_MEMORY_ALLOCATOR_TEXT Change related to getdns_context_set_memory_allocator
-#define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR 616
-#define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR_TEXT Change related to getdns_context_set_memory_deallocator
-#define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR 617
-#define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR_TEXT Change related to getdns_context_set_memory_reallocator
-#define GETDNS_CONTEXT_CODE_TIMEOUT 618
+#define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS 615
+#define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT Change related to getdns_context_set_memory_functions
+#define GETDNS_CONTEXT_CODE_TIMEOUT 616
 #define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT Change related to getdns_context_set_timeout
 /** @}
  */
@@ -376,7 +372,7 @@ typedef uint64_t getdns_transaction_t;
  */
 typedef enum getdns_data_type
 {
-	t_dict, t_list, t_int, t_bindata, t_invalid
+	t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
 typedef struct getdns_bindata
 {
@@ -420,7 +416,7 @@ getdns_return_t getdns_list_get_length(struct getdns_list *list,
   * private function (API users should not be calling this), this uses library
   * routines to make a copy of the list - would be faster to make the copy directly
   * caller must ensure that dstlist points to unallocated storage - the address will
-  * be overwritten by a new list via a call to getdns_list_create()
+  * be overwritten by a new list via a call to getdns_list_create(context)
   * @param srclist pointer to list to copy
   * @param dstlist pointer to pointer to list to receive the copy (will be allocated)
   * @return GETDNS_RETURN_GOOD on success
@@ -562,6 +558,7 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
  * @return pointer to an allocated list, NULL if insufficient memory
  */
 struct getdns_list *getdns_list_create();
+struct getdns_list *getdns_list_create_with_context(getdns_context_t context);
 /**
  * free memory allocated to the list (also frees all children of the list)
  * note that lists and bindata retrieved from the list via the getdns_list_get_*
@@ -617,6 +614,7 @@ getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index,
  * @return pointer to an allocated dictionary, NULL if insufficient memory
  */
 struct getdns_dict *getdns_dict_create();
+struct getdns_dict *getdns_dict_create_with_context(getdns_context_t context);
 
 /**
  * private function used to make a copy of a dict structure, the caller is responsible
@@ -701,6 +699,14 @@ getdns_service(getdns_context_t context,
     struct getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+
+getdns_return_t getdns_context_create_with_memory_functions(
+    getdns_context_t * context,
+    int set_from_os,
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+    );
 
 getdns_return_t getdns_context_create(getdns_context_t * context,
     int set_from_os);
@@ -871,18 +877,10 @@ getdns_return_t
 getdns_context_set_edns_do_bit(getdns_context_t context, uint8_t value);
 
 getdns_return_t
-getdns_context_set_memory_allocator(getdns_context_t context,
-    void (*value) (size_t somesize)
-    );
-
-getdns_return_t
-getdns_context_set_memory_deallocator(getdns_context_t context,
-    void (*value) (void *)
-    );
-
-getdns_return_t
-getdns_context_set_memory_reallocator(getdns_context_t context,
-    void (*value) (void *)
+getdns_context_set_memory_functions(getdns_context_t context,
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
     );
 
 /* Extension - refactor to abstract async evt loop */

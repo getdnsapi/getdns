@@ -39,10 +39,19 @@ uint8_t *uint8ptrarg;
 uint16_t *uint16ptrarg;
 uint32_t *uint32ptrarg;
 void *arrayarg;
-void
+void *
 allocfunctionarg(size_t foo)
 {
 	UNUSED_PARAM(foo);
+	return NULL;
+}
+
+void *
+reallocfunctionarg(void *foo, size_t bar)
+{
+	UNUSED_PARAM(foo);
+	UNUSED_PARAM(bar);
+	return NULL;
 }
 
 void
@@ -80,16 +89,16 @@ main()
 	retregular = getdns_cancel_callback(contextarg, txidarg);
 
 	retregular = getdns_general_sync(contextarg,
-	    charstararg, uint16arg, dictarg, uint32ptrarg, &dictarg);
+	    charstararg, uint16arg, dictarg, &dictarg);
 
 	retregular = getdns_address_sync(contextarg,
-	    charstararg, dictarg, uint32ptrarg, &dictarg);
+	    charstararg, dictarg, &dictarg);
 
 	retregular = getdns_hostname_sync(contextarg,
-	    dictarg, dictarg, uint32ptrarg, &dictarg);
+	    dictarg, dictarg, &dictarg);
 
 	retregular = getdns_service_sync(contextarg,
-	    charstararg, dictarg, uint32ptrarg, &dictarg);
+	    charstararg, dictarg, &dictarg);
 
 	getdns_free_sync_request_memory(dictarg);
 
@@ -179,14 +188,8 @@ main()
 
 	retregular = getdns_context_set_edns_do_bit(contextarg, uint8arg);
 
-	retregular = getdns_context_set_memory_allocator(contextarg,
-	    allocfunctionarg);
-
-	retregular = getdns_context_set_memory_deallocator(contextarg,
-	    deallocfunctionarg);
-
-	retregular = getdns_context_set_memory_reallocator(contextarg,
-	    deallocfunctionarg);
+	retregular = getdns_context_set_memory_functions(contextarg,
+	    allocfunctionarg, reallocfunctionarg, deallocfunctionarg);
 
 	getdns_list_destroy(listarg);
 	getdns_dict_destroy(dictarg);

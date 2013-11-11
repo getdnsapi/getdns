@@ -39,8 +39,8 @@
 #include <event2/event.h>
 
 /* useful macros */
-#define gd_malloc(sz) context->memory_allocator(sz)
-#define gd_free(ptr) context->memory_deallocator(ptr)
+#define gd_malloc(sz) context->malloc(sz)
+#define gd_free(ptr) context->free(ptr)
 
 void
 network_req_free(getdns_network_req * net_req)

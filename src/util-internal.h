@@ -46,8 +46,8 @@ struct getdns_dns_req;
 /* convert an ip address dict to a sock storage */
 getdns_return_t dict_to_sockaddr(getdns_dict * ns,
     struct sockaddr_storage *output);
-getdns_return_t sockaddr_to_dict(struct sockaddr_storage *sockaddr,
-    getdns_dict ** output);
+getdns_return_t sockaddr_to_dict(getdns_context_t context,
+    struct sockaddr_storage *sockaddr, getdns_dict ** output);
 
 getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
 
