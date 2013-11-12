@@ -35,7 +35,7 @@
  */
 
 #include <string.h>
-#include "context.h"
+#include "types-internal.h"
 #include "list.h"
 
 /*---------------------------------------- getdns_list_get_length */
@@ -133,12 +133,11 @@ getdns_return_t
 getdns_list_realloc(struct getdns_list *list)
 {
 	struct getdns_list_item *newlist;
-	int i;
 
 	if (!list)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	newlist = GETDNS_XREALLOC(list->context, list->items,
+	newlist = GETDNS_XREALLOC(list, list->items,
 	    struct getdns_list_item,
 	    list->numalloc + GETDNS_LIST_BLOCKSZ);
 	if (!newlist)
@@ -146,12 +145,6 @@ getdns_list_realloc(struct getdns_list *list)
 
 	list->items = newlist;
 	list->numalloc += GETDNS_LIST_BLOCKSZ;
-	/*
-	for (i = list->numalloc - GETDNS_LIST_BLOCKSZ; i < list->numalloc; i++) {
-		list->items[i].dtype = t_int;
-		list->items[i].data.n = 0;
-	}
-	*/
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_realloc */
 
@@ -170,7 +163,8 @@ getdns_list_copy(struct getdns_list * srclist, struct getdns_list ** dstlist)
 		*dstlist = NULL;
 		return GETDNS_RETURN_GOOD;
 	}
-	*dstlist = getdns_list_create_with_context(srclist->context);
+	*dstlist = getdns_list_create_with_memory_functions(
+	    srclist->malloc, srclist->realloc, srclist->free);
 	if (!dstlist)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
@@ -211,17 +205,22 @@ getdns_list_copy(struct getdns_list * srclist, struct getdns_list ** dstlist)
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_copy */
 
-/*-------------------------- getdns_list_create_with_context */
 struct getdns_list *
-getdns_list_create_with_context(getdns_context_t context)
+getdns_list_create_with_memory_functions(void *(*malloc)(size_t),
+    void *(*realloc)(void *, size_t), void (*free)(void *))
 {
 	struct getdns_list *list;
 
-	list = GETDNS_MALLOC(context, struct getdns_list);
+	if (!malloc || !realloc || !free)
+		return NULL;
+
+	list = (struct getdns_list *)(*malloc)(sizeof(struct getdns_list));
 	if (!list)
 		return NULL;
 	
-	list->context  = context;
+	list->malloc   = malloc;
+	list->realloc  = realloc;
+	list->free     = free;
 	list->numalloc = 0;
 	list->numinuse = 0;
 	list->items = NULL;
@@ -230,6 +229,18 @@ getdns_list_create_with_context(getdns_context_t context)
 		return NULL;
 	}
 	return list;
+}
+
+/*-------------------------- getdns_list_create_with_context */
+struct getdns_list *
+getdns_list_create_with_context(getdns_context_t context)
+{
+	if (context)
+		return getdns_list_create_with_memory_functions(context->malloc,
+		    context->realloc, context->free);
+	else
+		return getdns_list_create_with_memory_functions(malloc,
+		    realloc, free);
 }			/* getdns_list_create_with_context */
 
 /*---------------------------------------- getdns_list_create */
@@ -259,7 +270,7 @@ getdns_list_destroy(struct getdns_list *list)
 			break;
 
 		case t_bindata:
-			getdns_bindata_destroy(list->context,
+			getdns_bindata_destroy(list->free,
 			    list->items[i].data.bindata);
 			break;
 
@@ -269,8 +280,8 @@ getdns_list_destroy(struct getdns_list *list)
 	}
 
 	if (list->items)
-		GETDNS_FREE(list->context, list->items);
-	GETDNS_FREE(list->context, list);
+		GETDNS_FREE(list, list->items);
+	GETDNS_FREE(list, list);
 }				/* getdns_list_destroy */
 
 /*---------------------------------------- getdns_list_add_item */
@@ -362,7 +373,8 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 	if (index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	newbindata = getdns_bindata_copy(list->context, child_bindata);
+	newbindata = getdns_bindata_copy(
+	    list->malloc, list->free, child_bindata);
 	if (!newbindata)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 

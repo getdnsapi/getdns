@@ -66,7 +66,9 @@ struct getdns_dict_item
 struct getdns_dict
 {
 	ldns_rbtree_t root;
-	getdns_context_t context;
+	void *(*malloc)(size_t);
+	void *(*realloc)(void *, size_t);
+	void (*free)(void *);
 };
 
 #endif

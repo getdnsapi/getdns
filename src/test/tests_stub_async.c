@@ -48,8 +48,8 @@ this_callbackfn(struct getdns_context_t *this_context,
 
 	} else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-		    "The callback with ID %lld was cancelled. Exiting.",
-		    this_transaction_id);
+		    "The callback with ID %llu was cancelled. Exiting.",
+		    (unsigned long long)this_transaction_id);
 	else
 		fprintf(stderr,
 		    "The callback got a callback_type of %d. Exiting.",

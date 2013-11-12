@@ -248,6 +248,11 @@ tst_getnames(void)
 	getdns_dict_get_names(dict, &list);
 
 	result = getdns_list_get_length(list, &llen);
+	if (result != GETDNS_RETURN_GOOD) {
+		tstmsg_case_msg
+		    ("getdns_list_get_length failed, exiting");
+		return;
+	}
 	if (llen != i) {
 		tstmsg_case_msg
 		    ("getdns_list_get_length returned unreasonable length, exiting");

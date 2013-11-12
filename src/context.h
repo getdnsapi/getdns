@@ -39,9 +39,6 @@ struct ub_ctx;
 
 /** function pointer typedefs */
 typedef void (*getdns_update_callback) (getdns_context_t, uint16_t);
-typedef void *(*getdns_memory_allocator) (size_t);
-typedef void (*getdns_memory_deallocator) (void *);
-typedef void *(*getdns_memory_reallocator) (void *, size_t);
 
 struct getdns_context_t
 {
@@ -62,9 +59,9 @@ struct getdns_context_t
 	uint8_t edns_do_bit;
 
 	getdns_update_callback update_callback;
-	getdns_memory_allocator malloc;
-	getdns_memory_reallocator realloc;
-	getdns_memory_deallocator free;
+	void *(*malloc)(size_t);
+	void *(*realloc)(void *, size_t);
+	void (*free)(void *);
 
 	/* Event loop for sync requests */
 	struct event_base *event_base_sync;
@@ -87,19 +84,6 @@ struct getdns_context_t
 	struct ldns_rbtree_t *outbound_requests;
 };
 
-#define GETDNS_XMALLOC(context, type, count)		\
-    ((context) ? ((type *) (*(context)->malloc)((count) * sizeof(type))) \
-               : ((type *) malloc((count) * sizeof(type))))
-#define GETDNS_MALLOC(context, type)			\
-    GETDNS_XMALLOC(context, type, 1)
-#define GETDNS_XREALLOC(context, ptr, type, count)	\
-    ((context) ? ((type *) (*(context)->realloc)((ptr), (count) * sizeof(type))) \
-               : ((type *) realloc((ptr), (count) * sizeof(type))))
-#define GETDNS_REALLOC(context, ptr, type)		\
-    GETDNS_XREALLOC(context, ptr, type, 1);
-#define GETDNS_FREE(context, ptr)			\
-    ((context) ? ((*(context)->free)(ptr)) : free(ptr))
-
 /** internal functions **/
 /**
  * Sets up the unbound contexts with stub or recursive behavior
@@ -118,12 +102,13 @@ getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
 getdns_return_t getdns_context_cancel_request(getdns_context_t context,
     getdns_transaction_t transaction_id, int fire_callback);
 
-char *getdns_strdup(getdns_context_t, const char *str);
+char *getdns_strdup(void *(*malloc)(size_t), const char *str);
 
-struct getdns_bindata *getdns_bindata_copy(getdns_context_t,
+struct getdns_bindata *getdns_bindata_copy(
+    void *(*malloc)(size_t), void (*free)(void *),
     const struct getdns_bindata *src);
 
-void getdns_bindata_destroy(getdns_context_t context,
+void getdns_bindata_destroy(void (*free)(void *),
     struct getdns_bindata *bindata);
 
 #endif /* _GETDNS_CONTEXT_H_ */

@@ -134,6 +134,21 @@ typedef struct getdns_dns_req
 
 } getdns_dns_req;
 
+#define GETDNS_XMALLOC(obj, type, count)	\
+    ((obj) ? ((type *) (*(obj)->malloc)((count)*sizeof(type))) \
+           : ((type *)          malloc ((count)*sizeof(type))))
+
+#define GETDNS_XREALLOC(obj, ptr, type, count)	\
+    ((obj) ? ((type *) (*(obj)->realloc)((ptr),(count)*sizeof(type))) \
+           : ((type *)          realloc ((ptr),(count)*sizeof(type))))
+
+#define GETDNS_FREE(obj, ptr)			\
+    ((obj) ? ((*(obj)->free)(ptr)) : free(ptr))
+
+#define GETDNS_MALLOC(obj, type)	GETDNS_XMALLOC(obj, type, 1)
+#define GETDNS_REALLOC(obj, ptr, type)	GETDNS_XREALLOC(obj, ptr, type, 1);
+
+
 /* utility methods */
 
 /* network request utilities */

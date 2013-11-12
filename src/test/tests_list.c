@@ -276,6 +276,7 @@ tst_listsetget(void)
 	    retval, ans_int);
 	tstmsg_case_msg(msg);
 
+	getdns_list_destroy(new_list);
 	getdns_list_destroy(list);
 
 	tstmsg_case_end();

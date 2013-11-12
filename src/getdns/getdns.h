@@ -559,6 +559,10 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
  */
 struct getdns_list *getdns_list_create();
 struct getdns_list *getdns_list_create_with_context(getdns_context_t context);
+struct getdns_list *getdns_list_create_with_memory_functions(
+    void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
+    void (*free) (void *));
+
 /**
  * free memory allocated to the list (also frees all children of the list)
  * note that lists and bindata retrieved from the list via the getdns_list_get_*
@@ -615,6 +619,9 @@ getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index,
  */
 struct getdns_dict *getdns_dict_create();
 struct getdns_dict *getdns_dict_create_with_context(getdns_context_t context);
+struct getdns_dict *getdns_dict_create_with_memory_functions(
+    void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
+    void (*free) (void *));
 
 /**
  * private function used to make a copy of a dict structure, the caller is responsible

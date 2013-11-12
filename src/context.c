@@ -985,10 +985,10 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 }
 
 char *
-getdns_strdup(getdns_context_t context, const char *s)
+getdns_strdup(void *(*malloc)(size_t), const char *s)
 {
 	size_t sz = strlen(s) + 1;
-	char *r = GETDNS_XMALLOC(context, char, sz);
+	char *r = (char *)(*malloc)(sizeof(char) * sz);
 	if (r)
 		return memcpy(r, s, sz);
 	else
@@ -996,7 +996,7 @@ getdns_strdup(getdns_context_t context, const char *s)
 }
 
 struct getdns_bindata *
-getdns_bindata_copy(getdns_context_t context,
+getdns_bindata_copy(void *(*malloc)(size_t), void (*free)(void *),
     const struct getdns_bindata *src)
 {
 	struct getdns_bindata *dst;
@@ -1004,14 +1004,14 @@ getdns_bindata_copy(getdns_context_t context,
 	if (!src)
 		return NULL;
 	
-	dst = GETDNS_MALLOC(context, struct getdns_bindata);
+	dst = (struct getdns_bindata *)(*malloc)(sizeof(struct getdns_bindata));
 	if (!dst)
 		return NULL;
 
 	dst->size = src->size;
-	dst->data = GETDNS_XMALLOC(context, uint8_t, src->size);
+	dst->data = (uint8_t *)(*malloc)(sizeof(uint8_t) * src->size);
 	if (!dst->data) {
-		GETDNS_FREE(context, dst);
+		(*free)(dst);
 		return NULL;
 	}
 	(void) memcpy(dst->data, src->data, src->size);
@@ -1019,12 +1019,11 @@ getdns_bindata_copy(getdns_context_t context,
 }
 
 void
-getdns_bindata_destroy(getdns_context_t context,
-    struct getdns_bindata *bindata)
+getdns_bindata_destroy(void (*free)(void *), struct getdns_bindata *bindata)
 {
 	if (!bindata)
 		return;
-	GETDNS_FREE(context, bindata->data);
-	GETDNS_FREE(context, bindata);
+	(*free)(bindata->data);
+	(*free)(bindata);
 }
 /* getdns_context.c */

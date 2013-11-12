@@ -63,7 +63,10 @@ struct getdns_list
 	int numalloc;
 	int numinuse;
 	struct getdns_list_item *items;
-	getdns_context_t context;
+	void *(*malloc)(size_t);
+	void *(*realloc)(void *, size_t);
+	void (*free)(void *);
 };
+
 
 #endif
