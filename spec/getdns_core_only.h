@@ -1,4 +1,4 @@
-/* Created at 2013-11-13-15-04-07*/
+/* Created at 2013-11-13-15-10-57*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -386,11 +386,6 @@ getdns_service_sync(
   const char             *name,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
-);
-
-void
-getdns_free_sync_request_memory(
-  struct getdns_dict     *response
 );
 
 char *

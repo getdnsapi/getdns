@@ -64,7 +64,7 @@ int main()
 	}
 	/* Clean up */
 	getdns_context_destroy(this_context);
-	getdns_free_sync_request_memory(this_response); 
+	getdns_dict_destroy(this_response); 
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 }

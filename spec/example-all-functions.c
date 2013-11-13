@@ -127,10 +127,6 @@ retregular = getdns_service_sync(
   &dictarg
 );
 
-getdns_free_sync_request_memory(
-  dictarg
-);
-
 retregular = getdns_list_get_length(listarg, sizetptrarg);
 retregular = getdns_list_get_data_type(listarg, sizetarg, datatypeptrarg);
 retregular = getdns_list_get_dict(listarg, sizetarg, dictptrarg);
