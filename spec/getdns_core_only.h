@@ -1,4 +1,4 @@
-/* Created at 2013-11-13-15-01-41*/
+/* Created at 2013-11-13-15-03-09*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -31,7 +31,7 @@
 #define GETDNS_RETURN_NO_SUCH_EXTENSION 307
 #define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT A name in the extensions dict is not a valid extension.
 #define GETDNS_RETURN_EXTENSION_MISFORMAT 308
-#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT One or more of the extensions is has a bad format.
+#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT One or more of the extensions have a bad format.
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT A query was made with a context that is using stub resolution and a DNSSEC extension specified.
 
