@@ -103,32 +103,28 @@ retregular = getdns_general_sync(
   charstararg,
   uint16arg,
   dictarg,
-  uint32ptrarg,
-  dictarg
+  &dictarg
 );
 
 retregular = getdns_address_sync(
   contextarg,
   charstararg,
   dictarg,
-  uint32ptrarg,
-  dictarg
+  &dictarg
 );
 
 retregular = getdns_hostname_sync(
   contextarg,
   dictarg,
   dictarg,
-  uint32ptrarg,
-  dictarg
+  &dictarg
 );
 
 retregular = getdns_service_sync(
   contextarg,
   charstararg,
   dictarg,
-  uint32ptrarg,
-  dictarg
+  &dictarg
 );
 
 getdns_free_sync_request_memory(

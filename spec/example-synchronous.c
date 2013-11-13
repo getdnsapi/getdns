@@ -27,12 +27,11 @@ int main()
 		fprintf(stderr, "Trying to set an extension do both IPv4 and IPv6 failed: %d", this_ret);
 		return(GETDNS_RETURN_GENERIC_ERROR);
 	}
-	uint32_t this_response_length;
 	struct getdns_dict * this_response = NULL;
 
 	/* Make the call */
 	getdns_return_t dns_request_return = getdns_general_sync(this_context, this_name, this_request_type,
-		this_extensions, &this_response_length, this_response);
+		this_extensions, &this_response);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
 	{
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);

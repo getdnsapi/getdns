@@ -1,4 +1,4 @@
-/* Created at 2013-11-13-15-03-09*/
+/* Created at 2013-11-13-15-04-07*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -361,8 +361,7 @@ getdns_general_sync(
   const char             *name,
   uint16_t               request_type,
   struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 getdns_return_t
@@ -370,8 +369,7 @@ getdns_address_sync(
   getdns_context_t       context,
   const char             *name,
   struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 getdns_return_t
@@ -379,8 +377,7 @@ getdns_hostname_sync(
   getdns_context_t       context,
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 getdns_return_t
@@ -388,8 +385,7 @@ getdns_service_sync(
   getdns_context_t       context,
   const char             *name,
   struct getdns_dict     *extensions,
-  uint32_t               *response_length,
-  struct getdns_dict     *response
+  struct getdns_dict     **response
 );
 
 void
