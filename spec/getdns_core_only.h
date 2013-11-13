@@ -1,4 +1,4 @@
-/* Created at 2013-11-06-13-33-47*/
+/* Created at 2013-11-13-15-00-03*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -67,13 +67,13 @@
 #define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS 508
 #define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS_TEXT See getdns_context_set_follow_redirects()
 #define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP 509
-#define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_UDP_ONLY 510
-#define GETDNS_CONTEXT_UDP_ONLY_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_UDP_ONLY_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_TCP_ONLY 511
-#define GETDNS_CONTEXT_TCP_ONLY_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_TCP_ONLY_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN 512
-#define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT See getdns_context_set_use_udp_tcp()
+#define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT See getdns_context_set_dns_transport()
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS 513
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS_TEXT See getdns_context_set_append_name()
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE 514
@@ -94,8 +94,8 @@
 #define GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS_TEXT Change related to getdns_context_set_upstream_recursive_servers
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS 604
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS_TEXT Change related to getdns_context_set_dns_root_servers
-#define GETDNS_CONTEXT_CODE_USE_UDP_TCP 605
-#define GETDNS_CONTEXT_CODE_USE_UDP_TCP_TEXT Change related to getdns_context_set_use_udp_tcp
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT 605
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT_TEXT Change related to getdns_context_set_dns_transport
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES 606
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES_TEXT Change related to getdns_context_set_limit_outstanding_queries
 #define GETDNS_CONTEXT_CODE_APPEND_NAME 607
