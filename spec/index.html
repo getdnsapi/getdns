@@ -2,6 +2,11 @@
 <html><head><title>DNS API Description</title>
 <meta http-equiv="Content-type" content="text/html;charset=UTF-8"> 
 
+<!--
+Need different returns for getdns_address, getdns_hostname, and getdns_service;
+also need to fix examples
+-->
+
 <style type="text/css">
 <!--
 div.forh { white-space: pre; font-family: monospace; margin-top: 0; margin-bottom: 0 }
@@ -92,7 +97,7 @@ tr.code { font-family: monospace }
 
 <p class=title>Description of the <code>getdns</code> API</p>
 <p class=title2>Paul Hoffman, Editor</p>
-<p class=title2>Document version: "getdns April 2013"</p>
+<p class=title2>Document version: "getdns September 2013"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -151,9 +156,9 @@ described <a href="#Contexts">later in this document</a>. Note that a context <i
 before calling the function.</p>
 
 <p class=define><code><b>*name</b></code></p>
-<p class=descrip>The ASCII-based domain name to be looked up as a string. This can also be
-an IPv4 or IPv6 address for request types that take addresses instead of domain names,
-such as PTR. The values here follow the rules in section 2.1 of RFC 4343
+<p class=descrip>This is a null-terminted string consisting of either an
+ASCII-based domain name to be looked up, or a null-terminted text string that is an IPv4 or IPv6 address.
+The values here follow the rules in section 2.1 of RFC 4343
 to allow non-ASCII octets and special characters in labels.</p>
 
 <p class=define><code><b>request_type</b></code></p>
@@ -242,7 +247,7 @@ getdns_hostname(
 
 <p>The address is given as a <code>getdns_dict</code> data structure (defined below). The list must
 have two names: <code>address_type</code> (whose value is a bindata; it is currently either "IPv4"
-or "IPv6") and <code>address_data</code> (whose value is a bindata).</p>
+or "IPv6" (which are case-sensitive)) and <code>address_data</code> (whose value is a bindata).</p>
 
 <h2>1.4 <code>getdns_service()</code></h2>
 
@@ -356,7 +361,9 @@ getdns_cancel_callback(
 
 <p class=cont>This causes the API to call the callback with a <code>callback_type</code> of
 <code>GETDNS_CALLBACK_CANCEL</code> if the callback for this <code>transaction_id</code> has not
-already been called. The callback code for cancellation should clean up any memory related to the
+already been called. This will cancel the callback regardless of what the original call was
+doing (such as in the middle of a DNS request, while DNSSEC validation is happening, and so on).
+The callback code for cancellation should clean up any memory related to the
 identified call, such as to deallocate the memory for the userarg.
 <code>getdns_cancel_callback()</code> may return immediately, even before the callback finishes its
 work and returns. Calling <code>getdns_cancel_callback()</code> with a <code>transaction_id</code>
@@ -596,7 +603,7 @@ getdns_dict_destroy(this_extensions);
 
 <li><code>add_warning_for_bad_dns</code></li>
 
-<li><code>specify_class</code><li>
+<li><code>specify_class</code></li>
 
 <li><code>return_api_information</code></li>
 
@@ -896,18 +903,18 @@ look something like this:</p>
 {     # This is the response object
   "replies_full": [ &lt;bindata of the first response&gt;, &lt;bindata of the second response&gt; ],
   "just_address_answers": [ &lt;bindata of 0x0a0b0c01&gt;, &lt;bindata of 0x33445566334455663344556633445566&gt; ],
-  "canonical_name": &lt;bindata for "www.example.com"&gt;,
+  "canonical_name": &lt;bindata of "www.example.com"&gt;,
   "answer_type": GETDNS_NAMETYPE_DNS,
   "intermediate_aliases": [],
   "replies_tree":
   [
     {     # This is the first reply
       "header": { "id": 23456, "qr": 1, "opcode": 0, ... },
-      "question": { "qname": &lt;bindata for "www.example.com"&gt;, "qtype": 1, "qclass": 1 },
+      "question": { "qname": &lt;bindata of "www.example.com"&gt;, "qtype": 1, "qclass": 1 },
       "answer":
       [
         {
-          "name": &lt;bindata for "www.example.com"&gt;,
+          "name": &lt;bindata of "www.example.com"&gt;,
           "type": 1,
           "class": 1,
           "ttl": 33000,
@@ -921,7 +928,7 @@ look something like this:</p>
       "authority":
       [
         {
-          "name": &lt;bindata for "ns1.example.com"&gt;,
+          "name": &lt;bindata of "ns1.example.com"&gt;,
           "type": 1,
           "class": 1,
           "ttl": 600,
@@ -933,16 +940,16 @@ look something like this:</p>
         }
       ]
       "additional": [],
-      "canonical_name": &lt;bindata for "www.example.com"&gt;,
+      "canonical_name": &lt;bindata of "www.example.com"&gt;,
       "answer_type": GETDNS_NAMETYPE_DNS
     },
     {     # This is the second reply
       "header": { "id": 47809, "qr": 1, "opcode": 0, ... },
-      "question": { "qname": &lt;bindata for "www.example.com"&gt;, "qtype": 28, "qclass": 1 },
+      "question": { "qname": &lt;bindata of "www.example.com"&gt;, "qtype": 28, "qclass": 1 },
       "answer":
       [
         {
-          "name": &lt;bindata for "www.example.com"&gt;,
+          "name": &lt;bindata of "www.example.com"&gt;,
           "type": 28,
           "class": 1,
           "ttl": 1000,
@@ -1333,15 +1340,15 @@ function.</p>
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
                      <span class="kt">uint16_t</span>     <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
-                     <span class="n">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
+                     <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
 <span class="p">{</span>
     <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_userarg</span><span class="p">);</span>  <span class="cm">/* Not looking at the userarg for this example */</span>
     <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>  <span class="cm">/* Not looking at the context for this example */</span>
-    <span class="n">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
+    <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">this_callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_COMPLETE</span><span class="p">)</span>  <span class="cm">/* This is a callback with data */</span>
     <span class="p">{</span>
         <span class="cm">/* Be sure the search returned something */</span>
@@ -1381,8 +1388,8 @@ function.</p>
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
-    <span class="n">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
@@ -1400,10 +1407,10 @@ function.</p>
     <span class="cm">/* Set up the getdns call */</span>
     <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">this_name</span>  <span class="o">=</span> <span class="s">&quot;www.example.com&quot;</span><span class="p">;</span>
     <span class="kt">char</span><span class="o">*</span> <span class="n">this_userarg</span> <span class="o">=</span> <span class="s">&quot;somestring&quot;</span><span class="p">;</span> <span class="c1">// Could add things here to help identify this call</span>
-    <span class="n">getdns_transaction_t</span> <span class="n">this_transaction_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
     <span class="cm">/* Make the call */</span>
-    <span class="n">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_address</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span>
+    <span class="kt">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_address</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span>
         <span class="nb">NULL</span><span class="p">,</span> <span class="n">this_userarg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_transaction_id</span><span class="p">,</span> <span class="n">this_callbackfn</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">dns_request_return</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_BAD_DOMAIN_NAME</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1442,15 +1449,15 @@ their TTLs.</p>
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="n">getdns_return_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+                     <span class="kt">getdns_return_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
-                     <span class="n">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
+                     <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
 <span class="p">{</span>
     <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_userarg</span><span class="p">);</span>  <span class="cm">/* Not looking at the userarg for this example */</span>
     <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>  <span class="cm">/* Not looking at the context for this example */</span>
-    <span class="n">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
+    <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">this_callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_COMPLETE</span><span class="p">)</span>  <span class="cm">/* This is a callback with data */</span>
     <span class="p">{</span>
         <span class="cm">/* Be sure the search returned something */</span>
@@ -1529,8 +1536,8 @@ their TTLs.</p>
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
-    <span class="n">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
@@ -1548,10 +1555,10 @@ their TTLs.</p>
     <span class="cm">/* Set up the getdns call */</span>
     <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">this_name</span>  <span class="o">=</span> <span class="s">&quot;www.example.com&quot;</span><span class="p">;</span>
     <span class="kt">char</span><span class="o">*</span> <span class="n">this_userarg</span> <span class="o">=</span> <span class="s">&quot;somestring&quot;</span><span class="p">;</span> <span class="c1">// Could add things here to help identify this call</span>
-    <span class="n">getdns_transaction_t</span> <span class="n">this_transaction_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 
     <span class="cm">/* Make the call */</span>
-    <span class="n">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_address</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span>
+    <span class="kt">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_address</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span>
         <span class="nb">NULL</span><span class="p">,</span> <span class="n">this_userarg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_transaction_id</span><span class="p">,</span> <span class="n">this_callbackfn</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">dns_request_return</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_BAD_DOMAIN_NAME</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1620,10 +1627,10 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="n">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
+    <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
-    <span class="n">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
@@ -1644,7 +1651,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
     <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_response</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
 
     <span class="cm">/* Make the call */</span>
-    <span class="n">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_general_sync</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span> <span class="n">this_request_type</span><span class="p">,</span>
+    <span class="kt">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_general_sync</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span> <span class="n">this_request_type</span><span class="p">,</span>
         <span class="n">this_extensions</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_response_length</span><span class="p">,</span> <span class="n">this_response</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">dns_request_return</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_BAD_DOMAIN_NAME</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1685,6 +1692,13 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 </pre></div>
 
 
+
+<h2>6.5 Getting Names from the Reverse Tree with <code>getdns_hostname()</code></h2>
+
+<p>This example shows how to use <code>getdns_hostname()</code> to get names from the DNS reverse tree.</p>
+
+<p>[[[[ Something will go here soon ]]]]]</p>
+<!--EXAMPLESREVERSE-->
 
 <h1>7. More Helper Functions</h1>
 
@@ -2103,7 +2117,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.320.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.350.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
