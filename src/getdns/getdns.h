@@ -54,25 +54,25 @@ struct event_base;
 #define GETDNS_RETURN_GENERIC_ERROR 1
 #define GETDNS_RETURN_GENERIC_ERROR_TEXT Generic error
 #define GETDNS_RETURN_BAD_DOMAIN_NAME 300
-#define GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT Badly-formed domain name in first argument
+#define GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT Badly-formed domain name
 #define GETDNS_RETURN_BAD_CONTEXT 301
-#define GETDNS_RETURN_BAD_CONTEXT_TEXT Bad value for a context type
+#define GETDNS_RETURN_BAD_CONTEXT_TEXT Bad context type 
 #define GETDNS_RETURN_CONTEXT_UPDATE_FAIL 302
-#define GETDNS_RETURN_CONTEXT_UPDATE_FAIL_TEXT Did not update the context
+#define GETDNS_RETURN_CONTEXT_UPDATE_FAIL_TEXT Context update failure
 #define GETDNS_RETURN_UNKNOWN_TRANSACTION 303
-#define GETDNS_RETURN_UNKNOWN_TRANSACTION_TEXT An attempt was made to cancel a callback with a transaction_id that is not recognized
+#define GETDNS_RETURN_UNKNOWN_TRANSACTION_TEXT Unknown transaction id
 #define GETDNS_RETURN_NO_SUCH_LIST_ITEM 304
-#define GETDNS_RETURN_NO_SUCH_LIST_ITEM_TEXT A helper function for lists had an index argument that was too high.
+#define GETDNS_RETURN_NO_SUCH_LIST_ITEM_TEXT List index out of bounds
 #define GETDNS_RETURN_NO_SUCH_DICT_NAME 305
-#define GETDNS_RETURN_NO_SUCH_DICT_NAME_TEXT A helper function for dicts had a name argument that for a name that is not in the dict.
+#define GETDNS_RETURN_NO_SUCH_DICT_NAME_TEXT Key not found in dict
 #define GETDNS_RETURN_WRONG_TYPE_REQUESTED 306
-#define GETDNS_RETURN_WRONG_TYPE_REQUESTED_TEXT A helper function was supposed to return a certain type for an item, but the wrong type was given.
+#define GETDNS_RETURN_WRONG_TYPE_REQUESTED_TEXT Incorrect type in request
 #define GETDNS_RETURN_NO_SUCH_EXTENSION 307
-#define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT A name in the extensions dict is not a valid extension.
+#define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT Invalid extension name
 #define GETDNS_RETURN_EXTENSION_MISFORMAT 308
-#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT One or more of the extensions has a bad format.
+#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT Extension format error
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
-#define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT A query was made with a context that is using stub resolution and a DNSSEC extension specified.
+#define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT Query with DNSSEC extensions and stub resolution not permitted
 
 /** @}
  */
