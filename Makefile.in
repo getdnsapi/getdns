@@ -29,12 +29,32 @@ distclean:
 	rm -f config.log config.status Makefile
 	rm -fR autom4te.cache
 
-$(distdir): FORCE
+dist: $(distdir).tar.gz
+
+$(distdir).tar.gz: $(distdir)
+	tar chof - $(distdir) | gzip -9 -c > $@
+	rm -rf $(distdir)
+
+$(distdir): 
 	mkdir -p $(distdir)/src
+	mkdir -p $(distdir)/src/getdns
+	mkdir -p $(distdir)/src/test
+	mkdir -p $(distdir)/src/example
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/Makefile.in $(distdir)
+	cp $(srcdir)/install-sh $(distdir)
+	cp $(srcdir)/config.sub $(distdir)
+	cp $(srcdir)/config.guess $(distdir)
 	cp $(srcdir)/src/Makefile.in $(distdir)/src
+	cp $(srcdir)/src/*.[ch] $(distdir)/src
+	cp $(srcdir)/src/getdns/*.in $(distdir)/src/getdns
+	cp $(srcdir)/src/getdns/*.h $(distdir)/src/getdns
+	cp $(srcdir)/src/test/Makefile.in $(distdir)/src/test
+	cp $(srcdir)/src/test/*.[ch] $(distdir)/src/test
+	cp $(srcdir)/src/test/*.can $(distdir)/src/test
+	cp $(srcdir)/src/example/Makefile.in $(distdir)/src/example
+	cp $(srcdir)/src/example/*.c $(distdir)/src/example
 
 distcheck: $(distdir).tar.gz
 	gzip -cd $(distdir).tar.gz | tar xvf -
