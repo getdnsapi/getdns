@@ -1,0 +1,39 @@
+#
+# @configure_input@
+#
+
+package = @PACKAGE_NAME@
+version = @PACKAGE_VERSION@
+tarname = @PACKAGE_TARNAME@
+distdir = $(tarname)-$(version)
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+
+srcdir = @srcdir@
+VPATH = @srcdir@
+
+DOCDIRS = html latex man
+
+default: all
+
+all: doc
+
+doc: 
+	cd ../src && doxygen
+
+clean:
+	rm -rf $(DOCDIRS)
+
+distclean : clean
+	rm -f Makefile config.status config.log
+	rm -Rf autom4te.cache
+
+Makefile: Makefile.in ../config.status
+	cd .. && ./config.status $@
+
+configure.status: configure
+	cd .. && ./config.status --recheck
+
+.PHONY: clean $(DOC)

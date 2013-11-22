@@ -42,7 +42,7 @@ clean:
 distclean : clean
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
-	rm -f Makefile config.status config.log
+	rm -f Makefile config.status config.log Doxyfile
 	rm -Rf autom4te.cache
 
 $(distdir): FORCE
