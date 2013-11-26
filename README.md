@@ -51,6 +51,7 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 * [libevent](http://libevent.org) version 2.0.21 stable
 * [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.16 (ldns may require openssl headers and libraries)
 * [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 3012, configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only).
+* [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 Assuming that the getdns sources are in a diretory named getdns in your home directory, to build libunbound (note that the svn checkout may take a while):
