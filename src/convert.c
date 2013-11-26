@@ -33,6 +33,9 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <util-internal.h>
+#include <locale.h>
+#include <stringprep.h>
+#include <idna.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -51,19 +54,59 @@ getdns_convert_fqdn_to_dns_name(char *fqdn_as_string)
 	return NULL;
 }
 
+
+/*---------------------------------------- getdns_convert_alabel_to_ulabel */
+/**
+ * Convert UTF-8 string into an ACE-encoded domain
+ * It is the application programmer's responsibility to free()
+ * the returned buffer after use
+ *
+ * @param ulabel the UTF-8-encoded domain name to convert
+ * @return pointer to ACE-encoded string
+ * @return NULL if conversion fails
+ */
+
 char *
 getdns_convert_ulabel_to_alabel(char *ulabel)
 {
-	UNUSED_PARAM(ulabel);
-	return NULL;
+    int ret;
+    char *buf;
+    char *prepped;
+
+    setlocale(LC_ALL, "");
+    if ((prepped = stringprep_locale_to_utf8(ulabel)) == 0)
+        return 0;
+    if ((ret = stringprep(prepped, BUFSIZ, 0, stringprep_nameprep)) != STRINGPREP_OK)
+        return 0;
+    if ((ret = idna_to_ascii_8z(prepped, &buf, 0)) != IDNA_SUCCESS)  {
+        return 0;
+    }
+    return buf;
 }
+
+/*---------------------------------------- getdns_convert_alabel_to_ulabel */
+/**
+ * Convert ACE-encoded domain name into a UTF-8 string.
+ * It is the application programmer's responsibility to free()
+ * the returned buffer after use
+ *
+ * @param alabel the ACE-encoded domain name to convert
+ * @return pointer to UTF-8 string
+ * @return NULL if conversion fails
+ */
 
 char *
 getdns_convert_alabel_to_ulabel(char *alabel)
 {
-	UNUSED_PARAM(alabel);
-	return NULL;
+    int  ret;              /* just in case we might want to use it someday */
+    char *buf;
+
+    if ((ret = idna_to_unicode_8z8z(alabel, &buf, 0)) != IDNA_SUCCESS)  {
+        return NULL;
+    }
+    return buf;
 }
+
 
 char *
 getdns_display_ip_address(struct getdns_bindata
