@@ -26,13 +26,13 @@ LDFLAGS=@LDFLAGS@ -levent_core -lldns -lunbound -lidn
 
 default: all
 
-all: libgetdns
+all: libgetdns.so
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
 
-libgetdns: sync.o context.o list.o dict.o convert.o general.o hostname.o service.o request-internal.o \
+libgetdns.so: sync.o context.o list.o dict.o convert.o general.o hostname.o service.o request-internal.o \
 	validate_dnssec.o util-internal.o getdns_error.o
-	$(CC) $(CFLAGS) -shared -o libgetdns.so $? $(LDFLAGS) 
+	$(CC) $(CFLAGS) -shared -o $@ $? $(LDFLAGS) 
 
 clean:
 	cd test && $(MAKE) $@
