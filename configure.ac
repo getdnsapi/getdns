@@ -12,6 +12,9 @@ AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 # LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
 
+AC_PROG_CC
+AC_PROG_CPP
+
 # Checks for programs.
 AC_CANONICAL_HOST
 case "$host_os" in
@@ -20,9 +23,6 @@ case "$host_os" in
                                                 # in <string.h>
   ;;     
 esac
-
-AC_PROG_CC
-AC_PROG_CPP
 
 # always use ./libtool unless override from commandline (libtool=mylibtool)
 if test -z "$libtool"; then
@@ -60,16 +60,17 @@ AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=pathname],
 if test x_$withval = x_yes; then
 	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
 		if test -f "$dir/include/idna.h"; then
-			CPPFLAGS="$CPPFLAGS -I$dir/include"
+			CFLAGS="$CFLAGS -I$dir/include"
 			LDFLAGS="$LDFLAGS -L$dir/lib"
 			AC_MSG_NOTICE([Found libidn in $dir])
 			break
 		fi
 	done
-fi
-if test x_$withval != x_no; then
-	CPPFLAGS="$CPPFLAGS -I$withval/include"
-	LDFLAGS="$LDFLAGS -L$withval/lib"
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	fi
 fi
 
 # find libldns
@@ -79,16 +80,17 @@ AC_ARG_WITH(libldns, AC_HELP_STRING([--with-libldns=pathname],
 if test x_$withval = x_yes; then
 	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
 		if test -f "$dir/include/ldns/ldns.h"; then
-			CPPFLAGS="$CPPFLAGS -I$dir/include"
+			CFLAGS="$CFLAGS -I$dir/include"
 			LDFLAGS="$LDFLAGS -L$dir/lib"
 			AC_MSG_NOTICE([Found libldns in $dir])
 			break
 		fi
 	done
-fi
-if test x_$withval != x_no; then
-	CPPFLAGS="$CPPFLAGS -I$withval/include"
-	LDFLAGS="$LDFLAGS -L$withval/lib"
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	fi
 fi
 
 # find libunbound
@@ -98,16 +100,17 @@ AC_ARG_WITH(libunbound, AC_HELP_STRING([--with-libunbound=pathname],
 if test x_$withval = x_yes; then
 	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
 		if test -f "$dir/include/unbound.h"; then
-			CPPFLAGS="$CPPFLAGS -I$dir/include"
+			CFLAGS="$CFLAGS -I$dir/include"
 			LDFLAGS="$LDFLAGS -L$dir/lib"
 			AC_MSG_NOTICE([Found libunbound in $dir])
 			break
 		fi
 	done
-fi
-if test x_$withval != x_no; then
-	CPPFLAGS="$CPPFLAGS -I$withval/include"
-	LDFLAGS="$LDFLAGS -L$withval/lib"
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	fi
 fi
 
 # Checks for libraries.
