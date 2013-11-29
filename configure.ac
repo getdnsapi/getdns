@@ -52,6 +52,64 @@ fi
 ])
 ACX_ARG_RPATH
 
+# search to set include and library paths right
+# find libidn
+AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=pathname],
+	[path to libidn (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/idna.h"; then
+			CPPFLAGS="$CPPFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
+		fi
+	done
+fi
+if test x_$withval != x_no; then
+	CPPFLAGS="$CPPFLAGS -I$withval/include"
+	LDFLAGS="$LDFLAGS -L$withval/lib"
+fi
+
+# find libldns
+AC_ARG_WITH(libldns, AC_HELP_STRING([--with-libldns=pathname],
+	[path to libldns (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/ldns/ldns.h"; then
+			CPPFLAGS="$CPPFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libldns in $dir])
+			break
+		fi
+	done
+fi
+if test x_$withval != x_no; then
+	CPPFLAGS="$CPPFLAGS -I$withval/include"
+	LDFLAGS="$LDFLAGS -L$withval/lib"
+fi
+
+# find libunbound
+AC_ARG_WITH(libunbound, AC_HELP_STRING([--with-libunbound=pathname],
+	[path to libunbound (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/unbound.h"; then
+			CPPFLAGS="$CPPFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libunbound in $dir])
+			break
+		fi
+	done
+fi
+if test x_$withval != x_no; then
+	CPPFLAGS="$CPPFLAGS -I$withval/include"
+	LDFLAGS="$LDFLAGS -L$withval/lib"
+fi
+
 # Checks for libraries.
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
