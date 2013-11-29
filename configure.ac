@@ -55,7 +55,7 @@ ACX_ARG_RPATH
 # Checks for libraries.
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
-AC_CHECK_LIB([event_core], [event_base_new], [], [found_all_libs=0])
+AC_SEARCH_LIBS([event_base_new], [event_core event], [], [found_all_libs=0])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
