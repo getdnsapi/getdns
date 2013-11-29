@@ -64,6 +64,9 @@ uninstall:
 libgetdns.la: $(GETDNS_OBJ)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined
 
+test:	libgetdns.la
+	cd test && $(MAKE) $@
+
 clean:
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
@@ -105,4 +108,4 @@ Makefile: Makefile.in ../config.status
 configure.status: configure
 	cd .. && ./config.status --recheck
 
-.PHONY: clean
+.PHONY: clean test

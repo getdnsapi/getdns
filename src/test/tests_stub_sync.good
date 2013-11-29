@@ -1,0 +1,116 @@
+The packet {
+  "answer_type": 800,
+  "canonical_name": <bindata for "www.google.com.">,
+  "just_address_answers":
+  [
+     <bindata of 0x4a7de473>,
+     <bindata of 0x4a7de470>,
+     <bindata of 0x4a7de474>
+  ],
+  "replies_full":
+  [
+     <bindata of 0x00008180000100050000000103777777...>
+  ],
+  "replies_tree":
+  [
+    {
+      "additional": [],
+      "answer":
+      [
+        {
+          "class": 1,
+          "name": <bindata for "www.google.com.">,
+          "rdata":
+          {
+            "ipv4_address": <bindata of 0x4a7de473>,
+            "rdata_raw": <bindata of 0x4a7de473>
+          },
+          "ttl": 264,
+          "type": 1
+        },
+        {
+          "class": 1,
+          "name": <bindata for "www.google.com.">,
+          "rdata":
+          {
+            "ipv4_address": <bindata of 0x4a7de470>,
+            "rdata_raw": <bindata of 0x4a7de470>
+          },
+          "ttl": 264,
+          "type": 1
+        },
+        {
+          "class": 1,
+          "name": <bindata for "www.google.com.">,
+          "rdata":
+          {
+            "ipv4_address": <bindata of 0x4a7de474>,
+            "rdata_raw": <bindata of 0x4a7de474>
+          },
+          "ttl": 264,
+          "type": 1
+        }
+      ],
+      "answer_type": 800,
+      "authority": [],
+      "canonical_name": <bindata for "www.google.com.">,
+      "header":
+      {
+        "id": 0,
+        "opcode": 0,
+        "qr": 1
+      },
+      "question":
+      {
+        "qclass": 1,
+        "qname": <bindata for "www.google.com.">,
+        "qtype": 1
+      }
+    }
+  ],
+  "status": 900
+}
+The packet {
+  "answer_type": 800,
+  "canonical_name": <bindata for "www.google.com.">,
+  "just_address_answers": [],
+  "replies_full":
+  [
+     <bindata of 0x00008180000100000001000103777777...>
+  ],
+  "replies_tree":
+  [
+    {
+      "additional": [],
+      "answer": [],
+      "answer_type": 800,
+      "authority":
+      [
+        {
+          "class": 1,
+          "name": <bindata for "google.com.">,
+          "rdata":
+          {
+            "rdata_raw": <bindata of 0x036e733106676f6f676c6503636f6d00>
+          },
+          "ttl": 40,
+          "type": 6
+        }
+      ],
+      "canonical_name": <bindata for "www.google.com.">,
+      "header":
+      {
+        "id": 0,
+        "opcode": 0,
+        "qr": 1
+      },
+      "question":
+      {
+        "qclass": 1,
+        "qname": <bindata for "www.google.com.">,
+        "qtype": 33
+      }
+    }
+  ],
+  "status": 900
+}

@@ -42,7 +42,7 @@ this_callbackfn(struct getdns_context_t *this_context,
 {
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE) {	/* This is a callback with data */
 		char *res = getdns_pretty_print_dict(this_response);
-		fprintf(stdout, "%s", res);
+		fprintf(stdout, "%s\n", res);
 		getdns_dict_destroy(this_response);
 		free(res);
 

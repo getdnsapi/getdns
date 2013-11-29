@@ -42,6 +42,10 @@ tests_stub_async: tests_stub_async.o testmessages.o
 tests_stub_sync: tests_stub_sync.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_sync.o
 
+test:
+	./testscript.sh
+	@echo "All tests OK"
+
 clean:
 	rm -f *.o $(PROGRAMS)
 	rm -rf .libs
@@ -79,4 +83,4 @@ Makefile: Makefile.in ../../config.status
 configure.status: configure
 	cd ../.. && ./config.status --recheck
 
-.PHONY: clean
+.PHONY: clean test

@@ -31,6 +31,9 @@ uninstall:
 doc: 
 	cd doc && $(MAKE) $@
 
+test:
+	cd src && $(MAKE) $@
+
 clean:
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
@@ -95,4 +98,4 @@ Makefile: Makefile.in config.status
 configure.status: configure
 	./config.status --recheck
 
-.PHONY: all distclean clean default doc
+.PHONY: all distclean clean default doc test
