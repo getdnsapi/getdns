@@ -5,7 +5,7 @@
 # @configure_input@
 #
 
-AC_PREREQ([2.68])
+AC_PREREQ([2.56])
 AC_INIT([getdns], [0.1.0], [melinda.shore@nomountain.net])
 AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 # AM_INIT_AUTOMAKE
@@ -23,6 +23,34 @@ esac
 
 AC_PROG_CC
 AC_PROG_CPP
+
+# always use ./libtool unless override from commandline (libtool=mylibtool)
+if test -z "$libtool"; then
+	libtool="`pwd`/libtool"
+fi
+AC_SUBST(libtool)
+AC_PROG_LIBTOOL
+AC_PROG_INSTALL
+
+dnl Add option to disable the evil rpath. Check whether to use rpath or not.
+dnl Adds the --disable-rpath option. Uses trick to edit the ./libtool.
+AC_DEFUN([ACX_ARG_RPATH],
+[
+AC_ARG_ENABLE(rpath,
+        [  --disable-rpath         disable hardcoded rpath (default=enabled)],
+	enable_rpath=$enableval, enable_rpath=yes)
+if test "x$enable_rpath" = xno; then
+	dnl AC_MSG_RESULT([Fixing libtool for -rpath problems.])
+	AC_CONFIG_COMMANDS([disable-rpath], [
+	sed < libtool > libtool-2 \
+	's/^hardcode_libdir_flag_spec.*$'/'hardcode_libdir_flag_spec=" -D__LIBTOOL_RPATH_SED__ "/'
+	mv libtool-2 libtool
+	chmod 755 libtool
+	libtool="./libtool"
+	])
+fi
+])
+ACX_ARG_RPATH
 
 # Checks for libraries.
 found_all_libs=1
@@ -66,6 +94,4 @@ AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile 
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
-
-AC_CONFIG_SUBDIRS([src/ src/getdns/ src/example/ src/test/ doc/])
 AC_OUTPUT
