@@ -34,10 +34,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#  define evutil_socket_t int
+#  define event_free free
+#  define evtimer_new(b, cb, arg) event_new((b), -1, 0, (cb), (arg))
+#endif
 #include <string.h>
 #include <unbound.h>
 #include <unbound-event.h>
-#include <event2/event.h>
 #include <ldns/ldns.h>
 #include "context.h"
 #include "types-internal.h"
@@ -66,6 +74,18 @@ typedef struct netreq_cb_data
 	int sec;
 	char *bogus;
 } netreq_cb_data;
+
+#ifndef HAVE_EVENT2_EVENT_H
+static struct event *
+event_new(struct event_base *b, evutil_socket_t fd, short ev, void* cb, void *arg)
+{
+	struct event* e = (struct event*)calloc(1, sizeof(struct event));
+	if(!e) return NULL;
+	event_set(e, fd, ev, cb, arg);
+	event_base_set(b, e);
+	return e;
+}
+#endif /* no event2 */
 
 /* cancel, cleanup and send timeout to callback */
 static void

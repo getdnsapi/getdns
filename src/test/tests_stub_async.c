@@ -26,12 +26,17 @@
  * THE SOFTWARE.
  */
 
+#include "config.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
-#include <event2/event.h>
 
 /* Set up the callback function, which will also do the processing of the results */
 void

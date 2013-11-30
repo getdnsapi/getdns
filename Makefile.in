@@ -63,8 +63,7 @@ $(distdir):
 	cp $(srcdir)/config.sub $(distdir)
 	cp $(srcdir)/config.guess $(distdir)
 	cp $(srcdir)/ltmain.sh $(distdir)
-	cp $(srcdir)/src/Makefile.in $(distdir)/src
-	cp $(srcdir)/src/Doxyfile.in $(distdir)/src
+	cp $(srcdir)/src/*.in $(distdir)/src
 	cp $(srcdir)/src/*.[ch] $(distdir)/src
 	cp $(srcdir)/src/getdns/*.in $(distdir)/src/getdns
 	cp $(srcdir)/src/getdns/*.h $(distdir)/src/getdns

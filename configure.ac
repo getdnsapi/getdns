@@ -141,7 +141,7 @@ if test -z "$DOXYGEN";
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h event2/event.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
@@ -155,4 +155,5 @@ AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile 
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
+AC_CONFIG_HEADER([src/config.h])
 AC_OUTPUT

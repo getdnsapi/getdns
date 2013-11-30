@@ -28,9 +28,13 @@
  * THE SOFTWARE.
  */
 
+#include "config.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#endif
 #include <arpa/inet.h>
-
-#include <event2/event.h>
 #include <ldns/ldns.h>
 #include <string.h>
 #include <stdio.h>
