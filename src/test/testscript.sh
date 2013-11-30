@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # run $1 > $2 and exit on failure to execute
-function runit {
+runit () {
 	echo -n "Test $1:"
 	./$1 > $2
 	if test $? -ne 0; then
@@ -11,7 +11,7 @@ function runit {
 }
 
 # check output files $1 and $2, exit on failure
-function diffit {
+diffit () {
 	if diff $1 $2; then
 		echo " OK"
 	else
@@ -21,20 +21,20 @@ function diffit {
 }
 
 # check output of program $1, known_good must be in $1.good
-function checkoutput {
+checkoutput () {
 	runit $1 output
 	diffit output $1.good
 }
 
 # filter out TTL and bindata stuff from $1 to $2
-function filterout {
+filterout () {
 	sed -e '/"ttl"/d' -e '/"ipv4_address"/d' -e '/"ipv6_address"/d' -e '/"rdata_raw"/d' -e '/<bindata/d' <$1 >$2
 }
 
 # like checkoutput but removes addresses and TTLs and bindata
 # this makes the test almost useless, but it tests runtime lookup
 # and the structure of the answer format, against the live internet.
-function checkpacket {
+checkpacket () {
 	runit $1 output
 	cp $1.good output.good
 	filterout output output2
