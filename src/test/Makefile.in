@@ -18,7 +18,7 @@ VPATH = @srcdir@
 CC=gcc
 CFLAGS=@CFLAGS@ -Wall -g -fPIC -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99 $(cflags)
 LDFLAGS=@LDFLAGS@ -L. -L.. -L/usr/local/lib 
-LDLIBS=-lgetdns -lldns -levent_core -lunbound
+LDLIBS=-lgetdns @LIBS@
 PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync
 
 .SUFFIXES: .c .o .a .lo .h

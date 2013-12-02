@@ -18,7 +18,7 @@ VPATH = @srcdir@
 CC=gcc
 CFLAGS=@CFLAGS@ -Wall -g -fPIC -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99
 LDFLAGS=@LDFLAGS@ -L. -L.. -L/usr/local/lib 
-LDLIBS=-lgetdns -lldns -levent_core -lunbound
+LDLIBS=-lgetdns @LIBS@
 PROGRAMS=example_simple_answers example_tree example_all_functions example_synchronous
 
 .SUFFIXES: .c .o .a .lo .h
