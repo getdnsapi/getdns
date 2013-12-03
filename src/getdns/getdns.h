@@ -221,9 +221,9 @@ struct event_base;
  * \defgroup extvals Values Associated With Extensions
  * @{
  */
-#define GETDNS_EXTENSION_TRUE  1
+#define GETDNS_EXTENSION_TRUE  1000
 #define GETDNS_EXTENSION_TRUE_TEXT Turn on the extension
-#define GETDNS_EXTENSION_FALSE 0
+#define GETDNS_EXTENSION_FALSE 1001
 #define GETDNS_EXTENSION_FALSE_TEXT Do not turn on the extension
 /** @}
  */
@@ -238,47 +238,6 @@ struct event_base;
 #define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL_TEXT One or more labels in a returned domain name is all-numeric; this is not legal for a hostname
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT A DNS query for a type other than CNAME returned a CNAME response
-/** @}
- */
-
-/**
- * \defgroup strings String Constants
- * @{
- */
-#define GETDNS_STR_IPV4 "IPv4"
-#define GETDNS_STR_IPV6 "IPv6"
-#define GETDNS_STR_ADDRESS_TYPE "address_type"
-#define GETDNS_STR_ADDRESS_DATA "address_data"
-#define GETDNS_STR_ADDRESS_STRING "address_string"
-#define GETDNS_STR_PORT "port"
-#define GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6 "return_both_v4_and_v6"
-
-#define GETDNS_STR_KEY_STATUS "status"
-#define GETDNS_STR_KEY_REPLIES_TREE "replies_tree"
-#define GETDNS_STR_KEY_REPLIES_FULL "replies_full"
-#define GETDNS_STR_KEY_JUST_ADDRS "just_address_answers"
-#define GETDNS_STR_KEY_CANONICAL_NM "canonical_name"
-#define GETDNS_STR_KEY_ANSWER_TYPE "answer_type"
-#define GETDNS_STR_KEY_INTERM_ALIASES "intermediate_aliases"
-#define GETDNS_STR_KEY_NAME "name"
-#define GETDNS_STR_KEY_HEADER "header"
-#define GETDNS_STR_KEY_QUESTION "question"
-#define GETDNS_STR_KEY_ANSWER "answer"
-#define GETDNS_STR_KEY_ID "id"
-#define GETDNS_STR_KEY_QR "qr"
-#define GETDNS_STR_KEY_OPC "opcode"
-#define GETDNS_STR_KEY_TYPE "type"
-#define GETDNS_STR_KEY_CLASS "class"
-#define GETDNS_STR_KEY_TTL "ttl"
-#define GETDNS_STR_KEY_RDATA "rdata"
-#define GETDNS_STR_KEY_V4_ADDR "ipv4_address"
-#define GETDNS_STR_KEY_V6_ADDR "ipv6_address"
-#define GETDNS_STR_KEY_RDATA_RAW "rdata_raw"
-#define GETDNS_STR_KEY_AUTHORITY "authority"
-#define GETDNS_STR_KEY_ADDITIONAL "additional"
-#define GETDNS_STR_KEY_QTYPE "qtype"
-#define GETDNS_STR_KEY_QCLASS "qclass"
-#define GETDNS_STR_KEY_QNAME "qname"
 /** @}
  */
 
@@ -387,6 +346,13 @@ typedef struct getdns_bindata
 typedef struct getdns_dict getdns_dict;
 
 /**
+ * getdns list data type
+ * Use helper functions getdns_list_* to manipulate and iterate lists
+ * Indexes are 0 based.
+ */
+typedef struct getdns_list getdns_list;
+
+/**
  * translate an error code to a string value, not in the original api description
  * but seems like a nice thing to have
  * @param err return code from GETDNS_RETURN_* defines
@@ -397,13 +363,6 @@ typedef struct getdns_dict getdns_dict;
 getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
 
 /**
- * getdns list data type
- * Use helper functions getdns_list_* to manipulate and iterate lists
- * Indexes are 0 based.
- */
-typedef struct getdns_list getdns_list;
-
-/**
  * get the length of the specified list (returned in *answer)
  * @param list list of any of the supported data types
  * @param answer number of valid items in the list
@@ -412,19 +371,6 @@ typedef struct getdns_list getdns_list;
  */
 getdns_return_t getdns_list_get_length(struct getdns_list *list,
     size_t * answer);
-/**
-  * private function (API users should not be calling this), this uses library
-  * routines to make a copy of the list - would be faster to make the copy directly
-  * caller must ensure that dstlist points to unallocated storage - the address will
-  * be overwritten by a new list via a call to getdns_list_create(context)
-  * @param srclist pointer to list to copy
-  * @param dstlist pointer to pointer to list to receive the copy (will be allocated)
-  * @return GETDNS_RETURN_GOOD on success
-  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
-  * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
-  */
-getdns_return_t getdns_list_copy(struct getdns_list *srclist,
-    struct getdns_list **dstlist);
 /**
  * get the enumerated data type of the indexed list item
  * @param list the list from which to fetch the data type
@@ -571,18 +517,19 @@ struct getdns_list *getdns_list_create_with_memory_functions(
  * unpleasant things will happen at run-time
  */
 void getdns_list_destroy(struct getdns_list *list);
+
 /**
- * add an item to the tail of a list - note that this was not in the getdns API
- * description but the list_set functions seem to be designed to modify an existing
- * item in the list.  The newly added item has no data type.
- * @param list list containing the item to which child_list is to be added
- * @param *index assigned to the index of the newly added item on success
+ * assign the child_dict to an item in a parent list, the parent list copies
+ * the child dict and will free the copy when the list is destroyed
+ * @param list list containing the item to which child_list is to be assigned
+ * @param index index of the item within list to which child_list is to be assigned
+ * @param *child_list list to assign to the item
  * @return GETDNS_RETURN_GOOD on success
- * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
+ * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
 getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index,
     struct getdns_dict *child_dict);
+
 /**
  * assign the child_list to an item in a parent list, the parent list copies
  * the child list and will free the copy when the list is destroyed
@@ -622,17 +569,6 @@ struct getdns_dict *getdns_dict_create_with_context(getdns_context_t context);
 struct getdns_dict *getdns_dict_create_with_memory_functions(
     void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
     void (*free) (void *));
-
-/**
- * private function used to make a copy of a dict structure, the caller is responsible
- * for freeing storage allocated to returned value
- * NOTE: not thread safe - this needs to be fixed to be thread safe
- * @param srcdict the dictionary structure to copy
- * @param dstdict pointer to the location to write pointer to new dictionary
- * @return GETDNS_RETURN_GOOD on success
- */
-getdns_return_t
-getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
 
 /**
  * destroy a dictionary and all items within that dictionary
@@ -792,8 +728,6 @@ getdns_service_sync(getdns_context_t context,
     struct getdns_dict *extensions,
     struct getdns_dict **response);
 
-void getdns_free_sync_request_memory(struct getdns_dict *response);
-
 /** @}
  */
 
@@ -822,10 +756,18 @@ char *getdns_pretty_print_dict(struct getdns_dict *dict);
 char *getdns_display_ip_address(struct getdns_bindata
     *bindata_of_ipv4_or_ipv6_address);
 
-getdns_return_t
-getdns_context_set_context_update_callback(getdns_context_t context,
+/*
+getdns_return_t getdns_context_set_context_update_callback(
+    getdns_context_t context,
     void (*value) (getdns_context_t context, uint16_t changed_item)
     );
+*/
+getdns_return_t
+getdns_context_set_context_update_callback(
+  getdns_context_t       context,
+  void                   (*value)(getdns_context_t context, uint16_t changed_item)
+);
+
 
 getdns_return_t
 getdns_context_set_resolution_type(getdns_context_t context, uint16_t value);

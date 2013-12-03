@@ -41,7 +41,41 @@
 #include <ldns/ldns.h>
 #include "context.h"
 
-struct getdns_dns_req;
+/**
+ * add an item to the tail of a list - note that this was not in the getdns API
+ * description but the list_set functions seem to be designed to modify an existing
+ * item in the list.  The newly added item has no data type.
+ * @param list list containing the item to which child_list is to be added
+ * @param *index assigned to the index of the newly added item on success
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
+ */
+getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
+
+/**
+  * private function (API users should not be calling this), this uses library
+  * routines to make a copy of the list - would be faster to make the copy directly
+  * caller must ensure that dstlist points to unallocated storage - the address will
+  * be overwritten by a new list via a call to getdns_list_create(context)
+  * @param srclist pointer to list to copy
+  * @param dstlist pointer to pointer to list to receive the copy (will be allocated)
+  * @return GETDNS_RETURN_GOOD on success
+  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
+  * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
+  */
+getdns_return_t getdns_list_copy(struct getdns_list *srclist,
+    struct getdns_list **dstlist);
+
+/**
+ * private function used to make a copy of a dict structure, the caller is responsible
+ * for freeing storage allocated to returned value
+ * NOTE: not thread safe - this needs to be fixed to be thread safe
+ * @param srcdict the dictionary structure to copy
+ * @param dstdict pointer to the location to write pointer to new dictionary
+ * @return GETDNS_RETURN_GOOD on success
+ */
+getdns_return_t
+getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
 
 /* convert an ip address dict to a sock storage */
 getdns_return_t dict_to_sockaddr(getdns_dict * ns,
@@ -49,6 +83,7 @@ getdns_return_t dict_to_sockaddr(getdns_dict * ns,
 getdns_return_t sockaddr_to_dict(getdns_context_t context,
     struct sockaddr_storage *sockaddr, getdns_dict ** output);
 
+struct getdns_dns_req;
 getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
 
 /* dict util */

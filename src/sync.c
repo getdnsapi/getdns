@@ -43,6 +43,7 @@
 #include <unbound-event.h>
 #include "context.h"
 #include "general.h"
+#include "types-internal.h"
 #include "util-internal.h"
 #include <string.h>
 

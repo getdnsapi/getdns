@@ -36,6 +36,7 @@
 
 #include <string.h>
 #include "types-internal.h"
+#include "util-internal.h"
 #include "list.h"
 
 /*---------------------------------------- getdns_list_get_length */
