@@ -100,8 +100,6 @@ main()
 	retregular = getdns_service_sync(contextarg,
 	    charstararg, dictarg, &dictarg);
 
-	getdns_free_sync_request_memory(dictarg);
-
 	retregular = getdns_list_get_length(listarg, sizetptrarg);
 	retregular =
 	    getdns_list_get_data_type(listarg, sizetarg, datatypeptrarg);

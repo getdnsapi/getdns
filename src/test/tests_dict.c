@@ -34,6 +34,12 @@
 
 #define TSTMSGBUF 80
 
+/* Prototypes for functions not part of the API
+ * TODO: remove these
+ */
+getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
+getdns_return_t getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
+
 /*---------------------------------------- tst_bindatasetget */
 /**
  * test the bindata get and set routines 

@@ -111,7 +111,6 @@ main()
 
 	/* Clean up */
 	getdns_context_destroy(this_context);
-	getdns_free_sync_request_memory(this_response);
 
 	exit(EXIT_SUCCESS);
 }				/* main */

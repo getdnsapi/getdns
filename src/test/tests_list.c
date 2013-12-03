@@ -35,6 +35,12 @@
 #define TSTMSGBUF 80
 #define GETDNS_LIST_BLOCKSZ 10
 
+
+/* Prototypes for functions not part of the API
+ * TODO: remove these
+ */
+getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
+
 /* TODO: might want a separate unit test for getdns_list_copy() - right now the code gets
    covered as a result of other tests */
 

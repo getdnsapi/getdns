@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <ldns/buffer.h>
 #include "types-internal.h"
+#include "util-internal.h"
 #include "dict.h"
 
 /*---------------------------------------- getdns_dict_find */
