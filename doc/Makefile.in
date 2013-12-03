@@ -10,21 +10,42 @@ distdir = $(tarname)-$(version)
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
+# datarootdir is here to please some checkers
+datarootdir=@datarootdir@
+mandir = @mandir@
+INSTALL = @INSTALL@
 
 srcdir = @srcdir@
 VPATH = @srcdir@
 
 DOCDIRS = html latex man
+MANPAGES = libgetdns.3 getdns_address.3
 
 default: all
 
 all: doc
 
-doc: 
+doc: 	$(MANPAGES)
 	cd ../src && doxygen
 
+libgetdns.3:	libgetdns.3.in
+	cp $< $@
+
+getdns_address.3:	getdns_address.3.in
+	cp $< $@
+
+install:	$(MANPAGES)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man3
+	$(INSTALL) -m 644 libgetdns.3 $(DESTDIR)$(mandir)/man3
+	$(INSTALL) -m 644 getdns_address.3 $(DESTDIR)$(mandir)/man3
+
+uninstall:
+	rm -f $(DESTDIR)$(mandir)/man3/libgetdns.3
+	rm -f $(DESTDIR)$(mandir)/man3/getdns_address.3
+
 clean:
-	rm -rf $(DOCDIRS)
+	rm -rf $(DOCDIRS) $(MANPAGES)
 
 distclean : clean
 	rm -f Makefile config.status config.log

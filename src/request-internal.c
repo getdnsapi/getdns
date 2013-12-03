@@ -33,10 +33,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#  define event_free free
+#endif
 #include "types-internal.h"
 #include "util-internal.h"
 #include <unbound.h>
-#include <event2/event.h>
 
 /* useful macros */
 #define gd_malloc(sz) context->malloc(sz)

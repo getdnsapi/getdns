@@ -7,37 +7,71 @@ version = @PACKAGE_VERSION@
 tarname = @PACKAGE_TARNAME@
 distdir = $(tarname)-$(version)
 
+# current:revision:age
+# (binary-api-number):(which-binary-api-version):(how-many-nrs-backwardscompat)
+# if api unchanged: no changes
+# if api broken: current++ ; revision = 0; age = 0
+# if programs compiled against existing library work and link with new
+#    version of library with new binary api:  revision++; age++
+libversion = 0:0:0
+
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
+libdir = @libdir@
+includedir = @includedir@
+# datarootdir is here to please some checkers
+datarootdir=@datarootdir@
+INSTALL = @INSTALL@
+LIBTOOL = @libtool@
 
 srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=gcc
-CFLAGS=@CFLAGS@ -Wall -g -fPIC -I$(srcdir)/ -I/usr/local/include -std=c99
-LDFLAGS=@LDFLAGS@ -levent_core -lldns -lunbound -lidn
-# PROGRAMS=example-simple-answers example-tree example-all-functions example-synchronous
+CFLAGS=@CFLAGS@ -Wall -fPIC -I$(srcdir)/ -I/usr/local/include -std=c99
+LDFLAGS=@LDFLAGS@ @LIBS@
+GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
+	hostname.lo service.lo request-internal.lo validate_dnssec.lo \
+	util-internal.lo getdns_error.lo
 
 .SUFFIXES: .c .o .a .lo .h
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
+.c.lo:
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
+
 default: all
 
-all: libgetdns.so
+all: libgetdns.la
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
 
-libgetdns.so: sync.o context.o list.o dict.o convert.o general.o hostname.o service.o request-internal.o \
-	validate_dnssec.o util-internal.o getdns_error.o
-	$(CC) $(CFLAGS) -shared -o $@ $? $(LDFLAGS) 
+install:	libgetdns.la
+	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)/getdns
+	$(INSTALL) -m 644 $(srcdir)/getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
+	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
+	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
+	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
+
+uninstall:
+	rm -f $(DESTDIR)$(includedir)/getdns/getdns.h
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la
+
+libgetdns.la: $(GETDNS_OBJ)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined
+
+test:	libgetdns.la
+	cd test && $(MAKE) $@
 
 clean:
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
-	rm -f *.o $(PROGRAMS) libgetdns.so
+	rm -f *.o *.lo $(PROGRAMS) libgetdns.la
+	rm -rf .libs
 
 distclean : clean
 	cd test && $(MAKE) $@
@@ -74,4 +108,4 @@ Makefile: Makefile.in ../config.status
 configure.status: configure
 	cd .. && ./config.status --recheck
 
-.PHONY: clean
+.PHONY: clean test

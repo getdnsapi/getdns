@@ -26,13 +26,18 @@
  * THE SOFTWARE.
  */
 
+#include "../config.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <getdns/getdns.h>
-#include <event2/event.h>
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#endif
 
 #define UNUSED_PARAM(x) ((void)(x))
 

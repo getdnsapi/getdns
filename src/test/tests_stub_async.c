@@ -26,12 +26,17 @@
  * THE SOFTWARE.
  */
 
+#include "config.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
-#include <event2/event.h>
 
 /* Set up the callback function, which will also do the processing of the results */
 void
@@ -42,7 +47,7 @@ this_callbackfn(struct getdns_context_t *this_context,
 {
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE) {	/* This is a callback with data */
 		char *res = getdns_pretty_print_dict(this_response);
-		fprintf(stdout, "%s", res);
+		fprintf(stdout, "%s\n", res);
 		getdns_dict_destroy(this_response);
 		free(res);
 

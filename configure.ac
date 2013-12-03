@@ -5,12 +5,15 @@
 # @configure_input@
 #
 
-AC_PREREQ([2.68])
+AC_PREREQ([2.56])
 AC_INIT([getdns], [0.1.0], [melinda.shore@nomountain.net])
 AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 # AM_INIT_AUTOMAKE
 # LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
+
+AC_PROG_CC
+AC_PROG_CPP
 
 # Checks for programs.
 AC_CANONICAL_HOST
@@ -21,13 +24,99 @@ case "$host_os" in
   ;;     
 esac
 
-AC_PROG_CC
-AC_PROG_CPP
+# always use ./libtool unless override from commandline (libtool=mylibtool)
+if test -z "$libtool"; then
+	libtool="`pwd`/libtool"
+fi
+AC_SUBST(libtool)
+AC_PROG_LIBTOOL
+AC_PROG_INSTALL
+
+dnl Add option to disable the evil rpath. Check whether to use rpath or not.
+dnl Adds the --disable-rpath option. Uses trick to edit the ./libtool.
+AC_DEFUN([ACX_ARG_RPATH],
+[
+AC_ARG_ENABLE(rpath,
+        [  --disable-rpath         disable hardcoded rpath (default=enabled)],
+	enable_rpath=$enableval, enable_rpath=yes)
+if test "x$enable_rpath" = xno; then
+	dnl AC_MSG_RESULT([Fixing libtool for -rpath problems.])
+	AC_CONFIG_COMMANDS([disable-rpath], [
+	sed < libtool > libtool-2 \
+	's/^hardcode_libdir_flag_spec.*$'/'hardcode_libdir_flag_spec=" -D__LIBTOOL_RPATH_SED__ "/'
+	mv libtool-2 libtool
+	chmod 755 libtool
+	libtool="./libtool"
+	])
+fi
+])
+ACX_ARG_RPATH
+
+# search to set include and library paths right
+# find libidn
+AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=pathname],
+	[path to libidn (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/idna.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
+		fi
+	done
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	fi
+fi
+
+# find libldns
+AC_ARG_WITH(libldns, AC_HELP_STRING([--with-libldns=pathname],
+	[path to libldns (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/ldns/ldns.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libldns in $dir])
+			break
+		fi
+	done
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	fi
+fi
+
+# find libunbound
+AC_ARG_WITH(libunbound, AC_HELP_STRING([--with-libunbound=pathname],
+	[path to libunbound (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/unbound.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libunbound in $dir])
+			break
+		fi
+	done
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	fi
+fi
 
 # Checks for libraries.
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
-AC_CHECK_LIB([event_core], [event_base_new], [], [found_all_libs=0])
+AC_SEARCH_LIBS([event_base_new], [event_core event], [], [found_all_libs=0])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
@@ -52,7 +141,7 @@ if test -z "$DOXYGEN";
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h event2/event.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
@@ -66,6 +155,5 @@ AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile 
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
-
-AC_CONFIG_SUBDIRS([src/ src/getdns/ src/example/ src/test/ doc/])
+AC_CONFIG_HEADER([src/config.h])
 AC_OUTPUT

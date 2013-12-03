@@ -10,14 +10,15 @@ distdir = $(tarname)-$(version)
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
+LIBTOOL = @libtool@
 
 srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=gcc
 CFLAGS=@CFLAGS@ -Wall -g -fPIC -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99 $(cflags)
-LDFLAGS=@LDFLAGS@ -L. -L$(srcdir)/.. -L/usr/local/lib 
-LDLIBS=-lgetdns -lldns -levent_core -lunbound
+LDFLAGS=@LDFLAGS@ -L. -L.. -L/usr/local/lib 
+LDLIBS=-lgetdns @LIBS@
 PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync
 
 .SUFFIXES: .c .o .a .lo .h
@@ -30,15 +31,24 @@ default: all
 all: $(PROGRAMS)
 
 tests_dict: tests_dict.o testmessages.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dict.o testmessages.o
 
 tests_list: tests_list.o testmessages.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_list.o testmessages.o
 
 tests_stub_async: tests_stub_async.o testmessages.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_async.o testmessages.o
 
 tests_stub_sync: tests_stub_sync.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_sync.o
+
+test:	all
+	./testscript.sh
+	@echo "All tests OK"
 
 clean:
 	rm -f *.o $(PROGRAMS)
+	rm -rf .libs
 
 distclean : clean
 	rm -f Makefile config.status config.log
@@ -73,4 +83,4 @@ Makefile: Makefile.in ../../config.status
 configure.status: configure
 	cd ../.. && ./config.status --recheck
 
-.PHONY: clean
+.PHONY: clean test

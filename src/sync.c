@@ -33,8 +33,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#  include <event2/event.h>
+#else
+#  include <event.h>
+#endif
 #include <getdns/getdns.h>
-#include <event2/event.h>
 #include <unbound-event.h>
 #include "context.h"
 #include "general.h"

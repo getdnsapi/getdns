@@ -49,18 +49,25 @@ External Dependencies
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
 * [libevent](http://libevent.org) version 2.0.21 stable
+Sometimes called libevent2
 * [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.16 (ldns may require openssl headers and libraries)
 * [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 3012, configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only).
+* [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
-Assuming that the getdns sources are in a diretory named getdns in your home directory, to build libunbound (note that the svn checkout may take a while):
+You have to install the library and also the library-devel (or -dev) for your
+package management system to install the compile time files.  If you checked
+out our git; the configure script is built with autoreconf --install.
+
+Assuming that the getdns sources are in a diretory named getdns in your home directory, to build libunbound:
 ```
 # mkdir unbound
 # cd unbound
-# svn checkout -r 3012 http://unbound.nlnetlabs.nl/svn
-# cd svn/trunk
+# svn export -r 3012 http://unbound.nlnetlabs.nl/svn/trunk
+# cd trunk
 # ./configure --with-libevent --with-libunbound-only
+### add --disable-gost --disable-ecdsa if elliptic curves are disabled for you.
 # make
 # make install
 ```
