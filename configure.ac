@@ -65,7 +65,18 @@ if test x_$withval = x_yes; then
 			AC_MSG_NOTICE([Found libidn in $dir])
 			break
 		fi
+		if test -f "$dir/include/idn/idna.h"; then
+			CFLAGS="$CFLAGS -I$dir/include/idn"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
+		fi
 	done
+	if test -f "/usr/include/idn/idna.h"; then
+		CFLAGS="$CFLAGS -I/usr/include/idn"
+		#LDFLAGS="$LDFLAGS -L/usr/lib"
+		AC_MSG_NOTICE([Found libidn in /usr])
+	fi
 else
 	if test x_$withval != x_no; then
 		CFLAGS="$CFLAGS -I$withval/include"
@@ -116,7 +127,7 @@ fi
 # Checks for libraries.
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
-AC_SEARCH_LIBS([event_base_new], [event_core event], [], [found_all_libs=0])
+AC_SEARCH_LIBS([event_loop], [event_core event], [], [found_all_libs=0])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
@@ -150,6 +161,16 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
+
+AC_CHECK_FUNCS([event_base_new event_base_free])
+AH_BOTTOM([
+#ifndef HAVE_EVENT_BASE_FREE
+#define event_base_free(x) /* nop */
+#endif
+#ifndef HAVE_EVENT_BASE_NEW
+#define event_base_new event_init
+#endif
+])
 
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
