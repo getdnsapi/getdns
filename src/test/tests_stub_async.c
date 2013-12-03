@@ -57,7 +57,7 @@ this_callbackfn(struct getdns_context_t *this_context,
 }
 
 int
-main()
+main(int argc, char** argv)
 {
 	/* Create the DNS context for this call */
 	struct getdns_context_t *this_context = NULL;
@@ -81,7 +81,7 @@ main()
 	(void) getdns_extension_set_libevent_base(this_context,
 	    this_event_base);
 	/* Set up the getdns call */
-	const char *this_name = "www.google.com";
+	const char *this_name = argc > 1 ? argv[1] : "www.google.com";
 	char *this_userarg = "somestring";	// Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
 
