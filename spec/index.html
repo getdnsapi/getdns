@@ -96,7 +96,7 @@ tr.code { font-family: monospace }
 </head><body>
 
 <p class=title>Description of the <code>getdns</code> API</p>
-<p class=title2>Paul Hoffman &amp; Willem Toorop, Editor</p>
+<p class=title2>Paul Hoffman, Editor</p>
 <p class=title2>Document version: "getdns November 2013"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
@@ -1004,15 +1004,15 @@ getdns_convert_fqdn_to_dns_name(
 <div class=forh id="Various">typedef struct getdns_context_t *getdns_context_t;
 typedef uint16_t   getdns_return_t;
 typedef uint64_t   getdns_transaction_t;
-typedef enum some_data_type {
+typedef enum getdns_data_type {
     t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
 typedef struct getdns_bindata {
     size_t size;
-    uint8_t *binary_stuff;
-} some_bindata;
-typedef struct getdns_dict some_dict;
-typedef struct getdns_list some_list;
+    uint8_t *data;
+} getdns_bindata;
+typedef struct getdns_dict getdns_dict;
+typedef struct getdns_list getdns_list;
 </div>
 
 <h2>5.2 <a id="ReturnCodes">Return Codes</a></h2>

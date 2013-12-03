@@ -1,4 +1,4 @@
-/* Created at 2013-11-19-16-53-29*/
+/* Created at 2013-12-03-14-28-54*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -243,15 +243,15 @@
 typedef struct getdns_context_t *getdns_context_t;
 typedef uint16_t   getdns_return_t;
 typedef uint64_t   getdns_transaction_t;
-typedef enum some_data_type {
+typedef enum getdns_data_type {
     t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
 typedef struct getdns_bindata {
     size_t size;
-    uint8_t *binary_stuff;
-} some_bindata;
-typedef struct getdns_dict some_dict;
-typedef struct getdns_list some_list;
+    uint8_t *data;
+} getdns_bindata;
+typedef struct getdns_dict getdns_dict;
+typedef struct getdns_list getdns_list;
 
 /* Helper functions for data structures */
 

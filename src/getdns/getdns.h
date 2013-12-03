@@ -364,84 +364,84 @@ getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
 
 /**
  * get the length of the specified list (returned in *answer)
- * @param list list of any of the supported data types
+ * @param this_list list of any of the supported data types
  * @param answer number of valid items in the list
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is not valid or params are NULL
  */
-getdns_return_t getdns_list_get_length(struct getdns_list *list,
+getdns_return_t getdns_list_get_length(struct getdns_list *this_list,
     size_t * answer);
 /**
  * get the enumerated data type of the indexed list item
- * @param list the list from which to fetch the data type
+ * @param this_list the list from which to fetch the data type
  * @param index the item in the list from which to fetch the data type
  * @param *answer assigned the value of the data type on success
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  */
-getdns_return_t getdns_list_get_data_type(struct getdns_list *list,
+getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list,
     size_t index, getdns_data_type * answer);
 /**
  * retrieve the dictionary value of the specified list item, the caller must not free
  * storage associated with the return value.  When the list is destroyed this
  * dict data is also free()'d - keep this in mind when using this function.
- * @param list the list from which to fetch the value
+ * @param this_list the list from which to fetch the value
  * @param index the item in the list from which to fetch the value
  * @param **answer assigned a pointer to the dict value of the indexed element
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_dict(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index,
     struct getdns_dict **answer);
 
 /**
  * retrieve the list value of the specified list item, the caller must not free
  * storage associated with the return value.  When the list is destroyed any
  * list data is also free()'d - keep this in mind when using this function.
- * @param list the list from which to fetch the value
+ * @param this_list the list from which to fetch the value
  * @param index the item in the list from which to fetch the value
  * @param **answer assigned a pointer to the list value of the indexed element
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_list(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index,
     struct getdns_list **answer);
 /**
  * retrieve the binary data value of the specified list item, the caller must not
  * free storage associated with the return value.  When the list is destroyed any
  * bindata data is also free()'d - keep this in mind when using this function.
- * @param list the list from which to fetch the value
+ * @param this_list the list from which to fetch the value
  * @param index the item in the list from which to fetch the value
  * @param **answer assigned a pointer to the list value of the indexed element
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_bindata(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index,
     struct getdns_bindata **answer);
 /**
  * retrieve the integer value of the specified list item
- * @param list the list from which to fetch the item
+ * @param this_list the list from which to fetch the item
  * @param index the index of the element in the list to fetch from
  * @param *answer assigned the integer value of the indexed element
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_int(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index,
     uint32_t * answer);
 
 /**
  * fetch a list of names from the dictionary, this list must be freed by the caller
  * via a call to getdns_list_destroy
- * @param dict dictionary from which to produce the list of names
+ * @param this_dict dictionary from which to produce the list of names
  * @param **answer a pointer to the new list will be assigned to *answer
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or empty
  */
-getdns_return_t getdns_dict_get_names(struct getdns_dict *dict,
+getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict,
     struct getdns_list **answer);
 /**
  * fetch the data type for the data associated with the specified name
@@ -516,48 +516,48 @@ struct getdns_list *getdns_list_create_with_memory_functions(
  * you MUST copy those instances BEFORE you destroy the list else
  * unpleasant things will happen at run-time
  */
-void getdns_list_destroy(struct getdns_list *list);
+void getdns_list_destroy(struct getdns_list *this_list);
 
 /**
  * assign the child_dict to an item in a parent list, the parent list copies
  * the child dict and will free the copy when the list is destroyed
- * @param list list containing the item to which child_list is to be assigned
+ * @param this_list list containing the item to which child_list is to be assigned
  * @param index index of the item within list to which child_list is to be assigned
  * @param *child_list list to assign to the item
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_dict(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index,
     struct getdns_dict *child_dict);
 
 /**
  * assign the child_list to an item in a parent list, the parent list copies
  * the child list and will free the copy when the list is destroyed
- * @param list list containing the item to which child_list is to be assigned
+ * @param this_list list containing the item to which child_list is to be assigned
  * @param index index of the item within list to which child_list is to be assigned
  * @param *child_list list to assign to the item
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_list(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index,
     struct getdns_list *child_list);
 /**
  * assign the child_bindata to an item in a parent list, the parent list copies
  * the child data and will free the copy when the list is destroyed
- * @param list list contiaining the item to which child_list is to be assigned
+ * @param this_list list contiaining the item to which child_list is to be assigned
  * @param index index of the item within list to which child_list is to be assigned
  * @param *child_bindata data to assign to the item
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_bindata(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index,
     struct getdns_bindata *child_bindata);
 /**
  * set the integer value of the indexed item (zero based index)
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
-getdns_return_t getdns_list_set_int(struct getdns_list *list, size_t index,
+getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index,
     uint32_t child_uint32);
 
 /**
@@ -575,38 +575,38 @@ struct getdns_dict *getdns_dict_create_with_memory_functions(
  * be aware that if you have fetched any data from the dictionary it will
  * no longer be available (you are likely to experience bad things if you try)
  */
-void getdns_dict_destroy(struct getdns_dict *dict);
+void getdns_dict_destroy(struct getdns_dict *this_dict);
 
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *dict, char *name,
+getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name,
     struct getdns_dict *child_dict);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_list
- * @param dict dictionary in which to add or change the value
+ * @param this_dict dictionary in which to add or change the value
  * @param name key that identifies which item in the dictionary to add/change
  * @param child_list value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_list(struct getdns_dict *dict, char *name,
+getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name,
     struct getdns_list *child_list);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_bindata
- * @param dict dictionary in which to add or change the value
+ * @param this_dict dictionary in which to add or change the value
  * @param name key that identifies which item in the dictionary to add/change
  * @param child_bindata value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *dict, char *name,
+getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name,
     struct getdns_bindata *child_bindata);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
- * @param dict dictionary in which to add or change the value
+ * @param this_dict dictionary in which to add or change the value
  * @param name key that identifies which item in the dictionary to add/change
  * @param child_uint32 value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_int(struct getdns_dict *dict, char *name,
+getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name,
     uint32_t child_uint32);
 
 /* Callback arguments */
@@ -748,10 +748,10 @@ getdns_validate_dnssec(struct getdns_bindata *record_to_validate,
  * creates a string that describes the dictionary in a human readable form
  * one line per item in the dictionary
  * TODO: maybe this should be json or something machine readable too
- * @param dict dictionary to pretty print
+ * @param this_dict dictionary to pretty print
  * @return character array (caller must free this) containing pretty string
  */
-char *getdns_pretty_print_dict(struct getdns_dict *dict);
+char *getdns_pretty_print_dict(struct getdns_dict *some_dict);
 
 char *getdns_display_ip_address(struct getdns_bindata
     *bindata_of_ipv4_or_ipv6_address);
