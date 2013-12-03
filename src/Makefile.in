@@ -29,7 +29,7 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=gcc
-CFLAGS=@CFLAGS@ -Wall -fPIC -I$(srcdir)/ -I/usr/local/include -std=c99
+CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I/usr/local/include -std=c99
 LDFLAGS=@LDFLAGS@ @LIBS@
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo validate_dnssec.lo \
