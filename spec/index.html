@@ -1215,13 +1215,13 @@ and <code>public_key</code> (a bindata)</p>
 
 <p class=define>NSEC3 (50)</p>
 <p class=descrip><code>hash_algorithm</code> (an int), <code>flags</code> (an int),
-<code>iterations</code> (an int), <code>salt_length</code> (an int), <code>salt</code> (a bindata),
-<code>hash_length</code> (an int), <code>next_hashed_owner_name</code> (a bindata), and
+<code>iterations</code> (an int), <code>salt</code> (a bindata),
+<code>next_hashed_owner_name</code> (a bindata), and
 <code>type_bit_maps</code> (a bindata)</p>
 
 <p class=define>NSEC3PARAM (51)</p>
 <p class=descrip><code>hash_algorithm</code> (an int), <code>flags</code> (an int),
-<code>iterations</code> (an int), <code>salt_length</code> (an int), and
+<code>iterations</code> (an int), and
 <code>salt</code> (a bindata)</p>
 
 <p class=define>TLSA (52)</p>
@@ -1230,9 +1230,9 @@ and <code>public_key</code> (a bindata)</p>
 bindata).</p>
 
 <p class=define>HIP (55)</p>
-<p class=descrip><code>hit_length</code> (an int), <code>pk_algorithm</code> (an int),
-<code>pk_length</code> (an int), <code>hit</code> (a bindata), <code>public_key</code>
-(a bindata), and <code>rendezvous_servers</code> (a bindata)</p>
+<p class=descrip><code>pk_algorithm</code> (an int),
+<code>hit</code> (a bindata), <code>public_key</code>
+(a bindata), and <code>rendezvous_servers</code> (a list) with each element a bindata with the dname of the rendezvous_server.</p>
 
 <p class=define>NINFO (56)</p>
 <p class=descrip><code>ninfo_unknown</code> (a bindata)</p>
@@ -1266,8 +1266,7 @@ bindata).</p>
 <code>node_id</code> (a bindata)</p>
 
 <p class=define>L32 (105)</p>
-<p class=descrip><code>preference</code> (an int), <code>locator32_msbs</code> (a bindata),
-and <code>locator64_lsbs</code> (a bindata)</p>
+<p class=descrip><code>preference</code> (an int) and <code>locator32</code> (a bindata)</p>
 
 <p class=define>L64 (106)</p>
 <p class=descrip><code>preference</code> (an int) and <code>locator64</code> (a bindata)</p>
@@ -2108,7 +2107,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.361.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.362.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
