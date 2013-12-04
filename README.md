@@ -72,6 +72,32 @@ Assuming that the getdns sources are in a diretory named getdns in your home dir
 # make install
 ```
 
+Unsupported Features
+====================
+
+The following API calls are documented in getDNS but *not supported* by the implementation at this time:
+
+* Support for OPT Records in `getdns_general` and variants via the `extensions` parameter.
+* `getdns_convert_dns_name_to_fqdn` and `getdns_convert_fqdn_to_dns_name`
+* EDNS options
+  * `getdns_context_set_edns_do_bit`
+  * `getdns_context_set_edns_version`
+  * `getdns_context_set_edns_extended_rcode`
+* `GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN` with `getdns_context_set_dns_transport`
+* DNS Search suffixes in stub mode
+* DNSSEC
+  * `getdns_context_set_dnssec_trust_anchors`
+  * `getdns_validate_dnssec`
+* Detecting changes to resolv.conf and hosts
+
+Spec Differences
+================
+
+This implementation makes a few modifications to the spec by adding the following methods to the public API:
+
+* `getdns_context_set_memory_functions` replaces `getdns_context_set_memory_allocator`, `getdns_context_set_memory_deallocator`, and `getdns_context_set_memory_reallocator`
+* `getdns_list_create_with_context, `getdns_list_create_with_memory_functions`, `getdns_dict_create_with_context`, and `getdns_dict_create_with_memory_functions` to create lists and dictionaries with context or user supplied memory management functions.
+
 #Supported Platforms
 
 The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.
