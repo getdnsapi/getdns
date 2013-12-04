@@ -1274,6 +1274,12 @@ bindata).</p>
 <p class=define>LP (107)</p>
 <p class=descrip><code>preference</code> (an int) and <code>fqdn</code> (a bindata)</p>
 
+<p class=define>EUI48 (108)</p>
+<p class=descrip><code>eui48_address</code> (a bindata)</p>
+
+<p class=define>EUI64 (109)</p>
+<p class=descrip><code>eui64_address</code> (a bindata)</p>
+
 <p class=define>TKEY (249)</p>
 <p class=descrip><code>algorithm</code> (a bindata), <code>inception</code> (an int),
 <code>expiration</code> (an int), <code>mode</code> (an int), <code>error</code> (an int),
@@ -2107,7 +2113,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.362.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.363.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
