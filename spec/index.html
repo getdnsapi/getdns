@@ -324,13 +324,13 @@ that affect how DNS calls are made. For most applications, a default context is 
 <div class=forh>getdns_return_t
 getdns_context_create(
   getdns_context_t       *context,
-  bool                   set_from_os
+  int                    set_from_os
 );
 </div>
 
 <p class=cont>The call to <code>getdns_context_create</code> immediately returns a context that can
 be used with other API calls; that context contains the API's default values. Most applications will
-want <code>set_from_os</code> set to <code>true</code>.</p>
+want <code>set_from_os</code> set to <code>1</code>.</p>
 
 <p>To clean up the context, including cleaning up all outstanding transactions that were called
 using this context, use the function:</p>
@@ -1385,7 +1385,7 @@ function.</p>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
     <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
-    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
@@ -1533,7 +1533,7 @@ their TTLs.</p>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
     <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
-    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
@@ -1626,7 +1626,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
     <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
     <span class="cm">/* Create the DNS context for this call */</span>
     <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
-    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
@@ -1769,10 +1769,10 @@ a single thread.</p>
 
 <p>See <a href="#ContextInitial">above</a> for the method for creating and destroying
 contexts. When the context is used in the API for the first time and <code>set_from_os</code> is
-<code>true</code>, the API starts replacing some of the values with values from the OS, such as
+<code>1</code>, the API starts replacing some of the values with values from the OS, such as
 those that would be found in res_query(3), /etc/resolv.conf, and so on, then proceeds with the new
 function. Some advanced users will not want the API to change the values to the OS's defaults; if
-<code>set_from_os</code> is <code>false</code>, the API will not do any updates to the initial
+<code>set_from_os</code> is <code>0</code>, the API will not do any updates to the initial
 values based on changes in the OS. For example, this might be useful if the API is acting
 as a stub resolver that is using a specific upstream recursive resolver chosen by the
 application, not the one that might come back from DHCP.</p>
@@ -2112,7 +2112,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.357.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.358.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

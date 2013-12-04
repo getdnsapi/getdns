@@ -3,7 +3,6 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <getdns_libevent.h>
 
 #define UNUSED_PARAM(x) ((void)(x))
@@ -13,7 +12,7 @@ getdns_return_t retregular;
 char * retcharstar;
 
 /* The args */
-bool boolarg;
+int    boolarg;
 char * charstararg;
 getdns_callback_t callbackarg;
 uint16_t regulararg;

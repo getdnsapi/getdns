@@ -1,11 +1,10 @@
-/* Created at 2013-12-04-16-33-53*/
+/* Created at 2013-12-04-16-35-54*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <netinet/in.h>
-#include <stdbool.h>
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
@@ -341,7 +340,7 @@ getdns_service(
 getdns_return_t
 getdns_context_create(
   getdns_context_t       *context,
-  bool                   set_from_os
+  int                    set_from_os
 );
 
 void
