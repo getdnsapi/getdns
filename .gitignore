@@ -10,7 +10,6 @@ Makefile
 *.lo
 *.la
 *.dSYM/
-configure
 config.status
 config.log
 autom4te.cache
@@ -25,6 +24,7 @@ example_simple_answers
 example_synchronous
 example_tree
 src/doc/
+src/config.h
 tests_dict
 tests_list
 tests_stub_async
