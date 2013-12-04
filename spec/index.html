@@ -140,7 +140,7 @@ href="mailto:paul.hoffman@vpnc.org">paul.hoffman@vpnc.org</a>.)</p>
 
 <div class=forh id="getdnsfuncgeneral">getdns_return_t
 getdns_general(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   uint16_t               request_type,
   struct getdns_dict     *extensions,
@@ -208,7 +208,7 @@ href="#ReturnCodes">later in this document</a>.</p>
 
 <div class=forh id="getdnsfuncaddress">getdns_return_t
 getdns_address(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   struct getdns_dict     *extensions,
   void                   *userarg,
@@ -236,7 +236,7 @@ getdns_address(
 
 <div class=forh id="getdnsfunchostname">getdns_return_t
 getdns_hostname(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
   void                   *userarg,
@@ -253,7 +253,7 @@ or "IPv6" (which are case-sensitive)) and <code>address_data</code> (whose value
 
 <div class=forh id="getdnsfuncservice">getdns_return_t
 getdns_service(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   struct getdns_dict     *extensions,
   void                   *userarg,
@@ -277,7 +277,7 @@ returned an error, in which case the callback function is never called.<p>
 as follows:</p>
 <div class=forh id="getdns_callback_t">
 typedef void (*getdns_callback_t)(
-                                  getdns_context_t       context,
+                                  struct getdns_context  *context,
                                   uint16_t               callback_type,
                                   struct getdns_dict     *response,
                                   void                   *userarg,
@@ -323,7 +323,7 @@ that affect how DNS calls are made. For most applications, a default context is 
 
 <div class=forh>getdns_return_t
 getdns_context_create(
-  getdns_context_t       *context,
+  struct getdns_context  **context,
   int                    set_from_os
 );
 </div>
@@ -337,7 +337,7 @@ using this context, use the function:</p>
 
 <div class=forh>void
 getdns_context_destroy(
-  getdns_context_t        context
+  struct getdns_context   *context
 );
 </div>
 
@@ -354,7 +354,7 @@ all of the needed cleanup is done and callbacks are made.</p>
 
 <div class=forh>getdns_return_t
 getdns_cancel_callback(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   getdns_transaction_t   transaction_id
 );
 </div>
@@ -435,7 +435,7 @@ same as the response returned in the callback if you had used the async version 
 
 <div class=forh>getdns_return_t
 getdns_general_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   uint16_t               request_type,
   struct getdns_dict     *extensions,
@@ -445,7 +445,7 @@ getdns_general_sync(
 
 <div class=forh>getdns_return_t
 getdns_address_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
@@ -454,7 +454,7 @@ getdns_address_sync(
 
 <div class=forh>getdns_return_t
 getdns_hostname_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
@@ -463,7 +463,7 @@ getdns_hostname_sync(
 
 <div class=forh>getdns_return_t
 getdns_service_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
@@ -1001,18 +1001,18 @@ getdns_convert_fqdn_to_dns_name(
 
 <h2>5.1 A Few Needed Definitions</h2>
 
-<div class=forh id="Various">typedef struct getdns_context_t *getdns_context_t;
+<div class=forh id="Various">struct getdns_context;
 typedef uint16_t   getdns_return_t;
 typedef uint64_t   getdns_transaction_t;
 typedef enum getdns_data_type {
     t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
-typedef struct getdns_bindata {
+struct getdns_bindata {
     size_t size;
     uint8_t *data;
-} getdns_bindata;
-typedef struct getdns_dict getdns_dict;
-typedef struct getdns_list getdns_list;
+};
+struct getdns_dict;
+struct getdns_list;
 </div>
 
 <h2>5.2 <a id="ReturnCodes">Return Codes</a></h2>
@@ -1339,7 +1339,7 @@ function.</p>
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
                      <span class="kt">uint16_t</span>     <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
@@ -1387,7 +1387,7 @@ function.</p>
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1448,7 +1448,7 @@ their TTLs.</p>
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
                      <span class="kt">getdns_return_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
@@ -1535,7 +1535,7 @@ their TTLs.</p>
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1628,7 +1628,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 <span class="p">{</span>
     <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="kt">getdns_context_t</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1809,8 +1809,8 @@ is not allowed, or <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code> for a failure 
 <div class=forh>
 getdns_return_t
 getdns_context_set_context_update_callback(
-  getdns_context_t       context,
-  void                   (*value)(getdns_context_t context, uint16_t changed_item)
+  struct getdns_context  *context,
+  void                   (*value)(struct getdns_context *context, uint16_t changed_item)
 );</div>
 <p class=cont>The value is a pointer to the callback function that will be
 called when any context is changed. Such changes might be from automatic
@@ -1824,7 +1824,7 @@ specifies which of the context changed; the context codes are listed
 <div class=forh>
 getdns_return_t
 getdns_context_set_resolution_type(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 );</div>
 <p class=cont>Specifies whether DNS queries are performed with nonrecurive lookups or
@@ -1842,7 +1842,7 @@ return <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_namespaces(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   size_t                 namespace_count,
   uint16_t               *namespaces
 );</div>
@@ -1867,7 +1867,7 @@ default is <span class=default>determined by the OS</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_dns_transport(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 );</div>
 <p class=cont>Specifies what transport is used for DNS lookups.
@@ -1880,7 +1880,7 @@ The value is <span class=default>
 <div class=forh>
 getdns_return_t
 getdns_context_set_limit_outstanding_queries(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               limit
 );</div>
 <p class=cont>Specifies limit the number of outstanding DNS queries.
@@ -1892,7 +1892,7 @@ the number of outstanding DNS queries is unlimited.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_timeout(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               timeout
 );</div>
 <p class=cont>Specifies number of seconds the API will wait for request to return.
@@ -1903,7 +1903,7 @@ The default is <span class=default>not specified</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_follow_redirects(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 );</div>
 <p class=cont>Specifies whether or not DNS queries follow redirects.
@@ -1915,7 +1915,7 @@ through CNAME and DNAME to return the CNAME or DNAME, not the eventual target.</
 <div class=forh>
 getdns_return_t
 getdns_context_set_dns_root_servers(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *addresses
 );</div>
 <p class=cont>The list contains dicts that are addresses to be used for looking up top-level
@@ -1928,7 +1928,7 @@ either "IPv4" or "IPv6") and <code>address_data</code> (whose value is a bindata
 <div class=forh>
 getdns_return_t
 getdns_context_set_append_name(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 );</div>
 <p class=cont>Specifies whether to append a suffix to the query string
@@ -1943,7 +1943,7 @@ whether or not to append the suffix given by <code>getdns_context_set_suffix</co
 <div class=forh>
 getdns_return_t
 getdns_context_set_suffix(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *value
 );</div>
 <p class=cont>The value is a list of bindatas that are strings that are
@@ -1959,7 +1959,7 @@ to allow non-ASCII octets and special characters in labels.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_dnssec_trust_anchors(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *value
 );</div>
 <p class=cont>The value is a list of bindatas that are the DNSSEC trust anchors. The default
@@ -1970,7 +1970,7 @@ are expressed as RDATAs from DNSKEY resource records.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 );</div>
 <p class=cont>The value is the number of seconds of skew that is allowed in either direction when
@@ -1990,7 +1990,7 @@ must do its own DNSSEC processing, possibly with the <code>getdns_validate_dnsse
 <div class=forh>
 getdns_return_t
 getdns_context_set_stub_resolution(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *upstream_list
 );</div>
 <p class=cont>The list of dicts define where a stub resolver will send queries. Each dict contains
@@ -2009,7 +2009,7 @@ These come from RFC 2671.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_maximum_udp_payload_size(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 );</div>
 <p class=cont>The value is between 512 and 65535; the default
@@ -2018,7 +2018,7 @@ is <span class=default>512</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_extended_rcode(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint8_t                value
 );</div>
 <p class=cont>The value is between 0 and 255; the default
@@ -2027,7 +2027,7 @@ is <span class=default>0</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_version(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint8_t                value
 );</div>
 <p class=cont>The value is between 0 and 255; the default
@@ -2036,7 +2036,7 @@ is <span class=default>0</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_do_bit(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint8_t                value
 );</div>
 <p class=cont>The value is between 0 and 1; the default
@@ -2047,7 +2047,7 @@ is <span class=default>0</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_memory_allocator(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   void                   (*value)(size_t somesize)
 );</div>
 <p class=cont>The value is a function pointer to the memory allocator; the
@@ -2056,7 +2056,7 @@ default is the <span class=default>malloc</span> function.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_memory_deallocator(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   void                   (*value)(void*)
 );</div>
 <p class=cont>The value is a function pointer to the memory deallocator; the
@@ -2065,7 +2065,7 @@ default is the <span class=default>free</span> function.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_memory_reallocator(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   void                   (*value)(void*)
 );</div>
 <p class=cont>The value is a function pointer to the memory reallocator; the
@@ -2115,7 +2115,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.365.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.366.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

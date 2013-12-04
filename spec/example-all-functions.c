@@ -30,7 +30,7 @@ struct getdns_list ** listptrarg;
 
 size_t sizetarg;
 size_t * sizetptrarg;
-getdns_context_t contextarg = NULL;
+struct getdns_context *contextarg = NULL;
 uint8_t uint8arg;
 uint16_t uint16arg;
 uint32_t uint32arg;
@@ -40,7 +40,7 @@ uint32_t * uint32ptrarg;
 void * arrayarg;
 void allocfunctionarg(size_t foo) {UNUSED_PARAM(foo);}
 void deallocfunctionarg(void* foo) {UNUSED_PARAM(foo);}
-void setcallbackfunctionarg(struct getdns_context_t *foo1, uint16_t foo2)
+void setcallbackfunctionarg(struct getdns_context *foo1, uint16_t foo2)
 	{UNUSED_PARAM(foo1);UNUSED_PARAM(foo2);}
 
 int main()

@@ -9,7 +9,7 @@ int main(){ return(0); }
 
 getdns_return_t
 getdns_general(
-  getdns_context_t           context,
+  struct getdns_context      *context,
   const char                 *name,
   uint16_t                   request_type,
   struct getdns_dict         *extensions,
@@ -22,7 +22,7 @@ UNUSED_PARAM(transaction_id); UNUSED_PARAM(callback); return GETDNS_RETURN_GOOD;
 
 getdns_return_t
 getdns_address(
-  getdns_context_t           context,
+  struct getdns_context      *context,
   const char                 *name,
   struct getdns_dict         *extensions,
   void                       *userarg,
@@ -34,7 +34,7 @@ UNUSED_PARAM(transaction_id); UNUSED_PARAM(callback); return GETDNS_RETURN_GOOD;
 
 getdns_return_t
 getdns_hostname(
-  getdns_context_t           context,
+  struct getdns_context      *context,
   struct getdns_dict         *address,
   struct getdns_dict         *extensions,
   void                       *userarg,
@@ -46,7 +46,7 @@ UNUSED_PARAM(transaction_id); UNUSED_PARAM(callback); return GETDNS_RETURN_GOOD;
 
 getdns_return_t
 getdns_service(
-  getdns_context_t           context,
+  struct getdns_context      *context,
   const char                 *name,
   struct getdns_dict         *extensions,
   void                       *userarg,
@@ -58,27 +58,27 @@ UNUSED_PARAM(transaction_id); UNUSED_PARAM(callback); return GETDNS_RETURN_GOOD;
 
 getdns_return_t
 getdns_context_create(
-    getdns_context_t       *context,
+    struct getdns_context   **context,
     int                     set_from_os
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(set_from_os); return GETDNS_RETURN_GOOD; }
 
 void
 getdns_context_destroy(
-	getdns_context_t       context
+	struct getdns_context  *context
 )
 { UNUSED_PARAM(context); }
 
 getdns_return_t
 getdns_cancel_callback(
-	getdns_context_t           context,
+	struct getdns_context      *context,
 	getdns_transaction_t       transaction_id
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(transaction_id); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_general_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   uint16_t               request_type,
   struct getdns_dict     *extensions,
@@ -89,7 +89,7 @@ UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_address_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
@@ -99,7 +99,7 @@ UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_hostname_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_dict     *address,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
@@ -109,7 +109,7 @@ UNUSED_PARAM(response); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_service_sync(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   const char             *name,
   struct getdns_dict     *extensions,
   struct getdns_dict     **response
@@ -243,28 +243,28 @@ getdns_display_ip_address(
 
 getdns_return_t
 getdns_context_set_context_update_callback(
-  getdns_context_t       context,
-  void                   (*value)(getdns_context_t context, uint16_t changed_item)
+  struct getdns_context  *context,
+  void                   (*value)(struct getdns_context *context, uint16_t changed_item)
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_context_update(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_resolution_type(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_namespaces(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   size_t                 namespace_count,
   uint16_t               *namespaces
 )
@@ -273,126 +273,126 @@ return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_dns_transport(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_limit_outstanding_queries(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               limit
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(limit); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_timeout(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               timeout
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(timeout); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_follow_redirects(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_dns_root_servers(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *addresses
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(addresses); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_append_name(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_suffix(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_dnssec_trust_anchors(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_stub_resolution(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct getdns_list     *upstream_list
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(upstream_list); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_edns_maximum_udp_payload_size(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_edns_extended_rcode(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint8_t                value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_edns_version(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint8_t                value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_edns_do_bit(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   uint8_t                value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_memory_allocator(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   void                   (*value)(size_t somesize)
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_memory_deallocator(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   void                   (*value)(void*)
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_memory_reallocator(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   void                   (*value)(void*)
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_extension_set_libevent_base(
-    getdns_context_t       context,
+    struct getdns_context  *context,
     struct event_base      *this_event_base
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(this_event_base); return GETDNS_RETURN_GOOD; }

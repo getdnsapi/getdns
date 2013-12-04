@@ -4,6 +4,6 @@
 /* For libevent, which we are using for these examples */
 getdns_return_t
 getdns_extension_set_libevent_base(
-  getdns_context_t       context,
+  struct getdns_context  *context,
   struct event_base      *this_event_base
 );

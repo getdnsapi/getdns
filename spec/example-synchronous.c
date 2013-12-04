@@ -9,7 +9,7 @@ int main()
 {
 	getdns_return_t this_ret;  /* Holder for all function returns */
 	/* Create the DNS context for this call */
-	struct getdns_context_t *this_context = NULL;
+	struct getdns_context *this_context = NULL;
 	getdns_return_t context_create_return = getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD)
 	{
