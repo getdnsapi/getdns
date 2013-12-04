@@ -59,7 +59,7 @@ UNUSED_PARAM(transaction_id); UNUSED_PARAM(callback); return GETDNS_RETURN_GOOD;
 getdns_return_t
 getdns_context_create(
     getdns_context_t       *context,
-    bool                   set_from_os
+    int                     set_from_os
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(set_from_os); return GETDNS_RETURN_GOOD; }
 

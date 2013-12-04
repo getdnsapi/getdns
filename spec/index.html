@@ -2012,7 +2012,7 @@ getdns_context_set_edns_extended_rcode(
   getdns_context_t       context,
   uint8_t                value
 );</div>
-<p class=cont>The value is between 0 and 256; the default
+<p class=cont>The value is between 0 and 255; the default
 is <span class=default>0</span>.</p>
 
 <div class=forh>
@@ -2021,7 +2021,7 @@ getdns_context_set_edns_version(
   getdns_context_t       context,
   uint8_t                value
 );</div>
-<p class=cont>The value is between 0 and 256; the default
+<p class=cont>The value is between 0 and 255; the default
 is <span class=default>0</span>.</p>
 
 <div class=forh>
@@ -2106,7 +2106,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.359.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.360.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
