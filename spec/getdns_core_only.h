@@ -1,4 +1,4 @@
-/* Created at 2013-12-04-16-43-40*/
+/* Created at 2013-12-04-16-45-05*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -33,6 +33,8 @@
 #define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT "One or more of the extensions have a bad format."
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "A query was made with a context that is using stub resolution and a DNSSEC extension specified."
+#define GETDNS_RETURN_MEMORY_ERROR 310
+#define GETDNS_RETURN_MEMORY_ERROR_TEXT "Unable to allocate the memory required."
 
 /* DNSSEC values */
 #define GETDNS_DNSSEC_SECURE 400
