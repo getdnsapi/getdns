@@ -332,6 +332,25 @@ getdns_context_create(
 be used with other API calls; that context contains the API's default values. Most applications will
 want <code>set_from_os</code> set to <code>1</code>.</p>
 
+<div class=forh>getdns_return_t
+getdns_context_create_with_memory_functions(
+  struct getdns_context  **context,
+  int                    set_from_os,
+  void                   *(*malloc)(size_t),
+  void                   *(*realloc)(void *, size_t),
+  void                   (*free)(void *)
+);
+getdns_return_t
+getdns_context_create_with_extended_memory_functions(
+  struct getdns_context  **context,
+  int                    set_from_os,
+  void                   *userarg,
+  void                   *(*malloc)(void *userarg, size_t),
+  void                   *(*realloc)(void *userarg, void *, size_t),
+  void                   (*free)(void *userarg, void *)
+);
+</div>
+
 <p>To clean up the context, including cleaning up all outstanding transactions that were called
 using this context, use the function:</p>
 
@@ -418,7 +437,7 @@ Definition of main()
 specifically designed to allow an application that wants to process results in polling instead of in
 callbacks to be able to create its own polling interface fairly trivially. Such a program would
 create a data structure for the calls, including their <code>transaction_id</code> and
-<code>userag</code>. The <code>userarg</code> could be the polling data structure or have a pointer to it.
+<code>userarg</code>. The <code>userarg</code> could be the polling data structure or have a pointer to it.
 The application would have just
 one callback function for all requests, and that function would copy the <code>response</code> into
 application memory, update the data structure based on the <code>transaction_id</code> index,
@@ -542,6 +561,20 @@ you need to create a dict. The requisite functions are:</p>
 <div class=forh id="datasetters">
 /* Lists: create, destroy, and set the data at a given position */
 struct getdns_list * getdns_list_create();
+struct getdns_list * getdns_list_create_with_context(
+  struct getdns_context *context
+);
+struct getdns_list * getdns_list_create_with_memory_functions(
+  void *(*malloc)(size_t),
+  void *(*realloc)(void *, size_t),
+  void (*free)(void *)
+);
+struct getdns_list * getdns_list_create_with_extended_memory_functions(
+  void *userarg,
+  void *(*malloc)(void *userarg, size_t),
+  void *(*realloc)(void *userarg, void *, size_t),
+  void (*free)(void *userarg, void *)
+);
 void getdns_list_destroy(struct getdns_list *this_list);
 getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict);
 getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, struct getdns_list *child_list);
@@ -550,6 +583,20 @@ getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index,
 
 /* Dicts: create, destroy, and set the data at a given name */
 struct getdns_dict * getdns_dict_create();
+struct getdns_dict * getdns_dict_create_with_context(
+  struct getdns_context *context
+);
+struct getdns_dict * getdns_dict_create_with_memory_functions(
+  void *(*malloc)(size_t),
+  void *(*realloc)(void *, size_t),
+  void (*free)(void *)
+);
+struct getdns_dict * getdns_dict_create_with_extended_memory_functions(
+  void *userarg,
+  void *(*malloc)(void *userarg, size_t),
+  void *(*realloc)(void *userarg, void *, size_t),
+  void (*free)(void *userarg, void *)
+);
 void getdns_dict_destroy(struct getdns_dict *this_dict);
 getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict);
 getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list);
@@ -2042,34 +2089,32 @@ getdns_context_set_edns_do_bit(
 <p class=cont>The value is between 0 and 1; the default
 is <span class=default>0</span>.</p>
 
-<h2>8.9 Context Use of C Functions</h2>
+<h2>8.9 Context use of custom memory management functions</h2>
 
 <div class=forh>
 getdns_return_t
-getdns_context_set_memory_allocator(
-  struct getdns_context  *context,
-  void                   (*value)(size_t somesize)
+getdns_context_set_memory_functions(
+  struct getdns_context *context,
+  void                  *(*malloc) (size_t),
+  void                  *(*realloc) (void *, size_t),
+  void                  (*free) (void *)
 );</div>
-<p class=cont>The value is a function pointer to the memory allocator; the
-default is the <span class=default>malloc</span> function.</p>
+<p class=cont>The given memory management functions will be used for creating the response dicts.
+The response dicts inherit the custom memory management functions from the context and will deallocate themselves (and their members) with the custom deallocator.
+By default the system <span class=default>malloc</span>, <span class=default>realloc</span> and <span>free</span> are used.</p>
 
 <div class=forh>
 getdns_return_t
-getdns_context_set_memory_deallocator(
-  struct getdns_context  *context,
-  void                   (*value)(void*)
+getdns_context_set_extended_memory_functions(
+  struct getdns_context *context,
+  void                  *userarg,
+  void                  *(*malloc)(void *userarg, size_t sz),
+  void                  *(*realloc)(void *userarg, void *ptr, size_t sz),
+  void                  (*free)(void *userarg, void *ptr)
 );</div>
-<p class=cont>The value is a function pointer to the memory deallocator; the
-default is the <span class=default>free</span> function.</p>
-
-<div class=forh>
-getdns_return_t
-getdns_context_set_memory_reallocator(
-  struct getdns_context  *context,
-  void                   (*value)(void*)
-);</div>
-<p class=cont>The value is a function pointer to the memory reallocator; the
-default is the <span class=default>realloc</span> function.</p>
+<p class=cont><p class=cont>The given extended memory management functions will be used for creating the response dicts.
+The value of <code>userarg</code> argument will be passed to the custom <code>malloc<code>, <code>realloc</code> and <code>free</code>.
+The response dicts inherit the custom memory management functions and the value for <code>userarg</code> from the context and will deallocate themselves (and their members) with the custom deallocator.</p>
 
 <h2>8.10 <a id="ContextCodes">Context Codes</a></h2>
 
@@ -2115,7 +2160,7 @@ default is the <span class=default>realloc</span> function.</p>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.366.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.367.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

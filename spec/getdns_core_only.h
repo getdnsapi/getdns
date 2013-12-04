@@ -1,4 +1,4 @@
-/* Created at 2013-12-04-16-46-17*/
+/* Created at 2013-12-04-16-47-24*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -279,6 +279,20 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, u
 
 /* Lists: create, destroy, and set the data at a given position */
 struct getdns_list * getdns_list_create();
+struct getdns_list * getdns_list_create_with_context(
+  struct getdns_context *context
+);
+struct getdns_list * getdns_list_create_with_memory_functions(
+  void *(*malloc)(size_t),
+  void *(*realloc)(void *, size_t),
+  void (*free)(void *)
+);
+struct getdns_list * getdns_list_create_with_extended_memory_functions(
+  void *userarg,
+  void *(*malloc)(void *userarg, size_t),
+  void *(*realloc)(void *userarg, void *, size_t),
+  void (*free)(void *userarg, void *)
+);
 void getdns_list_destroy(struct getdns_list *this_list);
 getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict);
 getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, struct getdns_list *child_list);
@@ -287,6 +301,20 @@ getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index,
 
 /* Dicts: create, destroy, and set the data at a given name */
 struct getdns_dict * getdns_dict_create();
+struct getdns_dict * getdns_dict_create_with_context(
+  struct getdns_context *context
+);
+struct getdns_dict * getdns_dict_create_with_memory_functions(
+  void *(*malloc)(size_t),
+  void *(*realloc)(void *, size_t),
+  void (*free)(void *)
+);
+struct getdns_dict * getdns_dict_create_with_extended_memory_functions(
+  void *userarg,
+  void *(*malloc)(void *userarg, size_t),
+  void *(*realloc)(void *userarg, void *, size_t),
+  void (*free)(void *userarg, void *)
+);
 void getdns_dict_destroy(struct getdns_dict *this_dict);
 getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict);
 getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list);
@@ -345,6 +373,24 @@ getdns_return_t
 getdns_context_create(
   struct getdns_context  **context,
   int                    set_from_os
+);
+
+getdns_return_t
+getdns_context_create_with_memory_functions(
+  struct getdns_context  **context,
+  int                    set_from_os,
+  void                   *(*malloc)(size_t),
+  void                   *(*realloc)(void *, size_t),
+  void                   (*free)(void *)
+);
+getdns_return_t
+getdns_context_create_with_extended_memory_functions(
+  struct getdns_context  **context,
+  int                    set_from_os,
+  void                   *userarg,
+  void                   *(*malloc)(void *userarg, size_t),
+  void                   *(*realloc)(void *userarg, void *, size_t),
+  void                   (*free)(void *userarg, void *)
 );
 
 void
@@ -532,21 +578,20 @@ getdns_context_set_edns_do_bit(
 );
 
 getdns_return_t
-getdns_context_set_memory_allocator(
-  struct getdns_context  *context,
-  void                   (*value)(size_t somesize)
+getdns_context_set_memory_functions(
+  struct getdns_context *context,
+  void                  *(*malloc) (size_t),
+  void                  *(*realloc) (void *, size_t),
+  void                  (*free) (void *)
 );
 
 getdns_return_t
-getdns_context_set_memory_deallocator(
-  struct getdns_context  *context,
-  void                   (*value)(void*)
-);
-
-getdns_return_t
-getdns_context_set_memory_reallocator(
-  struct getdns_context  *context,
-  void                   (*value)(void*)
+getdns_context_set_extended_memory_functions(
+  struct getdns_context *context,
+  void                  *userarg,
+  void                  *(*malloc)(void *userarg, size_t sz),
+  void                  *(*realloc)(void *userarg, void *ptr, size_t sz),
+  void                  (*free)(void *userarg, void *ptr)
 );
 
 #endif /* GETDNS_H */

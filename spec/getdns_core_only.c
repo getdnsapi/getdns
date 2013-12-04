@@ -63,6 +63,31 @@ getdns_context_create(
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(set_from_os); return GETDNS_RETURN_GOOD; }
 
+getdns_return_t
+getdns_context_create_with_memory_functions(
+  struct getdns_context  **context,
+  int                    set_from_os,
+  void                   *(*malloc)(size_t),
+  void                   *(*realloc)(void *, size_t),
+  void                   (*free)(void *)
+)
+{ UNUSED_PARAM(context); UNUSED_PARAM(set_from_os);
+  UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return GETDNS_RETURN_GOOD; }
+
+getdns_return_t
+getdns_context_create_with_extended_memory_functions(
+  struct getdns_context  **context,
+  int                    set_from_os,
+  void                   *userarg,
+  void                   *(*malloc)(void *userarg, size_t),
+  void                   *(*realloc)(void *userarg, void *, size_t),
+  void                   (*free)(void *userarg, void *)
+)
+{ UNUSED_PARAM(context); UNUSED_PARAM(set_from_os); UNUSED_PARAM(userarg);
+  UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return GETDNS_RETURN_GOOD; }
+
 void
 getdns_context_destroy(
 	struct getdns_context  *context
@@ -162,6 +187,29 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, u
 struct getdns_list * getdns_list_create()
 { return NULL; }
 
+struct getdns_list * getdns_list_create_with_context(
+  struct getdns_context *context
+)
+{ UNUSED_PARAM(context); return NULL; }
+
+struct getdns_list * getdns_list_create_with_memory_functions(
+  void *(*malloc)(size_t),
+  void *(*realloc)(void *, size_t),
+  void (*free)(void *)
+)
+{ UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return NULL; }
+
+struct getdns_list * getdns_list_create_with_extended_memory_functions(
+  void *userarg,
+  void *(*malloc)(void *userarg, size_t),
+  void *(*realloc)(void *userarg, void *, size_t),
+  void (*free)(void *userarg, void *)
+)
+{ UNUSED_PARAM(userarg);
+  UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return NULL; }
+
 void getdns_list_destroy(struct getdns_list *this_list)
 { UNUSED_PARAM(this_list); }
 
@@ -179,6 +227,29 @@ getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index,
 
 struct getdns_dict * getdns_dict_create()
 { return NULL; }
+
+struct getdns_dict * getdns_dict_create_with_context(
+  struct getdns_context *context
+)
+{ UNUSED_PARAM(context); return NULL; }
+
+struct getdns_dict * getdns_dict_create_with_memory_functions(
+  void *(*malloc)(size_t),
+  void *(*realloc)(void *, size_t),
+  void (*free)(void *)
+)
+{ UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return NULL; }
+
+struct getdns_dict * getdns_dict_create_with_extended_memory_functions(
+  void *userarg,
+  void *(*malloc)(void *userarg, size_t),
+  void *(*realloc)(void *userarg, void *, size_t),
+  void (*free)(void *userarg, void *)
+)
+{ UNUSED_PARAM(userarg);
+  UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return NULL; }
 
 void getdns_dict_destroy(struct getdns_dict *this_dict)
 { UNUSED_PARAM(this_dict); }
@@ -370,25 +441,28 @@ getdns_context_set_edns_do_bit(
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
-getdns_context_set_memory_allocator(
-  struct getdns_context  *context,
-  void                   (*value)(size_t somesize)
+getdns_context_set_memory_functions(
+  struct getdns_context *context,
+  void                  *(*malloc) (size_t),
+  void                  *(*realloc) (void *, size_t),
+  void                  (*free) (void *)
 )
-{ UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
+{ UNUSED_PARAM(context); 
+  UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
-getdns_context_set_memory_deallocator(
-  struct getdns_context  *context,
-  void                   (*value)(void*)
+getdns_context_set_extended_memory_functions(
+  struct getdns_context *context,
+  void                  *userarg,
+  void                  *(*malloc)(void *userarg, size_t sz),
+  void                  *(*realloc)(void *userarg, void *ptr, size_t sz),
+  void                  (*free)(void *userarg, void *ptr)
 )
-{ UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
+{ UNUSED_PARAM(context); UNUSED_PARAM(userarg);
+  UNUSED_PARAM(malloc); UNUSED_PARAM(realloc); UNUSED_PARAM(free);
+  return GETDNS_RETURN_GOOD; }
 
-getdns_return_t
-getdns_context_set_memory_reallocator(
-  struct getdns_context  *context,
-  void                   (*value)(void*)
-)
-{ UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_extension_set_libevent_base(

@@ -38,8 +38,17 @@ uint8_t * uint8ptrarg;
 uint16_t * uint16ptrarg;
 uint32_t * uint32ptrarg;
 void * arrayarg;
-void allocfunctionarg(size_t foo) {UNUSED_PARAM(foo);}
+void * userarg;
+void * allocfunctionarg(size_t foo) {UNUSED_PARAM(foo); return NULL; }
+void * reallocfunctionarg(void* foo, size_t bar)
+	{UNUSED_PARAM(foo); UNUSED_PARAM(bar); return NULL; }
 void deallocfunctionarg(void* foo) {UNUSED_PARAM(foo);}
+void * extendedallocfunctionarg(void* userarg, size_t foo)
+	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo); return NULL; }
+void * extendedreallocfunctionarg(void* userarg, void* foo, size_t bar)
+	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo); UNUSED_PARAM(bar); return NULL; }
+void extendeddeallocfunctionarg(void* userarg, void* foo)
+	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo);}
 void setcallbackfunctionarg(struct getdns_context *foo1, uint16_t foo2)
 	{UNUSED_PARAM(foo1);UNUSED_PARAM(foo2);}
 
@@ -86,6 +95,23 @@ retregular = getdns_service(
 retregular = getdns_context_create(
   &contextarg,
   boolarg
+);
+
+retregular = getdns_context_create_with_memory_functions(
+  &contextarg,
+  boolarg,
+  allocfunctionarg,
+  reallocfunctionarg,
+  deallocfunctionarg
+);
+
+retregular = getdns_context_create_with_extended_memory_functions(
+  &contextarg,
+  boolarg,
+  userarg,
+  extendedallocfunctionarg,
+  extendedreallocfunctionarg,
+  extendeddeallocfunctionarg
 );
 
 getdns_context_destroy(
@@ -141,6 +167,18 @@ retregular = getdns_dict_get_bindata(dictarg, charstararg, bindataptrarg);
 retregular = getdns_dict_get_int(dictarg, charstararg, uint32ptrarg);
 
 listarg = getdns_list_create();
+listarg = getdns_list_create_with_context(contextarg);
+listarg = getdns_list_create_with_memory_functions(
+  allocfunctionarg,
+  reallocfunctionarg,
+  deallocfunctionarg
+);
+listarg = getdns_list_create_with_extended_memory_functions(
+  userarg,
+  extendedallocfunctionarg,
+  extendedreallocfunctionarg,
+  extendeddeallocfunctionarg
+);
 getdns_list_destroy(listarg);
 retregular =  getdns_list_set_dict(listarg, sizetarg, dictarg);
 retregular =  getdns_list_set_list(listarg, sizetarg, listarg);
@@ -148,6 +186,18 @@ retregular =  getdns_list_set_bindata(listarg, sizetarg, bindataarg);
 retregular =  getdns_list_set_int(listarg, sizetarg, uint32arg);
 
 dictarg = getdns_dict_create();
+dictarg = getdns_dict_create_with_context(contextarg);
+dictarg = getdns_dict_create_with_memory_functions(
+  allocfunctionarg,
+  reallocfunctionarg,
+  deallocfunctionarg
+);
+dictarg = getdns_dict_create_with_extended_memory_functions(
+  userarg,
+  extendedallocfunctionarg,
+  extendedreallocfunctionarg,
+  extendeddeallocfunctionarg
+);
 getdns_dict_destroy(dictarg);
 retregular =  getdns_dict_set_dict(dictarg, charstararg, dictarg);
 retregular =  getdns_dict_set_list(dictarg, charstararg, listarg);
@@ -270,19 +320,19 @@ retregular = getdns_context_set_edns_do_bit(
   uint8arg
 );
 
-retregular = getdns_context_set_memory_allocator(
+retregular = getdns_context_set_memory_functions(
   contextarg,
-  allocfunctionarg
-);
-
-retregular = getdns_context_set_memory_deallocator(
-  contextarg,
+  allocfunctionarg,
+  reallocfunctionarg,
   deallocfunctionarg
 );
 
-retregular = getdns_context_set_memory_reallocator(
+retregular = getdns_context_set_extended_memory_functions(
   contextarg,
-  deallocfunctionarg
+  userarg,
+  extendedallocfunctionarg,
+  extendedreallocfunctionarg,
+  extendeddeallocfunctionarg
 );
 
 return(0); }  /* End of main() */
