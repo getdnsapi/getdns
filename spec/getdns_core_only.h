@@ -1,4 +1,4 @@
-/* Created at 2013-12-06-14-39-56*/
+/* Created at 2013-12-06-14-44-19*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -115,12 +115,8 @@
 #define GETDNS_CONTEXT_CODE_EDNS_DO_BIT_TEXT "Change related to getdns_context_set_edns_do_bit"
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW 614
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT "Change related to getdns_context_set_dnssec_allowed_skew"
-#define GETDNS_CONTEXT_CODE_MEMORY_ALLOCATOR 615
-#define GETDNS_CONTEXT_CODE_MEMORY_ALLOCATOR_TEXT "Change related to getdns_context_set_memory_allocator"
-#define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR 616
-#define GETDNS_CONTEXT_CODE_MEMORY_DEALLOCATOR_TEXT "Change related to getdns_context_set_memory_deallocator"
-#define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR 617
-#define GETDNS_CONTEXT_CODE_MEMORY_REALLOCATOR_TEXT "Change related to getdns_context_set_memory_reallocator"
+#define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS 615
+#define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT "Change related to getdns_context_set_memory_function"
 
 /* Callback Type Variables */
 #define GETDNS_CALLBACK_COMPLETE 700
