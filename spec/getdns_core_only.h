@@ -1,4 +1,4 @@
-/* Created at 2013-12-04-16-47-24*/
+/* Created at 2013-12-06-14-39-56*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -320,6 +320,7 @@ getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, 
 getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list);
 getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata);
 getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name, uint32_t child_uint32);
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
 
 /* Callback arguments */
 typedef void (*getdns_callback_t)(

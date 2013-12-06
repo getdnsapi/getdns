@@ -266,6 +266,9 @@ getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *nam
 getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name, uint32_t child_uint32)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_uint32); return GETDNS_RETURN_GOOD; }
 
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name)
+{ UNUSED_PARAM(this_dict); UNUSED_PARAM(name); return GETDNS_RETURN_GOOD; }
+
 char *
 getdns_convert_dns_name_to_fqdn(
   char  *name_from_dns_response

@@ -203,6 +203,7 @@ retregular =  getdns_dict_set_dict(dictarg, charstararg, dictarg);
 retregular =  getdns_dict_set_list(dictarg, charstararg, listarg);
 retregular =  getdns_dict_set_bindata(dictarg, charstararg, bindataarg);
 retregular =  getdns_dict_set_int(dictarg, charstararg, uint32arg);
+retregular =  getdns_dict_remove_name(dictarg, charstararg);
 
 retcharstar =  getdns_convert_fqdn_to_dns_name(
   charstararg

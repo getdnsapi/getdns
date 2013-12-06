@@ -97,7 +97,7 @@ tr.code { font-family: monospace }
 
 <p class=title>Description of the <code>getdns</code> API</p>
 <p class=title2>Paul Hoffman, Editor</p>
-<p class=title2>Document version: "getdns November 2013"</p>
+<p class=title2>Document version: "getdns December 2013"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -602,13 +602,20 @@ getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, 
 getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list);
 getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata);
 getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name, uint32_t child_uint32);
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
 </div>
 
+<p>Lists are extended with the <code>getdns_list_set_</code> calls with the <code>index</code> set to the
+size of the list (such as 0 for an empty list). Dicts are extended with the <code>getdns_dict_set_</code> calls
+with the <code>name</code> set to a name that does not yet exist. Name-value pairs are removed with
+<code>getdns_dict_remove_name()</code>.</p>
+
 <p>These helper setter functions return <code>GETDNS_RETURN_GOOD</code> if the call is successful.
-The list functions will return <code>GETDNS_RETURN_NO_SUCH_LIST_ITEM</code> if the index argument is
-out of range; the dict functions will return <code>GETDNS_RETURN_NO_SUCH_DICT_NAME</code> if the name
-argument doesn't exist in the dict. The functions also return <code>GETDNS_RETURN_WRONG_TYPE_REQUESTED</code>
-if the requested data type doesn't match the contents of the indexed argument or name.</p>
+The functions return <code>GETDNS_RETURN_WRONG_TYPE_REQUESTED</code> if the requested data type
+doesn't match the contents of the indexed argument or name. The list functions will return
+<code>GETDNS_RETURN_NO_SUCH_LIST_ITEM</code> if the index argument is higher than the length of the
+list. <code>getdns_dict_remove_name()</code> will return
+<code>GETDNS_RETURN_NO_SUCH_DICT_NAME</code> if the name argument doesn't exist in the dict. </p>
 
 <h1>3. <a id="Extensions">Extensions</a></h1>
 
@@ -2089,7 +2096,7 @@ getdns_context_set_edns_do_bit(
 <p class=cont>The value is between 0 and 1; the default
 is <span class=default>0</span>.</p>
 
-<h2>8.9 Context use of custom memory management functions</h2>
+<h2>8.9 Context Use of Custom Memory Management Functions</h2>
 
 <div class=forh>
 getdns_return_t
@@ -2101,7 +2108,7 @@ getdns_context_set_memory_functions(
 );</div>
 <p class=cont>The given memory management functions will be used for creating the response dicts.
 The response dicts inherit the custom memory management functions from the context and will deallocate themselves (and their members) with the custom deallocator.
-By default the system <span class=default>malloc</span>, <span class=default>realloc</span> and <span>free</span> are used.</p>
+By default, the system <span class=default>malloc</span>, <span class=default>realloc</span>, and <span>free</span> are used.</p>
 
 <div class=forh>
 getdns_return_t
@@ -2112,8 +2119,8 @@ getdns_context_set_extended_memory_functions(
   void                  *(*realloc)(void *userarg, void *ptr, size_t sz),
   void                  (*free)(void *userarg, void *ptr)
 );</div>
-<p class=cont><p class=cont>The given extended memory management functions will be used for creating the response dicts.
-The value of <code>userarg</code> argument will be passed to the custom <code>malloc<code>, <code>realloc</code> and <code>free</code>.
+<p class=cont>The given extended memory management functions will be used for creating the response dicts.
+The value of <code>userarg</code> argument will be passed to the custom <code>malloc<code>, <code>realloc</code>, and <code>free</code>.
 The response dicts inherit the custom memory management functions and the value for <code>userarg</code> from the context and will deallocate themselves (and their members) with the custom deallocator.</p>
 
 <h2>8.10 <a id="ContextCodes">Context Codes</a></h2>
