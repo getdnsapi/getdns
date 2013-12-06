@@ -50,29 +50,29 @@ struct event_base;
  * @{
  */
 #define GETDNS_RETURN_GOOD 0
-#define GETDNS_RETURN_GOOD_TEXT Good
+#define GETDNS_RETURN_GOOD_TEXT "Good"
 #define GETDNS_RETURN_GENERIC_ERROR 1
-#define GETDNS_RETURN_GENERIC_ERROR_TEXT Generic error
+#define GETDNS_RETURN_GENERIC_ERROR_TEXT "Generic error"
 #define GETDNS_RETURN_BAD_DOMAIN_NAME 300
-#define GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT Badly-formed domain name
+#define GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT "Badly-formed domain name"
 #define GETDNS_RETURN_BAD_CONTEXT 301
-#define GETDNS_RETURN_BAD_CONTEXT_TEXT Bad context type 
+#define GETDNS_RETURN_BAD_CONTEXT_TEXT "Bad context type"
 #define GETDNS_RETURN_CONTEXT_UPDATE_FAIL 302
-#define GETDNS_RETURN_CONTEXT_UPDATE_FAIL_TEXT Context update failure
+#define GETDNS_RETURN_CONTEXT_UPDATE_FAIL_TEXT "Context update failure"
 #define GETDNS_RETURN_UNKNOWN_TRANSACTION 303
-#define GETDNS_RETURN_UNKNOWN_TRANSACTION_TEXT Unknown transaction id
+#define GETDNS_RETURN_UNKNOWN_TRANSACTION_TEXT "Unknown transaction id"
 #define GETDNS_RETURN_NO_SUCH_LIST_ITEM 304
-#define GETDNS_RETURN_NO_SUCH_LIST_ITEM_TEXT List index out of bounds
+#define GETDNS_RETURN_NO_SUCH_LIST_ITEM_TEXT "List index out of bounds"
 #define GETDNS_RETURN_NO_SUCH_DICT_NAME 305
-#define GETDNS_RETURN_NO_SUCH_DICT_NAME_TEXT Key not found in dict
+#define GETDNS_RETURN_NO_SUCH_DICT_NAME_TEXT "Key not found in dict"
 #define GETDNS_RETURN_WRONG_TYPE_REQUESTED 306
-#define GETDNS_RETURN_WRONG_TYPE_REQUESTED_TEXT Incorrect type in request
+#define GETDNS_RETURN_WRONG_TYPE_REQUESTED_TEXT "Incorrect type in request"
 #define GETDNS_RETURN_NO_SUCH_EXTENSION 307
-#define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT Invalid extension name
+#define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT "Invalid extension name"
 #define GETDNS_RETURN_EXTENSION_MISFORMAT 308
-#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT Extension format error
+#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT "Extension format error"
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
-#define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT Query with DNSSEC extensions and stub resolution not permitted
+#define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "Query with DNSSEC extensions and stub resolution not permitted"
 
 /** @}
  */
@@ -82,56 +82,54 @@ struct event_base;
  * @{
  */
 #define GETDNS_DNSSEC_SECURE 400
-#define GETDNS_DNSSEC_SECURE_TEXT The record was determined to be secure in DNSSEC
+#define GETDNS_DNSSEC_SECURE_TEXT "The record was determined to be secure in DNSSEC"
 #define GETDNS_DNSSEC_BOGUS 401
-#define GETDNS_DNSSEC_BOGUS_TEXT The record was determined to be bogus in DNSSEC
+#define GETDNS_DNSSEC_BOGUS_TEXT "The record was determined to be bogus in DNSSEC"
 #define GETDNS_DNSSEC_INDETERMINATE 402
-#define GETDNS_DNSSEC_INDETERMINATE_TEXT The record was not determined to be any state in DNSSEC
+#define GETDNS_DNSSEC_INDETERMINATE_TEXT "The record was not determined to be any state in DNSSEC"
 #define GETDNS_DNSSEC_INSECURE 403
-#define GETDNS_DNSSEC_INSECURE_TEXT The record was determined to be insecure in DNSSEC
+#define GETDNS_DNSSEC_INSECURE_TEXT "The record was determined to be insecure in DNSSEC"
 #define GETDNS_DNSSEC_NOT_PERFORMED 404
-#define GETDNS_DNSSEC_NOT_PERFORMED_TEXT DNSSEC validation was not performed (only used for debugging)
-/** @}
- */
+#define GETDNS_DNSSEC_NOT_PERFORMED_TEXT "DNSSEC validation was not performed (only used for debugging)"
 
 /**
  * \defgroup contextvars Context variables
  * @{
  */
 #define GETDNS_CONTEXT_NAMESPACE_DNS 500
-#define GETDNS_CONTEXT_NAMESPACE_DNS_TEXT See getdns_context_set_namespaces()
+#define GETDNS_CONTEXT_NAMESPACE_DNS_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_CONTEXT_NAMESPACE_LOCALNAMES 501
-#define GETDNS_CONTEXT_NAMESPACE_LOCALNAMES_TEXT See getdns_context_set_namespaces()
+#define GETDNS_CONTEXT_NAMESPACE_LOCALNAMES_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_CONTEXT_NAMESPACE_NETBIOS 502
-#define GETDNS_CONTEXT_NAMESPACE_NETBIOS_TEXT See getdns_context_set_namespaces()
+#define GETDNS_CONTEXT_NAMESPACE_NETBIOS_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_CONTEXT_NAMESPACE_MDNS 503
-#define GETDNS_CONTEXT_NAMESPACE_MDNS_TEXT See getdns_context_set_namespaces()
+#define GETDNS_CONTEXT_NAMESPACE_MDNS_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_CONTEXT_NAMESPACE_NIS 504
-#define GETDNS_CONTEXT_NAMESPACE_NIS_TEXT See getdns_context_set_namespaces()
+#define GETDNS_CONTEXT_NAMESPACE_NIS_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_CONTEXT_STUB 505
-#define GETDNS_CONTEXT_STUB_TEXT See getdns_context_set_resolution_type()
+#define GETDNS_CONTEXT_STUB_TEXT "See getdns_context_set_resolution_type()"
 #define GETDNS_CONTEXT_RECURSING 506
-#define GETDNS_CONTEXT_RECURSING_TEXT See getdns_context_set_resolution_type()
+#define GETDNS_CONTEXT_RECURSING_TEXT "See getdns_context_set_resolution_type()"
 #define GETDNS_CONTEXT_FOLLOW_REDIRECTS 507
-#define GETDNS_CONTEXT_FOLLOW_REDIRECTS_TEXT See getdns_context_set_follow_redirects()
+#define GETDNS_CONTEXT_FOLLOW_REDIRECTS_TEXT "See getdns_context_set_follow_redirects()"
 #define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS 508
-#define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS_TEXT See getdns_context_set_follow_redirects()
+#define GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS_TEXT "See getdns_context_set_follow_redirects()"
 #define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP 509
-#define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT See getdns_context_set_dns_transport()
+#define GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_CONTEXT_UDP_ONLY 510
-#define GETDNS_CONTEXT_UDP_ONLY_TEXT See getdns_context_set_dns_transport()
+#define GETDNS_CONTEXT_UDP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_CONTEXT_TCP_ONLY 511
-#define GETDNS_CONTEXT_TCP_ONLY_TEXT See getdns_context_set_dns_transport()
+#define GETDNS_CONTEXT_TCP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN 512
-#define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT See getdns_context_set_dns_transport()
+#define GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_CONTEXT_APPEND_NAME_ALWAYS 513
-#define GETDNS_CONTEXT_APPEND_NAME_ALWAYS_TEXT See getdns_context_set_append_name()
+#define GETDNS_CONTEXT_APPEND_NAME_ALWAYS_TEXT "See getdns_context_set_append_name()"
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE 514
-#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
+#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE_TEXT "See getdns_context_set_append_name()"
 #define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE 515
-#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT See getdns_context_set_append_name()
+#define GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT "See getdns_context_set_append_name()"
 #define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES 516
-#define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES_TEXT See getdns_context_set_append_name()
+#define GETDNS_CONTEXT_DO_NOT_APPEND_NAMES_TEXT "See getdns_context_set_append_name()"
 /** @}
  */
 
@@ -140,35 +138,35 @@ struct event_base;
  * @{
  */
 #define GETDNS_CONTEXT_CODE_NAMESPACES 600
-#define GETDNS_CONTEXT_CODE_NAMESPACES_TEXT Change related to getdns_context_set_namespaces
+#define GETDNS_CONTEXT_CODE_NAMESPACES_TEXT "Change related to getdns_context_set_namespaces"
 #define GETDNS_CONTEXT_CODE_RESOLUTION_TYPE 601
-#define GETDNS_CONTEXT_CODE_RESOLUTION_TYPE_TEXT Change related to getdns_context_set_resolution_type
+#define GETDNS_CONTEXT_CODE_RESOLUTION_TYPE_TEXT "Change related to getdns_context_set_resolution_type"
 #define GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS 602
-#define GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS_TEXT Change related to getdns_context_set_follow_redirects
+#define GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS_TEXT "Change related to getdns_context_set_follow_redirects"
 #define GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS 603
-#define GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS_TEXT Change related to getdns_context_set_upstream_recursive_servers
+#define GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS_TEXT "Change related to getdns_context_set_upstream_recursive_servers"
 #define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS 604
-#define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS_TEXT Change related to getdns_context_set_dns_root_servers
+#define GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS_TEXT "Change related to getdns_context_set_dns_root_servers"
 #define GETDNS_CONTEXT_CODE_DNS_TRANSPORT 605
-#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT_TEXT Change related to getdns_context_set_dns_transport
+#define GETDNS_CONTEXT_CODE_DNS_TRANSPORT_TEXT "Change related to getdns_context_set_dns_transport"
 #define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES 606
-#define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES_TEXT Change related to getdns_context_set_limit_outstanding_queries
+#define GETDNS_CONTEXT_CODE_LIMIT_OUTSTANDING_QUERIES_TEXT "Change related to getdns_context_set_limit_outstanding_queries"
 #define GETDNS_CONTEXT_CODE_APPEND_NAME 607
-#define GETDNS_CONTEXT_CODE_APPEND_NAME_TEXT Change related to getdns_context_set_append_name
+#define GETDNS_CONTEXT_CODE_APPEND_NAME_TEXT "Change related to getdns_context_set_append_name"
 #define GETDNS_CONTEXT_CODE_SUFFIX 608
-#define GETDNS_CONTEXT_CODE_SUFFIX_TEXT Change related to getdns_context_set_suffix
+#define GETDNS_CONTEXT_CODE_SUFFIX_TEXT "Change related to getdns_context_set_suffix"
 #define GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS 609
-#define GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS_TEXT Change related to getdns_context_set_dnssec_trust_anchors
+#define GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS_TEXT "Change related to getdns_context_set_dnssec_trust_anchors"
 #define GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE 610
-#define GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE_TEXT Change related to getdns_context_set_edns_maximum_udp_payload_size
+#define GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE_TEXT "Change related to getdns_context_set_edns_maximum_udp_payload_size"
 #define GETDNS_CONTEXT_CODE_EDNS_EXTENDED_RCODE 611
-#define GETDNS_CONTEXT_CODE_EDNS_EXTENDED_RCODE_TEXT Change related to getdns_context_set_edns_extended_rcode
+#define GETDNS_CONTEXT_CODE_EDNS_EXTENDED_RCODE_TEXT "Change related to getdns_context_set_edns_extended_rcode"
 #define GETDNS_CONTEXT_CODE_EDNS_VERSION 612
-#define GETDNS_CONTEXT_CODE_EDNS_VERSION_TEXT Change related to getdns_context_set_edns_version
+#define GETDNS_CONTEXT_CODE_EDNS_VERSION_TEXT "Change related to getdns_context_set_edns_version"
 #define GETDNS_CONTEXT_CODE_EDNS_DO_BIT 613
-#define GETDNS_CONTEXT_CODE_EDNS_DO_BIT_TEXT Change related to getdns_context_set_edns_do_bit
+#define GETDNS_CONTEXT_CODE_EDNS_DO_BIT_TEXT "Change related to getdns_context_set_edns_do_bit"
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW 614
-#define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT Change related to getdns_context_set_dnssec_allowed_skew
+#define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT "Change related to getdns_context_set_dnssec_allowed_skew"
 #define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS 615
 #define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT Change related to getdns_context_set_memory_functions
 #define GETDNS_CONTEXT_CODE_TIMEOUT 616
@@ -181,13 +179,13 @@ struct event_base;
  * @{
  */
 #define GETDNS_CALLBACK_COMPLETE 700
-#define GETDNS_CALLBACK_COMPLETE_TEXT The response has the requested data in it
+#define GETDNS_CALLBACK_COMPLETE_TEXT "The response has the requested data in it"
 #define GETDNS_CALLBACK_CANCEL 701
-#define GETDNS_CALLBACK_CANCEL_TEXT The calling program cancelled the callback; response is NULL
+#define GETDNS_CALLBACK_CANCEL_TEXT "The calling program cancelled the callback; response is NULL"
 #define GETDNS_CALLBACK_TIMEOUT 702
-#define GETDNS_CALLBACK_TIMEOUT_TEXT The requested action timed out; response is NULL
+#define GETDNS_CALLBACK_TIMEOUT_TEXT "The requested action timed out; response is NULL"
 #define GETDNS_CALLBACK_ERROR 703
-#define GETDNS_CALLBACK_ERROR_TEXT The requested action had an error; response is NULL
+#define GETDNS_CALLBACK_ERROR_TEXT "The requested action had an error; response is NULL"
 /** @}
  */
 
@@ -196,9 +194,9 @@ struct event_base;
  * @{
  */
 #define GETDNS_NAMETYPE_DNS 800
-#define GETDNS_NAMETYPE_DNS_TEXT Normal DNS (RFC 1035)
+#define GETDNS_NAMETYPE_DNS_TEXT "Normal DNS (RFC 1035)"
 #define GETDNS_NAMETYPE_WINS 801
-#define GETDNS_NAMETYPE_WINS_TEXT The WINS name service (some reference needed)
+#define GETDNS_NAMETYPE_WINS_TEXT "The WINS name service (some reference needed)"
 /** @}
  */
 
@@ -207,13 +205,13 @@ struct event_base;
  * @{
  */
 #define GETDNS_RESPSTATUS_GOOD 900
-#define GETDNS_RESPSTATUS_GOOD_TEXT At least one response was returned
+#define GETDNS_RESPSTATUS_GOOD_TEXT "At least one response was returned"
 #define GETDNS_RESPSTATUS_NO_NAME 901
-#define GETDNS_RESPSTATUS_NO_NAME_TEXT Queries for the name yielded all negative responses
+#define GETDNS_RESPSTATUS_NO_NAME_TEXT "Queries for the name yielded all negative responses"
 #define GETDNS_RESPSTATUS_ALL_TIMEOUT 902
-#define GETDNS_RESPSTATUS_ALL_TIMEOUT_TEXT All queries for the name timed out
+#define GETDNS_RESPSTATUS_ALL_TIMEOUT_TEXT "All queries for the name timed out"
 #define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS 903
-#define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS_TEXT The context setting for getting only secure responses was specified, and at least one DNS response was received, but no DNS response was determined to be secure through DNSSEC.
+#define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS_TEXT "The context setting for getting only secure responses was specified, and at least one DNS response was received, but no DNS response was determined to be secure through DNSSEC."
 /** @}
  */
 
@@ -222,9 +220,9 @@ struct event_base;
  * @{
  */
 #define GETDNS_EXTENSION_TRUE  1000
-#define GETDNS_EXTENSION_TRUE_TEXT Turn on the extension
+#define GETDNS_EXTENSION_TRUE_TEXT "Turn on the extension"
 #define GETDNS_EXTENSION_FALSE 1001
-#define GETDNS_EXTENSION_FALSE_TEXT Do not turn on the extension
+#define GETDNS_EXTENSION_FALSE_TEXT "Do not turn on the extension"
 /** @}
  */
 
@@ -233,11 +231,11 @@ struct event_base;
  * @{
  */
 #define GETDNS_BAD_DNS_CNAME_IN_TARGET 1100
-#define GETDNS_BAD_DNS_CNAME_IN_TARGET_TEXT A DNS query type that does not allow a target to be a CNAME pointed to a CNAME
+#define GETDNS_BAD_DNS_CNAME_IN_TARGET_TEXT "A DNS query type that does not allow a target to be a CNAME pointed to a CNAME"
 #define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL 1101
-#define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL_TEXT One or more labels in a returned domain name is all-numeric; this is not legal for a hostname
+#define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL_TEXT "One or more labels in a returned domain name is all-numeric; this is not legal for a hostname"
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
-#define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT A DNS query for a type other than CNAME returned a CNAME response
+#define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT "A DNS query for a type other than CNAME returned a CNAME response"
 /** @}
  */
 
