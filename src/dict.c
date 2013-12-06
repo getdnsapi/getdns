@@ -350,7 +350,7 @@ getdns_dict_set_dict(struct getdns_dict * dict, char *name,
 	if (retval != GETDNS_RETURN_GOOD)
 		return retval;
 
-	item = getdns_dict_find(dict, name, 0);
+	item = getdns_dict_find(dict, name, 1);
 	if (!item) {
 		getdns_dict_destroy(newdict);
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
@@ -376,7 +376,7 @@ getdns_dict_set_list(struct getdns_dict * dict, char *name,
 	if (retval != GETDNS_RETURN_GOOD)
 		return retval;
 
-	item = getdns_dict_find(dict, name, 0);
+	item = getdns_dict_find(dict, name, 1);
 	if (!item) {
 		getdns_list_destroy(newlist);
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
@@ -402,7 +402,7 @@ getdns_dict_set_bindata(struct getdns_dict * dict, char *name,
 	if (!newbindata)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-	item = getdns_dict_find(dict, name, 0);
+	item = getdns_dict_find(dict, name, 1);
 	if (!item) {
 		getdns_bindata_destroy(dict->free, newbindata);
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
@@ -422,7 +422,7 @@ getdns_dict_set_int(struct getdns_dict * dict, char *name,
 	if (!dict || !name)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-	item = getdns_dict_find(dict, name, 0);
+	item = getdns_dict_find(dict, name, 1);
 	if (!item)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
