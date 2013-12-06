@@ -78,21 +78,21 @@ getdns_return_t
 getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
 
 /* convert an ip address dict to a sock storage */
-getdns_return_t dict_to_sockaddr(getdns_dict * ns,
+getdns_return_t dict_to_sockaddr(struct getdns_dict * ns,
     struct sockaddr_storage *output);
-getdns_return_t sockaddr_to_dict(getdns_context_t context,
-    struct sockaddr_storage *sockaddr, getdns_dict ** output);
+getdns_return_t sockaddr_to_dict(struct getdns_context *context,
+    struct sockaddr_storage *sockaddr, struct getdns_dict ** output);
 
 struct getdns_dns_req;
-getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
+struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
 
 /* dict util */
 /* set a string as bindata */
-getdns_return_t getdns_dict_util_set_string(getdns_dict * dict, char *name,
+getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict, char *name,
     const char *value);
 
 /* get a string from a dict.  result is valid as long as dict is valid */
-getdns_return_t getdns_dict_util_get_string(getdns_dict * dict, char *name,
+getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict, char *name,
     char **result);
 char *reverse_address(char *addr_str);
 
@@ -104,6 +104,6 @@ char *reverse_address(char *addr_str);
  * @return GETDNS_RETURN_NO_SUCH_EXTENSION A name in the extensions dict is not a valid extension.
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
-getdns_return_t validate_extensions(getdns_dict * extensions);
+getdns_return_t validate_extensions(struct getdns_dict * extensions);
 
 /* util-internal.h */

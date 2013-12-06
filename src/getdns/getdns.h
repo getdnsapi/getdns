@@ -323,7 +323,7 @@ struct event_base;
 /** @}
  */
 
-typedef struct getdns_context_t *getdns_context_t;
+struct getdns_context;
 typedef uint16_t getdns_return_t;
 typedef uint64_t getdns_transaction_t;
 /**
@@ -333,24 +333,24 @@ typedef enum getdns_data_type
 {
 	t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
-typedef struct getdns_bindata
+struct getdns_bindata
 {
 	size_t size;
 	uint8_t *data;
-} getdns_bindata;
+};
 
 /**
  * getdns dictionary data type
  * Use helper functions getdns_dict_* to manipulate and iterate dictionaries
  */
-typedef struct getdns_dict getdns_dict;
+struct getdns_dict;
 
 /**
  * getdns list data type
  * Use helper functions getdns_list_* to manipulate and iterate lists
  * Indexes are 0 based.
  */
-typedef struct getdns_list getdns_list;
+struct getdns_list;
 
 /**
  * translate an error code to a string value, not in the original api description
@@ -504,7 +504,7 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
  * @return pointer to an allocated list, NULL if insufficient memory
  */
 struct getdns_list *getdns_list_create();
-struct getdns_list *getdns_list_create_with_context(getdns_context_t context);
+struct getdns_list *getdns_list_create_with_context(struct getdns_context *context);
 struct getdns_list *getdns_list_create_with_memory_functions(
     void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
     void (*free) (void *));
@@ -565,7 +565,7 @@ getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index,
  * @return pointer to an allocated dictionary, NULL if insufficient memory
  */
 struct getdns_dict *getdns_dict_create();
-struct getdns_dict *getdns_dict_create_with_context(getdns_context_t context);
+struct getdns_dict *getdns_dict_create_with_context(struct getdns_context *context);
 struct getdns_dict *getdns_dict_create_with_memory_functions(
     void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
     void (*free) (void *));
@@ -610,7 +610,7 @@ getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name,
     uint32_t child_uint32);
 
 /* Callback arguments */
-typedef void (*getdns_callback_t) (getdns_context_t context,
+typedef void (*getdns_callback_t) (struct getdns_context *context,
     uint16_t callback_type,
     struct getdns_dict * response,
     void *userarg, getdns_transaction_t transaction_id);
@@ -618,46 +618,46 @@ typedef void (*getdns_callback_t) (getdns_context_t context,
 /* Function definitions */
 
 getdns_return_t
-getdns_general(getdns_context_t context,
+getdns_general(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 getdns_return_t
-getdns_address(getdns_context_t context,
+getdns_address(struct getdns_context *context,
     const char *name,
     struct getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 getdns_return_t
-getdns_hostname(getdns_context_t context,
+getdns_hostname(struct getdns_context *context,
     struct getdns_dict *address,
     struct getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 getdns_return_t
-getdns_service(getdns_context_t context,
+getdns_service(struct getdns_context *context,
     const char *name,
     struct getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 
 getdns_return_t getdns_context_create_with_memory_functions(
-    getdns_context_t * context,
+    struct getdns_context ** context,
     int set_from_os,
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
     );
 
-getdns_return_t getdns_context_create(getdns_context_t * context,
+getdns_return_t getdns_context_create(struct getdns_context ** context,
     int set_from_os);
 
-void getdns_context_destroy(getdns_context_t context);
+void getdns_context_destroy(struct getdns_context *context);
 
 getdns_return_t
-getdns_cancel_callback(getdns_context_t context,
+getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id);
 
 /**
@@ -679,7 +679,7 @@ getdns_cancel_callback(getdns_context_t context,
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_general_sync(getdns_context_t context,
+getdns_general_sync(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
@@ -695,7 +695,7 @@ getdns_general_sync(getdns_context_t context,
 
  */
 getdns_return_t
-getdns_address_sync(getdns_context_t context,
+getdns_address_sync(struct getdns_context *context,
     const char *name,
     struct getdns_dict *extensions,
     struct getdns_dict **response);
@@ -709,7 +709,7 @@ getdns_address_sync(getdns_context_t context,
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_hostname_sync(getdns_context_t context,
+getdns_hostname_sync(struct getdns_context *context,
     struct getdns_dict *address,
     struct getdns_dict *extensions,
     struct getdns_dict **response);
@@ -723,7 +723,7 @@ getdns_hostname_sync(getdns_context_t context,
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_service_sync(getdns_context_t context,
+getdns_service_sync(struct getdns_context *context,
     const char *name,
     struct getdns_dict *extensions,
     struct getdns_dict **response);
@@ -758,75 +758,75 @@ char *getdns_display_ip_address(struct getdns_bindata
 
 /*
 getdns_return_t getdns_context_set_context_update_callback(
-    getdns_context_t context,
-    void (*value) (getdns_context_t context, uint16_t changed_item)
+    struct getdns_context *context,
+    void (*value) (struct getdns_context *context, uint16_t changed_item)
     );
 */
 getdns_return_t
 getdns_context_set_context_update_callback(
-  getdns_context_t       context,
-  void                   (*value)(getdns_context_t context, uint16_t changed_item)
+  struct getdns_context *      context,
+  void                   (*value)(struct getdns_context *context, uint16_t changed_item)
 );
 
 
 getdns_return_t
-getdns_context_set_resolution_type(getdns_context_t context, uint16_t value);
+getdns_context_set_resolution_type(struct getdns_context *context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_namespaces(getdns_context_t context,
+getdns_context_set_namespaces(struct getdns_context *context,
     size_t namespace_count, uint16_t * namespaces);
 
 getdns_return_t
-getdns_context_set_dns_transport(getdns_context_t context, uint16_t value);
+getdns_context_set_dns_transport(struct getdns_context *context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_limit_outstanding_queries(getdns_context_t context,
+getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
     uint16_t limit);
 
 getdns_return_t
-getdns_context_set_timeout(getdns_context_t context, uint16_t timeout);
+getdns_context_set_timeout(struct getdns_context *context, uint16_t timeout);
 
 getdns_return_t
-getdns_context_set_follow_redirects(getdns_context_t context, uint16_t value);
+getdns_context_set_follow_redirects(struct getdns_context *context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_dns_root_servers(getdns_context_t context,
+getdns_context_set_dns_root_servers(struct getdns_context *context,
     struct getdns_list *addresses);
 
 getdns_return_t
-getdns_context_set_append_name(getdns_context_t context, uint16_t value);
+getdns_context_set_append_name(struct getdns_context *context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_suffix(getdns_context_t context, struct getdns_list *value);
+getdns_context_set_suffix(struct getdns_context *context, struct getdns_list *value);
 
 getdns_return_t
-getdns_context_set_dnssec_trust_anchors(getdns_context_t context,
+getdns_context_set_dnssec_trust_anchors(struct getdns_context *context,
     struct getdns_list *value);
 
 getdns_return_t
-getdns_context_set_dnssec_allowed_skew(getdns_context_t context,
+getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     uint16_t value);
 
 getdns_return_t
-getdns_context_set_stub_resolution(getdns_context_t context,
+getdns_context_set_stub_resolution(struct getdns_context *context,
     struct getdns_list *upstream_list);
 
 getdns_return_t
-getdns_context_set_edns_maximum_udp_payload_size(getdns_context_t context,
+getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
     uint16_t value);
 
 getdns_return_t
-getdns_context_set_edns_extended_rcode(getdns_context_t context,
+getdns_context_set_edns_extended_rcode(struct getdns_context *context,
     uint8_t value);
 
 getdns_return_t
-getdns_context_set_edns_version(getdns_context_t context, uint8_t value);
+getdns_context_set_edns_version(struct getdns_context *context, uint8_t value);
 
 getdns_return_t
-getdns_context_set_edns_do_bit(getdns_context_t context, uint8_t value);
+getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value);
 
 getdns_return_t
-getdns_context_set_memory_functions(getdns_context_t context,
+getdns_context_set_memory_functions(struct getdns_context *context,
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
@@ -835,7 +835,7 @@ getdns_context_set_memory_functions(getdns_context_t context,
 /* Extension - refactor to abstract async evt loop */
 /* For libevent, which we are using for these examples */
 getdns_return_t
-getdns_extension_set_libevent_base(getdns_context_t context,
+getdns_extension_set_libevent_base(struct getdns_context *context,
     struct event_base *this_event_base);
 
 #endif /* GETDNS_H */

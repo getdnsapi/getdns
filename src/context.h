@@ -38,10 +38,9 @@ struct ldns_rbtree_t;
 struct ub_ctx;
 
 /** function pointer typedefs */
-typedef void (*getdns_update_callback) (getdns_context_t, uint16_t);
+typedef void (*getdns_update_callback) (struct getdns_context *, uint16_t);
 
-struct getdns_context_t
-{
+struct getdns_context {
 
 	/* Context values */
 	uint16_t resolution_type;
@@ -89,8 +88,7 @@ struct getdns_context_t
  * Sets up the unbound contexts with stub or recursive behavior
  * if needed.
  */
-getdns_return_t getdns_context_prepare_for_resolution(getdns_context_t
-    context);
+getdns_return_t getdns_context_prepare_for_resolution(struct getdns_context *context);
 
 /* track an outbound request */
 getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
@@ -99,7 +97,7 @@ getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
 getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
     *req);
 /* cancel callback internal - flag to indicate if req should be freed and callback fired */
-getdns_return_t getdns_context_cancel_request(getdns_context_t context,
+getdns_return_t getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback);
 
 char *getdns_strdup(void *(*malloc)(size_t), const char *str);

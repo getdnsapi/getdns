@@ -158,13 +158,13 @@ typedef struct getdns_dns_req
 	struct event_base *ev_base;
 
 	/* context that owns the request */
-	getdns_context_t context;
+	struct getdns_context *context;
 
 	/* ub_ctx issuing the request */
 	struct ub_ctx *unbound;
 
 	/* request extensions */
-	getdns_dict *extensions;
+	struct getdns_dict *extensions;
 
 	/* callback data */
 	getdns_callback_t user_callback;
@@ -200,7 +200,7 @@ getdns_network_req *network_req_new(getdns_dns_req * owner,
     uint16_t request_class, struct getdns_dict *extensions);
 
 /* dns request utils */
-getdns_dns_req *dns_req_new(getdns_context_t context,
+getdns_dns_req *dns_req_new(struct getdns_context *context,
     struct ub_ctx *unbound,
     const char *name, uint16_t request_type, struct getdns_dict *extensions);
 

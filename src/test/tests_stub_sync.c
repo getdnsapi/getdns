@@ -33,7 +33,7 @@
 #include <getdns/getdns.h>
 
 static void
-print_response(getdns_dict * response)
+print_response(struct getdns_dict * response)
 {
 	char *dict_str = getdns_pretty_print_dict(response);
 	if (dict_str) {
@@ -46,7 +46,7 @@ int
 main()
 {
 	/* Create the DNS context for this call */
-	struct getdns_context_t *this_context = NULL;
+	struct getdns_context *this_context = NULL;
 	getdns_return_t context_create_return =
 	    getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD) {
@@ -56,7 +56,7 @@ main()
 	}
 	getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
 
-	getdns_dict *response = NULL;
+	struct getdns_dict *response = NULL;
 	getdns_return_t ret =
 	    getdns_address_sync(this_context, "www.google.com", NULL, &response);
 

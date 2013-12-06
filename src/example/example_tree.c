@@ -15,7 +15,7 @@
 
 /* Set up the callback function, which will also do the processing of the results */
 void
-this_callbackfn(struct getdns_context_t *this_context,
+this_callbackfn(struct getdns_context *this_context,
     getdns_return_t this_callback_type,
     struct getdns_dict *this_response,
     void *this_userarg, getdns_transaction_t this_transaction_id)
@@ -120,7 +120,7 @@ int
 main()
 {
 	/* Create the DNS context for this call */
-	struct getdns_context_t *this_context = NULL;
+	struct getdns_context *this_context = NULL;
 	getdns_return_t context_create_return =
 	    getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD) {

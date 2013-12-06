@@ -60,18 +60,18 @@ getdns_extension_format extformats[] = {
 };
 
 getdns_return_t
-getdns_dict_util_set_string(getdns_dict * dict, char *name, const char *value)
+getdns_dict_util_set_string(struct getdns_dict * dict, char *name, const char *value)
 {
 	/* account for the null term */
 	if (value == NULL) {
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 	}
-	getdns_bindata type_bin = { strlen(value) + 1, (uint8_t *) value };
+	struct getdns_bindata type_bin = { strlen(value) + 1, (uint8_t *) value };
 	return getdns_dict_set_bindata(dict, name, &type_bin);
 }
 
 getdns_return_t
-getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result)
+getdns_dict_util_get_string(struct getdns_dict * dict, char *name, char **result)
 {
 	struct getdns_bindata *bindata = NULL;
 	if (!result) {
@@ -87,7 +87,7 @@ getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result)
 }
 
 getdns_return_t
-dict_to_sockaddr(getdns_dict * ns, struct sockaddr_storage * output)
+dict_to_sockaddr(struct getdns_dict * ns, struct sockaddr_storage * output)
 {
 	char *address_type = NULL;
 	struct getdns_bindata *address_data = NULL;
@@ -127,15 +127,15 @@ dict_to_sockaddr(getdns_dict * ns, struct sockaddr_storage * output)
 }
 
 getdns_return_t
-sockaddr_to_dict(getdns_context_t context, struct sockaddr_storage *address,
-    getdns_dict ** output)
+sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *address,
+    struct getdns_dict ** output)
 {
 	if (!output || !address) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	getdns_bindata addr_data;
+	struct getdns_bindata addr_data;
 	*output = NULL;
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	if (address->ss_family == AF_INET) {
 		struct sockaddr_in *addr = (struct sockaddr_in *) address;
 		getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE,
@@ -172,12 +172,12 @@ convert_rdf_to_str(ldns_rdf * rdf)
 }
 
 /* create the header dict */
-static getdns_dict *
-create_reply_header_dict(getdns_context_t context, ldns_pkt * reply)
+static struct getdns_dict *
+create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
 {
 	/* { "id": 23456, "qr": 1, "opcode": 0, ... }, */
 	int r = 0;
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	if (!result) {
 		return NULL;
 	}
@@ -196,14 +196,14 @@ create_reply_header_dict(getdns_context_t context, ldns_pkt * reply)
 	return result;
 }
 
-static getdns_dict *
-create_reply_question_dict(getdns_context_t context, ldns_pkt * reply)
+static struct getdns_dict *
+create_reply_question_dict(struct getdns_context *context, ldns_pkt * reply)
 {
 	/* { "qname": <bindata for "www.example.com">, "qtype": 1, "qclass": 1 } */
 	int r = 0;
 	ldns_rr *question = NULL;
 	char *qname;
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	if (!result) {
 		return NULL;
 	}
@@ -227,8 +227,8 @@ create_reply_question_dict(getdns_context_t context, ldns_pkt * reply)
 	return result;
 }
 
-static getdns_dict *
-create_dict_from_rdf(getdns_context_t context, ldns_rdf * rdf)
+static struct getdns_dict *
+create_dict_from_rdf(struct getdns_context *context, ldns_rdf * rdf)
 {
 	/*
 	 * create a dict w/ rdata_raw and special fields if needed
@@ -239,8 +239,8 @@ create_dict_from_rdf(getdns_context_t context, ldns_rdf * rdf)
 	 * }
 	 */
 	int r = 0;
-	getdns_bindata rbin = { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_bindata rbin = { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	r |= getdns_dict_set_bindata(result, GETDNS_STR_KEY_RDATA_RAW, &rbin);
 	if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_AAAA) {
 		r |= getdns_dict_set_bindata(result, GETDNS_STR_KEY_V6_ADDR,
@@ -256,8 +256,8 @@ create_dict_from_rdf(getdns_context_t context, ldns_rdf * rdf)
 	return result;
 }
 
-static getdns_dict *
-create_dict_from_rr(getdns_context_t context, ldns_rr * rr)
+static struct getdns_dict *
+create_dict_from_rr(struct getdns_context *context, ldns_rr * rr)
 {
 	/*
 	 * {
@@ -274,7 +274,7 @@ create_dict_from_rr(getdns_context_t context, ldns_rr * rr)
 	 */
 	int r = 0;
 	char *name = NULL;
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	size_t rd_count = ldns_rr_rd_count(rr);
 	ldns_rdf *owner = ldns_rr_owner(rr);
 	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_TYPE,
@@ -294,7 +294,7 @@ create_dict_from_rr(getdns_context_t context, ldns_rr * rr)
 	}
 	/* create rdatas */
 	if (rd_count >= 1) {
-		getdns_dict *rdata = create_dict_from_rdf(context,
+		struct getdns_dict *rdata = create_dict_from_rdf(context,
 		    ldns_rr_rdf(rr, 0));
 		r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_RDATA, rdata);
 		getdns_dict_destroy(rdata);
@@ -311,16 +311,16 @@ create_dict_from_rr(getdns_context_t context, ldns_rr * rr)
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
-static getdns_list *
-create_list_from_rr_list(getdns_context_t context, ldns_rr_list * rr_list)
+static struct getdns_list *
+create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 {
 	size_t i = 0;
 	size_t idx = 0;
 	int r = 0;
-	getdns_list *result = getdns_list_create_with_context(context);
+	struct getdns_list *result = getdns_list_create_with_context(context);
 	for (i = 0; i < ldns_rr_list_rr_count(rr_list); ++i) {
 		ldns_rr *rr = ldns_rr_list_rr(rr_list, i);
-		getdns_dict *rrdict = create_dict_from_rr(context, rr);
+		struct getdns_dict *rrdict = create_dict_from_rr(context, rr);
 		r |= getdns_list_add_item(result, &idx);
 		r |= getdns_list_set_dict(result, idx, rrdict);
 		getdns_dict_destroy(rrdict);
@@ -334,7 +334,7 @@ create_list_from_rr_list(getdns_context_t context, ldns_rr_list * rr_list)
 
 /* helper to add the ipv4 or ipv6 bin data to the list of addrs */
 static getdns_return_t
-add_only_addresses(getdns_list * addrs, ldns_rr_list * rr_list)
+add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 {
 	int r = 0;
 	size_t i = 0;
@@ -347,7 +347,7 @@ add_only_addresses(getdns_list * addrs, ldns_rr_list * rr_list)
 			ldns_rdf *rdf = ldns_rr_rdf(rr, j);
 			if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A ||
 			    ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_AAAA) {
-				getdns_bindata rbin =
+				struct getdns_bindata rbin =
 				    { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
 				r |= getdns_list_add_item(addrs, &item_idx);
 				r |= getdns_list_set_bindata(addrs, item_idx,
@@ -358,9 +358,9 @@ add_only_addresses(getdns_list * addrs, ldns_rr_list * rr_list)
 	return r;
 }
 
-static getdns_dict *
-create_reply_dict(getdns_context_t context, getdns_network_req * req,
-    getdns_list * just_addrs)
+static struct getdns_dict *
+create_reply_dict(struct getdns_context *context, getdns_network_req * req,
+    struct getdns_list * just_addrs)
 {
 	/* turn a packet into this glorious structure
 	 * 
@@ -405,11 +405,11 @@ create_reply_dict(getdns_context_t context, getdns_network_req * req,
 	ldns_pkt *reply = req->result;
 	ldns_rr_list *rr_list = NULL;
 	ldns_rr *question = NULL;
-	getdns_dict *subdict = NULL;
-	getdns_list *sublist = NULL;
+	struct getdns_dict *subdict = NULL;
+	struct getdns_list *sublist = NULL;
 	char *name = NULL;
 
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	if (!result) {
 		return NULL;
 	}
@@ -478,14 +478,14 @@ get_canonical_name(const char *name)
 	return result;
 }
 
-getdns_dict *
+struct getdns_dict *
 create_getdns_response(struct getdns_dns_req * completed_request)
 {
-	getdns_dict *result = getdns_dict_create_with_context(completed_request->context);
-	getdns_list *replies_full = getdns_list_create_with_context(
+	struct getdns_dict *result = getdns_dict_create_with_context(completed_request->context);
+	struct getdns_list *replies_full = getdns_list_create_with_context(
 	    completed_request->context);
-	getdns_list *just_addrs = NULL;
-	getdns_list *replies_tree = getdns_list_create_with_context(
+	struct getdns_list *just_addrs = NULL;
+	struct getdns_list *replies_tree = getdns_list_create_with_context(
 	    completed_request->context);
 	getdns_network_req *netreq = completed_request->first_req;
 	char *canonical_name = NULL;
@@ -509,7 +509,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	    GETDNS_NAMETYPE_DNS);
 
 	while (netreq) {
-		getdns_bindata full_data;
+		struct getdns_bindata full_data;
 		full_data.data = NULL;
 		full_data.size = 0;
 		ldns_pkt *pkt = netreq->result;
@@ -517,7 +517,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 		    ldns_pkt2wire(&(full_data.data), pkt, &(full_data.size));
 		size_t idx = 0;
 		/* reply tree */
-		getdns_dict *reply = create_reply_dict(
+		struct getdns_dict *reply = create_reply_dict(
 		    completed_request->context, netreq, just_addrs);
 		r |= getdns_list_add_item(replies_tree, &idx);
 		r |= getdns_list_set_dict(replies_tree, idx, reply);
@@ -596,7 +596,7 @@ extformatcmp(const void *a, const void *b)
 
 /*---------------------------------------- validate_extensions */
 getdns_return_t
-validate_extensions(getdns_dict * extensions)
+validate_extensions(struct getdns_dict * extensions)
 {
 	struct getdns_dict_item *item;
 	getdns_extension_format *extformat;

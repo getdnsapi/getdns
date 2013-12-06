@@ -42,10 +42,10 @@ struct getdns_list_item
 	getdns_data_type dtype;
 	union
 	{
-		getdns_list *list;
-		getdns_dict *dict;
+		struct getdns_list *list;
+		struct getdns_dict *dict;
 		int n;
-		getdns_bindata *bindata;
+		struct getdns_bindata *bindata;
 	} data;
 };
 

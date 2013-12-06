@@ -38,7 +38,7 @@
  *
  */
 getdns_return_t
-getdns_service(getdns_context_t context,
+getdns_service(struct getdns_context *context,
     const char *name,
     struct getdns_dict * extensions,
     void *userarg,

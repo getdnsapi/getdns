@@ -92,7 +92,7 @@ static void
 ub_resolve_timeout(evutil_socket_t fd, short what, void *arg)
 {
 	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
-	getdns_context_t context = dns_req->context;
+	struct getdns_context *context = dns_req->context;
 	getdns_transaction_t trans_id = dns_req->trans_id;
 	getdns_callback_t cb = dns_req->user_callback;
 	void *user_arg = dns_req->user_pointer;
@@ -135,7 +135,7 @@ static void
 handle_network_request_error(getdns_network_req * netreq, int err)
 {
 	getdns_dns_req *dns_req = netreq->owner;
-	getdns_context_t context = dns_req->context;
+	struct getdns_context *context = dns_req->context;
 	getdns_transaction_t trans_id = dns_req->trans_id;
 	getdns_callback_t cb = dns_req->user_callback;
 	void *user_arg = dns_req->user_pointer;
@@ -151,9 +151,9 @@ handle_network_request_error(getdns_network_req * netreq, int err)
 static void
 handle_dns_request_complete(getdns_dns_req * dns_req)
 {
-	getdns_dict *response = create_getdns_response(dns_req);
+	struct getdns_dict *response = create_getdns_response(dns_req);
 
-	getdns_context_t context = dns_req->context;
+	struct getdns_context *context = dns_req->context;
 	getdns_transaction_t trans_id = dns_req->trans_id;
 	getdns_callback_t cb = dns_req->user_callback;
 	void *user_arg = dns_req->user_pointer;
@@ -256,7 +256,7 @@ ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
 getdns_return_t
 getdns_general_ub(struct ub_ctx *unbound,
     struct event_base *ev_base,
-    getdns_context_t context,
+    struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
@@ -320,7 +320,7 @@ getdns_general_ub(struct ub_ctx *unbound,
  * getdns_general
  */
 getdns_return_t
-getdns_general(getdns_context_t context,
+getdns_general(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict * extensions,
@@ -352,7 +352,7 @@ getdns_general(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_address(getdns_context_t context,
+getdns_address(struct getdns_context *context,
     const char *name,
     struct getdns_dict * extensions,
     void *userarg,

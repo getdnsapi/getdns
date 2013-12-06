@@ -47,19 +47,19 @@
 #include "util-internal.h"
 
 /* Private functions */
-static uint16_t *create_default_namespaces(getdns_context_t context);
+static uint16_t *create_default_namespaces(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers();
-static getdns_return_t add_ip_str(getdns_dict *);
-static struct getdns_dict *create_ipaddr_dict_from_rdf(getdns_context_t,
+static getdns_return_t add_ip_str(struct getdns_dict *);
+static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
     ldns_rdf *);
-static struct getdns_list *create_from_ldns_list(getdns_context_t,
+static struct getdns_list *create_from_ldns_list(struct getdns_context *,
     ldns_rdf **, size_t);
-static getdns_return_t set_os_defaults(getdns_context_t);
+static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
-static void set_ub_string_opt(getdns_context_t, char *, char *);
-static void set_ub_number_opt(getdns_context_t, char *, uint16_t);
-static inline void clear_resolution_type_set_flag(getdns_context_t, uint16_t);
-static void dispatch_updated(getdns_context_t, uint16_t);
+static void set_ub_string_opt(struct getdns_context *, char *, char *);
+static void set_ub_number_opt(struct getdns_context *, char *, uint16_t);
+static inline void clear_resolution_type_set_flag(struct getdns_context *, uint16_t);
+static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
 
 /* Stuff to make it compile pedantically */
@@ -70,7 +70,7 @@ static void cancel_dns_req(getdns_dns_req *);
  * TODO: Determine from OS
  */
 static uint16_t *
-create_default_namespaces(getdns_context_t context)
+create_default_namespaces(struct getdns_context *context)
 {
 	uint16_t *result = GETDNS_XMALLOC(context, uint16_t, 2);
 	result[0] = GETDNS_CONTEXT_NAMESPACE_LOCALNAMES;
@@ -89,7 +89,7 @@ create_default_root_servers()
 }
 
 static getdns_return_t
-add_ip_str(getdns_dict * ip)
+add_ip_str(struct getdns_dict * ip)
 {
 	struct sockaddr_storage storage;
 	char buff[256];
@@ -123,11 +123,11 @@ add_ip_str(getdns_dict * ip)
 }
 
 static struct getdns_dict *
-create_ipaddr_dict_from_rdf(getdns_context_t context, ldns_rdf * rdf)
+create_ipaddr_dict_from_rdf(struct getdns_context *context, ldns_rdf * rdf)
 {
 	ldns_rdf_type rt = ldns_rdf_get_type(rdf);
 	size_t sz = ldns_rdf_size(rdf);
-	getdns_dict *result = getdns_dict_create_with_context(context);
+	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	/* set type */
 	if (rt == LDNS_RDF_TYPE_A) {
 		getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE,
@@ -137,14 +137,14 @@ create_ipaddr_dict_from_rdf(getdns_context_t context, ldns_rdf * rdf)
 		    GETDNS_STR_IPV6);
 	}
 	/* set data */
-	getdns_bindata data_bin = { sz, ldns_rdf_data(rdf) };
+	struct getdns_bindata data_bin = { sz, ldns_rdf_data(rdf) };
 	getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_DATA, &data_bin);
 	add_ip_str(result);
 	return result;
 }
 
 static struct getdns_list *
-create_from_ldns_list(getdns_context_t context, ldns_rdf ** ldns_list,
+create_from_ldns_list(struct getdns_context *context, ldns_rdf ** ldns_list,
     size_t count)
 {
 	size_t i = 0;
@@ -156,7 +156,7 @@ create_from_ldns_list(getdns_context_t context, ldns_rdf ** ldns_list,
 		case LDNS_RDF_TYPE_A:
 		case LDNS_RDF_TYPE_AAAA:
 			{
-				getdns_dict *ipaddr =
+				struct getdns_dict *ipaddr =
 				    create_ipaddr_dict_from_rdf(context, rdf);
 				getdns_list_add_item(result, &idx);
 				getdns_list_set_dict(result, idx, ipaddr);
@@ -166,7 +166,7 @@ create_from_ldns_list(getdns_context_t context, ldns_rdf ** ldns_list,
 
 		case LDNS_RDF_TYPE_DNAME:
 			{
-				getdns_bindata item;
+				struct getdns_bindata item;
 				char *srch = ldns_rdf2str(rdf);
 				item.size = strlen(srch) + 1;
 				item.data = (uint8_t *) srch;
@@ -184,7 +184,7 @@ create_from_ldns_list(getdns_context_t context, ldns_rdf ** ldns_list,
 }
 
 static getdns_return_t
-set_os_defaults(getdns_context_t context)
+set_os_defaults(struct getdns_context *context)
 {
 	ldns_resolver *lr = NULL;
 	if (ldns_resolver_new_frm_file(&lr, NULL) != LDNS_STATUS_OK) {
@@ -237,20 +237,20 @@ transaction_id_cmp(const void *id1, const void *id2)
  * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
-getdns_context_create_with_memory_functions(getdns_context_t * context,
+getdns_context_create_with_memory_functions(struct getdns_context ** context,
     int set_from_os,
     void *(*malloc)(size_t),
     void *(*realloc)(void *, size_t),
     void (*free)(void *)
     )
 {
-	getdns_context_t result = NULL;
+	struct getdns_context *result = NULL;
 
 	if (!context || !malloc || !realloc || !free)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
     /** default init **/
-	result = (*malloc)(sizeof(struct getdns_context_t));
+	result = (*malloc)(sizeof(struct getdns_context));
 	if (!result) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
@@ -310,7 +310,7 @@ getdns_context_create_with_memory_functions(getdns_context_t * context,
  * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
-getdns_context_create(getdns_context_t * context, int set_from_os)
+getdns_context_create(struct getdns_context ** context, int set_from_os)
 {
 	return getdns_context_create_with_memory_functions(context,
 			set_from_os, malloc, realloc, free);
@@ -324,7 +324,7 @@ getdns_context_create(getdns_context_t * context, int set_from_os)
  * are done with it.
  */
 void
-getdns_context_destroy(getdns_context_t context)
+getdns_context_destroy(struct getdns_context *context)
 {
 	if (context == NULL) {
 		return;
@@ -354,8 +354,8 @@ getdns_context_destroy(getdns_context_t context)
  *
  */
 getdns_return_t
-getdns_context_set_context_update_callback(getdns_context_t context,
-    void (*value) (getdns_context_t context, uint16_t changed_item)
+getdns_context_set_context_update_callback(struct getdns_context *context,
+    void (*value) (struct getdns_context *context, uint16_t changed_item)
     )
 {
 	context->update_callback = value;
@@ -367,14 +367,14 @@ getdns_context_set_context_update_callback(getdns_context_t context,
  */
 
 static void
-set_ub_string_opt(getdns_context_t ctx, char *opt, char *value)
+set_ub_string_opt(struct getdns_context *ctx, char *opt, char *value)
 {
 	ub_ctx_set_option(ctx->unbound_sync, opt, value);
 	ub_ctx_set_option(ctx->unbound_async, opt, value);
 }
 
 static void
-set_ub_number_opt(getdns_context_t ctx, char *opt, uint16_t value)
+set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 {
 	char buffer[64];
 	snprintf(buffer, 64, "%hu", value);
@@ -385,7 +385,7 @@ set_ub_number_opt(getdns_context_t ctx, char *opt, uint16_t value)
  * Clear the resolution type set flag if needed
  */
 static inline void
-clear_resolution_type_set_flag(getdns_context_t context, uint16_t type)
+clear_resolution_type_set_flag(struct getdns_context *context, uint16_t type)
 {
 	if (context->resolution_type_set == type) {
 		context->resolution_type_set = 0;
@@ -397,7 +397,7 @@ clear_resolution_type_set_flag(getdns_context_t context, uint16_t type)
  *
  */
 getdns_return_t
-getdns_context_set_context_update(getdns_context_t context, uint16_t value)
+getdns_context_set_context_update(struct getdns_context *context, uint16_t value)
 {
 	UNUSED_PARAM(context);
 	UNUSED_PARAM(value);
@@ -408,7 +408,7 @@ getdns_context_set_context_update(getdns_context_t context, uint16_t value)
  * Helper to dispatch the updated callback
  */
 static void
-dispatch_updated(getdns_context_t context, uint16_t item)
+dispatch_updated(struct getdns_context *context, uint16_t item)
 {
 	if (context->update_callback) {
 		context->update_callback(context, item);
@@ -420,7 +420,7 @@ dispatch_updated(getdns_context_t context, uint16_t item)
  *
  */
 getdns_return_t
-getdns_context_set_resolution_type(getdns_context_t context, uint16_t value)
+getdns_context_set_resolution_type(struct getdns_context *context, uint16_t value)
 {
 	if (value != GETDNS_CONTEXT_STUB && value != GETDNS_CONTEXT_RECURSING) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -438,7 +438,7 @@ getdns_context_set_resolution_type(getdns_context_t context, uint16_t value)
  *
  */
 getdns_return_t
-getdns_context_set_namespaces(getdns_context_t context,
+getdns_context_set_namespaces(struct getdns_context *context,
     size_t namespace_count, uint16_t * namespaces)
 {
 	if (namespace_count == 0 || namespaces == NULL) {
@@ -464,7 +464,7 @@ getdns_context_set_namespaces(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_dns_transport(getdns_context_t context, uint16_t value)
+getdns_context_set_dns_transport(struct getdns_context *context, uint16_t value)
 {
 
 	switch (value) {
@@ -495,7 +495,7 @@ getdns_context_set_dns_transport(getdns_context_t context, uint16_t value)
  *
  */
 getdns_return_t
-getdns_context_set_limit_outstanding_queries(getdns_context_t context,
+getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
     uint16_t limit)
 {
 	/* num-queries-per-thread */
@@ -512,7 +512,7 @@ getdns_context_set_limit_outstanding_queries(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_timeout(getdns_context_t context, uint16_t timeout)
+getdns_context_set_timeout(struct getdns_context *context, uint16_t timeout)
 {
 	context->timeout = timeout;
 
@@ -526,7 +526,7 @@ getdns_context_set_timeout(getdns_context_t context, uint16_t timeout)
  *
  */
 getdns_return_t
-getdns_context_set_follow_redirects(getdns_context_t context, uint16_t value)
+getdns_context_set_follow_redirects(struct getdns_context *context, uint16_t value)
 {
 	context->follow_redirects = value;
 
@@ -541,10 +541,10 @@ getdns_context_set_follow_redirects(getdns_context_t context, uint16_t value)
  *
  */
 getdns_return_t
-getdns_context_set_dns_root_servers(getdns_context_t context,
+getdns_context_set_dns_root_servers(struct getdns_context *context,
     struct getdns_list * addresses)
 {
-	getdns_list *copy = NULL;
+	struct getdns_list *copy = NULL;
 	size_t count = 0;
 	if (addresses != NULL) {
 		if (getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
@@ -560,7 +560,7 @@ getdns_context_set_dns_root_servers(getdns_context_t context,
 			getdns_return_t r = GETDNS_RETURN_GOOD;
 			/* validate and add ip str */
 			for (i = 0; i < count; ++i) {
-				getdns_dict *dict = NULL;
+				struct getdns_dict *dict = NULL;
 				getdns_list_get_dict(addresses, i, &dict);
 				r = add_ip_str(dict);
 				if (r != GETDNS_RETURN_GOOD) {
@@ -589,7 +589,7 @@ getdns_context_set_dns_root_servers(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_append_name(getdns_context_t context, uint16_t value)
+getdns_context_set_append_name(struct getdns_context *context, uint16_t value)
 {
 	if (value != GETDNS_CONTEXT_APPEND_NAME_ALWAYS &&
 	    value !=
@@ -612,9 +612,9 @@ getdns_context_set_append_name(getdns_context_t context, uint16_t value)
  *
  */
 getdns_return_t
-getdns_context_set_suffix(getdns_context_t context, struct getdns_list * value)
+getdns_context_set_suffix(struct getdns_context *context, struct getdns_list * value)
 {
-	getdns_list *copy = NULL;
+	struct getdns_list *copy = NULL;
 	if (value != NULL) {
 		if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -636,10 +636,10 @@ getdns_context_set_suffix(getdns_context_t context, struct getdns_list * value)
  *
  */
 getdns_return_t
-getdns_context_set_dnssec_trust_anchors(getdns_context_t context,
+getdns_context_set_dnssec_trust_anchors(struct getdns_context *context,
     struct getdns_list * value)
 {
-	getdns_list *copy = NULL;
+	struct getdns_list *copy = NULL;
 	if (value != NULL) {
 		if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -659,7 +659,7 @@ getdns_context_set_dnssec_trust_anchors(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_dnssec_allowed_skew(getdns_context_t context,
+getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     uint16_t value)
 {
 	set_ub_number_opt(context, "val-sig-skew-min", value);
@@ -674,7 +674,7 @@ getdns_context_set_dnssec_allowed_skew(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_stub_resolution(getdns_context_t context,
+getdns_context_set_stub_resolution(struct getdns_context *context,
     struct getdns_list * upstream_list)
 {
 	size_t count = 0;
@@ -683,14 +683,14 @@ getdns_context_set_stub_resolution(getdns_context_t context,
 	if (count == 0 || r != GETDNS_RETURN_GOOD) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
-	getdns_list *copy = NULL;
+	struct getdns_list *copy = NULL;
 	if (getdns_list_copy(upstream_list, &copy) != GETDNS_RETURN_GOOD) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	upstream_list = copy;
 	/* validate and add ip str */
 	for (i = 0; i < count; ++i) {
-		getdns_dict *dict = NULL;
+		struct getdns_dict *dict = NULL;
 		getdns_list_get_dict(upstream_list, i, &dict);
 		r = add_ip_str(dict);
 		if (r != GETDNS_RETURN_GOOD) {
@@ -719,7 +719,7 @@ getdns_context_set_stub_resolution(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_edns_maximum_udp_payload_size(getdns_context_t context,
+getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
     uint16_t value)
 {
 	/* check for < 512.  uint16_t won't let it go above max) */
@@ -741,7 +741,7 @@ getdns_context_set_edns_maximum_udp_payload_size(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_context_set_edns_extended_rcode(getdns_context_t context, uint8_t value)
+getdns_context_set_edns_extended_rcode(struct getdns_context *context, uint8_t value)
 {
 	context->edns_extended_rcode = value;
 
@@ -755,7 +755,7 @@ getdns_context_set_edns_extended_rcode(getdns_context_t context, uint8_t value)
  *
  */
 getdns_return_t
-getdns_context_set_edns_version(getdns_context_t context, uint8_t value)
+getdns_context_set_edns_version(struct getdns_context *context, uint8_t value)
 {
 	context->edns_version = value;
 
@@ -769,7 +769,7 @@ getdns_context_set_edns_version(getdns_context_t context, uint8_t value)
  *
  */
 getdns_return_t
-getdns_context_set_edns_do_bit(getdns_context_t context, uint8_t value)
+getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 {
 	/* 0 or 1 */
 	if (value > 1) {
@@ -788,7 +788,7 @@ getdns_context_set_edns_do_bit(getdns_context_t context, uint8_t value)
  *
  */
 getdns_return_t
-getdns_context_set_memory_functions(getdns_context_t context,
+getdns_context_set_memory_functions(struct getdns_context *context,
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
@@ -815,7 +815,7 @@ getdns_context_set_memory_functions(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_extension_set_libevent_base(getdns_context_t context,
+getdns_extension_set_libevent_base(struct getdns_context *context,
     struct event_base * this_event_base)
 {
 	if (this_event_base) {
@@ -849,7 +849,7 @@ cancel_dns_req(getdns_dns_req * req)
 }
 
 getdns_return_t
-getdns_context_cancel_request(getdns_context_t context,
+getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback)
 {
 	getdns_dns_req *req = NULL;
@@ -890,20 +890,20 @@ getdns_context_cancel_request(getdns_context_t context,
  *
  */
 getdns_return_t
-getdns_cancel_callback(getdns_context_t context,
+getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id)
 {
 	return getdns_context_cancel_request(context, transaction_id, 1);
 }				/* getdns_cancel_callback */
 
 static void
-ub_setup_stub(struct ub_ctx *ctx, getdns_list * upstreams, size_t count)
+ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams, size_t count)
 {
 	size_t i;
 	/* reset forwarding servers */
 	ub_ctx_set_fwd(ctx, NULL);
 	for (i = 0; i < count; ++i) {
-		getdns_dict *dict = NULL;
+		struct getdns_dict *dict = NULL;
 		char *ip_str = NULL;
 		getdns_list_get_dict(upstreams, i, &dict);
 		getdns_dict_util_get_string(dict, GETDNS_STR_ADDRESS_STRING,
@@ -913,7 +913,7 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_list * upstreams, size_t count)
 }
 
 getdns_return_t
-getdns_context_prepare_for_resolution(getdns_context_t context)
+getdns_context_prepare_for_resolution(struct getdns_context *context)
 {
 	if (context->resolution_type_set == context->resolution_type) {
 		/* already set and no config changes have caused this to be
@@ -958,7 +958,7 @@ getdns_context_track_outbound_request(getdns_dns_req * req)
 	if (!req) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	getdns_context_t context = req->context;
+	struct getdns_context *context = req->context;
 	ldns_rbnode_t *node = GETDNS_MALLOC(context, ldns_rbnode_t);
 	if (!node) {
 		return GETDNS_RETURN_GENERIC_ERROR;
@@ -979,7 +979,7 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 	if (!req) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	getdns_context_t context = req->context;
+	struct getdns_context *context = req->context;
 	ldns_rbnode_t *node = ldns_rbtree_delete(context->outbound_requests,
 	    &(req->trans_id));
 	if (node) {

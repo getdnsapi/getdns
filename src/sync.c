@@ -51,17 +51,17 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 static void
-sync_callback_func(getdns_context_t context,
+sync_callback_func(struct getdns_context *context,
     uint16_t callback_type,
     struct getdns_dict *response,
     void *userarg, getdns_transaction_t transaction_id)
 {
 
-	*((getdns_dict **) userarg) = response;
+	*((struct getdns_dict **) userarg) = response;
 }
 
 getdns_return_t
-getdns_general_sync(getdns_context_t context,
+getdns_general_sync(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
@@ -82,7 +82,7 @@ getdns_general_sync(getdns_context_t context,
 }
 
 getdns_return_t
-getdns_address_sync(getdns_context_t context,
+getdns_address_sync(struct getdns_context *context,
     const char *name,
     struct getdns_dict * extensions,
     struct getdns_dict ** response)
@@ -105,7 +105,7 @@ getdns_address_sync(getdns_context_t context,
 }
 
 getdns_return_t
-getdns_hostname_sync(getdns_context_t context,
+getdns_hostname_sync(struct getdns_context *context,
     struct getdns_dict * address,
     struct getdns_dict * extensions,
     struct getdns_dict ** response)
@@ -138,7 +138,7 @@ getdns_hostname_sync(getdns_context_t context,
 }
 
 getdns_return_t
-getdns_service_sync(getdns_context_t context,
+getdns_service_sync(struct getdns_context *context,
     const char *name,
     struct getdns_dict * extensions,
     struct getdns_dict ** response)

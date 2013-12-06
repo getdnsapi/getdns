@@ -40,7 +40,7 @@ main()
 	size_t num_addresses = 0;
 	size_t rec_count;
 	struct getdns_bindata *this_address_data;
-	struct getdns_context_t *this_context = NULL;
+	struct getdns_context *this_context = NULL;
 	uint32_t this_error = 0;
 	struct getdns_dict *this_extensions = NULL;
 	const char *this_name = "www.example.com";

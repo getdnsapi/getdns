@@ -43,7 +43,7 @@
  *
  */
 getdns_return_t
-getdns_hostname(getdns_context_t context,
+getdns_hostname(struct getdns_context *context,
     struct getdns_dict * address,
     struct getdns_dict * extensions,
     void *userarg,

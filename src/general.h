@@ -46,7 +46,7 @@ struct event_base;
 getdns_return_t
 getdns_general_ub(struct ub_ctx *unbound,
     struct event_base *ev_base,
-    getdns_context_t context,
+    struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
