@@ -84,7 +84,10 @@ The following API calls are documented in getDNS but *not supported* by the impl
   * `getdns_context_set_edns_version`
   * `getdns_context_set_edns_extended_rcode`
 * `GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN` with `getdns_context_set_dns_transport`
-* DNS Search suffixes in stub mode
+* DNS Search suffixes / local file support
+  * `getdns_context_set_append_name`
+  * `getdns_context_set_suffix`
+* Setting root servers via `getdns_context_set_dns_root_servers`
 * DNSSEC
   * `getdns_context_set_dnssec_trust_anchors`
   * `getdns_validate_dnssec`
