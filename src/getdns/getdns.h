@@ -307,6 +307,8 @@ struct event_base;
 #define GETDNS_RRTYPE_L32       105
 #define GETDNS_RRTYPE_L64       106
 #define GETDNS_RRTYPE_LP        107
+#define GETDNS_RRTYPE_EUI48     108
+#define GETDNS_RRTYPE_EUI64     109
 #define GETDNS_RRTYPE_TKEY      249
 #define GETDNS_RRTYPE_TSIG      250
 #define GETDNS_RRTYPE_IXFR      251
