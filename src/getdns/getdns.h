@@ -168,9 +168,9 @@ struct event_base;
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW 614
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT "Change related to getdns_context_set_dnssec_allowed_skew"
 #define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS 615
-#define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT Change related to getdns_context_set_memory_functions
+#define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT "Change related to getdns_context_set_memory_functions"
 #define GETDNS_CONTEXT_CODE_TIMEOUT 616
-#define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT Change related to getdns_context_set_timeout
+#define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT "Change related to getdns_context_set_timeout"
 /** @}
  */
 
