@@ -155,7 +155,6 @@ fi
 AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h event2/event.h],,, [AC_INCLUDES_DEFAULT])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_HEADER_STDBOOL
 AC_TYPE_SIZE_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T

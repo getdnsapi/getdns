@@ -39,7 +39,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <netinet/in.h>
-#include <stdbool.h>
 
 struct event_base;
 
