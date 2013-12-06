@@ -72,7 +72,8 @@ struct event_base;
 #define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT "Extension format error"
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "Query with DNSSEC extensions and stub resolution not permitted"
-
+#define GETDNS_RETURN_MEMORY_ERROR 310
+#define GETDNS_RETURN_MEMORY_ERROR_TEXT "Unable to allocate the memory required."
 /** @}
  */
 
