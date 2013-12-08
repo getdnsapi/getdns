@@ -165,7 +165,7 @@ getdns_list_copy(struct getdns_list * srclist, struct getdns_list ** dstlist)
 		return GETDNS_RETURN_GOOD;
 	}
 	*dstlist = getdns_list_create_with_memory_functions(
-	    srclist->malloc, srclist->realloc, srclist->free);
+	    srclist->mf.pln.malloc, srclist->mf.pln.realloc, srclist->mf.pln.free);
 	if (!dstlist)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
@@ -219,9 +219,11 @@ getdns_list_create_with_memory_functions(void *(*malloc)(size_t),
 	if (!list)
 		return NULL;
 	
-	list->malloc   = malloc;
-	list->realloc  = realloc;
-	list->free     = free;
+	list->mf_arg         = MF_PLAIN;
+	list->mf.pln.malloc  = malloc;
+	list->mf.pln.realloc = realloc;
+	list->mf.pln.free    = free;
+
 	list->numalloc = 0;
 	list->numinuse = 0;
 	list->items = NULL;
@@ -237,8 +239,9 @@ struct getdns_list *
 getdns_list_create_with_context(struct getdns_context *context)
 {
 	if (context)
-		return getdns_list_create_with_memory_functions(context->malloc,
-		    context->realloc, context->free);
+		return getdns_list_create_with_memory_functions(
+		    context->mf.pln.malloc,
+		    context->mf.pln.realloc, context->mf.pln.free);
 	else
 		return getdns_list_create_with_memory_functions(malloc,
 		    realloc, free);
@@ -271,7 +274,7 @@ getdns_list_destroy(struct getdns_list *list)
 			break;
 
 		case t_bindata:
-			getdns_bindata_destroy(list->free,
+			getdns_bindata_destroy(list->mf.pln.free,
 			    list->items[i].data.bindata);
 			break;
 
@@ -375,7 +378,7 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	newbindata = getdns_bindata_copy(
-	    list->malloc, list->free, child_bindata);
+	    list->mf.pln.malloc, list->mf.pln.free, child_bindata);
 	if (!newbindata)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 

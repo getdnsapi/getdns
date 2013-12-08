@@ -46,6 +46,8 @@
 #include "types-internal.h"
 #include "util-internal.h"
 
+void *plain_mem_funcs_user_arg = MF_PLAIN;
+
 /* Private functions */
 static uint16_t *create_default_namespaces(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers();
@@ -256,9 +258,11 @@ getdns_context_create_with_memory_functions(struct getdns_context ** context,
 	}
 
 	result->update_callback = NULL;
-	result->malloc  = malloc;
-	result->realloc = realloc;
-	result->free    = free;
+
+	result->mf_arg          = MF_PLAIN;
+	result->mf.pln.malloc   = malloc;
+	result->mf.pln.realloc  = realloc;
+	result->mf.pln.free     = free;
 
 	result->event_base_sync = event_base_new();
 	result->unbound_sync = ub_ctx_create_event(result->event_base_sync);
@@ -800,9 +804,10 @@ getdns_context_set_memory_functions(struct getdns_context *context,
 	if (!malloc || !realloc || !free)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
-	context->malloc = malloc;
-	context->realloc = realloc;
-	context->free = free;
+	context->mf_arg         = MF_PLAIN;
+	context->mf.pln.malloc  = malloc;
+	context->mf.pln.realloc = realloc;
+	context->mf.pln.free    = free;
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS);
 

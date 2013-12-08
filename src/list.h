@@ -31,6 +31,7 @@
 #define _GETDNS_LIST_H_
 
 #include <getdns/getdns.h>
+#include "types-internal.h"
 
 #define GETDNS_LIST_BLOCKSZ 10
 
@@ -63,10 +64,8 @@ struct getdns_list
 	int numalloc;
 	int numinuse;
 	struct getdns_list_item *items;
-	void *(*malloc)(size_t);
-	void *(*realloc)(void *, size_t);
-	void (*free)(void *);
+	void *mf_arg;
+	mem_funcs mf;
 };
-
 
 #endif

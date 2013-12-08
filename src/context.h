@@ -31,6 +31,7 @@
 #define _GETDNS_CONTEXT_H_
 
 #include <getdns/getdns.h>
+#include "types-internal.h"
 
 struct event_base;
 struct getdns_dns_req;
@@ -58,9 +59,8 @@ struct getdns_context {
 	uint8_t edns_do_bit;
 
 	getdns_update_callback update_callback;
-	void *(*malloc)(size_t);
-	void *(*realloc)(void *, size_t);
-	void (*free)(void *);
+	void *mf_arg;
+	mem_funcs mf;
 
 	/* Event loop for sync requests */
 	struct event_base *event_base_sync;
