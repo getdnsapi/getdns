@@ -506,8 +506,16 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
 struct getdns_list *getdns_list_create();
 struct getdns_list *getdns_list_create_with_context(struct getdns_context *context);
 struct getdns_list *getdns_list_create_with_memory_functions(
-    void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
-    void (*free) (void *));
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+);
+struct getdns_list *getdns_list_create_with_extended_memory_functions(
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
 
 /**
  * free memory allocated to the list (also frees all children of the list)
@@ -567,8 +575,16 @@ getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index,
 struct getdns_dict *getdns_dict_create();
 struct getdns_dict *getdns_dict_create_with_context(struct getdns_context *context);
 struct getdns_dict *getdns_dict_create_with_memory_functions(
-    void *(*malloc) (size_t), void *(*realloc) (void *, size_t),
-    void (*free) (void *));
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+);
+struct getdns_dict *getdns_dict_create_with_extended_memory_functions(
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
 
 /**
  * destroy a dictionary and all items within that dictionary
@@ -643,16 +659,27 @@ getdns_service(struct getdns_context *context,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 
-getdns_return_t getdns_context_create_with_memory_functions(
+getdns_return_t
+getdns_context_create(struct getdns_context ** context, int set_from_os);
+
+getdns_return_t
+getdns_context_create_with_memory_functions(
     struct getdns_context ** context,
     int set_from_os,
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
-    );
+);
 
-getdns_return_t getdns_context_create(struct getdns_context ** context,
-    int set_from_os);
+getdns_return_t
+getdns_context_create_with_extended_memory_functions(
+    struct getdns_context **context,
+    int set_from_os,
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
 
 void getdns_context_destroy(struct getdns_context *context);
 
@@ -830,6 +857,14 @@ getdns_context_set_memory_functions(struct getdns_context *context,
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
+    );
+
+getdns_return_t
+getdns_context_set_extended_memory_functions(struct getdns_context *context,
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t sz),
+    void *(*realloc) (void *userarg, void *ptr, size_t sz),
+    void (*free) (void *userarg, void *ptr)
     );
 
 /* Extension - refactor to abstract async evt loop */

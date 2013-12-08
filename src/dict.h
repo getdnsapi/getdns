@@ -37,6 +37,7 @@
 
 #include <getdns/getdns.h>
 #include <ldns/rbtree.h>
+#include "types-internal.h"
 
 union getdns_item
 {
@@ -66,9 +67,7 @@ struct getdns_dict_item
 struct getdns_dict
 {
 	ldns_rbtree_t root;
-	void *(*malloc)(size_t);
-	void *(*realloc)(void *, size_t);
-	void (*free)(void *);
+	struct mem_funcs mf;
 };
 
 #endif

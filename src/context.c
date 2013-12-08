@@ -46,6 +46,8 @@
 #include "types-internal.h"
 #include "util-internal.h"
 
+void *plain_mem_funcs_user_arg = MF_PLAIN;
+
 /* Private functions */
 static uint16_t *create_default_namespaces(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers();
@@ -72,7 +74,7 @@ static void cancel_dns_req(getdns_dns_req *);
 static uint16_t *
 create_default_namespaces(struct getdns_context *context)
 {
-	uint16_t *result = GETDNS_XMALLOC(context, uint16_t, 2);
+	uint16_t *result = GETDNS_XMALLOC(context->my_mf, uint16_t, 2);
 	result[0] = GETDNS_CONTEXT_NAMESPACE_LOCALNAMES;
 	result[1] = GETDNS_CONTEXT_NAMESPACE_DNS;
 	return result;
@@ -237,28 +239,40 @@ transaction_id_cmp(const void *id1, const void *id2)
  * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
-getdns_context_create_with_memory_functions(struct getdns_context ** context,
+getdns_context_create_with_extended_memory_functions(
+    struct getdns_context ** context,
     int set_from_os,
-    void *(*malloc)(size_t),
-    void *(*realloc)(void *, size_t),
-    void (*free)(void *)
+    void *userarg,
+    void *(*malloc)(void *userarg, size_t),
+    void *(*realloc)(void *userarg, void *, size_t),
+    void (*free)(void *userarg, void *)
     )
 {
 	struct getdns_context *result = NULL;
+	mf_union mf;
 
 	if (!context || !malloc || !realloc || !free)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
     /** default init **/
-	result = (*malloc)(sizeof(struct getdns_context));
+	mf.ext.malloc = malloc;
+	result = userarg == MF_PLAIN
+	       ? (*mf.pln.malloc)(         sizeof(struct getdns_context))
+	       : (*mf.ext.malloc)(userarg, sizeof(struct getdns_context));
 	if (!result) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
+	result->my_mf.mf_arg         = userarg;
+	result->my_mf.mf.ext.malloc  = malloc;
+	result->my_mf.mf.ext.realloc = realloc;
+	result->my_mf.mf.ext.free    = free;
 
 	result->update_callback = NULL;
-	result->malloc  = malloc;
-	result->realloc = realloc;
-	result->free    = free;
+
+	result->mf.mf_arg          = userarg;
+	result->mf.mf.ext.malloc   = malloc;
+	result->mf.mf.ext.realloc  = realloc;
+	result->mf.mf.ext.free     = free;
 
 	result->event_base_sync = event_base_new();
 	result->unbound_sync = ub_ctx_create_event(result->event_base_sync);
@@ -310,6 +324,28 @@ getdns_context_create_with_memory_functions(struct getdns_context ** context,
  * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
+getdns_context_create_with_memory_functions(struct getdns_context ** context,
+    int set_from_os,
+    void *(*malloc)(size_t),
+    void *(*realloc)(void *, size_t),
+    void (*free)(void *)
+    )
+{
+	mf_union mf;
+	mf.pln.malloc = malloc;
+	mf.pln.realloc = realloc;
+	mf.pln.free = free;
+	return getdns_context_create_with_extended_memory_functions(
+	    context, set_from_os, MF_PLAIN,
+	    mf.ext.malloc, mf.ext.realloc, mf.ext.free);
+}				/* getdns_context_create */
+
+/*
+ * getdns_context_create
+ *
+ * Call this to initialize the context that is used in other getdns calls.
+ */
+getdns_return_t
 getdns_context_create(struct getdns_context ** context, int set_from_os)
 {
 	return getdns_context_create_with_memory_functions(context,
@@ -330,7 +366,7 @@ getdns_context_destroy(struct getdns_context *context)
 		return;
 	}
 	if (context->namespaces)
-		GETDNS_FREE(context, context->namespaces);
+		GETDNS_FREE(context->my_mf, context->namespaces);
 
 	getdns_list_destroy(context->dns_root_servers);
 	getdns_list_destroy(context->suffix);
@@ -345,7 +381,7 @@ getdns_context_destroy(struct getdns_context *context)
 
 	ldns_rbtree_free(context->outbound_requests);
 
-	GETDNS_FREE(context, context);
+	GETDNS_FREE(context->my_mf, context);
 	return;
 }				/* getdns_context_destroy */
 
@@ -446,10 +482,10 @@ getdns_context_set_namespaces(struct getdns_context *context,
 	}
 
     /** clean up old namespaces **/
-	GETDNS_FREE(context, context->namespaces);
+	GETDNS_FREE(context->my_mf, context->namespaces);
 
     /** duplicate **/
-	context->namespaces = GETDNS_XMALLOC(context, uint16_t,
+	context->namespaces = GETDNS_XMALLOC(context->my_mf, uint16_t,
 	    namespace_count);
 	memcpy(context->namespaces, namespaces,
 	    namespace_count * sizeof(uint16_t));
@@ -784,6 +820,36 @@ getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 }				/* getdns_context_set_edns_do_bit */
 
 /*
+ * getdns_context_set_extended_memory_functions
+ *
+ */
+getdns_return_t
+getdns_context_set_extended_memory_functions(
+    struct getdns_context *context,
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+    )
+{
+	if (!context)
+		return GETDNS_RETURN_BAD_CONTEXT;
+
+	if (!malloc || !realloc || !free)
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+
+	context->mf.mf_arg         = userarg;
+	context->mf.mf.ext.malloc  = malloc;
+	context->mf.mf.ext.realloc = realloc;
+	context->mf.mf.ext.free    = free;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS);
+
+	return GETDNS_RETURN_GOOD;
+} /* getdns_context_set_extended_memory_functions*/
+
+
+/*
  * getdns_context_set_memory_functions
  *
  */
@@ -794,19 +860,12 @@ getdns_context_set_memory_functions(struct getdns_context *context,
     void (*free) (void *)
     )
 {
-	if (!context)
-		return GETDNS_RETURN_BAD_CONTEXT;
-
-	if (!malloc || !realloc || !free)
-		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-
-	context->malloc = malloc;
-	context->realloc = realloc;
-	context->free = free;
-
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS);
-
-	return GETDNS_RETURN_GOOD;
+	mf_union mf;
+	mf.pln.malloc = malloc;
+	mf.pln.realloc = realloc;
+	mf.pln.free = free;
+	return getdns_context_set_extended_memory_functions(
+	    context, MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 } /* getdns_context_set_memory_functions*/
 
 
@@ -874,7 +933,7 @@ getdns_context_cancel_request(struct getdns_context *context,
 		user_pointer = req->user_pointer;
 
 		/* clean up */
-		GETDNS_FREE(context, node);
+		GETDNS_FREE(context->my_mf, node);
 		dns_req_free(req);
 
 		/* fire callback */
@@ -959,7 +1018,7 @@ getdns_context_track_outbound_request(getdns_dns_req * req)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	struct getdns_context *context = req->context;
-	ldns_rbnode_t *node = GETDNS_MALLOC(context, ldns_rbnode_t);
+	ldns_rbnode_t *node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
 	if (!node) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
@@ -967,7 +1026,7 @@ getdns_context_track_outbound_request(getdns_dns_req * req)
 	node->data = req;
 	if (!ldns_rbtree_insert(context->outbound_requests, node)) {
 		/* free the node */
-		GETDNS_FREE(context, node);
+		GETDNS_FREE(context->my_mf, node);
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	return GETDNS_RETURN_GOOD;
@@ -983,16 +1042,16 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 	ldns_rbnode_t *node = ldns_rbtree_delete(context->outbound_requests,
 	    &(req->trans_id));
 	if (node) {
-		GETDNS_FREE(context, node);
+		GETDNS_FREE(context->my_mf, node);
 	}
 	return GETDNS_RETURN_GOOD;
 }
 
 char *
-getdns_strdup(void *(*malloc)(size_t), const char *s)
+getdns_strdup(struct mem_funcs *mfs, const char *s)
 {
 	size_t sz = strlen(s) + 1;
-	char *r = (char *)(*malloc)(sizeof(char) * sz);
+	char *r = GETDNS_XMALLOC(*mfs, char, sz);
 	if (r)
 		return memcpy(r, s, sz);
 	else
@@ -1000,7 +1059,7 @@ getdns_strdup(void *(*malloc)(size_t), const char *s)
 }
 
 struct getdns_bindata *
-getdns_bindata_copy(void *(*malloc)(size_t), void (*free)(void *),
+getdns_bindata_copy(struct mem_funcs *mfs,
     const struct getdns_bindata *src)
 {
 	struct getdns_bindata *dst;
@@ -1008,14 +1067,14 @@ getdns_bindata_copy(void *(*malloc)(size_t), void (*free)(void *),
 	if (!src)
 		return NULL;
 	
-	dst = (struct getdns_bindata *)(*malloc)(sizeof(struct getdns_bindata));
+	dst = GETDNS_MALLOC(*mfs, struct getdns_bindata);
 	if (!dst)
 		return NULL;
 
 	dst->size = src->size;
-	dst->data = (uint8_t *)(*malloc)(sizeof(uint8_t) * src->size);
+	dst->data = GETDNS_XMALLOC(*mfs, uint8_t, src->size);
 	if (!dst->data) {
-		(*free)(dst);
+		GETDNS_FREE(*mfs, dst);
 		return NULL;
 	}
 	(void) memcpy(dst->data, src->data, src->size);
@@ -1023,11 +1082,12 @@ getdns_bindata_copy(void *(*malloc)(size_t), void (*free)(void *),
 }
 
 void
-getdns_bindata_destroy(void (*free)(void *), struct getdns_bindata *bindata)
+getdns_bindata_destroy(struct mem_funcs *mfs,
+    struct getdns_bindata *bindata)
 {
 	if (!bindata)
 		return;
-	(*free)(bindata->data);
-	(*free)(bindata);
+	GETDNS_FREE(*mfs, bindata->data);
+	GETDNS_FREE(*mfs, bindata);
 }
 /* getdns_context.c */
