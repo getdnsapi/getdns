@@ -54,7 +54,7 @@ network_req_free(getdns_network_req * net_req)
 	if (net_req->result) {
 		ldns_pkt_free(net_req->result);
 	}
-	GETDNS_FREE(context, net_req);
+	GETDNS_FREE(context->mf, net_req);
 }
 
 getdns_network_req *
@@ -64,7 +64,7 @@ network_req_new(getdns_dns_req * owner,
 {
 
 	struct getdns_context *context = owner->context;
-	getdns_network_req *net_req = GETDNS_MALLOC( context
+	getdns_network_req *net_req = GETDNS_MALLOC( context->mf
 	                                           , getdns_network_req);
 	if (!net_req) {
 		return NULL;
@@ -117,7 +117,7 @@ dns_req_free(getdns_dns_req * req)
 	/* free strduped name */
 	free(req->name);
 
-	GETDNS_FREE(context, req);
+	GETDNS_FREE(context->mf, req);
 }
 
 /* create a new dns req to be submitted */
@@ -132,7 +132,7 @@ dns_req_new(struct getdns_context *context,
 	getdns_return_t r;
 	uint32_t both = GETDNS_EXTENSION_FALSE;
 
-	result = GETDNS_MALLOC(context, getdns_dns_req);
+	result = GETDNS_MALLOC(context->mf, getdns_dns_req);
 	if (result == NULL) {
 		return NULL;
 	}

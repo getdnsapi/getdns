@@ -67,8 +67,7 @@ struct getdns_dict_item
 struct getdns_dict
 {
 	ldns_rbtree_t root;
-	void *mf_arg;
-	mem_funcs mf;
+	struct mem_funcs mf;
 };
 
 #endif

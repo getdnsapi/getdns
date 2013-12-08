@@ -179,40 +179,40 @@ typedef struct getdns_dns_req
 #define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)
 extern void *plain_mem_funcs_user_arg;
 
-typedef union {
-	struct {
-		void *(*malloc)(size_t);
-		void *(*realloc)(void *, size_t);
-		void (*free)(void *);
-	} pln;
-	struct {
-		void *(*malloc)(void *userarg, size_t);
-		void *(*realloc)(void *userarg, void *, size_t);
-		void (*free)(void *userarg, void *);
-	} ext;
-} mem_funcs;
+struct mem_funcs {
+	void *mf_arg;
+	union {
+		struct {
+			void *(*malloc)(size_t);
+			void *(*realloc)(void *, size_t);
+			void (*free)(void *);
+		} pln;
+		struct {
+			void *(*malloc)(void *userarg, size_t);
+			void *(*realloc)(void *userarg, void *, size_t);
+			void (*free)(void *userarg, void *);
+		} ext;
+	} mf;
+};
 
 #define GETDNS_XMALLOC(obj, type, count)	\
-    ((!(obj)) ? ((type *)malloc((count)*sizeof(type))) \
-    : ((obj)->mf_arg == MF_PLAIN \
-    ? ((type *)(*(obj)->mf.pln.malloc)(               (count)*sizeof(type))) \
-    : ((type *)(*(obj)->mf.ext.malloc)((obj)->mf_arg, (count)*sizeof(type))) \
-    ))
+    ((obj).mf_arg == MF_PLAIN \
+    ? ((type *)(*(obj).mf.pln.malloc)(              (count)*sizeof(type))) \
+    : ((type *)(*(obj).mf.ext.malloc)((obj).mf_arg, (count)*sizeof(type))) \
+    )
 
 #define GETDNS_XREALLOC(obj, ptr, type, count)	\
-    ((!(obj)) ? ((type *)realloc((ptr), (count)*sizeof(type))) \
-    : ((obj)->mf_arg == MF_PLAIN \
-    ? ((type *)(*(obj)->mf.pln.realloc)( (ptr), (count)*sizeof(type))) \
-    : ((type *)(*(obj)->mf.ext.realloc)( (obj)->mf_arg                 \
-                                       , (ptr), (count)*sizeof(type))) \
-    ))
+    ((obj).mf_arg == MF_PLAIN \
+    ? ((type *)(*(obj).mf.pln.realloc)( (ptr), (count)*sizeof(type))) \
+    : ((type *)(*(obj).mf.ext.realloc)( (obj).mf_arg                  \
+                                      , (ptr), (count)*sizeof(type))) \
+    )
 
 #define GETDNS_FREE(obj, ptr)	\
-    ((!(obj)) ? free(ptr) \
-    : ((obj)->mf_arg == MF_PLAIN \
-    ? ((*(obj)->mf.pln.free)(               (ptr))) \
-    : ((*(obj)->mf.ext.free)((obj)->mf_arg, (ptr))) \
-    ))
+    ((obj).mf_arg == MF_PLAIN \
+    ? ((*(obj).mf.pln.free)(              (ptr))) \
+    : ((*(obj).mf.ext.free)((obj).mf_arg, (ptr))) \
+    )
 
 #define GETDNS_MALLOC(obj, type)	GETDNS_XMALLOC(obj, type, 1)
 #define GETDNS_REALLOC(obj, ptr, type)	GETDNS_XREALLOC(obj, ptr, type, 1);

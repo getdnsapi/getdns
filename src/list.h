@@ -64,8 +64,7 @@ struct getdns_list
 	int numalloc;
 	int numinuse;
 	struct getdns_list_item *items;
-	void *mf_arg;
-	mem_funcs mf;
+	struct mem_funcs mf;
 };
 
 #endif

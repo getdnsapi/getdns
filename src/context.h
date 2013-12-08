@@ -59,13 +59,9 @@ struct getdns_context {
 	uint8_t edns_do_bit;
 
 	getdns_update_callback update_callback;
-	void *mf_arg;
-	mem_funcs mf;
 
-	struct {
-		void *mf_arg;
-		mem_funcs mf;
-	} my_mf;
+	struct mem_funcs mf;
+	struct mem_funcs my_mf;
 
 	/* Event loop for sync requests */
 	struct event_base *event_base_sync;
@@ -105,13 +101,14 @@ getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
 getdns_return_t getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback);
 
-char *getdns_strdup(void *(*malloc)(size_t), const char *str);
+char *getdns_strdup(struct mem_funcs *mfs, const char *str);
 
 struct getdns_bindata *getdns_bindata_copy(
-    void *(*malloc)(size_t), void (*free)(void *),
+    struct mem_funcs *mfs,
     const struct getdns_bindata *src);
 
-void getdns_bindata_destroy(void (*free)(void *),
+void getdns_bindata_destroy(
+    struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
 
 #endif /* _GETDNS_CONTEXT_H_ */
