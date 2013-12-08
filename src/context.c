@@ -74,7 +74,7 @@ static void cancel_dns_req(getdns_dns_req *);
 static uint16_t *
 create_default_namespaces(struct getdns_context *context)
 {
-	uint16_t *result = GETDNS_XMALLOC(context, uint16_t, 2);
+	uint16_t *result = GETDNS_XMALLOC(&context->my_mf, uint16_t, 2);
 	result[0] = GETDNS_CONTEXT_NAMESPACE_LOCALNAMES;
 	result[1] = GETDNS_CONTEXT_NAMESPACE_DNS;
 	return result;
@@ -256,6 +256,10 @@ getdns_context_create_with_memory_functions(struct getdns_context ** context,
 	if (!result) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
+	result->my_mf.mf_arg         = MF_PLAIN;
+	result->my_mf.mf.pln.malloc  = malloc;
+	result->my_mf.mf.pln.realloc = realloc;
+	result->my_mf.mf.pln.free    = free;
 
 	result->update_callback = NULL;
 
@@ -334,7 +338,7 @@ getdns_context_destroy(struct getdns_context *context)
 		return;
 	}
 	if (context->namespaces)
-		GETDNS_FREE(context, context->namespaces);
+		GETDNS_FREE(&context->my_mf, context->namespaces);
 
 	getdns_list_destroy(context->dns_root_servers);
 	getdns_list_destroy(context->suffix);
@@ -349,7 +353,7 @@ getdns_context_destroy(struct getdns_context *context)
 
 	ldns_rbtree_free(context->outbound_requests);
 
-	GETDNS_FREE(context, context);
+	GETDNS_FREE(&context->my_mf, context);
 	return;
 }				/* getdns_context_destroy */
 
@@ -450,10 +454,10 @@ getdns_context_set_namespaces(struct getdns_context *context,
 	}
 
     /** clean up old namespaces **/
-	GETDNS_FREE(context, context->namespaces);
+	GETDNS_FREE(&context->my_mf, context->namespaces);
 
     /** duplicate **/
-	context->namespaces = GETDNS_XMALLOC(context, uint16_t,
+	context->namespaces = GETDNS_XMALLOC(&context->my_mf, uint16_t,
 	    namespace_count);
 	memcpy(context->namespaces, namespaces,
 	    namespace_count * sizeof(uint16_t));
@@ -879,7 +883,7 @@ getdns_context_cancel_request(struct getdns_context *context,
 		user_pointer = req->user_pointer;
 
 		/* clean up */
-		GETDNS_FREE(context, node);
+		GETDNS_FREE(&context->my_mf, node);
 		dns_req_free(req);
 
 		/* fire callback */
@@ -964,7 +968,7 @@ getdns_context_track_outbound_request(getdns_dns_req * req)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	struct getdns_context *context = req->context;
-	ldns_rbnode_t *node = GETDNS_MALLOC(context, ldns_rbnode_t);
+	ldns_rbnode_t *node = GETDNS_MALLOC(&context->my_mf, ldns_rbnode_t);
 	if (!node) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
@@ -972,7 +976,7 @@ getdns_context_track_outbound_request(getdns_dns_req * req)
 	node->data = req;
 	if (!ldns_rbtree_insert(context->outbound_requests, node)) {
 		/* free the node */
-		GETDNS_FREE(context, node);
+		GETDNS_FREE(&context->my_mf, node);
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	return GETDNS_RETURN_GOOD;
@@ -988,7 +992,7 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 	ldns_rbnode_t *node = ldns_rbtree_delete(context->outbound_requests,
 	    &(req->trans_id));
 	if (node) {
-		GETDNS_FREE(context, node);
+		GETDNS_FREE(&context->my_mf, node);
 	}
 	return GETDNS_RETURN_GOOD;
 }

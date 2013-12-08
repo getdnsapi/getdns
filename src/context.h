@@ -62,6 +62,11 @@ struct getdns_context {
 	void *mf_arg;
 	mem_funcs mf;
 
+	struct {
+		void *mf_arg;
+		mem_funcs mf;
+	} my_mf;
+
 	/* Event loop for sync requests */
 	struct event_base *event_base_sync;
 	/* Event loop for async requests */
