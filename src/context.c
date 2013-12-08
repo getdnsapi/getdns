@@ -239,34 +239,40 @@ transaction_id_cmp(const void *id1, const void *id2)
  * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
-getdns_context_create_with_memory_functions(struct getdns_context ** context,
+getdns_context_create_with_extended_memory_functions(
+    struct getdns_context ** context,
     int set_from_os,
-    void *(*malloc)(size_t),
-    void *(*realloc)(void *, size_t),
-    void (*free)(void *)
+    void *userarg,
+    void *(*malloc)(void *userarg, size_t),
+    void *(*realloc)(void *userarg, void *, size_t),
+    void (*free)(void *userarg, void *)
     )
 {
 	struct getdns_context *result = NULL;
+	mf_union mf;
 
 	if (!context || !malloc || !realloc || !free)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
     /** default init **/
-	result = (*malloc)(sizeof(struct getdns_context));
+	mf.ext.malloc = malloc;
+	result = userarg == MF_PLAIN
+	       ? (*mf.pln.malloc)(         sizeof(struct getdns_context))
+	       : (*mf.ext.malloc)(userarg, sizeof(struct getdns_context));
 	if (!result) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	result->my_mf.mf_arg         = MF_PLAIN;
-	result->my_mf.mf.pln.malloc  = malloc;
-	result->my_mf.mf.pln.realloc = realloc;
-	result->my_mf.mf.pln.free    = free;
+	result->my_mf.mf_arg         = userarg;
+	result->my_mf.mf.ext.malloc  = malloc;
+	result->my_mf.mf.ext.realloc = realloc;
+	result->my_mf.mf.ext.free    = free;
 
 	result->update_callback = NULL;
 
-	result->mf.mf_arg          = MF_PLAIN;
-	result->mf.mf.pln.malloc   = malloc;
-	result->mf.mf.pln.realloc  = realloc;
-	result->mf.mf.pln.free     = free;
+	result->mf.mf_arg          = userarg;
+	result->mf.mf.ext.malloc   = malloc;
+	result->mf.mf.ext.realloc  = realloc;
+	result->mf.mf.ext.free     = free;
 
 	result->event_base_sync = event_base_new();
 	result->unbound_sync = ub_ctx_create_event(result->event_base_sync);
@@ -310,6 +316,28 @@ getdns_context_create_with_memory_functions(struct getdns_context ** context,
 	    GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
 
 	return GETDNS_RETURN_GOOD;
+}				/* getdns_context_create */
+
+/*
+ * getdns_context_create
+ *
+ * Call this to initialize the context that is used in other getdns calls.
+ */
+getdns_return_t
+getdns_context_create_with_memory_functions(struct getdns_context ** context,
+    int set_from_os,
+    void *(*malloc)(size_t),
+    void *(*realloc)(void *, size_t),
+    void (*free)(void *)
+    )
+{
+	mf_union mf;
+	mf.pln.malloc = malloc;
+	mf.pln.realloc = realloc;
+	mf.pln.free = free;
+	return getdns_context_create_with_extended_memory_functions(
+	    context, set_from_os, MF_PLAIN,
+	    mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 }				/* getdns_context_create */
 
 /*
@@ -792,6 +820,36 @@ getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 }				/* getdns_context_set_edns_do_bit */
 
 /*
+ * getdns_context_set_extended_memory_functions
+ *
+ */
+getdns_return_t
+getdns_context_set_extended_memory_functions(
+    struct getdns_context *context,
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+    )
+{
+	if (!context)
+		return GETDNS_RETURN_BAD_CONTEXT;
+
+	if (!malloc || !realloc || !free)
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+
+	context->mf.mf_arg         = userarg;
+	context->mf.mf.ext.malloc  = malloc;
+	context->mf.mf.ext.realloc = realloc;
+	context->mf.mf.ext.free    = free;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS);
+
+	return GETDNS_RETURN_GOOD;
+} /* getdns_context_set_extended_memory_functions*/
+
+
+/*
  * getdns_context_set_memory_functions
  *
  */
@@ -802,20 +860,12 @@ getdns_context_set_memory_functions(struct getdns_context *context,
     void (*free) (void *)
     )
 {
-	if (!context)
-		return GETDNS_RETURN_BAD_CONTEXT;
-
-	if (!malloc || !realloc || !free)
-		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-
-	context->mf.mf_arg         = MF_PLAIN;
-	context->mf.mf.pln.malloc  = malloc;
-	context->mf.mf.pln.realloc = realloc;
-	context->mf.mf.pln.free    = free;
-
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS);
-
-	return GETDNS_RETURN_GOOD;
+	mf_union mf;
+	mf.pln.malloc = malloc;
+	mf.pln.realloc = realloc;
+	mf.pln.free = free;
+	return getdns_context_set_extended_memory_functions(
+	    context, MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 } /* getdns_context_set_memory_functions*/
 
 

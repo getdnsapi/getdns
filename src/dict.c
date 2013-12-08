@@ -83,8 +83,9 @@ getdns_dict_get_names(struct getdns_dict * dict, struct getdns_list ** answer)
 	if (!dict || !answer)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-	*answer = getdns_list_create_with_memory_functions(
-	    dict->mf.mf.pln.malloc, dict->mf.mf.pln.realloc, dict->mf.mf.pln.free);
+	*answer = getdns_list_create_with_extended_memory_functions(
+	    dict->mf.mf_arg, dict->mf.mf.ext.malloc,
+	    dict->mf.mf.ext.realloc, dict->mf.mf.ext.free);
 	if (!*answer)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
@@ -188,37 +189,57 @@ getdns_dict_get_int(struct getdns_dict * dict, char *name, uint32_t * answer)
 }				/* getdns_dict_get_int */
 
 struct getdns_dict *
-getdns_dict_create_with_memory_functions(void *(*malloc)(size_t),
-    void *(*realloc)(void *, size_t), void (*free)(void *))
+getdns_dict_create_with_extended_memory_functions(
+    void *userarg,
+    void *(*malloc)(void *userarg, size_t),
+    void *(*realloc)(void *userarg, void *, size_t),
+    void (*free)(void *userarg, void *))
 {
 	struct getdns_dict *dict;
+	mf_union mf;
 
 	if (!malloc || !realloc || !free)
 		return NULL;
 
-	dict = (struct getdns_dict *)(*malloc)(sizeof(struct getdns_dict));
+	mf.ext.malloc = malloc;
+	dict = userarg == MF_PLAIN
+	     ? (struct getdns_dict*)(*mf.pln.malloc)(
+	           sizeof(struct getdns_dict))
+	     : (struct getdns_dict*)(*mf.ext.malloc)(userarg,
+	           sizeof(struct getdns_dict));
 	if (!dict)
 		return NULL;
 
-	dict->mf.mf_arg         = MF_PLAIN;
-	dict->mf.mf.pln.malloc  = malloc;
-	dict->mf.mf.pln.realloc = realloc;
-	dict->mf.mf.pln.free    = free;
+	dict->mf.mf_arg         = userarg;
+	dict->mf.mf.ext.malloc  = malloc;
+	dict->mf.mf.ext.realloc = realloc;
+	dict->mf.mf.ext.free    = free;
 
 	ldns_rbtree_init(&(dict->root),
 	    (int (*)(const void *, const void *)) strcmp);
 	return dict;
 }
 
+struct getdns_dict *
+getdns_dict_create_with_memory_functions(void *(*malloc)(size_t),
+    void *(*realloc)(void *, size_t), void (*free)(void *))
+{
+	mf_union mf;
+	mf.pln.malloc = malloc;
+	mf.pln.realloc = realloc;
+	mf.pln.free = free;
+	return getdns_dict_create_with_extended_memory_functions(
+	    MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
+}
 
 /*-------------------------- getdns_dict_create_with_context */
 struct getdns_dict *
 getdns_dict_create_with_context(struct getdns_context *context)
 {
 	if (context)
-		return getdns_dict_create_with_memory_functions(
-		    context->mf.mf.pln.malloc,
-		    context->mf.mf.pln.realloc, context->mf.mf.pln.free);
+		return getdns_dict_create_with_extended_memory_functions(
+		    context->mf.mf_arg, context->mf.mf.ext.malloc,
+		    context->mf.mf.ext.realloc, context->mf.mf.ext.free);
 	else
 		return getdns_dict_create_with_memory_functions(&malloc,
 		    &realloc, &free);
@@ -254,10 +275,11 @@ getdns_dict_copy(struct getdns_dict * srcdict, struct getdns_dict ** dstdict)
 		*dstdict = NULL;
 		return GETDNS_RETURN_GOOD;
 	}
-	*dstdict = getdns_dict_create_with_memory_functions(
-	    srcdict->mf.mf.pln.malloc,
-	    srcdict->mf.mf.pln.realloc,
-	    srcdict->mf.mf.pln.free);
+	*dstdict = getdns_dict_create_with_extended_memory_functions(
+	    srcdict->mf.mf_arg,
+	    srcdict->mf.mf.ext.malloc,
+	    srcdict->mf.mf.ext.realloc,
+	    srcdict->mf.mf.ext.free);
 	if (!*dstdict)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 

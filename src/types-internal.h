@@ -179,9 +179,7 @@ typedef struct getdns_dns_req
 #define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)
 extern void *plain_mem_funcs_user_arg;
 
-struct mem_funcs {
-	void *mf_arg;
-	union {
+typedef union {
 		struct {
 			void *(*malloc)(size_t);
 			void *(*realloc)(void *, size_t);
@@ -192,7 +190,11 @@ struct mem_funcs {
 			void *(*realloc)(void *userarg, void *, size_t);
 			void (*free)(void *userarg, void *);
 		} ext;
-	} mf;
+	} mf_union;
+
+struct mem_funcs {
+	void *mf_arg;
+	mf_union mf;
 };
 
 #define GETDNS_XMALLOC(obj, type, count)	\
