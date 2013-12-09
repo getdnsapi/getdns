@@ -3221,6 +3221,8 @@ case "$host_os" in
                                                 # pick up strdup() declaration
                                                 # in <string.h>
   ;;
+  solaris* ) CFLAGS="$CFLAGS -D__EXTENSIONS__"  # for strdup() from <string.h>
+  ;;
 esac
 
 # always use ./libtool unless override from commandline (libtool=mylibtool)

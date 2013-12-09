@@ -21,7 +21,9 @@ case "$host_os" in
   linux* ) CFLAGS="$CFLAGS -D_XOPEN_SOURCE=501" # unfortunate, but needed to
                                                 # pick up strdup() declaration
                                                 # in <string.h>
-  ;;     
+  ;;
+  solaris* ) CFLAGS="$CFLAGS -D__EXTENSIONS__"  # for strdup() from <string.h>
+  ;;
 esac
 
 # always use ./libtool unless override from commandline (libtool=mylibtool)
