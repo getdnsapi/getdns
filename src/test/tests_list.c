@@ -36,11 +36,6 @@
 #define GETDNS_LIST_BLOCKSZ 10
 
 
-/* Prototypes for functions not part of the API
- * TODO: remove these
- */
-getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
-
 /* TODO: might want a separate unit test for getdns_list_copy() - right now the code gets
    covered as a result of other tests */
 
@@ -88,15 +83,8 @@ tst_bindatasetget(void)
 
 	/* test set function against empty list with bogus params */
 
-	tstmsg_case_msg("getdns_list_set_bindata() empty list");
-	retval = getdns_list_set_bindata(NULL, index, NULL);
-	sprintf(msg,
-	    "getdns_list_set_bindata(NULL, index, ans_bindata),retval = %d",
-	    retval);
-	tstmsg_case_msg(msg);
-
-	tstmsg_case_msg("getdns_list_set_bindata(list, 0, ans_bindata)");
-	retval = getdns_list_set_bindata(list, 0, NULL);
+	tstmsg_case_msg("getdns_list_set_bindata(list, -1, ans_bindata)");
+	retval = getdns_list_set_bindata(list, -1, NULL);
 	sprintf(msg, "getdns_list_set_bindata,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
@@ -112,7 +100,6 @@ tst_bindatasetget(void)
 	new_bindata->size = strlen("foobar") + 1;
 	new_bindata->data = (uint8_t *) "foobar";
 
-	getdns_list_add_item(list, &index);
 	getdns_list_set_bindata(list, index, new_bindata);
 	retval = getdns_list_get_bindata(list, index, &ans_bindata);
 	sprintf(msg,
@@ -172,14 +159,8 @@ tst_dictsetget(void)
 
 	/* test int set function against empty list with bogus params */
 
-	tstmsg_case_msg("getdns_list_set_dict() empty list");
-	retval = getdns_list_set_dict(NULL, index, dict);
-	sprintf(msg, "getdns_list_set_dict(NULL, index, dict),retval = %d",
-	    retval);
-	tstmsg_case_msg(msg);
-
 	tstmsg_case_msg("getdns_list_set_dict(list, 0, dict)");
-	retval = getdns_list_set_dict(list, 0, dict);
+	retval = getdns_list_set_dict(list, -1, dict);
 	sprintf(msg, "getdns_list_set_dict,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
@@ -191,7 +172,6 @@ tst_dictsetget(void)
 	/* test set and get legitimate use case */
 
 	getdns_dict_set_int(dict, "foo", 42);
-	getdns_list_add_item(list, &index);
 	getdns_list_set_dict(list, index, dict);
 	retval = getdns_list_get_dict(list, index, &ansdict);
 	getdns_dict_get_int(ansdict, "foo", &ans_int);
@@ -252,14 +232,8 @@ tst_listsetget(void)
 
 	/* test set function against empty list with bogus params */
 
-	tstmsg_case_msg("getdns_list_set_list() empty list");
-	retval = getdns_list_set_list(NULL, index, NULL);
-	sprintf(msg, "getdns_list_set_list(NULL, index, ans_list),retval = %d",
-	    retval);
-	tstmsg_case_msg(msg);
-
-	tstmsg_case_msg("getdns_list_set_list(list, 0, ans_list)");
-	retval = getdns_list_set_list(list, 0, NULL);
+	tstmsg_case_msg("getdns_list_set_list(list, -1, ans_list)");
+	retval = getdns_list_set_list(list, -1, NULL);
 	sprintf(msg, "getdns_list_set_list,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
@@ -271,10 +245,8 @@ tst_listsetget(void)
 	/* test set and get legitimate use case */
 
 	new_list = getdns_list_create();
-	getdns_list_add_item(new_list, &index);
 	getdns_list_set_int(new_list, index, 42);
 
-	getdns_list_add_item(list, &index);
 	getdns_list_set_list(list, index, new_list);
 	retval = getdns_list_get_list(list, index, &ans_list);
 	getdns_list_get_int(ans_list, 0, &ans_int);
@@ -332,14 +304,8 @@ tst_intsetget(void)
 
 	/* test int set function against empty list with bogus params */
 
-	tstmsg_case_msg("getdns_list_set_int() empty list");
-	retval = getdns_list_set_int(NULL, index, ans_int);
-	sprintf(msg, "getdns_list_set_int(NULL, index, ans_int),retval = %d",
-	    retval);
-	tstmsg_case_msg(msg);
-
-	tstmsg_case_msg("getdns_list_set_int(list, 0, ans_int)");
-	retval = getdns_list_set_int(list, 0, ans_int);
+	tstmsg_case_msg("getdns_list_set_int(list, -1, ans_int)");
+	retval = getdns_list_set_int(list, -1, ans_int);
 	sprintf(msg, "getdns_list_set_int,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
@@ -350,7 +316,6 @@ tst_intsetget(void)
 
 	/* test set and get legitimate use case */
 
-	getdns_list_add_item(list, &index);
 	getdns_list_set_int(list, index, 42);
 	retval = getdns_list_get_int(list, index, &ans_int);
 	sprintf(msg, "getdns_list_set/get_int,retval = %d, ans = %d", retval,
@@ -394,22 +359,14 @@ tst_create(void)
 
 	/* add items until we force it to allocate more storage */
 
-	tstmsg_case_msg("getdns_add_item(list) past block size");
+	tstmsg_case_msg("getdns_list_set_int(list, i) past block size");
 	list = getdns_list_create();
 	for (i = 0; i < GETDNS_LIST_BLOCKSZ + 2; i++) {
-		retval = getdns_list_add_item(list, &index);
+		retval = getdns_list_set_int(list, i, i);
 		if (retval != GETDNS_RETURN_GOOD) {
-			sprintf(msg, "getdns_list_add_item,i=%d,retval = %d",
+			sprintf(msg, "getdns_list_set_int,i=%d,retval = %d",
 			    i, retval);
 			tstmsg_case_msg(msg);
-		} else {
-			if (index != i) {
-				sprintf(msg,
-				    "getdns_list_add_item,i=%d,index=%d,retval = %d",
-				    i, (int) index, retval);
-				tstmsg_case_msg(msg);
-			}
-			getdns_list_set_int(list, index, 0);
 		}
 	}
 

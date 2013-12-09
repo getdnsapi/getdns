@@ -283,34 +283,39 @@ getdns_list_create()
 	return getdns_list_create_with_context(NULL);
 }				/* getdns_list_create */
 
+static void
+getdns_list_destroy_item(struct getdns_list *list, size_t index)
+{
+	switch (list->items[index].dtype) {
+	case t_dict:
+		getdns_dict_destroy(list->items[index].data.dict);
+		break;
+
+	case t_list:
+		getdns_list_destroy(list->items[index].data.list);
+		break;
+
+	case t_bindata:
+		getdns_bindata_destroy(&list->mf,
+		    list->items[index].data.bindata);
+		break;
+
+	default:
+		break;
+	}
+}
+
 /*---------------------------------------- getdns_list_destroy */
 void
 getdns_list_destroy(struct getdns_list *list)
 {
-	int i;
+	size_t i;
 
 	if (!list)
 		return;
 
-	for (i = 0; i < list->numinuse; i++) {
-		switch (list->items[i].dtype) {
-		case t_dict:
-			getdns_dict_destroy(list->items[i].data.dict);
-			break;
-
-		case t_list:
-			getdns_list_destroy(list->items[i].data.list);
-			break;
-
-		case t_bindata:
-			getdns_bindata_destroy(&list->mf,
-			    list->items[i].data.bindata);
-			break;
-
-		default:
-			break;
-		}
-	}
+	for (i = 0; i < list->numinuse; i++)
+		getdns_list_destroy_item(list, i);
 
 	if (list->items)
 		GETDNS_FREE(list->mf, list->items);
@@ -347,7 +352,7 @@ getdns_list_set_dict(struct getdns_list * list, size_t index,
 	if (!list || !child_dict)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (index >= list->numinuse)
+	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	retval = getdns_dict_copy(child_dict, &newdict);
@@ -356,9 +361,13 @@ getdns_list_set_dict(struct getdns_list * list, size_t index,
 
 	if (index == list->numinuse) {
 		retval = getdns_list_add_item(list, &index);
-		if (retval != GETDNS_RETURN_GOOD)
+		if (retval != GETDNS_RETURN_GOOD) {
+			getdns_dict_destroy(newdict);
 			return retval;
-	}
+		}
+	} else
+		getdns_list_destroy_item(list, index);
+
 	list->items[index].dtype = t_dict;
 	list->items[index].data.dict = newdict;
 	return GETDNS_RETURN_GOOD;
@@ -375,7 +384,7 @@ getdns_list_set_list(struct getdns_list * list, size_t index,
 	if (!list || !child_list)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (index >= list->numinuse)
+	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	retval = getdns_list_copy(child_list, &newlist);
@@ -384,9 +393,13 @@ getdns_list_set_list(struct getdns_list * list, size_t index,
 
 	if (index == list->numinuse) {
 		retval = getdns_list_add_item(list, &index);
-		if (retval != GETDNS_RETURN_GOOD)
+		if (retval != GETDNS_RETURN_GOOD) {
+			getdns_list_destroy(newlist);
 			return retval;
-	}
+		}
+	} else
+		getdns_list_destroy_item(list, index);
+
 	list->items[index].dtype = t_list;
 	list->items[index].data.list = newlist;
 	return GETDNS_RETURN_GOOD;
@@ -403,7 +416,7 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 	if (!list || !child_bindata)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (index >= list->numinuse)
+	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	newbindata = getdns_bindata_copy(&list->mf, child_bindata);
@@ -412,9 +425,13 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 
 	if (index == list->numinuse) {
 		retval = getdns_list_add_item(list, &index);
-		if (retval != GETDNS_RETURN_GOOD)
+		if (retval != GETDNS_RETURN_GOOD) {
+			getdns_bindata_destroy(&list->mf, newbindata);
 			return retval;
-	}
+		}
+	} else
+		getdns_list_destroy_item(list, index);
+
 	list->items[index].dtype = t_bindata;
 	list->items[index].data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
@@ -430,14 +447,16 @@ getdns_list_set_int(struct getdns_list * list, size_t index,
 	if (!list)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (index >= list->numinuse)
+	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	if (index == list->numinuse) {
 		retval = getdns_list_add_item(list, &index);
 		if (retval != GETDNS_RETURN_GOOD)
 			return retval;
-	}
+	} else
+		getdns_list_destroy_item(list, index);
+
 	list->items[index].dtype = t_int;
 	list->items[index].data.n = child_int;
 	return GETDNS_RETURN_GOOD;
