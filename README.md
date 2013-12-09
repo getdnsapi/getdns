@@ -99,7 +99,7 @@ Spec Differences
 This implementation makes a few modifications to the spec by adding the following methods to the public API:
 
 * `getdns_context_set_memory_functions` replaces `getdns_context_set_memory_allocator`, `getdns_context_set_memory_deallocator`, and `getdns_context_set_memory_reallocator`
-* `getdns_list_create_with_context, `getdns_list_create_with_memory_functions`, `getdns_dict_create_with_context`, and `getdns_dict_create_with_memory_functions` to create lists and dictionaries with context or user supplied memory management functions.
+* `getdns_list_create_with_context`, `getdns_list_create_with_memory_functions`, `getdns_dict_create_with_context`, and `getdns_dict_create_with_memory_functions` to create lists and dictionaries with context or user supplied memory management functions.
 
 #Supported Platforms
 
