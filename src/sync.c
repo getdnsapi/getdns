@@ -9,7 +9,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -49,6 +49,7 @@
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
+#define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
 static void
 sync_callback_func(struct getdns_context *context,
@@ -68,7 +69,7 @@ getdns_general_sync(struct getdns_context *context,
     struct getdns_dict **response)
 {
 	getdns_return_t response_status;
-
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	response_status = validate_extensions(extensions);
 	if (response_status == GETDNS_RETURN_GOOD) {
 		response_status = getdns_general_ub(context->unbound_sync,

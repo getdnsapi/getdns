@@ -66,6 +66,7 @@ static void cancel_dns_req(getdns_dns_req *);
 
 /* Stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
+#define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
 /**
  * Helper to get default lookup namespaces.
@@ -394,6 +395,7 @@ getdns_context_set_context_update_callback(struct getdns_context *context,
     void (*value) (struct getdns_context *context, uint16_t changed_item)
     )
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	context->update_callback = value;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_context_set_context_update_callback */
@@ -435,7 +437,7 @@ clear_resolution_type_set_flag(struct getdns_context *context, uint16_t type)
 getdns_return_t
 getdns_context_set_context_update(struct getdns_context *context, uint16_t value)
 {
-	UNUSED_PARAM(context);
+	RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	UNUSED_PARAM(value);
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_context_set_context_update */
@@ -458,6 +460,7 @@ dispatch_updated(struct getdns_context *context, uint16_t item)
 getdns_return_t
 getdns_context_set_resolution_type(struct getdns_context *context, uint16_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (value != GETDNS_CONTEXT_STUB && value != GETDNS_CONTEXT_RECURSING) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
@@ -477,6 +480,7 @@ getdns_return_t
 getdns_context_set_namespaces(struct getdns_context *context,
     size_t namespace_count, uint16_t * namespaces)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (namespace_count == 0 || namespaces == NULL) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
@@ -502,7 +506,7 @@ getdns_context_set_namespaces(struct getdns_context *context,
 getdns_return_t
 getdns_context_set_dns_transport(struct getdns_context *context, uint16_t value)
 {
-
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	switch (value) {
 	case GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
 		set_ub_string_opt(context, "do-udp", "yes");
@@ -534,6 +538,7 @@ getdns_return_t
 getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
     uint16_t limit)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	/* num-queries-per-thread */
 	set_ub_number_opt(context, "num-queries-per-thread", limit);
 
@@ -550,6 +555,7 @@ getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
 getdns_return_t
 getdns_context_set_timeout(struct getdns_context *context, uint16_t timeout)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	context->timeout = timeout;
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_TIMEOUT);
@@ -564,6 +570,7 @@ getdns_context_set_timeout(struct getdns_context *context, uint16_t timeout)
 getdns_return_t
 getdns_context_set_follow_redirects(struct getdns_context *context, uint16_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	context->follow_redirects = value;
 
 	clear_resolution_type_set_flag(context, GETDNS_CONTEXT_RECURSING);
@@ -582,6 +589,7 @@ getdns_context_set_dns_root_servers(struct getdns_context *context,
 {
 	struct getdns_list *copy = NULL;
 	size_t count = 0;
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (addresses != NULL) {
 		if (getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -627,6 +635,7 @@ getdns_context_set_dns_root_servers(struct getdns_context *context,
 getdns_return_t
 getdns_context_set_append_name(struct getdns_context *context, uint16_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (value != GETDNS_CONTEXT_APPEND_NAME_ALWAYS &&
 	    value !=
 	    GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE
@@ -651,6 +660,7 @@ getdns_return_t
 getdns_context_set_suffix(struct getdns_context *context, struct getdns_list * value)
 {
 	struct getdns_list *copy = NULL;
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (value != NULL) {
 		if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -676,6 +686,7 @@ getdns_context_set_dnssec_trust_anchors(struct getdns_context *context,
     struct getdns_list * value)
 {
 	struct getdns_list *copy = NULL;
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (value != NULL) {
 		if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -698,6 +709,7 @@ getdns_return_t
 getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     uint16_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	set_ub_number_opt(context, "val-sig-skew-min", value);
 	set_ub_number_opt(context, "val-sig-skew-max", value);
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW);
@@ -715,6 +727,7 @@ getdns_context_set_stub_resolution(struct getdns_context *context,
 {
 	size_t count = 0;
 	size_t i = 0;
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	getdns_return_t r = getdns_list_get_length(upstream_list, &count);
 	if (count == 0 || r != GETDNS_RETURN_GOOD) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -758,6 +771,7 @@ getdns_return_t
 getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
     uint16_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	/* check for < 512.  uint16_t won't let it go above max) */
 	if (value < 512) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -779,6 +793,7 @@ getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
 getdns_return_t
 getdns_context_set_edns_extended_rcode(struct getdns_context *context, uint8_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	context->edns_extended_rcode = value;
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_EXTENDED_RCODE);
@@ -793,6 +808,7 @@ getdns_context_set_edns_extended_rcode(struct getdns_context *context, uint8_t v
 getdns_return_t
 getdns_context_set_edns_version(struct getdns_context *context, uint8_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	context->edns_version = value;
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_VERSION);
@@ -807,6 +823,7 @@ getdns_context_set_edns_version(struct getdns_context *context, uint8_t value)
 getdns_return_t
 getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	/* 0 or 1 */
 	if (value > 1) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -832,9 +849,7 @@ getdns_context_set_extended_memory_functions(
     void (*free) (void *userarg, void *)
     )
 {
-	if (!context)
-		return GETDNS_RETURN_BAD_CONTEXT;
-
+	RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (!malloc || !realloc || !free)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
@@ -877,6 +892,7 @@ getdns_return_t
 getdns_extension_set_libevent_base(struct getdns_context *context,
     struct event_base * this_event_base)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (this_event_base) {
 		ub_ctx_set_event(context->unbound_async, this_event_base);
 		context->event_base_async = this_event_base;
@@ -912,6 +928,7 @@ getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback)
 {
 	getdns_dns_req *req = NULL;
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 
 	/* delete the node from the tree */
 	ldns_rbnode_t *node = ldns_rbtree_delete(context->outbound_requests,
@@ -974,6 +991,7 @@ ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams, size_t count)
 getdns_return_t
 getdns_context_prepare_for_resolution(struct getdns_context *context)
 {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	if (context->resolution_type_set == context->resolution_type) {
 		/* already set and no config changes have caused this to be
 		 * bad.
@@ -1066,7 +1084,7 @@ getdns_bindata_copy(struct mem_funcs *mfs,
 
 	if (!src)
 		return NULL;
-	
+
 	dst = GETDNS_MALLOC(*mfs, struct getdns_bindata);
 	if (!dst)
 		return NULL;
