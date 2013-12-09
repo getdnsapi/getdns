@@ -1,7 +1,7 @@
 /**
  *
  * /brief getdns list management functions
- * 
+ *
  * This is the meat of the API
  * Originally taken from the getdns API description pseudo implementation.
  *
@@ -10,7 +10,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -100,7 +100,7 @@ getdns_list_get_bindata(struct getdns_list * list, size_t index,
 {
 	if (!list || index >= list->numinuse)
 		return  GETDNS_RETURN_NO_SUCH_LIST_ITEM;
-	
+
 	if (list->items[index].dtype != t_bindata)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
@@ -190,7 +190,7 @@ getdns_list_copy(struct getdns_list * srclist, struct getdns_list ** dstlist)
 			retval =getdns_list_set_list(*dstlist, index,
 			    srclist->items[i].data.list);
 			break;
-		
+
 		case t_bindata:
 			retval = getdns_list_set_bindata(*dstlist, index,
 			    srclist->items[i].data.bindata);
@@ -231,7 +231,7 @@ getdns_list_create_with_extended_memory_functions(
 	           sizeof(struct getdns_list));
 	if (!list)
 		return NULL;
-	
+
 	list->mf.mf_arg         = userarg;
 	list->mf.mf.ext.malloc  = malloc;
 	list->mf.mf.ext.realloc = realloc;
@@ -337,6 +337,8 @@ getdns_list_add_item(struct getdns_list *list, size_t * index)
 			return retval;
 	}
 	*index = list->numinuse;
+    list->items[*index].dtype = t_int;
+    list->items[*index].data.n = 0;
 	list->numinuse++;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_add_item */
