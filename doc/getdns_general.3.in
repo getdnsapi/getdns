@@ -26,7 +26,7 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_general 3 "November 2013" "getdns 0.0.0" getdns
+.TH getdns_general 3 "@date@" "getdns @version@" getdns
 .SH NAME
 .B getdns_general, 
 .B getdns_general_sync

@@ -18,6 +18,8 @@ INSTALL = @INSTALL@
 srcdir = @srcdir@
 VPATH = @srcdir@
 
+EDITS=-e 's/@''version@/$(version)/g'
+
 DOCDIRS = html latex man
 MANPAGES3 = libgetdns.3 getdns_address.3 getdns_dict.3 getdns_general.3 getdns_hostname.3 getdns_service.3
 
@@ -30,7 +32,7 @@ doc: 	$(MANPAGES3)
 
 .SUFFIXES: .3.in .3
 .3.in.3:
-	cp $< $@
+	sed $(EDITS) -e "s/@date@/`date +'%B %Y'`/g" $< > $@
 
 install:	$(MANPAGES3)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
