@@ -1,0 +1,97 @@
+.\" The "BSD-New" License
+.\" 
+.\" Copyright (c) 2013, Versign, Inc.
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\" * Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\" * Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\" * Neither the name of the <organization> nor the
+.\"   names of its contributors may be used to endorse or promote products
+.\"   derived from this software without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" 
+
+.TH getdns_dict 3 "November 2013" "getdns 0.0.0" getdns
+.SH NAME
+.B getdns_dict, 
+.B getdns_dict_get_names, 
+.B getdns_dict_get_data_type, 
+.B getdns_dict_get_dict, 
+.B getdns_dict_get_list, 
+.B getdns_dict_get_int
+
+.SH LIBRARY
+DNS Resolver library (libgetdns, -lgetdns)
+
+.SH SYNOPSIS
+#include <getdns.h>
+
+getdns_return_t 
+.br
+.B getdns_dict_get_names
+(struct getdns_dict *this_dict, struct getdns_list **answer)
+
+.SH DESCRIPTION
+
+.LP
+THIS IS A WORK IN PROGRESS - MUCH TO ADD
+
+.LP
+The getdns_dict type is used to manage name/value pairs in which the data types of the values are heterogenous and include
+.RS 3
+.br
+struct getdns_bindata
+.br
+struct getdns_dict
+.br
+struct getdns_list
+.br
+uint32_t
+.RE
+
+.LP
+.I this_dict
+the dictionary from which to retrieve the list of names
+.LP
+.I answer
+the list of all names in the dictionary, note that the caller must free storage allocated to the list via a call to
+.B getdns_list_destroy(3)
+
+.SH "RETURN VALUES"
+
+Upon successful completion the functions return
+.B GETDNS_RETURN_GOOD
+, otherwise the following error values are returned:
+.LP
+.B GETDNS_RETURN_GENERIC_ERROR
+if this_dict is not a valid dictionary
+
+.SH EXAMPLES
+
+TBD
+
+.SH SEE ALSO
+.BR libgetdns (3),
+.BR getdns_general (3),
+.BR getdns_general_sync (3),
+.BR getdns_hostname (3),
+.BR getdns_hostname_sync (3),
+.BR getdns_list (3),
+.BR getdns_service (3),
+.BR getdns_service_sync (3).
+
