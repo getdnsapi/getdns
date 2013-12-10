@@ -19,33 +19,29 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 DOCDIRS = html latex man
-MANPAGES = libgetdns.3 getdns_address.3
+MANPAGES3 = libgetdns.3 getdns_address.3 getdns_dict.3 getdns_general.3 getdns_hostname.3 getdns_service.3
 
 default: all
 
 all: doc
 
-doc: 	$(MANPAGES)
+doc: 	$(MANPAGES3)
 	cd ../src && doxygen
 
-libgetdns.3:	libgetdns.3.in
+.SUFFIXES: .3.in .3
+.3.in.3:
 	cp $< $@
 
-getdns_address.3:	getdns_address.3.in
-	cp $< $@
-
-install:	$(MANPAGES)
+install:	$(MANPAGES3)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man3
-	$(INSTALL) -m 644 libgetdns.3 $(DESTDIR)$(mandir)/man3
-	$(INSTALL) -m 644 getdns_address.3 $(DESTDIR)$(mandir)/man3
+	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; done
 
 uninstall:
-	rm -f $(DESTDIR)$(mandir)/man3/libgetdns.3
-	rm -f $(DESTDIR)$(mandir)/man3/getdns_address.3
+	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; done
 
 clean:
-	rm -rf $(DOCDIRS) $(MANPAGES)
+	rm -rf $(DOCDIRS) $(MANPAGES3)
 
 distclean : clean
 	rm -f Makefile config.status config.log
