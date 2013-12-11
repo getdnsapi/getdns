@@ -36,9 +36,6 @@ tests_dict: tests_dict.o testmessages.o
 tests_list: tests_list.o testmessages.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_list.o testmessages.o
 
-tests_list_mu: tests_list_mu.o
-    $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -lcunit -o $@ tests_list_mu.o
-
 tests_stub_async: tests_stub_async.o testmessages.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_async.o testmessages.o
 
