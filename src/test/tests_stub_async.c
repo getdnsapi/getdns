@@ -48,7 +48,6 @@ this_callbackfn(struct getdns_context *this_context,
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE) {	/* This is a callback with data */
 		char *res = getdns_pretty_print_dict(this_response);
 		fprintf(stdout, "%s\n", res);
-		getdns_dict_destroy(this_response);
 		free(res);
 
 	} else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
@@ -59,6 +58,7 @@ this_callbackfn(struct getdns_context *this_context,
 		fprintf(stderr,
 		    "The callback got a callback_type of %d. Exiting.",
 		    this_callback_type);
+	getdns_dict_destroy(this_response);
 }
 
 int
@@ -81,6 +81,7 @@ main(int argc, char** argv)
 	this_event_base = event_base_new();
 	if (this_event_base == NULL) {
 		fprintf(stderr, "Trying to create the event base failed.");
+		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 	(void) getdns_extension_set_libevent_base(this_context,
@@ -97,6 +98,8 @@ main(int argc, char** argv)
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
 		    this_name);
+		event_base_free(this_event_base);
+		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 //    dns_request_return = getdns_service(this_context, this_name, NULL, this_userarg, &this_transaction_id,
@@ -112,6 +115,7 @@ main(int argc, char** argv)
 		// TODO: check the return value above
 	}
 	/* Clean up */
+	event_base_free(this_event_base);
 	getdns_context_destroy(this_context);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);

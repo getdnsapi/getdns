@@ -94,7 +94,7 @@ getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict, char *nam
 /* get a string from a dict.  result is valid as long as dict is valid */
 getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict, char *name,
     char **result);
-char *reverse_address(char *addr_str);
+char *reverse_address(struct getdns_bindata *address_data);
 
 /**
  * detect unrecognized extension strings or invalid extension formats
