@@ -969,6 +969,7 @@ getdns_return_t
 getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id)
 {
+	RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
 	return getdns_context_cancel_request(context, transaction_id, 1);
 }				/* getdns_cancel_callback */
 

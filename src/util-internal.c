@@ -38,6 +38,7 @@
 #include "getdns/getdns.h"
 #include <ldns/rbtree.h>
 #include "dict.h"
+#include "list.h"
 #include "util-internal.h"
 #include "types-internal.h"
 
@@ -47,7 +48,7 @@
   * The list has to be in sorted order for bsearch lookup in function
   * validate_extensions.
   */
-getdns_extension_format extformats[] = {
+static getdns_extension_format extformats[] = {
 	{"add_opt_parameters", t_dict},
 	{"add_warning_for_bad_dns", t_int},
 	{"dnssec_return_only_secure", t_int},
@@ -58,6 +59,9 @@ getdns_extension_format extformats[] = {
 	{"return_call_debugging", t_int},
 	{"specify_class", t_int},
 };
+
+static struct getdns_bindata IPv4_str_bindata = { 5, (void *)"IPv4" };
+static struct getdns_bindata IPv6_str_bindata = { 5, (void *)"IPv6" };
 
 getdns_return_t
 getdns_dict_util_set_string(struct getdns_dict * dict, char *name, const char *value)
@@ -336,23 +340,43 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 static getdns_return_t
 add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 {
-	int r = 0;
+	int r = GETDNS_RETURN_GOOD;
 	size_t i = 0;
-	for (i = 0; i < ldns_rr_list_rr_count(rr_list); ++i) {
+	size_t item_idx = 0;
+	
+	r = getdns_list_get_length(addrs, &item_idx);
+	for (i = 0; r == GETDNS_RETURN_GOOD &&
+	            i < ldns_rr_list_rr_count(rr_list); ++i) {
 		ldns_rr *rr = ldns_rr_list_rr(rr_list, i);
 		size_t j = 0;
 		size_t rd_count = ldns_rr_rd_count(rr);
-		for (j = 0; j < rd_count; ++j) {
-			size_t item_idx = 0;
+		for (j = 0; r == GETDNS_RETURN_GOOD && j < rd_count; ++j) {
 			ldns_rdf *rdf = ldns_rr_rdf(rr, j);
-			if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A ||
-			    ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_AAAA) {
-				struct getdns_bindata rbin =
-				    { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
-				r |= getdns_list_add_item(addrs, &item_idx);
-				r |= getdns_list_set_bindata(addrs, item_idx,
-				    &rbin);
+			if (ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_A &&
+			    ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_AAAA) {
+				continue;
 			}
+			struct getdns_dict *this_address =
+			    getdns_dict_create_with_extended_memory_functions(
+				addrs->mf.mf_arg,
+				addrs->mf.mf.ext.malloc,
+				addrs->mf.mf.ext.realloc,
+				addrs->mf.mf.ext.free);
+			if (this_address == NULL) {
+				r |= GETDNS_RETURN_MEMORY_ERROR;
+				break;
+			}
+			struct getdns_bindata rbin =
+				{ ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
+			r |= getdns_dict_set_bindata(this_address,
+			    GETDNS_STR_ADDRESS_TYPE,
+			    ( ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A
+			    ?  &IPv4_str_bindata : &IPv6_str_bindata));
+			r |= getdns_dict_set_bindata(this_address,
+			    GETDNS_STR_ADDRESS_DATA, &rbin);
+			r |= getdns_list_set_dict(addrs, item_idx++, 
+			    this_address);
+			getdns_dict_destroy(this_address);
 		}
 	}
 	return r;
