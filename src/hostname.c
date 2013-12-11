@@ -64,18 +64,22 @@ getdns_hostname(struct getdns_context *context,
 		    &address_type)) != GETDNS_RETURN_GOOD)
 		return retval;
 	if ((strncmp(GETDNS_STR_IPV4, (char *) address_type->data,
-		    strlen(GETDNS_STR_IPV4)) == 0)
+		    ( strlen(GETDNS_STR_IPV4) < address_type->size
+		    ? strlen(GETDNS_STR_IPV4) : address_type->size )) == 0
+	        && address_data->size == 4)
 	    || (strncmp(GETDNS_STR_IPV6, (char *) address_type->data,
-		    strlen(GETDNS_STR_IPV6)) == 0))
+		    ( strlen(GETDNS_STR_IPV6) < address_type->size
+		    ? strlen(GETDNS_STR_IPV6) : address_type->size )) == 0
+		&& address_data->size == 16))
 		req_type = GETDNS_RRTYPE_PTR;
 	else
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-	if ((name = reverse_address((char *) address_data->data)) == 0)
+	if ((name = reverse_address(address_data)) == NULL)
 		return GETDNS_RETURN_GENERIC_ERROR;
-	return getdns_general(context, name, req_type, extensions,
+	retval = getdns_general(context, name, req_type, extensions,
 	    userarg, transaction_id, callback);
-
-	return GETDNS_RETURN_GOOD;
+	free(name);
+	return retval;
 }				/* getdns_hostname */
 
 /* getdns_hostname.c */
