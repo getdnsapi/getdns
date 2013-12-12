@@ -43,16 +43,40 @@ DNS Resolver library (libgetdns, -lgetdns)
 
 getdns_return_t 
 .br
+.B getdns_dict_get_bindata
+(struct getdns_dict *this_dict, struct getdns_bindata **answer)
+getdns_return_t 
+
+getdns_return_t 
+.br
+.B getdns_dict_get_data_type
+(struct getdns_dict *this_dict, char *name, getdns_data_type *answer)
+getdns_return_t 
+
+getdns_return_t
+.br
+.B getdns_dict_get_dict
+(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer)
+
+getdns_return_t 
+.br
+.B getdns_dict_get_int
+(struct getdns_dict *this_dict, uint32_t *answer)
+getdns_return_t 
+
+.br
+.B getdns_dict_get_list
+(struct getdns_dict *this_dict, struct getdns_list **answer)
+getdns_return_t 
+
+.br
 .B getdns_dict_get_names
 (struct getdns_dict *this_dict, struct getdns_list **answer)
 
 .SH DESCRIPTION
 
 .LP
-THIS IS A WORK IN PROGRESS - MUCH TO ADD
-
-.LP
-The getdns_dict type is used to manage name/value pairs in which the data types of the values are heterogenous and include
+The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogenous and include
 .RS 3
 .br
 struct getdns_bindata
@@ -87,6 +111,8 @@ TBD
 
 .SH SEE ALSO
 .BR libgetdns (3),
+.BR getdns_address (3),
+.BR getdns_address_sync (3),
 .BR getdns_general (3),
 .BR getdns_general_sync (3),
 .BR getdns_hostname (3),
