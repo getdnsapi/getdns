@@ -176,6 +176,9 @@ Host address
 .B AAAA
 IPv6 address
 .TP
+.B CAA
+Certificate Authority Authorization
+.TP
 .B CNAME
 Canonical name for an alias
 .TP
@@ -204,22 +207,19 @@ Mail exchange
 Authoritative name server
 .TP
 .B NSEC
-NSEC
+Next secure record
 .TP
 .B NSEC3
-NSEC3
+Next secure record (hashed)
 .TP
 .B NSEC3PARAM
 NSEC3PARAM
-.TP
-.B OPT
-OPT
 .TP
 .B PTR
 Domain name pointer
 .TP
 .B RRSIG
-RRSIG
+Signature for a record set
 .TP
 .B SIG
 Security signature
