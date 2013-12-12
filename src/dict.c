@@ -716,4 +716,10 @@ getdns_pretty_print_dict(struct getdns_dict *dict)
 	return ret;
 }				/* getdns_pretty_print_dict */
 
+getdns_return_t
+getdns_dict_remove_name(struct getdns_dict *this_dict, char *name)
+{
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+
 /* dict.c */
