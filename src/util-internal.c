@@ -184,10 +184,41 @@ create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
 	/* cheat since we know GETDNS_RETURN_GOOD == 0 */
 	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ID,
 	    ldns_pkt_id(reply));
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QR,
-	    ldns_pkt_qr(reply));
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_OPC,
-	    (int) ldns_pkt_get_opcode(reply));
+
+    /* set bits - seems like this could be macro-ified*/
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QR,
+        (int) ldns_pkt_qr(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_AA,
+        (int) ldns_pkt_aa(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_TC,
+        (int) ldns_pkt_tc(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RD,
+        (int) ldns_pkt_rd(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_CD,
+        (int) ldns_pkt_cd(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RA,
+        (int) ldns_pkt_aa(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_AD,
+        (int) ldns_pkt_ad(reply));
+
+    /* codes */
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_OPCODE,
+        (int) ldns_pkt_get_opcode(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RCODE,
+        (int) ldns_pkt_get_rcode(reply));
+    /* default z to 0 */
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_Z, 0);
+
+    /* counts */
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QDCOUNT,
+        (int) ldns_pkt_qdcount(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ANCOUNT,
+        (int) ldns_pkt_ancount(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_NSCOUNT,
+        (int) ldns_pkt_nscount(reply));
+    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ARCOUNT,
+        (int) ldns_pkt_arcount(reply));
+
 
 	if (r != 0) {
 		getdns_dict_destroy(result);

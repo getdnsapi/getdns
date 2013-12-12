@@ -63,9 +63,6 @@ struct getdns_context;
 #define GETDNS_STR_KEY_HEADER "header"
 #define GETDNS_STR_KEY_QUESTION "question"
 #define GETDNS_STR_KEY_ANSWER "answer"
-#define GETDNS_STR_KEY_ID "id"
-#define GETDNS_STR_KEY_QR "qr"
-#define GETDNS_STR_KEY_OPC "opcode"
 #define GETDNS_STR_KEY_TYPE "type"
 #define GETDNS_STR_KEY_CLASS "class"
 #define GETDNS_STR_KEY_TTL "ttl"
@@ -78,6 +75,24 @@ struct getdns_context;
 #define GETDNS_STR_KEY_QTYPE "qtype"
 #define GETDNS_STR_KEY_QCLASS "qclass"
 #define GETDNS_STR_KEY_QNAME "qname"
+#define GETDNS_STR_KEY_QR "qr"
+/* header flags */
+#define GETDNS_STR_KEY_ID "id"
+#define GETDNS_STR_KEY_OPCODE "opcode"
+#define GETDNS_STR_KEY_RCODE "rcode"
+#define GETDNS_STR_KEY_AA "aa"
+#define GETDNS_STR_KEY_TC "tc"
+#define GETDNS_STR_KEY_RD "rd"
+#define GETDNS_STR_KEY_RA "ra"
+#define GETDNS_STR_KEY_AD "ad"
+#define GETDNS_STR_KEY_CD "cd"
+#define GETDNS_STR_KEY_Z "z"
+#define GETDNS_STR_KEY_QDCOUNT "qdcount"
+#define GETDNS_STR_KEY_ANCOUNT "ancount"
+#define GETDNS_STR_KEY_NSCOUNT "nscount"
+#define GETDNS_STR_KEY_ARCOUNT "arcount"
+
+
 /** @}
  */
 
