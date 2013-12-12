@@ -201,7 +201,7 @@ create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
     r |= getdns_dict_set_int(result, GETDNS_STR_KEY_CD,
         (int) ldns_pkt_cd(reply));
     r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RA,
-        (int) ldns_pkt_aa(reply));
+        (int) ldns_pkt_ra(reply));
     r |= getdns_dict_set_int(result, GETDNS_STR_KEY_AD,
         (int) ldns_pkt_ad(reply));
 
