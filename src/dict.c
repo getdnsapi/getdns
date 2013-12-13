@@ -596,7 +596,6 @@ getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
 			if (ldns_buffer_printf(buf, " <unknown>") < 0)
 				return -1;
 		}
-		i++;
 	}
 	indent -= 2;
 	if (ldns_buffer_printf(buf, i ? "\n%s]" : "]",
