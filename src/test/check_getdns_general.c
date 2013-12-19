@@ -693,7 +693,6 @@ void positive_callbackfn(struct getdns_context *context,
   else if(strcmp(userarg, "getdns_general_13") == 0 ||
           strcmp(userarg, "getdns_general_14") == 0)
   {
-    printf("DICT:%s\n", getdns_pretty_print_dict(response));
     assert_noerror(&ex_response);
     assert_ptr_in_answer(&ex_response);
   }
