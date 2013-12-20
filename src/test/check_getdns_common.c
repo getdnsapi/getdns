@@ -6,8 +6,6 @@
 #include <check.h>
 #include <getdns/getdns.h>
 #include "check_getdns_common.h"
-#include <example/getdns_libevent.h>
-
 
 /*
  *  extract_response extracts all of the various information
@@ -15,7 +13,6 @@
  */
 void extract_response(struct getdns_dict *response, struct extracted_response *ex_response)
 {
-
   ck_assert_msg(response != NULL, "Response should not be NULL");
 
   ASSERT_RC(getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type), 
@@ -114,7 +111,6 @@ void assert_address_in_answer(struct extracted_response *ex_response, int a, int
   uint32_t type;
   uint32_t address_records = 0;
   size_t i;
-
 
   ASSERT_RC(getdns_dict_get_int(ex_response->header, "ancount", &ancount),
     GETDNS_RETURN_GOOD, "Failed to extract \"ancount\"");

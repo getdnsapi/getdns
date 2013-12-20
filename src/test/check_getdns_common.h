@@ -23,30 +23,39 @@
      };
      
      /*
-      *  The STANDARD_TEST_DECLARATIONS macro defines
-      *  the standard variable definitions most tests
-      *  will need.
+      *  The SYNCHRONOUS_TEST_DECLARATIONS macro
+      *  defines the standard variable definitions 
+      *  that synchronous will need.
       *
       */
-     #define STANDARD_TEST_DECLARATIONS		\
+     #define SYNCHRONOUS_TEST_DECLARATIONS	\
        struct getdns_context *context = NULL;	\
-       struct getdns_dict *response = NULL; 		\
-       struct event_base *event_base;		\
-       getdns_transaction_t transaction_id = 0;	\
+       struct getdns_dict *response = NULL;
+
+     /*
+      *  The ASYNCHRONOUS_TEST_DECLARATIONS macro 
+      *  defines the standard variable definitions 
+      *  that asynchronous tests will will need.
+      *
+      */
+     #define ASYNCHRONOUS_TEST_DECLARATIONS	\
+       struct getdns_context *context = NULL;	\
+       struct event_base *event_base = NULL;	\
+       getdns_transaction_t transaction_id = 0;
        
      /*
       *  The ASSERT_RC macro is used to assert
       *  whether the return code from the last
       *  getdns API call is what was expected.
       */
-     #define ASSERT_RC(rc, expected_rc, prefix)		\
-     {                                          \
-       size_t buflen = MAXLEN;			\
-       char error_string[MAXLEN];                \
+     #define ASSERT_RC(rc, expected_rc, prefix)			\
+     {                                          		\
+       size_t buflen = MAXLEN;					\
+       char error_string[MAXLEN];                		\
        getdns_strerror(rc, error_string, buflen);		\
-       ck_assert_msg(rc == expected_rc,			\
-         "%s: expecting %s: %d, but received: %d: %s",	\
-         prefix, #expected_rc, expected_rc, rc, error_string); \
+       ck_assert_msg(rc == expected_rc,				\
+         "%s: expecting %s: %d, but received: %d: %s",		\
+         prefix, #expected_rc, expected_rc, rc, error_string);	\
      }
      
      /*
@@ -55,8 +64,8 @@
       *  return code is returned.		
       */				
      #define CONTEXT_CREATE					\
-       ASSERT_RC(getdns_context_create(&context, TRUE),	\
-         GETDNS_RETURN_GOOD, 				\
+       ASSERT_RC(getdns_context_create(&context, TRUE),		\
+         GETDNS_RETURN_GOOD, 					\
          "Return code from getdns_context_create()");
      
      /*
@@ -64,26 +73,25 @@
       *  create an event base and put it in the			
       *  context.						
       */						
-     #define EVENT_BASE_CREATE						\
-       event_base = event_base_new();					\
-       ck_assert_msg(event_base != NULL, "Event base creation failed");	\
+     #define EVENT_BASE_CREATE							\
+       event_base = event_base_new();						\
+       ck_assert_msg(event_base != NULL, "Event base creation failed");		\
        ASSERT_RC(getdns_extension_set_libevent_base(context, event_base),	\
          GETDNS_RETURN_GOOD,							\
          "Return code from getdns_extension_set_libevent_base()");
      
      /*
-      *   The EVENT_LOOP macro calls the event loop.
+      *   The RUN_EVENT_LOOP macro calls the event loop.
       */
-     #define EVENT_LOOP							\
-       int dispatch_return = event_base_dispatch(event_base);
+     #define RUN_EVENT_LOOP event_base_dispatch(event_base);
      
      /*			
       *  The process_response macro declares the
       *  variables needed to house the response and
       *  calls the function that extracts it.
       */
-     #define EXTRACT_RESPONSE				\
-       struct extracted_response ex_response;		\
+     #define EXTRACT_RESPONSE			\
+       struct extracted_response ex_response;	\
        extract_response(response, &ex_response);
       
      void extract_response(struct getdns_dict *response, struct extracted_response *ex_response); 

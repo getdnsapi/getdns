@@ -7,7 +7,7 @@
        *  context = NULL
        *  expect: GETDNS_RETURN_BAD_CONTEXT
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
          "getdns_general_1", &transaction_id, negative_callbackfn), 
          GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_general()");
@@ -20,13 +20,13 @@
        *  name = NULL
        *  expect: GETDNS_RETURN_GENERIC_ERROR
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, NULL, GETDNS_RRTYPE_A, NULL,
          "getdns_general_2", &transaction_id, negative_callbackfn),
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -36,14 +36,14 @@
        *  name = invalid domain (too many octets)
        *  expect:  GETDNS_RETURN_BAD_DOMAIN_NAME
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
        const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL,
          "getdns_general_3", &transaction_id, negative_callbackfn),
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -53,14 +53,14 @@
        *  name = invalid domain (label too long)
        *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
        const char *name = "this.domain.hasalabelwhichexceedsthemaximumdnslabelsizeofsixtythreecharacters.com";
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL, 
          "getdns_general_4", &transaction_id, negative_callbackfn),
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -70,13 +70,13 @@
        *  callbackfn = NULL
        *  expect:  GETDNS_RETURN_GENERIC_ERROR
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
          "getdns_general_5", &transaction_id, NULL),
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -90,14 +90,14 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "google.com", 0, NULL,
          "getdns_general_6", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -111,14 +111,14 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "google.com", 65279, NULL, 
          "getdns_general_7", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -133,14 +133,14 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and equals number of A records ("type": 1) in "answer" list
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
          "getdns_general_8", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -155,14 +155,14 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and equals number of AAAA records ("type": 28) in "answer" list
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_AAAA, NULL, 
          "getdns_general_9", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -178,7 +178,7 @@
        *    nscount = 1 (number of records in AUTHORITY section)
        *      and SOA record ("type": 6) present in "authority" list
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
        const char *name = "thisdomainsurelydoesntexist.com";
      
        CONTEXT_CREATE;
@@ -186,7 +186,7 @@
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_TXT, NULL, 
          "getdns_general_10", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -200,14 +200,14 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "hampster.com", GETDNS_RRTYPE_MX, NULL, 
          "getdns_general_11", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -222,14 +222,14 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and equals number of A records ("type": 1) in "answer" list
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
          "getdns_general_12", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -244,14 +244,14 @@
        *    ancount == 1 (number of records in ANSWER section)
        *      and PTR record found ("type": 12) in "answer" list
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL, 
          "getdns_general_13", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
@@ -266,14 +266,14 @@
        *    ancount == 1 (number of records in ANSWER section)
        *      and PTR record found ("type": 12) in "answer" list
        */
-       STANDARD_TEST_DECLARATIONS;
+       ASYNCHRONOUS_TEST_DECLARATIONS;
      
        CONTEXT_CREATE;
        EVENT_BASE_CREATE;
        ASSERT_RC(getdns_general(context, "2607:f8b0:4006:802::1007", GETDNS_RRTYPE_PTR, NULL,
          "getdns_general_14", &transaction_id, positive_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-       EVENT_LOOP;
+       RUN_EVENT_LOOP;
      }
      END_TEST
      
