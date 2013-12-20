@@ -41,14 +41,26 @@
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
+static size_t sizeof_dname(uint8_t *dname)
+{
+	uint8_t *ptr;
+
+	assert(dname);
+	ptr = dname;
+	while (*ptr && (*ptr & 0xC0) == 0)
+		ptr += *ptr + 1;
+	if ((*ptr & 0xC0) == 0xC0)
+		ptr++;
+	return (ptr - dname) + 1;
+}
+
 char *
 getdns_convert_dns_name_to_fqdn(char *name_from_dns_response)
 {
 	char *str;
-	ldns_rdf *rdf = ldns_rdf_new_frm_data( LDNS_RDF_TYPE_DNAME
-			                     , strlen(name_from_dns_response)+1
-	                                     , name_from_dns_response
-					     );
+	ldns_rdf *rdf = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_DNAME,
+	    sizeof_dname((uint8_t *)name_from_dns_response),
+	    name_from_dns_response);
 	if (!rdf) return NULL;
 	str = ldns_rdf2str(rdf);
 	ldns_rdf_free(rdf);
