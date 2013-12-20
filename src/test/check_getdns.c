@@ -10,6 +10,8 @@
 #include "check_getdns_general.h"
 #include "check_getdns_general_sync.h"
 #include "check_getdns_address_sync.h"
+#include "check_getdns_list_get_length.h"
+#include "check_getdns_list_get_data_type.h"
 
 int
 main (void)
@@ -17,13 +19,17 @@ main (void)
   int number_failed;
   SRunner *sr ;
 
-  Suite *getdns_address_sync_suite (void);
-  Suite *getdns_general_sync_suite (void);
-  Suite *getdns_general_suite (void);
+  Suite *getdns_address_sync_suite(void);
+  Suite *getdns_general_sync_suite(void);
+  Suite *getdns_general_suite(void);
+  Suite *getdns_list_get_length_suite(void);
+  Suite *getdns_list_get_data_type_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
   srunner_add_suite(sr, getdns_address_sync_suite());
+  srunner_add_suite(sr, getdns_list_get_length_suite());
+  srunner_add_suite(sr, getdns_list_get_data_type_suite());
 
   srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);

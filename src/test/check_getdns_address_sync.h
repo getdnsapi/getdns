@@ -8,7 +8,9 @@
        *  context = NULL
        *  expect: GETDNS_RETURN_BAD_CONTEXT
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
+
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, &response), 
          GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_address_sync()");
      }
@@ -20,8 +22,11 @@
        *  name = NULL
        *  expect: GETDNS_RETURN_GENERIC_ERROR
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
+
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, NULL, NULL, &response), 
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_address_sync()");
      }
@@ -33,9 +38,12 @@
        *  name = invalid domain (too many octets)
        *  expect:  GETDNS_RETURN_BAD_DOMAIN_NAME
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
        const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
+
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, name, NULL, &response), 
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_address_sync()");
      }
@@ -47,9 +55,12 @@
        *  name = invalid domain (label too long)
        *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
        const char *name = "this.domain.hasalabelwhichexceedsthemaximumdnslabelsizeofsixtythreecharacters.com";
+
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, name, NULL, &response), 
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_address_sync()");
      }
@@ -61,8 +72,10 @@
        *  response = NULL
        *  expect:  GETDNS_RETURN_GENERIC_ERROR
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, NULL), 
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_address_sync()");
      }
@@ -78,12 +91,16 @@
          todo:  create zonefile with exact count
        *    ancount = tbd (number of records in ANSWER section)
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_noerror(&ex_response);
      }
      END_TEST
@@ -99,12 +116,16 @@
          todo:  create zonefile with exact count
        *    ancount = tbd (number of records in ANSWER section)
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "localhost", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_noerror(&ex_response);
      }
      END_TEST
@@ -121,20 +142,21 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and one SOA record ("type": 6) in "answer" list
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "google.joe", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_nxdomain(&ex_response);
        assert_nodata(&ex_response);
        assert_soa_in_authority(&ex_response);
-       //assert_address_in_answer(&ex_response, TRUE, FALSE);
      }
      END_TEST
-     
-     
      
      START_TEST (getdns_address_sync_9)
      {
@@ -145,12 +167,16 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "hampster.com", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_noerror(&ex_response);
      }
      END_TEST
@@ -164,12 +190,16 @@
        *    rcode = 0
        *    ancount >= 11 (number of records in ANSWER section)
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_noerror(&ex_response);
        assert_address_in_answer(&ex_response, TRUE, FALSE);
      }
@@ -185,12 +215,16 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and one SOA record ("type": 6) in "answer" list
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "75.101.146.66", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_nxdomain(&ex_response);
        assert_nodata(&ex_response);
        assert_soa_in_authority(&ex_response);
@@ -207,12 +241,16 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and one SOA record ("type": 6) in "answer" list
        */
-       SYNCHRONOUS_TEST_DECLARATIONS;
+       struct getdns_context *context = NULL;   
+       struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE;
+
        ASSERT_RC(getdns_address_sync(context, "2607:f8b0:4006:802::1007", NULL, &response),
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
+
        EXTRACT_RESPONSE;
+
        assert_nxdomain(&ex_response);
        assert_nodata(&ex_response);
        assert_soa_in_authority(&ex_response);
@@ -246,7 +284,5 @@
      
        return s;
      }
-
-
 
 #endif
