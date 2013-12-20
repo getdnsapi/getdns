@@ -223,66 +223,40 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
 }
 
 /*
- *  negative_callbackfn is the callback function given
- *  to negative asynchronous query tests when no response
- *  is expected.
+ *  callbackfn is the callback function given to all
+ *  asynchronous query tests.  It is expected to only
+ *  be called for positive tests and will verify the
+ *  response that is returned.
  */
-void negative_callbackfn(struct getdns_context *context,
-                         uint16_t callback_type,
-                         struct getdns_dict *response,
-                         void *userarg,
-                         getdns_transaction_t transaction_id)
-{
-  ck_abort_msg("Callback should never occur for negative test cases");
-}
-
-/*
- *  positive_callbackfn is the callback function given
- *  to positive asynchronous query tests and will validate
- *  the response that is returned.
- */
-void positive_callbackfn(struct getdns_context *context,
-                         uint16_t callback_type,
-                         struct getdns_dict *response,
-                         void *userarg,
-                         getdns_transaction_t transaction_id)
+void callbackfn(struct getdns_context *context,
+                uint16_t callback_type,
+                struct getdns_dict *response,
+                void *(userarg)(struct extracted_response *ex_response),
+                getdns_transaction_t transaction_id)
 {
 
+  /*
+   *  If userarg is NULL, either a negative test case
+   *  erroneously reached the query state, or the value 
+   *  in userarg (verification function) was somehow 
+   *  lost in transit.
+   */
+  ck_assert_msg(userarg != NULL, "Callback called with NULL userarg");
+
+  /*
+   *  We expect the callback type to be COMPLETE.
+   */
   ASSERT_RC(callback_type, GETDNS_CALLBACK_COMPLETE, "Callback type");
+
+  /*
+   *  Extract the response.
+   */
   EXTRACT_RESPONSE;
-  
-  if(strcmp(userarg, "getdns_general_6") == 0 ||
-     strcmp(userarg, "getdns_general_7") == 0 ||
-     strcmp(userarg, "getdns_general_11") == 0)
-  {
-    assert_noerror(&ex_response);
-    assert_nodata(&ex_response);
-  }
-  else if(strcmp(userarg, "getdns_general_8") == 0 ||
-          strcmp(userarg, "getdns_general_12") == 0)
-  {
-    assert_noerror(&ex_response);
-    assert_address_in_answer(&ex_response, TRUE, FALSE);
-  }
-  else if(strcmp(userarg, "getdns_general_9") == 0)
-  {
-    assert_noerror(&ex_response);
-    assert_address_in_answer(&ex_response, FALSE, TRUE);
-  }
-  else if(strcmp(userarg, "getdns_general_10") == 0)
-  {
-    assert_nxdomain(&ex_response);
-    assert_nodata(&ex_response);
-    assert_soa_in_authority(&ex_response);
-  }
-  else if(strcmp(userarg, "getdns_general_13") == 0 ||
-          strcmp(userarg, "getdns_general_14") == 0)
-  {
-    assert_noerror(&ex_response);
-    assert_ptr_in_answer(&ex_response);
-  }
-  else
-  {
-    ck_abort_msg("Unexpected value in userarg: %s", userarg);
-  }
+
+  /*
+   *  Call the response verification function that
+   *  was passed via userarg.
+   */
+  userarg(&ex_response);
+
 }

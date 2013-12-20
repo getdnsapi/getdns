@@ -158,28 +158,16 @@
      void assert_ptr_in_answer(struct extracted_response *ex_response);
 
      /*
-      *    negative_callbackfn is the callback function given
-      *    to negative asynchronous query tests when no response
-      *    is expected.
+      *    callbackfn is the callback function given to all
+      *    asynchronous query tests.  It is expected to only
+      *    be called for positive tests and will verify the
+      *    response that is returned.
       */
-     void negative_callbackfn(
-       struct getdns_context *context, 
-       uint16_t callback_type, 
-       struct getdns_dict *response,
-       void *userarg,
-       getdns_transaction_t transaction_id
-     );
-
-     /*
-      *    positive_callbackfn is the callback function given
-      *    to positive asynchronous query tests and will validate
-      *    the response that is returned.
-      */
-     void positive_callbackfn(
+     void callbackfn(
        struct getdns_context *context, 
        uint16_t callback_type,
        struct getdns_dict *response, 
-       void *userarg,
+       void *(userarg)(struct extracted_response *ex_response),
        getdns_transaction_t transaction_id
      );
 

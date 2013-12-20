@@ -19,7 +19,7 @@
        getdns_transaction_t transaction_id = 0;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
-         "getdns_general_1", &transaction_id, negative_callbackfn), 
+         NULL, &transaction_id, callbackfn), 
          GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_general()");
      }
      END_TEST
@@ -38,7 +38,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, NULL, GETDNS_RRTYPE_A, NULL,
-         "getdns_general_2", &transaction_id, negative_callbackfn),
+         NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -61,7 +61,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL,
-         "getdns_general_3", &transaction_id, negative_callbackfn),
+         NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -84,7 +84,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL, 
-         "getdns_general_4", &transaction_id, negative_callbackfn),
+         NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -106,7 +106,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
-         "getdns_general_5", &transaction_id, NULL),
+         NULL, &transaction_id, NULL),
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -124,6 +124,7 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
+       void verify_getdns_general_6(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -132,13 +133,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", 0, NULL,
-         "getdns_general_6", &transaction_id, positive_callbackfn),
+         verify_getdns_general_6, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_6(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_nodata(ex_response);
+     }
      
      START_TEST (getdns_general_7)
      {
@@ -150,6 +157,7 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
+       void verify_getdns_general_7(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -158,13 +166,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", 65279, NULL, 
-         "getdns_general_7", &transaction_id, positive_callbackfn),
+         verify_getdns_general_7, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_7(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_nodata(ex_response);
+     }
      
      START_TEST (getdns_general_8)
      {
@@ -177,6 +191,7 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and equals number of A records ("type": 1) in "answer" list
        */
+       void verify_getdns_general_8(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -185,13 +200,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
-         "getdns_general_8", &transaction_id, positive_callbackfn),
+         verify_getdns_general_8, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_8(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_address_in_answer(ex_response, TRUE, FALSE);
+     }
      
      START_TEST (getdns_general_9)
      {
@@ -204,6 +225,7 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and equals number of AAAA records ("type": 28) in "answer" list
        */
+       void verify_getdns_general_9(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -212,13 +234,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_AAAA, NULL, 
-         "getdns_general_9", &transaction_id, positive_callbackfn),
+         verify_getdns_general_9, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_9(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_address_in_answer(ex_response, FALSE, TRUE);
+     }
      
      START_TEST (getdns_general_10)
      {
@@ -232,6 +260,7 @@
        *    nscount = 1 (number of records in AUTHORITY section)
        *      and SOA record ("type": 6) present in "authority" list
        */
+       void verify_getdns_general_10(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -241,13 +270,20 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_TXT, NULL, 
-         "getdns_general_10", &transaction_id, positive_callbackfn),
+         verify_getdns_general_10, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_10(struct extracted_response *ex_response)
+     {
+       assert_nxdomain(ex_response);
+       assert_nodata(ex_response);
+       assert_soa_in_authority(ex_response);
+     }
      
      START_TEST (getdns_general_11)
      {
@@ -259,6 +295,7 @@
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
+       void verify_getdns_general_11(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -267,13 +304,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "hampster.com", GETDNS_RRTYPE_MX, NULL, 
-         "getdns_general_11", &transaction_id, positive_callbackfn),
+         verify_getdns_general_11, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_11(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_nodata(ex_response);
+     }
      
      START_TEST (getdns_general_12)
      {
@@ -286,6 +329,7 @@
        *    ancount >= 1 (number of records in ANSWER section)
        *      and equals number of A records ("type": 1) in "answer" list
        */
+       void verify_getdns_general_12(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -294,13 +338,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
-         "getdns_general_12", &transaction_id, positive_callbackfn),
+         verify_getdns_general_12, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_12(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_address_in_answer(ex_response, TRUE, FALSE);
+     }
      
      START_TEST (getdns_general_13)
      {
@@ -313,6 +363,7 @@
        *    ancount == 1 (number of records in ANSWER section)
        *      and PTR record found ("type": 12) in "answer" list
        */
+       void verify_getdns_general_13(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -321,13 +372,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL, 
-         "getdns_general_13", &transaction_id, positive_callbackfn),
+         verify_getdns_general_13, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_13(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_ptr_in_answer(ex_response);
+     }
      
      START_TEST (getdns_general_14)
      {
@@ -340,6 +397,7 @@
        *    ancount == 1 (number of records in ANSWER section)
        *      and PTR record found ("type": 12) in "answer" list
        */
+       void verify_getdns_general_14(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -348,13 +406,19 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "2607:f8b0:4006:802::1007", GETDNS_RRTYPE_PTR, NULL,
-         "getdns_general_14", &transaction_id, positive_callbackfn),
+         verify_getdns_general_14, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
      END_TEST
+
+     void verify_getdns_general_14(struct extracted_response *ex_response)
+     {
+       assert_noerror(ex_response);
+       assert_ptr_in_answer(ex_response);
+     }
      
      Suite *
      getdns_general_suite (void)
