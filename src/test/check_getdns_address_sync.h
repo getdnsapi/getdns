@@ -1,6 +1,13 @@
-
 #ifndef _check_getdns_address_h_
 #define _check_getdns_address_h_
+
+    /*
+     **************************************************************************
+     *                                                                        *
+     *  T E S T S  F O R  G E T D N S _ A D D R E S S _ S Y N C               *
+     *                                                                        *
+     **************************************************************************
+    */
  
      START_TEST (getdns_address_sync_1)
      {
@@ -25,10 +32,12 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, NULL, NULL, &response), 
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_address_sync()");
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -42,10 +51,12 @@
        struct getdns_dict *response = NULL;
        const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, name, NULL, &response), 
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_address_sync()");
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -59,10 +70,12 @@
        struct getdns_dict *response = NULL;
        const char *name = "this.domain.hasalabelwhichexceedsthemaximumdnslabelsizeofsixtythreecharacters.com";
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, name, NULL, &response), 
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_address_sync()");
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -74,10 +87,12 @@
        */
        struct getdns_context *context = NULL;   
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, NULL), 
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_address_sync()");
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -94,7 +109,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -102,6 +117,8 @@
        EXTRACT_RESPONSE;
 
        assert_noerror(&ex_response);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -119,7 +136,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "localhost", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -127,6 +144,8 @@
        EXTRACT_RESPONSE;
 
        assert_noerror(&ex_response);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -145,7 +164,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "google.joe", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -155,6 +174,8 @@
        assert_nxdomain(&ex_response);
        assert_nodata(&ex_response);
        assert_soa_in_authority(&ex_response);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -170,7 +191,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "hampster.com", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -178,6 +199,8 @@
        EXTRACT_RESPONSE;
 
        assert_noerror(&ex_response);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -193,7 +216,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "google.com", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -202,6 +225,8 @@
 
        assert_noerror(&ex_response);
        assert_address_in_answer(&ex_response, TRUE, FALSE);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -218,7 +243,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "75.101.146.66", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -228,6 +253,8 @@
        assert_nxdomain(&ex_response);
        assert_nodata(&ex_response);
        assert_soa_in_authority(&ex_response);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -244,7 +271,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_address_sync(context, "2607:f8b0:4006:802::1007", NULL, &response),
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
@@ -254,6 +281,8 @@
        assert_nxdomain(&ex_response);
        assert_nodata(&ex_response);
        assert_soa_in_authority(&ex_response);
+
+       CONTEXT_DESTROY;
      }
      END_TEST
 

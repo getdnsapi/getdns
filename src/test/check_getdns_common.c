@@ -222,6 +222,11 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
   ck_assert_msg(ptr_records == 1, "Expected to find one PTR record in answer section, got %d", ptr_records);
 }
 
+/*
+ *  negative_callbackfn is the callback function given
+ *  to negative asynchronous query tests when no response
+ *  is expected.
+ */
 void negative_callbackfn(struct getdns_context *context,
                          uint16_t callback_type,
                          struct getdns_dict *response,
@@ -231,6 +236,11 @@ void negative_callbackfn(struct getdns_context *context,
   ck_abort_msg("Callback should never occur for negative test cases");
 }
 
+/*
+ *  positive_callbackfn is the callback function given
+ *  to positive asynchronous query tests and will validate
+ *  the response that is returned.
+ */
 void positive_callbackfn(struct getdns_context *context,
                          uint16_t callback_type,
                          struct getdns_dict *response,

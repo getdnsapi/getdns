@@ -1,6 +1,14 @@
 #ifndef _check_getdns_list_get_length_h_
 #define _check_getdns_list_get_length_h_
 
+    /*
+     **************************************************************************
+     *                                                                        *
+     *  T E S T S  F O R  G E T D N S _ L I S T _ G E T _ L E N G T H         *
+     *                                                                        *
+     **************************************************************************
+    */
+
     START_TEST (getdns_list_get_length_1)
     {
      /*
@@ -29,6 +37,7 @@
       ASSERT_RC(getdns_list_get_length(list, NULL),
         GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_length()");
 
+      LIST_DESTROY(list);
     }
     END_TEST
     
@@ -56,6 +65,7 @@
 
       ck_assert_msg(length == 3, "Expected length == 3, got %d", length);
 
+      LIST_DESTROY(list);
     }
     END_TEST
     
@@ -75,7 +85,8 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_list_get_length()");
 
       ck_assert_msg(length == 0, "Expected length == 3, got %d", length);
-    
+
+      LIST_DESTROY(list);    
     }
     END_TEST
     

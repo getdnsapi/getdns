@@ -1,6 +1,14 @@
 #ifndef _check_getdns_list_get_data_type_h_
 #define _check_getdns_list_get_data_type_h_
 
+    /*
+     **************************************************************************
+     *                                                                        *
+     *  T E S T S  F O R  G E T D N S _ L I S T _ G E T _ D A T A _ T Y P E   *
+     *                                                                        *
+     **************************************************************************
+    */
+
     START_TEST (getdns_list_get_data_type_1)
     {
      /*
@@ -28,6 +36,8 @@
       size_t index = 0;
       getdns_data_type answer;
 
+      LIST_CREATE(list);
+
       ASSERT_RC(getdns_list_set_int(list, index, 1), GETDNS_RETURN_GOOD,
         "Return code from getdns_list_set_int()");
 
@@ -35,6 +45,7 @@
       ASSERT_RC(getdns_list_get_data_type(list, index, &answer),
         GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_data_type()");
 
+      LIST_DESTROY(list);
     }
     END_TEST
 
@@ -55,6 +66,7 @@
       ASSERT_RC(getdns_list_get_data_type(list, index, NULL),
         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_list_get_data_type()");
 
+      LIST_DESTROY(list);
     }
     END_TEST
 
@@ -74,6 +86,7 @@
       ASSERT_RC(getdns_list_get_data_type(list, index, &answer),
         GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_data_type()");
 
+      LIST_DESTROY(list);
     }
     END_TEST
 
@@ -103,6 +116,8 @@
       ck_assert_msg(answer == t_dict, 
         "Wrong data type, expected t_dict: %d, got %d", t_dict, answer);
 
+      LIST_DESTROY(list);
+      DICT_DESTROY(dict);
     }
     END_TEST
 
@@ -132,6 +147,8 @@
       ck_assert_msg(answer == t_list, 
         "Wrong data type, expected t_list: %d, got %d", t_list, answer);
 
+      LIST_DESTROY(list1);
+      LIST_DESTROY(list2);
     }
     END_TEST
 
@@ -160,6 +177,7 @@
       ck_assert_msg(answer == t_bindata, 
         "Wrong data type, expected t_bindata: %d, got %d", t_bindata, answer);
 
+      LIST_DESTROY(list);
     }
     END_TEST
 
@@ -186,6 +204,7 @@
       ck_assert_msg(answer == t_int, 
         "Wrong data type, expected t_int: %d, got %d", t_int, answer);
 
+      LIST_DESTROY(list);
     }
     END_TEST
 

@@ -42,10 +42,16 @@
       *  create a context and assert the proper
       *  return code is returned.		
       */				
-     #define CONTEXT_CREATE					\
-       ASSERT_RC(getdns_context_create(&context, TRUE),		\
+     #define CONTEXT_CREATE(set_from_os)			\
+       ASSERT_RC(getdns_context_create(&context, set_from_os),	\
          GETDNS_RETURN_GOOD, 					\
          "Return code from getdns_context_create()");
+
+     /*
+      *  The CONTEXT_FREE macro is used to
+      *  destroy the current context.
+      */
+     #define CONTEXT_DESTROY getdns_context_destroy(context);
 
      /*
       *  The EVENT_BASE_CREATE macro is used to 				
@@ -75,6 +81,11 @@
         "NULL pointer returned by getdns_list_create()");
 
      /*
+      *  The LIST_DESTROY macro destroys a list.
+      */
+     #define LIST_DESTROY(list) getdns_list_destroy(list);
+
+     /*
       *  The DICT_CREATE macro simply creates a 
       *  dict and verifies the returned pointer
       *  is not NULL.
@@ -83,6 +94,11 @@
       dict = getdns_dict_create();	\
       ck_assert_msg(dict != NULL, 	\
         "NULL pointer returned by getdns_dict_create()");
+
+     /*
+      *  The DICT_DESTROY macro destroys a dict.
+      */
+     #define DICT_DESTROY(dict) getdns_dict_destroy(dict);
      
      /*			
       *  The process_response macro declares the
@@ -92,14 +108,60 @@
      #define EXTRACT_RESPONSE			\
        struct extracted_response ex_response;	\
        extract_response(response, &ex_response);
-      
+
+     //
+     //  FUNCTION DECLARATIONS 
+     // 
+
+     /*
+      *    extract_response extracts all of the various information
+      *    a test may want to look at from the response.
+      */
      void extract_response(struct getdns_dict *response, struct extracted_response *ex_response); 
+
+     /*
+      *    assert_noerror asserts that the rcode is 0.
+      */
      void assert_noerror(struct extracted_response *ex_response);
+
+    /*
+     *     assert_nodata asserts that ancount in the header and the
+     *     of the answer section (list) are both zero.
+     */
      void assert_nodata(struct extracted_response *ex_response);
+
+     /*
+      *    assert_address_records_in_answer asserts that ancount in 
+      *    the header *    is >= 1, ancount is equal to the length 
+      *    of "answer", and that all of *    the records in the 
+      *    answer section are A and/or AAAA resource records based 
+      *    on the value of the a/aaaa arguments.
+      */
      void assert_address_in_answer(struct extracted_response *ex_response, int a, int aaaa);
+
+     /*
+      *    assert_nxdomain asserts that an NXDOMAIN response was
+      *    was returned for the DNS query meaning rcode == 3.
+      */
      void assert_nxdomain(struct extracted_response *ex_response);
+
+     /*
+      *    assert_soa_in_authority asserts that a SOA record was
+      *    returned in the authority sections.
+      */
      void assert_soa_in_authority(struct extracted_response *ex_response);
+
+     /*
+      *    assert_ptr_in_answer asserts that a PTR record was
+      *    returned in the answer sections.
+      */
      void assert_ptr_in_answer(struct extracted_response *ex_response);
+
+     /*
+      *    negative_callbackfn is the callback function given
+      *    to negative asynchronous query tests when no response
+      *    is expected.
+      */
      void negative_callbackfn(
        struct getdns_context *context, 
        uint16_t callback_type, 
@@ -107,6 +169,12 @@
        void *userarg,
        getdns_transaction_t transaction_id
      );
+
+     /*
+      *    positive_callbackfn is the callback function given
+      *    to positive asynchronous query tests and will validate
+      *    the response that is returned.
+      */
      void positive_callbackfn(
        struct getdns_context *context, 
        uint16_t callback_type,

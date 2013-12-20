@@ -1,5 +1,13 @@
 #ifndef _check_getdns_general_h_
 #define _check_getdns_general_h_
+
+    /*
+     **************************************************************************
+     *                                                                        *
+     *  T E S T S  F O R  G E T D N S _ G E M E R A L                         *
+     *                                                                        *
+     **************************************************************************
+    */
      
      START_TEST (getdns_general_1)
      {
@@ -26,7 +34,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, NULL, GETDNS_RRTYPE_A, NULL,
@@ -34,6 +42,7 @@
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -48,7 +57,7 @@
        getdns_transaction_t transaction_id = 0;
        const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL,
@@ -56,6 +65,7 @@
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -70,7 +80,7 @@
        getdns_transaction_t transaction_id = 0;
        const char *name = "this.domain.hasalabelwhichexceedsthemaximumdnslabelsizeofsixtythreecharacters.com";
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL, 
@@ -78,6 +88,7 @@
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -91,7 +102,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
@@ -99,6 +110,7 @@
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -116,7 +128,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", 0, NULL,
@@ -124,6 +136,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -141,7 +154,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", 65279, NULL, 
@@ -149,6 +162,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -167,7 +181,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
@@ -175,6 +189,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -193,7 +208,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
 
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_AAAA, NULL, 
@@ -201,6 +216,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -221,7 +237,7 @@
        getdns_transaction_t transaction_id = 0;
        const char *name = "thisdomainsurelydoesntexist.com";
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_TXT, NULL, 
@@ -229,6 +245,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -246,7 +263,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "hampster.com", GETDNS_RRTYPE_MX, NULL, 
@@ -254,6 +271,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -272,7 +290,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
@@ -280,6 +298,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -298,7 +317,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL, 
@@ -306,6 +325,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
@@ -324,7 +344,7 @@
        struct event_base *event_base = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
-       CONTEXT_CREATE;
+       CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "2607:f8b0:4006:802::1007", GETDNS_RRTYPE_PTR, NULL,
@@ -332,6 +352,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
+       CONTEXT_DESTROY;
      }
      END_TEST
      
