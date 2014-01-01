@@ -57,7 +57,7 @@ void this_callbackfn(struct getdns_context *this_context,
 
 					struct getdns_bindata * this_dname;
 					this_ret = getdns_dict_get_bindata(this_rdata, "rdata_raw", &this_dname);
-					char *this_dname_str = getdns_convert_dns_name_to_fqdn(this_dname->data);
+					char *this_dname_str = getdns_convert_dns_name_to_fqdn((char *)this_dname->data);
 					printf("The dname is %s\n", this_dname_str);
 					free(this_dname_str);
 
