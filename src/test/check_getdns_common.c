@@ -7,6 +7,8 @@
 #include <getdns/getdns.h>
 #include "check_getdns_common.h"
 
+int callback_called = 0;
+
 /*
  *  extract_response extracts all of the various information
  *  a test may want to look at from the response.
@@ -231,9 +233,11 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
 void callbackfn(struct getdns_context *context,
                 uint16_t callback_type,
                 struct getdns_dict *response,
-                void *(userarg)(struct extracted_response *ex_response),
+                void *userarg,
                 getdns_transaction_t transaction_id)
 {
+  typedef void (*fn_ptr)(struct extracted_response *ex_response);
+  fn_ptr fn = userarg;
 
   /*
    *  If userarg is NULL, either a negative test case
@@ -249,6 +253,10 @@ void callbackfn(struct getdns_context *context,
   ASSERT_RC(callback_type, GETDNS_CALLBACK_COMPLETE, "Callback type");
 
   /*
+  printf("DICT:\n%s\n", getdns_pretty_print_dict(response));
+  */
+
+  /*
    *  Extract the response.
    */
   EXTRACT_RESPONSE;
@@ -257,6 +265,6 @@ void callbackfn(struct getdns_context *context,
    *  Call the response verification function that
    *  was passed via userarg.
    */
-  userarg(&ex_response);
+  fn(&ex_response);
 
 }

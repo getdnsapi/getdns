@@ -4,6 +4,8 @@
      #define TRUE 1
      #define FALSE 0
      #define MAXLEN 200
+
+     extern int callback_called;
      
      struct extracted_response {
        uint32_t top_answer_type;
@@ -163,12 +165,10 @@
       *    be called for positive tests and will verify the
       *    response that is returned.
       */
-     void callbackfn(
-       struct getdns_context *context, 
-       uint16_t callback_type,
-       struct getdns_dict *response, 
-       void *(userarg)(struct extracted_response *ex_response),
-       getdns_transaction_t transaction_id
-     );
+     void callbackfn(struct getdns_context *context, 
+                     uint16_t callback_type,
+                     struct getdns_dict *response, 
+                     void *userarg,
+                     getdns_transaction_t transaction_id);
 
 #endif
