@@ -29,6 +29,6 @@ tests_dict
 tests_list
 tests_stub_async
 tests_stub_sync
-
 src/example/example-reverse
 src/test/check_getdns.log
+check_getdns
