@@ -500,6 +500,15 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
     uint32_t * answer);
 
 /**
+ * remove the value associated with the specified name
+ * @param this_dict dictionary from which to fetch the integer
+ * @param name a name/key value to look up in the dictionary
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
+
+/**
  * create a new list with no items
  * @return pointer to an allocated list, NULL if insufficient memory
  */
