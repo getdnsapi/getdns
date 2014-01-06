@@ -16,6 +16,7 @@
 #include "check_getdns_address_sync.h"
 #include "check_getdns_list_get_length.h"
 #include "check_getdns_list_get_data_type.h"
+#include "check_getdns_dict_get_names.h"
 
 int
 main (void)
@@ -31,6 +32,7 @@ main (void)
   Suite *getdns_cancel_callback_suite(void);
   Suite *getdns_list_get_length_suite(void);
   Suite *getdns_list_get_data_type_suite(void);
+  Suite *getdns_dict_get_names_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
@@ -40,6 +42,7 @@ main (void)
   srunner_add_suite(sr, getdns_cancel_callback_suite());
   srunner_add_suite(sr, getdns_list_get_length_suite());
   srunner_add_suite(sr, getdns_list_get_data_type_suite());
+  srunner_add_suite(sr, getdns_dict_get_names_suite());
 
   srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);
