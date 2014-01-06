@@ -28,7 +28,7 @@
     {
      /*
       *  answer = NULL
-      *  expect: GETDNS_RETURN_NO_SUCH_LIST_ITEM
+      *  expect: GETDNS_RETURN_NO_SUCH_DICT_NAME
       */
       struct getdns_dict *this_dict = NULL;
 
