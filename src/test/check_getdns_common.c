@@ -8,6 +8,8 @@
 #include "check_getdns_common.h"
 
 int callback_called = 0;
+int callback_completed = 0;
+int callback_canceled = 0;
 
 /*
  *  extract_response extracts all of the various information

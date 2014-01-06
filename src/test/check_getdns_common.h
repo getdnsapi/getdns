@@ -6,6 +6,8 @@
      #define MAXLEN 200
 
      extern int callback_called;
+     extern int callback_completed;
+     extern int callback_canceled;
      
      struct extracted_response {
        uint32_t top_answer_type;
@@ -29,14 +31,15 @@
       *  whether the return code from the last
       *  getdns API call is what was expected.
       */
-     #define ASSERT_RC(rc, expected_rc, prefix)			\
-     {                                          		\
-       size_t buflen = MAXLEN;					\
-       char error_string[MAXLEN];                		\
-       getdns_strerror(rc, error_string, buflen);		\
-       ck_assert_msg(rc == expected_rc,				\
-         "%s: expecting %s: %d, but received: %d: %s",		\
-         prefix, #expected_rc, expected_rc, rc, error_string);	\
+     #define ASSERT_RC(rc, expected_rc, prefix)					\
+     {                                          				\
+       size_t buflen = MAXLEN;							\
+       char error_string[MAXLEN];                				\
+       getdns_return_t evaluated_rc = rc;					\
+       getdns_strerror(evaluated_rc, error_string, buflen);			\
+       ck_assert_msg(evaluated_rc == expected_rc,				\
+         "%s: expecting %s: %d, but received: %d: %s",				\
+         prefix, #expected_rc, expected_rc, evaluated_rc, error_string);	\
      }
      
      /*
