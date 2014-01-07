@@ -198,7 +198,7 @@
     Suite *
     getdns_dict_get_dict_suite (void)
     {
-      Suite *s = suite_create ("getdns_dict_get_data_type()");
+      Suite *s = suite_create ("getdns_dict_get_dict()");
     
       /* Negative test caseis */
       TCase *tc_neg = tcase_create("Negative");
