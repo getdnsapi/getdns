@@ -19,7 +19,7 @@
       struct getdns_dict *answer = NULL;
 
       ASSERT_RC(getdns_dict_get_dict(this_dict, "key", &answer),
-        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_data_type()");
+        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_dict()");
 
     }
     END_TEST
@@ -40,7 +40,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_dict()");
 
       ASSERT_RC(getdns_dict_get_dict(this_dict, NULL, &answer),
-        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_data_type()");
+        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_dict()");
 
       DICT_DESTROY(this_dict);
       DICT_DESTROY(second_dict);
