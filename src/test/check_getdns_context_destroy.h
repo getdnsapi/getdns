@@ -111,6 +111,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;
+       DICT_DESTROY(address);
        CONTEXT_DESTROY;
 
        ck_assert_msg(callback_called == 1, "callback_called should == 1, got %d", callback_called);

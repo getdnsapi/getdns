@@ -190,6 +190,7 @@
       ck_assert_msg(sum == sum_of_values, "Sum of int values in dict should == %d, got: %d",
         sum_of_values, sum);
 
+      LIST_DESTROY(names);
       DICT_DESTROY(this_dict);
       DICT_DESTROY(second_dict);
     }

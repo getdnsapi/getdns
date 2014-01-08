@@ -56,7 +56,7 @@
       int i;
       size_t length;
       struct getdns_bindata *key = NULL;
-      char string_buffer[20];
+      char string_buffer[20] = "";
 
       DICT_CREATE(this_dict);
 
@@ -84,6 +84,7 @@
       ck_assert_msg(strcmp(string_buffer, "elevententwelve") == 0, 
         "Expected concatenated names to be \"elevententwelve\", got \"%s\"", string_buffer);
 
+      LIST_DESTROY(answer);
       DICT_DESTROY(this_dict);
     }
     END_TEST

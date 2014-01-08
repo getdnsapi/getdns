@@ -302,6 +302,7 @@
        ck_assert_msg(callback_completed == even, "callback_completed should == %d, got: %d", even, callback_completed);
        ck_assert_msg(callback_canceled == odd, "callback_canceled should == %d, got: %d", odd, callback_canceled);
 
+       DICT_DESTROY(address);
        CONTEXT_DESTROY;
     }
     END_TEST
