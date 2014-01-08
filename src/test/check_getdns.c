@@ -22,6 +22,7 @@
 #include "check_getdns_dict_get_list.h"
 #include "check_getdns_dict_get_bindata.h"
 #include "check_getdns_dict_get_int.h"
+#include "check_getdns_dict_destroy.h"
 
 int
 main (void)
@@ -43,6 +44,7 @@ main (void)
   Suite *getdns_dict_get_list_suite(void);
   Suite *getdns_dict_get_bindata_suite(void);
   Suite *getdns_dict_get_int_suite(void);
+  Suite *getdns_dict_destroy_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
@@ -58,6 +60,7 @@ main (void)
   srunner_add_suite(sr, getdns_dict_get_list_suite());
   srunner_add_suite(sr, getdns_dict_get_bindata_suite());
   srunner_add_suite(sr, getdns_dict_get_int_suite());
+  srunner_add_suite(sr, getdns_dict_destroy_suite());
 
   srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);
