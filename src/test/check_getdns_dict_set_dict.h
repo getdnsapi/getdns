@@ -13,14 +13,14 @@
     {
      /*
       *  this_dict = NULL
-      *  expect:  GETDNS_RETURN_NO_SUCH_DICT_NAME
+      *  expect:  GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_dict *this_dict = NULL;
       struct getdns_dict *child_dict = NULL;
 
       DICT_CREATE(child_dict);
       ASSERT_RC(getdns_dict_set_dict(this_dict, "dict", child_dict),
-        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_set_dict()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_dict_set_dict()");
       DICT_DESTROY(child_dict);
 
     }
@@ -29,21 +29,41 @@
     START_TEST (getdns_dict_set_dict_2)
     {
      /*
+      *  name= NULL
+      *  expect:  GETDNS_RETURN_INVALID_PARAMETER
+      */
+      struct getdns_dict *this_dict = NULL;
+      struct getdns_dict *child_dict = NULL;
+
+      DICT_CREATE(this_dict);
+      DICT_CREATE(child_dict);
+      ASSERT_RC(getdns_dict_set_dict(this_dict, NULL, child_dict),
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_dict_set_dict()");
+      
+      DICT_DESTROY(this_dict);
+      DICT_DESTROY(child_dict);
+
+    }
+    END_TEST
+
+    START_TEST (getdns_dict_set_dict_3)
+    {
+     /*
       *  child_dict = NULL
-      *  expect:  GETDNS_RETURN_NO_SUCH_DICT_NAME
+      *  expect:  GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_dict *this_dict = NULL;
       struct getdns_dict *child_dict = NULL;
 
       DICT_CREATE(this_dict);
       ASSERT_RC(getdns_dict_set_dict(this_dict, "dict", child_dict),
-        GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_dict_set_dict()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_dict_set_dict()");
 
       DICT_DESTROY(this_dict);
     }
     END_TEST
     
-    START_TEST (getdns_dict_set_dict_3)
+    START_TEST (getdns_dict_set_dict_4)
     {
      /*
       *  name already exists in dict
@@ -92,7 +112,7 @@
     }
     END_TEST
     
-    START_TEST (getdns_dict_set_dict_4)
+    START_TEST (getdns_dict_set_dict_5)
     {
      /*
       *  name already exists in dict, changing data type
@@ -152,12 +172,13 @@
       TCase *tc_neg = tcase_create("Negative");
       tcase_add_test(tc_neg, getdns_dict_set_dict_1);
       tcase_add_test(tc_neg, getdns_dict_set_dict_2);
+      tcase_add_test(tc_neg, getdns_dict_set_dict_3);
       suite_add_tcase(s, tc_neg);
     
       /* Positive test cases */
       TCase *tc_pos = tcase_create("Positive");
-      tcase_add_test(tc_pos, getdns_dict_set_dict_3);
       tcase_add_test(tc_pos, getdns_dict_set_dict_4);
+      tcase_add_test(tc_pos, getdns_dict_set_dict_5);
       suite_add_tcase(s, tc_pos);
     
       return s;

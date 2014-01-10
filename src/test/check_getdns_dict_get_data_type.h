@@ -13,13 +13,13 @@
     {
      /*
       *  this_dict = NULL
-      *  expect:  GETDNS_RETURN_NO_SUCH_DICT_NAME
+      *  expect:  GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_dict *this_dict = NULL;
       getdns_data_type answer;
 
       ASSERT_RC(getdns_dict_get_data_type(this_dict, "key", &answer),
-        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_data_type()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_dict_get_data_type()");
 
     }
     END_TEST
@@ -28,7 +28,7 @@
     {
      /*
       *  name = NULL
-      *  expect:  GETDNS_RETURN_NO_SUCH_DICT_NAME
+      *  expect:  GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_dict *this_dict = NULL;
       getdns_data_type answer;
@@ -38,7 +38,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
       ASSERT_RC(getdns_dict_get_data_type(this_dict, NULL, &answer),
-        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_data_type()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_dict_get_data_type()");
 
       DICT_DESTROY(this_dict);
 
@@ -78,7 +78,7 @@
     {
      /*
       *  answer = NULL
-      *  expect: GETDNS_RETURN_NO_SUCH_DICT_NAME
+      *  expect: GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_dict *this_dict = NULL;
 
@@ -87,7 +87,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
       ASSERT_RC(getdns_dict_get_data_type(this_dict, "ten", NULL),
-        GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_dict_get_names()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_dict_get_names()");
 
       DICT_DESTROY(this_dict);
     }

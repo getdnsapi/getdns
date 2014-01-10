@@ -53,7 +53,7 @@
     {
      /*
       *  answer = NULL
-      *  expect: GETDNS_RETURN_NO_SUCH_LIST_ITEM
+      *  expect: GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_list *list = NULL;
       size_t index = 0;
@@ -64,7 +64,7 @@
         "Return code from getdns_list_set_int()");
 
       ASSERT_RC(getdns_list_get_data_type(list, index, NULL),
-        GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_list_get_data_type()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_list_get_data_type()");
 
       LIST_DESTROY(list);
     }
