@@ -987,6 +987,61 @@ ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams, size_t count)
 		    &ip_str);
 		ub_ctx_set_fwd(ctx, ip_str);
 	}
+	/* Allow lookups of:
+	 */
+	/* - localhost */
+	(void)ub_ctx_zone_remove(ctx, "localhost.");
+
+	/* - reverse IPv4 loopback */
+	(void)ub_ctx_zone_remove(ctx, "127.in-addr.arpa.");
+
+	/* - reverse IPv6 loopback */
+	(void)ub_ctx_zone_remove(ctx, "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
+	                              "0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.");
+
+	/* - reverse RFC1918 local use zones */
+	(void)ub_ctx_zone_remove(ctx, "10.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "16.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "17.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "18.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "19.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "20.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "21.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "22.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "23.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "24.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "25.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "26.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "27.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "28.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "29.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "30.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "31.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "168.192.in-addr.arpa.");
+
+	/* - reverse RFC3330 IP4 this, link-local, testnet and broadcast */
+	(void)ub_ctx_zone_remove(ctx, "0.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "254.169.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "2.0.192.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "100.51.198.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "113.0.203.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "255.255.255.255.in-addr.arpa.");
+
+	/* - reverse RFC4291 IP6 unspecified */
+	(void)ub_ctx_zone_remove(ctx, "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
+	                              "0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.");
+
+	/* - reverse RFC4193 IPv6 Locally Assigned Local Addresses */
+	(void)ub_ctx_zone_remove(ctx, "D.F.ip6.arpa.");
+
+	/* - reverse RFC4291 IPv6 Link Local Addresses */
+	(void)ub_ctx_zone_remove(ctx, "8.E.F.ip6.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "9.E.F.ip6.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "A.E.F.ip6.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "B.E.F.ip6.arpa.");
+
+	/* - reverse IPv6 Example Prefix */
+	(void)ub_ctx_zone_remove(ctx, "8.B.D.0.1.0.0.2.ip6.arpa.");
 }
 
 getdns_return_t
