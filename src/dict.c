@@ -107,7 +107,7 @@ getdns_dict_get_data_type(struct getdns_dict * dict, char *name,
 	struct getdns_dict_item *item;
 
 	if (!dict || !name || !answer)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	item = getdns_dict_find(dict, name, 0);
 	if (!item)
@@ -128,8 +128,11 @@ getdns_dict_get_dict(struct getdns_dict * dict, char *name,
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	item = getdns_dict_find(dict, name, 0);
-	if (!item || item->dtype != t_dict)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if (!item)
+        return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    if (item->dtype != t_dict)
+		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = item->data.dict;
 	return  GETDNS_RETURN_GOOD;
@@ -146,7 +149,10 @@ getdns_dict_get_list(struct getdns_dict * dict, char *name,
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	item = getdns_dict_find(dict, name, 0);
-	if (!item || item->dtype != t_list)
+	if (!item)
+        return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    if (item->dtype != t_list)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = item->data.list;
@@ -164,7 +170,10 @@ getdns_dict_get_bindata(struct getdns_dict * dict, char *name,
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	item = getdns_dict_find(dict, name, 0);
-	if (!item || item->dtype != t_bindata)
+	if (!item)
+        return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    if (item->dtype != t_bindata)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = item->data.bindata;
@@ -181,7 +190,10 @@ getdns_dict_get_int(struct getdns_dict * dict, char *name, uint32_t * answer)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	item = getdns_dict_find(dict, name, 0);
-	if (!item || item->dtype != t_int)
+	if (!item)
+        return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    if (item->dtype != t_int)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = item->data.n;
