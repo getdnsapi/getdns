@@ -10,7 +10,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -196,7 +196,7 @@ ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
 	 */
 	if (netreq->state == NET_REQ_NOT_SENT) {
 		/* just do a very short timer since this was called immediately.
-		 * we can make this less hacky, but it gets interesting when multiple 
+		 * we can make this less hacky, but it gets interesting when multiple
 		 * netreqs need to be issued and some resolve immediately vs. not.
 		 */
 		struct timeval tv;
@@ -329,12 +329,17 @@ getdns_general(struct getdns_context *context,
 {
 	int extcheck = GETDNS_RETURN_GOOD;
 
-	if (!context || !context->event_base_async || callback == NULL) {
+	if (!context || !context->event_base_async) {
 		/* Can't do async without an event loop
 		 * or callback
 		 */
 		return GETDNS_RETURN_BAD_CONTEXT;
 	}
+
+    /* ensure callback is not NULL */
+    if (!callback) {
+         return GETDNS_RETURN_INVALID_PARAMETER;
+    }
 
 	extcheck = validate_extensions(extensions);
 	if (extcheck != GETDNS_RETURN_GOOD)
