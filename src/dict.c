@@ -396,8 +396,8 @@ getdns_dict_set_list(struct getdns_dict * dict, char *name,
 	struct getdns_list *newlist;
 	getdns_return_t retval;
 
-	if (!dict || !name)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if (!dict || !name || !child_list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	retval = getdns_list_copy(child_list, &newlist);
 	if (retval != GETDNS_RETURN_GOOD)
@@ -422,7 +422,7 @@ getdns_dict_set_bindata(struct getdns_dict * dict, char *name,
 	struct getdns_bindata *newbindata;
 
 	if (!dict || !name || !child_bindata)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	newbindata = getdns_bindata_copy(&dict->mf, child_bindata);
 	if (!newbindata)
@@ -446,7 +446,7 @@ getdns_dict_set_int(struct getdns_dict * dict, char *name,
 	struct getdns_dict_item *item;
 
 	if (!dict || !name)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	item = getdns_dict_find(dict, name, 1);
 	if (!item)
