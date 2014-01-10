@@ -1,9 +1,9 @@
 /**
  *
- * getdns list management functions, note that the internal storage is 
+ * getdns list management functions, note that the internal storage is
  * accomplished via the libc binary search tree implementation so your
  * pointer foo needs to be keen to digest some of the internal semantics
- * 
+ *
  * Interfaces originally taken from the getdns API description pseudo implementation.
  *
  */
@@ -11,7 +11,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -370,8 +370,8 @@ getdns_dict_set_dict(struct getdns_dict * dict, char *name,
 	struct getdns_dict *newdict;
 	getdns_return_t retval;
 
-	if (!dict || !name)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if (!dict || !name || !child_dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	retval = getdns_dict_copy(child_dict, &newdict);
 	if (retval != GETDNS_RETURN_GOOD)
@@ -459,7 +459,7 @@ getdns_dict_set_int(struct getdns_dict * dict, char *name,
 
 /*---------------------------------------- getdns_pp_dict */
 /**
- * private function to help with indenting. 
+ * private function to help with indenting.
  * @param indent number of spaces to return
  * @return       a character string containing min(80, indent) spaces
  */
