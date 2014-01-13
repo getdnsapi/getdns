@@ -44,25 +44,6 @@
      START_TEST (getdns_address_sync_3)
      {
       /*
-       *  name = invalid domain (too many octets)
-       *  expect:  GETDNS_RETURN_BAD_DOMAIN_NAME
-       */
-       struct getdns_context *context = NULL;   
-       struct getdns_dict *response = NULL;
-       const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
-
-       CONTEXT_CREATE(TRUE);
-
-       ASSERT_RC(getdns_address_sync(context, name, NULL, &response), 
-         GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_address_sync()");
-
-       CONTEXT_DESTROY;
-     }
-     END_TEST
-     
-     START_TEST (getdns_address_sync_4)
-     {
-      /*
        *  name = invalid domain (label too long)
        *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
@@ -79,7 +60,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_5)
+     START_TEST (getdns_address_sync_4)
      {
       /*
        *  response = NULL
@@ -96,7 +77,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_6)
+     START_TEST (getdns_address_sync_5)
      {
       /*
        *  name = "google.com"
@@ -122,7 +103,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_7)
+     START_TEST (getdns_address_sync_6)
      {
       /*
        *  name = "localhost"
@@ -149,7 +130,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_8)
+     START_TEST (getdns_address_sync_7)
      {
       /*
        *  name = "google.joe"
@@ -179,7 +160,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_9)
+     START_TEST (getdns_address_sync_8)
      {
       /*
        *  name = "hampster.com"  need to replace this with domain from unbound zone
@@ -204,7 +185,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_10)
+     START_TEST (getdns_address_sync_9)
      {
       /*
        *    name = "google.com"  need to swap this out for max domain name length with max lable length`
@@ -230,7 +211,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_11)
+     START_TEST (getdns_address_sync_10)
      {
       /*
        *  name = "75.101.146.66"  need to change this to local unbound data
@@ -258,7 +239,7 @@
      }
      END_TEST
      
-     START_TEST (getdns_address_sync_12)
+     START_TEST (getdns_address_sync_11)
      {
       /*
        *  name = "2607:f8b0:4006:802::1007"  need to change this to local unbound data
@@ -308,7 +289,6 @@
        tcase_add_test(tc_pos, getdns_address_sync_9);
        tcase_add_test(tc_pos, getdns_address_sync_10);
        tcase_add_test(tc_pos, getdns_address_sync_11);
-       tcase_add_test(tc_pos, getdns_address_sync_12);
        suite_add_tcase(s, tc_pos);
      
        return s;
