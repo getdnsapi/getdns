@@ -28,7 +28,7 @@
 #include "check_getdns_dict_set_bindata.h"
 #include "check_getdns_dict_set_int.h"
 #include "check_getdns_convert_ulabel_to_alabel.h"
-//#include "check_getdns_convert_alabel_to_ulabel.h"
+#include "check_getdns_convert_alabel_to_ulabel.h"
 
 int
 main (void)
@@ -56,7 +56,7 @@ main (void)
   Suite *getdns_dict_set_bindata_suite(void);
   Suite *getdns_dict_set_int_suite(void);
   Suite *getdns_convert_ulabel_to_alabel_suite(void);
-  //Suite *getdns_convert_alabel_to_ulabel_suite(void);
+  Suite *getdns_convert_alabel_to_ulabel_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
@@ -78,7 +78,7 @@ main (void)
   srunner_add_suite(sr, getdns_dict_set_bindata_suite());
   srunner_add_suite(sr, getdns_dict_set_int_suite());
   srunner_add_suite(sr, getdns_convert_ulabel_to_alabel_suite());
-  //srunner_add_suite(sr, getdns_convert_alabel_to_ulabel_suite());
+  srunner_add_suite(sr, getdns_convert_alabel_to_ulabel_suite());
 
   srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);

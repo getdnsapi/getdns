@@ -15,10 +15,10 @@
        *  ulabel = NULL
        *  expect: GETDNS_RETURN_GENERIC_ERROR
        */
-      char ulabel = NULL;
+      char *ulabel = NULL;
 
-       ASSERT_RC(getdns_convert_ulabel_to_alabel( *ulabel ), 
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_convert_ulabel_to_alabel()");
+      ck_assert_msg(strcmp( getdns_convert_ulabel_to_alabel( ulabel ), "nil" ) == 0,
+               "Was not expecting %s from getdns_convert_ulabel_to_alabel()", getdns_convert_ulabel_to_alabel( ulabel ) );
      }
      END_TEST
 
@@ -28,10 +28,10 @@
        *  ulabel = invalid characters
        *  expect: GETDNS_RETURN_GENERIC_ERROR
        */
-      char ulabel = "#$%_";
+      char *ulabel = "#$%_";
 
-       ASSERT_RC(getdns_convert_ulabel_to_alabel( *ulabel ), 
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_convert_ulabel_to_alabel()");
+      ck_assert_msg(strcmp( getdns_convert_ulabel_to_alabel( ulabel ), "#$%_" ) == 0,
+                "Was not expecting %s from getdns_convert_ulabel_to_alabel()", getdns_convert_ulabel_to_alabel( ulabel ) );
      }
      END_TEST
 
@@ -41,10 +41,11 @@
        *  ulabel = valid characters  ( _abc, -abc, -abc-, abc- and limited to 63 octets )
        *  expect: GETDNS_RETURN_GOOD
        */
-      char ulabel = "café";
+      char *ulabel = "café";
 
-       ASSERT_RC(getdns_convert_ulabel_to_alabel( *ulabel ), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_convert_ulabel_to_alabel()");
+      ck_assert_msg(strcmp( getdns_convert_ulabel_to_alabel( ulabel ), "xn--caf-dma" ) == 0,
+                "Was not expecting %s from getdns_convert_ulabel_to_alabel()", getdns_convert_ulabel_to_alabel( ulabel ) );
+
      }
      END_TEST
      
