@@ -15,13 +15,38 @@
        *  ulabel = NULL
        *  expect: GETDNS_RETURN_GENERIC_ERROR
        */
-      ulabel = null;
+      char alabel = NULL;
 
-       ASSERT_RC(getdns_convert_alabel_to_ulabel( *ulabel ), 
+       ASSERT_RC(getdns_convert_alabel_to_ulabel( *alabel ), 
          GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_convert_alabel_to_ulabel()");
      }
      END_TEST
 
+     START_TEST (getdns_convert_alabel_to_ulabel_2)
+     {
+      /*
+       *  alabel = invalid characters
+       *  expect: GETDNS_RETURN_GENERIC_ERROR
+       */
+      char alabel = "#$%_";
+
+       ASSERT_RC(getdns_convert_alabel_to_ulabel( *alabel ), 
+         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_convert_alabel_to_ulabel()");
+     }
+     END_TEST
+
+     START_TEST (getdns_convert_alabel_to_ulabel_3)
+     {
+      /*
+       *  alabel = valid characters  (ace must begin with prefix "xn--" and be followed by a valid puny algorithm output; length limited to 59 chars)
+       *  expect: GETDNS_RETURN_GOOD
+       */
+      char alabel = "xn--caf-dma";
+
+       ASSERT_RC(getdns_convert_alabel_to_ulabel( *alabel ), 
+         GETDNS_RETURN_GOOD, "Return code from getdns_convert_alabel_to_ulabel()");
+     }
+     END_TEST
      
      Suite *
      getdns_convert_alabel_to_ulabel_suite (void)
