@@ -28,7 +28,7 @@
      {
       /*
        *  name = NULL
-       *  expect: GETDNS_RETURN_GENERIC_ERROR
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;   \
        struct event_base *event_base = NULL;    \
@@ -39,7 +39,7 @@
 
        ASSERT_RC(getdns_general(context, NULL, GETDNS_RRTYPE_A, NULL,
          NULL, &transaction_id, callbackfn),
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;

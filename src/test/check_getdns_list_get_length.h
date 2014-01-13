@@ -13,13 +13,13 @@
     {
      /*
       *  list = NULL
-      *  expect = GETDNS_RETURN_NO_SUCH_LIST_ITEM
+      *  expect = GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_list *list = NULL;
       size_t length;
 
       ASSERT_RC(getdns_list_get_length(list, &length),
-        GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_length()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_list_get_length()");
 
     }
     END_TEST
@@ -28,14 +28,14 @@
     {
      /*
       *  answer = NULL
-      *  expect: GETDNS_RETURN_NO_SUCH_LIST_ITEM
+      *  expect: GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_list *list = NULL;
 
       LIST_CREATE(list);
 
       ASSERT_RC(getdns_list_get_length(list, NULL),
-        GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_length()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_list_get_length()");
 
       LIST_DESTROY(list);
     }
