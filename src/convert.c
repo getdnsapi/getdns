@@ -97,6 +97,8 @@ getdns_convert_ulabel_to_alabel(char *ulabel)
     char *buf;
     char *prepped;
 
+    if (ulabel == NULL)
+        return 0;
     setlocale(LC_ALL, "");
     if ((prepped = stringprep_locale_to_utf8(ulabel)) == 0)
         return 0;
@@ -125,6 +127,8 @@ getdns_convert_alabel_to_ulabel(char *alabel)
     int  ret;              /* just in case we might want to use it someday */
     char *buf;
 
+    if (alabel == NULL)
+        return 0;
     if ((ret = idna_to_unicode_8z8z(alabel, &buf, 0)) != IDNA_SUCCESS)  {
         return NULL;
     }
