@@ -70,7 +70,7 @@ getdns_convert_dns_name_to_fqdn(char *name_from_dns_response)
 char *
 getdns_convert_fqdn_to_dns_name(char *fqdn_as_string)
 {
-	ldns *rdf;
+	ldns_rdf *rdf;
 	char *data;
 	if (ldns_str2rdf_dname(&rdf, fqdn_as_string) != LDNS_STATUS_OK)
 		return NULL;
