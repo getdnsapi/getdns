@@ -59,8 +59,8 @@ getdns_list_get_data_type(struct getdns_list * list, size_t index,
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
     if (!answer)
-        return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-    
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
 	*answer = list->items[index].dtype;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_get_data_type */
@@ -73,7 +73,10 @@ getdns_list_get_dict(struct getdns_list * list, size_t index,
 	if (!list || index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (!answer || list->items[index].dtype != t_dict)
+	if (!answer)
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
+    if (list->items[index].dtype != t_dict)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = list->items[index].data.dict;
@@ -89,7 +92,10 @@ getdns_list_get_list(struct getdns_list * list, size_t index,
 	if (!list || index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (!answer || list->items[index].dtype != t_list)
+    if (!answer)
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (list->items[index].dtype != t_list)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = list->items[index].data.list;
@@ -104,7 +110,10 @@ getdns_list_get_bindata(struct getdns_list * list, size_t index,
 	if (!list || index >= list->numinuse)
 		return  GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (!answer || list->items[index].dtype != t_bindata)
+    if (!answer)
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (list->items[index].dtype != t_bindata)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = list->items[index].data.bindata;
@@ -118,7 +127,10 @@ getdns_list_get_int(struct getdns_list * list, size_t index, uint32_t * answer)
 	if (!list || index >= list->numinuse)
 		return  GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (!answer || list->items[index].dtype != t_int)
+    if (!answer)
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (list->items[index].dtype != t_int)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = list->items[index].data.n;
@@ -332,7 +344,7 @@ getdns_list_add_item(struct getdns_list *list, size_t * index)
 	getdns_return_t retval;
 
 	if (!list || !index)
-		return  GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		return  GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (list->numalloc == list->numinuse) {
 		retval = getdns_list_realloc(list);
@@ -355,7 +367,7 @@ getdns_list_set_dict(struct getdns_list * list, size_t index,
 	getdns_return_t retval;
 
 	if (!list || !child_dict)
-		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
@@ -387,7 +399,7 @@ getdns_list_set_list(struct getdns_list * list, size_t index,
 	getdns_return_t retval;
 
 	if (!list || !child_list)
-		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
@@ -419,7 +431,7 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 	getdns_return_t retval;
 
 	if (!list || !child_bindata)
-		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
@@ -450,7 +462,7 @@ getdns_list_set_int(struct getdns_list * list, size_t index,
 	getdns_return_t retval;
 
 	if (!list)
-		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (index > list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;

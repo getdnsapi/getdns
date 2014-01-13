@@ -61,8 +61,11 @@ getdns_lookup_table getdns_error_str[] = {
 	{GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED,
             "A query was made with a context that is using stub resolution and a DNSSEC extension specified."}
 	,
-    {GETDNS_RETURN_MEMORY_ERROR, 
+    {GETDNS_RETURN_MEMORY_ERROR,
              "Unable to allocate the memory required."}
+    ,
+    {GETDNS_RETURN_INVALID_PARAMETER,
+             GETDNS_RETURN_INVALID_PARAMETER_TEXT }
     ,
 	{0, ""}
 };

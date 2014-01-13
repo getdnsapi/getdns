@@ -9,7 +9,7 @@
 /*
  * Copyright (c) 2013, NLNet Labs, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -74,6 +74,8 @@ struct event_base;
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "A query was made with a context that is using stub resolution and a DNSSEC extension specified."
 #define GETDNS_RETURN_MEMORY_ERROR 310
 #define GETDNS_RETURN_MEMORY_ERROR_TEXT "Unable to allocate the memory required."
+#define GETDNS_RETURN_INVALID_PARAMETER  311
+#define GETDNS_RETURN_INVALID_PARAMETER_TEXT "A required parameter had an invalid value."
 /** @}
  */
 
