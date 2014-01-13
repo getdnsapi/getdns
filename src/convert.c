@@ -70,10 +70,14 @@ getdns_convert_dns_name_to_fqdn(char *name_from_dns_response)
 char *
 getdns_convert_fqdn_to_dns_name(char *fqdn_as_string)
 {
-	UNUSED_PARAM(fqdn_as_string);
-	return NULL;
+	ldns *rdf;
+	char *data;
+	if (ldns_str2rdf_dname(&rdf, fqdn_as_string) != LDNS_STATUS_OK)
+		return NULL;
+	data = (char *)ldns_rdf_data(rdf);
+	ldns_rdf_free(rdf);
+	return data;
 }
-
 
 /*---------------------------------------- getdns_convert_alabel_to_ulabel */
 /**

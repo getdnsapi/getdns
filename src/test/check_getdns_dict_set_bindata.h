@@ -13,7 +13,7 @@
     {
      /*
       *  this_dict = NULL
-      *  expect:  GETDNS_RETURN_NO_SUCH_DICT_NAME
+      *  expect:  GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_dict *this_dict = NULL;
       struct getdns_bindata bindata = { 8, (void *)"bindata" };

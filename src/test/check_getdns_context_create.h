@@ -13,11 +13,11 @@
      {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_GENERIC_ERROR
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
 
        ASSERT_RC(getdns_context_create(NULL, TRUE),
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_context_create()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_create()");
      }
      END_TEST
      

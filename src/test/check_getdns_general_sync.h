@@ -27,7 +27,7 @@
      {
       /*
        *  name = NULL
-       *  expect: GETDNS_RETURN_GENERIC_ERROR
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *response = NULL;
@@ -35,7 +35,7 @@
        CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_general_sync(context, NULL, GETDNS_RRTYPE_A, NULL, &response), 
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general_sync()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general_sync()");
 
        CONTEXT_DESTROY;
      }
@@ -83,14 +83,14 @@
      {
       /*
        *  response = NULL
-       *  expect:  GETDNS_RETURN_GENERIC_ERROR
+       *  expect:  GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;   
 
        CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_general_sync(context, "google.com", GETDNS_RRTYPE_A, NULL, NULL), 
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_general_sync()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general_sync()");
 
        CONTEXT_DESTROY;
      }

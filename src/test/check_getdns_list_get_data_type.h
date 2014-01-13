@@ -13,14 +13,14 @@
     {
      /*
       *  list = NULL
-      *  expect: GETDNS_RETURN_NO_SUCH_LIST_ITEM
+      *  expect: GETDNS_RETURN_INVALID_PARAMETER
       */
       struct getdns_list *list = NULL;
       size_t index = 0;
       getdns_data_type answer;
 
       ASSERT_RC(getdns_list_get_data_type(list, index, &answer),
-        GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_data_type()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_list_get_data_type()");
     }
     END_TEST
 
