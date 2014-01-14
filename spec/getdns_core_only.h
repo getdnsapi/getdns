@@ -1,4 +1,4 @@
-/* Created at 2014-01-14-14-53-09*/
+/* Created at 2014-01-14-15-20-05*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -35,6 +35,8 @@
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "A query was made with a context that is using stub resolution and a DNSSEC extension specified."
 #define GETDNS_RETURN_MEMORY_ERROR 310
 #define GETDNS_RETURN_MEMORY_ERROR_TEXT "Unable to allocate the memory required."
+#define GETDNS_RETURN_INVALID_PARAMETER 311
+#define GETDNS_RETURN_INVALID_PARAMETER_TEXT "A required parameter had an invalid value."
 
 /* DNSSEC values */
 #define GETDNS_DNSSEC_SECURE 400

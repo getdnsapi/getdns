@@ -1109,6 +1109,8 @@ struct getdns_list;
 <p class=descrip>A query was made with a context that is using stub resolution and a DNSSEC extension specified.</p>
 <p class=define>GETDNS_RETURN_MEMORY_ERROR</p>
 <p class=descrip>Unable to allocate the memory required.</p>
+<p class=define>GETDNS_RETURN_INVALID_PARAMETER</p>
+<p class=descrip>A required parameter had an invalid value.</p>
 
 
 <h2>5.3 <a id="TypeList">Types of RDATA Returned in the API</a></h2>
@@ -2208,7 +2210,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.373.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.374.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
