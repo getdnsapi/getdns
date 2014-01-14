@@ -69,7 +69,7 @@ struct event_base;
 #define GETDNS_RETURN_NO_SUCH_EXTENSION 307
 #define GETDNS_RETURN_NO_SUCH_EXTENSION_TEXT "A name in the extensions dict is not a valid extension."
 #define GETDNS_RETURN_EXTENSION_MISFORMAT 308
-#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT "One or more of the extensions is has a bad format."
+#define GETDNS_RETURN_EXTENSION_MISFORMAT_TEXT "One or more of the extensions have a bad format."
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED 309
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "A query was made with a context that is using stub resolution and a DNSSEC extension specified."
 #define GETDNS_RETURN_MEMORY_ERROR 310
@@ -502,15 +502,6 @@ getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
     uint32_t * answer);
 
 /**
- * remove the value associated with the specified name
- * @param this_dict dictionary from which to fetch the integer
- * @param name a name/key value to look up in the dictionary
- * @return GETDNS_RETURN_GOOD on success
- * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
- */
-getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
-
-/**
  * create a new list with no items
  * @return pointer to an allocated list, NULL if insufficient memory
  */
@@ -635,6 +626,15 @@ getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *nam
  */
 getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name,
     uint32_t child_uint32);
+
+/**
+ * remove the value associated with the specified name
+ * @param this_dict dictionary from which to fetch the integer
+ * @param name a name/key value to look up in the dictionary
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
 
 /* Callback arguments */
 typedef void (*getdns_callback_t) (struct getdns_context *context,
