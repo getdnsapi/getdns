@@ -952,7 +952,17 @@ look something like this:</p>
 <pre>
 {     # This is the response object
   "replies_full": [ &lt;bindata of the first response&gt;, &lt;bindata of the second response&gt; ],
-  "just_address_answers": [ &lt;bindata of 0x0a0b0c01&gt;, &lt;bindata of 0x33445566334455663344556633445566&gt; ],
+  "just_address_answers":
+  [
+    {
+      "address_type": &lt;bindata of "IPv4"&gt;,
+      "address_data": &lt;bindata of 0x0a0b0c01&gt;,
+    },
+    {
+      "address_type": &lt;bindata of "IPv6"&gt;,
+      "address_data": &lt;bindata of 0x33445566334455663344556633445566&gt;
+    }
+  ],
   "canonical_name": &lt;bindata of "www.example.com"&gt;,
   "answer_type": GETDNS_NAMETYPE_DNS,
   "intermediate_aliases": [],
@@ -2198,7 +2208,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.371.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.372.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
