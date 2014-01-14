@@ -1697,7 +1697,7 @@ if (*this_type == GETDNS_RRTYPE_A)
 <p>You can put the DNSSEC status check outside the check for the particular type of record you care about, but
 you will then get log messages for bad status on records you might not care about as well.</p>
 
-<h2>6.4 Using the API Synchronously with <code>getdns_sync_request()</code></h2>
+<h2>6.4 Using the API Synchronously with <code>getdns_general_sync()</code></h2>
 
 <p>This example is the same as the earlier examples, but uses <code>getdns_general_sync()</code>
 and thus does not use the async code. Note that the processing of the answers is essentially the same
@@ -2208,7 +2208,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.372.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.373.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
@@ -2261,7 +2261,7 @@ able to act as stub resolvers. Note that all implementations of this API must be
 <p>Because there are many C event libraries available, and they have different calling routines,
 it is the implementation of an API that determines which event library is used. This is certainly
 not optimal for C programmers, but they appear to have gotten used to is so far. All implementations
-of this API must support synchronous calls with <code>getdns_sync_request()</code>.</p>
+of this API must support synchronous calls with <code>getdns_general_sync()</code>.</p>
 
 <p>Versions are differentiated by version strings instead of version numbers. The version string for
 this API is "getdns April 2013". Each implementation is free to set the implementation string as it
