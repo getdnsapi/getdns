@@ -524,21 +524,21 @@ name-value pairs in a dict is not important.</li>
 <div class=forh id="datagetters">
 /* Lists: get the length, get the data_type of the value at a given
    position, and get the data at a given position */
-getdns_return_t getdns_list_get_length(struct getdns_list *this_list, size_t *answer);
-getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list, size_t index, getdns_data_type *answer);
-getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
-getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index, struct getdns_list **answer);
-getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
-getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index, uint32_t *answer);
+getdns_return_t getdns_list_get_length(const struct getdns_list *this_list, size_t *answer);
+getdns_return_t getdns_list_get_data_type(const struct getdns_list *this_list, size_t index, getdns_data_type *answer);
+getdns_return_t getdns_list_get_dict(const struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
+getdns_return_t getdns_list_get_list(const struct getdns_list *this_list, size_t index, struct getdns_list **answer);
+getdns_return_t getdns_list_get_bindata(const struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
+getdns_return_t getdns_list_get_int(const struct getdns_list *this_list, size_t index, uint32_t *answer);
 
 /* Dicts: get the list of names, get the data_type of the
    value at a given name, and get the data at a given name */
-getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict, struct getdns_list **answer);
-getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *name, getdns_data_type *answer);
-getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer);
-getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, struct getdns_list **answer);
-getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer);
-getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, uint32_t *answer);
+getdns_return_t getdns_dict_get_names(const struct getdns_dict *this_dict, struct getdns_list **answer);
+getdns_return_t getdns_dict_get_data_type(const struct getdns_dict *this_dict, const char *name, getdns_data_type *answer);
+getdns_return_t getdns_dict_get_dict(const struct getdns_dict *this_dict, const char *name, struct getdns_dict **answer);
+getdns_return_t getdns_dict_get_list(const struct getdns_dict *this_dict, const char *name, struct getdns_list **answer);
+getdns_return_t getdns_dict_get_bindata(const struct getdns_dict *this_dict, const char *name, struct getdns_bindata **answer);
+getdns_return_t getdns_dict_get_int(const struct getdns_dict *this_dict, const char *name, uint32_t *answer);
 </div>
 
 <p>All of these helper getter functions return <code>GETDNS_RETURN_GOOD</code> if the call is successful.
@@ -1052,12 +1052,12 @@ string in FQDN format to bytes in DNS format.</p>
 <div class=forh>
 char *
 getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
+  const char  *name_from_dns_response
 );
 
 char *
 getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
+  const char  *fqdn_as_string
 );
 </div>
 
@@ -1804,12 +1804,12 @@ encoding and their ASCII encoding. They follow the rules for IDNA 2008 described
 RFC 5890-5892.</p>
 <div class=forh>char *
 getdns_convert_ulabel_to_alabel(
-  char  *ulabel
+  const char  *ulabel
 );
 </div>
 <div class=forh>char *
 getdns_convert_alabel_to_ulabel(
-  char  *alabel
+  const char  *alabel
 );
 </div>
 
@@ -1833,7 +1833,7 @@ will use the resource records in <code>bundle_of_support_records</code> and the 
 <div class=forh>
 char *
 getdns_pretty_print_dict(
-  struct getdns_dict     *some_dict
+  const struct getdns_dict     *some_dict
 );
 </div>
 <p class=cont>This returns a string that is the nicely-formatted version
@@ -1842,7 +1842,7 @@ of the dict and all of the named elements in it.</p>
 <div class=forh>
 char *
 getdns_display_ip_address(
-  struct getdns_bindata        *bindata_of_ipv4_or_ipv6_address
+  const struct getdns_bindata        *bindata_of_ipv4_or_ipv6_address
 );
 </div>
 <p class=cont>This returns a string that is the nicely-formatted version
@@ -2210,7 +2210,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.374.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.375.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

@@ -1,4 +1,4 @@
-/* Created at 2014-01-14-15-20-05*/
+/* Created at 2014-01-14-15-35-55*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -260,21 +260,21 @@ struct getdns_list;
 
 /* Lists: get the length, get the data_type of the value at a given
    position, and get the data at a given position */
-getdns_return_t getdns_list_get_length(struct getdns_list *this_list, size_t *answer);
-getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list, size_t index, getdns_data_type *answer);
-getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
-getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index, struct getdns_list **answer);
-getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
-getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index, uint32_t *answer);
+getdns_return_t getdns_list_get_length(const struct getdns_list *this_list, size_t *answer);
+getdns_return_t getdns_list_get_data_type(const struct getdns_list *this_list, size_t index, getdns_data_type *answer);
+getdns_return_t getdns_list_get_dict(const struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
+getdns_return_t getdns_list_get_list(const struct getdns_list *this_list, size_t index, struct getdns_list **answer);
+getdns_return_t getdns_list_get_bindata(const struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
+getdns_return_t getdns_list_get_int(const struct getdns_list *this_list, size_t index, uint32_t *answer);
 
 /* Dicts: get the list of names, get the data_type of the
    value at a given name, and get the data at a given name */
-getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict, struct getdns_list **answer);
-getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *name, getdns_data_type *answer);
-getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer);
-getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, struct getdns_list **answer);
-getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer);
-getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, uint32_t *answer);
+getdns_return_t getdns_dict_get_names(const struct getdns_dict *this_dict, struct getdns_list **answer);
+getdns_return_t getdns_dict_get_data_type(const struct getdns_dict *this_dict, const char *name, getdns_data_type *answer);
+getdns_return_t getdns_dict_get_dict(const struct getdns_dict *this_dict, const char *name, struct getdns_dict **answer);
+getdns_return_t getdns_dict_get_list(const struct getdns_dict *this_dict, const char *name, struct getdns_list **answer);
+getdns_return_t getdns_dict_get_bindata(const struct getdns_dict *this_dict, const char *name, struct getdns_bindata **answer);
+getdns_return_t getdns_dict_get_int(const struct getdns_dict *this_dict, const char *name, uint32_t *answer);
 
 
 /* Lists: create, destroy, and set the data at a given position */
@@ -440,22 +440,22 @@ getdns_service_sync(
 
 char *
 getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
+  const char  *name_from_dns_response
 );
 
 char *
 getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
+  const char  *fqdn_as_string
 );
 
 char *
 getdns_convert_ulabel_to_alabel(
-  char  *ulabel
+  const char  *ulabel
 );
 
 char *
 getdns_convert_alabel_to_ulabel(
-  char  *alabel
+  const char  *alabel
 );
 
 getdns_return_t
@@ -467,12 +467,12 @@ getdns_validate_dnssec(
 
 char *
 getdns_pretty_print_dict(
-  struct getdns_dict     *some_dict
+  const struct getdns_dict     *some_dict
 );
 
 char *
 getdns_display_ip_address(
-  struct getdns_bindata        *bindata_of_ipv4_or_ipv6_address
+  const struct getdns_bindata        *bindata_of_ipv4_or_ipv6_address
 );
 
 getdns_return_t

@@ -148,40 +148,40 @@ getdns_free_sync_request_memory(
 )
 { UNUSED_PARAM(response); }
 
-getdns_return_t getdns_list_get_length(struct getdns_list *this_list, size_t *answer)
+getdns_return_t getdns_list_get_length(const struct getdns_list *this_list, size_t *answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list, size_t index, getdns_data_type *answer)
+getdns_return_t getdns_list_get_data_type(const struct getdns_list *this_list, size_t index, getdns_data_type *answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index, struct getdns_dict **answer)
+getdns_return_t getdns_list_get_dict(const struct getdns_list *this_list, size_t index, struct getdns_dict **answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index, struct getdns_list **answer)
+getdns_return_t getdns_list_get_list(const struct getdns_list *this_list, size_t index, struct getdns_list **answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer)
+getdns_return_t getdns_list_get_bindata(const struct getdns_list *this_list, size_t index, struct getdns_bindata **answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index, uint32_t *answer)
+getdns_return_t getdns_list_get_int(const struct getdns_list *this_list, size_t index, uint32_t *answer)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict, struct getdns_list **answer)
+getdns_return_t getdns_dict_get_names(const struct getdns_dict *this_dict, struct getdns_list **answer)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict, char *name, getdns_data_type *answer)
+getdns_return_t getdns_dict_get_data_type(const struct getdns_dict *this_dict, const char *name, getdns_data_type *answer)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer)
+getdns_return_t getdns_dict_get_dict(const struct getdns_dict *this_dict, const char *name, struct getdns_dict **answer)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name, struct getdns_list **answer)
+getdns_return_t getdns_dict_get_list(const struct getdns_dict *this_dict, const char *name, struct getdns_list **answer)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer)
+getdns_return_t getdns_dict_get_bindata(const struct getdns_dict *this_dict, const char *name, struct getdns_bindata **answer)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name, uint32_t *answer)
+getdns_return_t getdns_dict_get_int(const struct getdns_dict *this_dict, const char *name, uint32_t *answer)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(answer); return GETDNS_RETURN_GOOD; }
 
 struct getdns_list * getdns_list_create()
@@ -271,25 +271,25 @@ getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *nam
 
 char *
 getdns_convert_dns_name_to_fqdn(
-  char  *name_from_dns_response
+  const char  *name_from_dns_response
 )
 { UNUSED_PARAM(name_from_dns_response); return NULL; }
 
 char *
 getdns_convert_fqdn_to_dns_name(
-  char  *fqdn_as_string
+  const char  *fqdn_as_string
 )
 { UNUSED_PARAM(fqdn_as_string); return NULL; }
 
 char *
 getdns_convert_ulabel_to_alabel(
-	char  *ulabel
+	const char  *ulabel
 )
 { UNUSED_PARAM(ulabel); return NULL; }
 
 char *
 getdns_convert_alabel_to_ulabel(
-	char  *alabel
+	const char  *alabel
 )
 { UNUSED_PARAM(alabel); return NULL; }
 
@@ -305,13 +305,13 @@ return GETDNS_RETURN_GOOD; }
 
 char *
 getdns_pretty_print_dict(
-	struct getdns_dict     *some_dict
+	const struct getdns_dict     *some_dict
 )
 { UNUSED_PARAM(some_dict); return NULL; }
 
 char *
 getdns_display_ip_address(
-  struct getdns_bindata    *bindata_of_ipv4_or_ipv6_address
+  const struct getdns_bindata    *bindata_of_ipv4_or_ipv6_address
 )
 { UNUSED_PARAM(bindata_of_ipv4_or_ipv6_address); return NULL; }
 
