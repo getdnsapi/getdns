@@ -41,7 +41,7 @@
 
 /*---------------------------------------- getdns_list_get_length */
 getdns_return_t
-getdns_list_get_length(struct getdns_list * list, size_t * answer)
+getdns_list_get_length(const struct getdns_list * list, size_t * answer)
 {
 	if (!list || !answer)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
@@ -52,7 +52,7 @@ getdns_list_get_length(struct getdns_list * list, size_t * answer)
 
 /*---------------------------------------- getdns_list_get_data_type */
 getdns_return_t
-getdns_list_get_data_type(struct getdns_list * list, size_t index,
+getdns_list_get_data_type(const struct getdns_list * list, size_t index,
     getdns_data_type * answer)
 {
 	if (!list || index >= list->numinuse)
@@ -67,7 +67,7 @@ getdns_list_get_data_type(struct getdns_list * list, size_t index,
 
 /*---------------------------------------- getdns_list_get_dict */
 getdns_return_t
-getdns_list_get_dict(struct getdns_list * list, size_t index,
+getdns_list_get_dict(const struct getdns_list * list, size_t index,
     struct getdns_dict ** answer)
 {
 	if (!list || index >= list->numinuse)
@@ -85,7 +85,7 @@ getdns_list_get_dict(struct getdns_list * list, size_t index,
 
 /*---------------------------------------- getdns_list_get_list */
 getdns_return_t
-getdns_list_get_list(struct getdns_list * list, size_t index,
+getdns_list_get_list(const struct getdns_list * list, size_t index,
     struct getdns_list ** answer)
 {
 
@@ -104,7 +104,7 @@ getdns_list_get_list(struct getdns_list * list, size_t index,
 
 /*---------------------------------------- getdns_list_get_bindata */
 getdns_return_t
-getdns_list_get_bindata(struct getdns_list * list, size_t index,
+getdns_list_get_bindata(const struct getdns_list * list, size_t index,
     struct getdns_bindata ** answer)
 {
 	if (!list || index >= list->numinuse)
@@ -122,7 +122,8 @@ getdns_list_get_bindata(struct getdns_list * list, size_t index,
 
 /*---------------------------------------- getdns_list_get_int */
 getdns_return_t
-getdns_list_get_int(struct getdns_list * list, size_t index, uint32_t * answer)
+getdns_list_get_int(const struct getdns_list * list, size_t index,
+    uint32_t * answer)
 {
 	if (!list || index >= list->numinuse)
 		return  GETDNS_RETURN_NO_SUCH_LIST_ITEM;

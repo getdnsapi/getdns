@@ -55,7 +55,7 @@ static size_t sizeof_dname(uint8_t *dname)
 }
 
 char *
-getdns_convert_dns_name_to_fqdn(char *name_from_dns_response)
+getdns_convert_dns_name_to_fqdn(const char *name_from_dns_response)
 {
 	char *str;
 	ldns_rdf *rdf = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_DNAME,
@@ -68,7 +68,7 @@ getdns_convert_dns_name_to_fqdn(char *name_from_dns_response)
 }
 
 char *
-getdns_convert_fqdn_to_dns_name(char *fqdn_as_string)
+getdns_convert_fqdn_to_dns_name(const char *fqdn_as_string)
 {
 	ldns_rdf *rdf;
 	char *data;
@@ -91,7 +91,7 @@ getdns_convert_fqdn_to_dns_name(char *fqdn_as_string)
  */
 
 char *
-getdns_convert_ulabel_to_alabel(char *ulabel)
+getdns_convert_ulabel_to_alabel(const char *ulabel)
 {
     int ret;
     char *buf;
@@ -122,7 +122,7 @@ getdns_convert_ulabel_to_alabel(char *ulabel)
  */
 
 char *
-getdns_convert_alabel_to_ulabel(char *alabel)
+getdns_convert_alabel_to_ulabel(const char *alabel)
 {
     int  ret;              /* just in case we might want to use it someday */
     char *buf;
@@ -137,7 +137,7 @@ getdns_convert_alabel_to_ulabel(char *alabel)
 
 
 char *
-getdns_display_ip_address(struct getdns_bindata
+getdns_display_ip_address(const struct getdns_bindata
     *bindata_of_ipv4_or_ipv6_address)
 {
 	char buff[256];

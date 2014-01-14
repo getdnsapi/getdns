@@ -101,7 +101,7 @@ getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
 getdns_return_t getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback);
 
-char *getdns_strdup(struct mem_funcs *mfs, const char *str);
+char *getdns_strdup(const struct mem_funcs *mfs, const char *str);
 
 struct getdns_bindata *getdns_bindata_copy(
     struct mem_funcs *mfs,

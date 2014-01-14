@@ -371,7 +371,7 @@ getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is not valid or params are NULL
  */
-getdns_return_t getdns_list_get_length(struct getdns_list *this_list,
+getdns_return_t getdns_list_get_length(const struct getdns_list *this_list,
     size_t * answer);
 /**
  * get the enumerated data type of the indexed list item
@@ -381,7 +381,7 @@ getdns_return_t getdns_list_get_length(struct getdns_list *this_list,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  */
-getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list,
+getdns_return_t getdns_list_get_data_type(const struct getdns_list *this_list,
     size_t index, getdns_data_type * answer);
 /**
  * retrieve the dictionary value of the specified list item, the caller must not free
@@ -394,7 +394,7 @@ getdns_return_t getdns_list_get_data_type(struct getdns_list *this_list,
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index,
+getdns_return_t getdns_list_get_dict(const struct getdns_list *this_list, size_t index,
     struct getdns_dict **answer);
 
 /**
@@ -408,7 +408,7 @@ getdns_return_t getdns_list_get_dict(struct getdns_list *this_list, size_t index
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index,
+getdns_return_t getdns_list_get_list(const struct getdns_list *this_list, size_t index,
     struct getdns_list **answer);
 /**
  * retrieve the binary data value of the specified list item, the caller must not
@@ -421,7 +421,7 @@ getdns_return_t getdns_list_get_list(struct getdns_list *this_list, size_t index
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t index,
+getdns_return_t getdns_list_get_bindata(const struct getdns_list *this_list, size_t index,
     struct getdns_bindata **answer);
 /**
  * retrieve the integer value of the specified list item
@@ -432,7 +432,7 @@ getdns_return_t getdns_list_get_bindata(struct getdns_list *this_list, size_t in
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if the index is out of range or the list is NULL
  * @return GETDNS_RETURN_WRONG_TYPE_REQUESTED if the data type does not match the contents of the indexed item
  */
-getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index,
+getdns_return_t getdns_list_get_int(const struct getdns_list *this_list, size_t index,
     uint32_t * answer);
 
 /**
@@ -443,7 +443,7 @@ getdns_return_t getdns_list_get_int(struct getdns_list *this_list, size_t index,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or empty
  */
-getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict,
+getdns_return_t getdns_dict_get_names(const struct getdns_dict *this_dict,
     struct getdns_list **answer);
 /**
  * fetch the data type for the data associated with the specified name
@@ -453,8 +453,8 @@ getdns_return_t getdns_dict_get_names(struct getdns_dict *this_dict,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict,
-    char *name, getdns_data_type * answer);
+getdns_return_t getdns_dict_get_data_type(const struct getdns_dict *this_dict,
+    const char *name, getdns_data_type * answer);
 /**
  * fetch the dictionary associated with the specified name, the dictionary should
  * not be free()'d by the caller, it will be freed when the parent dictionary is
@@ -465,8 +465,8 @@ getdns_return_t getdns_dict_get_data_type(struct getdns_dict *this_dict,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name,
-    struct getdns_dict **answer);
+getdns_return_t getdns_dict_get_dict(const struct getdns_dict *this_dict,
+    const char *name, struct getdns_dict **answer);
 /**
  * fetch the list associated with the specified name
  * the list should not be free()'d by the caller, when the dictionary is destroyed
@@ -477,8 +477,8 @@ getdns_return_t getdns_dict_get_dict(struct getdns_dict *this_dict, char *name,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name,
-    struct getdns_list **answer);
+getdns_return_t getdns_dict_get_list(const struct getdns_dict *this_dict,
+    const char *name, struct getdns_list **answer);
 /**
  * fetch the bindata associated with the specified name, the bindata should not be
  * free()'d by the caller
@@ -488,8 +488,8 @@ getdns_return_t getdns_dict_get_list(struct getdns_dict *this_dict, char *name,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict,
-    char *name, struct getdns_bindata **answer);
+getdns_return_t getdns_dict_get_bindata(const struct getdns_dict *this_dict,
+    const char *name, struct getdns_bindata **answer);
 /**
  * fetch the integer value associated with the specified name
  * @param this_dict dictionary from which to fetch the integer
@@ -498,8 +498,8 @@ getdns_return_t getdns_dict_get_bindata(struct getdns_dict *this_dict,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_get_int(struct getdns_dict *this_dict, char *name,
-    uint32_t * answer);
+getdns_return_t getdns_dict_get_int(const struct getdns_dict *this_dict,
+    const char *name, uint32_t * answer);
 
 /**
  * create a new list with no items
@@ -769,13 +769,13 @@ getdns_service_sync(struct getdns_context *context,
 /** @}
  */
 
-char *getdns_convert_dns_name_to_fqdn(char *name_from_dns_response);
+char *getdns_convert_dns_name_to_fqdn(const char *name_from_dns_response);
 
-char *getdns_convert_fqdn_to_dns_name(char *fqdn_as_string);
+char *getdns_convert_fqdn_to_dns_name(const char *fqdn_as_string);
 
-char *getdns_convert_ulabel_to_alabel(char *ulabel);
+char *getdns_convert_ulabel_to_alabel(const char *ulabel);
 
-char *getdns_convert_alabel_to_ulabel(char *alabel);
+char *getdns_convert_alabel_to_ulabel(const char *alabel);
 
 getdns_return_t
 getdns_validate_dnssec(struct getdns_bindata *record_to_validate,
@@ -789,9 +789,9 @@ getdns_validate_dnssec(struct getdns_bindata *record_to_validate,
  * @param this_dict dictionary to pretty print
  * @return character array (caller must free this) containing pretty string
  */
-char *getdns_pretty_print_dict(struct getdns_dict *some_dict);
+char *getdns_pretty_print_dict(const struct getdns_dict *some_dict);
 
-char *getdns_display_ip_address(struct getdns_bindata
+char *getdns_display_ip_address(const struct getdns_bindata
     *bindata_of_ipv4_or_ipv6_address);
 
 /*

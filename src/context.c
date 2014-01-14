@@ -1122,7 +1122,7 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 }
 
 char *
-getdns_strdup(struct mem_funcs *mfs, const char *s)
+getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
 	size_t sz = strlen(s) + 1;
 	char *r = GETDNS_XMALLOC(*mfs, char, sz);
