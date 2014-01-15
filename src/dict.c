@@ -81,7 +81,7 @@ getdns_dict_get_names(struct getdns_dict * dict, struct getdns_list ** answer)
 	struct getdns_bindata bindata;
 
 	if (!dict || !answer)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	*answer = getdns_list_create_with_extended_memory_functions(
 	    dict->mf.mf_arg, dict->mf.mf.ext.malloc,
@@ -125,7 +125,7 @@ getdns_dict_get_dict(struct getdns_dict * dict, char *name,
 	struct getdns_dict_item *item;
 
 	if (!dict || !name || !answer)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	item = getdns_dict_find(dict, name, 0);
 	if (!item)
@@ -146,7 +146,7 @@ getdns_dict_get_list(struct getdns_dict * dict, char *name,
 	struct getdns_dict_item *item;
 
 	if (!dict || !name || !answer)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	item = getdns_dict_find(dict, name, 0);
 	if (!item)
@@ -167,7 +167,7 @@ getdns_dict_get_bindata(struct getdns_dict * dict, char *name,
 	struct getdns_dict_item *item;
 
 	if (!dict || !name || !answer)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	item = getdns_dict_find(dict, name, 0);
 	if (!item)
@@ -187,7 +187,7 @@ getdns_dict_get_int(struct getdns_dict * dict, char *name, uint32_t * answer)
 	struct getdns_dict_item *item;
 
 	if (!dict || !name || !answer)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	item = getdns_dict_find(dict, name, 0);
 	if (!item)
@@ -281,7 +281,7 @@ getdns_dict_copy(struct getdns_dict * srcdict, struct getdns_dict ** dstdict)
 	getdns_return_t retval;
 
 	if (!dstdict)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (!srcdict) {
 		*dstdict = NULL;
@@ -293,7 +293,7 @@ getdns_dict_copy(struct getdns_dict * srcdict, struct getdns_dict ** dstdict)
 	    srcdict->mf.mf.ext.realloc,
 	    srcdict->mf.mf.ext.free);
 	if (!*dstdict)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return GETDNS_RETURN_GENERIC_ERROR;
 
 	retval = GETDNS_RETURN_GOOD;
 	LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(srcdict->root)) {
@@ -730,6 +730,19 @@ getdns_pretty_print_dict(struct getdns_dict *dict)
 getdns_return_t
 getdns_dict_remove_name(struct getdns_dict *this_dict, char *name)
 {
+    struct getdns_dict_item *item;
+
+    if (!this_dict || !name)
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
+    item = getdns_dict_find(this_dict, name, 0);
+    if (!item)
+        return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+    /* cleanup */
+    ldns_rbtree_delete(&this_dict->root, name);
+    getdns_dict_item_free(&item->node, this_dict);
+
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
