@@ -409,7 +409,7 @@ getdns_context_set_dnssec_allowed_skew(
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
-getdns_context_set_stub_resolution(
+getdns_context_set_upstream_recursive_servers(
   struct getdns_context  *context,
   struct getdns_list     *upstream_list
 )

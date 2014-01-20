@@ -296,7 +296,7 @@ retregular = getdns_context_set_dnssec_allowed_skew(
   uint16arg
 );
 
-retregular = getdns_context_set_stub_resolution(
+retregular = getdns_context_set_upstream_recursive_servers(
   contextarg,
   listarg
 );

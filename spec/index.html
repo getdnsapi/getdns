@@ -2088,7 +2088,7 @@ must do its own DNSSEC processing, possibly with the <code>getdns_validate_dnsse
 
 <div class=forh>
 getdns_return_t
-getdns_context_set_stub_resolution(
+getdns_context_set_upstream_recursive_servers(
   struct getdns_context  *context,
   struct getdns_list     *upstream_list
 );</div>
@@ -2210,7 +2210,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.375.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.376.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

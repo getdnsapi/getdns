@@ -718,11 +718,11 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
 }				/* getdns_context_set_dnssec_allowed_skew */
 
 /*
- * getdns_context_set_stub_resolution
+ * getdns_context_set_upstream_recursive_servers
  *
  */
 getdns_return_t
-getdns_context_set_stub_resolution(struct getdns_context *context,
+getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
     struct getdns_list * upstream_list)
 {
 	size_t count = 0;
@@ -761,7 +761,7 @@ getdns_context_set_stub_resolution(struct getdns_context *context,
 	    GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
 
 	return GETDNS_RETURN_GOOD;
-}				/* getdns_context_set_stub_resolution */
+}			/* getdns_context_set_upstream_recursive_servers */
 
 /*
  * getdns_context_set_edns_maximum_udp_payload_size

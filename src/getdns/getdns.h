@@ -846,7 +846,7 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     uint16_t value);
 
 getdns_return_t
-getdns_context_set_stub_resolution(struct getdns_context *context,
+getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
     struct getdns_list *upstream_list);
 
 getdns_return_t

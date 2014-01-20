@@ -746,7 +746,7 @@ getdns_dict_remove_name(struct getdns_dict *this_dict, char *name)
     if (!this_dict || !name)
         return GETDNS_RETURN_INVALID_PARAMETER;
 
-    item = getdns_dict_find(this_dict, name, 0);
+    item = getdns_dict_find(this_dict, name);
     if (!item)
         return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 

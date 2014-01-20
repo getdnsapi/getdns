@@ -1,4 +1,4 @@
-/* Created at 2014-01-14-15-35-55*/
+/* Created at 2014-01-20-16-01-49*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -549,7 +549,7 @@ getdns_context_set_dnssec_allowed_skew(
 );
 
 getdns_return_t
-getdns_context_set_stub_resolution(
+getdns_context_set_upstream_recursive_servers(
   struct getdns_context  *context,
   struct getdns_list     *upstream_list
 );

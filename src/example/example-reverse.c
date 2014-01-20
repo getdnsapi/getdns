@@ -57,7 +57,7 @@ void this_callbackfn(struct getdns_context *this_context,
 
 					struct getdns_bindata * this_dname;
 					this_ret = getdns_dict_get_bindata(this_rdata, "rdata_raw", &this_dname);
-					char *this_dname_str = getdns_convert_dns_name_to_fqdn((char *)this_dname->data);
+					char *this_dname_str = getdns_convert_dns_name_to_fqdn(this_dname->data);
 					printf("The dname is %s\n", this_dname_str);
 					free(this_dname_str);
 
@@ -96,7 +96,7 @@ int main()
 	/* Set up the getdns call */
 	struct getdns_dict * this_addr_to_look_up = getdns_dict_create();
 	// TODO: check the return value above
-	struct getdns_bindata this_type = { 5, (void *)"IPv4" };
+	struct getdns_bindata this_type = { 4, (void *)"IPv4" };
 	getdns_return_t this_ret = getdns_dict_set_bindata(this_addr_to_look_up, "address_type", &this_type);
 	UNUSED_PARAM(this_ret);
 	struct getdns_bindata this_ipv4_addr = { 4, (void *)"\x08\x08\x08\x08" };
