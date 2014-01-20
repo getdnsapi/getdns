@@ -269,7 +269,7 @@ getdns_general_ub(struct ub_ctx *unbound,
 	int r;
 
 	if (!name) {
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 	}
 
 	gr = getdns_context_prepare_for_resolution(context);
@@ -337,7 +337,7 @@ getdns_general(struct getdns_context *context,
 	}
 
     /* ensure callback is not NULL */
-    if (!callback) {
+    if (!callback || !name) {
          return GETDNS_RETURN_INVALID_PARAMETER;
     }
 

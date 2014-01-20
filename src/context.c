@@ -253,7 +253,7 @@ getdns_context_create_with_extended_memory_functions(
 	mf_union mf;
 
 	if (!context || !malloc || !realloc || !free)
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
     /** default init **/
 	mf.ext.malloc = malloc;
