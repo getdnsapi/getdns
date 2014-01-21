@@ -884,4 +884,11 @@ getdns_return_t
 getdns_extension_set_libevent_base(struct getdns_context *context,
     struct event_base *this_event_base);
 
+/* get the fd */
+int getdns_context_fd(struct getdns_context* context);
+/* process async reqs */
+getdns_return_t getdns_context_process_async(struct getdns_context* context);
+
+
+
 #endif /* GETDNS_H */

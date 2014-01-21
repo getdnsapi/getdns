@@ -7103,6 +7103,10 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
+## CAVEAT EMPTOR:
+## There is no encapsulation within the following macros, do not change
+## the running order or otherwise move them around unless you know exactly
+## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -11014,9 +11018,9 @@ fi
 found_libunbound=1
 { $as_echo "$as_me:${as_lineno-$LINENO}: Checking for dependency libunbound" >&5
 $as_echo "$as_me: Checking for dependency libunbound" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ub_ctx_set_event in -lunbound" >&5
-$as_echo_n "checking for ub_ctx_set_event in -lunbound... " >&6; }
-if ${ac_cv_lib_unbound_ub_ctx_set_event+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ub_fd in -lunbound" >&5
+$as_echo_n "checking for ub_fd in -lunbound... " >&6; }
+if ${ac_cv_lib_unbound_ub_fd+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -11030,27 +11034,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char ub_ctx_set_event ();
+char ub_fd ();
 int
 main ()
 {
-return ub_ctx_set_event ();
+return ub_fd ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_unbound_ub_ctx_set_event=yes
+  ac_cv_lib_unbound_ub_fd=yes
 else
-  ac_cv_lib_unbound_ub_ctx_set_event=no
+  ac_cv_lib_unbound_ub_fd=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_unbound_ub_ctx_set_event" >&5
-$as_echo "$ac_cv_lib_unbound_ub_ctx_set_event" >&6; }
-if test "x$ac_cv_lib_unbound_ub_ctx_set_event" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_unbound_ub_fd" >&5
+$as_echo "$ac_cv_lib_unbound_ub_fd" >&6; }
+if test "x$ac_cv_lib_unbound_ub_fd" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_LIBUNBOUND 1
 _ACEOF
@@ -11063,7 +11067,7 @@ fi
 
 if test $found_libunbound == 0
 then
-    as_fn_error $? "libunbound is missing or does not incude event code, you may need to patch your libunbound sources and rebuild.  See the getdns build instructions" "$LINENO" 5
+    as_fn_error $? "libunbound is missing." "$LINENO" 5
 fi
 
 for ac_prog in doxygen

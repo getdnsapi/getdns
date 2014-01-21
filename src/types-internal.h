@@ -9,7 +9,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -99,9 +99,6 @@ struct getdns_context;
 /* declarations */
 struct getdns_dns_req;
 struct getdns_network_req;
-struct ub_ctx;
-struct event;
-struct event_base;
 
 typedef enum network_req_state_enum
 {
@@ -164,20 +161,8 @@ typedef struct getdns_dns_req
 	/* first request in list */
 	struct getdns_network_req *first_req;
 
-	/* request timeout event */
-	struct event *timeout;
-
-	/* local callback timer */
-	struct event *local_cb_timer;
-
-	/* event base this req is scheduled on */
-	struct event_base *ev_base;
-
 	/* context that owns the request */
 	struct getdns_context *context;
-
-	/* ub_ctx issuing the request */
-	struct ub_ctx *unbound;
 
 	/* request extensions */
 	struct getdns_dict *extensions;
@@ -246,7 +231,6 @@ getdns_network_req *network_req_new(getdns_dns_req * owner,
 
 /* dns request utils */
 getdns_dns_req *dns_req_new(struct getdns_context *context,
-    struct ub_ctx *unbound,
     const char *name, uint16_t request_type, struct getdns_dict *extensions);
 
 void dns_req_free(getdns_dns_req * req);

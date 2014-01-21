@@ -9,7 +9,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -34,15 +34,8 @@
  */
 
 #include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#  define event_free free
-#endif
 #include "types-internal.h"
 #include "util-internal.h"
-#include <unbound.h>
 
 void
 network_req_free(getdns_network_req * net_req)
@@ -103,17 +96,6 @@ dns_req_free(getdns_dns_req * req)
 		net_req = next;
 	}
 
-	/* cleanup timeout */
-	if (req->timeout) {
-		event_del(req->timeout);
-		event_free(req->timeout);
-	}
-
-	if (req->local_cb_timer) {
-		event_del(req->local_cb_timer);
-		event_free(req->local_cb_timer);
-	}
-
 	/* free strduped name */
 	free(req->name);
 
@@ -123,7 +105,6 @@ dns_req_free(getdns_dns_req * req)
 /* create a new dns req to be submitted */
 getdns_dns_req *
 dns_req_new(struct getdns_context *context,
-    struct ub_ctx *unbound,
     const char *name, uint16_t request_type, struct getdns_dict *extensions)
 {
 
@@ -139,14 +120,13 @@ dns_req_new(struct getdns_context *context,
 
 	result->name = strdup(name);
 	result->context = context;
-	result->unbound = unbound;
 	result->canceled = 0;
 	result->current_req = NULL;
 	result->first_req = NULL;
 	result->trans_id = ldns_get_random();
-	result->timeout = NULL;
-	result->local_cb_timer = NULL;
-	result->ev_base = NULL;
+	// result->timeout = NULL;
+	// result->local_cb_timer = NULL;
+	// result->ev_base = NULL;
 
 	getdns_dict_copy(extensions, &result->extensions);
 

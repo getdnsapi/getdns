@@ -10,7 +10,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -40,6 +40,10 @@
 
 #include <ldns/ldns.h>
 #include "context.h"
+
+struct ub_result;
+struct getdns_network_req;
+getdns_return_t getdns_apply_network_result(getdns_network_req* netreq, struct ub_result* result);
 
 /**
  * add an item to the tail of a list - note that this was not in the getdns API

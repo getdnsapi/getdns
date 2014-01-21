@@ -29,17 +29,11 @@
  */
 
 #include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#endif
 #include <arpa/inet.h>
 #include <ldns/ldns.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unbound-event.h>
 #include <unbound.h>
 
 #include "context.h"
@@ -275,11 +269,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->mf.mf.ext.realloc  = realloc;
 	result->mf.mf.ext.free     = free;
 
-	result->event_base_sync = event_base_new();
-	result->unbound_sync = ub_ctx_create_event(result->event_base_sync);
-	/* create the async one also so options are kept up to date */
-	result->unbound_async = ub_ctx_create_event(result->event_base_sync);
-	result->event_base_async = NULL;
+	result->unbound_ctx = ub_ctx_create();
 
 	result->resolution_type_set = 0;
 
@@ -375,10 +365,7 @@ getdns_context_destroy(struct getdns_context *context)
 	getdns_list_destroy(context->upstream_list);
 
 	/* destroy the ub context */
-	ub_ctx_delete(context->unbound_async);
-	ub_ctx_delete(context->unbound_sync);
-
-	event_base_free(context->event_base_sync);
+	ub_ctx_delete(context->unbound_ctx);
 
 	ldns_rbtree_free(context->outbound_requests);
 
@@ -407,8 +394,7 @@ getdns_context_set_context_update_callback(struct getdns_context *context,
 static void
 set_ub_string_opt(struct getdns_context *ctx, char *opt, char *value)
 {
-	ub_ctx_set_option(ctx->unbound_sync, opt, value);
-	ub_ctx_set_option(ctx->unbound_async, opt, value);
+	ub_ctx_set_option(ctx->unbound_ctx, opt, value);
 }
 
 static void
@@ -883,27 +869,6 @@ getdns_context_set_memory_functions(struct getdns_context *context,
 	    context, MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 } /* getdns_context_set_memory_functions*/
 
-
-/*
- * getdns_extension_set_libevent_base
- *
- */
-getdns_return_t
-getdns_extension_set_libevent_base(struct getdns_context *context,
-    struct event_base * this_event_base)
-{
-    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
-	if (this_event_base) {
-		ub_ctx_set_event(context->unbound_async, this_event_base);
-		context->event_base_async = this_event_base;
-	} else {
-		ub_ctx_set_event(context->unbound_async,
-		    context->event_base_sync);
-		context->event_base_async = NULL;
-	}
-	return GETDNS_RETURN_GOOD;
-}				/* getdns_extension_set_libevent_base */
-
 /* cancel the request */
 static void
 cancel_dns_req(getdns_dns_req * req)
@@ -913,7 +878,7 @@ cancel_dns_req(getdns_dns_req * req)
 		if (netreq->state == NET_REQ_IN_FLIGHT) {
 			/* for ev based ub, this should always prevent
 			 * the callback from firing */
-			ub_cancel(req->unbound, netreq->unbound_id);
+			ub_cancel(req->context->unbound_ctx, netreq->unbound_id);
 			netreq->state = NET_REQ_CANCELED;
 		} else if (netreq->state == NET_REQ_NOT_SENT) {
 			netreq->state = NET_REQ_CANCELED;
@@ -1063,19 +1028,15 @@ getdns_context_prepare_for_resolution(struct getdns_context *context)
 			return GETDNS_RETURN_BAD_CONTEXT;
 		}
 		/* set upstreams */
-		ub_setup_stub(context->unbound_async, context->upstream_list,
-		    upstream_len);
-		ub_setup_stub(context->unbound_sync, context->upstream_list,
+		ub_setup_stub(context->unbound_ctx, context->upstream_list,
 		    upstream_len);
 		/* use /etc/hosts */
-		ub_ctx_hosts(context->unbound_sync, NULL);
-		ub_ctx_hosts(context->unbound_async, NULL);
+		ub_ctx_hosts(context->unbound_ctx, NULL);
 
 	} else if (context->resolution_type == GETDNS_CONTEXT_RECURSING) {
 		/* set recursive */
 		/* TODO: use the root servers via root hints file */
-		ub_ctx_set_fwd(context->unbound_async, NULL);
-		ub_ctx_set_fwd(context->unbound_sync, NULL);
+		ub_ctx_set_fwd(context->unbound_ctx, NULL);
 
 	} else {
 		/* bogus? */
@@ -1120,6 +1081,23 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 	}
 	return GETDNS_RETURN_GOOD;
 }
+
+/* get the fd */
+int getdns_context_fd(struct getdns_context* context) {
+    RETURN_IF_NULL(context, -1);
+    return ub_fd(context->unbound_ctx);
+}
+
+/* process async reqs */
+getdns_return_t getdns_context_process_async(struct getdns_context* context) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    if (ub_process(context->unbound_ctx) != 0) {
+        /* need an async return code? */
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
 
 char *
 getdns_strdup(const struct mem_funcs *mfs, const char *s)

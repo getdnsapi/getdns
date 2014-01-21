@@ -9,7 +9,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -40,13 +40,8 @@
 
 /* private inner helper used by sync and async */
 
-struct ub_ctx;
-struct event_base;
-
 getdns_return_t
-getdns_general_ub(struct ub_ctx *unbound,
-    struct event_base *ev_base,
-    struct getdns_context *context,
+getdns_general_ub(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,

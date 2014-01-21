@@ -33,7 +33,6 @@
 #include <getdns/getdns.h>
 #include "types-internal.h"
 
-struct event_base;
 struct getdns_dns_req;
 struct ldns_rbtree_t;
 struct ub_ctx;
@@ -63,15 +62,9 @@ struct getdns_context {
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
 
-	/* Event loop for sync requests */
-	struct event_base *event_base_sync;
-	/* Event loop for async requests */
-	struct event_base *event_base_async;
-
 	/* The underlying unbound contexts that do
 	 * the real work */
-	struct ub_ctx *unbound_sync;
-	struct ub_ctx *unbound_async;
+	struct ub_ctx *unbound_ctx;
 
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set

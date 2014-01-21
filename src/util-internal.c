@@ -11,7 +11,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -41,6 +41,7 @@
 #include "list.h"
 #include "util-internal.h"
 #include "types-internal.h"
+#include <unbound.h>
 
 /**
   * this is a comprehensive list of extensions and their data types
@@ -374,7 +375,7 @@ add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 	int r = GETDNS_RETURN_GOOD;
 	size_t i = 0;
 	size_t item_idx = 0;
-	
+
 	r = getdns_list_get_length(addrs, &item_idx);
 	for (i = 0; r == GETDNS_RETURN_GOOD &&
 	            i < ldns_rr_list_rr_count(rr_list); ++i) {
@@ -405,7 +406,7 @@ add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 			    ?  &IPv4_str_bindata : &IPv6_str_bindata));
 			r |= getdns_dict_set_bindata(this_address,
 			    GETDNS_STR_ADDRESS_DATA, &rbin);
-			r |= getdns_list_set_dict(addrs, item_idx++, 
+			r |= getdns_list_set_dict(addrs, item_idx++,
 			    this_address);
 			getdns_dict_destroy(this_address);
 		}
@@ -418,7 +419,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
     struct getdns_list * just_addrs)
 {
 	/* turn a packet into this glorious structure
-	 * 
+	 *
 	 * {     # This is the first reply
 	 * "header": { "id": 23456, "qr": 1, "opcode": 0, ... },
 	 * "question": { "qname": <bindata for "www.example.com">, "qtype": 1, "qclass": 1 },
@@ -454,7 +455,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	 * "canonical_name": <bindata for "www.example.com">,
 	 * "answer_type": GETDNS_NAMETYPE_DNS
 	 * }
-	 * 
+	 *
 	 */
 	int r = 0;
 	ldns_pkt *reply = req->result;
@@ -676,5 +677,21 @@ validate_extensions(struct getdns_dict * extensions)
 		}
 	return GETDNS_RETURN_GOOD;
 }				/* validate_extensions */
+
+getdns_return_t getdns_apply_network_result(getdns_network_req* netreq,
+    struct ub_result* ub_res) {
+    ldns_buffer *result = ldns_buffer_new(ub_res->answer_len);
+    if (!result) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    ldns_buffer_new_frm_data(result, ub_res->answer_packet, ub_res->answer_len);
+    ldns_status r =
+        ldns_buffer2pkt_wire(&(netreq->result), result);
+    ldns_buffer_free(result);
+    if (r != LDNS_STATUS_OK) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
+}
 
 /* util-internal.c */
