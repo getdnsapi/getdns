@@ -1,10 +1,13 @@
-/* Created at 2014-01-20-16-01-49*/
+/* Created at 2014-01-22-10-48-59*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <netinet/in.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
@@ -595,4 +598,7 @@ getdns_context_set_extended_memory_functions(
   void                  (*free)(void *userarg, void *ptr)
 );
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* GETDNS_H */

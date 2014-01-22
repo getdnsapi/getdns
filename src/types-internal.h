@@ -37,6 +37,7 @@
 #define TYPES_INTERNAL_H_
 
 #include <getdns/getdns.h>
+#include <netinet/in.h>
 #include <ldns/ldns.h>
 struct getdns_context;
 

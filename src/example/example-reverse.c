@@ -14,9 +14,10 @@ void this_callbackfn(struct getdns_context *this_context,
                      void *this_userarg,
                      getdns_transaction_t this_transaction_id)
 {
+	getdns_return_t this_ret;  /* Holder for all function returns */
 	UNUSED_PARAM(this_userarg);  /* Not looking at the userarg for this example */
 	UNUSED_PARAM(this_context);  /* Not looking at the context for this example */
-	getdns_return_t this_ret;  /* Holder for all function returns */
+	UNUSED_PARAM(this_ret); /* Set, but not read */
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE)  /* This is a callback with data */
 	{
 		/* Be sure the search returned something */
@@ -57,7 +58,7 @@ void this_callbackfn(struct getdns_context *this_context,
 
 					struct getdns_bindata * this_dname;
 					this_ret = getdns_dict_get_bindata(this_rdata, "rdata_raw", &this_dname);
-					char *this_dname_str = getdns_convert_dns_name_to_fqdn(this_dname->data);
+					char *this_dname_str = getdns_convert_dns_name_to_fqdn((char *)this_dname->data);
 					printf("The dname is %s\n", this_dname_str);
 					free(this_dname_str);
 
