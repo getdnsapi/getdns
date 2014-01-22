@@ -38,7 +38,10 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <netinet/in.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct event_base;
 
@@ -884,4 +887,7 @@ getdns_return_t
 getdns_extension_set_libevent_base(struct getdns_context *context,
     struct event_base *this_event_base);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* GETDNS_H */
