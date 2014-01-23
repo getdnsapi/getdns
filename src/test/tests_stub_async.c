@@ -59,6 +59,7 @@ this_callbackfn(struct getdns_context *this_context,
 		    "The callback got a callback_type of %d. Exiting.",
 		    this_callback_type);
 	getdns_dict_destroy(this_response);
+    getdns_extension_detach_eventloop(this_context);
 }
 
 int

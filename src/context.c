@@ -291,6 +291,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
 
+    result->extension = NULL;
+    result->extension_data = NULL;
+
 	if (set_from_os) {
 		if (GETDNS_RETURN_GOOD != set_os_defaults(result)) {
 			getdns_context_destroy(result);
@@ -1142,4 +1145,36 @@ getdns_bindata_destroy(struct mem_funcs *mfs,
 	GETDNS_FREE(*mfs, bindata->data);
 	GETDNS_FREE(*mfs, bindata);
 }
+
+getdns_return_t
+getdns_extension_detach_eventloop(struct getdns_context* context)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    if (context->extension) {
+        r = context->extension->cleanup_data(context, context->extension_data);
+        if (r != GETDNS_RETURN_GOOD) {
+            return r;
+        }
+        context->extension = NULL;
+        context->extension_data = NULL;
+    }
+    return r;
+}
+
+getdns_return_t
+getdns_extension_set_eventloop(struct getdns_context* context,
+    getdns_eventloop_extension* extension, void* extension_data)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    RETURN_IF_NULL(extension, GETDNS_RETURN_INVALID_PARAMETER);
+    getdns_return_t r = getdns_extension_detach_eventloop(context);
+    if (r != GETDNS_RETURN_GOOD) {
+        return r;
+    }
+    context->extension = extension;
+    context->extension_data = extension_data;
+    return GETDNS_RETURN_GOOD;
+}
+
 /* getdns_context.c */

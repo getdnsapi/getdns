@@ -20,6 +20,7 @@ exec_prefix = @exec_prefix@
 bindir = @bindir@
 libdir = @libdir@
 includedir = @includedir@
+have_libevent = @have_libevent@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
 INSTALL = @INSTALL@
@@ -33,7 +34,11 @@ CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I/usr/local/include -std=c99
 LDFLAGS=@LDFLAGS@ @LIBS@
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo validate_dnssec.lo \
-	util-internal.lo getdns_error.lo extension_libevent.lo
+	util-internal.lo getdns_error.lo
+
+ifeq ($(have_libevent),1)
+    GETDNS_OBJ += extension/libevent.lo
+endif
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -46,26 +51,31 @@ GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 default: all
 
 all: libgetdns.la
-	cd test && $(MAKE) $@
-	cd example && $(MAKE) $@
 
 install:	libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)/getdns
 	$(INSTALL) -m 644 $(srcdir)/getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
+    ifeq ($(have_libevent),1)
+	$(INSTALL) -m 644 $(srcdir)/getdns/getdns.h $(DESTDIR)$(includedir)/getdns/
+    endif
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
 
 uninstall:
-	rm -f $(DESTDIR)$(includedir)/getdns/getdns.h
+	rm -rf $(DESTDIR)$(includedir)/getdns
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la
 
 libgetdns.la: $(GETDNS_OBJ)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined
 
-test:	libgetdns.la
+test:
 	cd test && $(MAKE) $@
+
+example:
+	cd example && $(MAKE) $@
+
 
 clean:
 	cd test && $(MAKE) $@

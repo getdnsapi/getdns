@@ -17,7 +17,7 @@ VPATH = @srcdir@
 
 CC=gcc
 CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99
-LDFLAGS=@LDFLAGS@ -L. -L.. -L/usr/local/lib 
+LDFLAGS=@LDFLAGS@ -L. -L.. -L$(srcdir)/../ -L/usr/local/lib
 LDLIBS=-lgetdns @LIBS@
 PROGRAMS=example-all-functions example-simple-answers example-tree example-synchronous example-reverse
 

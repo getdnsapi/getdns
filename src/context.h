@@ -75,6 +75,18 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	struct ldns_rbtree_t *outbound_requests;
+
+    /*
+     * Event loop extension functions
+     * These structs are static and should never be freed
+     * since they are just a collection of function pointers
+     */
+    getdns_eventloop_extension* extension;
+    /*
+     * Extension data that will be freed by the functions
+     * in the extension struct
+     */
+    void* extension_data;
 };
 
 /** internal functions **/
@@ -103,5 +115,9 @@ struct getdns_bindata *getdns_bindata_copy(
 void getdns_bindata_destroy(
     struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
+
+/* extension stuff */
+getdns_return_t getdns_extension_set_eventloop(struct getdns_context* context,
+    getdns_eventloop_extension* extension, void* extension_data);
 
 #endif /* _GETDNS_CONTEXT_H_ */

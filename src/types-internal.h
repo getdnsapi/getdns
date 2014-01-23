@@ -236,6 +236,14 @@ getdns_dns_req *dns_req_new(struct getdns_context *context,
 
 void dns_req_free(getdns_dns_req * req);
 
+
+/* extensions */
+typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* data);
+typedef struct getdns_eventloop_extension {
+    getdns_eventloop_cleanup_t cleanup_data;
+} getdns_eventloop_extension;
+
+
 #endif
 
 /* types-internal.h */

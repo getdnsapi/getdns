@@ -43,8 +43,6 @@
 extern "C" {
 #endif
 
-struct event_base;
-
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
 /**
@@ -881,18 +879,14 @@ getdns_context_set_extended_memory_functions(struct getdns_context *context,
     void (*free) (void *userarg, void *ptr)
     );
 
-/* Extension - refactor to abstract async evt loop */
-/* For libevent, which we are using for these examples */
+/* Extension */
 getdns_return_t
-getdns_extension_set_libevent_base(struct getdns_context *context,
-    struct event_base *this_event_base);
+getdns_extension_detach_eventloop(struct getdns_context* context);
 
 /* get the fd */
 int getdns_context_fd(struct getdns_context* context);
 /* process async reqs */
 getdns_return_t getdns_context_process_async(struct getdns_context* context);
-
-
 
 #ifdef __cplusplus
 }

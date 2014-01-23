@@ -244,7 +244,6 @@ getdns_general_ub(struct getdns_context *context,
     getdns_callback_t callbackfn)
 {
 	/* timeout */
-	struct timeval tv;
 	getdns_return_t gr;
 	int r;
 
