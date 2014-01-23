@@ -104,7 +104,7 @@
       ASSERT_RC(getdns_list_get_int(list, index, &answer),
         GETDNS_RETURN_GOOD, "Return code from getdns_list_get_int()");
 
-      ck_assert_msg(answer == 100, "Expected retrieved int == 100, got: %d",
+      ck_assert_msg(answer == 1, "Expected retrieved int == 1, got: %d",
         answer);
 
       LIST_DESTROY(list);
