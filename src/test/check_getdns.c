@@ -16,6 +16,10 @@
 #include "check_getdns_address_sync.h"
 #include "check_getdns_list_get_length.h"
 #include "check_getdns_list_get_data_type.h"
+#include "check_getdns_list_get_dict.h"
+#include "check_getdns_list_get_list.h"
+#include "check_getdns_list_get_int.h"
+#include "check_getdns_list_get_bindata.h"
 #include "check_getdns_dict_get_names.h"
 #include "check_getdns_dict_get_data_type.h"
 #include "check_getdns_dict_get_dict.h"
@@ -29,6 +33,7 @@
 #include "check_getdns_dict_set_int.h"
 #include "check_getdns_convert_ulabel_to_alabel.h"
 #include "check_getdns_convert_alabel_to_ulabel.h"
+#include "check_getdns_pretty_print_dict.h"
 
 int
 main (void)
@@ -43,11 +48,16 @@ main (void)
   Suite *getdns_context_destroy_suite(void);
   Suite *getdns_cancel_callback_suite(void);
   Suite *getdns_list_get_length_suite(void);
+  Suite *getdns_list_get_dict_suite(void);
+  Suite *getdns_list_get_list_suite(void);
+  Suite *getdns_list_get_int_suite(void);
   Suite *getdns_list_get_data_type_suite(void);
+  Suite *getdns_list_get_bindata_suite(void);
   Suite *getdns_dict_get_names_suite(void);
   Suite *getdns_dict_get_data_type_suite(void);
   Suite *getdns_dict_get_dict_suite(void);
   Suite *getdns_dict_get_list_suite(void);
+  Suite *getdns_dict_get_dict_suite(void);
   Suite *getdns_dict_get_bindata_suite(void);
   Suite *getdns_dict_get_int_suite(void);
   Suite *getdns_dict_destroy_suite(void);
@@ -57,6 +67,7 @@ main (void)
   Suite *getdns_dict_set_int_suite(void);
   Suite *getdns_convert_ulabel_to_alabel_suite(void);
   Suite *getdns_convert_alabel_to_ulabel_suite(void);
+  Suite *getdns_pretty_print_dict_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
@@ -66,6 +77,10 @@ main (void)
   srunner_add_suite(sr, getdns_cancel_callback_suite());
   srunner_add_suite(sr, getdns_list_get_length_suite());
   srunner_add_suite(sr, getdns_list_get_data_type_suite());
+  srunner_add_suite(sr, getdns_list_get_dict_suite());
+  srunner_add_suite(sr, getdns_list_get_list_suite());
+  srunner_add_suite(sr, getdns_list_get_int_suite());
+  srunner_add_suite(sr, getdns_list_get_bindata_suite());
   srunner_add_suite(sr, getdns_dict_get_names_suite());
   srunner_add_suite(sr, getdns_dict_get_data_type_suite());
   srunner_add_suite(sr, getdns_dict_get_dict_suite());
@@ -79,6 +94,7 @@ main (void)
   srunner_add_suite(sr, getdns_dict_set_int_suite());
   srunner_add_suite(sr, getdns_convert_ulabel_to_alabel_suite());
   srunner_add_suite(sr, getdns_convert_alabel_to_ulabel_suite());
+  srunner_add_suite(sr, getdns_pretty_print_dict_suite());
 
   srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);
