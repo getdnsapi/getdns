@@ -46,7 +46,11 @@ GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 default: all
 
 all: libgetdns.la
+
+test:
 	cd test && $(MAKE) $@
+
+example:
 	cd example && $(MAKE) $@
 
 install:	libgetdns.la
