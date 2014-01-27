@@ -346,7 +346,7 @@ create_dict_from_rr(struct getdns_context *context, ldns_rr * rr)
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
-static struct getdns_list *
+struct getdns_list *
 create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 {
 	size_t i = 0;

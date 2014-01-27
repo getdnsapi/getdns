@@ -130,11 +130,9 @@ ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg)
 	free(cb_data);
 }
 
-/* cleanup and send an error to the user callback */
-static void
-handle_network_request_error(getdns_network_req * netreq, int err)
+static void call_user_callback(getdns_dns_req *dns_req,
+    struct getdns_dict *response)
 {
-	getdns_dns_req *dns_req = netreq->owner;
 	struct getdns_context *context = dns_req->context;
 	getdns_transaction_t trans_id = dns_req->trans_id;
 	getdns_callback_t cb = dns_req->user_callback;
@@ -144,30 +142,247 @@ handle_network_request_error(getdns_network_req * netreq, int err)
 	getdns_context_clear_outbound_request(dns_req);
 	dns_req_free(dns_req);
 
-	cb(context, GETDNS_CALLBACK_ERROR, NULL, user_arg, trans_id);
+	cb(context,
+	    (response ? GETDNS_CALLBACK_COMPLETE : GETDNS_CALLBACK_ERROR),
+	    response, user_arg, trans_id);
+}
+
+/* cleanup and send an error to the user callback */
+static void
+handle_network_request_error(getdns_network_req * netreq, int err)
+{
+	call_user_callback(netreq->owner, NULL);
+}
+
+struct validation_chain {
+	ldns_rbtree_t root;
+	struct mem_funcs mf;
+	getdns_dns_req *dns_req;
+	size_t todo;
+};
+struct chain_response {
+	int err;
+	ldns_rr_list *result;
+	int sec;
+	char *bogus;
+	struct validation_chain *chain;
+	int unbound_id;
+};
+struct chain_link {
+	ldns_rbnode_t node;
+	struct chain_response DNSKEY;
+	struct chain_response DS;
+};
+
+static void submit_link(struct validation_chain *chain, char *name);
+static void callback_on_complete_chain(struct validation_chain *chain);
+static void
+ub_supporting_callback(void *arg, int err, ldns_buffer *result, int sec,
+    char *bogus)
+{
+	struct chain_response *response = (struct chain_response *) arg;
+	ldns_status r;
+	ldns_pkt *p;
+	ldns_rr_list *answer;
+	ldns_rr_list *keys;
+	size_t i;
+
+	response->err    = err;
+	response->sec    = sec;
+	response->bogus  = bogus;
+
+	if (result == NULL)
+		goto done;
+
+	r = ldns_buffer2pkt_wire(&p, result);
+	if (r != LDNS_STATUS_OK) {
+		if (err == 0)
+			response->err = r;
+		goto done;
+	}
+
+	keys = ldns_rr_list_new();
+	answer = ldns_pkt_answer(p);
+	for (i = 0; i < ldns_rr_list_rr_count(answer); i++) {
+		ldns_rr *rr = ldns_rr_list_rr(answer, i);
+
+		if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_DNSKEY ||
+		    ldns_rr_get_type(rr) == LDNS_RR_TYPE_DS) {
+
+			(void) ldns_rr_list_push_rr(keys, ldns_rr_clone(rr));
+			continue;
+		}
+		if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_RRSIG)
+			continue;
+
+		if (ldns_read_uint16(ldns_rdf_data(ldns_rr_rdf(rr, 0))) ==
+		    LDNS_RR_TYPE_DS)
+			submit_link(response->chain,
+			    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
+
+		else if (ldns_read_uint16(ldns_rdf_data(ldns_rr_rdf(rr, 0))) !=
+		    LDNS_RR_TYPE_DNSKEY)
+			continue;
+
+		(void) ldns_rr_list_push_rr(keys, ldns_rr_clone(rr));
+	}
+	if (ldns_rr_list_rr_count(keys))
+		response->result = keys;
+	else
+		ldns_rr_list_free(keys);
+
+	ldns_pkt_free(p);
+
+done:	if (response->err == 0 && response->result == NULL)
+		response->err = -1;
+
+	callback_on_complete_chain(response->chain);
+}
+
+static void submit_link(struct validation_chain *chain, char *name)
+{
+	int r;
+	struct chain_link *link = (struct chain_link *)
+	    ldns_rbtree_search((ldns_rbtree_t *)&(chain->root), name);
+
+	if (link) {
+		free(name);
+		return;
+	}
+	link = GETDNS_MALLOC(chain->mf, struct chain_link);
+	link->node.key = name;
+
+	link->DNSKEY.err        = 0;
+	link->DNSKEY.result     = NULL;
+	link->DNSKEY.sec        = 0;
+	link->DNSKEY.bogus      = NULL;
+	link->DNSKEY.chain      = chain;
+	link->DNSKEY.unbound_id = -1;
+
+	link->DS.err        = 0;
+	link->DS.result     = NULL;
+	link->DS.sec        = 0;
+	link->DS.bogus      = NULL;
+	link->DS.chain      = chain;
+	link->DS.unbound_id = -1;
+
+	ldns_rbtree_insert(&(chain->root), (ldns_rbnode_t *)link);
+	/* fprintf(stderr, "submitting for: %s\n", name); */
+
+	r = ub_resolve_event(chain->dns_req->unbound,
+	    name, LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, &link->DNSKEY,
+	    ub_supporting_callback, &link->DNSKEY.unbound_id);
+	if (r != 0)
+		link->DNSKEY.err = r;
+
+	r = ub_resolve_event(chain->dns_req->unbound,
+	    name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
+	    ub_supporting_callback, &link->DS.unbound_id);
+	if (r != 0)
+		link->DS.err = r;
+}
+
+void destroy_chain_link(ldns_rbnode_t * node, void *arg)
+{
+	struct chain_link *link = (struct chain_link*) node;
+	struct validation_chain *chain   = (struct validation_chain*) arg;
+
+	free((void *)link->node.key);
+	ldns_rr_list_deep_free(link->DNSKEY.result);
+	ldns_rr_list_deep_free(link->DS.result);
+	GETDNS_FREE(chain->mf, link);
+}
+
+static void destroy_chain(struct getdns_context *context,
+    struct validation_chain *chain)
+{
+	ldns_traverse_postorder(&(chain->root),
+	    destroy_chain_link, chain);
+	GETDNS_FREE(chain->mf, chain);
+}
+
+static void callback_on_complete_chain(struct validation_chain *chain)
+{
+	struct getdns_context *context = chain->dns_req->context;
+	struct getdns_dict *response;
+	struct chain_link *link;
+	size_t todo = chain->todo;
+	ldns_rr_list *keys;
+	struct getdns_list *getdns_keys;
+
+	LDNS_RBTREE_FOR(link, struct chain_link *,
+	    (ldns_rbtree_t *)&(chain->root)) {
+		if (link->DNSKEY.result == NULL && link->DNSKEY.err == 0)
+			todo++;
+		if (link->DS.result     == NULL && link->DS.err     == 0 &&
+		   (((const char *)link->node.key)[0] != '.'  ||
+		    ((const char *)link->node.key)[1] != '\0' ))
+		       	todo++;
+	}
+	/* fprintf(stderr, "todo until validation: %d\n", (int)todo); */
+	if (todo == 0) {
+		response = create_getdns_response(chain->dns_req);
+
+		keys = ldns_rr_list_new();
+		LDNS_RBTREE_FOR(link, struct chain_link *,
+		    (ldns_rbtree_t *)&(chain->root)) {
+			(void) ldns_rr_list_cat(keys, link->DNSKEY.result);
+			(void) ldns_rr_list_cat(keys, link->DS.result);
+		}
+		getdns_keys = create_list_from_rr_list(context, keys);
+		(void) getdns_dict_set_list(response, "validation_chain",
+		    getdns_keys);
+		getdns_list_destroy(getdns_keys);
+		ldns_rr_list_free(keys);
+		destroy_chain(context, chain);
+		call_user_callback(chain->dns_req, response);
+	}
+}
+
+/* Do some additional requests to fetch the complete validation chain */
+static void get_validation_chain(getdns_dns_req *dns_req)
+{
+	getdns_network_req *netreq = dns_req->first_req;
+	struct validation_chain *chain = GETDNS_MALLOC(dns_req->context->mf,
+	    struct validation_chain);
+
+	ldns_rbtree_init(&(chain->root),
+	    (int (*)(const void *, const void *)) strcmp);
+	chain->mf.mf_arg         = dns_req->context->mf.mf_arg;
+	chain->mf.mf.ext.malloc  = dns_req->context->mf.mf.ext.malloc;
+	chain->mf.mf.ext.realloc = dns_req->context->mf.mf.ext.realloc;
+	chain->mf.mf.ext.free    = dns_req->context->mf.mf.ext.free;
+	chain->dns_req = dns_req;
+	chain->todo = 1;
+
+	while (netreq) {
+		size_t i;
+		ldns_rr_list *answer = ldns_pkt_answer(netreq->result);
+		for (i = 0; i < ldns_rr_list_rr_count(answer); i++) {
+			ldns_rr *rr = ldns_rr_list_rr(answer, i);
+			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
+				submit_link(chain,
+				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
+		}
+		netreq = netreq->next;
+	}
+	chain->todo--;
+	callback_on_complete_chain(chain);
 }
 
 /* cleanup and send the response to the user callback */
 static void
 handle_dns_request_complete(getdns_dns_req * dns_req)
 {
-	struct getdns_dict *response = create_getdns_response(dns_req);
+	uint32_t ret_chain_ext = GETDNS_EXTENSION_FALSE;
+	getdns_return_t r = getdns_dict_get_int(dns_req->extensions,
+	    "dnssec_return_validation_chain", &ret_chain_ext);
 
-	struct getdns_context *context = dns_req->context;
-	getdns_transaction_t trans_id = dns_req->trans_id;
-	getdns_callback_t cb = dns_req->user_callback;
-	void *user_arg = dns_req->user_pointer;
+	if (r == GETDNS_RETURN_GOOD && ret_chain_ext == GETDNS_EXTENSION_TRUE)
 
-	/* clean up the request */
-	getdns_context_clear_outbound_request(dns_req);
-	dns_req_free(dns_req);
-	if (response) {
-		cb(context,
-		    GETDNS_CALLBACK_COMPLETE, response, user_arg, trans_id);
-	} else {
-		cb(context, GETDNS_CALLBACK_ERROR, NULL, user_arg, trans_id);
-	}
-
+		get_validation_chain(dns_req);
+	else
+		call_user_callback(dns_req, create_getdns_response(dns_req));
 }
 
 static int
