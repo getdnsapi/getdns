@@ -34,6 +34,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <unbound.h>
 
 #include "context.h"
@@ -52,6 +53,8 @@ static struct getdns_list *create_from_ldns_list(struct getdns_context *,
     ldns_rdf **, size_t);
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
+static int timeout_cmp(const void *, const void *);
+static int transaction_id_timeout_cmp(const void *, const void *);
 static void set_ub_string_opt(struct getdns_context *, char *, char *);
 static void set_ub_number_opt(struct getdns_context *, char *, uint16_t);
 static inline void clear_resolution_type_set_flag(struct getdns_context *, uint16_t);
@@ -61,6 +64,14 @@ static void cancel_dns_req(getdns_dns_req *);
 /* Stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
+
+/* structs */
+typedef struct getdns_timeout_data {
+    getdns_transaction_t transaction_id;
+    struct timeval timeout_time;
+    getdns_context_timeout_callback callback;
+    void* userarg;
+} getdns_timeout_data;
 
 /**
  * Helper to get default lookup namespaces.
@@ -227,6 +238,63 @@ transaction_id_cmp(const void *id1, const void *id2)
 		}
 	}
 }
+
+static int timeout_cmp(const void *to1, const void *to2) {
+    if (to1 == NULL && to2 == NULL) {
+        return 0;
+    } else if (to1 == NULL && to2 != NULL) {
+        return 1;
+    } else if (to1 != NULL && to2 == NULL) {
+        return -1;
+    } else {
+        const getdns_timeout_data* t1 = (const getdns_timeout_data*) to1;
+        const getdns_timeout_data* t2 = (const getdns_timeout_data*) to2;
+        if (t1->timeout_time.tv_sec < t2->timeout_time.tv_sec) {
+            return -1;
+        } else if (t1->timeout_time.tv_sec > t2->timeout_time.tv_sec) {
+            return 1;
+        } else {
+            /* compare usec.. */
+            if (t1->timeout_time.tv_usec < t2->timeout_time.tv_usec) {
+                return -1;
+            } else if (t1->timeout_time.tv_usec > t2->timeout_time.tv_usec) {
+                return 1;
+            } else {
+                // compare the transactions
+                const getdns_timeout_data* t1 = (const getdns_timeout_data*) to1;
+                const getdns_timeout_data* t2 = (const getdns_timeout_data*) to2;
+                if (t1->transaction_id == t2->transaction_id) {
+                    return 0;
+                } else if (t1->transaction_id < t2->transaction_id) {
+                    return -1;
+                } else {
+                    return 1;
+                }
+            }
+        }
+    }
+}
+
+static int transaction_id_timeout_cmp(const void *to1, const void *to2) {
+    if (to1 == NULL && to2 == NULL) {
+        return 0;
+    } else if (to1 == NULL && to2 != NULL) {
+        return 1;
+    } else if (to1 != NULL && to2 == NULL) {
+        return -1;
+    } else {
+        const getdns_timeout_data* t1 = (const getdns_timeout_data*) to1;
+        const getdns_timeout_data* t2 = (const getdns_timeout_data*) to2;
+        if (t1->transaction_id == t2->transaction_id) {
+            return 0;
+        } else if (t1->transaction_id < t2->transaction_id) {
+            return -1;
+        } else {
+            return 1;
+        }
+    }
+}
+
 
 /*
  * getdns_context_create
@@ -1176,5 +1244,19 @@ getdns_extension_set_eventloop(struct getdns_context* context,
     context->extension_data = extension_data;
     return GETDNS_RETURN_GOOD;
 }
+
+getdns_return_t
+getdns_context_schedule_timeout(struct getdns_context* context,
+    getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,
+    getdns_free_timeout_userarg_t free_func, void* userarg) {
+
+}
+
+getdns_return_t
+getdns_context_clear_timeout(struct getdns_context* context,
+    getdns_transaction_t id) {
+
+}
+
 
 /* getdns_context.c */

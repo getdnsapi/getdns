@@ -795,18 +795,11 @@ char *getdns_pretty_print_dict(const struct getdns_dict *some_dict);
 char *getdns_display_ip_address(const struct getdns_bindata
     *bindata_of_ipv4_or_ipv6_address);
 
-/*
-getdns_return_t getdns_context_set_context_update_callback(
-    struct getdns_context *context,
-    void (*value) (struct getdns_context *context, uint16_t changed_item)
-    );
-*/
 getdns_return_t
 getdns_context_set_context_update_callback(
   struct getdns_context *      context,
   void                   (*value)(struct getdns_context *context, uint16_t changed_item)
 );
-
 
 getdns_return_t
 getdns_context_set_resolution_type(struct getdns_context *context, uint16_t value);

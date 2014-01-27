@@ -39,6 +39,8 @@ struct ub_ctx;
 
 /** function pointer typedefs */
 typedef void (*getdns_update_callback) (struct getdns_context *, uint16_t);
+typedef void (*getdns_timeout_callback) (struct getdns_context* context, getdns_transaction_t transaction_id, void* userarg);
+typedef void (*getdns_free_timeout_userarg_t) (struct getdns_context* context, void* user_arg);
 
 struct getdns_context {
 
@@ -87,6 +89,14 @@ struct getdns_context {
      * in the extension struct
      */
     void* extension_data;
+
+    /*
+     * Timeout info one tree to manage timeout data
+     * keyed by transaction id.  Second to manage by
+     * timeout
+     */
+    struct ldns_rbtree_t *timeouts_by_id;
+    struct ldns_rbtree_t *timeouts_by_time;
 };
 
 /** internal functions **/
@@ -119,5 +129,13 @@ void getdns_bindata_destroy(
 /* extension stuff */
 getdns_return_t getdns_extension_set_eventloop(struct getdns_context* context,
     getdns_eventloop_extension* extension, void* extension_data);
+
+/* timeout scheduling */
+getdns_return_t getdns_context_schedule_timeout(struct getdns_context* context,
+    getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,
+    getdns_free_timeout_userarg_t free_func, void* userarg);
+
+getdns_return_t getdns_context_clear_timeout(struct getdns_context* context,
+    getdns_transaction_t id);
 
 #endif /* _GETDNS_CONTEXT_H_ */

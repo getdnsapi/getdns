@@ -239,8 +239,17 @@ void dns_req_free(getdns_dns_req * req);
 
 /* extensions */
 typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* data);
+typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
+    getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,
+    void* userarg, void* data);
+typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
+    getdns_transaction_t id, void* data);
+
+
 typedef struct getdns_eventloop_extension {
     getdns_eventloop_cleanup_t cleanup_data;
+    getdns_eventloop_schedule_timeout_t schedule_timeout;
+    getdns_eventloop_clear_timeout_t clear_timeout;
 } getdns_eventloop_extension;
 
 
