@@ -31,6 +31,9 @@ uninstall:
 doc: 
 	cd doc && $(MAKE) $@
 
+example:
+	cd src && $(MAKE) $@
+
 test:
 	cd src && $(MAKE) $@
 

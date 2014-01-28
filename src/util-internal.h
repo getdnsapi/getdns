@@ -10,7 +10,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -40,6 +40,9 @@
 
 #include <ldns/ldns.h>
 #include "context.h"
+
+#define GETDNS_MAX_DNAME_LEN 255
+#define GETDNS_MAX_LABEL_LEN 63
 
 /**
  * add an item to the tail of a list - note that this was not in the getdns API
@@ -95,6 +98,8 @@ getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict, char *nam
 getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict, char *name,
     char **result);
 char *reverse_address(struct getdns_bindata *address_data);
+
+getdns_return_t validate_dname(const char* dname);
 
 /**
  * detect unrecognized extension strings or invalid extension formats

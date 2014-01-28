@@ -11,7 +11,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -374,7 +374,7 @@ add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 	int r = GETDNS_RETURN_GOOD;
 	size_t i = 0;
 	size_t item_idx = 0;
-	
+
 	r = getdns_list_get_length(addrs, &item_idx);
 	for (i = 0; r == GETDNS_RETURN_GOOD &&
 	            i < ldns_rr_list_rr_count(rr_list); ++i) {
@@ -405,7 +405,7 @@ add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 			    ?  &IPv4_str_bindata : &IPv6_str_bindata));
 			r |= getdns_dict_set_bindata(this_address,
 			    GETDNS_STR_ADDRESS_DATA, &rbin);
-			r |= getdns_list_set_dict(addrs, item_idx++, 
+			r |= getdns_list_set_dict(addrs, item_idx++,
 			    this_address);
 			getdns_dict_destroy(this_address);
 		}
@@ -418,7 +418,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
     struct getdns_list * just_addrs)
 {
 	/* turn a packet into this glorious structure
-	 * 
+	 *
 	 * {     # This is the first reply
 	 * "header": { "id": 23456, "qr": 1, "opcode": 0, ... },
 	 * "question": { "qname": <bindata for "www.example.com">, "qtype": 1, "qclass": 1 },
@@ -454,7 +454,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	 * "canonical_name": <bindata for "www.example.com">,
 	 * "answer_type": GETDNS_NAMETYPE_DNS
 	 * }
-	 * 
+	 *
 	 */
 	int r = 0;
 	ldns_pkt *reply = req->result;
@@ -676,5 +676,50 @@ validate_extensions(struct getdns_dict * extensions)
 		}
 	return GETDNS_RETURN_GOOD;
 }				/* validate_extensions */
+
+getdns_return_t
+validate_dname(const char* dname) {
+    int len;
+    int label_len;
+    const char* s;
+    if (dname == NULL) {
+        return GETDNS_RETURN_INVALID_PARAMETER;
+    }
+    len = strlen(dname);
+    if (len >= GETDNS_MAX_DNAME_LEN || len == 0) {
+        return GETDNS_RETURN_BAD_DOMAIN_NAME;
+    }
+    if (len == 1 && dname[0] == '.') {
+        /* root is ok */
+        return GETDNS_RETURN_GOOD;
+    }
+    label_len = 0;
+    for (s = dname; *s; ++s) {
+        switch (*s) {
+            case '.':
+                if (label_len > GETDNS_MAX_LABEL_LEN ||
+                    label_len == 0) {
+                    return GETDNS_RETURN_BAD_DOMAIN_NAME;
+                }
+                label_len = 0;
+                break;
+            default:
+                if ((*s >= 'a' && *s <= 'z') ||
+                    (*s >= 'A' && *s <= 'Z') ||
+                    (*s >= '0' && *s <= '9')) {
+                    label_len++;
+                } else if (*s == '-' && label_len != 0) {
+                    label_len++;
+                } else {
+                    return GETDNS_RETURN_BAD_DOMAIN_NAME;
+                }
+                break;
+        }
+    }
+    if (label_len > GETDNS_MAX_LABEL_LEN) {
+        return GETDNS_RETURN_BAD_DOMAIN_NAME;
+    }
+    return GETDNS_RETURN_GOOD;
+}
 
 /* util-internal.c */
