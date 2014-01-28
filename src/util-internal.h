@@ -111,4 +111,10 @@ getdns_return_t validate_dname(const char* dname);
  */
 getdns_return_t validate_extensions(struct getdns_dict * extensions);
 
+/* helper to convert an rr_list to getdns_list.
+   returns a list of objects where each object
+   is a result from create_dict_from_rr */
+struct getdns_list *
+create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list);
+
 /* util-internal.h */

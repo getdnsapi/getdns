@@ -53,7 +53,7 @@ static getdns_extension_format extformats[] = {
 	{"add_warning_for_bad_dns", t_int},
 	{"dnssec_return_only_secure", t_int},
 	{"dnssec_return_status", t_int},
-	{"dnssec_return_supporting_responses", t_int},
+	{"dnssec_return_validation_chain", t_int},
 	{"return_api_information", t_int},
 	{"return_both_v4_and_v6", t_int},
 	{"return_call_debugging", t_int},
@@ -346,7 +346,7 @@ create_dict_from_rr(struct getdns_context *context, ldns_rr * rr)
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
-static struct getdns_list *
+struct getdns_list *
 create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 {
 	size_t i = 0;
