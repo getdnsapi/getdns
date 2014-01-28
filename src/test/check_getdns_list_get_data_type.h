@@ -43,7 +43,7 @@
 
       index++;
       ASSERT_RC(getdns_list_get_data_type(list, index, &answer),
-        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_list_get_data_type()");
+        GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_data_type()");
 
       LIST_DESTROY(list);
     }
@@ -84,7 +84,7 @@
       LIST_CREATE(list);
 
       ASSERT_RC(getdns_list_get_data_type(list, index, &answer),
-        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_list_get_data_type()");
+        GETDNS_RETURN_NO_SUCH_LIST_ITEM, "Return code from getdns_list_get_data_type()");
 
       LIST_DESTROY(list);
     }
@@ -218,11 +218,11 @@
       tcase_add_test(tc_neg, getdns_list_get_data_type_1);
       tcase_add_test(tc_neg, getdns_list_get_data_type_2);
       tcase_add_test(tc_neg, getdns_list_get_data_type_3);
+      tcase_add_test(tc_neg, getdns_list_get_data_type_4);
       suite_add_tcase(s, tc_neg);
 
       /* Positive test cases */
       TCase *tc_pos = tcase_create("Positive");
-      tcase_add_test(tc_pos, getdns_list_get_data_type_4);
       tcase_add_test(tc_pos, getdns_list_get_data_type_5);
       tcase_add_test(tc_pos, getdns_list_get_data_type_6);
       tcase_add_test(tc_pos, getdns_list_get_data_type_7);
