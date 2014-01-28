@@ -17,8 +17,8 @@
        */
       char *alabel = NULL;
 
-      ck_assert_msg(strcmp( getdns_convert_alabel_to_ulabel( alabel ), "nil" ) == 0,
-                "Was not expecting %s from getdns_convert_alabel_to_ulabel()", getdns_convert_alabel_to_ulabel( alabel ) );
+      ck_assert_msg( getdns_convert_alabel_to_ulabel( alabel ) == 0,
+               "Was not expecting %d from getdns_convert_alabel_to_ulabel()", getdns_convert_alabel_to_ulabel( alabel ) );
 
      }
      END_TEST
