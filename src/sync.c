@@ -80,6 +80,11 @@ getdns_general_sync(struct getdns_context *context,
 	getdns_return_t response_status;
     RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
     RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
+    response_status = validate_dname(name);
+    if (response_status != GETDNS_RETURN_GOOD) {
+        return response_status;
+    }
 	response_status = validate_extensions(extensions);
 	if (response_status == GETDNS_RETURN_GOOD) {
 		/* for each netreq we call ub_ctx_resolve */

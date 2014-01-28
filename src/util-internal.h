@@ -45,6 +45,9 @@ struct ub_result;
 struct getdns_network_req;
 getdns_return_t getdns_apply_network_result(getdns_network_req* netreq, struct ub_result* result);
 
+#define GETDNS_MAX_DNAME_LEN 255
+#define GETDNS_MAX_LABEL_LEN 63
+
 /**
  * add an item to the tail of a list - note that this was not in the getdns API
  * description but the list_set functions seem to be designed to modify an existing
@@ -99,6 +102,8 @@ getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict, char *nam
 getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict, char *name,
     char **result);
 char *reverse_address(struct getdns_bindata *address_data);
+
+getdns_return_t validate_dname(const char* dname);
 
 /**
  * detect unrecognized extension strings or invalid extension formats

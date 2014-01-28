@@ -320,6 +320,11 @@ getdns_general(struct getdns_context *context,
          return GETDNS_RETURN_INVALID_PARAMETER;
     }
 
+    extcheck = validate_dname(name);
+    if (extcheck != GETDNS_RETURN_GOOD) {
+        return extcheck;
+    }
+
 	extcheck = validate_extensions(extensions);
 	if (extcheck != GETDNS_RETURN_GOOD)
 		return extcheck;

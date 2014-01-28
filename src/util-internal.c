@@ -678,7 +678,8 @@ validate_extensions(struct getdns_dict * extensions)
 	return GETDNS_RETURN_GOOD;
 }				/* validate_extensions */
 
-getdns_return_t getdns_apply_network_result(getdns_network_req* netreq,
+getdns_return_t
+getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res) {
     ldns_buffer *result = ldns_buffer_new(ub_res->answer_len);
     if (!result) {
@@ -690,6 +691,50 @@ getdns_return_t getdns_apply_network_result(getdns_network_req* netreq,
     ldns_buffer_free(result);
     if (r != LDNS_STATUS_OK) {
         return GETDNS_RETURN_GENERIC_ERROR;
+}
+
+
+getdns_return_t
+validate_dname(const char* dname) {
+    int len;
+    int label_len;
+    const char* s;
+    if (dname == NULL) {
+        return GETDNS_RETURN_INVALID_PARAMETER;
+    }
+    len = strlen(dname);
+    if (len >= GETDNS_MAX_DNAME_LEN || len == 0) {
+        return GETDNS_RETURN_BAD_DOMAIN_NAME;
+    }
+    if (len == 1 && dname[0] == '.') {
+        /* root is ok */
+        return GETDNS_RETURN_GOOD;
+    }
+    label_len = 0;
+    for (s = dname; *s; ++s) {
+        switch (*s) {
+            case '.':
+                if (label_len > GETDNS_MAX_LABEL_LEN ||
+                    label_len == 0) {
+                    return GETDNS_RETURN_BAD_DOMAIN_NAME;
+                }
+                label_len = 0;
+                break;
+            default:
+                if ((*s >= 'a' && *s <= 'z') ||
+                    (*s >= 'A' && *s <= 'Z') ||
+                    (*s >= '0' && *s <= '9')) {
+                    label_len++;
+                } else if (*s == '-' && label_len != 0) {
+                    label_len++;
+                } else {
+                    return GETDNS_RETURN_BAD_DOMAIN_NAME;
+                }
+                break;
+        }
+    }
+    if (label_len > GETDNS_MAX_LABEL_LEN) {
+        return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     return GETDNS_RETURN_GOOD;
 }
