@@ -13,6 +13,7 @@
 #include "check_getdns_context_create.h"
 #include "check_getdns_context_destroy.h"
 #include "check_getdns_cancel_callback.h"
+#include "check_getdns_address.h"
 #include "check_getdns_address_sync.h"
 #include "check_getdns_list_get_length.h"
 #include "check_getdns_list_get_data_type.h"
@@ -35,6 +36,7 @@
 #include "check_getdns_convert_alabel_to_ulabel.h"
 #include "check_getdns_pretty_print_dict.h"
 
+
 int
 main (void)
 {
@@ -43,6 +45,7 @@ main (void)
 
   Suite *getdns_general_suite(void);
   Suite *getdns_general_sync_suite(void);
+  Suite *getdns_address_suite(void);
   Suite *getdns_address_sync_suite(void);
   Suite *getdns_context_create_suite(void);
   Suite *getdns_context_destroy_suite(void);
@@ -71,6 +74,7 @@ main (void)
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
+  srunner_add_suite(sr, getdns_address_suite());
   srunner_add_suite(sr, getdns_address_sync_suite());
   srunner_add_suite(sr, getdns_context_create_suite());
   srunner_add_suite(sr, getdns_context_destroy_suite());
