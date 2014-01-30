@@ -38,6 +38,8 @@
 getdns_return_t priv_getdns_create_dict_from_rr(
     struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rr_dict);
 
+const char *priv_getdns_rr_type_name(int rr_type);
+
 #endif
 
 /* rrs.h */

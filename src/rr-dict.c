@@ -563,6 +563,12 @@ rr_def_lookup(uint16_t rr_type)
 	return rr_defs;
 }
 
+const char *
+priv_getdns_rr_type_name(int rr_type)
+{
+	return rr_def_lookup(rr_type)->name;
+}
+
 static getdns_return_t
 priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr)
 {

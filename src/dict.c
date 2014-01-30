@@ -40,6 +40,7 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dict.h"
+#include "rr-dict.h"
 
 /*---------------------------------------- getdns_dict_find */
 /**
@@ -491,6 +492,18 @@ getdns_indent(size_t indent)
 	return spaces + 80 - (indent < 80 ? indent : 0);
 }				/* getdns_indent */
 
+static int
+priv_getdns_bindata_is_dname(struct getdns_bindata *bindata)
+{
+	size_t i = 0, n_labels = 0;
+	while (i < bindata->size) {
+		i += bindata->data[i] + 1;
+		n_labels++;
+	}
+	return i == bindata->size && n_labels > 1 &&
+	    bindata->data[bindata->size - 1] == 0;
+}
+
 /*---------------------------------------- getdns_pp_bindata */
 /**
  * private function to pretty print bindata to a ldns_buffer
@@ -506,6 +519,7 @@ getdns_pp_bindata(ldns_buffer * buf, size_t indent,
 {
 	size_t i, p = ldns_buffer_position(buf);
 	uint8_t *dptr;
+	char *dname;
 
 	if (ldns_buffer_printf(buf, " <bindata ") < 0)
 		return -1;
@@ -516,9 +530,22 @@ getdns_pp_bindata(ldns_buffer * buf, size_t indent,
 		while (i < bindata->size - 1 && isprint(bindata->data[i]))
 			i++;
 
-	if (i >= bindata->size - 1) {	/* all chars were printable */
-		if (ldns_buffer_printf(buf, "for \"%s\">", bindata->data) < 0)
+	if (bindata->size > 1 && i >= bindata->size - 1) { /* all printable? */
+		if (ldns_buffer_printf(buf, "of \"%s\">", bindata->data) < 0)
 			return -1;
+
+	} else if (bindata->size == 1 && *bindata->data == 0) {
+		if (ldns_buffer_printf(buf, "for .>") < 0)
+			return -1;
+
+	} else if (priv_getdns_bindata_is_dname(bindata)) {
+		dname = getdns_convert_dns_name_to_fqdn((char *)bindata->data);
+		if (ldns_buffer_printf(buf, "for %s>", dname) < 0) {
+			free(dname);
+			return -1;
+		}
+		free(dname);
+
 	} else {
 		if (ldns_buffer_printf(buf, "of 0x") < 0)
 			return -1;
@@ -641,6 +668,7 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 {
 	size_t i, length, p = ldns_buffer_position(buf);
 	struct getdns_dict_item *item;
+	const char *strval;
 
 	if (dict == NULL)
 		return 0;
@@ -659,6 +687,14 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 
 		switch (item->dtype) {
 		case t_int:
+			if ((strcmp(item->node.key, "type") == 0  ||
+			     strcmp(item->node.key, "type_covered") == 0) &&
+			    (strval = priv_getdns_rr_type_name(item->data.n))) {
+				if (ldns_buffer_printf(
+				    buf, " GETDNS_RRTYPE_%s", strval) < 0)
+					return -1;
+				break;
+			}
 			if (ldns_buffer_printf(buf, " %d", item->data.n) < 0)
 				return -1;
 			break;
