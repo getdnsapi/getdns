@@ -135,7 +135,7 @@ static struct rdata_def       atma_rdata[] = {
 static struct rdata_def      naptr_rdata[] = {
 	{ "order"                       , t_int     },
 	{ "preference"                  , t_int     },
-	{ "flags(a"                     , t_bindata },
+	{ "flags"                       , t_bindata },
 	{ "service"                     , t_bindata },
 	{ "regexp"                      , t_bindata },
 	{ "replacement"                 , t_bindata }};
@@ -182,7 +182,7 @@ static struct rdata_def      rrsig_rdata[] = {
 	{ "algorithm"                   , t_int     },
 	{ "labels"                      , t_int     },
 	{ "original_ttl"                , t_int     },
-	{ "signature_expiration(an"     , t_int     },
+	{ "signature_expiration"        , t_int     },
 	{ "signature_inception"         , t_int     },
 	{ "key_tag"                     , t_int     },
 	{ "signers_name"                , t_bindata },
@@ -564,6 +564,52 @@ rr_def_lookup(uint16_t rr_type)
 }
 
 static getdns_return_t
+priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr)
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	const struct rr_def *def;
+	struct getdns_bindata bindata;
+	size_t i;
+	int intval;
+
+	assert(rdata);
+	assert(rr);
+
+	def = rr_def_lookup(ldns_rr_get_type(rr));
+	for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; i++) {
+		if (i >= def->n_rdata_fields)
+			break;
+
+		switch (def->rdata[i].type) {
+		case t_bindata: bindata.size = ldns_rdf_size(ldns_rr_rdf(rr, i));
+		                bindata.data = ldns_rdf_data(ldns_rr_rdf(rr, i));
+		                r = getdns_dict_set_bindata(
+				    rdata, def->rdata[i].name, &bindata);
+				break;
+		case t_int    : switch (ldns_rdf_size(ldns_rr_rdf(rr, i))) {
+				case  1: intval = (uint8_t)*ldns_rdf_data(
+				             ldns_rr_rdf(rr, i));
+					 break;
+				case  2: intval = ldns_read_uint16(
+				             ldns_rdf_data(ldns_rr_rdf(rr, i)));
+				         break;
+				case  4: intval = ldns_read_uint32(
+				             ldns_rdf_data(ldns_rr_rdf(rr, i)));
+					 break;
+				default: intval = -1;
+				         /* TODO Compare with LDNS rdf types */
+					 break;
+		                }
+		                r = getdns_dict_set_int(
+				    rdata, def->rdata[i].name, intval);
+				break;
+		default       : break;
+		}
+	}
+	return r;
+}
+
+static getdns_return_t
 priv_getdns_create_dict_from_rdfs(
     struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rdata)
 {
@@ -571,7 +617,6 @@ priv_getdns_create_dict_from_rdfs(
 	struct getdns_bindata rdata_raw;
 	uint8_t *data_ptr;
 	size_t i;
-	// const struct rr_def *def;
 
 	assert(context);
 	assert(rr);
@@ -606,8 +651,10 @@ priv_getdns_create_dict_from_rdfs(
 		if (r != GETDNS_RETURN_GOOD)
 			break;
 
-		//def = rr_def_lookup(ldns_rr_get_type(rr));
-		return r;
+		/* Now set the RR type specific attributes */
+		r = priv_getdns_equip_dict_with_rdfs(*rdata, rr);
+		if (r == GETDNS_RETURN_GOOD)
+			return r;
 	} while(0);
 	getdns_dict_destroy(*rdata);
 	return r;
