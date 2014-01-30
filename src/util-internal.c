@@ -232,37 +232,6 @@ create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
 	return result;
 }
 
-static struct getdns_dict *
-create_reply_question_dict(struct getdns_context *context, ldns_pkt * reply)
-{
-	/* { "qname": <bindata for "www.example.com">, "qtype": 1, "qclass": 1 } */
-	int r = 0;
-	ldns_rr *question = NULL;
-	char *qname;
-	struct getdns_dict *result = getdns_dict_create_with_context(context);
-	if (!result) {
-		return NULL;
-	}
-	question = ldns_rr_list_rr(ldns_pkt_question(reply), 0);
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QTYPE,
-	    (int) ldns_rr_get_type(question));
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QCLASS,
-	    (int) ldns_rr_get_class(question));
-	qname = convert_rdf_to_str(ldns_rr_owner(question));
-	if (qname) {
-		r |= getdns_dict_util_set_string(result, GETDNS_STR_KEY_QNAME,
-		    qname);
-		free(qname);
-	} else {
-		r = 1;
-	}
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
-	return result;
-}
-
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
@@ -399,7 +368,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	getdns_dict_destroy(subdict);
 
 	/* question */
-	subdict = create_reply_question_dict(context, reply);
+	r |= priv_getdns_create_reply_question_dict(context, reply, &subdict);
 	r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_QUESTION, subdict);
 	getdns_dict_destroy(subdict);
 

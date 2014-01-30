@@ -590,7 +590,7 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr)
 		case t_bindata: bindata.size = ldns_rdf_size(ldns_rr_rdf(rr, i));
 		                bindata.data = ldns_rdf_data(ldns_rr_rdf(rr, i));
 		                r = getdns_dict_set_bindata(
-				    rdata, def->rdata[i].name, &bindata);
+				    rdata, (char *)def->rdata[i].name, &bindata);
 				break;
 		case t_int    : switch (ldns_rdf_size(ldns_rr_rdf(rr, i))) {
 				case  1: intval = (uint8_t)*ldns_rdf_data(
@@ -607,7 +607,7 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr)
 					 break;
 		                }
 		                r = getdns_dict_set_int(
-				    rdata, def->rdata[i].name, intval);
+				    rdata, (char *)def->rdata[i].name, intval);
 				break;
 		default       : break;
 		}
@@ -626,6 +626,7 @@ priv_getdns_create_dict_from_rdfs(
 
 	assert(context);
 	assert(rr);
+	assert(rdata);
 
 	*rdata = getdns_dict_create_with_context(context);
 	if (! *rdata)
@@ -676,6 +677,7 @@ priv_getdns_create_dict_from_rr(
 
 	assert(context);
 	assert(rr);
+	assert(rr_dict);
 
 	*rr_dict = getdns_dict_create_with_context(context);
 	if (! *rr_dict)
@@ -715,3 +717,46 @@ priv_getdns_create_dict_from_rr(
 	getdns_dict_destroy(*rr_dict);
 	return r;
 }
+
+getdns_return_t
+priv_getdns_create_reply_question_dict(
+    struct getdns_context *context, ldns_pkt *pkt, struct getdns_dict** q_dict)
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	ldns_rr *rr;
+	struct getdns_bindata qname;
+
+	assert(context);
+	assert(pkt);
+	assert(q_dict);
+
+       	rr = ldns_rr_list_rr(ldns_pkt_question(pkt), 0);
+	if (! rr)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	*q_dict = getdns_dict_create_with_context(context);
+	if (! *q_dict)
+		return GETDNS_RETURN_MEMORY_ERROR;
+	do { /* break on error (to cleanup *q_dict) */
+		r = getdns_dict_set_int(*q_dict,
+		    "qtype", ldns_rr_get_type(rr));
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+		r = getdns_dict_set_int(*q_dict,
+		    "qclass", ldns_rr_get_class(rr));
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+
+		/* "qname" attribute.
+		 * ldns_rr_owner(rr) is already uncompressed!
+		 */
+		qname.size = ldns_rdf_size(ldns_rr_owner(rr));
+		qname.data = ldns_rdf_data(ldns_rr_owner(rr));
+		r = getdns_dict_set_bindata(*q_dict, "qname", &qname);
+		if (r == GETDNS_RETURN_GOOD)
+			return r;
+	} while (0);
+	getdns_dict_destroy(*q_dict);
+	return r;
+}
+
