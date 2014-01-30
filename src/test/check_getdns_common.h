@@ -8,6 +8,7 @@
      extern int callback_called;
      extern int callback_completed;
      extern int callback_canceled;
+     extern uint16_t expected_changed_item;
      
      struct extracted_response {
        uint32_t top_answer_type;
@@ -173,5 +174,12 @@
                      struct getdns_dict *response, 
                      void *userarg,
                      getdns_transaction_t transaction_id);
+
+     /*
+      *    update_callbackfn is the callback function given to 
+      *    getdns_context_set_context_update_callback tests. 
+      */
+     void update_callbackfn(struct getdns_context *context, 
+                     uint16_t changed_item);
 
 #endif
