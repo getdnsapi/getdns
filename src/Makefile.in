@@ -47,9 +47,6 @@ default: all
 
 all: libgetdns.la
 
-test:
-	cd test && $(MAKE) $@
-
 example:
 	cd example && $(MAKE) $@
 

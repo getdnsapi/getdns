@@ -321,6 +321,7 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 	}
 	/* fprintf(stderr, "todo until validation: %d\n", (int)todo); */
 	if (todo == 0) {
+		getdns_dns_req *dns_req = chain->dns_req;
 		response = create_getdns_response(chain->dns_req);
 
 		keys = ldns_rr_list_new();
@@ -335,7 +336,7 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 		getdns_list_destroy(getdns_keys);
 		ldns_rr_list_free(keys);
 		destroy_chain(context, chain);
-		call_user_callback(chain->dns_req, response);
+		call_user_callback(dns_req, response);
 	}
 }
 
