@@ -65,6 +65,7 @@ static void set_ub_number_opt(struct getdns_context *, char *, uint16_t);
 static inline void clear_resolution_type_set_flag(struct getdns_context *, uint16_t);
 static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
+static void cancel_outstanding_requests(struct getdns_context* context);
 
 /* Stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -402,6 +403,8 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->namespaces)
 		GETDNS_FREE(context->my_mf, context->namespaces);
 
+    cancel_outstanding_requests(context);
+
 	getdns_list_destroy(context->dns_root_servers);
 	getdns_list_destroy(context->suffix);
 	getdns_list_destroy(context->dnssec_trust_anchors);
@@ -411,6 +414,8 @@ getdns_context_destroy(struct getdns_context *context)
 	ub_ctx_delete(context->unbound_ctx);
 
 	ldns_rbtree_free(context->outbound_requests);
+    ldns_rbtree_free(context->timeouts_by_id);
+    ldns_rbtree_free(context->timeouts_by_time);
 
 	GETDNS_FREE(context->my_mf, context);
 	return;
@@ -1222,12 +1227,40 @@ getdns_return_t getdns_context_process_async(struct getdns_context* context) {
     return GETDNS_RETURN_GOOD;
 }
 
+typedef struct timeout_accumulator {
+    getdns_transaction_t* ids;
+    int idx;
+} timeout_accumulator;
+
+static void
+accumulate_outstanding_transactions(ldns_rbnode_t* node, void* arg) {
+    timeout_accumulator* acc = (timeout_accumulator*) arg;
+    acc->ids[acc->idx] = *((getdns_transaction_t*) node->key);
+    acc->idx++;
+}
+
+static void
+cancel_outstanding_requests(struct getdns_context* context) {
+    if (context->outbound_requests->count > 0) {
+        timeout_accumulator acc;
+        int i;
+        acc.idx = 0;
+        acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests->count);
+        ldns_traverse_postorder(context->outbound_requests, accumulate_outstanding_transactions, &acc);
+        for (i = 0; i < acc.idx; ++i) {
+            getdns_context_cancel_request(context, acc.ids[i], 1);
+        }
+    }
+}
+
 getdns_return_t
 getdns_extension_detach_eventloop(struct getdns_context* context)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
     getdns_return_t r = GETDNS_RETURN_GOOD;
     if (context->extension) {
+        /* cancel all outstanding requests */
+        cancel_outstanding_requests(context);
         r = context->extension->cleanup_data(context, context->extension_data);
         if (r != GETDNS_RETURN_GOOD) {
             return r;

@@ -43,6 +43,7 @@
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
+#include <sys/time.h>
 
 /* Set up the callback function, which will also do the processing of the results */
 void
@@ -120,7 +121,11 @@ main(int argc, char** argv)
 //              return(GETDNS_RETURN_GENERIC_ERROR);
 //      }
 	else {
+        struct timeval tv;
+        tv.tv_sec = 10;
+        tv.tv_usec = 0;
 		/* Call the event loop */
+        event_base_loopexit(this_event_base, &tv);
 		event_base_dispatch(this_event_base);
 		// TODO: check the return value above
 	}
