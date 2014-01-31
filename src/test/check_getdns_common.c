@@ -286,7 +286,4 @@ void update_callbackfn(struct getdns_context *context,
   ck_assert_msg(changed_item == expected_changed_item, 
     "Expected changed_item == %d, got %d",
     changed_item, expected_changed_item);
-  printf("changed_item:%d\n",changed_item);
-  printf("expected_changed_item:%d\n",expected_changed_item);
-
 }

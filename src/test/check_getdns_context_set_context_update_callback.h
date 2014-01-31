@@ -34,7 +34,7 @@
       struct getdns_context *context = NULL;
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, NULL),
-        GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_context_set_context_update_callback()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_context_update_callback()");
         
     }
     END_TEST
@@ -130,6 +130,30 @@
 
       ASSERT_RC(getdns_context_set_limit_outstanding_queries(context, 10),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_limit_outstanding_queries()");
+
+      CONTEXT_DESTROY;
+       
+    }
+    END_TEST
+
+    START_TEST (getdns_context_set_context_update_callback_9)
+    {
+      /*
+      *  Create a context by calling getdns_context_create()
+      *  Define a callback routine for context changes and call getdns_context_set_context_update_callback() so that it gets called when there are context changes
+      *  Call getdns_context_set_timeout() and set timeout to 3 seconds
+      *  expect:  GETDNS_CONTEXT_CODE_TIMEOUT
+      */ 
+      struct getdns_context *context = NULL;
+      CONTEXT_CREATE(TRUE);
+
+      ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_context_update_callback()");
+
+      expected_changed_item = GETDNS_CONTEXT_CODE_TIMEOUT;
+
+      ASSERT_RC(getdns_context_set_timeout(context, 3),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
 
       CONTEXT_DESTROY;
        
@@ -322,6 +346,7 @@
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_6);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_7);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_8);
+      tcase_add_test(tc_pos, getdns_context_set_context_update_callback_9);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_10);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_15);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_16);
