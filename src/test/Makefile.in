@@ -40,7 +40,7 @@ tests_stub_async: tests_stub_async.o testmessages.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_async.o testmessages.o
 
 tests_stub_sync: tests_stub_sync.o
-        $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_sync.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_sync.o
 
 check_getdns_common: check_getdns_common.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.o
