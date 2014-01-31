@@ -19,7 +19,7 @@ CC=gcc
 CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99 $(cflags)
 LDFLAGS=@LDFLAGS@ -L. -L.. -L$(srcdir)/../ -L/usr/local/lib
 LDLIBS=-lgetdns @LIBS@ -lcheck
-PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync check_getdns
+PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync check_getdns tests_dnssec
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -47,6 +47,10 @@ check_getdns_common: check_getdns_common.o
 
 check_getdns: check_getdns.o check_getdns_common.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ $^
+
+tests_dnssec: tests_dnssec.o testmessages.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dnssec.o testmessages.o
+
 
 test:	all
 	./testscript.sh

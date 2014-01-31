@@ -84,7 +84,15 @@ getdns_return_t getdns_list_copy(struct getdns_list *srclist,
 getdns_return_t
 getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
 
-/* convert an ip address dict to a sock storage */
+/**
+ * convert an ip address (v4/v6) dict to a sock storage
+ * expects dict to contain keys GETDNS_STR_PORT, GETDNS_STR_ADDRESS_TYPE
+ * GETDNS_STR_ADDRESS_DATA
+ * @param ns pointer to dictionary containing keys listed above
+ * @param output previously allocated storage used to return numeric address
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_GENERIC_ERROR if keys missing from dictionary
+ */
 getdns_return_t dict_to_sockaddr(struct getdns_dict * ns,
     struct sockaddr_storage *output);
 getdns_return_t sockaddr_to_dict(struct getdns_context *context,
@@ -114,5 +122,14 @@ getdns_return_t validate_dname(const char* dname);
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
 getdns_return_t validate_extensions(struct getdns_dict * extensions);
+
+/**
+ * helper to convert an rr_list to getdns_list
+ * @param context initialized getdns_context
+ * @param rr_list ldns rr list to be converted
+ * @return a list of objects where each object is a result from create_dict_from_rr
+ */
+struct getdns_list *
+create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list);
 
 /* util-internal.h */

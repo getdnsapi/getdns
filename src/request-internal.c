@@ -96,6 +96,8 @@ dns_req_free(getdns_dns_req * req)
 		net_req = next;
 	}
 
+    getdns_context_clear_timeout(context, req->trans_id);
+
 	/* free strduped name */
 	free(req->name);
 
@@ -124,9 +126,6 @@ dns_req_new(struct getdns_context *context,
 	result->current_req = NULL;
 	result->first_req = NULL;
 	result->trans_id = ldns_get_random();
-	// result->timeout = NULL;
-	// result->local_cb_timer = NULL;
-	// result->ev_base = NULL;
 
 	getdns_dict_copy(extensions, &result->extensions);
 

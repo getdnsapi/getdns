@@ -1,31 +1,37 @@
 /**
  *
- * /brief getdns contect management functions
+ * \file context.c
+ * @brief getdns context management functions
  *
- * This is the meat of the API
  * Originally taken from the getdns API description pseudo implementation.
  *
  */
-/* The MIT License (MIT)
- * Copyright (c) 2013 Verisign, Inc.
+
+/*
+ * Copyright (c) 2013, Versign, Inc.
+ * All rights reserved.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * * Neither the name of the <organization> nor the
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
  *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -54,7 +60,6 @@ static struct getdns_list *create_from_ldns_list(struct getdns_context *,
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static int timeout_cmp(const void *, const void *);
-static int transaction_id_timeout_cmp(const void *, const void *);
 static void set_ub_string_opt(struct getdns_context *, char *, char *);
 static void set_ub_number_opt(struct getdns_context *, char *, uint16_t);
 static inline void clear_resolution_type_set_flag(struct getdns_context *, uint16_t);
@@ -64,14 +69,6 @@ static void cancel_dns_req(getdns_dns_req *);
 /* Stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
-
-/* structs */
-typedef struct getdns_timeout_data {
-    getdns_transaction_t transaction_id;
-    struct timeval timeout_time;
-    getdns_context_timeout_callback callback;
-    void* userarg;
-} getdns_timeout_data;
 
 /**
  * Helper to get default lookup namespaces.
@@ -215,6 +212,9 @@ set_os_defaults(struct getdns_context *context)
 	return GETDNS_RETURN_GOOD;
 }
 
+/* compare of transaction ids in DESCENDING order
+   so that 0 comes last
+*/
 static int
 transaction_id_cmp(const void *id1, const void *id2)
 {
@@ -231,7 +231,7 @@ transaction_id_cmp(const void *id1, const void *id2)
 		    *((const getdns_transaction_t *) id2);
 		if (t1 == t2) {
 			return 0;
-		} else if (t1 < t2) {
+		} else if (t1 > t2) {
 			return -1;
 		} else {
 			return 1;
@@ -247,8 +247,8 @@ static int timeout_cmp(const void *to1, const void *to2) {
     } else if (to1 != NULL && to2 == NULL) {
         return -1;
     } else {
-        const getdns_timeout_data* t1 = (const getdns_timeout_data*) to1;
-        const getdns_timeout_data* t2 = (const getdns_timeout_data*) to2;
+        const getdns_timeout_data_t* t1 = (const getdns_timeout_data_t*) to1;
+        const getdns_timeout_data_t* t2 = (const getdns_timeout_data_t*) to2;
         if (t1->timeout_time.tv_sec < t2->timeout_time.tv_sec) {
             return -1;
         } else if (t1->timeout_time.tv_sec > t2->timeout_time.tv_sec) {
@@ -260,41 +260,11 @@ static int timeout_cmp(const void *to1, const void *to2) {
             } else if (t1->timeout_time.tv_usec > t2->timeout_time.tv_usec) {
                 return 1;
             } else {
-                // compare the transactions
-                const getdns_timeout_data* t1 = (const getdns_timeout_data*) to1;
-                const getdns_timeout_data* t2 = (const getdns_timeout_data*) to2;
-                if (t1->transaction_id == t2->transaction_id) {
-                    return 0;
-                } else if (t1->transaction_id < t2->transaction_id) {
-                    return -1;
-                } else {
-                    return 1;
-                }
+                return transaction_id_cmp(&t1->transaction_id, &t2->transaction_id);
             }
         }
     }
 }
-
-static int transaction_id_timeout_cmp(const void *to1, const void *to2) {
-    if (to1 == NULL && to2 == NULL) {
-        return 0;
-    } else if (to1 == NULL && to2 != NULL) {
-        return 1;
-    } else if (to1 != NULL && to2 == NULL) {
-        return -1;
-    } else {
-        const getdns_timeout_data* t1 = (const getdns_timeout_data*) to1;
-        const getdns_timeout_data* t2 = (const getdns_timeout_data*) to2;
-        if (t1->transaction_id == t2->transaction_id) {
-            return 0;
-        } else if (t1->transaction_id < t2->transaction_id) {
-            return -1;
-        } else {
-            return 1;
-        }
-    }
-}
-
 
 /*
  * getdns_context_create
@@ -361,6 +331,8 @@ getdns_context_create_with_extended_memory_functions(
 
     result->extension = NULL;
     result->extension_data = NULL;
+    result->timeouts_by_time = ldns_rbtree_create(timeout_cmp);
+    result->timeouts_by_id = ldns_rbtree_create(transaction_id_cmp);
 
 	if (set_from_os) {
 		if (GETDNS_RETURN_GOOD != set_os_defaults(result)) {
@@ -1153,6 +1125,52 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
 	return GETDNS_RETURN_GOOD;
 }
 
+
+
+char *
+getdns_strdup(const struct mem_funcs *mfs, const char *s)
+{
+    size_t sz = strlen(s) + 1;
+    char *r = GETDNS_XMALLOC(*mfs, char, sz);
+    if (r)
+        return memcpy(r, s, sz);
+    else
+        return NULL;
+}
+
+struct getdns_bindata *
+getdns_bindata_copy(struct mem_funcs *mfs,
+    const struct getdns_bindata *src)
+{
+    struct getdns_bindata *dst;
+
+    if (!src)
+        return NULL;
+
+    dst = GETDNS_MALLOC(*mfs, struct getdns_bindata);
+    if (!dst)
+        return NULL;
+
+    dst->size = src->size;
+    dst->data = GETDNS_XMALLOC(*mfs, uint8_t, src->size);
+    if (!dst->data) {
+        GETDNS_FREE(*mfs, dst);
+        return NULL;
+    }
+    (void) memcpy(dst->data, src->data, src->size);
+    return dst;
+}
+
+void
+getdns_bindata_destroy(struct mem_funcs *mfs,
+    struct getdns_bindata *bindata)
+{
+    if (!bindata)
+        return;
+    GETDNS_FREE(*mfs, bindata->data);
+    GETDNS_FREE(*mfs, bindata);
+}
+
 /* get the fd */
 int getdns_context_fd(struct getdns_context* context) {
     RETURN_IF_NULL(context, -1);
@@ -1162,56 +1180,46 @@ int getdns_context_fd(struct getdns_context* context) {
 /* process async reqs */
 getdns_return_t getdns_context_process_async(struct getdns_context* context) {
     RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
-    if (ub_process(context->unbound_ctx) != 0) {
-        /* need an async return code? */
+    if (ub_poll(context->unbound_ctx)) {
+        if (ub_process(context->unbound_ctx) != 0) {
+            /* need an async return code? */
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+    }
+    if (context->extension != NULL) {
+        /* no need to process timeouts since it is delegated
+         * to the extension */
+        return GETDNS_RETURN_GOOD;
+    }
+    getdns_timeout_data_t key;
+    /* set to 0 so it is the last timeout if we have
+     * two with the same time */
+    key.transaction_id = 0;
+    if (gettimeofday(&key.timeout_time, NULL) != 0) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    ldns_rbnode_t* next_timeout = ldns_rbtree_first(context->timeouts_by_time);
+    while (next_timeout) {
+        getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) next_timeout->data;
+        if (timeout_cmp(timeout_data, &key) > 0) {
+            /* no more timeouts need to be fired. */
+            break;
+        }
+        /* get the next_timeout */
+        next_timeout = ldns_rbtree_next(next_timeout);
+        /* delete the node */
+        /* timeout data is freed in the clear_timeout */
+        ldns_rbnode_t* to_del = ldns_rbtree_delete(context->timeouts_by_time, timeout_data);
+        if (to_del) {
+            /* should always exist .. */
+            GETDNS_FREE(context->my_mf, to_del);
+        }
+
+        /* fire the timeout */
+        timeout_data->callback(timeout_data->userarg);
+    }
+
     return GETDNS_RETURN_GOOD;
-}
-
-
-char *
-getdns_strdup(const struct mem_funcs *mfs, const char *s)
-{
-	size_t sz = strlen(s) + 1;
-	char *r = GETDNS_XMALLOC(*mfs, char, sz);
-	if (r)
-		return memcpy(r, s, sz);
-	else
-		return NULL;
-}
-
-struct getdns_bindata *
-getdns_bindata_copy(struct mem_funcs *mfs,
-    const struct getdns_bindata *src)
-{
-	struct getdns_bindata *dst;
-
-	if (!src)
-		return NULL;
-
-	dst = GETDNS_MALLOC(*mfs, struct getdns_bindata);
-	if (!dst)
-		return NULL;
-
-	dst->size = src->size;
-	dst->data = GETDNS_XMALLOC(*mfs, uint8_t, src->size);
-	if (!dst->data) {
-		GETDNS_FREE(*mfs, dst);
-		return NULL;
-	}
-	(void) memcpy(dst->data, src->data, src->size);
-	return dst;
-}
-
-void
-getdns_bindata_destroy(struct mem_funcs *mfs,
-    struct getdns_bindata *bindata)
-{
-	if (!bindata)
-		return;
-	GETDNS_FREE(*mfs, bindata->data);
-	GETDNS_FREE(*mfs, bindata);
 }
 
 getdns_return_t
@@ -1248,15 +1256,85 @@ getdns_extension_set_eventloop(struct getdns_context* context,
 getdns_return_t
 getdns_context_schedule_timeout(struct getdns_context* context,
     getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,
-    getdns_free_timeout_userarg_t free_func, void* userarg) {
+    void* userarg) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    RETURN_IF_NULL(callback, GETDNS_RETURN_INVALID_PARAMETER);
+    getdns_return_t result;
+    /* create a timeout */
+    getdns_timeout_data_t* timeout_data = GETDNS_MALLOC(context->my_mf, getdns_timeout_data_t);
+    if (!timeout_data) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    timeout_data->context = context;
+    timeout_data->transaction_id = id;
+    timeout_data->callback = callback;
+    timeout_data->userarg = userarg;
+    timeout_data->extension_timer = NULL;
 
+    /* insert into transaction tree */
+    ldns_rbnode_t *node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
+    if (!node) {
+        GETDNS_FREE(context->my_mf, timeout_data);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    node->key = &(timeout_data->transaction_id);
+    node->data = timeout_data;
+    if (!ldns_rbtree_insert(context->timeouts_by_id, node)) {
+        /* free the node */
+        GETDNS_FREE(context->my_mf, timeout_data);
+        GETDNS_FREE(context->my_mf, node);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
+    if (context->extension) {
+        result = context->extension->schedule_timeout(context, context->extension_data,
+            timeout, timeout_data, &(timeout_data->extension_timer));
+    } else {
+        result = GETDNS_RETURN_GENERIC_ERROR;
+        if (gettimeofday(&timeout_data->timeout_time, NULL) == 0) {
+            ldns_rbnode_t* id_node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
+            if (id_node) {
+                id_node->key = timeout_data;
+                id_node->data = timeout_data;
+                if (!ldns_rbtree_insert(context->timeouts_by_time, node)) {
+                    GETDNS_FREE(context->my_mf, id_node);
+                } else {
+                    result = GETDNS_RETURN_GOOD;
+                }
+            }
+        }
+    }
+    if (result != GETDNS_RETURN_GOOD) {
+        GETDNS_FREE(context->my_mf, timeout_data);
+        GETDNS_FREE(context->my_mf, node);
+    }
+    return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
 getdns_context_clear_timeout(struct getdns_context* context,
     getdns_transaction_t id) {
-
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    /* find the timeout_data by id */
+    ldns_rbnode_t* node = ldns_rbtree_delete(context->timeouts_by_id, &id);
+    if (!node) {
+        return GETDNS_RETURN_UNKNOWN_TRANSACTION;
+    }
+    getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) node->data;
+    GETDNS_FREE(context->my_mf, node);
+    if (context->extension) {
+        context->extension->clear_timeout(context, context->extension,
+            timeout_data->extension_timer);
+    } else {
+        /* make sure it is removed from the timeout node */
+        ldns_rbnode_t* to_del = ldns_rbtree_delete(context->timeouts_by_time, timeout_data);
+        if (to_del) {
+            GETDNS_FREE(context->my_mf, to_del);
+        }
+    }
+    GETDNS_FREE(context->my_mf, timeout_data);
+    return GETDNS_RETURN_GOOD;
 }
 
 
-/* getdns_context.c */
+/* context.c */

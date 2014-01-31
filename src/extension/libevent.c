@@ -36,6 +36,8 @@
 #include <getdns/getdns_ext_libevent.h>
 #include "config.h"
 #include "context.h"
+#include <sys/time.h>
+
 #ifdef HAVE_EVENT2_EVENT_H
 #  include <event2/event.h>
 #else
@@ -64,7 +66,22 @@ struct event_data {
     struct event_base* event_base;
 };
 
-static getdns_return_t getdns_libevent_cleanup(struct getdns_context* context, void* data) {
+/* lib event callbacks */
+static void
+getdns_libevent_cb(evutil_socket_t fd, short what, void *userarg) {
+    struct getdns_context* context = (struct getdns_context*) userarg;
+    getdns_context_process_async(context);
+}
+
+static void
+getdns_libevent_timeout_cb(evutil_socket_t fd, short what, void* userarg) {
+    getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) userarg;
+    timeout_data->callback(timeout_data->userarg);
+}
+
+/* getdns extension functions */
+static getdns_return_t
+getdns_libevent_cleanup(struct getdns_context* context, void* data) {
     struct event_data *edata = (struct event_data*) data;
     event_del(edata->event);
     event_free(edata->event);
@@ -72,15 +89,41 @@ static getdns_return_t getdns_libevent_cleanup(struct getdns_context* context, v
     return GETDNS_RETURN_GOOD;
 }
 
-static getdns_eventloop_extension LIBEVENT_EXT = {
-    getdns_libevent_cleanup
-};
+static getdns_return_t
+getdns_libevent_schedule_timeout(struct getdns_context* context,
+    void* eventloop_data, uint16_t timeout,
+    getdns_timeout_data_t* timeout_data,
+    void** eventloop_timer) {
 
+    struct timeval tv;
+    struct event* ev = NULL;
+    struct event_data* ev_data = (struct event_data*) eventloop_data;
 
-void getdns_libevent_cb(evutil_socket_t fd, short what, void *userarg) {
-    struct getdns_context* context = (struct getdns_context*) userarg;
-    getdns_context_process_async(context);
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+
+    ev = evtimer_new(ev_data->event_base, getdns_libevent_timeout_cb, timeout_data);
+    evtimer_add(ev, &tv);
+
+    *eventloop_timer = ev;
+    return GETDNS_RETURN_GOOD;
 }
+
+static getdns_return_t
+getdns_libevent_clear_timeout(struct getdns_context* context,
+    void* eventloop_data, void** eventloop_timer) {
+    struct event* ev = (struct event*) eventloop_timer;
+    event_del(ev);
+    event_free(ev);
+    return GETDNS_RETURN_GOOD;
+}
+
+
+static getdns_eventloop_extension LIBEVENT_EXT = {
+    getdns_libevent_cleanup,
+    getdns_libevent_schedule_timeout,
+    getdns_libevent_clear_timeout
+};
 
 /*
  * getdns_extension_set_libevent_base

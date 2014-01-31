@@ -54,7 +54,7 @@ static getdns_extension_format extformats[] = {
 	{"add_warning_for_bad_dns", t_int},
 	{"dnssec_return_only_secure", t_int},
 	{"dnssec_return_status", t_int},
-	{"dnssec_return_supporting_responses", t_int},
+	{"dnssec_return_validation_chain", t_int},
 	{"return_api_information", t_int},
 	{"return_both_v4_and_v6", t_int},
 	{"return_call_debugging", t_int},
@@ -347,7 +347,7 @@ create_dict_from_rr(struct getdns_context *context, ldns_rr * rr)
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
-static struct getdns_list *
+struct getdns_list *
 create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 {
 	size_t i = 0;
@@ -685,12 +685,12 @@ getdns_apply_network_result(getdns_network_req* netreq,
     if (!result) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    ldns_buffer_new_frm_data(result, ub_res->answer_packet, ub_res->answer_len);
     ldns_status r =
-        ldns_buffer2pkt_wire(&(netreq->result), result);
-    ldns_buffer_free(result);
+        ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
     if (r != LDNS_STATUS_OK) {
         return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
 }
 
 

@@ -86,7 +86,7 @@ example:
 clean:
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
-	rm -f *.o *.lo $(PROGRAMS) libgetdns.la
+	rm -f *.o *.lo extension/*.lo $(PROGRAMS) libgetdns.la
 	rm -rf .libs
 
 distclean : clean

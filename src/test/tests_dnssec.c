@@ -32,6 +32,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include "config.h"
 #ifdef HAVE_EVENT2_EVENT_H
 #  include <event2/event.h>
@@ -79,9 +80,19 @@ main(int argc, char** argv)
 		    context_create_return);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
-
 	getdns_context_set_timeout(this_context, 5000);
+
+	struct getdns_dict * this_extensions = getdns_dict_create();
+	getdns_return_t this_ret = getdns_dict_set_int(this_extensions,
+	    "dnssec_return_validation_chain", GETDNS_EXTENSION_TRUE);
+	if (this_ret != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Setting extension "
+		    "\"dnssec_return_validation_chain\" failed: %d\n", this_ret);
+		getdns_dict_destroy(this_extensions);
+		getdns_context_destroy(this_context);
+		return (GETDNS_RETURN_GENERIC_ERROR);
+        }
+
 	/* Create an event base and put it in the context using the unknown function name */
 	struct event_base *this_event_base;
 	this_event_base = event_base_new();
@@ -90,21 +101,17 @@ main(int argc, char** argv)
 		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	if (getdns_extension_set_libevent_base(this_context,
-	    this_event_base) != GETDNS_RETURN_GOOD) {
-        fprintf(stderr, "Setting event base failed.");
-        getdns_context_destroy(this_context);
-        return (GETDNS_RETURN_GENERIC_ERROR);
-    }
+	(void) getdns_extension_set_libevent_base(this_context,
+	    this_event_base);
 	/* Set up the getdns call */
-	const char *this_name = argc > 1 ? argv[1] : "www.google.com";
+	const char *this_name = argc > 1 ? argv[1] : "www.example.com";
 	char *this_userarg = "somestring";	// Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
 
 	/* Make the call */
 	getdns_return_t dns_request_return =
 	    getdns_address(this_context, this_name,
-	    NULL, this_userarg, &this_transaction_id, this_callbackfn);
+	    this_extensions, this_userarg, &this_transaction_id, this_callbackfn);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
 		    this_name);
@@ -112,13 +119,6 @@ main(int argc, char** argv)
 		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-//    dns_request_return = getdns_service(this_context, this_name, NULL, this_userarg, &this_transaction_id,
-//                                        this_callbackfn);
-//    if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
-//      {
-//              fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
-//              return(GETDNS_RETURN_GENERIC_ERROR);
-//      }
 	else {
 		/* Call the event loop */
 		event_base_dispatch(this_event_base);
@@ -131,4 +131,4 @@ main(int argc, char** argv)
 	exit(EXIT_SUCCESS);
 }				/* main */
 
-/* tests_stub_async.c */
+/* example-simple-answers.c */
