@@ -1182,6 +1182,24 @@ int getdns_context_fd(struct getdns_context* context) {
     return ub_fd(context->unbound_ctx);
 }
 
+int
+getdns_context_get_num_pending_requests(struct getdns_context* context,
+    struct timeval* next_timeout) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    int r = context->outbound_requests->count;
+    if (r > 0) {
+        if (!context->extension && next_timeout) {
+            /* get the first timeout */
+            ldns_rbnode_t* first = ldns_rbtree_first(context->timeouts_by_time);
+            if (first) {
+                getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) first->data;
+                *next_timeout = (timeout_data->timeout_time);
+            }
+        }
+    }
+    return r;
+}
+
 /* process async reqs */
 getdns_return_t getdns_context_process_async(struct getdns_context* context) {
     RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);

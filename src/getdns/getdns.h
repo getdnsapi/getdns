@@ -872,9 +872,9 @@ getdns_context_set_extended_memory_functions(struct getdns_context *context,
     void (*free) (void *userarg, void *ptr)
     );
 
-/* Extension */
-getdns_return_t
-getdns_extension_detach_eventloop(struct getdns_context* context);
+/* Async support */
+struct timeval;
+int getdns_context_get_num_pending_requests(struct getdns_context* context, struct timeval* next_timeout);
 
 /* get the fd */
 int getdns_context_fd(struct getdns_context* context);

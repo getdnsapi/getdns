@@ -122,12 +122,11 @@ main(int argc, char** argv)
 //              return(GETDNS_RETURN_GENERIC_ERROR);
 //      }
 	else {
-        struct timeval tv;
-        tv.tv_sec = 10;
-        tv.tv_usec = 0;
 		/* Call the event loop */
-        event_base_loopexit(this_event_base, &tv);
-		event_base_dispatch(this_event_base);
+        event_base_loop(this_event_base, EVLOOP_ONCE);
+        while (getdns_context_get_num_pending_requests(this_context, NULL) > 0) {
+		    event_base_loop(this_event_base, EVLOOP_ONCE);
+        }
 		// TODO: check the return value above
 	}
 	/* Clean up */
