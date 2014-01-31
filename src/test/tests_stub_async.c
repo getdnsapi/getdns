@@ -43,6 +43,7 @@
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
+#include <getdns/getdns_ext_libevent.h>
 #include <sys/time.h>
 
 /* Set up the callback function, which will also do the processing of the results */
