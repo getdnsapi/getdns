@@ -42,6 +42,7 @@
 #include "util-internal.h"
 #include "types-internal.h"
 #include <unbound.h>
+#include "rr-dict.h"
 
 /**
   * this is a comprehensive list of extensions and their data types
@@ -232,118 +233,6 @@ create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
 	return result;
 }
 
-static struct getdns_dict *
-create_reply_question_dict(struct getdns_context *context, ldns_pkt * reply)
-{
-	/* { "qname": <bindata for "www.example.com">, "qtype": 1, "qclass": 1 } */
-	int r = 0;
-	ldns_rr *question = NULL;
-	char *qname;
-	struct getdns_dict *result = getdns_dict_create_with_context(context);
-	if (!result) {
-		return NULL;
-	}
-	question = ldns_rr_list_rr(ldns_pkt_question(reply), 0);
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QTYPE,
-	    (int) ldns_rr_get_type(question));
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QCLASS,
-	    (int) ldns_rr_get_class(question));
-	qname = convert_rdf_to_str(ldns_rr_owner(question));
-	if (qname) {
-		r |= getdns_dict_util_set_string(result, GETDNS_STR_KEY_QNAME,
-		    qname);
-		free(qname);
-	} else {
-		r = 1;
-	}
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
-	return result;
-}
-
-static struct getdns_dict *
-create_dict_from_rdf(struct getdns_context *context, ldns_rdf * rdf)
-{
-	/*
-	 * create a dict w/ rdata_raw and special fields if needed
-	 * i.e.
-	 * {
-	 * "ipv4_address": <bindata of 0x0a0b0c01>
-	 * "rdata_raw": <bindata of 0x0a0b0c01>
-	 * }
-	 */
-	int r = 0;
-	struct getdns_bindata rbin = { ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
-	struct getdns_dict *result = getdns_dict_create_with_context(context);
-	r |= getdns_dict_set_bindata(result, GETDNS_STR_KEY_RDATA_RAW, &rbin);
-	if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_AAAA) {
-		r |= getdns_dict_set_bindata(result, GETDNS_STR_KEY_V6_ADDR,
-		    &rbin);
-	} else if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A) {
-		r |= getdns_dict_set_bindata(result, GETDNS_STR_KEY_V4_ADDR,
-		    &rbin);
-	}
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
-	return result;
-}
-
-static struct getdns_dict *
-create_dict_from_rr(struct getdns_context *context, ldns_rr * rr)
-{
-	/*
-	 * {
-	 * "name": <bindata for "www.example.com">,
-	 * "type": 1,
-	 * "class": 1,
-	 * "ttl": 33000,
-	 * "rdata":
-	 * {
-	 * "ipv4_address": <bindata of 0x0a0b0c01>
-	 * "rdata_raw": <bindata of 0x0a0b0c01>
-	 * }
-	 * }
-	 */
-	int r = 0;
-	char *name = NULL;
-	struct getdns_dict *result = getdns_dict_create_with_context(context);
-	size_t rd_count = ldns_rr_rd_count(rr);
-	ldns_rdf *owner = ldns_rr_owner(rr);
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_TYPE,
-	    (int) ldns_rr_get_type(rr));
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_CLASS,
-	    (int) ldns_rr_get_class(rr));
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_TTL, ldns_rr_ttl(rr));
-	if (owner) {
-		name = convert_rdf_to_str(owner);
-		if (name) {
-			r |= getdns_dict_util_set_string(result,
-			    GETDNS_STR_KEY_NAME, name);
-			free(name);
-		} else {
-			r = 1;
-		}
-	}
-	/* create rdatas */
-	if (rd_count >= 1) {
-		struct getdns_dict *rdata = create_dict_from_rdf(context,
-		    ldns_rr_rdf(rr, 0));
-		r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_RDATA, rdata);
-		getdns_dict_destroy(rdata);
-	}
-	/* TODO - if more than one, is rdata a list? */
-
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
-	return result;
-}
-
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
@@ -352,16 +241,21 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 {
 	size_t i = 0;
 	size_t idx = 0;
-	int r = 0;
+	int r = GETDNS_RETURN_GOOD;
 	struct getdns_list *result = getdns_list_create_with_context(context);
-	for (i = 0; i < ldns_rr_list_rr_count(rr_list); ++i) {
+	struct getdns_dict *rrdict;
+	for (i = 0; i < ldns_rr_list_rr_count(rr_list) && r == GETDNS_RETURN_GOOD;
+	    ++i) {
 		ldns_rr *rr = ldns_rr_list_rr(rr_list, i);
-		struct getdns_dict *rrdict = create_dict_from_rr(context, rr);
-		r |= getdns_list_add_item(result, &idx);
-		r |= getdns_list_set_dict(result, idx, rrdict);
+		r = priv_getdns_create_dict_from_rr(context, rr, &rrdict);
+		if (r != GETDNS_RETURN_GOOD)
+			break; /* Could not create, do not destroy */
+		r = getdns_list_add_item(result, &idx);
+		if (r == GETDNS_RETURN_GOOD)
+			r = getdns_list_set_dict(result, idx, rrdict);
 		getdns_dict_destroy(rrdict);
 	}
-	if (r != 0) {
+	if (r != GETDNS_RETURN_GOOD) {
 		getdns_list_destroy(result);
 		result = NULL;
 	}
@@ -475,7 +369,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	getdns_dict_destroy(subdict);
 
 	/* question */
-	subdict = create_reply_question_dict(context, reply);
+	r |= priv_getdns_create_reply_question_dict(context, reply, &subdict);
 	r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_QUESTION, subdict);
 	getdns_dict_destroy(subdict);
 

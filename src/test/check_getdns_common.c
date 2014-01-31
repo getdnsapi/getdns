@@ -10,6 +10,7 @@
 int callback_called = 0;
 int callback_completed = 0;
 int callback_canceled = 0;
+uint16_t expected_changed_item = 0;
 
 /*
  *  extract_response extracts all of the various information
@@ -269,4 +270,20 @@ void callbackfn(struct getdns_context *context,
    */
   fn(&ex_response);
 
+}
+
+//refactor later
+/*
+ *  callbackfn is the callback function given to all
+ *  asynchronous query tests.  It is expected to only
+ *  be called for positive tests and will verify the
+ *  response that is returned.
+ */
+void update_callbackfn(struct getdns_context *context,
+                uint16_t changed_item)
+{
+  
+  ck_assert_msg(changed_item == expected_changed_item, 
+    "Expected changed_item == %d, got %d",
+    changed_item, expected_changed_item);
 }
