@@ -46,7 +46,7 @@ check_getdns_common: check_getdns_common.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.o
 
 check_getdns: check_getdns.o check_getdns_common.o 
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ $^
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o
 
 tests_dnssec: tests_dnssec.o testmessages.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dnssec.o testmessages.o
