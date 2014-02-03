@@ -1136,6 +1136,9 @@ getdns_convert_fqdn_to_dns_name(
 );
 </div>
 
+<p>The returned values are allocated with the default system allocator (<code>malloc</code>).
+The caller is responsible of disposing these allocations with free. </p>
+
 <h1>5. Additional Definitions and Descriptions</h1>
 
 <h2>5.1 A Few Needed Definitions</h2>
@@ -2060,6 +2063,9 @@ getdns_display_ip_address(
 of the IPv4 or IPv6 address in it. The API determines they type of address
 by the length given in the bindata.</p>
 
+<p class=cont>All memory locations returned by these helper functions are allocated by the default system allocator (<code>malloc</code>).
+The caller is responsible of disposing these allocations with <code>free</code>.</p>
+
 <h1>8. <a id="Contexts">DNS Contexts</a></h1>
 
 <p>Many calls in the DNS API require a DNS context. A DNS
@@ -2421,7 +2427,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.384.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.385.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
