@@ -65,7 +65,7 @@ static void set_ub_number_opt(struct getdns_context *, char *, uint16_t);
 static inline void clear_resolution_type_set_flag(struct getdns_context *, uint16_t);
 static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
-static void cancel_outstanding_requests(struct getdns_context* context);
+static void cancel_outstanding_requests(struct getdns_context*, int);
 
 /* Stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -405,7 +405,7 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->namespaces)
 		GETDNS_FREE(context->my_mf, context->namespaces);
 
-    cancel_outstanding_requests(context);
+    cancel_outstanding_requests(context, 0);
 
 	getdns_list_destroy(context->dns_root_servers);
 	getdns_list_destroy(context->suffix);
@@ -1260,7 +1260,7 @@ accumulate_outstanding_transactions(ldns_rbnode_t* node, void* arg) {
 }
 
 static void
-cancel_outstanding_requests(struct getdns_context* context) {
+cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
     if (context->outbound_requests->count > 0) {
         timeout_accumulator acc;
         int i;
@@ -1268,7 +1268,7 @@ cancel_outstanding_requests(struct getdns_context* context) {
         acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests->count);
         ldns_traverse_postorder(context->outbound_requests, accumulate_outstanding_transactions, &acc);
         for (i = 0; i < acc.idx; ++i) {
-            getdns_context_cancel_request(context, acc.ids[i], 1);
+            getdns_context_cancel_request(context, acc.ids[i], fire_callback);
         }
     }
 }
@@ -1280,7 +1280,7 @@ getdns_extension_detach_eventloop(struct getdns_context* context)
     getdns_return_t r = GETDNS_RETURN_GOOD;
     if (context->extension) {
         /* cancel all outstanding requests */
-        cancel_outstanding_requests(context);
+        cancel_outstanding_requests(context, 1);
         r = context->extension->cleanup_data(context, context->extension_data);
         if (r != GETDNS_RETURN_GOOD) {
             return r;
