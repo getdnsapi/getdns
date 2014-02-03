@@ -62,7 +62,7 @@ char *
 getdns_convert_dns_name_to_fqdn(const char *name_from_dns_response)
 {
 	char *str;
-	ldns_rdf *rdf = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_DNAME,
+	ldns_rdf *rdf = ldns_rdf_new(LDNS_RDF_TYPE_DNAME,
 	    sizeof_dname((uint8_t *)name_from_dns_response),
 	    name_from_dns_response);
 	if (!rdf) return NULL;
