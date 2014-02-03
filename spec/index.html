@@ -1869,8 +1869,144 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 
 <p>This example shows how to use <code>getdns_hostname()</code> to get names from the DNS reverse tree.</p>
 
-<p>[[[[ Something will go here soon ]]]]]</p>
-<!--EXAMPLESREVERSE-->
+<br><div class="highlight"><pre><span class="cp">#include &lt;stdio.h&gt;</span>
+<span class="cp">#include &lt;stdint.h&gt;</span>
+<span class="cp">#include &lt;stdlib.h&gt;</span>
+<span class="cp">#include &lt;string.h&gt;</span>
+<span class="cp">#include &lt;inttypes.h&gt;</span>
+<span class="cp">#include &lt;getdns_libevent.h&gt;</span>
+
+<span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
+
+<span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+                     <span class="kt">uint16_t</span>     <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
+                     <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
+                     <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
+    <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_userarg</span><span class="p">);</span>  <span class="cm">/* Not looking at the userarg for this example */</span>
+    <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>  <span class="cm">/* Not looking at the context for this example */</span>
+    <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_ret</span><span class="p">);</span> <span class="cm">/* Set, but not read */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">this_callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_COMPLETE</span><span class="p">)</span>  <span class="cm">/* This is a callback with data */</span>
+    <span class="p">{</span>
+        <span class="cm">/* Be sure the search returned something */</span>
+        <span class="kt">uint32_t</span> <span class="n">this_error</span><span class="p">;</span>
+        <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_int</span><span class="p">(</span><span class="n">this_response</span><span class="p">,</span> <span class="s">&quot;status&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_error</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">this_error</span> <span class="o">!=</span> <span class="n">GETDNS_RESPSTATUS_GOOD</span><span class="p">)</span>  <span class="c1">// If the search didn&#39;t return &quot;good&quot;</span>
+        <span class="p">{</span>
+            <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;The search had no results, and a return value of %d. Exiting.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_error</span><span class="p">);</span>
+            <span class="n">getdns_dict_destroy</span><span class="p">(</span><span class="n">this_response</span><span class="p">);</span>
+            <span class="k">return</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">struct</span> <span class="n">getdns_list</span> <span class="o">*</span><span class="n">replies_tree</span><span class="p">;</span>
+        <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_response</span><span class="p">,</span> <span class="s">&quot;replies_tree&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">replies_tree</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+        <span class="kt">size_t</span> <span class="n">num_replies</span><span class="p">;</span>
+        <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">replies_tree</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_replies</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+        <span class="cm">/* Go through each reply */</span>
+        <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">reply_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">reply_count</span> <span class="o">&lt;</span> <span class="n">num_replies</span><span class="p">;</span> <span class="o">++</span><span class="n">reply_count</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_reply</span><span class="p">;</span>
+            <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">replies_tree</span><span class="p">,</span> <span class="n">reply_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_reply</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+            <span class="cm">/* Just print the address */</span>
+            <span class="k">struct</span> <span class="n">getdns_list</span><span class="o">*</span> <span class="n">reply_answers</span><span class="p">;</span>
+            <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_reply</span><span class="p">,</span> <span class="s">&quot;answer&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">reply_answers</span><span class="p">);</span> <span class="c1">// Ignore any error</span>
+            <span class="kt">size_t</span> <span class="n">num_answers</span><span class="p">;</span>
+            <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">reply_answers</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_answers</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+            <span class="cm">/* Go through each answer */</span>
+            <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">answer_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">answer_count</span> <span class="o">&lt;</span> <span class="n">num_answers</span><span class="p">;</span> <span class="o">++</span><span class="n">answer_count</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_rr</span><span class="p">;</span>
+                <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">reply_answers</span><span class="p">,</span> <span class="n">answer_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_rr</span><span class="p">);</span>
+                <span class="cm">/* Get the RDATA type */</span>
+                <span class="kt">uint32_t</span> <span class="n">this_type</span><span class="p">;</span>
+                <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_int</span><span class="p">(</span><span class="n">this_rr</span><span class="p">,</span> <span class="s">&quot;type&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_type</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">this_type</span> <span class="o">==</span> <span class="n">GETDNS_RRTYPE_PTR</span><span class="p">)</span>
+                <span class="p">{</span>
+                    <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_rdata</span><span class="p">;</span>
+                    <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_dict</span><span class="p">(</span><span class="n">this_rr</span><span class="p">,</span> <span class="s">&quot;rdata&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_rdata</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
+
+                    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_dname</span><span class="p">;</span>
+                    <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_rdata</span><span class="p">,</span> <span class="s">&quot;rdata_raw&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_dname</span><span class="p">);</span>
+                    <span class="kt">char</span> <span class="o">*</span><span class="n">this_dname_str</span> <span class="o">=</span> <span class="n">getdns_convert_dns_name_to_fqdn</span><span class="p">((</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">this_dname</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">);</span>
+                    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;The dname is %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_dname_str</span><span class="p">);</span>
+                    <span class="n">free</span><span class="p">(</span><span class="n">this_dname_str</span><span class="p">);</span>
+
+                <span class="p">}</span>
+            <span class="p">}</span>
+
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">this_callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_CANCEL</span><span class="p">)</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;The callback with ID %&quot;</span><span class="n">PRIu64</span><span class="s">&quot; was cancelled. Exiting.&quot;</span><span class="p">,</span> <span class="n">this_transaction_id</span><span class="p">);</span>
+    <span class="k">else</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;The callback got a callback_type of %d. Exiting.&quot;</span><span class="p">,</span> <span class="n">this_callback_type</span><span class="p">);</span>
+    <span class="n">getdns_dict_destroy</span><span class="p">(</span><span class="n">this_response</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="cm">/* Create the DNS context for this call */</span>
+    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the context failed: %d&quot;</span><span class="p">,</span> <span class="n">context_create_return</span><span class="p">);</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">GETDNS_RETURN_GENERIC_ERROR</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="cm">/* Create an event base and put it in the context using the unknown function name */</span>
+    <span class="k">struct</span> <span class="n">event_base</span> <span class="o">*</span><span class="n">this_event_base</span><span class="p">;</span>
+    <span class="n">this_event_base</span> <span class="o">=</span> <span class="n">event_base_new</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">this_event_base</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Trying to create the event base failed.&quot;</span><span class="p">);</span>
+        <span class="n">getdns_context_destroy</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">GETDNS_RETURN_GENERIC_ERROR</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">getdns_extension_set_libevent_base</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_event_base</span><span class="p">);</span>
+    <span class="cm">/* Set up the getdns call */</span>
+    <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_addr_to_look_up</span> <span class="o">=</span> <span class="n">getdns_dict_create</span><span class="p">();</span>
+    <span class="c1">// TODO: check the return value above</span>
+    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="n">this_type</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="s">&quot;IPv4&quot;</span> <span class="p">};</span>
+    <span class="kt">getdns_return_t</span> <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_set_bindata</span><span class="p">(</span><span class="n">this_addr_to_look_up</span><span class="p">,</span> <span class="s">&quot;address_type&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_type</span><span class="p">);</span>
+    <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_ret</span><span class="p">);</span>
+    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="n">this_ipv4_addr</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="s">&quot;</span><span class="se">\x08\x08\x08\x08</span><span class="s">&quot;</span> <span class="p">};</span>
+    <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_set_bindata</span><span class="p">(</span><span class="n">this_addr_to_look_up</span><span class="p">,</span> <span class="s">&quot;address_data&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_ipv4_addr</span><span class="p">);</span>
+    <span class="kt">char</span><span class="o">*</span> <span class="n">this_userarg</span> <span class="o">=</span> <span class="s">&quot;somestring&quot;</span><span class="p">;</span> <span class="c1">// Could add things here to help identify this call</span>
+    <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="cm">/* Make the call */</span>
+    <span class="kt">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_hostname</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_addr_to_look_up</span><span class="p">,</span>
+        <span class="nb">NULL</span><span class="p">,</span> <span class="n">this_userarg</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_transaction_id</span><span class="p">,</span> <span class="n">this_callbackfn</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">dns_request_return</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_BAD_DOMAIN_NAME</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="kt">char</span> <span class="o">*</span><span class="n">ip_address_str</span> <span class="o">=</span> <span class="n">getdns_display_ip_address</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_ipv4_addr</span><span class="p">);</span>
+
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;A bad IP address was used: %s. Exiting.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">ip_address_str</span><span class="p">);</span>
+        <span class="n">free</span><span class="p">(</span><span class="n">ip_address_str</span><span class="p">);</span>
+        <span class="n">getdns_dict_destroy</span><span class="p">(</span><span class="n">this_addr_to_look_up</span><span class="p">);</span>
+        <span class="n">event_base_free</span><span class="p">(</span><span class="n">this_event_base</span><span class="p">);</span>
+        <span class="n">getdns_context_destroy</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>
+        <span class="k">return</span><span class="p">(</span><span class="n">GETDNS_RETURN_GENERIC_ERROR</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">else</span>
+    <span class="p">{</span>
+        <span class="cm">/* Call the event loop */</span>
+        <span class="kt">int</span> <span class="n">dispatch_return</span> <span class="o">=</span> <span class="n">event_base_dispatch</span><span class="p">(</span><span class="n">this_event_base</span><span class="p">);</span>
+        <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">dispatch_return</span><span class="p">);</span>
+        <span class="c1">// TODO: check the return value above</span>
+    <span class="p">}</span>
+    <span class="cm">/* Clean up */</span>
+    <span class="n">getdns_dict_destroy</span><span class="p">(</span><span class="n">this_addr_to_look_up</span><span class="p">);</span>
+    <span class="n">event_base_free</span><span class="p">(</span><span class="n">this_event_base</span><span class="p">);</span>
+    <span class="n">getdns_context_destroy</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>
+    <span class="cm">/* Assuming we get here, leave gracefully */</span>
+    <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_SUCCESS</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+
 
 <h1>7. More Helper Functions</h1>
 
@@ -2285,7 +2421,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.383.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.384.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
