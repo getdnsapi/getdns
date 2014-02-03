@@ -175,6 +175,9 @@ typedef struct getdns_dns_req
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
+    /* local timeout id */
+    getdns_transaction_t local_timeout_id;
+
 } getdns_dns_req;
 
 #define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)

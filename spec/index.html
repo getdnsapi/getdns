@@ -645,7 +645,7 @@ getdns_dict_destroy(this_extensions);
 
 <li><code>dnssec_return_only_secure</code></li>
 
-<li><code>dnssec_return_supporting_responses</code></li>
+<li><code>dnssec_return_validation_chain</code></li>
 
 <li><code>return_both_v4_and_v6</code></li>
 
@@ -692,15 +692,81 @@ are determined to be secure, the error code at the top level of the response obj
 <code>GETDNS_RESPSTATUS_NO_SECURE_ANSWERS</code>.</p>
 
 <p>Applications that want to do their own validation will want to have the DNSSEC-related records
-for a particular response. Use the <code>dnssec_return_supporting_responses</code> extension. The
+for a particular response. Use the <code>dnssec_return_validation_chain</code> extension. The
 extension's value (an int) is set to <code>GETDNS_EXTENSION_TRUE</code> to cause a set
 of additional DNSSEC-related records needed for validation to be returned in the response object.
-This set comes as <code>additional_dnssec</code> (a list) at the top level of the response object.
-This list includes any trust anchors needed for the validation. Thus, a reply might look like:</p>
+This set comes as <code>validation_chain</code> (a list) at the top level of the response object.
+This list includes all resource record dicts for all the resource records (DS, DNSKEY and their RRSIGs) that are needed to perform the validation from the root up. Thus, a reply might look like:</p>
 
 <pre>
 {     # This is the response object
-  "additional_dnssec": [ &lt;bindata of the first DNSSEC record&gt;, &lt;bindata of the second DNSSEC record&gt; ... ],
+  "validation_chain":
+  [ { "name": <bindata for .>,
+      "type": GETDNS_RRTYPE_DNSKEY,
+      "rdata": { "flags": 256, . . . },
+      . . . 
+    },
+    { "name": <bindata for .>,
+      "type": GETDNS_RRTYPE_DNSKEY,
+      "rdata": { "flags": 257, . . . },
+      . . .
+    },
+    { "name": <bindata for .>,
+      "type": GETDNS_RRTYPE_RRSIG,
+      "rdata": { "signers_name": <bindata for .>,
+                 "type_covered": GETDNS_RRTYPE_DNSKEY,
+                 . . .
+               },
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_DS,
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_RRSIG
+      "rdata": { "signers_name": <bindata for .>,
+                 "type_covered": GETDNS_RRTYPE_DS,
+                 . . .
+               },
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_DNSKEY
+      "rdata": { "flags": 256, . . . },
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_DNSKEY
+      "rdata": { "flags": 257, . . . },
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_RRSIG
+      "rdata": { "signers_name": <bindata for com.>,
+                 "type_covered": GETDNS_RRTYPE_DNSKEY,
+                 . . .
+               },
+      . . .
+    },
+    { "name": <bindata for example.com.>,
+      "type": GETDNS_RRTYPE_DS,
+      . . .
+    },
+    { "name": <bindata for example.com.>,
+      "type": GETDNS_RRTYPE_RRSIG
+      "rdata": { "signers_name": <bindata for com.>,
+                 "type_covered": GETDNS_RRTYPE_DS,
+                 . . .
+               },
+      . . .
+    },
+    { "name": <bindata for example.com.>,
+      "type": GETDNS_RRTYPE_DNSKEY
+      "rdata": { "flags": 257, ... },
+      . . .
+    },
+    . . .
+  ]
   "replies_tree":
   [
   . . .
@@ -708,7 +774,7 @@ This list includes any trust anchors needed for the validation. Thus, a reply mi
 
 <p>If a request is using a context in which stub resolution is set, and that request also has
 any of the <code>dnssec_return_status</code>, <code>dnssec_return_only_secure</code>, or
-<code>dnssec_return_supporting_responses</code> extensions specified, the API will not perform
+<code>dnssec_return_validation_chain</code> extensions specified, the API will not perform
 the request and will instead return an error of <code>GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED</code>.</p>
 
 <h2>3.2 Returning Both IPv4 and IPv6 Responses</h2>
@@ -2210,7 +2276,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.379.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.380.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

@@ -96,6 +96,10 @@ dns_req_free(getdns_dns_req * req)
 		net_req = next;
 	}
 
+    if (req->local_timeout_id != 0) {
+        getdns_context_clear_timeout(context, req->local_timeout_id);
+    }
+
     getdns_context_clear_timeout(context, req->trans_id);
 
 	/* free strduped name */
@@ -132,6 +136,7 @@ dns_req_new(struct getdns_context *context,
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;
+    result->local_timeout_id = 0;
 
 	/* create the requests */
 	req = network_req_new(result,

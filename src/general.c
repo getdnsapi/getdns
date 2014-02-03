@@ -48,9 +48,8 @@
 
 /* declarations */
 static void ub_resolve_callback(void* mydata, int err, struct ub_result* result);
-// static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg);
-// static void ub_local_resolve_timeout(evutil_socket_t fd, short what,
-//     void *arg);
+static void ub_resolve_timeout(void *arg);
+static void ub_local_resolve_timeout(void *arg);
 
 static void handle_network_request_error(getdns_network_req * netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req * dns_req);
@@ -60,9 +59,7 @@ typedef struct netreq_cb_data
 {
 	getdns_network_req *netreq;
 	int err;
-	ldns_buffer *result;
-	int sec;
-	char *bogus;
+	struct ub_result* ub_res;
 } netreq_cb_data;
 
 /* cancel, cleanup and send timeout to callback */
@@ -84,29 +81,26 @@ ub_resolve_timeout(void *arg)
 	cb(context, GETDNS_CALLBACK_TIMEOUT, NULL, user_arg, trans_id);
 }
 
-// static void
-// ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg)
-// {
-// 	netreq_cb_data *cb_data = (netreq_cb_data *) arg;
+static void
+ub_local_resolve_timeout(void *arg)
+{
+	netreq_cb_data *cb_data = (netreq_cb_data *) arg;
 
-// 	/* cleanup the local timer here since the memory may be
-// 	 * invalid after calling ub_resolve_callback
-// 	 */
-// 	getdns_dns_req *dnsreq = cb_data->netreq->owner;
-// 	event_free(dnsreq->local_cb_timer);
-// 	dnsreq->local_cb_timer = NULL;
+	/* cleanup the local timer here since the memory may be
+	 * invalid after calling ub_resolve_callback
+	 */
+	getdns_dns_req *dnsreq = cb_data->netreq->owner;
+    /* clear the timeout */
 
-// 	/* just call ub_resolve_callback */
-// 	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->result,
-// 	    cb_data->sec, cb_data->bogus);
+	getdns_context_clear_timeout(dnsreq->context, dnsreq->local_timeout_id);
+	dnsreq->local_timeout_id = 0;
 
-// 	/* cleanup the state */
-// 	ldns_buffer_free(cb_data->result);
-// 	if (cb_data->bogus) {
-// 		free(cb_data->bogus);
-// 	}
-// 	free(cb_data);
-// }
+	/* just call ub_resolve_callback */
+	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->ub_res);
+
+	/* cleanup the state */
+	free(cb_data);
+}
 
 static void call_user_callback(getdns_dns_req *dns_req,
     struct getdns_dict *response)
@@ -212,6 +206,7 @@ ub_supporting_callback(void* arg, int err, struct ub_result* ub_res)
 		ldns_rr_list_free(keys);
 
 	ldns_pkt_free(p);
+    ub_resolve_free(ub_res);
 
 done:	if (response->err == 0 && response->result == NULL)
 		response->err = -1;
@@ -247,19 +242,22 @@ static void submit_link(struct validation_chain *chain, char *name)
 	link->DS.unbound_id = -1;
 
 	ldns_rbtree_insert(&(chain->root), (ldns_rbnode_t *)link);
-	/* fprintf(stderr, "submitting for: %s\n", name); */
 
+    chain->todo++;
 	r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
-	    name, LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, &link->DNSKEY,
-	    ub_supporting_callback, &link->DNSKEY.unbound_id);
-	if (r != 0)
-		link->DNSKEY.err = r;
+        name, LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, &link->DNSKEY,
+        ub_supporting_callback, &link->DNSKEY.unbound_id);
+    if (r != 0)
+        link->DNSKEY.err = r;
 
-	r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
-	    name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
-	    ub_supporting_callback, &link->DS.unbound_id);
-	if (r != 0)
-		link->DS.err = r;
+    if (name[0] != '.' || name[1] != '\0') {
+        r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
+            name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
+            ub_supporting_callback, &link->DS.unbound_id);
+        if (r != 0)
+            link->DS.err = r;
+    }
+    chain->todo--;
 }
 
 void destroy_chain_link(ldns_rbnode_t * node, void *arg)
@@ -299,7 +297,6 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 		    ((const char *)link->node.key)[1] != '\0' ))
 		       	todo++;
 	}
-	/* fprintf(stderr, "todo until validation: %d\n", (int)todo); */
 	if (todo == 0) {
 		getdns_dns_req *dns_req = chain->dns_req;
 		response = create_getdns_response(chain->dns_req);
@@ -334,7 +331,7 @@ static void get_validation_chain(getdns_dns_req *dns_req)
 	chain->mf.mf.ext.realloc = dns_req->context->mf.mf.ext.realloc;
 	chain->mf.mf.ext.free    = dns_req->context->mf.mf.ext.free;
 	chain->dns_req = dns_req;
-	chain->todo = 1;
+	chain->todo = 0;
 
 	while (netreq) {
 		size_t i;
@@ -347,7 +344,6 @@ static void get_validation_chain(getdns_dns_req *dns_req)
 		}
 		netreq = netreq->next;
 	}
-	chain->todo--;
 	callback_on_complete_chain(chain);
 }
 
@@ -396,39 +392,21 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 	 * This most likely means that getdns_general has not returned
 	 */
 	if (netreq->state == NET_REQ_NOT_SENT) {
-        /* TODO!!!! */
 		/* just do a very short timer since this was called immediately.
 		 * we can make this less hacky, but it gets interesting when multiple
 		 * netreqs need to be issued and some resolve immediately vs. not.
 		 */
-		// struct timeval tv;
-		// getdns_dns_req *dnsreq = netreq->owner;
-		// netreq_cb_data *cb_data =
-		//     (netreq_cb_data *) malloc(sizeof(netreq_cb_data));
+        getdns_dns_req *dnsreq = netreq->owner;
+        netreq_cb_data *cb_data =
+            (netreq_cb_data *) malloc(sizeof(netreq_cb_data));
+        cb_data->netreq = netreq;
+        cb_data->err = err;
+        cb_data->ub_res = ub_res;
 
-		// cb_data->netreq = netreq;
-		// cb_data->err = err;
-		// cb_data->sec = sec;
-		// cb_data->result = NULL;
-		// cb_data->bogus = NULL;	/* unused but here in case we need it */
-		// if (result) {
-		// 	cb_data->result =
-		// 	    ldns_buffer_new(ldns_buffer_limit(result));
-		// 	if (!cb_data->result) {
-		// 		cb_data->err = GETDNS_RETURN_GENERIC_ERROR;
-		// 	} else {
-		// 		/* copy */
-		// 		ldns_buffer_copy(cb_data->result, result);
-		// 	}
-		// }
-		// /* schedule the timeout */
-		// dnsreq->local_cb_timer =
-		//     evtimer_new(dnsreq->ev_base, ub_local_resolve_timeout,
-		//     cb_data);
-		// tv.tv_sec = 0;
-		// /* half ms */
-		// tv.tv_usec = 500;
-		// evtimer_add(dnsreq->local_cb_timer, &tv);
+        dnsreq->local_timeout_id = ldns_get_random();
+
+        getdns_context_schedule_timeout(dnsreq->context,
+            dnsreq->local_timeout_id, 1, ub_local_resolve_timeout, cb_data);
 		return;
 	}
 	netreq->state = NET_REQ_FINISHED;
