@@ -56,8 +56,8 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* declarations */
-static void ub_resolve_callback(void *arg, int err, ldns_buffer * result,
-    int sec, char *bogus);
+static void ub_resolve_callback(void *arg, int err, void* result,
+    int packet_len, int sec, char *bogus);
 static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg);
 static void ub_local_resolve_timeout(evutil_socket_t fd, short what,
     void *arg);
@@ -70,7 +70,8 @@ typedef struct netreq_cb_data
 {
 	getdns_network_req *netreq;
 	int err;
-	ldns_buffer *result;
+	void *result;
+	int packet_len;
 	int sec;
 	char *bogus;
 } netreq_cb_data;
@@ -120,10 +121,10 @@ ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg)
 
 	/* just call ub_resolve_callback */
 	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->result,
-	    cb_data->sec, cb_data->bogus);
+	    cb_data->packet_len, cb_data->sec, cb_data->bogus);
 
 	/* cleanup the state */
-	ldns_buffer_free(cb_data->result);
+	free(cb_data->result);
 	if (cb_data->bogus) {
 		free(cb_data->bogus);
 	}
@@ -177,8 +178,8 @@ struct chain_link {
 static void submit_link(struct validation_chain *chain, char *name);
 static void callback_on_complete_chain(struct validation_chain *chain);
 static void
-ub_supporting_callback(void *arg, int err, ldns_buffer *result, int sec,
-    char *bogus)
+ub_supporting_callback(void *arg, int err, void *result, int packet_len, 
+    int sec, char *bogus)
 {
 	struct chain_response *response = (struct chain_response *) arg;
 	ldns_status r;
@@ -194,7 +195,7 @@ ub_supporting_callback(void *arg, int err, ldns_buffer *result, int sec,
 	if (result == NULL)
 		goto done;
 
-	r = ldns_buffer2pkt_wire(&p, result);
+	r = ldns_wire2pkt(&p, (uint8_t *)result, (size_t)packet_len);
 	if (r != LDNS_STATUS_OK) {
 		if (err == 0)
 			response->err = r;
@@ -402,8 +403,8 @@ submit_network_request(getdns_network_req * netreq)
 }
 
 static void
-ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
-    char *bogus)
+ub_resolve_callback(void *arg, int err, void *result, int packet_len,
+    int sec, char *bogus)
 {
 	getdns_network_req *netreq = (getdns_network_req *) arg;
 	/* if netreq->state == NET_REQ_NOT_SENT here, that implies
@@ -426,13 +427,13 @@ ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
 		cb_data->result = NULL;
 		cb_data->bogus = NULL;	/* unused but here in case we need it */
 		if (result) {
-			cb_data->result =
-			    ldns_buffer_new(ldns_buffer_limit(result));
+			cb_data->result = (uint8_t *) malloc(packet_len);
 			if (!cb_data->result) {
 				cb_data->err = GETDNS_RETURN_GENERIC_ERROR;
 			} else {
 				/* copy */
-				ldns_buffer_copy(cb_data->result, result);
+				(void) memcpy(
+				    cb_data->result, result, packet_len);
 			}
 		}
 		/* schedule the timeout */
@@ -451,7 +452,7 @@ ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
 	} else {
 		/* parse */
 		ldns_status r =
-		    ldns_buffer2pkt_wire(&(netreq->result), result);
+		    ldns_wire2pkt(&(netreq->result), result, packet_len);
 		if (r != LDNS_STATUS_OK) {
 			handle_network_request_error(netreq, r);
 		} else {
