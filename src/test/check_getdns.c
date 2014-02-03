@@ -13,6 +13,7 @@
 #include "check_getdns_address.h"
 #include "check_getdns_address_sync.h"
 #include "check_getdns_hostname.h"
+#include "check_getdns_hostname_sync.h"
 #include "check_getdns_context_create.h"
 #include "check_getdns_context_destroy.h"
 #include "check_getdns_cancel_callback.h"
@@ -51,6 +52,7 @@ main (void)
   Suite *getdns_address_suite(void);
   Suite *getdns_address_sync_suite(void);
   Suite *getdns_hostname_suite(void);
+  Suite *getdns_hostname_sync_suite(void);
   Suite *getdns_context_create_suite(void);
   Suite *getdns_context_destroy_suite(void);
   Suite *getdns_cancel_callback_suite(void);
@@ -83,6 +85,7 @@ main (void)
   srunner_add_suite(sr, getdns_address_suite());
   srunner_add_suite(sr, getdns_address_sync_suite());
   srunner_add_suite(sr, getdns_hostname_suite());
+  srunner_add_suite(sr, getdns_hostname_sync_suite());
   srunner_add_suite(sr, getdns_context_create_suite());
   srunner_add_suite(sr, getdns_context_destroy_suite());
   srunner_add_suite(sr, getdns_cancel_callback_suite());
