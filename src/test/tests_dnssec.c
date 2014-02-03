@@ -98,6 +98,7 @@ main(int argc, char** argv)
 	this_event_base = event_base_new();
 	if (this_event_base == NULL) {
 		fprintf(stderr, "Trying to create the event base failed.");
+		getdns_dict_destroy(this_extensions);
 		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
@@ -116,6 +117,7 @@ main(int argc, char** argv)
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
 		    this_name);
 		event_base_free(this_event_base);
+		getdns_dict_destroy(this_extensions);
 		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
@@ -126,6 +128,7 @@ main(int argc, char** argv)
 	}
 	/* Clean up */
 	event_base_free(this_event_base);
+	getdns_dict_destroy(this_extensions);
 	getdns_context_destroy(this_context);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
