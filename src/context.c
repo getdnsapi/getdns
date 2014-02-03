@@ -1330,6 +1330,8 @@ getdns_context_schedule_timeout(struct getdns_context* context,
     }
     node->key = &(timeout_data->transaction_id);
     node->data = timeout_data;
+    node->left = NULL;
+    node->right = NULL;
     if (!ldns_rbtree_insert(context->timeouts_by_id, node)) {
         /* free the node */
         GETDNS_FREE(context->my_mf, timeout_data);
@@ -1343,11 +1345,18 @@ getdns_context_schedule_timeout(struct getdns_context* context,
     } else {
         result = GETDNS_RETURN_GENERIC_ERROR;
         if (gettimeofday(&timeout_data->timeout_time, NULL) == 0) {
+            /* increment */
+            uint16_t num_secs = timeout / 1000;
+            /* timeout is in millis */
+            timeout_data->timeout_time.tv_sec += num_secs;
+
             ldns_rbnode_t* id_node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
             if (id_node) {
                 id_node->key = timeout_data;
                 id_node->data = timeout_data;
-                if (!ldns_rbtree_insert(context->timeouts_by_time, node)) {
+                id_node->left = NULL;
+                id_node->right = NULL;
+                if (!ldns_rbtree_insert(context->timeouts_by_time, id_node)) {
                     GETDNS_FREE(context->my_mf, id_node);
                 } else {
                     result = GETDNS_RETURN_GOOD;
@@ -1359,7 +1368,7 @@ getdns_context_schedule_timeout(struct getdns_context* context,
         GETDNS_FREE(context->my_mf, timeout_data);
         GETDNS_FREE(context->my_mf, node);
     }
-    return GETDNS_RETURN_GOOD;
+    return result;
 }
 
 getdns_return_t

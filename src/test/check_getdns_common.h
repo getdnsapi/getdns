@@ -1,6 +1,8 @@
 #ifndef _check_getdns_common_h_
 #define _check_getdns_common_h_
 
+#include "check_getdns_libevent.h"
+
      #define TRUE 1
      #define FALSE 0
      #define MAXLEN 200
@@ -9,6 +11,7 @@
      extern int callback_completed;
      extern int callback_canceled;
      extern uint16_t expected_changed_item;
+     extern int event_loop_type;
 
      struct extracted_response {
        uint32_t top_answer_type;
@@ -64,20 +67,12 @@
       *  create an event base and put it in the
       *  context.
       */
-     #define EVENT_BASE_CREATE							\
-       event_base = event_base_new();						\
-       ck_assert_msg(event_base != NULL, "Event base creation failed");		\
-       ASSERT_RC(getdns_extension_set_libevent_base(context, event_base),	\
-         GETDNS_RETURN_GOOD,							\
-         "Return code from getdns_extension_set_libevent_base()");
+     #define EVENT_BASE_CREATE	event_base = create_event_base(context);
 
      /*
       *   The RUN_EVENT_LOOP macro calls the event loop.
       */
-     #define RUN_EVENT_LOOP \
-        while (getdns_context_get_num_pending_requests(context, NULL) > 0) { \
-            event_base_loop(event_base, EVLOOP_ONCE); \
-        }
+     #define RUN_EVENT_LOOP run_event_loop(context, event_base);
 
      /*
       *  The LIST_CREATE macro simply creates a
@@ -184,5 +179,10 @@
       */
      void update_callbackfn(struct getdns_context *context,
                      uint16_t changed_item);
+
+     /* run the event loop */
+     void run_event_loop(struct getdns_context *context, struct event_base* event_base);
+
+     struct event_base* create_event_base(struct getdns_context* context);
 
 #endif
