@@ -293,8 +293,9 @@ href="#Contexts">later</a> for more advanced use.</p>
 <p class=descrip>Supplies the reason for the callback. See below for the codes and reasons.</p>
 
 <p class=define><code><b>*response</b></code></p>
-<p class=descrip>A response object with the response data. This is described below. The response
-object is part of the API's memory space, and will be freed by the API with the callback returns.</p>
+<p class=descrip>A response object with the response data.
+This is described below.
+The application is responsible for cleaning up the response object with getdns_dict_destroy.</p>
 
 <p class=define><code><b>*userarg</b></code></p>
 <p class=descrip>Identical to the <code>*userarg</code> passed to the calling function.</p>
@@ -552,6 +553,11 @@ this is only a graphical representation; the brackets, commas, quotation marks, 
 are not part of the data. Also, this document uses macro names instead of some of the int
 arguments; of course, the data structures have the actual int in them.</p>
 
+<p>The helper getter functions return references to <code>getdns_dict</code>, <code>getdns_list</code> and <code>getdns_bindata</code> data structures.
+The user must <b>not</b> destroy these retrieved "child" data structures themselves.
+They will automatically be destroyed when the containing "parent" data structure is destroyed.
+Also, retrieved "child" data structures can not be used any more after the containing "parent" data structure has been destroyed.</p>
+
 <h2>2.1 Creating Data Structures</h2>
 
 <p>Some of the features of the API require that you create your own data structures to be used in
@@ -616,6 +622,9 @@ doesn't match the contents of the indexed argument or name. The list functions w
 <code>GETDNS_RETURN_NO_SUCH_LIST_ITEM</code> if the index argument is higher than the length of the
 list. <code>getdns_dict_remove_name()</code> will return
 <code>GETDNS_RETURN_NO_SUCH_DICT_NAME</code> if the name argument doesn't exist in the dict. </p>
+
+<p>The helper setter functions store copies of the given "child" values.
+It is the responsibility of the caller to dispose of the original values.</p>
 
 <h1>3. <a id="Extensions">Extensions</a></h1>
 
@@ -2276,7 +2285,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.381.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.383.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
