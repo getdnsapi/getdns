@@ -709,10 +709,9 @@ priv_getdns_create_dict_from_rr(
 		if (r != GETDNS_RETURN_GOOD)
 			break;
 		r = getdns_dict_set_dict(*rr_dict, "rdata", rdata);
+		getdns_dict_destroy(rdata);
 		if (r == GETDNS_RETURN_GOOD)
 			return r;
-
-		getdns_dict_destroy(rdata);
 	} while (0);
 	getdns_dict_destroy(*rr_dict);
 	return r;
