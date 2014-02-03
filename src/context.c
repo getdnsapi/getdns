@@ -3,7 +3,7 @@
  * \file context.c
  * @brief getdns context management functions
  *
- * Originally taken from the getdns API description pseudo implementation.
+ * Declarations taken from the getdns API description pseudo implementation.
  *
  */
 
@@ -192,6 +192,7 @@ create_from_ldns_list(struct getdns_context *context, ldns_rdf ** ldns_list,
 	return result;
 }
 
+/*---------------------------------------- set_os_defaults */
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
@@ -213,8 +214,9 @@ set_os_defaults(struct getdns_context *context)
 	}
     /** cleanup **/
 	ldns_resolver_deep_free(lr);
+
 	return GETDNS_RETURN_GOOD;
-}
+} /* set_os_defaults */
 
 static int
 transaction_id_cmp(const void *id1, const void *id2)
@@ -323,7 +325,7 @@ getdns_context_create_with_extended_memory_functions(
 	    GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
 
 	return GETDNS_RETURN_GOOD;
-}				/* getdns_context_create */
+} /* getdns_context_create */
 
 /*
  * getdns_context_create
