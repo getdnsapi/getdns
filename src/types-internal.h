@@ -9,7 +9,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -100,9 +100,6 @@ struct getdns_context;
 /* declarations */
 struct getdns_dns_req;
 struct getdns_network_req;
-struct ub_ctx;
-struct event;
-struct event_base;
 
 typedef enum network_req_state_enum
 {
@@ -165,20 +162,8 @@ typedef struct getdns_dns_req
 	/* first request in list */
 	struct getdns_network_req *first_req;
 
-	/* request timeout event */
-	struct event *timeout;
-
-	/* local callback timer */
-	struct event *local_cb_timer;
-
-	/* event base this req is scheduled on */
-	struct event_base *ev_base;
-
 	/* context that owns the request */
 	struct getdns_context *context;
-
-	/* ub_ctx issuing the request */
-	struct ub_ctx *unbound;
 
 	/* request extensions */
 	struct getdns_dict *extensions;
@@ -189,6 +174,9 @@ typedef struct getdns_dns_req
 
 	/* the transaction id */
 	getdns_transaction_t trans_id;
+
+    /* local timeout id */
+    getdns_transaction_t local_timeout_id;
 
 } getdns_dns_req;
 
@@ -247,10 +235,39 @@ getdns_network_req *network_req_new(getdns_dns_req * owner,
 
 /* dns request utils */
 getdns_dns_req *dns_req_new(struct getdns_context *context,
-    struct ub_ctx *unbound,
     const char *name, uint16_t request_type, struct getdns_dict *extensions);
 
 void dns_req_free(getdns_dns_req * req);
+
+
+/* extensions */
+typedef void (*getdns_timeout_callback) (void* userarg);
+
+/* context timeout data */
+typedef struct getdns_timeout_data {
+    getdns_transaction_t transaction_id;
+    struct timeval timeout_time;
+    getdns_timeout_callback callback;
+    void* userarg;
+    void* extension_timer;
+    struct getdns_context* context;
+} getdns_timeout_data_t;
+
+typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* eventloop_data);
+typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
+    void* eventloop_data, uint16_t timeout,
+    getdns_timeout_data_t* timeout_data,
+    void** eventloop_timer);
+typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
+    void* eventloop_data, void** eventloop_timer);
+
+
+typedef struct getdns_eventloop_extension {
+    getdns_eventloop_cleanup_t cleanup_data;
+    getdns_eventloop_schedule_timeout_t schedule_timeout;
+    getdns_eventloop_clear_timeout_t clear_timeout;
+} getdns_eventloop_extension;
+
 
 #endif
 

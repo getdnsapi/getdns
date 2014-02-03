@@ -6,7 +6,7 @@
 #
 
 AC_PREREQ([2.56])
-AC_INIT([getdns], [0.1.0], [melinda.shore@nomountain.net])
+AC_INIT([getdns], [0.1.0], [stub-resolver@verisignlabs.com])
 AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 # AM_INIT_AUTOMAKE
 # LT_INIT
@@ -128,12 +128,7 @@ fi
 
 # Checks for libraries.
 found_all_libs=1
-AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
-AC_SEARCH_LIBS([event_loop], [event_core event], [], [
-ac_cv_search_event_loop=''
-LDFLAGS="$LDFLAGS -L/usr/local/lib/event"
-AC_SEARCH_LIBS([event_loop], [event_core event], [], [found_all_libs=0])
-])
+AC_MSG_NOTICE([Checking for dependencies ldns])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
@@ -142,14 +137,14 @@ then
     AC_MSG_ERROR([One more dependencies is missing])
 fi
 
-# break out libunbound from other libraries since we are currently using a 
+# break out libunbound from other libraries since we are currently using a
 # patch to the sources
 found_libunbound=1
 AC_MSG_NOTICE([Checking for dependency libunbound])
-AC_CHECK_LIB([unbound], [ub_ctx_set_event], [], [found_libunbound=0])
+AC_CHECK_LIB([unbound], [ub_fd], [], [found_libunbound=0])
 if test $found_libunbound == 0
 then
-    AC_MSG_ERROR([libunbound is missing or does not incude event code, you may need to patch your libunbound sources and rebuild.  See the getdns build instructions])
+    AC_MSG_ERROR([libunbound is missing.])
 fi
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
@@ -167,16 +162,22 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-AC_CHECK_FUNCS([event_base_new event_base_free])
-AH_BOTTOM([
-#ifndef HAVE_EVENT_BASE_FREE
-#define event_base_free(x) /* nop */
-#endif
-#ifndef HAVE_EVENT_BASE_NEW
-#define event_base_new event_init
-#endif
-])
+have_libevent=1
+AC_SEARCH_LIBS([event_loop],
+    [event_core event],
+    [AC_DEFINE([HAVE_LIBEVENT], [1], [Define to 1 to enable the libevent extension])]
+    [AC_CHECK_FUNCS([event_base_new event_base_free])]
+    [AH_BOTTOM([
+    #ifndef HAVE_EVENT_BASE_FREE
+    #define event_base_free(x) /* nop */
+    #endif
+    #ifndef HAVE_EVENT_BASE_NEW
+    #define event_base_new event_init
+    #endif
+    ])],
+    [have_libevent=0])
 
+AC_SUBST(have_libevent)
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])

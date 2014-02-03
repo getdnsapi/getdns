@@ -34,13 +34,8 @@
  */
 
 #include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#endif
 #include <getdns/getdns.h>
-#include <unbound-event.h>
+#include <unbound.h>
 #include "context.h"
 #include "general.h"
 #include "types-internal.h"
@@ -51,14 +46,28 @@
 #define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
-static void
-sync_callback_func(struct getdns_context *context,
-    uint16_t callback_type,
-    struct getdns_dict *response,
-    void *userarg, getdns_transaction_t transaction_id)
-{
-
-	*((struct getdns_dict **) userarg) = response;
+getdns_return_t submit_request_sync(getdns_dns_req* req) {
+    struct ub_result* ub_res = NULL;
+    getdns_return_t gr = GETDNS_RETURN_GOOD;
+    getdns_network_req *netreq = req->first_req;
+    while (netreq) {
+        int r = ub_resolve(req->context->unbound_ctx,
+            req->name,
+            netreq->request_type,
+            netreq->request_class,
+            &ub_res);
+        if (r != 0) {
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+        gr = getdns_apply_network_result(netreq, ub_res);
+        ub_resolve_free(ub_res);
+        ub_res = NULL;
+        if (gr != GETDNS_RETURN_GOOD) {
+            return gr;
+        }
+        netreq = netreq->next;
+    }
+    return gr;
 }
 
 getdns_return_t
@@ -78,12 +87,22 @@ getdns_general_sync(struct getdns_context *context,
     }
 	response_status = validate_extensions(extensions);
 	if (response_status == GETDNS_RETURN_GOOD) {
-		response_status = getdns_general_ub(context->unbound_sync,
-		    context->event_base_sync,
-		    context, name, request_type,
-		    extensions, (void *) response, NULL, sync_callback_func);
-
-		event_base_dispatch(context->event_base_sync);
+		/* for each netreq we call ub_ctx_resolve */
+        /* request state */
+        getdns_dns_req *req = dns_req_new(context,
+            name,
+            request_type,
+            extensions);
+        if (!req) {
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+        response_status = submit_request_sync(req);
+        if (response_status != GETDNS_RETURN_GOOD) {
+            dns_req_free(req);
+            return response_status;
+        }
+        *response = create_getdns_response(req);
+        dns_req_free(req);
 	}
 	return response_status;
 }

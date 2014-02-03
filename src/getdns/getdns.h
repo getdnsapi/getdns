@@ -43,8 +43,6 @@
 extern "C" {
 #endif
 
-struct event_base;
-
 #define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
 
 /**
@@ -797,18 +795,11 @@ char *getdns_pretty_print_dict(const struct getdns_dict *some_dict);
 char *getdns_display_ip_address(const struct getdns_bindata
     *bindata_of_ipv4_or_ipv6_address);
 
-/*
-getdns_return_t getdns_context_set_context_update_callback(
-    struct getdns_context *context,
-    void (*value) (struct getdns_context *context, uint16_t changed_item)
-    );
-*/
 getdns_return_t
 getdns_context_set_context_update_callback(
   struct getdns_context *      context,
   void                   (*value)(struct getdns_context *context, uint16_t changed_item)
 );
-
 
 getdns_return_t
 getdns_context_set_resolution_type(struct getdns_context *context, uint16_t value);
@@ -881,11 +872,14 @@ getdns_context_set_extended_memory_functions(struct getdns_context *context,
     void (*free) (void *userarg, void *ptr)
     );
 
-/* Extension - refactor to abstract async evt loop */
-/* For libevent, which we are using for these examples */
-getdns_return_t
-getdns_extension_set_libevent_base(struct getdns_context *context,
-    struct event_base *this_event_base);
+/* Async support */
+struct timeval;
+int getdns_context_get_num_pending_requests(struct getdns_context* context, struct timeval* next_timeout);
+
+/* get the fd */
+int getdns_context_fd(struct getdns_context* context);
+/* process async reqs */
+getdns_return_t getdns_context_process_async(struct getdns_context* context);
 
 #ifdef __cplusplus
 }

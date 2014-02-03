@@ -41,6 +41,7 @@
 #include "list.h"
 #include "util-internal.h"
 #include "types-internal.h"
+#include <unbound.h>
 #include "rr-dict.h"
 
 /**
@@ -570,6 +571,22 @@ validate_extensions(struct getdns_dict * extensions)
 		}
 	return GETDNS_RETURN_GOOD;
 }				/* validate_extensions */
+
+getdns_return_t
+getdns_apply_network_result(getdns_network_req* netreq,
+    struct ub_result* ub_res) {
+    ldns_buffer *result = ldns_buffer_new(ub_res->answer_len);
+    if (!result) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    ldns_status r =
+        ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
+    if (r != LDNS_STATUS_OK) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
 
 getdns_return_t
 validate_dname(const char* dname) {

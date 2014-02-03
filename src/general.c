@@ -35,17 +35,8 @@
  */
 
 #include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#  define evutil_socket_t int
-#  define event_free free
-#  define evtimer_new(b, cb, arg) event_new((b), -1, 0, (cb), (arg))
-#endif
 #include <string.h>
 #include <unbound.h>
-#include <unbound-event.h>
 #include <ldns/ldns.h>
 #include "context.h"
 #include "types-internal.h"
@@ -57,11 +48,9 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* declarations */
-static void ub_resolve_callback(void *arg, int err, void* result,
-    int packet_len, int sec, char *bogus);
-static void ub_resolve_timeout(evutil_socket_t fd, short what, void *arg);
-static void ub_local_resolve_timeout(evutil_socket_t fd, short what,
-    void *arg);
+static void ub_resolve_callback(void* mydata, int err, struct ub_result* result);
+static void ub_resolve_timeout(void *arg);
+static void ub_local_resolve_timeout(void *arg);
 
 static void handle_network_request_error(getdns_network_req * netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req * dns_req);
@@ -71,27 +60,12 @@ typedef struct netreq_cb_data
 {
 	getdns_network_req *netreq;
 	int err;
-	void *result;
-	int packet_len;
-	int sec;
-	char *bogus;
+	struct ub_result* ub_res;
 } netreq_cb_data;
-
-#ifndef HAVE_EVENT2_EVENT_H
-static struct event *
-event_new(struct event_base *b, evutil_socket_t fd, short ev, void* cb, void *arg)
-{
-	struct event* e = (struct event*)calloc(1, sizeof(struct event));
-	if(!e) return NULL;
-	event_set(e, fd, ev, cb, arg);
-	event_base_set(b, e);
-	return e;
-}
-#endif /* no event2 */
 
 /* cancel, cleanup and send timeout to callback */
 static void
-ub_resolve_timeout(evutil_socket_t fd, short what, void *arg)
+ub_resolve_timeout(void *arg)
 {
 	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
 	struct getdns_context *context = dns_req->context;
@@ -109,7 +83,7 @@ ub_resolve_timeout(evutil_socket_t fd, short what, void *arg)
 }
 
 static void
-ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg)
+ub_local_resolve_timeout(void *arg)
 {
 	netreq_cb_data *cb_data = (netreq_cb_data *) arg;
 
@@ -117,18 +91,15 @@ ub_local_resolve_timeout(evutil_socket_t fd, short what, void *arg)
 	 * invalid after calling ub_resolve_callback
 	 */
 	getdns_dns_req *dnsreq = cb_data->netreq->owner;
-	event_free(dnsreq->local_cb_timer);
-	dnsreq->local_cb_timer = NULL;
+    /* clear the timeout */
+
+	getdns_context_clear_timeout(dnsreq->context, dnsreq->local_timeout_id);
+	dnsreq->local_timeout_id = 0;
 
 	/* just call ub_resolve_callback */
-	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->result,
-	    cb_data->packet_len, cb_data->sec, cb_data->bogus);
+	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->ub_res);
 
 	/* cleanup the state */
-	free(cb_data->result);
-	if (cb_data->bogus) {
-		free(cb_data->bogus);
-	}
 	free(cb_data);
 }
 
@@ -176,7 +147,7 @@ static int
 submit_network_request(getdns_network_req * netreq)
 {
 	getdns_dns_req *dns_req = netreq->owner;
-	int r = ub_resolve_event(dns_req->unbound,
+	int r = ub_resolve_async(dns_req->context->unbound_ctx,
 	    dns_req->name,
 	    netreq->request_type,
 	    netreq->request_class,
@@ -188,10 +159,15 @@ submit_network_request(getdns_network_req * netreq)
 }
 
 static void
-ub_resolve_callback(void *arg, int err, void *result, int packet_len,
-    int sec, char *bogus)
+ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
+// ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
+//    char *bogus)
 {
-	getdns_network_req *netreq = (getdns_network_req *) arg;
+    getdns_network_req *netreq = (getdns_network_req *) arg;
+    if (err != 0) {
+        handle_network_request_error(netreq, err);
+        return;
+    }
 	/* if netreq->state == NET_REQ_NOT_SENT here, that implies
 	 * that ub called us back immediately - probably from a local file.
 	 * This most likely means that getdns_general has not returned
@@ -201,72 +177,49 @@ ub_resolve_callback(void *arg, int err, void *result, int packet_len,
 		 * we can make this less hacky, but it gets interesting when multiple
 		 * netreqs need to be issued and some resolve immediately vs. not.
 		 */
-		struct timeval tv;
-		getdns_dns_req *dnsreq = netreq->owner;
-		netreq_cb_data *cb_data =
-		    (netreq_cb_data *) malloc(sizeof(netreq_cb_data));
+        getdns_dns_req *dnsreq = netreq->owner;
+        netreq_cb_data *cb_data =
+            (netreq_cb_data *) malloc(sizeof(netreq_cb_data));
+        cb_data->netreq = netreq;
+        cb_data->err = err;
+        cb_data->ub_res = ub_res;
 
-		cb_data->netreq = netreq;
-		cb_data->err = err;
-		cb_data->sec = sec;
-		cb_data->result = NULL;
-		cb_data->bogus = NULL;	/* unused but here in case we need it */
-		if (result) {
-			cb_data->result = (uint8_t *) malloc(packet_len);
-			if (!cb_data->result) {
-				cb_data->err = GETDNS_RETURN_GENERIC_ERROR;
-			} else {
-				/* copy */
-				(void) memcpy(
-				    cb_data->result, result, packet_len);
-			}
-		}
-		/* schedule the timeout */
-		dnsreq->local_cb_timer =
-		    evtimer_new(dnsreq->ev_base, ub_local_resolve_timeout,
-		    cb_data);
-		tv.tv_sec = 0;
-		/* half ms */
-		tv.tv_usec = 500;
-		evtimer_add(dnsreq->local_cb_timer, &tv);
+        dnsreq->local_timeout_id = ldns_get_random();
+
+        getdns_context_schedule_timeout(dnsreq->context,
+            dnsreq->local_timeout_id, 1, ub_local_resolve_timeout, cb_data);
 		return;
 	}
 	netreq->state = NET_REQ_FINISHED;
-	if (err) {
-		handle_network_request_error(netreq, err);
-	} else {
-		/* parse */
-		ldns_status r =
-		    ldns_wire2pkt(&(netreq->result), result, packet_len);
-		if (r != LDNS_STATUS_OK) {
-			handle_network_request_error(netreq, r);
+	/* parse */
+    /* TODO: optimize */
+    getdns_return_t r = getdns_apply_network_result(netreq, ub_res);
+    ub_resolve_free(ub_res);
+    if (r != GETDNS_RETURN_GOOD) {
+        handle_network_request_error(netreq, err);
+    } else {
+		/* is this the last request */
+		if (!netreq->next) {
+			/* finished */
+			handle_dns_request_complete(netreq->owner);
 		} else {
-			/* is this the last request */
-			if (!netreq->next) {
-				/* finished */
-				handle_dns_request_complete(netreq->owner);
-			} else {
-				/* not finished - update to next request and ship it */
-				getdns_dns_req *dns_req = netreq->owner;
-				dns_req->current_req = netreq->next;
-				submit_network_request(netreq->next);
-			}
+			/* not finished - update to next request and ship it */
+			getdns_dns_req *dns_req = netreq->owner;
+			dns_req->current_req = netreq->next;
+			submit_network_request(netreq->next);
 		}
 	}
 }
 
 getdns_return_t
-getdns_general_ub(struct ub_ctx *unbound,
-    struct event_base *ev_base,
-    struct getdns_context *context,
+getdns_general_ub(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
     void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn)
+    getdns_transaction_t * transaction_id,
+    getdns_callback_t callbackfn)
 {
-	/* timeout */
-	struct timeval tv;
 	getdns_return_t gr;
 	int r;
 
@@ -281,7 +234,6 @@ getdns_general_ub(struct ub_ctx *unbound,
 
 	/* request state */
 	getdns_dns_req *req = dns_req_new(context,
-	    unbound,
 	    name,
 	    request_type,
 	    extensions);
@@ -299,11 +251,11 @@ getdns_general_ub(struct ub_ctx *unbound,
 	getdns_context_track_outbound_request(req);
 
 	/* assign a timeout */
-	req->ev_base = ev_base;
-	req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
-	tv.tv_sec = context->timeout / 1000;
-	tv.tv_usec = (context->timeout % 1000) * 1000;
-	evtimer_add(req->timeout, &tv);
+	// req->ev_base = ev_base;
+	// req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
+    /* schedule the timeout */
+    getdns_context_schedule_timeout(context, req->trans_id,
+        context->timeout, ub_resolve_timeout, req);
 
 	/* issue the first network req */
 
@@ -331,7 +283,7 @@ getdns_general(struct getdns_context *context,
 {
 	int extcheck = GETDNS_RETURN_GOOD;
 
-	if (!context || !context->event_base_async) {
+	if (!context) {
 		/* Can't do async without an event loop
 		 * or callback
 		 */
@@ -352,9 +304,7 @@ getdns_general(struct getdns_context *context,
 	if (extcheck != GETDNS_RETURN_GOOD)
 		return extcheck;
 
-	return getdns_general_ub(context->unbound_async,
-	    context->event_base_async,
-	    context,
+	return getdns_general_ub(context,
 	    name, request_type, extensions, userarg, transaction_id, callback);
 
 }				/* getdns_general */

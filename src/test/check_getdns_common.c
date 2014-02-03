@@ -5,12 +5,16 @@
 #include <inttypes.h>
 #include <check.h>
 #include <getdns/getdns.h>
+#include <getdns/getdns_ext_libevent.h>
 #include "check_getdns_common.h"
+#include <unistd.h>
+#include <sys/time.h>
 
 int callback_called = 0;
 int callback_completed = 0;
 int callback_canceled = 0;
 uint16_t expected_changed_item = 0;
+int event_loop_type = 0;
 
 /*
  *  extract_response extracts all of the various information
@@ -20,25 +24,25 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
 {
   ck_assert_msg(response != NULL, "Response should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type), 
+  ASSERT_RC(getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type),
     GETDNS_RETURN_GOOD, "Failed to extract \"top answer_type\"");
 
-  ASSERT_RC(getdns_dict_get_bindata(response, "canonical_name", &ex_response->top_canonical_name), 
+  ASSERT_RC(getdns_dict_get_bindata(response, "canonical_name", &ex_response->top_canonical_name),
     GETDNS_RETURN_GOOD, "Failed to extract \"top canonical_name\"");
 
-  ASSERT_RC(getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers), 
+  ASSERT_RC(getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers),
     GETDNS_RETURN_GOOD, "Failed to extract \"just_address_answers\"");
   ck_assert_msg(ex_response->just_address_answers != NULL, "just_address_answers should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_list(response, "replies_full", &ex_response->replies_full), 
+  ASSERT_RC(getdns_dict_get_list(response, "replies_full", &ex_response->replies_full),
     GETDNS_RETURN_GOOD, "Failed to extract \"replies_full\"");
   ck_assert_msg(ex_response->replies_full != NULL, "replies_full should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_list(response, "replies_tree", &ex_response->replies_tree), 
+  ASSERT_RC(getdns_dict_get_list(response, "replies_tree", &ex_response->replies_tree),
     GETDNS_RETURN_GOOD, "Failed to extract \"replies_tree\"");
   ck_assert_msg(ex_response->replies_tree != NULL, "replies_tree should not be NULL");
 
-  ASSERT_RC(getdns_list_get_dict(ex_response->replies_tree, 0, &ex_response->replies_tree_sub_dict), 
+  ASSERT_RC(getdns_list_get_dict(ex_response->replies_tree, 0, &ex_response->replies_tree_sub_dict),
     GETDNS_RETURN_GOOD, "Failed to extract \"replies_tree[0]\"");
   ck_assert_msg(ex_response->replies_tree_sub_dict != NULL, "replies_tree[0] dict should not be NULL");
 
@@ -46,29 +50,29 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
     GETDNS_RETURN_GOOD, "Failed to extract \"additional\"");
   ck_assert_msg(ex_response->additional != NULL, "additional should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_list(ex_response->replies_tree_sub_dict, "answer", &ex_response->answer), 
+  ASSERT_RC(getdns_dict_get_list(ex_response->replies_tree_sub_dict, "answer", &ex_response->answer),
     GETDNS_RETURN_GOOD, "Failed to extract \"answer\"");
   ck_assert_msg(ex_response->answer != NULL, "answer should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_int(ex_response->replies_tree_sub_dict, "answer_type", &ex_response->answer_type), 
+  ASSERT_RC(getdns_dict_get_int(ex_response->replies_tree_sub_dict, "answer_type", &ex_response->answer_type),
     GETDNS_RETURN_GOOD, "Failed to extract \"answer_type\"");
 
-  ASSERT_RC(getdns_dict_get_list(ex_response->replies_tree_sub_dict, "authority", &ex_response->authority), 
+  ASSERT_RC(getdns_dict_get_list(ex_response->replies_tree_sub_dict, "authority", &ex_response->authority),
     GETDNS_RETURN_GOOD, "Failed to extract \"authority\"");
   ck_assert_msg(ex_response->authority != NULL, "authority should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_bindata(ex_response->replies_tree_sub_dict, "canonical_name", &ex_response->canonical_name), 
+  ASSERT_RC(getdns_dict_get_bindata(ex_response->replies_tree_sub_dict, "canonical_name", &ex_response->canonical_name),
     GETDNS_RETURN_GOOD, "Failed to extract \"canonical_name\"");
 
-  ASSERT_RC(getdns_dict_get_dict(ex_response->replies_tree_sub_dict, "header", &ex_response->header), 
+  ASSERT_RC(getdns_dict_get_dict(ex_response->replies_tree_sub_dict, "header", &ex_response->header),
     GETDNS_RETURN_GOOD, "Failed to extract \"header\"");
   ck_assert_msg(ex_response->header != NULL, "header should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_dict(ex_response->replies_tree_sub_dict, "question", &ex_response->question), 
+  ASSERT_RC(getdns_dict_get_dict(ex_response->replies_tree_sub_dict, "question", &ex_response->question),
     GETDNS_RETURN_GOOD, "Failed to extract \"question\"");
   ck_assert_msg(ex_response->question != NULL, "question should not be NULL");
 
-  ASSERT_RC(getdns_dict_get_int(response, "status", &ex_response->status), 
+  ASSERT_RC(getdns_dict_get_int(response, "status", &ex_response->status),
     GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
 }
 
@@ -87,17 +91,17 @@ void assert_noerror(struct extracted_response *ex_response)
 /*
  *  assert_nodata asserts that ancount in the header and the
  *  of the answer section (list) are both zero.
- */ 
+ */
 void assert_nodata(struct extracted_response *ex_response)
 {
   uint32_t ancount;
   size_t length;
 
-  ASSERT_RC(getdns_dict_get_int(ex_response->header, "ancount", &ancount), 
+  ASSERT_RC(getdns_dict_get_int(ex_response->header, "ancount", &ancount),
     GETDNS_RETURN_GOOD, "Failed to extract \"ancount\"");
   ck_assert_msg(ancount == 0, "Expected ancount == 0, got %d", ancount);
 
-  ASSERT_RC(getdns_list_get_length(ex_response->answer, &length), 
+  ASSERT_RC(getdns_list_get_length(ex_response->answer, &length),
     GETDNS_RETURN_GOOD, "Failed to extract \"answer\" length");
   ck_assert_msg(length == 0, "Expected \"answer\" length == 0, got %d", length);
 }
@@ -110,7 +114,7 @@ void assert_nodata(struct extracted_response *ex_response)
  */
 void assert_address_in_answer(struct extracted_response *ex_response, int a, int aaaa)
 {
-  uint32_t ancount; 
+  uint32_t ancount;
   size_t length;
   struct getdns_dict *rr_dict;
   uint32_t type;
@@ -127,9 +131,9 @@ void assert_address_in_answer(struct extracted_response *ex_response, int a, int
 
   for(i = 0; i < length; i++)
   {
-    ASSERT_RC(getdns_list_get_dict(ex_response->answer, i, &rr_dict), 
+    ASSERT_RC(getdns_list_get_dict(ex_response->answer, i, &rr_dict),
       GETDNS_RETURN_GOOD, "Failed to extract \"answer\" record");
-    ASSERT_RC(getdns_dict_get_int(rr_dict, "type", &type), 
+    ASSERT_RC(getdns_dict_get_int(rr_dict, "type", &type),
       GETDNS_RETURN_GOOD, "Failed to extract \"type\" from answer record");
     switch (type)
     {
@@ -244,8 +248,8 @@ void callbackfn(struct getdns_context *context,
 
   /*
    *  If userarg is NULL, either a negative test case
-   *  erroneously reached the query state, or the value 
-   *  in userarg (verification function) was somehow 
+   *  erroneously reached the query state, or the value
+   *  in userarg (verification function) was somehow
    *  lost in transit.
    */
   ck_assert_msg(userarg != NULL, "Callback called with NULL userarg");
@@ -282,8 +286,38 @@ void callbackfn(struct getdns_context *context,
 void update_callbackfn(struct getdns_context *context,
                 uint16_t changed_item)
 {
-  
-  ck_assert_msg(changed_item == expected_changed_item, 
+
+  ck_assert_msg(changed_item == expected_changed_item,
     "Expected changed_item == %d, got %d",
     changed_item, expected_changed_item);
+}
+
+void run_event_loop(struct getdns_context* context, struct event_base* base) {
+    if (event_loop_type == 0) {
+        while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
+            event_base_loop(base, EVLOOP_ONCE);
+        }
+    } else if (event_loop_type == 1) {
+        struct timeval tv;
+        while (getdns_context_get_num_pending_requests(context, &tv) > 0) {
+            int fd = getdns_context_fd(context);
+            fd_set read_fds;
+            FD_ZERO(&read_fds);
+            FD_SET(fd, &read_fds);
+            select(fd + 1, &read_fds, NULL, NULL, &tv);
+            getdns_context_process_async(context);
+        }
+    }
+}
+
+struct event_base* create_event_base(struct getdns_context* context) {
+    if (event_loop_type == 0) {
+        struct event_base* result = event_base_new();
+        ck_assert_msg(result != NULL, "Event base creation failed");
+        ASSERT_RC(getdns_extension_set_libevent_base(context, result),
+            GETDNS_RETURN_GOOD,
+            "Return code from getdns_extension_set_libevent_base()");
+        return result;
+    }
+    return NULL;
 }

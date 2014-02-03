@@ -40,7 +40,6 @@
 #include <getdns/getdns.h>
 #include "types-internal.h"
 
-struct event_base;
 struct getdns_dns_req;
 struct ldns_rbtree_t;
 struct ub_ctx;
@@ -70,15 +69,9 @@ struct getdns_context {
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
 
-	/* Event loop for sync requests */
-	struct event_base *event_base_sync;
-	/* Event loop for async requests */
-	struct event_base *event_base_async;
-
 	/* The underlying unbound contexts that do
 	 * the real work */
-	struct ub_ctx *unbound_sync;
-	struct ub_ctx *unbound_async;
+	struct ub_ctx *unbound_ctx;
 
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set
@@ -89,6 +82,26 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	struct ldns_rbtree_t *outbound_requests;
+
+    /*
+     * Event loop extension functions
+     * These structs are static and should never be freed
+     * since they are just a collection of function pointers
+     */
+    getdns_eventloop_extension* extension;
+    /*
+     * Extension data that will be freed by the functions
+     * in the extension struct
+     */
+    void* extension_data;
+
+    /*
+     * Timeout info one tree to manage timeout data
+     * keyed by transaction id.  Second to manage by
+     * timeout time (ascending)
+     */
+    struct ldns_rbtree_t *timeouts_by_id;
+    struct ldns_rbtree_t *timeouts_by_time;
 };
 
 /** internal functions **/
@@ -117,5 +130,21 @@ struct getdns_bindata *getdns_bindata_copy(
 void getdns_bindata_destroy(
     struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
+
+/* extension stuff */
+getdns_return_t getdns_extension_set_eventloop(struct getdns_context* context,
+    getdns_eventloop_extension* extension, void* extension_data);
+
+getdns_return_t
+getdns_extension_detach_eventloop(struct getdns_context* context);
+
+
+/* timeout scheduling */
+getdns_return_t getdns_context_schedule_timeout(struct getdns_context* context,
+    getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,
+    void* userarg);
+
+getdns_return_t getdns_context_clear_timeout(struct getdns_context* context,
+    getdns_transaction_t id);
 
 #endif /* _GETDNS_CONTEXT_H_ */

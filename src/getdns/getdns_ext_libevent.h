@@ -1,13 +1,13 @@
 /**
+ * \file
+ * \brief Public interfaces to getdns, include in your application to use getdns API.
  *
- * /brief getdns contect management functions
- *
- * This is the meat of the API
- * Originally taken from the getdns API description pseudo implementation.
- *
+ * This source was taken from the original pseudo-implementation by
+ * Paul Hoffman.
  */
+
 /*
- * Copyright (c) 2013, Versign, Inc.
+ * Copyright (c) 2013, NLNet Labs, Versign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GETDNS_GENERAL_H_
-#define _GETDNS_GENERAL_H_
+#ifndef GETDNS_EXT_LIBEVENT_H
+#define GETDNS_EXT_LIBEVENT_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <getdns/getdns.h>
 
-/* private inner helper used by sync and async */
+struct event_base;
 
+/* For libevent, which we are using for these examples */
 getdns_return_t
-getdns_general_ub(struct getdns_context *context,
-    const char *name,
-    uint16_t request_type,
-    struct getdns_dict *extensions,
-    void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+getdns_extension_set_libevent_base(struct getdns_context *context,
+    struct event_base *this_event_base);
 
-void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
-
+#ifdef __cplusplus
+}
+#endif
 #endif

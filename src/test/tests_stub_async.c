@@ -43,6 +43,8 @@
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
+#include <getdns/getdns_ext_libevent.h>
+#include <sys/time.h>
 
 /* Set up the callback function, which will also do the processing of the results */
 void
@@ -90,8 +92,12 @@ main(int argc, char** argv)
 		getdns_context_destroy(this_context);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	(void) getdns_extension_set_libevent_base(this_context,
-	    this_event_base);
+	if (getdns_extension_set_libevent_base(this_context,
+	    this_event_base) != GETDNS_RETURN_GOOD) {
+        fprintf(stderr, "Setting event base failed.");
+        getdns_context_destroy(this_context);
+        return (GETDNS_RETURN_GENERIC_ERROR);
+    }
 	/* Set up the getdns call */
 	const char *this_name = argc > 1 ? argv[1] : "www.google.com";
 	char *this_userarg = "somestring";	// Could add things here to help identify this call
@@ -117,7 +123,10 @@ main(int argc, char** argv)
 //      }
 	else {
 		/* Call the event loop */
-		event_base_dispatch(this_event_base);
+        event_base_loop(this_event_base, EVLOOP_ONCE);
+        while (getdns_context_get_num_pending_requests(this_context, NULL) > 0) {
+		    event_base_loop(this_event_base, EVLOOP_ONCE);
+        }
 		// TODO: check the return value above
 	}
 	/* Clean up */

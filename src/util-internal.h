@@ -41,6 +41,10 @@
 #include <ldns/ldns.h>
 #include "context.h"
 
+struct ub_result;
+struct getdns_network_req;
+getdns_return_t getdns_apply_network_result(getdns_network_req* netreq, struct ub_result* result);
+
 #define GETDNS_MAX_DNAME_LEN 255
 #define GETDNS_MAX_LABEL_LEN 63
 

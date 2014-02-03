@@ -110,24 +110,23 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 
 
 static void
-ub_chain_response_callback(void *arg, int err, void *result, int packet_len, 
-    int sec, char *bogus)
+ub_chain_response_callback(void *arg, int err, struct ub_result* ub_res)
 {
 	struct chain_response *response = (struct chain_response *) arg;
-	ldns_status r;
-	ldns_pkt *p;
-	ldns_rr_list *answer;
-	ldns_rr_list *keys;
-	size_t i;
+    ldns_status r;
+    ldns_pkt *p;
+    ldns_rr_list *answer;
+    ldns_rr_list *keys;
+    size_t i;
 
-	response->err    = err;
-	response->sec    = sec;
-	response->bogus  = bogus;
+    response->err    = err;
+    response->sec    = ub_res ? ub_res->secure : 0;
+    response->bogus  = ub_res ? ub_res->why_bogus : NULL;
 
-	if (result == NULL)
-		goto done;
+    if (ub_res == NULL)
+        goto done;
 
-	r = ldns_wire2pkt(&p, (uint8_t *)result, (size_t)packet_len);
+    r = ldns_wire2pkt(&p, ub_res->answer_packet, ub_res->answer_len);
 	if (r != LDNS_STATUS_OK) {
 		if (err == 0)
 			response->err = r;
@@ -165,6 +164,7 @@ ub_chain_response_callback(void *arg, int err, void *result, int packet_len,
 		ldns_rr_list_free(keys);
 
 	ldns_pkt_free(p);
+    ub_resolve_free(ub_res);
 
 done:	if (response->err == 0 && response->result == NULL)
 		response->err = -1;
@@ -202,14 +202,14 @@ static void launch_chain_link_lookup(struct validation_chain *chain, char *name)
 	ldns_rbtree_insert(&(chain->root), (ldns_rbnode_t *)link);
 
 	chain->lock++;
-	r = ub_resolve_event(chain->dns_req->unbound,
+	r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
 	    name, LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, &link->DNSKEY,
 	    ub_chain_response_callback, &link->DNSKEY.unbound_id);
 	if (r != 0)
 		link->DNSKEY.err = r;
 
 	if (name[0] != '.' || name[1] != '\0') {
-		r = ub_resolve_event(chain->dns_req->unbound,
+		r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
 		    name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
 		    ub_chain_response_callback, &link->DS.unbound_id);
 		if (r != 0)
