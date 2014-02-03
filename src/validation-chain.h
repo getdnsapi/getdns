@@ -1,15 +1,17 @@
 /**
  *
- * /brief getdns contect management functions
+ * /brief priv_getdns_get_validation_chain function
  *
- * This is the meat of the API
- * Originally taken from the getdns API description pseudo implementation.
- *
+ * The priv_getdns_get_validation_chain function is called after an answer
+ * has been fetched when the dnssec_return_validation_chain extension is set.
+ * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
+ * answer.
  */
+
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -33,26 +35,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GETDNS_GENERAL_H_
-#define _GETDNS_GENERAL_H_
+#ifndef VALIDATION_CHAIN_H_
+#define VALIDATION_CHAIN_H_
 
-#include <getdns/getdns.h>
+#include "types-internal.h"
 
-/* private inner helper used by sync and async */
-
-struct ub_ctx;
-struct event_base;
-
-getdns_return_t
-getdns_general_ub(struct ub_ctx *unbound,
-    struct event_base *ev_base,
-    struct getdns_context *context,
-    const char *name,
-    uint16_t request_type,
-    struct getdns_dict *extensions,
-    void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
-
-void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
+/* Do some additional requests to fetch the complete validation chain */
+void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
 
 #endif
+
+/* validation-chain.h */
