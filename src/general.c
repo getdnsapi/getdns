@@ -268,19 +268,22 @@ static void submit_link(struct validation_chain *chain, char *name)
 	link->DS.unbound_id = -1;
 
 	ldns_rbtree_insert(&(chain->root), (ldns_rbnode_t *)link);
-	/* fprintf(stderr, "submitting for: %s\n", name); */
 
+	chain->todo++;
 	r = ub_resolve_event(chain->dns_req->unbound,
 	    name, LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, &link->DNSKEY,
 	    ub_supporting_callback, &link->DNSKEY.unbound_id);
 	if (r != 0)
 		link->DNSKEY.err = r;
 
-	r = ub_resolve_event(chain->dns_req->unbound,
-	    name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
-	    ub_supporting_callback, &link->DS.unbound_id);
-	if (r != 0)
-		link->DS.err = r;
+	if (name[0] != '.' || name[1] != '\0') {
+		r = ub_resolve_event(chain->dns_req->unbound,
+		    name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
+		    ub_supporting_callback, &link->DS.unbound_id);
+		if (r != 0)
+			link->DS.err = r;
+	}
+	chain->todo--;
 }
 
 void destroy_chain_link(ldns_rbnode_t * node, void *arg)
@@ -320,7 +323,6 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 		    ((const char *)link->node.key)[1] != '\0' ))
 		       	todo++;
 	}
-	/* fprintf(stderr, "todo until validation: %d\n", (int)todo); */
 	if (todo == 0) {
 		getdns_dns_req *dns_req = chain->dns_req;
 		response = create_getdns_response(chain->dns_req);
@@ -355,7 +357,7 @@ static void get_validation_chain(getdns_dns_req *dns_req)
 	chain->mf.mf.ext.realloc = dns_req->context->mf.mf.ext.realloc;
 	chain->mf.mf.ext.free    = dns_req->context->mf.mf.ext.free;
 	chain->dns_req = dns_req;
-	chain->todo = 1;
+	chain->todo = 0;
 
 	while (netreq) {
 		size_t i;
@@ -368,7 +370,6 @@ static void get_validation_chain(getdns_dns_req *dns_req)
 		}
 		netreq = netreq->next;
 	}
-	chain->todo--;
 	callback_on_complete_chain(chain);
 }
 
