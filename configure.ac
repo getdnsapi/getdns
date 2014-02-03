@@ -129,7 +129,11 @@ fi
 # Checks for libraries.
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependencies libevent, ldns])
+AC_SEARCH_LIBS([event_loop], [event_core event], [], [
+ac_cv_search_event_loop=''
+LDFLAGS="$LDFLAGS -L/usr/local/lib/event"
 AC_SEARCH_LIBS([event_loop], [event_core event], [], [found_all_libs=0])
+])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 

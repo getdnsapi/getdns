@@ -7103,6 +7103,10 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
+## CAVEAT EMPTOR:
+## There is no encapsulation within the following macros, do not change
+## the running order or otherwise move them around unless you know exactly
+## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -10906,7 +10910,68 @@ if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
 else
+
+ac_cv_search_event_loop=''
+LDFLAGS="$LDFLAGS -L/usr/local/lib/event"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_loop" >&5
+$as_echo_n "checking for library containing event_loop... " >&6; }
+if ${ac_cv_search_event_loop+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char event_loop ();
+int
+main ()
+{
+return event_loop ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' event_core event; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_event_loop=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_event_loop+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_event_loop+:} false; then :
+
+else
+  ac_cv_search_event_loop=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_event_loop" >&5
+$as_echo "$ac_cv_search_event_loop" >&6; }
+ac_res=$ac_cv_search_event_loop
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else
   found_all_libs=0
+fi
+
+
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ldns_dname_new_frm_str in -lldns" >&5
