@@ -64,9 +64,9 @@ Assuming that the getdns sources are in a diretory named getdns in your home dir
 ```
 # mkdir unbound
 # cd unbound
-# svn export -r 3023 http://unbound.nlnetlabs.nl/svn/trunk
+# svn export -r 3069 http://unbound.nlnetlabs.nl/svn/trunk
 # cd trunk
-# ./configure --with-libevent --with-libunbound-only
+# ./configure --with-libevent --with-libunbound-only --enable-event-api
 ### add --disable-gost --disable-ecdsa if elliptic curves are disabled for you.
 # make
 # make install

@@ -190,8 +190,8 @@ main(int argc, char *argv[])
 
 		dispatch_return = event_base_dispatch(this_event_base);
 
-		UNUSED_PARAM(dispatch_return);
-		// TODO: check the return value above
+        if(dispatch_return < 0)
+		    fprintf(stderr, "event_base_dispatch() failed, returned %d\n", dispatch_return);
 	}
 
 	/* Clean up */
