@@ -701,66 +701,66 @@ This list includes all resource record dicts for all the resource records (DS, D
 <pre>
 {     # This is the response object
   "validation_chain":
-  [ { "name": <bindata for .>,
+  [ { "name": &lt;bindata for .&gt;,
       "type": GETDNS_RRTYPE_DNSKEY,
       "rdata": { "flags": 256, . . . },
       . . . 
     },
-    { "name": <bindata for .>,
+    { "name": &lt;bindata for .&gt;,
       "type": GETDNS_RRTYPE_DNSKEY,
       "rdata": { "flags": 257, . . . },
       . . .
     },
-    { "name": <bindata for .>,
+    { "name": &lt;bindata for .&gt;,
       "type": GETDNS_RRTYPE_RRSIG,
-      "rdata": { "signers_name": <bindata for .>,
+      "rdata": { "signers_name": &lt;bindata for .&gt;,
                  "type_covered": GETDNS_RRTYPE_DNSKEY,
                  . . .
                },
     },
-    { "name": <bindata for com.>,
+    { "name": &lt;bindata for com.&gt;,
       "type": GETDNS_RRTYPE_DS,
       . . .
     },
-    { "name": <bindata for com.>,
+    { "name": &lt;bindata for com.&gt;,
       "type": GETDNS_RRTYPE_RRSIG
-      "rdata": { "signers_name": <bindata for .>,
+      "rdata": { "signers_name": &lt;bindata for .&gt;,
                  "type_covered": GETDNS_RRTYPE_DS,
                  . . .
                },
       . . .
     },
-    { "name": <bindata for com.>,
+    { "name": &lt;bindata for com.&gt;,
       "type": GETDNS_RRTYPE_DNSKEY
       "rdata": { "flags": 256, . . . },
       . . .
     },
-    { "name": <bindata for com.>,
+    { "name": &lt;bindata for com.&gt;,
       "type": GETDNS_RRTYPE_DNSKEY
       "rdata": { "flags": 257, . . . },
       . . .
     },
-    { "name": <bindata for com.>,
+    { "name": &lt;bindata for com.&gt;,
       "type": GETDNS_RRTYPE_RRSIG
-      "rdata": { "signers_name": <bindata for com.>,
+      "rdata": { "signers_name": &lt;bindata for com.&gt;,
                  "type_covered": GETDNS_RRTYPE_DNSKEY,
                  . . .
                },
       . . .
     },
-    { "name": <bindata for example.com.>,
+    { "name": &lt;bindata for example.com.&gt;,
       "type": GETDNS_RRTYPE_DS,
       . . .
     },
-    { "name": <bindata for example.com.>,
+    { "name": &lt;bindata for example.com.&gt;,
       "type": GETDNS_RRTYPE_RRSIG
-      "rdata": { "signers_name": <bindata for com.>,
+      "rdata": { "signers_name": &lt;bindata for com.&gt;,
                  "type_covered": GETDNS_RRTYPE_DS,
                  . . .
                },
       . . .
     },
-    { "name": <bindata for example.com.>,
+    { "name": &lt;bindata for example.com.&gt;,
       "type": GETDNS_RRTYPE_DNSKEY
       "rdata": { "flags": 257, ... },
       . . .
@@ -2276,7 +2276,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.380.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.381.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
