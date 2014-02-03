@@ -50,8 +50,8 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 
 * [libevent](http://libevent.org) version 2.0.21 stable
 Sometimes called libevent2
-* [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.16 (ldns may require openssl headers and libraries)
-* [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 3012, configure must be run with the --with-libevent option (recommended to also use --with-libunbound-only).
+* [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.17 (ldns requires openssl headers and libraries)
+* [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 3069, configure must be run with the --with-libevent and the --enable-event-api option (recommended to also use --with-libunbound-only).
 * [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
