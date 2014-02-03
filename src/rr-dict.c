@@ -759,3 +759,54 @@ priv_getdns_create_reply_question_dict(
 	return r;
 }
 
+getdns_return_t
+priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	struct getdns_bindata *name, *rdata_raw;
+	struct getdns_dict *rdata;
+	uint32_t rr_type;
+	ldns_rdf *owner;
+	ldns_status s;
+
+	assert(rr_dict);
+	assert(rr);
+
+	*rr = ldns_rr_new();
+	if (! *rr)
+		return GETDNS_RETURN_MEMORY_ERROR;
+	do {
+		r = getdns_dict_get_bindata(rr_dict, "name", &name);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+		owner = ldns_rdf_new(
+		    LDNS_RDF_TYPE_DNAME, name->size, name->data);
+		if (! owner) {
+			r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		ldns_rr_set_owner(*rr, owner);
+
+		r = getdns_dict_get_int(rr_dict, "type", &rr_type);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+		ldns_rr_set_type(*rr, rr_type);
+
+		r = getdns_dict_get_dict(rr_dict, "rdata", &rdata);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+
+		r = getdns_dict_get_bindata(rdata, "rdata_raw", &rdata_raw);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+		
+		s = ldns_wire2rdf(*rr, rdata_raw->data, rdata_raw->size, 0);
+		if (s == LDNS_STATUS_OK)
+			return r;
+
+		r = GETDNS_RETURN_GENERIC_ERROR;
+	} while (0);
+	ldns_rr_free(*rr);
+	return r;
+}
+

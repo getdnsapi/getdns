@@ -41,6 +41,9 @@ getdns_return_t priv_getdns_create_dict_from_rr(
 getdns_return_t priv_getdns_create_reply_question_dict(
     struct getdns_context *context, ldns_pkt *pkt, struct getdns_dict** q_dict);
 
+getdns_return_t priv_getdns_create_rr_from_dict(
+    struct getdns_dict *rr_dict, ldns_rr **rr);
+
 const char *priv_getdns_rr_type_name(int rr_type);
 
 #endif
