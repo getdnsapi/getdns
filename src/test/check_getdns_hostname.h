@@ -69,7 +69,7 @@
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
-       DICT_CREATE(address)
+       DICT_CREATE(address);
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_hostname(context, address, NULL,
