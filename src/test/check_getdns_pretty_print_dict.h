@@ -1,6 +1,67 @@
 #ifndef _check_getdns_pretty_print_dict_h_
 #define _check_getdns_pretty_print_dict_h_
 
+static const char pretty_expected[] = "{\n"
+"  \"bindata\": <bindata of \"bindata\">,\n"
+"  \"dict\":\n"
+"  {\n"
+"    \"bindata\": <bindata of \"bindata\">,\n"
+"    \"dict\":\n"
+"    {\n"
+"      \"bindata\": <bindata of \"bindata\">,\n"
+"      \"dict\":\n"
+"      {\n"
+"        \"int\": 4\n"
+"      },\n"
+"      \"int\": 3,\n"
+"      \"list\":\n"
+"      [\n"
+"        5\n"
+"      ]\n"
+"    },\n"
+"    \"int\": 2,\n"
+"    \"list\":\n"
+"    [\n"
+"      6,\n"
+"       <bindata of \"bindata\">,\n"
+"      {\n"
+"        \"bindata\": <bindata of \"bindata\">\n"
+"      },\n"
+"      [\n"
+"         <bindata of \"bindata\">\n"
+"      ]\n"
+"    ]\n"
+"  },\n"
+"  \"int\": 1,\n"
+"  \"list\":\n"
+"  [\n"
+"    7,\n"
+"     <bindata of \"bindata\">,\n"
+"    {\n"
+"      \"bindata\": <bindata of \"bindata\">,\n"
+"      \"dict\":\n"
+"      {\n"
+"        \"int\": 9\n"
+"      },\n"
+"      \"int\": 8,\n"
+"      \"list\":\n"
+"      [\n"
+"        10 \n"
+"      ]\n"
+"    },\n"
+"    [\n"
+"      11,\n"
+"       <bindata of \"bindata\">,\n"
+"      {\n"
+"        \"bindata\": <bindata of \"bindata\">\n"
+"      },\n"
+"      [\n"
+"         <bindata of \"bindata\">\n"
+"      ]\n"
+"    ]\n"
+"  ]\n"
+"}";
+
     /*
      **************************************************************************
      *                                                                        *
@@ -38,7 +99,7 @@
       *                                          1: bindata = { 8, "bindata" }
       *                                          2: dict = dict5 -> "bindata" = { 8, "bindata" }
       *                                          3: list = list3 0: bindata = { 8, "bindata" }
-      *       -> "list" = list4 0: int = 6
+      *       -> "list" = list4 0: int = 7
       *                         1: bindata = { 8, "bindata" }
       *                         2: dict6 -> "int" = 8
       *                                  -> "bindata" = { 8, "bindata" }
@@ -49,7 +110,7 @@
       *                                  2: dict8 -> "bindata" = { 8, "bindata" }
       *                                  3: list7 0: bindata = { 8, "bindata" }
       *
-      *  expect:  nothing
+      *  expect:  string to accurately represent dict defined above
       */
       struct getdns_bindata bindata = { 8, (void *)"bindata" };
       struct getdns_list *list7;
@@ -67,6 +128,7 @@
       struct getdns_dict *dict3;
       struct getdns_dict *dict2;
       struct getdns_dict *dict1;
+      char *pretty = NULL;
 
      /*
       *  Build it backwards, with the deepest elements first.
@@ -115,7 +177,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_list_set_bindata()");
       ASSERT_RC(getdns_list_set_dict(list4, 2, dict6),
         GETDNS_RETURN_GOOD, "Return code from getdns_list_set_dict()");
-      ASSERT_RC(getdns_list_set_list(list4, 3, list5),
+      ASSERT_RC(getdns_list_set_list(list4, 3, list6),
         GETDNS_RETURN_GOOD, "Return code from getdns_list_set_list()");
 
       LIST_CREATE(list3);
@@ -174,9 +236,10 @@
       ASSERT_RC(getdns_dict_set_list(dict1, "list", list4),
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_list()");
 
-      // ck_assert_msg(answer == 100, "Expected retrieved int == 100, got: %d",
-      //   answer);
-
+      pretty = getdns_pretty_print_dict(dict1);
+      ck_assert_msg(pretty != NULL, "NULL returned by getdns_pretty_print_dict()");
+      ck_assert_msg(strcmp(pretty_expected, pretty) == 0,
+        "Expected:\n%s\ngot:\n%s\n", pretty_expected, pretty);
 
      /*
       *  Destroy all of the sub-dicts and sub-lists
