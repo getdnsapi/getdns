@@ -28,7 +28,7 @@ checkoutput () {
 
 # filter out TTL and bindata stuff from $1 to $2
 filterout () {
-	sed -e '/"ttl"/d' -e '/"ipv4_address"/d' -e '/"ipv6_address"/d' -e '/"rdata_raw"/d' -e '/<bindata/d' <$1 >$2
+	sed -e '/"ttl"/d' -e '/"ipv4_address"/d' -e '/"ipv6_address"/d' -e '/"rdata_raw"/d' -e '/<bindata/d' -e '/"serial"/d' <$1 >$2
 }
 
 # like checkoutput but removes addresses and TTLs and bindata
