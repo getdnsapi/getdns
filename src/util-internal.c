@@ -575,10 +575,7 @@ validate_extensions(struct getdns_dict * extensions)
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res) {
-    ldns_buffer *result = ldns_buffer_new(ub_res->answer_len);
-    if (!result) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
+
     ldns_status r =
         ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
     if (r != LDNS_STATUS_OK) {
