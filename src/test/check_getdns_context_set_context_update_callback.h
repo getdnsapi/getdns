@@ -19,7 +19,7 @@
       struct getdns_context *context = NULL;
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
-        GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_context_set_context_update_callback()");
+        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_context_update_callback()");
         
     }
     END_TEST
