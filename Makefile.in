@@ -76,7 +76,6 @@ $(distdir):
 	cp $(srcdir)/src/test/*.[ch] $(distdir)/src/test
 	cp $(srcdir)/src/test/*.sh $(distdir)/src/test
 	cp $(srcdir)/src/test/*.good $(distdir)/src/test
-	cp $(srcdir)/src/test/*.can $(distdir)/src/test
 	cp $(srcdir)/src/example/Makefile.in $(distdir)/src/example
 	cp $(srcdir)/src/example/*.[ch] $(distdir)/src/example
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
