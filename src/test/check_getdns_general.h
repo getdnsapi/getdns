@@ -13,14 +13,14 @@
      {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL; 
        getdns_transaction_t transaction_id = 0;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
          NULL, &transaction_id, callbackfn), 
-         GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_general()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general()");
      }
      END_TEST
      
