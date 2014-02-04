@@ -72,7 +72,7 @@
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
        
-       ASSERT_RC(getdns_address(context, "8.8.8.8", NULL,
+       ASSERT_RC(getdns_address(context, "google.com", NULL,
          verify_getdns_context_destroy, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 

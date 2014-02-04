@@ -185,7 +185,7 @@
 
        for(i = 0; i < 10; i++)
        { 
-         ASSERT_RC(getdns_address(context, "8.8.8.8", NULL,
+         ASSERT_RC(getdns_address(context, "google.com", NULL,
            NULL, &transaction_id, cancel_callbackfn),
            GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
