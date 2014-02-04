@@ -67,6 +67,7 @@ this_callbackfn(struct getdns_context *this_context,
 		    "The callback got a callback_type of %d. Exiting.",
 		    this_callback_type);
 	getdns_dict_destroy(this_response);
+	(void) event_base_loopexit((struct event_base *)this_userarg, NULL);
 }
 
 int
@@ -107,13 +108,12 @@ main(int argc, char** argv)
 	    this_event_base);
 	/* Set up the getdns call */
 	const char *this_name = argc > 1 ? argv[1] : "www.example.com";
-	char *this_userarg = "somestring";	// Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
 
 	/* Make the call */
-	getdns_return_t dns_request_return =
-	    getdns_address(this_context, this_name,
-	    this_extensions, this_userarg, &this_transaction_id, this_callbackfn);
+	getdns_return_t dns_request_return = getdns_address(
+	    this_context, this_name, this_extensions,
+	    this_event_base, &this_transaction_id, this_callbackfn);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
 		    this_name);
