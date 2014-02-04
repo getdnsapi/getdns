@@ -295,13 +295,9 @@
      START_TEST (getdns_general_sync_13)
      {
       /*
-       *  name = "75.101.146.66"  need to change this to local unbound data
+       *  name = "75.101.146.66" 
        *  request_type = GETDNS_RRTYPE_PTR
-       *  expect: NOERROR response with PTR record
-       *    status = GETDNS_RESPSTATUS_GOOD
-       *    rcode = 0
-       *    ancount == 1 (number of records in ANSWER section)
-       *      and PTR record found ("type": 12) in "answer" list
+       *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
@@ -309,12 +305,7 @@
        CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_general_sync(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-
-       EXTRACT_RESPONSE;
-
-       assert_noerror(&ex_response);
-       assert_ptr_in_answer(&ex_response);
+         GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general_sync()");
 
        CONTEXT_DESTROY;
      }
@@ -323,13 +314,9 @@
      START_TEST (getdns_general_sync_14)
      {
       /*
-       *  name = "2607:f8b0:4006:802::1007"  need to change this to local unbound data
+       *  name = "2607:f8b0:4006:802::1007"
        *  request_type = GETDNS_RRTYPE_PTR
-       *  expect: NOERROR response with PTR record
-       *    status = GETDNS_RESPSTATUS_GOOD
-       *    rcode = 0
-       *    ancount == 1 (number of records in ANSWER section)
-       *      and PTR record found ("type": 12) in "answer" list
+       *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
@@ -337,12 +324,7 @@
        CONTEXT_CREATE(TRUE);
 
        ASSERT_RC(getdns_general_sync(context, "2607:f8b0:4006:802::1007", GETDNS_RRTYPE_PTR, NULL, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-
-       EXTRACT_RESPONSE;
-
-       assert_noerror(&ex_response);
-       assert_ptr_in_answer(&ex_response);
+         GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general_sync()");
 
        CONTEXT_DESTROY;
      }
@@ -360,6 +342,8 @@
        tcase_add_test(tc_neg, getdns_general_sync_3);
        tcase_add_test(tc_neg, getdns_general_sync_4);
        tcase_add_test(tc_neg, getdns_general_sync_5);
+       tcase_add_test(tc_neg, getdns_general_sync_13);
+       tcase_add_test(tc_neg, getdns_general_sync_14);
        suite_add_tcase(s, tc_neg);
        /* Positive test cases */
 
@@ -371,8 +355,6 @@
        tcase_add_test(tc_pos, getdns_general_sync_10);
        tcase_add_test(tc_pos, getdns_general_sync_11);
        tcase_add_test(tc_pos, getdns_general_sync_12);
-       tcase_add_test(tc_pos, getdns_general_sync_13);
-       tcase_add_test(tc_pos, getdns_general_sync_14);
        suite_add_tcase(s, tc_pos);
      
        return s;
