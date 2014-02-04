@@ -184,7 +184,7 @@
      {
       /*
        *  dict in address contains invalid address_type
-       *  expect:  GETDNS_RETURN_GENERIC_ERROR
+       *  expect:  GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
@@ -205,7 +205,7 @@
 
        ASSERT_RC(getdns_hostname(context, address, NULL, 
          NULL, &transaction_id, callbackfn),
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_hostname()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
        RUN_EVENT_LOOP;
 
@@ -218,7 +218,7 @@
      {
       /*
        *  dict in address contains invalid address_data
-       *  expect:  GETDNS_RETURN_GENERIC_ERROR
+       *  expect:  GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
@@ -239,7 +239,7 @@
 
        ASSERT_RC(getdns_hostname(context, address, NULL, 
          NULL, &transaction_id, callbackfn),
-         GETDNS_RETURN_GENERIC_ERROR, "Return code from getdns_hostname()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
        RUN_EVENT_LOOP;
 
