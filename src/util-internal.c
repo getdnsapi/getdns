@@ -589,6 +589,7 @@ getdns_return_t
 validate_dname(const char* dname) {
     int len;
     int label_len;
+    int num_chars;
     const char* s;
     if (dname == NULL) {
         return GETDNS_RETURN_INVALID_PARAMETER;
@@ -602,6 +603,7 @@ validate_dname(const char* dname) {
         return GETDNS_RETURN_GOOD;
     }
     label_len = 0;
+    num_chars = 0;
     for (s = dname; *s; ++s) {
         switch (*s) {
             case '.':
@@ -613,8 +615,10 @@ validate_dname(const char* dname) {
                 break;
             default:
                 if ((*s >= 'a' && *s <= 'z') ||
-                    (*s >= 'A' && *s <= 'Z') ||
-                    (*s >= '0' && *s <= '9')) {
+                    (*s >= 'A' && *s <= 'Z')) {
+                    label_len++;
+                    num_chars++;
+                } else if (*s >= '0' && *s <= '9') {
                     label_len++;
                 } else if (*s == '-' && label_len != 0) {
                     label_len++;
@@ -625,6 +629,9 @@ validate_dname(const char* dname) {
         }
     }
     if (label_len > GETDNS_MAX_LABEL_LEN) {
+        return GETDNS_RETURN_BAD_DOMAIN_NAME;
+    }
+    if (num_chars == 0) {
         return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     return GETDNS_RETURN_GOOD;
