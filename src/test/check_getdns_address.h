@@ -168,7 +168,6 @@
          verify_getdns_address_7, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
-
        RUN_EVENT_LOOP;
        CONTEXT_DESTROY;
      }
@@ -178,16 +177,15 @@
      {
        assert_noerror(ex_response);
        assert_address_in_answer(ex_response, TRUE, TRUE);
-       //assert_nodata(ex_response);
      }
      
      START_TEST (getdns_address_8)
      {
       /*
        *  name = "hostnamedoesntexist" (name should not be resolved)
-       *  expect: NOERROR response 
+       *  expect: NXDOMAIN response
        *    status = GETDNS_RESPSTATUS_GOOD
-       *    rcode = 0
+       *    rcode = 3 (NXDOMAIN)
        */
        void verify_getdns_address_8(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
@@ -209,7 +207,8 @@
 
      void verify_getdns_address_8(struct extracted_response *ex_response)
      {
-       assert_noerror(ex_response);
+       assert_nxdomain(ex_response);
+       assert_nodata(ex_response);
        assert_soa_in_authority(ex_response);
      }
      
