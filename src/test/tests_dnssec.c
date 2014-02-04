@@ -128,9 +128,12 @@ main(int argc, char** argv)
 		// TODO: check the return value above
 	}
 	/* Clean up */
-	event_base_free(this_event_base);
 	getdns_dict_destroy(this_extensions);
 	getdns_context_destroy(this_context);
+	/* we have to destroy the event base after the context, because
+	 * the context has to re-register its sockets from the eventbase,
+	 * who has to communicate this to the system event-mechanism. */
+	event_base_free(this_event_base);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 }				/* main */
