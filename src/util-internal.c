@@ -188,43 +188,83 @@ create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
 		return NULL;
 	}
 	/* cheat since we know GETDNS_RETURN_GOOD == 0 */
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ID,
-	    ldns_pkt_id(reply));
+    do {
+    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_ID,
+    	    ldns_pkt_id(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
 
-    /* set bits - seems like this could be macro-ified*/
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QR,
-        (int) ldns_pkt_qr(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_AA,
-        (int) ldns_pkt_aa(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_TC,
-        (int) ldns_pkt_tc(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RD,
-        (int) ldns_pkt_rd(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_CD,
-        (int) ldns_pkt_cd(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RA,
-        (int) ldns_pkt_ra(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_AD,
-        (int) ldns_pkt_ad(reply));
+        /* set bits - seems like this could be macro-ified*/
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_QR,
+            (int) ldns_pkt_qr(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
 
-    /* codes */
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_OPCODE,
-        (int) ldns_pkt_get_opcode(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_RCODE,
-        (int) ldns_pkt_get_rcode(reply));
-    /* default z to 0 */
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_Z, 0);
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_AA,
+            (int) ldns_pkt_aa(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
 
-    /* counts */
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_QDCOUNT,
-        (int) ldns_pkt_qdcount(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ANCOUNT,
-        (int) ldns_pkt_ancount(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_NSCOUNT,
-        (int) ldns_pkt_nscount(reply));
-    r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ARCOUNT,
-        (int) ldns_pkt_arcount(reply));
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_TC,
+            (int) ldns_pkt_tc(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
 
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_RD,
+            (int) ldns_pkt_rd(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_CD,
+            (int) ldns_pkt_cd(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_RA,
+            (int) ldns_pkt_ra(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_AD,
+            (int) ldns_pkt_ad(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        /* codes */
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_OPCODE,
+            (int) ldns_pkt_get_opcode(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_RCODE,
+            (int) ldns_pkt_get_rcode(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        /* default z to 0 */
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_Z, 0);
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        /* counts */
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_QDCOUNT,
+            (int) ldns_pkt_qdcount(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_ANCOUNT,
+            (int) ldns_pkt_ancount(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_NSCOUNT,
+            (int) ldns_pkt_nscount(reply));
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+        r = getdns_dict_set_int(result, GETDNS_STR_KEY_ARCOUNT,
+            (int) ldns_pkt_arcount(reply));
+    } while (0);
 
 	if (r != 0) {
 		getdns_dict_destroy(result);
@@ -289,18 +329,28 @@ add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 				addrs->mf.mf.ext.realloc,
 				addrs->mf.mf.ext.free);
 			if (this_address == NULL) {
-				r |= GETDNS_RETURN_MEMORY_ERROR;
+				r = GETDNS_RETURN_MEMORY_ERROR;
 				break;
 			}
 			struct getdns_bindata rbin =
 				{ ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
-			r |= getdns_dict_set_bindata(this_address,
+			r = getdns_dict_set_bindata(this_address,
 			    GETDNS_STR_ADDRESS_TYPE,
 			    ( ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A
 			    ?  &IPv4_str_bindata : &IPv6_str_bindata));
-			r |= getdns_dict_set_bindata(this_address,
+            if (r != GETDNS_RETURN_GOOD) {
+                getdns_dict_destroy(this_address);
+                break;
+            }
+
+			r = getdns_dict_set_bindata(this_address,
 			    GETDNS_STR_ADDRESS_DATA, &rbin);
-			r |= getdns_list_set_dict(addrs, item_idx++,
+            if (r != GETDNS_RETURN_GOOD) {
+                getdns_dict_destroy(this_address);
+                break;
+            }
+
+			r = getdns_list_set_dict(addrs, item_idx++,
 			    this_address);
 			getdns_dict_destroy(this_address);
 		}
@@ -364,51 +414,79 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 		return NULL;
 	}
 	/* header */
-	subdict = create_reply_header_dict(context, reply);
-	r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_HEADER, subdict);
-	getdns_dict_destroy(subdict);
+    do {
+    	subdict = create_reply_header_dict(context, reply);
+    	r = getdns_dict_set_dict(result, GETDNS_STR_KEY_HEADER, subdict);
+    	getdns_dict_destroy(subdict);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
 
-	/* question */
-	r |= priv_getdns_create_reply_question_dict(context, reply, &subdict);
-	r |= getdns_dict_set_dict(result, GETDNS_STR_KEY_QUESTION, subdict);
-	getdns_dict_destroy(subdict);
+    	/* question */
+    	r = priv_getdns_create_reply_question_dict(context, reply, &subdict);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
+    	r = getdns_dict_set_dict(result, GETDNS_STR_KEY_QUESTION, subdict);
+    	getdns_dict_destroy(subdict);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
 
-	/* answers */
-	rr_list = ldns_pkt_answer(reply);
-	sublist = create_list_from_rr_list(context, rr_list);
-	r |= getdns_dict_set_list(result, GETDNS_STR_KEY_ANSWER, sublist);
-	getdns_list_destroy(sublist);
-	if ((req->request_type == GETDNS_RRTYPE_A ||
-		req->request_type == GETDNS_RRTYPE_AAAA) &&
-	    just_addrs != NULL) {
-		/* add to just addrs */
-		r |= add_only_addresses(just_addrs, rr_list);
-	}
+    	/* answers */
+    	rr_list = ldns_pkt_answer(reply);
+    	sublist = create_list_from_rr_list(context, rr_list);
+    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_ANSWER, sublist);
+    	getdns_list_destroy(sublist);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
 
-	/* authority */
-	rr_list = ldns_pkt_authority(reply);
-	sublist = create_list_from_rr_list(context, rr_list);
-	r |= getdns_dict_set_list(result, GETDNS_STR_KEY_AUTHORITY, sublist);
-	getdns_list_destroy(sublist);
+    	if ((req->request_type == GETDNS_RRTYPE_A ||
+    		req->request_type == GETDNS_RRTYPE_AAAA) &&
+    	    just_addrs != NULL) {
+    		/* add to just addrs */
+    		r = add_only_addresses(just_addrs, rr_list);
+            if (r != GETDNS_RETURN_GOOD) {
+                break;
+            }
+    	}
 
-	/* additional */
-	rr_list = ldns_pkt_additional(reply);
-	sublist = create_list_from_rr_list(context, rr_list);
-	r |= getdns_dict_set_list(result, GETDNS_STR_KEY_ADDITIONAL, sublist);
-	getdns_list_destroy(sublist);
+    	/* authority */
+    	rr_list = ldns_pkt_authority(reply);
+    	sublist = create_list_from_rr_list(context, rr_list);
+    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_AUTHORITY, sublist);
+    	getdns_list_destroy(sublist);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
 
-	/* other stuff */
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
-	    GETDNS_NAMETYPE_DNS);
-	question = ldns_rr_list_rr(ldns_pkt_question(reply), 0);
-	name = convert_rdf_to_str(ldns_rr_owner(question));
-	if (name) {
-		r |= getdns_dict_util_set_string(result,
-		    GETDNS_STR_KEY_CANONICAL_NM, name);
-		free(name);
-	} else {
-		r |= 1;
-	}
+    	/* additional */
+    	rr_list = ldns_pkt_additional(reply);
+    	sublist = create_list_from_rr_list(context, rr_list);
+    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_ADDITIONAL, sublist);
+    	getdns_list_destroy(sublist);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
+
+    	/* other stuff */
+    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
+    	    GETDNS_NAMETYPE_DNS);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
+    	question = ldns_rr_list_rr(ldns_pkt_question(reply), 0);
+    	name = convert_rdf_to_str(ldns_rr_owner(question));
+    	if (name) {
+    		r = getdns_dict_util_set_string(result,
+    		    GETDNS_STR_KEY_CANONICAL_NM, name);
+    		free(name);
+    	} else {
+    		r = GETDNS_RETURN_MEMORY_ERROR;
+    	}
+    } while (0);
+
 	if (r != 0) {
 		getdns_dict_destroy(result);
 		result = NULL;
@@ -448,51 +526,92 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 		just_addrs = getdns_list_create_with_context(
 		    completed_request->context);
 	}
+    do {
+    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
+    	    GETDNS_RESPSTATUS_GOOD);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
 
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
-	    GETDNS_RESPSTATUS_GOOD);
-	canonical_name = get_canonical_name(completed_request->name);
-	r |= getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM,
-	    canonical_name);
-	free(canonical_name);
-	r |= getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
-	    GETDNS_NAMETYPE_DNS);
+    	canonical_name = get_canonical_name(completed_request->name);
+    	r = getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM,
+    	    canonical_name);
+    	free(canonical_name);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
 
-	while (netreq) {
-		struct getdns_bindata full_data;
-		full_data.data = NULL;
-		full_data.size = 0;
-		ldns_pkt *pkt = netreq->result;
-		ldns_status s =
-		    ldns_pkt2wire(&(full_data.data), pkt, &(full_data.size));
-		size_t idx = 0;
-		/* reply tree */
-		struct getdns_dict *reply = create_reply_dict(
-		    completed_request->context, netreq, just_addrs);
-		r |= getdns_list_add_item(replies_tree, &idx);
-		r |= getdns_list_set_dict(replies_tree, idx, reply);
-		getdns_dict_destroy(reply);
-		/* buffer */
-		if (s == LDNS_STATUS_OK) {
-			r |= getdns_list_add_item(replies_full, &idx);
-			r |= getdns_list_set_bindata(replies_full, idx,
+    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
+    	    GETDNS_NAMETYPE_DNS);
+        if (r != GETDNS_RETURN_GOOD) {
+            break;
+        }
+
+    	while (netreq && r == GETDNS_RETURN_GOOD) {
+    		struct getdns_bindata full_data;
+    		full_data.data = NULL;
+    		full_data.size = 0;
+    		ldns_pkt *pkt = netreq->result;
+    		ldns_status s =
+    		    ldns_pkt2wire(&(full_data.data), pkt, &(full_data.size));
+            if (s != LDNS_STATUS_OK) {
+                // break inner
+                r = GETDNS_RETURN_MEMORY_ERROR;
+                break;
+            }
+    		size_t idx = 0;
+    		/* reply tree */
+    		struct getdns_dict *reply = create_reply_dict(
+    		    completed_request->context, netreq, just_addrs);
+    		r = getdns_list_add_item(replies_tree, &idx);
+            if (r != GETDNS_RETURN_GOOD) {
+                getdns_dict_destroy(reply);
+                // break inner while
+                break;
+            }
+
+    		r = getdns_list_set_dict(replies_tree, idx, reply);
+    		getdns_dict_destroy(reply);
+            if (r != GETDNS_RETURN_GOOD) {
+                // break inner while
+                break;
+            }
+    		/* buffer */
+			r = getdns_list_add_item(replies_full, &idx);
+            if (r != GETDNS_RETURN_GOOD) {
+                free(full_data.data);
+                // break inner while
+                break;
+            }
+			r = getdns_list_set_bindata(replies_full, idx,
 			    &full_data);
 			free(full_data.data);
-		} else {
-			r = 1;
-			break;
-		}
-		netreq = netreq->next;
-	}
+            if (r != GETDNS_RETURN_GOOD) {
+                free(full_data.data);
+                // break inner while
+                break;
+            }
+    		netreq = netreq->next;
+    	}
 
-	r |= getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_TREE,
-	    replies_tree);
-	r |= getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_FULL,
-	    replies_full);
-	if (just_addrs) {
-		r |= getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS,
-		    just_addrs);
-	}
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_TREE,
+    	    replies_tree);
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_FULL,
+    	    replies_full);
+        if (r != GETDNS_RETURN_GOOD)
+            break;
+
+    	if (just_addrs) {
+    		r = getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS,
+    		    just_addrs);
+    	}
+    } while (0);
 
 	/* cleanup */
 	getdns_list_destroy(replies_tree);
