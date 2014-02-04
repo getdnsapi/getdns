@@ -28,7 +28,7 @@ uninstall:
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 
-doc:
+doc:	FORCE
 	cd doc && $(MAKE) $@
 
 example:
@@ -104,3 +104,4 @@ configure.status: configure
 	./config.status --recheck
 
 .PHONY: all distclean clean default doc test
+FORCE:

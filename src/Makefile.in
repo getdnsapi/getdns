@@ -35,8 +35,8 @@ LDFLAGS=@LDFLAGS@ @LIBS@
 EXTENSION_LIBEVENT_OBJ=@EXTENSION_LIBEVENT_OBJ@
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo validate_dnssec.lo \
-	util-internal.lo getdns_error.lo rr-dict.lo validation-chain.lo
-GETDNS_OBJ+=$(EXTENSION_LIBEVENT_OBJ)
+	util-internal.lo getdns_error.lo rr-dict.lo validation-chain.lo \
+	$(EXTENSION_LIBEVENT_OBJ)
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -66,10 +66,10 @@ uninstall:
 libgetdns.la: $(GETDNS_OBJ)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined
 
-test:
+test:	FORCE
 	cd test && $(MAKE) $@
 
-example:
+example:	FORCE
 	cd example && $(MAKE) $@
 
 clean:
@@ -113,4 +113,5 @@ Makefile: Makefile.in ../config.status
 configure.status: configure
 	cd .. && ./config.status --recheck
 
-.PHONY: clean test
+.PHONY: clean test example
+FORCE:
