@@ -330,7 +330,7 @@ getdns_context_create_with_extended_memory_functions(
 
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
-	result->edns_do_bit = 0;
+	result->edns_do_bit = 1;
 
     result->extension = NULL;
     result->extension_data = NULL;
@@ -850,7 +850,7 @@ getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 	/* 0 or 1 */
-	if (value > 1) {
+	if (value != 1) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 
