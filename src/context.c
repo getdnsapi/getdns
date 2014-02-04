@@ -406,6 +406,7 @@ getdns_context_destroy(struct getdns_context *context)
 		GETDNS_FREE(context->my_mf, context->namespaces);
 
     cancel_outstanding_requests(context, 0);
+    getdns_extension_detach_eventloop(context);
 
 	getdns_list_destroy(context->dns_root_servers);
 	getdns_list_destroy(context->suffix);
@@ -1270,6 +1271,7 @@ cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
         for (i = 0; i < acc.idx; ++i) {
             getdns_context_cancel_request(context, acc.ids[i], fire_callback);
         }
+        GETDNS_FREE(context->my_mf, acc.ids);
     }
 }
 

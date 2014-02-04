@@ -45,9 +45,6 @@ int
 main (int argc, char** argv)
 {
   int number_failed;
-  if (argc > 1) {
-    event_loop_type = atoi(argv[1]);
-  }
   SRunner *sr ;
 
   Suite *getdns_general_suite(void);

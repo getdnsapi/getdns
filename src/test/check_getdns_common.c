@@ -292,7 +292,17 @@ void update_callbackfn(struct getdns_context *context,
     changed_item, expected_changed_item);
 }
 
+static int get_event_loop_type() {
+    int result = 0;
+    char* loop = getenv("GETDNS_EVLOOP");
+    if (loop && strcmp("none", loop) == 0) {
+        result = 1;
+    }
+    return result;
+}
+
 void run_event_loop(struct getdns_context* context, struct event_base* base) {
+    int event_loop_type = get_event_loop_type();
     if (event_loop_type == 0) {
         while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
             event_base_loop(base, EVLOOP_ONCE);
@@ -311,6 +321,7 @@ void run_event_loop(struct getdns_context* context, struct event_base* base) {
 }
 
 struct event_base* create_event_base(struct getdns_context* context) {
+    int event_loop_type = get_event_loop_type();
     if (event_loop_type == 0) {
         struct event_base* result = event_base_new();
         ck_assert_msg(result != NULL, "Event base creation failed");

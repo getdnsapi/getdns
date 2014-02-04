@@ -11,7 +11,6 @@
      extern int callback_completed;
      extern int callback_canceled;
      extern uint16_t expected_changed_item;
-     extern int event_loop_type;
 
      struct extracted_response {
        uint32_t top_answer_type;
