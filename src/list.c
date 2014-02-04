@@ -44,7 +44,7 @@ getdns_return_t
 getdns_list_get_length(const struct getdns_list * list, size_t * answer)
 {
 	if (!list || !answer)
-		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	*answer = list->numinuse;
 	return GETDNS_RETURN_GOOD;;

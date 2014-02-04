@@ -2,7 +2,7 @@
  *
  * \file hostname.c
  * @brief getdns core functions
- * 
+ *
  * Originally taken from the getdns API description pseudo implementation.
  *
  */
@@ -80,9 +80,9 @@ getdns_hostname(struct getdns_context *context,
 		&& address_data->size == 16))
 		req_type = GETDNS_RRTYPE_PTR;
 	else
-		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 	if ((name = reverse_address(address_data)) == NULL)
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 	retval = getdns_general(context, name, req_type, extensions,
 	    userarg, transaction_id, callback);
 	free(name);
