@@ -163,6 +163,7 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
 have_libevent=1
+EXTENSION_LIBEVENT_OBJ="extension/libevent.lo"
 AC_SEARCH_LIBS([event_loop],
     [event_core event],
     [AC_DEFINE([HAVE_LIBEVENT], [1], [Define to 1 to enable the libevent extension])]
@@ -175,9 +176,11 @@ AC_SEARCH_LIBS([event_loop],
     #define event_base_new event_init
     #endif
     ])],
-    [have_libevent=0])
+    [have_libevent=0]
+    [EXTENSION_LIBEVENT_OBJ=""])
 
 AC_SUBST(have_libevent)
+AC_SUBST(EXTENSION_LIBEVENT_OBJ)
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])

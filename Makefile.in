@@ -58,6 +58,7 @@ $(distdir):
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
 	mkdir -p $(distdir)/src/example
+	mkdir -p $(distdir)/src/extension
 	mkdir -p $(distdir)/doc
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)

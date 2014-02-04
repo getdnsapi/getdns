@@ -634,6 +634,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+EXTENSION_LIBEVENT_OBJ
 have_libevent
 DOXYGEN
 INSTALL_DATA
@@ -11144,6 +11145,7 @@ _ACEOF
 
 
 have_libevent=1
+EXTENSION_LIBEVENT_OBJ="extension/libevent.lo"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_loop" >&5
 $as_echo_n "checking for library containing event_loop... " >&6; }
 if ${ac_cv_search_event_loop+:} false; then :
@@ -11215,7 +11217,9 @@ done
 
 else
   have_libevent=0
+    EXTENSION_LIBEVENT_OBJ=""
 fi
+
 
 
 
