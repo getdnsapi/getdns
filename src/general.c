@@ -229,7 +229,7 @@ getdns_general_ub(struct getdns_context *context,
 
 	gr = getdns_context_prepare_for_resolution(context);
 	if (gr != GETDNS_RETURN_GOOD) {
-		return GETDNS_RETURN_BAD_CONTEXT;
+		return gr;
 	}
 
 	/* request state */
@@ -287,7 +287,7 @@ getdns_general(struct getdns_context *context,
 		/* Can't do async without an event loop
 		 * or callback
 		 */
-		return GETDNS_RETURN_BAD_CONTEXT;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 	}
 
     /* ensure callback is not NULL */
