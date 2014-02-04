@@ -27,6 +27,7 @@ PROGRAMS=example-all-functions example-simple-answers example-tree example-synch
 	$(CC) $(CFLAGS) -c $< -o $@
 
 default: all
+example: all
 
 all: $(PROGRAMS)
 
