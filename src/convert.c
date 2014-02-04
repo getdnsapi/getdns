@@ -100,17 +100,39 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
     int ret;
     char *buf;
     char *prepped;
+    char *prepped2;
 
     if (ulabel == NULL)
-        return 0;
+	return 0;
+    prepped2 = malloc(BUFSIZ);
+    if(!prepped2)
+	    return 0;
     setlocale(LC_ALL, "");
-    if ((prepped = stringprep_locale_to_utf8(ulabel)) == 0)
-        return 0;
-    if ((ret = stringprep(prepped, BUFSIZ, 0, stringprep_nameprep)) != STRINGPREP_OK)
-        return 0;
-    if ((ret = idna_to_ascii_8z(prepped, &buf, 0)) != IDNA_SUCCESS)  {
-        return 0;
+    if ((prepped = stringprep_locale_to_utf8(ulabel)) == 0) {
+	/* convert to utf8 fails, which it can, but continue anyway */
+	if(strlen(ulabel)+1 > BUFSIZ) {
+	    free(prepped2);
+	    return 0;
+	}
+	memcpy(prepped2, ulabel, strlen(ulabel)+1);
+    } else {
+	if(strlen(prepped)+1 > BUFSIZ) {
+	    free(prepped);
+	    free(prepped2);
+	    return 0;
+	}
+	memcpy(prepped2, prepped, strlen(prepped)+1);
+	free(prepped);
     }
+    if ((ret = stringprep(prepped2, BUFSIZ, 0, stringprep_nameprep)) != STRINGPREP_OK) {
+	free(prepped2);
+	return 0;
+    }
+    if ((ret = idna_to_ascii_8z(prepped2, &buf, 0)) != IDNA_SUCCESS)  {
+	free(prepped2);
+	return 0;
+    }
+    free(prepped2);
     return buf;
 }
 
