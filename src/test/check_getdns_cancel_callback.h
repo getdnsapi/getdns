@@ -13,12 +13,12 @@
     {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        getdns_transaction_t transaction_id = 0;
 
        ASSERT_RC(getdns_cancel_callback(NULL, transaction_id),
-         GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_cancel_callback()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_cancel_callback()");
     }
     END_TEST
      

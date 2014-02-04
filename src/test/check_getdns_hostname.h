@@ -13,7 +13,7 @@
      {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
@@ -29,7 +29,7 @@
 
        ASSERT_RC(getdns_hostname(context, address, NULL, 
          NULL, &transaction_id, callbackfn), 
-         GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_hostname()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
        DICT_DESTROY(address);
      }

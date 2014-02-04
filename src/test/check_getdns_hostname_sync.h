@@ -13,7 +13,7 @@
      {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
@@ -28,7 +28,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
 
        ASSERT_RC(getdns_hostname_sync(context, address, NULL, &response), 
-         GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_hostname_sync()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname_sync()");
 
        DICT_DESTROY(address);
      }

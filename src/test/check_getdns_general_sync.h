@@ -13,13 +13,13 @@
      {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *response = NULL;
 
        ASSERT_RC(getdns_general_sync(context, "google.com", GETDNS_RRTYPE_A, NULL, &response), 
-         GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_general_sync()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general_sync()");
      }
      END_TEST
      
