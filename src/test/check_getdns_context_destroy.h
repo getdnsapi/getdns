@@ -44,6 +44,8 @@
        struct event_base *event_base = NULL;
        getdns_transaction_t transaction_id = 0;
 
+       callback_called = 0;	/* Initialize counter */
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
        
@@ -68,6 +70,8 @@
        struct getdns_context *context = NULL;
        struct event_base *event_base = NULL;
        getdns_transaction_t transaction_id = 0;
+
+       callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
@@ -96,6 +100,8 @@
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
        struct getdns_dict *address = NULL;
        getdns_transaction_t transaction_id = 0;
+
+       callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
@@ -128,6 +134,8 @@
        struct getdns_context *context = NULL;
        struct event_base *event_base = NULL;
        getdns_transaction_t transaction_id = 0;
+
+       callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;

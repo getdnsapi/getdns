@@ -33,6 +33,8 @@
        struct event_base *event_base = NULL;
        getdns_transaction_t transaction_id = 0;
 
+       callback_called = 0;     /* Initialize counter */
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
        
@@ -61,6 +63,8 @@
        struct getdns_context *context = NULL;
        struct event_base *event_base = NULL;
        getdns_transaction_t transaction_id = 0;
+
+       callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
@@ -107,6 +111,13 @@
        int i;
        int odd = 0;
        int even = 0;
+
+      /*  
+       *  Initialize counters 
+       */
+       callback_called = 0;
+       callback_completed = 0;
+       callback_canceled = 0;
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
@@ -179,6 +190,14 @@
        int i;
        int odd = 0;
        int even = 0;
+
+      /*  
+       *  Initialize counters 
+       */
+       callback_called = 0;
+       callback_completed = 0;
+       callback_canceled = 0;
+
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
@@ -254,6 +273,13 @@
        int i;
        int odd = 0;
        int even = 0;
+
+      /*  
+       *  Initialize counters 
+       */
+       callback_called = 0;
+       callback_completed = 0;
+       callback_canceled = 0;
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
@@ -333,6 +359,13 @@
        int i;
        int odd = 0;
        int even = 0;
+
+      /*  
+       *  Initialize counters 
+       */
+       callback_called = 0;
+       callback_completed = 0;
+       callback_canceled = 0;
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
