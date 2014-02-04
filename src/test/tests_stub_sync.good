@@ -1,15 +1,41 @@
 The packet {
   "answer_type": 800,
-  "canonical_name": <bindata for "www.google.com.">,
+  "canonical_name": <bindata of "www.google.com.">,
   "just_address_answers":
   [
-     <bindata of 0x4a7de473>,
-     <bindata of 0x4a7de470>,
-     <bindata of 0x4a7de474>
+    {
+      "address_data": <bindata of 0x4a7d8393>,
+      "address_type": <bindata of "IPv4">
+    },
+    {
+      "address_data": <bindata of 0x4a7d8368>,
+      "address_type": <bindata of "IPv4">
+    },
+    {
+      "address_data": <bindata of 0x4a7d8363>,
+      "address_type": <bindata of "IPv4">
+    },
+    {
+      "address_data": <bindata of 0x4a7d8367>,
+      "address_type": <bindata of "IPv4">
+    },
+    {
+      "address_data": <bindata of 0x4a7d836a>,
+      "address_type": <bindata of "IPv4">
+    },
+    {
+      "address_data": <bindata of 0x4a7d8369>,
+      "address_type": <bindata of "IPv4">
+    },
+    {
+      "address_data": <bindata of 0x2607f8b0400c0c030000000000000068>,
+      "address_type": <bindata of "IPv6">
+    }
   ],
   "replies_full":
   [
-     <bindata of 0x00008180000100050000000103777777...>
+     <bindata of 0x00008180000100060000000103777777...>,
+     <bindata of 0x00008180000100010000000103777777...>
   ],
   "replies_tree":
   [
@@ -19,52 +45,141 @@ The packet {
       [
         {
           "class": 1,
-          "name": <bindata for "www.google.com.">,
+          "name": <bindata for www.google.com.>,
           "rdata":
           {
-            "ipv4_address": <bindata of 0x4a7de473>,
-            "rdata_raw": <bindata of 0x4a7de473>
+            "ipv4_address": <bindata of 0x4a7d8393>,
+            "rdata_raw": <bindata of 0x4a7d8393>
           },
-          "ttl": 264,
-          "type": 1
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_A
         },
         {
           "class": 1,
-          "name": <bindata for "www.google.com.">,
+          "name": <bindata for www.google.com.>,
           "rdata":
           {
-            "ipv4_address": <bindata of 0x4a7de470>,
-            "rdata_raw": <bindata of 0x4a7de470>
+            "ipv4_address": <bindata of 0x4a7d8368>,
+            "rdata_raw": <bindata of 0x4a7d8368>
           },
-          "ttl": 264,
-          "type": 1
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_A
         },
         {
           "class": 1,
-          "name": <bindata for "www.google.com.">,
+          "name": <bindata for www.google.com.>,
           "rdata":
           {
-            "ipv4_address": <bindata of 0x4a7de474>,
-            "rdata_raw": <bindata of 0x4a7de474>
+            "ipv4_address": <bindata of 0x4a7d8363>,
+            "rdata_raw": <bindata of 0x4a7d8363>
           },
-          "ttl": 264,
-          "type": 1
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_A
+        },
+        {
+          "class": 1,
+          "name": <bindata for www.google.com.>,
+          "rdata":
+          {
+            "ipv4_address": <bindata of 0x4a7d8367>,
+            "rdata_raw": <bindata of 0x4a7d8367>
+          },
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_A
+        },
+        {
+          "class": 1,
+          "name": <bindata for www.google.com.>,
+          "rdata":
+          {
+            "ipv4_address": <bindata of 0x4a7d836a>,
+            "rdata_raw": <bindata of 0x4a7d836a>
+          },
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_A
+        },
+        {
+          "class": 1,
+          "name": <bindata for www.google.com.>,
+          "rdata":
+          {
+            "ipv4_address": <bindata of 0x4a7d8369>,
+            "rdata_raw": <bindata of 0x4a7d8369>
+          },
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_A
         }
       ],
       "answer_type": 800,
       "authority": [],
-      "canonical_name": <bindata for "www.google.com.">,
+      "canonical_name": <bindata of "www.google.com.">,
       "header":
       {
+        "aa": 0,
+        "ad": 0,
+        "ancount": 6,
+        "arcount": 0,
+        "cd": 0,
         "id": 0,
+        "nscount": 0,
         "opcode": 0,
-        "qr": 1
+        "qdcount": 1,
+        "qr": 1,
+        "ra": 1,
+        "rcode": 0,
+        "rd": 1,
+        "tc": 0,
+        "z": 0
       },
       "question":
       {
         "qclass": 1,
-        "qname": <bindata for "www.google.com.">,
+        "qname": <bindata for www.google.com.>,
         "qtype": 1
+      }
+    },
+    {
+      "additional": [],
+      "answer":
+      [
+        {
+          "class": 1,
+          "name": <bindata for www.google.com.>,
+          "rdata":
+          {
+            "ipv6_address": <bindata of 0x2607f8b0400c0c030000000000000068>,
+            "rdata_raw": <bindata of 0x2607f8b0400c0c030000000000000068>
+          },
+          "ttl": 300,
+          "type": GETDNS_RRTYPE_AAAA
+        }
+      ],
+      "answer_type": 800,
+      "authority": [],
+      "canonical_name": <bindata of "www.google.com.">,
+      "header":
+      {
+        "aa": 0,
+        "ad": 0,
+        "ancount": 1,
+        "arcount": 0,
+        "cd": 0,
+        "id": 0,
+        "nscount": 0,
+        "opcode": 0,
+        "qdcount": 1,
+        "qr": 1,
+        "ra": 1,
+        "rcode": 0,
+        "rd": 1,
+        "tc": 0,
+        "z": 0
+      },
+      "question":
+      {
+        "qclass": 1,
+        "qname": <bindata for www.google.com.>,
+        "qtype": 28
       }
     }
   ],
@@ -72,7 +187,7 @@ The packet {
 }
 The packet {
   "answer_type": 800,
-  "canonical_name": <bindata for "www.google.com.">,
+  "canonical_name": <bindata of "www.google.com.">,
   "just_address_answers": [],
   "replies_full":
   [
@@ -88,26 +203,44 @@ The packet {
       [
         {
           "class": 1,
-          "name": <bindata for "google.com.">,
+          "name": <bindata for google.com.>,
           "rdata":
           {
-            "rdata_raw": <bindata of 0x036e733106676f6f676c6503636f6d00>
+            "expire": 300,
+            "mname": <bindata for ns1.google.com.>,
+            "rdata_raw": <bindata of 0x036e733106676f6f676c6503636f6d00...>,
+            "refresh": 1800,
+            "retry": 1209600,
+            "rname": <bindata for dns-admin.google.com.>,
+            "serial": 1546121
           },
-          "ttl": 40,
-          "type": 6
+          "ttl": 60,
+          "type": GETDNS_RRTYPE_SOA
         }
       ],
-      "canonical_name": <bindata for "www.google.com.">,
+      "canonical_name": <bindata of "www.google.com.">,
       "header":
       {
+        "aa": 0,
+        "ad": 0,
+        "ancount": 0,
+        "arcount": 0,
+        "cd": 0,
         "id": 0,
+        "nscount": 1,
         "opcode": 0,
-        "qr": 1
+        "qdcount": 1,
+        "qr": 1,
+        "ra": 1,
+        "rcode": 0,
+        "rd": 1,
+        "tc": 0,
+        "z": 0
       },
       "question":
       {
         "qclass": 1,
-        "qname": <bindata for "www.google.com.">,
+        "qname": <bindata for www.google.com.>,
         "qtype": 33
       }
     }

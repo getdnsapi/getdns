@@ -42,6 +42,12 @@ checkpacket () {
 	diffit output2 output2.good
 }
 
+echo "./check_getdns"
+./check_getdns
+if test $? -ne 0; then
+	echo " failed (unit test execution failed)"
+	exit 1
+fi
 checkoutput tests_dict
 checkoutput tests_list 
 checkpacket tests_stub_async 
