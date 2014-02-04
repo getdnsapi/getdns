@@ -110,8 +110,8 @@ main(int argc, char** argv)
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
 		    this_name);
-		event_base_free(this_event_base);
 		getdns_context_destroy(this_context);
+		event_base_free(this_event_base);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 //    dns_request_return = getdns_service(this_context, this_name, NULL, this_userarg, &this_transaction_id,

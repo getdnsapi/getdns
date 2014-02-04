@@ -117,9 +117,9 @@ main(int argc, char** argv)
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
 		    this_name);
-		event_base_free(this_event_base);
 		getdns_dict_destroy(this_extensions);
 		getdns_context_destroy(this_context);
+		event_base_free(this_event_base);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 	else {
