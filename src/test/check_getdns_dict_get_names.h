@@ -78,7 +78,12 @@
       {
         ASSERT_RC(getdns_list_get_bindata(answer, i, &key),
           GETDNS_RETURN_GOOD, "Return code from getdns_list_get_bindata()");
-        strcat(string_buffer, (char *)key->data);
+	/* concatenate strings, if enough buffer space */
+	if(strlen(string_buffer) + strlen((char*)key->data) + 1
+		< sizeof(string_buffer)) {
+		memmove(string_buffer+strlen(string_buffer), key->data,
+			strlen((char*)key->data)+1);
+	}
       }
 
       ck_assert_msg(strcmp(string_buffer, "elevententwelve") == 0, 
