@@ -37,9 +37,6 @@ example:
 test:
 	cd src && $(MAKE) $@
 
-example:
-	cd src && $(MAKE) $@
-
 clean:
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
