@@ -610,10 +610,9 @@ getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
 		switch (dtype) {
 		case t_int:
 			if (getdns_list_get_int(list, i, &int_item) !=
-			    GETDNS_RETURN_GOOD)
-				if (ldns_buffer_printf(buf, " %d",
-					(int) int_item) < 0)
-					return -1;
+			    GETDNS_RETURN_GOOD ||
+			    ldns_buffer_printf(buf, "%d", (int) int_item) < 0)
+				return -1;
 			break;
 
 		case t_bindata:
