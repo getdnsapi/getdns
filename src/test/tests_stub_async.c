@@ -130,8 +130,10 @@ main(int argc, char** argv)
 		// TODO: check the return value above
 	}
 	/* Clean up */
-	event_base_free(this_event_base);
 	getdns_context_destroy(this_context);
+	/* the event base can only be free'd after the context has removed
+	 * all of its events from it */
+	event_base_free(this_event_base);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 }				/* main */
