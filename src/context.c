@@ -467,18 +467,6 @@ clear_resolution_type_set_flag(struct getdns_context *context, uint16_t type)
 	}
 }
 
-/*
- * getdns_context_set_context_update
- *
- */
-getdns_return_t
-getdns_context_set_context_update(struct getdns_context *context, uint16_t value)
-{
-	RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
-	UNUSED_PARAM(value);
-	return GETDNS_RETURN_GOOD;
-}				/* getdns_context_set_context_update */
-
 /**
  * Helper to dispatch the updated callback
  */
