@@ -52,16 +52,13 @@ default: all
 
 all: libgetdns.la
 
-example:
-	cd example && $(MAKE) $@
-
 install:	libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)/getdns
 	$(INSTALL) -m 644 $(srcdir)/getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
-    ifeq ($(have_libevent),1)
+ifeq ($(have_libevent),1)
 	$(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libevent.h $(DESTDIR)$(includedir)/getdns/
-    endif
+endif
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
@@ -78,7 +75,6 @@ test:
 
 example:
 	cd example && $(MAKE) $@
-
 
 clean:
 	cd test && $(MAKE) $@
