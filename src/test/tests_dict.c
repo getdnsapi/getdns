@@ -70,25 +70,25 @@ tst_bindatasetget(void)
 
 	tstmsg_case_msg("getdns_dict_get_bindata() empty dict");
 	retval = getdns_dict_get_bindata(NULL, key, &ans_bdata);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 1: getdns_dict_get_bindata(NULL, key, &ans_bdata),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	retval = getdns_dict_get_bindata(dict, key, NULL);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 2: getdns_dict_get_bindata(dict, key, NULL),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_bindata(dict, NULL, &ans_bindata)");
 	retval = getdns_dict_get_bindata(dict, NULL, &ans_bdata);
-	sprintf(msg, "test 3: getdns_dict_get_bindata,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 3: getdns_dict_get_bindata,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_bindata(dict, key, &ans_bdata)");
 	retval = getdns_dict_get_bindata(dict, key, &ans_bdata);
-	sprintf(msg, "test 4: getdns_list_get_bindata,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 4: getdns_list_get_bindata,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	getdns_dict_destroy(dict);
@@ -107,13 +107,13 @@ tst_bindatasetget(void)
 
 	tstmsg_case_msg("getdns_dict_set_bindata(dict, key, bindata)");
 	retval = getdns_dict_set_bindata(dict, key, bindata);
-	sprintf(msg, "test 5: getdns_dict_set_bindata,retval=%d,key=%s",
+	snprintf(msg, sizeof(msg), "test 5: getdns_dict_set_bindata,retval=%d,key=%s",
 	    retval, key);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_bindata(dict, key, &ans_bdata)");
 	retval = getdns_dict_get_bindata(dict, key, &ans_bdata);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 6: getdns_dict_get_bindata,retval=%d,key=%s,data=%s",
 	    retval, key, ans_bdata->data);
 	tstmsg_case_msg(msg);
@@ -153,25 +153,25 @@ tst_dictsetget(void)
 
 	tstmsg_case_msg("getdns_dict_get_dict() empty dict");
 	retval = getdns_dict_get_dict(NULL, key, &ansdict);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 7: getdns_dict_get_dict(NULL, key, &ansdict),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	retval = getdns_dict_get_dict(dict, key, NULL);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 8: getdns_dict_get_dict(dict, key, NULL),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_dict(dict, NULL, &ansdict)");
 	retval = getdns_dict_get_dict(dict, NULL, &ansdict);
-	sprintf(msg, "test 9: getdns_dict_get_dict,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 9: getdns_dict_get_dict,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_dict(dict, key, &ansdict)");
 	retval = getdns_dict_get_dict(dict, key, &ansdict);
-	sprintf(msg, "test 10: getdns_list_get_dict,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 10: getdns_list_get_dict,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	getdns_dict_destroy(dict);
@@ -189,7 +189,7 @@ tst_dictsetget(void)
 
 	tstmsg_case_msg("getdns_dict_set_dict(dict, key, newdict)");
 	retval = getdns_dict_set_dict(dict, key, newdict);
-	sprintf(msg, "test 11: getdns_dict_set_dict,retval=%d,key=%s", retval,
+	snprintf(msg, sizeof(msg), "test 11: getdns_dict_set_dict,retval=%d,key=%s", retval,
 		key);
 	tstmsg_case_msg(msg);
 	getdns_dict_destroy(newdict);
@@ -198,7 +198,7 @@ tst_dictsetget(void)
 	retval = getdns_dict_get_dict(dict, key, &ansdict);
 	getdns_dict_get_int(ansdict, "foo", &int1);
 	getdns_dict_get_int(ansdict, "bar", &int2);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 12: getdns_dict_get_dict,retval=%d,key=%s,int1=%d,int2=%d",
 	    retval, key, int1, int2);
 	tstmsg_case_msg(msg);
@@ -327,25 +327,25 @@ tst_listsetget(void)
 
 	tstmsg_case_msg("getdns_dict_get_list() empty dict");
 	retval = getdns_dict_get_list(NULL, key, &anslist);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 13: getdns_dict_get_list(NULL, key, &anslist),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	retval = getdns_dict_get_list(dict, key, NULL);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 14: getdns_dict_get_list(dict, key, NULL),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_list(dict, NULL, &anslist)");
 	retval = getdns_dict_get_list(dict, NULL, &anslist);
-	sprintf(msg, "test 15: getdns_dict_get_list,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 15: getdns_dict_get_list,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_list(dict, key, &anslist)");
 	retval = getdns_dict_get_list(dict, key, &anslist);
-	sprintf(msg, "test 16: getdns_list_get_list,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 16: getdns_list_get_list,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	getdns_dict_destroy(dict);
@@ -365,7 +365,7 @@ tst_listsetget(void)
 
 	tstmsg_case_msg("getdns_dict_set_list(dict, key, newlist)");
 	retval = getdns_dict_set_list(dict, key, newlist);
-	sprintf(msg, "test 17: getdns_dict_set_list,retval=%d,key=%s",
+	snprintf(msg, sizeof(msg), "test 17: getdns_dict_set_list,retval=%d,key=%s",
 	    retval, key);
 	tstmsg_case_msg(msg);
 	getdns_list_destroy(newlist);
@@ -374,7 +374,7 @@ tst_listsetget(void)
 	retval = getdns_dict_get_list(dict, key, &anslist);
 	getdns_list_get_int(anslist, 0, &int1);
 	getdns_list_get_int(anslist, 1, &int2);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 18: getdns_dict_get_list,retval=%d,key=%s,int1=%d,int2=%d",
 	    retval, key, int1, int2);
 	tstmsg_case_msg(msg);
@@ -411,25 +411,25 @@ tst_intsetget(void)
 
 	tstmsg_case_msg("getdns_dict_get_int() empty dict");
 	retval = getdns_dict_get_int(NULL, key, &ans_int);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 19: getdns_dict_get_int(NULL, key, &ans_int),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	retval = getdns_dict_get_int(dict, key, NULL);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 20: getdns_dict_get_int(dict, key, NULL),retval = %d",
 	    retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_int(dict, NULL, &ans_int)");
 	retval = getdns_dict_get_int(dict, NULL, &ans_int);
-	sprintf(msg, "test 21: getdns_dict_get_int,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 21: getdns_dict_get_int,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_int(dict, key, &ans_int)");
 	retval = getdns_dict_get_int(dict, key, &ans_int);
-	sprintf(msg, "test 22: getdns_list_get_int,retval = %d", retval);
+	snprintf(msg, sizeof(msg), "test 22: getdns_list_get_int,retval = %d", retval);
 	tstmsg_case_msg(msg);
 
 	getdns_dict_destroy(dict);
@@ -445,13 +445,13 @@ tst_intsetget(void)
 
 	tstmsg_case_msg("getdns_dict_set_int(dict, key, newint)");
 	retval = getdns_dict_set_int(dict, key, newint);
-	sprintf(msg, "test 23: getdns_dict_set_int,retval=%d,key=%s,int=%d",
+	snprintf(msg, sizeof(msg), "test 23: getdns_dict_set_int,retval=%d,key=%s,int=%d",
 	    retval, key, newint);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_int(dict, key, &ans_int)");
 	retval = getdns_dict_get_int(dict, key, &ans_int);
-	sprintf(msg, "test 24: getdns_dict_get_int,retval=%d,key=%s,int=%d",
+	snprintf(msg, sizeof(msg), "test 24: getdns_dict_get_int,retval=%d,key=%s,int=%d",
 	    retval, key, ans_int);
 	tstmsg_case_msg(msg);
 
@@ -459,19 +459,19 @@ tst_intsetget(void)
 	newint = 52;
 	tstmsg_case_msg("getdns_dict_set_int(dict, key, newint)");
 	retval = getdns_dict_set_int(dict, key, newint);
-	sprintf(msg, "test 25: getdns_dict_set_int,retval=%d,key=%s,int=%d",
+	snprintf(msg, sizeof(msg), "test 25: getdns_dict_set_int,retval=%d,key=%s,int=%d",
 	    retval, key, newint);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_int(dict, key, &ans_int)");
 	retval = getdns_dict_get_int(dict, key, &ans_int);
-	sprintf(msg, "test 26: getdns_dict_get_int,retval=%d,key=%s,int=%d",
+	snprintf(msg, sizeof(msg), "test 26: getdns_dict_get_int,retval=%d,key=%s,int=%d",
 	    retval, key, ans_int);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_dict_get_data_type(dict, key, &dtype)");
 	retval = getdns_dict_get_data_type(dict, key, &dtype);
-	sprintf(msg,
+	snprintf(msg, sizeof(msg),
 	    "test 27: getdns_dict_get_data_type,retval=%d,key=%s,dtype=%d",
 	    retval, key, dtype);
 	tstmsg_case_msg(msg);
