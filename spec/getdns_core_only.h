@@ -1,4 +1,4 @@
-/* Created at 2014-02-03-22-00-41*/
+/* Created at 2014-02-05-21-38-00*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -297,9 +297,9 @@ struct getdns_list * getdns_list_create_with_extended_memory_functions(
   void (*free)(void *userarg, void *)
 );
 void getdns_list_destroy(struct getdns_list *this_list);
-getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict);
-getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, struct getdns_list *child_list);
-getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata *child_bindata);
+getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, const struct getdns_dict *child_dict);
+getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, const struct getdns_list *child_list);
+getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, const struct getdns_bindata *child_bindata);
 getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index, uint32_t child_uint32);
 
 /* Dicts: create, destroy, and set the data at a given name */
@@ -319,11 +319,11 @@ struct getdns_dict * getdns_dict_create_with_extended_memory_functions(
   void (*free)(void *userarg, void *)
 );
 void getdns_dict_destroy(struct getdns_dict *this_dict);
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict);
-getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list);
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata);
-getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name, uint32_t child_uint32);
-getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
+getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, const char *name, const struct getdns_dict *child_dict);
+getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, const char *name, const struct getdns_list *child_list);
+getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, const char *name, const struct getdns_bindata *child_bindata);
+getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, const char *name, uint32_t child_uint32);
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name);
 
 /* Callback arguments */
 typedef void (*getdns_callback_t)(

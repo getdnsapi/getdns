@@ -213,13 +213,13 @@ struct getdns_list * getdns_list_create_with_extended_memory_functions(
 void getdns_list_destroy(struct getdns_list *this_list)
 { UNUSED_PARAM(this_list); }
 
-getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, struct getdns_dict *child_dict)
+getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, const struct getdns_dict *child_dict)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_dict); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, struct getdns_list *child_list)
+getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, const struct getdns_list *child_list)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_list); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, struct getdns_bindata *child_bindata)
+getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, const struct getdns_bindata *child_bindata)
 { UNUSED_PARAM(this_list); UNUSED_PARAM(index); UNUSED_PARAM(child_bindata); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index, uint32_t child_uint32)
@@ -254,19 +254,19 @@ struct getdns_dict * getdns_dict_create_with_extended_memory_functions(
 void getdns_dict_destroy(struct getdns_dict *this_dict)
 { UNUSED_PARAM(this_dict); }
 
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict)
+getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, const char *name, const struct getdns_dict *child_dict)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_dict); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list)
+getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, const char *name, const struct getdns_list *child_list)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_list); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata)
+getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, const char *name, const struct getdns_bindata *child_bindata)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_bindata); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name, uint32_t child_uint32)
+getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, const char *name, uint32_t child_uint32)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); UNUSED_PARAM(child_uint32); return GETDNS_RETURN_GOOD; }
 
-getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name)
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); return GETDNS_RETURN_GOOD; }
 
 char *
@@ -319,13 +319,6 @@ getdns_return_t
 getdns_context_set_context_update_callback(
   struct getdns_context  *context,
   void                   (*value)(struct getdns_context *context, uint16_t changed_item)
-)
-{ UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
-
-getdns_return_t
-getdns_context_set_context_update(
-  struct getdns_context  *context,
-  uint16_t               value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
