@@ -708,21 +708,29 @@ getdns_return_t
 validate_dname(const char* dname) {
     int len;
     int label_len;
-    int num_chars;
     const char* s;
     if (dname == NULL) {
         return GETDNS_RETURN_INVALID_PARAMETER;
     }
     len = strlen(dname);
-    if (len >= GETDNS_MAX_DNAME_LEN || len == 0) {
+    if (len > GETDNS_MAX_DNAME_LEN * 4 || len == 0) {
         return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     if (len == 1 && dname[0] == '.') {
         /* root is ok */
         return GETDNS_RETURN_GOOD;
     }
+	/* By specification [RFC1035] the total length of a DNS label is
+	 * restricted to 63 octets and must be larger than 0 (except for the
+	 * final root-label).  The total length of a domain name (i.e., label
+	 * octets and label length octets) is restricted to 255 octets or less.
+	 * With a fully qualified domain name this includes the last label
+	 * length octet for the root label.  In a normalized representation the
+	 * number of labels (including the root) plus the number of octets in
+	 * each label may not be larger than 255.
+	 */
+    len = 0;
     label_len = 0;
-    num_chars = 0;
     for (s = dname; *s; ++s) {
         switch (*s) {
             case '.':
@@ -731,26 +739,32 @@ validate_dname(const char* dname) {
                     return GETDNS_RETURN_BAD_DOMAIN_NAME;
                 }
                 label_len = 0;
+		len += 1;
                 break;
+	    case '\\':
+		s += 1;
+		if (isdigit(s[0])) {
+			/* octet value */
+			if (! isdigit(s[1]) && ! isdigit(s[2]))
+				return GETDNS_RETURN_BAD_DOMAIN_NAME;
+
+			if ((s[0] - '0') * 100 +
+			    (s[1] - '0') * 10 + (s[2] - '0') > 255)
+				return GETDNS_RETURN_BAD_DOMAIN_NAME;
+
+			s += 2;
+		}
+		/* else literal char (1 octet) */
+		label_len++;
+		len += 1;
+		break;
             default:
-                if ((*s >= 'a' && *s <= 'z') ||
-                    (*s >= 'A' && *s <= 'Z')) {
-                    label_len++;
-                    num_chars++;
-                } else if (*s >= '0' && *s <= '9') {
-                    label_len++;
-                } else if (*s == '-' && label_len != 0) {
-                    label_len++;
-                } else {
-                    return GETDNS_RETURN_BAD_DOMAIN_NAME;
-                }
+                label_len++;
+		len += 1;
                 break;
         }
     }
-    if (label_len > GETDNS_MAX_LABEL_LEN) {
-        return GETDNS_RETURN_BAD_DOMAIN_NAME;
-    }
-    if (num_chars == 0) {
+    if (len > GETDNS_MAX_DNAME_LEN || label_len > GETDNS_MAX_LABEL_LEN) {
         return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     return GETDNS_RETURN_GOOD;
