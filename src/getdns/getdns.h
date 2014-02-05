@@ -596,7 +596,7 @@ struct getdns_dict *getdns_dict_create_with_extended_memory_functions(
  */
 void getdns_dict_destroy(struct getdns_dict *this_dict);
 
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name,
+getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, const char *name,
     struct getdns_dict *child_dict);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
@@ -606,7 +606,7 @@ getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, char *name,
  * @param child_list value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name,
+getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, const char *name,
     struct getdns_list *child_list);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
@@ -616,7 +616,7 @@ getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, char *name,
  * @param child_bindata value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *name,
+getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, const char *name,
     struct getdns_bindata *child_bindata);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
@@ -625,7 +625,7 @@ getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, char *nam
  * @param child_uint32 value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name,
+getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, const char *name,
     uint32_t child_uint32);
 
 /**
@@ -635,7 +635,7 @@ getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, char *name,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
  */
-getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, char *name);
+getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name);
 
 /* Callback arguments */
 typedef void (*getdns_callback_t) (struct getdns_context *context,

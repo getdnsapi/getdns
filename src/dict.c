@@ -384,7 +384,7 @@ getdns_dict_destroy(struct getdns_dict *dict)
 
 /*---------------------------------------- getdns_dict_set_dict */
 getdns_return_t
-getdns_dict_set_dict(struct getdns_dict * dict, char *name,
+getdns_dict_set_dict(struct getdns_dict * dict, const char *name,
     struct getdns_dict * child_dict)
 {
 	struct getdns_dict_item *item;
@@ -410,7 +410,7 @@ getdns_dict_set_dict(struct getdns_dict * dict, char *name,
 
 /*---------------------------------------- getdns_dict_set_list */
 getdns_return_t
-getdns_dict_set_list(struct getdns_dict * dict, char *name,
+getdns_dict_set_list(struct getdns_dict * dict, const char *name,
     struct getdns_list * child_list)
 {
 	struct getdns_dict_item *item;
@@ -436,7 +436,7 @@ getdns_dict_set_list(struct getdns_dict * dict, char *name,
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
-getdns_dict_set_bindata(struct getdns_dict * dict, char *name,
+getdns_dict_set_bindata(struct getdns_dict * dict, const char *name,
     struct getdns_bindata * child_bindata)
 {
 	struct getdns_dict_item *item;
@@ -461,7 +461,7 @@ getdns_dict_set_bindata(struct getdns_dict * dict, char *name,
 
 /*---------------------------------------- getdns_dict_set_int */
 getdns_return_t
-getdns_dict_set_int(struct getdns_dict * dict, char *name,
+getdns_dict_set_int(struct getdns_dict * dict, const char *name,
     uint32_t child_uint32)
 {
 	struct getdns_dict_item *item;
@@ -774,7 +774,7 @@ getdns_pretty_print_dict(const struct getdns_dict *dict)
 }				/* getdns_pretty_print_dict */
 
 getdns_return_t
-getdns_dict_remove_name(struct getdns_dict *this_dict, char *name)
+getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)
 {
     struct getdns_dict_item *item;
 
