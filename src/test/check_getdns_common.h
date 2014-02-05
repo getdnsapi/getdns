@@ -1,7 +1,7 @@
 #ifndef _check_getdns_common_h_
 #define _check_getdns_common_h_
 
-#include "check_getdns_libevent.h"
+
 
      #define TRUE 1
      #define FALSE 0
@@ -66,12 +66,12 @@
       *  create an event base and put it in the
       *  context.
       */
-     #define EVENT_BASE_CREATE	event_base = create_event_base(context);
+     #define EVENT_BASE_CREATE	eventloop = create_event_base(context);
 
      /*
       *   The RUN_EVENT_LOOP macro calls the event loop.
       */
-     #define RUN_EVENT_LOOP run_event_loop(context, event_base);
+     #define RUN_EVENT_LOOP run_event_loop(context, eventloop);
 
      /*
       *  The LIST_CREATE macro simply creates a
@@ -180,8 +180,8 @@
                      uint16_t changed_item);
 
      /* run the event loop */
-     void run_event_loop(struct getdns_context *context, struct event_base* event_base);
+     void run_event_loop(struct getdns_context *context, void* eventloop);
 
-     struct event_base* create_event_base(struct getdns_context* context);
+     void* create_event_base(struct getdns_context* context);
 
 #endif

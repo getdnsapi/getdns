@@ -27,6 +27,9 @@
 /* Define to 1 if you have the `unbound' library (-lunbound). */
 #undef HAVE_LIBUNBOUND
 
+/* Define to 1 to enable the libuv extension */
+#undef HAVE_LIBUV
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 

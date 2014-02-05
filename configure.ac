@@ -162,6 +162,7 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
+# libevent extension
 have_libevent=1
 EXTENSION_LIBEVENT_OBJ="extension/libevent.lo"
 AC_SEARCH_LIBS([event_loop],
@@ -181,6 +182,19 @@ AC_SEARCH_LIBS([event_loop],
 
 AC_SUBST(have_libevent)
 AC_SUBST(EXTENSION_LIBEVENT_OBJ)
+
+# libuv extension
+have_libuv=1
+EXTENSION_LIBUV_OBJ="extension/libuv.lo"
+AC_SEARCH_LIBS([uv_run],
+    [uv],
+    [AC_DEFINE([HAVE_LIBUV], [1], [Define to 1 to enable the libuv extension])],
+    [have_libuv=0]
+    [EXTENSION_LIBUV_OBJ=""])
+
+AC_SUBST(have_libuv)
+AC_SUBST(EXTENSION_LIBUV_OBJ)
+
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])

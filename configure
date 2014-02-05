@@ -634,6 +634,8 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+EXTENSION_LIBUV_OBJ
+have_libuv
 EXTENSION_LIBEVENT_OBJ
 have_libevent
 DOXYGEN
@@ -11144,6 +11146,7 @@ _ACEOF
   esac
 
 
+# libevent extension
 have_libevent=1
 EXTENSION_LIBEVENT_OBJ="extension/libevent.lo"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_loop" >&5
@@ -11219,6 +11222,75 @@ else
   have_libevent=0
     EXTENSION_LIBEVENT_OBJ=""
 fi
+
+
+
+
+
+# libuv extension
+have_libuv=1
+EXTENSION_LIBUV_OBJ="extension/libuv.lo"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing uv_run" >&5
+$as_echo_n "checking for library containing uv_run... " >&6; }
+if ${ac_cv_search_uv_run+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char uv_run ();
+int
+main ()
+{
+return uv_run ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' uv; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_uv_run=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_uv_run+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_uv_run+:} false; then :
+
+else
+  ac_cv_search_uv_run=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_uv_run" >&5
+$as_echo "$ac_cv_search_uv_run" >&6; }
+ac_res=$ac_cv_search_uv_run
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+$as_echo "#define HAVE_LIBUV 1" >>confdefs.h
+
+else
+  have_libuv=0
+    EXTENSION_LIBUV_OBJ=""
+fi
+
 
 
 

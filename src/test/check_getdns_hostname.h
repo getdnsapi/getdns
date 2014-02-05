@@ -8,7 +8,7 @@
      *                                                                        *
      **************************************************************************
     */
-     
+
      START_TEST (getdns_hostname_1)
      {
       /*
@@ -27,14 +27,14 @@
        ASSERT_RC(getdns_dict_set_bindata(address, "address_data", &address_data),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
-         NULL, &transaction_id, callbackfn), 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
+         NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
        DICT_DESTROY(address);
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_2)
      {
       /*
@@ -42,7 +42,7 @@
        *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
@@ -56,7 +56,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_3)
      {
       /*
@@ -65,7 +65,7 @@
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
@@ -81,7 +81,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_4)
      {
       /*
@@ -91,7 +91,7 @@
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *) "IPv4" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
@@ -99,10 +99,10 @@
        DICT_CREATE(address);
        ASSERT_RC(getdns_dict_set_bindata(address, "address_type", &address_type),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
-       
+
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_hostname()");
 
@@ -112,7 +112,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_5)
      {
       /*
@@ -123,9 +123,9 @@
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -136,7 +136,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_NO_SUCH_DICT_NAME, "Return code from getdns_hostname()");
 
@@ -146,19 +146,19 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_6)
      {
       /*
-       *  dict in address contains names address_type 
+       *  dict in address contains names address_type
        *  and address_data but data type is not bindata
        *  expect:  GETDNS_RETURN_WRONG_TYPE_REQUESTED
        */
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -169,7 +169,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_WRONG_TYPE_REQUESTED, "Return code from getdns_hostname()");
 
@@ -179,7 +179,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_7)
      {
       /*
@@ -190,9 +190,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv5" };
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -203,7 +203,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
@@ -213,7 +213,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_8)
      {
       /*
@@ -224,9 +224,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
        struct getdns_bindata address_data = { 5, (void *)"\x08\x08\x08\x08\x08" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -237,7 +237,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
@@ -247,7 +247,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_9)
      {
       /*
@@ -258,9 +258,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -271,7 +271,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          NULL, &transaction_id, NULL),
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_hostname()");
 
@@ -281,7 +281,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_hostname_10)
      {
       /*
@@ -293,9 +293,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -306,7 +306,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          verify_getdns_hostname_10, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
@@ -316,13 +316,13 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      void verify_getdns_hostname_10(struct extracted_response *ex_response)
      {
        assert_noerror(ex_response);
        assert_ptr_in_answer(ex_response);
      }
-     
+
      START_TEST (getdns_hostname_11)
      {
       /*
@@ -334,9 +334,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
        struct getdns_bindata address_data = { 4, (void *)"\x01\x01\x01\x01" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -347,7 +347,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          verify_getdns_hostname_11, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
@@ -357,14 +357,14 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      void verify_getdns_hostname_11(struct extracted_response *ex_response)
      {
        assert_nxdomain(ex_response);
        assert_nodata(ex_response);
-       assert_soa_in_authority(ex_response); 
+       assert_soa_in_authority(ex_response);
      }
-     
+
      START_TEST (getdns_hostname_12)
      {
       /*
@@ -376,9 +376,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv6" };
        struct getdns_bindata address_data = { 16, (void *)"\x26\x07\xf8\xb0\x40\x06\x08\x02\x00\x00\x00\x00\x00\x00\x10\x04" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -389,7 +389,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          verify_getdns_hostname_12, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
@@ -399,13 +399,13 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      void verify_getdns_hostname_12(struct extracted_response *ex_response)
      {
        assert_noerror(ex_response);
        assert_ptr_in_answer(ex_response);
      }
-     
+
      START_TEST (getdns_hostname_13)
      {
       /*
@@ -417,9 +417,9 @@
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv6" };
        struct getdns_bindata address_data = { 16, (void *)"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" };
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
 
        DICT_CREATE(address);
@@ -430,7 +430,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_hostname(context, address, NULL, 
+       ASSERT_RC(getdns_hostname(context, address, NULL,
          verify_getdns_hostname_13, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
@@ -440,19 +440,19 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      void verify_getdns_hostname_13(struct extracted_response *ex_response)
      {
        assert_nxdomain(ex_response);
        assert_nodata(ex_response);
-       assert_soa_in_authority(ex_response); 
+       assert_soa_in_authority(ex_response);
      }
-     
+
      Suite *
      getdns_hostname_suite (void)
      {
        Suite *s = suite_create ("getdns_hostname()");
-     
+
        /* Negative test caseis */
        TCase *tc_neg = tcase_create("Negative");
        tcase_add_test(tc_neg, getdns_hostname_1);
@@ -465,7 +465,7 @@
        tcase_add_test(tc_neg, getdns_hostname_8);
        tcase_add_test(tc_neg, getdns_hostname_9);
        suite_add_tcase(s, tc_neg);
-     
+
        /* Positive test cases */
        TCase *tc_pos = tcase_create("Positive");
        tcase_add_test(tc_pos, getdns_hostname_10);
@@ -473,8 +473,8 @@
        tcase_add_test(tc_pos, getdns_hostname_12);
        tcase_add_test(tc_pos, getdns_hostname_13);
        suite_add_tcase(s, tc_pos);
-     
+
        return s;
      }
- 
+
 #endif

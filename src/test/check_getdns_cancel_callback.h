@@ -21,7 +21,7 @@
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_cancel_callback()");
     }
     END_TEST
-     
+
     START_TEST (getdns_cancel_callback_2)
     {
       /*
@@ -30,14 +30,14 @@
        */
        void verify_getdns_cancel_callback(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
-       
+
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
          verify_getdns_cancel_callback, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
@@ -52,7 +52,7 @@
        CONTEXT_DESTROY;
     }
     END_TEST
-     
+
     START_TEST (getdns_cancel_callback_3)
     {
       /*
@@ -61,14 +61,14 @@
        */
        void verify_getdns_cancel_callback(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
-       
+
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
          verify_getdns_cancel_callback, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
@@ -92,7 +92,7 @@
        *
        *  if transaction_id is odd, callback is canceled before event loop
        *    expect:  GETDNS_RETURN_GOOD
-       *  if transaction_id is even, callback is canceled after event loop 
+       *  if transaction_id is even, callback is canceled after event loop
        *    expect:  GETDNS_RETURN_UNKNOWN_TRANSACTION
        *
        *  expect: callback to be called with GETDNS_CALLBACK_CANCELED (if canceled)
@@ -105,15 +105,15 @@
                void *userarg,
                getdns_transaction_t transaction_id);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
        getdns_transaction_t transaction_id_array[10] = {};
        int i;
        int odd = 0;
        int even = 0;
 
-      /*  
-       *  Initialize counters 
+      /*
+       *  Initialize counters
        */
        callback_called = 0;
        callback_completed = 0;
@@ -123,7 +123,7 @@
        EVENT_BASE_CREATE;
 
        for(i = 0; i < 10; i++)
-       { 
+       {
          ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
            NULL, &transaction_id, cancel_callbackfn),
            GETDNS_RETURN_GOOD, "Return code from getdns_general()");
@@ -143,7 +143,7 @@
 
        RUN_EVENT_LOOP;
 
-       /*  
+       /*
         *  Cancel the callback for even transaction_ids which should be complete
         */
        for(i = 0; i < 10; i++)
@@ -171,7 +171,7 @@
        *
        *  if transaction_id is odd, callback is canceled before event loop
        *    expect:  GETDNS_RETURN_GOOD
-       *  if transaction_id is even, callback is canceled after event loop 
+       *  if transaction_id is even, callback is canceled after event loop
        *    expect:  GETDNS_RETURN_UNKNOWN_TRANSACTION
        *
        *  expect: callback to be called with GETDNS_CALLBACK_CANCELED (if canceled)
@@ -184,15 +184,15 @@
                void *userarg,
                getdns_transaction_t transaction_id);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
        getdns_transaction_t transaction_id_array[10] = {};
        int i;
        int odd = 0;
        int even = 0;
 
-      /*  
-       *  Initialize counters 
+      /*
+       *  Initialize counters
        */
        callback_called = 0;
        callback_completed = 0;
@@ -203,7 +203,7 @@
        EVENT_BASE_CREATE;
 
        for(i = 0; i < 10; i++)
-       { 
+       {
          ASSERT_RC(getdns_address(context, "google.com", NULL,
            NULL, &transaction_id, cancel_callbackfn),
            GETDNS_RETURN_GOOD, "Return code from getdns_address()");
@@ -223,7 +223,7 @@
 
        RUN_EVENT_LOOP;
 
-       /*  
+       /*
         *  Cancel the callback for even transaction_ids which should be complete
         */
        for(i = 0; i < 10; i++)
@@ -251,7 +251,7 @@
        *
        *  if transaction_id is odd, callback is canceled before event loop
        *    expect:  GETDNS_RETURN_GOOD
-       *  if transaction_id is even, callback is canceled after event loop 
+       *  if transaction_id is even, callback is canceled after event loop
        *    expect:  GETDNS_RETURN_UNKNOWN_TRANSACTION
        *
        *  expect: callback to be called with GETDNS_CALLBACK_CANCELED (if canceled)
@@ -264,7 +264,7 @@
                void *userarg,
                getdns_transaction_t transaction_id);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
        struct getdns_dict *address = NULL;
@@ -274,8 +274,8 @@
        int odd = 0;
        int even = 0;
 
-      /*  
-       *  Initialize counters 
+      /*
+       *  Initialize counters
        */
        callback_called = 0;
        callback_completed = 0;
@@ -289,9 +289,9 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata");
        ASSERT_RC(getdns_dict_set_bindata(address, "address_data", &address_data),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata");
-       
+
        for(i = 0; i < 10; i++)
-       { 
+       {
          ASSERT_RC(getdns_hostname(context, address, NULL,
            NULL, &transaction_id, cancel_callbackfn),
            GETDNS_RETURN_GOOD, "Return code from getdns_address()");
@@ -311,7 +311,7 @@
 
        RUN_EVENT_LOOP;
 
-       /*  
+       /*
         *  Cancel the callback for even transaction_ids which should be complete
         */
        for(i = 0; i < 10; i++)
@@ -340,7 +340,7 @@
        *
        *  if transaction_id is odd, callback is canceled before event loop
        *    expect:  GETDNS_RETURN_GOOD
-       *  if transaction_id is even, callback is canceled after event loop 
+       *  if transaction_id is even, callback is canceled after event loop
        *    expect:  GETDNS_RETURN_UNKNOWN_TRANSACTION
        *
        *  expect: callback to be called with GETDNS_CALLBACK_CANCELED (if canceled)
@@ -353,15 +353,15 @@
                void *userarg,
                getdns_transaction_t transaction_id);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
        getdns_transaction_t transaction_id_array[10] = {};
        int i;
        int odd = 0;
        int even = 0;
 
-      /*  
-       *  Initialize counters 
+      /*
+       *  Initialize counters
        */
        callback_called = 0;
        callback_completed = 0;
@@ -369,9 +369,9 @@
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
-       
+
        for(i = 0; i < 10; i++)
-       { 
+       {
          ASSERT_RC(getdns_service(context, "google.com", NULL,
            NULL, &transaction_id, cancel_callbackfn),
            GETDNS_RETURN_GOOD, "Return code from getdns_service()");
@@ -391,7 +391,7 @@
 
        RUN_EVENT_LOOP;
 
-       /*  
+       /*
         *  Cancel the callback for even transaction_ids which should be complete
         */
        for(i = 0; i < 10; i++)
@@ -430,7 +430,7 @@
        if(callback_type == GETDNS_CALLBACK_CANCEL)
        {
          callback_canceled++;
-         ck_assert_msg(transaction_id % 2, 
+         ck_assert_msg(transaction_id % 2,
            "Only callbacks with odd transaction_ids were canceled, this one is even: %d",
            transaction_id);
        }
@@ -452,7 +452,7 @@
        }
      }
 
-    /* 
+    /*
      *  Function passed via userarg to async functions for cancel callback tests
      */
      void verify_getdns_cancel_callback(struct extracted_response *ex_response)

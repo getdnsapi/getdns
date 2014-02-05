@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <check.h>
 #include <getdns/getdns.h>
-#include "check_getdns_libevent.h"
 #include "check_getdns_common.h"
 #include "check_getdns_general.h"
 #include "check_getdns_general_sync.h"

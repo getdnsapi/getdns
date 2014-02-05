@@ -8,22 +8,22 @@
      *                                                                        *
      **************************************************************************
     */
-     
+
      START_TEST (getdns_general_1)
      {
       /*
        *  context = NULL
        *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
-       struct getdns_context *context = NULL; 
+       struct getdns_context *context = NULL;
        getdns_transaction_t transaction_id = 0;
 
-       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
-         NULL, &transaction_id, callbackfn), 
+       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
+         NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general()");
      }
      END_TEST
-     
+
      START_TEST (getdns_general_2)
      {
       /*
@@ -31,7 +31,7 @@
        *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
@@ -45,7 +45,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_general_3)
      {
       /*
@@ -53,7 +53,7 @@
        *  expect:  GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
        const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
 
@@ -68,7 +68,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_general_4)
      {
       /*
@@ -76,14 +76,14 @@
        *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
        const char *name = "this.domain.hasalabelwhichexceedsthemaximumdnslabelsizeofsixtythreecharacters.com";
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL, 
+       ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_A, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
 
@@ -91,7 +91,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_general_5)
      {
       /*
@@ -99,13 +99,13 @@
        *  expect:  GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
+       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
          NULL, &transaction_id, NULL),
          GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_general()");
 
@@ -113,7 +113,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_general_6)
      {
       /*
@@ -126,9 +126,9 @@
        */
        void verify_getdns_general_6(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
@@ -146,7 +146,7 @@
        assert_noerror(ex_response);
        assert_nodata(ex_response);
      }
-     
+
      START_TEST (getdns_general_7)
      {
       /*
@@ -159,13 +159,13 @@
        */
        void verify_getdns_general_7(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "google.com", 65279, NULL, 
+       ASSERT_RC(getdns_general(context, "google.com", 65279, NULL,
          verify_getdns_general_7, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
@@ -179,7 +179,7 @@
        assert_noerror(ex_response);
        assert_nodata(ex_response);
      }
-     
+
      START_TEST (getdns_general_8)
      {
       /*
@@ -193,13 +193,13 @@
        */
        void verify_getdns_general_8(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
+       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
          verify_getdns_general_8, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
@@ -213,7 +213,7 @@
        assert_noerror(ex_response);
        assert_address_in_answer(ex_response, TRUE, FALSE);
      }
-     
+
      START_TEST (getdns_general_9)
      {
       /*
@@ -227,13 +227,13 @@
        */
        void verify_getdns_general_9(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_AAAA, NULL, 
+       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_AAAA, NULL,
          verify_getdns_general_9, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
@@ -247,7 +247,7 @@
        assert_noerror(ex_response);
        assert_address_in_answer(ex_response, FALSE, TRUE);
      }
-     
+
      START_TEST (getdns_general_10)
      {
       /*
@@ -262,14 +262,14 @@
        */
        void verify_getdns_general_10(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
        const char *name = "thisdomainsurelydoesntexist.com";
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_TXT, NULL, 
+       ASSERT_RC(getdns_general(context, name, GETDNS_RRTYPE_TXT, NULL,
          verify_getdns_general_10, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
@@ -284,7 +284,7 @@
        assert_nodata(ex_response);
        assert_soa_in_authority(ex_response);
      }
-     
+
      START_TEST (getdns_general_11)
      {
       /*
@@ -297,13 +297,13 @@
        */
        void verify_getdns_general_11(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "hampster.com", GETDNS_RRTYPE_MX, NULL, 
+       ASSERT_RC(getdns_general(context, "hampster.com", GETDNS_RRTYPE_MX, NULL,
          verify_getdns_general_11, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
@@ -317,7 +317,7 @@
        assert_noerror(ex_response);
        assert_nodata(ex_response);
      }
-     
+
      START_TEST (getdns_general_12)
      {
       /*
@@ -331,13 +331,13 @@
        */
        void verify_getdns_general_12(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL, 
+       ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
          verify_getdns_general_12, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
@@ -351,22 +351,22 @@
        assert_noerror(ex_response);
        assert_address_in_answer(ex_response, TRUE, FALSE);
      }
-     
+
      START_TEST (getdns_general_13)
      {
       /*
-       *  name = "75.101.146.66" 
+       *  name = "75.101.146.66"
        *  request_type = GETDNS_RRTYPE_PTR
        *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL, 
+       ASSERT_RC(getdns_general(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL,
          NULL, &transaction_id, callbackfn),
          GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
 
@@ -383,9 +383,9 @@
        *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
-     
+
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
@@ -402,7 +402,7 @@
      getdns_general_suite (void)
      {
        Suite *s = suite_create ("getdns_general()");
-     
+
        /* Negative test caseis */
        TCase *tc_neg = tcase_create("Negative");
        tcase_add_test(tc_neg, getdns_general_1);
@@ -413,7 +413,7 @@
        tcase_add_test(tc_neg, getdns_general_13);
        tcase_add_test(tc_neg, getdns_general_14);
        suite_add_tcase(s, tc_neg);
-     
+
        /* Positive test cases */
        TCase *tc_pos = tcase_create("Positive");
        tcase_add_test(tc_pos, getdns_general_6);
@@ -424,8 +424,8 @@
        tcase_add_test(tc_pos, getdns_general_11);
        tcase_add_test(tc_pos, getdns_general_12);
        suite_add_tcase(s, tc_pos);
-     
+
        return s;
      }
- 
+
 #endif

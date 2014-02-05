@@ -19,12 +19,12 @@
        getdns_context_destroy(NULL);
      }
      END_TEST
-     
+
      START_TEST (getdns_context_destroy_2)
      {
       /*
        *  destroy called with valid context and no outstanding transactions
-       *  expect: nothing, context is freed 
+       *  expect: nothing, context is freed
        */
        struct getdns_context *context = NULL;
 
@@ -32,7 +32,7 @@
        CONTEXT_DESTROY;
      }
      END_TEST
-     
+
      START_TEST (getdns_context_destroy_3)
      {
       /*
@@ -41,14 +41,14 @@
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        callback_called = 0;	/* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
-       
+
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
          verify_getdns_context_destroy, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
@@ -59,7 +59,7 @@
        ck_assert_msg(callback_called == 1, "callback_called should == 1, got %d", callback_called);
      }
      END_TEST
-     
+
      START_TEST (getdns_context_destroy_4)
      {
       /*
@@ -68,14 +68,14 @@
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
-       
+
        ASSERT_RC(getdns_address(context, "google.com", NULL,
          verify_getdns_context_destroy, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
@@ -86,7 +86,7 @@
        ck_assert_msg(callback_called == 1, "callback_called should == 1, got %d", callback_called);
      }
      END_TEST
-     
+
      START_TEST (getdns_context_destroy_5)
      {
       /*
@@ -95,7 +95,7 @@
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
        struct getdns_dict *address = NULL;
@@ -111,7 +111,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata");
        ASSERT_RC(getdns_dict_set_bindata(address, "address_data", &address_data),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata");
-       
+
        ASSERT_RC(getdns_hostname(context, address, NULL,
          verify_getdns_context_destroy, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
@@ -123,7 +123,7 @@
        ck_assert_msg(callback_called == 1, "callback_called should == 1, got %d", callback_called);
      }
      END_TEST
-     
+
      START_TEST (getdns_context_destroy_6)
      {
       /*
@@ -132,14 +132,14 @@
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
        callback_called = 0;     /* Initialize counter */
 
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
-       
+
        ASSERT_RC(getdns_service(context, "google.com", NULL,
          verify_getdns_context_destroy, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_service()");
@@ -183,7 +183,7 @@
        tcase_add_test(tc_pos, getdns_context_destroy_5);
        tcase_add_test(tc_pos, getdns_context_destroy_6);
        suite_add_tcase(s, tc_pos);
-     
+
        return s;
      }
 

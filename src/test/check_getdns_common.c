@@ -5,7 +5,15 @@
 #include <inttypes.h>
 #include <check.h>
 #include <getdns/getdns.h>
+#include "config.h"
+#if HAVE_LIBEVENT
+#include "check_getdns_libevent.h"
 #include <getdns/getdns_ext_libevent.h>
+#endif
+#if HAVE_LIBUV
+#include <getdns/getdns_ext_libuv.h>
+#include <uv.h>
+#endif
 #include "check_getdns_common.h"
 #include <unistd.h>
 #include <sys/time.h>
@@ -292,22 +300,29 @@ void update_callbackfn(struct getdns_context *context,
     changed_item, expected_changed_item);
 }
 
+#define NO_LOOP 0
+#define LIBEVENT_LOOP 1
+#define LIBUV_LOOP 2
+
 static int get_event_loop_type() {
     int result = 0;
     char* loop = getenv("GETDNS_EVLOOP");
-    if (loop && strcmp("none", loop) == 0) {
-        result = 1;
+    #if HAVE_LIBEVENT
+    if (loop && strcmp("libevent", loop) == 0) {
+        result = LIBEVENT_LOOP;
     }
+    #endif
+    #if HAVE_LIBUV
+    if (loop && strcmp("uv", loop) == 0) {
+        result = LIBUV_LOOP;
+    }
+    #endif
     return result;
 }
 
-void run_event_loop(struct getdns_context* context, struct event_base* base) {
+void run_event_loop(struct getdns_context* context, void* eventloop) {
     int event_loop_type = get_event_loop_type();
-    if (event_loop_type == 0) {
-        while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-            event_base_loop(base, EVLOOP_ONCE);
-        }
-    } else if (event_loop_type == 1) {
+    if (event_loop_type == NO_LOOP) {
         struct timeval tv;
         while (getdns_context_get_num_pending_requests(context, &tv) > 0) {
             int fd = getdns_context_fd(context);
@@ -318,11 +333,28 @@ void run_event_loop(struct getdns_context* context, struct event_base* base) {
             getdns_context_process_async(context);
         }
     }
+    #if HAVE_LIBEVENT
+    else if (event_loop_type == LIBEVENT_LOOP) {
+        struct event_base* base = (struct event_base*) eventloop;
+        while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
+            event_base_loop(base, EVLOOP_ONCE);
+        }
+    }
+    #endif
+    #if HAVE_LIBUV
+    else if (event_loop_type == LIBUV_LOOP) {
+        uv_loop_t* loop = (uv_loop_t*) eventloop;
+        while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
+            uv_run(loop, UV_RUN_ONCE);
+        }
+    }
+    #endif
 }
 
-struct event_base* create_event_base(struct getdns_context* context) {
+void* create_event_base(struct getdns_context* context) {
     int event_loop_type = get_event_loop_type();
-    if (event_loop_type == 0) {
+    #if HAVE_LIBEVENT
+    if (event_loop_type == LIBEVENT_LOOP) {
         struct event_base* result = event_base_new();
         ck_assert_msg(result != NULL, "Event base creation failed");
         ASSERT_RC(getdns_extension_set_libevent_base(context, result),
@@ -330,5 +362,16 @@ struct event_base* create_event_base(struct getdns_context* context) {
             "Return code from getdns_extension_set_libevent_base()");
         return result;
     }
+    #endif
+    #if HAVE_LIBUV
+    if (event_loop_type == LIBUV_LOOP) {
+        uv_loop_t* result = uv_default_loop();
+        ck_assert_msg(result != NULL, "UV loop creation failed");
+        ASSERT_RC(getdns_extension_set_libuv_loop(context, result),
+            GETDNS_RETURN_GOOD,
+            "Return code from getdns_extension_set_libuv_loop()");
+        return result;
+    }
+    #endif
     return NULL;
 }
