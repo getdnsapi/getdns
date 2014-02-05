@@ -10,7 +10,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -45,7 +45,7 @@ struct rdata_def {
 	int type;
 };
 
-struct rr_def { 
+struct rr_def {
 	const char *name;
 	const struct rdata_def *rdata;
 	int n_rdata_fields;
@@ -569,8 +569,50 @@ priv_getdns_rr_type_name(int rr_type)
 	return rr_def_lookup(rr_type)->name;
 }
 
+/* list of txt records */
 static getdns_return_t
-priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr)
+priv_getdns_equip_dict_with_txt_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
+                                     const struct rr_def* def,
+                                     struct getdns_context* context) {
+    size_t i;
+    struct getdns_bindata bindata;
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    struct getdns_list* records = getdns_list_create_with_context(context);
+    if (!records) {
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
+    for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; ++i) {
+        ldns_rdf* rdf = ldns_rr_rdf(rr, i);
+        int rdf_size = (int) ldns_rdf_size(rdf);
+        uint8_t* rdf_data = ldns_rdf_data(rdf);
+        if (rdf_size < 1) {
+            r = GETDNS_RETURN_GENERIC_ERROR;
+            continue;
+        }
+        int txt_size = (int) rdf_data[0] + 1;
+        if (rdf_size < txt_size) {
+            r = GETDNS_RETURN_GENERIC_ERROR;
+            continue;
+        }
+        bindata.size = txt_size;
+        bindata.data = rdf_data + 1;
+        
+        r = getdns_list_set_bindata(records, i, &bindata);
+    }
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_list_destroy(records);
+    } else {
+        r = getdns_dict_set_list(rdata, def->rdata[0].name, records);
+        if (r != GETDNS_RETURN_GOOD) {
+            getdns_list_destroy(records);
+        }
+    }
+    return r;
+}
+
+static getdns_return_t
+priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
+                                 struct getdns_context* context)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	const struct rr_def *def;
@@ -582,6 +624,11 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr)
 	assert(rr);
 
 	def = rr_def_lookup(ldns_rr_get_type(rr));
+    /* specialty handlers */
+    if (def->rdata == txt_rdata) {
+        return priv_getdns_equip_dict_with_txt_rdfs(rdata, rr, def, context);
+    }
+    /* generic */
 	for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; i++) {
 		if (i >= def->n_rdata_fields)
 			break;
@@ -659,7 +706,7 @@ priv_getdns_create_dict_from_rdfs(
 			break;
 
 		/* Now set the RR type specific attributes */
-		r = priv_getdns_equip_dict_with_rdfs(*rdata, rr);
+		r = priv_getdns_equip_dict_with_rdfs(*rdata, rr, context);
 		if (r == GETDNS_RETURN_GOOD)
 			return r;
 	} while(0);
@@ -799,7 +846,7 @@ priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
 		r = getdns_dict_get_bindata(rdata, "rdata_raw", &rdata_raw);
 		if (r != GETDNS_RETURN_GOOD)
 			break;
-		
+
 		s = ldns_wire2rdf(*rr, rdata_raw->data, rdata_raw->size, 0);
 		if (s == LDNS_STATUS_OK)
 			return r;
