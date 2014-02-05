@@ -1180,11 +1180,26 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
     int r = context->outbound_requests->count;
     if (r > 0) {
         if (!context->extension && next_timeout) {
-            /* get the first timeout */
-            ldns_rbnode_t* first = ldns_rbtree_first(context->timeouts_by_time);
-            if (first) {
-                getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) first->data;
-                *next_timeout = (timeout_data->timeout_time);
+            /* default is 1 second */
+            next_timeout->tv_sec = 1;
+            next_timeout->tv_usec = 0;
+            struct timeval now;
+            if (gettimeofday(&now, NULL) == 0) {
+                /* get the first timeout */
+                ldns_rbnode_t* first = ldns_rbtree_first(context->timeouts_by_time);
+                if (first) {
+                    getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) first->data;
+                    /* subtract next_timeout from now */
+                    if (timeout_data->timeout_time.tv_sec > now.tv_sec ||
+                        (timeout_data->timeout_time.tv_sec == now.tv_sec &&
+                         timeout_data->timeout_time.tv_usec >= now.tv_usec)) {
+                        next_timeout->tv_sec = timeout_data->timeout_time.tv_sec - now.tv_sec;
+                        next_timeout->tv_usec = timeout_data->timeout_time.tv_usec - now.tv_usec;
+                    } else {
+                        /* timeout passed already */
+                        next_timeout->tv_sec = 0;
+                    }
+                }
             }
         }
     }
@@ -1337,9 +1352,15 @@ getdns_context_schedule_timeout(struct getdns_context* context,
     } else {
         result = GETDNS_RETURN_GENERIC_ERROR;
         if (gettimeofday(&timeout_data->timeout_time, NULL) == 0) {
-            /* increment */
-            uint16_t num_secs = timeout / 1000;
             /* timeout is in millis */
+            uint16_t num_secs = timeout / 1000;
+            uint16_t num_usecs = (timeout % 1000) * 1000;
+            timeout_data->timeout_time.tv_usec += num_usecs;
+            /* overflow check */
+            if (timeout_data->timeout_time.tv_usec > 1000000) {
+                timeout_data->timeout_time.tv_usec -= 1000000;
+                num_secs++;
+            }
             timeout_data->timeout_time.tv_sec += num_secs;
 
             ldns_rbnode_t* id_node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
