@@ -78,7 +78,7 @@ getdns_general_sync(struct getdns_context *context,
     struct getdns_dict **response)
 {
 	getdns_return_t response_status;
-    RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
     response_status = validate_dname(name);
