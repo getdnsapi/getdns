@@ -278,7 +278,7 @@ as follows:</p>
 <div class=forh id="getdns_callback_t">
 typedef void (*getdns_callback_t)(
                                   struct getdns_context  *context,
-                                  uint16_t               callback_type,
+                                  getdns_callback_type_t callback_type,
                                   struct getdns_dict     *response,
                                   void                   *userarg,
                                   getdns_transaction_t   transaction_id);
@@ -876,7 +876,7 @@ be human-readable, and it might have information in it useful to an application 
 have to).</li>
 
 <li><code>resolver_type</code> (an int) is the type of resolver that the API is acting as in this context:
-<code>GETDNS_CONTEXT_RECURSING</code> or <code>GETDNS_CONTEXT_STUB</code> (it will be
+<code>GETDNS_RESOLUTION_RECURSING</code> or <code>GETDNS_RESOLUTION_STUB</code> (it will be
 a recursing resolver unless the application changed this in a context.</li>
 
 <li><code>all_context</code> (a dict) with names for all the types of context. This can be used with
@@ -1144,7 +1144,6 @@ The caller is responsible of disposing these allocations with <code>free</code>.
 <h2>5.1 A Few Needed Definitions</h2>
 
 <div class=forh id="Various">struct getdns_context;
-typedef uint16_t   getdns_return_t;
 typedef uint64_t   getdns_transaction_t;
 typedef enum getdns_data_type {
     t_dict, t_list, t_int, t_bindata
@@ -1484,7 +1483,7 @@ function.</p>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="kt">uint16_t</span>     <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -1602,7 +1601,7 @@ their TTLs.</p>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="kt">getdns_return_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -2126,7 +2125,7 @@ is not allowed, or <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code> for a failure 
 getdns_return_t
 getdns_context_set_context_update_callback(
   struct getdns_context  *context,
-  void                   (*value)(struct getdns_context *context, uint16_t changed_item)
+  void                   (*value)(struct getdns_context *context, getdns_context_code_t changed_item)
 );</div>
 <p class=cont>The value is a pointer to the callback function that will be
 called when any context is changed. Such changes might be from automatic
@@ -2141,18 +2140,18 @@ specifies which of the context changed; the context codes are listed
 getdns_return_t
 getdns_context_set_resolution_type(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_resolution_t    value
 );</div>
 <p class=cont>Specifies whether DNS queries are performed with nonrecurive lookups or
-as a stub resolver. The value is <span class=default><code>GETDNS_CONTEXT_RECURSING</code></span> or
-<code>GETDNS_CONTEXT_STUB</code>.</p>
+as a stub resolver. The value is <span class=default><code>GETDNS_RESOLUTION_RECURSING</code></span> or
+<code>GETDNS_RESOLUTION_STUB</code>.</p>
 
 <p>All implementations of this API can act as recursive resolvers, and that must be the
 default mode of the default context.
 Some implementations of this API are expected to also be able to act as stub resolvers.
 If an
 implementation of this API is only able to act as a recursive resolver, a call to
-<code>getdns_context_set_resolution_type(somecontext, GETDNS_CONTEXT_STUB)</code> will
+<code>getdns_context_set_resolution_type(somecontext, GETDNS_RESOLUTION_STUB)</code> will
 return <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code>.</p>
 
 <div class=forh>
@@ -2160,18 +2159,18 @@ getdns_return_t
 getdns_context_set_namespaces(
   struct getdns_context  *context,
   size_t                 namespace_count,
-  uint16_t               *namespaces
+  getdns_namespace_t     *namespaces
 );</div>
 <p class=cont>The <code>namespaces</code> array contains an ordered list
 of namespaces that will be queried.
 <b>Important:</b> this context setting is ignored for the <code>getdns_general</code> and
 <code>getdns_general_sync</code> functions; it is used for the other funtions.
 The values
-are <code>GETDNS_CONTEXT_NAMESPACE_DNS</code>,
-<code>GETDNS_CONTEXT_NAMESPACE_LOCALNAMES</code>,
-<code>GETDNS_CONTEXT_NAMESPACE_NETBIOS</code>,
-<code>GETDNS_CONTEXT_NAMESPACE_MDNS</code>, and
-<code>GETDNS_CONTEXT_NAMESPACE_NIS</code>. When a normal lookup is done,
+are <code>GETDNS_NAMESPACE_DNS</code>,
+<code>GETDNS_NAMESPACE_LOCALNAMES</code>,
+<code>GETDNS_NAMESPACE_NETBIOS</code>,
+<code>GETDNS_NAMESPACE_MDNS</code>, and
+<code>GETDNS_NAMESPACE_NIS</code>. When a normal lookup is done,
 the API does the lookups in the order given and stops when it gets the
 first result; a different method with the same result would be to run
 the queries in parallel and return when it gets the first result.
@@ -2184,14 +2183,14 @@ default is <span class=default>determined by the OS</span>.</p>
 getdns_return_t
 getdns_context_set_dns_transport(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_transport_t     value
 );</div>
 <p class=cont>Specifies what transport is used for DNS lookups.
 The value is <span class=default>
-<code>GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP</code></span>,
-<code>GETDNS_CONTEXT_UDP_ONLY</code>,
-<code>GETDNS_CONTEXT_TCP_ONLY</code>, or
-<code>GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN</code>.</p>
+<code>GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP</code></span>,
+<code>GETDNS_TRANSPORT_UDP_ONLY</code>,
+<code>GETDNS_TRANSPORT_TCP_ONLY</code>, or
+<code>GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN</code>.</p>
 
 <div class=forh>
 getdns_return_t
@@ -2220,12 +2219,12 @@ The default is <span class=default>not specified</span>.</p>
 getdns_return_t
 getdns_context_set_follow_redirects(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_redirects_t     value
 );</div>
 <p class=cont>Specifies whether or not DNS queries follow redirects.
-The value is <span class=default><code>GETDNS_CONTEXT_FOLLOW_REDIRECTS</code></span> for normal
+The value is <span class=default><code>GETDNS_REDIRECTS_FOLLOW</code></span> for normal
 following of redirects though CNAME and DNAME; or
-<code>GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS</code> to cause any lookups that would have gone
+<code>GETDNS_REDIRECTS_DO_NOT_FOLLOW</code> to cause any lookups that would have gone
 through CNAME and DNAME to return the CNAME or DNAME, not the eventual target.</p>
 
 <div class=forh>
@@ -2245,15 +2244,15 @@ either "IPv4" or "IPv6") and <code>address_data</code> (whose value is a bindata
 getdns_return_t
 getdns_context_set_append_name(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_append_name_t   value
 );</div>
 <p class=cont>Specifies whether to append a suffix to the query string
 before the API starts resolving a name.
 The value is <span class=default>
-<code>GETDNS_CONTEXT_APPEND_NAME_ALWAYS</code></span>,
-<code>GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE</code>,
-<code>GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE</code>,
-or <code>GETDNS_CONTEXT_DO_NOT_APPEND_NAMES</code>. This controls
+<code>GETDNS_APPEND_NAME_ALWAYS</code></span>,
+<code>GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE</code>,
+<code>GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE</code>,
+or <code>GETDNS_APPEND_NAME_NEVER</code>. This controls
 whether or not to append the suffix given by <code>getdns_context_set_suffix</code></p>
 
 <div class=forh>
@@ -2427,7 +2426,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.386.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.387.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

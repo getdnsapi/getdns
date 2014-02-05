@@ -9,7 +9,7 @@
 
 /* Set up the callback function, which will also do the processing of the results */
 void this_callbackfn(struct getdns_context *this_context,
-                     getdns_return_t this_callback_type,
+                     getdns_callback_type_t this_callback_type,
                      struct getdns_dict *this_response, 
                      void *this_userarg,
                      getdns_transaction_t this_transaction_id)

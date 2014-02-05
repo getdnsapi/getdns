@@ -19,6 +19,11 @@ uint16_t regulararg;
 uint16_t *regularptrarg;
 getdns_transaction_t txidarg;
 getdns_transaction_t * txidptrarg;
+getdns_namespace_t *namespaceptrarg;
+getdns_resolution_t resolutionarg;
+getdns_redirects_t redirectsarg;
+getdns_transport_t transportarg;
+getdns_append_name_t appendnamearg;
 
 getdns_data_type * datatypeptrarg;
 struct getdns_bindata ** bindataptrarg;
@@ -49,7 +54,7 @@ void * extendedreallocfunctionarg(void* userarg, void* foo, size_t bar)
 	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo); UNUSED_PARAM(bar); return NULL; }
 void extendeddeallocfunctionarg(void* userarg, void* foo)
 	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo);}
-void setcallbackfunctionarg(struct getdns_context *foo1, uint16_t foo2)
+void setcallbackfunctionarg(struct getdns_context *foo1, getdns_context_code_t foo2)
 	{UNUSED_PARAM(foo1);UNUSED_PARAM(foo2);}
 
 int main()
@@ -242,18 +247,18 @@ retregular = getdns_context_set_context_update_callback(
 
 retregular = getdns_context_set_resolution_type(
   contextarg,
-  regulararg
+  resolutionarg
 );
 
 retregular = getdns_context_set_namespaces(
   contextarg,
   sizetarg,
-  regularptrarg
+  namespaceptrarg
 );
 
 retregular = getdns_context_set_dns_transport(
   contextarg,
-  regulararg
+  transportarg
 );
 
 retregular = getdns_context_set_limit_outstanding_queries(
@@ -268,7 +273,7 @@ retregular = getdns_context_set_timeout(
 
 retregular = getdns_context_set_follow_redirects(
   contextarg,
-  regulararg
+  redirectsarg
 );
 
 retregular = getdns_context_set_dns_root_servers(
@@ -278,7 +283,7 @@ retregular = getdns_context_set_dns_root_servers(
 
 retregular = getdns_context_set_append_name(
   contextarg,
-  regulararg
+  appendnamearg
 );
 
 retregular = getdns_context_set_suffix(

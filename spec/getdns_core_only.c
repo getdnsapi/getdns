@@ -318,14 +318,14 @@ getdns_display_ip_address(
 getdns_return_t
 getdns_context_set_context_update_callback(
   struct getdns_context  *context,
-  void                   (*value)(struct getdns_context *context, uint16_t changed_item)
+  void                   (*value)(struct getdns_context *context, getdns_context_code_t changed_item)
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
 getdns_return_t
 getdns_context_set_resolution_type(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_resolution_t    value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
@@ -333,7 +333,7 @@ getdns_return_t
 getdns_context_set_namespaces(
   struct getdns_context  *context,
   size_t                 namespace_count,
-  uint16_t               *namespaces
+  getdns_namespace_t      *namespaces
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(namespace_count); UNUSED_PARAM(namespaces);
 return GETDNS_RETURN_GOOD; }
@@ -341,7 +341,7 @@ return GETDNS_RETURN_GOOD; }
 getdns_return_t
 getdns_context_set_dns_transport(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_transport_t     value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
@@ -362,7 +362,7 @@ getdns_context_set_timeout(
 getdns_return_t
 getdns_context_set_follow_redirects(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_redirects_t     value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
@@ -376,7 +376,7 @@ getdns_context_set_dns_root_servers(
 getdns_return_t
 getdns_context_set_append_name(
   struct getdns_context  *context,
-  uint16_t               value
+  getdns_append_name_t   value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 
