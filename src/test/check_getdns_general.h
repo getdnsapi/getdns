@@ -352,52 +352,6 @@
        assert_address_in_answer(ex_response, TRUE, FALSE);
      }
 
-     START_TEST (getdns_general_13)
-     {
-      /*
-       *  name = "75.101.146.66"
-       *  request_type = GETDNS_RRTYPE_PTR
-       *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
-       */
-       struct getdns_context *context = NULL;   \
-       void* eventloop = NULL;    \
-       getdns_transaction_t transaction_id = 0;
-
-       CONTEXT_CREATE(TRUE);
-       EVENT_BASE_CREATE;
-
-       ASSERT_RC(getdns_general(context, "75.101.146.66", GETDNS_RRTYPE_PTR, NULL,
-         NULL, &transaction_id, callbackfn),
-         GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
-
-       RUN_EVENT_LOOP;
-       CONTEXT_DESTROY;
-     }
-     END_TEST
-
-     START_TEST (getdns_general_14)
-     {
-      /*
-       *  name = "2607:f8b0:4006:802::1007"
-       *  request_type = GETDNS_RRTYPE_PTR
-       *  expect: GETDNS_RETURN_BAD_DOMAIN_NAME
-       */
-       struct getdns_context *context = NULL;   \
-       void* eventloop = NULL;    \
-       getdns_transaction_t transaction_id = 0;
-
-       CONTEXT_CREATE(TRUE);
-       EVENT_BASE_CREATE;
-
-       ASSERT_RC(getdns_general(context, "2607:f8b0:4006:802::1007", GETDNS_RRTYPE_PTR, NULL,
-         NULL, &transaction_id, callbackfn),
-         GETDNS_RETURN_BAD_DOMAIN_NAME, "Return code from getdns_general()");
-
-       RUN_EVENT_LOOP;
-       CONTEXT_DESTROY;
-     }
-     END_TEST
-
      Suite *
      getdns_general_suite (void)
      {
@@ -410,8 +364,6 @@
        tcase_add_test(tc_neg, getdns_general_3);
        tcase_add_test(tc_neg, getdns_general_4);
        tcase_add_test(tc_neg, getdns_general_5);
-       tcase_add_test(tc_neg, getdns_general_13);
-       tcase_add_test(tc_neg, getdns_general_14);
        suite_add_tcase(s, tc_neg);
 
        /* Positive test cases */
