@@ -21,6 +21,8 @@ bindir = @bindir@
 libdir = @libdir@
 includedir = @includedir@
 have_libevent = @have_libevent@
+have_libuv = @have_libuv@
+have_libev = @have_libev@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
 INSTALL = @INSTALL@
@@ -58,6 +60,7 @@ install:	libgetdns.la
 	$(INSTALL) -m 644 $(srcdir)/getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
 	if test $(have_libevent) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libevent.h $(DESTDIR)$(includedir)/getdns/ ; fi
 	if test $(have_libuv) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libuv.h $(DESTDIR)$(includedir)/getdns/ ; fi
+	if test $(have_libev) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libev.h $(DESTDIR)$(includedir)/getdns/ ; fi
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)

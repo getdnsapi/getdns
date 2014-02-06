@@ -577,6 +577,7 @@ priv_getdns_equip_dict_with_txt_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
                                      struct getdns_context* context) {
     size_t i;
     struct getdns_bindata bindata;
+    uint8_t buffer[LDNS_MAX_RDFLEN];
     getdns_return_t r = GETDNS_RETURN_GOOD;
     struct getdns_list* records = getdns_list_create_with_context(context);
     if (!records) {
@@ -590,25 +591,48 @@ priv_getdns_equip_dict_with_txt_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
             r = GETDNS_RETURN_GENERIC_ERROR;
             continue;
         }
-        int txt_size = (int) rdf_data[0] + 1;
+        int txt_size = (int) rdf_data[0];
         if (rdf_size < txt_size) {
             r = GETDNS_RETURN_GENERIC_ERROR;
             continue;
         }
-        bindata.size = txt_size;
-        bindata.data = rdf_data + 1;
+        bindata.size = txt_size + 1;
+        memcpy(buffer, rdf_data + 1, txt_size);
+        buffer[txt_size] = 0;
+        bindata.data = buffer;
 
         r = getdns_list_set_bindata(records, i, &bindata);
     }
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_list_destroy(records);
-    } else {
+    if (r == GETDNS_RETURN_GOOD) {
         r = getdns_dict_set_list(rdata, def->rdata[0].name, records);
-        if (r != GETDNS_RETURN_GOOD) {
-            getdns_list_destroy(records);
-        }
     }
+    getdns_list_destroy(records);
     return r;
+}
+
+/* heavily borrowed/copied from ldns 1.6.17 */
+static
+getdns_return_t getdns_rdf_hip_get_alg_hit_pk(ldns_rdf *rdf, uint8_t* alg,
+                                              struct getdns_bindata* hit,
+                                              struct getdns_bindata* pk)
+{
+    uint8_t *data;
+    size_t rdf_size;
+    
+    if ((rdf_size = ldns_rdf_size(rdf)) < 6) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    data = ldns_rdf_data(rdf);
+    hit->size = data[0];
+    *alg      = data[1];
+    pk->size  = ldns_read_uint16(data + 2);
+    hit->data      = data + 4;
+    pk->data       = data + 4 + hit->size;
+    if (hit->size == 0 || pk->size == 0 ||
+        rdf_size < (size_t) hit->size + pk->size + 4) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
@@ -616,29 +640,24 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
                                      const struct rr_def* def,
                                      struct getdns_context* context) {
     uint8_t alg;
-    uint8_t hit_size;
-    uint16_t key_size;
     getdns_return_t r;
     struct getdns_bindata hit_data;
     struct getdns_bindata key_data;
     /* first rdf contains the key data */
     ldns_rdf* rdf = ldns_rr_rdf(rr, 0);
     /* ask LDNS to parse it for us */
-    ldns_status s = ldns_rdf_hip_get_alg_hit_pk(rdf, &alg, &hit_size,
-                                                &(hit_data.data), &key_size, &(key_data.data));
-    if (s != LDNS_STATUS_OK) {
+    r = getdns_rdf_hip_get_alg_hit_pk(rdf, &alg, &hit_data, &key_data);
+    if (r != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    hit_data.size = hit_size;
-    key_data.size = key_size;
-    
+
     r = getdns_dict_set_int(rdata, def->rdata[0].name, alg);
     r |= getdns_dict_set_bindata(rdata, def->rdata[1].name, &hit_data);
     r |= getdns_dict_set_bindata(rdata, def->rdata[2].name, &key_data);
     if (r != GETDNS_RETURN_GOOD) {
         return r;
     }
-    
+
     if (ldns_rr_rd_count(rr) > 1) {
         /* servers */
         size_t i;
@@ -649,28 +668,157 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
         }
         for (i = 1; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; ++i) {
             ldns_rdf* server_rdf = ldns_rr_rdf(rr, i);
-            char* name = ldns_rdf2str(server_rdf);
-            if (name == NULL) {
-                r = GETDNS_RETURN_MEMORY_ERROR;
-                break;
-            }
-            server_data.size = strlen(name) + 1;
-            server_data.data = (uint8_t*)name;
+            server_data.size = ldns_rdf_size(server_rdf);
+            server_data.data = ldns_rdf_data(server_rdf);
             r = getdns_list_set_bindata(servers, i - 1, &server_data);
-            free(name);
         }
-        if (r != GETDNS_RETURN_GOOD) {
-            getdns_list_destroy(servers);
-        } else {
+        if (r == GETDNS_RETURN_GOOD) {
             r = getdns_dict_set_list(rdata, def->rdata[3].name, servers);
-            if (r != GETDNS_RETURN_GOOD) {
-                getdns_list_destroy(servers);
-            }
         }
+        /* always clean up */
+        getdns_list_destroy(servers);
+    }
+
+    return r;
+}
+
+static getdns_return_t
+priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
+                       const struct rr_def* def, struct getdns_context* context) {
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    uint8_t* data;
+    size_t size;
+    uint16_t family;
+    uint8_t prefix;
+    uint8_t negation;
+    size_t addr_len;
+    size_t pos = 0;
+    size_t index = 0;
+    struct getdns_bindata addr_data;
+    
+    if (ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_APL) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    getdns_list_get_length(records, &index);
+    
+    data = ldns_rdf_data(rdf);
+    size = ldns_rdf_size(rdf);
+    if (size < 4) {
+        /* not enough for the fam, prefix, n, and data len */
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    while (pos < size && r == GETDNS_RETURN_GOOD) {
+        struct getdns_dict* apl_dict;
+        family = ldns_read_uint16(data + pos);
+        prefix = data[pos + 2];
+        negation = (data[pos + 3] & 0x80) > 1 ? 1 : 0;
+        addr_len = data[pos + 3] & 0x7F;
+        if (size < 4 + addr_len) {
+            /* not enough.. */
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+        addr_data.size = addr_len;
+        addr_data.data = data + 4 + pos;
+        
+        /* add to a dictionary */
+        apl_dict = getdns_dict_create_with_context(context);
+        if (!apl_dict) {
+            /* memory fail */
+            return GETDNS_RETURN_MEMORY_ERROR;
+        }
+        r |= getdns_dict_set_int(apl_dict, def->rdata[1].name, family);
+        r |= getdns_dict_set_int(apl_dict, def->rdata[2].name, prefix);
+        r |= getdns_dict_set_int(apl_dict, def->rdata[3].name, negation);
+        r |= getdns_dict_set_bindata(apl_dict, def->rdata[4].name, &addr_data);
+        
+        if (r == GETDNS_RETURN_GOOD) {
+            r = getdns_list_set_dict(records, index, apl_dict);
+        }
+        pos += addr_data.size + 4;
+        ++index;
+        /* always clean up */
+        getdns_dict_destroy(apl_dict);
     }
     
     return r;
 }
+
+static getdns_return_t
+priv_getdns_equip_dict_with_apl_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
+                                     const struct rr_def* def,
+                                     struct getdns_context* context) {
+    size_t i;
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    struct getdns_list* records = getdns_list_create_with_context(context);
+    if (!records) {
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
+    for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; ++i) {
+        r = priv_append_apl_record(records, ldns_rr_rdf(rr, i),
+                                   def, context);
+    }
+    if (r == GETDNS_RETURN_GOOD) {
+        getdns_dict_set_list(rdata, def->rdata[0].name, records);
+    }
+    getdns_list_destroy(records);
+    
+    return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+priv_getdns_equip_dict_with_spf_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
+                                     const struct rr_def* def,
+                                     struct getdns_context* context) {
+    size_t i;
+    struct getdns_bindata bindata;
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    int num_copied = 0;
+    bindata.size = 0;
+    /* one giant bindata */
+    /* validate and calculate size */
+    for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; ++i) {
+        ldns_rdf* rdf = ldns_rr_rdf(rr, i);
+        int rdf_size = (int) ldns_rdf_size(rdf);
+        uint8_t* rdf_data = ldns_rdf_data(rdf);
+        if (rdf_size < 1) {
+            r = GETDNS_RETURN_GENERIC_ERROR;
+            continue;
+        }
+        /* txt size without null byte */
+        int txt_size = (int) rdf_data[0];
+        if (rdf_size < txt_size) {
+            r = GETDNS_RETURN_GENERIC_ERROR;
+            continue;
+        }
+        bindata.size += txt_size;
+    }
+    /* add one for the null byte */
+    bindata.size++;
+    
+    if (r != GETDNS_RETURN_GOOD) {
+        /* validations failed */
+        return r;
+    }
+    bindata.data = GETDNS_XMALLOC(context->my_mf, uint8_t,
+                                  bindata.size);
+    if (!bindata.data) {
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
+    /* copy in */
+    for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; ++i) {
+        ldns_rdf* rdf = ldns_rr_rdf(rr, i);
+        /* safe to trust these now */
+        uint8_t* rdf_data = ldns_rdf_data(rdf);
+        int txt_size = (int) rdf_data[0];
+        memcpy(bindata.data + num_copied, rdf_data + 1, txt_size);
+        num_copied += txt_size;
+    }
+    bindata.data[num_copied] = 0;
+    r = getdns_dict_set_bindata(rdata, def->rdata[0].name, &bindata);
+    GETDNS_FREE(context->my_mf, bindata.data);
+    return r;
+}
+
 
 static getdns_return_t
 priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
@@ -687,10 +835,16 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
 
 	def = rr_def_lookup(ldns_rr_get_type(rr));
     /* specialty handlers */
+    /* TODO: convert generic one into function w/ similar signature and store in the
+     * def? */
     if (def->rdata == txt_rdata) {
         return priv_getdns_equip_dict_with_txt_rdfs(rdata, rr, def, context);
     } else if (def->rdata == hip_rdata) {
         return priv_getdns_equip_dict_with_hip_rdfs(rdata, rr, def, context);
+    } else if (def->rdata == apl_rdata) {
+        return priv_getdns_equip_dict_with_apl_rdfs(rdata, rr, def, context);
+    } else if (def->rdata == spf_rdata) {
+        return priv_getdns_equip_dict_with_spf_rdfs(rdata, rr, def, context);
     }
     /* generic */
 	for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; i++) {
