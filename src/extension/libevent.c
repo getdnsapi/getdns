@@ -111,7 +111,7 @@ getdns_libevent_schedule_timeout(struct getdns_context* context,
 
 static getdns_return_t
 getdns_libevent_clear_timeout(struct getdns_context* context,
-    void* eventloop_data, void** eventloop_timer) {
+    void* eventloop_data, void* eventloop_timer) {
     struct event* ev = (struct event*) eventloop_timer;
     event_del(ev);
     event_free(ev);

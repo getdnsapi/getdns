@@ -259,7 +259,7 @@ typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_con
     getdns_timeout_data_t* timeout_data,
     void** eventloop_timer);
 typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, void** eventloop_timer);
+    void* eventloop_data, void* eventloop_timer);
 
 
 typedef struct getdns_eventloop_extension {

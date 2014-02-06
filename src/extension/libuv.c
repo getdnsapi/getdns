@@ -99,7 +99,7 @@ getdns_libuv_schedule_timeout(struct getdns_context* context,
 
 static getdns_return_t
 getdns_libuv_clear_timeout(struct getdns_context* context,
-    void* eventloop_data, void** eventloop_timer) {
+    void* eventloop_data, void* eventloop_timer) {
     uv_timer_t* timer = (uv_timer_t*) eventloop_timer;
     uv_timer_stop(timer);
     uv_close((uv_handle_t*) timer, getdns_libuv_close_cb);
