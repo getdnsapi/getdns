@@ -630,14 +630,14 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     }
     hit_data.size = hit_size;
     key_data.size = key_size;
-    
+
     r = getdns_dict_set_int(rdata, def->rdata[0].name, alg);
     r |= getdns_dict_set_bindata(rdata, def->rdata[1].name, &hit_data);
     r |= getdns_dict_set_bindata(rdata, def->rdata[2].name, &key_data);
     if (r != GETDNS_RETURN_GOOD) {
         return r;
     }
-    
+
     if (ldns_rr_rd_count(rr) > 1) {
         /* servers */
         size_t i;
@@ -648,15 +648,9 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
         }
         for (i = 1; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; ++i) {
             ldns_rdf* server_rdf = ldns_rr_rdf(rr, i);
-            char* name = ldns_rdf2str(server_rdf);
-            if (name == NULL) {
-                r = GETDNS_RETURN_MEMORY_ERROR;
-                break;
-            }
-            server_data.size = strlen(name) + 1;
-            server_data.data = (uint8_t*)name;
+            server_data.size = ldns_rdf_size(server_rdf);
+            server_data.data = ldns_rdf_data(server_rdf);
             r = getdns_list_set_bindata(servers, i - 1, &server_data);
-            free(name);
         }
         if (r != GETDNS_RETURN_GOOD) {
             getdns_list_destroy(servers);
@@ -667,7 +661,7 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
             }
         }
     }
-    
+
     return r;
 }
 
