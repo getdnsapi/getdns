@@ -35,23 +35,71 @@
  */
 
 #include <getdns/getdns.h>
+#include <ldns/ldns.h>
+#include "rr-dict.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
+
+static getdns_return_t
+priv_getdns_rr_list_from_list(struct getdns_list *list, ldns_rr_list **rr_list)
+{
+	getdns_return_t r;
+	size_t i, l;
+	struct getdns_dict *rr_dict;
+	ldns_rr *rr;
+
+	if ((r = getdns_list_get_length(list, &l)))
+		return r;
+
+	if (! (*rr_list = ldns_rr_list_new()))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	for (i = 0; i < l; i++) {
+		if ((r = getdns_list_get_dict(list, i, &rr_dict)))
+			break;
+
+		if ((r = priv_getdns_create_rr_from_dict(rr_dict, &rr)))
+			break;
+
+		if (! ldns_rr_list_push_rr(*rr_list, rr)) {
+			ldns_rr_free(rr);
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+	}
+	if (r)
+		ldns_rr_list_deep_free(*rr_list);
+	return r;
+}
 
 /*
  * getdns_validate_dnssec
  *
  */
 getdns_return_t
-getdns_validate_dnssec(struct getdns_bindata * record_to_validate,
-    struct getdns_list * bundle_of_support_records,
-    struct getdns_list * trust_anchor_rdatas)
+getdns_validate_dnssec(struct getdns_bindata *to_validate,
+    struct getdns_list *support_records,
+    struct getdns_list *trust_anchors)
 {
-	UNUSED_PARAM(record_to_validate);
-	UNUSED_PARAM(bundle_of_support_records);
-	UNUSED_PARAM(trust_anchor_rdatas);
-	return GETDNS_RETURN_GOOD;
+	getdns_return_t r;
+	ldns_rr_list *tas;
+	ldns_rr_list *chain;
+
+	if ((r = priv_getdns_rr_list_from_list(trust_anchors, &tas)))
+		return r;
+
+	printf(";; trust anchors:\n");
+	ldns_rr_list_print(stdout, tas);
+
+	if ((r = priv_getdns_rr_list_from_list(support_records, &chain)))
+		return r;
+
+	printf(";; support records:\n");
+	ldns_rr_list_print(stdout, chain);
+
+
+	return r;
 }				/* getdns_validate_dnssec */
 
 /* validate_dnssec.c */
