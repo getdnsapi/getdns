@@ -52,7 +52,6 @@ struct getdns_libev_data {
 static void
 getdns_libev_cb(struct ev_loop *loop, struct ev_io *handle, int revents) {
     struct getdns_context* context = (struct getdns_context*) handle->data;
-    struct getdns_libev_data* data = (struct getdns_libev_data*) context->extension_data;
     getdns_context_process_async(context);
 }
 
