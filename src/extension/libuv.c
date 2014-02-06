@@ -33,7 +33,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <getdns/getdns_ext_libevent.h>
+#include <getdns/getdns_ext_libuv.h>
 #include "config.h"
 #include "context.h"
 #include <sys/time.h>
