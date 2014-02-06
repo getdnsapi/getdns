@@ -14,6 +14,9 @@
 #include <getdns/getdns_ext_libuv.h>
 #include <uv.h>
 #endif
+#if HAVE_LIBEV
+#include "check_getdns_libev.h"
+#endif
 #include "check_getdns_common.h"
 #include <unistd.h>
 #include <sys/time.h>
@@ -303,6 +306,7 @@ void update_callbackfn(struct getdns_context *context,
 #define NO_LOOP 0
 #define LIBEVENT_LOOP 1
 #define LIBUV_LOOP 2
+#define LIBEV_LOOP 3
 
 static int get_event_loop_type() {
     int result = 0;
@@ -315,6 +319,11 @@ static int get_event_loop_type() {
     #if HAVE_LIBUV
     if (loop && strcmp("uv", loop) == 0) {
         result = LIBUV_LOOP;
+    }
+    #endif
+    #if HAVE_LIBEV
+    if (loop && strcmp("libev", loop) == 0) {
+        result = LIBEV_LOOP;
     }
     #endif
     return result;
@@ -349,6 +358,11 @@ void run_event_loop(struct getdns_context* context, void* eventloop) {
         }
     }
     #endif
+    #if HAVE_LIBEV
+    else if (event_loop_type == LIBEV_LOOP) {
+        run_libev_event_loop(context, eventloop);
+    }
+    #endif
 }
 
 void* create_event_base(struct getdns_context* context) {
@@ -371,6 +385,11 @@ void* create_event_base(struct getdns_context* context) {
             GETDNS_RETURN_GOOD,
             "Return code from getdns_extension_set_libuv_loop()");
         return result;
+    }
+    #endif
+    #if HAVE_LIBEV
+    if (event_loop_type == LIBEV_LOOP) {
+        return create_libev_base(context);
     }
     #endif
     return NULL;

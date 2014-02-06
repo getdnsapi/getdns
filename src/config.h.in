@@ -15,6 +15,9 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 to enable the libev extension */
+#undef HAVE_LIBEV
+
 /* Define to 1 to enable the libevent extension */
 #undef HAVE_LIBEVENT
 
