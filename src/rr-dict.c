@@ -610,6 +610,31 @@ priv_getdns_equip_dict_with_txt_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     return r;
 }
 
+/* heavily borrowed/copied from ldns 1.6.17 */
+static
+getdns_return_t getdns_rdf_hip_get_alg_hit_pk(ldns_rdf *rdf, uint8_t* alg,
+                                              struct getdns_bindata* hit,
+                                              struct getdns_bindata* pk)
+{
+    uint8_t *data;
+    size_t rdf_size;
+    
+    if ((rdf_size = ldns_rdf_size(rdf)) < 6) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    data = ldns_rdf_data(rdf);
+    hit->size = data[0];
+    *alg      = data[1];
+    pk->size  = ldns_read_uint16(data + 2);
+    hit->data      = data + 4;
+    pk->data       = data + 4 + hit->size;
+    if (hit->size == 0 || pk->size == 0 ||
+        rdf_size < (size_t) hit->size + pk->size + 4) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
 static getdns_return_t
 priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
                                      const struct rr_def* def,
@@ -623,9 +648,8 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     /* first rdf contains the key data */
     ldns_rdf* rdf = ldns_rr_rdf(rr, 0);
     /* ask LDNS to parse it for us */
-    ldns_status s = ldns_rdf_hip_get_alg_hit_pk(rdf, &alg, &hit_size,
-                                                &(hit_data.data), &key_size, &(key_data.data));
-    if (s != LDNS_STATUS_OK) {
+    r = getdns_rdf_hip_get_alg_hit_pk(rdf, &alg, &hit_data, &key_data);
+    if (r != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
     hit_data.size = hit_size;
@@ -666,6 +690,21 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
 }
 
 static getdns_return_t
+priv_getdns_equip_dict_with_apl_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
+                                     const struct rr_def* def,
+                                     struct getdns_context* context) {
+    return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+priv_getdns_equip_dict_with_spf_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
+                                     const struct rr_def* def,
+                                     struct getdns_context* context) {
+    return GETDNS_RETURN_GOOD;
+}
+
+
+static getdns_return_t
 priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
                                  struct getdns_context* context)
 {
@@ -680,10 +719,16 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
 
 	def = rr_def_lookup(ldns_rr_get_type(rr));
     /* specialty handlers */
+    /* TODO: convert generic one into function w/ similar signature and store in the
+     * def? */
     if (def->rdata == txt_rdata) {
         return priv_getdns_equip_dict_with_txt_rdfs(rdata, rr, def, context);
     } else if (def->rdata == hip_rdata) {
         return priv_getdns_equip_dict_with_hip_rdfs(rdata, rr, def, context);
+    } else if (def->rdata == apl_rdata) {
+        return priv_getdns_equip_dict_with_apl_rdfs(rdata, rr, def, context);
+    } else if (def->rdata == spf_rdata) {
+        return priv_getdns_equip_dict_with_spf_rdfs(rdata, rr, def, context);
     }
     /* generic */
 	for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; i++) {
