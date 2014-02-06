@@ -1396,7 +1396,7 @@ getdns_context_clear_timeout(struct getdns_context* context,
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) node->data;
     GETDNS_FREE(context->my_mf, node);
     if (context->extension) {
-        context->extension->clear_timeout(context, context->extension,
+        context->extension->clear_timeout(context, context->extension_data,
             timeout_data->extension_timer);
     } else {
         /* make sure it is removed from the timeout node */

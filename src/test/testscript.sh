@@ -50,8 +50,17 @@ if test $? -ne 0; then
 fi
 checkoutput tests_dict
 checkoutput tests_list 
-checkpacket tests_stub_async 
-checkpacket tests_stub_sync
+
+# the packets are too different to compare for people
+#checkpacket tests_stub_async
+#checkpacket tests_stub_sync
+
+runit tests_stub_async output
+echo " exitcode-OK"
+runit tests_stub_sync output
+echo " exitcode-OK"
+runit tests_dnssec output
+echo " exitcode-OK"
 
 rm -f output output.good output2 output2.good
 exit 0

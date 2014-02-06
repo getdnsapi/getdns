@@ -195,6 +195,18 @@ AC_SEARCH_LIBS([uv_run],
 AC_SUBST(have_libuv)
 AC_SUBST(EXTENSION_LIBUV_OBJ)
 
+# libev extension
+have_libev=1
+EXTENSION_LIBEV_OBJ="extension/libev.lo"
+AC_SEARCH_LIBS([ev_run],
+    [ev],
+    [AC_DEFINE([HAVE_LIBEV], [1], [Define to 1 to enable the libev extension])],
+    [have_libev=0]
+    [EXTENSION_LIBEV_OBJ=""])
+
+AC_SUBST(have_libev)
+AC_SUBST(EXTENSION_LIBEV_OBJ)
+
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])

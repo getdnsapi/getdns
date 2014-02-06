@@ -99,13 +99,13 @@ main(int argc, char** argv)
         return (GETDNS_RETURN_GENERIC_ERROR);
     }
 	/* Set up the getdns call */
-	const char *this_name = argc > 1 ? argv[1] : "www.google.com";
+	const char *this_name = argc > 1 ? argv[1] : "mx.kitchensink.net";
 	char *this_userarg = "somestring";	// Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
 
 	/* Make the call */
 	getdns_return_t dns_request_return =
-	    getdns_address(this_context, this_name,
+	    getdns_general(this_context, this_name, GETDNS_RRTYPE_APL,
 	    NULL, this_userarg, &this_transaction_id, this_callbackfn);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
