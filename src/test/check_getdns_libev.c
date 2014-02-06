@@ -41,13 +41,10 @@
 #include <ev.h>
 #include <check.h>
 #include "check_getdns_common.h"
-#include <stdio.h>
 
 void run_libev_event_loop(struct getdns_context* context, void* eventloop) {
     struct ev_loop* loop = (struct ev_loop*) eventloop;
-    printf("Running loop %p\n", loop);
     while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-        printf("Running loop once %p\n", loop);
         ev_run(loop, EVRUN_ONCE);
     }
 }

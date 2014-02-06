@@ -51,17 +51,13 @@ struct getdns_libev_data {
 /* lib event callbacks */
 static void
 getdns_libev_cb(struct ev_loop *loop, struct ev_io *handle, int revents) {
-    printf("CB on loop %p\n", loop);
     struct getdns_context* context = (struct getdns_context*) handle->data;
     struct getdns_libev_data* data = (struct getdns_libev_data*) context->extension_data;
-    printf("context data %p %p %p\n", context, data, data->loop);
     getdns_context_process_async(context);
-    printf("(2) context data %p %p\n", data, data->loop);
 }
 
 static void
 getdns_libev_timeout_cb(struct ev_loop *loop, struct ev_timer* handle, int status) {
-    printf("Timeout on loop %p\n", loop);
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) handle->data;
     timeout_data->callback(timeout_data->userarg);
 }
@@ -92,7 +88,6 @@ getdns_libev_schedule_timeout(struct getdns_context* context,
     ev_timer_start(ev_data->loop, timer);
 
     *eventloop_timer = timer;
-    printf("Scheduled timer %p on loop %p (%p)\n", timer, ev_data->loop, ev_data);
     return GETDNS_RETURN_GOOD;
 }
 
@@ -101,7 +96,6 @@ getdns_libev_clear_timeout(struct getdns_context* context,
     void* eventloop_data, void* eventloop_timer) {
     struct ev_timer* timer = (struct ev_timer*) eventloop_timer;
     struct getdns_libev_data* ev_data = (struct getdns_libev_data*) eventloop_data;
-    printf("Clearing timer %p on loop %p (%p, %p)\n", timer, ev_data->loop, ev_data, context);
     ev_timer_stop(ev_data->loop, timer);
     free(timer);
     return GETDNS_RETURN_GOOD;
@@ -138,7 +132,6 @@ getdns_extension_set_libev_loop(struct getdns_context *context,
     ev_io_init(ev_data->poll_handle, getdns_libev_cb, fd, EV_READ);
     ev_data->loop = loop;
 
-    printf("Attaching to loop %p (%p)\n", ev_data->loop, ev_data);
     ev_io_start(ev_data->loop, ev_data->poll_handle);
     ev_data->poll_handle->data = context;
     return getdns_extension_set_eventloop(context, &LIBEV_EXT, ev_data);
