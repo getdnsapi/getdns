@@ -640,8 +640,6 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
                                      const struct rr_def* def,
                                      struct getdns_context* context) {
     uint8_t alg;
-    uint8_t hit_size;
-    uint16_t key_size;
     getdns_return_t r;
     struct getdns_bindata hit_data;
     struct getdns_bindata key_data;
@@ -652,8 +650,6 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     if (r != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    hit_data.size = hit_size;
-    key_data.size = key_size;
 
     r = getdns_dict_set_int(rdata, def->rdata[0].name, alg);
     r |= getdns_dict_set_bindata(rdata, def->rdata[1].name, &hit_data);
