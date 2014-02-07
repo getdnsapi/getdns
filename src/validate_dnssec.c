@@ -119,7 +119,8 @@ rrset_iter_init_zone(zone_iter *i, ldns_dnssec_zone *zone)
 	assert(i);
 
 	i->zone = zone;
-	i->cur_node = ldns_rbtree_first(zone->names);
+	i->cur_node = zone->names ? ldns_rbtree_first(zone->names)
+	                          : LDNS_RBTREE_NULL;
 	i->cur_rrset = i->cur_node != LDNS_RBTREE_NULL
 	    ? ((ldns_dnssec_name *)i->cur_node->data)->rrsets
 	    : NULL;
@@ -180,56 +181,76 @@ chase(ldns_dnssec_rrsets *rrset, ldns_dnssec_zone *support,
 {
 	ldns_status s;
 	ldns_rr_list *verifying_keys;
-	size_t i;
+	size_t i, j;
 	ldns_rr *rr;
 	ldns_dnssec_rrsets *key_rrset;
+	ldns_dnssec_rrs *rrs;
 
-	printf(";; RRSET to validate:\n");
-	ldns_dnssec_rrsets_print(stdout, rrset, 0);
-
-	printf(";;\n;; Validating with trust anchors:\n");
+	/* Secure by trusted keys? */
 	verifying_keys = ldns_rr_list_new();
 	s = verify_rrset(rrset, trusted, verifying_keys);
-	printf(";; status: %s\n", ldns_get_errorstr_by_id(s));
-	if (ldns_rr_list_rr_count(verifying_keys)) { ldns_rr_list_print(stdout, verifying_keys); printf(";;\n"); }
-	ldns_rr_list_free(verifying_keys);
 	if (s == 0)
-		return s;
+		goto done_free_verifying_keys;
 
-	printf(";; Validating with support keys:\n");
+	/* No, chase with support records..
+	 * Is there a verifying key in the support records?
+	 */
 	verifying_keys = ldns_rr_list_new();
 	s = verify_rrset(rrset, support_keys, verifying_keys);
-	printf(";; status: %s\n", ldns_get_errorstr_by_id(s));
-	if (ldns_rr_list_rr_count(verifying_keys)) { ldns_rr_list_print(stdout, verifying_keys); printf(";;\n"); }
 	if (s != 0)
 		goto done_free_verifying_keys;
 
-	printf(";; Looking up the verifying keys:\n");
+	/* Ok, we have verifying keys from the support records.
+	 * Compare them with the *trusted* keys or DSes,
+	 * or chase them further down the validation chain.
+	 */
 	for (i = 0; i < ldns_rr_list_rr_count(verifying_keys); i++) {
+		/* Lookup the rrset for key rr from the support records */
 		rr = ldns_rr_list_rr(verifying_keys, i);
 		key_rrset = ldns_dnssec_zone_find_rrset(
 		    support, ldns_rr_owner(rr), ldns_rr_get_type(rr));
 		if (! key_rrset) {
-			printf(";; Key not found:\n;;\n");
 			s = LDNS_STATUS_CRYPTO_NO_DNSKEY;
 			break;
 		}
+		/* When we signed ourselves, we have to cross domain border
+		 * and look for a matching DS signed by a parents key
+		 */
 		if (rrset == key_rrset) {
-			printf(";; Key verifies itself, lookup DS:\n");
+			/* Is the verifying key trusted?
+			 * (i.e. DS in trusted)
+			 */
+			for (j = 0; j < ldns_rr_list_rr_count(trusted); j++)
+				if (ldns_rr_compare_ds(ldns_rr_list_rr(
+				    trusted, j), rr))
+					break;
+			/* If so, check for the next verifying key
+			 * (or exit SECURE)
+			 */
+			if (j < ldns_rr_list_rr_count(trusted))
+				continue;
+
+			/* Search for a matching DS in the support records */
 			key_rrset = ldns_dnssec_zone_find_rrset(
 			    support, ldns_rr_owner(rr), LDNS_RR_TYPE_DS);
 			if (! key_rrset) {
-				printf(";; DS not found:\n;;\n");
 				s = LDNS_STATUS_CRYPTO_NO_DNSKEY;
 				break;
 			}
 			/* Now check if DS matches the DNSKEY! */
+			for (rrs = key_rrset->rrs; rrs; rrs = rrs->next)
+				if (ldns_rr_compare_ds(rr, rrs->rr))
+					break;
+			if (! rrs) {
+				s = LDNS_STATUS_CRYPTO_NO_DNSKEY;
+				break;
+			}
 		}
+		/* Pursue the chase with the verifying key (or its DS) */
 		s = chase(key_rrset, support, support_keys, trusted);
 		if (s != 0)
 			break;
 	}
-
 done_free_verifying_keys:
 	ldns_rr_list_free(verifying_keys);
 	return s;
@@ -252,7 +273,7 @@ getdns_validate_dnssec(struct getdns_list *records_to_validate,
 	zone_iter i;
 	ldns_dnssec_rrsets *rrset;
 	ldns_dnssec_rrs *rrs;
-	ldns_status s;
+	ldns_status s = LDNS_STATUS_OK;
 
 	if ((r = priv_getdns_rr_list_from_list(trust_anchors, &trusted)))
 		return r;
@@ -288,14 +309,12 @@ getdns_validate_dnssec(struct getdns_list *records_to_validate,
 		if (s != 0)
 			break;
 	}
-
-	/*
-	for(zone_iter_init(&i, to_validate);
-	    (rrset = zone_iter_rrset(&i)); zone_iter_next(&i)) {
-
-		ldns_dnssec_rrsets_print(stdout, rrset, 0);
-	}
-	*/
+	if (s == LDNS_STATUS_CRYPTO_BOGUS)
+		r = GETDNS_DNSSEC_BOGUS;
+	else if (s != LDNS_STATUS_OK)
+		r = GETDNS_DNSSEC_INSECURE;
+	else
+		r = GETDNS_DNSSEC_SECURE;
 
 	ldns_rr_list_free(support_keys);
 done_free_to_validate:

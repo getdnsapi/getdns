@@ -137,6 +137,7 @@ this_callbackfn(struct getdns_context *context, uint16_t callback_type,
 	size_t replies_tree_length, i;
 	struct getdns_dict *reply;
 	struct getdns_list *answer;
+	size_t answer_length;
 	getdns_return_t r;
 
 	do {
@@ -195,13 +196,23 @@ this_callbackfn(struct getdns_context *context, uint16_t callback_type,
 				    " %d\n", r);
 				break;
 			}
+			r = getdns_list_get_length(answer, &answer_length);
+			if (r != GETDNS_RETURN_GOOD) {
+				fprintf(stderr,
+				    "Could not get length of answer list:"
+				    " %d\n", r);
+				break;
+			}
+			if (answer_length == 0)
+				continue;
+
 			r = getdns_validate_dnssec(answer,
 			    validation_chain, trust_anchors);
 			printf("getdns_validate_dnssec returned: %d\n", r);
 		}
-		//printf("%s\n", getdns_pretty_print_dict(response));
 		getdns_list_destroy(trust_anchors);
 	} while (0);
+	//printf("%s\n", getdns_pretty_print_dict(response));
 	getdns_dict_destroy(response);
 	(void) event_base_loopexit((struct event_base *)userarg, NULL);
 }
