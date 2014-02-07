@@ -133,6 +133,10 @@ this_callbackfn(struct getdns_context *context, uint16_t callback_type,
 {
 	struct getdns_list *validation_chain;
 	struct getdns_list *trust_anchors;
+	struct getdns_list *replies_tree;
+	size_t replies_tree_length, i;
+	struct getdns_dict *reply;
+	struct getdns_list *answer;
 	getdns_return_t r;
 
 	do {
@@ -155,6 +159,20 @@ this_callbackfn(struct getdns_context *context, uint16_t callback_type,
 			    " %d\n", r);
 			break;
 		}
+		r = getdns_dict_get_list(response, "replies_tree", &replies_tree);
+		if (r != GETDNS_RETURN_GOOD) {
+			fprintf(stderr,
+			    "Could not get \"replies_tree\" from response:"
+			    " %d\n", r);
+			break;
+		}
+		r = getdns_list_get_length(replies_tree, &replies_tree_length);
+		if (r != GETDNS_RETURN_GOOD) {
+			fprintf(stderr,
+			    "Could not get length of the replies_tree:"
+			    " %d\n", r);
+			break;
+		}
 		r = create_root_trustanchor_list(&trust_anchors);
 		if (r != GETDNS_RETURN_GOOD) {
 			fprintf(stderr,
@@ -162,11 +180,26 @@ this_callbackfn(struct getdns_context *context, uint16_t callback_type,
 			    " %d\n", r);
 			break;
 		}
-		r = getdns_validate_dnssec(NULL,
-		   validation_chain, trust_anchors);
-
-		printf("getdns_validate_dnssec returned: %d\n", r);
-
+		for (i = 0; i < replies_tree_length; i++) {
+			r = getdns_list_get_dict(replies_tree, i, &reply);
+			if (r != GETDNS_RETURN_GOOD) {
+				fprintf(stderr,
+				    "Could not get \"reply\" from replies_tree:"
+				    " %d\n", r);
+				break;
+			}
+			r = getdns_dict_get_list(reply, "answer", &answer);
+			if (r != GETDNS_RETURN_GOOD) {
+				fprintf(stderr,
+				    "Could not get \"answer\" from reply:"
+				    " %d\n", r);
+				break;
+			}
+			r = getdns_validate_dnssec(answer,
+			    validation_chain, trust_anchors);
+			printf("getdns_validate_dnssec returned: %d\n", r);
+		}
+		//printf("%s\n", getdns_pretty_print_dict(response));
 		getdns_list_destroy(trust_anchors);
 	} while (0);
 	getdns_dict_destroy(response);
