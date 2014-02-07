@@ -779,9 +779,9 @@ char *getdns_convert_ulabel_to_alabel(const char *ulabel);
 char *getdns_convert_alabel_to_ulabel(const char *alabel);
 
 getdns_return_t
-getdns_validate_dnssec(struct getdns_bindata *record_to_validate,
-    struct getdns_list *bundle_of_support_records,
-    struct getdns_list *trust_anchor_rdatas);
+getdns_validate_dnssec(struct getdns_list *to_validate,
+    struct getdns_list *support_records,
+    struct getdns_list *trust_anchors);
 
 /**
  * creates a string that describes the dictionary in a human readable form
