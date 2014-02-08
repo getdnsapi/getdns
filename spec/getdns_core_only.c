@@ -355,7 +355,7 @@ getdns_context_set_limit_outstanding_queries(
 getdns_return_t
 getdns_context_set_timeout(
   struct getdns_context  *context,
-  uint16_t               timeout
+  unsigned int           timeout
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(timeout); return GETDNS_RETURN_GOOD; }
 
@@ -397,7 +397,7 @@ getdns_context_set_dnssec_trust_anchors(
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(
   struct getdns_context  *context,
-  uint16_t               value
+  unsigned int           value
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(value); return GETDNS_RETURN_GOOD; }
 

@@ -1,4 +1,4 @@
-/* Created at 2014-02-06-00-25-11*/
+/* Created at 2014-02-08-16-06-49*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -542,7 +542,7 @@ getdns_context_set_limit_outstanding_queries(
 getdns_return_t
 getdns_context_set_timeout(
   struct getdns_context  *context,
-  uint16_t               timeout
+  uint64_t               timeout
 );
 
 getdns_return_t
@@ -578,7 +578,7 @@ getdns_context_set_dnssec_trust_anchors(
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(
   struct getdns_context  *context,
-  uint16_t               value
+  uint32_t               value
 );
 
 getdns_return_t

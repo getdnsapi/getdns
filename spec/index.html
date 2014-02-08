@@ -97,7 +97,7 @@ tr.code { font-family: monospace }
 
 <p class=title>Description of the <code>getdns</code> API</p>
 <p class=title2>Paul Hoffman, Editor</p>
-<p class=title2>Document version: "getdns December 2013"</p>
+<p class=title2>Document version: "getdns Februari 2014"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -1757,11 +1757,11 @@ struct getdns_dict * this_extensions = getdns_dict_create();
 this_ret = getdns_dict_set_int(this_extensions, "return_both_v4_and_v6", GETDNS_EXTENSION_TRUE);
 this_ret = getdns_dict_set_int(this_extensions, "dnssec_return_status", GETDNS_EXTENSION_TRUE);
 . . .
-if (*this_type == GETDNS_RRTYPE_A)
+if (this_type == GETDNS_RRTYPE_A)
 {
     uint32_t * this_dnssec_status;
-    this_ret = getdns_dict_get_int(this_rdata, "dnssec_status", this_dnssec_status);
-    if (&amp;this_dnssec_status != GETDNS_DNSSEC_SECURE)
+    this_ret = getdns_dict_get_int(this_rdata, "dnssec_status", &amp;this_dnssec_status);
+    if (this_dnssec_status != GETDNS_DNSSEC_SECURE)
     {
         // Log the DNSSEC status somewhere
     }
@@ -2208,9 +2208,9 @@ the number of outstanding DNS queries is unlimited.</p>
 getdns_return_t
 getdns_context_set_timeout(
   struct getdns_context  *context,
-  uint16_t               timeout
+  uint64_t               timeout
 );</div>
-<p class=cont>Specifies number of seconds the API will wait for request to return.
+<p class=cont>Specifies number of milliseconds the API will wait for request to return.
 The default is <span class=default>not specified</span>.</p>
 
 <h2>8.4 Context for Recursive Resolvers</h2>
@@ -2286,7 +2286,7 @@ are expressed as RDATAs from DNSKEY resource records.</p>
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(
   struct getdns_context  *context,
-  uint16_t               value
+  uint32_t               value
 );</div>
 <p class=cont>The value is the number of seconds of skew that is allowed in either direction when
 checking an RRSIG's Expiration and Inception fields. The default
@@ -2426,7 +2426,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.387.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.390.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
