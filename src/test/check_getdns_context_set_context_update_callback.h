@@ -32,9 +32,21 @@
       */
 
       struct getdns_context *context = NULL;
+      CONTEXT_CREATE(TRUE);
+
+      ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_context_update_callback()");
+
+      expected_changed_item = GETDNS_CONTEXT_CODE_TIMEOUT;
+       
+
+      ASSERT_RC(getdns_context_set_timeout(context, 3),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, NULL),
         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_context_update_callback()");
+
+      CONTEXT_DESTROY;
         
     }
     END_TEST

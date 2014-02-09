@@ -287,10 +287,8 @@ void callbackfn(struct getdns_context *context,
 
 }
 
-//refactor later
 /*
- *  callbackfn is the callback function given to all
- *  asynchronous query tests.  It is expected to only
+ *  update_callbackfn is expected to only
  *  be called for positive tests and will verify the
  *  response that is returned.
  */
