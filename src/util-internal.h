@@ -70,7 +70,7 @@ getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
   * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
   * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
   */
-getdns_return_t getdns_list_copy(struct getdns_list *srclist,
+getdns_return_t getdns_list_copy(const struct getdns_list *srclist,
     struct getdns_list **dstlist);
 
 /**
@@ -82,7 +82,8 @@ getdns_return_t getdns_list_copy(struct getdns_list *srclist,
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
+getdns_dict_copy(const struct getdns_dict *srcdict,
+    struct getdns_dict **dstdict);
 
 /**
  * convert an ip address (v4/v6) dict to a sock storage

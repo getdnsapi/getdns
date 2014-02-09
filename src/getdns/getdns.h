@@ -609,7 +609,7 @@ void getdns_list_destroy(struct getdns_list *this_list);
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
 getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index,
-    struct getdns_dict *child_dict);
+    const struct getdns_dict *child_dict);
 
 /**
  * assign the child_list to an item in a parent list, the parent list copies
@@ -621,7 +621,7 @@ getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
 getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index,
-    struct getdns_list *child_list);
+    const struct getdns_list *child_list);
 /**
  * assign the child_bindata to an item in a parent list, the parent list copies
  * the child data and will free the copy when the list is destroyed
@@ -632,7 +632,7 @@ getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
 getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index,
-    struct getdns_bindata *child_bindata);
+    const struct getdns_bindata *child_bindata);
 /**
  * set the integer value of the indexed item (zero based index)
  * @return GETDNS_RETURN_GOOD on success
@@ -666,8 +666,8 @@ struct getdns_dict *getdns_dict_create_with_extended_memory_functions(
  */
 void getdns_dict_destroy(struct getdns_dict *this_dict);
 
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, const char *name,
-    struct getdns_dict *child_dict);
+getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict,
+    const char *name, const struct getdns_dict *child_dict);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_list
@@ -676,8 +676,8 @@ getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, const char *
  * @param child_list value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, const char *name,
-    struct getdns_list *child_list);
+getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict,
+    const char *name, const struct getdns_list *child_list);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_bindata
@@ -686,8 +686,8 @@ getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, const char *
  * @param child_bindata value to assign to the node identified by name
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, const char *name,
-    struct getdns_bindata *child_bindata);
+getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict,
+    const char *name, const struct getdns_bindata *child_bindata);
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * @param this_dict dictionary in which to add or change the value

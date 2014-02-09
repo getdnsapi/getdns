@@ -283,7 +283,8 @@ getdns_dict_create()
  * @return NULL on error (out of memory, invalid srcdict)
  */
 getdns_return_t
-getdns_dict_copy(struct getdns_dict * srcdict, struct getdns_dict ** dstdict)
+getdns_dict_copy(const struct getdns_dict * srcdict,
+    struct getdns_dict ** dstdict)
 {
 	struct getdns_dict_item *item;
 	char *key;
@@ -305,7 +306,8 @@ getdns_dict_copy(struct getdns_dict * srcdict, struct getdns_dict ** dstdict)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	retval = GETDNS_RETURN_GOOD;
-	LDNS_RBTREE_FOR(item, struct getdns_dict_item *, &(srcdict->root)) {
+	LDNS_RBTREE_FOR(item, struct getdns_dict_item *,
+	    (struct ldns_rbtree_t *)&(srcdict->root)) {
 		key = (char *) item->node.key;
 		switch (item->dtype) {
 		case t_bindata:
@@ -385,7 +387,7 @@ getdns_dict_destroy(struct getdns_dict *dict)
 /*---------------------------------------- getdns_dict_set_dict */
 getdns_return_t
 getdns_dict_set_dict(struct getdns_dict * dict, const char *name,
-    struct getdns_dict * child_dict)
+    const struct getdns_dict * child_dict)
 {
 	struct getdns_dict_item *item;
 	struct getdns_dict *newdict;
@@ -411,7 +413,7 @@ getdns_dict_set_dict(struct getdns_dict * dict, const char *name,
 /*---------------------------------------- getdns_dict_set_list */
 getdns_return_t
 getdns_dict_set_list(struct getdns_dict * dict, const char *name,
-    struct getdns_list * child_list)
+    const struct getdns_list * child_list)
 {
 	struct getdns_dict_item *item;
 	struct getdns_list *newlist;
@@ -437,7 +439,7 @@ getdns_dict_set_list(struct getdns_dict * dict, const char *name,
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
 getdns_dict_set_bindata(struct getdns_dict * dict, const char *name,
-    struct getdns_bindata * child_bindata)
+    const struct getdns_bindata * child_bindata)
 {
 	struct getdns_dict_item *item;
 	struct getdns_bindata *newbindata;

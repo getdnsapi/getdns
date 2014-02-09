@@ -167,7 +167,8 @@ getdns_list_realloc(struct getdns_list *list)
 
 /*---------------------------------------- getdns_list_copy */
 getdns_return_t
-getdns_list_copy(struct getdns_list * srclist, struct getdns_list ** dstlist)
+getdns_list_copy(const struct getdns_list * srclist,
+    struct getdns_list ** dstlist)
 {
 	int i;
 	size_t index;
@@ -362,7 +363,7 @@ getdns_list_add_item(struct getdns_list *list, size_t * index)
 /*---------------------------------------- getdns_list_set_dict */
 getdns_return_t
 getdns_list_set_dict(struct getdns_list * list, size_t index,
-    struct getdns_dict * child_dict)
+    const struct getdns_dict * child_dict)
 {
 	struct getdns_dict *newdict;
 	getdns_return_t retval;
@@ -394,7 +395,7 @@ getdns_list_set_dict(struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_set_list */
 getdns_return_t
 getdns_list_set_list(struct getdns_list * list, size_t index,
-    struct getdns_list * child_list)
+    const struct getdns_list * child_list)
 {
 	struct getdns_list *newlist;
 	getdns_return_t retval;
@@ -426,7 +427,7 @@ getdns_list_set_list(struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_set_bindata */
 getdns_return_t
 getdns_list_set_bindata(struct getdns_list * list, size_t index,
-    struct getdns_bindata * child_bindata)
+    const struct getdns_bindata * child_bindata)
 {
 	struct getdns_bindata *newbindata;
 	getdns_return_t retval;
