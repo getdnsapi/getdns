@@ -31,7 +31,7 @@
        *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL; 
-       struct event_base *event_base = NULL; 
+       void* eventloop = NULL; 
        getdns_transaction_t transaction_id = 0;
 
        CONTEXT_CREATE(TRUE);
@@ -53,7 +53,7 @@
        *  expect:  GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL; 
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
        const char *name = "oh.my.gosh.and.for.petes.sake.are.you.fricking.crazy.man.because.this.spectacular.and.elaborately.thought.out.domain.name.of.very.significant.length.is.just.too.darn.long.because.you.know.the rfc.states.that.two.hundred.fifty.five.characters.is.the.max.com";
        
@@ -76,7 +76,7 @@
        *  expect:  GETDNS_RETURN_BAD_DOMAIN_NAME
        */
        struct getdns_context *context = NULL; 
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
        const char *name = "this.domain.hasalabelwhichexceedsthemaximumdnslabelsizeofsixtythreecharacters.com";
        
@@ -99,7 +99,7 @@
        *  expect:  GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL; 
-       struct event_base *event_base = NULL;
+       void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
        
        CONTEXT_CREATE(TRUE);
@@ -126,7 +126,7 @@
        */
        void verify_getdns_service_7(struct extracted_response *ex_response);
        struct getdns_context *context = NULL;   \
-       struct event_base *event_base = NULL;    \
+       void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
      
        CONTEXT_CREATE(TRUE);

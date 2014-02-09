@@ -249,7 +249,7 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
  *  response that is returned.
  */
 void callbackfn(struct getdns_context *context,
-                uint16_t callback_type,
+                getdns_callback_type_t callback_type,
                 struct getdns_dict *response,
                 void *userarg,
                 getdns_transaction_t transaction_id)
@@ -293,7 +293,7 @@ void callbackfn(struct getdns_context *context,
  *  response that is returned.
  */
 void update_callbackfn(struct getdns_context *context,
-                uint16_t changed_item)
+                getdns_context_code_t changed_item)
 {
 
   ck_assert_msg(changed_item == expected_changed_item,
