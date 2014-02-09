@@ -127,7 +127,8 @@ getdns_return_t create_root_trustanchor_list(struct getdns_list **tas)
 
 /* Set up the callback function, which will also do the processing of the results */
 void
-this_callbackfn(struct getdns_context *context, uint16_t callback_type,
+this_callbackfn(struct getdns_context *context,
+    getdns_callback_type_t callback_type,
     struct getdns_dict *response, void *userarg,
     getdns_transaction_t transaction_id)
 {

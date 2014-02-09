@@ -56,7 +56,7 @@
       /*
       *  Create a context by calling getdns_context_create()
       *  Define a callback routine for context changes and call getdns_context_set_context_update_callback() so that it gets called when there are context changes
-      *  getdns_context_set_resolution_type() to GETDNS_CONTEXT_STUB
+      *  getdns_context_set_resolution_type() to GETDNS_RESOLUTION_STUB
       *  expect:  GETDNS_CONTEXT_CODE_RESOLUTION_TYPE
       */
       struct getdns_context *context = NULL;
@@ -67,7 +67,7 @@
 
       expected_changed_item = GETDNS_CONTEXT_CODE_RESOLUTION_TYPE;
 
-      ASSERT_RC(getdns_context_set_resolution_type(context, GETDNS_CONTEXT_STUB),
+      ASSERT_RC(getdns_context_set_resolution_type(context, GETDNS_RESOLUTION_STUB),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_resolution_type()");
 
       CONTEXT_DESTROY;
@@ -84,7 +84,7 @@
       *  expect:  GETDNS_CONTEXT_CODE_NAMESPACES
       */ 
       struct getdns_context *context = NULL;
-      uint16_t namespace_arr[2] = {GETDNS_CONTEXT_NAMESPACE_DNS, GETDNS_CONTEXT_NAMESPACE_LOCALNAMES};
+      getdns_namespace_t namespace_arr[2] = {GETDNS_NAMESPACE_DNS, GETDNS_NAMESPACE_LOCALNAMES};
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -105,7 +105,7 @@
       /*
       *  Create a context by calling getdns_context_create()
       *  Define a callback routine for context changes and call getdns_context_set_context_update_callback() so that it gets called when there are context changes
-      *  Call getdns_context_set_dns_transport() to GETDNS_CONTEXT_UDP_ONLY
+      *  Call getdns_context_set_dns_transport() to GETDNS_TRANSPORT_UDP_ONLY
       *  expect:  GETDNS_CONTEXT_CODE_DNS_TRANSPORT
       */ 
       struct getdns_context *context = NULL;
@@ -116,7 +116,7 @@
 
       expected_changed_item = GETDNS_CONTEXT_CODE_DNS_TRANSPORT;
 
-      ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_CONTEXT_UDP_ONLY),
+      ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_ONLY),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
 
       CONTEXT_DESTROY;
@@ -177,7 +177,7 @@
       /*
       *  Create a context by calling getdns_context_create()
       *  Define a callback routine for context changes and call getdns_context_set_context_update_callback() so that it gets called when there are context changes
-      *  Call getdns_context_set_follow_redirects() to GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS
+      *  Call getdns_context_set_follow_redirects() to GETDNS_REDIRECTS_DO_NOT_FOLLOW
       *  expect:  GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS
       */ 
       struct getdns_context *context = NULL;
@@ -188,7 +188,7 @@
 
       expected_changed_item = GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS;
 
-      ASSERT_RC(getdns_context_set_follow_redirects(context, GETDNS_CONTEXT_DO_NOT_FOLLOW_REDIRECTS),
+      ASSERT_RC(getdns_context_set_follow_redirects(context, GETDNS_REDIRECTS_DO_NOT_FOLLOW),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_follow_redirects()");
 
       CONTEXT_DESTROY;

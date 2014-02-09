@@ -50,7 +50,8 @@
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 /* Private functions */
-static uint16_t *create_default_namespaces(struct getdns_context *context);
+static getdns_namespace_t *create_default_namespaces(
+    struct getdns_context *context);
 static struct getdns_list *create_default_root_servers();
 static getdns_return_t add_ip_str(struct getdns_dict *);
 static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
@@ -75,13 +76,14 @@ static void cancel_outstanding_requests(struct getdns_context*, int);
  * Helper to get default lookup namespaces.
  * TODO: Determine from OS
  */
-static uint16_t *
+static getdns_namespace_t*
 create_default_namespaces(struct getdns_context *context)
 {
-    uint16_t *result = GETDNS_XMALLOC(context->my_mf, uint16_t, 2);
-    result[0] = GETDNS_CONTEXT_NAMESPACE_LOCALNAMES;
-    result[1] = GETDNS_CONTEXT_NAMESPACE_DNS;
-    return result;
+	getdns_namespace_t *result = GETDNS_XMALLOC(
+	    context->my_mf, getdns_namespace_t, 2);
+	result[0] = GETDNS_NAMESPACE_LOCALNAMES;
+	result[1] = GETDNS_NAMESPACE_DNS;
+	return result;
 }
 
 /**
@@ -337,13 +339,13 @@ getdns_context_create_with_extended_memory_functions(
 
     result->outbound_requests = ldns_rbtree_create(transaction_id_cmp);
 
-    result->resolution_type = GETDNS_CONTEXT_RECURSING;
+    result->resolution_type = GETDNS_RESOLUTION_RECURSING;
     result->namespaces = create_default_namespaces(result);
 
     result->timeout = 5000;
-    result->follow_redirects = GETDNS_CONTEXT_FOLLOW_REDIRECTS;
+    result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
     result->dns_root_servers = create_default_root_servers();
-    result->append_name = GETDNS_CONTEXT_APPEND_NAME_ALWAYS;
+    result->append_name = GETDNS_APPEND_NAME_ALWAYS;
     result->suffix = NULL;
 
     result->dnssec_trust_anchors = NULL;
@@ -371,7 +373,7 @@ getdns_context_create_with_extended_memory_functions(
     getdns_context_set_dnssec_allowed_skew(result, 0);
     getdns_context_set_edns_maximum_udp_payload_size(result, 512);
     getdns_context_set_dns_transport(result,
-        GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
+        GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
 
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_create */
@@ -451,8 +453,8 @@ getdns_context_destroy(struct getdns_context *context)
  */
 getdns_return_t
 getdns_context_set_context_update_callback(struct getdns_context *context,
-    void (*value) (struct getdns_context *context, uint16_t changed_item)
-    )
+    void (*value) (struct getdns_context *context,
+                   getdns_context_code_t changed_item))
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     context->update_callback = value;
@@ -504,10 +506,11 @@ dispatch_updated(struct getdns_context *context, uint16_t item)
  *
  */
 getdns_return_t
-getdns_context_set_resolution_type(struct getdns_context *context, uint16_t value)
+getdns_context_set_resolution_type(struct getdns_context *context,
+    getdns_resolution_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != GETDNS_CONTEXT_STUB && value != GETDNS_CONTEXT_RECURSING) {
+    if (value != GETDNS_RESOLUTION_STUB && value != GETDNS_RESOLUTION_RECURSING) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
 
@@ -524,7 +527,7 @@ getdns_context_set_resolution_type(struct getdns_context *context, uint16_t valu
  */
 getdns_return_t
 getdns_context_set_namespaces(struct getdns_context *context,
-    size_t namespace_count, uint16_t * namespaces)
+    size_t namespace_count, getdns_namespace_t *namespaces)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     if (namespace_count == 0 || namespaces == NULL) {
@@ -535,10 +538,10 @@ getdns_context_set_namespaces(struct getdns_context *context,
     GETDNS_FREE(context->my_mf, context->namespaces);
 
     /** duplicate **/
-    context->namespaces = GETDNS_XMALLOC(context->my_mf, uint16_t,
+    context->namespaces = GETDNS_XMALLOC(context->my_mf, getdns_namespace_t,
         namespace_count);
     memcpy(context->namespaces, namespaces,
-        namespace_count * sizeof(uint16_t));
+        namespace_count * sizeof(getdns_namespace_t));
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
 
@@ -550,19 +553,20 @@ getdns_context_set_namespaces(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_dns_transport(struct getdns_context *context, uint16_t value)
+getdns_context_set_dns_transport(struct getdns_context *context,
+    getdns_transport_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     switch (value) {
-    case GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+    case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
         set_ub_string_opt(context, "do-udp", "yes");
         set_ub_string_opt(context, "do-tcp", "yes");
         break;
-    case GETDNS_CONTEXT_UDP_ONLY:
+    case GETDNS_TRANSPORT_UDP_ONLY:
         set_ub_string_opt(context, "do-udp", "yes");
         set_ub_string_opt(context, "do-tcp", "no");
         break;
-    case GETDNS_CONTEXT_TCP_ONLY:
+    case GETDNS_TRANSPORT_TCP_ONLY:
         set_ub_string_opt(context, "do-udp", "no");
         set_ub_string_opt(context, "do-tcp", "yes");
         break;
@@ -599,7 +603,7 @@ getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_timeout(struct getdns_context *context, uint16_t timeout)
+getdns_context_set_timeout(struct getdns_context *context, uint64_t timeout)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
@@ -619,12 +623,13 @@ getdns_context_set_timeout(struct getdns_context *context, uint16_t timeout)
  *
  */
 getdns_return_t
-getdns_context_set_follow_redirects(struct getdns_context *context, uint16_t value)
+getdns_context_set_follow_redirects(struct getdns_context *context,
+    getdns_redirects_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     context->follow_redirects = value;
 
-    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_RECURSING);
+    clear_resolution_type_set_flag(context, GETDNS_RESOLUTION_RECURSING);
     dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
 
     return GETDNS_RETURN_GOOD;
@@ -672,7 +677,7 @@ getdns_context_set_dns_root_servers(struct getdns_context *context,
     getdns_list_destroy(context->dns_root_servers);
     context->dns_root_servers = addresses;
 
-    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_RECURSING);
+    clear_resolution_type_set_flag(context, GETDNS_RESOLUTION_RECURSING);
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
 
@@ -684,15 +689,14 @@ getdns_context_set_dns_root_servers(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_append_name(struct getdns_context *context, uint16_t value)
+getdns_context_set_append_name(struct getdns_context *context,
+    getdns_append_name_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != GETDNS_CONTEXT_APPEND_NAME_ALWAYS &&
-        value !=
-        GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE
-        && value !=
-        GETDNS_CONTEXT_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE
-        && value != GETDNS_CONTEXT_DO_NOT_APPEND_NAMES) {
+    if (value != GETDNS_APPEND_NAME_ALWAYS &&
+        value != GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE &&
+        value != GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE
+        && value != GETDNS_APPEND_NAME_NEVER) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
 
@@ -721,7 +725,7 @@ getdns_context_set_suffix(struct getdns_context *context, struct getdns_list * v
     getdns_list_destroy(context->suffix);
     context->suffix = value;
 
-    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_STUB);
+    clear_resolution_type_set_flag(context, GETDNS_RESOLUTION_STUB);
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
 
@@ -758,7 +762,7 @@ getdns_context_set_dnssec_trust_anchors(struct getdns_context *context,
  */
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
-    uint16_t value)
+    uint32_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     set_ub_number_opt(context, "val-sig-skew-min", value);
@@ -806,7 +810,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
     getdns_list_destroy(context->upstream_list);
     context->upstream_list = upstream_list;
 
-    clear_resolution_type_set_flag(context, GETDNS_CONTEXT_STUB);
+    clear_resolution_type_set_flag(context, GETDNS_RESOLUTION_STUB);
 
     dispatch_updated(context,
         GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
@@ -1084,7 +1088,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context)
          */
         return GETDNS_RETURN_GOOD;
     }
-    if (context->resolution_type == GETDNS_CONTEXT_STUB) {
+    if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
         size_t upstream_len = 0;
         getdns_return_t r =
             getdns_list_get_length(context->upstream_list,
@@ -1098,7 +1102,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context)
         /* use /etc/hosts */
         ub_ctx_hosts(context->unbound_ctx, NULL);
 
-    } else if (context->resolution_type == GETDNS_CONTEXT_RECURSING) {
+    } else if (context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
         /* set recursive */
         /* TODO: use the root servers via root hints file */
         ub_ctx_set_fwd(context->unbound_ctx, NULL);

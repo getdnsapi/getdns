@@ -48,9 +48,9 @@
      START_TEST (getdns_context_set_dns_transport_3)
      {
        /*
-       *  Call getdns_context_set_dns_transport() with value = GETDNS_CONTEXT_UDP_ONLY
+       *  Call getdns_context_set_dns_transport() with value = GETDNS_TRANSPORT_UDP_ONLY
        *  Define a callback routine for context changes and call getdns_context_set_context_update_callback() so that it gets called when there are context changes
-       *  getdns_context_set_resolution_type() to GETDNS_CONTEXT_STUB
+       *  getdns_context_set_resolution_type() to GETDNS_RESOLUTION_STUB
        *  expect:  GETDNS_CONTEXT_CODE_RESOLUTION_TYPE
        */
        struct getdns_context *context = NULL;
@@ -67,7 +67,7 @@
         CONTEXT_CREATE(TRUE);
 
 
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_CONTEXT_UDP_ONLY),
+       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_ONLY),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
      
 
@@ -94,7 +94,7 @@
        printf("the udp_sum is %d\n", udp_sum);
 
        //tcp count
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_CONTEXT_TCP_ONLY),
+       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
      
 

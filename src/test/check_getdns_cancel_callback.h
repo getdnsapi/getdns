@@ -100,7 +100,7 @@
        */
        void cancel_callbackfn(
                struct getdns_context *context,
-               uint16_t callback_type,
+               getdns_callback_type_t callback_type,
                struct getdns_dict *response,
                void *userarg,
                getdns_transaction_t transaction_id);
@@ -179,7 +179,7 @@
        */
        void cancel_callbackfn(
                struct getdns_context *context,
-               uint16_t callback_type,
+               getdns_callback_type_t callback_type,
                struct getdns_dict *response,
                void *userarg,
                getdns_transaction_t transaction_id);
@@ -259,7 +259,7 @@
        */
        void cancel_callbackfn(
                struct getdns_context *context,
-               uint16_t callback_type,
+               getdns_callback_type_t callback_type,
                struct getdns_dict *response,
                void *userarg,
                getdns_transaction_t transaction_id);
@@ -348,7 +348,7 @@
        */
        void cancel_callbackfn(
                struct getdns_context *context,
-               uint16_t callback_type,
+               getdns_callback_type_t callback_type,
                struct getdns_dict *response,
                void *userarg,
                getdns_transaction_t transaction_id);
@@ -420,7 +420,7 @@
      */
      void cancel_callbackfn(
          struct getdns_context *context,
-         uint16_t callback_type,
+         getdns_callback_type_t callback_type,
          struct getdns_dict *response,
          void *userarg,
          getdns_transaction_t transaction_id)

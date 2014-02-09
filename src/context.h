@@ -45,17 +45,18 @@ struct ldns_rbtree_t;
 struct ub_ctx;
 
 /** function pointer typedefs */
-typedef void (*getdns_update_callback) (struct getdns_context *, uint16_t);
+typedef void (*getdns_update_callback) (struct getdns_context *,
+    getdns_context_code_t);
 
 struct getdns_context {
 
 	/* Context values */
-	uint16_t resolution_type;
-	uint16_t *namespaces;
-	uint16_t timeout;
-	uint16_t follow_redirects;
-	struct getdns_list *dns_root_servers;
-	uint16_t append_name;
+	getdns_resolution_t resolution_type;
+	getdns_namespace_t  *namespaces;
+	uint64_t            timeout;
+	getdns_redirects_t  follow_redirects;
+	struct getdns_list  *dns_root_servers;
+	getdns_append_name_t append_name;
 	struct getdns_list *suffix;
 	struct getdns_list *dnssec_trust_anchors;
 	struct getdns_list *upstream_list;

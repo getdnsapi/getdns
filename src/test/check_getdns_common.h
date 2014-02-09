@@ -167,7 +167,7 @@
       *    response that is returned.
       */
      void callbackfn(struct getdns_context *context,
-                     uint16_t callback_type,
+                     getdns_callback_type_t callback_type,
                      struct getdns_dict *response,
                      void *userarg,
                      getdns_transaction_t transaction_id);
@@ -177,7 +177,7 @@
       *    getdns_context_set_context_update_callback tests.
       */
      void update_callbackfn(struct getdns_context *context,
-                     uint16_t changed_item);
+                     getdns_context_code_t changed_item);
 
      /* run the event loop */
      void run_event_loop(struct getdns_context *context, void* eventloop);

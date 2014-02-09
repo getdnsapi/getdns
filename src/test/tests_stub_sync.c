@@ -60,7 +60,7 @@ main()
 		    context_create_return);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
+	getdns_context_set_resolution_type(this_context, GETDNS_RESOLUTION_STUB);
 
 	struct getdns_dict *response = NULL;
 	getdns_return_t ret =

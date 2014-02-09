@@ -187,7 +187,7 @@ START_TEST (getdns_context_set_timeout_3)
   *  Create listener thread
   *  Set upstream to localhost:port
   *
-  *  getdns_context_set_resolution_type() to GETDNS_CONTEXT_STUB
+  *  getdns_context_set_resolution_type() to GETDNS_RESOLUTION_STUB
   *  expect:  GETDNS_CONTEXT_CODE_RESOLUTION_TYPE
   */
 
@@ -236,7 +236,7 @@ START_TEST (getdns_context_set_timeout_3)
     GETDNS_RETURN_GOOD, "set rec servers");
 
   /* stub */
-  ASSERT_RC(getdns_context_set_resolution_type(context, GETDNS_CONTEXT_STUB),
+  ASSERT_RC(getdns_context_set_resolution_type(context, GETDNS_RESOLUTION_STUB),
     GETDNS_RETURN_GOOD, "Return code from getdns_context_set_resolution_type()");
 
   EVENT_BASE_CREATE;

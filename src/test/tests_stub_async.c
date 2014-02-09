@@ -49,7 +49,7 @@
 /* Set up the callback function, which will also do the processing of the results */
 void
 this_callbackfn(struct getdns_context *this_context,
-    uint16_t this_callback_type,
+    getdns_callback_type_t this_callback_type,
     struct getdns_dict *this_response,
     void *this_userarg, getdns_transaction_t this_transaction_id)
 {
@@ -81,7 +81,7 @@ main(int argc, char** argv)
 		    context_create_return);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	getdns_context_set_resolution_type(this_context, GETDNS_CONTEXT_STUB);
+	getdns_context_set_resolution_type(this_context, GETDNS_RESOLUTION_STUB);
 
 	getdns_context_set_timeout(this_context, 5000);
 	/* Create an event base and put it in the context using the unknown function name */
