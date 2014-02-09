@@ -1,4 +1,4 @@
-/* Created at 2014-02-08-16-52-08*/
+/* Created at 2014-02-09-21-29-17*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -271,6 +271,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_AXFR 252
 #define GETDNS_RRTYPE_MAILB 253
 #define GETDNS_RRTYPE_MAILA 254
+#define GETDNS_RRTYPE_ANY 255
 #define GETDNS_RRTYPE_URI 256
 #define GETDNS_RRTYPE_CAA 257
 #define GETDNS_RRTYPE_TA 32768
