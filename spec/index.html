@@ -97,7 +97,7 @@ tr.code { font-family: monospace }
 
 <p class=title>Description of the <code>getdns</code> API</p>
 <p class=title2>Paul Hoffman, Editor</p>
-<p class=title2>Document version: "getdns Februari 2014"</p>
+<p class=title2>Document version: "getdns February 2014"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -198,7 +198,7 @@ results are unpredictable.</p>
 
 <p>The async <code>getdns</code> functions return <code>GETDNS_RETURN_GOOD</code> if the call was properly formatted.
 It returns <code>GETDNS_RETURN_BAD_DOMAIN_NAME</code> if the API determines that the name passed to
-the function was bad, <code>GETDNS_RETURN_BAD_CONTEXT</code> if the context pointer is bad,
+the function was bad, <code>GETDNS_RETURN_BAD_CONTEXT</code> if the context has internal deficiencies,
 <code>GETDNS_RETURN_NO_SUCH_EXTENSION</code> if one or more extensions do not exist, or
 <code>GETDNS_RETURN_EXTENSION_MISFORMAT</code> if the contents of one or more of the
 extensions is incorrect. All of the return values are given <a
@@ -1167,7 +1167,7 @@ struct getdns_list;
 <p class=define>GETDNS_RETURN_BAD_DOMAIN_NAME</p>
 <p class=descrip>Badly-formed domain name in first argument</p>
 <p class=define>GETDNS_RETURN_BAD_CONTEXT</p>
-<p class=descrip>Bad value for a context type</p>
+<p class=descrip>The context has internal deficiencies</p>
 <p class=define>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</p>
 <p class=descrip>Did not update the context</p>
 <p class=define>GETDNS_RETURN_UNKNOWN_TRANSACTION</p>
@@ -1483,7 +1483,7 @@ function.</p>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="kt">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -1601,7 +1601,7 @@ their TTLs.</p>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="kt">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -2116,8 +2116,7 @@ for the API default context.</p>
 
 <p>Setting specific values in a context are done with value-specific
 functions shown here. The setting functions all return either <code>GETDNS_RETURN_GOOD</code> for
-success, <code>GETDNS_RETURN_BAD_CONTEXT</code> for trying to set a type with a value that
-is not allowed, or <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code> for a failure to update the context.</p>
+success or <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code> for a failure to update the context.</p>
 
 <p>An application can be notified when the context is changed.</p>
 
@@ -2426,7 +2425,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.390.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.391.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

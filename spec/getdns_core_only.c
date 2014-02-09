@@ -355,7 +355,7 @@ getdns_context_set_limit_outstanding_queries(
 getdns_return_t
 getdns_context_set_timeout(
   struct getdns_context  *context,
-  unsigned int           timeout
+  uint64_t           timeout
 )
 { UNUSED_PARAM(context); UNUSED_PARAM(timeout); return GETDNS_RETURN_GOOD; }
 
