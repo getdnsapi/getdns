@@ -187,10 +187,9 @@ chase(ldns_dnssec_rrsets *rrset, ldns_dnssec_zone *support,
 	ldns_dnssec_rrs *rrs;
 
 	/* Secure by trusted keys? */
-	verifying_keys = ldns_rr_list_new();
-	s = verify_rrset(rrset, trusted, verifying_keys);
+	s = verify_rrset(rrset, trusted, NULL);
 	if (s == 0)
-		goto done_free_verifying_keys;
+		return s;
 
 	/* No, chase with support records..
 	 * Is there a verifying key in the support records?
@@ -318,9 +317,9 @@ getdns_validate_dnssec(struct getdns_list *records_to_validate,
 
 	ldns_rr_list_free(support_keys);
 done_free_to_validate:
-	ldns_dnssec_zone_free(to_validate);
+	ldns_dnssec_zone_deep_free(to_validate);
 done_free_support:
-	ldns_dnssec_zone_free(support);
+	ldns_dnssec_zone_deep_free(support);
 done_free_trusted:
 	ldns_rr_list_deep_free(trusted);
 	return r;

@@ -1186,7 +1186,7 @@ priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
 		r = getdns_dict_get_bindata(rr_dict, "name", &name);
 		if (r != GETDNS_RETURN_GOOD)
 			break;
-		owner = ldns_rdf_new(
+		owner = ldns_rdf_new_frm_data(
 		    LDNS_RDF_TYPE_DNAME, name->size, name->data);
 		if (! owner) {
 			r = GETDNS_RETURN_MEMORY_ERROR;
@@ -1203,7 +1203,6 @@ priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
 		if (r != GETDNS_RETURN_GOOD)
 			break;
 
-		//r = getdns_dict_get_bindata(rdata, "rdata_raw", &rdata_raw);
 		r = priv_getdns_dict_get_raw_rdata(rdata, &wire, &wire_size);
 		if (r == GETDNS_RETURN_NO_SUCH_DICT_NAME) {
 			r = priv_getdns_construct_wire_rdata_from_rdata(
@@ -1211,27 +1210,11 @@ priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
 		}
 		if (r != GETDNS_RETURN_GOOD)
 			break;
-#if 0
-		fprintf(stderr, "wire_size: %d\n", (int)wire_size);
-		fprintf(stderr, "wire data: ");
-		for (size_t i = 0; i < wire_size; i++) {
-			if (i) {
-				if (i % 24 == 0)
-					fprintf(stderr, "\n           ");
-				else if (i % 4 == 0)
-					fprintf(stderr, " ");
-			}
-			fprintf(stderr, "%.2x", wire[i]);
-		}
-		fprintf(stderr, "\n");
-#endif
 		pos = 0;
 		s = ldns_wire2rdf(*rr, wire, wire_size, &pos);
 		GETDNS_FREE(rr_dict->mf, wire);
 		if (s == LDNS_STATUS_OK)
 			return r;
-		fprintf( stderr, "ldns error: %s (pos: %d)\n"
-		       , ldns_get_errorstr_by_id(s), (int)pos);
 		r = GETDNS_RETURN_GENERIC_ERROR;
 	} while (0);
 	ldns_rr_free(*rr);
