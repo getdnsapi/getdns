@@ -216,7 +216,7 @@ this_callbackfn(struct getdns_context *context,
 		getdns_list_destroy(trust_anchors);
 	} while (0);
 	getdns_dict_destroy(response);
-	/* (void) event_base_loopexit((struct event_base *)userarg, NULL); */
+	(void) event_base_loopexit((struct event_base *)userarg, NULL);
 }
 
 int
@@ -272,10 +272,12 @@ main(int argc, char** argv)
 	}
 	else {
 		/* Call the event loop */
-		/* event_base_dispatch(this_event_base); */
+		event_base_dispatch(this_event_base);
+		/*
 		do event_base_loop(this_event_base, EVLOOP_ONCE);
 		while (0 < getdns_context_get_num_pending_requests(
 		    this_context, NULL));
+		*/
 	}
 	/* Clean up */
 	getdns_dict_destroy(this_extensions);
