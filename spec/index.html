@@ -2132,6 +2132,7 @@ changes from the API (such as changes to /etc/resolv.conf), or might be from any
 API functions in this section being called. The second argument to the callback function
 specifies which of the context changed; the context codes are listed
 <a href="#ContextCodes">later in this document</a>.</p>
+<p class=cont>Calling getdns_context_set_context_update_callback with a second argument of NULL prevents updates to the context from causing callbacks.</p>
 
 <h2>8.3 Contexts for Basic Resolution</h2>
 
@@ -2425,7 +2426,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.392.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.393.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
