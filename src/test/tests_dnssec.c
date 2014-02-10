@@ -129,7 +129,7 @@ getdns_return_t create_root_trustanchor_list(struct getdns_list **tas)
 
 /* Set up the callback function, which will also do the processing of the results */
 void
-this_callbackfn(struct getdns_context *context,
+callbackfn(struct getdns_context *context,
     getdns_callback_type_t callback_type,
     struct getdns_dict *response, void *userarg,
     getdns_transaction_t transaction_id)
@@ -222,72 +222,67 @@ this_callbackfn(struct getdns_context *context,
 int
 main(int argc, char** argv)
 {
-	/* Create the DNS context for this call */
-	struct getdns_context *this_context = NULL;
-	getdns_return_t context_create_return =
-	    getdns_context_create(&this_context, 1);
-	if (context_create_return != GETDNS_RETURN_GOOD) {
-		fprintf(stderr, "Trying to create the context failed: %d",
-		    context_create_return);
-		return (GETDNS_RETURN_GENERIC_ERROR);
+	struct getdns_context *context = NULL;
+	getdns_return_t r = getdns_context_create(&context, 1);
+	if (r != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Create context failed: %d", r);
+		return r;
 	}
-	getdns_context_set_timeout(this_context, 5000);
-	struct getdns_dict * this_extensions = getdns_dict_create();
-	getdns_return_t this_ret = getdns_dict_set_int(this_extensions,
-	    "dnssec_return_validation_chain", GETDNS_EXTENSION_TRUE);
-	if (this_ret != GETDNS_RETURN_GOOD) {
-		fprintf(stderr, "Setting extension "
-		    "\"dnssec_return_validation_chain\" failed: %d\n", this_ret);
-		getdns_dict_destroy(this_extensions);
-		getdns_context_destroy(this_context);
-		return (GETDNS_RETURN_GENERIC_ERROR);
+	r = getdns_context_set_timeout(context, 5000);
+	if (r != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Set timeout failed: %d", r);
+		goto done_destroy_context;
+	}
+	struct getdns_dict *extensions = getdns_dict_create();
+	if (! extensions) {
+		fprintf(stderr, "Could not create extensions dict\n");
+		r = GETDNS_RETURN_MEMORY_ERROR;
+		goto done_destroy_context;
+	}
+	r = getdns_dict_set_int(extensions, "dnssec_return_validation_chain",
+	   GETDNS_EXTENSION_TRUE);
+	if (r != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Could not set extension "
+		    "\"dnssec_return_validation_chain\": %d\n", r);
+		goto done_destroy_extensions;
         }
 
-	/* Create an event base and put it in the context using the unknown function name */
-	struct event_base *this_event_base;
-	this_event_base = event_base_new();
-	if (this_event_base == NULL) {
+	/* Create an event base and put it in the context  */
+	struct event_base *event_base = NULL;
+	event_base = event_base_new();
+	if (event_base == NULL) {
 		fprintf(stderr, "Trying to create the event base failed.");
-		getdns_dict_destroy(this_extensions);
-		getdns_context_destroy(this_context);
-		return (GETDNS_RETURN_GENERIC_ERROR);
+		r = GETDNS_RETURN_GENERIC_ERROR;
+		goto done_destroy_extensions;
 	}
-	(void) getdns_extension_set_libevent_base(this_context,
-	    this_event_base);
+	(void) getdns_extension_set_libevent_base(context, event_base);
+
 	/* Set up the getdns call */
-	const char *this_name = argc > 1 ? argv[1] : "www.example.com";
-	getdns_transaction_t this_transaction_id = 0;
+	const char *name = argc > 1 ? argv[1] : "www.example.com";
+	getdns_transaction_t transaction_id = 0;
 
 	/* Make the call */
-	getdns_return_t dns_request_return = getdns_address(
-	    this_context, this_name, this_extensions,
-	    this_event_base, &this_transaction_id, this_callbackfn);
-	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
-		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
-		    this_name);
-		getdns_dict_destroy(this_extensions);
-		getdns_context_destroy(this_context);
-		event_base_free(this_event_base);
-		return (GETDNS_RETURN_GENERIC_ERROR);
+	r = getdns_address(context, name, extensions, event_base,
+	    &transaction_id, callbackfn);
+	if (r == GETDNS_RETURN_BAD_DOMAIN_NAME) {
+		fprintf(stderr, "Bad domain name: %s.", name);
+		goto done_destroy_extensions;
 	}
-	else {
-		/* Call the event loop */
-		event_base_dispatch(this_event_base);
-		/*
-		do event_base_loop(this_event_base, EVLOOP_ONCE);
-		while (0 < getdns_context_get_num_pending_requests(
-		    this_context, NULL));
-		*/
-	}
-	/* Clean up */
-	getdns_dict_destroy(this_extensions);
-	getdns_context_destroy(this_context);
-	/* we have to destroy the event base after the context, because
-	 * the context has to re-register its sockets from the eventbase,
-	 * who has to communicate this to the system event-mechanism. */
-	event_base_free(this_event_base);
-	/* Assuming we get here, leave gracefully */
-	exit(EXIT_SUCCESS);
-}				/* main */
+	/* Call the event loop */
+	event_base_dispatch(event_base);
 
-/* example-simple-answers.c */
+	/* Clean up */
+done_destroy_extensions:
+	getdns_dict_destroy(extensions);
+done_destroy_context:
+	getdns_context_destroy(context);
+
+	/* Event base must be destroyed after the context, because
+	 * the context has to re-register its sockets from the eventbase,
+	 * who has to communicate this to the system event-mechanism.
+	 */
+	if (event_base)
+		event_base_free(event_base);
+
+	return r;
+}
