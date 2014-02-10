@@ -36,7 +36,6 @@
  */
 
 #include <unbound.h>
-#include <unbound-event.h>
 #include <ldns/ldns.h>
 #include <getdns/getdns.h>
 #include "context.h"
