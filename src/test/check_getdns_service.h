@@ -114,9 +114,6 @@
      }
      END_TEST
 
-     //name is <non-existent domain name> (NXDOMAIN)
-     //no extensions
-     //expected: NXDOMAIN response (with SOA record)
 
      START_TEST (getdns_service_7)
      {
