@@ -485,6 +485,13 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
     	} else {
     		r = GETDNS_RETURN_MEMORY_ERROR;
     	}
+        if (r != GETDNS_RETURN_GOOD)
+				break;
+
+		r = getdns_dict_set_int(result, "dnssec_status",
+		    ( req->secure ? GETDNS_DNSSEC_SECURE 
+			: req->bogus  ? GETDNS_DNSSEC_BOGUS  : GETDNS_DNSSEC_INSECURE ));
+
     } while (0);
 
 	if (r != 0) {
@@ -700,6 +707,8 @@ getdns_apply_network_result(getdns_network_req* netreq,
     if (r != LDNS_STATUS_OK) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    netreq->secure = ub_res->secure;
+    netreq->bogus  = ub_res->bogus;
     return GETDNS_RETURN_GOOD;
 }
 

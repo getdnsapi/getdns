@@ -452,6 +452,9 @@ getdns_context_create_with_extended_memory_functions(
     getdns_context_set_dns_transport(result,
         GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
 
+    /* Set default trust anchor */
+    (void) ub_ctx_add_ta_file(result->unbound_ctx, TRUST_ANCHOR_FILE);
+
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_create_with_extended_memory_functions */
 

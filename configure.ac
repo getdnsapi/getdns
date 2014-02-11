@@ -208,6 +208,27 @@ AC_SEARCH_LIBS([ev_run],
 AC_SUBST(have_libev)
 AC_SUBST(EXTENSION_LIBEV_OBJ)
 
+# --with-trust-anchor=
+AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])
+AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file. [default=SYSCONFDIR/unbound/root.key]]), [
+ TRUST_ANCHOR_FILE="$withval"
+],[
+ if test "x$TRUST_ANCHOR_FILE" = "x"; then
+  if test "x$sysconfdir" = 'x${prefix}/etc' ; then
+   if test "x$prefix" = 'xNONE' ; then
+    TRUST_ANCHOR_FILE="/etc/unbound/root.key"
+   else
+    TRUST_ANCHOR_FILE="${prefix}/etc/unbound/root.key"
+   fi
+  else
+    TRUST_ANCHOR_FILE="${sysconfdir}/unbound/root.key"
+  fi
+ fi
+])
+AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust anchor file])
+AC_SUBST(TRUST_ANCHOR_FILE)
+AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
+
 AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])

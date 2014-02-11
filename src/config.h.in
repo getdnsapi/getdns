@@ -85,6 +85,12 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* System configuration dir */
+#undef SYSCONFDIR
+
+/* Default trust anchor file */
+#undef TRUST_ANCHOR_FILE
+
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */
