@@ -112,7 +112,7 @@ void* run_server(void* data) {
 
     fd=socket(AF_INET,SOCK_DGRAM,0);
 
-    bzero(&serv_addr,sizeof(serv_addr));
+    memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr=htonl(INADDR_ANY);
     serv_addr.sin_port=htons(tdata->port);
