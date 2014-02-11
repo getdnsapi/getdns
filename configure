@@ -10859,8 +10859,8 @@ fi
 
 # Checks for libraries.
 found_all_libs=1
-{ $as_echo "$as_me:${as_lineno-$LINENO}: Checking for dependencies ldns" >&5
-$as_echo "$as_me: Checking for dependencies ldns" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: Checking for dependency ldns" >&5
+$as_echo "$as_me: Checking for dependency ldns" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ldns_dname_new_frm_str in -lldns" >&5
 $as_echo_n "checking for ldns_dname_new_frm_str in -lldns... " >&6; }
 if ${ac_cv_lib_ldns_ldns_dname_new_frm_str+:} false; then :
@@ -10908,6 +10908,8 @@ else
   found_all_libs=0
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: Checking for dependency libidn" >&5
+$as_echo "$as_me: Checking for dependency libidn" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for idna_to_ascii_8z in -lidn" >&5
 $as_echo_n "checking for idna_to_ascii_8z in -lidn... " >&6; }
 if ${ac_cv_lib_idn_idna_to_ascii_8z+:} false; then :

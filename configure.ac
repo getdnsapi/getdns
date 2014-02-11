@@ -128,8 +128,9 @@ fi
 
 # Checks for libraries.
 found_all_libs=1
-AC_MSG_NOTICE([Checking for dependencies ldns])
+AC_MSG_NOTICE([Checking for dependency ldns])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
+AC_MSG_NOTICE([Checking for dependency libidn])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
 if test $found_all_libs == 0
