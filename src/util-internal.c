@@ -1,7 +1,7 @@
 /**
  *
- * /file
- * /brief private library routines
+ * \file util-internal.c
+ * @brief private library routines
  *
  * These routines are not intended to be used by applications calling into
  * the library.
@@ -768,6 +768,6 @@ validate_dname(const char* dname) {
         return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     return GETDNS_RETURN_GOOD;
-}
+} /* validate_dname */
 
 /* util-internal.c */

@@ -47,8 +47,29 @@ getdns_service(struct getdns_context *context,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
-	return getdns_general(context, name, GETDNS_RRTYPE_SRV,
-	    extensions, userarg, transaction_id, callback);
+	int parmcheck;
+	getdns_return_t result;
+
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+    if (!callback || !name)
+         return GETDNS_RETURN_INVALID_PARAMETER;
+
+    parmcheck = validate_dname(name);
+    if (parmcheck != GETDNS_RETURN_GOOD)
+        return parmcheck;
+
+	if(extensions)
+	{
+		parmcheck = validate_extensions(extensions);
+		if (parmcheck != GETDNS_RETURN_GOOD)
+			return parmcheck;
+	}
+
+	result = getdns_general_ub(context,
+	    name, GETDNS_RRTYPE_SRV, extensions, userarg, transaction_id, callback, 1);
+
+	return result;
 }				/* getdns_service */
 
 /* service.c */

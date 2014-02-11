@@ -40,6 +40,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <unbound.h>
 
@@ -50,8 +51,7 @@
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 /* Private functions */
-static getdns_namespace_t *create_default_namespaces(
-    struct getdns_context *context);
+getdns_return_t create_default_namespaces(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers();
 static getdns_return_t add_ip_str(struct getdns_dict *);
 static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
@@ -69,21 +69,24 @@ static void cancel_dns_req(getdns_dns_req *);
 static void cancel_outstanding_requests(struct getdns_context*, int);
 
 /* Stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
 /**
  * Helper to get default lookup namespaces.
  * TODO: Determine from OS
  */
-static getdns_namespace_t*
+getdns_return_t
 create_default_namespaces(struct getdns_context *context)
 {
-	getdns_namespace_t *result = GETDNS_XMALLOC(
-	    context->my_mf, getdns_namespace_t, 2);
-	result[0] = GETDNS_NAMESPACE_LOCALNAMES;
-	result[1] = GETDNS_NAMESPACE_DNS;
-	return result;
+	context->namespaces = GETDNS_XMALLOC(context->my_mf, getdns_namespace_t, 2);
+	if(context->namespaces == NULL)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	context->namespaces[0] = GETDNS_NAMESPACE_LOCALNAMES;
+	context->namespaces[1] = GETDNS_NAMESPACE_DNS;
+	context->namespace_count = 2;
+
+	return GETDNS_RETURN_GOOD;
 }
 
 /**
@@ -151,6 +154,57 @@ add_ip_str(struct getdns_dict * ip)
     return GETDNS_RETURN_GOOD;
 }
 
+/**
+ * check a file for changes since the last check
+ * and refresh the current data if changes are detected
+ * @param file to check
+ * @returns changes as OR'd list of GETDNS_FCHG_* values
+ * @returns GETDNS_FCHG_NONE if no changes
+ * @returns GETDNS_FCHG_ERRORS if problems (see fchg->errors for details)
+ */
+int
+filechg_check(struct getdns_context *context, struct filechg *fchg)
+{
+    struct stat *finfo;
+
+    if(fchg == NULL)
+        return 0;
+
+    fchg->errors  = GETDNS_FCHG_NOERROR;
+    fchg->changes = GETDNS_FCHG_NOCHANGES;
+
+    finfo = GETDNS_MALLOC(context->my_mf, struct stat);
+    if(finfo == NULL)
+    {
+        fchg->errors = errno;
+        return GETDNS_FCHG_ERRORS;
+	}
+
+    if(stat(fchg->fn, finfo) != 0)
+    {
+		GETDNS_FREE(context->my_mf, finfo);
+        fchg->errors = errno;
+        return GETDNS_FCHG_ERRORS;
+    }
+
+    /* we want to consider a file that previously returned error for stat() as a 
+       change */
+
+    if(fchg->prevstat == NULL)
+        fchg->changes = GETDNS_FCHG_MTIME | GETDNS_FCHG_CTIME;
+    else
+    {
+        if(fchg->prevstat->st_mtimespec.tv_sec != finfo->st_mtimespec.tv_sec)
+            fchg->changes |= GETDNS_FCHG_MTIME;
+        if(fchg->prevstat->st_ctimespec.tv_sec != finfo->st_ctimespec.tv_sec)
+            fchg->changes |= GETDNS_FCHG_CTIME;
+    	GETDNS_FREE(context->my_mf, fchg->prevstat);
+    }
+    fchg->prevstat = finfo;
+
+    return fchg->changes;
+} /* filechg */
+
 static struct getdns_dict *
 create_ipaddr_dict_from_rdf(struct getdns_context *context, ldns_rdf * rdf)
 {
@@ -212,27 +266,45 @@ create_from_ldns_list(struct getdns_context *context, ldns_rdf ** ldns_list,
     return result;
 }
 
-/*---------------------------------------- set_os_defaults */
+/*---------------------------------------- set_os_defaults
+  we use ldns to read the resolv.conf file - the ldns resolver is
+  destroyed once the file is read
+*/
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
     ldns_resolver *lr = NULL;
-    if (ldns_resolver_new_frm_file(&lr, NULL) != LDNS_STATUS_OK) {
+    ldns_rdf      **rdf_list;
+    size_t        rdf_list_sz;
+
+    if (ldns_resolver_new_frm_file(&lr, NULL) != LDNS_STATUS_OK)
         return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    ldns_rdf **rdf_list = ldns_resolver_nameservers(lr);
-    size_t rdf_list_sz = ldns_resolver_nameserver_count(lr);
+
+	if(context->fchg_resolvconf == NULL)
+	{
+		context->fchg_resolvconf = (struct filechg *) malloc(sizeof(struct filechg));
+		if(context->fchg_resolvconf == NULL)
+			return GETDNS_RETURN_GENERIC_ERROR;
+		context->fchg_resolvconf->fn       = "/etc/resolv.conf";
+		context->fchg_resolvconf->prevstat = NULL;
+		context->fchg_resolvconf->changes  = GETDNS_FCHG_NOCHANGES;
+		context->fchg_resolvconf->errors   = GETDNS_FCHG_NOERROR;
+	}
+	filechg_check(context, context->fchg_resolvconf);
+
+    rdf_list    = ldns_resolver_nameservers(lr);
+    rdf_list_sz = ldns_resolver_nameserver_count(lr);
     if (rdf_list_sz > 0) {
         context->upstream_list =
             create_from_ldns_list(context, rdf_list, rdf_list_sz);
     }
+
     rdf_list = ldns_resolver_searchlist(lr);
     rdf_list_sz = ldns_resolver_searchlist_count(lr);
     if (rdf_list_sz > 0) {
         context->suffix = create_from_ldns_list(context, rdf_list,
             rdf_list_sz);
     }
-    /** cleanup **/
     ldns_resolver_deep_free(lr);
 
     return GETDNS_RETURN_GOOD;
@@ -265,7 +337,9 @@ transaction_id_cmp(const void *id1, const void *id2)
     }
 }
 
-static int timeout_cmp(const void *to1, const void *to2) {
+static int
+timeout_cmp(const void *to1, const void *to2)
+{
     if (to1 == NULL && to2 == NULL) {
         return 0;
     } else if (to1 == NULL && to2 != NULL) {
@@ -340,7 +414,8 @@ getdns_context_create_with_extended_memory_functions(
     result->outbound_requests = ldns_rbtree_create(transaction_id_cmp);
 
     result->resolution_type = GETDNS_RESOLUTION_RECURSING;
-    result->namespaces = create_default_namespaces(result);
+    if(create_default_namespaces(result) != GETDNS_RETURN_GOOD)
+		return GETDNS_RETURN_GENERIC_ERROR;
 
     result->timeout = 5000;
     result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
@@ -360,6 +435,8 @@ getdns_context_create_with_extended_memory_functions(
     result->timeouts_by_time = ldns_rbtree_create(timeout_cmp);
     result->timeouts_by_id = ldns_rbtree_create(transaction_id_cmp);
 
+	result->fchg_resolvconf = NULL;
+	result->fchg_hosts      = NULL;
     if (set_from_os) {
         if (GETDNS_RETURN_GOOD != set_os_defaults(result)) {
             getdns_context_destroy(result);
@@ -376,7 +453,7 @@ getdns_context_create_with_extended_memory_functions(
         GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
 
     return GETDNS_RETURN_GOOD;
-} /* getdns_context_create */
+} /* getdns_context_create_with_extended_memory_functions */
 
 /*
  * getdns_context_create
@@ -427,6 +504,18 @@ getdns_context_destroy(struct getdns_context *context)
     }
     if (context->namespaces)
         GETDNS_FREE(context->my_mf, context->namespaces);
+	if(context->fchg_resolvconf)
+	{
+		if(context->fchg_resolvconf->prevstat)
+			GETDNS_FREE(context->my_mf, context->fchg_resolvconf->prevstat);
+		GETDNS_FREE(context->my_mf, context->fchg_resolvconf);
+	}
+	if(context->fchg_hosts)
+	{
+		if(context->fchg_hosts->prevstat)
+			GETDNS_FREE(context->my_mf, context->fchg_hosts->prevstat);
+		GETDNS_FREE(context->my_mf, context->fchg_hosts);
+	}
 
     cancel_outstanding_requests(context, 0);
     getdns_extension_detach_eventloop(context);
@@ -529,12 +618,23 @@ getdns_return_t
 getdns_context_set_namespaces(struct getdns_context *context,
     size_t namespace_count, getdns_namespace_t *namespaces)
 {
+	int i;
+
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     if (namespace_count == 0 || namespaces == NULL) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
 
-    /** clean up old namespaces **/
+	for(i=0; i<namespace_count; i++)
+	{
+		if( namespaces[i] != GETDNS_NAMESPACE_DNS 
+		 && namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES
+		 && namespaces[i] != GETDNS_NAMESPACE_NETBIOS
+		 && namespaces[i] != GETDNS_NAMESPACE_MDNS
+		 && namespaces[i] != GETDNS_NAMESPACE_NIS)
+			return GETDNS_RETURN_INVALID_PARAMETER;
+	}
+
     GETDNS_FREE(context->my_mf, context->namespaces);
 
     /** duplicate **/
@@ -542,7 +642,7 @@ getdns_context_set_namespaces(struct getdns_context *context,
         namespace_count);
     memcpy(context->namespaces, namespaces,
         namespace_count * sizeof(getdns_namespace_t));
-
+	context->namespace_count = namespace_count;
     dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
 
     return GETDNS_RETURN_GOOD;
@@ -1079,41 +1179,58 @@ ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams, size_t count)
 }
 
 getdns_return_t
-getdns_context_prepare_for_resolution(struct getdns_context *context)
+getdns_context_prepare_for_resolution(struct getdns_context *context, int usenamespaces)
 {
+	int i;
+	size_t upstream_len = 0;
+
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (context->resolution_type_set == context->resolution_type) {
-        /* already set and no config changes have caused this to be
-         * bad.
-         */
-        return GETDNS_RETURN_GOOD;
-    }
-    if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-        size_t upstream_len = 0;
-        getdns_return_t r =
-            getdns_list_get_length(context->upstream_list,
-            &upstream_len);
-        if (r != GETDNS_RETURN_GOOD || upstream_len == 0) {
-            return GETDNS_RETURN_BAD_CONTEXT;
-        }
-        /* set upstreams */
-        ub_setup_stub(context->unbound_ctx, context->upstream_list,
-            upstream_len);
-        /* use /etc/hosts */
-        ub_ctx_hosts(context->unbound_ctx, NULL);
-
-    } else if (context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
-        /* set recursive */
-        /* TODO: use the root servers via root hints file */
-        ub_ctx_set_fwd(context->unbound_ctx, NULL);
-
-    } else {
-        /* bogus? */
+    if (context->resolution_type_set == context->resolution_type)
+	{
+        /* already set and no config changes have caused this to be bad. */
         return GETDNS_RETURN_BAD_CONTEXT;
     }
+
+	/* TODO: respect namespace order (unbound always uses local first if cfg
+	 * the spec calls for us to treat the namespace list as ordered
+	 * so we need to respect that order
+	 */
+
+	if(usenamespaces == 0)
+	{
+       	ub_setup_stub(context->unbound_ctx, context->upstream_list,
+           	upstream_len);
+	}
+	else
+	{
+		for(i=0; i<context->namespace_count; i++)
+		{
+			if(context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES)
+			{
+       			ub_ctx_hosts(context->unbound_ctx, NULL);
+			}
+			else if(context->namespaces[i] == GETDNS_NAMESPACE_DNS)
+			{
+    			if (context->resolution_type == GETDNS_RESOLUTION_STUB)
+				{
+					getdns_return_t r =
+						getdns_list_get_length(context->upstream_list, &upstream_len);
+					if (r != GETDNS_RETURN_GOOD || upstream_len == 0)
+						return GETDNS_RETURN_BAD_CONTEXT;
+    			} else if (context->resolution_type == GETDNS_RESOLUTION_RECURSING)
+				{
+        			/* TODO: use the root servers via root hints file */
+        			ub_ctx_set_fwd(context->unbound_ctx, NULL);
+    			} else
+        			return GETDNS_RETURN_BAD_CONTEXT;
+			} /* DNS */
+		} /* for i */
+	} /* if usenamespaces = 0 else */
+
     context->resolution_type_set = context->resolution_type;
+
     return GETDNS_RETURN_GOOD;
-}
+} /* getdns_context_prepare_for_resolution */
 
 getdns_return_t
 getdns_context_track_outbound_request(getdns_dns_req * req)
