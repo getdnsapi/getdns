@@ -222,8 +222,14 @@ callbackfn(struct getdns_context *context,
 int
 main(int argc, char** argv)
 {
-	struct getdns_context *context = NULL;
-	getdns_return_t r = getdns_context_create(&context, 1);
+	const char *name = argc > 1 ? argv[1] : "www.example.com";
+	struct getdns_context *context;
+	struct getdns_dict *extensions;
+	struct event_base *event_base = NULL;
+	getdns_transaction_t transaction_id = 0;
+	getdns_return_t r;
+       
+	r = getdns_context_create(&context, 1);
 	if (r != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Create context failed: %d", r);
 		return r;
@@ -233,7 +239,7 @@ main(int argc, char** argv)
 		fprintf(stderr, "Set timeout failed: %d", r);
 		goto done_destroy_context;
 	}
-	struct getdns_dict *extensions = getdns_dict_create();
+	extensions = getdns_dict_create();
 	if (! extensions) {
 		fprintf(stderr, "Could not create extensions dict\n");
 		r = GETDNS_RETURN_MEMORY_ERROR;
@@ -248,7 +254,6 @@ main(int argc, char** argv)
         }
 
 	/* Create an event base and put it in the context  */
-	struct event_base *event_base = NULL;
 	event_base = event_base_new();
 	if (event_base == NULL) {
 		fprintf(stderr, "Trying to create the event base failed.");
@@ -256,10 +261,6 @@ main(int argc, char** argv)
 		goto done_destroy_extensions;
 	}
 	(void) getdns_extension_set_libevent_base(context, event_base);
-
-	/* Set up the getdns call */
-	const char *name = argc > 1 ? argv[1] : "www.example.com";
-	getdns_transaction_t transaction_id = 0;
 
 	/* Make the call */
 	r = getdns_address(context, name, extensions, event_base,
