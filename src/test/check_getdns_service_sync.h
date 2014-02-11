@@ -13,7 +13,7 @@
      {
       /*
        *  context = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
@@ -27,7 +27,7 @@
      {
       /*
        *  name = NULL
-       *  expect: GETDNS_RETURN_BAD_CONTEXT
+       *  expect: GETDNS_RETURN_INVALID_PARAMETER
        */
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;

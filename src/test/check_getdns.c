@@ -85,6 +85,7 @@ main (int argc, char** argv)
   Suite *getdns_context_set_upstream_recursive_servers_suite(void);
   Suite *getdns_service_suite(void);
   Suite *getdns_service_sync_suite(void);
+  Suite *getdns_context_set_timeout_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
