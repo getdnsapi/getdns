@@ -1,5 +1,6 @@
 /**
  *
+ * \file util-internal.h
  * /brief getdns contect management functions
  *
  * This is the meat of the API

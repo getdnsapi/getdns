@@ -1,6 +1,7 @@
 /**
  *
- * /brief getdns_general and related support functions
+ * \file general.c
+ * @brief getdns_general and related support functions
  *
  * The getdns_general function is called by most of the other public entry
  * points to the library.  Private support functions are also included in this
@@ -209,7 +210,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 			submit_network_request(netreq->next);
 		}
 	}
-}
+} /* ub_resolve_callback */
 
 getdns_return_t
 getdns_general_ub(struct getdns_context *context,
@@ -218,7 +219,8 @@ getdns_general_ub(struct getdns_context *context,
     struct getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id,
-    getdns_callback_t callbackfn)
+    getdns_callback_t callbackfn,
+	int usenamespaces)
 {
 	getdns_return_t gr;
 	int r;
@@ -227,7 +229,7 @@ getdns_general_ub(struct getdns_context *context,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	}
 
-	gr = getdns_context_prepare_for_resolution(context);
+	gr = getdns_context_prepare_for_resolution(context, usenamespaces);
 	if (gr != GETDNS_RETURN_GOOD) {
 		return gr;
 	}
@@ -305,7 +307,7 @@ getdns_general(struct getdns_context *context,
 		return extcheck;
 
 	return getdns_general_ub(context,
-	    name, request_type, extensions, userarg, transaction_id, callback);
+	    name, request_type, extensions, userarg, transaction_id, callback, 0);
 
 }				/* getdns_general */
 
@@ -321,20 +323,37 @@ getdns_address(struct getdns_context *context,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
 	int cleanup_extensions = 0;
-	if (!extensions) {
+	int extcheck;
+	getdns_return_t result;
+
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+    if (!callback || !name)
+         return GETDNS_RETURN_INVALID_PARAMETER;
+
+    extcheck = validate_dname(name);
+    if (extcheck != GETDNS_RETURN_GOOD)
+        return extcheck;
+
+	/* we set the extensions that make general behave like getdns_address */
+	if (!extensions)
+	{
 		extensions = getdns_dict_create_with_context(context);
 		cleanup_extensions = 1;
 	}
 	getdns_dict_set_int(extensions,
 	    GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6, GETDNS_EXTENSION_TRUE);
+	extcheck = validate_extensions(extensions);
+	if (extcheck != GETDNS_RETURN_GOOD)
+		return extcheck;
 
-	getdns_return_t result = getdns_general(context, name, GETDNS_RRTYPE_A,
-	    extensions, userarg, transaction_id,
-	    callback);
-	if (cleanup_extensions) {
+	result = getdns_general_ub(context,
+	    name, GETDNS_RRTYPE_A, extensions, userarg, transaction_id, callback, 1);
+
+	if (cleanup_extensions)
 		getdns_dict_destroy(extensions);
-	}
+
 	return result;
-}
+} /* getdns_address */
 
 /* getdns_general.c */

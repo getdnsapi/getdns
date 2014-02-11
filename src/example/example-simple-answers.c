@@ -4,6 +4,7 @@
  * @brief example using getdns to resolve a simple query
  *
  * Originally taken from the getdns API description pseudo implementation.
+ * Modified to more clearly demonstrate some of the API features.
  *
  */
 
@@ -34,16 +35,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <getdns_libevent.h>
 
@@ -51,10 +47,10 @@
 
 /* Set up the callback function, which will also do the processing of the results */
 void this_callbackfn(struct getdns_context *this_context,
-                     getdns_callback_type_t this_callback_type,
-                     struct getdns_dict *this_response, 
-                     void *this_userarg,
-                     getdns_transaction_t this_transaction_id)
+				uint16_t   this_callback_type,
+				struct     getdns_dict *this_response, 
+				void       *this_userarg,
+				getdns_transaction_t this_transaction_id)
 {
 	getdns_return_t         this_ret;
 	uint32_t this_error;
@@ -62,8 +58,8 @@ void this_callbackfn(struct getdns_context *this_context,
 	struct   getdns_list    *just_the_addresses_ptr;
 	struct   getdns_dict    *this_address;
 	struct   getdns_bindata *this_address_data;
-    size_t   rec_count;
-    char     *this_address_str;
+	size_t   rec_count;
+	char     *this_address_str;
 
 	UNUSED_PARAM(this_userarg);
 	UNUSED_PARAM(this_context);
@@ -73,12 +69,12 @@ void this_callbackfn(struct getdns_context *this_context,
 		/* Be sure the search returned something */
 
 		this_ret = getdns_dict_get_int(this_response, "status", &this_error);
-        if (this_ret != GETDNS_RETURN_GOOD)
+		if (this_ret != GETDNS_RETURN_GOOD)
 		{
 			fprintf(stderr, "The dictionary does not contain \"status\" (this shouldn't have happened).  Exiting\n");
 			getdns_dict_destroy(this_response);
 			return;
-        }
+		}
 
 		if (this_error != GETDNS_RESPSTATUS_GOOD)
 		{
@@ -96,39 +92,39 @@ void this_callbackfn(struct getdns_context *this_context,
 		}
 
 		this_ret = getdns_list_get_length(just_the_addresses_ptr, &num_addresses);
-        if (this_ret != GETDNS_RETURN_GOOD)
+		if (this_ret != GETDNS_RETURN_GOOD)
 		{
 			fprintf(stderr, "The address list is invalid (this shouldn't have happened).  Exiting\n");
 			getdns_dict_destroy(this_response);
 			return;
-        }
+		}
 
-        if (num_addresses == 0)
+		if (num_addresses == 0)
 			fprintf(stderr, "The address list has 0 records. Exiting\n");
 
 		/* Go through each record */
 		for (rec_count = 0; rec_count < num_addresses; ++rec_count)
 		{
 			this_ret = getdns_list_get_dict(just_the_addresses_ptr, rec_count, &this_address);
-            if(this_ret != GETDNS_RETURN_GOOD)
-            {
-			    fprintf(stderr, "Record %d is invalid (this shouldn't have happened).  skipping.\n", (int) rec_count);
-			    continue;
-            }
+			if(this_ret != GETDNS_RETURN_GOOD)
+			{
+				fprintf(stderr, "Record %d is invalid (this shouldn't have happened).  skipping.\n", (int) rec_count);
+				continue;
+			}
 
 			/* Just print the address */
 			this_ret = getdns_dict_get_bindata(this_address, "address_data", &this_address_data);
-            if(this_ret != GETDNS_RETURN_GOOD)
-            {
-                fprintf(stderr, "Record %d does not contain \"address_data\" (this shouldn't happen), skipping\n", (int) rec_count);
-            }
-            else
-            {
-			    this_address_str = getdns_display_ip_address(this_address_data);
-			    printf("The address is %s\n", this_address_str);
-			    free(this_address_str);
-            }
-		}
+			if(this_ret != GETDNS_RETURN_GOOD)
+			{
+				fprintf(stderr, "Record %d does not contain \"address_data\" (this shouldn't happen), skipping\n", (int) rec_count);
+			}
+			else
+			{
+				this_address_str = getdns_display_ip_address(this_address_data);
+				printf("The address is %s\n", this_address_str);
+				free(this_address_str);
+			}
+		} // for rec_count
 	}
 	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr, "The callback with ID %"PRIu64" was cancelled. Exiting.\n", this_transaction_id);
@@ -138,24 +134,57 @@ void this_callbackfn(struct getdns_context *this_context,
 	getdns_dict_destroy(this_response);
 } /* this_callbackfn */
 
+void
+usage(void)
+{
+	printf(
+	 "USAGE: example-simple-answers [-s] [hostname]\n"
+	 "\n"
+	 "-s    act as stub resolver (default is to act as a recursive resolver)\n"
+	 "\n"
+	 "The example program demonstrates the simplest use of the getdns API to\n"
+	 "resolve a hostname to an IP address\n"
+	 "\n");
+
+	return;
+} /* usage */
+
 /*---------------------------------------- main */
 int
 main(int argc, char *argv[])
 {
-    char   *this_name    = "www.example.com";
+	char   *this_name    = "www.example.com";
 	char   *this_userarg = "somestring";
-    int    dispatch_return;
-    int    exitval       = EXIT_SUCCESS;
+	char   opt;
+	int    stubonly = 0;
+	int    dispatch_return;
+	int    exitval       = EXIT_SUCCESS;
 	struct getdns_context *this_context = NULL;
 	struct event_base     *this_event_base;
-    getdns_return_t       dns_request_return;
+	getdns_return_t       dns_request_return;
 	getdns_transaction_t  this_transaction_id;
-    getdns_return_t       context_create_return;
+	getdns_return_t       context_create_return;
 
-    if(argc > 1)
-        this_name = argv[1];
+	while((opt = getopt(argc, argv, "?s")) != -1)
+	{
+		switch(opt)
+		{
+			case 's':
+				stubonly = 1;
+				break;
+			case '?':
+			default:
+				usage();
+				exit(1);
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
-    printf("resolving %s\n", this_name);
+	if(argc > 0)
+		this_name = argv[0];
+
+	printf("resolving %s\n", this_name);
 
 	/* Create the DNS context for this call, use OS configs such as resolv.conf */
 
@@ -164,6 +193,16 @@ main(int argc, char *argv[])
 	{
 		fprintf(stderr, "Trying to create the context failed: %d", context_create_return);
 		return(GETDNS_RETURN_GENERIC_ERROR);
+	}
+
+	if(stubonly == 1)
+	{
+		if(getdns_context_set_resolution_type(this_context, GETDNS_RESOLUTION_STUB)
+		!= GETDNS_RETURN_GOOD)
+		{
+			fprintf(stderr, "Failed to set stub resolver in context (this should never fail). Exiting.\n");
+			return(GETDNS_RETURN_GENERIC_ERROR);
+		}
 	}
 
 	/* Create an event base and put it in the context using the unknown function name */
@@ -188,16 +227,15 @@ main(int argc, char *argv[])
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
 	{
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.\n", this_name);
-        exitval = GETDNS_RETURN_GENERIC_ERROR;
+		exitval = GETDNS_RETURN_GENERIC_ERROR;
 	}
 	else
 	{
 		/* Call the event loop */
 
 		dispatch_return = event_base_dispatch(this_event_base);
-
-        if(dispatch_return < 0)
-		    fprintf(stderr, "event_base_dispatch() failed, returned %d\n", dispatch_return);
+		if(dispatch_return < 0)
+			fprintf(stderr, "event_base_dispatch() failed, returned %d\n", dispatch_return);
 	}
 
 	/* Clean up */

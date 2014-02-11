@@ -1,19 +1,23 @@
 getdns API  {#mainpage}
 ==========
 
-* Date:    2013-11-03
+* Date:    2014-02-10
 * GitHub:  <https://github.com/verisign/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
 
 The [getdns-api mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api) is a good place to engage in discussions regarding the design of the API.
 
+If you are just getting started with the library take a look at the section below that
+describes building and handling external dependencies for the library.  Once it is
+built you should take a look at src/examples to see how the library is used.
+
 This file captures the goals and direction of the project and the current state of the implementation.
 
 The goals of this implementation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API by Paul Hoffman at <http://www.vpnc.org/getdns-api/>
-* Initial support for FreeBSD x.y, MS-Windows Ver. X, OSX 10.x, Linux (CentOS/RHEL R6uX, Ubuntu Ver X) via functional "configure" script
+* Initial support for FreeBSD, MS-Windows, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
 * Initial support to include the Android platform
 * Include examples and tests as part of the build
 * Document code using doxygen
@@ -24,8 +28,9 @@ The goals of this implementation of the getdns API are:
 ** the develop branch contains the latest development changes which are merged from develop into master once they are considered production ready
 * Both synchronous and asynchronous entry points with an early focus on the asynchronous model
 
-Non-goals (things we will not be doing) include:
+Non-goals (things we will not be doing at least initially) include:
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
+
 
 Releases
 ========
@@ -37,6 +42,7 @@ The 0.1.0 release will be issued when the repository is opened to the public, ou
 * examples must compile and be clean
 * clearly document supported/unsupported elements of the API
 
+
 Tickets/Bug Reports
 ===================
 Tickets and bug reports from external contacts are received via a mailing list and managed in the git issues list.
@@ -44,8 +50,7 @@ Tickets and bug reports from external contacts are received via a mailing list a
 TBD: mailing list address
 
 
-External Dependencies
-=====================
+#Building/External Dependencies
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
 * [libevent](http://libevent.org) version 2.0.21 stable
@@ -72,8 +77,14 @@ Assuming that the getdns sources are in a diretory named getdns in your home dir
 # make install
 ```
 
-Unsupported Features
-====================
+##Regression Tests
+
+A suite of regression tests are included with the library, if you make changes or just
+want to sanity check things on your system take a look at src/test.  You will need
+to install [libcheck](http://check.sourceforge.net/).  Check is also available from
+many of the package repositories for the more popular operating systems.
+
+#Unsupported Features
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
@@ -92,6 +103,12 @@ The following API calls are documented in getDNS but *not supported* by the impl
   * `getdns_context_set_dnssec_trust_anchors`
   * `getdns_validate_dnssec`
 * Detecting changes to resolv.conf and hosts
+* MDNS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
+
+Some platform specific features are not implemented in the first public release of getdns, however they are on the radar.  These include:
+
+* Respecting settings in /etc/nsswitch.conf (linux and some other OSes), for the first release we simply check local files (/etc/hosts) before checking the DNS.
+* Search suffixes specified in /etc/resolv.conf
 
 Spec Differences
 ================
@@ -107,20 +124,19 @@ The primary platforms targeted are Linux and FreeBSD, other platform are support
 
 Where at all possible we need to make sure that both 32 and 64 bit implementations work.
 
-* Android, Neel
-* FreeBSD 9.2, gcc/clang Melinda
-* FreeBSD 10.0 (not yet released), gcc/clang Melinda
-* Linux RHEL/CentOS 6.x, Glen
-* MS-Windows 8, cygwin, Neel
-* NetBSD x.x, Wouter
-* OpenBSD 5.3, Wouter
-* OSX 10.8, Glen
-* OSX 10.9, Allison
-* Ubuntu 12.x, Melinda
+* Debian 7.0, 7.3
+* FreeBSD 8.4, 9.2, 10.0
+* RHEL/CentOS 6.4, 6.5
+* OSX 10.8, 10.9
+* Ubuntu 12.04, 13.10
 
 The NLNet folks offered to build on a number of legacy platforms as well to help ensure that the code is clean.  These include some big endian hardware and a few more obscure operating systems which will not be publicly supported but might work if someone wants to try them.
 
+We intend to add MS-Windows, Android and other platforms to the releases as we have time to port it.
+
+
 ##Build Reports
+
 
 TBD
 
@@ -132,6 +148,7 @@ Contributors
 * Willem Toorop, NLNet Labs
 * Glen Wiley, Verisign, Inc.
 * Wouter Wijngaards, NLNet Labs
+* Craig Despeaux, Verisign, Inc.
 
 --
 end README

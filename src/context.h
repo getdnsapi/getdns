@@ -1,7 +1,7 @@
 /**
  *
- * /file
- * /brief getdns context management functions
+ * \file context.h
+ * @brief getdns context management functions
  *
  * Originally taken from the getdns API description pseudo implementation.
  *
@@ -44,22 +44,40 @@ struct getdns_dns_req;
 struct ldns_rbtree_t;
 struct ub_ctx;
 
+#define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
+#define GETDNS_FN_HOSTS      "/etc/hosts"
+
+enum filechgs { GETDNS_FCHG_ERRORS = -1
+ , GETDNS_FCHG_NOERROR   = 0
+ , GETDNS_FCHG_NOCHANGES = 0
+ , GETDNS_FCHG_MTIME     = 1
+ , GETDNS_FCHG_CTIME     = 2};
+
 /** function pointer typedefs */
 typedef void (*getdns_update_callback) (struct getdns_context *,
     getdns_context_code_t);
 
+/* internal use only for detecting changes to system files */
+struct filechg {
+	char *fn;
+	int  changes;
+	int  errors;
+	struct stat *prevstat;
+};
+
 struct getdns_context {
 
 	/* Context values */
-	getdns_resolution_t resolution_type;
-	getdns_namespace_t  *namespaces;
-	uint64_t            timeout;
-	getdns_redirects_t  follow_redirects;
-	struct getdns_list  *dns_root_servers;
+	getdns_resolution_t  resolution_type;
+	getdns_namespace_t   *namespaces;
+	int                  namespace_count;
+	uint64_t             timeout;
+	getdns_redirects_t   follow_redirects;
+	struct getdns_list   *dns_root_servers;
 	getdns_append_name_t append_name;
-	struct getdns_list *suffix;
-	struct getdns_list *dnssec_trust_anchors;
-	struct getdns_list *upstream_list;
+	struct getdns_list   *suffix;
+	struct getdns_list   *dnssec_trust_anchors;
+	struct getdns_list   *upstream_list;
 
 	uint8_t edns_extended_rcode;
 	uint8_t edns_version;
@@ -103,14 +121,25 @@ struct getdns_context {
      */
     struct ldns_rbtree_t *timeouts_by_id;
     struct ldns_rbtree_t *timeouts_by_time;
-};
+
+	/*
+	 * state data used to detect changes to the system config files
+	 */
+	struct filechg *fchg_resolvconf;
+	struct filechg *fchg_hosts;
+
+}; /* getdns_context */
 
 /** internal functions **/
 /**
  * Sets up the unbound contexts with stub or recursive behavior
  * if needed.
+ * @param context previously initialized getdns_context
+ * @param usenamespaces if 0 then only use the DNS, else use context namespace list
+ * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_context_prepare_for_resolution(struct getdns_context *context);
+getdns_return_t getdns_context_prepare_for_resolution(struct getdns_context *context,
+ int usenamespaces);
 
 /* track an outbound request */
 getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
@@ -147,5 +176,7 @@ getdns_return_t getdns_context_schedule_timeout(struct getdns_context* context,
 
 getdns_return_t getdns_context_clear_timeout(struct getdns_context* context,
     getdns_transaction_t id);
+
+int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 #endif /* _GETDNS_CONTEXT_H_ */

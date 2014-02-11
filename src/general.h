@@ -46,7 +46,9 @@ getdns_general_ub(struct getdns_context *context,
     uint16_t request_type,
     struct getdns_dict *extensions,
     void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+    getdns_transaction_t * transaction_id,
+	getdns_callback_t callbackfn,
+	int usenamespaces);
 
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
