@@ -37,6 +37,7 @@
 #define _GETDNS_GENERAL_H_
 
 #include <getdns/getdns.h>
+#include "types-internal.h"
 
 /* private inner helper used by sync and async */
 

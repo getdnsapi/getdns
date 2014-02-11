@@ -35,6 +35,8 @@
  */
 
 #include <getdns/getdns.h>
+#include "general.h"
+#include "util-internal.h"
 
 /*
  * getdns_service

@@ -194,9 +194,9 @@ filechg_check(struct getdns_context *context, struct filechg *fchg)
         fchg->changes = GETDNS_FCHG_MTIME | GETDNS_FCHG_CTIME;
     else
     {
-        if(fchg->prevstat->st_mtimespec.tv_sec != finfo->st_mtimespec.tv_sec)
+        if(fchg->prevstat->st_mtime != finfo->st_mtime)
             fchg->changes |= GETDNS_FCHG_MTIME;
-        if(fchg->prevstat->st_ctimespec.tv_sec != finfo->st_ctimespec.tv_sec)
+        if(fchg->prevstat->st_ctime != finfo->st_ctime)
             fchg->changes |= GETDNS_FCHG_CTIME;
     	GETDNS_FREE(context->my_mf, fchg->prevstat);
     }
