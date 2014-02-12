@@ -138,6 +138,8 @@ typedef struct getdns_network_req
 
 	/* result */
 	ldns_pkt *result;
+	int secure;
+	int bogus;
 
 	/* next request to issue after this one */
 	struct getdns_network_req *next;

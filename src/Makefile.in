@@ -40,6 +40,7 @@ EXTENSION_LIBEV_OBJ=@EXTENSION_LIBEV_OBJ@
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo validate_dnssec.lo \
 	util-internal.lo getdns_error.lo rr-dict.lo validation-chain.lo \
+	const-info.lo \
 	$(EXTENSION_LIBEVENT_OBJ) $(EXTENSION_LIBUV_OBJ) $(EXTENSION_LIBEV_OBJ)
 
 .SUFFIXES: .c .o .a .lo .h

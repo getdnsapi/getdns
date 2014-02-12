@@ -77,33 +77,37 @@ getdns_general_sync(struct getdns_context *context,
     struct getdns_dict *extensions,
     struct getdns_dict **response)
 {
+	getdns_dns_req *req;
 	getdns_return_t response_status;
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
-    response_status = validate_dname(name);
-    if (response_status != GETDNS_RETURN_GOOD) {
-        return response_status;
-    }
+
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
+
+	response_status = validate_dname(name);
+	if (response_status != GETDNS_RETURN_GOOD)
+		return response_status;
+
 	response_status = validate_extensions(extensions);
-	if (response_status == GETDNS_RETURN_GOOD) {
-		/* for each netreq we call ub_ctx_resolve */
-        /* request state */
-        getdns_dns_req *req = dns_req_new(context,
-            name,
-            request_type,
-            extensions);
-        if (!req) {
-            return GETDNS_RETURN_GENERIC_ERROR;
-        }
-        response_status = submit_request_sync(req);
-        if (response_status != GETDNS_RETURN_GOOD) {
-            dns_req_free(req);
-            return response_status;
-        }
-        *response = create_getdns_response(req);
-        dns_req_free(req);
-	}
+	if (response_status != GETDNS_RETURN_GOOD)
+		return response_status;
+
+       	/* general, so without dns lookup (no namespaces) */;
+	response_status = getdns_context_prepare_for_resolution(context, 0);
+	if (response_status != GETDNS_RETURN_GOOD)
+		return response_status;
+
+	/* for each netreq we call ub_ctx_resolve */
+	    /* request state */
+	req = dns_req_new(context, name, request_type, extensions);
+	if (!req)
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	response_status = submit_request_sync(req);
+	if (response_status == GETDNS_RETURN_GOOD)
+		*response = create_getdns_response(req);
+
+	dns_req_free(req);
 	return response_status;
 }
 

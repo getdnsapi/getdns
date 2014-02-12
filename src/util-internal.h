@@ -134,4 +134,6 @@ getdns_return_t validate_extensions(struct getdns_dict * extensions);
 struct getdns_list *
 create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list);
 
+int is_extension_set(struct getdns_dict *extensions, const char *extension);
+
 /* util-internal.h */

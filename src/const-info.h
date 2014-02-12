@@ -1,7 +1,12 @@
 /**
- * \file getdns_error.c
- * @brief getdns error code to string function
  *
+ * /brief priv_getdns_consts table with values, names and descriptions of the
+ *        constants in getdns
+ *
+ * The priv_getdns_get_validation_chain function is called after an answer
+ * has been fetched when the dnssec_return_validation_chain extension is set.
+ * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
+ * answer.
  */
 
 /*
@@ -31,20 +36,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <getdns/getdns.h>
-#include "const-info.h"
+#ifndef CONST_INFO_H_
+#define CONST_INFO_H_
 
-/*---------------------------------------- getdns_get_errorstr_by_id() */
-/**
- * return error string from getdns return
- * @param err getdns_return_t
- * @return string containing error message
- */
+struct const_info {
+	int code;
+	const char *name;
+	const char *text;
+};
 
-const char *
-getdns_get_errorstr_by_id(uint16_t err)
-{
-	return priv_getdns_get_const_info(err)->text;
-}
+struct const_info *priv_getdns_get_const_info(int value);
 
-/* getdns_error.c */
+#endif
+
+/* const-info.h */
