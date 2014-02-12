@@ -464,10 +464,13 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
     	/* additional */
     	rr_list = ldns_pkt_additional(reply);
     	sublist = create_list_from_rr_list(context, rr_list);
-    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_ADDITIONAL, sublist);
-    	getdns_list_destroy(sublist);
-        if (r != GETDNS_RETURN_GOOD) {
-            break;
+        if (sublist) {
+            r |= priv_getdns_append_opt_rr(context, sublist, reply);
+    	    r |= getdns_dict_set_list(result, GETDNS_STR_KEY_ADDITIONAL, sublist);
+        	getdns_list_destroy(sublist);
+            if (r != GETDNS_RETURN_GOOD) {
+                break;
+            }
         }
 
     	/* other stuff */
