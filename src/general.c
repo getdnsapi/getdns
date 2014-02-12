@@ -132,12 +132,7 @@ handle_network_request_error(getdns_network_req * netreq, int err)
 static void
 handle_dns_request_complete(getdns_dns_req * dns_req)
 {
-	uint32_t ret_chain_ext = GETDNS_EXTENSION_FALSE;
-	getdns_return_t r = getdns_dict_get_int(dns_req->extensions,
-	    "dnssec_return_validation_chain", &ret_chain_ext);
-
-	if (r == GETDNS_RETURN_GOOD && ret_chain_ext == GETDNS_EXTENSION_TRUE)
-
+	if (is_extension_set(dns_req->extensions, "dnssec_return_validation_chain"))
 		priv_getdns_get_validation_chain(dns_req);
 	else
 		priv_getdns_call_user_callback(

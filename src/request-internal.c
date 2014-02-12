@@ -116,8 +116,6 @@ dns_req_new(struct getdns_context *context,
 
 	getdns_dns_req *result = NULL;
 	getdns_network_req *req = NULL;
-	getdns_return_t r;
-	uint32_t both = GETDNS_EXTENSION_FALSE;
 
 	result = GETDNS_MALLOC(context->mf, getdns_dns_req);
 	if (result == NULL) {
@@ -150,12 +148,9 @@ dns_req_new(struct getdns_context *context,
 	result->first_req = req;
 
 	/* tack on A or AAAA if needed */
-	r = getdns_dict_get_int(extensions,
-	    GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6, &both);
-	if (r == GETDNS_RETURN_GOOD &&
-	    both == GETDNS_EXTENSION_TRUE &&
-	    (request_type == GETDNS_RRTYPE_A
-		|| request_type == GETDNS_RRTYPE_AAAA)) {
+	if (is_extension_set(extensions, "return_both_v4_and_v6") &&
+	    (request_type == GETDNS_RRTYPE_A ||
+	     request_type == GETDNS_RRTYPE_AAAA)) {
 
 		uint16_t next_req_type =
 		    (request_type ==
