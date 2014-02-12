@@ -366,6 +366,58 @@ timeout_cmp(const void *to1, const void *to2)
     }
 }
 
+
+/*
+ * priv_getdns_check_and_add_ta_file
+ *
+ * Do not set trust anchor when it is unreadable or unparsable.
+ * Copied from (older) unbound anchor_read_file
+ */
+static void
+priv_getdns_check_and_add_ta_file(struct getdns_context *context)
+{
+	uint32_t ttl = 3600;
+	ldns_rdf* orig = NULL, *prev = NULL;
+	int line = 1;
+	ldns_status s;
+	ldns_rr *rr;
+	int nkeys;
+	FILE *in = fopen(TRUST_ANCHOR_FILE, "r");
+
+	context->has_ta = 0;
+	if (!in)
+		return;
+
+	nkeys = 0;
+	while (! feof(in)) {
+		rr = NULL;
+		s = ldns_rr_new_frm_fp_l(&rr, in, &ttl, &orig, &prev, &line);
+                if (s == LDNS_STATUS_SYNTAX_EMPTY /* empty line */
+                    || s == LDNS_STATUS_SYNTAX_TTL /* $TTL */
+                    || s == LDNS_STATUS_SYNTAX_ORIGIN /* $ORIGIN */)
+			continue;
+
+                if (s != LDNS_STATUS_OK) {
+			ldns_rr_free(rr);
+			nkeys = 0;
+			break;
+		}
+                if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_DS ||
+		    ldns_rr_get_type(rr) == LDNS_RR_TYPE_DNSKEY)
+			nkeys++;
+
+		ldns_rr_free(rr);
+	}
+	ldns_rdf_deep_free(orig);
+	ldns_rdf_deep_free(prev);
+	fclose(in);
+	if (nkeys) {
+		context->has_ta = nkeys;
+		(void) ub_ctx_add_ta_file(context->unbound_ctx,
+		    TRUST_ANCHOR_FILE);
+	}
+}
+
 /*
  * getdns_context_create
  *
@@ -453,8 +505,7 @@ getdns_context_create_with_extended_memory_functions(
         GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
 
     /* Set default trust anchor */
-    if (access(TRUST_ANCHOR_FILE, R_OK) == 0)
-    	(void) ub_ctx_add_ta_file(result->unbound_ctx, TRUST_ANCHOR_FILE);
+    priv_getdns_check_and_add_ta_file(result);
 
     return GETDNS_RETURN_GOOD;
 } /* getdns_context_create_with_extended_memory_functions */

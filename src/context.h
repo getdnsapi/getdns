@@ -91,6 +91,7 @@ struct getdns_context {
 	/* The underlying unbound contexts that do
 	 * the real work */
 	struct ub_ctx *unbound_ctx;
+	int has_ta; /* No DNSSEC without trust anchor */
 
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set
