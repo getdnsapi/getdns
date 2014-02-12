@@ -1109,131 +1109,162 @@ getdns_cancel_callback(struct getdns_context *context,
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     return getdns_context_cancel_request(context, transaction_id, 1);
-}               /* getdns_cancel_callback */
+} /* getdns_cancel_callback */
 
-static void
-ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams, size_t count)
+static getdns_return_t
+ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams)
 {
-    size_t i;
-    /* reset forwarding servers */
-    ub_ctx_set_fwd(ctx, NULL);
-    for (i = 0; i < count; ++i) {
-        struct getdns_dict *dict = NULL;
-        char *ip_str = NULL;
-        getdns_list_get_dict(upstreams, i, &dict);
-        getdns_dict_util_get_string(dict, GETDNS_STR_ADDRESS_STRING,
-            &ip_str);
-        ub_ctx_set_fwd(ctx, ip_str);
-    }
-    /* Allow lookups of:
-     */
-    /* - localhost */
-    (void)ub_ctx_zone_remove(ctx, "localhost.");
+	size_t i;
+	size_t count;
+	struct getdns_dict *dict;
+	struct getdns_bindata *address_string;
+	getdns_return_t r;
+       
+	r = getdns_list_get_length(upstreams, &count);
+	if (r != GETDNS_RETURN_GOOD)
+		return r;
 
-    /* - reverse IPv4 loopback */
-    (void)ub_ctx_zone_remove(ctx, "127.in-addr.arpa.");
+	if (count == 0)
+		return GETDNS_RETURN_BAD_CONTEXT;
 
-    /* - reverse IPv6 loopback */
-    (void)ub_ctx_zone_remove(ctx, "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
-                                  "0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.");
+	/* reset forwarding servers */
+	(void) ub_ctx_set_fwd(ctx, NULL);
+	for (i = 0; i < count; ++i) {
+		r = getdns_list_get_dict(upstreams, i, &dict);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
 
-    /* - reverse RFC1918 local use zones */
-    (void)ub_ctx_zone_remove(ctx, "10.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "16.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "17.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "18.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "19.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "20.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "21.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "22.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "23.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "24.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "25.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "26.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "27.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "28.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "29.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "30.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "31.172.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "168.192.in-addr.arpa.");
+		r = getdns_dict_get_bindata(dict, GETDNS_STR_ADDRESS_STRING,
+		    &address_string);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
 
-    /* - reverse RFC3330 IP4 this, link-local, testnet and broadcast */
-    (void)ub_ctx_zone_remove(ctx, "0.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "254.169.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "2.0.192.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "100.51.198.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "113.0.203.in-addr.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "255.255.255.255.in-addr.arpa.");
+		(void) ub_ctx_set_fwd(ctx, (char *)address_string->data);
+	}
+	/* Allow lookups of:
+	 */
+	/* - localhost */
+	(void)ub_ctx_zone_remove(ctx, "localhost.");
 
-    /* - reverse RFC4291 IP6 unspecified */
-    (void)ub_ctx_zone_remove(ctx, "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
-                                  "0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.");
+	/* - reverse IPv4 loopback */
+	(void)ub_ctx_zone_remove(ctx, "127.in-addr.arpa.");
 
-    /* - reverse RFC4193 IPv6 Locally Assigned Local Addresses */
-    (void)ub_ctx_zone_remove(ctx, "D.F.ip6.arpa.");
+	/* - reverse IPv6 loopback */
+	(void)ub_ctx_zone_remove(ctx, "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
+	                              "0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.");
 
-    /* - reverse RFC4291 IPv6 Link Local Addresses */
-    (void)ub_ctx_zone_remove(ctx, "8.E.F.ip6.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "9.E.F.ip6.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "A.E.F.ip6.arpa.");
-    (void)ub_ctx_zone_remove(ctx, "B.E.F.ip6.arpa.");
+	/* - reverse RFC1918 local use zones */
+	(void)ub_ctx_zone_remove(ctx, "10.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "16.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "17.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "18.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "19.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "20.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "21.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "22.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "23.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "24.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "25.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "26.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "27.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "28.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "29.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "30.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "31.172.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "168.192.in-addr.arpa.");
 
-    /* - reverse IPv6 Example Prefix */
-    (void)ub_ctx_zone_remove(ctx, "8.B.D.0.1.0.0.2.ip6.arpa.");
+	/* - reverse RFC3330 IP4 this, link-local, testnet and broadcast */
+	(void)ub_ctx_zone_remove(ctx, "0.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "254.169.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "2.0.192.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "100.51.198.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "113.0.203.in-addr.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "255.255.255.255.in-addr.arpa.");
+
+	/* - reverse RFC4291 IP6 unspecified */
+	(void)ub_ctx_zone_remove(ctx, "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
+	                              "0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.");
+
+	/* - reverse RFC4193 IPv6 Locally Assigned Local Addresses */
+	(void)ub_ctx_zone_remove(ctx, "D.F.ip6.arpa.");
+
+	/* - reverse RFC4291 IPv6 Link Local Addresses */
+	(void)ub_ctx_zone_remove(ctx, "8.E.F.ip6.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "9.E.F.ip6.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "A.E.F.ip6.arpa.");
+	(void)ub_ctx_zone_remove(ctx, "B.E.F.ip6.arpa.");
+
+	/* - reverse IPv6 Example Prefix */
+	(void)ub_ctx_zone_remove(ctx, "8.B.D.0.1.0.0.2.ip6.arpa.");
+
+	return r;
+}
+
+static getdns_return_t
+priv_getdns_ns_dns_setup(struct getdns_context *context)
+{
+	assert(context);
+
+	switch (context->resolution_type) {
+	case GETDNS_RESOLUTION_STUB:
+		return ub_setup_stub(context->unbound_ctx,
+		    context->upstream_list);
+
+	case GETDNS_RESOLUTION_RECURSING:
+		/* TODO: use the root servers via root hints file */
+		(void) ub_ctx_set_fwd(context->unbound_ctx, NULL);
+		return GETDNS_RETURN_GOOD;
+	}
+	return GETDNS_RETURN_BAD_CONTEXT;
 }
 
 getdns_return_t
-getdns_context_prepare_for_resolution(struct getdns_context *context, int usenamespaces)
+getdns_context_prepare_for_resolution(struct getdns_context *context,
+    int usenamespaces)
 {
 	int i;
-	size_t upstream_len = 0;
+	getdns_return_t r;
 
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (context->resolution_type_set == context->resolution_type)
-	{
-        /* already set and no config changes have caused this to be bad. */
-        return GETDNS_RETURN_BAD_CONTEXT;
-    }
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+
+	if (context->resolution_type_set == context->resolution_type)
+        	/* already set and no config changes
+		 * have caused this to be bad. 
+		 */
+		return GETDNS_RETURN_GOOD;
 
 	/* TODO: respect namespace order (unbound always uses local first if cfg
 	 * the spec calls for us to treat the namespace list as ordered
 	 * so we need to respect that order
 	 */
 
-	if(usenamespaces == 0)
-	{
-       	ub_setup_stub(context->unbound_ctx, context->upstream_list,
-           	upstream_len);
+	if (! usenamespaces) {
+		r = priv_getdns_ns_dns_setup(context);
+		if (r == GETDNS_RETURN_GOOD)
+			context->resolution_type_set = context->resolution_type;
+		return r;
 	}
-	else
-	{
-		for(i=0; i<context->namespace_count; i++)
-		{
-			if(context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES)
-			{
-       			ub_ctx_hosts(context->unbound_ctx, NULL);
-			}
-			else if(context->namespaces[i] == GETDNS_NAMESPACE_DNS)
-			{
-    			if (context->resolution_type == GETDNS_RESOLUTION_STUB)
-				{
-					getdns_return_t r =
-						getdns_list_get_length(context->upstream_list, &upstream_len);
-					if (r != GETDNS_RETURN_GOOD || upstream_len == 0)
-						return GETDNS_RETURN_BAD_CONTEXT;
-    			} else if (context->resolution_type == GETDNS_RESOLUTION_RECURSING)
-				{
-        			/* TODO: use the root servers via root hints file */
-        			ub_ctx_set_fwd(context->unbound_ctx, NULL);
-    			} else
-        			return GETDNS_RETURN_BAD_CONTEXT;
-			} /* DNS */
-		} /* for i */
-	} /* if usenamespaces = 0 else */
 
-    context->resolution_type_set = context->resolution_type;
+	r = GETDNS_RETURN_GOOD;
+	for (i = 0; i < context->namespace_count; i++) {
+		switch (context->namespaces[i]) {
+		case GETDNS_NAMESPACE_LOCALNAMES:
+			(void) ub_ctx_hosts(context->unbound_ctx, NULL);
+			break;
 
-    return GETDNS_RETURN_GOOD;
+		case GETDNS_NAMESPACE_DNS:
+			r = priv_getdns_ns_dns_setup(context);
+			break;
+
+		default:
+			r = GETDNS_RETURN_BAD_CONTEXT;
+			break;
+		}
+		if (r != GETDNS_RETURN_GOOD)
+			return r; /* try again later (resolution_type_set) */
+	}
+	context->resolution_type_set = context->resolution_type;
+	return r;
 } /* getdns_context_prepare_for_resolution */
 
 getdns_return_t

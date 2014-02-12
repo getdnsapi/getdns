@@ -95,7 +95,7 @@ struct getdns_context {
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set
 	 */
-	uint8_t resolution_type_set;
+	getdns_resolution_t resolution_type_set;
 
 	/*
 	 * outbound requests -> transaction to getdns_dns_req
