@@ -5,7 +5,7 @@
 /*
  * Copyright (c) 2013, Versign, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  * * Redistributions of source code must retain the above copyright
@@ -45,6 +45,9 @@ getdns_return_t priv_getdns_create_rr_from_dict(
     struct getdns_dict *rr_dict, ldns_rr **rr);
 
 const char *priv_getdns_rr_type_name(int rr_type);
+
+getdns_return_t priv_getdns_append_opt_rr(
+    struct getdns_context *context, struct getdns_list* rdatas, ldns_pkt* pkt);
 
 #endif
 

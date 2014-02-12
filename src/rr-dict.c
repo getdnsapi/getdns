@@ -618,7 +618,7 @@ getdns_return_t getdns_rdf_hip_get_alg_hit_pk(ldns_rdf *rdf, uint8_t* alg,
 {
     uint8_t *data;
     size_t rdf_size;
-    
+
     if ((rdf_size = ldns_rdf_size(rdf)) < 6) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
@@ -695,12 +695,12 @@ priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
     size_t pos = 0;
     size_t index = 0;
     struct getdns_bindata addr_data;
-    
+
     if (ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_APL) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
     getdns_list_get_length(records, &index);
-    
+
     data = ldns_rdf_data(rdf);
     size = ldns_rdf_size(rdf);
     if (size < 4) {
@@ -719,7 +719,7 @@ priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
         }
         addr_data.size = addr_len;
         addr_data.data = data + 4 + pos;
-        
+
         /* add to a dictionary */
         apl_dict = getdns_dict_create_with_context(context);
         if (!apl_dict) {
@@ -730,7 +730,7 @@ priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
         r |= getdns_dict_set_int(apl_dict, def->rdata[2].name, prefix);
         r |= getdns_dict_set_int(apl_dict, def->rdata[3].name, negation);
         r |= getdns_dict_set_bindata(apl_dict, def->rdata[4].name, &addr_data);
-        
+
         if (r == GETDNS_RETURN_GOOD) {
             r = getdns_list_set_dict(records, index, apl_dict);
         }
@@ -739,7 +739,7 @@ priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
         /* always clean up */
         getdns_dict_destroy(apl_dict);
     }
-    
+
     return r;
 }
 
@@ -761,7 +761,7 @@ priv_getdns_equip_dict_with_apl_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
         getdns_dict_set_list(rdata, def->rdata[0].name, records);
     }
     getdns_list_destroy(records);
-    
+
     return GETDNS_RETURN_GOOD;
 }
 
@@ -794,7 +794,7 @@ priv_getdns_equip_dict_with_spf_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     }
     /* add one for the null byte */
     bindata.size++;
-    
+
     if (r != GETDNS_RETURN_GOOD) {
         /* validations failed */
         return r;
@@ -1220,4 +1220,166 @@ priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
 	ldns_rr_free(*rr);
 	return r;
 }
+
+static  getdns_return_t
+priv_getdns_get_opt_dict(struct getdns_context* context,
+    struct getdns_dict** record_dict, uint8_t* record_start,
+    size_t* bytes_remaining, size_t* bytes_parsed) {
+
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    struct getdns_dict* opt = NULL;
+    uint16_t code;
+    struct getdns_bindata opt_data;
+    if (*bytes_remaining < 4) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    code = ldns_read_uint16(record_start);
+    opt_data.size = ldns_read_uint16(record_start + 2);
+    if (*bytes_remaining < (4 + opt_data.size)) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    opt = getdns_dict_create_with_context(context);
+    if (!opt) {
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
+    /* set code */
+    r = getdns_dict_set_int(opt, opt_rdata[1].name, code);
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(opt);
+        return r;
+    }
+    /* set data */
+    opt_data.data = record_start + 4;
+    getdns_dict_set_bindata(opt, opt_rdata[2].name, &opt_data);
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(opt);
+        return r;
+    }
+    /* set result data */
+    *bytes_remaining = *bytes_remaining - (4 + opt_data.size);
+    *bytes_parsed = *bytes_parsed + (4 + opt_data.size);
+    *record_dict = opt;
+    return r;
+}
+
+static getdns_return_t
+priv_getdns_create_opt_rr(
+    struct getdns_context *context, ldns_rdf* rdf,
+    struct getdns_dict** rr_dict) {
+
+    struct getdns_dict* result = NULL;
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    size_t bytes_remaining = ldns_rdf_size(rdf);
+    size_t bytes_parsed = 0;
+    uint8_t* record_start = ldns_rdf_data(rdf);
+    struct getdns_list* records = getdns_list_create_with_context(context);
+    size_t idx = 0;
+    if (!records) {
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
+    while (r == GETDNS_RETURN_GOOD && bytes_remaining > 0) {
+        struct getdns_dict* opt = NULL;
+        r = priv_getdns_get_opt_dict(context, &opt,
+                record_start + bytes_parsed, &bytes_remaining,
+                &bytes_parsed);
+        if (r == GETDNS_RETURN_GOOD) {
+            getdns_list_set_dict(records, idx, opt);
+            getdns_dict_destroy(opt);
+            idx++;
+        }
+    }
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_list_destroy(records);
+        return r;
+    }
+    result = getdns_dict_create_with_context(context);
+    if (!result) {
+        getdns_list_destroy(records);
+        return r;
+    }
+    /* cheat */
+    r = 0;
+    r |= getdns_dict_set_list(result,
+            opt_rdata[0].name, records);
+    getdns_list_destroy(records);
+
+    /* does class makes sense? */
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(result);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    *rr_dict = result;
+    return r;
+}
+
+getdns_return_t priv_getdns_append_opt_rr(
+    struct getdns_context *context, struct getdns_list* rdatas, ldns_pkt* pkt) {
+    struct getdns_dict* opt_rr;
+    struct getdns_dict* rr_dict;
+    getdns_return_t r = 0;
+    struct getdns_bindata rdata;
+    ldns_rdf* edns_data = ldns_pkt_edns_data(pkt);
+    uint8_t rdata_buf[65536];
+    size_t list_len;
+    if (!edns_data) {
+        /* nothing to do */
+        return GETDNS_RETURN_GOOD;
+    }
+    r = getdns_list_get_length(rdatas, &list_len);
+    if (r != GETDNS_RETURN_GOOD) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    r = priv_getdns_create_opt_rr(context, edns_data,
+        &opt_rr);
+    if (r != GETDNS_RETURN_GOOD) {
+        return r;
+    }
+    /* size is: 0 label, 2 byte type, 2 byte class (size),
+                4 byte ttl, 2 byte opt len + data itself */
+    rdata.size = 11 + ldns_rdf_size(edns_data);
+    rdata.data = rdata_buf;
+    rdata_buf[0] = 0;
+    ldns_write_uint16(rdata_buf + 1, LDNS_RR_TYPE_OPT);
+    ldns_write_uint16(rdata_buf + 3, ldns_pkt_edns_udp_size(pkt));
+    rdata_buf[5] = ldns_pkt_edns_extended_rcode(pkt);
+    rdata_buf[6] = ldns_pkt_edns_version(pkt);
+    ldns_write_uint16(rdata_buf + 7, ldns_pkt_edns_z(pkt));
+    ldns_write_uint16(rdata_buf + 9, ldns_rdf_size(edns_data));
+    memcpy(rdata_buf + 11, ldns_rdf_data(edns_data), ldns_rdf_size(edns_data));
+
+    /* add data */
+    r |= getdns_dict_set_bindata(opt_rr, "rdata_raw", &rdata);
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(opt_rr);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+
+    rr_dict = getdns_dict_create_with_context(context);
+    if (!rr_dict) {
+        getdns_dict_destroy(opt_rr);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    r = getdns_dict_set_dict(rr_dict, "rdata", opt_rr);
+    getdns_dict_destroy(opt_rr);
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(rr_dict);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    r = getdns_dict_set_int(rr_dict, "type", GETDNS_RRTYPE_OPT);
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(rr_dict);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    /* other fields don't really make sense as they are
+       interpreted differently */
+
+    /* append */
+    r = getdns_list_set_dict(rdatas, list_len, opt_rr);
+    getdns_dict_destroy(opt_rr);
+    if (r != GETDNS_RETURN_GOOD) {
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
+    return r;
+}
+
 
