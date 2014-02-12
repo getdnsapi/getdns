@@ -33,7 +33,6 @@
  */
 
 #include <getdns/getdns.h>
-#include <getdns/getdns_error.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <util-internal.h>
@@ -41,6 +40,7 @@
 #include <stringprep.h>
 #include <idna.h>
 #include <ldns/ldns.h>
+#include "getdns_error.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -192,6 +192,7 @@ getdns_display_ip_address(const struct getdns_bindata
 	return NULL;
 }
 
+const char *getdns_get_errorstr_by_id(uint16_t err);
 getdns_return_t
 getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
 {
