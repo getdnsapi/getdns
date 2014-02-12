@@ -6,7 +6,7 @@
 #include "const-info.h"
 
 static struct const_info consts_info[] = {
-	{ -1, "/* <unknown const value> */", "/* <unknown const value> */" },
+	{ -1, NULL, "/* <unknown getdns value> */" },
 	{ 0, "GETDNS_RETURN_GOOD", GETDNS_RETURN_GOOD_TEXT },
 	{ 1, "GETDNS_RETURN_GENERIC_ERROR", GETDNS_RETURN_GENERIC_ERROR_TEXT },
 	{ 300, "GETDNS_RETURN_BAD_DOMAIN_NAME", GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT },

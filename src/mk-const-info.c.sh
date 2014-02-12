@@ -9,7 +9,7 @@ cat > const-info.c << END_OF_HEAD
 #include "const-info.h"
 
 static struct const_info consts_info[] = {
-	{ -1, "/* <unknown const value> */", "/* <unknown const value> */" },
+	{ -1, NULL, "/* <unknown getdns value> */" },
 END_OF_HEAD
 awk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ print "\t{ "$3", \""$1"\", "$1"_TEXT }," }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/_TEXT/{ print "\t{ "$3", \""$2"\", "$2"_TEXT },"}' getdns/getdns.h | sed 's/,,/,/g' >> const-info.c
 cat >> const-info.c << END_OF_TAIL

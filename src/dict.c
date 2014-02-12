@@ -41,6 +41,7 @@
 #include "util-internal.h"
 #include "dict.h"
 #include "rr-dict.h"
+#include "const-info.h"
 
 /*---------------------------------------- getdns_dict_find */
 /**
@@ -689,10 +690,20 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 		switch (item->dtype) {
 		case t_int:
 			if ((strcmp(item->node.key, "type") == 0  ||
-			     strcmp(item->node.key, "type_covered") == 0) &&
+			     strcmp(item->node.key, "type_covered") == 0 ||
+			     strcmp(item->node.key, "qtype") == 0) &&
 			    (strval = priv_getdns_rr_type_name(item->data.n))) {
 				if (ldns_buffer_printf(
 				    buf, " GETDNS_RRTYPE_%s", strval) < 0)
+					return -1;
+				break;
+			}
+		        if ((strcmp(item->node.key, "answer_type") == 0  ||
+			     strcmp(item->node.key, "dnssec_status") == 0 ||
+			     strcmp(item->node.key, "status") == 0) &&
+			    (strval =
+			     priv_getdns_get_const_info(item->data.n)->name)) {
+				if (ldns_buffer_printf(buf, " %s", strval) < 0)
 					return -1;
 				break;
 			}
