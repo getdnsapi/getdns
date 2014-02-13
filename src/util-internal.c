@@ -360,7 +360,7 @@ add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
 
 static struct getdns_dict *
 create_reply_dict(struct getdns_context *context, getdns_network_req * req,
-    struct getdns_list * just_addrs, int *nanswers)
+    struct getdns_list * just_addrs)
 {
 	/* turn a packet into this glorious structure
 	 *
@@ -423,7 +423,6 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	if (!result) {
 		return NULL;
 	}
-	assert(nanswers);
 
 	dnssec_return_status = is_extension_set(req->owner->extensions,
 	    "dnssec_return_status");
@@ -431,9 +430,9 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	    "dnssec_return_only_secure");
 	do_dnssec = ( dnssec_return_status || dnssec_return_only_secure ) &&
 	    context->has_ta;
-	dnssec_return_status = dnssec_return_status || dnssec_return_only_secure ||
-	    is_extension_set(req->owner->extensions,
-	                     "dnssec_return_validation_chain");
+	dnssec_return_status = dnssec_return_status || dnssec_return_only_secure
+	    || is_extension_set(req->owner->extensions,
+	                        "dnssec_return_validation_chain");
 
 	include_answers = ! do_dnssec       /* No DNSSEC, include answer.*/
 	    || req->secure                  /* Always include secure answers. */
@@ -469,10 +468,8 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 			rrsig_in_answer = 1;
 			break;
 		}
-	if (include_answers) {
-		*nanswers += ldns_rr_list_rr_count(rr_list);
+	if (include_answers)
     		sublist = create_list_from_rr_list(context, rr_list);
-	}
 	else
 		sublist = getdns_list_create_with_context(context);
 
@@ -575,6 +572,18 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	getdns_return_t r = 0;
 	int nanswers = 0, all_secure = 1;
 
+	/* info (bools) about dns_req */
+	int dnssec_return_status;
+	int dnssec_return_only_secure;
+	int do_dnssec;
+
+	dnssec_return_status = is_extension_set(
+	    completed_request->extensions, "dnssec_return_status");
+	dnssec_return_only_secure = is_extension_set(
+	    completed_request->extensions, "dnssec_return_only_secure");
+	do_dnssec = ( dnssec_return_status || dnssec_return_only_secure ) &&
+	    completed_request->context->has_ta;
+
 	if (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
 	    completed_request->first_req->request_class ==
 	    GETDNS_RRTYPE_AAAA) {
@@ -599,6 +608,9 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     	while (netreq && r == GETDNS_RETURN_GOOD) {
 
 		all_secure = all_secure && netreq->secure;
+		if (ldns_pkt_get_rcode(netreq->result) == LDNS_RCODE_NOERROR &&
+		    ! (do_dnssec && netreq->bogus))
+			nanswers++;
 
     		struct getdns_bindata full_data;
     		full_data.data = NULL;
@@ -614,7 +626,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     		size_t idx = 0;
     		/* reply tree */
     		struct getdns_dict *reply = create_reply_dict(
-    		    completed_request->context, netreq, just_addrs, &nanswers);
+    		    completed_request->context, netreq, just_addrs);
     		r = getdns_list_add_item(replies_tree, &idx);
             if (r != GETDNS_RETURN_GOOD) {
                 getdns_dict_destroy(reply);
@@ -662,20 +674,15 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     	if (just_addrs) {
     		r = getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS,
     		    just_addrs);
+		if (r != GETDNS_RETURN_GOOD) {
+		    break;
+		}
     	}
-
-	int dnssec_return_only_secure = is_extension_set(
-	    completed_request->extensions, "dnssec_return_only_secure");
-
     	r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    dnssec_return_only_secure
 	    && ! all_secure ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS
 	    : nanswers == 0 ? GETDNS_RESPSTATUS_NO_NAME
 	                    : GETDNS_RESPSTATUS_GOOD);
-        if (r != GETDNS_RETURN_GOOD) {
-            break;
-        }
-
     } while (0);
 
 	/* cleanup */
