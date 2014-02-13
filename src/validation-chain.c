@@ -49,6 +49,7 @@ struct validation_chain {
 	struct mem_funcs mf;
 	getdns_dns_req *dns_req;
 	size_t lock;
+	struct getdns_dict **sync_response;
 };
 
 struct chain_response {
@@ -102,8 +103,11 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 		    getdns_keys);
 		getdns_list_destroy(getdns_keys);
 		ldns_rr_list_free(keys);
+		if (chain->sync_response) {
+			*chain->sync_response = response;
+		} else
+			priv_getdns_call_user_callback(dns_req, response);
 		destroy_chain(chain);
-		priv_getdns_call_user_callback(dns_req, response);
 	}
 }
 
@@ -182,7 +186,27 @@ static void chain_response_init(
 	response->unbound_id = -1;
 }
 
-static void launch_chain_link_lookup(struct validation_chain *chain, char *name)
+static int
+resolve(char* name, int rrtype, struct chain_response *response)
+{
+	int r;
+	struct ub_result *ub_res;
+
+	if (response->chain->sync_response) {
+		ub_res = NULL;
+		r = ub_resolve(response->chain->dns_req->context->unbound_ctx,
+		    name, rrtype, LDNS_RR_CLASS_IN, &ub_res);
+		ub_chain_response_callback(response, r, ub_res);
+		return r;
+	} else
+		return ub_resolve_async(
+		    response->chain->dns_req->context->unbound_ctx,
+		    name, rrtype, LDNS_RR_CLASS_IN, response,
+		    ub_chain_response_callback, &response->unbound_id);
+}
+
+static void
+launch_chain_link_lookup(struct validation_chain *chain, char *name)
 {
 	int r;
 	struct chain_link *link = (struct chain_link *)
@@ -201,23 +225,20 @@ static void launch_chain_link_lookup(struct validation_chain *chain, char *name)
 	ldns_rbtree_insert(&(chain->root), (ldns_rbnode_t *)link);
 
 	chain->lock++;
-	r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
-	    name, LDNS_RR_TYPE_DNSKEY, LDNS_RR_CLASS_IN, &link->DNSKEY,
-	    ub_chain_response_callback, &link->DNSKEY.unbound_id);
+	r = resolve(name, LDNS_RR_TYPE_DNSKEY, &link->DNSKEY);
 	if (r != 0)
 		link->DNSKEY.err = r;
 
 	if (name[0] != '.' || name[1] != '\0') {
-		r = ub_resolve_async(chain->dns_req->context->unbound_ctx,
-		    name, LDNS_RR_TYPE_DS, LDNS_RR_CLASS_IN, &link->DS,
-		    ub_chain_response_callback, &link->DS.unbound_id);
+		r = resolve(name, LDNS_RR_TYPE_DS, &link->DS);
 		if (r != 0)
 			link->DS.err = r;
 	}
 	chain->lock--;
 }
 
-static struct validation_chain *create_chain(getdns_dns_req *dns_req)
+static struct validation_chain *create_chain(
+    getdns_dns_req *dns_req, struct getdns_dict **sync_response)
 {
 	struct validation_chain *chain = GETDNS_MALLOC(
 	    dns_req->context->mf, struct validation_chain);
@@ -233,6 +254,7 @@ static struct validation_chain *create_chain(getdns_dns_req *dns_req)
 	chain->mf.mf.ext.free    = dns_req->context->mf.mf.ext.free;
 	chain->dns_req = dns_req;
 	chain->lock = 0;
+	chain->sync_response = sync_response;
 	return chain;
 }
 
@@ -255,14 +277,19 @@ static void destroy_chain(struct validation_chain *chain)
 }
 
 /* Do some additional requests to fetch the complete validation chain */
-void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
+static void
+getdns_get_validation_chain(
+    getdns_dns_req *dns_req, struct getdns_dict **sync_response)
 {
 	getdns_network_req *netreq = dns_req->first_req;
-	struct validation_chain *chain = create_chain(dns_req);
+	struct validation_chain *chain = create_chain(dns_req, sync_response);
 
 	if (! chain) {
-		priv_getdns_call_user_callback(
-		    dns_req, create_getdns_response(chain->dns_req));
+		if (sync_response)
+			*sync_response = create_getdns_response(dns_req);
+		else
+			priv_getdns_call_user_callback(
+			    dns_req, create_getdns_response(dns_req));
 		return;
 	}
 	while (netreq) {
@@ -277,6 +304,20 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
 		netreq = netreq->next;
 	}
 	callback_on_complete_chain(chain);
+}
+
+
+void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
+{
+	getdns_get_validation_chain(dns_req, NULL);
+}
+
+struct getdns_dict *
+priv_getdns_get_validation_chain_sync(getdns_dns_req *dns_req)
+{
+	struct getdns_dict *sync_response = NULL;
+	getdns_get_validation_chain(dns_req, &sync_response);
+	return sync_response;
 }
 
 /* validation-chain.c */

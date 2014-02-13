@@ -41,6 +41,7 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include <string.h>
+#include "validation-chain.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -104,8 +105,13 @@ getdns_general_sync(struct getdns_context *context,
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	response_status = submit_request_sync(req);
-	if (response_status == GETDNS_RETURN_GOOD)
-		*response = create_getdns_response(req);
+	if (response_status == GETDNS_RETURN_GOOD) {
+		if (is_extension_set(req->extensions,
+		    "dnssec_return_validation_chain"))
+			*response = priv_getdns_get_validation_chain_sync(req);
+		else
+			*response = create_getdns_response(req);
+	}
 
 	dns_req_free(req);
 	return response_status;

@@ -38,10 +38,14 @@
 #ifndef VALIDATION_CHAIN_H_
 #define VALIDATION_CHAIN_H_
 
+#include "getdns/getdns.h"
 #include "types-internal.h"
 
 /* Do some additional requests to fetch the complete validation chain */
 void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
+
+struct getdns_dict * priv_getdns_get_validation_chain_sync(
+    getdns_dns_req *dns_req);
 
 #endif
 
