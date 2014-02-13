@@ -1295,7 +1295,7 @@ priv_getdns_create_opt_rr(
     result = getdns_dict_create_with_context(context);
     if (!result) {
         getdns_list_destroy(records);
-        return r;
+        return GETDNS_RETURN_MEMORY_ERROR;
     }
     /* cheat */
     r = 0;
