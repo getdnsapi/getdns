@@ -15,7 +15,7 @@ LIBTOOL = @libtool@
 srcdir = @srcdir@
 VPATH = @srcdir@
 
-CC=gcc
+CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99
 LDFLAGS=@LDFLAGS@ -L. -L.. -L$(srcdir)/../ -L/usr/local/lib
 LDLIBS=-lgetdns @LIBS@
