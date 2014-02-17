@@ -408,36 +408,11 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	struct getdns_dict *subdict = NULL;
 	struct getdns_list *sublist = NULL;
 	char *name = NULL;
-	size_t i;
-
-	/* info (bools) about dns_req */
-	int dnssec_return_status;
-	int dnssec_return_only_secure;
-	int do_dnssec;
-
-	/* info (bool) about network_req */
-	int include_answers;
-	int rrsig_in_answer;
 
 	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	if (!result) {
 		return NULL;
 	}
-
-	dnssec_return_status = is_extension_set(req->owner->extensions,
-	    "dnssec_return_status");
-	dnssec_return_only_secure = is_extension_set(req->owner->extensions,
-	    "dnssec_return_only_secure");
-	do_dnssec = ( dnssec_return_status || dnssec_return_only_secure ) &&
-	    context->has_ta;
-	dnssec_return_status = dnssec_return_status || dnssec_return_only_secure
-	    || is_extension_set(req->owner->extensions,
-	                        "dnssec_return_validation_chain");
-
-	include_answers = ! do_dnssec       /* No DNSSEC, include answer.*/
-	    || req->secure                  /* Always include secure answers. */
-	    || (! dnssec_return_only_secure /* And insecure answers (ext.), */
-	        && ! req->bogus);           /* unless it is bogus. */
 
 	/* header */
     do {
@@ -461,17 +436,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 
     	/* answers */
     	rr_list = ldns_pkt_answer(reply);
-	rrsig_in_answer = 0;
-	for (i = 0; i < ldns_rr_list_rr_count(rr_list); i++)
-		if (LDNS_RR_TYPE_RRSIG ==
-		    ldns_rr_get_type(ldns_rr_list_rr(rr_list, i))) {
-			rrsig_in_answer = 1;
-			break;
-		}
-	if (include_answers)
-    		sublist = create_list_from_rr_list(context, rr_list);
-	else
-		sublist = getdns_list_create_with_context(context);
+    	sublist = create_list_from_rr_list(context, rr_list);
 
     	r = getdns_dict_set_list(result, GETDNS_STR_KEY_ANSWER, sublist);
     	getdns_list_destroy(sublist);
@@ -479,8 +444,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
             break;
         }
 
-    	if (include_answers && just_addrs &&
-	    (req->request_type == GETDNS_RRTYPE_A ||
+    	if ((req->request_type == GETDNS_RRTYPE_A ||
     	     req->request_type == GETDNS_RRTYPE_AAAA)) {
     		/* add to just addrs */
     		r = add_only_addresses(just_addrs, rr_list);
@@ -518,25 +482,14 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
         }
     	question = ldns_rr_list_rr(ldns_pkt_question(reply), 0);
     	name = convert_rdf_to_str(ldns_rr_owner(question));
-    	if (name) {
-    		r = getdns_dict_util_set_string(result,
-    		    GETDNS_STR_KEY_CANONICAL_NM, name);
-    		free(name);
-    	} else {
+    	if (! name) {
     		r = GETDNS_RETURN_MEMORY_ERROR;
-    	}
-        if (r != GETDNS_RETURN_GOOD)
-				break;
+		break;
+	}
+    	r = getdns_dict_util_set_string(result,
+    	    GETDNS_STR_KEY_CANONICAL_NM, name);
+    	free(name);
 
-		if (! dnssec_return_status)
-			break;
-
-		r = getdns_dict_set_int(result, "dnssec_status",
-		    ( req->secure      ? GETDNS_DNSSEC_SECURE 
-		    : req->bogus       ? GETDNS_DNSSEC_BOGUS
-		    : rrsig_in_answer &&
-		      context->has_ta  ? GETDNS_DNSSEC_INDETERMINATE
-		                       : GETDNS_DNSSEC_INSECURE ));
     } while (0);
 
 	if (r != 0) {
@@ -558,6 +511,22 @@ get_canonical_name(const char *name)
 	return result;
 }
 
+static int
+rrsigs_in_answer(ldns_pkt *pkt)
+{
+	ldns_rr_list *rr_list = ldns_pkt_answer(pkt);
+	size_t i;
+
+	if (! rr_list)
+		return 0;
+
+	for (i = 0; i < ldns_rr_list_rr_count(rr_list); i++)
+		if (LDNS_RR_TYPE_RRSIG ==
+		    ldns_rr_get_type(ldns_rr_list_rr(rr_list, i)))
+			return 1;
+	return 0;
+}
+
 struct getdns_dict *
 create_getdns_response(struct getdns_dns_req * completed_request)
 {
@@ -567,22 +536,22 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	struct getdns_list *just_addrs = NULL;
 	struct getdns_list *replies_tree = getdns_list_create_with_context(
 	    completed_request->context);
-	getdns_network_req *netreq = completed_request->first_req;
+	getdns_network_req *netreq;
 	char *canonical_name = NULL;
 	getdns_return_t r = 0;
-	int nanswers = 0, all_secure = 1;
+	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
 
 	/* info (bools) about dns_req */
-	int dnssec_return_status;
+	int dnssec_return_validation_chain;
 	int dnssec_return_only_secure;
-	int do_dnssec;
+	int dnssec_return_status;
 
-	dnssec_return_status = is_extension_set(
-	    completed_request->extensions, "dnssec_return_status");
+	dnssec_return_validation_chain = is_extension_set(
+	    completed_request->extensions, "dnssec_return_validation_chain");
 	dnssec_return_only_secure = is_extension_set(
 	    completed_request->extensions, "dnssec_return_only_secure");
-	do_dnssec = ( dnssec_return_status || dnssec_return_only_secure ) &&
-	    completed_request->context->has_ta;
+	dnssec_return_status = dnssec_return_only_secure || is_extension_set(
+	    completed_request->extensions, "dnssec_return_status");
 
 	if (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
 	    completed_request->first_req->request_class ==
@@ -605,13 +574,27 @@ create_getdns_response(struct getdns_dns_req * completed_request)
             break;
         }
 
-    	while (netreq && r == GETDNS_RETURN_GOOD) {
+    	for ( netreq =  completed_request->first_req
+	    ; netreq && r == GETDNS_RETURN_GOOD
+	    ; netreq = netreq->next ) {
 
-		all_secure = all_secure && netreq->secure;
-		if (ldns_pkt_get_rcode(netreq->result) == LDNS_RCODE_NOERROR &&
-		    ! (do_dnssec && netreq->bogus))
+		nreplies++;
+		if (netreq->secure)
+			nsecure++;
+		else if (! netreq->bogus)
+			ninsecure++;
+		if (dnssec_return_status && netreq->bogus)
+			nbogus++;
+		else if (LDNS_RCODE_NOERROR ==
+		    ldns_pkt_get_rcode(netreq->result))
 			nanswers++;
 
+		if (! dnssec_return_validation_chain) {
+			if (dnssec_return_status && netreq->bogus)
+				continue;
+			else if (dnssec_return_only_secure && ! netreq->secure)
+				continue;
+		}
     		struct getdns_bindata full_data;
     		full_data.data = NULL;
     		full_data.size = 0;
@@ -627,6 +610,25 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     		/* reply tree */
     		struct getdns_dict *reply = create_reply_dict(
     		    completed_request->context, netreq, just_addrs);
+
+		if (! reply) {
+			r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		if (dnssec_return_status || dnssec_return_validation_chain) {
+			r = getdns_dict_set_int(reply, "dnssec_status",
+			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE 
+			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
+			    : rrsigs_in_answer(netreq->result) &&
+			      completed_request->context->has_ta
+			                       ? GETDNS_DNSSEC_INDETERMINATE
+					       : GETDNS_DNSSEC_INSECURE ));
+
+			if (r != GETDNS_RETURN_GOOD) {
+                		getdns_dict_destroy(reply);
+				break;
+			}
+		}
     		r = getdns_list_add_item(replies_tree, &idx);
             if (r != GETDNS_RETURN_GOOD) {
                 getdns_dict_destroy(reply);
@@ -655,7 +657,6 @@ create_getdns_response(struct getdns_dns_req * completed_request)
                 // break inner while
                 break;
             }
-    		netreq = netreq->next;
     	}
 
         if (r != GETDNS_RETURN_GOOD)
@@ -679,9 +680,10 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 		}
     	}
     	r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
-	    dnssec_return_only_secure
-	    && ! all_secure ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS
-	    : nanswers == 0 ? GETDNS_RESPSTATUS_NO_NAME
+	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
+	    dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
+	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
+	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
 	                    : GETDNS_RESPSTATUS_GOOD);
     } while (0);
 
