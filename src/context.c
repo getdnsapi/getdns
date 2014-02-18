@@ -938,6 +938,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
     size_t count = 0;
     size_t i = 0;
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(upstream_list, GETDNS_RETURN_INVALID_PARAMETER);
     getdns_return_t r = getdns_list_get_length(upstream_list, &count);
     if (count == 0 || r != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
