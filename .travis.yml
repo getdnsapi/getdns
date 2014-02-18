@@ -10,7 +10,3 @@ script:
   - make
   - sudo make install
   - make test
-branches:
-  only:
-    - develop
-    - feature/travis
