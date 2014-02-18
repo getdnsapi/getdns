@@ -269,17 +269,19 @@ getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, const char *n
 getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)
 { UNUSED_PARAM(this_dict); UNUSED_PARAM(name); return GETDNS_RETURN_GOOD; }
 
-char *
+getdns_return_t
 getdns_convert_dns_name_to_fqdn(
-  const char  *name_from_dns_response
+  const struct getdns_bindata *dns_name_wire_fmt,
+  char **fqdn_as_string
 )
-{ UNUSED_PARAM(name_from_dns_response); return NULL; }
+{ UNUSED_PARAM(dns_name_wire_fmt); UNUSED_PARAM(fqdn_as_string); return GETDNS_RETURN_GOOD; }
 
-char *
+getdns_return_t
 getdns_convert_fqdn_to_dns_name(
-  const char  *fqdn_as_string
+  const char *fqdn_as_string,
+  struct getdns_bindata **dns_name_wire_fmt
 )
-{ UNUSED_PARAM(fqdn_as_string); return NULL; }
+{ UNUSED_PARAM(fqdn_as_string); UNUSED_PARAM(dns_name_wire_fmt);  return GETDNS_RETURN_GOOD; }
 
 char *
 getdns_convert_ulabel_to_alabel(

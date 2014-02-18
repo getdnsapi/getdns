@@ -1,4 +1,4 @@
-/* Created at 2014-02-10-09-56-03*/
+/* Created at 2014-02-18-14-06-50*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -472,14 +472,16 @@ getdns_service_sync(
   struct getdns_dict     **response
 );
 
-char *
+getdns_return_t
 getdns_convert_dns_name_to_fqdn(
-  const char  *name_from_dns_response
+  const struct getdns_bindata *dns_name_wire_fmt,
+  char **fqdn_as_string
 );
 
-char *
+getdns_return_t
 getdns_convert_fqdn_to_dns_name(
-  const char  *fqdn_as_string
+  const char *fqdn_as_string,
+  struct getdns_bindata **dns_name_wire_fmt
 );
 
 char *

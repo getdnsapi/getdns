@@ -14,6 +14,7 @@ char * retcharstar;
 /* The args */
 int    boolarg;
 char * charstararg;
+char ** charstarptrarg;
 getdns_callback_t callbackarg;
 uint16_t regulararg;
 uint16_t *regularptrarg;
@@ -210,12 +211,14 @@ retregular =  getdns_dict_set_bindata(dictarg, charstararg, bindataarg);
 retregular =  getdns_dict_set_int(dictarg, charstararg, uint32arg);
 retregular =  getdns_dict_remove_name(dictarg, charstararg);
 
-retcharstar =  getdns_convert_fqdn_to_dns_name(
-  charstararg
+retregular =  getdns_convert_fqdn_to_dns_name(
+  charstararg,
+  bindataptrarg
 );
 
-retcharstar =  getdns_convert_dns_name_to_fqdn(
-  charstararg
+retregular =  getdns_convert_dns_name_to_fqdn(
+  bindataarg,
+  charstarptrarg
 );
 
 retcharstar = getdns_convert_ulabel_to_alabel(

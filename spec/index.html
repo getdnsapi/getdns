@@ -1125,14 +1125,16 @@ presentation format. For example, the hex sequence <code>03 77 77 77 07 65 78 61
 string in FQDN format to bytes in DNS format.</p>
 
 <div class=forh>
-char *
+getdns_return_t
 getdns_convert_dns_name_to_fqdn(
-  const char  *name_from_dns_response
+  const struct getdns_bindata *dns_name_wire_fmt,
+  char **fqdn_as_string
 );
 
-char *
+getdns_return_t
 getdns_convert_fqdn_to_dns_name(
-  const char  *fqdn_as_string
+  const char *fqdn_as_string,
+  struct getdns_bindata **dns_name_wire_fmt
 );
 </div>
 
@@ -2426,7 +2428,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.393.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.394.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
