@@ -13,3 +13,4 @@ script:
 branches:
   only:
     - develop
+    - feature/travis
