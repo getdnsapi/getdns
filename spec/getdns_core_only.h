@@ -1,4 +1,4 @@
-/* Created at 2014-02-18-14-24-15*/
+/* Created at 2014-02-18-15-23-20*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -279,11 +279,11 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_DLV 32769
 
 /* Defines for RRclasses (from 2014-02) */
-#define GETDNS_RR_CLASS_IN     1
-#define GETDNS_RR_CLASS_CH     3
-#define GETDNS_RR_CLASS_HS     4
-#define GETDNS_RR_CLASS_NONE 254
-#define GETDNS_RR_CLASS_ANY  255
+#define GETDNS_RRCLASS_IN     1
+#define GETDNS_RRCLASS_CH     3
+#define GETDNS_RRCLASS_HS     4
+#define GETDNS_RRCLASS_NONE 254
+#define GETDNS_RRCLASS_ANY  255
 
 /* Defines for Opcodes (from 2014-02) */
 #define GETDNS_OPCODE_QUERY  0
