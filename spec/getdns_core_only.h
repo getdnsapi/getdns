@@ -1,4 +1,4 @@
-/* Created at 2014-02-18-14-06-50*/
+/* Created at 2014-02-18-14-12-28*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -197,6 +197,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT "A DNS query for a type other than CNAME returned a CNAME response"
 
+
 /* Defines for RRtypes (from 2014-02) */
 #define GETDNS_RRTYPE_A 1
 #define GETDNS_RRTYPE_NS 2
@@ -276,6 +277,33 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_CAA 257
 #define GETDNS_RRTYPE_TA 32768
 #define GETDNS_RRTYPE_DLV 32769
+
+/* Defines for RRclasses (from 2014-02) */
+#define GETDNS_RR_CLASS_IN     1
+#define GETDNS_RR_CLASS_CH     3
+#define GETDNS_RR_CLASS_HS     4
+#define GETDNS_RR_CLASS_NONE 254
+#define GETDNS_RR_CLASS_ANY  255
+
+/* Defines for Opcodes (from 2014-02) */
+#define GETDNS_OPCODE_QUERY  0
+#define GETDNS_OPCODE_IQUERY 1
+#define GETDNS_OPCODE_STATUS 2
+#define GETDNS_OPCODE_NOTIFY 4
+#define GETDNS_OPCODE_UPDATE 5
+
+/* Defines for Rcodes (from 2014-02) */
+#define GETDNS_RCODE_NOERROR  0
+#define GETDNS_RCODE_FORMERR  1
+#define GETDNS_RCODE_SERVFAIL 2
+#define GETDNS_RCODE_NXDOMAIN 3
+#define GETDNS_RCODE_NOTIMPL  4
+#define GETDNS_RCODE_REFUSED  5
+#define GETDNS_RCODE_YXDOMAIN 6
+#define GETDNS_RCODE_YXRRSET  7
+#define GETDNS_RCODE_NXRRSET  8
+#define GETDNS_RCODE_NOTAUTH  9
+#define GETDNS_RCODE_NOTZONE 10
 
 /* Various typedefs  */
 struct getdns_context;
