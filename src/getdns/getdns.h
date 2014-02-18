@@ -840,9 +840,15 @@ getdns_service_sync(struct getdns_context *context,
 /** @}
  */
 
-char *getdns_convert_dns_name_to_fqdn(const char *name_from_dns_response);
+getdns_return_t
+getdns_convert_dns_name_to_fqdn(
+    const struct getdns_bindata *dns_name_wire_fmt,
+    char **fqdn_as_string);
 
-char *getdns_convert_fqdn_to_dns_name(const char *fqdn_as_string);
+getdns_return_t
+getdns_convert_fqdn_to_dns_name(
+    const char *fqdn_as_string,
+    struct getdns_bindata **dns_name_wire_fmt);
 
 char *getdns_convert_ulabel_to_alabel(const char *ulabel);
 

@@ -542,8 +542,9 @@ getdns_pp_bindata(ldns_buffer * buf, size_t indent,
 			return -1;
 
 	} else if (priv_getdns_bindata_is_dname(bindata)) {
-		dname = getdns_convert_dns_name_to_fqdn((char *)bindata->data);
-		if (ldns_buffer_printf(buf, "for %s>", dname) < 0) {
+		if (GETDNS_RETURN_GOOD ==
+		    getdns_convert_dns_name_to_fqdn(bindata, &dname) &&
+		    ldns_buffer_printf(buf, "for %s>", dname) < 0) {
 			free(dname);
 			return -1;
 		}

@@ -45,42 +45,35 @@
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
-static size_t sizeof_dname(uint8_t *dname)
+getdns_return_t
+getdns_convert_dns_name_to_fqdn(
+    const struct getdns_bindata *dns_name_wire_fmt, char **fqdn_as_string)
 {
-	uint8_t *ptr;
-
-	assert(dname);
-	ptr = dname;
-	while (*ptr && (*ptr & 0xC0) == 0)
-		ptr += *ptr + 1;
-	if ((*ptr & 0xC0) == 0xC0)
-		ptr++;
-	return (ptr - dname) + 1;
-}
-
-char *
-getdns_convert_dns_name_to_fqdn(const char *name_from_dns_response)
-{
-	char *str;
 	ldns_rdf *rdf = ldns_rdf_new(LDNS_RDF_TYPE_DNAME,
-	    sizeof_dname((uint8_t *)name_from_dns_response),
-	    (void *)name_from_dns_response); /* unconst is safe here */
-	if (!rdf) return NULL;
-	str = ldns_rdf2str(rdf);
+	    dns_name_wire_fmt->size,
+	    (void *)dns_name_wire_fmt->data); /* unconst is safe here */
+	if (!rdf) return GETDNS_RETURN_MEMORY_ERROR;
+	*fqdn_as_string = ldns_rdf2str(rdf);
 	ldns_rdf_free(rdf);
-	return str;
+	return *fqdn_as_string ? GETDNS_RETURN_GOOD
+	                       : GETDNS_RETURN_GENERIC_ERROR;
 }
 
-char *
-getdns_convert_fqdn_to_dns_name(const char *fqdn_as_string)
+getdns_return_t
+getdns_convert_fqdn_to_dns_name(
+    const char *fqdn_as_string, struct getdns_bindata **dns_name_wire_fmt)
 {
 	ldns_rdf *rdf;
-	char *data;
 	if (ldns_str2rdf_dname(&rdf, fqdn_as_string) != LDNS_STATUS_OK)
-		return NULL;
-	data = (char *)ldns_rdf_data(rdf);
+		return GETDNS_RETURN_GENERIC_ERROR;;
+	*dns_name_wire_fmt = malloc(sizeof(struct getdns_bindata));
+	if (*dns_name_wire_fmt) {
+		(*dns_name_wire_fmt)->size = ldns_rdf_size(rdf);
+		(*dns_name_wire_fmt)->data = ldns_rdf_data(rdf);
+	}
 	ldns_rdf_free(rdf);
-	return data;
+	return *dns_name_wire_fmt ? GETDNS_RETURN_GOOD
+	                          : GETDNS_RETURN_MEMORY_ERROR;
 }
 
 /*---------------------------------------- getdns_convert_alabel_to_ulabel */
