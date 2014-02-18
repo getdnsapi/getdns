@@ -70,7 +70,7 @@ typedef enum getdns_return_t {
 #define GETDNS_RETURN_GOOD_TEXT "Good"
 #define GETDNS_RETURN_GENERIC_ERROR_TEXT "Generic error"
 #define GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT "Badly-formed domain name in first argument"
-#define GETDNS_RETURN_BAD_CONTEXT_TEXT "Bad value for a context type"
+#define GETDNS_RETURN_BAD_CONTEXT_TEXT "The context has internal deficiencies"
 #define GETDNS_RETURN_CONTEXT_UPDATE_FAIL_TEXT "Did not update the context"
 #define GETDNS_RETURN_UNKNOWN_TRANSACTION_TEXT "An attempt was made to cancel a callback with a transaction_id that is not recognized"
 #define GETDNS_RETURN_NO_SUCH_LIST_ITEM_TEXT "A helper function for lists had an index argument that was too high."
