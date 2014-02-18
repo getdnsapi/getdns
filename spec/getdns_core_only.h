@@ -1,4 +1,4 @@
-/* Created at 2014-02-18-14-12-28*/
+/* Created at 2014-02-18-14-20-52*/
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -524,7 +524,7 @@ getdns_convert_alabel_to_ulabel(
 
 getdns_return_t
 getdns_validate_dnssec(
-  struct getdns_bindata  *record_to_validate,
+  struct getdns_list     *record_to_validate,
   struct getdns_list     *bundle_of_support_records,
   struct getdns_list     *trust_anchor_rdatas
 );

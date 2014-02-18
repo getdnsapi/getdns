@@ -230,7 +230,7 @@ retcharstar = getdns_convert_alabel_to_ulabel(
 );
 
 retregular = getdns_validate_dnssec(
-  bindataarg,
+  listarg,
   listarg,
   listarg
 );

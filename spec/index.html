@@ -2032,16 +2032,16 @@ getdns_convert_alabel_to_ulabel(
 can use the <code>getdns_validate_dnssec()</code> helper function.</p>
 <div class=forh>getdns_return_t
 getdns_validate_dnssec(
-  struct getdns_bindata  *record_to_validate,
+  struct getdns_list     *record_to_validate,
   struct getdns_list     *bundle_of_support_records,
   struct getdns_list     *trust_anchor_rdatas
 );
 </div>
-<p class=cont>The <code>record_to_validate</code> is the resource record being validated. The API
-will use the resource records in <code>bundle_of_support_records</code> and the RDATAs in the
-<code>trust_ancor_rdatas</code> as trust anchors. The function returns one of
-<code>GETDNS_DNSSEC_SECURE</code>, <code>GETDNS_DNSSEC_BOGUS</code>,
-<code>GETDNS_DNSSEC_INDETERMINATE</code>, or <code>GETDNS_DNSSEC_INSECURE</code>.</p>
+<p class=cont>
+The <code>record_to_validate</code> is the resource record being validated together with the associated signatures.
+The API will use the resource records in <code>bundle_of_support_records</code> to construct the validation chain and the DNSKEY or DS records in <code>trust_anchor_records</code> as trust anchors.
+The function returns one of <code>GETDNS_DNSSEC_SECURE</code>, <code>GETDNS_DNSSEC_BOGUS</code>, <code>GETDNS_DNSSEC_INDETERMINATE</code>, or <code>GETDNS_DNSSEC_INSECURE</code>.
+</p>
 
 <p>There are two functions that help process data:</p>
 
@@ -2428,7 +2428,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.395.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.396.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
