@@ -156,7 +156,12 @@ static struct rdata_def       sink_rdata[] = {
 static struct rdata_def        opt_rdata[] = {
 	{ "options"                     , t_dict    },
 	{ "option_code"                 , t_int     },
-	{ "option_data"                 , t_bindata }};
+	{ "option_data"                 , t_bindata },
+	{ "udp_payload_size"            , t_int     },
+	{ "extended_rcode"              , t_int     },
+	{ "version"                     , t_int     },
+	{ "do"                          , t_int     },
+	{ "z"                           , t_int     }};
 static struct rdata_def        apl_rdata[] = {
 	{ "apitems"                     , t_dict    },
 	{ "address_family"              , t_int     },
@@ -1365,13 +1370,17 @@ getdns_return_t priv_getdns_append_opt_rr(
         getdns_dict_destroy(rr_dict);
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    /* add rest of the fields */
     r = getdns_dict_set_int(rr_dict, "type", GETDNS_RRTYPE_OPT);
+    r |= getdns_dict_set_int(rr_dict, "udp_payload_size", ldns_pkt_edns_udp_size(pkt));
+    r |= getdns_dict_set_int(rr_dict, "extended_rcode", ldns_pkt_edns_extended_rcode(pkt));
+	r |= getdns_dict_set_int(rr_dict, "version", ldns_pkt_edns_version(pkt));
+    r |= getdns_dict_set_int(rr_dict, "do", ldns_pkt_edns_do(pkt));
+    r |= getdns_dict_set_int(rr_dict, "z", ldns_pkt_edns_z(pkt));
     if (r != GETDNS_RETURN_GOOD) {
         getdns_dict_destroy(rr_dict);
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    /* other fields don't really make sense as they are
-       interpreted differently */
 
     /* append */
     r = getdns_list_set_dict(rdatas, list_len, opt_rr);
