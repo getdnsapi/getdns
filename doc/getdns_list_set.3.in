@@ -26,11 +26,13 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_dict 3 "@date@" "getdns @version@" getdns
+.TH getdns_list_set 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_dict, 
-.B getdns_dict_create, 
-.B getdns_dict_destroy 
+.B getdns_list_set, 
+.B getdns_list_set_bindata, 
+.B getdns_list_set_dict, 
+.B getdns_list_set_int, 
+.B getdns_list_set_list, 
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -38,20 +40,30 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-struct getdns_dict * 
+getdns_return_t 
 .br
-.B getdns_dict_create
-()
+.B getdns_list_set_bindata
+(struct getdns_list *this_list, char *name, struct getdns_bindata *child_bindata)
 
-void 
+getdns_return_t
 .br
-.B getdns_dict_destroy
-(struct getdns_dict *this_dict)
+.B getdns_list_set_dict
+(struct getdns_list *this_list, char *name, struct getdns_dict *child_dict)
+
+getdns_return_t 
+.br
+.B getdns_list_set_int
+(struct getdns_list *this_list, char *name, uint32_t child_uint32_t)
+
+getdns_return_t 
+.br
+.B getdns_list_set_list
+(struct getdns_list *this_list, char *name, struct getdns_list *child_list)
 
 .SH DESCRIPTION
 
 .LP
-The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogenous and include
+The getdns_list type is used to manage a heterogenous indexed list of values that include:
 .RS 3
 .br
 struct getdns_bindata
@@ -64,19 +76,31 @@ uint32_t
 .RE
 
 .LP
-The destroy function performs a "deep" destroy, freeing storage for all of the members
-of the dictionary before destroying the dictionary.  There are a number of helper
-functions that provide access to the dictionary object, see their respective man pages.
-
+.I this_list
+the list in which to add/update the indexed item
 .LP
-.I this_dict
-the dictionary to destroy
+.I index
+the index whose associated value is to be set.  If the index exists in the list
+the value associated with that index is replaced, if the index does not exist in the 
+list a new item is added to the list at the specified index.
 .LP
+.I child_bindata
+.I child_dict
+.I child_list
+.I child_uint32
+value to assign the indexed element
 
 .SH "RETURN VALUES"
 
-Upon successful completion the getdns_dict_create function returns a valid (empty) 
-dictionary structure that should be freed via a call to getdns_dict_destroy.
+Upon successful completion the functions return
+.B GETDNS_RETURN_GOOD
+, otherwise the following error values are returned:
+.LP
+.B GETDNS_RETURN_NO_SUCH_LIST_ITEM
+if the index is out of range
+.LP
+.B GETDNS_RETURN_GENERIC_ERROR
+if this_list is not a valid list
 
 .SH EXAMPLES
 
@@ -84,7 +108,10 @@ TBD
 
 .SH SEE ALSO
 .BR libgetdns (3),
-.BR getdns_dict_get (3),
-.BR getdns_dict_set (3),
-.BR getdns_list (3).
+.BR getdns_address (3),
+.BR getdns_list (3),
+.BR getdns_list_get (3),
+.BR getdns_general (3),
+.BR getdns_hostname (3),
+.BR getdns_service (3),
 

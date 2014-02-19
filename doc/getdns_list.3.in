@@ -26,11 +26,11 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_dict 3 "@date@" "getdns @version@" getdns
+.TH getdns_list 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_dict, 
-.B getdns_dict_create, 
-.B getdns_dict_destroy 
+.B getdns_list, 
+.B getdns_list_create, 
+.B getdns_list_destroy 
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -38,20 +38,20 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-struct getdns_dict * 
+struct getdns_list * 
 .br
-.B getdns_dict_create
+.B getdns_list_create
 ()
 
 void 
 .br
-.B getdns_dict_destroy
-(struct getdns_dict *this_dict)
+.B getdns_list_destroy
+(struct getdns_list *this_dict)
 
 .SH DESCRIPTION
 
 .LP
-The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogenous and include
+The getdns_list type is used to manage heterogenous indexed lists name/value pairs in which the data types of the values include
 .RS 3
 .br
 struct getdns_bindata
@@ -65,18 +65,18 @@ uint32_t
 
 .LP
 The destroy function performs a "deep" destroy, freeing storage for all of the members
-of the dictionary before destroying the dictionary.  There are a number of helper
-functions that provide access to the dictionary object, see their respective man pages.
+of the list before destroying the list.  There are a number of helper
+functions that provide access to the list object, see their respective man pages.
 
 .LP
-.I this_dict
-the dictionary to destroy
+.I this_list
+the list to destroy
 .LP
 
 .SH "RETURN VALUES"
 
-Upon successful completion the getdns_dict_create function returns a valid (empty) 
-dictionary structure that should be freed via a call to getdns_dict_destroy.
+Upon successful completion the getdns_list_create function returns a valid (empty) 
+list structure that should be freed via a call to getdns_list_destroy.
 
 .SH EXAMPLES
 
@@ -84,7 +84,7 @@ TBD
 
 .SH SEE ALSO
 .BR libgetdns (3),
-.BR getdns_dict_get (3),
-.BR getdns_dict_set (3),
-.BR getdns_list (3).
+.BR getdns_dict (3), 
+.BR getdns_list_get (3), 
+.BR getdns_list_set (3)
 

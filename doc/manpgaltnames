@@ -1,0 +1,6 @@
+#!/bin/bash
+# generate list of alternate names for the specified man page
+# used to generate alternative man pages
+main=${1%.[0-9]}
+sect=${1#*.}
+sed -n '/.SH NAME/,/.SH LIBRARY/p' $1 |grep "^.B " | sed 's/.B //g' | sed 's/ *$//g' | sed 's/,//g' | grep -v "^$main\$" | sed "s/\$/.$sect/"

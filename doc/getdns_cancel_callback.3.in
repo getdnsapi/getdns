@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, Versign, Inc.
+.\" Copyright (c) 2013, NLNet Labs, Versign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,9 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_dict 3 "@date@" "getdns @version@" getdns
+.TH getdns_cancel_callback 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_dict, 
-.B getdns_dict_create, 
-.B getdns_dict_destroy 
+.B getdns_cancel_callback
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -38,53 +36,60 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-struct getdns_dict * 
+getdns_return_t 
 .br
-.B getdns_dict_create
-()
-
-void 
+.B getdns_cancel_callback
+(getdns_context_t context,
+.RS 3
 .br
-.B getdns_dict_destroy
-(struct getdns_dict *this_dict)
+getdns_transaction_t *transaction_id)
+.RE
 
 .SH DESCRIPTION
 
 .LP
-The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogenous and include
-.RS 3
-.br
-struct getdns_bindata
-.br
-struct getdns_dict
-.br
-struct getdns_list
-.br
-uint32_t
-.RE
+To cancel an outstanding callback, use getdns_cancel_callback. This causes the
+API to call the callback with a callback_type of GETDNS_CALLBACK_CANCEL if the
+callback for this transaction_id has not already been called. The callback code
+for cancellation should clean up any memory related to the identified call,
+such as to deallocate the memory for the userarg. getdns_cancel_callback() may
+return immediately, even before the callback finishes its work and returns. 
 
-.LP
-The destroy function performs a "deep" destroy, freeing storage for all of the members
-of the dictionary before destroying the dictionary.  There are a number of helper
-functions that provide access to the dictionary object, see their respective man pages.
+.HP 3
+.I context
+.RP
+see getdns_context (3)
 
-.LP
-.I this_dict
-the dictionary to destroy
-.LP
+.HP 3
+.I transaction_id
+.RP
+populated by the API and used to identify the callback (for example to getdns_cancel_callback), can be NULL, set to 0 if the function fails
 
+.HP
 .SH "RETURN VALUES"
 
-Upon successful completion the getdns_dict_create function returns a valid (empty) 
-dictionary structure that should be freed via a call to getdns_dict_destroy.
+Upon successful completion the functions return
+.B GETDNS_RETURN_GOOD
+, otherwise the following error values are returned:
+
+.LP
+.B GETDNS_RETURN_UNKNOWN_TRANSACTION 
+when calling getdns_cancel_callback() with a transaction_id of a callback that has already been called or an unknown transaction_id
 
 .SH EXAMPLES
 
 TBD
 
+.SH FILES
+.br
+/etc/hosts
+.br
+/etc/resolv.conf
+
 .SH SEE ALSO
 .BR libgetdns (3),
-.BR getdns_dict_get (3),
-.BR getdns_dict_set (3),
-.BR getdns_list (3).
+.BR getdns_context (3),
+.BR getdns_general (3),
+.BR getdns_hostname (3),
+.BR getdns_service (3),
 

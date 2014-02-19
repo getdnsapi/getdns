@@ -21,7 +21,7 @@ VPATH = @srcdir@
 EDITS=-e 's/@''version@/$(version)/g'
 
 DOCDIRS = html latex man
-MANPAGES3 = libgetdns.3 getdns_address.3 getdns_context.3 getdns_context_set.3  getdns_dict.3 getdns_general.3 getdns_hostname.3 getdns_service.3
+MANPAGES3 = libgetdns.3 getdns_address.3 getdns_cancel_callback.3 getdns_context.3 getdns_context_create.3 getdns_context_set.3 getdns_dict.3 getdns_dict_get.3 getdns_dict_set.3 getdns_free_sync_request_memory.3 getdns_general.3 getdns_hostname.3 getdns_list.3 getdns_list_get.3 getdns_list_set.3 getdns_service.3
 
 default: all
 
@@ -34,15 +34,18 @@ doc: 	$(MANPAGES3)
 .3.in.3:
 	sed $(EDITS) -e "s/@date@/`date +'%B %Y'`/g" $< > $@
 
+# we assume that we want a separate file for each "name" specified for each man page
+# and consider these "alternate names" simple copies of the main man page
 install:	$(MANPAGES3)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man3
-	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; done
+	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; for altpg in $$(./manpgaltnames $$x); do cp $$x $$altpg; echo $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; done; done
 
 uninstall:
-	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; done
+	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; for altpg in $$(./manpgaltnames $$x); do echo rm -f $(DESTDIR)$(mandir)/man3/$$altpg;  rm -f $(DESTDIR)$(mandir)/man3/$$altpg; done; done
 
 clean:
+	for x in $(MANPAGES3); do rm -f $$(./manpgaltnames $$x); done
 	rm -rf $(DOCDIRS) $(MANPAGES3)
 
 distclean : clean

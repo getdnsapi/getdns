@@ -26,11 +26,13 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_dict 3 "@date@" "getdns @version@" getdns
+.TH getdns_dict_set 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_dict, 
-.B getdns_dict_create, 
-.B getdns_dict_destroy 
+.B getdns_dict_set, 
+.B getdns_dict_set_bindata, 
+.B getdns_dict_set_dict, 
+.B getdns_dict_set_int, 
+.B getdns_dict_set_list, 
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -38,15 +40,25 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-struct getdns_dict * 
+getdns_return_t 
 .br
-.B getdns_dict_create
-()
+.B getdns_dict_set_bindata
+(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata)
 
-void 
+getdns_return_t
 .br
-.B getdns_dict_destroy
-(struct getdns_dict *this_dict)
+.B getdns_dict_set_dict
+(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict)
+
+getdns_return_t 
+.br
+.B getdns_dict_set_int
+(struct getdns_dict *this_dict, char *name, uint32_t child_uint32_t)
+
+getdns_return_t 
+.br
+.B getdns_dict_set_list
+(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list)
 
 .SH DESCRIPTION
 
@@ -64,19 +76,28 @@ uint32_t
 .RE
 
 .LP
-The destroy function performs a "deep" destroy, freeing storage for all of the members
-of the dictionary before destroying the dictionary.  There are a number of helper
-functions that provide access to the dictionary object, see their respective man pages.
-
-.LP
 .I this_dict
-the dictionary to destroy
+the dictionary in which to add/update the name/value pair
 .LP
+.I name
+the name whose associated value is to be set.  If the name exists in the dictionary
+the value associated with that name is replaced, if the name does not exist in the 
+dictionary a new item is added to the dictionary.
+.LP
+.I child_bindata
+.I child_dict
+.I child_list
+.I child_uint32
+value to assign the name
 
 .SH "RETURN VALUES"
 
-Upon successful completion the getdns_dict_create function returns a valid (empty) 
-dictionary structure that should be freed via a call to getdns_dict_destroy.
+Upon successful completion the functions return
+.B GETDNS_RETURN_GOOD
+, otherwise the following error values are returned:
+.LP
+.B GETDNS_RETURN_GENERIC_ERROR
+if this_dict is not a valid dictionary
 
 .SH EXAMPLES
 
@@ -84,7 +105,10 @@ TBD
 
 .SH SEE ALSO
 .BR libgetdns (3),
+.BR getdns_address (3),
+.BR getdns_dict (3),
 .BR getdns_dict_get (3),
-.BR getdns_dict_set (3),
-.BR getdns_list (3).
+.BR getdns_general (3),
+.BR getdns_hostname (3),
+.BR getdns_service (3)
 

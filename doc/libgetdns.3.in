@@ -29,7 +29,7 @@
 .TH libgetdns 3 "@date@" "getdns @version@" getdns
 .SH NAME
 libgetdns
-.Sh LIBRARY
+.SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
 
 .SH SYNOPSIS
@@ -55,6 +55,52 @@ Functions are thread safe.
 
 .LP
 A context structure maintains DNS query and response data and is used to maintain state during calls to the public entry points.
+
+.LP
+The project page for this implementation is at
+.IP
+http://www.getdnsapi.net
+
+.LP
+The specification is maintained at
+.IP
+http://www.vpnc.org/getdns-api
+
+.LP
+The git repository for this implementation is at
+.IP
+http://github.com/getdnsapi/getdns
+
+.SH DATA STRUCTURES
+
+.LP
+The API uses a few data structures to pass data into and return data from the public
+entry points.
+
+.IP list
+an ordered list, the members of the list can be any of the four data types.
+.IP dict
+a name-value pair. The name is a string literal, and the value can be any of the four data types. The order of the name-value pairs in a dict is not important.
+.IP int
+an integer compatible with uint32_t.
+.IP bindata
+a struct used to hold binary data defined as { size_t size; uint8_t *binary_stuff; }.
+
+.SH ASYNCHRONOUS USE
+
+.SH SYNCHRONOUS USE
+
+.LP
+There are four synchronous functions parallel to the four getdns async
+functions, except that there is no callback parameter. When an application
+calls one of these synchronous functions, the API gathers all the required
+information and then returns the result. The value returned is exactly the same
+as the response returned in the callback if you had used the async version of
+the function.
+
+.LP
+When you are done with the data in the response, call getdns_free_sync_request_memory so
+that the API can free the memory from its internal pool.
 
 .SH EXTENSIONS
 
@@ -143,7 +189,7 @@ Set to GETDNS_EXTENSION_TRUE to add the name
 .LP
 This implementation of the getdns API is licensed under the BSD license.
 
-.SH Response Data from Queries
+.SH RESPONSE DATA
 
 .LP
 The callback function contains a pointer to a response object. A response
@@ -224,7 +270,7 @@ it is currently either "IPv4" or "IPv6") and address_data (whose value is a
 bindata). Note that the dnssec_return_only_secure extension affects what will
 appear in the srv_addresses list.
 
-.SH Structure of DNS replies_tree
+.SH STRUCTURE OF DNS REPLIES_TREE
 
 .LP
 The names in each entry in the the replies_tree list for DNS responses include
@@ -268,6 +314,96 @@ It is expected that later extensions to the API will give some DNS types
 different names. It is also possible that later extensions will change the
 names for some of the DNS types listed above.
 
+.SH CALLBACK FUNCTIONS
+
+.LP
+A call to the async getdns functions typically returns before any network or
+file I/O occurs. After the API marshalls all the needed information, it calls
+the callback function that was passed by the application. The callback function
+might be called at any time, even before the calling function has returned. The
+API guarantees that the callback will be called exactly once unless the calling
+function returned an error, in which case the callback function is never
+called.
+
+The getdns calling function calls the callback with the parameters defined as
+follows:
+
+.br
+typedef void (*getdns_callback_t)( 
+.RS 3
+getdns_context_t context,
+.br
+uint16_t callback_type,
+.br
+struct getdns_dict *response,
+.br
+void *userarg,
+.br
+getdns_transaction_t transaction_id)
+.RE
+
+.HP 3
+.I context
+.RP
+see getdns_context (3)
+
+.HP 3
+.I callback_type
+.RP
+Supplies the reason for the callback.
+.RS 3
+.LP
+.B GETDNS_CALLBACK_COMPLETE
+The response has the requested data in it
+.LP
+.B GETDNS_CALLBACK_CANCEL
+The calling program cancelled the callback; response is NULL
+.LP
+.B GETDNS_CALLBACK_TIMEOUT
+The requested action timed out; response is NULL
+.LP
+.B GETDNS_CALLBACK_ERROR
+The requested action had an error; response is NULL
+.RE
+
+.HP 3
+.I response
+.RP
+A response object with the response data. This is described below. The response object is part of the API's memory space, and will be freed by the API with the callback returns.
+
+.HP 3
+.I userarg
+.RP
+Identical to the userarg passed to the calling function.
+
+.HP 3
+.I transaction_id
+.RP
+The transaction identified assigned by the calling function, used to associate a DNS response to a specific DNS request.
+
+.LP
+To cancel an outstanding callback, use the following function.
+
+.RS 3
+.br
+getdns_return_t
+.br
+.B
+getdns_cancel_callback
+(getdns_context_t context, getdns_transaction_t transaction_id)
+.RE
+
+.LP
+This causes the API to call the callback with a callback_type of
+GETDNS_CALLBACK_CANCEL if the callback for this transaction_id has not already
+been called. The callback code for cancellation should clean up any memory
+related to the identified call, such as to deallocate the memory for the
+userarg. getdns_cancel_callback() may return immediately, even before the
+callback finishes its work and returns. Calling getdns_cancel_callback() with a
+transaction_id of a callback that has already been called or an unknown
+transaction_id returns GETDNS_RETURN_UNKNOWN_TRANSACTION; otherwise,
+getdns_cancel_callback() returns GETDNS_RETURN_GOOD.
+
 .SH FILES
 .br /etc/hosts
 .br /etc/resolv.conf
@@ -280,16 +416,13 @@ TBD
 
 .SH "SEE ALSO"
 .BR getdns_address (3),
-.BR getdns_address_sync (3),
+.BR getdns_bindata (3),
 .BR getdns_context (3),
 .BR getdns_dict (3),
 .BR getdns_general (3),
-.BR getdns_general_sync (3),
 .BR getdns_hostname (3),
-.BR getdns_hostname_sync (3),
 .BR getdns_list (3),
-.BR getdns_service (3),
-.BR getdns_service_sync (3).
+.BR getdns_service (3)
 
 .SH REPORTING PROBLEMS
 Bug reports should be sent to the getdns-bugs@getdns.net
