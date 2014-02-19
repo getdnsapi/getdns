@@ -1665,16 +1665,68 @@ getdns_context_clear_timeout(struct getdns_context* context,
     return GETDNS_RETURN_GOOD;
 }
 
+static inline getdns_return_t
+priv_dict_set_list_if_not_null(getdns_dict* dict,
+    const char* name, getdns_list* list) {
+    if (!list) {
+        return GETDNS_RETURN_GOOD;
+    }
+    return getdns_dict_set_list(dict, name, list);
+}
+
+static getdns_dict*
+priv_get_context_settings(getdns_context* context) {
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    getdns_dict* result = getdns_dict_create_with_context(context);
+    if (!result) {
+        return NULL;
+    }
+    /* int fields */
+    r = getdns_dict_set_int(result, "dns_transport", context->dns_transport);
+    r |= getdns_dict_set_int(result, "timeout", context->timeout);
+    r |= getdns_dict_set_int(result, "limit_outstanding_queries", context->limit_outstanding_queries);
+    r |= getdns_dict_set_int(result, "dnssec_allowed_skew", context->dnssec_allowed_skew);
+    r |= getdns_dict_set_int(result, "follow_redirects", context->follow_redirects);
+    r |= getdns_dict_set_int(result, "edns_maximum_udp_payload_size", context->edns_maximum_udp_payload_size);
+    r |= getdns_dict_set_int(result, "edns_extended_rcode", context->edns_extended_rcode);
+    r |= getdns_dict_set_int(result, "edns_version", context->edns_version);
+    r |= getdns_dict_set_int(result, "edns_do_bit", context->edns_do_bit);
+    r |= getdns_dict_set_int(result, "append_name", context->append_name);
+    /* list fields */
+    r |= priv_dict_set_list_if_not_null(result, "suffix", context->suffix);
+    r |= priv_dict_set_list_if_not_null(result, "upstream_recursive_servers", context->upstream_list);
+    if (context->namespace_count > 0) {
+        /* create a namespace list */
+        size_t i;
+        getdns_list* namespaces = getdns_list_create_with_context(context);
+        if (namespaces) {
+            for (i = 0; i < context->namespace_count; ++i) {
+                r |= getdns_list_set_int(namespaces, i, context->namespaces[i]);
+            }
+            r |= getdns_dict_set_list(result, "namespaces", namespaces);
+        }
+    }
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(result);
+        result = NULL;
+    }
+    return result;
+}
+
 getdns_dict*
 getdns_context_get_api_information(getdns_context* context) {
     getdns_return_t r = GETDNS_RETURN_GOOD;
     getdns_dict* result = getdns_dict_create_with_context(context);
+    getdns_dict* settings;
     if (!result) {
         return NULL;
     }
     r = getdns_dict_util_set_string(result, "version_string", PACKAGE_VERSION);
     r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
     r |= getdns_dict_set_int(result, "resolver_type", context->resolution_type);
+    settings = priv_get_context_settings(context);
+    r |= getdns_dict_set_dict(result, "all_context", settings);
+    getdns_dict_destroy(settings);
     if (r != GETDNS_RETURN_GOOD) {
         getdns_dict_destroy(result);
         result = NULL;
