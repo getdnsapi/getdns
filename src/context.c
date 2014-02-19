@@ -188,7 +188,7 @@ filechg_check(struct getdns_context *context, struct filechg *fchg)
         return GETDNS_FCHG_ERRORS;
     }
 
-    /* we want to consider a file that previously returned error for stat() as a 
+    /* we want to consider a file that previously returned error for stat() as a
        change */
 
     if(fchg->prevstat == NULL)
@@ -610,8 +610,8 @@ getdns_context_set_resolution_type(struct getdns_context *context,
     if (value != GETDNS_RESOLUTION_STUB && value != GETDNS_RESOLUTION_RECURSING) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
-
     context->resolution_type = value;
+    clear_resolution_type_set_flag(context, value);
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_RESOLUTION_TYPE);
 
@@ -635,7 +635,7 @@ getdns_context_set_namespaces(struct getdns_context *context,
 
 	for(i=0; i<namespace_count; i++)
 	{
-		if( namespaces[i] != GETDNS_NAMESPACE_DNS 
+		if( namespaces[i] != GETDNS_NAMESPACE_DNS
 		 && namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES
 		 && namespaces[i] != GETDNS_NAMESPACE_NETBIOS
 		 && namespaces[i] != GETDNS_NAMESPACE_MDNS
@@ -1124,7 +1124,7 @@ ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams)
 	struct getdns_dict *dict;
 	struct getdns_bindata *address_string;
 	getdns_return_t r;
-       
+
 	r = getdns_list_get_length(upstreams, &count);
 	if (r != GETDNS_RETURN_GOOD)
 		return r;
@@ -1234,7 +1234,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 
 	if (context->resolution_type_set == context->resolution_type)
         	/* already set and no config changes
-		 * have caused this to be bad. 
+		 * have caused this to be bad.
 		 */
 		return GETDNS_RETURN_GOOD;
 
@@ -1594,6 +1594,23 @@ getdns_context_clear_timeout(struct getdns_context* context,
     }
     GETDNS_FREE(context->my_mf, timeout_data);
     return GETDNS_RETURN_GOOD;
+}
+
+getdns_dict*
+getdns_context_get_api_information(getdns_context* context) {
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    getdns_dict* result = getdns_dict_create_with_context(context);
+    if (!result) {
+        return NULL;
+    }
+    r = getdns_dict_util_set_string(result, "version_string", PACKAGE_VERSION);
+    r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
+    r |= getdns_dict_set_int(result, "resolver_type", context->resolution_type);
+    if (r != GETDNS_RETURN_GOOD) {
+        getdns_dict_destroy(result);
+        result = NULL;
+    }
+    return result;
 }
 
 

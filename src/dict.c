@@ -717,7 +717,7 @@ priv_getdns_print_rcode(ldns_buffer *buf, uint32_t rcode)
 		" GETDNS_RCODE_BADNAME" , " GETDNS_RCODE_BADALG"  ,
 		" GETDNS_RCODE_BADTRUNC"
 	};
-	if (rcode >= 0 && rcode <= 10)
+	if (rcode <= 10)
 		(void) ldns_buffer_printf(buf, rcodes[rcode]);
 	else if (rcode >= 16 && rcode <= 22)
 		(void) ldns_buffer_printf(buf, rcodes[rcode-6]);

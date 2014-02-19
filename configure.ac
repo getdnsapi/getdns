@@ -6,7 +6,7 @@
 #
 
 AC_PREREQ([2.56])
-AC_INIT([getdns], [0.1.0], [stub-resolver@verisignlabs.com])
+AC_INIT([getdns], [0.1.0], [stub-resolver@verisignlabs.com], [], [http://www.getdnsapi.net])
 AC_CONFIG_SRCDIR([src/getdns/getdns.h])
 # AM_INIT_AUTOMAKE
 # LT_INIT
