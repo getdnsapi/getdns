@@ -78,10 +78,14 @@ struct getdns_context {
 	struct getdns_list   *suffix;
 	struct getdns_list   *dnssec_trust_anchors;
 	struct getdns_list   *upstream_list;
+    getdns_transport_t   dns_transport;
+    uint16_t             limit_outstanding_queries;
+    uint32_t             dnssec_allowed_skew;
 
 	uint8_t edns_extended_rcode;
 	uint8_t edns_version;
 	uint8_t edns_do_bit;
+    uint16_t edns_maximum_udp_payload_size;
 
 	getdns_update_callback update_callback;
 
