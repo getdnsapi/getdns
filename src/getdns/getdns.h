@@ -397,6 +397,57 @@ typedef enum getdns_callback_type_t {
 /** @}
  */
 
+/**
+ * \defgroup rrclasses RR classes
+ * @{
+ */
+#define GETDNS_RRCLASS_IN     1
+#define GETDNS_RRCLASS_CH     3
+#define GETDNS_RRCLASS_HS     4
+#define GETDNS_RRCLASS_NONE 254
+#define GETDNS_RRCLASS_ANY  255
+/** @}
+ */
+
+/**
+ * \defgroup opcodes Opcodes
+ * @{
+ */
+#define GETDNS_OPCODE_QUERY  0
+#define GETDNS_OPCODE_IQUERY 1
+#define GETDNS_OPCODE_STATUS 2
+#define GETDNS_OPCODE_NOTIFY 4
+#define GETDNS_OPCODE_UPDATE 5
+/** @}
+ */
+
+/**
+ * \defgroup rcodes Rcodes
+ * @{
+ */
+#define GETDNS_RCODE_NOERROR   0
+#define GETDNS_RCODE_FORMERR   1
+#define GETDNS_RCODE_SERVFAIL  2
+#define GETDNS_RCODE_NXDOMAIN  3
+#define GETDNS_RCODE_NOTIMP    4
+#define GETDNS_RCODE_REFUSED   5
+#define GETDNS_RCODE_YXDOMAIN  6
+#define GETDNS_RCODE_YXRRSET   7
+#define GETDNS_RCODE_NXRRSET   8
+#define GETDNS_RCODE_NOTAUTH   9
+#define GETDNS_RCODE_NOTZONE  10
+#define GETDNS_RCODE_BADVERS  16
+#define GETDNS_RCODE_BADSIG   16
+#define GETDNS_RCODE_BADKEY   17
+#define GETDNS_RCODE_BADTIME  18
+#define GETDNS_RCODE_BADMODE  19
+#define GETDNS_RCODE_BADNAME  20
+#define GETDNS_RCODE_BADALG   21
+#define GETDNS_RCODE_BADTRUNC 22
+/** @}
+ */
+
+
 struct getdns_context;
 typedef uint64_t getdns_transaction_t;
 /**

@@ -656,6 +656,76 @@ getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
 	return ldns_buffer_position(buf) - p;
 }				/* getdns_pp_list */
 
+static int
+priv_getdns_print_class(ldns_buffer *buf, uint32_t klass)
+{
+	switch (klass) {
+	case GETDNS_RRCLASS_IN:
+		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_IN");
+		return 1;
+	case GETDNS_RRCLASS_CH:
+		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_CH");
+		return 1;
+	case GETDNS_RRCLASS_HS:
+		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_HS");
+		return 1;
+	case GETDNS_RRCLASS_NONE:
+		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_NONE");
+		return 1;
+	case GETDNS_RRCLASS_ANY:
+		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_ANY");
+		return 1;
+	}
+	return 0;
+}
+
+static int
+priv_getdns_print_opcode(ldns_buffer *buf, uint32_t opcode)
+{
+	switch (opcode) {
+	case GETDNS_OPCODE_QUERY:
+		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_QUERY");
+		return 1;
+	case GETDNS_OPCODE_IQUERY:
+		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_IQUERY");
+		return 1;
+	case GETDNS_OPCODE_STATUS:
+		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_STATUS");
+		return 1;
+	case GETDNS_OPCODE_NOTIFY:
+		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_NOTIFY");
+		return 1;
+	case GETDNS_OPCODE_UPDATE:
+		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_UPDATE");
+		return 1;
+	}
+	return 0;
+}
+
+static int
+priv_getdns_print_rcode(ldns_buffer *buf, uint32_t rcode)
+{
+	static const char *rcodes[] = {
+		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR" ,
+		" GETDNS_RCODE_SERVFAIL", " GETDNS_RCODE_NXDOMAIN",
+		" GETDNS_RCODE_NOTIMP"  , " GETDNS_RCODE_REFUSED" ,
+		" GETDNS_RCODE_YXDOMAIN", " GETDNS_RCODE_YXRRSET" ,
+		" GETDNS_RCODE_NXRRSET" , " GETDNS_RCODE_NOTAUTH" ,
+		" GETDNS_RCODE_NOTZONE" ,
+		" GETDNS_RCODE_BADSIG"  , " GETDNS_RCODE_BADKEY"  ,
+		" GETDNS_RCODE_BADTIME" , " GETDNS_RCODE_BADMODE" ,
+		" GETDNS_RCODE_BADNAME" , " GETDNS_RCODE_BADALG"  ,
+		" GETDNS_RCODE_BADTRUNC"
+	};
+	if (rcode >= 0 && rcode <= 10)
+		(void) ldns_buffer_printf(buf, rcodes[rcode]);
+	else if (rcode >= 16 && rcode <= 22)
+		(void) ldns_buffer_printf(buf, rcodes[rcode-6]);
+	else
+		return 0;
+	return 1;
+}
+
 /*---------------------------------------- getdns_pp_dict */
 /**
  * private function to pretty print dict to a ldns_buffer
@@ -708,6 +778,16 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 					return -1;
 				break;
 			}
+		        if ((strcmp(item->node.key, "class")  == 0  ||
+			     strcmp(item->node.key, "qclass") == 0) &&
+			    priv_getdns_print_class(buf, item->data.n))
+				break;
+		        if (strcmp(item->node.key, "opcode") == 0 &&
+			    priv_getdns_print_opcode(buf, item->data.n))
+				break;
+		        if (strcmp(item->node.key, "rcode") == 0 &&
+			    priv_getdns_print_rcode(buf, item->data.n))
+				break;
 			if (ldns_buffer_printf(buf, " %d", item->data.n) < 0)
 				return -1;
 			break;
