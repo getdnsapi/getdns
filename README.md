@@ -1,3 +1,5 @@
+[![Build Status](https://magnum.travis-ci.com/verisign/getdns.png?token=J2HZXstzJqePUsG523am&branch=develop)](https://magnum.travis-ci.com/verisign/getdns)
+
 getdns API  {#mainpage}
 ==========
 
