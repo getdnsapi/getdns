@@ -593,7 +593,7 @@ PACKAGE_TARNAME='getdns'
 PACKAGE_VERSION='0.1.0'
 PACKAGE_STRING='getdns 0.1.0'
 PACKAGE_BUGREPORT='stub-resolver@verisignlabs.com'
-PACKAGE_URL=''
+PACKAGE_URL='http://www.getdnsapi.net'
 
 ac_unique_file="src/getdns/getdns.h"
 # Factoring default headers for most tests.
@@ -1398,6 +1398,7 @@ Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
 
 Report bugs to <stub-resolver@verisignlabs.com>.
+getdns home page: <http://www.getdnsapi.net>.
 _ACEOF
 ac_status=$?
 fi
@@ -11981,7 +11982,8 @@ $config_headers
 Configuration commands:
 $config_commands
 
-Report bugs to <stub-resolver@verisignlabs.com>."
+Report bugs to <stub-resolver@verisignlabs.com>.
+getdns home page: <http://www.getdnsapi.net>."
 
 _ACEOF
 cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1

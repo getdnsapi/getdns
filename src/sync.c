@@ -41,7 +41,7 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include <string.h>
-#include "validation-chain.h"
+#include "dnssec.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))

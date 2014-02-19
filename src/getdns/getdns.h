@@ -38,6 +38,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -113,7 +114,7 @@ typedef enum getdns_namespace_t {
 } getdns_namespace_t;
 
 /**
- * \defgroup Namespace types texts 
+ * \defgroup Namespace types texts
  * @{
  */
 #define GETDNS_NAMESPACE_DNS_TEXT "See getdns_context_set_namespaces()"
@@ -132,7 +133,7 @@ typedef enum getdns_resolution_t {
 } getdns_resolution_t;
 
 /**
- * \defgroup Resolution types texts 
+ * \defgroup Resolution types texts
  * @{
  */
 #define GETDNS_RESOLUTION_STUB_TEXT "See getdns_context_set_resolution_type()"
@@ -148,7 +149,7 @@ typedef enum getdns_redirects_t {
 } getdns_redirects_t;
 
 /**
- * \defgroup Redirect policies texts 
+ * \defgroup Redirect policies texts
  * @{
  */
 #define GETDNS_REDIRECTS_FOLLOW_TEXT "See getdns_context_set_follow_redirects()"
@@ -166,7 +167,7 @@ typedef enum getdns_transport_t {
 } getdns_transport_t;
 
 /**
- * \defgroup Transport arrangements texts 
+ * \defgroup Transport arrangements texts
  * @{
  */
 #define GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT "See getdns_context_set_dns_transport()"
@@ -186,7 +187,7 @@ typedef enum getdns_append_name_t {
 } getdns_append_name_t;
 
 /**
- * \defgroup Suffix appending methods texts 
+ * \defgroup Suffix appending methods texts
  * @{
  */
 #define GETDNS_APPEND_NAME_ALWAYS_TEXT "See getdns_context_set_append_name()"
@@ -219,7 +220,7 @@ typedef enum getdns_context_code_t {
 } getdns_context_code_t;
 
 /**
- * \defgroup Context codes texts 
+ * \defgroup Context codes texts
  * @{
  */
 #define GETDNS_CONTEXT_CODE_NAMESPACES_TEXT "Change related to getdns_context_set_namespaces"
@@ -252,7 +253,7 @@ typedef enum getdns_callback_type_t {
 } getdns_callback_type_t;
 
 /**
- * \defgroup Callback type variables texts 
+ * \defgroup Callback type variables texts
  * @{
  */
 #define GETDNS_CALLBACK_COMPLETE_TEXT "The response has the requested data in it"
@@ -1004,14 +1005,22 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
     void (*free) (void *userarg, void *ptr)
     );
 
+/* api information support */
+getdns_dict*
+getdns_context_get_api_information(getdns_context* context);
+
 /* Async support */
 struct timeval;
 int getdns_context_get_num_pending_requests(getdns_context* context, struct timeval* next_timeout);
 
 /* get the fd */
 int getdns_context_fd(getdns_context* context);
+
 /* process async reqs */
 getdns_return_t getdns_context_process_async(getdns_context* context);
+
+/* Get root trust anchor */
+getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);
 
 #ifdef __cplusplus
 }
