@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, Versign, Inc.
+.\" Copyright (c) 2013, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -357,7 +357,7 @@ Supplies the reason for the callback.
 The response has the requested data in it
 .LP
 .B GETDNS_CALLBACK_CANCEL
-The calling program cancelled the callback; response is NULL
+The calling program canceled the callback; response is NULL
 .LP
 .B GETDNS_CALLBACK_TIMEOUT
 The requested action timed out; response is NULL
@@ -418,6 +418,7 @@ TBD
 .BR getdns_address (3),
 .BR getdns_bindata (3),
 .BR getdns_context (3),
+.BR getdns_convert (3),
 .BR getdns_dict (3),
 .BR getdns_general (3),
 .BR getdns_hostname (3),

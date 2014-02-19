@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, NLNet Labs, Versign, Inc.
+.\" Copyright (c) 2013, NLNet Labs, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -147,7 +147,7 @@ In calls to the getdns_create_context functions this parameter is used to return
 .HP 3
 .I set_from_os
 .RP
-If set_from_os is 0 then the caller must provide forwarding name servers if running in stub mode.  If set_from_os is 1 then the system files are used to initialize the context.  /etc/resolv.conf is used to populate forwarders when running as a stub resolver (only "nameserver" lines are recognized).  If set_from_os is 1 /etc/hosts entries are preferred before resorting to a DNS query.  Errors in the system files will not prevent the context form being contructed.
+If set_from_os is 0 then the caller must provide forwarding name servers if running in stub mode.  If set_from_os is 1 then the system files are used to initialize the context.  /etc/resolv.conf is used to populate forwarders when running as a stub resolver (only "nameserver" lines are recognized).  If set_from_os is 1 /etc/hosts entries are preferred before resorting to a DNS query.  Errors in the system files will not prevent the context form being constructed.
 
 .HP 3
 .I userarg

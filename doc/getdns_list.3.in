@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, Versign, Inc.
+.\" Copyright (c) 2013, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ void
 .SH DESCRIPTION
 
 .LP
-The getdns_list type is used to manage heterogenous indexed lists name/value pairs in which the data types of the values include
+The getdns_list type is used to manage heterogeneous indexed lists name/value pairs in which the data types of the values include
 .RS 3
 .br
 struct getdns_bindata

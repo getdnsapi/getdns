@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, NLNet Labs, Versign, Inc.
+.\" Copyright (c) 2013, NLNet Labs, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -165,7 +165,7 @@ For a more detailed explanation of the response object see
 
 .SH REQUEST TYPES
 
-This is a list of the most common request types, a full list of request types in more detail is avalabile at http://www.iana.org/assignments/dns-parameters/dns-parameters.xml
+This is a list of the most common request types, a full list of request types in more detail is available at http://www.iana.org/assignments/dns-parameters/dns-parameters.xml
 
 .RS 3
 .TP 11

@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, Versign, Inc.
+.\" Copyright (c) 2013, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ getdns_return_t
 .SH DESCRIPTION
 
 .LP
-The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogenous and include
+The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogeneous and include
 .RS 3
 .br
 struct getdns_bindata

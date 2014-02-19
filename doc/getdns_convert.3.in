@@ -26,9 +26,11 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_cancel_callback 3 "@date@" "getdns @version@" getdns
+.TH getdns_convert 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_cancel_callback
+.B getdns_convert, 
+.B getdns_convert_dns_name_to_fqdn, 
+.B getdns_convert_fqdn_to_dns_name
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -38,58 +40,63 @@ DNS Resolver library (libgetdns, -lgetdns)
 
 getdns_return_t 
 .br
-.B getdns_cancel_callback
-(getdns_context_t context,
-.RS 3
+.B getdns_convert_dns_name_to_fqdn
+(const getdns_bindata *dns_name_wire_fmt,
 .br
-getdns_transaction_t *transaction_id)
+.RS 3
+char **fqdn_as_string)
+.RE
+
+getdns_return_t 
+.br
+.B getdns_convert_fqdn_to_dns_name
+(char *fqdn_as_string, 
+.br
+.RS 3
+const getdns_bindata **dns_name_wire_fmt)
 .RE
 
 .SH DESCRIPTION
 
 .LP
-To cancel an outstanding callback, use getdns_cancel_callback. This causes the
-API to call the callback with a callback_type of GETDNS_CALLBACK_CANCEL if the
-callback for this transaction_id has not already been called. The callback code
-for cancellation should clean up any memory related to the identified call,
-such as to deallocate the memory for the userarg. getdns_cancel_callback() may
-return immediately, even before the callback finishes its work and returns. 
+Names in DNS fields are stored in a fashion very different from the normal
+presentation format normally used in applications. The DNS format is described
+in the first paragraph in Section 3.1 of RFC 1035; the presentation format here
+is a null-terminated string with interior dots. These helper functions only
+work with names in the DNS format that are not compressed. They are useful for
+converting domain names in the replies_tree to and from the FQDN presentation
+format.
+
+getdns_convert_dns_name_to_fqdn() converts a domain name in DNS format to the
+presentation format. For example, the hex sequence 03 77 77 77 07 65 78 61 6d
+70 6c 65 03 63 6f 6d 00 would be converted to "www.example.com".
+getdns_convert_fqdn_to_dns_name() does the reverse: it converts a
+null-terminated string in FQDN format to bytes in DNS format.
 
 .HP 3
-.I context
+.I dns_name_wire_fmt
 .RP
-see getdns_context (3)
+The non-compressed DNS wire format name (per RFC 1035) in a bindata structure that
+will be converted to/from an fqdn.  In getdns_convert_fqdn_to_dns_name storage is
+allocated using the system allocator (malloc) and must be freed by the caller.
 
 .HP 3
-.I transaction_id
+.I fqdn_as_string
 .RP
-populated by the API and used to identify the callback (for example to getdns_cancel_callback), can be NULL, set to 0 if the function fails
+a null terminated string to be converted to/from non-compressed DNS wire format name (per RFC 1035).
+In getdns_convert_dns_name_to_fqdn storage is
+allocated using the system allocator (malloc) and must be freed by the caller.
 
 .HP
 .SH "RETURN VALUES"
 
-Upon successful completion the functions return
+Upon successful completion the function returns
 .B GETDNS_RETURN_GOOD
-, otherwise the following error values are returned:
-
-.LP
-.B GETDNS_RETURN_UNKNOWN_TRANSACTION 
-when calling getdns_cancel_callback() with a transaction_id of a callback that has already been called or an unknown transaction_id
 
 .SH EXAMPLES
 
 TBD
 
-.SH FILES
-.br
-/etc/hosts
-.br
-/etc/resolv.conf
-
 .SH SEE ALSO
-.BR libgetdns (3),
-.BR getdns_context (3),
-.BR getdns_general (3),
-.BR getdns_hostname (3),
-.BR getdns_service (3),
+.BR libgetdns (3)
 

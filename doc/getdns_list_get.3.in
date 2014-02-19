@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, Versign, Inc.
+.\" Copyright (c) 2013, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ getdns_return_t
 .SH DESCRIPTION
 
 .LP
-The getdns_list type is used to manage heterogenous lists in which the objects are each one of the data types:
+The getdns_list type is used to manage heterogeneous lists in which the objects are each one of the data types:
 .RS 3
 .br
 struct getdns_bindata
