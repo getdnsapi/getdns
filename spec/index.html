@@ -140,13 +140,13 @@ href="mailto:paul.hoffman@vpnc.org">paul.hoffman@vpnc.org</a>.)</p>
 
 <div class=forh id="getdnsfuncgeneral">getdns_return_t
 getdns_general(
-  struct getdns_context  *context,
-  const char             *name,
-  uint16_t               request_type,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
+  getdns_context        *context,
+  const char            *name,
+  uint16_t              request_type,
+  getdns_dict           *extensions,
+  void                  *userarg,
+  getdns_transaction_t  *transaction_id,
+  getdns_callback_t     callbackfn
 );
 </div>
 
@@ -208,12 +208,12 @@ href="#ReturnCodes">later in this document</a>.</p>
 
 <div class=forh id="getdnsfuncaddress">getdns_return_t
 getdns_address(
-  struct getdns_context  *context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
+  getdns_context        *context,
+  const char            *name,
+  getdns_dict           *extensions,
+  void                  *userarg,
+  getdns_transaction_t  *transaction_id,
+  getdns_callback_t     callbackfn
 );
 </div>
 
@@ -236,12 +236,12 @@ getdns_address(
 
 <div class=forh id="getdnsfunchostname">getdns_return_t
 getdns_hostname(
-  struct getdns_context  *context,
-  struct getdns_dict     *address,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
+  getdns_context        *context,
+  getdns_dict           *address,
+  getdns_dict           *extensions,
+  void                  *userarg,
+  getdns_transaction_t  *transaction_id,
+  getdns_callback_t     callbackfn
 );
 </div>
 
@@ -253,12 +253,12 @@ or "IPv6" (which are case-sensitive)) and <code>address_data</code> (whose value
 
 <div class=forh id="getdnsfuncservice">getdns_return_t
 getdns_service(
-  struct getdns_context  *context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  void                   *userarg,
-  getdns_transaction_t   *transaction_id,
-  getdns_callback_t      callbackfn
+  getdns_context        *context,
+  const char            *name,
+  getdns_dict           *extensions,
+  void                  *userarg,
+  getdns_transaction_t  *transaction_id,
+  getdns_callback_t     callbackfn
 );
 </div>
 
@@ -277,9 +277,9 @@ returned an error, in which case the callback function is never called.<p>
 as follows:</p>
 <div class=forh id="getdns_callback_t">
 typedef void (*getdns_callback_t)(
-                                  struct getdns_context  *context,
+                                  getdns_context         *context,
                                   getdns_callback_type_t callback_type,
-                                  struct getdns_dict     *response,
+                                  getdns_dict            *response,
                                   void                   *userarg,
                                   getdns_transaction_t   transaction_id);
 </div>
@@ -324,8 +324,8 @@ that affect how DNS calls are made. For most applications, a default context is 
 
 <div class=forh>getdns_return_t
 getdns_context_create(
-  struct getdns_context  **context,
-  int                    set_from_os
+  getdns_context  **context,
+  int             set_from_os
 );
 </div>
 
@@ -335,20 +335,20 @@ want <code>set_from_os</code> set to <code>1</code>.</p>
 
 <div class=forh>getdns_return_t
 getdns_context_create_with_memory_functions(
-  struct getdns_context  **context,
-  int                    set_from_os,
-  void                   *(*malloc)(size_t),
-  void                   *(*realloc)(void *, size_t),
-  void                   (*free)(void *)
+  getdns_context  **context,
+  int             set_from_os,
+  void            *(*malloc)(size_t),
+  void            *(*realloc)(void *, size_t),
+  void            (*free)(void *)
 );
 getdns_return_t
 getdns_context_create_with_extended_memory_functions(
-  struct getdns_context  **context,
-  int                    set_from_os,
-  void                   *userarg,
-  void                   *(*malloc)(void *userarg, size_t),
-  void                   *(*realloc)(void *userarg, void *, size_t),
-  void                   (*free)(void *userarg, void *)
+  getdns_context  **context,
+  int             set_from_os,
+  void            *userarg,
+  void            *(*malloc)(void *userarg, size_t),
+  void            *(*realloc)(void *userarg, void *, size_t),
+  void            (*free)(void *userarg, void *)
 );
 </div>
 
@@ -357,7 +357,7 @@ using this context, use the function:</p>
 
 <div class=forh>void
 getdns_context_destroy(
-  struct getdns_context   *context
+  getdns_context   *context
 );
 </div>
 
@@ -374,8 +374,8 @@ all of the needed cleanup is done and callbacks are made.</p>
 
 <div class=forh>getdns_return_t
 getdns_cancel_callback(
-  struct getdns_context  *context,
-  getdns_transaction_t   transaction_id
+  getdns_context        *context,
+  getdns_transaction_t  transaction_id
 );
 </div>
 
@@ -455,38 +455,38 @@ same as the response returned in the callback if you had used the async version 
 
 <div class=forh>getdns_return_t
 getdns_general_sync(
-  struct getdns_context  *context,
-  const char             *name,
-  uint16_t               request_type,
-  struct getdns_dict     *extensions,
-  struct getdns_dict     **response
+  getdns_context  *context,
+  const char      *name,
+  uint16_t        request_type,
+  getdns_dict     *extensions,
+  getdns_dict     **response
 );
 </div>
 
 <div class=forh>getdns_return_t
 getdns_address_sync(
-  struct getdns_context  *context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  struct getdns_dict     **response
+  getdns_context  *context,
+  const char      *name,
+  getdns_dict     *extensions,
+  getdns_dict     **response
 );
 </div>
 
 <div class=forh>getdns_return_t
 getdns_hostname_sync(
-  struct getdns_context  *context,
-  struct getdns_dict     *address,
-  struct getdns_dict     *extensions,
-  struct getdns_dict     **response
+  getdns_context  *context,
+  getdns_dict     *address,
+  getdns_dict     *extensions,
+  getdns_dict     **response
 );
 </div>
 
 <div class=forh>getdns_return_t
 getdns_service_sync(
-  struct getdns_context  *context,
-  const char             *name,
-  struct getdns_dict     *extensions,
-  struct getdns_dict     **response
+  getdns_context  *context,
+  const char      *name,
+  getdns_dict     *extensions,
+  getdns_dict     **response
 );
 </div>
 
@@ -495,7 +495,7 @@ free the memory from its internal pool.</p>
 
 <pre>void
 getdns_dict_destroy(
-  struct getdns_dict     *response
+  getdns_dict  *response
 );
 </pre>
 
@@ -525,21 +525,21 @@ name-value pairs in a dict is not important.</li>
 <div class=forh id="datagetters">
 /* Lists: get the length, get the data_type of the value at a given
    position, and get the data at a given position */
-getdns_return_t getdns_list_get_length(const struct getdns_list *this_list, size_t *answer);
-getdns_return_t getdns_list_get_data_type(const struct getdns_list *this_list, size_t index, getdns_data_type *answer);
-getdns_return_t getdns_list_get_dict(const struct getdns_list *this_list, size_t index, struct getdns_dict **answer);
-getdns_return_t getdns_list_get_list(const struct getdns_list *this_list, size_t index, struct getdns_list **answer);
-getdns_return_t getdns_list_get_bindata(const struct getdns_list *this_list, size_t index, struct getdns_bindata **answer);
-getdns_return_t getdns_list_get_int(const struct getdns_list *this_list, size_t index, uint32_t *answer);
+getdns_return_t getdns_list_get_length(const getdns_list *this_list, size_t *answer);
+getdns_return_t getdns_list_get_data_type(const getdns_list *this_list, size_t index, getdns_data_type *answer);
+getdns_return_t getdns_list_get_dict(const getdns_list *this_list, size_t index, getdns_dict **answer);
+getdns_return_t getdns_list_get_list(const getdns_list *this_list, size_t index, getdns_list **answer);
+getdns_return_t getdns_list_get_bindata(const getdns_list *this_list, size_t index, getdns_bindata **answer);
+getdns_return_t getdns_list_get_int(const getdns_list *this_list, size_t index, uint32_t *answer);
 
 /* Dicts: get the list of names, get the data_type of the
    value at a given name, and get the data at a given name */
-getdns_return_t getdns_dict_get_names(const struct getdns_dict *this_dict, struct getdns_list **answer);
-getdns_return_t getdns_dict_get_data_type(const struct getdns_dict *this_dict, const char *name, getdns_data_type *answer);
-getdns_return_t getdns_dict_get_dict(const struct getdns_dict *this_dict, const char *name, struct getdns_dict **answer);
-getdns_return_t getdns_dict_get_list(const struct getdns_dict *this_dict, const char *name, struct getdns_list **answer);
-getdns_return_t getdns_dict_get_bindata(const struct getdns_dict *this_dict, const char *name, struct getdns_bindata **answer);
-getdns_return_t getdns_dict_get_int(const struct getdns_dict *this_dict, const char *name, uint32_t *answer);
+getdns_return_t getdns_dict_get_names(const getdns_dict *this_dict, getdns_list **answer);
+getdns_return_t getdns_dict_get_data_type(const getdns_dict *this_dict, const char *name, getdns_data_type *answer);
+getdns_return_t getdns_dict_get_dict(const getdns_dict *this_dict, const char *name, getdns_dict **answer);
+getdns_return_t getdns_dict_get_list(const getdns_dict *this_dict, const char *name, getdns_list **answer);
+getdns_return_t getdns_dict_get_bindata(const getdns_dict *this_dict, const char *name, getdns_bindata **answer);
+getdns_return_t getdns_dict_get_int(const getdns_dict *this_dict, const char *name, uint32_t *answer);
 </div>
 
 <p>All of these helper getter functions return <code>GETDNS_RETURN_GOOD</code> if the call is successful.
@@ -566,49 +566,49 @@ you need to create a dict. The requisite functions are:</p>
 
 <div class=forh id="datasetters">
 /* Lists: create, destroy, and set the data at a given position */
-struct getdns_list * getdns_list_create();
-struct getdns_list * getdns_list_create_with_context(
-  struct getdns_context *context
+getdns_list * getdns_list_create();
+getdns_list * getdns_list_create_with_context(
+  getdns_context *context
 );
-struct getdns_list * getdns_list_create_with_memory_functions(
+getdns_list * getdns_list_create_with_memory_functions(
   void *(*malloc)(size_t),
   void *(*realloc)(void *, size_t),
   void (*free)(void *)
 );
-struct getdns_list * getdns_list_create_with_extended_memory_functions(
+getdns_list * getdns_list_create_with_extended_memory_functions(
   void *userarg,
   void *(*malloc)(void *userarg, size_t),
   void *(*realloc)(void *userarg, void *, size_t),
   void (*free)(void *userarg, void *)
 );
-void getdns_list_destroy(struct getdns_list *this_list);
-getdns_return_t getdns_list_set_dict(struct getdns_list *this_list, size_t index, const struct getdns_dict *child_dict);
-getdns_return_t getdns_list_set_list(struct getdns_list *this_list, size_t index, const struct getdns_list *child_list);
-getdns_return_t getdns_list_set_bindata(struct getdns_list *this_list, size_t index, const struct getdns_bindata *child_bindata);
-getdns_return_t getdns_list_set_int(struct getdns_list *this_list, size_t index, uint32_t child_uint32);
+void getdns_list_destroy(getdns_list *this_list);
+getdns_return_t getdns_list_set_dict(getdns_list *this_list, size_t index, const getdns_dict *child_dict);
+getdns_return_t getdns_list_set_list(getdns_list *this_list, size_t index, const getdns_list *child_list);
+getdns_return_t getdns_list_set_bindata(getdns_list *this_list, size_t index, const getdns_bindata *child_bindata);
+getdns_return_t getdns_list_set_int(getdns_list *this_list, size_t index, uint32_t child_uint32);
 
 /* Dicts: create, destroy, and set the data at a given name */
-struct getdns_dict * getdns_dict_create();
-struct getdns_dict * getdns_dict_create_with_context(
-  struct getdns_context *context
+getdns_dict * getdns_dict_create();
+getdns_dict * getdns_dict_create_with_context(
+  getdns_context *context
 );
-struct getdns_dict * getdns_dict_create_with_memory_functions(
+getdns_dict * getdns_dict_create_with_memory_functions(
   void *(*malloc)(size_t),
   void *(*realloc)(void *, size_t),
   void (*free)(void *)
 );
-struct getdns_dict * getdns_dict_create_with_extended_memory_functions(
+getdns_dict * getdns_dict_create_with_extended_memory_functions(
   void *userarg,
   void *(*malloc)(void *userarg, size_t),
   void *(*realloc)(void *userarg, void *, size_t),
   void (*free)(void *userarg, void *)
 );
-void getdns_dict_destroy(struct getdns_dict *this_dict);
-getdns_return_t getdns_dict_set_dict(struct getdns_dict *this_dict, const char *name, const struct getdns_dict *child_dict);
-getdns_return_t getdns_dict_set_list(struct getdns_dict *this_dict, const char *name, const struct getdns_list *child_list);
-getdns_return_t getdns_dict_set_bindata(struct getdns_dict *this_dict, const char *name, const struct getdns_bindata *child_bindata);
-getdns_return_t getdns_dict_set_int(struct getdns_dict *this_dict, const char *name, uint32_t child_uint32);
-getdns_return_t getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name);
+void getdns_dict_destroy(getdns_dict *this_dict);
+getdns_return_t getdns_dict_set_dict(getdns_dict *this_dict, const char *name, const getdns_dict *child_dict);
+getdns_return_t getdns_dict_set_list(getdns_dict *this_dict, const char *name, const getdns_list *child_list);
+getdns_return_t getdns_dict_set_bindata(getdns_dict *this_dict, const char *name, const getdns_bindata *child_bindata);
+getdns_return_t getdns_dict_set_int(getdns_dict *this_dict, const char *name, uint32_t child_uint32);
+getdns_return_t getdns_dict_remove_name(getdns_dict *this_dict, const char *name);
 </div>
 
 <p>Lists are extended with the <code>getdns_list_set_</code> calls with the <code>index</code> set to the
@@ -639,7 +639,7 @@ results that have been validated with DNSSEC, you might use:</p>
 
 <pre>
 /* . . . */
-struct getdns_dict * this_extensions = getdns_dict_create();
+getdns_dict * this_extensions = getdns_dict_create();
 this_ret = getdns_dict_set_int(this_extensions, "dnssec_return_only_secure", GETDNS_EXTENSION_TRUE);
 /* . . . Do some processing with the extensions and results . . . */
 /* Remember to clean up memory*/
@@ -1127,14 +1127,14 @@ string in FQDN format to bytes in DNS format.</p>
 <div class=forh>
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
-  const struct getdns_bindata *dns_name_wire_fmt,
+  const getdns_bindata *dns_name_wire_fmt,
   char **fqdn_as_string
 );
 
 getdns_return_t
 getdns_convert_fqdn_to_dns_name(
   const char *fqdn_as_string,
-  struct getdns_bindata **dns_name_wire_fmt
+  getdns_bindata **dns_name_wire_fmt
 );
 </div>
 
@@ -1145,17 +1145,17 @@ The caller is responsible of disposing these allocations with <code>free</code>.
 
 <h2>5.1 A Few Needed Definitions</h2>
 
-<div class=forh id="Various">struct getdns_context;
+<div class=forh id="Various">typedef struct getdns_context getdns_context;
 typedef uint64_t   getdns_transaction_t;
 typedef enum getdns_data_type {
     t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
-struct getdns_bindata {
+typedef struct getdns_bindata {
     size_t size;
     uint8_t *data;
-};
-struct getdns_dict;
-struct getdns_list;
+} getdns_bindata;
+typedef struct getdns_dict getdns_dict;
+typedef struct getdns_list getdns_list;
 </div>
 
 <h2>5.2 <a id="ReturnCodes">Return Codes</a></h2>
@@ -1484,9 +1484,9 @@ function.</p>
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
                      <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
-                     <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
+                     <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
 <span class="p">{</span>
@@ -1504,7 +1504,7 @@ function.</p>
             <span class="n">getdns_dict_destroy</span><span class="p">(</span><span class="n">this_response</span><span class="p">);</span>
             <span class="k">return</span><span class="p">;</span>
         <span class="p">}</span>
-        <span class="k">struct</span> <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">just_the_addresses_ptr</span><span class="p">;</span>
+        <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">just_the_addresses_ptr</span><span class="p">;</span>
         <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_response</span><span class="p">,</span> <span class="s">&quot;just_address_answers&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">just_the_addresses_ptr</span><span class="p">);</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">this_ret</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>  <span class="c1">// This check is really not needed, but prevents a compiler error under &quot;pedantic&quot;</span>
         <span class="p">{</span>
@@ -1517,10 +1517,10 @@ function.</p>
         <span class="cm">/* Go through each record */</span>
         <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">rec_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">rec_count</span> <span class="o">&lt;</span> <span class="n">num_addresses</span><span class="p">;</span> <span class="o">++</span><span class="n">rec_count</span> <span class="p">)</span>
         <span class="p">{</span>
-            <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_address</span><span class="p">;</span>
+            <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_address</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">just_the_addresses_ptr</span><span class="p">,</span> <span class="n">rec_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_address</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
             <span class="cm">/* Just print the address */</span>
-            <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_address_data</span><span class="p">;</span>
+            <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_address_data</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_address</span><span class="p">,</span> <span class="s">&quot;address_data&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_address_data</span><span class="p">);</span> <span class="c1">// Ignore any error</span>
             <span class="kt">char</span> <span class="o">*</span><span class="n">this_address_str</span> <span class="o">=</span> <span class="n">getdns_display_ip_address</span><span class="p">(</span><span class="n">this_address_data</span><span class="p">);</span>
             <span class="n">printf</span><span class="p">(</span><span class="s">&quot;The address is %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_address_str</span><span class="p">);</span>
@@ -1537,7 +1537,7 @@ function.</p>
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1602,9 +1602,9 @@ their TTLs.</p>
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
                      <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
-                     <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
+                     <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
 <span class="p">{</span>
@@ -1623,7 +1623,7 @@ their TTLs.</p>
             <span class="k">return</span><span class="p">;</span>
         <span class="p">}</span>
         <span class="cm">/* Find all the answers returned */</span>
-        <span class="k">struct</span> <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">these_answers</span><span class="p">;</span>
+        <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">these_answers</span><span class="p">;</span>
         <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_response</span><span class="p">,</span> <span class="s">&quot;replies_tree&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">these_answers</span><span class="p">);</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">this_ret</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_NO_SUCH_DICT_NAME</span><span class="p">)</span>
         <span class="p">{</span>
@@ -1636,20 +1636,20 @@ their TTLs.</p>
         <span class="cm">/* Go through each answer */</span>
         <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">rec_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">rec_count</span> <span class="o">&lt;</span> <span class="n">num_answers</span><span class="p">;</span> <span class="o">++</span><span class="n">rec_count</span> <span class="p">)</span>
         <span class="p">{</span>
-            <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_record</span><span class="p">;</span>
+            <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_record</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">these_answers</span><span class="p">,</span> <span class="n">rec_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_record</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
             <span class="cm">/* Get the answer section */</span>
-            <span class="k">struct</span> <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">this_answer</span><span class="p">;</span>
+            <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">this_answer</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_record</span><span class="p">,</span> <span class="s">&quot;answer&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_answer</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
             <span class="cm">/* Get each RR in the answer section */</span>
             <span class="kt">size_t</span> <span class="n">num_rrs</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">this_answer</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_rrs</span><span class="p">);</span>
             <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">rr_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">rr_count</span> <span class="o">&lt;</span> <span class="n">num_rrs</span><span class="p">;</span> <span class="o">++</span><span class="n">rr_count</span> <span class="p">)</span>
             <span class="p">{</span>
-                <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_rr</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+                <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_rr</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
                 <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">this_answer</span><span class="p">,</span> <span class="n">rr_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_rr</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
                 <span class="cm">/* Get the RDATA */</span>
-                <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_rdata</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+                <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_rdata</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
                 <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_dict</span><span class="p">(</span><span class="n">this_rr</span><span class="p">,</span> <span class="s">&quot;rdata&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_rdata</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
                 <span class="cm">/* Get the RDATA type */</span>
                 <span class="kt">uint32_t</span> <span class="n">this_type</span><span class="p">;</span>
@@ -1657,7 +1657,7 @@ their TTLs.</p>
                 <span class="cm">/* If it is type A or AAAA, print the value */</span>
                 <span class="k">if</span> <span class="p">(</span><span class="n">this_type</span> <span class="o">==</span> <span class="n">GETDNS_RRTYPE_A</span><span class="p">)</span>
                 <span class="p">{</span>
-                    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_a_record</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+                    <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_a_record</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
                     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_rdata</span><span class="p">,</span> <span class="s">&quot;ipv4_address&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_a_record</span><span class="p">);</span>
                     <span class="k">if</span> <span class="p">(</span><span class="n">this_ret</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_NO_SUCH_DICT_NAME</span><span class="p">)</span>
                     <span class="p">{</span>
@@ -1672,7 +1672,7 @@ their TTLs.</p>
                 <span class="p">}</span>
                 <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">this_type</span> <span class="o">==</span> <span class="n">GETDNS_RRTYPE_AAAA</span><span class="p">)</span>
                 <span class="p">{</span>
-                    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_aaaa_record</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+                    <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_aaaa_record</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
                     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_rdata</span><span class="p">,</span> <span class="s">&quot;ipv6_address&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_aaaa_record</span><span class="p">);</span>
                     <span class="k">if</span> <span class="p">(</span><span class="n">this_ret</span> <span class="o">==</span> <span class="n">GETDNS_RETURN_NO_SUCH_DICT_NAME</span><span class="p">)</span>
                     <span class="p">{</span>
@@ -1698,7 +1698,7 @@ their TTLs.</p>
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1755,7 +1755,7 @@ callback function, add a check for the DNSSEC status. It shows how to add two
 extensions to the <code>extensions</code> argument of the call.</p>
 
 <pre>
-struct getdns_dict * this_extensions = getdns_dict_create();
+getdns_dict * this_extensions = getdns_dict_create();
 this_ret = getdns_dict_set_int(this_extensions, "return_both_v4_and_v6", GETDNS_EXTENSION_TRUE);
 this_ret = getdns_dict_set_int(this_extensions, "dnssec_return_status", GETDNS_EXTENSION_TRUE);
 . . .
@@ -1795,7 +1795,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 <span class="p">{</span>
     <span class="kt">getdns_return_t</span> <span class="n">this_ret</span><span class="p">;</span>  <span class="cm">/* Holder for all function returns */</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1806,7 +1806,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
     <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">this_name</span>  <span class="o">=</span> <span class="s">&quot;www.example.com&quot;</span><span class="p">;</span>
     <span class="kt">uint8_t</span> <span class="n">this_request_type</span> <span class="o">=</span> <span class="n">GETDNS_RRTYPE_A</span><span class="p">;</span>
     <span class="cm">/* Get the A and AAAA records */</span>
-    <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_extensions</span> <span class="o">=</span> <span class="n">getdns_dict_create</span><span class="p">();</span>
+    <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_extensions</span> <span class="o">=</span> <span class="n">getdns_dict_create</span><span class="p">();</span>
     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_set_int</span><span class="p">(</span><span class="n">this_extensions</span><span class="p">,</span> <span class="s">&quot;return_both_v4_and_v6&quot;</span><span class="p">,</span> <span class="n">GETDNS_EXTENSION_TRUE</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">this_ret</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1815,7 +1815,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
         <span class="n">getdns_context_destroy</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>
         <span class="k">return</span><span class="p">(</span><span class="n">GETDNS_RETURN_GENERIC_ERROR</span><span class="p">);</span>
     <span class="p">}</span>
-    <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_response</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_response</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
 
     <span class="cm">/* Make the call */</span>
     <span class="kt">getdns_return_t</span> <span class="n">dns_request_return</span> <span class="o">=</span> <span class="n">getdns_general_sync</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_name</span><span class="p">,</span> <span class="n">this_request_type</span><span class="p">,</span>
@@ -1841,17 +1841,17 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
             <span class="n">getdns_context_destroy</span><span class="p">(</span><span class="n">this_context</span><span class="p">);</span>
             <span class="k">return</span><span class="p">(</span><span class="n">GETDNS_RETURN_GENERIC_ERROR</span><span class="p">);</span>
         <span class="p">}</span>
-        <span class="k">struct</span> <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">just_the_addresses_ptr</span><span class="p">;</span>
+        <span class="n">getdns_list</span> <span class="o">*</span> <span class="n">just_the_addresses_ptr</span><span class="p">;</span>
         <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_response</span><span class="p">,</span> <span class="s">&quot;just_address_answers&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">just_the_addresses_ptr</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
         <span class="kt">size_t</span> <span class="n">num_addresses</span><span class="p">;</span>
         <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">just_the_addresses_ptr</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_addresses</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
         <span class="cm">/* Go through each record */</span>
         <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">rec_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">rec_count</span> <span class="o">&lt;</span> <span class="n">num_addresses</span><span class="p">;</span> <span class="o">++</span><span class="n">rec_count</span> <span class="p">)</span>
         <span class="p">{</span>
-            <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_address</span><span class="p">;</span>
+            <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_address</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">just_the_addresses_ptr</span><span class="p">,</span> <span class="n">rec_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_address</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
             <span class="cm">/* Just print the address */</span>
-            <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_address_data</span><span class="p">;</span>
+            <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_address_data</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_address</span><span class="p">,</span> <span class="s">&quot;address_data&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_address_data</span><span class="p">);</span> <span class="c1">// Ignore any error</span>
             <span class="kt">char</span> <span class="o">*</span><span class="n">this_address_str</span> <span class="o">=</span> <span class="n">getdns_display_ip_address</span><span class="p">(</span><span class="n">this_address_data</span><span class="p">);</span>
             <span class="n">printf</span><span class="p">(</span><span class="s">&quot;The address is %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_address_str</span><span class="p">);</span>
@@ -1883,9 +1883,9 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 <span class="cp">#define UNUSED_PARAM(x) ((void)(x))</span>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
-<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
+<span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
                      <span class="kt">uint16_t</span>     <span class="n">this_callback_type</span><span class="p">,</span>
-                     <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
+                     <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
 <span class="p">{</span>
@@ -1904,34 +1904,34 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
             <span class="n">getdns_dict_destroy</span><span class="p">(</span><span class="n">this_response</span><span class="p">);</span>
             <span class="k">return</span><span class="p">;</span>
         <span class="p">}</span>
-        <span class="k">struct</span> <span class="n">getdns_list</span> <span class="o">*</span><span class="n">replies_tree</span><span class="p">;</span>
+        <span class="n">getdns_list</span> <span class="o">*</span><span class="n">replies_tree</span><span class="p">;</span>
         <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_response</span><span class="p">,</span> <span class="s">&quot;replies_tree&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">replies_tree</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
         <span class="kt">size_t</span> <span class="n">num_replies</span><span class="p">;</span>
         <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">replies_tree</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_replies</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
         <span class="cm">/* Go through each reply */</span>
         <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">reply_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">reply_count</span> <span class="o">&lt;</span> <span class="n">num_replies</span><span class="p">;</span> <span class="o">++</span><span class="n">reply_count</span><span class="p">)</span>
         <span class="p">{</span>
-            <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_reply</span><span class="p">;</span>
+            <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_reply</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">replies_tree</span><span class="p">,</span> <span class="n">reply_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_reply</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
             <span class="cm">/* Just print the address */</span>
-            <span class="k">struct</span> <span class="n">getdns_list</span><span class="o">*</span> <span class="n">reply_answers</span><span class="p">;</span>
+            <span class="n">getdns_list</span><span class="o">*</span> <span class="n">reply_answers</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">this_reply</span><span class="p">,</span> <span class="s">&quot;answer&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">reply_answers</span><span class="p">);</span> <span class="c1">// Ignore any error</span>
             <span class="kt">size_t</span> <span class="n">num_answers</span><span class="p">;</span>
             <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">reply_answers</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">num_answers</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
             <span class="cm">/* Go through each answer */</span>
             <span class="k">for</span> <span class="p">(</span> <span class="kt">size_t</span> <span class="n">answer_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">answer_count</span> <span class="o">&lt;</span> <span class="n">num_answers</span><span class="p">;</span> <span class="o">++</span><span class="n">answer_count</span><span class="p">)</span>
             <span class="p">{</span>
-                <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_rr</span><span class="p">;</span>
+                <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_rr</span><span class="p">;</span>
                 <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_list_get_dict</span><span class="p">(</span><span class="n">reply_answers</span><span class="p">,</span> <span class="n">answer_count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_rr</span><span class="p">);</span>
                 <span class="cm">/* Get the RDATA type */</span>
                 <span class="kt">uint32_t</span> <span class="n">this_type</span><span class="p">;</span>
                 <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_int</span><span class="p">(</span><span class="n">this_rr</span><span class="p">,</span> <span class="s">&quot;type&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_type</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
                 <span class="k">if</span> <span class="p">(</span><span class="n">this_type</span> <span class="o">==</span> <span class="n">GETDNS_RRTYPE_PTR</span><span class="p">)</span>
                 <span class="p">{</span>
-                    <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_rdata</span><span class="p">;</span>
+                    <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_rdata</span><span class="p">;</span>
                     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_dict</span><span class="p">(</span><span class="n">this_rr</span><span class="p">,</span> <span class="s">&quot;rdata&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_rdata</span><span class="p">);</span>  <span class="c1">// Ignore any error</span>
 
-                    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_dname</span><span class="p">;</span>
+                    <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_dname</span><span class="p">;</span>
                     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_rdata</span><span class="p">,</span> <span class="s">&quot;rdata_raw&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_dname</span><span class="p">);</span>
                     <span class="kt">char</span> <span class="o">*</span><span class="n">this_dname_str</span> <span class="o">=</span> <span class="n">getdns_convert_dns_name_to_fqdn</span><span class="p">((</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">this_dname</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">);</span>
                     <span class="n">printf</span><span class="p">(</span><span class="s">&quot;The dname is %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_dname_str</span><span class="p">);</span>
@@ -1952,7 +1952,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 <span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
 <span class="p">{</span>
     <span class="cm">/* Create the DNS context for this call */</span>
-    <span class="k">struct</span> <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
     <span class="kt">getdns_return_t</span> <span class="n">context_create_return</span> <span class="o">=</span> <span class="n">getdns_context_create</span><span class="p">(</span><span class="o">&amp;</span><span class="n">this_context</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">context_create_return</span> <span class="o">!=</span> <span class="n">GETDNS_RETURN_GOOD</span><span class="p">)</span>
     <span class="p">{</span>
@@ -1970,12 +1970,12 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
     <span class="p">}</span>
     <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">getdns_extension_set_libevent_base</span><span class="p">(</span><span class="n">this_context</span><span class="p">,</span> <span class="n">this_event_base</span><span class="p">);</span>
     <span class="cm">/* Set up the getdns call */</span>
-    <span class="k">struct</span> <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_addr_to_look_up</span> <span class="o">=</span> <span class="n">getdns_dict_create</span><span class="p">();</span>
+    <span class="n">getdns_dict</span> <span class="o">*</span> <span class="n">this_addr_to_look_up</span> <span class="o">=</span> <span class="n">getdns_dict_create</span><span class="p">();</span>
     <span class="c1">// TODO: check the return value above</span>
-    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="n">this_type</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="s">&quot;IPv4&quot;</span> <span class="p">};</span>
+    <span class="n">getdns_bindata</span> <span class="n">this_type</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="s">&quot;IPv4&quot;</span> <span class="p">};</span>
     <span class="kt">getdns_return_t</span> <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_set_bindata</span><span class="p">(</span><span class="n">this_addr_to_look_up</span><span class="p">,</span> <span class="s">&quot;address_type&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_type</span><span class="p">);</span>
     <span class="n">UNUSED_PARAM</span><span class="p">(</span><span class="n">this_ret</span><span class="p">);</span>
-    <span class="k">struct</span> <span class="n">getdns_bindata</span> <span class="n">this_ipv4_addr</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="s">&quot;</span><span class="se">\x08\x08\x08\x08</span><span class="s">&quot;</span> <span class="p">};</span>
+    <span class="n">getdns_bindata</span> <span class="n">this_ipv4_addr</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">4</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="s">&quot;</span><span class="se">\x08\x08\x08\x08</span><span class="s">&quot;</span> <span class="p">};</span>
     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_set_bindata</span><span class="p">(</span><span class="n">this_addr_to_look_up</span><span class="p">,</span> <span class="s">&quot;address_data&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_ipv4_addr</span><span class="p">);</span>
     <span class="kt">char</span><span class="o">*</span> <span class="n">this_userarg</span> <span class="o">=</span> <span class="s">&quot;somestring&quot;</span><span class="p">;</span> <span class="c1">// Could add things here to help identify this call</span>
     <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
@@ -2032,9 +2032,9 @@ getdns_convert_alabel_to_ulabel(
 can use the <code>getdns_validate_dnssec()</code> helper function.</p>
 <div class=forh>getdns_return_t
 getdns_validate_dnssec(
-  struct getdns_list     *record_to_validate,
-  struct getdns_list     *bundle_of_support_records,
-  struct getdns_list     *trust_anchor_rdatas
+  getdns_list     *record_to_validate,
+  getdns_list     *bundle_of_support_records,
+  getdns_list     *trust_anchor_records
 );
 </div>
 <p class=cont>
@@ -2048,7 +2048,7 @@ The function returns one of <code>GETDNS_DNSSEC_SECURE</code>, <code>GETDNS_DNSS
 <div class=forh>
 char *
 getdns_pretty_print_dict(
-  const struct getdns_dict     *some_dict
+  const getdns_dict  *some_dict
 );
 </div>
 <p class=cont>This returns a string that is the nicely-formatted version
@@ -2057,7 +2057,7 @@ of the dict and all of the named elements in it.</p>
 <div class=forh>
 char *
 getdns_display_ip_address(
-  const struct getdns_bindata        *bindata_of_ipv4_or_ipv6_address
+  const getdns_bindata  *bindata_of_ipv4_or_ipv6_address
 );
 </div>
 <p class=cont>This returns a string that is the nicely-formatted version
@@ -2125,8 +2125,8 @@ success or <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code> for a failure to updat
 <div class=forh>
 getdns_return_t
 getdns_context_set_context_update_callback(
-  struct getdns_context  *context,
-  void                   (*value)(struct getdns_context *context, getdns_context_code_t changed_item)
+  getdns_context  *context,
+  void            (*value)(getdns_context *context, getdns_context_code_t changed_item)
 );</div>
 <p class=cont>The value is a pointer to the callback function that will be
 called when any context is changed. Such changes might be from automatic
@@ -2141,8 +2141,8 @@ specifies which of the context changed; the context codes are listed
 <div class=forh>
 getdns_return_t
 getdns_context_set_resolution_type(
-  struct getdns_context  *context,
-  getdns_resolution_t    value
+  getdns_context       *context,
+  getdns_resolution_t  value
 );</div>
 <p class=cont>Specifies whether DNS queries are performed with nonrecurive lookups or
 as a stub resolver. The value is <span class=default><code>GETDNS_RESOLUTION_RECURSING</code></span> or
@@ -2159,9 +2159,9 @@ return <code>GETDNS_RETURN_CONTEXT_UPDATE_FAIL</code>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_namespaces(
-  struct getdns_context  *context,
-  size_t                 namespace_count,
-  getdns_namespace_t     *namespaces
+  getdns_context      *context,
+  size_t              namespace_count,
+  getdns_namespace_t  *namespaces
 );</div>
 <p class=cont>The <code>namespaces</code> array contains an ordered list
 of namespaces that will be queried.
@@ -2184,8 +2184,8 @@ default is <span class=default>determined by the OS</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_dns_transport(
-  struct getdns_context  *context,
-  getdns_transport_t     value
+  getdns_context      *context,
+  getdns_transport_t  value
 );</div>
 <p class=cont>Specifies what transport is used for DNS lookups.
 The value is <span class=default>
@@ -2197,8 +2197,8 @@ The value is <span class=default>
 <div class=forh>
 getdns_return_t
 getdns_context_set_limit_outstanding_queries(
-  struct getdns_context  *context,
-  uint16_t               limit
+  getdns_context  *context,
+  uint16_t        limit
 );</div>
 <p class=cont>Specifies limit the number of outstanding DNS queries.
 The API will block itself from sending more queries if it is about to exceed
@@ -2209,8 +2209,8 @@ the number of outstanding DNS queries is unlimited.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_timeout(
-  struct getdns_context  *context,
-  uint64_t               timeout
+  getdns_context  *context,
+  uint64_t        timeout
 );</div>
 <p class=cont>Specifies number of milliseconds the API will wait for request to return.
 The default is <span class=default>not specified</span>.</p>
@@ -2220,8 +2220,8 @@ The default is <span class=default>not specified</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_follow_redirects(
-  struct getdns_context  *context,
-  getdns_redirects_t     value
+  getdns_context      *context,
+  getdns_redirects_t  value
 );</div>
 <p class=cont>Specifies whether or not DNS queries follow redirects.
 The value is <span class=default><code>GETDNS_REDIRECTS_FOLLOW</code></span> for normal
@@ -2232,8 +2232,8 @@ through CNAME and DNAME to return the CNAME or DNAME, not the eventual target.</
 <div class=forh>
 getdns_return_t
 getdns_context_set_dns_root_servers(
-  struct getdns_context  *context,
-  struct getdns_list     *addresses
+  getdns_context  *context,
+  getdns_list     *addresses
 );</div>
 <p class=cont>The list contains dicts that are addresses to be used for looking up top-level
 domains; the default is the list of <b>"normal" IANA root servers</b>. Each dict in the list
@@ -2245,8 +2245,8 @@ either "IPv4" or "IPv6") and <code>address_data</code> (whose value is a bindata
 <div class=forh>
 getdns_return_t
 getdns_context_set_append_name(
-  struct getdns_context  *context,
-  getdns_append_name_t   value
+  getdns_context        *context,
+  getdns_append_name_t  value
 );</div>
 <p class=cont>Specifies whether to append a suffix to the query string
 before the API starts resolving a name.
@@ -2260,8 +2260,8 @@ whether or not to append the suffix given by <code>getdns_context_set_suffix</co
 <div class=forh>
 getdns_return_t
 getdns_context_set_suffix(
-  struct getdns_context  *context,
-  struct getdns_list     *value
+  getdns_context  *context,
+  getdns_list     *value
 );</div>
 <p class=cont>The value is a list of bindatas that are strings that are
 to be appended based on <code>getdns_context_set_append_name</code>; the default is an <span
@@ -2276,8 +2276,8 @@ to allow non-ASCII octets and special characters in labels.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_dnssec_trust_anchors(
-  struct getdns_context  *context,
-  struct getdns_list     *value
+  getdns_context  *context,
+  getdns_list     *value
 );</div>
 <p class=cont>The value is a list of bindatas that are the DNSSEC trust anchors. The default
 is the trust anchors from the <span class=default>IANA root</span>. The trust anchors
@@ -2287,8 +2287,8 @@ are expressed as RDATAs from DNSKEY resource records.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(
-  struct getdns_context  *context,
-  uint32_t               value
+  getdns_context  *context,
+  uint32_t        value
 );</div>
 <p class=cont>The value is the number of seconds of skew that is allowed in either direction when
 checking an RRSIG's Expiration and Inception fields. The default
@@ -2307,8 +2307,8 @@ must do its own DNSSEC processing, possibly with the <code>getdns_validate_dnsse
 <div class=forh>
 getdns_return_t
 getdns_context_set_upstream_recursive_servers(
-  struct getdns_context  *context,
-  struct getdns_list     *upstream_list
+  getdns_context  *context,
+  getdns_list     *upstream_list
 );</div>
 <p class=cont>The list of dicts define where a stub resolver will send queries. Each dict contains
 at least two names: <code>address_type</code> (whose value is a bindata; it is currently either
@@ -2326,8 +2326,8 @@ These come from RFC 2671.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_maximum_udp_payload_size(
-  struct getdns_context  *context,
-  uint16_t               value
+  getdns_context  *context,
+  uint16_t        value
 );</div>
 <p class=cont>The value is between 512 and 65535; the default
 is <span class=default>512</span>.</p>
@@ -2335,8 +2335,8 @@ is <span class=default>512</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_extended_rcode(
-  struct getdns_context  *context,
-  uint8_t                value
+  getdns_context  *context,
+  uint8_t         value
 );</div>
 <p class=cont>The value is between 0 and 255; the default
 is <span class=default>0</span>.</p>
@@ -2344,8 +2344,8 @@ is <span class=default>0</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_version(
-  struct getdns_context  *context,
-  uint8_t                value
+  getdns_context  *context,
+  uint8_t         value
 );</div>
 <p class=cont>The value is between 0 and 255; the default
 is <span class=default>0</span>.</p>
@@ -2353,8 +2353,8 @@ is <span class=default>0</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_edns_do_bit(
-  struct getdns_context  *context,
-  uint8_t                value
+  getdns_context  *context,
+  uint8_t         value
 );</div>
 <p class=cont>The value is between 0 and 1; the default
 is <span class=default>0</span>.</p>
@@ -2364,10 +2364,10 @@ is <span class=default>0</span>.</p>
 <div class=forh>
 getdns_return_t
 getdns_context_set_memory_functions(
-  struct getdns_context *context,
-  void                  *(*malloc) (size_t),
-  void                  *(*realloc) (void *, size_t),
-  void                  (*free) (void *)
+  getdns_context *context,
+  void           *(*malloc) (size_t),
+  void           *(*realloc) (void *, size_t),
+  void           (*free) (void *)
 );</div>
 <p class=cont>The given memory management functions will be used for creating the response dicts.
 The response dicts inherit the custom memory management functions from the context and will deallocate themselves (and their members) with the custom deallocator.
@@ -2376,11 +2376,11 @@ By default, the system <span class=default>malloc</span>, <span class=default>re
 <div class=forh>
 getdns_return_t
 getdns_context_set_extended_memory_functions(
-  struct getdns_context *context,
-  void                  *userarg,
-  void                  *(*malloc)(void *userarg, size_t sz),
-  void                  *(*realloc)(void *userarg, void *ptr, size_t sz),
-  void                  (*free)(void *userarg, void *ptr)
+  getdns_context *context,
+  void           *userarg,
+  void           *(*malloc)(void *userarg, size_t sz),
+  void           *(*realloc)(void *userarg, void *ptr, size_t sz),
+  void           (*free)(void *userarg, void *ptr)
 );</div>
 <p class=cont>The given extended memory management functions will be used for creating the response dicts.
 The value of <code>userarg</code> argument will be passed to the custom <code>malloc</code>, <code>realloc</code>, and <code>free</code>.
@@ -2428,7 +2428,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.399.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.400.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

@@ -8,9 +8,9 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* Set up the callback function, which will also do the processing of the results */
-void this_callbackfn(struct getdns_context *this_context,
+void this_callbackfn(getdns_context *this_context,
                      getdns_callback_type_t this_callback_type,
-                     struct getdns_dict *this_response, 
+                     getdns_dict *this_response, 
                      void *this_userarg,
                      getdns_transaction_t this_transaction_id)
 {
@@ -29,7 +29,7 @@ void this_callbackfn(struct getdns_context *this_context,
 			return;
 		}
 		/* Find all the answers returned */
-		struct getdns_list * these_answers;
+		getdns_list * these_answers;
 		this_ret = getdns_dict_get_list(this_response, "replies_tree", &these_answers);
 		if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
 		{
@@ -42,20 +42,20 @@ void this_callbackfn(struct getdns_context *this_context,
 		/* Go through each answer */
 		for ( size_t rec_count = 0; rec_count < num_answers; ++rec_count )
 		{
-			struct getdns_dict * this_record;
+			getdns_dict * this_record;
 			this_ret = getdns_list_get_dict(these_answers, rec_count, &this_record);  // Ignore any error
 			/* Get the answer section */
-			struct getdns_list * this_answer;
+			getdns_list * this_answer;
 			this_ret = getdns_dict_get_list(this_record, "answer", &this_answer);  // Ignore any error
 			/* Get each RR in the answer section */
 			size_t num_rrs;
 			this_ret = getdns_list_get_length(this_answer, &num_rrs);
 			for ( size_t rr_count = 0; rr_count < num_rrs; ++rr_count )
 			{
-				struct getdns_dict *this_rr = NULL;
+				getdns_dict *this_rr = NULL;
 				this_ret = getdns_list_get_dict(this_answer, rr_count, &this_rr);  // Ignore any error
 				/* Get the RDATA */
-				struct getdns_dict * this_rdata = NULL;
+				getdns_dict * this_rdata = NULL;
 				this_ret = getdns_dict_get_dict(this_rr, "rdata", &this_rdata);  // Ignore any error
 				/* Get the RDATA type */
 				uint32_t this_type;
@@ -63,7 +63,7 @@ void this_callbackfn(struct getdns_context *this_context,
 				/* If it is type A or AAAA, print the value */
 				if (this_type == GETDNS_RRTYPE_A)
 				{
-					struct getdns_bindata * this_a_record = NULL;
+					getdns_bindata * this_a_record = NULL;
 					this_ret = getdns_dict_get_bindata(this_rdata, "ipv4_address", &this_a_record);
 					if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
 					{
@@ -78,7 +78,7 @@ void this_callbackfn(struct getdns_context *this_context,
 				}
 				else if (this_type == GETDNS_RRTYPE_AAAA)
 				{
-					struct getdns_bindata * this_aaaa_record = NULL;
+					getdns_bindata * this_aaaa_record = NULL;
 					this_ret = getdns_dict_get_bindata(this_rdata, "ipv6_address", &this_aaaa_record);
 					if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
 					{
@@ -104,7 +104,7 @@ void this_callbackfn(struct getdns_context *this_context,
 int main()
 {
 	/* Create the DNS context for this call */
-	struct getdns_context *this_context = NULL;
+	getdns_context *this_context = NULL;
 	getdns_return_t context_create_return = getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD)
 	{

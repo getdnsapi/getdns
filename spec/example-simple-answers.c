@@ -8,9 +8,9 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* Set up the callback function, which will also do the processing of the results */
-void this_callbackfn(struct getdns_context *this_context,
+void this_callbackfn(getdns_context *this_context,
                      getdns_callback_type_t this_callback_type,
-                     struct getdns_dict *this_response, 
+                     getdns_dict *this_response, 
                      void *this_userarg,
                      getdns_transaction_t this_transaction_id)
 {
@@ -28,7 +28,7 @@ void this_callbackfn(struct getdns_context *this_context,
 			getdns_dict_destroy(this_response);
 			return;
 		}
-		struct getdns_list * just_the_addresses_ptr;
+		getdns_list * just_the_addresses_ptr;
 		this_ret = getdns_dict_get_list(this_response, "just_address_answers", &just_the_addresses_ptr);
 		if (this_ret != GETDNS_RETURN_GOOD)  // This check is really not needed, but prevents a compiler error under "pedantic"
 		{
@@ -41,10 +41,10 @@ void this_callbackfn(struct getdns_context *this_context,
 		/* Go through each record */
 		for ( size_t rec_count = 0; rec_count < num_addresses; ++rec_count )
 		{
-			struct getdns_dict * this_address;
+			getdns_dict * this_address;
 			this_ret = getdns_list_get_dict(just_the_addresses_ptr, rec_count, &this_address);  // Ignore any error
 			/* Just print the address */
-			struct getdns_bindata * this_address_data;
+			getdns_bindata * this_address_data;
 			this_ret = getdns_dict_get_bindata(this_address, "address_data", &this_address_data); // Ignore any error
 			char *this_address_str = getdns_display_ip_address(this_address_data);
 			printf("The address is %s\n", this_address_str);
@@ -61,7 +61,7 @@ void this_callbackfn(struct getdns_context *this_context,
 int main()
 {
 	/* Create the DNS context for this call */
-	struct getdns_context *this_context = NULL;
+	getdns_context *this_context = NULL;
 	getdns_return_t context_create_return = getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD)
 	{

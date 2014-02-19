@@ -27,16 +27,16 @@ getdns_transport_t transportarg;
 getdns_append_name_t appendnamearg;
 
 getdns_data_type * datatypeptrarg;
-struct getdns_bindata ** bindataptrarg;
-struct getdns_dict * dictarg;
-struct getdns_bindata * bindataarg;
-struct getdns_list * listarg;
-struct getdns_dict ** dictptrarg;
-struct getdns_list ** listptrarg;
+getdns_bindata ** bindataptrarg;
+getdns_dict * dictarg;
+getdns_bindata * bindataarg;
+getdns_list * listarg;
+getdns_dict ** dictptrarg;
+getdns_list ** listptrarg;
 
 size_t sizetarg;
 size_t * sizetptrarg;
-struct getdns_context *contextarg = NULL;
+getdns_context *contextarg = NULL;
 uint8_t uint8arg;
 uint16_t uint16arg;
 uint32_t uint32arg;
@@ -55,7 +55,7 @@ void * extendedreallocfunctionarg(void* userarg, void* foo, size_t bar)
 	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo); UNUSED_PARAM(bar); return NULL; }
 void extendeddeallocfunctionarg(void* userarg, void* foo)
 	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo);}
-void setcallbackfunctionarg(struct getdns_context *foo1, getdns_context_code_t foo2)
+void setcallbackfunctionarg(getdns_context *foo1, getdns_context_code_t foo2)
 	{UNUSED_PARAM(foo1);UNUSED_PARAM(foo2);}
 
 int main()

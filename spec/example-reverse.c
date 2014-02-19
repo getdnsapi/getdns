@@ -8,9 +8,9 @@
 #define UNUSED_PARAM(x) ((void)(x))
 
 /* Set up the callback function, which will also do the processing of the results */
-void this_callbackfn(struct getdns_context *this_context,
+void this_callbackfn(getdns_context *this_context,
                      uint16_t     this_callback_type,
-                     struct getdns_dict *this_response, 
+                     getdns_dict *this_response, 
                      void *this_userarg,
                      getdns_transaction_t this_transaction_id)
 {
@@ -29,34 +29,34 @@ void this_callbackfn(struct getdns_context *this_context,
 			getdns_dict_destroy(this_response);
 			return;
 		}
-		struct getdns_list *replies_tree;
+		getdns_list *replies_tree;
 		this_ret = getdns_dict_get_list(this_response, "replies_tree", &replies_tree);  // Ignore any error
 		size_t num_replies;
 		this_ret = getdns_list_get_length(replies_tree, &num_replies);  // Ignore any error
 		/* Go through each reply */
 		for ( size_t reply_count = 0; reply_count < num_replies; ++reply_count)
 		{
-			struct getdns_dict * this_reply;
+			getdns_dict * this_reply;
 			this_ret = getdns_list_get_dict(replies_tree, reply_count, &this_reply);  // Ignore any error
 			/* Just print the address */
-			struct getdns_list* reply_answers;
+			getdns_list* reply_answers;
 			this_ret = getdns_dict_get_list(this_reply, "answer", &reply_answers); // Ignore any error
 			size_t num_answers;
 			this_ret = getdns_list_get_length(reply_answers, &num_answers);  // Ignore any error
 			/* Go through each answer */
 			for ( size_t answer_count = 0; answer_count < num_answers; ++answer_count)
 			{
-				struct getdns_dict * this_rr;
+				getdns_dict * this_rr;
 				this_ret = getdns_list_get_dict(reply_answers, answer_count, &this_rr);
 				/* Get the RDATA type */
 				uint32_t this_type;
 				this_ret = getdns_dict_get_int(this_rr, "type", &this_type);  // Ignore any error
 				if (this_type == GETDNS_RRTYPE_PTR)
 				{
-					struct getdns_dict *this_rdata;
+					getdns_dict *this_rdata;
 					this_ret = getdns_dict_get_dict(this_rr, "rdata", &this_rdata);  // Ignore any error
 
-					struct getdns_bindata * this_dname;
+					getdns_bindata * this_dname;
 					this_ret = getdns_dict_get_bindata(this_rdata, "rdata_raw", &this_dname);
 					char *this_dname_str = getdns_convert_dns_name_to_fqdn((char *)this_dname->data);
 					printf("The dname is %s\n", this_dname_str);
@@ -77,7 +77,7 @@ void this_callbackfn(struct getdns_context *this_context,
 int main()
 {
 	/* Create the DNS context for this call */
-	struct getdns_context *this_context = NULL;
+	getdns_context *this_context = NULL;
 	getdns_return_t context_create_return = getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD)
 	{
@@ -95,12 +95,12 @@ int main()
 	}
 	(void)getdns_extension_set_libevent_base(this_context, this_event_base);
 	/* Set up the getdns call */
-	struct getdns_dict * this_addr_to_look_up = getdns_dict_create();
+	getdns_dict * this_addr_to_look_up = getdns_dict_create();
 	// TODO: check the return value above
-	struct getdns_bindata this_type = { 4, (void *)"IPv4" };
+	getdns_bindata this_type = { 4, (void *)"IPv4" };
 	getdns_return_t this_ret = getdns_dict_set_bindata(this_addr_to_look_up, "address_type", &this_type);
 	UNUSED_PARAM(this_ret);
-	struct getdns_bindata this_ipv4_addr = { 4, (void *)"\x08\x08\x08\x08" };
+	getdns_bindata this_ipv4_addr = { 4, (void *)"\x08\x08\x08\x08" };
 	this_ret = getdns_dict_set_bindata(this_addr_to_look_up, "address_data", &this_ipv4_addr);
 	char* this_userarg = "somestring"; // Could add things here to help identify this call
 	getdns_transaction_t this_transaction_id = 0;
