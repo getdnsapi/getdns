@@ -804,8 +804,9 @@ priv_getdns_equip_dict_with_spf_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
         /* validations failed */
         return r;
     }
-    bindata.data = GETDNS_XMALLOC(context->my_mf, uint8_t,
-                                  bindata.size);
+	bindata.data = context
+	    ? GETDNS_XMALLOC(context->my_mf, uint8_t, bindata.size)
+	    : malloc(bindata.size);
     if (!bindata.data) {
         return GETDNS_RETURN_MEMORY_ERROR;
     }
@@ -820,7 +821,10 @@ priv_getdns_equip_dict_with_spf_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     }
     bindata.data[num_copied] = 0;
     r = getdns_dict_set_bindata(rdata, def->rdata[0].name, &bindata);
-    GETDNS_FREE(context->my_mf, bindata.data);
+	if (context)
+		GETDNS_FREE(context->my_mf, bindata.data);
+	else
+		free(bindata.data);
     return r;
 }
 
@@ -894,7 +898,6 @@ priv_getdns_create_dict_from_rdfs(
 	uint8_t *data_ptr;
 	size_t i;
 
-	assert(context);
 	assert(rr);
 	assert(rdata);
 
@@ -907,8 +910,9 @@ priv_getdns_create_dict_from_rdfs(
 		rdata_raw.size = 0;
 		for (i = 0; i < ldns_rr_rd_count(rr); i++)
 			rdata_raw.size += ldns_rdf_size(ldns_rr_rdf(rr, i));
-		rdata_raw.data = GETDNS_XMALLOC(
-		    context->mf, uint8_t, rdata_raw.size);
+		rdata_raw.data = context
+		    ? GETDNS_XMALLOC(context->mf, uint8_t, rdata_raw.size)
+		    : malloc(rdata_raw.size);
 		if (! rdata_raw.data) {
 			r = GETDNS_RETURN_MEMORY_ERROR;
 			break;
@@ -924,7 +928,10 @@ priv_getdns_create_dict_from_rdfs(
 
 		/* Set "rdata_raw" attribute" */
 		r = getdns_dict_set_bindata(*rdata, "rdata_raw", &rdata_raw);
-		GETDNS_FREE(context->mf, rdata_raw.data);
+		if (context)
+			GETDNS_FREE(context->mf, rdata_raw.data);
+		else
+			free(rdata_raw.data);
 		if (r != GETDNS_RETURN_GOOD)
 			break;
 
@@ -945,7 +952,6 @@ priv_getdns_create_dict_from_rr(
 	struct getdns_bindata name;
 	struct getdns_dict *rdata;
 
-	assert(context);
 	assert(rr);
 	assert(rr_dict);
 
@@ -995,7 +1001,6 @@ priv_getdns_create_reply_question_dict(
 	ldns_rr *rr;
 	struct getdns_bindata qname;
 
-	assert(context);
 	assert(pkt);
 	assert(q_dict);
 

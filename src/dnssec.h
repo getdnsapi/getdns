@@ -1,6 +1,6 @@
 /**
  *
- * /brief priv_getdns_get_validation_chain function
+ * /brief functions for DNSSEC
  *
  * The priv_getdns_get_validation_chain function is called after an answer
  * has been fetched when the dnssec_return_validation_chain extension is set.
@@ -35,8 +35,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef VALIDATION_CHAIN_H_
-#define VALIDATION_CHAIN_H_
+#ifndef DNSSEC_H_
+#define DNSSEC_H_
 
 #include "getdns/getdns.h"
 #include "types-internal.h"
@@ -47,6 +47,8 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
 struct getdns_dict * priv_getdns_get_validation_chain_sync(
     getdns_dns_req *dns_req);
 
+int priv_getdns_parse_ta_file(time_t *ta_mtime, ldns_rr_list *ta_rrs);
+
 #endif
 
-/* validation-chain.h */
+/* dnssec.h */

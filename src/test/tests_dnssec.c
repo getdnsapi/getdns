@@ -46,87 +46,6 @@
 #include <getdns/getdns.h>
 #include <getdns/getdns_ext_libevent.h>
 
-getdns_return_t create_root_trustanchor_list(struct getdns_list **tas)
-{
-	static const struct getdns_bindata root_dname = { 1, (uint8_t *) "" };
-	static const int                   root_key_tag = 19036;
-	static const int                   root_algorithm = 8;
-	static const int                   root_digest_type = 2;
-	static const struct getdns_bindata root_digest = { 32, (uint8_t *)
-	    "\x49\xaa\xc1\x1d\x7b\x6f\x64\x46\x70\x2e\x54\xa1\x60\x73\x71\x60"
-	    "\x7a\x1a\x41\x85\x52\x00\xfd\x2c\xe1\xcd\xde\x32\xf2\x4e\x8f\xb5"
-	};
-
-	getdns_return_t r = GETDNS_RETURN_GOOD;
-	struct getdns_dict *ta;
-	struct getdns_dict *rdata;
-
-	if (! tas)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	ta = getdns_dict_create();
-	if (! ta)
-		return GETDNS_RETURN_MEMORY_ERROR;
-	do {
-		r = getdns_dict_set_bindata(ta, "name",
-		    (struct getdns_bindata *)&root_dname);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		r = getdns_dict_set_int(ta, "type", GETDNS_RRTYPE_DS);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		rdata = getdns_dict_create();
-		if (! rdata) {
-			r = GETDNS_RETURN_MEMORY_ERROR;
-			break;
-		}
-		do {
-			r = getdns_dict_set_int(rdata,
-			    "key_tag", root_key_tag);
-			if (r != GETDNS_RETURN_GOOD)
-				break;
-
-			r = getdns_dict_set_int(rdata,
-			    "algorithm", root_algorithm);
-			if (r != GETDNS_RETURN_GOOD)
-				break;
-
-			r = getdns_dict_set_int(rdata,
-			    "digest_type", root_digest_type);
-			if (r != GETDNS_RETURN_GOOD)
-				break;
-
-			r = getdns_dict_set_bindata(rdata,
-			    "digest", (struct getdns_bindata *)&root_digest);
-			if (r != GETDNS_RETURN_GOOD)
-				break;
-
-			r = getdns_dict_set_dict(ta, "rdata", rdata);
-		} while(0);
-
-		getdns_dict_destroy(rdata);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		*tas = getdns_list_create();
-		if (! *tas) {
-			r = GETDNS_RETURN_MEMORY_ERROR;
-			break;
-		}
-		r = getdns_list_set_dict(*tas, 0, ta);
-		if (r == GETDNS_RETURN_GOOD) {
-			getdns_dict_destroy(ta);
-			return r;
-		}
-
-		getdns_list_destroy(*tas);
-	} while(0);
-	getdns_dict_destroy(ta);
-	return r;
-}
-
 /* Set up the callback function, which will also do the processing of the results */
 void
 callbackfn(struct getdns_context *context,
@@ -177,10 +96,10 @@ callbackfn(struct getdns_context *context,
 			    " %d\n", r);
 			break;
 		}
-		r = create_root_trustanchor_list(&trust_anchors);
-		if (r != GETDNS_RETURN_GOOD) {
+		trust_anchors = getdns_root_trust_anchor(NULL);
+		if (! trust_anchors) {
 			fprintf(stderr,
-			    "Error in creating trust_anchor:"
+			    "No root trust anchor present:"
 			    " %d\n", r);
 			break;
 		}

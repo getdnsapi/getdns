@@ -42,7 +42,7 @@
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
-#include "validation-chain.h"
+#include "dnssec.h"
 #include <stdio.h>
 
 /* stuff to make it compile pedantically */

@@ -1013,6 +1013,9 @@ int getdns_context_fd(getdns_context* context);
 /* process async reqs */
 getdns_return_t getdns_context_process_async(getdns_context* context);
 
+/* Get root trust anchor */
+getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);
+
 #ifdef __cplusplus
 }
 #endif
