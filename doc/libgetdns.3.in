@@ -88,6 +88,9 @@ a struct used to hold binary data defined as { size_t size; uint8_t *binary_stuf
 
 .SH ASYNCHRONOUS USE
 
+.LP
+TBD
+
 .SH SYNCHRONOUS USE
 
 .LP
@@ -335,7 +338,7 @@ getdns_context_t context,
 .br
 uint16_t callback_type,
 .br
-struct getdns_dict *response,
+getdns_dict *response,
 .br
 void *userarg,
 .br

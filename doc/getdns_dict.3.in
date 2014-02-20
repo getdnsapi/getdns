@@ -38,7 +38,7 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-struct getdns_dict * 
+getdns_dict * 
 .br
 .B getdns_dict_create
 ()
@@ -46,7 +46,7 @@ struct getdns_dict *
 void 
 .br
 .B getdns_dict_destroy
-(struct getdns_dict *this_dict)
+(getdns_dict *this_dict)
 
 .SH DESCRIPTION
 
@@ -54,11 +54,11 @@ void
 The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogeneous and include
 .RS 3
 .br
-struct getdns_bindata
+getdns_bindata
 .br
-struct getdns_dict
+getdns_dict
 .br
-struct getdns_list
+getdns_list
 .br
 uint32_t
 .RE

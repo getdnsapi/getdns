@@ -39,7 +39,7 @@ DNS Resolver library (libgetdns, -lgetdns)
 getdns_return_t 
 .br
 .B getdns_free_sync_request_memory
-(struct getdns_dict *response)
+(getdns_dict *response)
 
 .SH DESCRIPTION
 

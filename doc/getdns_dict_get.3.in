@@ -45,32 +45,60 @@ DNS Resolver library (libgetdns, -lgetdns)
 getdns_return_t 
 .br
 .B getdns_dict_get_bindata
-(struct getdns_dict *this_dict, char *name, struct getdns_bindata **answer)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_bindata **answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_dict_get_data_type
-(struct getdns_dict *this_dict, char *name, getdns_data_type *answer)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_data_type *answer)
+.RE
 
 getdns_return_t
 .br
 .B getdns_dict_get_dict
-(struct getdns_dict *this_dict, char *name, struct getdns_dict **answer)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_dict **answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_dict_get_int
-(struct getdns_dict *this_dict, char *name, uint32_t *answer)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+uint32_t *answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_dict_get_list
-(struct getdns_dict *this_dict, char *name, struct getdns_list **answer)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_list **answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_dict_get_names
-(struct getdns_dict *this_dict, struct getdns_list **answer)
+(getdns_dict *this_dict,
+.RS 3
+getdns_list **answer)
+.RE
 
 .SH DESCRIPTION
 
@@ -78,11 +106,11 @@ getdns_return_t
 The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogeneous and include
 .RS 3
 .br
-struct getdns_bindata
+getdns_bindata
 .br
-struct getdns_dict
+getdns_dict
 .br
-struct getdns_list
+getdns_list
 .br
 uint32_t
 .RE

@@ -40,11 +40,11 @@ DNS Resolver library (libgetdns, -lgetdns)
 getdns_return_t 
 .br
 .B getdns_address
-(getdns_context_t context,
+(getdns_context *context,
 .RS 3
 const char *name,
 .br
-struct getdns_dict *extensions,
+getdns_dict *extensions,
 .br
 void *userarg,
 .br
@@ -56,15 +56,13 @@ getdns_callback_t callbackfn)
 getdns_return_t 
 .br
 .B getdns_address_sync
-(getdns_context_t context,
+(getdns_context *context,
 .RS 3
 const char *name,
 .br
-struct getdns_dict *extensions,
+getdns_dict *extensions,
 .br
-uint32_t *response_length,
-.br
-struct getdns_dict **response)
+getdns_dict **response)
 .RE
 
 .SH DESCRIPTION
@@ -103,11 +101,6 @@ populated by the API and used to identify the callback (for example to getdns_ca
 pointer to a callback function defined by the application, typically used to process the response, may not be NULL. Only the asynchronous signature accepts a callback function, the synchronous signature does not include a callback.
 
 .HP 3
-.I response_length
-.RP
-The synchronous entry point includes this argument, the response length is placed at the address pointed to by response_length.
-
-.HP 3
 .I response
 .RP
 A getdns_dict type is returned in response and always contains at least three names: replies_full (a list containing the DNS response as binary data), replies_tree (a list containing the parsed DNS response data) and status (an int).  The storage associated with this must be freed by a call to getdns_free_sync_request_memory (3).
@@ -123,6 +116,9 @@ Upon successful completion the functions return
 .B GETDNS_RETURN_BAD_CONTEXT 
 if the context pointer is invalid
 .LP
+.B GETDNS_RETURN_INVALID PARAMETER 
+one or more parameters has an invalid value
+.LP
 .B GETDNS_RETURN_BAD_DOMAIN_NAME
 if the domain name passed to the function is invalid
 .LP
@@ -131,6 +127,10 @@ if the data type specified in one or more of the extensions does not match the s
 .LP
 .B GETDNS_RETURN_NO_SUCH_EXTENSION
 if one or more of the strings specified in the extensions are not valid
+.LP
+.B GETDNS_RETURN_GENERIC_ERROR
+some problem was encountered in the function not addressed by one of the more
+specific return codes
 
 The values of status in the response include:
 
@@ -163,12 +163,13 @@ TBD
 /etc/resolv.conf
 
 .SH SEE ALSO
-.BR libgetdns (3),
-.BR getdns_context (3),
-.BR getdns_general (3),
-.BR getdns_general_sync (3),
-.BR getdns_hostname (3),
-.BR getdns_hostname_sync (3),
-.BR getdns_service (3),
-.BR getdns_service_sync (3).
+.BR libgetdns (3), 
+.BR getdns_context (3), 
+.BR getdns_free_sync_request_memory (3), 
+.BR getdns_general (3), 
+.BR getdns_general_sync (3), 
+.BR getdns_hostname (3), 
+.BR getdns_hostname_sync (3), 
+.BR getdns_service (3), 
+.BR getdns_service_sync (3)
 

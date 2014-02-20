@@ -43,22 +43,42 @@ DNS Resolver library (libgetdns, -lgetdns)
 getdns_return_t 
 .br
 .B getdns_dict_set_bindata
-(struct getdns_dict *this_dict, char *name, struct getdns_bindata *child_bindata)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_bindata *child_bindata)
+.RE
 
 getdns_return_t
 .br
 .B getdns_dict_set_dict
-(struct getdns_dict *this_dict, char *name, struct getdns_dict *child_dict)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_dict *child_dict)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_dict_set_int
-(struct getdns_dict *this_dict, char *name, uint32_t child_uint32_t)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+uint32_t child_uint32_t)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_dict_set_list
-(struct getdns_dict *this_dict, char *name, struct getdns_list *child_list)
+(getdns_dict *this_dict,
+.RS 3
+char *name,
+.br
+getdns_list *child_list)
+.RE
 
 .SH DESCRIPTION
 
@@ -66,11 +86,11 @@ getdns_return_t
 The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogeneous and include
 .RS 3
 .br
-struct getdns_bindata
+getdns_bindata
 .br
-struct getdns_dict
+getdns_dict
 .br
-struct getdns_list
+getdns_list
 .br
 uint32_t
 .RE

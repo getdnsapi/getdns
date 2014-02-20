@@ -45,32 +45,60 @@ DNS Resolver library (libgetdns, -lgetdns)
 getdns_return_t 
 .br
 .B getdns_list_get_bindata
-(struct getdns_list *this_list, size_t index, struct getdns_bindata **answer)
+(getdns_list *this_list,
+.RS 3
+size_t index,
+.br
+getdns_bindata **answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_list_get_data_type
-(struct getdns_list *this_list, size_t index, getdns_data_type *answer)
+(getdns_list *this_list,
+.RS 3
+size_t index,
+.br
+getdns_data_type *answer)
+.RE
 
 getdns_return_t
 .br
 .B getdns_list_get_dict
-(struct getdns_list *this_list, size_t index, struct getdns_dict **answer)
+(getdns_list *this_list,
+.RS 3
+size_t index,
+.br
+getdns_dict **answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_list_get_length
-(struct getdns_list *this_list, size_t *answer)
+(getdns_list *this_list,
+.RS 3
+size_t *answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_list_get_list
-(struct getdns_list *this_list, size_t index, struct getdns_list **answer)
+(getdns_list *this_list,
+.RS 3
+size_t index,
+.br
+getdns_list **answer)
+.RE
 
 getdns_return_t 
 .br
 .B getdns_list_get_int
-(struct getdns_list *this_list, size_t index, uint32_t *answer)
+(getdns_list *this_list,
+.RS 3
+size_t index,
+.br
+uint32_t *answer)
+.RE
 
 .SH DESCRIPTION
 
@@ -78,11 +106,11 @@ getdns_return_t
 The getdns_list type is used to manage heterogeneous lists in which the objects are each one of the data types:
 .RS 3
 .br
-struct getdns_bindata
+getdns_bindata
 .br
-struct getdns_dict
+getdns_dict
 .br
-struct getdns_list
+getdns_list
 .br
 uint32_t
 .RE

@@ -43,7 +43,7 @@ DNS Resolver library (libgetdns, -lgetdns)
 getdns_return_t
 .br
 .B getdns_context_create
-(struct getdns_context ** context,
+(getdns_context ** context,
 .RS 3
 .br
 int set_from_os)
@@ -52,7 +52,7 @@ int set_from_os)
 getdns_return_t
 .br
 .B getdns_context_create_with_memory_functions
-(struct getdns_context ** context,
+(getdns_context ** context,
 .RS 3
 .br
 int set_from_os,
@@ -67,7 +67,7 @@ void (*free) (void *))
 getdns_return_t
 .br
 .B getdns_context_create_with_extended_memory_functions
-(struct getdns_context **context,
+(getdns_context **context,
 .RS 3
 .br
 int set_from_os,
@@ -84,7 +84,7 @@ void (*free) (void *userarg, void *))
 void
 .br
 .B getdns_context_destroy
-(struct getdns_context *context)
+(getdns_context *context)
 
 .SH DESCRIPTION
 
