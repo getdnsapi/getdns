@@ -1734,5 +1734,15 @@ getdns_context_get_api_information(getdns_context* context) {
     return result;
 }
 
+getdns_return_t
+getdns_context_set_return_dnssec_status(getdns_context* context, int enabled) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    if (enabled != GETDNS_EXTENSION_TRUE ||
+        enabled != GETDNS_EXTENSION_FALSE) {
+        return GETDNS_RETURN_INVALID_PARAMETER;
+    }
+    context->return_dnssec_status = enabled;
+    return GETDNS_RETURN_GOOD;
+}
 
 /* context.c */

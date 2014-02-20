@@ -38,6 +38,7 @@
 #define _GETDNS_CONTEXT_H_
 
 #include <getdns/getdns.h>
+#include <getdns/getdns_extra.h>
 #include "types-internal.h"
 
 struct getdns_dns_req;
@@ -96,6 +97,7 @@ struct getdns_context {
 	 * the real work */
 	struct ub_ctx *unbound_ctx;
 	int has_ta; /* No DNSSEC without trust anchor */
+    int return_dnssec_status;
 
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set

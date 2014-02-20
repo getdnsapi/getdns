@@ -180,6 +180,9 @@ typedef struct getdns_dns_req
     /* local timeout id */
     getdns_transaction_t local_timeout_id;
 
+    /* dnssec status */
+    int return_dnssec_status;
+
 } getdns_dns_req;
 
 #define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)

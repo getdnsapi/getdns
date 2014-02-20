@@ -551,7 +551,8 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	dnssec_return_only_secure = is_extension_set(
 	    completed_request->extensions, "dnssec_return_only_secure");
 	dnssec_return_status = dnssec_return_only_secure || is_extension_set(
-	    completed_request->extensions, "dnssec_return_status");
+	    completed_request->extensions, "dnssec_return_status") ||
+        completed_request->return_dnssec_status == GETDNS_EXTENSION_TRUE;
 
 	if (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
 	    completed_request->first_req->request_class ==
@@ -617,7 +618,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 		}
 		if (dnssec_return_status || dnssec_return_validation_chain) {
 			r = getdns_dict_set_int(reply, "dnssec_status",
-			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE 
+			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE
 			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
 			    : rrsigs_in_answer(netreq->result) &&
 			      completed_request->context->has_ta
