@@ -90,6 +90,8 @@ struct getdns_context {
 
 	getdns_update_callback update_callback;
 
+    int destroying;
+
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
 

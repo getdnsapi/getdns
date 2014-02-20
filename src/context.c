@@ -53,7 +53,7 @@ void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
-static struct getdns_list *create_default_root_servers();
+static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t add_ip_str(struct getdns_dict *);
 static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
     ldns_rdf *);
@@ -292,9 +292,9 @@ set_os_defaults(struct getdns_context *context)
 
 	if(context->fchg_resolvconf == NULL)
 	{
-		context->fchg_resolvconf = (struct filechg *) malloc(sizeof(struct filechg));
+		context->fchg_resolvconf = GETDNS_MALLOC(context->my_mf, struct filechg);
 		if(context->fchg_resolvconf == NULL)
-			return GETDNS_RETURN_GENERIC_ERROR;
+			return GETDNS_RETURN_MEMORY_ERROR;
 		context->fchg_resolvconf->fn       = "/etc/resolv.conf";
 		context->fchg_resolvconf->prevstat = NULL;
 		context->fchg_resolvconf->changes  = GETDNS_FCHG_NOCHANGES;
@@ -405,6 +405,7 @@ getdns_context_create_with_extended_memory_functions(
     if (!result) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    result->destroying = 0;
     result->my_mf.mf_arg         = userarg;
     result->my_mf.mf.ext.malloc  = malloc;
     result->my_mf.mf.ext.realloc = realloc;
@@ -515,6 +516,10 @@ getdns_context_destroy(struct getdns_context *context)
     if (context == NULL) {
         return;
     }
+    context->destroying = 1;
+    cancel_outstanding_requests(context, 1);
+    getdns_extension_detach_eventloop(context);
+
     if (context->namespaces)
         GETDNS_FREE(context->my_mf, context->namespaces);
 	if(context->fchg_resolvconf)
@@ -529,9 +534,6 @@ getdns_context_destroy(struct getdns_context *context)
 			GETDNS_FREE(context->my_mf, context->fchg_hosts->prevstat);
 		GETDNS_FREE(context->my_mf, context->fchg_hosts);
 	}
-
-    cancel_outstanding_requests(context, 1);
-    getdns_extension_detach_eventloop(context);
 
     getdns_list_destroy(context->dns_root_servers);
     getdns_list_destroy(context->suffix);
@@ -1056,7 +1058,7 @@ getdns_return_t
 getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    /* 0 or 1 */
+    /* only allow 1 */
     if (value != 1) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
@@ -1299,7 +1301,9 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	getdns_return_t r;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-
+    if (context->destroying) {
+        return GETDNS_RETURN_BAD_CONTEXT;
+    }
 	if (context->resolution_type_set == context->resolution_type)
         	/* already set and no config changes
 		 * have caused this to be bad.
@@ -1450,9 +1454,16 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
                         (timeout_data->timeout_time.tv_sec == now.tv_sec &&
                          timeout_data->timeout_time.tv_usec >= now.tv_usec)) {
                         next_timeout->tv_sec = timeout_data->timeout_time.tv_sec - now.tv_sec;
-                        next_timeout->tv_usec = timeout_data->timeout_time.tv_usec - now.tv_usec;
+                        if (timeout_data->timeout_time.tv_usec < now.tv_usec) {
+                            /* we only enter this condition when timeout_data.tv_sec > now.tv_sec */
+                            next_timeout->tv_usec = (timeout_data->timeout_time.tv_usec + 100000) - now.tv_usec;
+                            next_timeout->tv_sec--;
+                        } else {
+                            next_timeout->tv_usec = timeout_data->timeout_time.tv_usec - now.tv_usec;
+                        }
                     } else {
                         /* timeout passed already */
+                        /* usec already 0 per setting default */
                         next_timeout->tv_sec = 0;
                     }
                 }
@@ -1493,7 +1504,7 @@ getdns_return_t getdns_context_process_async(struct getdns_context* context) {
         /* get the next_timeout */
         next_timeout = ldns_rbtree_next(next_timeout);
         /* delete the node */
-        /* timeout data is freed in the clear_timeout */
+        /* timeout data and the timeouts_by_id node are freed in the clear_timeout */
         ldns_rbnode_t* to_del = ldns_rbtree_delete(context->timeouts_by_time, timeout_data);
         if (to_del) {
             /* should always exist .. */
