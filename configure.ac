@@ -7,7 +7,10 @@
 
 AC_PREREQ([2.56])
 AC_INIT([getdns], [0.1.0], [stub-resolver@verisignlabs.com], [], [http://www.getdnsapi.net])
-AC_CONFIG_SRCDIR([src/getdns/getdns.h])
+CURRENT_DATE=`LC_ALL=C date`
+GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the February 2014 version of the API"
+AC_SUBST(GETDNS_COMPILATION_COMMENT)
+AC_CONFIG_SRCDIR([src/getdns/getdns.h.in])
 # AM_INIT_AUTOMAKE
 # LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
@@ -229,7 +232,7 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
-AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h src/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi

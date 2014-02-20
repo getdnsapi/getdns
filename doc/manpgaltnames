@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # generate list of alternate names for the specified man page
 # used to generate alternative man pages
 main=${1%.[0-9]}

@@ -76,6 +76,7 @@ $(distdir):
 	mkdir -p $(distdir)/src/example
 	mkdir -p $(distdir)/src/extension
 	mkdir -p $(distdir)/doc
+	mkdir -p $(distdir)/spec
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/Makefile.in $(distdir)
@@ -87,7 +88,7 @@ $(distdir):
 	cp $(srcdir)/src/*.[ch] $(distdir)/src
 	cp $(srcdir)/src/extension/*.[ch] $(distdir)/src/extension
 	cp $(srcdir)/src/getdns/*.in $(distdir)/src/getdns
-	cp $(srcdir)/src/getdns/*.h $(distdir)/src/getdns
+	cp $(srcdir)/src/getdns/getdns_*.h $(distdir)/src/getdns
 	cp $(srcdir)/src/test/Makefile.in $(distdir)/src/test
 	cp $(srcdir)/src/test/*.[ch] $(distdir)/src/test
 	cp $(srcdir)/src/test/*.sh $(distdir)/src/test
@@ -96,6 +97,8 @@ $(distdir):
 	cp $(srcdir)/src/example/*.[ch] $(distdir)/src/example
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
 	cp $(srcdir)/doc/*.in $(distdir)/doc
+	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc
+	cp $(srcdir)/spec/* $(distdir)/spec
 
 distcheck: $(distdir).tar.gz
 	gzip -cd $(distdir).tar.gz | tar xvf -

@@ -44,7 +44,7 @@
 extern "C" {
 #endif
 
-#define GETDNS_COMPILATION_COMMENT The API implementation should fill in something here, such as a compilation version string and date, and change it each time the API is compiled.
+#define GETDNS_COMPILATION_COMMENT "@GETDNS_COMPILATION_COMMENT@"
 
 /* Return values */
 typedef enum getdns_return_t {

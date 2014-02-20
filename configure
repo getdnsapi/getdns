@@ -575,7 +575,7 @@ PACKAGE_STRING='getdns 0.1.0'
 PACKAGE_BUGREPORT='stub-resolver@verisignlabs.com'
 PACKAGE_URL='http://www.getdnsapi.net'
 
-ac_unique_file="src/getdns/getdns.h"
+ac_unique_file="src/getdns/getdns.h.in"
 # Factoring default headers for most tests.
 ac_includes_default="\
 #include <stdio.h>
@@ -665,6 +665,7 @@ CPPFLAGS
 LDFLAGS
 CFLAGS
 CC
+GETDNS_COMPILATION_COMMENT
 target_alias
 host_alias
 build_alias
@@ -2175,6 +2176,9 @@ ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
 ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
+
+CURRENT_DATE=`LC_ALL=C date`
+GETDNS_COMPILATION_COMMENT="getdns 0.1.0 configured on $CURRENT_DATE for the February 2014 version of the API"
 
 
 # AM_INIT_AUTOMAKE
@@ -11398,7 +11402,7 @@ _ACEOF
 { $as_echo "$as_me:${as_lineno-$LINENO}: Default trust anchor: $TRUST_ANCHOR_FILE" >&5
 $as_echo "$as_me: Default trust anchor: $TRUST_ANCHOR_FILE" >&6;}
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/getdns/Makefile src/example/Makefile src/test/Makefile doc/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h src/example/Makefile src/test/Makefile doc/Makefile"
 
 if  test -n "$DOXYGEN"
     then ac_config_files="$ac_config_files src/Doxyfile"
@@ -12400,6 +12404,7 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/getdns/Makefile") CONFIG_FILES="$CONFIG_FILES src/getdns/Makefile" ;;
+    "src/getdns/getdns.h") CONFIG_FILES="$CONFIG_FILES src/getdns/getdns.h" ;;
     "src/example/Makefile") CONFIG_FILES="$CONFIG_FILES src/example/Makefile" ;;
     "src/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/test/Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
