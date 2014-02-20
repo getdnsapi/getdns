@@ -3,7 +3,7 @@
 getdns API  {#mainpage}
 ==========
 
-* Date:    2014-02-14
+* Date:    2014-02-20
 * GitHub:  <https://github.com/verisign/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
@@ -57,8 +57,8 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 
 * [libevent](http://libevent.org) version 2.0.21 stable
 Sometimes called libevent2
-* [libldns from NL](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.17 (ldns requires openssl headers and libraries)
-* [libunbound from NL](http://www.nlnetlabs.nl/projects/unbound/) svn revision 3069, configure must be run with the --with-libevent and the --enable-event-api option (recommended to also use --with-libunbound-only).
+* [libldns from NLnet Labs](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.11 or later (ldns requires openssl headers and libraries)
+* [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
 * [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
@@ -67,18 +67,6 @@ You have to install the library and also the library-devel (or -dev) for your
 package management system to install the compile time files.  If you checked
 out our git; the configure script is built with autoreconf --install.
 
-Assuming that the getdns sources are in a diretory named getdns in your home directory, to build libunbound:
-```
-# mkdir unbound
-# cd unbound
-# svn export -r 3069 http://unbound.nlnetlabs.nl/svn/trunk
-# cd trunk
-# ./configure --with-libevent --with-libunbound-only --enable-event-api
-### add --disable-gost --disable-ecdsa if elliptic curves are disabled for you.
-# make
-# make install
-```
-
 ##Regression Tests
 
 A suite of regression tests are included with the library, if you make changes or just
@@ -86,12 +74,29 @@ want to sanity check things on your system take a look at src/test.  You will ne
 to install [libcheck](http://check.sourceforge.net/).  Check is also available from
 many of the package repositories for the more popular operating systems.
 
+## DNSSEC
+
+For the library to be DNSSEC capable, it needs to know the root trust anchor.
+The library will try to load the root trust anchor from
+`/etc/unbound/getdns-root.key` by default.  This file is expected to have one
+or more `DS` or `DNSKEY` resource records in presentation (i.e. zone file)
+format.  Note that this is different than the format of BIND.keys.
+
+The best way to setup or update the root trust anchor is by using
+[`unbound-anchor`](http://www.unbound.net/documentation/unbound-anchor.html).
+To setup the library with the root trust anchor at the default location,
+execute the following steps as root:
+
+```
+# mkdir -p /etc/unbound
+# unbound-anchor -a /etc/unbound/getdns-root.key
+```
+
 #Unsupported Features
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
 * Support for OPT Records in `getdns_general` and variants via the `extensions` parameter.
-* `getdns_convert_dns_name_to_fqdn` and `getdns_convert_fqdn_to_dns_name`
 * EDNS options
   * `getdns_context_set_edns_do_bit`
   * `getdns_context_set_edns_version`
@@ -101,9 +106,7 @@ The following API calls are documented in getDNS but *not supported* by the impl
   * `getdns_context_set_append_name`
   * `getdns_context_set_suffix`
 * Setting root servers via `getdns_context_set_dns_root_servers`
-* DNSSEC
-  * `getdns_context_set_dnssec_trust_anchors`
-  * `getdns_validate_dnssec`
+* `getdns_context_set_dnssec_trust_anchors`
 * Detecting changes to resolv.conf and hosts
 * MDNS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
@@ -119,13 +122,6 @@ and helpful list is being maintained in the git issues list in the repository.
 
 * (#113) Changing the resolution type between stub and recursive after a query has been issued with a context will not work - the previous resolution type will continue to be used.  If you want to change the resolution type you will need to create a new context and set the resolution type for that context.
 
-#Spec Differences
-
-This implementation makes a few modifications to the spec by adding the following methods to the public API:
-
-* `getdns_context_set_memory_functions` replaces `getdns_context_set_memory_allocator`, `getdns_context_set_memory_deallocator`, and `getdns_context_set_memory_reallocator`
-* `getdns_list_create_with_context`, `getdns_list_create_with_memory_functions`, `getdns_dict_create_with_context`, and `getdns_dict_create_with_memory_functions` to create lists and dictionaries with context or user supplied memory management functions.
-
 #Supported Platforms
 
 The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.
@@ -138,7 +134,7 @@ Where at all possible we need to make sure that both 32 and 64 bit implementatio
 * OSX 10.8, 10.9
 * Ubuntu 12.04, 13.10
 
-The NLNet folks offered to build on a number of legacy platforms as well to help ensure that the code is clean.  These include some big endian hardware and a few more obscure operating systems which will not be publicly supported but might work if someone wants to try them.
+The NLnet Labs folks offered to build on a number of legacy platforms as well to help ensure that the code is clean.  These include some big endian hardware and a few more obscure operating systems which will not be publicly supported but might work if someone wants to try them.
 
 We intend to add MS-Windows, Android and other platforms to the releases as we have time to port it.
 
