@@ -660,7 +660,7 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
     r |= getdns_dict_set_bindata(rdata, def->rdata[1].name, &hit_data);
     r |= getdns_dict_set_bindata(rdata, def->rdata[2].name, &key_data);
     if (r != GETDNS_RETURN_GOOD) {
-        return r;
+        return GETDNS_RETURN_GENERIC_ERROR;
     }
 
     if (ldns_rr_rd_count(rr) > 1) {
@@ -682,6 +682,9 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
         }
         /* always clean up */
         getdns_list_destroy(servers);
+        if (r != GETDNS_RETURN_GOOD) {
+        	return GETDNS_RETURN_GENERIC_ERROR;
+        }
     }
 
     return r;

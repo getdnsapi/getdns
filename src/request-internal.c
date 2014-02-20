@@ -130,6 +130,7 @@ dns_req_new(struct getdns_context *context,
 	result->trans_id = ldns_get_random();
 
 	getdns_dict_copy(extensions, &result->extensions);
+    result->return_dnssec_status = context->return_dnssec_status;
 
 	/* will be set by caller */
 	result->user_pointer = NULL;
