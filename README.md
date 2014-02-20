@@ -1,9 +1,12 @@
 [![Build Status](https://magnum.travis-ci.com/verisign/getdns.png?token=J2HZXstzJqePUsG523am&branch=develop)](https://magnum.travis-ci.com/verisign/getdns)
 
+* auto-gen TOC:
+{:toc}
+
 getdns API  {#mainpage}
 ==========
 
-* Date:    2014-02-10
+* Date:    2014-02-14
 * GitHub:  <https://github.com/verisign/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
@@ -112,8 +115,14 @@ Some platform specific features are not implemented in the first public release 
 * Respecting settings in /etc/nsswitch.conf (linux and some other OSes), for the first release we simply check local files (/etc/hosts) before checking the DNS.
 * Search suffixes specified in /etc/resolv.conf
 
-Spec Differences
-================
+#Known Issues
+
+There are a few known issues which we have summarized below - the most recent
+and helpful list is being maintained in the git issues list in the repository.
+
+* (#113) Changing the resolution type between stub and recursive after a query has been issued with a context will not work - the previous resolution type will continue to be used.  If you want to change the resolution type you will need to create a new context and set the resolution type for that context.
+
+#Spec Differences
 
 This implementation makes a few modifications to the spec by adding the following methods to the public API:
 
