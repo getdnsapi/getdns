@@ -376,6 +376,17 @@ timeout_cmp(const void *to1, const void *to2)
     }
 }
 
+static ldns_rbtree_t*
+create_ldns_rbtree(getdns_context * context,
+    int(*cmpf)(const void *, const void *)) {
+    ldns_rbtree_t* result = GETDNS_MALLOC(context->mf, ldns_rbtree_t);
+    if (!result) {
+        return NULL;
+    }
+    ldns_rbtree_init(result, cmpf);
+    return result;
+}
+
 /*
  * getdns_context_create
  *
@@ -420,7 +431,10 @@ getdns_context_create_with_extended_memory_functions(
 
     result->resolution_type_set = 0;
 
-    result->outbound_requests = ldns_rbtree_create(transaction_id_cmp);
+    result->outbound_requests = create_ldns_rbtree(result, transaction_id_cmp);
+    result->timeouts_by_time = create_ldns_rbtree(result, timeout_cmp);
+    result->timeouts_by_id = create_ldns_rbtree(result, transaction_id_cmp);
+
 
     result->resolution_type = GETDNS_RESOLUTION_RECURSING;
     if(create_default_namespaces(result) != GETDNS_RETURN_GOOD)
@@ -441,8 +455,6 @@ getdns_context_create_with_extended_memory_functions(
 
     result->extension = NULL;
     result->extension_data = NULL;
-    result->timeouts_by_time = ldns_rbtree_create(timeout_cmp);
-    result->timeouts_by_id = ldns_rbtree_create(transaction_id_cmp);
 
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
@@ -457,13 +469,19 @@ getdns_context_create_with_extended_memory_functions(
     result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
     result->limit_outstanding_queries = 0;
     result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
-
+    if (!result->outbound_requests ||
+        !result->timeouts_by_id ||
+        !result->timeouts_by_time) {
+        getdns_context_destroy(result);
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
     /* unbound context is initialized here */
     result->unbound_ctx = NULL;
     if (GETDNS_RETURN_GOOD != rebuild_ub_ctx(result)) {
         getdns_context_destroy(result);
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+
     *context = result;
 
     return GETDNS_RETURN_GOOD;
@@ -544,9 +562,12 @@ getdns_context_destroy(struct getdns_context *context)
     if (context->unbound_ctx)
         ub_ctx_delete(context->unbound_ctx);
 
-    ldns_rbtree_free(context->outbound_requests);
-    ldns_rbtree_free(context->timeouts_by_id);
-    ldns_rbtree_free(context->timeouts_by_time);
+    if (context->outbound_requests)
+        GETDNS_FREE(context->my_mf, context->outbound_requests);
+    if (context->timeouts_by_id)
+        GETDNS_FREE(context->my_mf, context->timeouts_by_id);
+    if (context->timeouts_by_time)
+        GETDNS_FREE(context->my_mf, context->timeouts_by_time);
 
     GETDNS_FREE(context->my_mf, context);
     return;
