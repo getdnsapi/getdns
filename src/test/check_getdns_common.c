@@ -195,7 +195,7 @@ void assert_nxdomain(struct extracted_response *ex_response)
 {
   uint32_t rcode;
 
-  ASSERT_RC(ex_response->status, GETDNS_RESPSTATUS_GOOD, "Unexpected value for \"status\"");
+  ASSERT_RC(ex_response->status, GETDNS_RESPSTATUS_NO_NAME, "Unexpected value for \"status\"");
   ASSERT_RC(getdns_dict_get_int(ex_response->header, "rcode", &rcode), GETDNS_RETURN_GOOD, "Failed to extract \"rcode\"");
   ck_assert_msg(rcode == 3, "Expected rcode == 0, got %d", rcode);
 }

@@ -70,7 +70,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, NULL),
-        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_context_update_callback()");
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_context_update_callback()");
 
       CONTEXT_DESTROY;
         

@@ -45,7 +45,7 @@
        struct getdns_dict *response = NULL;
 
        ASSERT_RC(getdns_service_sync(context, "google.com", NULL, &response), 
-         GETDNS_RETURN_BAD_CONTEXT, "Return code from getdns_service_sync()");
+         GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_service_sync()");
      }
      END_TEST
 
