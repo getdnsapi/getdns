@@ -210,18 +210,18 @@ AC_SUBST(EXTENSION_LIBEV_OBJ)
 
 # --with-trust-anchor=
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])
-AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file. [default=SYSCONFDIR/unbound/root.key]]), [
+AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file. [default=SYSCONFDIR/unbound/getdns-root.key]]), [
  TRUST_ANCHOR_FILE="$withval"
 ],[
  if test "x$TRUST_ANCHOR_FILE" = "x"; then
   if test "x$sysconfdir" = 'x${prefix}/etc' ; then
    if test "x$prefix" = 'xNONE' ; then
-    TRUST_ANCHOR_FILE="/etc/unbound/root.key"
+    TRUST_ANCHOR_FILE="/etc/unbound/getdns-root.key"
    else
-    TRUST_ANCHOR_FILE="${prefix}/etc/unbound/root.key"
+    TRUST_ANCHOR_FILE="${prefix}/etc/unbound/getdns-root.key"
    fi
   else
-    TRUST_ANCHOR_FILE="${sysconfdir}/unbound/root.key"
+    TRUST_ANCHOR_FILE="${sysconfdir}/unbound/getdns-root.key"
   fi
  fi
 ])

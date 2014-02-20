@@ -23,6 +23,22 @@ all : default
 install: all
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
+	@echo "***"
+	@echo "***  !!! IMPORTANT !!!!  libgetdns needs a DNSSEC trust anchor!"
+	@echo "***"
+	@echo "***  For the library to be able to perform DNSSEC, the root"
+	@echo "***  trust anchor needs to be present in presentation format"
+	@echo "***  in the file: "
+	@echo "***        @TRUST_ANCHOR_FILE@"
+	@echo "***"
+	@echo "***  We recomend using unbound-anchor to retrieve and install"
+	@echo "***  the root trust anchor like this: "
+	@echo "***        unbound-anchor -a \"@TRUST_ANCHOR_FILE@\""
+	@echo "***"
+	@echo "***  We strongly recommend package maintainers to provide the"
+	@echo "***  root trust anchor by installing it with unbound-anchor"
+	@echo "***  at package installation time from the post-install script."
+	@echo "***"
 
 uninstall:
 	cd src && $(MAKE) $@
