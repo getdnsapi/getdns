@@ -43,11 +43,10 @@ network_req_free(getdns_network_req * net_req)
 	if (!net_req) {
 		return;
 	}
-	struct getdns_context *context = net_req->owner->context;
 	if (net_req->result) {
 		ldns_pkt_free(net_req->result);
 	}
-	GETDNS_FREE(context->mf, net_req);
+	GETDNS_FREE(net_req->owner->my_mf, net_req);
 }
 
 getdns_network_req *
@@ -56,8 +55,7 @@ network_req_new(getdns_dns_req * owner,
     uint16_t request_class, struct getdns_dict *extensions)
 {
 
-	struct getdns_context *context = owner->context;
-	getdns_network_req *net_req = GETDNS_MALLOC( context->mf
+	getdns_network_req *net_req = GETDNS_MALLOC( owner->my_mf
 	                                           , getdns_network_req);
 	if (!net_req) {
 		return NULL;
@@ -103,9 +101,9 @@ dns_req_free(getdns_dns_req * req)
     getdns_context_clear_timeout(context, req->trans_id);
 
 	/* free strduped name */
-	free(req->name);
+	GETDNS_FREE(req->my_mf, req->name);
 
-	GETDNS_FREE(context->mf, req);
+	GETDNS_FREE(req->my_mf, req);
 }
 
 /* create a new dns req to be submitted */
@@ -121,8 +119,8 @@ dns_req_new(struct getdns_context *context,
 	if (result == NULL) {
 		return NULL;
 	}
-
-	result->name = strdup(name);
+    result->my_mf = context->mf;
+	result->name = getdns_strdup(&(result->my_mf), name);
 	result->context = context;
 	result->canceled = 0;
 	result->current_req = NULL;

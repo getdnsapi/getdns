@@ -676,7 +676,7 @@ getdns_return_t
 getdns_context_set_namespaces(struct getdns_context *context,
     size_t namespace_count, getdns_namespace_t *namespaces)
 {
-	int i;
+	size_t i;
 
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     if (namespace_count == 0 || namespaces == NULL) {

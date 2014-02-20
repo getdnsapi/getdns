@@ -1,8 +1,7 @@
 /**
  *
- * getdns list management functions, note that the internal storage is
- * accomplished via the libc binary search tree implementation so your
- * pointer foo needs to be keen to digest some of the internal semantics
+ * getdns dict management functions, note that the internal storage is
+ * accomplished via an ldns_rbtree_t
  *
  * Interfaces originally taken from the getdns API description pseudo implementation.
  *
@@ -68,7 +67,7 @@ getdns_dict_find_and_add(struct getdns_dict *dict, const char *key)
 	       ldns_rbtree_search(&(dict->root), key);
 
 	if (!item) {
-		/* tsearch will add a node automatically for us */
+		/* add a node */
 		item = GETDNS_MALLOC(dict->mf, struct getdns_dict_item);
 		item->node.key = getdns_strdup(&dict->mf, key);
 		item->data.n = 0;
@@ -500,7 +499,7 @@ priv_getdns_bindata_is_dname(struct getdns_bindata *bindata)
 {
 	size_t i = 0, n_labels = 0;
 	while (i < bindata->size) {
-		i += bindata->data[i] + 1;
+		i += ((size_t)bindata->data[i]) + 1;
 		n_labels++;
 	}
 	return i == bindata->size && n_labels > 1 &&

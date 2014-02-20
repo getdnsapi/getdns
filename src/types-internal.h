@@ -101,6 +101,28 @@ struct getdns_context;
 struct getdns_dns_req;
 struct getdns_network_req;
 
+
+#define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)
+extern void *plain_mem_funcs_user_arg;
+
+typedef union {
+        struct {
+            void *(*malloc)(size_t);
+            void *(*realloc)(void *, size_t);
+            void (*free)(void *);
+        } pln;
+        struct {
+            void *(*malloc)(void *userarg, size_t);
+            void *(*realloc)(void *userarg, void *, size_t);
+            void (*free)(void *userarg, void *);
+        } ext;
+    } mf_union;
+
+struct mem_funcs {
+    void *mf_arg;
+    mf_union mf;
+};
+
 typedef enum network_req_state_enum
 {
 	NET_REQ_NOT_SENT,
@@ -183,28 +205,10 @@ typedef struct getdns_dns_req
     /* dnssec status */
     int return_dnssec_status;
 
+    /* mem funcs */
+    struct mem_funcs my_mf;
+
 } getdns_dns_req;
-
-#define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)
-extern void *plain_mem_funcs_user_arg;
-
-typedef union {
-		struct {
-			void *(*malloc)(size_t);
-			void *(*realloc)(void *, size_t);
-			void (*free)(void *);
-		} pln;
-		struct {
-			void *(*malloc)(void *userarg, size_t);
-			void *(*realloc)(void *userarg, void *, size_t);
-			void (*free)(void *userarg, void *);
-		} ext;
-	} mf_union;
-
-struct mem_funcs {
-	void *mf_arg;
-	mf_union mf;
-};
 
 #define GETDNS_XMALLOC(obj, type, count)	\
     ((obj).mf_arg == MF_PLAIN \

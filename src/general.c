@@ -101,7 +101,7 @@ ub_local_resolve_timeout(void *arg)
 	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->ub_res);
 
 	/* cleanup the state */
-	free(cb_data);
+	GETDNS_FREE(dnsreq->my_mf, cb_data);
 }
 
 void priv_getdns_call_user_callback(getdns_dns_req *dns_req,
@@ -174,8 +174,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 		 * netreqs need to be issued and some resolve immediately vs. not.
 		 */
         getdns_dns_req *dnsreq = netreq->owner;
-        netreq_cb_data *cb_data =
-            (netreq_cb_data *) malloc(sizeof(netreq_cb_data));
+        netreq_cb_data *cb_data = GETDNS_MALLOC(dnsreq->my_mf, netreq_cb_data);
         cb_data->netreq = netreq;
         cb_data->err = err;
         cb_data->ub_res = ub_res;
