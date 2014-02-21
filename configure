@@ -11238,6 +11238,9 @@ _ACEOF
 fi
 done
 
+
+$as_echo "#define HAVE_LIBEVENT 1" >>confdefs.h
+
     for ac_header in event2/event.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "event2/event.h" "ac_cv_header_event2_event_h" "$ac_includes_default
@@ -11319,7 +11322,10 @@ $as_echo "$ac_cv_search_uv_run" >&6; }
 ac_res=$ac_cv_search_uv_run
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"
+
+$as_echo "#define HAVE_LIBUV 1" >>confdefs.h
+
+    EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"
 else
   have_libuv=0
     EXTENSION_LIBUV_LIB=""
@@ -11387,7 +11393,10 @@ $as_echo "$ac_cv_search_ev_run" >&6; }
 ac_res=$ac_cv_search_ev_run
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"
+
+$as_echo "#define HAVE_LIBEV 1" >>confdefs.h
+
+    EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"
 else
   have_libev=0
     EXTENSION_LIBEV_LIB=""

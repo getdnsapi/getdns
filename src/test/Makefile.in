@@ -61,7 +61,7 @@ tests_list: tests_list.o testmessages.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_list.o testmessages.o
 
 tests_stub_async: tests_stub_async.o testmessages.o
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_async.o testmessages.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(LDLIBS) -o $@ tests_stub_async.o testmessages.o
 
 tests_stub_sync: tests_stub_sync.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_sync.o
@@ -69,11 +69,11 @@ tests_stub_sync: tests_stub_sync.o
 check_getdns_common: check_getdns_common.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.o
 
-check_getdns: check_getdns.o check_getdns_common.o check_getdns_libev.o check_getdns_context_set_timeout.o
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_libev.o check_getdns_context_set_timeout.o
+check_getdns: check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o
 
 tests_dnssec: tests_dnssec.o testmessages.o
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dnssec.o testmessages.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(LDLIBS) -o $@ tests_dnssec.o testmessages.o
 
 
 test:	all

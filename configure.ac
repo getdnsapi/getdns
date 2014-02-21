@@ -202,6 +202,7 @@ EXTENSION_LIBEVENT_EXT_LIBS=""
 AC_SEARCH_LIBS([event_loop],
     [event_core event],
     [AC_CHECK_FUNCS([event_base_new event_base_free])]
+    [AC_DEFINE([HAVE_LIBEVENT], [1], [Define to 1 to enable the libevent extension])]
     [AC_CHECK_HEADERS([event2/event.h],,, [AC_INCLUDES_DEFAULT])]
     [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"],
     [have_libevent=0]
@@ -217,6 +218,7 @@ EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
 EXTENSION_LIBUV_EXT_LIBS=""
 AC_SEARCH_LIBS([uv_run],
     [uv],
+    [AC_DEFINE([HAVE_LIBUV], [1], [Define to 1 to enable the libuv extension])]
     [EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"],
     [have_libuv=0]
     [EXTENSION_LIBUV_LIB=""])
@@ -231,6 +233,7 @@ EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
 EXTENSION_LIBEV_EXT_LIBS=""
 AC_SEARCH_LIBS([ev_run],
     [ev],
+    [AC_DEFINE([HAVE_LIBEV], [1], [Define to 1 to enable the libev extension])]
     [EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"],
     [have_libev=0]
     [EXTENSION_LIBEV_LIB=""])
