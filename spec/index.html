@@ -1485,7 +1485,7 @@ function.</p>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="kt">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -1603,7 +1603,7 @@ their TTLs.</p>
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="kt">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -1884,7 +1884,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 
 <span class="cm">/* Set up the callback function, which will also do the processing of the results */</span>
 <span class="kt">void</span> <span class="nf">this_callbackfn</span><span class="p">(</span><span class="n">getdns_context</span> <span class="o">*</span><span class="n">this_context</span><span class="p">,</span>
-                     <span class="kt">uint16_t</span>     <span class="n">this_callback_type</span><span class="p">,</span>
+                     <span class="n">getdns_callback_type_t</span> <span class="n">this_callback_type</span><span class="p">,</span>
                      <span class="n">getdns_dict</span> <span class="o">*</span><span class="n">this_response</span><span class="p">,</span> 
                      <span class="kt">void</span> <span class="o">*</span><span class="n">this_userarg</span><span class="p">,</span>
                      <span class="kt">getdns_transaction_t</span> <span class="n">this_transaction_id</span><span class="p">)</span>
@@ -1933,10 +1933,8 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
 
                     <span class="n">getdns_bindata</span> <span class="o">*</span> <span class="n">this_dname</span><span class="p">;</span>
                     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_rdata</span><span class="p">,</span> <span class="s">&quot;rdata_raw&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_dname</span><span class="p">);</span>
-                    <span class="kt">char</span> <span class="o">*</span><span class="n">this_dname_str</span> <span class="o">=</span> <span class="n">getdns_convert_dns_name_to_fqdn</span><span class="p">((</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">this_dname</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">);</span>
-                    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;The dname is %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_dname_str</span><span class="p">);</span>
-                    <span class="n">free</span><span class="p">(</span><span class="n">this_dname_str</span><span class="p">);</span>
-
+                    <span class="kt">char</span> <span class="o">*</span><span class="n">this_dname_str</span><span class="p">;</span>
+                           <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_convert_dns_name_to_fqdn</span><span class="p">(</span><span class="n">this_dname</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_dname_str</span><span class="p">);</span> <span class="c1">// Ignore any error</span>
                 <span class="p">}</span>
             <span class="p">}</span>
 
@@ -2443,7 +2441,7 @@ The response dicts inherit the custom memory management functions and the value 
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.401.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.402.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
