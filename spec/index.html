@@ -664,8 +664,6 @@ getdns_dict_destroy(this_extensions);
 
 <li><code>specify_class</code></li>
 
-<li><code>return_api_information</code></li>
-
 <li><code>return_call_debugging</code></li>
 
 </ul>
@@ -860,30 +858,6 @@ contains the class number. Few applications will ever use this extension.</p>
 
 <h2>3.6 Extensions Relating to the API</h2>
 
-<p>An application might want to see information about the API itself. Use the
-<code>return_api_information</code> extension. An application that wants to get this information
-before a "real" query is issued can add this extension to a PTR query for 127.0.0.1.
-The extension's value (an int) is set to
-<code>GETDNS_EXTENSION_TRUE</code> to add the following to the top level of the response object:</p>
-
-<ul>
-
-<li><code>version_string</code> (a bindata) represents the version string for this version of the DNS
-API.</li>
-
-<li><code>implementation_string</code> (a bindata) is a string set by the API implementer. It might
-be human-readable, and it might have information in it useful to an application developer (but it doesn't
-have to).</li>
-
-<li><code>resolver_type</code> (an int) is the type of resolver that the API is acting as in this context:
-<code>GETDNS_RESOLUTION_RECURSING</code> or <code>GETDNS_RESOLUTION_STUB</code> (it will be
-a recursing resolver unless the application changed this in a context.</li>
-
-<li><code>all_context</code> (a dict) with names for all the types of context. This can be used with
-getdns_pretty_print_dict() for debugging.</li>
-
-</ul>
-
 <p>An application might want to see debugging information for queries such as the length of time it
 takes for each query to return to the API. Use the <code>return_call_debugging</code> extension. The
 extension's value (an int) is set to <code>GETDNS_EXTENSION_TRUE</code> to add the name
@@ -1004,7 +978,8 @@ They are: <code>id</code>, <code>qr</code>, <code>opcode</code>, <code>aa</code>
 <p>Resource records are a bit different than headers and question sections in that the RDATA portion
 often has its own structure. The other names in the resource record dicts are <code>name</code> (a
 bindata), <code>type</code> (an int), <code>class</code> (an int), <code>ttl</code> (an int) and
-<code>rdata</code> (a dict); there is no name equivalent to the RDLENGTH field.</p>
+<code>rdata</code> (a dict); there is no name equivalent to the RDLENGTH field.
+The <code>OPT</code> resource record is an exception.  It does not have a <code>class</code> and a <code>ttl</code> names, but in stead provides <code>udp_payload_size</code> (an int), <code>extended_rcode</code> (an int), <code>version</code> (an int), <code>do</code> (an int), and <code>z</code> (an int).</p>
 
 <p>The <code>rdata</code> dict has different names for each response type. There is a <a
 href="#TypeList">complete list of the types defined</a> in the API. For names that end in
@@ -2439,9 +2414,36 @@ The response dicts inherit the custom memory management functions and the value 
 <p class=descrip>Change related to <code>getdns_context_set_timeout</code></p>
 
 
+<h2>8.11 Getting API information and current Contexts</h2>
+<p>An application might want to see information about the API itself and inspect the current context.
+Use the <code>getdns_context_get_api_information</code> function.</p>
+<div class=forh>
+getdns_dict *
+getdns_context_get_api_information(
+  getdns_context *context
+);
+</div>
+<p>The returned <code>getdns_dict</code> will contain the following name/value pairs:</p>
+<ul>
+<li><code>version_string</code> (a bindata) represents the version string for this version of the DNS
+API.</li>
+
+<li><code>implementation_string</code> (a bindata) is a string set by the API implementer. It might
+be human-readable, and it might have information in it useful to an application developer (but it doesn't
+have to).</li>
+
+<li><code>resolver_type</code> (an int) is the type of resolver that the API is acting as in this context:
+<code>GETDNS_RESOLUTION_RECURSING</code> or <code>GETDNS_RESOLUTION_STUB</code> (it will be
+a recursing resolver unless the application changed this in a context.</li>
+
+<li><code>all_context</code> (a dict) with names for all the types of context. This can be used with
+getdns_pretty_print_dict() for debugging.</li>
+
+</ul>
+
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.402.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.403.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
