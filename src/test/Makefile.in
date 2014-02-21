@@ -39,11 +39,23 @@ LIBTOOL = @libtool@
 srcdir = @srcdir@
 VPATH = @srcdir@
 
+have_libevent = @have_libevent@
+have_libuv = @have_libuv@
+have_libev = @have_libev@
+
+EXTENSION_LIBEVENT_EXT_LIBS=@EXTENSION_LIBEVENT_EXT_LIBS@
+EXTENSION_LIBUV_EXT_LIBS=@EXTENSION_LIBUV_EXT_LIBS@
+EXTENSION_LIBEV_EXT_LIBS=@EXTENSION_LIBEV_EXT_LIBS@
+
+CHECK_UV_PROG=@CHECK_UV_PROG@
+CHECK_EVENT_PROG=@CHECK_EVENT_PROG@
+CHECK_EV_PROG=@CHECK_EV_PROG@
+
 CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99 $(cflags)
 LDFLAGS=@LDFLAGS@ -L. -L.. -L$(srcdir)/../ -L/usr/local/lib
 LDLIBS=-lgetdns @LIBS@ -lcheck
-PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync check_getdns tests_dnssec
+PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync check_getdns tests_dnssec $(CHECK_EV_PROG) $(CHECK_EVENT_PROG) $(CHECK_UV_PROG)
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -69,8 +81,17 @@ tests_stub_sync: tests_stub_sync.o
 check_getdns_common: check_getdns_common.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.o
 
-check_getdns: check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o
+check_getdns: check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_selectloop.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_selectloop.o
+
+check_getdns_event: check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_libevent.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(EXTENSION_LIBEVENT_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_libevent.o
+
+check_getdns_uv: check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_libuv.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_uv $(EXTENSION_LIBUV_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_libuv.o
+
+check_getdns_ev: check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_libev.o
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_ev $(EXTENSION_LIBEV_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.o check_getdns_common.o check_getdns_context_set_timeout.o check_getdns_libev.o
 
 tests_dnssec: tests_dnssec.o testmessages.o
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(LDLIBS) -o $@ tests_dnssec.o testmessages.o
@@ -78,6 +99,9 @@ tests_dnssec: tests_dnssec.o testmessages.o
 
 test:	all
 	./check_getdns
+	if test $(have_libevent) = 1 ; then ./$(CHECK_EVENT_PROG) ; fi
+	if test $(have_libev) = 1 ; then ./$(CHECK_EV_PROG) ; fi
+	if test $(have_libuv) = 1 ; then ./$(CHECK_UV_PROG) ; fi
 	@echo "All tests OK"
 
 clean:

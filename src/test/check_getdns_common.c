@@ -32,28 +32,10 @@
 #include <check.h>
 #include <getdns/getdns.h>
 #include "config.h"
-#include <dlfcn.h>
-#if HAVE_LIBEVENT
-#include "check_getdns_libevent.h"
-typedef getdns_return_t
-(*getdns_extension_set_libevent_loop_fn)(struct getdns_context *context,
-    struct event_base *this_event_base);
-#endif
-#if HAVE_LIBUV
-#include <uv.h>
-#endif
-#if HAVE_LIBEV
-#include "check_getdns_libev.h"
-#endif
 #include "check_getdns_common.h"
+#include "check_getdns_eventloop.h"
 #include <unistd.h>
 #include <sys/time.h>
-
-#ifdef __APPLE__
-#define SO_EXT ".dylib"
-#else
-#define SO_EXT ".so"
-#endif
 
 int callback_called = 0;
 int callback_completed = 0;
@@ -335,94 +317,10 @@ void update_callbackfn(struct getdns_context *context,
     changed_item, expected_changed_item);
 }
 
-#define NO_LOOP 0
-#define LIBEVENT_LOOP 1
-#define LIBUV_LOOP 2
-#define LIBEV_LOOP 3
-
-static int get_event_loop_type() {
-    int result = 0;
-    char* loop = getenv("GETDNS_EVLOOP");
-    if (loop && strcmp("libevent", loop) == 0) {
-        result = LIBEVENT_LOOP;
-    }
-    if (loop && strcmp("libuv", loop) == 0) {
-        result = LIBUV_LOOP;
-    }
-    if (loop && strcmp("libev", loop) == 0) {
-        result = LIBEV_LOOP;
-    }
-    return result;
-}
-
 void run_event_loop(struct getdns_context* context, void* eventloop) {
-    int event_loop_type = get_event_loop_type();
-    if (event_loop_type == NO_LOOP) {
-        struct timeval tv;
-        while (getdns_context_get_num_pending_requests(context, &tv) > 0) {
-            int fd = getdns_context_fd(context);
-            fd_set read_fds;
-            FD_ZERO(&read_fds);
-            FD_SET(fd, &read_fds);
-            select(fd + 1, &read_fds, NULL, NULL, &tv);
-            getdns_context_process_async(context);
-        }
-    }
-    // #if HAVE_LIBEVENT
-    // else if (event_loop_type == LIBEVENT_LOOP) {
-    //     struct event_base* base = (struct event_base*) eventloop;
-    //     while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-    //         event_base_loop(base, EVLOOP_ONCE);
-    //     }
-    // }
-    // #endif
-    // #if HAVE_LIBUV
-    // else if (event_loop_type == LIBUV_LOOP) {
-    //     uv_loop_t* loop = (uv_loop_t*) eventloop;
-    //     while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-    //         uv_run(loop, UV_RUN_ONCE);
-    //     }
-    // }
-    // #endif
-    // #if HAVE_LIBEV
-    // else if (event_loop_type == LIBEV_LOOP) {
-    //     run_libev_event_loop(context, eventloop);
-    // }
-    // #endif
+    run_event_loop_impl(context, eventloop);
 }
 
 void* create_event_base(struct getdns_context* context) {
-    // int event_loop_type = get_event_loop_type();
-    // #if HAVE_LIBEVENT
-    // if (event_loop_type == LIBEVENT_LOOP) {
-    //     /* load the lib */
-    //     void* ext_library = dlopen("libgetdns_ext_event" SO_EXT, RTLD_LAZY);
-    //     if (!ext_library) { return NULL; }
-    //     void* ext_setter = dlsym(ext_library,"getdns_extension_set_libevent_base");
-    //     if (!ext_setter) { return NULL; }
-    //     getdns_extension_set_libevent_loop_fn fn = (getdns_extension_set_libevent_loop_fn) ext_setter;
-    //     struct event_base* result = event_base_new();
-    //     ck_assert_msg(result != NULL, "Event base creation failed");
-    //     ASSERT_RC(fn(context, result),
-    //         GETDNS_RETURN_GOOD,
-    //         "Return code from getdns_extension_set_libevent_base()");
-    //     return result;
-    // }
-    //#endif
-    // #if HAVE_LIBUV
-    // if (event_loop_type == LIBUV_LOOP) {
-    //     uv_loop_t* result = uv_default_loop();
-    //     ck_assert_msg(result != NULL, "UV loop creation failed");
-    //     ASSERT_RC(getdns_extension_set_libuv_loop(context, result),
-    //         GETDNS_RETURN_GOOD,
-    //         "Return code from getdns_extension_set_libuv_loop()");
-    //     return result;
-    // }
-    // #endif
-    // #if HAVE_LIBEV
-    // if (event_loop_type == LIBEV_LOOP) {
-    //     return create_libev_base(context);
-    // }
-    // #endif
-    return NULL;
+    return create_eventloop_impl(context);
 }

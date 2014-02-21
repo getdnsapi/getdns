@@ -34,15 +34,13 @@
  */
 
 /* this is used to prevent header conflicts with libevent and libev */
-#ifndef _check_getdns_libev_h_
-#define _check_getdns_libev_h_
+#ifndef _check_getdns_eventloop_h_
+#define _check_getdns_eventloop_h_
 
 #include "config.h"
 
-#if HAVE_LIBEV
 struct getdns_context* context;
-void run_libev_event_loop(struct getdns_context* context, void* eventloop);
-void* create_libev_base(struct getdns_context* context);
-#endif
+void run_event_loop_impl(struct getdns_context* context, void* eventloop);
+void* create_eventloop_impl(struct getdns_context* context);
 
 #endif

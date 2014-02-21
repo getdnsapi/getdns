@@ -64,9 +64,9 @@
      {                                          				\
        size_t buflen = MAXLEN;							\
        char error_string[MAXLEN];                				\
-       getdns_return_t evaluated_rc = rc;					\
+       uint32_t evaluated_rc = rc;					\
        getdns_strerror(evaluated_rc, error_string, buflen);			\
-       ck_assert_msg(evaluated_rc == expected_rc,				\
+       ck_assert_msg((uint32_t) evaluated_rc == (uint32_t) expected_rc,				\
          "%s: expecting %s: %d, but received: %d: %s",				\
          prefix, #expected_rc, expected_rc, evaluated_rc, error_string);	\
      }

@@ -199,48 +199,54 @@ EXTENSION_LDFLAGS=$LDFLAGS
 have_libevent=1
 EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
 EXTENSION_LIBEVENT_EXT_LIBS=""
+CHECK_EVENT_PROG=""
 AC_SEARCH_LIBS([event_loop],
     [event_core event],
     [AC_CHECK_FUNCS([event_base_new event_base_free])]
-    [AC_DEFINE([HAVE_LIBEVENT], [1], [Define to 1 to enable the libevent extension])]
     [AC_CHECK_HEADERS([event2/event.h],,, [AC_INCLUDES_DEFAULT])]
-    [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"],
+    [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"]
+    [CHECK_EVENT_PROG=check_getdns_event],
     [have_libevent=0]
     [EXTENSION_LIBEVENT_LIB=""])
 
 AC_SUBST(have_libevent)
 AC_SUBST(EXTENSION_LIBEVENT_LIB)
 AC_SUBST(EXTENSION_LIBEVENT_EXT_LIBS)
+AC_SUBST(CHECK_EVENT_PROG)
 
 # libuv extension
 have_libuv=1
 EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
 EXTENSION_LIBUV_EXT_LIBS=""
+CHECK_UV_PROG=""
 AC_SEARCH_LIBS([uv_run],
     [uv],
-    [AC_DEFINE([HAVE_LIBUV], [1], [Define to 1 to enable the libuv extension])]
-    [EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"],
+    [EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"]
+    [CHECK_UV_PROG=check_getdns_uv],
     [have_libuv=0]
     [EXTENSION_LIBUV_LIB=""])
 
 AC_SUBST(have_libuv)
 AC_SUBST(EXTENSION_LIBUV_LIB)
 AC_SUBST(EXTENSION_LIBUV_EXT_LIBS)
+AC_SUBST(CHECK_UV_PROG)
 
 # libev extension
 have_libev=1
 EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
 EXTENSION_LIBEV_EXT_LIBS=""
+
 AC_SEARCH_LIBS([ev_run],
     [ev],
-    [AC_DEFINE([HAVE_LIBEV], [1], [Define to 1 to enable the libev extension])]
-    [EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"],
+    [EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"]
+    [CHECK_EV_PROG=check_getdns_ev],
     [have_libev=0]
     [EXTENSION_LIBEV_LIB=""])
 
 AC_SUBST(have_libev)
 AC_SUBST(EXTENSION_LIBEV_LIB)
 AC_SUBST(EXTENSION_LIBEV_EXT_LIBS)
+AC_SUBST(CHECK_EV_PROG)
 
 AC_SUBST(EXTENSION_LDFLAGS)
 

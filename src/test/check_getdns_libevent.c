@@ -35,23 +35,23 @@
 
 #include "check_getdns_eventloop.h"
 
-#include <getdns/getdns_ext_libev.h>
-#include <ev.h>
+#include <getdns/getdns_ext_libevent.h>
+#include "check_getdns_libevent.h"
 #include <check.h>
 #include "check_getdns_common.h"
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
-    struct ev_loop* loop = (struct ev_loop*) eventloop;
+    struct event_base* base = (struct event_base*) eventloop;
     while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-        ev_run(loop, EVRUN_ONCE);
+        event_base_loop(base, EVLOOP_ONCE);
     }
 }
 
 void* create_eventloop_impl(struct getdns_context* context) {
-    struct ev_loop* result = ev_default_loop(0);
-    ck_assert_msg(result != NULL, "EV loop creation failed");
-    ASSERT_RC(getdns_extension_set_libev_loop(context, result),
+    struct event_base* result = event_base_new();
+    ck_assert_msg(result != NULL, "Event base creation failed");
+    ASSERT_RC(getdns_extension_set_libevent_base(context, result),
         GETDNS_RETURN_GOOD,
-        "Return code from getdns_extension_set_libev_loop()");
+        "Return code from getdns_extension_set_libevent_base()");
     return result;
 }

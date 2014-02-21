@@ -636,12 +636,15 @@ ac_subst_vars='LTLIBOBJS
 LIBOBJS
 TRUST_ANCHOR_FILE
 EXTENSION_LDFLAGS
+CHECK_EV_PROG
 EXTENSION_LIBEV_EXT_LIBS
 EXTENSION_LIBEV_LIB
 have_libev
+CHECK_UV_PROG
 EXTENSION_LIBUV_EXT_LIBS
 EXTENSION_LIBUV_LIB
 have_libuv
+CHECK_EVENT_PROG
 EXTENSION_LIBEVENT_EXT_LIBS
 EXTENSION_LIBEVENT_LIB
 have_libevent
@@ -11173,6 +11176,7 @@ EXTENSION_LDFLAGS=$LDFLAGS
 have_libevent=1
 EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
 EXTENSION_LIBEVENT_EXT_LIBS=""
+CHECK_EVENT_PROG=""
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_loop" >&5
 $as_echo_n "checking for library containing event_loop... " >&6; }
 if ${ac_cv_search_event_loop+:} false; then :
@@ -11238,9 +11242,6 @@ _ACEOF
 fi
 done
 
-
-$as_echo "#define HAVE_LIBEVENT 1" >>confdefs.h
-
     for ac_header in event2/event.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "event2/event.h" "ac_cv_header_event2_event_h" "$ac_includes_default
@@ -11255,6 +11256,7 @@ fi
 done
 
     EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"
+    CHECK_EVENT_PROG=check_getdns_event
 else
   have_libevent=0
     EXTENSION_LIBEVENT_LIB=""
@@ -11265,10 +11267,12 @@ fi
 
 
 
+
 # libuv extension
 have_libuv=1
 EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
 EXTENSION_LIBUV_EXT_LIBS=""
+CHECK_UV_PROG=""
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing uv_run" >&5
 $as_echo_n "checking for library containing uv_run... " >&6; }
 if ${ac_cv_search_uv_run+:} false; then :
@@ -11322,10 +11326,8 @@ $as_echo "$ac_cv_search_uv_run" >&6; }
 ac_res=$ac_cv_search_uv_run
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-$as_echo "#define HAVE_LIBUV 1" >>confdefs.h
-
-    EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"
+  EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"
+    CHECK_UV_PROG=check_getdns_uv
 else
   have_libuv=0
     EXTENSION_LIBUV_LIB=""
@@ -11336,10 +11338,12 @@ fi
 
 
 
+
 # libev extension
 have_libev=1
 EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
 EXTENSION_LIBEV_EXT_LIBS=""
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing ev_run" >&5
 $as_echo_n "checking for library containing ev_run... " >&6; }
 if ${ac_cv_search_ev_run+:} false; then :
@@ -11393,14 +11397,13 @@ $as_echo "$ac_cv_search_ev_run" >&6; }
 ac_res=$ac_cv_search_ev_run
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-
-$as_echo "#define HAVE_LIBEV 1" >>confdefs.h
-
-    EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"
+  EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"
+    CHECK_EV_PROG=check_getdns_ev
 else
   have_libev=0
     EXTENSION_LIBEV_LIB=""
 fi
+
 
 
 
