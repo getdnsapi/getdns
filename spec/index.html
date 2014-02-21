@@ -979,7 +979,7 @@ They are: <code>id</code>, <code>qr</code>, <code>opcode</code>, <code>aa</code>
 often has its own structure. The other names in the resource record dicts are <code>name</code> (a
 bindata), <code>type</code> (an int), <code>class</code> (an int), <code>ttl</code> (an int) and
 <code>rdata</code> (a dict); there is no name equivalent to the RDLENGTH field.
-The <code>OPT</code> resource record is an exception.  It does not have a <code>class</code> and a <code>ttl</code> names, but in stead provides <code>udp_payload_size</code> (an int), <code>extended_rcode</code> (an int), <code>version</code> (an int), <code>do</code> (an int), and <code>z</code> (an int).</p>
+The <code>OPT</code> resource record does not have the <code>class</code> and the <code>ttl</code> name, but in stead provides <code>udp_payload_size</code> (an int), <code>extended_rcode</code> (an int), <code>version</code> (an int), <code>do</code> (an int), and <code>z</code> (an int).</p>
 
 <p>The <code>rdata</code> dict has different names for each response type. There is a <a
 href="#TypeList">complete list of the types defined</a> in the API. For names that end in
@@ -2443,7 +2443,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.403.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.404.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
