@@ -1009,16 +1009,6 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
 getdns_dict*
 getdns_context_get_api_information(getdns_context* context);
 
-/* Async support */
-struct timeval;
-int getdns_context_get_num_pending_requests(getdns_context* context, struct timeval* next_timeout);
-
-/* get the fd */
-int getdns_context_fd(getdns_context* context);
-
-/* process async reqs */
-getdns_return_t getdns_context_process_async(getdns_context* context);
-
 /* Get root trust anchor */
 getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);
 

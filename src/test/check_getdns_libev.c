@@ -42,9 +42,7 @@
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
     struct ev_loop* loop = (struct ev_loop*) eventloop;
-    while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-        ev_run(loop, EVRUN_ONCE);
-    }
+    ev_run(loop, 0);
 }
 
 void* create_eventloop_impl(struct getdns_context* context) {

@@ -46,20 +46,45 @@ struct getdns_libev_data {
     struct ev_io* poll_handle;
 };
 
-/* lib event callbacks */
+static void
+request_count_changed(uint32_t request_count, struct getdns_libev_data *ev_data) {
+    if (request_count > 0) {
+        ev_io_start(ev_data->loop, ev_data->poll_handle);
+    } else {
+        ev_io_stop(ev_data->loop, ev_data->poll_handle);
+    }
+}
+
+/* lib ev callbacks */
 static void
 getdns_libev_cb(struct ev_loop *loop, struct ev_io *handle, int revents) {
     struct getdns_context* context = (struct getdns_context*) handle->data;
     getdns_context_process_async(context);
+    uint32_t rc = getdns_context_get_num_pending_requests(context, NULL);
+    struct getdns_libev_data* ev_data =
+        (struct getdns_libev_data*) getdns_context_get_extension_data(context);
+    request_count_changed(rc, ev_data);
 }
 
 static void
 getdns_libev_timeout_cb(struct ev_loop *loop, struct ev_timer* handle, int status) {
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) handle->data;
     timeout_data->callback(timeout_data->userarg);
+    uint32_t rc = getdns_context_get_num_pending_requests(timeout_data->context, NULL);
+    struct getdns_libev_data* ev_data =
+        (struct getdns_libev_data*) getdns_context_get_extension_data(timeout_data->context);
+    request_count_changed(rc, ev_data);
 }
 
 /* getdns extension functions */
+static getdns_return_t
+getdns_libev_request_count_changed(struct getdns_context* context,
+    uint32_t request_count, void* eventloop_data) {
+    struct getdns_libev_data *ev_data = (struct getdns_libev_data*) eventloop_data;
+    request_count_changed(request_count, ev_data);
+    return GETDNS_RETURN_GOOD;
+}
+
 static getdns_return_t
 getdns_libev_cleanup(struct getdns_context* context, void* data) {
     struct getdns_libev_data *ev_data = (struct getdns_libev_data*) data;
@@ -102,7 +127,8 @@ getdns_libev_clear_timeout(struct getdns_context* context,
 static getdns_eventloop_extension LIBEV_EXT = {
     getdns_libev_cleanup,
     getdns_libev_schedule_timeout,
-    getdns_libev_clear_timeout
+    getdns_libev_clear_timeout,
+    getdns_libev_request_count_changed
 };
 
 /*
@@ -129,7 +155,6 @@ getdns_extension_set_libev_loop(struct getdns_context *context,
     ev_io_init(ev_data->poll_handle, getdns_libev_cb, fd, EV_READ);
     ev_data->loop = loop;
 
-    ev_io_start(ev_data->loop, ev_data->poll_handle);
     ev_data->poll_handle->data = context;
     return getdns_extension_set_eventloop(context, &LIBEV_EXT, ev_data);
 }               /* getdns_extension_set_libev_loop */

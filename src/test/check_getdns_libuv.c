@@ -42,9 +42,7 @@
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
     uv_loop_t* loop = (uv_loop_t*) eventloop;
-    while (getdns_context_get_num_pending_requests(context, NULL) > 0) {
-        uv_run(loop, UV_RUN_ONCE);
-    }
+    uv_run(loop, UV_RUN_DEFAULT);
 }
 
 

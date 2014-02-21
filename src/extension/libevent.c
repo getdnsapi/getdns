@@ -72,20 +72,45 @@ struct event_data {
     struct event_base* event_base;
 };
 
+static void
+request_count_changed(uint32_t request_count, struct event_data *ev_data) {
+    if (request_count > 0) {
+        event_add(ev_data->event, NULL);
+    } else {
+        event_del(ev_data->event);
+    }
+}
+
 /* lib event callbacks */
 static void
 getdns_libevent_cb(evutil_socket_t fd, short what, void *userarg) {
     struct getdns_context* context = (struct getdns_context*) userarg;
     getdns_context_process_async(context);
+    uint32_t rc = getdns_context_get_num_pending_requests(context, NULL);
+    struct event_data* ev_data =
+        (struct event_data*) getdns_context_get_extension_data(context);
+    request_count_changed(rc, ev_data);
 }
 
 static void
 getdns_libevent_timeout_cb(evutil_socket_t fd, short what, void* userarg) {
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) userarg;
     timeout_data->callback(timeout_data->userarg);
+    uint32_t rc = getdns_context_get_num_pending_requests(timeout_data->context, NULL);
+    struct event_data* ev_data =
+        (struct event_data*) getdns_context_get_extension_data(timeout_data->context);
+    request_count_changed(rc, ev_data);
 }
 
 /* getdns extension functions */
+static getdns_return_t
+getdns_libevent_request_count_changed(struct getdns_context* context,
+    uint32_t request_count, void* eventloop_data) {
+    struct event_data *edata = (struct event_data*) eventloop_data;
+    request_count_changed(request_count, edata);
+    return GETDNS_RETURN_GOOD;
+}
+
 static getdns_return_t
 getdns_libevent_cleanup(struct getdns_context* context, void* data) {
     struct event_data *edata = (struct event_data*) data;
@@ -128,7 +153,8 @@ getdns_libevent_clear_timeout(struct getdns_context* context,
 static getdns_eventloop_extension LIBEVENT_EXT = {
     getdns_libevent_cleanup,
     getdns_libevent_schedule_timeout,
-    getdns_libevent_clear_timeout
+    getdns_libevent_clear_timeout,
+    getdns_libevent_request_count_changed
 };
 
 /*
@@ -151,7 +177,6 @@ getdns_extension_set_libevent_base(struct getdns_context *context,
     if (!getdns_event) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
-    event_add(getdns_event, NULL);
 
     /* TODO: use context functs? */
     struct event_data* ev_data = (struct event_data*) malloc(sizeof(struct event_data));
@@ -163,6 +188,5 @@ getdns_extension_set_libevent_base(struct getdns_context *context,
     }
     ev_data->event = getdns_event;
     ev_data->event_base = this_event_base;
-
     return getdns_extension_set_eventloop(context, &LIBEVENT_EXT, ev_data);
 }               /* getdns_extension_set_libevent_base */

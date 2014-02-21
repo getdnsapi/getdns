@@ -74,11 +74,8 @@ ub_resolve_timeout(void *arg)
 	getdns_callback_t cb = dns_req->user_callback;
 	void *user_arg = dns_req->user_pointer;
 
-	/* cancel the req - also clears it from outbound */
+	/* cancel the req - also clears it from outbound and cleans up*/
 	getdns_context_cancel_request(context, trans_id, 0);
-
-	/* cleanup */
-	dns_req_free(dns_req);
 
 	cb(context, GETDNS_CALLBACK_TIMEOUT, NULL, user_arg, trans_id);
 }

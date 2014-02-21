@@ -1183,15 +1183,14 @@ getdns_context_cancel_request(struct getdns_context *context,
         cb = req->user_callback;
         user_pointer = req->user_pointer;
 
-        /* clean up */
-        GETDNS_FREE(context->my_mf, node);
-        dns_req_free(req);
-
         /* fire callback */
         cb(context,
             GETDNS_CALLBACK_CANCEL,
             NULL, user_pointer, transaction_id);
     }
+    /* clean up */
+    GETDNS_FREE(context->my_mf, node);
+    dns_req_free(req);
     return GETDNS_RETURN_GOOD;
 }
 
@@ -1204,7 +1203,12 @@ getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    return getdns_context_cancel_request(context, transaction_id, 1);
+    getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
+    if (context->extension) {
+        context->extension->request_count_changed(context,
+            context->outbound_requests->count, context->extension_data);
+    }
+    return r;
 } /* getdns_cancel_callback */
 
 static getdns_return_t
@@ -1384,6 +1388,10 @@ getdns_context_track_outbound_request(getdns_dns_req * req)
         GETDNS_FREE(context->my_mf, node);
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    if (context->extension) {
+        context->extension->request_count_changed(context,
+            context->outbound_requests->count, context->extension_data);
+    }
     return GETDNS_RETURN_GOOD;
 }
 
@@ -1454,11 +1462,11 @@ int getdns_context_fd(struct getdns_context* context) {
     return ub_fd(context->unbound_ctx);
 }
 
-int
+uint32_t
 getdns_context_get_num_pending_requests(struct getdns_context* context,
     struct timeval* next_timeout) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    int r = context->outbound_requests->count;
+    uint32_t r = context->outbound_requests->count;
     if (r > 0) {
         if (!context->extension && next_timeout) {
             /* default is 1 second */
@@ -1695,6 +1703,12 @@ getdns_context_clear_timeout(struct getdns_context* context,
     }
     GETDNS_FREE(context->my_mf, timeout_data);
     return GETDNS_RETURN_GOOD;
+}
+
+void*
+getdns_context_get_extension_data(struct getdns_context* context) {
+    RETURN_IF_NULL(context, NULL);
+    return context->extension_data;
 }
 
 static inline getdns_return_t

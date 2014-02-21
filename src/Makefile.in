@@ -98,7 +98,7 @@ install:	libgetdns.la
 
 uninstall:
 	rm -rf $(DESTDIR)$(includedir)/getdns
-	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_LIBEV_LIB)
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la $(DESTDIR)$(libdir)/$(EXTENSION_LIBEVENT_LIB) $(DESTDIR)$(libdir)/$(EXTENSION_LIBUV_LIB) $(DESTDIR)$(libdir)/$(EXTENSION_LIBEV_LIB)
 
 libgetdns_ext_event.la: libgetdns.la extension/libevent.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined
