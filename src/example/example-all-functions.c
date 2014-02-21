@@ -1,29 +1,3 @@
-/*
- * Copyright (c) 2013, NLNet Labs, Versign, Inc.
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- * * Neither the name of the <organization> nor the
- *   names of its contributors may be used to endorse or promote products
- *   derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -40,6 +14,7 @@ char * retcharstar;
 /* The args */
 int    boolarg;
 char * charstararg;
+char ** charstarptrarg;
 getdns_callback_t callbackarg;
 uint16_t regulararg;
 uint16_t *regularptrarg;
@@ -52,16 +27,16 @@ getdns_transport_t transportarg;
 getdns_append_name_t appendnamearg;
 
 getdns_data_type * datatypeptrarg;
-struct getdns_bindata ** bindataptrarg;
-struct getdns_dict * dictarg;
-struct getdns_bindata * bindataarg;
-struct getdns_list * listarg;
-struct getdns_dict ** dictptrarg;
-struct getdns_list ** listptrarg;
+getdns_bindata ** bindataptrarg;
+getdns_dict * dictarg;
+getdns_bindata * bindataarg;
+getdns_list * listarg;
+getdns_dict ** dictptrarg;
+getdns_list ** listptrarg;
 
 size_t sizetarg;
 size_t * sizetptrarg;
-struct getdns_context *contextarg = NULL;
+getdns_context *contextarg = NULL;
 uint8_t uint8arg;
 uint16_t uint16arg;
 uint32_t uint32arg;
@@ -80,7 +55,7 @@ void * extendedreallocfunctionarg(void* userarg, void* foo, size_t bar)
 	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo); UNUSED_PARAM(bar); return NULL; }
 void extendeddeallocfunctionarg(void* userarg, void* foo)
 	{UNUSED_PARAM(userarg); UNUSED_PARAM(foo);}
-void setcallbackfunctionarg(struct getdns_context *foo1, getdns_context_code_t foo2)
+void setcallbackfunctionarg(getdns_context *foo1, getdns_context_code_t foo2)
 	{UNUSED_PARAM(foo1);UNUSED_PARAM(foo2);}
 
 int main()
@@ -236,12 +211,14 @@ retregular =  getdns_dict_set_bindata(dictarg, charstararg, bindataarg);
 retregular =  getdns_dict_set_int(dictarg, charstararg, uint32arg);
 retregular =  getdns_dict_remove_name(dictarg, charstararg);
 
-retcharstar =  getdns_convert_fqdn_to_dns_name(
-  charstararg
+retregular =  getdns_convert_fqdn_to_dns_name(
+  charstararg,
+  bindataptrarg
 );
 
-retcharstar =  getdns_convert_dns_name_to_fqdn(
-  charstararg
+retregular =  getdns_convert_dns_name_to_fqdn(
+  bindataarg,
+  charstarptrarg
 );
 
 retcharstar = getdns_convert_ulabel_to_alabel(
