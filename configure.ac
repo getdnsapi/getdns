@@ -6,7 +6,7 @@
 #
 # Copyright (c) 2013, Versign, Inc., NLNet Labs
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 # * Redistributions of source code must retain the above copyright
@@ -17,7 +17,7 @@
 # * Neither the name of the <organization> nor the
 #   names of its contributors may be used to endorse or promote products
 #   derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -190,50 +190,58 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
+getdns_LIBS=$LIBS
+getdns_LDFLAGS=$LDFLAGS
+
+EXTENSION_LDFLAGS=$LDFLAGS
+
 # libevent extension
 have_libevent=1
-EXTENSION_LIBEVENT_OBJ="extension/libevent.lo"
+EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
+EXTENSION_LIBEVENT_EXT_LIBS=""
 AC_SEARCH_LIBS([event_loop],
     [event_core event],
-    [AC_DEFINE([HAVE_LIBEVENT], [1], [Define to 1 to enable the libevent extension])]
     [AC_CHECK_FUNCS([event_base_new event_base_free])]
-    [AH_BOTTOM([
-    #ifndef HAVE_EVENT_BASE_FREE
-    #define event_base_free(x) /* nop */
-    #endif
-    #ifndef HAVE_EVENT_BASE_NEW
-    #define event_base_new event_init
-    #endif
-    ])],
+    [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"],
     [have_libevent=0]
-    [EXTENSION_LIBEVENT_OBJ=""])
+    [EXTENSION_LIBEVENT_LIB=""])
 
 AC_SUBST(have_libevent)
-AC_SUBST(EXTENSION_LIBEVENT_OBJ)
+AC_SUBST(EXTENSION_LIBEVENT_LIB)
+AC_SUBST(EXTENSION_LIBEVENT_EXT_LIBS)
 
 # libuv extension
 have_libuv=1
-EXTENSION_LIBUV_OBJ="extension/libuv.lo"
+EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
+EXTENSION_LIBUV_EXT_LIBS=""
 AC_SEARCH_LIBS([uv_run],
     [uv],
-    [AC_DEFINE([HAVE_LIBUV], [1], [Define to 1 to enable the libuv extension])],
+    [EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"],
     [have_libuv=0]
-    [EXTENSION_LIBUV_OBJ=""])
+    [EXTENSION_LIBUV_LIB=""])
 
 AC_SUBST(have_libuv)
-AC_SUBST(EXTENSION_LIBUV_OBJ)
+AC_SUBST(EXTENSION_LIBUV_LIB)
+AC_SUBST(EXTENSION_LIBUV_EXT_LIBS)
 
 # libev extension
 have_libev=1
-EXTENSION_LIBEV_OBJ="extension/libev.lo"
+EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
+EXTENSION_LIBEV_EXT_LIBS=""
 AC_SEARCH_LIBS([ev_run],
     [ev],
-    [AC_DEFINE([HAVE_LIBEV], [1], [Define to 1 to enable the libev extension])],
+    [EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"],
     [have_libev=0]
-    [EXTENSION_LIBEV_OBJ=""])
+    [EXTENSION_LIBEV_LIB=""])
 
 AC_SUBST(have_libev)
-AC_SUBST(EXTENSION_LIBEV_OBJ)
+AC_SUBST(EXTENSION_LIBEV_LIB)
+AC_SUBST(EXTENSION_LIBEV_EXT_LIBS)
+
+AC_SUBST(EXTENSION_LDFLAGS)
+
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
 
 # --with-trust-anchor=
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])

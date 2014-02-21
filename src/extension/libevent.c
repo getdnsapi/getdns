@@ -35,7 +35,6 @@
 
 #include <getdns/getdns_ext_libevent.h>
 #include "config.h"
-#include "context.h"
 #include <sys/time.h>
 
 #ifdef HAVE_EVENT2_EVENT_H
@@ -47,6 +46,13 @@
 #  define evtimer_new(b, cb, arg) event_new((b), -1, 0, (cb), (arg))
 #endif
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
+
+#ifndef HAVE_EVENT_BASE_FREE
+#define event_base_free(x) /* nop */
+#endif
+#ifndef HAVE_EVENT_BASE_NEW
+#define event_base_new event_init
+#endif
 
 #ifndef HAVE_EVENT2_EVENT_H
 static struct event *

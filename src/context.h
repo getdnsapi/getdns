@@ -170,14 +170,6 @@ void getdns_bindata_destroy(
     struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
 
-/* extension stuff */
-getdns_return_t getdns_extension_set_eventloop(struct getdns_context* context,
-    getdns_eventloop_extension* extension, void* extension_data);
-
-getdns_return_t
-getdns_extension_detach_eventloop(struct getdns_context* context);
-
-
 /* timeout scheduling */
 getdns_return_t getdns_context_schedule_timeout(struct getdns_context* context,
     getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,

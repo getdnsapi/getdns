@@ -15,12 +15,6 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 to enable the libev extension */
-#undef HAVE_LIBEV
-
-/* Define to 1 to enable the libevent extension */
-#undef HAVE_LIBEVENT
-
 /* Define to 1 if you have the `idn' library (-lidn). */
 #undef HAVE_LIBIDN
 
@@ -29,9 +23,6 @@
 
 /* Define to 1 if you have the `unbound' library (-lunbound). */
 #undef HAVE_LIBUNBOUND
-
-/* Define to 1 to enable the libuv extension */
-#undef HAVE_LIBUV
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
@@ -124,12 +115,3 @@
 /* Define to the type of an unsigned integer type of width exactly 8 bits if
    such a type exists and the standard includes do not define it. */
 #undef uint8_t
-
-
-    #ifndef HAVE_EVENT_BASE_FREE
-    #define event_base_free(x) /* nop */
-    #endif
-    #ifndef HAVE_EVENT_BASE_NEW
-    #define event_base_new event_init
-    #endif
-    

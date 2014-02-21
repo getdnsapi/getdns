@@ -249,35 +249,6 @@ getdns_dns_req *dns_req_new(struct getdns_context *context,
 void dns_req_free(getdns_dns_req * req);
 
 
-/* extensions */
-typedef void (*getdns_timeout_callback) (void* userarg);
-
-/* context timeout data */
-typedef struct getdns_timeout_data {
-    getdns_transaction_t transaction_id;
-    struct timeval timeout_time;
-    getdns_timeout_callback callback;
-    void* userarg;
-    void* extension_timer;
-    struct getdns_context* context;
-} getdns_timeout_data_t;
-
-typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* eventloop_data);
-typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, uint16_t timeout,
-    getdns_timeout_data_t* timeout_data,
-    void** eventloop_timer);
-typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, void* eventloop_timer);
-
-
-typedef struct getdns_eventloop_extension {
-    getdns_eventloop_cleanup_t cleanup_data;
-    getdns_eventloop_schedule_timeout_t schedule_timeout;
-    getdns_eventloop_clear_timeout_t clear_timeout;
-} getdns_eventloop_extension;
-
-
 #endif
 
 /* types-internal.h */

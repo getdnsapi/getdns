@@ -41,7 +41,7 @@ extern "C" {
 #endif
 
 #include <getdns/getdns.h>
-
+#include <getdns/getdns_extra.h>
 struct event_base;
 
 /* For libevent, which we are using for these examples */

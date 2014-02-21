@@ -34,8 +34,6 @@
  */
 
 #include <getdns/getdns_ext_libuv.h>
-#include "config.h"
-#include "context.h"
 #include <sys/time.h>
 #include <stdio.h>
 #include <uv.h>
