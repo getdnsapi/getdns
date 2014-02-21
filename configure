@@ -11082,7 +11082,7 @@ $as_echo "$as_me: WARNING: Doxygen not found, continuing without" >&2;}
 fi
 
 # Checks for header files.
-for ac_header in inttypes.h netinet/in.h stdint.h stdlib.h string.h event2/event.h
+for ac_header in inttypes.h netinet/in.h stdint.h stdlib.h string.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default
@@ -11236,6 +11236,19 @@ if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
 _ACEOF
 
 fi
+done
+
+    for ac_header in event2/event.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "event2/event.h" "ac_cv_header_event2_event_h" "$ac_includes_default
+"
+if test "x$ac_cv_header_event2_event_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_EVENT2_EVENT_H 1
+_ACEOF
+
+fi
+
 done
 
     EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"

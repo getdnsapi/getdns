@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2013, Versign, Inc., NLNet Labs
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 # * Redistributions of source code must retain the above copyright
@@ -14,7 +14,7 @@
 # * Neither the name of the <organization> nor the
 #   names of its contributors may be used to endorse or promote products
 #   derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -42,7 +42,7 @@ VPATH = @srcdir@
 CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I$(srcdir)/../ -I/usr/local/include -std=c99
 LDFLAGS=@LDFLAGS@ -L. -L.. -L$(srcdir)/../ -L/usr/local/lib
-LDLIBS=-lgetdns @LIBS@
+LDLIBS=-lgetdns -lgetdns_ext_event @LIBS@
 PROGRAMS=example-all-functions example-simple-answers example-tree example-synchronous example-reverse
 
 .SUFFIXES: .c .o .a .lo .h

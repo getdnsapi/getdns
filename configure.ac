@@ -181,7 +181,7 @@ if test -z "$DOXYGEN";
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h event2/event.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h],,, [AC_INCLUDES_DEFAULT])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
@@ -202,6 +202,7 @@ EXTENSION_LIBEVENT_EXT_LIBS=""
 AC_SEARCH_LIBS([event_loop],
     [event_core event],
     [AC_CHECK_FUNCS([event_base_new event_base_free])]
+    [AC_CHECK_HEADERS([event2/event.h],,, [AC_INCLUDES_DEFAULT])]
     [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"],
     [have_libevent=0]
     [EXTENSION_LIBEVENT_LIB=""])
