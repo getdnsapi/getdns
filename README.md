@@ -126,21 +126,23 @@ and helpful list is being maintained in the git issues list in the repository.
 
 The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.
 
-Where at all possible we need to make sure that both 32 and 64 bit implementations work.
-
 * Debian 7.0, 7.3
 * FreeBSD 8.4, 9.2, 10.0
 * RHEL/CentOS 6.4, 6.5
 * OSX 10.8, 10.9
 * Ubuntu 12.04, 13.10
 
-The NLnet Labs folks offered to build on a number of legacy platforms as well to help ensure that the code is clean.  These include some big endian hardware and a few more obscure operating systems which will not be publicly supported but might work if someone wants to try them.
+For most platforms where we have provided a binary distribution as a compressed tar you
+can simply untar the file and run "make install".  Bear in mind that any dependencies
+will need to be resolved before you can get the library to do it's work.
+
+In some cases we have provided binaries that use the native packaging for the platform,
+where possible dependencies are identified using the method specific to the platform.
 
 We intend to add MS-Windows, Android and other platforms to the releases as we have time to port it.
 
 
 ##Build Reports
-
 
 TBD
 

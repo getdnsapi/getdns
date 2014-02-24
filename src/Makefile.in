@@ -50,7 +50,7 @@ have_libev = @have_libev@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
 INSTALL = @INSTALL@
-LIBTOOL = @libtool@
+LIBTOOL = ../libtool
 
 srcdir = @srcdir@
 VPATH = @srcdir@
@@ -101,16 +101,16 @@ uninstall:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la $(DESTDIR)$(libdir)/$(EXTENSION_LIBEVENT_LIB) $(DESTDIR)$(libdir)/$(EXTENSION_LIBUV_LIB) $(DESTDIR)$(libdir)/$(EXTENSION_LIBEV_LIB)
 
 libgetdns_ext_event.la: libgetdns.la extension/libevent.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version)
 
 libgetdns_ext_uv.la: libgetdns.la extension/libuv.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libuv.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libuv.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version)
 
 libgetdns_ext_ev.la: libgetdns.la extension/libev.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version)
 
 libgetdns.la: $(GETDNS_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version)
 
 test:	FORCE
 	cd test && $(MAKE) $@

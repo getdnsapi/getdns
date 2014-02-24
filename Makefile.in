@@ -31,6 +31,7 @@ package = @PACKAGE_NAME@
 version = @PACKAGE_VERSION@
 tarname	= @PACKAGE_TARNAME@
 distdir	= $(tarname)-$(version)
+bintar  = $(distdir)-bin.tar.gz
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -89,6 +90,14 @@ distclean:
 
 dist: $(distdir).tar.gz
 
+bindist: $(bintar)
+
+$(bintar): $(distdir)
+	chown -R root:wheel $(distdir)
+	cd $(distdir); ./configure; make
+	tar chof - $(distdir) | gzip -9 -c > $@
+	rm -rf $(distdir)
+
 $(distdir).tar.gz: $(distdir)
 	chown -R root:wheel $(distdir)
 	tar chof - $(distdir) | gzip -9 -c > $@
@@ -104,10 +113,15 @@ $(distdir):
 	mkdir -p $(distdir)/spec
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
+	cp $(srcdir)/README.md $(distdir)
+	cp $(srcdir)/ChangeLog $(distdir)
+	cp $(srcdir)/COPYING $(distdir)
+	cp $(srcdir)/INSTALL $(distdir)
 	cp $(srcdir)/Makefile.in $(distdir)
 	cp $(srcdir)/install-sh $(distdir)
 	cp $(srcdir)/config.sub $(distdir)
 	cp $(srcdir)/config.guess $(distdir)
+	cp $(srcdir)/libtool $(distdir)
 	cp $(srcdir)/ltmain.sh $(distdir)
 	cp $(srcdir)/src/*.in $(distdir)/src
 	cp $(srcdir)/src/*.[ch] $(distdir)/src
