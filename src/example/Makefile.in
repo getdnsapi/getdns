@@ -34,7 +34,7 @@ distdir = $(tarname)-$(version)
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
-LIBTOOL = @libtool@
+LIBTOOL = ../../libtool
 
 srcdir = @srcdir@
 VPATH = @srcdir@
