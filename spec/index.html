@@ -2,11 +2,6 @@
 <html><head><title>DNS API Description</title>
 <meta http-equiv="Content-type" content="text/html;charset=UTF-8"> 
 
-<!--
-Need different returns for getdns_address, getdns_hostname, and getdns_service;
-also need to fix examples
--->
-
 <style type="text/css">
 <!--
 div.forh { white-space: pre; font-family: monospace; margin-top: 0; margin-bottom: 0 }
@@ -493,11 +488,11 @@ getdns_service_sync(
 <p>When you are done with the data in the response, use the following function so that the API can
 free the memory from its internal pool.</p>
 
-<pre>void
+<div class=forh>void
 getdns_dict_destroy(
   getdns_dict  *response
 );
-</pre>
+</div>
 
 <h1>2. Data structures in the API</h1>
 
@@ -1910,6 +1905,8 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
                     <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_dict_get_bindata</span><span class="p">(</span><span class="n">this_rdata</span><span class="p">,</span> <span class="s">&quot;rdata_raw&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_dname</span><span class="p">);</span>
                     <span class="kt">char</span> <span class="o">*</span><span class="n">this_dname_str</span><span class="p">;</span>
                            <span class="n">this_ret</span> <span class="o">=</span> <span class="n">getdns_convert_dns_name_to_fqdn</span><span class="p">(</span><span class="n">this_dname</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">this_dname_str</span><span class="p">);</span> <span class="c1">// Ignore any error</span>
+                    <span class="n">printf</span><span class="p">(</span><span class="s">&quot;The dname is %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">this_dname_str</span><span class="p">);</span>
+                    <span class="n">free</span><span class="p">(</span><span class="n">this_dname_str</span><span class="p">);</span>
                 <span class="p">}</span>
             <span class="p">}</span>
 
@@ -2443,7 +2440,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.404.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.5.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
