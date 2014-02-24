@@ -149,9 +149,9 @@ Contributors
 * Neel Goyal, Verisign, Inc.
 * Allison Mankin, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
-* Willem Toorop, NLNet Labs
+* Willem Toorop, NLnet Labs
 * Glen Wiley, Verisign, Inc.
-* Wouter Wijngaards, NLNet Labs
+* Wouter Wijngaards, NLnet Labs
 * Craig Despeaux, Verisign, Inc.
 
 --
