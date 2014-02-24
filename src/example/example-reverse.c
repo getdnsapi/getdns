@@ -60,6 +60,8 @@ void this_callbackfn(getdns_context *this_context,
 					this_ret = getdns_dict_get_bindata(this_rdata, "rdata_raw", &this_dname);
 					char *this_dname_str;
 				       	this_ret = getdns_convert_dns_name_to_fqdn(this_dname, &this_dname_str); // Ignore any error
+					printf("The dname is %s\n", this_dname_str);
+					free(this_dname_str);
 				}
 			}
 
