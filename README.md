@@ -55,12 +55,11 @@ TBD: mailing list address
 #Building/External Dependencies
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
-* [libevent](http://libevent.org) version 2.0.21 stable
-Sometimes called libevent2
 * [libldns from NLnet Labs](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.11 or later (ldns requires openssl headers and libraries)
 * [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
 * [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
+* [libevent](http://libevent.org) version 2.0.21 stable, sometimes called libevent2 (only needed if you plan to use it for asynchronous handling)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 You have to install the library and also the library-devel (or -dev) for your

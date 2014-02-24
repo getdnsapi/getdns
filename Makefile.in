@@ -93,13 +93,13 @@ dist: $(distdir).tar.gz
 bindist: $(bintar)
 
 $(bintar): $(distdir)
-	chown -R root:wheel $(distdir)
+	chown -R 0:0 $(distdir)
 	cd $(distdir); ./configure; make
 	tar chof - $(distdir) | gzip -9 -c > $@
 	rm -rf $(distdir)
 
 $(distdir).tar.gz: $(distdir)
-	chown -R root:wheel $(distdir)
+	chown -R 0:0 $(distdir)
 	tar chof - $(distdir) | gzip -9 -c > $@
 	rm -rf $(distdir)
 
