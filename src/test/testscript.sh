@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2013, Versign, Inc., NLNet Labs
+# Copyright (c) 2013, Verisign, Inc., NLNet Labs
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without

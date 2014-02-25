@@ -4,7 +4,7 @@
 #
 # @configure_input@
 #
-# Copyright (c) 2013, Versign, Inc., NLnet Labs
+# Copyright (c) 2013, Verisign, Inc., NLnet Labs
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
