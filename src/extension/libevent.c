@@ -40,6 +40,9 @@
 #ifdef HAVE_EVENT2_EVENT_H
 #  include <event2/event.h>
 #else
+#  ifndef u_char
+#    define u_char unsigned char
+#  endif
 #  include <event.h>
 #  define evutil_socket_t int
 #  define event_free free

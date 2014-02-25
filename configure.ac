@@ -209,8 +209,10 @@ AC_SEARCH_LIBS([event_loop],
         [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"]
         [CHECK_EVENT_PROG=check_getdns_event],
         # not found - look for event.h
+        [AC_CHECK_TYPE(u_char, unsigned char)]
         [AC_CHECK_HEADERS([event.h],
             # found
+            [have_libevent=1]
             [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"]
             [CHECK_EVENT_PROG=check_getdns_event],
             # not found - give up
