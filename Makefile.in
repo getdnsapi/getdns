@@ -36,9 +36,11 @@ bintar  = $(distdir)-bin.tar.gz
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
+sharedoc = $(prefix)/share/doc/getdns-$(version)
 
 srcdir = @srcdir@
 VPATH = @srcdir@
+INSTALL = @INSTALL@
 
 default:
 	cd src && $(MAKE) $@
@@ -46,6 +48,17 @@ default:
 all : default
 
 install: all
+	$(INSTALL) -m 755 -d $(sharedoc)
+	$(INSTALL) -m 644 AUTHORS $(sharedoc)
+	$(INSTALL) -m 644 ChangeLog $(sharedoc)
+	$(INSTALL) -m 644 COPYING $(sharedoc)
+	$(INSTALL) -m 644 INSTALL $(sharedoc)
+	$(INSTALL) -m 644 LICENSE $(sharedoc)
+	$(INSTALL) -m 644 NEWS $(sharedoc)
+	$(INSTALL) -m 644 README.md $(sharedoc)
+	$(INSTALL) -m 755 -d $(sharedoc)/spec
+	$(INSTALL) -m 644 spec/index.html $(sharedoc)/spec
+	$(INSTALL) -m 644 spec/getdns*tgz $(sharedoc)/spec
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -66,8 +79,9 @@ install: all
 	@echo "***"
 
 uninstall:
-	cd src && $(MAKE) $@
+	rm -rf -d $(sharedoc)
 	cd doc && $(MAKE) $@
+	cd src && $(MAKE) $@
 
 doc:	FORCE
 	cd doc && $(MAKE) $@
