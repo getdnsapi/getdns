@@ -734,10 +734,10 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_fast_install
 enable_shared
 enable_static
 with_pic
-enable_fast_install
 with_gnu_ld
 with_sysroot
 enable_libtool_lock
@@ -1369,10 +1369,10 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-fast-install[=PKGS]
+                          optimize for fast installation [default=no]
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
-  --enable-fast-install[=PKGS]
-                          optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         disable hardcoded rpath (default=enabled)
 
@@ -2209,6 +2209,37 @@ GETDNS_COMPILATION_COMMENT="getdns 0.1.0 configured on $CURRENT_DATE for the Feb
 
 # AM_INIT_AUTOMAKE
 # LT_INIT
+
+
+# Check whether --enable-fast-install was given.
+if test "${enable_fast_install+set}" = set; then :
+  enableval=$enable_fast_install; p=${PACKAGE-default}
+    case $enableval in
+    yes) enable_fast_install=yes ;;
+    no) enable_fast_install=no ;;
+    *)
+      enable_fast_install=no
+      # Look at the argument we got.  We use all the common list separators.
+      lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
+      for pkg in $enableval; do
+	IFS="$lt_save_ifs"
+	if test "X$pkg" = "X$p"; then
+	  enable_fast_install=yes
+	fi
+      done
+      IFS="$lt_save_ifs"
+      ;;
+    esac
+else
+  enable_fast_install=no
+fi
+
+
+
+
+
+
+
 
 
 ac_ext=c
@@ -6769,35 +6800,6 @@ test -z "$pic_mode" && pic_mode=default
 
 
 
-  # Check whether --enable-fast-install was given.
-if test "${enable_fast_install+set}" = set; then :
-  enableval=$enable_fast_install; p=${PACKAGE-default}
-    case $enableval in
-    yes) enable_fast_install=yes ;;
-    no) enable_fast_install=no ;;
-    *)
-      enable_fast_install=no
-      # Look at the argument we got.  We use all the common list separators.
-      lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
-      for pkg in $enableval; do
-	IFS="$lt_save_ifs"
-	if test "X$pkg" = "X$p"; then
-	  enable_fast_install=yes
-	fi
-      done
-      IFS="$lt_save_ifs"
-      ;;
-    esac
-else
-  enable_fast_install=yes
-fi
-
-
-
-
-
-
-
 
 
 
@@ -11173,7 +11175,7 @@ getdns_LDFLAGS=$LDFLAGS
 EXTENSION_LDFLAGS=$LDFLAGS
 
 # libevent extension
-have_libevent=1
+have_libevent=0
 EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
 EXTENSION_LIBEVENT_EXT_LIBS=""
 CHECK_EVENT_PROG=""
@@ -11251,7 +11253,8 @@ if test "x$ac_cv_header_event2_event_h" = xyes; then :
 #define HAVE_EVENT2_EVENT_H 1
 _ACEOF
  # event2/event.h found
-        EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"
+		have_libevent=1
+        EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
         CHECK_EVENT_PROG=check_getdns_event
 else
   # not found - look for event.h
@@ -11264,11 +11267,10 @@ if test "x$ac_cv_header_event_h" = xyes; then :
 #define HAVE_EVENT_H 1
 _ACEOF
  # found
-            EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"
+            EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
             CHECK_EVENT_PROG=check_getdns_event
 else
   # not found - give up
-            have_libevent=0
             EXTENSION_LIBEVENT_LIB=""
 fi
 
@@ -11281,8 +11283,8 @@ done
 
 else
   # libs not found
-    have_libevent=0
-    EXTENSION_LIBEVENT_LIB=""
+	have_libevent=0
+	EXTENSION_LIBEVENT_LIB=""
 fi
 
 
@@ -11357,7 +11359,7 @@ if test "x$ac_cv_header_uv_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_UV_H 1
 _ACEOF
- EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"
+ EXTENSION_LIBUV_EXT_LIBS="$ac_cv_search_uv_run"
         CHECK_UV_PROG=check_getdns_uv
 else
   have_libuv=0
@@ -11443,7 +11445,7 @@ if test "x$ac_cv_header_ev_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_EV_H 1
 _ACEOF
- EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"
+ EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"
         CHECK_EV_PROG=check_getdns_ev
 else
   have_libev=0
@@ -12211,12 +12213,12 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 sed_quote_subst='$sed_quote_subst'
 double_quote_subst='$double_quote_subst'
 delay_variable_subst='$delay_variable_subst'
+enable_fast_install='`$ECHO "$enable_fast_install" | $SED "$delay_single_quote_subst"`'
 macro_version='`$ECHO "$macro_version" | $SED "$delay_single_quote_subst"`'
 macro_revision='`$ECHO "$macro_revision" | $SED "$delay_single_quote_subst"`'
 enable_shared='`$ECHO "$enable_shared" | $SED "$delay_single_quote_subst"`'
 enable_static='`$ECHO "$enable_static" | $SED "$delay_single_quote_subst"`'
 pic_mode='`$ECHO "$pic_mode" | $SED "$delay_single_quote_subst"`'
-enable_fast_install='`$ECHO "$enable_fast_install" | $SED "$delay_single_quote_subst"`'
 SHELL='`$ECHO "$SHELL" | $SED "$delay_single_quote_subst"`'
 ECHO='`$ECHO "$ECHO" | $SED "$delay_single_quote_subst"`'
 PATH_SEPARATOR='`$ECHO "$PATH_SEPARATOR" | $SED "$delay_single_quote_subst"`'
@@ -13108,6 +13110,9 @@ available_tags=""
 
 # ### BEGIN LIBTOOL CONFIG
 
+# Whether or not to optimize for fast installation.
+fast_install=$enable_fast_install
+
 # Which release of libtool.m4 was used?
 macro_version=$macro_version
 macro_revision=$macro_revision
@@ -13120,9 +13125,6 @@ build_old_libs=$enable_static
 
 # What type of objects to build.
 pic_mode=$pic_mode
-
-# Whether or not to optimize for fast installation.
-fast_install=$enable_fast_install
 
 # Shell to use when invoking shell scripts.
 SHELL=$lt_SHELL

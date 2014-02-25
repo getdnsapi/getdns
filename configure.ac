@@ -196,7 +196,7 @@ getdns_LDFLAGS=$LDFLAGS
 EXTENSION_LDFLAGS=$LDFLAGS
 
 # libevent extension
-have_libevent=1
+have_libevent=0
 EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
 EXTENSION_LIBEVENT_EXT_LIBS=""
 CHECK_EVENT_PROG=""
@@ -205,21 +205,21 @@ AC_SEARCH_LIBS([event_loop],
     [AC_CHECK_FUNCS([event_base_new event_base_free])]
     [AC_CHECK_HEADERS([event2/event.h],
         # event2/event.h found
-        [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"]
+		[have_libevent=1]
+        [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"]
         [CHECK_EVENT_PROG=check_getdns_event],
         # not found - look for event.h
         [AC_CHECK_HEADERS([event.h],
             # found
-            [EXTENSION_LIBEVENT_EXT_LIBS="-l$ac_lib"]
+            [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"]
             [CHECK_EVENT_PROG=check_getdns_event],
             # not found - give up
-            [have_libevent=0]
             [EXTENSION_LIBEVENT_LIB=""],
             [AC_INCLUDES_DEFAULT])]
-    ,[AC_INCLUDES_DEFAULT])],
-    # libs not found
-    [have_libevent=0]
-    [EXTENSION_LIBEVENT_LIB=""])
+	,[AC_INCLUDES_DEFAULT])],
+	# libs not found
+	[have_libevent=0]
+	[EXTENSION_LIBEVENT_LIB=""])
 
 AC_SUBST(have_libevent)
 AC_SUBST(EXTENSION_LIBEVENT_LIB)
@@ -232,9 +232,9 @@ EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
 EXTENSION_LIBUV_EXT_LIBS=""
 CHECK_UV_PROG=""
 AC_SEARCH_LIBS([uv_run],
-    [uv],
-    [AC_CHECK_HEADERS([uv.h],
-        [EXTENSION_LIBUV_EXT_LIBS="-l$ac_lib"]
+	[uv],
+	[AC_CHECK_HEADERS([uv.h],
+		[EXTENSION_LIBUV_EXT_LIBS="$ac_cv_search_uv_run"]
         [CHECK_UV_PROG=check_getdns_uv],
         [have_libuv=0]
         [EXTENSION_LIBUV_LIB=""],
@@ -255,7 +255,7 @@ EXTENSION_LIBEV_EXT_LIBS=""
 AC_SEARCH_LIBS([ev_run],
     [ev],
     [AC_CHECK_HEADERS([ev.h],
-        [EXTENSION_LIBEV_EXT_LIBS="-l$ac_lib"]
+        [EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"]
         [CHECK_EV_PROG=check_getdns_ev],
         [have_libev=0]
         [EXTENSION_LIBUV_LIB=""],
