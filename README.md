@@ -53,7 +53,7 @@ The following requirements were met as conditions for the present release:
 
 Tickets/Bug Reports
 ===================
-Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/verisign/getdns/issues).
+Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/getdnsapi/getdns/issues).
 
 Additionally, we have a mailing list at users@getdns.net.
 
@@ -75,7 +75,7 @@ out our git; the configure script is built with autoreconf --install.
 
 ## Extensions / Event loop dependencies
 
-The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/verisign/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
+The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
 
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
 * [libuv](https://github.com/joyent/libuv)
