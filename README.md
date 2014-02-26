@@ -153,6 +153,7 @@ We intend to add MS-Windows, Android and other platforms to the releases as we h
 
 ##Build Reports
 
+[![Build Status](https://travis-ci.org/getdnsapi/getdns.png?branch=master)](https://travis-ci.org/getdnsapi/getdns)
 
 ###CentOS/RHEL 6.5
 
