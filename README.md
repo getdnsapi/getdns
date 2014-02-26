@@ -3,7 +3,7 @@
 getdns API  {#mainpage}
 ==========
 
-* Date:    2014-02-20
+* Date:    2014-02-26
 * GitHub:  <https://github.com/verisign/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
@@ -19,7 +19,7 @@ This file captures the goals and direction of the project and the current state 
 The goals of this implementation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API by Paul Hoffman at <http://www.vpnc.org/getdns-api/>
-* Initial support for FreeBSD, MS-Windows, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
+* Initial support for FreeBSD, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
 * Initial support to include the Android platform
 * Include examples and tests as part of the build
 * Document code using doxygen
