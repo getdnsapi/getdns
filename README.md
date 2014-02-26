@@ -188,13 +188,13 @@ build the packages, this is simplythe one we chose to use.
 
 Contributors
 ============
+* Craig Despeaux, Verisign, Inc.
 * Neel Goyal, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
 * Melinda Shore, No Mountain Software LLC
 * Willem Toorop, NLnet Labs
-* Glen Wiley, Verisign, Inc.
 * Wouter Wijngaards, NLnet Labs
-* Craig Despeaux, Verisign, Inc.
+* Glen Wiley, Verisign, Inc.
 
 Acknowledgements
 ================
