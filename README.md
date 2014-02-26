@@ -103,10 +103,8 @@ The best way to setup or update the root trust anchor is by using
 To setup the library with the root trust anchor at the default location,
 execute the following steps as root:
 
-```
-# mkdir -p /etc/unbound
-# unbound-anchor -a /etc/unbound/getdns-root.key
-```
+    # mkdir -p /etc/unbound
+    # unbound-anchor -a /etc/unbound/getdns-root.key
 
 #Unsupported Features
 
@@ -167,30 +165,26 @@ We rely on the most excellent package manager fpm to build the linux packages wh
 means that the packaging platform requires ruby 2.1.0.  There are other ways to
 build the packages, this is simplythe one we chose to use.
 
-```
-# cat /etc/redhat-release
-CentOS release 6.5 (Final)
-# uname -a
-Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-# cd getdns-0.1.0
-# ./configure --prefix=/home/deploy/build
-# make; make install
-# cd /home/deploy/build
-# mv lib lib64
-# . /usr/local/rvm/config/alias
-# fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.1.0 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "http://www.getdnsapi.net" --description "Modern asynchronous API to the DNS" .
-```
+    # cat /etc/redhat-release
+    CentOS release 6.5 (Final)
+    # uname -a
+    Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
+    # cd getdns-0.1.0
+    # ./configure --prefix=/home/deploy/build
+    # make; make install
+    # cd /home/deploy/build
+    # mv lib lib64
+    # . /usr/local/rvm/config/alias
+    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.1.0 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "http://www.getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
 ###OSX
 
-```
-# sw_vers
-ProductName:	Mac OS X
-ProductVersion:	10.8.5
-BuildVersion:	12F45
-
-Built using PackageMaker.
-```
+    # sw_vers
+    ProductName:	Mac OS X
+    ProductVersion:	10.8.5
+    BuildVersion:	12F45
+    
+    Built using PackageMaker.
 
 Contributors
 ============
