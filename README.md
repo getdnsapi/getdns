@@ -186,6 +186,7 @@ Contributors
 ============
 * Craig Despeaux, Verisign, Inc.
 * Neel Goyal, Verisign, Inc.
+* Olaf Kolkman, NLnet Labs
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
 * Melinda Shore, No Mountain Software LLC
 * Willem Toorop, NLnet Labs
