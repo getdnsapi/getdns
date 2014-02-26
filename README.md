@@ -29,7 +29,7 @@ Non-goals (things we will not be doing at least initially) include:
 
 ## Language Bindings
 
-In parallel, the team is actively developing bindings for various languages.  For more information, visit the [wiki](https://github.com/verisign/getdns/wiki/Language-Bindings).
+In parallel, the team is actively developing bindings for various languages.  For more information, visit the [wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
 
 Motivation for providing the API
 ================================
