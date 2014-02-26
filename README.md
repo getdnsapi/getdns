@@ -28,17 +28,26 @@ The goals of this implementation of the getdns API are:
 * Follow the git flow branching model described at <http://nvie.com/posts/a-successful-git-branching-model/>
 ** the master branch is always in a production ready state
 ** the develop branch contains the latest development changes which are merged from develop into master once they are considered production ready
-* Both synchronous and asynchronous entry points with an early focus on the asynchronous model
+
+## Language Bindings
+
+In parallel, the team is actively developing bindings for various languages.  For more information, visit the wiki.
 
 Non-goals (things we will not be doing at least initially) include:
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
 
+Motivation for providing the API
+================================
+
+The developers are of the opinion that DNSSEC offers a unique global infrastructure for establishing and enhancing cryptographic trust relations. With the development of this API we intend to offer application developers a modern and flexible way that enables end-to-end trust in the DNS architecture and will inspire application developers towards innovative security solutions in their applications.
+
+
 Releases
 ========
-Release numbering follows the [Semantic Versioning](http://semver.org/) approach.  We are currently in the early stages of building the API so the code should be considered incomplete.
+Release numbering follows the [Semantic Versioning](http://semver.org/) approach.  The code is currently under active development.
 
-The 0.1.0 release will be issued when the repository is opened to the public, our goal is to meet the following requirements prior to opening the repository:
+The following requirements were met as conditions for the present release:
 
 * code compiles cleanly on at least the primary target platforms: RHEL/CentOS 6.3 Linux, FreeBSD 9.2
 * examples must compile and be clean
@@ -47,24 +56,33 @@ The 0.1.0 release will be issued when the repository is opened to the public, ou
 
 Tickets/Bug Reports
 ===================
-Tickets and bug reports from external contacts are received via a mailing list and managed in the git issues list.
+Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/verisign/getdns/issues).
 
-TBD: mailing list address
+Additionally, we have a mailing list at users@getdns.net.
 
 
-#Building/External Dependencies
+Building/External Dependencies
+==============================
+
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
 * [libldns from NLnet Labs](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.11 or later (ldns requires openssl headers and libraries)
 * [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
 * [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
-* [libevent](http://libevent.org) version 2.0.21 stable, sometimes called libevent2 (only needed if you plan to use it for asynchronous handling)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 You have to install the library and also the library-devel (or -dev) for your
 package management system to install the compile time files.  If you checked
 out our git; the configure script is built with autoreconf --install.
+
+## Extensions / Event loop dependencies
+
+The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/verisign/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
+
+* [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
+* [libuv](https://github.com/joyent/libuv)
+* [libev](http://software.schmorp.de/pkg/libev.html)
 
 ##Regression Tests
 
@@ -151,7 +169,7 @@ means that the packaging platform requires ruby 2.1.0.  There are other ways to
 build the packages, this is simplythe one we chose to use.
 
 ```
-# cat /etc/redhat-release 
+# cat /etc/redhat-release
 CentOS release 6.5 (Final)
 # uname -a
 Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
@@ -178,12 +196,13 @@ Built using PackageMaker.
 Contributors
 ============
 * Neel Goyal, Verisign, Inc.
-* Allison Mankin, Verisign, Inc.
+* Allison Mankin, Verisign, Inc. - Verisign Labs.
 * Melinda Shore, No Mountain Software LLC
 * Willem Toorop, NLnet Labs
 * Glen Wiley, Verisign, Inc.
 * Wouter Wijngaards, NLnet Labs
 * Craig Despeaux, Verisign, Inc.
 
---
-end README
+Acknowledgements
+================
+The development team explicitly acknowledges Paul Hoffman for his initiative and efforts to develop a consensus based DNS API. We would like to thank the participants of the [mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api) for their contributions.
