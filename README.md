@@ -171,13 +171,8 @@ Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x8
 ProductName:	Mac OS X
 ProductVersion:	10.8.5
 BuildVersion:	12F45
-# cd getdns-0.1.0
-# ./configure --prefix=/home/deploy/build
-# make; make install
-# cd /home/deploy/build
-# mv lib lib64
-# . /usr/local/rvm/config/alias
-# fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.1.0 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "http://www.getdnsapi.net" --description "Modern asynchronous API to the DNS" .
+
+Built using PackageMaker.
 ```
 
 Contributors
