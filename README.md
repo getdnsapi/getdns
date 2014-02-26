@@ -29,13 +29,12 @@ The goals of this implementation of the getdns API are:
 ** the master branch is always in a production ready state
 ** the develop branch contains the latest development changes which are merged from develop into master once they are considered production ready
 
-## Language Bindings
-
-In parallel, the team is actively developing bindings for various languages.  For more information, visit the wiki.
-
 Non-goals (things we will not be doing at least initially) include:
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
+## Language Bindings
+
+In parallel, the team is actively developing bindings for various languages.  For more information, visit the wiki.
 
 Motivation for providing the API
 ================================
