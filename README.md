@@ -1,10 +1,8 @@
-[![Build Status](https://magnum.travis-ci.com/verisign/getdns.png?token=J2HZXstzJqePUsG523am&branch=develop)](https://magnum.travis-ci.com/verisign/getdns)
-
 getdns API  {#mainpage}
 ==========
 
 * Date:    2014-02-26
-* GitHub:  <https://github.com/verisign/getdns>
+* GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
 
