@@ -48,17 +48,17 @@ default:
 all : default
 
 install: all
-	$(INSTALL) -m 755 -d $(sharedoc)
-	$(INSTALL) -m 644 AUTHORS $(sharedoc)
-	$(INSTALL) -m 644 ChangeLog $(sharedoc)
-	$(INSTALL) -m 644 COPYING $(sharedoc)
-	$(INSTALL) -m 644 INSTALL $(sharedoc)
-	$(INSTALL) -m 644 LICENSE $(sharedoc)
-	$(INSTALL) -m 644 NEWS $(sharedoc)
-	$(INSTALL) -m 644 README.md $(sharedoc)
-	$(INSTALL) -m 755 -d $(sharedoc)/spec
-	$(INSTALL) -m 644 spec/index.html $(sharedoc)/spec
-	$(INSTALL) -m 644 spec/getdns*tgz $(sharedoc)/spec
+	$(INSTALL) -m 755 -d $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 AUTHORS $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 ChangeLog $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 COPYING $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 INSTALL $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 LICENSE $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 NEWS $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 644 README.md $(DESTDIR)/$(sharedoc)
+	$(INSTALL) -m 755 -d $(DESTDIR)/$(sharedoc)/spec
+	$(INSTALL) -m 644 spec/index.html $(DESTDIR)/$(sharedoc)/spec
+	$(INSTALL) -m 644 spec/getdns*tgz $(DESTDIR)/$(sharedoc)/spec
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -79,7 +79,7 @@ install: all
 	@echo "***"
 
 uninstall:
-	rm -rf -d $(sharedoc)
+	rm -rf -d $(DESTDIR)/$(sharedoc)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
 
