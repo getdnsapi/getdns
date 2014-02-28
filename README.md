@@ -179,8 +179,12 @@ build the packages, this is simplythe one we chose to use.
     ProductName:	Mac OS X
     ProductVersion:	10.8.5
     BuildVersion:	12F45
-    
+
     Built using PackageMaker.
+
+#### Homebrew
+
+If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.
 
 Contributors
 ============
