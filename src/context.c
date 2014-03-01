@@ -1791,4 +1791,19 @@ getdns_context_set_return_dnssec_status(getdns_context* context, int enabled) {
     return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t
+getdns_context_set_use_threads(getdns_context* context, int use_threads) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    if (context->resolution_type_set != 0) {
+        /* already setup */
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+    int r = 0;
+    if (use_threads)
+        r = ub_ctx_async(context->unbound_ctx, 1);
+    else
+        r = ub_ctx_async(context->unbound_ctx, 0);
+    return r == 0 ? GETDNS_RETURN_GOOD : GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+}
+
 /* context.c */

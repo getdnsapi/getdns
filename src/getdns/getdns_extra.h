@@ -55,6 +55,8 @@ int getdns_context_fd(getdns_context* context);
 /* process async reqs */
 getdns_return_t getdns_context_process_async(getdns_context* context);
 
+/* tells underlying unbound to use background threads or fork */
+getdns_return_t getdns_context_set_use_threads(getdns_context* context, int use_threads);
 
 /* extensions */
 typedef void (*getdns_timeout_callback) (void* userarg);
