@@ -31,6 +31,10 @@
 #include <getdns/getdns.h>
 #include <sys/time.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Enable the return_dnssec_status extension on every request.
    value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
    returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
@@ -117,5 +121,8 @@ getdns_context_get_extension_data(struct getdns_context* context);
 getdns_return_t
 getdns_extension_detach_eventloop(struct getdns_context* context);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
