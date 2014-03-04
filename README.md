@@ -155,6 +155,10 @@ We intend to add MS-Windows, Android and other platforms to the releases as we h
 
 [![Build Status](https://travis-ci.org/getdnsapi/getdns.png?branch=master)](https://travis-ci.org/getdnsapi/getdns)
 
+###FreeBSD
+
+If you're using [FreeBSD](http://www.freebsd.org/), you may install getdns via the [ports tree](http://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
+
 ###CentOS/RHEL 6.5
 
 We rely on the most excellent package manager fpm to build the linux packages which
