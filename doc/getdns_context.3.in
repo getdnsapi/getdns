@@ -125,24 +125,10 @@ will be called with a callback_type of GETDNS_CALLBACK_CANCEL.
 getdns_context_destroy() returns after all of the needed cleanup is done and
 callbacks are made.
 
-.SH DESCRIPTION (LONG)
-
-.LP
-Many calls in the DNS API require a DNS context. A DNS context contains the information that the API needs in order to process DNS calls, such as the locations of upstream DNS servers, DNSSEC trust anchors, and so on. The internal structure of the DNS context is opaque, and might be different on each OS. When a context is passed to any function, it must be an allocated context; the context must not be NULL.
-
-.LP
-A typical application using this API doesn't need to know anything about contexts. Basically, the application creates a default context, uses it in the functions that require a context, and then deallocates it when done. Context manipulation is available for more DNS-aware programs, but is unlikely to be of interest to applications that just want the results of lookups for A, AAAA, SRV, and PTR records.
-
-.LP
-It is expected that contexts in implementations of the API will not necessarily be thread-safe, but they will not be thread-hostile. A context should not be used by multiple threads: create a new context for use on a different thread. It is just fine for an application to have many contexts, and some DNS-heavy applications will certainly want to have many even if the application uses a single thread.
-
-.LP
-When the context is used in the API for the first time and set_from_os is 1, the API starts replacing some of the values with values from the OS, such as those that would be found in res_query(3), /etc/resolv.conf, and so on, then proceeds with the new function. Some advanced users will not want the API to change the values to the OS's defaults; if set_from_os is 0, the API will not do any updates to the initial values based on changes in the OS. For example, this might be useful if the API is acting as a stub resolver that is using a specific upstream recursive resolver chosen by the application, not the one that might come back from DHCP.
-
 .HP 3
 .I context
 .RP
-In calls to the getdns_create_context functions this parameter is used to return a newly allocated and initialized context (if there are no errors).  In the getdns_destroy_context function this is the context whose associated memory will be released.
+Used to return the pointer to an opaque structure.  The caller passes the address of a pointer (decl: getdns_context *context; passed as &context) which will be populated as a result of returning from the function.  The result is a newly allocated and initialized context (if there are no errors).  In the getdns_destroy_context function this is the context whose associated memory will be released.
 
 .HP 3
 .I set_from_os
@@ -168,6 +154,21 @@ The function that will be used for creating response dicts (and the members with
 .I free
 .RP
 The function that will be used for releasing storage for response dicts (and the members within the response dicts).  By default the system free is used.
+
+
+.SH DESCRIPTION (LONG)
+
+.LP
+Many calls in the DNS API require a DNS context. A DNS context contains the information that the API needs in order to process DNS calls, such as the locations of upstream DNS servers, DNSSEC trust anchors, and so on. The internal structure of the DNS context is opaque, and might be different on each OS. When a context is passed to any function, it must be an allocated context; the context must not be NULL.
+
+.LP
+A typical application using this API doesn't need to know anything about contexts. Basically, the application creates a default context, uses it in the functions that require a context, and then deallocates it when done. Context manipulation is available for more DNS-aware programs, but is unlikely to be of interest to applications that just want the results of lookups for A, AAAA, SRV, and PTR records.
+
+.LP
+It is expected that contexts in implementations of the API will not necessarily be thread-safe, but they will not be thread-hostile. A context should not be used by multiple threads: create a new context for use on a different thread. It is just fine for an application to have many contexts, and some DNS-heavy applications will certainly want to have many even if the application uses a single thread.
+
+.LP
+When the context is used in the API for the first time and set_from_os is 1, the API starts replacing some of the values with values from the OS, such as those that would be found in res_query(3), /etc/resolv.conf, and so on, then proceeds with the new function. Some advanced users will not want the API to change the values to the OS's defaults; if set_from_os is 0, the API will not do any updates to the initial values based on changes in the OS. For example, this might be useful if the API is acting as a stub resolver that is using a specific upstream recursive resolver chosen by the application, not the one that might come back from DHCP.
 
 .HP
 .SH "RETURN VALUES"
