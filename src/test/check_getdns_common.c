@@ -258,6 +258,17 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
   ck_assert_msg(ptr_records == 1, "Expected to find one PTR record in answer section, got %d", ptr_records);
 }
 
+void destroy_callbackfn(struct getdns_context *context,
+                        getdns_callback_type_t callback_type,
+                        struct getdns_dict *response,
+                        void *userarg,
+                        getdns_transaction_t transaction_id) {
+    int* flag = (int*)userarg;
+    *flag = 1;
+    getdns_dict_destroy(response);
+    getdns_context_destroy(context);
+}
+
 /*
  *  callbackfn is the callback function given to all
  *  asynchronous query tests.  It is expected to only

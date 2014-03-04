@@ -44,7 +44,10 @@ void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
         FD_ZERO(&read_fds);
         FD_SET(fd, &read_fds);
         select(fd + 1, &read_fds, NULL, NULL, &tv);
-        getdns_context_process_async(context);
+        if (getdns_context_process_async(context) != GETDNS_RETURN_GOOD) {
+            // context destroyed
+            break;
+        }
     }
 }
 
