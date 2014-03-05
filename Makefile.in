@@ -30,13 +30,14 @@
 package = @PACKAGE_NAME@
 version = @PACKAGE_VERSION@
 tarname	= @PACKAGE_TARNAME@
+PACKAGE_TARNAME	= @PACKAGE_TARNAME@
 distdir	= $(tarname)-$(version)
 bintar  = $(distdir)-bin.tar.gz
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
-sharedoc = $(prefix)/share/doc/getdns-$(version)
+docdir = @docdir@
 
 srcdir = @srcdir@
 VPATH = @srcdir@
@@ -48,17 +49,17 @@ default:
 all : default
 
 install: all
-	$(INSTALL) -m 755 -d $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 AUTHORS $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 ChangeLog $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 COPYING $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 INSTALL $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 LICENSE $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 NEWS $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 644 README.md $(DESTDIR)/$(sharedoc)
-	$(INSTALL) -m 755 -d $(DESTDIR)/$(sharedoc)/spec
-	$(INSTALL) -m 644 spec/index.html $(DESTDIR)/$(sharedoc)/spec
-	$(INSTALL) -m 644 spec/getdns*tgz $(DESTDIR)/$(sharedoc)/spec
+	$(INSTALL) -m 755 -d $(docdir)
+	$(INSTALL) -m 644 AUTHORS $(docdir)
+	$(INSTALL) -m 644 ChangeLog $(docdir)
+	$(INSTALL) -m 644 COPYING $(docdir)
+	$(INSTALL) -m 644 INSTALL $(docdir)
+	$(INSTALL) -m 644 LICENSE $(docdir)
+	$(INSTALL) -m 644 NEWS $(docdir)
+	$(INSTALL) -m 644 README.md $(docdir)
+	$(INSTALL) -m 755 -d $(docdir)/spec
+	$(INSTALL) -m 644 spec/index.html $(docdir)/spec
+	$(INSTALL) -m 644 spec/getdns*tgz $(docdir)/spec
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -79,7 +80,7 @@ install: all
 	@echo "***"
 
 uninstall:
-	rm -rf -d $(DESTDIR)/$(sharedoc)
+	rm -rf -d $(DESTDIR)/$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
 
