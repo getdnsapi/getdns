@@ -83,9 +83,7 @@ getdns_libuv_timeout_cb(uv_timer_t* handle, int status) {
 
 static void
 getdns_libuv_close_cb(uv_handle_t* handle) {
-    if (handle) {
-        free(handle);
-    }
+    free(handle);
 }
 
 /* getdns extension functions */
