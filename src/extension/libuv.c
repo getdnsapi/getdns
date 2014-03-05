@@ -44,7 +44,6 @@
 struct getdns_libuv_data {
     uv_loop_t* loop;
     uv_poll_t* poll_handle;
-    uint8_t polling;
 };
 
 static void request_count_changed(uint32_t request_count, struct getdns_libuv_data *uv_data);
@@ -65,12 +64,10 @@ getdns_libuv_cb(uv_poll_t* handle, int status, int events) {
 
 static void
 request_count_changed(uint32_t request_count, struct getdns_libuv_data *uv_data) {
-    if (request_count > 0 && uv_data->polling == 0) {
+    if (request_count > 0 && !uv_is_active((uv_handle_t*) uv_data->poll_handle)) {
         uv_poll_start(uv_data->poll_handle, UV_READABLE, getdns_libuv_cb);
-        uv_data->polling = 1;
-    } else if (request_count == 0 && uv_data->polling == 1) {
+    } else if (request_count == 0 && uv_is_active((uv_handle_t*) uv_data->poll_handle)) {
         uv_poll_stop(uv_data->poll_handle);
-        uv_data->polling = 0;
     }
 }
 
@@ -169,6 +166,5 @@ getdns_extension_set_libuv_loop(struct getdns_context *context,
     uv_poll_init(uv_loop, uv_data->poll_handle, fd);
     uv_data->poll_handle->data = context;
     uv_data->loop = uv_loop;
-    uv_data->polling = 0;
     return getdns_extension_set_eventloop(context, &LIBUV_EXT, uv_data);
 }               /* getdns_extension_set_libuv_loop */
