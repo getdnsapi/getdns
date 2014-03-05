@@ -53,7 +53,10 @@ static void request_count_changed(uint32_t request_count, struct getdns_libuv_da
 static void
 getdns_libuv_cb(uv_poll_t* handle, int status, int events) {
     struct getdns_context* context = (struct getdns_context*) handle->data;
-    getdns_context_process_async(context);
+    if (getdns_context_process_async(context) == GETDNS_RETURN_BAD_CONTEXT) {
+        // context destroyed
+        return;
+    }
     uint32_t rc = getdns_context_get_num_pending_requests(context, NULL);
     struct getdns_libuv_data* uv_data =
         (struct getdns_libuv_data*) getdns_context_get_extension_data(context);

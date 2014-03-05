@@ -88,7 +88,10 @@ request_count_changed(uint32_t request_count, struct event_data *ev_data) {
 static void
 getdns_libevent_cb(evutil_socket_t fd, short what, void *userarg) {
     struct getdns_context* context = (struct getdns_context*) userarg;
-    getdns_context_process_async(context);
+    if (getdns_context_process_async(context) == GETDNS_RETURN_BAD_CONTEXT) {
+        // context destroyed
+        return;
+    }
     uint32_t rc = getdns_context_get_num_pending_requests(context, NULL);
     struct event_data* ev_data =
         (struct event_data*) getdns_context_get_extension_data(context);

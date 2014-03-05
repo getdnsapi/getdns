@@ -59,7 +59,10 @@ request_count_changed(uint32_t request_count, struct getdns_libev_data *ev_data)
 static void
 getdns_libev_cb(struct ev_loop *loop, struct ev_io *handle, int revents) {
     struct getdns_context* context = (struct getdns_context*) handle->data;
-    getdns_context_process_async(context);
+    if (getdns_context_process_async(context) == GETDNS_RETURN_BAD_CONTEXT) {
+        // context destroyed
+        return;
+    }
     uint32_t rc = getdns_context_get_num_pending_requests(context, NULL);
     struct getdns_libev_data* ev_data =
         (struct getdns_libev_data*) getdns_context_get_extension_data(context);

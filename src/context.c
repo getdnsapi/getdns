@@ -416,6 +416,7 @@ getdns_context_create_with_extended_memory_functions(
     if (!result) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    result->processing = 0;
     result->destroying = 0;
     result->my_mf.mf_arg         = userarg;
     result->my_mf.mf.ext.malloc  = malloc;
@@ -532,6 +533,12 @@ void
 getdns_context_destroy(struct getdns_context *context)
 {
     if (context == NULL) {
+        return;
+    }
+    // If being destroyed during getdns callback, just flag it
+    // and destroy.  See getdns_context_process_async
+    if (context->processing > 0) {
+        context->processing++;
         return;
     }
     context->destroying = 1;
@@ -1505,12 +1512,24 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 /* process async reqs */
 getdns_return_t getdns_context_process_async(struct getdns_context* context) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    context->processing = 1;
     if (ub_poll(context->unbound_ctx)) {
         if (ub_process(context->unbound_ctx) != 0) {
             /* need an async return code? */
             return GETDNS_RETURN_GENERIC_ERROR;
         }
     }
+    if (context->processing > 1) {
+        // destroyed during callbacks
+        // clear flag so destroy continues
+        context->processing = 0;
+        getdns_context_destroy(context);
+        // return bad context now that the context
+        // is destroyed
+        return GETDNS_RETURN_BAD_CONTEXT;
+    }
+    // reset the processing flag
+    context->processing = 0;
     if (context->extension != NULL) {
         /* no need to process timeouts since it is delegated
          * to the extension */
