@@ -161,6 +161,10 @@ getdns_extension_set_libuv_loop(struct getdns_context *context,
     }
     int fd = getdns_context_fd(context);
     uv_data->poll_handle = (uv_poll_t*) malloc(sizeof(uv_poll_t));
+    if (!uv_data->poll_handle) {
+        free(uv_data);
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
     uv_poll_init(uv_loop, uv_data->poll_handle, fd);
     uv_data->poll_handle->data = context;
     uv_data->loop = uv_loop;
