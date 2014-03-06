@@ -10,3 +10,4 @@ script:
   - make
   - sudo make install
   - make test
+  - sudo make uninstall
