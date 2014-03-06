@@ -83,7 +83,7 @@ ACX_ARG_RPATH
 
 # search to set include and library paths right
 # find libidn
-AC_ARG_WITH(libidn, AC_HELP_STRING([--with-libidn=pathname],
+AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
 	[path to libidn (default: search /usr/local ..)]),
 	[], [withval="yes"])
 if test x_$withval = x_yes; then
@@ -114,7 +114,7 @@ else
 fi
 
 # find libldns
-AC_ARG_WITH(libldns, AC_HELP_STRING([--with-libldns=pathname],
+AC_ARG_WITH(libldns, AS_HELP_STRING([--with-libldns=pathname],
 	[path to libldns (default: search /usr/local ..)]),
 	[], [withval="yes"])
 if test x_$withval = x_yes; then
@@ -134,7 +134,7 @@ else
 fi
 
 # find libunbound
-AC_ARG_WITH(libunbound, AC_HELP_STRING([--with-libunbound=pathname],
+AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
 	[path to libunbound (default: search /usr/local ..)]),
 	[], [withval="yes"])
 if test x_$withval = x_yes; then
@@ -175,9 +175,9 @@ then
     AC_MSG_ERROR([libunbound is missing.])
 fi
 
-AC_CHECK_PROGS([DOXYGEN], [doxygen])
+AC_CHECK_PROG([DOXYGEN], [doxygen])
 if test -z "$DOXYGEN";
-    then AC_MSG_WARN([Doxygen not found, continuing without])
+    then AC_MSG_WARN([doxygen not found, continuing without])
 fi
 
 # Checks for header files.
@@ -193,91 +193,146 @@ AC_TYPE_UINT8_T
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
 
-EXTENSION_LDFLAGS=$LDFLAGS
+#-------------------- libevent extension
+AC_ARG_WITH([libevent],
+    [AS_HELP_STRING([--with-libevent], [path to libevent (default: search /usr/local ..)])],
+    [with_libevent=search],
+    [withval=no])
 
-# libevent extension
 have_libevent=0
-EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
 EXTENSION_LIBEVENT_EXT_LIBS=""
+EXTENSION_LIBEVENT_LIB=""
+EXTENSION_LIBEVENT_LDFLAGS=""
 CHECK_EVENT_PROG=""
-AC_SEARCH_LIBS([event_loop],
-    [event_core event],
-    [AC_CHECK_FUNCS([event_base_new event_base_free])]
-    [AC_CHECK_HEADERS([event2/event.h],
-        # event2/event.h found
-		[have_libevent=1]
-        [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"]
-        [CHECK_EVENT_PROG=check_getdns_event],
-        # not found - look for event.h
-        [AC_CHECK_TYPE(u_char, unsigned char)]
-        [AC_CHECK_HEADERS([event.h],
-            # found
-            [have_libevent=1]
-            [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"]
-            [CHECK_EVENT_PROG=check_getdns_event],
-            # not found - give up
-            [EXTENSION_LIBEVENT_LIB=""],
-            [AC_INCLUDES_DEFAULT])]
-	,[AC_INCLUDES_DEFAULT])],
-	# libs not found
-	[have_libevent=0]
-	[EXTENSION_LIBEVENT_LIB=""])
+AS_IF([test x_$withval = x_no],
+    [],
+    [AS_IF([test x_$withval = x_yes],
+        [AC_SEARCH_LIBS([event_loop],
+        	[event_core event],
+            [AC_CHECK_FUNCS([event_base_new event_base_free])]
+            [AC_CHECK_HEADERS([event2/event.h],
+                [have_libevent=1]
+                [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"],
+                [AC_MSG_ERROR([event2/event.h missing, try without libevent])]
+                [have_libevent=0],
+                [AC_INCLUDES_DEFAULT])],
+                [AC_MSG_ERROR([libevent missing, try without libevent])]
+            )],
+        [have_libevent=1]
+        [AC_MSG_NOTICE([assuming libevent in $withval])]
+        [CFLAGS="$CFLAGS -I$withval/include"]
+		[EXTENSION_LIBEVENT_LDFLAGS="-L$withval/lib"]
+        [EXTENSION_LIBEVENT_EXT_LIBS="-levent"])]
+    )
+
+AS_IF([test x_$have_libevent = x_1],
+    [EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"]
+    [CHECK_EVENT_PROG=check_getdns_event])
 
 AC_SUBST(have_libevent)
 AC_SUBST(EXTENSION_LIBEVENT_LIB)
 AC_SUBST(EXTENSION_LIBEVENT_EXT_LIBS)
+AC_SUBST(EXTENSION_LIBEVENT_LDFLAGS)
 AC_SUBST(CHECK_EVENT_PROG)
 
-# libuv extension
-have_libuv=1
-EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
+# end libevent extension
+
+#-------------------- libuv extension
+# if user says nothing about libuv, or specifies --with-libuv=no or --without-libuv
+# then we do not want libuv extensions built
+# if user specifies --with-libuv then search for it
+# if user specifies --with-libuv=/path then check the lib at that path
+AC_ARG_WITH([libuv],
+    [AS_HELP_STRING([--with-libuv], [path to libuv (default: search /usr/local ..)])],
+    [with_libuv=search],
+    [withval=no])
+
+have_libuv=0
 EXTENSION_LIBUV_EXT_LIBS=""
+EXTENSION_LIBUV_LIB=""
+EXTENSION_LIBUV_LDFLAGS=""
 CHECK_UV_PROG=""
-AC_SEARCH_LIBS([uv_run],
-	[uv],
-	[AC_CHECK_HEADERS([uv.h],
-		[EXTENSION_LIBUV_EXT_LIBS="$ac_cv_search_uv_run"]
-        [CHECK_UV_PROG=check_getdns_uv],
-        [have_libuv=0]
-        [EXTENSION_LIBUV_LIB=""],
-        [AC_INCLUDES_DEFAULT])],
-    [have_libuv=0]
-    [EXTENSION_LIBUV_LIB=""])
+AS_IF([test x_$withval = x_no],
+    [],
+    [AS_IF([test x_$withval = x_yes],
+        [AC_SEARCH_LIBS([uv_run],
+        	[uv],
+        	[AC_CHECK_HEADERS([uv.h],
+                [have_libuv=1]
+                [EXTENSION_LIBUV_EXT_LIBS="$ac_cv_search_uv_run"],
+                [AC_MSG_ERROR([uv.h missing, try without libuv])]
+                [have_libuv=0],
+                [AC_INCLUDES_DEFAULT])],
+                [AC_MSG_ERROR([libuv missing, try without libuv])]
+            )],
+        [have_libuv=1]
+        [AC_MSG_NOTICE([assuming libuv in $withval])]
+        [CFLAGS="$CFLAGS -I$withval/include"]
+		[EXTENSION_LIBUV_LDFLAGS="-L$withval/lib"]
+        [EXTENSION_LIBUV_EXT_LIBS="-luv"])]
+    )
+
+AS_IF([test x_$have_libuv = x_1],
+    [EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"]
+    [CHECK_UV_PROG=check_getdns_uv])
 
 AC_SUBST(have_libuv)
 AC_SUBST(EXTENSION_LIBUV_LIB)
 AC_SUBST(EXTENSION_LIBUV_EXT_LIBS)
+AC_SUBST(EXTENSION_LIBUV_LDFLAGS)
 AC_SUBST(CHECK_UV_PROG)
 
-# libev extension
-have_libev=1
-EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
-EXTENSION_LIBEV_EXT_LIBS=""
+# end libuv extension
 
-AC_SEARCH_LIBS([ev_run],
-    [ev],
-    [AC_CHECK_HEADERS([ev.h],
-        [EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"]
-        [CHECK_EV_PROG=check_getdns_ev],
-        [have_libev=0]
-        [EXTENSION_LIBUV_LIB=""],
-        [AC_INCLUDES_DEFAULT])],
-    [have_libev=0]
-    [EXTENSION_LIBEV_LIB=""])
+#-------------------- libev extension
+AC_ARG_WITH([libev],
+    [AS_HELP_STRING([--with-libev], [path to libev (default: search /usr/local ..)])],
+    [with_libev=search],
+    [withval=no])
+
+have_libev=0
+EXTENSION_LIBEV_EXT_LIBS=""
+EXTENSION_LIBEV_LIB=""
+EXTENSION_LIBEV_LDFLAGS=""
+CHECK_EV_PROG=""
+AS_IF([test x_$withval = x_no],
+    [],
+    [AS_IF([test x_$withval = x_yes],
+        [AC_SEARCH_LIBS([ev_run],
+        	[ev],
+        	[AC_CHECK_HEADERS([ev.h],
+                [have_libev=1]
+                [EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"],
+                [AC_MSG_ERROR([ev.h missing, try without libev])]
+                [have_libev=0],
+                [AC_INCLUDES_DEFAULT])],
+                [AC_MSG_ERROR([libev missing, try without libev])]
+            )],
+        [have_libev=1]
+        [AC_MSG_NOTICE([assuming libev in $withval])]
+        [CFLAGS="$CFLAGS -I$withval/include"]
+		[EXTENSION_LIBEV_LDFLAGS="-L$withval/lib"]
+        [EXTENSION_LIBEV_EXT_LIBS="-lev"])]
+    )
+
+AS_IF([test x_$have_libev = x_1],
+    [EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"]
+    [CHECK_EV_PROG=check_getdns_ev])
 
 AC_SUBST(have_libev)
 AC_SUBST(EXTENSION_LIBEV_LIB)
 AC_SUBST(EXTENSION_LIBEV_EXT_LIBS)
+AC_SUBST(EXTENSION_LIBEV_LDFLAGS)
 AC_SUBST(CHECK_EV_PROG)
 
-AC_SUBST(EXTENSION_LDFLAGS)
+# end libev extension
 
 LIBS=$getdns_LIBS
 LDFLAGS=$getdns_LDFLAGS
 
 # --with-trust-anchor=
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])
-AC_ARG_WITH(trust-anchor, AC_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file. [default=SYSCONFDIR/unbound/getdns-root.key]]), [
+AC_ARG_WITH(trust-anchor, AS_HELP_STRING([--with-trust-anchor=KEYFILE], [Default location of the trust anchor file. [default=SYSCONFDIR/unbound/getdns-root.key]]), [
  TRUST_ANCHOR_FILE="$withval"
 ],[
  if test "x$TRUST_ANCHOR_FILE" = "x"; then

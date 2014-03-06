@@ -635,16 +635,18 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 TRUST_ANCHOR_FILE
-EXTENSION_LDFLAGS
 CHECK_EV_PROG
+EXTENSION_LIBEV_LDFLAGS
 EXTENSION_LIBEV_EXT_LIBS
 EXTENSION_LIBEV_LIB
 have_libev
 CHECK_UV_PROG
+EXTENSION_LIBUV_LDFLAGS
 EXTENSION_LIBUV_EXT_LIBS
 EXTENSION_LIBUV_LIB
 have_libuv
 CHECK_EVENT_PROG
+EXTENSION_LIBEVENT_LDFLAGS
 EXTENSION_LIBEVENT_EXT_LIBS
 EXTENSION_LIBEVENT_LIB
 have_libevent
@@ -745,6 +747,9 @@ enable_rpath
 with_libidn
 with_libldns
 with_libunbound
+with_libevent
+with_libuv
+with_libev
 with_trust_anchor
 '
       ac_precious_vars='build_alias
@@ -1388,6 +1393,9 @@ Optional Packages:
   --with-libldns=pathname path to libldns (default: search /usr/local ..)
   --with-libunbound=pathname
                           path to libunbound (default: search /usr/local ..)
+  --with-libevent         path to libevent (default: search /usr/local ..)
+  --with-libuv            path to libuv (default: search /usr/local ..)
+  --with-libev            path to libev (default: search /usr/local ..)
   --with-trust-anchor=KEYFILE
                           Default location of the trust anchor file.
                           [default=SYSCONFDIR/unbound/getdns-root.key]
@@ -11170,14 +11178,26 @@ _ACEOF
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
 
-EXTENSION_LDFLAGS=$LDFLAGS
+#-------------------- libevent extension
 
-# libevent extension
+# Check whether --with-libevent was given.
+if test "${with_libevent+set}" = set; then :
+  withval=$with_libevent; with_libevent=search
+else
+  withval=no
+fi
+
+
 have_libevent=0
-EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
 EXTENSION_LIBEVENT_EXT_LIBS=""
+EXTENSION_LIBEVENT_LIB=""
+EXTENSION_LIBEVENT_LDFLAGS=""
 CHECK_EVENT_PROG=""
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_loop" >&5
+if test x_$withval = x_no; then :
+
+else
+  if test x_$withval = x_yes; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing event_loop" >&5
 $as_echo_n "checking for library containing event_loop... " >&6; }
 if ${ac_cv_search_event_loop+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -11242,7 +11262,7 @@ _ACEOF
 fi
 done
 
-    for ac_header in event2/event.h
+            for ac_header in event2/event.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "event2/event.h" "ac_cv_header_event2_event_h" "$ac_includes_default
 "
@@ -11250,51 +11270,34 @@ if test "x$ac_cv_header_event2_event_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_EVENT2_EVENT_H 1
 _ACEOF
- # event2/event.h found
-		have_libevent=1
-        EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
-        CHECK_EVENT_PROG=check_getdns_event
+ have_libevent=1
+                EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
 else
-  # not found - look for event.h
-        ac_fn_c_check_type "$LINENO" "u_char" "ac_cv_type_u_char" "$ac_includes_default"
-if test "x$ac_cv_type_u_char" = xyes; then :
-
-else
-
-cat >>confdefs.h <<_ACEOF
-#define u_char unsigned char
-_ACEOF
-
-fi
-
-        for ac_header in event.h
-do :
-  ac_fn_c_check_header_compile "$LINENO" "event.h" "ac_cv_header_event_h" "$ac_includes_default
-"
-if test "x$ac_cv_header_event_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_EVENT_H 1
-_ACEOF
- # found
-            have_libevent=1
-            EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
-            CHECK_EVENT_PROG=check_getdns_event
-else
-  # not found - give up
-            EXTENSION_LIBEVENT_LIB=""
-fi
-
-done
-
-
+  as_fn_error $? "event2/event.h missing, try without libevent" "$LINENO" 5
+                have_libevent=0
 fi
 
 done
 
 else
-  # libs not found
-	have_libevent=0
-	EXTENSION_LIBEVENT_LIB=""
+  as_fn_error $? "libevent missing, try without libevent" "$LINENO" 5
+
+fi
+
+else
+  have_libevent=1
+        { $as_echo "$as_me:${as_lineno-$LINENO}: assuming libevent in $withval" >&5
+$as_echo "$as_me: assuming libevent in $withval" >&6;}
+        CFLAGS="$CFLAGS -I$withval/include"
+		EXTENSION_LIBEVENT_LDFLAGS="-L$withval/lib"
+        EXTENSION_LIBEVENT_EXT_LIBS="-levent"
+fi
+
+fi
+
+if test x_$have_libevent = x_1; then :
+  EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
+    CHECK_EVENT_PROG=check_getdns_event
 fi
 
 
@@ -11303,12 +11306,32 @@ fi
 
 
 
-# libuv extension
-have_libuv=1
-EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
+# end libevent extension
+
+#-------------------- libuv extension
+# if user says nothing about libuv, or specifies --with-libuv=no or --without-libuv
+# then we do not want libuv extensions built
+# if user specifies --with-libuv then search for it
+# if user specifies --with-libuv=/path then check the lib at that path
+
+# Check whether --with-libuv was given.
+if test "${with_libuv+set}" = set; then :
+  withval=$with_libuv; with_libuv=search
+else
+  withval=no
+fi
+
+
+have_libuv=0
 EXTENSION_LIBUV_EXT_LIBS=""
+EXTENSION_LIBUV_LIB=""
+EXTENSION_LIBUV_LDFLAGS=""
 CHECK_UV_PROG=""
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing uv_run" >&5
+if test x_$withval = x_no; then :
+
+else
+  if test x_$withval = x_yes; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing uv_run" >&5
 $as_echo_n "checking for library containing uv_run... " >&6; }
 if ${ac_cv_search_uv_run+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -11369,18 +11392,34 @@ if test "x$ac_cv_header_uv_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_UV_H 1
 _ACEOF
- EXTENSION_LIBUV_EXT_LIBS="$ac_cv_search_uv_run"
-        CHECK_UV_PROG=check_getdns_uv
+ have_libuv=1
+                EXTENSION_LIBUV_EXT_LIBS="$ac_cv_search_uv_run"
 else
-  have_libuv=0
-        EXTENSION_LIBUV_LIB=""
+  as_fn_error $? "uv.h missing, try without libuv" "$LINENO" 5
+                have_libuv=0
 fi
 
 done
 
 else
-  have_libuv=0
-    EXTENSION_LIBUV_LIB=""
+  as_fn_error $? "libuv missing, try without libuv" "$LINENO" 5
+
+fi
+
+else
+  have_libuv=1
+        { $as_echo "$as_me:${as_lineno-$LINENO}: assuming libuv in $withval" >&5
+$as_echo "$as_me: assuming libuv in $withval" >&6;}
+        CFLAGS="$CFLAGS -I$withval/include"
+		EXTENSION_LIBUV_LDFLAGS="-L$withval/lib"
+        EXTENSION_LIBUV_EXT_LIBS="-luv"
+fi
+
+fi
+
+if test x_$have_libuv = x_1; then :
+  EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
+    CHECK_UV_PROG=check_getdns_uv
 fi
 
 
@@ -11389,12 +11428,28 @@ fi
 
 
 
-# libev extension
-have_libev=1
-EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
-EXTENSION_LIBEV_EXT_LIBS=""
+# end libuv extension
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing ev_run" >&5
+#-------------------- libev extension
+
+# Check whether --with-libev was given.
+if test "${with_libev+set}" = set; then :
+  withval=$with_libev; with_libev=search
+else
+  withval=no
+fi
+
+
+have_libev=0
+EXTENSION_LIBEV_EXT_LIBS=""
+EXTENSION_LIBEV_LIB=""
+EXTENSION_LIBEV_LDFLAGS=""
+CHECK_EV_PROG=""
+if test x_$withval = x_no; then :
+
+else
+  if test x_$withval = x_yes; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing ev_run" >&5
 $as_echo_n "checking for library containing ev_run... " >&6; }
 if ${ac_cv_search_ev_run+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -11455,18 +11510,34 @@ if test "x$ac_cv_header_ev_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_EV_H 1
 _ACEOF
- EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"
-        CHECK_EV_PROG=check_getdns_ev
+ have_libev=1
+                EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"
 else
-  have_libev=0
-        EXTENSION_LIBUV_LIB=""
+  as_fn_error $? "ev.h missing, try without libev" "$LINENO" 5
+                have_libev=0
 fi
 
 done
 
 else
-  have_libev=0
-    EXTENSION_LIBEV_LIB=""
+  as_fn_error $? "libev missing, try without libev" "$LINENO" 5
+
+fi
+
+else
+  have_libev=1
+        { $as_echo "$as_me:${as_lineno-$LINENO}: assuming libev in $withval" >&5
+$as_echo "$as_me: assuming libev in $withval" >&6;}
+        CFLAGS="$CFLAGS -I$withval/include"
+		EXTENSION_LIBEV_LDFLAGS="-L$withval/lib"
+        EXTENSION_LIBEV_EXT_LIBS="-lev"
+fi
+
+fi
+
+if test x_$have_libev = x_1; then :
+  EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
+    CHECK_EV_PROG=check_getdns_ev
 fi
 
 
@@ -11475,7 +11546,7 @@ fi
 
 
 
-
+# end libev extension
 
 LIBS=$getdns_LIBS
 LDFLAGS=$getdns_LDFLAGS

@@ -1,4 +1,7 @@
 * 2014-xx-xx : Version x.x.x
+  * default to NOT build extensions (libev, libuv, libevent), handle
+    --with/--without optiosn to configure for them
+  * respect configure --docdir=X
   * Documentation/man page updates
 
 * 2014-02-25 : Version 0.1.0

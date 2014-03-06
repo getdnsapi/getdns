@@ -12,9 +12,6 @@
 /* Define to 1 if you have the `event_base_new' function. */
 #undef HAVE_EVENT_BASE_NEW
 
-/* Define to 1 if you have the <event.h> header file. */
-#undef HAVE_EVENT_H
-
 /* Define to 1 if you have the <ev.h> header file. */
 #undef HAVE_EV_H
 
@@ -108,9 +105,6 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
-
-/* Define to `unsigned char' if <sys/types.h> does not define. */
-#undef u_char
 
 /* Define to the type of an unsigned integer type of width exactly 16 bits if
    such a type exists and the standard includes do not define it. */

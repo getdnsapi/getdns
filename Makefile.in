@@ -35,6 +35,7 @@ distdir	= $(tarname)-$(version)
 bintar  = $(distdir)-bin.tar.gz
 
 prefix = @prefix@
+datarootdir=@datarootdir@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
 docdir = @docdir@
