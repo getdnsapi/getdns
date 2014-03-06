@@ -81,7 +81,7 @@ install: all
 	@echo "***"
 
 uninstall:
-	rm -rf -d $(DESTDIR)$(docdir)
+	rm -rf $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
 
