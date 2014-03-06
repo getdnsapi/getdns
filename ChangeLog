@@ -3,6 +3,10 @@
     --with/--without optiosn to configure for them
   * respect configure --docdir=X
   * Documentation/man page updates
+  * Fix install and cpp guards in getdns_extra.h
+  * Add method to switch between threads and fork mode for unbound
+  * Fixes for libuv integration (saghul)
+  * Fixes for calling getdns_destroy_context within a callback
 
 * 2014-02-25 : Version 0.1.0
   * Initial public release of the getdns API
