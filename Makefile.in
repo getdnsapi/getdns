@@ -49,17 +49,17 @@ default:
 all : default
 
 install: all
-	$(INSTALL) -m 755 -d $(docdir)
-	$(INSTALL) -m 644 AUTHORS $(docdir)
-	$(INSTALL) -m 644 ChangeLog $(docdir)
-	$(INSTALL) -m 644 COPYING $(docdir)
-	$(INSTALL) -m 644 INSTALL $(docdir)
-	$(INSTALL) -m 644 LICENSE $(docdir)
-	$(INSTALL) -m 644 NEWS $(docdir)
-	$(INSTALL) -m 644 README.md $(docdir)
-	$(INSTALL) -m 755 -d $(docdir)/spec
-	$(INSTALL) -m 644 spec/index.html $(docdir)/spec
-	$(INSTALL) -m 644 spec/getdns*tgz $(docdir)/spec
+	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 AUTHORS $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 ChangeLog $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 COPYING $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 INSTALL $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 LICENSE $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 NEWS $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 README.md $(DESTDIR)$(docdir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
+	$(INSTALL) -m 644 spec/index.html $(DESTDIR)$(docdir)/spec
+	$(INSTALL) -m 644 spec/getdns*tgz $(DESTDIR)$(docdir)/spec
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -80,7 +80,7 @@ install: all
 	@echo "***"
 
 uninstall:
-	rm -rf -d $(DESTDIR)/$(docdir)
+	rm -rf -d $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
 
