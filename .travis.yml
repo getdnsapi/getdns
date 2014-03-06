@@ -6,7 +6,7 @@ before_script:
   - sudo apt-get update
   - sudo apt-get install libunbound-dev libldns-dev libidn11-dev check libevent-dev
 script:
-  - ./configure
+  - ./configure --with-libevent
   - make
   - sudo make install
   - make test
