@@ -1213,6 +1213,18 @@ getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+
+    if (context->processing) {
+		/* When called from within a callback, do not execute pending
+		 * context destroys.
+		 * The (other) callback handler will handle it.
+		 * 
+		 * ( because callbacks occur in getdns_context_cancel_request,
+		 *   and they may destroy the context )
+		 */
+	    return getdns_context_cancel_request(context, transaction_id, 1);
+    }
+
     context->processing = 1;
     getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
     if (context->extension) {
@@ -1632,19 +1644,38 @@ cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
 getdns_return_t
 getdns_extension_detach_eventloop(struct getdns_context* context)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    getdns_return_t r = GETDNS_RETURN_GOOD;
-    if (context->extension) {
-        /* cancel all outstanding requests */
-        cancel_outstanding_requests(context, 1);
-        r = context->extension->cleanup_data(context, context->extension_data);
-        if (r != GETDNS_RETURN_GOOD) {
-            return r;
-        }
-        context->extension = NULL;
-        context->extension_data = NULL;
-    }
-    return r;
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	if (context->extension) {
+		/* When called from within a callback, do not execute pending
+		 * context destroys.
+		 * The (other) callback handler will handle it.
+		 * 
+		 * ( because callbacks occur in cancel_outstanding_requests,
+		 *   and they may destroy the context )
+		 */
+		int within_callback = context->processing;
+		if (! within_callback) {
+			context->processing = 1;
+		}
+		/* cancel all outstanding requests */
+		cancel_outstanding_requests(context, 1);
+		r = context->extension->cleanup_data(context,
+		    context->extension_data);
+		if (r == GETDNS_RETURN_GOOD) {
+			context->extension = NULL;
+			context->extension_data = NULL;
+		}
+		if (! within_callback) {
+			if (context->processing > 1) {
+				context->processing = 0;
+				getdns_context_destroy(context);
+				return GETDNS_RETURN_BAD_CONTEXT;
+			}
+			context->processing = 0;
+		}
+	}
+	return r;
 }
 
 getdns_return_t
