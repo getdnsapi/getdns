@@ -63,7 +63,7 @@ getdns_return_t getdns_context_process_async(getdns_context* context);
 getdns_return_t getdns_context_set_use_threads(getdns_context* context, int use_threads);
 
 /* extensions */
-typedef void (*getdns_timeout_callback) (void* userarg);
+typedef getdns_return_t (*getdns_timeout_callback) (void* userarg);
 
 /* context timeout data */
 typedef struct getdns_timeout_data {

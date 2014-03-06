@@ -157,6 +157,10 @@ getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
 /* clear the outbound request from being tracked - does not cancel it */
 getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
     *req);
+
+getdns_return_t getdns_context_request_timed_out(struct getdns_dns_req
+    *req);
+
 /* cancel callback internal - flag to indicate if req should be freed and callback fired */
 getdns_return_t getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback);

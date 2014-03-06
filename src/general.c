@@ -50,8 +50,8 @@
 
 /* declarations */
 static void ub_resolve_callback(void* mydata, int err, struct ub_result* result);
-static void ub_resolve_timeout(void *arg);
-static void ub_local_resolve_timeout(void *arg);
+static getdns_return_t ub_resolve_timeout(void *arg);
+static getdns_return_t ub_local_resolve_timeout(void *arg);
 
 static void handle_network_request_error(getdns_network_req * netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req * dns_req);
@@ -65,22 +65,14 @@ typedef struct netreq_cb_data
 } netreq_cb_data;
 
 /* cancel, cleanup and send timeout to callback */
-static void
+static getdns_return_t
 ub_resolve_timeout(void *arg)
 {
 	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
-	struct getdns_context *context = dns_req->context;
-	getdns_transaction_t trans_id = dns_req->trans_id;
-	getdns_callback_t cb = dns_req->user_callback;
-	void *user_arg = dns_req->user_pointer;
-
-	/* cancel the req - also clears it from outbound and cleans up*/
-	getdns_context_cancel_request(context, trans_id, 0);
-
-	cb(context, GETDNS_CALLBACK_TIMEOUT, NULL, user_arg, trans_id);
+	return getdns_context_request_timed_out(dns_req);
 }
 
-static void
+static getdns_return_t
 ub_local_resolve_timeout(void *arg)
 {
 	netreq_cb_data *cb_data = (netreq_cb_data *) arg;
@@ -99,6 +91,7 @@ ub_local_resolve_timeout(void *arg)
 
 	/* cleanup the state */
 	GETDNS_FREE(dnsreq->my_mf, cb_data);
+    return GETDNS_RETURN_GOOD;
 }
 
 void priv_getdns_call_user_callback(getdns_dns_req *dns_req,

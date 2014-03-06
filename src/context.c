@@ -541,6 +541,9 @@ getdns_context_destroy(struct getdns_context *context)
         context->processing++;
         return;
     }
+    if (context->destroying) {
+        return;
+    }
     context->destroying = 1;
     cancel_outstanding_requests(context, 1);
     getdns_extension_detach_eventloop(context);
@@ -1210,11 +1213,18 @@ getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    context->processing = 1;
     getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
     if (context->extension) {
         context->extension->request_count_changed(context,
             context->outbound_requests->count, context->extension_data);
     }
+    if (context->processing > 1) {
+        context->processing = 0;
+        getdns_context_destroy(context);
+        return GETDNS_RETURN_BAD_CONTEXT;
+    }
+    context->processing = 0;
     return r;
 } /* getdns_cancel_callback */
 
@@ -1417,7 +1427,32 @@ getdns_context_clear_outbound_request(getdns_dns_req * req)
     return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t
+getdns_context_request_timed_out(struct getdns_dns_req
+    *req) {
+    getdns_context* context = req->context;
+    getdns_transaction_t trans_id = req->trans_id;
+    getdns_callback_t cb = req->user_callback;
+    void *user_arg = req->user_pointer;
 
+    /* cancel the req - also clears it from outbound and cleans up*/
+    getdns_context_cancel_request(context, trans_id, 0);
+    context->processing = 1;
+    cb(context, GETDNS_CALLBACK_TIMEOUT, NULL, user_arg, trans_id);
+    if (context->processing > 1) {
+        // destroyed.
+        context->processing = 0;
+        getdns_context_destroy(context);
+        return GETDNS_RETURN_BAD_CONTEXT;
+    } else {
+        context->processing = 0;
+        if (context->extension) {
+            context->extension->request_count_changed(context,
+                context->outbound_requests->count, context->extension_data);
+        }
+    }
+    return GETDNS_RETURN_GOOD;
+}
 
 char *
 getdns_strdup(const struct mem_funcs *mfs, const char *s)
@@ -1543,7 +1578,8 @@ getdns_return_t getdns_context_process_async(struct getdns_context* context) {
         return GETDNS_RETURN_GENERIC_ERROR;
     }
     ldns_rbnode_t* next_timeout = ldns_rbtree_first(context->timeouts_by_time);
-    while (next_timeout) {
+    getdns_return_t r = GETDNS_RETURN_GOOD;
+    while (next_timeout && r == GETDNS_RETURN_GOOD) {
         getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) next_timeout->data;
         if (timeout_cmp(timeout_data, &key) > 0) {
             /* no more timeouts need to be fired. */
@@ -1560,10 +1596,10 @@ getdns_return_t getdns_context_process_async(struct getdns_context* context) {
         }
 
         /* fire the timeout */
-        timeout_data->callback(timeout_data->userarg);
+        r = timeout_data->callback(timeout_data->userarg);
     }
 
-    return GETDNS_RETURN_GOOD;
+    return r;
 }
 
 typedef struct timeout_accumulator {

@@ -73,10 +73,6 @@ static void
 getdns_libev_timeout_cb(struct ev_loop *loop, struct ev_timer* handle, int status) {
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) handle->data;
     timeout_data->callback(timeout_data->userarg);
-    uint32_t rc = getdns_context_get_num_pending_requests(timeout_data->context, NULL);
-    struct getdns_libev_data* ev_data =
-        (struct getdns_libev_data*) getdns_context_get_extension_data(timeout_data->context);
-    request_count_changed(rc, ev_data);
 }
 
 /* getdns extension functions */

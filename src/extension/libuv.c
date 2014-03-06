@@ -75,10 +75,6 @@ static void
 getdns_libuv_timeout_cb(uv_timer_t* handle, int status) {
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) handle->data;
     timeout_data->callback(timeout_data->userarg);
-    uint32_t rc = getdns_context_get_num_pending_requests(timeout_data->context, NULL);
-    struct getdns_libuv_data* uv_data =
-        (struct getdns_libuv_data*) getdns_context_get_extension_data(timeout_data->context);
-    request_count_changed(rc, uv_data);
 }
 
 static void

@@ -102,10 +102,6 @@ static void
 getdns_libevent_timeout_cb(evutil_socket_t fd, short what, void* userarg) {
     getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) userarg;
     timeout_data->callback(timeout_data->userarg);
-    uint32_t rc = getdns_context_get_num_pending_requests(timeout_data->context, NULL);
-    struct event_data* ev_data =
-        (struct event_data*) getdns_context_get_extension_data(timeout_data->context);
-    request_count_changed(rc, ev_data);
 }
 
 /* getdns extension functions */

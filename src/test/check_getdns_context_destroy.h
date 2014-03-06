@@ -202,6 +202,61 @@
      }
      END_TEST
 
+     START_TEST (getdns_context_destroy_8)
+     {
+      /*
+       *  destroy called immediately following getdns_address
+       *  expect: callback should be called before getdns_context_destroy() returns
+       */
+       struct getdns_context *context = NULL;
+       void* eventloop = NULL;
+       getdns_transaction_t transaction_id = 0;
+
+       int flag = 0;     /* Initialize flag */
+
+       CONTEXT_CREATE(TRUE);
+       EVENT_BASE_CREATE;
+
+       ASSERT_RC(getdns_address(context, "google.com", NULL,
+         &flag, &transaction_id, destroy_callbackfn),
+         GETDNS_RETURN_GOOD, "Return code from getdns_address()");
+       getdns_cancel_callback(context, transaction_id);
+       RUN_EVENT_LOOP;
+
+       ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
+     }
+     END_TEST
+
+     START_TEST (getdns_context_destroy_9)
+     {
+      /*
+       *  destroy called immediately following getdns_address
+       *  expect: callback should be called before getdns_context_destroy() returns
+       */
+       struct getdns_context *context = NULL;
+       void* eventloop = NULL;
+       getdns_transaction_t transaction_id = 0;
+
+       int flag = 0;     /* Initialize flag */
+
+       CONTEXT_CREATE(TRUE);
+       // set timeout to something unreasonable
+       getdns_context_set_timeout(context, 1);
+       EVENT_BASE_CREATE;
+
+       ASSERT_RC(getdns_address(context, "google.com", NULL,
+         &flag, &transaction_id, destroy_callbackfn),
+         GETDNS_RETURN_GOOD, "Return code from getdns_address()");
+       ASSERT_RC(getdns_address(context, "getdnsapi.net", NULL,
+         &flag, &transaction_id, destroy_callbackfn),
+         GETDNS_RETURN_GOOD, "Return code from getdns_address()");
+
+       RUN_EVENT_LOOP;
+
+       ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
+     }
+     END_TEST
+
      void verify_getdns_context_destroy(struct extracted_response *ex_response)
      {
        /*
@@ -234,6 +289,8 @@
        tcase_add_test(tc_pos, getdns_context_destroy_5);
        tcase_add_test(tc_pos, getdns_context_destroy_6);
        tcase_add_test(tc_pos, getdns_context_destroy_7);
+       tcase_add_test(tc_pos, getdns_context_destroy_8);
+       tcase_add_test(tc_pos, getdns_context_destroy_9);
        suite_add_tcase(s, tc_pos);
 
        return s;
