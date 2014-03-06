@@ -89,7 +89,209 @@ a struct used to hold binary data defined as { size_t size; uint8_t *binary_stuf
 .SH ASYNCHRONOUS USE
 
 .LP
-TBD
+The getdns specification emphasizes the asynchronous nature of the API and
+allows implementations to define their own approach. This page documents this
+implementation's decisions and facilities provided to the developer.
+
+.LP
+This implementation provides asynchronous support via the following mechanisms:
+
+.RS 3
+File Descriptor Polling
+.br
+Event Loop Integrations:
+.RS 3
+libevent
+.br
+libuv
+.br
+libev
+.RE
+Custom Event Loop Integrations
+.RE
+
+.LP
+All functions and types discussed in this page are declared in getdns_extra.h
+
+.SS "File Descriptor Polling"
+
+A common approach used in asynchronous applications is to poll a file
+descriptor via system calls like select and poll and then yielding CPU when
+ready. The API provides the following functions to support this approach:
+
+.HP 3
+int getdns_context_fd(getdns_context* context)
+
+Get the file descriptor to poll for a given context.  Callers should never read from this result.  It is meant strictly for polling.Returns -1 if the context is NULL.
+
+.HP 3
+uint32_t getdns_context_get_num_pending_requests(getdns_context* context, struct timeval* next_timeout)
+
+Get the number of outstanding asynchronous requests for a given context as well as the the amount of time until the next timeout.  The next_timeout struct can be NULL.  If supplied and the number of outstanding requests is > 0, then the timeout represents the relative time until the next timeout.
+
+.HP 3
+getdns_return_t getdns_context_process_async(getdns_context* context)
+
+Inform the context to process its outstanding requests.  Users should call this when either a timeout has occurred or the file descriptor signals that it is ready.  User callbacks are fired during this call.
+
+.SS "Example Event Loop"
+
+The following is an example event loop leveraging select:
+
+.Bd -literal -compact
+    struct timeval tv;
+    /* Keep looping while there are outstanding requests */
+    while (getdns_context_get_num_pending_requests(context, &tv) > 0)
+    {
+        /* setup the read FD_SET to pass to select */
+        int fd = getdns_context_fd(context);
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(fd, &read_fds);
+        /* Wait on the FD or for a timeout */
+        select(fd + 1, &read_fds, NULL, NULL, &tv);
+        getdns_context_process_async(context);
+    }
+.Ed
+
+.SS "Included Event Loop Integrations"
+
+.LP
+A number of applications achieve asynchronous behavior by leveraging event loop abstraction libraries. If the build system discovers a supported event loop, the event loop extension is built in addition to the getdns library. Extensions are built as an additional shared library. The following event loop libraries are supported:
+
+.B
+libevent1 and libevent2
+
+.LP
+The libevent extension allows a context to attach to a event_base. The event loop is then run like any other application using libevent via event_base_dispatch or event_base_loop and expect getdns callbacks to fire.
+
+.LP
+Note that if both libevent1 and libevent2 reside on system, the extension uses libevent2.
+
+.RS 3
+Extension library: libgetdns_ext_event.[shared_lib_ext]
+.br
+Extension header: getdns/getdns_ext_libevent.h
+.RE
+
+.B
+libuv
+
+.LP
+The libuv extension allows a context to attach to a uv_loop_s. The event loop can then be run like any other application using libuv via uv_run and expect getdns callbacks to fire.
+
+.RS 3
+Extension library: libgetdns_ext_uv.[shared_lib_ext]
+.br
+Extension header: getdns_ext_libuv.h
+.RE
+
+.B
+libev
+
+.LP
+The libev extension allows a context to attach to a ev_loop. The event loop can then be run like any other application using libev via ev_run and expect getdns callbacks to fire.
+
+.RS 3
+Extension library: libgetdns_ext_ev.[shared_lib_ext]
+.br
+Extension header: getdns_ext_libev.h
+.RE
+
+.SS "Custom Event Loop Integrations"
+
+.LP
+The event loop integrations documented above all leverage the same event loop extension API provided by this library. The mechanism is exposed to developers who wish to integrate their own event loop. And includes the following functions and structures:
+
+.LP
+The application provides a callback to indicate that a timeout has occurred.
+
+.IP
+typedef void (*getdns_timeout_callback) (void* userarg);
+
+.LP
+Timeout data provided when scheduling a timeout is captured in this structure:
+
+.Bd -literal -compact
+typedef struct getdns_timeout_data {
+                              /* a timeout id */
+    getdns_transaction_t transaction_id;
+                              /* absolute time of the timeout */
+    struct timeval timeout_time;
+                              /* the timeout callback to fire */
+    getdns_timeout_callback callback;
+                              /* user arg to callback */
+    void* userarg;
+                              /* pointer to the underlying extension pointer that the extension will create and free */
+    void* extension_timer;
+    struct getdns_context* context;
+} getdns_timeout_data_t;
+.Ed
+
+.LP
+The application calls the extension to schedule a timer.  Any timer data that needs to be tracked should be stored in eventloop_timer.
+
+.IP
+typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
+    void* eventloop_data, uint16_t timeout,
+    getdns_timeout_data_t* timeout_data,
+    void** eventloop_timer);
+
+.LP
+The application calls the extension to free a timer.  The timer passed in is the same as that returned in the schedule timeout.  This is the only place where it is safe to free timer data.  Extensions can expect this will be called for every schedule_timeout call.
+
+.IP
+typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
+    void* eventloop_data, void* eventloop_timer);
+
+.LP
+The application informs the extension that the number of outbound requests has changed.  This is called when an asynchronous request is submitted or canceled by the user.
+
+.IP
+typedef getdns_return_t (*getdns_eventloop_request_count_changed_t)(struct getdns_context* context, uint32_t request_count, void* eventloop_data);
+
+.LP
+The application tell the extension to free up any data associated with the extension functions.  This is called when a context is destroyed, or the extension is being detached.
+
+.IP
+typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* eventloop_data);
+
+.LP
+The extension structure used by the getdns_context.
+
+.IP
+typedef struct getdns_eventloop_extension {
+    getdns_eventloop_cleanup_t cleanup_data;
+    getdns_eventloop_schedule_timeout_t schedule_timeout;
+    getdns_eventloop_clear_timeout_t clear_timeout;
+    getdns_eventloop_request_count_changed_t request_count_changed;
+} getdns_eventloop_extension;
+
+.Ed
+
+.SS "getdns_context event loop extension functions"
+
+.LP
+The following are functions used by the extension entry point to attach to a particular context.
+
+.LP
+The application sets an event loop extension on a context.  The extension_data is optional data that is passed into the extension methods.  If an event loop is already set on a context then it is cleaned up.  All outstanding requests are also canceled.
+
+.IP
+getdns_return_t getdns_extension_set_eventloop(struct getdns_context* context, getdns_eventloop_extension* extension, void* extension_data);
+
+.LP
+The application gets the extension data associated with a context.
+
+.IP
+void* getdns_context_get_extension_data(struct getdns_context* context);
+
+.LP
+When no more work must be done the application detaches an event loop from a context
+
+.IP
+getdns_return_t getdns_extension_detach_eventloop(struct getdns_context* context);
+
 
 .SH SYNCHRONOUS USE
 
