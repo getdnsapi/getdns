@@ -11169,6 +11169,16 @@ _ACEOF
 ;;
   esac
 
+ac_fn_c_check_type "$LINENO" "u_char" "ac_cv_type_u_char" "$ac_includes_default"
+if test "x$ac_cv_type_u_char" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_U_CHAR 1
+_ACEOF
+
+
+fi
+
 
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
@@ -11268,8 +11278,23 @@ _ACEOF
  have_libevent=1
                 EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
 else
-  as_fn_error $? "event2/event.h missing, try without libevent" "$LINENO" 5
-                have_libevent=0
+  for ac_header in event.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "event.h" "ac_cv_header_event_h" "$ac_includes_default
+"
+if test "x$ac_cv_header_event_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_EVENT_H 1
+_ACEOF
+ have_libevent=1
+                    EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
+else
+  as_fn_error $? "event2/event.h and event.h missing, try without libevent" "$LINENO" 5
+                    have_libevent=0
+fi
+
+done
+
 fi
 
 done

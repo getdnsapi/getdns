@@ -189,6 +189,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
+AC_CHECK_TYPES([u_char])
 
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
@@ -213,8 +214,12 @@ AS_IF([test x_$withval = x_no],
             [AC_CHECK_HEADERS([event2/event.h],
                 [have_libevent=1]
                 [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"],
-                [AC_MSG_ERROR([event2/event.h missing, try without libevent])]
-                [have_libevent=0],
+                [AC_CHECK_HEADERS([event.h],
+                    [have_libevent=1]
+                    [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"],
+                    [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
+                    [have_libevent=0],
+                    [AC_INCLUDES_DEFAULT])],
                 [AC_INCLUDES_DEFAULT])],
                 [AC_MSG_ERROR([libevent missing, try without libevent])]
             )],

@@ -12,6 +12,9 @@
 /* Define to 1 if you have the `event_base_new' function. */
 #undef HAVE_EVENT_BASE_NEW
 
+/* Define to 1 if you have the <event.h> header file. */
+#undef HAVE_EVENT_H
+
 /* Define to 1 if you have the <ev.h> header file. */
 #undef HAVE_EV_H
 
@@ -56,6 +59,9 @@
 
 /* Define to 1 if you have the <uv.h> header file. */
 #undef HAVE_UV_H
+
+/* Define to 1 if the system has the type `u_char'. */
+#undef HAVE_U_CHAR
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
