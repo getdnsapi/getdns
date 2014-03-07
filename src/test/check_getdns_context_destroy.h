@@ -198,6 +198,8 @@
 
        RUN_EVENT_LOOP;
 
+       CONTEXT_DESTROY;
+
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST
@@ -222,6 +224,8 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
        getdns_cancel_callback(context, transaction_id);
        RUN_EVENT_LOOP;
+
+       CONTEXT_DESTROY;
 
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
@@ -252,6 +256,8 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;
+
+       CONTEXT_DESTROY;
 
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }

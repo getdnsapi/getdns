@@ -85,7 +85,10 @@
       *  The CONTEXT_FREE macro is used to
       *  destroy the current context.
       */
-     #define CONTEXT_DESTROY getdns_context_destroy(context);
+     #define CONTEXT_DESTROY \
+       ASSERT_RC(getdns_context_destroy(context), \
+        GETDNS_RETURN_GOOD, \
+        "Return code from getdns_context_destroy()");
 
      /*
       *  The EVENT_BASE_CREATE macro is used to

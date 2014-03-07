@@ -266,7 +266,8 @@ void destroy_callbackfn(struct getdns_context *context,
     int* flag = (int*)userarg;
     *flag = 1;
     getdns_dict_destroy(response);
-    getdns_context_destroy(context);
+    ck_assert_msg(getdns_context_destroy(context) != GETDNS_RETURN_GOOD,
+        "Expected getdns_context_destroy to not succeed");
 }
 
 /*

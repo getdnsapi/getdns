@@ -532,20 +532,19 @@ getdns_context_create(struct getdns_context ** context, int set_from_os)
  * Call this to dispose of resources associated with a context once you
  * are done with it.
  */
-void
+getdns_return_t
 getdns_context_destroy(struct getdns_context *context)
 {
     if (context == NULL) {
-        return;
+        return GETDNS_RETURN_INVALID_PARAMETER;
     }
-    // If being destroyed during getdns callback, just flag it
-    // and destroy.  See getdns_context_process_async
+    // If being destroyed during getdns callback,
+    // return an error
     if (context->processing > 0) {
-        context->processing++;
-        return;
+        return GETDNS_RETURN_INVALID_PARAMETER;
     }
     if (context->destroying) {
-        return;
+        return GETDNS_RETURN_BAD_CONTEXT;
     }
     context->destroying = 1;
     cancel_outstanding_requests(context, 1);
@@ -583,7 +582,7 @@ getdns_context_destroy(struct getdns_context *context)
         GETDNS_FREE(context->my_mf, context->timeouts_by_time);
 
     GETDNS_FREE(context->my_mf, context);
-    return;
+    return GETDNS_RETURN_GOOD;
 }               /* getdns_context_destroy */
 
 /*
@@ -1216,28 +1215,11 @@ getdns_cancel_callback(struct getdns_context *context,
     getdns_transaction_t transaction_id)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-
-    if (context->processing) {
-		/* When called from within a callback, do not execute pending
-		 * context destroys.
-		 * The (other) callback handler will handle it.
-		 * 
-		 * ( because callbacks occur in getdns_context_cancel_request,
-		 *   and they may destroy the context )
-		 */
-	    return getdns_context_cancel_request(context, transaction_id, 1);
-    }
-
     context->processing = 1;
     getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
     if (context->extension) {
         context->extension->request_count_changed(context,
             context->outbound_requests->count, context->extension_data);
-    }
-    if (context->processing > 1) {
-        context->processing = 0;
-        getdns_context_destroy(context);
-        return GETDNS_RETURN_BAD_CONTEXT;
     }
     context->processing = 0;
     return r;
@@ -1454,17 +1436,10 @@ getdns_context_request_timed_out(struct getdns_dns_req
     getdns_context_cancel_request(context, trans_id, 0);
     context->processing = 1;
     cb(context, GETDNS_CALLBACK_TIMEOUT, NULL, user_arg, trans_id);
-    if (context->processing > 1) {
-        // destroyed.
-        context->processing = 0;
-        getdns_context_destroy(context);
-        return GETDNS_RETURN_BAD_CONTEXT;
-    } else {
-        context->processing = 0;
-        if (context->extension) {
-            context->extension->request_count_changed(context,
-                context->outbound_requests->count, context->extension_data);
-        }
+    context->processing = 0;
+    if (context->extension) {
+        context->extension->request_count_changed(context,
+            context->outbound_requests->count, context->extension_data);
     }
     return GETDNS_RETURN_GOOD;
 }
@@ -1566,17 +1541,9 @@ getdns_return_t getdns_context_process_async(struct getdns_context* context) {
     if (ub_poll(context->unbound_ctx)) {
         if (ub_process(context->unbound_ctx) != 0) {
             /* need an async return code? */
+            context->processing = 0;
             return GETDNS_RETURN_GENERIC_ERROR;
         }
-    }
-    if (context->processing > 1) {
-        // destroyed during callbacks
-        // clear flag so destroy continues
-        context->processing = 0;
-        getdns_context_destroy(context);
-        // return bad context now that the context
-        // is destroyed
-        return GETDNS_RETURN_BAD_CONTEXT;
     }
     // reset the processing flag
     context->processing = 0;
@@ -1653,14 +1620,11 @@ getdns_extension_detach_eventloop(struct getdns_context* context)
 		/* When called from within a callback, do not execute pending
 		 * context destroys.
 		 * The (other) callback handler will handle it.
-		 * 
+		 *
 		 * ( because callbacks occur in cancel_outstanding_requests,
 		 *   and they may destroy the context )
 		 */
-		int within_callback = context->processing;
-		if (! within_callback) {
-			context->processing = 1;
-		}
+		context->processing = 1;
 		/* cancel all outstanding requests */
 		cancel_outstanding_requests(context, 1);
 		r = context->extension->cleanup_data(context,
@@ -1669,14 +1633,7 @@ getdns_extension_detach_eventloop(struct getdns_context* context)
 			context->extension = NULL;
 			context->extension_data = NULL;
 		}
-		if (! within_callback) {
-			if (context->processing > 1) {
-				context->processing = 0;
-				getdns_context_destroy(context);
-				return GETDNS_RETURN_BAD_CONTEXT;
-			}
-			context->processing = 0;
-		}
+		context->processing = 0;
 	}
 	return r;
 }

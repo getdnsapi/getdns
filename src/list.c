@@ -53,10 +53,10 @@ getdns_list_get_length(const struct getdns_list * list, size_t * answer)
 /*---------------------------------------- getdns_list_get_data_type */
 getdns_return_t
 getdns_list_get_data_type(const struct getdns_list * list, size_t index,
-    getdns_data_type * answer)
+	getdns_data_type * answer)
 {
-    if (!list || !answer)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!list || !answer)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
@@ -68,15 +68,15 @@ getdns_list_get_data_type(const struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_get_dict */
 getdns_return_t
 getdns_list_get_dict(const struct getdns_list * list, size_t index,
-    struct getdns_dict ** answer)
+	struct getdns_dict ** answer)
 {
-    if (!list || !answer)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!list || !answer)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    if (index >= list->numinuse)
+	if (index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-    if (list->items[index].dtype != t_dict)
+	if (list->items[index].dtype != t_dict)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = list->items[index].data.dict;
@@ -86,10 +86,10 @@ getdns_list_get_dict(const struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_get_list */
 getdns_return_t
 getdns_list_get_list(const struct getdns_list * list, size_t index,
-    struct getdns_list ** answer)
+	struct getdns_list ** answer)
 {
-    if (!list || !answer)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!list || !answer)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
@@ -104,14 +104,14 @@ getdns_list_get_list(const struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_get_bindata */
 getdns_return_t
 getdns_list_get_bindata(const struct getdns_list * list, size_t index,
-    struct getdns_bindata ** answer)
+	struct getdns_bindata ** answer)
 {
 
-    if (!list || !answer)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!list || !answer)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    if (index >= list->numinuse)
-        return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+	if (index >= list->numinuse)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	if (list->items[index].dtype != t_bindata)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -123,13 +123,13 @@ getdns_list_get_bindata(const struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_get_int */
 getdns_return_t
 getdns_list_get_int(const struct getdns_list * list, size_t index,
-    uint32_t * answer)
+	uint32_t * answer)
 {
-    if (!list || !answer)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!list || !answer)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    if (index >= list->numinuse)
-        return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+	if (index >= list->numinuse)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	if (list->items[index].dtype != t_int)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -155,8 +155,8 @@ getdns_list_realloc(struct getdns_list *list)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	newlist = GETDNS_XREALLOC(list->mf, list->items,
-	    struct getdns_list_item,
-	    list->numalloc + GETDNS_LIST_BLOCKSZ);
+		struct getdns_list_item,
+		list->numalloc + GETDNS_LIST_BLOCKSZ);
 	if (!newlist)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -168,7 +168,7 @@ getdns_list_realloc(struct getdns_list *list)
 /*---------------------------------------- getdns_list_copy */
 getdns_return_t
 getdns_list_copy(const struct getdns_list * srclist,
-    struct getdns_list ** dstlist)
+	struct getdns_list ** dstlist)
 {
 	int i;
 	size_t index;
@@ -182,10 +182,10 @@ getdns_list_copy(const struct getdns_list * srclist,
 		return GETDNS_RETURN_GOOD;
 	}
 	*dstlist = getdns_list_create_with_extended_memory_functions(
-	    srclist->mf.mf_arg,
-	    srclist->mf.mf.ext.malloc,
-	    srclist->mf.mf.ext.realloc,
-	    srclist->mf.mf.ext.free
+		srclist->mf.mf_arg,
+		srclist->mf.mf.ext.malloc,
+		srclist->mf.mf.ext.realloc,
+		srclist->mf.mf.ext.free
 	);
 	if (!dstlist)
 		return GETDNS_RETURN_GENERIC_ERROR;
@@ -200,22 +200,22 @@ getdns_list_copy(const struct getdns_list * srclist,
 		switch (srclist->items[i].dtype) {
 		case t_int:
 			retval = getdns_list_set_int(*dstlist, index,
-			                             srclist->items[i].data.n);
+										 srclist->items[i].data.n);
 			break;
 
 		case t_list:
 			retval =getdns_list_set_list(*dstlist, index,
-			    srclist->items[i].data.list);
+				srclist->items[i].data.list);
 			break;
 
 		case t_bindata:
 			retval = getdns_list_set_bindata(*dstlist, index,
-			    srclist->items[i].data.bindata);
+				srclist->items[i].data.bindata);
 			break;
 
 		case t_dict:
 			retval = getdns_list_set_dict(*dstlist, index,
-			    srclist->items[i].data.dict);
+				srclist->items[i].data.dict);
 			break;
 		}
 		if (retval != GETDNS_RETURN_GOOD) {
@@ -229,10 +229,10 @@ getdns_list_copy(const struct getdns_list * srclist,
 
 struct getdns_list *
 getdns_list_create_with_extended_memory_functions(
-    void *userarg,
-    void *(*malloc)(void *userarg, size_t),
-    void *(*realloc)(void *userarg, void *, size_t),
-    void (*free)(void *userarg, void *))
+	void *userarg,
+	void *(*malloc)(void *userarg, size_t),
+	void *(*realloc)(void *userarg, void *, size_t),
+	void (*free)(void *userarg, void *))
 {
 	struct getdns_list *list;
 	mf_union mf;
@@ -242,10 +242,10 @@ getdns_list_create_with_extended_memory_functions(
 
 	mf.ext.malloc = malloc;
 	list = userarg == MF_PLAIN
-	     ? (struct getdns_list *)(*mf.pln.malloc)(
-	           sizeof(struct getdns_list))
-	     : (struct getdns_list *)(*mf.ext.malloc)(userarg,
-	           sizeof(struct getdns_list));
+		 ? (struct getdns_list *)(*mf.pln.malloc)(
+			   sizeof(struct getdns_list))
+		 : (struct getdns_list *)(*mf.ext.malloc)(userarg,
+			   sizeof(struct getdns_list));
 	if (!list)
 		return NULL;
 
@@ -266,14 +266,14 @@ getdns_list_create_with_extended_memory_functions(
 
 struct getdns_list *
 getdns_list_create_with_memory_functions(void *(*malloc)(size_t),
-    void *(*realloc)(void *, size_t), void (*free)(void *))
+	void *(*realloc)(void *, size_t), void (*free)(void *))
 {
 	mf_union mf;
 	mf.pln.malloc = malloc;
 	mf.pln.realloc = realloc;
 	mf.pln.free = free;
 	return getdns_list_create_with_extended_memory_functions(
-	    MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
+		MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 }
 
 
@@ -283,14 +283,14 @@ getdns_list_create_with_context(struct getdns_context *context)
 {
 	if (context)
 		return getdns_list_create_with_extended_memory_functions(
-		    context->mf.mf_arg,
-		    context->mf.mf.ext.malloc,
-		    context->mf.mf.ext.realloc,
-		    context->mf.mf.ext.free
+			context->mf.mf_arg,
+			context->mf.mf.ext.malloc,
+			context->mf.mf.ext.realloc,
+			context->mf.mf.ext.free
 		);
 	else
 		return getdns_list_create_with_memory_functions(malloc,
-		    realloc, free);
+			realloc, free);
 }			/* getdns_list_create_with_context */
 
 /*---------------------------------------- getdns_list_create */
@@ -314,7 +314,7 @@ getdns_list_destroy_item(struct getdns_list *list, size_t index)
 
 	case t_bindata:
 		getdns_bindata_destroy(&list->mf,
-		    list->items[index].data.bindata);
+			list->items[index].data.bindata);
 		break;
 
 	default:
@@ -323,13 +323,13 @@ getdns_list_destroy_item(struct getdns_list *list, size_t index)
 }
 
 /*---------------------------------------- getdns_list_destroy */
-void
+getdns_return_t
 getdns_list_destroy(struct getdns_list *list)
 {
 	size_t i;
 
 	if (!list)
-		return;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	for (i = 0; i < list->numinuse; i++)
 		getdns_list_destroy_item(list, i);
@@ -337,6 +337,7 @@ getdns_list_destroy(struct getdns_list *list)
 	if (list->items)
 		GETDNS_FREE(list->mf, list->items);
 	GETDNS_FREE(list->mf, list);
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_destroy */
 
 /*---------------------------------------- getdns_list_add_item */
@@ -354,8 +355,8 @@ getdns_list_add_item(struct getdns_list *list, size_t * index)
 			return retval;
 	}
 	*index = list->numinuse;
-    list->items[*index].dtype = t_int;
-    list->items[*index].data.n = 0;
+	list->items[*index].dtype = t_int;
+	list->items[*index].data.n = 0;
 	list->numinuse++;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_add_item */
@@ -363,7 +364,7 @@ getdns_list_add_item(struct getdns_list *list, size_t * index)
 /*---------------------------------------- getdns_list_set_dict */
 getdns_return_t
 getdns_list_set_dict(struct getdns_list * list, size_t index,
-    const struct getdns_dict * child_dict)
+	const struct getdns_dict * child_dict)
 {
 	struct getdns_dict *newdict;
 	getdns_return_t retval;
@@ -395,7 +396,7 @@ getdns_list_set_dict(struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_set_list */
 getdns_return_t
 getdns_list_set_list(struct getdns_list * list, size_t index,
-    const struct getdns_list * child_list)
+	const struct getdns_list * child_list)
 {
 	struct getdns_list *newlist;
 	getdns_return_t retval;
@@ -427,7 +428,7 @@ getdns_list_set_list(struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_set_bindata */
 getdns_return_t
 getdns_list_set_bindata(struct getdns_list * list, size_t index,
-    const struct getdns_bindata * child_bindata)
+	const struct getdns_bindata * child_bindata)
 {
 	struct getdns_bindata *newbindata;
 	getdns_return_t retval;
@@ -459,7 +460,7 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 /*---------------------------------------- getdns_list_set_int */
 getdns_return_t
 getdns_list_set_int(struct getdns_list * list, size_t index,
-    uint32_t child_int)
+	uint32_t child_int)
 {
 	getdns_return_t retval;
 
