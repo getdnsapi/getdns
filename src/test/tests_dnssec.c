@@ -34,24 +34,19 @@
 
 
 #include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
-#include <getdns/getdns_ext_libevent.h>
+#include <getdns/getdns_extra.h>
 
 /* Set up the callback function, which will also do the processing of the results */
 void
 callbackfn(struct getdns_context *context,
-    getdns_callback_type_t callback_type,
-    struct getdns_dict *response, void *userarg,
-    getdns_transaction_t transaction_id)
+	getdns_callback_type_t callback_type,
+	struct getdns_dict *response, void *userarg,
+	getdns_transaction_t transaction_id)
 {
 	struct getdns_list *validation_chain;
 	struct getdns_list *trust_anchors;
@@ -65,77 +60,76 @@ callbackfn(struct getdns_context *context,
 	do {
 		if (callback_type == GETDNS_CALLBACK_CANCEL) {
 			fprintf(stderr,
-			    "The callback with ID %llu was cancelled.\n",
-			    (long long unsigned int)transaction_id);
+				"The callback with ID %llu was cancelled.\n",
+				(long long unsigned int)transaction_id);
 			break;
 		} else if (callback_type != GETDNS_CALLBACK_COMPLETE) {
 			fprintf(stderr,
-			    "The callback got a callback_type of %d.\n",
-			    callback_type);
+				"The callback got a callback_type of %d.\n",
+				callback_type);
 			break;
 		}
 		r = getdns_dict_get_list(response,
-		    "validation_chain", &validation_chain);
+			"validation_chain", &validation_chain);
 		if (r != GETDNS_RETURN_GOOD) {
 			fprintf(stderr,
-			    "Could not get \"validation_chain\" from response:"
-			    " %d\n", r);
+				"Could not get \"validation_chain\" from response:"
+				" %d\n", r);
 			break;
 		}
 		r = getdns_dict_get_list(response, "replies_tree", &replies_tree);
 		if (r != GETDNS_RETURN_GOOD) {
 			fprintf(stderr,
-			    "Could not get \"replies_tree\" from response:"
-			    " %d\n", r);
+				"Could not get \"replies_tree\" from response:"
+				" %d\n", r);
 			break;
 		}
 		r = getdns_list_get_length(replies_tree, &replies_tree_length);
 		if (r != GETDNS_RETURN_GOOD) {
 			fprintf(stderr,
-			    "Could not get length of the replies_tree:"
-			    " %d\n", r);
+				"Could not get length of the replies_tree:"
+				" %d\n", r);
 			break;
 		}
 		trust_anchors = getdns_root_trust_anchor(NULL);
 		if (! trust_anchors) {
 			fprintf(stderr,
-			    "No root trust anchor present:"
-			    " %d\n", r);
+				"No root trust anchor present:"
+				" %d\n", r);
 			break;
 		}
 		for (i = 0; i < replies_tree_length; i++) {
 			r = getdns_list_get_dict(replies_tree, i, &reply);
 			if (r != GETDNS_RETURN_GOOD) {
 				fprintf(stderr,
-				    "Could not get \"reply\" from replies_tree:"
-				    " %d\n", r);
+					"Could not get \"reply\" from replies_tree:"
+					" %d\n", r);
 				break;
 			}
 			r = getdns_dict_get_list(reply, "answer", &answer);
 			if (r != GETDNS_RETURN_GOOD) {
 				fprintf(stderr,
-				    "Could not get \"answer\" from reply:"
-				    " %d\n", r);
+					"Could not get \"answer\" from reply:"
+					" %d\n", r);
 				break;
 			}
 			r = getdns_list_get_length(answer, &answer_length);
 			if (r != GETDNS_RETURN_GOOD) {
 				fprintf(stderr,
-				    "Could not get length of answer list:"
-				    " %d\n", r);
+					"Could not get length of answer list:"
+					" %d\n", r);
 				break;
 			}
 			if (answer_length == 0)
 				continue;
 
 			r = getdns_validate_dnssec(answer,
-			    validation_chain, trust_anchors);
+				validation_chain, trust_anchors);
 			printf("getdns_validate_dnssec returned: %d\n", r);
 		}
 		getdns_list_destroy(trust_anchors);
 	} while (0);
 	getdns_dict_destroy(response);
-	(void) event_base_loopexit((struct event_base *)userarg, NULL);
 }
 
 int
@@ -144,10 +138,10 @@ main(int argc, char** argv)
 	const char *name = argc > 1 ? argv[1] : "www.example.com";
 	struct getdns_context *context;
 	struct getdns_dict *extensions;
-	struct event_base *event_base = NULL;
 	getdns_transaction_t transaction_id = 0;
 	getdns_return_t r;
-       
+	struct timeval tv;
+
 	r = getdns_context_create(&context, 1);
 	if (r != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Create context failed: %d", r);
@@ -168,41 +162,35 @@ main(int argc, char** argv)
 	   GETDNS_EXTENSION_TRUE);
 	if (r != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Could not set extension "
-		    "\"dnssec_return_validation_chain\": %d\n", r);
+			"\"dnssec_return_validation_chain\": %d\n", r);
 		goto done_destroy_extensions;
-        }
-
-	/* Create an event base and put it in the context  */
-	event_base = event_base_new();
-	if (event_base == NULL) {
-		fprintf(stderr, "Trying to create the event base failed.");
-		r = GETDNS_RETURN_GENERIC_ERROR;
-		goto done_destroy_extensions;
-	}
-	(void) getdns_extension_set_libevent_base(context, event_base);
+		}
 
 	/* Make the call */
-	r = getdns_address(context, name, extensions, event_base,
-	    &transaction_id, callbackfn);
+	r = getdns_address(context, name, extensions, NULL,
+		&transaction_id, callbackfn);
 	if (r == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "Bad domain name: %s.", name);
 		goto done_destroy_extensions;
 	}
 	/* Call the event loop */
-	event_base_dispatch(event_base);
+	while (getdns_context_get_num_pending_requests(context, &tv) > 0) {
+		int fd = getdns_context_fd(context);
+		fd_set read_fds;
+		FD_ZERO(&read_fds);
+		FD_SET(fd, &read_fds);
+		select(fd + 1, &read_fds, NULL, NULL, &tv);
+		if (getdns_context_process_async(context) != GETDNS_RETURN_GOOD) {
+			// context destroyed
+			break;
+		}
+	}
 
 	/* Clean up */
 done_destroy_extensions:
 	getdns_dict_destroy(extensions);
 done_destroy_context:
 	getdns_context_destroy(context);
-
-	/* Event base must be destroyed after the context, because
-	 * the context has to re-register its sockets from the eventbase,
-	 * who has to communicate this to the system event-mechanism.
-	 */
-	if (event_base)
-		event_base_free(event_base);
 
 	return r;
 }

@@ -33,25 +33,20 @@
  */
 
 #include "config.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#  include <event2/event.h>
-#else
-#  include <event.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
 #include <getdns/getdns.h>
-#include <getdns/getdns_ext_libevent.h>
+#include <getdns/getdns_extra.h>
 #include <sys/time.h>
 
 /* Set up the callback function, which will also do the processing of the results */
 void
 this_callbackfn(struct getdns_context *this_context,
-    getdns_callback_type_t this_callback_type,
-    struct getdns_dict *this_response,
-    void *this_userarg, getdns_transaction_t this_transaction_id)
+	getdns_callback_type_t this_callback_type,
+	struct getdns_dict *this_response,
+	void *this_userarg, getdns_transaction_t this_transaction_id)
 {
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE) {	/* This is a callback with data */
 		char *res = getdns_pretty_print_dict(this_response);
@@ -60,12 +55,12 @@ this_callbackfn(struct getdns_context *this_context,
 
 	} else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-		    "The callback with ID %llu was cancelled. Exiting.",
-		    (unsigned long long)this_transaction_id);
+			"The callback with ID %llu was cancelled. Exiting.",
+			(unsigned long long)this_transaction_id);
 	else
 		fprintf(stderr,
-		    "The callback got a callback_type of %d. Exiting.",
-		    this_callback_type);
+			"The callback got a callback_type of %d. Exiting.",
+			this_callback_type);
 	getdns_dict_destroy(this_response);
 }
 
@@ -75,29 +70,16 @@ main(int argc, char** argv)
 	/* Create the DNS context for this call */
 	struct getdns_context *this_context = NULL;
 	getdns_return_t context_create_return =
-	    getdns_context_create(&this_context, 1);
+		getdns_context_create(&this_context, 1);
 	if (context_create_return != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Trying to create the context failed: %d",
-		    context_create_return);
+			context_create_return);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 	getdns_context_set_resolution_type(this_context, GETDNS_RESOLUTION_STUB);
 
 	getdns_context_set_timeout(this_context, 5000);
 	/* Create an event base and put it in the context using the unknown function name */
-	struct event_base *this_event_base;
-	this_event_base = event_base_new();
-	if (this_event_base == NULL) {
-		fprintf(stderr, "Trying to create the event base failed.");
-		getdns_context_destroy(this_context);
-		return (GETDNS_RETURN_GENERIC_ERROR);
-	}
-	if (getdns_extension_set_libevent_base(this_context,
-	    this_event_base) != GETDNS_RETURN_GOOD) {
-        fprintf(stderr, "Setting event base failed.");
-        getdns_context_destroy(this_context);
-        return (GETDNS_RETURN_GENERIC_ERROR);
-    }
 	/* Set up the getdns call */
 	const char *this_name = argc > 1 ? argv[1] : "getdnsapi.net";
 	char *this_userarg = "somestring";	// Could add things here to help identify this call
@@ -105,35 +87,31 @@ main(int argc, char** argv)
 
 	/* Make the call */
 	getdns_return_t dns_request_return =
-	    getdns_general(this_context, this_name, GETDNS_RRTYPE_A,
-	    NULL, this_userarg, &this_transaction_id, this_callbackfn);
+		getdns_general(this_context, this_name, GETDNS_RRTYPE_A,
+		NULL, this_userarg, &this_transaction_id, this_callbackfn);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
-		    this_name);
+			this_name);
 		getdns_context_destroy(this_context);
-		event_base_free(this_event_base);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-//    dns_request_return = getdns_service(this_context, this_name, NULL, this_userarg, &this_transaction_id,
-//                                        this_callbackfn);
-//    if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
-//      {
-//              fprintf(stderr, "A bad domain name was used: %s. Exiting.", this_name);
-//              return(GETDNS_RETURN_GENERIC_ERROR);
-//      }
 	else {
 		/* Call the event loop */
-        event_base_loop(this_event_base, EVLOOP_ONCE);
-        while (getdns_context_get_num_pending_requests(this_context, NULL) > 0) {
-		    event_base_loop(this_event_base, EVLOOP_ONCE);
-        }
-		// TODO: check the return value above
+			struct timeval tv;
+		while (getdns_context_get_num_pending_requests(this_context, &tv) > 0) {
+			int fd = getdns_context_fd(this_context);
+			fd_set read_fds;
+			FD_ZERO(&read_fds);
+			FD_SET(fd, &read_fds);
+			select(fd + 1, &read_fds, NULL, NULL, &tv);
+			if (getdns_context_process_async(this_context) != GETDNS_RETURN_GOOD) {
+				// context destroyed
+				break;
+			}
+		}
 	}
 	/* Clean up */
 	getdns_context_destroy(this_context);
-	/* the event base can only be free'd after the context has removed
-	 * all of its events from it */
-	event_base_free(this_event_base);
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 }				/* main */
