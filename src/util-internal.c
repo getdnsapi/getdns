@@ -552,7 +552,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	    completed_request->extensions, "dnssec_return_only_secure");
 	dnssec_return_status = dnssec_return_only_secure || is_extension_set(
 	    completed_request->extensions, "dnssec_return_status") ||
-        completed_request->return_dnssec_status == GETDNS_EXTENSION_TRUE;
+	    completed_request->return_dnssec_status == GETDNS_EXTENSION_TRUE;
 
 	if (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
 	    completed_request->first_req->request_class ==

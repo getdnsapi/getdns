@@ -438,8 +438,10 @@ getdns_context_create_with_extended_memory_functions(
 
 
     result->resolution_type = GETDNS_RESOLUTION_RECURSING;
-    if(create_default_namespaces(result) != GETDNS_RETURN_GOOD)
+    if(create_default_namespaces(result) != GETDNS_RETURN_GOOD) {
+		getdns_context_destroy(result);
 		return GETDNS_RETURN_GENERIC_ERROR;
+    }
 
     result->timeout = 5000;
     result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
@@ -470,6 +472,7 @@ getdns_context_create_with_extended_memory_functions(
     result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
     result->limit_outstanding_queries = 0;
     result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
+    result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
     if (!result->outbound_requests ||
         !result->timeouts_by_id ||
         !result->timeouts_by_time) {
