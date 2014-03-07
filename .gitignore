@@ -11,7 +11,6 @@ Makefile
 *.la
 *.dSYM/
 config.status
-config.log
 autom4te.cache
 missing
 libtool
@@ -33,5 +32,10 @@ tests_stub_async
 tests_stub_sync
 src/test/tests_dnssec
 src/example/example-reverse
-src/test/check_getdns.log
 check_getdns
+check_getdns_event
+check_getdns_uv
+check_getdns_ev
+doc/*.3
+src/getdns/getdns.h
+*.log
