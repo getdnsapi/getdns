@@ -394,6 +394,183 @@ Set to GETDNS_EXTENSION_TRUE to add the name
 .LP
 This implementation of the getdns API is licensed under the BSD license.
 
+.SH DNSSEC
+
+.LP
+If an application wants the API to do DNSSEC validation for a request, it must
+set one or more DNSSEC-related extensions. Note that the default is for none of
+these extensions to be set and the API will not perform DNSSEC. Note that
+getting DNSSEC results can take longer in a few circumstances.
+
+.LP
+To return the DNSSEC status for each DNS record in the replies_tree list, use
+the dnssec_return_status extension. The extension's value (an int) is set to
+GETDNS_EXTENSION_TRUE to cause the returned status to have the name
+dnssec_status (an int) added to the other names in the record's dict ("header",
+"question", and so on). The values for that name are GETDNS_DNSSEC_SECURE,
+GETDNS_DNSSEC_BOGUS, GETDNS_DNSSEC_INDETERMINATE, and GETDNS_DNSSEC_INSECURE.
+Thus, a reply might look like:
+
+.Bd -literal -compact
+{     # This is the first reply
+      "dnssec_status": GETDNS_DNSSEC_INDETERMINATE,
+      "header": { "id": 23456, "qr": 1, "opcode": 0, ... },
+      . . .
+.Ed
+
+.LP
+If instead of returning the status, you want to only see secure results, use
+the dnssec_return_only_secure extension. The extension's value (an int) is set
+to GETDNS_EXTENSION_TRUE to cause only records that the API can validate as
+secure with DNSSEC to be returned in the replies_tree and replies_full lists.
+No additional names are added to the dict of the record; the change is that
+some records might not appear in the results. When this context option is set,
+if the API receives DNS replies but none are determined to be secure, the error
+code at the top level of the response object is
+GETDNS_RESPSTATUS_NO_SECURE_ANSWERS.
+
+.LP
+Applications that want to do their own validation will want to have the
+DNSSEC-related records for a particular response. Use the
+dnssec_return_validation_chain extension. The extension's value (an int) is set
+to GETDNS_EXTENSION_TRUE to cause a set of additional DNSSEC-related records
+needed for validation to be returned in the response object. This set comes as
+validation_chain (a list) at the top level of the response object. This list
+includes all resource record dicts for all the resource records (DS, DNSKEY and
+their RRSIGs) that are needed to perform the validation from the root up. Thus,
+a reply might look like:
+
+.Bd -literal -compact
+{     # This is the response object
+    "validation_chain":
+    [ { "name": <bindata for .>,
+    "type": GETDNS_RRTYPE_DNSKEY,
+    "rdata": { "flags": 256, . . . },
+      . . . 
+    },
+    { "name": <bindata for .>,
+      "type": GETDNS_RRTYPE_DNSKEY,
+      "rdata": { "flags": 257, . . . },
+      . . .
+    },
+    { "name": <bindata for .>,
+      "type": GETDNS_RRTYPE_RRSIG,
+      "rdata": { "signers_name": <bindata for .>,
+                 "type_covered": GETDNS_RRTYPE_DNSKEY,
+                 . . .
+               },
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_DS,
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_RRSIG
+      "rdata": { "signers_name": <bindata for .>,
+                 "type_covered": GETDNS_RRTYPE_DS,
+                 . . .
+               },
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_DNSKEY
+      "rdata": { "flags": 256, . . . },
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_DNSKEY
+      "rdata": { "flags": 257, . . . },
+      . . .
+    },
+    { "name": <bindata for com.>,
+      "type": GETDNS_RRTYPE_RRSIG
+      "rdata": { "signers_name": <bindata for com.>,
+                 "type_covered": GETDNS_RRTYPE_DNSKEY,
+                 . . .
+               },
+      . . .
+    },
+    { "name": <bindata for example.com.>,
+      "type": GETDNS_RRTYPE_DS,
+      . . .
+    },
+    { "name": <bindata for example.com.>,
+      "type": GETDNS_RRTYPE_RRSIG
+      "rdata": { "signers_name": <bindata for com.>,
+                 "type_covered": GETDNS_RRTYPE_DS,
+                 . . .
+               },
+      . . .
+    },
+    { "name": <bindata for example.com.>,
+      "type": GETDNS_RRTYPE_DNSKEY
+      "rdata": { "flags": 257, ... },
+      . . .
+    },
+    . . .
+  ]
+  "replies_tree":
+  [
+  . . .
+.Ed
+
+.LP
+If a request is using a context in which stub resolution is set, and that
+request also has any of the dnssec_return_status, dnssec_return_only_secure, or
+dnssec_return_validation_chain extensions specified, the API will not perform
+the request and will instead return an error of
+GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED.
+
+.SH OPT RESOURCE RECORDS
+
+.LP
+For lookups that need an OPT resource record in the Additional Data section,
+use the add_opt_parameters extension. The extension's value (a dict) contains
+the parameters; these are described in more detail in RFC 2671. They are:
+
+.HP 3
+.I maximum_udp_payload_size
+.RP
+(an int) between 512 and 65535; if not specified, this defaults to those from the DNS context
+
+.HP 3
+.I extended_rcode
+.RP
+(an int) between 0 and 255; if not specified, this defaults to those from the DNS context
+
+.HP 3
+.I version
+.RP
+(an int) between 0 and 255; if not specified, this defaults to 0
+
+.HP 3
+.I do_bit
+.RP
+(an int) between 0 and 1; if not specified, this defaults to those from the DNS context
+
+.HP 3
+.I options
+.RP
+(a list) contains dicts for each option to be specified. Each list time
+contains two names: option_code (an int) and option_data (a bindata). The API
+marshalls the entire set of options into a properly-formatted RDATA for the
+resource record.
+
+.LP
+It is very important to note that the OPT resource record specified in the
+add_opt_parameters extension might not be the same the one that the API sends
+in the query. For example, if the application also includes any of the DNSSEC
+extensions, the API will make sure that the OPT resource record sets the
+resource record appropriately, making the needed changes to the settings from
+the add_opt_parameters extension.
+
+.LP
+The use of this extension can conflict with the values in the DNS context. For
+example, the default for an OS might be a maximum payload size of 65535, but
+the extension might specify 1550. In such a case, the API will honor the values
+stated in the extension, but will honor the values from the DNS context if
+values are not given in the extension.
+
 .SH RESPONSE DATA
 
 .LP
@@ -574,7 +751,10 @@ The requested action had an error; response is NULL
 .HP 3
 .I response
 .RP
-A response object with the response data. This is described below. The response object is part of the API's memory space, and will be freed by the API with the callback returns.
+A response object with the response data. This is described in the section
+titled "RESPONSE DATA" elsewhere in this manual page. The response object is
+part of the API's memory space, and will be freed by the API with the callback
+returns.
 
 .HP 3
 .I userarg
@@ -639,13 +819,15 @@ The getdns API was documented by Paul Hoffman.  This implementation of the getdn
 .LP
 .RS 3
 .br
+Carig Despeaux, Verisign Inc.
+.br
 Neel Goyal, Verisign Inc.
 .br
 Melinda Shore, No Mountain Software, LLC
 .br
-Willem Toorop, NLNet Labs
+Willem Toorop, NLnet Labs
 .br
-Wouter Wijngaards, NLNet Labs
+Wouter Wijngaards, NLnet Labs
 .br
 Glen Wiley, Verisign Inc.
 .RE
