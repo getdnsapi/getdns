@@ -294,9 +294,10 @@
        tcase_add_test(tc_pos, getdns_context_destroy_4);
        tcase_add_test(tc_pos, getdns_context_destroy_5);
        tcase_add_test(tc_pos, getdns_context_destroy_6);
-       tcase_add_test(tc_pos, getdns_context_destroy_7);
-       tcase_add_test(tc_pos, getdns_context_destroy_8);
-       tcase_add_test(tc_pos, getdns_context_destroy_9);
+       // raise aborts via assertion failures
+       tcase_add_test_raise_signal(tc_pos, getdns_context_destroy_7, SIGABRT);
+       tcase_add_test_raise_signal(tc_pos, getdns_context_destroy_8, SIGABRT);
+       tcase_add_test_raise_signal(tc_pos, getdns_context_destroy_9, SIGABRT);
        suite_add_tcase(s, tc_pos);
 
        return s;

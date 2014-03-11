@@ -323,13 +323,13 @@ getdns_list_destroy_item(struct getdns_list *list, size_t index)
 }
 
 /*---------------------------------------- getdns_list_destroy */
-getdns_return_t
+void
 getdns_list_destroy(struct getdns_list *list)
 {
 	size_t i;
 
 	if (!list)
-		return GETDNS_RETURN_INVALID_PARAMETER;
+		return;
 
 	for (i = 0; i < list->numinuse; i++)
 		getdns_list_destroy_item(list, i);
@@ -337,7 +337,6 @@ getdns_list_destroy(struct getdns_list *list)
 	if (list->items)
 		GETDNS_FREE(list->mf, list->items);
 	GETDNS_FREE(list->mf, list);
-	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_destroy */
 
 /*---------------------------------------- getdns_list_add_item */

@@ -373,16 +373,15 @@ getdns_dict_item_free(ldns_rbnode_t * node, void *arg)
 }				/* getdns_dict_item_free */
 
 /*---------------------------------------- getdns_dict_destroy */
-getdns_return_t
+void
 getdns_dict_destroy(struct getdns_dict *dict)
 {
 	if (!dict)
-			return GETDNS_RETURN_INVALID_PARAMETER;
+			return;
 
 	ldns_traverse_postorder(&(dict->root),
 		getdns_dict_item_free, dict);
 	GETDNS_FREE(dict->mf, dict);
-	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_destroy */
 
 /*---------------------------------------- getdns_dict_set_dict */

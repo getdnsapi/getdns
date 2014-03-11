@@ -86,9 +86,7 @@
       *  destroy the current context.
       */
      #define CONTEXT_DESTROY \
-       ASSERT_RC(getdns_context_destroy(context), \
-        GETDNS_RETURN_GOOD, \
-        "Return code from getdns_context_destroy()");
+       getdns_context_destroy(context);
 
      /*
       *  The EVENT_BASE_CREATE macro is used to

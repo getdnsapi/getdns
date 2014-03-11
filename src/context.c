@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <unbound.h>
+#include <assert.h>
 
 #include "context.h"
 #include "types-internal.h"
@@ -532,19 +533,17 @@ getdns_context_create(struct getdns_context ** context, int set_from_os)
  * Call this to dispose of resources associated with a context once you
  * are done with it.
  */
-getdns_return_t
+void
 getdns_context_destroy(struct getdns_context *context)
 {
     if (context == NULL) {
-        return GETDNS_RETURN_INVALID_PARAMETER;
+        return;
     }
     // If being destroyed during getdns callback,
-    // return an error
-    if (context->processing > 0) {
-        return GETDNS_RETURN_INVALID_PARAMETER;
-    }
+    // fail via assert
+    assert(context->processing == 0);
     if (context->destroying) {
-        return GETDNS_RETURN_BAD_CONTEXT;
+        return ;
     }
     context->destroying = 1;
     cancel_outstanding_requests(context, 1);
@@ -582,7 +581,6 @@ getdns_context_destroy(struct getdns_context *context)
         GETDNS_FREE(context->my_mf, context->timeouts_by_time);
 
     GETDNS_FREE(context->my_mf, context);
-    return GETDNS_RETURN_GOOD;
 }               /* getdns_context_destroy */
 
 /*
