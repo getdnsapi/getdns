@@ -27,7 +27,7 @@
 #ifndef _check_getdns_dict_destroy_h_
 #define _check_getdns_dict_destroy_h_
 
-#include <sys/signal.h>
+#include <signal.h>
 
     /*
      **************************************************************************
