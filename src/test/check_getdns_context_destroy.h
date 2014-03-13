@@ -27,6 +27,8 @@
 #ifndef _check_getdns_context_destroy_h_
 #define _check_getdns_context_destroy_h_
 
+#include <signal.h>
+
     /*
      **************************************************************************
      *                                                                        *

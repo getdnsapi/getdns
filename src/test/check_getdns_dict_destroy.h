@@ -27,8 +27,6 @@
 #ifndef _check_getdns_dict_destroy_h_
 #define _check_getdns_dict_destroy_h_
 
-#include <signal.h>
-
     /*
      **************************************************************************
      *                                                                        *
@@ -154,7 +152,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
 
       LIST_CREATE(list2);
-      ASSERT_RC(getdns_list_set_int(list2, 0, 6), 
+      ASSERT_RC(getdns_list_set_int(list2, 0, 6),
         GETDNS_RETURN_GOOD, "Return code from getdns_list_set_int()");
       ASSERT_RC(getdns_list_set_bindata(list2, 1, &bindata),
         GETDNS_RETURN_GOOD, "Return code from getdns_list_set_bindata()");
@@ -168,11 +166,11 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_list_set_int()");
 
       DICT_CREATE(dict4);
-      ASSERT_RC(getdns_dict_set_int(dict4, "int", 4), 
+      ASSERT_RC(getdns_dict_set_int(dict4, "int", 4),
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
       DICT_CREATE(dict3);
-      ASSERT_RC(getdns_dict_set_int(dict3, "int", 3), 
+      ASSERT_RC(getdns_dict_set_int(dict3, "int", 3),
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
       ASSERT_RC(getdns_dict_set_bindata(dict3, "bindata", &bindata),
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
@@ -182,7 +180,7 @@
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_list()");
 
       DICT_CREATE(dict2);
-      ASSERT_RC(getdns_dict_set_int(dict2, "int", 2),  
+      ASSERT_RC(getdns_dict_set_int(dict2, "int", 2),
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
       ASSERT_RC(getdns_dict_set_bindata(dict2, "bindata", &bindata),
         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
@@ -225,22 +223,22 @@
       DICT_DESTROY(dict1);
     }
     END_TEST
-    
+
     Suite *
     getdns_dict_destroy_suite (void)
     {
       Suite *s = suite_create ("getdns_dict_destroy()");
-    
+
       /* Negative test caseis */
       TCase *tc_neg = tcase_create("Negative");
       tcase_add_test(tc_neg, getdns_dict_destroy_1);
       suite_add_tcase(s, tc_neg);
-    
+
       /* Positive test cases */
       TCase *tc_pos = tcase_create("Positive");
       tcase_add_test(tc_pos, getdns_dict_destroy_2);
       suite_add_tcase(s, tc_pos);
-    
+
       return s;
     }
 
