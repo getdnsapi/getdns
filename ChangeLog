@@ -1,12 +1,15 @@
-* 2014-xx-xx : Version x.x.x
+* 2014-03-24 : Version 0.1.1
   * default to NOT build extensions (libev, libuv, libevent), handle
     --with/--without optiosn to configure for them
+  * Fixed some build/make nits
   * respect configure --docdir=X
   * Documentation/man page updates
   * Fix install and cpp guards in getdns_extra.h
   * Add method to switch between threads and fork mode for unbound
   * Fixes for libuv integration (saghul)
   * Fixes for calling getdns_destroy_context within a callback
+  * Fixed signal related defines/decls
+
 
 * 2014-02-25 : Version 0.1.0
   * Initial public release of the getdns API
