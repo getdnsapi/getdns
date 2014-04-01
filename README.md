@@ -188,7 +188,11 @@ build the packages, this is simplythe one we chose to use.
 
 #### Homebrew
 
-If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.
+If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.  By default, this will only build the core library without any 3rd party event loop support.
+
+To install the [event loop integration libraries](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support) that enable support for libevent, libuv, and libev, run: `brew install getdns --with-libevent --with-libuv --with-libev`.  All switches are optional.
+
+Note that in order to compile the examples, the `--with-libevent` switch is required.
 
 Contributors
 ============
