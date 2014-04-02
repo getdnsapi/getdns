@@ -184,7 +184,19 @@ build the packages, this is simplythe one we chose to use.
     ProductVersion:	10.8.5
     BuildVersion:	12F45
 
-    Built using PackageMaker.
+    Built using PackageMaker, libevent2.
+
+    # ./configure --with-libevent --prefix=/Users/gwiley/getdnsosx/export
+    # make
+    # make install
+
+    edit/fix hardcoded paths in lib/*.la to reference /usr/local
+
+    update getdns.pmdoc to match release info
+
+    build package using PackageMaker
+
+    create dmg
 
 #### Homebrew
 
