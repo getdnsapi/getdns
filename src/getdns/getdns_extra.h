@@ -30,6 +30,7 @@
 
 #include <getdns/getdns.h>
 #include <sys/time.h>
+#include <openssl/ssl.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -120,6 +121,16 @@ getdns_context_get_extension_data(struct getdns_context* context);
 /* detach the eventloop from the context */
 getdns_return_t
 getdns_extension_detach_eventloop(struct getdns_context* context);
+
+/* dane support */
+#define GETDNS_DANE_PKIX_DID_NOT_VALIDATE      3000
+#define GETDNS_DANE_PKIX_DID_NOT_VALIDATE_TEXT "A TLSA matched but PKIX validation failed."
+#define GETDNS_DANE_TLSA_DID_NOT_MATCH         3001
+#define GETDNS_DANE_TLSA_DID_NOT_MATCH_TEXT    "None of the given TLSAs matched"
+
+int /* actually extended getdns_return_t */
+getdns_dane_verify(getdns_list *tlsas, X509 *cert,
+    STACK_OF(X509) *extra_certs, X509_STORE *pkix_validation_store );
 
 #ifdef __cplusplus
 }

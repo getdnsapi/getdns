@@ -1,9 +1,13 @@
 /**
  *
- * /brief getdns support functions for DNS Resource Records
+ * /brief function for DANE
+ *
+ * The getdns_dane_verify function is used to match and validate TLSAs with a
+ * certificate.
  */
+
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2014, NLnet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +33,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RR_DICT_H_
-#define RR_DICT_H_
+#include <ldns/dane.h>
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
+#include "config.h"
+#include "rr-dict.h"
 
-#include <getdns/getdns.h>
-#include <ldns/ldns.h>
+int
+getdns_dane_verify(getdns_list *tlsa_rr_dicts, X509 *cert,
+    STACK_OF(X509) *extra_certs, X509_STORE *pkix_validation_store )
+{
+	getdns_return_t r;
+	ldns_rr_list *tlsas;
 
-getdns_return_t priv_getdns_create_dict_from_rr(
-    struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rr_dict);
+	if ((r = priv_getdns_rr_list_from_list(tlsa_rr_dicts, &tlsas)))
+		return r;
 
-getdns_return_t priv_getdns_create_reply_question_dict(
-    struct getdns_context *context, ldns_pkt *pkt, struct getdns_dict** q_dict);
+	switch (ldns_dane_verify(tlsas, cert,
+	                         extra_certs, pkix_validation_store)) {
+	case LDNS_STATUS_OK:
+		return GETDNS_RETURN_GOOD;
+	case LDNS_STATUS_DANE_PKIX_DID_NOT_VALIDATE:
+		return GETDNS_DANE_PKIX_DID_NOT_VALIDATE;
+	case LDNS_STATUS_DANE_TLSA_DID_NOT_MATCH:
+		return GETDNS_DANE_TLSA_DID_NOT_MATCH;
+	default:
+		break;
+	}
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
 
-getdns_return_t priv_getdns_create_rr_from_dict(
-    struct getdns_dict *rr_dict, ldns_rr **rr);
-
-getdns_return_t priv_getdns_rr_list_from_list(
-    struct getdns_list *list, ldns_rr_list **rr_list);
-
-const char *priv_getdns_rr_type_name(int rr_type);
-
-getdns_return_t priv_getdns_append_opt_rr(
-    struct getdns_context *context, struct getdns_list* rdatas, ldns_pkt* pkt);
-
-#endif
-
-/* rrs.h */
+/* dane.c */

@@ -1234,6 +1234,42 @@ priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
 	return r;
 }
 
+getdns_return_t
+priv_getdns_rr_list_from_list(struct getdns_list *list, ldns_rr_list **rr_list)
+{
+	getdns_return_t r;
+	size_t i, l;
+	struct getdns_dict *rr_dict;
+	ldns_rr *rr;
+
+	if (list == NULL) {
+		l = 0;
+		r = GETDNS_RETURN_GOOD;
+
+	} else if ((r = getdns_list_get_length(list, &l)))
+		return r;
+
+	if (! (*rr_list = ldns_rr_list_new()))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	for (i = 0; i < l; i++) {
+		if ((r = getdns_list_get_dict(list, i, &rr_dict)))
+			break;
+
+		if ((r = priv_getdns_create_rr_from_dict(rr_dict, &rr)))
+			break;
+
+		if (! ldns_rr_list_push_rr(*rr_list, rr)) {
+			ldns_rr_free(rr);
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+	}
+	if (r)
+		ldns_rr_list_deep_free(*rr_list);
+	return r;
+}
+
 static  getdns_return_t
 priv_getdns_get_opt_dict(struct getdns_context* context,
     struct getdns_dict** record_dict, uint8_t* record_start,
