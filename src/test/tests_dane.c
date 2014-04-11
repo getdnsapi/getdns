@@ -50,10 +50,28 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 
+void
+print_usage(const char *progname, FILE *out, int exit_code)
+{
+	fprintf(out, "usage: %s [OPTIONS] <hostname> [ <port> ]\n", progname);
+	fprintf(out, "\n\t<port> defaults to 443\n");
+	fprintf(out, "\nOPTIONS:\n");
+	fprintf(out, "\t-h\t\tshow this text\n");
+	fprintf(out, "\t-f <CAfile>\tuse CAfile for PKIX validation\n");
+	fprintf(out, "\t-p <CApath>\tuse certificates in the <CApath> "
+	    "for PKIX validation\n");
+	exit(exit_code);
+}
+
 int
-main(int argc, const char **argv)
+main(int argc, char * const *argv)
 {
 	getdns_return_t r;
+
+	const char *progname;
+	int         opt;
+	const char *CAfile = NULL;
+	const char *CApath = NULL;
 
 	const char *hostname;
 	int         port = 443;
@@ -71,6 +89,7 @@ main(int argc, const char **argv)
 	getdns_list    *addresses;
 	size_t         naddresses, i;
 	SSL_CTX        *ctx;
+	X509_STORE     *certificate_authorities = NULL;
 	getdns_dict    *address;
 
 	getdns_bindata *address_type;
@@ -89,23 +108,41 @@ main(int argc, const char **argv)
 	X509           *cert;
 	STACK_OF(X509) *extra_certs;
 
+
 	/* Number of successfully validated addresses */
 	int             nsuccess = 0;
 
 	/*
+	 * Process command line options to deterine the localtion of the
+	 * certificate authorities.
+	 */
+	if ((progname = strrchr(argv[0], '/')))
+		progname++;
+	else
+		progname = argv[0];
+
+	while ((opt = getopt(argc, argv, "f:hp:")) != -1) {
+		switch(opt) {
+		case 'h': print_usage(progname, stdout, EXIT_SUCCESS);
+		case 'f': CAfile = optarg;
+			  break;
+		case 'p': CApath = optarg;
+			  break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	/*
 	 * Get hostname and optional port from commandline arguments.
 	 */
-	if (argc == 3)
-		port = atoi(argv[2]);
+	if (argc == 2)
+		port = atoi(argv[1]);
 
-	else if (argc != 2) {
+	else if (argc != 1)
+		print_usage(progname, stderr, EXIT_FAILURE);
 
-		printf("usage: %s <hostname> [ <port> ]\n", argv[0]);
-		printf("\t<port> defaults to 443\n");
-
-		return EXIT_FAILURE;
-	}
-	hostname = argv[1];
+	hostname = argv[0];
 
 	/*
 	 * Setup getdns stub resolution
@@ -242,15 +279,43 @@ main(int argc, const char **argv)
 	}
 
 	/*
-	 * Setup OpenSSL context
+	 * Initialize OpenSSL
 	 */
 	SSL_load_error_strings();
 	SSL_library_init();
+
+	/*
+	 * Setup certificate authorities store
+	 */
+	if (CAfile || CApath) {
+		certificate_authorities = X509_STORE_new();
+		if (! certificate_authorities) {
+			fprintf(stderr, "could not create store for the "
+			    "certificate authorities\n");
+			ERR_print_errors_fp(stderr);
+			r = EXIT_FAILURE;
+			goto done_destroy_response2;
+		}
+		if (X509_STORE_load_locations(certificate_authorities,
+		    CAfile, CApath) != 1) {
+			fprintf(stderr, "Error loading certificate "
+			    "authorities from %s", CAfile ? CAfile : CApath);
+			if (CAfile && CApath)
+				fprintf(stderr, " and/or %s", CApath);
+			fprintf(stderr, "\n");
+			ERR_print_errors_fp(stderr);
+		}
+	}
+
+	/*
+	 * Setup OpenSSL context
+	 */
 	ctx = SSL_CTX_new(SSLv23_client_method());
 	if (! ctx) {
-		fprintf(stderr, "could not SSL_CTX_new\n");
+		fprintf(stderr, "could not create an SSL context\n");
+		ERR_print_errors_fp(stderr);
 		r = EXIT_FAILURE;
-		goto done_destroy_response2;
+		goto done_destroy_certificate_authorities;
 	}
 
 	/*
@@ -330,7 +395,7 @@ main(int argc, const char **argv)
 
 		/* and connect */
 		if (connect(sock, (struct sockaddr *)&sas, sa_len) == -1) {
-			printf("failed\n");
+			printf("failed (%s)\n", strerror(errno));
 			close(sock);
 			continue;
 		}
@@ -341,6 +406,7 @@ main(int argc, const char **argv)
 		ssl = SSL_new(ctx);
 		if (! ssl) {
 			printf("failed setting up ssl (creating)\n");
+			ERR_print_errors_fp(stderr);
 			close(sock);
 			continue;
 		}
@@ -359,6 +425,7 @@ main(int argc, const char **argv)
 		(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 		if (! SSL_set_fd(ssl, sock)) {
 			printf("failed setting up ssl (associating socket)\n");
+			ERR_print_errors_fp(stderr);
 			SSL_free(ssl);
 			close(sock);
 			continue;
@@ -382,6 +449,7 @@ main(int argc, const char **argv)
 		if (r == GETDNS_RETURN_GENERIC_ERROR) {
 			r = GETDNS_RETURN_GOOD;
 			printf("failed setting up ssl (handshaking)\n");
+			ERR_print_errors_fp(stderr);
 			SSL_free(ssl);
 			close(sock);
 			continue;
@@ -396,7 +464,8 @@ main(int argc, const char **argv)
 		/*
 		 * Dane validate the certificate
 		 */
-		switch (getdns_dane_verify(tlsas, cert, extra_certs, NULL)) {
+		switch (getdns_dane_verify(tlsas, cert, extra_certs,
+		                           certificate_authorities)) {
 		case GETDNS_RETURN_GOOD:
 
 			/*****************************************************
@@ -436,6 +505,10 @@ main(int argc, const char **argv)
 
 	/* Clean up */
 	SSL_CTX_free(ctx);
+
+done_destroy_certificate_authorities:
+	if (certificate_authorities)
+		X509_STORE_free(certificate_authorities);
 
 done_destroy_response2:
 	getdns_dict_destroy(response2);
