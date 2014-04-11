@@ -36,6 +36,9 @@
 extern "C" {
 #endif
 
+/* Return the text associated with the error code */
+const char *getdns_get_errorstr_by_id(uint16_t err);
+
 /* Enable the return_dnssec_status extension on every request.
    value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
    returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
