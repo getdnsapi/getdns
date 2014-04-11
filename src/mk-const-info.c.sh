@@ -5,13 +5,14 @@ cat > const-info.c << END_OF_HEAD
  * Do not edit manually!
  */
 #include <getdns/getdns.h>
+#include <getdns/getdns_extra.h>
 #include <stdlib.h>
 #include "const-info.h"
 
 static struct const_info consts_info[] = {
 	{ -1, NULL, "/* <unknown getdns value> */" },
 END_OF_HEAD
-awk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ print "\t{ "$3", \""$1"\", "$1"_TEXT }," }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/_TEXT/{ print "\t{ "$3", \""$2"\", "$2"_TEXT },"}' getdns/getdns.h | sed 's/,,/,/g' >> const-info.c
+awk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ print $3"\t{ "$3", \""$1"\", "$1"_TEXT }," }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/^#define GETDNS_OPCODE_/ && !/^#define GETDNS_RCODE/ && !/^#define GETDNS_RRCLASS/ && !/_TEXT/{ print $3"\t{ "$3", \""$2"\", "$2"_TEXT },"}' getdns/getdns.h getdns/getdns_extra.h | sort -n | sed -e 's/^[0-9][0-9]*//g' -e 's/^,//g' -e 's/,,/,/g' >> const-info.c
 cat >> const-info.c << END_OF_TAIL
 };
 
