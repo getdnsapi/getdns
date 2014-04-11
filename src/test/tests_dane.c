@@ -41,14 +41,24 @@
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
 
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_LDNS_DANE_VERIFY
+#ifdef HAVE_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
-
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 
 void
 print_usage(const char *progname, FILE *out, int exit_code)
@@ -524,5 +534,29 @@ done_destroy_context:
 
 	return r ? r : (naddresses == nsuccess ? EXIT_SUCCESS : EXIT_FAILURE);
 }
+
+#else	/* HAVE_SSL */
+int
+main(int argc, char *const *argv)
+{
+	const char *progname = strrchr(argv[0], '/');
+	progname = progname ? progname + 1 : argv[0];
+	fprintf(stderr, "%s needs OpenSSL support, "
+	    "which has not been compiled in.\n", progname);
+	return EXIT_FAILURE;
+}
+#endif	/* HAVE_SSL */
+#else	/* HAVE_LDNS_DANE_VERIFY */
+int
+main(int argc, char *const *argv)
+{
+	const char *progname = strrchr(argv[0], '/');
+	progname = progname ? progname + 1 : argv[0];
+	fprintf(stderr, "%s needs dane support in the ldns library, "
+	    "which has not been compiled in.\n", progname);
+	fprintf(stderr, "ldns has dane support since version 1.6.14.\n");
+	return EXIT_FAILURE;
+}
+#endif	/* HAVE_LDNS_DANE_VERIFY */
 
 /* tests_dane.c */

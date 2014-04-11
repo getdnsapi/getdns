@@ -181,7 +181,7 @@ if test -z "$DOXYGEN";
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h openssl/ssl.h stdint.h stdlib.h string.h sys/socket.h],,, [AC_INCLUDES_DEFAULT])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
@@ -331,6 +331,48 @@ AC_SUBST(EXTENSION_LIBEV_LDFLAGS)
 AC_SUBST(CHECK_EV_PROG)
 
 # end libev extension
+
+# OpenSSL header files are needed for tests_dane example/test.
+# if user says --with-libssl=no or --without-libssl then we do not want to
+# build the dane example.
+# if user says nothing about ssl or specifies --with-libssl then search for it
+# if user specifies --with-libssl=/path then check the lib at that path
+AC_ARG_WITH([libssl],
+    [AS_HELP_STRING([--with-libssl], [path to libssl (default: search /usr/local ..)])],
+    [with_libssl=search],
+    [withval=yes])
+
+HAVE_SSL=0
+LIBSSL_EXT_LIBS=""
+LIBSSL_LIB=""
+LIBSSL_LDFLAGS=""
+AS_IF([test x_$withval = x_no],
+    [],
+    [AS_IF([test x_$withval = x_yes],
+        [AC_SEARCH_LIBS([SSL_new],
+        	[ssl],
+        	[AC_CHECK_HEADERS([openssl/ssl.h],
+                [HAVE_SSL=1]
+                [LIBSSL_EXT_LIBS="$ac_cv_search_ssl_run"],
+                [HAVE_SSL=0],
+                [AC_INCLUDES_DEFAULT])],
+                []
+            )],
+        [HAVE_SSL=1]
+        [AC_MSG_NOTICE([assuming libssl in $withval])]
+        [CFLAGS="$CFLAGS -I$withval/include"]
+	[LIBSSL_LDFLAGS="-L$withval/lib"]
+        [LIBSSL_EXT_LIBS="-lssl"])]
+    )
+AC_SUBST(HAVE_SSL)
+AC_SUBST(LIBSSL_EXT_LIBS)
+AC_SUBST(LIBSSL_LIB)
+AC_SUBST(LIBSSL_LDFLAGS)
+if test x_$HAVE_SSL = x_1; then
+AC_DEFINE_UNQUOTED([HAVE_SSL], [1], [Define if you have the SSL libraries installed.])
+fi
+
+AC_CHECK_LIB([ldns], [ldns_dane_verify], [AC_DEFINE_UNQUOTED([HAVE_LDNS_DANE_VERIFY], [1], [Define if you have the ldns_dane_verify function in the ldns library.])])
 
 LIBS=$getdns_LIBS
 LDFLAGS=$getdns_LDFLAGS

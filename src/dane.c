@@ -33,15 +33,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <ldns/dane.h>
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "config.h"
 #include "rr-dict.h"
 
+#ifdef HAVE_LDNS_DANE_VERIFY
+#include <ldns/dane.h>
+
 int
 getdns_dane_verify(getdns_list *tlsa_rr_dicts, X509 *cert,
-    STACK_OF(X509) *extra_certs, X509_STORE *pkix_validation_store )
+    STACK_OF(X509) *extra_certs, X509_STORE *pkix_validation_store)
 {
 	getdns_return_t r;
 	ldns_rr_list *tlsas;
@@ -62,5 +64,19 @@ getdns_dane_verify(getdns_list *tlsa_rr_dicts, X509 *cert,
 	}
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
+
+#else	/* HAVE_LDNS_DANE_VERIFY */
+
+getdns_dane_verify(getdns_list *tlsa_rr_dicts, X509 *cert,
+    STACK_OF(X509) *extra_certs, X509_STORE *pkix_validation_store)
+{
+	(void) tlsa_rr_dicts;
+	(void) cert;
+	(void) extra_certs;
+	(void) pkix_validation_store;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+}
+
+#endif	/* HAVE_LDNS_DANE_VERIFY */
 
 /* dane.c */

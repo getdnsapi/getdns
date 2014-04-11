@@ -39,6 +39,9 @@ extern "C" {
 /* Return the text associated with the error code */
 const char *getdns_get_errorstr_by_id(uint16_t err);
 
+#define GETDNS_RETURN_NOT_IMPLEMENTED          390
+#define GETDNS_RETURN_NOT_IMPLEMENTED_TEXT     "Requested functionality not available in this implementation"
+
 /* Enable the return_dnssec_status extension on every request.
    value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
    returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
