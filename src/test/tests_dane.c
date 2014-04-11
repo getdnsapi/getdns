@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
 
@@ -99,7 +100,7 @@ main(int argc, const char **argv)
 
 	else if (argc != 2) {
 
-		printf("usage: %s <hostname> [ <port> ]\n", progname);
+		printf("usage: %s <hostname> [ <port> ]\n", argv[0]);
 		printf("\t<port> defaults to 443\n");
 
 		return EXIT_FAILURE;
@@ -109,15 +110,27 @@ main(int argc, const char **argv)
 	/*
 	 * Setup getdns stub resolution
 	 */
-       	if ((r = getdns_context_create(&context, 1)))
-		return r;
+       	if ((r = getdns_context_create(&context, 1))) {
+		fprintf(stderr, "Error creating context: %s\n",
+		    getdns_get_errorstr_by_id(r));
+		return EXIT_FAILURE;
+	}
 
+	/*
 	if ((r = getdns_context_set_resolution_type(
-	    context, GETDNS_RESOLUTION_STUB)))
+	    context, GETDNS_RESOLUTION_STUB))) {
+		fprintf(stderr, "Error setting stub resolution: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
 		goto done_destroy_context;
+	}
+	*/
 
 	if (! (extensions = getdns_dict_create())) {
+
 		r = GETDNS_RETURN_MEMORY_ERROR;
+		fprintf(stderr, "Error creating extensions dict: %s\n",
+		    getdns_get_errorstr_by_id(r));
 		goto done_destroy_context;
 	}
 
@@ -125,20 +138,33 @@ main(int argc, const char **argv)
 	 * Lookup TLSA's (but only when they are secure (i.e. DNSSEC signed))
 	 */
 	if ((r = getdns_dict_set_int(
-	    extensions, "dnssec_return_only_secure", GETDNS_EXTENSION_TRUE)))
+	    extensions, "dnssec_return_only_secure", GETDNS_EXTENSION_TRUE))) {
+
+		r = GETDNS_RETURN_MEMORY_ERROR;
+		fprintf(stderr, "Error setting dnssec_return_only_secure "
+		    "extension: %s\n", getdns_get_errorstr_by_id(r));
 		goto done_destroy_extensions;
+	}
 
 	/* construct the dane name */
 	(void) snprintf(danename, 1024, "_%d._tcp.%s", port, hostname);
 
 	/* actual lookup */
 	if ((r = getdns_general_sync(context,
-	    danename, GETDNS_RRTYPE_TLSA, extensions, &response)))
+	    danename, GETDNS_RRTYPE_TLSA, extensions, &response))) {
+
+		fprintf(stderr, "Error looking up TLSA records: %s\n",
+		    getdns_get_errorstr_by_id(r));
 		goto done_destroy_extensions;
+	}
 
 	/* Did we get anything?  Securely? */
-	if ((r = getdns_dict_get_int(response, "status", &status)))
+	if ((r = getdns_dict_get_int(response, "status", &status))) {
+
+		fprintf(stderr, "Error getting status from response dict: "
+		    "%s\n", getdns_get_errorstr_by_id(r));
 		goto done_destroy_response;
+	}
 
 	if (status == GETDNS_RESPSTATUS_NO_SECURE_ANSWERS) {
 		printf("No secure TLSA RR's for %s were found.\n", danename);
@@ -149,17 +175,33 @@ main(int argc, const char **argv)
 	} else {
 		/* descend into response dict to get to the tlsas */
 		if ((r = getdns_dict_get_list(
-		    response, "replies_tree", &replies_tree)))
+		    response, "replies_tree", &replies_tree))) {
+
+			fprintf(stderr, "Error getting replies_tree from res"
+			    "ponse dict: %s\n", getdns_get_errorstr_by_id(r));
 			goto done_destroy_response;
+		}
 		
-		if ((r = getdns_list_get_dict(replies_tree, 0, &reply)))
-			goto done_destroy_response;
+		if ((r = getdns_list_get_dict(replies_tree, 0, &reply))) {
 
-		if ((r = getdns_dict_get_list(reply, "answer", &tlsas)))
+			fprintf(stderr, "Error getting first reply from rep"
+			    "lies_tree: %s\n", getdns_get_errorstr_by_id(r));
 			goto done_destroy_response;
+		}
 
-		if ((r = getdns_list_get_length(tlsas, &ntlsas)))
+		if ((r = getdns_dict_get_list(reply, "answer", &tlsas))) {
+
+			fprintf(stderr, "Error getting tlsas from reply: %s\n",
+			    getdns_get_errorstr_by_id(r));
 			goto done_destroy_response;
+		}
+
+		if ((r = getdns_list_get_length(tlsas, &ntlsas))) {
+
+			fprintf(stderr, "Error getting the lenth of the tlsas "
+			    "list: %s\n", getdns_get_errorstr_by_id(r));
+			goto done_destroy_response;
+		}
 
 		if (ntlsas == 0) {
 			printf("No TLSA RR's for %s were found.\n", danename);
@@ -170,19 +212,32 @@ main(int argc, const char **argv)
 	/*
 	 * Lookup addresses for the hostname (don't have to be secure).
 	 */
-	if ((r = getdns_address_sync(context, hostname, NULL, &response2)))
+	if ((r = getdns_address_sync(context, hostname, NULL, &response2))) {
+
+		fprintf(stderr, "Error looking up address records for "
+		    "%s: %s\n", hostname, getdns_get_errorstr_by_id(r));
 		goto done_destroy_response;
+	}
 
 	/* get the addresses from the response dict */
 	if ((r = getdns_dict_get_list(response2, "just_address_answers",
-	    &addresses)))
+	    &addresses))) {
+
+		fprintf(stderr, "Error getting addresses from the address look"
+		    "up response dict: %s\n", getdns_get_errorstr_by_id(r));
 		goto done_destroy_response2;
+	}
 
 	/* exit when there are none  */
-	if ((r = getdns_list_get_length(addresses, &naddresses)))
+	if ((r = getdns_list_get_length(addresses, &naddresses))) {
+
+		fprintf(stderr, "Error getting the lenth of the addresses"
+		    "list: %s\n", getdns_get_errorstr_by_id(r));
 		goto done_destroy_response2;
+	}
 	if (naddresses <= 0) {
-		printf("%s did not have any addresses to connect to\n", hostname);
+		printf("%s did not have any addresses to connect to\n",
+		    hostname);
 		goto done_destroy_response2;
 	}
 
@@ -203,38 +258,55 @@ main(int argc, const char **argv)
 	 */
 	for (i = 0; i < naddresses && r == GETDNS_RETURN_GOOD; i++) {
 
-		if ((r = getdns_list_get_dict(addresses, i, &address)))
+		if ((r = getdns_list_get_dict(addresses, i, &address))) {
+
+			fprintf(stderr, "Error getting address from the addres"
+			    "ses list: %s\n", getdns_get_errorstr_by_id(r));
 			break;
+		}
 
 		/*
 		 * Create a sockaddr_in from <address> <port>
+		 * (Quiet involved yes)
 		 */
 		if ((r = getdns_dict_get_bindata(
-		    address, "address_type", &address_type)))
-			return r;
+		    address, "address_type", &address_type))) {
+
+			fprintf(stderr, "Error getting address_type from "
+			    "address: %s\n", getdns_get_errorstr_by_id(r));
+			break;
+		}
 
 		if ((r = getdns_dict_get_bindata(
-		    address, "address_data", &address_data)))
-			return r;
+		    address, "address_data", &address_data))) {
 
-		if (strncmp((const char *)address_type->data, "IPv4", 4) == 0) {
+			fprintf(stderr, "Error getting address_data from "
+			    "address: %s\n", getdns_get_errorstr_by_id(r));
+			break;
+		}
+
+		if (0 ==
+		    strncmp((const char *)address_type->data, "IPv4", 4)) {
 
 			sas.ss_family = AF_INET;
 			sa4->sin_port = htons(port);
 			memcpy(&(sa4->sin_addr),address_data->data,
-			    address_data->size);
+			    address_data->size < 4 ? address_data->size : 4);
 			sa_len = sizeof(struct sockaddr_in);
 
-		} else if (strncmp((const char *)address_type->data, "IPv6", 4) == 0) {
+		} else if (0 ==
+		    strncmp((const char *)address_type->data, "IPv6", 4)) {
 
 			sas.ss_family = AF_INET6;
 			sa6->sin6_port = htons(port);
 			memcpy(&(sa6->sin6_addr), address_data->data,
-			    address_data->size);
+			    address_data->size < 16 ? address_data->size : 16);
 			sa_len = sizeof(struct sockaddr_in6);
 
 		} else  {
-			r = GETDNS_RETURN_GENERIC_ERROR;
+			fprintf(stderr, "Unknown address type, must be either "
+			    "\"IPv4\" or \"IPv6\"\n");
+			r = EXIT_FAILURE;
 			break;
 		}
 
@@ -243,7 +315,9 @@ main(int argc, const char **argv)
 		 */
 		sock = socket(sas.ss_family, SOCK_STREAM, IPPROTO_TCP);
 		if (sock == -1) {
-			r = GETDNS_RETURN_GENERIC_ERROR;
+
+			perror("Error creating socket");
+			r = EXIT_FAILURE;
 			break;
 		}
 
@@ -291,7 +365,7 @@ main(int argc, const char **argv)
 		}
 
 		/*
-		 * Shake hands and get the certificates
+		 * Shake hands (Quiet involved yes)
 		 */
 		for (;;) {
 			ERR_clear_error();
@@ -313,6 +387,9 @@ main(int argc, const char **argv)
 			continue;
 		}
 
+		/*
+		 * Get the certificates from the chain.
+		 */
 		cert = SSL_get_peer_certificate(ssl);
 		extra_certs = SSL_get_peer_cert_chain(ssl);
 
@@ -321,6 +398,21 @@ main(int argc, const char **argv)
 		 */
 		switch (getdns_dane_verify(tlsas, cert, extra_certs, NULL)) {
 		case GETDNS_RETURN_GOOD:
+
+			/*****************************************************
+			 *****************************************************
+			 **** 
+			 **** At this point we have a properly DANE 
+			 **** authenticated ssl connection and can start
+			 **** interacting.
+			 **** 
+			 **** Our example application simply prints the
+			 **** status (of successfull validation) and
+			 **** continues checking the next address (if any).
+			 **** 
+			 *****************************************************
+			 *****************************************************/
+
 			printf("dane-validated successfully.\n");
 			nsuccess++;
 			break;
