@@ -181,7 +181,7 @@ if test -z "$DOXYGEN";
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([inttypes.h netinet/in.h stdint.h stdlib.h string.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h openssl/ssl.h stdint.h stdlib.h string.h sys/socket.h],,, [AC_INCLUDES_DEFAULT])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T

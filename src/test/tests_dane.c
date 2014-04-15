@@ -54,11 +54,393 @@
 #include <arpa/inet.h>
 #endif
 
-#ifdef HAVE_LDNS_DANE_VERIFY
-#ifdef HAVE_SSL
+#ifndef getdns_get_errorstr_by_id
+const char *getdns_get_errorstr_by_id(uint16_t err);
+#endif
+
+#ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
+#include <openssl/sha.h>
+
+#define GETDNS_DANE_TLSA_DID_NOT_MATCH 3000
+#define GETDNS_DANE_TLSA_DID_NOT_MATCH_TEXT "None of the given TLSAs matched"
+#define GETDNS_DANE_PKIX_DID_NOT_VALIDATE 3001
+#define GETDNS_DANE_PKIX_DID_NOT_VALIDATE_TEXT \
+	"A TLSA matched but PKIX validation failed."
+#define GETDNS_DANE_NON_CA_CERTIFICATE 3002
+#define GETDNS_DANE_NON_CA_CERTIFICATE_TEXT \
+	"A non CA certificate is matched"
+
+#define GETDNS_DANE_USAGE_PKIX_TA 0
+#define GETDNS_DANE_USAGE_PKIX_EE 1
+#define GETDNS_DANE_USAGE_DANE_TA 2
+#define GETDNS_DANE_USAGE_DANE_EE 3
+
+#define GETDNS_DANE_SELECTOR_CERT 0
+#define GETDNS_DANE_SELECTOR_SPKI 1
+
+#define GETDNS_DANE_MATCHING_TYPE_FULL     0
+#define GETDNS_DANE_MATCHING_TYPE_SHA2_256 1
+#define GETDNS_DANE_MATCHING_TYPE_SHA2_512 2
+
+/* Ordinary PKIX validation of cert (with extra_certs to help)
+ * against the CA's in store
+ */
+static int
+getdns_dane_pkix_validate(
+    X509* cert, STACK_OF(X509)* extra_certs, X509_STORE* store)
+{
+	X509_STORE_CTX* vrfy_ctx;
+	int r;
+
+	if (! store)
+		return GETDNS_DANE_PKIX_DID_NOT_VALIDATE;
+
+	vrfy_ctx = X509_STORE_CTX_new();
+	if (! vrfy_ctx)
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	else if (X509_STORE_CTX_init(vrfy_ctx, store,
+				cert, extra_certs) != 1)
+		r = GETDNS_RETURN_GENERIC_ERROR;
+
+	else if (X509_verify_cert(vrfy_ctx) == 1)
+		r = GETDNS_RETURN_GOOD;
+	else
+		r = GETDNS_DANE_PKIX_DID_NOT_VALIDATE;
+
+	X509_STORE_CTX_free(vrfy_ctx);
+	return r;
+}
+
+
+/* Ordinary PKIX validation of cert (with extra_certs to help)
+ * against the CA's in store, but also return the validation chain.
+ */
+static int
+getdns_dane_pkix_validate_and_get_chain(STACK_OF(X509)** chain, X509* cert,
+    STACK_OF(X509)* extra_certs, X509_STORE* store)
+{
+	int r;
+	X509_STORE* empty_store = NULL;
+	X509_STORE_CTX* vrfy_ctx;
+
+	if (! store)
+		store = empty_store = X509_STORE_new();
+
+	r = GETDNS_RETURN_GENERIC_ERROR;
+	vrfy_ctx = X509_STORE_CTX_new();
+	if (! vrfy_ctx)
+		goto exit_free_empty_store;
+
+	else if (X509_STORE_CTX_init(vrfy_ctx, store,
+					cert, extra_certs) != 1)
+		goto exit_free_vrfy_ctx;
+
+	else if (X509_verify_cert(vrfy_ctx) == 1)
+		r = GETDNS_RETURN_GOOD;
+	else
+		r = GETDNS_DANE_PKIX_DID_NOT_VALIDATE;
+
+	*chain = X509_STORE_CTX_get1_chain(vrfy_ctx);
+	if (! *chain)
+		r = GETDNS_RETURN_GENERIC_ERROR;
+
+exit_free_vrfy_ctx:
+	X509_STORE_CTX_free(vrfy_ctx);
+
+exit_free_empty_store:
+	if (empty_store)
+		X509_STORE_free(empty_store);
+	return r;
+}
+
+
+/* Return the validation chain that can be build out of cert, with extra_certs.
+ */
+static int
+getdns_dane_pkix_get_chain(STACK_OF(X509)** chain,
+    X509* cert, STACK_OF(X509)* extra_certs)
+{
+	int r;
+	X509_STORE* empty_store = NULL;
+	X509_STORE_CTX* vrfy_ctx;
+
+	empty_store = X509_STORE_new();
+	r = GETDNS_RETURN_GENERIC_ERROR;
+	vrfy_ctx = X509_STORE_CTX_new();
+	if (! vrfy_ctx)
+		goto exit_free_empty_store;
+
+	else if (X509_STORE_CTX_init(vrfy_ctx, empty_store,
+					cert, extra_certs) != 1)
+		goto exit_free_vrfy_ctx;
+
+	(void) X509_verify_cert(vrfy_ctx);
+	*chain = X509_STORE_CTX_get1_chain(vrfy_ctx);
+	if (! *chain)
+		r = GETDNS_RETURN_GENERIC_ERROR;
+	else
+		r = GETDNS_RETURN_GOOD;
+
+exit_free_vrfy_ctx:
+	X509_STORE_CTX_free(vrfy_ctx);
+
+exit_free_empty_store:
+	X509_STORE_free(empty_store);
+	return r;
+}
+
+/* Return whether cert/selector/matching_type matches data.
+ */
+static int
+getdns_dane_match_cert_with_data(X509* cert,
+    uint32_t selector, uint32_t matching_type, getdns_bindata *data)
+{
+	int r = GETDNS_RETURN_GOOD;
+
+	unsigned char *buf = NULL;
+	size_t len;
+
+	X509_PUBKEY* xpubkey;
+	EVP_PKEY* epubkey;
+
+	unsigned char hash[SHA512_DIGEST_LENGTH];
+	SHA256_CTX sha256;
+	SHA512_CTX sha512;
+
+	switch (selector) {
+	case GETDNS_DANE_SELECTOR_CERT:
+
+		len = (size_t)i2d_X509(cert, &buf);
+		break;
+
+	case GETDNS_DANE_SELECTOR_SPKI:
+
+		xpubkey = X509_get_X509_PUBKEY(cert);
+		if (! xpubkey)
+			return GETDNS_RETURN_GENERIC_ERROR;
+
+		epubkey = X509_PUBKEY_get(xpubkey);
+		if (! epubkey)
+			return GETDNS_RETURN_GENERIC_ERROR;
+
+		len = (size_t)i2d_PUBKEY(epubkey, &buf);
+		break;
+	
+	default:
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+
+	switch(matching_type) {
+	case GETDNS_DANE_MATCHING_TYPE_FULL:
+
+		if (data->size != len || memcmp(data->data, buf, len))
+			r = GETDNS_DANE_TLSA_DID_NOT_MATCH;
+		break;
+	
+	case GETDNS_DANE_MATCHING_TYPE_SHA2_256:
+
+		if (data->size != SHA256_DIGEST_LENGTH)
+			r = GETDNS_DANE_TLSA_DID_NOT_MATCH;
+		else {
+			SHA256_Init(&sha256);
+			SHA256_Update(&sha256, buf, len);
+			SHA256_Final(hash, &sha256);
+			if (memcmp(data->data, hash, SHA256_DIGEST_LENGTH))
+				r = GETDNS_DANE_TLSA_DID_NOT_MATCH;
+		}
+		break;
+
+	case GETDNS_DANE_MATCHING_TYPE_SHA2_512:
+
+		if (data->size != SHA512_DIGEST_LENGTH)
+			r = GETDNS_DANE_TLSA_DID_NOT_MATCH;
+		else {
+			SHA512_Init(&sha512);
+			SHA512_Update(&sha512, buf, len);
+			SHA512_Final(hash, &sha512);
+			if (memcmp(data->data, hash, SHA512_DIGEST_LENGTH))
+				r = GETDNS_DANE_TLSA_DID_NOT_MATCH;
+		}
+		break;
+	
+	default:
+		r = GETDNS_RETURN_GENERIC_ERROR;
+	}
+	free(buf);
+	return r;
+}
+
+/* Return whether any certificate from the chain with selector/matching_type
+ * matches data.
+ * ca should be 1 if the certificate has to be a CA certificate too.
+ */
+static int
+getdns_dane_match_any_cert_with_data(STACK_OF(X509)* chain,
+    uint32_t selector, uint32_t matching_type, getdns_bindata* data, int ca)
+{
+	int r = GETDNS_DANE_TLSA_DID_NOT_MATCH;
+	size_t n, i;
+	X509* cert;
+
+	n = (size_t)sk_X509_num(chain);
+	for (i = 0; i < n; i++) {
+		cert = sk_X509_pop(chain);
+		if (! cert) {
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		r = getdns_dane_match_cert_with_data(
+		    cert, selector, matching_type, data);
+		if (ca && r == GETDNS_RETURN_GOOD && ! X509_check_ca(cert))
+			r = GETDNS_DANE_NON_CA_CERTIFICATE;
+		X509_free(cert);
+		if (r != GETDNS_DANE_TLSA_DID_NOT_MATCH)
+			break;
+		/* when r == GETDNS_DANE_TLSA_DID_NOT_MATCH,
+		 * try to match the next certificate
+		 */
+	}
+	return r;
+}
+
+int /* actually extended getdns_return_t */
+getdns_dane_verify(getdns_list *tlsas, X509 *cert,
+    STACK_OF(X509) *extra_certs, X509_STORE *pkix_validation_store )
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD, prev_r = GETDNS_RETURN_GOOD;
+	size_t tlsas_len, i, n_tlsas;
+	getdns_dict *tlsa_rr;
+	uint32_t rr_type;
+	getdns_dict *rdata;
+	uint32_t usage, selector, matching_type;
+	getdns_bindata *data; /* Certificate association data */
+	STACK_OF(X509) *pkix_validation_chain;
+
+	if ((r = getdns_list_get_length(tlsas, &tlsas_len)))
+		return r;
+
+	for (n_tlsas = 0, i = 0; i < tlsas_len; i++) {
+
+		prev_r = r;
+
+		if ((r = getdns_list_get_dict(tlsas, i, &tlsa_rr)))
+			break;
+
+		if ((r = getdns_dict_get_int(tlsa_rr, "type", &rr_type)))
+			break;
+
+		if (rr_type != GETDNS_RRTYPE_TLSA
+		    || (r = getdns_dict_get_dict(tlsa_rr, "rdata", &rdata))
+		    || (r = getdns_dict_get_int(rdata,
+		        "certificate_usage" , &usage))
+		    || (r = getdns_dict_get_int(rdata,
+		        "selector", &selector))
+		    || (r = getdns_dict_get_int(rdata,
+		        "matching_type", &matching_type))
+		    || (r = getdns_dict_get_bindata(rdata,
+		        "certificate_association_data", &data))
+		    || usage > 3 || selector > 1 || matching_type > 2) {
+
+			r = prev_r;
+			continue;
+		} else
+			n_tlsas++;
+
+		pkix_validation_chain = NULL;
+		switch (usage) {
+		case GETDNS_DANE_USAGE_PKIX_TA:
+			r = getdns_dane_pkix_validate_and_get_chain(
+			    &pkix_validation_chain, 
+			    cert, extra_certs,
+			    pkix_validation_store);
+
+			if (! pkix_validation_chain)
+				break;
+			if (r == GETDNS_DANE_PKIX_DID_NOT_VALIDATE) {
+				/*
+				 * NO PKIX validation. We still try to match
+				 * *any* certificate from the chain, so we
+				 * return TLSA errors over PKIX errors.
+				 *
+				 * i.e. When the TLSA matches no certificate,
+				 *  we return * TLSA_DID_NOT_MATCH and not
+				 * PKIX_DID_NOT_VALIDATE
+				 */
+				r = getdns_dane_match_any_cert_with_data(
+				    pkix_validation_chain,
+				    selector, matching_type, data, 1);
+
+				if (r == GETDNS_RETURN_GOOD) {
+					/* A TLSA record did match a cert from
+					 * the chain, thus the error is failed
+					 * PKIX validation.
+					 */
+					r = GETDNS_DANE_PKIX_DID_NOT_VALIDATE;
+				}
+
+			} else if (r == GETDNS_RETURN_GOOD) { 
+				/* PKIX validated, does the TLSA match too? */
+
+				r = getdns_dane_match_any_cert_with_data(
+				    pkix_validation_chain,
+				    selector, matching_type, data, 1);
+			}
+			sk_X509_pop_free(pkix_validation_chain, X509_free);
+			break;
+
+		case GETDNS_DANE_USAGE_PKIX_EE:
+			r = getdns_dane_match_cert_with_data(
+			    cert, selector, matching_type, data);
+
+			r = r ? r : getdns_dane_pkix_validate(
+				    cert, extra_certs, pkix_validation_store);
+			break;
+
+		case GETDNS_DANE_USAGE_DANE_TA:
+			r = getdns_dane_pkix_get_chain(
+			    &pkix_validation_chain, cert, extra_certs);
+
+			r = r ? r : getdns_dane_match_any_cert_with_data(
+			    pkix_validation_chain,
+			    selector, matching_type, data, 0);
+
+			 if (pkix_validation_chain)
+				sk_X509_pop_free(
+				    pkix_validation_chain, X509_free);
+			break;
+
+		case GETDNS_DANE_USAGE_DANE_EE:
+			r = getdns_dane_match_cert_with_data(
+			    cert, selector, matching_type, data);
+			break;
+		default:
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+
+		if (r != GETDNS_DANE_TLSA_DID_NOT_MATCH &&
+		    r != GETDNS_DANE_PKIX_DID_NOT_VALIDATE) {
+
+			/* which would be GETDNS_RETURN_GOOD (match)
+			 * or some fatal error preventing use from
+			 * trying the next TLSA record.
+			 */
+			break;
+		}
+		r = (r < prev_r ? prev_r : r); /* prefer PKIX_DID_NOT_VALIDATE
+		                                * over   TLSA_DID_NOT_MATCH
+		                                */
+	}
+	if (n_tlsas == 0)
+		return getdns_dane_pkix_validate(
+		    cert, extra_certs, pkix_validation_store);
+
+	return r;
+}
 
 void
 print_usage(const char *progname, FILE *out, int exit_code)
@@ -474,8 +856,9 @@ main(int argc, char * const *argv)
 		/*
 		 * Dane validate the certificate
 		 */
-		switch (getdns_dane_verify(tlsas, cert, extra_certs,
-		                           certificate_authorities)) {
+		int s;
+		switch ((s = getdns_dane_verify(tlsas, cert, extra_certs,
+		                           certificate_authorities))) {
 		case GETDNS_RETURN_GOOD:
 
 			/*****************************************************
@@ -505,7 +888,7 @@ main(int argc, char * const *argv)
 			printf("No matching TLSA found\n");
 			break;
 		default:
-			printf("An error occurred when verifying TLSA's\n");
+			printf("An error occurred when verifying TLSA's (%d)\n", s);
 			break;
 		}
 		while (SSL_shutdown(ssl) == 0);
@@ -535,7 +918,7 @@ done_destroy_context:
 	return r ? r : (naddresses == nsuccess ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
-#else	/* HAVE_SSL */
+#else	/* HAVE_OPENSSL_SSL_H */
 int
 main(int argc, char *const *argv)
 {
@@ -545,18 +928,6 @@ main(int argc, char *const *argv)
 	    "which has not been compiled in.\n", progname);
 	return EXIT_FAILURE;
 }
-#endif	/* HAVE_SSL */
-#else	/* HAVE_LDNS_DANE_VERIFY */
-int
-main(int argc, char *const *argv)
-{
-	const char *progname = strrchr(argv[0], '/');
-	progname = progname ? progname + 1 : argv[0];
-	fprintf(stderr, "%s needs dane support in the ldns library, "
-	    "which has not been compiled in.\n", progname);
-	fprintf(stderr, "ldns has dane support since version 1.6.14.\n");
-	return EXIT_FAILURE;
-}
-#endif	/* HAVE_LDNS_DANE_VERIFY */
+#endif	/* HAVE_OPENSSL_SSL_H */
 
 /* tests_dane.c */
