@@ -186,7 +186,7 @@ build the packages, this is simplythe one we chose to use.
 
     Built using PackageMaker, libevent2.
 
-    # ./configure --with-libevent --prefix=/Users/gwiley/getdnsosx/export
+    # ./configure --with-libevent --prefix=$HOME/getdnsosx/export
     # make
     # make install
 
