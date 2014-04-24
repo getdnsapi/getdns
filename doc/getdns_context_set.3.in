@@ -32,11 +32,14 @@
 .B getdns_context_set_context_update_callback, 
 .B getdns_context_set_dns_root_servers, 
 .B getdns_context_set_dns_transport, 
+.B getdns_context_set_dnssec_trust_anchors, 
+.B getdns_context_set_dnssec_allowed_skew,
 .B getdns_context_set_follow_redirects, 
 .B getdns_context_set_limit_outstanding_queries, 
 .B getdns_context_set_namespaces, 
 .B getdns_context_set_resolution_type, 
-.B getdns_context_set_timeout
+.B getdns_context_set_suffix, 
+.B getdns_context_set_timeout, 
 -- getdns context manipulation routines
 
 .SH LIBRARY
@@ -44,6 +47,15 @@ DNS Resolver library (libgetdns, -lgetdns)
 
 .SH SYNOPSIS
 #include <getdns.h>
+
+getdns_return_t 
+.br
+.B getdns_context_set_append_name
+(getdns_context_t context,
+.RS 3
+.br
+getdns_append_name_t when_to_append)
+.RE
 
 getdns_return_t 
 .br
@@ -70,6 +82,22 @@ getdns_return_t
 .RS 3
 .br
 uint16_t transport)
+.RE
+
+getdns_return_t
+.br
+.B getdns_contet_set_dnssec_allowed_skew
+(getdns_context *context,
+.RS 3
+uint32_t skew_seconds)
+.RE
+
+getdns_return_t
+.br
+.B getdns_contet_set_dnssec_trust_anchors
+(getdns_context *context,
+.RS 3
+getdns_list *trust_anchors)
 .RE
 
 getdns_return_t 
@@ -109,6 +137,14 @@ getdns_return_t
 uint16_t restype)
 .RE
 
+getdns_return_t
+.br
+.B getdns_context_set_suffix
+(getdns_context *context,
+.RS 3
+getdns_list *suffixes)
+.RE
+
 getdns_return_t 
 .br
 .B getdns_context_set_timeout
@@ -123,6 +159,11 @@ uint16_t timeout)
 These functions are used to manipulate a previously allocated and initialized context, see getdns_context (3) for more details on the functions used to allocate, initialized and destroy contexts and for a more detailed discussion of the getdns_context in general.
 
 .LP
+.B getdns_context_set_append_name
+Specifies whether to append a suffix supplied via getdns_context_set_suffix (3)
+to the query string before the API starts resolving a name.
+
+.LP
 .B getdns_context_set_context_update_callback
 sets a function that will be called if changes to the system files (for example /etc/resolv.conf and /etc/hosts).
 
@@ -130,6 +171,14 @@ sets a function that will be called if changes to the system files (for example 
 .B getdns_context_set_dns_transport
 specifies the transport used for DNS lookups, the default is to use UDP and fall back to
 TCP as needed.
+
+.LP
+.B getdns_context_set_dnssec_trust_anchors
+allows the caller to specify trust anchors as alternatives to the default trust anchors
+
+.LP
+.B getdns_context_set_dnssec_allowed_skew
+set the number of seconds skew allowed in either direction when checking an RRSIGs expiration and inception fields, the default is 0.
 
 .LP
 .B getdns_context_set_limit_outstanding_queries
@@ -158,6 +207,11 @@ files.  Future implementations will support netbios, mdns, and nis.
 .LP
 .B getdns_context_set_resolution_type
 specifies whether DNS queries are performed with non-recursive lookups or as a stub resolver.
+
+.LP
+.B getdns_context_set_suffix
+Append suffixes to domain names prior to executing the lookup based on
+getdns_context_set_append_name. 
 
 .LP
 .B getdns_context_set_timeout
@@ -209,9 +263,29 @@ The namespaces array contains an ordered list of namespaces that will be queried
 can be set to either GETDNS_CONTEXT_RECURSIVE (the default) or GETDNS_CONTEXT_STUB (requires that forwarders be specified by the caller).
 
 .HP 3
+.I seconds_skew
+.RP
+the number of seconds skew allowed in either direction when checking an RRSIGs expiration and inception fields.
+
+.HP 3
+.I suffixes
+.RP
+A list of bindatas that are strings that are to be appended based on getdns_context_set_append_name. The values here follow the rules in section 2.1 of RFC 4343 to allow non-ASCII octets and special characters in labels.
+
+.HP 3
 .I timeout
 .RP
 the number of milliseconds the API will wait for a response, after which the callback will be invoked (or the synchronous function will return) with a timeout error.
+
+.HP 3
+.I trust_anchors
+.RP
+list of bindatas that are the DNSSEC trust anchors expressed as RDATA from the DNSKEY resource records, the default are supplied by the IANA root.
+
+.HP 3
+.I when_to_append
+.RP
+The value is GETDNS_APPEND_NAME_ALWAYS, GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE, GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE, or GETDNS_APPEND_NAME_NEVER.
 
 .HP
 .SH "RETURN VALUES"
