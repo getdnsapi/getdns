@@ -26,11 +26,9 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_dict 3 "@date@" "getdns @version@" getdns
+.TH getdns_display_ip_address 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_dict, 
-.B getdns_dict_create, 
-.B getdns_dict_destroy 
+.B getdns_display_ip_address
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -38,54 +36,33 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-getdns_dict * 
+char * 
 .br
-.B getdns_dict_create
-()
-
-void 
-.br
-.B getdns_dict_destroy
-(getdns_dict *this_dict)
+.B getdns_display_ip_address
+(const getdns_bindata *ipv4_or_ipv6_addr)
 
 .SH DESCRIPTION
 
 .LP
-The getdns_dict type is used to manage name/value pairs in which the names are strings and the data types of the values are heterogeneous and include
-.RS 3
-.br
-getdns_bindata
-.br
-getdns_dict
-.br
-getdns_list
-.br
-uint32_t
-.RE
+This helper function returns a nicely formatted string representation of the IPv4 or
+IPv6 address.  The length of the bindata is used to determine whether the address
+is IPv4 or IPv6.
 
-.LP
-The destroy function performs a "deep" destroy, freeing storage for all of the members
-of the dictionary before destroying the dictionary.  There are a number of helper
-functions that provide access to the dictionary object, see their respective man pages.
+.HP 3
+.I ipv4_or_ipv6_addr
+.RP
+bindata of the address to print
 
-.LP
-.I this_dict
-the dictionary to destroy
-.LP
-
+.HP
 .SH "RETURN VALUES"
 
-Upon successful completion the getdns_dict_create function returns a valid (empty) 
-dictionary structure that should be freed via a call to getdns_dict_destroy.
+Returns a string representation of the IP address (allocated using the system 
+allocator - malloc), the caller is responsible for freeing the storage using free().
 
 .SH EXAMPLES
 
 TBD
 
 .SH SEE ALSO
-.BR libgetdns (3),
-.BR getdns_dict_get (3),
-.BR getdns_dict_set (3),
-.BR getdns_list (3),
-.BR getdns_pretty_print_dict (3).
+.BR libgetdns (3)
 

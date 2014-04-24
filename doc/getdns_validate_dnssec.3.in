@@ -26,11 +26,9 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_convert 3 "@date@" "getdns @version@" getdns
+.TH getdns_validate_dnssec 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_convert, 
-.B getdns_convert_dns_name_to_fqdn, 
-.B getdns_convert_fqdn_to_dns_name
+.B getdns_validate_dnssec
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -40,63 +38,65 @@ DNS Resolver library (libgetdns, -lgetdns)
 
 getdns_return_t 
 .br
-.B getdns_convert_dns_name_to_fqdn
-(const getdns_bindata *dns_name_wire_fmt,
+.B getdns_validate_dnssec
+(getdns_list *record_to_validate,
 .br
 .RS 3
-char **fqdn_as_string)
-.RE
-
-getdns_return_t 
+getdns_list *bundle_of_support_records,
 .br
-.B getdns_convert_fqdn_to_dns_name
-(char *fqdn_as_string, 
-.br
-.RS 3
-const getdns_bindata **dns_name_wire_fmt)
+getdns_list *trust_anchor_records)
 .RE
 
 .SH DESCRIPTION
 
 .LP
-Names in DNS fields are stored in a fashion very different from the normal
-presentation format normally used in applications. The DNS format is described
-in the first paragraph in Section 3.1 of RFC 1035; the presentation format here
-is a null-terminated string with interior dots. These helper functions only
-work with names in the DNS format that are not compressed. They are useful for
-converting domain names in the replies_tree to and from the FQDN presentation
-format.
-
-getdns_convert_dns_name_to_fqdn() converts a domain name in DNS format to the
-presentation format. For example, the hex sequence 03 77 77 77 07 65 78 61 6d
-70 6c 65 03 63 6f 6d 00 would be converted to "www.example.com".
-getdns_convert_fqdn_to_dns_name() does the reverse: it converts a
-null-terminated string in FQDN format to bytes in DNS format.
+If an application wants the API to perform DNSSEC validation without using the
+extensions, it can use the getdns_validate_dnssec() helper function. The API
+will use the resource records in bundle_of_support_records to construct the
+validation chain and the DNSKEY or DS records in trust_anchor_records as trust
+anchors. The default list of trust anchor records that is used by the library
+to validate DNSSEC can be retrieved by using the getdns_root_trust_anchor
+helper function.
 
 .HP 3
-.I dns_name_wire_fmt
+.I record_to_validate
 .RP
-The non-compressed DNS wire format name (per RFC 1035) in a bindata structure that
-will be converted to/from an fqdn.  In getdns_convert_fqdn_to_dns_name storage is
-allocated using the system allocator (malloc) and must be freed by the caller.
+the resource record being validated
 
 .HP 3
-.I fqdn_as_string
+.I bundle_of_support_records
 .RP
-a null terminated string to be converted to/from non-compressed DNS wire format name (per RFC 1035).
-In getdns_convert_dns_name_to_fqdn storage is
-allocated using the system allocator (malloc) and must be freed by the caller.
+records used to construct the validation chain
+
+.HP 3
+.I trust_anchor_records
+.RP
+trust anchor records to use for the validation
 
 .HP
 .SH "RETURN VALUES"
 
-Upon successful completion the function returns
-.B GETDNS_RETURN_GOOD
+.LP
+.B GETDNS_DNSSEC_BOGUS
+the DNSSEC signature is bogus
+.LP
+.B GETDNS_DNSSEC_INDETERMINATE
+validation could not be completed
+.LP
+.B GETDNS_DNSSEC_INSECURE
+one or more pieces of the validation chain are demonstrably incorrect
+.LP
+.B GETDNS_DNSSEC_SECURE
+validation succeeded
+.LP
+.B GETDNS_RETURN_MEMORY_ERROR
+an attempt to allocate memory failed
 
 .SH EXAMPLES
 
 TBD
 
 .SH SEE ALSO
+.BR getdns_root_trust_anchor (3)
 .BR libgetdns (3)
 

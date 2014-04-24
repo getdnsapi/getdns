@@ -808,7 +808,9 @@ TBD
 .BR getdns_general (3),
 .BR getdns_hostname (3),
 .BR getdns_list (3),
+.BR getdns_root_trust_anchor (3)
 .BR getdns_service (3)
+.BR getdns_validate_dnssec (3)
 
 .SH REPORTING PROBLEMS
 Bug reports should be sent to the getdns-bugs@getdns.net
