@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, NLNet Labs, Verisign, Inc.
+.\" Copyright (c) 2013, NLnet Labs, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,8 @@
 .B getdns_context_create, 
 .B getdns_context_create_with_memory_functions, 
 .B getdns_context_create_with_extended_memory_functions, 
-.B getdns_context_destroy 
+.B getdns_context_destroy, 
+.B getdns_context_get_api_information 
 -- getdns context create and destroy routines
 
 .SH LIBRARY
@@ -84,6 +85,11 @@ void (*free) (void *userarg, void *))
 void
 .br
 .B getdns_context_destroy
+(getdns_context *context)
+
+getdns_dict *
+.br
+.B getdns_context_get_api_information
 (getdns_context *context)
 
 .SH DESCRIPTION
@@ -185,6 +191,22 @@ memory allocation failed or some other untoward thing happened while initializin
 .B GETDNS_RETURN_BAD_CONTEXT 
 if the context pointer is invalid (getdns_context_destroy)
 
+.LP
+The getdns_dict returned by gertdns_context_get_api_information must be
+destroyed by the called and includes the following name/value pairs:
+
+.IP version_string
+a bindata containing a printable string of the version of the DNS API implemented by this library
+
+.IP implementation_string
+a bindata containing a printable string set by the implementation
+
+.IP resolver_type
+an int equal to GETDNS_RESOLUTION_RECURSING or GETDNS_RESOLUTION_STUB
+
+.IP all_context
+a getdns_dict with names for all the types of context, feed it to getdns_pretty_print_dict (3) for something easily readable
+
 .SH EXAMPLES
 
 TBD
@@ -200,6 +222,7 @@ TBD
 .BR getdns_address (3),
 .BR getdns_address_sync (3),
 .BR getdns_context_set (3),
+.BR getdns_context_set_context_update_callback (3),
 .BR getdns_general (3),
 .BR getdns_general_sync (3),
 .BR getdns_hostname (3),

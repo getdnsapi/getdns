@@ -26,9 +26,9 @@
 .\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 
-.TH getdns_cancel_callback 3 "@date@" "getdns @version@" getdns
+.TH getdns_context_set_context_update_callback 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_cancel_callback
+.B getdns_context_set_context_update_callback 
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
@@ -36,63 +36,55 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-getdns_return_t 
+getdns_return_t
 .br
-.B getdns_cancel_callback
-(getdns_context_t context,
+.B getdns_context_set_context_update_callback
+(getdns_context ** context,
 .RS 3
 .br
-getdns_transaction_t *transaction_id)
+void (*cbfun)(getdns_context *context, getdns_context_code_t changed_item)
 .RE
 
 .SH DESCRIPTION
 
 .LP
-To cancel an outstanding callback, use getdns_cancel_callback. This causes the
-API to call the callback with a callback_type of GETDNS_CALLBACK_CANCEL if the
-callback for this transaction_id has not already been called. The callback code
-for cancellation should clean up any memory related to the identified call,
-such as to deallocate the memory for the userarg. getdns_cancel_callback() may
-return immediately, even before the callback finishes its work and returns. 
+Changes to the context such as in response to system files that affect the contet (/etc/resolv.conf etc.) trigger a call to the callback function specified as
+.b
+cbfun
 
 .HP 3
 .I context
 .RP
-see getdns_context (3)
+a previously initialized context
 
 .HP 3
-.I transaction_id
+.I cbfun
 .RP
-populated by the API and used to identify the callback (for example to getdns_cancel_callback), can be NULL, set to 0 if the function fails
+callback function to invoked when the specified context changes.  If this 
+argument is NULL then updates to the context will not invoke a callback.
 
 .HP
 .SH "RETURN VALUES"
 
-Upon successful completion the functions return
+Upon successful completion each of these functions return
 .B GETDNS_RETURN_GOOD
 , otherwise the following error values are returned:
 
 .LP
-.B GETDNS_RETURN_INVALID_PARAMETER
-if context == NULL
+.B GETDNS_RETURN_GENERIC_ERROR
+memory allocation failed or some other untoward thing happened 
+
 .LP
-.B GETDNS_RETURN_UNKNOWN_TRANSACTION 
-if the transaction_id that is unknown or belongs to a callback that has already been called 
+.B GETDNS_RETURN_BAD_CONTEXT 
+if the context pointer is invalid
 
 .SH EXAMPLES
 
 TBD
 
-.SH FILES
-.br
-/etc/hosts
-.br
-/etc/resolv.conf
-
 .SH SEE ALSO
 .BR libgetdns (3),
-.BR getdns_context (3),
-.BR getdns_general (3),
-.BR getdns_hostname (3),
-.BR getdns_service (3),
+.BR getdns_context_create (3),
+.BR getdns_context_set (3),
+.BR getdns_context_set_context_update_callback (3),
 

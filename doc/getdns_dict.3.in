@@ -30,6 +30,8 @@
 .SH NAME
 .B getdns_dict, 
 .B getdns_dict_create, 
+.B getdns_dict_create_with_extended_memory_functions, 
+.B getdns_dict_create_with_memory_functions, 
 .B getdns_dict_destroy 
 
 .SH LIBRARY
@@ -42,6 +44,30 @@ getdns_dict *
 .br
 .B getdns_dict_create
 ()
+
+getdns_dict *
+.br
+.B getdns_dict_create_with_extended_memory_functions
+.RS 3
+(void *userarg,
+.br
+void *(*malloc)(void *userarg, size_t sz),
+.br
+void *(*realloc)(void *userarg, void *buf, size_t sz),
+.br
+void (*free)(void *userarg, void *buf)
+.RE 3
+
+getdns_dict *
+.br
+.B getdns_dict_create_with_memory_functions
+.RS 3
+(void *(*malloc)(size_t sz),
+.br
+void *(*realloc)(void *buf, size_t sz),
+.br
+void (*free)(void *buf)
+.RE 3
 
 void 
 .br
@@ -69,14 +95,18 @@ of the dictionary before destroying the dictionary.  There are a number of helpe
 functions that provide access to the dictionary object, see their respective man pages.
 
 .LP
+.I userarg
+pass this argument to the user specified memory management functions for operations on lists created using extended memory functions 
+.LP
 .I this_dict
 the dictionary to destroy
-.LP
 
 .SH "RETURN VALUES"
 
-Upon successful completion the getdns_dict_create function returns a valid (empty) 
-dictionary structure that should be freed via a call to getdns_dict_destroy.
+Upon successful completion the getdns_dict_create function returns a valid
+(empty) dictionary structure that should be freed via a call to
+getdns_dict_destroy.  If a parameter in invalid or in the event of some error
+getdns_dict_create returns NULL.
 
 .SH EXAMPLES
 

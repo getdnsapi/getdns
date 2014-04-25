@@ -1,6 +1,6 @@
 .\" The "BSD-New" License
 .\" 
-.\" Copyright (c) 2013, NLNet Labs, Verisign, Inc.
+.\" Copyright (c) 2013, NLnet Labs, Verisign, Inc.
 .\" All rights reserved.
 .\" 
 .\" Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@
 .SH NAME
 .B getdns_list, 
 .B getdns_list_create, 
+.B getdns_list_create_with_extended_memory_functions, 
+.B getdns_list_create_with_memory_functions, 
 .B getdns_list_destroy 
 
 .SH LIBRARY
@@ -42,6 +44,32 @@ getdns_list *
 .br
 .B getdns_list_create
 ()
+
+getdns_list *
+.br
+.B getdns_list_create_with_extended_memory_functions
+.RS 3
+(void *userarg,
+.br
+void *(*malloc)(void *userarg, size_t sz),
+.br
+void *(*realloc)(void *userarg, void *buf, size_t sz),
+.br
+void (*free)(void *userarg, void *buf)
+.RE 3
+
+getdns_list *
+.br
+.B getdns_list_create_with_memory_functions
+.RS 3
+(void *userarg,
+.br
+void *(*malloc)(size_t sz),
+.br
+void *(*realloc)(void *buf, size_t sz),
+.br
+void (*free)(void *buf)
+.RE 3
 
 void 
 .br
@@ -69,14 +97,17 @@ of the list before destroying the list.  There are a number of helper
 functions that provide access to the list object, see their respective man pages.
 
 .LP
+.I userarg
+pass this argument to the user specified memory management functions for operations on lists created using extended memory functions 
+
+.LP
 .I this_list
 the list to destroy
-.LP
 
 .SH "RETURN VALUES"
 
 Upon successful completion the getdns_list_create function returns a valid (empty) 
-list structure that should be freed via a call to getdns_list_destroy.
+list structure that should be freed via a call to getdns_list_destroy.  If a parameter in invalid or in the event of some error getdns_list_create returns NULL.
 
 .SH EXAMPLES
 
