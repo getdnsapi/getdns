@@ -175,7 +175,7 @@ then
     AC_MSG_ERROR([libunbound is missing.])
 fi
 
-AC_CHECK_PROG([DOXYGEN], [doxygen])
+AC_PATH_PROG([DOXYGEN], [doxygen])
 if test -z "$DOXYGEN";
     then AC_MSG_WARN([doxygen not found, continuing without])
 fi
