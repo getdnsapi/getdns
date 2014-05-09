@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2013, Verisign, Inc., NLnet Labs
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 # * Redistributions of source code must retain the above copyright
@@ -15,7 +15,7 @@
 # * Neither the names of the copyright holders nor the
 #   names of its contributors may be used to endorse or promote products
 #   derived from this software without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -45,7 +45,7 @@ VPATH = @srcdir@
 INSTALL = @INSTALL@
 
 default:
-	cd src && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
 
 all : default
 
@@ -61,8 +61,8 @@ install: all
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 spec/index.html $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 spec/getdns*tgz $(DESTDIR)$(docdir)/spec
-	cd src && $(MAKE) $@
-	cd doc && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
+	cd $(srcdir)/doc && $(MAKE) $@
 	@echo "***"
 	@echo "***  !!! IMPORTANT !!!!  libgetdns needs a DNSSEC trust anchor!"
 	@echo "***"
@@ -83,25 +83,25 @@ install: all
 
 uninstall:
 	rm -rf $(DESTDIR)$(docdir)
-	cd doc && $(MAKE) $@
-	cd src && $(MAKE) $@
+	cd $(srcdir)/doc && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
 
 doc:	FORCE
-	cd doc && $(MAKE) $@
+	cd $(srcdir)/doc && $(MAKE) $@
 
 example:
-	cd src && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
 
 test:
-	cd src && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
 
 clean:
-	cd src && $(MAKE) $@
-	cd doc && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
+	cd $(srcdir)/doc && $(MAKE) $@
 	rm -f *.o
 
 distclean:
-	cd src && $(MAKE) $@
+	cd $(srcdir)/src && $(MAKE) $@
 	rm -f config.log config.status Makefile
 	rm -fR autom4te.cache
 
