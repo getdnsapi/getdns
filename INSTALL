@@ -9,6 +9,8 @@ are permitted in any medium without royalty provided the copyright
 notice and this notice are preserved.  This file is offered as-is,
 without warranty of any kind.
 
+(Options specific to getdns are listed at the end of this document.)
+
 Basic Installation
 ==================
 
@@ -368,3 +370,28 @@ operates.
 
 `configure' also accepts some other, not widely useful, options.  Run
 `configure --help' for more details.
+
+getdns-specific Options
+=======================
+
+`--with-libidn=pathname'
+	path to libidn (default: search /usr/local ..)
+
+`--with-libldns=pathname'
+	path to libldns (default: search /usr/local ..)
+
+`--with-libunbound=pathname'
+	path to libunbound (default: search /usr/local ..)
+
+`--with-libevent'
+	path to libevent (default: search /usr/local ..)
+
+`--with-libuv'
+	path to libuv (default: search /usr/local ..)
+
+`--with-libev'
+	path to libev (default: search /usr/local ..)
+
+`--with-trust-anchor=KEYFILE'
+	Default location of the trust anchor file.
+	[default=SYSCONFDIR/unbound/getdns-root.key]
