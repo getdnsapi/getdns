@@ -89,7 +89,8 @@ static struct rdata_def      hinfo_rdata[] = {
 static struct rdata_def      minfo_rdata[] = {
 	{ "rmailbx"                     , t_bindata }};
 static struct rdata_def         mx_rdata[] = {
-	{ "preference"                  , t_bindata }};
+	{ "preference"                  , t_int     },
+	{ "exchange"                    , t_bindata }};
 static struct rdata_def        txt_rdata[] = {
 	{ "txt_strings"                 , t_list    }};
 static struct rdata_def         rp_rdata[] = {
