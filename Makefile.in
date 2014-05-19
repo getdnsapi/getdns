@@ -45,7 +45,7 @@ VPATH = @srcdir@
 INSTALL = @INSTALL@
 
 default:
-	cd $(srcdir)/src && $(MAKE) $@
+	cd src && $(MAKE) $@
 
 all : default
 
@@ -61,8 +61,8 @@ install: all
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 spec/index.html $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 spec/getdns*tgz $(DESTDIR)$(docdir)/spec
-	cd $(srcdir)/src && $(MAKE) $@
-	cd $(srcdir)/doc && $(MAKE) $@
+	cd src && $(MAKE) $@
+	cd doc && $(MAKE) $@
 	@echo "***"
 	@echo "***  !!! IMPORTANT !!!!  libgetdns needs a DNSSEC trust anchor!"
 	@echo "***"
@@ -83,25 +83,25 @@ install: all
 
 uninstall:
 	rm -rf $(DESTDIR)$(docdir)
-	cd $(srcdir)/doc && $(MAKE) $@
-	cd $(srcdir)/src && $(MAKE) $@
+	cd doc && $(MAKE) $@
+	cd src && $(MAKE) $@
 
 doc:	FORCE
-	cd $(srcdir)/doc && $(MAKE) $@
+	cd doc && $(MAKE) $@
 
 example:
-	cd $(srcdir)/src && $(MAKE) $@
+	cd src && $(MAKE) $@
 
 test:
-	cd $(srcdir)/src && $(MAKE) $@
+	cd src && $(MAKE) $@
 
 clean:
-	cd $(srcdir)/src && $(MAKE) $@
-	cd $(srcdir)/doc && $(MAKE) $@
+	cd src && $(MAKE) $@
+	cd doc && $(MAKE) $@
 	rm -f *.o
 
 distclean:
-	cd $(srcdir)/src && $(MAKE) $@
+	cd src && $(MAKE) $@
 	rm -f config.log config.status Makefile
 	rm -fR autom4te.cache
 
