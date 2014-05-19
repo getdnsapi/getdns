@@ -56,7 +56,7 @@ srcdir = @srcdir@
 VPATH = @srcdir@
 
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -I$(srcdir)/ -I/usr/local/include -std=c99
+CFLAGS=@CFLAGS@ -Wall -I$(srcdir) -I. -std=c99
 LDFLAGS=@LDFLAGS@ @LIBS@
 
 EXTENSION_LIBEVENT_LIB=@EXTENSION_LIBEVENT_LIB@

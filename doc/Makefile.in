@@ -65,13 +65,13 @@ doc: 	$(MANPAGES3)
 install:	$(MANPAGES3)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man3
-	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; for altpg in $$(./manpgaltnames $$x); do cp $$x $$altpg; echo $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; done; done
+	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; for altpg in $$($(srcdir)/manpgaltnames $$x); do cp $$x $$altpg; echo $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; done; done
 
 uninstall:
-	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; for altpg in $$(./manpgaltnames $$x); do echo rm -f $(DESTDIR)$(mandir)/man3/$$altpg;  rm -f $(DESTDIR)$(mandir)/man3/$$altpg; done; done
+	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; for altpg in $$($(srcdir)/manpgaltnames $$x); do echo rm -f $(DESTDIR)$(mandir)/man3/$$altpg;  rm -f $(DESTDIR)$(mandir)/man3/$$altpg; done; done
 
 clean:
-	for x in $(MANPAGES3); do rm -f $$(./manpgaltnames $$x); done
+	for x in $(MANPAGES3); do rm -f $$($(srcdir)/manpgaltnames $$x); done
 	rm -rf $(DOCDIRS) $(MANPAGES3)
 
 distclean : clean
