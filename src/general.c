@@ -35,15 +35,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#include <stdio.h>
 #include <string.h>
 #include <unbound.h>
 #include <ldns/ldns.h>
+#include "config.h"
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
-#include <stdio.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))

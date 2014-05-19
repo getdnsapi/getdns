@@ -27,7 +27,7 @@
 #ifndef _check_getdns_common_h_
 #define _check_getdns_common_h_
 
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 
      #define TRUE 1
      #define FALSE 0

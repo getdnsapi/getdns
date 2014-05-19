@@ -34,7 +34,7 @@
  */
 
 #include "check_getdns_eventloop.h"
-#include <getdns/getdns_extra.h>
+#include "getdns/getdns_extra.h"
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
     struct timeval tv;

@@ -35,7 +35,7 @@
 #ifndef GETDNS_ERROR_H
 #define GETDNS_ERROR_H
 
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 
 const char *getdns_get_errorstr_by_id(uint16_t err);
 

@@ -34,7 +34,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
 #include <arpa/inet.h>
 #include <ldns/ldns.h>
 #include <string.h>
@@ -45,6 +44,7 @@
 #include <unbound.h>
 #include <assert.h>
 
+#include "config.h"
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"

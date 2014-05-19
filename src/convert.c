@@ -32,14 +32,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <getdns/getdns.h>
 #include <stdio.h>
 #include <arpa/inet.h>
-#include <util-internal.h>
 #include <locale.h>
 #include <stringprep.h>
 #include <idna.h>
 #include <ldns/ldns.h>
+#include "getdns/getdns.h"
+#include "util-internal.h"
 #include "getdns_error.h"
 
 /* stuff to make it compile pedantically */

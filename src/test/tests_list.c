@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 
 #define TSTMSGBUF 80
 #define GETDNS_LIST_BLOCKSZ 10

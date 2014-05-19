@@ -31,7 +31,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 #include "const-info.h"
 
 /*---------------------------------------- getdns_get_errorstr_by_id() */

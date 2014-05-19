@@ -35,7 +35,7 @@
 
 #include "check_getdns_eventloop.h"
 
-#include <getdns/getdns_ext_libevent.h>
+#include "getdns/getdns_ext_libevent.h"
 #include "check_getdns_libevent.h"
 #include <check.h>
 #include "check_getdns_common.h"

@@ -38,8 +38,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "testmessages.h"
-#include <getdns/getdns.h>
-#include <getdns/getdns_extra.h>
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 
 /* Set up the callback function, which will also do the processing of the results */
 void

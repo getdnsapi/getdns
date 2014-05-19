@@ -33,10 +33,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <getdns/getdns_ext_libuv.h>
 #include <sys/time.h>
 #include <stdio.h>
 #include <uv.h>
+#include "getdns/getdns_ext_libuv.h"
 
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 

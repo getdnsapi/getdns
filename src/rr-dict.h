@@ -32,8 +32,8 @@
 #ifndef RR_DICT_H_
 #define RR_DICT_H_
 
-#include <getdns/getdns.h>
 #include <ldns/ldns.h>
+#include "getdns/getdns.h"
 
 getdns_return_t priv_getdns_create_dict_from_rr(
     struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rr_dict);

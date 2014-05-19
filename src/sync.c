@@ -33,14 +33,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include <getdns/getdns.h>
+#include <string.h>
 #include <unbound.h>
+#include "getdns/getdns.h"
+#include "config.h"
 #include "context.h"
 #include "general.h"
 #include "types-internal.h"
 #include "util-internal.h"
-#include <string.h>
 #include "dnssec.h"
 
 /* stuff to make it compile pedantically */

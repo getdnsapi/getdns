@@ -40,7 +40,7 @@
 #include <unistd.h>
 #include <unbound.h>
 #include <ldns/ldns.h>
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 #include "config.h"
 #include "context.h"
 #include "util-internal.h"

@@ -30,7 +30,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <check.h>
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 #include "config.h"
 #include "check_getdns_common.h"
 #include "check_getdns_eventloop.h"

@@ -37,8 +37,8 @@
 #ifndef _GETDNS_CONTEXT_H_
 #define _GETDNS_CONTEXT_H_
 
-#include <getdns/getdns.h>
-#include <getdns/getdns_extra.h>
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 #include "types-internal.h"
 
 struct getdns_dns_req;

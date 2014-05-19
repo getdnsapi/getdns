@@ -35,13 +35,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "getdns/getdns.h"
+#include <stdint.h>
+#include <stdlib.h>
 #include <ldns/rbtree.h>
+#include <unbound.h>
+#include "getdns/getdns.h"
 #include "dict.h"
 #include "list.h"
 #include "util-internal.h"
 #include "types-internal.h"
-#include <unbound.h>
 #include "rr-dict.h"
 
 /**

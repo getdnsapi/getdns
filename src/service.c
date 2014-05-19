@@ -34,7 +34,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 #include "general.h"
 #include "util-internal.h"
 

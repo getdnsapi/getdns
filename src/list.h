@@ -37,7 +37,7 @@
 #ifndef _GETDNS_LIST_H_
 #define _GETDNS_LIST_H_
 
-#include <getdns/getdns.h>
+#include "getdns/getdns.h"
 #include "types-internal.h"
 
 #define GETDNS_LIST_BLOCKSZ 10

@@ -35,12 +35,12 @@
  */
 
 
-#include <getdns/getdns.h>
+#include <string.h>
+#include "getdns/getdns.h"
 #include "context.h"
 #include "general.h"
 #include "util-internal.h"
 #include "types-internal.h"
-#include <string.h>
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))

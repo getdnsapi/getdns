@@ -35,8 +35,8 @@
 #ifndef _GETDNS_DICT_H_
 #define _GETDNS_DICT_H_
 
-#include <getdns/getdns.h>
 #include <ldns/rbtree.h>
+#include "getdns/getdns.h"
 #include "types-internal.h"
 
 union getdns_item
