@@ -56,7 +56,7 @@ CHECK_EV_PROG=@CHECK_EV_PROG@
 
 CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -I.. -I$(srcdir)/.. -I$(srcdir) -std=c99 $(cflags)
-LDFLAGS=@LDFLAGS@
+LDFLAGS=@LDFLAGS@ -L..
 LDLIBS=-lgetdns @LIBS@ -lcheck
 PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync check_getdns tests_dnssec $(CHECK_EV_PROG) $(CHECK_EVENT_PROG) $(CHECK_UV_PROG)
 
