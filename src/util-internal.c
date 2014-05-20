@@ -404,13 +404,18 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 	 *
 	 */
 	getdns_return_t r = 0;
-	ldns_pkt *reply = req->result;
+	ldns_pkt *reply = NULL;
 	ldns_rr_list *rr_list = NULL;
 	ldns_rr *question = NULL;
 	struct getdns_dict *subdict = NULL;
 	struct getdns_list *sublist = NULL;
 	char *name = NULL;
-
+        
+        if ( req->result == NULL ){
+            return NULL;
+        }
+        reply = req->result;
+        
 	struct getdns_dict *result = getdns_dict_create_with_context(context);
 	if (!result) {
 		return NULL;
@@ -588,8 +593,8 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 			ninsecure++;
 		if (dnssec_return_status && netreq->bogus)
 			nbogus++;
-		else if (LDNS_RCODE_NOERROR ==
-		    ldns_pkt_get_rcode(netreq->result))
+		else if ((netreq->result != NULL) && (LDNS_RCODE_NOERROR ==
+		    ldns_pkt_get_rcode(netreq->result)) )
 			nanswers++;
 
 		if (! dnssec_return_validation_chain) {
@@ -601,14 +606,16 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     		struct getdns_bindata full_data;
     		full_data.data = NULL;
     		full_data.size = 0;
-    		ldns_pkt *pkt = netreq->result;
-    		ldns_status s =
-    		    ldns_pkt2wire(&(full_data.data), pkt, &(full_data.size));
-            if (s != LDNS_STATUS_OK) {
-                // break inner
-                r = GETDNS_RETURN_MEMORY_ERROR;
-                break;
-            }
+                if (netreq->result != NULL) { 
+                    ldns_pkt *pkt = netreq->result;
+                    ldns_status s =
+                        ldns_pkt2wire(&(full_data.data), pkt, &(full_data.size));
+                    if (s != LDNS_STATUS_OK) {
+                        // break inner
+                        r = GETDNS_RETURN_MEMORY_ERROR;
+                        break;
+                    }
+                }
     		size_t idx = 0;
     		/* reply tree */
     		struct getdns_dict *reply = create_reply_dict(
@@ -771,7 +778,10 @@ validate_extensions(struct getdns_dict * extensions)
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res) {
-
+    if (ub_res->rcode == 5 ) {
+        /* 5==REFUSED so ub_res->answer_packet=NULL, ub_res->answer_len=0 */
+        return GETDNS_RETURN_GOOD;
+    }
     ldns_status r =
         ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
     if (r != LDNS_STATUS_OK) {
@@ -859,7 +869,12 @@ is_extension_set(struct getdns_dict *extensions, const char *extension)
 		return 0;
 
 	r = getdns_dict_get_int(extensions, extension, &value);
-	return r == GETDNS_RETURN_GOOD && value == GETDNS_EXTENSION_TRUE;
+        if ( strncmp(extension, "specify_class", 13) == 0 ) {
+            /* specify_class is not a boolean */
+            return r == GETDNS_RETURN_GOOD;
+        } else {
+            return r == GETDNS_RETURN_GOOD && value == GETDNS_EXTENSION_TRUE;
+        }
 }
 
 /* util-internal.c */
