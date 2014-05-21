@@ -40,12 +40,6 @@
 
 #define TSTMSGBUF 80
 
-/* Prototypes for functions not part of the API
- * TODO: remove these
- */
-getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
-getdns_return_t getdns_dict_copy(struct getdns_dict *srcdict, struct getdns_dict **dstdict);
-
 /*---------------------------------------- tst_bindatasetget */
 /**
  * test the bindata get and set routines 
@@ -309,7 +303,6 @@ tst_listsetget(void)
 {
 	char msg[TSTMSGBUF];
 	char key[20];
-	size_t index;
 	uint32_t int1;
 	uint32_t int2;
 	getdns_return_t retval;
@@ -358,10 +351,8 @@ tst_listsetget(void)
 
 	strcpy(key, "foo");
 	newlist = getdns_list_create();
-	getdns_list_add_item(newlist, &index);
-	getdns_list_set_int(newlist, index, 42);
-	getdns_list_add_item(newlist, &index);
-	getdns_list_set_int(newlist, index, 52);
+	getdns_list_set_int(newlist, 0, 42);
+	getdns_list_set_int(newlist, 1, 52);
 
 	tstmsg_case_msg("getdns_dict_set_list(dict, key, newlist)");
 	retval = getdns_dict_set_list(dict, key, newlist);
@@ -483,53 +474,6 @@ tst_intsetget(void)
 	return;
 }				/* tst_intsetget */
 
-/*---------------------------------------- tst_copy */
-/**
- * test the copy and pretty print functions
- */
-void
-tst_copy(void)
-{
-	char *dictstr = NULL;
-	struct getdns_dict *dict1 = NULL;
-	struct getdns_dict *dict2 = NULL;
-
-	tstmsg_case_begin("tst_copy");
-
-	tstmsg_case_msg("empty list cases");
-
-	getdns_dict_copy(NULL, NULL);
-	dict1 = getdns_dict_create();
-	getdns_dict_copy(dict1, &dict2);
-	getdns_dict_destroy(dict2);
-	/* getdns_dict_copy(NULL, &dict1); */
-
-	tstmsg_case_msg("dict1 populate");
-
-	getdns_dict_set_int(dict1, "foo", 42);
-	getdns_dict_set_int(dict1, "bar", 52);
-	getdns_dict_set_int(dict1, "quz", 62);
-
-	dictstr = getdns_pretty_print_dict(dict1);
-	printf("%s\n", dictstr);
-	free(dictstr);
-
-	tstmsg_case_msg("getdns_dict_copy(dict1, &dict2)");
-
-	getdns_dict_copy(dict1, &dict2);
-
-	dictstr = getdns_pretty_print_dict(dict2);
-	printf("%s\n", dictstr);
-	free(dictstr);
-
-	getdns_dict_destroy(dict1);
-	getdns_dict_destroy(dict2);
-
-	tstmsg_case_end();
-
-	return;
-}				/* tst_copy */
-
 /*---------------------------------------- tst_create */
 /**
  * test the create, destroy and allocation functions
@@ -579,8 +523,6 @@ main(int argc, char *argv[])
 	tst_listsetget();
 
 	tst_getnames();
-
-	tst_copy();
 
 	tstmsg_prog_end();
 
