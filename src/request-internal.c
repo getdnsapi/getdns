@@ -115,6 +115,9 @@ dns_req_new(struct getdns_context *context,
 	getdns_dns_req *result = NULL;
 	getdns_network_req *req = NULL;
 
+        getdns_return_t r;
+        uint32_t klass;
+        
 	result = GETDNS_MALLOC(context->mf, getdns_dns_req);
 	if (result == NULL) {
 		return NULL;
@@ -135,9 +138,14 @@ dns_req_new(struct getdns_context *context,
 	result->user_callback = NULL;
     result->local_timeout_id = 0;
 
+        /* check the specify_class extension */
+        if ((r = getdns_dict_get_int(extensions, "specify_class", &klass))
+                != GETDNS_RETURN_GOOD) {
+            klass = LDNS_RR_CLASS_IN;
+        }
+        
 	/* create the requests */
-	req = network_req_new(result,
-	    request_type, LDNS_RR_CLASS_IN, extensions);
+	req = network_req_new(result, request_type, klass, extensions);
 	if (!req) {
 		dns_req_free(result);
 		return NULL;
