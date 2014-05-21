@@ -1,5 +1,12 @@
 * 2014-??-??: Version 0.1.2
   * Fixed rdata fields for MX
+  * Expose only public API symbols
+  * Updated manpages
+  * Mention getdns specific options to configure in INSTALL
+    Thanks Paul Hoffman
+  * Mac OSX package built instructions for generic user in README.md
+    Thanks Joel Purra
+
 
 * 2014-03-24 : Version 0.1.1
   * default to NOT build extensions (libev, libuv, libevent), handle
