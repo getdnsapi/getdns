@@ -168,7 +168,8 @@ add_ip_str(struct getdns_dict * ip)
 /**
  * check a file for changes since the last check
  * and refresh the current data if changes are detected
- * @param file to check
+ * @param context pointer to a previously created context to be used for this call
+ * @param fchg file to check
  * @returns changes as OR'd list of GETDNS_FCHG_* values
  * @returns GETDNS_FCHG_NONE if no changes
  * @returns GETDNS_FCHG_ERRORS if problems (see fchg->errors for details)

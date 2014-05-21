@@ -28,7 +28,7 @@
 
 .TH getdns_list 3 "@date@" "getdns @version@" getdns
 .SH NAME
-.B getdns_list, 
+.B getdns_list_get, 
 .B getdns_list_get_bindata, 
 .B getdns_list_get_data_type, 
 .B getdns_list_get_dict, 

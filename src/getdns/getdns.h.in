@@ -656,7 +656,7 @@ void getdns_list_destroy(getdns_list *this_list);
  * the child dict and will free the copy when the list is destroyed
  * @param this_list list containing the item to which child_list is to be assigned
  * @param index index of the item within list to which child_list is to be assigned
- * @param *child_list list to assign to the item
+ * @param *child_dict dict to assign to the item
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if index is out of range, or list is NULL
  */
@@ -915,7 +915,7 @@ getdns_validate_dnssec(getdns_list *to_validate,
  * creates a string that describes the dictionary in a human readable form
  * one line per item in the dictionary
  * TODO: maybe this should be json or something machine readable too
- * @param this_dict dictionary to pretty print
+ * @param some_dict dictionary to pretty print
  * @return character array (caller must free this) containing pretty string
  */
 char *getdns_pretty_print_dict(const getdns_dict *some_dict);

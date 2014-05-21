@@ -47,7 +47,6 @@
  * private function used to locate a key in a dictionary
  * @param dict dicitonary to search
  * @param key key to search for
- * @param addifnotfnd if TRUE then an item will be added if the key is not found
  * @return pointer to dictionary item, caller must not free storage associated with item
  * @return NULL if additnotfnd == FALSE and key is not in dictionary
  */
@@ -342,7 +341,9 @@ getdns_dict_copy(const struct getdns_dict * srcdict,
 /*---------------------------------------- getdns_dict_item_free */
 /**
  * private function used to release storage associated with a dictionary item
- * @param item all memory in this structure and its children will be freed
+ * @param node all memory in this structure and its children will be freed
+ * @param arg is a dict who's custom memory function will be used 
+ *            to free the items
  * @return void
  */
 void
