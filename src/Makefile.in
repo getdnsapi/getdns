@@ -88,7 +88,7 @@ all: libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_L
 install:	libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)/getdns
-	$(INSTALL) -m 644 $(srcdir)/getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
+	$(INSTALL) -m 644 getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
 	$(INSTALL) -m 644 $(srcdir)/getdns/getdns_extra.h $(DESTDIR)$(includedir)/getdns/getdns_extra.h
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
@@ -134,8 +134,11 @@ clean:
 
 distclean : clean
 	cd test && $(MAKE) $@
+	rmdir test 2>/dev/null || true
 	cd example && $(MAKE) $@
-	rm -f Makefile config.status config.log Doxyfile
+	rmdir example 2>/dev/null || true
+	rm -f Makefile config.status config.log Doxyfile config.h getdns/Makefile getdns/getdns.h
+	rmdir getdns 2>/dev/null || true
 	rm -Rf autom4te.cache
 
 $(distdir): FORCE

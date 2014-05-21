@@ -51,16 +51,16 @@ all : default
 
 install: all
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 AUTHORS $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 ChangeLog $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 COPYING $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 INSTALL $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 LICENSE $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 NEWS $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 README.md $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/COPYING $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/INSTALL $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/LICENSE $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/NEWS $(DESTDIR)$(docdir)
+	$(INSTALL) -m 644 $(srcdir)/README.md $(DESTDIR)$(docdir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
-	$(INSTALL) -m 644 spec/index.html $(DESTDIR)$(docdir)/spec
-	$(INSTALL) -m 644 spec/getdns*tgz $(DESTDIR)$(docdir)/spec
+	$(INSTALL) -m 644 $(srcdir)/spec/index.html $(DESTDIR)$(docdir)/spec
+	$(INSTALL) -m 644 $(srcdir)/spec/getdns*tgz $(DESTDIR)$(docdir)/spec
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -102,7 +102,10 @@ clean:
 
 distclean:
 	cd src && $(MAKE) $@
-	rm -f config.log config.status Makefile
+	rmdir src 2>/dev/null || true
+	cd doc && $(MAKE) $@
+	rmdir doc 2>/dev/null || true
+	rm -f config.log config.status Makefile libtool
 	rm -fR autom4te.cache
 
 dist: $(distdir).tar.gz
@@ -110,13 +113,13 @@ dist: $(distdir).tar.gz
 bindist: $(bintar)
 
 $(bintar): $(distdir)
-	chown -R 0:0 $(distdir)
+	chown -R 0:0 $(distdir) 2>/dev/null || true
 	cd $(distdir); ./configure; make
 	tar chof - $(distdir) | gzip -9 -c > $@
 	rm -rf $(distdir)
 
 $(distdir).tar.gz: $(distdir)
-	chown -R 0:0 $(distdir)
+	chown -R 0:0 $(distdir) 2>/dev/null || true
 	tar chof - $(distdir) | gzip -9 -c > $@
 	rm -rf $(distdir)
 
@@ -141,10 +144,11 @@ $(distdir):
 	cp $(srcdir)/install-sh $(distdir)
 	cp $(srcdir)/config.sub $(distdir)
 	cp $(srcdir)/config.guess $(distdir)
-	cp $(srcdir)/libtool $(distdir)
+	cp libtool $(distdir)
 	cp $(srcdir)/ltmain.sh $(distdir)
 	cp $(srcdir)/src/*.in $(distdir)/src
 	cp $(srcdir)/src/*.[ch] $(distdir)/src
+	cp $(srcdir)/src/SYMFILE $(distdir)/src
 	cp $(srcdir)/src/extension/*.[ch] $(distdir)/src/extension
 	cp $(srcdir)/src/getdns/*.in $(distdir)/src/getdns
 	cp $(srcdir)/src/getdns/getdns_*.h $(distdir)/src/getdns

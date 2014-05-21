@@ -110,6 +110,7 @@ test:	all
 clean:
 	rm -f *.o $(PROGRAMS)
 	rm -rf .libs
+	rm -f check_getdns.log
 
 distclean : clean
 	rm -f Makefile config.status config.log
