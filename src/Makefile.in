@@ -129,8 +129,8 @@ example:	FORCE
 clean:
 	cd test && $(MAKE) $@
 	cd example && $(MAKE) $@
-	rm -f *.o *.lo extension/*.lo $(PROGRAMS) libgetdns.la
-	rm -rf .libs
+	rm -f *.o *.lo extension/*.lo extension/*.o $(PROGRAMS) libgetdns.la libgetdns_ext_*.la
+	rm -rf .libs extension/.libs
 
 distclean : clean
 	cd test && $(MAKE) $@
@@ -139,6 +139,7 @@ distclean : clean
 	rmdir example 2>/dev/null || true
 	rm -f Makefile config.status config.log Doxyfile config.h getdns/Makefile getdns/getdns.h
 	rmdir getdns 2>/dev/null || true
+	rmdir extension 2>/dev/null || true
 	rm -Rf autom4te.cache
 
 $(distdir): FORCE
