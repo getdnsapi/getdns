@@ -1,0 +1,68 @@
+High level release procedure that we follow to make a formal release for the
+getdns API project.  This is a recipe - if you have a better way to do it then
+update this document and share it with us.
+
+- code freeze
+    confirm with core team that all commits are in, from this point forward
+    only bug fixes will be included in the release branch
+
+- create a release branch
+    in git repository named for the release, e.g. "v0.1.2"
+    we do this because folks may want to continue to work in the master branch
+    and be free to commit changes without injuring the release process.  Since
+    building and testing binaries for a release takes a few days we don't want to
+    force changes to queue up.
+
+    One might argue that a release can be cut more quickly, however there are 
+    inevitably little tweaks that need to be made that get uncovered as a result
+    of the binary builds - these tweaks need to be included in the souces for
+    this release so building the source tarball can't be done until all of the
+    binaries have been built and tested.
+
+- clone repo release branch to a clean local repo
+    this should be a brand spanking new directory - don't try to shortcut it and
+    use a working directory with lots of cruft - crap will find its way into the
+    release and embarass you:
+
+    # git clone -b v0.1.2 https://github.com/getdnsapi/getdns.git getdns-0.1.2
+
+- update files to reflect release number/date
+    ./README.md
+    ./ChangeLog 
+    ./configure.ac (AC_INIT)
+
+    commit these changes to the release branch
+
+    # git commit -a -m "release number and date updates"
+    # git push
+
+- build binaries for each target platform
+    - create clean build directory, create local repo
+    - build code (no additional libraries, note that regression tests will not build)
+    - build code (with libevent)
+    - run regression tests and verify that alls well
+
+- install on each target platform
+    - make sure and use a user that was NOT used for the build, this will uncover 
+      any silliness related to absolute paths in the build
+
+- if a build breaks or an install fails then commit fixes to the relase branch
+  - rebuild EVERY binary using the changed release branch
+
+- once all binaries are built and tested clean, create source tar ball
+
+- generate checksums for each binary/source tar
+
+- upload source and binaries to the getdnsapi.net site
+
+- update getdnsapi.net web site 
+  news entry for the release
+  main page download links
+  main page checksums
+
+- announce message to
+    getdns mailing list
+    stub-resolvers mailing list
+    Verisign internal via the matrix
+
+- merge branch changes back into master
