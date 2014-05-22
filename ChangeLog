@@ -4,6 +4,8 @@
   * Updated manpages
   * specify_class extension
   * Build from separate build directory
+  * Anticipate libunbound not returning the answer packet
+  * Pretty print bindata's representing IP addresses
   * Mention getdns specific options to configure in INSTALL
     Thanks Paul Hoffman
   * Mac OSX package built instructions for generic user in README.md
