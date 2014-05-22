@@ -2,6 +2,8 @@
   * Fixed rdata fields for MX
   * Expose only public API symbols
   * Updated manpages
+  * specify_class extension
+  * Build from separate build directory
   * Mention getdns specific options to configure in INSTALL
     Thanks Paul Hoffman
   * Mac OSX package built instructions for generic user in README.md
