@@ -771,11 +771,22 @@ validate_extensions(struct getdns_dict * extensions)
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res) {
-
-    ldns_status r =
-        ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
-    if (r != LDNS_STATUS_OK) {
-        return GETDNS_RETURN_GENERIC_ERROR;
+    if (ub_res->answer_packet == NULL) {
+        /* Likely to be because libunbound refused the request
+         * so ub_res->answer_packet=NULL, ub_res->answer_len=0
+         * So we need to create an answer packet.
+         */
+        netreq->result = ldns_pkt_query_new(
+                ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, netreq->owner->name), 
+                netreq->request_type, 
+                netreq->request_class,LDNS_QR|LDNS_RD|LDNS_RA);
+        ldns_pkt_set_rcode(netreq->result, ub_res->rcode);
+    } else {   
+        ldns_status r =
+            ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
+        if (r != LDNS_STATUS_OK) {
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
     }
     netreq->secure = ub_res->secure;
     netreq->bogus  = ub_res->bogus;
