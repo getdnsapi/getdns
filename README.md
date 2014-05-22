@@ -1,18 +1,24 @@
 getdns API
 ==========
 
-* Date:    2014-03-24
+* Date:    2014-05-22
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
-getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/) intended to make all types of DNS information easily available as described by Paul Hoffman.  This implementation is licensed under the New BSD License (BSD-new).
+getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/)
+intended to make all types of DNS information easily available as described by
+Paul Hoffman.  This implementation is licensed under the New BSD License
+(BSD-new).
 
-The [getdns-api mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api) is a good place to engage in discussions regarding the design of the API.
+The [getdns-api mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api)
+is a good place to engage in discussions regarding the design of the API.
 
-If you are just getting started with the library take a look at the section below that
-describes building and handling external dependencies for the library.  Once it is
-built you should take a look at src/examples to see how the library is used.
+If you are just getting started with the library take a look at the section
+below that describes building and handling external dependencies for the
+library.  Once it is built you should take a look at src/examples to see how
+the library is used.
 
-This file captures the goals and direction of the project and the current state of the implementation.
+This file captures the goals and direction of the project and the current state
+of the implementation.
 
 The goals of this implementation of the getdns API are:
 
@@ -29,22 +35,30 @@ Non-goals (things we will not be doing at least initially) include:
 
 ## Language Bindings
 
-In parallel, the team is actively developing bindings for various languages.  For more information, visit the [wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
+In parallel, the team is actively developing bindings for various languages.
+For more information, visit the
+[wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
 
 Motivation for providing the API
 ================================
 
-The developers are of the opinion that DNSSEC offers a unique global infrastructure for establishing and enhancing cryptographic trust relations. With the development of this API we intend to offer application developers a modern and flexible way that enables end-to-end trust in the DNS architecture and will inspire application developers towards innovative security solutions in their applications.
+The developers are of the opinion that DNSSEC offers a unique global
+infrastructure for establishing and enhancing cryptographic trust relations.
+With the development of this API we intend to offer application developers a
+modern and flexible way that enables end-to-end trust in the DNS architecture
+and will inspire application developers towards innovative security solutions
+in their applications.
 
 
 Releases
 ========
-Release numbering follows the [Semantic Versioning](http://semver.org/) approach.  The code is currently under active development.
+Release numbering follows the [Semantic Versioning](http://semver.org/)
+approach.  The code is currently under active development.
 
 The following requirements were met as conditions for the present release:
 
-* code compiles cleanly on at least the primary target platforms: RHEL/CentOS 6.3 Linux, FreeBSD 9.2
-* examples must compile and be clean
+* code compiles cleanly on at least the primary target platforms: OSX, RHEL/CentOS Linux, FreeBSD
+* examples must compile and run clean
 * clearly document supported/unsupported elements of the API
 
 
@@ -151,13 +165,15 @@ where possible dependencies are identified using the method specific to the plat
 We intend to add MS-Windows, Android and other platforms to the releases as we have time to port it.
 
 
-##Build Reports
+##Platform Specific Build Reports
 
 [![Build Status](https://travis-ci.org/getdnsapi/getdns.png?branch=master)](https://travis-ci.org/getdnsapi/getdns)
 
 ###FreeBSD
 
 If you're using [FreeBSD](http://www.freebsd.org/), you may install getdns via the [ports tree](http://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
+
+If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
 ###CentOS/RHEL 6.5
 
