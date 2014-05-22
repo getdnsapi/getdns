@@ -35,6 +35,11 @@
  */
 
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <ldns/buffer.h>
 #include "types-internal.h"
 #include "util-internal.h"
@@ -743,6 +748,8 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 	struct getdns_dict_item *item;
 	const char *strval;
 
+	char abuf[80];
+
 	if (dict == NULL)
 		return 0;
 
@@ -793,8 +800,23 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			break;
 
 		case t_bindata:
-			if (getdns_pp_bindata(buf, indent,
-				item->data.bindata) < 0)
+			if ((strcmp(item->node.key, "address_data") == 0 ||
+			     strcmp(item->node.key, "ipv4_address") == 0 ||
+			     strcmp(item->node.key, "ipv6_address") == 0 ) &&
+			    (item->data.bindata->size == 4  ||
+			     item->data.bindata->size == 16 )) {
+
+				if (ldns_buffer_printf(buf, " <bindata for %s>",
+				    inet_ntop(( item->data.bindata->size == 4
+				              ? AF_INET : AF_INET6)
+					     , item->data.bindata->data
+					     , abuf
+					     , 40
+					     )) < 0)
+					return -1;
+	
+			} else if (getdns_pp_bindata(buf, indent,
+			    item->data.bindata) < 0)
 				return -1;
 			break;
 
