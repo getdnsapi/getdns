@@ -56,6 +56,11 @@ update this document and share it with us.
     work then we either have to add it to the README.md or, preferably, fix it
     and update the branch
 
+    Be careful about tool sets loaded on your build hosts.  You may have 'solved' 
+    problems while you are working that mask issues with the build for more typical
+    users - this is why we want to build on hosts that are representative of
+    our users.
+
 - install on each target platform
     - make sure and use a user that was NOT used for the build, this will uncover 
       any silliness related to absolute paths in the build
@@ -64,6 +69,12 @@ update this document and share it with us.
   - rebuild EVERY binary using the changed release branch
 
 - once all binaries are built and tested clean, create source tar ball
+  and the actual package for each platform
+
+  you may need to run this as root to permit the chown
+  # make clean
+  # make dist
+  generates getdns-0.1.2.tar.gz
 
 - generate checksums for each binary/source tar
 
@@ -80,3 +91,15 @@ update this document and share it with us.
     Verisign internal via the matrix
 
 - merge branch changes back into master
+
+List of Build Targets
+---------------------
+The naming conventions for each of these build products are specific to the
+platform they target.  The result is that the naming seems a little inconsistent,
+however I felt that it is best to follow naming standards for the platform rather
+than try to impose a project specific standard across platforms.
+
+- source tar: getdns-0.1.2.tar.gz
+- OSX binary package: getdns-0.1.2-OSX_10_8.dmg
+- RHEL/CentOS: getdns-0.1.0-1.CentOS_6_5.x86_64.rpm
+- Debian/Ubuntu:
