@@ -145,6 +145,9 @@ and helpful list is being maintained in the git issues list in the repository.
 
 * (#113) Changing the resolution type between stub and recursive after a query has been issued with a context will not work - the previous resolution type will continue to be used.  If you want to change the resolution type you will need to create a new context and set the resolution type for that context.
 
+* older versions of libtool and ranlib may have problems with the way we leverage features specific to exported sybols.  If you see messages during linking it may be due to an older version of libtool in your PATH.  This can be fixed by updating your libtool or adding the getdns build directory to the beginning of your path so that our libtool/ranlib are picked up.
+
+
 #Supported Platforms
 
 The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.

@@ -31,16 +31,30 @@ update this document and share it with us.
     ./ChangeLog 
     ./configure.ac (AC_INIT)
 
+    # autoreconf
+
     commit these changes to the release branch
 
     # git commit -a -m "release number and date updates"
     # git push
 
 - build binaries for each target platform
-    - create clean build directory, create local repo
+    - create clean local repo
     - build code (no additional libraries, note that regression tests will not build)
+      if you are building a simple binary tar then something like this works
+      # ./configure --prefix=/Users/gwiley/getdnsox/export
+      # make
+      # make install
+      # tar -C /Users/gwiley/getdnsosx/export -cvf getdns-0.1.2.tar *
+
     - build code (with libevent)
+      # ./configure --with-libevent2
+
     - run regression tests and verify that alls well
+
+    if you have do do anything even mildly interesting to get the build or install to
+    work then we either have to add it to the README.md or, preferably, fix it
+    and update the branch
 
 - install on each target platform
     - make sure and use a user that was NOT used for the build, this will uncover 
