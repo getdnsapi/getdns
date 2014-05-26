@@ -106,18 +106,18 @@ uninstall:
 	if test $(have_libev) = 1; then $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$(EXTENSION_LIBEV_LIB) ; fi
 
 libgetdns_ext_event.la: libgetdns.la extension/libevent.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/SYMFILE
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/extension/libevent.symfile
 
 libgetdns_ext_uv.la: libgetdns.la extension/libuv.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libuv.lo ./.libs/libgetdns.la $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/SYMFILE
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libuv.lo ./.libs/libgetdns.la $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/extension/libuv.symfile
 
 
 libgetdns_ext_ev.la: libgetdns.la extension/libev.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/SYMFILE
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/extension/libev.symfile
 
 
 libgetdns.la: $(GETDNS_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/SYMFILE
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/libgetdns.symfile
 
 
 test:	FORCE
