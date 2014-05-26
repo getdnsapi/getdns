@@ -36,7 +36,11 @@
 #include "check_getdns_eventloop.h"
 
 #include "getdns/getdns_ext_libev.h"
+#ifdef HAVE_LIBEV_EV_H
+#include <libev/ev.h>
+#else
 #include <ev.h>
+#endif
 #include <check.h>
 #include "check_getdns_common.h"
 

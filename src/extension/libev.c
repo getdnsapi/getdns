@@ -35,8 +35,14 @@
 
 #include <sys/time.h>
 #include <stdio.h>
-#include <ev.h>
 #include "getdns/getdns_ext_libev.h"
+#include "config.h"
+
+#ifdef HAVE_LIBEV_EV_H
+#include <libev/ev.h>
+#else
+#include <ev.h>
+#endif
 
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 

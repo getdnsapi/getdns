@@ -306,11 +306,17 @@ AS_IF([test x_$withval = x_no],
         [AC_SEARCH_LIBS([ev_run],
         	[ev],
         	[AC_CHECK_HEADERS([ev.h],
-                [have_libev=1]
-                [EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"],
-                [AC_MSG_ERROR([ev.h missing, try without libev])]
-                [have_libev=0],
-                [AC_INCLUDES_DEFAULT])],
+			[have_libev=1]
+			[EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"],
+			[AC_CHECK_HEADERS([libev/ev.h],
+				[have_libev=1]
+				[EXTENSION_LIBEV_EXT_LIBS="$ac_cv_search_ev_run"],
+				[AC_MSG_ERROR([ev.h missing, try without libev])]
+				[have_libev=0],
+				[AC_INCLUDES_DEFAULT])
+			],
+			[AC_INCLUDES_DEFAULT])
+		],
                 [AC_MSG_ERROR([libev missing, try without libev])]
             )],
         [have_libev=1]
