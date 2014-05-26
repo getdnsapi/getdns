@@ -39,10 +39,15 @@ LIBTOOL = ../../libtool
 srcdir = @srcdir@
 VPATH = @srcdir@
 
+have_libevent = @have_libevent@
+
+EXTENSION_LIBEVENT_EXT_LIBS=@EXTENSION_LIBEVENT_EXT_LIBS@
+EXTENSION_LIBEVENT_LDFLAGS=@EXTENSION_LIBEVENT_LDFLAGS@
+
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -I.. -I$(srcdir)/.. -I$(srcdir) -I/usr/local/include -std=c99
+CFLAGS=@CFLAGS@ -Wall -I.. -I$(srcdir)/.. -I$(srcdir) -std=c99
 LDFLAGS=@LDFLAGS@ -L..
-LDLIBS=-lgetdns -lgetdns_ext_event @LIBS@
+LDLIBS=-lgetdns @LIBS@
 PROGRAMS=example-all-functions example-simple-answers example-tree example-synchronous example-reverse
 
 .SUFFIXES: .c .o .a .lo .h
@@ -50,28 +55,31 @@ PROGRAMS=example-all-functions example-simple-answers example-tree example-synch
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 
+.c.lo:
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
+
 default: all
 example: all
 
 all: $(PROGRAMS)
 
-example-all-functions: example-all-functions.o
-	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-all-functions.o
+example-all-functions: example-all-functions.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-all-functions.lo
 
-example-simple-answers:	example-simple-answers.o
-	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-simple-answers.o
+example-simple-answers:	example-simple-answers.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) $(LDLIBS) -o $@ example-simple-answers.lo
 
-example-tree: example-tree.o
-	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-tree.o
+example-tree: example-tree.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) $(LDLIBS) -o $@ example-tree.lo
 
-example-synchronous: example-synchronous.o
-	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-synchronous.o
+example-synchronous: example-synchronous.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-synchronous.lo
 
-example-reverse: example-reverse.o
-	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-reverse.o
+example-reverse: example-reverse.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lgetdns_ext_event $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) $(LDLIBS) -o $@ example-reverse.lo
 
 clean:
-	rm -f *.o $(PROGRAMS)
+	rm -f *.o *.lo $(PROGRAMS)
 	rm -rf .libs
 
 distclean : clean
