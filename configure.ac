@@ -189,7 +189,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
-AC_CHECK_DECLS([u_char])
+AC_CHECK_TYPE([u_char])
 
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
@@ -227,7 +227,7 @@ AS_IF([test x_$withval = x_no],
                     [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
                     [have_libevent=0],
                     [AC_INCLUDES_DEFAULT]
-                    [#if HAVE_DECL_U_CHAR == 0
+                    [#if HAVE_U_CHAR == 0
                      typedef unsigned char u_char;
                      #endif])],
                 [AC_INCLUDES_DEFAULT])],
