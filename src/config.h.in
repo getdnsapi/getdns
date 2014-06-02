@@ -1,5 +1,9 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have the declaration of `u_char', and to 0 if you don't.
+   */
+#undef HAVE_DECL_U_CHAR
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -62,9 +66,6 @@
 
 /* Define to 1 if you have the <uv.h> header file. */
 #undef HAVE_UV_H
-
-/* Define to 1 if the system has the type `u_char'. */
-#undef HAVE_U_CHAR
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */

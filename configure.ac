@@ -189,7 +189,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
-AC_CHECK_TYPES([u_char])
+AC_CHECK_DECLS([u_char])
 
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
@@ -199,6 +199,13 @@ AC_ARG_WITH([libevent],
     [AS_HELP_STRING([--with-libevent], [path to libevent (default: search /usr/local ..)])],
     [with_libevent=search],
     [withval=no])
+
+# libevent 1.x requires a u_char typedef which is not always available
+# on some systems so our check is a little complicated
+# we further need to ensure that this is included in the getdns headers
+# that get installed later so some users may not be building in an
+# environment that has the generated config.h SO we need to generate
+# this one extra header in that case
 
 have_libevent=0
 EXTENSION_LIBEVENT_EXT_LIBS=""
@@ -219,9 +226,12 @@ AS_IF([test x_$withval = x_no],
                     [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"],
                     [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
                     [have_libevent=0],
-                    [AC_INCLUDES_DEFAULT])],
+                    [AC_INCLUDES_DEFAULT]
+                    [#if HAVE_DECL_U_CHAR == 0
+                     typedef unsigned char u_char;
+                     #endif])],
                 [AC_INCLUDES_DEFAULT])],
-                [AC_MSG_ERROR([libevent missing, try without libevent])]
+             [AC_MSG_ERROR([libevent missing, try without libevent])]
             )],
         [have_libevent=1]
         [AC_MSG_NOTICE([assuming libevent in $withval])]
