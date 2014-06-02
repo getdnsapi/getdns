@@ -1,4 +1,4 @@
-* 2014-05-22: Version 0.1.2
+* 2014-06-02: Version 0.1.2
   * Fixed rdata fields for MX
   * Expose only public API symbols
   * Updated manpages
@@ -11,6 +11,7 @@
     Thanks Paul Hoffman
   * Mac OSX package built instructions for generic user in README.md
     Thanks Joel Purra
+  * Fixed build problems on RHEL/CentOS due using libevent 1.x
 
 
 * 2014-03-24 : Version 0.1.1
