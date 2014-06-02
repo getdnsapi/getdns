@@ -45,9 +45,7 @@ AC_PROG_CPP
 # Checks for programs.
 AC_CANONICAL_HOST
 case "$host_os" in
-  linux* ) CFLAGS="$CFLAGS -D_XOPEN_SOURCE=501" # unfortunate, but needed to
-                                                # pick up strdup() declaration
-                                                # in <string.h>
+  linux* ) CFLAGS="$CFLAGS -D_BSD_SOURCE"
   ;;
   solaris* ) CFLAGS="$CFLAGS -D__EXTENSIONS__"  # for strdup() from <string.h>
   ;;

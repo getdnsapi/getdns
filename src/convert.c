@@ -33,6 +33,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <arpa/inet.h>
 #include <locale.h>
 #include <stringprep.h>
