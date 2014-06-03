@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2014-05-22
+* Date:    2014-06-02
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is a [modern asynchronous DNS API](http://www.vpnc.org/getdns-api/)
@@ -142,21 +142,20 @@ Some platform specific features are not implemented in the first public release 
 
 There are a few known issues which we have summarized below - the most recent
 and helpful list is being maintained in the git issues list in the repository.
+Other known issues are being managed in the git repository issue list.
 
 * (#113) Changing the resolution type between stub and recursive after a query has been issued with a context will not work - the previous resolution type will continue to be used.  If you want to change the resolution type you will need to create a new context and set the resolution type for that context.
 
-* older versions of libtool and ranlib may have problems with the way we leverage features specific to exported sybols.  If you see messages during linking it may be due to an older version of libtool in your PATH.  This can be fixed by updating your libtool or adding the getdns build directory to the beginning of your path so that our libtool/ranlib are picked up.
+* older versions of libtool and ranlib may have problems with the way we leverage features specific to exported symbols.  If you see error messages during linking it may be due to an older version of libtool in your PATH.  This can be fixed by updating your libtool or adding the getdns build directory to the beginning of your path so that our libtool/ranlib are preferred.
 
 
 #Supported Platforms
 
 The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.
 
-* Debian 7.0, 7.3
-* FreeBSD 8.4, 9.2, 10.0
-* RHEL/CentOS 6.4, 6.5
-* OSX 10.8, 10.9
-* Ubuntu 12.04, 13.10
+* RHEL/CentOS 6.4
+* OSX 10.8
+* Ubuntu 13.10
 
 For most platforms where we have provided a binary distribution as a compressed tar you
 can simply untar the file and run "make install".  Bear in mind that any dependencies
@@ -176,7 +175,7 @@ We intend to add MS-Windows, Android and other platforms to the releases as we h
 
 If you're using [FreeBSD](http://www.freebsd.org/), you may install getdns via the [ports tree](http://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
 
-If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
+If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.  There may be some problems building getdns on FreeBSD 10 using libevent.
 
 ###CentOS/RHEL 6.5
 
