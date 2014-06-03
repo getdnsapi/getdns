@@ -218,10 +218,10 @@ AS_IF([test x_$withval = x_no],
             [AC_CHECK_FUNCS([event_base_new event_base_free])]
             [AC_CHECK_HEADERS([event2/event.h],
                 [have_libevent=1]
-                [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"],
+                [AS_IF([test "x_$ac_cv_search_event_loop" = "x_none required"],[],[EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"])],
                 [AC_CHECK_HEADERS([event.h],
                     [have_libevent=1]
-                    [EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"],
+                    [AS_IF([test "x_$ac_cv_search_event_loop" = "x_none required"],[],[EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"])],
                     [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
                     [have_libevent=0],
                     [AC_INCLUDES_DEFAULT]

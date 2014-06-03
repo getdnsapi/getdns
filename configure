@@ -7132,10 +7132,6 @@ _lt_linker_boilerplate=`cat conftest.err`
 $RM -r conftest*
 
 
-## CAVEAT EMPTOR:
-## There is no encapsulation within the following macros, do not change
-## the running order or otherwise move them around unless you know exactly
-## what you are doing...
 if test -n "$compiler"; then
 
 lt_prog_compiler_no_builtin_flag=
@@ -9690,14 +9686,10 @@ fi
   # before this can be enabled.
   hardcode_into_libs=yes
 
-  # Add ABI-specific directories to the system library path.
-  sys_lib_dlsearch_path_spec="/lib64 /usr/lib64 /lib /usr/lib"
-
   # Append ld.so.conf contents to the search path
   if test -f /etc/ld.so.conf; then
     lt_ld_extra=`awk '/^include / { system(sprintf("cd /etc; cat %s 2>/dev/null", \$2)); skip = 1; } { if (!skip) print \$0; skip = 0; }' < /etc/ld.so.conf | $SED -e 's/#.*//;/^[	 ]*hwcap[	 ]/d;s/[:,	]/ /g;s/=[^=]*$//;s/=[^= ]* / /g;s/"//g;/^$/d' | tr '\n' ' '`
-    sys_lib_dlsearch_path_spec="$sys_lib_dlsearch_path_spec $lt_ld_extra"
-
+    sys_lib_dlsearch_path_spec="/lib /usr/lib $lt_ld_extra"
   fi
 
   # We used to test for /lib/ld.so.1 and disable shared libraries on
@@ -11279,7 +11271,11 @@ if test "x$ac_cv_header_event2_event_h" = xyes; then :
 #define HAVE_EVENT2_EVENT_H 1
 _ACEOF
  have_libevent=1
-                EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
+                if test "x_$ac_cv_search_event_loop" = "x_none required"; then :
+
+else
+  EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
+fi
 else
   for ac_header in event.h
 do :
@@ -11293,7 +11289,11 @@ if test "x$ac_cv_header_event_h" = xyes; then :
 #define HAVE_EVENT_H 1
 _ACEOF
  have_libevent=1
-                    EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
+                    if test "x_$ac_cv_search_event_loop" = "x_none required"; then :
+
+else
+  EXTENSION_LIBEVENT_EXT_LIBS="$ac_cv_search_event_loop"
+fi
 else
   as_fn_error $? "event2/event.h and event.h missing, try without libevent" "$LINENO" 5
                     have_libevent=0
