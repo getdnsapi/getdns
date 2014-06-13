@@ -67,6 +67,9 @@ install:	$(MANPAGES3)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man3
 	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; for altpg in $$($(srcdir)/manpgaltnames $$x); do cp $$x $$altpg; echo $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; done; done
 
+check: $(MANPAGES3)
+	for x in $(MANPAGES3); do echo -n "$$x: "; LC_ALL=en_US.UTF-8 MANROFFSEQ='' MANWIDTH=80 man --warnings -E UTF-8 -l -Tutf8 -Z $$x >/dev/null ; done
+
 uninstall:
 	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; for altpg in $$($(srcdir)/manpgaltnames $$x); do echo rm -f $(DESTDIR)$(mandir)/man3/$$altpg;  rm -f $(DESTDIR)$(mandir)/man3/$$altpg; done; done
 
