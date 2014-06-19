@@ -40,6 +40,15 @@ update this document and share it with us.
 
 - build binaries for each target platform
     - create clean local repo
+
+    - build source distribution tar, test build the resulting tar
+      # ./configure
+      # make dist
+      # openssl sha1 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.sha1
+      # openssl md5 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.md5
+
+    - build OSX binary disk image
+
     - build code (no additional libraries, note that regression tests will not build)
       if you are building a simple binary tar then something like this works
       # ./configure --prefix=/Users/gwiley/getdnsox/export
@@ -68,6 +77,8 @@ update this document and share it with us.
 - if a build breaks or an install fails then commit fixes to the relase branch
   - rebuild EVERY binary using the changed release branch
 
+- merge branch changes back into master
+
 - once all binaries are built and tested clean, create source tar ball
   and the actual package for each platform
 
@@ -80,17 +91,30 @@ update this document and share it with us.
 
 - upload source and binaries to the getdnsapi.net site
 
+- create a release in the github repository
+    - from the main repo choose 'releases'
+    - choose 'Draft a new release'
+    - use tag v0.x.y to match the branch being released
+    - for a release name use getdns-0.x.y
+    - for description cut/paste the ChangeLog entry
+
 - update getdnsapi.net web site 
-  news entry for the release
-  main page download links
-  main page checksums
+    - push binaries to getdnsapi.net 
+        /usr/local/www/apache24/data/dist
+    - news entry for the release
+        /usr/local/www/apache24/data/news.html
+    -  download links and checksums
+        /usr/local/www/apache24/data/frontpage.html
+    - rebuild website
+        # ./build.sh
 
 - announce message to
     getdns mailing list
     stub-resolvers mailing list
     Verisign internal via the matrix
 
-- merge branch changes back into master
+- update the 
+
 
 List of Build Targets
 ---------------------
