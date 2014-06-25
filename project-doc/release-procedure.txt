@@ -30,6 +30,7 @@ update this document and share it with us.
     ./README.md
     ./ChangeLog 
     ./configure.ac (AC_INIT)
+    ./src/Makefile.in (-version-info, follow libtool guidelines)
 
     # autoreconf
 

@@ -33,6 +33,12 @@ distdir = $(tarname)-$(version)
 
 # current:revision:age
 # (binary-api-number):(which-binary-api-version):(how-many-nrs-backwardscompat)
+# if source code changes increment revision
+# if any interfaces have been added/removed/changed since last update then
+#   increment current and set revision to 0
+# if any interfaces have been added since the last public release then increment age
+# if any interfaces have been removed or changed since the last public release then
+#   set age to 0
 # if api unchanged: no changes
 # if api broken: current++ ; revision = 0; age = 0
 # if programs compiled against existing library work and link with new
@@ -106,18 +112,18 @@ uninstall:
 	if test $(have_libev) = 1; then $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$(EXTENSION_LIBEV_LIB) ; fi
 
 libgetdns_ext_event.la: libgetdns.la extension/libevent.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/extension/libevent.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libevent.lo ./.libs/libgetdns.la $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libevent.symbols
 
 libgetdns_ext_uv.la: libgetdns.la extension/libuv.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libuv.lo ./.libs/libgetdns.la $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/extension/libuv.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libuv.lo ./.libs/libgetdns.la $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libuv.symbols
 
 
 libgetdns_ext_ev.la: libgetdns.la extension/libev.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/extension/libev.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
 libgetdns.la: $(GETDNS_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -release $(version) -export-symbols $(srcdir)/libgetdns.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
 test:	FORCE
