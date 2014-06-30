@@ -1,3 +1,7 @@
+* 2014-06-25: Version 0.1.3
+  * libtool chage, remove -release, added -version-info
+  * Update specification to the June 2014 version (0.501)
+
 * 2014-06-02: Version 0.1.2
   * Fixed rdata fields for MX
   * Expose only public API symbols
