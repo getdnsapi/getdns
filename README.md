@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2014-06-02
+* Date:    2014-06-25
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -11,6 +11,14 @@ The project home page at [getdnsapi.net](http://www.getdnsapi.net) provides
 documentation, binary downloads and new regarding the getdns API
 implementation.  This implementation is licensed under the New BSD License
 (BSD-new).
+
+Download the sources from our [github repo](https://github.com/getdnsapi/getdns) 
+or from [getdnsapi.net](http://www.getdnsapi.net) and verify the download using
+the checksums (SHA1 or MD5) or using gpg to verify the signature.  Our keys are
+available from the [pgp keyservers](http://keyserver.pgp.com)
+
+* willem@nlnetlabs.nl, key id E5F8F8212F77A498
+* gwiley@verisign.com, key id 9DC3D572A6B73532
 
 The [getdns-api mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api)
 is a good place to engage in discussions regarding the design of the API.
