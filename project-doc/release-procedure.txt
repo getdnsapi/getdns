@@ -4,7 +4,8 @@ update this document and share it with us.
 
 - code freeze
     confirm with core team that all commits are in, from this point forward
-    only bug fixes will be included in the release branch
+    only bug fixes should be committed to the release branch, once the release
+    is cut nothing should be committed to the release branch (make a new release)
 
 - create a release branch
     in git repository named for the release, e.g. "v0.1.2"
@@ -31,6 +32,7 @@ update this document and share it with us.
     ./ChangeLog 
     ./configure.ac (AC_INIT)
 
+    # make clean
     # autoreconf
 
     commit these changes to the release branch
@@ -38,16 +40,47 @@ update this document and share it with us.
     # git commit -a -m "release number and date updates"
     # git push
 
-- build binaries for each target platform
+- prepare to build binaries for each target platform
+  you need to remove libs and headers that might be lingering from previous builds
+  to avoid accidentally including the wrong headers or linking the wrong libs
+
     - create clean local repo
 
-    - build source distribution tar, test build the resulting tar
-      # ./configure
-      # make dist
-      # openssl sha1 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.sha1
-      # openssl md5 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.md5
+- build source distribution tar
+    # ./configure
+    # make dist
+    # openssl sha1 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.sha1
+    # openssl md5 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.md5
+    # gpg --armor --detach-sig --default-key gwiley@verisign.com getdns-0.1.2.tar.gz
 
-    - build OSX binary disk image
+    - test the resulting tar by building it and running the regression tests
+
+- build CentOS binary
+    # tar -xzvf getdns-0.1.2.tar.gz
+    # cd getdns-0.1.2
+    # ./configure --with-libevent --prefix=$HOME/build
+    # make
+    # make install
+    # cd ~/build
+    - fix the libdir path in the *.la files to point to /usr/local/lib
+    - fix the dependency_libs entry in the *.la files to point to /usr/local/lib
+    # fpm -x "*.la" -a native -s dir --rpm-sign -t rpm -n getdns -v 0.1.2 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr/local --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "http://www.getdnsapi.net" --description "Modern asynchronous API to the DNS" .
+        - make sure your signing key is in the keyring on the build machine
+        - contents of ~/.rpmmacros
+            %_signature gpg
+            %_gpg_path /root/.gnupg
+            %_gpg_name A6B73532
+            %_gpgbin /usr/bin/gpg
+
+    - name the rpm and checksum files something like this:
+      getdns-0.1.3-1.CentOS_6_5.x86_64.rpm
+      getdns-0.1.3-1.CentOS_6_5.x86_64.rpm.sha1
+      getdns-0.1.3-1.CentOS_6_5.x86_64.rpm.md5
+    - check the signature
+    - install
+    - test
+
+- build OSX binary disk image
 
     - build code (no additional libraries, note that regression tests will not build)
       if you are building a simple binary tar then something like this works
@@ -87,6 +120,10 @@ update this document and share it with us.
   # make dist
   generates getdns-0.1.2.tar.gz
 
+- sign each binary/source tar using one or more developers keys
+    - make sure that the keys you use to sign the release are also up to date 
+      on the getdnsapi.net site
+
 - generate checksums for each binary/source tar
 
 - upload source and binaries to the getdnsapi.net site
@@ -95,8 +132,9 @@ update this document and share it with us.
     - from the main repo choose 'releases'
     - choose 'Draft a new release'
     - use tag v0.x.y to match the branch being released
-    - for a release name use getdns-0.x.y
+    - for a release name use v0.x.y
     - for description cut/paste the ChangeLog entry
+    - check the 'pre-release' checkbox (unless this is a production release)
 
 - update getdnsapi.net web site 
     - push binaries to getdnsapi.net 
