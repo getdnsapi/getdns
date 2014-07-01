@@ -118,8 +118,10 @@ getdns_general_sync(struct getdns_context *context,
 		else
 			*response = create_getdns_response(req);
 
-	} else if (response_status == GETDNS_RESPSTATUS_ALL_TIMEOUT)
+	} else if (response_status == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
 		*response = create_getdns_response(req);
+		response_status = GETDNS_RETURN_GOOD;
+	}
 
 	dns_req_free(req);
 	return response_status;
