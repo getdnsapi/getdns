@@ -47,6 +47,7 @@
 #include "types-internal.h"
 #include "dnssec.h"
 #include "rr-dict.h"
+#include "ub_timed_resolve.h"
 
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
@@ -56,6 +57,7 @@ struct validation_chain {
 	getdns_dns_req *dns_req;
 	size_t lock;
 	struct getdns_dict **sync_response;
+	uint64_t *timeout;
 };
 
 struct chain_response {
@@ -200,8 +202,8 @@ resolve(char* name, int rrtype, struct chain_response *response)
 
 	if (response->chain->sync_response) {
 		ub_res = NULL;
-		r = ub_resolve(response->chain->dns_req->context->unbound_ctx,
-		    name, rrtype, LDNS_RR_CLASS_IN, &ub_res);
+		r = ub_timed_resolve(response->chain->dns_req->context->unbound_ctx,
+		    name, rrtype, LDNS_RR_CLASS_IN, &ub_res, response->chain->timeout);
 		ub_chain_response_callback(response, r, ub_res);
 		return r;
 	} else
@@ -243,8 +245,8 @@ launch_chain_link_lookup(struct validation_chain *chain, char *name)
 	chain->lock--;
 }
 
-static struct validation_chain *create_chain(
-    getdns_dns_req *dns_req, struct getdns_dict **sync_response)
+static struct validation_chain *create_chain(getdns_dns_req *dns_req,
+    struct getdns_dict **sync_response, uint64_t *timeout)
 {
 	struct validation_chain *chain = GETDNS_MALLOC(
 	    dns_req->context->mf, struct validation_chain);
@@ -261,6 +263,7 @@ static struct validation_chain *create_chain(
 	chain->dns_req = dns_req;
 	chain->lock = 0;
 	chain->sync_response = sync_response;
+	chain->timeout = timeout;
 	return chain;
 }
 
@@ -284,11 +287,12 @@ static void destroy_chain(struct validation_chain *chain)
 
 /* Do some additional requests to fetch the complete validation chain */
 static void
-getdns_get_validation_chain(
-    getdns_dns_req *dns_req, struct getdns_dict **sync_response)
+getdns_get_validation_chain(getdns_dns_req *dns_req,
+    struct getdns_dict **sync_response, uint64_t *timeout)
 {
 	getdns_network_req *netreq = dns_req->first_req;
-	struct validation_chain *chain = create_chain(dns_req, sync_response);
+	struct validation_chain *chain = create_chain(
+	    dns_req, sync_response, timeout);
 
 	if (! chain) {
 		if (sync_response)
@@ -315,14 +319,14 @@ getdns_get_validation_chain(
 
 void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
 {
-	getdns_get_validation_chain(dns_req, NULL);
+	getdns_get_validation_chain(dns_req, NULL, NULL);
 }
 
 struct getdns_dict *
-priv_getdns_get_validation_chain_sync(getdns_dns_req *dns_req)
+priv_getdns_get_validation_chain_sync(getdns_dns_req *dns_req, uint64_t *timeout)
 {
 	struct getdns_dict *sync_response = NULL;
-	getdns_get_validation_chain(dns_req, &sync_response);
+	getdns_get_validation_chain(dns_req, &sync_response, timeout);
 	return sync_response;
 }
 

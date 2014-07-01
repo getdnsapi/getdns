@@ -1,15 +1,10 @@
 /**
  *
- * /brief functions for DNSSEC
+ * /brief A timed synchronous unbound resolve function
  *
- * The priv_getdns_get_validation_chain function is called after an answer
- * has been fetched when the dnssec_return_validation_chain extension is set.
- * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
- * answer.
  */
-
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2014, NLnet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,20 +30,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DNSSEC_H_
-#define DNSSEC_H_
+#ifndef UB_TIMED_RESOLVE_H_
+#define UB_TIMED_RESOLVE_H_
 
 #include "getdns/getdns.h"
-#include "types-internal.h"
+#include <unbound.h>
 
-/* Do some additional requests to fetch the complete validation chain */
-void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
-
-struct getdns_dict * priv_getdns_get_validation_chain_sync(
-    getdns_dns_req *dns_req, uint64_t *timeout);
-
-int priv_getdns_parse_ta_file(time_t *ta_mtime, ldns_rr_list *ta_rrs);
+int ub_timed_resolve(struct ub_ctx *ctx, char *name,
+    int rrtype, int rrclass, struct ub_result **result, uint64_t *timeout);
 
 #endif
 
-/* dnssec.h */
+/* ub_timed_resolve.h */

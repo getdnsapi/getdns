@@ -42,30 +42,35 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
+#include "ub_timed_resolve.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
-getdns_return_t submit_request_sync(getdns_dns_req* req) {
+static getdns_return_t submit_request_sync(
+    getdns_dns_req* req, uint64_t *timeout)
+{
     struct ub_result* ub_res = NULL;
     getdns_return_t gr = GETDNS_RETURN_GOOD;
     getdns_network_req *netreq = req->first_req;
+
     while (netreq) {
-        int r = ub_resolve(req->context->unbound_ctx,
+        int r = ub_timed_resolve(req->context->unbound_ctx,
             req->name,
             netreq->request_type,
             netreq->request_class,
-            &ub_res);
-        if (r != 0) {
-            return GETDNS_RETURN_GENERIC_ERROR;
-        }
+            &ub_res,
+	    timeout);
         gr = getdns_apply_network_result(netreq, ub_res);
         ub_resolve_free(ub_res);
         ub_res = NULL;
-        if (gr != GETDNS_RETURN_GOOD) {
+
+        if (r != GETDNS_RETURN_GOOD)
+            return r;
+	else if (gr != GETDNS_RETURN_GOOD)
             return gr;
-        }
+
         netreq = netreq->next;
     }
     return gr;
@@ -80,6 +85,7 @@ getdns_general_sync(struct getdns_context *context,
 {
 	getdns_dns_req *req;
 	getdns_return_t response_status;
+	uint64_t timeout = context->timeout;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 	RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
@@ -104,14 +110,16 @@ getdns_general_sync(struct getdns_context *context,
 	if (!req)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	response_status = submit_request_sync(req);
+	response_status = submit_request_sync(req, &timeout);
 	if (response_status == GETDNS_RETURN_GOOD) {
 		if (is_extension_set(req->extensions,
 		    "dnssec_return_validation_chain"))
-			*response = priv_getdns_get_validation_chain_sync(req);
+			*response = priv_getdns_get_validation_chain_sync(req, &timeout);
 		else
 			*response = create_getdns_response(req);
-	}
+
+	} else if (response_status == GETDNS_RESPSTATUS_ALL_TIMEOUT)
+		*response = create_getdns_response(req);
 
 	dns_req_free(req);
 	return response_status;

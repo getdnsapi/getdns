@@ -556,9 +556,10 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	    completed_request->extensions, "dnssec_return_status") ||
 	    completed_request->return_dnssec_status == GETDNS_EXTENSION_TRUE;
 
-	if (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
+	if (completed_request->first_req &&
+	   (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
 	    completed_request->first_req->request_class ==
-	    GETDNS_RRTYPE_AAAA) {
+	    GETDNS_RRTYPE_AAAA)) {
 		just_addrs = getdns_list_create_with_context(
 		    completed_request->context);
 	}
@@ -580,6 +581,9 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     	for ( netreq =  completed_request->first_req
 	    ; netreq && r == GETDNS_RETURN_GOOD
 	    ; netreq = netreq->next ) {
+
+		if (! netreq->result)
+			continue;
 
 		nreplies++;
 		if (netreq->secure)
@@ -771,16 +775,28 @@ validate_extensions(struct getdns_dict * extensions)
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res) {
-    if (ub_res->answer_packet == NULL) {
-        /* Likely to be because libunbound refused the request
-         * so ub_res->answer_packet=NULL, ub_res->answer_len=0
-         * So we need to create an answer packet.
-         */
-        netreq->result = ldns_pkt_query_new(
-                ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, netreq->owner->name), 
-                netreq->request_type, 
-                netreq->request_class,LDNS_QR|LDNS_RD|LDNS_RA);
-        ldns_pkt_set_rcode(netreq->result, ub_res->rcode);
+
+    if (ub_res == NULL) { /* Timeout */
+    	netreq->result = NULL;
+    	return GETDNS_RETURN_GOOD;
+
+    } else if (ub_res->answer_packet == NULL) {
+    	if (ub_res->rcode == GETDNS_RCODE_SERVFAIL) {
+		/* Likely to be caused by timeout from a synchronous
+		 * lookup.  Don't forge a packet.
+		 */
+		netreq->result = NULL;
+	} else {
+		/* Likely to be because libunbound refused the request
+		 * so ub_res->answer_packet=NULL, ub_res->answer_len=0
+		 * So we need to create an answer packet.
+		 */
+		netreq->result = ldns_pkt_query_new(
+			ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, netreq->owner->name), 
+			netreq->request_type, 
+			netreq->request_class,LDNS_QR|LDNS_RD|LDNS_RA);
+		ldns_pkt_set_rcode(netreq->result, ub_res->rcode);
+	}
     } else {   
         ldns_status r =
             ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
