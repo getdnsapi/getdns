@@ -159,6 +159,8 @@ Other known issues are being managed in the git repository issue list.
 
 * older versions of libtool and ranlib may have problems with the way we leverage features specific to exported symbols.  If you see error messages during linking it may be due to an older version of libtool in your PATH.  This can be fixed by updating your libtool or adding the getdns build directory to the beginning of your path so that our libtool/ranlib are preferred.
 
+* When doing a synchronous lookup with a context that has outstanding asynchronous lookups, the callbacks for the asynchronous lookups might get called as a side effect of the synchronous lookup.
+
 
 #Supported Platforms
 
