@@ -905,7 +905,7 @@ getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)
 	ldns_rbtree_delete(&this_dict->root, name);
 	getdns_dict_item_free(&item->node, this_dict);
 
-	return GETDNS_RETURN_GENERIC_ERROR;
+	return GETDNS_RETURN_GOOD;
 }
 
 /* dict.c */
