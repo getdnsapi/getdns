@@ -85,12 +85,13 @@ getdns_general_sync(struct getdns_context *context,
 {
 	getdns_dns_req *req;
 	getdns_return_t response_status;
-	uint64_t timeout = context->timeout;
+	uint64_t timeout;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 	RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
 	RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
 
+	timeout = context->timeout;
 	response_status = validate_dname(name);
 	if (response_status != GETDNS_RETURN_GOOD)
 		return response_status;
