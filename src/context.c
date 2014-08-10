@@ -725,16 +725,16 @@ set_ub_dns_transport(struct getdns_context* context,
     getdns_transport_t value) {
     switch (value) {
         case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
-            set_ub_string_opt(context, "do-udp", "yes");
-            set_ub_string_opt(context, "do-tcp", "yes");
+            set_ub_string_opt(context, "do-udp:", "yes");
+            set_ub_string_opt(context, "do-tcp:", "yes");
             break;
         case GETDNS_TRANSPORT_UDP_ONLY:
-            set_ub_string_opt(context, "do-udp", "yes");
-            set_ub_string_opt(context, "do-tcp", "no");
+            set_ub_string_opt(context, "do-udp:", "yes");
+            set_ub_string_opt(context, "do-tcp:", "no");
             break;
         case GETDNS_TRANSPORT_TCP_ONLY:
-            set_ub_string_opt(context, "do-udp", "no");
-            set_ub_string_opt(context, "do-tcp", "yes");
+            set_ub_string_opt(context, "do-udp:", "no");
+            set_ub_string_opt(context, "do-tcp:", "yes");
             break;
         default:
             /* TODO GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN */
