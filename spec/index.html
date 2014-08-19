@@ -1731,8 +1731,8 @@ this_ret = getdns_dict_set_int(this_extensions, "dnssec_return_status", GETDNS_E
 . . .
 if (this_type == GETDNS_RRTYPE_A)
 {
-    uint32_t * this_dnssec_status;
-    this_ret = getdns_dict_get_int(this_rdata, "dnssec_status", &amp;this_dnssec_status);
+    uint32_t this_dnssec_status;
+    this_ret = getdns_dict_get_int(this_answer, "dnssec_status", &amp;this_dnssec_status);
     if (this_dnssec_status != GETDNS_DNSSEC_SECURE)
     {
         // Log the DNSSEC status somewhere
@@ -2440,7 +2440,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.501.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.502.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
