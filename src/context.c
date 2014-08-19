@@ -1027,7 +1027,7 @@ static void
 set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
     uint16_t value) {
     /* max-udp-size */
-    set_ub_number_opt(context, "max-udp-size", value);
+    set_ub_number_opt(context, "max-udp-size:", value);
 }
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
