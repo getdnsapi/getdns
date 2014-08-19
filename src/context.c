@@ -765,7 +765,7 @@ getdns_context_set_dns_transport(struct getdns_context *context,
 static void
 set_ub_limit_outstanding_queries(struct getdns_context* context, uint16_t value) {
     /* num-queries-per-thread */
-    set_ub_number_opt(context, "num-queries-per-thread", value);
+    set_ub_number_opt(context, "num-queries-per-thread:", value);
 }
 /*
  * getdns_context_set_limit_outstanding_queries
@@ -952,8 +952,8 @@ getdns_context_set_dnssec_trust_anchors(struct getdns_context *context,
 
 static void
 set_ub_dnssec_allowed_skew(struct getdns_context* context, uint32_t value) {
-    set_ub_number_opt(context, "val-sig-skew-min", value);
-    set_ub_number_opt(context, "val-sig-skew-max", value);
+    set_ub_number_opt(context, "val-sig-skew-min:", value);
+    set_ub_number_opt(context, "val-sig-skew-max:", value);
 }
 /*
  * getdns_context_set_dnssec_allowed_skew
