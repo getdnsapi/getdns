@@ -231,8 +231,8 @@ static struct rdata_def       rkey_rdata[] = {
 	{ "rkey_unknown"                , t_bindata }};
 static struct rdata_def     talink_rdata[] = {
 	{ "talink_unknown"              , t_bindata }};
-static struct rdata_def        cds_rdata[] = {
-	{ "cds_unknown"                 , t_bindata }};
+static struct rdata_def openpgpkey_rdata[] = {
+	{ "public_keyring"              , t_bindata }};
 static struct rdata_def        spf_rdata[] = {
 	{ "text"                        , t_bindata }};
 static struct rdata_def      uinfo_rdata[] = {
@@ -355,9 +355,9 @@ static struct rr_def rr_defs[] = {
 	{      "NINFO",      ninfo_rdata, ALEN(     ninfo_rdata) },
 	{       "RKEY",       rkey_rdata, ALEN(      rkey_rdata) },
 	{     "TALINK",     talink_rdata, ALEN(    talink_rdata) },
-	{        "CDS",        cds_rdata, ALEN(       cds_rdata) }, /* - 59 */
-	{         NULL,             NULL, 0                      },
-	{         NULL,             NULL, 0                      },
+	{        "CDS",        cds_rdata, ALEN(        ds_rdata) },
+	{    "CDNSKEY",    cdnskey_rdata, ALEN(    dnskey_rdata) },
+	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* - 61 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
