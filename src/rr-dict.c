@@ -860,6 +860,9 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
         return priv_getdns_equip_dict_with_spf_rdfs(rdata, rr, def, context);
     }
     /* generic */
+	if (ldns_rr_rd_count(rr) != def->n_rdata_fields)
+		return r;
+
 	for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; i++) {
 		if (i >= def->n_rdata_fields)
 			break;
