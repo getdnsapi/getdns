@@ -111,8 +111,8 @@ test:	all
 	@echo "All tests OK"
 
 testnet: trace-GetDNS-pkts.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -ltrace -lpacketdump -o $@ trace-GetDNS-pkts.lo
-	./testnet bpf:em0 www.sinodun.com 1 1
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -ltrace -lpacketdump -o $@ trace-GetDNS-pkts.lo	
+	./testnet pcapint:$(IF) www.sinodun.com 1 1
 	
 clean:
 	rm -f *.o *.lo $(PROGRAMS) testnet
