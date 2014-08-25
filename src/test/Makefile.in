@@ -110,8 +110,12 @@ test:	all
 	if test $(have_libuv) = 1 ; then ./$(CHECK_UV_PROG) ; fi
 	@echo "All tests OK"
 
+testnet: trace-GetDNS-pkts.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -ltrace -lpacketdump -o $@ trace-GetDNS-pkts.lo
+	./testnet bpf:em0 www.sinodun.com 1 1
+	
 clean:
-	rm -f *.o *.lo $(PROGRAMS)
+	rm -f *.o *.lo $(PROGRAMS) testnet
 	rm -rf .libs
 	rm -f check_getdns.log
 

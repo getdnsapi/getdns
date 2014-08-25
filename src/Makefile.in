@@ -128,6 +128,9 @@ libgetdns.la: $(GETDNS_OBJ)
 
 test:	FORCE
 	cd test && $(MAKE) $@
+	
+testnet:    FORCE
+	cd test && $(MAKE) $@
 
 example:	FORCE
 	cd example && $(MAKE) $@
