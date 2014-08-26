@@ -439,6 +439,11 @@ int main(int argc, char** argv) {
     fprintf(stdout, "Sending synchronously over udp in recursive mode...\n");
 	local_trace_start(trace, packet);
     (void)test_send_query_udp_res_sync(qname, qtype, qclass);
+	/* 
+	 * The number 100 here indicates that 100 packets are expected. 
+	 * However in recursive mode you get a lot of packets so we just 
+	 * print and dump the first 100.
+	 */
 	collect_pkts(trace, packet, 100, "/tmp/test_getdns_transport/query_udp_res_sync.out");
 	local_trace_pause(trace, packet);
 	fprintf(stdout, "\n\n");
@@ -471,7 +476,11 @@ int main(int argc, char** argv) {
     fprintf(stdout, "Sending synchronously over tcp in stub mode...\n");
 	local_trace_start(trace, packet);
 	(void)test_send_query_tcp_stub_sync(qname, qtype, qclass);
-    collect_pkts(trace, packet, 10, "/tmp/test_getdns_transport/query_tcp_stub_sync.out");
+	/*
+	 * Check for 9 packets - there should be 10 but sometimes one of the final
+	 * FIN packets is missing aat least it is on FreeBSD
+	 */
+    collect_pkts(trace, packet, 9, "/tmp/test_getdns_transport/query_tcp_stub_sync.out");
  	local_trace_pause(trace, packet);
 	fprintf(stdout, "\n\n");
     
