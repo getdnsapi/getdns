@@ -40,6 +40,7 @@
 #include "dict.h"
 
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
+#define UNKNOWN_RDATA NULL
 
 struct rdata_def {
 	const char *name;
@@ -123,10 +124,6 @@ static struct rdata_def        loc_rdata[] = {
 	{ "loc_obsolete"                , t_bindata }};
 static struct rdata_def        nxt_rdata[] = {
 	{ "nxt_obsolete"                , t_bindata }};
-static struct rdata_def        eid_rdata[] = {
-	{ "eid_unknown"                 , t_bindata }};
-static struct rdata_def     nimloc_rdata[] = {
-	{ "nimloc_unknown"              , t_bindata }};
 static struct rdata_def        srv_rdata[] = {
 	{ "priority"                    , t_int     },
 	{ "weight"                      , t_int     },
@@ -152,8 +149,6 @@ static struct rdata_def         a6_rdata[] = {
 	{ "a6_obsolete"                 , t_bindata }};
 static struct rdata_def      dname_rdata[] = {
 	{ "target"                      , t_bindata }};
-static struct rdata_def       sink_rdata[] = {
-	{ "sink_unknown"                , t_bindata }};
 static struct rdata_def        opt_rdata[] = {
 	{ "options"                     , t_dict    },
 	{ "option_code"                 , t_int     },
@@ -225,24 +220,8 @@ static struct rdata_def        hip_rdata[] = {
 	{ "hit"                         , t_bindata },
 	{ "public_key"                  , t_bindata },
 	{ "rendezvous_servers"          , t_list    }};
-static struct rdata_def      ninfo_rdata[] = {
-	{ "ninfo_unknown"               , t_bindata }};
-static struct rdata_def       rkey_rdata[] = {
-	{ "rkey_unknown"                , t_bindata }};
-static struct rdata_def     talink_rdata[] = {
-	{ "talink_unknown"              , t_bindata }};
-static struct rdata_def openpgpkey_rdata[] = {
-	{ "public_keyring"              , t_bindata }};
 static struct rdata_def        spf_rdata[] = {
 	{ "text"                        , t_bindata }};
-static struct rdata_def      uinfo_rdata[] = {
-	{ "uinfo_unknown"               , t_bindata }};
-static struct rdata_def        uid_rdata[] = {
-	{ "uid_unknown"                 , t_bindata }};
-static struct rdata_def        gid_rdata[] = {
-	{ "gid_unknown"                 , t_bindata }};
-static struct rdata_def     unspec_rdata[] = {
-	{ "unspec_unknown"              , t_bindata }};
 static struct rdata_def        nid_rdata[] = {
 	{ "preference"                  , t_int     },
 	{ "node_id"                     , t_bindata }};
@@ -275,10 +254,6 @@ static struct rdata_def       tsig_rdata[] = {
 	{ "original_id"                 , t_int     },
 	{ "error"                       , t_int     },
 	{ "other_data"                  , t_bindata }};
-static struct rdata_def      mailb_rdata[] = {
-	{ "mailb_unknown"               , t_bindata }};
-static struct rdata_def      maila_rdata[] = {
-	{ "maila_unknown"               , t_bindata }};
 static struct rdata_def        uri_rdata[] = {
 	{ "priority"                    , t_int     },
 	{ "weight"                      , t_int     },
@@ -287,8 +262,6 @@ static struct rdata_def        caa_rdata[] = {
 	{ "flags"                       , t_int     },
 	{ "tag"                         , t_bindata },
 	{ "value"                       , t_bindata }};
-static struct rdata_def         ta_rdata[] = {
-	{ "ta_unknown"                  , t_bindata }};
 static struct rdata_def        dlv_rdata[] = {
 	{ "key_tag"                     , t_int     },
 	{ "algorithm"                   , t_int     },
@@ -327,8 +300,8 @@ static struct rr_def rr_defs[] = {
 	{       "AAAA",       aaaa_rdata, ALEN(      aaaa_rdata) },
 	{        "LOC",        loc_rdata, ALEN(       loc_rdata) },
 	{        "NXT",        nxt_rdata, ALEN(       nxt_rdata) },
-	{        "EID",        eid_rdata, ALEN(       eid_rdata) },
-	{     "NIMLOC",     nimloc_rdata, ALEN(    nimloc_rdata) },
+	{        "EID",    UNKNOWN_RDATA, 0                      },
+	{     "NIMLOC",    UNKNOWN_RDATA, 0                      },
 	{        "SRV",        srv_rdata, ALEN(       srv_rdata) },
 	{       "ATMA",       atma_rdata, ALEN(      atma_rdata) },
 	{      "NAPTR",      naptr_rdata, ALEN(     naptr_rdata) },
@@ -336,7 +309,7 @@ static struct rr_def rr_defs[] = {
 	{       "CERT",       cert_rdata, ALEN(      cert_rdata) },
 	{         "A6",         a6_rdata, ALEN(        a6_rdata) },
 	{      "DNAME",      dname_rdata, ALEN(     dname_rdata) },
-	{       "SINK",       sink_rdata, ALEN(      sink_rdata) },
+	{       "SINK",    UNKNOWN_RDATA, 0                      },
 	{        "OPT",        opt_rdata, ALEN(       opt_rdata) },
 	{        "APL",        apl_rdata, ALEN(       apl_rdata) },
 	{         "DS",         ds_rdata, ALEN(        ds_rdata) },
@@ -352,12 +325,12 @@ static struct rr_def rr_defs[] = {
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{        "HIP",        hip_rdata, ALEN(       hip_rdata) }, /* 55 - */
-	{      "NINFO",      ninfo_rdata, ALEN(     ninfo_rdata) },
-	{       "RKEY",       rkey_rdata, ALEN(      rkey_rdata) },
-	{     "TALINK",     talink_rdata, ALEN(    talink_rdata) },
+	{      "NINFO",    UNKNOWN_RDATA, 0                      },
+	{       "RKEY",    UNKNOWN_RDATA, 0                      },
+	{     "TALINK",    UNKNOWN_RDATA, 0                      },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* - 61 */
+	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* - 61 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
@@ -396,10 +369,10 @@ static struct rr_def rr_defs[] = {
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{        "SPF",        spf_rdata, ALEN(       spf_rdata) }, /* 99 - */
-	{      "UINFO",      uinfo_rdata, ALEN(     uinfo_rdata) },
-	{        "UID",        uid_rdata, ALEN(       uid_rdata) },
-	{        "GID",        gid_rdata, ALEN(       gid_rdata) },
-	{     "UNSPEC",     unspec_rdata, ALEN(    unspec_rdata) },
+	{      "UINFO",    UNKNOWN_RDATA, 0                      },
+	{        "UID",    UNKNOWN_RDATA, 0                      },
+	{        "GID",    UNKNOWN_RDATA, 0                      },
+	{     "UNSPEC",    UNKNOWN_RDATA, 0                      },
 	{        "NID",        nid_rdata, ALEN(       nid_rdata) },
 	{        "L32",        l32_rdata, ALEN(       l32_rdata) },
 	{        "L64",        l64_rdata, ALEN(       l64_rdata) },
@@ -549,12 +522,12 @@ static struct rr_def rr_defs[] = {
 	{       "TSIG",       tsig_rdata, ALEN(      tsig_rdata) }, /* - 250 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
-	{      "MAILB",      mailb_rdata, ALEN(     mailb_rdata) }, /* 253 - */
-	{      "MAILA",      maila_rdata, ALEN(     maila_rdata) }, /* - 254 */
+	{      "MAILB",    UNKNOWN_RDATA, 0                      }, /* 253 - */
+	{      "MAILA",    UNKNOWN_RDATA, 0                      }, /* - 254 */
 	{         NULL,             NULL, 0                      },
 	{        "URI",        uri_rdata, ALEN(       uri_rdata) }, /* 256 - */
 	{        "CAA",        caa_rdata, ALEN(       caa_rdata) }, /* - 257 */
-	{         "TA",         ta_rdata, ALEN(        ta_rdata) }, /* 32768 */
+	{         "TA",    UNKNOWN_RDATA, 0                      }, /* 32768 */
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
 
@@ -843,6 +816,10 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
 	size_t i;
 	int intval;
 
+	struct getdns_bindata *rdata_raw;
+	const char *sptr;
+	char *dptr, tmpbuf[100];
+
 	assert(rdata);
 	assert(rr);
 
@@ -858,6 +835,23 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
         return priv_getdns_equip_dict_with_apl_rdfs(rdata, rr, def, context);
     } else if (def->rdata == spf_rdata) {
         return priv_getdns_equip_dict_with_spf_rdfs(rdata, rr, def, context);
+    } else if (def->name &&
+	    strlen(def->name) <= sizeof(tmpbuf) - 9 /* strlen("_unknown")+1 */ &&
+	    (def->rdata == UNKNOWN_RDATA ||
+	    ldns_rr_descriptor_field_type(
+		ldns_rr_descript(ldns_rr_get_type(rr)), 0) == LDNS_RDF_TYPE_UNKNOWN)) {
+
+		r = getdns_dict_get_bindata(rdata, "rdata_raw", &rdata_raw);
+		if (r != GETDNS_RETURN_GOOD)
+			return r;
+
+		sptr = def->name;
+		dptr = tmpbuf;
+		do *dptr++ = tolower(*sptr);
+			while (*sptr++); /* Including terminating '\0' */
+
+		return getdns_dict_set_bindata(
+		    rdata, strcat(tmpbuf, "_unknown"), rdata_raw);
     }
     /* generic */
 	if (ldns_rr_rd_count(rr) != def->n_rdata_fields)
