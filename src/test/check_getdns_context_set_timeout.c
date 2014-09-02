@@ -180,6 +180,8 @@ void timeout_3_cb(struct getdns_context *context,
     }
 }
 
+/* Temporarily disabled because of unpredictable results */
+#if 0
 START_TEST (getdns_context_set_timeout_3)
 {
   /*
@@ -255,7 +257,7 @@ START_TEST (getdns_context_set_timeout_3)
 
 }
 END_TEST
-
+#endif
 
 
 
@@ -271,10 +273,13 @@ getdns_context_set_timeout_suite (void)
   suite_add_tcase(s, tc_neg);
 
   /* Positive test cases */
+  /* Temporarily disabled because of unpredictable results */
+#if 0
   TCase *tc_pos = tcase_create("Positive");
   tcase_set_timeout(tc_pos, 15.0);
   tcase_add_test(tc_pos, getdns_context_set_timeout_3);
   suite_add_tcase(s, tc_pos);
+#endif
 
    return s;
 
