@@ -1363,10 +1363,12 @@ bindata).</p>
 <p class=descrip><code>talink_unknown</code> (a bindata)</p>
 
 <p class=define>CDS (59)</p>
-<p class=descrip><code>cds_unknown</code> (a bindata)</p>
+<p class=descrip><code>key_tag</code> (an int), <code>algorithm</code> (an int), <code>digest_type</code> (an int), 
+and <code>digest</code> (a bindata)</p>
 
 <p class=define>CDNSKEY (60)</p>
-<p class=descrip><code>cdnskey_unknown</code> (a bindata)</p>
+<p class=descrip><code>flags</code> (an int), <code>protocol</code> (an int), <code>algorithm</code> (an int), 
+and <code>public_key</code> (a bindata)</p>
 
 <p class=define>OPENPGPKEY (61)</p>
 <p class=descrip><code>openpgpkey_unknown</code> (a bindata)</p>
@@ -2448,7 +2450,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.507.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.508.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
