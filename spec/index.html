@@ -900,6 +900,8 @@ will have zero length.</p>
 <p class=descrip>All queries for the name timed out</p>
 <p class=define>GETDNS_RESPSTATUS_NO_SECURE_ANSWERS</p>
 <p class=descrip>The context setting for getting only secure responses was specified, and at least one DNS response was received, but no DNS response was determined to be secure through DNSSEC.</p>
+<p class=define>GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS</p>
+<p class=descrip>The context setting for getting only secure responses was specified, and at least one DNS reponse was received, but all received responses for the requested name were bogus.</p>
 
 
 <p>The top level of <code>replies_tree</code> can optionally have the following names: <code>canonical_name</code> (a
@@ -2446,7 +2448,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.505.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.506.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

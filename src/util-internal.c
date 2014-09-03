@@ -690,6 +690,8 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
 	    dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
+	    dnssec_return_only_secure && nsecure == 0 && nbogus > 0
+	                    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS :
 	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
 	                    : GETDNS_RESPSTATUS_GOOD);
     } while (0);
