@@ -8,6 +8,6 @@ before_script:
 script:
   - ./configure --with-libevent
   - make
-  - sudo -i PATH=$PATH make install
+  - sudo PATH=$PATH make install
   - make test
   - sudo make uninstall
