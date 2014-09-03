@@ -1,3 +1,26 @@
+* 2014-09-02: Version 0.1.4
+  * Synchronous resolves now respect timeout setting,
+  * On timeout *_sync functions now return GETDNS_RETURN_GOOD and a
+    response dict with "status" GETDNS_RESPSTATUS_ALL_TIMEOUT>
+  * Fix issue#50: getdns_dict_remove_name returns GETDNS_RETURN_GOOD on
+    success.
+  * Fix Issue#54: set_ub_dns_transport() not working
+  * Fix Issue#49: Typo in documentation (thanks Stephane Bortzmeyer)
+  * getdns_context_set_limit_outstanding_queries(),
+    getdns_context_set_dnssec_allowed_skew() and
+    getdns_context_set_edns_maximum_udp_payload_size() now working
+  * <rr>_unknown rdata field for unknown or unsupported RR types
+  * Temporarily disable timeout unit test 3 because of unpredictable results
+  * Spec updated to version 0.507
+  * Renamed "resolver_type" to "resolution_type" in dict returned from
+    getdns_context_get_api_information()
+  * Added GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS return code for with the
+    dnssec_return_only_secure extension
+  * Added support for CDS and CDNSKEY RR types, but needs ldns > 1.6.17 to
+    be able to parse the wire format (not released yet at time of writing)
+  * Added OPENPGPKEY RR type, but no rdata fields implementation yet
+  * Updated spec to version 0.508 (September 2014)
+
 * 2014-06-25: Version 0.1.3
   * libtool chage, remove -release, added -version-info
   * Update specification to the June 2014 version (0.501)
