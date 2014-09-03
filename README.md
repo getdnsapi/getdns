@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2014-06-25
+* Date:    2014-09-02
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -168,14 +168,7 @@ The primary platforms targeted are Linux and FreeBSD, other platform are support
 
 * RHEL/CentOS 6.4
 * OSX 10.8
-* Ubuntu 13.10
-
-For most platforms where we have provided a binary distribution as a compressed tar you
-can simply untar the file and run "make install".  Bear in mind that any dependencies
-will need to be resolved before you can get the library to do it's work.
-
-In some cases we have provided binaries that use the native packaging for the platform,
-where possible dependencies are identified using the method specific to the platform.
+* Ubuntu 14.04
 
 We intend to add MS-Windows, Android and other platforms to the releases as we have time to port it.
 
