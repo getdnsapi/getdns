@@ -92,7 +92,7 @@ tr.code { font-family: monospace }
 
 <p class=title>Description of the <code>getdns</code> API</p>
 <p class=title2>Paul Hoffman, Editor</p>
-<p class=title2>Document version: "getdns June 2014"</p>
+<p class=title2>Document version: "getdns September 2014"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -795,7 +795,7 @@ an application.</p>
 
 <p>For lookups that need an OPT resource record in the Additional Data section, use the
 <code>add_opt_parameters</code> extension. The extension's value (a dict) contains the
-parameters; these are described in more detail in RFC 2671. They are:</p>
+parameters; these are described in more detail in RFC 6891. They are:</p>
 
 <ul>
 
@@ -2312,7 +2312,7 @@ algorithm, and <code>tsig_secret</code> (a bindata) that is the TSIG key.</p>
 <h2>8.8 Context for EDNS</h2>
 
 <p>These context settings affect queries that have extensions that specify the use of OPT resource records.
-These come from RFC 2671.</p>
+These come from RFC 6891.</p>
 
 <div class=forh>
 getdns_return_t
@@ -2446,7 +2446,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.503.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.504.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
