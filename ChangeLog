@@ -1,4 +1,4 @@
-* 2014-09-02: Version 0.1.4
+* 2014-09-03: Version 0.1.4
   * Synchronous resolves now respect timeout setting,
   * On timeout *_sync functions now return GETDNS_RETURN_GOOD and a
     response dict with "status" GETDNS_RESPSTATUS_ALL_TIMEOUT>
