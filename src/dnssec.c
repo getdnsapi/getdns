@@ -305,8 +305,15 @@ getdns_get_validation_chain(getdns_dns_req *dns_req,
 	while (netreq) {
 		size_t i;
 		ldns_rr_list *answer = ldns_pkt_answer(netreq->result);
+		ldns_rr_list *authority = ldns_pkt_authority(netreq->result);
 		for (i = 0; i < ldns_rr_list_rr_count(answer); i++) {
 			ldns_rr *rr = ldns_rr_list_rr(answer, i);
+			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
+				launch_chain_link_lookup(chain,
+				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
+		}
+		for (i = 0; i < ldns_rr_list_rr_count(authority); i++) {
+			ldns_rr *rr = ldns_rr_list_rr(authority, i);
 			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
 				launch_chain_link_lookup(chain,
 				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
