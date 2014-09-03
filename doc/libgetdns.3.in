@@ -375,7 +375,7 @@ Set to GETDNS_EXTENSION_TRUE to add the following to the top level of the respon
 .I implementation_string
 (bindata) : string set by this library's implementer as a build or version indicator
 .br
-.I resolver_type
+.I resolution_type
 (int) : GETDNS_CONTEXT_RECURSING or GETDNS_CONTEXT_STUB depending on how the context is configured
 .br
 .I all_context

@@ -1814,7 +1814,7 @@ getdns_context_get_api_information(getdns_context* context) {
     }
     r = getdns_dict_util_set_string(result, "version_string", PACKAGE_VERSION);
     r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
-    r |= getdns_dict_set_int(result, "resolver_type", context->resolution_type);
+    r |= getdns_dict_set_int(result, "resolution_type", context->resolution_type);
     settings = priv_get_context_settings(context);
     r |= getdns_dict_set_dict(result, "all_context", settings);
     getdns_dict_destroy(settings);

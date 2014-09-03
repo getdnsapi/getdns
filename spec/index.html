@@ -2435,7 +2435,7 @@ API.</li>
 be human-readable, and it might have information in it useful to an application developer (but it doesn't
 have to).</li>
 
-<li><code>resolver_type</code> (an int) is the type of resolver that the API is acting as in this context:
+<li><code>resolution_type</code> (an int) is the type of resolver that the API is acting as in this context:
 <code>GETDNS_RESOLUTION_RECURSING</code> or <code>GETDNS_RESOLUTION_STUB</code> (it will be
 a recursing resolver unless the application changed this in a context.</li>
 
@@ -2446,7 +2446,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.504.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.505.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

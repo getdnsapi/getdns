@@ -201,7 +201,7 @@ a bindata containing a printable string of the version of the DNS API implemente
 .IP implementation_string
 a bindata containing a printable string set by the implementation
 
-.IP resolver_type
+.IP resolution_type
 an int equal to GETDNS_RESOLUTION_RECURSING or GETDNS_RESOLUTION_STUB
 
 .IP all_context
