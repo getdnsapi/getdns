@@ -192,7 +192,7 @@ memory allocation failed or some other untoward thing happened while initializin
 if the context pointer is invalid (getdns_context_destroy)
 
 .LP
-The getdns_dict returned by gertdns_context_get_api_information must be
+The getdns_dict returned by getdns_context_get_api_information must be
 destroyed by the called and includes the following name/value pairs:
 
 .IP version_string

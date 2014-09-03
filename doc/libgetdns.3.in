@@ -364,27 +364,6 @@ specify_class (int)
 Set to the DNS class number (other than Internet (IN) class desired in query.
 
 .HP 3
-return_api_information (int)
-
-Set to GETDNS_EXTENSION_TRUE to add the following to the top level of the response object:
-.RS 6
-.br
-.I version_string
-(bindata) : the version string for this version of the getdns API
-.br
-.I implementation_string
-(bindata) : string set by this library's implementer as a build or version indicator
-.br
-.I resolution_type
-(int) : GETDNS_CONTEXT_RECURSING or GETDNS_CONTEXT_STUB depending on how the context is configured
-.br
-.I all_context
-(dict) : includes names from the context, use with
-.I getdns_pretty_print_dict
-(3) for debugging
-.RE
-
-.HP 3
 return_call_debugging (int)
 
 Set to GETDNS_EXTENSION_TRUE to add the name
