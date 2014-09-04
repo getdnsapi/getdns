@@ -94,6 +94,9 @@ example:
 
 test:
 	cd src && $(MAKE) $@
+	
+testnet:
+	cd src && $(MAKE) $@
 
 clean:
 	cd src && $(MAKE) $@
