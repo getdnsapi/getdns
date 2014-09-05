@@ -86,18 +86,18 @@ tests_stub_sync: tests_stub_sync.lo
 
 check_getdns_common: check_getdns_common.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.lo
+	
+check_getdns: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_selectloop.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread -o $@ check_getdns.lo check_getdns_common.lo  check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_selectloop.lo
 
-check_getdns: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_selectloop.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -lpthread -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_selectloop.lo
+check_getdns_event: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libevent.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lpthread -lgetdns_ext_event $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libevent.lo
 
-check_getdns_event: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_libevent.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lpthread -lgetdns_ext_event $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_libevent.lo
+check_getdns_uv: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libuv.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lpthread -lgetdns_ext_uv $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libuv.lo
 
-check_getdns_uv: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_libuv.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lpthread -lgetdns_ext_uv $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_libuv.lo
-
-check_getdns_ev: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_libev.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lpthread -lgetdns_ext_ev $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_libev.lo
+check_getdns_ev: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libev.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -lpthread -lgetdns_ext_ev $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) $(LDLIBS)  -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libev.lo
 
 tests_dnssec: tests_dnssec.lo testmessages.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dnssec.lo testmessages.lo

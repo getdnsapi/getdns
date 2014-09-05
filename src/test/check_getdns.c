@@ -68,6 +68,7 @@
 #include "check_getdns_context_set_upstream_recursive_servers.h"
 #include "check_getdns_service.h"
 #include "check_getdns_service_sync.h"
+#include "check_getdns_transport.h"
 
 
 int
@@ -112,6 +113,7 @@ main (int argc, char** argv)
   Suite *getdns_service_suite(void);
   Suite *getdns_service_sync_suite(void);
   Suite *getdns_context_set_timeout_suite(void);
+  Suite *getdns_transport_suite(void);
 
   sr = srunner_create(getdns_general_suite());
   srunner_add_suite(sr, getdns_general_sync_suite());
@@ -148,7 +150,8 @@ main (int argc, char** argv)
   srunner_add_suite(sr,getdns_context_set_upstream_recursive_servers_suite());
   srunner_add_suite(sr,getdns_service_suite());
   srunner_add_suite(sr,getdns_service_sync_suite());
-
+  srunner_add_suite(sr,getdns_transport_suite());
+  
   srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);
   number_failed = srunner_ntests_failed(sr);
