@@ -14,7 +14,7 @@
 #include "config.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
-#include "gldns/sbuffer.h"
+#include "gldns/gbuffer.h"
 #include "gldns/parse.h"
 #include "gldns/parseutil.h"
 #include <ctype.h>

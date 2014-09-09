@@ -20,7 +20,7 @@
 #include "gldns/rrdef.h"
 #include "gldns/pkthdr.h"
 #include "gldns/parseutil.h"
-#include "gldns/sbuffer.h"
+#include "gldns/gbuffer.h"
 #include "gldns/keyraw.h"
 #ifdef HAVE_TIME_H
 #include <time.h>

@@ -88,7 +88,7 @@ gldns_write_uint32(void *dst, uint32_t data)
 
 
 /**
- * \file sbuffer.h
+ * \file gbuffer.h
  *
  * This file contains the definition of gldns_buffer, and functions to manipulate those.
  */

@@ -12,7 +12,7 @@
  * This file contains the definition of gldns_buffer, and functions to manipulate those.
  */
 #include "config.h"
-#include "gldns/sbuffer.h"
+#include "gldns/gbuffer.h"
 #include <stdarg.h>
 
 gldns_buffer *

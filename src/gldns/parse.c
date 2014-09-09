@@ -10,7 +10,7 @@
 #include "config.h"
 #include "gldns/parse.h"
 #include "gldns/parseutil.h"
-#include "gldns/sbuffer.h"
+#include "gldns/gbuffer.h"
 
 #include <limits.h>
 #include <strings.h>
