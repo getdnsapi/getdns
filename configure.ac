@@ -374,5 +374,96 @@ AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h s
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
+
+
+dnl -----
+dnl ----- Start of "Things needed for gldns" section
+dnl -----
+dnl ---------------------------------------------------------------------------
+
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h time.h bsd/string.h],,, [AC_INCLUDES_DEFAULT])
+
+dnl Check the printf-format attribute (if any)
+dnl result in HAVE_ATTR_FORMAT.  
+dnl
+AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "format" attribute)
+AC_CACHE_VAL(ac_cv_c_format_attribute,
+[ac_cv_c_format_attribute=no
+AC_TRY_COMPILE(
+[#include <stdio.h>
+void f (char *format, ...) __attribute__ ((format (printf, 1, 2)));
+void (*pf) (char *format, ...) __attribute__ ((format (printf, 1, 2)));
+], [
+   f ("%s", "str");
+],
+[ac_cv_c_format_attribute="yes"],
+[ac_cv_c_format_attribute="no"])
+])
+AC_MSG_RESULT($ac_cv_c_format_attribute)
+if test $ac_cv_c_format_attribute = yes; then
+  AC_DEFINE(HAVE_ATTR_FORMAT, 1, [Whether the C compiler accepts the "format" attribute])
+fi
+
+AH_BOTTOM([
+/** Use on-board gldns */
+
+#define USE_GLDNS 1
+#ifdef HAVE_SSL
+#  define GLDNS_BUILD_CONFIG_HAVE_SSL 1
+#endif
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <assert.h>
+
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <stddef.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif
+
+#include <errno.h>
+
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_ATTR_FORMAT
+#  define ATTR_FORMAT(archetype, string_index, first_to_check) \
+    __attribute__ ((format (archetype, string_index, first_to_check)))
+#else /* !HAVE_ATTR_FORMAT */
+#  define ATTR_FORMAT(archetype, string_index, first_to_check) /* empty */
+#endif /* !HAVE_ATTR_FORMAT */
+
+#ifdef TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
+])
+
+dnl ---------------------------------------------------------------------------
+dnl -----
+dnl ----- End of "Things needed for gldns" section
+dnl -----
+
+
 AC_CONFIG_HEADER([src/config.h])
 AC_OUTPUT

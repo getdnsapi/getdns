@@ -1,5 +1,14 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 if you have the <arpa/inet.h> header file. */
+#undef HAVE_ARPA_INET_H
+
+/* Whether the C compiler accepts the "format" attribute */
+#undef HAVE_ATTR_FORMAT
+
+/* Define to 1 if you have the <bsd/string.h> header file. */
+#undef HAVE_BSD_STRING_H
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -36,8 +45,14 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
+/* Define to 1 if you have the <netdb.h> header file. */
+#undef HAVE_NETDB_H
+
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
+
+/* Define to 1 if you have the <stdarg.h> header file. */
+#undef HAVE_STDARG_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -56,6 +71,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <time.h> header file. */
+#undef HAVE_TIME_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
@@ -127,3 +145,58 @@
 /* Define to the type of an unsigned integer type of width exactly 8 bits if
    such a type exists and the standard includes do not define it. */
 #undef uint8_t
+
+
+/** Use on-board gldns */
+
+#define USE_GLDNS 1
+#ifdef HAVE_SSL
+#  define GLDNS_BUILD_CONFIG_HAVE_SSL 1
+#endif
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <assert.h>
+
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <stddef.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif
+
+#include <errno.h>
+
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_ATTR_FORMAT
+#  define ATTR_FORMAT(archetype, string_index, first_to_check) \
+    __attribute__ ((format (archetype, string_index, first_to_check)))
+#else /* !HAVE_ATTR_FORMAT */
+#  define ATTR_FORMAT(archetype, string_index, first_to_check) /* empty */
+#endif /* !HAVE_ATTR_FORMAT */
+
+#ifdef TIME_WITH_SYS_TIME
+# include <sys/time.h>
+# include <time.h>
+#else
+# ifdef HAVE_SYS_TIME_H
+#  include <sys/time.h>
+# else
+#  include <time.h>
+# endif
+#endif
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
+
