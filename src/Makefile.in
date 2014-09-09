@@ -77,9 +77,10 @@ EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
 
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo util-internal.lo \
-	getdns_error.lo rr-dict.lo dnssec.lo const-info.lo ub_timed_resolve.lo
+	getdns_error.lo rr-dict.lo dnssec.lo const-info.lo \
+	ub_timed_resolve.lo stub.lo
 
-GLDNS_OBJ=keyraw.lo sbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
+GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
 
 .SUFFIXES: .c .o .a .lo .h
@@ -193,12 +194,12 @@ FORCE:
 
 keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c config.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
 parse.lo parse.o: $(srcdir)/gldns/parse.c config.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h \
- $(srcdir)/gldns/sbuffer.h
+ $(srcdir)/gldns/gbuffer.h
 parseutil.lo parseutil.o: $(srcdir)/gldns/parseutil.c config.h $(srcdir)/gldns/parseutil.h
 rrdef.lo rrdef.o: $(srcdir)/gldns/rrdef.c config.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h
-sbuffer.lo sbuffer.o: $(srcdir)/gldns/sbuffer.c config.h $(srcdir)/gldns/sbuffer.h
+gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c config.h $(srcdir)/gldns/gbuffer.h
 str2wire.lo str2wire.o: $(srcdir)/gldns/str2wire.c config.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h \
- $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/sbuffer.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h
+ $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h
 wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c config.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/sbuffer.h \
+ $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/keyraw.h
