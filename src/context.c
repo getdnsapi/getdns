@@ -78,6 +78,11 @@ static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
 static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
     uint16_t);
 
+/* ldns helpers */
+static getdns_return_t set_ldns_dns_transport(struct getdns_context* context, 
+    getdns_transport_t value);
+static void set_ldns_edns_maximum_udp_payload_size(struct getdns_context*,
+    uint16_t);
 
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
@@ -645,6 +650,38 @@ rebuild_ub_ctx(struct getdns_context* context) {
     return GETDNS_RETURN_GOOD;
 }
 
+static getdns_return_t
+rebuild_ldns_res(struct getdns_context* context) {
+    ldns_status status;
+    if (context->ldns_res != NULL) {
+        /* cancel all requests and delete */
+        cancel_outstanding_requests(context, 1);
+        ldns_resolver_deep_free(context->ldns_res);
+        context->ldns_res=NULL;
+    }
+    /*
+     * Create LDNS resolver object.
+     * Passing a NULL filename makes ldns use its default /etc/resolv.conf */
+
+    status = ldns_resolver_new_frm_file(&context->ldns_res, NULL);
+    if (status != LDNS_STATUS_OK) {
+        return GETDNS_RETURN_MEMORY_ERROR;
+    }
+    /* TODO: Don't think ldns supports this option currently
+     *  set_ldns_dnssec_allowed_skew(context,
+     *        context->dnssec_allowed_skew);
+     */
+    set_ldns_edns_maximum_udp_payload_size(context,
+        context->edns_maximum_udp_payload_size);
+    set_ldns_dns_transport(context, context->dns_transport);
+
+    /* Also need to check any other settings that might have been 
+     * and make sure they get set until we have changed all the get/set 
+     * methods */
+
+    return GETDNS_RETURN_GOOD;
+}
+
 /**
  * Helper to dispatch the updated callback
  */
@@ -742,6 +779,29 @@ set_ub_dns_transport(struct getdns_context* context,
         }
     return GETDNS_RETURN_GOOD;
 }
+
+static getdns_return_t
+set_ldns_dns_transport(struct getdns_context* context,
+    getdns_transport_t value) {
+    switch (value) {
+        case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+            /* Seems ldns has fallback configured by default */
+            ldns_resolver_set_usevc(context->ldns_res, 0);
+            break;
+        case GETDNS_TRANSPORT_UDP_ONLY:
+            ldns_resolver_set_usevc(context->ldns_res, 0);
+            ldns_resolver_set_fallback(context->ldns_res, false);
+            break;
+        case GETDNS_TRANSPORT_TCP_ONLY:
+            ldns_resolver_set_usevc(context->ldns_res, 1);
+            break;
+        default:
+            /* TODO GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN */
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+    return GETDNS_RETURN_GOOD;
+}
+
 /*
  * getdns_context_set_dns_transport
  *
@@ -1029,6 +1089,14 @@ set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
     /* max-udp-size */
     set_ub_number_opt(context, "max-udp-size:", value);
 }
+
+static void
+set_ldns_edns_maximum_udp_payload_size(struct getdns_context* context,
+    uint16_t value) {
+    /* max-udp-size */
+    ldns_resolver_set_edns_udp_size(context->ldns_res, value);
+}
+
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
  *
@@ -1317,11 +1385,20 @@ static getdns_return_t
 priv_getdns_ns_dns_setup(struct getdns_context *context)
 {
 	assert(context);
+	getdns_return_t r;
 
 	switch (context->resolution_type) {
-	case GETDNS_RESOLUTION_STUB:
-		return ub_setup_stub(context->unbound_ctx,
-		    context->upstream_list);
+	case GETDNS_RESOLUTION_STUB: 
+		/* Since we don't know if the resolution will be sync or async at this
+		 * point and we only support ldns in sync mode then we must set _both_
+		 * contexts up */
+		/* We get away with just setting up ldns here here because sync mode
+		 * always hits this method because at the moment all sync calls use DNS
+		 * namespace */
+		r = ub_setup_stub(context->unbound_ctx, context->upstream_list);
+		if (r != GETDNS_RETURN_GOOD)
+			return r;
+		return rebuild_ldns_res(context);
 
 	case GETDNS_RESOLUTION_RECURSING:
 		/* TODO: use the root servers via root hints file */
@@ -1365,6 +1442,8 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	for (i = 0; i < context->namespace_count; i++) {
 		switch (context->namespaces[i]) {
 		case GETDNS_NAMESPACE_LOCALNAMES:
+			/* TODO: Note to self! This must change once we have
+			 * asynchronous stub mode using ldns. */
 			(void) ub_ctx_hosts(context->unbound_ctx, NULL);
 			break;
 
