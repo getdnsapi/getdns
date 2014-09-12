@@ -1026,8 +1026,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 static void
 set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
     uint16_t value) {
-    /* max-udp-size */
-    set_ub_number_opt(context, "max-udp-size:", value);
+    /* edns-buffer-size */
+    set_ub_number_opt(context, "edns-buffer-size:", value);
 }
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
