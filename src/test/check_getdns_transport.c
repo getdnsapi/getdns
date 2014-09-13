@@ -454,6 +454,13 @@ Suite *
 getdns_transport_suite(void) {
   Suite *s = suite_create("getdns_transport()");
 
+  /*TODO: The sync tests will fail if root keys are configured! 
+   * Unbound does DNSSEC even if the extention is not set if 
+   * it has root keys. This seems very inefficient....! 
+   * Need to either unset the root keys during this test
+   * or detect the correct number of responses based on
+   * DNS vs DNSSEC.*/
+
   /* Positive test cases */
   TCase *tc_pos = tcase_create("Positive");
   tcase_set_timeout(tc_pos, 15.0);

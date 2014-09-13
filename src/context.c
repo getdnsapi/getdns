@@ -83,6 +83,8 @@ static getdns_return_t set_ldns_dns_transport(struct getdns_context* context,
     getdns_transport_t value);
 static void set_ldns_edns_maximum_udp_payload_size(struct getdns_context*,
     uint16_t);
+static getdns_return_t set_ldns_nameservers(struct getdns_context*, 
+	struct getdns_list * upstreams);
 
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
@@ -624,6 +626,7 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 
 static getdns_return_t
 rebuild_ub_ctx(struct getdns_context* context) {
+    /*TODO: Error handling*/
     if (context->unbound_ctx != NULL) {
         /* cancel all requests and delete */
         cancel_outstanding_requests(context, 1);
@@ -652,21 +655,18 @@ rebuild_ub_ctx(struct getdns_context* context) {
 
 static getdns_return_t
 rebuild_ldns_res(struct getdns_context* context) {
-    ldns_status status;
     if (context->ldns_res != NULL) {
         /* cancel all requests and delete */
         cancel_outstanding_requests(context, 1);
         ldns_resolver_deep_free(context->ldns_res);
         context->ldns_res=NULL;
     }
-    /*
-     * Create LDNS resolver object.
-     * Passing a NULL filename makes ldns use its default /etc/resolv.conf */
-
-    status = ldns_resolver_new_frm_file(&context->ldns_res, NULL);
-    if (status != LDNS_STATUS_OK) {
+    /*Create LDNS resolver object. */
+    context->ldns_res = ldns_resolver_new();
+    if (context->ldns_res == NULL) {
         return GETDNS_RETURN_MEMORY_ERROR;
     }
+
     /* TODO: Don't think ldns supports this option currently
      *  set_ldns_dnssec_allowed_skew(context,
      *        context->dnssec_allowed_skew);
@@ -679,6 +679,8 @@ rebuild_ldns_res(struct getdns_context* context) {
      * and make sure they get set until we have changed all the get/set 
      * methods */
 
+    /* We need to set up the upstream recursive servers from the context */
+    set_ldns_nameservers(context, context->upstream_list);
     return GETDNS_RETURN_GOOD;
 }
 
@@ -1379,6 +1381,90 @@ ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams)
 	(void)ub_ctx_zone_remove(ctx, "8.B.D.0.1.0.0.2.ip6.arpa.");
 
 	return r;
+}
+
+static getdns_return_t 
+set_ldns_nameservers(struct getdns_context *context,
+                     struct getdns_list * upstreams)
+{
+	size_t i;
+	size_t count;
+	struct getdns_dict *dict;
+	struct getdns_bindata *address_string;
+	char *address_type = NULL;
+	ldns_rdf* ns_rdf = NULL;
+	getdns_return_t r;
+
+	r = getdns_list_get_length(upstreams, &count);
+	if (r != GETDNS_RETURN_GOOD)
+		return r;
+
+	if (count == 0 || context->ldns_res == NULL)
+		return GETDNS_RETURN_BAD_CONTEXT;
+
+	/* remove current list of nameservers from resolver */
+	ldns_rdf *pop;
+	while((pop = ldns_resolver_pop_nameserver(context->ldns_res))) { 
+		ldns_rdf_deep_free(pop); 
+	}
+
+	for (i = 0; i < count; ++i) {
+		r = getdns_list_get_dict(upstreams, i, &dict);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+		r = getdns_dict_get_bindata(dict, GETDNS_STR_ADDRESS_STRING,
+		    &address_string);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+		r = getdns_dict_util_get_string(dict, GETDNS_STR_ADDRESS_TYPE,
+		    &address_type);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+
+		/* TODO: PROBLEM! The upstream list is implemented such that there is both
+		 * an IP address and a port in the bindata for each nameserver. Unbound
+		 * can handle this but ldns cannot. ldns has a list of nameservers which
+		 * must be A or AAAA records and it has one port setting on the resolver.
+		 * TEMP SOLUTION: strip off any port and use the port of the last 
+		 * nameserver in the list. Wrong, but this will support the test scripts
+		 * in the short term which rely on being able to set a port for a single
+		 * nameserver. */
+		char *address_char = (char *)address_string->data;
+		char *port_char = NULL;
+		char *at_symbol_position = strchr(address_char, '@');
+		if (at_symbol_position != NULL) {
+			int ip_length = at_symbol_position - address_char;
+			int port_length = strlen(address_char) - ip_length;
+			address_char = (char*) malloc(ip_length + 1);
+			memcpy(address_char, (char *)address_string->data, ip_length);
+			address_char[ip_length] = '\0';
+			port_char = (char*) malloc(port_length);
+			memcpy(port_char, (char *)(address_string->data + ip_length + 1), port_length);
+			port_char[port_length] = '\0';
+		}
+		
+		if (strncmp(GETDNS_STR_IPV4, address_type,
+			strlen(GETDNS_STR_IPV4)) == 0) {
+			ns_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A,
+					address_char);
+		} else if (strncmp(GETDNS_STR_IPV6, address_type,
+					strlen(GETDNS_STR_IPV6)) == 0) {
+			ns_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_AAAA,
+					address_char);
+		}
+		if (ns_rdf == NULL)
+			return GETDNS_RETURN_GENERIC_ERROR;
+
+		ldns_resolver_push_nameserver(context->ldns_res, ns_rdf);
+		ldns_rdf_deep_free(ns_rdf);
+		
+		if (at_symbol_position != NULL) {
+			ldns_resolver_set_port(context->ldns_res, atoi(port_char));
+			free(port_char);
+			free(address_char);
+		}
+	}
+	return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t

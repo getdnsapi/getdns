@@ -85,7 +85,6 @@ static getdns_return_t submit_request_sync_stub(
     uint16_t qflags = 0;
 	struct timeval tv;
 
-	fprintf(stdout, "Using ldns resolver\n");
     while (netreq) {
         qname = ldns_dname_new_frm_str(req->name);
         qflags = qflags | LDNS_RD;
