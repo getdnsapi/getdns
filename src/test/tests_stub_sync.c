@@ -81,7 +81,19 @@ main()
 	}
 	print_response(response);
 	getdns_dict_destroy(response);
-
+	
+	/* Now switch to TCP and make sure everything works */
+    getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY);
+	
+	ret = getdns_general_sync(this_context, "www.google.com", GETDNS_RRTYPE_A,
+	                          NULL, &response);
+	if (ret != GETDNS_RETURN_GOOD || response == NULL) {
+		fprintf(stderr, "General sync over TCP returned error.\n");
+		exit(EXIT_FAILURE);
+	}
+	print_response(response);
+	getdns_dict_destroy(response);
+	
 	/* Clean up */
 	getdns_context_destroy(this_context);
 	/* Assuming we get here, leave gracefully */
