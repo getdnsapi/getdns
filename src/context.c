@@ -671,7 +671,7 @@ rebuild_ldns_res(struct getdns_context* context) {
      *  set_ldns_dnssec_allowed_skew(context,
      *        context->dnssec_allowed_skew);
      */
-    set_ldns_edns_maximum_udp_payload_size(context
+    set_ldns_edns_maximum_udp_payload_size(context,
         context->edns_maximum_udp_payload_size);
     set_ldns_dns_transport(context, context->dns_transport);
 
