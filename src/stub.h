@@ -34,6 +34,16 @@
 #ifndef STUB_H_
 #define STUB_H_
 
+#include "getdns/getdns.h"
+#include "gldns/gbuffer.h"
+
+int getdns_make_query_pkt_buf(getdns_context *context, const char *name,
+    uint16_t request_type, getdns_dict *extensions, uint8_t* buf, size_t* len);
+size_t getdns_get_query_pkt_size(getdns_context *context,
+    const char *name, uint16_t request_type, getdns_dict *extensions);
+uint8_t *getdns_make_query_pkt(getdns_context *context, const char *name,
+    uint16_t request_type, getdns_dict *extensions, size_t *pkt_len);
+
 #endif
 
 /* stub.h */

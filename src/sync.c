@@ -44,6 +44,9 @@
 #include "dnssec.h"
 #include "ub_timed_resolve.h"
 
+#include "stub.h"
+#include "gldns/wire2str.h"
+
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
@@ -75,6 +78,26 @@ static getdns_return_t submit_request_sync(
     }
     return gr;
 }
+
+static getdns_return_t submit_request_sync_stub(
+    getdns_dns_req* req, uint64_t *timeout)
+{
+	getdns_network_req *netreq;
+	uint8_t *pkt;
+	size_t pkt_len;
+	char *str;
+
+	for (netreq = req->first_req; netreq; netreq = netreq->next) {
+		pkt = getdns_make_query_pkt(req->context, req->name,
+		    netreq->request_type, req->extensions, &pkt_len);
+		str = gldns_wire2str_pkt(pkt, pkt_len);
+		fprintf(stderr, "%s\n", str);
+		free(str);
+		GETDNS_FREE(req->context->mf, pkt);
+	}
+	return submit_request_sync(req, timeout);
+}
+
 
 getdns_return_t
 getdns_general_sync(struct getdns_context *context,
@@ -111,7 +134,9 @@ getdns_general_sync(struct getdns_context *context,
 	if (!req)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	response_status = submit_request_sync(req, &timeout);
+	response_status = ( context->resolution_type == GETDNS_RESOLUTION_STUB 
+	                  ? submit_request_sync_stub : submit_request_sync )(req, &timeout);
+
 	if (response_status == GETDNS_RETURN_GOOD) {
 		if (is_extension_set(req->extensions,
 		    "dnssec_return_validation_chain"))
