@@ -630,7 +630,6 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 
 static getdns_return_t
 rebuild_ub_ctx(struct getdns_context* context) {
-    /*TODO: Error handling*/
     if (context->unbound_ctx != NULL) {
         /* cancel all requests and delete */
         cancel_outstanding_requests(context, 1);
@@ -659,6 +658,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 
 static getdns_return_t
 rebuild_ldns_res(struct getdns_context* context) {
+    getdns_return_t result;
     if (context->ldns_res != NULL) {
         /* cancel all requests and delete */
         cancel_outstanding_requests(context, 1);
@@ -679,10 +679,15 @@ rebuild_ldns_res(struct getdns_context* context) {
      * Will need additional work here when supporting async mode.*/
     set_ldns_edns_maximum_udp_payload_size(context,
         context->edns_maximum_udp_payload_size);
-    set_ldns_dns_transport(context, context->dns_transport);
+    result = set_ldns_dns_transport(context, context->dns_transport);
+    if (result != GETDNS_RETURN_GOOD)
+        return result;
 
     /* We need to set up the upstream recursive servers from the context */
-    set_ldns_nameservers(context, context->upstream_list);
+    result = set_ldns_nameservers(context, context->upstream_list);
+    if (result != GETDNS_RETURN_GOOD)
+        return result;
+
     return GETDNS_RETURN_GOOD;
 }
 
@@ -789,7 +794,7 @@ set_ldns_dns_transport(struct getdns_context* context,
     getdns_transport_t value) {
     switch (value) {
         case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
-            /* Seems ldns has fallback configured by default */
+            /* ldns has fallback configured by default */
             ldns_resolver_set_usevc(context->ldns_res, 0);
             break;
         case GETDNS_TRANSPORT_UDP_ONLY:
