@@ -96,9 +96,9 @@ struct getdns_context {
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
 
-	/* The underlying unbound contexts that do
-	 * the real work */
+	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
+	ldns_resolver *ldns_res;
 	int has_ta; /* No DNSSEC without trust anchor */
     int return_dnssec_status;
 

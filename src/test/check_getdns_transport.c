@@ -103,26 +103,32 @@ void* run_transport_server(void* data) {
         n = read(conn, mesg, 65536);
         tcp_count++;
       }
+
       ldns_wire2pkt(&query, mesg, n);
       ldns_resolver_send_pkt(&pkt, resolver, query);
       ldns_str2rdf_a(&answerfrom, "127.0.0.1");
       ldns_pkt_set_answerfrom(pkt, answerfrom);
       ldns_pkt_free(query);
-      uint8_t* pkt_data;
-      size_t pkt_len;
-      ldns_pkt* answer = pkt;
-      ldns_pkt2wire(&pkt_data, answer, &pkt_len);
+
+      ldns_buffer *send_buf;
+      send_buf = ldns_buffer_new(LDNS_MIN_BUFLEN);
+      ldns_pkt2buffer_wire(send_buf, pkt);
+
       if (udp_count > 0) {
-        sendto(udp, pkt_data, pkt_len, 0, (struct sockaddr *) &client_addr, sizeof (client_addr));
+        sendto(udp, (void*)ldns_buffer_begin(send_buf), ldns_buffer_position(send_buf), 
+                0, (struct sockaddr *) &client_addr, sizeof (client_addr));
       } else if (conn > 0) {
-        int wcount = write(conn, pkt_data, pkt_len);
-        if (wcount != pkt_len) {
-          /* For now ignore this */
-          continue;
-        }
+        uint8_t *send_array;
+        /* add length of packet */
+        send_array = LDNS_XMALLOC(uint8_t, ldns_buffer_position(send_buf) + 2);
+        if(!send_array) return 0;
+        ldns_write_uint16(send_array, ldns_buffer_position(send_buf));
+        memcpy(send_array + 2, ldns_buffer_begin(send_buf), ldns_buffer_position(send_buf));
+        write(conn, (void*)send_array, ldns_buffer_position(send_buf) + 2);
+        LDNS_FREE(send_array);
       }
-      free(pkt_data);
-      ldns_pkt_free(answer);
+      LDNS_FREE(send_buf);
+      ldns_pkt_free(pkt);
     } /* End of if */
   } /* end of while loop */
   close(udp);
@@ -210,7 +216,7 @@ START_TEST(getdns_transport_udp_sync) {
 
   t_data.running = 0;
   pthread_join(thread, NULL);
-  ck_assert_msg(t_data.udp_count == 1, "udp_count != 1");
+  ck_assert_msg(t_data.udp_count >= 1, "udp_count !>= 1");
   ck_assert_msg(t_data.tcp_count == 0, "tcp_count != 0");
 
 }
@@ -285,7 +291,7 @@ START_TEST(getdns_transport_tcp_sync) {
   t_data.running = 0;
   pthread_join(thread, NULL);
   ck_assert_msg(t_data.udp_count == 0, "udp_count != 0");
-  ck_assert_msg(t_data.tcp_count == 1, "tcp_count != 1");
+  ck_assert_msg(t_data.tcp_count >= 1, "tcp_count !>= 1");
 
 }
 
@@ -362,7 +368,7 @@ START_TEST(getdns_transport_udp_async) {
 
   t_data.running = 0;
   pthread_join(thread, NULL);
-  ck_assert_msg(t_data.udp_count == 1, "udp_count != 1");
+  ck_assert_msg(t_data.udp_count >= 1, "udp_count !>= 1");
   ck_assert_msg(t_data.tcp_count == 0, "tcp_count != 0");
 
 }
@@ -441,7 +447,7 @@ START_TEST(getdns_transport_tcp_async) {
   t_data.running = 0;
   pthread_join(thread, NULL);
   ck_assert_msg(t_data.udp_count == 0, "udp_count != 0");
-  ck_assert_msg(t_data.tcp_count == 1, "tcp_count != 1");
+  ck_assert_msg(t_data.tcp_count >= 1, "tcp_count !>= 1");
 
 }
 
@@ -453,6 +459,11 @@ END_TEST
 Suite *
 getdns_transport_suite(void) {
   Suite *s = suite_create("getdns_transport()");
+
+  /* Note that the exact number of messages received depends on if a trust
+   * anchor is configured so these tests just check that no messages are
+   * received on the wrong transport and at least one is recieved on the
+   * expected transport */
 
   /* Positive test cases */
   TCase *tc_pos = tcase_create("Positive");
