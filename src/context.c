@@ -494,6 +494,8 @@ getdns_context_create_with_extended_memory_functions(
         getdns_context_destroy(result);
         return GETDNS_RETURN_GENERIC_ERROR;
     }
+    /* ldns context is initialised to NULL here and rebuilt later if needed */
+	result->ldns_res = NULL;
 
     *context = result;
 
@@ -577,9 +579,11 @@ getdns_context_destroy(struct getdns_context *context)
     getdns_list_destroy(context->dnssec_trust_anchors);
     getdns_list_destroy(context->upstream_list);
 
-    /* destroy the ub context */
+    /* destroy the contexts */
     if (context->unbound_ctx)
         ub_ctx_delete(context->unbound_ctx);
+    if (context->ldns_res)
+        ldns_resolver_deep_free(context->ldns_res);
 
     if (context->outbound_requests)
         GETDNS_FREE(context->my_mf, context->outbound_requests);
@@ -667,17 +671,15 @@ rebuild_ldns_res(struct getdns_context* context) {
         return GETDNS_RETURN_MEMORY_ERROR;
     }
 
-    /* TODO: Don't think ldns supports this option currently
-     *  set_ldns_dnssec_allowed_skew(context,
-     *        context->dnssec_allowed_skew);
-     */
+    /* TODO: ldns doesn't support this option so this will have to be taken
+             account expliticly during the ldns validation
+     *  set_ldns_dnssec_allowed_skew();*/
+
+    /* This is all the settings required for stub operation in sync mode.
+     * Will need additional work here when supporting async mode.*/
     set_ldns_edns_maximum_udp_payload_size(context,
         context->edns_maximum_udp_payload_size);
     set_ldns_dns_transport(context, context->dns_transport);
-
-    /* Also need to check any other settings that might have been 
-     * and make sure they get set until we have changed all the get/set 
-     * methods */
 
     /* We need to set up the upstream recursive servers from the context */
     set_ldns_nameservers(context, context->upstream_list);
@@ -1529,7 +1531,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 		switch (context->namespaces[i]) {
 		case GETDNS_NAMESPACE_LOCALNAMES:
 			/* TODO: Note to self! This must change once we have
-			 * asynchronous stub mode using ldns. */
+			 * proper namespace hanlding or asynch stub mode using ldns.*/
 			(void) ub_ctx_hosts(context->unbound_ctx, NULL);
 			break;
 
