@@ -79,7 +79,6 @@ static getdns_return_t submit_request_sync_rec(
 static getdns_return_t submit_request_sync_stub(
     getdns_dns_req* req, uint64_t *timeout)
 {
-    ldns_status status;
     ldns_rdf *qname;
     getdns_network_req *netreq = req->first_req;
     uint16_t qflags = 0;
@@ -93,13 +92,13 @@ static getdns_return_t submit_request_sync_stub(
         tv.tv_sec  =  *timeout / 1000;
         tv.tv_usec = (*timeout % 1000) * 1000;
         ldns_resolver_set_timeout(req->context->ldns_res, tv);
-        status = ldns_resolver_query_status(
-                &(netreq->result), req->context->ldns_res, qname,
-                netreq->request_type, netreq->request_class, qflags);
+        netreq->result = ldns_resolver_query(
+                req->context->ldns_res, qname, netreq->request_type,
+                netreq->request_class, qflags);
         ldns_rdf_deep_free(qname);
         qname = NULL;
 
-        if (status != LDNS_STATUS_OK) {
+        if (! netreq->result) {
             /* TODO: use better errors */
             return GETDNS_RETURN_GENERIC_ERROR;
         }
