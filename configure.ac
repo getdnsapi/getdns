@@ -404,6 +404,8 @@ if test $ac_cv_c_format_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_FORMAT, 1, [Whether the C compiler accepts the "format" attribute])
 fi
 
+AC_REPLACE_FUNCS(strlcpy)
+
 AH_BOTTOM([
 /** Use on-board gldns */
 

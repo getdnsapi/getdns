@@ -51,7 +51,7 @@
 #define UNUSED_PARAM(x) ((void)(x))
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
-static getdns_return_t submit_request_sync(
+static getdns_return_t submit_request_sync_rec(
     getdns_dns_req* req, uint64_t *timeout)
 {
     struct ub_result* ub_res = NULL;
@@ -82,22 +82,54 @@ static getdns_return_t submit_request_sync(
 static getdns_return_t submit_request_sync_stub(
     getdns_dns_req* req, uint64_t *timeout)
 {
-	getdns_network_req *netreq;
 	uint8_t *pkt;
 	size_t pkt_len;
 	char *str;
 
-	for (netreq = req->first_req; netreq; netreq = netreq->next) {
+	ldns_rdf *qname;
+	getdns_network_req *netreq = req->first_req;
+	uint16_t qflags = 0;
+	struct timeval tv;
+
+	while (netreq) {
 		pkt = getdns_make_query_pkt(req->context, req->name,
 		    netreq->request_type, req->extensions, &pkt_len);
 		str = gldns_wire2str_pkt(pkt, pkt_len);
 		fprintf(stderr, "%s\n", str);
 		free(str);
 		GETDNS_FREE(req->context->mf, pkt);
+
+		qname = ldns_dname_new_frm_str(req->name);
+		qflags = qflags | LDNS_RD;
+		/* TODO: Use timeout properly - create a ldns_timed_resolve function */
+		/* timeout is in miliseconds, so map to seconds and microseconds */
+		tv.tv_sec  =  *timeout / 1000;
+		tv.tv_usec = (*timeout % 1000) * 1000;
+		ldns_resolver_set_timeout(req->context->ldns_res, tv);
+		netreq->result = ldns_resolver_query(
+		        req->context->ldns_res, qname, netreq->request_type,
+		        netreq->request_class, qflags);
+		ldns_rdf_deep_free(qname);
+		qname = NULL;
+
+		if (! netreq->result) {
+			/* TODO: use better errors */
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+		netreq = netreq->next;
 	}
-	return submit_request_sync(req, timeout);
+	return GETDNS_RETURN_GOOD;
 }
 
+static getdns_return_t submit_request_sync(
+    getdns_dns_req* req, struct getdns_context *context)
+{
+    if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
+        return submit_request_sync_stub(req, &(context->timeout));
+    } else {
+        return submit_request_sync_rec(req, &(context->timeout));
+    }
+}
 
 getdns_return_t
 getdns_general_sync(struct getdns_context *context,
@@ -134,9 +166,7 @@ getdns_general_sync(struct getdns_context *context,
 	if (!req)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	response_status = ( context->resolution_type == GETDNS_RESOLUTION_STUB 
-	                  ? submit_request_sync_stub : submit_request_sync )(req, &timeout);
-
+	response_status = submit_request_sync(req, context);
 	if (response_status == GETDNS_RETURN_GOOD) {
 		if (is_extension_set(req->extensions,
 		    "dnssec_return_validation_chain"))
