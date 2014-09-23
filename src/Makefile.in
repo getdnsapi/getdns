@@ -78,7 +78,7 @@ EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo util-internal.lo \
 	getdns_error.lo rr-dict.lo dnssec.lo const-info.lo \
-	ub_timed_resolve.lo
+	ub_timed_resolve.lo stub.lo
 
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
