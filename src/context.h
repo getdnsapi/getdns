@@ -99,6 +99,8 @@ struct getdns_context {
 	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
 	ldns_resolver *ldns_res;
+	/* A tree to hold local host information*/
+	struct ldns_rbtree_t *local_hosts;
 	int has_ta; /* No DNSSEC without trust anchor */
     int return_dnssec_status;
 
@@ -182,6 +184,10 @@ getdns_return_t getdns_context_schedule_timeout(struct getdns_context* context,
 
 getdns_return_t getdns_context_clear_timeout(struct getdns_context* context,
     getdns_transaction_t id);
+
+/* perform name resolution in /etc/hosts */
+getdns_return_t getdns_context_local_namespace_resolve(getdns_dns_req* req,
+                                               struct getdns_context *context);
 
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 

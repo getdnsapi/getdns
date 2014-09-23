@@ -52,8 +52,14 @@
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
+struct host_name_addr_type {
+    ldns_rdf * host_name;
+    ldns_rr_type addr_type;
+};
+
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
+getdns_return_t create_local_hosts(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t add_ip_str(struct getdns_dict *);
 static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
@@ -63,6 +69,7 @@ static struct getdns_list *create_from_ldns_list(struct getdns_context *,
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static int timeout_cmp(const void *, const void *);
+static int local_host_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
 static void cancel_outstanding_requests(struct getdns_context*, int);
@@ -106,6 +113,63 @@ create_default_namespaces(struct getdns_context *context)
 
 	return GETDNS_RETURN_GOOD;
 }
+
+/**
+ * Helper to get contents from hosts file
+ */
+getdns_return_t
+create_local_hosts(struct getdns_context *context)
+{
+    
+    ldns_rr_list * host_names = ldns_get_rr_list_hosts_frm_file(NULL);
+    if (host_names == NULL)
+        return GETDNS_RETURN_GENERIC_ERROR;
+
+    /*TODO: free up memory on error paths*/
+    //ldns_rr_list_print(stderr, host_names);
+    
+    /* We have a 1:1 list of name -> ip address where there is an 
+       underlying many to many relationship. Need to create a lookup of
+       (unique name + A/AAAA)-> list of IPV4/IPv6 ip addresses*/
+    for (int i = 0 ; i<ldns_rr_list_rr_count(host_names) ; i++) {
+
+        ldns_rr *rr = ldns_rr_list_rr(host_names, i);
+        ldns_rdf *owner = ldns_rdf_clone(ldns_rr_owner(rr));
+
+        /*Check to see if we already have an entry*/
+        struct host_name_addr_type *lh_key = 
+             GETDNS_MALLOC(context->my_mf, struct host_name_addr_type);
+        if (lh_key == NULL)
+            return GETDNS_RETURN_MEMORY_ERROR;
+        lh_key->host_name = owner;
+        lh_key->addr_type = ldns_rr_get_type(rr);
+        ldns_rbnode_t *result_node = ldns_rbtree_search(context->local_hosts, lh_key);
+        if (result_node) {
+            if (!ldns_rr_list_push_rr ((ldns_rr_list *)result_node->data, ldns_rr_clone(rr)))
+                return GETDNS_RETURN_GENERIC_ERROR;
+        }
+        else {
+            ldns_rr_list *address_list = ldns_rr_list_new ();
+            if (!ldns_rr_list_push_rr (address_list, ldns_rr_clone(rr)))
+                return GETDNS_RETURN_GENERIC_ERROR;
+
+            ldns_rbnode_t *node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
+            if (!node) {
+                return GETDNS_RETURN_GENERIC_ERROR;
+            }
+            node->key = lh_key;
+            node->data = address_list;
+            if (!ldns_rbtree_insert(context->local_hosts, node)) {
+                /* free the node */
+                GETDNS_FREE(context->my_mf, node);
+                return GETDNS_RETURN_GENERIC_ERROR;
+            }
+        }
+    }
+
+    return GETDNS_RETURN_GOOD;
+}
+
 
 /**
  * Helper to get the default root servers.
@@ -385,6 +449,27 @@ timeout_cmp(const void *to1, const void *to2)
     }
 }
 
+static int
+local_host_cmp(const void *id1, const void *id2)
+{
+    if (id1 == NULL && id2 == NULL) {
+        return 0;
+    } else if (id1 == NULL && id2 != NULL) {
+        return 1;
+    } else if (id1 != NULL && id2 == NULL) {
+        return -1;
+    } else {
+        const struct host_name_addr_type *hn1 = (const struct host_name_addr_type*) id1;
+        const struct host_name_addr_type *hn2 = (const struct host_name_addr_type*) id2;
+        if ((ldns_rr_type) hn1->addr_type < (ldns_rr_type) hn2->addr_type)
+            return -1;
+        if ((ldns_rr_type) hn1->addr_type > (ldns_rr_type) hn2->addr_type)
+            return 1;
+        return (ldns_rdf_compare((const ldns_rdf *) hn1->host_name,
+                                 (const ldns_rdf *) hn2->host_name));
+    }
+}
+
 static ldns_rbtree_t*
 create_ldns_rbtree(getdns_context * context,
     int(*cmpf)(const void *, const void *)) {
@@ -444,6 +529,7 @@ getdns_context_create_with_extended_memory_functions(
     result->outbound_requests = create_ldns_rbtree(result, transaction_id_cmp);
     result->timeouts_by_time = create_ldns_rbtree(result, timeout_cmp);
     result->timeouts_by_id = create_ldns_rbtree(result, transaction_id_cmp);
+    result->local_hosts = create_ldns_rbtree(result, local_host_cmp);
 
 
     result->resolution_type = GETDNS_RESOLUTION_RECURSING;
@@ -484,7 +570,8 @@ getdns_context_create_with_extended_memory_functions(
     result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
     if (!result->outbound_requests ||
         !result->timeouts_by_id ||
-        !result->timeouts_by_time) {
+        !result->timeouts_by_time ||
+        !result->local_hosts) {
         getdns_context_destroy(result);
         return GETDNS_RETURN_MEMORY_ERROR;
     }
@@ -495,7 +582,12 @@ getdns_context_create_with_extended_memory_functions(
         return GETDNS_RETURN_GENERIC_ERROR;
     }
     /* ldns context is initialised to NULL here and rebuilt later if needed */
-	result->ldns_res = NULL;
+    result->ldns_res = NULL;
+
+    if(create_local_hosts(result) != GETDNS_RETURN_GOOD) {
+        getdns_context_destroy(result);
+        return GETDNS_RETURN_GENERIC_ERROR;
+    }
 
     *context = result;
 
@@ -591,6 +683,10 @@ getdns_context_destroy(struct getdns_context *context)
         GETDNS_FREE(context->my_mf, context->timeouts_by_id);
     if (context->timeouts_by_time)
         GETDNS_FREE(context->my_mf, context->timeouts_by_time);
+    if (context->local_hosts) {
+        /*TODO: deep free of this tree*/
+        GETDNS_FREE(context->my_mf, context->local_hosts);
+    }
 
     GETDNS_FREE(context->my_mf, context);
 }               /* getdns_context_destroy */
@@ -2021,6 +2117,79 @@ getdns_context_set_use_threads(getdns_context* context, int use_threads) {
     else
         r = ub_ctx_async(context->unbound_ctx, 0);
     return r == 0 ? GETDNS_RETURN_GOOD : GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+}
+
+getdns_return_t 
+getdns_context_local_namespace_resolve(getdns_dns_req* req, 
+                                       struct getdns_context *context)
+{
+
+    /* NOTE: This only returns GETDNS_RETURN_GOOD if it finds answers for all the 
+      netreq that it tries */
+    /*TODO: free memory on error paths*/
+
+    getdns_network_req *netreq = req->first_req;
+    while (netreq) {
+        /*This request may have already been answered by another namespace*/
+        if (netreq->result) {
+            netreq = netreq->next;
+            continue;
+        }
+        if (netreq->request_type != GETDNS_RRTYPE_A && netreq->request_type != GETDNS_RRTYPE_AAAA)
+            return GETDNS_RETURN_GENERIC_ERROR;
+
+        /*Do the lookup*/
+        ldns_rdf *query_name = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, req->name);
+        struct host_name_addr_type *lh_key = 
+             GETDNS_MALLOC(context->my_mf, struct host_name_addr_type);
+        if (lh_key == NULL)
+            return GETDNS_RETURN_MEMORY_ERROR;
+        lh_key->host_name = query_name;
+        lh_key->addr_type = netreq->request_type;
+        ldns_rbnode_t *result_node = ldns_rbtree_search(context->local_hosts, lh_key);
+        if (!result_node) {
+            ldns_rdf_deep_free(query_name);
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+
+        /*Fabricate the result packet*/
+        ldns_pkt *answer_pkt;
+        ldns_rr *question_rr;
+        ldns_rr_list *answer_qr;
+        ldns_rr_list *answer_an;
+        ldns_rr_list *answer_ns;
+        ldns_rr_list *answer_ad;
+
+        question_rr = ldns_rr_new_frm_type(netreq->request_type);
+        ldns_rr_set_class(question_rr, netreq->request_class);
+        ldns_rr_set_owner(question_rr, query_name);
+        ldns_rr_set_rd_count (question_rr, (size_t)0);
+        answer_qr = ldns_rr_list_new();
+        if (!ldns_rr_list_push_rr (answer_qr, question_rr)) {
+            ldns_rdf_deep_free(query_name);
+            ldns_rr_free(question_rr);
+            ldns_rr_list_deep_free(answer_qr);
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
+
+        answer_an = ldns_rr_list_clone((ldns_rr_list *)result_node->data);
+        answer_ns = ldns_rr_list_new();
+        answer_ad = ldns_rr_list_new();
+
+        answer_pkt = ldns_pkt_new();
+        ldns_pkt_set_qr(answer_pkt, 1);
+        ldns_pkt_set_aa(answer_pkt, 1);
+
+        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_QUESTION, answer_qr);
+        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_ANSWER, answer_an);
+        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_AUTHORITY, answer_ns);
+        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_ADDITIONAL, answer_ad);
+
+        netreq->result = answer_pkt;
+        netreq = netreq->next;
+    }
+    return GETDNS_RETURN_GOOD;
+
 }
 
 /* context.c */
