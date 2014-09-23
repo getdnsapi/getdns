@@ -100,6 +100,9 @@ clean:
 	cd doc && $(MAKE) $@
 	rm -f *.o
 
+depend:
+	cd src && $(MAKE) $@
+
 distclean:
 	cd src && $(MAKE) $@
 	rmdir src 2>/dev/null || true

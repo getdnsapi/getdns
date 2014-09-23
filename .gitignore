@@ -39,3 +39,4 @@ check_getdns_ev
 doc/*.3
 src/getdns/getdns.h
 *.log
+src/Doxyfile

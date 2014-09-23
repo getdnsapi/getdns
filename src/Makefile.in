@@ -83,6 +83,10 @@ GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
 
+LIBOBJDIR=
+LIBOBJS=@LIBOBJS@
+COMPAT_OBJ=$(LIBOBJS:.o=.lo)
+
 .SUFFIXES: .c .o .a .lo .h
 
 .c.o:
@@ -91,7 +95,7 @@ GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 .c.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
-$(GLDNS_OBJ):
+$(GLDNS_OBJ) $(COMPAT_OBJ):
 	@:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
@@ -130,8 +134,8 @@ libgetdns_ext_ev.la: libgetdns.la extension/libev.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
-libgetdns.la: $(GETDNS_OBJ) $(GLDNS_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(GLDNS_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
+libgetdns.la: $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
 test:	FORCE
@@ -185,21 +189,28 @@ Makefile: Makefile.in ../config.status
 configure.status: configure
 	cd .. && ./config.status --recheck
 
+depend:
+	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
+	(cd $(srcdir) ; gcc -MM -I. gldns/*.c compat/*.c | \
+		sed -e 's?gldns/?$$(srcdir)/gldns/?g' \
+		    -e 's?compat/?$$(srcdir)/compat/?g' \
+		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
+	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
+	                                                 || mv Makefile.in.new Makefile.in )
+
 .PHONY: clean test example
 FORCE:
 
-# Dependencies for gldns
-# ----------------------
-# Create with:  gcc -MM -I. gldns/*.c|sed -e 's?gldns/?$(srcdir)/gldns/?g' -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in
-
+# Dependencies for gldns and compatibility functions
+gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c config.h $(srcdir)/gldns/gbuffer.h
 keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c config.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
 parse.lo parse.o: $(srcdir)/gldns/parse.c config.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h \
  $(srcdir)/gldns/gbuffer.h
 parseutil.lo parseutil.o: $(srcdir)/gldns/parseutil.c config.h $(srcdir)/gldns/parseutil.h
 rrdef.lo rrdef.o: $(srcdir)/gldns/rrdef.c config.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h
-gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c config.h $(srcdir)/gldns/gbuffer.h
 str2wire.lo str2wire.o: $(srcdir)/gldns/str2wire.c config.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h \
  $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h
 wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c config.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h \
  $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/keyraw.h
+strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c config.h
