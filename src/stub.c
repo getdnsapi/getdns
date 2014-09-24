@@ -84,7 +84,7 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 		edns_maximum_udp_payload_size = 1232;
 		edns_extended_rcode = 0;
 		edns_version = 0;
-		edns_do_bit = 0;
+		edns_do_bit = 1;
 	} else {
 		edns_maximum_udp_payload_size
 		    = context->edns_maximum_udp_payload_size;
@@ -125,6 +125,8 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 
 	gldns_write_uint16(buf + 2, 0); /* reset all flags */
 	GLDNS_RD_SET(buf);
+	if (dnssec_extension_set) /* We will do validation outselves */
+		GLDNS_CD_SET(buf);
 	GLDNS_OPCODE_SET(buf, GLDNS_PACKET_QUERY);
 	gldns_write_uint16(buf + GLDNS_QDCOUNT_OFF, 1); /* 1 query */
 	gldns_write_uint16(buf + GLDNS_ANCOUNT_OFF, 0); /* 0 answers */
