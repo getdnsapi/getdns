@@ -6,6 +6,9 @@
 /* Whether the C compiler accepts the "format" attribute */
 #undef HAVE_ATTR_FORMAT
 
+/* Whether the C compiler accepts the "unused" attribute */
+#undef HAVE_ATTR_UNUSED
+
 /* Define to 1 if you have the <bsd/string.h> header file. */
 #undef HAVE_BSD_STRING_H
 
@@ -106,6 +109,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
@@ -114,6 +120,9 @@
 
 /* Default trust anchor file */
 #undef TRUST_ANCHOR_FILE
+
+/* Needed for sync stub resolver functions */
+#undef USE_MINI_EVENT
 
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
@@ -187,6 +196,23 @@
 #else /* !HAVE_ATTR_FORMAT */
 #  define ATTR_FORMAT(archetype, string_index, first_to_check) /* empty */
 #endif /* !HAVE_ATTR_FORMAT */
+
+#if defined(DOXYGEN)
+#  define ATTR_UNUSED(x)  x
+#elif defined(__cplusplus)
+#  define ATTR_UNUSED(x)
+#elif defined(HAVE_ATTR_UNUSED)
+#  define ATTR_UNUSED(x)  x __attribute__((unused))
+#else /* !HAVE_ATTR_UNUSED */
+#  define ATTR_UNUSED(x)  x
+#endif /* !HAVE_ATTR_UNUSED */
+
+/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
+#ifdef HAVE_WINSOCK2_H
+#define FD_SET_T (u_int)
+#else
+#define FD_SET_T 
+#endif
 
 #ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>

@@ -11700,6 +11700,44 @@ $as_echo "#define HAVE_ATTR_FORMAT 1" >>confdefs.h
 
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the C compiler (${CC-cc}) accepts the \"unused\" attribute" >&5
+$as_echo_n "checking whether the C compiler (${CC-cc}) accepts the \"unused\" attribute... " >&6; }
+if ${ac_cv_c_unused_attribute+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_cv_c_unused_attribute=no
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <stdio.h>
+void f (char *u __attribute__((unused)));
+
+int
+main ()
+{
+
+   f ("x");
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_c_unused_attribute="yes"
+else
+  ac_cv_c_unused_attribute="no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_c_unused_attribute" >&5
+$as_echo "$ac_cv_c_unused_attribute" >&6; }
+if test $ac_cv_c_unused_attribute = yes; then
+
+$as_echo "#define HAVE_ATTR_UNUSED 1" >>confdefs.h
+
+fi
+
 ac_fn_c_check_func "$LINENO" "strlcpy" "ac_cv_func_strlcpy"
 if test "x$ac_cv_func_strlcpy" = xyes; then :
   $as_echo "#define HAVE_STRLCPY 1" >>confdefs.h
@@ -11712,6 +11750,44 @@ else
 esac
 
 fi
+
+
+
+
+$as_echo "#define USE_MINI_EVENT 1" >>confdefs.h
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking return type of signal handlers" >&5
+$as_echo_n "checking return type of signal handlers... " >&6; }
+if ${ac_cv_type_signal+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+#include <signal.h>
+
+int
+main ()
+{
+return *(signal (0, 0)) (0) == 1;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_type_signal=int
+else
+  ac_cv_type_signal=void
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_type_signal" >&5
+$as_echo "$ac_cv_type_signal" >&6; }
+
+cat >>confdefs.h <<_ACEOF
+#define RETSIGTYPE $ac_cv_type_signal
+_ACEOF
 
 
 

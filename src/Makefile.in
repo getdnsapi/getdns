@@ -87,6 +87,8 @@ LIBOBJDIR=
 LIBOBJS=@LIBOBJS@
 COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 
+UTIL_OBJ=mini_event.lo rbtree.lo
+
 .SUFFIXES: .c .o .a .lo .h
 
 .c.o:
@@ -95,7 +97,7 @@ COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 .c.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
-$(GLDNS_OBJ) $(COMPAT_OBJ):
+$(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ):
 	@:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
@@ -134,8 +136,8 @@ libgetdns_ext_ev.la: libgetdns.la extension/libev.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ extension/libev.lo ./.libs/libgetdns.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
-libgetdns.la: $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
+libgetdns.la: $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
 test:	FORCE
@@ -191,9 +193,10 @@ configure.status: configure
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
-	(cd $(srcdir) ; gcc -MM -I. gldns/*.c compat/*.c | \
+	(cd $(srcdir) ; gcc -MM -I. gldns/*.c compat/*.c util/*.c | \
 		sed -e 's?gldns/?$$(srcdir)/gldns/?g' \
 		    -e 's?compat/?$$(srcdir)/compat/?g' \
+		    -e 's?util/?$$(srcdir)/util/?g' \
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
@@ -214,3 +217,7 @@ wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c config.h $(srcdir)/gldns/wire
  $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/keyraw.h
 strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c config.h
+mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
+ $(srcdir)/util/fptr_wlist.h
+rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/log.h $(srcdir)/util/fptr_wlist.h \
+ $(srcdir)/util/rbtree.h
