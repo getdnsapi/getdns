@@ -709,6 +709,80 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	return result;
 }
 
+/*This method can be used when e.g. a local lookup has been performed and the 
+   result is simply a list of addresses (not a DNS packet)*/
+struct getdns_dict *
+create_getdns_response_from_rr_list(struct getdns_dns_req * completed_request,
+                                    ldns_rr_list * response_list)
+{
+	struct getdns_dict *result = getdns_dict_create_with_context(completed_request->context);
+	struct getdns_list *replies_full = getdns_list_create_with_context(
+	    completed_request->context);
+	struct getdns_list *replies_tree = getdns_list_create_with_context(
+	    completed_request->context);
+	struct getdns_list *just_addrs = NULL;
+	char *canonical_name = NULL;
+	getdns_return_t r = 0;
+
+	/* NOTE: With DNS packet, we ignore any DNSSEC related extensions since we 
+	   don't populate the replies full or tree at all*/
+
+	just_addrs = getdns_list_create_with_context(completed_request->context);
+
+	do {
+		canonical_name = get_canonical_name(completed_request->name);
+		r = getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM,
+			canonical_name);
+		free(canonical_name);
+		if (r != GETDNS_RETURN_GOOD) {
+			break;
+		}
+
+		/* For local lookups we don't set an answer_type as there isn't a
+		suitable one*/
+
+		r = add_only_addresses(just_addrs, response_list);
+		if (r != GETDNS_RETURN_GOOD) {
+			break;
+		}
+           
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+
+		r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_TREE,
+			replies_tree);
+		if (r != GETDNS_RETURN_GOOD)
+            break;
+
+		r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_FULL,
+			replies_full);
+		if (r != GETDNS_RETURN_GOOD)
+			break;
+
+		r = getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS,
+			just_addrs);
+		if (r != GETDNS_RETURN_GOOD) {
+            break;
+		}
+
+		r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
+				GETDNS_RESPSTATUS_GOOD);
+	} while (0);
+
+	/* cleanup */
+	getdns_list_destroy(replies_tree);
+	getdns_list_destroy(replies_full);
+	getdns_list_destroy(just_addrs);
+
+	if (r != 0) {
+		getdns_dict_destroy(result);
+		result = NULL;
+	}
+
+	return result;
+}
+
+
 /**
  * reverse an IP address for PTR lookup
  * @param address_data IP address to reverse

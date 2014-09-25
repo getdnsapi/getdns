@@ -58,7 +58,7 @@ CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -I.. -I$(srcdir)/.. -I$(srcdir) -std=c99 $(cflags)
 LDFLAGS=@LDFLAGS@ -L..
 LDLIBS=-lgetdns @LIBS@ -lcheck -lm -lrt
-PROGRAMS=tests_dict tests_list tests_stub_async tests_stub_sync check_getdns tests_dnssec $(CHECK_EV_PROG) $(CHECK_EVENT_PROG) $(CHECK_UV_PROG)
+PROGRAMS=tests_dict tests_list tests_namespaces tests_stub_async tests_stub_sync check_getdns tests_dnssec $(CHECK_EV_PROG) $(CHECK_EVENT_PROG) $(CHECK_UV_PROG)
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -77,6 +77,9 @@ tests_dict: tests_dict.lo testmessages.lo
 
 tests_list: tests_list.lo testmessages.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_list.lo testmessages.lo
+
+tests_namespaces: tests_namespaces.lo 
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_namespaces.lo 
 
 tests_stub_async: tests_stub_async.lo testmessages.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_async.lo testmessages.lo
