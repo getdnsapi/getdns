@@ -56,6 +56,11 @@ static getdns_return_t submit_request_sync_rec(
     getdns_network_req *netreq = req->first_req;
 
     while (netreq) {
+        /*This request may have already been answered by another namespace*/
+        if (netreq->result) {
+            netreq = netreq->next;
+            continue;
+        }
         int r = ub_timed_resolve(req->context->unbound_ctx,
             req->name,
             netreq->request_type,
@@ -85,6 +90,11 @@ static getdns_return_t submit_request_sync_stub(
 	struct timeval tv;
 
     while (netreq) {
+        /*This request may have already been answered by another namespace*/
+        if (netreq->result) {
+            netreq = netreq->next;
+            continue;
+        }
         qname = ldns_dname_new_frm_str(req->name);
         qflags = qflags | LDNS_RD;
         /* TODO: Use timeout properly - create a ldns_timed_resolve function */
@@ -95,6 +105,10 @@ static getdns_return_t submit_request_sync_stub(
         netreq->result = ldns_resolver_query(
                 req->context->ldns_res, qname, netreq->request_type,
                 netreq->request_class, qflags);
+        /*TODO: The rec unbound case always sends DO=1 and then 
+                getdns_apply_network_result sets these values...*/
+        // netreq->secure = ;
+        // netreq->bogus  = ;
         ldns_rdf_deep_free(qname);
         qname = NULL;
 
@@ -119,55 +133,95 @@ static getdns_return_t submit_request_sync(
 }
 
 getdns_return_t
+getdns_general_sync_ns(struct getdns_context *context,
+    const char *name,
+    uint16_t request_type,
+    struct getdns_dict *extensions,
+    struct getdns_dict **response,
+    bool usenamespaces)
+{
+    getdns_dns_req *req;
+    getdns_return_t response_status;
+    uint64_t timeout;
+
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
+
+    timeout = context->timeout;
+    response_status = validate_dname(name);
+    if (response_status != GETDNS_RETURN_GOOD)
+        return response_status;
+
+    response_status = validate_extensions(extensions);
+    if (response_status != GETDNS_RETURN_GOOD)
+        return response_status;
+
+    /* Set up the context assuming we won't use the specified namespaces.
+       This is (currently) identical to setting up a pure DNS namespace */
+    response_status = getdns_context_prepare_for_resolution(context, 0);
+    if (response_status != GETDNS_RETURN_GOOD)
+        return response_status;
+
+    /* create the request */
+    req = dns_req_new(context, name, request_type, extensions);
+    if (!req)
+        return GETDNS_RETURN_MEMORY_ERROR;
+
+    /*TODO: Would be tidier to loop over the netreq here trying each namespace
+      rather then trying each namespace...*/ 
+
+    /* resolve using the appropriate namespace*/
+    if (!usenamespaces) {
+        response_status = submit_request_sync(req, context);
+    } else {
+        for (int i = 0; i < context->namespace_count; i++) {
+            switch (context->namespaces[i]) {
+            case GETDNS_NAMESPACE_LOCALNAMES:
+                response_status = getdns_context_local_namespace_resolve(req, context);
+                break;
+
+            case GETDNS_NAMESPACE_DNS:
+                response_status = submit_request_sync(req, context);
+                break;
+
+            default:
+                response_status = GETDNS_RETURN_BAD_CONTEXT;
+                break;
+            }
+            /* If we have all good responses break out the for loop as we are done,
+               but if we don't then give the next namespace a try*/
+            if (response_status == GETDNS_RETURN_GOOD)
+                break;
+        }
+    }
+
+    if (response_status == GETDNS_RETURN_GOOD) {
+        if (is_extension_set(req->extensions,
+            "dnssec_return_validation_chain"))
+            *response = priv_getdns_get_validation_chain_sync(req, &timeout);
+        else
+            *response = create_getdns_response(req);
+
+    } else if (response_status == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
+        *response = create_getdns_response(req);
+        response_status = GETDNS_RETURN_GOOD;
+    }
+
+    dns_req_free(req);
+    return response_status;
+}
+
+getdns_return_t
 getdns_general_sync(struct getdns_context *context,
     const char *name,
     uint16_t request_type,
     struct getdns_dict *extensions,
     struct getdns_dict **response)
 {
-	getdns_dns_req *req;
-	getdns_return_t response_status;
-	uint64_t timeout;
-
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(response, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(name, GETDNS_RETURN_INVALID_PARAMETER);
-
-	timeout = context->timeout;
-	response_status = validate_dname(name);
-	if (response_status != GETDNS_RETURN_GOOD)
-		return response_status;
-
-	response_status = validate_extensions(extensions);
-	if (response_status != GETDNS_RETURN_GOOD)
-		return response_status;
-
-       	/* general, so without dns lookup (no namespaces) */;
-	response_status = getdns_context_prepare_for_resolution(context, 0);
-	if (response_status != GETDNS_RETURN_GOOD)
-		return response_status;
-
-	/* for each netreq we call ub_ctx_resolve */
-	    /* request state */
-	req = dns_req_new(context, name, request_type, extensions);
-	if (!req)
-		return GETDNS_RETURN_MEMORY_ERROR;
-
-	response_status = submit_request_sync(req, context);
-	if (response_status == GETDNS_RETURN_GOOD) {
-		if (is_extension_set(req->extensions,
-		    "dnssec_return_validation_chain"))
-			*response = priv_getdns_get_validation_chain_sync(req, &timeout);
-		else
-			*response = create_getdns_response(req);
-
-	} else if (response_status == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
-		*response = create_getdns_response(req);
-		response_status = GETDNS_RETURN_GOOD;
-	}
-
-	dns_req_free(req);
-	return response_status;
+    /* general, so without dns lookup (no namespaces) */;
+    return getdns_general_sync_ns(context, name, request_type,
+        extensions, response, false);
 }
 
 getdns_return_t
@@ -185,8 +239,8 @@ getdns_address_sync(struct getdns_context *context,
 	    GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6, GETDNS_EXTENSION_TRUE);
 
 	getdns_return_t result =
-	    getdns_general_sync(context, name, GETDNS_RRTYPE_A,
-	    extensions, response);
+	    getdns_general_sync_ns(context, name, GETDNS_RRTYPE_A,
+	    extensions, response, true);
 	if (cleanup_extensions) {
 		getdns_dict_destroy(extensions);
 	}
@@ -226,8 +280,8 @@ getdns_hostname_sync(struct getdns_context *context,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	if ((name = reverse_address(address_data)) == NULL)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	retval = getdns_general_sync(context, name, req_type, extensions,
-	    response);
+	retval = getdns_general_sync_ns(context, name, req_type, extensions,
+	    response, true);
 	free(name);
 	return retval;
 }
@@ -239,8 +293,8 @@ getdns_service_sync(struct getdns_context *context,
     struct getdns_dict ** response)
 {
 
-	return getdns_general_sync(context, name, GETDNS_RRTYPE_SRV,
-	    extensions, response);
+	return getdns_general_sync_ns(context, name, GETDNS_RRTYPE_SRV,
+	    extensions, response, true);
 
 }
 
