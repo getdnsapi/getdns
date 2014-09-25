@@ -60,6 +60,7 @@ struct host_name_addr_type {
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
 getdns_return_t create_local_hosts(struct getdns_context *context);
+getdns_return_t destroy_local_hosts(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t add_ip_str(struct getdns_dict *);
 static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
@@ -96,6 +97,16 @@ static getdns_return_t set_ldns_nameservers(struct getdns_context*,
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
+static void destroy_local_host(ldns_rbnode_t * node, void *arg)
+{
+	struct getdns_context *context = (struct getdns_context *) arg;
+
+	struct host_name_addr_type *lh = (struct host_name_addr_type *) node->key;
+	ldns_rdf_free(lh->host_name);
+	ldns_rr_list_deep_free((ldns_rr_list *)node->data);
+	GETDNS_FREE(context->mf, node);
+}
+
 /**
  * Helper to get default lookup namespaces.
  * TODO: Determine from OS
@@ -120,14 +131,11 @@ create_default_namespaces(struct getdns_context *context)
 getdns_return_t
 create_local_hosts(struct getdns_context *context)
 {
-    
+
     ldns_rr_list * host_names = ldns_get_rr_list_hosts_frm_file(NULL);
     if (host_names == NULL)
         return GETDNS_RETURN_GENERIC_ERROR;
 
-    /*TODO: free up memory on error paths*/
-    //ldns_rr_list_print(stderr, host_names);
-    
     /* We have a 1:1 list of name -> ip address where there is an 
        underlying many to many relationship. Need to create a lookup of
        (unique name + A/AAAA)-> list of IPV4/IPv6 ip addresses*/
@@ -155,21 +163,20 @@ create_local_hosts(struct getdns_context *context)
 
             ldns_rbnode_t *node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
             if (!node) {
-                return GETDNS_RETURN_GENERIC_ERROR;
+                return GETDNS_RETURN_MEMORY_ERROR;
             }
             node->key = lh_key;
             node->data = address_list;
             if (!ldns_rbtree_insert(context->local_hosts, node)) {
-                /* free the node */
                 GETDNS_FREE(context->my_mf, node);
                 return GETDNS_RETURN_GENERIC_ERROR;
             }
         }
     }
 
+    ldns_rr_list_deep_free(host_names);
     return GETDNS_RETURN_GOOD;
 }
-
 
 /**
  * Helper to get the default root servers.
@@ -684,7 +691,8 @@ getdns_context_destroy(struct getdns_context *context)
     if (context->timeouts_by_time)
         GETDNS_FREE(context->my_mf, context->timeouts_by_time);
     if (context->local_hosts) {
-        /*TODO: deep free of this tree*/
+        ldns_traverse_postorder(context->local_hosts,
+            destroy_local_host, context);
         GETDNS_FREE(context->my_mf, context->local_hosts);
     }
 
@@ -2120,75 +2128,57 @@ getdns_context_set_use_threads(getdns_context* context, int use_threads) {
 }
 
 getdns_return_t 
-getdns_context_local_namespace_resolve(getdns_dns_req* req, 
+getdns_context_local_namespace_resolve(getdns_dns_req* req,
+                                       struct getdns_dict **response, 
                                        struct getdns_context *context)
 {
 
-    /* NOTE: This only returns GETDNS_RETURN_GOOD if it finds answers for all the 
-      netreq that it tries */
-    /*TODO: free memory on error paths*/
+    ldns_rr_list *result_list = NULL;
+    struct host_name_addr_type *lh_key = 
+         GETDNS_MALLOC(context->my_mf, struct host_name_addr_type);
+    if (lh_key == NULL)
+        return GETDNS_RETURN_MEMORY_ERROR;
 
     getdns_network_req *netreq = req->first_req;
     while (netreq) {
-        /*This request may have already been answered by another namespace*/
-        if (netreq->result) {
+        if (netreq->request_type != GETDNS_RRTYPE_A && 
+            netreq->request_type != GETDNS_RRTYPE_AAAA) {
             netreq = netreq->next;
             continue;
         }
-        if (netreq->request_type != GETDNS_RRTYPE_A && netreq->request_type != GETDNS_RRTYPE_AAAA)
-            return GETDNS_RETURN_GENERIC_ERROR;
 
         /*Do the lookup*/
         ldns_rdf *query_name = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, req->name);
-        struct host_name_addr_type *lh_key = 
-             GETDNS_MALLOC(context->my_mf, struct host_name_addr_type);
-        if (lh_key == NULL)
-            return GETDNS_RETURN_MEMORY_ERROR;
+        if (!query_name) {
+            GETDNS_FREE(context->my_mf, lh_key);
+            return GETDNS_RETURN_GENERIC_ERROR;
+        }
         lh_key->host_name = query_name;
         lh_key->addr_type = netreq->request_type;
         ldns_rbnode_t *result_node = ldns_rbtree_search(context->local_hosts, lh_key);
-        if (!result_node) {
-            ldns_rdf_deep_free(query_name);
-            return GETDNS_RETURN_GENERIC_ERROR;
+        if (result_node) {
+            if (result_list == NULL)
+                result_list =
+                          ldns_rr_list_clone((ldns_rr_list *)result_node->data);
+            else {
+                if (!ldns_rr_list_cat(result_list, (ldns_rr_list *)result_node->data)) {
+                    GETDNS_FREE(context->my_mf, lh_key);
+                    ldns_rdf_deep_free(query_name);
+                    return GETDNS_RETURN_GENERIC_ERROR;
+                }
+            }
         }
 
-        /*Fabricate the result packet*/
-        ldns_pkt *answer_pkt;
-        ldns_rr *question_rr;
-        ldns_rr_list *answer_qr;
-        ldns_rr_list *answer_an;
-        ldns_rr_list *answer_ns;
-        ldns_rr_list *answer_ad;
-
-        question_rr = ldns_rr_new_frm_type(netreq->request_type);
-        ldns_rr_set_class(question_rr, netreq->request_class);
-        ldns_rr_set_owner(question_rr, query_name);
-        ldns_rr_set_rd_count (question_rr, (size_t)0);
-        answer_qr = ldns_rr_list_new();
-        if (!ldns_rr_list_push_rr (answer_qr, question_rr)) {
-            ldns_rdf_deep_free(query_name);
-            ldns_rr_free(question_rr);
-            ldns_rr_list_deep_free(answer_qr);
-            return GETDNS_RETURN_GENERIC_ERROR;
-        }
-
-        answer_an = ldns_rr_list_clone((ldns_rr_list *)result_node->data);
-        answer_ns = ldns_rr_list_new();
-        answer_ad = ldns_rr_list_new();
-
-        answer_pkt = ldns_pkt_new();
-        ldns_pkt_set_qr(answer_pkt, 1);
-        ldns_pkt_set_aa(answer_pkt, 1);
-
-        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_QUESTION, answer_qr);
-        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_ANSWER, answer_an);
-        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_AUTHORITY, answer_ns);
-        ldns_pkt_push_rr_list(answer_pkt, LDNS_SECTION_ADDITIONAL, answer_ad);
-
-        netreq->result = answer_pkt;
+        ldns_rdf_deep_free(query_name);
         netreq = netreq->next;
     }
-    return GETDNS_RETURN_GOOD;
+
+    GETDNS_FREE(context->my_mf, lh_key);
+    if (result_list == NULL) 
+        return GETDNS_RETURN_GENERIC_ERROR;
+        
+    *response = create_getdns_response_from_rr_list(req, result_list);
+    return response ? GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 
 }
 

@@ -187,6 +187,7 @@ getdns_return_t getdns_context_clear_timeout(struct getdns_context* context,
 
 /* perform name resolution in /etc/hosts */
 getdns_return_t getdns_context_local_namespace_resolve(getdns_dns_req* req,
+                                               struct getdns_dict **response,
                                                struct getdns_context *context);
 
 int filechg_check(struct getdns_context *context, struct filechg *fchg);

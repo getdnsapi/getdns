@@ -104,6 +104,25 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
 }
 
 /*
+ *  extract_response extracts all of the various information
+ *  a test may want to look at from the response.
+ */
+void extract_local_response(struct getdns_dict *response, struct extracted_response *ex_response)
+{
+  ck_assert_msg(response != NULL, "Response should not be NULL");
+
+  ASSERT_RC(getdns_dict_get_bindata(response, "canonical_name", &ex_response->top_canonical_name),
+    GETDNS_RETURN_GOOD, "Failed to extract \"top canonical_name\"");
+
+  ASSERT_RC(getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers),
+    GETDNS_RETURN_GOOD, "Failed to extract \"just_address_answers\"");
+  ck_assert_msg(ex_response->just_address_answers != NULL, "just_address_answers should not be NULL");
+
+  ASSERT_RC(getdns_dict_get_int(response, "status", &ex_response->status),
+    GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
+}
+
+/*
  *  assert_noerror asserts that the rcode is 0
  */
 void assert_noerror(struct extracted_response *ex_response)

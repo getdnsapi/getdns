@@ -56,11 +56,6 @@ static getdns_return_t submit_request_sync_rec(
     getdns_network_req *netreq = req->first_req;
 
     while (netreq) {
-        /*This request may have already been answered by another namespace*/
-        if (netreq->result) {
-            netreq = netreq->next;
-            continue;
-        }
         int r = ub_timed_resolve(req->context->unbound_ctx,
             req->name,
             netreq->request_type,
@@ -90,11 +85,6 @@ static getdns_return_t submit_request_sync_stub(
 	struct timeval tv;
 
     while (netreq) {
-        /*This request may have already been answered by another namespace*/
-        if (netreq->result) {
-            netreq = netreq->next;
-            continue;
-        }
         qname = ldns_dname_new_frm_str(req->name);
         qflags = qflags | LDNS_RD;
         /* TODO: Use timeout properly - create a ldns_timed_resolve function */
@@ -168,9 +158,6 @@ getdns_general_sync_ns(struct getdns_context *context,
     if (!req)
         return GETDNS_RETURN_MEMORY_ERROR;
 
-    /*TODO: Would be tidier to loop over the netreq here trying each namespace
-      rather then trying each namespace...*/ 
-
     /* resolve using the appropriate namespace*/
     if (!usenamespaces) {
         response_status = submit_request_sync(req, context);
@@ -178,10 +165,20 @@ getdns_general_sync_ns(struct getdns_context *context,
         for (int i = 0; i < context->namespace_count; i++) {
             switch (context->namespaces[i]) {
             case GETDNS_NAMESPACE_LOCALNAMES:
-                response_status = getdns_context_local_namespace_resolve(req, context);
+                response_status = getdns_context_local_namespace_resolve(req,
+                                                                       response,
+                                                                       context);
+                /* For a local lookup the response is populated directly*/
+                if (response_status == GETDNS_RETURN_GOOD) {
+                    dns_req_free(req);
+                    return response_status;
+                }
                 break;
 
             case GETDNS_NAMESPACE_DNS:
+                /* TODO: We will get a good return code here even if the name is
+                   not found (NXDOMAIN). We should consider if this means we 
+                   go onto the next namespace instead of returning*/
                 response_status = submit_request_sync(req, context);
                 break;
 
@@ -189,13 +186,14 @@ getdns_general_sync_ns(struct getdns_context *context,
                 response_status = GETDNS_RETURN_BAD_CONTEXT;
                 break;
             }
-            /* If we have all good responses break out the for loop as we are done,
+            /* If we have a good response break out the for loop as we are done,
                but if we don't then give the next namespace a try*/
             if (response_status == GETDNS_RETURN_GOOD)
                 break;
         }
     }
 
+    /* Only get here if the response came from the DNS namespace*/
     if (response_status == GETDNS_RETURN_GOOD) {
         if (is_extension_set(req->extensions,
             "dnssec_return_validation_chain"))
