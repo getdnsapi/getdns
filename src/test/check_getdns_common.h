@@ -142,12 +142,26 @@
      //
      //  FUNCTION DECLARATIONS
      //
+     
+     #define EXTRACT_LOCAL_RESPONSE			\
+       struct extracted_response ex_response;	\
+       extract_local_response(response, &ex_response);
+
+     //
+     //  FUNCTION DECLARATIONS
+     //
 
      /*
       *    extract_response extracts all of the various information
       *    a test may want to look at from the response.
       */
      void extract_response(struct getdns_dict *response, struct extracted_response *ex_response);
+
+     /*
+      *    extract__local_response extracts all of the various information
+      *    a test may want to look at from the response for a minimal, local.
+      */
+     void extract_local_response(struct getdns_dict *response, struct extracted_response *ex_response);
 
      /*
       *    assert_noerror asserts that the rcode is 0.
