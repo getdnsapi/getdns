@@ -90,14 +90,12 @@ static getdns_return_t submit_request_sync_stub(
 	getdns_network_req *netreq = req->first_req;
 	uint16_t qflags = 0;
 	struct timeval tv;
+	gldns_buffer *gbuffer = gldns_buffer_new(4096);
 
 	while (netreq) {
-		pkt = getdns_make_query_pkt(req->context, req->name,
-		    netreq->request_type, req->extensions, &pkt_len);
-		str = gldns_wire2str_pkt(pkt, pkt_len);
-		fprintf(stderr, "%s\n", str);
-		free(str);
-		GETDNS_FREE(req->context->mf, pkt);
+		gldns_buffer_clear(gbuffer);
+		(void) getdns_stub_dns_query_sync(req->context, req->name,
+		    netreq->request_type, req->extensions, gbuffer);
 
 		qname = ldns_dname_new_frm_str(req->name);
 		qflags = qflags | LDNS_RD;

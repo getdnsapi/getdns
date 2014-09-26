@@ -39,6 +39,196 @@
 #include "context.h"
 #include <ldns/util.h>
 #include "util-internal.h"
+#include "gldns/gbuffer.h"
+#include "gldns/wire2str.h"
+#include "util/mini_event.h"
+
+#define STUBDEBUG 1
+
+typedef struct stub_resolver {
+	struct getdns_event_base *base;
+	getdns_context *context;
+	const char     *name;
+	uint16_t        request_type;
+	getdns_dict    *extensions;
+	gldns_buffer   *response;
+	
+	size_t   request_pkt_len;
+	uint8_t *request_pkt;
+
+	size_t   ns_index;
+	int      sockfd;
+} stub_resolver;
+
+static void
+cb_udp_request(int fd, short bits, void *arg)
+{
+	stub_resolver *resolver = (stub_resolver *)arg;
+	ssize_t read;
+
+	if (! (bits & EV_READ))
+		return;
+
+	read = recvfrom(resolver->sockfd,
+	    gldns_buffer_current(resolver->response),
+	    gldns_buffer_remaining(resolver->response),
+	    0, NULL, NULL);
+
+#if STUBDEBUG
+	fprintf(stderr, "read: %d\n", read);
+#endif
+	if (read == -1 || read == 0)
+		return;
+
+	gldns_buffer_skip(resolver->response, read);
+	gldns_buffer_flip(resolver->response);
+#if STUBDEBUG
+	do {
+		char *str = gldns_wire2str_pkt(
+		    gldns_buffer_current(resolver->response),
+		    gldns_buffer_limit(resolver->response));
+		fprintf(stderr, "%s\n", str);
+		free(str);
+	} while(0);
+#endif
+	
+	(void) getdns_event_base_loopexit(resolver->base, NULL);
+}
+
+static getdns_return_t
+query_ns(stub_resolver *resolver)
+{
+	size_t n_upstreams;
+	getdns_return_t r;
+	getdns_dict *upstream;
+	getdns_bindata *address_data;
+	uint32_t port = 53;
+
+	struct sockaddr_in  dst4;
+	struct sockaddr_in6 dst6;
+	ssize_t sent;
+
+	struct getdns_event *ev;
+
+	assert(resolver);
+
+	r = getdns_list_get_length(
+	    resolver->context->upstream_list, &n_upstreams);
+	if (r) return r;
+	
+	r = getdns_list_get_dict(
+	    resolver->context->upstream_list, resolver->ns_index, &upstream);
+	if (r) return r;
+
+	r = getdns_dict_get_bindata(upstream, "address_data", &address_data);
+	if (r) return r;
+
+	(void) getdns_dict_get_int(upstream, "port", &port);
+
+#if STUBDEBUG
+	fprintf(stderr, "upstream: %s\n", getdns_pretty_print_dict(upstream));
+#endif
+
+	/* TODO: Try next upstream if something is not right with this one
+	 *       Also later on... for example when socket returns -1
+	 */
+
+	/* TODO: Check how to connect first (udp or tcp) */
+
+	resolver->sockfd = socket(address_data->size == 4 ? AF_INET : AF_INET6,
+	    SOCK_DGRAM, IPPROTO_UDP);
+	if (address_data->size == 4) {
+		memset(&dst4, 0, sizeof(struct sockaddr_in));
+		dst4.sin_family = AF_INET;
+		dst4.sin_port   = (in_port_t)htons((uint16_t)port);
+		memcpy(&dst4.sin_addr, address_data->data, 4);
+		sent = sendto(resolver->sockfd,
+		    resolver->request_pkt, resolver->request_pkt_len, 0,
+		    (struct sockaddr *)&dst4, sizeof(dst4));
+	} else {
+		memset(&dst6, 0, sizeof(struct sockaddr_in6));
+		dst6.sin6_family = AF_INET;
+		dst6.sin6_port   = (in_port_t)htons((uint16_t)port);
+		memcpy(&dst6.sin6_addr, address_data->data, 16);
+		sent = sendto(resolver->sockfd,
+		    resolver->request_pkt, resolver->request_pkt_len, 0,
+		    (struct sockaddr *)&dst6, sizeof(dst6));
+	}
+	if (sent == -1 || sent != resolver->request_pkt_len)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	
+	ev = GETDNS_MALLOC(resolver->context->mf, struct getdns_event);
+	getdns_event_set(ev, resolver->sockfd, EV_READ, cb_udp_request, resolver);
+	(void) getdns_event_base_set(resolver->base, ev);
+	(void) getdns_event_add(ev, NULL);
+
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t 
+getdns_stub_dns_query_async(struct getdns_event_base *base,
+    getdns_context *context, const char *name, uint16_t request_type,
+    getdns_dict *extensions, gldns_buffer *response)
+{
+	getdns_return_t r;
+	stub_resolver *resolver;
+	
+	resolver = GETDNS_MALLOC(context->mf, stub_resolver);
+	if (! resolver)
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	resolver->base         = base;
+	resolver->context      = context;
+	resolver->name         = name;
+	resolver->request_type = request_type;
+	resolver->extensions   = extensions;
+	resolver->response     = response;
+	resolver->request_pkt  = getdns_make_query_pkt(context,
+	    name, request_type, extensions, &resolver->request_pkt_len);
+	if (! resolver->request_pkt) {
+		GETDNS_FREE(context->mf, resolver);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+#if STUBDEBUG
+	do {
+		char *str = gldns_wire2str_pkt(
+		    resolver->request_pkt, resolver->request_pkt_len);
+		fprintf(stderr, "%s\n", str);
+		free(str);
+	} while(0);
+#endif
+	resolver->ns_index     = 0;
+	r =  query_ns(resolver);
+	if (r)
+		GETDNS_FREE(context->mf, resolver);
+	return r;
+}
+
+getdns_return_t
+getdns_stub_dns_query_sync(
+    getdns_context *context, const char *name, uint16_t request_type,
+    getdns_dict *extensions, gldns_buffer *response)
+{
+	time_t time_secs;
+	struct timeval time_tv;
+	struct getdns_event_base *base;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	
+	base = getdns_event_init(&time_secs, &time_tv);
+	if (! base)
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	r = getdns_stub_dns_query_async(base, context, name, request_type,
+	    extensions, response);
+	if (r)
+		goto done;
+
+	if (getdns_event_base_dispatch(base))
+		r = GETDNS_RETURN_GENERIC_ERROR;
+done:
+	getdns_event_base_free(base);
+	return r;
+}
 
 int
 getdns_make_query_pkt_buf(getdns_context *context, const char *name,
@@ -78,7 +268,7 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 	size_t dname_len;
 	
 	have_add_opt_parameters = getdns_dict_get_dict(extensions,
-	    "add_opt_parameters", &add_opt_parameters);
+	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
 
 	if (dnssec_extension_set) {
 		edns_maximum_udp_payload_size = 1232;
