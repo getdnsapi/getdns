@@ -198,7 +198,7 @@ getdns_stub_dns_query_async(struct getdns_event_base *base,
 	} while(0);
 #endif
 	resolver->ns_index     = 0;
-	r =  query_ns(resolver);
+	r = query_ns(resolver);
 	if (r)
 		GETDNS_FREE(context->mf, resolver);
 	return r;
