@@ -66,8 +66,21 @@ struct filechg {
 	struct stat *prevstat;
 };
 
-struct getdns_context {
+struct getdns_upstream {
+	socklen_t               addr_len;
+	struct sockaddr_storage addr;
+	int tcp_fd;
+	int rtt;
+};
 
+typedef struct getdns_upstreams {
+	struct mem_funcs mf;
+	size_t referenced;
+	size_t count;
+	struct getdns_upstream upstreams[];
+} getdns_upstreams;
+
+struct getdns_context {
 	/* Context values */
 	getdns_resolution_t  resolution_type;
 	getdns_namespace_t   *namespaces;
@@ -79,19 +92,19 @@ struct getdns_context {
 	struct getdns_list   *suffix;
 	struct getdns_list   *dnssec_trust_anchors;
 	struct getdns_list   *upstream_list;
-    getdns_transport_t   dns_transport;
-    uint16_t             limit_outstanding_queries;
-    uint32_t             dnssec_allowed_skew;
+	getdns_transport_t   dns_transport;
+	uint16_t             limit_outstanding_queries;
+	uint32_t             dnssec_allowed_skew;
 
 	uint8_t edns_extended_rcode;
 	uint8_t edns_version;
 	uint8_t edns_do_bit;
-    uint16_t edns_maximum_udp_payload_size;
+	uint16_t edns_maximum_udp_payload_size;
 
 	getdns_update_callback update_callback;
 
-    int processing;
-    int destroying;
+	int processing;
+	int destroying;
 
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
@@ -102,7 +115,7 @@ struct getdns_context {
 	/* A tree to hold local host information*/
 	struct ldns_rbtree_t *local_hosts;
 	int has_ta; /* No DNSSEC without trust anchor */
-    int return_dnssec_status;
+	int return_dnssec_status;
 
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set
@@ -114,25 +127,25 @@ struct getdns_context {
 	 */
 	struct ldns_rbtree_t *outbound_requests;
 
-    /*
-     * Event loop extension functions
-     * These structs are static and should never be freed
-     * since they are just a collection of function pointers
-     */
-    getdns_eventloop_extension* extension;
-    /*
-     * Extension data that will be freed by the functions
-     * in the extension struct
-     */
-    void* extension_data;
+	/*
+	 * Event loop extension functions
+	 * These structs are static and should never be freed
+	 * since they are just a collection of function pointers
+	 */
+	getdns_eventloop_extension* extension;
+	/*
+	 * Extension data that will be freed by the functions
+	 * in the extension struct
+	 */
+	void* extension_data;
 
-    /*
-     * Timeout info one tree to manage timeout data
-     * keyed by transaction id.  Second to manage by
-     * timeout time (ascending)
-     */
-    struct ldns_rbtree_t *timeouts_by_id;
-    struct ldns_rbtree_t *timeouts_by_time;
+	/*
+	 * Timeout info one tree to manage timeout data
+	 * keyed by transaction id.  Second to manage by
+	 * timeout time (ascending)
+	 */
+	struct ldns_rbtree_t *timeouts_by_id;
+	struct ldns_rbtree_t *timeouts_by_time;
 
 	/*
 	 * state data used to detect changes to the system config files
@@ -140,6 +153,7 @@ struct getdns_context {
 	struct filechg *fchg_resolvconf;
 	struct filechg *fchg_hosts;
 
+	getdns_upstreams *upstreams;
 }; /* getdns_context */
 
 /** internal functions **/

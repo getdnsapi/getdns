@@ -47,11 +47,13 @@
 
 typedef struct stub_resolver {
 	struct getdns_event_base *base;
-	getdns_context *context;
-	const char     *name;
-	uint16_t        request_type;
-	getdns_dict    *extensions;
-	gldns_buffer   *response;
+	getdns_context   *context;
+	getdns_upstreams *upstreams;
+	const char       *name;
+	uint16_t          request_type;
+	getdns_dict      *extensions;
+	gldns_buffer     *response;
+
 	
 	size_t   request_pkt_len;
 	uint8_t *request_pkt;
@@ -74,9 +76,6 @@ cb_udp_request(int fd, short bits, void *arg)
 	    gldns_buffer_remaining(resolver->response),
 	    0, NULL, NULL);
 
-#if STUBDEBUG
-	fprintf(stderr, "read: %d\n", read);
-#endif
 	if (read == -1 || read == 0)
 		return;
 
@@ -91,69 +90,37 @@ cb_udp_request(int fd, short bits, void *arg)
 		free(str);
 	} while(0);
 #endif
-	
 	(void) getdns_event_base_loopexit(resolver->base, NULL);
+
+	if (--resolver->upstreams->referenced == 0)
+		GETDNS_FREE(resolver->upstreams->mf, resolver->upstreams);
+	GETDNS_FREE(resolver->context->mf, resolver);
 }
 
 static getdns_return_t
 query_ns(stub_resolver *resolver)
 {
-	size_t n_upstreams;
-	getdns_return_t r;
-	getdns_dict *upstream;
-	getdns_bindata *address_data;
-	uint32_t port = 53;
-
-	struct sockaddr_in  dst4;
-	struct sockaddr_in6 dst6;
+	struct getdns_upstream *upstream;
 	ssize_t sent;
-
 	struct getdns_event *ev;
 
 	assert(resolver);
 
-	r = getdns_list_get_length(
-	    resolver->context->upstream_list, &n_upstreams);
-	if (r) return r;
-	
-	r = getdns_list_get_dict(
-	    resolver->context->upstream_list, resolver->ns_index, &upstream);
-	if (r) return r;
+	if (resolver->ns_index >= resolver->upstreams->count)
+		return GETDNS_RETURN_GENERIC_ERROR;
 
-	r = getdns_dict_get_bindata(upstream, "address_data", &address_data);
-	if (r) return r;
-
-	(void) getdns_dict_get_int(upstream, "port", &port);
-
-#if STUBDEBUG
-	fprintf(stderr, "upstream: %s\n", getdns_pretty_print_dict(upstream));
-#endif
-
+	upstream = &resolver->upstreams->upstreams[resolver->ns_index];
 	/* TODO: Try next upstream if something is not right with this one
 	 *       Also later on... for example when socket returns -1
 	 */
 
 	/* TODO: Check how to connect first (udp or tcp) */
 
-	resolver->sockfd = socket(address_data->size == 4 ? AF_INET : AF_INET6,
-	    SOCK_DGRAM, IPPROTO_UDP);
-	if (address_data->size == 4) {
-		memset(&dst4, 0, sizeof(struct sockaddr_in));
-		dst4.sin_family = AF_INET;
-		dst4.sin_port   = (in_port_t)htons((uint16_t)port);
-		memcpy(&dst4.sin_addr, address_data->data, 4);
-		sent = sendto(resolver->sockfd,
-		    resolver->request_pkt, resolver->request_pkt_len, 0,
-		    (struct sockaddr *)&dst4, sizeof(dst4));
-	} else {
-		memset(&dst6, 0, sizeof(struct sockaddr_in6));
-		dst6.sin6_family = AF_INET;
-		dst6.sin6_port   = (in_port_t)htons((uint16_t)port);
-		memcpy(&dst6.sin6_addr, address_data->data, 16);
-		sent = sendto(resolver->sockfd,
-		    resolver->request_pkt, resolver->request_pkt_len, 0,
-		    (struct sockaddr *)&dst6, sizeof(dst6));
-	}
+	resolver->sockfd = socket(upstream->addr.ss_family, SOCK_DGRAM,
+	    IPPROTO_UDP);
+	sent = sendto(resolver->sockfd,
+	    resolver->request_pkt, resolver->request_pkt_len, 0,
+	    (struct sockaddr *)&upstream->addr, upstream->addr_len);
 	if (sent == -1 || sent != resolver->request_pkt_len)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	
@@ -179,6 +146,8 @@ getdns_stub_dns_query_async(struct getdns_event_base *base,
 
 	resolver->base         = base;
 	resolver->context      = context;
+	resolver->upstreams    = context->upstreams;
+	resolver->upstreams->referenced++;
 	resolver->name         = name;
 	resolver->request_type = request_type;
 	resolver->extensions   = extensions;
@@ -199,8 +168,11 @@ getdns_stub_dns_query_async(struct getdns_event_base *base,
 #endif
 	resolver->ns_index     = 0;
 	r = query_ns(resolver);
-	if (r)
+	if (r) {
+		if (--resolver->upstreams->referenced == 0)
+			GETDNS_FREE(resolver->upstreams->mf, resolver->upstreams);
 		GETDNS_FREE(context->mf, resolver);
+	}
 	return r;
 }
 

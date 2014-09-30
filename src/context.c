@@ -43,6 +43,7 @@
 #include <sys/time.h>
 #include <unbound.h>
 #include <assert.h>
+#include <netdb.h>
 
 #include "config.h"
 #include "context.h"
@@ -63,10 +64,6 @@ getdns_return_t create_local_hosts(struct getdns_context *context);
 getdns_return_t destroy_local_hosts(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t add_ip_str(struct getdns_dict *);
-static struct getdns_dict *create_ipaddr_dict_from_rdf(struct getdns_context *,
-    ldns_rdf *);
-static struct getdns_list *create_from_ldns_list(struct getdns_context *,
-    ldns_rdf **, size_t);
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static int timeout_cmp(const void *, const void *);
@@ -92,7 +89,7 @@ static getdns_return_t set_ldns_dns_transport(struct getdns_context* context,
 static void set_ldns_edns_maximum_udp_payload_size(struct getdns_context*,
     uint16_t);
 static getdns_return_t set_ldns_nameservers(struct getdns_context*, 
-	struct getdns_list * upstreams);
+	getdns_upstreams *upstreams);
 
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
@@ -295,65 +292,53 @@ filechg_check(struct getdns_context *context, struct filechg *fchg)
     return fchg->changes;
 } /* filechg */
 
-static struct getdns_dict *
-create_ipaddr_dict_from_rdf(struct getdns_context *context, ldns_rdf * rdf)
+static size_t
+upstream_addr_len(struct getdns_upstream *upstream)
 {
-    ldns_rdf_type rt = ldns_rdf_get_type(rdf);
-    size_t sz = ldns_rdf_size(rdf);
-    struct getdns_dict *result = getdns_dict_create_with_context(context);
-    /* set type */
-    if (rt == LDNS_RDF_TYPE_A) {
-        getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE,
-            GETDNS_STR_IPV4);
-    } else {
-        getdns_dict_util_set_string(result, GETDNS_STR_ADDRESS_TYPE,
-            GETDNS_STR_IPV6);
-    }
-    /* set data */
-    struct getdns_bindata data_bin = { sz, ldns_rdf_data(rdf) };
-    getdns_dict_set_bindata(result, GETDNS_STR_ADDRESS_DATA, &data_bin);
-    add_ip_str(result);
-    return result;
+	return upstream->addr.ss_family == AF_INET ? 4 : 16;
 }
 
-static struct getdns_list *
-create_from_ldns_list(struct getdns_context *context, ldns_rdf ** ldns_list,
-    size_t count)
+static uint8_t*
+upstream_addr(struct getdns_upstream *upstream)
 {
-    size_t i = 0;
-    size_t idx = 0;
-    struct getdns_list *result = getdns_list_create_with_context(context);
-    for (i = 0; i < count; ++i) {
-        ldns_rdf *rdf = ldns_list[i];
-        switch (ldns_rdf_get_type(rdf)) {
-        case LDNS_RDF_TYPE_A:
-        case LDNS_RDF_TYPE_AAAA:
-            {
-                struct getdns_dict *ipaddr =
-                    create_ipaddr_dict_from_rdf(context, rdf);
-                getdns_list_add_item(result, &idx);
-                getdns_list_set_dict(result, idx, ipaddr);
-                getdns_dict_destroy(ipaddr);
-            }
-            break;
+	return upstream->addr.ss_family == AF_INET
+	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
+	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
 
-        case LDNS_RDF_TYPE_DNAME:
-            {
-                struct getdns_bindata item;
-                char *srch = ldns_rdf2str(rdf);
-                item.size = strlen(srch) + 1;
-                item.data = (uint8_t *) srch;
-                getdns_list_add_item(result, &idx);
-                getdns_list_set_bindata(result, idx, &item);
-                free(srch);
-            }
-            break;
+static in_port_t
+upstream_port(struct getdns_upstream *upstream)
+{
+	return ntohs(upstream->addr.ss_family == AF_INET
+	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
+	    : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
+}
 
-        default:
-            break;
-        }
-    }
-    return result;
+static uint32_t *
+upstream_scope_id(struct getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET ? NULL
+	    : (upstream_addr(upstream)[0] == 0xFE &&
+	       (upstream_addr(upstream)[1] & 0xC0) == 0x80 ?
+	       &((struct sockaddr_in6*)&upstream->addr)->sin6_scope_id : NULL);
+}
+
+void
+upstream_ntop_buf(struct getdns_upstream *upstream, char *buf, size_t len)
+{
+	/* Also possible but prints scope_id by name (nor parsed by unbound)
+	 *
+	 * getnameinfo((struct sockaddr *)&upstream->addr, upstream->addr_len,
+	 *     buf, len, NULL, 0, NI_NUMERICHOST)
+	 */
+	(void) inet_ntop(upstream->addr.ss_family, upstream_addr(upstream),
+	    buf, len);
+	if (upstream_scope_id(upstream))
+		(void) snprintf(buf + strlen(buf), len - strlen(buf),
+		    "%%%d", (int)*upstream_scope_id(upstream));
+	if (upstream_port(upstream) != 53 && upstream_port(upstream) != 0)
+		(void) snprintf(buf + strlen(buf), len - strlen(buf),
+		    "@%d", (int)upstream_port(upstream));
 }
 
 /*---------------------------------------- set_os_defaults
@@ -363,16 +348,20 @@ create_from_ldns_list(struct getdns_context *context, ldns_rdf ** ldns_list,
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
-    ldns_resolver *lr = NULL;
-    ldns_rdf      **rdf_list;
-    size_t        rdf_list_sz;
+	FILE *in;
+	char line[1024], domain[1024];
+	char *parse, *token, prev_ch;
+	size_t upstreams_limit = 10, length;
+	struct getdns_bindata bindata;
+	struct addrinfo hints;
+	struct addrinfo *result;
+	struct getdns_upstream *upstream;
+	struct getdns_dict *addr;
+	int s;
 
-    if (ldns_resolver_new_frm_file(&lr, NULL) != LDNS_STATUS_OK)
-        return GETDNS_RETURN_GENERIC_ERROR;
-
-	if(context->fchg_resolvconf == NULL)
-	{
-		context->fchg_resolvconf = GETDNS_MALLOC(context->my_mf, struct filechg);
+	if(context->fchg_resolvconf == NULL) {
+		context->fchg_resolvconf =
+		    GETDNS_MALLOC(context->my_mf, struct filechg);
 		if(context->fchg_resolvconf == NULL)
 			return GETDNS_RETURN_MEMORY_ERROR;
 		context->fchg_resolvconf->fn       = "/etc/resolv.conf";
@@ -382,22 +371,130 @@ set_os_defaults(struct getdns_context *context)
 	}
 	filechg_check(context, context->fchg_resolvconf);
 
-    rdf_list    = ldns_resolver_nameservers(lr);
-    rdf_list_sz = ldns_resolver_nameserver_count(lr);
-    if (rdf_list_sz > 0) {
-        context->upstream_list =
-            create_from_ldns_list(context, rdf_list, rdf_list_sz);
-    }
+	context->upstream_list = getdns_list_create_with_context(context);
+	context->suffix = getdns_list_create_with_context(context);
+	context->upstreams = (void *) GETDNS_XMALLOC(context->mf, char, 
+	    sizeof(getdns_upstreams) +
+	    sizeof(struct getdns_upstream) * upstreams_limit);
+	context->upstreams->mf = context->mf;
+	context->upstreams->referenced = 1;
+	context->upstreams->count = 0;
 
-    rdf_list = ldns_resolver_searchlist(lr);
-    rdf_list_sz = ldns_resolver_searchlist_count(lr);
-    if (rdf_list_sz > 0) {
-        context->suffix = create_from_ldns_list(context, rdf_list,
-            rdf_list_sz);
-    }
-    ldns_resolver_deep_free(lr);
+	in = fopen(context->fchg_resolvconf->fn, "r");
+	if (!in)
+		return GETDNS_RETURN_GOOD;
+	
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype  = 0;              /* Datagram socket */
+	hints.ai_flags     = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol  = 0;              /* Any protocol */
+	hints.ai_canonname = NULL;
+	hints.ai_addr      = NULL;
+	hints.ai_next      = NULL;
 
-    return GETDNS_RETURN_GOOD;
+	*domain = 0;
+	while (fgets(line, (int)sizeof(line), in)) {
+		line[sizeof(line)-1] = 0;
+		/* parse = line + strspn(line, " \t"); */ /* No leading whitespace */
+		parse = line;
+
+		if (strncmp(parse, "domain", 6) == 0) {
+			parse += 6;
+			parse += strspn(parse, " \t");
+			if (*parse == 0 || *parse == '#') continue;
+			token = parse + strcspn(parse, " \t\r\n");
+			*token = 0;
+
+			(void) strcpy(domain, parse);
+
+		} else if (strncmp(parse, "search", 6) == 0) {
+			parse += 6;
+			do {
+				parse += strspn(parse, " \t");
+				if (*parse == '#' || *parse == '\n') break;
+				token = parse + strcspn(parse, " \t\r\n");
+				prev_ch = *token;
+				*token = 0;
+
+				bindata.data = (uint8_t *)parse;
+				bindata.size = strlen(parse) + 1;
+				(void) getdns_list_get_length(
+				    context->suffix, &length);
+				(void) getdns_list_set_bindata(
+				    context->suffix, length, &bindata);
+
+				*token = prev_ch;
+				parse = token;
+			} while (*parse);
+
+		} else if (strncmp(parse, "nameserver", 10) != 0)
+			continue;
+
+		parse += 10;
+		parse += strspn(parse, " \t");
+		if (*parse == 0 || *parse == '#') continue;
+		token = parse + strcspn(parse, " \t\r\n");
+		*token = 0;
+
+		if ((s = getaddrinfo(parse, "53", &hints, &result)))
+			continue;
+
+		/* No lookups, so maximal 1 result */
+		if (! result) continue;
+
+		/* Grow array when needed */
+		if (context->upstreams->count == upstreams_limit) {
+			upstreams_limit *= 2;
+			context->upstreams = (void *) GETDNS_XREALLOC(
+			    context->mf, context->upstreams, char,
+			    sizeof(getdns_upstreams) +
+			    sizeof(struct getdns_upstream) * upstreams_limit);
+		}
+
+		upstream =   &context->upstreams->
+		    upstreams[context->upstreams->count++];
+		upstream->rtt = 1;
+		upstream->tcp_fd = -1;
+		upstream->addr_len = result->ai_addrlen;
+		(void) memcpy(&upstream->addr,
+		    result->ai_addr, result->ai_addrlen);
+		freeaddrinfo(result);
+
+		/*****************************************************
+		 * Add to context->upstream_list too.
+		 * TODO: remove this after async stub is finished.
+		 */
+		addr = getdns_dict_create_with_context(context);
+		bindata.size = upstream_addr_len(upstream);
+		bindata.data = upstream_addr(upstream);
+		(void) getdns_dict_set_int(
+		    addr, "port", upstream_port(upstream));
+		(void) getdns_dict_set_bindata(addr, "address_data", &bindata);
+		if ((parse = strchr(parse, '%'))) {
+			parse += 1;
+			bindata.size = strlen(parse) + 1;
+			bindata.data = (uint8_t *)parse;
+			(void) getdns_dict_set_bindata(
+			    addr, "scope_id", &bindata);
+		}
+		(void) getdns_list_get_length(context->upstream_list, &length);
+		(void) getdns_list_set_dict(
+		    context->upstream_list, length, addr);
+		
+		getdns_dict_destroy(addr);
+		/*
+		 *****************************************************/
+	}
+	fclose(in);
+
+	(void) getdns_list_get_length(context->suffix, &length);
+	if (length == 0 && *domain != 0) {
+		bindata.data = (uint8_t *)domain;
+		bindata.size = strlen(domain) + 1;
+		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
+	}
+	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 
 /* compare of transaction ids in DESCENDING order
@@ -696,6 +793,9 @@ getdns_context_destroy(struct getdns_context *context)
         GETDNS_FREE(context->my_mf, context->local_hosts);
     }
 
+	if (--context->upstreams->referenced == 0)
+		GETDNS_FREE(context->upstreams->mf, context->upstreams);
+
     GETDNS_FREE(context->my_mf, context);
 }               /* getdns_context_destroy */
 
@@ -788,7 +888,7 @@ rebuild_ldns_res(struct getdns_context* context) {
         return result;
 
     /* We need to set up the upstream recursive servers from the context */
-    result = set_ldns_nameservers(context, context->upstream_list);
+    result = set_ldns_nameservers(context, context->upstreams);
     if (result != GETDNS_RETURN_GOOD)
         return result;
 
@@ -1406,35 +1506,20 @@ getdns_cancel_callback(struct getdns_context *context,
 } /* getdns_cancel_callback */
 
 static getdns_return_t
-ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams)
+ub_setup_stub(struct ub_ctx *ctx, getdns_upstreams *upstreams)
 {
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
-	size_t count;
-	struct getdns_dict *dict;
-	struct getdns_bindata *address_string;
-	getdns_return_t r;
+	struct getdns_upstream *upstream;
+	char addr[1024];
 
-	r = getdns_list_get_length(upstreams, &count);
-	if (r != GETDNS_RETURN_GOOD)
-		return r;
-
-	if (count == 0)
-		return GETDNS_RETURN_BAD_CONTEXT;
-
-	/* reset forwarding servers */
 	(void) ub_ctx_set_fwd(ctx, NULL);
-	for (i = 0; i < count; ++i) {
-		r = getdns_list_get_dict(upstreams, i, &dict);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		r = getdns_dict_get_bindata(dict, GETDNS_STR_ADDRESS_STRING,
-		    &address_string);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		(void) ub_ctx_set_fwd(ctx, (char *)address_string->data);
+	for (i = 0; i < upstreams->count; i++) {
+		upstream = &upstreams->upstreams[i];
+		upstream_ntop_buf(upstream, addr, 1024);
+		ub_ctx_set_fwd(ctx, addr);
 	}
+
 	/* Allow lookups of:
 	 */
 	/* - localhost */
@@ -1496,41 +1581,24 @@ ub_setup_stub(struct ub_ctx *ctx, struct getdns_list * upstreams)
 
 static getdns_return_t 
 set_ldns_nameservers(struct getdns_context *context,
-                     struct getdns_list * upstreams)
+                     getdns_upstreams *upstreams)
 {
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
-	size_t count;
-	struct getdns_dict *dict;
-	struct getdns_bindata *address_string;
-	char *address_type = NULL;
-	ldns_rdf* ns_rdf = NULL;
-	getdns_return_t r;
+	struct getdns_upstream *upstream;
+	ldns_rdf *pop, *ns_rdf;
+	uint16_t port = 53;
 
-	r = getdns_list_get_length(upstreams, &count);
-	if (r != GETDNS_RETURN_GOOD)
-		return r;
-
-	if (count == 0 || context->ldns_res == NULL)
+	if (context->ldns_res == NULL)
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	/* remove current list of nameservers from resolver */
-	ldns_rdf *pop;
 	while((pop = ldns_resolver_pop_nameserver(context->ldns_res))) { 
 		ldns_rdf_deep_free(pop); 
 	}
 
-	for (i = 0; i < count; ++i) {
-		r = getdns_list_get_dict(upstreams, i, &dict);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-		r = getdns_dict_get_bindata(dict, GETDNS_STR_ADDRESS_STRING,
-		    &address_string);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-		r = getdns_dict_util_get_string(dict, GETDNS_STR_ADDRESS_TYPE,
-		    &address_type);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
+	for (i = 0; i < upstreams->count; i++) {
+		upstream = &upstreams->upstreams[i];
 
 		/* TODO: PROBLEM! The upstream list is implemented such that there is both
 		 * an IP address and a port in the bindata for each nameserver. Unbound
@@ -1540,42 +1608,16 @@ set_ldns_nameservers(struct getdns_context *context,
 		 * nameserver in the list. Wrong, but this will support the test scripts
 		 * in the short term which rely on being able to set a port for a single
 		 * nameserver. */
-		char *address_char = (char *)address_string->data;
-		char *port_char = NULL;
-		char *at_symbol_position = strchr(address_char, '@');
-		if (at_symbol_position != NULL) {
-			int ip_length = at_symbol_position - address_char;
-			int port_length = strlen(address_char) - ip_length;
-			address_char = (char*) malloc(ip_length + 1);
-			memcpy(address_char, (char *)address_string->data, ip_length);
-			address_char[ip_length] = '\0';
-			port_char = (char*) malloc(port_length);
-			memcpy(port_char, (char *)(address_string->data + ip_length + 1), port_length);
-			port_char[port_length] = '\0';
-		}
-		
-		if (strncmp(GETDNS_STR_IPV4, address_type,
-			strlen(GETDNS_STR_IPV4)) == 0) {
-			ns_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_A,
-					address_char);
-		} else if (strncmp(GETDNS_STR_IPV6, address_type,
-					strlen(GETDNS_STR_IPV6)) == 0) {
-			ns_rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_AAAA,
-					address_char);
-		}
+
+		ns_rdf = ldns_sockaddr_storage2rdf(&upstream->addr, &port);
 		if (ns_rdf == NULL)
 			return GETDNS_RETURN_GENERIC_ERROR;
 
 		ldns_resolver_push_nameserver(context->ldns_res, ns_rdf);
 		ldns_rdf_deep_free(ns_rdf);
-		
-		if (at_symbol_position != NULL) {
-			ldns_resolver_set_port(context->ldns_res, atoi(port_char));
-			free(port_char);
-			free(address_char);
-		}
 	}
-	return GETDNS_RETURN_GOOD;
+	ldns_resolver_set_port(context->ldns_res, port);
+	return r;
 }
 
 static getdns_return_t
@@ -1592,7 +1634,7 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 		/* We get away with just setting up ldns here here because sync mode
 		 * always hits this method because at the moment all sync calls use DNS
 		 * namespace */
-		r = ub_setup_stub(context->unbound_ctx, context->upstream_list);
+		r = ub_setup_stub(context->unbound_ctx, context->upstreams);
 		if (r != GETDNS_RETURN_GOOD)
 			return r;
 		return rebuild_ldns_res(context);

@@ -82,10 +82,6 @@ static getdns_return_t submit_request_sync_rec(
 static getdns_return_t submit_request_sync_stub(
     getdns_dns_req* req, uint64_t *timeout)
 {
-	uint8_t *pkt;
-	size_t pkt_len;
-	char *str;
-
 	ldns_rdf *qname;
 	getdns_network_req *netreq = req->first_req;
 	uint16_t qflags = 0;
