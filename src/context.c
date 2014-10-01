@@ -1249,6 +1249,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		struct addrinfo *ai;
 		struct getdns_upstream *upstream;
 
+		upstream = &upstreams->upstreams[upstreams->count];
 		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
 			goto error;
 
@@ -1264,14 +1265,14 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		else	goto invalid_parameter;
 
 		if ((r = getdns_dict_get_bindata(
-		    dict, "address_data",&address_data)))
+		    dict, "address_data", &address_data)))
 			goto error;
 		if ((upstream->addr.ss_family == AF_INET &&
 		     address_data->size != 4) ||
 		    (upstream->addr.ss_family == AF_INET6 &&
 		     address_data->size != 16))
 			goto invalid_parameter;
-		if (inet_ntop(upstream->addr.ss_family, address_data,
+		if (inet_ntop(upstream->addr.ss_family, address_data->data,
 		    addrstr, 1024) == NULL)
 			goto invalid_parameter;
 		
@@ -1292,13 +1293,15 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		if (getaddrinfo(addrstr, portstr, &hints, &ai))
 			goto invalid_parameter;
 
-		upstream = &upstreams->upstreams[upstreams->count++];
 		upstream->rtt = 1;
 		upstream->tcp_fd = -1;
 		upstream->addr_len = ai->ai_addrlen;
 		(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+		upstreams->count++;
 		freeaddrinfo(ai);
 	}
+	upstreams_dereference(context->upstreams);
+	context->upstreams = upstreams;
 	dispatch_updated(context,
 		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
 
