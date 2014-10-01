@@ -236,6 +236,35 @@ filechg_check(struct getdns_context *context, struct filechg *fchg)
     return fchg->changes;
 } /* filechg */
 
+static getdns_upstreams *
+upstreams_create(getdns_context *context, size_t size)
+{
+	getdns_upstreams *r = (void *) GETDNS_XMALLOC(context->mf, char,
+	    sizeof(getdns_upstreams) +
+	    sizeof(struct getdns_upstream) * size);
+	r->mf = context->mf;
+	r->referenced = 1;
+	r->count = 0;
+	return r;
+}
+
+static getdns_upstreams *
+upstreams_resize(getdns_upstreams *upstreams, size_t size)
+{
+	getdns_upstreams *r = (void *) GETDNS_XREALLOC(
+	    upstreams->mf, upstreams, char,
+	    sizeof(getdns_upstreams) +
+	    sizeof(struct getdns_upstream) * size);
+	return r;
+}
+
+static void
+upstreams_dereference(getdns_upstreams *upstreams)
+{
+	if (--upstreams->referenced == 0)
+		GETDNS_FREE(upstreams->mf, upstreams);
+}
+
 static size_t
 upstream_addr_len(struct getdns_upstream *upstream)
 {
@@ -267,7 +296,7 @@ upstream_scope_id(struct getdns_upstream *upstream)
 	       &((struct sockaddr_in6*)&upstream->addr)->sin6_scope_id : NULL);
 }
 
-void
+static void
 upstream_ntop_buf(struct getdns_upstream *upstream, char *buf, size_t len)
 {
 	/* Also possible but prints scope_id by name (nor parsed by unbound)
@@ -285,6 +314,31 @@ upstream_ntop_buf(struct getdns_upstream *upstream, char *buf, size_t len)
 		    "@%d", (int)upstream_port(upstream));
 }
 
+static getdns_dict *
+upstream_dict(getdns_context *context, struct getdns_upstream *upstream)
+{
+	getdns_dict *r = getdns_dict_create_with_context(context);
+	char addrstr[1024], *b;
+	getdns_bindata bindata;
+
+	getdns_dict_util_set_string(r, "address_type",
+	    upstream->addr.ss_family == AF_INET ? "IPv4" : "IPv6");
+
+	bindata.size = upstream_addr_len(upstream);
+	bindata.data = upstream_addr(upstream);
+	getdns_dict_set_bindata(r, "address_data", &bindata);
+
+	if (upstream_port(upstream) != 53)
+		getdns_dict_set_int(r, "port", upstream_port(upstream));
+
+	(void) getnameinfo((struct sockaddr *)&upstream->addr,
+	    upstream->addr_len, addrstr, 1024, NULL, 0, NI_NUMERICHOST);
+	if ((b = strchr(addrstr, '%')))
+		getdns_dict_util_set_string(r, "scope_id", b+1);
+
+	return r;
+}
+
 /*---------------------------------------- set_os_defaults
   we use ldns to read the resolv.conf file - the ldns resolver is
   destroyed once the file is read
@@ -300,7 +354,6 @@ set_os_defaults(struct getdns_context *context)
 	struct addrinfo hints;
 	struct addrinfo *result;
 	struct getdns_upstream *upstream;
-	struct getdns_dict *addr;
 	int s;
 
 	if(context->fchg_resolvconf == NULL) {
@@ -315,14 +368,8 @@ set_os_defaults(struct getdns_context *context)
 	}
 	filechg_check(context, context->fchg_resolvconf);
 
-	context->upstream_list = getdns_list_create_with_context(context);
 	context->suffix = getdns_list_create_with_context(context);
-	context->upstreams = (void *) GETDNS_XMALLOC(context->mf, char, 
-	    sizeof(getdns_upstreams) +
-	    sizeof(struct getdns_upstream) * upstreams_limit);
-	context->upstreams->mf = context->mf;
-	context->upstreams->referenced = 1;
-	context->upstreams->count = 0;
+	context->upstreams = upstreams_create(context, upstreams_limit);
 
 	in = fopen(context->fchg_resolvconf->fn, "r");
 	if (!in)
@@ -388,13 +435,9 @@ set_os_defaults(struct getdns_context *context)
 		if (! result) continue;
 
 		/* Grow array when needed */
-		if (context->upstreams->count == upstreams_limit) {
-			upstreams_limit *= 2;
-			context->upstreams = (void *) GETDNS_XREALLOC(
-			    context->mf, context->upstreams, char,
-			    sizeof(getdns_upstreams) +
-			    sizeof(struct getdns_upstream) * upstreams_limit);
-		}
+		if (context->upstreams->count == upstreams_limit)
+			context->upstreams = upstreams_resize(
+			    context->upstreams, (upstreams_limit *= 2));
 
 		upstream =   &context->upstreams->
 		    upstreams[context->upstreams->count++];
@@ -404,31 +447,6 @@ set_os_defaults(struct getdns_context *context)
 		(void) memcpy(&upstream->addr,
 		    result->ai_addr, result->ai_addrlen);
 		freeaddrinfo(result);
-
-		/*****************************************************
-		 * Add to context->upstream_list too.
-		 * TODO: remove this after async stub is finished.
-		 */
-		addr = getdns_dict_create_with_context(context);
-		bindata.size = upstream_addr_len(upstream);
-		bindata.data = upstream_addr(upstream);
-		(void) getdns_dict_set_int(
-		    addr, "port", upstream_port(upstream));
-		(void) getdns_dict_set_bindata(addr, "address_data", &bindata);
-		if ((parse = strchr(parse, '%'))) {
-			parse += 1;
-			bindata.size = strlen(parse) + 1;
-			bindata.data = (uint8_t *)parse;
-			(void) getdns_dict_set_bindata(
-			    addr, "scope_id", &bindata);
-		}
-		(void) getdns_list_get_length(context->upstream_list, &length);
-		(void) getdns_list_set_dict(
-		    context->upstream_list, length, addr);
-		
-		getdns_dict_destroy(addr);
-		/*
-		 *****************************************************/
 	}
 	fclose(in);
 
@@ -593,7 +611,6 @@ getdns_context_create_with_extended_memory_functions(
     result->suffix = NULL;
 
     result->dnssec_trust_anchors = NULL;
-    result->upstream_list = NULL;
 
     result->edns_extended_rcode = 0;
     result->edns_version = 0;
@@ -717,7 +734,6 @@ getdns_context_destroy(struct getdns_context *context)
     getdns_list_destroy(context->dns_root_servers);
     getdns_list_destroy(context->suffix);
     getdns_list_destroy(context->dnssec_trust_anchors);
-    getdns_list_destroy(context->upstream_list);
 
     /* destroy the contexts */
     if (context->unbound_ctx)
@@ -737,8 +753,7 @@ getdns_context_destroy(struct getdns_context *context)
         GETDNS_FREE(context->my_mf, context->local_hosts);
     }
 
-	if (--context->upstreams->referenced == 0)
-		GETDNS_FREE(context->upstreams->mf, context->upstreams);
+	upstreams_dereference(context->upstreams);
 
     GETDNS_FREE(context->my_mf, context);
 }               /* getdns_context_destroy */
@@ -1195,47 +1210,106 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
  */
 getdns_return_t
 getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
-    struct getdns_list * upstream_list)
+    struct getdns_list *upstream_list)
 {
-    size_t count = 0;
-    size_t i = 0;
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(upstream_list, GETDNS_RETURN_INVALID_PARAMETER);
-    getdns_return_t r = getdns_list_get_length(upstream_list, &count);
-    if (count == 0 || r != GETDNS_RETURN_GOOD) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    if (context->resolution_type_set != 0) {
-        /* already setup */
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    struct getdns_list *copy = NULL;
-    if (getdns_list_copy(upstream_list, &copy) != GETDNS_RETURN_GOOD) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    upstream_list = copy;
-    /* validate and add ip str */
-    for (i = 0; i < count; ++i) {
-        struct getdns_dict *dict = NULL;
-        getdns_list_get_dict(upstream_list, i, &dict);
-        if (r != GETDNS_RETURN_GOOD) {
-            break;
-        }
-    }
+	getdns_return_t r;
+	size_t count = 0;
+	size_t i;
+	getdns_upstreams *upstreams;
+	char addrstr[1024], portstr[1024], *eos;
+	struct addrinfo hints;
 
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_list_destroy(upstream_list);
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(upstream_list, GETDNS_RETURN_INVALID_PARAMETER);
+	
+	r = getdns_list_get_length(upstream_list, &count);
+	if (count == 0 || r != GETDNS_RETURN_GOOD) {
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
+	if (context->resolution_type_set != 0) {
+		/* already setup */
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype  = 0;              /* Datagram socket */
+	hints.ai_flags     = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol  = 0;              /* Any protocol */
+	hints.ai_canonname = NULL;
+	hints.ai_addr      = NULL;
+	hints.ai_next      = NULL;
 
-    getdns_list_destroy(context->upstream_list);
-    context->upstream_list = upstream_list;
+	upstreams = upstreams_create(context, count);
+	for (i = 0; i < count; i++) {
+		getdns_dict *dict;
+		getdns_bindata *address_type;
+		getdns_bindata *address_data;
+		uint32_t port;
+		getdns_bindata *scope_id;
+		struct addrinfo *ai;
+		struct getdns_upstream *upstream;
 
-    dispatch_updated(context,
-        GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
+			goto error;
 
-    return GETDNS_RETURN_GOOD;
-}           /* getdns_context_set_upstream_recursive_servers */
+		if ((r = getdns_dict_get_bindata(
+		    dict, "address_type",&address_type)))
+			goto error;
+		if (address_type->size < 4)
+			goto invalid_parameter;
+		if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
+			upstream->addr.ss_family = AF_INET;
+		else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
+			upstream->addr.ss_family = AF_INET6;
+		else	goto invalid_parameter;
+
+		if ((r = getdns_dict_get_bindata(
+		    dict, "address_data",&address_data)))
+			goto error;
+		if ((upstream->addr.ss_family == AF_INET &&
+		     address_data->size != 4) ||
+		    (upstream->addr.ss_family == AF_INET6 &&
+		     address_data->size != 16))
+			goto invalid_parameter;
+		if (inet_ntop(upstream->addr.ss_family, address_data,
+		    addrstr, 1024) == NULL)
+			goto invalid_parameter;
+		
+		port = 53;
+		(void) getdns_dict_get_int(dict, "port", &port);
+		(void) snprintf(portstr, 1024, "%d", (int)port);
+		
+		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
+		    GETDNS_RETURN_GOOD) {
+			if (strlen(addrstr) + scope_id->size > 1022)
+				goto invalid_parameter;
+			eos = &addrstr[strlen(addrstr)];
+			*eos++ = '%';
+			(void) memcpy(eos, scope_id->data, scope_id->size);
+			eos[scope_id->size] = 0;
+		}
+
+		if (getaddrinfo(addrstr, portstr, &hints, &ai))
+			goto invalid_parameter;
+
+		upstream = &upstreams->upstreams[upstreams->count++];
+		upstream->rtt = 1;
+		upstream->tcp_fd = -1;
+		upstream->addr_len = ai->ai_addrlen;
+		(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+		freeaddrinfo(ai);
+	}
+	dispatch_updated(context,
+		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+
+	return GETDNS_RETURN_GOOD;
+
+invalid_parameter:
+	r = GETDNS_RETURN_INVALID_PARAMETER;
+error:
+	upstreams_dereference(upstreams);
+	return r;
+} /* getdns_context_set_upstream_recursive_servers */
 
 
 static void
@@ -2045,7 +2119,23 @@ priv_get_context_settings(getdns_context* context) {
     r |= getdns_dict_set_int(result, "append_name", context->append_name);
     /* list fields */
     r |= priv_dict_set_list_if_not_null(result, "suffix", context->suffix);
-    r |= priv_dict_set_list_if_not_null(result, "upstream_recursive_servers", context->upstream_list);
+	if (context->upstreams->count > 0) {
+		size_t i;
+		struct getdns_upstream *upstream;
+		getdns_list *upstreams =
+		    getdns_list_create_with_context(context);
+
+		for (i = 0; i < context->upstreams->count; i++) {
+			getdns_dict *d;
+			upstream = &context->upstreams->upstreams[i];
+			d = upstream_dict(context, upstream);
+			r |= getdns_list_set_dict(upstreams, i, d);
+			getdns_dict_destroy(d);
+		}
+		r |= getdns_dict_set_list(result, "upstream_recursive_servers",
+		    upstreams);
+		getdns_list_destroy(upstreams);
+	}
     if (context->namespace_count > 0) {
         /* create a namespace list */
         size_t i;

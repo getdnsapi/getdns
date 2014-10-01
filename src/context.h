@@ -91,7 +91,7 @@ struct getdns_context {
 	getdns_append_name_t append_name;
 	struct getdns_list   *suffix;
 	struct getdns_list   *dnssec_trust_anchors;
-	struct getdns_list   *upstream_list;
+	getdns_upstreams *upstreams;
 	getdns_transport_t   dns_transport;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
@@ -153,7 +153,6 @@ struct getdns_context {
 	struct filechg *fchg_resolvconf;
 	struct filechg *fchg_hosts;
 
-	getdns_upstreams *upstreams;
 }; /* getdns_context */
 
 /** internal functions **/
