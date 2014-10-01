@@ -49,7 +49,6 @@ struct getdns_context;
 #define GETDNS_STR_IPV6 "IPv6"
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
 #define GETDNS_STR_ADDRESS_DATA "address_data"
-#define GETDNS_STR_ADDRESS_STRING "address_string"
 #define GETDNS_STR_PORT "port"
 #define GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6 "return_both_v4_and_v6"
 

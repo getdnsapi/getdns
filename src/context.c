@@ -63,7 +63,6 @@ getdns_return_t create_default_namespaces(struct getdns_context *context);
 getdns_return_t create_local_hosts(struct getdns_context *context);
 getdns_return_t destroy_local_hosts(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
-static getdns_return_t add_ip_str(struct getdns_dict *);
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static int timeout_cmp(const void *, const void *);
@@ -183,61 +182,6 @@ static struct getdns_list *
 create_default_root_servers()
 {
     return NULL;
-}
-
-#define IP_STR_BUFF_LEN 512
-
-static getdns_return_t
-add_ip_str(struct getdns_dict * ip)
-{
-    struct sockaddr_storage storage;
-    uint32_t port = 0;
-    char buff[IP_STR_BUFF_LEN];
-    memset(buff, 0, IP_STR_BUFF_LEN);
-    getdns_return_t r = dict_to_sockaddr(ip, &storage);
-    if (r != GETDNS_RETURN_GOOD) {
-        return r;
-    }
-    if (storage.ss_family == AF_INET) {
-        struct sockaddr_in *addr = (struct sockaddr_in *) &storage;
-        const char *ipStr =
-        inet_ntop(AF_INET, &(addr->sin_addr), buff, IP_STR_BUFF_LEN);
-        if (!ipStr) {
-            return GETDNS_RETURN_GENERIC_ERROR;
-        }
-        r = getdns_dict_get_int(ip, GETDNS_STR_PORT, &port);
-        if (r == GETDNS_RETURN_GOOD && port > 0) {
-            size_t addrLen = strlen(ipStr);
-            /* append @ and port */
-            buff[addrLen] = '@';
-            ++addrLen;
-            snprintf(buff + addrLen, IP_STR_BUFF_LEN - addrLen, "%d", port);
-        }
-        getdns_dict_util_set_string(ip, GETDNS_STR_ADDRESS_STRING,
-            ipStr);
-    } else if (storage.ss_family == AF_INET6) {
-        struct sockaddr_in6 *addr = (struct sockaddr_in6 *) &storage;
-        const char *ipStr =
-            inet_ntop(AF_INET6, &(addr->sin6_addr), buff, IP_STR_BUFF_LEN);
-        if (!ipStr) {
-            return GETDNS_RETURN_GENERIC_ERROR;
-        }
-        r = getdns_dict_get_int(ip, GETDNS_STR_PORT, &port);
-        if (r == GETDNS_RETURN_GOOD && port > 0) {
-            size_t addrLen = strlen(ipStr);
-            /* append @ and port */
-            buff[addrLen] = '@';
-            ++addrLen;
-            snprintf(buff + addrLen, IP_STR_BUFF_LEN - addrLen, "%d", port);
-        }
-
-        getdns_dict_util_set_string(ip, GETDNS_STR_ADDRESS_STRING,
-            ipStr);
-    } else {
-        /* unknown */
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    return GETDNS_RETURN_GOOD;
 }
 
 /**
@@ -1129,7 +1073,6 @@ getdns_context_set_dns_root_servers(struct getdns_context *context,
             for (i = 0; i < count; ++i) {
                 struct getdns_dict *dict = NULL;
                 getdns_list_get_dict(addresses, i, &dict);
-                r = add_ip_str(dict);
                 if (r != GETDNS_RETURN_GOOD) {
                     break;
                 }
@@ -1275,7 +1218,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
     for (i = 0; i < count; ++i) {
         struct getdns_dict *dict = NULL;
         getdns_list_get_dict(upstream_list, i, &dict);
-        r = add_ip_str(dict);
         if (r != GETDNS_RETURN_GOOD) {
             break;
         }
