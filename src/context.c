@@ -1767,11 +1767,12 @@ getdns_context_request_timed_out(struct getdns_dns_req
     getdns_transaction_t trans_id = req->trans_id;
     getdns_callback_t cb = req->user_callback;
     void *user_arg = req->user_pointer;
+    getdns_dict *response = create_getdns_response(req);
 
     /* cancel the req - also clears it from outbound and cleans up*/
     getdns_context_cancel_request(context, trans_id, 0);
     context->processing = 1;
-    cb(context, GETDNS_CALLBACK_TIMEOUT, NULL, user_arg, trans_id);
+    cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
     context->processing = 0;
     if (context->extension) {
         context->extension->request_count_changed(context,
