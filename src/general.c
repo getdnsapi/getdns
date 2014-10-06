@@ -83,8 +83,7 @@ ub_local_resolve_timeout(void *arg)
 	getdns_dns_req *dnsreq = cb_data->netreq->owner;
     /* clear the timeout */
 
-	getdns_context_clear_timeout(dnsreq->context, dnsreq->local_timeout_id);
-	dnsreq->local_timeout_id = 0;
+	getdns_context_clear_timeout(dnsreq->context, &dnsreq->local_timeout);
 
 	/* just call ub_resolve_callback */
 	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->ub_res);
@@ -169,10 +168,8 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
         cb_data->err = err;
         cb_data->ub_res = ub_res;
 
-        dnsreq->local_timeout_id = ldns_get_random();
-
-        getdns_context_schedule_timeout(dnsreq->context,
-            dnsreq->local_timeout_id, 1, ub_local_resolve_timeout, cb_data);
+        getdns_context_schedule_timeout(dnsreq->context, 1,
+	    ub_local_resolve_timeout, cb_data, &dnsreq->local_timeout);
 		return;
 	}
 	netreq->state = NET_REQ_FINISHED;
@@ -240,8 +237,8 @@ getdns_general_ub(struct getdns_context *context,
 	// req->ev_base = ev_base;
 	// req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
     /* schedule the timeout */
-    getdns_context_schedule_timeout(context, req->trans_id,
-        context->timeout, ub_resolve_timeout, req);
+    getdns_context_schedule_timeout(context, context->timeout,
+        ub_resolve_timeout, req, &req->timeout);
 
 	/* issue the first network req */
 

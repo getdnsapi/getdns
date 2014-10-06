@@ -39,6 +39,7 @@
 #include <netinet/in.h>
 #include <ldns/ldns.h>
 #include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 struct getdns_context;
 
 /**
@@ -172,7 +173,6 @@ typedef struct getdns_network_req
  */
 typedef struct getdns_dns_req
 {
-
 	/* name */
 	char *name;
 
@@ -198,14 +198,15 @@ typedef struct getdns_dns_req
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
-    /* local timeout id */
-    getdns_transaction_t local_timeout_id;
+	getdns_timeout_data_t timeout;
+	/* Hack to prevent immediate callbacks */
+	getdns_timeout_data_t local_timeout;
 
-    /* dnssec status */
-    int return_dnssec_status;
+	/* dnssec status */
+	int return_dnssec_status;
 
-    /* mem funcs */
-    struct mem_funcs my_mf;
+	/* mem funcs */
+	struct mem_funcs my_mf;
 
 } getdns_dns_req;
 

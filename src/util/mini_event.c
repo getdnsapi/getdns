@@ -139,7 +139,7 @@ const char *getdns_event_get_method(void)
 }
 
 /** call timeouts handlers, and return how long to wait for next one or -1 */
-static void handle_timeouts(struct getdns_event_base* base, struct timeval* now, 
+void getdns_handle_timeouts(struct getdns_event_base* base, struct timeval* now, 
 	struct timeval* wait)
 {
 	struct getdns_event* p;
@@ -175,7 +175,7 @@ static void handle_timeouts(struct getdns_event_base* base, struct timeval* now,
 }
 
 /** call select and callbacks for that */
-static int handle_select(struct getdns_event_base* base, struct timeval* wait)
+int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait)
 {
 	fd_set r, w;
 	int ret, i;
@@ -235,11 +235,11 @@ int getdns_event_base_dispatch(struct getdns_event_base* base)
 	while(!base->need_to_exit)
 	{
 		/* see if timeouts need handling */
-		handle_timeouts(base, base->time_tv, &wait);
+		getdns_handle_timeouts(base, base->time_tv, &wait);
 		if(base->need_to_exit)
 			return 0;
 		/* do select */
-		if(handle_select(base, &wait) < 0) {
+		if(getdns_handle_select(base, &wait) < 0) {
 			if(base->need_to_exit)
 				return 0;
 			return -1;

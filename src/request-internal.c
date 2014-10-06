@@ -94,15 +94,11 @@ dns_req_free(getdns_dns_req * req)
 		net_req = next;
 	}
 
-    if (req->local_timeout_id != 0) {
-        getdns_context_clear_timeout(context, req->local_timeout_id);
-    }
-
-    getdns_context_clear_timeout(context, req->trans_id);
+	getdns_context_clear_timeout(context, &req->local_timeout);
+	getdns_context_clear_timeout(context, &req->timeout);
 
 	/* free strduped name */
 	GETDNS_FREE(req->my_mf, req->name);
-
 	GETDNS_FREE(req->my_mf, req);
 }
 
@@ -136,7 +132,8 @@ dns_req_new(struct getdns_context *context,
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;
-    result->local_timeout_id = 0;
+	memset(&result->timeout, 0, sizeof(getdns_timeout_data_t));
+	memset(&result->local_timeout, 0, sizeof(getdns_timeout_data_t));
 
         /* check the specify_class extension */
         if ((r = getdns_dict_get_int(extensions, "specify_class", &klass))

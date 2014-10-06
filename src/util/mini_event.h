@@ -155,16 +155,16 @@ int getdns_event_add(struct getdns_event *, struct timeval *);
 int getdns_event_del(struct getdns_event *);
 
 /** add a timer */
-#define evtimer_add(ev, tv)             getdns_event_add(ev, tv)
+#define getdns_evtimer_add(ev, tv)             getdns_event_add(ev, tv)
 /** remove a timer */
-#define evtimer_del(ev)                 getdns_event_del(ev)
+#define getdns_evtimer_del(ev)                 getdns_event_del(ev)
 
 /* uses different implementation. Cannot mix fd/timeouts and signals inside
  * the same struct getdns_event. create several event structs for that.  */
 /** install signal handler */
 int getdns_signal_add(struct getdns_event *, struct timeval *);
 /** set signal event contents */
-#define signal_set(ev, x, cb, arg)      \
+#define getdns_signal_set(ev, x, cb, arg)      \
         getdns_event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 /** remove signal handler */
 int getdns_signal_del(struct getdns_event *);
