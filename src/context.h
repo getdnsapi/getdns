@@ -192,7 +192,7 @@ void getdns_bindata_destroy(
 
 /* timeout scheduling */
 getdns_return_t getdns_context_schedule_timeout(struct getdns_context* context,
-    getdns_transaction_t id, uint16_t timeout, getdns_timeout_callback callback,
+    getdns_transaction_t id, uint64_t timeout, getdns_timeout_callback callback,
     void* userarg);
 
 getdns_return_t getdns_context_clear_timeout(struct getdns_context* context,

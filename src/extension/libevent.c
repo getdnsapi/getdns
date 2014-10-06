@@ -121,7 +121,7 @@ getdns_libevent_cleanup(struct getdns_context* context, void* data) {
 
 static getdns_return_t
 getdns_libevent_schedule_timeout(struct getdns_context* context,
-    void* eventloop_data, uint16_t timeout,
+    void* eventloop_data, uint64_t timeout,
     getdns_timeout_data_t* timeout_data,
     void** eventloop_timer) {
 

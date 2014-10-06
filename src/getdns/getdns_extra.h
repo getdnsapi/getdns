@@ -88,7 +88,7 @@ typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* con
 /* call the extension to schedule a timer.  Any timer data that needs to be tracked should be
    stored in eventloop_timer */
 typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, uint16_t timeout,
+    void* eventloop_data, uint64_t timeout,
     getdns_timeout_data_t* timeout_data,
     void** eventloop_timer);
 
