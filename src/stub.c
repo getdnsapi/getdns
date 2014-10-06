@@ -59,8 +59,19 @@ typedef struct stub_resolver {
 	uint8_t *request_pkt;
 
 	size_t   ns_index;
-	int      sockfd;
+	size_t   to_retry;
+	int      udp_fd;
 } stub_resolver;
+
+static void
+resolver_done(stub_resolver *resolver)
+{
+	(void) getdns_event_base_loopexit(resolver->base, NULL);
+
+	if (--resolver->upstreams->referenced == 0)
+		GETDNS_FREE(resolver->upstreams->mf, resolver->upstreams);
+	GETDNS_FREE(resolver->context->mf, resolver);
+}
 
 static void
 cb_udp_request(int fd, short bits, void *arg)
@@ -68,10 +79,15 @@ cb_udp_request(int fd, short bits, void *arg)
 	stub_resolver *resolver = (stub_resolver *)arg;
 	ssize_t read;
 
+	if (bits & EV_TIMEOUT) {
+		fprintf(stderr, "TIMEOUT!\n");
+		resolver_done(resolver);
+	}
+
 	if (! (bits & EV_READ))
 		return;
 
-	read = recvfrom(resolver->sockfd,
+	read = recvfrom(resolver->udp_fd,
 	    gldns_buffer_current(resolver->response),
 	    gldns_buffer_remaining(resolver->response),
 	    0, NULL, NULL);
@@ -90,11 +106,7 @@ cb_udp_request(int fd, short bits, void *arg)
 		free(str);
 	} while(0);
 #endif
-	(void) getdns_event_base_loopexit(resolver->base, NULL);
-
-	if (--resolver->upstreams->referenced == 0)
-		GETDNS_FREE(resolver->upstreams->mf, resolver->upstreams);
-	GETDNS_FREE(resolver->context->mf, resolver);
+	resolver_done(resolver);
 }
 
 static getdns_return_t
@@ -102,6 +114,7 @@ query_ns(stub_resolver *resolver)
 {
 	struct getdns_upstream *upstream;
 	ssize_t sent;
+	struct timeval tv;
 	struct getdns_event *ev;
 
 	assert(resolver);
@@ -111,23 +124,29 @@ query_ns(stub_resolver *resolver)
 
 	upstream = &resolver->upstreams->upstreams[resolver->ns_index];
 	/* TODO: Try next upstream if something is not right with this one
-	 *       Also later on... for example when socket returns -1
 	 */
 
 	/* TODO: Check how to connect first (udp or tcp) */
 
-	resolver->sockfd = socket(upstream->addr.ss_family, SOCK_DGRAM,
+	resolver->udp_fd = socket(upstream->addr.ss_family, SOCK_DGRAM,
 	    IPPROTO_UDP);
-	sent = sendto(resolver->sockfd,
+	if (resolver->udp_fd == -1) {
+		/* Retry with tcp? */
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	
+	sent = sendto(resolver->udp_fd,
 	    resolver->request_pkt, resolver->request_pkt_len, 0,
 	    (struct sockaddr *)&upstream->addr, upstream->addr_len);
 	if (sent == -1 || sent != resolver->request_pkt_len)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	
 	ev = GETDNS_MALLOC(resolver->context->mf, struct getdns_event);
-	getdns_event_set(ev, resolver->sockfd, EV_READ, cb_udp_request, resolver);
+	getdns_event_set(ev, resolver->udp_fd, EV_READ | EV_TIMEOUT, cb_udp_request, resolver);
 	(void) getdns_event_base_set(resolver->base, ev);
-	(void) getdns_event_add(ev, NULL);
+	tv.tv_sec = resolver->context->timeout / 1000;
+	tv.tv_usec = (resolver->context->timeout % 1000) * 1000;
+	(void) getdns_event_add(ev, &tv);
 
 	return GETDNS_RETURN_GOOD;
 }
@@ -167,6 +186,7 @@ getdns_stub_dns_query_async(struct getdns_event_base *base,
 	} while(0);
 #endif
 	resolver->ns_index     = 0;
+	resolver->to_retry     = 2;
 	r = query_ns(resolver);
 	if (r) {
 		if (--resolver->upstreams->referenced == 0)
