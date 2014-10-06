@@ -530,16 +530,6 @@ void getdns_handle_timeouts(struct getdns_event_base* base,
 /** call select and callbacks for that */
 int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait);
 
-static getdns_return_t
-getdns_mini_event_cleanup(getdns_context *context, void *ext)
-{
-	getdns_mini_event_extension *e = (getdns_mini_event_extension *)ext;
-
-	/* TODO:  Cleanup all events? Maybe not... */
-	getdns_event_base_free(e->base);
-	return GETDNS_RETURN_GOOD;
-}
-
 static void
 getdns_mini_event_timeout_cb(int fd, short bits, void *arg)
 {
@@ -590,6 +580,21 @@ getdns_mini_event_request_count_changed(getdns_context *context,
 	return GETDNS_RETURN_GOOD;
 }
 
+static void
+getdns_mini_event_cb(int fd, short bits, void *arg)
+{
+	getdns_context *context = (getdns_context *)arg;
+
+	if (getdns_context_process_async(context))
+		return;
+
+	getdns_mini_event_request_count_changed(context,
+	    getdns_context_get_num_pending_requests(context, NULL),
+	    context->extension_data);
+}
+
+static getdns_return_t
+getdns_mini_event_cleanup(getdns_context *context, void *ext);
 getdns_return_t
 getdns_mini_event_extension_init(getdns_mini_event_extension *e)
 {
@@ -601,6 +606,20 @@ getdns_mini_event_extension_init(getdns_mini_event_extension *e)
 	e->ext.schedule_timeout	     = getdns_mini_event_schedule_timeout;
 	e->ext.clear_timeout	     = getdns_mini_event_clear_timeout;
 	e->ext.request_count_changed = getdns_mini_event_request_count_changed;
+	return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+getdns_mini_event_cleanup(getdns_context *context, void *ext)
+{
+	getdns_mini_event_extension *e = (getdns_mini_event_extension *)ext;
+
+	if (e->ub_event.ev_fd != -1) {
+		getdns_event_del(&e->ub_event);
+		e->ub_event.ev_fd = -1;
+	}
+	/* TODO: Cleanup all synchronous events? Maybe not... */
+	getdns_event_base_free(e->base);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -850,30 +869,38 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 
 static getdns_return_t
 rebuild_ub_ctx(struct getdns_context* context) {
-    if (context->unbound_ctx != NULL) {
-        /* cancel all requests and delete */
-        cancel_outstanding_requests(context, 1);
-        ub_ctx_delete(context->unbound_ctx);
-        context->unbound_ctx = NULL;
-    }
-    /* setup */
-    context->unbound_ctx = ub_ctx_create();
-    if (!context->unbound_ctx) {
-        return GETDNS_RETURN_MEMORY_ERROR;
-    }
-    set_ub_dnssec_allowed_skew(context,
-        context->dnssec_allowed_skew);
-    set_ub_edns_maximum_udp_payload_size(context,
-        context->edns_maximum_udp_payload_size);
-    set_ub_dns_transport(context,
-        context->dns_transport);
+	if (context->unbound_ctx != NULL) {
+		/* cancel all requests and delete */
+		cancel_outstanding_requests(context, 1);
+		ub_ctx_delete(context->unbound_ctx);
+		context->unbound_ctx = NULL;
+	}
+	/* setup */
+	context->unbound_ctx = ub_ctx_create();
+	if (!context->unbound_ctx) {
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	set_ub_dnssec_allowed_skew(context,
+		context->dnssec_allowed_skew);
+	set_ub_edns_maximum_udp_payload_size(context,
+		context->edns_maximum_udp_payload_size);
+	set_ub_dns_transport(context,
+		context->dns_transport);
 
-    /* Set default trust anchor */
-    if (context->has_ta) {
-        (void) ub_ctx_add_ta_file(
-            context->unbound_ctx, TRUST_ANCHOR_FILE);
-    }
-    return GETDNS_RETURN_GOOD;
+	/* Set default trust anchor */
+	if (context->has_ta) {
+		(void) ub_ctx_add_ta_file(
+			context->unbound_ctx, TRUST_ANCHOR_FILE);
+	}
+	if (context->extension == (void *)&context->mini_event_extension.ext) {
+		getdns_mini_event_extension *e =&context->mini_event_extension;
+
+		getdns_event_set(&e->ub_event, getdns_context_fd(context),
+		    EV_READ, getdns_mini_event_cb, context);
+		(void) getdns_event_base_set(e->base, &e->ub_event);
+		(void) getdns_event_add(&e->ub_event, NULL);
+	}
+	return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
@@ -1896,16 +1923,16 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 
 	if (context->outbound_requests->count &&
 	    context->extension == (void *)&context->mini_event_extension.ext) {
+	        
+		struct getdns_event_base *base =
+		    context->mini_event_extension.base;
 	
-		if (gettimeofday(context->mini_event_extension.base->time_tv,
-		    NULL) >= 0) {
+		if (gettimeofday(base->time_tv, NULL) >= 0) {
+			struct timeval dummy;
 		
-			*context->mini_event_extension.base->time_secs =(time_t)
-			    context->mini_event_extension.base->time_tv->tv_sec;
-			getdns_handle_timeouts(
-			    context->mini_event_extension.base,
-			    context->mini_event_extension.base->time_tv,
-			    next_timeout);
+			*base->time_secs = (time_t) base->time_tv->tv_sec;
+			getdns_handle_timeouts(base, base->time_tv,
+			    next_timeout ? next_timeout : &dummy);
 		}
 	}
 	return context->outbound_requests->count;
@@ -1914,11 +1941,19 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 /* process async reqs */
 getdns_return_t getdns_context_process_async(struct getdns_context* context)
 {
+	struct timeval immediately = { 0, 0 };
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 	context->processing = 1;
 	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
 		/* need an async return code? */
+		context->processing = 0;
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (context->extension == (void *)&context->mini_event_extension.ext
+	    && getdns_handle_select(context->mini_event_extension.base,
+	                            &immediately)) {
+
 		context->processing = 0;
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
@@ -1974,8 +2009,10 @@ getdns_extension_detach_eventloop(struct getdns_context* context)
 	r = context->extension->cleanup_data(context,
 	    context->extension_data);
 	if (r == GETDNS_RETURN_GOOD) {
-		context->extension = NULL;
-		context->extension_data = NULL;
+		context->extension = &context->mini_event_extension.ext;
+		context->extension_data =(void*)&context->mini_event_extension;
+		r = getdns_mini_event_extension_init(
+		    &context->mini_event_extension);
 	}
 	context->processing = 0;
 	return r;
