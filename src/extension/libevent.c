@@ -122,9 +122,8 @@ getdns_libevent_cleanup(struct getdns_context* context, void* data) {
 static getdns_return_t
 getdns_libevent_schedule_timeout(struct getdns_context* context,
     void* eventloop_data, uint64_t timeout,
-    getdns_timeout_data_t* timeout_data,
-    void** eventloop_timer) {
-
+    getdns_timeout_data_t* timeout_data)
+{
     struct timeval tv;
     struct event* ev = NULL;
     struct event_data* ev_data = (struct event_data*) eventloop_data;
@@ -133,9 +132,9 @@ getdns_libevent_schedule_timeout(struct getdns_context* context,
     tv.tv_usec = (timeout % 1000) * 1000;
 
     ev = evtimer_new(ev_data->event_base, getdns_libevent_timeout_cb, timeout_data);
+    timeout_data->extension_timer = ev;
     evtimer_add(ev, &tv);
 
-    *eventloop_timer = ev;
     return GETDNS_RETURN_GOOD;
 }
 

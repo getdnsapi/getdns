@@ -2027,7 +2027,7 @@ getdns_context_schedule_timeout(struct getdns_context* context,
 
     if (context->extension) {
         result = context->extension->schedule_timeout(context, context->extension_data,
-            timeout, timeout_data, &(timeout_data->extension_timer));
+            timeout, timeout_data);
     } else {
         result = GETDNS_RETURN_GENERIC_ERROR;
         if (gettimeofday(&timeout_data->timeout_time, NULL) == 0) {

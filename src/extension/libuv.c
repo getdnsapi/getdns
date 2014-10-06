@@ -104,18 +104,17 @@ getdns_libuv_cleanup(struct getdns_context* context, void* data) {
 static getdns_return_t
 getdns_libuv_schedule_timeout(struct getdns_context* context,
     void* eventloop_data, uint64_t timeout,
-    getdns_timeout_data_t* timeout_data,
-    void** eventloop_timer) {
-
+    getdns_timeout_data_t* timeout_data)
+{
     uv_timer_t *timer;
     struct getdns_libuv_data* uv_data = (struct getdns_libuv_data*) eventloop_data;
 
     timer = (uv_timer_t*) malloc(sizeof(uv_timer_t));
     timer->data = timeout_data;
+    timeout_data->extension_timer = timer;
     uv_timer_init(uv_data->loop, timer);
     uv_timer_start(timer, getdns_libuv_timeout_cb, timeout, 0);
 
-    *eventloop_timer = timer;
     return GETDNS_RETURN_GOOD;
 }
 

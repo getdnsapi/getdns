@@ -89,8 +89,7 @@ typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* con
    stored in eventloop_timer */
 typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
     void* eventloop_data, uint64_t timeout,
-    getdns_timeout_data_t* timeout_data,
-    void** eventloop_timer);
+    getdns_timeout_data_t* timeout_data);
 
 /* call the extension to free a timer.  The timer passed in is the same as that returned in
    the schedule timeout */
