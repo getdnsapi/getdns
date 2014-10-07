@@ -67,10 +67,6 @@ typedef getdns_return_t (*getdns_timeout_callback) (void* userarg);
 
 /* context timeout data */
 typedef struct getdns_timeout_data {
-    /* a timeout id */
-    getdns_transaction_t transaction_id;
-    /* the absolute time of the timeout */
-    struct timeval timeout_time;
     /* the timeout callback to fire */
     getdns_timeout_callback callback;
     /* timeout callback user arg */
