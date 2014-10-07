@@ -199,8 +199,6 @@ typedef struct getdns_dns_req
 	getdns_transaction_t trans_id;
 
 	getdns_timeout_data_t timeout;
-	/* Hack to prevent immediate callbacks */
-	getdns_timeout_data_t local_timeout;
 
 	/* dnssec status */
 	int return_dnssec_status;

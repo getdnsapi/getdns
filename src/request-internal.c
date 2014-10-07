@@ -36,6 +36,7 @@
 #include "config.h"
 #include "types-internal.h"
 #include "util-internal.h"
+#include "gldns/rrdef.h"
 
 void
 network_req_free(getdns_network_req * net_req)
@@ -94,7 +95,6 @@ dns_req_free(getdns_dns_req * req)
 		net_req = next;
 	}
 
-	getdns_context_clear_timeout(context, &req->local_timeout);
 	getdns_context_clear_timeout(context, &req->timeout);
 
 	/* free strduped name */
@@ -110,15 +110,13 @@ dns_req_new(struct getdns_context *context,
 
 	getdns_dns_req *result = NULL;
 	getdns_network_req *req = NULL;
-
-        getdns_return_t r;
-        uint32_t klass;
+        uint32_t klass = GLDNS_RR_CLASS_IN;
         
 	result = GETDNS_MALLOC(context->mf, getdns_dns_req);
 	if (result == NULL) {
 		return NULL;
 	}
-    result->my_mf = context->mf;
+	result->my_mf = context->mf;
 	result->name = getdns_strdup(&(result->my_mf), name);
 	result->context = context;
 	result->canceled = 0;
@@ -127,19 +125,15 @@ dns_req_new(struct getdns_context *context,
 	result->trans_id = ldns_get_random();
 
 	getdns_dict_copy(extensions, &result->extensions);
-    result->return_dnssec_status = context->return_dnssec_status;
+	result->return_dnssec_status = context->return_dnssec_status;
 
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;
 	memset(&result->timeout, 0, sizeof(getdns_timeout_data_t));
-	memset(&result->local_timeout, 0, sizeof(getdns_timeout_data_t));
 
         /* check the specify_class extension */
-        if ((r = getdns_dict_get_int(extensions, "specify_class", &klass))
-                != GETDNS_RETURN_GOOD) {
-            klass = LDNS_RR_CLASS_IN;
-        }
+        (void) getdns_dict_get_int(extensions, "specify_class", &klass);
         
 	/* create the requests */
 	req = network_req_new(result, request_type, klass, extensions);
@@ -156,13 +150,11 @@ dns_req_new(struct getdns_context *context,
 	    (request_type == GETDNS_RRTYPE_A ||
 	     request_type == GETDNS_RRTYPE_AAAA)) {
 
-		uint16_t next_req_type =
-		    (request_type ==
-		    GETDNS_RRTYPE_A) ? GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A;
+		uint16_t next_req_type = (request_type == GETDNS_RRTYPE_A) ?
+		    GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A;
 		getdns_network_req *next_req = network_req_new(result,
-		    next_req_type,
-		    LDNS_RR_CLASS_IN,
-		    extensions);
+		    next_req_type, LDNS_RR_CLASS_IN, extensions);
+
 		if (!next_req) {
 			dns_req_free(result);
 			return NULL;

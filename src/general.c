@@ -51,7 +51,6 @@
 /* declarations */
 static void ub_resolve_callback(void* mydata, int err, struct ub_result* result);
 static getdns_return_t ub_resolve_timeout(void *arg);
-static getdns_return_t ub_local_resolve_timeout(void *arg);
 
 static void handle_network_request_error(getdns_network_req * netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req * dns_req);
@@ -70,27 +69,6 @@ ub_resolve_timeout(void *arg)
 {
 	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
 	return getdns_context_request_timed_out(dns_req);
-}
-
-static getdns_return_t
-ub_local_resolve_timeout(void *arg)
-{
-	netreq_cb_data *cb_data = (netreq_cb_data *) arg;
-
-	/* cleanup the local timer here since the memory may be
-	 * invalid after calling ub_resolve_callback
-	 */
-	getdns_dns_req *dnsreq = cb_data->netreq->owner;
-    /* clear the timeout */
-
-	getdns_context_clear_timeout(dnsreq->context, &dnsreq->local_timeout);
-
-	/* just call ub_resolve_callback */
-	ub_resolve_callback(cb_data->netreq, cb_data->err, cb_data->ub_res);
-
-	/* cleanup the state */
-	GETDNS_FREE(dnsreq->my_mf, cb_data);
-    return GETDNS_RETURN_GOOD;
 }
 
 void priv_getdns_call_user_callback(getdns_dns_req *dns_req,
@@ -139,7 +117,6 @@ submit_network_request(getdns_network_req * netreq)
 	    netreq,
 	    ub_resolve_callback,
 	    &(netreq->unbound_id));
-	netreq->state = NET_REQ_IN_FLIGHT;
 	return r;
 }
 
@@ -148,49 +125,30 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 // ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
 //    char *bogus)
 {
-    getdns_network_req *netreq = (getdns_network_req *) arg;
-    if (err != 0) {
-        handle_network_request_error(netreq, err);
-        return;
-    }
-	/* if netreq->state == NET_REQ_NOT_SENT here, that implies
-	 * that ub called us back immediately - probably from a local file.
-	 * This most likely means that getdns_general has not returned
-	 */
-	if (netreq->state == NET_REQ_NOT_SENT) {
-		/* just do a very short timer since this was called immediately.
-		 * we can make this less hacky, but it gets interesting when multiple
-		 * netreqs need to be issued and some resolve immediately vs. not.
-		 */
-        getdns_dns_req *dnsreq = netreq->owner;
-        netreq_cb_data *cb_data = GETDNS_MALLOC(dnsreq->my_mf, netreq_cb_data);
-        cb_data->netreq = netreq;
-        cb_data->err = err;
-        cb_data->ub_res = ub_res;
+	getdns_network_req *netreq = (getdns_network_req *) arg;
+	getdns_dns_req *dnsreq = netreq->owner;
 
-        getdns_context_schedule_timeout(dnsreq->context, 1,
-	    ub_local_resolve_timeout, cb_data, &dnsreq->local_timeout);
+	netreq->state = NET_REQ_FINISHED;
+	if (err != 0) {
+		handle_network_request_error(netreq, err);
 		return;
 	}
-	netreq->state = NET_REQ_FINISHED;
 	/* parse */
-    /* TODO: optimize */
-    getdns_return_t r = getdns_apply_network_result(netreq, ub_res);
-    ub_resolve_free(ub_res);
-    if (r != GETDNS_RETURN_GOOD) {
-        handle_network_request_error(netreq, err);
-    } else {
-		/* is this the last request */
-		if (!netreq->next) {
-			/* finished */
-			handle_dns_request_complete(netreq->owner);
-		} else {
-			/* not finished - update to next request and ship it */
-			getdns_dns_req *dns_req = netreq->owner;
-			dns_req->current_req = netreq->next;
-			submit_network_request(netreq->next);
-		}
+	if (getdns_apply_network_result(netreq, ub_res)) {
+		ub_resolve_free(ub_res);
+		handle_network_request_error(netreq, err);
+		return;
 	}
+	ub_resolve_free(ub_res);
+
+	netreq = dnsreq->first_req;
+	while (netreq) {
+		if (netreq->state != NET_REQ_FINISHED &&
+		    netreq->state != NET_REQ_CANCELED)
+			return;
+		netreq = netreq->next;
+	}
+	handle_dns_request_complete(dnsreq);
 } /* ub_resolve_callback */
 
 getdns_return_t
@@ -204,7 +162,8 @@ getdns_general_ub(struct getdns_context *context,
 	int usenamespaces)
 {
 	getdns_return_t gr;
-	int r;
+	int r = GETDNS_RETURN_GOOD;
+	getdns_network_req *netreq;
 
 	if (!name) {
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -236,14 +195,16 @@ getdns_general_ub(struct getdns_context *context,
 	/* assign a timeout */
 	// req->ev_base = ev_base;
 	// req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
-    /* schedule the timeout */
-    getdns_context_schedule_timeout(context, context->timeout,
-        ub_resolve_timeout, req, &req->timeout);
+	/* schedule the timeout */
+	getdns_context_schedule_timeout(context, context->timeout,
+	    ub_resolve_timeout, req, &req->timeout);
 
 	/* issue the first network req */
-
-	r = submit_network_request(req->first_req);
-
+	netreq = req->first_req;
+	while (r == GETDNS_RETURN_GOOD && netreq) {
+		r = submit_network_request(netreq);
+		netreq = netreq->next;
+	}
 	if (r != 0) {
 		/* clean up the request */
 		getdns_context_clear_outbound_request(req);

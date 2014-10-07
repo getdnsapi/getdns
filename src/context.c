@@ -530,6 +530,15 @@ void getdns_handle_timeouts(struct getdns_event_base* base,
 /** call select and callbacks for that */
 int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait);
 
+int
+getdns_mini_event_settime(getdns_mini_event_extension *e)
+{
+	if (gettimeofday(e->base->time_tv, NULL) < 0)
+		return -1;
+	*e->base->time_secs = (time_t)e->base->time_tv->tv_sec;
+	return 0;
+}
+
 static void
 getdns_mini_event_timeout_cb(int fd, short bits, void *arg)
 {
@@ -552,6 +561,8 @@ getdns_mini_event_schedule_timeout(getdns_context *context, void *ext,
 	timeout_data->extension_timer = ev;
 	getdns_event_set(ev, -1, EV_TIMEOUT, getdns_mini_event_timeout_cb,
 	    timeout_data);
+	
+	(void) getdns_mini_event_settime(e);
 	(void) getdns_event_base_set(e->base, ev);
 	(void) getdns_event_add(ev, &tv);
 	return GETDNS_RETURN_GOOD;
@@ -1537,19 +1548,16 @@ getdns_context_set_memory_functions(struct getdns_context *context,
 static void
 cancel_dns_req(getdns_dns_req * req)
 {
-    getdns_network_req *netreq = req->first_req;
-    while (netreq) {
-        if (netreq->state == NET_REQ_IN_FLIGHT) {
-            /* for ev based ub, this should always prevent
-             * the callback from firing */
-            ub_cancel(req->context->unbound_ctx, netreq->unbound_id);
-            netreq->state = NET_REQ_CANCELED;
-        } else if (netreq->state == NET_REQ_NOT_SENT) {
-            netreq->state = NET_REQ_CANCELED;
-        }
-        netreq = netreq->next;
-    }
-    req->canceled = 1;
+	getdns_network_req *netreq = req->first_req;
+	while (netreq) {
+		if (netreq->unbound_id != -1) {
+			ub_cancel(req->context->unbound_ctx,
+			    netreq->unbound_id);
+			netreq->unbound_id = -1;
+		}
+		netreq = netreq->next;
+	}
+	req->canceled = 1;
 }
 
 getdns_return_t
@@ -1919,22 +1927,18 @@ uint32_t
 getdns_context_get_num_pending_requests(struct getdns_context* context,
     struct timeval* next_timeout)
 {
+	static struct timeval dummy = { 0, 0 };
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 	if (context->outbound_requests->count &&
-	    context->extension == (void *)&context->mini_event_extension.ext) {
-	        
-		struct getdns_event_base *base =
-		    context->mini_event_extension.base;
-	
-		if (gettimeofday(base->time_tv, NULL) >= 0) {
-			struct timeval dummy;
-		
-			*base->time_secs = (time_t) base->time_tv->tv_sec;
-			getdns_handle_timeouts(base, base->time_tv,
-			    next_timeout ? next_timeout : &dummy);
-		}
-	}
+	    context->extension == (void *)&context->mini_event_extension.ext &&
+	    getdns_mini_event_settime(&context->mini_event_extension) == 0)
+
+		getdns_handle_timeouts(
+		    context->mini_event_extension.base,
+		    context->mini_event_extension.base->time_tv,
+		    next_timeout ? next_timeout : &dummy);
+
 	return context->outbound_requests->count;
 }
 
