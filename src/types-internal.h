@@ -125,6 +125,9 @@ struct mem_funcs {
     mf_union mf;
 };
 
+struct mem_funcs *
+priv_getdns_context_mf(getdns_context *context);
+
 typedef enum network_req_state_enum
 {
 	NET_REQ_NOT_SENT,
@@ -247,7 +250,6 @@ getdns_dns_req *dns_req_new(struct getdns_context *context,
     const char *name, uint16_t request_type, struct getdns_dict *extensions);
 
 void dns_req_free(getdns_dns_req * req);
-
 
 #endif
 

@@ -49,7 +49,7 @@ static getdns_return_t getdns_mini_event_schedule_timeout
 static getdns_return_t getdns_mini_event_clear_event
     (getdns_eventloop *loop, getdns_eventloop_event *ev);
 
-static getdns_eventloop_functions getdns_mini_event_functions = {
+static getdns_eventloop_vmt getdns_mini_event_vmt = {
 	getdns_mini_event_cleanup,
 	getdns_mini_event_schedule_read,
 	getdns_mini_event_clear_event,
@@ -63,7 +63,7 @@ getdns_mini_event_init(getdns_context *context, getdns_mini_event *ext)
 	if (!context) return GETDNS_RETURN_BAD_CONTEXT;
 	if (!ext)     return GETDNS_RETURN_INVALID_PARAMETER;
 
-	ext->loop.functions = &getdns_mini_event_functions;
+	ext->loop.vmt = &getdns_mini_event_vmt;
 	ext->base = getdns_event_init(&ext->time_secs, &ext->time_tv);
 	if (!ext->base)
 		return GETDNS_RETURN_MEMORY_ERROR;
@@ -86,7 +86,7 @@ void
 getdns_mini_event_destroy(getdns_mini_event *ext)
 {
 	if (ext) {
-		ext->loop.functions->cleanup(&ext->loop);
+		ext->loop.vmt->cleanup(&ext->loop);
 		GETDNS_FREE(ext->mf, ext);
 	}
 }
@@ -158,17 +158,25 @@ getdns_mini_event_schedule_read(getdns_eventloop *loop,
 	if (!bits)
 		return GETDNS_RETURN_GOOD; /* Nothing to schedule */
 
-	my_ev = GETDNS_MALLOC(ext->mf, struct getdns_event);
+	if (!(my_ev = GETDNS_MALLOC(ext->mf, struct getdns_event)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
 	el_ev->ev = my_ev;
 	getdns_event_set(my_ev, fd, bits, getdns_mini_event_callback, el_ev);
 	
 	if (getdns_mini_event_settime(ext))
-		return GETDNS_RETURN_GENERIC_ERROR;
+		goto error;
+
 	(void) getdns_event_base_set(ext->base, my_ev);
-	if (getdns_event_add(my_ev, &tv))
-		return GETDNS_RETURN_GENERIC_ERROR;
+	if (getdns_event_add(my_ev, (
+	    timeout != TIMEOUT_FOREVER && el_ev->timeout_cb ? &tv : NULL)))
+		goto error;
 
 	return GETDNS_RETURN_GOOD;
+error:
+	GETDNS_FREE(ext->mf, my_ev);
+	el_ev->ev = NULL;
+	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
 static getdns_return_t

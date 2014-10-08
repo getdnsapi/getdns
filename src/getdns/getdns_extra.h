@@ -81,9 +81,9 @@ typedef struct getdns_eventloop_event {
 	void *ev;
 } getdns_eventloop_event;
 
-typedef struct getdns_eventloop_functions getdns_eventloop_functions;
+typedef struct getdns_eventloop_vmt getdns_eventloop_vmt;
 typedef struct getdns_eventloop {
-	getdns_eventloop_functions *functions;
+	getdns_eventloop_vmt *vmt;
 } getdns_eventloop;
 
 /* Call the extension to clean up data allocated on initialization. */
@@ -117,8 +117,9 @@ typedef getdns_return_t (*getdns_eventloop_schedule_timeout)
 /* Call the extension to free a timer. */
 typedef getdns_return_t (*getdns_eventloop_clear_timeout)
     (getdns_eventloop *loop, getdns_eventloop_event *ev);
-
-struct getdns_eventloop_functions {
+ 
+ /* Virtual Method Table */
+struct getdns_eventloop_vmt {
 	getdns_eventloop_cleanup          cleanup;
 	getdns_eventloop_schedule_read    schedule_read;
 	getdns_eventloop_clear_read       clear_read;
