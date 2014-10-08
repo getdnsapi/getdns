@@ -41,7 +41,7 @@
 #include "getdns/getdns_extra.h"
 #include "config.h"
 #include "types-internal.h"
-#include "util/mini_event.h"
+#include "extension/libmini_event.h"
 
 struct getdns_dns_req;
 struct ldns_rbtree_t;
@@ -81,14 +81,6 @@ typedef struct getdns_upstreams {
 	size_t count;
 	struct getdns_upstream upstreams[];
 } getdns_upstreams;
-
-typedef struct getdns_mini_event_extention {
-	getdns_eventloop_extension ext;
-	time_t                     time_secs;
-	struct timeval             time_tv;
-	struct getdns_event_base  *base;
-	struct getdns_event        ub_event;
-} getdns_mini_event_extension;
 
 struct getdns_context {
 	/* Context values */
@@ -137,20 +129,12 @@ struct getdns_context {
 	 */
 	struct ldns_rbtree_t *outbound_requests;
 
-	/*
-	 * Event loop extension functions
-	 * These structs are static and should never be freed
-	 * since they are just a collection of function pointers
-	 */
-	getdns_eventloop_extension* extension;
-	/*
-	 * Extension data that will be freed by the functions
-	 * in the extension struct
-	 */
-	void* extension_data;
+	/* Event loop extension.  */
+	getdns_eventloop       *extension;
+	getdns_eventloop_event  ub_event;
 
 	/* The default extension */
-	getdns_mini_event_extension mini_event_extension;
+	getdns_mini_event mini_event;
 
 	/*
 	 * state data used to detect changes to the system config files
@@ -197,11 +181,11 @@ void getdns_bindata_destroy(
 
 /* timeout scheduling */
 getdns_return_t getdns_context_schedule_timeout(getdns_context* context,
-    uint64_t timeout, getdns_timeout_callback callback, void* userarg,
-    getdns_timeout_data_t *init_to_track);
+    uint64_t timeout, getdns_eventloop_callback callback, void* userarg,
+    getdns_eventloop_event *init_to_track);
 
 getdns_return_t getdns_context_clear_timeout(getdns_context* context,
-    getdns_timeout_data_t *timeout_data);
+    getdns_eventloop_event *timeout_data);
 
 /* perform name resolution in /etc/hosts */
 getdns_return_t getdns_context_local_namespace_resolve(getdns_dns_req* req,

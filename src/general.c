@@ -50,7 +50,7 @@
 
 /* declarations */
 static void ub_resolve_callback(void* mydata, int err, struct ub_result* result);
-static getdns_return_t ub_resolve_timeout(void *arg);
+static void ub_resolve_timeout(void *arg);
 
 static void handle_network_request_error(getdns_network_req * netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req * dns_req);
@@ -64,11 +64,11 @@ typedef struct netreq_cb_data
 } netreq_cb_data;
 
 /* cancel, cleanup and send timeout to callback */
-static getdns_return_t
+static void
 ub_resolve_timeout(void *arg)
 {
 	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
-	return getdns_context_request_timed_out(dns_req);
+	(void) getdns_context_request_timed_out(dns_req);
 }
 
 void priv_getdns_call_user_callback(getdns_dns_req *dns_req,

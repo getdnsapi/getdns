@@ -130,7 +130,7 @@ dns_req_new(struct getdns_context *context,
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;
-	memset(&result->timeout, 0, sizeof(getdns_timeout_data_t));
+	memset(&result->timeout, 0, sizeof(result->timeout));
 
         /* check the specify_class extension */
         (void) getdns_dict_get_int(extensions, "specify_class", &klass);

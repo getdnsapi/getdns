@@ -93,6 +93,8 @@ struct getdns_context;
 #define GETDNS_STR_KEY_NSCOUNT "nscount"
 #define GETDNS_STR_KEY_ARCOUNT "arcount"
 
+#define TIMEOUT_FOREVER ((int64_t)-1)
+#define ASSERT_UNREACHABLE 0
 
 /** @}
  */
@@ -198,7 +200,7 @@ typedef struct getdns_dns_req
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
-	getdns_timeout_data_t timeout;
+	getdns_eventloop_event timeout;
 
 	/* dnssec status */
 	int return_dnssec_status;

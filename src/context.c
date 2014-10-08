@@ -517,129 +517,6 @@ create_ldns_rbtree(getdns_context * context,
     return result;
 }
 
-/******************************************************************************
- ******************************************************************************
- *****
- *****  Start of mini_event extension
- *****  TODO:  Move to own source file
- *****/
-
-/** call timeouts handlers, and return how long to wait for next one or -1 */
-void getdns_handle_timeouts(struct getdns_event_base* base,
-    struct timeval* now, struct timeval* wait);
-/** call select and callbacks for that */
-int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait);
-
-int
-getdns_mini_event_settime(getdns_mini_event_extension *e)
-{
-	if (gettimeofday(e->base->time_tv, NULL) < 0)
-		return -1;
-	*e->base->time_secs = (time_t)e->base->time_tv->tv_sec;
-	return 0;
-}
-
-static void
-getdns_mini_event_timeout_cb(int fd, short bits, void *arg)
-{
-	getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*)arg;
-	timeout_data->callback(timeout_data->userarg);
-}
-
-static getdns_return_t
-getdns_mini_event_schedule_timeout(getdns_context *context, void *ext,
-    uint64_t timeout, getdns_timeout_data_t *timeout_data)
-{
-	getdns_mini_event_extension *e = (getdns_mini_event_extension *)ext;
-	struct timeval tv;
-	struct getdns_event *ev;
-
-	tv.tv_sec = timeout / 1000;
-	tv.tv_usec = (timeout % 1000) * 1000;
-
-	ev = GETDNS_MALLOC(context->mf, struct getdns_event);
-	timeout_data->extension_timer = ev;
-	getdns_event_set(ev, -1, EV_TIMEOUT, getdns_mini_event_timeout_cb,
-	    timeout_data);
-	
-	(void) getdns_mini_event_settime(e);
-	(void) getdns_event_base_set(e->base, ev);
-	(void) getdns_event_add(ev, &tv);
-	return GETDNS_RETURN_GOOD;
-}
-
-static getdns_return_t
-getdns_mini_event_clear_timeout(getdns_context *context, void *ext, void *timer)
-{
-	/* getdns_mini_event_extension *e = (getdns_mini_event_extension *)ext;
-	 */
-	struct getdns_event *ev = (struct getdns_event *)timer;
-
-	(void) getdns_event_del(ev);
-	GETDNS_FREE(context->mf, ev);
-	return GETDNS_RETURN_GOOD;
-}
-
-static getdns_return_t
-getdns_mini_event_request_count_changed(getdns_context *context,
-    uint32_t request_count, void *ext)
-{
-	getdns_mini_event_extension *e = (getdns_mini_event_extension *)ext;
-	
-	if (request_count == 0)
-		(void) getdns_event_del(&e->ub_event);
-	return GETDNS_RETURN_GOOD;
-}
-
-static void
-getdns_mini_event_cb(int fd, short bits, void *arg)
-{
-	getdns_context *context = (getdns_context *)arg;
-
-	if (getdns_context_process_async(context))
-		return;
-
-	getdns_mini_event_request_count_changed(context,
-	    getdns_context_get_num_pending_requests(context, NULL),
-	    context->extension_data);
-}
-
-static getdns_return_t
-getdns_mini_event_cleanup(getdns_context *context, void *ext);
-getdns_return_t
-getdns_mini_event_extension_init(getdns_mini_event_extension *e)
-{
-	e->base = getdns_event_init(&e->time_secs, &e->time_tv);
-	if (!e->base)
-		return GETDNS_RETURN_MEMORY_ERROR;
-	e->ub_event.ev_fd = -1;
-	e->ext.cleanup_data	     = getdns_mini_event_cleanup;
-	e->ext.schedule_timeout	     = getdns_mini_event_schedule_timeout;
-	e->ext.clear_timeout	     = getdns_mini_event_clear_timeout;
-	e->ext.request_count_changed = getdns_mini_event_request_count_changed;
-	return GETDNS_RETURN_GOOD;
-}
-
-static getdns_return_t
-getdns_mini_event_cleanup(getdns_context *context, void *ext)
-{
-	getdns_mini_event_extension *e = (getdns_mini_event_extension *)ext;
-
-	if (e->ub_event.ev_fd != -1) {
-		getdns_event_del(&e->ub_event);
-		e->ub_event.ev_fd = -1;
-	}
-	/* TODO: Cleanup all synchronous events? Maybe not... */
-	getdns_event_base_free(e->base);
-	return GETDNS_RETURN_GOOD;
-}
-
-/*****
- *****  End of mini_event extension
- *****
- *****************************************************************************
- *****************************************************************************/
-
 /*
  * getdns_context_create
  *
@@ -655,99 +532,95 @@ getdns_context_create_with_extended_memory_functions(
     void (*free)(void *userarg, void *)
     )
 {
-    struct getdns_context *result = NULL;
-    mf_union mf;
+	getdns_return_t r;
+	struct getdns_context *result = NULL;
+	mf_union mf;
 
-    if (!context || !malloc || !realloc || !free)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!context || !malloc || !realloc || !free)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    /** default init **/
-    mf.ext.malloc = malloc;
-    result = userarg == MF_PLAIN
-           ? (*mf.pln.malloc)(         sizeof(struct getdns_context))
-           : (*mf.ext.malloc)(userarg, sizeof(struct getdns_context));
-    if (!result) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    result->processing = 0;
-    result->destroying = 0;
-    result->my_mf.mf_arg         = userarg;
-    result->my_mf.mf.ext.malloc  = malloc;
-    result->my_mf.mf.ext.realloc = realloc;
-    result->my_mf.mf.ext.free    = free;
+	/** default init **/
+	mf.ext.malloc = malloc;
+	result = userarg == MF_PLAIN
+	    ? (*mf.pln.malloc)(         sizeof(struct getdns_context))
+	    : (*mf.ext.malloc)(userarg, sizeof(struct getdns_context));
 
-    result->update_callback = NULL;
+	if (!result)
+		return GETDNS_RETURN_MEMORY_ERROR;
 
-    result->mf.mf_arg          = userarg;
-    result->mf.mf.ext.malloc   = malloc;
-    result->mf.mf.ext.realloc  = realloc;
-    result->mf.mf.ext.free     = free;
+	result->processing = 0;
+	result->destroying = 0;
+	result->my_mf.mf_arg         = userarg;
+	result->my_mf.mf.ext.malloc  = malloc;
+	result->my_mf.mf.ext.realloc = realloc;
+	result->my_mf.mf.ext.free    = free;
 
-    result->resolution_type_set = 0;
+	result->update_callback = NULL;
 
-    result->outbound_requests = create_ldns_rbtree(result, transaction_id_cmp);
-    result->local_hosts = create_ldns_rbtree(result, local_host_cmp);
+	result->mf.mf_arg         = userarg;
+	result->mf.mf.ext.malloc  = malloc;
+	result->mf.mf.ext.realloc = realloc;
+	result->mf.mf.ext.free    = free;
 
+	result->resolution_type_set = 0;
 
-    result->resolution_type = GETDNS_RESOLUTION_RECURSING;
-    if(create_default_namespaces(result) != GETDNS_RETURN_GOOD) {
-		getdns_context_destroy(result);
-		return GETDNS_RETURN_GENERIC_ERROR;
-    }
+	result->outbound_requests = create_ldns_rbtree(result, transaction_id_cmp);
+	result->local_hosts = create_ldns_rbtree(result, local_host_cmp);
 
-    result->timeout = 5000;
-    result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
-    result->dns_root_servers = create_default_root_servers();
-    result->append_name = GETDNS_APPEND_NAME_ALWAYS;
-    result->suffix = NULL;
+	if (!result->outbound_requests || !result->local_hosts) {
+		r = GETDNS_RETURN_MEMORY_ERROR;
+		goto error;
+	}
 
-    result->dnssec_trust_anchors = NULL;
+	result->resolution_type = GETDNS_RESOLUTION_RECURSING;
+	if ((r = create_default_namespaces(result)))
+		goto error;
 
-    result->edns_extended_rcode = 0;
-    result->edns_version = 0;
-    result->edns_do_bit = 1;
+	result->timeout = 5000;
+	result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
+	result->dns_root_servers = create_default_root_servers();
+	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
+	result->suffix = NULL;
 
-	result->extension = &result->mini_event_extension.ext;
-	result->extension_data = (void *)&result->mini_event_extension;
-	if (getdns_mini_event_extension_init(&result->mini_event_extension))
-		return GETDNS_RETURN_GENERIC_ERROR;
+	result->dnssec_trust_anchors = NULL;
+
+	result->edns_extended_rcode = 0;
+	result->edns_version = 0;
+	result->edns_do_bit = 1;
+
+	result->extension = &result->mini_event.loop;
+	if ((r = getdns_mini_event_init(result, &result->mini_event)))
+		goto error;
 
 	result->fchg_resolvconf = NULL;
-	result->fchg_hosts      = NULL;
-    if (set_from_os) {
-        if (GETDNS_RETURN_GOOD != set_os_defaults(result)) {
-            getdns_context_destroy(result);
-            return GETDNS_RETURN_GENERIC_ERROR;
-        }
-    }
-    result->dnssec_allowed_skew = 0;
-    result->edns_maximum_udp_payload_size = 512;
-    result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
-    result->limit_outstanding_queries = 0;
-    result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
-    result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
-    if (!result->outbound_requests ||
-        !result->local_hosts) {
-        getdns_context_destroy(result);
-        return GETDNS_RETURN_MEMORY_ERROR;
-    }
-    /* unbound context is initialized here */
-    result->unbound_ctx = NULL;
-    if (GETDNS_RETURN_GOOD != rebuild_ub_ctx(result)) {
-        getdns_context_destroy(result);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    /* ldns context is initialised to NULL here and rebuilt later if needed */
-    result->ldns_res = NULL;
+	result->fchg_hosts	  = NULL;
 
-    if(create_local_hosts(result) != GETDNS_RETURN_GOOD) {
-        getdns_context_destroy(result);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
+	if (set_from_os && (r = set_os_defaults(result)))
+		goto error;
 
-    *context = result;
+	result->dnssec_allowed_skew = 0;
+	result->edns_maximum_udp_payload_size = 512;
+	result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
+	result->limit_outstanding_queries = 0;
+	result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
+	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
-    return GETDNS_RETURN_GOOD;
+	/* unbound context is initialized here */
+	result->unbound_ctx = NULL;
+	if ((r = rebuild_ub_ctx(result)))
+		goto error;
+
+	/* ldns context is initialised to NULL here and rebuilt later if needed */
+	result->ldns_res = NULL;
+
+	if ((r = create_local_hosts(result)))
+		goto error;
+
+	*context = result;
+	return GETDNS_RETURN_GOOD;
+error:
+	getdns_context_destroy(result);
+	return r;
 } /* getdns_context_create_with_extended_memory_functions */
 
 /*
@@ -805,7 +678,7 @@ getdns_context_destroy(struct getdns_context *context)
     }
     context->destroying = 1;
     cancel_outstanding_requests(context, 1);
-    getdns_extension_detach_eventloop(context);
+    getdns_context_detach_eventloop(context);
 
     if (context->namespaces)
         GETDNS_FREE(context->my_mf, context->namespaces);
@@ -878,6 +751,33 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
     set_ub_string_opt(ctx, opt, buffer);
 }
 
+static void
+getdns_context_request_count_changed(getdns_context *context, uint32_t prev_rc)
+{
+	if ((!prev_rc && !context->outbound_requests->count) ||
+	    ( prev_rc &&  context->outbound_requests->count))
+		return;
+
+	if (context->outbound_requests->count)
+		context->extension->functions->schedule_read(
+		    context->extension, ub_fd(context->unbound_ctx),
+		    TIMEOUT_FOREVER, &context->ub_event);
+	else
+		context->extension->functions->clear_read(
+		    context->extension, &context->ub_event);
+}
+
+static void
+getdns_context_ub_read_cb(void *userarg)
+{
+	getdns_context *context = (getdns_context *)userarg;
+	int32_t prev_rc = context->outbound_requests->count;
+
+	if (getdns_context_process_async(context)) return;
+	(void) getdns_context_get_num_pending_requests(context, NULL);
+	getdns_context_request_count_changed(context, prev_rc);
+}
+
 static getdns_return_t
 rebuild_ub_ctx(struct getdns_context* context) {
 	if (context->unbound_ctx != NULL) {
@@ -903,14 +803,11 @@ rebuild_ub_ctx(struct getdns_context* context) {
 		(void) ub_ctx_add_ta_file(
 			context->unbound_ctx, TRUST_ANCHOR_FILE);
 	}
-	if (context->extension == (void *)&context->mini_event_extension.ext) {
-		getdns_mini_event_extension *e =&context->mini_event_extension;
 
-		getdns_event_set(&e->ub_event, getdns_context_fd(context),
-		    EV_READ, getdns_mini_event_cb, context);
-		(void) getdns_event_base_set(e->base, &e->ub_event);
-		(void) getdns_event_add(&e->ub_event, NULL);
-	}
+	context->ub_event.userarg = context;
+	context->ub_event.read_cb = getdns_context_ub_read_cb;
+	context->ub_event.timeout_cb = NULL;
+
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -1597,25 +1494,6 @@ getdns_context_cancel_request(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }
 
-/*
- * getdns_cancel_callback
- *
- */
-getdns_return_t
-getdns_cancel_callback(struct getdns_context *context,
-    getdns_transaction_t transaction_id)
-{
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    context->processing = 1;
-    getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
-    if (context->extension) {
-        context->extension->request_count_changed(context,
-            context->outbound_requests->count, context->extension_data);
-    }
-    context->processing = 0;
-    return r;
-} /* getdns_cancel_callback */
-
 static getdns_return_t
 ub_setup_stub(struct ub_ctx *ctx, getdns_upstreams *upstreams)
 {
@@ -1815,47 +1693,54 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 getdns_return_t
 getdns_context_track_outbound_request(getdns_dns_req * req)
 {
-    if (!req) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    struct getdns_context *context = req->context;
-    ldns_rbnode_t *node = GETDNS_MALLOC(context->my_mf, ldns_rbnode_t);
-    if (!node) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    node->key = &(req->trans_id);
-    node->data = req;
-    if (!ldns_rbtree_insert(context->outbound_requests, node)) {
-        /* free the node */
-        GETDNS_FREE(context->my_mf, node);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    if (context->extension) {
-        context->extension->request_count_changed(context,
-            context->outbound_requests->count, context->extension_data);
-    }
-    return GETDNS_RETURN_GOOD;
+	uint32_t prev_rc;
+	ldns_rbnode_t *node;
+
+    	if (!req)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	prev_rc = req->context->outbound_requests->count;
+
+	if (!(node = GETDNS_MALLOC(req->context->my_mf, ldns_rbnode_t)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	node->key  = &(req->trans_id);
+	node->data = req;
+	if (! ldns_rbtree_insert(req->context->outbound_requests, node)) {
+		GETDNS_FREE(req->context->my_mf, node);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	getdns_context_request_count_changed(req->context, prev_rc);
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
 getdns_context_clear_outbound_request(getdns_dns_req * req)
 {
-    if (!req) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    struct getdns_context *context = req->context;
-    ldns_rbnode_t *node = ldns_rbtree_delete(context->outbound_requests,
-        &(req->trans_id));
-    if (node) {
-        GETDNS_FREE(context->my_mf, node);
-    }
-    return GETDNS_RETURN_GOOD;
+	uint32_t prev_rc;
+	ldns_rbnode_t *node;
+
+    	if (!req)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	prev_rc = req->context->outbound_requests->count;
+	
+	node = ldns_rbtree_delete(
+	    req->context->outbound_requests, &req->trans_id);
+	if (!node)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	GETDNS_FREE(req->context->my_mf, node);
+	getdns_context_request_count_changed(req->context, prev_rc);
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
 getdns_context_request_timed_out(struct getdns_dns_req
     *req) {
+    /* Don't use req after callback */
     getdns_context* context = req->context;
+	uint32_t prev_rc = context->outbound_requests->count;
     getdns_transaction_t trans_id = req->trans_id;
     getdns_callback_t cb = req->user_callback;
     void *user_arg = req->user_pointer;
@@ -1866,10 +1751,7 @@ getdns_context_request_timed_out(struct getdns_dns_req
     context->processing = 1;
     cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
     context->processing = 0;
-    if (context->extension) {
-        context->extension->request_count_changed(context,
-            context->outbound_requests->count, context->extension_data);
-    }
+	getdns_context_request_count_changed(context, prev_rc);
     return GETDNS_RETURN_GOOD;
 }
 
@@ -1927,17 +1809,13 @@ uint32_t
 getdns_context_get_num_pending_requests(struct getdns_context* context,
     struct timeval* next_timeout)
 {
-	static struct timeval dummy = { 0, 0 };
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 	if (context->outbound_requests->count &&
-	    context->extension == (void *)&context->mini_event_extension.ext &&
-	    getdns_mini_event_settime(&context->mini_event_extension) == 0)
+	    context->extension == &context->mini_event.loop)
 
-		getdns_handle_timeouts(
-		    context->mini_event_extension.base,
-		    context->mini_event_extension.base->time_tv,
-		    next_timeout ? next_timeout : &dummy);
+		getdns_mini_event_handle_timeouts(
+		    &context->mini_event, next_timeout);
 
 	return context->outbound_requests->count;
 }
@@ -1945,7 +1823,6 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 /* process async reqs */
 getdns_return_t getdns_context_process_async(struct getdns_context* context)
 {
-	struct timeval immediately = { 0, 0 };
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 	context->processing = 1;
@@ -1954,9 +1831,8 @@ getdns_return_t getdns_context_process_async(struct getdns_context* context)
 		context->processing = 0;
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	if (context->extension == (void *)&context->mini_event_extension.ext
-	    && getdns_handle_select(context->mini_event_extension.base,
-	                            &immediately)) {
+	if (context->extension == &context->mini_event.loop
+	    && getdns_mini_event_handle_select(&context->mini_event, NULL)) {
 
 		context->processing = 0;
 		return GETDNS_RETURN_GENERIC_ERROR;
@@ -1994,7 +1870,7 @@ cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
 }
 
 getdns_return_t
-getdns_extension_detach_eventloop(struct getdns_context* context)
+getdns_context_detach_eventloop(struct getdns_context* context)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 
@@ -2010,71 +1886,62 @@ getdns_extension_detach_eventloop(struct getdns_context* context)
 	context->processing = 1;
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
-	r = context->extension->cleanup_data(context,
-	    context->extension_data);
+	r = context->extension->functions->cleanup(context->extension);
 	if (r == GETDNS_RETURN_GOOD) {
-		context->extension = &context->mini_event_extension.ext;
-		context->extension_data =(void*)&context->mini_event_extension;
-		r = getdns_mini_event_extension_init(
-		    &context->mini_event_extension);
+		context->extension = &context->mini_event.loop;
+		r = getdns_mini_event_init(context, &context->mini_event);
 	}
 	context->processing = 0;
 	return r;
 }
 
 getdns_return_t
-getdns_extension_set_eventloop(struct getdns_context* context,
-    getdns_eventloop_extension* extension, void* extension_data)
+getdns_context_set_eventloop(struct getdns_context* context, getdns_eventloop* loop)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(extension, GETDNS_RETURN_INVALID_PARAMETER);
-    getdns_return_t r = getdns_extension_detach_eventloop(context);
-    if (r != GETDNS_RETURN_GOOD) {
-        return r;
-    }
-    context->extension = extension;
-    context->extension_data = extension_data;
-    return GETDNS_RETURN_GOOD;
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(loop   , GETDNS_RETURN_INVALID_PARAMETER);
+
+	getdns_return_t r = getdns_context_detach_eventloop(context);
+	if (r != GETDNS_RETURN_GOOD)
+		return r;
+
+	context->extension = loop;
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
-getdns_context_schedule_timeout(getdns_context* context, uint64_t timeout,
-    getdns_timeout_callback callback, void* userarg,
-    getdns_timeout_data_t *timeout_data)
+getdns_context_schedule_timeout(getdns_context *context, uint64_t timeout,
+    getdns_eventloop_callback callback, void *userarg,
+    getdns_eventloop_event *el_ev)
 {
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(context , GETDNS_RETURN_INVALID_PARAMETER);
 	RETURN_IF_NULL(callback, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(timeout_data, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(el_ev   , GETDNS_RETURN_INVALID_PARAMETER);
 
-	/* Initialize timeout_data struct */
-	timeout_data->context = context;
-	timeout_data->callback = callback;
-	timeout_data->userarg = userarg;
-	timeout_data->extension_timer = NULL;
+	/* Initialize eev_data struct */
+	el_ev->userarg    = userarg;
+	el_ev->read_cb    = NULL;
+	el_ev->timeout_cb = callback;
+	el_ev->ev         = NULL;
 
-	return context->extension->schedule_timeout(context,
-	    context->extension_data, timeout, timeout_data);
+	return context->extension->functions->schedule_timeout(
+	    context->extension, timeout, el_ev);
 }
 
 getdns_return_t
 getdns_context_clear_timeout(getdns_context* context,
-    getdns_timeout_data_t *timeout_data)
+    getdns_eventloop_event *el_ev)
 {
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(timeout_data, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(timeout_data->context, GETDNS_RETURN_GOOD);
+	RETURN_IF_NULL(el_ev, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(el_ev->timeout_cb, GETDNS_RETURN_GOOD);
 	
-	context->extension->clear_timeout(context,
-	    context->extension_data, timeout_data->extension_timer);
-	timeout_data->context = NULL;
-
+	if (el_ev->timeout_cb) {
+		context->extension->functions->clear_timeout(
+		    context->extension, el_ev);
+		el_ev->timeout_cb = NULL;
+	}
 	return GETDNS_RETURN_GOOD;
-}
-
-void*
-getdns_context_get_extension_data(struct getdns_context* context) {
-    RETURN_IF_NULL(context, NULL);
-    return context->extension_data;
 }
 
 static inline getdns_return_t

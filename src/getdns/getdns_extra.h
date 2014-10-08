@@ -39,85 +39,105 @@ extern "C" {
    value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
    returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
    if context or value is invalid */
-getdns_return_t getdns_context_set_return_dnssec_status(getdns_context* context, int enabled);
+getdns_return_t getdns_context_set_return_dnssec_status(
+    getdns_context *context, int enabled);
 
 /* dict util */
 /* set a string as bindata */
-getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict, char *name,
-    const char *value);
+getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict,
+    char *name, const char *value);
 
 /* get a string from a dict.  the result must be freed if valid */
-getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict, char *name,
-    char **result);
-
-/* Async support */
-uint32_t getdns_context_get_num_pending_requests(getdns_context* context, struct timeval* next_timeout);
+getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict,
+    char *name, char **result);
 
 /* get the fd */
 int getdns_context_fd(getdns_context* context);
 
+/* tells underlying unbound to use background threads or fork */
+getdns_return_t getdns_context_set_use_threads(getdns_context* context,
+    int use_threads);
+
+/* Async support */
+uint32_t getdns_context_get_num_pending_requests(getdns_context* context,
+    struct timeval* next_timeout);
+
 /* process async reqs */
 getdns_return_t getdns_context_process_async(getdns_context* context);
 
-/* tells underlying unbound to use background threads or fork */
-getdns_return_t getdns_context_set_use_threads(getdns_context* context, int use_threads);
+/*****************    functions for eventloop extensions    ******************/
 
-/* extensions */
-typedef getdns_return_t (*getdns_timeout_callback) (void* userarg);
+typedef void (*getdns_eventloop_callback)(void *userarg);
 
-/* context timeout data */
-typedef struct getdns_timeout_data {
-    /* the timeout callback to fire */
-    getdns_timeout_callback callback;
-    /* timeout callback user arg */
-    void* userarg;
-    /* pointer to the underlying extension pointer that the extension
-       will create and free */
-    void* extension_timer;
-    /* context */
-    struct getdns_context* context;
-} getdns_timeout_data_t;
+/* context extension event data */
+typedef struct getdns_eventloop_event {
+	void *userarg;
+	getdns_eventloop_callback read_cb;
+	getdns_eventloop_callback timeout_cb;
 
-/* call the extension when the data needs to be cleaned up */
-typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* eventloop_data);
+	/* Pointer to the underlying event 
+	 * that the eventloop extension will create and free.
+	 */
+	void *ev;
+} getdns_eventloop_event;
 
-/* call the extension to schedule a timer.  Any timer data that needs to be tracked should be
-   stored in eventloop_timer */
-typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, uint64_t timeout,
-    getdns_timeout_data_t* timeout_data);
+typedef struct getdns_eventloop_functions getdns_eventloop_functions;
+typedef struct getdns_eventloop {
+	getdns_eventloop_functions *functions;
+} getdns_eventloop;
 
-/* call the extension to free a timer.  The timer passed in is the same as that returned in
-   the schedule timeout */
-typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, void* eventloop_timer);
+/* Call the extension to clean up data allocated on initialization. */
+typedef getdns_return_t (*getdns_eventloop_cleanup)(getdns_eventloop *loop);
 
-/* call the extension to tell it that the number of outbound requests changed.  This is called
-   when an async request is submitted or canceled by the user */
-typedef getdns_return_t (*getdns_eventloop_request_count_changed_t)(struct getdns_context* context,
-    uint32_t request_count, void* eventloop_data);
+/* Call the extension to schedule an event that will trigger when
+ * file descriptor fd will become readble.
+ *
+ * The getdns_eventloop_event must be provided by the caller with the callbacks
+ * and userarg therein already supplied (by the caller).  This function must set
+ * the ev pointer (in the getdns_eventloop_event) to refer to the underlying
+ * (extension) event.
+ */
+typedef getdns_return_t (*getdns_eventloop_schedule_read)(getdns_eventloop *loop,
+    int fd, uint64_t timeout, getdns_eventloop_event *ev);
 
-typedef struct getdns_eventloop_extension {
-    getdns_eventloop_cleanup_t cleanup_data;
-    getdns_eventloop_schedule_timeout_t schedule_timeout;
-    getdns_eventloop_clear_timeout_t clear_timeout;
-    getdns_eventloop_request_count_changed_t request_count_changed;
-} getdns_eventloop_extension;
+/* Call the extension to free a read event. */
+typedef getdns_return_t (*getdns_eventloop_clear_read)
+    (getdns_eventloop *loop, getdns_eventloop_event *ev);
+
+/* Call the extension to schedule a timer.
+ *
+ * The getdns_eventloop_event must be provided by the caller with the timeout
+ * callback and userarg therein already supplied (by the caller).
+ * This function must set the ev pointer (in the getdns_eventloop_event)
+ * to refer to the underlying (extension) event.
+ */
+typedef getdns_return_t (*getdns_eventloop_schedule_timeout)
+    (getdns_eventloop *loop, uint64_t timeout, getdns_eventloop_event *ev);
+
+/* Call the extension to free a timer. */
+typedef getdns_return_t (*getdns_eventloop_clear_timeout)
+    (getdns_eventloop *loop, getdns_eventloop_event *ev);
+
+struct getdns_eventloop_functions {
+	getdns_eventloop_cleanup          cleanup;
+	getdns_eventloop_schedule_read    schedule_read;
+	getdns_eventloop_clear_read       clear_read;
+	getdns_eventloop_schedule_timeout schedule_timeout;
+	getdns_eventloop_clear_timeout    clear_timeout;
+};
 
 /* set an event loop extension on the context */
 getdns_return_t
-getdns_extension_set_eventloop(struct getdns_context* context,
-    getdns_eventloop_extension* extension, void* extension_data);
-
-void*
-getdns_context_get_extension_data(struct getdns_context* context);
+getdns_context_set_eventloop(getdns_context* context,
+    getdns_eventloop *eventloop);
 
 /* detach the eventloop from the context */
 getdns_return_t
-getdns_extension_detach_eventloop(struct getdns_context* context);
+getdns_context_detach_eventloop(getdns_context *context);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
+

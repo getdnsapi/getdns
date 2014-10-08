@@ -78,7 +78,8 @@ EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
 GETDNS_OBJ=sync.lo context.lo list.lo dict.lo convert.lo general.lo \
 	hostname.lo service.lo request-internal.lo util-internal.lo \
 	getdns_error.lo rr-dict.lo dnssec.lo const-info.lo \
-	ub_timed_resolve.lo stub.lo
+	ub_timed_resolve.lo stub.lo \
+	libmini_event.lo
 
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
@@ -97,7 +98,7 @@ UTIL_OBJ=mini_event.lo rbtree.lo
 .c.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
-$(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ):
+$(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) libmini_event.lo:
 	@:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
@@ -193,10 +194,11 @@ configure.status: configure
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
-	(cd $(srcdir) ; gcc -MM -I. gldns/*.c compat/*.c util/*.c | \
+	(cd $(srcdir) ; gcc -MM -I. gldns/*.c compat/*.c util/*.c extension/libmini_event.c| \
 		sed -e 's?gldns/?$$(srcdir)/gldns/?g' \
 		    -e 's?compat/?$$(srcdir)/compat/?g' \
 		    -e 's?util/?$$(srcdir)/util/?g' \
+		    -e 's?extension/?$$(srcdir)/extension/?g' \
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
@@ -204,7 +206,7 @@ depend:
 .PHONY: clean test example
 FORCE:
 
-# Dependencies for gldns and compatibility functions
+# Dependencies for gldns, utils, the mini_event extension and compat functions
 gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c config.h $(srcdir)/gldns/gbuffer.h
 keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c config.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
 parse.lo parse.o: $(srcdir)/gldns/parse.c config.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h \
@@ -221,3 +223,6 @@ mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c config.h $(srcdir)/util/
  $(srcdir)/util/fptr_wlist.h
 rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/log.h $(srcdir)/util/fptr_wlist.h \
  $(srcdir)/util/rbtree.h
+libmini_event.lo libmini_event.o: $(srcdir)/extension/libmini_event.c config.h \
+ $(srcdir)/extension/libmini_event.h types-internal.h getdns/getdns.h \
+ getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h
