@@ -99,6 +99,11 @@ getdns_libev_cleanup(getdns_eventloop *loop)
 	return GETDNS_RETURN_GOOD;
 }
 
+typedef struct io_timer {
+	ev_io    io;
+	ev_timer timer;
+} io_timer;
+
 static void
 getdns_libev_read_cb(struct ev_loop *l, struct ev_io *io, int revents)
 {
@@ -114,11 +119,6 @@ getdns_libev_timeout_cb(struct ev_loop *l, struct ev_timer *timer, int revent)
         assert(el_ev->timeout_cb);
         el_ev->timeout_cb(el_ev->userarg);
 }
-
-typedef struct io_timer {
-	ev_io    io;
-	ev_timer timer;
-} io_timer;
 
 static getdns_return_t
 getdns_libev_schedule_read(getdns_eventloop *loop,

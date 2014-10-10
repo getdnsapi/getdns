@@ -37,131 +37,144 @@
 #include <stdio.h>
 #include <uv.h>
 #include "getdns/getdns_ext_libuv.h"
+#include "types-internal.h"
 
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
-/* extension info */
-struct getdns_libuv_data {
-    uv_loop_t* loop;
-    uv_poll_t* poll_handle;
+typedef struct getdns_libuv {
+	getdns_eventloop_vmt *vmt;
+	uv_loop_t            *loop;
+	struct mem_funcs      mf;
+} getdns_libuv;
+
+static getdns_return_t getdns_libuv_cleanup(getdns_eventloop *loop);
+static getdns_return_t getdns_libuv_schedule_read(getdns_eventloop *loop,
+    int fd, uint64_t timeout, getdns_eventloop_event *ev);
+static getdns_return_t getdns_libuv_schedule_timeout
+    (getdns_eventloop *loop, uint64_t timeout, getdns_eventloop_event *ev);
+static getdns_return_t getdns_libuv_clear_event
+    (getdns_eventloop *loop, getdns_eventloop_event *ev);
+
+static getdns_eventloop_vmt getdns_libuv_vmt = {
+	getdns_libuv_cleanup,
+	getdns_libuv_schedule_read,
+	getdns_libuv_clear_event,
+	getdns_libuv_schedule_timeout,
+	getdns_libuv_clear_event,
 };
 
-static void request_count_changed(uint32_t request_count, struct getdns_libuv_data *uv_data);
-
-/* lib event callbacks */
-static void
-getdns_libuv_cb(uv_poll_t* handle, int status, int events) {
-    struct getdns_context* context = (struct getdns_context*) handle->data;
-    if (getdns_context_process_async(context) == GETDNS_RETURN_BAD_CONTEXT) {
-        // context destroyed
-        return;
-    }
-    uint32_t rc = getdns_context_get_num_pending_requests(context, NULL);
-    struct getdns_libuv_data* uv_data =
-        (struct getdns_libuv_data*) getdns_context_get_extension_data(context);
-    request_count_changed(rc, uv_data);
-}
-
-static void
-request_count_changed(uint32_t request_count, struct getdns_libuv_data *uv_data) {
-    if (request_count > 0 && !uv_is_active((uv_handle_t*) uv_data->poll_handle)) {
-        uv_poll_start(uv_data->poll_handle, UV_READABLE, getdns_libuv_cb);
-    } else if (request_count == 0 && uv_is_active((uv_handle_t*) uv_data->poll_handle)) {
-        uv_poll_stop(uv_data->poll_handle);
-    }
-}
-
-static void
-getdns_libuv_timeout_cb(uv_timer_t* handle, int status) {
-    getdns_timeout_data_t* timeout_data = (getdns_timeout_data_t*) handle->data;
-    timeout_data->callback(timeout_data->userarg);
-}
-
-static void
-getdns_libuv_close_cb(uv_handle_t* handle) {
-    free(handle);
-}
-
-/* getdns extension functions */
-static getdns_return_t
-getdns_libuv_request_count_changed(struct getdns_context* context,
-    uint32_t request_count, void* eventloop_data) {
-    struct getdns_libuv_data *edata = (struct getdns_libuv_data*) eventloop_data;
-    request_count_changed(request_count, edata);
-    return GETDNS_RETURN_GOOD;
-}
-
-static getdns_return_t
-getdns_libuv_cleanup(struct getdns_context* context, void* data) {
-    struct getdns_libuv_data *uv_data = (struct getdns_libuv_data*) data;
-    uv_poll_stop(uv_data->poll_handle);
-    uv_close((uv_handle_t*) uv_data->poll_handle, getdns_libuv_close_cb);
-    /* handle itself gets cleaned up in close_cb */
-    free(uv_data);
-    return GETDNS_RETURN_GOOD;
-}
-
-static getdns_return_t
-getdns_libuv_schedule_timeout(struct getdns_context* context,
-    void* eventloop_data, uint64_t timeout,
-    getdns_timeout_data_t* timeout_data)
-{
-    uv_timer_t *timer;
-    struct getdns_libuv_data* uv_data = (struct getdns_libuv_data*) eventloop_data;
-
-    timer = (uv_timer_t*) malloc(sizeof(uv_timer_t));
-    timer->data = timeout_data;
-    timeout_data->extension_timer = timer;
-    uv_timer_init(uv_data->loop, timer);
-    uv_timer_start(timer, getdns_libuv_timeout_cb, timeout, 0);
-
-    return GETDNS_RETURN_GOOD;
-}
-
-static getdns_return_t
-getdns_libuv_clear_timeout(struct getdns_context* context,
-    void* eventloop_data, void* eventloop_timer) {
-    uv_timer_t* timer = (uv_timer_t*) eventloop_timer;
-    uv_timer_stop(timer);
-    uv_close((uv_handle_t*) timer, getdns_libuv_close_cb);
-    return GETDNS_RETURN_GOOD;
-}
-
-
-static getdns_eventloop_extension LIBUV_EXT = {
-    getdns_libuv_cleanup,
-    getdns_libuv_schedule_timeout,
-    getdns_libuv_clear_timeout,
-    getdns_libuv_request_count_changed
-};
-
-/*
- * getdns_extension_set_libuv_loop
- *
- */
 getdns_return_t
-getdns_extension_set_libuv_loop(struct getdns_context *context,
-    struct uv_loop_s *uv_loop)
+getdns_extension_set_libuv_loop(getdns_context *context, uv_loop_t *loop)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(uv_loop, GETDNS_RETURN_INVALID_PARAMETER);
-    /* TODO: cleanup current extension base */
-    getdns_return_t r = getdns_extension_detach_eventloop(context);
-    if (r != GETDNS_RETURN_GOOD) {
-        return r;
-    }
-    struct getdns_libuv_data* uv_data = (struct getdns_libuv_data*) malloc(sizeof(struct getdns_libuv_data));
-    if (!uv_data) {
-        return GETDNS_RETURN_MEMORY_ERROR;
-    }
-    int fd = getdns_context_fd(context);
-    uv_data->poll_handle = (uv_poll_t*) malloc(sizeof(uv_poll_t));
-    if (!uv_data->poll_handle) {
-        free(uv_data);
-        return GETDNS_RETURN_MEMORY_ERROR;
-    }
-    uv_poll_init(uv_loop, uv_data->poll_handle, fd);
-    uv_data->poll_handle->data = context;
-    uv_data->loop = uv_loop;
-    return getdns_extension_set_eventloop(context, &LIBUV_EXT, uv_data);
-}               /* getdns_extension_set_libuv_loop */
+	getdns_libuv *ext;
+	getdns_return_t r;
+
+	RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
+	RETURN_IF_NULL(loop, GETDNS_RETURN_INVALID_PARAMETER);
+
+	if ((r = getdns_context_detach_eventloop(context)))
+		return r;
+
+	ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), getdns_libuv);
+	ext->vmt  = &getdns_libuv_vmt;
+	ext->loop = loop;
+	ext->mf   = *priv_getdns_context_mf(context);
+
+	return getdns_context_set_eventloop(context, (getdns_eventloop *)&ext);
+}
+
+static getdns_return_t
+getdns_libuv_cleanup(getdns_eventloop *loop)
+{
+	getdns_libuv *ext = (getdns_libuv *)loop;
+
+	GETDNS_FREE(ext->mf, ext);
+	return GETDNS_RETURN_GOOD;
+}
+
+typedef struct poll_timer {
+	uv_poll_t  poll;
+	uv_timer_t timer;
+} poll_timer;
+
+
+static void
+getdns_libuv_read_cb(uv_poll_t *poll, int status, int events)
+{
+        getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
+        assert(el_ev->read_cb);
+        el_ev->read_cb(el_ev->userarg);
+}
+
+static void
+getdns_libuv_timeout_cb(uv_timer_t *timer, int status)
+{
+        getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
+        assert(el_ev->timeout_cb);
+        el_ev->timeout_cb(el_ev->userarg);
+}
+
+static getdns_return_t
+getdns_libuv_schedule_read(getdns_eventloop *loop,
+    int fd, uint64_t timeout, getdns_eventloop_event *el_ev)
+{
+	getdns_libuv *ext = (getdns_libuv *)loop;
+	poll_timer   *my_ev;
+	uv_poll_t    *my_poll;
+	uv_timer_t   *my_timer;
+
+	if (fd < 0) el_ev->read_cb = NULL;
+	if (timeout == TIMEOUT_FOREVER) el_ev->timeout_cb = NULL;
+
+	if (!el_ev->read_cb && !el_ev->timeout_cb)
+		return GETDNS_RETURN_GOOD; /* Nothing to schedule */
+
+	if (!(my_ev = GETDNS_MALLOC(ext->mf, poll_timer)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	el_ev->ev = my_ev;
+	
+	if (el_ev->read_cb) {
+		my_poll = &my_ev->poll;
+		uv_poll_init(ext->loop, my_poll, fd);
+		my_poll->data = el_ev;
+		uv_poll_start(my_poll, UV_READABLE, getdns_libuv_read_cb);
+	}
+	if (el_ev->timeout_cb) {
+		my_timer = &my_ev->timer;
+		uv_timer_init(ext->loop, my_timer);
+		my_timer->data = el_ev;
+		uv_timer_start(my_timer, getdns_libuv_timeout_cb, timeout, 0);
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+getdns_libuv_schedule_timeout(getdns_eventloop *loop,
+    uint64_t timeout, getdns_eventloop_event *el_ev)
+{
+	return getdns_libuv_schedule_read(loop, -1, timeout, el_ev);
+}
+
+static getdns_return_t
+getdns_libuv_clear_event(getdns_eventloop *loop,
+    getdns_eventloop_event *el_ev)
+{
+	getdns_libuv *ext = (getdns_libuv *)loop;
+	poll_timer *my_ev = (poll_timer *)el_ev->ev;
+	
+	assert(my_ev);
+
+	if (el_ev->read_cb) {
+		uv_poll_stop(&my_ev->poll);
+		uv_close((uv_handle_t *)&my_ev->poll, NULL);
+	}
+	if (el_ev->timeout_cb)
+		uv_timer_stop(&my_ev->timer);
+		uv_close((uv_handle_t *)&my_ev->timer, NULL);
+
+	GETDNS_FREE(ext->mf, el_ev->ev);
+	el_ev->ev = NULL;
+	return GETDNS_RETURN_GOOD;
+}
+
