@@ -1,9 +1,7 @@
 /**
- * \file
- * \brief Public interfaces to getdns, include in your application to use getdns API.
+ * \file libevent.c
+ * \brief Eventloop extension for libevent
  *
- * This source was taken from the original pseudo-implementation by
- * Paul Hoffman.
  */
 
 /*
@@ -35,8 +33,8 @@
 
 #include <sys/time.h>
 #include "getdns/getdns_ext_libevent.h"
-#include "config.h"
 #include "types-internal.h"
+#include "config.h"
 
 #ifdef HAVE_EVENT2_EVENT_H
 #  include <event2/event.h>
@@ -46,7 +44,6 @@
 #  define event_free free
 #  define evtimer_new(b, cb, arg) event_new((b), -1, 0, (cb), (arg))
 #endif
-#define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
 #ifndef HAVE_EVENT_BASE_FREE
 #define event_base_free(x) /* nop */
@@ -86,49 +83,37 @@ typedef struct getdns_libevent {
 	struct mem_funcs      mf;
 } getdns_libevent;
 
-static getdns_return_t getdns_libevent_cleanup(getdns_eventloop *loop);
-static getdns_return_t getdns_libevent_schedule_read(getdns_eventloop *loop,
-    int fd, uint64_t timeout, getdns_eventloop_event *ev);
-static getdns_return_t getdns_libevent_schedule_timeout
-    (getdns_eventloop *loop, uint64_t timeout, getdns_eventloop_event *ev);
-static getdns_return_t getdns_libevent_clear_event
-    (getdns_eventloop *loop, getdns_eventloop_event *ev);
-
-static getdns_eventloop_vmt getdns_libevent_vmt = {
-	getdns_libevent_cleanup,
-	getdns_libevent_schedule_read,
-	getdns_libevent_clear_event,
-	getdns_libevent_schedule_timeout,
-	getdns_libevent_clear_event,
-};
-
-getdns_return_t
-getdns_extension_set_libevent_base(getdns_context *context,
-    struct event_base *base)
+static void
+getdns_libevent_run(getdns_eventloop *loop)
 {
-	getdns_libevent *ext;
-	getdns_return_t r;
-
-	RETURN_IF_NULL(context, GETDNS_RETURN_BAD_CONTEXT);
-	RETURN_IF_NULL(base, GETDNS_RETURN_INVALID_PARAMETER);
-
-	if ((r = getdns_context_detach_eventloop(context)))
-		return r;
-
-	ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), getdns_libevent);
-	ext->vmt  = &getdns_libevent_vmt;
-	ext->base = base;
-	ext->mf   = *priv_getdns_context_mf(context);
-
-	return getdns_context_set_eventloop(context, (getdns_eventloop *)&ext);
+	(void) event_base_dispatch(((getdns_libevent *)loop)->base);
 }
 
-static getdns_return_t
+static void
+getdns_libevent_run_once(getdns_eventloop *loop, int blocking)
+{
+	/* Is this possible with libevent? */
+}
+
+static void
 getdns_libevent_cleanup(getdns_eventloop *loop)
 {
 	getdns_libevent *ext = (getdns_libevent *)loop;
-
 	GETDNS_FREE(ext->mf, ext);
+}
+
+static getdns_return_t
+getdns_libevent_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
+{
+	struct event *my_ev = (struct event *)el_ev->ev;
+
+	assert(my_ev);
+
+	if (event_del(my_ev) != 0)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	event_free(my_ev);
+	el_ev->ev = NULL;
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -140,6 +125,9 @@ getdns_libevent_callback(evutil_socket_t fd, short bits, void *arg)
 	if (bits & EV_READ) {
 		assert(el_ev->read_cb);
 		el_ev->read_cb(el_ev->userarg);
+	} else if (bits & EV_WRITE) {
+		assert(el_ev->write_cb);
+		el_ev->write_cb(el_ev->userarg);
 	} else if (bits & EV_TIMEOUT) {
 		assert(el_ev->timeout_cb);
 		el_ev->timeout_cb(el_ev->userarg);
@@ -148,51 +136,61 @@ getdns_libevent_callback(evutil_socket_t fd, short bits, void *arg)
 }
 
 static getdns_return_t
-getdns_libevent_schedule_read(getdns_eventloop *loop,
+getdns_libevent_schedule(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *el_ev)
 {
 	getdns_libevent *ext = (getdns_libevent *)loop;
 	struct event *my_ev;
 	struct timeval tv = { timeout / 1000, (timeout % 1000) * 1000 };
-	short bits = ((fd >= 0 && el_ev->read_cb ? EV_READ|EV_PERSIST : 0) |
-	     (timeout != TIMEOUT_FOREVER && el_ev->timeout_cb ? EV_TIMEOUT : 0));
 
-	if (!bits)
-		return GETDNS_RETURN_GOOD; /* Nothing to schedule */
+	assert(el_ev);
+	assert(!(el_ev->read_cb || el_ev->write_cb) || fd >= 0);
+	assert(  el_ev->read_cb || el_ev->write_cb  || el_ev->timeout_cb);
 
-	if (!(my_ev = event_new(
-	    ext->base, fd, bits, getdns_libevent_callback, el_ev)))
+	my_ev = event_new(ext->base, fd, (
+	    (el_ev->read_cb ? EV_READ|EV_PERSIST : 0) |
+	    (el_ev->write_cb ? EV_WRITE|EV_PERSIST : 0) |
+	    (el_ev->timeout_cb ? EV_TIMEOUT : 0)),
+	    getdns_libevent_callback, el_ev);
+	if (!my_ev)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	el_ev->ev = my_ev;
-	if (event_add(my_ev,
-	    (timeout != TIMEOUT_FOREVER && el_ev->timeout_cb ? &tv : NULL)))
-	    	goto error;
-	
-	return GETDNS_RETURN_GOOD;
-error:
-	event_free(my_ev);
-	el_ev->ev = NULL;
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
 
-static getdns_return_t
-getdns_libevent_schedule_timeout(getdns_eventloop *loop,
-    uint64_t timeout, getdns_eventloop_event *el_ev)
-{
-	return getdns_libevent_schedule_read(loop, -1, timeout, el_ev);
-}
-
-static getdns_return_t
-getdns_libevent_clear_event(getdns_eventloop *loop,
-    getdns_eventloop_event *el_ev)
-{
-	assert(el_ev->ev);
-
-	if (event_del(el_ev->ev) != 0)
+	if (event_add(my_ev, el_ev->timeout_cb ? &tv : NULL)) {
+		event_free(my_ev);
+		el_ev->ev = NULL;
 		return GETDNS_RETURN_GENERIC_ERROR;
-	event_free(el_ev->ev);
-	el_ev->ev = NULL;
+	}
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t
+getdns_extension_set_libevent_base(getdns_context *context,
+    struct event_base *base)
+{
+	static getdns_eventloop_vmt getdns_libevent_vmt = {
+		getdns_libevent_cleanup,
+		getdns_libevent_schedule,
+		getdns_libevent_clear,
+		getdns_libevent_run,
+		getdns_libevent_run_once
+	};
+	getdns_libevent *ext;
+	getdns_return_t r;
+
+	if (!context)
+		return GETDNS_RETURN_BAD_CONTEXT;
+	if (!base)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if ((r = getdns_context_detach_eventloop(context)))
+		return r;
+
+	ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), getdns_libevent);
+	ext->vmt  = &getdns_libevent_vmt;
+	ext->base = base;
+	ext->mf   = *priv_getdns_context_mf(context);
+
+	return getdns_context_set_eventloop(context, (getdns_eventloop *)&ext);
+}

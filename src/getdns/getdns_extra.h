@@ -73,6 +73,7 @@ typedef void (*getdns_eventloop_callback)(void *userarg);
 typedef struct getdns_eventloop_event {
 	void *userarg;
 	getdns_eventloop_callback read_cb;
+	getdns_eventloop_callback write_cb;
 	getdns_eventloop_callback timeout_cb;
 
 	/* Pointer to the underlying event 
@@ -86,45 +87,32 @@ typedef struct getdns_eventloop {
 	getdns_eventloop_vmt *vmt;
 } getdns_eventloop;
 
-/* Call the extension to clean up data allocated on initialization. */
-typedef getdns_return_t (*getdns_eventloop_cleanup)(getdns_eventloop *loop);
+/* A prototype for a method having no arguments and not return value. */
+typedef void (*getdns_eventloop_noargs)(getdns_eventloop *loop);
 
-/* Call the extension to schedule an event that will trigger when
- * file descriptor fd will become readble.
+/* Call the extension to schedule an event
  *
  * The getdns_eventloop_event must be provided by the caller with the callbacks
- * and userarg therein already supplied (by the caller).  This function must set
+ * and userarg therein already supplied (by the caller). This function will set
  * the ev pointer (in the getdns_eventloop_event) to refer to the underlying
  * (extension) event.
  */
-typedef getdns_return_t (*getdns_eventloop_schedule_read)(getdns_eventloop *loop,
+typedef getdns_return_t (*getdns_eventloop_schedule)(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *ev);
 
-/* Call the extension to free a read event. */
-typedef getdns_return_t (*getdns_eventloop_clear_read)
+/* Call the extension to clean a scheduled event */
+typedef getdns_return_t (*getdns_eventloop_clear)
     (getdns_eventloop *loop, getdns_eventloop_event *ev);
 
-/* Call the extension to schedule a timer.
- *
- * The getdns_eventloop_event must be provided by the caller with the timeout
- * callback and userarg therein already supplied (by the caller).
- * This function must set the ev pointer (in the getdns_eventloop_event)
- * to refer to the underlying (extension) event.
- */
-typedef getdns_return_t (*getdns_eventloop_schedule_timeout)
-    (getdns_eventloop *loop, uint64_t timeout, getdns_eventloop_event *ev);
+typedef void (*getdns_eventloop_run_once)(getdns_eventloop *loop,int blocking);
 
-/* Call the extension to free a timer. */
-typedef getdns_return_t (*getdns_eventloop_clear_timeout)
-    (getdns_eventloop *loop, getdns_eventloop_event *ev);
- 
  /* Virtual Method Table */
 struct getdns_eventloop_vmt {
-	getdns_eventloop_cleanup          cleanup;
-	getdns_eventloop_schedule_read    schedule_read;
-	getdns_eventloop_clear_read       clear_read;
-	getdns_eventloop_schedule_timeout schedule_timeout;
-	getdns_eventloop_clear_timeout    clear_timeout;
+	getdns_eventloop_noargs     cleanup;
+	getdns_eventloop_schedule   schedule;
+	getdns_eventloop_clear      clear;
+	getdns_eventloop_noargs     run;
+	getdns_eventloop_run_once   run_once;
 };
 
 /* set an event loop extension on the context */
@@ -135,6 +123,10 @@ getdns_context_set_eventloop(getdns_context* context,
 /* detach the eventloop from the context */
 getdns_return_t
 getdns_context_detach_eventloop(getdns_context *context);
+
+/* Run the context's event loop until nothing more to do */
+void
+getdns_context_run(getdns_context *context);
 
 #ifdef __cplusplus
 }

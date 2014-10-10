@@ -34,6 +34,7 @@
 #ifndef _GETDNS_LIBMINI_EVENT_H_
 #define _GETDNS_LIBMINI_EVENT_H_
 
+#include "config.h"
 #include "util/mini_event.h"
 #include "types-internal.h"
 
@@ -42,6 +43,7 @@ typedef struct getdns_mini_event {
 	time_t                    time_secs;
 	struct timeval            time_tv;
 	struct getdns_event_base *base;
+	size_t                    n_events;
 	struct mem_funcs          mf;
 } getdns_mini_event;
 
@@ -53,13 +55,5 @@ getdns_mini_event_create(getdns_context *ctxt, getdns_mini_event **mini_event);
 
 void
 getdns_mini_event_destroy(getdns_mini_event *mini_event);
-
-/** Call timeouts handlers, and return how long to wait for next one or -1 */
-void
-getdns_mini_event_handle_timeouts(getdns_mini_event *ext, struct timeval *wait);
-
-/** Call select and callbacks for that */
-getdns_return_t
-getdns_mini_event_handle_select(getdns_mini_event *ext, struct timeval* wait);
 
 #endif /* _GETDNS_LIBMINI_EVENT_H_ */
