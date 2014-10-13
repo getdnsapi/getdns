@@ -179,14 +179,6 @@ void getdns_bindata_destroy(
     struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
 
-/* timeout scheduling */
-getdns_return_t getdns_context_schedule_timeout(getdns_context* context,
-    uint64_t timeout, getdns_eventloop_callback callback, void* userarg,
-    getdns_eventloop_event *init_to_track);
-
-getdns_return_t getdns_context_clear_timeout(getdns_context* context,
-    getdns_eventloop_event *timeout_data);
-
 /* perform name resolution in /etc/hosts */
 getdns_return_t getdns_context_local_namespace_resolve(getdns_dns_req* req,
                                                struct getdns_dict **response,

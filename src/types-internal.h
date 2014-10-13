@@ -196,6 +196,9 @@ typedef struct getdns_dns_req
 	/* request extensions */
 	struct getdns_dict *extensions;
 
+	/* event loop */
+	getdns_eventloop *loop;
+
 	/* callback data */
 	getdns_callback_t user_callback;
 	void *user_pointer;
@@ -203,6 +206,7 @@ typedef struct getdns_dns_req
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
+	/* for scheduling timeouts when using libunbound */
 	getdns_eventloop_event timeout;
 
 	/* dnssec status */
@@ -246,8 +250,8 @@ getdns_network_req *network_req_new(getdns_dns_req * owner,
     uint16_t request_class, struct getdns_dict *extensions);
 
 /* dns request utils */
-getdns_dns_req *dns_req_new(struct getdns_context *context,
-    const char *name, uint16_t request_type, struct getdns_dict *extensions);
+getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,
+    const char *name, uint16_t request_type, getdns_dict *extensions);
 
 void dns_req_free(getdns_dns_req * req);
 

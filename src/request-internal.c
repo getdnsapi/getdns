@@ -82,7 +82,6 @@ dns_req_free(getdns_dns_req * req)
 		return;
 	}
 	getdns_network_req *net_req = NULL;
-	struct getdns_context *context = req->context;
 
 	/* free extensions */
 	getdns_dict_destroy(req->extensions);
@@ -95,7 +94,10 @@ dns_req_free(getdns_dns_req * req)
 		net_req = next;
 	}
 
-	getdns_context_clear_timeout(context, &req->timeout);
+	if (req->timeout.timeout_cb) {
+		req->loop->vmt->clear(req->loop, &req->timeout);
+		req->timeout.timeout_cb = NULL;
+	}
 
 	/* free strduped name */
 	GETDNS_FREE(req->my_mf, req->name);
@@ -104,7 +106,7 @@ dns_req_free(getdns_dns_req * req)
 
 /* create a new dns req to be submitted */
 getdns_dns_req *
-dns_req_new(struct getdns_context *context,
+dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, struct getdns_dict *extensions)
 {
 
@@ -119,10 +121,12 @@ dns_req_new(struct getdns_context *context,
 	result->my_mf = context->mf;
 	result->name = getdns_strdup(&(result->my_mf), name);
 	result->context = context;
+	result->loop = loop;
 	result->canceled = 0;
 	result->current_req = NULL;
 	result->first_req = NULL;
-	result->trans_id = ldns_get_random();
+	result->trans_id = (((uint64_t) ldns_get_random()) << 32) 
+	    ^ ((intptr_t) result);
 
 	getdns_dict_copy(extensions, &result->extensions);
 	result->return_dnssec_status = context->return_dnssec_status;

@@ -50,11 +50,9 @@
  *
  */
 getdns_return_t
-getdns_hostname(struct getdns_context *context,
-    struct getdns_dict * address,
-    struct getdns_dict * extensions,
-    void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callback)
+getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
+    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
 	struct getdns_bindata *address_data;
 	struct getdns_bindata *address_type;
@@ -83,10 +81,24 @@ getdns_hostname(struct getdns_context *context,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	if ((name = reverse_address(address_data)) == NULL)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	retval = getdns_general(context, name, req_type, extensions,
+	retval = getdns_general_loop(context, loop, name, req_type, extensions,
 	    userarg, transaction_id, callback);
 	free(name);
 	return retval;
+}				/* getdns_hostname_loop */
+
+/*
+ * getdns_hostname
+ *
+ */
+getdns_return_t
+getdns_hostname(getdns_context *context,
+    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+{
+	return getdns_hostname_loop(context, context->extension,
+	    address, extensions, userarg, transaction_id, callback);
 }				/* getdns_hostname */
+
 
 /* hostname.c */

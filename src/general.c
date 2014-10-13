@@ -152,104 +152,146 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 } /* ub_resolve_callback */
 
 getdns_return_t
-getdns_general_ub(struct getdns_context *context,
-    const char *name,
-    uint16_t request_type,
-    struct getdns_dict *extensions,
-    void *userarg,
-    getdns_transaction_t * transaction_id,
-    getdns_callback_t callbackfn,
-	int usenamespaces)
+getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
+    const char *name, uint16_t request_type, getdns_dict *extensions,
+    void *userarg, getdns_transaction_t *transaction_id,
+    getdns_callback_t callbackfn, int usenamespaces)
 {
-	getdns_return_t gr;
-	int r = GETDNS_RETURN_GOOD;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_network_req *netreq;
+	getdns_dns_req *req;
+	getdns_dict *localnames_response;
+	size_t i;
 
-	if (!name) {
+	if (!context || !name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	}
+	
+	if ((r = validate_dname(name)))
+		return r;
 
-	gr = getdns_context_prepare_for_resolution(context, usenamespaces);
-	if (gr != GETDNS_RETURN_GOOD) {
-		return gr;
-	}
+	if (extensions && (r = validate_extensions(extensions)))
+		return r;
 
-	/* request state */
-	getdns_dns_req *req = dns_req_new(context,
-	    name,
-	    request_type,
-	    extensions);
-	if (!req) {
-		return GETDNS_RETURN_GENERIC_ERROR;
-	}
+	/* Set up the context assuming we won't use the specified namespaces.
+	   This is (currently) identical to setting up a pure DNS namespace */
+	if ((r = getdns_context_prepare_for_resolution(context, 0)))
+		return r;
+
+	/* create the request */
+	if (!(req = dns_req_new(context, loop, name, request_type, extensions)))
+		return GETDNS_RETURN_MEMORY_ERROR;
 
 	req->user_pointer = userarg;
 	req->user_callback = callbackfn;
 
-	if (transaction_id) {
+	if (transaction_id)
 		*transaction_id = req->trans_id;
-	}
 
 	getdns_context_track_outbound_request(req);
 
-	/* assign a timeout */
-	// req->ev_base = ev_base;
-	// req->timeout = evtimer_new(ev_base, ub_resolve_timeout, req);
-	/* schedule the timeout */
-	getdns_context_schedule_timeout(context, context->timeout,
-	    ub_resolve_timeout, req, &req->timeout);
-
-	/* issue the first network req */
-	netreq = req->first_req;
-	while (r == GETDNS_RETURN_GOOD && netreq) {
-		r = submit_network_request(netreq);
-		netreq = netreq->next;
+	if (1 || context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
+		/* schedule the timeout */
+		req->timeout.userarg    = req;
+		req->timeout.read_cb    = NULL;
+		req->timeout.write_cb   = NULL;
+		req->timeout.timeout_cb = ub_resolve_timeout;
+		req->timeout.ev         = NULL;
+		if ((r = loop->vmt->schedule(
+		    loop, -1, context->timeout, &req->timeout)))
+			return r;
 	}
+
+	if (!usenamespaces)
+		/* issue all network requests */
+		for (netreq = req->first_req; !r && netreq; netreq = netreq->next)
+			r = submit_network_request(netreq);
+
+	else for (i = 0; i < context->namespace_count; i++) {
+		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
+
+			if (!(r = getdns_context_local_namespace_resolve(
+			    req, &localnames_response, context)))
+
+				priv_getdns_call_user_callback
+				    ( req, localnames_response);
+			break;
+		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
+
+			/* TODO: We will get a good return code here even if
+			   the name is not found (NXDOMAIN). We should consider
+			   if this means we go onto the next namespace instead
+			   of returning */
+
+			netreq = req->first_req;
+			while (!r && netreq) {
+				r = submit_network_request(netreq);
+				netreq = netreq->next;
+			}
+			break;
+		} else
+			r = GETDNS_RETURN_BAD_CONTEXT;
+	}
+
 	if (r != 0) {
 		/* clean up the request */
 		getdns_context_clear_outbound_request(req);
 		dns_req_free(req);
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return r;
 	}
 	return GETDNS_RETURN_GOOD;
-}				/* getdns_general_ub */
+}				/* getdns_general_ns */
+
+getdns_return_t
+getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
+    const char *name, uint16_t request_type, getdns_dict *extensions,
+    void *userarg, getdns_transaction_t *transaction_id,
+    getdns_callback_t callback)
+{
+	return getdns_general_ns(context, loop,
+	    name, request_type, extensions,
+	    userarg, transaction_id, callback, 0);
+
+}				/* getdns_general_loop */
+
+getdns_return_t
+getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
+    const char *name, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+{
+	int cleanup_extensions = 0;
+	getdns_return_t r;
+
+	if (!extensions) {
+		if (!(extensions = getdns_dict_create_with_context(context)))
+			return GETDNS_RETURN_MEMORY_ERROR;
+		cleanup_extensions = 1;
+	}
+	if ((r = getdns_dict_set_int(extensions, "return_both_v4_and_v6",
+	    GETDNS_EXTENSION_TRUE)))
+		return r;
+	
+	r = getdns_general_ns(context, loop,
+	    name, GETDNS_RRTYPE_A, extensions,
+	    userarg, transaction_id, callback, 1);
+
+	if (cleanup_extensions)
+		getdns_dict_destroy(extensions);
+
+	return r;
+} /* getdns_address_loop */
 
 /**
  * getdns_general
  */
 getdns_return_t
-getdns_general(struct getdns_context *context,
-    const char *name,
-    uint16_t request_type,
-    struct getdns_dict * extensions,
-    void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callback)
+getdns_general(getdns_context *context,
+    const char *name, uint16_t request_type, getdns_dict *extensions,
+    void *userarg, getdns_transaction_t * transaction_id,
+    getdns_callback_t callback)
 {
-	int extcheck = GETDNS_RETURN_GOOD;
-
-	if (!context) {
-		/* Can't do async without an event loop
-		 * or callback
-		 */
-		return GETDNS_RETURN_INVALID_PARAMETER;
-	}
-
-    /* ensure callback is not NULL */
-    if (!callback || !name) {
-         return GETDNS_RETURN_INVALID_PARAMETER;
-    }
-
-    extcheck = validate_dname(name);
-    if (extcheck != GETDNS_RETURN_GOOD) {
-        return extcheck;
-    }
-
-	extcheck = validate_extensions(extensions);
-	if (extcheck != GETDNS_RETURN_GOOD)
-		return extcheck;
-
-	return getdns_general_ub(context,
-	    name, request_type, extensions, userarg, transaction_id, callback, 0);
+	return getdns_general_loop(context, context->extension,
+	    name, request_type, extensions,
+	    userarg, transaction_id, callback);
 
 }				/* getdns_general */
 
@@ -258,44 +300,14 @@ getdns_general(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_address(struct getdns_context *context,
-    const char *name,
-    struct getdns_dict * extensions,
-    void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callback)
+getdns_address(getdns_context *context,
+    const char *name, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
-	int cleanup_extensions = 0;
-	int extcheck;
-	getdns_return_t result;
-
-	if (!context)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-    if (!callback || !name)
-         return GETDNS_RETURN_INVALID_PARAMETER;
-
-    extcheck = validate_dname(name);
-    if (extcheck != GETDNS_RETURN_GOOD)
-        return extcheck;
-
-	/* we set the extensions that make general behave like getdns_address */
-	if (!extensions)
-	{
-		extensions = getdns_dict_create_with_context(context);
-		cleanup_extensions = 1;
-	}
-	getdns_dict_set_int(extensions,
-	    GETDNS_STR_EXTENSION_RETURN_BOTH_V4_AND_V6, GETDNS_EXTENSION_TRUE);
-	extcheck = validate_extensions(extensions);
-	if (extcheck != GETDNS_RETURN_GOOD)
-		return extcheck;
-
-	result = getdns_general_ub(context,
-	    name, GETDNS_RRTYPE_A, extensions, userarg, transaction_id, callback, 1);
-
-	if (cleanup_extensions)
-		getdns_dict_destroy(extensions);
-
-	return result;
+	return getdns_address_loop(context, context->extension,
+	    name, extensions, userarg,
+	    transaction_id, callback);
 } /* getdns_address */
+
 
 /* getdns_general.c */

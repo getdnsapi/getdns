@@ -163,7 +163,7 @@ getdns_general_sync_ns(struct getdns_context *context,
         return response_status;
 
     /* create the request */
-    req = dns_req_new(context, name, request_type, extensions);
+    req = dns_req_new(context, context->extension, name, request_type, extensions);
     if (!req)
         return GETDNS_RETURN_MEMORY_ERROR;
 

@@ -43,35 +43,25 @@
  *
  */
 getdns_return_t
-getdns_service(struct getdns_context *context,
-    const char *name,
-    struct getdns_dict * extensions,
-    void *userarg,
+getdns_service_loop(struct getdns_context *context, getdns_eventloop *loop,
+    const char *name, getdns_dict *extensions, void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
-	int parmcheck;
-	getdns_return_t result;
+	return getdns_general_ns(context, loop, name, GETDNS_RRTYPE_SRV,
+	    extensions, userarg, transaction_id, callback, 1);
+}				/* getdns_service_loop */
 
-	if (!context)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-    if (!callback || !name)
-         return GETDNS_RETURN_INVALID_PARAMETER;
-
-    parmcheck = validate_dname(name);
-    if (parmcheck != GETDNS_RETURN_GOOD)
-        return parmcheck;
-
-	if(extensions)
-	{
-		parmcheck = validate_extensions(extensions);
-		if (parmcheck != GETDNS_RETURN_GOOD)
-			return parmcheck;
-	}
-
-	result = getdns_general_ub(context,
-	    name, GETDNS_RRTYPE_SRV, extensions, userarg, transaction_id, callback, 1);
-
-	return result;
+/*
+ * getdns_service
+ *
+ */
+getdns_return_t
+getdns_service(getdns_context *context,
+    const char *name, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+{
+	return getdns_service_loop(context, context->extension,
+	    name, extensions, userarg, transaction_id, callback);
 }				/* getdns_service */
 
 /* service.c */
