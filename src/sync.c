@@ -123,11 +123,12 @@ static getdns_return_t submit_request_sync_stub(
 static getdns_return_t submit_request_sync(
     getdns_dns_req* req, struct getdns_context *context)
 {
-    if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-        return submit_request_sync_stub(req, &(context->timeout));
-    } else {
-        return submit_request_sync_rec(req, &(context->timeout));
-    }
+	uint64_t timeout = context->timeout;
+	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
+		return submit_request_sync_stub(req, &timeout);
+	} else {
+		return submit_request_sync_rec(req, &timeout);
+	}
 }
 
 getdns_return_t
