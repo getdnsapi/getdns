@@ -41,12 +41,12 @@
 #include "util-internal.h"
 #include "gldns/gbuffer.h"
 #include "gldns/wire2str.h"
-#include "util/mini_event.h"
+#include "extension/libmini_event.h"
 
 #define STUBDEBUG 1
 
 typedef struct stub_resolver {
-	struct getdns_event_base *base;
+	getdns_eventloop *ext;
 	getdns_context   *context;
 	getdns_upstreams *upstreams;
 	const char       *name;
@@ -61,31 +61,25 @@ typedef struct stub_resolver {
 	size_t   ns_index;
 	size_t   to_retry;
 	int      udp_fd;
+
+	getdns_eventloop_event event;
 } stub_resolver;
 
 static void
-resolver_done(stub_resolver *resolver)
+udp_request_timeout_cb(void *arg)
 {
-	(void) getdns_event_base_loopexit(resolver->base, NULL);
-
-	if (--resolver->upstreams->referenced == 0)
-		GETDNS_FREE(resolver->upstreams->mf, resolver->upstreams);
-	GETDNS_FREE(resolver->context->mf, resolver);
+	stub_resolver *resolver = (stub_resolver *)arg;
+	resolver->ext->vmt->clear(resolver->ext, &resolver->event);
+	fprintf(stderr, "TIMEOUT!\n");
 }
 
 static void
-cb_udp_request(int fd, short bits, void *arg)
+udp_request_read_cb(void *arg)
 {
 	stub_resolver *resolver = (stub_resolver *)arg;
 	ssize_t read;
 
-	if (bits & EV_TIMEOUT) {
-		fprintf(stderr, "TIMEOUT!\n");
-		resolver_done(resolver);
-	}
-
-	if (! (bits & EV_READ))
-		return;
+	resolver->ext->vmt->clear(resolver->ext, &resolver->event);
 
 	read = recvfrom(resolver->udp_fd,
 	    gldns_buffer_current(resolver->response),
@@ -106,7 +100,6 @@ cb_udp_request(int fd, short bits, void *arg)
 		free(str);
 	} while(0);
 #endif
-	resolver_done(resolver);
 }
 
 static getdns_return_t
@@ -114,8 +107,6 @@ query_ns(stub_resolver *resolver)
 {
 	struct getdns_upstream *upstream;
 	ssize_t sent;
-	struct timeval tv;
-	struct getdns_event *ev;
 
 	assert(resolver);
 
@@ -141,18 +132,18 @@ query_ns(stub_resolver *resolver)
 	if (sent == -1 || sent != resolver->request_pkt_len)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	
-	ev = GETDNS_MALLOC(resolver->context->mf, struct getdns_event);
-	getdns_event_set(ev, resolver->udp_fd, EV_READ | EV_TIMEOUT, cb_udp_request, resolver);
-	(void) getdns_event_base_set(resolver->base, ev);
-	tv.tv_sec = resolver->context->timeout / 1000;
-	tv.tv_usec = (resolver->context->timeout % 1000) * 1000;
-	(void) getdns_event_add(ev, &tv);
+	resolver->event.userarg    = resolver;
+	resolver->event.read_cb    = udp_request_read_cb;
+	resolver->event.write_cb   = NULL;
+	resolver->event.timeout_cb = udp_request_timeout_cb;
+	resolver->ext->vmt->schedule(resolver->ext, resolver->udp_fd,
+	    resolver->context->timeout, &resolver->event);
 
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t 
-getdns_stub_dns_query_async(struct getdns_event_base *base,
+getdns_stub_dns_query_async(struct getdns_eventloop *ext,
     getdns_context *context, const char *name, uint16_t request_type,
     getdns_dict *extensions, gldns_buffer *response)
 {
@@ -163,7 +154,7 @@ getdns_stub_dns_query_async(struct getdns_event_base *base,
 	if (! resolver)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	resolver->base         = base;
+	resolver->ext          = ext;
 	resolver->context      = context;
 	resolver->upstreams    = context->upstreams;
 	resolver->upstreams->referenced++;
@@ -201,25 +192,21 @@ getdns_stub_dns_query_sync(
     getdns_context *context, const char *name, uint16_t request_type,
     getdns_dict *extensions, gldns_buffer *response)
 {
-	time_t time_secs;
-	struct timeval time_tv;
-	struct getdns_event_base *base;
-	getdns_return_t r = GETDNS_RETURN_GOOD;
+	getdns_return_t r;
+	getdns_mini_event mini_event;
+	getdns_eventloop *ext = &mini_event.loop;
 	
-	base = getdns_event_init(&time_secs, &time_tv);
-	if (! base)
-		return GETDNS_RETURN_MEMORY_ERROR;
+	r = getdns_mini_event_init(context, &mini_event);
+	if (r)
+		return r;
 
-	r = getdns_stub_dns_query_async(base, context, name, request_type,
+	r = getdns_stub_dns_query_async(ext, context, name, request_type,
 	    extensions, response);
 	if (r)
-		goto done;
+		return r;
 
-	if (getdns_event_base_dispatch(base))
-		r = GETDNS_RETURN_GENERIC_ERROR;
-done:
-	getdns_event_base_free(base);
-	return r;
+	ext->vmt->run(ext);
+	return GETDNS_RETURN_GOOD;
 }
 
 int
