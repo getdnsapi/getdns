@@ -72,8 +72,16 @@ getdns_mini_event_run(getdns_eventloop *loop)
 	if (ext->n_events == 0 || getdns_mini_event_settime(ext) < 0)
 		return;
 
-	do	(void) getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
-	while (!getdns_handle_select(ext->base, &wait) && ext->n_events);
+	do {
+		(void) getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
+
+		if (!ext->n_events)
+			break;
+
+		if (getdns_handle_select(ext->base, &wait))
+			break;
+
+	} while (ext->n_events);
 }
 
 static void
@@ -86,15 +94,14 @@ getdns_mini_event_run_once(getdns_eventloop *loop, int blocking)
 	if (blocking) {
 		if (getdns_mini_event_settime(ext) < 0)
 			return;
-
 		getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
-		(void) getdns_handle_select(ext->base, &wait);
-	} else {
-		if (getdns_handle_select(ext->base, &immediately) < 0)
+		if (getdns_handle_select(ext->base, &wait) < 0)
 			return;
 
-		getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
-	}
+	} else if (getdns_handle_select(ext->base, &immediately) < 0)
+		return;
+
+	getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
 }
 
 static getdns_return_t
@@ -186,6 +193,7 @@ getdns_mini_event_init(getdns_context *context, getdns_mini_event *ext)
 	if (!ext)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+	ext->n_events = 0;
 	ext->loop.vmt = &getdns_mini_event_vmt;
 	ext->base = getdns_event_init(&ext->time_secs, &ext->time_tv);
 	if (!ext->base)
