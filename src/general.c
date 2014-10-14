@@ -126,7 +126,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 //    char *bogus)
 {
 	getdns_network_req *netreq = (getdns_network_req *) arg;
-	getdns_dns_req *dnsreq = netreq->owner;
+	getdns_dns_req *dns_req = netreq->owner;
 
 	netreq->state = NET_REQ_FINISHED;
 	if (err != 0) {
@@ -141,14 +141,14 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 	}
 	ub_resolve_free(ub_res);
 
-	netreq = dnsreq->first_req;
+	netreq = dns_req->first_req;
 	while (netreq) {
 		if (netreq->state != NET_REQ_FINISHED &&
 		    netreq->state != NET_REQ_CANCELED)
 			return;
 		netreq = netreq->next;
 	}
-	handle_dns_request_complete(dnsreq);
+	handle_dns_request_complete(dns_req);
 } /* ub_resolve_callback */
 
 getdns_return_t
@@ -163,7 +163,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	getdns_dict *localnames_response;
 	size_t i;
 
-	if (!context || !name)
+	if (!context || !name || !callbackfn)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if ((r = validate_dname(name)))
@@ -210,18 +210,19 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
 
 			if (!(r = getdns_context_local_namespace_resolve(
-			    req, &localnames_response, context)))
+			    req, &localnames_response, context))) {
 
 				priv_getdns_call_user_callback
 				    ( req, localnames_response);
-			break;
+				break;
+			}
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
 
 			/* TODO: We will get a good return code here even if
 			   the name is not found (NXDOMAIN). We should consider
 			   if this means we go onto the next namespace instead
 			   of returning */
-
+			r = GETDNS_RETURN_GOOD;
 			netreq = req->first_req;
 			while (!r && netreq) {
 				r = submit_network_request(netreq);
@@ -289,6 +290,7 @@ getdns_general(getdns_context *context,
     void *userarg, getdns_transaction_t * transaction_id,
     getdns_callback_t callback)
 {
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_general_loop(context, context->extension,
 	    name, request_type, extensions,
 	    userarg, transaction_id, callback);
@@ -304,6 +306,7 @@ getdns_address(getdns_context *context,
     const char *name, getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_address_loop(context, context->extension,
 	    name, extensions, userarg,
 	    transaction_id, callback);

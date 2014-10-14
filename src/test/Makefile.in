@@ -72,6 +72,9 @@ default: all
 
 all: $(PROGRAMS)
 
+check_getdns_libuv.lo: check_getdns_libuv.c
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -D_GNU_SOURCE -c $< -o $@
+
 tests_dict: tests_dict.lo testmessages.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dict.lo testmessages.lo
 

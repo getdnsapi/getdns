@@ -98,13 +98,13 @@ UTIL_OBJ=mini_event.lo rbtree.lo
 .c.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
-$(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) libmini_event.lo:
-	@:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
-
 default: all
 
 all: libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_LIBEV_LIB)
+
+$(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) libmini_event.lo:
+	@:
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
 install:	libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)

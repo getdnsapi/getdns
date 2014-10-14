@@ -98,3 +98,5 @@ getdns_context_process_async
 getdns_context_set_eventloop
 getdns_context_detach_eventloop
 getdns_context_run
+plain_mem_funcs_user_arg
+priv_getdns_context_mf

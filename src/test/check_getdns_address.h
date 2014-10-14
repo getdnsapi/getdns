@@ -201,8 +201,7 @@
 
      void verify_getdns_address_7(struct extracted_response *ex_response)
      {
-       assert_noerror(ex_response);
-       assert_address_in_answer(ex_response, TRUE, TRUE);
+       assert_address_in_just_address_answers(ex_response);
      }
 
      START_TEST (getdns_address_8)

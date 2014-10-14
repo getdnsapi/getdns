@@ -106,7 +106,7 @@ getdns_libev_write_cb(struct ev_loop *l, struct ev_io *io, int revents)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)io->data;
         assert(el_ev->write_cb);
-        el_ev->read_cb(el_ev->userarg);
+        el_ev->write_cb(el_ev->userarg);
 }
 
 static void
@@ -169,20 +169,18 @@ getdns_extension_set_libev_loop(getdns_context *context,
 		getdns_libev_run_once
 	};
 	getdns_libev *ext;
-	getdns_return_t r;
 
 	if (!context)
 		return GETDNS_RETURN_BAD_CONTEXT;
 	if (!loop)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_context_detach_eventloop(context)))
-		return r;
-
 	ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), getdns_libev);
+	if (!ext)
+		return GETDNS_RETURN_MEMORY_ERROR;
 	ext->vmt  = &getdns_libev_vmt;
 	ext->loop = loop;
 	ext->mf   = *priv_getdns_context_mf(context);
 
-	return getdns_context_set_eventloop(context, (getdns_eventloop *)&ext);
+	return getdns_context_set_eventloop(context, (getdns_eventloop *)ext);
 }

@@ -177,20 +177,19 @@ getdns_extension_set_libevent_base(getdns_context *context,
 		getdns_libevent_run_once
 	};
 	getdns_libevent *ext;
-	getdns_return_t r;
 
 	if (!context)
 		return GETDNS_RETURN_BAD_CONTEXT;
 	if (!base)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_context_detach_eventloop(context)))
-		return r;
-
 	ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), getdns_libevent);
+	if (!ext)
+		return GETDNS_RETURN_MEMORY_ERROR;
+
 	ext->vmt  = &getdns_libevent_vmt;
 	ext->base = base;
 	ext->mf   = *priv_getdns_context_mf(context);
 
-	return getdns_context_set_eventloop(context, (getdns_eventloop *)&ext);
+	return getdns_context_set_eventloop(context, (getdns_eventloop *)ext);
 }

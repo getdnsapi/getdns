@@ -96,6 +96,7 @@ getdns_hostname(getdns_context *context,
     getdns_dict *address, getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_hostname_loop(context, context->extension,
 	    address, extensions, userarg, transaction_id, callback);
 }				/* getdns_hostname */

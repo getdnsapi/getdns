@@ -260,7 +260,7 @@ upstreams_resize(getdns_upstreams *upstreams, size_t size)
 static void
 upstreams_dereference(getdns_upstreams *upstreams)
 {
-	if (--upstreams->referenced == 0)
+	if (upstreams && --upstreams->referenced == 0)
 		GETDNS_FREE(upstreams->mf, upstreams);
 }
 
@@ -583,6 +583,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffix = NULL;
 
 	result->dnssec_trust_anchors = NULL;
+	result->upstreams = NULL;
 
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
@@ -599,7 +600,7 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 
 	result->dnssec_allowed_skew = 0;
-	result->edns_maximum_udp_payload_size = 512;
+	result->edns_maximum_udp_payload_size = 1232;
 	result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
 	result->limit_outstanding_queries = 0;
 	result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
@@ -754,14 +755,26 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 static void
 getdns_context_request_count_changed(getdns_context *context)
 {
-	if (context->outbound_requests->count && !context->ub_event.ev)
+	DEBUG_SCHED("getdns_context_request_count_changed(%d)\n",
+	    (int) context->outbound_requests->count);
+	if (context->outbound_requests->count) {
+		if (context->ub_event.ev) return;
+
+		DEBUG_SCHED("gc_request_count_changed "
+		    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
+		    &context->ub_event, context->ub_event.ev);
 		context->extension->vmt->schedule(
 		    context->extension, ub_fd(context->unbound_ctx),
 		    TIMEOUT_FOREVER, &context->ub_event);
+	}
+	else if (context->ub_event.ev) /* Only test if count == 0! */ {
+		DEBUG_SCHED("gc_request_count_changed "
+		    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
+		    &context->ub_event, context->ub_event.ev);
 
-	else if (context->ub_event.ev)
 		context->extension->vmt->clear(
 		    context->extension, &context->ub_event);
+	}
 }
 
 static void
@@ -769,8 +782,20 @@ getdns_context_ub_read_cb(void *userarg)
 {
 	getdns_context *context = (getdns_context *)userarg;
 
-	if (getdns_context_process_async(context)) return;
-	(void) getdns_context_get_num_pending_requests(context, NULL);
+	/* getdns_context_process_async, but without reinvoking an eventloop
+	 * (with context->extension->vmt->run*), because we are already
+	 * called from a running eventloop.
+	 */
+	context->processing = 1;
+	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
+		/* need an async return code? */
+		context->processing = 0;
+		return;
+	}
+	context->processing = 0;
+
+	/* No need to handle timeouts. They are handled by the extension. */
+
 	getdns_context_request_count_changed(context);
 }
 
@@ -800,10 +825,11 @@ rebuild_ub_ctx(struct getdns_context* context) {
 			context->unbound_ctx, TRUST_ANCHOR_FILE);
 	}
 
-	context->ub_event.userarg = context;
-	context->ub_event.read_cb = getdns_context_ub_read_cb;
-	context->ub_event.write_cb = NULL;
+	context->ub_event.userarg    = context;
+	context->ub_event.read_cb    = getdns_context_ub_read_cb;
+	context->ub_event.write_cb   = NULL;
 	context->ub_event.timeout_cb = NULL;
+	context->ub_event.ev         = NULL;
 
 	return GETDNS_RETURN_GOOD;
 }
@@ -1300,7 +1326,7 @@ invalid_parameter:
 	r = GETDNS_RETURN_INVALID_PARAMETER;
 error:
 	upstreams_dereference(upstreams);
-	return r;
+	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 } /* getdns_context_set_upstream_recursive_servers */
 
 
@@ -1490,6 +1516,24 @@ getdns_context_cancel_request(struct getdns_context *context,
     dns_req_free(req);
     return GETDNS_RETURN_GOOD;
 }
+
+/*
+ * getdns_cancel_callback
+ *
+ */
+getdns_return_t
+getdns_cancel_callback(getdns_context *context,
+    getdns_transaction_t transaction_id)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	context->processing = 1;
+	getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
+	context->processing = 0;
+	getdns_context_request_count_changed(context);
+	return r;
+} /* getdns_cancel_callback */
 
 static getdns_return_t
 ub_setup_stub(struct ub_ctx *ctx, getdns_upstreams *upstreams)
@@ -1803,6 +1847,8 @@ uint32_t
 getdns_context_get_num_pending_requests(struct getdns_context* context,
     struct timeval* next_timeout)
 {
+	struct timeval dispose;
+
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 	if (context->outbound_requests->count)
@@ -1810,7 +1856,7 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 
 	/* TODO: Remove this when next_timeout is gone */
 	getdns_handle_timeouts(context->mini_event.base,
-	    &context->mini_event.time_tv, next_timeout);
+	    &context->mini_event.time_tv, next_timeout ? next_timeout : &dispose);
 
 	return context->outbound_requests->count;
 }
@@ -1836,7 +1882,9 @@ getdns_context_process_async(struct getdns_context* context)
 void
 getdns_context_run(getdns_context *context)
 {
-	context->extension->vmt->run(context->extension);
+	if (getdns_context_get_num_pending_requests(context, NULL) > 0 &&
+	    !getdns_context_process_async(context))
+		context->extension->vmt->run(context->extension);
 }
 
 typedef struct timeout_accumulator {

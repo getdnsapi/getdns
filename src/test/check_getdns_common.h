@@ -184,6 +184,12 @@
      void assert_address_in_answer(struct extracted_response *ex_response, int a, int aaaa);
 
      /*
+      *    assert_address_in_just_address_answers asserts that 
+      *    just_address_answers contains at least one address.
+      */
+     void assert_address_in_just_address_answers(struct extracted_response *ex_response);
+
+     /*
       *    assert_nxdomain asserts that an NXDOMAIN response was
       *    was returned for the DNS query meaning rcode == 3.
       */

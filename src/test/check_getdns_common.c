@@ -49,10 +49,22 @@ int event_loop_type = 0;
  */
 void extract_response(struct getdns_dict *response, struct extracted_response *ex_response)
 {
-  ck_assert_msg(response != NULL, "Response should not be NULL");
+  int have_answer_type = 0;
 
-  ASSERT_RC(getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type),
-    GETDNS_RETURN_GOOD, "Failed to extract \"top answer_type\"");
+  ck_assert_msg(response != NULL, "Response should not be NULL");
+  /* fprintf(stderr, "%s\n", getdns_pretty_print_dict(response)); */
+
+  /* answer_type is optional.  See spec section 4:
+   * 	"The top level of replies_tree can optionally have the following names: 
+   *	 canonical_name (a bindata), intermediate_aliases (a list), 
+   *	 answer_ipv4_address (a bindata), answer_ipv6_address (a bindata),
+   *	 and answer_type (an int)."
+   *
+   * If it is absent, do not try to decompose the replies_tree, because the
+   * answer most likely came not from DNS.
+   */
+  have_answer_type = getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type) ==
+    GETDNS_RETURN_GOOD;
 
   ASSERT_RC(getdns_dict_get_bindata(response, "canonical_name", &ex_response->top_canonical_name),
     GETDNS_RETURN_GOOD, "Failed to extract \"top canonical_name\"");
@@ -68,6 +80,21 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
   ASSERT_RC(getdns_dict_get_list(response, "replies_tree", &ex_response->replies_tree),
     GETDNS_RETURN_GOOD, "Failed to extract \"replies_tree\"");
   ck_assert_msg(ex_response->replies_tree != NULL, "replies_tree should not be NULL");
+
+  ASSERT_RC(getdns_dict_get_int(response, "status", &ex_response->status),
+    GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
+
+  if (!have_answer_type || ex_response->top_answer_type != GETDNS_NAMETYPE_DNS) {
+    ex_response->replies_tree_sub_dict = NULL;
+    ex_response->additional = NULL;
+    ex_response->answer = NULL;
+    ex_response->answer_type = 0;
+    ex_response->authority = NULL;
+    ex_response->canonical_name = NULL;
+    ex_response->header = NULL;
+    ex_response->question = NULL;
+    return;
+  }
 
   ASSERT_RC(getdns_list_get_dict(ex_response->replies_tree, 0, &ex_response->replies_tree_sub_dict),
     GETDNS_RETURN_GOOD, "Failed to extract \"replies_tree[0]\"");
@@ -98,9 +125,6 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
   ASSERT_RC(getdns_dict_get_dict(ex_response->replies_tree_sub_dict, "question", &ex_response->question),
     GETDNS_RETURN_GOOD, "Failed to extract \"question\"");
   ck_assert_msg(ex_response->question != NULL, "question should not be NULL");
-
-  ASSERT_RC(getdns_dict_get_int(response, "status", &ex_response->status),
-    GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
 }
 
 /*
@@ -193,6 +217,19 @@ void assert_address_in_answer(struct extracted_response *ex_response, int a, int
   }
   ck_assert_msg(ancount == address_records, "ancount: %d address records mismatch: %d",
     ancount, address_records);
+}
+
+/*
+ *  assert_address_in_just_address_answers asserts that just_address_answers
+ *  contains at least one address.
+ */
+void assert_address_in_just_address_answers(struct extracted_response *ex_response)
+{
+  size_t length;
+  ASSERT_RC(getdns_list_get_length(ex_response->just_address_answers, &length),
+    GETDNS_RETURN_GOOD, "Failed to extract \"just_address_answers\" length");
+
+  ck_assert_msg(length > 0, "Expected \"just_address_answers\" length > 0, got %d", length);
 }
 
 /*

@@ -125,7 +125,7 @@ dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
 	result->canceled = 0;
 	result->current_req = NULL;
 	result->first_req = NULL;
-	result->trans_id = (((uint64_t) ldns_get_random()) << 32) 
+	result->trans_id = ((uint64_t) ldns_get_random())
 	    ^ ((intptr_t) result);
 
 	getdns_dict_copy(extensions, &result->extensions);

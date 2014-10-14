@@ -118,6 +118,10 @@ query_ns(stub_resolver *resolver)
 	 */
 
 	/* TODO: Check how to connect first (udp or tcp) */
+	if (resolver->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
+	    resolver->context->dns_transport !=
+	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
+		return GETDNS_RETURN_GENERIC_ERROR;
 
 	resolver->udp_fd = socket(upstream->addr.ss_family, SOCK_DGRAM,
 	    IPPROTO_UDP);

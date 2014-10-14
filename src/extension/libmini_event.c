@@ -107,19 +107,20 @@ getdns_mini_event_run_once(getdns_eventloop *loop, int blocking)
 static getdns_return_t
 getdns_mini_event_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 {
+	getdns_return_t r;
 	getdns_mini_event *ext = (getdns_mini_event *)loop;
 	
 	assert(el_ev->ev);
 
 	if (getdns_event_del(el_ev->ev) != 0)
-		return GETDNS_RETURN_GENERIC_ERROR;
+		r = GETDNS_RETURN_GENERIC_ERROR;
 
 	GETDNS_FREE(ext->mf, el_ev->ev);
 	el_ev->ev = NULL;
 
 	ext->n_events--;
 
-	return GETDNS_RETURN_GOOD;
+	return r;
 }
 
 static void

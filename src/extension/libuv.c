@@ -75,6 +75,8 @@ getdns_libuv_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 	
 	assert(my_ev);
 
+	DEBUG_SCHED("enter libuv_clear(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+
 	if (el_ev->read_cb) {
 		uv_poll_stop(&my_ev->read);
 		uv_close((uv_handle_t *)&my_ev->read, NULL);
@@ -83,12 +85,13 @@ getdns_libuv_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 		uv_poll_stop(&my_ev->write);
 		uv_close((uv_handle_t *)&my_ev->write, NULL);
 	}
-	if (el_ev->timeout_cb)
+	if (el_ev->timeout_cb) {
 		uv_timer_stop(&my_ev->timer);
 		uv_close((uv_handle_t *)&my_ev->timer, NULL);
-
+	}
 	GETDNS_FREE(ext->mf, el_ev->ev);
 	el_ev->ev = NULL;
+	DEBUG_SCHED("exit  libuv_clear(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -97,7 +100,9 @@ getdns_libuv_read_cb(uv_poll_t *poll, int status, int events)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
         assert(el_ev->read_cb);
+	DEBUG_SCHED("enter libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
         el_ev->read_cb(el_ev->userarg);
+	DEBUG_SCHED("exit  libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
 }
 
 static void
@@ -105,7 +110,9 @@ getdns_libuv_write_cb(uv_poll_t *poll, int status, int events)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
         assert(el_ev->write_cb);
+	DEBUG_SCHED("enter libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
         el_ev->write_cb(el_ev->userarg);
+	DEBUG_SCHED("exit  libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
 }
 
 static void
@@ -113,7 +120,9 @@ getdns_libuv_timeout_cb(uv_timer_t *timer, int status)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
         assert(el_ev->timeout_cb);
+	DEBUG_SCHED("enter libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
         el_ev->timeout_cb(el_ev->userarg);
+	DEBUG_SCHED("exit  libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
 }
 
 static getdns_return_t
@@ -128,6 +137,8 @@ getdns_libuv_schedule(getdns_eventloop *loop,
 	assert(el_ev);
 	assert(!(el_ev->read_cb || el_ev->write_cb) || fd >= 0);
 	assert(  el_ev->read_cb || el_ev->write_cb  || el_ev->timeout_cb);
+
+	DEBUG_SCHED("enter libuv_schedule(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
 
 	if (!(my_ev = GETDNS_MALLOC(ext->mf, poll_timer)))
 		return GETDNS_RETURN_MEMORY_ERROR;
@@ -152,6 +163,7 @@ getdns_libuv_schedule(getdns_eventloop *loop,
 		my_timer->data = el_ev;
 		uv_timer_start(my_timer, getdns_libuv_timeout_cb, timeout, 0);
 	}
+	DEBUG_SCHED("exit  libuv_schedule(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -166,20 +178,18 @@ getdns_extension_set_libuv_loop(getdns_context *context, uv_loop_t *loop)
 		getdns_libuv_run_once
 	};
 	getdns_libuv *ext;
-	getdns_return_t r;
 
 	if (!context)
 		return GETDNS_RETURN_BAD_CONTEXT;
 	if (!loop)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_context_detach_eventloop(context)))
-		return r;
-
 	ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), getdns_libuv);
+	if (!ext)
+		return GETDNS_RETURN_MEMORY_ERROR;
 	ext->vmt  = &getdns_libuv_vmt;
 	ext->loop = loop;
 	ext->mf   = *priv_getdns_context_mf(context);
 
-	return getdns_context_set_eventloop(context, (getdns_eventloop *)&ext);
+	return getdns_context_set_eventloop(context, (getdns_eventloop *)ext);
 }

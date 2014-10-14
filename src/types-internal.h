@@ -257,4 +257,22 @@ void dns_req_free(getdns_dns_req * req);
 
 #endif
 
+#define SCHED_DEBUG 0
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+#include <time.h>
+#define DEBUG_SCHED(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+		\
+		gettimeofday(&tv, NULL); \
+		gmtime_r(&tv.tv_sec, &tm); \
+		strftime(buf, 10, "%T", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (false)
+#else
+#define DEBUG_SCHED(...) do {} while (false)
+#endif
+
 /* types-internal.h */

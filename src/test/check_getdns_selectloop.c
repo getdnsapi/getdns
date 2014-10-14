@@ -37,20 +37,8 @@
 #include "getdns/getdns_extra.h"
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
-    struct timeval tv;
-    while (getdns_context_get_num_pending_requests(context, &tv) > 0) {
-        int fd = getdns_context_fd(context);
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(fd, &read_fds);
-        select(fd + 1, &read_fds, NULL, NULL, &tv);
-        if (getdns_context_process_async(context) != GETDNS_RETURN_GOOD) {
-            // context destroyed
-            break;
-        }
-    }
+ 	getdns_context_run(context);
 }
-
 
 void* create_eventloop_impl(struct getdns_context* context) {
     return NULL;
