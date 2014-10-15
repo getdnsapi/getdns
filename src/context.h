@@ -186,4 +186,6 @@ getdns_return_t getdns_context_local_namespace_resolve(getdns_dns_req* req,
 
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
+void priv_getdns_context_ub_read_cb(void *userarg);
+
 #endif /* _GETDNS_CONTEXT_H_ */

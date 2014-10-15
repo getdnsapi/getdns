@@ -777,8 +777,8 @@ getdns_context_request_count_changed(getdns_context *context)
 	}
 }
 
-static void
-getdns_context_ub_read_cb(void *userarg)
+void
+priv_getdns_context_ub_read_cb(void *userarg)
 {
 	getdns_context *context = (getdns_context *)userarg;
 
@@ -787,11 +787,8 @@ getdns_context_ub_read_cb(void *userarg)
 	 * called from a running eventloop.
 	 */
 	context->processing = 1;
-	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
-		/* need an async return code? */
-		context->processing = 0;
-		return;
-	}
+	if (ub_poll(context->unbound_ctx))
+		(void) ub_process(context->unbound_ctx);
 	context->processing = 0;
 
 	/* No need to handle timeouts. They are handled by the extension. */
@@ -826,7 +823,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	}
 
 	context->ub_event.userarg    = context;
-	context->ub_event.read_cb    = getdns_context_ub_read_cb;
+	context->ub_event.read_cb    = priv_getdns_context_ub_read_cb;
 	context->ub_event.write_cb   = NULL;
 	context->ub_event.timeout_cb = NULL;
 	context->ub_event.ev         = NULL;
