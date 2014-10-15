@@ -288,6 +288,9 @@ stub_resolve_read_cb(void *userarg)
 	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
 
 	read = recvfrom(netreq->udp_fd, pkt, pkt_len, 0, NULL, NULL);
+	if (read == -1 && (errno = EAGAIN || errno == EWOULDBLOCK))
+		return;
+
 	if (read < GLDNS_HEADER_SIZE)
 		return; /* Not DNS */
 	
