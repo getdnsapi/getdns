@@ -42,6 +42,7 @@
 #include "getdns/getdns_extra.h"
 struct getdns_context;
 struct getdns_upstreams;
+struct getdns_upstream;
 
 
 /**
@@ -174,9 +175,10 @@ typedef struct getdns_network_req
 	struct getdns_network_req *next;
 
 	/* For stub resolving */
-	int                    udp_fd;
-	uint16_t               query_id;
-	getdns_eventloop_event event;
+	int                     udp_fd;
+	uint16_t                query_id;
+	getdns_eventloop_event  event;
+	struct getdns_upstream *upstream;
 
 } getdns_network_req;
 

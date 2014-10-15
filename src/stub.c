@@ -308,9 +308,10 @@ stub_resolve_read_cb(void *userarg)
 	priv_getdns_check_dns_req_complete(dns_req);
 }
 
-getdns_return_t
-priv_getdns_submit_stub_request(getdns_network_req *netreq)
+static void
+stub_resolve_write_cb(void *userarg)
 {
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dns_req = netreq->owner;
 
 	static size_t   pkt_buf_len = 4096;
@@ -319,7 +320,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	size_t          pkt_len;
 	size_t          pkt_size_needed;
 
-	struct getdns_upstream *upstream;
+	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
 
 	pkt_size_needed = getdns_get_query_pkt_size(dns_req->context,
 	    dns_req->name, netreq->request_type, dns_req->extensions);
@@ -333,29 +334,16 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 
 	if (getdns_make_query_pkt_buf(dns_req->context, dns_req->name,
 	    netreq->request_type, dns_req->extensions, pkt_buf, &pkt_len))
-		goto error;
+		goto done;
 
 	netreq->query_id = ldns_get_random();
 	GLDNS_ID_SET(pkt, netreq->query_id);
 
-	upstream = &dns_req->upstreams->upstreams[dns_req->ns_index];
-
-	/* TODO: TCP */
-	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
-	    dns_req->context->dns_transport !=
-	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
-	    	goto error;
-
-	if ((netreq->udp_fd = socket(
-	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-		goto error;
-
-	getdns_sock_nonblock(netreq->udp_fd);
-
 	if (pkt_len != sendto(netreq->udp_fd, pkt, pkt_len, 0,
-	    (struct sockaddr *)&upstream->addr, upstream->addr_len)) {
+	    (struct sockaddr *)&netreq->upstream->addr,
+	                        netreq->upstream->addr_len)) {
 		close(netreq->udp_fd);
-		goto error;
+		goto done;
 	}
 
 	netreq->event.userarg    = netreq;
@@ -366,16 +354,43 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	dns_req->loop->vmt->schedule(dns_req->loop,
 	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
 
+done:
 	if (pkt_size_needed > pkt_buf_len)
 		GETDNS_FREE(dns_req->context->mf, pkt);
 
-	return GETDNS_RETURN_GOOD;
-error:
-	if (pkt_size_needed > pkt_buf_len)
-		GETDNS_FREE(dns_req->context->mf, pkt);
-
-	return GETDNS_RETURN_GENERIC_ERROR;
+	return;
 }
 
+getdns_return_t
+priv_getdns_submit_stub_request(getdns_network_req *netreq)
+{
+	getdns_dns_req *dns_req = netreq->owner;
+
+	struct getdns_upstream *upstream;
+
+	/* TODO: TCP */
+	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
+	    dns_req->context->dns_transport !=
+	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
+	    	return GETDNS_RETURN_GENERIC_ERROR;
+
+	upstream = &dns_req->upstreams->upstreams[dns_req->ns_index];
+	if ((netreq->udp_fd = socket(
+	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	netreq->upstream = upstream;
+
+	getdns_sock_nonblock(netreq->udp_fd);
+
+	netreq->event.userarg    = netreq;
+	netreq->event.read_cb    = NULL;
+	netreq->event.write_cb   = stub_resolve_write_cb;
+	netreq->event.timeout_cb = stub_resolve_timeout_cb;
+	netreq->event.ev         = NULL;
+	dns_req->loop->vmt->schedule(dns_req->loop,
+	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
+
+	return GETDNS_RETURN_GOOD;
+}
 
 /* stub.c */

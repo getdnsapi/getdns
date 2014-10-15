@@ -73,8 +73,9 @@ network_req_new(getdns_dns_req * owner,
 	/* TODO: records and other extensions */
 
 	net_req->query_id = -1;
-	net_req->udp_fd = -1;
+	net_req->udp_fd   = -1;
 	memset(&net_req->event, 0, sizeof(net_req->event));
+	net_req->upstream = NULL;
 
 	return net_req;
 }
