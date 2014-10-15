@@ -44,6 +44,10 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
+#include "stub.h"
+#include "gldns/str2wire.h"
+#include "gldns/pkthdr.h"
+
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -54,14 +58,6 @@ static void ub_resolve_timeout(void *arg);
 
 static void handle_network_request_error(getdns_network_req * netreq, int err);
 static void handle_dns_request_complete(getdns_dns_req * dns_req);
-static int submit_network_request(getdns_network_req * netreq);
-
-typedef struct netreq_cb_data
-{
-	getdns_network_req *netreq;
-	int err;
-	struct ub_result* ub_res;
-} netreq_cb_data;
 
 /* cancel, cleanup and send timeout to callback */
 static void
@@ -106,18 +102,140 @@ handle_dns_request_complete(getdns_dns_req * dns_req)
 		    dns_req, create_getdns_response(dns_req));
 }
 
-static int
-submit_network_request(getdns_network_req * netreq)
+static void
+stub_resolve_timeout_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dns_req = netreq->owner;
+
+	(void) getdns_context_request_timed_out(dns_req);
+}
+
+static void
+stub_resolve_read_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dns_req = netreq->owner;
+
+	static size_t pkt_buf_len = 4096;
+	size_t        pkt_len = pkt_buf_len;
+	uint8_t       pkt_buf[pkt_buf_len];
+	uint8_t      *pkt = pkt_buf;
+
+	size_t read;
+
+	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
+
+	read = recvfrom(netreq->udp_fd, pkt, pkt_len, 0, NULL, NULL);
+	if (read < GLDNS_HEADER_SIZE)
+		return; /* Not DNS */
+	
+	if (GLDNS_ID_WIRE(pkt) != netreq->query_id)
+		return; /* Cache poisoning attempt ;) */
+
+	close(netreq->udp_fd);
+	netreq->state = NET_REQ_FINISHED;
+	ldns_wire2pkt(&(netreq->result), pkt, read);
+
+	/* Do the dnssec here */
+	netreq->secure = 0;
+	netreq->bogus  = 0;
+
+	netreq = dns_req->first_req;
+	while (netreq) {
+		if (netreq->state != NET_REQ_FINISHED &&
+		    netreq->state != NET_REQ_CANCELED)
+			return;
+		netreq = netreq->next;
+	}
+	handle_dns_request_complete(dns_req);
+}
+
+static getdns_return_t
+submit_stub_request(getdns_network_req *netreq)
 {
 	getdns_dns_req *dns_req = netreq->owner;
-	int r = ub_resolve_async(dns_req->context->unbound_ctx,
-	    dns_req->name,
-	    netreq->request_type,
-	    netreq->request_class,
-	    netreq,
-	    ub_resolve_callback,
-	    &(netreq->unbound_id));
-	return r;
+	static size_t pkt_buf_len = 4096;
+	size_t        pkt_len = pkt_buf_len;
+	uint8_t       pkt_buf[pkt_buf_len];
+	uint8_t      *pkt = pkt_buf;
+	int s;
+	struct getdns_upstream *upstream;
+	ssize_t sent;
+
+	s = getdns_make_query_pkt_buf(dns_req->context, dns_req->name,
+	    netreq->request_type, dns_req->extensions, pkt_buf, &pkt_len);
+	if (s == GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL) {
+		/* TODO: Allocate 64K and retry */
+		return GETDNS_RETURN_GENERIC_ERROR;
+	} else if (s)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	
+	netreq->query_id = ldns_get_random();
+	GLDNS_ID_SET(pkt, netreq->query_id);
+
+	upstream = &dns_req->upstreams->upstreams[dns_req->ns_index];
+
+	/* TODO: TCP */
+	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
+	    dns_req->context->dns_transport !=
+	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if ((netreq->udp_fd = socket(
+	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	sent = sendto(netreq->udp_fd, pkt, pkt_len, 0,
+	    (struct sockaddr *)&upstream->addr, upstream->addr_len);
+	if (sent != pkt_len) {
+		close(netreq->udp_fd);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+
+	netreq->event.userarg    = netreq;
+	netreq->event.read_cb    = stub_resolve_read_cb;
+	netreq->event.write_cb   = NULL;
+	netreq->event.timeout_cb = stub_resolve_timeout_cb;
+	netreq->event.ev         = NULL;
+	dns_req->loop->vmt->schedule(dns_req->loop,
+	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
+
+	if (s == GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL) {
+		/* TODO: Free the 64K allocated buffer */
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+submit_network_request(getdns_network_req *netreq)
+{
+	getdns_return_t r;
+	getdns_dns_req *dns_req = netreq->owner;
+
+	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING ||
+	    dns_req->context->dns_transport == GETDNS_TRANSPORT_TCP_ONLY ||
+	    dns_req->context->dns_transport == GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN) {
+
+		/* schedule the timeout */
+		if (! dns_req->timeout.timeout_cb) {
+			dns_req->timeout.userarg    = dns_req;
+			dns_req->timeout.read_cb    = NULL;
+			dns_req->timeout.write_cb   = NULL;
+			dns_req->timeout.timeout_cb = ub_resolve_timeout;
+			dns_req->timeout.ev         = NULL;
+			if ((r = dns_req->loop->vmt->schedule(dns_req->loop, -1,
+			    dns_req->context->timeout, &dns_req->timeout)))
+				return r;
+		}
+
+		return ub_resolve_async(dns_req->context->unbound_ctx,
+		    dns_req->name, netreq->request_type, netreq->request_class,
+		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
+		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+	}
+	/* Submit with stub resolver */
+	return submit_stub_request(netreq);
 }
 
 static void
@@ -188,18 +306,6 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		*transaction_id = req->trans_id;
 
 	getdns_context_track_outbound_request(req);
-
-	if (1 || context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
-		/* schedule the timeout */
-		req->timeout.userarg    = req;
-		req->timeout.read_cb    = NULL;
-		req->timeout.write_cb   = NULL;
-		req->timeout.timeout_cb = ub_resolve_timeout;
-		req->timeout.ev         = NULL;
-		if ((r = loop->vmt->schedule(
-		    loop, -1, context->timeout, &req->timeout)))
-			return r;
-	}
 
 	if (!usenamespaces)
 		/* issue all network requests */

@@ -1471,6 +1471,8 @@ cancel_dns_req(getdns_dns_req * req)
 			ub_cancel(req->context->unbound_ctx,
 			    netreq->unbound_id);
 			netreq->unbound_id = -1;
+		} else if (netreq->event.ev) {
+			req->loop->vmt->clear(req->loop, &netreq->event);
 		}
 		netreq = netreq->next;
 	}

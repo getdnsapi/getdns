@@ -72,6 +72,10 @@ network_req_new(getdns_dns_req * owner,
 
 	/* TODO: records and other extensions */
 
+	net_req->query_id = -1;
+	net_req->udp_fd = -1;
+	memset(&net_req->event, 0, sizeof(net_req->event));
+
 	return net_req;
 }
 
@@ -85,6 +89,9 @@ dns_req_free(getdns_dns_req * req)
 
 	/* free extensions */
 	getdns_dict_destroy(req->extensions);
+
+	if (req->upstreams && --req->upstreams->referenced == 0)
+		GETDNS_FREE(req->upstreams->mf, req->upstreams);
 
 	/* free network requests */
 	net_req = req->first_req;
@@ -125,8 +132,7 @@ dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
 	result->canceled = 0;
 	result->current_req = NULL;
 	result->first_req = NULL;
-	result->trans_id = ((uint64_t) ldns_get_random())
-	    ^ ((intptr_t) result);
+	result->trans_id = (uint64_t)(((intptr_t) result) ^ ldns_get_random());
 
 	getdns_dict_copy(extensions, &result->extensions);
 	result->return_dnssec_status = context->return_dnssec_status;
@@ -139,6 +145,11 @@ dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
         /* check the specify_class extension */
         (void) getdns_dict_get_int(extensions, "specify_class", &klass);
         
+	result->upstreams = context->upstreams;
+	if (result->upstreams)
+		result->upstreams->referenced++;
+	result->ns_index = 0;
+
 	/* create the requests */
 	req = network_req_new(result, request_type, klass, extensions);
 	if (!req) {

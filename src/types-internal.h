@@ -41,6 +41,8 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 struct getdns_context;
+typedef struct getdns_upstreams getdns_upstreams;
+
 
 /**
  * \defgroup strings String Constants
@@ -170,6 +172,12 @@ typedef struct getdns_network_req
 
 	/* next request to issue after this one */
 	struct getdns_network_req *next;
+
+	/* For stub resolving */
+	int                    udp_fd;
+	uint16_t               query_id;
+	getdns_eventloop_event event;
+
 } getdns_network_req;
 
 /**
@@ -214,6 +222,10 @@ typedef struct getdns_dns_req
 
 	/* mem funcs */
 	struct mem_funcs my_mf;
+
+	/* Stuff for stub resolving */
+	getdns_upstreams *upstreams;
+	size_t            ns_index;
 
 } getdns_dns_req;
 
