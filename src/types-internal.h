@@ -41,7 +41,7 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 struct getdns_context;
-typedef struct getdns_upstreams getdns_upstreams;
+struct getdns_upstreams;
 
 
 /**
@@ -224,8 +224,8 @@ typedef struct getdns_dns_req
 	struct mem_funcs my_mf;
 
 	/* Stuff for stub resolving */
-	getdns_upstreams *upstreams;
-	size_t            ns_index;
+	struct getdns_upstreams *upstreams;
+	size_t                   ns_index;
 
 } getdns_dns_req;
 
