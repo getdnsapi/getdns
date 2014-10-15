@@ -35,12 +35,15 @@
 #include "stub.h"
 #include "gldns/rrdef.h"
 #include "gldns/str2wire.h"
+#include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
 #include "context.h"
 #include <ldns/util.h>
 #include "util-internal.h"
+#include "general.h"
 
-int
+
+static int
 getdns_make_query_pkt_buf(getdns_context *context, const char *name,
     uint16_t request_type, getdns_dict *extensions, uint8_t* buf, size_t* olen)
 {
@@ -196,9 +199,8 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 	return 0;
 }
 
-
 /* Return a rough estimate for mallocs */
-size_t
+static size_t
 getdns_get_query_pkt_size(getdns_context *context,
     const char *name, uint16_t request_type, getdns_dict *extensions)
 {
@@ -241,24 +243,114 @@ getdns_get_query_pkt_size(getdns_context *context,
 	    ;
 }
 
-
-uint8_t *
-getdns_make_query_pkt(getdns_context *context, const char *name,
-    uint16_t request_type, getdns_dict *extensions, size_t *pkt_len)
+static void
+stub_resolve_timeout_cb(void *userarg)
 {
-	size_t query_pkt_sz = getdns_get_query_pkt_size(
-	    context, name, request_type, extensions);
-	uint8_t *query_pkt = GETDNS_XMALLOC(context->mf, uint8_t, query_pkt_sz);
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dns_req = netreq->owner;
 
-	if (query_pkt) {
-		if (getdns_make_query_pkt_buf(context, name, request_type,
-		    extensions, query_pkt, &query_pkt_sz)) {
-			GETDNS_FREE(context->mf, query_pkt);
-			return NULL;
-		}
-	}
-	*pkt_len = query_pkt_sz;
-	return query_pkt;
+	(void) getdns_context_request_timed_out(dns_req);
 }
+
+static void
+stub_resolve_read_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dns_req = netreq->owner;
+
+	static size_t pkt_buf_len = 4096;
+	size_t        pkt_len = pkt_buf_len;
+	uint8_t       pkt_buf[pkt_buf_len];
+	uint8_t      *pkt = pkt_buf;
+
+	size_t read;
+
+	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
+
+	read = recvfrom(netreq->udp_fd, pkt, pkt_len, 0, NULL, NULL);
+	if (read < GLDNS_HEADER_SIZE)
+		return; /* Not DNS */
+	
+	if (GLDNS_ID_WIRE(pkt) != netreq->query_id)
+		return; /* Cache poisoning attempt ;) */
+
+	close(netreq->udp_fd);
+	netreq->state = NET_REQ_FINISHED;
+	ldns_wire2pkt(&(netreq->result), pkt, read);
+
+	/* Do the dnssec here */
+	netreq->secure = 0;
+	netreq->bogus  = 0;
+
+	priv_getdns_check_dns_req_complete(dns_req);
+}
+
+getdns_return_t
+priv_getdns_submit_stub_request(getdns_network_req *netreq)
+{
+	getdns_dns_req *dns_req = netreq->owner;
+
+	static size_t   pkt_buf_len = 4096;
+	uint8_t         pkt_buf[pkt_buf_len];
+	uint8_t        *pkt = pkt_buf;
+	size_t          pkt_len;
+	size_t          pkt_size_needed;
+
+	struct getdns_upstream *upstream;
+
+	pkt_size_needed = getdns_get_query_pkt_size(dns_req->context,
+	    dns_req->name, netreq->request_type, dns_req->extensions);
+
+	if (pkt_size_needed > pkt_buf_len) {
+		pkt = GETDNS_XMALLOC(
+		    dns_req->context->mf, uint8_t, pkt_size_needed);
+		pkt_len = pkt_size_needed;
+	} else
+		pkt_len = pkt_buf_len;
+
+	if (getdns_make_query_pkt_buf(dns_req->context, dns_req->name,
+	    netreq->request_type, dns_req->extensions, pkt_buf, &pkt_len))
+		goto error;
+
+	netreq->query_id = ldns_get_random();
+	GLDNS_ID_SET(pkt, netreq->query_id);
+
+	upstream = &dns_req->upstreams->upstreams[dns_req->ns_index];
+
+	/* TODO: TCP */
+	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
+	    dns_req->context->dns_transport !=
+	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
+	    	goto error;
+
+	if ((netreq->udp_fd = socket(
+	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+		goto error;
+
+	if (pkt_len != sendto(netreq->udp_fd, pkt, pkt_len, 0,
+	    (struct sockaddr *)&upstream->addr, upstream->addr_len)) {
+		close(netreq->udp_fd);
+		goto error;
+	}
+
+	netreq->event.userarg    = netreq;
+	netreq->event.read_cb    = stub_resolve_read_cb;
+	netreq->event.write_cb   = NULL;
+	netreq->event.timeout_cb = stub_resolve_timeout_cb;
+	netreq->event.ev         = NULL;
+	dns_req->loop->vmt->schedule(dns_req->loop,
+	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
+
+	if (pkt_size_needed > pkt_buf_len)
+		GETDNS_FREE(dns_req->context->mf, pkt);
+
+	return GETDNS_RETURN_GOOD;
+error:
+	if (pkt_size_needed > pkt_buf_len)
+		GETDNS_FREE(dns_req->context->mf, pkt);
+
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+
 
 /* stub.c */

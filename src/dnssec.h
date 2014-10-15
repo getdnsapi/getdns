@@ -44,9 +44,6 @@
 /* Do some additional requests to fetch the complete validation chain */
 void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
 
-struct getdns_dict * priv_getdns_get_validation_chain_sync(
-    getdns_dns_req *dns_req, uint64_t *timeout);
-
 int priv_getdns_parse_ta_file(time_t *ta_mtime, ldns_rr_list *ta_rrs);
 
 #endif

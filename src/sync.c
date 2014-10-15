@@ -42,7 +42,6 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
-#include "ub_timed_resolve.h"
 
 #include "stub.h"
 #include "gldns/wire2str.h"
@@ -123,7 +122,7 @@ getdns_general_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = getdns_general_loop(context, &loop.loop.loop, name,
+	if ((r = priv_getdns_general_loop(context, &loop.loop.loop, name,
 	    request_type, extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -148,7 +147,7 @@ getdns_address_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = getdns_address_loop(context, &loop.loop.loop, name,
+	if ((r = priv_getdns_address_loop(context, &loop.loop.loop, name,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -173,7 +172,7 @@ getdns_hostname_sync(getdns_context *context, getdns_dict *address,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = getdns_hostname_loop(context, &loop.loop.loop, address,
+	if ((r = priv_getdns_hostname_loop(context, &loop.loop.loop, address,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -198,7 +197,7 @@ getdns_service_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = getdns_service_loop(context, &loop.loop.loop, name,
+	if ((r = priv_getdns_service_loop(context, &loop.loop.loop, name,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);

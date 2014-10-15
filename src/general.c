@@ -45,19 +45,6 @@
 #include "util-internal.h"
 #include "dnssec.h"
 #include "stub.h"
-#include "gldns/str2wire.h"
-#include "gldns/pkthdr.h"
-
-
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
-
-/* declarations */
-static void ub_resolve_callback(void* mydata, int err, struct ub_result* result);
-static void ub_resolve_timeout(void *arg);
-
-static void handle_network_request_error(getdns_network_req * netreq, int err);
-static void handle_dns_request_complete(getdns_dns_req * dns_req);
 
 /* cancel, cleanup and send timeout to callback */
 static void
@@ -91,11 +78,18 @@ handle_network_request_error(getdns_network_req * netreq, int err)
 	priv_getdns_call_user_callback(netreq->owner, NULL);
 }
 
-/* cleanup and send the response to the user callback */
-static void
-handle_dns_request_complete(getdns_dns_req * dns_req)
+void
+priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
-	if (is_extension_set(dns_req->extensions, "dnssec_return_validation_chain"))
+	getdns_network_req *netreq;
+	
+	for (netreq = dns_req->first_req; netreq; netreq = netreq->next)
+		if (netreq->state != NET_REQ_FINISHED &&
+		    netreq->state != NET_REQ_CANCELED)
+			return;
+
+	if (is_extension_set(dns_req->extensions,
+	    "dnssec_return_validation_chain"))
 		priv_getdns_get_validation_chain(dns_req);
 	else
 		priv_getdns_call_user_callback(
@@ -103,109 +97,28 @@ handle_dns_request_complete(getdns_dns_req * dns_req)
 }
 
 static void
-stub_resolve_timeout_cb(void *userarg)
+ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 {
-	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_network_req *netreq = (getdns_network_req *) arg;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	(void) getdns_context_request_timed_out(dns_req);
-}
-
-static void
-stub_resolve_read_cb(void *userarg)
-{
-	getdns_network_req *netreq = (getdns_network_req *)userarg;
-	getdns_dns_req *dns_req = netreq->owner;
-
-	static size_t pkt_buf_len = 4096;
-	size_t        pkt_len = pkt_buf_len;
-	uint8_t       pkt_buf[pkt_buf_len];
-	uint8_t      *pkt = pkt_buf;
-
-	size_t read;
-
-	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
-
-	read = recvfrom(netreq->udp_fd, pkt, pkt_len, 0, NULL, NULL);
-	if (read < GLDNS_HEADER_SIZE)
-		return; /* Not DNS */
-	
-	if (GLDNS_ID_WIRE(pkt) != netreq->query_id)
-		return; /* Cache poisoning attempt ;) */
-
-	close(netreq->udp_fd);
 	netreq->state = NET_REQ_FINISHED;
-	ldns_wire2pkt(&(netreq->result), pkt, read);
-
-	/* Do the dnssec here */
-	netreq->secure = 0;
-	netreq->bogus  = 0;
-
-	netreq = dns_req->first_req;
-	while (netreq) {
-		if (netreq->state != NET_REQ_FINISHED &&
-		    netreq->state != NET_REQ_CANCELED)
-			return;
-		netreq = netreq->next;
+	if (err != 0) {
+		handle_network_request_error(netreq, err);
+		return;
 	}
-	handle_dns_request_complete(dns_req);
-}
-
-static getdns_return_t
-submit_stub_request(getdns_network_req *netreq)
-{
-	getdns_dns_req *dns_req = netreq->owner;
-	static size_t pkt_buf_len = 4096;
-	size_t        pkt_len = pkt_buf_len;
-	uint8_t       pkt_buf[pkt_buf_len];
-	uint8_t      *pkt = pkt_buf;
-	int s;
-	struct getdns_upstream *upstream;
-	ssize_t sent;
-
-	s = getdns_make_query_pkt_buf(dns_req->context, dns_req->name,
-	    netreq->request_type, dns_req->extensions, pkt_buf, &pkt_len);
-	if (s == GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL) {
-		/* TODO: Allocate 64K and retry */
-		return GETDNS_RETURN_GENERIC_ERROR;
-	} else if (s)
-		return GETDNS_RETURN_GENERIC_ERROR;
-	
-	netreq->query_id = ldns_get_random();
-	GLDNS_ID_SET(pkt, netreq->query_id);
-
-	upstream = &dns_req->upstreams->upstreams[dns_req->ns_index];
-
-	/* TODO: TCP */
-	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
-	    dns_req->context->dns_transport !=
-	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	if ((netreq->udp_fd = socket(
-	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	sent = sendto(netreq->udp_fd, pkt, pkt_len, 0,
-	    (struct sockaddr *)&upstream->addr, upstream->addr_len);
-	if (sent != pkt_len) {
-		close(netreq->udp_fd);
-		return GETDNS_RETURN_GENERIC_ERROR;
+	/* parse */
+	if (getdns_apply_network_result(netreq, ub_res)) {
+		ub_resolve_free(ub_res);
+		handle_network_request_error(netreq, err);
+		return;
 	}
+	ub_resolve_free(ub_res);
 
-	netreq->event.userarg    = netreq;
-	netreq->event.read_cb    = stub_resolve_read_cb;
-	netreq->event.write_cb   = NULL;
-	netreq->event.timeout_cb = stub_resolve_timeout_cb;
-	netreq->event.ev         = NULL;
-	dns_req->loop->vmt->schedule(dns_req->loop,
-	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
+	priv_getdns_check_dns_req_complete(dns_req);
 
-	if (s == GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL) {
-		/* TODO: Free the 64K allocated buffer */
-	}
-	return GETDNS_RETURN_GOOD;
-}
+} /* ub_resolve_callback */
+
 
 static getdns_return_t
 submit_network_request(getdns_network_req *netreq)
@@ -235,41 +148,10 @@ submit_network_request(getdns_network_req *netreq)
 		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 	}
 	/* Submit with stub resolver */
-	return submit_stub_request(netreq);
+	return priv_getdns_submit_stub_request(netreq);
 }
 
-static void
-ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
-// ub_resolve_callback(void *arg, int err, ldns_buffer * result, int sec,
-//    char *bogus)
-{
-	getdns_network_req *netreq = (getdns_network_req *) arg;
-	getdns_dns_req *dns_req = netreq->owner;
-
-	netreq->state = NET_REQ_FINISHED;
-	if (err != 0) {
-		handle_network_request_error(netreq, err);
-		return;
-	}
-	/* parse */
-	if (getdns_apply_network_result(netreq, ub_res)) {
-		ub_resolve_free(ub_res);
-		handle_network_request_error(netreq, err);
-		return;
-	}
-	ub_resolve_free(ub_res);
-
-	netreq = dns_req->first_req;
-	while (netreq) {
-		if (netreq->state != NET_REQ_FINISHED &&
-		    netreq->state != NET_REQ_CANCELED)
-			return;
-		netreq = netreq->next;
-	}
-	handle_dns_request_complete(dns_req);
-} /* ub_resolve_callback */
-
-getdns_return_t
+static getdns_return_t
 getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
@@ -349,7 +231,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 }				/* getdns_general_ns */
 
 getdns_return_t
-getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
+priv_getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callback)
@@ -361,7 +243,7 @@ getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
 }				/* getdns_general_loop */
 
 getdns_return_t
-getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
+priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
@@ -387,6 +269,53 @@ getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 	return r;
 } /* getdns_address_loop */
 
+getdns_return_t
+priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
+    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+{
+	struct getdns_bindata *address_data;
+	struct getdns_bindata *address_type;
+	uint16_t req_type;
+	char *name;
+	getdns_return_t retval;
+
+	if ((retval =
+		getdns_dict_get_bindata(address, "address_data",
+		    &address_data)) != GETDNS_RETURN_GOOD)
+		return retval;
+	if ((retval =
+		getdns_dict_get_bindata(address, "address_type",
+		    &address_type)) != GETDNS_RETURN_GOOD)
+		return retval;
+	if ((strncmp(GETDNS_STR_IPV4, (char *) address_type->data,
+		    ( strlen(GETDNS_STR_IPV4) < address_type->size
+		    ? strlen(GETDNS_STR_IPV4) : address_type->size )) == 0
+	        && address_data->size == 4)
+	    || (strncmp(GETDNS_STR_IPV6, (char *) address_type->data,
+		    ( strlen(GETDNS_STR_IPV6) < address_type->size
+		    ? strlen(GETDNS_STR_IPV6) : address_type->size )) == 0
+		&& address_data->size == 16))
+		req_type = GETDNS_RRTYPE_PTR;
+	else
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if ((name = reverse_address(address_data)) == NULL)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	retval = priv_getdns_general_loop(context, loop, name, req_type,
+	    extensions, userarg, transaction_id, callback);
+	free(name);
+	return retval;
+}				/* getdns_hostname_loop */
+
+getdns_return_t
+priv_getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
+    const char *name, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t * transaction_id, getdns_callback_t callback)
+{
+	return getdns_general_ns(context, loop, name, GETDNS_RRTYPE_SRV,
+	    extensions, userarg, transaction_id, callback, 1);
+}				/* getdns_service_loop */
+
 /**
  * getdns_general
  */
@@ -397,7 +326,7 @@ getdns_general(getdns_context *context,
     getdns_callback_t callback)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
-	return getdns_general_loop(context, context->extension,
+	return priv_getdns_general_loop(context, context->extension,
 	    name, request_type, extensions,
 	    userarg, transaction_id, callback);
 
@@ -413,10 +342,37 @@ getdns_address(getdns_context *context,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
-	return getdns_address_loop(context, context->extension,
+	return priv_getdns_address_loop(context, context->extension,
 	    name, extensions, userarg,
 	    transaction_id, callback);
 } /* getdns_address */
 
+/*
+ * getdns_hostname
+ *
+ */
+getdns_return_t
+getdns_hostname(getdns_context *context,
+    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+{
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
+	return priv_getdns_hostname_loop(context, context->extension,
+	    address, extensions, userarg, transaction_id, callback);
+}				/* getdns_hostname */
+
+/*
+ * getdns_service
+ *
+ */
+getdns_return_t
+getdns_service(getdns_context *context,
+    const char *name, getdns_dict *extensions, void *userarg,
+    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+{
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
+	return priv_getdns_service_loop(context, context->extension,
+	    name, extensions, userarg, transaction_id, callback);
+}				/* getdns_service */
 
 /* getdns_general.c */

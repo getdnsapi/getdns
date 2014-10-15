@@ -1,6 +1,7 @@
 /**
  *
- * /brief getdns contect management functions
+ * \file general.h
+ * @brief getdns_general and related support functions
  *
  * This is the meat of the API
  * Originally taken from the getdns API description pseudo implementation.
@@ -41,34 +42,29 @@
 
 /* private inner helper used by sync and async */
 
-getdns_return_t
-getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
-    void *userarg, getdns_transaction_t *transaction_id,
-    getdns_callback_t callbackfn, int usenamespaces);
-
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
+void priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req);
 
 getdns_return_t
-getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
+priv_getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
 
 getdns_return_t
-getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
+priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
 
 getdns_return_t
-getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
+priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
     getdns_dict *address, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
 
 getdns_return_t
-getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
+priv_getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
