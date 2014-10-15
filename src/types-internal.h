@@ -257,10 +257,7 @@ void dns_req_free(getdns_dns_req * req);
 
 #endif
 
-#define SCHED_DEBUG 0
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-#include <time.h>
-#define DEBUG_SCHED(...) do { \
+#define DEBUG_ON(...) do { \
 		struct timeval tv; \
 		struct tm tm; \
 		char buf[10]; \
@@ -271,8 +268,14 @@ void dns_req_free(getdns_dns_req * req);
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (false)
+
+#define DEBUG_OFF(...) do {} while (false)
+
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+#include <time.h>
+#define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
 #else
-#define DEBUG_SCHED(...) do {} while (false)
+#define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 /* types-internal.h */
