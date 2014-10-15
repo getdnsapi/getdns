@@ -32,6 +32,7 @@
  */
 
 #include "config.h"
+#include <fcntl.h>
 #include "stub.h"
 #include "gldns/rrdef.h"
 #include "gldns/str2wire.h"
@@ -41,7 +42,6 @@
 #include <ldns/util.h>
 #include "util-internal.h"
 #include "general.h"
-
 
 static int
 getdns_make_query_pkt_buf(getdns_context *context, const char *name,
@@ -243,6 +243,26 @@ getdns_get_query_pkt_size(getdns_context *context,
 	    ;
 }
 
+/** best effort to set nonblocking */
+static void
+getdns_sock_nonblock(int sockfd)
+{
+#ifdef HAVE_FCNTL
+	int flag;
+	if((flag = fcntl(sockfd, F_GETFL)) != -1) {
+		flag |= O_NONBLOCK;
+		if(fcntl(sockfd, F_SETFL, flag) == -1) {
+			/* ignore error, continue blockingly */
+		}
+	}
+#elif defined(HAVE_IOCTLSOCKET)
+	unsigned long on = 1;
+	if(ioctlsocket(sockfd, FIONBIO, &on) != 0) {
+		/* ignore error, continue blockingly */
+	}
+#endif
+}
+
 static void
 stub_resolve_timeout_cb(void *userarg)
 {
@@ -326,6 +346,8 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	if ((netreq->udp_fd = socket(
 	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		goto error;
+
+	getdns_sock_nonblock(netreq->udp_fd);
 
 	if (pkt_len != sendto(netreq->udp_fd, pkt, pkt_len, 0,
 	    (struct sockaddr *)&upstream->addr, upstream->addr_len)) {

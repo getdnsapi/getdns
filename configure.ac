@@ -189,6 +189,20 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 AC_CHECK_TYPE([u_char])
 
+AC_CHECK_FUNCS([fcntl])
+# check ioctlsocket
+AC_MSG_CHECKING(for ioctlsocket)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#endif
+], [
+	(void)ioctlsocket(0, 0, NULL);
+])], [
+AC_MSG_RESULT(yes)
+AC_DEFINE(HAVE_IOCTLSOCKET, 1, [if the function 'ioctlsocket' is available])
+],[AC_MSG_RESULT(no)])
+
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
 

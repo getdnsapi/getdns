@@ -11176,6 +11176,52 @@ if test "x$ac_cv_type_u_char" = xyes; then :
 fi
 
 
+for ac_func in fcntl
+do :
+  ac_fn_c_check_func "$LINENO" "fcntl" "ac_cv_func_fcntl"
+if test "x$ac_cv_func_fcntl" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FCNTL 1
+_ACEOF
+
+fi
+done
+
+# check ioctlsocket
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ioctlsocket" >&5
+$as_echo_n "checking for ioctlsocket... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#endif
+
+int
+main ()
+{
+
+	(void)ioctlsocket(0, 0, NULL);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_IOCTLSOCKET 1" >>confdefs.h
+
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
 
