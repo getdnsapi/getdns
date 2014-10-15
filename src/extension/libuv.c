@@ -35,6 +35,15 @@
 #include "getdns/getdns_ext_libuv.h"
 #include "types-internal.h"
 
+#define UV_DEBUG 0
+
+#if defined(UV_DEBUG) && UV_DEBUG
+#include <time.h>
+#define DEBUG_UV(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_UV(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 typedef struct getdns_libuv {
 	getdns_eventloop_vmt *vmt;
 	uv_loop_t            *loop;
@@ -62,36 +71,67 @@ getdns_libuv_cleanup(getdns_eventloop *loop)
 }
 
 typedef struct poll_timer {
-	uv_poll_t  read;
-	uv_poll_t  write;
-	uv_timer_t timer;
+	uv_poll_t        read;
+	uv_poll_t        write;
+	uv_timer_t       timer;
+	int              to_close;
+	struct mem_funcs mf;
 } poll_timer;
+
+static void
+getdns_libuv_close_cb(uv_handle_t *handle)
+{
+	poll_timer *my_ev = (poll_timer *)handle->data;
+
+	DEBUG_UV("enter libuv_close_cb(el_ev->ev = %p, to_close = %d)\n"
+	        , my_ev, my_ev->to_close);
+	if (--my_ev->to_close) {
+		DEBUG_UV(
+		     "exit  libuv_close_cb(el_ev->ev = %p, to_close = %d)\n"
+		    , my_ev, my_ev->to_close);
+		return;
+	}
+	DEBUG_UV("enter libuv_close_cb to_free: %p\n", my_ev);
+	GETDNS_FREE(my_ev->mf, my_ev);
+	DEBUG_UV("enter libuv_close_cb freed: %p\n", my_ev);
+}
 
 static getdns_return_t
 getdns_libuv_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 {
-	getdns_libuv *ext = (getdns_libuv *)loop;
-	poll_timer *my_ev = (poll_timer *)el_ev->ev;
+	poll_timer   *my_ev = (poll_timer *)el_ev->ev;
+	uv_poll_t    *my_poll;
+	uv_timer_t   *my_timer;
 	
 	assert(my_ev);
 
-	DEBUG_SCHED("enter libuv_clear(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("enter libuv_clear(el_ev = %p, my_ev = %p, to_close = %d)\n"
+	        , el_ev, my_ev, my_ev->to_close);
 
 	if (el_ev->read_cb) {
-		uv_poll_stop(&my_ev->read);
-		uv_close((uv_handle_t *)&my_ev->read, NULL);
+		my_poll = &my_ev->read;
+		uv_poll_stop(my_poll);
+		my_ev->to_close += 1;
+		my_poll->data = my_ev;
+		uv_close((uv_handle_t *)my_poll, getdns_libuv_close_cb);
 	}
 	if (el_ev->write_cb) {
-		uv_poll_stop(&my_ev->write);
-		uv_close((uv_handle_t *)&my_ev->write, NULL);
+		my_poll = &my_ev->write;
+		uv_poll_stop(my_poll);
+		my_ev->to_close += 1;
+		my_poll->data = my_ev;
+		uv_close((uv_handle_t *)my_poll, getdns_libuv_close_cb);
 	}
 	if (el_ev->timeout_cb) {
-		uv_timer_stop(&my_ev->timer);
-		uv_close((uv_handle_t *)&my_ev->timer, NULL);
+		my_timer = &my_ev->timer;
+		uv_timer_stop(my_timer);
+		my_ev->to_close += 1;
+		my_timer->data = my_ev;
+		uv_close((uv_handle_t *)my_timer, getdns_libuv_close_cb);
 	}
-	GETDNS_FREE(ext->mf, el_ev->ev);
 	el_ev->ev = NULL;
-	DEBUG_SCHED("exit  libuv_clear(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("exit  libuv_clear(el_ev = %p, my_ev = %p, to_close = %d)\n"
+	        , el_ev, my_ev, my_ev->to_close);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -100,9 +140,11 @@ getdns_libuv_read_cb(uv_poll_t *poll, int status, int events)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
         assert(el_ev->read_cb);
-	DEBUG_SCHED("enter libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("enter libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
         el_ev->read_cb(el_ev->userarg);
-	DEBUG_SCHED("exit  libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("exit  libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
 }
 
 static void
@@ -110,9 +152,11 @@ getdns_libuv_write_cb(uv_poll_t *poll, int status, int events)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
         assert(el_ev->write_cb);
-	DEBUG_SCHED("enter libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("enter libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
         el_ev->write_cb(el_ev->userarg);
-	DEBUG_SCHED("exit  libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("exit  libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
 }
 
 static void
@@ -120,9 +164,11 @@ getdns_libuv_timeout_cb(uv_timer_t *timer, int status)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
         assert(el_ev->timeout_cb);
-	DEBUG_SCHED("enter libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("enter libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
         el_ev->timeout_cb(el_ev->userarg);
-	DEBUG_SCHED("exit  libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("exit  libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
 }
 
 static getdns_return_t
@@ -138,32 +184,36 @@ getdns_libuv_schedule(getdns_eventloop *loop,
 	assert(!(el_ev->read_cb || el_ev->write_cb) || fd >= 0);
 	assert(  el_ev->read_cb || el_ev->write_cb  || el_ev->timeout_cb);
 
-	DEBUG_SCHED("enter libuv_schedule(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("enter libuv_schedule(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
 
 	if (!(my_ev = GETDNS_MALLOC(ext->mf, poll_timer)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
+	my_ev->to_close = 0;
+	my_ev->mf = ext->mf;
 	el_ev->ev = my_ev;
 	
 	if (el_ev->read_cb) {
 		my_poll = &my_ev->read;
-		uv_poll_init(ext->loop, my_poll, fd);
 		my_poll->data = el_ev;
+		uv_poll_init(ext->loop, my_poll, fd);
 		uv_poll_start(my_poll, UV_READABLE, getdns_libuv_read_cb);
 	}
 	if (el_ev->write_cb) {
 		my_poll = &my_ev->write;
-		uv_poll_init(ext->loop, my_poll, fd);
 		my_poll->data = el_ev;
+		uv_poll_init(ext->loop, my_poll, fd);
 		uv_poll_start(my_poll, UV_WRITABLE, getdns_libuv_write_cb);
 	}
 	if (el_ev->timeout_cb) {
 		my_timer = &my_ev->timer;
-		uv_timer_init(ext->loop, my_timer);
 		my_timer->data = el_ev;
+		uv_timer_init(ext->loop, my_timer);
 		uv_timer_start(my_timer, getdns_libuv_timeout_cb, timeout, 0);
 	}
-	DEBUG_SCHED("exit  libuv_schedule(el_ev = %p, el_ev->ev = %p)\n", el_ev, el_ev->ev);
+	DEBUG_UV("exit  libuv_schedule(el_ev = %p, el_ev->ev = %p)\n"
+	        , el_ev, el_ev->ev);
 	return GETDNS_RETURN_GOOD;
 }
 
