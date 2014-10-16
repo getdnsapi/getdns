@@ -82,6 +82,12 @@ typedef struct getdns_eventloop_event {
 	void *ev;
 } getdns_eventloop_event;
 
+inline void getdns_eventloop_init_event(getdns_eventloop_event *el,
+    void *userarg, getdns_eventloop_callback read_cb,
+    getdns_eventloop_callback write_cb, getdns_eventloop_callback timeout_cb)
+{ el->userarg = userarg; el->read_cb = read_cb; el->write_cb = write_cb;
+  el->timeout_cb = timeout_cb; el->ev = NULL; }
+
 typedef struct getdns_eventloop_vmt getdns_eventloop_vmt;
 typedef struct getdns_eventloop {
 	getdns_eventloop_vmt *vmt;
