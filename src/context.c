@@ -390,6 +390,13 @@ set_os_defaults(struct getdns_context *context)
 	filechg_check(context, context->fchg_resolvconf);
 
 	context->suffix = getdns_list_create_with_context(context);
+	(void) getdns_list_get_length(context->suffix, &length);
+	if (length == 0 && *domain != 0) {
+		bindata.data = (uint8_t *)domain;
+		bindata.size = strlen(domain) + 1;
+		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
+	}
+
 	context->upstreams = upstreams_create(context, upstreams_limit);
 
 	in = fopen(context->fchg_resolvconf->fn, "r");
@@ -460,19 +467,13 @@ set_os_defaults(struct getdns_context *context)
 			context->upstreams = upstreams_resize(
 			    context->upstreams, (upstreams_limit *= 2));
 
-		upstream =   &context->upstreams->
+		upstream = &context->upstreams->
 		    upstreams[context->upstreams->count++];
 		upstream_init(upstream, result);
 		freeaddrinfo(result);
 	}
 	fclose(in);
 
-	(void) getdns_list_get_length(context->suffix, &length);
-	if (length == 0 && *domain != 0) {
-		bindata.data = (uint8_t *)domain;
-		bindata.size = strlen(domain) + 1;
-		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
-	}
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 
@@ -1678,6 +1679,8 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 		/* We get away with just setting up ldns here here because sync mode
 		 * always hits this method because at the moment all sync calls use DNS
 		 * namespace */
+		if (!context->upstreams || !context->upstreams->count)
+			return GETDNS_RETURN_GENERIC_ERROR;
 		r = ub_setup_stub(context->unbound_ctx, context->upstreams);
 		if (r != GETDNS_RETURN_GOOD)
 			return r;
@@ -1992,7 +1995,7 @@ priv_get_context_settings(getdns_context* context) {
     r |= getdns_dict_set_int(result, "append_name", context->append_name);
     /* list fields */
     r |= priv_dict_set_list_if_not_null(result, "suffix", context->suffix);
-	if (context->upstreams->count > 0) {
+	if (context->upstreams && context->upstreams->count > 0) {
 		size_t i;
 		getdns_upstream *upstream;
 		getdns_list *upstreams =
