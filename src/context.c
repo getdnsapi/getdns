@@ -338,6 +338,26 @@ upstream_dict(getdns_context *context, struct getdns_upstream *upstream)
 	return r;
 }
 
+static int
+net_req_query_id_cmp(const void *id1, const void *id2)
+{
+	return (int)((struct getdns_network_req *)id1)->query_id -
+	       (int)((struct getdns_network_req *)id1)->query_id;
+}
+
+static void
+upstream_init(struct getdns_upstream *upstream, struct addrinfo *ai)
+{
+	assert(upstream && ai);
+	upstream->addr_len = ai->ai_addrlen;
+	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+	upstream->to_retry =  2;
+	upstream->tcp_fd   = -1;
+	(void) memset(&upstream->tcp_event, 0, sizeof(upstream->tcp_event));
+	getdns_rbtree_init(&upstream->netreq_by_query_id,
+	    net_req_query_id_cmp);
+}
+
 /*---------------------------------------- set_os_defaults
   we use ldns to read the resolv.conf file - the ldns resolver is
   destroyed once the file is read
@@ -440,11 +460,7 @@ set_os_defaults(struct getdns_context *context)
 
 		upstream =   &context->upstreams->
 		    upstreams[context->upstreams->count++];
-		upstream->rtt = 1;
-		upstream->tcp_fd = -1;
-		upstream->addr_len = result->ai_addrlen;
-		(void) memcpy(&upstream->addr,
-		    result->ai_addr, result->ai_addrlen);
+		upstream_init(upstream, result);
 		freeaddrinfo(result);
 	}
 	fclose(in);
@@ -1305,10 +1321,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		if (getaddrinfo(addrstr, portstr, &hints, &ai))
 			goto invalid_parameter;
 
-		upstream->rtt = 1;
-		upstream->tcp_fd = -1;
-		upstream->addr_len = ai->ai_addrlen;
-		(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+		upstream_init(upstream, ai);
 		upstreams->count++;
 		freeaddrinfo(ai);
 	}

@@ -40,6 +40,8 @@
 #include <ldns/ldns.h>
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
+#include "util/rbtree.h"
+
 struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
@@ -153,6 +155,8 @@ typedef struct getdns_extension_format
  **/
 typedef struct getdns_network_req
 {
+	/* For storage in upstream->netreq_by_query_id */
+	getdns_rbnode_t node;
 	/* the async_id from unbound */
 	int unbound_id;
 	/* state var */

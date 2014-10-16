@@ -42,6 +42,7 @@
 #include "config.h"
 #include "types-internal.h"
 #include "extension/libmini_event.h"
+#include "util/rbtree.h"
 
 struct getdns_dns_req;
 struct ldns_rbtree_t;
@@ -71,8 +72,10 @@ struct filechg {
 struct getdns_upstream {
 	socklen_t               addr_len;
 	struct sockaddr_storage addr;
-	int tcp_fd;
-	int rtt;
+	int                     to_retry;
+	int                     tcp_fd;
+	getdns_eventloop_event  tcp_event;
+	getdns_rbtree_t         netreq_by_query_id;
 };
 
 typedef struct getdns_upstreams {
