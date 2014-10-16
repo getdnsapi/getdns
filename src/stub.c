@@ -269,6 +269,12 @@ stub_resolve_timeout_cb(void *userarg)
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dns_req = netreq->owner;
 
+	if (! --netreq->upstream->to_retry) 
+		netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+
+	if (++dns_req->upstreams->current > dns_req->upstreams->count)
+		dns_req->upstreams->current = 0;
+
 	(void) getdns_context_request_timed_out(dns_req);
 }
 
@@ -300,6 +306,7 @@ stub_resolve_read_cb(void *userarg)
 	close(netreq->udp_fd);
 	netreq->state = NET_REQ_FINISHED;
 	ldns_wire2pkt(&(netreq->result), pkt, read);
+	dns_req->upstreams->current = 0;
 
 	/* Do the dnssec here */
 	netreq->secure = 0;
@@ -361,12 +368,47 @@ done:
 	return;
 }
 
+static getdns_upstream *
+pick_upstream(getdns_dns_req *dns_req)
+{
+	getdns_upstream *upstream;
+	size_t i;
+	
+	if (!dns_req->upstreams->count)
+		return NULL;
+
+	for (i = 0; i < dns_req->upstreams->count; i++)
+		if (dns_req->upstreams->upstreams[i].to_retry <= 0)
+			dns_req->upstreams->upstreams[i].to_retry++;
+
+	i = dns_req->upstreams->current;
+	do {
+		if (dns_req->upstreams->upstreams[i].to_retry > 0) {
+			dns_req->upstreams->current = i;
+			return &dns_req->upstreams->upstreams[i];
+		}
+		if (++i > dns_req->upstreams->count)
+			i = 0;
+	} while (i != dns_req->upstreams->current);
+
+	upstream = dns_req->upstreams->upstreams;
+	for (i = 1; i < dns_req->upstreams->count; i++)
+		if (dns_req->upstreams->upstreams[i].back_off <
+		    upstream->back_off)
+			upstream = &dns_req->upstreams->upstreams[i];
+
+	upstream->back_off++;
+	upstream->to_retry = 1;
+	dns_req->upstreams->current = upstream - dns_req->upstreams->upstreams;
+	return upstream;
+}
+
 getdns_return_t
 priv_getdns_submit_stub_request(getdns_network_req *netreq)
 {
 	getdns_dns_req *dns_req = netreq->owner;
 
-	struct getdns_upstream *upstream;
+	getdns_upstream *upstream;
 
 	/* TODO: TCP */
 	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
@@ -374,7 +416,9 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
 	    	return GETDNS_RETURN_GENERIC_ERROR;
 
-	upstream = &dns_req->upstreams->upstreams[dns_req->ns_index];
+	if (!(upstream = pick_upstream(dns_req)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
 	if ((netreq->udp_fd = socket(
 	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		return GETDNS_RETURN_GENERIC_ERROR;

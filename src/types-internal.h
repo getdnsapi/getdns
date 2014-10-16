@@ -231,7 +231,6 @@ typedef struct getdns_dns_req
 
 	/* Stuff for stub resolving */
 	struct getdns_upstreams *upstreams;
-	size_t                   ns_index;
 
 } getdns_dns_req;
 

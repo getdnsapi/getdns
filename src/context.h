@@ -69,20 +69,22 @@ struct filechg {
 	struct stat *prevstat;
 };
 
-struct getdns_upstream {
+typedef struct getdns_upstream {
 	socklen_t               addr_len;
 	struct sockaddr_storage addr;
 	int                     to_retry;
+	int                     back_off;
 	int                     tcp_fd;
 	getdns_eventloop_event  tcp_event;
 	getdns_rbtree_t         netreq_by_query_id;
-};
+} getdns_upstream;
 
 typedef struct getdns_upstreams {
 	struct mem_funcs mf;
 	size_t referenced;
 	size_t count;
-	struct getdns_upstream upstreams[];
+	size_t current;
+	getdns_upstream upstreams[];
 } getdns_upstreams;
 
 struct getdns_context {
@@ -96,7 +98,7 @@ struct getdns_context {
 	getdns_append_name_t append_name;
 	struct getdns_list   *suffix;
 	struct getdns_list   *dnssec_trust_anchors;
-	getdns_upstreams *upstreams;
+	getdns_upstreams     *upstreams;
 	getdns_transport_t   dns_transport;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;

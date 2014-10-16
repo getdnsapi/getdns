@@ -149,7 +149,6 @@ dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
 	result->upstreams = context->upstreams;
 	if (result->upstreams)
 		result->upstreams->referenced++;
-	result->ns_index = 0;
 
 	/* create the requests */
 	req = network_req_new(result, request_type, klass, extensions);

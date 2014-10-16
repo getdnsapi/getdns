@@ -240,10 +240,11 @@ upstreams_create(getdns_context *context, size_t size)
 {
 	getdns_upstreams *r = (void *) GETDNS_XMALLOC(context->mf, char,
 	    sizeof(getdns_upstreams) +
-	    sizeof(struct getdns_upstream) * size);
+	    sizeof(getdns_upstream) * size);
 	r->mf = context->mf;
 	r->referenced = 1;
 	r->count = 0;
+	r->current = 0;
 	return r;
 }
 
@@ -253,7 +254,7 @@ upstreams_resize(getdns_upstreams *upstreams, size_t size)
 	getdns_upstreams *r = (void *) GETDNS_XREALLOC(
 	    upstreams->mf, upstreams, char,
 	    sizeof(getdns_upstreams) +
-	    sizeof(struct getdns_upstream) * size);
+	    sizeof(getdns_upstream) * size);
 	return r;
 }
 
@@ -265,13 +266,13 @@ upstreams_dereference(getdns_upstreams *upstreams)
 }
 
 static size_t
-upstream_addr_len(struct getdns_upstream *upstream)
+upstream_addr_len(getdns_upstream *upstream)
 {
 	return upstream->addr.ss_family == AF_INET ? 4 : 16;
 }
 
 static uint8_t*
-upstream_addr(struct getdns_upstream *upstream)
+upstream_addr(getdns_upstream *upstream)
 {
 	return upstream->addr.ss_family == AF_INET
 	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
@@ -279,7 +280,7 @@ upstream_addr(struct getdns_upstream *upstream)
 }
 
 static in_port_t
-upstream_port(struct getdns_upstream *upstream)
+upstream_port(getdns_upstream *upstream)
 {
 	return ntohs(upstream->addr.ss_family == AF_INET
 	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
@@ -287,7 +288,7 @@ upstream_port(struct getdns_upstream *upstream)
 }
 
 static uint32_t *
-upstream_scope_id(struct getdns_upstream *upstream)
+upstream_scope_id(getdns_upstream *upstream)
 {
 	return upstream->addr.ss_family == AF_INET ? NULL
 	    : (upstream_addr(upstream)[0] == 0xFE &&
@@ -296,7 +297,7 @@ upstream_scope_id(struct getdns_upstream *upstream)
 }
 
 static void
-upstream_ntop_buf(struct getdns_upstream *upstream, char *buf, size_t len)
+upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
 {
 	/* Also possible but prints scope_id by name (nor parsed by unbound)
 	 *
@@ -314,7 +315,7 @@ upstream_ntop_buf(struct getdns_upstream *upstream, char *buf, size_t len)
 }
 
 static getdns_dict *
-upstream_dict(getdns_context *context, struct getdns_upstream *upstream)
+upstream_dict(getdns_context *context, getdns_upstream *upstream)
 {
 	getdns_dict *r = getdns_dict_create_with_context(context);
 	char addrstr[1024], *b;
@@ -346,12 +347,13 @@ net_req_query_id_cmp(const void *id1, const void *id2)
 }
 
 static void
-upstream_init(struct getdns_upstream *upstream, struct addrinfo *ai)
+upstream_init(getdns_upstream *upstream, struct addrinfo *ai)
 {
 	assert(upstream && ai);
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
 	upstream->to_retry =  2;
+	upstream->back_off =  1;
 	upstream->tcp_fd   = -1;
 	(void) memset(&upstream->tcp_event, 0, sizeof(upstream->tcp_event));
 	getdns_rbtree_init(&upstream->netreq_by_query_id,
@@ -372,7 +374,7 @@ set_os_defaults(struct getdns_context *context)
 	struct getdns_bindata bindata;
 	struct addrinfo hints;
 	struct addrinfo *result;
-	struct getdns_upstream *upstream;
+	getdns_upstream *upstream;
 	int s;
 
 	if(context->fchg_resolvconf == NULL) {
@@ -1275,7 +1277,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		uint32_t port;
 		getdns_bindata *scope_id;
 		struct addrinfo *ai;
-		struct getdns_upstream *upstream;
+		getdns_upstream *upstream;
 
 		upstream = &upstreams->upstreams[upstreams->count];
 		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
@@ -1552,7 +1554,7 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_upstreams *upstreams)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
-	struct getdns_upstream *upstream;
+	getdns_upstream *upstream;
 	char addr[1024];
 
 	(void) ub_ctx_set_fwd(ctx, NULL);
@@ -1627,7 +1629,7 @@ set_ldns_nameservers(struct getdns_context *context,
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
-	struct getdns_upstream *upstream;
+	getdns_upstream *upstream;
 	ldns_rdf *pop, *ns_rdf;
 	uint16_t port = 53;
 
@@ -1992,7 +1994,7 @@ priv_get_context_settings(getdns_context* context) {
     r |= priv_dict_set_list_if_not_null(result, "suffix", context->suffix);
 	if (context->upstreams->count > 0) {
 		size_t i;
-		struct getdns_upstream *upstream;
+		getdns_upstream *upstream;
 		getdns_list *upstreams =
 		    getdns_list_create_with_context(context);
 
