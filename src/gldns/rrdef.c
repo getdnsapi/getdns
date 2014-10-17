@@ -15,6 +15,7 @@
 #include "config.h"
 #include "gldns/rrdef.h"
 #include "gldns/parseutil.h"
+#include <strings.h>
 
 /* classes  */
 static gldns_lookup_table gldns_rr_classes_data[] = {
@@ -35,7 +36,7 @@ static const gldns_rdf_type type_md_wireformat[] = { GLDNS_RDF_TYPE_DNAME };
 static const gldns_rdf_type type_mf_wireformat[] = { GLDNS_RDF_TYPE_DNAME };
 static const gldns_rdf_type type_cname_wireformat[] = { GLDNS_RDF_TYPE_DNAME };
 static const gldns_rdf_type type_soa_wireformat[] = {
-	GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_INT32, 
+	GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_INT32,
 	GLDNS_RDF_TYPE_PERIOD, GLDNS_RDF_TYPE_PERIOD, GLDNS_RDF_TYPE_PERIOD,
 	GLDNS_RDF_TYPE_PERIOD
 };

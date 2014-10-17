@@ -54,6 +54,8 @@
 
 #if defined(USE_MINI_EVENT) && !defined(USE_WINSOCK)
 
+#include <sys/select.h>
+
 #ifndef HAVE_EVENT_BASE_FREE
 #define HAVE_EVENT_BASE_FREE
 #endif 
