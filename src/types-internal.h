@@ -150,8 +150,23 @@ typedef struct getdns_extension_format
 	getdns_data_type exttype;
 } getdns_extension_format;
 
+
+/* State for async tcp stub resolving */
+typedef struct getdns_tcp_state {
+
+	uint8_t *write_buf;
+	size_t   write_buf_len;
+	size_t   written;
+
+	uint8_t *read_buf;
+	size_t   read_buf_len;
+	uint8_t *read_pos;
+	size_t   to_read;
+
+} getdns_tcp_state;
+
 /**
- * Request data for unbound
+ * Request data
  **/
 typedef struct getdns_network_req
 {
@@ -179,10 +194,14 @@ typedef struct getdns_network_req
 	struct getdns_network_req *next;
 
 	/* For stub resolving */
-	int                     udp_fd;
-	uint16_t                query_id;
-	getdns_eventloop_event  event;
 	struct getdns_upstream *upstream;
+	int                     fd;
+	getdns_eventloop_event  event;
+	getdns_tcp_state        tcp;
+	uint16_t                query_id;
+
+	/* Network requests scheduled to write after me */
+	struct getdns_network_req *write_queue;
 
 } getdns_network_req;
 
@@ -253,6 +272,17 @@ typedef struct getdns_dns_req
     : ((*(obj).mf.ext.free)((obj).mf_arg, (ptr))) \
     )
 
+#define GETDNS_NULL_FREE(obj, ptr)	\
+	do { \
+		if (!(ptr)) \
+			break; \
+		if ((obj).mf_arg == MF_PLAIN) \
+			(*(obj).mf.pln.free)(              (ptr)); \
+		else \
+			(*(obj).mf.ext.free)((obj).mf_arg, (ptr)); \
+		(ptr) = NULL; \
+	} while (0);
+
 #define GETDNS_MALLOC(obj, type)	GETDNS_XMALLOC(obj, type, 1)
 #define GETDNS_REALLOC(obj, ptr, type)	GETDNS_XREALLOC(obj, ptr, type, 1);
 
@@ -284,9 +314,9 @@ void dns_req_free(getdns_dns_req * req);
 		strftime(buf, 10, "%T", &tm); \
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
-	} while (false)
+	} while (0)
 
-#define DEBUG_OFF(...) do {} while (false)
+#define DEBUG_OFF(...) do {} while (0)
 
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 #include <time.h>

@@ -160,7 +160,8 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 
 		buf[0] = 0; /* dname for . */
 		gldns_write_uint16(buf + 1, GLDNS_RR_TYPE_OPT);
-		gldns_write_uint16(buf + 3, (uint16_t) edns_maximum_udp_payload_size);
+		gldns_write_uint16(buf + 3,
+		    (uint16_t) edns_maximum_udp_payload_size);
 		buf[5] = (uint8_t) edns_extended_rcode;
 		buf[6] = (uint8_t) edns_version;
 		buf[7] = edns_do_bit ? 0x80 : 0;
@@ -264,25 +265,64 @@ getdns_sock_nonblock(int sockfd)
 }
 
 static void
-stub_resolve_timeout_cb(void *userarg)
+stub_next_upstream(getdns_network_req *netreq)
 {
-	getdns_network_req *netreq = (getdns_network_req *)userarg;
-	getdns_dns_req *dns_req = netreq->owner;
+	getdns_dns_req *dnsreq = netreq->owner;
 
 	if (! --netreq->upstream->to_retry) 
 		netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
 
-	if (++dns_req->upstreams->current > dns_req->upstreams->count)
-		dns_req->upstreams->current = 0;
-
-	(void) getdns_context_request_timed_out(dns_req);
+	if (++dnsreq->upstreams->current > dnsreq->upstreams->count)
+		dnsreq->upstreams->current = 0;
 }
 
 static void
-stub_resolve_read_cb(void *userarg)
+stub_cleanup(getdns_network_req *netreq)
+{
+	getdns_dns_req *dnsreq = netreq->owner;
+
+	if (netreq->event.ev)
+		dnsreq->loop->vmt->clear(dnsreq->loop, &netreq->event);
+
+	GETDNS_NULL_FREE(dnsreq->context->mf, netreq->tcp.write_buf);
+	GETDNS_NULL_FREE(dnsreq->context->mf, netreq->tcp.read_buf);
+
+	/* TODO: Delete from write_queue */
+	/* TODO: Delete from netreq_by_query_id */
+}
+
+void
+priv_getdns_cancel_stub_request(getdns_network_req *netreq)
+{
+	stub_cleanup(netreq);
+	if (netreq->fd >= 0) close(netreq->fd);
+}
+
+static void
+stub_erred(getdns_network_req *netreq)
+{
+	stub_next_upstream(netreq);
+	stub_cleanup(netreq);
+	if (netreq->fd >= 0) close(netreq->fd);
+	priv_getdns_check_dns_req_complete(netreq->owner);
+}
+
+static void
+stub_timeout_cb(void *userarg)
 {
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
-	getdns_dns_req *dns_req = netreq->owner;
+
+	stub_next_upstream(netreq);
+	stub_cleanup(netreq);
+	if (netreq->fd >= 0) close(netreq->fd);
+	(void) getdns_context_request_timed_out(netreq->owner);
+}
+
+static void
+stub_udp_read_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dnsreq = netreq->owner;
 
 	static size_t pkt_buf_len = 4096;
 	size_t        pkt_len = pkt_buf_len;
@@ -291,9 +331,9 @@ stub_resolve_read_cb(void *userarg)
 
 	size_t read;
 
-	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
+	dnsreq->loop->vmt->clear(dnsreq->loop, &netreq->event);
 
-	read = recvfrom(netreq->udp_fd, pkt, pkt_len, 0, NULL, NULL);
+	read = recvfrom(netreq->fd, pkt, pkt_len, 0, NULL, NULL);
 	if (read == -1 && (errno = EAGAIN || errno == EWOULDBLOCK))
 		return;
 
@@ -303,23 +343,23 @@ stub_resolve_read_cb(void *userarg)
 	if (GLDNS_ID_WIRE(pkt) != netreq->query_id)
 		return; /* Cache poisoning attempt ;) */
 
-	close(netreq->udp_fd);
+	close(netreq->fd);
 	netreq->state = NET_REQ_FINISHED;
 	ldns_wire2pkt(&(netreq->result), pkt, read);
-	dns_req->upstreams->current = 0;
+	dnsreq->upstreams->current = 0;
 
-	/* Do the dnssec here */
+	/* TODO: DNSSEC */
 	netreq->secure = 0;
 	netreq->bogus  = 0;
 
-	priv_getdns_check_dns_req_complete(dns_req);
+	priv_getdns_check_dns_req_complete(dnsreq);
 }
 
 static void
-stub_resolve_write_cb(void *userarg)
+stub_udp_write_cb(void *userarg)
 {
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
-	getdns_dns_req *dns_req = netreq->owner;
+	getdns_dns_req *dnsreq = netreq->owner;
 
 	static size_t   pkt_buf_len = 4096;
 	uint8_t         pkt_buf[pkt_buf_len];
@@ -327,114 +367,381 @@ stub_resolve_write_cb(void *userarg)
 	size_t          pkt_len;
 	size_t          pkt_size_needed;
 
-	dns_req->loop->vmt->clear(dns_req->loop, &netreq->event);
+	dnsreq->loop->vmt->clear(dnsreq->loop, &netreq->event);
 
-	pkt_size_needed = getdns_get_query_pkt_size(dns_req->context,
-	    dns_req->name, netreq->request_type, dns_req->extensions);
+	pkt_size_needed = getdns_get_query_pkt_size(dnsreq->context,
+	    dnsreq->name, netreq->request_type, dnsreq->extensions);
 
 	if (pkt_size_needed > pkt_buf_len) {
 		pkt = GETDNS_XMALLOC(
-		    dns_req->context->mf, uint8_t, pkt_size_needed);
+		    dnsreq->context->mf, uint8_t, pkt_size_needed);
 		pkt_len = pkt_size_needed;
 	} else
 		pkt_len = pkt_buf_len;
 
-	if (getdns_make_query_pkt_buf(dns_req->context, dns_req->name,
-	    netreq->request_type, dns_req->extensions, pkt_buf, &pkt_len))
+	if (getdns_make_query_pkt_buf(dnsreq->context, dnsreq->name,
+	    netreq->request_type, dnsreq->extensions, pkt_buf, &pkt_len))
 		goto done;
 
 	netreq->query_id = ldns_get_random();
 	GLDNS_ID_SET(pkt, netreq->query_id);
 
-	if (pkt_len != sendto(netreq->udp_fd, pkt, pkt_len, 0,
+	if (pkt_len != sendto(netreq->fd, pkt, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
-		close(netreq->udp_fd);
+		close(netreq->fd);
 		goto done;
 	}
-
-	netreq->event.userarg    = netreq;
-	netreq->event.read_cb    = stub_resolve_read_cb;
-	netreq->event.write_cb   = NULL;
-	netreq->event.timeout_cb = stub_resolve_timeout_cb;
-	netreq->event.ev         = NULL;
-	dns_req->loop->vmt->schedule(dns_req->loop,
-	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
+	dnsreq->loop->vmt->schedule(
+	    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+	    getdns_eventloop_event_init(&netreq->event, netreq,
+	    stub_udp_read_cb, NULL, stub_timeout_cb));
 
 done:
 	if (pkt_size_needed > pkt_buf_len)
-		GETDNS_FREE(dns_req->context->mf, pkt);
+		GETDNS_FREE(dnsreq->context->mf, pkt);
 
 	return;
 }
 
 static getdns_upstream *
-pick_upstream(getdns_dns_req *dns_req)
+pick_upstream(getdns_dns_req *dnsreq)
 {
 	getdns_upstream *upstream;
 	size_t i;
 	
-	if (!dns_req->upstreams->count)
+	if (!dnsreq->upstreams->count)
 		return NULL;
 
-	for (i = 0; i < dns_req->upstreams->count; i++)
-		if (dns_req->upstreams->upstreams[i].to_retry <= 0)
-			dns_req->upstreams->upstreams[i].to_retry++;
+	for (i = 0; i < dnsreq->upstreams->count; i++)
+		if (dnsreq->upstreams->upstreams[i].to_retry <= 0)
+			dnsreq->upstreams->upstreams[i].to_retry++;
 
-	i = dns_req->upstreams->current;
+	i = dnsreq->upstreams->current;
 	do {
-		if (dns_req->upstreams->upstreams[i].to_retry > 0) {
-			dns_req->upstreams->current = i;
-			return &dns_req->upstreams->upstreams[i];
+		if (dnsreq->upstreams->upstreams[i].to_retry > 0) {
+			dnsreq->upstreams->current = i;
+			return &dnsreq->upstreams->upstreams[i];
 		}
-		if (++i > dns_req->upstreams->count)
+		if (++i > dnsreq->upstreams->count)
 			i = 0;
-	} while (i != dns_req->upstreams->current);
+	} while (i != dnsreq->upstreams->current);
 
-	upstream = dns_req->upstreams->upstreams;
-	for (i = 1; i < dns_req->upstreams->count; i++)
-		if (dns_req->upstreams->upstreams[i].back_off <
+	upstream = dnsreq->upstreams->upstreams;
+	for (i = 1; i < dnsreq->upstreams->count; i++)
+		if (dnsreq->upstreams->upstreams[i].back_off <
 		    upstream->back_off)
-			upstream = &dns_req->upstreams->upstreams[i];
+			upstream = &dnsreq->upstreams->upstreams[i];
 
 	upstream->back_off++;
 	upstream->to_retry = 1;
-	dns_req->upstreams->current = upstream - dns_req->upstreams->upstreams;
+	dnsreq->upstreams->current = upstream - dnsreq->upstreams->upstreams;
 	return upstream;
+}
+
+#define STUB_TCP_AGAIN -2
+#define STUB_TCP_ERROR -1
+
+static int
+stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
+{
+	size_t   read;
+	uint8_t *buf;
+	size_t   buf_size;
+
+	if (!tcp->read_buf) {
+		/* First time tcp read, create a buffer for reading */
+		if (!(tcp->read_buf = GETDNS_XMALLOC(*mf, uint8_t, 4096)))
+			return STUB_TCP_ERROR;
+
+		tcp->read_buf_len = 4096;
+		tcp->read_pos = tcp->read_buf;
+		tcp->to_read = 2; /* Packet size */
+	}
+	read = recv(fd, tcp->read_pos, tcp->to_read, 0);
+	if (read == -1) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return STUB_TCP_AGAIN;
+		else
+			return STUB_TCP_ERROR;
+	}
+	tcp->to_read  -= read;
+	tcp->read_pos += read;
+	
+	if (tcp->to_read > 0)
+		return STUB_TCP_AGAIN;
+
+	read = tcp->read_pos - tcp->read_buf;
+	if (read == 2) {
+		/* Read the packet size short */
+		tcp->to_read = gldns_read_uint16(tcp->read_buf);
+
+		if (tcp->to_read < GLDNS_HEADER_SIZE)
+			return STUB_TCP_ERROR;
+
+		/* Resize our buffer if needed */
+		if (tcp->to_read > tcp->read_buf_len) {
+			buf_size = tcp->read_buf_len;
+			while (tcp->to_read > buf_size)
+				buf_size *= 2;
+
+			if (!(buf = GETDNS_XREALLOC(*mf,
+			    tcp->read_buf, uint8_t, tcp->read_buf_len)))
+				return STUB_TCP_ERROR;
+
+			tcp->read_buf = buf;
+			tcp->read_buf_len = buf_size;
+		}
+		/* Ready to start reading the packet */
+		tcp->read_pos = tcp->read_buf;
+		return STUB_TCP_AGAIN;
+	}
+	return GLDNS_ID_WIRE(tcp->read_buf);
+}
+
+static void
+stub_tcp_read_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dnsreq = netreq->owner;
+	int q;
+
+	switch ((q = stub_tcp_read(netreq->fd, &netreq->tcp,
+	                          &dnsreq->context->mf))) {
+
+	case STUB_TCP_AGAIN:
+		return;
+
+	case STUB_TCP_ERROR:
+		stub_erred(netreq);
+		return;
+
+	default:
+		dnsreq->loop->vmt->clear(dnsreq->loop, &netreq->event);
+		if (q != netreq->query_id)
+			return;
+		netreq->state = NET_REQ_FINISHED;
+		ldns_wire2pkt(&(netreq->result), netreq->tcp.read_buf,
+		    netreq->tcp.read_pos - netreq->tcp.read_buf);
+		dnsreq->upstreams->current = 0;
+
+		/* TODO: DNSSEC */
+		netreq->secure = 0;
+		netreq->bogus  = 0;
+
+		stub_cleanup(netreq);
+		close(netreq->fd);
+		priv_getdns_check_dns_req_complete(dnsreq);
+	}
+}
+
+/* stub_tcp_write(fd, tcp, netreq)
+ * will return STUB_TCP_AGAIN when we need to come back again,
+ * STUB_TCP_ERROR on error and a query_id on successfull sent.
+ */
+static int
+stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
+{
+	getdns_dns_req *dnsreq = netreq->owner;
+
+	static size_t   pkt_buf_len = 4096;
+	uint8_t         pkt_buf[pkt_buf_len];
+	uint8_t        *pkt = pkt_buf;
+	size_t          pkt_len;
+	size_t          query_pkt_size;
+
+	size_t          written;
+	uint16_t        query_id;
+	intptr_t        query_id_intptr;
+
+	/* Do we have remaining data that we could write before?  */
+	if (! tcp->write_buf) {
+		/* Initial write. Create packet and try to send */
+		query_pkt_size = getdns_get_query_pkt_size(dnsreq->context,
+		    dnsreq->name, netreq->request_type, dnsreq->extensions);
+
+		if (query_pkt_size + 2 > pkt_buf_len) {
+			/* Not enough space in out stack buffer.
+			 * Allocate a buffer on the heap.
+			 */
+			if (!(pkt = GETDNS_XMALLOC(dnsreq->context->mf,
+			    uint8_t, query_pkt_size + 2)))
+				return STUB_TCP_ERROR;
+
+			tcp->write_buf = pkt;
+			tcp->write_buf_len = query_pkt_size + 2;
+			tcp->written = 0;
+
+			pkt_len = query_pkt_size;
+		} else
+			pkt_len = pkt_buf_len - 2;
+
+		/* Construct query packet */
+		if (getdns_make_query_pkt_buf(dnsreq->context, dnsreq->name,
+		    netreq->request_type,dnsreq->extensions,pkt + 2,&pkt_len))
+			return STUB_TCP_ERROR;
+
+		/* Prepend length short */
+		gldns_write_uint16(pkt, pkt_len);
+
+		/* Not keeping connections open? Then the first random number
+		 * will do as the query id.
+		 *
+		 * Otherwise find a unique query_id not already written (or in
+		 * the write_queue) for that upstream.  Register this netreq 
+		 * by query_id in the process.
+		 */
+		if (dnsreq->context->dns_transport !=
+		    GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN)
+
+			query_id = ldns_get_random();
+		else do {
+			query_id = ldns_get_random();
+			query_id_intptr = (intptr_t)query_id;
+			netreq->node.key = (void *)query_id_intptr;
+
+		} while (!getdns_rbtree_insert(
+		    &netreq->upstream->netreq_by_query_id, &netreq->node));
+
+		GLDNS_ID_SET(pkt + 2, query_id);
+
+		/* We have an initialized packet buffer.
+		 * Lets see how much of it we can write
+		 */
+		written = write(fd, pkt, pkt_len + 2);
+		if ((written == -1 && (errno == EAGAIN ||
+		                       errno == EWOULDBLOCK)) ||
+		     written  < pkt_len + 2) {
+
+			/* We couldn't write the whole packet.
+			 * We have to return with STUB_TCP_AGAIN, but if
+			 * the packet was on the stack only, we have to copy
+			 * it to heap space fist, because the stack will be
+			 * gone after return.
+			 */
+			if (!tcp->write_buf) {
+				/* Copy stack packet buffer to heap  */
+				if (!(tcp->write_buf = GETDNS_XMALLOC(
+				    dnsreq->context->mf,uint8_t,pkt_len + 2)))
+				 	return STUB_TCP_ERROR;
+				(void) memcpy(pkt, pkt_buf, pkt_len + 2);
+				tcp->write_buf_len = pkt_len + 2;
+			}
+			/* Because written could be -1 (and errno EAGAIN) */
+			tcp->written = written >= 0 ? written : 0;
+
+			return STUB_TCP_AGAIN;
+
+		} else if (written == -1)
+			return STUB_TCP_ERROR;
+
+		/* We were able to write everything!  Start reading. */
+		GETDNS_NULL_FREE(dnsreq->context->mf, tcp->write_buf);
+
+	} else {/* if (! tcp->write_buf) */
+
+		/* Coming back from an earlier unfinished write.
+		 * Try to send remaining data */
+		written = write(fd, tcp->write_buf     + tcp->written,
+		                    tcp->write_buf_len - tcp->written);
+		if (written == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+				return STUB_TCP_AGAIN;
+			else
+				return STUB_TCP_ERROR;
+		}
+		tcp->written += written;
+		if (tcp->written < tcp->write_buf_len)
+			/* Still more to send */
+			return STUB_TCP_AGAIN;
+
+		/* Done. Start reading */
+		query_id = GLDNS_ID_WIRE(tcp->write_buf + 2);
+
+	} /* if (! tcp->write_buf) */
+
+	GETDNS_NULL_FREE(dnsreq->context->mf, tcp->write_buf);
+	return (int) query_id;
+}
+
+static void
+stub_tcp_write_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dnsreq = netreq->owner;
+	int q;
+
+	switch ((q = stub_tcp_write(netreq->fd, &netreq->tcp, netreq))) {
+	case STUB_TCP_AGAIN:
+		return;
+
+	case STUB_TCP_ERROR:
+		stub_erred(netreq);
+		return;
+
+	default:
+		dnsreq->loop->vmt->clear(dnsreq->loop, &netreq->event);
+		netreq->query_id = (uint16_t) q;
+		dnsreq->loop->vmt->schedule(
+		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+		    getdns_eventloop_event_init(&netreq->event, netreq,
+		    stub_tcp_read_cb, NULL, stub_timeout_cb));
+		return;
+	}
 }
 
 getdns_return_t
 priv_getdns_submit_stub_request(getdns_network_req *netreq)
 {
-	getdns_dns_req *dns_req = netreq->owner;
+	getdns_dns_req  *dnsreq   = netreq->owner;
+	getdns_upstream *upstream = pick_upstream(dnsreq);
 
-	getdns_upstream *upstream;
-
-	/* TODO: TCP */
-	if (dns_req->context->dns_transport != GETDNS_TRANSPORT_UDP_ONLY &&
-	    dns_req->context->dns_transport !=
-	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP)
+	if (!upstream)
 	    	return GETDNS_RETURN_GENERIC_ERROR;
 
-	if (!(upstream = pick_upstream(dns_req)))
+	switch(dnsreq->context->dns_transport) {
+	case GETDNS_TRANSPORT_UDP_ONLY:
+	case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+
+		if ((netreq->fd = socket(
+		    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+			return GETDNS_RETURN_GENERIC_ERROR;
+
+		getdns_sock_nonblock(netreq->fd);
+		netreq->upstream = upstream;
+
+		dnsreq->loop->vmt->schedule(
+		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+		    getdns_eventloop_event_init(&netreq->event, netreq,
+		    NULL, stub_udp_write_cb, stub_timeout_cb));
+
+		return GETDNS_RETURN_GOOD;
+
+	case GETDNS_TRANSPORT_TCP_ONLY:
+
+		if ((netreq->fd = socket(
+		    upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
+			return GETDNS_RETURN_GENERIC_ERROR;
+		
+		getdns_sock_nonblock(netreq->fd);
+		if (connect(netreq->fd, (struct sockaddr *)&upstream->addr,
+		    upstream->addr_len) == -1 && errno != EINPROGRESS) {
+
+			close(netreq->fd);
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+		netreq->upstream = upstream;
+
+		dnsreq->loop->vmt->schedule(
+		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+		    getdns_eventloop_event_init(&netreq->event, netreq,
+		    NULL, stub_tcp_write_cb, stub_timeout_cb));
+
+		return GETDNS_RETURN_GOOD;
+		
+	default:
 		return GETDNS_RETURN_GENERIC_ERROR;
-
-	if ((netreq->udp_fd = socket(
-	    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-		return GETDNS_RETURN_GENERIC_ERROR;
-	netreq->upstream = upstream;
-
-	getdns_sock_nonblock(netreq->udp_fd);
-
-	netreq->event.userarg    = netreq;
-	netreq->event.read_cb    = NULL;
-	netreq->event.write_cb   = stub_resolve_write_cb;
-	netreq->event.timeout_cb = stub_resolve_timeout_cb;
-	netreq->event.ev         = NULL;
-	dns_req->loop->vmt->schedule(dns_req->loop,
-	    netreq->udp_fd, dns_req->context->timeout, &netreq->event);
-
-	return GETDNS_RETURN_GOOD;
+	}
 }
 
 /* stub.c */

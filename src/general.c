@@ -82,13 +82,18 @@ void
 priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
 	getdns_network_req *netreq;
+	int results_found = 0;
 	
 	for (netreq = dns_req->first_req; netreq; netreq = netreq->next)
 		if (netreq->state != NET_REQ_FINISHED &&
 		    netreq->state != NET_REQ_CANCELED)
 			return;
+		else if (netreq->result)
+			results_found = 1;
 
-	if (is_extension_set(dns_req->extensions,
+	if (! results_found)
+		priv_getdns_call_user_callback(dns_req, NULL);
+	else if (is_extension_set(dns_req->extensions,
 	    "dnssec_return_validation_chain"))
 		priv_getdns_get_validation_chain(dns_req);
 	else
@@ -126,9 +131,7 @@ submit_network_request(getdns_network_req *netreq)
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING ||
-	    dns_req->context->dns_transport == GETDNS_TRANSPORT_TCP_ONLY ||
-	    dns_req->context->dns_transport == GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN) {
+	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
 
 		/* schedule the timeout */
 		if (! dns_req->timeout.timeout_cb) {

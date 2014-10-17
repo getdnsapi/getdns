@@ -70,13 +70,25 @@ struct filechg {
 };
 
 typedef struct getdns_upstream {
-	socklen_t               addr_len;
-	struct sockaddr_storage addr;
-	int                     to_retry;
-	int                     back_off;
-	int                     tcp_fd;
-	getdns_eventloop_event  tcp_event;
-	getdns_rbtree_t         netreq_by_query_id;
+	struct getdns_upstreams *upstreams;
+
+	socklen_t                addr_len;
+	struct sockaddr_storage  addr;
+
+	/* How is this upstream doing? */
+	int                      to_retry;
+	int                      back_off;
+
+	/* For sharing a TCP socket to this upstream */
+	int                      fd;
+	getdns_eventloop_event   event;
+	getdns_eventloop        *loop;
+	getdns_tcp_state         tcp;
+
+	/* Pipelining of TCP network requests */
+	getdns_network_req      *write_queue;
+	getdns_network_req      *write_queue_tail;
+	getdns_rbtree_t          netreq_by_query_id;
 } getdns_upstream;
 
 typedef struct getdns_upstreams {

@@ -50,6 +50,7 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
+#include "stub.h"
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -342,20 +343,32 @@ upstream_dict(getdns_context *context, getdns_upstream *upstream)
 static int
 net_req_query_id_cmp(const void *id1, const void *id2)
 {
-	return (int)((struct getdns_network_req *)id1)->query_id -
-	       (int)((struct getdns_network_req *)id1)->query_id;
+	return (intptr_t)id1 - (intptr_t)id2;
 }
 
 static void
-upstream_init(getdns_upstream *upstream, struct addrinfo *ai)
+upstream_init(getdns_upstream *upstream,
+    getdns_upstreams *parent, struct addrinfo *ai)
 {
-	assert(upstream && ai);
+	upstream->upstreams = parent;
+
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+
+	/* How is this upstream doing? */
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
-	upstream->tcp_fd   = -1;
-	(void) memset(&upstream->tcp_event, 0, sizeof(upstream->tcp_event));
+
+	/* For sharing a socket to this upstream with TCP  */
+	upstream->fd       = -1;
+	(void) memset(&upstream->event, 0, sizeof(upstream->event));
+	upstream->loop = NULL;
+	(void) memset(&upstream->tcp, 0, sizeof(upstream->tcp));
+
+	upstream->write_queue = NULL;
+	upstream->write_queue_tail = NULL;
+
+	/* Tracking of network requests on this socket */
 	getdns_rbtree_init(&upstream->netreq_by_query_id,
 	    net_req_query_id_cmp);
 }
@@ -469,7 +482,7 @@ set_os_defaults(struct getdns_context *context)
 
 		upstream = &context->upstreams->
 		    upstreams[context->upstreams->count++];
-		upstream_init(upstream, result);
+		upstream_init(upstream, context->upstreams, result);
 		freeaddrinfo(result);
 	}
 	fclose(in);
@@ -973,6 +986,7 @@ set_ub_dns_transport(struct getdns_context* context,
             set_ub_string_opt(context, "do-tcp:", "no");
             break;
         case GETDNS_TRANSPORT_TCP_ONLY:
+	case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
             set_ub_string_opt(context, "do-udp:", "no");
             set_ub_string_opt(context, "do-tcp:", "yes");
             break;
@@ -996,6 +1010,7 @@ set_ldns_dns_transport(struct getdns_context* context,
             ldns_resolver_set_fallback(context->ldns_res, false);
             break;
         case GETDNS_TRANSPORT_TCP_ONLY:
+        case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
             ldns_resolver_set_usevc(context->ldns_res, 1);
             break;
         default:
@@ -1324,7 +1339,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		if (getaddrinfo(addrstr, portstr, &hints, &ai))
 			goto invalid_parameter;
 
-		upstream_init(upstream, ai);
+		upstream_init(upstream, upstreams, ai);
 		upstreams->count++;
 		freeaddrinfo(ai);
 	}
@@ -1479,19 +1494,18 @@ getdns_context_set_memory_functions(struct getdns_context *context,
 
 /* cancel the request */
 static void
-cancel_dns_req(getdns_dns_req * req)
+cancel_dns_req(getdns_dns_req *req)
 {
-	getdns_network_req *netreq = req->first_req;
-	while (netreq) {
+	getdns_network_req *netreq;
+	
+	for (netreq = req->first_req; netreq; netreq = netreq->next)
 		if (netreq->unbound_id != -1) {
 			ub_cancel(req->context->unbound_ctx,
 			    netreq->unbound_id);
 			netreq->unbound_id = -1;
-		} else if (netreq->event.ev) {
-			req->loop->vmt->clear(req->loop, &netreq->event);
-		}
-		netreq = netreq->next;
-	}
+		} else 
+			priv_getdns_cancel_stub_request(netreq);
+
 	req->canceled = 1;
 }
 
