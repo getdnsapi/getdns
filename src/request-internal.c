@@ -76,8 +76,7 @@ network_req_new(getdns_dns_req * owner,
 	net_req->fd = -1;
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
-	net_req->query_id = -1;
-
+	net_req->write_queue_tail = NULL;
 	return net_req;
 }
 

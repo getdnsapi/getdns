@@ -87,7 +87,7 @@ typedef struct getdns_upstream {
 
 	/* Pipelining of TCP network requests */
 	getdns_network_req      *write_queue;
-	getdns_network_req      *write_queue_tail;
+	getdns_network_req      *write_queue_last;
 	getdns_rbtree_t          netreq_by_query_id;
 } getdns_upstream;
 

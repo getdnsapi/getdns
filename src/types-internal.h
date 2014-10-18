@@ -201,7 +201,7 @@ typedef struct getdns_network_req
 	uint16_t                query_id;
 
 	/* Network requests scheduled to write after me */
-	struct getdns_network_req *write_queue;
+	struct getdns_network_req *write_queue_tail;
 
 } getdns_network_req;
 

@@ -361,12 +361,13 @@ upstream_init(getdns_upstream *upstream,
 
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
-	(void) memset(&upstream->event, 0, sizeof(upstream->event));
 	upstream->loop = NULL;
+	(void) getdns_eventloop_event_init(
+	    &upstream->event, upstream, NULL, NULL, NULL);
 	(void) memset(&upstream->tcp, 0, sizeof(upstream->tcp));
 
 	upstream->write_queue = NULL;
-	upstream->write_queue_tail = NULL;
+	upstream->write_queue_last = NULL;
 
 	/* Tracking of network requests on this socket */
 	getdns_rbtree_init(&upstream->netreq_by_query_id,
