@@ -333,13 +333,20 @@ stub_cleanup(getdns_network_req *netreq)
 }
 
 static void
-upstream_cleanup(getdns_upstream *upstream)
+upstream_erred(getdns_upstream *upstream)
 {
-	while (upstream->write_queue)
-		stub_cleanup(upstream->write_queue);
-	while (upstream->netreq_by_query_id.count)
-		stub_cleanup((getdns_network_req *)
-		   getdns_rbtree_first(&upstream->netreq_by_query_id));
+	getdns_network_req *netreq;
+
+	while ((netreq = upstream->write_queue)) {
+		stub_cleanup(netreq);
+		priv_getdns_check_dns_req_complete(netreq->owner);
+	}
+	while (upstream->netreq_by_query_id.count) {
+		netreq = (getdns_network_req *)
+		    getdns_rbtree_first(&upstream->netreq_by_query_id);
+		stub_cleanup(netreq);
+		priv_getdns_check_dns_req_complete(netreq->owner);
+	}
 	close(upstream->fd);
 	upstream->fd = -1;
 }
@@ -607,7 +614,7 @@ upstream_read_cb(void *userarg)
 		return;
 
 	case STUB_TCP_ERROR:
-		upstream_cleanup(upstream);
+		upstream_erred(upstream);
 		return;
 
 	default:
