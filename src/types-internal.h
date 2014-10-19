@@ -42,6 +42,8 @@
 #include "getdns/getdns_extra.h"
 #include "util/rbtree.h"
 
+#define SCHED_DEBUG 0
+
 struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;

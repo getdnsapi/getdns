@@ -137,8 +137,8 @@ getdns_context_run(getdns_context *context);
 #define GETDNS_CLEAR_EVENT(loop, event) \
 	do { if ((event)->ev) (loop)->vmt->clear((loop), (event)); } while(0)
 #define GETDNS_SCHEDULE_EVENT(loop, fd, timeout, event) \
-	do { GETDNS_CLEAR_EVENT((loop), (event)); \
-	     (loop)->vmt->schedule((loop),(fd),(timeout),(event)); } while(0)
+	do { (loop)->vmt->schedule((loop),(fd),(timeout),(event)); } while(0)
+
 #ifdef __cplusplus
 }
 #endif

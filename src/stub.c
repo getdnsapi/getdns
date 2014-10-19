@@ -283,7 +283,7 @@ stub_cleanup(getdns_network_req *netreq)
 	getdns_network_req *r, *prev_r;
 	getdns_upstream *upstream;
 	intptr_t query_id_intptr;
-	int schedule;
+	int reschedule;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -314,21 +314,20 @@ stub_cleanup(getdns_network_req *netreq)
 				    prev_r ? prev_r : NULL;
 			break;
 		}
-	schedule = 0;
+	reschedule = 0;
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
-		schedule = 1;
+		reschedule = 1;
 	}
 	if (!upstream->netreq_by_query_id.count && upstream->event.read_cb) {
 		upstream->event.read_cb = NULL;
-		schedule = 1;
+		reschedule = 1;
 	}
-	if (schedule) {
-		if (upstream->event.read_cb || upstream->event.write_cb)
+	if (reschedule) {
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		if (upstream->event.read_cb || upstream->event.write_cb) 
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
-		else
-			GETDNS_CLEAR_EVENT(upstream->loop,&upstream->event);
 	}
 }
 
@@ -339,12 +338,14 @@ upstream_erred(getdns_upstream *upstream)
 
 	while ((netreq = upstream->write_queue)) {
 		stub_cleanup(netreq);
+		netreq->state = NET_REQ_FINISHED;
 		priv_getdns_check_dns_req_complete(netreq->owner);
 	}
 	while (upstream->netreq_by_query_id.count) {
 		netreq = (getdns_network_req *)
 		    getdns_rbtree_first(&upstream->netreq_by_query_id);
 		stub_cleanup(netreq);
+		netreq->state = NET_REQ_FINISHED;
 		priv_getdns_check_dns_req_complete(netreq->owner);
 	}
 	close(upstream->fd);
@@ -364,6 +365,7 @@ stub_erred(getdns_network_req *netreq)
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
+	netreq->state = NET_REQ_FINISHED;
 	priv_getdns_check_dns_req_complete(netreq->owner);
 }
 
@@ -645,9 +647,8 @@ upstream_read_cb(void *userarg)
 	/* Nothing more to read? Then, deschedule the reads.*/
 	if (! upstream->netreq_by_query_id.count) {
 		upstream->event.read_cb = NULL;
-		if (!upstream->event.write_cb)
-			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-		else
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		if (upstream->event.write_cb)
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 	}
@@ -805,6 +806,7 @@ stub_tcp_write_cb(void *userarg)
 
 	default:
 		netreq->query_id = (uint16_t) q;
+		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
 		    getdns_eventloop_event_init(&netreq->event, netreq,
@@ -838,19 +840,23 @@ upstream_write_cb(void *userarg)
 			upstream->event.write_cb = NULL;
 
 			/* Reschedule (if already reading) to clear writable */
-			if (upstream->event.read_cb)
+			if (upstream->event.read_cb) {
+				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_FOREVER,
 				    &upstream->event);
+			}
 		}
 		/* Schedule reading (if not already scheduled) */
 		if (!upstream->event.read_cb) {
 			upstream->event.read_cb = upstream_read_cb;
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 		}
 		/* With synchonous lookups, schedule the read locally too */
 		if (netreq->event.write_cb) {
+			GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 			GETDNS_SCHEDULE_EVENT(
 			    dnsreq->loop, upstream->fd, dnsreq->context->timeout,
 			    getdns_eventloop_event_init(&netreq->event, netreq,
@@ -877,6 +883,7 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 	if (!upstream->write_queue) {
 		upstream->write_queue = upstream->write_queue_last = netreq;
 		upstream->event.write_cb = upstream_write_cb;
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		GETDNS_SCHEDULE_EVENT(upstream->loop,
 		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 	} else {

@@ -131,7 +131,14 @@ submit_network_request(getdns_network_req *netreq)
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
+	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING ||
+	    /* TODO: Until DNSSEC with the new async stub resolver is finished,
+	     *       use unbound when we need DNSSEC.
+	     */
+	    (dns_req->extensions && (
+	    is_extension_set(dns_req->extensions, "dnssec_return_status") ||
+	    is_extension_set(dns_req->extensions, "dnssec_return_only_secure") ||
+	    is_extension_set(dns_req->extensions, "dnssec_return_validation_chain")))) {
 
 		/* schedule the timeout */
 		if (! dns_req->timeout.timeout_cb) {

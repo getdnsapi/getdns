@@ -111,6 +111,7 @@ getdns_mini_event_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 	getdns_mini_event *ext = (getdns_mini_event *)loop;
 
 	assert(el_ev->ev);
+	DEBUG_SCHED("1. getdns_mini_event_clear(loop: %p, el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d, times: %d\n", loop, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events, (int)ext->base->times->count);
 
 	if (getdns_event_del(el_ev->ev) != 0)
 		r = GETDNS_RETURN_GENERIC_ERROR;
@@ -119,6 +120,7 @@ getdns_mini_event_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 	el_ev->ev = NULL;
 
 	ext->n_events--;
+	DEBUG_SCHED("2. %d <- getdns_mini_event_clear(loop: %p, el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d, times: %d\n", r, loop, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events, (int)ext->base->times->count);
 
 	return r;
 }
@@ -127,6 +129,7 @@ static void
 getdns_mini_event_callback(int fd, short bits, void *arg)
 {
 	getdns_eventloop_event *el_ev = (getdns_eventloop_event *)arg;
+	DEBUG_SCHED("1. getdns_mini_event_callback(fd: %d, bits: %d, el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p])\n", fd, (int)bits, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev);
 	if (bits & EV_READ) {
 		assert(el_ev->read_cb);
 		el_ev->read_cb(el_ev->userarg);
@@ -156,6 +159,7 @@ getdns_mini_event_schedule(getdns_eventloop *loop,
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	el_ev->ev = my_ev;
+	DEBUG_SCHED("1. getdns_mini_event_schedule(loop: %p, fd: %d, timeout: %"PRId64", el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d\n", loop, fd, timeout, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events);
 	getdns_event_set(my_ev, fd, (
 	    (el_ev->read_cb ? EV_READ|EV_PERSIST : 0) |
 	    (el_ev->write_cb ? EV_WRITE|EV_PERSIST : 0) |
@@ -170,11 +174,14 @@ getdns_mini_event_schedule(getdns_eventloop *loop,
 		goto error;
 
 	ext->n_events++;
+	DEBUG_SCHED("2. getdns_mini_event_schedule(loop: %p, fd: %d, timeout: %"PRId64", el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d\n", loop, fd, timeout, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events);
 
 	return GETDNS_RETURN_GOOD;
 error:
 	GETDNS_FREE(ext->mf, my_ev);
 	el_ev->ev = NULL;
+
+	DEBUG_SCHED("3. getdns_mini_event_schedule(loop: %p, fd: %d, timeout: %"PRId64", el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d\n", loop, fd, timeout, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events);
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
