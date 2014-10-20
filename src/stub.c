@@ -380,11 +380,13 @@ stub_timeout_cb(void *userarg)
 	(void) getdns_context_request_timed_out(netreq->owner);
 }
 
+static void stub_tcp_write_cb(void *userarg);
 static void
 stub_udp_read_cb(void *userarg)
 {
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dnsreq = netreq->owner;
+	getdns_upstream *upstream = netreq->upstream;
 
 	static size_t pkt_buf_len = 4096;
 	size_t        pkt_len = pkt_buf_len;
@@ -406,7 +408,28 @@ stub_udp_read_cb(void *userarg)
 		return; /* Cache poisoning attempt ;) */
 
 	close(netreq->fd);
-	netreq->state = NET_REQ_FINISHED;
+	if (GLDNS_TC_WIRE(pkt) &&
+	    dnsreq->context->dns_transport ==
+	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP) {
+
+		if ((netreq->fd = socket(
+		    upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
+			goto done;
+		
+		getdns_sock_nonblock(netreq->fd);
+		if (connect(netreq->fd, (struct sockaddr *)&upstream->addr,
+		    upstream->addr_len) == -1 && errno != EINPROGRESS) {
+
+			close(netreq->fd);
+			goto done;
+		}
+		GETDNS_SCHEDULE_EVENT(
+		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+		    getdns_eventloop_event_init(&netreq->event, netreq,
+		    NULL, stub_tcp_write_cb, stub_timeout_cb));
+
+		return;
+	}
 	ldns_wire2pkt(&(netreq->result), pkt, read);
 	dnsreq->upstreams->current = 0;
 
@@ -414,6 +437,8 @@ stub_udp_read_cb(void *userarg)
 	netreq->secure = 0;
 	netreq->bogus  = 0;
 
+done:
+	netreq->state = NET_REQ_FINISHED;
 	priv_getdns_check_dns_req_complete(dnsreq);
 }
 
@@ -586,7 +611,6 @@ stub_tcp_read_cb(void *userarg)
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		if (q != netreq->query_id)
 			return;
-		/* TODO: fallback to TCP when TC bit set */
 		netreq->state = NET_REQ_FINISHED;
 		ldns_wire2pkt(&(netreq->result), netreq->tcp.read_buf,
 		    netreq->tcp.read_pos - netreq->tcp.read_buf);
