@@ -41,6 +41,12 @@
 #include "getdns/getdns_extra.h"
 #include <sys/time.h>
 
+#define TRANSPORT_UDP "udp"
+#define TRANSPORT_TCP "tcp"
+#define TRANSPORT_PIPELINE "pipeline"
+#define RESOLUTION_STUB "stub"
+#define RESOLUTION_REC "rec"
+
 /* Set up the callback function, which will also do the processing of the results */
 void
 this_callbackfn(struct getdns_context *this_context,
@@ -55,11 +61,11 @@ this_callbackfn(struct getdns_context *this_context,
 
 	} else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-			"The callback with ID %llu was cancelled. Exiting.",
+			"The callback with ID %llu was cancelled. Exiting.\n",
 			(unsigned long long)this_transaction_id);
 	else
 		fprintf(stderr,
-			"The callback got a callback_type of %d. Exiting.",
+			"The callback got a callback_type of %d. Exiting.\n",
 			this_callback_type);
 	getdns_dict_destroy(this_response);
 }
@@ -67,6 +73,10 @@ this_callbackfn(struct getdns_context *this_context,
 int
 main(int argc, char** argv)
 {
+
+	const char *transport = argc > 2 ? argv[2] : "udp";
+	const char *resolution = argc > 3 ? argv[3] : "stub";
+
 	/* Create the DNS context for this call */
 	struct getdns_context *this_context = NULL;
 	getdns_return_t context_create_return =
@@ -76,7 +86,22 @@ main(int argc, char** argv)
 			context_create_return);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	getdns_context_set_resolution_type(this_context, GETDNS_RESOLUTION_STUB);
+
+	if (strncmp(resolution, RESOLUTION_STUB, 4) == 0)
+		getdns_context_set_resolution_type(this_context, GETDNS_RESOLUTION_STUB);
+	else if (strncmp(resolution, RESOLUTION_REC, 4) != 0) {
+		fprintf(stderr, "Invalid resolution %s, must be one of stub or rec\n", transport);
+		exit(EXIT_FAILURE);
+	}
+
+	if (strncmp(transport, TRANSPORT_TCP, 3) == 0)
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY);
+	else if (strncmp(transport, TRANSPORT_PIPELINE, 8) == 0)
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN);
+	else if (strncmp(transport, TRANSPORT_UDP, 3) != 0) {
+		fprintf(stderr, "Invalid transport %s, must be one of udp, tcp or pipeline\n", transport);
+		exit(EXIT_FAILURE);
+	}
 
 	getdns_context_set_timeout(this_context, 5000);
 	/* Create an event base and put it in the context using the unknown function name */
@@ -87,7 +112,7 @@ main(int argc, char** argv)
 
 	/* Make the call */
 	getdns_return_t dns_request_return =
-		getdns_general(this_context, this_name, GETDNS_RRTYPE_A,
+		getdns_address(this_context, this_name,
 		NULL, this_userarg, &this_transaction_id, this_callbackfn);
 	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME) {
 		fprintf(stderr, "A bad domain name was used: %s. Exiting.",
