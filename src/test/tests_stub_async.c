@@ -121,19 +121,7 @@ main(int argc, char** argv)
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 	else {
-		/* Call the event loop */
-			struct timeval tv;
-		while (getdns_context_get_num_pending_requests(this_context, &tv) > 0) {
-			int fd = getdns_context_fd(this_context);
-			fd_set read_fds;
-			FD_ZERO(&read_fds);
-			FD_SET(fd, &read_fds);
-			select(fd + 1, &read_fds, NULL, NULL, &tv);
-			if (getdns_context_process_async(this_context) != GETDNS_RETURN_GOOD) {
-				// context destroyed
-				break;
-			}
-		}
+		getdns_context_run(this_context);
 	}
 	/* Clean up */
 	getdns_context_destroy(this_context);
