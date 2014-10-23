@@ -80,7 +80,7 @@ static void set_ub_limit_outstanding_queries(struct getdns_context*,
     uint16_t);
 static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
 static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
-    uint16_t);
+    int);
 
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
@@ -625,7 +625,7 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 
 	result->dnssec_allowed_skew = 0;
-	result->edns_maximum_udp_payload_size = 1232;
+	result->edns_maximum_udp_payload_size = -1;
 	result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
 	result->limit_outstanding_queries = 0;
 	result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
@@ -1289,9 +1289,10 @@ error:
 
 static void
 set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
-    uint16_t value) {
+    int value) {
     /* edns-buffer-size */
-    set_ub_number_opt(context, "edns-buffer-size:", value);
+    if (value >= 512 && value <= 65535)
+    	set_ub_number_opt(context, "edns-buffer-size:", (uint16_t)value);
 }
 
 /*
@@ -1879,7 +1880,9 @@ priv_get_context_settings(getdns_context* context) {
     r |= getdns_dict_set_int(result, "limit_outstanding_queries", context->limit_outstanding_queries);
     r |= getdns_dict_set_int(result, "dnssec_allowed_skew", context->dnssec_allowed_skew);
     r |= getdns_dict_set_int(result, "follow_redirects", context->follow_redirects);
-    r |= getdns_dict_set_int(result, "edns_maximum_udp_payload_size", context->edns_maximum_udp_payload_size);
+    if (context->edns_maximum_udp_payload_size != -1)
+    	r |= getdns_dict_set_int(result, "edns_maximum_udp_payload_size",
+	    context->edns_maximum_udp_payload_size);
     r |= getdns_dict_set_int(result, "edns_extended_rcode", context->edns_extended_rcode);
     r |= getdns_dict_set_int(result, "edns_version", context->edns_version);
     r |= getdns_dict_set_int(result, "edns_do_bit", context->edns_do_bit);

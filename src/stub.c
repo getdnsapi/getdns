@@ -44,11 +44,14 @@
 #include "general.h"
 
 static int
-getdns_make_query_pkt_buf(getdns_context *context, const char *name,
-    uint16_t request_type, getdns_dict *extensions, uint8_t* buf, size_t* olen)
+getdns_make_query_pkt_buf(
+    getdns_network_req *netreq, uint8_t *buf, size_t *olen)
 {
-	uint32_t klass = GLDNS_RR_CLASS_IN;
 	size_t len;
+
+	getdns_dns_req *dnsreq  = netreq->owner;
+	getdns_context *context = dnsreq->context;
+	getdns_dict *extensions = dnsreq->extensions;
 
 	int dnssec_return_status
 	    = is_extension_set(extensions, "dnssec_return_status");
@@ -84,13 +87,16 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
 
 	if (dnssec_extension_set) {
-		edns_maximum_udp_payload_size = 1232;
+		edns_maximum_udp_payload_size =
+		    netreq->upstream->addr.ss_family == AF_INET6 ? 1232 : 1432;
 		edns_extended_rcode = 0;
 		edns_version = 0;
 		edns_do_bit = 1;
 	} else {
 		edns_maximum_udp_payload_size
-		    = context->edns_maximum_udp_payload_size;
+		    = context->edns_maximum_udp_payload_size != -1
+		    ? context->edns_maximum_udp_payload_size
+		    : netreq->upstream->addr.ss_family==AF_INET6 ? 1232 : 1432;
 		edns_extended_rcode = context->edns_extended_rcode;
 		edns_version = context->edns_version;
 		edns_do_bit = context->edns_do_bit;
@@ -121,8 +127,6 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 	len = *olen;
 	*olen = 0;
 
-	(void) getdns_dict_get_int(extensions, "specify_class", &klass);
-
 	if (len < GLDNS_HEADER_SIZE)
 		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 
@@ -141,15 +145,16 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 	buf   += GLDNS_HEADER_SIZE;
 
 	dname_len = len;
-	if ((r = gldns_str2wire_dname_buf(name, buf, &dname_len))) return r;
+	if ((r = gldns_str2wire_dname_buf(dnsreq->name, buf, &dname_len)))
+		return r;
 	len   -= dname_len;
 	*olen += dname_len;
 	buf   += dname_len;
 
 	if (len < 4)
 		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
-	gldns_write_uint16(buf, request_type);
-	gldns_write_uint16(buf + 2, klass);
+	gldns_write_uint16(buf, netreq->request_type);
+	gldns_write_uint16(buf + 2, netreq->request_class);
 	len   -= 4;
 	*olen += 4;
 	buf   += 4;
@@ -466,8 +471,7 @@ stub_udp_write_cb(void *userarg)
 	} else
 		pkt_len = pkt_buf_len;
 
-	if (getdns_make_query_pkt_buf(dnsreq->context, dnsreq->name,
-	    netreq->request_type, dnsreq->extensions, pkt_buf, &pkt_len))
+	if (getdns_make_query_pkt_buf(netreq, pkt_buf, &pkt_len))
 		goto done;
 
 	netreq->query_id = ldns_get_random();
@@ -750,8 +754,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			pkt_len = pkt_buf_len - 2;
 
 		/* Construct query packet */
-		if (getdns_make_query_pkt_buf(dnsreq->context, dnsreq->name,
-		    netreq->request_type,dnsreq->extensions,pkt + 2,&pkt_len))
+		if (getdns_make_query_pkt_buf(netreq, pkt + 2, &pkt_len))
 			return STUB_TCP_ERROR;
 
 		/* Prepend length short */
