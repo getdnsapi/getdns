@@ -202,6 +202,8 @@ typedef struct getdns_network_req
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;
 
+	uint16_t                max_udp_payload_size;
+
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
 

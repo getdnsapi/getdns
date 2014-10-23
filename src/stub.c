@@ -44,8 +44,8 @@
 #include "general.h"
 
 static int
-getdns_make_query_pkt_buf(
-    getdns_network_req *netreq, uint8_t *buf, size_t *olen)
+getdns_make_query_pkt_buf(const getdns_network_req *netreq, uint8_t *buf,
+    size_t *olen, uint16_t *omax_udp_payload_size)
 {
 	size_t len;
 
@@ -163,6 +163,7 @@ getdns_make_query_pkt_buf(
 		if (len < 11)
 			return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 
+		*omax_udp_payload_size = edns_maximum_udp_payload_size;
 		buf[0] = 0; /* dname for . */
 		gldns_write_uint16(buf + 1, GLDNS_RR_TYPE_OPT);
 		gldns_write_uint16(buf + 3,
@@ -402,15 +403,21 @@ stub_udp_read_cb(void *userarg)
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
+	if (netreq->max_udp_payload_size > pkt_buf_len) {
+		pkt_len = netreq->max_udp_payload_size;
+		if (!(pkt = GETDNS_XMALLOC(
+		    dnsreq->context->mf, uint8_t, pkt_len)))
+			goto done;
+	}
 	read = recvfrom(netreq->fd, pkt, pkt_len, 0, NULL, NULL);
 	if (read == -1 && (errno = EAGAIN || errno == EWOULDBLOCK))
-		return;
+		goto exit;
 
 	if (read < GLDNS_HEADER_SIZE)
-		return; /* Not DNS */
+		goto exit; /* Not DNS */
 	
 	if (GLDNS_ID_WIRE(pkt) != netreq->query_id)
-		return; /* Cache poisoning attempt ;) */
+		goto exit; /* Cache poisoning attempt ;) */
 
 	close(netreq->fd);
 	if (GLDNS_TC_WIRE(pkt) &&
@@ -433,7 +440,7 @@ stub_udp_read_cb(void *userarg)
 		    getdns_eventloop_event_init(&netreq->event, netreq,
 		    NULL, stub_tcp_write_cb, stub_timeout_cb));
 
-		return;
+		goto exit;
 	}
 	ldns_wire2pkt(&(netreq->result), pkt, read);
 	dnsreq->upstreams->current = 0;
@@ -441,10 +448,13 @@ stub_udp_read_cb(void *userarg)
 	/* TODO: DNSSEC */
 	netreq->secure = 0;
 	netreq->bogus  = 0;
-
 done:
 	netreq->state = NET_REQ_FINISHED;
-	priv_getdns_check_dns_req_complete(dnsreq);
+exit:
+	if (pkt && pkt != pkt_buf)
+		GETDNS_FREE(dnsreq->context->mf, pkt);
+	if (netreq->state == NET_REQ_FINISHED)
+		priv_getdns_check_dns_req_complete(dnsreq);
 }
 
 static void
@@ -471,8 +481,9 @@ stub_udp_write_cb(void *userarg)
 	} else
 		pkt_len = pkt_buf_len;
 
-	if (getdns_make_query_pkt_buf(netreq, pkt_buf, &pkt_len))
-		goto done;
+	if (getdns_make_query_pkt_buf(netreq, pkt_buf, &pkt_len,
+	    &netreq->max_udp_payload_size))
+		goto exit;
 
 	netreq->query_id = ldns_get_random();
 	GLDNS_ID_SET(pkt, netreq->query_id);
@@ -481,18 +492,15 @@ stub_udp_write_cb(void *userarg)
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
 		close(netreq->fd);
-		goto done;
+		goto exit;
 	}
 	GETDNS_SCHEDULE_EVENT(
 	    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
 	    getdns_eventloop_event_init(&netreq->event, netreq,
 	    stub_udp_read_cb, NULL, stub_timeout_cb));
-
-done:
-	if (pkt_size_needed > pkt_buf_len)
+exit:
+	if (pkt && pkt != pkt_buf)
 		GETDNS_FREE(dnsreq->context->mf, pkt);
-
-	return;
 }
 
 static getdns_upstream *
@@ -754,7 +762,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			pkt_len = pkt_buf_len - 2;
 
 		/* Construct query packet */
-		if (getdns_make_query_pkt_buf(netreq, pkt + 2, &pkt_len))
+		if (getdns_make_query_pkt_buf(netreq, pkt + 2, &pkt_len,
+		    &netreq->max_udp_payload_size))
 			return STUB_TCP_ERROR;
 
 		/* Prepend length short */
