@@ -158,6 +158,7 @@ create_local_hosts(struct getdns_context *context)
 				GETDNS_FREE(context->my_mf, hnas);
 				break;
 			}
+			hnas->node.key = hnas->host_name;
 			(void) getdns_rbtree_insert(
 			    &context->local_hosts, &hnas->node);
 		}
@@ -1955,7 +1956,8 @@ getdns_context_local_namespace_resolve(
 	if (!result_list)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	*response = create_getdns_response_from_rr_list(dnsreq, result_list);
-	ldns_rr_list_deep_free(result_list);
+	/* Not deep_free because ldns_rr_list_cat doesn't clone the rr's */
+	ldns_rr_list_free(result_list);
 	return *response ? GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 
