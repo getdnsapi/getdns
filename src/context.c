@@ -396,13 +396,6 @@ set_os_defaults(struct getdns_context *context)
 	filechg_check(context, context->fchg_resolvconf);
 
 	context->suffix = getdns_list_create_with_context(context);
-	(void) getdns_list_get_length(context->suffix, &length);
-	if (length == 0 && *domain != 0) {
-		bindata.data = (uint8_t *)domain;
-		bindata.size = strlen(domain) + 1;
-		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
-	}
-
 	context->upstreams = upstreams_create(context, upstreams_limit);
 
 	in = fopen(context->fchg_resolvconf->fn, "r");
@@ -480,6 +473,12 @@ set_os_defaults(struct getdns_context *context)
 	}
 	fclose(in);
 
+	(void) getdns_list_get_length(context->suffix, &length);
+	if (length == 0 && *domain != 0) {
+		bindata.data = (uint8_t *)domain;
+		bindata.size = strlen(domain) + 1;
+		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
+	}
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 
