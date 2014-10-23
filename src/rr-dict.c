@@ -1005,13 +1005,14 @@ priv_getdns_create_reply_question_dict(
 	assert(pkt);
 	assert(q_dict);
 
-       	rr = ldns_rr_list_rr(ldns_pkt_question(pkt), 0);
-	if (! rr)
-		return GETDNS_RETURN_GENERIC_ERROR;
-
 	*q_dict = getdns_dict_create_with_context(context);
 	if (! *q_dict)
 		return GETDNS_RETURN_MEMORY_ERROR;
+
+       	rr = ldns_rr_list_rr(ldns_pkt_question(pkt), 0);
+	if (! rr)
+		return GETDNS_RETURN_GOOD;
+
 	do { /* break on error (to cleanup *q_dict) */
 		r = getdns_dict_set_int(*q_dict,
 		    "qtype", ldns_rr_get_type(rr));

@@ -476,21 +476,27 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
             }
         }
 
-    	/* other stuff */
+    	/* other stuff
+	 * Note that spec doesn't explicitely mention these.
+	 * They are only showcased in the response dict example */
     	r = getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
     	    GETDNS_NAMETYPE_DNS);
         if (r != GETDNS_RETURN_GOOD) {
             break;
         }
     	question = ldns_rr_list_rr(ldns_pkt_question(reply), 0);
-    	name = convert_rdf_to_str(ldns_rr_owner(question));
-    	if (! name) {
-    		r = GETDNS_RETURN_MEMORY_ERROR;
-		break;
+	/* Some packets (like with rcode REFUSED)
+	 * don't even have RRs in the question section! */
+	if (question) {
+		name = convert_rdf_to_str(ldns_rr_owner(question));
+		if (! name) {
+			r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		r = getdns_dict_util_set_string(result,
+		    GETDNS_STR_KEY_CANONICAL_NM, name);
+		free(name);
 	}
-    	r = getdns_dict_util_set_string(result,
-    	    GETDNS_STR_KEY_CANONICAL_NM, name);
-    	free(name);
 
     } while (0);
 
