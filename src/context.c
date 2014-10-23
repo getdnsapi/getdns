@@ -91,7 +91,7 @@ static void destroy_local_host(getdns_rbnode_t * node, void *arg)
 {
 	getdns_context *context = (getdns_context *)arg;
 	host_name_addrs *hnas = (host_name_addrs *)node;
-	ldns_rdf_free(hnas->host_name);
+	ldns_rdf_deep_free(hnas->host_name);
 	ldns_rr_list_deep_free(hnas->ipv4addrs);
 	ldns_rr_list_deep_free(hnas->ipv6addrs);
 	GETDNS_FREE(context->my_mf, hnas);
@@ -675,8 +675,11 @@ getdns_context_destroy(struct getdns_context *context)
         return ;
     }
     context->destroying = 1;
-    cancel_outstanding_requests(context, 1);
-    getdns_context_detach_eventloop(context);
+	context->processing = 1;
+	/* cancel all outstanding requests */
+	cancel_outstanding_requests(context, 1);
+	context->processing = 0;
+	context->extension->vmt->cleanup(context->extension);
 
     if (context->namespaces)
         GETDNS_FREE(context->my_mf, context->namespaces);
