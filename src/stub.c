@@ -113,7 +113,7 @@ getdns_make_query_pkt_buf(getdns_context *context, const char *name,
 
 	with_opt = edns_do_bit || edns_maximum_udp_payload_size > 512
 	    || edns_extended_rcode != 0 || edns_version != 0
-	    || opt_options_size > 0;
+	    || noptions;
 
 	assert(buf);
 	assert(olen);
