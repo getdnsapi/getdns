@@ -213,8 +213,10 @@ typedef struct getdns_network_req
  * dns request - manages a number of network requests and
  * the initial data passed to getdns_general
  */
-typedef struct getdns_dns_req
-{
+typedef struct getdns_dns_req {
+	/* For storage in context->outbound_requests */
+	getdns_rbnode_t node;
+
 	/* name */
 	char *name;
 

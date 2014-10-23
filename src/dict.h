@@ -35,8 +35,8 @@
 #ifndef _GETDNS_DICT_H_
 #define _GETDNS_DICT_H_
 
-#include <ldns/rbtree.h>
 #include "getdns/getdns.h"
+#include "util/rbtree.h"
 #include "types-internal.h"
 
 union getdns_item
@@ -52,7 +52,7 @@ union getdns_item
  */
 struct getdns_dict_item
 {
-	ldns_rbnode_t node;
+	getdns_rbnode_t node;
 	getdns_data_type dtype;
 	union getdns_item data;
 };
@@ -66,7 +66,7 @@ struct getdns_dict_item
  */
 struct getdns_dict
 {
-	ldns_rbtree_t root;
+	getdns_rbtree_t root;
 	struct mem_funcs mf;
 };
 

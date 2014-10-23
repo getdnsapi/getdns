@@ -208,7 +208,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
 
 			if (!(r = getdns_context_local_namespace_resolve(
-			    req, &localnames_response, context))) {
+			    req, &localnames_response))) {
 
 				priv_getdns_call_user_callback
 				    ( req, localnames_response);

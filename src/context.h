@@ -45,7 +45,6 @@
 #include "util/rbtree.h"
 
 struct getdns_dns_req;
-struct ldns_rbtree_t;
 struct ub_ctx;
 
 #define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
@@ -132,7 +131,7 @@ struct getdns_context {
 	struct ub_ctx *unbound_ctx;
 
 	/* A tree to hold local host information*/
-	struct ldns_rbtree_t *local_hosts;
+	getdns_rbtree_t local_hosts;
 	int has_ta; /* No DNSSEC without trust anchor */
 	int return_dnssec_status;
 
@@ -144,7 +143,7 @@ struct getdns_context {
 	/*
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
-	struct ldns_rbtree_t *outbound_requests;
+	getdns_rbtree_t outbound_requests;
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;
@@ -197,9 +196,8 @@ void getdns_bindata_destroy(
     struct getdns_bindata *bindata);
 
 /* perform name resolution in /etc/hosts */
-getdns_return_t getdns_context_local_namespace_resolve(getdns_dns_req* req,
-                                               struct getdns_dict **response,
-                                               struct getdns_context *context);
+getdns_return_t getdns_context_local_namespace_resolve(
+    getdns_dns_req* req, struct getdns_dict **response);
 
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 

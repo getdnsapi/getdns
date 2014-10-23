@@ -836,9 +836,9 @@ validate_extensions(struct getdns_dict * extensions)
 	getdns_extension_format *extformat;
 
 	if (extensions)
-		LDNS_RBTREE_FOR(item, struct getdns_dict_item *,
-		    &(extensions->root))
-		{
+		RBTREE_FOR(item, struct getdns_dict_item *,
+		    &(extensions->root)) {
+
 			getdns_extension_format key;
 			key.extstring = (char *) item->node.key;
 			extformat = bsearch(&key, extformats,

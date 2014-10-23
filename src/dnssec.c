@@ -51,7 +51,7 @@
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
 struct validation_chain {
-	ldns_rbtree_t root;
+	getdns_rbtree_t root;
 	struct mem_funcs mf;
 	getdns_dns_req *dns_req;
 	size_t lock;
@@ -68,7 +68,7 @@ struct chain_response {
 };
 
 struct chain_link {
-	ldns_rbnode_t node;
+	getdns_rbnode_t node;
 	struct chain_response DNSKEY;
 	struct chain_response DS;
 };
@@ -85,8 +85,8 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 	ldns_rr_list *keys;
 	struct getdns_list *getdns_keys;
 
-	LDNS_RBTREE_FOR(link, struct chain_link *,
-	    (ldns_rbtree_t *)&(chain->root)) {
+	RBTREE_FOR(link, struct chain_link *,
+	    (getdns_rbtree_t *)&(chain->root)) {
 		if (link->DNSKEY.result == NULL && link->DNSKEY.err == 0)
 			ongoing++;
 		if (link->DS.result     == NULL && link->DS.err     == 0 &&
@@ -99,8 +99,8 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 		response = create_getdns_response(chain->dns_req);
 
 		keys = ldns_rr_list_new();
-		LDNS_RBTREE_FOR(link, struct chain_link *,
-		    (ldns_rbtree_t *)&(chain->root)) {
+		RBTREE_FOR(link, struct chain_link *,
+		    (getdns_rbtree_t *)&(chain->root)) {
 			(void) ldns_rr_list_cat(keys, link->DNSKEY.result);
 			(void) ldns_rr_list_cat(keys, link->DS.result);
 		}
@@ -203,7 +203,7 @@ launch_chain_link_lookup(struct validation_chain *chain, char *name)
 {
 	int r;
 	struct chain_link *link = (struct chain_link *)
-	    ldns_rbtree_search((ldns_rbtree_t *)&(chain->root), name);
+	    getdns_rbtree_search((getdns_rbtree_t *)&(chain->root), name);
 
 	if (link) {
 		free(name);
@@ -215,7 +215,7 @@ launch_chain_link_lookup(struct validation_chain *chain, char *name)
 	chain_response_init(chain, &link->DNSKEY);
 	chain_response_init(chain, &link->DS);
 
-	ldns_rbtree_insert(&(chain->root), (ldns_rbnode_t *)link);
+	getdns_rbtree_insert(&(chain->root), (getdns_rbnode_t *)link);
 
 	chain->lock++;
 	r = resolve(name, LDNS_RR_TYPE_DNSKEY, &link->DNSKEY);
@@ -239,7 +239,7 @@ static struct validation_chain *create_chain(getdns_dns_req *dns_req,
 	if (! chain)
 		return NULL;
 
-	ldns_rbtree_init(&(chain->root),
+	getdns_rbtree_init(&(chain->root),
 	    (int (*)(const void *, const void *)) strcmp);
 	chain->mf.mf_arg         = dns_req->context->mf.mf_arg;
 	chain->mf.mf.ext.malloc  = dns_req->context->mf.mf.ext.malloc;
@@ -251,7 +251,7 @@ static struct validation_chain *create_chain(getdns_dns_req *dns_req,
 	return chain;
 }
 
-static void destroy_chain_link(ldns_rbnode_t * node, void *arg)
+static void destroy_chain_link(getdns_rbnode_t * node, void *arg)
 {
 	struct chain_link *link = (struct chain_link*) node;
 	struct validation_chain *chain   = (struct validation_chain*) arg;
@@ -264,8 +264,7 @@ static void destroy_chain_link(ldns_rbnode_t * node, void *arg)
 
 static void destroy_chain(struct validation_chain *chain)
 {
-	ldns_traverse_postorder(&(chain->root),
-	    destroy_chain_link, chain);
+	traverse_postorder(&(chain->root), destroy_chain_link, chain);
 	GETDNS_FREE(chain->mf, chain);
 }
 
