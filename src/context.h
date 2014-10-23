@@ -130,7 +130,7 @@ struct getdns_context {
 
 	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
-	ldns_resolver *ldns_res;
+
 	/* A tree to hold local host information*/
 	struct ldns_rbtree_t *local_hosts;
 	int has_ta; /* No DNSSEC without trust anchor */
