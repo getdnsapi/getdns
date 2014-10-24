@@ -384,7 +384,7 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
-AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h src/example/Makefile src/test/Makefile doc/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h spec/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi

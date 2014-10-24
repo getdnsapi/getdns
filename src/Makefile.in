@@ -56,10 +56,10 @@ have_libev = @have_libev@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
 INSTALL = @INSTALL@
-LIBTOOL = ../libtool
 
 srcdir = @srcdir@
 VPATH = @srcdir@
+LIBTOOL = ../libtool
 
 CC=@CC@
 CFLAGS=@CFLAGS@ -Wall -I$(srcdir) -I. -std=c99 -D_POSIX_C_SOURCE=200112L
@@ -142,20 +142,14 @@ libgetdns.la: $(GETDNS_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ)
 test:	FORCE
 	cd test && $(MAKE) $@
 
-example:	FORCE
-	cd example && $(MAKE) $@
-
 clean:
 	cd test && $(MAKE) $@
-	cd example && $(MAKE) $@
 	rm -f *.o *.lo extension/*.lo extension/*.o $(PROGRAMS) libgetdns.la libgetdns_ext_*.la
 	rm -rf .libs extension/.libs
 
 distclean : clean
 	cd test && $(MAKE) $@
 	rmdir test 2>/dev/null || true
-	cd example && $(MAKE) $@
-	rmdir example 2>/dev/null || true
 	rm -f Makefile config.status config.log Doxyfile config.h getdns/Makefile getdns/getdns.h
 	rmdir getdns 2>/dev/null || true
 	rmdir extension 2>/dev/null || true
@@ -204,7 +198,7 @@ depend:
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
 
-.PHONY: clean test example
+.PHONY: clean test
 FORCE:
 
 # Dependencies for gldns, utils, the mini_event extension and compat functions

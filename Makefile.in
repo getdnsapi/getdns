@@ -90,7 +90,7 @@ doc:	FORCE
 	cd doc && $(MAKE) $@
 
 example:
-	cd src && $(MAKE) $@
+	cd spec/example && $(MAKE) $@
 
 test:
 	cd src && $(MAKE) $@
@@ -98,6 +98,7 @@ test:
 clean:
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
+	cd spec/example && $(MAKE) $@
 	rm -f *.o
 
 depend:
@@ -108,6 +109,7 @@ distclean:
 	rmdir src 2>/dev/null || true
 	cd doc && $(MAKE) $@
 	rmdir doc 2>/dev/null || true
+	cd spec/example && $(MAKE) $@
 	rm -f config.log config.status Makefile libtool
 	rm -fR autom4te.cache
 
@@ -130,10 +132,10 @@ $(distdir):
 	mkdir -p $(distdir)/src
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
-	mkdir -p $(distdir)/src/example
 	mkdir -p $(distdir)/src/extension
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
+	mkdir -p $(distdir)/spec/example
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/AUTHORS $(distdir)
@@ -160,12 +162,14 @@ $(distdir):
 	cp $(srcdir)/src/test/*.[ch] $(distdir)/src/test
 	cp $(srcdir)/src/test/*.sh $(distdir)/src/test
 	cp $(srcdir)/src/test/*.good $(distdir)/src/test
-	cp $(srcdir)/src/example/Makefile.in $(distdir)/src/example
-	cp $(srcdir)/src/example/*.[ch] $(distdir)/src/example
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
 	cp $(srcdir)/doc/*.in $(distdir)/doc
 	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc
-	cp $(srcdir)/spec/* $(distdir)/spec
+	cp $(srcdir)/spec/*.html $(distdir)/spec
+	cp $(srcdir)/spec/*.tgz $(distdir)/spec
+	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
+	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
+
 
 distcheck: $(distdir).tar.gz
 	gzip -cd $(distdir).tar.gz | tar xvf -

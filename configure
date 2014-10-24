@@ -11683,7 +11683,7 @@ _ACEOF
 { $as_echo "$as_me:${as_lineno-$LINENO}: Default trust anchor: $TRUST_ANCHOR_FILE" >&5
 $as_echo "$as_me: Default trust anchor: $TRUST_ANCHOR_FILE" >&6;}
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h src/example/Makefile src/test/Makefile doc/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/getdns/Makefile src/getdns/getdns.h spec/example/Makefile src/test/Makefile doc/Makefile"
 
 if  test -n "$DOXYGEN"
     then ac_config_files="$ac_config_files src/Doxyfile"
@@ -12826,7 +12826,7 @@ do
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/getdns/Makefile") CONFIG_FILES="$CONFIG_FILES src/getdns/Makefile" ;;
     "src/getdns/getdns.h") CONFIG_FILES="$CONFIG_FILES src/getdns/getdns.h" ;;
-    "src/example/Makefile") CONFIG_FILES="$CONFIG_FILES src/example/Makefile" ;;
+    "spec/example/Makefile") CONFIG_FILES="$CONFIG_FILES spec/example/Makefile" ;;
     "src/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/test/Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "src/Doxyfile") CONFIG_FILES="$CONFIG_FILES src/Doxyfile" ;;
