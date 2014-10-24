@@ -744,6 +744,7 @@ with_gnu_ld
 with_sysroot
 enable_libtool_lock
 enable_rpath
+enable_tcp_fastopen
 with_libidn
 with_libldns
 with_libunbound
@@ -1380,6 +1381,7 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         disable hardcoded rpath (default=enabled)
+  --enable-tcp-fastopen   Enable TCP Fast Open
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -10787,6 +10789,28 @@ if test "x$enable_rpath" = xno; then
 
 fi
 
+
+# Check whether --enable-tcp-fastopen was given.
+if test "${enable_tcp_fastopen+set}" = set; then :
+  enableval=$enable_tcp_fastopen;
+fi
+
+case "$enable_tcp_fastopen" in
+	yes)
+		# TODO: Check if it is available (linux only)
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: TCP Fast Open enabled" >&5
+$as_echo "$as_me: TCP Fast Open enabled" >&6;}
+
+cat >>confdefs.h <<_ACEOF
+#define USE_TCP_FASTOPEN 1
+_ACEOF
+
+		;;
+	no|*)
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: TCP Fast Open not enabled" >&5
+$as_echo "$as_me: TCP Fast Open not enabled" >&6;}
+		;;
+esac
 
 # search to set include and library paths right
 # find libidn

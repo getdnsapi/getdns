@@ -802,11 +802,29 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */
+#if defined (USE_TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+		/* We use sendto() here which will do both a connect and send */
+		written = sendto(fd, pkt, pkt_len + 2, MSG_FASTOPEN,
+					(struct sockaddr *)&(netreq->upstream->addr),
+					netreq->upstream->addr_len);
+		/* If pipelining we will find that the connection is already up so 
+		   just fall back to a 'normal' write. */
+		if (written == -1 && errno == EISCONN) 
+			written = write(fd, pkt, pkt_len + 2);
+
+		if ((written == -1 && (errno == EAGAIN ||
+		                       errno == EWOULDBLOCK ||
+		/* Add the error case where the connection is in progress which is when
+		   a cookie is not available (e.g. when doing the first request to an
+		   upstream). We must let the handshake complete since non-blocking. */
+		                       errno == EINPROGRESS)) ||
+		     written  < pkt_len + 2) {
+#else
 		written = write(fd, pkt, pkt_len + 2);
 		if ((written == -1 && (errno == EAGAIN ||
 		                       errno == EWOULDBLOCK)) ||
 		     written  < pkt_len + 2) {
-
+#endif
 			/* We couldn't write the whole packet.
 			 * We have to return with STUB_TCP_AGAIN, but if
 			 * the packet was on the stack only, we have to copy
@@ -834,7 +852,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 	} else {/* if (! tcp->write_buf) */
 
-		/* Coming back from an earlier unfinished write.
+		/* Coming back from an earlier unfinished write or handshake.
 		 * Try to send remaining data */
 		written = write(fd, tcp->write_buf     + tcp->written,
 		                    tcp->write_buf_len - tcp->written);
@@ -998,12 +1016,16 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 			return GETDNS_RETURN_GENERIC_ERROR;
 		
 		getdns_sock_nonblock(netreq->fd);
+#if defined (USE_TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+		/* Leave the connect to the later call to sendto() */
+#else
 		if (connect(netreq->fd, (struct sockaddr *)&upstream->addr,
 		    upstream->addr_len) == -1 && errno != EINPROGRESS) {
 
 			close(netreq->fd);
 			return GETDNS_RETURN_GENERIC_ERROR;
 		}
+#endif
 		netreq->upstream = upstream;
 
 		GETDNS_SCHEDULE_EVENT(
@@ -1025,6 +1047,9 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 				return GETDNS_RETURN_GENERIC_ERROR;
 			
 			getdns_sock_nonblock(upstream->fd);
+#if defined (USE_TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+		/* Leave the connect to the later call to sendto() */
+#else
 			if (connect(upstream->fd,
 			    (struct sockaddr *)&upstream->addr,
 			    upstream->addr_len) == -1 && errno != EINPROGRESS){
@@ -1033,6 +1058,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 				upstream->fd = -1;
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
+#endif
 			/* Attach to the global event loop
 			 * so it can do it's own scheduling
 			 */
