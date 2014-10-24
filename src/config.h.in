@@ -130,6 +130,9 @@
 /* Needed for sync stub resolver functions */
 #undef USE_MINI_EVENT
 
+/* Define this to enable TCP fast open. */
+#undef USE_TCP_FASTOPEN
+
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */
