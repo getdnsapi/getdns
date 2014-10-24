@@ -809,11 +809,11 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 				if (!(tcp->write_buf = GETDNS_XMALLOC(
 				    dnsreq->context->mf,uint8_t,pkt_len + 2)))
 				 	return STUB_TCP_ERROR;
-				(void) memcpy(pkt, pkt_buf, pkt_len + 2);
+				(void) memcpy(tcp->write_buf, pkt, pkt_len + 2);
 				tcp->write_buf_len = pkt_len + 2;
 			}
 			/* Because written could be -1 (and errno EAGAIN) */
-			tcp->written = written >= 0 ? written : 0;
+			tcp->written = (int)written >= 0 ? written : 0;
 
 			return STUB_TCP_AGAIN;
 
