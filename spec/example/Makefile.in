@@ -45,7 +45,7 @@ EXTENSION_LIBEVENT_EXT_LIBS=@EXTENSION_LIBEVENT_EXT_LIBS@
 EXTENSION_LIBEVENT_LDFLAGS=@EXTENSION_LIBEVENT_LDFLAGS@
 
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -I$(srcdir) -I$(srcdir)/../../src -std=c99
+CFLAGS=@CFLAGS@ -Wall -I$(srcdir) -I$(srcdir)/../../src -I../../src -std=c99
 LDFLAGS=@LDFLAGS@ -L../../src
 LDLIBS=-lgetdns @LIBS@
 PROGRAMS=example-all-functions example-simple-answers example-tree example-synchronous example-reverse

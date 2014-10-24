@@ -110,6 +110,8 @@ distclean:
 	cd doc && $(MAKE) $@
 	rmdir doc 2>/dev/null || true
 	cd spec/example && $(MAKE) $@
+	rmdir spec/example 2>/dev/null || true
+	rmdir spec 2>/dev/null || true
 	rm -f config.log config.status Makefile libtool
 	rm -fR autom4te.cache
 
