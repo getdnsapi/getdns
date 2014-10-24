@@ -1810,15 +1810,6 @@ getdns_context_set_eventloop(struct getdns_context* context, getdns_eventloop* l
 	return GETDNS_RETURN_GOOD;
 }
 
-static inline getdns_return_t
-priv_dict_set_list_if_not_null(getdns_dict* dict,
-    const char* name, getdns_list* list) {
-    if (!list) {
-        return GETDNS_RETURN_GOOD;
-    }
-    return getdns_dict_set_list(dict, name, list);
-}
-
 static getdns_dict*
 priv_get_context_settings(getdns_context* context) {
     getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -1840,7 +1831,7 @@ priv_get_context_settings(getdns_context* context) {
     r |= getdns_dict_set_int(result, "edns_do_bit", context->edns_do_bit);
     r |= getdns_dict_set_int(result, "append_name", context->append_name);
     /* list fields */
-    r |= priv_dict_set_list_if_not_null(result, "suffix", context->suffix);
+    if (context->suffix) r |= getdns_dict_set_list(result, "suffix", context->suffix);
 	if (context->upstreams && context->upstreams->count > 0) {
 		size_t i;
 		getdns_upstream *upstream;

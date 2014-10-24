@@ -35,6 +35,16 @@
 extern "C" {
 #endif
 
+#ifdef S_SPLINT_S
+#  define INLINE 
+#else
+#  ifdef SWIG
+#    define INLINE static
+#  else
+#    define INLINE static inline
+#  endif
+#endif
+
 /* Enable the return_dnssec_status extension on every request.
    value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
    returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
@@ -82,7 +92,7 @@ typedef struct getdns_eventloop_event {
 	void *ev;
 } getdns_eventloop_event;
 
-inline getdns_eventloop_event *getdns_eventloop_event_init(
+INLINE getdns_eventloop_event *getdns_eventloop_event_init(
     getdns_eventloop_event *ev,void *userarg, getdns_eventloop_callback read_cb,
     getdns_eventloop_callback write_cb, getdns_eventloop_callback timeout_cb)
 { ev->userarg = userarg; ev->read_cb = read_cb; ev->write_cb = write_cb;
