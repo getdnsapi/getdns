@@ -10796,15 +10796,19 @@ if test "${enable_tcp_fastopen+set}" = set; then :
 fi
 
 case "$enable_tcp_fastopen" in
-	no)
-		;;
-	*) 		{ $as_echo "$as_me:${as_lineno-$LINENO}: enablind TCP Fast Open" >&5
-$as_echo "$as_me: enablind TCP Fast Open" >&6;}
+	yes)
+		# TODO: Check if it is available (linux only)
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: TCP Fast Open enabled" >&5
+$as_echo "$as_me: TCP Fast Open enabled" >&6;}
 
 cat >>confdefs.h <<_ACEOF
 #define USE_TCP_FASTOPEN 1
 _ACEOF
 
+		;;
+	no|*)
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: TCP Fast Open not enabled" >&5
+$as_echo "$as_me: TCP Fast Open not enabled" >&6;}
 		;;
 esac
 
