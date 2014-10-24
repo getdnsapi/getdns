@@ -399,7 +399,7 @@ stub_udp_read_cb(void *userarg)
 	uint8_t       pkt_buf[pkt_buf_len];
 	uint8_t      *pkt = pkt_buf;
 
-	size_t read;
+	ssize_t       read;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -442,7 +442,7 @@ stub_udp_read_cb(void *userarg)
 
 		goto exit;
 	}
-	ldns_wire2pkt(&(netreq->result), pkt, read);
+	ldns_wire2pkt(&(netreq->result), pkt, (size_t)read);
 	dnsreq->upstreams->current = 0;
 
 	/* TODO: DNSSEC */
@@ -488,7 +488,7 @@ stub_udp_write_cb(void *userarg)
 	netreq->query_id = ldns_get_random();
 	GLDNS_ID_SET(pkt, netreq->query_id);
 
-	if (pkt_len != sendto(netreq->fd, pkt, pkt_len, 0,
+	if ((ssize_t)pkt_len != sendto(netreq->fd, pkt, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
 		close(netreq->fd);
@@ -544,7 +544,7 @@ pick_upstream(getdns_dns_req *dnsreq)
 static int
 stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 {
-	size_t   read;
+	ssize_t  read;
 	uint8_t *buf;
 	size_t   buf_size;
 
@@ -683,7 +683,7 @@ upstream_read_cb(void *userarg)
 		upstream->tcp.read_pos = upstream->tcp.read_buf;
 		upstream->tcp.to_read = 2;
 
-		/* More the read/write for syncronous lookups? */
+		/* More to read/write for syncronous lookups? */
 		if (netreq->event.read_cb) {
 			dnsreq = netreq->owner;
 			GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
@@ -702,7 +702,7 @@ upstream_read_cb(void *userarg)
 		}
 		priv_getdns_check_dns_req_complete(netreq->owner);
 
-		/* Nothing more to read? Then, deschedule the reads.*/
+		/* Nothing more to read? Then deschedule the reads.*/
 		if (! upstream->netreq_by_query_id.count) {
 			upstream->event.read_cb = NULL;
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -735,13 +735,15 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 	size_t          pkt_len;
 	size_t          query_pkt_size;
 
-	size_t          written;
+	ssize_t         written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
 
-	/* Do we have remaining data that we could write before?  */
+	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
-		/* Initial write. Create packet and try to send */
+		/* No, this is an initial write.
+		 * Create packet and try to send
+		 */
 		query_pkt_size = getdns_get_query_pkt_size(dnsreq->context,
 		    dnsreq->name, netreq->request_type, dnsreq->extensions);
 
@@ -813,7 +815,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 				tcp->write_buf_len = pkt_len + 2;
 			}
 			/* Because written could be -1 (and errno EAGAIN) */
-			tcp->written = (int)written >= 0 ? written : 0;
+			tcp->written = written >= 0 ? written : 0;
 
 			return STUB_TCP_AGAIN;
 
