@@ -124,7 +124,7 @@ void* run_transport_server(void* data) {
         if(!send_array) return 0;
         ldns_write_uint16(send_array, ldns_buffer_position(send_buf));
         memcpy(send_array + 2, ldns_buffer_begin(send_buf), ldns_buffer_position(send_buf));
-        write(conn, (void*)send_array, ldns_buffer_position(send_buf) + 2);
+        if (write(conn, (void*)send_array, ldns_buffer_position(send_buf) + 2) == -1) return 0;
         LDNS_FREE(send_array);
       }
       LDNS_FREE(send_buf);
