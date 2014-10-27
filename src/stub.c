@@ -111,6 +111,8 @@ getdns_make_query_pkt_buf(const getdns_network_req *netreq, uint8_t *buf,
 			    "version", &edns_version);
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "do_bit", &edns_do_bit);
+			if (edns_maximum_udp_payload_size < 512)
+				edns_maximum_udp_payload_size = 512;
 		}
 	}
 	if (have_add_opt_parameters && getdns_dict_get_list(
