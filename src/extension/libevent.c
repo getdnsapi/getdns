@@ -67,7 +67,7 @@ event_new(struct event_base *b, evutil_socket_t fd, short ev, void* cb, void *ar
 static struct event_base *
 event_get_base(const struct event *ev)
 {
-	return ev->base;
+	return ev->ev_base;
 }
 
 static evutil_socket_t df
