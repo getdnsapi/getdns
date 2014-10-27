@@ -1325,77 +1325,66 @@ priv_getdns_create_opt_rr(
 }
 
 getdns_return_t priv_getdns_append_opt_rr(
-    struct getdns_context *context, struct getdns_list* rdatas, ldns_pkt* pkt) {
-    struct getdns_dict* opt_rr;
-    struct getdns_dict* rr_dict;
-    getdns_return_t r = 0;
-    struct getdns_bindata rdata;
-    ldns_rdf* edns_data = ldns_pkt_edns_data(pkt);
-    uint8_t rdata_buf[65536];
-    size_t list_len;
-    if (!edns_data) {
-        /* nothing to do */
-        return GETDNS_RETURN_GOOD;
-    }
-    r = getdns_list_get_length(rdatas, &list_len);
-    if (r != GETDNS_RETURN_GOOD) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    r = priv_getdns_create_opt_rr(context, edns_data,
-        &opt_rr);
-    if (r != GETDNS_RETURN_GOOD) {
-        return r;
-    }
-    /* size is: 0 label, 2 byte type, 2 byte class (size),
-                4 byte ttl, 2 byte opt len + data itself */
-    rdata.size = 11 + ldns_rdf_size(edns_data);
-    rdata.data = rdata_buf;
-    rdata_buf[0] = 0;
-    ldns_write_uint16(rdata_buf + 1, LDNS_RR_TYPE_OPT);
-    ldns_write_uint16(rdata_buf + 3, ldns_pkt_edns_udp_size(pkt));
-    rdata_buf[5] = ldns_pkt_edns_extended_rcode(pkt);
-    rdata_buf[6] = ldns_pkt_edns_version(pkt);
-    ldns_write_uint16(rdata_buf + 7, ldns_pkt_edns_z(pkt));
-    ldns_write_uint16(rdata_buf + 9, ldns_rdf_size(edns_data));
-    memcpy(rdata_buf + 11, ldns_rdf_data(edns_data), ldns_rdf_size(edns_data));
+    getdns_context *context, getdns_list *rdatas, ldns_pkt *pkt)
+{
+	getdns_dict *opt_rr = NULL;
+	getdns_dict *rr_dict;
+	getdns_return_t r = 0;
+	getdns_bindata rdata;
+	ldns_rdf* edns_data = ldns_pkt_edns_data(pkt);
+	size_t list_len;
+	getdns_list *options;
 
-    /* add data */
-    r |= getdns_dict_set_bindata(opt_rr, "rdata_raw", &rdata);
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(opt_rr);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
+	if (!ldns_pkt_edns(pkt))
+		/* nothing to do */
+		return GETDNS_RETURN_GOOD;
 
-    rr_dict = getdns_dict_create_with_context(context);
-    if (!rr_dict) {
-        getdns_dict_destroy(opt_rr);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    r = getdns_dict_set_dict(rr_dict, "rdata", opt_rr);
-    getdns_dict_destroy(opt_rr);
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(rr_dict);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    /* add rest of the fields */
-    r = getdns_dict_set_int(rr_dict, "type", GETDNS_RRTYPE_OPT);
-    r |= getdns_dict_set_int(rr_dict, "udp_payload_size", ldns_pkt_edns_udp_size(pkt));
-    r |= getdns_dict_set_int(rr_dict, "extended_rcode", ldns_pkt_edns_extended_rcode(pkt));
-	r |= getdns_dict_set_int(rr_dict, "version", ldns_pkt_edns_version(pkt));
-    r |= getdns_dict_set_int(rr_dict, "do", ldns_pkt_edns_do(pkt));
-    r |= getdns_dict_set_int(rr_dict, "z", ldns_pkt_edns_z(pkt));
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(rr_dict);
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
+	if ((r = getdns_list_get_length(rdatas, &list_len)))
+		return GETDNS_RETURN_GENERIC_ERROR;
 
-    /* append */
-    r = getdns_list_set_dict(rdatas, list_len, opt_rr);
-    getdns_dict_destroy(opt_rr);
-    if (r != GETDNS_RETURN_GOOD) {
-        return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    return r;
+	if (!(rr_dict = getdns_dict_create_with_context(context)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (edns_data) {
+		r |= priv_getdns_create_opt_rr(context, edns_data, &opt_rr);
+
+		rdata.size = ldns_rdf_size(edns_data);
+		rdata.data = ldns_rdf_data(edns_data);
+	} else {
+		if (!(opt_rr = getdns_dict_create_with_context(context)))
+			r |= GETDNS_RETURN_GENERIC_ERROR;
+
+		rdata.size = 0;
+		rdata.data = NULL;
+
+		if (!(options = getdns_list_create_with_context(context)))
+			r |= GETDNS_RETURN_GENERIC_ERROR;
+
+		r |= getdns_dict_set_list(opt_rr, "options", options);
+		getdns_list_destroy(options);
+	}
+	/* add data */
+	r |= getdns_dict_set_bindata(opt_rr, "rdata_raw", &rdata);
+	r |= getdns_dict_set_dict(rr_dict, "rdata", opt_rr);
+	getdns_dict_destroy(opt_rr);
+
+	/* add rest of the fields */
+	r |= getdns_dict_set_int(rr_dict, "type", GETDNS_RRTYPE_OPT);
+	r |= getdns_dict_set_int(rr_dict, "udp_payload_size",
+	    ldns_pkt_edns_udp_size(pkt));
+	r |= getdns_dict_set_int(rr_dict, "extended_rcode",
+	    ldns_pkt_edns_extended_rcode(pkt));
+	r |= getdns_dict_set_int(rr_dict, "version",
+	    ldns_pkt_edns_version(pkt));
+	r |= getdns_dict_set_int(rr_dict, "do", ldns_pkt_edns_do(pkt));
+	r |= getdns_dict_set_int(rr_dict, "z",
+	    ldns_pkt_edns_z(pkt) & 0x7FFF);
+
+	/* append */
+	r |= getdns_list_set_dict(rdatas, list_len, rr_dict);
+	getdns_dict_destroy(rr_dict);
+	if (r)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else
+		return GETDNS_RETURN_GOOD;
 }
-
-
