@@ -1276,19 +1276,20 @@ getdns_return_t
 getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
     uint16_t value)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    /* check for < 512.  uint16_t won't let it go above max) */
-    if (value < 512) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    set_ub_edns_maximum_udp_payload_size(context, value);
-    if (value != context->edns_maximum_udp_payload_size) {
-        context->edns_maximum_udp_payload_size = value;
-        dispatch_updated(context,
-            GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE);
-    }
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    return GETDNS_RETURN_GOOD;
+	/* check for < 512.  uint16_t won't let it go above max) */
+	if (value < 512)
+		value = 512;
+
+	set_ub_edns_maximum_udp_payload_size(context, value);
+	if (value != context->edns_maximum_udp_payload_size) {
+		context->edns_maximum_udp_payload_size = value;
+		dispatch_updated(context,
+		    GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE);
+	}
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_edns_maximum_udp_payload_size */
 
 /*
