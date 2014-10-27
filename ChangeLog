@@ -19,6 +19,7 @@
   * Move spec examples to spec subdirectory
   * Fix issue#76: Setting UDP Payload size below 512 should not error
     Thanks gmadkat
+  * Fix: Include OPT RR in response dict always (even without options)
 
 * 2014-09-03: Version 0.1.4
   * Synchronous resolves now respect timeout setting,
