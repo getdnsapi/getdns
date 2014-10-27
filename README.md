@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2014-09-02
+* Date:    2014-10-27
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -130,13 +130,7 @@ execute the following steps as root:
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
-* Support for OPT Records in `getdns_general` and variants via the `extensions` parameter.
-* EDNS options
-  * `getdns_context_set_edns_do_bit`
-  * `getdns_context_set_edns_version`
-  * `getdns_context_set_edns_extended_rcode`
-* `GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN` with `getdns_context_set_dns_transport`
-* DNS Search suffixes / local file support
+* DNS Search suffixes
   * `getdns_context_set_append_name`
   * `getdns_context_set_suffix`
 * Setting root servers via `getdns_context_set_dns_root_servers`
@@ -233,11 +227,15 @@ Note that in order to compile the examples, the `--with-libevent` switch is requ
 Contributors
 ============
 * Craig Despeaux, Verisign, Inc.
+* John Dickinson, Sinodun
+* Sara Dickinson, Sinodun
 * Neel Goyal, Verisign, Inc.
+* Shumon Huque, Verisign Labs
 * Olaf Kolkman, NLnet Labs
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
 * Melinda Shore, No Mountain Software LLC
 * Willem Toorop, NLnet Labs
+* Gowri Visweswaran, Verisign Labs
 * Wouter Wijngaards, NLnet Labs
 * Glen Wiley, Verisign, Inc.
 
