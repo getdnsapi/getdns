@@ -135,6 +135,9 @@ $(distdir):
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
 	mkdir -p $(distdir)/src/extension
+	mkdir -p $(distdir)/src/compat
+	mkdir -p $(distdir)/src/util
+	mkdir -p $(distdir)/src/gldns
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
@@ -164,6 +167,9 @@ $(distdir):
 	cp $(srcdir)/src/test/*.[ch] $(distdir)/src/test
 	cp $(srcdir)/src/test/*.sh $(distdir)/src/test
 	cp $(srcdir)/src/test/*.good $(distdir)/src/test
+	cp $(srcdir)/src/compat/*.[ch] $(distdir)/src/compat
+	cp $(srcdir)/src/util/*.[ch] $(distdir)/src/util
+	cp $(srcdir)/src/gldns/*.[ch] $(distdir)/src/gldns
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
 	cp $(srcdir)/doc/*.in $(distdir)/doc
 	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc
