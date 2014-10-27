@@ -30,7 +30,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ([2.56])
-AC_INIT([getdns], [0.1.4], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_INIT([getdns], [0.1.5], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
 CURRENT_DATE=`LC_ALL=C date`
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the September 2014 version of the API"
 AC_SUBST(GETDNS_COMPILATION_COMMENT)

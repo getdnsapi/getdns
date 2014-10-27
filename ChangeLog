@@ -1,3 +1,25 @@
+* 2014-10-31: Version 0.1.5
+  * Unit tests for transport settings
+  * Fix: adhere to set maximum UDP payload size
+  * API change: when no maximum UDP payload size is set, outgoing
+    values will adhere to the suggestions in RFC 6891 and may follow
+    a scheme that uses multiple values to maximize receptivity.
+  * Stub mode use 1232 maximum udp payload size when connecting to an
+    IPv6 upstreams and 1432 with an IPv4 upstream.
+  * Evaluate namespaces (or not) on a per query basis
+  * GETDNS_NAMESPACE_LOCALNAMES namespace now gives straight answer and
+    does fake DNS packet anymore
+  * The add_opt_parameters extension
+  * IPv6 scope_id support with link-local addresses.  Both with parsing
+    /etc/resolv.conf and by providing them explicitely via
+    getdns_context_set_upstream_recursive_servers
+  * GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN dns transport
+  * Fix: Answers without RRs in query secion (i.e. REFUSED)
+  * Fix: Return empty response dict on timeout in async mode too
+  * Move spec examples to spec subdirectory
+  * Fix issue#76: Setting UDP Payload size below 512 should not error
+    Thanks gmadkat
+
 * 2014-09-03: Version 0.1.4
   * Synchronous resolves now respect timeout setting,
   * On timeout *_sync functions now return GETDNS_RETURN_GOOD and a
