@@ -1691,12 +1691,6 @@ getdns_bindata_destroy(struct mem_funcs *mfs,
     GETDNS_FREE(*mfs, bindata);
 }
 
-/* get the fd */
-int getdns_context_fd(struct getdns_context* context) {
-    RETURN_IF_NULL(context, -1);
-    return ub_fd(context->unbound_ctx);
-}
-
 /* TODO: Remove next_timeout argument from getdns_context_get_num_pending_requests
  */
 void getdns_handle_timeouts(struct getdns_event_base* base, struct timeval* now,

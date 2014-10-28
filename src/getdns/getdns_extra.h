@@ -61,9 +61,6 @@ getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict,
 getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict,
     char *name, char **result);
 
-/* get the fd */
-int getdns_context_fd(getdns_context* context);
-
 /* tells underlying unbound to use background threads or fork */
 getdns_return_t getdns_context_set_use_threads(getdns_context* context,
     int use_threads);
