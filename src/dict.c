@@ -585,7 +585,8 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
  *               if an output error is encountered, a negative value
  */
 static int
-getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
+getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
+    int for_namespaces)
 {
 	size_t i, length, p = ldns_buffer_position(buf);
 	getdns_data_type dtype;
@@ -593,6 +594,7 @@ getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
 	struct getdns_list *list_item;
 	struct getdns_bindata *bindata_item;
 	uint32_t int_item;
+	const char *strval;
 
 	if (list == NULL)
 		return 0;
@@ -615,9 +617,16 @@ getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
 
 		switch (dtype) {
 		case t_int:
-			if (getdns_list_get_int(list, i, &int_item) !=
-				GETDNS_RETURN_GOOD ||
-				ldns_buffer_printf(buf, "%d", (int) int_item) < 0)
+
+			if (getdns_list_get_int(list, i, &int_item))
+				return -1;
+			if (for_namespaces &&
+			    (strval =
+			     priv_getdns_get_const_info(int_item)->name)) {
+				if (ldns_buffer_printf(buf, "%s", strval) < 0)
+					return -1;
+			} else if (0 > 
+			    ldns_buffer_printf(buf, "%d", (int)int_item))
 				return -1;
 			break;
 
@@ -633,7 +642,7 @@ getdns_pp_list(ldns_buffer * buf, size_t indent, struct getdns_list *list)
 			if (getdns_list_get_list(list, i, &list_item) !=
 				GETDNS_RETURN_GOOD)
 				return -1;
-			if (getdns_pp_list(buf, indent, list_item) < 0)
+			if (getdns_pp_list(buf, indent, list_item, 0) < 0)
 				return -1;
 			break;
 
@@ -765,31 +774,35 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 		switch (item->dtype) {
 		case t_int:
 			if ((strcmp(item->node.key, "type") == 0  ||
-				 strcmp(item->node.key, "type_covered") == 0 ||
-				 strcmp(item->node.key, "qtype") == 0) &&
-				(strval = priv_getdns_rr_type_name(item->data.n))) {
+			     strcmp(item->node.key, "type_covered") == 0 ||
+			     strcmp(item->node.key, "qtype") == 0) &&
+			    (strval = priv_getdns_rr_type_name(item->data.n))) {
 				if (ldns_buffer_printf(
 					buf, " GETDNS_RRTYPE_%s", strval) < 0)
 					return -1;
 				break;
 			}
-				if ((strcmp(item->node.key, "answer_type") == 0  ||
-				 strcmp(item->node.key, "dnssec_status") == 0 ||
-				 strcmp(item->node.key, "status") == 0) &&
-				(strval =
-				 priv_getdns_get_const_info(item->data.n)->name)) {
+			if ((strcmp(item->node.key, "answer_type") == 0  ||
+			     strcmp(item->node.key, "dnssec_status") == 0 ||
+			     strcmp(item->node.key, "status") == 0 ||
+			     strcmp(item->node.key, "append_name") == 0 ||
+			     strcmp(item->node.key, "dns_transport") == 0 ||
+			     strcmp(item->node.key, "follow_redirects") == 0 ||
+			     strcmp(item->node.key, "resolution_type") == 0) &&
+			    (strval =
+			     priv_getdns_get_const_info(item->data.n)->name)) {
 				if (ldns_buffer_printf(buf, " %s", strval) < 0)
 					return -1;
 				break;
 			}
-				if ((strcmp(item->node.key, "class")  == 0  ||
+			if ((strcmp(item->node.key, "class")  == 0  ||
 				 strcmp(item->node.key, "qclass") == 0) &&
 				priv_getdns_print_class(buf, item->data.n))
 				break;
-				if (strcmp(item->node.key, "opcode") == 0 &&
+			if (strcmp(item->node.key, "opcode") == 0 &&
 				priv_getdns_print_opcode(buf, item->data.n))
 				break;
-				if (strcmp(item->node.key, "rcode") == 0 &&
+			if (strcmp(item->node.key, "rcode") == 0 &&
 				priv_getdns_print_rcode(buf, item->data.n))
 				break;
 			if (ldns_buffer_printf(buf, " %d", item->data.n) < 0)
@@ -830,7 +843,8 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			if (ldns_buffer_printf(buf, "\n%s",
 				getdns_indent(indent)) < 0)
 				return -1;
-			if (getdns_pp_list(buf, indent, item->data.list) < 0)
+			if (getdns_pp_list(buf, indent, item->data.list, 
+			    (strcmp(item->node.key, "namespaces") == 0)) < 0)
 				return -1;
 			break;
 
