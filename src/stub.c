@@ -802,7 +802,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */
-#if defined (USE_TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+#ifdef USE_TCP_FASTOPEN
 		/* We use sendto() here which will do both a connect and send */
 		written = sendto(fd, pkt, pkt_len + 2, MSG_FASTOPEN,
 					(struct sockaddr *)&(netreq->upstream->addr),
@@ -1016,7 +1016,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 			return GETDNS_RETURN_GENERIC_ERROR;
 		
 		getdns_sock_nonblock(netreq->fd);
-#if defined (USE_TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+#ifdef USE_TCP_FASTOPEN
 		/* Leave the connect to the later call to sendto() */
 #else
 		if (connect(netreq->fd, (struct sockaddr *)&upstream->addr,
@@ -1047,9 +1047,10 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 				return GETDNS_RETURN_GENERIC_ERROR;
 			
 			getdns_sock_nonblock(upstream->fd);
-#if defined (USE_TCP_FASTOPEN) && defined(MSG_FASTOPEN)
+#ifdef USE_TCP_FASTOPEN
 		/* Leave the connect to the later call to sendto() */
 #else
+			fprintf(stderr,"connecting");
 			if (connect(upstream->fd,
 			    (struct sockaddr *)&upstream->addr,
 			    upstream->addr_len) == -1 && errno != EINPROGRESS){

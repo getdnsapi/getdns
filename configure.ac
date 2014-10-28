@@ -82,12 +82,12 @@ ACX_ARG_RPATH
 AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--enable-tcp-fastopen], [Enable TCP Fast Open]))
 case "$enable_tcp_fastopen" in
 	yes)
-		# TODO: Check if it is available (linux only)
-		AC_MSG_NOTICE([TCP Fast Open enabled])
+		AC_CHECK_DECL([MSG_FASTOPEN], [], [AC_MSG_ERROR([TCP Fast Open is not available: please rerun without --enable-tcp-fastopen])], [AC_INCLUDES_DEFAULT
+#include <sys/socket.h>
+		])
 		AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])
 		;;
 	no|*)
-		AC_MSG_NOTICE([TCP Fast Open not enabled])
 		;;
 esac
 
