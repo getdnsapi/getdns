@@ -548,6 +548,9 @@ this is only a graphical representation; the brackets, commas, quotation marks, 
 are not part of the data. Also, this document uses macro names instead of some of the int
 arguments; of course, the data structures have the actual int in them.</p>
 
+<p>The <code>getdns_dict_get_names</code> helper function creates a newly created list
+containing the names in a dict.  The caller is responsible for disposing this list.</p>
+
 <p>The helper getter functions return references to <code>getdns_dict</code>, <code>getdns_list</code> and <code>getdns_bindata</code> data structures.
 The user must not directly destroy these retrieved "child" data structures; instead, 
 they will automatically be destroyed when the containing "parent" data structure is destroyed.
@@ -2454,7 +2457,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.511.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.512.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
