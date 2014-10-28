@@ -32,6 +32,7 @@ src/test/check_getdns
 src/test/check_getdns_event
 src/test/check_getdns_uv
 src/test/check_getdns_ev
+src/test/getdns_query
 doc/*.3
 src/getdns/getdns.h
 *.log
