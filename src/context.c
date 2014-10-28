@@ -871,9 +871,6 @@ getdns_context_set_namespaces(struct getdns_context *context,
     if (namespace_count == 0 || namespaces == NULL) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
-    if (context->resolution_type_set != 0) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
 
 	for(i=0; i<namespace_count; i++)
 	{
@@ -995,11 +992,10 @@ getdns_context_set_follow_redirects(struct getdns_context *context,
     getdns_redirects_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    if (value != GETDNS_REDIRECTS_FOLLOW && value != GETDNS_REDIRECTS_DO_NOT_FOLLOW)
+        return GETDNS_RETURN_INVALID_PARAMETER;
+
     context->follow_redirects = value;
-    if (context->resolution_type_set != 0) {
-        /* already setup */
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
     return GETDNS_RETURN_GOOD;
@@ -1172,10 +1168,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	
 	r = getdns_list_get_length(upstream_list, &count);
 	if (count == 0 || r != GETDNS_RETURN_GOOD) {
-		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-	}
-	if (context->resolution_type_set != 0) {
-		/* already setup */
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	memset(&hints, 0, sizeof(struct addrinfo));
