@@ -996,6 +996,10 @@ getdns_context_set_follow_redirects(struct getdns_context *context,
         return GETDNS_RETURN_INVALID_PARAMETER;
 
     context->follow_redirects = value;
+    if (context->resolution_type_set != 0) {
+        /* already setup */
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
     return GETDNS_RETURN_GOOD;
