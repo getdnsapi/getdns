@@ -2307,7 +2307,8 @@ getdns_context_set_upstream_recursive_servers(
 );</div>
 <p class=cont>The list of dicts define where a stub resolver will send queries. Each dict contains
 at least two names: <code>address_type</code> (whose value is a bindata; it is currently either
-"IPv4" or "IPv6") and <code>address_data</code> (whose value is a bindata). It might also contain
+"IPv4" or "IPv6") and <code>address_data</code> (whose value is a bindata).
+For IPv6 link-local addresses, a <code>scope_id</code> name (a bindata) can be provided.  It might also contain
 <code>port</code> to specify which port to use to contact these DNS servers; the default is 53. If
 the stub and a recursive resolver both support TSIG (RFC 2845), the <code>upstream_list</code> entry
 can also contain <code>tsig_algorithm</code> (a bindata) that is the name of the TSIG hash
@@ -2451,7 +2452,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.509.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.510.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
