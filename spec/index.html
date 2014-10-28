@@ -163,7 +163,7 @@ defined macros for most of the RRtypes by name; the definition names all start w
 "<code>GETDNS_RRTYPE_</code>". For example, to get the NS records, you can also set the
 <code>request_type</code> to <code>GETDNS_RRTYPE_NS</code>.
 (The full list of request types is always
-<a href="http://www.iana.org/assignments/dns-parameters/dns-parameters.xml">here</a>.)</p>
+<a href="https://www.iana.org/assignments/dns-parameters/dns-parameters.xml">here</a>.)</p>
 
 <p class=define><code><b>*extensions</b></code></p>
 <p class=descrip>Specifies the extensions for this request; the value may be NULL if there are no
@@ -774,10 +774,12 @@ This list includes all resource record dicts for all the resource records (DS, D
   . . .
 </pre>
 
-<p>If a request is using a context in which stub resolution is set, and that request also has
-any of the <code>dnssec_return_status</code>, <code>dnssec_return_only_secure</code>, or
-<code>dnssec_return_validation_chain</code> extensions specified, the API will not perform
-the request and will instead return an error of <code>GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED</code>.</p>
+<p>Implementations not capable of performing DNSSEC in stub resolution mode may
+indicate this by not performing a request and instead return an error of 
+<code>GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED</code> when using a context
+in which stub resolution is set, and having any of the
+<code>dnssec_return_status</code>, <code>dnssec_return_only_secure</code>, or
+<code>dnssec_return_validation_chain</code> extensions specified.</p>
 
 <h2>3.2 Returning Both IPv4 and IPv6 Responses</h2>
 
@@ -2452,7 +2454,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.510.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.511.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
@@ -2522,10 +2524,10 @@ deallocates them.</p>
 
 <hr width=90%>
 
-<p><a rel="license" href="http://creativecommons.org/licenses/by/3.0/deed.en_US"><img alt="Creative
-Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by/3.0/80x15.png"
+<p><a rel="license" href="https://creativecommons.org/licenses/by/3.0/deed.en_US"><img alt="Creative
+Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by/3.0/80x15.png"
 /></a><br />This work is licensed under a <a rel="license"
-href="http://creativecommons.org/licenses/by/3.0/deed.en_US">Creative Commons Attribution 3.0
+href="https://creativecommons.org/licenses/by/3.0/deed.en_US">Creative Commons Attribution 3.0
 Unported License</a>.</p>
 
 </body></html>
