@@ -79,6 +79,18 @@ fi
 ])
 ACX_ARG_RPATH
 
+AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--enable-tcp-fastopen], [Enable TCP Fast Open]))
+case "$enable_tcp_fastopen" in
+	yes)
+		AC_CHECK_DECL([MSG_FASTOPEN], [], [AC_MSG_ERROR([TCP Fast Open is not available: please rerun without --enable-tcp-fastopen])], [AC_INCLUDES_DEFAULT
+#include <sys/socket.h>
+		])
+		AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])
+		;;
+	no|*)
+		;;
+esac
+
 # search to set include and library paths right
 # find libidn
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],

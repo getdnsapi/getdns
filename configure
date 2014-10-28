@@ -744,6 +744,7 @@ with_gnu_ld
 with_sysroot
 enable_libtool_lock
 enable_rpath
+enable_tcp_fastopen
 with_libidn
 with_libldns
 with_libunbound
@@ -1380,6 +1381,7 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         disable hardcoded rpath (default=enabled)
+  --enable-tcp-fastopen   Enable TCP Fast Open
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1751,6 +1753,52 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_func
+
+# ac_fn_c_check_decl LINENO SYMBOL VAR INCLUDES
+# ---------------------------------------------
+# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
+# accordingly.
+ac_fn_c_check_decl ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_decl
 
 # ac_fn_c_check_type LINENO TYPE VAR INCLUDES
 # -------------------------------------------
@@ -10787,6 +10835,33 @@ if test "x$enable_rpath" = xno; then
 
 fi
 
+
+# Check whether --enable-tcp-fastopen was given.
+if test "${enable_tcp_fastopen+set}" = set; then :
+  enableval=$enable_tcp_fastopen;
+fi
+
+case "$enable_tcp_fastopen" in
+	yes)
+		ac_fn_c_check_decl "$LINENO" "MSG_FASTOPEN" "ac_cv_have_decl_MSG_FASTOPEN" "$ac_includes_default
+#include <sys/socket.h>
+
+"
+if test "x$ac_cv_have_decl_MSG_FASTOPEN" = xyes; then :
+
+else
+  as_fn_error $? "TCP Fast Open is not available: please rerun without --enable-tcp-fastopen" "$LINENO" 5
+fi
+
+
+cat >>confdefs.h <<_ACEOF
+#define USE_TCP_FASTOPEN 1
+_ACEOF
+
+		;;
+	no|*)
+		;;
+esac
 
 # search to set include and library paths right
 # find libidn
