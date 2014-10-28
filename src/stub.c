@@ -63,7 +63,8 @@ getdns_make_query_pkt_buf(const getdns_network_req *netreq, uint8_t *buf,
 	    || dnssec_return_only_secure || dnssec_return_validation_chain;
 
 	uint32_t edns_do_bit;
-	uint32_t edns_maximum_udp_payload_size;
+	int      edns_maximum_udp_payload_size;
+	uint32_t get_edns_maximum_udp_payload_size;
 	uint32_t edns_extended_rcode;
 	uint32_t edns_version;
 
@@ -93,35 +94,39 @@ getdns_make_query_pkt_buf(const getdns_network_req *netreq, uint8_t *buf,
 		edns_version = 0;
 		edns_do_bit = 1;
 	} else {
-		edns_maximum_udp_payload_size
-		    = context->edns_maximum_udp_payload_size != -1
-		    ? context->edns_maximum_udp_payload_size
-		    : netreq->upstream->addr.ss_family==AF_INET6 ? 1232 : 1432;
+		edns_maximum_udp_payload_size =
+		    context->edns_maximum_udp_payload_size;
 		edns_extended_rcode = context->edns_extended_rcode;
 		edns_version = context->edns_version;
 		edns_do_bit = context->edns_do_bit;
 
 		if (have_add_opt_parameters) {
-			(void) getdns_dict_get_int(add_opt_parameters,
+			if (!getdns_dict_get_int(add_opt_parameters,
 			    "maximum_udp_payload_size",
-			    &edns_maximum_udp_payload_size);
+			    &get_edns_maximum_udp_payload_size))
+				edns_maximum_udp_payload_size =
+				    get_edns_maximum_udp_payload_size;
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "extended_rcode", &edns_extended_rcode);
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "version", &edns_version);
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "do_bit", &edns_do_bit);
-			if (edns_maximum_udp_payload_size < 512)
-				edns_maximum_udp_payload_size = 512;
 		}
 	}
 	if (have_add_opt_parameters && getdns_dict_get_list(
 	    add_opt_parameters, "options", &options) == GETDNS_RETURN_GOOD)
 		(void) getdns_list_get_length(options, &noptions);
 
-	with_opt = edns_do_bit || edns_maximum_udp_payload_size > 512
-	    || edns_extended_rcode != 0 || edns_version != 0
-	    || noptions;
+	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != -1 ||
+	    edns_extended_rcode != 0 || edns_version != 0 || noptions;
+
+	*omax_udp_payload_size = edns_maximum_udp_payload_size =
+	    ! with_opt ? 512
+	    : edns_maximum_udp_payload_size == -1 ?
+	      netreq->upstream->addr.ss_family==AF_INET6 ? 1232 : 1432
+	    : edns_maximum_udp_payload_size > 512 ?
+	      edns_maximum_udp_payload_size : 512;
 
 	assert(buf);
 	assert(olen);
