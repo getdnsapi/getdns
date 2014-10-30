@@ -20,6 +20,8 @@
   * Move spec examples to spec subdirectory
   * Fix issue#76: Setting UDP Payload size below 512 should not error
   * Fix: Include OPT RR in response dict always (even without options)
+  * TCP Fast open support (linux only).
+    Enable with the --enable-tcp-fastopen configure option
 
 * 2014-09-03: Version 0.1.4
   * Synchronous resolves now respect timeout setting,
@@ -67,7 +69,7 @@
 
 * 2014-03-24 : Version 0.1.1
   * default to NOT build extensions (libev, libuv, libevent), handle
-    --with/--without optiosn to configure for them
+    --with/--without options to configure for them
   * Fixed some build/make nits
   * respect configure --docdir=X
   * Documentation/man page updates
