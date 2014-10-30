@@ -63,18 +63,6 @@ event_new(struct event_base *b, evutil_socket_t fd, short ev, void* cb, void *ar
 	event_base_set(b, e);
 	return e;
 }
-
-static struct event_base *
-event_get_base(const struct event *ev)
-{
-	return ev->ev_base;
-}
-
-static evutil_socket_t df
-event_get_fd(const struct event *ev)
-{
-	return ev->fd;
-}
 #endif /* no event2 */
 
 typedef struct getdns_libevent {
