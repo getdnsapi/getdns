@@ -1350,6 +1350,7 @@ getdns_return_t priv_getdns_append_opt_rr(
 
 		rdata.size = ldns_rdf_size(edns_data);
 		rdata.data = ldns_rdf_data(edns_data);
+
 	} else {
 		if (!(opt_rr = getdns_dict_create_with_context(context)))
 			r |= GETDNS_RETURN_GENERIC_ERROR;
@@ -1363,10 +1364,12 @@ getdns_return_t priv_getdns_append_opt_rr(
 		r |= getdns_dict_set_list(opt_rr, "options", options);
 		getdns_list_destroy(options);
 	}
+
 	/* add data */
 	r |= getdns_dict_set_bindata(opt_rr, "rdata_raw", &rdata);
 	r |= getdns_dict_set_dict(rr_dict, "rdata", opt_rr);
 	getdns_dict_destroy(opt_rr);
+
 
 	/* add rest of the fields */
 	r |= getdns_dict_set_int(rr_dict, "type", GETDNS_RRTYPE_OPT);

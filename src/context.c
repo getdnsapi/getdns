@@ -1662,33 +1662,41 @@ struct getdns_bindata *
 getdns_bindata_copy(struct mem_funcs *mfs,
     const struct getdns_bindata *src)
 {
-    struct getdns_bindata *dst;
+	/* Don't know why, but nodata allows
+	 * empty bindatas with the python bindings
+	 */
+	static uint8_t nodata[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+	struct getdns_bindata *dst;
 
-    if (!src)
-        return NULL;
+	if (!src)
+		return NULL;
 
-    dst = GETDNS_MALLOC(*mfs, struct getdns_bindata);
-    if (!dst)
-        return NULL;
+	if (!(dst = GETDNS_MALLOC(*mfs, struct getdns_bindata)))
+		return NULL;
 
-    dst->size = src->size;
-    dst->data = GETDNS_XMALLOC(*mfs, uint8_t, src->size);
-    if (!dst->data) {
-        GETDNS_FREE(*mfs, dst);
-        return NULL;
-    }
-    (void) memcpy(dst->data, src->data, src->size);
-    return dst;
+	dst->size = src->size;
+	if ((dst->size = src->size)) {
+		dst->data = GETDNS_XMALLOC(*mfs, uint8_t, src->size);
+		if (!dst->data) {
+			GETDNS_FREE(*mfs, dst);
+			return NULL;
+		}
+		(void) memcpy(dst->data, src->data, src->size);
+	} else {
+		dst->data = nodata;
+	}
+	return dst;
 }
 
 void
 getdns_bindata_destroy(struct mem_funcs *mfs,
     struct getdns_bindata *bindata)
 {
-    if (!bindata)
-        return;
-    GETDNS_FREE(*mfs, bindata->data);
-    GETDNS_FREE(*mfs, bindata);
+	if (!bindata)
+		return;
+
+	if (bindata->size) GETDNS_FREE(*mfs, bindata->data);
+	GETDNS_FREE(*mfs, bindata);
 }
 
 /* TODO: Remove next_timeout argument from getdns_context_get_num_pending_requests
