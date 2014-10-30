@@ -13,6 +13,7 @@
   * IPv6 scope_id support with link-local addresses.  Both with parsing
     /etc/resolv.conf and by providing them explicitly via
     getdns_context_set_upstream_recursive_servers
+  * Query for A and AAAA simultaneously with return_both_v4_and_v6
   * GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN DNS transport
   * Fix: Answers without RRs in query secion (i.e. REFUSED)
   * Fix: Return empty response dict on timeout in async mode too
