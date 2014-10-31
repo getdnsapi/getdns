@@ -472,6 +472,11 @@ AH_BOTTOM([
 extern "C" {
 #endif
 
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <stddef.h>
+#endif
+
 #ifndef HAVE_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #else
@@ -492,11 +497,6 @@ size_t strlcpy(char *dst, const char *src, size_t siz);
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
-
-#if STDC_HEADERS
-#include <stdlib.h>
-#include <stddef.h>
-#endif
 
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
