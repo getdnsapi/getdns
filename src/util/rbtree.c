@@ -602,19 +602,19 @@ getdns_rbtree_previous(getdns_rbnode_t *node)
 
 /** recursive descent traverse */
 static void 
-traverse_post(void (*func)(getdns_rbnode_t*, void*), void* arg, getdns_rbnode_t* node)
+getdns_traverse_post(void (*func)(getdns_rbnode_t*, void*), void* arg, getdns_rbnode_t* node)
 {
 	if(!node || node == RBTREE_NULL)
 		return;
 	/* recurse */
-	traverse_post(func, arg, node->left);
-	traverse_post(func, arg, node->right);
+	getdns_traverse_post(func, arg, node->left);
+	getdns_traverse_post(func, arg, node->right);
 	/* call user func */
 	(*func)(node, arg);
 }
 
 void 
-traverse_postorder(getdns_rbtree_t* tree, void (*func)(getdns_rbnode_t*, void*), void* arg)
+getdns_traverse_postorder(getdns_rbtree_t* tree, void (*func)(getdns_rbnode_t*, void*), void* arg)
 {
-	traverse_post(func, arg, tree->root);
+	getdns_traverse_post(func, arg, tree->root);
 }

@@ -43,7 +43,7 @@ distdir = $(tarname)-$(version)
 # if api broken: current++ ; revision = 0; age = 0
 # if programs compiled against existing library work and link with new
 #    version of library with new binary api:  revision++; age++
-libversion = 0:0:0
+libversion = 1:0:0
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -62,7 +62,7 @@ VPATH = @srcdir@
 LIBTOOL = ../libtool
 
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -I$(srcdir) -I. -std=c99 -D_POSIX_C_SOURCE=200112L
+CFLAGS=-Wall -std=c99 -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600 -I$(srcdir) -I. @CFLAGS@
 LDFLAGS=@LDFLAGS@ @LIBS@
 
 EXTENSION_LIBEVENT_LIB=@EXTENSION_LIBEVENT_LIB@

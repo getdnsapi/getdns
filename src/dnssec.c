@@ -264,7 +264,7 @@ static void destroy_chain_link(getdns_rbnode_t * node, void *arg)
 
 static void destroy_chain(struct validation_chain *chain)
 {
-	traverse_postorder(&(chain->root), destroy_chain_link, chain);
+	getdns_traverse_postorder(&(chain->root), destroy_chain_link, chain);
 	GETDNS_FREE(chain->mf, chain);
 }
 

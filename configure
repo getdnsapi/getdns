@@ -11575,6 +11575,48 @@ fi
 if test x_$have_libuv = x_1; then :
   EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
     CHECK_UV_PROG=check_getdns_uv
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for new signature of uv_timer_cb" >&5
+$as_echo_n "checking for new signature of uv_timer_cb... " >&6; }
+     ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <uv.h>
+int
+main ()
+{
+void test_cb(uv_timer_t *handle);
+		      uv_timer_cb cb = test_cb;
+		      (*cb)(NULL);
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_NEW_UV_TIMER_CB 1" >>confdefs.h
+
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+     ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+
 fi
 
 
@@ -11767,7 +11809,7 @@ fi
 
 
 
-for ac_header in stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h time.h bsd/string.h
+for ac_header in stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default

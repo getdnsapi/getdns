@@ -704,7 +704,7 @@ getdns_context_destroy(struct getdns_context *context)
     if (context->unbound_ctx)
         ub_ctx_delete(context->unbound_ctx);
 
-	traverse_postorder(&context->local_hosts,
+	getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
 	upstreams_dereference(context->upstreams);
 
@@ -1766,7 +1766,7 @@ cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
         int i;
         acc.idx = 0;
         acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests.count);
-        traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
+        getdns_traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
         for (i = 0; i < acc.idx; ++i) {
             getdns_context_cancel_request(context, acc.ids[i], fire_callback);
         }

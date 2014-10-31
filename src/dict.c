@@ -383,7 +383,7 @@ void
 getdns_dict_destroy(struct getdns_dict *dict)
 {
 	if (!dict) return;
-	traverse_postorder(&(dict->root), getdns_dict_item_free, dict);
+	getdns_traverse_postorder(&(dict->root), getdns_dict_item_free, dict);
 	GETDNS_FREE(dict->mf, dict);
 }				/* getdns_dict_destroy */
 

@@ -6,7 +6,8 @@ mkdir ub || true
 cd ub
 for f in mini_event.c mini_event.h rbtree.c rbtree.h
 do
-	wget http://unbound.net/svn/trunk/util/$f
+	wget http://unbound.net/svn/trunk/util/$f || \
+	ftp  http://unbound.net/svn/trunk/util/$f || continue
 	sed -e 's/event_/getdns_event_/g' \
 	    -e 's/signal_add/getdns_signal_add/g' \
 	    -e 's/signal_del/getdns_signal_del/g' \
@@ -21,6 +22,7 @@ do
 	    -e 's/#include "rbtree\.h"/#include "util\/rbtree.h"/g' \
 	    -e 's/rbnode_/getdns_rbnode_/g' \
 	    -e 's/rbtree_/getdns_rbtree_/g' \
+	    -e 's/traverse_post/getdns_traverse_post/g' \
 	    -e 's/#include "fptr_wlist\.h"/#include "util\/fptr_wlist.h"/g' \
 	    -e 's/#include "log\.h"/#include "util\/log.h"/g' $f > ../$f
 done
