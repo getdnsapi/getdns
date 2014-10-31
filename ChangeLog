@@ -22,6 +22,7 @@
   * Fix: Include OPT RR in response dict always (even without options)
   * TCP Fast open support (linux only).
     Enable with the --enable-tcp-fastopen configure option
+  * Bump library version because of binary API change
 
 * 2014-09-03: Version 0.1.4
   * Synchronous resolves now respect timeout setting,

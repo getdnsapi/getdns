@@ -43,7 +43,7 @@ distdir = $(tarname)-$(version)
 # if api broken: current++ ; revision = 0; age = 0
 # if programs compiled against existing library work and link with new
 #    version of library with new binary api:  revision++; age++
-libversion = 0:0:0
+libversion = 1:0:0
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
