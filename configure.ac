@@ -313,7 +313,21 @@ AS_IF([test x_$withval = x_no],
 
 AS_IF([test x_$have_libuv = x_1],
     [EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"]
-    [CHECK_UV_PROG=check_getdns_uv])
+    [CHECK_UV_PROG=check_getdns_uv]
+    [AC_MSG_CHECKING([for new signature of uv_timer_cb])
+     AC_LANG_PUSH(C)
+     AC_COMPILE_IFELSE(
+	     [AC_LANG_PROGRAM(
+		     [[#include <uv.h>]],
+		     [[void test_cb(uv_timer_t *handle);]
+		      [uv_timer_cb cb = test_cb;
+		      (*cb)(NULL);]])
+	     ],[AC_MSG_RESULT([yes])
+		AC_DEFINE(HAVE_NEW_UV_TIMER_CB, [1], [Does libuv have the new uv_time_cb signature])
+             ],[AC_MSG_RESULT([no])
+	     ])
+     AC_LANG_POP(C)] 
+)
 
 AC_SUBST(have_libuv)
 AC_SUBST(EXTENSION_LIBUV_LIB)
@@ -407,7 +421,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h time.h bsd/string.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -454,8 +468,21 @@ AC_DEFINE(USE_MINI_EVENT, 1, [Needed for sync stub resolver functions])
 AC_TYPE_SIGNAL
 
 AH_BOTTOM([
-/** Use on-board gldns */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#else
+#define __BSD_VISIBLE 1
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+/** Use on-board gldns */
 #define USE_GLDNS 1
 #ifdef HAVE_SSL
 #  define GLDNS_BUILD_CONFIG_HAVE_SSL 1
@@ -476,6 +503,10 @@ AH_BOTTOM([
 #endif
 
 #include <errno.h>
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -522,18 +553,6 @@ AH_BOTTOM([
 
 #ifdef HAVE_BSD_STRING_H
 #include <bsd/string.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t siz);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 ])
 

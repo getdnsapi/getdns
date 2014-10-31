@@ -31,6 +31,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include <uv.h>
 #include "getdns/getdns_ext_libuv.h"
 #include "types-internal.h"
@@ -160,7 +161,11 @@ getdns_libuv_write_cb(uv_poll_t *poll, int status, int events)
 }
 
 static void
+#ifdef HAVE_NEW_UV_TIMER_CB
+getdns_libuv_timeout_cb(uv_timer_t *timer)
+#else
 getdns_libuv_timeout_cb(uv_timer_t *timer, int status)
+#endif
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
         assert(el_ev->timeout_cb);

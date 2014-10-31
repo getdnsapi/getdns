@@ -186,7 +186,7 @@ getdns_rbnode_t *getdns_rbtree_previous(getdns_rbnode_t *rbtree);
  * 	The function must not alter the rbtree.
  * @param arg: user argument.
  */
-void traverse_postorder(getdns_rbtree_t* tree, void (*func)(getdns_rbnode_t*, void*),
+void getdns_traverse_postorder(getdns_rbtree_t* tree, void (*func)(getdns_rbnode_t*, void*),
 	void* arg);
 
 #endif /* UTIL_RBTREE_H_ */

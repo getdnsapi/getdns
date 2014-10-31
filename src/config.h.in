@@ -60,6 +60,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
+/* Does libuv have the new uv_time_cb signature */
+#undef HAVE_NEW_UV_TIMER_CB
+
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H
 
@@ -78,8 +81,14 @@
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
 
+/* Define to 1 if you have the <sys/socket.h> header file. */
+#undef HAVE_SYS_SOCKET_H
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/time.h> header file. */
+#undef HAVE_SYS_TIME_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
@@ -168,8 +177,21 @@
 #undef uint8_t
 
 
-/** Use on-board gldns */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#else
+#define __BSD_VISIBLE 1
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+/** Use on-board gldns */
 #define USE_GLDNS 1
 #ifdef HAVE_SSL
 #  define GLDNS_BUILD_CONFIG_HAVE_SSL 1
@@ -190,6 +212,10 @@
 #endif
 
 #include <errno.h>
+
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -236,17 +262,5 @@
 
 #ifdef HAVE_BSD_STRING_H
 #include <bsd/string.h>
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef HAVE_STRLCPY
-size_t strlcpy(char *dst, const char *src, size_t siz);
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
