@@ -3,7 +3,7 @@
 write_symbols() {
 	OUTPUT=$1
 	shift
-	grep 'getdns_[0-9a-zA-Z_]*(' $* | grep -v '^#' \
+	grep 'getdns_[0-9a-zA-Z_]*(' $* | grep -v '^#' | grep -v 'INLINE' \
 	| sed -e 's/(.*$//g' -e 's/^.*getdns_/getdns_/g' > $OUTPUT
 }
 

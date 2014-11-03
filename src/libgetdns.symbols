@@ -94,7 +94,6 @@ getdns_dict_util_get_string
 getdns_context_set_use_threads
 getdns_context_get_num_pending_requests
 getdns_context_process_async
-getdns_eventloop_event_init
 getdns_context_set_eventloop
 getdns_context_detach_eventloop
 getdns_context_run
