@@ -266,7 +266,44 @@ AS_IF([test x_$withval = x_no],
 
 AS_IF([test x_$have_libevent = x_1],
     [EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"]
-    [CHECK_EVENT_PROG=check_getdns_event])
+    [CHECK_EVENT_PROG=check_getdns_event]
+# libunbound version 1.4.22 and older, not linked against libevent, on FreeBSD,
+# =============================================================================
+# cannot be linked against a program that also links libevent, because of
+# symbol clash.  Libunbound has a libevent clone (called mini_event) build when
+# not linked against libevent that uses the same symbols as libevent.
+
+# First detect if the libevent symbols are visible when linking with libunbound
+    [LIBS=$getdns_LIBS]
+    [LDFLAGS=$getdns_LDFLAGS]
+    [AC_MSG_CHECKING([if event_get_version symbol is leaking from libunbound])]
+    [AC_LANG_PUSH(C)]
+     AC_LINK_IFELSE(
+	     [AC_LANG_PROGRAM(
+		     [[const char *event_get_version(void);]],
+		     [[const char *v = event_get_version();]])
+	     ],[[AC_MSG_RESULT([yes])]
+                [AC_MSG_CHECKING([if libunbound is linked against libevent])]
+		 AC_RUN_IFELSE(
+			[AC_LANG_PROGRAM(
+				[[const char *event_get_version(void);]],
+				[[const char *v = event_get_version();]
+				 [return v@<:@0@:>@ == 'm' && v@<:@1@:>@ == 'i' &&
+				         v@<:@2@:>@ == 'n' && v@<:@3@:>@ == 'i' ? 1 : 0;]])
+			],[[AC_MSG_RESULT([yes])]
+			],[[AC_MSG_RESULT([no])]
+			   [AC_MSG_FAILURE([
+***
+*** On this system, when using libevent,  libunbound must
+*** also have been compiled with libevent.  Please recompile
+*** libunbound with libevent, or configure --without-libevent.
+***])]
+			]
+		)
+             ],[[AC_MSG_RESULT([no])]
+	     ]
+     )
+    [AC_LANG_POP(C)])
 
 AC_SUBST(have_libevent)
 AC_SUBST(EXTENSION_LIBEVENT_LIB)
@@ -318,10 +355,10 @@ AS_IF([test x_$have_libuv = x_1],
      AC_LANG_PUSH(C)
      AC_COMPILE_IFELSE(
 	     [AC_LANG_PROGRAM(
-		     [[#include <uv.h>]],
-		     [[void test_cb(uv_timer_t *handle);]
-		      [uv_timer_cb cb = test_cb;
-		      (*cb)(NULL);]])
+		     [[#include <uv.h>]
+		      [void test_cb(uv_timer_t *handle);]],
+		     [[uv_timer_cb cb = test_cb;]
+		      [(*cb)(0);]])
 	     ],[AC_MSG_RESULT([yes])
 		AC_DEFINE(HAVE_NEW_UV_TIMER_CB, [1], [Does libuv have the new uv_time_cb signature])
              ],[AC_MSG_RESULT([no])

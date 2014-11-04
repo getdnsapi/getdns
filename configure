@@ -11453,6 +11453,98 @@ fi
 if test x_$have_libevent = x_1; then :
   EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
     CHECK_EVENT_PROG=check_getdns_event
+# libunbound version 1.4.22 and older, not linked against libevent, on FreeBSD,
+# =============================================================================
+# cannot be linked against a program that also links libevent, because of
+# symbol clash.  Libunbound has a libevent clone (called mini_event) build when
+# not linked against libevent that uses the same symbols as libevent.
+
+# First detect if the libevent symbols are visible when linking with libunbound
+    LIBS=$getdns_LIBS
+    LDFLAGS=$getdns_LDFLAGS
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if event_get_version symbol is leaking from libunbound" >&5
+$as_echo_n "checking if event_get_version symbol is leaking from libunbound... " >&6; }
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+const char *event_get_version(void);
+int
+main ()
+{
+const char *v = event_get_version();
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                { $as_echo "$as_me:${as_lineno-$LINENO}: checking if libunbound is linked against libevent" >&5
+$as_echo_n "checking if libunbound is linked against libevent... " >&6; }
+		 if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cannot run test program while cross compiling
+See \`config.log' for more details" "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+const char *event_get_version(void);
+int
+main ()
+{
+const char *v = event_get_version();
+				 return v[0] == 'm' && v[1] == 'i' &&
+				         v[2] == 'n' && v[3] == 'i' ? 1 : 0;
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+			   { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "
+***
+*** On this system, when using libevent,  libunbound must
+*** also have been compiled with libevent.  Please recompile
+*** libunbound with libevent, or configure --without-libevent.
+***
+See \`config.log' for more details" "$LINENO" 5; }
+
+
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    ac_ext=c
+ac_cpp='$CPP $CPPFLAGS'
+ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ac_compiler_gnu=$ac_cv_c_compiler_gnu
+
 fi
 
 
@@ -11586,12 +11678,12 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
      cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <uv.h>
+		      void test_cb(uv_timer_t *handle);
 int
 main ()
 {
-void test_cb(uv_timer_t *handle);
-		      uv_timer_cb cb = test_cb;
-		      (*cb)(NULL);
+uv_timer_cb cb = test_cb;
+		      (*cb)(0);
   ;
   return 0;
 }
