@@ -49,6 +49,8 @@ case "$host_os" in
   ;;
   solaris* ) CFLAGS="$CFLAGS -D__EXTENSIONS__"  # for strdup() from <string.h>
   ;;
+  darwin* ) CFLAGS="$CFLAGS -D_DARWIN_C_SOURCE"  # for strlcpy() from <string.h>
+  ;;
 esac
 
 # always use ./libtool unless override from commandline (libtool=mylibtool)
