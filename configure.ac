@@ -59,6 +59,9 @@ AC_SUBST(libtool)
 AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 
+initial_LIBS=$LIBS
+initial_LDFLAGS=$LDFLAGS
+
 dnl Add option to disable the evil rpath. Check whether to use rpath or not.
 dnl Adds the --disable-rpath option. Uses trick to edit the ./libtool.
 AC_DEFUN([ACX_ARG_RPATH],
@@ -215,8 +218,34 @@ AC_MSG_RESULT(yes)
 AC_DEFINE(HAVE_IOCTLSOCKET, 1, [if the function 'ioctlsocket' is available])
 ],[AC_MSG_RESULT(no)])
 
+
+# Check for libraries for other things than libgetdns after this point,
+# so the getdns libraries can be reset with:
+#
+#	LIBS=$getdns_LIBS
+#	LDFLAGS=$getdns_LDFLAGS
+# 
+# afterwards.
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
+
+#-------------------- libraries needed for libcheck
+LIBS=$initial_LIBS
+LDFLAGS=$initial_LDFLAGS
+
+AC_SEARCH_LIBS([floor], [m])
+AC_SEARCH_LIBS([timer_create], [rt])
+AC_SEARCH_LIBS([pthread_create], [pthread])
+AC_SEARCH_LIBS([srunner_run],[check],[
+AC_SUBST(CHECK_GETDNS,[check_getdns])
+AC_SUBST(LIBCHECK_LIBS,[$LIBS])
+AC_SUBST(LIBCHECK_LDFLAGS,[$LDFLAGS])],[
+AC_SUBST(NOLIBCHECK, [nolibcheck])
+AC_MSG_WARN([libcheck not found or usable; unit tests will not be compiled and run])])
+
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
+# end libraries needed for libcheck
 
 #-------------------- libevent extension
 AC_ARG_WITH([libevent],
@@ -265,7 +294,7 @@ AS_IF([test x_$withval = x_no],
     )
 
 AS_IF([test x_$have_libevent = x_1],
-    [EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"]
+    [EXTENSION_LIBEVENT_LIB="../libgetdns_ext_event.la"]
     [CHECK_EVENT_PROG=check_getdns_event]
 # libunbound version 1.4.22 and older, not linked against libevent, on FreeBSD,
 # =============================================================================
@@ -309,8 +338,10 @@ AC_SUBST(have_libevent)
 AC_SUBST(EXTENSION_LIBEVENT_LIB)
 AC_SUBST(EXTENSION_LIBEVENT_EXT_LIBS)
 AC_SUBST(EXTENSION_LIBEVENT_LDFLAGS)
-AC_SUBST(CHECK_EVENT_PROG)
+AS_IF([test "x$have_libcheck" = x1], [AC_SUBST(CHECK_EVENT_PROG)])
 
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
 # end libevent extension
 
 #-------------------- libuv extension
@@ -349,7 +380,7 @@ AS_IF([test x_$withval = x_no],
     )
 
 AS_IF([test x_$have_libuv = x_1],
-    [EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"]
+    [EXTENSION_LIBUV_LIB="../libgetdns_ext_uv.la"]
     [CHECK_UV_PROG=check_getdns_uv]
     [AC_MSG_CHECKING([for new signature of uv_timer_cb])
      AC_LANG_PUSH(C)
@@ -370,8 +401,10 @@ AC_SUBST(have_libuv)
 AC_SUBST(EXTENSION_LIBUV_LIB)
 AC_SUBST(EXTENSION_LIBUV_EXT_LIBS)
 AC_SUBST(EXTENSION_LIBUV_LDFLAGS)
-AC_SUBST(CHECK_UV_PROG)
+AS_IF([test "x$have_libcheck" = x1], [AC_SUBST(CHECK_UV_PROG)])
 
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
 # end libuv extension
 
 #-------------------- libev extension
@@ -412,19 +445,18 @@ AS_IF([test x_$withval = x_no],
     )
 
 AS_IF([test x_$have_libev = x_1],
-    [EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"]
+    [EXTENSION_LIBEV_LIB="../libgetdns_ext_ev.la"]
     [CHECK_EV_PROG=check_getdns_ev])
 
 AC_SUBST(have_libev)
 AC_SUBST(EXTENSION_LIBEV_LIB)
 AC_SUBST(EXTENSION_LIBEV_EXT_LIBS)
 AC_SUBST(EXTENSION_LIBEV_LDFLAGS)
-AC_SUBST(CHECK_EV_PROG)
-
-# end libev extension
+AS_IF([test "x$have_libcheck" = x1], [AC_SUBST(CHECK_EV_PROG)])
 
 LIBS=$getdns_LIBS
 LDFLAGS=$getdns_LDFLAGS
+# end libev extension
 
 # --with-trust-anchor=
 AC_DEFINE([SYSCONFDIR], [sysconfdir], [System configuration dir])

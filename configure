@@ -650,6 +650,10 @@ EXTENSION_LIBEVENT_LDFLAGS
 EXTENSION_LIBEVENT_EXT_LIBS
 EXTENSION_LIBEVENT_LIB
 have_libevent
+NOLIBCHECK
+LIBCHECK_LDFLAGS
+LIBCHECK_LIBS
+CHECK_GETDNS
 DOXYGEN
 INSTALL_DATA
 INSTALL_SCRIPT
@@ -10821,6 +10825,9 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
+initial_LIBS=$LIBS
+initial_LDFLAGS=$LDFLAGS
+
 
 
 # Check whether --enable-rpath was given.
@@ -11297,8 +11304,261 @@ fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
+
+# Check for libraries for other things than libgetdns after this point,
+# so the getdns libraries can be reset with:
+#
+#	LIBS=$getdns_LIBS
+#	LDFLAGS=$getdns_LDFLAGS
+#
+# afterwards.
 getdns_LIBS=$LIBS
 getdns_LDFLAGS=$LDFLAGS
+
+#-------------------- libraries needed for libcheck
+LIBS=$initial_LIBS
+LDFLAGS=$initial_LDFLAGS
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing floor" >&5
+$as_echo_n "checking for library containing floor... " >&6; }
+if ${ac_cv_search_floor+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char floor ();
+int
+main ()
+{
+return floor ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' m; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_floor=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_floor+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_floor+:} false; then :
+
+else
+  ac_cv_search_floor=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_floor" >&5
+$as_echo "$ac_cv_search_floor" >&6; }
+ac_res=$ac_cv_search_floor
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing timer_create" >&5
+$as_echo_n "checking for library containing timer_create... " >&6; }
+if ${ac_cv_search_timer_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char timer_create ();
+int
+main ()
+{
+return timer_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' rt; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_timer_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_timer_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_timer_create+:} false; then :
+
+else
+  ac_cv_search_timer_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_timer_create" >&5
+$as_echo "$ac_cv_search_timer_create" >&6; }
+ac_res=$ac_cv_search_timer_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing pthread_create" >&5
+$as_echo_n "checking for library containing pthread_create... " >&6; }
+if ${ac_cv_search_pthread_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pthread_create ();
+int
+main ()
+{
+return pthread_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' pthread; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_pthread_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_pthread_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_pthread_create+:} false; then :
+
+else
+  ac_cv_search_pthread_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_pthread_create" >&5
+$as_echo "$ac_cv_search_pthread_create" >&6; }
+ac_res=$ac_cv_search_pthread_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing srunner_run" >&5
+$as_echo_n "checking for library containing srunner_run... " >&6; }
+if ${ac_cv_search_srunner_run+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char srunner_run ();
+int
+main ()
+{
+return srunner_run ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' check; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_srunner_run=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_srunner_run+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_srunner_run+:} false; then :
+
+else
+  ac_cv_search_srunner_run=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_srunner_run" >&5
+$as_echo "$ac_cv_search_srunner_run" >&6; }
+ac_res=$ac_cv_search_srunner_run
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+CHECK_GETDNS=check_getdns
+
+LIBCHECK_LIBS=$LIBS
+
+LIBCHECK_LDFLAGS=$LDFLAGS
+
+else
+
+NOLIBCHECK=nolibcheck
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libcheck not found or usable; unit tests will not be compiled and run" >&5
+$as_echo "$as_me: WARNING: libcheck not found or usable; unit tests will not be compiled and run" >&2;}
+fi
+
+
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
+# end libraries needed for libcheck
 
 #-------------------- libevent extension
 
@@ -11451,7 +11711,7 @@ fi
 fi
 
 if test x_$have_libevent = x_1; then :
-  EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
+  EXTENSION_LIBEVENT_LIB="../libgetdns_ext_event.la"
     CHECK_EVENT_PROG=check_getdns_event
 # libunbound version 1.4.22 and older, not linked against libevent, on FreeBSD,
 # =============================================================================
@@ -11551,8 +11811,12 @@ fi
 
 
 
+if test "x$have_libcheck" = x1; then :
 
+fi
 
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
 # end libevent extension
 
 #-------------------- libuv extension
@@ -11665,7 +11929,7 @@ fi
 fi
 
 if test x_$have_libuv = x_1; then :
-  EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
+  EXTENSION_LIBUV_LIB="../libgetdns_ext_uv.la"
     CHECK_UV_PROG=check_getdns_uv
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for new signature of uv_timer_cb" >&5
 $as_echo_n "checking for new signature of uv_timer_cb... " >&6; }
@@ -11715,8 +11979,12 @@ fi
 
 
 
+if test "x$have_libcheck" = x1; then :
 
+fi
 
+LIBS=$getdns_LIBS
+LDFLAGS=$getdns_LDFLAGS
 # end libuv extension
 
 #-------------------- libev extension
@@ -11842,7 +12110,7 @@ fi
 fi
 
 if test x_$have_libev = x_1; then :
-  EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
+  EXTENSION_LIBEV_LIB="../libgetdns_ext_ev.la"
     CHECK_EV_PROG=check_getdns_ev
 fi
 
@@ -11850,12 +12118,13 @@ fi
 
 
 
+if test "x$have_libcheck" = x1; then :
 
-
-# end libev extension
+fi
 
 LIBS=$getdns_LIBS
 LDFLAGS=$getdns_LDFLAGS
+# end libev extension
 
 # --with-trust-anchor=
 
