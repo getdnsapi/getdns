@@ -11713,7 +11713,7 @@ fi
 fi
 
 if test x_$have_libevent = x_1; then :
-  EXTENSION_LIBEVENT_LIB="../libgetdns_ext_event.la"
+  EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"
     CHECK_EVENT_PROG=check_getdns_event
 # libunbound version 1.4.22 and older, not linked against libevent, on FreeBSD,
 # =============================================================================
@@ -11931,7 +11931,7 @@ fi
 fi
 
 if test x_$have_libuv = x_1; then :
-  EXTENSION_LIBUV_LIB="../libgetdns_ext_uv.la"
+  EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"
     CHECK_UV_PROG=check_getdns_uv
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for new signature of uv_timer_cb" >&5
 $as_echo_n "checking for new signature of uv_timer_cb... " >&6; }
@@ -12112,7 +12112,7 @@ fi
 fi
 
 if test x_$have_libev = x_1; then :
-  EXTENSION_LIBEV_LIB="../libgetdns_ext_ev.la"
+  EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"
     CHECK_EV_PROG=check_getdns_ev
 fi
 

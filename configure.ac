@@ -296,7 +296,7 @@ AS_IF([test x_$withval = x_no],
     )
 
 AS_IF([test x_$have_libevent = x_1],
-    [EXTENSION_LIBEVENT_LIB="../libgetdns_ext_event.la"]
+    [EXTENSION_LIBEVENT_LIB="libgetdns_ext_event.la"]
     [CHECK_EVENT_PROG=check_getdns_event]
 # libunbound version 1.4.22 and older, not linked against libevent, on FreeBSD,
 # =============================================================================
@@ -382,7 +382,7 @@ AS_IF([test x_$withval = x_no],
     )
 
 AS_IF([test x_$have_libuv = x_1],
-    [EXTENSION_LIBUV_LIB="../libgetdns_ext_uv.la"]
+    [EXTENSION_LIBUV_LIB="libgetdns_ext_uv.la"]
     [CHECK_UV_PROG=check_getdns_uv]
     [AC_MSG_CHECKING([for new signature of uv_timer_cb])
      AC_LANG_PUSH(C)
@@ -447,7 +447,7 @@ AS_IF([test x_$withval = x_no],
     )
 
 AS_IF([test x_$have_libev = x_1],
-    [EXTENSION_LIBEV_LIB="../libgetdns_ext_ev.la"]
+    [EXTENSION_LIBEV_LIB="libgetdns_ext_ev.la"]
     [CHECK_EV_PROG=check_getdns_ev])
 
 AC_SUBST(have_libev)
