@@ -43,9 +43,9 @@ EXTENSION_LIBEVENT_LDFLAGS=@EXTENSION_LIBEVENT_LDFLAGS@
 EXTENSION_LIBEVENT_LIB=../../src/libgetdns_ext_event.la
 
 CC=@CC@
-CFLAGS=@CFLAGS@ -Wall -I$(srcdir) -I$(srcdir)/../../src -I../../src -std=c99
+CFLAGS=-I$(srcdir) -I$(srcdir)/../../src -I../../src @CFLAGS@
 LDFLAGS=@LDFLAGS@ -L../../src
-LDLIBS=-lgetdns @LIBS@
+LDLIBS=../../src/libgetdns.la @LIBS@
 
 
 OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo
@@ -66,8 +66,7 @@ example: all
 all: $(PROGRAMS)
 
 $(OBJS):
-	@:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
 
 example-all-functions: example-all-functions.lo
 	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-all-functions.lo

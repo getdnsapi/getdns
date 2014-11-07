@@ -24,12 +24,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "config.h"
 #include <getdns/getdns.h>
 #include <getdns/getdns_ext_libevent.h>
 #ifdef HAVE_EVENT2_EVENT_H
     #include <event2/event.h>
 #else
     #include <event.h>
+#endif
+
+#ifndef HAVE_EVENT_BASE_FREE
+#define event_base_free(x) /* nop */
+#endif
+#ifndef HAVE_EVENT_BASE_NEW
+#define event_base_new event_init
 #endif
 
 #ifndef HAVE_U_CHAR

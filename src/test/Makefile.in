@@ -57,7 +57,7 @@ CHECK_EVENT_PROG=@CHECK_EVENT_PROG@
 CHECK_EV_PROG=@CHECK_EV_PROG@
 
 CC=@CC@
-CFLAGS=-Wall -std=c99 -I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ 
+CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ 
 LDFLAGS=-L.. 
 LDLIBS=../libgetdns.la
 CHECK_LIBS=@CHECK_LIBS@
@@ -89,12 +89,10 @@ default: all
 all: $(PROGRAMS)
 
 $(ALL_OBJS):
-	@:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
 
 $(NON_C99_OBJS):
-	@:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600 -c $< -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600 -c $(srcdir)/$(@:.lo=.c) -o $@
 
 tests_dict: tests_dict.lo testmessages.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dict.lo testmessages.lo

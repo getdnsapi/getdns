@@ -54,7 +54,7 @@
 
 #ifndef HAVE_EVENT2_EVENT_H
 static struct event *
-event_new(struct event_base *b, evutil_socket_t fd, short ev, void* cb, void *arg)
+event_new(struct event_base *b, evutil_socket_t fd, short ev, void (*cb)(int, short, void*), void *arg)
 {
 	struct event* e = (struct event*)calloc(1, sizeof(struct event));
 

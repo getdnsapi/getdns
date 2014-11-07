@@ -44,6 +44,12 @@ AC_PROG_CPP
 
 # Checks for programs.
 AC_CANONICAL_HOST
+
+CFLAGS="$CFLAGS"
+AC_PROG_CC_C99
+AX_CHECK_COMPILE_FLAG([-xc99],[CFLAGS="$CFLAGS -xc99"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wall],[CFLAGS="$CFLAGS -Wall"],[],[])
+
 case "$host_os" in
   linux* ) CFLAGS="$CFLAGS -D_BSD_SOURCE"
   ;;

@@ -657,7 +657,6 @@ getdns_root_trust_anchor(time_t *utc_date_of_anchor)
 
 	if (! priv_getdns_parse_ta_file(utc_date_of_anchor, tas_rr_list)) {
 		goto done_free_tas_rr_list;
-		return NULL;
 	}
 	tas_gd_list = create_list_from_rr_list(NULL, tas_rr_list);
 
