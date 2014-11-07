@@ -35,16 +35,6 @@
 extern "C" {
 #endif
 
-#ifdef S_SPLINT_S
-#  define INLINE 
-#else
-#  ifdef SWIG
-#    define INLINE static
-#  else
-#    define INLINE static inline
-#  endif
-#endif
-
 /* Enable the return_dnssec_status extension on every request.
    value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
    returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
@@ -88,12 +78,6 @@ typedef struct getdns_eventloop_event {
 	 */
 	void *ev;
 } getdns_eventloop_event;
-
-INLINE getdns_eventloop_event *getdns_eventloop_event_init(
-    getdns_eventloop_event *ev,void *userarg, getdns_eventloop_callback read_cb,
-    getdns_eventloop_callback write_cb, getdns_eventloop_callback timeout_cb)
-{ ev->userarg = userarg; ev->read_cb = read_cb; ev->write_cb = write_cb;
-  ev->timeout_cb = timeout_cb; ev->ev = NULL; return ev; }
 
 typedef struct getdns_eventloop_vmt getdns_eventloop_vmt;
 typedef struct getdns_eventloop {
@@ -140,11 +124,6 @@ getdns_context_detach_eventloop(getdns_context *context);
 /* Run the context's event loop until nothing more to do */
 void
 getdns_context_run(getdns_context *context);
-
-#define GETDNS_CLEAR_EVENT(loop, event) \
-	do { if ((event)->ev) (loop)->vmt->clear((loop), (event)); } while(0)
-#define GETDNS_SCHEDULE_EVENT(loop, fd, timeout, event) \
-	do { (loop)->vmt->schedule((loop),(fd),(timeout),(event)); } while(0)
 
 #ifdef __cplusplus
 }

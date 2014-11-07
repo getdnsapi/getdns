@@ -34,6 +34,7 @@
 
 #include "extension/libmini_event.h"
 #include "context.h"
+#include "util-internal.h"
 
 static void
 getdns_mini_event_cleanup(getdns_eventloop *loop)

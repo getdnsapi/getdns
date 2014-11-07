@@ -35,12 +35,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
-#include "types-internal.h"
-*/
+#ifndef UTIL_INTERNAL_H
+#define UTIL_INTERNAL_H
 
 #include <ldns/ldns.h>
 #include "context.h"
+
+#define SCHED_DEBUG 0
+
+#ifdef S_SPLINT_S
+#  define INLINE 
+#else
+#  ifdef SWIG
+#    define INLINE static
+#  else
+#    define INLINE static inline
+#  endif
+#endif
 
 struct ub_result;
 struct getdns_network_req;
@@ -138,4 +149,37 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
  */
 int is_extension_set(struct getdns_dict *extensions, const char *extension);
 
+#define DEBUG_ON(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+		\
+		gettimeofday(&tv, NULL); \
+		gmtime_r(&tv.tv_sec, &tm); \
+		strftime(buf, 10, "%T", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (0)
+
+#define DEBUG_OFF(...) do {} while (0)
+
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+#include <time.h>
+#define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+INLINE getdns_eventloop_event *getdns_eventloop_event_init(
+    getdns_eventloop_event *ev,void *userarg, getdns_eventloop_callback read_cb,
+    getdns_eventloop_callback write_cb, getdns_eventloop_callback timeout_cb)
+{ ev->userarg = userarg; ev->read_cb = read_cb; ev->write_cb = write_cb;
+  ev->timeout_cb = timeout_cb; ev->ev = NULL; return ev; }
+
+#define GETDNS_CLEAR_EVENT(loop, event) \
+	do { if ((event)->ev) (loop)->vmt->clear((loop), (event)); } while(0)
+#define GETDNS_SCHEDULE_EVENT(loop, fd, timeout, event) \
+	do { (loop)->vmt->schedule((loop),(fd),(timeout),(event)); } while(0)
+
+#endif
 /* util-internal.h */

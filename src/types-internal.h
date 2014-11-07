@@ -42,7 +42,6 @@
 #include "getdns/getdns_extra.h"
 #include "util/rbtree.h"
 
-#define SCHED_DEBUG 0
 
 struct getdns_context;
 struct getdns_upstreams;
@@ -309,26 +308,4 @@ getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,
 void dns_req_free(getdns_dns_req * req);
 
 #endif
-
-#define DEBUG_ON(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
-		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%T", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
-		fprintf(stderr, __VA_ARGS__); \
-	} while (0)
-
-#define DEBUG_OFF(...) do {} while (0)
-
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-#include <time.h>
-#define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
-#else
-#define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
-#endif
-
 /* types-internal.h */
