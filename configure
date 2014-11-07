@@ -650,10 +650,13 @@ EXTENSION_LIBEVENT_LDFLAGS
 EXTENSION_LIBEVENT_EXT_LIBS
 EXTENSION_LIBEVENT_LIB
 have_libevent
-NOLIBCHECK
-LIBCHECK_LDFLAGS
-LIBCHECK_LIBS
 CHECK_GETDNS
+NOLIBCHECK
+CHECK_LIBS
+CHECK_CFLAGS
+PKG_CONFIG_LIBDIR
+PKG_CONFIG_PATH
+PKG_CONFIG
 DOXYGEN
 INSTALL_DATA
 INSTALL_SCRIPT
@@ -765,7 +768,12 @@ CFLAGS
 LDFLAGS
 LIBS
 CPPFLAGS
-CPP'
+CPP
+PKG_CONFIG
+PKG_CONFIG_PATH
+PKG_CONFIG_LIBDIR
+CHECK_CFLAGS
+CHECK_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1415,6 +1423,14 @@ Some influential environment variables:
   CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   CPP         C preprocessor
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
+  CHECK_CFLAGS
+              C compiler flags for CHECK, overriding pkg-config
+  CHECK_LIBS  linker flags for CHECK, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -10827,14 +10843,14 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 
-initial_LIBS=$LIBS
-initial_LDFLAGS=$LDFLAGS
+initial_LIBS="$LIBS"
+initial_LDFLAGS="$LDFLAGS"
 
 
 
 # Check whether --enable-rpath was given.
 if test "${enable_rpath+set}" = set; then :
-  enableval=$enable_rpath; enable_rpath=$enableval
+  enableval=$enable_rpath; enable_rpath="$enableval"
 else
   enable_rpath=yes
 fi
@@ -11310,16 +11326,199 @@ rm -f core conftest.err conftest.$ac_objext \
 # Check for libraries for other things than libgetdns after this point,
 # so the getdns libraries can be reset with:
 #
-#	LIBS=$getdns_LIBS
-#	LDFLAGS=$getdns_LDFLAGS
+#	LIBS="$getdns_LIBS"
+#	LDFLAGS="$getdns_LDFLAGS"
 #
 # afterwards.
-getdns_LIBS=$LIBS
-getdns_LDFLAGS=$LDFLAGS
+getdns_LIBS="$LIBS"
+getdns_LDFLAGS="$LDFLAGS"
 
 #-------------------- libraries needed for libcheck
-LIBS=$initial_LIBS
-LDFLAGS=$initial_LDFLAGS
+LIBS="$initial_LIBS"
+
+CHECK_GETDNS=""
+CHECK_LIBS=""
+CHECK_CFLAGS=""
+
+
+
+
+
+
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
+$as_echo "$PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
+$as_echo "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
+$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		PKG_CONFIG=""
+	fi
+fi
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for CHECK" >&5
+$as_echo_n "checking for CHECK... " >&6; }
+
+if test -n "$CHECK_CFLAGS"; then
+    pkg_cv_CHECK_CFLAGS="$CHECK_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"check >= 0.9.6\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "check >= 0.9.6") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_CHECK_CFLAGS=`$PKG_CONFIG --cflags "check >= 0.9.6" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$CHECK_LIBS"; then
+    pkg_cv_CHECK_LIBS="$CHECK_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"check >= 0.9.6\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "check >= 0.9.6") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_CHECK_LIBS=`$PKG_CONFIG --libs "check >= 0.9.6" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        CHECK_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "check >= 0.9.6" 2>&1`
+        else
+	        CHECK_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "check >= 0.9.6" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$CHECK_PKG_ERRORS" >&5
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing floor" >&5
 $as_echo_n "checking for library containing floor... " >&6; }
@@ -11489,9 +11688,9 @@ if test "$ac_res" != no; then :
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing srunner_run" >&5
-$as_echo_n "checking for library containing srunner_run... " >&6; }
-if ${ac_cv_search_srunner_run+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing srunner_create" >&5
+$as_echo_n "checking for library containing srunner_create... " >&6; }
+if ${ac_cv_search_srunner_create+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_func_search_save_LIBS=$LIBS
@@ -11504,16 +11703,16 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char srunner_run ();
+char srunner_create ();
 int
 main ()
 {
-return srunner_run ();
+return srunner_create ();
   ;
   return 0;
 }
 _ACEOF
-for ac_lib in '' check; do
+for ac_lib in '' check check_pic; do
   if test -z "$ac_lib"; then
     ac_res="none required"
   else
@@ -11521,34 +11720,30 @@ for ac_lib in '' check; do
     LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
   fi
   if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_search_srunner_run=$ac_res
+  ac_cv_search_srunner_create=$ac_res
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext
-  if ${ac_cv_search_srunner_run+:} false; then :
+  if ${ac_cv_search_srunner_create+:} false; then :
   break
 fi
 done
-if ${ac_cv_search_srunner_run+:} false; then :
+if ${ac_cv_search_srunner_create+:} false; then :
 
 else
-  ac_cv_search_srunner_run=no
+  ac_cv_search_srunner_create=no
 fi
 rm conftest.$ac_ext
 LIBS=$ac_func_search_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_srunner_run" >&5
-$as_echo "$ac_cv_search_srunner_run" >&6; }
-ac_res=$ac_cv_search_srunner_run
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_srunner_create" >&5
+$as_echo "$ac_cv_search_srunner_create" >&6; }
+ac_res=$ac_cv_search_srunner_create
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
 
-CHECK_GETDNS=check_getdns
-
-LIBCHECK_LIBS=$LIBS
-
-LIBCHECK_LDFLAGS=$LDFLAGS
-
+CHECK_GETDNS="check_getdns"
+CHECK_LIBS="$LIBS"
 else
 
 NOLIBCHECK=nolibcheck
@@ -11557,9 +11752,255 @@ NOLIBCHECK=nolibcheck
 $as_echo "$as_me: WARNING: libcheck not found or usable; unit tests will not be compiled and run" >&2;}
 fi
 
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing floor" >&5
+$as_echo_n "checking for library containing floor... " >&6; }
+if ${ac_cv_search_floor+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char floor ();
+int
+main ()
+{
+return floor ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' m; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_floor=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_floor+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_floor+:} false; then :
+
+else
+  ac_cv_search_floor=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_floor" >&5
+$as_echo "$ac_cv_search_floor" >&6; }
+ac_res=$ac_cv_search_floor
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing timer_create" >&5
+$as_echo_n "checking for library containing timer_create... " >&6; }
+if ${ac_cv_search_timer_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char timer_create ();
+int
+main ()
+{
+return timer_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' rt; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_timer_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_timer_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_timer_create+:} false; then :
+
+else
+  ac_cv_search_timer_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_timer_create" >&5
+$as_echo "$ac_cv_search_timer_create" >&6; }
+ac_res=$ac_cv_search_timer_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing pthread_create" >&5
+$as_echo_n "checking for library containing pthread_create... " >&6; }
+if ${ac_cv_search_pthread_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pthread_create ();
+int
+main ()
+{
+return pthread_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' pthread; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_pthread_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_pthread_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_pthread_create+:} false; then :
+
+else
+  ac_cv_search_pthread_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_pthread_create" >&5
+$as_echo "$ac_cv_search_pthread_create" >&6; }
+ac_res=$ac_cv_search_pthread_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing srunner_create" >&5
+$as_echo_n "checking for library containing srunner_create... " >&6; }
+if ${ac_cv_search_srunner_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char srunner_create ();
+int
+main ()
+{
+return srunner_create ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' check check_pic; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_srunner_create=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_srunner_create+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_srunner_create+:} false; then :
+
+else
+  ac_cv_search_srunner_create=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_srunner_create" >&5
+$as_echo "$ac_cv_search_srunner_create" >&6; }
+ac_res=$ac_cv_search_srunner_create
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+CHECK_GETDNS="check_getdns"
+CHECK_LIBS="$LIBS"
+else
+
+NOLIBCHECK=nolibcheck
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: libcheck not found or usable; unit tests will not be compiled and run" >&5
+$as_echo "$as_me: WARNING: libcheck not found or usable; unit tests will not be compiled and run" >&2;}
+fi
+
+else
+	CHECK_CFLAGS=$pkg_cv_CHECK_CFLAGS
+	CHECK_LIBS=$pkg_cv_CHECK_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	CHECK_GETDNS="check_getdns"
+fi
+
+LIBS="$getdns_LIBS"
+
+
+
+
 # end libraries needed for libcheck
 
 #-------------------- libevent extension
@@ -11722,8 +12163,8 @@ if test x_$have_libevent = x_1; then :
 # not linked against libevent that uses the same symbols as libevent.
 
 # First detect if the libevent symbols are visible when linking with libunbound
-    LIBS=$getdns_LIBS
-    LDFLAGS=$getdns_LDFLAGS
+    LIBS="$getdns_LIBS"
+    LDFLAGS="$getdns_LDFLAGS"
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if event_get_version symbol is leaking from libunbound" >&5
 $as_echo_n "checking if event_get_version symbol is leaking from libunbound... " >&6; }
     ac_ext=c
@@ -11817,8 +12258,8 @@ if test "x$have_libcheck" = x1; then :
 
 fi
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+LDFLAGS="$getdns_LDFLAGS"
 # end libevent extension
 
 #-------------------- libuv extension
@@ -11985,8 +12426,8 @@ if test "x$have_libcheck" = x1; then :
 
 fi
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+LDFLAGS="$getdns_LDFLAGS"
 # end libuv extension
 
 #-------------------- libev extension
@@ -12124,8 +12565,8 @@ if test "x$have_libcheck" = x1; then :
 
 fi
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+LDFLAGS="$getdns_LDFLAGS"
 # end libev extension
 
 # --with-trust-anchor=

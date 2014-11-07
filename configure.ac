@@ -61,8 +61,8 @@ AC_SUBST(libtool)
 AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 
-initial_LIBS=$LIBS
-initial_LDFLAGS=$LDFLAGS
+initial_LIBS="$LIBS"
+initial_LDFLAGS="$LDFLAGS"
 
 dnl Add option to disable the evil rpath. Check whether to use rpath or not.
 dnl Adds the --disable-rpath option. Uses trick to edit the ./libtool.
@@ -70,7 +70,7 @@ AC_DEFUN([ACX_ARG_RPATH],
 [
 AC_ARG_ENABLE(rpath,
         [  --disable-rpath         disable hardcoded rpath (default=enabled)],
-	enable_rpath=$enableval, enable_rpath=yes)
+	enable_rpath="$enableval", enable_rpath=yes)
 if test "x$enable_rpath" = xno; then
 	dnl AC_MSG_RESULT([Fixing libtool for -rpath problems.])
 	AC_CONFIG_COMMANDS([disable-rpath], [
@@ -224,29 +224,35 @@ AC_DEFINE(HAVE_IOCTLSOCKET, 1, [if the function 'ioctlsocket' is available])
 # Check for libraries for other things than libgetdns after this point,
 # so the getdns libraries can be reset with:
 #
-#	LIBS=$getdns_LIBS
-#	LDFLAGS=$getdns_LDFLAGS
+#	LIBS="$getdns_LIBS"
+#	LDFLAGS="$getdns_LDFLAGS"
 # 
 # afterwards.
-getdns_LIBS=$LIBS
-getdns_LDFLAGS=$LDFLAGS
+getdns_LIBS="$LIBS"
+getdns_LDFLAGS="$LDFLAGS"
 
 #-------------------- libraries needed for libcheck
-LIBS=$initial_LIBS
-LDFLAGS=$initial_LDFLAGS
+LIBS="$initial_LIBS"
 
+CHECK_GETDNS=""
+CHECK_LIBS=""
+CHECK_CFLAGS=""
+
+PKG_CHECK_MODULES([CHECK],[check >= 0.9.6],[CHECK_GETDNS="check_getdns"],[
 AC_SEARCH_LIBS([floor], [m])
 AC_SEARCH_LIBS([timer_create], [rt])
 AC_SEARCH_LIBS([pthread_create], [pthread])
-AC_SEARCH_LIBS([srunner_run],[check],[
-AC_SUBST(CHECK_GETDNS,[check_getdns])
-AC_SUBST(LIBCHECK_LIBS,[$LIBS])
-AC_SUBST(LIBCHECK_LDFLAGS,[$LDFLAGS])],[
+AC_SEARCH_LIBS([srunner_create],[check check_pic],[
+CHECK_GETDNS="check_getdns"
+CHECK_LIBS="$LIBS"],[
 AC_SUBST(NOLIBCHECK, [nolibcheck])
-AC_MSG_WARN([libcheck not found or usable; unit tests will not be compiled and run])])
+AC_MSG_WARN([libcheck not found or usable; unit tests will not be compiled and run])])])
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+
+AC_SUBST([CHECK_GETDNS])
+AC_SUBST([CHECK_LIBS])
+AC_SUBST([CHECK_CFLAGS])
 # end libraries needed for libcheck
 
 #-------------------- libevent extension
@@ -305,8 +311,8 @@ AS_IF([test x_$have_libevent = x_1],
 # not linked against libevent that uses the same symbols as libevent.
 
 # First detect if the libevent symbols are visible when linking with libunbound
-    [LIBS=$getdns_LIBS]
-    [LDFLAGS=$getdns_LDFLAGS]
+    [LIBS="$getdns_LIBS"]
+    [LDFLAGS="$getdns_LDFLAGS"]
     [AC_MSG_CHECKING([if event_get_version symbol is leaking from libunbound])]
     [AC_LANG_PUSH(C)]
      AC_LINK_IFELSE(
@@ -342,8 +348,8 @@ AC_SUBST(EXTENSION_LIBEVENT_EXT_LIBS)
 AC_SUBST(EXTENSION_LIBEVENT_LDFLAGS)
 AS_IF([test "x$have_libcheck" = x1], [AC_SUBST(CHECK_EVENT_PROG)])
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+LDFLAGS="$getdns_LDFLAGS"
 # end libevent extension
 
 #-------------------- libuv extension
@@ -405,8 +411,8 @@ AC_SUBST(EXTENSION_LIBUV_EXT_LIBS)
 AC_SUBST(EXTENSION_LIBUV_LDFLAGS)
 AS_IF([test "x$have_libcheck" = x1], [AC_SUBST(CHECK_UV_PROG)])
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+LDFLAGS="$getdns_LDFLAGS"
 # end libuv extension
 
 #-------------------- libev extension
@@ -456,8 +462,8 @@ AC_SUBST(EXTENSION_LIBEV_EXT_LIBS)
 AC_SUBST(EXTENSION_LIBEV_LDFLAGS)
 AS_IF([test "x$have_libcheck" = x1], [AC_SUBST(CHECK_EV_PROG)])
 
-LIBS=$getdns_LIBS
-LDFLAGS=$getdns_LDFLAGS
+LIBS="$getdns_LIBS"
+LDFLAGS="$getdns_LDFLAGS"
 # end libev extension
 
 # --with-trust-anchor=
