@@ -41,7 +41,6 @@ bindir = @bindir@
 docdir = @docdir@
 
 srcdir = @srcdir@
-VPATH = @srcdir@
 INSTALL = @INSTALL@
 
 default:
@@ -177,7 +176,7 @@ $(distdir):
 	cp $(srcdir)/spec/*.tgz $(distdir)/spec
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
-
+	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz
 	gzip -cd $(distdir).tar.gz | tar xvf -
@@ -195,7 +194,7 @@ distcheck: $(distdir).tar.gz
 	rm -rf $(distdir)
 	@echo "*** Package $(distdir).tar.gz is ready for distribution"
 
-Makefile: Makefile.in config.status
+Makefile: $(srcdir)/Makefile.in config.status
 	./config.status $@
 
 configure.status: configure
