@@ -1050,7 +1050,6 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 #ifdef USE_TCP_FASTOPEN
 		/* Leave the connect to the later call to sendto() */
 #else
-			fprintf(stderr,"connecting");
 			if (connect(upstream->fd,
 			    (struct sockaddr *)&upstream->addr,
 			    upstream->addr_len) == -1 && errno != EINPROGRESS){
