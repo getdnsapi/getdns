@@ -29,6 +29,8 @@
 .TH libgetdns 3 "@date@" "getdns @version@" getdns
 .SH NAME
 libgetdns
+-- an implementation of a modern asynchronous DNS API by and for application developers
+
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
 
@@ -699,13 +701,25 @@ The getdns API was documented by Paul Hoffman.  This implementation of the getdn
 .LP
 .RS 3
 .br
-Carig Despeaux, Verisign Inc.
+Craig Despeaux, Verisign Inc.
+.br
+John Dickinson, Sinodun
+.br
+Sara Dickinson, Sinodun
 .br
 Neel Goyal, Verisign Inc.
 .br
-Melinda Shore, No Mountain Software, LLC
+Shumon Huque, Verisign Labs
+.br
+Olaf Kolkman, NLnet Labs
+.br
+Allison Mankin, Verisign Inc. - Verisign Labs.
+.br
+Melinda Shore, No Mountain Software LLC
 .br
 Willem Toorop, NLnet Labs
+.br
+Gowri Visweswaran, Verisign Labs
 .br
 Wouter Wijngaards, NLnet Labs
 .br

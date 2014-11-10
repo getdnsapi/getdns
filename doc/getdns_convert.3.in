@@ -31,6 +31,7 @@
 .B getdns_convert, 
 .B getdns_convert_dns_name_to_fqdn, 
 .B getdns_convert_fqdn_to_dns_name
+-- convert dname between presentation- and wire-format
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

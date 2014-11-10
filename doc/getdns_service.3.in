@@ -30,6 +30,7 @@
 .SH NAME
 .B getdns_service, 
 .B getdns_service_sync
+-- getdns lookup of a service
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

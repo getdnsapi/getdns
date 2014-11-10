@@ -30,6 +30,7 @@
 .SH NAME
 .B getdns_hostname, 
 .B getdns_hostname_sync
+-- get hostname by address
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

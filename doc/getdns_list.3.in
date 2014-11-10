@@ -33,6 +33,7 @@
 .B getdns_list_create_with_extended_memory_functions, 
 .B getdns_list_create_with_memory_functions, 
 .B getdns_list_destroy 
+-- getdns list create and destroy routines
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

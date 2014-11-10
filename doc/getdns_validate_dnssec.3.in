@@ -29,6 +29,7 @@
 .TH getdns_validate_dnssec 3 "@date@" "getdns @version@" getdns
 .SH NAME
 .B getdns_validate_dnssec
+-- DNSSEC validate a given getdns record
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

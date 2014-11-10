@@ -30,6 +30,7 @@
 .SH NAME
 .B getdns_address, 
 .B getdns_address_sync
+-- get ip address(es) for a name
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

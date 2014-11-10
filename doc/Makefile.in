@@ -47,7 +47,7 @@ EDITS=-e 's/@''version@/$(version)/g'
 DOXYGEN = @DOXYGEN@
 
 DOCDIRS = html latex man
-MANPAGES3 = libgetdns.3 getdns_address.3 getdns_cancel_callback.3 getdns_context.3 getdns_context_set.3 getdns_context_set_context_update_callback.3 getdns_convert.3 getdns_dict.3 getdns_dict_get.3 getdns_dict_set.3 getdns_display_ip_address.3 getdns_free_sync_request_memory.3 getdns_general.3 getdns_hostname.3 getdns_list.3 getdns_list_get.3 getdns_list_set.3 getdns_pretty_print_dict.3 getdns_root_trust_anchor.3 getdns_service.3 getdns_validate_dnssec.3 
+MANPAGES3 = libgetdns.3 getdns_address.3 getdns_cancel_callback.3 getdns_context.3 getdns_context_set.3 getdns_context_set_context_update_callback.3 getdns_convert.3 getdns_dict.3 getdns_dict_get.3 getdns_dict_set.3 getdns_display_ip_address.3 getdns_general.3 getdns_hostname.3 getdns_list.3 getdns_list_get.3 getdns_list_set.3 getdns_pretty_print_dict.3 getdns_root_trust_anchor.3 getdns_service.3 getdns_validate_dnssec.3 
 
 default: all
 
@@ -68,7 +68,7 @@ install:	$(MANPAGES3)
 	for x in $(MANPAGES3); do echo $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$x $(DESTDIR)$(mandir)/man3; for altpg in $$($(srcdir)/manpgaltnames $$x); do cp $$x $$altpg; echo $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; $(INSTALL) -m 644 $$altpg $(DESTDIR)$(mandir)/man3; done; done
 
 check: $(MANPAGES3)
-	for x in $(MANPAGES3); do LC_ALL=en_US.UTF-8 MANROFFSEQ='' MANWIDTH=80 man --warnings -E UTF-8 -l -Tutf8 -Z $$x 2>&1 >/dev/null | awk "-vpage=$$x" '{printf("%s: ", page);print}'; done
+	for x in $(MANPAGES3); do LC_ALL=en_US.UTF-8 MANROFFSEQ='' MANWIDTH=80 man --warnings -E UTF-8 -l -Tutf8 -Z $$x 2>&1 >/dev/null | awk "-vpage=$$x" '{printf("%s: ", page);print}'; if ! lexgrog $$x >/dev/null 2>&1 ; then echo $$x: manpage-has-bad-whatis-entry; fi; done
 
 uninstall:
 	for x in $(MANPAGES3); do echo rm -f $(DESTDIR)$(mandir)/man3/$$x; rm -f $(DESTDIR)$(mandir)/man3/$$x; for altpg in $$($(srcdir)/manpgaltnames $$x); do echo rm -f $(DESTDIR)$(mandir)/man3/$$altpg;  rm -f $(DESTDIR)$(mandir)/man3/$$altpg; done; done

@@ -29,6 +29,7 @@
 .TH getdns_display_ip_address 3 "@date@" "getdns @version@" getdns
 .SH NAME
 .B getdns_display_ip_address
+-- convert an getdns ip address to string
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

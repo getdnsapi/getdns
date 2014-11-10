@@ -29,6 +29,7 @@
 .TH getdns_pretty_print_dict 3 "@date@" "getdns @version@" getdns
 .SH NAME
 .B getdns_pretty_print_dict
+-- return a string representation of a getdns dict
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

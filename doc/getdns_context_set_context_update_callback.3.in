@@ -29,6 +29,7 @@
 .TH getdns_context_set_context_update_callback 3 "@date@" "getdns @version@" getdns
 .SH NAME
 .B getdns_context_set_context_update_callback 
+-- get informed on getdns context updates
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

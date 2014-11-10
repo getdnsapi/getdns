@@ -29,6 +29,7 @@
 .TH getdns_cancel_callback 3 "@date@" "getdns @version@" getdns
 .SH NAME
 .B getdns_cancel_callback
+-- cancel an outstanding asyn getdns request
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

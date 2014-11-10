@@ -33,6 +33,7 @@
 .B getdns_list_set_dict, 
 .B getdns_list_set_int, 
 .B getdns_list_set_list, 
+-- set a value by index from a getdns list
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)
