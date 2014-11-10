@@ -80,12 +80,10 @@ getdns_address(3) which would replace getaddrinfo(3).
 
 .HP 3
 .I context
-.RP
 A pointer to the previsouly created DNS context that is to be used with this DNS request. see getdns_context (3)
 
 .HP 3
 .I name
-.RP
 The ASCII-based domain name looked up as a string. This can also be an
 IPv4 or IPv6 address for request types that take addresses instead of domain
 names, such as PTR. The values here follow the rules in section 2.1 of RFC 4343
@@ -93,27 +91,22 @@ to allow non-ASCII octets and special characters in labels.
 
 .HP 3
 .I request_type
-.RP
 Specifies the RRtype for the query; the RRtype numbers are listed in the IANA registry. For example, to get the NS records, request_type would be 2. The API also has defined macros for most of the RRtypes by name; the definition names all start with "GETDNS_RRTYPE_". For example, to get the NS records, you can also set the request_type to GETDNS_RRTYPE_NS.
 
 .HP 3
 .I extensions
-.RP
 extensions for this request, NULL if no extensions, see libgetnds (3) for a detailed description of extensions
 
 .HP 3
 .I userarg
-.RP
 returned to the callback function untouched, can be NULL
 
 .HP 3
 .I transaction_id
-.RP
 populated by the API and used to identify the callback (for example to getdns_cancel_callback), can be NULL, set to 0 if the function fails
 
 .HP 3
 .I callbackfn
-.RP
 non-NULL pointer to a callback function defined by the application, typically
 used to process the response. Only the asynchronous signature accepts a
 callback function, the synchronous signature does not include a callback.  See
@@ -121,7 +114,6 @@ libgetdns (3) for a more detailed discussion of callback functions.
 
 .HP 3
 .I response
-.RP
 A getdns_dict type is returned in response and always contains at least three names: replies_full (a list containing the DNS response as binary data), replies_tree (a list containing the parsed DNS response data) and status (an int).  The storage associated with this must be freed by a call to getdns_free_sync_request_memory (3).
 
 .HP

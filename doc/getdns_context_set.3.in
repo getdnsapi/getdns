@@ -219,17 +219,14 @@ specifies the number of milliseconds the API will wait for a response.
 
 .HP 3
 .I context
-.RP
 a previously allocated and initialized getdns_context
 
 .HP 3
 .I callback
-.RP
 a callback function that will be called when changes are made to the system files (/etc/resolv.conf and /etc/hosts) for contexts created with set_from_os = 1.  When this function is called the changed_item parameter indicates which item in the context has changed.
 
 .HP 3
 .I root_addresses
-.RP
 This is a list of getdns_dict types that each identify a single root server to
 use to look up top level domains.  Each dictionary includes two names,
 .I address_type
@@ -239,53 +236,53 @@ a bindata containing the IP address.
 
 .HP 3
 .I transport
-.RP
 may be one of GETDNS_CONTEXT_UDP_FIRST_AND_FALL_BACK_TO_TCP, GETDNS_CONTEXT_UDP_ONLY, GETDNS_CONTEXT_TCP_ONLY, GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN.  If you need more information on what each of these means reread the mnemonic and take a guess ;)
 
 .HP 3
 .I followredir
-.RP
 If set to GETDNS_REDIRECTS_FOLLOW (the default) then the eventual target of the redirect is returned.  If set to GETDNS_REDIRECTS_DO_NOT_FOLLOW then the CNAME or DNAME is returned and NOT the eventual target.
 
 .HP 3
 .I limit
-.RP
 the maximum number of concurrent outstanding (unanswered) DNS queries, if exceeded the API will queue queries and issue them as the number of outstanding queries drops.  A value of 0 indicates that there is no limit.
 
 .HP 3
 .I namespaces
-.RP
 The namespaces array contains an ordered list of namespaces that will be queried. Important: this context setting is ignored for the getdns_general and getdns_general_sync functions; it is used for the other functions. The values are GETDNS_CONTEXT_NAMESPACE_DNS, GETDNS_CONTEXT_NAMESPACE_LOCALNAMES, GETDNS_CONTEXT_NAMESPACE_NETBIOS, GETDNS_CONTEXT_NAMESPACE_MDNS, and GETDNS_CONTEXT_NAMESPACE_NIS. When a normal lookup is done, the API does the lookups in the order given and stops when it gets the first result; a different method with the same result would be to run the queries in parallel and return when it gets the first result. Because lookups might be done over different mechanisms because of the different namespaces, there can be information leakage that is similar to that seen with getaddrinfo(). The default is determined by the OS.
 
 .HP 3
 .I restype
-.RP
 can be set to either GETDNS_CONTEXT_RECURSIVE (the default) or GETDNS_CONTEXT_STUB (requires that forwarders be specified by the caller).
 
 .HP 3
 .I seconds_skew
-.RP
 the number of seconds skew allowed in either direction when checking an RRSIGs expiration and inception fields.
 
 .HP 3
 .I suffixes
-.RP
 A list of bindatas that are strings that are to be appended based on getdns_context_set_append_name. The values here follow the rules in section 2.1 of RFC 4343 to allow non-ASCII octets and special characters in labels.
 
 .HP 3
 .I timeout
-.RP
 the number of milliseconds the API will wait for a response, after which the callback will be invoked (or the synchronous function will return) with a timeout error.
 
 .HP 3
 .I trust_anchors
-.RP
 list of bindatas that are the DNSSEC trust anchors expressed as RDATA from the DNSKEY resource records, the default are supplied by the IANA root.
 
 .HP 3
 .I when_to_append
-.RP
-The value is GETDNS_APPEND_NAME_ALWAYS, GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE, GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE, or GETDNS_APPEND_NAME_NEVER.
+The value is
+.RS
+.IP \(bu 3
+GETDNS_APPEND_NAME_ALWAYS,
+.IP \(bu 3
+GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE,
+.IP \(bu 3
+GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE, or
+.IP \(bu 3
+GETDNS_APPEND_NAME_NEVER.
+.RE
 
 .HP
 .SH "RETURN VALUES"

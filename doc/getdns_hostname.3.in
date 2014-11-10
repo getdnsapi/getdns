@@ -80,22 +80,18 @@ a getdns_dict structure containing two names: address_type (whose value is binda
 
 .HP 3
 .I extensions
-.RP
 extensions for this request, NULL if no extensions, see libgetdns (3) for a detailed description of extensions
 
 .HP 3
 .I userarg
-.RP
 returned to the callback function untouched, can be NULL
 
 .HP 3
 .I transaction_id
-.RP
 populated by the API and used to identify the callback (for example to getdns_cancel_callback), can be NULL, set to 0 if the function fails
 
 .HP 3
 .I callbackfn
-.RP
 non-NULL pointer to a callback function defined by the application, typically
 used to process the response. Only the asynchronous signature accepts a
 callback function, the synchronous signature does not include a callback.  See
@@ -103,7 +99,6 @@ libgetdns (3) for a more detailed discussion of callback functions.
 
 .HP 3
 .I response
-.RP
 A getdns_dict type is returned in response and always contains at least three names: replies_full (a list containing the DNS response as binary data), replies_tree (a list containing the parsed DNS response data) and status (an int).  The storage associated with this must be freed by a call to getdns_free_sync_request_memory (3).
 
 .HP

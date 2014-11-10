@@ -54,7 +54,6 @@ helper function.
 
 .HP 3
 .I utc_date_of_anchor
-.RP
 time the trust anchors were obtained in epoch seconds (on success)
 
 .HP

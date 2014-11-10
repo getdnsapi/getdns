@@ -48,7 +48,6 @@ This function is used to free memory allocated within one of the synchronous fun
 
 .HP 3
 .I response
-.RP
 A previously allocated response object.
 
 .HP

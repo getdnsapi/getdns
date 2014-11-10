@@ -50,7 +50,6 @@ is IPv4 or IPv6.
 
 .HP 3
 .I ipv4_or_ipv6_addr
-.RP
 bindata of the address to print
 
 .HP

@@ -49,17 +49,15 @@ void (*cbfun)(getdns_context *context, getdns_context_code_t changed_item)
 
 .LP
 Changes to the context such as in response to system files that affect the contet (/etc/resolv.conf etc.) trigger a call to the callback function specified as
-.b
+.B
 cbfun
 
 .HP 3
 .I context
-.RP
 a previously initialized context
 
 .HP 3
 .I cbfun
-.RP
 callback function to invoked when the specified context changes.  If this 
 argument is NULL then updates to the context will not invoke a callback.
 

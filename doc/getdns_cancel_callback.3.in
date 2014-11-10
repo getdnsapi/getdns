@@ -57,12 +57,10 @@ return immediately, even before the callback finishes its work and returns.
 
 .HP 3
 .I context
-.RP
 see getdns_context (3)
 
 .HP 3
 .I transaction_id
-.RP
 populated by the API and used to identify the callback (for example to getdns_cancel_callback), can be NULL, set to 0 if the function fails
 
 .HP

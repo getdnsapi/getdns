@@ -60,17 +60,14 @@ helper function.
 
 .HP 3
 .I record_to_validate
-.RP
 the resource record being validated
 
 .HP 3
 .I bundle_of_support_records
-.RP
 records used to construct the validation chain
 
 .HP 3
 .I trust_anchor_records
-.RP
 trust anchor records to use for the validation
 
 .HP

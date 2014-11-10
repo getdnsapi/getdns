@@ -28,6 +28,7 @@
 
 .TH getdns_context 3 "@date@" "getdns @version@" getdns
 .SH NAME
+.B getdns_context, 
 .B getdns_context_create, 
 .B getdns_context_create_with_memory_functions, 
 .B getdns_context_create_with_extended_memory_functions, 
@@ -133,32 +134,26 @@ callbacks are made.
 
 .HP 3
 .I context
-.RP
 Used to return the pointer to an opaque structure.  The caller passes the address of a pointer (decl: getdns_context *context; passed as &context) which will be populated as a result of returning from the function.  The result is a newly allocated and initialized context (if there are no errors).  In the getdns_destroy_context function this is the context whose associated memory will be released.
 
 .HP 3
 .I set_from_os
-.RP
 If set_from_os is 0 then the caller must provide forwarding name servers if running in stub mode.  If set_from_os is 1 then the system files are used to initialize the context.  /etc/resolv.conf is used to populate forwarders when running as a stub resolver (only "nameserver" lines are recognized).  If set_from_os is 1 /etc/hosts entries are preferred before resorting to a DNS query.  Errors in the system files will not prevent the context form being constructed.
 
 .HP 3
 .I userarg
-.RP
 In the extended use case this argument is passed unchanged to each of the memory management functions each time they are called.
 
 .HP 3
 .I malloc
-.RP
 The function that will be used for creating response dicts (and the members within the response dicts).  By default the system malloc is used.  
 
 .HP 3
 .I realloc
-.RP
 The function that will be used for creating response dicts (and the members within the response dicts).  By default the system realloc is used.
 
 .HP 3
 .I free
-.RP
 The function that will be used for releasing storage for response dicts (and the members within the response dicts).  By default the system free is used.
 
 

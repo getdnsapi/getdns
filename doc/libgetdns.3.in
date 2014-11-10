@@ -33,7 +33,7 @@ libgetdns
 DNS Resolver library (libgetdns, -lgetdns)
 
 .SH SYNOPSIS
-.Lb libgetdns
+.B libgetdns
 
 This man page describes the getdns library, the general concepts behind the API and some of the common elements of the public interface to the library.  Each of the public entry points and more complex data types are captured in separate man pages.
 
@@ -59,12 +59,12 @@ A context structure maintains DNS query and response data and is used to maintai
 .LP
 The project page for this implementation is at
 .IP
-http://www.getdnsapi.net
+http://getdnsapi.net
 
 .LP
 The specification is maintained at
 .IP
-http://www.vpnc.org/getdns-api
+http://getdnsapi.net/spec
 
 .LP
 The git repository for this implementation is at
@@ -113,16 +113,16 @@ Custom Event Loop Integrations
 .LP
 All functions and types discussed in this page are declared in getdns_extra.h
 
-.SS "File Descriptor Polling"
+.SS "Build-in Event loop"
 
-A common approach used in asynchronous applications is to poll a file
-descriptor via system calls like select and poll and then yielding CPU when
-ready. The API provides the following functions to support this approach:
+The library has an built in event loop that can be used if none of the extensions for external event loops are used. The library will execute requests and dispatch callbacks with a call to
+.I getdns_context_run().
+If an event loop extension is used, this will run the extension's eventloop.
 
 .HP 3
-int getdns_context_fd(getdns_context* context)
+void getdns_context_run(getdns_context *context)
 
-Get the file descriptor to poll for a given context.  Callers should never read from this result.  It is meant strictly for polling.Returns -1 if the context is NULL.
+Run the context's event loop until nothing more to do.
 
 .HP 3
 uint32_t getdns_context_get_num_pending_requests(getdns_context* context, struct timeval* next_timeout)
@@ -133,26 +133,6 @@ Get the number of outstanding asynchronous requests for a given context as well 
 getdns_return_t getdns_context_process_async(getdns_context* context)
 
 Inform the context to process its outstanding requests.  Users should call this when either a timeout has occurred or the file descriptor signals that it is ready.  User callbacks are fired during this call.
-
-.SS "Example Event Loop"
-
-The following is an example event loop leveraging select:
-
-.Bd -literal -compact
-    struct timeval tv;
-    /* Keep looping while there are outstanding requests */
-    while (getdns_context_get_num_pending_requests(context, &tv) > 0)
-    {
-        /* setup the read FD_SET to pass to select */
-        int fd = getdns_context_fd(context);
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(fd, &read_fds);
-        /* Wait on the FD or for a timeout */
-        select(fd + 1, &read_fds, NULL, NULL, &tv);
-        getdns_context_process_async(context);
-    }
-.Ed
 
 .SS "Included Event Loop Integrations"
 
@@ -197,77 +177,6 @@ Extension library: libgetdns_ext_ev.[shared_lib_ext]
 .br
 Extension header: getdns_ext_libev.h
 .RE
-
-.SS "Custom Event Loop Integrations"
-
-.LP
-The event loop integrations documented above all leverage the same event loop extension API provided by this library. The mechanism is exposed to developers who wish to integrate their own event loop. And includes the following functions and structures:
-
-.LP
-The application provides a callback to indicate that a timeout has occurred.
-
-.IP
-typedef void (*getdns_timeout_callback) (void* userarg);
-
-.LP
-Timeout data provided when scheduling a timeout is captured in this structure:
-
-.Bd -literal -compact
-typedef struct getdns_timeout_data {
-                              /* a timeout id */
-    getdns_transaction_t transaction_id;
-                              /* absolute time of the timeout */
-    struct timeval timeout_time;
-                              /* the timeout callback to fire */
-    getdns_timeout_callback callback;
-                              /* user arg to callback */
-    void* userarg;
-                              /* pointer to the underlying extension pointer that the extension will create and free */
-    void* extension_timer;
-    struct getdns_context* context;
-} getdns_timeout_data_t;
-.Ed
-
-.LP
-The application calls the extension to schedule a timer.  Any timer data that needs to be tracked should be stored in eventloop_timer.
-
-.IP
-typedef getdns_return_t (*getdns_eventloop_schedule_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, uint16_t timeout,
-    getdns_timeout_data_t* timeout_data,
-    void** eventloop_timer);
-
-.LP
-The application calls the extension to free a timer.  The timer passed in is the same as that returned in the schedule timeout.  This is the only place where it is safe to free timer data.  Extensions can expect this will be called for every schedule_timeout call.
-
-.IP
-typedef getdns_return_t (*getdns_eventloop_clear_timeout_t)(struct getdns_context* context,
-    void* eventloop_data, void* eventloop_timer);
-
-.LP
-The application informs the extension that the number of outbound requests has changed.  This is called when an asynchronous request is submitted or canceled by the user.
-
-.IP
-typedef getdns_return_t (*getdns_eventloop_request_count_changed_t)(struct getdns_context* context, uint32_t request_count, void* eventloop_data);
-
-.LP
-The application tell the extension to free up any data associated with the extension functions.  This is called when a context is destroyed, or the extension is being detached.
-
-.IP
-typedef getdns_return_t (*getdns_eventloop_cleanup_t)(struct getdns_context* context, void* eventloop_data);
-
-.LP
-The extension structure used by the getdns_context.
-
-.IP
-typedef struct getdns_eventloop_extension {
-    getdns_eventloop_cleanup_t cleanup_data;
-    getdns_eventloop_schedule_timeout_t schedule_timeout;
-    getdns_eventloop_clear_timeout_t clear_timeout;
-    getdns_eventloop_request_count_changed_t request_count_changed;
-} getdns_eventloop_extension;
-
-.Ed
 
 .SS "getdns_context event loop extension functions"
 
@@ -325,7 +234,7 @@ and
 .I replies_full lists
 
 .HP 3
-dnssec_return_supporting_responses (int)
+dnssec_return_validation_chain (int)
 
 Set to GETDNS_EXTENSION_TRUE to cause the set of additional DNSSEC-related records needed for validation to be returned in the response object as the list named
 .I additional_dnssec
@@ -390,12 +299,12 @@ dnssec_status (an int) added to the other names in the record's dict ("header",
 GETDNS_DNSSEC_BOGUS, GETDNS_DNSSEC_INDETERMINATE, and GETDNS_DNSSEC_INSECURE.
 Thus, a reply might look like:
 
-.Bd -literal -compact
+.EX
 {     # This is the first reply
       "dnssec_status": GETDNS_DNSSEC_INDETERMINATE,
       "header": { "id": 23456, "qr": 1, "opcode": 0, ... },
       . . .
-.Ed
+.EE
 
 .LP
 If instead of returning the status, you want to only see secure results, use
@@ -419,7 +328,7 @@ includes all resource record dicts for all the resource records (DS, DNSKEY and
 their RRSIGs) that are needed to perform the validation from the root up. Thus,
 a reply might look like:
 
-.Bd -literal -compact
+.EX
 {     # This is the response object
     "validation_chain":
     [ { "name": <bindata for .>,
@@ -491,7 +400,7 @@ a reply might look like:
   "replies_tree":
   [
   . . .
-.Ed
+.EE
 
 .LP
 If a request is using a context in which stub resolution is set, and that
@@ -509,27 +418,22 @@ the parameters; these are described in more detail in RFC 2671. They are:
 
 .HP 3
 .I maximum_udp_payload_size
-.RP
 (an int) between 512 and 65535; if not specified, this defaults to those from the DNS context
 
 .HP 3
 .I extended_rcode
-.RP
 (an int) between 0 and 255; if not specified, this defaults to those from the DNS context
 
 .HP 3
 .I version
-.RP
 (an int) between 0 and 255; if not specified, this defaults to 0
 
 .HP 3
 .I do_bit
-.RP
 (an int) between 0 and 1; if not specified, this defaults to those from the DNS context
 
 .HP 3
 .I options
-.RP
 (a list) contains dicts for each option to be specified. Each list time
 contains two names: option_code (an int) and option_data (a bindata). The API
 marshalls the entire set of options into a properly-formatted RDATA for the
@@ -705,12 +609,10 @@ getdns_transaction_t transaction_id)
 
 .HP 3
 .I context
-.RP
 see getdns_context (3)
 
 .HP 3
 .I callback_type
-.RP
 Supplies the reason for the callback.
 .RS 3
 .LP
@@ -729,7 +631,6 @@ The requested action had an error; response is NULL
 
 .HP 3
 .I response
-.RP
 A response object with the response data. This is described in the section
 titled "RESPONSE DATA" elsewhere in this manual page. The response object is
 part of the API's memory space, and will be freed by the API with the callback
@@ -737,12 +638,10 @@ returns.
 
 .HP 3
 .I userarg
-.RP
 Identical to the userarg passed to the calling function.
 
 .HP 3
 .I transaction_id
-.RP
 The transaction identified assigned by the calling function, used to associate a DNS response to a specific DNS request.
 
 .LP

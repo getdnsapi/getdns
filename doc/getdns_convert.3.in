@@ -75,14 +75,12 @@ null-terminated string in FQDN format to bytes in DNS format.
 
 .HP 3
 .I dns_name_wire_fmt
-.RP
 The non-compressed DNS wire format name (per RFC 1035) in a bindata structure that
 will be converted to/from an fqdn.  In getdns_convert_fqdn_to_dns_name storage is
 allocated using the system allocator (malloc) and must be freed by the caller.
 
 .HP 3
 .I fqdn_as_string
-.RP
 a null terminated string to be converted to/from non-compressed DNS wire format name (per RFC 1035).
 In getdns_convert_dns_name_to_fqdn storage is
 allocated using the system allocator (malloc) and must be freed by the caller.

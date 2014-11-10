@@ -49,7 +49,6 @@ elements in the dict.
 
 .HP 3
 .I this_dict
-.RP
 the dictionary to render as a string
 
 .HP
