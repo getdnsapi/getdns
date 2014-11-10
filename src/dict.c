@@ -581,6 +581,8 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
  * @param buf    buffer to write to
  * @param indent number of spaces to append after newline
  * @param list   the to list print
+ * @param for_namespaces The list is a list of namespace literals.
+ *               Show the literal instead of the value.
  * @return       on success the number of written characters
  *               if an output error is encountered, a negative value
  */

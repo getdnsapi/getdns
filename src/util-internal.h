@@ -143,8 +143,8 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
  * helper to check if an extension is set.
  * Should only be called for "boolean" type extensions that have a value of
  * GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
- * @param extensions dictionary
- * @param name of extension to check
+ * @param extensions extensions dictionary
+ * @param extension name of extension to check
  * @return int with value 1 if set to GETDNS_EXTENSION_TRUE and 0 otherwise
  */
 int is_extension_set(struct getdns_dict *extensions, const char *extension);
