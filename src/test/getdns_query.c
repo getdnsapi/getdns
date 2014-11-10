@@ -32,7 +32,7 @@
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
 
-int my_get_rrtype(const char *t);
+int get_rrtype(const char *t);
 
 void
 print_usage(FILE *out, const char *progname)
@@ -42,18 +42,18 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "options:\n");
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
 	    "(default = synchronous)\n");
-	fprintf(out, "\t-A\taddress lookup\n");
+	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
-	fprintf(out, "\t-H\thostname lookup\n");
+	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
 	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
-	fprintf(out, "\t-S\tservice lookup\n");
+	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
@@ -84,11 +84,17 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
 		addr.size = 16;
-		(void) inet_pton(AF_INET6, ipstr, buf);
+		if (inet_pton(AF_INET6, ipstr, buf) <= 0) {
+			getdns_dict_destroy(r);
+			return NULL;
+		}
 	} else {
 		getdns_dict_util_set_string(r, "address_type", "IPv4");
 		addr.size = 4;
-		(void) inet_pton(AF_INET, ipstr, buf);
+		if (inet_pton(AF_INET, ipstr, buf) <= 0) {
+			getdns_dict_destroy(r);
+			return NULL;
+		}
 	}
 	getdns_dict_set_bindata(r, "address_data", &addr);
 	if (*portstr)
@@ -111,8 +117,8 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 int
 main(int argc, char **argv)
 {
-	const char *the_root = ".";
-	const char *name = the_root;
+	char *the_root = ".";
+	char *name = the_root;
 	getdns_context *context;
 	getdns_dict *extensions;
 	getdns_dict *response = NULL;
@@ -126,6 +132,7 @@ main(int argc, char **argv)
 	size_t upstream_count = 0;
 	int print_api_info = 0, async = 0, interactive = 0;
 	enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
+	getdns_dict *address;
 
 	if ((r = getdns_context_create(&context, 1))) {
 		fprintf(stderr, "Create context failed: %d\n", r);
@@ -146,7 +153,7 @@ main(int argc, char **argv)
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
-		if ((t = my_get_rrtype(arg)) >= 0) {
+		if ((t = get_rrtype(arg)) >= 0) {
 			request_type = t;
 			continue;
 
@@ -296,11 +303,17 @@ next:		;
 			if (! token)
 				continue;
 
-			do 	if ((t = my_get_rrtype(token)) >= 0)
+			do 	if ((t = get_rrtype(token)) >= 0)
 					request_type = t;
 				else
 					name = token;
 			while ((token = strtok(NULL, " \t\f\n\r")));
+		}
+		if (calltype == HOSTNAME &&
+		    !(address = ipaddr_dict(context, name))) {
+			fprintf(stderr, "Could not convert \"%s\" "
+			                "to an IP address", name);
+			continue;
 		}
 		if (async) {
 			switch (calltype) {
@@ -310,6 +323,10 @@ next:		;
 				break;
 			case ADDRESS:
 				r = getdns_address(context, name,
+				    extensions, &response, NULL, callback);
+				break;
+			case HOSTNAME:
+				r = getdns_hostname(context, address,
 				    extensions, &response, NULL, callback);
 				break;
 			case SERVICE:
@@ -332,6 +349,10 @@ next:		;
 				break;
 			case ADDRESS:
 				r = getdns_address_sync(context, name,
+				    extensions, &response);
+				break;
+			case HOSTNAME:
+				r = getdns_hostname_sync(context, address,
 				    extensions, &response);
 				break;
 			case SERVICE:
@@ -368,6 +389,9 @@ done_destroy_context:
 }
 
 int get_rrtype(const char *t) {
+	char *endptr;
+	int r;
+
 	switch (t[0]) {
 	case 'A':
 	case 'a': switch (t[1]) {
@@ -748,6 +772,13 @@ int get_rrtype(const char *t) {
 	                    if ((t[2]|0x20) == 't' && t[3] == '\0')
 	                              return GETDNS_RRTYPE_TXT;
 	                    return -1;
+	          case 'Y':
+		  case 'y': /* before "TY", then "PE" followed by a number */
+	                    if ((t[2]|0x20) == 'p' && (t[3]|0x20) == 'e' && t[4] != '\0') {
+	                            r = (int) strtol(t + 4, &endptr, 10);
+	                            if (*endptr == '\0') return r;
+	                    }
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'U':
@@ -787,20 +818,5 @@ int get_rrtype(const char *t) {
 	          return -1;
 	default : return -1;
 	};
-}
-
-int my_get_rrtype(const char *t)
-{
-	int r = get_rrtype(t);
-	char *endptr;
-
-	if (r >= 0)
-		return r;
-	if (strncasecmp(t, "type", 4) == 0 && t[4] != '\0') {
-		r = (int) strtol(t+4, &endptr, 10);
-		if (*endptr != '\0')
-			r = -1;
-	}
-	return r;
 }
 
