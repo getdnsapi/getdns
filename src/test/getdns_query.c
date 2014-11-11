@@ -34,33 +34,6 @@
 
 int get_rrtype(const char *t);
 
-void
-print_usage(FILE *out, const char *progname)
-{
-	fprintf(out, "usage: %s [@<server>] [+extension] [<name>] [<type>]\n",
-	    progname);
-	fprintf(out, "options:\n");
-	fprintf(out, "\t-a\tPerform asynchronous resolution "
-	    "(default = synchronous)\n");
-	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
-	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
-	fprintf(out, "\t-D\tSet edns0 do bit\n");
-	fprintf(out, "\t-d\tclear edns0 do bit\n");
-	fprintf(out, "\t-G\tgeneral lookup\n");
-	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
-	fprintf(out, "\t-h\tPrint this help\n");
-	fprintf(out, "\t-i\tPrint api information\n");
-	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
-	fprintf(out, "\t-r\tSet recursing resolution type\n");
-	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
-	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
-	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
-	fprintf(out, "\t-T\tSet transport to TCP only\n");
-	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
-	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
-	fprintf(out, "\t-U\tSet transport to UDP only\n");
-}
-
 getdns_dict *
 ipaddr_dict(getdns_context *context, char *ipstr)
 {
@@ -105,6 +78,33 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	return r;
 }
 
+void
+print_usage(FILE *out, const char *progname)
+{
+	fprintf(out, "usage: %s [@<server>] [+extension] [<name>] [<type>]\n",
+	    progname);
+	fprintf(out, "options:\n");
+	fprintf(out, "\t-a\tPerform asynchronous resolution "
+	    "(default = synchronous)\n");
+	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
+	fprintf(out, "\t-D\tSet edns0 do bit\n");
+	fprintf(out, "\t-d\tclear edns0 do bit\n");
+	fprintf(out, "\t-G\tgeneral lookup\n");
+	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	fprintf(out, "\t-h\tPrint this help\n");
+	fprintf(out, "\t-i\tPrint api information\n");
+	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
+	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
+	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-T\tSet transport to TCP only\n");
+	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
+	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
+	fprintf(out, "\t-U\tSet transport to UDP only\n");
+}
+
 void callback(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t trans_id)
 {
@@ -114,42 +114,25 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 		*response_ptr = response;
 }
 
-int
-main(int argc, char **argv)
+static char *the_root = ".";
+static char *name;
+static getdns_context *context;
+static getdns_dict *extensions;
+static uint16_t request_type = GETDNS_RRTYPE_NS;
+static int timeout, edns0_size;
+static int async = 0, interactive = 0;
+static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
+
+#define CONTINUE ((getdns_return_t)-2)
+
+getdns_return_t parse_args(int argc, char **argv)
 {
-	char *the_root = ".";
-	char *name = the_root;
-	getdns_context *context;
-	getdns_dict *extensions;
-	getdns_dict *response = NULL;
-	char *response_str;
-	getdns_return_t r;
-	uint16_t request_type = GETDNS_RRTYPE_NS;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
 	char *arg, *c, *endptr;
-	int t, timeout, edns0_size;
-	getdns_list *upstream_list;
+	int t, print_api_info = 0;
+	getdns_list *upstream_list = NULL;
 	size_t upstream_count = 0;
-	int print_api_info = 0, async = 0, interactive = 0;
-	enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
-	getdns_dict *address;
-
-	if ((r = getdns_context_create(&context, 1))) {
-		fprintf(stderr, "Create context failed: %d\n", r);
-		return r;
-	}
-	upstream_list = getdns_list_create_with_context(context);
-	if (!upstream_list) {
-		fprintf(stderr, "Could not create upstream list\n");
-		r = GETDNS_RETURN_MEMORY_ERROR;
-		goto done_destroy_context;
-	}
-	extensions = getdns_dict_create();
-	if (! extensions) {
-		fprintf(stderr, "Could not create extensions dict\n");
-		r = GETDNS_RETURN_MEMORY_ERROR;
-		goto done_destroy_context;
-	}
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -162,24 +145,26 @@ main(int argc, char **argv)
 			    GETDNS_EXTENSION_TRUE))) {
 				fprintf(stderr, "Could not set extension "
 				    "\"%s\": %d\n", argv[i], r);
-				goto done_destroy_extensions;
+				break;
 			}
 			continue;
 
 		} else if (arg[0] == '@') {
 			getdns_dict *upstream = ipaddr_dict(context, arg + 1);
-			if (upstream)
+			if (upstream) {
+				if (!upstream_list &&
+				    !(upstream_list =
+				    getdns_list_create_with_context(context))){
+					fprintf(stderr, "Could not create upstream list\n");
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
 				getdns_list_set_dict(upstream_list,
 				    upstream_count++, upstream);
+			}
 			continue;
 		} else if (arg[0] != '-') {
-			if (name == the_root) {
-				name = arg;
-				continue;
-			}
-			fprintf(stderr, "More than one <name> given\n");
-			print_usage(stderr, argv[0]);
-			return -1;
+			name = arg;
+			continue;
 		}
 		for (c = arg+1; *c; c++) {
 			switch (*c) {
@@ -193,14 +178,14 @@ main(int argc, char **argv)
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "max_udp_payload_size "
 					    "expected after -b\n");
-					return -1;
+					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				edns0_size = strtol(argv[i], &endptr, 10);
 				if (*endptr || edns0_size < 0) {
 					fprintf(stderr, "positive "
 					    "numeric max_udp_payload_size "
 					    "expected after -b\n");
-					return -1;
+					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				getdns_context_set_edns_maximum_udp_payload_size(
 				    context, (uint16_t) edns0_size);
@@ -219,7 +204,7 @@ main(int argc, char **argv)
 				break;
 			case 'h':
 				print_usage(stdout, argv[0]);
-				return 0;
+				return CONTINUE;
 			case 'i':
 				print_api_info = 1;
 				break;
@@ -242,14 +227,14 @@ main(int argc, char **argv)
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "ttl expected "
 					    "after -t\n");
-					return -1;
+					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				timeout = strtol(argv[i], &endptr, 10);
 				if (*endptr || timeout < 0) {
 					fprintf(stderr, "positive "
 					    "numeric ttl expected "
 					    "after -t\n");
-					return -1;
+					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				getdns_context_set_timeout(
 					context, timeout);
@@ -275,39 +260,74 @@ main(int argc, char **argv)
 			default:
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
-				return -1;
+				for (i = 0; i < argc; i++)
+					fprintf(stderr, "%d: \"%s\"\n", (int)i, argv[i]);
+				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 		}
 next:		;
 	}
+	if (r)
+		return r;
 	if (upstream_count &&
 	    (r = getdns_context_set_upstream_recursive_servers(
 	    context, upstream_list))) {
 		fprintf(stderr, "Error setting upstream recursive servers\n");
-		goto done_destroy_extensions;
 	}
 	if (print_api_info) {
 		fprintf(stdout, "%s\n", getdns_pretty_print_dict(
 		    getdns_context_get_api_information(context)));
-		return 0;
+		return CONTINUE;
 	}
+	return r;
+}
+
+int
+main(int argc, char **argv)
+{
+	getdns_dict *response = NULL;
+	char *response_str;
+	getdns_return_t r;
+	getdns_dict *address = NULL;
+	int t;
+
+	name = the_root;
+	if ((r = getdns_context_create(&context, 1))) {
+		fprintf(stderr, "Create context failed: %d\n", r);
+		return r;
+	}
+	extensions = getdns_dict_create();
+	if (! extensions) {
+		fprintf(stderr, "Could not create extensions dict\n");
+		r = GETDNS_RETURN_MEMORY_ERROR;
+		goto done_destroy_context;
+	}
+	if ((r = parse_args(argc, argv)))
+		goto done_destroy_context;
+
 	/* Make the call */
 	do {
-		char line[1024], *token;
+		char line[1024], *token, *linev[256];
+		int linec;
 		if (interactive) {
 			fprintf(stdout, "> ");
 			if (!fgets(line, 1024, stdin) || !*line)
 				break;
 
-			token = strtok(line, " \t\f\n\r");
-			if (! token)
+			linev[0] = argv[0];
+			linec = 1;
+			if ( ! (token = strtok(line, " \t\f\n\r")))
 				continue;
-
-			do 	if ((t = get_rrtype(token)) >= 0)
-					request_type = t;
+			do linev[linec++] = token;
+			while (linec < 256 &&
+			    (token = strtok(NULL, " \t\f\n\r")));
+			if ((r = parse_args(linec, linev))) {
+				if (r == CONTINUE)
+					continue;
 				else
-					name = token;
-			while ((token = strtok(NULL, " \t\f\n\r")));
+					goto done_destroy_context;
+			}
+
 		}
 		if (calltype == HOSTNAME &&
 		    !(address = ipaddr_dict(context, name))) {
@@ -379,10 +399,11 @@ next:		;
 done_destroy_extensions:
 	getdns_dict_destroy(extensions);
 done_destroy_context:
-	if (upstream_list) getdns_list_destroy(upstream_list);
 	if (response) getdns_dict_destroy(response);
 	getdns_context_destroy(context);
 
+	if (r == CONTINUE)
+		return 0;
 	if (r)
 		fprintf(stderr, "An error occurred: %d\n", r);
 	return r;
