@@ -41,6 +41,8 @@
 #include "util-internal.h"
 #include "general.h"
 
+#define TLS_PORT 1021
+
 static time_t secret_rollover_time = 0;
 static uint32_t secret = 0;
 static uint32_t prev_secret = 0;
@@ -318,6 +320,13 @@ upstream_erred(getdns_upstream *upstream)
 		netreq->state = NET_REQ_FINISHED;
 		priv_getdns_check_dns_req_complete(netreq->owner);
 	}
+	// TODO[TLS]: When we get an error (which is probably a timeout) and are 
+	// using to keep connections open should we leave the connection up here?
+	if (upstream->tls_obj) {
+		SSL_shutdown(upstream->tls_obj);
+		SSL_free(upstream->tls_obj);
+		upstream->tls_obj = NULL;
+	}
 	close(upstream->fd);
 	upstream->fd = -1;
 }
@@ -498,6 +507,8 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 	uint8_t *buf;
 	size_t   buf_size;
 
+	fprintf(stderr, "[TLS] method: stub_tcp_read\n");
+
 	if (!tcp->read_buf) {
 		/* First time tcp read, create a buffer for reading */
 		if (!(tcp->read_buf = GETDNS_XMALLOC(*mf, uint8_t, 4096)))
@@ -518,10 +529,11 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 		/* TODO: Try to reconnect */
 		return STUB_TCP_ERROR;
 	}
+	fprintf(stderr, "[TLS] method: read %d TCP bytes \n", (int)read);
 	tcp->to_read  -= read;
 	tcp->read_pos += read;
 	
-	if (tcp->to_read > 0)
+	if ((int)tcp->to_read > 0)
 		return STUB_TCP_AGAIN;
 
 	read = tcp->read_pos - tcp->read_buf;
@@ -563,13 +575,16 @@ stub_tcp_read_cb(void *userarg)
 	                          &dnsreq->context->mf))) {
 
 	case STUB_TCP_AGAIN:
+		fprintf(stderr, "[TLS] method: stub_tcp_read_cb -> tcp again\n");
 		return;
 
 	case STUB_TCP_ERROR:
+		fprintf(stderr, "[TLS] method: stub_tcp_read_cb -> tcp error\n");
 		stub_erred(netreq);
 		return;
 
 	default:
+		fprintf(stderr, "[TLS] method: stub_tcp_read_cb -> All done. close fd %d\n", netreq->fd);
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		if (q != netreq->query_id)
 			return;
@@ -595,8 +610,200 @@ stub_tcp_read_cb(void *userarg)
 	}
 }
 
+/** wait for a socket to become ready */
+static int
+sock_wait(int sockfd)
+{
+	int ret;
+	fd_set fds;
+	FD_ZERO(&fds);
+	FD_SET(FD_SET_T sockfd, &fds);
+	struct timeval timeout = {2, 0 };
+	ret = select(sockfd+1, NULL, &fds, NULL, &timeout);
+	if(ret == 0)
+		/* timeout expired */
+		return 0;
+	else if(ret == -1)
+		/* error */
+		return 0;
+	return 1;
+}
+
+static int
+sock_connected(int sockfd) 
+{
+	fprintf(stderr, "[TLS] connect in progress \n");
+	/* wait(write) until connected or error */
+	while(1) {
+		int error = 0;
+		socklen_t len = (socklen_t)sizeof(error);
+
+		if(!sock_wait(sockfd)) {
+			close(sockfd);
+			return -1;
+		}
+
+		/* check if there is a pending error for nonblocking connect */
+		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (void*)&error, &len) < 0) {
+			error = errno; /* on solaris errno is error */
+		}
+		if (error == EINPROGRESS || error == EWOULDBLOCK)
+			continue; /* try again */
+		else if (error != 0) {
+			close(sockfd);
+			return -1;
+		}
+		/* connected */
+		break;
+	}
+	return sockfd;
+}
+
+/* The connection testing and handshake should be handled by integrating this 
+ * with the event loop framework, but for now just implement a standalone
+ * handshake method.*/
+SSL*
+do_tls_handshake(getdns_dns_req *dnsreq, getdns_upstream *upstream) 
+{
+	/*Lets make sure the connection is up before we try a handshake*/
+	if (errno == EINPROGRESS && sock_connected(upstream->fd) == -1) {
+		fprintf(stderr, "[TLS] connect failed \n");
+		return NULL;
+	}
+	fprintf(stderr, "[TLS] connect done \n");
+
+	/* Create SSL instance */
+	SSL* ssl = SSL_new(dnsreq->context->tls_ctx);
+	if(!ssl) {
+		return NULL;
+	}
+	/* Connect the SSL object with a file descriptor */
+	if(!SSL_set_fd(ssl, upstream->fd)) {
+		SSL_free(ssl);
+		return NULL;
+	}
+	SSL_set_connect_state(ssl);
+	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
+	int r;
+	int want;
+	fd_set fds;
+	FD_ZERO(&fds);
+	FD_SET(upstream->fd, &fds);
+	struct timeval timeout = {dnsreq->context->timeout/1000, 0 };
+	while ((r = SSL_do_handshake(ssl)) != 1)
+	{
+		want = SSL_get_error(ssl, r);
+		fprintf(stderr, "[TLS] in handshake loop  %d, want is %d \n", r, want);
+		switch (want) {
+			case SSL_ERROR_WANT_READ:
+				if (select(upstream->fd + 1, &fds, NULL, NULL, &timeout) == 0) {
+					fprintf(stderr, "[TLS] ssl handshake timeout %d\n", want);
+					SSL_free(ssl);
+					return NULL;
+				}
+				break;
+			case SSL_ERROR_WANT_WRITE:
+				if (select(upstream->fd + 1, NULL, &fds, NULL, &timeout) == 0) {
+					fprintf(stderr, "[TLS] ssl handshake timeout %d\n", want);
+					SSL_free(ssl);
+					return NULL;
+				}
+				break;
+			default: 
+				fprintf(stderr, "[TLS] got ssl error code %d\n", want);
+				SSL_free(ssl);
+				return NULL;
+	   }
+	}
+	fprintf(stderr, "[TLS] got TLS connection\n");
+	return ssl;
+}
+
+static int
+stub_tls_read(SSL* tls_obj, getdns_tcp_state *tcp, struct mem_funcs *mf)
+{
+	ssize_t  read;
+	uint8_t *buf;
+	size_t   buf_size;
+
+	fprintf(stderr, "[TLS] method: stub_tls_read\n");
+
+	if (!tcp->read_buf) {
+		/* First time tls read, create a buffer for reading */
+		if (!(tcp->read_buf = GETDNS_XMALLOC(*mf, uint8_t, 4096)))
+			return STUB_TCP_ERROR;
+
+		tcp->read_buf_len = 4096;
+		tcp->read_pos = tcp->read_buf;
+		tcp->to_read = 2; /* Packet size */
+	}
+
+	ERR_clear_error();
+	read = SSL_read(tls_obj, tcp->read_pos, tcp->to_read);
+	if (read <= 0) {
+		/* TODO[TLS]: Handle SSL_ERROR_WANT_WRITE which means handshake
+		   renegotiation. Need to keep handshake state to do that.*/
+		int want = SSL_get_error(tls_obj, read);
+		if (want == SSL_ERROR_WANT_READ) {
+			return STUB_TCP_AGAIN; /* read more later */
+		} else 
+			return STUB_TCP_ERROR;
+	}
+	fprintf(stderr, "[TLS] method: read %d TLS bytes \n", (int)read);
+	tcp->to_read  -= read;
+	tcp->read_pos += read;
+
+	if ((int)tcp->to_read > 0)
+		return STUB_TCP_AGAIN;
+
+	read = tcp->read_pos - tcp->read_buf;
+	if (read == 2) {
+		/* Read the packet size short */
+		tcp->to_read = gldns_read_uint16(tcp->read_buf);
+		fprintf(stderr, "[TLS] method: %d TLS bytes to read \n", (int)tcp->to_read);
+
+		if (tcp->to_read < GLDNS_HEADER_SIZE)
+			return STUB_TCP_ERROR;
+
+		/* Resize our buffer if needed */
+		if (tcp->to_read > tcp->read_buf_len) {
+			buf_size = tcp->read_buf_len;
+			while (tcp->to_read > buf_size)
+				buf_size *= 2;
+		
+			if (!(buf = GETDNS_XREALLOC(*mf,
+			    tcp->read_buf, uint8_t, buf_size)))
+				return STUB_TCP_ERROR;
+		
+			tcp->read_buf = buf;
+			tcp->read_buf_len = buf_size;
+		}
+
+		/* Ready to start reading the packet */
+		fprintf(stderr, "[TLS] method: resetting read_pos \n");
+		tcp->read_pos = tcp->read_buf;
+		read = SSL_read(tls_obj, tcp->read_pos, tcp->to_read);
+		if (read <= 0) {
+			/* TODO[TLS]: Handle SSL_ERROR_WANT_WRITE which means handshake
+			   renegotiation. Need to keep handshake state to do that.*/
+			int want = SSL_get_error(tls_obj, read);
+			if (want == SSL_ERROR_WANT_READ) {
+				return STUB_TCP_AGAIN; /* read more later */
+			} else 
+				return STUB_TCP_ERROR;
+		}
+		tcp->to_read  -= read;
+		tcp->read_pos += read;
+		if ((int)tcp->to_read > 0)
+			return STUB_TCP_AGAIN;
+	}
+	return GLDNS_ID_WIRE(tcp->read_buf);
+}
+
 static void netreq_upstream_read_cb(void *userarg);
 static void netreq_upstream_write_cb(void *userarg);
+static void upstream_write_cb(void *userarg);
 static void
 upstream_read_cb(void *userarg)
 {
@@ -607,9 +814,18 @@ upstream_read_cb(void *userarg)
 	uint16_t query_id;
 	intptr_t query_id_intptr;
 
-	switch ((q = stub_tcp_read(upstream->fd, &upstream->tcp,
-	                          &upstream->upstreams->mf))) {
+	fprintf(stderr, "[TLS] method: upstream_read_cb\n");
+
+	if (upstream->tls_obj)
+		q = stub_tls_read(upstream->tls_obj, &upstream->tcp,
+		              &upstream->upstreams->mf);
+	else
+		q = stub_tcp_read(upstream->fd, &upstream->tcp,
+		             &upstream->upstreams->mf);
+
+	switch (q) {
 	case STUB_TCP_AGAIN:
+		fprintf(stderr, "[TLS] method: upstream_read_cb -> STUB_TCP_AGAIN\n");
 		return;
 
 	case STUB_TCP_ERROR:
@@ -617,6 +833,8 @@ upstream_read_cb(void *userarg)
 		return;
 
 	default:
+		fprintf(stderr, "[TLS] method: upstream_read_cb -> processing reponse\n");
+
 		/* Lookup netreq */
 		query_id = (uint16_t) q;
 		query_id_intptr = (intptr_t) query_id;
@@ -633,6 +851,7 @@ upstream_read_cb(void *userarg)
 		netreq->response = upstream->tcp.read_buf;
 		netreq->response_len =
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
+		netreq->tls_obj = upstream->tls_obj;
 		upstream->tcp.read_buf = NULL;
 		upstream->upstreams->current = 0;
 
@@ -687,6 +906,7 @@ static int
 stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 {
 	getdns_dns_req *dnsreq = netreq->owner;
+	fprintf(stderr, "[TLS] method: stub_tcp_write\n");
 
 	size_t          pkt_len = netreq->response - netreq->query;
 	ssize_t         written;
@@ -705,9 +925,9 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		 * the write_queue) for that upstream.  Register this netreq 
 		 * by query_id in the process.
 		 */
-		if (dnsreq->context->dns_transport !=
-		    GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN)
-
+		if ((dnsreq->context->dns_transport == GETDNS_TRANSPORT_TCP_ONLY) ||
+			(dnsreq->context->dns_transport == GETDNS_TRANSPORT_UDP_ONLY) ||
+			(dnsreq->context->dns_transport == GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP))
 			query_id = arc4random();
 		else do {
 			query_id = arc4random();
@@ -822,6 +1042,56 @@ stub_tcp_write_cb(void *userarg)
 	}
 }
 
+static int
+stub_tls_write(SSL* tls_obj, getdns_tcp_state *tcp, getdns_network_req *netreq)
+{
+	fprintf(stderr, "[TLS] method: stub_tls_write\n");
+
+	size_t          pkt_len = netreq->response - netreq->query;
+	ssize_t         written;
+	uint16_t        query_id;
+	intptr_t        query_id_intptr;
+
+	/* Do we have remaining data that we could not write before?  */
+	if (! tcp->write_buf) {
+		/* No, this is an initial write. Try to send
+		 */
+
+		 /* Find a unique query_id not already written (or in
+		 * the write_queue) for that upstream.  Register this netreq 
+		 * by query_id in the process.
+		 */
+		do {
+			query_id = ldns_get_random();
+			query_id_intptr = (intptr_t)query_id;
+			netreq->node.key = (void *)query_id_intptr;
+
+		} while (!getdns_rbtree_insert(
+		    &netreq->upstream->netreq_by_query_id, &netreq->node));
+
+		GLDNS_ID_SET(netreq->query, query_id);
+		if (netreq->opt)
+			/* no limits on the max udp payload size with tcp */
+			gldns_write_uint16(netreq->opt + 3, 65535);
+
+		/* We have an initialized packet buffer.
+		 * Lets see how much of it we can write */
+		
+		// TODO[TLS]: Handle error cases, partial writes, renegotiation etc.
+		ERR_clear_error();
+		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
+		if (written <= 0)
+			return STUB_TCP_ERROR;
+
+		/* We were able to write everything!  Start reading. */
+		return (int) query_id;
+
+	} 
+
+	return STUB_TCP_ERROR;
+}
+
+
 static void
 upstream_write_cb(void *userarg)
 {
@@ -830,7 +1100,14 @@ upstream_write_cb(void *userarg)
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
 
-	switch ((q = stub_tcp_write(upstream->fd, &upstream->tcp, netreq))) {
+	fprintf(stderr, "[TLS] method: upstream_write_cb for %s with class %d\n", dnsreq->name, (int)netreq->request_class);
+	
+	if (upstream->tls_obj)
+		q = stub_tls_write(upstream->tls_obj, &upstream->tcp, netreq);
+	else
+		q = stub_tcp_write(upstream->fd, &upstream->tcp, netreq);
+
+	switch (q) {
 	case STUB_TCP_AGAIN:
 		return;
 
@@ -902,18 +1179,110 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 	}
 }
 
+static in_port_t
+get_port(struct sockaddr_storage* addr)
+{
+	return ntohs(addr->ss_family == AF_INET
+	    ? ((struct sockaddr_in *)addr)->sin_port
+	    : ((struct sockaddr_in6*)addr)->sin6_port);
+}
+
+void
+set_port(struct sockaddr_storage* addr, in_port_t port)
+{
+	addr->ss_family == AF_INET
+	    ? (((struct sockaddr_in *)addr)->sin_port = htons(port))
+	    : (((struct sockaddr_in6*)addr)->sin6_port = htons(port));
+}
+
+typedef enum getdns_base_transport {
+	NONE,
+	UDP,
+	TCP_SINGLE,
+	TCP,
+	TLS
+} getdns_base_transport_t;
+
+getdns_transport_t
+get_transport(getdns_transport_t transport, int level) {
+	if (!(level == 0 || level == 1)) return NONE;
+	switch (transport) {
+ 		case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+			if (level == 0) return UDP;
+			if (level == 1) return TCP;
+		case GETDNS_TRANSPORT_UDP_ONLY:
+			if (level == 0) return UDP;
+			if (level == 1) return NONE;
+		case GETDNS_TRANSPORT_TCP_ONLY:
+			if (level == 0) return TCP_SINGLE;
+			if (level == 1) return NONE;
+		case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+			if (level == 0) return TCP;
+			if (level == 1) return NONE;
+		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+			if (level == 0) return TLS;
+			if (level == 1) return NONE;
+		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+			if (level == 0) return TLS;
+			if (level == 1) return TCP;
+		default:
+			return NONE;
+		}
+}
+
+int
+tcp_connect (getdns_upstream *upstream, getdns_base_transport_t transport) {
+
+	int fd =-1;
+	struct sockaddr_storage  connect_addr;
+	struct sockaddr_storage* addr = &upstream->addr;
+	socklen_t addr_len = upstream->addr_len;
+
+	/* TODO[TLS]: For now, override the port to a hardcoded value*/
+	if (transport == TLS && (int)get_port(addr) != TLS_PORT) {
+		connect_addr = upstream->addr;
+		addr = &connect_addr;
+		set_port(addr, TLS_PORT);
+		fprintf(stderr, "[TLS] Forcing switch to port %d for TLS\n", TLS_PORT);
+	}
+
+	if ((fd = socket(addr->ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
+		return -1;
+
+	getdns_sock_nonblock(fd);
+#ifdef USE_TCP_FASTOPEN
+	/* Leave the connect to the later call to sendto() if using TCP*/
+	if (transport == TCP || transport == TCP_SINGLE)
+		return fd;
+#endif
+	if (connect(fd, (struct sockaddr *)addr,
+	    addr_len) == -1) {
+		if (errno != EINPROGRESS) {
+			close(fd);
+			return -1;
+		}
+	}
+	return fd;
+}
+
 getdns_return_t
 priv_getdns_submit_stub_request(getdns_network_req *netreq)
 {
 	getdns_dns_req  *dnsreq   = netreq->owner;
 	getdns_upstream *upstream = pick_upstream(dnsreq);
 
+	fprintf(stderr, "[TLS] method: priv_getdns_submit_stub_request\n");
+
 	if (!upstream)
 	    	return GETDNS_RETURN_GENERIC_ERROR;
 
-	switch(dnsreq->context->dns_transport) {
-	case GETDNS_TRANSPORT_UDP_ONLY:
-	case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+	// Work out the primary and fallback transport options
+	getdns_base_transport_t transport    = get_transport(
+	                                       dnsreq->context->dns_transport,0);
+	getdns_base_transport_t fb_transport = get_transport(
+	                                       dnsreq->context->dns_transport,1);
+	switch(transport) {
+	case UDP:
 
 		if ((netreq->fd = socket(
 		    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -929,23 +1298,10 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 
 		return GETDNS_RETURN_GOOD;
 
-	case GETDNS_TRANSPORT_TCP_ONLY:
+	case TCP_SINGLE:
 
-		if ((netreq->fd = socket(
-		    upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
+		if ((netreq->fd = tcp_connect(upstream, transport)) == -1)
 			return GETDNS_RETURN_GENERIC_ERROR;
-		
-		getdns_sock_nonblock(netreq->fd);
-#ifdef USE_TCP_FASTOPEN
-		/* Leave the connect to the later call to sendto() */
-#else
-		if (connect(netreq->fd, (struct sockaddr *)&upstream->addr,
-		    upstream->addr_len) == -1 && errno != EINPROGRESS) {
-
-			close(netreq->fd);
-			return GETDNS_RETURN_GENERIC_ERROR;
-		}
-#endif
 		netreq->upstream = upstream;
 
 		GETDNS_SCHEDULE_EVENT(
@@ -955,36 +1311,57 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 
 		return GETDNS_RETURN_GOOD;
 	
-	case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+	case TCP:
+	case TLS:
 		
 		/* In coming comments, "global" means "context wide" */
 
 		/* Are we the first? (Is global socket initialized?) */
 		if (upstream->fd == -1) {
-			/* We are the first. Make global socket and connect. */
-			if ((upstream->fd = socket(upstream->addr.ss_family,
-			    SOCK_STREAM, IPPROTO_TCP)) == -1)
-				return GETDNS_RETURN_GENERIC_ERROR;
-			
-			getdns_sock_nonblock(upstream->fd);
-#ifdef USE_TCP_FASTOPEN
-		/* Leave the connect to the later call to sendto() */
-#else
-			if (connect(upstream->fd,
-			    (struct sockaddr *)&upstream->addr,
-			    upstream->addr_len) == -1 && errno != EINPROGRESS){
+			/* TODO[TLS]: We should remember on the context if we had to fallback
+			 * for this upstream so when re-connecting from a dropped TCP 
+			 * connection we don't retry TLS. */
+			int fallback = 0;
 
-				close(upstream->fd);
-				upstream->fd = -1;
-				return GETDNS_RETURN_GENERIC_ERROR;
+			/* We are the first. Make global socket and connect. */
+			if ((upstream->fd = tcp_connect(upstream, transport)) == -1) {
+				//TODO: Hum, a reset doesn't make the connect fail...
+				if (fb_transport == NONE)
+					return GETDNS_RETURN_GENERIC_ERROR;
+				fprintf(stderr, "[TLS] Connect failed on fd... %d\n", upstream->fd);
+				if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
+					return GETDNS_RETURN_GENERIC_ERROR;
+				fallback = 1; 
 			}
-#endif
-			/* Attach to the global event loop
-			 * so it can do it's own scheduling
-			 */
-			upstream->loop = dnsreq->context->extension;
+			
+			/* Now do a handshake for TLS. Note waiting for this to succeed or 
+			   timeout blocks the scheduling of any messages for this upstream*/
+			if (transport == TLS && (fallback == 0)) {
+				fprintf(stderr, "[TLS] Doing SSL handshake... %d\n", upstream->fd);
+				upstream->tls_obj = do_tls_handshake(dnsreq, upstream);
+				if (!upstream->tls_obj) {
+					if (fb_transport == NONE)
+						return GETDNS_RETURN_GENERIC_ERROR;
+					close(upstream->fd);
+					if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
+						return GETDNS_RETURN_GENERIC_ERROR;
+				}
+			}
+		} else {
+			/* Cater for the case of the user downgrading and existing TLS
+			   connection to TCP for some reason...*/
+			if (transport == TCP && upstream->tls_obj) {
+				SSL_shutdown(upstream->tls_obj);
+				SSL_free(upstream->tls_obj);
+				upstream->tls_obj = NULL;
+			}
 		}
 		netreq->upstream = upstream;
+
+		/* Attach to the global event loop
+		 * so it can do it's own scheduling
+		 */
+		upstream->loop = dnsreq->context->extension;
 
 		/* We have a context wide socket.
 		 * Now schedule the write request.

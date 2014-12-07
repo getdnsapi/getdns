@@ -163,7 +163,9 @@ typedef enum getdns_transport_t {
 	GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP = 540,
 	GETDNS_TRANSPORT_UDP_ONLY = 541,
 	GETDNS_TRANSPORT_TCP_ONLY = 542,
-	GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN = 543
+	GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN = 543,
+	GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN = 544,
+	GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN = 545
 } getdns_transport_t;
 
 /**
@@ -174,6 +176,8 @@ typedef enum getdns_transport_t {
 #define GETDNS_TRANSPORT_UDP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 /** @}
  */
 

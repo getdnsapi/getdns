@@ -471,6 +471,24 @@ upstreams_resize(getdns_upstreams *upstreams, size_t size)
 }
 
 static void
+upstreams_cleanup(getdns_upstreams *upstreams)
+{
+	if (!upstreams)
+		return;
+	for (int i = 0; i < (int)upstreams->count; i++) {
+		if (upstreams->upstreams[i].tls_obj != NULL) {
+			SSL_shutdown(upstreams->upstreams[i].tls_obj);
+			SSL_free(upstreams->upstreams[i].tls_obj);
+			upstreams->upstreams[i].tls_obj = NULL;
+		}
+		if (upstreams->upstreams[i].fd != -1) {
+			close(upstreams->upstreams[i].fd);
+			upstreams->upstreams[i].fd = -1;
+		}
+	}
+}
+
+static void
 upstreams_dereference(getdns_upstreams *upstreams)
 {
 	if (upstreams && --upstreams->referenced == 0)
@@ -541,6 +559,7 @@ upstream_init(getdns_upstream *upstream,
 
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
+	upstream->tls_obj  = NULL;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -770,6 +789,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
+	result-> tls_ctx = NULL;
 
 	result->extension = &result->mini_event.loop;
 	if ((r = getdns_mini_event_init(result, &result->mini_event)))
@@ -876,6 +896,9 @@ getdns_context_destroy(struct getdns_context *context)
 			GETDNS_FREE(context->my_mf, context->fchg_hosts->prevstat);
 		GETDNS_FREE(context->my_mf, context->fchg_hosts);
 	}
+	if (context->tls_ctx) {
+		SSL_CTX_free(context->tls_ctx);
+	}
 
     getdns_list_destroy(context->dns_root_servers);
     getdns_list_destroy(context->suffix);
@@ -887,6 +910,7 @@ getdns_context_destroy(struct getdns_context *context)
 
 	getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
+	upstreams_cleanup(context->upstreams);
 	upstreams_dereference(context->upstreams);
 
     GETDNS_FREE(context->my_mf, context);
@@ -1114,13 +1138,25 @@ set_ub_dns_transport(struct getdns_context* context,
             set_ub_string_opt(context, "do-tcp:", "no");
             break;
         case GETDNS_TRANSPORT_TCP_ONLY:
-	case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+        case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
             set_ub_string_opt(context, "do-udp:", "no");
             set_ub_string_opt(context, "do-tcp:", "yes");
             break;
-        default:
-            /* TODO GETDNS_CONTEXT_TCP_ONLY_KEEP_CONNECTIONS_OPEN */
-            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+       case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+       case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+           /* TODO: Investigate why ssl-upstream in Unbound isn't working (error
+              that the SSL lib isn't init'ed but that is done in prep_for_res.*/
+           /* Note: no fallback or pipelining available directly in unbound.*/
+           set_ub_string_opt(context, "do-udp:", "no");
+           set_ub_string_opt(context, "do-tcp:", "yes");
+           //set_ub_string_opt(context, "ssl-upstream:", "yes");
+           /* TODO: Specifying a different port to do TLS on in unbound is a bit
+              tricky as it involves modifying each fwd upstream defined on the 
+              unbound ctx... And to support fallback this would have to be reset
+              from the stub code while trying to connect...*/
+           break;
+       default:
+           return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         }
     return GETDNS_RETURN_GOOD;
 }
@@ -1134,6 +1170,11 @@ getdns_context_set_dns_transport(struct getdns_context *context,
     getdns_transport_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Note that the call below does not have any effect in unbound after the
+       ctx is finalised. So will not apply for recursive mode or stub + dnssec.
+       However the method returns success as otherwise the transport could not
+       be reset for stub mode..... */
+    /* Also, not all transport options supported in libunbound yet*/
     if (set_ub_dns_transport(context, value) != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
@@ -1448,6 +1489,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		freeaddrinfo(ai);
 	}
 	upstreams_dereference(context->upstreams);
+	/*Don't the existing upstreams need to be handled before overwritting here?*/
 	context->upstreams = upstreams;
 	dispatch_updated(context,
 		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
@@ -1756,6 +1798,34 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
     if (context->destroying) {
         return GETDNS_RETURN_BAD_CONTEXT;
     }
+
+	/* Transport can in theory be set per query in stub mode so deal with it
+	   here */
+	printf("[TLS] preparing for resolution, checking transport type\n");
+	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
+		switch (context->dns_transport) {
+			case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+			case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+				if (context->tls_ctx == NULL) {
+					/* Init the SSL library */
+					SSL_library_init();
+					/* Load error messages */
+					SSL_load_error_strings();
+
+					/* Create client context, use TLS v1.2 only for now */
+					SSL_CTX* tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
+					if(!tls_ctx) {
+						ERR_print_errors_fp(stderr);
+						return GETDNS_RETURN_BAD_CONTEXT;
+					}
+					context->tls_ctx = tls_ctx;
+				}
+				break;
+			default:
+				break;
+		}
+	}
+
 	if (context->resolution_type_set == context->resolution_type)
         	/* already set and no config changes
 		 * have caused this to be bad.

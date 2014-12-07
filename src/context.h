@@ -83,6 +83,7 @@ typedef struct getdns_upstream {
 
 	/* For sharing a TCP socket to this upstream */
 	int                      fd;
+	SSL*                     tls_obj;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
@@ -133,6 +134,7 @@ struct getdns_context {
 	uint8_t edns_version;
 	uint8_t edns_do_bit;
 	int edns_maximum_udp_payload_size; /* -1 is unset */
+	SSL_CTX* tls_ctx;
 
 	getdns_update_callback  update_callback;
 	getdns_update_callback2 update_callback2;

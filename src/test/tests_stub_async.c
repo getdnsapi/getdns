@@ -44,6 +44,8 @@
 #define TRANSPORT_UDP "udp"
 #define TRANSPORT_TCP "tcp"
 #define TRANSPORT_PIPELINE "pipeline"
+#define TRANSPORT_TLS_KEEPOPEN "tls"
+#define TRANSPORT_TLS_TCP_KEEPOPEN "dns-over-tls"
 #define RESOLUTION_STUB "stub"
 #define RESOLUTION_REC "rec"
 
@@ -98,6 +100,10 @@ main(int argc, char** argv)
 		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY);
 	else if (strncmp(transport, TRANSPORT_PIPELINE, 8) == 0)
 		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN);
+	else if (strncmp(transport, TRANSPORT_TLS_KEEPOPEN, 3) == 0) 
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN);
+	else if (strncmp(transport, TRANSPORT_TLS_TCP_KEEPOPEN, 12) == 0) 
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
 	else if (strncmp(transport, TRANSPORT_UDP, 3) != 0) {
 		fprintf(stderr, "Invalid transport %s, must be one of udp, tcp or pipeline\n", transport);
 		exit(EXIT_FAILURE);

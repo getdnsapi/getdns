@@ -29,8 +29,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
+
+static int quiet = 0;
+static int batch_mode = 0;
+static char *query_file = NULL;
+static int json = 0;
+static char *the_root = ".";
+static char *name;
+static getdns_context *context;
+static getdns_dict *extensions;
+static uint16_t request_type = GETDNS_RRTYPE_NS;
+static int timeout, edns0_size;
+static int async = 0, interactive = 0;
+static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 
 int get_rrtype(const char *t);
 
@@ -90,6 +104,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
+	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -104,28 +119,46 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
+	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
+	fprintf(out, "\t-E\tSet transport to TLS with TCP fallback only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
+	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
+	fprintf(out, "\t+sit[=cookie]\tSet edns cookie\n");
 }
 
 void callback(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t trans_id)
 {
-	getdns_dict **response_ptr = (getdns_dict **)userarg;
+	char *response_str;
 
-	if (response)
-		*response_ptr = response;
+	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
+		/* This is a callback with data */;
+		if (!quiet) {
+			if (json)
+				response_str = getdns_print_json_dict(
+				    response, json == 1);
+			else if ((response_str = getdns_pretty_print_dict(response))) {
+				fprintf(stdout, "ASYNC response:\n%s\n", response_str);
+				free(response_str);
+			}
+		}
+		fprintf(stderr,
+			"The callback with ID %llu  was successfull.\n",
+			(unsigned long long)trans_id);
+
+	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
+		fprintf(stderr,
+			"The callback with ID %llu was cancelled. Exiting.\n",
+			(unsigned long long)trans_id);
+	else
+		fprintf(stderr,
+			"The callback got a callback_type of %d. Exiting.\n",
+			callback_type);
+	getdns_dict_destroy(response);
+	response = NULL;
 }
-
-static char *the_root = ".";
-static char *name;
-static getdns_context *context;
-static getdns_dict *extensions;
-static uint16_t request_type = GETDNS_RRTYPE_NS;
-static int timeout, edns0_size;
-static int async = 0, interactive = 0;
-static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
-static int json = 0;
 
 #define CONTINUE ((getdns_return_t)-2)
 
@@ -259,6 +292,15 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'd':
 				(void) getdns_context_set_edns_do_bit(context, 0);
 				break;
+			case 'F':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -F\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				query_file = argv[i];
+				interactive = 1;
+				break;
 			case 'G':
 				calltype = GENERAL;
 				break;
@@ -282,6 +324,8 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'p':
 				json = 0;
+			case 'q':
+				quiet = 1;
 				break;
 			case 'r':
 				getdns_context_set_resolution_type(
@@ -319,6 +363,14 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN);
 				break;
+			case 'L':
+				getdns_context_set_dns_transport(context,
+				    GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN);
+				break;
+			case 'E':
+				getdns_context_set_dns_transport(context,
+				    GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
+				break;
 			case 'u':
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
@@ -327,6 +379,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_UDP_ONLY);
 				break;
+			case 'B':
+				batch_mode = 1;
+			break;
 
 
 			default:
@@ -361,6 +416,7 @@ main(int argc, char **argv)
 	char *response_str;
 	getdns_return_t r;
 	getdns_dict *address = NULL;
+	FILE *fp = NULL;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -376,14 +432,28 @@ main(int argc, char **argv)
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
 
+	if (query_file) {
+		fp = fopen(query_file, "rt");
+		if (fp == NULL) {
+			fprintf(stderr, "Could not open query file: %s\n", query_file);
+			goto done_destroy_context;
+		}
+	}
+
 	/* Make the call */
 	do {
 		char line[1024], *token, *linev[256];
 		int linec;
 		if (interactive) {
-			fprintf(stdout, "> ");
-			if (!fgets(line, 1024, stdin) || !*line)
-				break;
+			if (!query_file) {
+				fprintf(stdout, "> ");
+				if (!fgets(line, 1024, stdin) || !*line)
+					break;
+			} else {
+				if (!fgets(line, 1024, fp) || !*line)
+					break;
+				fprintf(stdout,"Found query: %s", line);
+			}
 
 			linev[0] = argv[0];
 			linec = 1;
@@ -430,8 +500,8 @@ main(int argc, char **argv)
 			}
 			if (r)
 				goto done_destroy_extensions;
-
-			getdns_context_run(context);
+			if (!batch_mode) 
+				getdns_context_run(context);
 		} else {
 			switch (calltype) {
 			case GENERAL:
@@ -456,21 +526,26 @@ main(int argc, char **argv)
 			}
 			if (r)
 				goto done_destroy_extensions;
-		}
-		if (json)
-			response_str = getdns_print_json_dict(
-			    response, json == 1);
-		else
-			response_str = getdns_pretty_print_dict(response);
-
-		if (response_str) {
-			fprintf(stdout, "%s\n", response_str);
-			free(response_str);
-		} else {
-			r = GETDNS_RETURN_MEMORY_ERROR;
-			fprintf(stderr, "Could not print response\n");
+			if (!quiet) {
+				if (json)
+					response_str = getdns_print_json_dict(
+					    response, json == 1);
+				else if ((response_str = getdns_pretty_print_dict(response))) {
+					fprintf(stdout, "SYNC response:\n%s\n", response_str);
+					free(response_str);
+				} else {
+					r = GETDNS_RETURN_MEMORY_ERROR;
+					fprintf(stderr, "Could not print response\n");
+				}
+			} else if (r == GETDNS_RETURN_GOOD)
+				fprintf(stdout, "Response code was: GOOD\n");
+			else if (interactive)
+				fprintf(stderr, "An error occurred: %d\n", r);
 		}
 	} while (interactive);
+
+	if (batch_mode) 
+		getdns_context_run(context);
 
 	/* Clean up */
 done_destroy_extensions:
@@ -478,6 +553,9 @@ done_destroy_extensions:
 done_destroy_context:
 	if (response) getdns_dict_destroy(response);
 	getdns_context_destroy(context);
+
+	if (fp)
+		fclose(fp);
 
 	if (r == CONTINUE)
 		return 0;

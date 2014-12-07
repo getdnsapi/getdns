@@ -37,6 +37,7 @@
 #define TYPES_INTERNAL_H_
 
 #include <netinet/in.h>
+#include <openssl/ssl.h>
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "util/rbtree.h"
@@ -211,6 +212,7 @@ typedef struct getdns_network_req
 	uint8_t *opt; /* offset of OPT RR in query */
 	size_t   response_len;
 	uint8_t *response;
+	SSL*     tls_obj;
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
 
