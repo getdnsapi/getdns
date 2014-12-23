@@ -2,6 +2,10 @@
   * Fix: linking against libev on FreeBSD
   * Fix: Let configure report problem on FreeBSD when configuring with
     libevent and libunbound <= 1.4.22 is not compiled with libevent.
+  * Fix: Build on Mac OS-X
+  * Fix: Lintian errors in manpages
+  * Better libcheck detection
+  * Better portability with UNIX systems
 
 * 2014-10-31: Version 0.1.5
   * Unit tests for transport settings
