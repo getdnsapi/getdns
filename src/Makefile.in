@@ -30,20 +30,7 @@ package = @PACKAGE_NAME@
 version = @PACKAGE_VERSION@
 tarname = @PACKAGE_TARNAME@
 distdir = $(tarname)-$(version)
-
-# current:revision:age
-# (binary-api-number):(which-binary-api-version):(how-many-nrs-backwardscompat)
-# if source code changes increment revision
-# if any interfaces have been added/removed/changed since last update then
-#   increment current and set revision to 0
-# if any interfaces have been added since the last public release then increment age
-# if any interfaces have been removed or changed since the last public release then
-#   set age to 0
-# if api unchanged: no changes
-# if api broken: current++ ; revision = 0; age = 0
-# if programs compiled against existing library work and link with new
-#    version of library with new binary api:  revision++; age++
-libversion = 1:0:0
+libversion = @GETDNS_LIBVERSION@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
