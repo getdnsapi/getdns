@@ -289,7 +289,6 @@ main(int argc, char **argv)
 	char *response_str;
 	getdns_return_t r;
 	getdns_dict *address = NULL;
-	int t;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
