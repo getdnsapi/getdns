@@ -1,19 +1,19 @@
 getdns API
 ==========
 
-* Date:    2014-10-31
+* Date:    2015-01-14
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
-described by Paul Hoffman.  It is intended to make all types of DNS
+originally edited by Paul Hoffman.  It is intended to make all types of DNS
 information easily available to application developers and non-DNS experts.
-The project home page at [getdnsapi.net](http://www.getdnsapi.net) provides
+The project home page at [getdnsapi.net](https://getdnsapi.net) provides
 documentation, binary downloads and new regarding the getdns API
 implementation.  This implementation is licensed under the New BSD License
 (BSD-new).
 
 Download the sources from our [github repo](https://github.com/getdnsapi/getdns) 
-or from [getdnsapi.net](http://www.getdnsapi.net) and verify the download using
+or from [getdnsapi.net](https://getdnsapi.net) and verify the download using
 the checksums (SHA1 or MD5) or using gpg to verify the signature.  Our keys are
 available from the [pgp keyservers](http://keyserver.pgp.com)
 
@@ -33,7 +33,7 @@ of the implementation.
 
 The goals of this implementation of the getdns API are:
 
-* Provide an open source implementation, in C, of the formally described getdns API by Paul Hoffman at <http://www.vpnc.org/getdns-api/>
+* Provide an open source implementation, in C, of the formally described getdns API by getdns API team at <https://getdnsapi.net/spec.html>
 * Initial support for FreeBSD, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
 * Initial support to include the Android platform
 * Include examples and tests as part of the build
@@ -151,8 +151,6 @@ Other known issues are being managed in the git repository issue list.
 
 * (#113) Changing the resolution type between stub and recursive after a query has been issued with a context will not work - the previous resolution type will continue to be used.  If you want to change the resolution type you will need to create a new context and set the resolution type for that context.
 
-* older versions of libtool and ranlib may have problems with the way we leverage features specific to exported symbols.  If you see error messages during linking it may be due to an older version of libtool in your PATH.  This can be fixed by updating your libtool or adding the getdns build directory to the beginning of your path so that our libtool/ranlib are preferred.
-
 * When doing a synchronous lookup with a context that has outstanding asynchronous lookups, the callbacks for the asynchronous lookups might get called as a side effect of the synchronous lookup.
 
 
@@ -175,7 +173,7 @@ We intend to add MS-Windows, Android and other platforms to the releases as we h
 
 If you're using [FreeBSD](http://www.freebsd.org/), you may install getdns via the [ports tree](http://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
 
-If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.  There may be some problems building getdns on FreeBSD 10 using libevent.
+If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
 ###CentOS/RHEL 6.5
 
@@ -187,13 +185,13 @@ build the packages, this is simplythe one we chose to use.
     CentOS release 6.5 (Final)
     # uname -a
     Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-    # cd getdns-0.1.5
+    # cd getdns-0.1.6
     # ./configure --prefix=/home/deploy/build
     # make; make install
     # cd /home/deploy/build
     # mv lib lib64
     # . /usr/local/rvm/config/alias
-    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.1.5 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "http://www.getdnsapi.net" --description "Modern asynchronous API to the DNS" .
+    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.1.6 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
 ###OSX
 

@@ -27,6 +27,7 @@
 .\" 
 
 .TH getdns_dict 3 "@date@" "getdns @version@" getdns
+.ad l
 .SH NAME
 .B getdns_dict, 
 .B getdns_dict_create, 
@@ -34,6 +35,7 @@
 .B getdns_dict_create_with_memory_functions, 
 .B getdns_dict_destroy 
 -- getdns dict create and destroy routines
+.ad n
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

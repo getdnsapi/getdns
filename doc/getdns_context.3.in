@@ -27,6 +27,7 @@
 .\" 
 
 .TH getdns_context 3 "@date@" "getdns @version@" getdns
+.ad l
 .SH NAME
 .B getdns_context, 
 .B getdns_context_create, 
@@ -35,6 +36,7 @@
 .B getdns_context_destroy, 
 .B getdns_context_get_api_information 
 -- getdns context create and destroy routines
+.ad n
 
 .SH LIBRARY
 DNS Resolver library (libgetdns, -lgetdns)

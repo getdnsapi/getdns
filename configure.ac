@@ -30,10 +30,33 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ([2.56])
-AC_INIT([getdns], [0.1.5], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_INIT([getdns], [0.1.6], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
 CURRENT_DATE=`LC_ALL=C date`
-GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the September 2014 version of the API"
+GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the January 2015 version of the API"
+
+# Library version
+# ---------------
+# current:revision:age
+# (binary-api-number):(which-binary-api-version):(how-many-nrs-backwardscompat)
+# if source code changes increment revision
+# if any interfaces have been added/removed/changed since last update then
+#   increment current and set revision to 0
+# if any interfaces have been added since the last public release then increment age
+# if any interfaces have been removed or changed since the last public release then
+#   set age to 0
+# if api unchanged: no changes
+# if api broken: current++ ; revision = 0; age = 0
+# if programs compiled against existing library work and link with new
+#    version of library with new binary api:  revision++; age++
+#
+# getdns-0.1.4 had libversion 0:0:0
+# getdns-0.1.5 had libversion 1:0:0
+# getdns-0.1.6 has libversion 1:1:1
+#
+GETDNS_LIBVERSION=1:1:0
+
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
+AC_SUBST(GETDNS_LIBVERSION)
 AC_CONFIG_SRCDIR([src/getdns/getdns.h.in])
 # AM_INIT_AUTOMAKE
 # LT_INIT
