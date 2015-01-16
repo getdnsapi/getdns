@@ -93,15 +93,18 @@ void* run_transport_server(void* data) {
     if (r > 0) {
       ldns_pkt* query;
       socklen_t len = sizeof (client_addr);
-      if (FD_ISSET(udp, &read_fds) == 1) {
+      if (FD_ISSET(udp, &read_fds)) {
         n = recvfrom(udp, mesg, 65536, 0, (struct sockaddr *) &client_addr, &len);
         udp_count++;
-      } else if (FD_ISSET(tcp, &read_fds) == 1) {
+      } else if (FD_ISSET(tcp, &read_fds)) {
         conn = accept(tcp, (struct sockaddr *) &client_addr, &len);
         /* throw away the length */
         n = read(conn, tcplength, 2);
         n = read(conn, mesg, 65536);
         tcp_count++;
+      } else {
+        fprintf(stderr, "Timeout in run_transport_server\n");
+	break;
       }
 
       ldns_wire2pkt(&query, mesg, n);
