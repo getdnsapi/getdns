@@ -1,4 +1,4 @@
-* 2015-01-??: Version 0.1.6
+* 2015-01-16: Version 0.1.6
   * Fix: linking against libev on FreeBSD
   * Fix: Let configure report problem on FreeBSD when configuring with
     libevent and libunbound <= 1.4.22 is not compiled with libevent.
