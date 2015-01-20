@@ -113,6 +113,7 @@ distclean:
 	rmdir spec 2>/dev/null || true
 	rm -f config.log config.status Makefile libtool
 	rm -fR autom4te.cache
+	rm -fR m4
 
 dist: $(distdir).tar.gz
 
@@ -130,6 +131,7 @@ $(distdir).tar.gz: $(distdir)
 	rm -rf $(distdir)
 
 $(distdir):
+	mkdir -p $(distdir)/m4
 	mkdir -p $(distdir)/src
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
@@ -155,6 +157,7 @@ $(distdir):
 	cp $(srcdir)/config.guess $(distdir)
 	cp libtool $(distdir)
 	cp $(srcdir)/ltmain.sh $(distdir)
+	cp $(srcdir)/m4/*.m4 $(distdir)/m4
 	cp $(srcdir)/src/*.in $(distdir)/src
 	cp $(srcdir)/src/*.[ch] $(distdir)/src
 	cp $(srcdir)/src/*.symbols $(distdir)/src
