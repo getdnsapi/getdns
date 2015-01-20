@@ -73,7 +73,7 @@ typedef struct getdns_eventloop_event {
 	getdns_eventloop_callback write_cb;
 	getdns_eventloop_callback timeout_cb;
 
-	/* Pointer to the underlying event 
+	/* Pointer to the underlying event
 	 * that the eventloop extension will create and free.
 	 */
 	void *ev;
@@ -124,6 +124,68 @@ getdns_context_detach_eventloop(getdns_context *context);
 /* Run the context's event loop until nothing more to do */
 void
 getdns_context_run(getdns_context *context);
+
+/** begin getters **/
+getdns_return_t
+getdns_context_get_resolution_type(getdns_context *context,
+    getdns_resolution_t* value);
+
+/** users must call free on the resulting namespaces if not NULL */
+getdns_return_t
+getdns_context_get_namespaces(getdns_context *context,
+    size_t* namespace_count, getdns_namespace_t **namespaces);
+
+getdns_return_t
+getdns_context_get_dns_transport(getdns_context *context,
+    getdns_transport_t* value);
+
+getdns_return_t
+getdns_context_get_limit_outstanding_queries(getdns_context *context,
+    uint16_t* limit);
+
+getdns_return_t
+getdns_context_get_timeout(getdns_context *context, uint64_t* timeout);
+
+getdns_return_t
+getdns_context_get_follow_redirects(getdns_context *context,
+    getdns_redirects_t* value);
+
+getdns_return_t
+getdns_context_get_dns_root_servers(getdns_context *context,
+    getdns_list **addresses);
+
+getdns_return_t
+getdns_context_get_append_name(getdns_context *context,
+    getdns_append_name_t* value);
+
+getdns_return_t
+getdns_context_get_suffix(getdns_context *context, getdns_list **value);
+
+getdns_return_t
+getdns_context_get_dnssec_trust_anchors(getdns_context *context,
+    getdns_list **value);
+
+getdns_return_t
+getdns_context_get_dnssec_allowed_skew(getdns_context *context,
+    uint32_t* value);
+
+getdns_return_t
+getdns_context_get_upstream_recursive_servers(getdns_context *context,
+    getdns_list **upstream_list);
+
+getdns_return_t
+getdns_context_get_edns_maximum_udp_payload_size(getdns_context *context,
+    uint16_t* value);
+
+getdns_return_t
+getdns_context_get_edns_extended_rcode(getdns_context *context,
+    uint8_t* value);
+
+getdns_return_t
+getdns_context_get_edns_version(getdns_context *context, uint8_t* value);
+
+getdns_return_t
+getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value);
 
 #ifdef __cplusplus
 }

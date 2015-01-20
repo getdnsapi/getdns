@@ -129,7 +129,7 @@ create_local_hosts(struct getdns_context *context)
 	if (host_names == NULL)
 		return;
 
-	/* We have a 1:1 list of name -> ip address where there is an 
+	/* We have a 1:1 list of name -> ip address where there is an
 	   underlying many to many relationship. Need to create a lookup of
 	   (unique name + A/AAAA)-> list of IPV4/IPv6 ip addresses*/
 	for (i = 0; i < ldns_rr_list_rr_count(host_names); i++) {
@@ -408,7 +408,7 @@ set_os_defaults(struct getdns_context *context)
 	in = fopen(context->fchg_resolvconf->fn, "r");
 	if (!in)
 		return GETDNS_RETURN_GOOD;
-	
+
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
 	hints.ai_socktype  = 0;              /* Datagram socket */
@@ -1169,7 +1169,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 	RETURN_IF_NULL(upstream_list, GETDNS_RETURN_INVALID_PARAMETER);
-	
+
 	r = getdns_list_get_length(upstream_list, &count);
 	if (count == 0 || r != GETDNS_RETURN_GOOD) {
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -1219,11 +1219,11 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		if (inet_ntop(upstream->addr.ss_family, address_data->data,
 		    addrstr, 1024) == NULL)
 			goto invalid_parameter;
-		
+
 		port = 53;
 		(void) getdns_dict_get_int(dict, "port", &port);
 		(void) snprintf(portstr, 1024, "%d", (int)port);
-		
+
 		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
 		    GETDNS_RETURN_GOOD) {
 			if (strlen(addrstr) + scope_id->size > 1022)
@@ -1390,13 +1390,13 @@ static void
 cancel_dns_req(getdns_dns_req *req)
 {
 	getdns_network_req *netreq;
-	
+
 	for (netreq = req->first_req; netreq; netreq = netreq->next)
 		if (netreq->unbound_id != -1) {
 			ub_cancel(req->context->unbound_ctx,
 			    netreq->unbound_id);
 			netreq->unbound_id = -1;
-		} else 
+		} else
 			priv_getdns_cancel_stub_request(netreq);
 
 	req->canceled = 1;
@@ -1526,7 +1526,7 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 	assert(context);
 
 	switch (context->resolution_type) {
-	case GETDNS_RESOLUTION_STUB: 
+	case GETDNS_RESOLUTION_STUB:
 		/* Since we don't know if the resolution will be sync or async at this
 		 * point and we only support ldns in sync mode then we must set _both_
 		 * contexts up */
@@ -1913,7 +1913,7 @@ getdns_context_set_use_threads(getdns_context* context, int use_threads) {
     return r == 0 ? GETDNS_RETURN_GOOD : GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 }
 
-getdns_return_t 
+getdns_return_t
 getdns_context_local_namespace_resolve(
     getdns_dns_req *dnsreq, getdns_dict **response)
 {
@@ -1927,7 +1927,7 @@ getdns_context_local_namespace_resolve(
 	int ipv6 = dnsreq->first_req->request_type == GETDNS_RRTYPE_AAAA ||
 	    (dnsreq->first_req->next &&
 	     dnsreq->first_req->next->request_type == GETDNS_RRTYPE_AAAA);
-	
+
 	if (!ipv4 && !ipv6)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -1958,6 +1958,184 @@ struct mem_funcs *
 priv_getdns_context_mf(getdns_context *context)
 {
 	return &context->mf;
+}
+
+/** begin getters **/
+getdns_return_t
+getdns_context_get_resolution_type(getdns_context *context,
+    getdns_resolution_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->resolution_type;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_namespaces(getdns_context *context,
+    size_t* namespace_count, getdns_namespace_t **namespaces) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(namespace_count, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(namespaces, GETDNS_RETURN_INVALID_PARAMETER);
+    *namespace_count = context->namespace_count;
+    if (!context->namespace_count) {
+        *namespaces = NULL;
+        return GETDNS_RETURN_GOOD;
+    }
+    // use normal malloc here so users can do normal free
+    *namespaces = malloc(context->namespace_count * sizeof(getdns_namespace_t));
+    memcpy(*namespaces, context->namespaces,
+           context->namespace_count * sizeof(getdns_namespace_t));
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_dns_transport(getdns_context *context,
+    getdns_transport_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->dns_transport;
+    return GETDNS_RETURN_GOOD;
+}
+
+
+getdns_return_t
+getdns_context_get_limit_outstanding_queries(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->limit_outstanding_queries;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_timeout(getdns_context *context, uint64_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->timeout;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_follow_redirects(getdns_context *context,
+    getdns_redirects_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->follow_redirects;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_dns_root_servers(getdns_context *context,
+    getdns_list **value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = NULL;
+    if (context->dns_root_servers) {
+        return getdns_list_copy(context->dns_root_servers, value);
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_append_name(getdns_context *context,
+    getdns_append_name_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->append_name;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_suffix(getdns_context *context, getdns_list **value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = NULL;
+    if (context->suffix) {
+        return getdns_list_copy(context->suffix, value);
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_dnssec_trust_anchors(getdns_context *context,
+    getdns_list **value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = NULL;
+    if (context->dnssec_trust_anchors) {
+        return getdns_list_copy(context->dnssec_trust_anchors, value);
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_dnssec_allowed_skew(getdns_context *context,
+    uint32_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->dnssec_allowed_skew;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_upstream_recursive_servers(getdns_context *context,
+    getdns_list **upstream_list) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(upstream_list, GETDNS_RETURN_INVALID_PARAMETER);
+    *upstream_list = NULL;
+    if (context->upstreams && context->upstreams->count > 0) {
+        getdns_return_t r = GETDNS_RETURN_GOOD;
+        size_t i;
+        getdns_upstream *upstream;
+        getdns_list *upstreams = getdns_list_create();
+        for (i = 0; i < context->upstreams->count; i++) {
+            getdns_dict *d;
+            upstream = &context->upstreams->upstreams[i];
+            d = upstream_dict(context, upstream);
+            r |= getdns_list_set_dict(upstreams, i, d);
+            getdns_dict_destroy(d);
+        }
+        if (r != GETDNS_RETURN_GOOD) {
+            getdns_list_destroy(upstreams);
+            return GETDNS_RETURN_MEMORY_ERROR;
+        }
+        *upstream_list = upstreams;
+    }
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_maximum_udp_payload_size(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_maximum_udp_payload_size;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_extended_rcode(getdns_context *context,
+    uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_extended_rcode;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_version(getdns_context *context, uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_version;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_do_bit;
+    return GETDNS_RETURN_GOOD;
 }
 
 /* context.c */
