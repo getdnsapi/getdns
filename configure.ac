@@ -31,7 +31,13 @@
 
 AC_PREREQ([2.56])
 AC_INIT([getdns], [0.1.6], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
-CURRENT_DATE=`LC_ALL=C date`
+
+# Set current date from system if not set
+AC_ARG_WITH([current-date],
+  [AS_HELP_STRING([--with-current-date]
+    [current date of the compilation, set to fixed date for reproducible builds @<:@default=system@:>@])],
+  [CURRENT_DATE="$with_current_date"],
+  [CURRENT_DATE="`date --rfc-3339=seconds`"])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the January 2015 version of the API"
 
 # Library version
