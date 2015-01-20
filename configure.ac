@@ -37,7 +37,7 @@ AC_ARG_WITH([current-date],
   [AS_HELP_STRING([--with-current-date]
     [current date of the compilation, set to fixed date for reproducible builds @<:@default=system@:>@])],
   [CURRENT_DATE="$with_current_date"],
-  [CURRENT_DATE="`date --rfc-3339=seconds`"])
+  [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the January 2015 version of the API"
 
 # Library version
