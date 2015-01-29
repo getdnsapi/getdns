@@ -272,7 +272,7 @@ static void destroy_chain(struct validation_chain *chain)
 static void
 getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 {
-	getdns_network_req *netreq = dns_req->first_req;
+	getdns_network_req **netreq_p, *netreq;
 	struct validation_chain *chain = create_chain(dns_req, timeout);
 
 	if (! chain) {
@@ -280,7 +280,7 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 		    dns_req, create_getdns_response(dns_req));
 		return;
 	}
-	while (netreq) {
+	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
 		size_t i;
 		ldns_rr_list *answer = ldns_pkt_answer(netreq->result);
 		ldns_rr_list *authority = ldns_pkt_authority(netreq->result);
@@ -296,7 +296,6 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 				launch_chain_link_lookup(chain,
 				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
 		}
-		netreq = netreq->next;
 	}
 	callback_on_complete_chain(chain);
 }

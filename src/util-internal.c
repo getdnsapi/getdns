@@ -544,7 +544,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	struct getdns_list *just_addrs = NULL;
 	struct getdns_list *replies_tree = getdns_list_create_with_context(
 	    completed_request->context);
-	getdns_network_req *netreq;
+	getdns_network_req *netreq, **netreq_p;
 	char *canonical_name = NULL;
 	getdns_return_t r = 0;
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
@@ -562,13 +562,11 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	    completed_request->extensions, "dnssec_return_status") ||
 	    completed_request->return_dnssec_status == GETDNS_EXTENSION_TRUE;
 
-	if (completed_request->first_req &&
-	   (completed_request->first_req->request_class == GETDNS_RRTYPE_A ||
-	    completed_request->first_req->request_class ==
-	    GETDNS_RRTYPE_AAAA)) {
+	if (completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_A ||
+	    completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_AAAA)
 		just_addrs = getdns_list_create_with_context(
 		    completed_request->context);
-	}
+
     do {
     	canonical_name = get_canonical_name(completed_request->name);
     	r = getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM,
@@ -584,9 +582,9 @@ create_getdns_response(struct getdns_dns_req * completed_request)
             break;
         }
 
-    	for ( netreq =  completed_request->first_req
-	    ; netreq && r == GETDNS_RETURN_GOOD
-	    ; netreq = netreq->next ) {
+    	for ( netreq_p = completed_request->netreqs
+	    ; ! r && (netreq = *netreq_p)
+	    ; netreq_p++) {
 
 		if (! netreq->result)
 			continue;
@@ -959,7 +957,7 @@ validate_dname(const char* dname) {
 } /* validate_dname */
 
 int
-is_extension_set(struct getdns_dict *extensions, const char *extension)
+is_extension_set(getdns_dict *extensions, const char *extension)
 {
 	getdns_return_t r;
 	uint32_t value;
@@ -969,6 +967,78 @@ is_extension_set(struct getdns_dict *extensions, const char *extension)
 
 	r = getdns_dict_get_int(extensions, extension, &value);
 	return r == GETDNS_RETURN_GOOD && value == GETDNS_EXTENSION_TRUE;
+}
+
+size_t
+getdns_get_maximum_udp_payload_size(getdns_context *context,
+    getdns_dict *extensions, getdns_upstream *upstream)
+{
+	int dnssec_return_status
+	    = is_extension_set(extensions, "dnssec_return_status");
+	int dnssec_return_only_secure
+	    = is_extension_set(extensions, "dnssec_return_only_secure");
+	int dnssec_return_validation_chain
+	    = is_extension_set(extensions, "dnssec_return_validation_chain");
+	int dnssec_extension_set = dnssec_return_status
+	    || dnssec_return_only_secure || dnssec_return_validation_chain;
+
+	uint32_t edns_do_bit;
+	int      edns_maximum_udp_payload_size;
+	uint32_t get_edns_maximum_udp_payload_size;
+	uint32_t edns_extended_rcode;
+	uint32_t edns_version;
+
+	getdns_dict *add_opt_parameters;
+	int     have_add_opt_parameters;
+
+	getdns_list *options;
+	size_t      noptions = 0;
+
+	int with_opt;
+
+	have_add_opt_parameters = getdns_dict_get_dict(extensions,
+	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
+
+	if (dnssec_extension_set) {
+		edns_maximum_udp_payload_size =
+		    ( upstream && upstream->addr.ss_family == AF_INET6 )
+		    ? 1232 : 1432;
+		edns_extended_rcode = 0;
+		edns_version = 0;
+		edns_do_bit = 1;
+	} else {
+		edns_maximum_udp_payload_size =
+		    context->edns_maximum_udp_payload_size;
+		edns_extended_rcode = context->edns_extended_rcode;
+		edns_version = context->edns_version;
+		edns_do_bit = context->edns_do_bit;
+
+		if (have_add_opt_parameters) {
+			if (!getdns_dict_get_int(add_opt_parameters,
+			    "maximum_udp_payload_size",
+			    &get_edns_maximum_udp_payload_size))
+				edns_maximum_udp_payload_size =
+				    get_edns_maximum_udp_payload_size;
+			(void) getdns_dict_get_int(add_opt_parameters,
+			    "extended_rcode", &edns_extended_rcode);
+			(void) getdns_dict_get_int(add_opt_parameters,
+			    "version", &edns_version);
+			(void) getdns_dict_get_int(add_opt_parameters,
+			    "do_bit", &edns_do_bit);
+		}
+	}
+	if (have_add_opt_parameters && getdns_dict_get_list(
+	    add_opt_parameters, "options", &options) == GETDNS_RETURN_GOOD)
+		(void) getdns_list_get_length(options, &noptions);
+
+	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != -1 ||
+	    edns_extended_rcode != 0 || edns_version != 0 || noptions;
+
+	return ! with_opt ? 512
+	    : edns_maximum_udp_payload_size == -1 ?
+	      (upstream && upstream->addr.ss_family==AF_INET6 ) ? 1232 : 1432
+	    : edns_maximum_udp_payload_size > 512 ?
+	      edns_maximum_udp_payload_size : 512;
 }
 
 /* util-internal.c */

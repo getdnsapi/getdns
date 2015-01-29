@@ -170,7 +170,6 @@ getdns_make_query_pkt_buf(const getdns_network_req *netreq, uint8_t *buf,
 		if (len < 11)
 			return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 
-		*omax_udp_payload_size = edns_maximum_udp_payload_size;
 		buf[0] = 0; /* dname for . */
 		gldns_write_uint16(buf + 1, GLDNS_RR_TYPE_OPT);
 		gldns_write_uint16(buf + 3,

@@ -1389,9 +1389,9 @@ getdns_context_set_memory_functions(struct getdns_context *context,
 static void
 cancel_dns_req(getdns_dns_req *req)
 {
-	getdns_network_req *netreq;
+	getdns_network_req *netreq, **netreq_p;
 
-	for (netreq = req->first_req; netreq; netreq = netreq->next)
+	for (netreq_p = req->netreqs; (netreq = *netreq_p); netreq_p++)
 		if (netreq->unbound_id != -1) {
 			ub_cancel(req->context->unbound_ctx,
 			    netreq->unbound_id);
@@ -1921,12 +1921,12 @@ getdns_context_local_namespace_resolve(
 	ldns_rr_list *result_list = NULL;
 	host_name_addrs *hnas;
 	ldns_rdf *query_name;
-	int ipv4 = dnsreq->first_req->request_type == GETDNS_RRTYPE_A ||
-	    (dnsreq->first_req->next &&
-	     dnsreq->first_req->next->request_type == GETDNS_RRTYPE_A);
-	int ipv6 = dnsreq->first_req->request_type == GETDNS_RRTYPE_AAAA ||
-	    (dnsreq->first_req->next &&
-	     dnsreq->first_req->next->request_type == GETDNS_RRTYPE_AAAA);
+	int ipv4 = dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_A ||
+	    (dnsreq->netreqs[1] &&
+	     dnsreq->netreqs[1]->request_type == GETDNS_RRTYPE_A);
+	int ipv6 = dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_AAAA ||
+	    (dnsreq->netreqs[1] &&
+	     dnsreq->netreqs[1]->request_type == GETDNS_RRTYPE_AAAA);
 
 	if (!ipv4 && !ipv6)
 		return GETDNS_RETURN_GENERIC_ERROR;

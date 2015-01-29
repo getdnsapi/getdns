@@ -81,10 +81,10 @@ handle_network_request_error(getdns_network_req * netreq, int err)
 void
 priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
-	getdns_network_req *netreq;
+	getdns_network_req **netreq_p, *netreq;
 	int results_found = 0;
 	
-	for (netreq = dns_req->first_req; netreq; netreq = netreq->next)
+	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++)
 		if (netreq->state != NET_REQ_FINISHED &&
 		    netreq->state != NET_REQ_CANCELED)
 			return;
@@ -168,7 +168,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
     getdns_callback_t callbackfn, int usenamespaces)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	getdns_network_req *netreq;
+	getdns_network_req *netreq, **netreq_p;
 	getdns_dns_req *req;
 	getdns_dict *localnames_response;
 	size_t i;
@@ -201,7 +201,9 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	if (!usenamespaces)
 		/* issue all network requests */
-		for (netreq = req->first_req; !r && netreq; netreq = netreq->next)
+		for ( netreq_p = req->netreqs
+		    ; !r && (netreq = *netreq_p)
+		    ; netreq_p++)
 			r = submit_network_request(netreq);
 
 	else for (i = 0; i < context->namespace_count; i++) {
@@ -221,11 +223,10 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			   if this means we go onto the next namespace instead
 			   of returning */
 			r = GETDNS_RETURN_GOOD;
-			netreq = req->first_req;
-			while (!r && netreq) {
+			for ( netreq_p = req->netreqs
+			    ; !r && (netreq = *netreq_p)
+			    ; netreq_p++)
 				r = submit_network_request(netreq);
-				netreq = netreq->next;
-			}
 			break;
 		} else
 			r = GETDNS_RETURN_BAD_CONTEXT;

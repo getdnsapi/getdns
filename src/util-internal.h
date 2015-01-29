@@ -147,7 +147,10 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
  * @param extension name of extension to check
  * @return int with value 1 if set to GETDNS_EXTENSION_TRUE and 0 otherwise
  */
-int is_extension_set(struct getdns_dict *extensions, const char *extension);
+int is_extension_set(getdns_dict *extensions, const char *extension);
+
+size_t getdns_get_maximum_udp_payload_size(getdns_context *context,
+    getdns_dict *extensions, getdns_upstream *upstream);
 
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \

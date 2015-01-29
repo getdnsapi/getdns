@@ -191,9 +191,6 @@ typedef struct getdns_network_req
 	int secure;
 	int bogus;
 
-	/* next request to issue after this one */
-	struct getdns_network_req *next;
-
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
@@ -205,6 +202,14 @@ typedef struct getdns_network_req
 
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
+
+	/* When more space is needed for the wire_data response than is
+	 * available in wire_data[], it will be allocated seperately.
+	 * response will then not point to wire_data anymore.
+	 */
+	uint8_t *response;
+	size_t   wire_data_sz;
+	uint8_t  wire_data[];
 
 } getdns_network_req;
 
@@ -221,12 +226,6 @@ typedef struct getdns_dns_req {
 
 	/* canceled flag */
 	int canceled;
-
-	/* current network request */
-	struct getdns_network_req *current_req;
-
-	/* first request in list */
-	struct getdns_network_req *first_req;
 
 	/* context that owns the request */
 	struct getdns_context *context;
@@ -255,6 +254,16 @@ typedef struct getdns_dns_req {
 
 	/* Stuff for stub resolving */
 	struct getdns_upstreams *upstreams;
+
+	/* network requests for this dns request.
+	 * The array is terminated with NULL.
+	 *
+	 * Memory for these netreqs has been allocated by the same malloc
+	 * operation that reserved space for this getdns_dns_req.
+	 * They will thus be freed as part of the desctruction of this struct,
+	 * and do not need to be freed seperately.
+	 */
+	getdns_network_req *netreqs[];
 
 } getdns_dns_req;
 
@@ -293,13 +302,6 @@ typedef struct getdns_dns_req {
 
 
 /* utility methods */
-
-/* network request utilities */
-void network_req_free(getdns_network_req * net_req);
-
-getdns_network_req *network_req_new(getdns_dns_req * owner,
-    uint16_t request_type,
-    uint16_t request_class, struct getdns_dict *extensions);
 
 /* dns request utils */
 getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,

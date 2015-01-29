@@ -38,39 +38,30 @@
 #include "util-internal.h"
 #include "gldns/rrdef.h"
 
-void
-network_req_free(getdns_network_req * net_req)
+static void
+network_req_cleanup(getdns_network_req *net_req)
 {
-	if (!net_req) {
-		return;
-	}
-	if (net_req->result) {
+	assert(net_req);
+
+	if (net_req->result)
 		ldns_pkt_free(net_req->result);
-	}
-	GETDNS_FREE(net_req->owner->my_mf, net_req);
+
+	if (net_req->response && net_req->response != net_req->wire_data)
+		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
 }
 
-getdns_network_req *
-network_req_new(getdns_dns_req * owner,
-    uint16_t request_type,
-    uint16_t request_class, struct getdns_dict *extensions)
+static void
+network_req_init(getdns_network_req *net_req,
+    getdns_dns_req *owner, uint16_t request_type,
+    uint16_t request_class, size_t wire_data_sz)
 {
-
-	getdns_network_req *net_req = GETDNS_MALLOC( owner->my_mf
-	                                           , getdns_network_req);
-	if (!net_req) {
-		return NULL;
-	}
 	net_req->result = NULL;
-	net_req->next = NULL;
 
 	net_req->request_type = request_type;
 	net_req->request_class = request_class;
 	net_req->unbound_id = -1;
 	net_req->state = NET_REQ_NOT_SENT;
 	net_req->owner = owner;
-
-	/* TODO: records and other extensions */
 
 	net_req->upstream = NULL;
 	net_req->fd = -1;
@@ -79,16 +70,18 @@ network_req_new(getdns_dns_req * owner,
 	net_req->query_id = 0;
 	net_req->max_udp_payload_size = 0;
 	net_req->write_queue_tail = NULL;
-	return net_req;
+
+	net_req->wire_data_sz = wire_data_sz;
+	net_req->response = NULL;
 }
 
 void
 dns_req_free(getdns_dns_req * req)
 {
+	getdns_network_req **net_req;
 	if (!req) {
 		return;
 	}
-	getdns_network_req *net_req = NULL;
 
 	/* free extensions */
 	getdns_dict_destroy(req->extensions);
@@ -96,14 +89,11 @@ dns_req_free(getdns_dns_req * req)
 	if (req->upstreams && --req->upstreams->referenced == 0)
 		GETDNS_FREE(req->upstreams->mf, req->upstreams);
 
-	/* free network requests */
-	net_req = req->first_req;
-	while (net_req) {
-		getdns_network_req *next = net_req->next;
-		network_req_free(net_req);
-		net_req = next;
-	}
+	/* cleanup network requests */
+	for (net_req = req->netreqs; *net_req; net_req++)
+		network_req_cleanup(*net_req);
 
+	/* clear timeout event */
 	if (req->timeout.timeout_cb) {
 		req->loop->vmt->clear(req->loop, &req->timeout);
 		req->timeout.timeout_cb = NULL;
@@ -116,25 +106,47 @@ dns_req_free(getdns_dns_req * req)
 
 /* create a new dns req to be submitted */
 getdns_dns_req *
-dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, struct getdns_dict *extensions)
+dns_req_new(getdns_context *context, getdns_eventloop *loop,
+    const char *name, uint16_t request_type, getdns_dict *extensions)
 {
 
 	getdns_dns_req *result = NULL;
-	getdns_network_req *req = NULL;
         uint32_t klass = GLDNS_RR_CLASS_IN;
-        
-	result = GETDNS_MALLOC(context->mf, getdns_dns_req);
-	if (result == NULL) {
+	size_t edns_maximum_udp_payload_size =
+	    getdns_get_maximum_udp_payload_size(context, extensions, NULL);
+	int a_aaaa_query =
+	    is_extension_set(extensions, "return_both_v4_and_v6") &&
+	    ( request_type == GETDNS_RRTYPE_A ||
+	      request_type == GETDNS_RRTYPE_AAAA );
+	/* Reserve for the buffer at least one more byte
+	 * (to test for udp overflow) (hence the + 1),
+	 * And align on the 8 byte boundry  (hence the (x + 7) / 8 * 8)
+	 */
+	size_t netreq_sz = ( sizeof(getdns_network_req)
+	                   + edns_maximum_udp_payload_size + 1 + 7) / 8 * 8;
+	size_t dnsreq_base_sz = ( sizeof(getdns_dns_req) 
+	                        + (a_aaaa_query ? 3 : 2) 
+	                        * sizeof(getdns_network_req *));
+	uint8_t *region;
+
+	if (! (region = GETDNS_XMALLOC(context->mf, uint8_t, 
+	    dnsreq_base_sz + (a_aaaa_query ? 2 : 1) * netreq_sz)))
 		return NULL;
-	}
+
+	result = (getdns_dns_req *)region;
+	result->netreqs[0] = (getdns_network_req *)(region + dnsreq_base_sz);
+	if (a_aaaa_query) {
+		result->netreqs[1] = (getdns_network_req *)
+		    (region + dnsreq_base_sz + netreq_sz);
+		result->netreqs[2] = NULL;
+	} else
+		result->netreqs[1] = NULL;
+
 	result->my_mf = context->mf;
 	result->name = getdns_strdup(&(result->my_mf), name);
 	result->context = context;
 	result->loop = loop;
 	result->canceled = 0;
-	result->current_req = NULL;
-	result->first_req = NULL;
 	result->trans_id = (uint64_t)(((intptr_t) result) ^ ldns_get_random());
 
 	getdns_dict_copy(extensions, &result->extensions);
@@ -152,32 +164,14 @@ dns_req_new(struct getdns_context *context, getdns_eventloop *loop,
 	if (result->upstreams)
 		result->upstreams->referenced++;
 
-	/* create the requests */
-	req = network_req_new(result, request_type, klass, extensions);
-	if (!req) {
-		dns_req_free(result);
-		return NULL;
-	}
+	network_req_init(result->netreqs[0], result, request_type,
+	    klass, netreq_sz - sizeof(getdns_network_req));
 
-	result->current_req = req;
-	result->first_req = req;
-
-	/* tack on A or AAAA if needed */
-	if (is_extension_set(extensions, "return_both_v4_and_v6") &&
-	    (request_type == GETDNS_RRTYPE_A ||
-	     request_type == GETDNS_RRTYPE_AAAA)) {
-
-		uint16_t next_req_type = (request_type == GETDNS_RRTYPE_A) ?
-		    GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A;
-		getdns_network_req *next_req = network_req_new(result,
-		    next_req_type, LDNS_RR_CLASS_IN, extensions);
-
-		if (!next_req) {
-			dns_req_free(result);
-			return NULL;
-		}
-		req->next = next_req;
-	}
+	if (a_aaaa_query)
+		network_req_init(result->netreqs[1], result,
+		    ( request_type == GETDNS_RRTYPE_A
+		    ? GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A ),
+		    klass, netreq_sz - sizeof(getdns_network_req));
 
 	return result;
 }
