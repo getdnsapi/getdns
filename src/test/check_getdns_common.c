@@ -69,9 +69,9 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
   ASSERT_RC(getdns_dict_get_bindata(response, "canonical_name", &ex_response->top_canonical_name),
     GETDNS_RETURN_GOOD, "Failed to extract \"top canonical_name\"");
 
-  ASSERT_RC(getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers),
-    GETDNS_RETURN_GOOD, "Failed to extract \"just_address_answers\"");
-  ck_assert_msg(ex_response->just_address_answers != NULL, "just_address_answers should not be NULL");
+  /* just_address_answers have to appear only on getdns_address calls */
+  ex_response->just_address_answers = NULL;
+  (void)getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers);
 
   ASSERT_RC(getdns_dict_get_list(response, "replies_full", &ex_response->replies_full),
     GETDNS_RETURN_GOOD, "Failed to extract \"replies_full\"");
@@ -138,9 +138,9 @@ void extract_local_response(struct getdns_dict *response, struct extracted_respo
   ASSERT_RC(getdns_dict_get_bindata(response, "canonical_name", &ex_response->top_canonical_name),
     GETDNS_RETURN_GOOD, "Failed to extract \"top canonical_name\"");
 
-  ASSERT_RC(getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers),
-    GETDNS_RETURN_GOOD, "Failed to extract \"just_address_answers\"");
-  ck_assert_msg(ex_response->just_address_answers != NULL, "just_address_answers should not be NULL");
+  /* just_address_answers have to appear only on getdns_address calls */
+  ex_response->just_address_answers = NULL;
+  (void)getdns_dict_get_list(response, "just_address_answers", &ex_response->just_address_answers);
 
   ASSERT_RC(getdns_dict_get_int(response, "status", &ex_response->status),
     GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
