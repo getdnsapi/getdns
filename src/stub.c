@@ -229,7 +229,9 @@ stub_udp_read_cb(void *userarg)
 
 		return;
 	}
-	ldns_wire2pkt(&(netreq->result), netreq->response, (size_t)read);
+	netreq->max_udp_payload_size = read;
+	ldns_wire2pkt(&(netreq->result), netreq->response,
+	    netreq->max_udp_payload_size);
 	dnsreq->upstreams->current = 0;
 
 	/* TODO: DNSSEC */
