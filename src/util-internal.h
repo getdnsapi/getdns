@@ -42,6 +42,7 @@
 #include "context.h"
 
 #define SCHED_DEBUG 0
+#define WIRE_DEBUG 1
 
 #ifdef S_SPLINT_S
 #  define INLINE 

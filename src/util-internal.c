@@ -45,6 +45,9 @@
 #include "util-internal.h"
 #include "types-internal.h"
 #include "rr-dict.h"
+#if defined(WIRE_DEBUG) && WIRE_DEBUG
+#include "gldns/wire2str.h"
+#endif
 
 /**
   * this is a comprehensive list of extensions and their data types
@@ -552,6 +555,23 @@ create_getdns_response(getdns_dns_req *completed_request)
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
+
+#if defined(WIRE_DEBUG) && WIRE_DEBUG
+	char *str_pkt;
+    	for ( netreq_p = completed_request->netreqs
+	    ; ! r && (netreq = *netreq_p)
+	    ; netreq_p++) {
+
+		if (! netreq->result)
+			continue;
+
+		if ((str_pkt = gldns_wire2str_pkt(
+		    netreq->response, netreq->max_udp_payload_size))) {
+			fprintf(stderr, "%s\n", str_pkt);
+			free(str_pkt);
+		}
+	}
+#endif
 
 	dnssec_return_status = completed_request->dnssec_return_status ||
 	                       completed_request->dnssec_return_only_secure;
