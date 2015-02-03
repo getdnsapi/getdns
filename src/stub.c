@@ -34,8 +34,6 @@
 #include "config.h"
 #include <fcntl.h>
 #include "stub.h"
-#include "gldns/rrdef.h"
-#include "gldns/str2wire.h"
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
 #include "context.h"
