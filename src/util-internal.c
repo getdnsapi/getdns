@@ -871,12 +871,16 @@ getdns_apply_network_result(getdns_network_req* netreq,
 			netreq->request_class,LDNS_QR|LDNS_RD|LDNS_RA);
 		ldns_pkt_set_rcode(netreq->result, ub_res->rcode);
 	}
-    } else {   
-        ldns_status r =
-            ldns_wire2pkt(&(netreq->result), ub_res->answer_packet, ub_res->answer_len);
-        if (r != LDNS_STATUS_OK) {
+    } else {
+	if (netreq->max_udp_payload_size < ub_res->answer_len)
+		netreq->response = GETDNS_XMALLOC(
+		    netreq->owner->context->mf, uint8_t, ub_res->answer_len);
+	(void) memcpy(netreq->response, ub_res->answer_packet,
+	    (netreq->max_udp_payload_size = ub_res->answer_len));
+        ldns_status r = ldns_wire2pkt(&(netreq->result),
+	    netreq->response, netreq->max_udp_payload_size);
+        if (r != LDNS_STATUS_OK)
             return GETDNS_RETURN_GENERIC_ERROR;
-        }
     }
     netreq->secure = ub_res->secure;
     netreq->bogus  = ub_res->bogus;
