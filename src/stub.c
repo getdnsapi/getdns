@@ -187,33 +187,29 @@ stub_udp_read_cb(void *userarg)
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_upstream *upstream = netreq->upstream;
 
-	static size_t pkt_buf_len = 4096;
-	size_t        pkt_len = pkt_buf_len;
-	uint8_t       pkt_buf[pkt_buf_len];
-	uint8_t      *pkt = pkt_buf;
-
 	ssize_t       read;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-	if (netreq->max_udp_payload_size > pkt_buf_len) {
-		pkt_len = netreq->max_udp_payload_size;
-		if (!(pkt = GETDNS_XMALLOC(
-		    dnsreq->context->mf, uint8_t, pkt_len)))
-			goto done;
-	}
-	read = recvfrom(netreq->fd, pkt, pkt_len, 0, NULL, NULL);
+	read = recvfrom(netreq->fd, netreq->response,
+	    netreq->max_udp_payload_size + 1, /* If read == max_udp_payload_size
+	                                       * then all is good.  If read ==
+	                                       * max_udp_payload_size + 1, then
+	                                       * we receive more then requested!
+	                                       * i.e. overflow
+	                                       */
+	    0, NULL, NULL);
 	if (read == -1 && (errno = EAGAIN || errno == EWOULDBLOCK))
-		goto exit;
+		return;
 
 	if (read < GLDNS_HEADER_SIZE)
-		goto exit; /* Not DNS */
+		return; /* Not DNS */
 	
-	if (GLDNS_ID_WIRE(pkt) != netreq->query_id)
-		goto exit; /* Cache poisoning attempt ;) */
+	if (GLDNS_ID_WIRE(netreq->response) != netreq->query_id)
+		return; /* Cache poisoning attempt ;) */
 
 	close(netreq->fd);
-	if (GLDNS_TC_WIRE(pkt) &&
+	if (GLDNS_TC_WIRE(netreq->response) &&
 	    dnsreq->context->dns_transport ==
 	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP) {
 
@@ -233,9 +229,9 @@ stub_udp_read_cb(void *userarg)
 		    getdns_eventloop_event_init(&netreq->event, netreq,
 		    NULL, stub_tcp_write_cb, stub_timeout_cb));
 
-		goto exit;
+		return;
 	}
-	ldns_wire2pkt(&(netreq->result), pkt, (size_t)read);
+	ldns_wire2pkt(&(netreq->result), netreq->response, (size_t)read);
 	dnsreq->upstreams->current = 0;
 
 	/* TODO: DNSSEC */
@@ -243,11 +239,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->bogus  = 0;
 done:
 	netreq->state = NET_REQ_FINISHED;
-exit:
-	if (pkt && pkt != pkt_buf)
-		GETDNS_FREE(dnsreq->context->mf, pkt);
-	if (netreq->state == NET_REQ_FINISHED)
-		priv_getdns_check_dns_req_complete(dnsreq);
+	priv_getdns_check_dns_req_complete(dnsreq);
 }
 
 static void
@@ -400,8 +392,12 @@ stub_tcp_read_cb(void *userarg)
 		if (q != netreq->query_id)
 			return;
 		netreq->state = NET_REQ_FINISHED;
-		ldns_wire2pkt(&(netreq->result), netreq->tcp.read_buf,
-		    netreq->tcp.read_pos - netreq->tcp.read_buf);
+		netreq->response = netreq->tcp.read_buf;
+		netreq->max_udp_payload_size =
+		    netreq->tcp.read_pos - netreq->tcp.read_buf;
+		netreq->tcp.read_buf = NULL;
+		ldns_wire2pkt(&(netreq->result), netreq->response,
+		    netreq->max_udp_payload_size);
 		dnsreq->upstreams->current = 0;
 
 		/* TODO: DNSSEC */
@@ -441,12 +437,20 @@ upstream_read_cb(void *userarg)
 		query_id_intptr = (intptr_t) query_id;
 		netreq = (getdns_network_req *)getdns_rbtree_delete(
 		    &upstream->netreq_by_query_id, (void *)query_id_intptr);
-		if (! netreq) /* maybe canceled */
-			break;
+		if (! netreq) /* maybe canceled */ {
+			/* reset read buffer */
+			upstream->tcp.read_pos = upstream->tcp.read_buf;
+			upstream->tcp.to_read = 2;
+			return;
+		}
 
 		netreq->state = NET_REQ_FINISHED;
-		ldns_wire2pkt(&(netreq->result), upstream->tcp.read_buf,
-		    upstream->tcp.read_pos - upstream->tcp.read_buf);
+		netreq->response = upstream->tcp.read_buf;
+		netreq->max_udp_payload_size =
+		    upstream->tcp.read_pos - upstream->tcp.read_buf;
+		upstream->tcp.read_buf = NULL;
+		ldns_wire2pkt(&(netreq->result), netreq->response,
+		    netreq->max_udp_payload_size);
 		upstream->upstreams->current = 0;
 
 		/* TODO: DNSSEC */
@@ -454,10 +458,6 @@ upstream_read_cb(void *userarg)
 		netreq->bogus  = 0;
 
 		stub_cleanup(netreq);
-
-		/* reset read buffer */
-		upstream->tcp.read_pos = upstream->tcp.read_buf;
-		upstream->tcp.to_read = 2;
 
 		/* More to read/write for syncronous lookups? */
 		if (netreq->event.read_cb) {
