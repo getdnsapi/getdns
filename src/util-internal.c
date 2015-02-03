@@ -536,13 +536,14 @@ rrsigs_in_answer(ldns_pkt *pkt)
 }
 
 struct getdns_dict *
-create_getdns_response(struct getdns_dns_req * completed_request)
+create_getdns_response(getdns_dns_req *completed_request)
 {
-	struct getdns_dict *result = getdns_dict_create_with_context(completed_request->context);
-	struct getdns_list *replies_full = getdns_list_create_with_context(
+	getdns_dict *result = getdns_dict_create_with_context(
 	    completed_request->context);
-	struct getdns_list *just_addrs = NULL;
-	struct getdns_list *replies_tree = getdns_list_create_with_context(
+	getdns_list *replies_full = getdns_list_create_with_context(
+	    completed_request->context);
+	getdns_list *just_addrs = NULL;
+	getdns_list *replies_tree = getdns_list_create_with_context(
 	    completed_request->context);
 	getdns_network_req *netreq, **netreq_p;
 	char *canonical_name = NULL;
@@ -550,17 +551,10 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
 
 	/* info (bools) about dns_req */
-	int dnssec_return_validation_chain;
-	int dnssec_return_only_secure;
 	int dnssec_return_status;
 
-	dnssec_return_validation_chain = is_extension_set(
-	    completed_request->extensions, "dnssec_return_validation_chain");
-	dnssec_return_only_secure = is_extension_set(
-	    completed_request->extensions, "dnssec_return_only_secure");
-	dnssec_return_status = dnssec_return_only_secure || is_extension_set(
-	    completed_request->extensions, "dnssec_return_status") ||
-	    completed_request->return_dnssec_status == GETDNS_EXTENSION_TRUE;
+	dnssec_return_status = completed_request->dnssec_return_status ||
+	                       completed_request->dnssec_return_only_secure;
 
 	if (completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_A ||
 	    completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_AAAA)
@@ -600,10 +594,10 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 		    ldns_pkt_get_rcode(netreq->result))
 			nanswers++;
 
-		if (! dnssec_return_validation_chain) {
+		if (! completed_request->dnssec_return_validation_chain) {
 			if (dnssec_return_status && netreq->bogus)
 				continue;
-			else if (dnssec_return_only_secure && ! netreq->secure)
+			else if (completed_request->dnssec_return_only_secure && ! netreq->secure)
 				continue;
 		}
     		struct getdns_bindata full_data;
@@ -626,7 +620,7 @@ create_getdns_response(struct getdns_dns_req * completed_request)
 			r = GETDNS_RETURN_MEMORY_ERROR;
 			break;
 		}
-		if (dnssec_return_status || dnssec_return_validation_chain) {
+		if (dnssec_return_status || completed_request->dnssec_return_validation_chain) {
 			r = getdns_dict_set_int(reply, "dnssec_status",
 			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE
 			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
@@ -692,9 +686,9 @@ create_getdns_response(struct getdns_dns_req * completed_request)
     	}
     	r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
-	    dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
+	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
-	    dnssec_return_only_secure && nsecure == 0 && nbogus > 0
+	    completed_request->dnssec_return_only_secure && nsecure == 0 && nbogus > 0
 	                    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS :
 	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
 	                    : GETDNS_RESPSTATUS_GOOD);
@@ -956,89 +950,5 @@ validate_dname(const char* dname) {
     return GETDNS_RETURN_GOOD;
 } /* validate_dname */
 
-int
-is_extension_set(getdns_dict *extensions, const char *extension)
-{
-	getdns_return_t r;
-	uint32_t value;
-
-	if (! extensions)
-		return 0;
-
-	r = getdns_dict_get_int(extensions, extension, &value);
-	return r == GETDNS_RETURN_GOOD && value == GETDNS_EXTENSION_TRUE;
-}
-
-size_t
-getdns_get_maximum_udp_payload_size(getdns_context *context,
-    getdns_dict *extensions, getdns_upstream *upstream)
-{
-	int dnssec_return_status
-	    = is_extension_set(extensions, "dnssec_return_status");
-	int dnssec_return_only_secure
-	    = is_extension_set(extensions, "dnssec_return_only_secure");
-	int dnssec_return_validation_chain
-	    = is_extension_set(extensions, "dnssec_return_validation_chain");
-	int dnssec_extension_set = dnssec_return_status
-	    || dnssec_return_only_secure || dnssec_return_validation_chain;
-
-	uint32_t edns_do_bit;
-	int      edns_maximum_udp_payload_size;
-	uint32_t get_edns_maximum_udp_payload_size;
-	uint32_t edns_extended_rcode;
-	uint32_t edns_version;
-
-	getdns_dict *add_opt_parameters;
-	int     have_add_opt_parameters;
-
-	getdns_list *options;
-	size_t      noptions = 0;
-
-	int with_opt;
-
-	have_add_opt_parameters = getdns_dict_get_dict(extensions,
-	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
-
-	if (dnssec_extension_set) {
-		edns_maximum_udp_payload_size =
-		    ( upstream && upstream->addr.ss_family == AF_INET6 )
-		    ? 1232 : 1432;
-		edns_extended_rcode = 0;
-		edns_version = 0;
-		edns_do_bit = 1;
-	} else {
-		edns_maximum_udp_payload_size =
-		    context->edns_maximum_udp_payload_size;
-		edns_extended_rcode = context->edns_extended_rcode;
-		edns_version = context->edns_version;
-		edns_do_bit = context->edns_do_bit;
-
-		if (have_add_opt_parameters) {
-			if (!getdns_dict_get_int(add_opt_parameters,
-			    "maximum_udp_payload_size",
-			    &get_edns_maximum_udp_payload_size))
-				edns_maximum_udp_payload_size =
-				    get_edns_maximum_udp_payload_size;
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "extended_rcode", &edns_extended_rcode);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "version", &edns_version);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "do_bit", &edns_do_bit);
-		}
-	}
-	if (have_add_opt_parameters && getdns_dict_get_list(
-	    add_opt_parameters, "options", &options) == GETDNS_RETURN_GOOD)
-		(void) getdns_list_get_length(options, &noptions);
-
-	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != -1 ||
-	    edns_extended_rcode != 0 || edns_version != 0 || noptions;
-
-	return ! with_opt ? 512
-	    : edns_maximum_udp_payload_size == -1 ?
-	      (upstream && upstream->addr.ss_family==AF_INET6 ) ? 1232 : 1432
-	    : edns_maximum_udp_payload_size > 512 ?
-	      edns_maximum_udp_payload_size : 512;
-}
 
 /* util-internal.c */

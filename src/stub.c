@@ -43,218 +43,6 @@
 #include "util-internal.h"
 #include "general.h"
 
-static int
-getdns_make_query_pkt_buf(const getdns_network_req *netreq, uint8_t *buf,
-    size_t *olen, uint16_t *omax_udp_payload_size)
-{
-	size_t len;
-
-	getdns_dns_req *dnsreq  = netreq->owner;
-	getdns_context *context = dnsreq->context;
-	getdns_dict *extensions = dnsreq->extensions;
-
-	int dnssec_return_status
-	    = is_extension_set(extensions, "dnssec_return_status");
-	int dnssec_return_only_secure
-	    = is_extension_set(extensions, "dnssec_return_only_secure");
-	int dnssec_return_validation_chain
-	    = is_extension_set(extensions, "dnssec_return_validation_chain");
-	int dnssec_extension_set = dnssec_return_status
-	    || dnssec_return_only_secure || dnssec_return_validation_chain;
-
-	uint32_t edns_do_bit;
-	int      edns_maximum_udp_payload_size;
-	uint32_t get_edns_maximum_udp_payload_size;
-	uint32_t edns_extended_rcode;
-	uint32_t edns_version;
-
-	getdns_dict *add_opt_parameters;
-	int     have_add_opt_parameters;
-
-	getdns_list *options;
-	size_t      noptions = 0;
-	size_t       i;
-
-	getdns_dict    *option;
-	uint32_t        option_code;
-	getdns_bindata *option_data;
-	size_t opt_options_size = 0;
-
-	int with_opt;
-	int r;
-	size_t dname_len;
-	
-	have_add_opt_parameters = getdns_dict_get_dict(extensions,
-	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
-
-	if (dnssec_extension_set) {
-		edns_maximum_udp_payload_size =
-		    netreq->upstream->addr.ss_family == AF_INET6 ? 1232 : 1432;
-		edns_extended_rcode = 0;
-		edns_version = 0;
-		edns_do_bit = 1;
-	} else {
-		edns_maximum_udp_payload_size =
-		    context->edns_maximum_udp_payload_size;
-		edns_extended_rcode = context->edns_extended_rcode;
-		edns_version = context->edns_version;
-		edns_do_bit = context->edns_do_bit;
-
-		if (have_add_opt_parameters) {
-			if (!getdns_dict_get_int(add_opt_parameters,
-			    "maximum_udp_payload_size",
-			    &get_edns_maximum_udp_payload_size))
-				edns_maximum_udp_payload_size =
-				    get_edns_maximum_udp_payload_size;
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "extended_rcode", &edns_extended_rcode);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "version", &edns_version);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "do_bit", &edns_do_bit);
-		}
-	}
-	if (have_add_opt_parameters && getdns_dict_get_list(
-	    add_opt_parameters, "options", &options) == GETDNS_RETURN_GOOD)
-		(void) getdns_list_get_length(options, &noptions);
-
-	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != -1 ||
-	    edns_extended_rcode != 0 || edns_version != 0 || noptions;
-
-	*omax_udp_payload_size = edns_maximum_udp_payload_size =
-	    ! with_opt ? 512
-	    : edns_maximum_udp_payload_size == -1 ?
-	      netreq->upstream->addr.ss_family==AF_INET6 ? 1232 : 1432
-	    : edns_maximum_udp_payload_size > 512 ?
-	      edns_maximum_udp_payload_size : 512;
-
-	assert(buf);
-	assert(olen);
-
-	len = *olen;
-	*olen = 0;
-
-	if (len < GLDNS_HEADER_SIZE)
-		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
-
-	gldns_write_uint16(buf + 2, 0); /* reset all flags */
-	GLDNS_RD_SET(buf);
-	if (dnssec_extension_set) /* We will do validation outselves */
-		GLDNS_CD_SET(buf);
-	GLDNS_OPCODE_SET(buf, GLDNS_PACKET_QUERY);
-	gldns_write_uint16(buf + GLDNS_QDCOUNT_OFF, 1); /* 1 query */
-	gldns_write_uint16(buf + GLDNS_ANCOUNT_OFF, 0); /* 0 answers */
-	gldns_write_uint16(buf + GLDNS_NSCOUNT_OFF, 0); /* 0 authorities */
-	gldns_write_uint16(buf + GLDNS_ARCOUNT_OFF, with_opt ? 1 : 0);
-
-	len   -= GLDNS_HEADER_SIZE;
-	*olen += GLDNS_HEADER_SIZE;
-	buf   += GLDNS_HEADER_SIZE;
-
-	dname_len = len;
-	if ((r = gldns_str2wire_dname_buf(dnsreq->name, buf, &dname_len)))
-		return r;
-	len   -= dname_len;
-	*olen += dname_len;
-	buf   += dname_len;
-
-	if (len < 4)
-		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
-	gldns_write_uint16(buf, netreq->request_type);
-	gldns_write_uint16(buf + 2, netreq->request_class);
-	len   -= 4;
-	*olen += 4;
-	buf   += 4;
-
-	if (with_opt) {
-		if (len < 11)
-			return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
-
-		buf[0] = 0; /* dname for . */
-		gldns_write_uint16(buf + 1, GLDNS_RR_TYPE_OPT);
-		gldns_write_uint16(buf + 3,
-		    (uint16_t) edns_maximum_udp_payload_size);
-		buf[5] = (uint8_t) edns_extended_rcode;
-		buf[6] = (uint8_t) edns_version;
-		buf[7] = edns_do_bit ? 0x80 : 0;
-		buf[8] = 0;
-		gldns_write_uint16(buf + 9, (uint16_t) opt_options_size);
-		len   -= 11;
-		*olen += 11;
-		buf   += 11;
-		for (i = 0; i < noptions; i++) {
-			if (getdns_list_get_dict(options, i, &option))
-			    continue;
-			if (getdns_dict_get_int(
-			    option, "option_code", &option_code)) continue;
-			if (getdns_dict_get_bindata(
-			    option, "option_data", &option_data)) continue;
-
-			if (len < option_data->size + 4) {
-				gldns_write_uint16(buf - opt_options_size - 2,
-				    (uint16_t) opt_options_size);
-				return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
-			}
-			gldns_write_uint16(buf, (uint16_t) option_code);
-			gldns_write_uint16(buf + 2,
-			    (uint16_t) option_data->size);
-			(void) memcpy(buf + 4, option_data->data,
-			    option_data->size);
-
-			opt_options_size += option_data->size + 4;
-			len              -= option_data->size + 4;
-			*olen            += option_data->size + 4;
-			buf              += option_data->size + 4;
-		}
-		gldns_write_uint16(buf - opt_options_size - 2,
-		    (uint16_t) opt_options_size);
-	}
-	return 0;
-}
-
-/* Return a rough estimate for mallocs */
-static size_t
-getdns_get_query_pkt_size(getdns_context *context,
-    const char *name, uint16_t request_type, getdns_dict *extensions)
-{
-	getdns_dict *add_opt_parameters;
-
-	getdns_list *options;
-	size_t      noptions = 0;
-	size_t       i;
-
-	getdns_dict    *option;
-	uint32_t        option_code;
-	getdns_bindata *option_data;
-	size_t opt_options_size = 0;
-
-	do {
-		if (getdns_dict_get_dict(extensions,
-		    "add_opt_parameters", &add_opt_parameters)) break;
-		if (getdns_dict_get_list(
-		    add_opt_parameters, "options", &options)) break;
-		if (getdns_list_get_length(options, &noptions)) break;
-
-		for (i = 0; i < noptions; i++) {
-			if (getdns_list_get_dict(options, i, &option)) continue;
-			if (getdns_dict_get_int(
-			    option, "option_code", &option_code)) continue;
-			if (getdns_dict_get_bindata(
-			    option, "option_data", &option_data)) continue;
-
-			opt_options_size += option_data->size
-			    + 2 /* option-code   */
-			    + 2 /* option-length */
-			    ;
-		}
-	} while (0);
-	
-	return GLDNS_HEADER_SIZE
-	    + strlen(name) + 1 + 4 /* dname always smaller then strlen(name) + 1 */
-	    + 12 + opt_options_size /* space needed for OPT (if needed) */
-	    /* TODO: TSIG */
-	    ;
-}
 
 /** best effort to set nonblocking */
 static void
@@ -299,7 +87,6 @@ stub_cleanup(getdns_network_req *netreq)
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-	GETDNS_NULL_FREE(dnsreq->context->mf, netreq->tcp.write_buf);
 	GETDNS_NULL_FREE(dnsreq->context->mf, netreq->tcp.read_buf);
 
 	/* Nothing globally scheduled? Then nothing queued */
@@ -467,46 +254,29 @@ static void
 stub_udp_write_cb(void *userarg)
 {
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
-	getdns_dns_req *dnsreq = netreq->owner;
-
-	static size_t   pkt_buf_len = 4096;
-	uint8_t         pkt_buf[pkt_buf_len];
-	uint8_t        *pkt = pkt_buf;
-	size_t          pkt_len;
-	size_t          pkt_size_needed;
+	getdns_dns_req     *dnsreq = netreq->owner;
+	size_t             pkt_len = netreq->response - netreq->query;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-	pkt_size_needed = getdns_get_query_pkt_size(dnsreq->context,
-	    dnsreq->name, netreq->request_type, dnsreq->extensions);
-
-	if (pkt_size_needed > pkt_buf_len) {
-		pkt = GETDNS_XMALLOC(
-		    dnsreq->context->mf, uint8_t, pkt_size_needed);
-		pkt_len = pkt_size_needed;
-	} else
-		pkt_len = pkt_buf_len;
-
-	if (getdns_make_query_pkt_buf(netreq, pkt_buf, &pkt_len,
-	    &netreq->max_udp_payload_size))
-		goto exit;
-
 	netreq->query_id = ldns_get_random();
-	GLDNS_ID_SET(pkt, netreq->query_id);
+	GLDNS_ID_SET(netreq->query, netreq->query_id);
+	if (netreq->edns_maximum_udp_payload_size == -1)
+		gldns_write_uint16(netreq->opt + 3,
+		    ( netreq->max_udp_payload_size =
+		      netreq->upstream->addr.ss_family == AF_INET6
+		    ? 1232 : 1432));
 
-	if ((ssize_t)pkt_len != sendto(netreq->fd, pkt, pkt_len, 0,
+	if ((ssize_t)pkt_len != sendto(netreq->fd, netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
 		close(netreq->fd);
-		goto exit;
+		return;
 	}
 	GETDNS_SCHEDULE_EVENT(
 	    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
 	    getdns_eventloop_event_init(&netreq->event, netreq,
 	    stub_udp_read_cb, NULL, stub_timeout_cb));
-exit:
-	if (pkt && pkt != pkt_buf)
-		GETDNS_FREE(dnsreq->context->mf, pkt);
 }
 
 static getdns_upstream *
@@ -735,47 +505,15 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 {
 	getdns_dns_req *dnsreq = netreq->owner;
 
-	static size_t   pkt_buf_len = 4096;
-	uint8_t         pkt_buf[pkt_buf_len];
-	uint8_t        *pkt = pkt_buf;
-	size_t          pkt_len;
-	size_t          query_pkt_size;
-
+	size_t          pkt_len = netreq->response - netreq->query;
 	ssize_t         written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
 
 	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
-		/* No, this is an initial write.
-		 * Create packet and try to send
+		/* No, this is an initial write. Try to send
 		 */
-		query_pkt_size = getdns_get_query_pkt_size(dnsreq->context,
-		    dnsreq->name, netreq->request_type, dnsreq->extensions);
-
-		if (query_pkt_size + 2 > pkt_buf_len) {
-			/* Not enough space in out stack buffer.
-			 * Allocate a buffer on the heap.
-			 */
-			if (!(pkt = GETDNS_XMALLOC(dnsreq->context->mf,
-			    uint8_t, query_pkt_size + 2)))
-				return STUB_TCP_ERROR;
-
-			tcp->write_buf = pkt;
-			tcp->write_buf_len = query_pkt_size + 2;
-			tcp->written = 0;
-
-			pkt_len = query_pkt_size;
-		} else
-			pkt_len = pkt_buf_len - 2;
-
-		/* Construct query packet */
-		if (getdns_make_query_pkt_buf(netreq, pkt + 2, &pkt_len,
-		    &netreq->max_udp_payload_size))
-			return STUB_TCP_ERROR;
-
-		/* Prepend length short */
-		gldns_write_uint16(pkt, pkt_len);
 
 		/* Not keeping connections open? Then the first random number
 		 * will do as the query id.
@@ -796,20 +534,23 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		} while (!getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
-		GLDNS_ID_SET(pkt + 2, query_id);
+		GLDNS_ID_SET(netreq->query, query_id);
+		gldns_write_uint16(netreq->opt + 3, 65535); /* no limits on the
+							       max udp payload
+							       size with tcp */
 
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */
 #ifdef USE_TCP_FASTOPEN
 		/* We use sendto() here which will do both a connect and send */
-		written = sendto(fd, pkt, pkt_len + 2, MSG_FASTOPEN,
-					(struct sockaddr *)&(netreq->upstream->addr),
-					netreq->upstream->addr_len);
+		written = sendto(fd, netreq->query - 2, pkt_len + 2,
+		    MSG_FASTOPEN, (struct sockaddr *)&(netreq->upstream->addr),
+		    netreq->upstream->addr_len);
 		/* If pipelining we will find that the connection is already up so 
 		   just fall back to a 'normal' write. */
 		if (written == -1 && errno == EISCONN) 
-			written = write(fd, pkt, pkt_len + 2);
+			written = write(fd, netreq->query - 2, pkt_len + 2);
 
 		if ((written == -1 && (errno == EAGAIN ||
 		                       errno == EWOULDBLOCK ||
@@ -819,26 +560,17 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		                       errno == EINPROGRESS)) ||
 		     written  < pkt_len + 2) {
 #else
-		written = write(fd, pkt, pkt_len + 2);
+		written = write(fd, netreq->query - 2, pkt_len + 2);
 		if ((written == -1 && (errno == EAGAIN ||
 		                       errno == EWOULDBLOCK)) ||
 		     written  < pkt_len + 2) {
 #endif
 			/* We couldn't write the whole packet.
-			 * We have to return with STUB_TCP_AGAIN, but if
-			 * the packet was on the stack only, we have to copy
-			 * it to heap space fist, because the stack will be
-			 * gone after return.
+			 * We have to return with STUB_TCP_AGAIN.
+			 * Setup tcp to track the state.
 			 */
-			if (!tcp->write_buf) {
-				/* Copy stack packet buffer to heap  */
-				if (!(tcp->write_buf = GETDNS_XMALLOC(
-				    dnsreq->context->mf,uint8_t,pkt_len + 2)))
-				 	return STUB_TCP_ERROR;
-				(void) memcpy(tcp->write_buf, pkt, pkt_len + 2);
-				tcp->write_buf_len = pkt_len + 2;
-			}
-			/* Because written could be -1 (and errno EAGAIN) */
+			tcp->write_buf = netreq->query - 2;
+			tcp->write_buf_len = pkt_len + 2;
 			tcp->written = written >= 0 ? written : 0;
 
 			return STUB_TCP_AGAIN;
@@ -847,7 +579,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			return STUB_TCP_ERROR;
 
 		/* We were able to write everything!  Start reading. */
-		GETDNS_NULL_FREE(dnsreq->context->mf, tcp->write_buf);
+		return (int) query_id;
 
 	} else {/* if (! tcp->write_buf) */
 
@@ -867,12 +599,10 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			return STUB_TCP_AGAIN;
 
 		/* Done. Start reading */
-		query_id = GLDNS_ID_WIRE(tcp->write_buf + 2);
+		tcp->write_buf = NULL;
+		return (int)GLDNS_ID_WIRE(tcp->write_buf + 2);
 
 	} /* if (! tcp->write_buf) */
-
-	GETDNS_NULL_FREE(dnsreq->context->mf, tcp->write_buf);
-	return (int) query_id;
 }
 
 static void

@@ -198,6 +198,7 @@ typedef struct getdns_network_req
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;
 
+	int                     edns_maximum_udp_payload_size;
 	uint16_t                max_udp_payload_size;
 
 	/* Network requests scheduled to write after me */
@@ -207,6 +208,9 @@ typedef struct getdns_network_req
 	 * available in wire_data[], it will be allocated seperately.
 	 * response will then not point to wire_data anymore.
 	 */
+	size_t   query_len;
+	uint8_t *query;
+	uint8_t *opt; /* offset of OPT RR in query */
 	uint8_t *response;
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
@@ -231,7 +235,9 @@ typedef struct getdns_dns_req {
 	struct getdns_context *context;
 
 	/* request extensions */
-	struct getdns_dict *extensions;
+	int dnssec_return_status;
+	int dnssec_return_only_secure;
+	int dnssec_return_validation_chain;
 
 	/* event loop */
 	getdns_eventloop *loop;
@@ -245,9 +251,6 @@ typedef struct getdns_dns_req {
 
 	/* for scheduling timeouts when using libunbound */
 	getdns_eventloop_event timeout;
-
-	/* dnssec status */
-	int return_dnssec_status;
 
 	/* mem funcs */
 	struct mem_funcs my_mf;
