@@ -185,100 +185,44 @@ convert_rdf_to_str(ldns_rdf * rdf)
 	return ldns_rdf2str(rdf);
 }
 
+#define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(result, #X , (int) \
+                              GLDNS_ ## Y ## _WIRE(netreq->response))) break
+#define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(result, #X , (int) \
+                              GLDNS_ ## Y (netreq->response))) break
+
 /* create the header dict */
 static struct getdns_dict *
-create_reply_header_dict(struct getdns_context *context, ldns_pkt * reply)
+create_reply_header_dict(getdns_context *context, getdns_network_req *netreq)
 {
 	/* { "id": 23456, "qr": 1, "opcode": 0, ... }, */
-	int r = 0;
 	struct getdns_dict *result = getdns_dict_create_with_context(context);
-	if (!result) {
+
+	if (!result)
 		return NULL;
-	}
-	/* cheat since we know GETDNS_RETURN_GOOD == 0 */
-    do {
-    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_ID,
-    	    ldns_pkt_id(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
+    	do {
+		SET_WIRE_INT(id, ID);
+		SET_WIRE_INT(qr, QR);
+		SET_WIRE_INT(aa, AA);
+		SET_WIRE_INT(tc, TC);
+		SET_WIRE_INT(rd, RD);
+		SET_WIRE_INT(cd, CD);
+		SET_WIRE_INT(ra, RA);
+		SET_WIRE_INT(ad, AD);
+		SET_WIRE_INT(opcode, OPCODE);
+		SET_WIRE_INT(rcode, RCODE);
+		SET_WIRE_INT(z, Z);
 
-        /* set bits - seems like this could be macro-ified*/
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_QR,
-            (int) ldns_pkt_qr(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
+		SET_WIRE_CNT(qdcount, QDCOUNT);
+		SET_WIRE_CNT(ancount, ANCOUNT);
+		SET_WIRE_CNT(nscount, NSCOUNT);
+		SET_WIRE_CNT(arcount, ARCOUNT);
 
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_AA,
-            (int) ldns_pkt_aa(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
+		return result;
 
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_TC,
-            (int) ldns_pkt_tc(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
+	} while (0);
 
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_RD,
-            (int) ldns_pkt_rd(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_CD,
-            (int) ldns_pkt_cd(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_RA,
-            (int) ldns_pkt_ra(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_AD,
-            (int) ldns_pkt_ad(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        /* codes */
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_OPCODE,
-            (int) ldns_pkt_get_opcode(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_RCODE,
-            (int) ldns_pkt_get_rcode(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        /* default z to 0 */
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_Z, 0);
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        /* counts */
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_QDCOUNT,
-            (int) ldns_pkt_qdcount(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_ANCOUNT,
-            (int) ldns_pkt_ancount(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_NSCOUNT,
-            (int) ldns_pkt_nscount(reply));
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-        r = getdns_dict_set_int(result, GETDNS_STR_KEY_ARCOUNT,
-            (int) ldns_pkt_arcount(reply));
-    } while (0);
-
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
-	return result;
+	getdns_dict_destroy(result);
+	return NULL;
 }
 
 /* helper to convert an rr_list to getdns_list.
@@ -424,7 +368,7 @@ create_reply_dict(struct getdns_context *context, getdns_network_req * req,
 
 	/* header */
     do {
-    	subdict = create_reply_header_dict(context, reply);
+    	subdict = create_reply_header_dict(context, req);
     	r = getdns_dict_set_dict(result, GETDNS_STR_KEY_HEADER, subdict);
     	getdns_dict_destroy(subdict);
         if (r != GETDNS_RETURN_GOOD) {
@@ -555,6 +499,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 	char *canonical_name = NULL;
 	getdns_return_t r = 0;
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
+    	struct getdns_bindata full_data;
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
@@ -631,17 +576,6 @@ create_getdns_response(getdns_dns_req *completed_request)
 			else if (completed_request->dnssec_return_only_secure && ! netreq->secure)
 				continue;
 		}
-    		struct getdns_bindata full_data;
-    		full_data.data = NULL;
-    		full_data.size = 0;
-    		ldns_pkt *pkt = netreq->result;
-    		ldns_status s =
-    		    ldns_pkt2wire(&(full_data.data), pkt, &(full_data.size));
-            if (s != LDNS_STATUS_OK) {
-                // break inner
-                r = GETDNS_RETURN_MEMORY_ERROR;
-                break;
-            }
     		size_t idx = 0;
     		/* reply tree */
     		struct getdns_dict *reply = create_reply_dict(
@@ -681,13 +615,13 @@ create_getdns_response(getdns_dns_req *completed_request)
     		/* buffer */
 			r = getdns_list_add_item(replies_full, &idx);
             if (r != GETDNS_RETURN_GOOD) {
-                free(full_data.data);
                 // break inner while
                 break;
             }
+			full_data.data = netreq->response;
+			full_data.size = netreq->response_len;
 			r = getdns_list_set_bindata(replies_full, idx,
 			    &full_data);
-			free(full_data.data);
             if (r != GETDNS_RETURN_GOOD) {
                 free(full_data.data);
                 // break inner while
