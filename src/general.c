@@ -88,7 +88,7 @@ priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		if (netreq->state != NET_REQ_FINISHED &&
 		    netreq->state != NET_REQ_CANCELED)
 			return;
-		else if (netreq->result)
+		else if (netreq->response_len > 0)
 			results_found = 1;
 
 	if (! results_found)

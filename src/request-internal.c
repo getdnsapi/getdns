@@ -102,6 +102,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	                              ? edns_maximum_udp_payload_size : 1432;
 	net_req->write_queue_tail = NULL;
 	net_req->query_len = 0;
+	net_req->response_len = 0;
 
 	net_req->wire_data_sz = wire_data_sz;
 	if (max_query_sz) {
@@ -120,8 +121,10 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 
 		buf += GLDNS_HEADER_SIZE;
 		dname_len = max_query_sz - GLDNS_HEADER_SIZE;
-		if ((r = gldns_str2wire_dname_buf(name, buf, &dname_len)))
+		if ((r = gldns_str2wire_dname_buf(name, buf, &dname_len))) {
+			net_req->opt = NULL;
 			return r;
+		}
 
 		buf += dname_len;
 
@@ -202,12 +205,13 @@ getdns_dns_req *
 dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions)
 {
-	int dnssec_return_status = context->return_dnssec_status ||
-	      is_extension_set(extensions, "dnssec_return_status");
+	int dnssec_return_status
+	    =  context->return_dnssec_status == GETDNS_EXTENSION_TRUE
+	    || is_extension_set(extensions, "dnssec_return_status");
 	int dnssec_return_only_secure
-	    = is_extension_set(extensions, "dnssec_return_only_secure");
+	    =  is_extension_set(extensions, "dnssec_return_only_secure");
 	int dnssec_return_validation_chain
-	    = is_extension_set(extensions, "dnssec_return_validation_chain");
+	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_validation_chain;
 

@@ -48,6 +48,9 @@
 #if defined(WIRE_DEBUG) && WIRE_DEBUG
 #include "gldns/wire2str.h"
 #endif
+#include "gldns/str2wire.h"
+#include "gldns/gbuffer.h"
+#include "gldns/pkthdr.h"
 
 /**
   * this is a comprehensive list of extensions and their data types
@@ -562,11 +565,19 @@ create_getdns_response(getdns_dns_req *completed_request)
 	    ; ! r && (netreq = *netreq_p)
 	    ; netreq_p++) {
 
-		if (! netreq->result)
+		assert(! netreq->result);
+		if (! netreq->response_len)
 			continue;
 
+		if (ldns_wire2pkt(&(netreq->result), netreq->response,
+		    netreq->response_len)) {
+
+			netreq->response_len = 0;
+			continue;
+		}
+
 		if ((str_pkt = gldns_wire2str_pkt(
-		    netreq->response, netreq->max_udp_payload_size))) {
+		    netreq->response, netreq->response_len))) {
 			fprintf(stderr, "%s\n", str_pkt);
 			free(str_pkt);
 		}
@@ -868,43 +879,63 @@ validate_extensions(struct getdns_dict * extensions)
 
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
-    struct ub_result* ub_res) {
+    struct ub_result* ub_res)
+{
+	size_t dname_len;
 
-    if (ub_res == NULL) { /* Timeout */
-    	netreq->result = NULL;
-    	return GETDNS_RETURN_GOOD;
+	netreq->secure = ub_res->secure;
+	netreq->bogus  = ub_res->bogus;
 
-    } else if (ub_res->answer_packet == NULL) {
+	if (ub_res == NULL) /* Timeout */
+		return GETDNS_RETURN_GOOD;
+
+	if (ub_res->answer_packet) {
+		if (netreq->max_udp_payload_size < ub_res->answer_len)
+			netreq->response = GETDNS_XMALLOC(
+			    netreq->owner->context->mf,
+			    uint8_t, ub_res->answer_len
+			);
+		(void) memcpy(netreq->response, ub_res->answer_packet,
+		    (netreq->response_len = ub_res->answer_len));
+		return GETDNS_RETURN_GOOD;
+	}
+
     	if (ub_res->rcode == GETDNS_RCODE_SERVFAIL) {
 		/* Likely to be caused by timeout from a synchronous
 		 * lookup.  Don't forge a packet.
 		 */
-		netreq->result = NULL;
-	} else {
-		/* Likely to be because libunbound refused the request
-		 * so ub_res->answer_packet=NULL, ub_res->answer_len=0
-		 * So we need to create an answer packet.
-		 */
-		netreq->result = ldns_pkt_query_new(
-			ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, netreq->owner->name), 
-			netreq->request_type, 
-			netreq->request_class,LDNS_QR|LDNS_RD|LDNS_RA);
-		ldns_pkt_set_rcode(netreq->result, ub_res->rcode);
+		return GETDNS_RETURN_GOOD;
 	}
-    } else {
-	if (netreq->max_udp_payload_size < ub_res->answer_len)
-		netreq->response = GETDNS_XMALLOC(
-		    netreq->owner->context->mf, uint8_t, ub_res->answer_len);
-	(void) memcpy(netreq->response, ub_res->answer_packet,
-	    (netreq->max_udp_payload_size = ub_res->answer_len));
-        ldns_status r = ldns_wire2pkt(&(netreq->result),
-	    netreq->response, netreq->max_udp_payload_size);
-        if (r != LDNS_STATUS_OK)
-            return GETDNS_RETURN_GENERIC_ERROR;
-    }
-    netreq->secure = ub_res->secure;
-    netreq->bogus  = ub_res->bogus;
-    return GETDNS_RETURN_GOOD;
+	/* Likely to be because libunbound refused the request
+	 * so ub_res->answer_packet=NULL, ub_res->answer_len=0
+	 * So we need to create an answer packet.
+	 */
+	gldns_write_uint16(netreq->response    , 0); /* query_id */
+	gldns_write_uint16(netreq->response + 2, 0); /* reset all flags */
+	gldns_write_uint16(netreq->response + GLDNS_QDCOUNT_OFF, 1);
+	gldns_write_uint16(netreq->response + GLDNS_ANCOUNT_OFF, 0);
+	gldns_write_uint16(netreq->response + GLDNS_NSCOUNT_OFF, 0);
+	gldns_write_uint16(netreq->response + GLDNS_ARCOUNT_OFF, 0);
+
+	GLDNS_OPCODE_SET(netreq->response, 3);
+	GLDNS_QR_SET(netreq->response);
+	GLDNS_RD_SET(netreq->response);
+	GLDNS_RA_SET(netreq->response);
+	GLDNS_RCODE_SET(netreq->response, ub_res->rcode);
+
+	dname_len = netreq->max_udp_payload_size - GLDNS_HEADER_SIZE;
+	if (gldns_str2wire_dname_buf(netreq->owner->name,
+	    netreq->response + GLDNS_HEADER_SIZE, &dname_len))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE + dname_len
+	                  , netreq->request_type);
+	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE + dname_len + 2
+	                  , netreq->request_class);
+
+	netreq->response_len = GLDNS_HEADER_SIZE + dname_len + 4;
+
+	return GETDNS_RETURN_GOOD;
 }
 
 

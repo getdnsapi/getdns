@@ -229,9 +229,7 @@ stub_udp_read_cb(void *userarg)
 
 		return;
 	}
-	netreq->max_udp_payload_size = read;
-	ldns_wire2pkt(&(netreq->result), netreq->response,
-	    netreq->max_udp_payload_size);
+	netreq->response_len = read;
 	dnsreq->upstreams->current = 0;
 
 	/* TODO: DNSSEC */
@@ -393,11 +391,9 @@ stub_tcp_read_cb(void *userarg)
 			return;
 		netreq->state = NET_REQ_FINISHED;
 		netreq->response = netreq->tcp.read_buf;
-		netreq->max_udp_payload_size =
+		netreq->response_len =
 		    netreq->tcp.read_pos - netreq->tcp.read_buf;
 		netreq->tcp.read_buf = NULL;
-		ldns_wire2pkt(&(netreq->result), netreq->response,
-		    netreq->max_udp_payload_size);
 		dnsreq->upstreams->current = 0;
 
 		/* TODO: DNSSEC */
@@ -446,11 +442,9 @@ upstream_read_cb(void *userarg)
 
 		netreq->state = NET_REQ_FINISHED;
 		netreq->response = upstream->tcp.read_buf;
-		netreq->max_udp_payload_size =
+		netreq->response_len =
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
 		upstream->tcp.read_buf = NULL;
-		ldns_wire2pkt(&(netreq->result), netreq->response,
-		    netreq->max_udp_payload_size);
 		upstream->upstreams->current = 0;
 
 		/* TODO: DNSSEC */

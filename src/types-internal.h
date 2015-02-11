@@ -211,6 +211,7 @@ typedef struct getdns_network_req
 	size_t   query_len;
 	uint8_t *query;
 	uint8_t *opt; /* offset of OPT RR in query */
+	size_t   response_len;
 	uint8_t *response;
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
