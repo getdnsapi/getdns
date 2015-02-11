@@ -51,6 +51,7 @@
 #include "gldns/str2wire.h"
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
+#include "rr-iter.h"
 
 /**
   * this is a comprehensive list of extensions and their data types
@@ -503,9 +504,9 @@ create_getdns_response(getdns_dns_req *completed_request)
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
-
-#if defined(WIRE_DEBUG) && WIRE_DEBUG
 	char *str_pkt;
+	getdns_rr_iter rr_iter_storage, *rr_iter;
+
     	for ( netreq_p = completed_request->netreqs
 	    ; ! r && (netreq = *netreq_p)
 	    ; netreq_p++) {
@@ -521,13 +522,27 @@ create_getdns_response(getdns_dns_req *completed_request)
 			continue;
 		}
 
+#if defined(WIRE_DEBUG) && WIRE_DEBUG
+		for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+		                                        , netreq->response
+		                                        , netreq->response_len)
+		    ; rr_iter
+		    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
+
+			fprintf( stderr, "n: %d, dname: %p, rr_type: %p "
+			                 "-> type: %d, class: %d\n"
+			       , (int)rr_iter->n,rr_iter->pos,rr_iter->rr_type
+			       , (int)gldns_read_uint16(rr_iter->rr_type)
+			       , (int)gldns_read_uint16(rr_iter->rr_type + 2)
+			       );
+		}
 		if ((str_pkt = gldns_wire2str_pkt(
 		    netreq->response, netreq->response_len))) {
 			fprintf(stderr, "%s\n", str_pkt);
 			free(str_pkt);
 		}
-	}
 #endif
+	}
 
 	dnssec_return_status = completed_request->dnssec_return_status ||
 	                       completed_request->dnssec_return_only_secure;

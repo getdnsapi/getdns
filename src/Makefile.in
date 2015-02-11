@@ -63,7 +63,7 @@ EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
 
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
 	getdns_error.lo list.lo request-internal.lo \
-	rr-dict.lo stub.lo sync.lo util-internal.lo
+	rr-dict.lo rr-iter.lo stub.lo sync.lo util-internal.lo
 
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
@@ -241,16 +241,18 @@ list.lo list.o: $(srcdir)/list.c $(srcdir)/types-internal.h getdns/getdns.h $(sr
 request-internal.lo request-internal.o: $(srcdir)/request-internal.c config.h $(srcdir)/types-internal.h \
  getdns/getdns.h $(srcdir)/getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h \
- $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/gldns/rrdef.h
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/gldns/rrdef.h \
+ $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h
 rr-dict.lo rr-dict.o: $(srcdir)/rr-dict.c $(srcdir)/rr-dict.h getdns/getdns.h $(srcdir)/types-internal.h \
  $(srcdir)/getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/context.h config.h \
  $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/dict.h
+rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h getdns/getdns.h $(srcdir)/gldns/pkthdr.h
 stub.lo stub.o: $(srcdir)/stub.c config.h $(srcdir)/stub.h getdns/getdns.h $(srcdir)/types-internal.h \
- $(srcdir)/getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/gldns/rrdef.h \
- $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/context.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
- $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/general.h
+ $(srcdir)/getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/gldns/gbuffer.h \
+ $(srcdir)/gldns/pkthdr.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h \
+ $(srcdir)/general.h
 sync.lo sync.o: $(srcdir)/sync.c getdns/getdns.h config.h $(srcdir)/context.h $(srcdir)/getdns/getdns_extra.h \
  getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
  config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/general.h \
@@ -258,7 +260,9 @@ sync.lo sync.o: $(srcdir)/sync.c getdns/getdns.h config.h $(srcdir)/context.h $(
 util-internal.lo util-internal.o: $(srcdir)/util-internal.c getdns/getdns.h $(srcdir)/dict.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/getdns/getdns_extra.h getdns/getdns.h $(srcdir)/list.h \
  $(srcdir)/util-internal.h $(srcdir)/context.h config.h $(srcdir)/extension/libmini_event.h config.h \
- $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-dict.h
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-dict.h \
+ $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/gbuffer.h \
+ $(srcdir)/gldns/pkthdr.h
 gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c config.h $(srcdir)/gldns/gbuffer.h
 keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c config.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
 parse.lo parse.o: $(srcdir)/gldns/parse.c config.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h \
