@@ -281,7 +281,7 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    add_opt_parameters, "options", &options) == GETDNS_RETURN_GOOD)
 		(void) getdns_list_get_length(options, &noptions);
 
-	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != -1 ||
+	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != 512 ||
 	    edns_extended_rcode != 0 || edns_version != 0 || noptions;
 
 	edns_maximum_udp_payload_size = with_opt &&
