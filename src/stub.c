@@ -251,7 +251,7 @@ stub_udp_write_cb(void *userarg)
 
 	netreq->query_id = ldns_get_random();
 	GLDNS_ID_SET(netreq->query, netreq->query_id);
-	if (netreq->edns_maximum_udp_payload_size == -1)
+	if (netreq->edns_maximum_udp_payload_size == -1 && netreq->opt)
 		gldns_write_uint16(netreq->opt + 3,
 		    ( netreq->max_udp_payload_size =
 		      netreq->upstream->addr.ss_family == AF_INET6
@@ -529,9 +529,9 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
 		GLDNS_ID_SET(netreq->query, query_id);
-		gldns_write_uint16(netreq->opt + 3, 65535); /* no limits on the
-							       max udp payload
-							       size with tcp */
+		if (netreq->opt)
+			/* no limits on the max udp payload size with tcp */
+			gldns_write_uint16(netreq->opt + 3, 65535);
 
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
