@@ -355,7 +355,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 				buf_size *= 2;
 
 			if (!(buf = GETDNS_XREALLOC(*mf,
-			    tcp->read_buf, uint8_t, tcp->read_buf_len)))
+			    tcp->read_buf, uint8_t, buf_size)))
 				return STUB_TCP_ERROR;
 
 			tcp->read_buf = buf;
