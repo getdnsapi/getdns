@@ -34,18 +34,18 @@
 
 #include "getdns/getdns.h"
 
-typedef struct getdns_rr_iter {
+typedef struct priv_getdns_rr_iter {
 	uint8_t *pkt;
 	size_t   pkt_len;
 	size_t   n; /* Which RR are we currently at */
 	uint8_t *pos;
 	uint8_t *rr_type;
-} getdns_rr_iter;
+} priv_getdns_rr_iter;
 
-getdns_rr_iter *priv_getdns_rr_iter_init(getdns_rr_iter *i,
+priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
     uint8_t *pkt, size_t pkt_len);
 
-getdns_rr_iter *priv_getdns_rr_iter_next(getdns_rr_iter *i);
+priv_getdns_rr_iter *priv_getdns_rr_iter_next(priv_getdns_rr_iter *i);
 
 #endif
 

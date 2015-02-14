@@ -34,8 +34,8 @@
 #include <gldns/pkthdr.h>
 #include <gldns/gbuffer.h>
 
-static getdns_rr_iter *
-find_rrtype(getdns_rr_iter *i)
+static priv_getdns_rr_iter *
+find_rrtype(priv_getdns_rr_iter *i)
 {
 	size_t dlen;
 	uint8_t *pos;
@@ -78,8 +78,8 @@ find_rrtype(getdns_rr_iter *i)
 	return NULL;
 }
 
-getdns_rr_iter *
-priv_getdns_rr_iter_init(getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
+priv_getdns_rr_iter *
+priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 {
 	if (pkt_len < GLDNS_HEADER_SIZE + 5)
 		return NULL;
@@ -93,8 +93,8 @@ priv_getdns_rr_iter_init(getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 }
 
 
-getdns_rr_iter *
-priv_getdns_rr_iter_next(getdns_rr_iter *i)
+priv_getdns_rr_iter *
+priv_getdns_rr_iter_next(priv_getdns_rr_iter *i)
 {
 	size_t dlen;
 

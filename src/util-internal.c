@@ -505,7 +505,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
 	char *str_pkt;
-	getdns_rr_iter rr_iter_storage, *rr_iter;
+	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
 
     	for ( netreq_p = completed_request->netreqs
 	    ; ! r && (netreq = *netreq_p)
