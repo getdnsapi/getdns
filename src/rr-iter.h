@@ -33,13 +33,28 @@
 #define RR_ITER_H_
 
 #include "getdns/getdns.h"
+#include "rr-dict.h"
 
 typedef struct priv_getdns_rr_iter {
 	uint8_t *pkt;
-	size_t   pkt_len;
-	size_t   n; /* Which RR are we currently at */
+	uint8_t *pkt_end;
+
+	/* Which RR are we currently at */
+	size_t   n;
+
+	/* pos points to start of the owner name the RR.
+	 * Or is NULL when there are no RR's left.
+	 */
 	uint8_t *pos;
+
+	/* rr_type will point to the rr_type right after the RR's owner name.
+	 * rr_type is guaranteed to have a value when pos has a value
+	 */
 	uint8_t *rr_type;
+
+	/* nxt point to the owner name of the next RR or to pkt_end */
+	uint8_t *nxt;
+
 } priv_getdns_rr_iter;
 
 priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
@@ -47,6 +62,20 @@ priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
 
 priv_getdns_rr_iter *priv_getdns_rr_iter_next(priv_getdns_rr_iter *i);
 
-#endif
+typedef struct piv_getdns_rdf_iter {
+	uint8_t                     *pkt;
+	uint8_t                     *pkt_end;
+	const priv_getdns_rdata_def *rdd_pos;
+	const priv_getdns_rdata_def *rdd_end;
+	const priv_getdns_rdata_def *rdd_repeat;
+	uint8_t                     *pos;
+	uint8_t                     *end;
+	uint8_t                     *nxt;
+} priv_getdns_rdf_iter;
 
-/* rrs.h */
+priv_getdns_rdf_iter *priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i,
+    priv_getdns_rr_iter *rr);
+
+priv_getdns_rdf_iter *priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i);
+
+#endif

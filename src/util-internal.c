@@ -504,8 +504,13 @@ create_getdns_response(getdns_dns_req *completed_request)
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
+
+#if defined(WIRE_DEBUG) && WIRE_DEBUG
 	char *str_pkt;
 	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
+	priv_getdns_rdf_iter rdf_spc, *rdf_iter;
+	int i;
+#endif
 
     	for ( netreq_p = completed_request->netreqs
 	    ; ! r && (netreq = *netreq_p)
@@ -529,12 +534,29 @@ create_getdns_response(getdns_dns_req *completed_request)
 		    ; rr_iter
 		    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
 
-			fprintf( stderr, "n: %d, dname: %p, rr_type: %p "
-			                 "-> type: %d, class: %d\n"
-			       , (int)rr_iter->n,rr_iter->pos,rr_iter->rr_type
-			       , (int)gldns_read_uint16(rr_iter->rr_type)
-			       , (int)gldns_read_uint16(rr_iter->rr_type + 2)
-			       );
+			fprintf( stderr, "%d (%p): %s\n"
+			       , (int)rr_iter->n, rr_iter->pos
+			       , priv_getdns_rr_def_lookup(
+				     (int)gldns_read_uint16(rr_iter->rr_type)
+				     )->name);
+
+			i = 0;
+			for ( rdf_iter = priv_getdns_rdf_iter_init(&rdf_spc
+			                                          , rr_iter)
+			    ; rdf_iter
+			    ; rdf_iter = priv_getdns_rdf_iter_next(rdf_iter)) {
+
+				fprintf( stderr, "\t%d (%p): "
+						 "len: %3d, left: %3d, "
+						 "name: %s\n"
+				       , i++
+				       , rdf_iter->pos
+				       , (int)(rdf_iter->nxt - rdf_iter->pos)
+				       , (int)(rdf_iter->end - rdf_iter->nxt)
+				       , rdf_iter->rdd_pos->name
+				       );
+			}
+
 		}
 		if ((str_pkt = gldns_wire2str_pkt(
 		    netreq->response, netreq->response_len))) {

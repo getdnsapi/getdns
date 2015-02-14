@@ -34,46 +34,51 @@
 #include <gldns/pkthdr.h>
 #include <gldns/gbuffer.h>
 
+static void
+rr_iter_find_nxt(priv_getdns_rr_iter *i)
+{
+	assert(i);
+	assert(i->rr_type);
+
+	i->nxt = i->n < GLDNS_QDCOUNT(i->pkt)
+	       ? i->rr_type + 4
+	       : i->rr_type + 10 > i->pkt_end
+	       ? i->pkt_end
+	       : i->rr_type + 10 + gldns_read_uint16(i->rr_type + 8) > i->pkt_end
+	       ? i->pkt_end
+	       : i->rr_type + 10 + gldns_read_uint16(i->rr_type + 8);
+}
+
 static priv_getdns_rr_iter *
 find_rrtype(priv_getdns_rr_iter *i)
 {
-	size_t dlen;
 	uint8_t *pos;
+
+	assert(i);
+	assert(i->pos);
 
 	/* Past the last RR in the pkt */
 	if (GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
-	    GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt) <= i->n) {
+	    GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt) <= i->n)
+		goto done;
 
-		i->pos = NULL;
-		return NULL;
-	}
-
-	/* This iterator was already done */
-	if (!i->pos)
-		return NULL;
-
-	pos  = i->pos;
-	dlen = i->pkt_len - (pos - i->pkt);
-
-	while (dlen >= 5) { /* At least space for type and class  */
-
-		if (*pos == 0) {
+	for (pos = i->pos; pos + 4 < i->pkt_end; pos += *pos + 1)
+		if (!*pos) {
 			i->rr_type = pos + 1;
+			rr_iter_find_nxt(i);
 			return i;
-		}
-		if ((*pos & 0xC0) == 0xC0) {
+
+		} else if ((*pos & 0xC0) == 0xC0) {
+			if ( pos + 6 > i->pkt_end)
+				break; /* No space for class */
+
 			i->rr_type = pos + 2;
+			rr_iter_find_nxt(i);
 			return i;
-		}
-		if ((*pos & 0xC0) != 0)
+
+		} else if (*pos & 0xC0)
 			break; /* Unknown label type */
-
-		if (*pos > dlen)
-			break; /* Label size overflows packet size! */
-
-		dlen -= *pos + 1;
-		pos  += *pos + 1;
-	}
+done:
 	i->pos = NULL;
 	return NULL;
 }
@@ -81,11 +86,14 @@ find_rrtype(priv_getdns_rr_iter *i)
 priv_getdns_rr_iter *
 priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 {
-	if (pkt_len < GLDNS_HEADER_SIZE + 5)
-		return NULL;
+	assert(i);
 
+	if (pkt_len < GLDNS_HEADER_SIZE + 5) {
+		i->pos = NULL;
+		return NULL;
+	}
 	i->pkt     = pkt;
-	i->pkt_len = pkt_len;
+	i->pkt_end = pkt + pkt_len;
 	i->n       = 0;
 	i->pos     = pkt + GLDNS_HEADER_SIZE;
 
@@ -96,31 +104,114 @@ priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 priv_getdns_rr_iter *
 priv_getdns_rr_iter_next(priv_getdns_rr_iter *i)
 {
-	size_t dlen;
+	assert(i);
 
 	/* Already done */
 	if (!i->pos)
 		return NULL;
 
-	assert(i->rr_type);
-
-	i->n += 1;
-
-	if (i->n <= GLDNS_QDCOUNT(i->pkt)) {
-		i->pos = i->rr_type + 4;
-		return find_rrtype(i);
-	}
-
-	dlen = i->pkt_len - (i->rr_type - i->pkt);
-	if (dlen < 10)
-		goto garbage; /* No space for type, class, ttl & rdlength */
-
-	if (gldns_read_uint16(i->rr_type + 8) > dlen - 10)
-		goto garbage; /* RData size overflos packet size */
-
-	i->pos = i->rr_type + 10 + gldns_read_uint16(i->rr_type + 8);
+	i->n  += 1;
+	i->pos = i->nxt;
 	return find_rrtype(i);
-garbage:
+}
+
+static priv_getdns_rdf_iter *
+rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
+{
+	uint8_t *pos;
+
+	assert(i);
+	assert(i->pos);
+	assert(i->rdd_pos);
+
+	if (!i->rdd_repeat && (i->rdd_pos->type & GETDNS_RDF_REPEAT)) {
+		if (i->rdd_pos->type == GETDNS_RDF_REPEAT &&
+		    ++i->rdd_pos == i->rdd_end)
+			goto done;
+		i->rdd_repeat = i->rdd_pos;
+	}
+	if (i->rdd_pos->type & GETDNS_RDF_FIXEDSZ)
+		i->nxt = i->pos + (i->rdd_pos->type & GETDNS_RDF_FIXEDSZ);
+
+	else if ((i->rdd_pos->type & GETDNS_RDF_LEN_VAL) == 0x100)
+		i->nxt = i->pos < i->end ? i->pos + *i->pos + 1 : i->end;
+
+	else if ((i->rdd_pos->type & GETDNS_RDF_LEN_VAL) == 0x200)
+		i->nxt = i->pos + 1 < i->end
+		       ? i->pos + gldns_read_uint16(i->pos) + 2 : i->end;
+
+	else if ((i->rdd_pos->type & GETDNS_RDF_DNAME) == GETDNS_RDF_DNAME)
+
+		for (pos = i->pos; pos < i->end; pos += *pos + 1) {
+			if (!*pos) {
+				i->nxt = pos + 1;
+				break;
+			} else if ((*pos & 0xC0) == 0xC0) {
+				i->nxt = pos + 2;
+				break;
+			} else if (*pos & 0xC0) /* Uknown label type */
+				goto done;
+		}
+	else
+		i->nxt = i->end;
+
+	if (i->nxt <= i->end)
+		return i;
+done:
+	i->pos = NULL;
+	return NULL;
+}
+
+priv_getdns_rdf_iter *
+priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr)
+{
+	const priv_getdns_rr_def *rr_def;
+
+	assert(i);
+	assert(rr);
+
+	/* rr_iter already done or in question section */
+	if (!rr->pos || rr->n < GLDNS_QDCOUNT(rr->pkt))
+		goto done;
+
+	i->pkt     = rr->pkt;
+	i->pkt_end = rr->pkt_end;
+	rr_def     = priv_getdns_rr_def_lookup(gldns_read_uint16(rr->rr_type));
+	i->rdd_pos = rr_def->rdata;
+	i->rdd_end = rr_def->rdata + rr_def->n_rdata_fields;
+
+	/* No rdata */
+	if (i->rdd_pos == i->rdd_end)
+		goto done;
+
+	/* No space to read rdata len */
+	if (rr->rr_type + 10 >= rr->nxt)
+		goto done;
+
+	i->rdd_repeat = NULL;
+	i->pos        = rr->rr_type + 10;
+	i->end        = rr->nxt;
+
+	return rdf_iter_find_nxt(i);
+done:
+	i->pos = NULL;
+	return NULL;
+}
+
+priv_getdns_rdf_iter *
+priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i)
+{
+	if (!i->pos)
+		return NULL;
+
+	i->rdd_pos += 1;
+	if ((i->pos = i->nxt) >= i->end)
+		goto done; /* Out of rdata */
+	if (i->rdd_pos >= i->rdd_end && !(i->rdd_pos = i->rdd_repeat))
+		goto done; /* Remaining rdata, but out of definitions! */
+
+	return rdf_iter_find_nxt(i);
+done:
 	i->pos = NULL;
 	return NULL;
 }
