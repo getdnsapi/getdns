@@ -42,241 +42,229 @@
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
 #define UNKNOWN_RDATA NULL
 
-struct rdata_def {
-	const char *name;
-	int type;
-};
+static priv_getdns_rdata_def          a_rdata[] = {
+	{ "ipv4_address"                , GETDNS_RDF_A    }};
+static priv_getdns_rdata_def         ns_rdata[] = {
+	{ "nsdname"                     , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def         md_rdata[] = {
+	{ "madname"                     , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def      cname_rdata[] = {
+	{ "cname"                       , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def        soa_rdata[] = {
+	{ "mname"                       , GETDNS_RDF_N_C  },
+	{ "rname"                       , GETDNS_RDF_N_C  },
+	{ "serial"                      , GETDNS_RDF_I4   },
+	{ "refresh"                     , GETDNS_RDF_I4   },
+	{ "refresh"                     , GETDNS_RDF_I4   },
+	{ "retry"                       , GETDNS_RDF_I4   },
+	{ "expire"                      , GETDNS_RDF_I4   }};
+static priv_getdns_rdata_def         mg_rdata[] = {
+	{ "mgmname"                     , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def         mr_rdata[] = {
+	{ "newname"                     , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def       null_rdata[] = {
+	{ "anything"                    , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        wks_rdata[] = {
+	{ "address"                     , GETDNS_RDF_A    },
+	{ "protocol"                    , GETDNS_RDF_I1   },
+	{ "bitmap"                      , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        ptr_rdata[] = {
+	{ "ptrdname"                    , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def      hinfo_rdata[] = {
+	{ "cpu"                         , GETDNS_RDF_S    },
+	{ "os"                          , GETDNS_RDF_S    }};
+static priv_getdns_rdata_def      minfo_rdata[] = {
+	{ "rmailbx"                     , GETDNS_RDF_N_C  },
+	{ "emailbx"                     , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def         mx_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "exchange"                    , GETDNS_RDF_N_C  }};
+static priv_getdns_rdata_def        txt_rdata[] = {
+	{ "txt_strings"                 , GETDNS_RDF_S_M  }};
+static priv_getdns_rdata_def         rp_rdata[] = {
+	{ "mbox_dname"                  , GETDNS_RDF_N    },
+	{ "txt_dname"                   , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def      afsdb_rdata[] = {
+	{ "subtype"                     , GETDNS_RDF_I2   },
+	{ "hostname"                    , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def        x25_rdata[] = {
+	{ "psdn_address"                , GETDNS_RDF_S    }};
+static priv_getdns_rdata_def       isdn_rdata[] = {
+	{ "isdn_address"                , GETDNS_RDF_S    },
+	{ "sa"                          , GETDNS_RDF_S    }};
+static priv_getdns_rdata_def         rt_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "intermediate_host"           , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def       nsap_rdata[] = {
+	{ "nsap"                        , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        sig_rdata[] = {
+	{ "sig_obsolete"                , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        key_rdata[] = {
+	{ "key_obsolete"                , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def         px_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "map822"                      , GETDNS_RDF_N    },
+	{ "mapx400"                     , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def       gpos_rdata[] = {
+	{ "longitude"                   , GETDNS_RDF_S    },
+	{ "latitude"                    , GETDNS_RDF_S    },
+	{ "altitude"                    , GETDNS_RDF_S    }};
+static priv_getdns_rdata_def       aaaa_rdata[] = {
+	{ "ipv6_address"                , GETDNS_RDF_AAAA }};
+static priv_getdns_rdata_def        loc_rdata[] = {
+	{ "loc_obsolete"                , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        nxt_rdata[] = {
+	{ "nxt_obsolete"                , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        srv_rdata[] = {
+	{ "priority"                    , GETDNS_RDF_I2   },
+	{ "weight"                      , GETDNS_RDF_I2   },
+	{ "port"                        , GETDNS_RDF_I2   },
+	{ "target"                      , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def       atma_rdata[] = {
+	{ "format"                      , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def      naptr_rdata[] = {
+	{ "order"                       , GETDNS_RDF_I2   },
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "flags"                       , GETDNS_RDF_S    },
+	{ "service"                     , GETDNS_RDF_S    },
+	{ "regexp"                      , GETDNS_RDF_S    },
+	{ "replacement"                 , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def         kx_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "exchanger"                   , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def       cert_rdata[] = {
+	{ "type"                        , GETDNS_RDF_I2   },
+	{ "key_tag"                     , GETDNS_RDF_I2   },
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "certificate_or_crl"          , GETDNS_RDF_B    }};
+static priv_getdns_rdata_def         a6_rdata[] = {
+	{ "a6_obsolete"                 , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def      dname_rdata[] = {
+	{ "target"                      , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def        opt_rdata[] = {
+	{ "options"                     , GETDNS_RDF_R    },
+	{ "option_code"                 , GETDNS_RDF_I2   },
+	{ "option_data"                 , GETDNS_RDF_X_2  }};
+static priv_getdns_rdata_def        apl_rdata[] = {
+	{ "apitems"                     , GETDNS_RDF_R    },
+	{ "address_family"              , GETDNS_RDF_I2   },
+	{ "prefix"                      , GETDNS_RDF_I1   },
+	{ "n"                           , GETDNS_RDF_SPECIAL, NULL },
+	{ "afdpart"                     , GETDNS_RDF_SPECIAL, NULL }};
+static priv_getdns_rdata_def         ds_rdata[] = {
+	{ "key_tag"                     , GETDNS_RDF_I2   },
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "digest_type"                 , GETDNS_RDF_I1   },
+	{ "digest"                      , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def      sshfp_rdata[] = {
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "fp_type"                     , GETDNS_RDF_I1   },
+	{ "fingerprint"                 , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def   ipseckey_rdata[] = {
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "gateway_type"                , GETDNS_RDF_I1   },
+	{ "precedence"                  , GETDNS_RDF_I1   },
+	{ "gateway"                     , GETDNS_RDF_SPECIAL, NULL },
+	{ "public_key"                  , GETDNS_RDF_B    }};
+static priv_getdns_rdata_def      rrsig_rdata[] = {
+	{ "type_covered"                , GETDNS_RDF_I2   },
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "labels"                      , GETDNS_RDF_I1   },
+	{ "original_ttl"                , GETDNS_RDF_I4   },
+	{ "signature_expiration"        , GETDNS_RDF_I4   },
+	{ "signature_inception"         , GETDNS_RDF_I4   },
+	{ "key_tag"                     , GETDNS_RDF_I2   },
+	{ "signers_name"                , GETDNS_RDF_N    },
+	{ "signature"                   , GETDNS_RDF_B    }};
+static priv_getdns_rdata_def       nsec_rdata[] = {
+	{ "next_domain_name"            , GETDNS_RDF_N    },
+	{ "type_bit_maps"               , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def     dnskey_rdata[] = {
+	{ "flags"                       , GETDNS_RDF_I2   },
+	{ "protocol"                    , GETDNS_RDF_I1   },
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "public_key"                  , GETDNS_RDF_B    }};
+static priv_getdns_rdata_def      dhcid_rdata[] = {
+	{ "dhcid_opaque"                , GETDNS_RDF_B    }};
+static priv_getdns_rdata_def      nsec3_rdata[] = {
+	{ "hash_algorithm"              , GETDNS_RDF_I1   },
+	{ "flags"                       , GETDNS_RDF_I1   },
+	{ "iterations"                  , GETDNS_RDF_I2   },
+	{ "salt"                        , GETDNS_RDF_X_C  },
+	{ "next_hashed_owner_name"      , GETDNS_RDF_B32_C},
+	{ "type_bit_maps"               , GETDNS_RDF_X    }};
+static priv_getdns_rdata_def nsec3param_rdata[] = {
+	{ "hash_algorithm"              , GETDNS_RDF_I1   },
+	{ "flags"                       , GETDNS_RDF_I1   },
+	{ "iterations"                  , GETDNS_RDF_I2   },
+	{ "salt"                        , GETDNS_RDF_X_C  }};
+static priv_getdns_rdata_def       tlsa_rdata[] = {
+	{ "certificate_usage"           , GETDNS_RDF_I1   },
+	{ "selector"                    , GETDNS_RDF_I1   },
+	{ "matching_type"               , GETDNS_RDF_I1   },
+	{ "certificate_association_data", GETDNS_RDF_X    }};
+static priv_getdns_rdata_def        hip_rdata[] = {
+	{ "pk_algorithm"                , GETDNS_RDF_SPECIAL, NULL },
+	{ "hit"                         , GETDNS_RDF_SPECIAL, NULL },
+	{ "public_key"                  , GETDNS_RDF_SPECIAL, NULL },
+	{ "rendezvous_servers"          , GETDNS_RDF_N_M  }};
+static priv_getdns_rdata_def        spf_rdata[] = {
+	{ "text"                        , GETDNS_RDF_S_M  }};
+static priv_getdns_rdata_def        nid_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "node_id"                     , GETDNS_RDF_X8   }};
+static priv_getdns_rdata_def        l32_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "locator32"                   , GETDNS_RDF_A    }};
+static priv_getdns_rdata_def        l64_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "locator64"                   , GETDNS_RDF_X8   }};
+static priv_getdns_rdata_def         lp_rdata[] = {
+	{ "preference"                  , GETDNS_RDF_I2   },
+	{ "fqdn"                        , GETDNS_RDF_N    }};
+static priv_getdns_rdata_def      eui48_rdata[] = {
+	{ "eui48_address"               , GETDNS_RDF_X6   }};
+static priv_getdns_rdata_def      eui64_rdata[] = {
+	{ "eui64_address"               , GETDNS_RDF_X8   }};
+static priv_getdns_rdata_def       tkey_rdata[] = {
+	{ "algorithm"                   , GETDNS_RDF_N    },
+	{ "inception"                   , GETDNS_RDF_I4   },
+	{ "expiration"                  , GETDNS_RDF_I4   },
+	{ "mode"                        , GETDNS_RDF_I2   },
+	{ "error"                       , GETDNS_RDF_I2   },
+	{ "key_data"                    , GETDNS_RDF_X_2  },
+	{ "other_data"                  , GETDNS_RDF_X_2  }};
+static priv_getdns_rdata_def       tsig_rdata[] = {
+	{ "algorithm"                   , GETDNS_RDF_N    },
+	{ "time_signed"                 , GETDNS_RDF_I6   },
+	{ "fudge"                       , GETDNS_RDF_I2   },
+	{ "mac"                         , GETDNS_RDF_X_2  },
+	{ "original_id"                 , GETDNS_RDF_I2   },
+	{ "error"                       , GETDNS_RDF_I2   },
+	{ "other_data"                  , GETDNS_RDF_X_2  }};
+static priv_getdns_rdata_def        uri_rdata[] = {
+	{ "priority"                    , GETDNS_RDF_I2   },
+	{ "weight"                      , GETDNS_RDF_I2   },
+	{ "target"                      , GETDNS_RDF_S_M  }};
+static priv_getdns_rdata_def        caa_rdata[] = {
+	{ "flags"                       , GETDNS_RDF_I1   },
+	{ "tag"                         , GETDNS_RDF_S    },
+	{ "value"                       , GETDNS_RDF_S_M  }};
+static priv_getdns_rdata_def        dlv_rdata[] = {
+	{ "key_tag"                     , GETDNS_RDF_I2   },
+	{ "algorithm"                   , GETDNS_RDF_I1   },
+	{ "digest_type"                 , GETDNS_RDF_I1   },
+	{ "digest"                      , GETDNS_RDF_X    }};
 
-struct rr_def {
-	const char *name;
-	const struct rdata_def *rdata;
-	int n_rdata_fields;
-};
-
-static struct rdata_def          a_rdata[] = {
-	{ "ipv4_address"                , t_bindata }};
-static struct rdata_def         ns_rdata[] = {
-	{ "nsdname"                     , t_bindata }};
-static struct rdata_def         md_rdata[] = {
-	{ "madname"                     , t_bindata }};
-static struct rdata_def         mf_rdata[] = {
-	{ "madname"                     , t_bindata }};
-static struct rdata_def      cname_rdata[] = {
-	{ "cname"                       , t_bindata }};
-static struct rdata_def        soa_rdata[] = {
-	{ "mname"                       , t_bindata },
-	{ "rname"                       , t_bindata },
-	{ "serial"                      , t_int     },
-	{ "refresh"                     , t_int     },
-	{ "refresh"                     , t_int     },
-	{ "retry"                       , t_int     },
-	{ "expire"                      , t_int     }};
-static struct rdata_def         mb_rdata[] = {
-	{ "madname"                     , t_bindata }};
-static struct rdata_def         mg_rdata[] = {
-	{ "mgmname"                     , t_bindata }};
-static struct rdata_def         mr_rdata[] = {
-	{ "newname"                     , t_bindata }};
-static struct rdata_def       null_rdata[] = {
-	{ "anything"                    , t_bindata }};
-static struct rdata_def        wks_rdata[] = {
-	{ "address"                     , t_bindata },
-	{ "protocol"                    , t_int     },
-	{ "bitmap"                      , t_bindata }};
-static struct rdata_def        ptr_rdata[] = {
-	{ "ptrdname"                    , t_bindata }};
-static struct rdata_def      hinfo_rdata[] = {
-	{ "cpu"                         , t_bindata }};
-static struct rdata_def      minfo_rdata[] = {
-	{ "rmailbx"                     , t_bindata }};
-static struct rdata_def         mx_rdata[] = {
-	{ "preference"                  , t_int     },
-	{ "exchange"                    , t_bindata }};
-static struct rdata_def        txt_rdata[] = {
-	{ "txt_strings"                 , t_list    }};
-static struct rdata_def         rp_rdata[] = {
-	{ "mbox_dname"                  , t_bindata }};
-static struct rdata_def      afsdb_rdata[] = {
-	{ "subtype"                     , t_bindata }};
-static struct rdata_def        x25_rdata[] = {
-	{ "psdn_address"                , t_bindata }};
-static struct rdata_def       isdn_rdata[] = {
-	{ "isdn_address"                , t_bindata }};
-static struct rdata_def         rt_rdata[] = {
-	{ "preference"                  , t_bindata }};
-static struct rdata_def       nsap_rdata[] = {
-	{ "nsap"                        , t_bindata }};
-static struct rdata_def        sig_rdata[] = {
-	{ "sig_obsolete"                , t_bindata }};
-static struct rdata_def        key_rdata[] = {
-	{ "key_obsolete"                , t_bindata }};
-static struct rdata_def         px_rdata[] = {
-	{ "preference"                  , t_int     },
-	{ "map822"                      , t_bindata },
-	{ "mapx400"                     , t_bindata }};
-static struct rdata_def       gpos_rdata[] = {
-	{ "longitude"                   , t_bindata },
-	{ "latitude"                    , t_bindata },
-	{ "altitude"                    , t_bindata }};
-static struct rdata_def       aaaa_rdata[] = {
-	{ "ipv6_address"                , t_bindata }};
-static struct rdata_def        loc_rdata[] = {
-	{ "loc_obsolete"                , t_bindata }};
-static struct rdata_def        nxt_rdata[] = {
-	{ "nxt_obsolete"                , t_bindata }};
-static struct rdata_def        srv_rdata[] = {
-	{ "priority"                    , t_int     },
-	{ "weight"                      , t_int     },
-	{ "port"                        , t_int     },
-	{ "target"                      , t_bindata }};
-static struct rdata_def       atma_rdata[] = {
-	{ "format"                      , t_bindata }};
-static struct rdata_def      naptr_rdata[] = {
-	{ "order"                       , t_int     },
-	{ "preference"                  , t_int     },
-	{ "flags"                       , t_bindata },
-	{ "service"                     , t_bindata },
-	{ "regexp"                      , t_bindata },
-	{ "replacement"                 , t_bindata }};
-static struct rdata_def         kx_rdata[] = {
-	{ "preference"                  , t_bindata }};
-static struct rdata_def       cert_rdata[] = {
-	{ "type"                        , t_int     },
-	{ "key_tag"                     , t_int     },
-	{ "algorithm"                   , t_int     },
-	{ "certificate_or_crl"          , t_bindata }};
-static struct rdata_def         a6_rdata[] = {
-	{ "a6_obsolete"                 , t_bindata }};
-static struct rdata_def      dname_rdata[] = {
-	{ "target"                      , t_bindata }};
-static struct rdata_def        opt_rdata[] = {
-	{ "options"                     , t_dict    },
-	{ "option_code"                 , t_int     },
-	{ "option_data"                 , t_bindata },
-	{ "udp_payload_size"            , t_int     },
-	{ "extended_rcode"              , t_int     },
-	{ "version"                     , t_int     },
-	{ "do"                          , t_int     },
-	{ "z"                           , t_int     }};
-static struct rdata_def        apl_rdata[] = {
-	{ "apitems"                     , t_dict    },
-	{ "address_family"              , t_int     },
-	{ "prefix"                      , t_int     },
-	{ "n"                           , t_int     },
-	{ "afdpart"                     , t_bindata }};
-static struct rdata_def         ds_rdata[] = {
-	{ "key_tag"                     , t_int     },
-	{ "algorithm"                   , t_int     },
-	{ "digest_type"                 , t_int     },
-	{ "digest"                      , t_bindata }};
-static struct rdata_def      sshfp_rdata[] = {
-	{ "algorithm"                   , t_int     },
-	{ "fp_type"                     , t_int     },
-	{ "fingerprint"                 , t_bindata }};
-static struct rdata_def   ipseckey_rdata[] = {
-	{ "algorithm"                   , t_int     },
-	{ "gateway_type"                , t_int     },
-	{ "precedence"                  , t_int     },
-	{ "gateway"                     , t_bindata },
-	{ "public_key"                  , t_bindata }};
-static struct rdata_def      rrsig_rdata[] = {
-	{ "type_covered"                , t_int     },
-	{ "algorithm"                   , t_int     },
-	{ "labels"                      , t_int     },
-	{ "original_ttl"                , t_int     },
-	{ "signature_expiration"        , t_int     },
-	{ "signature_inception"         , t_int     },
-	{ "key_tag"                     , t_int     },
-	{ "signers_name"                , t_bindata },
-	{ "signature"                   , t_bindata }};
-static struct rdata_def       nsec_rdata[] = {
-	{ "next_domain_name"            , t_bindata }};
-static struct rdata_def     dnskey_rdata[] = {
-	{ "flags"                       , t_int     },
-	{ "protocol"                    , t_int     },
-	{ "algorithm"                   , t_int     },
-	{ "public_key"                  , t_bindata }};
-static struct rdata_def      dhcid_rdata[] = {
-	{ "dhcid_opaque"                , t_bindata }};
-static struct rdata_def      nsec3_rdata[] = {
-	{ "hash_algorithm"              , t_int     },
-	{ "flags"                       , t_int     },
-	{ "iterations"                  , t_int     },
-	{ "salt"                        , t_bindata },
-	{ "next_hashed_owner_name"      , t_bindata },
-	{ "type_bit_maps"               , t_bindata }};
-static struct rdata_def nsec3param_rdata[] = {
-	{ "hash_algorithm"              , t_int     },
-	{ "flags"                       , t_int     },
-	{ "iterations"                  , t_int     },
-	{ "salt"                        , t_bindata }};
-static struct rdata_def       tlsa_rdata[] = {
-	{ "certificate_usage"           , t_int     },
-	{ "selector"                    , t_int     },
-	{ "matching_type"               , t_int     },
-	{ "certificate_association_data", t_bindata }};
-static struct rdata_def        hip_rdata[] = {
-	{ "pk_algorithm"                , t_int     },
-	{ "hit"                         , t_bindata },
-	{ "public_key"                  , t_bindata },
-	{ "rendezvous_servers"          , t_list    }};
-static struct rdata_def        spf_rdata[] = {
-	{ "text"                        , t_bindata }};
-static struct rdata_def        nid_rdata[] = {
-	{ "preference"                  , t_int     },
-	{ "node_id"                     , t_bindata }};
-static struct rdata_def        l32_rdata[] = {
-	{ "preference"                  , t_int     },
-	{ "locator32"                   , t_bindata }};
-static struct rdata_def        l64_rdata[] = {
-	{ "preference"                  , t_int     },
-	{ "locator64"                   , t_bindata }};
-static struct rdata_def         lp_rdata[] = {
-	{ "preference"                  , t_int     },
-	{ "fqdn"                        , t_bindata }};
-static struct rdata_def      eui48_rdata[] = {
-	{ "eui48_address"               , t_bindata }};
-static struct rdata_def      eui64_rdata[] = {
-	{ "eui64_address"               , t_bindata }};
-static struct rdata_def       tkey_rdata[] = {
-	{ "algorithm"                   , t_bindata },
-	{ "inception"                   , t_int     },
-	{ "expiration"                  , t_int     },
-	{ "mode"                        , t_int     },
-	{ "error"                       , t_int     },
-	{ "key_data"                    , t_bindata },
-	{ "other_data"                  , t_bindata }};
-static struct rdata_def       tsig_rdata[] = {
-	{ "algorithm"                   , t_bindata },
-	{ "time_signed"                 , t_bindata },
-	{ "fudge"                       , t_int     },
-	{ "mac"                         , t_bindata },
-	{ "original_id"                 , t_int     },
-	{ "error"                       , t_int     },
-	{ "other_data"                  , t_bindata }};
-static struct rdata_def        uri_rdata[] = {
-	{ "priority"                    , t_int     },
-	{ "weight"                      , t_int     },
-	{ "target"                      , t_bindata }};
-static struct rdata_def        caa_rdata[] = {
-	{ "flags"                       , t_int     },
-	{ "tag"                         , t_bindata },
-	{ "value"                       , t_bindata }};
-static struct rdata_def        dlv_rdata[] = {
-	{ "key_tag"                     , t_int     },
-	{ "algorithm"                   , t_int     },
-	{ "digest_type"                 , t_int     },
-	{ "digest"                      , t_bindata }};
-
-static struct rr_def rr_defs[] = {
+static priv_getdns_rr_def priv_getdns_rr_defs[] = {
 	{         NULL,             NULL, 0                      },
 	{          "A",          a_rdata, ALEN(         a_rdata) }, /* 1 - */
 	{         "NS",         ns_rdata, ALEN(        ns_rdata) },
 	{         "MD",         md_rdata, ALEN(        md_rdata) },
-	{         "MF",         mf_rdata, ALEN(        mf_rdata) },
+	{         "MF",         md_rdata, ALEN(        md_rdata) },
 	{      "CNAME",      cname_rdata, ALEN(     cname_rdata) },
 	{        "SOA",        soa_rdata, ALEN(       soa_rdata) },
-	{         "MB",         mb_rdata, ALEN(        mb_rdata) },
+	{         "MB",         md_rdata, ALEN(        md_rdata) },
 	{         "MG",         mg_rdata, ALEN(        mg_rdata) },
 	{         "MR",         mr_rdata, ALEN(        mr_rdata) },
 	{       "NULL",       null_rdata, ALEN(      null_rdata) },
@@ -531,28 +519,28 @@ static struct rr_def rr_defs[] = {
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
 
-static const struct rr_def *
-rr_def_lookup(uint16_t rr_type)
+const priv_getdns_rr_def *
+priv_getdns_rr_def_lookup(uint16_t rr_type)
 {
 	if (rr_type <= 257)
-		return &rr_defs[rr_type];
+		return &priv_getdns_rr_defs[rr_type];
 	else if (rr_type == 32768)
-		return &rr_defs[258];
+		return &priv_getdns_rr_defs[258];
 	else if (rr_type == 32769)
-		return &rr_defs[259];
-	return rr_defs;
+		return &priv_getdns_rr_defs[259];
+	return priv_getdns_rr_defs;
 }
 
 const char *
 priv_getdns_rr_type_name(int rr_type)
 {
-	return rr_def_lookup(rr_type)->name;
+	return priv_getdns_rr_def_lookup(rr_type)->name;
 }
 
 /* list of txt records */
 static getdns_return_t
 priv_getdns_equip_dict_with_txt_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
-                                     const struct rr_def* def,
+                                     const priv_getdns_rr_def* def,
                                      struct getdns_context* context) {
     size_t i;
     struct getdns_bindata bindata;
@@ -616,7 +604,7 @@ getdns_return_t getdns_rdf_hip_get_alg_hit_pk(ldns_rdf *rdf, uint8_t* alg,
 
 static getdns_return_t
 priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
-                                     const struct rr_def* def,
+                                     const priv_getdns_rr_def* def,
                                      struct getdns_context* context) {
     uint8_t alg;
     getdns_return_t r;
@@ -665,8 +653,9 @@ priv_getdns_equip_dict_with_hip_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
 }
 
 static getdns_return_t
-priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
-                       const struct rr_def* def, struct getdns_context* context) {
+priv_append_apl_record(getdns_list* records, ldns_rdf* rdf,
+    const priv_getdns_rr_def* def, getdns_context* context)
+{
     getdns_return_t r = GETDNS_RETURN_GOOD;
     uint8_t* data;
     size_t size;
@@ -727,7 +716,7 @@ priv_append_apl_record(struct getdns_list* records, ldns_rdf* rdf,
 
 static getdns_return_t
 priv_getdns_equip_dict_with_apl_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
-                                     const struct rr_def* def,
+                                     const priv_getdns_rr_def* def,
                                      struct getdns_context* context) {
     size_t i;
     getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -749,7 +738,7 @@ priv_getdns_equip_dict_with_apl_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
 
 static getdns_return_t
 priv_getdns_equip_dict_with_spf_rdfs(struct getdns_dict* rdata, ldns_rr* rr,
-                                     const struct rr_def* def,
+                                     const priv_getdns_rr_def* def,
                                      struct getdns_context* context) {
     size_t i;
     struct getdns_bindata bindata;
@@ -811,19 +800,21 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
                                  struct getdns_context* context)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	const struct rr_def *def;
+	const priv_getdns_rr_def *def;
 	struct getdns_bindata bindata;
 	size_t i;
-	int intval;
 
 	struct getdns_bindata *rdata_raw;
 	const char *sptr;
 	char *dptr, tmpbuf[100];
 
+	uint8_t *rdf_data;
+	size_t   rdf_size;
+
 	assert(rdata);
 	assert(rr);
 
-	def = rr_def_lookup(ldns_rr_get_type(rr));
+	def = priv_getdns_rr_def_lookup(ldns_rr_get_type(rr));
     /* specialty handlers */
     /* TODO: convert generic one into function w/ similar signature and store in the
      * def? */
@@ -857,35 +848,22 @@ priv_getdns_equip_dict_with_rdfs(struct getdns_dict *rdata, ldns_rr *rr,
 	if (ldns_rr_rd_count(rr) != def->n_rdata_fields)
 		return r;
 
-	for (i = 0; i < ldns_rr_rd_count(rr) && r == GETDNS_RETURN_GOOD; i++) {
-		if (i >= def->n_rdata_fields)
-			break;
+	for (i = 0; !r && i < ldns_rr_rd_count(rr) 
+	               && i < def->n_rdata_fields; i++) {
 
-		switch (def->rdata[i].type) {
-		case t_bindata: bindata.size = ldns_rdf_size(ldns_rr_rdf(rr, i));
-		                bindata.data = ldns_rdf_data(ldns_rr_rdf(rr, i));
-		                r = getdns_dict_set_bindata(
-				    rdata, (char *)def->rdata[i].name, &bindata);
-				break;
-		case t_int    : switch (ldns_rdf_size(ldns_rr_rdf(rr, i))) {
-				case  1: intval = (uint8_t)*ldns_rdf_data(
-				             ldns_rr_rdf(rr, i));
-					 break;
-				case  2: intval = ldns_read_uint16(
-				             ldns_rdf_data(ldns_rr_rdf(rr, i)));
-				         break;
-				case  4: intval = ldns_read_uint32(
-				             ldns_rdf_data(ldns_rr_rdf(rr, i)));
-					 break;
-				default: intval = -1;
-				         /* TODO Compare with LDNS rdf types */
-					 break;
-		                }
-		                r = getdns_dict_set_int(
-				    rdata, (char *)def->rdata[i].name, intval);
-				break;
-		default       : break;
+		if (! (def->rdata[i].type & GETDNS_RDF_INTEGER)) {
+			bindata.size = ldns_rdf_size(ldns_rr_rdf(rr, i));
+			bindata.data = ldns_rdf_data(ldns_rr_rdf(rr, i));
+			r = getdns_dict_set_bindata(
+			    rdata, (char*)def->rdata[i].name, &bindata);
+			continue;
 		}
+		rdf_size = ldns_rdf_size(ldns_rr_rdf(rr, i));
+		rdf_data = ldns_rdf_data(ldns_rr_rdf(rr, i));
+		r = getdns_dict_set_int(rdata, (char *)def->rdata[i].name,
+		      rdf_size == 1 ?                 *rdf_data
+		    : rdf_size == 2 ? ldns_read_uint16(rdf_data)
+		    : rdf_size == 4 ? ldns_read_uint32(rdf_data) : -1);
 	}
 	return r;
 }
@@ -1042,7 +1020,7 @@ static getdns_return_t priv_getdns_construct_wire_rdata_from_rdata(
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	const ldns_rr_descriptor *rr_descript;
-	const struct rr_def *def;
+	const priv_getdns_rr_def *def;
 	size_t i, size;
 	struct getdns_bindata *bindata;
 	uint32_t value;
@@ -1052,40 +1030,40 @@ static getdns_return_t priv_getdns_construct_wire_rdata_from_rdata(
 	assert(wire);
 	assert(wire_size);
 
-	def = rr_def_lookup(rr_type);
+	def = priv_getdns_rr_def_lookup(rr_type);
 	rr_descript = ldns_rr_descript(rr_type);
 
 	/* First calculate needed size */
 	size = 0;
-	for (i = 0; i < def->n_rdata_fields && r == GETDNS_RETURN_GOOD; i++) {
-		switch (def->rdata[i].type) {
-		case t_bindata: r = getdns_dict_get_bindata(rdata,
-				    def->rdata[i].name, &bindata);
-				if (r)
-					break;
+	for (i = 0; !r && i < def->n_rdata_fields; i++) {
+		if (def->rdata[i].type & GETDNS_RDF_BINDATA)
+			if ((r = getdns_dict_get_bindata(rdata,
+			    def->rdata[i].name, &bindata)))
+				break;
+			else {
 				size += bindata->size;
-				break;
-		case t_int    : switch (ldns_rr_descriptor_field_type(
-				        rr_descript, i)) {
+				continue;
+			}
+		else if (!(def->rdata[i].type & GETDNS_RDF_INTEGER)) {
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		switch (ldns_rr_descriptor_field_type(rr_descript, i)) {
 
-				case LDNS_RDF_TYPE_CLASS:
-				case LDNS_RDF_TYPE_ALG  :
-				case LDNS_RDF_TYPE_INT8 : size += 1;
-							  break;
-				case LDNS_RDF_TYPE_TYPE :
-				case LDNS_RDF_TYPE_CERT_ALG:
-				case LDNS_RDF_TYPE_INT16: size += 2;
-							  break;
-				case LDNS_RDF_TYPE_TIME :
-				case LDNS_RDF_TYPE_PERIOD:
-				case LDNS_RDF_TYPE_INT32: size += 4;
-							  break;
-				default: r = GETDNS_RETURN_GENERIC_ERROR;
-				         break;
-				}
-				break;
-		default       : r = GETDNS_RETURN_GENERIC_ERROR;
-				break;
+		case LDNS_RDF_TYPE_CLASS:
+		case LDNS_RDF_TYPE_ALG  :
+		case LDNS_RDF_TYPE_INT8 : size += 1;
+					  break;
+		case LDNS_RDF_TYPE_TYPE :
+		case LDNS_RDF_TYPE_CERT_ALG:
+		case LDNS_RDF_TYPE_INT16: size += 2;
+					  break;
+		case LDNS_RDF_TYPE_TIME :
+		case LDNS_RDF_TYPE_PERIOD:
+		case LDNS_RDF_TYPE_INT32: size += 4;
+					  break;
+		default: r = GETDNS_RETURN_GENERIC_ERROR;
+		         break;
 		}
 	}
 	*wire_size = size + 2;
@@ -1096,56 +1074,48 @@ static getdns_return_t priv_getdns_construct_wire_rdata_from_rdata(
 	ptr[0] = (uint8_t) (size >> 8) & 0xff;
 	ptr[1] = (uint8_t)  size       & 0xff;
 	ptr += 2;
-	for (i = 0; i < def->n_rdata_fields && r == GETDNS_RETURN_GOOD; i++) {
-		switch (def->rdata[i].type) {
-		case t_bindata: r = getdns_dict_get_bindata(rdata,
-				    def->rdata[i].name, &bindata);
-				if (r)
-					break;
+	for (i = 0; !r && i < def->n_rdata_fields; i++) {
+		if (def->rdata[i].type & GETDNS_RDF_BINDATA)
+			if ((r = getdns_dict_get_bindata(rdata,
+			    def->rdata[i].name, &bindata)))
+				break;
+			else {
 				(void) memcpy(ptr, bindata->data,
 				                   bindata->size);
 				ptr += bindata->size;
-				break;
-		case t_int    : r = getdns_dict_get_int(rdata,
-				    def->rdata[i].name, &value);
-				if (r)
-					break;
+				continue;
+			}
+		else if (!(def->rdata[i].type & GETDNS_RDF_INTEGER)) {
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		if ((r = getdns_dict_get_int(
+		    rdata, def->rdata[i].name, &value)))
+			break;
 
-				switch (ldns_rr_descriptor_field_type(
-				        rr_descript, i)) {
+		switch (ldns_rr_descriptor_field_type(rr_descript, i)) {
 
-				case LDNS_RDF_TYPE_CLASS:
-				case LDNS_RDF_TYPE_ALG  :
-				case LDNS_RDF_TYPE_INT8 : ptr[0] = (uint8_t)
-							      value & 0xff;
-				                          ptr += 1;
-							  break;
-				case LDNS_RDF_TYPE_TYPE :
-				case LDNS_RDF_TYPE_CERT_ALG:
-				case LDNS_RDF_TYPE_INT16: ptr[0] = (uint8_t)
-							      (value>>8)&0xff;
-							  ptr[1] = (uint8_t)
-							      value & 0xff;
-							  ptr += 2;
-							  break;
-				case LDNS_RDF_TYPE_TIME :
-				case LDNS_RDF_TYPE_PERIOD:
-				case LDNS_RDF_TYPE_INT32: ptr[0] = (uint8_t)
-							      (value>>24)&0xff;
-							  ptr[1] = (uint8_t)
-							      (value>>16)&0xff;
-							  ptr[2] = (uint8_t)
-							      (value>>8)&0xff;
-							  ptr[3] = (uint8_t)
-							      value & 0xff;
-							  ptr += 4;
-							  break;
-				default: r = GETDNS_RETURN_GENERIC_ERROR;
-				         break;
-				}
-				break;
-		default       : r = GETDNS_RETURN_GENERIC_ERROR;
-				break;
+		case LDNS_RDF_TYPE_CLASS:
+		case LDNS_RDF_TYPE_ALG  :
+		case LDNS_RDF_TYPE_INT8 : ptr[0] = (uint8_t) value      & 0xff;
+		                          ptr += 1;
+					  break;
+		case LDNS_RDF_TYPE_TYPE :
+		case LDNS_RDF_TYPE_CERT_ALG:
+		case LDNS_RDF_TYPE_INT16: ptr[0] = (uint8_t)(value>> 8) & 0xff;
+					  ptr[1] = (uint8_t) value      & 0xff;
+					  ptr += 2;
+					  break;
+		case LDNS_RDF_TYPE_TIME :
+		case LDNS_RDF_TYPE_PERIOD:
+		case LDNS_RDF_TYPE_INT32: ptr[0] = (uint8_t)(value>>24) & 0xff;
+					  ptr[1] = (uint8_t)(value>>16) & 0xff;
+					  ptr[2] = (uint8_t)(value>>8 ) & 0xff;
+					  ptr[3] = (uint8_t) value      & 0xff;
+					  ptr += 4;
+					  break;
+		default: r = GETDNS_RETURN_GENERIC_ERROR;
+		         break;
 		}
 	}
 	if (r)

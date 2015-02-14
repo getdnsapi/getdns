@@ -35,6 +35,61 @@
 #include <ldns/ldns.h>
 #include "getdns/getdns.h"
 
+/* draft-levine-dnsextlang'ish type rr and rdata definitions */
+
+#define GETDNS_RDF_INTEGER   0x010000
+#define GETDNS_RDF_BINDATA   0x020000
+#define GETDNS_RDF_DNAME     0x060000
+#define GETDNS_RDF_REPEAT    0x100000
+
+#define GETDNS_RDF_FIXEDSZ   0x0000FF
+#define GETDNS_RDF_LEN_VAL   0x00FF00
+
+typedef enum priv_getdns_rdf_wf_type {
+	GETDNS_RDF_N       = 0x060000,
+	GETDNS_RDF_N_A     = GETDNS_RDF_N,
+	GETDNS_RDF_N_A_C   = GETDNS_RDF_N,
+	GETDNS_RDF_N_C     = GETDNS_RDF_N,
+	GETDNS_RDF_N_M     = 0x160000,
+
+	GETDNS_RDF_I1      = 0x010001,
+	GETDNS_RDF_I2      = 0x010002,
+	GETDNS_RDF_I4      = 0x010004,
+	GETDNS_RDF_I6      = 0x020006,
+	GETDNS_RDF_A       = 0x020004,
+	GETDNS_RDF_AAAA    = 0x020010,
+
+	GETDNS_RDF_S       = 0x020100,
+	GETDNS_RDF_S_M     = 0x120100,
+
+	GETDNS_RDF_B       = 0x020000,
+	GETDNS_RDF_B_C     = 0x020100,
+	GETDNS_RDF_B32_C   = 0x020100,
+	GETDNS_RDF_X       = 0x020000,
+	GETDNS_RDF_X_C     = 0x020100,
+	GETDNS_RDF_X_2     = 0x020200,
+	GETDNS_RDF_X6      = 0x020006,
+	GETDNS_RDF_X8      = 0x020008,
+
+	GETDNS_RDF_R       = 0x100000, /* Repeat */
+
+	GETDNS_RDF_SPECIAL = 0x800000,
+} priv_getdns_rdf_type;
+
+typedef struct priv_getdns_rdata_def {
+	const char           *name;
+	priv_getdns_rdf_type  type;
+	void                 *special;
+} priv_getdns_rdata_def;
+
+typedef struct priv_getdns_rr_def {
+	const char                  *name;
+	const priv_getdns_rdata_def *rdata;
+	int                          n_rdata_fields;
+} priv_getdns_rr_def;
+
+const priv_getdns_rr_def *priv_getdns_rr_def_lookup(uint16_t rr_type);
+
 getdns_return_t priv_getdns_create_dict_from_rr(
     struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rr_dict);
 
