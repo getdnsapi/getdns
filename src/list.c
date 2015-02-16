@@ -480,5 +480,30 @@ getdns_list_set_int(struct getdns_list * list, size_t index,
 	list->items[index].data.n = child_int;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_set_int */
+
+getdns_return_t
+getdns_list_append_dict(getdns_list *list, const getdns_dict *child_dict)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_dict(list, list->numinuse, child_dict);
+}
+getdns_return_t
+getdns_list_append_list(getdns_list *list, const getdns_list *child_list)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_list(list, list->numinuse, child_list);
+}
+getdns_return_t
+getdns_list_append_bindata(getdns_list *list, const getdns_bindata *child_bindata)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_bindata(list, list->numinuse, child_bindata);
+}
+getdns_return_t
+getdns_list_append_int(getdns_list *list, uint32_t child_int)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_int(list, list->numinuse, child_int);
+}
 /* getdns_list.c */
 

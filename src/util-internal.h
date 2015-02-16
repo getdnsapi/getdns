@@ -71,6 +71,14 @@ getdns_return_t getdns_apply_network_result(getdns_network_req* netreq, struct u
  * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
  */
 getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
+getdns_return_t getdns_list_append_dict(getdns_list *list,
+    const getdns_dict *child_dict);
+getdns_return_t getdns_list_append_list(getdns_list *list,
+    const getdns_list *child_list);
+getdns_return_t getdns_list_append_bindata(getdns_list *list,
+    const getdns_bindata *child_bindata);
+getdns_return_t getdns_list_append_int(getdns_list *list,
+    uint32_t child_uint32);
 
 /**
   * private function (API users should not be calling this), this uses library
