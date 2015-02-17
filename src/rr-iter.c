@@ -31,8 +31,6 @@
 
 #include "rr-iter.h"
 #include "config.h"
-#include <gldns/pkthdr.h>
-#include <gldns/gbuffer.h>
 
 static void
 rr_iter_find_nxt(priv_getdns_rr_iter *i)
@@ -114,6 +112,7 @@ priv_getdns_rr_iter_next(priv_getdns_rr_iter *i)
 	i->pos = i->nxt;
 	return find_rrtype(i);
 }
+
 
 static priv_getdns_rdf_iter *
 rdf_iter_find_nxt(priv_getdns_rdf_iter *i)

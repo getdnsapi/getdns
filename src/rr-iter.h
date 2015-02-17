@@ -34,6 +34,8 @@
 
 #include "getdns/getdns.h"
 #include "rr-dict.h"
+#include "gldns/pkthdr.h"
+#include "gldns/gbuffer.h"
 
 typedef struct priv_getdns_rr_iter {
 	uint8_t *pkt;
@@ -62,6 +64,22 @@ priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
 
 priv_getdns_rr_iter *priv_getdns_rr_iter_next(priv_getdns_rr_iter *i);
 
+static inline gldns_pkt_section
+priv_getdns_rr_iter_section(priv_getdns_rr_iter *i)
+{
+	return i->n < GLDNS_QDCOUNT(i->pkt) ? LDNS_SECTION_QUESTION
+	     : i->n < GLDNS_QDCOUNT(i->pkt)
+	            + GLDNS_ANCOUNT(i->pkt) ? GLDNS_SECTION_ANSWER
+	     : i->n < GLDNS_QDCOUNT(i->pkt)
+	            + GLDNS_ANCOUNT(i->pkt)
+	            + GLDNS_NSCOUNT(i->pkt) ? GLDNS_SECTION_AUTHORITY
+	     : i->n < GLDNS_QDCOUNT(i->pkt)
+	            + GLDNS_ANCOUNT(i->pkt)
+	            + GLDNS_NSCOUNT(i->pkt)
+	            + GLDNS_ARCOUNT(i->pkt) ? GLDNS_SECTION_ADDITIONAL
+	                                    : GLDNS_SECTION_ANY;
+}
+
 typedef struct piv_getdns_rdf_iter {
 	uint8_t                     *pkt;
 	uint8_t                     *pkt_end;
@@ -77,5 +95,6 @@ priv_getdns_rdf_iter *priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i,
     priv_getdns_rr_iter *rr);
 
 priv_getdns_rdf_iter *priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i);
+
 
 #endif
