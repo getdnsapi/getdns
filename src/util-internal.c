@@ -321,14 +321,15 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	priv_getdns_rdf_iter rdf_storage, *rdf;
 	getdns_list *repeat_list = NULL;
 	getdns_dict *repeat_dict = NULL;
+	uint8_t ff_bytes[256];
 
 	assert(context);
 	assert(i);
 	if (!(rr_dict = getdns_dict_create_with_context(context)))
 		return NULL;
 
-	bindata.size = i->rr_type - i->pos;
-	bindata.data = i->pos;
+	bindata.data = priv_getdns_owner_if_or_as_decompressed(
+	    i, ff_bytes, &bindata.size);
 
 	/* question */
 	if (priv_getdns_rr_iter_section(i) == GLDNS_SECTION_QUESTION) {
@@ -371,24 +372,25 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 		if (rdf->rdd_pos->type & GETDNS_RDF_INTEGER) {
 			val_type = t_int;
 			switch (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
-			case 1:	if (getdns_dict_set_int(rdata_dict,
-				    rdf->rdd_pos->name, (uint32_t)*rdf->pos))
-					goto rdata_error;
+			case 1:	int_val = *rdf->pos;
 				break;
-			case 2:	if (getdns_dict_set_int(rdata_dict,
-				    rdf->rdd_pos->name, (uint32_t)
-				    gldns_read_uint16(rdf->pos)))
-					goto rdata_error;
+			case 2:	int_val = gldns_read_uint16(rdf->pos);
 				break; 
-			case 4:	if (getdns_dict_set_int(rdata_dict,
-				    rdf->rdd_pos->name, (uint32_t)
-				    gldns_read_uint32(rdf->pos)))
-					goto rdata_error;
+			case 4:	int_val = gldns_read_uint32(rdf->pos);
 				break;
 			default:
-				break;
+				goto rdata_error;
 			}
-		/* TODO: if (rdf->rdd_pos->type & GETDNS_RDF_DNAME) { */
+		} else if ((rdf->rdd_pos->type & GETDNS_RDF_DNAME) ==
+		    GETDNS_RDF_DNAME) {
+			val_type = t_bindata;
+
+			fprintf(stderr, "dname (%s - %d)\n",
+			    rdf->rdd_pos->name, (int)(rdf->nxt - rdf->pos));
+
+			bindata.data = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, ff_bytes, &bindata.size);
+
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_BINDATA) {
 			val_type = t_bindata;
 			if (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
@@ -404,11 +406,13 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 			case 0x200:
 				bindata.size = gldns_read_uint16(rdf->pos);
 				bindata.data = rdf->pos + 2;
-						break;
+				break;
 			default:
+				fprintf(stderr, "REMAINING (%s - %d)\n",
+				    rdf->rdd_pos->name, (int)(rdf->nxt - rdf->pos));
 				bindata.size = rdf->nxt - rdf->pos;
 				bindata.data = rdf->pos;
-						break;
+				break;
 			}
 		} else
 			assert(0);

@@ -64,6 +64,9 @@ priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
 
 priv_getdns_rr_iter *priv_getdns_rr_iter_next(priv_getdns_rr_iter *i);
 
+uint8_t *priv_getdns_owner_if_or_as_decompressed(
+    priv_getdns_rr_iter *i, uint8_t *ff_bytes, size_t *len);
+
 static inline gldns_pkt_section
 priv_getdns_rr_iter_section(priv_getdns_rr_iter *i)
 {
@@ -96,5 +99,7 @@ priv_getdns_rdf_iter *priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i,
 
 priv_getdns_rdf_iter *priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i);
 
+uint8_t *priv_getdns_rdf_if_or_as_decompressed(
+    priv_getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len);
 
 #endif

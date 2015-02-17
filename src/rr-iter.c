@@ -113,6 +113,96 @@ priv_getdns_rr_iter_next(priv_getdns_rr_iter *i)
 	return find_rrtype(i);
 }
 
+static uint8_t *
+dname_if_or_as_decompressed(uint8_t *pkt, uint8_t *pkt_end, uint8_t *pos,
+    uint8_t *buf, size_t *len, size_t refs)
+{
+	uint16_t offset;
+	uint8_t *start, *dst;
+
+	assert(pkt);
+	assert(pkt_end);
+	assert(pos);
+	assert(buf);
+	assert(len);
+
+	if (refs > 256)
+		goto error;
+
+	if ((*pos & 0xC0) == 0xC0) {
+		if (pos + 1 >= pkt_end)
+			goto error;
+		offset = gldns_read_uint16(pos) & 0x3FFF;
+		if (pkt + offset >= pkt_end)
+			goto error;
+		return dname_if_or_as_decompressed(pkt, pkt_end, pkt + offset,
+		    buf, len, refs + 1);
+	}
+	if (*pos & 0xC0)
+		goto error;
+
+	start = pos;
+	*len  = 0;
+	while (*pos) {
+		if ((*pos & 0xC0) == 0xC0)
+			break;
+
+		else if (*pos & 0xC0)
+			goto error;
+
+		*len += *pos + 1;
+		pos += *pos + 1;
+	}
+	if (!*pos) {
+		*len += 1;
+		return start;
+	}
+	dst = buf;
+	for (;;) {
+		if (pos > start) {
+			if (dst + (pos - start) > buf + 255)
+				goto error;
+			(void) memcpy(dst, start, pos - start);
+			dst += (pos - start);
+			start = pos;
+		}
+		if ((*pos & 0xC0) == 0xC0) {
+			if (pos + 1 >= pkt_end)
+				goto error;
+			offset = gldns_read_uint16(pos) & 0x3FFF;
+			if (pkt + offset >= pkt_end)
+				goto error;
+
+			start = pos = pkt + offset;
+			if (++refs > 256)
+				goto error;
+		}
+		if ((*pos & 0xC0) == 0xC0)
+			continue;
+
+		else if (*pos & 0xC0)
+			goto error;
+
+		else if (!*pos) {
+			*len += 1;
+			*dst = 0;
+			return buf;
+		}
+		*len += *pos + 1;
+		pos += *pos + 1;
+	}
+error:
+	*len = 0;
+	return NULL;
+}
+
+uint8_t *
+priv_getdns_owner_if_or_as_decompressed(priv_getdns_rr_iter *i,
+    uint8_t *ff_bytes, size_t *len)
+{
+	return dname_if_or_as_decompressed(i->pkt, i->pkt_end, i->pos,
+	    ff_bytes, len, 0);
+}
 
 static priv_getdns_rdf_iter *
 rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
@@ -213,5 +303,13 @@ priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i)
 done:
 	i->pos = NULL;
 	return NULL;
+}
+
+uint8_t *
+priv_getdns_rdf_if_or_as_decompressed(
+    priv_getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len)
+{
+	return dname_if_or_as_decompressed(i->pkt, i->pkt_end, i->pos,
+	    ff_bytes, len, 0);
 }
 
