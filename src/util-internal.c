@@ -388,6 +388,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 			default:
 				break;
 			}
+		/* TODO: if (rdf->rdd_pos->type & GETDNS_RDF_DNAME) { */
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_BINDATA) {
 			val_type = t_bindata;
 			if (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
@@ -601,6 +602,7 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 		if (section != GLDNS_SECTION_ANSWER)
 			continue;
 
+		/* TODO: Get canonical name_from ANSWER RR's */
 		if (gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_A &&
 		    gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_AAAA)
 			continue;
