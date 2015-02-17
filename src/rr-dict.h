@@ -93,16 +93,10 @@ const priv_getdns_rr_def *priv_getdns_rr_def_lookup(uint16_t rr_type);
 getdns_return_t priv_getdns_create_dict_from_rr(
     struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rr_dict);
 
-getdns_return_t priv_getdns_create_reply_question_dict(
-    struct getdns_context *context, ldns_pkt *pkt, struct getdns_dict** q_dict);
-
 getdns_return_t priv_getdns_create_rr_from_dict(
     struct getdns_dict *rr_dict, ldns_rr **rr);
 
 const char *priv_getdns_rr_type_name(int rr_type);
-
-getdns_return_t priv_getdns_append_opt_rr(
-    struct getdns_context *context, struct getdns_list* rdatas, ldns_pkt* pkt);
 
 #endif
 
