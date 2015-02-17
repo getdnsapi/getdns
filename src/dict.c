@@ -536,12 +536,18 @@ getdns_pp_bindata(ldns_buffer *buf, size_t indent,
 		while (i < bindata->size && isprint(bindata->data[i]))
 			i++;
 
-	if (bindata->size > 0 && i >= bindata->size) { /* all printable? */
+	if (bindata->size > 0 && i == bindata->size) {     /* all printable? */
 
 		(void) snprintf(truncfmt, 100,
 		    "of \"%%.%ds\"%%s>", (int)(i > 32 ? 32 : i));
 		if (ldns_buffer_printf(buf, truncfmt, bindata->data,
 		    i > 32 ? "... " : "") < 0)
+			return -1;
+
+	} else if (bindata->size > 1 &&         /* null terminated printable */
+	    i == bindata->size - 1 && bindata->data[i] == 0) {
+
+		if (ldns_buffer_printf(buf, "of \"%s\">", bindata->data) < 0)
 			return -1;
 
 	} else if (bindata->size == 1 && *bindata->data == 0) {
