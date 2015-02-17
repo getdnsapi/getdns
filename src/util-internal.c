@@ -385,9 +385,6 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 		    GETDNS_RDF_DNAME) {
 			val_type = t_bindata;
 
-			fprintf(stderr, "dname (%s - %d)\n",
-			    rdf->rdd_pos->name, (int)(rdf->nxt - rdf->pos));
-
 			bindata.data = priv_getdns_rdf_if_or_as_decompressed(
 			    rdf, ff_bytes, &bindata.size);
 
@@ -408,8 +405,6 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 				bindata.data = rdf->pos + 2;
 				break;
 			default:
-				fprintf(stderr, "REMAINING (%s - %d)\n",
-				    rdf->rdd_pos->name, (int)(rdf->nxt - rdf->pos));
 				bindata.size = rdf->nxt - rdf->pos;
 				bindata.data = rdf->pos;
 				break;
