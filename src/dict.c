@@ -519,24 +519,29 @@ priv_getdns_bindata_is_dname(struct getdns_bindata *bindata)
  *                if an output error is encountered, a negative value
  */
 static int
-getdns_pp_bindata(ldns_buffer * buf, size_t indent,
-	struct getdns_bindata *bindata)
+getdns_pp_bindata(ldns_buffer *buf, size_t indent,
+	getdns_bindata *bindata, int rdata_raw)
 {
 	size_t i, p = ldns_buffer_position(buf);
 	uint8_t *dptr;
 	char *dname;
+	char truncfmt[100];
 
 	if (ldns_buffer_printf(buf, " <bindata ") < 0)
 		return -1;
 
 	/* Walk through all printable characters */
 	i = 0;
-	if (bindata->size && bindata->data[bindata->size - 1] == 0)
-		while (i < bindata->size - 1 && isprint(bindata->data[i]))
+	if (!rdata_raw)
+		while (i < bindata->size && isprint(bindata->data[i]))
 			i++;
 
-	if (bindata->size > 1 && i >= bindata->size - 1) { /* all printable? */
-		if (ldns_buffer_printf(buf, "of \"%s\">", bindata->data) < 0)
+	if (bindata->size > 0 && i >= bindata->size) { /* all printable? */
+
+		(void) snprintf(truncfmt, 100,
+		    "of \"%%.%ds\"%%s>", (int)(i > 32 ? 32 : i));
+		if (ldns_buffer_printf(buf, truncfmt, bindata->data,
+		    i > 32 ? "... " : "") < 0)
 			return -1;
 
 	} else if (bindata->size == 1 && *bindata->data == 0) {
@@ -636,7 +641,7 @@ getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
 			if (getdns_list_get_bindata(list, i, &bindata_item) !=
 				GETDNS_RETURN_GOOD)
 				return -1;
-			if (getdns_pp_bindata(buf, indent, bindata_item) < 0)
+			if (getdns_pp_bindata(buf, indent, bindata_item, 0) < 0)
 				return -1;
 			break;
 
@@ -828,7 +833,8 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 					return -1;
 	
 			} else if (getdns_pp_bindata(buf, indent,
-			    item->data.bindata) < 0)
+			    item->data.bindata,
+			    (strcmp(item->node.key, "rdata_raw") == 0)) < 0)
 				return -1;
 			break;
 
