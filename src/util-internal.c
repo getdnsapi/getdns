@@ -322,6 +322,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	getdns_list *repeat_list = NULL;
 	getdns_dict *repeat_dict = NULL;
 	uint8_t ff_bytes[256];
+	uint16_t rr_type;
 
 	assert(context);
 	assert(i);
@@ -347,9 +348,31 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 		return rr_dict;
 	}
 	if (getdns_dict_set_int(rr_dict, "type",
-	    (uint32_t) gldns_read_uint16(i->rr_type)) ||
+	    (uint32_t)(rr_type = gldns_read_uint16(i->rr_type)))) {
 
-	    getdns_dict_set_int(rr_dict, "class",
+		goto error;
+	}
+	if (rr_type == GETDNS_RRTYPE_OPT) {
+		int_val = gldns_read_uint16(i->rr_type + 6);
+
+		if (getdns_dict_set_int(rr_dict, "udp_payload_size",
+		    (uint32_t) gldns_read_uint16(i->rr_type + 2)) ||
+
+		    getdns_dict_set_int(rr_dict, "extended_rcode",
+		    (uint32_t) *(i->rr_type + 4)) ||
+
+		    getdns_dict_set_int(rr_dict, "version",
+		    (uint32_t) *(i->rr_type + 5)) ||
+		    
+		    getdns_dict_set_int(rr_dict, "do",
+		    (uint32_t) ((int_val & 0x8000) >> 15)) ||
+
+		    getdns_dict_set_int(rr_dict, "z",
+		    (uint32_t) (int_val & 0x7FF))) {
+
+			goto error;
+		}
+	} else if (getdns_dict_set_int(rr_dict, "class",
 	    (uint32_t) gldns_read_uint16(i->rr_type + 2)) ||
 
 	    getdns_dict_set_int(rr_dict, "ttl",
