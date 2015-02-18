@@ -44,27 +44,6 @@
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
 #define UNKNOWN_RDATA NULL
 
-/*
-static uint8_t *
-template_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
-{
-	return NULL;
-}
-static getdns_return_t
-template_dict_set_value(getdns_dict *dict, uint8_t *rdf)
-{
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
-static getdns_return_t
-template_list_append_value(getdns_list *list, uint8_t *rdf)
-{
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
-static priv_getdns_rdf_special template = {
-    template_rdf_end, template_dict_set_value, template_list_append_value
-};
-*/
-
 static uint8_t *
 apl_n_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
 {
@@ -192,6 +171,7 @@ static priv_getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
     ipseckey_gateway_dict_set_value, ipseckey_gateway_list_append_value
 };
+
 static uint8_t *
 hip_pk_algorithm_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
 {
@@ -213,6 +193,7 @@ static priv_getdns_rdf_special hip_pk_algorithm = {
     hip_pk_algorithm_rdf_end,
     hip_pk_algorithm_dict_set_value, hip_pk_algorithm_list_append_value
 };
+
 static uint8_t *
 hip_hit_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
 {
@@ -235,6 +216,7 @@ hip_hit_list_append_value(getdns_list *list, uint8_t *rdf)
 static priv_getdns_rdf_special hip_hit = {
     hip_hit_rdf_end, hip_hit_dict_set_value, hip_hit_list_append_value
 };
+
 static uint8_t *
 hip_public_key_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
 {
@@ -258,6 +240,7 @@ static priv_getdns_rdf_special hip_public_key = {
     hip_public_key_rdf_end,
     hip_public_key_dict_set_value, hip_public_key_list_append_value
 };
+
 
 static priv_getdns_rdata_def          a_rdata[] = {
 	{ "ipv4_address"                , GETDNS_RDF_A    }};
