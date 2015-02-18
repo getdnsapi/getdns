@@ -176,16 +176,6 @@ sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *addres
 	return GETDNS_RETURN_GOOD;
 }
 
-/* result must be freed */
-static char *
-convert_rdf_to_str(ldns_rdf * rdf)
-{
-	if (ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_DNAME) {
-		ldns_dname2canonical(rdf);
-	}
-	return ldns_rdf2str(rdf);
-}
-
 #define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(result, #X , (int) \
                               GLDNS_ ## Y ## _WIRE(netreq->response))) break
 #define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(result, #X , (int) \
@@ -761,36 +751,29 @@ error:
 	return NULL;
 }
 
-static char *
-get_canonical_name(const char *name)
-{
-	ldns_rdf *rdf = ldns_rdf_new_frm_str(LDNS_RDF_TYPE_DNAME, name);
-	if (!rdf) {
-		return NULL;
-	}
-	char *result = convert_rdf_to_str(rdf);
-	ldns_rdf_deep_free(rdf);
-	return result;
-}
-
-struct getdns_dict *
+getdns_dict *
 create_getdns_response(getdns_dns_req *completed_request)
 {
-	getdns_dict *result = getdns_dict_create_with_context(
-	    completed_request->context);
-	getdns_list *replies_full = getdns_list_create_with_context(
-	    completed_request->context);
+	getdns_dict *result;
 	getdns_list *just_addrs = NULL;
-	getdns_list *replies_tree = getdns_list_create_with_context(
-	    completed_request->context);
+	getdns_list *replies_full;
+	getdns_list *replies_tree;
 	getdns_network_req *netreq, **netreq_p;
-	char *canonical_name = NULL;
-	getdns_return_t r = 0;
+	int rrsigs_in_answer = 0;
+	getdns_dict *reply;
+	getdns_bindata *canonical_name = NULL;
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
-    	struct getdns_bindata full_data;
+    	getdns_bindata full_data;
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
+	getdns_context *context;
+
+	assert(completed_request);
+	
+	context = completed_request->context;
+	if (!(result = getdns_dict_create_with_context(context)))
+		return NULL;
 
 	dnssec_return_status = completed_request->dnssec_return_status ||
 	                       completed_request->dnssec_return_only_secure;
@@ -800,24 +783,18 @@ create_getdns_response(getdns_dns_req *completed_request)
 		just_addrs = getdns_list_create_with_context(
 		    completed_request->context);
 
-    do {
-    	canonical_name = get_canonical_name(completed_request->name);
-    	r = getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM,
-    	    canonical_name);
-    	free(canonical_name);
-        if (r != GETDNS_RETURN_GOOD) {
-            break;
-        }
+	if (getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
+	    GETDNS_NAMETYPE_DNS))
+		goto error_free_result;
+	
+	if (!(replies_full = getdns_list_create_with_context(context)))
+		goto error_free_result;
 
-    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
-    	    GETDNS_NAMETYPE_DNS);
-        if (r != GETDNS_RETURN_GOOD) {
-            break;
-        }
+	if (!(replies_tree = getdns_list_create_with_context(context)))
+		goto error_free_replies_full;
 
-    	for ( netreq_p = completed_request->netreqs
-	    ; ! r && (netreq = *netreq_p)
-	    ; netreq_p++) {
+	for ( netreq_p = completed_request->netreqs
+	    ; (netreq = *netreq_p) ; netreq_p++) {
 
 		if (! netreq->response_len)
 			continue;
@@ -836,104 +813,79 @@ create_getdns_response(getdns_dns_req *completed_request)
 		if (! completed_request->dnssec_return_validation_chain) {
 			if (dnssec_return_status && netreq->bogus)
 				continue;
-			else if (completed_request->dnssec_return_only_secure && ! netreq->secure)
+			else if (completed_request->dnssec_return_only_secure
+			    && ! netreq->secure)
 				continue;
 		}
-    		size_t idx = 0;
-    		/* reply tree */
-		int rrsigs_in_answer = 0;
-    		struct getdns_dict *reply = create_reply_dict(
-    		    completed_request->context, netreq, just_addrs, &rrsigs_in_answer);
+    		if (!(reply = create_reply_dict(context,
+		    netreq, just_addrs, &rrsigs_in_answer)))
+			goto error;
 
-		if (! reply) {
-			r = GETDNS_RETURN_MEMORY_ERROR;
-			break;
+		if (!canonical_name) {
+			if (getdns_dict_get_bindata(
+			    reply, "canonical_name", &canonical_name))
+				goto error;
+			if (getdns_dict_set_bindata(
+			    result, "canonical_name", canonical_name))
+				goto error;
 		}
-		if (dnssec_return_status || completed_request->dnssec_return_validation_chain) {
-			r = getdns_dict_set_int(reply, "dnssec_status",
+		if (dnssec_return_status ||
+		    completed_request->dnssec_return_validation_chain) {
+
+			if (getdns_dict_set_int(reply, "dnssec_status",
 			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE
 			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
 			    : rrsigs_in_answer &&
-			      completed_request->context->has_ta
-			                       ? GETDNS_DNSSEC_INDETERMINATE
-					       : GETDNS_DNSSEC_INSECURE ));
-
-			if (r != GETDNS_RETURN_GOOD) {
-                		getdns_dict_destroy(reply);
-				break;
-			}
+			      context->has_ta  ? GETDNS_DNSSEC_INDETERMINATE
+					       : GETDNS_DNSSEC_INSECURE )))
+				goto error;
 		}
-    		r = getdns_list_add_item(replies_tree, &idx);
-            if (r != GETDNS_RETURN_GOOD) {
-                getdns_dict_destroy(reply);
-                // break inner while
-                break;
-            }
 
-    		r = getdns_list_set_dict(replies_tree, idx, reply);
+    		if (getdns_list_append_dict(replies_tree, reply)) {
+    			getdns_dict_destroy(reply);
+			goto error;
+		}
     		getdns_dict_destroy(reply);
-            if (r != GETDNS_RETURN_GOOD) {
-                // break inner while
-                break;
-            }
+
     		/* buffer */
-			r = getdns_list_add_item(replies_full, &idx);
-            if (r != GETDNS_RETURN_GOOD) {
-                // break inner while
-                break;
-            }
-			full_data.data = netreq->response;
-			full_data.size = netreq->response_len;
-			r = getdns_list_set_bindata(replies_full, idx,
-			    &full_data);
-            if (r != GETDNS_RETURN_GOOD) {
-                free(full_data.data);
-                // break inner while
-                break;
-            }
+		full_data.data = netreq->response;
+		full_data.size = netreq->response_len;
+		if (getdns_list_append_bindata(replies_full, &full_data))
+			goto error;
     	}
+    	if (getdns_dict_set_list(result, "replies_tree", replies_tree))
+		goto error;
+	getdns_list_destroy(replies_tree);
 
-        if (r != GETDNS_RETURN_GOOD)
-            break;
+	if (getdns_dict_set_list(result, "replies_full", replies_full))
+		goto error_free_replies_full;
+	getdns_list_destroy(replies_full);
 
-    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_TREE,
-    	    replies_tree);
-        if (r != GETDNS_RETURN_GOOD)
-            break;
+	if (just_addrs && getdns_dict_set_list(
+	    result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs))
+		goto error_free_result;
+	getdns_list_destroy(just_addrs);
 
-    	r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_FULL,
-    	    replies_full);
-        if (r != GETDNS_RETURN_GOOD)
-            break;
-
-    	if (just_addrs) {
-    		r = getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS,
-    		    just_addrs);
-		if (r != GETDNS_RETURN_GOOD) {
-		    break;
-		}
-    	}
-    	r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
+	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
 	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
 	    completed_request->dnssec_return_only_secure && nsecure == 0 && nbogus > 0
 	                    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS :
 	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
-	                    : GETDNS_RESPSTATUS_GOOD);
-    } while (0);
-
-	/* cleanup */
-	getdns_list_destroy(replies_tree);
-	getdns_list_destroy(replies_full);
-	getdns_list_destroy(just_addrs);
-
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
+	                    : GETDNS_RESPSTATUS_GOOD))
+		goto error_free_result;
 
 	return result;
+error:
+	/* cleanup */
+	getdns_list_destroy(replies_tree);
+error_free_replies_full:
+	getdns_list_destroy(replies_full);
+error_free_result:
+	getdns_list_destroy(just_addrs);
+	getdns_dict_destroy(result);
+	return NULL;
 }
 
 /*This method can be used when e.g. a local lookup has been performed and the 
@@ -948,7 +900,8 @@ create_getdns_response_from_rr_list(struct getdns_dns_req * completed_request,
 	struct getdns_list *replies_tree = getdns_list_create_with_context(
 	    completed_request->context);
 	struct getdns_list *just_addrs = NULL;
-	char *canonical_name = NULL;
+	uint8_t canonical_name_space[256];
+	getdns_bindata bindata = { 256, canonical_name_space };
 	getdns_return_t r = 0;
 
 	/* NOTE: With DNS packet, we ignore any DNSSEC related extensions since we 
@@ -957,13 +910,12 @@ create_getdns_response_from_rr_list(struct getdns_dns_req * completed_request,
 	just_addrs = getdns_list_create_with_context(completed_request->context);
 
 	do {
-		canonical_name = get_canonical_name(completed_request->name);
-		r = getdns_dict_util_set_string(result, GETDNS_STR_KEY_CANONICAL_NM,
-			canonical_name);
-		free(canonical_name);
-		if (r != GETDNS_RETURN_GOOD) {
+		if ((r = gldns_str2wire_dname_buf(completed_request->name,
+		    bindata.data, &bindata.size)))
 			break;
-		}
+		if ((r = getdns_dict_set_bindata(result,
+		    GETDNS_STR_KEY_CANONICAL_NM, &bindata)))
+			break;
 
 		/* For local lookups we don't set an answer_type as there isn't a
 		suitable one*/
