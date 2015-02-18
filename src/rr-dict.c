@@ -55,12 +55,12 @@ template_dict_set_value(getdns_dict *dict, uint8_t *rdf)
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 static getdns_return_t
-template_list_set_value(getdns_list *list, uint8_t *rdf)
+template_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 static priv_getdns_rdf_special template = {
-    template_rdf_end, template_dict_set_value, template_list_set_value
+    template_rdf_end, template_dict_set_value, template_list_append_value
 };
 */
 
@@ -75,12 +75,12 @@ apl_n_dict_set_value(getdns_dict *dict, uint8_t *rdf)
 	return getdns_dict_set_int(dict, "n", (*rdf  >> 7));
 }
 static getdns_return_t
-apl_n_list_set_value(getdns_list *list, uint8_t *rdf)
+apl_n_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	return getdns_list_append_int(list, (*rdf  >> 7));
 }
 static priv_getdns_rdf_special apl_n = {
-    apl_n_rdf_end, apl_n_dict_set_value, apl_n_list_set_value
+    apl_n_rdf_end, apl_n_dict_set_value, apl_n_list_append_value
 };
 
 static uint8_t *
@@ -96,13 +96,14 @@ apl_afdpart_dict_set_value(getdns_dict *dict, uint8_t *rdf)
 	return getdns_dict_set_bindata(dict, "afdpart", &bindata);
 }
 static getdns_return_t
-apl_afdpart_list_set_value(getdns_list *list, uint8_t *rdf)
+apl_afdpart_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	getdns_bindata bindata = { (rdf[-1] & 0x7F), rdf };
 	return getdns_list_append_bindata(list, &bindata);
 }
 static priv_getdns_rdf_special apl_afdpart = {
-    apl_afdpart_rdf_end, apl_afdpart_dict_set_value, apl_afdpart_list_set_value
+    apl_afdpart_rdf_end,
+    apl_afdpart_dict_set_value, apl_afdpart_list_append_value
 };
 
 static priv_getdns_rdata_def          a_rdata[] = {

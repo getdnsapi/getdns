@@ -422,7 +422,10 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 				bindata.data = rdf->pos;
 				break;
 			}
-		} else
+		} else if (rdf->rdd_pos->type == GETDNS_RDF_SPECIAL)
+			/* Abuse t_dict for special values */
+			val_type = t_dict;
+		else
 			assert(0);
 
 		if (! rdf->rdd_repeat) {
@@ -437,12 +440,16 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 				    rdf->rdd_pos->name, &bindata))
 					goto rdata_error;
 				break;
+			case t_dict:
+				if (rdf->rdd_pos->special->dict_set_value(
+				    rdata_dict, rdf->pos))
+					goto rdata_error;
 			default:
 				break;
 			}
 			continue;
-
-		} else if (rdf->rdd_pos == rdf->rdd_repeat) {
+		}
+		if (rdf->rdd_pos == rdf->rdd_repeat) {
 			/* list with rdf values */
 
 			if (! repeat_list && !(repeat_list =
@@ -460,16 +467,22 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 				    &bindata))
 					goto rdata_error;
 				break;
+			case t_dict:
+				if (rdf->rdd_pos->special->list_append_value(
+				    repeat_list, rdf->pos))
+					goto rdata_error;
 			default:
 				break;
 			}
 			continue;
-
 		}
-		/* list with dicts with rdf values */
 		if (rdf->rdd_pos == rdf->rdd_repeat + 1) {
 
 			if (repeat_dict) {
+				if (! repeat_list && !(repeat_list =
+				    getdns_list_create_with_context(context)))
+					goto rdata_error;
+	
 				if (getdns_list_append_dict(
 				    repeat_list, repeat_dict))
 					goto rdata_error;
@@ -493,6 +506,10 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 			    rdf->rdd_pos->name, &bindata))
 				goto rdata_error;
 			break;
+		case t_dict:
+			if (rdf->rdd_pos->special->dict_set_value(
+			    repeat_dict, rdf->pos))
+				goto rdata_error;
 		default:
 			break;
 		}

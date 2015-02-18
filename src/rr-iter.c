@@ -214,10 +214,10 @@ rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
 	assert(i->rdd_pos);
 
 	if (!i->rdd_repeat && (i->rdd_pos->type & GETDNS_RDF_REPEAT)) {
+		i->rdd_repeat = i->rdd_pos;
 		if (i->rdd_pos->type == GETDNS_RDF_REPEAT &&
 		    ++i->rdd_pos == i->rdd_end)
 			goto done;
-		i->rdd_repeat = i->rdd_pos;
 	}
 	if (i->rdd_pos->type & GETDNS_RDF_FIXEDSZ)
 		i->nxt = i->pos + (i->rdd_pos->type & GETDNS_RDF_FIXEDSZ);
@@ -241,7 +241,11 @@ rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
 			} else if (*pos & 0xC0) /* Uknown label type */
 				goto done;
 		}
-	else
+	else if ((i->rdd_pos->type & GETDNS_RDF_SPECIAL) && i->rdd_pos->special) {
+		if (!(i->nxt = i->rdd_pos->special->rdf_end(
+		    i->pkt, i->pkt_end, i->pos)))
+			i->nxt = i->end;
+	} else
 		i->nxt = i->end;
 
 	if (i->nxt <= i->end)
@@ -298,6 +302,8 @@ priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i)
 		goto done; /* Out of rdata */
 	if (i->rdd_pos >= i->rdd_end && !(i->rdd_pos = i->rdd_repeat))
 		goto done; /* Remaining rdata, but out of definitions! */
+	if (i->rdd_pos->type == GETDNS_RDF_REPEAT)
+		i->rdd_pos += 1;
 
 	return rdf_iter_find_nxt(i);
 done:
