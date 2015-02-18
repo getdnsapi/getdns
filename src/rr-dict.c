@@ -35,6 +35,7 @@
  */
 
 #include "rr-dict.h"
+#include "gldns/gbuffer.h"
 #include "util-internal.h"
 #include "types-internal.h"
 #include "context.h"
@@ -190,6 +191,72 @@ ipseckey_gateway_list_append_value(getdns_list *list, uint8_t *rdf)
 static priv_getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
     ipseckey_gateway_dict_set_value, ipseckey_gateway_list_append_value
+};
+static uint8_t *
+hip_pk_algorithm_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	return rdf + 4 > pkt_end ? NULL
+	     : rdf + 4 + *rdf + gldns_read_uint16(rdf + 2) > pkt_end ? NULL
+	     : rdf + 1;
+}
+static getdns_return_t
+hip_pk_algorithm_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	return getdns_dict_set_int(dict, "pk_algorithm", rdf[1]);
+}
+static getdns_return_t
+hip_pk_algorithm_list_append_value(getdns_list *list, uint8_t *rdf)
+{
+	return getdns_list_append_int(list, rdf[1]);
+}
+static priv_getdns_rdf_special hip_pk_algorithm = {
+    hip_pk_algorithm_rdf_end,
+    hip_pk_algorithm_dict_set_value, hip_pk_algorithm_list_append_value
+};
+static uint8_t *
+hip_hit_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	return rdf + 3 > pkt_end ? NULL
+	     : rdf + 3 + rdf[-1] + gldns_read_uint16(rdf + 1) > pkt_end ? NULL
+	     : rdf + 1;
+}
+static getdns_return_t
+hip_hit_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	getdns_bindata bindata = { rdf[-1], rdf + 3 };
+	return getdns_dict_set_bindata(dict, "hit", &bindata);
+}
+static getdns_return_t
+hip_hit_list_append_value(getdns_list *list, uint8_t *rdf)
+{
+	getdns_bindata bindata = { rdf[-1], rdf + 3 };
+	return getdns_list_append_bindata(list, &bindata);
+}
+static priv_getdns_rdf_special hip_hit = {
+    hip_hit_rdf_end, hip_hit_dict_set_value, hip_hit_list_append_value
+};
+static uint8_t *
+hip_public_key_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	return rdf + 2 > pkt_end ? NULL
+	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf) > pkt_end ? NULL
+	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf);
+}
+static getdns_return_t
+hip_public_key_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	getdns_bindata bindata = { gldns_read_uint16(rdf), rdf + 2 + rdf[-2] };
+	return getdns_dict_set_bindata(dict, "public_key", &bindata);
+}
+static getdns_return_t
+hip_public_key_list_append_value(getdns_list *list, uint8_t *rdf)
+{
+	getdns_bindata bindata = { gldns_read_uint16(rdf), rdf + 2 + rdf[-2] };
+	return getdns_list_append_bindata(list, &bindata);
+}
+static priv_getdns_rdf_special hip_public_key = {
+    hip_public_key_rdf_end,
+    hip_public_key_dict_set_value, hip_public_key_list_append_value
 };
 
 static priv_getdns_rdata_def          a_rdata[] = {
@@ -354,9 +421,9 @@ static priv_getdns_rdata_def       tlsa_rdata[] = {
 	{ "matching_type"               , GETDNS_RDF_I1   },
 	{ "certificate_association_data", GETDNS_RDF_X    }};
 static priv_getdns_rdata_def        hip_rdata[] = {
-	{ "pk_algorithm"                , GETDNS_RDF_SPECIAL, NULL },
-	{ "hit"                         , GETDNS_RDF_SPECIAL, NULL },
-	{ "public_key"                  , GETDNS_RDF_SPECIAL, NULL },
+	{ "pk_algorithm"                , GETDNS_RDF_SPECIAL, &hip_pk_algorithm },
+	{ "hit"                         , GETDNS_RDF_SPECIAL, &hip_hit },
+	{ "public_key"                  , GETDNS_RDF_SPECIAL, &hip_public_key },
 	{ "rendezvous_servers"          , GETDNS_RDF_N_M  }};
 static priv_getdns_rdata_def        spf_rdata[] = {
 	{ "text"                        , GETDNS_RDF_S_M  }};
