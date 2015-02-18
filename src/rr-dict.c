@@ -106,6 +106,92 @@ static priv_getdns_rdf_special apl_afdpart = {
     apl_afdpart_dict_set_value, apl_afdpart_list_append_value
 };
 
+static uint8_t *
+ipseckey_gateway_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	uint8_t *end;
+
+	if (rdf - 5 < pkt)
+		return NULL;
+	switch (rdf[-2]) {
+	case 0:	end = rdf;
+		break;
+	case 1: end = rdf + 4;
+		break;
+	case 2: end = rdf + 16;
+		break;
+	case 3: for (end = rdf; end < pkt_end; end += *end + 1)
+			if ((*end & 0xC0) == 0xC0)
+				end  += 2;
+			else if (*end & 0xC0)
+				return NULL;
+			else if (!*end) {
+				end += 1;
+				break;
+			}
+		break;
+	default:
+		return NULL;
+	}
+	return end <= pkt_end ? end : NULL;
+}
+static getdns_return_t
+ipseckey_gateway_equip_bindata(uint8_t *rdf, getdns_bindata *bindata)
+{
+	bindata->data = rdf;
+	switch (rdf[-2]) {
+	case 0:	bindata->size = 0;
+		break;
+	case 1: bindata->size = 4;
+		break;
+	case 2: bindata->size = 16;
+		break;
+	case 3: while (*rdf)
+			if ((*rdf & 0xC0) == 0xC0)
+				rdf += 2;
+			else if (*rdf & 0xC0)
+				return GETDNS_RETURN_GENERIC_ERROR;
+			else
+				rdf += *rdf + 1;
+		bindata->size = rdf + 1 - bindata->data;
+		break;
+	default:
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	return GETDNS_RETURN_GOOD;
+	
+}
+static getdns_return_t
+ipseckey_gateway_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	getdns_bindata bindata;
+
+	if (ipseckey_gateway_equip_bindata(rdf, &bindata))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	else if (! bindata.size)
+		return GETDNS_RETURN_GOOD;
+	else
+		return getdns_dict_set_bindata(dict, "gateway", &bindata);
+}
+static getdns_return_t
+ipseckey_gateway_list_append_value(getdns_list *list, uint8_t *rdf)
+{
+	getdns_bindata bindata;
+
+	if (ipseckey_gateway_equip_bindata(rdf, &bindata))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	else if (! bindata.size)
+		return GETDNS_RETURN_GOOD;
+	else
+		return getdns_list_append_bindata(list, &bindata);
+}
+static priv_getdns_rdf_special ipseckey_gateway = {
+    ipseckey_gateway_rdf_end,
+    ipseckey_gateway_dict_set_value, ipseckey_gateway_list_append_value
+};
+
 static priv_getdns_rdata_def          a_rdata[] = {
 	{ "ipv4_address"                , GETDNS_RDF_A    }};
 static priv_getdns_rdata_def         ns_rdata[] = {
@@ -228,7 +314,7 @@ static priv_getdns_rdata_def   ipseckey_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "gateway_type"                , GETDNS_RDF_I1   },
 	{ "precedence"                  , GETDNS_RDF_I1   },
-	{ "gateway"                     , GETDNS_RDF_SPECIAL, NULL },
+	{ "gateway"                     , GETDNS_RDF_SPECIAL, &ipseckey_gateway },
 	{ "public_key"                  , GETDNS_RDF_B    }};
 static priv_getdns_rdata_def      rrsig_rdata[] = {
 	{ "type_covered"                , GETDNS_RDF_I2   },
