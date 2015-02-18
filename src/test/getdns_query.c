@@ -416,7 +416,8 @@ int get_rrtype(const char *t) {
 	case 'A':
 	case 'a': switch (t[1]) {
 	          case '\0': return GETDNS_RRTYPE_A;
-	          case '6': return GETDNS_RRTYPE_A6;
+	          case '6': if (t[2] == '\0') return GETDNS_RRTYPE_A6;
+                            return -1;
 	          case 'A':
 	          case 'a': /* before "AA", final "AA" (GETDNS_RRTYPE_AAAA) */
 	                    if ((t[2]|0x20) == 'a' && (t[3]|0x20) == 'a' && t[4] == '\0')
@@ -459,7 +460,8 @@ int get_rrtype(const char *t) {
 	                                        return GETDNS_RRTYPE_CDNSKEY;
 	                              return -1;
 	                    case 'S':
-	                    case 's': return GETDNS_RRTYPE_CDS;
+	                    case 's': if (t[3] == '\0') return GETDNS_RRTYPE_CDS;
+	                              return -1;
 	                    default : return -1;
 	                    };
 	          case 'E':
@@ -501,7 +503,8 @@ int get_rrtype(const char *t) {
 	                    default : return -1;
 	                    };
 	          case 'S':
-	          case 's': return GETDNS_RRTYPE_DS;
+	          case 's': if (t[2] == '\0') return GETDNS_RRTYPE_DS;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'E':
@@ -553,7 +556,8 @@ int get_rrtype(const char *t) {
 	                              return GETDNS_RRTYPE_HINFO;
 	                    return -1;
 	          case 'P':
-	          case 'p': return GETDNS_RRTYPE_HIP;
+	          case 'p': if (t[3] == '\0') return GETDNS_RRTYPE_HIP;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'I':
@@ -583,7 +587,8 @@ int get_rrtype(const char *t) {
 	                              return GETDNS_RRTYPE_KEY;
 	                    return -1;
 	          case 'X':
-	          case 'x': return GETDNS_RRTYPE_KX;
+	          case 'x': if (t[2] == '\0') return GETDNS_RRTYPE_KX;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'L':
@@ -602,7 +607,8 @@ int get_rrtype(const char *t) {
 	                              return GETDNS_RRTYPE_LOC;
 	                    return -1;
 	          case 'P':
-	          case 'p': return GETDNS_RRTYPE_LP;
+	          case 'p': if (t[2] == '\0') return GETDNS_RRTYPE_LP;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'M':
@@ -613,28 +619,36 @@ int get_rrtype(const char *t) {
 	                              return -1;
 	                    switch (t[4]) {
 	                    case 'A':
-	                    case 'a': return GETDNS_RRTYPE_MAILA;
+	                    case 'a': if (t[5] == '\0') return GETDNS_RRTYPE_MAILA;
+	                              return -1;
 	                    case 'B':
-	                    case 'b': return GETDNS_RRTYPE_MAILB;
+	                    case 'b': if (t[5] == '\0') return GETDNS_RRTYPE_MAILB;
+	                              return -1;
 	                    default : return -1;
 	                    };
 	          case 'B':
-	          case 'b': return GETDNS_RRTYPE_MB;
+	          case 'b': if (t[2] == '\0') return GETDNS_RRTYPE_MB;
+                            return -1;
 	          case 'D':
-	          case 'd': return GETDNS_RRTYPE_MD;
+	          case 'd': if (t[2] == '\0') return GETDNS_RRTYPE_MD;
+                            return -1;
 	          case 'F':
-	          case 'f': return GETDNS_RRTYPE_MF;
+	          case 'f': if (t[2] == '\0') return GETDNS_RRTYPE_MF;
+                            return -1;
 	          case 'G':
-	          case 'g': return GETDNS_RRTYPE_MG;
+	          case 'g': if (t[2] == '\0') return GETDNS_RRTYPE_MG;
+                            return -1;
 	          case 'I':
 	          case 'i': /* before "MI", final "NFO" (GETDNS_RRTYPE_MINFO) */
 	                    if ((t[2]|0x20) == 'n' && (t[3]|0x20) == 'f' && (t[4]|0x20) == 'o' && t[5] == '\0')
 	                              return GETDNS_RRTYPE_MINFO;
 	                    return -1;
 	          case 'R':
-	          case 'r': return GETDNS_RRTYPE_MR;
+	          case 'r': if (t[2] == '\0') return GETDNS_RRTYPE_MR;
+	                    return -1;
 	          case 'X':
-	          case 'x': return GETDNS_RRTYPE_MX;
+	          case 'x': if (t[2] == '\0') return GETDNS_RRTYPE_MX;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'N':
@@ -647,7 +661,8 @@ int get_rrtype(const char *t) {
 	          case 'I':
 	          case 'i': switch (t[2]) {
 	                    case 'D':
-	                    case 'd': return GETDNS_RRTYPE_NID;
+	                    case 'd': if (t[3] == '\0') return GETDNS_RRTYPE_NID;
+	                              return -1;
 	                    case 'M':
 	                    case 'm': /* before "NIM", final "LOC" (GETDNS_RRTYPE_NIMLOC) */
 	                              if ((t[3]|0x20) == 'l' && (t[4]|0x20) == 'o' && (t[5]|0x20) == 'c' && t[6] == '\0')
@@ -698,7 +713,8 @@ int get_rrtype(const char *t) {
 	                              return GETDNS_RRTYPE_OPENPGPKEY;
 	                    return -1;
 	          case 'T':
-	          case 't': return GETDNS_RRTYPE_OPT;
+	          case 't': if (t[3] == '\0') return GETDNS_RRTYPE_OPT;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'P':
@@ -709,7 +725,8 @@ int get_rrtype(const char *t) {
 	                              return GETDNS_RRTYPE_PTR;
 	                    return -1;
 	          case 'X':
-	          case 'x': return GETDNS_RRTYPE_PX;
+	          case 'x': if (t[2] == '\0') return GETDNS_RRTYPE_PX;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'R':
@@ -720,14 +737,16 @@ int get_rrtype(const char *t) {
 	                              return GETDNS_RRTYPE_RKEY;
 	                    return -1;
 	          case 'P':
-	          case 'p': return GETDNS_RRTYPE_RP;
+	          case 'p': if (t[2] == '\0') return GETDNS_RRTYPE_RP;
+	                    return -1;
 	          case 'R':
 	          case 'r': /* before "RR", final "SIG" (GETDNS_RRTYPE_RRSIG) */
 	                    if ((t[2]|0x20) == 's' && (t[3]|0x20) == 'i' && (t[4]|0x20) == 'g' && t[5] == '\0')
 	                              return GETDNS_RRTYPE_RRSIG;
 	                    return -1;
 	          case 'T':
-	          case 't': return GETDNS_RRTYPE_RT;
+	          case 't': if (t[2] == '\0') return GETDNS_RRTYPE_RT;
+	                    return -1;
 	          default : return -1;
 	          };
 	case 'S':
@@ -735,7 +754,8 @@ int get_rrtype(const char *t) {
 	          case 'I':
 	          case 'i': switch (t[2]) {
 	                    case 'G':
-	                    case 'g': return GETDNS_RRTYPE_SIG;
+	                    case 'g': if (t[3] == '\0') return GETDNS_RRTYPE_SIG;
+	                              return -1;
 	                    case 'N':
 	                    case 'n': /* before "SIN", final "K" (GETDNS_RRTYPE_SINK) */
 	                              if ((t[3]|0x20) == 'k' && t[4] == '\0')
@@ -806,7 +826,8 @@ int get_rrtype(const char *t) {
 	          case 'I':
 	          case 'i': switch (t[2]) {
 	                    case 'D':
-	                    case 'd': return GETDNS_RRTYPE_UID;
+	                    case 'd': if (t[3] == '\0') return GETDNS_RRTYPE_UID;
+	                              return -1;
 	                    case 'N':
 	                    case 'n': /* before "UIN", final "FO" (GETDNS_RRTYPE_UINFO) */
 	                              if ((t[3]|0x20) == 'f' && (t[4]|0x20) == 'o' && t[5] == '\0')
