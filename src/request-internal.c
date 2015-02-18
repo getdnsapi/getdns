@@ -59,9 +59,6 @@ network_req_cleanup(getdns_network_req *net_req)
 {
 	assert(net_req);
 
-	if (net_req->result)
-		ldns_pkt_free(net_req->result);
-
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
@@ -83,8 +80,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	getdns_bindata *option_data;
 	size_t i;
 	int r = 0;
-
-	net_req->result = NULL;
 
 	net_req->request_type = request_type;
 	net_req->request_class = request_class;

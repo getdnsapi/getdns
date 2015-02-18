@@ -187,7 +187,6 @@ typedef struct getdns_network_req
 	uint16_t request_class;
 
 	/* result */
-	ldns_pkt *result;
 	int secure;
 	int bogus;
 

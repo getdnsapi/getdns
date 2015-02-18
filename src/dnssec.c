@@ -282,8 +282,18 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 	}
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
 		size_t i;
-		ldns_rr_list *answer = ldns_pkt_answer(netreq->result);
-		ldns_rr_list *authority = ldns_pkt_authority(netreq->result);
+		ldns_status r;
+		ldns_pkt *pkt;
+		ldns_rr_list *answer;
+		ldns_rr_list *authority;
+
+		if ((r = ldns_wire2pkt(&pkt,
+		    netreq->response, netreq->response_len)))
+			continue;
+			
+		answer = ldns_pkt_answer(pkt);
+		authority = ldns_pkt_authority(pkt);
+
 		for (i = 0; i < ldns_rr_list_rr_count(answer); i++) {
 			ldns_rr *rr = ldns_rr_list_rr(answer, i);
 			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
@@ -296,6 +306,7 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 				launch_chain_link_lookup(chain,
 				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
 		}
+		ldns_pkt_free(pkt);
 	}
 	callback_on_complete_chain(chain);
 }

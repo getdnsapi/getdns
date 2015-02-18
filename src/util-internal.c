@@ -551,7 +551,7 @@ dname_equal(uint8_t *s1, uint8_t *s2)
 
 static getdns_dict *
 create_reply_dict(getdns_context *context, getdns_network_req *req,
-    getdns_list *just_addrs)
+    getdns_list *just_addrs, int *rrsigs_in_answer)
 {
 	/* turn a packet into this glorious structure
 	 *
@@ -610,6 +610,7 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 	uint8_t owner_name_space[256], *owner_name;
 	size_t canonical_name_len = 256, owner_name_len;
 	int new_canonical = 0;
+	uint16_t rr_type;
 
 	if (!result)
 		goto error;
@@ -644,10 +645,15 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 		rr_dict = NULL;
 
+		rr_type = gldns_read_uint16(rr_iter->rr_type);
+		if (section > GLDNS_SECTION_QUESTION &&
+		    rr_type == GETDNS_RRTYPE_RRSIG)
+			*rrsigs_in_answer = 1;
+
 		if (section != GLDNS_SECTION_ANSWER)
 			continue;
 
-		if (gldns_read_uint16(rr_iter->rr_type)==GETDNS_RRTYPE_CNAME) {
+		if (rr_type == GETDNS_RRTYPE_CNAME) {
 
 			owner_name = priv_getdns_owner_if_or_as_decompressed(
 			    rr_iter, owner_name_space, &owner_name_len);
@@ -664,9 +670,7 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 			continue;
 		}
 
-		/* TODO: Get canonical name_from ANSWER RR's */
-		if (gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_A &&
-		    gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_AAAA)
+		if (rr_type != GETDNS_RRTYPE_A && rr_type != GETDNS_RRTYPE_AAAA)
 			continue;
 
 		if (!(rdf_iter = priv_getdns_rdf_iter_init(
@@ -678,10 +682,10 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 		if (!(rr_dict = getdns_dict_create_with_context(context)) ||
 
 		    getdns_dict_set_bindata(rr_dict, "address_type",
-		    gldns_read_uint16(rr_iter->rr_type) == GETDNS_RRTYPE_A ?
+		    rr_type == GETDNS_RRTYPE_A ?
 		    &IPv4_str_bindata : &IPv6_str_bindata) ||
 
-		    getdns_dict_set_bindata(rr_dict, "address_data",&bindata)||
+		    getdns_dict_set_bindata(rr_dict,"address_data",&bindata) ||
 
 		    getdns_list_append_dict(just_addrs, rr_dict)) {
 
@@ -769,22 +773,6 @@ get_canonical_name(const char *name)
 	return result;
 }
 
-static int
-rrsigs_in_answer(ldns_pkt *pkt)
-{
-	ldns_rr_list *rr_list = ldns_pkt_answer(pkt);
-	size_t i;
-
-	if (! rr_list)
-		return 0;
-
-	for (i = 0; i < ldns_rr_list_rr_count(rr_list); i++)
-		if (LDNS_RR_TYPE_RRSIG ==
-		    ldns_rr_get_type(ldns_rr_list_rr(rr_list, i)))
-			return 1;
-	return 0;
-}
-
 struct getdns_dict *
 create_getdns_response(getdns_dns_req *completed_request)
 {
@@ -803,21 +791,6 @@ create_getdns_response(getdns_dns_req *completed_request)
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
-
-    	for ( netreq_p = completed_request->netreqs
-	    ; ! r && (netreq = *netreq_p)
-	    ; netreq_p++) {
-
-		if (! netreq->response_len)
-			continue;
-
-		if (ldns_wire2pkt(&(netreq->result), netreq->response,
-		    netreq->response_len)) {
-
-			netreq->response_len = 0;
-			continue;
-		}
-	}
 
 	dnssec_return_status = completed_request->dnssec_return_status ||
 	                       completed_request->dnssec_return_only_secure;
@@ -868,8 +841,9 @@ create_getdns_response(getdns_dns_req *completed_request)
 		}
     		size_t idx = 0;
     		/* reply tree */
+		int rrsigs_in_answer = 0;
     		struct getdns_dict *reply = create_reply_dict(
-    		    completed_request->context, netreq, just_addrs);
+    		    completed_request->context, netreq, just_addrs, &rrsigs_in_answer);
 
 		if (! reply) {
 			r = GETDNS_RETURN_MEMORY_ERROR;
@@ -879,7 +853,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 			r = getdns_dict_set_int(reply, "dnssec_status",
 			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE
 			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
-			    : rrsigs_in_answer(netreq->result) &&
+			    : rrsigs_in_answer &&
 			      completed_request->context->has_ta
 			                       ? GETDNS_DNSSEC_INDETERMINATE
 					       : GETDNS_DNSSEC_INSECURE ));
