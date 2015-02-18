@@ -35,6 +35,20 @@
 #include <ldns/ldns.h>
 #include "getdns/getdns.h"
 
+typedef uint8_t *(*priv_getdns_rdf_end_t)(
+    uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf);
+/* Limit checks are already done with priv_getdns_rdf_end_t */
+typedef getdns_return_t (*priv_getdns_rdf_dict_set_value_t)(
+    getdns_dict *dict, uint8_t *rdf);
+typedef getdns_return_t (*priv_getdns_rdf_list_set_value_t)(
+    getdns_list *list, uint8_t *rdf);
+
+typedef struct priv_getdns_rdf_special {
+	priv_getdns_rdf_end_t            rdf_end;
+	priv_getdns_rdf_dict_set_value_t dict_set_value;
+	priv_getdns_rdf_list_set_value_t list_set_value;
+} priv_getdns_rdf_special;
+
 /* draft-levine-dnsextlang'ish type rr and rdata definitions */
 
 #define GETDNS_RDF_INTEGER   0x010000
@@ -77,9 +91,9 @@ typedef enum priv_getdns_rdf_wf_type {
 } priv_getdns_rdf_type;
 
 typedef struct priv_getdns_rdata_def {
-	const char           *name;
-	priv_getdns_rdf_type  type;
-	void                 *special;
+	const char              *name;
+	priv_getdns_rdf_type     type;
+	priv_getdns_rdf_special *special;
 } priv_getdns_rdata_def;
 
 typedef struct priv_getdns_rr_def {

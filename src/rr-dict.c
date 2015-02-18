@@ -35,12 +35,75 @@
  */
 
 #include "rr-dict.h"
+#include "util-internal.h"
 #include "types-internal.h"
 #include "context.h"
 #include "dict.h"
 
 #define ALEN(a) (sizeof(a)/sizeof(a[0]))
 #define UNKNOWN_RDATA NULL
+
+/*
+static uint8_t *
+template_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	return NULL;
+}
+static getdns_return_t
+template_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+static getdns_return_t
+template_list_set_value(getdns_list *list, uint8_t *rdf)
+{
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+static priv_getdns_rdf_special template = {
+    template_rdf_end, template_dict_set_value, template_list_set_value
+};
+*/
+
+static uint8_t *
+apl_n_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	return rdf < pkt_end ? rdf + 1 : NULL;
+}
+static getdns_return_t
+apl_n_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	return getdns_dict_set_int(dict, "n", (*rdf  >> 7));
+}
+static getdns_return_t
+apl_n_list_set_value(getdns_list *list, uint8_t *rdf)
+{
+	return getdns_list_append_int(list, (*rdf  >> 7));
+}
+static priv_getdns_rdf_special apl_n = {
+    apl_n_rdf_end, apl_n_dict_set_value, apl_n_list_set_value
+};
+
+static uint8_t *
+apl_afdpart_rdf_end(uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf)
+{
+	uint8_t *end = rdf + (rdf[-1] & 0x7F);
+	return end <= pkt_end ? end : NULL;
+}
+static getdns_return_t
+apl_afdpart_dict_set_value(getdns_dict *dict, uint8_t *rdf)
+{
+	getdns_bindata bindata = { (rdf[-1] & 0x7F), rdf };
+	return getdns_dict_set_bindata(dict, "afdpart", &bindata);
+}
+static getdns_return_t
+apl_afdpart_list_set_value(getdns_list *list, uint8_t *rdf)
+{
+	getdns_bindata bindata = { (rdf[-1] & 0x7F), rdf };
+	return getdns_list_append_bindata(list, &bindata);
+}
+static priv_getdns_rdf_special apl_afdpart = {
+    apl_afdpart_rdf_end, apl_afdpart_dict_set_value, apl_afdpart_list_set_value
+};
 
 static priv_getdns_rdata_def          a_rdata[] = {
 	{ "ipv4_address"                , GETDNS_RDF_A    }};
@@ -149,8 +212,8 @@ static priv_getdns_rdata_def        apl_rdata[] = {
 	{ "apitems"                     , GETDNS_RDF_R    },
 	{ "address_family"              , GETDNS_RDF_I2   },
 	{ "prefix"                      , GETDNS_RDF_I1   },
-	{ "n"                           , GETDNS_RDF_SPECIAL, NULL },
-	{ "afdpart"                     , GETDNS_RDF_SPECIAL, NULL }};
+	{ "n"                           , GETDNS_RDF_SPECIAL, &apl_n },
+	{ "afdpart"                     , GETDNS_RDF_SPECIAL, &apl_afdpart }};
 static priv_getdns_rdata_def         ds_rdata[] = {
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
