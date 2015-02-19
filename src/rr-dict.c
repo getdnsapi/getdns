@@ -518,8 +518,8 @@ static priv_getdns_rr_def priv_getdns_rr_defs[] = {
 	{     "TALINK",    UNKNOWN_RDATA, 0                      },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* - 61 */
-	{         NULL,             NULL, 0                      },
+	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* 61 - */
+	{      "CSYNC",    UNKNOWN_RDATA, 0                      }, /* - 62 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
