@@ -311,7 +311,7 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
       ptr_records++;
   }
 
-  ck_assert_msg(ptr_records == 1, "Expected to find one PTR record in answer section, got %d", ptr_records);
+  ck_assert_msg(ptr_records > 0, "Answer did not contain any PTR records");
 }
 
 void destroy_callbackfn(struct getdns_context *context,
