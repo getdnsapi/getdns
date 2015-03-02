@@ -40,12 +40,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <ldns/buffer.h>
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dict.h"
 #include "rr-dict.h"
 #include "const-info.h"
+#include "gldns/gbuffer.h"
 
 /*---------------------------------------- getdns_dict_find */
 /**
@@ -511,7 +511,7 @@ priv_getdns_bindata_is_dname(struct getdns_bindata *bindata)
 
 /*---------------------------------------- getdns_pp_bindata */
 /**
- * private function to pretty print bindata to a ldns_buffer
+ * private function to pretty print bindata to a gldns_buffer
  * @param buf     buffer to write to
  * @param indent  number of spaces to append after newline
  * @param bindata the bindata to print
@@ -519,15 +519,15 @@ priv_getdns_bindata_is_dname(struct getdns_bindata *bindata)
  *                if an output error is encountered, a negative value
  */
 static int
-getdns_pp_bindata(ldns_buffer *buf, size_t indent,
+getdns_pp_bindata(gldns_buffer *buf, size_t indent,
 	getdns_bindata *bindata, int rdata_raw)
 {
-	size_t i, p = ldns_buffer_position(buf);
+	size_t i, p = gldns_buffer_position(buf);
 	uint8_t *dptr;
 	char *dname;
 	char truncfmt[100];
 
-	if (ldns_buffer_printf(buf, " <bindata ") < 0)
+	if (gldns_buffer_printf(buf, " <bindata ") < 0)
 		return -1;
 
 	/* Walk through all printable characters */
@@ -540,55 +540,55 @@ getdns_pp_bindata(ldns_buffer *buf, size_t indent,
 
 		(void) snprintf(truncfmt, 100,
 		    "of \"%%.%ds\"%%s>", (int)(i > 32 ? 32 : i));
-		if (ldns_buffer_printf(buf, truncfmt, bindata->data,
+		if (gldns_buffer_printf(buf, truncfmt, bindata->data,
 		    i > 32 ? "... " : "") < 0)
 			return -1;
 
 	} else if (bindata->size > 1 &&         /* null terminated printable */
 	    i == bindata->size - 1 && bindata->data[i] == 0) {
 
-		if (ldns_buffer_printf(buf, "of \"%s\">", bindata->data) < 0)
+		if (gldns_buffer_printf(buf, "of \"%s\">", bindata->data) < 0)
 			return -1;
 
 	} else if (bindata->size == 1 && *bindata->data == 0) {
-		if (ldns_buffer_printf(buf, "for .>") < 0)
+		if (gldns_buffer_printf(buf, "for .>") < 0)
 			return -1;
 
 	} else if (priv_getdns_bindata_is_dname(bindata)) {
 		if (GETDNS_RETURN_GOOD ==
 			getdns_convert_dns_name_to_fqdn(bindata, &dname) &&
-			ldns_buffer_printf(buf, "for %s>", dname) < 0) {
+			gldns_buffer_printf(buf, "for %s>", dname) < 0) {
 			free(dname);
 			return -1;
 		}
 		free(dname);
 
 	} else {
-		if (ldns_buffer_printf(buf, "of 0x") < 0)
+		if (gldns_buffer_printf(buf, "of 0x") < 0)
 			return -1;
 		for (dptr = bindata->data;
 			dptr < bindata->data + bindata->size; dptr++) {
 			if (dptr - bindata->data >= 16) {
-				if (ldns_buffer_printf(buf, "...") < 0)
+				if (gldns_buffer_printf(buf, "...") < 0)
 					return -1;
 				break;
 			}
-			if (ldns_buffer_printf(buf, "%.2x", *dptr) < 0)
+			if (gldns_buffer_printf(buf, "%.2x", *dptr) < 0)
 				return -1;
 		}
-		if (ldns_buffer_printf(buf, ">") < 0)
+		if (gldns_buffer_printf(buf, ">") < 0)
 			return -1;
 	}
-	return ldns_buffer_position(buf) - p;
+	return gldns_buffer_position(buf) - p;
 }				/* getdns_pp_bindata */
 
 static int
-getdns_pp_dict(ldns_buffer * buf, size_t indent,
+getdns_pp_dict(gldns_buffer * buf, size_t indent,
 	const struct getdns_dict *dict);
 
 /*---------------------------------------- getdns_pp_list */
 /**
- * private function to pretty print list to a ldns_buffer
+ * private function to pretty print list to a gldns_buffer
  * @param buf    buffer to write to
  * @param indent number of spaces to append after newline
  * @param list   the to list print
@@ -598,10 +598,10 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
  *               if an output error is encountered, a negative value
  */
 static int
-getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
+getdns_pp_list(gldns_buffer *buf, size_t indent, getdns_list *list,
     int for_namespaces)
 {
-	size_t i, length, p = ldns_buffer_position(buf);
+	size_t i, length, p = gldns_buffer_position(buf);
 	getdns_data_type dtype;
 	struct getdns_dict *dict_item;
 	struct getdns_list *list_item;
@@ -612,7 +612,7 @@ getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
 	if (list == NULL)
 		return 0;
 
-	if (ldns_buffer_printf(buf, "[") < 0)
+	if (gldns_buffer_printf(buf, "[") < 0)
 		return -1;
 
 	if (getdns_list_get_length(list, &length) != GETDNS_RETURN_GOOD)
@@ -620,7 +620,7 @@ getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
 
 	indent += 2;
 	for (i = 0; i < length; i++) {
-		if (ldns_buffer_printf(buf, "%s\n%s", (i ? "," : ""),
+		if (gldns_buffer_printf(buf, "%s\n%s", (i ? "," : ""),
 			getdns_indent(indent)) < 0)
 			return -1;
 
@@ -636,10 +636,10 @@ getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
 			if (for_namespaces &&
 			    (strval =
 			     priv_getdns_get_const_info(int_item)->name)) {
-				if (ldns_buffer_printf(buf, "%s", strval) < 0)
+				if (gldns_buffer_printf(buf, "%s", strval) < 0)
 					return -1;
 			} else if (0 > 
-			    ldns_buffer_printf(buf, "%d", (int)int_item))
+			    gldns_buffer_printf(buf, "%d", (int)int_item))
 				return -1;
 			break;
 
@@ -668,66 +668,66 @@ getdns_pp_list(ldns_buffer *buf, size_t indent, getdns_list *list,
 			break;
 
 		default:
-			if (ldns_buffer_printf(buf, " <unknown>") < 0)
+			if (gldns_buffer_printf(buf, " <unknown>") < 0)
 				return -1;
 		}
 	}
 	indent -= 2;
-	if (ldns_buffer_printf(buf, i ? "\n%s]" : "]",
+	if (gldns_buffer_printf(buf, i ? "\n%s]" : "]",
 		getdns_indent(indent)) < 0)
 		return -1;
 
-	return ldns_buffer_position(buf) - p;
+	return gldns_buffer_position(buf) - p;
 }				/* getdns_pp_list */
 
 static int
-priv_getdns_print_class(ldns_buffer *buf, uint32_t klass)
+priv_getdns_print_class(gldns_buffer *buf, uint32_t klass)
 {
 	switch (klass) {
 	case GETDNS_RRCLASS_IN:
-		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_IN");
+		(void) gldns_buffer_printf(buf, " GETDNS_RRCLASS_IN");
 		return 1;
 	case GETDNS_RRCLASS_CH:
-		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_CH");
+		(void) gldns_buffer_printf(buf, " GETDNS_RRCLASS_CH");
 		return 1;
 	case GETDNS_RRCLASS_HS:
-		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_HS");
+		(void) gldns_buffer_printf(buf, " GETDNS_RRCLASS_HS");
 		return 1;
 	case GETDNS_RRCLASS_NONE:
-		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_NONE");
+		(void) gldns_buffer_printf(buf, " GETDNS_RRCLASS_NONE");
 		return 1;
 	case GETDNS_RRCLASS_ANY:
-		(void) ldns_buffer_printf(buf, " GETDNS_RRCLASS_ANY");
+		(void) gldns_buffer_printf(buf, " GETDNS_RRCLASS_ANY");
 		return 1;
 	}
 	return 0;
 }
 
 static int
-priv_getdns_print_opcode(ldns_buffer *buf, uint32_t opcode)
+priv_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
 {
 	switch (opcode) {
 	case GETDNS_OPCODE_QUERY:
-		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_QUERY");
+		(void) gldns_buffer_printf(buf, " GETDNS_OPCODE_QUERY");
 		return 1;
 	case GETDNS_OPCODE_IQUERY:
-		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_IQUERY");
+		(void) gldns_buffer_printf(buf, " GETDNS_OPCODE_IQUERY");
 		return 1;
 	case GETDNS_OPCODE_STATUS:
-		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_STATUS");
+		(void) gldns_buffer_printf(buf, " GETDNS_OPCODE_STATUS");
 		return 1;
 	case GETDNS_OPCODE_NOTIFY:
-		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_NOTIFY");
+		(void) gldns_buffer_printf(buf, " GETDNS_OPCODE_NOTIFY");
 		return 1;
 	case GETDNS_OPCODE_UPDATE:
-		(void) ldns_buffer_printf(buf, " GETDNS_OPCODE_UPDATE");
+		(void) gldns_buffer_printf(buf, " GETDNS_OPCODE_UPDATE");
 		return 1;
 	}
 	return 0;
 }
 
 static int
-priv_getdns_print_rcode(ldns_buffer *buf, uint32_t rcode)
+priv_getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
 {
 	static const char *rcodes[] = {
 		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR" ,
@@ -742,9 +742,9 @@ priv_getdns_print_rcode(ldns_buffer *buf, uint32_t rcode)
 		" GETDNS_RCODE_BADTRUNC"
 	};
 	if (rcode <= 10)
-		(void) ldns_buffer_printf(buf, rcodes[rcode]);
+		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode]);
 	else if (rcode >= 16 && rcode <= 22)
-		(void) ldns_buffer_printf(buf, rcodes[rcode-6]);
+		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode-6]);
 	else
 		return 0;
 	return 1;
@@ -752,7 +752,7 @@ priv_getdns_print_rcode(ldns_buffer *buf, uint32_t rcode)
 
 /*---------------------------------------- getdns_pp_dict */
 /**
- * private function to pretty print dict to a ldns_buffer
+ * private function to pretty print dict to a gldns_buffer
  * @param buf    buffer to write to
  * @param indent number of spaces to append after newline
  * @param dict   the dict to print
@@ -760,10 +760,10 @@ priv_getdns_print_rcode(ldns_buffer *buf, uint32_t rcode)
  *               if an output error is encountered, a negative value
  */
 static int
-getdns_pp_dict(ldns_buffer * buf, size_t indent,
+getdns_pp_dict(gldns_buffer * buf, size_t indent,
 	const struct getdns_dict *dict)
 {
-	size_t i, length, p = ldns_buffer_position(buf);
+	size_t i, length, p = gldns_buffer_position(buf);
 	struct getdns_dict_item *item;
 	const char *strval;
 
@@ -772,16 +772,16 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 	if (dict == NULL)
 		return 0;
 
-	if (ldns_buffer_printf(buf, "{") < 0)
+	if (gldns_buffer_printf(buf, "{") < 0)
 		return -1;
 
 	i = 0;
 	indent += 2;
 	RBTREE_FOR(item, struct getdns_dict_item *,
 		(getdns_rbtree_t *)&(dict->root)) {
-		if (ldns_buffer_printf(buf, "%s\n%s\"%s\":", (i ? "," : "")
+		if (gldns_buffer_printf(buf, "%s\n%s\"%s\":", (i ? "," : "")
 			, getdns_indent(indent)
-			, item->node.key) < 0)
+			, (const char *)item->node.key) < 0)
 			return -1;
 
 		switch (item->dtype) {
@@ -790,7 +790,7 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "type_covered") == 0 ||
 			     strcmp(item->node.key, "qtype") == 0) &&
 			    (strval = priv_getdns_rr_type_name(item->data.n))) {
-				if (ldns_buffer_printf(
+				if (gldns_buffer_printf(
 					buf, " GETDNS_RRTYPE_%s", strval) < 0)
 					return -1;
 				break;
@@ -804,7 +804,7 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "resolution_type") == 0) &&
 			    (strval =
 			     priv_getdns_get_const_info(item->data.n)->name)) {
-				if (ldns_buffer_printf(buf, " %s", strval) < 0)
+				if (gldns_buffer_printf(buf, " %s", strval) < 0)
 					return -1;
 				break;
 			}
@@ -818,7 +818,7 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			if (strcmp(item->node.key, "rcode") == 0 &&
 				priv_getdns_print_rcode(buf, item->data.n))
 				break;
-			if (ldns_buffer_printf(buf, " %d", item->data.n) < 0)
+			if (gldns_buffer_printf(buf, " %d", item->data.n) < 0)
 				return -1;
 			break;
 
@@ -829,7 +829,7 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			    (item->data.bindata->size == 4  ||
 			     item->data.bindata->size == 16 )) {
 
-				if (ldns_buffer_printf(buf, " <bindata for %s>",
+				if (gldns_buffer_printf(buf, " <bindata for %s>",
 				    inet_ntop(( item->data.bindata->size == 4
 				              ? AF_INET : AF_INET6)
 					     , item->data.bindata->data
@@ -850,11 +850,11 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 				&length) != GETDNS_RETURN_GOOD)
 				return -1;
 			if (length == 0) {
-				if (ldns_buffer_printf(buf, " []") < 0)
+				if (gldns_buffer_printf(buf, " []") < 0)
 					return -1;
 				break;
 			}
-			if (ldns_buffer_printf(buf, "\n%s",
+			if (gldns_buffer_printf(buf, "\n%s",
 				getdns_indent(indent)) < 0)
 				return -1;
 			if (getdns_pp_list(buf, indent, item->data.list, 
@@ -863,7 +863,7 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			break;
 
 		case t_dict:
-			if (ldns_buffer_printf(buf, "\n%s",
+			if (gldns_buffer_printf(buf, "\n%s",
 				getdns_indent(indent)) < 0)
 				return -1;
 			if (getdns_pp_dict(buf, indent, item->data.dict) < 0)
@@ -871,17 +871,17 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 			break;
 
 		default:
-			if (ldns_buffer_printf(buf, " <unknown>") < 0)
+			if (gldns_buffer_printf(buf, " <unknown>") < 0)
 				return -1;
 		}
 		i++;
 	}
 	indent -= 2;
-	if (ldns_buffer_printf(buf, i ? "\n%s}" : "}",
+	if (gldns_buffer_printf(buf, i ? "\n%s}" : "}",
 		getdns_indent(indent)) < 0)
 		return -1;
 
-	return ldns_buffer_position(buf) - p;
+	return gldns_buffer_position(buf) - p;
 }				/* getdns_pp_dict */
 
 /*---------------------------------------- getdns_pretty_print_dict */
@@ -895,22 +895,22 @@ getdns_pp_dict(ldns_buffer * buf, size_t indent,
 char *
 getdns_pretty_print_dict(const struct getdns_dict *dict)
 {
-	ldns_buffer *buf;
+	gldns_buffer *buf;
 	char *ret;
 
 	if (!dict)
 		return NULL;
 
-	buf = ldns_buffer_new(100);
+	buf = gldns_buffer_new(100);
 	if (!buf)
 		return NULL;
 
 	if (getdns_pp_dict(buf, 0, dict) < 0) {
-		ldns_buffer_free(buf);
+		gldns_buffer_free(buf);
 		return NULL;
 	}
-	ret = (char *) ldns_buffer_export(buf);
-	ldns_buffer_free(buf);
+	ret = (char *) gldns_buffer_export(buf);
+	gldns_buffer_free(buf);
 	return ret;
 }				/* getdns_pretty_print_dict */
 
