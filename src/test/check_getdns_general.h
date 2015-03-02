@@ -314,7 +314,7 @@
      START_TEST (getdns_general_11)
      {
       /*
-       *  name = "hampster.com"  need to replace this with domain from unbound zone
+       *  name = "willem.getdnsapi.net"  and unbound zone
        *  request_type = GETDNS_RRTYPE_MX
        *  expect: NOERROR/NODATA response:
        *    status = GETDNS_RESPSTATUS_GOOD
@@ -329,7 +329,7 @@
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_general(context, "hampster.com", GETDNS_RRTYPE_MX, NULL,
+       ASSERT_RC(getdns_general(context, "willem.getdnsapi.net", GETDNS_RRTYPE_MX, NULL,
          verify_getdns_general_11, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
