@@ -38,43 +38,54 @@
 #include <locale.h>
 #include <stringprep.h>
 #include <idna.h>
-#include <ldns/ldns.h>
 #include "getdns/getdns.h"
 #include "util-internal.h"
 #include "getdns_error.h"
+#include "gldns/wire2str.h"
+#include "gldns/str2wire.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
-    const struct getdns_bindata *dns_name_wire_fmt, char **fqdn_as_string)
+    const getdns_bindata *dns_name_wire_fmt, char **fqdn_as_string)
 {
-	ldns_rdf *rdf = ldns_rdf_new(LDNS_RDF_TYPE_DNAME,
-	    dns_name_wire_fmt->size,
-	    (void *)dns_name_wire_fmt->data); /* unconst is safe here */
-	if (!rdf) return GETDNS_RETURN_MEMORY_ERROR;
-	*fqdn_as_string = ldns_rdf2str(rdf);
-	ldns_rdf_free(rdf);
-	return *fqdn_as_string ? GETDNS_RETURN_GOOD
-	                       : GETDNS_RETURN_GENERIC_ERROR;
+	char *r;
+
+	if (!dns_name_wire_fmt || !fqdn_as_string)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(r = gldns_wire2str_dname(
+	    dns_name_wire_fmt->data, dns_name_wire_fmt->size)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	*fqdn_as_string = r;
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
 getdns_convert_fqdn_to_dns_name(
-    const char *fqdn_as_string, struct getdns_bindata **dns_name_wire_fmt)
+    const char *fqdn_as_string, getdns_bindata **dns_name_wire_fmt)
 {
-	ldns_rdf *rdf;
-	if (ldns_str2rdf_dname(&rdf, fqdn_as_string) != LDNS_STATUS_OK)
-		return GETDNS_RETURN_GENERIC_ERROR;;
-	*dns_name_wire_fmt = malloc(sizeof(struct getdns_bindata));
-	if (*dns_name_wire_fmt) {
-		(*dns_name_wire_fmt)->size = ldns_rdf_size(rdf);
-		(*dns_name_wire_fmt)->data = ldns_rdf_data(rdf);
+	getdns_bindata *r;
+	uint8_t *dname;
+	size_t len;
+
+	if (!fqdn_as_string || !dns_name_wire_fmt)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(r = malloc(sizeof(getdns_bindata))))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	if (!(dname = gldns_str2wire_dname(fqdn_as_string, &len))) {
+		free(r);
+		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	ldns_rdf_free(rdf);
-	return *dns_name_wire_fmt ? GETDNS_RETURN_GOOD
-	                          : GETDNS_RETURN_MEMORY_ERROR;
+	r->size = len;
+	r->data = dname;
+	*dns_name_wire_fmt = r;
+	return GETDNS_RETURN_GOOD;
 }
 
 /*---------------------------------------- getdns_convert_alabel_to_ulabel */
