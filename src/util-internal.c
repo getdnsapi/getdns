@@ -527,6 +527,8 @@ set_dict(getdns_dict **var, getdns_dict *value)
 
 #define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
                               GLDNS_ ## Y ## _WIRE(req->response))) goto error
+#define SET_WIRE_BIT(X,Y) if (getdns_dict_set_int(header, #X , \
+                              GLDNS_ ## Y ## _WIRE(req->response) ? 1 : 0)) goto error
 #define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
                               GLDNS_ ## Y (req->response))) goto error 
 
@@ -601,16 +603,16 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 		goto error;
 
 	SET_WIRE_INT(id, ID);
-	SET_WIRE_INT(qr, QR);
-	SET_WIRE_INT(aa, AA);
-	SET_WIRE_INT(tc, TC);
-	SET_WIRE_INT(rd, RD);
-	SET_WIRE_INT(cd, CD);
-	SET_WIRE_INT(ra, RA);
-	SET_WIRE_INT(ad, AD);
+	SET_WIRE_BIT(qr, QR);
+	SET_WIRE_BIT(aa, AA);
+	SET_WIRE_BIT(tc, TC);
+	SET_WIRE_BIT(rd, RD);
+	SET_WIRE_BIT(cd, CD);
+	SET_WIRE_BIT(ra, RA);
+	SET_WIRE_BIT(ad, AD);
 	SET_WIRE_INT(opcode, OPCODE);
 	SET_WIRE_INT(rcode, RCODE);
-	SET_WIRE_INT(z, Z);
+	SET_WIRE_BIT(z, Z);
 
 	SET_WIRE_CNT(qdcount, QDCOUNT);
 	SET_WIRE_CNT(ancount, ANCOUNT);
