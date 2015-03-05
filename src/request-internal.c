@@ -68,7 +68,7 @@ static int
 network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
     const char *name, uint16_t request_type, uint16_t request_class,
     int dnssec_extension_set, int with_opt,
-    uint16_t edns_maximum_udp_payload_size,
+    int edns_maximum_udp_payload_size,
     uint8_t edns_extended_rcode, uint8_t edns_version, int edns_do_bit,
     uint16_t opt_options_size, size_t noptions, getdns_list *options,
     size_t wire_data_sz, size_t max_query_sz)

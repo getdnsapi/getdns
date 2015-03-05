@@ -176,46 +176,6 @@ sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *addres
 	return GETDNS_RETURN_GOOD;
 }
 
-#define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(result, #X , (int) \
-                              GLDNS_ ## Y ## _WIRE(netreq->response))) break
-#define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(result, #X , (int) \
-                              GLDNS_ ## Y (netreq->response))) break
-
-/* create the header dict */
-static struct getdns_dict *
-create_reply_header_dict(getdns_context *context, getdns_network_req *netreq)
-{
-	/* { "id": 23456, "qr": 1, "opcode": 0, ... }, */
-	struct getdns_dict *result = getdns_dict_create_with_context(context);
-
-	if (!result)
-		return NULL;
-    	do {
-		SET_WIRE_INT(id, ID);
-		SET_WIRE_INT(qr, QR);
-		SET_WIRE_INT(aa, AA);
-		SET_WIRE_INT(tc, TC);
-		SET_WIRE_INT(rd, RD);
-		SET_WIRE_INT(cd, CD);
-		SET_WIRE_INT(ra, RA);
-		SET_WIRE_INT(ad, AD);
-		SET_WIRE_INT(opcode, OPCODE);
-		SET_WIRE_INT(rcode, RCODE);
-		SET_WIRE_INT(z, Z);
-
-		SET_WIRE_CNT(qdcount, QDCOUNT);
-		SET_WIRE_CNT(ancount, ANCOUNT);
-		SET_WIRE_CNT(nscount, NSCOUNT);
-		SET_WIRE_CNT(arcount, ARCOUNT);
-
-		return result;
-
-	} while (0);
-
-	getdns_dict_destroy(result);
-	return NULL;
-}
-
 /* helper to convert an rr_list to getdns_list.
    returns a list of objects where each object
    is a result from create_dict_from_rr */
@@ -530,6 +490,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	if (getdns_dict_set_dict(rr_dict, "rdata", rdata_dict))
 		goto rdata_error;
 
+	getdns_dict_destroy(rdata_dict);
 	return rr_dict;
 
 rdata_error:
@@ -555,6 +516,19 @@ dname_equal(uint8_t *s1, uint8_t *s2)
 				return 0;
 	}
 }
+
+inline static getdns_dict *
+set_dict(getdns_dict **var, getdns_dict *value)
+{
+	if (*var)
+		getdns_dict_destroy(*var);
+	return *var = value;
+}
+
+#define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
+                              GLDNS_ ## Y ## _WIRE(req->response))) goto error
+#define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
+                              GLDNS_ ## Y (req->response))) goto error 
 
 static getdns_dict *
 create_reply_dict(getdns_context *context, getdns_network_req *req,
@@ -618,14 +592,33 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 	size_t canonical_name_len = 256, owner_name_len;
 	int new_canonical = 0;
 	uint16_t rr_type;
+	getdns_dict *header = NULL;
 
 	if (!result)
 		goto error;
 
+	if (!(header = getdns_dict_create_with_context(context)))
+		goto error;
+
+	SET_WIRE_INT(id, ID);
+	SET_WIRE_INT(qr, QR);
+	SET_WIRE_INT(aa, AA);
+	SET_WIRE_INT(tc, TC);
+	SET_WIRE_INT(rd, RD);
+	SET_WIRE_INT(cd, CD);
+	SET_WIRE_INT(ra, RA);
+	SET_WIRE_INT(ad, AD);
+	SET_WIRE_INT(opcode, OPCODE);
+	SET_WIRE_INT(rcode, RCODE);
+	SET_WIRE_INT(z, Z);
+
+	SET_WIRE_CNT(qdcount, QDCOUNT);
+	SET_WIRE_CNT(ancount, ANCOUNT);
+	SET_WIRE_CNT(nscount, NSCOUNT);
+	SET_WIRE_CNT(arcount, ARCOUNT);
 
 	/* header */
-    	if ((r = getdns_dict_set_dict(result, GETDNS_STR_KEY_HEADER,
-	    create_reply_header_dict(context, req))))
+    	if ((r = getdns_dict_set_dict(result, "header", header)))
 		goto error;
 
 	(void) gldns_str2wire_dname_buf(
@@ -637,7 +630,8 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 	    ; rr_iter
 	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
 
-		if (!(rr_dict = priv_getdns_rr_iter2rr_dict(context, rr_iter)))
+		if (!set_dict(&rr_dict,
+		    priv_getdns_rr_iter2rr_dict(context, rr_iter)))
 			continue;
 
 		section = priv_getdns_rr_iter_section(rr_iter);
@@ -645,12 +639,12 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			if (getdns_dict_set_dict(result, "question", rr_dict))
 				goto error;
+
 			continue;
 		}
 		if (getdns_list_append_dict(sections[section], rr_dict))
 			goto error;
 
-		rr_dict = NULL;
 
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
 		if (section > GLDNS_SECTION_QUESTION &&
@@ -686,7 +680,7 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 		bindata.size = rdf_iter->nxt - rdf_iter->pos;
 		bindata.data = rdf_iter->pos;
-		if (!(rr_dict = getdns_dict_create_with_context(context)) ||
+		if (!set_dict(&rr_dict, getdns_dict_create_with_context(context)) ||
 
 		    getdns_dict_set_bindata(rr_dict, "address_type",
 		    rr_type == GETDNS_RRTYPE_A ?
@@ -698,9 +692,6 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			goto error;
 		}
-		getdns_dict_destroy(rr_dict);
-		rr_dict = NULL;
-
 	}
 	if (getdns_dict_set_list(result, "answer",
 	    sections[GLDNS_SECTION_ANSWER]) ||
@@ -757,15 +748,18 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (getdns_dict_set_bindata(result, "canonical_name", &bindata))
 		goto error;
 
-	return result;
+	goto success;
 error:
-	getdns_dict_destroy(rr_dict);
-	getdns_list_destroy(sections[3]);
-	getdns_list_destroy(sections[2]);
-	getdns_list_destroy(sections[1]);
-	getdns_dict_destroy(question);
 	getdns_dict_destroy(result);
-	return NULL;
+	result = NULL;
+success:
+	getdns_dict_destroy(header);
+	getdns_dict_destroy(rr_dict);
+	getdns_list_destroy(sections[GLDNS_SECTION_ADDITIONAL]);
+	getdns_list_destroy(sections[GLDNS_SECTION_AUTHORITY]);
+	getdns_list_destroy(sections[GLDNS_SECTION_ANSWER]);
+	getdns_dict_destroy(question);
+	return result;
 }
 
 getdns_dict *
