@@ -263,6 +263,7 @@ priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr)
 	assert(i);
 	assert(rr);
 
+	i->end     = NULL;
 	/* rr_iter already done or in question section */
 	if (!rr->pos || rr->n < GLDNS_QDCOUNT(rr->pkt))
 		goto done;
@@ -273,10 +274,6 @@ priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr)
 	i->rdd_pos = rr_def->rdata;
 	i->rdd_end = rr_def->rdata + rr_def->n_rdata_fields;
 
-	/* No rdata */
-	if (i->rdd_pos == i->rdd_end)
-		goto done;
-
 	/* No space to read rdata len */
 	if (rr->rr_type + 10 >= rr->nxt)
 		goto done;
@@ -285,7 +282,9 @@ priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr)
 	i->pos        = rr->rr_type + 10;
 	i->end        = rr->nxt;
 
-	return rdf_iter_find_nxt(i);
+	/* rdata */
+	if (i->rdd_pos != i->rdd_end)
+		return rdf_iter_find_nxt(i);
 done:
 	i->pos = NULL;
 	return NULL;

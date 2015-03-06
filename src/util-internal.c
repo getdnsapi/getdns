@@ -335,13 +335,14 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	if (!(rdata_dict = getdns_dict_create_with_context(context)))
 		goto error;
 
-	if ((rdf = priv_getdns_rdf_iter_init(&rdf_storage, i))) {
-		bindata.size = rdf->end - rdf->pos;
-		bindata.data = rdf->pos;
+	if (i->rr_type + 10 <= i->nxt) {
+		bindata.size = i->nxt - (i->rr_type + 10);
+		bindata.data = i->rr_type + 10;
 		if (getdns_dict_set_bindata(rdata_dict, "rdata_raw", &bindata))
 			goto rdata_error;
 	}
-	for (; rdf; rdf = priv_getdns_rdf_iter_next(rdf)) {
+	for ( rdf = priv_getdns_rdf_iter_init(&rdf_storage, i)
+	    ; rdf; rdf = priv_getdns_rdf_iter_next(rdf)) {
 		if (rdf->rdd_pos->type & GETDNS_RDF_INTEGER) {
 			val_type = t_int;
 			switch (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
