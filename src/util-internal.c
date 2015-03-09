@@ -476,6 +476,9 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 		}
 	}
 	if (repeat_dict) {
+		if (!repeat_list && !(repeat_list =
+		    getdns_list_create_with_context(context)))
+			goto rdata_error;
 		if (getdns_list_append_dict(repeat_list, repeat_dict))
 			goto rdata_error;
 		getdns_dict_destroy(repeat_dict);
