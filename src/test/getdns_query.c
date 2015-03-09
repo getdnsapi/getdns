@@ -103,6 +103,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
+	fprintf(out, "\t+sit[=cookie]\tSet edns cookie\n");
 }
 
 void callback(getdns_context *context, getdns_callback_type_t callback_type,
@@ -125,6 +126,58 @@ static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 
 #define CONTINUE ((getdns_return_t)-2)
 
+static getdns_return_t set_cookie(getdns_dict *exts, char *cookie)
+{
+	uint8_t data[40];
+	size_t i;
+	getdns_return_t r = GETDNS_RETURN_GENERIC_ERROR;
+	getdns_bindata bindata;
+
+	getdns_dict *opt_parameters = getdns_dict_create();
+	getdns_list *options = getdns_list_create();
+	getdns_dict *option = getdns_dict_create();
+
+	if (*cookie == '=')
+		cookie++;
+
+	for (i = 0; i < 40 && *cookie; i++) {
+		if (*cookie >= '0' && *cookie <= '9')
+			data[i] = (uint8_t)(*cookie - '0') << 4;
+		else if (*cookie >= 'a' && *cookie <= 'f')
+			data[i] = (uint8_t)(*cookie - 'a' + 10) << 4;
+		else if (*cookie >= 'A' && *cookie <= 'F')
+			data[i] = (uint8_t)(*cookie - 'A' + 10) << 4;
+		else
+			goto done;
+		cookie++;
+		if (*cookie >= '0' && *cookie <= '9')
+			data[i] |= (uint8_t)(*cookie - '0');
+		else if (*cookie >= 'a' && *cookie <= 'f')
+			data[i] |= (uint8_t)(*cookie - 'a' + 10);
+		else if (*cookie >= 'A' && *cookie <= 'F')
+			data[i] |= (uint8_t)(*cookie - 'A' + 10);
+		else
+			goto done;
+		cookie++;;
+	}
+	bindata.data = data;
+	bindata.size = i;
+	if ((r = getdns_dict_set_int(option, "option_code", 65001)))
+		goto done;
+	if ((r = getdns_dict_set_bindata(option, "option_data", &bindata)))
+		goto done;
+	if ((r = getdns_list_set_dict(options, 0, option)))
+		goto done;
+	if ((r = getdns_dict_set_list(opt_parameters, "options", options)))
+		goto done;
+	r = getdns_dict_set_dict(exts, "add_opt_parameters", opt_parameters);
+done:
+	getdns_dict_destroy(option);
+	getdns_list_destroy(options);
+	getdns_dict_destroy(opt_parameters);
+	return r;
+}
+
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -141,7 +194,14 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] == '+') {
-			if ((r = getdns_dict_set_int(extensions, arg+1,
+			if (arg[1] == 's' && arg[2] == 'i' && arg[3] == 't' &&
+			   (arg[4] == '=' || arg[4] == '\0')) {
+				if ((r = set_cookie(extensions, arg+4))) {
+					fprintf(stderr, "Could not set cookie:"
+					    " %d", r);
+					break;
+				}
+			} else if ((r = getdns_dict_set_int(extensions, arg+1,
 			    GETDNS_EXTENSION_TRUE))) {
 				fprintf(stderr, "Could not set extension "
 				    "\"%s\": %d\n", argv[i], r);
