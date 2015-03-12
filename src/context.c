@@ -219,11 +219,12 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 }
 
 static getdns_dict *
-sockaddr2addr_dict(getdns_context *context, struct sockaddr *sa)
+sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 {
 	getdns_dict *address = getdns_dict_create_with_context(context);
 	char addrstr[1024], *b;
 	getdns_bindata bindata;
+	uint16_t port;
 
 	if (!address)
 		return NULL;
@@ -238,10 +239,9 @@ sockaddr2addr_dict(getdns_context *context, struct sockaddr *sa)
 		if ((getdns_dict_set_bindata(address,"address_data",&bindata)))
 			break;
 
-		if (((struct sockaddr_in *)sa)->sin_port !=  0 &&
-		    ((struct sockaddr_in *)sa)->sin_port != 53 &&
-		    getdns_dict_set_int(address, "port",
-		    (uint32_t)((struct sockaddr_in *)sa)->sin_port))
+		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
+		if (port !=  0 && port != 53 &&
+		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
 		return address;
@@ -255,10 +255,9 @@ sockaddr2addr_dict(getdns_context *context, struct sockaddr *sa)
 		if ((getdns_dict_set_bindata(address,"address_data",&bindata)))
 			break;
 
-		if (((struct sockaddr_in6 *)sa)->sin6_port !=  0 &&
-		    ((struct sockaddr_in6 *)sa)->sin6_port != 53 &&
-		    getdns_dict_set_int(address, "port",
-		    (uint32_t)((struct sockaddr_in *)sa)->sin_port))
+		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
+		if (port !=  0 && port != 53 &&
+		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
 		/* Try to get scope_id too */
@@ -279,7 +278,7 @@ sockaddr2addr_dict(getdns_context *context, struct sockaddr *sa)
 }
 
 static getdns_dict *
-str2addr_dict(getdns_context *context, const char *str)
+str_addr_dict(getdns_context *context, const char *str)
 {
 	static struct addrinfo hints = { .ai_family = AF_UNSPEC
 	                               , .ai_flags  = AI_NUMERICHOST };
@@ -289,7 +288,7 @@ str2addr_dict(getdns_context *context, const char *str)
 	if (getaddrinfo(str, NULL, &hints, &ai))
 		return NULL;
 
-	address = sockaddr2addr_dict(context, ai->ai_addr);
+	address = sockaddr_dict(context, ai->ai_addr);
 	freeaddrinfo(ai);
 
 	return address;
@@ -353,7 +352,7 @@ create_local_hosts(getdns_context *context)
 				if (address) 
 					getdns_dict_destroy(address);
 				if (!(address =
-				    str2addr_dict(context, start_of_word)))
+				    str_addr_dict(context, start_of_word)))
 					/* Unparseable address */
 					break; /* skip to next line */
 			} else 
@@ -478,12 +477,6 @@ upstreams_dereference(getdns_upstreams *upstreams)
 		GETDNS_FREE(upstreams->mf, upstreams);
 }
 
-static size_t
-upstream_addr_len(getdns_upstream *upstream)
-{
-	return upstream->addr.ss_family == AF_INET ? 4 : 16;
-}
-
 static uint8_t*
 upstream_addr(getdns_upstream *upstream)
 {
@@ -525,31 +518,6 @@ upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
 	if (upstream_port(upstream) != 53 && upstream_port(upstream) != 0)
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "@%d", (int)upstream_port(upstream));
-}
-
-static getdns_dict *
-upstream_dict(getdns_context *context, getdns_upstream *upstream)
-{
-	getdns_dict *r = getdns_dict_create_with_context(context);
-	char addrstr[1024], *b;
-	getdns_bindata bindata;
-
-	getdns_dict_util_set_string(r, "address_type",
-	    upstream->addr.ss_family == AF_INET ? "IPv4" : "IPv6");
-
-	bindata.size = upstream_addr_len(upstream);
-	bindata.data = upstream_addr(upstream);
-	getdns_dict_set_bindata(r, "address_data", &bindata);
-
-	if (upstream_port(upstream) != 53)
-		getdns_dict_set_int(r, "port", upstream_port(upstream));
-
-	(void) getnameinfo((struct sockaddr *)&upstream->addr,
-	    upstream->addr_len, addrstr, 1024, NULL, 0, NI_NUMERICHOST);
-	if ((b = strchr(addrstr, '%')))
-		getdns_dict_util_set_string(r, "scope_id", b+1);
-
-	return r;
 }
 
 static int
@@ -2036,7 +2004,8 @@ priv_get_context_settings(getdns_context* context) {
 		for (i = 0; i < context->upstreams->count; i++) {
 			getdns_dict *d;
 			upstream = &context->upstreams->upstreams[i];
-			d = upstream_dict(context, upstream);
+			d = sockaddr_dict(context,
+			    (struct sockaddr *)&upstream->addr);
 			r |= getdns_list_set_dict(upstreams, i, d);
 			getdns_dict_destroy(d);
 		}
@@ -2334,7 +2303,7 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
         for (i = 0; i < context->upstreams->count; i++) {
             getdns_dict *d;
             upstream = &context->upstreams->upstreams[i];
-            d = upstream_dict(context, upstream);
+            d = sockaddr_dict(context, (struct sockaddr *)&upstream->addr);
             r |= getdns_list_set_dict(upstreams, i, d);
             getdns_dict_destroy(d);
         }

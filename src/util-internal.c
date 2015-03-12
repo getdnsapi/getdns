@@ -37,7 +37,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <ldns/rbtree.h>
 #include <unbound.h>
 #include "getdns/getdns.h"
 #include "dict.h"
@@ -203,62 +202,6 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 		result = NULL;
 	}
 	return result;
-}
-
-/* helper to add the ipv4 or ipv6 bin data to the list of addrs */
-static getdns_return_t
-add_only_addresses(struct getdns_list * addrs, ldns_rr_list * rr_list)
-{
-	int r = GETDNS_RETURN_GOOD;
-	size_t i = 0;
-	size_t item_idx = 0;
-
-	r = getdns_list_get_length(addrs, &item_idx);
-	for (i = 0; r == GETDNS_RETURN_GOOD &&
-	            i < ldns_rr_list_rr_count(rr_list); ++i) {
-		ldns_rr *rr = ldns_rr_list_rr(rr_list, i);
-		size_t j = 0;
-		size_t rd_count = ldns_rr_rd_count(rr);
-		for (j = 0; r == GETDNS_RETURN_GOOD && j < rd_count; ++j) {
-			ldns_rdf *rdf = ldns_rr_rdf(rr, j);
-			if (ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_A &&
-			    ldns_rdf_get_type(rdf) != LDNS_RDF_TYPE_AAAA) {
-				continue;
-			}
-			struct getdns_dict *this_address =
-			    getdns_dict_create_with_extended_memory_functions(
-				addrs->mf.mf_arg,
-				addrs->mf.mf.ext.malloc,
-				addrs->mf.mf.ext.realloc,
-				addrs->mf.mf.ext.free);
-			if (this_address == NULL) {
-				r = GETDNS_RETURN_MEMORY_ERROR;
-				break;
-			}
-			struct getdns_bindata rbin =
-				{ ldns_rdf_size(rdf), ldns_rdf_data(rdf) };
-			r = getdns_dict_set_bindata(this_address,
-			    GETDNS_STR_ADDRESS_TYPE,
-			    ( ldns_rdf_get_type(rdf) == LDNS_RDF_TYPE_A
-			    ?  &IPv4_str_bindata : &IPv6_str_bindata));
-            if (r != GETDNS_RETURN_GOOD) {
-                getdns_dict_destroy(this_address);
-                break;
-            }
-
-			r = getdns_dict_set_bindata(this_address,
-			    GETDNS_STR_ADDRESS_DATA, &rbin);
-            if (r != GETDNS_RETURN_GOOD) {
-                getdns_dict_destroy(this_address);
-                break;
-            }
-
-			r = getdns_list_set_dict(addrs, item_idx++,
-			    this_address);
-			getdns_dict_destroy(this_address);
-		}
-	}
-	return r;
 }
 
 getdns_dict *
@@ -904,80 +847,6 @@ error_free_result:
 	getdns_dict_destroy(result);
 	return NULL;
 }
-
-/*This method can be used when e.g. a local lookup has been performed and the 
-   result is simply a list of addresses (not a DNS packet)*/
-struct getdns_dict *
-create_getdns_response_from_rr_list(struct getdns_dns_req * completed_request,
-                                    ldns_rr_list * response_list)
-{
-	struct getdns_dict *result = getdns_dict_create_with_context(completed_request->context);
-	struct getdns_list *replies_full = getdns_list_create_with_context(
-	    completed_request->context);
-	struct getdns_list *replies_tree = getdns_list_create_with_context(
-	    completed_request->context);
-	struct getdns_list *just_addrs = NULL;
-	uint8_t canonical_name_space[256];
-	getdns_bindata bindata = { 256, canonical_name_space };
-	getdns_return_t r = 0;
-
-	/* NOTE: With DNS packet, we ignore any DNSSEC related extensions since we 
-	   don't populate the replies full or tree at all*/
-
-	just_addrs = getdns_list_create_with_context(completed_request->context);
-
-	do {
-		if ((r = gldns_str2wire_dname_buf(completed_request->name,
-		    bindata.data, &bindata.size)))
-			break;
-		if ((r = getdns_dict_set_bindata(result,
-		    GETDNS_STR_KEY_CANONICAL_NM, &bindata)))
-			break;
-
-		/* For local lookups we don't set an answer_type as there isn't a
-		suitable one*/
-
-		r = add_only_addresses(just_addrs, response_list);
-		if (r != GETDNS_RETURN_GOOD) {
-			break;
-		}
-           
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_TREE,
-			replies_tree);
-		if (r != GETDNS_RETURN_GOOD)
-            break;
-
-		r = getdns_dict_set_list(result, GETDNS_STR_KEY_REPLIES_FULL,
-			replies_full);
-		if (r != GETDNS_RETURN_GOOD)
-			break;
-
-		r = getdns_dict_set_list(result, GETDNS_STR_KEY_JUST_ADDRS,
-			just_addrs);
-		if (r != GETDNS_RETURN_GOOD) {
-            break;
-		}
-
-		r = getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
-				GETDNS_RESPSTATUS_GOOD);
-	} while (0);
-
-	/* cleanup */
-	getdns_list_destroy(replies_tree);
-	getdns_list_destroy(replies_full);
-	getdns_list_destroy(just_addrs);
-
-	if (r != 0) {
-		getdns_dict_destroy(result);
-		result = NULL;
-	}
-
-	return result;
-}
-
 
 /**
  * reverse an IP address for PTR lookup
