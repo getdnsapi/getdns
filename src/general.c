@@ -286,7 +286,7 @@ priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 	struct getdns_bindata *address_data;
 	struct getdns_bindata *address_type;
 	uint16_t req_type;
-	char *name;
+	char name[1024];
 	getdns_return_t retval;
 
 	if ((retval =
@@ -308,11 +308,60 @@ priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 		req_type = GETDNS_RRTYPE_PTR;
 	else
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	if ((name = reverse_address(address_data)) == NULL)
+
+	switch (address_data->size) {
+	case 4:
+		(void)snprintf(name, sizeof(name),
+		    "%hhu.%hhu.%hhu.%hhu.in-addr.arpa.",
+		    ((uint8_t *)address_data->data)[3],
+		    ((uint8_t *)address_data->data)[2],
+		    ((uint8_t *)address_data->data)[1],
+		    ((uint8_t *)address_data->data)[0]);
+		break;
+	case 16:
+		(void)snprintf(name, sizeof(name),
+		    "%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx."
+		    "%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx."
+		    "%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx."
+		    "%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.%hhx.ip6.arpa.",
+		    ((uint8_t *)address_data->data)[15] & 0x0F,
+		    ((uint8_t *)address_data->data)[15] >> 4,
+		    ((uint8_t *)address_data->data)[14] & 0x0F,
+		    ((uint8_t *)address_data->data)[14] >> 4,
+		    ((uint8_t *)address_data->data)[13] & 0x0F,
+		    ((uint8_t *)address_data->data)[13] >> 4,
+		    ((uint8_t *)address_data->data)[12] & 0x0F,
+		    ((uint8_t *)address_data->data)[12] >> 4,
+		    ((uint8_t *)address_data->data)[11] & 0x0F,
+		    ((uint8_t *)address_data->data)[11] >> 4,
+		    ((uint8_t *)address_data->data)[10] & 0x0F,
+		    ((uint8_t *)address_data->data)[10] >> 4,
+		    ((uint8_t *)address_data->data)[9] & 0x0F,
+		    ((uint8_t *)address_data->data)[9] >> 4,
+		    ((uint8_t *)address_data->data)[8] & 0x0F,
+		    ((uint8_t *)address_data->data)[8] >> 4,
+		    ((uint8_t *)address_data->data)[7] & 0x0F,
+		    ((uint8_t *)address_data->data)[7] >> 4,
+		    ((uint8_t *)address_data->data)[6] & 0x0F,
+		    ((uint8_t *)address_data->data)[6] >> 4,
+		    ((uint8_t *)address_data->data)[5] & 0x0F,
+		    ((uint8_t *)address_data->data)[5] >> 4,
+		    ((uint8_t *)address_data->data)[4] & 0x0F,
+		    ((uint8_t *)address_data->data)[4] >> 4,
+		    ((uint8_t *)address_data->data)[3] & 0x0F,
+		    ((uint8_t *)address_data->data)[3] >> 4,
+		    ((uint8_t *)address_data->data)[2] & 0x0F,
+		    ((uint8_t *)address_data->data)[2] >> 4,
+		    ((uint8_t *)address_data->data)[1] & 0x0F,
+		    ((uint8_t *)address_data->data)[1] >> 4,
+		    ((uint8_t *)address_data->data)[0] & 0x0F,
+		    ((uint8_t *)address_data->data)[0] >> 4);
+		break;
+	default:
 		return GETDNS_RETURN_INVALID_PARAMETER;
+	}
 	retval = priv_getdns_general_loop(context, loop, name, req_type,
 	    extensions, userarg, transaction_id, callback);
-	free(name);
 	return retval;
 }				/* getdns_hostname_loop */
 

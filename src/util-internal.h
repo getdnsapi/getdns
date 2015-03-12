@@ -122,7 +122,6 @@ getdns_return_t sockaddr_to_dict(struct getdns_context *context,
 
 struct getdns_dns_req;
 struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
-char *reverse_address(struct getdns_bindata *address_data);
 
 getdns_return_t validate_dname(const char* dname);
 

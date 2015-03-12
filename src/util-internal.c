@@ -848,38 +848,6 @@ error_free_result:
 	return NULL;
 }
 
-/**
- * reverse an IP address for PTR lookup
- * @param address_data IP address to reverse
- * @return NULL on allocation failure
- * @return reversed string on success, caller must free storage via call to free()
- */
-char *
-reverse_address(struct getdns_bindata *address_data)
-{
-	ldns_rdf *addr_rdf;
-	ldns_rdf *rev_rdf;
-	char *rev_str;
-
-	if (address_data->size == 4)
-		addr_rdf = ldns_rdf_new(LDNS_RDF_TYPE_A, 4, address_data->data);
-	else if (address_data->size == 16)
-		addr_rdf = ldns_rdf_new(LDNS_RDF_TYPE_AAAA, 16, address_data->data);
-	else
-		return NULL;
-	if (!addr_rdf)
-		return NULL;
-
-	rev_rdf = ldns_rdf_address_reverse(addr_rdf);
-	ldns_rdf_free(addr_rdf);
-	if (!rev_rdf)
-		return NULL;
-
-	rev_str = ldns_rdf2str(rev_rdf);
-	ldns_rdf_deep_free(rev_rdf);
-	return rev_str;
-}
-
 static int
 extformatcmp(const void *a, const void *b)
 {
