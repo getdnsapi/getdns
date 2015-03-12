@@ -200,7 +200,7 @@ getdns_list_copy(const struct getdns_list * srclist,
 		switch (srclist->items[i].dtype) {
 		case t_int:
 			retval = getdns_list_set_int(*dstlist, index,
-										 srclist->items[i].data.n);
+			         srclist->items[i].data.n);
 			break;
 
 		case t_list:

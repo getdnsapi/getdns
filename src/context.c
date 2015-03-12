@@ -35,7 +35,6 @@
  */
 
 #include <arpa/inet.h>
-#include <ldns/ldns.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,29 +45,28 @@
 #include <netdb.h>
 
 #include "config.h"
+#include "gldns/str2wire.h"
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
 #include "stub.h"
+#include "list.h"
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 typedef struct host_name_addrs {
 	getdns_rbnode_t node;
-	ldns_rdf *host_name;
-	ldns_rr_list *ipv4addrs;
-	ldns_rr_list *ipv6addrs;
+	getdns_list *ipv4addrs;
+	getdns_list *ipv6addrs;
+	uint8_t host_name[];
 } host_name_addrs;
 
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
-static void create_local_hosts(struct getdns_context *context);
-getdns_return_t destroy_local_hosts(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
-static int local_host_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
 static void cancel_outstanding_requests(struct getdns_context*, int);
@@ -91,9 +89,8 @@ static void destroy_local_host(getdns_rbnode_t * node, void *arg)
 {
 	getdns_context *context = (getdns_context *)arg;
 	host_name_addrs *hnas = (host_name_addrs *)node;
-	ldns_rdf_deep_free(hnas->host_name);
-	ldns_rr_list_deep_free(hnas->ipv4addrs);
-	ldns_rr_list_deep_free(hnas->ipv6addrs);
+	getdns_list_destroy(hnas->ipv4addrs);
+	getdns_list_destroy(hnas->ipv6addrs);
 	GETDNS_FREE(context->my_mf, hnas);
 }
 
@@ -115,62 +112,278 @@ create_default_namespaces(struct getdns_context *context)
 	return GETDNS_RETURN_GOOD;
 }
 
-/**
- * Helper to get contents from hosts file
- */
-static void
-create_local_hosts(struct getdns_context *context)
+static inline void canonicalize_dname(uint8_t *dname)
 {
-	ldns_rr_list *host_names = ldns_get_rr_list_hosts_frm_file(NULL);
-	size_t i;
-	ldns_rr *rr;
-	host_name_addrs *hnas;
+	uint8_t *next_label;
 
-	if (host_names == NULL)
+	while (*dname) {
+		next_label = dname + *dname + 1;
+		dname += 1;
+		while (dname < next_label) {
+			*dname = (uint8_t)tolower((unsigned char)*dname);
+			dname++;
+		}
+	}
+}
+
+static int
+canonical_dname_compare(register const uint8_t *d1, register const uint8_t *d2)
+{
+	register uint8_t lab1, lab2;
+
+	assert(d1 && d2);
+
+	lab1 = *d1++;
+	lab2 = *d2++;
+	while (lab1 != 0 || lab2 != 0) {
+		/* compare label length */
+		/* if one dname ends, it has labellength 0 */
+		if (lab1 != lab2) {
+			if (lab1 < lab2)
+				return -1;
+			return 1;
+		}
+		while (lab1--) {
+			/* compare bytes first for speed */
+			if (*d1 != *d2) {
+				if (*d1 < *d2)
+					return -1;
+				return  1;
+			}
+			d1++;
+			d2++;
+		}
+		/* next pair of labels. */
+		lab1 = *d1++;
+		lab2 = *d2++;
+	}
+	return 0;
+}
+
+static int
+local_host_cmp(const void *id1, const void *id2)
+{
+	return canonical_dname_compare(id1, id2);
+}
+
+static void
+add_local_host(getdns_context *context, getdns_dict *address, const char *str)
+{
+	uint8_t host_name[256];
+	size_t host_name_len = sizeof(host_name);
+	host_name_addrs *hnas;
+	getdns_bindata *address_type;
+	int hnas_found = 0;
+	getdns_list **addrs;
+
+	if (gldns_str2wire_dname_buf(str, host_name, &host_name_len))
 		return;
 
-	/* We have a 1:1 list of name -> ip address where there is an
-	   underlying many to many relationship. Need to create a lookup of
-	   (unique name + A/AAAA)-> list of IPV4/IPv6 ip addresses*/
-	for (i = 0; i < ldns_rr_list_rr_count(host_names); i++) {
-		rr = ldns_rr_list_rr(host_names, i);
+	canonicalize_dname(host_name);
+	
+	if (!(hnas = (host_name_addrs *)getdns_rbtree_search(
+	    &context->local_hosts, host_name))) {
 
-		if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_A &&
-		    ldns_rr_get_type(rr) != LDNS_RR_TYPE_AAAA)
-			continue;
+		if (!(hnas = (host_name_addrs *)GETDNS_XMALLOC(context->mf,
+		    uint8_t, sizeof(host_name_addrs) + host_name_len)))
+			return;
 
-		/*Check to see if we already have an entry*/
-		hnas = (host_name_addrs *)getdns_rbtree_search(
-		   &context->local_hosts, ldns_rr_owner(rr));
-		if (!hnas) {
-			if (!(hnas = GETDNS_MALLOC(
-			    context->my_mf, host_name_addrs)))
-				break;
+		hnas->ipv4addrs = NULL;
+		hnas->ipv6addrs = NULL;
+		(void)memcpy(hnas->host_name, host_name, host_name_len);
+		hnas->node.key = &hnas->host_name;
 
-			if (!(hnas->host_name =
-			    ldns_rdf_clone(ldns_rr_owner(rr))) ||
-			    !(hnas->ipv4addrs = ldns_rr_list_new()) ||
-			    !(hnas->ipv6addrs = ldns_rr_list_new())) {
+	} else
+		hnas_found = 1;
+	
+	if (getdns_dict_get_bindata(address, "address_type", &address_type) ||
 
-				ldns_rdf_free(hnas->host_name);
-				ldns_rr_list_free(hnas->ipv4addrs);
-				ldns_rr_list_free(hnas->ipv6addrs);
-				GETDNS_FREE(context->my_mf, hnas);
-				break;
-			}
-			hnas->node.key = hnas->host_name;
-			(void) getdns_rbtree_insert(
-			    &context->local_hosts, &hnas->node);
-		}
-		if (!(rr = ldns_rr_clone(rr)))
-			break;
-		if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_A) {
-			if (!ldns_rr_list_push_rr(hnas->ipv4addrs, rr))
-				ldns_rr_free(rr);
-		} else if (!ldns_rr_list_push_rr(hnas->ipv6addrs, rr))
-			ldns_rr_free(rr);
+	    address_type->size < 4 ||
+
+	    !(addrs = address_type->data[3] == '4'? &hnas->ipv4addrs
+	            : address_type->data[3] == '6'? &hnas->ipv4addrs : NULL)) {
+
+		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
+		return;
 	}
-	ldns_rr_list_deep_free(host_names);
+	if (!*addrs && !(*addrs = getdns_list_create_with_context(context))) {
+		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
+		return;
+	}
+	if (getdns_list_append_dict(*addrs, address) && !hnas_found) {
+		getdns_list_destroy(*addrs);
+		GETDNS_FREE(context->mf, hnas);
+
+	} else if (!hnas_found)
+		(void)getdns_rbtree_insert(&context->local_hosts, &hnas->node);
+}
+
+static getdns_dict *
+sockaddr2addr_dict(getdns_context *context, struct sockaddr *sa)
+{
+	getdns_dict *address = getdns_dict_create_with_context(context);
+	char addrstr[1024], *b;
+	getdns_bindata bindata;
+
+	if (!address)
+		return NULL;
+
+	switch (sa->sa_family) {
+	case AF_INET:
+		if (getdns_dict_util_set_string(address,"address_type","IPv4"))
+			break;
+
+		bindata.size = 4;
+		bindata.data = (void *)&((struct sockaddr_in*)sa)->sin_addr;
+		if ((getdns_dict_set_bindata(address,"address_data",&bindata)))
+			break;
+
+		if (((struct sockaddr_in *)sa)->sin_port !=  0 &&
+		    ((struct sockaddr_in *)sa)->sin_port != 53 &&
+		    getdns_dict_set_int(address, "port",
+		    (uint32_t)((struct sockaddr_in *)sa)->sin_port))
+			break;
+
+		return address;
+
+	case AF_INET6:
+		if (getdns_dict_util_set_string(address,"address_type","IPv6"))
+			break;
+
+		bindata.size = 16;
+		bindata.data = (void *)&((struct sockaddr_in6*)sa)->sin6_addr;
+		if ((getdns_dict_set_bindata(address,"address_data",&bindata)))
+			break;
+
+		if (((struct sockaddr_in6 *)sa)->sin6_port !=  0 &&
+		    ((struct sockaddr_in6 *)sa)->sin6_port != 53 &&
+		    getdns_dict_set_int(address, "port",
+		    (uint32_t)((struct sockaddr_in *)sa)->sin_port))
+			break;
+
+		/* Try to get scope_id too */
+		if (getnameinfo(sa, sizeof(struct sockaddr_in6),
+		    addrstr, sizeof(addrstr), NULL, 0, NI_NUMERICHOST))
+			break;
+		if ((b = strchr(addrstr, '%')) &&
+		    getdns_dict_util_set_string(address, "scope_id", b+1))
+			break;
+
+		return address;
+	default:
+		/* Unknown protocol */
+		break;
+	}
+	getdns_dict_destroy(address);
+	return NULL;
+}
+
+static getdns_dict *
+str2addr_dict(getdns_context *context, const char *str)
+{
+	static struct addrinfo hints = { .ai_family = AF_UNSPEC
+	                               , .ai_flags  = AI_NUMERICHOST };
+	struct addrinfo *ai;
+	getdns_dict *address;
+
+	if (getaddrinfo(str, NULL, &hints, &ai))
+		return NULL;
+
+	address = sockaddr2addr_dict(context, ai->ai_addr);
+	freeaddrinfo(ai);
+
+	return address;
+}
+
+static void
+create_local_hosts(getdns_context *context)
+{
+	/* enough space in buf for longest allowed domain name */
+	char buf[1024];
+	char *pos = buf, prev_c, *start_of_word = NULL;
+	FILE *in;
+	int start_of_line = 1;
+	getdns_dict *address = NULL;
+
+	in = fopen("/etc/hosts", "r");
+	while (fgets(pos, (int)(sizeof(buf) - (pos - buf)), in)) {
+		pos = buf;
+		/* Break out of for to read more */
+		for (;;) {
+			/* Skip whitespace */
+			while (*pos == ' '  || *pos == '\f' 
+			    || *pos == '\t' || *pos == '\v')
+				pos++;
+
+			if (*pos == '\0') { /* End of read data */
+				pos = buf;
+				goto read_more;
+
+			} else if (*pos == '#' || *pos == '\r' || *pos == '\n')
+				/* Comments or end of line */
+				break; /* skip to next line */
+
+			assert(*pos && !isspace(*pos));
+
+			start_of_word = pos;
+
+			/* Search for end of word */
+			while (*pos && !isspace(*pos))
+				pos++;
+
+			/* '\0' before whitespace, so either the word did not
+			 * fit, or we are at the end of the file.
+			 */
+			if (*pos == '\0') {
+				if (start_of_word == buf) /* word too big */
+					break; /* skip to next line */
+
+				/* Move word to fit in buffer */
+				memmove(buf,start_of_word,pos - start_of_word);
+				pos = buf + (pos - start_of_word);
+				start_of_word = buf;
+				*pos = '\0';
+				goto read_more;
+			}
+			assert(isspace(*pos));
+			prev_c = *pos;
+			*pos = '\0';
+			if (start_of_line) {
+				start_of_line = 0;
+				if (address) 
+					getdns_dict_destroy(address);
+				if (!(address =
+				    str2addr_dict(context, start_of_word)))
+					/* Unparseable address */
+					break; /* skip to next line */
+			} else 
+				add_local_host(context, address, start_of_word);
+
+			start_of_word = NULL;
+			*pos = prev_c;
+			/* process next word in buf */
+		}
+		/* skip to next line */
+		while (*pos != '\r' && *pos != '\n')
+			if (*pos)
+				pos++;
+			else if (!fgets((pos = buf), sizeof(buf), in))
+				break; /* We're done */
+		start_of_line = 1;
+		if (address) {
+			getdns_dict_destroy(address);
+			address = NULL;
+		}
+		pos = buf;
+read_more:	;
+	}
+	fclose(in);
+	if (address) {
+		/* One last name for this address? */
+		if (start_of_word && !start_of_line)
+			add_local_host(context, address, start_of_word);
+		getdns_dict_destroy(address);
+	}
 }
 
 /**
@@ -373,10 +586,6 @@ upstream_init(getdns_upstream *upstream,
 	    net_req_query_id_cmp);
 }
 
-/*---------------------------------------- set_os_defaults
-  we use ldns to read the resolv.conf file - the ldns resolver is
-  destroyed once the file is read
-*/
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
@@ -514,13 +723,6 @@ transaction_id_cmp(const void *id1, const void *id2)
             return 1;
         }
     }
-}
-
-static int
-local_host_cmp(const void *id1, const void *id2)
-{
-	return (ldns_rdf_compare((const ldns_rdf *)id1,
-                                 (const ldns_rdf *)id2));
 }
 
 /*
@@ -1527,12 +1729,6 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 
 	switch (context->resolution_type) {
 	case GETDNS_RESOLUTION_STUB:
-		/* Since we don't know if the resolution will be sync or async at this
-		 * point and we only support ldns in sync mode then we must set _both_
-		 * contexts up */
-		/* We get away with just setting up ldns here here because sync mode
-		 * always hits this method because at the moment all sync calls use DNS
-		 * namespace */
 		if (!context->upstreams || !context->upstreams->count)
 			return GETDNS_RETURN_GENERIC_ERROR;
 		return ub_setup_stub(context->unbound_ctx, context->upstreams);
@@ -1917,10 +2113,16 @@ getdns_return_t
 getdns_context_local_namespace_resolve(
     getdns_dns_req *dnsreq, getdns_dict **response)
 {
-	getdns_context *context = dnsreq->context;
-	ldns_rr_list *result_list = NULL;
+	getdns_context  *context = dnsreq->context;
 	host_name_addrs *hnas;
-	ldns_rdf *query_name;
+	uint8_t query_name[256];
+	size_t  query_name_len = sizeof(query_name);
+	uint8_t lookup[256];
+	getdns_list    empty_list = { 0 };
+	getdns_bindata bindata;
+	getdns_list   *jaa;
+	size_t         i;
+	getdns_dict   *addr;
 	int ipv4 = dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_A ||
 	    (dnsreq->netreqs[1] &&
 	     dnsreq->netreqs[1]->request_type == GETDNS_RRTYPE_A);
@@ -1932,26 +2134,67 @@ getdns_context_local_namespace_resolve(
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	/*Do the lookup*/
-	if (!(query_name = ldns_rdf_new_frm_str(
-	    LDNS_RDF_TYPE_DNAME, dnsreq->name)))
-		return GETDNS_RETURN_MEMORY_ERROR;
-
-	if ((hnas = (host_name_addrs *)getdns_rbtree_search(
-	    &context->local_hosts, query_name))) {
-
-		result_list = ldns_rr_list_new();
-		if (ipv4)
-			(void) ldns_rr_list_cat(result_list, hnas->ipv4addrs);
-		if (ipv6)
-			(void) ldns_rr_list_cat(result_list, hnas->ipv6addrs);
-	}
-	ldns_rdf_deep_free(query_name);
-	if (!result_list)
+	if (gldns_str2wire_dname_buf(dnsreq->name,query_name,&query_name_len))
 		return GETDNS_RETURN_GENERIC_ERROR;
-	*response = create_getdns_response_from_rr_list(dnsreq, result_list);
-	/* Not deep_free because ldns_rr_list_cat doesn't clone the rr's */
-	ldns_rr_list_free(result_list);
-	return *response ? GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
+
+	(void)memcpy(lookup, query_name, query_name_len);
+	canonicalize_dname(lookup);
+
+	if (!(hnas = (host_name_addrs *)
+	    getdns_rbtree_search(&context->local_hosts, lookup)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (!hnas->ipv4addrs && (!ipv6 || !hnas->ipv6addrs))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (!hnas->ipv6addrs && (!ipv4 || !hnas->ipv4addrs))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (!(*response = getdns_dict_create_with_context(context)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	bindata.size = query_name_len;
+	bindata.data = query_name;
+	if (getdns_dict_set_bindata(*response, "canonical_name", &bindata))
+		goto error;
+
+	empty_list.mf = context->mf;
+	if (getdns_dict_set_list(*response, "replies_full", &empty_list))
+		goto error;
+
+	if (getdns_dict_set_list(*response, "replies_tree", &empty_list))
+		goto error;
+
+	if (getdns_dict_set_int(*response, "status", GETDNS_RESPSTATUS_GOOD))
+		goto error;
+
+	if (!ipv4 || !hnas->ipv4addrs) {
+		if (getdns_dict_set_list(*response,
+		    "just_address_answers", hnas->ipv6addrs))
+			goto error;
+		return GETDNS_RETURN_GOOD;
+	} else if (!ipv6 || !hnas->ipv6addrs) {
+		if (getdns_dict_set_list(*response,
+		    "just_address_answers", hnas->ipv4addrs))
+			goto error;
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!(jaa = getdns_list_create_with_context(context)))
+		goto error;
+	for (i = 0; !getdns_list_get_dict(hnas->ipv4addrs, i, &addr); i++)
+		if (getdns_list_append_dict(jaa, addr))
+			break;
+	for (i = 0; !getdns_list_get_dict(hnas->ipv6addrs, i, &addr); i++)
+		if (getdns_list_append_dict(jaa, addr))
+			break;
+	if (!getdns_dict_set_list(*response, "just_address_answers", jaa)) {
+		getdns_list_destroy(jaa);
+		return GETDNS_RETURN_GOOD;
+	}
+	getdns_list_destroy(jaa);
+error:
+	getdns_dict_destroy(*response);
+	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
 struct mem_funcs *
