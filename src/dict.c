@@ -598,7 +598,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
  *               if an output error is encountered, a negative value
  */
 static int
-getdns_pp_list(gldns_buffer *buf, size_t indent, getdns_list *list,
+getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
     int for_namespaces)
 {
 	size_t i, length, p = gldns_buffer_position(buf);
@@ -901,7 +901,7 @@ getdns_pretty_print_dict(const struct getdns_dict *dict)
 	if (!dict)
 		return NULL;
 
-	buf = gldns_buffer_new(100);
+	buf = gldns_buffer_new(8192);
 	if (!buf)
 		return NULL;
 
@@ -913,6 +913,28 @@ getdns_pretty_print_dict(const struct getdns_dict *dict)
 	gldns_buffer_free(buf);
 	return ret;
 }				/* getdns_pretty_print_dict */
+
+char *
+getdns_pretty_print_list(const getdns_list *list)
+{
+	gldns_buffer *buf;
+	char *ret;
+
+	if (!list)
+		return NULL;
+
+	buf = gldns_buffer_new(4096);
+	if (!buf)
+		return NULL;
+
+	if (getdns_pp_list(buf, 0, list, 0) < 0) {
+		gldns_buffer_free(buf);
+		return NULL;
+	}
+	ret = (char *) gldns_buffer_export(buf);
+	gldns_buffer_free(buf);
+	return ret;
+}
 
 getdns_return_t
 getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)

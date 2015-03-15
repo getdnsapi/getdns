@@ -187,6 +187,8 @@ getdns_context_get_edns_version(getdns_context *context, uint8_t* value);
 getdns_return_t
 getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value);
 
+char *getdns_pretty_print_list(const getdns_list *some_list);
+
 #ifdef __cplusplus
 }
 #endif
