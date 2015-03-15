@@ -40,6 +40,7 @@
 
 #include <ldns/ldns.h>
 #include "context.h"
+#include "rr-iter.h"
 
 #define SCHED_DEBUG 0
 #define WIRE_DEBUG 1
@@ -119,6 +120,9 @@ getdns_return_t dict_to_sockaddr(struct getdns_dict * ns,
     struct sockaddr_storage *output);
 getdns_return_t sockaddr_to_dict(struct getdns_context *context,
     struct sockaddr_storage *sockaddr, struct getdns_dict ** output);
+
+getdns_dict *
+priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i);
 
 struct getdns_dns_req;
 struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);

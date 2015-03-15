@@ -47,6 +47,7 @@
 #include "types-internal.h"
 #include "dnssec.h"
 #include "rr-dict.h"
+#include "gldns/str2wire.h"
 
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
@@ -604,16 +605,25 @@ done_free_trusted:
 }				/* getdns_validate_dnssec */
 
 int
-priv_getdns_parse_ta_file(time_t *ta_mtime, ldns_rr_list *ta_rrs)
+priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs)
 {
-	uint32_t ttl = 3600;
-	ldns_rdf* orig = NULL, *prev = NULL;
-	int line = 1;
-	ldns_status s;
-	ldns_rr *rr;
-	int nkeys;
+
+	struct gldns_file_parse_state pst;
 	struct stat st;
+	struct {
+		uint16_t id;
+		uint16_t flags;
+		uint16_t qdcount;
+		uint16_t ancount;
+		uint16_t nscount;
+		uint16_t arcount;
+		uint8_t rr[8192]; /* Reasonable max size for a single RR */
+	} pkt;
+	size_t len, dname_len;
 	FILE *in;
+	priv_getdns_rr_iter rr_iter;
+	getdns_dict *rr_dict;
+	int ta_count = 0;
 
 	if (stat(TRUST_ANCHOR_FILE, &st) != 0)
 		return 0;
@@ -621,58 +631,47 @@ priv_getdns_parse_ta_file(time_t *ta_mtime, ldns_rr_list *ta_rrs)
 	if (ta_mtime)
 		*ta_mtime = st.st_mtime;
 
-	in = fopen(TRUST_ANCHOR_FILE, "r");
-	if (!in)
+	if (!(in = fopen(TRUST_ANCHOR_FILE, "r")))
 		return 0;
 
-	nkeys = 0;
-	while (! feof(in)) {
-		rr = NULL;
-		s = ldns_rr_new_frm_fp_l(&rr, in, &ttl, &orig, &prev, &line);
-		if (s == LDNS_STATUS_SYNTAX_EMPTY /* empty line */
-		    || s == LDNS_STATUS_SYNTAX_TTL /* $TTL */
-		    || s == LDNS_STATUS_SYNTAX_ORIGIN /* $ORIGIN */)
-			continue;
+	pkt.id = pkt.flags = pkt.qdcount = pkt.nscount = pkt.arcount = 0;
+	pkt.ancount = htons(1);
 
-		if (s != LDNS_STATUS_OK) {
-			ldns_rr_free(rr);
-			nkeys = 0;
+	memset(&pst, 0, sizeof(pst));
+	pst.default_ttl = 3600;
+	pst.lineno = 1;
+
+	while (!feof(in)) {
+		len = sizeof(pkt.rr);
+		dname_len = 0;
+		if (gldns_fp2wire_rr_buf(in, pkt.rr, &len, &dname_len, &pst))
 			break;
-		}
-		if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_DS ||
-		    ldns_rr_get_type(rr) == LDNS_RR_TYPE_DNSKEY) {
-
-			nkeys++;
-			if (ta_rrs) {
-				ldns_rr_list_push_rr(ta_rrs, rr);
-				continue;
-			}
-		}
-		ldns_rr_free(rr);
+		if (len == 0)  /* empty, $TTL, $ORIGIN */
+			continue;
+		if (gldns_wirerr_get_type(pkt.rr, len, dname_len) 
+		    != LDNS_RR_TYPE_DS &&
+		    gldns_wirerr_get_type(pkt.rr, len, dname_len)
+		    != LDNS_RR_TYPE_DNSKEY)
+			continue;
+		if (!priv_getdns_rr_iter_init(&rr_iter, (void *)&pkt, sizeof(pkt)))
+			break;
+		if (!(rr_dict = priv_getdns_rr_iter2rr_dict(NULL, &rr_iter)))
+			break;
+		if (ta_rrs && getdns_list_append_dict(ta_rrs, rr_dict))
+			break;
+		ta_count++;
 	}
-	ldns_rdf_deep_free(orig);
-	ldns_rdf_deep_free(prev);
 	fclose(in);
-	return nkeys;
+
+	return ta_count;
 }
 
 getdns_list *
 getdns_root_trust_anchor(time_t *utc_date_of_anchor)
 {
-	getdns_list  *tas_gd_list = NULL;
-	ldns_rr_list *tas_rr_list = ldns_rr_list_new();
-
-	if (! tas_rr_list)
-		return NULL;
-
-	if (! priv_getdns_parse_ta_file(utc_date_of_anchor, tas_rr_list)) {
-		goto done_free_tas_rr_list;
-	}
-	tas_gd_list = create_list_from_rr_list(NULL, tas_rr_list);
-
-done_free_tas_rr_list:
-	ldns_rr_list_deep_free(tas_rr_list);
-	return tas_gd_list;
+	getdns_list *ta_rrs = getdns_list_create();
+	(void) priv_getdns_parse_ta_file(utc_date_of_anchor, ta_rrs);
+	return ta_rrs;
 }
 
 /* dnssec.c */

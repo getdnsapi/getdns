@@ -50,7 +50,6 @@
 #include "gldns/str2wire.h"
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
-#include "rr-iter.h"
 
 /**
   * this is a comprehensive list of extensions and their data types
@@ -217,7 +216,6 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	uint8_t ff_bytes[256];
 	uint16_t rr_type;
 
-	assert(context);
 	assert(i);
 	if (!(rr_dict = getdns_dict_create_with_context(context)))
 		return NULL;

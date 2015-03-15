@@ -44,7 +44,7 @@
 /* Do some additional requests to fetch the complete validation chain */
 void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
 
-int priv_getdns_parse_ta_file(time_t *ta_mtime, ldns_rr_list *ta_rrs);
+int priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs);
 
 #endif
 
