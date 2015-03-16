@@ -310,6 +310,16 @@ done:
 	return NULL;
 }
 
+priv_getdns_rdf_iter *
+priv_getdns_rdf_iter_init_at(
+    priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr, size_t pos)
+{
+	for ( i = priv_getdns_rdf_iter_init(i, rr)
+	    ; i && pos
+	    ; i = priv_getdns_rdf_iter_next(i), pos--);
+	return i;
+}       
+
 uint8_t *
 priv_getdns_rdf_if_or_as_decompressed(
     priv_getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len)

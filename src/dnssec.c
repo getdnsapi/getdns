@@ -48,6 +48,7 @@
 #include "dnssec.h"
 #include "rr-dict.h"
 #include "gldns/str2wire.h"
+#include "gldns/wire2str.h"
 
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
@@ -61,7 +62,7 @@ struct validation_chain {
 
 struct chain_response {
 	int err;
-	ldns_rr_list *result;
+	getdns_list *result;
 	int sec;
 	char *bogus;
 	struct validation_chain *chain;
@@ -74,17 +75,19 @@ struct chain_link {
 	struct chain_response DS;
 };
 
-static void launch_chain_link_lookup(struct validation_chain *chain, char *name);
+static void launch_chain_link_lookup(struct validation_chain *chain,
+    priv_getdns_rdf_iter *rdf_dname);
 static void destroy_chain(struct validation_chain *chain);
 
 static void callback_on_complete_chain(struct validation_chain *chain)
 {
-	struct getdns_context *context = chain->dns_req->context;
-	struct getdns_dict *response;
+	getdns_context *context = chain->dns_req->context;
+	getdns_dict *response;
 	struct chain_link *link;
 	size_t ongoing = chain->lock;
-	ldns_rr_list *keys;
-	struct getdns_list *getdns_keys;
+	getdns_list *keys;
+	size_t i;
+	getdns_dict *rr_dict;
 
 	RBTREE_FOR(link, struct chain_link *,
 	    (getdns_rbtree_t *)&(chain->root)) {
@@ -95,24 +98,29 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 		    ((const char *)link->node.key)[1] != '\0' ))
 		       	ongoing++;
 	}
-	if (ongoing == 0) {
-		getdns_dns_req *dns_req = chain->dns_req;
-		response = create_getdns_response(chain->dns_req);
+	if (ongoing > 0)
+		return;
 
-		keys = ldns_rr_list_new();
-		RBTREE_FOR(link, struct chain_link *,
-		    (getdns_rbtree_t *)&(chain->root)) {
-			(void) ldns_rr_list_cat(keys, link->DNSKEY.result);
-			(void) ldns_rr_list_cat(keys, link->DS.result);
-		}
-		getdns_keys = create_list_from_rr_list(context, keys);
-		(void) getdns_dict_set_list(response, "validation_chain",
-		    getdns_keys);
-		getdns_list_destroy(getdns_keys);
-		ldns_rr_list_free(keys);
-		priv_getdns_call_user_callback(dns_req, response);
+	if (!(response = create_getdns_response(chain->dns_req)) ||
+	    !(keys = getdns_list_create_with_context(context))) {
+
+		priv_getdns_call_user_callback(chain->dns_req, response);
 		destroy_chain(chain);
+		return;
 	}
+	RBTREE_FOR(link, struct chain_link *,
+	    (getdns_rbtree_t *)&(chain->root)) {
+		for (i = 0; !getdns_list_get_dict( link->DNSKEY.result
+						 , i, &rr_dict); i++)
+			(void) getdns_list_append_dict(keys, rr_dict);
+		for (i = 0; !getdns_list_get_dict( link->DS.result
+						 , i, &rr_dict); i++)
+			(void) getdns_list_append_dict(keys, rr_dict);
+	}
+	(void) getdns_dict_set_list(response, "validation_chain", keys);
+	getdns_list_destroy(keys);
+	priv_getdns_call_user_callback(chain->dns_req, response);
+	destroy_chain(chain);
 }
 
 
@@ -120,58 +128,71 @@ static void
 ub_chain_response_callback(void *arg, int err, struct ub_result* ub_res)
 {
 	struct chain_response *response = (struct chain_response *) arg;
-    ldns_status r;
-    ldns_pkt *p;
-    ldns_rr_list *answer;
-    ldns_rr_list *keys;
-    size_t i;
+	getdns_context *context = response->chain->dns_req->context;
+	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
+	priv_getdns_rdf_iter rdf_storage, *rdf;
+	gldns_pkt_section section;
+	uint16_t rr_type, type_covered;
+	getdns_dict *rr_dict;
+	getdns_list *keys;
+	size_t nkeys;
 
-    response->err    = err;
-    response->sec    = ub_res ? ub_res->secure : 0;
-    response->bogus  = ub_res ? ub_res->why_bogus : NULL;
+	response->err    = err;
+	response->sec    = ub_res ? ub_res->secure : 0;
+	response->bogus  = ub_res ? ub_res->why_bogus : NULL;
 
-    if (ub_res == NULL)
-        goto done;
+	if (ub_res == NULL || ub_res->answer_packet == NULL ||
+	    !(keys = getdns_list_create_with_context(context)))
+	    goto done;
 
-    r = ldns_wire2pkt(&p, ub_res->answer_packet, ub_res->answer_len);
-	if (r != LDNS_STATUS_OK) {
-		if (err == 0)
-			response->err = r;
-		goto done;
-	}
-
-	keys = ldns_rr_list_new();
-	answer = ldns_pkt_answer(p);
-	for (i = 0; i < ldns_rr_list_rr_count(answer); i++) {
-		ldns_rr *rr = ldns_rr_list_rr(answer, i);
-
-		if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_DNSKEY ||
-		    ldns_rr_get_type(rr) == LDNS_RR_TYPE_DS) {
-
-			(void) ldns_rr_list_push_rr(keys, ldns_rr_clone(rr));
+	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+						, ub_res->answer_packet
+						, ub_res->answer_len)
+	    ; rr_iter
+	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)
+	    ) {
+		section = priv_getdns_rr_iter_section(rr_iter);
+		if (section != GLDNS_SECTION_ANSWER)
 			continue;
+
+		rr_type = gldns_read_uint16(rr_iter->rr_type);
+
+		if (rr_type == GETDNS_RRTYPE_DS ||
+		    rr_type == GETDNS_RRTYPE_DNSKEY) {
+			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(context, rr_iter)))
+				continue;
+			if (getdns_list_append_dict(keys, rr_dict))
+				break;
 		}
-		if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_RRSIG)
+		if (rr_type != GETDNS_RRTYPE_RRSIG)
 			continue;
 
-		if (ldns_read_uint16(ldns_rdf_data(ldns_rr_rdf(rr, 0))) ==
-		    LDNS_RR_TYPE_DS)
-			launch_chain_link_lookup(response->chain,
-			    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
-
-		else if (ldns_read_uint16(ldns_rdf_data(ldns_rr_rdf(rr, 0))) !=
-		    LDNS_RR_TYPE_DNSKEY)
+		if (!(rdf = priv_getdns_rdf_iter_init(&rdf_storage, rr_iter)))
 			continue;
 
-		(void) ldns_rr_list_push_rr(keys, ldns_rr_clone(rr));
+		type_covered = gldns_read_uint16(rdf->pos);
+		if (type_covered == GETDNS_RRTYPE_DS) {
+			if ((rdf = priv_getdns_rdf_iter_init_at(
+			    &rdf_storage, rr_iter, 7)))
+				launch_chain_link_lookup(response->chain, rdf);
+
+		} else if (type_covered != GETDNS_RRTYPE_DNSKEY)
+			continue;
+
+		if (!(rr_dict = priv_getdns_rr_iter2rr_dict(context, rr_iter)))
+			continue;
+		if (getdns_list_append_dict(keys, rr_dict))
+			break;
 	}
-	if (ldns_rr_list_rr_count(keys))
-		response->result = keys;
-	else
-		ldns_rr_list_free(keys);
+	if (getdns_list_get_length(keys, &nkeys))
+		getdns_list_destroy(keys);
 
-	ldns_pkt_free(p);
-    ub_resolve_free(ub_res);
+	else if (!nkeys)
+		getdns_list_destroy(keys);
+	else
+		response->result = keys;
+
+	ub_resolve_free(ub_res);
 
 done:	if (response->err == 0 && response->result == NULL)
 		response->err = -1;
@@ -195,23 +216,35 @@ resolve(char* name, int rrtype, struct chain_response *response)
 {
 	return ub_resolve_async(
 	    response->chain->dns_req->context->unbound_ctx,
-	    name, rrtype, LDNS_RR_CLASS_IN, response,
+	    name, rrtype, GETDNS_RRCLASS_IN, response,
 	    ub_chain_response_callback, &response->unbound_id);
 }
 
 static void
-launch_chain_link_lookup(struct validation_chain *chain, char *name)
+launch_chain_link_lookup(
+    struct validation_chain *chain, priv_getdns_rdf_iter *rdf_dname)
 {
 	int r;
-	struct chain_link *link = (struct chain_link *)
-	    getdns_rbtree_search((getdns_rbtree_t *)&(chain->root), name);
-
-	if (link) {
-		free(name);
+	struct chain_link *link;
+	uint8_t dname_spc[256], *dname;
+	char name[1024];
+	size_t dname_spc_sz = sizeof(dname_spc);
+	
+	if (!(dname = priv_getdns_rdf_if_or_as_decompressed(
+	    rdf_dname, dname_spc, &dname_spc_sz)))
 		return;
-	}
+
+	if (!gldns_wire2str_dname_buf(dname, (dname == dname_spc ?
+	    sizeof(dname_spc) : rdf_dname->nxt - rdf_dname->pos),
+	    name, sizeof(name)))
+		return;
+
+	if ((link = (struct chain_link *)
+	    getdns_rbtree_search((getdns_rbtree_t *)&(chain->root), name)))
+		return;
+
 	link = GETDNS_MALLOC(chain->mf, struct chain_link);
-	link->node.key = name;
+	link->node.key = getdns_strdup(&chain->mf, name);
 
 	chain_response_init(chain, &link->DNSKEY);
 	chain_response_init(chain, &link->DS);
@@ -219,12 +252,12 @@ launch_chain_link_lookup(struct validation_chain *chain, char *name)
 	getdns_rbtree_insert(&(chain->root), (getdns_rbnode_t *)link);
 
 	chain->lock++;
-	r = resolve(name, LDNS_RR_TYPE_DNSKEY, &link->DNSKEY);
+	r = resolve(name, GETDNS_RRTYPE_DNSKEY, &link->DNSKEY);
 	if (r != 0)
 		link->DNSKEY.err = r;
 
 	if (name[0] != '.' || name[1] != '\0') {
-		r = resolve(name, LDNS_RR_TYPE_DS, &link->DS);
+		r = resolve(name, GETDNS_RRTYPE_DS, &link->DS);
 		if (r != 0)
 			link->DS.err = r;
 	}
@@ -258,8 +291,8 @@ static void destroy_chain_link(getdns_rbnode_t * node, void *arg)
 	struct validation_chain *chain   = (struct validation_chain*) arg;
 
 	free((void *)link->node.key);
-	ldns_rr_list_deep_free(link->DNSKEY.result);
-	ldns_rr_list_deep_free(link->DS.result);
+	getdns_list_destroy(link->DNSKEY.result);
+	getdns_list_destroy(link->DS.result);
 	GETDNS_FREE(chain->mf, link);
 }
 
@@ -275,6 +308,10 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 {
 	getdns_network_req **netreq_p, *netreq;
 	struct validation_chain *chain = create_chain(dns_req, timeout);
+	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
+	priv_getdns_rdf_iter rdf_storage, *rdf;
+	gldns_pkt_section section;
+	uint16_t rr_type;
 
 	if (! chain) {
 		priv_getdns_call_user_callback(
@@ -282,32 +319,28 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 		return;
 	}
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
-		size_t i;
-		ldns_status r;
-		ldns_pkt *pkt;
-		ldns_rr_list *answer;
-		ldns_rr_list *authority;
 
-		if ((r = ldns_wire2pkt(&pkt,
-		    netreq->response, netreq->response_len)))
-			continue;
-			
-		answer = ldns_pkt_answer(pkt);
-		authority = ldns_pkt_authority(pkt);
+		for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+		                                        , netreq->response
+							, netreq->response_len)
+		    ; rr_iter
+		    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)
+		    ) {
+			section = priv_getdns_rr_iter_section(rr_iter);
+			if (section != GLDNS_SECTION_ANSWER &&
+			    section != GLDNS_SECTION_AUTHORITY)
+				continue;
 
-		for (i = 0; i < ldns_rr_list_rr_count(answer); i++) {
-			ldns_rr *rr = ldns_rr_list_rr(answer, i);
-			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
-				launch_chain_link_lookup(chain,
-				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
+			rr_type = gldns_read_uint16(rr_iter->rr_type);
+			if (rr_type != GETDNS_RRTYPE_RRSIG)
+				continue;
+
+			if (!(rdf =  priv_getdns_rdf_iter_init_at(
+			    &rdf_storage , rr_iter, 7)))
+				continue;
+
+			launch_chain_link_lookup(chain, rdf);
 		}
-		for (i = 0; i < ldns_rr_list_rr_count(authority); i++) {
-			ldns_rr *rr = ldns_rr_list_rr(authority, i);
-			if (ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
-				launch_chain_link_lookup(chain,
-				    ldns_rdf2str(ldns_rr_rdf(rr, 7)));
-		}
-		ldns_pkt_free(pkt);
 	}
 	callback_on_complete_chain(chain);
 }
