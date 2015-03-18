@@ -43,7 +43,7 @@
 #include "rr-iter.h"
 
 #define SCHED_DEBUG 0
-#define WIRE_DEBUG 1
+#define WIRE_DEBUG 0
 
 #ifdef S_SPLINT_S
 #  define INLINE 
@@ -126,6 +126,9 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i);
 
 struct getdns_dns_req;
 struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
+
+getdns_dict *priv_getdns_create_reply_dict(getdns_context *context,
+    getdns_network_req *req, getdns_list *just_addrs, int *rrsigs_in_answer);
 
 getdns_return_t validate_dname(const char* dname);
 

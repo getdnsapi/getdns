@@ -754,6 +754,7 @@ with_sysroot
 enable_libtool_lock
 enable_rpath
 enable_tcp_fastopen
+enable_broken_native_stub_dnssec
 with_libidn
 with_libldns
 with_libunbound
@@ -1396,6 +1397,9 @@ Optional Features:
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         disable hardcoded rpath (default=enabled)
   --enable-tcp-fastopen   Enable TCP Fast Open
+  --enable-broken-native-stub-dnssec
+                          Enable very experimental and broken native stub
+                          DNSSEC support
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -11185,6 +11189,24 @@ _ACEOF
 	no|*)
 		;;
 esac
+
+# Check whether --enable-broken-native-stub-dnssec was given.
+if test "${enable_broken_native_stub_dnssec+set}" = set; then :
+  enableval=$enable_broken_native_stub_dnssec;
+fi
+
+case "$enable_broken_native_stub_dnssec" in
+	yes)
+
+cat >>confdefs.h <<_ACEOF
+#define STUB_NATIVE_DNSSEC 1
+_ACEOF
+
+		;;
+	no|*)
+		;;
+esac
+
 
 # search to set include and library paths right
 # find libidn

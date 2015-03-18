@@ -79,6 +79,57 @@ static void launch_chain_link_lookup(struct validation_chain *chain,
     priv_getdns_rdf_iter *rdf_dname);
 static void destroy_chain(struct validation_chain *chain);
 
+#ifdef STUB_NATIVE_DNSSEC
+static void
+native_stub_validate_dnssec(getdns_dns_req *dns_req, getdns_list *support)
+{
+	getdns_network_req *netreq, **netreq_p;
+	getdns_list *trust_anchors;
+	getdns_dict *reply = NULL;
+	getdns_dict *header;
+	getdns_list *to_validate;
+	uint32_t rcode;
+
+	if (!(trust_anchors = getdns_root_trust_anchor(NULL)))
+		return;
+
+	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p) ; netreq_p++) {
+		if (!(reply = priv_getdns_create_reply_dict(dns_req->context,
+		    netreq, NULL, NULL)))
+			continue;
+		if (getdns_dict_get_dict(reply, "header", &header))
+			break;
+		if (getdns_dict_get_int(header, "rcode", &rcode))
+			break;
+		if (rcode == GETDNS_RCODE_NXDOMAIN) {
+			if (getdns_dict_get_list(
+			    reply, "authority", &to_validate))
+				break;
+		} else if (getdns_dict_get_list(reply, "answer", &to_validate))
+			break;
+		switch ((int)getdns_validate_dnssec(
+		    to_validate, support, trust_anchors)) {
+		case GETDNS_DNSSEC_SECURE:
+			netreq->secure = 1;
+			netreq->bogus  = 0;
+			break;
+		case GETDNS_DNSSEC_BOGUS:
+			netreq->secure = 0;
+			netreq->bogus  = 1;
+			break;
+		default:
+			/* GETDNS_DNSSEC_INSECURE */
+			netreq->secure = 0;
+			netreq->bogus  = 0;
+			break;
+		}
+		getdns_dict_destroy(reply);
+		reply = NULL;
+	}
+	getdns_dict_destroy(reply);
+}
+#endif
+
 static void callback_on_complete_chain(struct validation_chain *chain)
 {
 	getdns_context *context = chain->dns_req->context;
@@ -101,10 +152,9 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 	if (ongoing > 0)
 		return;
 
-	if (!(response = create_getdns_response(chain->dns_req)) ||
-	    !(keys = getdns_list_create_with_context(context))) {
-
-		priv_getdns_call_user_callback(chain->dns_req, response);
+	if (!(keys = getdns_list_create_with_context(context))) {
+		priv_getdns_call_user_callback(chain->dns_req,
+		    create_getdns_response(chain->dns_req));
 		destroy_chain(chain);
 		return;
 	}
@@ -117,7 +167,13 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 						 , i, &rr_dict); i++)
 			(void) getdns_list_append_dict(keys, rr_dict);
 	}
-	(void) getdns_dict_set_list(response, "validation_chain", keys);
+#ifdef STUB_NATIVE_DNSSEC
+	native_stub_validate_dnssec(chain->dns_req, keys);
+#endif
+	if ((response = create_getdns_response(chain->dns_req)) &&
+	    chain->dns_req->dnssec_return_validation_chain) {
+	    (void)getdns_dict_set_list(response, "validation_chain", keys);
+	}
 	getdns_list_destroy(keys);
 	priv_getdns_call_user_callback(chain->dns_req, response);
 	destroy_chain(chain);
@@ -385,6 +441,82 @@ priv_getdns_rr_list_from_list(struct getdns_list *list, ldns_rr_list **rr_list)
 	return r;
 }
 
+static int
+priv_getdns_rr_dict_with_compressed_names(getdns_dict *rr_dict)
+{
+	uint32_t rr_type;
+	getdns_dict *rdata;
+
+	if (getdns_dict_get_int(rr_dict, "type", &rr_type))
+		return 0;
+	if (rr_type == GETDNS_RRTYPE_RRSIG) {
+		if (getdns_dict_get_dict(rr_dict, "rdata", &rdata))
+			return 0;
+		if (getdns_dict_get_int(rdata, "type_covered", &rr_type))
+			return 0;
+	}
+	switch (rr_type) {
+	case GETDNS_RRTYPE_NS:
+	case GETDNS_RRTYPE_MD:
+	case GETDNS_RRTYPE_CNAME:
+	case GETDNS_RRTYPE_SOA:
+	case GETDNS_RRTYPE_MG:
+	case GETDNS_RRTYPE_MR:
+	case GETDNS_RRTYPE_PTR:
+	case GETDNS_RRTYPE_MINFO:
+	case GETDNS_RRTYPE_MX:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int
+ldns_dname_compare_v(const void *a, const void *b) {
+	return ldns_dname_compare((ldns_rdf *)a, (ldns_rdf *)b);
+}
+
+ldns_status
+priv_getdns_ldns_dnssec_zone_add_rr(ldns_dnssec_zone *zone, ldns_rr *rr)
+{
+	ldns_dnssec_name *new_name;
+	ldns_rbnode_t *new_node;
+
+	if (ldns_rr_get_type(rr) != LDNS_RR_TYPE_NSEC3)
+		return ldns_dnssec_zone_add_rr(zone, rr);
+	
+	if (!(new_name = ldns_dnssec_name_new()))
+		return LDNS_STATUS_MEM_ERR;
+
+	new_name->name = ldns_rdf_clone(ldns_rr_owner(rr));
+	new_name->hashed_name = ldns_dname_label(ldns_rr_owner(rr), 0);
+	new_name->name_alloced = true;
+
+	if (!(new_node = LDNS_MALLOC(ldns_rbnode_t))) {
+		ldns_dnssec_name_free(new_name);
+		return LDNS_STATUS_MEM_ERR;
+	}
+	new_node->key = new_name->name;
+	new_node->data = new_name;
+	if (!zone->names)
+		zone->names = ldns_rbtree_create(ldns_dname_compare_v);
+	(void)ldns_rbtree_insert(zone->names, new_node);
+
+	if (!(new_node = LDNS_MALLOC(ldns_rbnode_t))) {
+		ldns_dnssec_name_free(new_name);
+		return LDNS_STATUS_MEM_ERR;
+	}
+	new_node->key = new_name->hashed_name;
+	new_node->data = new_name;
+	if (!zone->hashed_names) {
+		zone->_nsec3params = rr;
+		zone->hashed_names = ldns_rbtree_create(ldns_dname_compare_v);
+	}
+	(void)ldns_rbtree_insert(zone->hashed_names, new_node);
+
+	return ldns_dnssec_zone_add_rr(zone, rr);
+}
+
 static getdns_return_t
 priv_getdns_dnssec_zone_from_list(struct getdns_list *list,
     ldns_dnssec_zone **zone)
@@ -405,10 +537,13 @@ priv_getdns_dnssec_zone_from_list(struct getdns_list *list,
 		if ((r = getdns_list_get_dict(list, i, &rr_dict)))
 			break;
 
+		if (priv_getdns_rr_dict_with_compressed_names(rr_dict))
+			continue;
+
 		if ((r = priv_getdns_create_rr_from_dict(rr_dict, &rr)))
 			break;
 
-		if ((s = ldns_dnssec_zone_add_rr(*zone, rr))) {
+		if ((s = priv_getdns_ldns_dnssec_zone_add_rr(*zone, rr))) {
 			ldns_rr_free(rr);
 			r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
@@ -423,19 +558,41 @@ typedef struct zone_iter {
 	ldns_dnssec_zone   *zone;
 	ldns_rbnode_t      *cur_node;
 	ldns_dnssec_rrsets *cur_rrset;
+
+	ldns_dnssec_rrsets nsec_rrset;
+	ldns_dnssec_rrs    nsec_rrs;
 } zone_iter;
 
 static void
 rrset_iter_init_zone(zone_iter *i, ldns_dnssec_zone *zone)
 {	
+	ldns_dnssec_name *name;
 	assert(i);
 
 	i->zone = zone;
-	i->cur_node = zone->names ? ldns_rbtree_first(zone->names)
-	                          : LDNS_RBTREE_NULL;
-	i->cur_rrset = i->cur_node != LDNS_RBTREE_NULL
-	    ? ((ldns_dnssec_name *)i->cur_node->data)->rrsets
-	    : NULL;
+	if ((i->cur_node = zone->names
+	                 ? ldns_rbtree_first(zone->names)
+	                 : LDNS_RBTREE_NULL) == LDNS_RBTREE_NULL) {
+
+		i->cur_rrset = NULL;
+		return;
+	}
+
+	i->cur_rrset = ((ldns_dnssec_name *)i->cur_node->data)->rrsets;
+	if (!i->cur_rrset) {
+		name = ((ldns_dnssec_name *)i->cur_node->data);
+		if (name->nsec && name->nsec_signatures) {
+			i->cur_rrset = &i->nsec_rrset;
+			i->nsec_rrset.rrs = &i->nsec_rrs;
+			i->nsec_rrs.rr = name->nsec;
+			i->nsec_rrs.next = NULL;
+			i->nsec_rrset.type = ldns_rr_get_type(name->nsec);
+			i->nsec_rrset.signatures =
+				name->nsec_signatures;
+			i->nsec_rrset.next = NULL;
+			return;
+		}
+	}
 }
 
 static ldns_dnssec_rrsets *
@@ -449,12 +606,30 @@ rrset_iter_value(zone_iter *i)
 static void
 rrset_iter_next(zone_iter *i)
 {
+	int was_nsec_rrset;
+	ldns_dnssec_name *name;
 	assert(i);
 
 	if (! i->cur_rrset)
 		return;
 
+	was_nsec_rrset = (i->cur_rrset == &i->nsec_rrset);
 	if (!  (i->cur_rrset = i->cur_rrset->next)) {
+
+		if (!was_nsec_rrset) {
+			name = ((ldns_dnssec_name *)i->cur_node->data);
+			if (name->nsec && name->nsec_signatures) {
+				i->cur_rrset = &i->nsec_rrset;
+				i->nsec_rrset.rrs = &i->nsec_rrs;
+				i->nsec_rrs.rr = name->nsec;
+				i->nsec_rrs.next = NULL;
+				i->nsec_rrset.type = ldns_rr_get_type(name->nsec);
+				i->nsec_rrset.signatures =
+					name->nsec_signatures;
+				i->nsec_rrset.next = NULL;
+				return;
+			}
+		}
 		i->cur_node  = ldns_rbtree_next(i->cur_node);
 		i->cur_rrset = i->cur_node != LDNS_RBTREE_NULL
 		    ? ((ldns_dnssec_name *)i->cur_node->data)->rrsets
@@ -572,9 +747,9 @@ done_free_verifying_keys:
  *
  */
 getdns_return_t
-getdns_validate_dnssec(struct getdns_list *records_to_validate,
-    struct getdns_list *support_records,
-    struct getdns_list *trust_anchors)
+getdns_validate_dnssec(getdns_list *records_to_validate,
+    getdns_list *support_records,
+    getdns_list *trust_anchors)
 {
 	getdns_return_t r;
 	ldns_rr_list     *trusted;
@@ -584,7 +759,7 @@ getdns_validate_dnssec(struct getdns_list *records_to_validate,
 	zone_iter i;
 	ldns_dnssec_rrsets *rrset;
 	ldns_dnssec_rrs *rrs;
-	ldns_status s = LDNS_STATUS_OK;
+	ldns_status s = LDNS_STATUS_ERR;
 
 	if ((r = priv_getdns_rr_list_from_list(trust_anchors, &trusted)))
 		return r;
@@ -616,8 +791,7 @@ getdns_validate_dnssec(struct getdns_list *records_to_validate,
 	for (rrset_iter_init_zone(&i, to_validate);
 	    (rrset = rrset_iter_value(&i)); rrset_iter_next(&i)) {
 
-		s |= chase(rrset, support, support_keys, trusted);
-		if (s != 0)
+		if ((s = chase(rrset, support, support_keys, trusted)))
 			break;
 	}
 	if (s == LDNS_STATUS_CRYPTO_BOGUS)

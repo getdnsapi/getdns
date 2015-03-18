@@ -477,8 +477,8 @@ set_dict(getdns_dict **var, getdns_dict *value)
 #define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
                               GLDNS_ ## Y (req->response))) goto error 
 
-static getdns_dict *
-create_reply_dict(getdns_context *context, getdns_network_req *req,
+getdns_dict *
+priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
     getdns_list *just_addrs, int *rrsigs_in_answer)
 {
 	/* turn a packet into this glorious structure
@@ -595,7 +595,7 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
 		if (section > GLDNS_SECTION_QUESTION &&
-		    rr_type == GETDNS_RRTYPE_RRSIG)
+		    rr_type == GETDNS_RRTYPE_RRSIG && rrsigs_in_answer)
 			*rrsigs_in_answer = 1;
 
 		if (section != GLDNS_SECTION_ANSWER)
@@ -635,7 +635,7 @@ create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 		    getdns_dict_set_bindata(rr_dict,"address_data",&bindata) ||
 
-		    getdns_list_append_dict(just_addrs, rr_dict)) {
+		    (just_addrs && getdns_list_append_dict(just_addrs, rr_dict))) {
 
 			goto error;
 		}
@@ -775,7 +775,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 			    && ! netreq->secure)
 				continue;
 		}
-    		if (!(reply = create_reply_dict(context,
+    		if (!(reply = priv_getdns_create_reply_dict(context,
 		    netreq, just_addrs, &rrsigs_in_answer)))
 			goto error;
 

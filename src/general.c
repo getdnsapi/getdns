@@ -93,7 +93,13 @@ priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 
 	if (! results_found)
 		priv_getdns_call_user_callback(dns_req, NULL);
-	else if (dns_req->dnssec_return_validation_chain)
+	else if (dns_req->dnssec_return_validation_chain
+#ifdef STUB_NATIVE_DNSSEC
+	    || (dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
+	        && (dns_req->dnssec_return_status ||
+	            dns_req->dnssec_return_only_secure))
+#endif
+	    )
 		priv_getdns_get_validation_chain(dns_req);
 	else
 		priv_getdns_call_user_callback(
@@ -130,13 +136,16 @@ submit_network_request(getdns_network_req *netreq)
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING ||
+	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    /* TODO: Until DNSSEC with the new async stub resolver is finished,
 	     *       use unbound when we need DNSSEC.
 	     */
-	    dns_req->dnssec_return_status ||
-	    dns_req->dnssec_return_only_secure ||
-	    dns_req->dnssec_return_validation_chain) {
+#ifndef STUB_NATIVE_DNSSEC
+	    || dns_req->dnssec_return_status
+	    || dns_req->dnssec_return_only_secure
+	    || dns_req->dnssec_return_validation_chain
+#endif
+	    ) {
 
 		/* schedule the timeout */
 		if (! dns_req->timeout.timeout_cb) {
