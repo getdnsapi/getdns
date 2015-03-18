@@ -207,8 +207,12 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    =  is_extension_set(extensions, "dnssec_return_only_secure");
 	int dnssec_return_validation_chain
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
+	int dnssec_ok_checking_disabled
+	    =  is_extension_set(extensions, "dnssec_ok_checking_disabled");
+
 	int dnssec_extension_set = dnssec_return_status
-	    || dnssec_return_only_secure || dnssec_return_validation_chain;
+	    || dnssec_return_only_secure || dnssec_return_validation_chain
+	    || dnssec_ok_checking_disabled;;
 
 	uint32_t edns_do_bit;
 	int      edns_maximum_udp_payload_size;

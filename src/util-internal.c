@@ -60,6 +60,7 @@
 static getdns_extension_format extformats[] = {
 	{"add_opt_parameters", t_dict},
 	{"add_warning_for_bad_dns", t_int},
+	{"dnssec_ok_checking_disabled", t_int},
 	{"dnssec_return_only_secure", t_int},
 	{"dnssec_return_status", t_int},
 	{"dnssec_return_validation_chain", t_int},

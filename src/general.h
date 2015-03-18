@@ -49,7 +49,7 @@ getdns_return_t
 priv_getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
-    getdns_callback_t callbackfn);
+    getdns_callback_t callbackfn, internal_cb_t internal_cb);
 
 getdns_return_t
 priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,

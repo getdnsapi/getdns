@@ -123,7 +123,7 @@ getdns_general_sync(getdns_context *context, const char *name,
 		return r;
 
 	if ((r = priv_getdns_general_loop(context, &loop.loop.loop, name,
-	    request_type, extensions, &loop, NULL, getdns_sync_cb))) {
+	    request_type, extensions, &loop, NULL, getdns_sync_cb, NULL))) {
 
 		getdns_sync_loop_cleanup(&loop);
 		return r;

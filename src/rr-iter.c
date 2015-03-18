@@ -86,7 +86,7 @@ priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 {
 	assert(i);
 
-	if (pkt_len < GLDNS_HEADER_SIZE + 5) {
+	if (!pkt || pkt_len < GLDNS_HEADER_SIZE + 5) {
 		i->pos = NULL;
 		return NULL;
 	}

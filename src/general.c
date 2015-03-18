@@ -91,7 +91,9 @@ priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		else if (netreq->response_len > 0)
 			results_found = 1;
 
-	if (! results_found)
+	if (dns_req->internal_cb)
+		dns_req->internal_cb(dns_req);
+	else if (! results_found)
 		priv_getdns_call_user_callback(dns_req, NULL);
 	else if (dns_req->dnssec_return_validation_chain
 #ifdef STUB_NATIVE_DNSSEC
@@ -172,7 +174,7 @@ static getdns_return_t
 getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
-    getdns_callback_t callbackfn, int usenamespaces)
+    getdns_callback_t callbackfn, internal_cb_t internal_cb, int usenamespaces)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_network_req *netreq, **netreq_p;
@@ -180,7 +182,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	getdns_dict *localnames_response;
 	size_t i;
 
-	if (!context || !name || !callbackfn)
+	if (!context || !name || (!callbackfn && !internal_cb))
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if ((r = validate_dname(name)))
@@ -200,6 +202,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	req->user_pointer = userarg;
 	req->user_callback = callbackfn;
+	req->internal_cb = internal_cb;
 
 	if (transaction_id)
 		*transaction_id = req->trans_id;
@@ -252,11 +255,11 @@ getdns_return_t
 priv_getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
-    getdns_callback_t callback)
+    getdns_callback_t callback, internal_cb_t internal_cb)
 {
 	return getdns_general_ns(context, loop,
 	    name, request_type, extensions,
-	    userarg, transaction_id, callback, 0);
+	    userarg, transaction_id, callback, internal_cb, 0);
 
 }				/* getdns_general_loop */
 
@@ -279,7 +282,7 @@ priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 	
 	r = getdns_general_ns(context, loop,
 	    name, GETDNS_RRTYPE_A, extensions,
-	    userarg, transaction_id, callback, 1);
+	    userarg, transaction_id, callback, NULL, 1);
 
 	if (cleanup_extensions)
 		getdns_dict_destroy(extensions);
@@ -370,7 +373,7 @@ priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	}
 	retval = priv_getdns_general_loop(context, loop, name, req_type,
-	    extensions, userarg, transaction_id, callback);
+	    extensions, userarg, transaction_id, callback, NULL);
 	return retval;
 }				/* getdns_hostname_loop */
 
@@ -380,7 +383,7 @@ priv_getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
 	return getdns_general_ns(context, loop, name, GETDNS_RRTYPE_SRV,
-	    extensions, userarg, transaction_id, callback, 1);
+	    extensions, userarg, transaction_id, callback, NULL, 1);
 }				/* getdns_service_loop */
 
 /**
@@ -395,7 +398,7 @@ getdns_general(getdns_context *context,
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return priv_getdns_general_loop(context, context->extension,
 	    name, request_type, extensions,
-	    userarg, transaction_id, callback);
+	    userarg, transaction_id, callback, NULL);
 
 }				/* getdns_general */
 

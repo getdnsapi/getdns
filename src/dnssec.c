@@ -49,6 +49,7 @@
 #include "rr-dict.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
+#include "general.h"
 
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
@@ -66,7 +67,7 @@ struct chain_response {
 	int sec;
 	char *bogus;
 	struct validation_chain *chain;
-	int unbound_id;
+	getdns_transaction_t transaction_id;
 };
 
 struct chain_link {
@@ -181,10 +182,12 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 
 
 static void
-ub_chain_response_callback(void *arg, int err, struct ub_result* ub_res)
+chain_response_callback(struct getdns_dns_req *dns_req)
 {
-	struct chain_response *response = (struct chain_response *) arg;
-	getdns_context *context = response->chain->dns_req->context;
+	struct chain_response *response =
+	    (struct chain_response *) dns_req->user_pointer;
+	getdns_context *context = dns_req->context;
+	getdns_network_req **netreq_p, *netreq;
 	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
 	priv_getdns_rdf_iter rdf_storage, *rdf;
 	gldns_pkt_section section;
@@ -193,52 +196,54 @@ ub_chain_response_callback(void *arg, int err, struct ub_result* ub_res)
 	getdns_list *keys;
 	size_t nkeys;
 
-	response->err    = err;
-	response->sec    = ub_res ? ub_res->secure : 0;
-	response->bogus  = ub_res ? ub_res->why_bogus : NULL;
-
-	if (ub_res == NULL || ub_res->answer_packet == NULL ||
+	if (dns_req == NULL ||
 	    !(keys = getdns_list_create_with_context(context)))
 	    goto done;
 
-	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
-						, ub_res->answer_packet
-						, ub_res->answer_len)
-	    ; rr_iter
-	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)
-	    ) {
-		section = priv_getdns_rr_iter_section(rr_iter);
-		if (section != GLDNS_SECTION_ANSWER)
-			continue;
+	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
+		for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+							, netreq->response
+							, netreq->response_len)
+		    ; rr_iter
+		    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)
+		    ) {
+			section = priv_getdns_rr_iter_section(rr_iter);
+			if (section != GLDNS_SECTION_ANSWER)
+				continue;
 
-		rr_type = gldns_read_uint16(rr_iter->rr_type);
+			rr_type = gldns_read_uint16(rr_iter->rr_type);
 
-		if (rr_type == GETDNS_RRTYPE_DS ||
-		    rr_type == GETDNS_RRTYPE_DNSKEY) {
-			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(context, rr_iter)))
+			if (rr_type == GETDNS_RRTYPE_DS ||
+			    rr_type == GETDNS_RRTYPE_DNSKEY) {
+				if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
+				    context, rr_iter)))
+					continue;
+				if (getdns_list_append_dict(keys, rr_dict))
+					break;
+			}
+			if (rr_type != GETDNS_RRTYPE_RRSIG)
+				continue;
+
+			if (!(rdf = priv_getdns_rdf_iter_init(
+			    &rdf_storage, rr_iter)))
+				continue;
+
+			type_covered = gldns_read_uint16(rdf->pos);
+			if (type_covered == GETDNS_RRTYPE_DS) {
+				if ((rdf = priv_getdns_rdf_iter_init_at(
+				    &rdf_storage, rr_iter, 7)))
+					launch_chain_link_lookup(
+					    response->chain, rdf);
+
+			} else if (type_covered != GETDNS_RRTYPE_DNSKEY)
+				continue;
+
+			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
+			    context, rr_iter)))
 				continue;
 			if (getdns_list_append_dict(keys, rr_dict))
 				break;
 		}
-		if (rr_type != GETDNS_RRTYPE_RRSIG)
-			continue;
-
-		if (!(rdf = priv_getdns_rdf_iter_init(&rdf_storage, rr_iter)))
-			continue;
-
-		type_covered = gldns_read_uint16(rdf->pos);
-		if (type_covered == GETDNS_RRTYPE_DS) {
-			if ((rdf = priv_getdns_rdf_iter_init_at(
-			    &rdf_storage, rr_iter, 7)))
-				launch_chain_link_lookup(response->chain, rdf);
-
-		} else if (type_covered != GETDNS_RRTYPE_DNSKEY)
-			continue;
-
-		if (!(rr_dict = priv_getdns_rr_iter2rr_dict(context, rr_iter)))
-			continue;
-		if (getdns_list_append_dict(keys, rr_dict))
-			break;
 	}
 	if (getdns_list_get_length(keys, &nkeys))
 		getdns_list_destroy(keys);
@@ -248,32 +253,47 @@ ub_chain_response_callback(void *arg, int err, struct ub_result* ub_res)
 	else
 		response->result = keys;
 
-	ub_resolve_free(ub_res);
 
 done:	if (response->err == 0 && response->result == NULL)
 		response->err = -1;
-
+	if (dns_req) {
+		getdns_context_clear_outbound_request(dns_req);
+		dns_req_free(dns_req);
+	}
 	callback_on_complete_chain(response->chain);
 }
 
 static void chain_response_init(
     struct validation_chain *chain, struct chain_response *response)
 {
-	response->err        = 0;
-	response->result     = NULL;
-	response->sec        = 0;
-	response->bogus      = NULL;
-	response->chain      = chain;
-	response->unbound_id = -1;
+	response->err            = 0;
+	response->result         = NULL;
+	response->sec            = 0;
+	response->bogus          = NULL;
+	response->chain          = chain;
+	response->transaction_id = -1;
 }
 
 static int
 resolve(char* name, int rrtype, struct chain_response *response)
 {
-	return ub_resolve_async(
-	    response->chain->dns_req->context->unbound_ctx,
-	    name, rrtype, GETDNS_RRCLASS_IN, response,
-	    ub_chain_response_callback, &response->unbound_id);
+	getdns_return_t r;
+	getdns_dict *extensions;
+
+	if (!(extensions = getdns_dict_create_with_context(
+	    response->chain->dns_req->context)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	if (!(r = getdns_dict_set_int(extensions,
+	    "dnssec_ok_checking_disabled", GETDNS_EXTENSION_TRUE)))
+
+		r = priv_getdns_general_loop(response->chain->dns_req->context,
+		    response->chain->dns_req->loop, name, rrtype, extensions,
+		    response, &response->transaction_id, NULL,
+		    chain_response_callback);
+
+	getdns_dict_destroy(extensions);
+	return r;
 }
 
 static void

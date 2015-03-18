@@ -108,6 +108,7 @@ struct getdns_upstream;
 struct getdns_dns_req;
 struct getdns_network_req;
 
+typedef void (*internal_cb_t)(struct getdns_dns_req *dns_req);
 
 #define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)
 extern void *plain_mem_funcs_user_arg;
@@ -237,6 +238,12 @@ typedef struct getdns_dns_req {
 	int dnssec_return_status;
 	int dnssec_return_only_secure;
 	int dnssec_return_validation_chain;
+
+	/* Internally used by return_validation_chain */
+	int dnssec_ok_checking_disabled;
+
+	/* internally scheduled request */
+	internal_cb_t internal_cb;
 
 	/* event loop */
 	getdns_eventloop *loop;
