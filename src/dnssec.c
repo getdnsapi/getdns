@@ -502,6 +502,7 @@ priv_getdns_ldns_dnssec_zone_add_rr(ldns_dnssec_zone *zone, ldns_rr *rr)
 		zone->names = ldns_rbtree_create(ldns_dname_compare_v);
 	(void)ldns_rbtree_insert(zone->names, new_node);
 
+#ifdef LDNS_DNSSEC_ZONE_HASHED_NAMES
 	if (!(new_node = LDNS_MALLOC(ldns_rbnode_t))) {
 		ldns_dnssec_name_free(new_name);
 		return LDNS_STATUS_MEM_ERR;
@@ -513,6 +514,7 @@ priv_getdns_ldns_dnssec_zone_add_rr(ldns_dnssec_zone *zone, ldns_rr *rr)
 		zone->hashed_names = ldns_rbtree_create(ldns_dname_compare_v);
 	}
 	(void)ldns_rbtree_insert(zone->hashed_names, new_node);
+#endif
 
 	return ldns_dnssec_zone_add_rr(zone, rr);
 }

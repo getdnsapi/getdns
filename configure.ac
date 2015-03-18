@@ -220,6 +220,9 @@ AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
 AC_MSG_NOTICE([Checking for dependency libidn])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
+AC_CHECK_MEMBER([struct ldns_struct_dnssec_zone.hashed_names],
+[AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns.h>]])
+
 if test $found_all_libs == 0
 then
     AC_MSG_ERROR([One more dependencies is missing])

@@ -102,6 +102,9 @@
 /* Define to 1 if you have the <uv.h> header file. */
 #undef HAVE_UV_H
 
+/* When defined ldns_dnssec_zone contained the hashed_names member. */
+#undef LDNS_DNSSEC_ZONE_HASHED_NAMES
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
