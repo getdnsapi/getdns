@@ -221,7 +221,7 @@ AC_MSG_NOTICE([Checking for dependency libidn])
 AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 
 AC_CHECK_MEMBER([struct ldns_struct_dnssec_zone.hashed_names],
-[AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns.h>]])
+[AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns/ldns.h>]])
 
 if test $found_all_libs == 0
 then

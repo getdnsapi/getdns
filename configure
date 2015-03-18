@@ -11458,7 +11458,7 @@ else
 fi
 
 
-ac_fn_c_check_member "$LINENO" "struct ldns_struct_dnssec_zone" "hashed_names" "ac_cv_member_struct_ldns_struct_dnssec_zone_hashed_names" "#include <ldns.h>
+ac_fn_c_check_member "$LINENO" "struct ldns_struct_dnssec_zone" "hashed_names" "ac_cv_member_struct_ldns_struct_dnssec_zone_hashed_names" "#include <ldns/ldns.h>
 "
 if test "x$ac_cv_member_struct_ldns_struct_dnssec_zone_hashed_names" = xyes; then :
 
