@@ -344,7 +344,7 @@ static priv_getdns_rdata_def      dname_rdata[] = {
 static priv_getdns_rdata_def        opt_rdata[] = {
 	{ "options"                     , GETDNS_RDF_R    },
 	{ "option_code"                 , GETDNS_RDF_I2   },
-	{ "option_data"                 , GETDNS_RDF_X_2  }};
+	{ "option_data"                 , GETDNS_RDF_X_S  }};
 static priv_getdns_rdata_def        apl_rdata[] = {
 	{ "apitems"                     , GETDNS_RDF_R    },
 	{ "address_family"              , GETDNS_RDF_I2   },
@@ -371,8 +371,8 @@ static priv_getdns_rdata_def      rrsig_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "labels"                      , GETDNS_RDF_I1   },
 	{ "original_ttl"                , GETDNS_RDF_I4   },
-	{ "signature_expiration"        , GETDNS_RDF_I4   },
-	{ "signature_inception"         , GETDNS_RDF_I4   },
+	{ "signature_expiration"        , GETDNS_RDF_T    },
+	{ "signature_inception"         , GETDNS_RDF_T    },
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "signers_name"                , GETDNS_RDF_N    },
 	{ "signature"                   , GETDNS_RDF_B    }};
@@ -412,13 +412,13 @@ static priv_getdns_rdata_def        spf_rdata[] = {
 	{ "text"                        , GETDNS_RDF_S_M  }};
 static priv_getdns_rdata_def        nid_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "node_id"                     , GETDNS_RDF_X8   }};
+	{ "node_id"                     , GETDNS_RDF_AA   }};
 static priv_getdns_rdata_def        l32_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "locator32"                   , GETDNS_RDF_A    }};
 static priv_getdns_rdata_def        l64_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "locator64"                   , GETDNS_RDF_X8   }};
+	{ "locator64"                   , GETDNS_RDF_AA   }};
 static priv_getdns_rdata_def         lp_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "fqdn"                        , GETDNS_RDF_N    }};
@@ -428,28 +428,28 @@ static priv_getdns_rdata_def      eui64_rdata[] = {
 	{ "eui64_address"               , GETDNS_RDF_X8   }};
 static priv_getdns_rdata_def       tkey_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_N    },
-	{ "inception"                   , GETDNS_RDF_I4   },
-	{ "expiration"                  , GETDNS_RDF_I4   },
+	{ "inception"                   , GETDNS_RDF_T    },
+	{ "expiration"                  , GETDNS_RDF_T    },
 	{ "mode"                        , GETDNS_RDF_I2   },
 	{ "error"                       , GETDNS_RDF_I2   },
-	{ "key_data"                    , GETDNS_RDF_X_2  },
-	{ "other_data"                  , GETDNS_RDF_X_2  }};
+	{ "key_data"                    , GETDNS_RDF_X_S  },
+	{ "other_data"                  , GETDNS_RDF_X_S  }};
 static priv_getdns_rdata_def       tsig_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_N    },
-	{ "time_signed"                 , GETDNS_RDF_I6   },
+	{ "time_signed"                 , GETDNS_RDF_T6   },
 	{ "fudge"                       , GETDNS_RDF_I2   },
-	{ "mac"                         , GETDNS_RDF_X_2  },
+	{ "mac"                         , GETDNS_RDF_X_S  },
 	{ "original_id"                 , GETDNS_RDF_I2   },
 	{ "error"                       , GETDNS_RDF_I2   },
-	{ "other_data"                  , GETDNS_RDF_X_2  }};
+	{ "other_data"                  , GETDNS_RDF_X_S  }};
 static priv_getdns_rdata_def        uri_rdata[] = {
 	{ "priority"                    , GETDNS_RDF_I2   },
 	{ "weight"                      , GETDNS_RDF_I2   },
-	{ "target"                      , GETDNS_RDF_S_M  }};
+	{ "target"                      , GETDNS_RDF_S_L  }};
 static priv_getdns_rdata_def        caa_rdata[] = {
 	{ "flags"                       , GETDNS_RDF_I1   },
 	{ "tag"                         , GETDNS_RDF_S    },
-	{ "value"                       , GETDNS_RDF_S_M  }};
+	{ "value"                       , GETDNS_RDF_S_L  }};
 static priv_getdns_rdata_def        dlv_rdata[] = {
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
