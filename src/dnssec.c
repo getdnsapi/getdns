@@ -64,10 +64,8 @@ struct validation_chain {
 struct chain_response {
 	int err;
 	getdns_list *result;
-	int sec;
-	char *bogus;
 	struct validation_chain *chain;
-	getdns_transaction_t transaction_id;
+	getdns_dns_req *dns_req;
 };
 
 struct chain_link {
@@ -87,9 +85,10 @@ native_stub_validate_dnssec(getdns_dns_req *dns_req, getdns_list *support)
 	getdns_network_req *netreq, **netreq_p;
 	getdns_list *trust_anchors;
 	getdns_dict *reply = NULL;
-	getdns_dict *header;
 	getdns_list *to_validate;
-	uint32_t rcode;
+	getdns_list *list;
+	getdns_dict *rr_dict;
+	size_t i;
 
 	if (!(trust_anchors = getdns_root_trust_anchor(NULL)))
 		return;
@@ -98,16 +97,23 @@ native_stub_validate_dnssec(getdns_dns_req *dns_req, getdns_list *support)
 		if (!(reply = priv_getdns_create_reply_dict(dns_req->context,
 		    netreq, NULL, NULL)))
 			continue;
-		if (getdns_dict_get_dict(reply, "header", &header))
+		if (!(to_validate =
+		    getdns_list_create_with_context(dns_req->context)))
 			break;
-		if (getdns_dict_get_int(header, "rcode", &rcode))
+		if (getdns_dict_get_list(reply, "answer", &list)) {
+			getdns_list_destroy(to_validate);
 			break;
-		if (rcode == GETDNS_RCODE_NXDOMAIN) {
-			if (getdns_dict_get_list(
-			    reply, "authority", &to_validate))
-				break;
-		} else if (getdns_dict_get_list(reply, "answer", &to_validate))
+		}
+		for (i = 0; !getdns_list_get_dict(list, i, &rr_dict); i++)
+			(void) getdns_list_append_dict(to_validate, rr_dict);
+
+		if (getdns_dict_get_list(reply, "authority", &list)) {
+			getdns_list_destroy(to_validate);
 			break;
+		}
+		for (i = 0; !getdns_list_get_dict(list, i, &rr_dict); i++)
+			(void) getdns_list_append_dict(to_validate, rr_dict);
+
 		switch ((int)getdns_validate_dnssec(
 		    to_validate, support, trust_anchors)) {
 		case GETDNS_DNSSEC_SECURE:
@@ -124,9 +130,11 @@ native_stub_validate_dnssec(getdns_dns_req *dns_req, getdns_list *support)
 			netreq->bogus  = 0;
 			break;
 		}
+		getdns_list_destroy(to_validate);
 		getdns_dict_destroy(reply);
 		reply = NULL;
 	}
+	getdns_list_destroy(trust_anchors);
 	getdns_dict_destroy(reply);
 }
 #endif
@@ -195,9 +203,10 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 	getdns_dict *rr_dict;
 	getdns_list *keys;
 	size_t nkeys;
+	getdns_return_t r;
 
-	if (dns_req == NULL ||
-	    !(keys = getdns_list_create_with_context(context)))
+	response->dns_req = dns_req;
+	if (!(keys = getdns_list_create_with_context(context)))
 	    goto done;
 
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
@@ -218,8 +227,9 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 				if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
 				    context, rr_iter)))
 					continue;
-				if (getdns_list_append_dict(keys, rr_dict))
-					break;
+				r = getdns_list_append_dict(keys, rr_dict);
+				getdns_dict_destroy(rr_dict);
+				if (r) break;
 			}
 			if (rr_type != GETDNS_RRTYPE_RRSIG)
 				continue;
@@ -241,8 +251,9 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
 			    context, rr_iter)))
 				continue;
-			if (getdns_list_append_dict(keys, rr_dict))
-				break;
+			r = getdns_list_append_dict(keys, rr_dict);
+			getdns_dict_destroy(rr_dict);
+			if (r) break;
 		}
 	}
 	if (getdns_list_get_length(keys, &nkeys))
@@ -256,22 +267,17 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 
 done:	if (response->err == 0 && response->result == NULL)
 		response->err = -1;
-	if (dns_req) {
-		getdns_context_clear_outbound_request(dns_req);
-		dns_req_free(dns_req);
-	}
+
 	callback_on_complete_chain(response->chain);
 }
 
 static void chain_response_init(
     struct validation_chain *chain, struct chain_response *response)
 {
-	response->err            = 0;
-	response->result         = NULL;
-	response->sec            = 0;
-	response->bogus          = NULL;
-	response->chain          = chain;
-	response->transaction_id = -1;
+	response->err     = 0;
+	response->result  = NULL;
+	response->chain   = chain;
+	response->dns_req = NULL;
 }
 
 static int
@@ -289,8 +295,7 @@ resolve(char* name, int rrtype, struct chain_response *response)
 
 		r = priv_getdns_general_loop(response->chain->dns_req->context,
 		    response->chain->dns_req->loop, name, rrtype, extensions,
-		    response, &response->transaction_id, NULL,
-		    chain_response_callback);
+		    response, NULL, NULL, chain_response_callback);
 
 	getdns_dict_destroy(extensions);
 	return r;
@@ -367,8 +372,17 @@ static void destroy_chain_link(getdns_rbnode_t * node, void *arg)
 	struct validation_chain *chain   = (struct validation_chain*) arg;
 
 	free((void *)link->node.key);
+
 	getdns_list_destroy(link->DNSKEY.result);
+	if (link->DNSKEY.dns_req) {
+		getdns_context_clear_outbound_request(link->DNSKEY.dns_req);
+		dns_req_free(link->DNSKEY.dns_req);
+	}
 	getdns_list_destroy(link->DS.result);
+	if (link->DS.dns_req) {
+		getdns_context_clear_outbound_request(link->DS.dns_req);
+		dns_req_free(link->DS.dns_req);
+	}
 	GETDNS_FREE(chain->mf, link);
 }
 
@@ -851,7 +865,7 @@ priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs)
 	size_t len, dname_len;
 	FILE *in;
 	priv_getdns_rr_iter rr_iter;
-	getdns_dict *rr_dict;
+	getdns_dict *rr_dict = NULL;
 	int ta_count = 0;
 
 	if (stat(TRUST_ANCHOR_FILE, &st) != 0)
@@ -888,8 +902,12 @@ priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs)
 			break;
 		if (ta_rrs && getdns_list_append_dict(ta_rrs, rr_dict))
 			break;
+		getdns_dict_destroy(rr_dict);
+		rr_dict = NULL;
 		ta_count++;
 	}
+	if (rr_dict)
+		getdns_dict_destroy(rr_dict);
 	fclose(in);
 
 	return ta_count;
