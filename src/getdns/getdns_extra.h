@@ -196,6 +196,21 @@ getdns_pretty_print_list(const getdns_list *some_list);
 int
 getdns_pretty_snprint_list(char *str, size_t size, const getdns_list *list);
 
+char *
+getdns_print_json_dict(const getdns_dict *some_dict, int pretty);
+
+int
+getdns_snprint_json_dict(
+    char *str, size_t size, const getdns_dict *dict, int pretty);
+
+char *
+getdns_print_json_list(const getdns_list *some_list, int pretty);
+
+int
+getdns_snprint_json_list(
+    char *str, size_t size, const getdns_list *list, int pretty);
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -95,6 +95,9 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
 	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	fprintf(out, "\t-j\tOutput json response dict\n");
+	fprintf(out, "\t-J\tPretty print json response dict\n");
+	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
@@ -123,6 +126,7 @@ static uint16_t request_type = GETDNS_RRTYPE_NS;
 static int timeout, edns0_size;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
+static int json = 0;
 
 #define CONTINUE ((getdns_return_t)-2)
 
@@ -270,6 +274,15 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'I':
 				interactive = 1;
+				break;
+			case 'j':
+				json = 2;
+				break;
+			case 'J':
+				json = 1;
+				break;
+			case 'p':
+				json = 0;
 				break;
 			case 'r':
 				getdns_context_set_resolution_type(
@@ -445,7 +458,13 @@ main(int argc, char **argv)
 			if (r)
 				goto done_destroy_extensions;
 		}
-		if ((response_str = getdns_pretty_print_dict(response))) {
+		if (json)
+			response_str = getdns_print_json_dict(
+			    response, json == 1);
+		else
+			response_str = getdns_pretty_print_dict(response);
+
+		if (response_str) {
 			fprintf(stdout, "%s\n", response_str);
 			free(response_str);
 		} else {
