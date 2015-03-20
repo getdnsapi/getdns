@@ -1,5 +1,8 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define this to enable the experimental draft edns cookies. */
+#undef EDNS_COOKIES
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -33,6 +36,9 @@
 /* Define to 1 if you have the `fcntl' function. */
 #undef HAVE_FCNTL
 
+/* If you have HMAC_CTX_init */
+#undef HAVE_HMAC_CTX_INIT
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -62,6 +68,18 @@
 
 /* Does libuv have the new uv_time_cb signature */
 #undef HAVE_NEW_UV_TIMER_CB
+
+/* Define to 1 if you have the <openssl/err.h> header file. */
+#undef HAVE_OPENSSL_ERR_H
+
+/* Define to 1 if you have the <openssl/rand.h> header file. */
+#undef HAVE_OPENSSL_RAND_H
+
+/* Define to 1 if you have the <openssl/ssl.h> header file. */
+#undef HAVE_OPENSSL_SSL_H
+
+/* Define if you have the SSL libraries installed. */
+#undef HAVE_SSL
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H

@@ -658,6 +658,8 @@ PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
 DOXYGEN
+RUNTIME_PATH
+HAVE_SSL
 INSTALL_DATA
 INSTALL_SCRIPT
 INSTALL_PROGRAM
@@ -755,6 +757,8 @@ enable_libtool_lock
 enable_rpath
 enable_tcp_fastopen
 enable_broken_native_stub_dnssec
+with_ssl
+enable_draft_edns_cookies
 with_libidn
 with_libldns
 with_libunbound
@@ -1400,6 +1404,8 @@ Optional Features:
   --enable-broken-native-stub-dnssec
                           Enable very experimental and broken native stub
                           DNSSEC support
+  --enable-draft-edns-cookies
+                          Enable experimental edns cookies
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -1412,6 +1418,9 @@ Optional Packages:
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
   --with-sysroot=DIR Search for dependent libraries within DIR
                         (or the compiler's sysroot if not specified).
+  --with-ssl=pathname     enable SSL (will check /usr/local/ssl /usr/lib/ssl
+                          /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw
+                          /usr)
   --with-libidn=pathname  path to libidn (default: search /usr/local ..)
   --with-libldns=pathname path to libldns (default: search /usr/local ..)
   --with-libunbound=pathname
@@ -11257,6 +11266,296 @@ case "$enable_broken_native_stub_dnssec" in
 
 cat >>confdefs.h <<_ACEOF
 #define STUB_NATIVE_DNSSEC 1
+_ACEOF
+
+		;;
+	no|*)
+		;;
+esac
+
+
+
+# Check whether --with-ssl was given.
+if test "${with_ssl+set}" = set; then :
+  withval=$with_ssl;
+
+else
+
+            withval="yes"
+
+fi
+
+
+    withval=$withval
+    if test x_$withval != x_no; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL" >&5
+$as_echo_n "checking for SSL... " >&6; }
+        if test x_$withval = x_ -o x_$withval = x_yes; then
+            withval="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /opt/local /usr/sfw /usr"
+        fi
+        for dir in $withval; do
+            ssldir="$dir"
+            if test -f "$dir/include/openssl/ssl.h"; then
+                found_ssl="yes"
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_SSL /**/
+_ACEOF
+
+                                if test "$ssldir" != "/usr"; then
+                        CPPFLAGS="$CPPFLAGS -I$ssldir/include"
+                        LIBSSL_CPPFLAGS="$LIBSSL_CPPFLAGS -I$ssldir/include"
+                fi
+                break;
+            fi
+        done
+        if test x_$found_ssl != x_yes; then
+            as_fn_error $? "Cannot find the SSL libraries in $withval" "$LINENO" 5
+        else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: found in $ssldir" >&5
+$as_echo "found in $ssldir" >&6; }
+            HAVE_SSL=yes
+                        if test "$ssldir" != "/usr" -a "$ssldir" != ""; then
+                LDFLAGS="$LDFLAGS -L$ssldir/lib"
+                LIBSSL_LDFLAGS="$LIBSSL_LDFLAGS -L$ssldir/lib"
+
+	if test "x$enable_rpath" = xyes; then
+		if echo "$ssldir/lib" | grep "^/" >/dev/null; then
+			RUNTIME_PATH="$RUNTIME_PATH -R$ssldir/lib"
+		fi
+	fi
+
+            fi
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for HMAC_CTX_init in -lcrypto" >&5
+$as_echo_n "checking for HMAC_CTX_init in -lcrypto... " >&6; }
+            LIBS="$LIBS -lcrypto"
+            LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
+            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+                int HMAC_CTX_init(void);
+                (void)HMAC_CTX_init();
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_HMAC_CTX_INIT 1" >>confdefs.h
+
+
+else
+
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+                # check if -lwsock32 or -lgdi32 are needed.
+                BAKLIBS="$LIBS"
+                BAKSSLLIBS="$LIBSSL_LIBS"
+                LIBS="$LIBS -lgdi32"
+                LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32"
+                { $as_echo "$as_me:${as_lineno-$LINENO}: checking if -lcrypto needs -lgdi32" >&5
+$as_echo_n "checking if -lcrypto needs -lgdi32... " >&6; }
+                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+                    int HMAC_CTX_init(void);
+                    (void)HMAC_CTX_init();
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+
+$as_echo "#define HAVE_HMAC_CTX_INIT 1" >>confdefs.h
+
+                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+
+                    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+                    LIBS="$BAKLIBS"
+                    LIBSSL_LIBS="$BAKSSLLIBS"
+                    LIBS="$LIBS -ldl"
+                    LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
+                    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if -lcrypto needs -ldl" >&5
+$as_echo_n "checking if -lcrypto needs -ldl... " >&6; }
+                    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+                        int HMAC_CTX_init(void);
+                        (void)HMAC_CTX_init();
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+
+$as_echo "#define HAVE_HMAC_CTX_INIT 1" >>confdefs.h
+
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+                    as_fn_error $? "OpenSSL found in $ssldir, but version 0.9.7 or higher is required" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+        fi
+
+
+	# openssl engine functionality needs dlopen().
+	BAKLIBS="$LIBS"
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
+$as_echo_n "checking for library containing dlopen... " >&6; }
+if ${ac_cv_search_dlopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char dlopen ();
+int
+main ()
+{
+return dlopen ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' dl; do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib  $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_search_dlopen=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext
+  if ${ac_cv_search_dlopen+:} false; then :
+  break
+fi
+done
+if ${ac_cv_search_dlopen+:} false; then :
+
+else
+  ac_cv_search_dlopen=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_dlopen" >&5
+$as_echo "$ac_cv_search_dlopen" >&6; }
+ac_res=$ac_cv_search_dlopen
+if test "$ac_res" != no; then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+fi
+
+	if test "$LIBS" != "$BAKLIBS"; then
+		LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
+	fi
+    fi
+for ac_header in openssl/ssl.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "openssl/ssl.h" "ac_cv_header_openssl_ssl_h" "$ac_includes_default
+"
+if test "x$ac_cv_header_openssl_ssl_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_SSL_H 1
+_ACEOF
+
+fi
+
+done
+
+for ac_header in openssl/err.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "openssl/err.h" "ac_cv_header_openssl_err_h" "$ac_includes_default
+"
+if test "x$ac_cv_header_openssl_err_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_ERR_H 1
+_ACEOF
+
+fi
+
+done
+
+for ac_header in openssl/rand.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "openssl/rand.h" "ac_cv_header_openssl_rand_h" "$ac_includes_default
+"
+if test "x$ac_cv_header_openssl_rand_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_RAND_H 1
+_ACEOF
+
+fi
+
+done
+
+
+
+
+
+# Check whether --enable-draft-edns-cookies was given.
+if test "${enable_draft_edns_cookies+set}" = set; then :
+  enableval=$enable_draft_edns_cookies;
+fi
+
+case "$enable_draft_edns_cookies" in
+	yes)
+		if test "x_$HAVE_SSL" != "x_yes"; then
+			as_fn_error $? "edns cookies need openssl libcrypto which is not available, please rerun without --enable-draft-edns-cookies" "$LINENO" 5
+		fi
+
+cat >>confdefs.h <<_ACEOF
+#define EDNS_COOKIES 1
 _ACEOF
 
 		;;

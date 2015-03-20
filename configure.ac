@@ -30,6 +30,8 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ([2.56])
+sinclude(acx_openssl.m4)
+
 AC_INIT([getdns], [0.1.6], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
 
 # Set current date from system if not set
@@ -135,6 +137,21 @@ AC_ARG_ENABLE(broken-native-stub-dnssec, AC_HELP_STRING([--enable-broken-native-
 case "$enable_broken_native_stub_dnssec" in
 	yes)
 		AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1], [Define this to enable the very experimental and broken native stub DNSSEC support.])
+		;;
+	no|*)
+		;;
+esac
+
+ACX_WITH_SSL_OPTIONAL
+
+
+AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
+case "$enable_draft_edns_cookies" in
+	yes)
+		if test "x_$HAVE_SSL" != "x_yes"; then
+			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun without --enable-draft-edns-cookies])
+		fi
+		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental draft edns cookies.])
 		;;
 	no|*)
 		;;
