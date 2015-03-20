@@ -209,6 +209,8 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
 	int dnssec_ok_checking_disabled
 	    =  is_extension_set(extensions, "dnssec_ok_checking_disabled");
+	int edns_cookies
+	    =  is_extension_set(extensions, "edns_cookies");
 
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_validation_chain
@@ -281,7 +283,8 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		(void) getdns_list_get_length(options, &noptions);
 
 	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != 512 ||
-	    edns_extended_rcode != 0 || edns_version != 0 || noptions;
+	    edns_extended_rcode != 0 || edns_version != 0 || noptions ||
+	    edns_cookies;
 
 	edns_maximum_udp_payload_size = with_opt &&
 	    ( edns_maximum_udp_payload_size == -1 ||
@@ -307,6 +310,12 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		max_query_sz = ( GLDNS_HEADER_SIZE
 		    + strlen(name) + 1 + 4 /* dname always smaller then strlen(name) + 1 */
 		    + 12 + opt_options_size /* space needed for OPT (if needed) */
+		    + ( !edns_cookies ? 0
+		      :  2 /* EDNS0 Option Code */
+		      +  2 /* Option length = 8 + 16 = 24 */
+		      +  8 /* client cookie */
+		      + 16 /* server cookie */
+		      )
 		    /* TODO: TSIG */
 		    + 7) / 8 * 8;
 	}
@@ -343,6 +352,7 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
+	result->edns_cookies                   = edns_cookies;
 
 	/* will be set by caller */
 	result->user_pointer = NULL;

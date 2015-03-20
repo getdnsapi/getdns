@@ -46,6 +46,7 @@ struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
 
+#define EDNSCOOKIE_OPCODE 65001
 
 /**
  * \defgroup strings String Constants
@@ -238,6 +239,7 @@ typedef struct getdns_dns_req {
 	int dnssec_return_status;
 	int dnssec_return_only_secure;
 	int dnssec_return_validation_chain;
+	int edns_cookies;
 
 	/* Internally used by return_validation_chain */
 	int dnssec_ok_checking_disabled;
