@@ -149,6 +149,9 @@ libgetdns.la: $(GETDNS_OBJ) context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OB
 test:	FORCE
 	cd test && $(MAKE) $@
 
+getdns_query:	FORCE
+	cd test && $(MAKE) $@
+
 clean:
 	cd test && $(MAKE) $@
 	rm -f *.o *.lo extension/*.lo extension/*.o $(PROGRAMS) libgetdns.la libgetdns_ext_*.la
