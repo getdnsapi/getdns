@@ -74,7 +74,7 @@ gldns_buffer_set_capacity(gldns_buffer *buffer, size_t capacity)
 	void *data;
 	
 	gldns_buffer_invariant(buffer);
-	assert(buffer->_position <= capacity);
+	assert(buffer->_position <= capacity && !buffer->_fixed);
 
 	data = (uint8_t *) realloc(buffer->_data, capacity);
 	if (!data) {
@@ -126,7 +126,7 @@ gldns_buffer_printf(gldns_buffer *buffer, const char *format, ...)
 		if (written == -1) {
 			buffer->_status_err = 1;
 			return -1;
-		} else if ((size_t) written >= remaining) {
+		} else if (!buffer->_fixed && (size_t) written >= remaining) {
 			if (!gldns_buffer_reserve(buffer, (size_t) written + 1)) {
 				buffer->_status_err = 1;
 				return -1;

@@ -914,6 +914,18 @@ getdns_pretty_print_dict(const struct getdns_dict *dict)
 	return ret;
 }				/* getdns_pretty_print_dict */
 
+int
+getdns_pretty_snprint_dict(char *str, size_t size, const getdns_dict *dict)
+{
+	gldns_buffer buf;
+
+	if (!dict) return -1;
+
+	gldns_buffer_init_frm_data(&buf, str, size);
+	return getdns_pp_dict(&buf, 0, dict) < 0
+	     ? -1 : gldns_buffer_position(&buf);
+}
+
 char *
 getdns_pretty_print_list(const getdns_list *list)
 {
@@ -935,6 +947,19 @@ getdns_pretty_print_list(const getdns_list *list)
 	gldns_buffer_free(buf);
 	return ret;
 }
+
+int
+getdns_pretty_snprint_list(char *str, size_t size, const getdns_list *list)
+{
+	gldns_buffer buf;
+
+	if (!list) return -1;
+
+	gldns_buffer_init_frm_data(&buf, str, size);
+	return getdns_pp_list(&buf, 0, list, 0) < 0
+	     ? -1 : gldns_buffer_position(&buf);
+}
+
 
 getdns_return_t
 getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)

@@ -134,7 +134,7 @@ INLINE void
 gldns_buffer_invariant(gldns_buffer *buffer)
 {
 	assert(buffer != NULL);
-	assert(buffer->_position <= buffer->_limit);
+	assert(buffer->_position <= buffer->_limit || buffer->_fixed);
 	assert(buffer->_limit <= buffer->_capacity);
 	assert(buffer->_data != NULL);
 }
@@ -231,7 +231,7 @@ gldns_buffer_position(gldns_buffer *buffer)
 INLINE void
 gldns_buffer_set_position(gldns_buffer *buffer, size_t mark)
 {
-	assert(mark <= buffer->_limit);
+	assert(mark <= buffer->_limit || buffer->_fixed);
 	buffer->_position = mark;
 }
 
@@ -245,7 +245,7 @@ gldns_buffer_set_position(gldns_buffer *buffer, size_t mark)
 INLINE void
 gldns_buffer_skip(gldns_buffer *buffer, ssize_t count)
 {
-	assert(buffer->_position + count <= buffer->_limit);
+	assert(buffer->_position + count <= buffer->_limit || buffer->_fixed);
 	buffer->_position += count;
 }
 
@@ -317,7 +317,7 @@ int gldns_buffer_reserve(gldns_buffer *buffer, size_t amount);
 INLINE uint8_t *
 gldns_buffer_at(const gldns_buffer *buffer, size_t at)
 {
-	assert(at <= buffer->_limit);
+	assert(at <= buffer->_limit || buffer->_fixed);
 	return buffer->_data + at;
 }
 
@@ -353,6 +353,7 @@ gldns_buffer_end(gldns_buffer *buffer)
 INLINE uint8_t *
 gldns_buffer_current(gldns_buffer *buffer)
 {
+	assert(buffer->_position <= buffer->_limit || buffer->_fixed);
 	return gldns_buffer_at(buffer, buffer->_position);
 }
 
@@ -367,8 +368,7 @@ INLINE size_t
 gldns_buffer_remaining_at(gldns_buffer *buffer, size_t at)
 {
 	gldns_buffer_invariant(buffer);
-	assert(at <= buffer->_limit);
-	return buffer->_limit - at;
+	return at < buffer->_limit ? buffer->_limit - at : 0;
 }
 
 /**
@@ -420,7 +420,15 @@ gldns_buffer_available(gldns_buffer *buffer, size_t count)
 INLINE void
 gldns_buffer_write_at(gldns_buffer *buffer, size_t at, const void *data, size_t count)
 {
-	assert(gldns_buffer_available_at(buffer, at, count));
+	if (!buffer->_fixed)
+		assert(gldns_buffer_available_at(buffer, at, count));
+	else if (gldns_buffer_remaining_at(buffer, at) == 0)
+		return;
+	else if (count > gldns_buffer_remaining_at(buffer, at)) {
+		memcpy(buffer->_data + at, data,
+		    gldns_buffer_remaining_at(buffer, at));
+		return;
+	}
 	memcpy(buffer->_data + at, data, count);
 }
 
@@ -469,6 +477,7 @@ gldns_buffer_write_string(gldns_buffer *buffer, const char *str)
 INLINE void
 gldns_buffer_write_u8_at(gldns_buffer *buffer, size_t at, uint8_t data)
 {
+	if (buffer->_fixed && at + sizeof(data) > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, sizeof(data)));
 	buffer->_data[at] = data;
 }
@@ -494,6 +503,7 @@ gldns_buffer_write_u8(gldns_buffer *buffer, uint8_t data)
 INLINE void
 gldns_buffer_write_u16_at(gldns_buffer *buffer, size_t at, uint16_t data)
 {
+	if (buffer->_fixed && at + sizeof(data) > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, sizeof(data)));
 	gldns_write_uint16(buffer->_data + at, data);
 }
@@ -519,6 +529,7 @@ gldns_buffer_write_u16(gldns_buffer *buffer, uint16_t data)
 INLINE void
 gldns_buffer_write_u32_at(gldns_buffer *buffer, size_t at, uint32_t data)
 {
+	if (buffer->_fixed && at + sizeof(data) > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, sizeof(data)));
 	gldns_write_uint32(buffer->_data + at, data);
 }
