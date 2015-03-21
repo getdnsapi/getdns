@@ -585,14 +585,56 @@ AC_MSG_RESULT($ac_cv_c_unused_attribute)
 if test $ac_cv_c_unused_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_UNUSED, 1, [Whether the C compiler accepts the "unused" attribute])
 fi
-
+AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
 AC_REPLACE_FUNCS(strlcpy)
+AC_REPLACE_FUNCS(arc4random)
+AC_REPLACE_FUNCS(arc4random_uniform)
+if test "$ac_cv_func_arc4random" = "no"; then
+	AC_LIBOBJ(explicit_bzero)
+	AC_LIBOBJ(arc4_lock)
+	AC_CHECK_FUNCS([getentropy],,[
+	    if test "$USE_WINSOCK" = 1; then
+		AC_LIBOBJ(getentropy_win)
+	    else
+		case `uname` in
+		Darwin)
+			AC_LIBOBJ(getentropy_osx)
+		;;
+		SunOS)
+			AC_LIBOBJ(getentropy_solaris)
+			AC_CHECK_HEADERS([sys/sha2.h],, [
+				AC_CHECK_FUNCS([SHA512_Update],,[
+					AC_LIBOBJ(sha512)
+				])
+			], [AC_INCLUDES_DEFAULT])
+			if test "$ac_cv_header_sys_sha2_h" = "yes"; then
+				# this lib needed for sha2 on solaris
+				LIBS="$LIBS -lmd"
+			fi
+			AC_SEARCH_LIBS([clock_gettime], [rt])
+		;;
+		Linux|*)
+			AC_LIBOBJ(getentropy_linux)
+			dnl AC_CHECK_FUNCS([SHA512_Update],,[
+			dnl	AC_DEFINE([COMPAT_SHA512], [1], [Do sha512 definitions in config.h])
+			dnl	AC_LIBOBJ(sha512)
+			dnl])
+			AC_CHECK_HEADERS([sys/sysctl.h],,, [AC_INCLUDES_DEFAULT])
+			AC_CHECK_FUNCS([getauxval])
+			AC_SEARCH_LIBS([clock_gettime], [rt])
+		;;
+		esac
+	    fi
+	])
+fi
 
 AC_DEFINE(USE_MINI_EVENT, 1, [Needed for sync stub resolver functions])
 
 AC_TYPE_SIGNAL
 
 AH_BOTTOM([
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -602,11 +644,40 @@ extern "C" {
 #include <stddef.h>
 #endif
 
-#ifndef HAVE_STRLCPY
+#if !defined(HAVE_STRLCPY) || !HAVE_DECL_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #else
 #define __BSD_VISIBLE 1
 #endif
+#if !defined(HAVE_ARC4RANDOM) || !HAVE_DECL_ARC4RANDOM
+uint32_t arc4random(void);
+#endif
+#if !defined(HAVE_ARC4RANDOM_UNIFORM) || !HAVE_DECL_ARC4RANDOM_UNIFORM 
+uint32_t arc4random_uniform(uint32_t upper_bound);
+#endif
+#ifndef HAVE_ARC4RANDOM
+void explicit_bzero(void* buf, size_t len);
+int getentropy(void* buf, size_t len);
+void arc4random_buf(void* buf, size_t n);
+void _ARC4_LOCK(void);
+void _ARC4_UNLOCK(void);
+#endif
+#ifdef COMPAT_SHA512
+#ifndef SHA512_DIGEST_LENGTH
+#define SHA512_BLOCK_LENGTH             128
+#define SHA512_DIGEST_LENGTH            64
+#define SHA512_DIGEST_STRING_LENGTH     (SHA512_DIGEST_LENGTH * 2 + 1)
+typedef struct _SHA512_CTX {
+        uint64_t        state[8];
+        uint64_t        bitcount[2];
+        uint8_t buffer[SHA512_BLOCK_LENGTH];
+} SHA512_CTX;
+#endif /* SHA512_DIGEST_LENGTH */
+void SHA512_Init(SHA512_CTX*);
+void SHA512_Update(SHA512_CTX*, void*, size_t);
+void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
+unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
+#endif /* COMPAT_SHA512 */
 
 #ifdef __cplusplus
 }
