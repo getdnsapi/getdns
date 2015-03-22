@@ -58,13 +58,13 @@ rollover_secret()
 	 * boundry with old cookie.
 	 */
 	prev_secret = secret;
-	secret = (ldns_get_random() << 16) | ldns_get_random();
+	secret = arc4random();
 
 	/* Next rollover over EDNS_COOKIE_ROLLOVER_TIME with 30% jitter,
 	 * I.e. some offset + or - 15% of the future point in time.
 	 */
 	secret_rollover_time = now + (EDNS_COOKIE_ROLLOVER_TIME / 20 * 17)
-		+ (ldns_get_random()%(EDNS_COOKIE_ROLLOVER_TIME / 10 * 3));
+		 + arc4random_uniform(EDNS_COOKIE_ROLLOVER_TIME / 10 * 3);
 }
 
 static void
