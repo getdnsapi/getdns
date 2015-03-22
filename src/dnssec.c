@@ -763,16 +763,18 @@ chase(ldns_dnssec_rrsets *rrset, ldns_dnssec_zone *support,
 			for (rrs = key_rrset->rrs; rrs; rrs = rrs->next)
 				if (ldns_rr_compare_ds(rr, rrs->rr))
 					break;
-			if (! rrs) {
-				s = LDNS_STATUS_CRYPTO_NO_DNSKEY;
-				break;
-			}
+			/* No DS found, try one of the other keys */
+			if (! rrs)
+				continue;
 		}
-		/* Pursue the chase with the verifying key (or its DS) */
+		/* Pursue the chase with the verifying key (or its DS)
+		 * and we're done.
+		 */
 		s = chase(key_rrset, support, support_keys, trusted);
-		if (s != 0)
-			break;
+		break;
 	}
+	if (i == ldns_rr_list_rr_count(verifying_keys))
+		s = LDNS_STATUS_CRYPTO_NO_DNSKEY;
 done_free_verifying_keys:
 	ldns_rr_list_free(verifying_keys);
 	return s;
