@@ -41,6 +41,179 @@
 #include "util-internal.h"
 #include "general.h"
 
+static time_t secret_rollover_time = 0;
+static uint32_t secret = 0;
+static uint32_t prev_secret = 0;
+
+static void
+rollover_secret()
+{
+	time_t now = 0;
+
+	/* Create and roll server secrets */
+	if (time(&now) <= secret_rollover_time)
+		return;
+
+	/* Remember previous secret, in to keep answering on rollover
+	 * boundry with old cookie.
+	 */
+	prev_secret = secret;
+	secret = (ldns_get_random() << 16) | ldns_get_random();
+
+	/* Next rollover over EDNS_COOKIE_ROLLOVER_TIME with 30% jitter,
+	 * I.e. some offset + or - 15% of the future point in time.
+	 */
+	secret_rollover_time = now + (EDNS_COOKIE_ROLLOVER_TIME / 20 * 17)
+		+ (ldns_get_random()%(EDNS_COOKIE_ROLLOVER_TIME / 10 * 3));
+}
+
+static void
+calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
+{
+        const EVP_MD *md;
+        EVP_MD_CTX *mdctx;
+        unsigned char md_value[EVP_MAX_MD_SIZE];
+        unsigned int md_len;
+        size_t i;
+        sa_family_t af = upstream->addr.ss_family;
+        void *sa_addr = ((struct sockaddr*)&upstream->addr)->sa_data;
+	size_t addr_len = ( af == AF_INET6 ? sizeof(struct sockaddr_in6)
+	                  : af == AF_INET  ? sizeof(struct sockaddr_in)
+	                  : 0 ) - sizeof(sa_family_t);
+
+        md = EVP_sha256();
+        mdctx = EVP_MD_CTX_create();
+        EVP_DigestInit_ex(mdctx, md, NULL);
+        EVP_DigestUpdate(mdctx, &secret, sizeof(secret));
+        EVP_DigestUpdate(mdctx, sa_addr, addr_len);
+        EVP_DigestFinal_ex(mdctx, md_value, &md_len);
+        EVP_MD_CTX_destroy(mdctx);
+
+        (void) memset(cookie, 0, 8);
+        for (i = 0; i < md_len; i++)
+                cookie[i % 8] ^= md_value[i];
+}
+
+static uint8_t *
+attach_edns_cookie(getdns_upstream *upstream, uint8_t *opt)
+{
+	rollover_secret();
+
+	if (!upstream->has_client_cookie) {
+		calc_new_cookie(upstream, upstream->client_cookie);
+		upstream->secret = secret;
+		upstream->has_client_cookie = 1;
+
+		gldns_write_uint16(opt +  9, 12); /* rdata len */
+		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
+		gldns_write_uint16(opt + 13,  8); /* opt len */
+		memcpy(opt + 15, upstream->client_cookie, 8);
+		return opt + 23;
+
+	} else if (upstream->secret != secret) {
+		memcpy( upstream->prev_client_cookie
+		      , upstream->client_cookie, 8);
+		upstream->has_prev_client_cookie = 1;
+		calc_new_cookie(upstream, upstream->client_cookie);
+		upstream->secret = secret;
+
+		gldns_write_uint16(opt +  9, 12); /* rdata len */
+		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
+		gldns_write_uint16(opt + 13,  8); /* opt len */
+		memcpy(opt + 15, upstream->client_cookie, 8);
+		return opt + 23;
+
+	} else if (!upstream->has_server_cookie) {
+		gldns_write_uint16(opt +  9, 12); /* rdata len */
+		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
+		gldns_write_uint16(opt + 13,  8); /* opt len */
+		memcpy(opt + 15, upstream->client_cookie, 8);
+		return opt + 23;
+	} else {
+		gldns_write_uint16( opt +  9, 12  /* rdata len */
+		                  + upstream->server_cookie_len);
+		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
+		gldns_write_uint16(opt + 13,  8   /* opt len */
+		                  + upstream->server_cookie_len);
+		memcpy(opt + 15, upstream->client_cookie, 8);
+		memcpy(opt + 23, upstream->server_cookie
+		               , upstream->server_cookie_len);
+		return opt + 23+ upstream->server_cookie_len;
+	}
+}
+
+static int
+match_and_process_server_cookie(
+    getdns_upstream *upstream, uint8_t *response, size_t response_len)
+{
+	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
+	uint8_t *pos;
+	uint16_t rdata_len, opt_code, opt_len;
+
+	/* Search for the OPT RR (if any) */
+	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+	                                        , response, response_len)
+	    ; rr_iter
+	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
+
+		if (priv_getdns_rr_iter_section(rr_iter) !=
+		    GLDNS_SECTION_ADDITIONAL)
+			continue;
+
+		if (gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_OPT)
+			continue;
+
+		break;
+	}
+	if (! rr_iter)
+		return 0; /* No OPT, no cookie */
+
+	pos = rr_iter->rr_type + 8;
+
+	/* OPT found, now search for the cookie option */
+	if (pos + 2 > rr_iter->nxt)
+		return 1; /* FORMERR */
+
+	rdata_len = gldns_read_uint16(pos); pos += 2;
+	if (pos + rdata_len > rr_iter->nxt)
+		return 1; /* FORMERR */
+
+	while (pos < rr_iter->nxt) {
+		opt_code = gldns_read_uint16(pos); pos += 2;
+		opt_len  = gldns_read_uint16(pos); pos += 2;
+		if (pos + opt_len > rr_iter->nxt)
+			return 1; /* FORMERR */
+		if (opt_code == EDNS_COOKIE_OPCODE)
+			break;
+		pos += opt_len; /* Skip unknown options */
+	}
+	if (pos >= rr_iter->nxt || opt_code != EDNS_COOKIE_OPCODE)
+		return 0; /* Everything OK, just no cookie found. */
+
+	if (opt_len < 16 || opt_len > 40)
+		return 1; /* FORMERR */
+
+	if (!upstream->has_client_cookie)
+		return 1; /* Cookie reply, but we didn't sent one */
+
+	if (memcmp(upstream->client_cookie, pos, 8) != 0) {
+		if (!upstream->has_prev_client_cookie)
+			return 1; /* Cookie didn't match */
+		if (memcmp(upstream->prev_client_cookie, pos, 8) != 0)
+			return 1; /* Previous cookie didn't match either */
+
+		upstream->has_server_cookie = 0;
+		return 0; /* Don't store server cookie, because it
+		           * is for our previous client cookie
+			   */
+	}
+	pos += 8;
+	opt_len -= 8;
+	upstream->has_server_cookie = 1;
+	upstream->server_cookie_len = opt_len;
+	(void) memcpy(upstream->server_cookie, pos, opt_len);
+	return 0;
+}
 
 /** best effort to set nonblocking */
 static void
@@ -206,6 +379,10 @@ stub_udp_read_cb(void *userarg)
 	if (GLDNS_ID_WIRE(netreq->response) != netreq->query_id)
 		return; /* Cache poisoning attempt ;) */
 
+	if (netreq->owner->edns_cookies && match_and_process_server_cookie(
+	    upstream, netreq->response, read))
+		return; /* Client cookie didn't match? */
+
 	close(netreq->fd);
 	if (GLDNS_TC_WIRE(netreq->response) &&
 	    dnsreq->context->dns_transport ==
@@ -251,11 +428,18 @@ stub_udp_write_cb(void *userarg)
 
 	netreq->query_id = ldns_get_random();
 	GLDNS_ID_SET(netreq->query, netreq->query_id);
-	if (netreq->edns_maximum_udp_payload_size == -1 && netreq->opt)
-		gldns_write_uint16(netreq->opt + 3,
-		    ( netreq->max_udp_payload_size =
-		      netreq->upstream->addr.ss_family == AF_INET6
-		    ? 1232 : 1432));
+	if (netreq->opt) {
+		if (netreq->edns_maximum_udp_payload_size == -1)
+			gldns_write_uint16(netreq->opt + 3,
+			    ( netreq->max_udp_payload_size =
+			      netreq->upstream->addr.ss_family == AF_INET6
+			    ? 1232 : 1432));
+		if (netreq->owner->edns_cookies) {
+			netreq->response = attach_edns_cookie(
+			    netreq->upstream, netreq->opt);
+			pkt_len = netreq->response - netreq->query;
+		}
+	}
 
 	if ((ssize_t)pkt_len != sendto(netreq->fd, netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
@@ -389,6 +573,11 @@ stub_tcp_read_cb(void *userarg)
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		if (q != netreq->query_id)
 			return;
+		if (netreq->owner->edns_cookies &&
+		    match_and_process_server_cookie(
+		    netreq->upstream, netreq->tcp.read_buf,
+		    netreq->tcp.read_pos - netreq->tcp.read_buf))
+			return; /* Client cookie didn't match? */
 		netreq->state = NET_REQ_FINISHED;
 		netreq->response = netreq->tcp.read_buf;
 		netreq->response_len =
@@ -529,10 +718,17 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
 		GLDNS_ID_SET(netreq->query, query_id);
-		if (netreq->opt)
+		if (netreq->opt) {
 			/* no limits on the max udp payload size with tcp */
 			gldns_write_uint16(netreq->opt + 3, 65535);
 
+			if (netreq->owner->edns_cookies) {
+				netreq->response = attach_edns_cookie(
+				    netreq->upstream, netreq->opt);
+				pkt_len = netreq->response - netreq->query;
+				gldns_write_uint16(netreq->query - 2, pkt_len);
+			}
+		}
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */

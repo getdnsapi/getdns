@@ -11563,6 +11563,15 @@ _ACEOF
 		;;
 esac
 
+cat >>confdefs.h <<_ACEOF
+#define EDNS_COOKIE_OPCODE 65001
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define EDNS_COOKIE_ROLLOVER_TIME (24 * 60 * 60)
+_ACEOF
+
 
 # search to set include and library paths right
 # find libidn

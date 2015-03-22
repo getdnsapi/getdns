@@ -46,8 +46,6 @@ struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
 
-#define EDNSCOOKIE_OPCODE 65001
-
 /**
  * \defgroup strings String Constants
  * @{

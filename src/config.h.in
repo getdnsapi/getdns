@@ -3,6 +3,12 @@
 /* Define this to enable the experimental draft edns cookies. */
 #undef EDNS_COOKIES
 
+/* The edns cookie option code. */
+#undef EDNS_COOKIE_OPCODE
+
+/* How often the edns client cookie is refreshed. */
+#undef EDNS_COOKIE_ROLLOVER_TIME
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 

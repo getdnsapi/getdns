@@ -549,6 +549,10 @@ upstream_init(getdns_upstream *upstream,
 	upstream->write_queue = NULL;
 	upstream->write_queue_last = NULL;
 
+	upstream->has_client_cookie = 0;
+	upstream->has_prev_client_cookie = 0;
+	upstream->has_server_cookie = 0;
+
 	/* Tracking of network requests on this socket */
 	getdns_rbtree_init(&upstream->netreq_by_query_id,
 	    net_req_query_id_cmp);

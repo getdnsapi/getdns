@@ -88,6 +88,18 @@ typedef struct getdns_upstream {
 	getdns_network_req      *write_queue;
 	getdns_network_req      *write_queue_last;
 	getdns_rbtree_t          netreq_by_query_id;
+
+	/* EDNS cookies */
+	uint32_t secret;
+	uint8_t  client_cookie[8];
+	uint8_t  prev_client_cookie[8];
+	uint8_t  server_cookie[32];
+
+	unsigned has_client_cookie : 1;
+	unsigned has_prev_client_cookie : 1;
+	unsigned has_server_cookie : 1;
+	unsigned server_cookie_len : 5;
+
 } getdns_upstream;
 
 typedef struct getdns_upstreams {
