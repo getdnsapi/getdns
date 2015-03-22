@@ -348,7 +348,8 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->context = context;
 	result->loop = loop;
 	result->canceled = 0;
-	result->trans_id = (uint64_t)(((intptr_t) result) ^ ldns_get_random());
+	result->trans_id = (((uint64_t)arc4random()) << 32) |
+	                    ((uint64_t)arc4random());
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;

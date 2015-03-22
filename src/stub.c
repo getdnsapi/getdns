@@ -426,7 +426,7 @@ stub_udp_write_cb(void *userarg)
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-	netreq->query_id = ldns_get_random();
+	netreq->query_id = arc4random();
 	GLDNS_ID_SET(netreq->query, netreq->query_id);
 	if (netreq->opt) {
 		if (netreq->edns_maximum_udp_payload_size == -1)
@@ -708,9 +708,9 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		if (dnsreq->context->dns_transport !=
 		    GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN)
 
-			query_id = ldns_get_random();
+			query_id = arc4random();
 		else do {
-			query_id = ldns_get_random();
+			query_id = arc4random();
 			query_id_intptr = (intptr_t)query_id;
 			netreq->node.key = (void *)query_id_intptr;
 
