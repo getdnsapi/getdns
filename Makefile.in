@@ -94,6 +94,9 @@ example:
 test:
 	cd src && $(MAKE) $@
 
+getdns_query:
+	cd src && $(MAKE) $@
+
 clean:
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
