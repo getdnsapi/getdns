@@ -788,9 +788,10 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			/* Still more to send */
 			return STUB_TCP_AGAIN;
 
+		query_id = (int)GLDNS_ID_WIRE(tcp->write_buf + 2);
 		/* Done. Start reading */
 		tcp->write_buf = NULL;
-		return (int)GLDNS_ID_WIRE(tcp->write_buf + 2);
+		return query_id;
 
 	} /* if (! tcp->write_buf) */
 }
