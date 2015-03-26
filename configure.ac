@@ -651,6 +651,16 @@ AC_DEFINE(USE_MINI_EVENT, 1, [Needed for sync stub resolver functions])
 
 AC_TYPE_SIGNAL
 
+case `uname` in
+FreeBSD)
+	C99COMPATFLAGS=""
+;;
+*)
+	C99COMPATFLAGS="-D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600"
+;;
+esac
+AC_SUBST(C99COMPATFLAGS)
+
 AH_BOTTOM([
 #include <stdint.h>
 

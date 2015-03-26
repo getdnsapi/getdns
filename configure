@@ -633,6 +633,7 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+C99COMPATFLAGS
 LIBOBJS
 TRUST_ANCHOR_FILE
 CHECK_EV_PROG
@@ -13753,6 +13754,16 @@ cat >>confdefs.h <<_ACEOF
 #define RETSIGTYPE $ac_cv_type_signal
 _ACEOF
 
+
+
+case `uname` in
+FreeBSD)
+	C99COMPATFLAGS=""
+;;
+*)
+	C99COMPATFLAGS="-D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600"
+;;
+esac
 
 
 
