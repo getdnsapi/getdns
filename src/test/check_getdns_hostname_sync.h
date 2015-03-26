@@ -343,6 +343,9 @@
      
        CONTEXT_CREATE(TRUE);
 
+       ASSERT_RC(getdns_context_set_timeout(context, 10000),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+
        DICT_CREATE(address);
        ASSERT_RC(getdns_dict_set_bindata(address, "address_type", &address_type),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata()");
@@ -416,6 +419,7 @@
        /* Positive test cases */
 
        TCase *tc_pos = tcase_create("Positive");
+       tcase_set_timeout(tc_pos, 10.0);
        tcase_add_test(tc_pos, getdns_hostname_sync_10);
        tcase_add_test(tc_pos, getdns_hostname_sync_11);
        tcase_add_test(tc_pos, getdns_hostname_sync_12);
