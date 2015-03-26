@@ -31,7 +31,8 @@
 
 AC_PREREQ([2.56])
 
-AC_INIT([getdns], [0.1.6], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_INIT([getdns], [0.1.7], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_SUBST(RELEASE_CANDIDATE, [rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -58,9 +59,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for th
 #
 # getdns-0.1.4 had libversion 0:0:0
 # getdns-0.1.5 had libversion 1:0:0
-# getdns-0.1.6 has libversion 1:1:1
+# getdns-0.1.6 had libversion 1:1:1
+# getdns-0.1.7 will have libversion 1:2:2
 #
-GETDNS_LIBVERSION=1:1:0
+GETDNS_LIBVERSION=1:2:2
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)

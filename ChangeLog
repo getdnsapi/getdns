@@ -1,3 +1,28 @@
+* 2015-0?-??: Version 0.1.7
+  * Individual getter functions for context settings
+  * Fix: --with-current-date function to make build deterministically
+    reproducible (i.e. the GETDNS_COMPILATION_COMMENT define from
+    getdns.h contains a date value).  Thanks Ondřej Surý
+  * Fix: Include m4 dir in distribution tarball
+  * Fix: Link build requirements in tests too.  Thanks Ondřej Surý
+  * Fix: Remove executable flags on source files.  Thanks Paul Wouters
+  * Fix: Return "just_address_answers" only when queried for addresses
+  * Eliminate ldns intermediate wireformat parsing
+  * The CSYNC RR type
+  * Fix: canonical_name in response dict returns the canonical name
+    found after following all CNAMEs
+  * Implementation of the section 6 and 7 version of 
+    draft-ietf-dnsop-cookies-01.txt for stub resolution.  Enable with the
+    --enable-draft-edns-cookies option to configure.  Use it by setting the
+    edns_cookies extension to GETDNS_EXTENSION_TRUE.
+  * Pretty printing of lists with:
+    char *getdns_pretty_print_list(getdns_list *list)
+  * Output to json format with:
+    char * getdns_print_json_dict(const getdns_dict *some_dict, int pretty);
+    char * getdns_print_json_list(const getdns_list *some_list, int pretty);
+  * snprintf style versions of the dict, list and json print functions.
+  * Better random number generation with OpenBSD's arc4random
+
 * 2015-01-16: Version 0.1.6
   * Fix: linking against libev on FreeBSD
   * Fix: Let configure report problem on FreeBSD when configuring with
