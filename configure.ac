@@ -30,7 +30,6 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ([2.56])
-sinclude(acx_openssl.m4)
 
 AC_INIT([getdns], [0.1.6], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
 
