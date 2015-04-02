@@ -106,7 +106,6 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
-	fprintf(out, "\t+sit[=cookie]\tSet edns cookie\n");
 }
 
 void callback(getdns_context *context, getdns_callback_type_t callback_type,
