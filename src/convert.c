@@ -203,7 +203,7 @@ getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
 	const char *err_str = getdns_get_errorstr_by_id(err);
 
 	(void) snprintf(buf, buflen, "%s",
-	    err_str ? error_str : "/* <unknown getdns value> */");
+	    err_str ? err_str : "/* <unknown getdns value> */");
 
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_strerror */
