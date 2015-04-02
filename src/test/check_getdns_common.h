@@ -28,6 +28,7 @@
 #define _check_getdns_common_h_
 
 #include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 
      #define TRUE 1
      #define FALSE 0
@@ -62,13 +63,9 @@
       */
      #define ASSERT_RC(rc, expected_rc, prefix)					\
      {                                          				\
-       size_t buflen = MAXLEN;							\
-       char error_string[MAXLEN];                				\
-       uint32_t evaluated_rc = rc;					\
-       getdns_strerror(evaluated_rc, error_string, buflen);			\
-       ck_assert_msg((uint32_t) evaluated_rc == (uint32_t) expected_rc,				\
+       ck_assert_msg((uint32_t) rc == (uint32_t) expected_rc,				\
          "%s: expecting %s: %d, but received: %d: %s",				\
-         prefix, #expected_rc, expected_rc, evaluated_rc, error_string);	\
+         prefix, #expected_rc, (int)expected_rc, (int)rc, getdns_get_errorstr_by_id((uint16_t)rc));	\
      }
 
      /*
