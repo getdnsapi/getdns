@@ -24,6 +24,9 @@
   * Better random number generation with OpenBSD's arc4random
   * Let getdns_address schedule the AAAA query first.  This results in AAAA
     being the first in the just_address_answers sections of the response dict.
+  * New context update callback function to also return a user given argument
+    along with the context and which item was changed.
+    Thanks Scott Hollenbeck.
 
 * 2015-01-16: Version 0.1.6
   * Fix: linking against libev on FreeBSD

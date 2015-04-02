@@ -735,7 +735,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->my_mf.mf.ext.realloc = realloc;
 	result->my_mf.mf.ext.free    = free;
 
-	result->update_callback = NULL;
+	result->update_callback  = NULL;
+	result->update_callback2 = NULL;
+	result->update_userarg   = NULL;
 
 	result->mf.mf_arg         = userarg;
 	result->mf.mf.ext.malloc  = malloc;
@@ -899,10 +901,19 @@ getdns_context_set_context_update_callback(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_context_update_callback */
 
+getdns_return_t
+getdns_context_set_update_callback(getdns_context *context, void *userarg,
+    void (*value) (getdns_context *, getdns_context_code_t, void *))
+{
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
+	context->update_userarg = userarg;
+	context->update_callback2 = value;
+	return GETDNS_RETURN_GOOD;
+}
+
 /*
  * Helpers to set options on the unbound ctx
  */
-
 static void
 set_ub_string_opt(struct getdns_context *ctx, char *opt, char *value)
 {
@@ -1003,6 +1014,10 @@ rebuild_ub_ctx(struct getdns_context* context) {
 static void
 dispatch_updated(struct getdns_context *context, uint16_t item)
 {
+	if (context->update_callback2)
+		context->update_callback2(
+		    context, item, context->update_userarg);
+
     if (context->update_callback) {
         context->update_callback(context, item);
     }

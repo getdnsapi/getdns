@@ -60,6 +60,9 @@ enum filechgs { GETDNS_FCHG_ERRORS = -1
 typedef void (*getdns_update_callback) (struct getdns_context *,
     getdns_context_code_t);
 
+typedef void (*getdns_update_callback2) (struct getdns_context *,
+    getdns_context_code_t, void *userarg);
+
 /* internal use only for detecting changes to system files */
 struct filechg {
 	char *fn;
@@ -131,7 +134,9 @@ struct getdns_context {
 	uint8_t edns_do_bit;
 	int edns_maximum_udp_payload_size; /* -1 is unset */
 
-	getdns_update_callback update_callback;
+	getdns_update_callback  update_callback;
+	getdns_update_callback2 update_callback2;
+	void                   *update_userarg;
 
 	int processing;
 	int destroying;

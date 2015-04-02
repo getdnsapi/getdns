@@ -187,6 +187,7 @@ getdns_context_get_edns_version(getdns_context *context, uint8_t* value);
 getdns_return_t
 getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value);
 
+
 int
 getdns_pretty_snprint_dict(char *str, size_t size, const getdns_dict *dict);
 
@@ -210,6 +211,9 @@ int
 getdns_snprint_json_list(
     char *str, size_t size, const getdns_list *list, int pretty);
 
+getdns_return_t
+getdns_context_set_update_callback(getdns_context *context, void *userarg,
+    void (*value) (getdns_context *, getdns_context_code_t, void *));
 
 #ifdef __cplusplus
 }
