@@ -63,9 +63,10 @@
       */
      #define ASSERT_RC(rc, expected_rc, prefix)					\
      {                                          				\
-       ck_assert_msg((uint32_t) rc == (uint32_t) expected_rc,				\
+       uint32_t evaluated_rc = rc;						\
+       ck_assert_msg((uint32_t) evaluated_rc == (uint32_t) expected_rc,		\
          "%s: expecting %s: %d, but received: %d: %s",				\
-         prefix, #expected_rc, (int)expected_rc, (int)rc, getdns_get_errorstr_by_id((uint16_t)rc));	\
+         prefix, #expected_rc, expected_rc, evaluated_rc, getdns_get_errorstr_by_id((uint16_t)evaluated_rc));	\
      }
 
      /*
