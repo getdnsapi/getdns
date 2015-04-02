@@ -27,6 +27,8 @@
   * New context update callback function to also return a user given argument
     along with the context and which item was changed.
     Thanks Scott Hollenbeck.
+  * Demotivate use of getdns_strerror and expose getdns_get_errorstr_by_id.
+    Thanks Scott Hollenbeck.
 
 * 2015-01-16: Version 0.1.6
   * Fix: linking against libev on FreeBSD

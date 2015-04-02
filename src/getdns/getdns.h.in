@@ -483,16 +483,6 @@ typedef struct getdns_dict getdns_dict;
 typedef struct getdns_list getdns_list;
 
 /**
- * translate an error code to a string value, not in the original api description
- * but seems like a nice thing to have
- * @param err return code from GETDNS_RETURN_* defines
- * @param buf buffer to which to copy the error string
- * @param buflen length of buf
- * @return GETDNS_RETURN_GOOD on success
- */
-getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
-
-/**
  * get the length of the specified list (returned in *answer)
  * @param this_list list of any of the supported data types
  * @param answer number of valid items in the list

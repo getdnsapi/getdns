@@ -31,6 +31,16 @@ priv_getdns_get_const_info(int value)
 	return consts_info;
 }
 
+const char *
+getdns_get_errorstr_by_id(uint16_t err)
+{
+	struct const_info key = { (int)err, "", "" };
+	struct const_info *i = bsearch(&key, consts_info,
+	    sizeof(consts_info) / sizeof(struct const_info),
+	    sizeof(struct const_info), const_info_cmp);
+	if (i)
+		return i->text;
+	else
+		return NULL;
+}
 END_OF_TAIL
-
-

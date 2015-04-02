@@ -215,6 +215,16 @@ getdns_return_t
 getdns_context_set_update_callback(getdns_context *context, void *userarg,
     void (*value) (getdns_context *, getdns_context_code_t, void *));
 
+const char *getdns_get_errorstr_by_id(uint16_t err);
+
+/* WARNING! Function getdns_strerror is not in the API specification and
+ * is likely to be removed from future versions of our implementation, to be
+ * replaced by getdns_get_errorstr_by_id or something similar.
+ * Please use getdns_get_errorstr_by_id instead of getdns_strerror.
+ */
+getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
+
+
 #ifdef __cplusplus
 }
 #endif

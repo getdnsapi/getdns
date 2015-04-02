@@ -39,8 +39,8 @@
 #include <stringprep.h>
 #include <idna.h>
 #include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 #include "util-internal.h"
-#include "getdns_error.h"
 #include "gldns/wire2str.h"
 #include "gldns/str2wire.h"
 
@@ -200,16 +200,12 @@ getdns_display_ip_address(const struct getdns_bindata
 getdns_return_t
 getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
 {
-	getdns_return_t retval = GETDNS_RETURN_GOOD;
-
 	const char *err_str = getdns_get_errorstr_by_id(err);
-	if (!err_str) {
-		return GETDNS_RETURN_GENERIC_ERROR;
-	}
 
-	snprintf(buf, buflen, "%s", err_str);
+	(void) snprintf(buf, buflen, "%s",
+	    err_str ? error_str : "/* <unknown getdns value> */");
 
-	return retval;
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_strerror */
 
 /* convert.c */
