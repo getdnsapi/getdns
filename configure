@@ -2356,7 +2356,7 @@ ac_link='$CC -o conftest$ac_exeext $CFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $
 ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
-RELEASE_CANDIDATE=rc1
+RELEASE_CANDIDATE=rc2
 
 
 # Set current date from system if not set
