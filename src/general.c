@@ -281,7 +281,7 @@ priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 		return r;
 	
 	r = getdns_general_ns(context, loop,
-	    name, GETDNS_RRTYPE_A, extensions,
+	    name, GETDNS_RRTYPE_AAAA, extensions,
 	    userarg, transaction_id, callback, NULL, 1);
 
 	if (cleanup_extensions)
