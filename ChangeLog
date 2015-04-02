@@ -22,6 +22,8 @@
     char * getdns_print_json_list(const getdns_list *some_list, int pretty);
   * snprintf style versions of the dict, list and json print functions.
   * Better random number generation with OpenBSD's arc4random
+  * Let getdns_address schedule the AAAA query first.  This results in AAAA
+    being the first in the just_address_answers sections of the response dict.
 
 * 2015-01-16: Version 0.1.6
   * Fix: linking against libev on FreeBSD
