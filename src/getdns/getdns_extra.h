@@ -215,6 +215,11 @@ getdns_return_t
 getdns_context_set_update_callback(getdns_context *context, void *userarg,
     void (*value) (getdns_context *, getdns_context_code_t, void *));
 
+getdns_return_t
+getdns_context_get_update_callback(getdns_context *context, void **userarg,
+    void (**value) (getdns_context *, getdns_context_code_t, void *));
+
+
 const char *getdns_get_errorstr_by_id(uint16_t err);
 
 /* WARNING! Function getdns_strerror is not in the API specification and

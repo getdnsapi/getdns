@@ -29,6 +29,8 @@
     Thanks Scott Hollenbeck.
   * Demotivate use of getdns_strerror and expose getdns_get_errorstr_by_id.
     Thanks Scott Hollenbeck.
+  * A getter for context update callback, to allow for chaining update
+    callbacks.
 
 * 2015-01-16: Version 0.1.6
   * Fix: linking against libev on FreeBSD

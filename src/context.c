@@ -697,6 +697,11 @@ transaction_id_cmp(const void *id1, const void *id2)
     }
 }
 
+static void
+NULL_update_callback(
+    getdns_context *context, getdns_context_code_t code, void *userarg)
+{ (void)context; (void)code; (void)userarg; }
+
 /*
  * getdns_context_create
  *
@@ -736,7 +741,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->my_mf.mf.ext.free    = free;
 
 	result->update_callback  = NULL;
-	result->update_callback2 = NULL;
+	result->update_callback2 = NULL_update_callback;
 	result->update_userarg   = NULL;
 
 	result->mf.mf_arg         = userarg;
@@ -903,11 +908,23 @@ getdns_context_set_context_update_callback(struct getdns_context *context,
 
 getdns_return_t
 getdns_context_set_update_callback(getdns_context *context, void *userarg,
-    void (*value) (getdns_context *, getdns_context_code_t, void *))
+    void (*cb)(getdns_context *, getdns_context_code_t, void *))
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	context->update_userarg = userarg;
-	context->update_callback2 = value;
+	context->update_callback2 = cb ? cb : NULL_update_callback;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_update_callback(getdns_context *context, void **userarg,
+    void (**cb)(getdns_context *, getdns_context_code_t, void *))
+{
+	if (!context || !userarg || !cb)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*userarg = context->update_userarg;
+	*cb = context->update_callback2;
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -1014,7 +1031,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 static void
 dispatch_updated(struct getdns_context *context, uint16_t item)
 {
-	if (context->update_callback2)
+	if (context->update_callback2 != NULL_update_callback)
 		context->update_callback2(
 		    context, item, context->update_userarg);
 

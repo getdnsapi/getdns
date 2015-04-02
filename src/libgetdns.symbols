@@ -120,6 +120,7 @@ getdns_snprint_json_dict
 getdns_print_json_list
 getdns_snprint_json_list
 getdns_context_set_update_callback
+getdns_context_get_update_callback
 getdns_get_errorstr_by_id
 getdns_strerror
 plain_mem_funcs_user_arg
