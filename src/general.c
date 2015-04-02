@@ -268,24 +268,28 @@ priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
-	int cleanup_extensions = 0;
+	getdns_dict *my_extensions = extensions;
 	getdns_return_t r;
+	uint32_t value;
 
-	if (!extensions) {
-		if (!(extensions = getdns_dict_create_with_context(context)))
+	if (!my_extensions) {
+		if (!(my_extensions=getdns_dict_create_with_context(context)))
 			return GETDNS_RETURN_MEMORY_ERROR;
-		cleanup_extensions = 1;
-	}
-	if ((r = getdns_dict_set_int(extensions, "return_both_v4_and_v6",
-	    GETDNS_EXTENSION_TRUE)))
+	} else if (
+	    getdns_dict_get_int(my_extensions, "return_both_v4_and_v6", &value)
+	    && (r = getdns_dict_copy(extensions, &my_extensions)))
 		return r;
-	
+
+	if (my_extensions != extensions && (r = getdns_dict_set_int(
+	    my_extensions, "return_both_v4_and_v6", GETDNS_EXTENSION_TRUE)))
+		return r;
+
 	r = getdns_general_ns(context, loop,
-	    name, GETDNS_RRTYPE_AAAA, extensions,
+	    name, GETDNS_RRTYPE_AAAA, my_extensions,
 	    userarg, transaction_id, callback, NULL, 1);
 
-	if (cleanup_extensions)
-		getdns_dict_destroy(extensions);
+	if (my_extensions != extensions)
+		getdns_dict_destroy(my_extensions);
 
 	return r;
 } /* getdns_address_loop */
