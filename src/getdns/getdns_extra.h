@@ -188,39 +188,142 @@ getdns_return_t
 getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value);
 
 
+/**
+ * Pretty print the getdns_dict in a given buffer snprintf style.
+ * @param str pointer to the buffer to print to
+ * @param size size of the given buffer. No more than size bytes (including
+ *             the terminating null byte) will be written to str.
+ * @param dict getdns_dict to print
+ * @return The number of characters written excluding the terminating null byte
+ * or the number of characters which would have been written if enough space
+ * had been available.
+ */
 int
 getdns_pretty_snprint_dict(char *str, size_t size, const getdns_dict *dict);
 
+/**
+ * creates a string that describes the list in a human readable form.
+ * @param some_list list to pretty print
+ * @return character array (caller must free this) containing pretty string
+ */
 char *
 getdns_pretty_print_list(const getdns_list *some_list);
 
+/**
+ * Pretty print the getdns_list in a given buffer snprintf style.
+ * @param str pointer to the buffer to print to
+ * @param size size of the given buffer. No more than size bytes (including
+ *             the terminating null byte) will be written to str.
+ * @param list getdns_list to print
+ * @return The number of characters written excluding the terminating null byte
+ * or the number of characters which would have been written if enough space
+ * had been available.
+ */
 int
 getdns_pretty_snprint_list(char *str, size_t size, const getdns_list *list);
 
+/**
+ * creates a string containing a json representation of some_dict.
+ * bindatas are converted to strings when possible, including bindatas for 
+ * addresses, dnames and other printable data.  All other bindatas are
+ * converted to lists of byte values.
+ * @param some_dict dict to represent as json data
+ * @param pretty when non-zero returns formatted json
+ * @return character array (caller must free this) containing pretty string
+ */
 char *
 getdns_print_json_dict(const getdns_dict *some_dict, int pretty);
 
+/**
+ * Prints a json representation of dict in a given buffer snprintf style.
+ * bindatas are converted to strings when possible, including bindatas for 
+ * addresses, dnames and other printable data.  All other bindatas are
+ * converted to lists of byte values.
+ * @param str pointer to the buffer to print to
+ * @param size size of the given buffer. No more than size bytes (including
+ *             the terminating null byte) will be written to str.
+ * @param dict dict to represent as json data
+ * @param pretty when non-zero returns formatted json
+ * @return The number of characters written excluding the terminating null byte
+ * or the number of characters which would have been written if enough space
+ * had been available.
+ */
 int
 getdns_snprint_json_dict(
     char *str, size_t size, const getdns_dict *dict, int pretty);
 
+/**
+ * creates a string containing a json representation of some_list.
+ * bindatas are converted to strings when possible, including bindatas for 
+ * addresses, dnames and other printable data.  All other bindatas are
+ * converted to lists of byte values.
+ * @param some_list list to represent as json data
+ * @param pretty when non-zero returns formatted json
+ * @return character array (caller must free this) containing pretty string
+ */
 char *
 getdns_print_json_list(const getdns_list *some_list, int pretty);
 
+/**
+ * Prints a json representation of list in a given buffer snprintf style.
+ * bindatas are converted to strings when possible, including bindatas for 
+ * addresses, dnames and other printable data.  All other bindatas are
+ * converted to lists of byte values.
+ * @param str pointer to the buffer to print to
+ * @param size size of the given buffer. No more than size bytes (including
+ *             the terminating null byte) will be written to str.
+ * @param list list to represent as json data
+ * @param pretty when non-zero returns formatted json
+ * @return The number of characters written excluding the terminating null byte
+ * or the number of characters which would have been written if enough space
+ * had been available.
+ */
 int
 getdns_snprint_json_list(
     char *str, size_t size, const getdns_list *list, int pretty);
 
+/**
+ * Register a callback function for context changes.
+ * @param context The context to monitor for changes
+ * @param userarg A user defined argument that will be passed to the callback
+ *                function.
+ * @param value   The callback function that will be called when a context
+ *                value is changed.  The arguments to the callback function
+ *                are the context for which the value changes, a code
+ *                referencing the changed value and the userarg parameter
+ *                supplied during callback registration.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
 getdns_return_t
 getdns_context_set_update_callback(getdns_context *context, void *userarg,
     void (*value) (getdns_context *, getdns_context_code_t, void *));
 
+/**
+ * Get the currently registered callback function and user defined argument
+ * for context changes.
+ * Combined with getdns_context_set_update_callback this can be used to
+ * "chain" context update callbacks and in this way create a subscription
+ * service catering multiple interested parties.
+ * @param context The context to monitor for changes
+ * @return userarg A user defined argument to be passed to the callback
+ *                 function.
+ * @return value   The callback function to be called on context value
+ *                 changes.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
 getdns_return_t
 getdns_context_get_update_callback(getdns_context *context, void **userarg,
     void (**value) (getdns_context *, getdns_context_code_t, void *));
 
-
+/**
+ * Returns a text describing the getdns error code, or NULL when the error
+ * code is unkown.
+ * @param err The error code for which to return the describing text
+ * @return The describing text for the error code.  The string is in library
+ * space and the caller must *not* free this.
+ */
 const char *getdns_get_errorstr_by_id(uint16_t err);
+
 
 /* WARNING! Function getdns_strerror is not in the API specification and
  * is likely to be removed from future versions of our implementation, to be

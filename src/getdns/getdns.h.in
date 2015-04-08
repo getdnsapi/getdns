@@ -909,7 +909,6 @@ getdns_validate_dnssec(getdns_list *to_validate,
 /**
  * creates a string that describes the dictionary in a human readable form
  * one line per item in the dictionary
- * TODO: maybe this should be json or something machine readable too
  * @param some_dict dictionary to pretty print
  * @return character array (caller must free this) containing pretty string
  */
