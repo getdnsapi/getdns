@@ -98,7 +98,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->write_queue_tail = NULL;
 	net_req->query_len = 0;
 	net_req->response_len = 0;
-	net_req->tls_obj = NULL;
 
 	net_req->wire_data_sz = wire_data_sz;
 	if (max_query_sz) {

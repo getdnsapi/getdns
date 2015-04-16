@@ -1145,15 +1145,15 @@ set_ub_dns_transport(struct getdns_context* context,
        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
            /* TODO: Investigate why ssl-upstream in Unbound isn't working (error
-              that the SSL lib isn't init'ed but that is done in prep_for_res.*/
-           /* Note: no fallback or pipelining available directly in unbound.*/
+            * that the SSL lib isn't init'ed but that is done in prep_for_res.
+            * Note: no fallback or pipelining available directly in unbound.*/
            set_ub_string_opt(context, "do-udp:", "no");
            set_ub_string_opt(context, "do-tcp:", "yes");
-           //set_ub_string_opt(context, "ssl-upstream:", "yes");
+           /* set_ub_string_opt(context, "ssl-upstream:", "yes");*/
            /* TODO: Specifying a different port to do TLS on in unbound is a bit
-              tricky as it involves modifying each fwd upstream defined on the 
-              unbound ctx... And to support fallback this would have to be reset
-              from the stub code while trying to connect...*/
+            * tricky as it involves modifying each fwd upstream defined on the 
+            * unbound ctx... And to support fallback this would have to be reset
+            * from the stub code while trying to connect...*/
            break;
        default:
            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -1171,10 +1171,10 @@ getdns_context_set_dns_transport(struct getdns_context *context,
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     /* Note that the call below does not have any effect in unbound after the
-       ctx is finalised. So will not apply for recursive mode or stub + dnssec.
-       However the method returns success as otherwise the transport could not
-       be reset for stub mode..... */
-    /* Also, not all transport options supported in libunbound yet*/
+     * ctx is finalised. So will not apply for recursive mode or stub + dnssec.
+     * However the method returns success as otherwise the transport could not
+     * be reset for stub mode..... 
+     * Also, not all transport options supported in libunbound yet */
     if (set_ub_dns_transport(context, value) != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
@@ -1799,9 +1799,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
         return GETDNS_RETURN_BAD_CONTEXT;
     }
 
-	/* Transport can in theory be set per query in stub mode so deal with it
-	   here */
-	printf("[TLS] preparing for resolution, checking transport type\n");
+	/* Transport can in theory be set per query in stub mode */
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
 		switch (context->dns_transport) {
 			case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
@@ -1809,13 +1807,10 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 				if (context->tls_ctx == NULL) {
 					/* Init the SSL library */
 					SSL_library_init();
-					/* Load error messages */
-					SSL_load_error_strings();
 
 					/* Create client context, use TLS v1.2 only for now */
 					SSL_CTX* tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 					if(!tls_ctx) {
-						ERR_print_errors_fp(stderr);
 						return GETDNS_RETURN_BAD_CONTEXT;
 					}
 					context->tls_ctx = tls_ctx;
