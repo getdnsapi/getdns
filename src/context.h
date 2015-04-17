@@ -231,6 +231,6 @@ int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void priv_getdns_context_ub_read_cb(void *userarg);
 
-getdns_transport_t priv_get_transport(getdns_transport_t transport, int level);
+getdns_base_transport_t priv_get_base_transport(getdns_transport_t transport, int level);
 
 #endif /* _GETDNS_CONTEXT_H_ */

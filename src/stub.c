@@ -663,6 +663,8 @@ do_tls_handshake(getdns_dns_req *dnsreq, getdns_upstream *upstream)
 	}
 
 	/* Create SSL instance */
+	if (dnsreq->context->tls_ctx == NULL)
+		return NULL;
 	SSL* ssl = SSL_new(dnsreq->context->tls_ctx);
 	if(!ssl) {
 		return NULL;
@@ -1210,9 +1212,9 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	    	return GETDNS_RETURN_GENERIC_ERROR;
 
 	// Work out the primary and fallback transport options
-	getdns_base_transport_t transport    = priv_get_transport(
+	getdns_base_transport_t transport    = priv_get_base_transport(
 	                                       dnsreq->context->dns_transport,0);
-	getdns_base_transport_t fb_transport = priv_get_transport(
+	getdns_base_transport_t fb_transport = priv_get_base_transport(
 	                                       dnsreq->context->dns_transport,1);
 	switch(transport) {
 	case GETDNS_TRANSPORT_UDP:

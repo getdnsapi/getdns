@@ -1134,8 +1134,8 @@ getdns_context_set_namespaces(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_namespaces */
 
-getdns_transport_t
-priv_get_transport(getdns_transport_t transport, int level) {
+getdns_base_transport_t
+priv_get_base_transport(getdns_transport_t transport, int level) {
 	if (!(level == 0 || level == 1)) return GETDNS_TRANSPORT_NONE;
 	switch (transport) {
  		case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
@@ -1837,23 +1837,30 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
     }
 
 	/* Transport can in theory be set per query in stub mode */
+	/* TODO: move this transport logic to a separate functions*/
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
 		switch (context->dns_transport) {
 			case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
 			case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
 				if (context->tls_ctx == NULL) {
+#ifdef HAVE_LIBTLS1_2
 					/* Create client context, use TLS v1.2 only for now */
-					SSL_CTX* tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
-					if(!tls_ctx) {
+					context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
+#endif
+					if(!context->tls_ctx && context->dns_transport == 
+					   GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
 						return GETDNS_RETURN_BAD_CONTEXT;
 					}
-					context->tls_ctx = tls_ctx;
 				}
 				break;
 			default:
 				break;
 		}
 	}
+	/* Block use of TLS ONLY in recursive mode as it won't work */
+	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	&& context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
+		return GETDNS_RETURN_BAD_CONTEXT;
 
 	if (context->resolution_type_set == context->resolution_type)
         	/* already set and no config changes
