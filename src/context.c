@@ -521,7 +521,8 @@ upstream_scope_id(getdns_upstream *upstream)
 }
 
 static void
-upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
+upstream_ntop_buf(getdns_upstream *upstream, getdns_transport_t transport,
+                  char *buf, size_t len)
 {
 	/* Also possible but prints scope_id by name (nor parsed by unbound)
 	 *
@@ -533,9 +534,14 @@ upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
 	if (upstream_scope_id(upstream))
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "%%%d", (int)*upstream_scope_id(upstream));
-	if (upstream_port(upstream) != 53 && upstream_port(upstream) != 0)
+	if (transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
-		    "@%d", (int)upstream_port(upstream));
+		    "@%d", GETDNS_TLS_PORT);
+	else {
+		if (upstream_port(upstream) != 53 && upstream_port(upstream) != 0)
+			(void) snprintf(buf + strlen(buf), len - strlen(buf),
+			    "@%d", (int)upstream_port(upstream));
+	}
 }
 
 static int
@@ -809,6 +815,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
 	/* unbound context is initialized here */
+	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
+	 * don't know that till later so we will have to do this every time. */
+	SSL_library_init();
 	result->unbound_ctx = NULL;
 	if ((r = rebuild_ub_ctx(result)))
 		goto error;
@@ -1125,6 +1134,33 @@ getdns_context_set_namespaces(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_namespaces */
 
+getdns_transport_t
+priv_get_transport(getdns_transport_t transport, int level) {
+	if (!(level == 0 || level == 1)) return GETDNS_TRANSPORT_NONE;
+	switch (transport) {
+ 		case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+			if (level == 0) return GETDNS_TRANSPORT_UDP;
+			if (level == 1) return GETDNS_TRANSPORT_TCP;
+		case GETDNS_TRANSPORT_UDP_ONLY:
+			if (level == 0) return GETDNS_TRANSPORT_UDP;
+			if (level == 1) return GETDNS_TRANSPORT_NONE;
+		case GETDNS_TRANSPORT_TCP_ONLY:
+			if (level == 0) return GETDNS_TRANSPORT_TCP_SINGLE;
+			if (level == 1) return GETDNS_TRANSPORT_NONE;
+		case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+			if (level == 0) return GETDNS_TRANSPORT_TCP;
+			if (level == 1) return GETDNS_TRANSPORT_NONE;
+		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+			if (level == 0) return GETDNS_TRANSPORT_TLS;
+			if (level == 1) return GETDNS_TRANSPORT_NONE;
+		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+			if (level == 0) return GETDNS_TRANSPORT_TLS;
+			if (level == 1) return GETDNS_TRANSPORT_TCP;
+		default:
+			return GETDNS_TRANSPORT_NONE;
+		}
+}
+
 static getdns_return_t
 set_ub_dns_transport(struct getdns_context* context,
     getdns_transport_t value) {
@@ -1138,22 +1174,22 @@ set_ub_dns_transport(struct getdns_context* context,
             set_ub_string_opt(context, "do-tcp:", "no");
             break;
         case GETDNS_TRANSPORT_TCP_ONLY:
+        /* Note: no pipelining available directly in unbound.*/
         case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
             set_ub_string_opt(context, "do-udp:", "no");
             set_ub_string_opt(context, "do-tcp:", "yes");
             break;
        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+            /* Hum. If used in recursive mode this will try TLS on port 53...
+             * So we need to fix or document that or delay setting it until 
+             * resolution.*/
+            set_ub_string_opt(context, "ssl-upstream:", "yes");
+            /* Fall through*/
        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-           /* TODO: Investigate why ssl-upstream in Unbound isn't working (error
-            * that the SSL lib isn't init'ed but that is done in prep_for_res.
-            * Note: no fallback or pipelining available directly in unbound.*/
+           /* Note: no fallback to TCP available directly in unbound, so we just
+            * use TCP for now to make sure the messages are sent. */
            set_ub_string_opt(context, "do-udp:", "no");
            set_ub_string_opt(context, "do-tcp:", "yes");
-           /* set_ub_string_opt(context, "ssl-upstream:", "yes");*/
-           /* TODO: Specifying a different port to do TLS on in unbound is a bit
-            * tricky as it involves modifying each fwd upstream defined on the 
-            * unbound ctx... And to support fallback this would have to be reset
-            * from the stub code while trying to connect...*/
            break;
        default:
            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -1695,17 +1731,18 @@ getdns_cancel_callback(getdns_context *context,
 } /* getdns_cancel_callback */
 
 static getdns_return_t
-ub_setup_stub(struct ub_ctx *ctx, getdns_upstreams *upstreams)
+ub_setup_stub(struct ub_ctx *ctx, struct getdns_context *context)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
 	getdns_upstream *upstream;
 	char addr[1024];
 
+	getdns_upstreams *upstreams = context->upstreams;
 	(void) ub_ctx_set_fwd(ctx, NULL);
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
-		upstream_ntop_buf(upstream, addr, 1024);
+		upstream_ntop_buf(upstream, context->dns_transport, addr, 1024);
 		ub_ctx_set_fwd(ctx, addr);
 	}
 
@@ -1777,7 +1814,7 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 	case GETDNS_RESOLUTION_STUB:
 		if (!context->upstreams || !context->upstreams->count)
 			return GETDNS_RETURN_GENERIC_ERROR;
-		return ub_setup_stub(context->unbound_ctx, context->upstreams);
+		return ub_setup_stub(context->unbound_ctx, context);
 
 	case GETDNS_RESOLUTION_RECURSING:
 		/* TODO: use the root servers via root hints file */
@@ -1805,9 +1842,6 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 			case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
 			case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
 				if (context->tls_ctx == NULL) {
-					/* Init the SSL library */
-					SSL_library_init();
-
 					/* Create client context, use TLS v1.2 only for now */
 					SSL_CTX* tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 					if(!tls_ctx) {

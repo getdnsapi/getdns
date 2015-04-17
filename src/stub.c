@@ -41,8 +41,6 @@
 #include "util-internal.h"
 #include "general.h"
 
-#define TLS_PORT 1021
-
 static time_t secret_rollover_time = 0;
 static uint32_t secret = 0;
 static uint32_t prev_secret = 0;
@@ -656,7 +654,7 @@ sock_connected(int sockfd)
 /* The connection testing and handshake should be handled by integrating this 
  * with the event loop framework, but for now just implement a standalone
  * handshake method.*/
-SSL*
+static SSL*
 do_tls_handshake(getdns_dns_req *dnsreq, getdns_upstream *upstream) 
 {
 	/*Lets make sure the connection is up before we try a handshake*/
@@ -1158,7 +1156,7 @@ get_port(struct sockaddr_storage* addr)
 	    : ((struct sockaddr_in6*)addr)->sin6_port);
 }
 
-void
+static void
 set_port(struct sockaddr_storage* addr, in_port_t port)
 {
 	addr->ss_family == AF_INET
@@ -1166,42 +1164,7 @@ set_port(struct sockaddr_storage* addr, in_port_t port)
 	    : (((struct sockaddr_in6*)addr)->sin6_port = htons(port));
 }
 
-typedef enum getdns_base_transport {
-	NONE,
-	UDP,
-	TCP_SINGLE,
-	TCP,
-	TLS
-} getdns_base_transport_t;
-
-getdns_transport_t
-get_transport(getdns_transport_t transport, int level) {
-	if (!(level == 0 || level == 1)) return NONE;
-	switch (transport) {
- 		case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
-			if (level == 0) return UDP;
-			if (level == 1) return TCP;
-		case GETDNS_TRANSPORT_UDP_ONLY:
-			if (level == 0) return UDP;
-			if (level == 1) return NONE;
-		case GETDNS_TRANSPORT_TCP_ONLY:
-			if (level == 0) return TCP_SINGLE;
-			if (level == 1) return NONE;
-		case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return TCP;
-			if (level == 1) return NONE;
-		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return TLS;
-			if (level == 1) return NONE;
-		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return TLS;
-			if (level == 1) return TCP;
-		default:
-			return NONE;
-		}
-}
-
-int
+static int
 tcp_connect (getdns_upstream *upstream, getdns_base_transport_t transport) {
 
 	int fd =-1;
@@ -1210,10 +1173,11 @@ tcp_connect (getdns_upstream *upstream, getdns_base_transport_t transport) {
 	socklen_t addr_len = upstream->addr_len;
 
 	/* TODO[TLS]: For now, override the port to a hardcoded value*/
-	if (transport == TLS && (int)get_port(addr) != TLS_PORT) {
+	if (transport == GETDNS_TRANSPORT_TLS &&
+	    (int)get_port(addr) != GETDNS_TLS_PORT) {
 		connect_addr = upstream->addr;
 		addr = &connect_addr;
-		set_port(addr, TLS_PORT);
+		set_port(addr, GETDNS_TLS_PORT);
 	}
 
 	if ((fd = socket(addr->ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
@@ -1222,7 +1186,8 @@ tcp_connect (getdns_upstream *upstream, getdns_base_transport_t transport) {
 	getdns_sock_nonblock(fd);
 #ifdef USE_TCP_FASTOPEN
 	/* Leave the connect to the later call to sendto() if using TCP*/
-	if (transport == TCP || transport == TCP_SINGLE)
+	if (transport == GETDNS_TRANSPORT_TCP || 
+	    transport == GETDNS_TRANSPORT_TCP_SINGLE)
 		return fd;
 #endif
 	if (connect(fd, (struct sockaddr *)addr,
@@ -1245,12 +1210,12 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	    	return GETDNS_RETURN_GENERIC_ERROR;
 
 	// Work out the primary and fallback transport options
-	getdns_base_transport_t transport    = get_transport(
+	getdns_base_transport_t transport    = priv_get_transport(
 	                                       dnsreq->context->dns_transport,0);
-	getdns_base_transport_t fb_transport = get_transport(
+	getdns_base_transport_t fb_transport = priv_get_transport(
 	                                       dnsreq->context->dns_transport,1);
 	switch(transport) {
-	case UDP:
+	case GETDNS_TRANSPORT_UDP:
 
 		if ((netreq->fd = socket(
 		    upstream->addr.ss_family, SOCK_DGRAM, IPPROTO_UDP)) == -1)
@@ -1266,7 +1231,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 
 		return GETDNS_RETURN_GOOD;
 
-	case TCP_SINGLE:
+	case GETDNS_TRANSPORT_TCP_SINGLE:
 
 		if ((netreq->fd = tcp_connect(upstream, transport)) == -1)
 			return GETDNS_RETURN_GENERIC_ERROR;
@@ -1279,8 +1244,8 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 
 		return GETDNS_RETURN_GOOD;
 	
-	case TCP:
-	case TLS:
+	case GETDNS_TRANSPORT_TCP:
+	case GETDNS_TRANSPORT_TLS:
 		
 		/* In coming comments, "global" means "context wide" */
 
@@ -1293,7 +1258,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 
 			/* We are the first. Make global socket and connect. */
 			if ((upstream->fd = tcp_connect(upstream, transport)) == -1) {
-				if (fb_transport == NONE)
+				if (fb_transport == GETDNS_TRANSPORT_NONE)
 					return GETDNS_RETURN_GENERIC_ERROR;
 				if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
 					return GETDNS_RETURN_GENERIC_ERROR;
@@ -1302,10 +1267,10 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 			
 			/* Now do a handshake for TLS. Note waiting for this to succeed or 
 			 * timeout blocks the scheduling of any messages for this upstream*/
-			if (transport == TLS && (fallback == 0)) {
+			if (transport == GETDNS_TRANSPORT_TLS && (fallback == 0)) {
 				upstream->tls_obj = do_tls_handshake(dnsreq, upstream);
 				if (!upstream->tls_obj) {
-					if (fb_transport == NONE)
+					if (fb_transport == GETDNS_TRANSPORT_NONE)
 						return GETDNS_RETURN_GENERIC_ERROR;
 					close(upstream->fd);
 					if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
@@ -1319,7 +1284,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 		} else {
 			/* Cater for the case of the user downgrading and existing TLS
 			   connection to TCP for some reason...*/
-			if (transport == TCP && upstream->tls_obj) {
+			if (transport == GETDNS_TRANSPORT_TCP && upstream->tls_obj) {
 				SSL_shutdown(upstream->tls_obj);
 				SSL_free(upstream->tls_obj);
 				upstream->tls_obj = NULL;

@@ -49,6 +49,7 @@ struct ub_ctx;
 
 #define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
 #define GETDNS_FN_HOSTS      "/etc/hosts"
+#define GETDNS_TLS_PORT 1021
 
 enum filechgs { GETDNS_FCHG_ERRORS = -1
  , GETDNS_FCHG_NOERROR   = 0
@@ -70,6 +71,14 @@ struct filechg {
 	int  errors;
 	struct stat *prevstat;
 };
+
+typedef enum getdns_base_transport {
+	GETDNS_TRANSPORT_NONE,
+	GETDNS_TRANSPORT_UDP,
+	GETDNS_TRANSPORT_TCP_SINGLE,
+	GETDNS_TRANSPORT_TCP,
+	GETDNS_TRANSPORT_TLS
+} getdns_base_transport_t;
 
 typedef struct getdns_upstream {
 	struct getdns_upstreams *upstreams;
@@ -221,5 +230,7 @@ getdns_return_t getdns_context_local_namespace_resolve(
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void priv_getdns_context_ub_read_cb(void *userarg);
+
+getdns_transport_t priv_get_transport(getdns_transport_t transport, int level);
 
 #endif /* _GETDNS_CONTEXT_H_ */
