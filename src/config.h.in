@@ -84,6 +84,9 @@
 /* Define to 1 if you have the `ldns' library (-lldns). */
 #undef HAVE_LIBLDNS
 
+/* Define if you have libssl with tls 1.2 */
+#undef HAVE_LIBTLS1_2
+
 /* Define to 1 if you have the `unbound' library (-lunbound). */
 #undef HAVE_LIBUNBOUND
 

@@ -11333,8 +11333,8 @@ $as_echo "found in $ssldir" >&6; }
 
             { $as_echo "$as_me:${as_lineno-$LINENO}: checking for HMAC_CTX_init in -lcrypto" >&5
 $as_echo_n "checking for HMAC_CTX_init in -lcrypto... " >&6; }
-            LIBS="$LIBS -lcrypto"
-            LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
+            LIBS="$LIBS -lcrypto -lssl"
+            LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto -lssl"
             cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -11542,6 +11542,51 @@ _ACEOF
 fi
 
 done
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for TLSv1_2_client_method in -lssl" >&5
+$as_echo_n "checking for TLSv1_2_client_method in -lssl... " >&6; }
+if ${ac_cv_lib_ssl_TLSv1_2_client_method+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lssl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char TLSv1_2_client_method ();
+int
+main ()
+{
+return TLSv1_2_client_method ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ssl_TLSv1_2_client_method=yes
+else
+  ac_cv_lib_ssl_TLSv1_2_client_method=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_TLSv1_2_client_method" >&5
+$as_echo "$ac_cv_lib_ssl_TLSv1_2_client_method" >&6; }
+if test "x$ac_cv_lib_ssl_TLSv1_2_client_method" = xyes; then :
+
+$as_echo "#define HAVE_LIBTLS1_2 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot find TLSv1_2_client_method in libssl library. TLS will not be available." >&5
+$as_echo "$as_me: WARNING: Cannot find TLSv1_2_client_method in libssl library. TLS will not be available." >&2;}
+fi
 
 
 
