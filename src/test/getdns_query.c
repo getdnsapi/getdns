@@ -125,7 +125,6 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
-	fprintf(out, "\t+sit[=cookie]\tSet edns cookie\n");
 }
 
 void callback(getdns_context *context, getdns_callback_type_t callback_type,
@@ -135,14 +134,12 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 
 	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
 		/* This is a callback with data */;
-		if (!quiet) {
-			if (json)
-				response_str = getdns_print_json_dict(
-				    response, json == 1);
-			else if ((response_str = getdns_pretty_print_dict(response))) {
-				fprintf(stdout, "ASYNC response:\n%s\n", response_str);
-				free(response_str);
-			}
+		if (!quiet && (response_str = json ?
+		    getdns_print_json_dict(response, json == 1)
+		  : getdns_pretty_print_dict(response))) {
+
+			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
+			free(response_str);
 		}
 		fprintf(stderr,
 			"The callback with ID %llu  was successfull.\n",
@@ -156,6 +153,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 		fprintf(stderr,
 			"The callback got a callback_type of %d. Exiting.\n",
 			callback_type);
+
 	getdns_dict_destroy(response);
 	response = NULL;
 }
@@ -527,15 +525,17 @@ main(int argc, char **argv)
 			if (r)
 				goto done_destroy_extensions;
 			if (!quiet) {
-				if (json)
-					response_str = getdns_print_json_dict(
-					    response, json == 1);
-				else if ((response_str = getdns_pretty_print_dict(response))) {
-					fprintf(stdout, "SYNC response:\n%s\n", response_str);
+				if ((response_str = json ?
+				    getdns_print_json_dict(response, json == 1)
+				  : getdns_pretty_print_dict(response))) {
+
+					fprintf( stdout, "SYNC response:\n%s\n"
+					       , response_str);
 					free(response_str);
 				} else {
 					r = GETDNS_RETURN_MEMORY_ERROR;
-					fprintf(stderr, "Could not print response\n");
+					fprintf( stderr
+					       , "Could not print response\n");
 				}
 			} else if (r == GETDNS_RETURN_GOOD)
 				fprintf(stdout, "Response code was: GOOD\n");
