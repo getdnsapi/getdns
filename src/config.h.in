@@ -323,6 +323,10 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #include <arpa/inet.h>
 #endif
 
+#ifdef HAVE_OPENSSL_SSL_H
+#include <openssl/ssl.h>
+#endif
+
 #ifdef HAVE_ATTR_FORMAT
 #  define ATTR_FORMAT(archetype, string_index, first_to_check) \
     __attribute__ ((format (archetype, string_index, first_to_check)))
