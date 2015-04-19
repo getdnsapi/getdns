@@ -1,3 +1,8 @@
+* 2015-04-19: Version 0.1.8
+  * The GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN and
+    GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN
+    DNS over TLS transport options. 
+
 * 2015-04-08: Version 0.1.7
   * Individual getter functions for context settings
   * Fix: --with-current-date function to make build deterministically

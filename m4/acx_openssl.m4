@@ -48,8 +48,8 @@ AC_DEFUN([ACX_SSL_CHECKS], [
             fi
         
             AC_MSG_CHECKING([for HMAC_CTX_init in -lcrypto])
-            LIBS="$LIBS -lcrypto"
-            LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
+            LIBS="$LIBS -lcrypto -lssl"
+            LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto -lssl"
             AC_TRY_LINK(, [
                 int HMAC_CTX_init(void);
                 (void)HMAC_CTX_init();
@@ -105,6 +105,8 @@ AC_DEFUN([ACX_SSL_CHECKS], [
 AC_CHECK_HEADERS([openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/err.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/rand.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_LIB(ssl, TLSv1_2_client_method,AC_DEFINE([HAVE_LIBTLS1_2], [1],
+    [Define if you have libssl with tls 1.2]),[AC_MSG_WARN([Cannot find TLSv1_2_client_method in libssl library. TLS will not be available.])])
 ])dnl End of ACX_SSL_CHECKS
 
 dnl Check for SSL, where SSL is mandatory

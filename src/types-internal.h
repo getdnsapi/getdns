@@ -36,7 +36,6 @@
 #ifndef TYPES_INTERNAL_H_
 #define TYPES_INTERNAL_H_
 
-#include <netinet/in.h>
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "util/rbtree.h"
