@@ -557,6 +557,8 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
+	upstream->tcp_fallback_ok = 0;
+	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);

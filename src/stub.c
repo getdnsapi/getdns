@@ -41,9 +41,16 @@
 #include "util-internal.h"
 #include "general.h"
 
+#define STUB_TCP_AGAIN -2
+#define STUB_TCP_ERROR -1
+
 static time_t secret_rollover_time = 0;
 static uint32_t secret = 0;
 static uint32_t prev_secret = 0;
+
+static void upstream_read_cb(void *userarg);
+static void upstream_write_cb(void *userarg);
+static int tcp_connect (getdns_upstream *upstream, getdns_base_transport_t transport);
 
 static void
 rollover_secret()
@@ -305,7 +312,7 @@ static void
 upstream_erred(getdns_upstream *upstream)
 {
 	getdns_network_req *netreq;
-
+	fprintf(stderr,"[TLS]: upstream_erred\n");
 	while ((netreq = upstream->write_queue)) {
 		stub_cleanup(netreq);
 		netreq->state = NET_REQ_FINISHED;
@@ -339,6 +346,7 @@ priv_getdns_cancel_stub_request(getdns_network_req *netreq)
 static void
 stub_erred(getdns_network_req *netreq)
 {
+	fprintf(stderr,"[TLS]: stub_erred\n");
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
@@ -349,6 +357,7 @@ stub_erred(getdns_network_req *netreq)
 static void
 stub_timeout_cb(void *userarg)
 {
+	fprintf(stderr,"[TLS]: stub_timeout_cb\n");
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 
 	stub_next_upstream(netreq);
@@ -495,9 +504,6 @@ pick_upstream(getdns_dns_req *dnsreq)
 	return upstream;
 }
 
-#define STUB_TCP_AGAIN -2
-#define STUB_TCP_ERROR -1
-
 static int
 stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 {
@@ -602,70 +608,13 @@ stub_tcp_read_cb(void *userarg)
 	}
 }
 
-/** wait for a socket to become ready */
-static int
-sock_wait(int sockfd)
-{
-	int ret;
-	fd_set fds;
-	FD_ZERO(&fds);
-	FD_SET(FD_SET_T sockfd, &fds);
-	/*TODO[TLS]: Pick up this timeout from the context*/
-	struct timeval timeout = {5, 0 };
-	ret = select(sockfd+1, NULL, &fds, NULL, &timeout);
-	if(ret == 0)
-		/* timeout expired */
-		return 0;
-	else if(ret == -1)
-		/* error */
-		return 0;
-	return 1;
-}
-
-static int
-sock_connected(int sockfd) 
-{
-	/* wait(write) until connected or error */
-	while(1) {
-		int error = 0;
-		socklen_t len = (socklen_t)sizeof(error);
-
-		if(!sock_wait(sockfd)) {
-			close(sockfd);
-			return -1;
-		}
-
-		/* check if there is a pending error for nonblocking connect */
-		if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (void*)&error, &len) < 0) {
-			error = errno; /* on solaris errno is error */
-		}
-		if (error == EINPROGRESS || error == EWOULDBLOCK)
-			continue; /* try again */
-		else if (error != 0) {
-			close(sockfd);
-			return -1;
-		}
-		/* connected */
-		break;
-	}
-	return sockfd;
-}
-
-/* The connection testing and handshake should be handled by integrating this 
- * with the event loop framework, but for now just implement a standalone
- * handshake method.*/
 static SSL*
-do_tls_handshake(getdns_dns_req *dnsreq, getdns_upstream *upstream) 
+create_tls_object(getdns_context *context, getdns_upstream *upstream) 
 {
-	/*Lets make sure the connection is up before we try a handshake*/
-	if (errno == EINPROGRESS && sock_connected(upstream->fd) == -1) {
-		return NULL;
-	}
-
 	/* Create SSL instance */
-	if (dnsreq->context->tls_ctx == NULL)
+	if (context->tls_ctx == NULL)
 		return NULL;
-	SSL* ssl = SSL_new(dnsreq->context->tls_ctx);
+	SSL* ssl = SSL_new(context->tls_ctx);
 	if(!ssl) {
 		return NULL;
 	}
@@ -676,43 +625,121 @@ do_tls_handshake(getdns_dns_req *dnsreq, getdns_upstream *upstream)
 	}
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
-
-	int r;
-	int want;
-	fd_set fds;
-	FD_ZERO(&fds);
-	FD_SET(upstream->fd, &fds);
-	struct timeval timeout = {dnsreq->context->timeout/1000, 0 };
-	while ((r = SSL_do_handshake(ssl)) != 1)
-	{
-		want = SSL_get_error(ssl, r);
-		switch (want) {
-			case SSL_ERROR_WANT_READ:
-				if (select(upstream->fd + 1, &fds, NULL, NULL, &timeout) == 0) {
-					SSL_free(ssl);
-					return NULL;
-				}
-				break;
-			case SSL_ERROR_WANT_WRITE:
-				if (select(upstream->fd + 1, NULL, &fds, NULL, &timeout) == 0) {
-					SSL_free(ssl);
-					return NULL;
-				}
-				break;
-			default: 
-				SSL_free(ssl);
-				return NULL;
-	   }
-	}
 	return ssl;
 }
 
 static int
-stub_tls_read(SSL* tls_obj, getdns_tcp_state *tcp, struct mem_funcs *mf)
+do_tls_handshake(getdns_upstream *upstream) 
+{
+
+	fprintf(stderr,"[TLS]: do_tls_handshake\n");
+
+	int r;
+	int want;
+	ERR_clear_error();
+	while ((r = SSL_do_handshake(upstream->tls_obj)) != 1)
+	{
+		want = SSL_get_error(upstream->tls_obj, r);
+		switch (want) {
+			case SSL_ERROR_WANT_READ:
+				fprintf(stderr,"[TLS]: SSL_ERROR_WANT_READ\n");
+				upstream->event.read_cb = upstream_read_cb;
+				upstream->event.write_cb = NULL;
+				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+				GETDNS_SCHEDULE_EVENT(upstream->loop,
+				    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+				upstream->tls_hs_state = GETDNS_HS_READ;
+				return STUB_TCP_AGAIN;
+			case SSL_ERROR_WANT_WRITE:
+				fprintf(stderr,"[TLS]: SSL_ERROR_WANT_WRITE\n");
+				upstream->event.read_cb = NULL;
+				upstream->event.write_cb = upstream_write_cb;
+				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+				GETDNS_SCHEDULE_EVENT(upstream->loop,
+				    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+				upstream->tls_hs_state = GETDNS_HS_WRITE;
+				return STUB_TCP_AGAIN;
+			default: 
+				SSL_free(upstream->tls_obj);
+				upstream->tls_obj = NULL;
+				upstream->tls_hs_state = GETDNS_HS_FAILED;
+				return STUB_TCP_ERROR;
+	   }
+	}
+	upstream->tls_hs_state = GETDNS_HS_DONE;
+	upstream->event.read_cb = NULL;
+	upstream->event.write_cb = upstream_write_cb;
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+	GETDNS_SCHEDULE_EVENT(upstream->loop,
+	    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+	return 0;
+}
+
+static int
+tcp_fallback(getdns_upstream *upstream) {
+	if (upstream->tcp_fallback_ok == 0) 
+		return STUB_TCP_ERROR;
+	close(upstream->fd);
+	if ((upstream->fd = tcp_connect(upstream, GETDNS_TRANSPORT_TCP)) == -1)
+		return STUB_TCP_ERROR;
+	/* TODO: Timeouts need to be rescheduled on the new fd ....*/
+	return STUB_TCP_AGAIN;
+}
+
+static int 
+setup_tls(getdns_upstream* upstream)
+{
+	int ret;
+	if (!upstream->tls_obj || upstream->tls_hs_state == GETDNS_HS_DONE)
+		return 0;
+
+	int error = 0;
+	socklen_t len = (socklen_t)sizeof(error);
+	/* Lets make sure the connection is up before we try a handshake*/
+	/* TODO: This doesn't handle the case where the far end doesn't do a reset
+	 * as is the case with e.g. 8.8.8.8. For that case the timeout kicks in 
+	 * and the user callback fails the message without the chance to fallback...
+	 * Note that acutally the TCP code doesn't check the connection state before
+	 * doing a write either....
+	 * Perhaps we should have a write_timeout_cb on the write and then schedule 
+	 * the stub_timeout_cb for matching the response???  */
+	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
+	if (error == EINPROGRESS || error == EWOULDBLOCK) {
+		fprintf(stderr,"[TLS]: blocking.......\n");
+		return STUB_TCP_AGAIN; /* try again */
+	}
+	else if (error != 0) {
+		fprintf(stderr,"[TLS]: died gettting connection\n");
+		SSL_free(upstream->tls_obj);
+		upstream->tls_obj = NULL;
+		upstream->tls_hs_state = GETDNS_HS_FAILED;
+		return tcp_fallback(upstream);
+	}
+
+	ret = do_tls_handshake(upstream);
+	switch (ret) {
+		case STUB_TCP_AGAIN:
+			return ret;
+		case STUB_TCP_ERROR:
+			fprintf(stderr,"[TLS]: W: Handshake has failed %d\n", upstream->tls_hs_state);
+			return tcp_fallback(upstream);
+		default:
+			fprintf(stderr,"[TLS]: W:after handshake  %d, %s\n", upstream->tls_hs_state, upstream->tls_obj== NULL? "NULL":"Not NULL" );
+			return 0;
+	}
+}
+
+static int
+stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp, struct mem_funcs *mf)
 {
 	ssize_t  read;
 	uint8_t *buf;
 	size_t   buf_size;
+	SSL* tls_obj = upstream->tls_obj;
+
+	int q = setup_tls(upstream);
+	if (q != 0)
+		return q;
 
 	if (!tcp->read_buf) {
 		/* First time tls read, create a buffer for reading */
@@ -794,9 +821,12 @@ upstream_read_cb(void *userarg)
 	int q;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
+	
+	
+	fprintf(stderr,"[TLS]: upstream_read_cb\n");
 
 	if (upstream->tls_obj)
-		q = stub_tls_read(upstream->tls_obj, &upstream->tcp,
+		q = stub_tls_read(upstream, &upstream->tcp,
 		              &upstream->upstreams->mf);
 	else
 		q = stub_tcp_read(upstream->fd, &upstream->tcp,
@@ -1018,12 +1048,17 @@ stub_tcp_write_cb(void *userarg)
 }
 
 static int
-stub_tls_write(SSL* tls_obj, getdns_tcp_state *tcp, getdns_network_req *netreq)
+stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp, getdns_network_req *netreq)
 {
 	size_t          pkt_len = netreq->response - netreq->query;
 	ssize_t         written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
+	SSL* tls_obj = upstream->tls_obj;
+
+	int q = setup_tls(upstream);
+	if (q != 0)
+		return q;
 
 	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
@@ -1073,8 +1108,10 @@ upstream_write_cb(void *userarg)
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
 
+	fprintf(stderr,"[TLS]: method: upstream_write_cb\n");
+
 	if (upstream->tls_obj)
-		q = stub_tls_write(upstream->tls_obj, &upstream->tcp, netreq);
+		q = stub_tls_write(upstream, &upstream->tcp, netreq);
 	else
 		q = stub_tcp_write(upstream->fd, &upstream->tcp, netreq);
 
@@ -1256,7 +1293,6 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 			/* TODO[TLS]: We should remember on the context if we had to fallback
 			 * for this upstream so when re-connecting from a dropped TCP 
 			 * connection we don't retry TLS. */
-			int fallback = 0;
 
 			/* We are the first. Make global socket and connect. */
 			if ((upstream->fd = tcp_connect(upstream, transport)) == -1) {
@@ -1264,21 +1300,24 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 					return GETDNS_RETURN_GENERIC_ERROR;
 				if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
 					return GETDNS_RETURN_GENERIC_ERROR;
-				fallback = 1; 
 			}
-			
-			/* Now do a handshake for TLS. Note waiting for this to succeed or 
-			 * timeout blocks the scheduling of any messages for this upstream*/
-			if (transport == GETDNS_TRANSPORT_TLS && (fallback == 0)) {
-				upstream->tls_obj = do_tls_handshake(dnsreq, upstream);
-				if (!upstream->tls_obj) {
+			fprintf(stderr,"[TLS]: got primary connection\n");
+			if (transport == GETDNS_TRANSPORT_TLS) {
+				upstream->tls_obj = create_tls_object(dnsreq->context, upstream);
+				if (upstream->tls_obj == NULL) {
 					if (fb_transport == GETDNS_TRANSPORT_NONE)
 						return GETDNS_RETURN_GENERIC_ERROR;
-					close(upstream->fd);
-					if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
-						return GETDNS_RETURN_GENERIC_ERROR;
+					else {
+						if ((upstream->fd = tcp_connect(upstream, fb_transport)) == -1)
+							return GETDNS_RETURN_GENERIC_ERROR;
+					}
+				} else {
+					upstream->tls_hs_state = GETDNS_HS_WRITE;
+					if (fb_transport == GETDNS_TRANSPORT_TCP)
+						upstream->tcp_fallback_ok = 1;
 				}
 			}
+
 			/* Attach to the global event loop
 			 * so it can do it's own scheduling
 			 */
@@ -1286,6 +1325,7 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 		} else {
 			/* Cater for the case of the user downgrading and existing TLS
 			   connection to TCP for some reason...*/
+			/* Actually should only do this if there are no messages queued...*/
 			if (transport == GETDNS_TRANSPORT_TCP && upstream->tls_obj) {
 				SSL_shutdown(upstream->tls_obj);
 				SSL_free(upstream->tls_obj);

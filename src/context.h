@@ -80,6 +80,14 @@ typedef enum getdns_base_transport {
 	GETDNS_TRANSPORT_TLS
 } getdns_base_transport_t;
 
+typedef enum getdns_tls_hs_state {
+	GETDNS_HS_NONE,
+	GETDNS_HS_WRITE,
+	GETDNS_HS_READ,
+	GETDNS_HS_DONE,
+	GETDNS_HS_FAILED
+} getdns_tls_hs_state_t;
+
 typedef struct getdns_upstream {
 	struct getdns_upstreams *upstreams;
 
@@ -93,6 +101,8 @@ typedef struct getdns_upstream {
 	/* For sharing a TCP socket to this upstream */
 	int                      fd;
 	SSL*                     tls_obj;
+	int                      tcp_fallback_ok;
+	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
