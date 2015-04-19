@@ -89,6 +89,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 
 	net_req->upstream = NULL;
 	net_req->fd = -1;
+	net_req->transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->query_id = 0;

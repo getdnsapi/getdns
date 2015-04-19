@@ -62,6 +62,18 @@ typedef struct host_name_addrs {
 	uint8_t host_name[];
 } host_name_addrs;
 
+static in_port_t 
+getdns_port_array[GETDNS_PORT_LAST] = {
+	GETDNS_PORT_NUM_TCP, 
+	GETDNS_PORT_NUM_TLS
+};
+
+// char*
+// getdns_port_str_array[] = {
+// 	"53", 
+// 	"1021"
+// };
+
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
@@ -240,7 +252,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
-		if (port !=  0 && port != 53 &&
+		if (port !=  0 && port != GETDNS_PORT_NUM_TCP &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -256,7 +268,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		if (port !=  0 && port != 53 &&
+		if (port !=  0 && port != GETDNS_PORT_NUM_TCP &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -527,10 +539,7 @@ upstream_ntop_buf(getdns_upstream *upstream, getdns_transport_t transport,
 	if (upstream_scope_id(upstream))
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "%%%d", (int)*upstream_scope_id(upstream));
-	if (transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
-		(void) snprintf(buf + strlen(buf), len - strlen(buf),
-		    "@%d", GETDNS_TLS_PORT);
-	else if (upstream_port(upstream) != 53 && upstream_port(upstream) != 0)
+	else if (upstream_port(upstream) != GETDNS_PORT_NUM_TCP && upstream_port(upstream) != 0)
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "@%d", (int)upstream_port(upstream));
 }
@@ -557,6 +566,10 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
+	upstream->base_transport = (upstream_port(upstream) == GETDNS_PORT_NUM_TLS ? 
+	                                                       GETDNS_TRANSPORT_TLS :
+	                                                       GETDNS_TRANSPORT_TCP);
+	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -659,20 +672,25 @@ set_os_defaults(struct getdns_context *context)
 		token = parse + strcspn(parse, " \t\r\n");
 		*token = 0;
 
-		if ((s = getaddrinfo(parse, "53", &hints, &result)))
-			continue;
+		//getdns_port_type_t port_type = GETDNS_PORT_FIRST;
+		//for (; port_type < GETDNS_PORT_LAST; port_type++) {
+		// TODO[TLS]: Seeing strange crash in ub_create_ctx when using the loop here....
+			//fprintf(stderr,"creating upstream %s\n", parse);
+			if ((s = getaddrinfo(parse, "53", /*getdns_port_str_array[port_type],*/ &hints, &result)))
+				continue;
 
-		/* No lookups, so maximal 1 result */
-		if (! result) continue;
+			/* No lookups, so maximal 1 result */
+			if (! result) continue;
 
-		/* Grow array when needed */
-		if (context->upstreams->count == upstreams_limit)
-			context->upstreams = upstreams_resize(
-			    context->upstreams, (upstreams_limit *= 2));
+			/* Grow array when needed */
+			if (context->upstreams->count == upstreams_limit)
+				context->upstreams = upstreams_resize(
+				    context->upstreams, (upstreams_limit *= 2));
 
-		upstream = &context->upstreams->
-		    upstreams[context->upstreams->count++];
-		upstream_init(upstream, context->upstreams, result);
+			upstream = &context->upstreams->
+			    upstreams[context->upstreams->count++];
+			upstream_init(upstream, context->upstreams, result);
+		//}
 		freeaddrinfo(result);
 	}
 	fclose(in);
@@ -1456,63 +1474,68 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	hints.ai_addr      = NULL;
 	hints.ai_next      = NULL;
 
-	upstreams = upstreams_create(context, count);
+	upstreams = upstreams_create(context, count*2);
 	for (i = 0; i < count; i++) {
-		getdns_dict *dict;
-		getdns_bindata *address_type;
-		getdns_bindata *address_data;
-		uint32_t port;
-		getdns_bindata *scope_id;
-		struct addrinfo *ai;
-		getdns_upstream *upstream;
+		/* Loop twice to create TCP and TLS upstreams*/
+		getdns_port_type_t port_type = GETDNS_PORT_FIRST;
+		for (; port_type < GETDNS_PORT_LAST; port_type++) {
+			getdns_dict *dict;
+			getdns_bindata *address_type;
+			getdns_bindata *address_data;
+			uint32_t port;
+			getdns_bindata *scope_id;
+			struct addrinfo *ai;
+			getdns_upstream *upstream;
 
-		upstream = &upstreams->upstreams[upstreams->count];
-		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
-			goto error;
+			upstream = &upstreams->upstreams[upstreams->count];
+			if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
+				goto error;
 
-		if ((r = getdns_dict_get_bindata(
-		    dict, "address_type",&address_type)))
-			goto error;
-		if (address_type->size < 4)
-			goto invalid_parameter;
-		if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
-			upstream->addr.ss_family = AF_INET;
-		else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
-			upstream->addr.ss_family = AF_INET6;
-		else	goto invalid_parameter;
-
-		if ((r = getdns_dict_get_bindata(
-		    dict, "address_data", &address_data)))
-			goto error;
-		if ((upstream->addr.ss_family == AF_INET &&
-		     address_data->size != 4) ||
-		    (upstream->addr.ss_family == AF_INET6 &&
-		     address_data->size != 16))
-			goto invalid_parameter;
-		if (inet_ntop(upstream->addr.ss_family, address_data->data,
-		    addrstr, 1024) == NULL)
-			goto invalid_parameter;
-
-		port = 53;
-		(void) getdns_dict_get_int(dict, "port", &port);
-		(void) snprintf(portstr, 1024, "%d", (int)port);
-
-		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
-		    GETDNS_RETURN_GOOD) {
-			if (strlen(addrstr) + scope_id->size > 1022)
+			if ((r = getdns_dict_get_bindata(
+			    dict, "address_type",&address_type)))
+				goto error;
+			if (address_type->size < 4)
 				goto invalid_parameter;
-			eos = &addrstr[strlen(addrstr)];
-			*eos++ = '%';
-			(void) memcpy(eos, scope_id->data, scope_id->size);
-			eos[scope_id->size] = 0;
+			if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
+				upstream->addr.ss_family = AF_INET;
+			else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
+				upstream->addr.ss_family = AF_INET6;
+			else	goto invalid_parameter;
+
+			if ((r = getdns_dict_get_bindata(
+			    dict, "address_data", &address_data)))
+				goto error;
+			if ((upstream->addr.ss_family == AF_INET &&
+			     address_data->size != 4) ||
+			    (upstream->addr.ss_family == AF_INET6 &&
+			     address_data->size != 16))
+				goto invalid_parameter;
+			if (inet_ntop(upstream->addr.ss_family, address_data->data,
+			    addrstr, 1024) == NULL)
+				goto invalid_parameter;
+
+			/* So should we be throwing away the port the user set?*/
+			port = (uint32_t)(int)getdns_port_array[port_type];
+			(void) getdns_dict_get_int(dict, "port", &port);
+			(void) snprintf(portstr, 1024, "%d", (int)port);
+
+			if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
+			    GETDNS_RETURN_GOOD) {
+				if (strlen(addrstr) + scope_id->size > 1022)
+					goto invalid_parameter;
+				eos = &addrstr[strlen(addrstr)];
+				*eos++ = '%';
+				(void) memcpy(eos, scope_id->data, scope_id->size);
+				eos[scope_id->size] = 0;
+			}
+
+			if (getaddrinfo(addrstr, portstr, &hints, &ai))
+				goto invalid_parameter;
+
+			upstream_init(upstream, upstreams, ai);
+			upstreams->count++;
+			freeaddrinfo(ai);
 		}
-
-		if (getaddrinfo(addrstr, portstr, &hints, &ai))
-			goto invalid_parameter;
-
-		upstream_init(upstream, upstreams, ai);
-		upstreams->count++;
-		freeaddrinfo(ai);
 	}
 	priv_getdns_upstreams_dereference(context->upstreams);
 	context->upstreams = upstreams;
@@ -1729,6 +1752,7 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	getdns_upstreams *upstreams = context->upstreams;
 
 	(void) ub_ctx_set_fwd(ctx, NULL);
+	/*TODO[TLS]: Order the upstreams so the TLS ones are first if doing TLS*/
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
 		upstream_ntop_buf(upstream, context->dns_transport, addr, 1024);

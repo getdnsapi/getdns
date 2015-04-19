@@ -191,6 +191,7 @@ typedef struct getdns_network_req
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
+	getdns_transport_t      transport;
 	getdns_eventloop_event  event;
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;
