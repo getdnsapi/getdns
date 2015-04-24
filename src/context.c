@@ -526,8 +526,7 @@ upstream_scope_id(getdns_upstream *upstream)
 }
 
 static void
-upstream_ntop_buf(getdns_upstream *upstream, getdns_transport_t transport,
-                  char *buf, size_t len)
+upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
 {
 	/* Also possible but prints scope_id by name (nor parsed by unbound)
 	 *
@@ -566,9 +565,8 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
-	upstream->base_transport = (upstream_port(upstream) == GETDNS_PORT_NUM_TLS ? 
-	                                                       GETDNS_TRANSPORT_TLS :
-	                                                       GETDNS_TRANSPORT_TCP);
+	upstream->dns_base_transport = (upstream_port(upstream) == GETDNS_PORT_NUM_TLS ?
+	                     GETDNS_BASE_TRANSPORT_TLS : GETDNS_BASE_TRANSPORT_TCP);
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
@@ -672,10 +670,10 @@ set_os_defaults(struct getdns_context *context)
 		token = parse + strcspn(parse, " \t\r\n");
 		*token = 0;
 
-		//getdns_port_type_t port_type = GETDNS_PORT_FIRST;
-		//for (; port_type < GETDNS_PORT_LAST; port_type++) {
-		// TODO[TLS]: Seeing strange crash in ub_create_ctx when using the loop here....
-			//fprintf(stderr,"creating upstream %s\n", parse);
+		getdns_port_type_t port_type = GETDNS_PORT_FIRST;
+		for (; port_type < GETDNS_PORT_LAST; port_type++) {
+			// TODO[TLS]: Seeing strange crash in ub_create_ctx when using the loop here....
+			fprintf(stderr,"creating upstream %s\n", parse);
 			if ((s = getaddrinfo(parse, "53", /*getdns_port_str_array[port_type],*/ &hints, &result)))
 				continue;
 
@@ -690,7 +688,7 @@ set_os_defaults(struct getdns_context *context)
 			upstream = &context->upstreams->
 			    upstreams[context->upstreams->count++];
 			upstream_init(upstream, context->upstreams, result);
-		//}
+		}
 		freeaddrinfo(result);
 	}
 	fclose(in);
@@ -819,6 +817,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
 	result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
+	priv_set_base_dns_transports(result->dns_base_transports, result->dns_transport);
 	result->limit_outstanding_queries = 0;
 	result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
@@ -1142,31 +1141,38 @@ getdns_context_set_namespaces(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_namespaces */
 
-getdns_base_transport_t
-priv_get_base_transport(getdns_transport_t transport, int level) {
-	if (!(level == 0 || level == 1)) return GETDNS_TRANSPORT_NONE;
-	switch (transport) {
- 		case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
-			if (level == 0) return GETDNS_TRANSPORT_UDP;
-			if (level == 1) return GETDNS_TRANSPORT_TCP;
-		case GETDNS_TRANSPORT_UDP_ONLY:
-			if (level == 0) return GETDNS_TRANSPORT_UDP;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TCP_ONLY:
-			if (level == 0) return GETDNS_TRANSPORT_TCP_SINGLE;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return GETDNS_TRANSPORT_TCP;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return GETDNS_TRANSPORT_TLS;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return GETDNS_TRANSPORT_TLS;
-			if (level == 1) return GETDNS_TRANSPORT_TCP;
-		default:
-			return GETDNS_TRANSPORT_NONE;
-		}
+/* TODO[TLS]: Modify further when API changed.*/
+getdns_return_t
+priv_set_base_dns_transports(getdns_base_transport_t *dns_base_transports,
+                             getdns_transport_t value)
+{
+    for (int i = 0; i < GETDNS_BASE_TRANSPORT_MAX; i++)
+        dns_base_transports[i] = GETDNS_BASE_TRANSPORT_NONE;
+    switch (value) {
+        case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_UDP;
+            dns_base_transports[1] = GETDNS_BASE_TRANSPORT_TCP_SINGLE;
+            break;
+        case GETDNS_TRANSPORT_UDP_ONLY:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_UDP;
+            break;
+        case GETDNS_TRANSPORT_TCP_ONLY:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TCP_SINGLE;
+            break;
+        case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TCP;
+            break;
+        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TLS;
+            break;
+        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TLS;
+            dns_base_transports[1] = GETDNS_BASE_TRANSPORT_TCP;
+           break;
+        default:
+           return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+    return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
@@ -1188,9 +1194,8 @@ set_ub_dns_transport(struct getdns_context* context,
             set_ub_string_opt(context, "do-tcp:", "yes");
             break;
        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-            /* Hum. If used in recursive mode this will try TLS on port 53...
-             * So we need to fix or document that or delay setting it until 
-             * resolution.*/
+            /* Note: If TLS is used in recursive mode this will try TLS on port 
+             * 53... So this is prohibited when preparing for resolution.*/
             set_ub_string_opt(context, "ssl-upstream:", "yes");
             /* Fall through*/
        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
@@ -1213,17 +1218,22 @@ getdns_return_t
 getdns_context_set_dns_transport(struct getdns_context *context,
     getdns_transport_t value)
 {
+    /* TODO[TLS]: Modify further when API changed.*/
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     /* Note that the call below does not have any effect in unbound after the
-     * ctx is finalised. So will not apply for recursive mode or stub + dnssec.
+     * ctx is finalised so for recursive mode or stub + dnssec only the first
+     * transport specified on the first query is used.
      * However the method returns success as otherwise the transport could not
-     * be reset for stub mode..... 
+     * be reset for stub mode.
      * Also, not all transport options supported in libunbound yet */
     if (set_ub_dns_transport(context, value) != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     if (value != context->dns_transport) {
+        /*TODO[TLS]: remove this  line*/
         context->dns_transport = value;
+        if (priv_set_base_dns_transports(context->dns_base_transports, value) != GETDNS_RETURN_GOOD)
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
     }
 
@@ -1752,10 +1762,10 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	getdns_upstreams *upstreams = context->upstreams;
 
 	(void) ub_ctx_set_fwd(ctx, NULL);
-	/*TODO[TLS]: Order the upstreams so the TLS ones are first if doing TLS*/
+	/*TODO[TLS]: Use only the subset of upstreams that match the first transport */
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
-		upstream_ntop_buf(upstream, context->dns_transport, addr, 1024);
+		upstream_ntop_buf(upstream, addr, 1024);
 		ub_ctx_set_fwd(ctx, addr);
 	}
 
@@ -1850,27 +1860,22 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
     }
 
 	/* Transport can in theory be set per query in stub mode */
-	/* TODO: move this transport logic to a separate functions*/
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-		switch (context->dns_transport) {
-		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-			if (context->tls_ctx == NULL) {
+		/*TODO[TLS]: Check if TLS is in the list of transports.*/
+		if (context->tls_ctx == NULL) {
 #ifdef HAVE_LIBTLS1_2
-				/* Create client context, use TLS v1.2 only for now */
-				context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
+			/* Create client context, use TLS v1.2 only for now */
+			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 #endif
-				if(!context->tls_ctx && context->dns_transport == 
-				   GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
-					return GETDNS_RETURN_BAD_CONTEXT;
-				}
-			}
-			break;
-		default:
-			break;
+			/* TODO[TLS]: Check if TLS is the only option in the list*/
+			// if(!context->tls_ctx && context->dns_transport == 
+			//    GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
+			// 	return GETDNS_RETURN_BAD_CONTEXT;
+			// }
 		}
 	}
 	/* Block use of TLS ONLY in recursive mode as it won't work */
+	/* TODO[TLS]: Check if TLS is the only option in the list*/
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	&& context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
 		return GETDNS_RETURN_BAD_CONTEXT;

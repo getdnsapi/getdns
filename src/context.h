@@ -75,14 +75,6 @@ struct filechg {
 	struct stat *prevstat;
 };
 
-typedef enum getdns_base_transport {
-	GETDNS_TRANSPORT_NONE,
-	GETDNS_TRANSPORT_UDP,
-	GETDNS_TRANSPORT_TCP_SINGLE,
-	GETDNS_TRANSPORT_TCP,
-	GETDNS_TRANSPORT_TLS
-} getdns_base_transport_t;
-
 typedef enum getdns_port_type {
 	GETDNS_PORT_FIRST = 0,
 	GETDNS_PORT_TCP   = 0,
@@ -111,7 +103,7 @@ typedef struct getdns_upstream {
 	/* For sharing a TCP socket to this upstream */
 	int                      fd;
 	SSL*                     tls_obj;
-	getdns_base_transport_t  base_transport;
+	getdns_base_transport_t  dns_base_transport;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
@@ -156,6 +148,7 @@ struct getdns_context {
 	struct getdns_list   *dnssec_trust_anchors;
 	getdns_upstreams     *upstreams;
 	getdns_transport_t   dns_transport;
+	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
 
@@ -250,6 +243,9 @@ getdns_return_t getdns_context_local_namespace_resolve(
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void priv_getdns_context_ub_read_cb(void *userarg);
+
+getdns_return_t priv_set_base_dns_transports(getdns_base_transport_t *,
+    getdns_transport_t);
 
 getdns_base_transport_t priv_get_base_transport(getdns_transport_t transport, int level);
 

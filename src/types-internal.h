@@ -164,6 +164,16 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
+typedef enum getdns_base_transport {
+	GETDNS_BASE_TRANSPORT_NONE,
+	GETDNS_BASE_TRANSPORT_UDP,
+	GETDNS_BASE_TRANSPORT_TCP_SINGLE, /* To be removed? */
+	GETDNS_BASE_TRANSPORT_TCP,
+	GETDNS_BASE_TRANSPORT_TLS,
+	GETDNS_BASE_TRANSPORT_STARTTLS,    /* Not yet implemented*/
+	GETDNS_BASE_TRANSPORT_MAX
+} getdns_base_transport_t;
+
 /**
  * Request data
  **/
@@ -191,7 +201,8 @@ typedef struct getdns_network_req
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
-	getdns_transport_t      transport;
+	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
+	getdns_base_transport_t *dns_base_transport;
 	getdns_eventloop_event  event;
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;
