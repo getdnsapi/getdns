@@ -709,7 +709,6 @@ do_tls_handshake(getdns_upstream *upstream)
 }
 
 /* TODO[TLS]: Make generic function for switching transport */
-/* TODO[TLS]: Should think about fallback on read error aswell.*/
 static getdns_upstream*
 pick_and_connect_to_fallback_upstream(getdns_network_req *netreq) 
 {
@@ -1226,9 +1225,11 @@ upstream_write_cb(void *userarg)
 		/* Could not complete the TLS set up. Need to fallback on this upstream 
 		 * if possible.*/
 		new_upstream = pick_and_connect_to_fallback_upstream(netreq);
-		if (!new_upstream)
+		if (!new_upstream) {
 			//TODO[TLS]: Need a different error case here for msg_erred?
 			stub_erred(netreq);
+			return;
+		}
 		if (move_netreq(netreq, upstream, new_upstream) == STUB_TCP_ERROR)
 			//TODO[TLS]: Need a different error case here for msg_erred?
 			stub_erred(netreq);

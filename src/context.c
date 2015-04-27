@@ -1228,7 +1228,7 @@ getdns_context_set_dns_transport(struct getdns_context *context,
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     if (value != context->dns_transport) {
-        /*TODO[TLS]: remove this  line*/
+        /*TODO[TLS]: remove this line when API updated*/
         context->dns_transport = value;
         if (priv_set_base_dns_transports(context->dns_base_transports, value) != GETDNS_RETURN_GOOD)
             return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -1760,9 +1760,14 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	getdns_upstreams *upstreams = context->upstreams;
 
 	(void) ub_ctx_set_fwd(ctx, NULL);
-	/*TODO[TLS]: Use only the subset of upstreams that match the first transport */
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
+		/*[TLS]: Use only the subset of upstreams that match the first transport */
+		if (context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
+			if (upstream_port(upstream) != GETDNS_PORT_NUM_TLS)
+				continue;
+		} else if (upstream_port(upstream) != GETDNS_PORT_NUM_TCP)
+			continue;
 		upstream_ntop_buf(upstream, addr, 1024);
 		ub_ctx_set_fwd(ctx, addr);
 	}
