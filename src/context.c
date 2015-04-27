@@ -68,11 +68,11 @@ getdns_port_array[GETDNS_PORT_LAST] = {
 	GETDNS_PORT_NUM_TLS
 };
 
-// char*
-// getdns_port_str_array[] = {
-// 	"53", 
-// 	"1021"
-// };
+char*
+getdns_port_str_array[] = {
+	GETDNS_PORT_STR_TCP, 
+	GETDNS_PORT_STR_TLS
+};
 
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
@@ -672,9 +672,7 @@ set_os_defaults(struct getdns_context *context)
 
 		getdns_port_type_t port_type = GETDNS_PORT_FIRST;
 		for (; port_type < GETDNS_PORT_LAST; port_type++) {
-			// TODO[TLS]: Seeing strange crash in ub_create_ctx when using the loop here....
-			fprintf(stderr,"creating upstream %s\n", parse);
-			if ((s = getaddrinfo(parse, "53", /*getdns_port_str_array[port_type],*/ &hints, &result)))
+			if ((s = getaddrinfo(parse, getdns_port_str_array[port_type], &hints, &result)))
 				continue;
 
 			/* No lookups, so maximal 1 result */
