@@ -49,10 +49,6 @@ struct ub_ctx;
 
 #define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
 #define GETDNS_FN_HOSTS      "/etc/hosts"
-#define GETDNS_PORT_NUM_TCP 53
-#define GETDNS_PORT_NUM_TLS 1021
-#define GETDNS_PORT_STR_TCP "53"
-#define GETDNS_PORT_STR_TLS "1021"
 
 enum filechgs { GETDNS_FCHG_ERRORS = -1
  , GETDNS_FCHG_NOERROR   = 0
@@ -75,13 +71,6 @@ struct filechg {
 	struct stat *prevstat;
 };
 
-typedef enum getdns_port_type {
-	GETDNS_PORT_FIRST = 0,
-	GETDNS_PORT_TCP   = 0,
-	GETDNS_PORT_TLS   = 1,
-	GETDNS_PORT_LAST  = 2
-} getdns_port_type_t;
-
 typedef enum getdns_tls_hs_state {
 	GETDNS_HS_NONE,
 	GETDNS_HS_WRITE,
@@ -102,9 +91,10 @@ typedef struct getdns_upstream {
 
 	/* For sharing a TCP socket to this upstream */
 	int                      fd;
-	SSL*                     tls_obj;
 	getdns_base_transport_t  dns_base_transport;
+	SSL*                     tls_obj;
 	getdns_tls_hs_state_t    tls_hs_state;
+	getdns_dns_req *         starttls_req;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
