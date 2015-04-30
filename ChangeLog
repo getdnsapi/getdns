@@ -1,3 +1,6 @@
+* 2015-??-??: Version 0.1.9
+  * Fix libversion numbering:  Thanks Daniel Kahn Gillmor
+
 * 2015-04-19: Version 0.1.8
   * The GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN and
     GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN
