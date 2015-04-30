@@ -594,14 +594,22 @@ stub_udp_write_cb(void *userarg)
 	    stub_udp_read_cb, NULL, stub_timeout_cb));
 }
 
-/* TODO[TLS]: Optimise to re-use TCP (or failed STARTTLS) where possible.*/
 static int
 transport_valid(struct getdns_upstream *upstream, getdns_base_transport_t transport) {
+	/* For single shot transports, use any upstream. */
 	if (transport == GETDNS_BASE_TRANSPORT_UDP ||
 	    transport == GETDNS_BASE_TRANSPORT_TCP_SINGLE)
 		return 1;
+	/* Allow TCP messages to be sent on a STARTTLS upstream that hasn't upgraded
+	 * to avoid opening a new connection if one is aleady open. */
+	if (transport == GETDNS_BASE_TRANSPORT_TCP &&
+	    upstream->dns_base_transport == GETDNS_BASE_TRANSPORT_STARTTLS &&
+	    upstream->tls_hs_state == GETDNS_HS_FAILED)
+		return 1;
+	/* Otherwise, transport must match */
 	if (upstream->dns_base_transport != transport)
 		return 0;
+	/* But don't use if upgrade failed for (START)TLS*/
 	if ((transport == GETDNS_BASE_TRANSPORT_TLS || 
 	     transport == GETDNS_BASE_TRANSPORT_STARTTLS)
 	     && upstream->tls_hs_state == GETDNS_HS_FAILED)
@@ -1433,11 +1441,9 @@ connect_to_upstream(getdns_upstream *upstream, getdns_base_transport_t transport
 		upstream->fd = fd;
 		break;
 	case GETDNS_BASE_TRANSPORT_STARTTLS:
-		/* Use existing if available. May be either negotiating or doing TLS */
-		if (upstream->fd != 1 && 
-		    (upstream->starttls_req != NULL) ||
-		    (upstream->starttls_req == NULL &&
-		     tls_handshake_active(upstream->tls_hs_state)))
+		/* Use existing if available. Let the fallback code handle it if STARTTLS
+		 * isn't availble. */
+		if (upstream->fd != -1)
 			return upstream->fd;
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) return -1;

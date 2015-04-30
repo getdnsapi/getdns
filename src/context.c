@@ -75,8 +75,8 @@ getdns_port_array[GETDNS_BASE_TRANSPORT_MAX] = {
 	GETDNS_PORT_ZERO,
 	GETDNS_PORT_ZERO,
 	GETDNS_PORT_TCP,
-	GETDNS_PORT_TLS,
-	GETDNS_PORT_TCP
+	GETDNS_PORT_TCP,
+	GETDNS_PORT_TLS
 };
 
 char*
@@ -84,9 +84,9 @@ getdns_port_str_array[] = {
 	GETDNS_STR_PORT_ZERO,
 	GETDNS_STR_PORT_ZERO,
 	GETDNS_STR_PORT_ZERO,
-	GETDNS_STR_PORT_TCP, 
-	GETDNS_STR_PORT_TLS,
-	GETDNS_STR_PORT_TCP
+	GETDNS_STR_PORT_TCP,
+	GETDNS_STR_PORT_TCP,
+	GETDNS_STR_PORT_TLS
 };
 
 /* Private functions */
@@ -1792,10 +1792,10 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	(void) ub_ctx_set_fwd(ctx, NULL);
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
-		/*[TLS]: Use only the TLS subset of upstreams when only TLS is used.
-		 * All other cases must currently fallback to TCP for libunbound. */
+		/*[TLS]: Use only the TLS subset of upstreams when TLS is the only thing
+		 * used. All other cases must currently fallback to TCP for libunbound.*/
 		if (context->dns_base_transports[0] == GETDNS_BASE_TRANSPORT_TLS &&
-		    context->dns_base_transports[0] == GETDNS_BASE_TRANSPORT_NONE &&
+		    context->dns_base_transports[1] == GETDNS_BASE_TRANSPORT_NONE &&
 			upstream_port(upstream) != GETDNS_PORT_TLS)
 				continue;
 		else if (upstream_port(upstream) != GETDNS_PORT_TCP)

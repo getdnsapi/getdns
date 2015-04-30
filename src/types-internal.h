@@ -169,9 +169,9 @@ typedef enum getdns_base_transport {
 	GETDNS_BASE_TRANSPORT_NONE  = 0,
 	GETDNS_BASE_TRANSPORT_UDP,
 	GETDNS_BASE_TRANSPORT_TCP_SINGLE, /* To be removed? */
+	GETDNS_BASE_TRANSPORT_STARTTLS,   /* Define before TCP to allow fallback when scheduling*/
 	GETDNS_BASE_TRANSPORT_TCP,
 	GETDNS_BASE_TRANSPORT_TLS,
-	GETDNS_BASE_TRANSPORT_STARTTLS,
 	GETDNS_BASE_TRANSPORT_MAX
 } getdns_base_transport_t;
 
