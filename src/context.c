@@ -267,7 +267,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
-		if (port !=  0 && port != GETDNS_PORT_TCP &&
+		if (port != GETDNS_PORT_ZERO && port != GETDNS_PORT_TCP &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -283,7 +283,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		if (port !=  0 && port != GETDNS_PORT_TCP &&
+		if (port != GETDNS_PORT_TCP && port != GETDNS_PORT_TCP &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -553,7 +553,7 @@ upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
 	if (upstream_scope_id(upstream))
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "%%%d", (int)*upstream_scope_id(upstream));
-	else if (upstream_port(upstream) != GETDNS_PORT_TCP && upstream_port(upstream) != 0)
+	else if (upstream_port(upstream) != GETDNS_PORT_TCP && upstream_port(upstream) != GETDNS_PORT_ZERO)
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "@%d", (int)upstream_port(upstream));
 }
@@ -687,7 +687,7 @@ set_os_defaults(struct getdns_context *context)
 
 		getdns_base_transport_t base_transport = GETDNS_BASE_TRANSPORT_MIN;
 		for (; base_transport < GETDNS_BASE_TRANSPORT_MAX; base_transport++) {
-			char * port_str = getdns_port_str_array[base_transport];
+			char *port_str = getdns_port_str_array[base_transport];
 			if (strncmp(port_str, GETDNS_STR_PORT_ZERO, 1) == 0)
 				continue;
 			if ((s = getaddrinfo(parse, port_str, &hints, &result)))
@@ -1219,7 +1219,7 @@ set_ub_dns_transport(struct getdns_context* context,
             /* Note: If TLS is used in recursive mode this will try TLS on port 
              * 53... So this is prohibited when preparing for resolution.*/
             set_ub_string_opt(context, "ssl-upstream:", "yes");
-            /* Fall through*/
+            /* Fall through */
        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
        case GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
            /* Note: no fallback to TCP available directly in unbound, so we just
@@ -1792,11 +1792,13 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	(void) ub_ctx_set_fwd(ctx, NULL);
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
-		/*[TLS]: Use only the subset of upstreams that match the first transport */
-		if (context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
-			if (upstream_port(upstream) != GETDNS_PORT_TLS)
+		/*[TLS]: Use only the TLS subset of upstreams when only TLS is used.
+		 * All other cases must currently fallback to TCP for libunbound. */
+		if (context->dns_base_transports[0] == GETDNS_BASE_TRANSPORT_TLS &&
+		    context->dns_base_transports[0] == GETDNS_BASE_TRANSPORT_NONE &&
+			upstream_port(upstream) != GETDNS_PORT_TLS)
 				continue;
-		} else if (upstream_port(upstream) != GETDNS_PORT_TCP)
+		else if (upstream_port(upstream) != GETDNS_PORT_TCP)
 			continue;
 		upstream_ntop_buf(upstream, addr, 1024);
 		ub_ctx_set_fwd(ctx, addr);

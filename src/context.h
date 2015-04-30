@@ -237,8 +237,6 @@ void priv_getdns_context_ub_read_cb(void *userarg);
 getdns_return_t priv_set_base_dns_transports(getdns_base_transport_t *,
     getdns_transport_t);
 
-getdns_base_transport_t priv_get_base_transport(getdns_transport_t transport, int level);
-
 void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
 #endif /* _GETDNS_CONTEXT_H_ */

@@ -757,9 +757,8 @@ create_tls_object(getdns_context *context, int fd)
 	if (context->tls_ctx == NULL)
 		return NULL;
 	SSL* ssl = SSL_new(context->tls_ctx);
-	if(!ssl) {
+	if(!ssl) 
 		return NULL;
-	}
 	/* Connect the SSL object with a file descriptor */
 	if(!SSL_set_fd(ssl,fd)) {
 		SSL_free(ssl);
@@ -1084,7 +1083,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		 * by query_id in the process.
 		 */
 		if ((*netreq->dns_base_transport == GETDNS_BASE_TRANSPORT_TCP_SINGLE) ||
-			(*netreq->dns_base_transport == GETDNS_BASE_TRANSPORT_UDP))
+		    (*netreq->dns_base_transport == GETDNS_BASE_TRANSPORT_UDP))
 			query_id = arc4random();
 		else do {
 			query_id = arc4random();
@@ -1379,7 +1378,8 @@ tcp_connect(getdns_upstream *upstream, getdns_base_transport_t transport)
 #ifdef USE_TCP_FASTOPEN
 	/* Leave the connect to the later call to sendto() if using TCP*/
 	if (transport == GETDNS_BASE_TRANSPORT_TCP || 
-	    transport == GETDNS_BASE_TRANSPORT_TCP_SINGLE)
+	    transport == GETDNS_BASE_TRANSPORT_TCP_SINGLE ||
+	    transport == GETDNS_BASE_TRANSPORT_STARTTLS)
 		return fd;
 #endif
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
@@ -1396,38 +1396,6 @@ int
 connect_to_upstream(getdns_upstream *upstream, getdns_base_transport_t transport,
                     getdns_dns_req *dnsreq) 
 {
-	/* First check if existing connection can be used, which may still be being
-	 * set up. */
-	switch(transport) {
-	case GETDNS_BASE_TRANSPORT_TCP:
-		if (upstream->fd != -1) {
-			fprintf(stderr,"[TLS]: CONNECT(connect_to_upstream):"
-			"tcp_connect using existing TCP fd %d\n", upstream->fd);
-			return upstream->fd;
-		}
-		break;
-	case GETDNS_BASE_TRANSPORT_TLS:
-		if (tls_handshake_active(upstream->tls_hs_state)) {
-			fprintf(stderr,"[TLS]: CONNECT(connect_to_upstream):"
-			"tcp_connect using existing TLS fd %d\n", upstream->fd);
-			return upstream->fd;
-		}
-		break;
-	case GETDNS_BASE_TRANSPORT_STARTTLS:
-		/* Either negotiating, or doing handshake*/
-		if ((upstream->starttls_req != NULL) ||
-		    (upstream->starttls_req == NULL &&
-	         tls_handshake_active(upstream->tls_hs_state))) {
-			fprintf(stderr,"[TLS]: CONNECT(connect_to_upstream):"
-			"tcp_connect using existing STARTTLS fd %d\n", upstream->fd);
-			return upstream->fd;
-		}
-		break;
-	default:
-		break;
-	}
-
-	/* If not, create a new one */
 	int fd = -1;
 	switch(transport) {
 	case GETDNS_BASE_TRANSPORT_UDP:
@@ -1437,14 +1405,21 @@ connect_to_upstream(getdns_upstream *upstream, getdns_base_transport_t transport
 		getdns_sock_nonblock(fd);
 		return fd;
 
-	case GETDNS_BASE_TRANSPORT_TCP_SINGLE:
 	case GETDNS_BASE_TRANSPORT_TCP:
+		/* Use existing if available*/
+		if (upstream->fd != -1)
+			return upstream->fd;
+		/* Otherwise, fall through */
+	case GETDNS_BASE_TRANSPORT_TCP_SINGLE:
 		fd = tcp_connect(upstream, transport);
 		upstream->loop = dnsreq->context->extension;
 		upstream->fd = fd;
 		break;
 	
 	case GETDNS_BASE_TRANSPORT_TLS:
+		/* Use existing if available*/
+		if (upstream->fd != 1 && tls_handshake_active(upstream->tls_hs_state))
+			return upstream->fd;
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) return -1;
 		upstream->tls_obj = create_tls_object(dnsreq->context, fd);
@@ -1458,6 +1433,12 @@ connect_to_upstream(getdns_upstream *upstream, getdns_base_transport_t transport
 		upstream->fd = fd;
 		break;
 	case GETDNS_BASE_TRANSPORT_STARTTLS:
+		/* Use existing if available. May be either negotiating or doing TLS */
+		if (upstream->fd != 1 && 
+		    (upstream->starttls_req != NULL) ||
+		    (upstream->starttls_req == NULL &&
+		     tls_handshake_active(upstream->tls_hs_state)))
+			return upstream->fd;
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) return -1;
 		if (!create_starttls_request(dnsreq, upstream, dnsreq->loop))
@@ -1479,12 +1460,13 @@ connect_to_upstream(getdns_upstream *upstream, getdns_base_transport_t transport
 		return -1;
 		/* Nothing to do*/
 	}
-	fprintf(stderr,"[TLS]: CONNECT(connect_to_upstream): created new connection %d\n", fd);
+	fprintf(stderr,"[TLS]: CONNECT(connect_to_upstream):"
+	" created new connection %d\n", fd);
 	return fd;
 }
 
 static getdns_upstream*
-pick_and_connect_to_upstream(getdns_network_req *netreq,
+find_upstream_for_specific_transport(getdns_network_req *netreq,
                              getdns_base_transport_t transport,
                              int *fd)
 {
@@ -1502,7 +1484,7 @@ find_upstream_for_netreq(getdns_network_req *netreq)
 	int fd = -1;
 	for (int i = 0; i < GETDNS_BASE_TRANSPORT_MAX &&
 	    netreq->dns_base_transports[i] != GETDNS_BASE_TRANSPORT_NONE; i++) {
-		netreq->upstream = pick_and_connect_to_upstream(netreq,
+		netreq->upstream = find_upstream_for_specific_transport(netreq,
 		                                  netreq->dns_base_transports[i],
 		                                  &fd);
 		if (fd == -1)
@@ -1524,6 +1506,7 @@ move_netreq(getdns_network_req *netreq, getdns_upstream *upstream,
 		upstream->write_queue_last = NULL;
 		upstream->event.write_cb = NULL;
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		
 		close(upstream->fd);
 		upstream->fd = -1;
 	}
@@ -1591,7 +1574,7 @@ fallback_on_write(getdns_network_req *netreq)
 	getdns_upstream *upstream = netreq->upstream;
 	int fd;
 	getdns_upstream *new_upstream =
-	    pick_and_connect_to_upstream(netreq, *next_transport, &fd);
+	    find_upstream_for_specific_transport(netreq, *next_transport, &fd);
 	if (!new_upstream)
 		return STUB_TCP_ERROR;
 	return move_netreq(netreq, upstream, new_upstream);
