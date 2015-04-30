@@ -596,10 +596,14 @@ stub_udp_write_cb(void *userarg)
 
 static int
 transport_valid(struct getdns_upstream *upstream, getdns_base_transport_t transport) {
-	/* For single shot transports, use any upstream. */
+	/* For single shot transports, use only the TCP upstream. */
 	if (transport == GETDNS_BASE_TRANSPORT_UDP ||
-	    transport == GETDNS_BASE_TRANSPORT_TCP_SINGLE)
-		return 1;
+	    transport == GETDNS_BASE_TRANSPORT_TCP_SINGLE) {
+		if (upstream->dns_base_transport == GETDNS_BASE_TRANSPORT_TCP)
+			return 1;
+		else
+			return 0;
+	}
 	/* Allow TCP messages to be sent on a STARTTLS upstream that hasn't upgraded
 	 * to avoid opening a new connection if one is aleady open. */
 	if (transport == GETDNS_BASE_TRANSPORT_TCP &&
@@ -621,7 +625,7 @@ static getdns_upstream *
 pick_upstream(getdns_network_req *netreq, getdns_base_transport_t transport)
 {
 	getdns_upstream *upstream;
-	getdns_upstreams *upstreams = netreq->owner->context->upstreams;
+	getdns_upstreams *upstreams = netreq->owner->upstreams;
 	size_t i;
 	
 	if (!upstreams->count)
@@ -648,6 +652,9 @@ pick_upstream(getdns_network_req *netreq, getdns_base_transport_t transport)
 			transport_valid(&upstreams->upstreams[i], transport))
 			upstream = &upstreams->upstreams[i];
 
+	/* Need to check again that the transport is valid */
+	if (!transport_valid(upstream, transport))
+		return NULL;
 	upstream->back_off++;
 	upstream->to_retry = 1;
 	upstreams->current = upstream - upstreams->upstreams;
@@ -1493,8 +1500,9 @@ find_upstream_for_netreq(getdns_network_req *netreq)
 		netreq->upstream = find_upstream_for_specific_transport(netreq,
 		                                  netreq->dns_base_transports[i],
 		                                  &fd);
-		if (fd == -1)
+		if (fd == -1 || !netreq->upstream)
 			continue;
+		netreq->dns_base_transport = &netreq->dns_base_transports[i];
 		return fd;
 	}
 	return -1;
