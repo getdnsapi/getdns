@@ -703,6 +703,7 @@ set_os_defaults(struct getdns_context *context)
 
 			upstream = &context->upstreams->
 			    upstreams[context->upstreams->count++];
+			fprintf(stderr, "[TLS]: OS: creating upstream %d, %p, with port %s with transport %d\n", (int)context->upstreams->count, (void*)upstream, port_str, base_transport);
 			upstream_init(upstream, context->upstreams, result);
 			upstream->dns_base_transport = base_transport;
 		}
@@ -1487,6 +1488,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	getdns_return_t r;
 	size_t count = 0;
 	size_t i;
+	//size_t upstreams_limit;
 	getdns_upstreams *upstreams;
 	char addrstr[1024], portstr[1024], *eos;
 	struct addrinfo hints;
@@ -1507,70 +1509,84 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	hints.ai_addr      = NULL;
 	hints.ai_next      = NULL;
 
-	/* TODO[TLS]: Resize on the fly to avoid hardcoding this*/
 	upstreams = upstreams_create(context, count*3);
+	//upstreams_limit = count; 
 	for (i = 0; i < count; i++) {
+		getdns_dict *dict;
+		getdns_bindata *address_type;
+		getdns_bindata *address_data;
+		struct sockaddr_storage  addr;
+
+		getdns_bindata *scope_id;
+		getdns_upstream *upstream;
+
+		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
+			goto error;
+
+		if ((r = getdns_dict_get_bindata(
+		    dict, "address_type",&address_type)))
+			goto error;
+		if (address_type->size < 4)
+			goto invalid_parameter;
+		if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
+			addr.ss_family = AF_INET;
+		else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
+			addr.ss_family = AF_INET6;
+		else	goto invalid_parameter;
+
+		if ((r = getdns_dict_get_bindata(
+		    dict, "address_data", &address_data)))
+			goto error;
+		if ((addr.ss_family == AF_INET &&
+		     address_data->size != 4) ||
+		    (addr.ss_family == AF_INET6 &&
+		     address_data->size != 16))
+			goto invalid_parameter;
+		if (inet_ntop(addr.ss_family, address_data->data,
+		    addrstr, 1024) == NULL)
+			goto invalid_parameter;
+
+		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
+		    GETDNS_RETURN_GOOD) {
+			if (strlen(addrstr) + scope_id->size > 1022)
+				goto invalid_parameter;
+			eos = &addrstr[strlen(addrstr)];
+			*eos++ = '%';
+			(void) memcpy(eos, scope_id->data, scope_id->size);
+			eos[scope_id->size] = 0;
+		}
+
 		/* Loop to create upstreams as needed*/
 		getdns_base_transport_t base_transport = GETDNS_BASE_TRANSPORT_MIN;
 		for (; base_transport < GETDNS_BASE_TRANSPORT_MAX; base_transport++) {
-			getdns_dict *dict;
-			getdns_bindata *address_type;
-			getdns_bindata *address_data;
 			uint32_t port;
-			getdns_bindata *scope_id;
 			struct addrinfo *ai;
-			getdns_upstream *upstream;
-
 			port = getdns_port_array[base_transport];
 			if (port == GETDNS_PORT_ZERO)
 				continue;
 
-			upstream = &upstreams->upstreams[upstreams->count];
-			if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
-				goto error;
-
-			if ((r = getdns_dict_get_bindata(
-			    dict, "address_type",&address_type)))
-				goto error;
-			if (address_type->size < 4)
-				goto invalid_parameter;
-			if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
-				upstream->addr.ss_family = AF_INET;
-			else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
-				upstream->addr.ss_family = AF_INET6;
-			else	goto invalid_parameter;
-
-			if ((r = getdns_dict_get_bindata(
-			    dict, "address_data", &address_data)))
-				goto error;
-			if ((upstream->addr.ss_family == AF_INET &&
-			     address_data->size != 4) ||
-			    (upstream->addr.ss_family == AF_INET6 &&
-			     address_data->size != 16))
-				goto invalid_parameter;
-			if (inet_ntop(upstream->addr.ss_family, address_data->data,
-			    addrstr, 1024) == NULL)
-				goto invalid_parameter;
-
-			(void) getdns_dict_get_int(dict, "port", &port);
+			/* TODO[TLS]:Respect the user port for TCP and STARTTLS, but for
+			 * now hardcode the TLS port */
+			if (base_transport != GETDNS_BASE_TRANSPORT_TLS)
+				(void) getdns_dict_get_int(dict, "port", &port);
 			(void) snprintf(portstr, 1024, "%d", (int)port);
-
-			if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
-			    GETDNS_RETURN_GOOD) {
-				if (strlen(addrstr) + scope_id->size > 1022)
-					goto invalid_parameter;
-				eos = &addrstr[strlen(addrstr)];
-				*eos++ = '%';
-				(void) memcpy(eos, scope_id->data, scope_id->size);
-				eos[scope_id->size] = 0;
-			}
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
 				goto invalid_parameter;
 
 			/* TODO[TLS]: Should probably check that the upstream doesn't
-			 * already exist (in case user has specified port explicitly)*/
+			 * already exist (in case user has specified TLS port explicitly and
+			 * to prevent duplicates) */
+
+			/* TODO[TLS]: Grow array when needed. This causes a crash later....
+			if (upstreams->count == upstreams_limit)
+				upstreams = upstreams_resize(
+				    upstreams, (upstreams_limit *= 2)); */
+
+			upstream = &upstreams->upstreams[upstreams->count];
+			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
+			fprintf(stderr, "[TLS]: creating upstream %d, %p, with port %d with transport %d\n", (int)upstreams->count, (void*)upstream,(int)port, base_transport);
 			upstream->dns_base_transport = base_transport;
 			upstreams->count++;
 			freeaddrinfo(ai);
@@ -1912,8 +1928,8 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	}
 	/* Block use of TLS ONLY in recursive mode as it won't work */
 	/* TODO[TLS]: Check if TLS is the only option in the list*/
-	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
-	&& context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
+	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
+	    context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	if (context->resolution_type_set == context->resolution_type)
