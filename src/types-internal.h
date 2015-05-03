@@ -164,6 +164,7 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
+/* TODO[TLS]: change this name to getdns_transport when API updated*/
 typedef enum getdns_base_transport {
 	GETDNS_BASE_TRANSPORT_MIN   = 0,
 	GETDNS_BASE_TRANSPORT_NONE  = 0,

@@ -703,7 +703,6 @@ set_os_defaults(struct getdns_context *context)
 
 			upstream = &context->upstreams->
 			    upstreams[context->upstreams->count++];
-			fprintf(stderr, "[TLS]: OS: creating upstream %d, %p, with port %s with transport %d\n", (int)context->upstreams->count, (void*)upstream, port_str, base_transport);
 			upstream_init(upstream, context->upstreams, result);
 			upstream->dns_base_transport = base_transport;
 		}
@@ -1586,7 +1585,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream = &upstreams->upstreams[upstreams->count];
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
-			fprintf(stderr, "[TLS]: creating upstream %d, %p, with port %d with transport %d\n", (int)upstreams->count, (void*)upstream,(int)port, base_transport);
 			upstream->dns_base_transport = base_transport;
 			upstreams->count++;
 			freeaddrinfo(ai);
