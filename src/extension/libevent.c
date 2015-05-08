@@ -80,7 +80,8 @@ getdns_libevent_run(getdns_eventloop *loop)
 static void
 getdns_libevent_run_once(getdns_eventloop *loop, int blocking)
 {
-	/* Is this possible with libevent? */
+	(void) event_base_loop(((getdns_libevent *)loop)->base,
+	    EVLOOP_ONCE | (blocking ? EVLOOP_NONBLOCK : 0));
 }
 
 static void
