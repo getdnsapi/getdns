@@ -54,6 +54,7 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	getdns_dict *r = getdns_dict_create_with_context(context);
 	char *s = strchr(ipstr, '%'), *scope_id_str = "";
 	char *p = strchr(ipstr, '@'), *portstr = "";
+	char *t = strchr(ipstr, '#'), *tls_portstr = "";
 	uint8_t buf[sizeof(struct in6_addr)];
 	getdns_bindata addr;
 
@@ -67,6 +68,10 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (p) {
 		*p = 0;
 		portstr = p + 1;
+	}
+	if (t) {
+		*t = 0;
+		tls_portstr = t + 1;
 	}
 	if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
@@ -86,6 +91,8 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	getdns_dict_set_bindata(r, "address_data", &addr);
 	if (*portstr)
 		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
+	if (*tls_portstr)
+		getdns_dict_set_int(r, "tls-port", (int32_t)atoi(tls_portstr));
 	if (*scope_id_str)
 		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
 

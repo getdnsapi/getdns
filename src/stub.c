@@ -399,6 +399,10 @@ stub_next_upstream(getdns_network_req *netreq)
 	if (! --netreq->upstream->to_retry) 
 		netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
 
+	/*[TLS]:TODO - This works because the next message won't try the exact
+	 * same upstream (and the next message may not use the same transport),
+	 * but the next message will find the next matching one thanks to logic in
+	 * upstream_select, but this could be better */
 	if (++dnsreq->upstreams->current > dnsreq->upstreams->count)
 		dnsreq->upstreams->current = 0;
 }

@@ -1564,10 +1564,10 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			if (port == GETDNS_PORT_ZERO)
 				continue;
 
-			/* TODO[TLS]:Respect the user port for TCP and STARTTLS, but for
-			 * now hardcode the TLS port */
 			if (base_transport != GETDNS_BASE_TRANSPORT_TLS)
 				(void) getdns_dict_get_int(dict, "port", &port);
+			else
+				(void) getdns_dict_get_int(dict, "tls-port", &port);
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
@@ -1811,10 +1811,8 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 		 * used. All other cases must currently fallback to TCP for libunbound.*/
 		if (context->dns_base_transports[0] == GETDNS_BASE_TRANSPORT_TLS &&
 		    context->dns_base_transports[1] == GETDNS_BASE_TRANSPORT_NONE &&
-			upstream_port(upstream) != GETDNS_PORT_DNS_OVER_TLS)
+			upstream->dns_base_transport !=  GETDNS_BASE_TRANSPORT_TLS)
 				continue;
-		else if (upstream_port(upstream) != GETDNS_PORT_DNS)
-			continue;
 		upstream_ntop_buf(upstream, addr, 1024);
 		ub_ctx_set_fwd(ctx, addr);
 	}
