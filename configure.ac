@@ -31,8 +31,8 @@
 
 AC_PREREQ([2.56])
 
-AC_INIT([getdns], [0.1.8], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [])
+AC_INIT([getdns], [0.1.9], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_SUBST(RELEASE_CANDIDATE, [rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
