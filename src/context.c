@@ -53,6 +53,13 @@
 #include "stub.h"
 #include "list.h"
 
+#define GETDNS_PORT_ZERO 0
+#define GETDNS_PORT_DNS 53
+#define GETDNS_PORT_DNS_OVER_TLS 1021
+#define GETDNS_STR_PORT_ZERO "0"
+#define GETDNS_STR_PORT_DNS "53"
+#define GETDNS_STR_PORT_DNS_OVER_TLS "1021"
+
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 typedef struct host_name_addrs {
@@ -61,6 +68,26 @@ typedef struct host_name_addrs {
 	getdns_list *ipv6addrs;
 	uint8_t host_name[];
 } host_name_addrs;
+
+static in_port_t 
+getdns_port_array[GETDNS_BASE_TRANSPORT_MAX] = {
+	GETDNS_PORT_ZERO,
+	GETDNS_PORT_ZERO,
+	GETDNS_PORT_ZERO,
+	GETDNS_PORT_DNS,
+	GETDNS_PORT_DNS,
+	GETDNS_PORT_DNS_OVER_TLS
+};
+
+char*
+getdns_port_str_array[] = {
+	GETDNS_STR_PORT_ZERO,
+	GETDNS_STR_PORT_ZERO,
+	GETDNS_STR_PORT_ZERO,
+	GETDNS_STR_PORT_DNS,
+	GETDNS_STR_PORT_DNS,
+	GETDNS_STR_PORT_DNS_OVER_TLS
+};
 
 /* Private functions */
 getdns_return_t create_default_namespaces(struct getdns_context *context);
@@ -240,7 +267,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in *)sa)->sin_port);
-		if (port !=  0 && port != 53 &&
+		if (port != GETDNS_PORT_ZERO && port != GETDNS_PORT_DNS &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -256,7 +283,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		if (port !=  0 && port != 53 &&
+		if (port != GETDNS_PORT_DNS && port != GETDNS_PORT_DNS &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -514,8 +541,7 @@ upstream_scope_id(getdns_upstream *upstream)
 }
 
 static void
-upstream_ntop_buf(getdns_upstream *upstream, getdns_transport_t transport,
-                  char *buf, size_t len)
+upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
 {
 	/* Also possible but prints scope_id by name (nor parsed by unbound)
 	 *
@@ -527,10 +553,7 @@ upstream_ntop_buf(getdns_upstream *upstream, getdns_transport_t transport,
 	if (upstream_scope_id(upstream))
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "%%%d", (int)*upstream_scope_id(upstream));
-	if (transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
-		(void) snprintf(buf + strlen(buf), len - strlen(buf),
-		    "@%d", GETDNS_TLS_PORT);
-	else if (upstream_port(upstream) != 53 && upstream_port(upstream) != 0)
+	else if (upstream_port(upstream) != GETDNS_PORT_DNS && upstream_port(upstream) != GETDNS_PORT_ZERO)
 		(void) snprintf(buf + strlen(buf), len - strlen(buf),
 		    "@%d", (int)upstream_port(upstream));
 }
@@ -557,6 +580,9 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
+	upstream->starttls_req = NULL;
+	upstream->dns_base_transport = GETDNS_BASE_TRANSPORT_TCP;
+	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -659,20 +685,27 @@ set_os_defaults(struct getdns_context *context)
 		token = parse + strcspn(parse, " \t\r\n");
 		*token = 0;
 
-		if ((s = getaddrinfo(parse, "53", &hints, &result)))
-			continue;
+		getdns_base_transport_t base_transport = GETDNS_BASE_TRANSPORT_MIN;
+		for (; base_transport < GETDNS_BASE_TRANSPORT_MAX; base_transport++) {
+			char *port_str = getdns_port_str_array[base_transport];
+			if (strncmp(port_str, GETDNS_STR_PORT_ZERO, 1) == 0)
+				continue;
+			if ((s = getaddrinfo(parse, port_str, &hints, &result)))
+				continue;
 
-		/* No lookups, so maximal 1 result */
-		if (! result) continue;
+			/* No lookups, so maximal 1 result */
+			if (! result) continue;
 
-		/* Grow array when needed */
-		if (context->upstreams->count == upstreams_limit)
-			context->upstreams = upstreams_resize(
-			    context->upstreams, (upstreams_limit *= 2));
+			/* Grow array when needed */
+			if (context->upstreams->count == upstreams_limit)
+				context->upstreams = upstreams_resize(
+				    context->upstreams, (upstreams_limit *= 2));
 
-		upstream = &context->upstreams->
-		    upstreams[context->upstreams->count++];
-		upstream_init(upstream, context->upstreams, result);
+			upstream = &context->upstreams->
+			    upstreams[context->upstreams->count++];
+			upstream_init(upstream, context->upstreams, result);
+			upstream->dns_base_transport = base_transport;
+		}
 		freeaddrinfo(result);
 	}
 	fclose(in);
@@ -801,6 +834,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
 	result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
+	priv_set_base_dns_transports(result->dns_base_transports, result->dns_transport);
 	result->limit_outstanding_queries = 0;
 	result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
@@ -1124,31 +1158,43 @@ getdns_context_set_namespaces(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_namespaces */
 
-getdns_base_transport_t
-priv_get_base_transport(getdns_transport_t transport, int level) {
-	if (!(level == 0 || level == 1)) return GETDNS_TRANSPORT_NONE;
-	switch (transport) {
- 		case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
-			if (level == 0) return GETDNS_TRANSPORT_UDP;
-			if (level == 1) return GETDNS_TRANSPORT_TCP;
-		case GETDNS_TRANSPORT_UDP_ONLY:
-			if (level == 0) return GETDNS_TRANSPORT_UDP;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TCP_ONLY:
-			if (level == 0) return GETDNS_TRANSPORT_TCP_SINGLE;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return GETDNS_TRANSPORT_TCP;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return GETDNS_TRANSPORT_TLS;
-			if (level == 1) return GETDNS_TRANSPORT_NONE;
-		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-			if (level == 0) return GETDNS_TRANSPORT_TLS;
-			if (level == 1) return GETDNS_TRANSPORT_TCP;
-		default:
-			return GETDNS_TRANSPORT_NONE;
-		}
+/* TODO[TLS]: Modify further when API changed.*/
+getdns_return_t
+priv_set_base_dns_transports(getdns_base_transport_t *dns_base_transports,
+                             getdns_transport_t value)
+{
+    for (int i = 0; i < GETDNS_BASE_TRANSPORT_MAX; i++)
+        dns_base_transports[i] = GETDNS_BASE_TRANSPORT_NONE;
+    switch (value) {
+        case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_UDP;
+            dns_base_transports[1] = GETDNS_BASE_TRANSPORT_TCP_SINGLE;
+            break;
+        case GETDNS_TRANSPORT_UDP_ONLY:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_UDP;
+            break;
+        case GETDNS_TRANSPORT_TCP_ONLY:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TCP_SINGLE;
+            break;
+        case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TCP;
+            break;
+        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TLS;
+            break;
+        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_TLS;
+            dns_base_transports[1] = GETDNS_BASE_TRANSPORT_TCP;
+           break;
+        case GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+            dns_base_transports[0] = GETDNS_BASE_TRANSPORT_STARTTLS;
+            dns_base_transports[1] = GETDNS_BASE_TRANSPORT_TCP;
+           break;
+
+        default:
+           return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+        }
+    return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
@@ -1170,12 +1216,12 @@ set_ub_dns_transport(struct getdns_context* context,
             set_ub_string_opt(context, "do-tcp:", "yes");
             break;
        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-            /* Hum. If used in recursive mode this will try TLS on port 53...
-             * So we need to fix or document that or delay setting it until 
-             * resolution.*/
+            /* Note: If TLS is used in recursive mode this will try TLS on port 
+             * 53... So this is prohibited when preparing for resolution.*/
             set_ub_string_opt(context, "ssl-upstream:", "yes");
-            /* Fall through*/
+            /* Fall through */
        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+       case GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
            /* Note: no fallback to TCP available directly in unbound, so we just
             * use TCP for now to make sure the messages are sent. */
            set_ub_string_opt(context, "do-udp:", "no");
@@ -1195,17 +1241,22 @@ getdns_return_t
 getdns_context_set_dns_transport(struct getdns_context *context,
     getdns_transport_t value)
 {
+    /* TODO[TLS]: Modify further when API changed.*/
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     /* Note that the call below does not have any effect in unbound after the
-     * ctx is finalised. So will not apply for recursive mode or stub + dnssec.
+     * ctx is finalised so for recursive mode or stub + dnssec only the first
+     * transport specified on the first query is used.
      * However the method returns success as otherwise the transport could not
-     * be reset for stub mode..... 
+     * be reset for stub mode.
      * Also, not all transport options supported in libunbound yet */
     if (set_ub_dns_transport(context, value) != GETDNS_RETURN_GOOD) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     if (value != context->dns_transport) {
+        /*TODO[TLS]: remove this line when API updated*/
         context->dns_transport = value;
+        if (priv_set_base_dns_transports(context->dns_base_transports, value) != GETDNS_RETURN_GOOD)
+            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
     }
 
@@ -1436,6 +1487,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	getdns_return_t r;
 	size_t count = 0;
 	size_t i;
+	//size_t upstreams_limit;
 	getdns_upstreams *upstreams;
 	char addrstr[1024], portstr[1024], *eos;
 	struct addrinfo hints;
@@ -1456,17 +1508,17 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	hints.ai_addr      = NULL;
 	hints.ai_next      = NULL;
 
-	upstreams = upstreams_create(context, count);
+	upstreams = upstreams_create(context, count*3);
+	//upstreams_limit = count; 
 	for (i = 0; i < count; i++) {
 		getdns_dict *dict;
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
-		uint32_t port;
+		struct sockaddr_storage  addr;
+
 		getdns_bindata *scope_id;
-		struct addrinfo *ai;
 		getdns_upstream *upstream;
 
-		upstream = &upstreams->upstreams[upstreams->count];
 		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
 			goto error;
 
@@ -1476,26 +1528,22 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		if (address_type->size < 4)
 			goto invalid_parameter;
 		if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
-			upstream->addr.ss_family = AF_INET;
+			addr.ss_family = AF_INET;
 		else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
-			upstream->addr.ss_family = AF_INET6;
+			addr.ss_family = AF_INET6;
 		else	goto invalid_parameter;
 
 		if ((r = getdns_dict_get_bindata(
 		    dict, "address_data", &address_data)))
 			goto error;
-		if ((upstream->addr.ss_family == AF_INET &&
+		if ((addr.ss_family == AF_INET &&
 		     address_data->size != 4) ||
-		    (upstream->addr.ss_family == AF_INET6 &&
+		    (addr.ss_family == AF_INET6 &&
 		     address_data->size != 16))
 			goto invalid_parameter;
-		if (inet_ntop(upstream->addr.ss_family, address_data->data,
+		if (inet_ntop(addr.ss_family, address_data->data,
 		    addrstr, 1024) == NULL)
 			goto invalid_parameter;
-
-		port = 53;
-		(void) getdns_dict_get_int(dict, "port", &port);
-		(void) snprintf(portstr, 1024, "%d", (int)port);
 
 		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
 		    GETDNS_RETURN_GOOD) {
@@ -1507,12 +1555,40 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			eos[scope_id->size] = 0;
 		}
 
-		if (getaddrinfo(addrstr, portstr, &hints, &ai))
-			goto invalid_parameter;
+		/* Loop to create upstreams as needed*/
+		getdns_base_transport_t base_transport = GETDNS_BASE_TRANSPORT_MIN;
+		for (; base_transport < GETDNS_BASE_TRANSPORT_MAX; base_transport++) {
+			uint32_t port;
+			struct addrinfo *ai;
+			port = getdns_port_array[base_transport];
+			if (port == GETDNS_PORT_ZERO)
+				continue;
 
-		upstream_init(upstream, upstreams, ai);
-		upstreams->count++;
-		freeaddrinfo(ai);
+			if (base_transport != GETDNS_BASE_TRANSPORT_TLS)
+				(void) getdns_dict_get_int(dict, "port", &port);
+			else
+				(void) getdns_dict_get_int(dict, "tls-port", &port);
+			(void) snprintf(portstr, 1024, "%d", (int)port);
+
+			if (getaddrinfo(addrstr, portstr, &hints, &ai))
+				goto invalid_parameter;
+
+			/* TODO[TLS]: Should probably check that the upstream doesn't
+			 * already exist (in case user has specified TLS port explicitly and
+			 * to prevent duplicates) */
+
+			/* TODO[TLS]: Grow array when needed. This causes a crash later....
+			if (upstreams->count == upstreams_limit)
+				upstreams = upstreams_resize(
+				    upstreams, (upstreams_limit *= 2)); */
+
+			upstream = &upstreams->upstreams[upstreams->count];
+			upstream->addr.ss_family = addr.ss_family;
+			upstream_init(upstream, upstreams, ai);
+			upstream->dns_base_transport = base_transport;
+			upstreams->count++;
+			freeaddrinfo(ai);
+		}
 	}
 	priv_getdns_upstreams_dereference(context->upstreams);
 	context->upstreams = upstreams;
@@ -1731,7 +1807,13 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	(void) ub_ctx_set_fwd(ctx, NULL);
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
-		upstream_ntop_buf(upstream, context->dns_transport, addr, 1024);
+		/*[TLS]: Use only the TLS subset of upstreams when TLS is the only thing
+		 * used. All other cases must currently fallback to TCP for libunbound.*/
+		if (context->dns_base_transports[0] == GETDNS_BASE_TRANSPORT_TLS &&
+		    context->dns_base_transports[1] == GETDNS_BASE_TRANSPORT_NONE &&
+			upstream->dns_base_transport !=  GETDNS_BASE_TRANSPORT_TLS)
+				continue;
+		upstream_ntop_buf(upstream, addr, 1024);
 		ub_ctx_set_fwd(ctx, addr);
 	}
 
@@ -1826,29 +1908,24 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
     }
 
 	/* Transport can in theory be set per query in stub mode */
-	/* TODO: move this transport logic to a separate functions*/
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-		switch (context->dns_transport) {
-		case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-		case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-			if (context->tls_ctx == NULL) {
+		/*TODO[TLS]: Check if TLS is in the list of transports.*/
+		if (context->tls_ctx == NULL) {
 #ifdef HAVE_LIBTLS1_2
-				/* Create client context, use TLS v1.2 only for now */
-				context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
+			/* Create client context, use TLS v1.2 only for now */
+			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 #endif
-				if(!context->tls_ctx && context->dns_transport == 
-				   GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
-					return GETDNS_RETURN_BAD_CONTEXT;
-				}
-			}
-			break;
-		default:
-			break;
+			/* TODO[TLS]: Check if TLS is the only option in the list*/
+			// if(!context->tls_ctx && context->dns_transport == 
+			//    GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN) {
+			// 	return GETDNS_RETURN_BAD_CONTEXT;
+			// }
 		}
 	}
 	/* Block use of TLS ONLY in recursive mode as it won't work */
-	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
-	&& context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
+	/* TODO[TLS]: Check if TLS is the only option in the list*/
+	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
+	    context->dns_transport == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	if (context->resolution_type_set == context->resolution_type)

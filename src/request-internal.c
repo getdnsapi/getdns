@@ -89,6 +89,9 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 
 	net_req->upstream = NULL;
 	net_req->fd = -1;
+	for (i = 0; i < GETDNS_BASE_TRANSPORT_MAX; i++)
+		net_req->dns_base_transports[i] = owner->context->dns_base_transports[i];
+	net_req->transport = 0;
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->query_id = 0;

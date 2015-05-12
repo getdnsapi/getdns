@@ -49,7 +49,6 @@ struct ub_ctx;
 
 #define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
 #define GETDNS_FN_HOSTS      "/etc/hosts"
-#define GETDNS_TLS_PORT 1021
 
 enum filechgs { GETDNS_FCHG_ERRORS = -1
  , GETDNS_FCHG_NOERROR   = 0
@@ -72,13 +71,13 @@ struct filechg {
 	struct stat *prevstat;
 };
 
-typedef enum getdns_base_transport {
-	GETDNS_TRANSPORT_NONE,
-	GETDNS_TRANSPORT_UDP,
-	GETDNS_TRANSPORT_TCP_SINGLE,
-	GETDNS_TRANSPORT_TCP,
-	GETDNS_TRANSPORT_TLS
-} getdns_base_transport_t;
+typedef enum getdns_tls_hs_state {
+	GETDNS_HS_NONE,
+	GETDNS_HS_WRITE,
+	GETDNS_HS_READ,
+	GETDNS_HS_DONE,
+	GETDNS_HS_FAILED
+} getdns_tls_hs_state_t;
 
 typedef struct getdns_upstream {
 	struct getdns_upstreams *upstreams;
@@ -92,7 +91,10 @@ typedef struct getdns_upstream {
 
 	/* For sharing a TCP socket to this upstream */
 	int                      fd;
+	getdns_base_transport_t  dns_base_transport;
 	SSL*                     tls_obj;
+	getdns_tls_hs_state_t    tls_hs_state;
+	getdns_dns_req *         starttls_req;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
@@ -136,6 +138,7 @@ struct getdns_context {
 	struct getdns_list   *dnssec_trust_anchors;
 	getdns_upstreams     *upstreams;
 	getdns_transport_t   dns_transport;
+	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
 
@@ -231,7 +234,8 @@ int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void priv_getdns_context_ub_read_cb(void *userarg);
 
-getdns_base_transport_t priv_get_base_transport(getdns_transport_t transport, int level);
+getdns_return_t priv_set_base_dns_transports(getdns_base_transport_t *,
+    getdns_transport_t);
 
 void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
 

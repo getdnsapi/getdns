@@ -54,6 +54,7 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	getdns_dict *r = getdns_dict_create_with_context(context);
 	char *s = strchr(ipstr, '%'), *scope_id_str = "";
 	char *p = strchr(ipstr, '@'), *portstr = "";
+	char *t = strchr(ipstr, '#'), *tls_portstr = "";
 	uint8_t buf[sizeof(struct in6_addr)];
 	getdns_bindata addr;
 
@@ -67,6 +68,10 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (p) {
 		*p = 0;
 		portstr = p + 1;
+	}
+	if (t) {
+		*t = 0;
+		tls_portstr = t + 1;
 	}
 	if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
@@ -86,6 +91,8 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	getdns_dict_set_bindata(r, "address_data", &addr);
 	if (*portstr)
 		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
+	if (*tls_portstr)
+		getdns_dict_set_int(r, "tls-port", (int32_t)atoi(tls_portstr));
 	if (*scope_id_str)
 		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
 
@@ -121,6 +128,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
 	fprintf(out, "\t-E\tSet transport to TLS with TCP fallback only keep connections open\n");
+	fprintf(out, "\t-R\tSet transport to STARTTLS with TCP fallback only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
@@ -368,6 +376,10 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'E':
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
+				break;
+			case 'R':
+				getdns_context_set_dns_transport(context,
+				    GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
 				break;
 			case 'u':
 				getdns_context_set_dns_transport(context,
