@@ -165,8 +165,7 @@
 /* When defined ldns_dnssec_zone contained the hashed_names member. */
 #undef LDNS_DNSSEC_ZONE_HASHED_NAMES
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Define to the address where bug reports for this package should be sent. */
