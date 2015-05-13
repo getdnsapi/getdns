@@ -1277,8 +1277,6 @@ upstream_read_cb(void *userarg)
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
 			} else 
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
-			dns_req_free(upstream->starttls_req);
-			upstream->starttls_req = NULL;
 
 			/* Now reschedule the writes on this connection */
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -1357,13 +1355,19 @@ upstream_write_cb(void *userarg)
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 		}
-		if (upstream->starttls_req) {
+		if (upstream->starttls_req && netreq->owner == upstream->starttls_req) {
 			/* Now deschedule any further writes on this connection until we get
 			 * the STARTTLS answer*/
 			upstream->event.write_cb = NULL;
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+		} else if (upstream->starttls_req) {
+			/* Delay the cleanup of the STARTTLS req until the write of the next
+			 * req in the queue since for sync req, the event on a request is
+			 * used for the callback that writes the next req. */
+			dns_req_free(upstream->starttls_req);
+			upstream->starttls_req = NULL;
 		}
 		/* With synchonous lookups, schedule the read locally too */
 		if (netreq->event.write_cb) {
