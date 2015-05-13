@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-01-14
+* Date:    2015-05-13
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -185,13 +185,13 @@ build the packages, this is simplythe one we chose to use.
     CentOS release 6.5 (Final)
     # uname -a
     Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-    # cd getdns-0.1.6
+    # cd getdns-0.2.0rc1
     # ./configure --prefix=/home/deploy/build
     # make; make install
     # cd /home/deploy/build
     # mv lib lib64
     # . /usr/local/rvm/config/alias
-    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.1.6 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
+    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.2.0rc1 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
 ###OSX
 
@@ -228,9 +228,12 @@ Contributors
 * John Dickinson, Sinodun
 * Sara Dickinson, Sinodun
 * Neel Goyal, Verisign, Inc.
+* Scott Hollenbeck, Verising, Inc.
 * Shumon Huque, Verisign Labs
 * Olaf Kolkman, NLnet Labs
+* Sanjay Mahurpawar, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
+* Prithvi Ranganath, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
 * Willem Toorop, NLnet Labs
 * Gowri Visweswaran, Verisign Labs

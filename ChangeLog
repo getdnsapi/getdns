@@ -1,8 +1,11 @@
-* 2015-??-??: Version 0.1.9
+* 2015-05-??: Version 0.2.0
   * Fix libversion numbering:  Thanks Daniel Kahn Gillmor
   * run_once method for the libevent extension
   * autoreconf -fi on FreeBSD always, because of newer libtool version
     suitable for FreeBSD installs too.  Thanks Robert Edmonds
+  * True asynchronous processing of the new TLS transport options
+  * GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN
+    transport option.
 
 * 2015-04-19: Version 0.1.8
   * The GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN and
