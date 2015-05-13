@@ -44,6 +44,7 @@
 
 #define SCHED_DEBUG 0
 #define WIRE_DEBUG 0
+#define STUB_DEBUG 0
 
 #ifdef S_SPLINT_S
 #  define INLINE 
@@ -171,6 +172,13 @@ create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
 #define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if defined(STUB_DEBUG) && STUB_DEBUG
+#include <time.h>
+#define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 INLINE getdns_eventloop_event *getdns_eventloop_event_init(

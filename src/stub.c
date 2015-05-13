@@ -51,8 +51,6 @@
 /* Don't currently have access to the context whilst doing handshake */
 #define TIMEOUT_TLS 2500
 
-#define STUB_DEBUG 0
-
 static time_t secret_rollover_time = 0;
 static uint32_t secret = 0;
 static uint32_t prev_secret = 0;
@@ -71,13 +69,6 @@ static void stub_tcp_write_cb(void *userarg);
 /* General utility functions */
 /*****************************/
 
-static void
-stub_debug(const char *function_name)
-{
-#ifdef STUB_DEBUG
-	fprintf(stderr,"[STUB DEBUG]: %s\n", function_name);
-#endif
-}
 
 static void
 rollover_secret()
@@ -550,7 +541,7 @@ stub_timeout_cb(void *userarg)
 static void
 upstream_tls_timeout_cb(void *userarg)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	/* Clean up and trigger a write to let the fallback code to its job */
 	tls_cleanup(upstream);
@@ -819,7 +810,7 @@ tls_create_object(getdns_context *context, int fd)
 static int
 tls_do_handshake(getdns_upstream *upstream)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	int r;
 	int want;
 	ERR_clear_error();
@@ -1208,7 +1199,7 @@ stub_tcp_write_cb(void *userarg)
 static void
 upstream_read_cb(void *userarg)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq;
 	getdns_dns_req *dnsreq;
@@ -1319,7 +1310,7 @@ netreq_upstream_read_cb(void *userarg)
 static void
 upstream_write_cb(void *userarg)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
 	getdns_dns_req *dnsreq = netreq->owner;
@@ -1466,7 +1457,7 @@ int
 upstream_connect(getdns_upstream *upstream, getdns_base_transport_t transport,
                     getdns_dns_req *dnsreq) 
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	int fd = -1;
 	switch(transport) {
 	case GETDNS_BASE_TRANSPORT_UDP:
@@ -1570,7 +1561,7 @@ static int
 move_netreq(getdns_network_req *netreq, getdns_upstream *upstream,
             getdns_upstream *new_upstream)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	/* Remove from queue, clearing event and fd if we are the last*/
 	if (!(upstream->write_queue = netreq->write_queue_tail)) {
 		upstream->write_queue_last = NULL;
@@ -1626,7 +1617,7 @@ move_netreq(getdns_network_req *netreq, getdns_upstream *upstream,
 static int
 fallback_on_write(getdns_network_req *netreq) 
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	/* TODO[TLS]: Fallback through all transports.*/
 	getdns_base_transport_t next_transport = 
 	                         netreq->dns_base_transports[netreq->transport + 1];
@@ -1652,7 +1643,7 @@ fallback_on_write(getdns_network_req *netreq)
 static void
 upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	/* We have a connected socket and a global event loop */
 	assert(upstream->fd >= 0);
 	assert(upstream->loop);
@@ -1685,7 +1676,7 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 getdns_return_t
 priv_getdns_submit_stub_request(getdns_network_req *netreq)
 {
-	stub_debug(__FUNCTION__);
+	DEBUG_STUB("%s\n", __FUNCTION__);
 	int fd = -1;
 	getdns_dns_req *dnsreq = netreq->owner;
 
