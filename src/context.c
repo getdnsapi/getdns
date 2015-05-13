@@ -314,7 +314,9 @@ str_addr_dict(getdns_context *context, const char *str)
 
 	if (getaddrinfo(str, NULL, &hints, &ai))
 		return NULL;
-
+	if (!ai)
+		return NULL;
+		
 	address = sockaddr_dict(context, ai->ai_addr);
 	freeaddrinfo(ai);
 
@@ -692,9 +694,8 @@ set_os_defaults(struct getdns_context *context)
 				continue;
 			if ((s = getaddrinfo(parse, port_str, &hints, &result)))
 				continue;
-
-			/* No lookups, so maximal 1 result */
-			if (! result) continue;
+			if (!result)
+				continue;
 
 			/* Grow array when needed */
 			if (context->upstreams->count == upstreams_limit)
@@ -705,8 +706,8 @@ set_os_defaults(struct getdns_context *context)
 			    upstreams[context->upstreams->count++];
 			upstream_init(upstream, context->upstreams, result);
 			upstream->dns_base_transport = base_transport;
+			freeaddrinfo(result);
 		}
-		freeaddrinfo(result);
 	}
 	fclose(in);
 
@@ -1572,6 +1573,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
 				goto invalid_parameter;
+			if (!ai)
+				continue;
 
 			/* TODO[TLS]: Should probably check that the upstream doesn't
 			 * already exist (in case user has specified TLS port explicitly and
