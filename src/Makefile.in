@@ -264,9 +264,9 @@ rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h getdns/getdns.h $(
  $(srcdir)/gldns/gbuffer.h config.h
 stub.lo stub.o: $(srcdir)/stub.c config.h $(srcdir)/stub.h getdns/getdns.h $(srcdir)/types-internal.h \
  $(srcdir)/getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/gldns/gbuffer.h \
- $(srcdir)/gldns/pkthdr.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h \
- $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h \
- $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/general.h
+ $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/rr-iter.h \
+ $(srcdir)/rr-dict.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/general.h
 sync.lo sync.o: $(srcdir)/sync.c getdns/getdns.h config.h $(srcdir)/context.h $(srcdir)/getdns/getdns_extra.h \
  getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
  config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/general.h \
