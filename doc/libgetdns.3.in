@@ -223,12 +223,12 @@ that the API can free the memory from its internal pool.
 Applications may populate an extension dictionary when making a call to the public entry points.  To use an extension add it to the extension dictionary prior to making the call to the public entry point and set the value depending on the behavior you expect.  These extensions include:
 
 .HP 3
-dnssec_return_status (int)
+"dnssec_return_status" (int)
 
 Set to GETDNS_EXTENSION_TRUE to include the DNSSEC status for each DNS record in the replies_tree
 
 .HP 3
-dnssec_return_only_secure (int)
+"dnssec_return_only_secure" (int)
 
 Set to GETDNS_EXTENSION_TRUE to cause only records that the API can validate as secure withe DNSSEC to be returned in the
 .I replies_tree
@@ -236,24 +236,24 @@ and
 .I replies_full lists
 
 .HP 3
-dnssec_return_validation_chain (int)
+"dnssec_return_validation_chain" (int)
 
 Set to GETDNS_EXTENSION_TRUE to cause the set of additional DNSSEC-related records needed for validation to be returned in the response object as the list named
 .I additional_dnssec
 at the top level of the response object
 
 .HP 3
-return_both_v4_and_v6 (int)
+"return_both_v4_and_v6" (int)
 
 Set to GETDNS_EXTENSION_TRUE to cause the results of both A and AAAA records for the queried name to be included in the response object.
 
 .HP 3
-add_opt_parameters (dict)
+"add_opt_parameters" (dict)
 
 TBD (complicated)
 
 .HP 3
-add_warning_for_bad_dns
+"add_warning_for_bad_dns"
 
 Set to GETDNS_EXTENSION_TRUE to cause each reply in the
 .I replies_tree
@@ -270,12 +270,12 @@ GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE: query type for other than CNAME re
 .RE
 
 .HP 3
-specify_class (int)
+"specify_class" (int)
 
 Set to the DNS class number (other than Internet (IN) class desired in query.
 
 .HP 3
-return_call_debugging (int)
+"return_call_debugging" (int)
 
 Set to GETDNS_EXTENSION_TRUE to add the name
 .I call_debugging
