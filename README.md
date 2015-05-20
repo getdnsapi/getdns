@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-05-15
+* Date:    2015-05-20
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -233,6 +233,7 @@ Contributors
 * Olaf Kolkman, NLnet Labs
 * Sanjay Mahurpawar, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
+* Benno Overeinder, NLnet Labs
 * Prithvi Ranganath, Verisign, Inc.
 * Rushi Shah, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
