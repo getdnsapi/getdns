@@ -46,7 +46,7 @@ getdns_return_t
 .B getdns_list_set_bindata
 (getdns_list *this_list,
 .RS 3
-char *name,
+size_t index,
 .br
 getdns_bindata *child_bindata)
 .RE
@@ -56,7 +56,7 @@ getdns_return_t
 .B getdns_list_set_dict
 (getdns_list *this_list,
 .RS 3
-char *name,
+size_t index,
 .br
 getdns_dict *child_dict)
 .RE
@@ -66,7 +66,7 @@ getdns_return_t
 .B getdns_list_set_int
 (getdns_list *this_list,
 .RS 3
-char *name,
+size_t index,
 .br
 uint32_t child_uint32_t)
 .RE
@@ -76,7 +76,7 @@ getdns_return_t
 .B getdns_list_set_list
 (getdns_list *this_list,
 .RS 3
-char *name,
+size_t index,
 .br
 getdns_list *child_list)
 .RE
