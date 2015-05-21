@@ -24,7 +24,11 @@ do
 	    -e 's/rbtree_/getdns_rbtree_/g' \
 	    -e 's/traverse_post/getdns_traverse_post/g' \
 	    -e 's/#include "fptr_wlist\.h"/#include "util\/fptr_wlist.h"/g' \
-	    -e 's/#include "log\.h"/#include "util\/log.h"/g' $f > ../$f
+	    -e 's/#include "log\.h"/#include "util\/log.h"/g' \
+	    -e '/^#define getdns_.* minigetdns_/d' \
+	    -e '/^\/\* redefine to use our own namespace so that on platforms where$/d' \
+	    -e '/^ \* linkers crosslink library-private symbols with other symbols, it works \*\//d' \
+	    $f > ../$f
 done
 cd ..
 rm -r ub
