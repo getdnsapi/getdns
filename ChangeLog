@@ -1,4 +1,4 @@
-* 2015-05-??: Version 0.2.0
+* 2015-05-21: Version 0.2.0
   * Fix libversion numbering:  Thanks Daniel Kahn Gillmor
   * run_once method for the libevent extension
   * autoreconf -fi on FreeBSD always, because of newer libtool version
