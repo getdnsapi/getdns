@@ -1,3 +1,6 @@
+* 2015-06-??: Version 0.?.?
+  * Unit test for spurious execute bits.  Thanks Paul Wouters.
+
 * 2015-05-21: Version 0.2.0
   * Fix libversion numbering:  Thanks Daniel Kahn Gillmor
   * run_once method for the libevent extension
