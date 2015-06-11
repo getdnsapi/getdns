@@ -70,7 +70,7 @@ uint8_t *priv_getdns_owner_if_or_as_decompressed(
 static inline gldns_pkt_section
 priv_getdns_rr_iter_section(priv_getdns_rr_iter *i)
 {
-	return i->n < GLDNS_QDCOUNT(i->pkt) ? LDNS_SECTION_QUESTION
+	return i->n < GLDNS_QDCOUNT(i->pkt) ? GLDNS_SECTION_QUESTION
 	     : i->n < GLDNS_QDCOUNT(i->pkt)
 	            + GLDNS_ANCOUNT(i->pkt) ? GLDNS_SECTION_ANSWER
 	     : i->n < GLDNS_QDCOUNT(i->pkt)

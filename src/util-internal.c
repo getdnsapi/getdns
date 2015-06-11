@@ -178,35 +178,6 @@ sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *addres
 	return GETDNS_RETURN_GOOD;
 }
 
-/* helper to convert an rr_list to getdns_list.
-   returns a list of objects where each object
-   is a result from create_dict_from_rr */
-struct getdns_list *
-create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list)
-{
-	size_t i = 0;
-	size_t idx = 0;
-	int r = GETDNS_RETURN_GOOD;
-	struct getdns_list *result = getdns_list_create_with_context(context);
-	struct getdns_dict *rrdict;
-	for (i = 0; i < ldns_rr_list_rr_count(rr_list) && r == GETDNS_RETURN_GOOD;
-	    ++i) {
-		ldns_rr *rr = ldns_rr_list_rr(rr_list, i);
-		r = priv_getdns_create_dict_from_rr(context, rr, &rrdict);
-		if (r != GETDNS_RETURN_GOOD)
-			break; /* Could not create, do not destroy */
-		r = getdns_list_add_item(result, &idx);
-		if (r == GETDNS_RETURN_GOOD)
-			r = getdns_list_set_dict(result, idx, rrdict);
-		getdns_dict_destroy(rrdict);
-	}
-	if (r != GETDNS_RETURN_GOOD) {
-		getdns_list_destroy(result);
-		result = NULL;
-	}
-	return result;
-}
-
 getdns_dict *
 priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 {
@@ -768,7 +739,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 			ninsecure++;
 		if (dnssec_return_status && netreq->bogus)
 			nbogus++;
-		else if (LDNS_RCODE_NOERROR ==
+		else if (GLDNS_RCODE_NOERROR ==
 		    GLDNS_RCODE_WIRE(netreq->response))
 			nanswers++;
 

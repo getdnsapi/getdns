@@ -38,7 +38,6 @@
 #ifndef UTIL_INTERNAL_H
 #define UTIL_INTERNAL_H
 
-#include <ldns/ldns.h>
 #include "context.h"
 #include "rr-iter.h"
 
@@ -142,16 +141,6 @@ getdns_return_t validate_dname(const char* dname);
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
 getdns_return_t validate_extensions(struct getdns_dict * extensions);
-
-/**
- * helper to convert an rr_list to getdns_list
- * @param context initialized getdns_context
- * @param rr_list ldns rr list to be converted
- * @return a list of objects where each object is a result from create_dict_from_rr
- */
-struct getdns_list *
-create_list_from_rr_list(struct getdns_context *context, ldns_rr_list * rr_list);
-
 
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
