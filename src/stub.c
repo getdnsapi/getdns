@@ -293,7 +293,7 @@ is_starttls_response(getdns_network_req *netreq)
 	size_t starttls_name_len = 256, owner_name_len;
 
 	/* Servers that are not STARTTLS aware will refuse the CH query*/
-	if (LDNS_RCODE_NOERROR != GLDNS_RCODE_WIRE(netreq->response))
+	if (GLDNS_RCODE_NOERROR != GLDNS_RCODE_WIRE(netreq->response))
 		return 0;
 
 	if (GLDNS_ANCOUNT(netreq->response) != 1)
@@ -983,7 +983,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		 * by query_id in the process.
 		 */
 		do {
-			query_id = ldns_get_random();
+			query_id = arc4random();
 			query_id_intptr = (intptr_t)query_id;
 			netreq->node.key = (void *)query_id_intptr;
 
