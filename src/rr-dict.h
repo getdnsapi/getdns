@@ -131,9 +131,6 @@ typedef struct priv_getdns_rr_def {
 
 const priv_getdns_rr_def *priv_getdns_rr_def_lookup(uint16_t rr_type);
 
-getdns_return_t priv_getdns_create_dict_from_rr(
-    struct getdns_context *context, ldns_rr *rr, struct getdns_dict** rr_dict);
-
 getdns_return_t priv_getdns_create_rr_from_dict(
     struct getdns_dict *rr_dict, ldns_rr **rr);
 
