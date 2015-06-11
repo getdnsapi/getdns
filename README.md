@@ -222,6 +222,8 @@ To install the [event loop integration libraries](https://github.com/getdnsapi/g
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
+As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the openssl lib installed by Homebrew is linked against.
+
 Contributors
 ============
 * Craig Despeaux, Verisign, Inc.
