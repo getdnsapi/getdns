@@ -11742,15 +11742,15 @@ if test "${enable_native_stub_dnssec+set}" = set; then :
   enableval=$enable_native_stub_dnssec;
 fi
 
-case "$enable_broken_native_stub_dnssec" in
+case "$enable_native_stub_dnssec" in
+	no)
+		;;
 	yes|*)
 
 cat >>confdefs.h <<_ACEOF
 #define STUB_NATIVE_DNSSEC 1
 _ACEOF
 
-		;;
-	no)
 		;;
 esac
 

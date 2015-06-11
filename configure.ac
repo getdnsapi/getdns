@@ -133,11 +133,11 @@ case "$enable_tcp_fastopen" in
 esac
 
 AC_ARG_ENABLE(native-stub-dnssec, AC_HELP_STRING([--disable-native-stub-dnssec], [Disable native stub DNSSEC support]))
-case "$enable_broken_native_stub_dnssec" in
+case "$enable_native_stub_dnssec" in
+	no)
+		;;
 	yes|*)
 		AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1], [Define this to enable native stub DNSSEC support.])
-		;;
-	no)
 		;;
 esac
 
