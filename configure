@@ -760,7 +760,7 @@ with_sysroot
 enable_libtool_lock
 enable_rpath
 enable_tcp_fastopen
-enable_broken_native_stub_dnssec
+enable_native_stub_dnssec
 with_ssl
 enable_draft_edns_cookies
 with_libidn
@@ -1406,9 +1406,8 @@ Optional Features:
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         disable hardcoded rpath (default=enabled)
   --enable-tcp-fastopen   Enable TCP Fast Open
-  --enable-broken-native-stub-dnssec
-                          Enable very experimental and broken native stub
-                          DNSSEC support
+  --disable-native-stub-dnssec
+                          Disable native stub DNSSEC support
   --enable-draft-edns-cookies
                           Enable experimental edns cookies
 
@@ -11738,20 +11737,20 @@ _ACEOF
 		;;
 esac
 
-# Check whether --enable-broken-native-stub-dnssec was given.
-if test "${enable_broken_native_stub_dnssec+set}" = set; then :
-  enableval=$enable_broken_native_stub_dnssec;
+# Check whether --enable-native-stub-dnssec was given.
+if test "${enable_native_stub_dnssec+set}" = set; then :
+  enableval=$enable_native_stub_dnssec;
 fi
 
 case "$enable_broken_native_stub_dnssec" in
-	yes)
+	yes|*)
 
 cat >>confdefs.h <<_ACEOF
 #define STUB_NATIVE_DNSSEC 1
 _ACEOF
 
 		;;
-	no|*)
+	no)
 		;;
 esac
 

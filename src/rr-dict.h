@@ -51,56 +51,57 @@ typedef struct priv_getdns_rdf_special {
 
 /* draft-levine-dnsextlang'ish type rr and rdata definitions */
 
-#define GETDNS_RDF_INTEGER   0x010000
-#define GETDNS_RDF_BINDATA   0x020000
-#define GETDNS_RDF_DNAME     0x060000
-#define GETDNS_RDF_REPEAT    0x100000
+#define GETDNS_RDF_INTEGER    0x010000
+#define GETDNS_RDF_BINDATA    0x020000
+#define GETDNS_RDF_DNAME      0x060000
+#define GETDNS_RDF_COMPRESSED 0x080000
+#define GETDNS_RDF_REPEAT     0x100000
 
-#define GETDNS_RDF_FIXEDSZ   0x0000FF
-#define GETDNS_RDF_LEN_VAL   0x00FF00
+#define GETDNS_RDF_FIXEDSZ    0x0000FF
+#define GETDNS_RDF_LEN_VAL    0x00FF00
 
 typedef enum priv_getdns_rdf_wf_type {
-	GETDNS_RDF_N       = 0x060000,     /* N      */
-	GETDNS_RDF_N_A     = GETDNS_RDF_N, /* N[A]   */
-	GETDNS_RDF_N_A_C   = GETDNS_RDF_N, /* N[A,C] */
-	GETDNS_RDF_N_C     = GETDNS_RDF_N, /* N[C]   */
-	GETDNS_RDF_N_M     = 0x160000,     /* N[M]   */
+	GETDNS_RDF_N        = 0x060000,     /* N      */
+	GETDNS_RDF_N_A      = 0x060000,     /* N[A]   */
+	GETDNS_RDF_N_C      = 0x0E0000,     /* N[C]   */
+	GETDNS_RDF_N_A_C    = 0x0E0000,     /* N[A,C] */
+	GETDNS_RDF_N_M      = 0x160000,     /* N[M]   */
 
-	GETDNS_RDF_I1      = 0x010001,     /* I1     */
-	GETDNS_RDF_I2      = 0x010002,     /* I2     */
-	GETDNS_RDF_I4      = 0x010004,     /* I4     */
+	GETDNS_RDF_I1       = 0x010001,     /* I1     */
+	GETDNS_RDF_I2       = 0x010002,     /* I2     */
+	GETDNS_RDF_I4       = 0x010004,     /* I4     */
 
-	GETDNS_RDF_T       = 0x010004,     /* T      */
+	GETDNS_RDF_T        = 0x010004,     /* T      */
 	                               /* Time values using ring arithmetics
 	                                * (rfc1982) for TKEY['inception'],
 	                                * TKEY['expiration'],
 	                                * RRSIG['inception'] and
 	                                * RRSIG['expiration']
 	                                */
-	GETDNS_RDF_T6      = 0x020006,     /* T6     */
+	GETDNS_RDF_T6       = 0x020006,     /* T6     */
 	                               /* Absolute time values (since epoch)
 					* for TSIG['time_signed']
 					*/
 
-	GETDNS_RDF_A       = 0x020004,     /* A      */
-	GETDNS_RDF_AA      = 0x020008,     /* AA     */
-	GETDNS_RDF_AAAA    = 0x020010,     /* AAAA   */
+	GETDNS_RDF_A        = 0x020004,     /* A      */
+	GETDNS_RDF_AA       = 0x020008,     /* AA     */
+	GETDNS_RDF_AAAA     = 0x020010,     /* AAAA   */
 
-	GETDNS_RDF_S       = 0x020100,     /* S      */
-	GETDNS_RDF_S_L     = 0x020000,     /* S[L]   */
-	GETDNS_RDF_S_M     = 0x120100,     /* S[M]   */
+	GETDNS_RDF_S        = 0x020100,     /* S      */
+	GETDNS_RDF_S_L      = 0x020000,     /* S[L]   */
+	GETDNS_RDF_S_M      = 0x120100,     /* S[M]   */
 
-	GETDNS_RDF_B       = 0x020000,     /* B      */
-	GETDNS_RDF_B_C     = 0x020100,     /* B[C]   */
+	GETDNS_RDF_B        = 0x020000,     /* B      */
+	GETDNS_RDF_B_C      = 0x020100,     /* B[C]   */
 
-	GETDNS_RDF_B32_C   = 0x020100,     /* B32[C] */
+	GETDNS_RDF_B32_C    = 0x020100,     /* B32[C] */
 
-	GETDNS_RDF_X       = 0x020000,     /* X      */
-	GETDNS_RDF_X_C     = 0x020100,     /* X[C]   */
+	GETDNS_RDF_X        = 0x020000,     /* X      */
+	GETDNS_RDF_X_C      = 0x020100,     /* X[C]   */
 	                               /* for NSEC3['salt'] and
 	                                * NSEC3PARAM['salt'].
 	                                */
-	GETDNS_RDF_X_S     = 0x020200,     /* X[S]   */
+	GETDNS_RDF_X_S      = 0x020200,     /* X[S]   */
 	                               /* for OPT['option_data'],
 	                                *    TKEY['key_data'],
 	                                *    TKEY['other_data'],
@@ -109,12 +110,12 @@ typedef enum priv_getdns_rdf_wf_type {
 					* Although those do not have an
 					* official presentation format.
 	                                */
-	GETDNS_RDF_X6      = 0x020006,
-	GETDNS_RDF_X8      = 0x020008,
+	GETDNS_RDF_X6       = 0x020006,
+	GETDNS_RDF_X8       = 0x020008,
 
-	GETDNS_RDF_R       = 0x100000, /* Repeat */
+	GETDNS_RDF_R        = 0x100000, /* Repeat */
 
-	GETDNS_RDF_SPECIAL = 0x800000,
+	GETDNS_RDF_SPECIAL  = 0x800000,
 } priv_getdns_rdf_type;
 
 typedef struct priv_getdns_rdata_def {

@@ -476,36 +476,6 @@ priv_getdns_rr_list_from_list(struct getdns_list *list, ldns_rr_list **rr_list)
 }
 
 static int
-priv_getdns_rr_dict_with_compressed_names(getdns_dict *rr_dict)
-{
-	uint32_t rr_type;
-	getdns_dict *rdata;
-
-	if (getdns_dict_get_int(rr_dict, "type", &rr_type))
-		return 0;
-	if (rr_type == GETDNS_RRTYPE_RRSIG) {
-		if (getdns_dict_get_dict(rr_dict, "rdata", &rdata))
-			return 0;
-		if (getdns_dict_get_int(rdata, "type_covered", &rr_type))
-			return 0;
-	}
-	switch (rr_type) {
-	case GETDNS_RRTYPE_NS:
-	case GETDNS_RRTYPE_MD:
-	case GETDNS_RRTYPE_CNAME:
-	case GETDNS_RRTYPE_SOA:
-	case GETDNS_RRTYPE_MG:
-	case GETDNS_RRTYPE_MR:
-	case GETDNS_RRTYPE_PTR:
-	case GETDNS_RRTYPE_MINFO:
-	case GETDNS_RRTYPE_MX:
-		return 1;
-	default:
-		return 0;
-	}
-}
-
-static int
 ldns_dname_compare_v(const void *a, const void *b) {
 	return ldns_dname_compare((ldns_rdf *)a, (ldns_rdf *)b);
 }
@@ -572,9 +542,6 @@ priv_getdns_dnssec_zone_from_list(struct getdns_list *list,
 	for (i = 0; i < l; i++) {
 		if ((r = getdns_list_get_dict(list, i, &rr_dict)))
 			break;
-
-		if (priv_getdns_rr_dict_with_compressed_names(rr_dict))
-			continue;
 
 		if ((r = priv_getdns_create_rr_from_dict(rr_dict, &rr)))
 			break;
@@ -693,6 +660,17 @@ verify_rrset(ldns_dnssec_rrsets *rrset_and_sigs,
 	ldns_rr_list *rrset = rrs2rr_list(rrset_and_sigs->rrs);
 	ldns_rr_list *sigs  = rrs2rr_list(rrset_and_sigs->signatures);
 	s = ldns_verify(rrset, sigs, keys, good_keys);
+#if 0
+	if (s != 0) {
+		fprintf(stderr, "verify status %d\nrrset: ", s);
+		ldns_rr_list_print(stderr, rrset);
+		fprintf(stderr, "\nsigs: ");
+		ldns_rr_list_print(stderr, sigs);
+		fprintf(stderr, "\nkeys: ");
+		ldns_rr_list_print(stderr, keys);
+		fprintf(stderr, "\n\n");
+	}
+#endif
 	ldns_rr_list_free(sigs);
 	ldns_rr_list_free(rrset);
 	return s;
