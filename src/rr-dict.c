@@ -752,7 +752,7 @@ priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 	const priv_getdns_rr_def *rr_def;
 	const priv_getdns_rdata_def *rd_def;
 	int n_rdata_fields;
-	size_t j;
+	size_t j, rdata_size_mark;
 
 	assert(rr_dict);
 	assert(buf);
@@ -794,6 +794,9 @@ priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 
 	} else if (n_rdata_fields || r == GETDNS_RETURN_NO_SUCH_DICT_NAME) {
 
+		rdata_size_mark = gldns_buffer_position(buf);
+		gldns_buffer_skip(buf, 2);
+
 		for ( rd_def = rr_def->rdata
 		    , n_rdata_fields = rr_def->n_rdata_fields
 		    ; n_rdata_fields ; n_rdata_fields-- , rd_def++ ) {
@@ -819,6 +822,8 @@ priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 				gldns_buffer_write_u8(buf,
 				    (uint8_t)(value >> (8 * (j - 1))) & 0xff);
 		}
+		gldns_buffer_write_u16_at(buf, rdata_size_mark,
+		    (uint16_t)(gldns_buffer_position(buf)-rdata_size_mark-2));
 	}
 error:
 	return r;
