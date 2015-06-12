@@ -38,7 +38,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unbound.h>
-#include <ldns/ldns.h>
 #include "config.h"
 #include "context.h"
 #include "types-internal.h"
