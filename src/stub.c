@@ -31,6 +31,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <openssl/err.h>
 #include "config.h"
 #include <fcntl.h>
 #include "stub.h"
@@ -40,7 +41,6 @@
 #include "gldns/str2wire.h"
 #include "rr-iter.h"
 #include "context.h"
-#include <ldns/util.h>
 #include "util-internal.h"
 #include "general.h"
 

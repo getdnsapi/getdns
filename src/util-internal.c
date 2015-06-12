@@ -37,6 +37,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unbound.h>
 #include "getdns/getdns.h"
 #include "dict.h"

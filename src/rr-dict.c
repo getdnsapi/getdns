@@ -737,158 +737,90 @@ priv_getdns_rr_type_name(int rr_type)
 	return priv_getdns_rr_def_lookup(rr_type)->name;
 }
 
-static getdns_return_t priv_getdns_construct_wire_rdata_from_rdata(
-    struct getdns_dict *rdata, uint32_t rr_type,
-    uint8_t **wire, size_t *wire_size)
-{
-	getdns_return_t r = GETDNS_RETURN_GOOD;
-	const priv_getdns_rr_def *def;
-	size_t i, j, size;
-	struct getdns_bindata *bindata;
-	uint32_t value;
-	uint8_t *ptr;
-
-	assert(rdata);
-	assert(wire);
-	assert(wire_size);
-
-	def = priv_getdns_rr_def_lookup(rr_type);
-
-	/* First calculate needed size */
-	size = 0;
-	for (i = 0; !r && i < def->n_rdata_fields; i++) {
-		if (def->rdata[i].type & GETDNS_RDF_BINDATA)
-			if ((r = getdns_dict_get_bindata(rdata,
-			    def->rdata[i].name, &bindata)))
-				break;
-			else {
-				size += bindata->size;
-				continue;
-			}
-		else if (!(def->rdata[i].type & GETDNS_RDF_INTEGER)) {
-			r = GETDNS_RETURN_GENERIC_ERROR;
-			break;
-		}
-		size += def->rdata[i].type & GETDNS_RDF_FIXEDSZ;
-	}
-	*wire_size = size + 2;
-	*wire = ptr = GETDNS_XMALLOC(rdata->mf, uint8_t, size + 2);
-	if (! ptr)
-		return GETDNS_RETURN_MEMORY_ERROR;
-
-	ptr[0] = (uint8_t) (size >> 8) & 0xff;
-	ptr[1] = (uint8_t)  size       & 0xff;
-	ptr += 2;
-	for (i = 0; !r && i < def->n_rdata_fields; i++) {
-		if (def->rdata[i].type & GETDNS_RDF_BINDATA)
-			if ((r = getdns_dict_get_bindata(rdata,
-			    def->rdata[i].name, &bindata)))
-				break;
-			else {
-				(void) memcpy(ptr, bindata->data,
-				                   bindata->size);
-				ptr += bindata->size;
-				continue;
-			}
-		else if (!(def->rdata[i].type & GETDNS_RDF_INTEGER)) {
-			r = GETDNS_RETURN_GENERIC_ERROR;
-			break;
-		}
-		if ((r = getdns_dict_get_int(
-		    rdata, def->rdata[i].name, &value)))
-			break;
-		
-		for (j = def->rdata[i].type & GETDNS_RDF_FIXEDSZ; j; j--)
-			*ptr++ = (uint8_t)(value >> (8 * (j - 1))) & 0xff;
-	}
-	if (r)
-		GETDNS_FREE(rdata->mf, ptr);
-	return r;
-}
-
 getdns_return_t
-priv_getdns_create_rr_from_dict(struct getdns_dict *rr_dict, ldns_rr **rr)
+priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	struct getdns_bindata *name;
 	struct getdns_bindata *rdata_raw;
+	struct getdns_bindata *bindata;
 	struct getdns_dict *rdata;
 	uint32_t rr_type;
-	ldns_rdf *owner;
-	ldns_status s;
-	size_t pos;
-	uint8_t *wire;
-	size_t wire_size;
+	uint32_t rr_class = GETDNS_RRCLASS_IN;
+	uint32_t rr_ttl = 0;
+	uint32_t value;
+	const priv_getdns_rr_def *rr_def;
+	const priv_getdns_rdata_def *rd_def;
+	int n_rdata_fields;
+	size_t j;
 
 	assert(rr_dict);
-	assert(rr);
-
-	*rr = ldns_rr_new();
-	if (! *rr)
-		return GETDNS_RETURN_MEMORY_ERROR;
+	assert(buf);
 
 	if ((r = getdns_dict_get_bindata(rr_dict, "name", &name)))
 		goto error;
-
-	owner = ldns_rdf_new_frm_data(
-	    LDNS_RDF_TYPE_DNAME, name->size, name->data);
-	if (! owner) {
-		r = GETDNS_RETURN_MEMORY_ERROR;
-		goto error;
-	}
-	ldns_rr_set_owner(*rr, owner);
+	gldns_buffer_write(buf, name->data, name->size);
 
 	if ((r = getdns_dict_get_int(rr_dict, "type", &rr_type)))
 		goto error;
-	ldns_rr_set_type(*rr, rr_type);
+	gldns_buffer_write_u16(buf, (uint16_t)rr_type);
 
-	if ((r = getdns_dict_get_dict(rr_dict, "rdata", &rdata)))
-		goto error;
+	(void) getdns_dict_get_int(rr_dict, "class", &rr_class);
+	gldns_buffer_write_u16(buf, (uint16_t)rr_class);
 
-	const priv_getdns_rr_def *rr_def = priv_getdns_rr_def_lookup(rr_type);
-	const priv_getdns_rdata_def *rd_def;
-	int n_rdata_fields;
+	(void) getdns_dict_get_int(rr_dict, "ttl", &rr_ttl);
+	gldns_buffer_write_u32(buf, rr_ttl);
 
+	/* Does rdata contain compressed names?
+	 * Because rdata_raw is unusable then.
+	 */
+	rr_def = priv_getdns_rr_def_lookup(rr_type);
 	for ( rd_def = rr_def->rdata
 	    , n_rdata_fields = rr_def->n_rdata_fields
-	    ; n_rdata_fields
-	    ; n_rdata_fields--
-	    , rd_def++ ) {
+	    ; n_rdata_fields ; n_rdata_fields-- , rd_def++ ) {
 
 		if (rd_def->type & GETDNS_RDF_COMPRESSED)
 			break;
 	}
 
+	if ((r = getdns_dict_get_dict(rr_dict, "rdata", &rdata)))
+		goto error;
+
 	if (n_rdata_fields == 0 && GETDNS_RETURN_GOOD ==
 	    (r = getdns_dict_get_bindata(rdata, "rdata_raw", &rdata_raw))) {
 
-		wire_size = rdata_raw->size + 2;
-		wire = GETDNS_XMALLOC(rdata->mf, uint8_t, wire_size);
-		if (! wire) {
-			r = GETDNS_RETURN_MEMORY_ERROR;
-			goto error;
-		}
-
-		wire[0] = (uint8_t) (rdata_raw->size >> 8) & 0xff;
-		wire[1] = (uint8_t)  rdata_raw->size       & 0xff;
-
-		(void) memcpy(wire + 2, rdata_raw->data, rdata_raw->size);
+		gldns_buffer_write_u16(buf, (uint16_t)rdata_raw->size);
+		gldns_buffer_write(buf, rdata_raw->data, rdata_raw->size);
 
 	} else if (n_rdata_fields || r == GETDNS_RETURN_NO_SUCH_DICT_NAME) {
 
-		r = priv_getdns_construct_wire_rdata_from_rdata(rdata, rr_type,
-				&wire, &wire_size);
+		for ( rd_def = rr_def->rdata
+		    , n_rdata_fields = rr_def->n_rdata_fields
+		    ; n_rdata_fields ; n_rdata_fields-- , rd_def++ ) {
+
+			if (rd_def->type & GETDNS_RDF_BINDATA) {
+				if ((r = getdns_dict_get_bindata(rdata,
+				    rd_def->name, &bindata)))
+					break;
+
+				gldns_buffer_write(buf, bindata->data
+				                      , bindata->size );
+				continue;
+			}
+			if (!(rd_def->type & GETDNS_RDF_INTEGER)) {
+				r = GETDNS_RETURN_GENERIC_ERROR;
+				break;
+			}
+			if ((r = getdns_dict_get_int(
+			    rdata, rd_def->name, &value)))
+				break;
+			
+			for (j = rd_def->type & GETDNS_RDF_FIXEDSZ; j; j--)
+				gldns_buffer_write_u8(buf,
+				    (uint8_t)(value >> (8 * (j - 1))) & 0xff);
+		}
 	}
-
-	pos = 0;
-	s = ldns_wire2rdf(*rr, wire, wire_size, &pos);
-	GETDNS_FREE(rr_dict->mf, wire);
-	if (s == LDNS_STATUS_OK)
-		return r;
-
-	r = GETDNS_RETURN_GENERIC_ERROR;
 error:
-	ldns_rr_free(*rr);
 	return r;
 }
 

@@ -32,8 +32,9 @@
 #ifndef RR_DICT_H_
 #define RR_DICT_H_
 
-#include <ldns/ldns.h>
+#include "config.h"
 #include "getdns/getdns.h"
+#include "gldns/gbuffer.h"
 
 typedef uint8_t *(*priv_getdns_rdf_end_t)(
     uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf);
@@ -132,8 +133,8 @@ typedef struct priv_getdns_rr_def {
 
 const priv_getdns_rr_def *priv_getdns_rr_def_lookup(uint16_t rr_type);
 
-getdns_return_t priv_getdns_create_rr_from_dict(
-    struct getdns_dict *rr_dict, ldns_rr **rr);
+getdns_return_t priv_getdns_rr_dict2wire(
+    getdns_dict *rr_dict, gldns_buffer *buf);
 
 const char *priv_getdns_rr_type_name(int rr_type);
 

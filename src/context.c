@@ -43,6 +43,7 @@
 #include <unbound.h>
 #include <assert.h>
 #include <netdb.h>
+#include <ctype.h>
 
 #include "config.h"
 #include "gldns/str2wire.h"

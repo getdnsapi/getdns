@@ -50,6 +50,7 @@
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
 #include "general.h"
+#include "dict.h"
 
 void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
 
@@ -444,7 +445,37 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
 /********************** functions for validate_dnssec *************************/
 
 static getdns_return_t
-priv_getdns_rr_list_from_list(struct getdns_list *list, ldns_rr_list **rr_list)
+priv_getdns_create_rr_from_dict(getdns_dict *rr_dict, ldns_rr **rr)
+{
+	gldns_buffer buf;
+	uint8_t space[8192], *xspace = NULL;
+	size_t xsize, pos = 0;
+	ldns_status s;
+	getdns_return_t r;
+
+	gldns_buffer_init_frm_data(&buf, space, sizeof(space));
+	if ((r = priv_getdns_rr_dict2wire(rr_dict, &buf)))
+		return r;
+
+	if ((xsize = gldns_buffer_position(&buf)) > sizeof(space)) {
+		if (!(xspace = GETDNS_XMALLOC(rr_dict->mf, uint8_t, xsize)))
+			return GETDNS_RETURN_MEMORY_ERROR;
+
+		gldns_buffer_init_frm_data(&buf, xspace, xsize);
+		if ((r = priv_getdns_rr_dict2wire(rr_dict, &buf))) {
+			GETDNS_FREE(rr_dict->mf, xspace);
+			return r;
+		}
+	}
+	s = ldns_wire2rr(rr, gldns_buffer_begin(&buf),
+	    gldns_buffer_position(&buf), &pos, GLDNS_SECTION_ANSWER);
+	if (xspace)
+		GETDNS_FREE(rr_dict->mf, xspace);
+	return s ? GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+}
+	
+static getdns_return_t
+priv_getdns_rr_list_from_list(getdns_list *list, ldns_rr_list **rr_list)
 {
 	getdns_return_t r;
 	size_t i, l;
