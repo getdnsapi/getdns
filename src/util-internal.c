@@ -423,8 +423,8 @@ error:
 	return NULL;
 }
 
-static int
-dname_equal(uint8_t *s1, uint8_t *s2)
+int
+priv_getdns_dname_equal(uint8_t *s1, uint8_t *s2)
 {
 	uint8_t i;
 	for (;;) {
@@ -581,7 +581,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			owner_name = priv_getdns_owner_if_or_as_decompressed(
 			    rr_iter, owner_name_space, &owner_name_len);
-			if (!dname_equal(canonical_name, owner_name))
+			if (!priv_getdns_dname_equal(canonical_name, owner_name))
 				continue;
 
 			if (!(rdf_iter = priv_getdns_rdf_iter_init(
@@ -654,7 +654,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			owner_name = priv_getdns_owner_if_or_as_decompressed(
 			    rr_iter, owner_name_space, &owner_name_len);
-			if (!dname_equal(canonical_name, owner_name))
+			if (!priv_getdns_dname_equal(canonical_name, owner_name))
 				continue;
 
 			if (!(rdf_iter = priv_getdns_rdf_iter_init(
@@ -831,7 +831,7 @@ extformatcmp(const void *a, const void *b)
 
 /*---------------------------------------- validate_extensions */
 getdns_return_t
-validate_extensions(struct getdns_dict * extensions)
+priv_getdns_validate_extensions(struct getdns_dict * extensions)
 {
 	struct getdns_dict_item *item;
 	getdns_extension_format *extformat;
@@ -853,7 +853,7 @@ validate_extensions(struct getdns_dict * extensions)
 				return GETDNS_RETURN_EXTENSION_MISFORMAT;
 		}
 	return GETDNS_RETURN_GOOD;
-}				/* validate_extensions */
+}				/* priv_getdns_validate_extensions */
 
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
@@ -918,7 +918,7 @@ getdns_apply_network_result(getdns_network_req* netreq,
 
 
 getdns_return_t
-validate_dname(const char* dname) {
+priv_getdns_validate_dname(const char* dname) {
     int len;
     int label_len;
     const char* s;
@@ -981,7 +981,7 @@ validate_dname(const char* dname) {
         return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     return GETDNS_RETURN_GOOD;
-} /* validate_dname */
+} /* priv_getdns_validate_dname */
 
 
 /* util-internal.c */

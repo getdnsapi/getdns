@@ -184,10 +184,10 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	if (!context || !name || (!callbackfn && !internal_cb))
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
-	if ((r = validate_dname(name)))
+	if ((r = priv_getdns_validate_dname(name)))
 		return r;
 
-	if (extensions && (r = validate_extensions(extensions)))
+	if (extensions && (r = priv_getdns_validate_extensions(extensions)))
 		return r;
 
 	/* Set up the context assuming we won't use the specified namespaces.

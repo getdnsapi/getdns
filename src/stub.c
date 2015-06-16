@@ -266,21 +266,6 @@ create_starttls_request(getdns_dns_req *dnsreq, getdns_upstream *upstream,
 }
 
 static int
-dname_equal(uint8_t *s1, uint8_t *s2)
-{
-	uint8_t i;
-	for (;;) {
-		if (*s1 != *s2)
-			return 0;
-		else if (!*s1)
-			return 1;
-		for (i = *s1++, s2++; i > 0; i--, s1++, s2++)
-			if ((*s1 & 0xDF) != (*s2 & 0xDF))
-				return 0;
-	}
-}
-
-static int
 is_starttls_response(getdns_network_req *netreq) 
 {
 	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
@@ -315,7 +300,7 @@ is_starttls_response(getdns_network_req *netreq)
 
 		owner_name = priv_getdns_owner_if_or_as_decompressed(
 		    rr_iter, owner_name_space, &owner_name_len);
-		if (!dname_equal(starttls_name, owner_name))
+		if (!priv_getdns_dname_equal(starttls_name, owner_name))
 			continue;
 
 		if (!(rdf_iter = priv_getdns_rdf_iter_init(
@@ -324,7 +309,7 @@ is_starttls_response(getdns_network_req *netreq)
 		/* re-use the starttls_name for the response dname*/
 		starttls_name = priv_getdns_rdf_if_or_as_decompressed(
 		    rdf_iter,starttls_name_space,&starttls_name_len);
-		if (dname_equal(starttls_name, owner_name)) 
+		if (priv_getdns_dname_equal(starttls_name, owner_name)) 
 			return 1;
 		else
 			return 0;

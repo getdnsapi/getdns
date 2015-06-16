@@ -130,7 +130,11 @@ struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_requ
 getdns_dict *priv_getdns_create_reply_dict(getdns_context *context,
     getdns_network_req *req, getdns_list *just_addrs, int *rrsigs_in_answer);
 
-getdns_return_t validate_dname(const char* dname);
+getdns_return_t priv_getdns_validate_dname(const char* dname);
+
+int priv_getdns_dname_equal(uint8_t *s1, uint8_t *s2);
+
+
 
 /**
  * detect unrecognized extension strings or invalid extension formats
@@ -140,7 +144,7 @@ getdns_return_t validate_dname(const char* dname);
  * @return GETDNS_RETURN_NO_SUCH_EXTENSION A name in the extensions dict is not a valid extension.
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
-getdns_return_t validate_extensions(struct getdns_dict * extensions);
+getdns_return_t priv_getdns_validate_extensions(struct getdns_dict * extensions);
 
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
