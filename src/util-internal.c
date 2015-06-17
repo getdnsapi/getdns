@@ -424,7 +424,7 @@ error:
 }
 
 int
-priv_getdns_dname_equal(uint8_t *s1, uint8_t *s2)
+priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2)
 {
 	uint8_t i;
 	for (;;) {

@@ -76,7 +76,7 @@ struct chain_link {
 };
 
 static void launch_chain_link_lookup(struct validation_chain *chain,
-    priv_getdns_rdf_iter *rdf_dname);
+    uint8_t *dname);
 static void destroy_chain(struct validation_chain *chain);
 
 #ifdef STUB_NATIVE_DNSSEC
@@ -170,10 +170,11 @@ static void callback_on_complete_chain(struct validation_chain *chain)
 	}
 	RBTREE_FOR(link, struct chain_link *,
 	    (getdns_rbtree_t *)&(chain->root)) {
-		for (i = 0; !getdns_list_get_dict( link->DNSKEY.result
+		for (i = 0; !getdns_list_get_dict( link->DS.result
 						 , i, &rr_dict); i++)
 			(void) getdns_list_append_dict(keys, rr_dict);
-		for (i = 0; !getdns_list_get_dict( link->DS.result
+
+		for (i = 0; !getdns_list_get_dict( link->DNSKEY.result
 						 , i, &rr_dict); i++)
 			(void) getdns_list_append_dict(keys, rr_dict);
 	}
@@ -205,6 +206,8 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 	getdns_list *keys;
 	size_t nkeys;
 	getdns_return_t r;
+	uint8_t sign_name_space[256], *sign_name;
+	size_t sign_name_len = sizeof(sign_name_space);
 
 	response->dns_req = dns_req;
 	if (!(keys = getdns_list_create_with_context(context)))
@@ -218,13 +221,16 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 		    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)
 		    ) {
 			section = priv_getdns_rr_iter_section(rr_iter);
-			if (section != GLDNS_SECTION_ANSWER)
+			if (section != GLDNS_SECTION_ANSWER &&
+			    section != GLDNS_SECTION_AUTHORITY)
 				continue;
 
 			rr_type = gldns_read_uint16(rr_iter->rr_type);
 
 			if (rr_type == GETDNS_RRTYPE_DS ||
-			    rr_type == GETDNS_RRTYPE_DNSKEY) {
+			    rr_type == GETDNS_RRTYPE_DNSKEY ||
+			    rr_type == GETDNS_RRTYPE_NSEC ||
+			    rr_type == GETDNS_RRTYPE_NSEC3) {
 				if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
 				    context, rr_iter)))
 					continue;
@@ -240,11 +246,17 @@ chain_response_callback(struct getdns_dns_req *dns_req)
 				continue;
 
 			type_covered = gldns_read_uint16(rdf->pos);
-			if (type_covered == GETDNS_RRTYPE_DS) {
+			if (type_covered == GETDNS_RRTYPE_DS ||
+			    type_covered == GETDNS_RRTYPE_NSEC ||
+			    type_covered == GETDNS_RRTYPE_NSEC3) {
+
 				if ((rdf = priv_getdns_rdf_iter_init_at(
-				    &rdf_storage, rr_iter, 7)))
+				    &rdf_storage, rr_iter, 7)) &&
+				    (sign_name = priv_getdns_rdf_if_or_as_decompressed(
+				    rdf, sign_name_space, &sign_name_len)))
+
 					launch_chain_link_lookup(
-					    response->chain, rdf);
+					    response->chain, sign_name);
 
 			} else if (type_covered != GETDNS_RRTYPE_DNSKEY)
 				continue;
@@ -303,22 +315,85 @@ resolve(char* name, int rrtype, struct chain_response *response)
 }
 
 static void
+find_delegation_point_callback(struct getdns_dns_req *dns_req)
+{
+	struct validation_chain *chain =
+	    (struct validation_chain *) dns_req->user_pointer;
+	getdns_context *context = dns_req->context;
+	getdns_network_req **netreq_p, *netreq;
+	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
+	priv_getdns_rdf_iter rdf_storage, *rdf;
+	gldns_pkt_section section;
+	uint16_t rr_type;
+	uint8_t rr_name_space[256], *rr_name;
+	size_t rr_name_len = sizeof(rr_name_space);
+
+	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
+		for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+							, netreq->response
+							, netreq->response_len)
+		    ; rr_iter
+		    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)
+		    ) {
+			section = priv_getdns_rr_iter_section(rr_iter);
+			if (section != GLDNS_SECTION_ANSWER &&
+			    section != GLDNS_SECTION_AUTHORITY)
+				continue;
+
+			rr_type = gldns_read_uint16(rr_iter->rr_type);
+			if (rr_type != GETDNS_RRTYPE_SOA)
+				continue;
+
+			if (!(rr_name = priv_getdns_owner_if_or_as_decompressed(
+			    rr_iter, rr_name_space, &rr_name_len)))
+				continue;
+
+			launch_chain_link_lookup(chain, rr_name);
+		}
+	}
+	chain->lock--;
+	getdns_context_clear_outbound_request(dns_req);
+	dns_req_free(dns_req);
+	callback_on_complete_chain(chain);
+}
+
+static int
+find_delegation_point(struct validation_chain *chain, uint8_t *dname)
+{
+	getdns_return_t r;
+	getdns_dict *extensions;
+	char name[1024];
+
+	if (!gldns_wire2str_dname_buf(dname, 256, name, sizeof(name)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (!(extensions = getdns_dict_create_with_context(
+	    chain->dns_req->context)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	chain->lock++;
+	if (!(r = getdns_dict_set_int(extensions,
+	    "dnssec_ok_checking_disabled", GETDNS_EXTENSION_TRUE)))
+
+		r = priv_getdns_general_loop(chain->dns_req->context,
+		    chain->dns_req->loop, name, GETDNS_RRTYPE_SOA, extensions,
+		    chain, NULL, NULL, find_delegation_point_callback);
+
+	getdns_dict_destroy(extensions);
+	if (r)
+		chain->lock--;
+	return r;
+}
+
+static void
 launch_chain_link_lookup(
-    struct validation_chain *chain, priv_getdns_rdf_iter *rdf_dname)
+    struct validation_chain *chain, uint8_t *dname)
 {
 	int r;
 	struct chain_link *link;
-	uint8_t dname_spc[256], *dname;
 	char name[1024];
-	size_t dname_spc_sz = sizeof(dname_spc);
 	
-	if (!(dname = priv_getdns_rdf_if_or_as_decompressed(
-	    rdf_dname, dname_spc, &dname_spc_sz)))
-		return;
-
-	if (!gldns_wire2str_dname_buf(dname, (dname == dname_spc ?
-	    sizeof(dname_spc) : rdf_dname->nxt - rdf_dname->pos),
-	    name, sizeof(name)))
+	if (!gldns_wire2str_dname_buf(dname, 256, name, sizeof(name)))
 		return;
 
 	if ((link = (struct chain_link *)
@@ -393,6 +468,18 @@ static void destroy_chain(struct validation_chain *chain)
 	GETDNS_FREE(chain->mf, chain);
 }
 
+
+static int priv_getdns_dname_is_subdomain(
+    const uint8_t *subdomain, const uint8_t *domain)
+{
+	while (*domain) {
+		if (priv_getdns_dname_equal(subdomain, domain))
+			return 1;
+
+		domain += *domain + 1;
+	}
+	return *subdomain == 0;
+}
 /* Do some additional requests to fetch the complete validation chain */
 static void
 getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
@@ -403,12 +490,21 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 	priv_getdns_rdf_iter rdf_storage, *rdf;
 	gldns_pkt_section section;
 	uint16_t rr_type;
+	priv_getdns_rr_iter rrsig_iter_storage, *rrsig_iter;
+	uint8_t rr_name_space[256], *rr_name;
+	uint8_t rrsig_name_space[256], *rrsig_name;
+	uint8_t sign_name_space[256], *sign_name;
+	size_t rr_name_len = sizeof(rr_name_space);
+	size_t rrsig_name_len = sizeof(rrsig_name_space);
+	size_t sign_name_len = sizeof(sign_name_space);
+	int rrsigs_found;
 
 	if (! chain) {
 		priv_getdns_call_user_callback(
 		    dns_req, create_getdns_response(dns_req));
 		return;
 	}
+	chain->lock++;
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
 
 		for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
@@ -422,17 +518,66 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 			    section != GLDNS_SECTION_AUTHORITY)
 				continue;
 
+			/* Skip RRSIGs because we do only lookups for RRSIGS
+			 * that have an rrset in the record too.
+			 */
 			rr_type = gldns_read_uint16(rr_iter->rr_type);
-			if (rr_type != GETDNS_RRTYPE_RRSIG)
+			if (rr_type == GETDNS_RRTYPE_RRSIG)
 				continue;
 
-			if (!(rdf =  priv_getdns_rdf_iter_init_at(
-			    &rdf_storage , rr_iter, 7)))
+			if (!(rr_name = priv_getdns_owner_if_or_as_decompressed(
+			    rr_iter, rr_name_space, &rr_name_len)))
 				continue;
 
-			launch_chain_link_lookup(chain, rdf);
+			rrsigs_found = 0;
+			for ( rrsig_iter = priv_getdns_rr_iter_init(&rrsig_iter_storage
+								   , netreq->response
+								   , netreq->response_len )
+			    ; rrsig_iter
+			    ; rrsig_iter = priv_getdns_rr_iter_next(rrsig_iter)
+			    ) {
+				section = priv_getdns_rr_iter_section(rrsig_iter);
+				if (section != GLDNS_SECTION_ANSWER &&
+				    section != GLDNS_SECTION_AUTHORITY)
+					continue;
+
+				if (GETDNS_RRTYPE_RRSIG != 
+				    gldns_read_uint16(rrsig_iter->rr_type))
+					continue;
+
+				rdf =  priv_getdns_rdf_iter_init(&rdf_storage
+				                                , rrsig_iter);
+				if (!rdf || gldns_read_uint16(rdf->pos) != rr_type)
+					continue;
+
+				if (!(rrsig_name = priv_getdns_owner_if_or_as_decompressed(
+				    rrsig_iter, rrsig_name_space, &rrsig_name_len)))
+					continue;
+
+				if (!priv_getdns_dname_equal(rr_name, rrsig_name))
+					continue;
+
+				if (!(rdf =  priv_getdns_rdf_iter_init_at(
+				    &rdf_storage , rrsig_iter, 7)))
+					continue;
+
+				if (!(sign_name = priv_getdns_rdf_if_or_as_decompressed(
+				    rdf, sign_name_space, &sign_name_len)))
+					continue;
+
+				if (!priv_getdns_dname_is_subdomain(sign_name, rr_name))
+					continue;
+
+				rrsigs_found++;
+				launch_chain_link_lookup(chain, sign_name);
+			}
+			if (rrsigs_found)
+				continue;
+
+			find_delegation_point(chain, rr_name);
 		}
 	}
+	chain->lock--;
 	callback_on_complete_chain(chain);
 }
 
@@ -788,6 +933,41 @@ done_free_verifying_keys:
 	ldns_rr_list_free(verifying_keys);
 	return s;
 }
+
+typedef struct getdns_rrset getdns_rrset;
+struct getdns_rrset {
+	getdns_bindata *name;
+	uint16_t        rr_type;
+	uint16_t        rr_class;
+	uint32_t        ttl;
+	getdns_list    *rrs;
+	getdns_list    *sigs;
+};
+
+typedef struct getdns_delpath_elem getdns_delpath_elem;
+struct getdns_delpath_elem {
+	getdns_delpath_elem *e;		/* self or canonical element
+					 * (with overlapping paths)
+					 */
+	unsigned int         is_zonecut : 1;
+	unsigned int         ds_nxdomain: 1;
+	getdns_rrset         ds;
+	getdns_rrset         dnskey;
+	getdns_dict         *ds_nsec;
+	getdns_list         *ds_nsec_sigs;
+	getdns_dict         *ds_nsec_wc;	/* wildcard */
+	getdns_list         *ds_nsec_wc_sigs;
+	getdns_dict         *ds_nsec_ce;	/* closest encloser */
+	getdns_list         *ds_nsec_ce_sigs;
+};
+
+typedef struct getdns_delpath getdns_delpath;
+struct getdns_delpath {
+	getdns_delpath     *next;	/* In a ring */
+	getdns_rrset        rrset;
+	size_t              nlabels;
+	getdns_delpath_elem elems[];
+};
 
 /*
  * getdns_validate_dnssec

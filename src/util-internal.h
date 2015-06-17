@@ -132,7 +132,7 @@ getdns_dict *priv_getdns_create_reply_dict(getdns_context *context,
 
 getdns_return_t priv_getdns_validate_dname(const char* dname);
 
-int priv_getdns_dname_equal(uint8_t *s1, uint8_t *s2);
+int priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
 
 
 
