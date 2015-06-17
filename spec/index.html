@@ -2200,6 +2200,20 @@ The value is <span class=default>
 
 <div class=forh>
 getdns_return_t
+getdns_context_set_dns_transport_list(
+  size_t              transport_list,
+  getdns_transport_list_t  *transports
+);</div>
+<p class=cont>The <code>transports</code> array contains an ordered list
+of transports that will be used for DNS lookups. The 
+values are <span class=default>
+<code>GETDNS_TRANSPORT_UDP</code></span>,
+<code>GETDNS_TRANSPORT_TCP</code>,
+<code>GETDNS_TRANSPORT_TLS></code>, or
+<code>GETDNS_TRANSPORT_STARTTLS></code>
+
+<div class=forh>
+getdns_return_t
 getdns_context_set_limit_outstanding_queries(
   getdns_context  *context,
   uint16_t        limit

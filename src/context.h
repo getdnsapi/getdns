@@ -137,7 +137,6 @@ struct getdns_context {
 	struct getdns_list   *suffix;
 	struct getdns_list   *dnssec_trust_anchors;
 	getdns_upstreams     *upstreams;
-	getdns_transport_t   dns_transport;
 	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
@@ -233,9 +232,6 @@ getdns_return_t getdns_context_local_namespace_resolve(
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void priv_getdns_context_ub_read_cb(void *userarg);
-
-getdns_return_t priv_set_base_dns_transports(getdns_base_transport_t *,
-    getdns_transport_t);
 
 void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
 

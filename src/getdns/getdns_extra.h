@@ -140,6 +140,10 @@ getdns_context_get_dns_transport(getdns_context *context,
     getdns_transport_t* value);
 
 getdns_return_t
+getdns_context_get_dns_transport_list(getdns_context *context,
+    size_t* transport_count, getdns_transport_list_t **transports);
+
+getdns_return_t
 getdns_context_get_limit_outstanding_queries(getdns_context *context,
     uint16_t* limit);
 

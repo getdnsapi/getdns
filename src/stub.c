@@ -530,6 +530,7 @@ stub_timeout_cb(void *userarg)
 		netreq->upstream->tls_hs_state = GETDNS_HS_FAILED;
 		stub_next_upstream(netreq);
 		stub_cleanup(netreq);
+		return;
 	}
 
 	stub_next_upstream(netreq);
@@ -1049,10 +1050,11 @@ stub_udp_read_cb(void *userarg)
 		return; /* Client cookie didn't match? */
 
 	close(netreq->fd);
-	/*TODO[TLS]: Switch this to use the transport fallback list*/
+	/* TODO: check not past end of transports*/
+	getdns_base_transport_t next_transport = 
+	                         netreq->dns_base_transports[netreq->transport + 1];
 	if (GLDNS_TC_WIRE(netreq->response) &&
-	    dnsreq->context->dns_transport ==
-	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP) {
+	    next_transport == GETDNS_BASE_TRANSPORT_TCP) {
 
 		if ((netreq->fd = socket(
 		    upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)

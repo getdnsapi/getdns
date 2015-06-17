@@ -42,10 +42,12 @@
 #include <sys/time.h>
 
 #define TRANSPORT_UDP "udp"
+#define TRANSPORT_UDP_TCP "udp_tcp"
 #define TRANSPORT_TCP "tcp"
 #define TRANSPORT_PIPELINE "pipeline"
 #define TRANSPORT_TLS_KEEPOPEN "tls"
 #define TRANSPORT_TLS_TCP_KEEPOPEN "dns-over-tls"
+#define TRANSPORT_STARTTLS_TCP_KEEPOPEN "starttls"
 #define RESOLUTION_STUB "stub"
 #define RESOLUTION_REC "rec"
 
@@ -76,16 +78,16 @@ int
 main(int argc, char** argv)
 {
 
-	const char *transport = argc > 2 ? argv[2] : "udp";
+	const char *transport = argc > 2 ? argv[2] : "udp_tcp";
 	const char *resolution = argc > 3 ? argv[3] : "stub";
 
 	/* Create the DNS context for this call */
 	struct getdns_context *this_context = NULL;
-	getdns_return_t context_create_return =
+	getdns_return_t return_value =
 		getdns_context_create(&this_context, 1);
-	if (context_create_return != GETDNS_RETURN_GOOD) {
+	if (return_value != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Trying to create the context failed: %d",
-			context_create_return);
+			return_value);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
 
@@ -96,16 +98,23 @@ main(int argc, char** argv)
 		exit(EXIT_FAILURE);
 	}
 
+	/* Order matters*/
 	if (strncmp(transport, TRANSPORT_TCP, 3) == 0)
 		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY);
+	else if (strncmp(transport, TRANSPORT_UDP_TCP, 7) == 0)
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
+	else if (strncmp(transport, TRANSPORT_UDP, 3) == 0)
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_UDP_ONLY);
 	else if (strncmp(transport, TRANSPORT_PIPELINE, 8) == 0)
 		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN);
 	else if (strncmp(transport, TRANSPORT_TLS_KEEPOPEN, 3) == 0) 
 		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN);
 	else if (strncmp(transport, TRANSPORT_TLS_TCP_KEEPOPEN, 12) == 0) 
 		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
-	else if (strncmp(transport, TRANSPORT_UDP, 3) != 0) {
-		fprintf(stderr, "Invalid transport %s, must be one of udp, tcp or pipeline\n", transport);
+	else if (strncmp(transport, TRANSPORT_STARTTLS_TCP_KEEPOPEN, 8) == 0) 
+		getdns_context_set_dns_transport(this_context, GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
+	else if (strncmp(transport, TRANSPORT_UDP_TCP, 3) != 0) {
+		fprintf(stderr, "Invalid transport %s, must be one of udp, udp_tcp, tcp or pipeline\n", transport);
 		exit(EXIT_FAILURE);
 	}
 
@@ -129,6 +138,30 @@ main(int argc, char** argv)
 	else {
 		getdns_context_run(this_context);
 	}
+
+	getdns_transport_t get_transport = GETDNS_TRANSPORT_UDP_ONLY;
+	return_value = getdns_context_get_dns_transport(this_context, &get_transport);
+	if (return_value != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Trying to get transport type failed: %d\n",
+			return_value);
+		return (GETDNS_RETURN_GENERIC_ERROR);
+	}
+	fprintf(stderr, "Transport type is %d\n", get_transport);
+
+	size_t transport_count = 0;
+	getdns_transport_list_t *get_transport_list;
+	getdns_transport_list_t tmp[1] = {GETDNS_TRANSPORT_UDP};
+	get_transport_list = tmp;
+	return_value = getdns_context_get_dns_transport_list(this_context, &transport_count, &get_transport_list);
+	if (return_value != GETDNS_RETURN_GOOD) {
+		fprintf(stderr, "Trying to get transport type failed: %d\n",
+			return_value);
+		return (GETDNS_RETURN_GENERIC_ERROR);
+	}
+	for (size_t i = 0; i < transport_count; i++) {
+		fprintf(stderr, "Transport %d is %d\n", (int)i, get_transport_list[i]);
+	}
+	
 	/* Clean up */
 	getdns_context_destroy(this_context);
 	/* Assuming we get here, leave gracefully */

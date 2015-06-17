@@ -181,6 +181,26 @@ typedef enum getdns_transport_t {
 #define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 /** @}
+*/
+
+
+/* Base transports for use in transport list */
+typedef enum getdns_transport_list_t {
+	GETDNS_TRANSPORT_UDP = 1200,
+	GETDNS_TRANSPORT_TCP = 1201,
+	GETDNS_TRANSPORT_TLS = 1202,
+	GETDNS_TRANSPORT_STARTTLS = 1203
+} getdns_transport_list_t;
+
+/**
+ * \defgroup Base transport texts
+ * @{
+ */
+#define GETDNS_TRANSPORT_UDP_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TCP_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TLS_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_STARTTLS_TEXT "See getdns_context_set_dns_transport()"
+/** @}
  */
 
 
@@ -941,6 +961,10 @@ getdns_context_set_namespaces(getdns_context *context,
 getdns_return_t
 getdns_context_set_dns_transport(getdns_context *context,
     getdns_transport_t value);
+
+getdns_return_t
+getdns_context_set_dns_transport_list(getdns_context *context,
+    size_t transport_count, getdns_transport_list_t *transports);
 
 getdns_return_t
 getdns_context_set_limit_outstanding_queries(getdns_context *context,
