@@ -139,7 +139,7 @@ main(int argc, char** argv)
 		getdns_context_run(this_context);
 	}
 
-	getdns_transport_t get_transport = GETDNS_TRANSPORT_UDP_ONLY;
+	getdns_transport_t get_transport;
 	return_value = getdns_context_get_dns_transport(this_context, &get_transport);
 	if (return_value != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Trying to get transport type failed: %d\n",
@@ -150,8 +150,6 @@ main(int argc, char** argv)
 
 	size_t transport_count = 0;
 	getdns_transport_list_t *get_transport_list;
-	getdns_transport_list_t tmp[1] = {GETDNS_TRANSPORT_UDP};
-	get_transport_list = tmp;
 	return_value = getdns_context_get_dns_transport_list(this_context, &transport_count, &get_transport_list);
 	if (return_value != GETDNS_RETURN_GOOD) {
 		fprintf(stderr, "Trying to get transport type failed: %d\n",
@@ -161,6 +159,7 @@ main(int argc, char** argv)
 	for (size_t i = 0; i < transport_count; i++) {
 		fprintf(stderr, "Transport %d is %d\n", (int)i, get_transport_list[i]);
 	}
+	free(get_transport_list);
 	
 	/* Clean up */
 	getdns_context_destroy(this_context);

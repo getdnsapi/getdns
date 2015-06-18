@@ -540,6 +540,26 @@ stub_timeout_cb(void *userarg)
 }
 
 static void
+upstream_idle_timeout_cb(void *userarg)
+{
+	DEBUG_STUB("%s\n", __FUNCTION__);
+	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	/*There is a race condition with a new request being scheduled while this happens
+	  so take ownership of the fd asap*/
+	int fd = upstream->fd;
+	upstream->fd = -1;
+	upstream->event.timeout_cb = NULL;
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+	upstream->tls_hs_state = GETDNS_HS_NONE;
+	if (upstream->tls_obj != NULL) {
+		SSL_shutdown(upstream->tls_obj);
+		SSL_free(upstream->tls_obj);
+	}
+	close(fd);
+}
+
+
+static void
 upstream_tls_timeout_cb(void *userarg)
 {
 	DEBUG_STUB("%s\n", __FUNCTION__);
@@ -1205,6 +1225,7 @@ upstream_read_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq;
 	getdns_dns_req *dnsreq;
+	uint64_t idle_timeout;
 	int q;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
@@ -1244,6 +1265,8 @@ upstream_read_cb(void *userarg)
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
 		upstream->tcp.read_buf = NULL;
 		upstream->upstreams->current = 0;
+		/* netreq may die before setting timeout*/
+		idle_timeout = netreq->owner->context->idle_timeout;
 
 		/* TODO: DNSSEC */
 		netreq->secure = 0;
@@ -1297,6 +1320,12 @@ upstream_read_cb(void *userarg)
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_FOREVER,
 				    &upstream->event);
+			else {
+				upstream->event.timeout_cb = upstream_idle_timeout_cb;
+				GETDNS_SCHEDULE_EVENT(upstream->loop,
+				    upstream->fd, idle_timeout,
+				    &upstream->event);
+			}
 		}
 	}
 }
@@ -1657,6 +1686,7 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 	/* Append netreq to write_queue */
 	if (!upstream->write_queue) {
 		upstream->write_queue = upstream->write_queue_last = netreq;
+		upstream->event.timeout_cb = NULL;
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		if (upstream->tls_hs_state == GETDNS_HS_WRITE ||
 		    (upstream->starttls_req &&

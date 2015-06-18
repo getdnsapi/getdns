@@ -242,7 +242,8 @@ typedef enum getdns_context_code_t {
 	GETDNS_CONTEXT_CODE_EDNS_DO_BIT = 613,
 	GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW = 614,
 	GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS = 615,
-	GETDNS_CONTEXT_CODE_TIMEOUT = 616
+	GETDNS_CONTEXT_CODE_TIMEOUT = 616,
+	GETDNS_CONTEXT_CODE_IDLE_TIMEOUT = 617
 } getdns_context_code_t;
 
 /**
@@ -266,6 +267,7 @@ typedef enum getdns_context_code_t {
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT "Change related to getdns_context_set_dnssec_allowed_skew"
 #define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT "Change related to getdns_context_set_memory_functions"
 #define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT "Change related to getdns_context_set_timeout"
+#define GETDNS_CONTEXT_CODE_TIMEOUT_IDLE_TEXT "Change related to getdns_context_set_idle_timeout"
 /** @}
  */
 
@@ -972,6 +974,9 @@ getdns_context_set_limit_outstanding_queries(getdns_context *context,
 
 getdns_return_t
 getdns_context_set_timeout(getdns_context *context, uint64_t timeout);
+
+getdns_return_t
+getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout);
 
 getdns_return_t
 getdns_context_set_follow_redirects(getdns_context *context,

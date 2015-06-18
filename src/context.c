@@ -847,6 +847,7 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 
 	result->timeout = 5000;
+	result->idle_timeout = 0;
 	result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
 	result->dns_root_servers = create_default_root_servers();
 	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
@@ -1386,6 +1387,27 @@ getdns_context_set_timeout(struct getdns_context *context, uint64_t timeout)
 
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_timeout */
+
+/*
+ * getdns_context_set_idle_timeout
+ *
+ */
+getdns_return_t
+getdns_context_set_idle_timeout(struct getdns_context *context, uint64_t timeout)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+
+    if (timeout == 0) {
+        return GETDNS_RETURN_INVALID_PARAMETER;
+    }
+
+    context->idle_timeout = timeout;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_timeout */
+
 
 /*
  * getdns_context_set_follow_redirects
@@ -2572,6 +2594,14 @@ getdns_context_get_timeout(getdns_context *context, uint64_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->timeout;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_idle_timeout(getdns_context *context, uint64_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->idle_timeout;
     return GETDNS_RETURN_GOOD;
 }
 

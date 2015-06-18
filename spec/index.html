@@ -2233,6 +2233,16 @@ getdns_context_set_timeout(
 <p class=cont>Specifies number of milliseconds the API will wait for request to return.
 The default is <span class=default>not specified</span>.</p>
 
+<div class=forh>
+getdns_return_t
+getdns_context_set_idle_timeout(
+  getdns_context  *context,
+  uint64_t        timeout
+);</div>
+<p class=cont>Specifies number of milliseconds the API will leave an idle TCP, TLS or STARTTLS 
+connection open for (idle means no outstanding responses and no pending queries).
+The default is <span class=default>0</span>.</p>
+
 <h2>8.4 Context for Recursive Resolvers</h2>
 
 <div class=forh>
@@ -2444,7 +2454,8 @@ The response dicts inherit the custom memory management functions and the value 
 <p class=descrip>Change related to <code>getdns_context_set_memory_functions</code></p>
 <p class=define>GETDNS_CONTEXT_CODE_TIMEOUT</p>
 <p class=descrip>Change related to <code>getdns_context_set_timeout</code></p>
-
+<p class=define>GETDNS_CONTEXT_CODE_IDLE_TIMEOUT</p>
+<p class=descrip>Change related to <code>getdns_context_set_idle_timeout</code></p>
 
 <h2>8.11 Getting API information and current Contexts</h2>
 <p>An application might want to see information about the API itself and inspect the current context.

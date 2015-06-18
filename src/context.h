@@ -131,6 +131,7 @@ struct getdns_context {
 	getdns_namespace_t   *namespaces;
 	int                  namespace_count;
 	uint64_t             timeout;
+	uint64_t             idle_timeout;
 	getdns_redirects_t   follow_redirects;
 	struct getdns_list   *dns_root_servers;
 	getdns_append_name_t append_name;

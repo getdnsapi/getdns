@@ -152,6 +152,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
@@ -377,18 +378,34 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 't':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
-					fprintf(stderr, "ttl expected "
+					fprintf(stderr, "timeout expected "
 					    "after -t\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				timeout = strtol(argv[i], &endptr, 10);
 				if (*endptr || timeout < 0) {
 					fprintf(stderr, "positive "
-					    "numeric ttl expected "
+					    "numeric timeout expected "
 					    "after -t\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				getdns_context_set_timeout(
+					context, timeout);
+				goto next;
+			case 'e':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "idle timeout expected "
+					    "after -t\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				timeout = strtol(argv[i], &endptr, 10);
+				if (*endptr || timeout < 0) {
+					fprintf(stderr, "positive "
+					    "numeric idle timeout expected "
+					    "after -t\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_context_set_idle_timeout(
 					context, timeout);
 				goto next;
 			case 'T':

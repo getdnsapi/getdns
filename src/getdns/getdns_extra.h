@@ -151,6 +151,9 @@ getdns_return_t
 getdns_context_get_timeout(getdns_context *context, uint64_t* timeout);
 
 getdns_return_t
+getdns_context_get_idle_timeout(getdns_context *context, uint64_t* timeout);
+
+getdns_return_t
 getdns_context_get_follow_redirects(getdns_context *context,
     getdns_redirects_t* value);
 
