@@ -608,14 +608,14 @@ static const char *unknown_str_l[] = {" <unknown>", " null", "null"};
  * @param buf    buffer to write to
  * @param indent number of spaces to append after newline
  * @param list   the to list print
- * @param for_namespaces The list is a list of namespace literals.
+ * @param for_literals The list is a list of literals.
  *               Show the literal instead of the value.
  * @return       on success the number of written characters
  *               if an output error is encountered, a negative value
  */
 static int
 getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
-    int for_namespaces, int json)
+    int for_literals, int json)
 {
 	size_t i, length, p = gldns_buffer_position(buf);
 	getdns_data_type dtype;
@@ -651,7 +651,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 
 			if (getdns_list_get_int(list, i, &int_item))
 				return -1;
-			if (!json && for_namespaces &&
+			if (!json && for_literals &&
 			    (strval =
 			     priv_getdns_get_const_info(int_item)->name)) {
 				if (gldns_buffer_printf(buf, "%s", strval) < 0)
@@ -829,7 +829,6 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "dnssec_status") == 0 ||
 			     strcmp(item->node.key, "status") == 0 ||
 			     strcmp(item->node.key, "append_name") == 0 ||
-			     strcmp(item->node.key, "dns_transport") == 0 ||
 			     strcmp(item->node.key, "follow_redirects") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0) &&
 			    (strval =
@@ -893,7 +892,8 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			    getdns_indent(indent)) < 0)
 				return -1;
 			if (getdns_pp_list(buf, indent, item->data.list, 
-			    (strcmp(item->node.key, "namespaces") == 0),
+			    (strcmp(item->node.key, "namespaces") == 0 ||
+			     strcmp(item->node.key, "dns_transport_list") == 0),
 			    json) < 0)
 				return -1;
 			break;

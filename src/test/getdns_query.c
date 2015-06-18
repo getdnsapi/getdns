@@ -32,6 +32,7 @@
 #include <dirent.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
+#include <types-internal.h>
 
 static int quiet = 0;
 static int batch_mode = 0;
@@ -92,11 +93,38 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (*portstr)
 		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
 	if (*tls_portstr)
-		getdns_dict_set_int(r, "tls-port", (int32_t)atoi(tls_portstr));
+		getdns_dict_set_int(r, "tls_port", (int32_t)atoi(tls_portstr));
 	if (*scope_id_str)
 		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
 
 	return r;
+}
+
+static getdns_return_t
+fill_transport_list(getdns_context *context, char *transport_list_str, 
+                    getdns_transport_list_t *transports, size_t *transport_count)
+{
+	for (size_t i = 0; i < strlen(transport_list_str); i++, (*transport_count)++) {
+		switch(*(transport_list_str + i)) {
+			case 'U': 
+				transports[i] = GETDNS_TRANSPORT_UDP;
+				break;
+			case 'T': 
+				transports[i] = GETDNS_TRANSPORT_TCP;
+				break;
+			case 'L': 
+				transports[i] = GETDNS_TRANSPORT_TLS;
+				break;
+			case 'S': 
+				transports[i] = GETDNS_TRANSPORT_STARTTLS;
+				break;
+			default:
+				fprintf(stderr, "Unrecognised transport '%c' in string %s\n", 
+				       *(transport_list_str + i), transport_list_str);
+				return GETDNS_RETURN_GENERIC_ERROR;
+		}
+	}
+	return GETDNS_RETURN_GOOD;
 }
 
 void
@@ -124,6 +152,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
@@ -131,6 +160,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-R\tSet transport to STARTTLS with TCP fallback only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
+	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
+	fprintf(out, "\t\t\t U T L S for UDP, TCP, TLS or STARTTLS e.g 'UT' or 'LST' \n");
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 }
@@ -347,18 +378,34 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 't':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
-					fprintf(stderr, "ttl expected "
+					fprintf(stderr, "timeout expected "
 					    "after -t\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				timeout = strtol(argv[i], &endptr, 10);
 				if (*endptr || timeout < 0) {
 					fprintf(stderr, "positive "
-					    "numeric ttl expected "
+					    "numeric timeout expected "
 					    "after -t\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				getdns_context_set_timeout(
+					context, timeout);
+				goto next;
+			case 'e':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "idle timeout expected "
+					    "after -t\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				timeout = strtol(argv[i], &endptr, 10);
+				if (*endptr || timeout < 0) {
+					fprintf(stderr, "positive "
+					    "numeric idle timeout expected "
+					    "after -t\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_context_set_idle_timeout(
 					context, timeout);
 				goto next;
 			case 'T':
@@ -388,6 +435,21 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'U':
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_UDP_ONLY);
+				break;
+			case 'l':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "transport list expected "
+					    "after -l\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				size_t transport_count = 0;
+				getdns_transport_list_t transports[GETDNS_BASE_TRANSPORT_MAX];
+				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
+				    (r = getdns_context_set_dns_transport_list(context, 
+				                                               transport_count, transports))){
+						fprintf(stderr, "Could not set transports\n");
+						return r;
+				}
 				break;
 			case 'B':
 				batch_mode = 1;

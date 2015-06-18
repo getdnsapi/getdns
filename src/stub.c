@@ -530,6 +530,7 @@ stub_timeout_cb(void *userarg)
 		netreq->upstream->tls_hs_state = GETDNS_HS_FAILED;
 		stub_next_upstream(netreq);
 		stub_cleanup(netreq);
+		return;
 	}
 
 	stub_next_upstream(netreq);
@@ -537,6 +538,26 @@ stub_timeout_cb(void *userarg)
 	if (netreq->fd >= 0) close(netreq->fd);
 	(void) getdns_context_request_timed_out(netreq->owner);
 }
+
+static void
+upstream_idle_timeout_cb(void *userarg)
+{
+	DEBUG_STUB("%s\n", __FUNCTION__);
+	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	/*There is a race condition with a new request being scheduled while this happens
+	  so take ownership of the fd asap*/
+	int fd = upstream->fd;
+	upstream->fd = -1;
+	upstream->event.timeout_cb = NULL;
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+	upstream->tls_hs_state = GETDNS_HS_NONE;
+	if (upstream->tls_obj != NULL) {
+		SSL_shutdown(upstream->tls_obj);
+		SSL_free(upstream->tls_obj);
+	}
+	close(fd);
+}
+
 
 static void
 upstream_tls_timeout_cb(void *userarg)
@@ -1049,10 +1070,11 @@ stub_udp_read_cb(void *userarg)
 		return; /* Client cookie didn't match? */
 
 	close(netreq->fd);
-	/*TODO[TLS]: Switch this to use the transport fallback list*/
+	/* TODO: check not past end of transports*/
+	getdns_base_transport_t next_transport = 
+	                         netreq->dns_base_transports[netreq->transport + 1];
 	if (GLDNS_TC_WIRE(netreq->response) &&
-	    dnsreq->context->dns_transport ==
-	    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP) {
+	    next_transport == GETDNS_BASE_TRANSPORT_TCP) {
 
 		if ((netreq->fd = socket(
 		    upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
@@ -1203,6 +1225,7 @@ upstream_read_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq;
 	getdns_dns_req *dnsreq;
+	uint64_t idle_timeout;
 	int q;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
@@ -1242,6 +1265,8 @@ upstream_read_cb(void *userarg)
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
 		upstream->tcp.read_buf = NULL;
 		upstream->upstreams->current = 0;
+		/* netreq may die before setting timeout*/
+		idle_timeout = netreq->owner->context->idle_timeout;
 
 		/* TODO: DNSSEC */
 		netreq->secure = 0;
@@ -1295,6 +1320,12 @@ upstream_read_cb(void *userarg)
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_FOREVER,
 				    &upstream->event);
+			else {
+				upstream->event.timeout_cb = upstream_idle_timeout_cb;
+				GETDNS_SCHEDULE_EVENT(upstream->loop,
+				    upstream->fd, idle_timeout,
+				    &upstream->event);
+			}
 		}
 	}
 }
@@ -1655,6 +1686,7 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 	/* Append netreq to write_queue */
 	if (!upstream->write_queue) {
 		upstream->write_queue = upstream->write_queue_last = netreq;
+		upstream->event.timeout_cb = NULL;
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		if (upstream->tls_hs_state == GETDNS_HS_WRITE ||
 		    (upstream->starttls_req &&
