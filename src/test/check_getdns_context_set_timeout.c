@@ -77,6 +77,39 @@ START_TEST (getdns_context_set_timeout_2)
 }
 END_TEST
 
+START_TEST (getdns_context_set_idle_timeout_1)
+{
+ /*
+  *  context is NULL
+  *  expect:  GETDNS_RETURN_INVALID_PARAMETER
+  */
+
+  struct getdns_context *context = NULL;
+
+  ASSERT_RC(getdns_context_set_idle_timeout(context, 1000),
+    GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_timeout()");
+
+}
+END_TEST
+
+START_TEST (getdns_context_set_idle_timeout_2)
+{
+ /*
+  *  timeout is 0
+  *  expect: GETDNS_RETURN_INVALID_PARAMETER
+  */
+
+  struct getdns_context *context = NULL;
+  CONTEXT_CREATE(TRUE);
+
+  ASSERT_RC(getdns_context_set_idle_timeout(context, 0),
+    GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_timeout()");
+
+  CONTEXT_DESTROY;
+
+}
+END_TEST
+
 #define GETDNS_STR_IPV4 "IPv4"
 #define GETDNS_STR_IPV6 "IPv6"
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
@@ -270,6 +303,8 @@ getdns_context_set_timeout_suite (void)
   TCase *tc_neg = tcase_create("Negative");
   tcase_add_test(tc_neg, getdns_context_set_timeout_1);
   tcase_add_test(tc_neg, getdns_context_set_timeout_2);
+  tcase_add_test(tc_neg, getdns_context_set_idle_timeout_1);
+  tcase_add_test(tc_neg, getdns_context_set_idle_timeout_2);
   suite_add_tcase(s, tc_neg);
 
   /* Positive test cases */

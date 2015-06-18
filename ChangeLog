@@ -3,6 +3,7 @@
   * Added new transport list options in API. The option is now an ordered list of
     GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP, GETDNS_TRANSPORT_TLS, 
     GETDNS_TRANSPORT_STARTTLS.
+  * Added new context setting for idle_timeout
 
 * 2015-05-21: Version 0.2.0
   * Fix libversion numbering:  Thanks Daniel Kahn Gillmor

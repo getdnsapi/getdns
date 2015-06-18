@@ -142,7 +142,7 @@ create_default_namespaces(struct getdns_context *context)
 static getdns_transport_list_t *
 get_dns_transport_list(getdns_context *context, int *count)
 {
-    if (context == NULL) 
+	if (context == NULL) 
 		return NULL;
 
 	/* Count how many we have*/
@@ -151,13 +151,13 @@ get_dns_transport_list(getdns_context *context, int *count)
 			break;
 	}
 
-    // use normal malloc here so users can do normal free
-    getdns_transport_list_t * transports = malloc(*count * sizeof(getdns_transport_list_t));
+	// use normal malloc here so users can do normal free
+	getdns_transport_list_t * transports = malloc(*count * sizeof(getdns_transport_list_t));
 
 	if(transports == NULL)
 		return NULL;
-    for (int i = 0; i < (int)*count; i++) {
-        switch(context->dns_base_transports[i]) {
+	for (int i = 0; i < (int)*count; i++) {
+		switch(context->dns_base_transports[i]) {
 			case GETDNS_BASE_TRANSPORT_UDP:
 				transports[i] = GETDNS_TRANSPORT_UDP;
 				break;
@@ -172,9 +172,9 @@ get_dns_transport_list(getdns_context *context, int *count)
 				break;
 			default:
 				break;
-        }
+			}
 	}
-    return transports;
+	return transports;
 }
 
 static inline void canonicalize_dname(uint8_t *dname)
@@ -1201,17 +1201,17 @@ static getdns_return_t
 getdns_set_base_dns_transports(struct getdns_context *context,
     size_t transport_count, getdns_transport_list_t *transports)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    for (int i = 0; i < GETDNS_BASE_TRANSPORT_MAX; i++)
-        context->dns_base_transports[i] = GETDNS_BASE_TRANSPORT_NONE;
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	for (int i = 0; i < GETDNS_BASE_TRANSPORT_MAX; i++)
+		context->dns_base_transports[i] = GETDNS_BASE_TRANSPORT_NONE;
 
-    if ((int)transport_count == 0 || transports == NULL || 
-        (int)transport_count > GETDNS_BASE_TRANSPORT_MAX) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	if ((int)transport_count == 0 || transports == NULL || 
+	    (int)transport_count > GETDNS_BASE_TRANSPORT_MAX) {
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
 
 	for (size_t j = 0; j < transport_count; j++) {
-        switch(transports[j]) {
+		switch(transports[j]) {
 			case GETDNS_TRANSPORT_UDP:
 				context->dns_base_transports[j] = GETDNS_BASE_TRANSPORT_UDP;
 				break;
@@ -1226,9 +1226,9 @@ getdns_set_base_dns_transports(struct getdns_context *context,
 				break;
 			default:
 				return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-        }
+		}
 	}
-    return GETDNS_RETURN_GOOD;
+	return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
@@ -1257,11 +1257,11 @@ set_ub_dns_transport(struct getdns_context* context) {
             /* Fallthrough */
         case GETDNS_BASE_TRANSPORT_STARTTLS:
         case GETDNS_BASE_TRANSPORT_TCP:
-           /* Note: no STARTTLS or fallback to TCP available directly in unbound, so we just
-            * use TCP for now to make sure the messages are sent. */
-           set_ub_string_opt(context, "do-udp:", "no");
-           set_ub_string_opt(context, "do-tcp:", "yes");
-           break;
+            /* Note: no STARTTLS or fallback to TCP available directly in unbound, so we just
+             * use TCP for now to make sure the messages are sent. */
+            set_ub_string_opt(context, "do-udp:", "no");
+            set_ub_string_opt(context, "do-tcp:", "yes");
+            break;
        default:
            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         }
@@ -1306,7 +1306,7 @@ getdns_context_set_dns_transport(struct getdns_context *context,
            break;
        default:
            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-        }
+    }
     /* Note that the call below does not have any effect in unbound after the
      * ctx is finalised so for recursive mode or stub + dnssec only the first
      * transport specified on the first query is used.
@@ -2525,39 +2525,39 @@ getdns_context_get_dns_transport(getdns_context *context,
     getdns_transport_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-	int count;
-	getdns_transport_list_t *transport_list =
-	           get_dns_transport_list(context, &count);
-	if (!count) 
-		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+    int count;
+    getdns_transport_list_t *transport_list =
+               get_dns_transport_list(context, &count);
+    if (!count) 
+        return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
-	/* Best effort mapping for backwards compatibility*/
-	if (transport_list[0] == GETDNS_TRANSPORT_UDP) {
-		if (count == 1) 
-			*value = GETDNS_TRANSPORT_UDP_ONLY;
-		else if (count == 2 && transport_list[1] == GETDNS_TRANSPORT_TCP)
-			*value = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
-		else
-			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-	}
-	if (transport_list[0] == GETDNS_TRANSPORT_TCP) {
-		if (count == 1)	
-			*value = GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN;
-	}
-	if (transport_list[0] == GETDNS_TRANSPORT_TLS) {
-		if (count == 1)	
-			*value = GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN;
-		else if (count == 2 && transport_list[1] == GETDNS_TRANSPORT_TCP)
-			*value = GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN;
-		else
-			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-	}
-	if (transport_list[0] == GETDNS_TRANSPORT_STARTTLS) {
-		if (count == 2 && transport_list[1] == GETDNS_TRANSPORT_TCP)
-			*value = GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN;
-		else
-			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-	}
+    /* Best effort mapping for backwards compatibility*/
+    if (transport_list[0] == GETDNS_TRANSPORT_UDP) {
+        if (count == 1) 
+            *value = GETDNS_TRANSPORT_UDP_ONLY;
+        else if (count == 2 && transport_list[1] == GETDNS_TRANSPORT_TCP)
+            *value = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
+        else
+            return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+    }
+    if (transport_list[0] == GETDNS_TRANSPORT_TCP) {
+        if (count == 1) 
+            *value = GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN;
+    }
+    if (transport_list[0] == GETDNS_TRANSPORT_TLS) {
+        if (count == 1) 
+            *value = GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN;
+        else if (count == 2 && transport_list[1] == GETDNS_TRANSPORT_TCP)
+            *value = GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN;
+        else
+            return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+    }
+    if (transport_list[0] == GETDNS_TRANSPORT_STARTTLS) {
+        if (count == 2 && transport_list[1] == GETDNS_TRANSPORT_TCP)
+            *value = GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN;
+        else
+            return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+    }
     return GETDNS_RETURN_GOOD;
 }
 
@@ -2568,15 +2568,15 @@ getdns_context_get_dns_transport_list(getdns_context *context,
     RETURN_IF_NULL(transport_count, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(transports, GETDNS_RETURN_INVALID_PARAMETER);
 
-	int count;
-	getdns_transport_list_t *transport_list =
-	           get_dns_transport_list(context, &count);
+    int count;
+    getdns_transport_list_t *transport_list =
+               get_dns_transport_list(context, &count);
     *transport_count = count;
     if (!transport_count) {
         *transports = NULL;
         return GETDNS_RETURN_GOOD;
     }
-	*transports = transport_list;
+    *transports = transport_list;
     return GETDNS_RETURN_GOOD;
 }
 
