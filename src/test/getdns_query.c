@@ -443,7 +443,7 @@ getdns_return_t parse_args(int argc, char **argv)
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				size_t transport_count = 0;
-				getdns_transport_list_t transports[GETDNS_BASE_TRANSPORT_MAX];
+				getdns_transport_list_t transports[strlen(argv[])];
 				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){

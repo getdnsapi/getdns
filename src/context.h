@@ -91,7 +91,7 @@ typedef struct getdns_upstream {
 
 	/* For sharing a TCP socket to this upstream */
 	int                      fd;
-	getdns_base_transport_t  dns_base_transport;
+	getdns_transport_list_t  transport;
 	SSL*                     tls_obj;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_dns_req *         starttls_req;
@@ -138,9 +138,12 @@ struct getdns_context {
 	struct getdns_list   *suffix;
 	struct getdns_list   *dnssec_trust_anchors;
 	getdns_upstreams     *upstreams;
-	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
+
+	getdns_transport_list_t   *dns_transports;
+	size_t                     dns_transport_count;
+	size_t                     dns_transport_current;
 
 	uint8_t edns_extended_rcode;
 	uint8_t edns_version;
