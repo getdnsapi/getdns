@@ -44,6 +44,7 @@
 #define SCHED_DEBUG 0
 #define WIRE_DEBUG 0
 #define STUB_DEBUG 0
+#define SEC_DEBUG 1
 
 #ifdef S_SPLINT_S
 #  define INLINE 
@@ -172,6 +173,13 @@ getdns_return_t priv_getdns_validate_extensions(struct getdns_dict * extensions)
 #define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if defined(SEC_DEBUG) && SEC_DEBUG
+#include <time.h>
+#define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_SEC(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 INLINE getdns_eventloop_event *getdns_eventloop_event_init(

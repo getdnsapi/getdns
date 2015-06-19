@@ -52,7 +52,331 @@
 #include "general.h"
 #include "dict.h"
 
-void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
+#if defined(SEC_DEBUG) && SEC_DEBUG
+static void debug_sec_print_rr(const char *msg, priv_getdns_rr_iter *rr)
+{
+	char str_spc[8192], *str = str_spc;
+	size_t str_len = sizeof(str_spc);
+	uint8_t *data = rr->pos;
+	size_t data_len = rr->nxt - rr->pos;
+
+	if (!rr || !rr->pos) {
+		DEBUG_SEC("<nil>\n");
+		return;
+	}
+	(void) gldns_wire2str_rr_scan(&data, &data_len, &str, &str_len, rr->pkt, rr->pkt_end - rr->pkt);
+	DEBUG_SEC("%s%s", msg, str_spc);
+}
+#else
+#define debug_sec_print_rr(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+
+static inline uint16_t rr_iter_type(priv_getdns_rr_iter *rr)
+{ return rr->rr_type + 2 <= rr->nxt ? gldns_read_uint16(rr->rr_type) : 0; }
+static inline uint16_t rr_iter_class(priv_getdns_rr_iter *rr)
+{ return rr->rr_type + 4 <= rr->nxt ? gldns_read_uint16(rr->rr_type + 2) : 0; }
+
+static priv_getdns_rr_iter *rr_iter_ansauth(priv_getdns_rr_iter *rr)
+{
+	while (rr && rr->pos && !(
+	    priv_getdns_rr_iter_section(rr) == GLDNS_SECTION_ANSWER ||
+	    priv_getdns_rr_iter_section(rr) == GLDNS_SECTION_AUTHORITY))
+
+		rr = priv_getdns_rr_iter_next(rr);
+
+	return rr && rr->pos ? rr : NULL;
+}
+
+static int rr_owner_equal(priv_getdns_rr_iter *rr, uint8_t *name)
+{
+	uint8_t owner_spc[256], *owner;
+	size_t  owner_len = sizeof(owner_spc);
+
+	return (owner = priv_getdns_owner_if_or_as_decompressed(rr,  owner_spc
+	                                                          , &owner_len))
+	    && priv_getdns_dname_equal(owner, name);
+}
+
+static priv_getdns_rr_iter *rr_iter_name_class_type(priv_getdns_rr_iter *rr,
+    uint8_t *name, uint16_t rr_class, uint16_t rr_type)
+{
+	while (rr_iter_ansauth(rr) && !(
+	    rr_iter_type(rr)  == rr_type  &&
+	    rr_iter_class(rr) == rr_class &&
+	    rr_owner_equal(rr, name)))
+
+		rr = priv_getdns_rr_iter_next(rr);
+
+	return rr && rr->pos ? rr : NULL;
+}
+
+static priv_getdns_rr_iter *rr_iter_not_name_class_type(priv_getdns_rr_iter *rr,
+    uint8_t *name, uint16_t rr_class, uint16_t rr_type)
+{
+	while (rr_iter_ansauth(rr) && (
+	    rr_iter_type(rr)  == GETDNS_RRTYPE_RRSIG || (
+	    rr_iter_type(rr)  == rr_type  &&
+	    rr_iter_class(rr) == rr_class &&
+	    rr_owner_equal(rr, name))))
+
+		rr = priv_getdns_rr_iter_next(rr);
+	
+	return rr && rr->pos ? rr : NULL;
+}
+
+static priv_getdns_rr_iter *rr_iter_rrsig_covering(priv_getdns_rr_iter *rr,
+    uint8_t *name, uint16_t rr_class, uint16_t rr_type)
+{
+	while (rr_iter_ansauth(rr) && !(
+	    rr_iter_type(rr)  == GETDNS_RRTYPE_RRSIG &&
+	    rr_iter_class(rr) == rr_class &&
+	    rr->rr_type + 12 <= rr->nxt &&
+	    gldns_read_uint16(rr->rr_type + 10) == rr_type && 
+	    rr_owner_equal(rr, name)))
+
+		rr = priv_getdns_rr_iter_next(rr);
+
+	return rr && rr->pos ? rr : NULL;
+}
+
+typedef struct getdns_rrset {
+	uint8_t            *name;
+	uint16_t            rr_class;
+	uint16_t            rr_type;
+	getdns_network_req *netreq;
+	uint8_t             name_spc[];
+} getdns_rrset;
+
+typedef struct rrtype_iter {
+	priv_getdns_rr_iter  rr_i;
+	getdns_rrset        *rrset;
+} rrtype_iter;
+
+typedef struct rrsig_iter {
+	priv_getdns_rr_iter  rr_i;
+	getdns_rrset        *rrset;
+} rrsig_iter;
+
+static rrtype_iter *rrtype_iter_next(rrtype_iter *i)
+{
+	return (rrtype_iter *) rr_iter_name_class_type(
+	    priv_getdns_rr_iter_next(&i->rr_i),
+	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
+}
+
+static rrtype_iter *rrtype_iter_init(rrtype_iter *i, getdns_rrset *rrset)
+{
+	i->rrset = rrset;
+	return (rrtype_iter *) rr_iter_name_class_type(
+	    priv_getdns_rr_iter_init(&i->rr_i, rrset->netreq->response
+	                                     , rrset->netreq->response_len),
+	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
+}
+
+static rrsig_iter *rrsig_iter_next(rrsig_iter *i)
+{
+	return (rrsig_iter *) rr_iter_rrsig_covering(
+	    priv_getdns_rr_iter_next(&i->rr_i),
+	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
+}
+
+static rrsig_iter *rrsig_iter_init(rrsig_iter *i, getdns_rrset *rrset)
+{
+	i->rrset = rrset;
+	return (rrsig_iter *) rr_iter_rrsig_covering(
+	    priv_getdns_rr_iter_init(&i->rr_i, rrset->netreq->response
+	                                     , rrset->netreq->response_len),
+	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
+}
+
+static int rrset_has_rrsigs(getdns_rrset *rrset)
+{
+	rrsig_iter rrsig;
+	return rrsig_iter_init(&rrsig, rrset) != NULL;
+}
+
+#if defined(SEC_DEBUG) && SEC_DEBUG
+static void debug_sec_print_rrset(const char *msg, getdns_rrset *rrset)
+{
+	char owner[1024];
+	char buf_space[2048];
+	gldns_buffer buf;
+	rrtype_iter *rr, rr_space;
+	rrsig_iter  *rrsig, rrsig_space;
+	size_t i;
+
+	if (!rrset) {
+		DEBUG_SEC("<nil>");
+		return;
+	}
+	gldns_buffer_init_frm_data(&buf, buf_space, sizeof(buf_space));
+	if (gldns_wire2str_dname_buf(rrset->name, 256, owner, sizeof(owner)))
+		gldns_buffer_printf(&buf, "%s ", owner);
+	else	gldns_buffer_printf(&buf, "<nil> ");
+
+	switch (rrset->rr_class) {
+	case GETDNS_RRCLASS_IN	: gldns_buffer_printf(&buf, "IN ")  ; break;
+	case GETDNS_RRCLASS_CH	: gldns_buffer_printf(&buf, "CH ")  ; break;
+	case GETDNS_RRCLASS_HS	: gldns_buffer_printf(&buf, "HS ")  ; break;
+	case GETDNS_RRCLASS_NONE: gldns_buffer_printf(&buf, "NONE "); break;
+	case GETDNS_RRCLASS_ANY	: gldns_buffer_printf(&buf, "ANY ") ; break;
+	default			: gldns_buffer_printf(&buf, "CLASS%d "
+						          , rrset->rr_class);
+				  break;
+	}
+	gldns_buffer_printf(&buf, "%s", priv_getdns_rr_type_name(rrset->rr_type));
+
+	gldns_buffer_printf(&buf, ", rrs:");
+	for ( rr = rrtype_iter_init(&rr_space, rrset), i = 1
+	    ; rr
+	    ; rr = rrtype_iter_next(rr), i++)
+		gldns_buffer_printf(&buf, " %d", (int)i);
+
+	gldns_buffer_printf(&buf, ", rrsigs:");
+	for ( rrsig = rrsig_iter_init(&rrsig_space, rrset), i = 1
+	    ; rrsig
+	    ; rrsig = rrsig_iter_next(rrsig), i++)
+		gldns_buffer_printf(&buf, " %d", (int)i);
+
+	DEBUG_SEC("%s%s\n", msg, buf_space);
+}
+#else
+#define debug_sec_print_rrset(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+
+
+typedef struct rrset_iter rrset_iter;
+struct rrset_iter {
+	getdns_rrset        rrset;
+	uint8_t             name_spc[256];
+	size_t              name_len;
+	priv_getdns_rr_iter rr_i;
+};
+
+static rrset_iter *rrset_iter_init(rrset_iter *i, getdns_network_req *netreq)
+{
+	priv_getdns_rr_iter *rr;
+
+	i->rrset.name = i->name_spc;
+	i->rrset.netreq = netreq;
+	i->name_len = 0;
+
+	for ( rr = priv_getdns_rr_iter_init(&i->rr_i
+	                                   , netreq->response
+	                                   , netreq->response_len)
+	    ;(rr = rr_iter_ansauth(rr))
+	    ; rr = priv_getdns_rr_iter_next(rr)) {
+
+		if ((i->rrset.rr_type = rr_iter_type(rr))
+		    == GETDNS_RRTYPE_RRSIG)
+			continue;
+
+		i->rrset.rr_class = rr_iter_class(rr);
+
+		if (!(i->rrset.name = priv_getdns_owner_if_or_as_decompressed(
+		    rr, i->name_spc, &i->name_len)))
+			continue;
+
+		return i;
+	}
+	return NULL;
+}
+
+
+static rrset_iter *rrset_iter_next(rrset_iter *i)
+{
+	priv_getdns_rr_iter *rr;
+
+	if (!(rr = i && i->rr_i.pos ? &i->rr_i : NULL))
+		return NULL;
+
+	if (!(rr = rr_iter_not_name_class_type(rr,
+	    i->rrset.name, i->rrset.rr_class, i->rrset.rr_type)))
+		return NULL;
+
+	i->rrset.rr_type  = rr_iter_type(rr);
+	i->rrset.rr_class = rr_iter_class(rr);
+	if (!(i->rrset.name = priv_getdns_owner_if_or_as_decompressed(
+		    rr, i->name_spc, &i->name_len)))
+		return rrset_iter_next(i);
+
+	return i;
+}
+
+static getdns_rrset *rrset_iter_value(rrset_iter *i)
+{
+	if (!i)
+		return NULL;
+	if (!i->rr_i.pos)
+		return NULL;
+	return &i->rrset;
+}
+
+typedef struct chain_head chain_head;
+typedef struct chain_node chain_node;
+
+struct chain_head {
+	chain_head  *next;
+	chain_node  *parent;
+	getdns_rrset rrset;
+};
+
+struct chain_node {
+	chain_node  *parent;
+	
+	unsigned int skip: 1; /* This label plays no role */
+	unsigned int cut : 1; /* At a zone cut */
+
+	getdns_rrset dnskey;
+	getdns_rrset ds    ;
+};
+
+static void check_chain_complete(chain_head *chain)
+{
+}
+
+static void add2val_chain(
+    chain_head **chain_p, getdns_network_req *netreq)
+{
+	rrset_iter *i, i_spc;
+
+	assert(netreq->response);
+	assert(netreq->response_len >= GLDNS_HEADER_SIZE);
+
+	/* For all things with signatures, create a chain */
+
+	/* For all things without signature, find SOA (zonecut) and query DS */
+
+	/* On empty packet, find SOA (zonecut) for the qname and query DS */
+
+	for (i = rrset_iter_init(&i_spc, netreq); i; i = rrset_iter_next(i)) {
+		debug_sec_print_rrset("rrset: ", rrset_iter_value(i));
+	}
+}
+
+static void get_val_chain(getdns_dns_req *dnsreq)
+{
+	getdns_network_req *netreq, **netreq_p;
+	chain_head *chain = NULL;
+
+	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++)
+		add2val_chain(&chain, netreq);
+
+	if (chain)
+		check_chain_complete(chain);
+	else
+		priv_getdns_call_user_callback(dnsreq,
+		    create_getdns_response(dnsreq));
+}
+
+/******************************************************************************/
+/*****************************                  *******************************/
+/*****************************  NEW CHAIN CODE  *******************************/
+/*****************************     (above)      *******************************/
+/*****************************                  *******************************/
+/******************************************************************************/
 
 struct validation_chain {
 	getdns_rbtree_t root;
@@ -319,10 +643,8 @@ find_delegation_point_callback(struct getdns_dns_req *dns_req)
 {
 	struct validation_chain *chain =
 	    (struct validation_chain *) dns_req->user_pointer;
-	getdns_context *context = dns_req->context;
 	getdns_network_req **netreq_p, *netreq;
 	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
-	priv_getdns_rdf_iter rdf_storage, *rdf;
 	gldns_pkt_section section;
 	uint16_t rr_type;
 	uint8_t rr_name_space[256], *rr_name;
@@ -584,7 +906,8 @@ getdns_get_validation_chain(getdns_dns_req *dns_req, uint64_t *timeout)
 
 void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
 {
-	getdns_get_validation_chain(dns_req, NULL);
+	get_val_chain(dns_req);
+	//getdns_get_validation_chain(dns_req, NULL);
 }
 
 /********************** functions for validate_dnssec *************************/
@@ -775,7 +1098,7 @@ rrset_iter_init_zone(zone_iter *i, ldns_dnssec_zone *zone)
 }
 
 static ldns_dnssec_rrsets *
-rrset_iter_value(zone_iter *i)
+_rrset_iter_value(zone_iter *i)
 {
 	assert(i);
 
@@ -783,7 +1106,7 @@ rrset_iter_value(zone_iter *i)
 }
 
 static void
-rrset_iter_next(zone_iter *i)
+_rrset_iter_next(zone_iter *i)
 {
 	int was_nsec_rrset;
 	ldns_dnssec_name *name;
@@ -934,41 +1257,6 @@ done_free_verifying_keys:
 	return s;
 }
 
-typedef struct getdns_rrset getdns_rrset;
-struct getdns_rrset {
-	getdns_bindata *name;
-	uint16_t        rr_type;
-	uint16_t        rr_class;
-	uint32_t        ttl;
-	getdns_list    *rrs;
-	getdns_list    *sigs;
-};
-
-typedef struct getdns_delpath_elem getdns_delpath_elem;
-struct getdns_delpath_elem {
-	getdns_delpath_elem *e;		/* self or canonical element
-					 * (with overlapping paths)
-					 */
-	unsigned int         is_zonecut : 1;
-	unsigned int         ds_nxdomain: 1;
-	getdns_rrset         ds;
-	getdns_rrset         dnskey;
-	getdns_dict         *ds_nsec;
-	getdns_list         *ds_nsec_sigs;
-	getdns_dict         *ds_nsec_wc;	/* wildcard */
-	getdns_list         *ds_nsec_wc_sigs;
-	getdns_dict         *ds_nsec_ce;	/* closest encloser */
-	getdns_list         *ds_nsec_ce_sigs;
-};
-
-typedef struct getdns_delpath getdns_delpath;
-struct getdns_delpath {
-	getdns_delpath     *next;	/* In a ring */
-	getdns_rrset        rrset;
-	size_t              nlabels;
-	getdns_delpath_elem elems[];
-};
-
 /*
  * getdns_validate_dnssec
  *
@@ -1005,7 +1293,7 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 	}
 	/* Create a rr_list of all the keys in the support records */
 	for (rrset_iter_init_zone(&i, support);
-	    (rrset = rrset_iter_value(&i)); rrset_iter_next(&i))
+	    (rrset = _rrset_iter_value(&i)); _rrset_iter_next(&i))
 
 		if (ldns_dnssec_rrsets_type(rrset) == LDNS_RR_TYPE_DS ||
 		    ldns_dnssec_rrsets_type(rrset) == LDNS_RR_TYPE_DNSKEY)
@@ -1016,7 +1304,7 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 
 	/* Now walk through the rrsets to validate */
 	for (rrset_iter_init_zone(&i, to_validate);
-	    (rrset = rrset_iter_value(&i)); rrset_iter_next(&i)) {
+	    (rrset = _rrset_iter_value(&i)); _rrset_iter_next(&i)) {
 
 		if ((s = chase(rrset, support, support_keys, trusted)))
 			break;

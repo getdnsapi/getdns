@@ -62,6 +62,8 @@ typedef struct priv_getdns_rr_iter {
 priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
     uint8_t *pkt, size_t pkt_len);
 
+priv_getdns_rr_iter *priv_getdns_rr_iter_rewind(priv_getdns_rr_iter *i);
+
 priv_getdns_rr_iter *priv_getdns_rr_iter_next(priv_getdns_rr_iter *i);
 
 uint8_t *priv_getdns_owner_if_or_as_decompressed(

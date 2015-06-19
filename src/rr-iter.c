@@ -98,6 +98,13 @@ priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 	return find_rrtype(i);
 }
 
+priv_getdns_rr_iter *
+priv_getdns_rr_iter_rewind(priv_getdns_rr_iter *i)
+{
+	assert(i);
+
+	return priv_getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt);
+}
 
 priv_getdns_rr_iter *
 priv_getdns_rr_iter_next(priv_getdns_rr_iter *i)
