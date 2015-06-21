@@ -79,15 +79,15 @@ getdns_upstream_transports[GETDNS_UPSTREAM_TRANSPORTS] = {
 static in_port_t 
 getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_PORT_DNS,
+	GETDNS_PORT_DNS_OVER_TLS,
 	GETDNS_PORT_DNS,
-	GETDNS_PORT_DNS_OVER_TLS
 };
 
 char*
 getdns_port_str_array[] = {
 	GETDNS_STR_PORT_DNS,
+	GETDNS_STR_PORT_DNS_OVER_TLS,
 	GETDNS_STR_PORT_DNS,
-	GETDNS_STR_PORT_DNS_OVER_TLS
 };
 
 /* Private functions */
@@ -937,6 +937,8 @@ getdns_context_destroy(struct getdns_context *context)
 
     if (context->namespaces)
         GETDNS_FREE(context->my_mf, context->namespaces);
+    if (context->dns_transports)
+        GETDNS_FREE(context->my_mf, context->dns_transports);
 	if(context->fchg_resolvconf)
 	{
 		if(context->fchg_resolvconf->prevstat)

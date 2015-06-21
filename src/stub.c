@@ -556,6 +556,7 @@ upstream_idle_timeout_cb(void *userarg)
 	if (upstream->tls_obj != NULL) {
 		SSL_shutdown(upstream->tls_obj);
 		SSL_free(upstream->tls_obj);
+		upstream->tls_obj = NULL;
 	}
 	close(fd);
 }
@@ -1062,17 +1063,20 @@ stub_udp_read_cb(void *userarg)
 	if (GLDNS_TC_WIRE(netreq->response)) {
 		if (!(netreq->transport_current < netreq->transport_count))
 			goto done;
-		netreq->transport_current++;
-		if (netreq->transport_current != GETDNS_TRANSPORT_TCP)
+		getdns_transport_list_t next_transport = 
+		                      netreq->transports[++netreq->transport_current];
+		if (next_transport != GETDNS_TRANSPORT_TCP)
 			goto done;
-		if ((netreq->fd = upstream_connect(upstream, netreq->transport_current, 
+		/*TODO[TLS]: find fallback upstream generically*/
+		if ((netreq->fd = upstream_connect(upstream, next_transport,
 		                                   dnsreq)) == -1)
 			goto done;
-
+		upstream_schedule_netreq(netreq->upstream, netreq);
 		GETDNS_SCHEDULE_EVENT(
-		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
-		    getdns_eventloop_event_init(&netreq->event, netreq,
-		    NULL, stub_tcp_write_cb, stub_timeout_cb));
+		    dnsreq->loop, netreq->upstream->fd, dnsreq->context->timeout,
+		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
+		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
+		    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
 
 		return;
 	}
@@ -1631,7 +1635,7 @@ fallback_on_write(getdns_network_req *netreq)
 {
 	DEBUG_STUB("%s\n", __FUNCTION__);
 	/* TODO[TLS]: Fallback through all transports.*/
-	if (netreq->transport_current = netreq->transport_count - 1)
+	if (netreq->transport_current == netreq->transport_count - 1)
 		return STUB_TCP_ERROR;
 
 	getdns_transport_list_t next_transport = 

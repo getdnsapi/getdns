@@ -62,7 +62,6 @@ network_req_cleanup(getdns_network_req *net_req)
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
-	GETDNS_FREE(net_req->owner->my_mf, net_req->transports);
 }
 
 static int
@@ -90,13 +89,10 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 
 	net_req->upstream = NULL;
 	net_req->fd = -1;
-    net_req->transports = GETDNS_XMALLOC(net_req->owner->my_mf,
-                                        getdns_transport_list_t,
-                                        owner->context->dns_transport_count);
-    memcpy(owner->context->dns_transports, net_req->transports,
-        owner->context->dns_transport_count * sizeof(getdns_transport_list_t));
     net_req->transport_count = owner->context->dns_transport_count;
 	net_req->transport_current = 0;
+    memcpy(net_req->transports, owner->context->dns_transports,
+           net_req->transport_count * sizeof(getdns_transport_list_t));
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->query_id = 0;
