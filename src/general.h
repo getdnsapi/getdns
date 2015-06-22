@@ -42,13 +42,13 @@
 
 /* private inner helper used by sync and async */
 
-void priv_getdns_call_user_callback(getdns_dns_req *, struct getdns_dict *);
+void priv_getdns_call_user_callback(getdns_dns_req *, getdns_dict *);
 void priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req);
 
 getdns_return_t
 priv_getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
-    void *userarg, getdns_transaction_t *transaction_id,
+    void *userarg, getdns_dns_req **dnsreq,
     getdns_callback_t callbackfn, internal_cb_t internal_cb);
 
 getdns_return_t

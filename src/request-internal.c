@@ -40,6 +40,13 @@
 #include "gldns/str2wire.h"
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
+#include "dict.h"
+
+getdns_dict  dnssec_ok_checking_disabled_spc = {
+	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
+	{ 0 }
+};
+getdns_dict *dnssec_ok_checking_disabled = &dnssec_ok_checking_disabled_spc;
 
 static int
 is_extension_set(getdns_dict *extensions, const char *extension)
@@ -48,6 +55,8 @@ is_extension_set(getdns_dict *extensions, const char *extension)
 	uint32_t value;
 
 	if (! extensions)
+		return 0;
+	else if (extensions == dnssec_ok_checking_disabled)
 		return 0;
 
 	r = getdns_dict_get_int(extensions, extension, &value);
@@ -209,14 +218,12 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    =  is_extension_set(extensions, "dnssec_return_only_secure");
 	int dnssec_return_validation_chain
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
-	int dnssec_ok_checking_disabled
-	    =  is_extension_set(extensions, "dnssec_ok_checking_disabled");
 	int edns_cookies
 	    =  is_extension_set(extensions, "edns_cookies");
 
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_validation_chain
-	    || dnssec_ok_checking_disabled;;
+	    || (extensions == dnssec_ok_checking_disabled);
 
 	uint32_t edns_do_bit;
 	int      edns_maximum_udp_payload_size;
@@ -251,6 +258,9 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
 	uint8_t *region;
 	
+	if (extensions == dnssec_ok_checking_disabled)
+		extensions = NULL;
+
 	have_add_opt_parameters = getdns_dict_get_dict(extensions,
 	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
 

@@ -172,7 +172,7 @@ submit_network_request(getdns_network_req *netreq)
 static getdns_return_t
 getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
-    void *userarg, getdns_transaction_t *transaction_id,
+    void *userarg, getdns_dns_req **dnsreq_p,
     getdns_callback_t callbackfn, internal_cb_t internal_cb, int usenamespaces)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -203,8 +203,8 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	req->user_callback = callbackfn;
 	req->internal_cb = internal_cb;
 
-	if (transaction_id)
-		*transaction_id = req->trans_id;
+	if (dnsreq_p)
+		*dnsreq_p = req;
 
 	getdns_context_track_outbound_request(req);
 
@@ -253,12 +253,12 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 getdns_return_t
 priv_getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
-    void *userarg, getdns_transaction_t *transaction_id,
+    void *userarg, getdns_dns_req **dnsreq_p,
     getdns_callback_t callback, internal_cb_t internal_cb)
 {
 	return getdns_general_ns(context, loop,
 	    name, request_type, extensions,
-	    userarg, transaction_id, callback, internal_cb, 0);
+	    userarg, dnsreq_p, callback, internal_cb, 0);
 
 }				/* getdns_general_loop */
 
@@ -270,6 +270,7 @@ priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 	getdns_dict *my_extensions = extensions;
 	getdns_return_t r;
 	uint32_t value;
+	getdns_dns_req *dnsreq = NULL;
 
 	if (!my_extensions) {
 		if (!(my_extensions=getdns_dict_create_with_context(context)))
@@ -285,7 +286,9 @@ priv_getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 
 	r = getdns_general_ns(context, loop,
 	    name, GETDNS_RRTYPE_AAAA, my_extensions,
-	    userarg, transaction_id, callback, NULL, 1);
+	    userarg, &dnsreq, callback, NULL, 1);
+	if (dnsreq && transaction_id)
+		*transaction_id = dnsreq->trans_id;
 
 	if (my_extensions != extensions)
 		getdns_dict_destroy(my_extensions);
@@ -303,6 +306,7 @@ priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 	uint16_t req_type;
 	char name[1024];
 	getdns_return_t retval;
+	getdns_dns_req *dnsreq = NULL;
 
 	if ((retval =
 		getdns_dict_get_bindata(address, "address_data",
@@ -376,7 +380,9 @@ priv_getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	}
 	retval = priv_getdns_general_loop(context, loop, name, req_type,
-	    extensions, userarg, transaction_id, callback, NULL);
+	    extensions, userarg, &dnsreq, callback, NULL);
+	if (dnsreq && transaction_id)
+		*transaction_id = dnsreq->trans_id;
 	return retval;
 }				/* getdns_hostname_loop */
 
@@ -385,8 +391,13 @@ priv_getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions, void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
-	return getdns_general_ns(context, loop, name, GETDNS_RRTYPE_SRV,
-	    extensions, userarg, transaction_id, callback, NULL, 1);
+	getdns_return_t r;
+	getdns_dns_req *dnsreq = NULL;
+	r = getdns_general_ns(context, loop, name, GETDNS_RRTYPE_SRV,
+	    extensions, userarg, &dnsreq, callback, NULL, 1);
+	if (dnsreq && transaction_id)
+		*transaction_id = dnsreq->trans_id;
+	return r;
 }				/* getdns_service_loop */
 
 /**
@@ -398,11 +409,16 @@ getdns_general(getdns_context *context,
     void *userarg, getdns_transaction_t * transaction_id,
     getdns_callback_t callback)
 {
-	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
-	return priv_getdns_general_loop(context, context->extension,
-	    name, request_type, extensions,
-	    userarg, transaction_id, callback, NULL);
+	getdns_return_t r;
+	getdns_dns_req *dnsreq = NULL;
 
+	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
+	r = priv_getdns_general_loop(context, context->extension,
+	    name, request_type, extensions,
+	    userarg, &dnsreq, callback, NULL);
+	if (dnsreq && transaction_id)
+		*transaction_id = dnsreq->trans_id;
+	return r;
 }				/* getdns_general */
 
 /*

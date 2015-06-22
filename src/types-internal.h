@@ -325,6 +325,8 @@ typedef struct getdns_dns_req {
 
 /* utility methods */
 
+extern getdns_dict *dnssec_ok_checking_disabled;
+
 /* dns request utils */
 getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions);
