@@ -336,6 +336,14 @@ is_starttls_response(getdns_network_req *netreq)
 	return 0;
 }
 
+static int
+is_starttls_request(getdns_network_req *netreq) 
+{
+	return ((strcmp(netreq->owner->name, "STARTTLS") == 0) &&
+	         netreq->request_type == GETDNS_RRTYPE_TXT &&
+	         netreq->request_class == GLDNS_RR_CLASS_CH);
+}
+
 /** best effort to set nonblocking */
 static void
 getdns_sock_nonblock(int sockfd)
@@ -528,7 +536,7 @@ stub_timeout_cb(void *userarg)
 	
 	/* For now, mark a STARTTLS timeout as a failured negotiation and allow 
 	 * fallback but don't close the connection. */
-	if (is_starttls_response(netreq)) {
+	if (is_starttls_request(netreq)) {
 		netreq->upstream->tls_hs_state = GETDNS_HS_FAILED;
 		stub_next_upstream(netreq);
 		stub_cleanup(netreq);
@@ -1557,7 +1565,8 @@ static int
 find_upstream_for_netreq(getdns_network_req *netreq)
 {
 	int fd = -1;
-	for (size_t i = 0; i < netreq->transport_count; i++) {
+	for (size_t i = netreq->transport_current; 
+	            i < netreq->transport_count; i++) {
 		netreq->upstream = find_upstream_for_specific_transport(netreq,
 		                                  netreq->transports[i],
 		                                  &fd);
