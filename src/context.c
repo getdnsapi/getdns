@@ -71,23 +71,23 @@ typedef struct host_name_addrs {
 
 static getdns_transport_list_t 
 getdns_upstream_transports[GETDNS_UPSTREAM_TRANSPORTS] = {
+	GETDNS_TRANSPORT_STARTTLS, // Define before TCP to ease fallback
 	GETDNS_TRANSPORT_TCP,
 	GETDNS_TRANSPORT_TLS,
-	GETDNS_TRANSPORT_STARTTLS
 };
 
 static in_port_t 
 getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_PORT_DNS,
-	GETDNS_PORT_DNS_OVER_TLS,
 	GETDNS_PORT_DNS,
+	GETDNS_PORT_DNS_OVER_TLS
 };
 
 char*
 getdns_port_str_array[] = {
 	GETDNS_STR_PORT_DNS,
-	GETDNS_STR_PORT_DNS_OVER_TLS,
 	GETDNS_STR_PORT_DNS,
+	GETDNS_STR_PORT_DNS_OVER_TLS
 };
 
 /* Private functions */
