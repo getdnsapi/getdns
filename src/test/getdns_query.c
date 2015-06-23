@@ -181,18 +181,20 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			free(response_str);
 		}
 		fprintf(stderr,
-			"The callback with ID %llu  was successfull.\n",
+			"Result:      The callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-			"The callback with ID %llu was cancelled. Exiting.\n",
+			"Result:      The callback with ID %llu was cancelled. Exiting.\n",
 			(unsigned long long)trans_id);
 	else
 		fprintf(stderr,
-			"The callback got a callback_type of %d. Exiting.\n",
+			"Result:      The callback got a callback_type of %d. Exiting.\n",
 			callback_type);
-
+		fprintf(stderr,
+			"Error :      '%s'\n",
+			getdns_get_errorstr_by_id(callback_type));
 	getdns_dict_destroy(response);
 	response = NULL;
 }
@@ -522,8 +524,10 @@ main(int argc, char **argv)
 				if (!fgets(line, 1024, stdin) || !*line)
 					break;
 			} else {
-				if (!fgets(line, 1024, fp) || !*line)
+				if (!fgets(line, 1024, fp) || !*line) {
+					fprintf(stdout,"End of file.");
 					break;
+				}
 				fprintf(stdout,"Found query: %s", line);
 			}
 
@@ -531,6 +535,10 @@ main(int argc, char **argv)
 			linec = 1;
 			if ( ! (token = strtok(line, " \t\f\n\r")))
 				continue;
+			if (*token == '#') {
+				fprintf(stdout,"Result:      Skipping comment\n");
+					continue;
+			}
 			do linev[linec++] = token;
 			while (linec < 256 &&
 			    (token = strtok(NULL, " \t\f\n\r")));
@@ -611,8 +619,12 @@ main(int argc, char **argv)
 					fprintf( stderr
 					       , "Could not print response\n");
 				}
-			} else if (r == GETDNS_RETURN_GOOD)
-				fprintf(stdout, "Response code was: GOOD\n");
+			} else if (r == GETDNS_RETURN_GOOD) {
+				uint32_t status;
+				getdns_dict_get_int(response, "status", &status);
+				fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
+				         getdns_get_errorstr_by_id(status));
+			}
 			else if (interactive)
 				fprintf(stderr, "An error occurred: %d\n", r);
 		}
