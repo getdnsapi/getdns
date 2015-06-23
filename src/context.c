@@ -838,7 +838,6 @@ getdns_context_create_with_extended_memory_functions(
 	result->dns_transport = GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP;
 	priv_set_base_dns_transports(result->dns_base_transports, result->dns_transport);
 	result->limit_outstanding_queries = 0;
-	result->has_ta = priv_getdns_parse_ta_file(NULL, NULL);
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
 	/* unbound context is initialized here */
@@ -850,7 +849,13 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 
 	create_local_hosts(result);
+	if (! (result->dnssec_trust_anchors =
+	    getdns_list_create_with_context(result)))
+		goto error;
 
+	result->has_ta = priv_getdns_parse_ta_file(
+	    NULL, result->dnssec_trust_anchors);
+	
 	*context = result;
 	return GETDNS_RETURN_GOOD;
 error:
