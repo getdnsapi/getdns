@@ -152,11 +152,12 @@ static priv_getdns_rr_iter *rr_iter_rrsig_covering(priv_getdns_rr_iter *rr,
 }
 
 typedef struct getdns_rrset {
-	uint8_t            *name;
-	uint16_t            rr_class;
-	uint16_t            rr_type;
-	getdns_network_req *netreq;
-	uint8_t             name_spc[];
+	uint8_t  *name;
+	uint16_t  rr_class;
+	uint16_t  rr_type;
+	uint8_t  *pkt;
+	size_t    pkt_len;
+	uint8_t   name_spc[];
 } getdns_rrset;
 
 typedef struct rrtype_iter {
@@ -180,8 +181,7 @@ static rrtype_iter *rrtype_iter_init(rrtype_iter *i, getdns_rrset *rrset)
 {
 	i->rrset = rrset;
 	return (rrtype_iter *) rr_iter_name_class_type(
-	    priv_getdns_rr_iter_init(&i->rr_i, rrset->netreq->response
-	                                     , rrset->netreq->response_len),
+	    priv_getdns_rr_iter_init(&i->rr_i, rrset->pkt, rrset->pkt_len ),
 	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
 }
 
@@ -196,8 +196,7 @@ static rrsig_iter *rrsig_iter_init(rrsig_iter *i, getdns_rrset *rrset)
 {
 	i->rrset = rrset;
 	return (rrsig_iter *) rr_iter_rrsig_covering(
-	    priv_getdns_rr_iter_init(&i->rr_i, rrset->netreq->response
-	                                     , rrset->netreq->response_len),
+	    priv_getdns_rr_iter_init(&i->rr_i, rrset->pkt, rrset->pkt_len),
 	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
 }
 
@@ -256,8 +255,6 @@ static void debug_sec_print_rrset(const char *msg, getdns_rrset *rrset)
 #define debug_sec_print_rrset(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
-
-
 typedef struct rrset_iter rrset_iter;
 struct rrset_iter {
 	getdns_rrset        rrset;
@@ -266,17 +263,16 @@ struct rrset_iter {
 	priv_getdns_rr_iter rr_i;
 };
 
-static rrset_iter *rrset_iter_init(rrset_iter *i, getdns_network_req *netreq)
+static rrset_iter *rrset_iter_init(rrset_iter *i, uint8_t *pkt, size_t pkt_len)
 {
 	priv_getdns_rr_iter *rr;
 
 	i->rrset.name = i->name_spc;
-	i->rrset.netreq = netreq;
+	i->rrset.pkt = pkt;
+	i->rrset.pkt_len = pkt_len;
 	i->name_len = 0;
 
-	for ( rr = priv_getdns_rr_iter_init(&i->rr_i
-	                                   , netreq->response
-	                                   , netreq->response_len)
+	for ( rr = priv_getdns_rr_iter_init(&i->rr_i, pkt, pkt_len)
 	    ;(rr = rr_iter_ansauth(rr))
 	    ; rr = priv_getdns_rr_iter_next(rr)) {
 
@@ -294,7 +290,6 @@ static rrset_iter *rrset_iter_init(rrset_iter *i, getdns_network_req *netreq)
 	}
 	return NULL;
 }
-
 
 static rrset_iter *rrset_iter_next(rrset_iter *i)
 {
@@ -325,29 +320,57 @@ static getdns_rrset *rrset_iter_value(rrset_iter *i)
 	return &i->rrset;
 }
 
+/* ------------------------------------------------------------------------- */
+
 typedef struct chain_head chain_head;
 typedef struct chain_node chain_node;
 
 struct chain_head {
 	struct mem_funcs  my_mf;
 
-	chain_head       *next;
-	chain_node       *parent;
-	size_t            node_count; /* Number of nodes attached directly
-	                               * to this head.  For cleaning.  */
-	getdns_rrset      rrset;
-	uint8_t           name_spc[];
+	chain_head         *next;
+	chain_node         *parent;
+	size_t              node_count; /* Number of nodes attached directly
+	                                 * to this head.  For cleaning.  */
+	getdns_network_req *netreq;
+	getdns_rrset        rrset;
+	uint8_t             name_spc[];
 };
 
 struct chain_node {
 	chain_node  *parent;
 	
-	getdns_rrset dnskey;
-	getdns_rrset ds    ;
-	getdns_rrset soa   ;
+	getdns_network_req *dnskey_req;
+	getdns_rrset        dnskey;
+	getdns_network_req *ds_req;
+	getdns_rrset        ds;
+	getdns_network_req *soa_req;
 
 	chain_head  *chains;
 };
+
+#ifdef STUB_NATIVE_DNSSEC
+static int chain_head_validate_dnssec(chain_head *head, getdns_list *tas)
+{
+	return GETDNS_DNSSEC_INSECURE;
+}
+
+static void chain_validate_dnssec(chain_head *chain)
+{
+	chain_head *head;
+	getdns_list *tas =
+	    chain->netreq->owner->context->dnssec_trust_anchors;
+
+	for (head = chain; head; head = head->next) {
+		switch (chain_head_validate_dnssec(head, tas)) {
+		case GETDNS_DNSSEC_SECURE: break;
+		case GETDNS_DNSSEC_BOGUS : head->netreq->bogus = 1;
+		default                  : continue;
+		}
+		/* TODO: Validate head->rrset */
+	}
+}
+#endif
 
 static size_t count_outstanding_requests(chain_head *head)
 {
@@ -361,19 +384,19 @@ static size_t count_outstanding_requests(chain_head *head)
 	    ; node
 	    ; node = node->parent) {
 
-		if (node->dnskey.netreq &&
-		    node->dnskey.netreq->state != NET_REQ_FINISHED &&
-		    node->dnskey.netreq->state != NET_REQ_CANCELED)
+		if (node->dnskey_req &&
+		    node->dnskey_req->state != NET_REQ_FINISHED &&
+		    node->dnskey_req->state != NET_REQ_CANCELED)
 			count++;
 
-		if (node->ds.netreq &&
-		    node->ds.netreq->state != NET_REQ_FINISHED &&
-		    node->ds.netreq->state != NET_REQ_CANCELED)
+		if (node->ds_req &&
+		    node->ds_req->state != NET_REQ_FINISHED &&
+		    node->ds_req->state != NET_REQ_CANCELED)
 			count++;
 
-		if (node->soa.netreq &&
-		    node->soa.netreq->state != NET_REQ_FINISHED &&
-		    node->soa.netreq->state != NET_REQ_CANCELED)
+		if (node->soa_req &&
+		    node->soa_req->state != NET_REQ_FINISHED &&
+		    node->soa_req->state != NET_REQ_CANCELED)
 			count++;
 	}
 	return count + count_outstanding_requests(head->next);
@@ -388,7 +411,10 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 	rrsig_iter  *rrsig, rrsig_spc;
 	getdns_dict *rr_dict;
 
-	for (i = rrset_iter_init(&i_spc, netreq); i; i = rrset_iter_next(i)) {
+	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
 		rrset = rrset_iter_value(i);
 
 		if (rrset->rr_type != GETDNS_RRTYPE_DNSKEY &&
@@ -432,28 +458,31 @@ static void check_chain_complete(chain_head *chain)
 		return;
 	}
 	DEBUG_SEC("Chain done!\n");
-	dnsreq = chain->rrset.netreq->owner;
-	/* TODO: DNSSEC validation of netreq! */
+	dnsreq = chain->netreq->owner;
+
+#ifdef STUB_NATIVE_DNSSEC
+	chain_validate_dnssec(chain);
+#endif
 
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(dnsreq->context) : NULL;
 
-	/* Cleanup the chain */
+	/* Walk chain to add values to val_chain_list and to cleanup */
 	for ( head = chain; head ; head = next ) {
 		next = head->next;
 		for ( node_count = head->node_count, node = head->parent
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
-			if (node->dnskey.netreq) {
+			if (node->dnskey_req) {
 				append_rrs2val_chain_list(dnsreq->context,
-				    val_chain_list, node->dnskey.netreq);
-				dns_req_free(node->dnskey.netreq->owner);
+				    val_chain_list, node->dnskey_req);
+				dns_req_free(node->dnskey_req->owner);
 			}
-			if (node->ds.netreq) {
+			if (node->ds_req) {
 				append_rrs2val_chain_list(dnsreq->context,
-				    val_chain_list, node->ds.netreq);
-				dns_req_free(node->ds.netreq->owner);
+				    val_chain_list, node->ds_req);
+				dns_req_free(node->ds_req->owner);
 			}
 		}
 		GETDNS_FREE(head->my_mf, head);
@@ -477,18 +506,18 @@ static void val_chain_sched_soa_node(chain_node *node)
 	getdns_dns_req *dnsreq;
 	char  name[1024];
 
-	context = node->chains->rrset.netreq->owner->context;
-	loop    = node->chains->rrset.netreq->owner->loop;
+	context = node->chains->netreq->owner->context;
+	loop    = node->chains->netreq->owner->loop;
 
-	if (!gldns_wire2str_dname_buf(node->soa.name, 256, name, sizeof(name)))
+	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
 		return;
 
-	if (! node->soa.netreq &&
+	if (! node->soa_req &&
 	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
 	    dnssec_ok_checking_disabled, node, &dnsreq, NULL,
 	    val_chain_node_soa_cb))
 
-		node->soa.netreq = *dnsreq->netreqs;
+		node->soa_req     = dnsreq->netreqs[0];
 }
 
 static void val_chain_sched_soa(chain_head *head, uint8_t *dname)
@@ -499,7 +528,7 @@ static void val_chain_sched_soa(chain_head *head, uint8_t *dname)
 		return;
 
 	for ( node = head->parent
-	    ; node && !priv_getdns_dname_equal(dname, node->dnskey.name)
+	    ; node && !priv_getdns_dname_equal(dname, node->ds.name)
 	    ; node = node->parent);
 
 	if (node)
@@ -514,25 +543,25 @@ static void val_chain_sched_node(chain_node *node)
 	getdns_dns_req *dnsreq;
 	char  name[1024];
 
-	context = node->chains->rrset.netreq->owner->context;
-	loop    = node->chains->rrset.netreq->owner->loop;
+	context = node->chains->netreq->owner->context;
+	loop    = node->chains->netreq->owner->loop;
 
-	if (!gldns_wire2str_dname_buf(node->dnskey.name, 256, name, sizeof(name)))
+	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
 		return;
 
 	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
 
-	if (! node->dnskey.netreq /* not scheduled */ &&
+	if (! node->dnskey_req /* not scheduled */ &&
 	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
 	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
 
-		node->dnskey.netreq = *dnsreq->netreqs;
+		node->dnskey_req     = dnsreq->netreqs[0];
 
-	if (! node->ds.netreq && node->parent /* not root */ &&
+	if (! node->ds_req && node->parent /* not root */ &&
 	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
 	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
 
-		node->ds.netreq = *dnsreq->netreqs;
+		node->ds_req = dnsreq->netreqs[0];
 }
 
 static void val_chain_sched(chain_head *head, uint8_t *dname)
@@ -540,7 +569,7 @@ static void val_chain_sched(chain_head *head, uint8_t *dname)
 	chain_node *node;
 
 	for ( node = head->parent
-	    ; node && !priv_getdns_dname_equal(dname, node->dnskey.name)
+	    ; node && !priv_getdns_dname_equal(dname, node->ds.name)
 	    ; node = node->parent);
 	if (node)
 		val_chain_sched_node(node);
@@ -559,7 +588,7 @@ static void val_chain_sched_signer_node(chain_node *node, rrsig_iter *rrsig)
 	    rdf, signer_spc, &signer_len)))
 		return;
 
-	while (node && !priv_getdns_dname_equal(signer, node->dnskey.name))
+	while (node && !priv_getdns_dname_equal(signer, node->ds.name))
 		node = node->parent;
 	if (node)
 		val_chain_sched_node(node);
@@ -580,12 +609,18 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 
 	getdns_context_clear_outbound_request(dnsreq);
 	switch (netreq->request_type) {
-	case GETDNS_RRTYPE_DS    : break;
-	case GETDNS_RRTYPE_DNSKEY: node->dnskey.netreq = netreq;
+	case GETDNS_RRTYPE_DS    : node->ds.pkt     = netreq->response;
+	                           node->ds.pkt_len = netreq->response_len;
+	                           break;
+	case GETDNS_RRTYPE_DNSKEY: node->dnskey.pkt     = netreq->response;
+	                           node->dnskey.pkt_len = netreq->response_len;
 	default                  : check_chain_complete(node->chains);
 				   return;
 	}
-	for (i = rrset_iter_init(&i_spc, netreq); i; i = rrset_iter_next(i)) {
+	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
 		rrset = rrset_iter_value(i);
 
 		if (rrset->rr_type != GETDNS_RRTYPE_DS     &&
@@ -608,9 +643,12 @@ static getdns_rrset *rrset_by_type(
 	rrset_iter   *i;
 	getdns_rrset *rrset;
 
-	for (i = rrset_iter_init(i_spc, netreq); i; i = rrset_iter_next(i)) {
+	for ( i = rrset_iter_init(i_spc,netreq->response,netreq->response_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
 		rrset = rrset_iter_value(i);
-		if (rrset->rr_type == rr_type)
+		if (rrset->rr_type == rr_type) /* Check class too? */
 			return rrset;
 	}
 	return NULL;
@@ -628,7 +666,7 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	if ((rrset = rrset_by_type(&i_spc, netreq, GETDNS_RRTYPE_SOA))) {
 
 		while (node &&
-		    ! priv_getdns_dname_equal(node->soa.name, rrset->name))
+		    ! priv_getdns_dname_equal(node->ds.name, rrset->name))
 			node = node->parent;
 
 		val_chain_sched_node(node);
@@ -658,8 +696,8 @@ static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
 	return labels + 1;
 }
 
-static chain_head *add_rrset2val_chain(
-    struct mem_funcs *mf, chain_head **chain_p, getdns_rrset *rrset)
+static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
+    chain_head **chain_p, getdns_rrset *rrset, getdns_network_req *netreq)
 {
 	chain_head *head;
 	uint8_t    *labels[128], **last_label, **label;
@@ -731,7 +769,9 @@ static chain_head *add_rrset2val_chain(
 	memcpy(head->name_spc, rrset->name, dname_len);
 	head->rrset.rr_class = rrset->rr_class;
 	head->rrset.rr_type = rrset->rr_type;
-	head->rrset.netreq = rrset->netreq;
+	head->rrset.pkt = rrset->pkt;
+	head->rrset.pkt_len = rrset->pkt_len;
+	head->netreq = netreq;
 	head->node_count = node_count;
 
 	if (!node_count) {
@@ -748,21 +788,21 @@ static chain_head *add_rrset2val_chain(
 	    ; node_count
 	    ; node_count--, node = node->parent =&node[1], dname += *dname + 1) {
 
-		node->chains          = *chain_p;
 		node->ds.name         = dname;
 		node->dnskey.name     = dname;
-		node->soa.name        = dname;
 		node->ds.rr_class     = head->rrset.rr_class;
 		node->dnskey.rr_class = head->rrset.rr_class;
-		node->soa.rr_class    = head->rrset.rr_class;
 		node->ds.rr_type      = GETDNS_RRTYPE_DS;
 		node->dnskey.rr_type  = GETDNS_RRTYPE_DNSKEY;
-		node->soa.rr_type     = GETDNS_RRTYPE_SOA;
-		node->ds.netreq       = NULL;
-		node->dnskey.netreq   = NULL;
-		node->soa.netreq      = NULL;
+		node->ds.pkt          = NULL;
+		node->ds.pkt_len      = 0;
+		node->dnskey.pkt      = NULL;
+		node->dnskey.pkt_len  = 0;
+		node->ds_req          = NULL;
+		node->dnskey_req      = NULL;
+		node->soa_req         = NULL;
 
-		node->soa.rr_class = head->rrset.rr_class;
+		node->chains          = *chain_p;
 	}
 	/* On the first chain, max_node == NULL.
 	 * Schedule a root DNSKEY query, we always need that.
@@ -801,17 +841,21 @@ static void add_netreq2val_chain(
 		empty_rrset.name = netreq->query + GLDNS_HEADER_SIZE;
 		empty_rrset.rr_class = GETDNS_RRCLASS_IN;
 		empty_rrset.rr_type  = 0;
-		empty_rrset.netreq   = netreq;
+		empty_rrset.pkt = netreq->response;
+		empty_rrset.pkt_len = netreq->response_len;
 
-		head = add_rrset2val_chain(mf, chain_p, &empty_rrset);
+		head = add_rrset2val_chain(mf, chain_p, &empty_rrset, netreq);
 		val_chain_sched_soa(head, empty_rrset.name);
 		return;
 	}
-	for (i = rrset_iter_init(&i_spc, netreq); i; i = rrset_iter_next(i)) {
+	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
 		rrset = rrset_iter_value(i);
 		debug_sec_print_rrset("rrset: ", rrset);
 
-		head = add_rrset2val_chain(mf, chain_p, rrset);
+		head = add_rrset2val_chain(mf, chain_p, rrset, netreq);
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
 		    ; rrsig
 		    ; rrsig = rrsig_iter_next(rrsig), n_rrsigs++) {
