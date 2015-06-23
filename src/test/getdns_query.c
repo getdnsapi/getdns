@@ -635,6 +635,7 @@ done_destroy_context:
 		return 0;
 	if (r)
 		fprintf(stderr, "An error occurred: %d\n", r);
+	fprintf(stdout, "\nAll done.\n");
 	return r;
 }
 
