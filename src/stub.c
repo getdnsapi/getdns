@@ -1059,10 +1059,6 @@ stub_udp_read_cb(void *userarg)
 	}
 	netreq->response_len = read;
 	dnsreq->upstreams->current = 0;
-
-	/* TODO: DNSSEC */
-	netreq->secure = 0;
-	netreq->bogus  = 0;
 done:
 	netreq->state = NET_REQ_FINISHED;
 	priv_getdns_check_dns_req_complete(dnsreq);
@@ -1140,10 +1136,6 @@ stub_tcp_read_cb(void *userarg)
 		    netreq->tcp.read_pos - netreq->tcp.read_buf;
 		netreq->tcp.read_buf = NULL;
 		dnsreq->upstreams->current = 0;
-
-		/* TODO: DNSSEC */
-		netreq->secure = 0;
-		netreq->bogus  = 0;
 
 		stub_cleanup(netreq);
 		close(netreq->fd);
