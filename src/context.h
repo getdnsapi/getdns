@@ -86,6 +86,8 @@ typedef struct getdns_upstream {
 	struct sockaddr_storage  addr;
 
 	/* How is this upstream doing? */
+	size_t                   writes_done;
+	size_t                   responses_recieved;
 	int                      to_retry;
 	int                      back_off;
 

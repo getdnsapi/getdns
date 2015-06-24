@@ -180,7 +180,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
 			free(response_str);
 		}
-		fprintf(stderr,
+		fprintf(stdout,
 			"Result:      The callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
 
@@ -188,13 +188,14 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 		fprintf(stderr,
 			"Result:      The callback with ID %llu was cancelled. Exiting.\n",
 			(unsigned long long)trans_id);
-	else
+	else {
 		fprintf(stderr,
 			"Result:      The callback got a callback_type of %d. Exiting.\n",
 			callback_type);
 		fprintf(stderr,
 			"Error :      '%s'\n",
 			getdns_get_errorstr_by_id(callback_type));
+	}
 	getdns_dict_destroy(response);
 	response = NULL;
 }

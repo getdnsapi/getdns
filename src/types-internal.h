@@ -159,6 +159,7 @@ typedef struct getdns_tcp_state {
 	uint8_t *write_buf;
 	size_t   write_buf_len;
 	size_t   written;
+	int      write_error;
 
 	uint8_t *read_buf;
 	size_t   read_buf_len;
@@ -167,17 +168,6 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
-// /* TODO[TLS]: change this name to getdns_transport when API updated*/
-// typedef enum getdns_base_transport {
-// 	GETDNS_TRANSPORT_MIN   = 0,
-// 	GETDNS_TRANSPORT_NONE  = 0,
-// 	GETDNS_TRANSPORT_UDP,
-// 	GETDNS_TRANSPORT_TCP_SINGLE, /* To be removed? */
-// 	GETDNS_TRANSPORT_STARTTLS,   /* Define before TCP to allow fallback */
-// 	GETDNS_TRANSPORT_TCP,
-// 	GETDNS_TRANSPORT_TLS,
-// 	GETDNS_TRANSPORT_MAX
-// } getdns_base_transport_t;
 
 /**
  * Request data

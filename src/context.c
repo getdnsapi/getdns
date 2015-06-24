@@ -596,6 +596,8 @@ upstream_init(getdns_upstream *upstream,
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
 
 	/* How is this upstream doing? */
+	upstream->writes_done = 0;
+	upstream->responses_recieved = 0;
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
 
@@ -605,6 +607,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->starttls_req = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
+	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
