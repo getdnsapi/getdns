@@ -49,8 +49,74 @@
 #include "rr-dict.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
+#include "gldns/keyraw.h"
 #include "general.h"
 #include "dict.h"
+
+/* subdomain is same or parent of domain */
+static int is_subdomain(
+    const uint8_t * const subdomain, const uint8_t *domain)
+{
+	while (*domain) {
+		if (priv_getdns_dname_equal(subdomain, domain))
+			return 1;
+
+		domain += *domain + 1;
+	}
+	return *subdomain == 0;
+}
+
+static void _getdns_list2wire(gldns_buffer *buf, getdns_list *l)
+{
+	getdns_dict *rr_dict;
+	getdns_return_t r;
+	size_t i, pkt_start, ancount;
+	uint32_t qtype, qclass;
+	getdns_bindata *qname;
+
+	pkt_start = gldns_buffer_position(buf);
+	/* Empty header */
+	gldns_buffer_write_u32(buf, 0);
+	gldns_buffer_write_u32(buf, 0);
+	gldns_buffer_write_u32(buf, 0);
+
+	for ( i = 0
+	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
+	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+	    ; i++ ) {
+
+		if (r) {
+			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
+				continue;
+			else
+				break;
+		}
+		if (getdns_dict_get_int(rr_dict, "qtype", &qtype) ||
+		    getdns_dict_get_bindata(rr_dict, "qname", &qname))
+			continue;
+		(void) getdns_dict_get_int(rr_dict, "qclass", &qclass);
+		gldns_buffer_write(buf, qname->data, qname->size);
+		gldns_buffer_write_u16(buf, (uint16_t)qtype);
+		gldns_buffer_write_u16(buf, (uint16_t)qclass);
+		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
+		break;
+	}
+	for ( i = 0, ancount = 0
+	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
+	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+	    ; i++ ) {
+
+		if (r) {
+			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
+				continue;
+			else
+				break;
+		}
+		if (priv_getdns_rr_dict2wire(rr_dict, buf) == GETDNS_RETURN_GOOD)
+			ancount++;
+	}
+	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
+}
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
 inline static void debug_sec_print_rr(const char *msg, priv_getdns_rr_iter *rr)
@@ -77,11 +143,17 @@ inline static void debug_sec_print_dname(const char *msg, uint8_t *label)
 	else
 		DEBUG_SEC("%s<nil>\n", msg);
 }
+inline static void debug_sec_print_pkt(const char *msg, uint8_t *pkt, size_t pkt_len)
+{
+	char *str;
+	DEBUG_SEC("%s%s\n", msg, (str = gldns_wire2str_pkt(pkt, pkt_len)));
+	if (str) free(str);
+}
 #else
 #define debug_sec_print_rr(...) DEBUG_OFF(__VA_ARGS__)
 #define debug_sec_print_dname(...) DEBUG_OFF(__VA_ARGS__)
+#define debug_sec_print_pkt(...) DEBUG_OFF(__VA_ARGS__)
 #endif
-
 
 static inline uint16_t rr_iter_type(priv_getdns_rr_iter *rr)
 { return rr->rr_type + 2 <= rr->nxt ? gldns_read_uint16(rr->rr_type) : 0; }
@@ -291,6 +363,11 @@ static rrset_iter *rrset_iter_init(rrset_iter *i, uint8_t *pkt, size_t pkt_len)
 	return NULL;
 }
 
+static rrset_iter *rrset_iter_rewind(rrset_iter *i)
+{
+	return rrset_iter_init(i, i->rrset.pkt, i->rrset.pkt_len);
+}
+
 static rrset_iter *rrset_iter_next(rrset_iter *i)
 {
 	priv_getdns_rr_iter *rr;
@@ -350,25 +427,431 @@ struct chain_node {
 };
 
 #ifdef STUB_NATIVE_DNSSEC
-static int chain_head_validate_dnssec(chain_head *head, getdns_list *tas)
+
+
+static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 {
-	return GETDNS_DNSSEC_INSECURE;
+	rrtype_iter rr_spc, *rr;
+	rrsig_iter rrsig_spc, *rrsig;
+	uint16_t keytag;
+
+	assert(dnskey->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+
+	for ( rr = rrtype_iter_init(&rr_spc, dnskey)
+	    ; rr ; rr = rrtype_iter_next(rr) ) {
+
+		keytag = gldns_calc_keytag_raw(rr->rr_i.rr_type + 10,
+				rr->rr_i.nxt - rr->rr_i.rr_type - 10);
+
+		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
+		    ; rrsig ; rrsig = rrsig_iter_next(rrsig) ) {
+
+			if (/* Space for keytag & signer in rrsig rdata? */
+			    rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 29 &&
+
+			    /* Does the keytag match? */
+			    gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+			    == keytag &&
+
+			    /* Does the signer name match? */
+			    priv_getdns_dname_equal(dnskey->name,
+				    rrsig->rr_i.rr_type + 28))
+
+				return 1;
+		}
+	}
+	return 0;
 }
 
-static void chain_validate_dnssec(chain_head *chain)
+static ldns_rr *rr2ldns_rr(priv_getdns_rr_iter *rr)
+{
+	ldns_rr *rr_l;
+	size_t pos = rr->pos - rr->pkt;
+
+	if (ldns_wire2rr(&rr_l, rr->pkt, rr->pkt_end - rr->pkt, &pos,
+			priv_getdns_rr_iter_section(rr)) == LDNS_STATUS_OK)
+		return rr_l;
+	else
+		return NULL;
+}
+
+static ldns_rr_list *rrset2ldns_rr_list(getdns_rrset *rrset)
+{
+	rrtype_iter rr_spc, *rr;
+	ldns_rr_list *rr_list = ldns_rr_list_new();
+	ldns_rr *rr_l;
+
+	if (rr_list) {
+		for ( rr = rrtype_iter_init(&rr_spc, rrset)
+		    ; rr ; rr = rrtype_iter_next(rr) )
+			if ((rr_l = rr2ldns_rr(&rr->rr_i)))
+				ldns_rr_list_push_rr(rr_list, rr_l);
+	}
+	return rr_list;
+}
+
+static int _getdns_verify_rrsig(getdns_rrset *rrset, rrsig_iter *rrsig, rrtype_iter *key)
+{
+	ldns_rr_list *rrset_l = rrset2ldns_rr_list(rrset);
+	ldns_rr *rrsig_l = rr2ldns_rr(&rrsig->rr_i);
+	ldns_rr *key_l = rr2ldns_rr(&key->rr_i);
+	int r;
+	/*
+	fprintf(stderr, "rrsig: " ); ldns_rr_print(stderr, rrsig_l); fprintf(stderr, "\n");
+	fprintf(stderr, "dnskey: "); ldns_rr_print(stderr, key_l); fprintf(stderr, "\n");
+	fprintf(stderr, "rrset: " ); ldns_rr_list_print(stderr, rrset_l); fprintf(stderr, "\n");
+	*/
+	r = rrset_l && rrsig_l && key_l && ldns_verify_rrsig(rrset_l, rrsig_l, key_l) == LDNS_STATUS_OK;
+	ldns_rr_list_deep_free(rrset_l);
+	ldns_rr_free(rrsig_l);
+	ldns_rr_free(key_l);
+	return r;
+}
+
+static int dnskey_signed_rrset(rrtype_iter *dnskey, getdns_rrset *rrset)
+{
+	rrsig_iter rrsig_spc, *rrsig;
+	uint16_t keytag;
+
+	assert(dnskey->rrset->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	keytag = gldns_calc_keytag_raw(dnskey->rr_i.rr_type + 10,
+			dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10);
+
+	for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
+	    ; rrsig ; rrsig = rrsig_iter_next(rrsig) ) {
+
+		if (/* Space for keytag & signer in rrsig rdata? */
+		    rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 29 &&
+
+		    /* Does the keytag match? */
+		    gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+		    == keytag &&
+
+		    /* Does the signer name match? */
+		    priv_getdns_dname_equal(dnskey->rrset->name,
+			    rrsig->rr_i.rr_type + 28) &&
+		    
+		    /* Does the signature verify? */
+		    _getdns_verify_rrsig(rrset, rrsig, dnskey)) {
+
+			debug_sec_print_rr("key ", &dnskey->rr_i);
+			debug_sec_print_rrset("signed ", rrset);
+
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int a_key_signed_rrset(getdns_rrset *keyset, getdns_rrset *rrset)
+{
+	rrtype_iter dnskey_spc, *dnskey;
+
+	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	for ( dnskey = rrtype_iter_init(&dnskey_spc, keyset)
+	    ; dnskey ; dnskey = rrtype_iter_next(dnskey) ) {
+
+		if (dnskey_signed_rrset(dnskey, rrset))
+			return 1;
+	}
+	return 0;
+}
+
+static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
+{
+	rrtype_iter dnskey_spc, *dnskey;
+	rrtype_iter ds_spc, *ds;
+	uint16_t keytag;
+	ldns_rr *dnskey_l;
+	ldns_rr *ds_l = NULL;
+
+	assert(ds_set->rr_type == GETDNS_RRTYPE_DS);
+	assert(dnskey_set->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	if (!priv_getdns_dname_equal(ds_set->name, dnskey_set->name))
+		return 0;
+
+	for ( dnskey = rrtype_iter_init(&dnskey_spc, dnskey_set)
+	    ; dnskey ; dnskey = rrtype_iter_next(dnskey)) {
+
+		keytag = gldns_calc_keytag_raw(dnskey->rr_i.rr_type + 10,
+				dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10);
+
+		dnskey_l = NULL;
+
+		for ( ds = rrtype_iter_init(&ds_spc, ds_set)
+		    ; ds ; ds = rrtype_iter_next(ds)) {
+
+			if (/* Space for keytag & signer in rrsig rdata? */
+			    ds->rr_i.nxt >= ds->rr_i.rr_type + 12 &&
+
+			    /* Does the keytag match? */
+			    gldns_read_uint16(ds->rr_i.rr_type + 10)
+			    == keytag) {
+
+				if (!dnskey_l)
+					dnskey_l = rr2ldns_rr(&dnskey->rr_i);
+				if (dnskey_l && (ds_l = rr2ldns_rr(&ds->rr_i)) &&
+				    ldns_rr_compare_ds(ds_l, dnskey_l)) {
+
+					debug_sec_print_rr("this DS: ", &ds->rr_i);
+					debug_sec_print_rr("matched DNSKEY: ", &dnskey->rr_i);
+
+					ldns_rr_free(dnskey_l);
+					ldns_rr_free(ds_l);
+
+					if (dnskey_signed_rrset(dnskey, dnskey_set)) {
+						debug_sec_print_rrset("which signed: "
+								, dnskey_set);
+						return 1;
+					} else {
+						debug_sec_print_rrset("which did not sign: "
+								, dnskey_set);
+					}
+				}
+			}
+			if (ds_l)
+				ldns_rr_free(ds_l);
+		}
+		ldns_rr_free(dnskey_l);
+	}
+	return 0;
+}
+
+#if 0
+	uint8_t *name = rrset->name, cname_spc[256], *cname = rrset->name;
+	size_t anti_loop = 1000, cname_len = sizeof(cname_spc);
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+
+	/* First, try to find the canonical name that is denied.
+	 * CNAMEs authentication is checked with their own chain_head
+	 * entry points, so no need to check signatures here.
+	 */
+	while (anti_loop--) {
+		for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
+		    ; i
+		    ; i = rrset_iter_next(i)) {
+
+			if (i->rrset.rr_type != GETDNS_RRTYPE_CNAME)
+				continue;
+
+			if (priv_getdns_dname_equal(name, i->rrset.name) &&
+			    (rdf = priv_getdns_rdf_iter_init(
+			    &rdf_spc, &i->rr_i)) &&
+			    (cname = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, cname_spc, &cname_len)))
+				break;
+		}
+		if (priv_getdns_dname_equal(name, cname))
+			break;
+
+		name = cname;
+	}
+#endif
+
+static int bitmap_contains_rrtype(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
+{
+	uint8_t *dptr, *dend;
+	uint8_t window  = rr_type >> 8;
+	uint8_t subtype = rr_type & 0xFF;
+
+	if (!bitmap)
+		return 0;
+	dptr = bitmap->pos;
+	dend = bitmap->nxt;
+
+	/* Type Bitmap = ( Window Block # | Bitmap Length | Bitmap ) +
+	 *                 dptr[0]          dptr[1]         dptr[2:]
+	 */
+	while (dptr < dend && dptr[0] <= window) {
+		if (dptr[0] == window && subtype / 8 < dptr[1] &&
+		    dptr + dptr[1] + 2 <= dend)
+			return  dptr[2 + subtype / 8] & (0x80 >> (subtype % 8));
+		dptr += dptr[1] + 2; /* next window */
+	}
+	return 0;
+}
+
+static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
+{
+	rrset_iter i_spc, *i;
+	size_t n_nsecs = 0, n_nsec3s = 0;
+	getdns_rrset nsecs[2], nsec3s[3];
+	rrtype_iter nsec_space, *nsec;
+	priv_getdns_rdf_iter bitmap_spc, *bitmap;
+
+	size_t j;
+
+	assert(dnskey->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	/* First collect nsecs and nsec3s */
+	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
+		if (i->rrset.rr_type == GETDNS_RRTYPE_NSEC) {
+
+			nsecs[n_nsecs] =  i->rrset;
+			if (++n_nsecs >= sizeof(nsecs))
+				break;
+
+		} else if (i->rrset.rr_type == GETDNS_RRTYPE_NSEC3) {
+
+			nsecs[n_nsecs] = i->rrset;
+			if (++n_nsec3s >= sizeof(nsec3s))
+				break;
+		}
+	}
+	if (!n_nsecs && !n_nsec3s)
+		return 0;
+
+	/* We assume rrset already contains the canonical name */
+	if (n_nsecs) {
+		/* The NOERROR case */
+		for (j = 0; j < n_nsecs; j++) {
+			if (priv_getdns_dname_equal(rrset->name, nsecs[j].name))
+				return (nsec = rrtype_iter_init(
+				    &nsec_space, &nsecs[j])) &&
+
+				    (bitmap = priv_getdns_rdf_iter_init_at(
+				    &bitmap_spc, &nsec->rr_i, 1)) &&
+
+				    !bitmap_contains_rrtype(
+					bitmap, rrset->rr_type) &&
+
+				    a_key_signed_rrset(dnskey, &nsecs[j]);
+		}
+		/* The NXDOMAIN case */
+		/* One should cover the name */
+		/* One should cover the wildcard */
+	} 
+	/* TODO: proof nsec3 non existance */
+	return 0;
+}
+
+static int chain_node_get_trusted_keys(
+    chain_node *node, getdns_rrset *ta, getdns_rrset **keys)
+{
+	int s;
+
+	/* Descend down to the root */
+	if (! node)
+		return GETDNS_DNSSEC_BOGUS;
+	
+	else if (ta->rr_type == GETDNS_RRTYPE_DS) {
+		
+		if (ds_authenticates_keys(&node->ds, &node->dnskey)) {
+			*keys = &node->dnskey;
+			return GETDNS_DNSSEC_SECURE;
+		}
+
+	} else if (ta->rr_type == GETDNS_RRTYPE_DNSKEY) {
+
+		/* ta is KSK */
+		if (a_key_signed_rrset(ta, &node->dnskey)) {
+			*keys = &node->dnskey;
+			return GETDNS_DNSSEC_SECURE;
+		}
+		/* ta is ZSK */
+		if (key_proves_nonexistance(ta, &node->ds))
+			return GETDNS_DNSSEC_INSECURE;
+
+		if (a_key_signed_rrset(ta, &node->ds)) {
+			if (ds_authenticates_keys(&node->ds, &node->dnskey)) {
+				*keys = &node->dnskey;
+				return GETDNS_DNSSEC_SECURE;
+			}
+			return GETDNS_DNSSEC_BOGUS;
+		}
+	} else
+		return GETDNS_DNSSEC_BOGUS;
+
+	if (GETDNS_DNSSEC_SECURE != 
+	    (s = chain_node_get_trusted_keys(node->parent, ta, keys)))
+		return s;
+
+	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
+	ta = *keys;
+	/* Back up to the head */
+	if (key_proves_nonexistance(ta, &node->ds))
+		return GETDNS_DNSSEC_INSECURE;
+
+	if (key_matches_signer(ta, &node->ds)) {
+		if (a_key_signed_rrset(ta, &node->ds) &&
+		    ds_authenticates_keys(&node->ds, &node->dnskey)) {
+
+			*keys = &node->dnskey;
+			return GETDNS_DNSSEC_SECURE;
+		}
+		return GETDNS_DNSSEC_BOGUS;
+	}
+	return GETDNS_DNSSEC_SECURE;
+}
+
+static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
+{
+	getdns_rrset *keys;
+	int s;
+
+	if ((s = chain_node_get_trusted_keys(head->parent, ta, &keys))
+	    != GETDNS_DNSSEC_SECURE)
+			return s;
+
+	if (a_key_signed_rrset(keys, &head->rrset))
+		return GETDNS_DNSSEC_SECURE;
+	else
+		return GETDNS_DNSSEC_BOGUS;
+}
+
+static int chain_head_validate(chain_head *head, rrset_iter *tas)
+{
+	rrset_iter *i;
+	getdns_rrset *ta;
+	int s = GETDNS_DNSSEC_INDETERMINATE;
+
+	for (i = rrset_iter_rewind(tas); i ;i = rrset_iter_next(i)) {
+		ta = rrset_iter_value(i);
+
+		if ((ta->rr_type != GETDNS_RRTYPE_DNSKEY &&
+		     ta->rr_type != GETDNS_RRTYPE_DS
+		    ) || !is_subdomain(ta->name, head->rrset.name))
+			continue;
+
+		/* The best status for any ta counts */
+		switch (chain_head_validate_with_ta(head, ta)) {
+		case GETDNS_DNSSEC_SECURE  : s = GETDNS_DNSSEC_SECURE;
+		case GETDNS_DNSSEC_INSECURE: if (s != GETDNS_DNSSEC_SECURE)
+						     s = GETDNS_DNSSEC_INSECURE;
+		                             break;
+		case GETDNS_DNSSEC_BOGUS   : if (s != GETDNS_DNSSEC_SECURE &&
+		                                 s != GETDNS_DNSSEC_INSECURE)
+		                                     s = GETDNS_DNSSEC_BOGUS;
+		                             break;
+		default                    : break;
+		}
+	}
+	return s;
+}
+
+static void chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 {
 	chain_head *head;
-	getdns_list *tas =
-	    chain->netreq->owner->context->dnssec_trust_anchors;
 
 	for (head = chain; head; head = head->next) {
-		switch (chain_head_validate_dnssec(head, tas)) {
-		case GETDNS_DNSSEC_SECURE: break;
-		case GETDNS_DNSSEC_BOGUS : head->netreq->bogus = 1;
-		default                  : continue;
+		switch (chain_head_validate(head, tas)) {
+		case GETDNS_DNSSEC_SECURE: if (!head->netreq->bogus)
+						   head->netreq->secure = 1;
+		                           break;
+		case GETDNS_DNSSEC_BOGUS : head->netreq->bogus  = 1;
+					   head->netreq->secure = 0;
+		                           break;
+		default                  : break;
 		}
-		/* TODO: Validate head->rrset */
 	}
+	/* TODO:  For secure nxdomains, test if the nsecs are correct */
 }
 #endif
 
@@ -447,11 +930,18 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 static void check_chain_complete(chain_head *chain)
 {
 	getdns_dns_req *dnsreq;
+	getdns_context *context;
 	size_t o, node_count;
 	chain_head *head, *next;
 	chain_node *node;
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
+#ifdef STUB_NATIVE_DNSSEC
+	uint8_t tas_spc[4096], *tas;
+	size_t tas_sz;
+	gldns_buffer tas_buf;
+	rrset_iter tas_iter;
+#endif
 
 	if ((o = count_outstanding_requests(chain)) > 0) {
 		DEBUG_SEC("%zu outstanding requests\n", o);
@@ -459,13 +949,26 @@ static void check_chain_complete(chain_head *chain)
 	}
 	DEBUG_SEC("Chain done!\n");
 	dnsreq = chain->netreq->owner;
+	context = dnsreq->context;
 
 #ifdef STUB_NATIVE_DNSSEC
-	chain_validate_dnssec(chain);
+	gldns_buffer_init_frm_data(&tas_buf, (tas = tas_spc), sizeof(tas_spc));
+	_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
+	if ((tas_sz = gldns_buffer_position(&tas_buf)) > sizeof(tas_spc)) {
+		if ((tas = GETDNS_XMALLOC(dnsreq->my_mf, uint8_t, tas_sz))) {
+			gldns_buffer_init_frm_data(&tas_buf, tas, tas_sz);
+			_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
+		}
+	} else if (! GLDNS_ANCOUNT(tas))
+		tas = NULL;
+
+	if (tas)
+		chain_validate_dnssec(chain,
+		    rrset_iter_init(&tas_iter, tas, tas_sz));
 #endif
 
 	val_chain_list = dnsreq->dnssec_return_validation_chain
-		? getdns_list_create_with_context(dnsreq->context) : NULL;
+		? getdns_list_create_with_context(context) : NULL;
 
 	/* Walk chain to add values to val_chain_list and to cleanup */
 	for ( head = chain; head ; head = next ) {
@@ -475,12 +978,12 @@ static void check_chain_complete(chain_head *chain)
 		    ; node_count--, node = node->parent ) {
 
 			if (node->dnskey_req) {
-				append_rrs2val_chain_list(dnsreq->context,
+				append_rrs2val_chain_list(context,
 				    val_chain_list, node->dnskey_req);
 				dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
-				append_rrs2val_chain_list(dnsreq->context,
+				append_rrs2val_chain_list(context,
 				    val_chain_list, node->ds_req);
 				dns_req_free(node->ds_req->owner);
 			}
@@ -494,7 +997,14 @@ static void check_chain_complete(chain_head *chain)
 		    response_dict, "validation_chain", val_chain_list);
 		getdns_list_destroy(val_chain_list);
 	}
+
+
+#ifdef STUB_NATIVE_DNSSEC
+	if (tas && tas != tas_spc)
+		GETDNS_FREE(dnsreq->my_mf, tas);
+#endif
 	/* Final user callback */
+
 	priv_getdns_call_user_callback(dnsreq, response_dict);
 }
 
@@ -676,18 +1186,6 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	check_chain_complete(node->chains);
 }
 
-static int is_subdomain(
-    const uint8_t * const subdomain, const uint8_t *domain)
-{
-	while (*domain) {
-		if (priv_getdns_dname_equal(subdomain, domain))
-			return 1;
-
-		domain += *domain + 1;
-	}
-	return *subdomain == 0;
-}
-
 static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
 {
 	if (*dname)
@@ -740,6 +1238,8 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		for ( n -= max_labels, node = max_head->parent
 		    ; n
 		    ; n--, node = node->parent);
+
+		max_node = node;
 	} else
 		max_node = NULL;
 
