@@ -277,6 +277,11 @@ getdns_return_t parse_args(int argc, char **argv)
 					    " %d", r);
 					break;
 				}
+			} else if (arg[1] == '0') {
+			    /* Unset all existing extensions*/
+				getdns_dict_destroy(extensions);
+				extensions = getdns_dict_create();
+				break;
 			} else if ((r = getdns_dict_set_int(extensions, arg+1,
 			    GETDNS_EXTENSION_TRUE))) {
 				fprintf(stderr, "Could not set extension "
@@ -605,9 +610,7 @@ main(int argc, char **argv)
 				r = GETDNS_RETURN_GENERIC_ERROR;
 				break;
 			}
-			if (r)
-				goto done_destroy_extensions;
-			if (!quiet) {
+			if (response && !quiet) {
 				if ((response_str = json ?
 				    getdns_print_json_dict(response, json == 1)
 				  : getdns_pretty_print_dict(response))) {
@@ -620,14 +623,15 @@ main(int argc, char **argv)
 					fprintf( stderr
 					       , "Could not print response\n");
 				}
-			} else if (r == GETDNS_RETURN_GOOD) {
+			}
+			if (r == GETDNS_RETURN_GOOD) {
 				uint32_t status;
 				getdns_dict_get_int(response, "status", &status);
 				fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
 				         getdns_get_errorstr_by_id(status));
-			}
-			else if (interactive)
-				fprintf(stderr, "An error occurred: %d\n", r);
+			} else
+				fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				         getdns_get_errorstr_by_id(r));
 		}
 	} while (interactive);
 
@@ -646,8 +650,6 @@ done_destroy_context:
 
 	if (r == CONTINUE)
 		return 0;
-	if (r)
-		fprintf(stderr, "An error occurred: %d\n", r);
 	fprintf(stdout, "\nAll done.\n");
 	return r;
 }

@@ -1217,7 +1217,7 @@ getdns_set_base_dns_transports(struct getdns_context *context,
 static getdns_return_t
 set_ub_dns_transport(struct getdns_context* context) {
     /* These mappings are not exact because Unbound is configured differently,
-       so just map as close as possible from the first 1 or 2 transports. */
+       so just map as close as possible. Not all options can be supported.*/
     switch (context->dns_transports[0]) {
         case GETDNS_TRANSPORT_UDP:
             set_ub_string_opt(context, "do-udp:", "yes");
@@ -1226,24 +1226,37 @@ set_ub_dns_transport(struct getdns_context* context) {
             else
                 set_ub_string_opt(context, "do-tcp:", "no");
             break;
-        case GETDNS_TRANSPORT_TLS:
-            /* Note: If TLS is used in recursive mode this will try TLS on port 
-             * 53... So this is prohibited when preparing for resolution.*/
-            if (context->dns_transport_count == 0) {
-                set_ub_string_opt(context, "ssl-upstream:", "yes");
-                set_ub_string_opt(context, "do-udp:", "no");
-                set_ub_string_opt(context, "do-tcp:", "yes");
-                break;
-            }
-            if (context->dns_transports[1] != GETDNS_TRANSPORT_TCP)
-                break;
-            /* Fallthrough */
-        case GETDNS_TRANSPORT_STARTTLS:
         case GETDNS_TRANSPORT_TCP:
-            /* Note: no STARTTLS or fallback to TCP available directly in unbound, so we just
-             * use TCP for now to make sure the messages are sent. */
             set_ub_string_opt(context, "do-udp:", "no");
             set_ub_string_opt(context, "do-tcp:", "yes");
+            break;
+        case GETDNS_TRANSPORT_TLS:
+        case GETDNS_TRANSPORT_STARTTLS:
+            set_ub_string_opt(context, "do-udp:", "no");
+            set_ub_string_opt(context, "do-tcp:", "yes");
+            /* Find out if there is a fallback available. */
+            int fallback = 0;
+            for (size_t i = 1; i < context->dns_transport_count; i++) {
+                if (context->dns_transports[i] == GETDNS_TRANSPORT_TCP) {
+                    fallback = 1;
+                    break;
+                }
+                else if (context->dns_transports[i] == GETDNS_TRANSPORT_UDP) {
+                    set_ub_string_opt(context, "do-udp:", "yes");
+                    set_ub_string_opt(context, "do-tcp:", "no");
+                    fallback = 1;
+                    break;
+                }
+            }
+            if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS) {
+                if (fallback == 0) 
+                    /* Use TLS if it is the only thing.*/
+                    set_ub_string_opt(context, "ssl-upstream:", "yes");
+                break;
+            } else if (fallback == 0)
+                /* Can't support STARTTLS with no fallback. This leads to
+                 * timeouts with un stub validation.... */
+                set_ub_string_opt(context, "do-tcp:", "no");
             break;
        default:
            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -2011,10 +2024,13 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 				return GETDNS_RETURN_BAD_CONTEXT;
 		}
 	}
-	/* Block use of TLS ONLY in recursive mode as it won't work */
+	/* Block use of STARTTLS/TLS ONLY in recursive mode as it won't work */
+    /* Note: If TLS is used in recursive mode this will try TLS on port
+     * 53 so it is blocked here.  So is STARTTLS only at the moment. */
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
-	    context->dns_transports[0] == GETDNS_TRANSPORT_TLS &&
-	    context->dns_transport_count == 1)
+		context->dns_transport_count == 1 && 
+	    (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
+	     context->dns_transports[0] == GETDNS_TRANSPORT_STARTTLS))
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	if (context->resolution_type_set == context->resolution_type)
