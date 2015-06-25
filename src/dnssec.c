@@ -50,6 +50,7 @@
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
 #include "gldns/keyraw.h"
+#include "gldns/parseutil.h"
 #include "general.h"
 #include "dict.h"
 
@@ -257,6 +258,12 @@ static rrtype_iter *rrtype_iter_init(rrtype_iter *i, getdns_rrset *rrset)
 	    i->rrset->name, i->rrset->rr_class, i->rrset->rr_type);
 }
 
+inline static int rrset_has_rrs(getdns_rrset *rrset)
+{
+	rrtype_iter rr_spc;
+	return rrtype_iter_init(&rr_spc, rrset) != NULL;
+}
+
 static rrsig_iter *rrsig_iter_next(rrsig_iter *i)
 {
 	return (rrsig_iter *) rr_iter_rrsig_covering(
@@ -426,9 +433,14 @@ struct chain_node {
 	chain_head  *chains;
 };
 
+inline static int _dname_len(uint8_t *name)
+{
+	uint8_t *p;
+	for (p = name; *p; p += *p + 1);
+	return p - name + 1;
+}
+
 #ifdef STUB_NATIVE_DNSSEC
-
-
 static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 {
 	rrtype_iter rr_spc, *rr;
@@ -497,16 +509,37 @@ static int _getdns_verify_rrsig(getdns_rrset *rrset, rrsig_iter *rrsig, rrtype_i
 	ldns_rr *rrsig_l = rr2ldns_rr(&rrsig->rr_i);
 	ldns_rr *key_l = rr2ldns_rr(&key->rr_i);
 	int r;
-	/*
-	fprintf(stderr, "rrsig: " ); ldns_rr_print(stderr, rrsig_l); fprintf(stderr, "\n");
-	fprintf(stderr, "dnskey: "); ldns_rr_print(stderr, key_l); fprintf(stderr, "\n");
-	fprintf(stderr, "rrset: " ); ldns_rr_list_print(stderr, rrset_l); fprintf(stderr, "\n");
-	*/
+
+	/* TODO: In case of wildcard (rrsig's "Labels" rdata field is smaller
+	 * than the number of labels in the owner name) also validate the NSEC
+	 * or NSEC3 that deniese existance of a more specific answer.
+	 */
 	r = rrset_l && rrsig_l && key_l && ldns_verify_rrsig(rrset_l, rrsig_l, key_l) == LDNS_STATUS_OK;
 	ldns_rr_list_deep_free(rrset_l);
 	ldns_rr_free(rrsig_l);
 	ldns_rr_free(key_l);
 	return r;
+}
+
+static uint8_t *_getdns_nsec3_hash_label(uint8_t *label, size_t label_len,
+    uint8_t *name, uint8_t algorithm, uint16_t iterations, uint8_t *salt)
+{
+	ldns_rdf name_l = { _dname_len(name), LDNS_RDF_TYPE_DNAME, name };
+	ldns_rdf *hname_l;
+	
+	if (!(hname_l = ldns_nsec3_hash_name(
+	    &name_l, algorithm, iterations, *salt, salt + 1)))
+		return NULL;
+
+	if (   label_len < hname_l->_size-1 
+	    || label_len < *((uint8_t *)hname_l->_data) + 1
+	    || hname_l->_size-1 < *((uint8_t *)hname_l->_data) + 1) {
+		ldns_rdf_deep_free(hname_l);
+		return NULL;
+	}
+	memcpy(label, hname_l->_data,  *((uint8_t *)hname_l->_data) + 1);
+	ldns_rdf_deep_free(hname_l);
+	return label;
 }
 
 static int dnskey_signed_rrset(rrtype_iter *dnskey, getdns_rrset *rrset)
@@ -621,43 +654,13 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	return 0;
 }
 
-#if 0
-	uint8_t *name = rrset->name, cname_spc[256], *cname = rrset->name;
-	size_t anti_loop = 1000, cname_len = sizeof(cname_spc);
-	priv_getdns_rdf_iter rdf_spc, *rdf;
-
-	/* First, try to find the canonical name that is denied.
-	 * CNAMEs authentication is checked with their own chain_head
-	 * entry points, so no need to check signatures here.
-	 */
-	while (anti_loop--) {
-		for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
-		    ; i
-		    ; i = rrset_iter_next(i)) {
-
-			if (i->rrset.rr_type != GETDNS_RRTYPE_CNAME)
-				continue;
-
-			if (priv_getdns_dname_equal(name, i->rrset.name) &&
-			    (rdf = priv_getdns_rdf_iter_init(
-			    &rdf_spc, &i->rr_i)) &&
-			    (cname = priv_getdns_rdf_if_or_as_decompressed(
-			    rdf, cname_spc, &cname_len)))
-				break;
-		}
-		if (priv_getdns_dname_equal(name, cname))
-			break;
-
-		name = cname;
-	}
-#endif
-
 static int bitmap_contains_rrtype(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
 {
 	uint8_t *dptr, *dend;
 	uint8_t window  = rr_type >> 8;
 	uint8_t subtype = rr_type & 0xFF;
 
+	DEBUG_SEC("bitmap: %p, type: %d\n", bitmap, (int)rr_type);
 	if (!bitmap)
 		return 0;
 	dptr = bitmap->pos;
@@ -675,60 +678,376 @@ static int bitmap_contains_rrtype(priv_getdns_rdf_iter *bitmap, uint16_t rr_type
 	return 0;
 }
 
-static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
+static int nsec_bitmap_excludes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
 {
-	rrset_iter i_spc, *i;
-	size_t n_nsecs = 0, n_nsec3s = 0;
-	getdns_rrset nsecs[2], nsec3s[3];
-	rrtype_iter nsec_space, *nsec;
+	rrtype_iter nsec_space, *nsec_rr;
 	priv_getdns_rdf_iter bitmap_spc, *bitmap;
 
-	size_t j;
+	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
+	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
+	    && (nsec_rr = rrtype_iter_init(&nsec_space, nsec_rrset))
+	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
+			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
+	    && !bitmap_contains_rrtype(bitmap, rr_type);
+
+	return 0;
+}
+
+static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
+{
+	if (*dname)
+		labels = reverse_labels(dname + *dname + 1, labels);
+	*labels = dname;
+	return labels + 1;
+}
+
+static int dname_compare(uint8_t *left, uint8_t *right)
+{
+	uint8_t *llabels[128], *rlabels[128], **last_llabel, **last_rlabel,
+		**llabel, **rlabel, *l, *r, lsz, rsz;
+
+	last_llabel = reverse_labels(left, llabels);
+	last_rlabel = reverse_labels(right, rlabels);
+
+	for ( llabel = llabels, rlabel = rlabels
+	    ; llabel < last_llabel
+	    ; llabel++, rlabel++ ) {
+
+		if (rlabel == last_rlabel)
+			return 1;
+
+		for ( l = *llabel, lsz = *l++, r = *rlabel, rsz = *r++
+		    ; lsz; l++, r++, lsz--, rsz-- ) {
+
+			if (!rsz)
+				return 1;
+			if (*l != *r && tolower((unsigned char)*l) !=
+					tolower((unsigned char)*r)) {
+				if (tolower((unsigned char)*l) <
+				    tolower((unsigned char)*r))
+					return -1;
+				return 1;
+			}
+		}
+	}
+	return rlabel == last_rlabel ? 0 : -1;
+}
+
+static int nsec_covers_name(getdns_rrset *nsec, uint8_t *name)
+{
+	uint8_t owner_spc[256], *owner;
+	size_t owner_len = sizeof(owner_spc);
+	uint8_t next_spc[256], *next;
+	size_t next_len = sizeof(next_spc);
+	rrtype_iter rr_spc, *rr;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	int nsec_cmp;
+
+	if (   !(rr = rrtype_iter_init(&rr_spc, nsec))
+	    || !(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i))
+	    || !(owner = priv_getdns_owner_if_or_as_decompressed(
+			    &rr->rr_i, owner_spc, &owner_len))
+	    || !(next = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, next_spc, &next_len)))
+		return 0;
+
+	debug_sec_print_dname("nsec owner: ", owner);
+	debug_sec_print_dname("name      : ", name);
+	debug_sec_print_dname("nsec next : ", next);
+
+	nsec_cmp = dname_compare(owner, next);
+	if (nsec_cmp < 0) {
+		DEBUG_SEC("nsec owner < next\n");
+		return dname_compare(name, owner) >= 0
+		    && dname_compare(name, next)  <  0;
+	} else if (nsec_cmp > 0) {
+		/* The wrap around nsec */
+		DEBUG_SEC("nsec owner > next\n");
+		return dname_compare(name, owner) >= 0;
+	} else {
+		DEBUG_SEC("nsec owner == next\n");
+		return 1;
+	}
+}
+
+static int nsec_covers_wildcard(getdns_rrset *nsec, uint8_t *name)
+{
+	uint8_t name_spc[256];
+	
+	uint8_t signer_spc[256], *signer;
+	size_t signer_len = sizeof(signer_spc);
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	rrsig_iter rrsig_spc, *rrsig;
+	
+	if (   !(rrsig = rrsig_iter_init(&rrsig_spc, nsec))
+	    || !(rdf = priv_getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 7))
+	    || !(signer = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, signer_spc, &signer_len)))
+		return 0;
+
+	name = memcpy(name_spc, name, _dname_len(name));
+
+	while (*name && is_subdomain(signer, name)
+	    && !priv_getdns_dname_equal(signer, name)) {
+
+		debug_sec_print_dname("             name: ", name);
+		debug_sec_print_dname("is a subdomain of: ", signer);
+
+		name += *name - 1;
+		name[0] = 1;
+		name[1] = (uint8_t)'*';
+
+		if (nsec_covers_name(nsec, name))
+			return 1;
+
+		name += 2;
+	}
+	return 0;
+}
+
+static uint8_t *name2nsec3_label(
+    getdns_rrset *nsec3, uint8_t *name, uint8_t *label, size_t label_len)
+{
+	rrsig_iter rrsig_spc, *rrsig;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	uint8_t signer_spc[256], *signer;
+	size_t signer_len = sizeof(signer_spc);
+	rrtype_iter rr_spc, *rr;
+
+	if (/* With the "first" signature */
+	       (rrsig = rrsig_iter_init(&rrsig_spc, nsec3))
+
+	    /* Access the signer name rdata field (7th) */
+	    && (rdf = priv_getdns_rdf_iter_init_at(
+			    &rdf_spc, &rrsig->rr_i, 7))
+
+	    /* Verify & decompress */
+	    && (signer = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, signer_spc, &signer_len))
+
+	    /* signer of the NSEC3 is direct parent for this NSEC3? */
+	    && priv_getdns_dname_equal(
+		    signer, nsec3->name + *nsec3->name + 1)
+
+	    /* signer of the NSEC3 is parent of name? */
+	    && is_subdomain(signer, name)
+
+	    /* Initialize rr for getting NSEC3 rdata fields */
+	    && (rr = rrtype_iter_init(&rr_spc, nsec3))
+	    
+	    /* Check for available space to get rdata fields */
+	    && rr->rr_i.rr_type + 15 <= rr->rr_i.nxt
+	    && rr->rr_i.rr_type + 14 + rr->rr_i.rr_type[14] <= rr->rr_i.nxt)
+
+		/* Get the hashed label */
+		return _getdns_nsec3_hash_label(label, label_len, name,
+			    rr->rr_i.rr_type[10],
+			    gldns_read_uint16(rr->rr_i.rr_type + 12),
+			    rr->rr_i.rr_type + 14);
+	return NULL;
+}
+
+static int nsec3_matches_name(getdns_rrset *nsec3, uint8_t *name)
+{
+	uint8_t label[64];
+
+	if (name2nsec3_label(nsec3, name, label, sizeof(label)))
+
+		return *nsec3->name == label[0] /* Labels same size? */
+		    && memcmp(nsec3->name + 1, label + 1, label[0]) == 0;
+
+	return 0;
+}
+
+static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name)
+{
+	uint8_t label[65], next[65], owner[65];
+	rrtype_iter rr_spc, *rr;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	int nsz = 0, nsec_cmp;
+
+	if (!name2nsec3_label(nsec3, name, label, sizeof(label)-1))
+		return 0;
+	label[label[0]+1] = 0;
+
+	if (   !(rr = rrtype_iter_init(&rr_spc, nsec3))
+	    || !(rdf = priv_getdns_rdf_iter_init_at(&rdf_spc, &rr->rr_i, 4))
+	    || rdf->pos + *rdf->pos + 1 > rdf->nxt
+	    || (nsz = gldns_b32_ntop_extended_hex(rdf->pos + 1, *rdf->pos,
+		    (char *)next + 1, sizeof(next)-2)) < 0
+	    || *nsec3->name > sizeof(owner) - 2
+	    || !memcpy(owner, nsec3->name, *nsec3->name + 1)) {
+
+		DEBUG_SEC("ERROR!!!!\n");
+	}
+	owner[owner[0]+1] = 0;
+	next[(next[0] = (uint8_t)nsz)+1] = 0;
+
+	debug_sec_print_dname("NSEC3 for: ", name);
+	debug_sec_print_dname("       is: ", label);
+	debug_sec_print_dname("inbetween: ", owner);
+	debug_sec_print_dname("      and: ", next);
+
+	nsec_cmp = dname_compare(owner, next);
+	if (nsec_cmp < 0) {
+		DEBUG_SEC("nsec owner < next\n");
+		return dname_compare(label, owner) >= 0
+		    && dname_compare(label, next)  <  0;
+	} else if (nsec_cmp > 0) {
+		/* The wrap around nsec */
+		DEBUG_SEC("nsec owner > next\n");
+		return dname_compare(label, owner) >= 0;
+	} else {
+		DEBUG_SEC("nsec owner == next\n");
+		return 1;
+	}
+}
+
+static int find_nsec3_covering_name(
+    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *name)
+{
+	rrset_iter i_spc, *i;
+	getdns_rrset *n;
+
+	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
+	    ; i ; i = rrset_iter_next(i)) {
+
+		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
+		    && nsec3_covers_name(n, name)
+		    && a_key_signed_rrset(dnskey, n)) {
+
+			debug_sec_print_rrset("NSEC3:   ", n);
+			debug_sec_print_dname("covered: ", name);
+
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+static int nsec3_find_next_closer_and_wildcard(
+    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *nc_name, int noerror)
+{
+	uint8_t wc_name[256] = { 1, (uint8_t)'*' };
+
+	if (!find_nsec3_covering_name(dnskey, rrset, nc_name))
+		return 0;
+
+	if (noerror)
+		return 1; /* TODO: Check for opt-out bit? */
+
+	nc_name += *nc_name + 1;
+	(void) memcpy(wc_name + 2, nc_name, _dname_len(nc_name));
+
+	return find_nsec3_covering_name(dnskey, rrset, wc_name);
+}
+
+static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
+{
+	getdns_rrset nsec_rrset, *cover, *wildcard, *ce;
+	rrset_iter i_spc, *i;
+	rrset_iter j_spc, *j;
+	uint8_t *ce_name, *nc_name;
 
 	assert(dnskey->rr_type == GETDNS_RRTYPE_DNSKEY);
 
-	/* First collect nsecs and nsec3s */
+	/* The NSEC NODATA case
+	 * ====================
+	 * NSEC has same ownername as the rrset to deny.
+	 * Only the rr_type is missing from the bitmap.
+	 */
+	nsec_rrset = *rrset;
+	nsec_rrset.rr_type = GETDNS_RRTYPE_NSEC;
+	if (nsec_bitmap_excludes_rrtype(&nsec_rrset, rrset->rr_type) &&
+	    a_key_signed_rrset(dnskey, &nsec_rrset)) {
+
+		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
+		return 1;
+	}
+
+	/* The NSEC NXDOMAIN case
+	 * ======================
+	 * - First find the NSEC that covers the owner name.
+	 */
 	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
-	    ; i
-	    ; i = rrset_iter_next(i)) {
+	    ; i ; i = rrset_iter_next(i)) {
 
-		if (i->rrset.rr_type == GETDNS_RRTYPE_NSEC) {
+		if ((cover=rrset_iter_value(i))->rr_type != GETDNS_RRTYPE_NSEC
+		    || !nsec_covers_name(cover, rrset->name)
+		    || !a_key_signed_rrset(dnskey, cover))
+			continue;
 
-			nsecs[n_nsecs] =  i->rrset;
-			if (++n_nsecs >= sizeof(nsecs))
-				break;
+		debug_sec_print_rrset("       NSEC: ", cover);
+		debug_sec_print_dname("covers name: ", rrset->name);
 
-		} else if (i->rrset.rr_type == GETDNS_RRTYPE_NSEC3) {
+		for ( j = rrset_iter_init(&j_spc, rrset->pkt, rrset->pkt_len)
+		    ; j ; j = rrset_iter_next(i)) {
 
-			nsecs[n_nsecs] = i->rrset;
-			if (++n_nsec3s >= sizeof(nsec3s))
-				break;
+			if ((wildcard = rrset_iter_value(j))->rr_type
+			    != GETDNS_RRTYPE_NSEC
+			    || !nsec_covers_wildcard(wildcard, rrset->name)
+			    || !a_key_signed_rrset(dnskey, wildcard))
+				continue;
+
+			debug_sec_print_rrset("NSEC NXDOMAIN proof for: ", rrset);
+			return 1;
 		}
 	}
-	if (!n_nsecs && !n_nsec3s)
-		return 0;
 
-	/* We assume rrset already contains the canonical name */
-	if (n_nsecs) {
-		/* The NOERROR case */
-		for (j = 0; j < n_nsecs; j++) {
-			if (priv_getdns_dname_equal(rrset->name, nsecs[j].name))
-				return (nsec = rrtype_iter_init(
-				    &nsec_space, &nsecs[j])) &&
+	/* The NSEC3 NODATA case
+	 * =====================
+	 * NSEC3 has same (hashed) ownername as the rrset to deny.
+	 * Only the rr_type (and CNAME) is missing from the bitmap.
+	 */
+	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
+	    ; i ; i = rrset_iter_next(i)) {
 
-				    (bitmap = priv_getdns_rdf_iter_init_at(
-				    &bitmap_spc, &nsec->rr_i, 1)) &&
+		if ((ce = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
+		    && nsec_bitmap_excludes_rrtype(ce, rrset->rr_type)
+		    && nsec_bitmap_excludes_rrtype(ce, GETDNS_RRTYPE_CNAME)
+		    && nsec3_matches_name(ce, rrset->name)
+		    && a_key_signed_rrset(dnskey, ce)) {
 
-				    !bitmap_contains_rrtype(
-					bitmap, rrset->rr_type) &&
-
-				    a_key_signed_rrset(dnskey, &nsecs[j]);
+			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
+			return 1;
 		}
-		/* The NXDOMAIN case */
-		/* One should cover the name */
-		/* One should cover the wildcard */
-	} 
-	/* TODO: proof nsec3 non existance */
+	}
+	/* The NSEC3 NXDOMAIN case
+	 * =====================
+	 * First find the closest encloser.
+	 */
+	for ( nc_name = rrset->name, ce_name = rrset->name + *rrset->name + 1
+	    ; *ce_name ; nc_name = ce_name, ce_name += *ce_name + 1) {
+
+		for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
+		    ; i ; i = rrset_iter_next(i)) {
+
+			if ((ce = rrset_iter_value(i))->rr_type
+			    == GETDNS_RRTYPE_NSEC3
+			    && nsec3_matches_name(ce, ce_name)
+			    && a_key_signed_rrset(dnskey, ce)) {
+
+				debug_sec_print_rrset(
+				    "Closest Encloser: ", ce);
+				debug_sec_print_dname(
+				    "Closest Encloser: ", ce_name);
+				debug_sec_print_dname(
+				    "     Next closer: ", nc_name);
+
+				if (nsec3_find_next_closer_and_wildcard(
+				    dnskey, rrset, nc_name,
+
+				    /* Wild card not needed on a "covering"
+				     * NODATA response, because of opt-out?
+				     */
+				    GLDNS_RCODE_WIRE(rrset->pkt) ==
+				    GETDNS_RCODE_NOERROR))
+
+					return 1;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -800,10 +1119,14 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 	    != GETDNS_DNSSEC_SECURE)
 			return s;
 
-	if (a_key_signed_rrset(keys, &head->rrset))
+	if (rrset_has_rrs(&head->rrset)) {
+		if (a_key_signed_rrset(keys, &head->rrset))
+			return GETDNS_DNSSEC_SECURE;
+
+	} else if (key_proves_nonexistance(keys, &head->rrset))
 		return GETDNS_DNSSEC_SECURE;
-	else
-		return GETDNS_DNSSEC_BOGUS;
+
+	return GETDNS_DNSSEC_BOGUS;
 }
 
 static int chain_head_validate(chain_head *head, rrset_iter *tas)
@@ -851,7 +1174,6 @@ static void chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 		default                  : break;
 		}
 	}
-	/* TODO:  For secure nxdomains, test if the nsecs are correct */
 }
 #endif
 
@@ -1186,14 +1508,6 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	check_chain_complete(node->chains);
 }
 
-static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
-{
-	if (*dname)
-		labels = reverse_labels(dname + *dname + 1, labels);
-	*labels = dname;
-	return labels + 1;
-}
-
 static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
     chain_head **chain_p, getdns_rrset *rrset, getdns_network_req *netreq)
 {
@@ -1324,6 +1638,13 @@ static void add_netreq2val_chain(
 	struct mem_funcs *mf;
 	getdns_rrset empty_rrset;
 
+	getdns_rrset q_rrset;
+	uint8_t cname_spc[256];
+	size_t cname_len = sizeof(cname_spc);
+	size_t anti_loop;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	rrtype_iter *rr, rr_spc;
+
 	assert(netreq->response);
 	assert(netreq->response_len >= GLDNS_HEADER_SIZE);
 
@@ -1369,6 +1690,33 @@ static void add_netreq2val_chain(
 			val_chain_sched(head, rrset->name);
 		else
 			val_chain_sched_soa(head, rrset->name);
+	}
+	/* For NOERROR/NODATA or NXDOMAIN responses add extra rrset to 
+	 * the validation chain so the denial of existence will be
+	 * checked eventually.
+	 */
+
+	/* First find the canonical name for the question */
+	q_rrset.name     = netreq->query + GLDNS_HEADER_SIZE;
+	q_rrset.rr_type  = GETDNS_RRTYPE_CNAME;
+	q_rrset.rr_class = netreq->request_class;
+	q_rrset.pkt      = netreq->response;
+	q_rrset.pkt_len  = netreq->response_len;
+
+	for (anti_loop = 1000; anti_loop; anti_loop--) {
+		if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset)))
+			break;
+		if (!(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)))
+			break;
+		q_rrset.name = priv_getdns_rdf_if_or_as_decompressed(
+				rdf, cname_spc, &cname_len);
+	}
+
+	q_rrset.rr_type  = netreq->request_type;
+	if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset))) {
+
+		debug_sec_print_rrset("Adding NX rrset: ", &q_rrset);
+		add_rrset2val_chain(mf, chain_p, &q_rrset, netreq);
 	}
 }
 
