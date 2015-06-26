@@ -840,21 +840,22 @@ getdns_context_create_with_extended_memory_functions(
 	result->limit_outstanding_queries = 0;
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
-	/* unbound context is initialized here */
-	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
-	 * don't know that till later so we will have to do this every time. */
+	if (! (result->dnssec_trust_anchors =
+	    getdns_list_create_with_context(result)))
+		goto error;
 	result->has_ta = priv_getdns_parse_ta_file(
 	    NULL, result->dnssec_trust_anchors);
 	
+	/* unbound context is initialized here */
+	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
+	 * don't know that till later so we will have to do this every time. */
+
 	SSL_library_init();
 	result->unbound_ctx = NULL;
 	if ((r = rebuild_ub_ctx(result)))
 		goto error;
 
 	create_local_hosts(result);
-	if (! (result->dnssec_trust_anchors =
-	    getdns_list_create_with_context(result)))
-		goto error;
 
 	*context = result;
 	return GETDNS_RETURN_GOOD;
