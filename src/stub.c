@@ -541,8 +541,9 @@ stub_timeout_cb(void *userarg)
 static void
 upstream_idle_timeout_cb(void *userarg)
 {
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	DEBUG_STUB("*** %s: **Closing connection %d**\n", 
+	           __FUNCTION__, upstream->fd);
 	/*There is a race condition with a new request being scheduled while this happens
 	  so take ownership of the fd asap*/
 	int fd = upstream->fd;
@@ -1557,7 +1558,7 @@ int
 upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
                     getdns_dns_req *dnsreq) 
 {
-	DEBUG_STUB(" %s\n", __FUNCTION__);
+	//DEBUG_STUB(" %s\n", __FUNCTION__);
 	int fd = -1;
 	switch(transport) {
 	case GETDNS_TRANSPORT_UDP:
@@ -1625,11 +1626,12 @@ find_upstream_for_specific_transport(getdns_network_req *netreq,
                              getdns_transport_list_t transport,
                              int *fd)
 {
-	DEBUG_STUB(" %s: %d \n", __FUNCTION__, transport);
 	getdns_upstream *upstream = upstream_select(netreq, transport);
 	if (!upstream)
 		return NULL;
 	*fd = upstream_connect(upstream, transport, netreq->owner);
+	DEBUG_STUB(" %s: Found: %d %p fd:%d\n", __FUNCTION__,
+	            transport, upstream, upstream->fd);
 	return upstream;
 }
 
@@ -1662,14 +1664,13 @@ fallback_on_write(getdns_network_req *netreq)
 
 	/* Deal with UDP and change error code*/
 
-	DEBUG_STUB("#-> %s: %p TYPE: %d\n", __FUNCTION__, netreq, netreq->request_type);
+	DEBUG_STUB("#-----> %s: %p TYPE: %d\n", __FUNCTION__, netreq, netreq->request_type);
 	getdns_upstream *upstream = netreq->upstream;
 
 	/* Remove from queue and deal with the old upstream events*/
 	if (!(upstream->write_queue = netreq->write_queue_tail)) {
 		upstream->write_queue_last = NULL;
 		upstream->event.write_cb = NULL;
-		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	}
 	netreq->write_queue_tail = NULL;
 	upstream_reschedule_events(upstream, netreq->owner->context->idle_timeout);
@@ -1693,7 +1694,7 @@ fallback_on_write(getdns_network_req *netreq)
 static void
 upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 
-	DEBUG_STUB("# %s\n", __FUNCTION__);
+	DEBUG_STUB("# %s: %p %d\n", __FUNCTION__, upstream, upstream->fd);
 	int reschedule = 0;
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
@@ -1717,7 +1718,8 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 		else {
-			DEBUG_STUB("# %s: *Idle connection* \n", __FUNCTION__);
+			DEBUG_STUB("# %s: *Idle connection %d* \n", 
+			            __FUNCTION__, upstream->fd);
 			upstream->event.timeout_cb = upstream_idle_timeout_cb;
 			if (upstream->tcp.write_error != 0)
 				idle_timeout = 0;
@@ -1746,7 +1748,8 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 		/* This is a sync call, and the connection is idle. But we can't set a
 		 * timeout since we won't have an event loop if there are no netreqs
 		 * So we will have to be aggressive and shut the connection....*/
-		DEBUG_STUB("# %s: **Closing connection**\n", __FUNCTION__);
+		DEBUG_STUB("# %s: **Closing connection %d**\n",
+		            __FUNCTION__, upstream->fd);
 		if (upstream->tls_obj) {
 			SSL_shutdown(upstream->tls_obj);
 			SSL_free(upstream->tls_obj);
