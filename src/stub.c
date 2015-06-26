@@ -417,7 +417,7 @@ stub_next_upstream(getdns_network_req *netreq)
 	 * same upstream (and the next message may not use the same transport),
 	 * but the next message will find the next matching one thanks to logic in
 	 * upstream_select, but this could be better */
-	if (++dnsreq->upstreams->current > dnsreq->upstreams->count)
+	if (++dnsreq->upstreams->current >= dnsreq->upstreams->count)
 		dnsreq->upstreams->current = 0;
 }
 
@@ -1330,6 +1330,8 @@ upstream_read_cb(void *userarg)
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
 		upstream->tcp.read_buf = NULL;
 		upstream->responses_recieved++;
+		/* TODO[TLS]: I don't think we should do this for TCP. We should stay
+		 * on a working connection until we hit a problem.*/
 		upstream->upstreams->current = 0;
 		/* netreq may die before setting timeout*/
 		idle_timeout = netreq->owner->context->idle_timeout;
@@ -1515,7 +1517,7 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	
 	if (!upstreams->count)
 		return NULL;
-
+	
 	
 	/* Only do this when a new message is scheduled?*/
 	for (i = 0; i < upstreams->count; i++)
@@ -1525,7 +1527,7 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	/* TODO[TLS]: Should we create a tmp array of upstreams with correct*/
 	/*  transport type and/or maintain separate current for transports?*/
 	i = upstreams->current;
-	DEBUG_STUB(" current upstream: %d\n",(int)i);
+	DEBUG_STUB(" current upstream: %d of %d \n",(int)i, (int)upstreams->count);
 	do {
 		if (upstreams->upstreams[i].to_retry > 0 &&
 		    upstream_transport_valid(&upstreams->upstreams[i], transport)) {
@@ -1533,7 +1535,7 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 			DEBUG_STUB(" selected upstream: %d\n",(int)i);
 			return &upstreams->upstreams[i];
 		}
-		if (++i > upstreams->count)
+		if (++i >= upstreams->count)
 			i = 0;
 	} while (i != upstreams->current);
 
@@ -1724,6 +1726,7 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 static void
 upstream_reschedule_netreq_events(getdns_upstream *upstream,
                                   getdns_network_req *netreq) {
+	if (netreq) {
 	DEBUG_STUB("# %s: %p: TYPE: %d\n", __FUNCTION__,
 	             netreq, netreq->request_type);
 	getdns_dns_req *dnsreq = netreq->owner;
@@ -1737,7 +1740,8 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 		        (upstream->write_queue ?
 		         netreq_upstream_write_cb : NULL),
 		        stub_timeout_cb));
-	else {
+	}
+	if (!upstream->netreq_by_query_id.count && !upstream->write_queue) {
 		/* This is a sync call, and the connection is idle. But we can't set a
 		 * timeout since we won't have an event loop if there are no netreqs.
 		 * Could set a timer and check it when the next req comes in but...
