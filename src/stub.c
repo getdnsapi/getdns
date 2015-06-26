@@ -385,6 +385,22 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	return fd;
 }
 
+static int
+tcp_connected(getdns_upstream *upstream) {
+	/* Already tried and failed, so let the fallback code take care of things */
+	if (upstream->fd == -1 || upstream->tcp.write_error != 0)
+		return STUB_TCP_ERROR;
+
+	int error = 0;
+	socklen_t len = (socklen_t)sizeof(error);
+	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
+	if (error == EINPROGRESS || error == EWOULDBLOCK) 
+		return STUB_TCP_AGAIN; /* try again */
+	else if (error != 0)
+		return STUB_TCP_ERROR;
+	return 0;
+}
+
 /**************************/
 /* Error/cleanup functions*/
 /**************************/
@@ -440,6 +456,7 @@ stub_cleanup(getdns_network_req *netreq)
 			if (r == upstream->write_queue_last)
 				upstream->write_queue_last =
 				    prev_r ? prev_r : NULL;
+			netreq->write_queue_tail = NULL;
 			break;
 		}
 	upstream_reschedule_events(upstream, netreq->owner->context->idle_timeout);
@@ -694,19 +711,9 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
 
-	/* Move to generic function*/
-
-	/* Already tried and failed, so let the fallback code take care of things */
-	if (netreq->upstream->tcp.write_error != 0)
-		return STUB_TCP_ERROR;
-
-	int error = 0;
-	socklen_t len = (socklen_t)sizeof(error);
-	getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
-	if (error == EINPROGRESS || error == EWOULDBLOCK) 
-		return STUB_TCP_AGAIN; /* try again */
-	else if (error != 0)
-		return STUB_TCP_ERROR;
+	int q = tcp_connected(netreq->upstream);
+	if (q != 0)
+		return q;
 
 	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
@@ -926,24 +933,17 @@ tls_do_handshake(getdns_upstream *upstream)
 	   timeout in sync mode.... Need a timer on requests really.... Worst case
 	   is we add TIMEOUT_TLS to the total timeout, since TLS is likely to be
 	   the first choice if it is used at all.*/
-	if (netreq && (netreq->event.read_cb || netreq->event.write_cb)) {
-		GETDNS_CLEAR_EVENT(netreq->owner->loop, &netreq->event);
-		GETDNS_SCHEDULE_EVENT(
-		    netreq->owner->loop, upstream->fd, netreq->owner->context->timeout,
-		    getdns_eventloop_event_init(
-		    &netreq->event, netreq,
-		    NULL, netreq_upstream_write_cb,
-		    stub_timeout_cb));
-	}
+	if (netreq && (netreq->event.read_cb || netreq->event.write_cb))
+		upstream_reschedule_netreq_events(upstream, netreq);
 	return 0;
 }
 
 static int
 tls_connected(getdns_upstream* upstream)
 {
-	/* Already have a connection*/
+	/* Already have a TLS connection*/
 	if (upstream->tls_hs_state == GETDNS_HS_DONE && 
-	    (upstream->tls_obj != NULL) && (upstream->fd != -1))
+	    (upstream->tls_obj != NULL))
 		return 0;
 
 	/* Already tried and failed, so let the fallback code take care of things */
@@ -951,13 +951,12 @@ tls_connected(getdns_upstream* upstream)
 		return STUB_TLS_SETUP_ERROR;
 
 	/* Lets make sure the connection is up before we try a handshake*/
-	int error = 0;
-	socklen_t len = (socklen_t)sizeof(error);
-	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
-	if (error == EINPROGRESS || error == EWOULDBLOCK) 
-		return STUB_TCP_AGAIN; /* try again */
-	else if (error != 0)
-		return tls_cleanup(upstream);
+	int q = tcp_connected(upstream);
+	if (q != 0) {
+		if (q == STUB_TCP_ERROR)
+			tls_cleanup(upstream);
+		return q;
+	}
 
 	return tls_do_handshake(upstream);
 }
@@ -1400,6 +1399,8 @@ upstream_write_cb(void *userarg)
 		/* Problem with the TCP connection itself. Need to fallback.*/
 		DEBUG_STUB("--- WRITE: Setting write error\n");
 		upstream->tcp.write_error = 1;
+		/* Use policy of trying next upstream in this case. Need more work on
+		 * TCP connection re-use.*/
 		stub_next_upstream(netreq);
 		/* Fall through */
 	case STUB_TLS_SETUP_ERROR:
@@ -1558,7 +1559,6 @@ int
 upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
                     getdns_dns_req *dnsreq) 
 {
-	//DEBUG_STUB(" %s\n", __FUNCTION__);
 	int fd = -1;
 	switch(transport) {
 	case GETDNS_TRANSPORT_UDP:
@@ -1667,14 +1667,6 @@ fallback_on_write(getdns_network_req *netreq)
 	DEBUG_STUB("#-----> %s: %p TYPE: %d\n", __FUNCTION__, netreq, netreq->request_type);
 	getdns_upstream *upstream = netreq->upstream;
 
-	/* Remove from queue and deal with the old upstream events*/
-	if (!(upstream->write_queue = netreq->write_queue_tail)) {
-		upstream->write_queue_last = NULL;
-		upstream->event.write_cb = NULL;
-	}
-	netreq->write_queue_tail = NULL;
-	upstream_reschedule_events(upstream, netreq->owner->context->idle_timeout);
-
 	/* Try to find a fallback transport*/
 	getdns_return_t result = priv_getdns_submit_stub_request(netreq);
 
@@ -1732,7 +1724,8 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 static void
 upstream_reschedule_netreq_events(getdns_upstream *upstream,
                                   getdns_network_req *netreq) {
-	DEBUG_STUB("# %s: %p: TYPE: %d\n", __FUNCTION__, netreq, netreq->request_type);
+	DEBUG_STUB("# %s: %p: TYPE: %d\n", __FUNCTION__,
+	             netreq, netreq->request_type);
 	getdns_dns_req *dnsreq = netreq->owner;
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 	if (upstream->netreq_by_query_id.count || upstream->write_queue)
@@ -1746,7 +1739,11 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 		        stub_timeout_cb));
 	else {
 		/* This is a sync call, and the connection is idle. But we can't set a
-		 * timeout since we won't have an event loop if there are no netreqs
+		 * timeout since we won't have an event loop if there are no netreqs.
+		 * Could set a timer and check it when the next req comes in but...
+		 * chances are it will be on the same transport and if we have a new
+		 * req the conneciton is no longer idle so probably better to re-use
+		 * than shut and immediately open a new one!
 		 * So we will have to be aggressive and shut the connection....*/
 		DEBUG_STUB("# %s: **Closing connection %d**\n",
 		            __FUNCTION__, upstream->fd);
