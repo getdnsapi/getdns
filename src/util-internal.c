@@ -432,7 +432,8 @@ priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2)
 		else if (!*s1)
 			return 1;
 		for (i = *s1++, s2++; i > 0; i--, s1++, s2++)
-			if ((*s1 & 0xDF) != (*s2 & 0xDF))
+			if (*s1 != *s2 && tolower((unsigned char)*s1)
+			               != tolower((unsigned char)*s2))
 				return 0;
 	}
 }
