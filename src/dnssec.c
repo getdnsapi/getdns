@@ -453,6 +453,9 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 	rrtype_iter rr_spc, *rr;
 	rrsig_iter rrsig_spc, *rrsig;
 	uint16_t keytag;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	uint8_t signer_spc[256], *signer;
+	size_t signer_len = sizeof(signer_spc);
 
 	assert(dnskey->rr_type == GETDNS_RRTYPE_DNSKEY);
 
@@ -467,15 +470,20 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 		    ; rrsig ; rrsig = rrsig_iter_next(rrsig) ) {
 
 			if (/* Space for keytag & signer in rrsig rdata? */
-			    rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 29 &&
+			       rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 28
 
 			    /* Does the keytag match? */
-			    gldns_read_uint16(rrsig->rr_i.rr_type + 26)
-			    == keytag &&
+			    && gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+					    == keytag
 
 			    /* Does the signer name match? */
-			    priv_getdns_dname_equal(dnskey->name,
-				    rrsig->rr_i.rr_type + 28))
+			    && (rdf = priv_getdns_rdf_iter_init_at(
+					    &rdf_spc, &rrsig->rr_i, 7))
+
+			    && (signer = priv_getdns_rdf_if_or_as_decompressed(
+					    rdf, signer_spc, &signer_len))
+
+			    && priv_getdns_dname_equal(dnskey->name, signer))
 
 				return 1;
 		}
@@ -613,7 +621,8 @@ static int dnskey_signed_rrset(
 		    && gldns_read_uint16(rrsig->rr_i.rr_type + 26) == keytag
 
 		    /* Does the signer name match? */
-		    && (rdf = priv_getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 7))
+		    && (rdf = priv_getdns_rdf_iter_init_at(
+				    &rdf_spc, &rrsig->rr_i, 7))
 
 		    && (signer = priv_getdns_rdf_if_or_as_decompressed(
 				    rdf, signer_spc, &signer_len))
@@ -722,8 +731,9 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 				    "keyset authenticated: ", dnskey_set);
 				return 1;
 			}
-			DEBUG_SEC("nc_name: %p\n", nc_name);
-			debug_sec_print_dname("nc_name: ", nc_name);
+			debug_sec_print_rrset(
+			    "keyset failed authentication: ", dnskey_set);
+
 			return 0;
 		}
 		ldns_rr_free(dnskey_l);
