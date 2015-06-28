@@ -642,7 +642,7 @@ static int dnskey_signed_rrset(
 }
 
 static int find_nsec_covering_name(
-    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *name);
+    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *name, int *opt_out);
 
 static int a_key_signed_rrset(getdns_rrset *keyset, getdns_rrset *rrset)
 {
@@ -671,7 +671,7 @@ static int a_key_signed_rrset(getdns_rrset *keyset, getdns_rrset *rrset)
 		debug_sec_print_dname("Find NSEC covering the more sepecific: "
 				, nc_name);
 
-		if (find_nsec_covering_name(keyset, rrset, nc_name))
+		if (find_nsec_covering_name(keyset, rrset, nc_name, NULL))
 			return 1;
 	}
 	return 0;
@@ -945,7 +945,7 @@ static int nsec3_matches_name(getdns_rrset *nsec3, uint8_t *name)
 	return 0;
 }
 
-static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name)
+static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name, int *opt_out)
 {
 	uint8_t label[65], next[65], owner[65];
 	rrtype_iter rr_spc, *rr;
@@ -970,6 +970,9 @@ static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name)
 	owner[owner[0]+1] = 0;
 	next[(next[0] = (uint8_t)nsz)+1] = 0;
 
+	if (opt_out)
+		*opt_out = (rr->rr_i.rr_type[11] & 1) != 0;
+
 	debug_sec_print_dname("NSEC3 for: ", name);
 	debug_sec_print_dname("       is: ", label);
 	debug_sec_print_dname("inbetween: ", owner);
@@ -991,16 +994,19 @@ static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name)
 }
 
 static int find_nsec_covering_name(
-    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *name)
+    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *name, int *opt_out)
 {
 	rrset_iter i_spc, *i;
 	getdns_rrset *n;
+
+	if (opt_out)
+		*opt_out = 0;
 
 	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
 	    ; i ; i = rrset_iter_next(i)) {
 
 		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
-		    && nsec3_covers_name(n, name)
+		    && nsec3_covers_name(n, name, opt_out)
 		    && a_key_signed_rrset(dnskey, n)) {
 
 			debug_sec_print_rrset("NSEC3:   ", n);
@@ -1025,20 +1031,26 @@ static int nsec3_find_next_closer(
     getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *nc_name)
 {
 	uint8_t wc_name[256] = { 1, (uint8_t)'*' };
+	int opt_out;
 
-	if (!find_nsec_covering_name(dnskey, rrset, nc_name))
+	if (!find_nsec_covering_name(dnskey, rrset, nc_name, &opt_out))
 		return 0;
 
-	/* Wild card not needed on a "covering" * NODATA response,
+	/* Wild card not needed on a "covering" NODATA response,
 	 * because of opt-out?
+	 *
+	 * We check for opt-out bit, because rcode is unreliable...
+	 * ... the checked packet might be artificially constructed
+	 * (if we came here via getdns_validate_dnssec) in which case
+	 * rcode is always NOERROR.
 	 */
-	if (GLDNS_RCODE_WIRE(rrset->pkt) == GETDNS_RCODE_NOERROR)
+	if (opt_out)
 		return 1;
 
 	nc_name += *nc_name + 1;
 	(void) memcpy(wc_name + 2, nc_name, _dname_len(nc_name));
 
-	return find_nsec_covering_name(dnskey, rrset, wc_name);
+	return find_nsec_covering_name(dnskey, rrset, wc_name, NULL);
 }
 
 static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
@@ -1080,7 +1092,7 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 		memcpy(wc_name + 2, ce_name, _dname_len(ce_name));
 		debug_sec_print_dname("        Wildcard: ", wc_name);
 
-		return find_nsec_covering_name(dnskey, rrset, wc_name);
+		return find_nsec_covering_name(dnskey, rrset, wc_name, NULL);
 	}
 
 	/* The NSEC3 NODATA case
