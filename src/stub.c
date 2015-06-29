@@ -272,10 +272,10 @@ is_starttls_response(getdns_network_req *netreq)
 	priv_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
 	uint16_t rr_type;
 	gldns_pkt_section section;
-	uint8_t starttls_name_space[256],
-	       *starttls_name = starttls_name_space;
+	uint8_t starttls_name_space[256], *starttls_name;
 	uint8_t owner_name_space[256], *owner_name;
-	size_t starttls_name_len = 256, owner_name_len;
+	size_t starttls_name_len = sizeof(starttls_name_space);
+	size_t owner_name_len = sizeof(owner_name_space);;
 
 	/* Servers that are not STARTTLS aware will refuse the CH query*/
 	if (GLDNS_RCODE_NOERROR != GLDNS_RCODE_WIRE(netreq->response))
@@ -283,9 +283,6 @@ is_starttls_response(getdns_network_req *netreq)
 
 	if (GLDNS_ANCOUNT(netreq->response) != 1)
 		return 0;
-
-	(void) gldns_str2wire_dname_buf(
-	    netreq->owner->name, starttls_name_space, &starttls_name_len);
 
 	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
 	                                        , netreq->response
@@ -295,25 +292,25 @@ is_starttls_response(getdns_network_req *netreq)
 
 		section = priv_getdns_rr_iter_section(rr_iter);
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
-		if (section != GLDNS_SECTION_ANSWER || rr_type != GETDNS_RRTYPE_TXT)
+		if (section != GLDNS_SECTION_ANSWER
+		    || rr_type != GETDNS_RRTYPE_TXT)
 			continue;
 
 		owner_name = priv_getdns_owner_if_or_as_decompressed(
 		    rr_iter, owner_name_space, &owner_name_len);
-		if (!priv_getdns_dname_equal(starttls_name, owner_name))
+		if (!priv_getdns_dname_equal(netreq->owner->name, owner_name))
 			continue;
 
 		if (!(rdf_iter = priv_getdns_rdf_iter_init(
 		     &rdf_iter_storage, rr_iter)))
 			continue;
-		/* re-use the starttls_name for the response dname*/
-		starttls_name = priv_getdns_rdf_if_or_as_decompressed(
-		    rdf_iter,starttls_name_space,&starttls_name_len);
-		if (priv_getdns_dname_equal(starttls_name, owner_name)) 
+
+		if ((starttls_name = priv_getdns_rdf_if_or_as_decompressed(
+		    rdf_iter, starttls_name_space, &starttls_name_len)) &&
+		    priv_getdns_dname_equal(starttls_name, owner_name)) 
 			return 1;
-		else
-			return 0;
-		continue;
+
+		return 0;
 	}
 	return 0;
 }

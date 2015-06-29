@@ -39,6 +39,7 @@
 #include <string.h>
 #include <unbound.h>
 #include "config.h"
+#include "gldns/wire2str.h"
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
@@ -136,6 +137,7 @@ submit_network_request(getdns_network_req *netreq)
 {
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
+	char name[1024];
 
 	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    /* TODO: Until DNSSEC with the new async stub resolver is finished,
@@ -159,9 +161,11 @@ submit_network_request(getdns_network_req *netreq)
 			    dns_req->context->timeout, &dns_req->timeout)))
 				return r;
 		}
+		(void) gldns_wire2str_dname_buf(dns_req->name,
+		    dns_req->name_len, name, sizeof(name));
 
 		return ub_resolve_async(dns_req->context->unbound_ctx,
-		    dns_req->name, netreq->request_type, netreq->request_class,
+		    name, netreq->request_type, netreq->request_class,
 		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 	}

@@ -203,8 +203,6 @@ dns_req_free(getdns_dns_req * req)
 		req->timeout.timeout_cb = NULL;
 	}
 
-	/* free strduped name */
-	GETDNS_FREE(req->my_mf, req->name);
 	GETDNS_FREE(req->my_mf, req);
 }
 
@@ -358,7 +356,12 @@ dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		result->netreqs[1] = NULL;
 
 	result->my_mf = context->mf;
-	result->name = getdns_strdup(&(result->my_mf), name);
+
+	result->name_len = sizeof(result->name);
+	if (gldns_str2wire_dname_buf(name, result->name, &result->name_len)) {
+		GETDNS_FREE(result->my_mf, result);
+		return NULL;
+	}
 	result->context = context;
 	result->loop = loop;
 	result->canceled = 0;

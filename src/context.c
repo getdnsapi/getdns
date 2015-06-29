@@ -2302,8 +2302,6 @@ getdns_context_local_namespace_resolve(
 {
 	getdns_context  *context = dnsreq->context;
 	host_name_addrs *hnas;
-	uint8_t query_name[256];
-	size_t  query_name_len = sizeof(query_name);
 	uint8_t lookup[256];
 	getdns_list    empty_list = { 0 };
 	getdns_bindata bindata;
@@ -2321,10 +2319,7 @@ getdns_context_local_namespace_resolve(
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	/*Do the lookup*/
-	if (gldns_str2wire_dname_buf(dnsreq->name,query_name,&query_name_len))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	(void)memcpy(lookup, query_name, query_name_len);
+	(void)memcpy(lookup, dnsreq->name, dnsreq->name_len);
 	canonicalize_dname(lookup);
 
 	if (!(hnas = (host_name_addrs *)
@@ -2340,8 +2335,8 @@ getdns_context_local_namespace_resolve(
 	if (!(*response = getdns_dict_create_with_context(context)))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	bindata.size = query_name_len;
-	bindata.data = query_name;
+	bindata.size = dnsreq->name_len;
+	bindata.data = dnsreq->name;
 	if (getdns_dict_set_bindata(*response, "canonical_name", &bindata))
 		goto error;
 

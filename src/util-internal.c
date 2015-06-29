@@ -544,8 +544,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
     	if ((r = getdns_dict_set_dict(result, "header", header)))
 		goto error;
 
-	(void) gldns_str2wire_dname_buf(
-	    req->owner->name, canonical_name_space, &canonical_name_len);
+	canonical_name = req->owner->name;
 
 	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
 	                                        , req->response
@@ -863,8 +862,6 @@ getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res)
 {
-	size_t dname_len;
-
 	if (ub_res->bogus)
 		netreq->dnssec_status = GETDNS_DNSSEC_BOGUS;
 	else if (ub_res->secure)
@@ -909,17 +906,17 @@ getdns_apply_network_result(getdns_network_req* netreq,
 	GLDNS_RA_SET(netreq->response);
 	GLDNS_RCODE_SET(netreq->response, ub_res->rcode);
 
-	dname_len = netreq->max_udp_payload_size - GLDNS_HEADER_SIZE;
-	if (gldns_str2wire_dname_buf(netreq->owner->name,
-	    netreq->response + GLDNS_HEADER_SIZE, &dname_len))
-		return GETDNS_RETURN_GENERIC_ERROR;
+	(void) memcpy( netreq->response + GLDNS_HEADER_SIZE
+	             , netreq->owner->name, netreq->owner->name_len);
 
-	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE + dname_len
+	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE
+	                                     + netreq->owner->name_len
 	                  , netreq->request_type);
-	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE + dname_len + 2
+	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE
+	                                     + netreq->owner->name_len + 2
 	                  , netreq->request_class);
 
-	netreq->response_len = GLDNS_HEADER_SIZE + dname_len + 4;
+	netreq->response_len = GLDNS_HEADER_SIZE + netreq->owner->name_len + 4;
 
 	return GETDNS_RETURN_GOOD;
 }

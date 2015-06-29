@@ -1760,7 +1760,7 @@ static void add_netreq2val_chain(
 	if (GLDNS_ANCOUNT(netreq->response) == 0 &&
 	    GLDNS_NSCOUNT(netreq->response) == 0) {
 
-		empty_rrset.name = netreq->query + GLDNS_HEADER_SIZE;
+		empty_rrset.name = netreq->owner->name;
 		empty_rrset.rr_class = GETDNS_RRCLASS_IN;
 		empty_rrset.rr_type  = 0;
 		empty_rrset.pkt = netreq->response;
@@ -1798,7 +1798,7 @@ static void add_netreq2val_chain(
 	 */
 
 	/* First find the canonical name for the question */
-	q_rrset.name     = netreq->query + GLDNS_HEADER_SIZE;
+	q_rrset.name     = netreq->owner->name;
 	q_rrset.rr_type  = GETDNS_RRTYPE_CNAME;
 	q_rrset.rr_class = netreq->request_class;
 	q_rrset.pkt      = netreq->response;

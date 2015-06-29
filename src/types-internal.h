@@ -237,7 +237,8 @@ typedef struct getdns_dns_req {
 	getdns_rbnode_t node;
 
 	/* name */
-	char *name;
+	uint8_t name[256];
+	size_t  name_len;
 
 	/* canceled flag */
 	int canceled;
