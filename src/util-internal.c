@@ -734,21 +734,22 @@ create_getdns_response(getdns_dns_req *completed_request)
 			continue;
 
 		nreplies++;
-		if (netreq->secure)
+		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
 			nsecure++;
-		else if (! netreq->bogus)
+		else if (! netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
 			ninsecure++;
-		if (dnssec_return_status && netreq->bogus)
+
+		if (dnssec_return_status &&
+		    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
 			nbogus++;
-		else if (GLDNS_RCODE_NOERROR ==
-		    GLDNS_RCODE_WIRE(netreq->response))
-			nanswers++;
+
 
 		if (! completed_request->dnssec_return_validation_chain) {
-			if (dnssec_return_status && netreq->bogus)
+			if (dnssec_return_status &&
+			    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
 				continue;
 			else if (completed_request->dnssec_return_only_secure
-			    && ! netreq->secure)
+			    && netreq->dnssec_status != GETDNS_DNSSEC_SECURE)
 				continue;
 		}
     		if (!(reply = priv_getdns_create_reply_dict(context,
@@ -763,15 +764,18 @@ create_getdns_response(getdns_dns_req *completed_request)
 			    result, "canonical_name", canonical_name))
 				goto error;
 		}
+		/* TODO: Check instead if canonical_name for request_type
+		 *       is in the answer section.
+		 */
+		if (GLDNS_RCODE_NOERROR ==
+		    GLDNS_RCODE_WIRE(netreq->response))
+			nanswers++;
+
 		if (dnssec_return_status ||
 		    completed_request->dnssec_return_validation_chain) {
 
 			if (getdns_dict_set_int(reply, "dnssec_status",
-			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE
-			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
-			    : rrsigs_in_answer &&
-			      context->has_ta  ? GETDNS_DNSSEC_INDETERMINATE
-					       : GETDNS_DNSSEC_INSECURE )))
+			    netreq->dnssec_status))
 				goto error;
 		}
 
@@ -861,8 +865,12 @@ getdns_apply_network_result(getdns_network_req* netreq,
 {
 	size_t dname_len;
 
-	netreq->secure = ub_res->secure;
-	netreq->bogus  = ub_res->bogus;
+	if (ub_res->bogus)
+		netreq->dnssec_status = GETDNS_DNSSEC_BOGUS;
+	else if (ub_res->secure)
+		netreq->dnssec_status = GETDNS_DNSSEC_SECURE;
+	else if (netreq->owner->context->has_ta)
+		netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
 
 	if (ub_res == NULL) /* Timeout */
 		return GETDNS_RETURN_GOOD;

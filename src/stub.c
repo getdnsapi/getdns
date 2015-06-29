@@ -1220,10 +1220,6 @@ upstream_read_cb(void *userarg)
 		upstream->tcp.read_buf = NULL;
 		upstream->upstreams->current = 0;
 
-		/* TODO: DNSSEC */
-		netreq->secure = 0;
-		netreq->bogus  = 0;
-
 		stub_cleanup(netreq);
 
 		/* More to read/write for syncronous lookups? */

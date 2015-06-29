@@ -196,9 +196,8 @@ typedef struct getdns_network_req
 	/* request class */
 	uint16_t request_class;
 
-	/* result */
-	int secure;
-	int bogus;
+	/* dnssec status */
+	int dnssec_status;
 
 	/* For stub resolving */
 	struct getdns_upstream *upstream;

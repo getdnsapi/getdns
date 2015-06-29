@@ -96,8 +96,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->state = NET_REQ_NOT_SENT;
 	net_req->owner = owner;
 
-	net_req->secure = 0;
-	net_req->bogus = 0;
+	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 
 	net_req->upstream = NULL;
 	net_req->fd = -1;

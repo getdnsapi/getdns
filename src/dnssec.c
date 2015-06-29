@@ -1251,15 +1251,29 @@ static void chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 {
 	chain_head *head;
 
+	/* The netreq status is the worst for any head */
 	for (head = chain; head; head = head->next) {
 		switch (chain_head_validate(head, tas)) {
-		case GETDNS_DNSSEC_SECURE: if (!head->netreq->bogus)
-						   head->netreq->secure = 1;
-		                           break;
-		case GETDNS_DNSSEC_BOGUS : head->netreq->bogus  = 1;
-					   head->netreq->secure = 0;
-		                           break;
-		default                  : break;
+
+		case GETDNS_DNSSEC_SECURE:
+			if (head->netreq->dnssec_status ==
+			    GETDNS_DNSSEC_INDETERMINATE)
+				head->netreq->dnssec_status =
+				    GETDNS_DNSSEC_SECURE;
+			break;
+
+		case GETDNS_DNSSEC_INSECURE:
+			if (head->netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
+				head->netreq->dnssec_status =
+					GETDNS_DNSSEC_INSECURE;
+			break;
+
+		case GETDNS_DNSSEC_BOGUS :
+			head->netreq->dnssec_status = GETDNS_DNSSEC_BOGUS;
+			break;
+
+		default:
+			break;
 		}
 	}
 }
