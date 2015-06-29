@@ -87,7 +87,7 @@ typedef struct getdns_upstream {
 
 	/* How is this upstream doing? */
 	size_t                   writes_done;
-	size_t                   responses_recieved;
+	size_t                   responses_received;
 	int                      to_retry;
 	int                      back_off;
 
@@ -240,5 +240,7 @@ int filechg_check(struct getdns_context *context, struct filechg *fchg);
 void priv_getdns_context_ub_read_cb(void *userarg);
 
 void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
+
+void priv_getdns_upstream_shutdown(getdns_upstream *upstreams);
 
 #endif /* _GETDNS_CONTEXT_H_ */

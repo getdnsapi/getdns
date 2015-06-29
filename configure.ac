@@ -132,6 +132,18 @@ case "$enable_tcp_fastopen" in
 		;;
 esac
 
+# Not yet enabled by default as crash found when TCP fails.
+# AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
+# 	enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
+# if test "x$enable_tcp_fastopen" = xno; then
+# 		AC_MSG_WARN([TCP Fast Open is disabled])
+# else
+# 		AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
+# 		              [AC_MSG_WARN([TCP Fast Open is not available.])], [AC_INCLUDES_DEFAULT
+# #include <sys/socket.h>
+# 		])
+# fi
+
 AC_ARG_ENABLE(broken-native-stub-dnssec, AC_HELP_STRING([--enable-broken-native-stub-dnssec], [Enable very experimental and broken native stub DNSSEC support]))
 case "$enable_broken_native_stub_dnssec" in
 	yes)

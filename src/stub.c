@@ -505,13 +505,7 @@ upstream_erred(getdns_upstream *upstream)
 		netreq->state = NET_REQ_FINISHED;
 		priv_getdns_check_dns_req_complete(netreq->owner);
 	}
-	if (upstream->tls_obj) {
-		SSL_shutdown(upstream->tls_obj);
-		SSL_free(upstream->tls_obj);
-		upstream->tls_obj = NULL;
-	}
-	close(upstream->fd);
-	upstream->fd = -1;
+	priv_getdns_upstream_shutdown(upstream);
 }
 
 void
@@ -555,30 +549,20 @@ stub_timeout_cb(void *userarg)
 	(void) getdns_context_request_timed_out(netreq->owner);
 }
 
+
 static void
 upstream_idle_timeout_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	DEBUG_STUB("*** %s: **Closing connection %d**\n", 
 	           __FUNCTION__, upstream->fd);
-	/*There is a race condition with a new request being scheduled while this happens
-	  so take ownership of the fd asap*/
-	int fd = upstream->fd;
-	upstream->fd = -1;
+
 	upstream->event.timeout_cb = NULL;
 	upstream->event.read_cb = NULL;
 	upstream->event.write_cb = NULL;
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-	if (upstream->tls_hs_state != GETDNS_HS_FAILED)
-		upstream->tls_hs_state = GETDNS_HS_NONE;
-	if (upstream->tls_obj != NULL) {
-		SSL_shutdown(upstream->tls_obj);
-		SSL_free(upstream->tls_obj);
-		upstream->tls_obj = NULL;
-	}
-	close(fd);
+	priv_getdns_upstream_shutdown(upstream);
 }
-
 
 static void
 upstream_tls_timeout_cb(void *userarg)
@@ -1290,7 +1274,6 @@ upstream_read_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq;
 	getdns_dns_req *dnsreq;
-	uint64_t idle_timeout;
 	int q;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
@@ -1329,12 +1312,10 @@ upstream_read_cb(void *userarg)
 		netreq->response_len =
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
 		upstream->tcp.read_buf = NULL;
-		upstream->responses_recieved++;
+		upstream->responses_received++;
 		/* TODO[TLS]: I don't think we should do this for TCP. We should stay
 		 * on a working connection until we hit a problem.*/
 		upstream->upstreams->current = 0;
-		/* netreq may die before setting timeout*/
-		idle_timeout = netreq->owner->context->idle_timeout;
 
 		/* TODO: DNSSEC */
 		netreq->secure = 0;
@@ -1674,7 +1655,7 @@ fallback_on_write(getdns_network_req *netreq)
 
 	/* For sync messages we must re-schedule the events on the old upstream
 	 * here too. Must schedule this last to make sure it is called back first! */
-	if (netreq->owner->loop != upstream->loop && upstream->write_queue) 
+	if (netreq->owner->loop != upstream->loop)
 		upstream_reschedule_netreq_events(upstream, upstream->write_queue);
 
 	if (result != GETDNS_RETURN_GOOD)
@@ -1751,13 +1732,7 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 		 * So we will have to be aggressive and shut the connection....*/
 		DEBUG_STUB("# %s: **Closing connection %d**\n",
 		            __FUNCTION__, upstream->fd);
-		if (upstream->tls_obj) {
-			SSL_shutdown(upstream->tls_obj);
-			SSL_free(upstream->tls_obj);
-			upstream->tls_obj = NULL;
-		}
-		close(upstream->fd);
-		upstream->fd = -1;
+		priv_getdns_upstream_shutdown(upstream);
 	}
 }
 

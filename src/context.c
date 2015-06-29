@@ -537,6 +537,31 @@ priv_getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	}
 }
 
+void
+priv_getdns_upstream_shutdown(getdns_upstream *upstream) {
+	/*There is a race condition with a new request being scheduled 
+	  while this happens so take ownership of the fd asap*/
+	int fd = upstream->fd;
+	upstream->fd = -1;
+	/* If the connection had a problem, but had worked this time,
+	 * then allow re-use in the future*/
+	if (upstream->tcp.write_error == 1 &&
+	    upstream->responses_received > 0)
+		upstream->tcp.write_error = 0;
+	upstream->writes_done = 0;
+	upstream->responses_received = 0;
+	if (upstream->tls_hs_state != GETDNS_HS_FAILED)
+		upstream->tls_hs_state = GETDNS_HS_NONE;
+	/* Now TLS stuff*/
+	if (upstream->tls_obj != NULL) {
+		SSL_shutdown(upstream->tls_obj);
+		SSL_free(upstream->tls_obj);
+		upstream->tls_obj = NULL;
+	}
+	if (fd != -1)
+		close(fd);
+}
+
 static uint8_t*
 upstream_addr(getdns_upstream *upstream)
 {
@@ -597,7 +622,7 @@ upstream_init(getdns_upstream *upstream,
 
 	/* How is this upstream doing? */
 	upstream->writes_done = 0;
-	upstream->responses_recieved = 0;
+	upstream->responses_received = 0;
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
 
