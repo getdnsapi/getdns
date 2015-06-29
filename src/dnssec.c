@@ -1375,6 +1375,11 @@ static void check_chain_complete(chain_head *chain)
 	context = dnsreq->context;
 
 #ifdef STUB_NATIVE_DNSSEC
+	/* Perform validation only on GETDNS_RESOLUTION_STUB (unbound_id == -1)
+	 * TODO: When minimizing the validation chain (i.e. returning a single
+	 *       RRSIG per RRSET, it might be usefull to perform a fake dnssec
+	 *       validation to find out which RRSIGs should be returned.
+	 */
 	if (chain->netreq->unbound_id == -1) {
 		gldns_buffer_init_frm_data(&tas_buf, tas, sizeof(tas_spc));
 		_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
