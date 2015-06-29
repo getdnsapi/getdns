@@ -1274,7 +1274,6 @@ upstream_read_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq;
 	getdns_dns_req *dnsreq;
-	uint64_t idle_timeout;
 	int q;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
@@ -1317,8 +1316,6 @@ upstream_read_cb(void *userarg)
 		/* TODO[TLS]: I don't think we should do this for TCP. We should stay
 		 * on a working connection until we hit a problem.*/
 		upstream->upstreams->current = 0;
-		/* netreq may die before setting timeout*/
-		idle_timeout = netreq->owner->context->idle_timeout;
 
 		/* TODO: DNSSEC */
 		netreq->secure = 0;
