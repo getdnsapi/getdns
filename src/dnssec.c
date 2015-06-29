@@ -1360,7 +1360,7 @@ static void check_chain_complete(chain_head *chain)
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
 #ifdef STUB_NATIVE_DNSSEC
-	uint8_t tas_spc[4096], *tas;
+	uint8_t tas_spc[4096], *tas = tas_spc;
 	size_t tas_sz;
 	gldns_buffer tas_buf;
 	rrset_iter tas_iter;
@@ -1375,19 +1375,25 @@ static void check_chain_complete(chain_head *chain)
 	context = dnsreq->context;
 
 #ifdef STUB_NATIVE_DNSSEC
-	gldns_buffer_init_frm_data(&tas_buf, (tas = tas_spc), sizeof(tas_spc));
-	_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
-	if ((tas_sz = gldns_buffer_position(&tas_buf)) > sizeof(tas_spc)) {
-		if ((tas = GETDNS_XMALLOC(dnsreq->my_mf, uint8_t, tas_sz))) {
-			gldns_buffer_init_frm_data(&tas_buf, tas, tas_sz);
-			_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
-		}
-	} else if (! GLDNS_ANCOUNT(tas))
-		tas = NULL;
+	if (chain->netreq->unbound_id == -1) {
+		gldns_buffer_init_frm_data(&tas_buf, tas, sizeof(tas_spc));
+		_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
+		if ((tas_sz = gldns_buffer_position(&tas_buf))
+		    > sizeof(tas_spc)) {
+			if ((tas = GETDNS_XMALLOC(
+			    dnsreq->my_mf, uint8_t, tas_sz))) {
+				gldns_buffer_init_frm_data(
+				    &tas_buf, tas, tas_sz);
+				_getdns_list2wire(
+				    &tas_buf, context->dnssec_trust_anchors);
+			}
+		} else if (! GLDNS_ANCOUNT(tas))
+			tas = NULL;
 
-	if (tas)
-		chain_validate_dnssec(chain,
-		    rrset_iter_init(&tas_iter, tas, tas_sz));
+		if (tas)
+			chain_validate_dnssec(chain,
+			    rrset_iter_init(&tas_iter, tas, tas_sz));
+	}
 #endif
 
 	val_chain_list = dnsreq->dnssec_return_validation_chain
