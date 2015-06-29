@@ -99,6 +99,9 @@ struct getdns_upstream;
 #define TIMEOUT_FOREVER ((int64_t)-1)
 #define ASSERT_UNREACHABLE 0
 
+#define GETDNS_TRANSPORTS_MAX 4
+#define GETDNS_UPSTREAM_TRANSPORTS 3
+
 /** @}
  */
 
@@ -156,6 +159,7 @@ typedef struct getdns_tcp_state {
 	uint8_t *write_buf;
 	size_t   write_buf_len;
 	size_t   written;
+	int      write_error;
 
 	uint8_t *read_buf;
 	size_t   read_buf_len;
@@ -164,17 +168,6 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
-/* TODO[TLS]: change this name to getdns_transport when API updated*/
-typedef enum getdns_base_transport {
-	GETDNS_BASE_TRANSPORT_MIN   = 0,
-	GETDNS_BASE_TRANSPORT_NONE  = 0,
-	GETDNS_BASE_TRANSPORT_UDP,
-	GETDNS_BASE_TRANSPORT_TCP_SINGLE, /* To be removed? */
-	GETDNS_BASE_TRANSPORT_STARTTLS,   /* Define before TCP to allow fallback */
-	GETDNS_BASE_TRANSPORT_TCP,
-	GETDNS_BASE_TRANSPORT_TLS,
-	GETDNS_BASE_TRANSPORT_MAX
-} getdns_base_transport_t;
 
 /**
  * Request data
@@ -203,8 +196,9 @@ typedef struct getdns_network_req
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
-	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
-	int                     transport;
+	getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
+	size_t                   transport_count;
+	size_t                   transport_current;
 	getdns_eventloop_event  event;
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;

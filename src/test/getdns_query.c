@@ -180,19 +180,22 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
 			free(response_str);
 		}
-		fprintf(stderr,
-			"The callback with ID %llu  was successfull.\n",
+		fprintf(stdout,
+			"Result:      The callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-			"The callback with ID %llu was cancelled. Exiting.\n",
+			"Result:      The callback with ID %llu was cancelled. Exiting.\n",
 			(unsigned long long)trans_id);
-	else
+	else {
 		fprintf(stderr,
-			"The callback got a callback_type of %d. Exiting.\n",
+			"Result:      The callback got a callback_type of %d. Exiting.\n",
 			callback_type);
-
+		fprintf(stderr,
+			"Error :      '%s'\n",
+			getdns_get_errorstr_by_id(callback_type));
+	}
 	getdns_dict_destroy(response);
 	response = NULL;
 }
@@ -274,6 +277,11 @@ getdns_return_t parse_args(int argc, char **argv)
 					    " %d", r);
 					break;
 				}
+			} else if (arg[1] == '0') {
+			    /* Unset all existing extensions*/
+				getdns_dict_destroy(extensions);
+				extensions = getdns_dict_create();
+				break;
 			} else if ((r = getdns_dict_set_int(extensions, arg+1,
 			    GETDNS_EXTENSION_TRUE))) {
 				fprintf(stderr, "Could not set extension "
@@ -443,7 +451,7 @@ getdns_return_t parse_args(int argc, char **argv)
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				size_t transport_count = 0;
-				getdns_transport_list_t transports[GETDNS_BASE_TRANSPORT_MAX];
+				getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
 				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){
@@ -522,8 +530,10 @@ main(int argc, char **argv)
 				if (!fgets(line, 1024, stdin) || !*line)
 					break;
 			} else {
-				if (!fgets(line, 1024, fp) || !*line)
+				if (!fgets(line, 1024, fp) || !*line) {
+					fprintf(stdout,"End of file.");
 					break;
+				}
 				fprintf(stdout,"Found query: %s", line);
 			}
 
@@ -531,6 +541,10 @@ main(int argc, char **argv)
 			linec = 1;
 			if ( ! (token = strtok(line, " \t\f\n\r")))
 				continue;
+			if (*token == '#') {
+				fprintf(stdout,"Result:      Skipping comment\n");
+					continue;
+			}
 			do linev[linec++] = token;
 			while (linec < 256 &&
 			    (token = strtok(NULL, " \t\f\n\r")));
@@ -596,9 +610,7 @@ main(int argc, char **argv)
 				r = GETDNS_RETURN_GENERIC_ERROR;
 				break;
 			}
-			if (r)
-				goto done_destroy_extensions;
-			if (!quiet) {
+			if (response && !quiet) {
 				if ((response_str = json ?
 				    getdns_print_json_dict(response, json == 1)
 				  : getdns_pretty_print_dict(response))) {
@@ -611,10 +623,15 @@ main(int argc, char **argv)
 					fprintf( stderr
 					       , "Could not print response\n");
 				}
-			} else if (r == GETDNS_RETURN_GOOD)
-				fprintf(stdout, "Response code was: GOOD\n");
-			else if (interactive)
-				fprintf(stderr, "An error occurred: %d\n", r);
+			}
+			if (r == GETDNS_RETURN_GOOD) {
+				uint32_t status;
+				getdns_dict_get_int(response, "status", &status);
+				fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
+				         getdns_get_errorstr_by_id(status));
+			} else
+				fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				         getdns_get_errorstr_by_id(r));
 		}
 	} while (interactive);
 
@@ -633,8 +650,7 @@ done_destroy_context:
 
 	if (r == CONTINUE)
 		return 0;
-	if (r)
-		fprintf(stderr, "An error occurred: %d\n", r);
+	fprintf(stdout, "\nAll done.\n");
 	return r;
 }
 
