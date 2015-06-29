@@ -54,17 +54,17 @@
 #include "general.h"
 #include "dict.h"
 
-/* subdomain is same or parent of domain */
+/* parent is same or parent of subdomain,*/
 static int is_subdomain(
-    const uint8_t * const subdomain, const uint8_t *domain)
+    const uint8_t * const parent, const uint8_t *subdomain)
 {
-	while (*domain) {
-		if (priv_getdns_dname_equal(subdomain, domain))
+	while (*subdomain) {
+		if (priv_getdns_dname_equal(parent, subdomain))
 			return 1;
 
-		domain += *domain + 1;
+		subdomain += *subdomain + 1;
 	}
-	return *subdomain == 0;
+	return *parent == 0;
 }
 
 static void _getdns_list2wire(gldns_buffer *buf, getdns_list *l)
@@ -447,7 +447,6 @@ inline static size_t _dname_label_count(uint8_t *name)
 	return c;
 }
 
-#ifdef STUB_NATIVE_DNSSEC
 static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 {
 	rrtype_iter rr_spc, *rr;
@@ -1264,7 +1263,6 @@ static void chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 		}
 	}
 }
-#endif
 
 static size_t count_outstanding_requests(chain_head *head)
 {
