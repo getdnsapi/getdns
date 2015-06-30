@@ -135,7 +135,8 @@ struct getdns_context {
 	struct getdns_list   *dns_root_servers;
 	getdns_append_name_t append_name;
 	struct getdns_list   *suffix;
-	struct getdns_list   *dnssec_trust_anchors;
+	uint8_t              *trust_anchors;
+	size_t                trust_anchors_len;
 	getdns_upstreams     *upstreams;
 	getdns_transport_t   dns_transport;
 	getdns_base_transport_t dns_base_transports[GETDNS_BASE_TRANSPORT_MAX];
@@ -163,7 +164,7 @@ struct getdns_context {
 
 	/* A tree to hold local host information*/
 	getdns_rbtree_t local_hosts;
-	int has_ta; /* No DNSSEC without trust anchor */
+
 	int return_dnssec_status;
 
 	/* which resolution type the contexts are configured for
@@ -188,6 +189,8 @@ struct getdns_context {
 	 */
 	struct filechg *fchg_resolvconf;
 	struct filechg *fchg_hosts;
+
+	uint8_t trust_anchors_spc[1024];
 
 }; /* getdns_context */
 

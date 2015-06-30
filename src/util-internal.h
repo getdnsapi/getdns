@@ -123,7 +123,7 @@ getdns_return_t sockaddr_to_dict(struct getdns_context *context,
     struct sockaddr_storage *sockaddr, struct getdns_dict ** output);
 
 getdns_dict *
-priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i);
+priv_getdns_rr_iter2rr_dict(struct mem_funcs *mf, priv_getdns_rr_iter *i);
 
 struct getdns_dns_req;
 struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
@@ -135,6 +135,10 @@ getdns_return_t priv_getdns_validate_dname(const char* dname);
 
 int priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
 
+uint8_t *_getdns_list2wire(
+    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+
+void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
 
 
 /**

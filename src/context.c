@@ -771,6 +771,7 @@ getdns_context_create_with_extended_memory_functions(
 	getdns_return_t r;
 	struct getdns_context *result = NULL;
 	mf_union mf;
+	gldns_buffer gbuf;
 
 	if (!context || !malloc || !realloc || !free)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -815,7 +816,30 @@ getdns_context_create_with_extended_memory_functions(
 	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
 	result->suffix = NULL;
 
-	result->dnssec_trust_anchors = NULL;
+	gldns_buffer_init_frm_data(&gbuf, result->trust_anchors_spc
+	                                , sizeof(result->trust_anchors_spc));
+
+	if (!_getdns_parse_ta_file(NULL, &gbuf)) {
+		result->trust_anchors = NULL;
+		result->trust_anchors_len = 0;
+
+	} else if ((result->trust_anchors_len = gldns_buffer_position(&gbuf))
+		    > sizeof(result->trust_anchors_spc)) {
+
+		if ((result->trust_anchors = GETDNS_XMALLOC(
+		    result->mf, uint8_t, result->trust_anchors_len))) {
+
+			gldns_buffer_init_frm_data(&gbuf
+			                          , result->trust_anchors
+						  , result->trust_anchors_len);
+			if (!_getdns_parse_ta_file(NULL, &gbuf)) {
+				result->trust_anchors = NULL;
+				result->trust_anchors_len = 0;
+			}
+		}
+	} else
+		result->trust_anchors = result->trust_anchors_spc;
+
 	result->upstreams = NULL;
 
 	result->edns_extended_rcode = 0;
@@ -828,7 +852,7 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 
 	result->fchg_resolvconf = NULL;
-	result->fchg_hosts	  = NULL;
+	result->fchg_hosts      = NULL;
 
 	if (set_from_os && (r = set_os_defaults(result)))
 		goto error;
@@ -840,12 +864,6 @@ getdns_context_create_with_extended_memory_functions(
 	result->limit_outstanding_queries = 0;
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
-	if (! (result->dnssec_trust_anchors =
-	    getdns_list_create_with_context(result)))
-		goto error;
-	result->has_ta = priv_getdns_parse_ta_file(
-	    NULL, result->dnssec_trust_anchors);
-	
 	/* unbound context is initialized here */
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
 	 * don't know that till later so we will have to do this every time. */
@@ -944,7 +962,10 @@ getdns_context_destroy(struct getdns_context *context)
 
     getdns_list_destroy(context->dns_root_servers);
     getdns_list_destroy(context->suffix);
-    getdns_list_destroy(context->dnssec_trust_anchors);
+
+    if (context->trust_anchors &&
+	    context->trust_anchors != context->trust_anchors_spc)
+	    GETDNS_FREE(context->mf, context->trust_anchors);
 
     /* destroy the contexts */
     if (context->unbound_ctx)
@@ -1076,7 +1097,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 		context->dns_transport);
 
 	/* Set default trust anchor */
-	if (context->has_ta) {
+	if (context->trust_anchors) {
 		(void) ub_ctx_add_ta_file(
 			context->unbound_ctx, TRUST_ANCHOR_FILE);
 	}
@@ -1442,23 +1463,26 @@ getdns_context_set_suffix(struct getdns_context *context, struct getdns_list * v
  *
  */
 getdns_return_t
-getdns_context_set_dnssec_trust_anchors(struct getdns_context *context,
-    struct getdns_list * value)
+getdns_context_set_dnssec_trust_anchors(
+    getdns_context *context, getdns_list *value)
 {
-    struct getdns_list *copy = NULL;
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != NULL) {
-        if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
-            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-        }
-        value = copy;
-    }
-    getdns_list_destroy(context->dnssec_trust_anchors);
-    context->dnssec_trust_anchors = value;
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
+	if (context->trust_anchors &&
+	    context->trust_anchors != context->trust_anchors_spc)
+		GETDNS_FREE(context->mf, context->trust_anchors);
 
-    return GETDNS_RETURN_GOOD;
+	if (value) {
+		context->trust_anchors_len = sizeof(context->trust_anchors_spc);
+		context->trust_anchors = _getdns_list2wire(value,
+		    context->trust_anchors_spc, &context->trust_anchors_len,
+		    &context->mf);
+	} else {
+		context->trust_anchors = NULL;
+		context->trust_anchors_len = 0;
+	}
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dnssec_trust_anchors */
 
 static void
@@ -2482,15 +2506,23 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value) {
 }
 
 getdns_return_t
-getdns_context_get_dnssec_trust_anchors(getdns_context *context,
-    getdns_list **value) {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = NULL;
-    if (context->dnssec_trust_anchors) {
-        return getdns_list_copy(context->dnssec_trust_anchors, value);
-    }
-    return GETDNS_RETURN_GOOD;
+getdns_context_get_dnssec_trust_anchors(
+    getdns_context *context, getdns_list **value)
+{
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+
+	if (context->trust_anchors) {
+		if ((*value = getdns_list_create_with_context(context)))
+			_getdns_wire2list( context->trust_anchors
+			                 , context->trust_anchors_len
+			                 , *value);
+		else
+			return GETDNS_RETURN_MEMORY_ERROR;
+	} else
+		*value = NULL;
+
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t

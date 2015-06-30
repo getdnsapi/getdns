@@ -67,58 +67,6 @@ static int is_subdomain(
 	return *parent == 0;
 }
 
-static void _getdns_list2wire(gldns_buffer *buf, getdns_list *l)
-{
-	getdns_dict *rr_dict;
-	getdns_return_t r;
-	size_t i, pkt_start, ancount;
-	uint32_t qtype, qclass;
-	getdns_bindata *qname;
-
-	pkt_start = gldns_buffer_position(buf);
-	/* Empty header */
-	gldns_buffer_write_u32(buf, 0);
-	gldns_buffer_write_u32(buf, 0);
-	gldns_buffer_write_u32(buf, 0);
-
-	for ( i = 0
-	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
-	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
-	    ; i++ ) {
-
-		if (r) {
-			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
-				continue;
-			else
-				break;
-		}
-		if (getdns_dict_get_int(rr_dict, "qtype", &qtype) ||
-		    getdns_dict_get_bindata(rr_dict, "qname", &qname))
-			continue;
-		(void) getdns_dict_get_int(rr_dict, "qclass", &qclass);
-		gldns_buffer_write(buf, qname->data, qname->size);
-		gldns_buffer_write_u16(buf, (uint16_t)qtype);
-		gldns_buffer_write_u16(buf, (uint16_t)qclass);
-		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
-		break;
-	}
-	for ( i = 0, ancount = 0
-	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
-	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
-	    ; i++ ) {
-
-		if (r) {
-			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
-				continue;
-			else
-				break;
-		}
-		if (priv_getdns_rr_dict2wire(rr_dict, buf) == GETDNS_RETURN_GOOD)
-			ancount++;
-	}
-	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
-}
-
 #if defined(SEC_DEBUG) && SEC_DEBUG
 inline static void debug_sec_print_rr(const char *msg, priv_getdns_rr_iter *rr)
 {
@@ -1332,8 +1280,9 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)
 		    ; rr; rr = rrtype_iter_next(rr)) {
 
-			rr_dict = priv_getdns_rr_iter2rr_dict(ctxt, &rr->rr_i);
-			if (!rr_dict) continue;
+			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
+			    &ctxt->mf, &rr->rr_i)))
+				continue;
 
 			(void)getdns_list_append_dict(val_chain_list, rr_dict);
 			getdns_dict_destroy(rr_dict);
@@ -1341,8 +1290,9 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
 		    ; rrsig; rrsig = rrsig_iter_next(rrsig)) {
 
-			rr_dict=priv_getdns_rr_iter2rr_dict(ctxt,&rrsig->rr_i);
-			if (!rr_dict) continue;
+			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
+			    &ctxt->mf, &rrsig->rr_i)))
+				continue;
 
 			(void)getdns_list_append_dict(val_chain_list, rr_dict);
 			getdns_dict_destroy(rr_dict);
@@ -1360,9 +1310,6 @@ static void check_chain_complete(chain_head *chain)
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
 #ifdef STUB_NATIVE_DNSSEC
-	uint8_t tas_spc[4096], *tas = tas_spc;
-	size_t tas_sz;
-	gldns_buffer tas_buf;
 	rrset_iter tas_iter;
 #endif
 
@@ -1380,25 +1327,9 @@ static void check_chain_complete(chain_head *chain)
 	 *       RRSIG per RRSET, it might be usefull to perform a fake dnssec
 	 *       validation to find out which RRSIGs should be returned.
 	 */
-	if (chain->netreq->unbound_id == -1) {
-		gldns_buffer_init_frm_data(&tas_buf, tas, sizeof(tas_spc));
-		_getdns_list2wire(&tas_buf, context->dnssec_trust_anchors);
-		if ((tas_sz = gldns_buffer_position(&tas_buf))
-		    > sizeof(tas_spc)) {
-			if ((tas = GETDNS_XMALLOC(
-			    dnsreq->my_mf, uint8_t, tas_sz))) {
-				gldns_buffer_init_frm_data(
-				    &tas_buf, tas, tas_sz);
-				_getdns_list2wire(
-				    &tas_buf, context->dnssec_trust_anchors);
-			}
-		} else if (! GLDNS_ANCOUNT(tas))
-			tas = NULL;
-
-		if (tas)
-			chain_validate_dnssec(chain,
-			    rrset_iter_init(&tas_iter, tas, tas_sz));
-	}
+	if (chain->netreq->unbound_id == -1 && context->trust_anchors)
+		chain_validate_dnssec(chain, rrset_iter_init(&tas_iter,
+		    context->trust_anchors, context->trust_anchors_len));
 #endif
 
 	val_chain_list = dnsreq->dnssec_return_validation_chain
@@ -1432,13 +1363,7 @@ static void check_chain_complete(chain_head *chain)
 		getdns_list_destroy(val_chain_list);
 	}
 
-
-#ifdef STUB_NATIVE_DNSSEC
-	if (tas && tas != tas_spc)
-		GETDNS_FREE(dnsreq->my_mf, tas);
-#endif
 	/* Final user callback */
-
 	priv_getdns_call_user_callback(dnsreq, response_dict);
 }
 
@@ -2275,26 +2200,17 @@ done_free_trusted:
 	return r;
 }				/* getdns_validate_dnssec */
 
-int
-priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs)
+uint16_t
+_getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf)
 {
 
 	struct gldns_file_parse_state pst;
 	struct stat st;
-	struct {
-		uint16_t id;
-		uint16_t flags;
-		uint16_t qdcount;
-		uint16_t ancount;
-		uint16_t nscount;
-		uint16_t arcount;
-		uint8_t rr[8192]; /* Reasonable max size for a single RR */
-	} pkt;
+	uint8_t rr[8192]; /* Reasonable size for a single DNSKEY or DS RR */
 	size_t len, dname_len;
 	FILE *in;
-	priv_getdns_rr_iter rr_iter;
-	getdns_dict *rr_dict = NULL;
-	int ta_count = 0;
+	uint16_t ta_count = 0;
+	size_t pkt_start;
 
 	if (stat(TRUST_ANCHOR_FILE, &st) != 0)
 		return 0;
@@ -2305,38 +2221,34 @@ priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs)
 	if (!(in = fopen(TRUST_ANCHOR_FILE, "r")))
 		return 0;
 
-	pkt.id = pkt.flags = pkt.qdcount = pkt.nscount = pkt.arcount = 0;
-	pkt.ancount = htons(1);
-
 	memset(&pst, 0, sizeof(pst));
 	pst.default_ttl = 3600;
 	pst.lineno = 1;
 
+	pkt_start = gldns_buffer_position(gbuf);
+	/* Empty header */
+	gldns_buffer_write_u32(gbuf, 0);
+	gldns_buffer_write_u32(gbuf, 0);
+	gldns_buffer_write_u32(gbuf, 0);
+
 	while (!feof(in)) {
-		len = sizeof(pkt.rr);
+		len = sizeof(rr);
 		dname_len = 0;
-		if (gldns_fp2wire_rr_buf(in, pkt.rr, &len, &dname_len, &pst))
+		if (gldns_fp2wire_rr_buf(in, rr, &len, &dname_len, &pst))
 			break;
 		if (len == 0)  /* empty, $TTL, $ORIGIN */
 			continue;
-		if (gldns_wirerr_get_type(pkt.rr, len, dname_len) 
+		if (gldns_wirerr_get_type(rr, len, dname_len) 
 		    != LDNS_RR_TYPE_DS &&
-		    gldns_wirerr_get_type(pkt.rr, len, dname_len)
+		    gldns_wirerr_get_type(rr, len, dname_len)
 		    != LDNS_RR_TYPE_DNSKEY)
 			continue;
-		if (!priv_getdns_rr_iter_init(&rr_iter, (void *)&pkt, sizeof(pkt)))
-			break;
-		if (!(rr_dict = priv_getdns_rr_iter2rr_dict(NULL, &rr_iter)))
-			break;
-		if (ta_rrs && getdns_list_append_dict(ta_rrs, rr_dict))
-			break;
-		getdns_dict_destroy(rr_dict);
-		rr_dict = NULL;
+
+		gldns_buffer_write(gbuf, rr, len);
 		ta_count++;
 	}
-	if (rr_dict)
-		getdns_dict_destroy(rr_dict);
 	fclose(in);
+	gldns_buffer_write_u16_at(gbuf, pkt_start+GLDNS_ANCOUNT_OFF, ta_count);
 
 	return ta_count;
 }
@@ -2344,9 +2256,29 @@ priv_getdns_parse_ta_file(time_t *ta_mtime, getdns_list *ta_rrs)
 getdns_list *
 getdns_root_trust_anchor(time_t *utc_date_of_anchor)
 {
-	getdns_list *ta_rrs = getdns_list_create();
-	(void) priv_getdns_parse_ta_file(utc_date_of_anchor, ta_rrs);
+	gldns_buffer *gbuf;
+	getdns_list *ta_rrs;
+	
+	if (!(ta_rrs = getdns_list_create()))
+		return NULL;
+
+	if (!(gbuf = gldns_buffer_new(4096)))
+		goto error_free_ta_rrs;
+
+	if (!_getdns_parse_ta_file(utc_date_of_anchor, gbuf))
+		goto error_free_gbuf;
+
+	_getdns_wire2list( gldns_buffer_export(gbuf)
+	                 , gldns_buffer_position(gbuf), ta_rrs);
+
+	gldns_buffer_free(gbuf);
 	return ta_rrs;
+
+error_free_gbuf:
+	gldns_buffer_free(gbuf);
+error_free_ta_rrs:
+	getdns_list_destroy(ta_rrs);
+	return NULL;
 }
 
 /* dnssec.c */
