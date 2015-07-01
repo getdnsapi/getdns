@@ -698,7 +698,6 @@ static int bitmap_contains_rrtype(priv_getdns_rdf_iter *bitmap, uint16_t rr_type
 	uint8_t window  = rr_type >> 8;
 	uint8_t subtype = rr_type & 0xFF;
 
-	DEBUG_SEC("bitmap: %p, type: %d\n", bitmap, (int)rr_type);
 	if (!bitmap)
 		return 0;
 	dptr = bitmap->pos;
@@ -884,14 +883,28 @@ static uint8_t *name2nsec3_label(
 	return NULL;
 }
 
+static uint8_t *_dname_label_copy(uint8_t *dst, uint8_t *src, size_t dst_len)
+{
+	uint8_t *r = dst, i;
+
+	if (!src || *src + 1 > dst_len)
+		return NULL;
+
+	for (i = *src + 1; i > 0; i--)
+		*dst++ = tolower(*src++);
+
+	return r;
+}
+
 static int nsec3_matches_name(getdns_rrset *nsec3, uint8_t *name)
 {
-	uint8_t label[64];
+	uint8_t label[64], owner[64];
 
-	if (name2nsec3_label(nsec3, name, label, sizeof(label)))
+	if (name2nsec3_label(nsec3, name, label, sizeof(label))
+	    && _dname_label_copy(owner, nsec3->name, sizeof(owner)))
 
 		return *nsec3->name == label[0] /* Labels same size? */
-		    && memcmp(nsec3->name + 1, label + 1, label[0]) == 0;
+		    && memcmp(owner + 1, label + 1, label[0]) == 0;
 
 	return 0;
 }
@@ -913,7 +926,7 @@ static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name, int *opt_out)
 	    || (nsz = gldns_b32_ntop_extended_hex(rdf->pos + 1, *rdf->pos,
 		    (char *)next + 1, sizeof(next)-2)) < 0
 	    || *nsec3->name > sizeof(owner) - 2
-	    || !memcpy(owner, nsec3->name, *nsec3->name + 1)) {
+	    || !_dname_label_copy(owner, nsec3->name, sizeof(owner)-1)) {
 
 		DEBUG_SEC("Error getting NSEC3 owner & next labels\n");
 		return 0;
@@ -1583,7 +1596,8 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		    ! priv_getdns_dname_equal(node->ds.name, rrset->name))
 			node = node->parent;
 
-		val_chain_sched_node(node);
+		if (node)
+			val_chain_sched_node(node);
 	} else
 		val_chain_sched_soa_node(node->parent);
 
@@ -1614,6 +1628,14 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	max_head = NULL;
 	max_labels = 0;
 	for (head = *chain_p; head; head = head->next) {
+		/* Also, try to prevent adding double rrsets */
+		if (   rrset->rr_class == head->rrset.rr_class
+		    && rrset->rr_type  == head->rrset.rr_type
+		    && rrset->pkt      == head->rrset.pkt
+		    && rrset->pkt_len  == head->rrset.pkt_len
+		    && priv_getdns_dname_equal(rrset->name, head->rrset.name))
+			return NULL;
+
 		for (label = labels; label < last_label; label++) {
 			if (! is_subdomain(*label, head->rrset.name))
 				break;
@@ -1715,7 +1737,6 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
  */
 static void add_pkt2val_chain(struct mem_funcs *mf,
     chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
-    uint8_t *qname, uint16_t qtype, uint16_t qclass,
     getdns_network_req *netreq)
 {
 	rrset_iter *i, i_spc;
@@ -1723,36 +1744,14 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 	rrsig_iter *rrsig, rrsig_spc;
 	size_t n_rrsigs;
 	chain_head *head;
-	getdns_rrset empty_rrset;
-
-	getdns_rrset q_rrset;
-	uint8_t cname_spc[256];
-	size_t cname_len = sizeof(cname_spc);
-	size_t anti_loop;
-	priv_getdns_rdf_iter rdf_spc, *rdf;
-	rrtype_iter *rr, rr_spc;
 
 	assert(pkt);
 	assert(pkt_len >= GLDNS_HEADER_SIZE);
-
-	/* On empty packet, find SOA (zonecut) for the qname and query DS */
 
 	/* For all things with signatures, create a chain */
 
 	/* For all things without signature, find SOA (zonecut) and query DS */
 
-	if (GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0 && qname) {
-
-		empty_rrset.name = qname;
-		empty_rrset.rr_class = qclass;
-		empty_rrset.rr_type  = qtype;
-		empty_rrset.pkt = pkt;
-		empty_rrset.pkt_len = pkt_len;
-
-		head = add_rrset2val_chain(mf, chain_p, &empty_rrset, netreq);
-		val_chain_sched_soa(head, empty_rrset.name);
-		return;
-	}
 	for ( i = rrset_iter_init(&i_spc, pkt, pkt_len)
 	    ; i
 	    ; i = rrset_iter_next(i)) {
@@ -1760,7 +1759,9 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		rrset = rrset_iter_value(i);
 		debug_sec_print_rrset("rrset: ", rrset);
 
-		head = add_rrset2val_chain(mf, chain_p, rrset, netreq);
+		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
+			continue;
+
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
 		    ; rrsig
 		    ; rrsig = rrsig_iter_next(rrsig), n_rrsigs++) {
@@ -1772,16 +1773,35 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 
 		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
 			val_chain_sched(head, rrset->name);
+		else if (rrset->rr_type == GETDNS_RRTYPE_CNAME)
+			val_chain_sched_soa(head, rrset->name + *rrset->name + 1);
 		else
 			val_chain_sched_soa(head, rrset->name);
 	}
-	/* For NOERROR/NODATA or NXDOMAIN responses add extra rrset to 
-	 * the validation chain so the denial of existence will be
-	 * checked eventually.
-	 * But only if we knew the question of course...
-	 */
-	if (!qname)
-		return;
+}
+
+/* For NOERROR/NODATA or NXDOMAIN responses add extra rrset to 
+ * the validation chain so the denial of existence will be
+ * checked eventually.
+ * But only if we know the question of course...
+ */
+static void add_question2val_chain(struct mem_funcs *mf,
+    chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
+    uint8_t *qname, uint16_t qtype, uint16_t qclass,
+    getdns_network_req *netreq)
+{
+	getdns_rrset q_rrset;
+	uint8_t cname_spc[256];
+	size_t cname_len = sizeof(cname_spc);
+	size_t anti_loop;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	rrtype_iter *rr, rr_spc;
+
+	chain_head *head;
+
+	assert(pkt);
+	assert(pkt_len >= GLDNS_HEADER_SIZE);
+	assert(qname);
 
 	/* First find the canonical name for the question */
 	q_rrset.name     = qname;
@@ -1798,16 +1818,23 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		q_rrset.name = priv_getdns_rdf_if_or_as_decompressed(
 				rdf, cname_spc, &cname_len);
 	}
-
 	q_rrset.rr_type  = qtype;
 	if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset))) {
-
+		/* No answer for the question.  Add a head for this rrset
+		 * anyway, to validate proof of non-existance, or to find
+		 * proof that the packet is insecure.
+		 */
 		debug_sec_print_rrset("Adding NX rrset: ", &q_rrset);
-		add_rrset2val_chain(mf, chain_p, &q_rrset, netreq);
+		head = add_rrset2val_chain(mf, chain_p, &q_rrset, netreq);
+
+		/* On empty packet, find SOA (zonecut) for the qname */
+		if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
+
+			val_chain_sched_soa(head, q_rrset.name);
 	}
 }
 
-static void get_val_chain(getdns_dns_req *dnsreq)
+void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
 {
 	getdns_network_req *netreq, **netreq_p;
 	chain_head *chain = NULL;
@@ -1815,10 +1842,15 @@ static void get_val_chain(getdns_dns_req *dnsreq)
 	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		add_pkt2val_chain( &dnsreq->my_mf, &chain
 		                 , netreq->response, netreq->response_len
-		                 , netreq->owner->name
-		                 , netreq->request_type, netreq->request_class
 				 , netreq
 		                 );
+		add_question2val_chain( &dnsreq->my_mf, &chain
+		                      , netreq->response, netreq->response_len
+		                      , netreq->owner->name
+		                      , netreq->request_type
+		                      , netreq->request_class
+				      , netreq
+		                      );
 	}
 
 	if (chain)
@@ -1826,18 +1858,6 @@ static void get_val_chain(getdns_dns_req *dnsreq)
 	else
 		priv_getdns_call_user_callback(dnsreq,
 		    create_getdns_response(dnsreq));
-}
-
-/******************************************************************************/
-/*****************************                  *******************************/
-/*****************************  NEW CHAIN CODE  *******************************/
-/*****************************     (above)      *******************************/
-/*****************************                  *******************************/
-/******************************************************************************/
-
-void priv_getdns_get_validation_chain(getdns_dns_req *dns_req)
-{
-	get_val_chain(dns_req);
 }
 
 /*
@@ -1878,7 +1898,7 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	mf = &records_to_validate->mf;
 
-	/* First convert everything to wire formatxi
+	/* First convert everything to wire format
 	 */
 	if (!(to_val = _getdns_list2wire(records_to_validate,
 	    to_val_buf, &to_val_len, mf)))
@@ -1892,19 +1912,39 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 	    tas_buf, &tas_len, mf)))
 		goto exit_free_support;
 
-	if (GLDNS_QDCOUNT(to_val) > 0
-	    && (rr = priv_getdns_rr_iter_init(&rr_spc, to_val, to_val_len))
-	    && (qname = priv_getdns_owner_if_or_as_decompressed(
-				    rr, qname_spc, &qname_len))
-	    && rr->nxt >= rr->rr_type + 4) {
+	if (GLDNS_QDCOUNT(to_val) == 0 && GLDNS_ANCOUNT(to_val) == 0) {
+		r = GETDNS_RETURN_GENERIC_ERROR;
+		goto exit_free_tas;
+	}
+
+	chain = NULL;
+	/* First create a chain (head + nodes) for each rr in the answer and
+	 * authority section of the fake to_val packet.
+	 */
+	add_pkt2val_chain(mf, &chain, to_val, to_val_len, NULL);
+
+	/* When records_to_validate contained replies, like the replies_tree
+	 * list in a response dict, the returned wireformat packet may contain
+	 * multiple questions in the question section.  For each reply one
+	 * question.
+	 *
+	 * For each question in the question section add a chain head.
+	 */
+	for ( rr = priv_getdns_rr_iter_init(&rr_spc, to_val, to_val_len)
+	    ; rr && priv_getdns_rr_iter_section(rr) == GLDNS_SECTION_QUESTION
+	    ; rr = priv_getdns_rr_iter_next(rr) ) {
+
+		if ((qname = priv_getdns_owner_if_or_as_decompressed(
+						rr, qname_spc, &qname_len))
+		    && rr->nxt >= rr->rr_type + 4) {
 
 			qtype = gldns_read_uint16(rr->rr_type);
 			qclass = gldns_read_uint16(rr->rr_type + 2);
+
+			add_question2val_chain(mf, &chain, to_val, to_val_len,
+			    qname, qtype, qclass, NULL);
+		}
 	}
-	/* Create the chain hierarchy where all head's need to be validated. */
-	chain = NULL;
-	add_pkt2val_chain(mf, &chain, to_val, to_val_len,
-			qname, qtype, qclass, NULL);
 
 	/* Now equip the nodes with the support records wireformat */
 	for (head = chain; head; head = head->next) {
@@ -1921,6 +1961,7 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 	r = (getdns_return_t)chain_validate_dnssec(
 	    chain, rrset_iter_init(&tas_iter, tas, tas_len));
 
+exit_free_tas:
 	if (tas != tas_buf)
 		GETDNS_FREE(*mf, tas);
 exit_free_support:
