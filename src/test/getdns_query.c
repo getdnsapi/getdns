@@ -135,6 +135,64 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 }
 
+static getdns_return_t validate_chain(getdns_dict *response)
+{
+	getdns_return_t r;
+	getdns_list *validation_chain;
+	getdns_list *replies_tree;
+	getdns_dict *reply;
+	getdns_list *answer;
+	getdns_list *trust_anchor;
+	size_t i;
+	int s;
+	
+	if (!(trust_anchor = getdns_root_trust_anchor(NULL)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if ((r = getdns_dict_get_list(
+	    response, "validation_chain", &validation_chain)))
+		return r;
+
+	if ((r = getdns_dict_get_list(
+	    response, "replies_tree", &replies_tree)))
+		return r;
+
+	i = 0;
+	while (!(r = getdns_list_get_dict(replies_tree, i++, &reply))) {
+
+		if ((r = getdns_dict_get_list(reply, "answer", &answer)))
+			return r;
+
+		fprintf( stdout
+		       , "reply %zu, getdns_validate_dnssec returned: ", i);
+		switch ((s = getdns_validate_dnssec(
+		    answer, validation_chain, trust_anchor))) {
+
+		case GETDNS_DNSSEC_SECURE:
+			fprintf(stdout, "GETDNS_DNSSEC_SECURE\n");
+			break;
+		case GETDNS_DNSSEC_BOGUS:
+			fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+			break;
+		case GETDNS_DNSSEC_INDETERMINATE:
+			fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
+			break;
+		case GETDNS_DNSSEC_INSECURE:
+			fprintf(stdout, "GETDNS_DNSSEC_INSECURE\n");
+			break;
+		case GETDNS_DNSSEC_NOT_PERFORMED:
+			fprintf(stdout, "GETDNS_DNSSEC_NOT_PERFORMED\n");
+			break;
+		default:
+			fprintf(stdout, "%d\n", (int)s);
+		}
+	}
+	if (r != GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+		return r;
+
+	return GETDNS_RETURN_GOOD;
+}
+
 void callback(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t trans_id)
 {
@@ -147,6 +205,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 		  : getdns_pretty_print_dict(response))) {
 
 			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
+			validate_chain(response);
 			free(response_str);
 		}
 		fprintf(stderr,
@@ -543,6 +602,7 @@ main(int argc, char **argv)
 
 					fprintf( stdout, "SYNC response:\n%s\n"
 					       , response_str);
+					validate_chain(response);
 					free(response_str);
 				} else {
 					r = GETDNS_RETURN_MEMORY_ERROR;
