@@ -696,7 +696,7 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	return 0;
 }
 
-static int bitmap_contains_rrtype(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
+static int bitmap_has_type(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
 {
 	uint8_t *dptr, *dend;
 	uint8_t window  = rr_type >> 8;
@@ -729,9 +729,20 @@ static int nsec_bitmap_excludes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_typ
 	    && (nsec_rr = rrtype_iter_init(&nsec_space, nsec_rrset))
 	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
 			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
-	    && !bitmap_contains_rrtype(bitmap, rr_type);
+	    && !bitmap_has_type(bitmap, rr_type);
+}
 
-	return 0;
+static int nsec_bitmap_includes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
+{
+	rrtype_iter nsec_space, *nsec_rr;
+	priv_getdns_rdf_iter bitmap_spc, *bitmap;
+
+	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
+	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
+	    && (nsec_rr = rrtype_iter_init(&nsec_space, nsec_rrset))
+	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
+			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
+	    && bitmap_has_type(bitmap, rr_type);
 }
 
 static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
@@ -794,6 +805,8 @@ static int dname_compare(uint8_t *left, uint8_t *right)
 				return 1;
 			}
 		}
+		if (rsz)
+			return -1;
 	}
 	return rlabel == last_rlabel ? 0 : -1;
 }
@@ -1022,15 +1035,24 @@ static int nsec3_find_next_closer(
 	return find_nsec_covering_name(dnskey, rrset, wc_name, NULL);
 }
 
-static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
+/* 
+ * Does a key from keyset dnskey prove the nonexistence of the (name, type)
+ * tuple in rrset?
+ *
+ * On success returns the keytag (+0x10000) of the key that signed the proof.
+ * Or else returns 0.
+ */
+static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 {
 	getdns_rrset nsec_rrset, *cover, *ce;
+	rrtype_iter nsec_space, *nsec_rr;
+	priv_getdns_rdf_iter bitmap_spc, *bitmap;
 	rrset_iter i_spc, *i;
 	uint8_t *ce_name, *nc_name;
 	uint8_t wc_name[256] = { 1, (uint8_t)'*' };
 	int keytag;
 
-	assert(dnskey->rr_type == GETDNS_RRTYPE_DNSKEY);
+	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
 
 	/* The NSEC NODATA case
 	 * ====================
@@ -1039,8 +1061,39 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 	 */
 	nsec_rrset = *rrset;
 	nsec_rrset.rr_type = GETDNS_RRTYPE_NSEC;
-	if (nsec_bitmap_excludes_rrtype(&nsec_rrset, rrset->rr_type)
-	    && (keytag = a_key_signed_rrset(dnskey, &nsec_rrset))) {
+
+	if (/* A NSEC RR exists at the owner name of rrset */
+	      (nsec_rr = rrtype_iter_init(&nsec_space, &nsec_rrset))
+
+	    /* Get the bitmap rdata field */
+	    && (bitmap = priv_getdns_rdf_iter_init_at(
+			    &bitmap_spc, &nsec_rr->rr_i, 1))
+
+	    /* At least the rr_type of rrset should be missing from it */
+	    && !bitmap_has_type(bitmap, rrset->rr_type)
+
+	    /* If the name is a CNAME, then we should have gotten the CNAME,
+	     * So no CNAME bit either.
+	     */
+	    && !bitmap_has_type(bitmap, GETDNS_RRTYPE_CNAME)
+
+	    /* In case of a DS query, make sure we have the parent side NSEC
+	     * and not the child (so no SOA).
+	     */
+	    && (    rrset->rr_type != GETDNS_RRTYPE_DS
+	        || !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
+
+	    /* If not a DS query, then make sure the NSEC does not contain NS,
+	     * or if it does, then also contains SOA, otherwise we have a parent
+	     * side delegation point NSEC where we should have gotten a child 
+	     * side NSEC!
+	     */
+	    && (    rrset->rr_type == GETDNS_RRTYPE_DS
+		|| !bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+		||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
+
+	    /* And a valid signature please */
+	    && (keytag = a_key_signed_rrset(keyset, &nsec_rrset))) {
 
 		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
 		return keytag;
@@ -1053,16 +1106,45 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
 	    ; i ; i = rrset_iter_next(i)) {
 
-		if ((cover=rrset_iter_value(i))->rr_type != GETDNS_RRTYPE_NSEC
+		cover = rrset_iter_value(i);
+		/* Now let's find out if cover is indeed the NSEC covering 
+		 * rrset's owner name.
+		 */
+		if (/* Is it an NSEC rrset? */
+		       cover->rr_type != GETDNS_RRTYPE_NSEC
+
+		    /* Does it cover the name */
 		    || !nsec_covers_name(cover, rrset->name, &ce_name)
-		    || !a_key_signed_rrset(dnskey, cover))
+
+		    /* But not a match */
+		    || priv_getdns_dname_equal(cover->name, rrset->name)
+
+		    /* Get the bitmap rdata field */
+		    || !(nsec_rr = rrtype_iter_init(&nsec_space, cover))
+		    || !(bitmap = priv_getdns_rdf_iter_init_at(
+				    &bitmap_spc, &nsec_rr->rr_i, 1))
+
+		    /* When qname is a subdomain of the NSEC owner, make
+		     * sure there is no DNAME, and no delegation point
+		     * there.
+		     */
+		    || (   is_subdomain(cover->name, rrset->name)
+		        && (   bitmap_has_type(bitmap, GETDNS_RRTYPE_DNAME)
+		            || (    bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+		                && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
+		               )
+		           )
+		       )
+
+		    /* And a valid signature please (as always) */
+		    || !a_key_signed_rrset(keyset, cover))
 			continue;
 
 		debug_sec_print_dname("Closest Encloser: ", ce_name);
 		memcpy(wc_name + 2, ce_name, _dname_len(ce_name));
 		debug_sec_print_dname("        Wildcard: ", wc_name);
 
-		return find_nsec_covering_name(dnskey, rrset, wc_name, NULL);
+		return find_nsec_covering_name(keyset, rrset, wc_name, NULL);
 	}
 
 	/* The NSEC3 NODATA case
@@ -1077,7 +1159,7 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 		    && nsec_bitmap_excludes_rrtype(ce, rrset->rr_type)
 		    && nsec_bitmap_excludes_rrtype(ce, GETDNS_RRTYPE_CNAME)
 		    && nsec3_matches_name(ce, rrset->name)
-		    && (keytag = a_key_signed_rrset(dnskey, ce))) {
+		    && (keytag = a_key_signed_rrset(keyset, ce))) {
 
 			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
 			return keytag;
@@ -1096,14 +1178,14 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 			if (   (ce = rrset_iter_value(i))->rr_type
 					!= GETDNS_RRTYPE_NSEC3
 			    || !nsec3_matches_name(ce, ce_name)
-			    || !a_key_signed_rrset(dnskey, ce))
+			    || !a_key_signed_rrset(keyset, ce))
 				continue;
 
 			debug_sec_print_rrset("Closest Encloser: ", ce);
 			debug_sec_print_dname("Closest Encloser: ", ce_name);
 			debug_sec_print_dname("     Next closer: ", nc_name);
 
-			if ((keytag = nsec3_find_next_closer(dnskey, rrset, nc_name)))
+			if ((keytag = nsec3_find_next_closer(keyset, rrset, nc_name)))
 				return keytag;
 		}
 	}
