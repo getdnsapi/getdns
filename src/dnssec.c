@@ -367,6 +367,7 @@ struct chain_head {
 	                                 * to this head.  For cleaning.  */
 	getdns_rrset        rrset;
 	getdns_network_req *netreq;
+	int                 signer;
 
 	uint8_t             name_spc[];
 };
@@ -376,9 +377,11 @@ struct chain_node {
 	
 	getdns_rrset        dnskey;
 	getdns_network_req *dnskey_req;
+	int                 dnskey_signer;
 
 	getdns_rrset        ds;
 	getdns_network_req *ds_req;
+	int                 ds_signer;
 
 	getdns_network_req *soa_req;
 
@@ -436,7 +439,7 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 
 			    && priv_getdns_dname_equal(dnskey->name, signer))
 
-				return 1;
+				return keytag;
 		}
 	}
 	return 0;
@@ -586,7 +589,7 @@ static int dnskey_signed_rrset(
 			debug_sec_print_rr("key ", &dnskey->rr_i);
 			debug_sec_print_rrset("signed ", rrset);
 
-			return 1;
+			return 0x10000 | keytag; /* in case keytag == 0 */
 		}
 	}
 	return 0;
@@ -599,31 +602,32 @@ static int a_key_signed_rrset(getdns_rrset *keyset, getdns_rrset *rrset)
 {
 	rrtype_iter dnskey_spc, *dnskey;
 	uint8_t *nc_name;
+	int keytag;
 
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
 
 	for ( dnskey = rrtype_iter_init(&dnskey_spc, keyset)
 	    ; dnskey ; dnskey = rrtype_iter_next(dnskey) ) {
 
-		if (!dnskey_signed_rrset(dnskey, rrset, &nc_name))
+		if (!(keytag = dnskey_signed_rrset(dnskey, rrset, &nc_name)))
 			continue;
 
 		if (!nc_name) /* Not a wildcard, then success! */
-			return 1;
+			return keytag;
 
 		/* Wildcard RRSIG for a NSEC on the wildcard.
 		 * There is no more specific!
 		 */
 		if (rrset->rr_type == GETDNS_RRTYPE_NSEC &&
 		    rrset->name[0] == 1 && rrset->name[1] == '*')
-			return 1;
+			return keytag;
 
 		debug_sec_print_rrset("wildcard expanded to: ", rrset);
 		debug_sec_print_dname("Find NSEC covering the more sepecific: "
 				, nc_name);
 
 		if (find_nsec_covering_name(keyset, rrset, nc_name, NULL))
-			return 1;
+			return keytag;
 	}
 	return 0;
 }
@@ -680,7 +684,7 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 
 				debug_sec_print_rrset(
 				    "keyset authenticated: ", dnskey_set);
-				return 1;
+				return 0x10000 | keytag; /* In case keytag == 0 */
 			}
 			debug_sec_print_rrset(
 			    "keyset failed authentication: ", dnskey_set);
@@ -962,6 +966,7 @@ static int find_nsec_covering_name(
 {
 	rrset_iter i_spc, *i;
 	getdns_rrset *n;
+	int keytag;
 
 	if (opt_out)
 		*opt_out = 0;
@@ -971,21 +976,21 @@ static int find_nsec_covering_name(
 
 		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
 		    && nsec3_covers_name(n, name, opt_out)
-		    && a_key_signed_rrset(dnskey, n)) {
+		    && (keytag = a_key_signed_rrset(dnskey, n))) {
 
 			debug_sec_print_rrset("NSEC3:   ", n);
 			debug_sec_print_dname("covered: ", name);
 
-			return 1;
+			return keytag;
 		}
 		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC
 		    && nsec_covers_name(n, name, NULL)
-		    && a_key_signed_rrset(dnskey, n)) {
+		    && (keytag = a_key_signed_rrset(dnskey, n))) {
 
 			debug_sec_print_rrset("NSEC:   ", n);
 			debug_sec_print_dname("covered: ", name);
 
-			return 1;
+			return keytag;
 		}
 	}
 	return 0;
@@ -995,9 +1000,9 @@ static int nsec3_find_next_closer(
     getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *nc_name)
 {
 	uint8_t wc_name[256] = { 1, (uint8_t)'*' };
-	int opt_out;
+	int opt_out, keytag;
 
-	if (!find_nsec_covering_name(dnskey, rrset, nc_name, &opt_out))
+	if (!(keytag = find_nsec_covering_name(dnskey, rrset, nc_name, &opt_out)))
 		return 0;
 
 	/* Wild card not needed on a "covering" NODATA response,
@@ -1009,7 +1014,7 @@ static int nsec3_find_next_closer(
 	 * rcode is always NOERROR.
 	 */
 	if (opt_out)
-		return 1;
+		return keytag;
 
 	nc_name += *nc_name + 1;
 	(void) memcpy(wc_name + 2, nc_name, _dname_len(nc_name));
@@ -1023,6 +1028,7 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 	rrset_iter i_spc, *i;
 	uint8_t *ce_name, *nc_name;
 	uint8_t wc_name[256] = { 1, (uint8_t)'*' };
+	int keytag;
 
 	assert(dnskey->rr_type == GETDNS_RRTYPE_DNSKEY);
 
@@ -1033,11 +1039,11 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 	 */
 	nsec_rrset = *rrset;
 	nsec_rrset.rr_type = GETDNS_RRTYPE_NSEC;
-	if (nsec_bitmap_excludes_rrtype(&nsec_rrset, rrset->rr_type) &&
-	    a_key_signed_rrset(dnskey, &nsec_rrset)) {
+	if (nsec_bitmap_excludes_rrtype(&nsec_rrset, rrset->rr_type)
+	    && (keytag = a_key_signed_rrset(dnskey, &nsec_rrset))) {
 
 		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
-		return 1;
+		return keytag;
 	}
 
 	/* The NSEC Name error case
@@ -1071,10 +1077,10 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 		    && nsec_bitmap_excludes_rrtype(ce, rrset->rr_type)
 		    && nsec_bitmap_excludes_rrtype(ce, GETDNS_RRTYPE_CNAME)
 		    && nsec3_matches_name(ce, rrset->name)
-		    && a_key_signed_rrset(dnskey, ce)) {
+		    && (keytag = a_key_signed_rrset(dnskey, ce))) {
 
 			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
-			return 1;
+			return keytag;
 		}
 	}
 	/* The NSEC3 Name error case
@@ -1097,8 +1103,8 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 			debug_sec_print_dname("Closest Encloser: ", ce_name);
 			debug_sec_print_dname("     Next closer: ", nc_name);
 
-			if (nsec3_find_next_closer(dnskey, rrset, nc_name))
-				return 1;
+			if ((keytag = nsec3_find_next_closer(dnskey, rrset, nc_name)))
+				return keytag;
 		}
 	}
 	return 0;
@@ -1107,7 +1113,7 @@ static int key_proves_nonexistance(getdns_rrset *dnskey, getdns_rrset *rrset)
 static int chain_node_get_trusted_keys(
     chain_node *node, getdns_rrset *ta, getdns_rrset **keys)
 {
-	int s;
+	int s, keytag;
 
 	/* Descend down to the root */
 	if (! node)
@@ -1115,25 +1121,31 @@ static int chain_node_get_trusted_keys(
 	
 	else if (ta->rr_type == GETDNS_RRTYPE_DS) {
 		
-		if (ds_authenticates_keys(&node->ds, &node->dnskey)) {
+		if ((keytag = ds_authenticates_keys(&node->ds, &node->dnskey))) {
 			*keys = &node->dnskey;
+			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
 
 	} else if (ta->rr_type == GETDNS_RRTYPE_DNSKEY) {
 
 		/* ta is KSK */
-		if (a_key_signed_rrset(ta, &node->dnskey)) {
+		if ((keytag = a_key_signed_rrset(ta, &node->dnskey))) {
 			*keys = &node->dnskey;
+			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
 		/* ta is ZSK */
-		if (key_proves_nonexistance(ta, &node->ds))
+		if ((keytag = key_proves_nonexistance(ta, &node->ds))) {
+			node->ds_signer = keytag;
 			return GETDNS_DNSSEC_INSECURE;
+		}
 
-		if (a_key_signed_rrset(ta, &node->ds)) {
-			if (ds_authenticates_keys(&node->ds, &node->dnskey)) {
+		if ((keytag = a_key_signed_rrset(ta, &node->ds))) {
+			node->ds_signer = keytag;
+			if ((keytag = ds_authenticates_keys(&node->ds, &node->dnskey))) {
 				*keys = &node->dnskey;
+				node->dnskey_signer = keytag;
 				return GETDNS_DNSSEC_SECURE;
 			}
 			return GETDNS_DNSSEC_BOGUS;
@@ -1148,14 +1160,17 @@ static int chain_node_get_trusted_keys(
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
 	ta = *keys;
 	/* Back up to the head */
-	if (key_proves_nonexistance(ta, &node->ds))
+	if ((keytag = key_proves_nonexistance(ta, &node->ds))) {
+		node->ds_signer = keytag;
 		return GETDNS_DNSSEC_INSECURE;
-
-	if (key_matches_signer(ta, &node->ds)) {
+	}
+	if ((keytag = key_matches_signer(ta, &node->ds))) {
+		node->ds_signer = keytag;
 		if (a_key_signed_rrset(ta, &node->ds) &&
-		    ds_authenticates_keys(&node->ds, &node->dnskey)) {
+		    (keytag = ds_authenticates_keys(&node->ds, &node->dnskey))) {
 
 			*keys = &node->dnskey;
+			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
 		return GETDNS_DNSSEC_BOGUS;
@@ -1166,23 +1181,21 @@ static int chain_node_get_trusted_keys(
 static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 {
 	getdns_rrset *keys;
-	int s;
+	int s, keytag;
 
 	if ((s = chain_node_get_trusted_keys(head->parent, ta, &keys))
 	    != GETDNS_DNSSEC_SECURE)
 			return s;
 
-	debug_sec_print_rrset("Trusted keys to evaluate head: ", &head->rrset);
-	DEBUG_SEC("rrset_has_rrs(&head->rrset) -> %d\n", rrset_has_rrs(&head->rrset));
-	DEBUG_SEC("a_key_signed_rrset(keys, &head->rrset) -> %d\n", a_key_signed_rrset(keys, &head->rrset));
-	DEBUG_SEC("(key_proves_nonexistance(keys, &head->rrset) -> %d\n", key_proves_nonexistance(keys, &head->rrset));
 	if (rrset_has_rrs(&head->rrset)) {
-		if (a_key_signed_rrset(keys, &head->rrset))
+		if ((keytag = a_key_signed_rrset(keys, &head->rrset))) {
+			head->signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
-
-	} else if (key_proves_nonexistance(keys, &head->rrset))
+		}
+	} else if ((keytag = key_proves_nonexistance(keys, &head->rrset))) {
+		head->signer = keytag;
 		return GETDNS_DNSSEC_SECURE;
-
+	}
 	return GETDNS_DNSSEC_BOGUS;
 }
 
@@ -1314,7 +1327,7 @@ static size_t count_outstanding_requests(chain_head *head)
 }
 
 static void append_rrs2val_chain_list(getdns_context *ctxt,
-    getdns_list *val_chain_list, getdns_network_req *netreq)
+    getdns_list *val_chain_list, getdns_network_req *netreq, int signer)
 {
 	rrset_iter *i, i_spc;
 	getdns_rrset *rrset;
@@ -1347,8 +1360,17 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
 		    ; rrsig; rrsig = rrsig_iter_next(rrsig)) {
 
-			if (!(rr_dict = priv_getdns_rr_iter2rr_dict(
-			    &ctxt->mf, &rrsig->rr_i)))
+			if (/* No space for keytag & signer in rrsig rdata? */
+			       rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
+
+			    /* We have a signer and it doesn't match? */
+			    || (signer &&
+			        gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+					    != (signer & 0xFFFF))
+
+			    /* Could not convert to rr_dict */
+			    || !(rr_dict = priv_getdns_rr_iter2rr_dict(
+						&ctxt->mf, &rrsig->rr_i)))
 				continue;
 
 			(void)getdns_list_append_dict(val_chain_list, rr_dict);
@@ -1400,13 +1422,16 @@ static void check_chain_complete(chain_head *chain)
 		    ; node_count--, node = node->parent ) {
 
 			if (node->dnskey_req) {
-				append_rrs2val_chain_list(context,
-				    val_chain_list, node->dnskey_req);
+				append_rrs2val_chain_list(
+				    context, val_chain_list,
+				    node->dnskey_req, node->dnskey_signer);
 				dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
-				append_rrs2val_chain_list(context,
-				    val_chain_list, node->ds_req);
+				append_rrs2val_chain_list(
+				    context, val_chain_list,
+				    node->ds_req, node->ds_signer);
+
 				dns_req_free(node->ds_req->owner);
 			}
 		}
@@ -1698,6 +1723,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->rrset.pkt = rrset->pkt;
 	head->rrset.pkt_len = rrset->pkt_len;
 	head->netreq = netreq;
+	head->signer = 0;
 	head->node_count = node_count;
 
 	if (!node_count) {
@@ -1727,6 +1753,8 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		node->ds_req          = NULL;
 		node->dnskey_req      = NULL;
 		node->soa_req         = NULL;
+		node->ds_signer       = 0;
+		node->dnskey_signer   = 0;
 
 		node->chains          = *chain_p;
 	}
