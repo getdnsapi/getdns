@@ -1840,6 +1840,16 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
 	chain_head *chain = NULL;
 
 	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
+		if (!  netreq->response
+		    || netreq->response_len < GLDNS_HEADER_SIZE
+		    || ( GLDNS_RCODE_WIRE(netreq->response)
+			 != GETDNS_RCODE_NOERROR &&
+			 GLDNS_RCODE_WIRE(netreq->response)
+			 != GETDNS_RCODE_NXDOMAIN) ) {
+
+			netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
+			continue;
+		}
 		add_pkt2val_chain( &dnsreq->my_mf, &chain
 		                 , netreq->response, netreq->response_len
 				 , netreq
@@ -1852,7 +1862,6 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
 				      , netreq
 		                      );
 	}
-
 	if (chain)
 		check_chain_complete(chain);
 	else
