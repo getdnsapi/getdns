@@ -990,13 +990,66 @@ priv_getdns_validate_dname(const char* dname) {
 } /* priv_getdns_validate_dname */
 
 
+static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
+{
+	getdns_dict *rr_dict, *q_dict, *h_dict;
+	getdns_list *section;
+	size_t i, pkt_start, ancount, nscount;
+	uint32_t qtype, qclass = GETDNS_RRCLASS_IN, rcode = GETDNS_RCODE_NOERROR;
+	getdns_bindata *qname;
+
+
+	pkt_start = gldns_buffer_position(buf);
+	/* Empty header */
+	gldns_buffer_write_u32(buf, 0);
+	gldns_buffer_write_u32(buf, 0);
+	gldns_buffer_write_u32(buf, 0);
+
+	if (   !getdns_dict_get_dict(reply, "question", &q_dict)
+	    && !getdns_dict_get_int(q_dict, "qtype", &qtype)
+	    && !getdns_dict_get_bindata(q_dict, "qname", &qname)) {
+
+		gldns_buffer_write(buf, qname->data, qname->size);
+		gldns_buffer_write_u16(buf, (uint16_t)qtype);
+		gldns_buffer_write_u16(buf, (uint16_t)qclass);
+		gldns_buffer_write_u16_at(
+		    buf, pkt_start + GLDNS_QDCOUNT_OFF, 1);
+	}
+
+	if (   !getdns_dict_get_dict(reply, "header", &h_dict)
+	    && !getdns_dict_get_int(h_dict, "rcode", &rcode)) {
+
+		GLDNS_RCODE_SET(gldns_buffer_at(buf, pkt_start), rcode);
+	}
+	if (!getdns_dict_get_list(reply, "answer", &section)) {
+		for ( i = 0, ancount = 0
+		    ; !getdns_list_get_dict(section, i, &rr_dict)
+		    ; i++ ) {
+
+			if (!priv_getdns_rr_dict2wire(rr_dict, buf))
+				ancount++;
+		}
+		gldns_buffer_write_u16_at(
+		    buf, pkt_start + GLDNS_ANCOUNT_OFF, ancount);
+	}
+	if (!getdns_dict_get_list(reply, "authority", &section)) {
+		for ( i = 0, nscount = 0
+		    ; !getdns_list_get_dict(section, i, &rr_dict)
+		    ; i++ ) {
+
+			if (!priv_getdns_rr_dict2wire(rr_dict, buf))
+				nscount++;
+		}
+		gldns_buffer_write_u16_at(
+		    buf, pkt_start + GLDNS_NSCOUNT_OFF, nscount);
+	}
+}
+
 static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 {
-	getdns_dict *rr_dict, *q_dict;
-	getdns_list *section;
-	getdns_return_t r;
-	size_t i, j, pkt_start, ancount, qdcount;
-	uint32_t qtype, qclass;
+	getdns_dict *rr_dict;
+	size_t i, pkt_start, ancount;
+	uint32_t qtype, qclass = GETDNS_RRCLASS_IN;
 	getdns_bindata *qname;
 
 	pkt_start = gldns_buffer_position(buf);
@@ -1005,25 +1058,10 @@ static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 	gldns_buffer_write_u32(buf, 0);
 	gldns_buffer_write_u32(buf, 0);
 
-	for ( i = 0, qdcount = 0
-	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
-	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+	for ( i = 0
+	    ; !getdns_list_get_dict(l, i, &rr_dict)
 	    ; i++ ) {
 
-		if (r) {
-			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
-				continue;
-			else
-				break;
-		}
-		if (getdns_dict_get_dict(rr_dict, "question", &q_dict)
-		    == GETDNS_RETURN_GOOD) {
-
-			/* rr_dict was actually a reply
-			 * with a question section/rr_dict
-			 */
-			rr_dict = q_dict;
-		}
 		if (getdns_dict_get_int(rr_dict, "qtype", &qtype) ||
 		    getdns_dict_get_bindata(rr_dict, "qname", &qname))
 			continue;
@@ -1031,68 +1069,15 @@ static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 		gldns_buffer_write(buf, qname->data, qname->size);
 		gldns_buffer_write_u16(buf, (uint16_t)qtype);
 		gldns_buffer_write_u16(buf, (uint16_t)qclass);
-		qdcount++;
+		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
+		break;
 	}
-	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, qdcount);
 	for ( i = 0, ancount = 0
-	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
-	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+	    ; !getdns_list_get_dict(l, i, &rr_dict)
 	    ; i++ ) {
 
-		if (r) {
-			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
-				continue;
-			else
-				break;
-		}
-		if (priv_getdns_rr_dict2wire(rr_dict, buf)
-		    == GETDNS_RETURN_GOOD) {
-
+		if (!priv_getdns_rr_dict2wire(rr_dict, buf))
 			ancount++;
-			continue;
-		}
-		if (getdns_dict_get_list(rr_dict, "answer", &section)
-		    == GETDNS_RETURN_GOOD) {
-
-			for ( j = 0
-			    ; (r = getdns_list_get_dict(section, j, &q_dict))
-			        != GETDNS_RETURN_NO_SUCH_LIST_ITEM
-			    ; j++ ) {
-
-				if (r) {
-					if (r ==
-					    GETDNS_RETURN_WRONG_TYPE_REQUESTED)
-						continue;
-					else
-						break;
-				}
-				if (priv_getdns_rr_dict2wire(q_dict, buf)
-				    == GETDNS_RETURN_GOOD)
-					
-					ancount++;
-			}
-		}
-		if (getdns_dict_get_list(rr_dict, "authority", &section)
-		    == GETDNS_RETURN_GOOD) {
-
-			for ( j = 0
-			    ; (r = getdns_list_get_dict(section, j, &q_dict))
-			        != GETDNS_RETURN_NO_SUCH_LIST_ITEM
-			    ; j++ ) {
-
-				if (r) {
-					if (r ==
-					    GETDNS_RETURN_WRONG_TYPE_REQUESTED)
-						continue;
-					else
-						break;
-				}
-				if (priv_getdns_rr_dict2wire(q_dict, buf)
-				    == GETDNS_RETURN_GOOD)
-					
-					ancount++;
-			}
-		}
 	}
 	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
 }
@@ -1106,14 +1091,36 @@ uint8_t *_getdns_list2wire(
 	gldns_buffer_init_frm_data(&gbuf, buf, *buf_len);
 	_getdns_list2wire_buf(&gbuf, l);
 
-	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len)
+	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len) {
+		*buf_len = sz;
 		return buf;
-
+	}
 	if (!(buf = GETDNS_XMALLOC(*mf, uint8_t, (*buf_len = sz))))
 		return NULL;
 
 	gldns_buffer_init_frm_data(&gbuf, buf, sz);
 	_getdns_list2wire_buf(&gbuf, l);
+	return buf;
+}
+
+uint8_t *_getdns_reply2wire(
+    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+{
+	gldns_buffer gbuf;
+	size_t sz;
+
+	gldns_buffer_init_frm_data(&gbuf, buf, *buf_len);
+	_getdns_reply2wire_buf(&gbuf, r);
+
+	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len) {
+		*buf_len = sz;
+		return buf;
+	}
+	if (!(buf = GETDNS_XMALLOC(*mf, uint8_t, (*buf_len = sz))))
+		return NULL;
+
+	gldns_buffer_init_frm_data(&gbuf, buf, sz);
+	_getdns_reply2wire_buf(&gbuf, r);
 	return buf;
 }
 

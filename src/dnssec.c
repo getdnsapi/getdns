@@ -1172,6 +1172,10 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 	    != GETDNS_DNSSEC_SECURE)
 			return s;
 
+	debug_sec_print_rrset("Trusted keys to evaluate head: ", &head->rrset);
+	DEBUG_SEC("rrset_has_rrs(&head->rrset) -> %d\n", rrset_has_rrs(&head->rrset));
+	DEBUG_SEC("a_key_signed_rrset(keys, &head->rrset) -> %d\n", a_key_signed_rrset(keys, &head->rrset));
+	DEBUG_SEC("(key_proves_nonexistance(keys, &head->rrset) -> %d\n", key_proves_nonexistance(keys, &head->rrset));
 	if (rrset_has_rrs(&head->rrset)) {
 		if (a_key_signed_rrset(keys, &head->rrset))
 			return GETDNS_DNSSEC_SECURE;
@@ -1214,12 +1218,15 @@ static int chain_head_validate(chain_head *head, rrset_iter *tas)
 
 static int chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 {
-	int s = GETDNS_DNSSEC_INDETERMINATE;
+	int s = GETDNS_DNSSEC_INDETERMINATE, t;
 	chain_head *head;
 
 	/* The netreq status is the worst for any head */
 	for (head = chain; head; head = head->next) {
-		switch (chain_head_validate(head, tas)) {
+		t = chain_head_validate(head, tas);
+		debug_sec_print_rrset("head ", &head->rrset);
+		DEBUG_SEC("1. validated to: %d -> %d\n", t, s);
+		switch (t) {
 		case GETDNS_DNSSEC_SECURE:
 			if (s == GETDNS_DNSSEC_INDETERMINATE)
 				s = GETDNS_DNSSEC_SECURE;
@@ -1237,6 +1244,7 @@ static int chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 		default:
 			break;
 		}
+		DEBUG_SEC("2. validated to: %d -> %d\n", t, s);
 	}
 	return s;
 }
@@ -1868,6 +1876,80 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
 		priv_getdns_call_user_callback(dnsreq,
 		    create_getdns_response(dnsreq));
 }
+static int wire_validate_dnssec(uint8_t *to_val, size_t to_val_len,
+    uint8_t *support, size_t support_len, uint8_t *tas, size_t tas_len,
+    struct mem_funcs *mf)
+{
+	chain_head *chain, *head, *next_head;
+	chain_node *node;
+
+	uint8_t qname_spc[256], *qname = NULL;
+	size_t qname_len = sizeof(qname_spc);
+	uint16_t qtype = 0, qclass = GETDNS_RRCLASS_IN;
+
+	priv_getdns_rr_iter rr_spc, *rr;
+	rrset_iter tas_iter;
+
+	int s;
+
+
+	if (to_val_len < GLDNS_HEADER_SIZE)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+#if defined(SEC_DEBUG) && SEC_DEBUG
+	char *str = gldns_wire2str_pkt(to_val, to_val_len);
+	DEBUG_SEC("to validate: %s\n", str);
+	free(str);
+#endif
+
+	if (GLDNS_RCODE_WIRE(to_val) != GETDNS_RCODE_NOERROR &&
+	    GLDNS_RCODE_WIRE(to_val) != GETDNS_RCODE_NXDOMAIN)
+		return GETDNS_DNSSEC_INSECURE;
+
+	if (GLDNS_QDCOUNT(to_val) == 0 && GLDNS_ANCOUNT(to_val) == 0)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	chain = NULL;
+	/* First create a chain (head + nodes) for each rr in the answer and
+	 * authority section of the fake to_val packet.
+	 */
+	add_pkt2val_chain(mf, &chain, to_val, to_val_len, NULL);
+
+	/* For each question in the question section add a chain head.
+	 */
+	if (   (rr = priv_getdns_rr_iter_init(&rr_spc, to_val, to_val_len))
+	    && priv_getdns_rr_iter_section(rr) == GLDNS_SECTION_QUESTION
+	    && (qname = priv_getdns_owner_if_or_as_decompressed(
+			    rr, qname_spc, &qname_len))
+	    && rr->nxt >= rr->rr_type + 4) {
+
+		qtype = gldns_read_uint16(rr->rr_type);
+		qclass = gldns_read_uint16(rr->rr_type + 2);
+
+		add_question2val_chain(mf, &chain, to_val, to_val_len,
+		    qname, qtype, qclass, NULL);
+	}
+
+	/* Now equip the nodes with the support records wireformat */
+	for (head = chain; head; head = head->next) {
+		for (node = head->parent; node; node = node->parent) {
+
+			node->dnskey.pkt = support;
+			node->dnskey.pkt_len = support_len;
+			node->ds.pkt = support;
+			node->ds.pkt_len = support_len;
+		}
+	}
+	s = chain_validate_dnssec(
+	    chain, rrset_iter_init(&tas_iter, tas, tas_len));
+
+	/* Cleanup the chain */
+	for (head = chain; head; head = next_head) {
+		next_head = head->next;
+		GETDNS_FREE(*mf, head);
+	}
+	return s;
+}
 
 /*
  * getdns_validate_dnssec
@@ -1886,18 +1968,11 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 	       support_len = sizeof(support_buf),
 	       tas_len = sizeof(tas_buf);
 
-	getdns_return_t r = GETDNS_RETURN_MEMORY_ERROR;
+	int r = GETDNS_RETURN_MEMORY_ERROR;
 	struct mem_funcs *mf;
 
-	chain_head *chain, *head;
-	chain_node *node;
-
-	uint8_t qname_spc[256], *qname = NULL;
-	size_t qname_len = sizeof(qname_spc);
-	uint16_t qtype = 0, qclass = GETDNS_RRCLASS_IN;
-
-	priv_getdns_rr_iter rr_spc, *rr;
-	rrset_iter tas_iter;
+	size_t i;
+	getdns_dict *reply;
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
 	fflush(stdout);
@@ -1909,76 +1984,62 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 
 	/* First convert everything to wire format
 	 */
-	if (!(to_val = _getdns_list2wire(records_to_validate,
-	    to_val_buf, &to_val_len, mf)))
-		return GETDNS_RETURN_MEMORY_ERROR;
-
 	if (!(support = _getdns_list2wire(support_records,
 	    support_buf, &support_len, mf)))
-		goto exit_free_to_val;
+		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if (!(tas = _getdns_list2wire(trust_anchors,
 	    tas_buf, &tas_len, mf)))
 		goto exit_free_support;
 
-	if (GLDNS_QDCOUNT(to_val) == 0 && GLDNS_ANCOUNT(to_val) == 0) {
-		r = GETDNS_RETURN_GENERIC_ERROR;
+	if (!(to_val = _getdns_list2wire(records_to_validate,
+	    to_val_buf, &to_val_len, mf)))
 		goto exit_free_tas;
-	}
 
-	chain = NULL;
-	/* First create a chain (head + nodes) for each rr in the answer and
-	 * authority section of the fake to_val packet.
-	 */
-	add_pkt2val_chain(mf, &chain, to_val, to_val_len, NULL);
+	if ((r = wire_validate_dnssec(
+	    to_val, to_val_len, support, support_len, tas, tas_len, mf)) !=
+	    GETDNS_RETURN_GENERIC_ERROR)
+		goto exit_free_to_val;
 
-	/* When records_to_validate contained replies, like the replies_tree
-	 * list in a response dict, the returned wireformat packet may contain
-	 * multiple questions in the question section.  For each reply one
-	 * question.
-	 *
-	 * For each question in the question section add a chain head.
-	 */
-	for ( rr = priv_getdns_rr_iter_init(&rr_spc, to_val, to_val_len)
-	    ; rr && priv_getdns_rr_iter_section(rr) == GLDNS_SECTION_QUESTION
-	    ; rr = priv_getdns_rr_iter_next(rr) ) {
+	for (i = 0; !getdns_list_get_dict(records_to_validate,i,&reply); i++) {
 
-		if ((qname = priv_getdns_owner_if_or_as_decompressed(
-						rr, qname_spc, &qname_len))
-		    && rr->nxt >= rr->rr_type + 4) {
+		DEBUG_SEC("REPLY %zu, r: %d\n", i, r);
+		if (to_val != to_val_buf)
+			GETDNS_FREE(*mf, to_val);
+		to_val_len = sizeof(to_val_buf);
 
-			qtype = gldns_read_uint16(rr->rr_type);
-			qclass = gldns_read_uint16(rr->rr_type + 2);
+		if (!(to_val = _getdns_reply2wire(
+		    reply, to_val_buf, &to_val_len, mf)))
+			continue;
 
-			add_question2val_chain(mf, &chain, to_val, to_val_len,
-			    qname, qtype, qclass, NULL);
+		switch (wire_validate_dnssec(
+		    to_val, to_val_len, support, support_len, tas, tas_len, mf)) {
+		case GETDNS_DNSSEC_SECURE:
+			if (r == GETDNS_RETURN_GENERIC_ERROR)
+				r = GETDNS_DNSSEC_SECURE;
+			break;
+		case GETDNS_DNSSEC_INSECURE:
+			if (r != GETDNS_DNSSEC_BOGUS)
+				r = GETDNS_DNSSEC_INSECURE;
+			break;
+		case GETDNS_DNSSEC_BOGUS:
+			r = GETDNS_DNSSEC_BOGUS;
+			break;
+		default:
+			break;
 		}
 	}
+	DEBUG_SEC("REPLY %zu, r: %d\n", i, r);
 
-	/* Now equip the nodes with the support records wireformat */
-	for (head = chain; head; head = head->next) {
-		for (node = head->parent; node; node = node->parent) {
-
-			node->dnskey.pkt = support;
-			node->dnskey.pkt_len = support_len;
-			node->ds.pkt = support;
-			node->ds.pkt_len = support_len;
-		}
-	}
-	/* Now equip the nodes with the support records wireformat */
-
-	r = (getdns_return_t)chain_validate_dnssec(
-	    chain, rrset_iter_init(&tas_iter, tas, tas_len));
-
+exit_free_to_val:
+	if (to_val != to_val_buf)
+		GETDNS_FREE(*mf, to_val);
 exit_free_tas:
 	if (tas != tas_buf)
 		GETDNS_FREE(*mf, tas);
 exit_free_support:
 	if (support != support_buf)
 		GETDNS_FREE(*mf, support);
-exit_free_to_val:
-	if (to_val != to_val_buf)
-		GETDNS_FREE(*mf, to_val);
 
 	return r;
 }

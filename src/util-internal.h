@@ -135,6 +135,9 @@ int priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
 uint8_t *_getdns_list2wire(
     getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
 
+uint8_t *_getdns_reply2wire(
+    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+
 void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
 
 
