@@ -189,8 +189,17 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
+/* Define this to enable printing of scheduling debugging messages. */
+#undef SCHED_DEBUG
+
+/* Define this to enable printing of dnssec debugging messages. */
+#undef SEC_DEBUG
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Define this to enable printing of stub debugging messages. */
+#undef STUB_DEBUG
 
 /* Define this to enable native stub DNSSEC support. */
 #undef STUB_NATIVE_DNSSEC

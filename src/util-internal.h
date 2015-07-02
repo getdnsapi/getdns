@@ -38,13 +38,10 @@
 #ifndef UTIL_INTERNAL_H
 #define UTIL_INTERNAL_H
 
+#include "config.h"
 #include "context.h"
 #include "rr-iter.h"
 
-#define SCHED_DEBUG 0
-#define WIRE_DEBUG 0
-#define STUB_DEBUG 0
-#define SEC_DEBUG 1
 
 #ifdef S_SPLINT_S
 #  define INLINE 

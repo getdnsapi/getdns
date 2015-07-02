@@ -759,6 +759,9 @@ with_gnu_ld
 with_sysroot
 enable_libtool_lock
 enable_rpath
+enable_debug_sched
+enable_debug_stub
+enable_debug_sec
 enable_tcp_fastopen
 enable_native_stub_dnssec
 with_ssl
@@ -1405,6 +1408,9 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         disable hardcoded rpath (default=enabled)
+  --enable-debug-sched    Enable scheduling debugging messages
+  --enable-debug-stub     Enable stub debugging messages
+  --enable-debug-sec      Enable dnssec debugging messages
   --enable-tcp-fastopen   Enable TCP Fast Open
   --disable-native-stub-dnssec
                           Disable native stub DNSSEC support
@@ -11710,6 +11716,55 @@ if test "x$enable_rpath" = xno; then
 fi
 
 
+# Check whether --enable-debug-sched was given.
+if test "${enable_debug_sched+set}" = set; then :
+  enableval=$enable_debug_sched;
+fi
+
+case "$enable_debug_sched" in
+	yes)
+
+cat >>confdefs.h <<_ACEOF
+#define SCHED_DEBUG 1
+_ACEOF
+
+		;;
+	no|*)
+		;;
+esac
+# Check whether --enable-debug-stub was given.
+if test "${enable_debug_stub+set}" = set; then :
+  enableval=$enable_debug_stub;
+fi
+
+case "$enable_debug_stub" in
+	yes)
+
+cat >>confdefs.h <<_ACEOF
+#define STUB_DEBUG 1
+_ACEOF
+
+		;;
+	no|*)
+		;;
+esac
+# Check whether --enable-debug-sec was given.
+if test "${enable_debug_sec+set}" = set; then :
+  enableval=$enable_debug_sec;
+fi
+
+case "$enable_debug_sec" in
+	yes)
+
+cat >>confdefs.h <<_ACEOF
+#define SEC_DEBUG 1
+_ACEOF
+
+		;;
+	no|*)
+		;;
+esac
+
 # Check whether --enable-tcp-fastopen was given.
 if test "${enable_tcp_fastopen+set}" = set; then :
   enableval=$enable_tcp_fastopen;
@@ -11736,6 +11791,18 @@ _ACEOF
 	no|*)
 		;;
 esac
+
+# Not yet enabled by default as crash found when TCP fails.
+# AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
+# 	enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
+# if test "x$enable_tcp_fastopen" = xno; then
+# 		AC_MSG_WARN([TCP Fast Open is disabled])
+# else
+# 		AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
+# 		              [AC_MSG_WARN([TCP Fast Open is not available.])], [AC_INCLUDES_DEFAULT
+# #include <sys/socket.h>
+# 		])
+# fi
 
 # Check whether --enable-native-stub-dnssec was given.
 if test "${enable_native_stub_dnssec+set}" = set; then :
