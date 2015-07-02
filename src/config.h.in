@@ -192,8 +192,7 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
-/* Define this to enable the very experimental and broken native stub DNSSEC
-   support. */
+/* Define this to enable native stub DNSSEC support. */
 #undef STUB_NATIVE_DNSSEC
 
 /* System configuration dir */

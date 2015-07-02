@@ -144,12 +144,12 @@ esac
 # 		])
 # fi
 
-AC_ARG_ENABLE(broken-native-stub-dnssec, AC_HELP_STRING([--enable-broken-native-stub-dnssec], [Enable very experimental and broken native stub DNSSEC support]))
-case "$enable_broken_native_stub_dnssec" in
-	yes)
-		AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1], [Define this to enable the very experimental and broken native stub DNSSEC support.])
+AC_ARG_ENABLE(native-stub-dnssec, AC_HELP_STRING([--disable-native-stub-dnssec], [Disable native stub DNSSEC support]))
+case "$enable_native_stub_dnssec" in
+	no)
 		;;
-	no|*)
+	yes|*)
+		AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1], [Define this to enable native stub DNSSEC support.])
 		;;
 esac
 

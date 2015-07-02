@@ -189,9 +189,8 @@ typedef struct getdns_network_req
 	/* request class */
 	uint16_t request_class;
 
-	/* result */
-	int secure;
-	int bogus;
+	/* dnssec status */
+	int dnssec_status;
 
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
@@ -232,7 +231,8 @@ typedef struct getdns_dns_req {
 	getdns_rbnode_t node;
 
 	/* name */
-	char *name;
+	uint8_t name[256];
+	size_t  name_len;
 
 	/* canceled flag */
 	int canceled;
@@ -318,6 +318,8 @@ typedef struct getdns_dns_req {
 
 
 /* utility methods */
+
+extern getdns_dict *dnssec_ok_checking_disabled;
 
 /* dns request utils */
 getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,

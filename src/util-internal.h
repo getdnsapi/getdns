@@ -44,6 +44,7 @@
 #define SCHED_DEBUG 0
 #define WIRE_DEBUG 0
 #define STUB_DEBUG 0
+#define SEC_DEBUG 1
 
 #ifdef S_SPLINT_S
 #  define INLINE 
@@ -122,7 +123,7 @@ getdns_return_t sockaddr_to_dict(struct getdns_context *context,
     struct sockaddr_storage *sockaddr, struct getdns_dict ** output);
 
 getdns_dict *
-priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i);
+priv_getdns_rr_iter2rr_dict(struct mem_funcs *mf, priv_getdns_rr_iter *i);
 
 struct getdns_dns_req;
 struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
@@ -130,7 +131,15 @@ struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_requ
 getdns_dict *priv_getdns_create_reply_dict(getdns_context *context,
     getdns_network_req *req, getdns_list *just_addrs, int *rrsigs_in_answer);
 
-getdns_return_t validate_dname(const char* dname);
+getdns_return_t priv_getdns_validate_dname(const char* dname);
+
+int priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
+
+uint8_t *_getdns_list2wire(
+    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+
+void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
+
 
 /**
  * detect unrecognized extension strings or invalid extension formats
@@ -140,7 +149,7 @@ getdns_return_t validate_dname(const char* dname);
  * @return GETDNS_RETURN_NO_SUCH_EXTENSION A name in the extensions dict is not a valid extension.
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
-getdns_return_t validate_extensions(struct getdns_dict * extensions);
+getdns_return_t priv_getdns_validate_extensions(struct getdns_dict * extensions);
 
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
@@ -168,6 +177,13 @@ getdns_return_t validate_extensions(struct getdns_dict * extensions);
 #define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if defined(SEC_DEBUG) && SEC_DEBUG
+#include <time.h>
+#define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_SEC(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 INLINE getdns_eventloop_event *getdns_eventloop_event_init(

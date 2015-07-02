@@ -74,6 +74,10 @@ struct getdns_list
 	struct mem_funcs mf;
 };
 
+inline struct getdns_list *_getdns_list_create_with_mf(struct mem_funcs *mf)
+{ return getdns_list_create_with_extended_memory_functions(
+         mf->mf_arg, mf->mf.ext.malloc, mf->mf.ext.realloc, mf->mf.ext.free); }
+
 #endif
 
 /* list.h */

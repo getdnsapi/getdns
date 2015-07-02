@@ -37,6 +37,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unbound.h>
 #include "getdns/getdns.h"
 #include "dict.h"
@@ -60,7 +61,6 @@
 static getdns_extension_format extformats[] = {
 	{"add_opt_parameters", t_dict},
 	{"add_warning_for_bad_dns", t_int},
-	{"dnssec_ok_checking_disabled", t_int},
 	{"dnssec_return_only_secure", t_int},
 	{"dnssec_return_status", t_int},
 	{"dnssec_return_validation_chain", t_int},
@@ -179,7 +179,7 @@ sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *addres
 }
 
 getdns_dict *
-priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
+priv_getdns_rr_iter2rr_dict(struct mem_funcs *mf, priv_getdns_rr_iter *i)
 {
 	getdns_dict *rr_dict, *rdata_dict;
 	getdns_bindata bindata;
@@ -192,7 +192,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	uint16_t rr_type;
 
 	assert(i);
-	if (!(rr_dict = getdns_dict_create_with_context(context)))
+	if (!(rr_dict = _getdns_dict_create_with_mf(mf)))
 		return NULL;
 
 	bindata.data = priv_getdns_owner_if_or_as_decompressed(
@@ -248,8 +248,8 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 
 		goto error;
 	}
-	if (!(rdata_dict = getdns_dict_create_with_context(context)))
-		goto error;
+	if (!(rdata_dict = _getdns_dict_create_with_mf(mf)))
+		return NULL;
 
 	if (i->rr_type + 10 <= i->nxt) {
 		bindata.size = i->nxt - (i->rr_type + 10);
@@ -330,7 +330,8 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 			/* list with rdf values */
 
 			if (! repeat_list && !(repeat_list =
-			    getdns_list_create_with_context(context)))
+			    _getdns_list_create_with_mf(mf)))
+
 				goto rdata_error;
 			
 			switch (val_type) {
@@ -357,7 +358,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 
 			if (repeat_dict) {
 				if (! repeat_list && !(repeat_list =
-				    getdns_list_create_with_context(context)))
+				    _getdns_list_create_with_mf(mf)))
 					goto rdata_error;
 	
 				if (getdns_list_append_dict(
@@ -368,7 +369,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 				repeat_dict = NULL;
 			}
 			if (!(repeat_dict =
-			    getdns_dict_create_with_context(context)))
+			    _getdns_dict_create_with_mf(mf)))
 				goto rdata_error;
 		}
 		assert(repeat_dict);
@@ -393,7 +394,7 @@ priv_getdns_rr_iter2rr_dict(getdns_context *context, priv_getdns_rr_iter *i)
 	}
 	if (repeat_dict) {
 		if (!repeat_list && !(repeat_list =
-		    getdns_list_create_with_context(context)))
+		    _getdns_list_create_with_mf(mf)))
 			goto rdata_error;
 		if (getdns_list_append_dict(repeat_list, repeat_dict))
 			goto rdata_error;
@@ -422,8 +423,8 @@ error:
 	return NULL;
 }
 
-static int
-dname_equal(uint8_t *s1, uint8_t *s2)
+int
+priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2)
 {
 	uint8_t i;
 	for (;;) {
@@ -432,7 +433,8 @@ dname_equal(uint8_t *s1, uint8_t *s2)
 		else if (!*s1)
 			return 1;
 		for (i = *s1++, s2++; i > 0; i--, s1++, s2++)
-			if ((*s1 & 0xDF) != (*s2 & 0xDF))
+			if (*s1 != *s2 && tolower((unsigned char)*s1)
+			               != tolower((unsigned char)*s2))
 				return 0;
 	}
 }
@@ -543,8 +545,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
     	if ((r = getdns_dict_set_dict(result, "header", header)))
 		goto error;
 
-	(void) gldns_str2wire_dname_buf(
-	    req->owner->name, canonical_name_space, &canonical_name_len);
+	canonical_name = req->owner->name;
 
 	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
 	                                        , req->response
@@ -553,7 +554,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
 
 		if (!set_dict(&rr_dict,
-		    priv_getdns_rr_iter2rr_dict(context, rr_iter)))
+		    priv_getdns_rr_iter2rr_dict(&context->mf, rr_iter)))
 			continue;
 
 		section = priv_getdns_rr_iter_section(rr_iter);
@@ -580,7 +581,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			owner_name = priv_getdns_owner_if_or_as_decompressed(
 			    rr_iter, owner_name_space, &owner_name_len);
-			if (!dname_equal(canonical_name, owner_name))
+			if (!priv_getdns_dname_equal(canonical_name, owner_name))
 				continue;
 
 			if (!(rdf_iter = priv_getdns_rdf_iter_init(
@@ -653,7 +654,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			owner_name = priv_getdns_owner_if_or_as_decompressed(
 			    rr_iter, owner_name_space, &owner_name_len);
-			if (!dname_equal(canonical_name, owner_name))
+			if (!priv_getdns_dname_equal(canonical_name, owner_name))
 				continue;
 
 			if (!(rdf_iter = priv_getdns_rdf_iter_init(
@@ -733,21 +734,22 @@ create_getdns_response(getdns_dns_req *completed_request)
 			continue;
 
 		nreplies++;
-		if (netreq->secure)
+		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
 			nsecure++;
-		else if (! netreq->bogus)
+		else if (! netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
 			ninsecure++;
-		if (dnssec_return_status && netreq->bogus)
+
+		if (dnssec_return_status &&
+		    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
 			nbogus++;
-		else if (GLDNS_RCODE_NOERROR ==
-		    GLDNS_RCODE_WIRE(netreq->response))
-			nanswers++;
+
 
 		if (! completed_request->dnssec_return_validation_chain) {
-			if (dnssec_return_status && netreq->bogus)
+			if (dnssec_return_status &&
+			    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
 				continue;
 			else if (completed_request->dnssec_return_only_secure
-			    && ! netreq->secure)
+			    && netreq->dnssec_status != GETDNS_DNSSEC_SECURE)
 				continue;
 		}
     		if (!(reply = priv_getdns_create_reply_dict(context,
@@ -762,15 +764,18 @@ create_getdns_response(getdns_dns_req *completed_request)
 			    result, "canonical_name", canonical_name))
 				goto error;
 		}
+		/* TODO: Check instead if canonical_name for request_type
+		 *       is in the answer section.
+		 */
+		if (GLDNS_RCODE_NOERROR ==
+		    GLDNS_RCODE_WIRE(netreq->response))
+			nanswers++;
+
 		if (dnssec_return_status ||
 		    completed_request->dnssec_return_validation_chain) {
 
 			if (getdns_dict_set_int(reply, "dnssec_status",
-			    ( netreq->secure   ? GETDNS_DNSSEC_SECURE
-			    : netreq->bogus    ? GETDNS_DNSSEC_BOGUS
-			    : rrsigs_in_answer &&
-			      context->has_ta  ? GETDNS_DNSSEC_INDETERMINATE
-					       : GETDNS_DNSSEC_INSECURE )))
+			    netreq->dnssec_status))
 				goto error;
 		}
 
@@ -830,7 +835,7 @@ extformatcmp(const void *a, const void *b)
 
 /*---------------------------------------- validate_extensions */
 getdns_return_t
-validate_extensions(struct getdns_dict * extensions)
+priv_getdns_validate_extensions(struct getdns_dict * extensions)
 {
 	struct getdns_dict_item *item;
 	getdns_extension_format *extformat;
@@ -852,16 +857,18 @@ validate_extensions(struct getdns_dict * extensions)
 				return GETDNS_RETURN_EXTENSION_MISFORMAT;
 		}
 	return GETDNS_RETURN_GOOD;
-}				/* validate_extensions */
+}				/* priv_getdns_validate_extensions */
 
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res)
 {
-	size_t dname_len;
-
-	netreq->secure = ub_res->secure;
-	netreq->bogus  = ub_res->bogus;
+	if (ub_res->bogus)
+		netreq->dnssec_status = GETDNS_DNSSEC_BOGUS;
+	else if (ub_res->secure)
+		netreq->dnssec_status = GETDNS_DNSSEC_SECURE;
+	else if (netreq->owner->context->trust_anchors)
+		netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
 
 	if (ub_res == NULL) /* Timeout */
 		return GETDNS_RETURN_GOOD;
@@ -900,24 +907,24 @@ getdns_apply_network_result(getdns_network_req* netreq,
 	GLDNS_RA_SET(netreq->response);
 	GLDNS_RCODE_SET(netreq->response, ub_res->rcode);
 
-	dname_len = netreq->max_udp_payload_size - GLDNS_HEADER_SIZE;
-	if (gldns_str2wire_dname_buf(netreq->owner->name,
-	    netreq->response + GLDNS_HEADER_SIZE, &dname_len))
-		return GETDNS_RETURN_GENERIC_ERROR;
+	(void) memcpy( netreq->response + GLDNS_HEADER_SIZE
+	             , netreq->owner->name, netreq->owner->name_len);
 
-	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE + dname_len
+	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE
+	                                     + netreq->owner->name_len
 	                  , netreq->request_type);
-	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE + dname_len + 2
+	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE
+	                                     + netreq->owner->name_len + 2
 	                  , netreq->request_class);
 
-	netreq->response_len = GLDNS_HEADER_SIZE + dname_len + 4;
+	netreq->response_len = GLDNS_HEADER_SIZE + netreq->owner->name_len + 4;
 
 	return GETDNS_RETURN_GOOD;
 }
 
 
 getdns_return_t
-validate_dname(const char* dname) {
+priv_getdns_validate_dname(const char* dname) {
     int len;
     int label_len;
     const char* s;
@@ -980,7 +987,150 @@ validate_dname(const char* dname) {
         return GETDNS_RETURN_BAD_DOMAIN_NAME;
     }
     return GETDNS_RETURN_GOOD;
-} /* validate_dname */
+} /* priv_getdns_validate_dname */
 
+
+static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
+{
+	getdns_dict *rr_dict, *q_dict;
+	getdns_list *section;
+	getdns_return_t r;
+	size_t i, j, pkt_start, ancount, qdcount;
+	uint32_t qtype, qclass;
+	getdns_bindata *qname;
+
+	pkt_start = gldns_buffer_position(buf);
+	/* Empty header */
+	gldns_buffer_write_u32(buf, 0);
+	gldns_buffer_write_u32(buf, 0);
+	gldns_buffer_write_u32(buf, 0);
+
+	for ( i = 0, qdcount = 0
+	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
+	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+	    ; i++ ) {
+
+		if (r) {
+			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
+				continue;
+			else
+				break;
+		}
+		if (getdns_dict_get_dict(rr_dict, "question", &q_dict)
+		    == GETDNS_RETURN_GOOD) {
+
+			/* rr_dict was actually a reply
+			 * with a question section/rr_dict
+			 */
+			rr_dict = q_dict;
+		}
+		if (getdns_dict_get_int(rr_dict, "qtype", &qtype) ||
+		    getdns_dict_get_bindata(rr_dict, "qname", &qname))
+			continue;
+		(void) getdns_dict_get_int(rr_dict, "qclass", &qclass);
+		gldns_buffer_write(buf, qname->data, qname->size);
+		gldns_buffer_write_u16(buf, (uint16_t)qtype);
+		gldns_buffer_write_u16(buf, (uint16_t)qclass);
+		qdcount++;
+	}
+	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, qdcount);
+	for ( i = 0, ancount = 0
+	    ; (r = getdns_list_get_dict(l, i, &rr_dict))
+	          != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+	    ; i++ ) {
+
+		if (r) {
+			if (r == GETDNS_RETURN_WRONG_TYPE_REQUESTED)
+				continue;
+			else
+				break;
+		}
+		if (priv_getdns_rr_dict2wire(rr_dict, buf)
+		    == GETDNS_RETURN_GOOD) {
+
+			ancount++;
+			continue;
+		}
+		if (getdns_dict_get_list(rr_dict, "answer", &section)
+		    == GETDNS_RETURN_GOOD) {
+
+			for ( j = 0
+			    ; (r = getdns_list_get_dict(section, j, &q_dict))
+			        != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+			    ; j++ ) {
+
+				if (r) {
+					if (r ==
+					    GETDNS_RETURN_WRONG_TYPE_REQUESTED)
+						continue;
+					else
+						break;
+				}
+				if (priv_getdns_rr_dict2wire(q_dict, buf)
+				    == GETDNS_RETURN_GOOD)
+					
+					ancount++;
+			}
+		}
+		if (getdns_dict_get_list(rr_dict, "authority", &section)
+		    == GETDNS_RETURN_GOOD) {
+
+			for ( j = 0
+			    ; (r = getdns_list_get_dict(section, j, &q_dict))
+			        != GETDNS_RETURN_NO_SUCH_LIST_ITEM
+			    ; j++ ) {
+
+				if (r) {
+					if (r ==
+					    GETDNS_RETURN_WRONG_TYPE_REQUESTED)
+						continue;
+					else
+						break;
+				}
+				if (priv_getdns_rr_dict2wire(q_dict, buf)
+				    == GETDNS_RETURN_GOOD)
+					
+					ancount++;
+			}
+		}
+	}
+	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
+}
+
+uint8_t *_getdns_list2wire(
+    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+{
+	gldns_buffer gbuf;
+	size_t sz;
+
+	gldns_buffer_init_frm_data(&gbuf, buf, *buf_len);
+	_getdns_list2wire_buf(&gbuf, l);
+
+	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len)
+		return buf;
+
+	if (!(buf = GETDNS_XMALLOC(*mf, uint8_t, (*buf_len = sz))))
+		return NULL;
+
+	gldns_buffer_init_frm_data(&gbuf, buf, sz);
+	_getdns_list2wire_buf(&gbuf, l);
+	return buf;
+}
+
+void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
+{
+	priv_getdns_rr_iter rr_spc, *rr;
+	getdns_dict *rr_dict;
+
+	for ( rr = priv_getdns_rr_iter_init(&rr_spc, pkt, pkt_len)
+	    ; rr ; rr = priv_getdns_rr_iter_next(rr)) {
+
+		if (!(rr_dict = priv_getdns_rr_iter2rr_dict(&l->mf, rr)))
+			continue;
+
+		(void)getdns_list_append_dict(l, rr_dict);
+		getdns_dict_destroy(rr_dict);
+	}
+}
 
 /* util-internal.c */

@@ -31,6 +31,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <openssl/err.h>
 #include "config.h"
 #include <fcntl.h>
 #include "stub.h"
@@ -40,7 +41,6 @@
 #include "gldns/str2wire.h"
 #include "rr-iter.h"
 #include "context.h"
-#include <ldns/util.h>
 #include "util-internal.h"
 #include "general.h"
 
@@ -274,31 +274,16 @@ create_starttls_request(getdns_dns_req *dnsreq, getdns_upstream *upstream,
 }
 
 static int
-dname_equal(uint8_t *s1, uint8_t *s2)
-{
-	uint8_t i;
-	for (;;) {
-		if (*s1 != *s2)
-			return 0;
-		else if (!*s1)
-			return 1;
-		for (i = *s1++, s2++; i > 0; i--, s1++, s2++)
-			if ((*s1 & 0xDF) != (*s2 & 0xDF))
-				return 0;
-	}
-}
-
-static int
 is_starttls_response(getdns_network_req *netreq) 
 {
 	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
 	priv_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
 	uint16_t rr_type;
 	gldns_pkt_section section;
-	uint8_t starttls_name_space[256],
-	       *starttls_name = starttls_name_space;
+	uint8_t starttls_name_space[256], *starttls_name;
 	uint8_t owner_name_space[256], *owner_name;
-	size_t starttls_name_len = 256, owner_name_len;
+	size_t starttls_name_len = sizeof(starttls_name_space);
+	size_t owner_name_len = sizeof(owner_name_space);;
 
 	/* Servers that are not STARTTLS aware will refuse the CH query*/
 	if (GLDNS_RCODE_NOERROR != GLDNS_RCODE_WIRE(netreq->response))
@@ -306,9 +291,6 @@ is_starttls_response(getdns_network_req *netreq)
 
 	if (GLDNS_ANCOUNT(netreq->response) != 1)
 		return 0;
-
-	(void) gldns_str2wire_dname_buf(
-	    netreq->owner->name, starttls_name_space, &starttls_name_len);
 
 	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
 	                                        , netreq->response
@@ -318,25 +300,25 @@ is_starttls_response(getdns_network_req *netreq)
 
 		section = priv_getdns_rr_iter_section(rr_iter);
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
-		if (section != GLDNS_SECTION_ANSWER || rr_type != GETDNS_RRTYPE_TXT)
+		if (section != GLDNS_SECTION_ANSWER
+		    || rr_type != GETDNS_RRTYPE_TXT)
 			continue;
 
 		owner_name = priv_getdns_owner_if_or_as_decompressed(
 		    rr_iter, owner_name_space, &owner_name_len);
-		if (!dname_equal(starttls_name, owner_name))
+		if (!priv_getdns_dname_equal(netreq->owner->name, owner_name))
 			continue;
 
 		if (!(rdf_iter = priv_getdns_rdf_iter_init(
 		     &rdf_iter_storage, rr_iter)))
 			continue;
-		/* re-use the starttls_name for the response dname*/
-		starttls_name = priv_getdns_rdf_if_or_as_decompressed(
-		    rdf_iter,starttls_name_space,&starttls_name_len);
-		if (dname_equal(starttls_name, owner_name)) 
+
+		if ((starttls_name = priv_getdns_rdf_if_or_as_decompressed(
+		    rdf_iter, starttls_name_space, &starttls_name_len)) &&
+		    priv_getdns_dname_equal(starttls_name, owner_name)) 
 			return 1;
-		else
-			return 0;
-		continue;
+
+		return 0;
 	}
 	return 0;
 }
@@ -1144,10 +1126,6 @@ stub_udp_read_cb(void *userarg)
 	}
 	netreq->response_len = read;
 	dnsreq->upstreams->current = 0;
-
-	/* TODO: DNSSEC */
-	netreq->secure = 0;
-	netreq->bogus  = 0;
 done:
 	netreq->state = NET_REQ_FINISHED;
 	priv_getdns_check_dns_req_complete(dnsreq);
@@ -1226,10 +1204,6 @@ stub_tcp_read_cb(void *userarg)
 		    netreq->tcp.read_pos - netreq->tcp.read_buf;
 		netreq->tcp.read_buf = NULL;
 		dnsreq->upstreams->current = 0;
-
-		/* TODO: DNSSEC */
-		netreq->secure = 0;
-		netreq->bogus  = 0;
 
 		stub_cleanup(netreq);
 		close(netreq->fd);
@@ -1316,10 +1290,6 @@ upstream_read_cb(void *userarg)
 		/* TODO[TLS]: I don't think we should do this for TCP. We should stay
 		 * on a working connection until we hit a problem.*/
 		upstream->upstreams->current = 0;
-
-		/* TODO: DNSSEC */
-		netreq->secure = 0;
-		netreq->bogus  = 0;
 
 		if (netreq->owner == upstream->starttls_req) {
 			dnsreq = netreq->owner;
