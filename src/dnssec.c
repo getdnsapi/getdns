@@ -513,8 +513,7 @@ static int _getdns_verify_rrsig(
 		return 1;
 
 	/* This is a valid wildcard expansion.  Calculate and return the 
-	 * "Next closer" name, because we need another NSEC to cover it
-	 * for wildcards to hold...xi
+	 * "Next closer" name, because we need another NSEC to cover it.
 	 * (except for rrsigs for NSECs, but those are dealt with later)
 	 */
 	to_skip = _dname_label_count(rrset->name)
@@ -721,12 +720,12 @@ static int bitmap_has_type(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
 
 static int nsec_bitmap_excludes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
 {
-	rrtype_iter nsec_space, *nsec_rr;
+	rrtype_iter nsec_spc, *nsec_rr;
 	priv_getdns_rdf_iter bitmap_spc, *bitmap;
 
 	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
 	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
-	    && (nsec_rr = rrtype_iter_init(&nsec_space, nsec_rrset))
+	    && (nsec_rr = rrtype_iter_init(&nsec_spc, nsec_rrset))
 	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
 			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
 	    && !bitmap_has_type(bitmap, rr_type);
@@ -734,12 +733,12 @@ static int nsec_bitmap_excludes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_typ
 
 static int nsec_bitmap_includes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
 {
-	rrtype_iter nsec_space, *nsec_rr;
+	rrtype_iter nsec_spc, *nsec_rr;
 	priv_getdns_rdf_iter bitmap_spc, *bitmap;
 
 	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
 	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
-	    && (nsec_rr = rrtype_iter_init(&nsec_space, nsec_rrset))
+	    && (nsec_rr = rrtype_iter_init(&nsec_spc, nsec_rrset))
 	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
 			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
 	    && bitmap_has_type(bitmap, rr_type);
@@ -823,7 +822,8 @@ static int nsec_covers_name(
 	int nsec_cmp;
 	uint8_t *common1, *common2;
 
-	if (   !(rr = rrtype_iter_init(&rr_spc, nsec))
+	if (/* Get owner and next, nicely decompressed */
+	       !(rr = rrtype_iter_init(&rr_spc, nsec))
 	    || !(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i))
 	    || !(owner = priv_getdns_owner_if_or_as_decompressed(
 			    &rr->rr_i, owner_spc, &owner_len))
@@ -845,16 +845,24 @@ static int nsec_covers_name(
 
 	nsec_cmp = dname_compare(owner, next);
 	if (nsec_cmp < 0) {
-		DEBUG_SEC("nsec owner < next\n");
+		/* Regular NSEC */
 		return dname_compare(name, owner) >= 0
 		    && dname_compare(name, next)  <  0;
+
 	} else if (nsec_cmp > 0) {
-		/* The wrap around nsec */
-		DEBUG_SEC("nsec owner > next\n");
-		return dname_compare(name, owner) >= 0;
+		/* The wrap around nsec.  So NSEC->nxt == zone.name.
+		 * qname must be a subdomain of that.
+		 */
+		return dname_compare(name, owner) >= 0
+		    && is_subdomain(next, name) && dname_compare(next, name);
+
 	} else {
-		DEBUG_SEC("nsec owner == next\n");
-		return 1;
+		/* This nsec is the only nsec.
+		 * zone.name NSEC zone.name, disproves everything else,
+		 * but only for subdomains of that zone.
+		 * (also no zone.name == qname of course)
+		 */
+		return is_subdomain(owner, name) && dname_compare(owner, name);
 	}
 }
 
@@ -979,6 +987,8 @@ static int find_nsec_covering_name(
 {
 	rrset_iter i_spc, *i;
 	getdns_rrset *n;
+	rrtype_iter nsec_spc, *nsec_rr;
+	priv_getdns_rdf_iter bitmap_spc, *bitmap;
 	int keytag;
 
 	if (opt_out)
@@ -998,6 +1008,38 @@ static int find_nsec_covering_name(
 		}
 		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC
 		    && nsec_covers_name(n, name, NULL)
+
+		    /* Get the bitmap rdata field */
+		    && (nsec_rr = rrtype_iter_init(&nsec_spc, n))
+		    && (bitmap = priv_getdns_rdf_iter_init_at(
+				    &bitmap_spc, &nsec_rr->rr_i, 1))
+
+		    /* NSEC should cover, but not match name...
+		     * Unless it is wildcard match, but then we have to check
+		     * that rrset->rr_type is not enlisted, because otherwise
+		     * it should have matched the wildcard.
+		     * 
+		     * Also no CNAME... cause that should have matched too.
+		     */
+		    && (    !priv_getdns_dname_equal(n->name, name)
+		        || (   name[0] == 1 && name[1] == (uint8_t)'*'
+		            && !bitmap_has_type(bitmap, rrset->rr_type)
+		            && !bitmap_has_type(bitmap, GETDNS_RRTYPE_CNAME)
+		           )
+		       )
+
+		    /* When qname is a subdomain of the NSEC owner, make
+		     * sure there is no DNAME, and no delegation point
+		     * there.
+		     */
+		    && (   !is_subdomain(n->name, name)
+		        || (   !bitmap_has_type(bitmap, GETDNS_RRTYPE_DNAME)
+		            && (   !bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+		                ||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
+		               )
+		           )
+		       )
+
 		    && (keytag = a_key_signed_rrset(dnskey, n))) {
 
 			debug_sec_print_rrset("NSEC:   ", n);
@@ -1045,7 +1087,7 @@ static int nsec3_find_next_closer(
 static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 {
 	getdns_rrset nsec_rrset, *cover, *ce;
-	rrtype_iter nsec_space, *nsec_rr;
+	rrtype_iter nsec_spc, *nsec_rr;
 	priv_getdns_rdf_iter bitmap_spc, *bitmap;
 	rrset_iter i_spc, *i;
 	uint8_t *ce_name, *nc_name;
@@ -1063,7 +1105,7 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 	nsec_rrset.rr_type = GETDNS_RRTYPE_NSEC;
 
 	if (/* A NSEC RR exists at the owner name of rrset */
-	      (nsec_rr = rrtype_iter_init(&nsec_space, &nsec_rrset))
+	      (nsec_rr = rrtype_iter_init(&nsec_spc, &nsec_rrset))
 
 	    /* Get the bitmap rdata field */
 	    && (bitmap = priv_getdns_rdf_iter_init_at(
@@ -1098,6 +1140,21 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
 		return keytag;
 	}
+	/* More NSEC NODATA cases
+	 * ======================
+	 * There are a few NSEC NODATA cases where qname doesn't match
+	 * NSEC->name:
+	 *
+	 * - An empty non terminal (ENT) will result in a NSEC covering the
+	 *   qname, where qname > NSEC->name and ce(qname) is a subdomain
+	 *   of NXT.  This case is handled below after the covering NSEC is
+	 *   found.
+	 *
+	 * - Or a wildcard match without the type.  The wildcard owner name
+	 *   match has special handing in the find_nsec_covering_name function.
+	 *   We still expect a NSEC covering the name though.  For names with 
+	 *   label < '*' there will thus be two NSECs.  (is this true?)
+	 */
 
 	/* The NSEC Name error case
 	 * ========================
@@ -1107,20 +1164,18 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 	    ; i ; i = rrset_iter_next(i)) {
 
 		cover = rrset_iter_value(i);
-		/* Now let's find out if cover is indeed the NSEC covering 
-		 * rrset's owner name.
-		 */
-		if (/* Is it an NSEC rrset? */
+
+		if (/* Is cover an NSEC rrset? */
 		       cover->rr_type != GETDNS_RRTYPE_NSEC
 
 		    /* Does it cover the name */
 		    || !nsec_covers_name(cover, rrset->name, &ce_name)
 
-		    /* But not a match */
+		    /* But not a match (because that would be NODATA case) */
 		    || priv_getdns_dname_equal(cover->name, rrset->name)
 
 		    /* Get the bitmap rdata field */
-		    || !(nsec_rr = rrtype_iter_init(&nsec_space, cover))
+		    || !(nsec_rr = rrtype_iter_init(&nsec_spc, cover))
 		    || !(bitmap = priv_getdns_rdf_iter_init_at(
 				    &bitmap_spc, &nsec_rr->rr_i, 1))
 
@@ -1137,8 +1192,25 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 		       )
 
 		    /* And a valid signature please (as always) */
-		    || !a_key_signed_rrset(keyset, cover))
+		    || !(keytag = a_key_signed_rrset(keyset, cover)))
 			continue;
+
+		/* We could have found a NSEC covering an Empty Non Terminal.
+		 * In that case no NSEC covering the wildcard is needed.
+		 * Because it was actually a NODATA proof.
+		 *
+		 * Empty NON terminals can be identified, by
+		 * qname > NSEC->name && NSEC->nxt is subdomain of qname.
+		 *
+		 * nsec_covers_name() will set ce_name to qname when NSEC->nxt
+		 * is a subdomain of qname.
+		 */
+		if (   dname_compare(rrset->name, cover->name) > 0
+		    && dname_compare(rrset->name, ce_name) == 0) {
+
+			debug_sec_print_dname("Empty Non Terminal: ", ce_name);
+			return keytag;
+		}
 
 		debug_sec_print_dname("Closest Encloser: ", ce_name);
 		memcpy(wc_name + 2, ce_name, _dname_len(ce_name));
