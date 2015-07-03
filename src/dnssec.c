@@ -1921,6 +1921,84 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	return head;
 }
 
+static int is_synthesized_cname(getdns_rrset *cname)
+{
+	rrset_iter *i, i_spc;
+	getdns_rrset *dname;
+	rrtype_iter rr_spc, *rr;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	rrtype_iter drr_spc, *drr;
+	priv_getdns_rdf_iter drdf_spc, *drdf;
+	uint8_t cname_rdata_spc[256], *cname_rdata,
+	        dname_rdata_spc[256], *dname_rdata,
+		synth_name[256],
+	       *synth_name_end = synth_name + sizeof(synth_name), *s, *c;
+	size_t cname_rdata_len = sizeof(cname_rdata_spc),
+	       dname_rdata_len = sizeof(dname_rdata_len),
+	       cname_labels, dname_labels;
+
+	/* Synthesized CNAMEs don't have RRSIGs */
+	if (   cname->rr_type != GETDNS_RRTYPE_CNAME
+	    || rrset_has_rrsigs(cname))
+		return 0;
+
+	/* Get canonical name rdata field */
+	if (   !(rr = rrtype_iter_init(&rr_spc, cname))
+	    || !(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i))
+	    || !(cname_rdata = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, cname_rdata_spc, &cname_rdata_len)))
+		return 0;
+
+	/* Find a matching DNAME */
+	for ( i = rrset_iter_init(&i_spc, cname->pkt, cname->pkt_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
+		dname = rrset_iter_value(i);
+		if (   dname->rr_type != GETDNS_RRTYPE_DNAME
+		    /* DNAME->owner is parent of CNAME->owner */
+		    || !is_subdomain(dname->name, cname->name))
+			continue;
+
+
+		dname_labels = _dname_label_count(dname->name);
+		cname_labels = _dname_label_count(cname->name);
+
+		/* Synthesize the canonical name.
+		 * First copy labels(cname) - labels(dname) labels from 
+		 * CNAME's owner name, then append DNAME rdata field.
+		 * If it matches CNAME's rdata field then it was synthesized
+		 * with this DNAME.
+		 */
+		cname_labels -= dname_labels;
+		for ( c = cname->name, s = synth_name
+		    ; cname_labels && s +  *c + 1 < synth_name_end
+		    ; cname_labels--, c += *c + 1, s += *s + 1 ) {
+
+			memcpy(s, c, *c + 1);
+		}
+		if (cname_labels)
+			continue;
+
+		/* Get DNAME's rdata field */
+		if (   !(drr = rrtype_iter_init(&drr_spc, dname))
+		    || !(drdf=priv_getdns_rdf_iter_init(&drdf_spc,&drr->rr_i))
+		    || !(dname_rdata = priv_getdns_rdf_if_or_as_decompressed(
+				    drdf, dname_rdata_spc, &dname_rdata_len)))
+			continue;
+
+		if (s + _dname_len(dname_rdata) > synth_name_end)
+			continue;
+
+		memcpy(s, dname_rdata, _dname_len(dname_rdata));
+		debug_sec_print_dname("Synthesized name: ", synth_name);
+		debug_sec_print_dname("  Canonical name: ", cname_rdata);
+		if (priv_getdns_dname_equal(synth_name, cname_rdata))
+			return 1;
+	}
+	return 0;
+}
+
 /* Create the validation chain structure for the given packet.
  * When netreq is set, queries will be scheduled for the DS
  * and DNSKEY RR's for the nodes on the validation chain.
@@ -1949,6 +2027,12 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		rrset = rrset_iter_value(i);
 		debug_sec_print_rrset("rrset: ", rrset);
 
+		/* Schedule validation for everything, except from DNAME
+		 * synthesized CNAME's 
+		 */
+		if (is_synthesized_cname(rrset))
+			continue;
+
 		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
 			continue;
 
@@ -1963,7 +2047,7 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 
 		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
 			val_chain_sched(head, rrset->name);
-		else if (rrset->rr_type == GETDNS_RRTYPE_CNAME)
+		else if (rrset->rr_type != GETDNS_RRTYPE_CNAME)
 			val_chain_sched_soa(head, rrset->name + *rrset->name + 1);
 		else
 			val_chain_sched_soa(head, rrset->name);
