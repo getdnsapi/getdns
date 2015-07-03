@@ -726,9 +726,15 @@ static int nsec_bitmap_excludes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_typ
 	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
 	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
 	    && (nsec_rr = rrtype_iter_init(&nsec_spc, nsec_rrset))
-	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
-			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
-	    && !bitmap_has_type(bitmap, rr_type);
+
+	    /* On empty non terminals there might not be a bitmap
+	     * since that means rrtype is excluded, we must return true then
+	     */
+	    && (   !(bitmap = priv_getdns_rdf_iter_init_at(
+			    &bitmap_spc, &nsec_rr->rr_i,
+			    nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
+	        || !bitmap_has_type(bitmap, rr_type)
+	       );
 }
 
 static int nsec_bitmap_includes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
