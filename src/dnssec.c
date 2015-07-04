@@ -716,38 +716,6 @@ static int bitmap_has_type(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
 	return 0;
 }
 
-static int nsec_bitmap_excludes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
-{
-	rrtype_iter nsec_spc, *nsec_rr;
-	priv_getdns_rdf_iter bitmap_spc, *bitmap;
-
-	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
-	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
-	    && (nsec_rr = rrtype_iter_init(&nsec_spc, nsec_rrset))
-
-	    /* On empty non terminals there might not be a bitmap
-	     * since that means rrtype is excluded, we must return true then
-	     */
-	    && (   !(bitmap = priv_getdns_rdf_iter_init_at(
-			    &bitmap_spc, &nsec_rr->rr_i,
-			    nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
-	        || !bitmap_has_type(bitmap, rr_type)
-	       );
-}
-
-static int nsec_bitmap_includes_rrtype(getdns_rrset *nsec_rrset, uint16_t rr_type)
-{
-	rrtype_iter nsec_spc, *nsec_rr;
-	priv_getdns_rdf_iter bitmap_spc, *bitmap;
-
-	return (nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ||
-	        nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC3 )
-	    && (nsec_rr = rrtype_iter_init(&nsec_spc, nsec_rrset))
-	    && (bitmap = priv_getdns_rdf_iter_init_at(&bitmap_spc, &nsec_rr->rr_i,
-			nsec_rrset->rr_type == GETDNS_RRTYPE_NSEC ? 1: 5))
-	    && bitmap_has_type(bitmap, rr_type);
-}
-
 static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
 {
 	if (*dname)
@@ -849,7 +817,10 @@ static int nsec_covers_name(
 
 	nsec_cmp = dname_compare(owner, next);
 	if (nsec_cmp < 0) {
-		/* Regular NSEC */
+		/* Regular NSEC 
+		 * >= so it can match the wildcard
+		 * (for wildcard NODATA proofs).
+		 */
 		return dname_compare(name, owner) >= 0
 		    && dname_compare(name, next)  <  0;
 
@@ -947,6 +918,7 @@ static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name, int *opt_out)
 
 	if (!name2nsec3_label(nsec3, name, label, sizeof(label)-1))
 		return 0;
+
 	label[label[0]+1] = 0;
 
 	if (   !(rr = rrtype_iter_init(&rr_spc, nsec3))
@@ -972,17 +944,18 @@ static int nsec3_covers_name(getdns_rrset *nsec3, uint8_t *name, int *opt_out)
 	debug_sec_print_dname("      and: ", next);
 
 	nsec_cmp = dname_compare(owner, next);
-	if (nsec_cmp < 0) {
-		DEBUG_SEC("nsec owner < next\n");
+	if (nsec_cmp >= 0) {
+		/* The wrap around and apex-only nsec case */
+		return dname_compare(label, owner) > 0
+		    || dname_compare(label, next) < 0;
+	} else {
+		assert(nsec_cmp < 0);
+		/* The normal case
+		 * >= so it can match the wildcard
+		 * (for wildcard NODATA proofs).
+		 */
 		return dname_compare(label, owner) >= 0
 		    && dname_compare(label, next)  <  0;
-	} else if (nsec_cmp > 0) {
-		/* The wrap around nsec */
-		DEBUG_SEC("nsec owner > next\n");
-		return dname_compare(label, owner) >= 0;
-	} else {
-		DEBUG_SEC("nsec owner == next\n");
-		return 1;
 	}
 }
 
@@ -1003,6 +976,26 @@ static int find_nsec_covering_name(
 
 		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
 		    && nsec3_covers_name(n, name, opt_out)
+
+		    /* Get the bitmap rdata field */
+		    && (nsec_rr = rrtype_iter_init(&nsec_spc, n))
+		    && (bitmap = priv_getdns_rdf_iter_init_at(
+				    &bitmap_spc, &nsec_rr->rr_i, 5))
+
+		    /* NSEC should cover, but not match name...
+		     * Unless it is wildcard match, but then we have to check
+		     * that rrset->rr_type is not enlisted, because otherwise
+		     * it should have matched the wildcard.
+		     * 
+		     * Also no CNAME... cause that should have matched too.
+		     */
+		    && (    !nsec3_matches_name(n, name)
+		        || (   name[0] == 1 && name[1] == (uint8_t)'*'
+		            && !bitmap_has_type(bitmap, rrset->rr_type)
+		            && !bitmap_has_type(bitmap, GETDNS_RRTYPE_CNAME)
+		           )
+		       )
+
 		    && (keytag = a_key_signed_rrset(dnskey, n))) {
 
 			debug_sec_print_rrset("NSEC3:   ", n);
@@ -1056,13 +1049,20 @@ static int find_nsec_covering_name(
 }
 
 static int nsec3_find_next_closer(
-    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *nc_name)
+    getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *nc_name, int *opt_out)
 {
 	uint8_t wc_name[256] = { 1, (uint8_t)'*' };
-	int opt_out, keytag;
+	int my_opt_out, keytag;
 
-	if (!(keytag = find_nsec_covering_name(dnskey, rrset, nc_name, &opt_out)))
+	if (opt_out)
+		*opt_out = 0;
+
+	if (!(keytag = find_nsec_covering_name(
+	    dnskey, rrset, nc_name, &my_opt_out)))
 		return 0;
+
+	if (opt_out)
+		*opt_out = my_opt_out;
 
 	/* Wild card not needed on a "covering" NODATA response,
 	 * because of opt-out?
@@ -1072,13 +1072,13 @@ static int nsec3_find_next_closer(
 	 * (if we came here via getdns_validate_dnssec) in which case
 	 * rcode is always NOERROR.
 	 */
-	if (opt_out)
+	if (my_opt_out)
 		return keytag;
 
 	nc_name += *nc_name + 1;
 	(void) memcpy(wc_name + 2, nc_name, _dname_len(nc_name));
 
-	return find_nsec_covering_name(dnskey, rrset, wc_name, NULL);
+	return find_nsec_covering_name(dnskey, rrset, wc_name, opt_out);
 }
 
 /* 
@@ -1088,7 +1088,8 @@ static int nsec3_find_next_closer(
  * On success returns the keytag (+0x10000) of the key that signed the proof.
  * Or else returns 0.
  */
-static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
+static int key_proves_nonexistance(
+    getdns_rrset *keyset, getdns_rrset *rrset, int *opt_out)
 {
 	getdns_rrset nsec_rrset, *cover, *ce;
 	rrtype_iter nsec_spc, *nsec_rr;
@@ -1099,6 +1100,9 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 	int keytag;
 
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	if (opt_out)
+		opt_out = 0;
 
 	/* The NSEC NODATA case
 	 * ====================
@@ -1125,9 +1129,12 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 
 	    /* In case of a DS query, make sure we have the parent side NSEC
 	     * and not the child (so no SOA).
+	     * Except for the root that is checked by itself.
 	     */
 	    && (    rrset->rr_type != GETDNS_RRTYPE_DS
-	        || !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
+	        || !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
+		|| *rrset->name == 0
+	       )
 
 	    /* If not a DS query, then make sure the NSEC does not contain NS,
 	     * or if it does, then also contains SOA, otherwise we have a parent
@@ -1226,21 +1233,74 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 	/* The NSEC3 NODATA case
 	 * =====================
 	 * NSEC3 has same (hashed) ownername as the rrset to deny.
-	 * Only the rr_type (and CNAME) is missing from the bitmap.
 	 */
 	for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
 	    ; i ; i = rrset_iter_next(i)) {
 
-		if ((ce = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
-		    && nsec_bitmap_excludes_rrtype(ce, rrset->rr_type)
-		    && nsec_bitmap_excludes_rrtype(ce, GETDNS_RRTYPE_CNAME)
+		/* ce is potentially the NSEC3 that matches complete qname
+		 * (so is also the closest encloser)
+		 */
+		ce = rrset_iter_value(i);
+		if (    ce->rr_type == GETDNS_RRTYPE_NSEC3
+
+		    /* A NSEC3 RR exists at the owner name of rrset
+		     * (this is always true)
+		     */
+		    && (nsec_rr = rrtype_iter_init(&nsec_spc, ce))
+
+		    /* Get the bitmap rdata field */
+		    && (bitmap = priv_getdns_rdf_iter_init_at(
+				    &bitmap_spc, &nsec_rr->rr_i, 5))
+
+		    /* At least the rr_type of rrset should be missing */
+		    && !bitmap_has_type(bitmap, rrset->rr_type)
+
+		    /* If the name is a CNAME, then we should have gotten it,
+		     * So no CNAME bit either.
+		     */
+		    && !bitmap_has_type(bitmap, GETDNS_RRTYPE_CNAME)
+
+		    /* In case of a DS query, make sure we have the parent side
+		     * NSEC and not the child (so no SOA).
+		     * (except for the root...)
+		     */
+		    && (    rrset->rr_type != GETDNS_RRTYPE_DS
+			|| !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
+		        || *rrset->name == 0
+		       )
+
+		    /* If not a DS query, then make sure the NSEC does not
+		     * contain NS, or if it does, then also contains SOA, 
+		     * otherwise we have a parent side delegation point NSEC
+		     * where we should have gotten a child side NSEC!
+		     */
+		    && (    rrset->rr_type == GETDNS_RRTYPE_DS
+			|| !bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+			||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
+
+		    /* The qname must match the NSEC3!
+		     * (expensive tests done last)
+		     */
 		    && nsec3_matches_name(ce, rrset->name)
+
+		    /* And it must have a valid signature */
 		    && (keytag = a_key_signed_rrset(keyset, ce))) {
 
 			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
 			return keytag;
 		}
 	}
+	/* More NSEC3 NODATA cases
+	 * ======================
+	 * There are a few NSEC NODATA cases where qname doesn't match
+	 * NSEC->name:
+	 *
+	 * - NSEC3 ownername match for qtype != NSEC3 (TODO?)
+	 * - Wildcard NODATA (wildcard owner name match has special handing 
+	 *                    find_nsec_covering_name())
+	 * - Opt-In DS NODATA (TODO, don't understand yet)
+	 */
+
 	/* The NSEC3 Name error case
 	 * ========================+
 	 * First find the closest encloser.
@@ -1261,7 +1321,9 @@ static int key_proves_nonexistance(getdns_rrset *keyset, getdns_rrset *rrset)
 			debug_sec_print_dname("Closest Encloser: ", ce_name);
 			debug_sec_print_dname("     Next closer: ", nc_name);
 
-			if ((keytag = nsec3_find_next_closer(keyset, rrset, nc_name)))
+			if ((keytag = nsec3_find_next_closer(
+			    keyset, rrset, nc_name, opt_out)))
+
 				return keytag;
 		}
 	}
@@ -1294,7 +1356,7 @@ static int chain_node_get_trusted_keys(
 			return GETDNS_DNSSEC_SECURE;
 		}
 		/* ta is ZSK */
-		if ((keytag = key_proves_nonexistance(ta, &node->ds))) {
+		if ((keytag = key_proves_nonexistance(ta, &node->ds, NULL))) {
 			node->ds_signer = keytag;
 			return GETDNS_DNSSEC_INSECURE;
 		}
@@ -1318,7 +1380,7 @@ static int chain_node_get_trusted_keys(
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
 	ta = *keys;
 	/* Back up to the head */
-	if ((keytag = key_proves_nonexistance(ta, &node->ds))) {
+	if ((keytag = key_proves_nonexistance(ta, &node->ds, NULL))) {
 		node->ds_signer = keytag;
 		return GETDNS_DNSSEC_INSECURE;
 	}
@@ -1339,7 +1401,7 @@ static int chain_node_get_trusted_keys(
 static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 {
 	getdns_rrset *keys;
-	int s, keytag;
+	int s, keytag, opt_out;
 
 	if ((s = chain_node_get_trusted_keys(head->parent, ta, &keys))
 	    != GETDNS_DNSSEC_SECURE)
@@ -1349,10 +1411,19 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 		if ((keytag = a_key_signed_rrset(keys, &head->rrset))) {
 			head->signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
+
+		} else if (!rrset_has_rrsigs(&head->rrset)
+				&& (keytag = key_proves_nonexistance(
+						keys, &head->rrset, &opt_out))
+				&& opt_out) {
+
+			head->signer = keytag;
+			return GETDNS_DNSSEC_INSECURE;
 		}
-	} else if ((keytag = key_proves_nonexistance(keys, &head->rrset))) {
+	} else if ((keytag = key_proves_nonexistance(
+					keys, &head->rrset, &opt_out))) {
 		head->signer = keytag;
-		return GETDNS_DNSSEC_SECURE;
+		return opt_out ? GETDNS_DNSSEC_INSECURE : GETDNS_DNSSEC_SECURE;
 	}
 	return GETDNS_DNSSEC_BOGUS;
 }
@@ -1560,15 +1631,24 @@ static void check_chain_complete(chain_head *chain)
 
 #ifdef STUB_NATIVE_DNSSEC
 	/* Perform validation only on GETDNS_RESOLUTION_STUB (unbound_id == -1)
-	 * TODO: When minimizing the validation chain (i.e. returning a single
-	 *       RRSIG per RRSET, it might be usefull to perform a fake dnssec
-	 *       validation to find out which RRSIGs should be returned.
+	 * Or when asked for the validation chain (to identify the RRSIGs that
+	 * signed the RRSETs, so that only those will be included in the
+	 * validation chain)
+	 * In any case we must have a trust anchor.
 	 */
-	if (chain->netreq->unbound_id == -1 && context->trust_anchors)
+	if ((   chain->netreq->unbound_id == -1
+	     || dnsreq->dnssec_return_validation_chain)
+	    && context->trust_anchors)
+
+		chain_set_netreq_dnssec_status(chain,rrset_iter_init(&tas_iter,
+		    context->trust_anchors, context->trust_anchors_len));
+#else
+	if (dnsreq->dnssec_return_validation_chain
+	    && context->trust_anchors)
+
 		chain_set_netreq_dnssec_status(chain,rrset_iter_init(&tas_iter,
 		    context->trust_anchors, context->trust_anchors_len));
 #endif
-
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
