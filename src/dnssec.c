@@ -1313,6 +1313,26 @@ static int key_proves_nonexistance(
 
 			if (   (ce = rrset_iter_value(i))->rr_type
 					!= GETDNS_RRTYPE_NSEC3
+
+			    /* Get the bitmap rdata field */
+			    || !(nsec_rr = rrtype_iter_init(&nsec_spc, ce))
+			    || !(bitmap = priv_getdns_rdf_iter_init_at(
+					    &bitmap_spc, &nsec_rr->rr_i, 1))
+
+			    /* No DNAME or delegation point at the closest
+			     * encloser.
+			     *
+			     * TODO: Ask Wouter
+			     * Unbound val_nsec3:1024 finishes insecurely
+			     * here (instead of bogus) when DS is also missing.
+			     * Should we not have followed the delegation then
+			     * too?
+			     */
+			    || bitmap_has_type(bitmap, GETDNS_RRTYPE_DNAME)
+			    || (    bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+			        && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
+			       )
+
 			    || !nsec3_matches_name(ce, ce_name)
 			    || !a_key_signed_rrset(keyset, ce))
 				continue;
