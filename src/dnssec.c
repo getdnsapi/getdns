@@ -1,11 +1,15 @@
 /**
  *
- * /brief function for DNSSEC
+ * /brief functions for DNSSEC
  *
- * The priv_getdns_get_validation_chain function is called after an answer
- * has been fetched when the dnssec_return_validation_chain extension is set.
- * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
- * answer.
+ * In this file, the "dnssec_return_validation_chain" extension is implemented
+ * (with the priv_getdns_get_validation_chain() function)
+ * Also the function getdns_validate_dnssec is implemented.
+ * DNSSEC validation as a stub combines those two functionalities, by first
+ * fetching all the records that are necessary to be able to validate a
+ * request (i.e. the "dnssec_return_validation_chain" extension) and then
+ * performing DNSSEC validation for a request with those support records
+ * (and a trust anchor of course).
  */
 
 /*
@@ -35,6 +39,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Elements used in this file.
+ *
+ */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -55,17 +63,126 @@
 #include "dict.h"
 #include "list.h"
 
-/* parent is same or parent of subdomain,*/
-static int is_subdomain(
+
+/*******************  Frequently Used Utility Functions  *********************
+ *****************************************************************************/
+
+inline static size_t _dname_len(uint8_t *name)
+{
+	uint8_t *p;
+	for (p = name; *p; p += *p + 1);
+	return p - name + 1;
+}
+
+inline static size_t _dname_label_count(uint8_t *name)
+{
+	size_t c;
+	for (c = 0; *name; name += *name + 1, c++);
+	return c;
+}
+
+inline static int _dname_equal(const uint8_t *left, const uint8_t *right)
+{
+	return priv_getdns_dname_equal(left, right);
+}
+
+static int _dname_is_parent(
     const uint8_t * const parent, const uint8_t *subdomain)
 {
 	while (*subdomain) {
-		if (priv_getdns_dname_equal(parent, subdomain))
+		if (_dname_equal(parent, subdomain))
 			return 1;
 
 		subdomain += *subdomain + 1;
 	}
 	return *parent == 0;
+}
+
+static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
+{
+	if (*dname)
+		labels = reverse_labels(dname + *dname + 1, labels);
+	*labels = dname;
+	return labels + 1;
+}
+
+static uint8_t *dname_shared_parent(uint8_t *left, uint8_t *right)
+{
+	uint8_t *llabels[128], *rlabels[128], **last_llabel, **last_rlabel,
+		**llabel, **rlabel, *l, *r, sz;
+
+	last_llabel = reverse_labels(left, llabels);
+	last_rlabel = reverse_labels(right, rlabels);
+
+	for ( llabel = llabels, rlabel = rlabels
+	    ; llabel < last_llabel
+	    ; llabel++, rlabel++ ) {
+
+		if (   rlabel == last_rlabel 
+		    || (sz = **llabel) != **rlabel)
+			return llabel[-1];
+
+		for (l = *llabel+1, r = *rlabel+1; sz; l++, r++, sz-- ) 
+			if (*l != *r && tolower((unsigned char)*l) !=
+					tolower((unsigned char)*r))
+				return llabel[-1];
+	}
+	return llabel[-1];
+}
+
+static int dname_compare(uint8_t *left, uint8_t *right)
+{
+	uint8_t *llabels[128], *rlabels[128], **last_llabel, **last_rlabel,
+		**llabel, **rlabel, *l, *r, lsz, rsz;
+
+	last_llabel = reverse_labels(left, llabels);
+	last_rlabel = reverse_labels(right, rlabels);
+
+	for ( llabel = llabels, rlabel = rlabels
+	    ; llabel < last_llabel
+	    ; llabel++, rlabel++ ) {
+
+		if (rlabel == last_rlabel)
+			return 1;
+
+		for ( l = *llabel, lsz = *l++, r = *rlabel, rsz = *r++
+		    ; lsz; l++, r++, lsz--, rsz-- ) {
+
+			if (!rsz)
+				return 1;
+			if (*l != *r && tolower((unsigned char)*l) !=
+					tolower((unsigned char)*r)) {
+				if (tolower((unsigned char)*l) <
+				    tolower((unsigned char)*r))
+					return -1;
+				return 1;
+			}
+		}
+		if (rsz)
+			return -1;
+	}
+	return rlabel == last_rlabel ? 0 : -1;
+}
+
+static int bitmap_has_type(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
+{
+	uint8_t *dptr, *dend;
+	uint8_t window  = rr_type >> 8;
+	uint8_t subtype = rr_type & 0xFF;
+
+	if (!bitmap || (dptr = bitmap->pos) == (dend = bitmap->nxt))
+		return 0;
+
+	/* Type Bitmap = ( Window Block # | Bitmap Length | Bitmap ) +
+	 *                 dptr[0]          dptr[1]         dptr[2:]
+	 */
+	while (dptr < dend && dptr[0] <= window) {
+		if (dptr[0] == window && subtype / 8 < dptr[1] &&
+		    dptr + dptr[1] + 2 <= dend)
+			return  dptr[2 + subtype / 8] & (0x80 >> (subtype % 8));
+		dptr += dptr[1] + 2; /* next window */
+	}
+	return 0;
 }
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
@@ -93,7 +210,8 @@ inline static void debug_sec_print_dname(const char *msg, uint8_t *label)
 	else
 		DEBUG_SEC("%s<nil>\n", msg);
 }
-inline static void debug_sec_print_pkt(const char *msg, uint8_t *pkt, size_t pkt_len)
+inline static void debug_sec_print_pkt(
+		const char *msg, uint8_t *pkt, size_t pkt_len)
 {
 	char *str;
 	DEBUG_SEC("%s%s\n", msg, (str = gldns_wire2str_pkt(pkt, pkt_len)));
@@ -104,6 +222,11 @@ inline static void debug_sec_print_pkt(const char *msg, uint8_t *pkt, size_t pkt
 #define debug_sec_print_dname(...) DEBUG_OFF(__VA_ARGS__)
 #define debug_sec_print_pkt(...) DEBUG_OFF(__VA_ARGS__)
 #endif
+
+
+/*******************  getdns_rrset + Support Iterators  **********************
+ *****************************************************************************/
+
 
 static inline uint16_t rr_iter_type(priv_getdns_rr_iter *rr)
 { return rr->rr_type + 2 <= rr->nxt ? gldns_read_uint16(rr->rr_type) : 0; }
@@ -128,7 +251,7 @@ static int rr_owner_equal(priv_getdns_rr_iter *rr, uint8_t *name)
 
 	return (owner = priv_getdns_owner_if_or_as_decompressed(rr,  owner_spc
 	                                                          , &owner_len))
-	    && priv_getdns_dname_equal(owner, name);
+	    && _dname_equal(owner, name);
 }
 
 static priv_getdns_rr_iter *rr_iter_name_class_type(priv_getdns_rr_iter *rr,
@@ -353,7 +476,8 @@ static getdns_rrset *rrset_iter_value(rrset_iter *i)
 	return &i->rrset;
 }
 
-/* ------------------------------------------------------------------------- */
+/*********************  Validation Chain Data Structs  ***********************
+ *****************************************************************************/
 
 typedef struct chain_head chain_head;
 typedef struct chain_node chain_node;
@@ -388,19 +512,334 @@ struct chain_node {
 	chain_head  *chains;
 };
 
-inline static size_t _dname_len(uint8_t *name)
+/*********************  Validation Chain Construction  ***********************
+ *****************************************************************************/
+
+/* When construction is done in the context of stub validation, the requests
+ * to equip the chain nodes with their RR sets are done alongside construction.
+ * Hence they need to be enumerated before the construction functions.
+ */
+static void val_chain_sched(chain_head *head, uint8_t *dname);
+static void val_chain_sched_signer(chain_head *head, rrsig_iter *rrsig);
+static void val_chain_sched_soa(chain_head *head, uint8_t *dname);
+
+static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
+    chain_head **chain_p, getdns_rrset *rrset, getdns_network_req *netreq)
 {
-	uint8_t *p;
-	for (p = name; *p; p += *p + 1);
-	return p - name + 1;
+	chain_head *head;
+	uint8_t    *labels[128], **last_label, **label;
+
+	size_t      max_labels; /* max labels in common */
+	chain_head *max_head;
+	chain_node *max_node;
+
+	size_t      dname_len, head_sz, node_count, n;
+	uint8_t    *dname, *region;
+	chain_node *node;
+
+	last_label = reverse_labels(rrset->name, labels);
+
+	/* Try to find a chain with the most overlapping labels.
+	 * max_labels will be the number of labels in common from the root
+	 *            (so at least one; the root)
+	 * max_head   will be the head of the chain with max # labebs in common
+	 */
+	max_head = NULL;
+	max_labels = 0;
+	for (head = *chain_p; head; head = head->next) {
+		/* Also, try to prevent adding double rrsets */
+		if (   rrset->rr_class == head->rrset.rr_class
+		    && rrset->rr_type  == head->rrset.rr_type
+		    && rrset->pkt      == head->rrset.pkt
+		    && rrset->pkt_len  == head->rrset.pkt_len
+		    && _dname_equal(rrset->name, head->rrset.name))
+			return NULL;
+
+		for (label = labels; label < last_label; label++) {
+			if (! _dname_is_parent(*label, head->rrset.name))
+				break;
+		}
+		if (label - labels > max_labels) {
+			max_labels = label - labels;
+			max_head = head;
+		}
+	}
+	/* Chain found.  Now set max_node to the point in the chain where nodes
+	 *               will be common.
+	 */
+	if (max_head) {
+		for ( node = max_head->parent, n = 0
+		    ; node
+		    ; node = node->parent, n++);
+
+		for ( n -= max_labels, node = max_head->parent
+		    ; n
+		    ; n--, node = node->parent);
+
+		max_node = node;
+	} else
+		max_node = NULL;
+
+	/* node_count is the amount of nodes to still allocate.
+	 * the last one's parent has to hook into the max_node.
+	 */
+	dname_len = *labels - last_label[-1] + 1;
+	head_sz = (sizeof(chain_head) + dname_len + 7) / 8 * 8;
+	node_count = last_label - labels - max_labels;
+	DEBUG_SEC( "%zu labels in common. %zu labels to allocate\n"
+	         , max_labels, node_count);
+
+	if (! (region = GETDNS_XMALLOC(*mf, uint8_t, head_sz + 
+	    node_count * sizeof(chain_node))))
+		return NULL;
+	
+	/* Append the head on the linked list of heads */
+	for (head = *chain_p; head && head->next; head = head->next);
+	if  (head)
+		head = head->next = (chain_head *)region;
+	else
+		head = *chain_p   = (chain_head *)region;
+
+	head->my_mf = *mf;
+	head->next = NULL;
+	head->rrset.name = head->name_spc;
+	memcpy(head->name_spc, rrset->name, dname_len);
+	head->rrset.rr_class = rrset->rr_class;
+	head->rrset.rr_type = rrset->rr_type;
+	head->rrset.pkt = rrset->pkt;
+	head->rrset.pkt_len = rrset->pkt_len;
+	head->netreq = netreq;
+	head->signer = 0;
+	head->node_count = node_count;
+
+	if (!node_count) {
+		head->parent = max_head->parent;
+		return head;
+	}
+
+	/* Initialize the nodes */
+	node = (chain_node *)(region + head_sz);
+	head->parent = node;
+
+	for ( node = (chain_node *)(region + head_sz), head->parent = node
+	                                             , dname = head->rrset.name
+	    ; node_count
+	    ; node_count--, node = node->parent =&node[1], dname += *dname + 1) {
+
+		node->ds.name         = dname;
+		node->dnskey.name     = dname;
+		node->ds.rr_class     = head->rrset.rr_class;
+		node->dnskey.rr_class = head->rrset.rr_class;
+		node->ds.rr_type      = GETDNS_RRTYPE_DS;
+		node->dnskey.rr_type  = GETDNS_RRTYPE_DNSKEY;
+		node->ds.pkt          = NULL;
+		node->ds.pkt_len      = 0;
+		node->dnskey.pkt      = NULL;
+		node->dnskey.pkt_len  = 0;
+		node->ds_req          = NULL;
+		node->dnskey_req      = NULL;
+		node->soa_req         = NULL;
+		node->ds_signer       = 0;
+		node->dnskey_signer   = 0;
+
+		node->chains          = *chain_p;
+	}
+	/* On the first chain, max_node == NULL.
+	 * Schedule a root DNSKEY query, we always need that.
+	 */
+	if (!(node[-1].parent = max_node))
+		val_chain_sched(head, (uint8_t *)"\0");
+
+	return head;
 }
 
-inline static size_t _dname_label_count(uint8_t *name)
+static int is_synthesized_cname(getdns_rrset *cname)
 {
-	size_t c;
-	for (c = 0; *name; name += *name + 1, c++);
-	return c;
+	rrset_iter *i, i_spc;
+	getdns_rrset *dname;
+	rrtype_iter rr_spc, *rr;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	rrtype_iter drr_spc, *drr;
+	priv_getdns_rdf_iter drdf_spc, *drdf;
+	uint8_t cname_rdata_spc[256], *cname_rdata,
+	        dname_rdata_spc[256], *dname_rdata,
+		synth_name[256],
+	       *synth_name_end = synth_name + sizeof(synth_name), *s, *c;
+	size_t cname_rdata_len = sizeof(cname_rdata_spc),
+	       dname_rdata_len = sizeof(dname_rdata_len),
+	       cname_labels, dname_labels;
+
+	/* Synthesized CNAMEs don't have RRSIGs */
+	if (   cname->rr_type != GETDNS_RRTYPE_CNAME
+	    || rrset_has_rrsigs(cname))
+		return 0;
+
+	/* Get canonical name rdata field */
+	if (   !(rr = rrtype_iter_init(&rr_spc, cname))
+	    || !(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i))
+	    || !(cname_rdata = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, cname_rdata_spc, &cname_rdata_len)))
+		return 0;
+
+	/* Find a matching DNAME */
+	for ( i = rrset_iter_init(&i_spc, cname->pkt, cname->pkt_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
+		dname = rrset_iter_value(i);
+		if (   dname->rr_type != GETDNS_RRTYPE_DNAME
+		    /* DNAME->owner is parent of CNAME->owner */
+		    || !_dname_is_parent(dname->name, cname->name))
+			continue;
+
+
+		dname_labels = _dname_label_count(dname->name);
+		cname_labels = _dname_label_count(cname->name);
+
+		/* Synthesize the canonical name.
+		 * First copy labels(cname) - labels(dname) labels from 
+		 * CNAME's owner name, then append DNAME rdata field.
+		 * If it matches CNAME's rdata field then it was synthesized
+		 * with this DNAME.
+		 */
+		cname_labels -= dname_labels;
+		for ( c = cname->name, s = synth_name
+		    ; cname_labels && s +  *c + 1 < synth_name_end
+		    ; cname_labels--, c += *c + 1, s += *s + 1 ) {
+
+			memcpy(s, c, *c + 1);
+		}
+		if (cname_labels)
+			continue;
+
+		/* Get DNAME's rdata field */
+		if (   !(drr = rrtype_iter_init(&drr_spc, dname))
+		    || !(drdf=priv_getdns_rdf_iter_init(&drdf_spc,&drr->rr_i))
+		    || !(dname_rdata = priv_getdns_rdf_if_or_as_decompressed(
+				    drdf, dname_rdata_spc, &dname_rdata_len)))
+			continue;
+
+		if (s + _dname_len(dname_rdata) > synth_name_end)
+			continue;
+
+		memcpy(s, dname_rdata, _dname_len(dname_rdata));
+		debug_sec_print_dname("Synthesized name: ", synth_name);
+		debug_sec_print_dname("  Canonical name: ", cname_rdata);
+		if (_dname_equal(synth_name, cname_rdata))
+			return 1;
+	}
+	return 0;
 }
+
+/* Create the validation chain structure for the given packet.
+ * When netreq is set, queries will be scheduled for the DS
+ * and DNSKEY RR's for the nodes on the validation chain.
+ */
+static void add_pkt2val_chain(struct mem_funcs *mf,
+    chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
+    getdns_network_req *netreq)
+{
+	rrset_iter *i, i_spc;
+	getdns_rrset *rrset;
+	rrsig_iter *rrsig, rrsig_spc;
+	size_t n_rrsigs;
+	chain_head *head;
+
+	assert(pkt);
+	assert(pkt_len >= GLDNS_HEADER_SIZE);
+
+	/* For all things with signatures, create a chain */
+
+	/* For all things without signature, find SOA (zonecut) and query DS */
+
+	for ( i = rrset_iter_init(&i_spc, pkt, pkt_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
+		rrset = rrset_iter_value(i);
+		debug_sec_print_rrset("rrset: ", rrset);
+
+		/* Schedule validation for everything, except from DNAME
+		 * synthesized CNAME's 
+		 */
+		if (is_synthesized_cname(rrset))
+			continue;
+
+		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
+			continue;
+
+		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
+		    ; rrsig
+		    ; rrsig = rrsig_iter_next(rrsig), n_rrsigs++) {
+			
+			val_chain_sched_signer(head, rrsig);
+		}
+		if (n_rrsigs)
+			continue;
+
+		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
+			val_chain_sched(head, rrset->name);
+		else if (rrset->rr_type != GETDNS_RRTYPE_CNAME)
+			val_chain_sched_soa(head, rrset->name + *rrset->name + 1);
+		else
+			val_chain_sched_soa(head, rrset->name);
+	}
+}
+
+/* For NOERROR/NODATA or NXDOMAIN responses add extra rrset to 
+ * the validation chain so the denial of existence will be
+ * checked eventually.
+ * But only if we know the question of course...
+ */
+static void add_question2val_chain(struct mem_funcs *mf,
+    chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
+    uint8_t *qname, uint16_t qtype, uint16_t qclass,
+    getdns_network_req *netreq)
+{
+	getdns_rrset q_rrset;
+	uint8_t cname_spc[256];
+	size_t cname_len = sizeof(cname_spc);
+	size_t anti_loop;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	rrtype_iter *rr, rr_spc;
+
+	chain_head *head;
+
+	assert(pkt);
+	assert(pkt_len >= GLDNS_HEADER_SIZE);
+	assert(qname);
+
+	/* First find the canonical name for the question */
+	q_rrset.name     = qname;
+	q_rrset.rr_type  = GETDNS_RRTYPE_CNAME;
+	q_rrset.rr_class = qclass;
+	q_rrset.pkt      = pkt;
+	q_rrset.pkt_len  = pkt_len;
+
+	for (anti_loop = 1000; anti_loop; anti_loop--) {
+		if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset)))
+			break;
+		if (!(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)))
+			break;
+		q_rrset.name = priv_getdns_rdf_if_or_as_decompressed(
+				rdf, cname_spc, &cname_len);
+	}
+	q_rrset.rr_type  = qtype;
+	if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset))) {
+		/* No answer for the question.  Add a head for this rrset
+		 * anyway, to validate proof of non-existance, or to find
+		 * proof that the packet is insecure.
+		 */
+		debug_sec_print_rrset("Adding NX rrset: ", &q_rrset);
+		head = add_rrset2val_chain(mf, chain_p, &q_rrset, netreq);
+
+		/* On empty packet, find SOA (zonecut) for the qname */
+		if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
+
+			val_chain_sched_soa(head, q_rrset.name);
+	}
+}
+
 
 static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 {
@@ -437,7 +876,7 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 			    && (signer = priv_getdns_rdf_if_or_as_decompressed(
 					    rdf, signer_spc, &signer_len))
 
-			    && priv_getdns_dname_equal(dnskey->name, signer))
+			    && _dname_equal(dnskey->name, signer))
 
 				return keytag;
 		}
@@ -580,7 +1019,7 @@ static int dnskey_signed_rrset(
 		    && (signer = priv_getdns_rdf_if_or_as_decompressed(
 				    rdf, signer_spc, &signer_len))
 
-		    && priv_getdns_dname_equal(dnskey->rrset->name, signer)
+		    && _dname_equal(dnskey->rrset->name, signer)
 		    
 		    /* Does the signature verify? */
 		    && _getdns_verify_rrsig(rrset, rrsig, dnskey, nc_name)) {
@@ -643,7 +1082,7 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	assert(ds_set->rr_type == GETDNS_RRTYPE_DS);
 	assert(dnskey_set->rr_type == GETDNS_RRTYPE_DNSKEY);
 
-	if (!priv_getdns_dname_equal(ds_set->name, dnskey_set->name))
+	if (!_dname_equal(ds_set->name, dnskey_set->name))
 		return 0;
 
 	for ( dnskey = rrtype_iter_init(&dnskey_spc, dnskey_set)
@@ -695,93 +1134,6 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	return 0;
 }
 
-static int bitmap_has_type(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
-{
-	uint8_t *dptr, *dend;
-	uint8_t window  = rr_type >> 8;
-	uint8_t subtype = rr_type & 0xFF;
-
-	if (!bitmap || (dptr = bitmap->pos) == (dend = bitmap->nxt))
-		return 0;
-
-	/* Type Bitmap = ( Window Block # | Bitmap Length | Bitmap ) +
-	 *                 dptr[0]          dptr[1]         dptr[2:]
-	 */
-	while (dptr < dend && dptr[0] <= window) {
-		if (dptr[0] == window && subtype / 8 < dptr[1] &&
-		    dptr + dptr[1] + 2 <= dend)
-			return  dptr[2 + subtype / 8] & (0x80 >> (subtype % 8));
-		dptr += dptr[1] + 2; /* next window */
-	}
-	return 0;
-}
-
-static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
-{
-	if (*dname)
-		labels = reverse_labels(dname + *dname + 1, labels);
-	*labels = dname;
-	return labels + 1;
-}
-
-static uint8_t *dname_shared_parent(uint8_t *left, uint8_t *right)
-{
-	uint8_t *llabels[128], *rlabels[128], **last_llabel, **last_rlabel,
-		**llabel, **rlabel, *l, *r, sz;
-
-	last_llabel = reverse_labels(left, llabels);
-	last_rlabel = reverse_labels(right, rlabels);
-
-	for ( llabel = llabels, rlabel = rlabels
-	    ; llabel < last_llabel
-	    ; llabel++, rlabel++ ) {
-
-		if (   rlabel == last_rlabel 
-		    || (sz = **llabel) != **rlabel)
-			return llabel[-1];
-
-		for (l = *llabel+1, r = *rlabel+1; sz; l++, r++, sz-- ) 
-			if (*l != *r && tolower((unsigned char)*l) !=
-					tolower((unsigned char)*r))
-				return llabel[-1];
-	}
-	return llabel[-1];
-}
-
-static int dname_compare(uint8_t *left, uint8_t *right)
-{
-	uint8_t *llabels[128], *rlabels[128], **last_llabel, **last_rlabel,
-		**llabel, **rlabel, *l, *r, lsz, rsz;
-
-	last_llabel = reverse_labels(left, llabels);
-	last_rlabel = reverse_labels(right, rlabels);
-
-	for ( llabel = llabels, rlabel = rlabels
-	    ; llabel < last_llabel
-	    ; llabel++, rlabel++ ) {
-
-		if (rlabel == last_rlabel)
-			return 1;
-
-		for ( l = *llabel, lsz = *l++, r = *rlabel, rsz = *r++
-		    ; lsz; l++, r++, lsz--, rsz-- ) {
-
-			if (!rsz)
-				return 1;
-			if (*l != *r && tolower((unsigned char)*l) !=
-					tolower((unsigned char)*r)) {
-				if (tolower((unsigned char)*l) <
-				    tolower((unsigned char)*r))
-					return -1;
-				return 1;
-			}
-		}
-		if (rsz)
-			return -1;
-	}
-	return rlabel == last_rlabel ? 0 : -1;
-}
-
 static int nsec_covers_name(
     getdns_rrset *nsec, uint8_t *name, uint8_t **ce_name)
 {
@@ -829,7 +1181,7 @@ static int nsec_covers_name(
 		 * qname must be a subdomain of that.
 		 */
 		return dname_compare(name, owner) >= 0
-		    && is_subdomain(next, name) && dname_compare(next, name);
+		    && _dname_is_parent(next, name) && dname_compare(next, name);
 
 	} else {
 		/* This nsec is the only nsec.
@@ -837,7 +1189,7 @@ static int nsec_covers_name(
 		 * but only for subdomains of that zone.
 		 * (also no zone.name == qname of course)
 		 */
-		return is_subdomain(owner, name) && dname_compare(owner, name);
+		return _dname_is_parent(owner, name) && dname_compare(owner, name);
 	}
 }
 
@@ -862,11 +1214,11 @@ static uint8_t *name2nsec3_label(
 			    rdf, signer_spc, &signer_len))
 
 	    /* signer of the NSEC3 is direct parent for this NSEC3? */
-	    && priv_getdns_dname_equal(
+	    && _dname_equal(
 		    signer, nsec3->name + *nsec3->name + 1)
 
 	    /* signer of the NSEC3 is parent of name? */
-	    && is_subdomain(signer, name)
+	    && _dname_is_parent(signer, name)
 
 	    /* Initialize rr for getting NSEC3 rdata fields */
 	    && (rr = rrtype_iter_init(&rr_spc, nsec3))
@@ -1018,7 +1370,7 @@ static int find_nsec_covering_name(
 		     * 
 		     * Also no CNAME... cause that should have matched too.
 		     */
-		    && (    !priv_getdns_dname_equal(n->name, name)
+		    && (    !_dname_equal(n->name, name)
 		        || (   name[0] == 1 && name[1] == (uint8_t)'*'
 		            && !bitmap_has_type(bitmap, rrset->rr_type)
 		            && !bitmap_has_type(bitmap, GETDNS_RRTYPE_CNAME)
@@ -1029,7 +1381,7 @@ static int find_nsec_covering_name(
 		     * sure there is no DNAME, and no delegation point
 		     * there.
 		     */
-		    && (   !is_subdomain(n->name, name)
+		    && (   !_dname_is_parent(n->name, name)
 		        || (   !bitmap_has_type(bitmap, GETDNS_RRTYPE_DNAME)
 		            && (   !bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
 		                ||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
@@ -1102,7 +1454,7 @@ static int key_proves_nonexistance(
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
 
 	if (opt_out)
-		opt_out = 0;
+		*opt_out = 0;
 
 	/* The NSEC NODATA case
 	 * ====================
@@ -1183,7 +1535,7 @@ static int key_proves_nonexistance(
 		    || !nsec_covers_name(cover, rrset->name, &ce_name)
 
 		    /* But not a match (because that would be NODATA case) */
-		    || priv_getdns_dname_equal(cover->name, rrset->name)
+		    || _dname_equal(cover->name, rrset->name)
 
 		    /* Get the bitmap rdata field */
 		    || !(nsec_rr = rrtype_iter_init(&nsec_spc, cover))
@@ -1194,7 +1546,7 @@ static int key_proves_nonexistance(
 		     * sure there is no DNAME, and no delegation point
 		     * there.
 		     */
-		    || (   is_subdomain(cover->name, rrset->name)
+		    || (   _dname_is_parent(cover->name, rrset->name)
 		        && (   bitmap_has_type(bitmap, GETDNS_RRTYPE_DNAME)
 		            || (    bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
 		                && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
@@ -1459,7 +1811,7 @@ static int chain_head_validate(chain_head *head, rrset_iter *tas)
 
 		if ((ta->rr_type != GETDNS_RRTYPE_DNSKEY &&
 		     ta->rr_type != GETDNS_RRTYPE_DS
-		    ) || !is_subdomain(ta->name, head->rrset.name))
+		    ) || !_dname_is_parent(ta->name, head->rrset.name))
 			continue;
 
 		/* The best status for any ta counts */
@@ -1740,7 +2092,7 @@ static void val_chain_sched_soa(chain_head *head, uint8_t *dname)
 		return;
 
 	for ( node = head->parent
-	    ; node && !priv_getdns_dname_equal(dname, node->ds.name)
+	    ; node && !_dname_equal(dname, node->ds.name)
 	    ; node = node->parent);
 
 	if (node)
@@ -1784,7 +2136,7 @@ static void val_chain_sched(chain_head *head, uint8_t *dname)
 		return;
 
 	for ( node = head->parent
-	    ; node && !priv_getdns_dname_equal(dname, node->ds.name)
+	    ; node && !_dname_equal(dname, node->ds.name)
 	    ; node = node->parent);
 	if (node)
 		val_chain_sched_node(node);
@@ -1803,7 +2155,7 @@ static void val_chain_sched_signer_node(chain_node *node, rrsig_iter *rrsig)
 	    rdf, signer_spc, &signer_len)))
 		return;
 
-	while (node && !priv_getdns_dname_equal(signer, node->ds.name))
+	while (node && !_dname_equal(signer, node->ds.name))
 		node = node->parent;
 	if (node)
 		val_chain_sched_node(node);
@@ -1884,7 +2236,7 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	if ((rrset = rrset_by_type(&i_spc, netreq, GETDNS_RRTYPE_SOA))) {
 
 		while (node &&
-		    ! priv_getdns_dname_equal(node->ds.name, rrset->name))
+		    ! _dname_equal(node->ds.name, rrset->name))
 			node = node->parent;
 
 		if (node)
@@ -1893,323 +2245,6 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		val_chain_sched_soa_node(node->parent);
 
 	check_chain_complete(node->chains);
-}
-
-static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
-    chain_head **chain_p, getdns_rrset *rrset, getdns_network_req *netreq)
-{
-	chain_head *head;
-	uint8_t    *labels[128], **last_label, **label;
-
-	size_t      max_labels; /* max labels in common */
-	chain_head *max_head;
-	chain_node *max_node;
-
-	size_t      dname_len, head_sz, node_count, n;
-	uint8_t    *dname, *region;
-	chain_node *node;
-
-	last_label = reverse_labels(rrset->name, labels);
-
-	/* Try to find a chain with the most overlapping labels.
-	 * max_labels will be the number of labels in common from the root
-	 *            (so at least one; the root)
-	 * max_head   will be the head of the chain with max # labebs in common
-	 */
-	max_head = NULL;
-	max_labels = 0;
-	for (head = *chain_p; head; head = head->next) {
-		/* Also, try to prevent adding double rrsets */
-		if (   rrset->rr_class == head->rrset.rr_class
-		    && rrset->rr_type  == head->rrset.rr_type
-		    && rrset->pkt      == head->rrset.pkt
-		    && rrset->pkt_len  == head->rrset.pkt_len
-		    && priv_getdns_dname_equal(rrset->name, head->rrset.name))
-			return NULL;
-
-		for (label = labels; label < last_label; label++) {
-			if (! is_subdomain(*label, head->rrset.name))
-				break;
-		}
-		if (label - labels > max_labels) {
-			max_labels = label - labels;
-			max_head = head;
-		}
-	}
-	/* Chain found.  Now set max_node to the point in the chain where nodes
-	 *               will be common.
-	 */
-	if (max_head) {
-		for ( node = max_head->parent, n = 0
-		    ; node
-		    ; node = node->parent, n++);
-
-		for ( n -= max_labels, node = max_head->parent
-		    ; n
-		    ; n--, node = node->parent);
-
-		max_node = node;
-	} else
-		max_node = NULL;
-
-	/* node_count is the amount of nodes to still allocate.
-	 * the last one's parent has to hook into the max_node.
-	 */
-	dname_len = *labels - last_label[-1] + 1;
-	head_sz = (sizeof(chain_head) + dname_len + 7) / 8 * 8;
-	node_count = last_label - labels - max_labels;
-	DEBUG_SEC( "%zu labels in common. %zu labels to allocate\n"
-	         , max_labels, node_count);
-
-	if (! (region = GETDNS_XMALLOC(*mf, uint8_t, head_sz + 
-	    node_count * sizeof(chain_node))))
-		return NULL;
-	
-	/* Append the head on the linked list of heads */
-	for (head = *chain_p; head && head->next; head = head->next);
-	if  (head)
-		head = head->next = (chain_head *)region;
-	else
-		head = *chain_p   = (chain_head *)region;
-
-	head->my_mf = *mf;
-	head->next = NULL;
-	head->rrset.name = head->name_spc;
-	memcpy(head->name_spc, rrset->name, dname_len);
-	head->rrset.rr_class = rrset->rr_class;
-	head->rrset.rr_type = rrset->rr_type;
-	head->rrset.pkt = rrset->pkt;
-	head->rrset.pkt_len = rrset->pkt_len;
-	head->netreq = netreq;
-	head->signer = 0;
-	head->node_count = node_count;
-
-	if (!node_count) {
-		head->parent = max_head->parent;
-		return head;
-	}
-
-	/* Initialize the nodes */
-	node = (chain_node *)(region + head_sz);
-	head->parent = node;
-
-	for ( node = (chain_node *)(region + head_sz), head->parent = node
-	                                             , dname = head->rrset.name
-	    ; node_count
-	    ; node_count--, node = node->parent =&node[1], dname += *dname + 1) {
-
-		node->ds.name         = dname;
-		node->dnskey.name     = dname;
-		node->ds.rr_class     = head->rrset.rr_class;
-		node->dnskey.rr_class = head->rrset.rr_class;
-		node->ds.rr_type      = GETDNS_RRTYPE_DS;
-		node->dnskey.rr_type  = GETDNS_RRTYPE_DNSKEY;
-		node->ds.pkt          = NULL;
-		node->ds.pkt_len      = 0;
-		node->dnskey.pkt      = NULL;
-		node->dnskey.pkt_len  = 0;
-		node->ds_req          = NULL;
-		node->dnskey_req      = NULL;
-		node->soa_req         = NULL;
-		node->ds_signer       = 0;
-		node->dnskey_signer   = 0;
-
-		node->chains          = *chain_p;
-	}
-	/* On the first chain, max_node == NULL.
-	 * Schedule a root DNSKEY query, we always need that.
-	 */
-	if (!(node[-1].parent = max_node))
-		val_chain_sched(head, (uint8_t *)"\0");
-
-	return head;
-}
-
-static int is_synthesized_cname(getdns_rrset *cname)
-{
-	rrset_iter *i, i_spc;
-	getdns_rrset *dname;
-	rrtype_iter rr_spc, *rr;
-	priv_getdns_rdf_iter rdf_spc, *rdf;
-	rrtype_iter drr_spc, *drr;
-	priv_getdns_rdf_iter drdf_spc, *drdf;
-	uint8_t cname_rdata_spc[256], *cname_rdata,
-	        dname_rdata_spc[256], *dname_rdata,
-		synth_name[256],
-	       *synth_name_end = synth_name + sizeof(synth_name), *s, *c;
-	size_t cname_rdata_len = sizeof(cname_rdata_spc),
-	       dname_rdata_len = sizeof(dname_rdata_len),
-	       cname_labels, dname_labels;
-
-	/* Synthesized CNAMEs don't have RRSIGs */
-	if (   cname->rr_type != GETDNS_RRTYPE_CNAME
-	    || rrset_has_rrsigs(cname))
-		return 0;
-
-	/* Get canonical name rdata field */
-	if (   !(rr = rrtype_iter_init(&rr_spc, cname))
-	    || !(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i))
-	    || !(cname_rdata = priv_getdns_rdf_if_or_as_decompressed(
-			    rdf, cname_rdata_spc, &cname_rdata_len)))
-		return 0;
-
-	/* Find a matching DNAME */
-	for ( i = rrset_iter_init(&i_spc, cname->pkt, cname->pkt_len)
-	    ; i
-	    ; i = rrset_iter_next(i)) {
-
-		dname = rrset_iter_value(i);
-		if (   dname->rr_type != GETDNS_RRTYPE_DNAME
-		    /* DNAME->owner is parent of CNAME->owner */
-		    || !is_subdomain(dname->name, cname->name))
-			continue;
-
-
-		dname_labels = _dname_label_count(dname->name);
-		cname_labels = _dname_label_count(cname->name);
-
-		/* Synthesize the canonical name.
-		 * First copy labels(cname) - labels(dname) labels from 
-		 * CNAME's owner name, then append DNAME rdata field.
-		 * If it matches CNAME's rdata field then it was synthesized
-		 * with this DNAME.
-		 */
-		cname_labels -= dname_labels;
-		for ( c = cname->name, s = synth_name
-		    ; cname_labels && s +  *c + 1 < synth_name_end
-		    ; cname_labels--, c += *c + 1, s += *s + 1 ) {
-
-			memcpy(s, c, *c + 1);
-		}
-		if (cname_labels)
-			continue;
-
-		/* Get DNAME's rdata field */
-		if (   !(drr = rrtype_iter_init(&drr_spc, dname))
-		    || !(drdf=priv_getdns_rdf_iter_init(&drdf_spc,&drr->rr_i))
-		    || !(dname_rdata = priv_getdns_rdf_if_or_as_decompressed(
-				    drdf, dname_rdata_spc, &dname_rdata_len)))
-			continue;
-
-		if (s + _dname_len(dname_rdata) > synth_name_end)
-			continue;
-
-		memcpy(s, dname_rdata, _dname_len(dname_rdata));
-		debug_sec_print_dname("Synthesized name: ", synth_name);
-		debug_sec_print_dname("  Canonical name: ", cname_rdata);
-		if (priv_getdns_dname_equal(synth_name, cname_rdata))
-			return 1;
-	}
-	return 0;
-}
-
-/* Create the validation chain structure for the given packet.
- * When netreq is set, queries will be scheduled for the DS
- * and DNSKEY RR's for the nodes on the validation chain.
- */
-static void add_pkt2val_chain(struct mem_funcs *mf,
-    chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
-    getdns_network_req *netreq)
-{
-	rrset_iter *i, i_spc;
-	getdns_rrset *rrset;
-	rrsig_iter *rrsig, rrsig_spc;
-	size_t n_rrsigs;
-	chain_head *head;
-
-	assert(pkt);
-	assert(pkt_len >= GLDNS_HEADER_SIZE);
-
-	/* For all things with signatures, create a chain */
-
-	/* For all things without signature, find SOA (zonecut) and query DS */
-
-	for ( i = rrset_iter_init(&i_spc, pkt, pkt_len)
-	    ; i
-	    ; i = rrset_iter_next(i)) {
-
-		rrset = rrset_iter_value(i);
-		debug_sec_print_rrset("rrset: ", rrset);
-
-		/* Schedule validation for everything, except from DNAME
-		 * synthesized CNAME's 
-		 */
-		if (is_synthesized_cname(rrset))
-			continue;
-
-		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
-			continue;
-
-		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
-		    ; rrsig
-		    ; rrsig = rrsig_iter_next(rrsig), n_rrsigs++) {
-			
-			val_chain_sched_signer(head, rrsig);
-		}
-		if (n_rrsigs)
-			continue;
-
-		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
-			val_chain_sched(head, rrset->name);
-		else if (rrset->rr_type != GETDNS_RRTYPE_CNAME)
-			val_chain_sched_soa(head, rrset->name + *rrset->name + 1);
-		else
-			val_chain_sched_soa(head, rrset->name);
-	}
-}
-
-/* For NOERROR/NODATA or NXDOMAIN responses add extra rrset to 
- * the validation chain so the denial of existence will be
- * checked eventually.
- * But only if we know the question of course...
- */
-static void add_question2val_chain(struct mem_funcs *mf,
-    chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
-    uint8_t *qname, uint16_t qtype, uint16_t qclass,
-    getdns_network_req *netreq)
-{
-	getdns_rrset q_rrset;
-	uint8_t cname_spc[256];
-	size_t cname_len = sizeof(cname_spc);
-	size_t anti_loop;
-	priv_getdns_rdf_iter rdf_spc, *rdf;
-	rrtype_iter *rr, rr_spc;
-
-	chain_head *head;
-
-	assert(pkt);
-	assert(pkt_len >= GLDNS_HEADER_SIZE);
-	assert(qname);
-
-	/* First find the canonical name for the question */
-	q_rrset.name     = qname;
-	q_rrset.rr_type  = GETDNS_RRTYPE_CNAME;
-	q_rrset.rr_class = qclass;
-	q_rrset.pkt      = pkt;
-	q_rrset.pkt_len  = pkt_len;
-
-	for (anti_loop = 1000; anti_loop; anti_loop--) {
-		if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset)))
-			break;
-		if (!(rdf = priv_getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)))
-			break;
-		q_rrset.name = priv_getdns_rdf_if_or_as_decompressed(
-				rdf, cname_spc, &cname_len);
-	}
-	q_rrset.rr_type  = qtype;
-	if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset))) {
-		/* No answer for the question.  Add a head for this rrset
-		 * anyway, to validate proof of non-existance, or to find
-		 * proof that the packet is insecure.
-		 */
-		debug_sec_print_rrset("Adding NX rrset: ", &q_rrset);
-		head = add_rrset2val_chain(mf, chain_p, &q_rrset, netreq);
-
-		/* On empty packet, find SOA (zonecut) for the qname */
-		if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
-
-			val_chain_sched_soa(head, q_rrset.name);
-	}
 }
 
 void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
