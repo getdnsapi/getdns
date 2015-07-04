@@ -1410,9 +1410,13 @@ static int nsec3_find_next_closer(
 		*opt_out = 0;
 
 	if (!(keytag = find_nsec_covering_name(
-	    dnskey, rrset, nc_name, &my_opt_out)))
+	    dnskey, rrset, nc_name, &my_opt_out))) {
+		/* TODO: At least google doesn't return next_closer on wildcard
+		 * nodata for DS query.  And in fact returns even bogus for,
+		 * for example bladiebla.xavier.nlnet.nl DS.
+		 */
 		return 0;
-
+	}
 	if (opt_out)
 		*opt_out = my_opt_out;
 
