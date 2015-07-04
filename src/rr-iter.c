@@ -252,7 +252,7 @@ rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
 		if (!(i->nxt = i->rdd_pos->special->rdf_end(
 		    i->pkt, i->pkt_end, i->pos)))
 			i->nxt = i->end;
-	} else
+	} else /* RDF is for remaining data */
 		i->nxt = i->end;
 
 	if (i->nxt <= i->end)
@@ -304,8 +304,8 @@ priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i)
 		return NULL;
 
 	i->rdd_pos += 1;
-	if ((i->pos = i->nxt) >= i->end)
-		goto done; /* Out of rdata */
+	if ((i->pos = i->nxt) > i->end)
+		goto done; /* Overflow */
 	if (i->rdd_pos >= i->rdd_end && !(i->rdd_pos = i->rdd_repeat))
 		goto done; /* Remaining rdata, but out of definitions! */
 	if (i->rdd_pos->type == GETDNS_RDF_REPEAT)

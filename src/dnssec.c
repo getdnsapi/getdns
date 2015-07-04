@@ -701,10 +701,8 @@ static int bitmap_has_type(priv_getdns_rdf_iter *bitmap, uint16_t rr_type)
 	uint8_t window  = rr_type >> 8;
 	uint8_t subtype = rr_type & 0xFF;
 
-	if (!bitmap)
+	if (!bitmap || (dptr = bitmap->pos) == (dend = bitmap->nxt))
 		return 0;
-	dptr = bitmap->pos;
-	dend = bitmap->nxt;
 
 	/* Type Bitmap = ( Window Block # | Bitmap Length | Bitmap ) +
 	 *                 dptr[0]          dptr[1]         dptr[2:]
