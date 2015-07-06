@@ -408,6 +408,10 @@ static priv_getdns_rdata_def        hip_rdata[] = {
 	{ "hit"                         , GETDNS_RDF_SPECIAL, &hip_hit },
 	{ "public_key"                  , GETDNS_RDF_SPECIAL, &hip_public_key },
 	{ "rendezvous_servers"          , GETDNS_RDF_N_M  }};
+static priv_getdns_rdata_def        csync_rdata[] = {
+	{ "serial"                      , GETDNS_RDF_I4   },
+	{ "flags"                       , GETDNS_RDF_I2   },
+	{ "type_bit_maps"               , GETDNS_RDF_X    }};
 static priv_getdns_rdata_def        spf_rdata[] = {
 	{ "text"                        , GETDNS_RDF_S_M  }};
 static priv_getdns_rdata_def        nid_rdata[] = {
@@ -519,7 +523,7 @@ static priv_getdns_rr_def priv_getdns_rr_defs[] = {
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
 	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* 61 - */
-	{      "CSYNC",    UNKNOWN_RDATA, 0                      }, /* - 62 */
+	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) }, /* - 62 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
