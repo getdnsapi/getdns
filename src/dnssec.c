@@ -39,8 +39,152 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Elements used in this file.
+/*
+ * From the API:
  *
+ * The "dnssec_return_validation_chain" extension as explained in section 3.1:
+ *
+ *	Applications that want to do their own validation will want to have the
+ *	DNSSEC-related records for a particular response. Use the
+ *	dnssec_return_validation_chain extension. The extension's value
+ *	(an int) is set to GETDNS_EXTENSION_TRUE to cause a set of additional
+ *	DNSSEC-related records needed for validation to be returned in the
+ *	response object. This set comes as validation_chain (a list) at the top
+ *	level of the response object. This list includes all resource record
+ *	dicts for all the resource records (DS, DNSKEY and their RRSIGs) that
+ *	are needed to perform the validation from the root up.
+ *
+ *
+ * The getdns_validate_dnssec() function as explained in section 7:
+ *
+ *	If an application wants the API do perform DNSSEC validation without
+ *	using the extensions, it can use the getdns_validate_dnssec() helper
+ *	function.
+ *
+ *	getdns_return_t
+ *	getdns_validate_dnssec(
+ *		getdns_list     *record_to_validate,
+ *		getdns_list     *bundle_of_support_records,
+ *		getdns_list     *trust_anchor_records
+ *	);
+ *
+ *	The record_to_validate is the resource record being validated together
+ *	with the associated signatures. The API will use the resource records
+ *	in bundle_of_support_records to construct the validation chain and the
+ *	DNSKEY or DS records in trust_anchor_records as trust anchors. The
+ * 	function returns one of GETDNS_DNSSEC_SECURE, GETDNS_DNSSEC_BOGUS,
+ *	GETDNS_DNSSEC_INDETERMINATE, or GETDNS_DNSSEC_INSECURE. 
+ */
+
+/* Outline of operations in this file
+ * ==================================
+ *
+ * Data structure to represent the delegation/referal hierarchy
+ * ------------------------------------------------------------
+ * Both the "dnssec_return_validation_chain" extension, and the 
+ * getdns_validate_dnssec() function use the same structs to represent the 
+ * involved pieces of the DNS in a hierarchical manner.
+ *
+ * However, the tree is not represented from the root, but from the RRsets that
+ * need to be validated.  The RRset to validate is a member of the chain_head
+ * struct for this.  The chain_head struct has a "next" member to form a linked
+ * list of RRsets to validate.
+ *
+ * The chain_head struct also has a "parent" member to a linked list of 
+ * chain_node structs (linked with the "parent" member of those chain_nodes).
+ * For each label in the name of the rrset in a chain_head, is a chain_node,
+ * all the way to the root.  The last chain_node is thus always the root, for
+ * every chain_head.
+ *
+ * The construction functions for this datastructure make sure there is always
+ * a single chain_node representing the same name.  They also make sure space
+ * for chain_head + the number of extra chain_nodes needed is allocated in a
+ * single region, so that on destruction one only has to free the chain_heads.
+ *
+ * A chain_node contains two RRset members, "dnskey" and "ds" which represent
+ * the potential client side DNSKEYs and the parent side DS records of a 
+ * potential zonecut at this point.  Whether or not there is an actual zone
+ * cut is determined separately.  With the "dnssec_return_validation_chain"
+ * extension by scheduling queries, and with the getdns_validation_dnssec()
+ * function by provisioning the support records at the chain nodes.
+ *
+ * In the construction functions a chain_head is created for every RRset in
+ * the answer and authority section of a given packet (except for synthesized
+ * CNAMEs).  Furthermore, if the queries for name/class/type is not in the
+ * packet, a chain_head for the non-existent rrset is created too, to that
+ * it will be evaluated for non-existence later in the validation process.
+ *
+ * The chain_head and chain_node structs are defined in section:
+ * "Validation Chain Data Structs".  The functions to construct the hierarchy
+ * are defined in section "Validation Chain Construction".  When the 
+ * construction functions are called for the purpose of the 
+ * "dnssec_return_validation_chain" extension, queries to provision the
+ * chain_nodes are scheduled.  Function theretofore are in section:
+ * "Schedule Queries to Provision Validation Chain"
+ *
+ *
+ * getdns_rrset
+ * ------------
+ * RRsets used in the structure described above are represented by the 
+ * getdns_rrset struct.  They consist of name/rr_class and rr_type members
+ * plus a reference to the wireformat packet that should contain the RRset.
+ *
+ * The actual RR's in the rrset and the signatures are only accessed via
+ * iterators; substantiated with the rrtype_iter struct to iterate over RRs
+ * in a getdns_rrset, and the rrsig_iter to iterate over the RRSIGs covering
+ * the RRs in the getdns_rrset.
+ *
+ * The getdns_rrsets are already equiped with name/rr_class and rr_type when
+ * constructing the linked list of chain_nodes up to the root for a chain_head.
+ * They are substantiated with the wireformat packets that are returned with 
+ * the queries that were sheduled in the context of the 
+ * "dnssec_return_validation_chain" extension.
+ *
+ * Note that the NSEC(3) RRsets proving the non-existance of and getdns_rrset
+ * can be found by processing that getdns_rrset, as it contains the pointer
+ * to the wireformat data that should either contain the RRset or the proof
+ * of non-existance.
+ *
+ * The getdns_validate_dnssec() function, after it constructed the chain_heads
+ * hierarchy, creates an artifical packet for the support records and equips
+ * all the ds and dnskey getdns_rrsets on the chain_nodes with this packet.
+ *
+ * The getdns_rrset + support function and data types are defined in section:
+ * "getdns_rrset + Support Iterators"
+ *
+ *
+ * Validation
+ * ----------
+ * Validation of a constructed chain is done by the 
+ * chain_set_netreq_dnssec_status() function when validating in stub mode.
+ * And with the chain_validate_dnssec() function when using the 
+ * getdns_validate_dnssec() function.  They are the same, except that 
+ * chain_set_netreq_dnssec_status() evaluates DNSSEC status per network
+ * request and chain_validate_dnssec() does it for the whole chain.
+ *
+ * They both evaluate the DNSSEC status for each head in turn.  The worst
+ * DNSSEC status determines the status of all heads evaluated.  Where
+ * INSECURE is worse then SECURE, and BOGUS is worse then INSECURE.
+ *
+ * For each head, each trust anchor is tried.  Here the best DNSSEC status
+ * determines the status of the head.
+ *
+ * Security status for a head (with a specific trust anchor) is evaluated by
+ * first finding a authenticated keyset from the parent chain_nodes, and then
+ * evaluating the rrset of the head (existent or not) with that keyset.
+ *
+ * Functions that implement DNSSEC validation are in section:
+ * "DNSSEC Validation".
+ *
+ * Many functions are of key verification boolean return type; e.g.
+ * key_proves_non_existance(), ds_authenticates_keys(), a_key_signed_rrset()
+ * These will return the keytag identifying the key that was used to 
+ * authenticate + 0x10000 to allow keytag 0.
+ *
+ * These returned keytag's are used later with function
+ * append_rrs2val_chain_list() to return a "dnssec_validation_chain" that 
+ * enumerates a single RRSIG per RRset.  This can be found in section:
+ * "dnssec_return_validation_chain Extension".
  */
 
 #include <sys/types.h>
@@ -96,6 +240,19 @@ static int _dname_is_parent(
 		subdomain += *subdomain + 1;
 	}
 	return *parent == 0;
+}
+
+static uint8_t *_dname_label_copy(uint8_t *dst, uint8_t *src, size_t dst_len)
+{
+	uint8_t *r = dst, i;
+
+	if (!src || *src + 1 > dst_len)
+		return NULL;
+
+	for (i = *src + 1; i > 0; i--)
+		*dst++ = tolower(*src++);
+
+	return r;
 }
 
 static uint8_t **reverse_labels(uint8_t *dname, uint8_t **labels)
@@ -228,11 +385,28 @@ inline static void debug_sec_print_pkt(
  *****************************************************************************/
 
 
+/* Utility functions to read rr_type and rr_class from a rr iterator */
 static inline uint16_t rr_iter_type(priv_getdns_rr_iter *rr)
 { return rr->rr_type + 2 <= rr->nxt ? gldns_read_uint16(rr->rr_type) : 0; }
 static inline uint16_t rr_iter_class(priv_getdns_rr_iter *rr)
 { return rr->rr_type + 4 <= rr->nxt ? gldns_read_uint16(rr->rr_type + 2) : 0; }
 
+/* Utility function to compare owner name of rr with name */
+static int rr_owner_equal(priv_getdns_rr_iter *rr, uint8_t *name)
+{
+	uint8_t owner_spc[256], *owner;
+	size_t  owner_len = sizeof(owner_spc);
+
+	return (owner = priv_getdns_owner_if_or_as_decompressed(rr,  owner_spc
+	                                                          , &owner_len))
+	    && _dname_equal(owner, name);
+}
+
+/* First a few filter functions that filter a RR iterator to point only
+ * to RRs with certain constraints (and moves on otherwise).
+ */
+
+/* Filter that only iterates over the ANSWER and AUTHORITY section */
 static priv_getdns_rr_iter *rr_iter_ansauth(priv_getdns_rr_iter *rr)
 {
 	while (rr && rr->pos && !(
@@ -244,16 +418,7 @@ static priv_getdns_rr_iter *rr_iter_ansauth(priv_getdns_rr_iter *rr)
 	return rr && rr->pos ? rr : NULL;
 }
 
-static int rr_owner_equal(priv_getdns_rr_iter *rr, uint8_t *name)
-{
-	uint8_t owner_spc[256], *owner;
-	size_t  owner_len = sizeof(owner_spc);
-
-	return (owner = priv_getdns_owner_if_or_as_decompressed(rr,  owner_spc
-	                                                          , &owner_len))
-	    && _dname_equal(owner, name);
-}
-
+/* Filter that only iterates over RRs with a certain name/class/type */
 static priv_getdns_rr_iter *rr_iter_name_class_type(priv_getdns_rr_iter *rr,
     uint8_t *name, uint16_t rr_class, uint16_t rr_type)
 {
@@ -267,6 +432,7 @@ static priv_getdns_rr_iter *rr_iter_name_class_type(priv_getdns_rr_iter *rr,
 	return rr && rr->pos ? rr : NULL;
 }
 
+/* Filter that only iterates over RRs that do not have a name/class/type */
 static priv_getdns_rr_iter *rr_iter_not_name_class_type(priv_getdns_rr_iter *rr,
     uint8_t *name, uint16_t rr_class, uint16_t rr_type)
 {
@@ -281,6 +447,9 @@ static priv_getdns_rr_iter *rr_iter_not_name_class_type(priv_getdns_rr_iter *rr,
 	return rr && rr->pos ? rr : NULL;
 }
 
+/* Filter that only iterates over RRs that are of type RRSIG, that cover
+ * a RRset with a certain name/class/type
+ */
 static priv_getdns_rr_iter *rr_iter_rrsig_covering(priv_getdns_rr_iter *rr,
     uint8_t *name, uint16_t rr_class, uint16_t rr_type)
 {
@@ -406,6 +575,9 @@ static void debug_sec_print_rrset(const char *msg, getdns_rrset *rrset)
 #define debug_sec_print_rrset(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
+/* The rrset_iter manifests an iterator of a wireformat packet that will return
+ * all unique rrsets within that packet in turn.
+ */
 typedef struct rrset_iter rrset_iter;
 struct rrset_iter {
 	getdns_rrset        rrset;
@@ -475,6 +647,24 @@ static getdns_rrset *rrset_iter_value(rrset_iter *i)
 		return NULL;
 	return &i->rrset;
 }
+
+static getdns_rrset *rrset_by_type(
+    rrset_iter *i_spc, getdns_network_req *netreq, uint16_t rr_type)
+{
+	rrset_iter   *i;
+	getdns_rrset *rrset;
+
+	for ( i = rrset_iter_init(i_spc,netreq->response,netreq->response_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
+		rrset = rrset_iter_value(i);
+		if (rrset->rr_type == rr_type) /* Check class too? */
+			return rrset;
+	}
+	return NULL;
+}
+
 
 /*********************  Validation Chain Data Structs  ***********************
  *****************************************************************************/
@@ -841,6 +1031,189 @@ static void add_question2val_chain(struct mem_funcs *mf,
 }
 
 
+/*************  Schedule Queries to Provision Validation Chain ***************
+ *****************************************************************************/
+
+static void check_chain_complete(chain_head *chain);
+static void val_chain_node_soa_cb(getdns_dns_req *dnsreq);
+static void val_chain_sched_soa_node(chain_node *node)
+{
+	getdns_context *context;
+	getdns_eventloop *loop;
+	getdns_dns_req *dnsreq;
+	char  name[1024];
+
+	context = node->chains->netreq->owner->context;
+	loop    = node->chains->netreq->owner->loop;
+
+	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
+		return;
+
+	if (! node->soa_req &&
+	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
+	    dnssec_ok_checking_disabled, node, &dnsreq, NULL,
+	    val_chain_node_soa_cb))
+
+		node->soa_req     = dnsreq->netreqs[0];
+}
+
+static void val_chain_sched_soa(chain_head *head, uint8_t *dname)
+{
+	chain_node *node;
+
+	if (!head->netreq)
+		return;
+
+	if (!*dname)
+		return;
+
+	for ( node = head->parent
+	    ; node && !_dname_equal(dname, node->ds.name)
+	    ; node = node->parent);
+
+	if (node)
+		val_chain_sched_soa_node(node);
+}
+
+static void val_chain_node_cb(getdns_dns_req *dnsreq);
+static void val_chain_sched_node(chain_node *node)
+{
+	getdns_context *context;
+	getdns_eventloop *loop;
+	getdns_dns_req *dnsreq;
+	char  name[1024];
+
+	context = node->chains->netreq->owner->context;
+	loop    = node->chains->netreq->owner->loop;
+
+	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
+		return;
+
+	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
+
+	if (! node->dnskey_req /* not scheduled */ &&
+	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
+	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
+
+		node->dnskey_req     = dnsreq->netreqs[0];
+
+	if (! node->ds_req && node->parent /* not root */ &&
+	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
+	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
+
+		node->ds_req = dnsreq->netreqs[0];
+}
+
+static void val_chain_sched(chain_head *head, uint8_t *dname)
+{
+	chain_node *node;
+
+	if (!head->netreq)
+		return;
+
+	for ( node = head->parent
+	    ; node && !_dname_equal(dname, node->ds.name)
+	    ; node = node->parent);
+	if (node)
+		val_chain_sched_node(node);
+}
+
+static void val_chain_sched_signer_node(chain_node *node, rrsig_iter *rrsig)
+{
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	uint8_t signer_spc[256], *signer;
+	size_t signer_len;
+	
+	if (!(rdf = priv_getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 7)))
+		return;
+
+	if (!(signer = priv_getdns_rdf_if_or_as_decompressed(
+	    rdf, signer_spc, &signer_len)))
+		return;
+
+	while (node && !_dname_equal(signer, node->ds.name))
+		node = node->parent;
+	if (node)
+		val_chain_sched_node(node);
+}
+
+static void val_chain_sched_signer(chain_head *head, rrsig_iter *rrsig)
+{
+	if (!head->netreq)
+		return;
+
+	val_chain_sched_signer_node(head->parent, rrsig);
+}
+
+static void val_chain_node_cb(getdns_dns_req *dnsreq)
+{
+	chain_node *node = (chain_node *)dnsreq->user_pointer;
+	getdns_network_req *netreq = dnsreq->netreqs[0];
+	rrset_iter *i, i_spc;
+	getdns_rrset *rrset;
+	rrsig_iter  *rrsig, rrsig_spc;
+
+	getdns_context_clear_outbound_request(dnsreq);
+	switch (netreq->request_type) {
+	case GETDNS_RRTYPE_DS    : node->ds.pkt     = netreq->response;
+	                           node->ds.pkt_len = netreq->response_len;
+	                           break;
+	case GETDNS_RRTYPE_DNSKEY: node->dnskey.pkt     = netreq->response;
+	                           node->dnskey.pkt_len = netreq->response_len;
+	default                  : check_chain_complete(node->chains);
+				   return;
+	}
+	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
+	    ; i
+	    ; i = rrset_iter_next(i)) {
+
+		rrset = rrset_iter_value(i);
+
+		if (rrset->rr_type != GETDNS_RRTYPE_DS     &&
+		    rrset->rr_type != GETDNS_RRTYPE_NSEC   &&
+		    rrset->rr_type != GETDNS_RRTYPE_NSEC3)
+			continue;
+
+		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
+		    ; rrsig; rrsig = rrsig_iter_next(rrsig))
+
+			val_chain_sched_signer_node(node, rrsig);
+	}
+	check_chain_complete(node->chains);
+}
+
+
+static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
+{
+	chain_node *node = (chain_node *)dnsreq->user_pointer;
+	getdns_network_req *netreq = dnsreq->netreqs[0];
+	rrset_iter i_spc;
+	getdns_rrset *rrset;
+
+	getdns_context_clear_outbound_request(dnsreq);
+
+	if ((rrset = rrset_by_type(&i_spc, netreq, GETDNS_RRTYPE_SOA))) {
+
+		while (node &&
+		    ! _dname_equal(node->ds.name, rrset->name))
+			node = node->parent;
+
+		if (node)
+			val_chain_sched_node(node);
+	} else
+		val_chain_sched_soa_node(node->parent);
+
+	check_chain_complete(node->chains);
+}
+
+
+/***************************  DNSSEC Validation  *****************************
+ *****************************************************************************/
+
+
+/* Returns whether a key in set dnskey is used to sign rrset.
+ * Only keytag and signer name is compared.  The signature is not verified.
+ */
 static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 {
 	rrtype_iter rr_spc, *rr;
@@ -965,6 +1338,7 @@ static int _getdns_verify_rrsig(
 	return 1;
 }
 
+/* Calculates NSEC3 hash for name, and stores that into label */
 static uint8_t *_getdns_nsec3_hash_label(uint8_t *label, size_t label_len,
     uint8_t *name, uint8_t algorithm, uint16_t iterations, uint8_t *salt)
 {
@@ -986,6 +1360,53 @@ static uint8_t *_getdns_nsec3_hash_label(uint8_t *label, size_t label_len,
 	return label;
 }
 
+static uint8_t *name2nsec3_label(
+    getdns_rrset *nsec3, uint8_t *name, uint8_t *label, size_t label_len)
+{
+	rrsig_iter rrsig_spc, *rrsig;
+	priv_getdns_rdf_iter rdf_spc, *rdf;
+	uint8_t signer_spc[256], *signer;
+	size_t signer_len = sizeof(signer_spc);
+	rrtype_iter rr_spc, *rr;
+
+	if (/* With the "first" signature */
+	       (rrsig = rrsig_iter_init(&rrsig_spc, nsec3))
+
+	    /* Access the signer name rdata field (7th) */
+	    && (rdf = priv_getdns_rdf_iter_init_at(
+			    &rdf_spc, &rrsig->rr_i, 7))
+
+	    /* Verify & decompress */
+	    && (signer = priv_getdns_rdf_if_or_as_decompressed(
+			    rdf, signer_spc, &signer_len))
+
+	    /* signer of the NSEC3 is direct parent for this NSEC3? */
+	    && _dname_equal(
+		    signer, nsec3->name + *nsec3->name + 1)
+
+	    /* signer of the NSEC3 is parent of name? */
+	    && _dname_is_parent(signer, name)
+
+	    /* Initialize rr for getting NSEC3 rdata fields */
+	    && (rr = rrtype_iter_init(&rr_spc, nsec3))
+	    
+	    /* Check for available space to get rdata fields */
+	    && rr->rr_i.rr_type + 15 <= rr->rr_i.nxt
+	    && rr->rr_i.rr_type + 14 + rr->rr_i.rr_type[14] <= rr->rr_i.nxt)
+
+		/* Get the hashed label */
+		return _getdns_nsec3_hash_label(label, label_len, name,
+			    rr->rr_i.rr_type[10],
+			    gldns_read_uint16(rr->rr_i.rr_type + 12),
+			    rr->rr_i.rr_type + 14);
+	return NULL;
+}
+
+
+
+/* Returns whether dnskey signed rrset.  If the rrset was a valid wildcard
+ * expansion, nc_name will point to the next closer part of the name in rrset.
+ */
 static int dnskey_signed_rrset(
     rrtype_iter *dnskey, getdns_rrset *rrset, uint8_t **nc_name)
 {
@@ -1036,6 +1457,10 @@ static int dnskey_signed_rrset(
 static int find_nsec_covering_name(
     getdns_rrset *dnskey, getdns_rrset *rrset, uint8_t *name, int *opt_out);
 
+/* Returns whether a dnskey for keyset signed rrset.  If the rrset was a valid
+ * wildcard expansion, nc_name will point to the next closer part of the name
+ * in rrset.
+ */
 static int a_key_signed_rrset(getdns_rrset *keyset, getdns_rrset *rrset)
 {
 	rrtype_iter dnskey_spc, *dnskey;
@@ -1070,6 +1495,9 @@ static int a_key_signed_rrset(getdns_rrset *keyset, getdns_rrset *rrset)
 	return 0;
 }
 
+/* Returns whether a DS in ds_set matches a dnskey in dnskey_set which in turn
+ * signed the dnskey set.
+ */
 static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 {
 	rrtype_iter dnskey_spc, *dnskey;
@@ -1191,61 +1619,6 @@ static int nsec_covers_name(
 		 */
 		return _dname_is_parent(owner, name) && dname_compare(owner, name);
 	}
-}
-
-static uint8_t *name2nsec3_label(
-    getdns_rrset *nsec3, uint8_t *name, uint8_t *label, size_t label_len)
-{
-	rrsig_iter rrsig_spc, *rrsig;
-	priv_getdns_rdf_iter rdf_spc, *rdf;
-	uint8_t signer_spc[256], *signer;
-	size_t signer_len = sizeof(signer_spc);
-	rrtype_iter rr_spc, *rr;
-
-	if (/* With the "first" signature */
-	       (rrsig = rrsig_iter_init(&rrsig_spc, nsec3))
-
-	    /* Access the signer name rdata field (7th) */
-	    && (rdf = priv_getdns_rdf_iter_init_at(
-			    &rdf_spc, &rrsig->rr_i, 7))
-
-	    /* Verify & decompress */
-	    && (signer = priv_getdns_rdf_if_or_as_decompressed(
-			    rdf, signer_spc, &signer_len))
-
-	    /* signer of the NSEC3 is direct parent for this NSEC3? */
-	    && _dname_equal(
-		    signer, nsec3->name + *nsec3->name + 1)
-
-	    /* signer of the NSEC3 is parent of name? */
-	    && _dname_is_parent(signer, name)
-
-	    /* Initialize rr for getting NSEC3 rdata fields */
-	    && (rr = rrtype_iter_init(&rr_spc, nsec3))
-	    
-	    /* Check for available space to get rdata fields */
-	    && rr->rr_i.rr_type + 15 <= rr->rr_i.nxt
-	    && rr->rr_i.rr_type + 14 + rr->rr_i.rr_type[14] <= rr->rr_i.nxt)
-
-		/* Get the hashed label */
-		return _getdns_nsec3_hash_label(label, label_len, name,
-			    rr->rr_i.rr_type[10],
-			    gldns_read_uint16(rr->rr_i.rr_type + 12),
-			    rr->rr_i.rr_type + 14);
-	return NULL;
-}
-
-static uint8_t *_dname_label_copy(uint8_t *dst, uint8_t *src, size_t dst_len)
-{
-	uint8_t *r = dst, i;
-
-	if (!src || *src + 1 > dst_len)
-		return NULL;
-
-	for (i = *src + 1; i > 0; i--)
-		*dst++ = tolower(*src++);
-
-	return r;
 }
 
 static int nsec3_matches_name(getdns_rrset *nsec3, uint8_t *name)
@@ -1706,6 +2079,14 @@ static int key_proves_nonexistance(
 	return 0;
 }
 
+/* Descend down to the root along chain_nodes.  Try to find a keyset
+ * authenticated by a key in ta rrset (trust anchor).  When we found one,
+ * ascend back up, authenticating more specific keysets along the chain.
+ *
+ * The most specific keyset is returned in keys.  Also a DNSSEC status is
+ * returned.  BOGUS if no keyset could be found.  INSECURE if the 
+ * non-existence of a DS along the path is proofed, and SECURE otherwise.
+ */
 static int chain_node_get_trusted_keys(
     chain_node *node, getdns_rrset *ta, getdns_rrset **keys)
 {
@@ -1774,6 +2155,10 @@ static int chain_node_get_trusted_keys(
 	return GETDNS_DNSSEC_SECURE;
 }
 
+/* The DNSSEC status of the rrset of head is evaluated with trust anchor ta.
+ * For this first a secure keyset is looked up, with which the keyset is 
+ * evaluated.
+ */
 static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 {
 	getdns_rrset *keys;
@@ -1804,6 +2189,9 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 	return GETDNS_DNSSEC_BOGUS;
 }
 
+/* The DNSSEC status of the rrset in head is evaluated by trying the trust
+ * anchors in tas in turn.  The best outcome counts.
+ */
 static int chain_head_validate(chain_head *head, rrset_iter *tas)
 {
 	rrset_iter *i;
@@ -1834,39 +2222,10 @@ static int chain_head_validate(chain_head *head, rrset_iter *tas)
 	return s;
 }
 
-static int chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
-{
-	int s = GETDNS_DNSSEC_INDETERMINATE, t;
-	chain_head *head;
-
-	/* The netreq status is the worst for any head */
-	for (head = chain; head; head = head->next) {
-		t = chain_head_validate(head, tas);
-		debug_sec_print_rrset("head ", &head->rrset);
-		DEBUG_SEC("1. validated to: %d -> %d\n", t, s);
-		switch (t) {
-		case GETDNS_DNSSEC_SECURE:
-			if (s == GETDNS_DNSSEC_INDETERMINATE)
-				s = GETDNS_DNSSEC_SECURE;
-			break;
-
-		case GETDNS_DNSSEC_INSECURE:
-			if (s != GETDNS_DNSSEC_BOGUS)
-				s = GETDNS_DNSSEC_INSECURE;
-			break;
-
-		case GETDNS_DNSSEC_BOGUS :
-			s = GETDNS_DNSSEC_BOGUS;
-			break;
-
-		default:
-			break;
-		}
-		DEBUG_SEC("2. validated to: %d -> %d\n", t, s);
-	}
-	return s;
-}
-
+/* The DNSSEC status of the network requests which constructed the chain is
+ * evaluated by processing each head in turn.  The worst outcome per network request
+ * is the dnssec status for that network request.
+ */
 static void chain_set_netreq_dnssec_status(chain_head *chain, rrset_iter *tas)
 {
 	chain_head *head;
@@ -1900,6 +2259,44 @@ static void chain_set_netreq_dnssec_status(chain_head *chain, rrset_iter *tas)
 		}
 	}
 }
+
+/* The DNSSEC status of all heads for a chain structure is evaluated by 
+ * processing each head in turn.  The worst outcome is the dnssec status for
+ * the whole.
+ */
+static int chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
+{
+	int s = GETDNS_DNSSEC_INDETERMINATE, t;
+	chain_head *head;
+
+	/* The netreq status is the worst for any head */
+	for (head = chain; head; head = head->next) {
+		t = chain_head_validate(head, tas);
+		switch (t) {
+		case GETDNS_DNSSEC_SECURE:
+			if (s == GETDNS_DNSSEC_INDETERMINATE)
+				s = GETDNS_DNSSEC_SECURE;
+			break;
+
+		case GETDNS_DNSSEC_INSECURE:
+			if (s != GETDNS_DNSSEC_BOGUS)
+				s = GETDNS_DNSSEC_INSECURE;
+			break;
+
+		case GETDNS_DNSSEC_BOGUS :
+			s = GETDNS_DNSSEC_BOGUS;
+			break;
+
+		default:
+			break;
+		}
+	}
+	return s;
+}
+
+
+/****************  dnssec_return_validation_chain Extension ******************
+ *****************************************************************************/
 
 static size_t count_outstanding_requests(chain_head *head)
 {
@@ -2063,193 +2460,6 @@ static void check_chain_complete(chain_head *chain)
 	priv_getdns_call_user_callback(dnsreq, response_dict);
 }
 
-static void val_chain_node_soa_cb(getdns_dns_req *dnsreq);
-static void val_chain_sched_soa_node(chain_node *node)
-{
-	getdns_context *context;
-	getdns_eventloop *loop;
-	getdns_dns_req *dnsreq;
-	char  name[1024];
-
-	context = node->chains->netreq->owner->context;
-	loop    = node->chains->netreq->owner->loop;
-
-	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
-		return;
-
-	if (! node->soa_req &&
-	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
-	    dnssec_ok_checking_disabled, node, &dnsreq, NULL,
-	    val_chain_node_soa_cb))
-
-		node->soa_req     = dnsreq->netreqs[0];
-}
-
-static void val_chain_sched_soa(chain_head *head, uint8_t *dname)
-{
-	chain_node *node;
-
-	if (!head->netreq)
-		return;
-
-	if (!*dname)
-		return;
-
-	for ( node = head->parent
-	    ; node && !_dname_equal(dname, node->ds.name)
-	    ; node = node->parent);
-
-	if (node)
-		val_chain_sched_soa_node(node);
-}
-
-static void val_chain_node_cb(getdns_dns_req *dnsreq);
-static void val_chain_sched_node(chain_node *node)
-{
-	getdns_context *context;
-	getdns_eventloop *loop;
-	getdns_dns_req *dnsreq;
-	char  name[1024];
-
-	context = node->chains->netreq->owner->context;
-	loop    = node->chains->netreq->owner->loop;
-
-	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
-		return;
-
-	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
-
-	if (! node->dnskey_req /* not scheduled */ &&
-	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
-	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
-
-		node->dnskey_req     = dnsreq->netreqs[0];
-
-	if (! node->ds_req && node->parent /* not root */ &&
-	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
-	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
-
-		node->ds_req = dnsreq->netreqs[0];
-}
-
-static void val_chain_sched(chain_head *head, uint8_t *dname)
-{
-	chain_node *node;
-
-	if (!head->netreq)
-		return;
-
-	for ( node = head->parent
-	    ; node && !_dname_equal(dname, node->ds.name)
-	    ; node = node->parent);
-	if (node)
-		val_chain_sched_node(node);
-}
-
-static void val_chain_sched_signer_node(chain_node *node, rrsig_iter *rrsig)
-{
-	priv_getdns_rdf_iter rdf_spc, *rdf;
-	uint8_t signer_spc[256], *signer;
-	size_t signer_len;
-	
-	if (!(rdf = priv_getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 7)))
-		return;
-
-	if (!(signer = priv_getdns_rdf_if_or_as_decompressed(
-	    rdf, signer_spc, &signer_len)))
-		return;
-
-	while (node && !_dname_equal(signer, node->ds.name))
-		node = node->parent;
-	if (node)
-		val_chain_sched_node(node);
-}
-
-static void val_chain_sched_signer(chain_head *head, rrsig_iter *rrsig)
-{
-	if (!head->netreq)
-		return;
-
-	val_chain_sched_signer_node(head->parent, rrsig);
-}
-
-static void val_chain_node_cb(getdns_dns_req *dnsreq)
-{
-	chain_node *node = (chain_node *)dnsreq->user_pointer;
-	getdns_network_req *netreq = dnsreq->netreqs[0];
-	rrset_iter *i, i_spc;
-	getdns_rrset *rrset;
-	rrsig_iter  *rrsig, rrsig_spc;
-
-	getdns_context_clear_outbound_request(dnsreq);
-	switch (netreq->request_type) {
-	case GETDNS_RRTYPE_DS    : node->ds.pkt     = netreq->response;
-	                           node->ds.pkt_len = netreq->response_len;
-	                           break;
-	case GETDNS_RRTYPE_DNSKEY: node->dnskey.pkt     = netreq->response;
-	                           node->dnskey.pkt_len = netreq->response_len;
-	default                  : check_chain_complete(node->chains);
-				   return;
-	}
-	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
-	    ; i
-	    ; i = rrset_iter_next(i)) {
-
-		rrset = rrset_iter_value(i);
-
-		if (rrset->rr_type != GETDNS_RRTYPE_DS     &&
-		    rrset->rr_type != GETDNS_RRTYPE_NSEC   &&
-		    rrset->rr_type != GETDNS_RRTYPE_NSEC3)
-			continue;
-
-		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
-		    ; rrsig; rrsig = rrsig_iter_next(rrsig))
-
-			val_chain_sched_signer_node(node, rrsig);
-	}
-	check_chain_complete(node->chains);
-}
-
-
-static getdns_rrset *rrset_by_type(
-    rrset_iter *i_spc, getdns_network_req *netreq, uint16_t rr_type)
-{
-	rrset_iter   *i;
-	getdns_rrset *rrset;
-
-	for ( i = rrset_iter_init(i_spc,netreq->response,netreq->response_len)
-	    ; i
-	    ; i = rrset_iter_next(i)) {
-
-		rrset = rrset_iter_value(i);
-		if (rrset->rr_type == rr_type) /* Check class too? */
-			return rrset;
-	}
-	return NULL;
-}
-
-static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
-{
-	chain_node *node = (chain_node *)dnsreq->user_pointer;
-	getdns_network_req *netreq = dnsreq->netreqs[0];
-	rrset_iter i_spc;
-	getdns_rrset *rrset;
-
-	getdns_context_clear_outbound_request(dnsreq);
-
-	if ((rrset = rrset_by_type(&i_spc, netreq, GETDNS_RRTYPE_SOA))) {
-
-		while (node &&
-		    ! _dname_equal(node->ds.name, rrset->name))
-			node = node->parent;
-
-		if (node)
-			val_chain_sched_node(node);
-	} else
-		val_chain_sched_soa_node(node->parent);
-
-	check_chain_complete(node->chains);
-}
 
 void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
 {
@@ -2285,6 +2495,12 @@ void priv_getdns_get_validation_chain(getdns_dns_req *dnsreq)
 		priv_getdns_call_user_callback(dnsreq,
 		    create_getdns_response(dnsreq));
 }
+
+
+/*******************  getdns_validate_dnssec() Function  *********************
+ *****************************************************************************/
+
+
 static int wire_validate_dnssec(uint8_t *to_val, size_t to_val_len,
     uint8_t *support, size_t support_len, uint8_t *tas, size_t tas_len,
     struct mem_funcs *mf)
@@ -2452,6 +2668,10 @@ exit_free_support:
 
 	return r;
 }
+
+
+/******************  getdns_root_trust_anchor() Function  ********************
+ *****************************************************************************/
 
 uint16_t
 _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf)
