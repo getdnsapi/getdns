@@ -164,7 +164,7 @@
  *
  * They both evaluate the DNSSEC status for each head in turn.  The worst
  * DNSSEC status determines the status of all heads evaluated.  Where
- * INSECURE is worse then SECURE, and BOGUS is worse then INSECURE.
+ * INSECURE is worse than SECURE, and BOGUS is worse than INSECURE.
  *
  * For each head, each trust anchor is tried.  Here the best DNSSEC status
  * determines the status of the head.

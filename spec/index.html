@@ -1380,6 +1380,9 @@ and <code>public_key</code> (a bindata)</p>
 <p class=define>OPENPGPKEY (61)</p>
 <p class=descrip><code>openpgpkey_unknown</code> (a bindata)</p>
 
+<p class=define>CSYNC (62)</p>
+<p class=descrip><code>serial</code> (an int), <code>flags</code> (an int), and <code>type_bit_maps</code> (a bindata)</p>
+
 <p class=define>SPF (99)</p>
 <p class=descrip><code>text</code> (a bindata)</p>
 
@@ -2193,24 +2196,8 @@ getdns_context_set_dns_transport(
 The value is <span class=default>
 <code>GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP</code></span>,
 <code>GETDNS_TRANSPORT_UDP_ONLY</code>,
-<code>GETDNS_TRANSPORT_TCP_ONLY</code>, 
-<code>GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN></code>,
-<code>GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN></code>, or
-<code>GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN></code>
-
-<div class=forh>
-getdns_return_t
-getdns_context_set_dns_transport_list(
-  size_t              transport_list,
-  getdns_transport_list_t  *transports
-);</div>
-<p class=cont>The <code>transports</code> array contains an ordered list
-of transports that will be used for DNS lookups. The 
-values are <span class=default>
-<code>GETDNS_TRANSPORT_UDP</code></span>,
-<code>GETDNS_TRANSPORT_TCP</code>,
-<code>GETDNS_TRANSPORT_TLS></code>, or
-<code>GETDNS_TRANSPORT_STARTTLS></code>
+<code>GETDNS_TRANSPORT_TCP_ONLY</code>, or
+<code>GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN</code>.</p>
 
 <div class=forh>
 getdns_return_t
@@ -2232,16 +2219,6 @@ getdns_context_set_timeout(
 );</div>
 <p class=cont>Specifies number of milliseconds the API will wait for request to return.
 The default is <span class=default>not specified</span>.</p>
-
-<div class=forh>
-getdns_return_t
-getdns_context_set_idle_timeout(
-  getdns_context  *context,
-  uint64_t        timeout
-);</div>
-<p class=cont>Specifies number of milliseconds the API will leave an idle TCP, TLS or STARTTLS 
-connection open for (idle means no outstanding responses and no pending queries).
-The default is <span class=default>0</span>.</p>
 
 <h2>8.4 Context for Recursive Resolvers</h2>
 
@@ -2454,8 +2431,7 @@ The response dicts inherit the custom memory management functions and the value 
 <p class=descrip>Change related to <code>getdns_context_set_memory_functions</code></p>
 <p class=define>GETDNS_CONTEXT_CODE_TIMEOUT</p>
 <p class=descrip>Change related to <code>getdns_context_set_timeout</code></p>
-<p class=define>GETDNS_CONTEXT_CODE_IDLE_TIMEOUT</p>
-<p class=descrip>Change related to <code>getdns_context_set_idle_timeout</code></p>
+
 
 <h2>8.11 Getting API information and current Contexts</h2>
 <p>An application might want to see information about the API itself and inspect the current context.
@@ -2486,7 +2462,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.6.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.601.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
