@@ -955,6 +955,15 @@ static int is_synthesized_cname(getdns_rrset *cname)
 /* Create the validation chain structure for the given packet.
  * When netreq is set, queries will be scheduled for the DS
  * and DNSKEY RR's for the nodes on the validation chain.
+ *
+ * Scheduling is as follows.
+ * If the RRset has a signature, signer name is followed to schedule DS/DNSKEY.
+ * Otherwise, if the RRSET is a SOA, owner name is followed to schedule DS
+ * Otherwise, if the RRset is a CNAME, a SOA query is scheduled for the parent
+ * Otherwise, a SOA query is scheduled for the owner name.
+ *
+ * When a SOA query was successful, a query for DS will follow for that
+ * owner name.
  */
 static void add_pkt2val_chain(struct mem_funcs *mf,
     chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
@@ -993,11 +1002,13 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		    ; rrsig
 		    ; rrsig = rrsig_iter_next(rrsig), n_rrsigs++) {
 			
+			/* Signature, so lookup DS/DNSKEY at signer's name */
 			val_chain_sched_signer(head, rrsig);
 		}
 		if (n_rrsigs)
 			continue;
 
+		/* No signatures found for this RRset */
 		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
 			val_chain_sched(head, rrset->name);
 		else if (rrset->rr_type == GETDNS_RRTYPE_CNAME)
@@ -1090,6 +1101,11 @@ static void val_chain_sched_soa_node(chain_node *node)
 		node->soa_req     = dnsreq->netreqs[0];
 }
 
+/* A SOA lookup is scheduled as a last resort.  No signatures were found and
+ * no SOA in the authority section.  If a SOA query returns an actual SOA
+ * answer, then a DS/DNSKEY lookup will follow the acquire the link of the
+ * authentication chain.
+ */
 static void val_chain_sched_soa(chain_head *head, uint8_t *dname)
 {
 	chain_node *node;
@@ -1262,6 +1278,12 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 	for ( rr = rrtype_iter_init(&rr_spc, dnskey)
 	    ; rr ; rr = rrtype_iter_next(rr) ) {
 
+
+		/* Enough space to at least read algorithm field? */
+		if (rr->rr_i.nxt < rr->rr_i.rr_type + 14)
+			continue;
+
+		/* Then we have at least 4 bytes to calculate keytag */
 		keytag = gldns_calc_keytag_raw(rr->rr_i.rr_type + 10,
 				rr->rr_i.nxt - rr->rr_i.rr_type - 10);
 
@@ -1270,6 +1292,9 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 
 			if (/* Space for keytag & signer in rrsig rdata? */
 			       rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 28
+
+			    /* Does Algorithm match */
+			    && rrsig->rr_i.rr_type[12] == rr->rr_i.rr_type[13]
 
 			    /* Does the keytag match? */
 			    && gldns_read_uint16(rrsig->rr_i.rr_type + 26)
@@ -1312,7 +1337,7 @@ static ldns_rr_list *rrset2ldns_rr_list(getdns_rrset *rrset)
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)
 		    ; rr ; rr = rrtype_iter_next(rr) )
 			if ((rr_l = rr2ldns_rr(&rr->rr_i)))
-				ldns_rr_list_push_rr(rr_list, rr_l);
+				(void)ldns_rr_list_push_rr(rr_list, rr_l);
 	}
 	return rr_list;
 }
@@ -1329,7 +1354,7 @@ static int _getdns_verify_rrsig(
 	ldns_rr *rrsig_l = rr2ldns_rr(&rrsig->rr_i);
 	ldns_rr *key_l = rr2ldns_rr(&key->rr_i);
 	int r;
-	size_t to_skip;
+	int to_skip;
 
 	/* nc_name should already have been initialized by the parent! */
 	assert(nc_name);
@@ -1361,11 +1386,11 @@ static int _getdns_verify_rrsig(
 	 * "Next closer" name, because we need another NSEC to cover it.
 	 * (except for rrsigs for NSECs, but those are dealt with later)
 	 */
-	to_skip = _dname_label_count(rrset->name)
-		- (size_t)rrsig->rr_i.rr_type[13] - 1;
+	to_skip = (int)_dname_label_count(rrset->name)
+		- (int)rrsig->rr_i.rr_type[13] - 1;
 
 	for ( *nc_name = rrset->name
-	    ; to_skip
+	    ; to_skip > 0
 	    ; *nc_name += **nc_name + 1, to_skip--);
 
 	return 1;
@@ -1452,6 +1477,11 @@ static int dnskey_signed_rrset(
 
 	*nc_name = NULL;
 
+	/* Enough space to at least read algorithm field? */
+	if (dnskey->rr_i.nxt < dnskey->rr_i.rr_type + 14)
+		return 0;
+
+	/* Then we have at least 4 bytes to calculate keytag */
 	keytag = gldns_calc_keytag_raw(dnskey->rr_i.rr_type + 10,
 			dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10);
 
@@ -1460,6 +1490,9 @@ static int dnskey_signed_rrset(
 
 		if (/* Space for keytag & signer in rrsig rdata? */
 		        rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 28
+
+		    /* Does Algorithm match */
+		    && rrsig->rr_i.rr_type[12] == dnskey->rr_i.rr_type[13]
 
 		    /* Does the keytag match? */
 		    && gldns_read_uint16(rrsig->rr_i.rr_type + 26) == keytag
@@ -1472,7 +1505,7 @@ static int dnskey_signed_rrset(
 				    rdf, signer_spc, &signer_len))
 
 		    && _dname_equal(dnskey->rrset->name, signer)
-		    
+
 		    /* Does the signature verify? */
 		    && _getdns_verify_rrsig(rrset, rrsig, dnskey, nc_name)) {
 
@@ -1544,6 +1577,10 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	for ( dnskey = rrtype_iter_init(&dnskey_spc, dnskey_set)
 	    ; dnskey ; dnskey = rrtype_iter_next(dnskey)) {
 
+		/* Enough space to at least read algorithm field? */
+		if (dnskey->rr_i.nxt < dnskey->rr_i.rr_type + 14)
+			continue;
+
 		keytag = gldns_calc_keytag_raw(dnskey->rr_i.rr_type + 10,
 				dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10);
 
@@ -1553,7 +1590,10 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 		    ; ds ; ds = rrtype_iter_next(ds)) {
 
 			if (/* Space for keytag & signer in rrsig rdata? */
-			       ds->rr_i.nxt < ds->rr_i.rr_type + 12
+			       ds->rr_i.nxt < ds->rr_i.rr_type + 13
+
+			    /* Does algorithm match? */
+			    || ds->rr_i.rr_type[12] != dnskey->rr_i.rr_type[13]
 
 			    /* Does the keytag match? */
 			    || gldns_read_uint16(ds->rr_i.rr_type+10)!=keytag)
