@@ -210,6 +210,9 @@
  /* Maximum number of canonical name redirections for one name */
 #define MAX_CNAMES 100
 
+#define SIGNATURE_VERIFIED         0x10000
+#define NSEC3_ITERATION_COUNT_HIGH 0x20000
+
 /*******************  Frequently Used Utility Functions  *********************
  *****************************************************************************/
 
@@ -497,7 +500,7 @@ typedef struct getdns_rrset {
 	uint16_t  rr_type;
 	uint8_t  *pkt;
 	size_t    pkt_len;
-	uint8_t   name_spc[];
+	uint8_t   name_spc[1];
 } getdns_rrset;
 
 typedef struct rrtype_iter {
@@ -1460,6 +1463,41 @@ static uint8_t *name2nsec3_label(
 	return NULL;
 }
 
+
+static int nsec3_iteration_count_high(rrtype_iter *dnskey, getdns_rrset *nsec3)
+{
+	rrtype_iter rr_spc, *rr;
+	size_t bits;
+
+	/* No NSEC3, then iteration count is not too high */
+	if (nsec3->rr_type != GETDNS_RRTYPE_NSEC3)
+		return 0;
+
+	/* Enough space to at least read algorithm field? 
+	 * Without key data iteration count is definitely too high.
+	 */
+	if (dnskey->rr_i.nxt < dnskey->rr_i.rr_type + 14)
+		return 1;
+
+	if (/* Initialize rr for getting NSEC3 rdata fields */
+	      !(rr = rrtype_iter_init(&rr_spc, nsec3))
+	    
+	    /* Check for available space to get rdata fields */
+	    || rr->rr_i.rr_type + 14 > rr->rr_i.nxt)
+		return 1;
+	
+	bits = ldns_rr_dnskey_key_size_raw(dnskey->rr_i.rr_type + 10,
+	    dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10,
+	    dnskey->rr_i.rr_type[13]);
+
+	if (bits > 2048)
+		return gldns_read_uint16(rr->rr_i.rr_type + 12) > 2500;
+	else if (bits > 1024)
+		return gldns_read_uint16(rr->rr_i.rr_type + 12) > 500;
+	else
+		return gldns_read_uint16(rr->rr_i.rr_type + 12) > 150;
+}
+
 /* Returns whether dnskey signed rrset.  If the rrset was a valid wildcard
  * expansion, nc_name will point to the next closer part of the name in rrset.
  */
@@ -1512,7 +1550,14 @@ static int dnskey_signed_rrset(
 			debug_sec_print_rr("key ", &dnskey->rr_i);
 			debug_sec_print_rrset("signed ", rrset);
 
-			return 0x10000 | keytag; /* in case keytag == 0 */
+			/* Signal insecurity by too high nsec3 iteration 
+			 * count with NSEC3_ITERATION_COUNT_HIGH
+			 * bit in return value.
+			 */
+			return ( nsec3_iteration_count_high(dnskey, rrset)
+			       ? NSEC3_ITERATION_COUNT_HIGH
+			       : SIGNATURE_VERIFIED
+			       ) | keytag;
 		}
 	}
 	return 0;
@@ -1618,7 +1663,7 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 
 				debug_sec_print_rrset(
 				    "keyset authenticated: ", dnskey_set);
-				return 0x10000 | keytag; /* In case keytag == 0 */
+				return SIGNATURE_VERIFIED | keytag;
 			}
 			debug_sec_print_rrset(
 			    "keyset failed authentication: ", dnskey_set);
@@ -1768,28 +1813,35 @@ static int find_nsec_covering_name(
 	    ; i ; i = rrset_iter_next(i)) {
 
 		if ((n = rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
-		    && nsec3_covers_name(n, name, opt_out)
 
 		    /* Get the bitmap rdata field */
 		    && (nsec_rr = rrtype_iter_init(&nsec_spc, n))
 		    && (bitmap = priv_getdns_rdf_iter_init_at(
 				    &bitmap_spc, &nsec_rr->rr_i, 5))
 
-		    /* NSEC should cover, but not match name...
-		     * Unless it is wildcard match, but then we have to check
-		     * that rrset->rr_type is not enlisted, because otherwise
-		     * it should have matched the wildcard.
-		     * 
-		     * Also no CNAME... cause that should have matched too.
-		     */
-		    && (    !nsec3_matches_name(n, name)
-		        || (   name[0] == 1 && name[1] == (uint8_t)'*'
-		            && !bitmap_has_type(bitmap, rrset->rr_type)
-		            && !bitmap_has_type(bitmap, GETDNS_RRTYPE_CNAME)
+		    && (keytag = a_key_signed_rrset(dnskey, n))
+		    && (   keytag & NSEC3_ITERATION_COUNT_HIGH
+
+		        || (   nsec3_covers_name(n, name, opt_out)
+			    /* NSEC should cover, but not match name...
+			     * Unless it is wildcard match, but then we have to
+			     * check that rrset->rr_type is not enlisted,
+			     * because otherwise it should have matched the
+			     * wildcard.
+			     * 
+			     * Also no CNAME... cause that should have matched too.
+			     */
+
+		            && (    !nsec3_matches_name(n, name)
+		                || (   name[0] == 1 && name[1] == (uint8_t)'*'
+		                    && !bitmap_has_type(bitmap, rrset->rr_type)
+		                    && !bitmap_has_type(bitmap,
+					    GETDNS_RRTYPE_CNAME)
+		                   )
+		               )
 		           )
 		       )
-
-		    && (keytag = a_key_signed_rrset(dnskey, n))) {
+		    ) {
 
 			debug_sec_print_rrset("NSEC3:   ", n);
 			debug_sec_print_dname("covered: ", name);
@@ -1869,11 +1921,14 @@ static int nsec3_find_next_closer(
 	 * (if we came here via getdns_validate_dnssec) in which case
 	 * rcode is always NOERROR.
 	 */
-	if (my_opt_out)
+	if (my_opt_out || keytag & NSEC3_ITERATION_COUNT_HIGH)
 		return keytag;
 
 	nc_name += *nc_name + 1;
-	(void) memcpy(wc_name + 2, nc_name, _dname_len(nc_name));
+	if (_dname_len(nc_name) > sizeof(wc_name) - 2)
+		return 0;
+	else
+		(void) memcpy(wc_name + 2, nc_name, _dname_len(nc_name));
 
 	return find_nsec_covering_name(dnskey, rrset, wc_name, opt_out);
 }
@@ -1882,8 +1937,10 @@ static int nsec3_find_next_closer(
  * Does a key from keyset dnskey prove the nonexistence of the (name, type)
  * tuple in rrset?
  *
- * On success returns the keytag (+0x10000) of the key that signed the proof.
- * Or else returns 0.
+ * On success returns the keytag + SIGNATURE_VERIFIED (0x10000) of the key
+ * that signed the proof.
+ * Or in case there were NSEC3's with too high iteration count for the
+ * verifying key: it returns keytag + NSEC3_ITERATION_COUNT_HIGH (0x20000)
  */
 static int key_proves_nonexistance(
     getdns_rrset *keyset, getdns_rrset *rrset, int *opt_out)
@@ -1960,8 +2017,7 @@ static int key_proves_nonexistance(
 	 *
 	 * - Or a wildcard match without the type.  The wildcard owner name
 	 *   match has special handing in the find_nsec_covering_name function.
-	 *   We still expect a NSEC covering the name though.  For names with 
-	 *   label < '*' there will thus be two NSECs.  (is this true?)
+	 *   We still expect a NSEC covering the name though.
 	 */
 
 	/* The NSEC Name error case
@@ -2021,7 +2077,12 @@ static int key_proves_nonexistance(
 		}
 
 		debug_sec_print_dname("Closest Encloser: ", ce_name);
-		memcpy(wc_name + 2, ce_name, _dname_len(ce_name));
+
+		if (_dname_len(ce_name) > sizeof(wc_name) - 2)
+			return 0;
+		else
+			(void) memcpy(wc_name+2, ce_name, _dname_len(ce_name));
+
 		debug_sec_print_dname("        Wildcard: ", wc_name);
 
 		return find_nsec_covering_name(keyset, rrset, wc_name, NULL);
@@ -2075,13 +2136,12 @@ static int key_proves_nonexistance(
 			|| !bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
 			||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
 
-		    /* The qname must match the NSEC3!
-		     * (expensive tests done last)
-		     */
-		    && nsec3_matches_name(ce, rrset->name)
+		    /* It must have a valid signature */
+		    && (keytag = a_key_signed_rrset(keyset, ce))
 
-		    /* And it must have a valid signature */
-		    && (keytag = a_key_signed_rrset(keyset, ce))) {
+		    /* The qname must match the NSEC3 */
+		    && (   keytag & NSEC3_ITERATION_COUNT_HIGH
+		        || nsec3_matches_name(ce, rrset->name))) {
 
 			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
 			return keytag;
@@ -2092,10 +2152,9 @@ static int key_proves_nonexistance(
 	 * There are a few NSEC NODATA cases where qname doesn't match
 	 * NSEC->name:
 	 *
-	 * - NSEC3 ownername match for qtype != NSEC3 (TODO?)
+	 * - NSEC3 ownername match for qtype == NSEC3 (TODO?)
 	 * - Wildcard NODATA (wildcard owner name match has special handing 
 	 *                    find_nsec_covering_name())
-	 * - Opt-In DS NODATA (TODO, don't understand yet)
 	 */
 
 	/* The NSEC3 Name error case
@@ -2124,22 +2183,26 @@ static int key_proves_nonexistance(
 			     * here (instead of bogus) when DS is also missing.
 			     * Should we not have followed the delegation then
 			     * too?
+			     * The NSEC could come from a parent zone!
+			     * 
 			     */
 			    || bitmap_has_type(bitmap, GETDNS_RRTYPE_DNAME)
 			    || (    bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
 			        && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
 			       )
 
-			    || !nsec3_matches_name(ce, ce_name)
-			    || !a_key_signed_rrset(keyset, ce))
+			    || !(keytag = a_key_signed_rrset(keyset, ce))
+			    || (   !(keytag & NSEC3_ITERATION_COUNT_HIGH)
+			        && !nsec3_matches_name(ce, ce_name)))
 				continue;
 
 			debug_sec_print_rrset("Closest Encloser: ", ce);
 			debug_sec_print_dname("Closest Encloser: ", ce_name);
 			debug_sec_print_dname("     Next closer: ", nc_name);
 
-			if ((keytag = nsec3_find_next_closer(
-			    keyset, rrset, nc_name, opt_out)))
+			if (    keytag & NSEC3_ITERATION_COUNT_HIGH
+			    || (keytag = nsec3_find_next_closer(
+					    keyset, rrset, nc_name, opt_out)))
 
 				return keytag;
 		}
@@ -2180,7 +2243,7 @@ static int chain_node_get_trusted_keys(
 			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
-		/* ta is ZSK */
+		/* ta is parent's ZSK */
 		if ((keytag = key_proves_nonexistance(ta, &node->ds, NULL))) {
 			node->ds_signer = keytag;
 			return GETDNS_DNSSEC_INSECURE;
@@ -2252,7 +2315,8 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 	} else if ((keytag = key_proves_nonexistance(
 					keys, &head->rrset, &opt_out))) {
 		head->signer = keytag;
-		return opt_out ? GETDNS_DNSSEC_INSECURE : GETDNS_DNSSEC_SECURE;
+		return opt_out || (keytag & NSEC3_ITERATION_COUNT_HIGH)
+		     ? GETDNS_DNSSEC_INSECURE : GETDNS_DNSSEC_SECURE;
 	}
 	return GETDNS_DNSSEC_BOGUS;
 }
