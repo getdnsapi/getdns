@@ -2381,6 +2381,7 @@ static int chain_head_validate(chain_head *head, rrset_iter *tas)
 	    ; rr; rr = rrtype_iter_next(rr)) {
 
 		if (   rr->rr_i.rr_type + 14 <= rr->rr_i.nxt
+		    && rr->rr_i.rr_type[13] != GLDNS_RSAMD5 /* Deprecated */
 		    && ldns_key_algo_supported(rr->rr_i.rr_type[13])) 
 
 			supported_algorithms++;
