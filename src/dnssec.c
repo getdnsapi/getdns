@@ -166,8 +166,9 @@
  * DNSSEC status determines the status of all heads evaluated.  Where
  * INSECURE is worse than SECURE, and BOGUS is worse than INSECURE.
  *
- * For each head, each trust anchor is tried.  Here the best DNSSEC status
- * determines the status of the head.
+ * For each head, the closest (most labels still a parent of the head's name)
+ * trust anchor is tried.  Without fitting trust anchors, DNSSEC_INDETERMINATE
+ * is returned.
  *
  * Security status for a head (with a specific trust anchor) is evaluated by
  * first finding a authenticated keyset from the parent chain_nodes, and then
@@ -212,6 +213,7 @@
 
 #define SIGNATURE_VERIFIED         0x10000
 #define NSEC3_ITERATION_COUNT_HIGH 0x20000
+#define NO_SUPPORTED_ALGORITHMS    0x40000
 
 /*******************  Frequently Used Utility Functions  *********************
  *****************************************************************************/
@@ -219,14 +221,18 @@
 inline static size_t _dname_len(uint8_t *name)
 {
 	uint8_t *p;
-	for (p = name; *p; p += *p + 1);
+	for (p = name; *p; p += *p + 1)
+		/* pass */
+		;
 	return p - name + 1;
 }
 
 inline static size_t _dname_label_count(uint8_t *name)
 {
 	size_t c;
-	for (c = 0; *name; name += *name + 1, c++);
+	for (c = 0; *name; name += *name + 1, c++)
+		/* pass */
+		;
 	return c;
 }
 
@@ -2229,10 +2235,12 @@ static int chain_node_get_trusted_keys(
 	
 	else if (ta->rr_type == GETDNS_RRTYPE_DS) {
 		
-		if ((keytag = ds_authenticates_keys(&node->ds, &node->dnskey))) {
+		if ((keytag = ds_authenticates_keys(ta, &node->dnskey))) {
 			*keys = &node->dnskey;
 			node->dnskey_signer = keytag;
-			return GETDNS_DNSSEC_SECURE;
+			return keytag & NO_SUPPORTED_ALGORITHMS
+			     ? GETDNS_DNSSEC_INSECURE
+			     : GETDNS_DNSSEC_SECURE;
 		}
 
 	} else if (ta->rr_type == GETDNS_RRTYPE_DNSKEY) {
@@ -2251,10 +2259,13 @@ static int chain_node_get_trusted_keys(
 
 		if ((keytag = a_key_signed_rrset(ta, &node->ds))) {
 			node->ds_signer = keytag;
-			if ((keytag = ds_authenticates_keys(&node->ds, &node->dnskey))) {
+			if ((keytag = ds_authenticates_keys(
+			    &node->ds, &node->dnskey))) {
 				*keys = &node->dnskey;
 				node->dnskey_signer = keytag;
-				return GETDNS_DNSSEC_SECURE;
+				return keytag & NO_SUPPORTED_ALGORITHMS
+				     ? GETDNS_DNSSEC_INSECURE
+				     : GETDNS_DNSSEC_SECURE;
 			}
 			return GETDNS_DNSSEC_BOGUS;
 		}
@@ -2275,11 +2286,13 @@ static int chain_node_get_trusted_keys(
 	if ((keytag = key_matches_signer(ta, &node->ds))) {
 		node->ds_signer = keytag;
 		if (a_key_signed_rrset(ta, &node->ds) &&
-		    (keytag = ds_authenticates_keys(&node->ds, &node->dnskey))) {
+		   (keytag = ds_authenticates_keys(&node->ds, &node->dnskey))){
 
 			*keys = &node->dnskey;
 			node->dnskey_signer = keytag;
-			return GETDNS_DNSSEC_SECURE;
+			return keytag & NO_SUPPORTED_ALGORITHMS
+			     ? GETDNS_DNSSEC_INSECURE
+			     : GETDNS_DNSSEC_SECURE;
 		}
 		return GETDNS_DNSSEC_BOGUS;
 	}
@@ -2327,27 +2340,68 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 static int chain_head_validate(chain_head *head, rrset_iter *tas)
 {
 	rrset_iter *i;
-	getdns_rrset *ta;
-	int s = GETDNS_DNSSEC_INDETERMINATE;
+	getdns_rrset *ta, dnskey_ta, ds_ta;
+	rrset_iter closest_ta;
+	int closest_labels, s = GETDNS_DNSSEC_INDETERMINATE;
+	size_t common_labels, supported_algorithms;
+	rrtype_iter rr_spc, *rr;
 
+	/* Find the TA closest to the head's RRset name */
+	closest_labels = -1;
 	for (i = rrset_iter_rewind(tas); i ;i = rrset_iter_next(i)) {
 		ta = rrset_iter_value(i);
 
-		if ((ta->rr_type != GETDNS_RRTYPE_DNSKEY &&
-		     ta->rr_type != GETDNS_RRTYPE_DS
-		    ) || !_dname_is_parent(ta->name, head->rrset.name))
-			continue;
+		if ((ta->rr_type == GETDNS_RRTYPE_DNSKEY ||
+		     ta->rr_type == GETDNS_RRTYPE_DS) 
+		    && (int)(common_labels = _dname_label_count(
+		             dname_shared_parent(ta->name,head->rrset.name))
+			    ) > closest_labels ) {
 
-		/* The best status for any ta counts */
-		switch (chain_head_validate_with_ta(head, ta)) {
+			closest_labels = (int)common_labels;
+			closest_ta = *i;
+			if (i->rrset.name == i->name_spc)
+				closest_ta.rrset.name = closest_ta.name_spc;
+		}
+	}
+	if (closest_labels == -1)
+		return GETDNS_DNSSEC_INDETERMINATE;
+
+	ta = rrset_iter_value(&closest_ta);
+	dnskey_ta = *ta;
+	dnskey_ta.rr_type = GETDNS_RRTYPE_DNSKEY;
+	ds_ta = *ta;
+	ds_ta.rr_type = GETDNS_RRTYPE_DS;
+
+	if (!rrset_has_rrs(&dnskey_ta)) 
+		return chain_head_validate_with_ta(head, &ds_ta);
+
+	/* Does the selected DNSKEY set have supported algorithms? */
+	supported_algorithms = 0;
+	for ( rr = rrtype_iter_init(&rr_spc, ta)
+	    ; rr; rr = rrtype_iter_next(rr)) {
+
+		if (   rr->rr_i.rr_type + 14 <= rr->rr_i.nxt
+		    && ldns_key_algo_supported(rr->rr_i.rr_type[13])) 
+
+			supported_algorithms++;
+	}
+	if (!supported_algorithms) {
+		if (rrset_has_rrs(&ds_ta))
+			return chain_head_validate_with_ta(head, &ds_ta);
+
+		return GETDNS_DNSSEC_INSECURE;
+	}
+	s = chain_head_validate_with_ta(head, &dnskey_ta);
+	if (rrset_has_rrs(&ds_ta)) {
+		switch (chain_head_validate_with_ta(head, &ds_ta)) {
 		case GETDNS_DNSSEC_SECURE  : s = GETDNS_DNSSEC_SECURE;
 		case GETDNS_DNSSEC_INSECURE: if (s != GETDNS_DNSSEC_SECURE)
 						     s = GETDNS_DNSSEC_INSECURE;
-		                             break;
+					     break;
 		case GETDNS_DNSSEC_BOGUS   : if (s != GETDNS_DNSSEC_SECURE &&
-		                                 s != GETDNS_DNSSEC_INSECURE)
-		                                     s = GETDNS_DNSSEC_BOGUS;
-		                             break;
+						 s != GETDNS_DNSSEC_INSECURE)
+						     s = GETDNS_DNSSEC_BOGUS;
+					     break;
 		default                    : break;
 		}
 	}
