@@ -31,6 +31,7 @@
 
 #include "rr-iter.h"
 #include "config.h"
+#include "gldns/rrdef.h"
 
 static void
 rr_iter_find_nxt(priv_getdns_rr_iter *i)
@@ -133,7 +134,7 @@ dname_if_or_as_decompressed(uint8_t *pkt, uint8_t *pkt_end, uint8_t *pos,
 	assert(buf);
 	assert(len);
 
-	if (refs > 256)
+	if (refs > GLDNS_MAX_POINTERS)
 		goto error;
 
 	if ((*pos & 0xC0) == 0xC0) {
