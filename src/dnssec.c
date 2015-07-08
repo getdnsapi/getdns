@@ -2336,9 +2336,9 @@ static int chain_node_get_trusted_keys(
 		node->ds_signer = keytag;
 		return GETDNS_DNSSEC_INSECURE;
 	}
-	if ((keytag = key_matches_signer(ta, &node->ds))) {
-		node->ds_signer = keytag;
-		if (a_key_signed_rrset(ta, &node->ds) &&
+	if (key_matches_signer(ta, &node->ds)) {
+		
+		if ((node->ds_signer = a_key_signed_rrset(ta, &node->ds)) &&
 		   (keytag = ds_authenticates_keys(&node->ds, &node->dnskey))){
 
 			*keys = &node->dnskey;
