@@ -212,7 +212,6 @@ typedef struct getdns_network_req
 	 * available in wire_data[], it will be allocated seperately.
 	 * response will then not point to wire_data anymore.
 	 */
-	size_t   query_len;
 	uint8_t *query;
 	uint8_t *opt; /* offset of OPT RR in query */
 	size_t   response_len;
