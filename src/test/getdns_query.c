@@ -180,16 +180,15 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	if (!(to_validate = getdns_list_create()))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	if (!(trust_anchor = getdns_root_trust_anchor(NULL)))
-		return GETDNS_RETURN_GENERIC_ERROR;
+	trust_anchor = getdns_root_trust_anchor(NULL);
 
 	if ((r = getdns_dict_get_list(
 	    response, "validation_chain", &validation_chain)))
-		return r;
+		goto error;
 
 	if ((r = getdns_dict_get_list(
 	    response, "replies_tree", &replies_tree)))
-		return r;
+		goto error;
 
 	fprintf(stdout, "replies_tree %zu, dnssec_status: ", i);
 	switch ((s = getdns_validate_dnssec(
@@ -218,7 +217,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	while (!(r = getdns_list_get_dict(replies_tree, i++, &reply))) {
 
 		if ((r = getdns_list_set_dict(to_validate, 0, reply)))
-			return r;
+			goto error;
 
 		fprintf( stdout
 		       , "reply %zu, dnssec_status: ", i);
@@ -244,8 +243,11 @@ static getdns_return_t validate_chain(getdns_dict *response)
 			fprintf(stdout, "%d\n", (int)s);
 		}
 	}
-	if (r != GETDNS_RETURN_NO_SUCH_LIST_ITEM)
-		return r;
+	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+		r = GETDNS_RETURN_GOOD;
+error:
+	getdns_list_destroy(trust_anchor);
+	getdns_list_destroy(to_validate);
 
 	return GETDNS_RETURN_GOOD;
 }

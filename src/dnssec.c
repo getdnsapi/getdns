@@ -2928,7 +2928,7 @@ getdns_root_trust_anchor(time_t *utc_date_of_anchor)
 	if (!_getdns_parse_ta_file(utc_date_of_anchor, gbuf))
 		goto error_free_gbuf;
 
-	_getdns_wire2list( gldns_buffer_export(gbuf)
+	_getdns_wire2list( gldns_buffer_begin(gbuf)
 	                 , gldns_buffer_position(gbuf), ta_rrs);
 
 	gldns_buffer_free(gbuf);
