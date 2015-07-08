@@ -736,7 +736,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 		nreplies++;
 		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
 			nsecure++;
-		else if (! netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
+		else if (netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
 			ninsecure++;
 
 		if (dnssec_return_status &&

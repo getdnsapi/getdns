@@ -190,7 +190,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	    response, "replies_tree", &replies_tree)))
 		goto error;
 
-	fprintf(stdout, "replies_tree %zu, dnssec_status: ", i);
+	fprintf(stdout, "replies_tree dnssec_status: ");
 	switch ((s = getdns_validate_dnssec(
 	    replies_tree, validation_chain, trust_anchor))) {
 

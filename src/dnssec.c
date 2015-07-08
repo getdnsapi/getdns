@@ -1329,10 +1329,10 @@ static ldns_rr *rr2ldns_rr(priv_getdns_rr_iter *rr)
 	size_t pos = rr->pos - rr->pkt;
 
 	if (ldns_wire2rr(&rr_l, rr->pkt, rr->pkt_end - rr->pkt, &pos,
-			priv_getdns_rr_iter_section(rr)) == LDNS_STATUS_OK)
-		return rr_l;
-	else
+			(ldns_pkt_section)priv_getdns_rr_iter_section(rr)))
 		return NULL;
+	else
+		return rr_l;
 }
 
 static ldns_rr_list *rrset2ldns_rr_list(getdns_rrset *rrset)
@@ -2684,6 +2684,9 @@ static void check_chain_complete(chain_head *chain)
 				    node->ds_req, node->ds_signer);
 
 				dns_req_free(node->ds_req->owner);
+			}
+			if (node->soa_req) {
+				dns_req_free(node->soa_req->owner);
 			}
 		}
 		GETDNS_FREE(head->my_mf, head);
