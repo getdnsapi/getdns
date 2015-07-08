@@ -506,7 +506,6 @@ typedef struct getdns_rrset {
 	uint16_t  rr_type;
 	uint8_t  *pkt;
 	size_t    pkt_len;
-	uint8_t   name_spc[1];
 } getdns_rrset;
 
 typedef struct rrtype_iter {
@@ -1616,11 +1615,15 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	rrtype_iter ds_spc, *ds;
 	uint16_t keytag;
 	uint8_t *nc_name;
-	ldns_rr *dnskey_l;
-	ldns_rr *ds_l = NULL;
+	ldns_rr *dnskey_l, *ds_gen_l, *ds_l;
+	size_t valid_dsses = 0, supported_dsses = 0;
+	uint8_t max_supported_digest = 0;
+	int max_supported_result = 0;
 
 	assert(ds_set->rr_type == GETDNS_RRTYPE_DS);
 	assert(dnskey_set->rr_type == GETDNS_RRTYPE_DNSKEY);
+	
+	/* The ds_set is already authenticated! */
 
 	if (!_dname_equal(ds_set->name, dnskey_set->name))
 		return 0;
@@ -1640,45 +1643,95 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 		for ( ds = rrtype_iter_init(&ds_spc, ds_set)
 		    ; ds ; ds = rrtype_iter_next(ds)) {
 
-			if (/* Space for keytag & signer in rrsig rdata? */
-			       ds->rr_i.nxt < ds->rr_i.rr_type + 13
+			if (/* Space for keytag, algorithm & digest type? */
+			       ds->rr_i.nxt < ds->rr_i.rr_type + 14
 
 			    /* Does algorithm match? */
 			    || ds->rr_i.rr_type[12] != dnskey->rr_i.rr_type[13]
 
 			    /* Does the keytag match? */
 			    || gldns_read_uint16(ds->rr_i.rr_type+10)!=keytag)
+
+				continue;
+
+			valid_dsses++;
+
+			if (/* Algorithm is not RSAMD5 (deprecated) */
+			       ds->rr_i.rr_type[12] == GLDNS_RSAMD5
+
+			    /* Algorithm is supported */
+			    || !ldns_key_algo_supported(ds->rr_i.rr_type[12]))
+
 				continue;
 
 			if (!dnskey_l)
 				if (!(dnskey_l = rr2ldns_rr(&dnskey->rr_i)))
 					continue;
 
-			if (!(ds_l = rr2ldns_rr(&ds->rr_i)))
+			/* Unfortunately there is no ldns_ds_digest_supported()
+			 * function.  The only way to check if a digest type is
+			 * supported, is by trying to hashing the key with the
+			 * given digest type.
+			 */
+			if (!(ds_gen_l = ldns_key_rr2ds(dnskey_l,
+							ds->rr_i.rr_type[13])))
+
+				/* Hash algorithm not supported */
 				continue;
 
-			if (!ldns_rr_compare_ds(ds_l, dnskey_l)) {
-				ldns_rr_free(ds_l);
-				ds_l = NULL;
+			supported_dsses++;
+
+			/* The result of the best digest type counts!
+			 * We'll assume higher is better for now.
+			 * So, continue with next DS if...
+			 */
+			if (/* we already had a better digest earlier */
+			       ds->rr_i.rr_type[13] < max_supported_digest
+
+			    /* or we had the same digest and it already gave
+			     * a match  (to a key in dnskey_set which
+			     *           authenticated the dnskey_set).
+			     */
+			    || (   ds->rr_i.rr_type[13] == max_supported_digest
+				&& max_supported_result)) {
+				ldns_rr_free(ds_gen_l);
 				continue;
 			}
-			ldns_rr_free(dnskey_l);
+			max_supported_digest = ds->rr_i.rr_type[13];
+			max_supported_result = 0;
 
-			if (dnskey_signed_rrset(dnskey, dnskey_set, &nc_name)
-			    && !nc_name /* No DNSKEY's on wildcards! */) {
+			if (!(ds_l = rr2ldns_rr(&ds->rr_i))) {
+				ldns_rr_free(ds_gen_l);
+				continue;
+			}
 
-				debug_sec_print_rrset(
-				    "keyset authenticated: ", dnskey_set);
-				return SIGNATURE_VERIFIED | keytag;
+			if (ldns_rr_compare(ds_l, ds_gen_l) != 0) {
+				/* No match */
+				ldns_rr_free(ds_l);
+				ldns_rr_free(ds_gen_l);
+				continue;
+			}
+			/* Match! */
+			ldns_rr_free(ds_l);
+			ldns_rr_free(ds_gen_l);
+
+			if (!dnskey_signed_rrset(dnskey, dnskey_set, &nc_name)
+			    || nc_name /* No DNSKEY's on wildcards! */) {
+
+				debug_sec_print_rrset("keyset did not "
+				    "authenticate: ", dnskey_set);
+				continue;
 			}
 			debug_sec_print_rrset(
-			    "keyset failed authentication: ", dnskey_set);
-
-			return 0;
+			    "keyset authenticated: ", dnskey_set);
+			max_supported_result = SIGNATURE_VERIFIED | keytag;
 		}
 		ldns_rr_free(dnskey_l);
 	}
-	return 0;
+	if (valid_dsses && !supported_dsses)
+		return NO_SUPPORTED_ALGORITHMS;
+	else
+		return max_supported_result;
 }
 
 static int nsec_covers_name(
@@ -2553,7 +2606,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 			       rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
 
 			    /* We have a signer and it doesn't match? */
-			    || (signer &&
+			    || ((signer & 0xFFFF) &&
 			        gldns_read_uint16(rrsig->rr_i.rr_type + 26)
 					    != (signer & 0xFFFF))
 
