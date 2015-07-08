@@ -499,13 +499,17 @@ getdns_indent(size_t indent)
 }				/* getdns_indent */
 
 static int
-priv_getdns_bindata_is_dname(struct getdns_bindata *bindata)
+priv_getdns_bindata_is_dname(getdns_bindata *bindata)
 {
 	size_t i = 0, n_labels = 0;
-	while (i < bindata->size) {
+
+	while (i < bindata->size && bindata->data[i]) {
 		i += ((size_t)bindata->data[i]) + 1;
 		n_labels++;
 	}
+	if (i < bindata->size && !bindata->data[i])
+		i++;
+
 	return i == bindata->size && n_labels > 1 &&
 		bindata->data[bindata->size - 1] == 0;
 }

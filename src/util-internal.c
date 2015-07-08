@@ -513,7 +513,8 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	uint8_t canonical_name_space[256],
 	       *canonical_name = canonical_name_space;
 	uint8_t owner_name_space[256], *owner_name;
-	size_t canonical_name_len = 256, owner_name_len;
+	size_t canonical_name_len = sizeof(canonical_name_space),
+	       owner_name_len = sizeof(owner_name_space);
 	int new_canonical = 0;
 	uint16_t rr_type;
 	getdns_dict *header = NULL;
@@ -546,6 +547,7 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		goto error;
 
 	canonical_name = req->owner->name;
+	canonical_name_len = req->owner->name_len;
 
 	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
 	                                        , req->response
