@@ -1,10 +1,16 @@
-* 2015-07-??: Version 0.?.?
+* 2015-07-??: Version 0.3.?
   * Unit test for spurious execute bits.  Thanks Paul Wouters.
   * Added new transport list options in API. The option is now an ordered
     list of GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP,
     GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_STARTTLS.
   * Added new context setting for idle_timeout
   * CSYNC RR type
+  * dnssec_return_validation_chain for negative and insecure responses.
+  * dnssec_return_validation_chain return a single RRSIG on each RRSET
+    (whenever possible)
+  * getdns_validate_dnssec() accept replies from the replies_tree
+  * getdns_validate_dnssec() asses negative and insecure responses.
+  * Native stub dnssec validation
 
 * 2015-05-21: Version 0.2.0
   * Fix libversion numbering:  Thanks Daniel Kahn Gillmor
