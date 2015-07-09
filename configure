@@ -707,6 +707,10 @@ CFLAGS
 CC
 GETDNS_LIBVERSION
 GETDNS_COMPILATION_COMMENT
+API_NUMERIC_VERSION
+API_VERSION
+GETDNS_NUMERIC_VERSION
+GETDNS_VERSION
 RELEASE_CANDIDATE
 target_alias
 host_alias
@@ -2381,7 +2385,17 @@ else
   CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"
 fi
 
-GETDNS_COMPILATION_COMMENT="getdns 0.3.0 configured on $CURRENT_DATE for the January 2015 version of the API"
+
+GETDNS_VERSION="0.3.0$RELEASE_CANDIDATE"
+
+GETDNS_NUMERIC_VERSION=0x00030000
+
+API_VERSION="July 2015"
+
+API_NUMERIC_VERSION=0x07df0700
+
+GETDNS_COMPILATION_COMMENT="getdns $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
+
 
 # Library version
 # ---------------
@@ -13895,7 +13909,7 @@ _ACEOF
 { $as_echo "$as_me:${as_lineno-$LINENO}: Default trust anchor: $TRUST_ANCHOR_FILE" >&5
 $as_echo "$as_me: Default trust anchor: $TRUST_ANCHOR_FILE" >&6;}
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/getdns/getdns.h spec/example/Makefile src/test/Makefile doc/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile"
 
 if  test -n "$DOXYGEN"
     then ac_config_files="$ac_config_files src/Doxyfile"
@@ -15349,7 +15363,9 @@ do
     "disable-rpath") CONFIG_COMMANDS="$CONFIG_COMMANDS disable-rpath" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+    "src/version.c") CONFIG_FILES="$CONFIG_FILES src/version.c" ;;
     "src/getdns/getdns.h") CONFIG_FILES="$CONFIG_FILES src/getdns/getdns.h" ;;
+    "src/getdns/getdns_extra.h") CONFIG_FILES="$CONFIG_FILES src/getdns/getdns_extra.h" ;;
     "spec/example/Makefile") CONFIG_FILES="$CONFIG_FILES spec/example/Makefile" ;;
     "src/test/Makefile") CONFIG_FILES="$CONFIG_FILES src/test/Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;

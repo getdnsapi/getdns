@@ -12,6 +12,12 @@
   * getdns_validate_dnssec() accept replies from the replies_tree
   * getdns_validate_dnssec() asses negative and insecure responses.
   * Native stub dnssec validation
+  * Implemented getdns_context_set_dnssec_trust_anchors()
+  * Switch freely between stub and recursive mode
+  * getdns_query -k shows default trust anchors
+  * functions and defines to get library and API versions in string
+    and numeric values: getdns_get_version(), getdns_get_version_number(),
+    getdns_get_api_version() and getdns_get_api_version_number()
 
 * 2015-05-21: Version 0.2.0
   * Fix libversion numbering:  Thanks Daniel Kahn Gillmor

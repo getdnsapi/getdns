@@ -339,6 +339,15 @@ const char *getdns_get_errorstr_by_id(uint16_t err);
  */
 getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
 
+#define GETDNS_VERSION "@GETDNS_VERSION@"
+#define GETDNS_NUMERIC_VERSION @GETDNS_NUMERIC_VERSION@
+#define GETDNS_API_VERSION "@API_VERSION@"
+#define GETDNS_API_NUMERIC_VERSION @API_NUMERIC_VERSION@
+
+const char *getdns_get_version(void);
+uint32_t getdns_get_version_number(void);
+const char *getdns_get_api_version(void);
+uint32_t getdns_get_api_version_number(void);
 
 #ifdef __cplusplus
 }

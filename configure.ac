@@ -40,7 +40,13 @@ AC_ARG_WITH([current-date],
     [current date of the compilation, set to fixed date for reproducible builds @<:@default=system@:>@])],
   [CURRENT_DATE="$with_current_date"],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
-GETDNS_COMPILATION_COMMENT="AC_PACKAGE_STRING configured on $CURRENT_DATE for the January 2015 version of the API"
+
+AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00030000])
+AC_SUBST(API_VERSION, ["July 2015"])
+AC_SUBST(API_NUMERIC_VERSION, [0x07df0700])
+GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
+
 
 # Library version
 # ---------------
@@ -590,7 +596,7 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
-AC_CONFIG_FILES([Makefile src/Makefile src/getdns/getdns.h spec/example/Makefile src/test/Makefile doc/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi

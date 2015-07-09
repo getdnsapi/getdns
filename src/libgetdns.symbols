@@ -79,7 +79,11 @@ getdns_dict_util_set_string
 getdns_display_ip_address
 getdns_general
 getdns_general_sync
+getdns_get_api_version
+getdns_get_api_version_number
 getdns_get_errorstr_by_id
+getdns_get_version
+getdns_get_version_number
 getdns_hostname
 getdns_hostname_sync
 getdns_list_create
