@@ -2349,6 +2349,22 @@ static int chain_node_get_trusted_keys(
 		}
 		return GETDNS_DNSSEC_BOGUS;
 	}
+	/* If we are on a zone cut, we must return BOGUS, because there should
+	 * have been a more specific DS set.  We can be sure of a zone cut if
+	 * a request for the DSset was sent (because they are done only for
+	 * signer names and when there was a SOA) or if we do have a DS,
+	 * but not signed with a current trusted key.
+	 *
+	 * For the getdns_validate_dnssec case, we must make sure to insert
+	 * an empty DS for this name in the validation chain... so it can
+	 * be used for the support_records parameter.
+	 */
+	if (node->ds_req || rrset_has_rrs(&node->ds))
+		return GETDNS_DNSSEC_BOGUS;
+
+	/* Not at a zone cut, the trusted keyset must be authenticating
+	 * something above (closer to head) this node.
+	 */
 	return GETDNS_DNSSEC_SECURE;
 }
 
@@ -2621,6 +2637,36 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 	}
 }
 
+static void append_empty_ds2val_chain_list(
+    getdns_context *context, getdns_list *val_chain_list, getdns_rrset *ds)
+{
+	getdns_dict *rr_dict;
+	getdns_bindata bindata;
+	getdns_dict *rdata_dict;
+
+	if (!(rr_dict = getdns_dict_create_with_context(context)))
+		return;
+
+	bindata.size = _dname_len(ds->name);
+	bindata.data = ds->name;
+	(void) getdns_dict_set_bindata(rr_dict, "name", &bindata);
+	(void) getdns_dict_set_int(rr_dict, "class", ds->rr_class);
+	(void) getdns_dict_set_int(rr_dict, "type", ds->rr_type);
+	(void) getdns_dict_set_int(rr_dict, "ttl", 0);
+
+	if (!(rdata_dict = getdns_dict_create_with_context(context))) {
+		getdns_dict_destroy(rr_dict);
+		return;
+	}
+	bindata.size = 0;
+	bindata.data = NULL;
+	(void) getdns_dict_set_bindata(rdata_dict, "rdata_raw", &bindata);
+	getdns_dict_destroy(rdata_dict);
+
+	(void)getdns_list_append_dict(val_chain_list, rr_dict);
+	getdns_dict_destroy(rr_dict);
+}
+
 static void check_chain_complete(chain_head *chain)
 {
 	getdns_dns_req *dnsreq;
@@ -2630,9 +2676,7 @@ static void check_chain_complete(chain_head *chain)
 	chain_node *node;
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
-#ifdef STUB_NATIVE_DNSSEC
 	rrset_iter tas_iter;
-#endif
 
 	if ((o = count_outstanding_requests(chain)) > 0) {
 		DEBUG_SEC("%zu outstanding requests\n", o);
@@ -2659,7 +2703,7 @@ static void check_chain_complete(chain_head *chain)
 	if (dnsreq->dnssec_return_validation_chain
 	    && context->trust_anchors)
 
-		chain_set_netreq_dnssec_status(chain,rrset_iter_init(&tas_iter,
+		(void) chain_validate_dnssec(chain,rrset_iter_init(&tas_iter,
 		    context->trust_anchors, context->trust_anchors_len));
 #endif
 	val_chain_list = dnsreq->dnssec_return_validation_chain
@@ -2683,6 +2727,16 @@ static void check_chain_complete(chain_head *chain)
 				    context, val_chain_list,
 				    node->ds_req, node->ds_signer);
 
+				if (!node->ds_signer &&
+				    !rrset_has_rrs(&node->ds)) {
+					/* Add empty DS, to prevent less
+					 * specific to be able to authenticate
+					 * above a zone cut (closer to head)
+					 */
+					append_empty_ds2val_chain_list(
+					    context, val_chain_list,
+					    &node->ds);
+				}
 				dns_req_free(node->ds_req->owner);
 			}
 			if (node->soa_req) {
