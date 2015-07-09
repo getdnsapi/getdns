@@ -1274,7 +1274,8 @@ set_ub_dns_transport(struct getdns_context* context) {
     switch (context->dns_transports[0]) {
         case GETDNS_TRANSPORT_UDP:
             set_ub_string_opt(context, "do-udp:", "yes");
-            if (context->dns_transports[1] == GETDNS_TRANSPORT_TCP)
+            if (context->dns_transport_count > 1
+	        && context->dns_transports[1] == GETDNS_TRANSPORT_TCP)
                 set_ub_string_opt(context, "do-tcp:", "yes");
             else
                 set_ub_string_opt(context, "do-tcp:", "no");
@@ -1333,6 +1334,7 @@ getdns_context_set_dns_transport(struct getdns_context *context,
         value == GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN ||
         value == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
         count = 1;
+    context->dns_transport_count = count;
     context->dns_transports = GETDNS_XMALLOC(context->my_mf, 
                                                getdns_transport_list_t, count);
 
