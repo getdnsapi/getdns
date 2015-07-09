@@ -406,7 +406,7 @@ stub_next_upstream(getdns_network_req *netreq)
 static void
 stub_cleanup(getdns_network_req *netreq)
 {
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
+	DEBUG_STUB("*** %s(%p)\n", __FUNCTION__, netreq);
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_network_req *r, *prev_r;
 	getdns_upstream *upstream;
@@ -513,7 +513,7 @@ stub_erred(getdns_network_req *netreq)
 static void
 stub_timeout_cb(void *userarg)
 {
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
+	DEBUG_STUB("*** %s(%p)\n", __FUNCTION__, userarg);
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	
 	/* For now, mark a STARTTLS timeout as a failured negotiation and allow 
@@ -528,7 +528,12 @@ stub_timeout_cb(void *userarg)
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
-	(void) getdns_context_request_timed_out(netreq->owner);
+	if (netreq->owner->user_callback)
+		(void) getdns_context_request_timed_out(netreq->owner);
+	else {
+		netreq->state = NET_REQ_FINISHED;
+		priv_getdns_check_dns_req_complete(netreq->owner);
+	}
 }
 
 
