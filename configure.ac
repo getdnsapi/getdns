@@ -193,7 +193,7 @@ case "$enable_draft_edns_cookies" in
 	no|*)
 		;;
 esac
-AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [65001], [The edns cookie option code.])
+AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the edns client cookie is refreshed.])
 
 # search to set include and library paths right

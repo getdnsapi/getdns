@@ -12159,7 +12159,7 @@ _ACEOF
 esac
 
 cat >>confdefs.h <<_ACEOF
-#define EDNS_COOKIE_OPCODE 65001
+#define EDNS_COOKIE_OPCODE 10
 _ACEOF
 
 

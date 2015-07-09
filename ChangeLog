@@ -5,6 +5,7 @@
     GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_STARTTLS.
   * Added new context setting for idle_timeout
   * CSYNC RR type
+  * EDNS0 COOKIE option code set to 10
   * dnssec_return_validation_chain for negative and insecure responses.
   * dnssec_return_validation_chain return a single RRSIG on each RRSET
     (whenever possible)
