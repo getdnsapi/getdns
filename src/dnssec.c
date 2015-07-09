@@ -1628,6 +1628,9 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 	if (!_dname_equal(ds_set->name, dnskey_set->name))
 		return 0;
 
+	debug_sec_print_rrset("ds_authenticates_keys DS: ", ds_set);
+	debug_sec_print_rrset("ds_authenticates_keys DNSKEY: ", dnskey_set);
+
 	for ( dnskey = rrtype_iter_init(&dnskey_spc, dnskey_set)
 	    ; dnskey ; dnskey = rrtype_iter_next(dnskey)) {
 
@@ -1679,6 +1682,11 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 				/* Hash algorithm not supported */
 				continue;
 
+			if (ldns_rr_rd_count(ds_gen_l) < 4) {
+				ldns_rr_free(ds_gen_l);
+				/* Hash algorithm not supported */
+				continue;
+			}
 			supported_dsses++;
 
 			/* The result of the best digest type counts!
@@ -1728,6 +1736,8 @@ static int ds_authenticates_keys(getdns_rrset *ds_set, getdns_rrset *dnskey_set)
 		}
 		ldns_rr_free(dnskey_l);
 	}
+	DEBUG_SEC("valid_dsses: %zu, supported_dsses: %zu\n",
+			valid_dsses, supported_dsses);
 	if (valid_dsses && !supported_dsses)
 		return NO_SUPPORTED_ALGORITHMS;
 	else
@@ -2377,6 +2387,9 @@ static int chain_head_validate_with_ta(chain_head *head, getdns_rrset *ta)
 	getdns_rrset *keys;
 	int s, keytag, opt_out;
 
+	debug_sec_print_rrset("validating ", &head->rrset);
+	debug_sec_print_rrset("with trust anchor ", ta);
+
 	if ((s = chain_node_get_trusted_keys(head->parent, ta, &keys))
 	    != GETDNS_DNSSEC_SECURE)
 			return s;
@@ -2412,7 +2425,7 @@ static int chain_head_validate(chain_head *head, rrset_iter *tas)
 	getdns_rrset *ta, dnskey_ta, ds_ta;
 	rrset_iter closest_ta;
 	int closest_labels, s = GETDNS_DNSSEC_INDETERMINATE;
-	size_t common_labels, supported_algorithms;
+	size_t ta_labels, supported_algorithms;
 	rrtype_iter rr_spc, *rr;
 
 	/* Find the TA closest to the head's RRset name */
@@ -2422,16 +2435,17 @@ static int chain_head_validate(chain_head *head, rrset_iter *tas)
 
 		if ((ta->rr_type == GETDNS_RRTYPE_DNSKEY ||
 		     ta->rr_type == GETDNS_RRTYPE_DS) 
-		    && (int)(common_labels = _dname_label_count(
-		             dname_shared_parent(ta->name,head->rrset.name))
-			    ) > closest_labels ) {
+		    && _dname_is_parent(ta->name, head->rrset.name)
+		    && (int)(ta_labels = _dname_label_count(ta->name))
+		                       > closest_labels ) {
 
-			closest_labels = (int)common_labels;
+			closest_labels = (int)ta_labels;
 			closest_ta = *i;
 			if (i->rrset.name == i->name_spc)
 				closest_ta.rrset.name = closest_ta.name_spc;
 		}
 	}
+	DEBUG_SEC("closest labels for TA: %d\n", closest_labels);
 	if (closest_labels == -1)
 		return GETDNS_DNSSEC_INDETERMINATE;
 
@@ -2547,6 +2561,7 @@ static int chain_validate_dnssec(chain_head *chain, rrset_iter *tas)
 			break;
 		}
 	}
+	DEBUG_SEC("chain_validate_dnssec() returning %d\n", s);
 	return s;
 }
 
@@ -2934,10 +2949,11 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 		    reply, to_val_buf, &to_val_len, mf)))
 			continue;
 
+		r = GETDNS_DNSSEC_INDETERMINATE;
 		switch (wire_validate_dnssec(
 		    to_val, to_val_len, support, support_len, tas, tas_len, mf)) {
 		case GETDNS_DNSSEC_SECURE:
-			if (r == GETDNS_RETURN_GENERIC_ERROR)
+			if (r == GETDNS_DNSSEC_INDETERMINATE)
 				r = GETDNS_DNSSEC_SECURE;
 			break;
 		case GETDNS_DNSSEC_INSECURE:
