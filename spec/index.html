@@ -94,7 +94,7 @@ tr.code { font-family: monospace }
 <p class=title2>Originally edited by Paul Hoffman</p>
 <p class=title2>Currently maintained by the <a
 href="mailto:team@getdnsapi.net">getdns team</a></p>
-<p class=title2>Document version: "getdns January 2015"</p>
+<p class=title2>Document version: "getdns July 2015"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -2201,6 +2201,33 @@ The value is <span class=default>
 
 <div class=forh>
 getdns_return_t
+getdns_context_set_dns_transport_list(
+  getdns_context           *context,
+  size_t                   transport_count, 
+  getdns_transport_list_t  *transports
+);</div>
+<p class=cont>The <code>transports</code> array contains an ordered list of transports that will be used for DNS lookups.
+If only one transport value is specified it will be the only transport used.
+Should it not be available basic resolution will fail.
+Fallback transport options are specified by including multiple values in the list.
+The values are <span class=default>
+<code>GETDNS_TRANSPORT_UDP</code></span>,
+<code>GETDNS_TRANSPORT_TCP</code>,
+<code>GETDNS_TRANSPORT_TLS</code>, or
+<code>GETDNS_TRANSPORT_STARTTLS</code>.
+The default is <span class=default> a list containing <code>GETDNS_TRANSPORT_UDP</code> then <code>GETDNS_TRANSPORT_TCP</code></span>.</p>
+
+<div class=forh>
+getdns_return_t
+getdns_context_set_idle_timeout(
+  getdns_context  *context,
+  uint64_t        timeout
+);</div>
+<p class=cont>Specifies number of milliseconds the API will leave an idle TCP, TLS or STARTTLS connection open for (idle means no outstanding responses and no pending queries).
+The default is <span class=default>0</span>.</p>
+
+<div class=forh>
+getdns_return_t
 getdns_context_set_limit_outstanding_queries(
   getdns_context  *context,
   uint16_t        limit
@@ -2431,6 +2458,8 @@ The response dicts inherit the custom memory management functions and the value 
 <p class=descrip>Change related to <code>getdns_context_set_memory_functions</code></p>
 <p class=define>GETDNS_CONTEXT_CODE_TIMEOUT</p>
 <p class=descrip>Change related to <code>getdns_context_set_timeout</code></p>
+<p class=define>GETDNS_CONTEXT_CODE_IDLE_TIMEOUT</p>
+<p class=descrip>Change related to <code>getdns_context_set_idle_timeout</code></p>
 
 
 <h2>8.11 Getting API information and current Contexts</h2>
@@ -2462,7 +2491,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.601.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.602.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process

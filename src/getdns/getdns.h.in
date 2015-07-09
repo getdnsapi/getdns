@@ -164,9 +164,11 @@ typedef enum getdns_transport_t {
 	GETDNS_TRANSPORT_UDP_ONLY = 541,
 	GETDNS_TRANSPORT_TCP_ONLY = 542,
 	GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN = 543,
+	/* <Not in official API> */
 	GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN = 544,
 	GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN = 545,
 	GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN = 546
+	/* </Not in official API> */
 } getdns_transport_t;
 
 /**
@@ -177,9 +179,11 @@ typedef enum getdns_transport_t {
 #define GETDNS_TRANSPORT_UDP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+/* <Not in official API> */
 #define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+/* </Not in official API> */
 /** @}
 */
 
@@ -196,10 +200,10 @@ typedef enum getdns_transport_list_t {
  * \defgroup Base transport texts
  * @{
  */
-#define GETDNS_TRANSPORT_UDP_TEXT "See getdns_context_set_dns_transport()"
-#define GETDNS_TRANSPORT_TCP_TEXT "See getdns_context_set_dns_transport()"
-#define GETDNS_TRANSPORT_TLS_TEXT "See getdns_context_set_dns_transport()"
-#define GETDNS_TRANSPORT_STARTTLS_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_UDP_TEXT "See getdns_context_set_dns_transport_list()"
+#define GETDNS_TRANSPORT_TCP_TEXT "See getdns_context_set_dns_transport_list()"
+#define GETDNS_TRANSPORT_TLS_TEXT "See getdns_context_set_dns_transport_list()"
+#define GETDNS_TRANSPORT_STARTTLS_TEXT "See getdns_context_set_dns_transport_list()"
 /** @}
  */
 
@@ -267,7 +271,7 @@ typedef enum getdns_context_code_t {
 #define GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW_TEXT "Change related to getdns_context_set_dnssec_allowed_skew"
 #define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT "Change related to getdns_context_set_memory_functions"
 #define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT "Change related to getdns_context_set_timeout"
-#define GETDNS_CONTEXT_CODE_TIMEOUT_IDLE_TEXT "Change related to getdns_context_set_idle_timeout"
+#define GETDNS_CONTEXT_CODE_IDLE_TIMEOUT_TEXT "Change related to getdns_context_set_idle_timeout"
 /** @}
  */
 
@@ -972,14 +976,14 @@ getdns_context_set_dns_transport_list(getdns_context *context,
     size_t transport_count, getdns_transport_list_t *transports);
 
 getdns_return_t
+getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout);
+
+getdns_return_t
 getdns_context_set_limit_outstanding_queries(getdns_context *context,
     uint16_t limit);
 
 getdns_return_t
 getdns_context_set_timeout(getdns_context *context, uint64_t timeout);
-
-getdns_return_t
-getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout);
 
 getdns_return_t
 getdns_context_set_follow_redirects(getdns_context *context,
