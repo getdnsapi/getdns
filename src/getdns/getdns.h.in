@@ -934,6 +934,9 @@ getdns_validate_dnssec(getdns_list *to_validate,
     getdns_list *support_records,
     getdns_list *trust_anchors);
 
+/* Get root trust anchor */
+getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);
+
 /**
  * creates a string that describes the dictionary in a human readable form
  * one line per item in the dictionary
@@ -1037,9 +1040,6 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
 /* api information support */
 getdns_dict*
 getdns_context_get_api_information(getdns_context* context);
-
-/* Get root trust anchor */
-getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);
 
 #ifdef __cplusplus
 }
