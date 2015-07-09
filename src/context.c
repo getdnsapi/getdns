@@ -47,6 +47,7 @@
 
 #include "config.h"
 #include "gldns/str2wire.h"
+#include "gldns/wire2str.h"
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
@@ -561,49 +562,6 @@ priv_getdns_upstream_shutdown(getdns_upstream *upstream) {
 	}
 	if (fd != -1)
 		close(fd);
-}
-
-static uint8_t*
-upstream_addr(getdns_upstream *upstream)
-{
-	return upstream->addr.ss_family == AF_INET
-	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
-	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
-}
-
-static in_port_t
-upstream_port(getdns_upstream *upstream)
-{
-	return ntohs(upstream->addr.ss_family == AF_INET
-	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	    : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
-}
-
-static uint32_t *
-upstream_scope_id(getdns_upstream *upstream)
-{
-	return upstream->addr.ss_family == AF_INET ? NULL
-	    : (upstream_addr(upstream)[0] == 0xFE &&
-	       (upstream_addr(upstream)[1] & 0xC0) == 0x80 ?
-	       &((struct sockaddr_in6*)&upstream->addr)->sin6_scope_id : NULL);
-}
-
-static void
-upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
-{
-	/* Also possible but prints scope_id by name (nor parsed by unbound)
-	 *
-	 * getnameinfo((struct sockaddr *)&upstream->addr, upstream->addr_len,
-	 *     buf, len, NULL, 0, NI_NUMERICHOST)
-	 */
-	(void) inet_ntop(upstream->addr.ss_family, upstream_addr(upstream),
-	    buf, len);
-	if (upstream_scope_id(upstream))
-		(void) snprintf(buf + strlen(buf), len - strlen(buf),
-		    "%%%d", (int)*upstream_scope_id(upstream));
-	else if (upstream_port(upstream) != GETDNS_PORT_DNS && upstream_port(upstream) != GETDNS_PORT_ZERO)
-		(void) snprintf(buf + strlen(buf), len - strlen(buf),
-		    "@%d", (int)upstream_port(upstream));
 }
 
 static int
@@ -1134,6 +1092,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	}
 	/* setup */
 	context->unbound_ctx = ub_ctx_create();
+	context->unbound_ta_set = 0;
 	if (!context->unbound_ctx) {
 		return GETDNS_RETURN_MEMORY_ERROR;
 	}
@@ -1142,12 +1101,6 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	set_ub_edns_maximum_udp_payload_size(context,
 		context->edns_maximum_udp_payload_size);
 	set_ub_dns_transport(context);
-
-	/* Set default trust anchor */
-	if (context->trust_anchors) {
-		(void) ub_ctx_add_ta_file(
-			context->unbound_ctx, TRUST_ANCHOR_FILE);
-	}
 
 	context->ub_event.userarg    = context;
 	context->ub_event.read_cb    = priv_getdns_context_ub_read_cb;
@@ -1185,10 +1138,12 @@ getdns_context_set_resolution_type(struct getdns_context *context,
     if (value != GETDNS_RESOLUTION_STUB && value != GETDNS_RESOLUTION_RECURSING) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
+#ifndef STUB_NATIVE_DNSSEC
     if (context->resolution_type_set != 0) {
         /* already setup */
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
+#endif
     context->resolution_type = value;
 
     dispatch_updated(context, GETDNS_CONTEXT_CODE_RESOLUTION_TYPE);
@@ -1958,6 +1913,50 @@ getdns_cancel_callback(getdns_context *context,
 	return r;
 } /* getdns_cancel_callback */
 
+#ifndef STUB_NATIVE_DNSSEC
+static uint8_t*
+upstream_addr(getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET
+	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
+	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
+
+static in_port_t
+upstream_port(getdns_upstream *upstream)
+{
+	return ntohs(upstream->addr.ss_family == AF_INET
+	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
+	    : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
+}
+
+static uint32_t *
+upstream_scope_id(getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET ? NULL
+	    : (upstream_addr(upstream)[0] == 0xFE &&
+	       (upstream_addr(upstream)[1] & 0xC0) == 0x80 ?
+	       &((struct sockaddr_in6*)&upstream->addr)->sin6_scope_id : NULL);
+}
+
+static void
+upstream_ntop_buf(getdns_upstream *upstream, char *buf, size_t len)
+{
+	/* Also possible but prints scope_id by name (nor parsed by unbound)
+	 *
+	 * getnameinfo((struct sockaddr *)&upstream->addr, upstream->addr_len,
+	 *     buf, len, NULL, 0, NI_NUMERICHOST)
+	 */
+	(void) inet_ntop(upstream->addr.ss_family, upstream_addr(upstream),
+	    buf, len);
+	if (upstream_scope_id(upstream))
+		(void) snprintf(buf + strlen(buf), len - strlen(buf),
+		    "%%%d", (int)*upstream_scope_id(upstream));
+	else if (upstream_port(upstream) != GETDNS_PORT_DNS && upstream_port(upstream) != GETDNS_PORT_ZERO)
+		(void) snprintf(buf + strlen(buf), len - strlen(buf),
+		    "@%d", (int)upstream_port(upstream));
+}
+
 static getdns_return_t
 ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 {
@@ -2038,21 +2037,42 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 
 	return r;
 }
+#endif
 
 static getdns_return_t
 priv_getdns_ns_dns_setup(struct getdns_context *context)
 {
+	priv_getdns_rr_iter rr_spc, *rr;
+	char ta_str[8192];
 	assert(context);
 
 	switch (context->resolution_type) {
 	case GETDNS_RESOLUTION_STUB:
 		if (!context->upstreams || !context->upstreams->count)
 			return GETDNS_RETURN_GENERIC_ERROR;
+#ifdef STUB_NATIVE_DNSSEC
+		return GETDNS_RETURN_GOOD;
+#else
 		return ub_setup_stub(context->unbound_ctx, context);
+#endif
 
 	case GETDNS_RESOLUTION_RECURSING:
 		/* TODO: use the root servers via root hints file */
 		(void) ub_ctx_set_fwd(context->unbound_ctx, NULL);
+		if (!context->unbound_ta_set && context->trust_anchors) {
+			for ( rr = priv_getdns_rr_iter_init( &rr_spc
+						, context->trust_anchors
+						, context->trust_anchors_len)
+			    ; rr ; rr = priv_getdns_rr_iter_next(rr) ) {
+
+				(void) gldns_wire2str_rr_buf(rr->pos,
+				    rr->nxt - rr->pos, ta_str, sizeof(ta_str));
+				fprintf(stderr, "TA: %s\n", ta_str);
+				(void) ub_ctx_add_ta(
+				    context->unbound_ctx, ta_str);
+			}
+			context->unbound_ta_set = 1;
+		}
 		return GETDNS_RETURN_GOOD;
 	}
 	return GETDNS_RETURN_BAD_CONTEXT;
@@ -2113,12 +2133,6 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	r = GETDNS_RETURN_GOOD;
 	for (i = 0; i < context->namespace_count; i++) {
 		switch (context->namespaces[i]) {
-		case GETDNS_NAMESPACE_LOCALNAMES:
-			/* TODO: Note to self! This must change once we have
-			 * proper namespace hanlding or asynch stub mode using ldns.*/
-			(void) ub_ctx_hosts(context->unbound_ctx, NULL);
-			break;
-
 		case GETDNS_NAMESPACE_DNS:
 			r = priv_getdns_ns_dns_setup(context);
 			break;

@@ -166,6 +166,7 @@ struct getdns_context {
 
 	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
+	int            unbound_ta_set;
 
 	/* A tree to hold local host information*/
 	getdns_rbtree_t local_hosts;
