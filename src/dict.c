@@ -507,8 +507,10 @@ priv_getdns_bindata_is_dname(getdns_bindata *bindata)
 		i += ((size_t)bindata->data[i]) + 1;
 		n_labels++;
 	}
-	if (i < bindata->size && !bindata->data[i])
+	if (i < bindata->size && !bindata->data[i]) {
+		n_labels++;
 		i++;
+	}
 
 	return i == bindata->size && n_labels > 1 &&
 		bindata->data[bindata->size - 1] == 0;
