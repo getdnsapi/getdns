@@ -149,6 +149,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf(out, "\t-R\tPrint root trust anchors\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
@@ -288,6 +289,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 }
 
 #define CONTINUE ((getdns_return_t)-2)
+#define CONTINUE_ERROR ((getdns_return_t)-3)
 
 static getdns_return_t set_cookie(getdns_dict *exts, char *cookie)
 {
@@ -325,7 +327,7 @@ static getdns_return_t set_cookie(getdns_dict *exts, char *cookie)
 	}
 	bindata.data = data;
 	bindata.size = i;
-	if ((r = getdns_dict_set_int(option, "option_code", 65001)))
+	if ((r = getdns_dict_set_int(option, "option_code", 10)))
 		goto done;
 	if ((r = getdns_dict_set_bindata(option, "option_data", &bindata)))
 		goto done;
@@ -346,8 +348,9 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	size_t i;
 	char *arg, *c, *endptr;
-	int t, print_api_info = 0;
+	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
+	getdns_list *tas = NULL;
 	size_t upstream_count = 0;
 
 	for (i = 1; i < argc; i++) {
@@ -453,6 +456,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'J':
 				json = 1;
+				break;
+			case 'k':
+				print_trust_anchors = 1;
 				break;
 			case 'p':
 				json = 0;
@@ -573,6 +579,13 @@ next:		;
 		    getdns_context_get_api_information(context)));
 		return CONTINUE;
 	}
+	if (print_trust_anchors) {
+		if ((tas = getdns_root_trust_anchor(NULL))) {
+			fprintf(stdout, "%s\n", getdns_pretty_print_list(tas));
+			return CONTINUE;
+		} else
+			return CONTINUE_ERROR;
+	}
 	return r;
 }
 
@@ -636,7 +649,7 @@ main(int argc, char **argv)
 			while (linec < 256 &&
 			    (token = strtok(NULL, " \t\f\n\r")));
 			if ((r = parse_args(linec, linev))) {
-				if (r == CONTINUE)
+				if (r == CONTINUE || r == CONTINUE_ERROR)
 					continue;
 				else
 					goto done_destroy_context;
@@ -738,6 +751,8 @@ done_destroy_context:
 
 	if (r == CONTINUE)
 		return 0;
+	else if (r == CONTINUE_ERROR)
+		return 1;
 	fprintf(stdout, "\nAll done.\n");
 	return r;
 }
@@ -808,6 +823,12 @@ int get_rrtype(const char *t) {
 	                    if ((t[2]|0x20) == 'a' && (t[3]|0x20) == 'm' && (t[4]|0x20) == 'e' && t[5] == '\0')
 	                              return GETDNS_RRTYPE_CNAME;
 	                    return -1;
+	          case 'S':
+	          case 's': /* before "CS", final "YNC" (GETDNS_RRTYPE_CSYNC) */
+	                    if ((t[2]|0x20) == 'y' && (t[3]|0x20) == 'n' && (t[4]|0x20) == 'c' && t[5] == '\0')
+	                              return GETDNS_RRTYPE_CSYNC;
+	                    return -1;
+
 	          default : return -1;
 	          };
 	case 'D':
