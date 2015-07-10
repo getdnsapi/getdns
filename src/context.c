@@ -2067,7 +2067,6 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 
 				(void) gldns_wire2str_rr_buf(rr->pos,
 				    rr->nxt - rr->pos, ta_str, sizeof(ta_str));
-				fprintf(stderr, "TA: %s\n", ta_str);
 				(void) ub_ctx_add_ta(
 				    context->unbound_ctx, ta_str);
 			}
