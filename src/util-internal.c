@@ -73,19 +73,6 @@ static getdns_extension_format extformats[] = {
 	{"specify_class", t_int},
 };
 
-static struct getdns_bindata IPv4_str_bindata = { 5, (void *)"IPv4" };
-static struct getdns_bindata IPv6_str_bindata = { 5, (void *)"IPv6" };
-
-getdns_return_t
-getdns_dict_util_set_string(struct getdns_dict * dict, char *name, const char *value)
-{
-	/* account for the null term */
-	if (value == NULL) {
-		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-	}
-	struct getdns_bindata type_bin = { strlen(value) + 1, (uint8_t *) value };
-	return getdns_dict_set_bindata(dict, name, &type_bin);
-}
 
 getdns_return_t
 getdns_dict_util_get_string(struct getdns_dict * dict, char *name, char **result)
@@ -607,9 +594,8 @@ priv_getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		bindata.data = rdf_iter->pos;
 		if (!set_dict(&rr_dict, getdns_dict_create_with_context(context)) ||
 
-		    getdns_dict_set_bindata(rr_dict, "address_type",
-		    rr_type == GETDNS_RRTYPE_A ?
-		    &IPv4_str_bindata : &IPv6_str_bindata) ||
+		    getdns_dict_util_set_string(rr_dict, "address_type",
+			    rr_type == GETDNS_RRTYPE_A ? "IPv4" : "IPv6" ) ||
 
 		    getdns_dict_set_bindata(rr_dict,"address_data",&bindata) ||
 

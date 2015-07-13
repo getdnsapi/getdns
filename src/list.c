@@ -456,6 +456,43 @@ getdns_list_set_bindata(struct getdns_list * list, size_t index,
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_set_bindata */
 
+/*----------------------------------------- getdns_list_set_string */
+static getdns_return_t
+getdns_list_set_string(getdns_list *list, size_t index, const char *value)
+{
+	getdns_bindata *newbindata;
+	getdns_return_t retval;
+
+	if (!list || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (index > list->numinuse)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+	if (!(newbindata = GETDNS_MALLOC(list->mf, getdns_bindata)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	newbindata->size = strlen(value);
+	if (!(newbindata->data = (void *)getdns_strdup(&list->mf, value))) {
+		GETDNS_FREE(list->mf, newbindata);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+
+	if (index == list->numinuse) {
+		retval = getdns_list_add_item(list, &index);
+		if (retval != GETDNS_RETURN_GOOD) {
+			GETDNS_FREE(list->mf, newbindata->data);
+			GETDNS_FREE(list->mf, newbindata);
+			return retval;
+		}
+	} else
+		getdns_list_destroy_item(list, index);
+
+	list->items[index].dtype = t_bindata;
+	list->items[index].data.bindata = newbindata;
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_list_set_string */
+
 /*---------------------------------------- getdns_list_set_int */
 getdns_return_t
 getdns_list_set_int(struct getdns_list * list, size_t index,
@@ -498,6 +535,12 @@ getdns_list_append_bindata(getdns_list *list, const getdns_bindata *child_bindat
 {
 	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_list_set_bindata(list, list->numinuse, child_bindata);
+}
+getdns_return_t
+getdns_list_append_string(getdns_list *list, const char *value)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_string(list, list->numinuse, value);
 }
 getdns_return_t
 getdns_list_append_int(getdns_list *list, uint32_t child_int)
