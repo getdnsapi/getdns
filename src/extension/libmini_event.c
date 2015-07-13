@@ -35,6 +35,9 @@
 #include "extension/libmini_event.h"
 #include "context.h"
 #include "util-internal.h"
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+#include <inttypes.h>
+#endif
 
 static void
 getdns_mini_event_cleanup(getdns_eventloop *loop)
