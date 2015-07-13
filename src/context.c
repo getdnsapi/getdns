@@ -1190,15 +1190,14 @@ getdns_context_set_namespaces(struct getdns_context *context,
 }               /* getdns_context_set_namespaces */
 
 static getdns_return_t
-getdns_set_base_dns_transports(struct getdns_context *context,
-    size_t transport_count, getdns_transport_list_t *transports)
+getdns_set_base_dns_transports(
+    getdns_context *context, size_t transport_count, getdns_transport_list_t *transports)
 {
 	size_t i;
+	getdns_transport_list_t *new_transports;
 
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (transport_count == 0 || transports == NULL) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	if (!context || transport_count == 0 || transports == NULL)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	for(i=0; i<transport_count; i++)
 	{
@@ -1208,18 +1207,23 @@ getdns_set_base_dns_transports(struct getdns_context *context,
 		 && transports[i] != GETDNS_TRANSPORT_STARTTLS)
 			return GETDNS_RETURN_INVALID_PARAMETER;
 	}
+	
+	if (!(new_transports = GETDNS_XMALLOC(context->my_mf,
+				getdns_transport_list_t, transport_count)))
 
-    GETDNS_FREE(context->my_mf, context->dns_transports);
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
-    /** duplicate **/
-    context->dns_transports = GETDNS_XMALLOC(context->my_mf, 
-                                 getdns_transport_list_t, transport_count);
-    memcpy(context->dns_transports, transports,
-        transport_count * sizeof(getdns_transport_list_t));
+	if (context->dns_transports)
+		GETDNS_FREE(context->my_mf, context->dns_transports);
+
+	/** duplicate **/
+	context->dns_transports = new_transports;
+	memcpy(context->dns_transports, transports,
+	    transport_count * sizeof(getdns_transport_list_t));
 	context->dns_transport_count = transport_count;
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
 
-    return GETDNS_RETURN_GOOD;
+	return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
@@ -1278,62 +1282,72 @@ set_ub_dns_transport(struct getdns_context* context) {
  *
  */
 getdns_return_t
-getdns_context_set_dns_transport(struct getdns_context *context,
-    getdns_transport_t value)
+getdns_context_set_dns_transport(
+    getdns_context *context, getdns_transport_t value)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	size_t count = 2;
+	getdns_transport_list_t *new_transports;
 
-    size_t count = 2;
-    if (value == GETDNS_TRANSPORT_UDP_ONLY ||
-        value == GETDNS_TRANSPORT_TCP_ONLY ||
-        value == GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN ||
-        value == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
-        count = 1;
-    context->dns_transport_count = count;
-    context->dns_transports = GETDNS_XMALLOC(context->my_mf, 
-                                               getdns_transport_list_t, count);
+	if (value == GETDNS_TRANSPORT_UDP_ONLY ||
+	    value == GETDNS_TRANSPORT_TCP_ONLY ||
+	    value == GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN ||
+	    value == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
+	    count = 1;
 
-    switch (value) {
-        case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
-            context->dns_transports[0] = GETDNS_TRANSPORT_UDP;
-            context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
-            break;
-        case GETDNS_TRANSPORT_UDP_ONLY:
-            context->dns_transports[0] = GETDNS_TRANSPORT_UDP;
-            break;
-        case GETDNS_TRANSPORT_TCP_ONLY:
-        case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
-            context->dns_transports[0] = GETDNS_TRANSPORT_TCP;
-            break;
-        case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
-            context->dns_transports[0] = GETDNS_TRANSPORT_TLS;
-            break;
-        case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-            context->dns_transports[0] = GETDNS_TRANSPORT_TLS;
-            context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
-           break;
-        case GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-            context->dns_transports[0] = GETDNS_TRANSPORT_STARTTLS;
-            context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
-           break;
-       default:
-           return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    /* Note that the call below does not have any effect in unbound after the
-     * ctx is finalised so for recursive mode or stub + dnssec only the first
-     * transport specified on the first query is used.
-     * However the method returns success as otherwise the transport could not
-     * be reset for stub mode.
-     * Also, not all transport options supported in libunbound yet */
-    if (set_ub_dns_transport(context) != GETDNS_RETURN_GOOD) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
-    return GETDNS_RETURN_GOOD;
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(new_transports = GETDNS_XMALLOC(
+			context->my_mf, getdns_transport_list_t, count)))
+	       return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+
+	if (context->dns_transports)
+		GETDNS_FREE(context->my_mf, context->dns_transports);
+
+	context->dns_transport_count = count;
+	context->dns_transports = new_transports;
+
+	switch (value) {
+	    case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
+	        context->dns_transports[0] = GETDNS_TRANSPORT_UDP;
+	        context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
+	        break;
+	    case GETDNS_TRANSPORT_UDP_ONLY:
+	        context->dns_transports[0] = GETDNS_TRANSPORT_UDP;
+	        break;
+	    case GETDNS_TRANSPORT_TCP_ONLY:
+	    case GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN:
+	        context->dns_transports[0] = GETDNS_TRANSPORT_TCP;
+	        break;
+	    case GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN:
+	        context->dns_transports[0] = GETDNS_TRANSPORT_TLS;
+	        break;
+	    case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+	        context->dns_transports[0] = GETDNS_TRANSPORT_TLS;
+	        context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
+	       break;
+	    case GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
+	        context->dns_transports[0] = GETDNS_TRANSPORT_STARTTLS;
+	        context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
+	       break;
+	   default:
+	       return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
+	/* Note that the call below does not have any effect in unbound after the
+	 * ctx is finalised so for recursive mode or stub + dnssec only the first
+	 * transport specified on the first query is used.
+	 * However the method returns success as otherwise the transport could not
+	 * be reset for stub mode.
+	 * Also, not all transport options supported in libunbound yet */
+	if (set_ub_dns_transport(context) != GETDNS_RETURN_GOOD) {
+	    return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
+	return GETDNS_RETURN_GOOD;
 }
 
 /*
- * getdns_context_set_dns_transport
+ * getdns_context_set_dns_transport_list
  *
  */
 getdns_return_t
@@ -1354,7 +1368,7 @@ getdns_context_set_dns_transport_list(getdns_context *context,
     }
     dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
     return GETDNS_RETURN_GOOD;
-}               /* getdns_context_set_dns_transport */
+}               /* getdns_context_set_dns_transport_list */
 
 static void
 set_ub_limit_outstanding_queries(struct getdns_context* context, uint16_t value) {
