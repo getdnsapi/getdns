@@ -2357,6 +2357,14 @@ getdns_context_set_eventloop(struct getdns_context* context, getdns_eventloop* l
 	return GETDNS_RETURN_GOOD;
 }
 
+static in_port_t
+upstream_port(getdns_upstream *upstream)
+{
+	return ntohs(upstream->addr.ss_family == AF_INET
+	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
+	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
+}
+
 static getdns_dict*
 priv_get_context_settings(getdns_context* context) {
     getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -2385,11 +2393,25 @@ priv_get_context_settings(getdns_context* context) {
 		    getdns_list_create_with_context(context);
 
 		for (i = 0; i < context->upstreams->count; i++) {
+			size_t j;
 			getdns_dict *d;
 			upstream = &context->upstreams->upstreams[i];
 			d = sockaddr_dict(context,
 			    (struct sockaddr *)&upstream->addr);
-			r |= getdns_list_set_dict(upstreams, i, d);
+			for ( j = 1, i++
+			    ; j < GETDNS_UPSTREAM_TRANSPORTS &&
+			      i < context->upstreams->count
+			    ; j++, i++) {
+
+				upstream = &context->upstreams->upstreams[i];
+				if (upstream->transport != GETDNS_TRANSPORT_TLS)
+					continue;
+				if (upstream_port(upstream) != getdns_port_array[j])
+					continue;
+				(void) getdns_dict_set_int(d, "tls_port",
+				    (uint32_t) upstream_port(upstream));
+			}
+			r |= getdns_list_append_dict(upstreams, d);
 			getdns_dict_destroy(d);
 		}
 		r |= getdns_dict_set_list(result, "upstream_recursive_servers",
@@ -2754,11 +2776,25 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
         getdns_upstream *upstream;
         getdns_list *upstreams = getdns_list_create();
         for (i = 0; i < context->upstreams->count; i++) {
-            getdns_dict *d;
-            upstream = &context->upstreams->upstreams[i];
-            d = sockaddr_dict(context, (struct sockaddr *)&upstream->addr);
-            r |= getdns_list_set_dict(upstreams, i, d);
-            getdns_dict_destroy(d);
+		size_t j;
+		getdns_dict *d;
+		upstream = &context->upstreams->upstreams[i];
+		d = sockaddr_dict(context, (struct sockaddr *)&upstream->addr);
+		for ( j = 1, i++
+		    ; j < GETDNS_UPSTREAM_TRANSPORTS &&
+		      i < context->upstreams->count
+		    ; j++, i++) {
+
+			upstream = &context->upstreams->upstreams[i];
+			if (upstream->transport != GETDNS_TRANSPORT_TLS)
+				continue;
+			if (upstream_port(upstream) != getdns_port_array[j])
+				continue;
+			(void) getdns_dict_set_int(d, "tls_port",
+			    (uint32_t) upstream_port(upstream));
+		}
+		r |= getdns_list_append_dict(upstreams, d);
+		getdns_dict_destroy(d);
         }
         if (r != GETDNS_RETURN_GOOD) {
             getdns_list_destroy(upstreams);
