@@ -544,10 +544,10 @@ upstream_idle_timeout_cb(void *userarg)
 	DEBUG_STUB("*** %s: **Closing connection %d**\n", 
 	           __FUNCTION__, upstream->fd);
 
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.timeout_cb = NULL;
 	upstream->event.read_cb = NULL;
 	upstream->event.write_cb = NULL;
-	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	priv_getdns_upstream_shutdown(upstream);
 }
 
@@ -851,9 +851,9 @@ tls_do_handshake(getdns_upstream *upstream)
 		want = SSL_get_error(upstream->tls_obj, r);
 		switch (want) {
 			case SSL_ERROR_WANT_READ:
+				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = upstream_read_cb;
 				upstream->event.write_cb = NULL;
-				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_TLS, &upstream->event);
 				/* Reschedule for synchronous */
@@ -869,9 +869,9 @@ tls_do_handshake(getdns_upstream *upstream)
 				upstream->tls_hs_state = GETDNS_HS_READ;
 				return STUB_TCP_AGAIN;
 			case SSL_ERROR_WANT_WRITE:
+				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = NULL;
 				upstream->event.write_cb = upstream_write_cb;
-				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_TLS, &upstream->event);
 				/* Reschedule for synchronous */
@@ -891,10 +891,10 @@ tls_do_handshake(getdns_upstream *upstream)
 	   }
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
-	upstream->event.read_cb = NULL;
-	upstream->event.write_cb = upstream_write_cb;
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+	upstream->event.read_cb = NULL;
+	upstream->event.write_cb = upstream_write_cb;
 	GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
 	    getdns_eventloop_event_init(&upstream->event, upstream,
 	     NULL, upstream_write_cb, NULL));
@@ -1376,11 +1376,10 @@ upstream_write_cb(void *userarg)
 		/* Unqueue the netreq from the write_queue */
 		if (!(upstream->write_queue = netreq->write_queue_tail)) {
 			upstream->write_queue_last = NULL;
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			upstream->event.write_cb = NULL;
-
 			/* Reschedule (if already reading) to clear writable */
 			if (upstream->event.read_cb) {
-				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_FOREVER,
 				    &upstream->event);
@@ -1388,16 +1387,16 @@ upstream_write_cb(void *userarg)
 		}
 		/* Schedule reading (if not already scheduled) */
 		if (!upstream->event.read_cb) {
-			upstream->event.read_cb = upstream_read_cb;
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+			upstream->event.read_cb = upstream_read_cb;
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 		}
 		if (upstream->starttls_req && netreq->owner == upstream->starttls_req) {
 			/* Now deschedule any further writes on this connection until we get
 			 * the STARTTLS answer*/
-			upstream->event.write_cb = NULL;
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+			upstream->event.write_cb = NULL;
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 		} else if (upstream->starttls_req) {
@@ -1722,8 +1721,8 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 	/* Append netreq to write_queue */
 	if (!upstream->write_queue) {
 		upstream->write_queue = upstream->write_queue_last = netreq;
-		upstream->event.timeout_cb = NULL;
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.timeout_cb = NULL;
 		upstream->event.write_cb = upstream_write_cb;
 		if (upstream->tls_hs_state == GETDNS_HS_WRITE ||
 		    (upstream->starttls_req &&
