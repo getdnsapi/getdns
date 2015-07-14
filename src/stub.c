@@ -1645,6 +1645,7 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 
 	DEBUG_STUB("# %s: %p %d\n", __FUNCTION__, upstream, upstream->fd);
 	int reschedule = 0;
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
 		reschedule = 1;
@@ -1662,7 +1663,6 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 		reschedule = 1;
 	}
 	if (reschedule) {
-		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		if (upstream->event.read_cb || upstream->event.write_cb)
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
