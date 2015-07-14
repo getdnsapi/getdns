@@ -524,19 +524,29 @@ upstreams_resize(getdns_upstreams *upstreams, size_t size)
 void
 priv_getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
-	size_t i;
+	getdns_upstream *upstream;
 
-	if (upstreams && --upstreams->referenced == 0) {
-		for (i = 0; i < upstreams->count; i++) {
-			if (upstreams->upstreams[i].tls_obj != NULL) {
-				SSL_shutdown(upstreams->upstreams[i].tls_obj);
-				SSL_free(upstreams->upstreams[i].tls_obj);
-			}
-			if (upstreams->upstreams[i].fd != -1)
-				close(upstreams->upstreams[i].fd);
+	if (upstreams && --upstreams->referenced > 0)
+		return;
+
+	for ( upstream = upstreams->upstreams
+	    ; upstreams->count
+	    ; upstreams->count--, upstream++ ) {
+
+		if (   upstream->event.read_cb
+		    || upstream->event.write_cb
+		    || upstream->event.timeout_cb )
+
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+
+		if (upstream->tls_obj != NULL) {
+			SSL_shutdown(upstream->tls_obj);
+			SSL_free(upstream->tls_obj);
 		}
-		GETDNS_FREE(upstreams->mf, upstreams);
+		if (upstream->fd != -1)
+			close(upstream->fd);
 	}
+	GETDNS_FREE(upstreams->mf, upstreams);
 }
 
 void
@@ -930,58 +940,61 @@ getdns_context_create(struct getdns_context ** context, int set_from_os)
 void
 getdns_context_destroy(struct getdns_context *context)
 {
-    if (context == NULL) {
-        return;
-    }
-    // If being destroyed during getdns callback,
-    // fail via assert
-    assert(context->processing == 0);
-    if (context->destroying) {
-        return ;
-    }
-    context->destroying = 1;
+	if (context == NULL)
+		return;
+
+	/*  If being destroyed during getdns callback, fail via assert */
+	assert(context->processing == 0);
+	if (context->destroying)
+		return;
+
+	context->destroying = 1;
 	context->processing = 1;
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
+
+	/* This needs to be done before cleaning the extension, because there
+	 * might be an idle_timeout schedules, which will not get unscheduled
+	 * with cancel_outstanding_requests.
+	 */
+	priv_getdns_upstreams_dereference(context->upstreams);
+
+	if (context->unbound_ctx)
+		ub_ctx_delete(context->unbound_ctx);
+
 	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
 
-    if (context->namespaces)
-        GETDNS_FREE(context->my_mf, context->namespaces);
-    if (context->dns_transports)
-        GETDNS_FREE(context->my_mf, context->dns_transports);
-	if(context->fchg_resolvconf)
-	{
+	if (context->namespaces)
+		GETDNS_FREE(context->my_mf, context->namespaces);
+
+	if (context->dns_transports)
+		GETDNS_FREE(context->my_mf, context->dns_transports);
+
+	if(context->fchg_resolvconf) {
 		if(context->fchg_resolvconf->prevstat)
 			GETDNS_FREE(context->my_mf, context->fchg_resolvconf->prevstat);
 		GETDNS_FREE(context->my_mf, context->fchg_resolvconf);
 	}
-	if(context->fchg_hosts)
-	{
+	if(context->fchg_hosts) {
 		if(context->fchg_hosts->prevstat)
 			GETDNS_FREE(context->my_mf, context->fchg_hosts->prevstat);
 		GETDNS_FREE(context->my_mf, context->fchg_hosts);
 	}
-	if (context->tls_ctx) {
+	if (context->tls_ctx)
 		SSL_CTX_free(context->tls_ctx);
-	}
 
-    getdns_list_destroy(context->dns_root_servers);
-    getdns_list_destroy(context->suffix);
+	getdns_list_destroy(context->dns_root_servers);
+	getdns_list_destroy(context->suffix);
 
-    if (context->trust_anchors &&
+	if (context->trust_anchors &&
 	    context->trust_anchors != context->trust_anchors_spc)
-	    GETDNS_FREE(context->mf, context->trust_anchors);
-
-    /* destroy the contexts */
-    if (context->unbound_ctx)
-        ub_ctx_delete(context->unbound_ctx);
+		GETDNS_FREE(context->mf, context->trust_anchors);
 
 	getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
-	priv_getdns_upstreams_dereference(context->upstreams);
 
-    GETDNS_FREE(context->my_mf, context);
+	GETDNS_FREE(context->my_mf, context);
 }               /* getdns_context_destroy */
 
 /*
