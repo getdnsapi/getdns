@@ -526,19 +526,22 @@ priv_getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
 	getdns_upstream *upstream;
 
-	if (upstreams && --upstreams->referenced > 0)
+	if (!upstreams || --upstreams->referenced > 0)
 		return;
 
 	for ( upstream = upstreams->upstreams
 	    ; upstreams->count
 	    ; upstreams->count--, upstream++ ) {
 
-		if (   upstream->event.read_cb
-		    || upstream->event.write_cb
-		    || upstream->event.timeout_cb )
+		if (upstream->loop && (   upstream->event.read_cb
+		                       || upstream->event.write_cb
+		                       || upstream->event.timeout_cb) ) {
 
+			upstream->event.read_cb = NULL;
+			upstream->event.write_cb = NULL;
+			upstream->event.timeout_cb = NULL;
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-
+		}
 		if (upstream->tls_obj != NULL) {
 			SSL_shutdown(upstream->tls_obj);
 			SSL_free(upstream->tls_obj);
@@ -550,7 +553,8 @@ priv_getdns_upstreams_dereference(getdns_upstreams *upstreams)
 }
 
 void
-priv_getdns_upstream_shutdown(getdns_upstream *upstream) {
+priv_getdns_upstream_shutdown(getdns_upstream *upstream)
+{
 	/*There is a race condition with a new request being scheduled 
 	  while this happens so take ownership of the fd asap*/
 	int fd = upstream->fd;
