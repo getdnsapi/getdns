@@ -2317,9 +2317,9 @@ static int key_proves_nonexistance(
 	return 0;
 }
 
-/* Descend down to the root along chain_nodes.  Try to find a keyset
+/* Ascend up to the root along chain_nodes.  Try to find a keyset
  * authenticated by a key in ta rrset (trust anchor).  When we found one,
- * ascend back up, authenticating more specific keysets along the chain.
+ * descend back down, authenticating more specific keysets along the chain.
  *
  * The most specific keyset is returned in keys.  Also a DNSSEC status is
  * returned.  BOGUS if no keyset could be found.  INSECURE if the 
@@ -2330,7 +2330,7 @@ static int chain_node_get_trusted_keys(
 {
 	int s, keytag;
 
-	/* Descend down to the root */
+	/* Ascend up to the root */
 	if (! node)
 		return GETDNS_DNSSEC_BOGUS;
 	
@@ -2379,7 +2379,7 @@ static int chain_node_get_trusted_keys(
 
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
 	ta = *keys;
-	/* Back up to the head */
+	/* Back down to the head */
 	if ((keytag = key_proves_nonexistance(ta, &node->ds, NULL))) {
 		node->ds_signer = keytag;
 		return GETDNS_DNSSEC_INSECURE;
@@ -2411,7 +2411,7 @@ static int chain_node_get_trusted_keys(
 		return GETDNS_DNSSEC_BOGUS;
 
 	/* Not at a zone cut, the trusted keyset must be authenticating
-	 * something above (closer to head) this node.
+	 * something below (closer to head) this node.
 	 */
 	return GETDNS_DNSSEC_SECURE;
 }
@@ -2784,7 +2784,7 @@ static void check_chain_complete(chain_head *chain)
 				    !rrset_has_rrs(&node->ds)) {
 					/* Add empty DS, to prevent less
 					 * specific to be able to authenticate
-					 * above a zone cut (closer to head)
+					 * below a zone cut (closer to head)
 					 */
 					append_empty_ds2val_chain_list(
 					    context, val_chain_list,
