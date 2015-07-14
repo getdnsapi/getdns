@@ -750,6 +750,7 @@ struct chain_node {
  * Hence they need to be enumerated before the construction functions.
  */
 static void val_chain_sched(chain_head *head, uint8_t *dname);
+static void val_chain_sched_ds(chain_head *head, uint8_t *dname);
 static void val_chain_sched_signer(chain_head *head, rrsig_iter *rrsig);
 static void val_chain_sched_soa(chain_head *head, uint8_t *dname);
 
@@ -1018,7 +1019,7 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 
 		/* No signatures found for this RRset */
 		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
-			val_chain_sched(head, rrset->name);
+			val_chain_sched_ds(head, rrset->name);
 		else if (rrset->rr_type == GETDNS_RRTYPE_CNAME)
 			val_chain_sched_soa(head, rrset->name + *rrset->name + 1);
 		else
@@ -1175,6 +1176,42 @@ static void val_chain_sched(chain_head *head, uint8_t *dname)
 		val_chain_sched_node(node);
 }
 
+static void val_chain_sched_ds_node(chain_node *node)
+{
+	getdns_context *context;
+	getdns_eventloop *loop;
+	getdns_dns_req *ds_req;
+	char  name[1024];
+
+	context = node->chains->netreq->owner->context;
+	loop    = node->chains->netreq->owner->loop;
+
+	if (!gldns_wire2str_dname_buf(node->ds.name, 256, name, sizeof(name)))
+		return;
+
+	DEBUG_SEC("schedule DS lookup for %s\n", name);
+
+	if (! node->ds_req && node->parent /* not root */ &&
+	    ! priv_getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
+	    dnssec_ok_checking_disabled, node, &ds_req, NULL, val_chain_node_cb))
+
+		node->ds_req = ds_req->netreqs[0];
+}
+
+static void val_chain_sched_ds(chain_head *head, uint8_t *dname)
+{
+	chain_node *node;
+
+	if (!head->netreq)
+		return;
+
+	for ( node = head->parent
+	    ; node && !_dname_equal(dname, node->ds.name)
+	    ; node = node->parent);
+	if (node)
+		val_chain_sched_ds_node(node);
+}
+
 static void val_chain_sched_signer_node(chain_node *node, rrsig_iter *rrsig)
 {
 	priv_getdns_rdf_iter rdf_spc, *rdf;
@@ -1256,8 +1293,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 			node = node->parent;
 
 		if (node)
-			val_chain_sched_node(node);
-	} else
+			val_chain_sched_ds_node(node);
+
+	} else if (node->parent)
 		val_chain_sched_soa_node(node->parent);
 
 	check_chain_complete(node->chains);
