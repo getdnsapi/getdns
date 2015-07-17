@@ -1,4 +1,4 @@
-* 2015-07-??: Version 0.3.?
+* 2015-07-17: Version 0.3.0
   * Unit test for spurious execute bits.  Thanks Paul Wouters.
   * Added new transport list options in API. The option is now an ordered
     list of GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP,
