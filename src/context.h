@@ -80,6 +80,7 @@ typedef enum getdns_tls_hs_state {
 } getdns_tls_hs_state_t;
 
 typedef struct getdns_upstream {
+	/* backpointer to containing upstreams structure */
 	struct getdns_upstreams *upstreams;
 
 	socklen_t                addr_len;
@@ -245,6 +246,6 @@ void priv_getdns_context_ub_read_cb(void *userarg);
 
 void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
-void priv_getdns_upstream_shutdown(getdns_upstream *upstreams);
+void priv_getdns_upstream_shutdown(getdns_upstream *upstream);
 
 #endif /* _GETDNS_CONTEXT_H_ */
