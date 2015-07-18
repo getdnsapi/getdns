@@ -237,7 +237,7 @@ rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
 		i->nxt = i->pos + 1 < i->end
 		       ? i->pos + gldns_read_uint16(i->pos) + 2 : i->end;
 
-	else if ((i->rdd_pos->type & GETDNS_RDF_DNAME) == GETDNS_RDF_DNAME)
+	else if (i->rdd_pos->type & GETDNS_RDF_DNAME)
 
 		for (pos = i->pos; pos < i->end; pos += *pos + 1) {
 			if (!*pos) {
@@ -257,8 +257,12 @@ rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
 	} else /* RDF is for remaining data */
 		i->nxt = i->end;
 
-	if (    i->nxt <= i->end
-	    && (i->nxt >  i->pos || !(i->rdd_pos->type & GETDNS_RDF_REPEAT)))
+	if ( i->nxt <= i->end &&
+
+	    /* Empty rdata fields are only allowed in case of non-repeating
+	     * remaining data. So only the GETDNS_RDF_BINDATA bit is set.
+	     */
+	    (i->nxt >  i->pos || (i->rdd_pos->type == GETDNS_RDF_BINDATA)))
 		return i;
 done:
 	i->pos = NULL;

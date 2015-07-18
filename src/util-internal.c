@@ -271,8 +271,7 @@ priv_getdns_rr_iter2rr_dict(struct mem_funcs *mf, priv_getdns_rr_iter *i)
 			default:
 				goto rdata_error;
 			}
-		} else if ((rdf->rdd_pos->type & GETDNS_RDF_DNAME) ==
-		    GETDNS_RDF_DNAME) {
+		} else if (rdf->rdd_pos->type & GETDNS_RDF_DNAME) {
 			val_type = t_bindata;
 
 			bindata.data = priv_getdns_rdf_if_or_as_decompressed(

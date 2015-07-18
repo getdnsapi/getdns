@@ -54,7 +54,7 @@ typedef struct priv_getdns_rdf_special {
 
 #define GETDNS_RDF_INTEGER    0x010000
 #define GETDNS_RDF_BINDATA    0x020000
-#define GETDNS_RDF_DNAME      0x060000
+#define GETDNS_RDF_DNAME      0x040000
 #define GETDNS_RDF_COMPRESSED 0x080000
 #define GETDNS_RDF_REPEAT     0x100000
 
