@@ -253,10 +253,12 @@ rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
 		if (!(i->nxt = i->rdd_pos->special->rdf_end(
 		    i->pkt, i->pkt_end, i->pos)))
 			i->nxt = i->end;
+
 	} else /* RDF is for remaining data */
 		i->nxt = i->end;
 
-	if (i->nxt <= i->end)
+	if (    i->nxt <= i->end
+	    && (i->nxt >  i->pos || !(i->rdd_pos->type & GETDNS_RDF_REPEAT)))
 		return i;
 done:
 	i->pos = NULL;
