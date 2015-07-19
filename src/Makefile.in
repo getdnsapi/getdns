@@ -213,6 +213,7 @@ depend:
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
+	cd test && $(MAKE) $@
 
 .PHONY: clean test
 FORCE:
