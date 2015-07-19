@@ -31,6 +31,9 @@
 
 AC_PREREQ([2.56])
 AC_CONFIG_MACRO_DIRS([m4])
+sinclude(./m4/acx_openssl.m4)
+sinclude(./m4/ax_check_compile_flag.m4)
+sinclude(./m4/pkg.m4)
 
 AC_INIT([getdns], [0.3.1], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
 AC_SUBST(RELEASE_CANDIDATE, [])
