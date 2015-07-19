@@ -2423,7 +2423,7 @@ priv_get_context_settings(getdns_context* context) {
 		getdns_list *upstreams =
 		    getdns_list_create_with_context(context);
 
-		for (i = 0; i < context->upstreams->count; i++) {
+		for (i = 0; i < context->upstreams->count;) {
 			size_t j;
 			getdns_dict *d;
 			upstream = &context->upstreams->upstreams[i];
@@ -2806,7 +2806,7 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
         size_t i;
         getdns_upstream *upstream;
         getdns_list *upstreams = getdns_list_create();
-        for (i = 0; i < context->upstreams->count; i++) {
+        for (i = 0; i < context->upstreams->count;) {
 		size_t j;
 		getdns_dict *d;
 		upstream = &context->upstreams->upstreams[i];
