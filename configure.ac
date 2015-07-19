@@ -30,6 +30,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ([2.56])
+AC_CONFIG_MACRO_DIRS([m4])
 
 AC_INIT([getdns], [0.3.1], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
 AC_SUBST(RELEASE_CANDIDATE, [])
