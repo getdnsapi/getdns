@@ -39,3 +39,12 @@ src/getdns/getdns.h
 src/Doxyfile
 src/getdns/getdns_extra.h
 src/version.c
+aclocal.m4
+configure
+ltmain.sh
+m4/libtool.m4
+m4/ltoptions.m4
+m4/ltsugar.m4
+m4/ltversion.m4
+m4/lt~obsolete.m4
+src/config.h.in

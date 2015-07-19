@@ -32,6 +32,8 @@ version = @PACKAGE_VERSION@
 tarname = @PACKAGE_TARNAME@
 distdir = $(tarname)-$(version)
 
+api_version = @API_VERSION@
+
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
@@ -58,7 +60,7 @@ doc: 	$(MANPAGES3)
 
 .SUFFIXES: .3.in .3
 .3.in.3:
-	sed $(EDITS) -e "s/@date@/`date +'%B %Y'`/g" $< > $@
+	sed $(EDITS) -e "s/@date@/$(api_version)/g" $< > $@
 
 # we assume that we want a separate file for each "name" specified for each man page
 # and consider these "alternate names" simple copies of the main man page
