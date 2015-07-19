@@ -32,7 +32,6 @@
 #include <dirent.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
-#include <types-internal.h>
 
 static int quiet = 0;
 static int batch_mode = 0;
@@ -104,7 +103,11 @@ static getdns_return_t
 fill_transport_list(getdns_context *context, char *transport_list_str, 
                     getdns_transport_list_t *transports, size_t *transport_count)
 {
-	for (size_t i = 0; i < strlen(transport_list_str); i++, (*transport_count)++) {
+	size_t max_transports = *transport_count;
+	*transport_count = 0;
+	for ( size_t i = 0
+	    ; i < max_transports && i < strlen(transport_list_str)
+	    ; i++, (*transport_count)++) {
 		switch(*(transport_list_str + i)) {
 			case 'U': 
 				transports[i] = GETDNS_TRANSPORT_UDP;
@@ -543,8 +546,8 @@ getdns_return_t parse_args(int argc, char **argv)
 					    "after -l\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				size_t transport_count = 0;
-				getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
+				getdns_transport_list_t transports[10];
+				size_t transport_count = sizeof(transports);
 				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){

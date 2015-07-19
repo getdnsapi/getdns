@@ -248,8 +248,7 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h ../getdns/getdns.h \
- ../getdns/getdns_extra.h ../types-internal.h ../getdns/getdns.h \
- ../getdns/getdns_extra.h ../util/rbtree.h
+ ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h
 tests_dict.lo tests_dict.o: $(srcdir)/tests_dict.c $(srcdir)/testmessages.h ../getdns/getdns.h
 tests_list.lo tests_list.o: $(srcdir)/tests_list.c $(srcdir)/testmessages.h ../getdns/getdns.h
