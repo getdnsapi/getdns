@@ -32,6 +32,7 @@
  */
 
 #include <openssl/err.h>
+#include <openssl/x509v3.h>
 #include "config.h"
 #include <fcntl.h>
 #include "stub.h"
@@ -822,12 +823,14 @@ tls_failed(getdns_upstream *upstream)
 }
 
 static SSL*
-tls_create_object(getdns_context *context, int fd)
+tls_create_object(getdns_context *context, int fd, const char* auth_name)
 {
 	/* Create SSL instance */
 	if (context->tls_ctx == NULL)
 		return NULL;
 	SSL* ssl = SSL_new(context->tls_ctx);
+	X509_VERIFY_PARAM *param;
+
 	if(!ssl) 
 		return NULL;
 	/* Connect the SSL object with a file descriptor */
@@ -835,6 +838,10 @@ tls_create_object(getdns_context *context, int fd)
 		SSL_free(ssl);
 		return NULL;
 	}
+	SSL_set_tlsext_host_name(ssl, auth_name);
+	param = SSL_get0_param(ssl);
+	X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+	X509_VERIFY_PARAM_set1_host(param, auth_name, 0);
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 	return ssl;
@@ -1302,7 +1309,8 @@ upstream_read_cb(void *userarg)
 			dnsreq = netreq->owner;
 			if (is_starttls_response(netreq)) {
 				upstream->tls_obj = tls_create_object(dnsreq->context,
-				                                      upstream->fd);
+				                                      upstream->fd,
+								      upstream->tls_auth_name);
 				if (upstream->tls_obj == NULL) 
 					upstream->tls_hs_state = GETDNS_HS_FAILED;
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
@@ -1542,7 +1550,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			return upstream->fd;
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) return -1;
-		upstream->tls_obj = tls_create_object(dnsreq->context, fd);
+		upstream->tls_obj = tls_create_object(dnsreq->context, fd, upstream->tls_auth_name);
 		if (upstream->tls_obj == NULL) {
 			close(fd);
 			return -1;

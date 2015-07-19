@@ -605,6 +605,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->starttls_req = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
+	upstream->tls_auth_name[0] = '\0';
 	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
@@ -1216,6 +1217,8 @@ getdns_set_base_dns_transports(
 	if (!context || transport_count == 0 || transports == NULL)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+	/* TODO: restrict the use of each transport to once ->
+	   sane list and correct max size for array*/
 	for(i=0; i<transport_count; i++)
 	{
 		if( transports[i] != GETDNS_TRANSPORT_UDP
@@ -1662,6 +1665,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		getdns_dict *dict;
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
+		getdns_bindata *tls_auth_name;
 		struct sockaddr_storage  addr;
 
 		getdns_bindata *scope_id;
@@ -1735,6 +1739,16 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
+			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+				if ((r = getdns_dict_get_bindata(
+					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
+					/*TODO: VALIDATE THIS STRING!*/
+					memcpy(upstream->tls_auth_name,
+					       (char *)tls_auth_name->data,
+						tls_auth_name->size);
+					upstream->tls_auth_name[tls_auth_name->size] = '\0';
+				}
+			}
 			upstreams->count++;
 			freeaddrinfo(ai);
 		}
@@ -2130,11 +2144,14 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 #endif
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
+			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, NULL);
+			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
+				return GETDNS_RETURN_BAD_CONTEXT;
 		}
 	}
 	/* Block use of STARTTLS/TLS ONLY in recursive mode as it won't work */
     /* Note: If TLS is used in recursive mode this will try TLS on port
-     * 53 so it is blocked here.  So is STARTTLS only at the moment. */
+     * 53 so it is blocked here.  So is 'STARTTLS only' at the moment. */
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
 		context->dns_transport_count == 1 && 
 	    (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
