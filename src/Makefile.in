@@ -65,7 +65,7 @@ C99COMPATFLAGS=@C99COMPATFLAGS@
 
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
 	list.lo request-internal.lo rr-dict.lo rr-iter.lo stub.lo sync.lo \
-	util-internal.lo version.lo
+	util-internal.lo
 
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
@@ -144,8 +144,8 @@ libgetdns_ext_ev.la: libgetdns.la libev.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ libev.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
-libgetdns.la: $(GETDNS_OBJ) context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
+libgetdns.la: $(GETDNS_OBJ) version.lo context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) version.lo context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
 test:	FORCE
