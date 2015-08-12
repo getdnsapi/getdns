@@ -1217,16 +1217,20 @@ getdns_set_base_dns_transports(
 	if (!context || transport_count == 0 || transports == NULL)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	/* TODO: restrict the use of each transport to once ->
-	   sane list and correct max size for array*/
+	/* Check for valid transports and that they are used only once*/
+	int u=0,t=0,l=0,s=0;
 	for(i=0; i<transport_count; i++)
 	{
-		if( transports[i] != GETDNS_TRANSPORT_UDP
-		 && transports[i] != GETDNS_TRANSPORT_TCP
-		 && transports[i] != GETDNS_TRANSPORT_TLS
-		 && transports[i] != GETDNS_TRANSPORT_STARTTLS)
-			return GETDNS_RETURN_INVALID_PARAMETER;
+		switch (transports[i]) {
+			case GETDNS_TRANSPORT_UDP:       u++; break;
+			case GETDNS_TRANSPORT_TCP:       t++; break;
+			case GETDNS_TRANSPORT_TLS:       l++; break;
+			case GETDNS_TRANSPORT_STARTTLS:  s++; break;
+			default: return GETDNS_RETURN_INVALID_PARAMETER;
+		}
 	}
+	if ( u>1 || t>1 || l>1 || s>1)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if (!(new_transports = GETDNS_XMALLOC(context->my_mf,
 				getdns_transport_list_t, transport_count)))
