@@ -579,6 +579,27 @@ priv_getdns_upstream_shutdown(getdns_upstream *upstream)
 }
 
 static int
+tls_is_in_transports_list(getdns_context *context) {
+	for (int i=0; i< context->dns_transport_count;i++) {
+		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS ||
+		    context->dns_transports[i] == GETDNS_TRANSPORT_STARTTLS)
+			return 1;
+	}
+	return 0;
+}
+
+static int
+tls_only_is_in_transports_list(getdns_context *context) {
+	if (context->dns_transport_count != 1)
+		return 0;
+	if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
+		context->dns_transports[0] == GETDNS_TRANSPORT_STARTTLS)
+			return 1;
+	return 0;
+}
+
+
+static int
 net_req_query_id_cmp(const void *id1, const void *id2)
 {
 	return (intptr_t)id1 - (intptr_t)id2;
@@ -2140,8 +2161,8 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 
 	/* Transport can in theory be set per query in stub mode */
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-		/*TODO[TLS]: Check if TLS is in the list of transports.*/
-		if (context->tls_ctx == NULL) {
+		if (tls_is_in_transports_list(context) == 1 &&
+		    context->tls_ctx == NULL) {
 #ifdef HAVE_LIBTLS1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
@@ -2157,9 +2178,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
     /* Note: If TLS is used in recursive mode this will try TLS on port
      * 53 so it is blocked here.  So is 'STARTTLS only' at the moment. */
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
-		context->dns_transport_count == 1 && 
-	    (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
-	     context->dns_transports[0] == GETDNS_TRANSPORT_STARTTLS))
+		tls_only_is_in_transports_list(context) == 1)
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	if (context->resolution_type_set == context->resolution_type)

@@ -826,7 +826,7 @@ static SSL*
 tls_create_object(getdns_context *context, int fd, const char* auth_name)
 {
 	/* Create SSL instance */
-	if (context->tls_ctx == NULL)
+	if (context->tls_ctx == NULL || auth_name == NULL)
 		return NULL;
 	SSL* ssl = SSL_new(context->tls_ctx);
 	X509_VERIFY_PARAM *param;
@@ -896,6 +896,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
 				return STUB_TCP_AGAIN;
 			default:
+				DEBUG_STUB("--- %s %s %d\n", __FUNCTION__, "Handshake failed: ", want);
 				return tls_cleanup(upstream);
 	   }
 	}
