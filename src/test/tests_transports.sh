@@ -50,15 +50,20 @@ usage () {
 	echo "local or known test servers are used, but it should work with the default servers:"
 	echo " - Google Open DNS for TCP and UDP only "
 	echo  "- the getdnsapi.net test server Open Resolver for TLS, STARTTLS, TCP and UDP"
+	echo "NOTE: By default this script assumes it is located in the same directory"
+	echo "as the getdns_query binary. If it is not, then the location of the binary"
+	echo "can be specified via the command line option."
 	echo
 	echo "usage: test_transport.sh"
+	ehco "         -p   path to getdns_query binary"
 	echo "         -s   server configured for only TCP and UDP"
 	echo "         -t   server configured for TLS, STARTTLS, TCP and UDP"
 }
 
-while getopts ":s:t:dh" opt; do
+while getopts ":p:s:t:dh" opt; do
 	case $opt in
 		d ) set -x ;;
+		p ) DIR=$OPTARG ;;
 		s ) SERVER_IP=$OPTARG ; echo "Setting server to $OPTARG" ;;
 		t ) TLS_SERVER_IP=$OPTARG ; echo "Setting TLS server to $OPTARG" ;;
 		h ) usage ; exit ;;
