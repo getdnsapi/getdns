@@ -214,7 +214,7 @@ build the packages, this is simplythe one we chose to use.
     create dmg
 
     A self-compiled version of OpenSSL or the version installed via Homebrew is required.
-    Note: If using a self-compiled version manual configuration of certificates is required for TLS authentication to wokr
+    Note: If using a self-compiled version manual configuration of certificates into /usr/local/etc/openssl/certs is required for TLS authentication to work.
 
 #### Homebrew
 
