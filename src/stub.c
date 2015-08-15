@@ -825,6 +825,7 @@ tls_failed(getdns_upstream *upstream)
 static SSL*
 tls_create_object(getdns_context *context, int fd, const char* auth_name)
 {
+#ifdef HAVE_LIBSSL_102
 	/* Create SSL instance */
 	if (context->tls_ctx == NULL || auth_name == NULL)
 		return NULL;
@@ -845,6 +846,9 @@ tls_create_object(getdns_context *context, int fd, const char* auth_name)
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 	return ssl;
+#else
+	return NULL;
+#endif
 }
 
 static int

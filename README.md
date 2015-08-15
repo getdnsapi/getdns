@@ -89,7 +89,7 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 * [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
 * [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
-* [libopenssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.2 or later is required for TLS support)
+* [libssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.2 or later is required for TLS support)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 You have to install the library and also the library-devel (or -dev) for your

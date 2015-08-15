@@ -2164,7 +2164,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
 		if (tls_is_in_transports_list(context) == 1 &&
 		    context->tls_ctx == NULL) {
-#ifdef HAVE_LIBTLS1_2
+#ifdef HAVE_LIBSSL_102
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 #endif
