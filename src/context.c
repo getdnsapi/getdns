@@ -1764,7 +1764,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS ||
+			    getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
 				if ((r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/

@@ -2,7 +2,7 @@
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 SERVER_IP="8.8.8.8"
-TLS_SERVER_IP="185.49.141.38"
+TLS_SERVER_IP="185.49.141.38~www.dnssec-name-and-shame.com"
 GOOD_RESULT_SYNC="Status was: At least one response was returned"
 GOOD_RESULT_ASYNC="successfull"
 BAD_RESULT_SYNC="1 'Generic error'"
@@ -58,6 +58,7 @@ usage () {
 	ehco "         -p   path to getdns_query binary"
 	echo "         -s   server configured for only TCP and UDP"
 	echo "         -t   server configured for TLS, STARTTLS, TCP and UDP"
+	echo "              (This must include the hostname e.g. 185.49.141.38~www.dnssec-name-and-shame.com)"
 }
 
 while getopts ":p:s:t:dh" opt; do
@@ -70,6 +71,9 @@ while getopts ":p:s:t:dh" opt; do
 	esac
 done
 
+TLS_SERVER_IP_NO_NAME=`echo ${TLS_SERVER_IP%~*}`
+echo $TLS_SERVER_IP_NO_NAME
+
 GOOD_QUERIES=(
 "-s -A -q getdnsapi.net -l U      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l T      @${SERVER_IP}    "
@@ -78,13 +82,15 @@ GOOD_QUERIES=(
 
 GOOD_FALLBACK_QUERIES=(
 "-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
-"-s -A -q getdnsapi.net -l LU     @${SERVER_IP}"
+"-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
+"-s -A -q getdnsapi.net -l LT     @${TLS_SERVER_IP_NO_NAME}"
 "-s -A -q getdnsapi.net -l L      @${SERVER_IP} @${TLS_SERVER_IP}"
 "-s -G -q DNSKEY getdnsapi.net -l UT  @${SERVER_IP} -b 512 -D")
 
 NOT_AVAILABLE_QUERIES=(
 "-s -A -q getdnsapi.net -l L      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l S      @${SERVER_IP}    "
+"-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP_NO_NAME}    "
 "-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
 
 echo "Starting transport test"
