@@ -370,6 +370,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 static int
 tcp_connected(getdns_upstream *upstream) {
 	/* Already tried and failed, so let the fallback code take care of things */
+	/* TODO: We _should_ use a timeout on the TCP handshake*/
 	if (upstream->fd == -1 || upstream->tcp.write_error != 0)
 		return STUB_TCP_ERROR;
 
@@ -448,7 +449,8 @@ static int
 tls_cleanup(getdns_upstream *upstream)
 {
 	DEBUG_STUB("*** %s\n", __FUNCTION__);
-	SSL_free(upstream->tls_obj);
+	if (upstream->tls_obj != NULL)
+		SSL_free(upstream->tls_obj);
 	upstream->tls_obj = NULL;
 	upstream->tls_hs_state = GETDNS_HS_FAILED;
 	/* Reset timeout on failure*/
@@ -1376,10 +1378,10 @@ upstream_write_cb(void *userarg)
 		/* Unqueue the netreq from the write_queue */
 		if (!(upstream->write_queue = netreq->write_queue_tail)) {
 			upstream->write_queue_last = NULL;
-			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			upstream->event.write_cb = NULL;
 			/* Reschedule (if already reading) to clear writable */
 			if (upstream->event.read_cb) {
+				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_FOREVER,
 				    &upstream->event);
@@ -1645,7 +1647,6 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 
 	DEBUG_STUB("# %s: %p %d\n", __FUNCTION__, upstream, upstream->fd);
 	int reschedule = 0;
-	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
 		reschedule = 1;
@@ -1663,6 +1664,7 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 		reschedule = 1;
 	}
 	if (reschedule) {
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		if (upstream->event.read_cb || upstream->event.write_cb)
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
@@ -1775,12 +1777,18 @@ priv_getdns_submit_stub_request(getdns_network_req *netreq)
 	case GETDNS_TRANSPORT_TCP:
 		upstream_schedule_netreq(netreq->upstream, netreq);
 		/* TODO[TLS]: Change scheduling for sync calls. */
+		/* For TLS, set a short timeout to catch setup problems. This is reset
+		   when the connection is successful.*/
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		GETDNS_SCHEDULE_EVENT(
-		    dnsreq->loop, netreq->upstream->fd, dnsreq->context->timeout,
+		    dnsreq->loop, netreq->upstream->fd, /*dnsreq->context->timeout,*/
+		    (transport == GETDNS_TRANSPORT_TLS ?
+		    dnsreq->context->timeout / 2 : dnsreq->context->timeout),
 		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
 		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
-		    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
+		    ? netreq_upstream_write_cb : NULL), 
+		    ( transport == GETDNS_TRANSPORT_TLS ? 
+		      stub_tls_timeout_cb : stub_timeout_cb)));
 
 		return GETDNS_RETURN_GOOD;
 	default:

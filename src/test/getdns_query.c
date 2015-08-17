@@ -272,16 +272,16 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			free(response_str);
 		}
 		fprintf(stdout,
-			"Result:      The callback with ID %llu  was successfull.\n",
+			"Response code was: GOOD. Status was: Callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-			"Result:      The callback with ID %llu was cancelled. Exiting.\n",
+			"An error occurred: The callback with ID %llu was cancelled. Exiting.\n",
 			(unsigned long long)trans_id);
 	else {
 		fprintf(stderr,
-			"Result:      The callback got a callback_type of %d. Exiting.\n",
+			"An error occurred: The callback got a callback_type of %d. Exiting.\n",
 			callback_type);
 		fprintf(stderr,
 			"Error :      '%s'\n",
