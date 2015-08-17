@@ -1378,10 +1378,10 @@ upstream_write_cb(void *userarg)
 		/* Unqueue the netreq from the write_queue */
 		if (!(upstream->write_queue = netreq->write_queue_tail)) {
 			upstream->write_queue_last = NULL;
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			upstream->event.write_cb = NULL;
 			/* Reschedule (if already reading) to clear writable */
 			if (upstream->event.read_cb) {
-				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_FOREVER,
 				    &upstream->event);
@@ -1646,37 +1646,30 @@ static void
 upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 
 	DEBUG_STUB("# %s: %p %d\n", __FUNCTION__, upstream, upstream->fd);
-	int reschedule = 0;
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
-		reschedule = 1;
 	}
 	if (upstream->write_queue && !upstream->event.write_cb) {
 		upstream->event.write_cb = upstream_write_cb;
-		reschedule = 1;
 	}
 	if (!upstream->netreq_by_query_id.count && upstream->event.read_cb) {
 		upstream->event.read_cb = NULL;
-		reschedule = 1;
 	}
 	if (upstream->netreq_by_query_id.count && !upstream->event.read_cb) {
 		upstream->event.read_cb = upstream_read_cb;
-		reschedule = 1;
 	}
-	if (reschedule) {
-		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-		if (upstream->event.read_cb || upstream->event.write_cb)
-			GETDNS_SCHEDULE_EVENT(upstream->loop,
-			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
-		else {
-			DEBUG_STUB("# %s: *Idle connection %d* \n", 
-			            __FUNCTION__, upstream->fd);
-			upstream->event.timeout_cb = upstream_idle_timeout_cb;
-			if (upstream->tcp.write_error != 0)
-				idle_timeout = 0;
-			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, 
-			    idle_timeout, &upstream->event);
-		}
+	if (upstream->event.read_cb || upstream->event.write_cb)
+		GETDNS_SCHEDULE_EVENT(upstream->loop,
+		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+	else {
+		DEBUG_STUB("# %s: *Idle connection %d* \n", 
+			    __FUNCTION__, upstream->fd);
+		upstream->event.timeout_cb = upstream_idle_timeout_cb;
+		if (upstream->tcp.write_error != 0)
+			idle_timeout = 0;
+		GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, 
+		    idle_timeout, &upstream->event);
 	}
 }
 
