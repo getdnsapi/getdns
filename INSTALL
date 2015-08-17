@@ -254,6 +254,13 @@ not `/usr/local'.  It is recommended to use the following options:
 
      ./configure --prefix=/boot/common
 
+   On Mac OSX getdns will not build against the version of OpenSSL shipped with
+OSX. If you link against a self-complied version of OpenSSL then manual 
+configuration of certificates into the default OpenSSL directory 
+/usr/local/etc/openssl/certs is currently required for TLS authentication to work.
+However if linking against the version of OpenSSL installed via Homebrew TLS 
+authentication will work out of the box.
+
 Specifying the System Type
 ==========================
 
