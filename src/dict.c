@@ -85,12 +85,9 @@ getdns_dict_find_and_add(struct getdns_dict *dict, const char *key)
 /*---------------------------------------- getdns_dict_get_names
 */
 getdns_return_t
-getdns_dict_get_names(const struct getdns_dict * dict,
-	struct getdns_list ** answer)
+getdns_dict_get_names(const getdns_dict *dict, getdns_list **answer)
 {
 	struct getdns_dict_item *item;
-	size_t index;
-	struct getdns_bindata bindata;
 
 	if (!dict || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -103,11 +100,7 @@ getdns_dict_get_names(const struct getdns_dict * dict,
 
 	RBTREE_FOR(item, struct getdns_dict_item *,
 		(getdns_rbtree_t *)&(dict->root)) {
-		if (getdns_list_add_item(*answer, &index) != GETDNS_RETURN_GOOD)
-			continue;
-		bindata.size = strlen(item->node.key) + 1;
-		bindata.data = (void *) item->node.key;
-		getdns_list_set_bindata(*answer, index, &bindata);
+		getdns_list_append_string(*answer, item->node.key);
 	}
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_get_names */
@@ -464,6 +457,35 @@ getdns_dict_set_bindata(struct getdns_dict * dict, const char *name,
 	item->data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_set_bindata */
+
+/*---------------------------------------- getdns_dict_set_bindata */
+getdns_return_t
+getdns_dict_util_set_string(getdns_dict *dict, char *name, const char *value)
+{
+	struct getdns_dict_item *item;
+	getdns_bindata          *newbindata;
+
+	if (!dict || !name || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(newbindata = GETDNS_MALLOC(dict->mf, getdns_bindata)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	newbindata->size = strlen(value);
+	if (!(newbindata->data = (void *)getdns_strdup(&dict->mf, value)))
+		goto error_free_bindata;
+
+	if ((item = getdns_dict_find_and_add(dict, name))) {
+
+		item->dtype = t_bindata;
+		item->data.bindata = newbindata;
+		return GETDNS_RETURN_GOOD;
+	}
+	GETDNS_FREE(dict->mf, newbindata->data);
+error_free_bindata:
+	GETDNS_FREE(dict->mf, newbindata);
+	return GETDNS_RETURN_MEMORY_ERROR;
+}				/* getdns_dict_util_set_dict */
 
 /*---------------------------------------- getdns_dict_set_int */
 getdns_return_t
