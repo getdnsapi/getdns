@@ -63,7 +63,7 @@ void _getdns_call_user_callback(getdns_dns_req *dns_req,
 
 	/* clean up */
 	_getdns_context_clear_outbound_request(dns_req);
-	dns_req_free(dns_req);
+	_getdns_dns_req_free(dns_req);
 
 	cb(context,
 	    (response ? GETDNS_CALLBACK_COMPLETE : GETDNS_CALLBACK_ERROR),
@@ -97,7 +97,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		_getdns_get_validation_chain(dns_req);
 	else
 		_getdns_call_user_callback(
-		    dns_req, create_getdns_response(dns_req));
+		    dns_req, _getdns_create_getdns_response(dns_req));
 }
 
 #ifdef HAVE_LIBUNBOUND
@@ -198,7 +198,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		return r;
 
 	/* create the request */
-	if (!(req = dns_req_new(context, loop, name, request_type, extensions)))
+	if (!(req = _getdns_dns_req_new(context, loop, name, request_type, extensions)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	req->user_pointer = userarg;
@@ -246,7 +246,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	if (r != 0) {
 		/* clean up the request */
 		_getdns_context_clear_outbound_request(req);
-		dns_req_free(req);
+		_getdns_dns_req_free(req);
 		return r;
 	}
 	return GETDNS_RETURN_GOOD;

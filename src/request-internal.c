@@ -184,7 +184,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 }
 
 void
-dns_req_free(getdns_dns_req * req)
+_getdns_dns_req_free(getdns_dns_req * req)
 {
 	getdns_network_req **net_req;
 	if (!req) {
@@ -208,7 +208,7 @@ dns_req_free(getdns_dns_req * req)
 
 /* create a new dns req to be submitted */
 getdns_dns_req *
-dns_req_new(getdns_context *context, getdns_eventloop *loop,
+_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions)
 {
 	int dnssec_return_status

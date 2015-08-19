@@ -263,7 +263,7 @@ create_starttls_request(getdns_dns_req *dnsreq, getdns_upstream *upstream,
 	    getdns_dict_destroy(extensions);
 		return 0;
 	}
-	upstream->starttls_req = dns_req_new(dnsreq->context, loop,
+	upstream->starttls_req = _getdns_dns_req_new(dnsreq->context, loop,
 	    "STARTTLS", GETDNS_RRTYPE_TXT, extensions);
 	/*TODO[TLS]: TO BIT*/
 	if (upstream->starttls_req == NULL)
@@ -1418,7 +1418,7 @@ upstream_write_cb(void *userarg)
 			/* Delay the cleanup of the STARTTLS req until the write of the next
 			 * req in the queue since for sync req, the event on a request is
 			 * used for the callback that writes the next req. */
-			dns_req_free(upstream->starttls_req);
+			_getdns_dns_req_free(upstream->starttls_req);
 			upstream->starttls_req = NULL;
 		}
 		/* With synchonous lookups, schedule the read locally too */

@@ -246,7 +246,7 @@ void _getdns_bindata_destroy(
 getdns_return_t _getdns_context_local_namespace_resolve(
     getdns_dns_req* req, struct getdns_dict **response);
 
-int filechg_check(struct getdns_context *context, struct filechg *fchg);
+int _getdns_filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void _getdns_context_ub_read_cb(void *userarg);
 

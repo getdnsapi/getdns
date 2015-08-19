@@ -117,16 +117,16 @@ _getdns_dict_copy(const struct getdns_dict *srcdict,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERIC_ERROR if keys missing from dictionary
  */
-getdns_return_t dict_to_sockaddr(struct getdns_dict * ns,
+getdns_return_t _getdns_dict_to_sockaddr(struct getdns_dict * ns,
     struct sockaddr_storage *output);
-getdns_return_t sockaddr_to_dict(struct getdns_context *context,
+getdns_return_t _getdns_sockaddr_to_dict(struct getdns_context *context,
     struct sockaddr_storage *sockaddr, struct getdns_dict ** output);
 
 getdns_dict *
 _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i);
 
 struct getdns_dns_req;
-struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
+struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *completed_request);
 
 getdns_dict *_getdns_create_reply_dict(getdns_context *context,
     getdns_network_req *req, getdns_list *just_addrs, int *rrsigs_in_answer);

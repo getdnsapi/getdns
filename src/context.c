@@ -457,7 +457,7 @@ create_default_root_servers()
  * @returns GETDNS_FCHG_ERRORS if problems (see fchg->errors for details)
  */
 int
-filechg_check(struct getdns_context *context, struct filechg *fchg)
+_getdns_filechg_check(struct getdns_context *context, struct filechg *fchg)
 {
     struct stat *finfo;
 
@@ -669,7 +669,7 @@ set_os_defaults(struct getdns_context *context)
 		context->fchg_resolvconf->changes  = GETDNS_FCHG_NOCHANGES;
 		context->fchg_resolvconf->errors   = GETDNS_FCHG_NOERROR;
 	}
-	filechg_check(context, context->fchg_resolvconf);
+	_getdns_filechg_check(context, context->fchg_resolvconf);
 
 	context->suffix = getdns_list_create_with_context(context);
 	context->upstreams = upstreams_create(context, upstreams_limit);
@@ -1975,7 +1975,7 @@ _getdns_context_cancel_request(getdns_context *context,
 		    NULL, dnsreq->user_pointer, transaction_id);
 
 	/* clean up */
-	dns_req_free(dnsreq);
+	_getdns_dns_req_free(dnsreq);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -2275,7 +2275,7 @@ _getdns_context_request_timed_out(struct getdns_dns_req *req)
     getdns_transaction_t trans_id = req->trans_id;
     getdns_callback_t cb = req->user_callback;
     void *user_arg = req->user_pointer;
-    getdns_dict *response = create_getdns_response(req);
+    getdns_dict *response = _getdns_create_getdns_response(req);
 
     /* cancel the req - also clears it from outbound and cleans up*/
     _getdns_context_cancel_request(context, trans_id, 0);

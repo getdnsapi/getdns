@@ -90,7 +90,7 @@ getdns_dict_util_get_string(struct getdns_dict * dict, char *name, char **result
 }
 
 getdns_return_t
-dict_to_sockaddr(struct getdns_dict * ns, struct sockaddr_storage * output)
+_getdns_dict_to_sockaddr(struct getdns_dict * ns, struct sockaddr_storage * output)
 {
 	char *address_type = NULL;
 	struct getdns_bindata *address_data = NULL;
@@ -130,7 +130,7 @@ dict_to_sockaddr(struct getdns_dict * ns, struct sockaddr_storage * output)
 }
 
 getdns_return_t
-sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *address,
+_getdns_sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage *address,
     struct getdns_dict ** output)
 {
 	if (!output || !address) {
@@ -672,7 +672,7 @@ success:
 }
 
 getdns_dict *
-create_getdns_response(getdns_dns_req *completed_request)
+_getdns_create_getdns_response(getdns_dns_req *completed_request)
 {
 	getdns_dict *result;
 	getdns_list *just_addrs = NULL;

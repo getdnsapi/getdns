@@ -321,10 +321,10 @@ typedef struct getdns_dns_req {
 extern getdns_dict *dnssec_ok_checking_disabled;
 
 /* dns request utils */
-getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,
+getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions);
 
-void dns_req_free(getdns_dns_req * req);
+void _getdns_dns_req_free(getdns_dns_req * req);
 
 #endif
 /* types-internal.h */

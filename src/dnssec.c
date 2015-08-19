@@ -2789,7 +2789,7 @@ static void check_chain_complete(chain_head *chain)
 				append_rrs2val_chain_list(
 				    context, val_chain_list,
 				    node->dnskey_req, node->dnskey_signer);
-				dns_req_free(node->dnskey_req->owner);
+				_getdns_dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
 				append_rrs2val_chain_list(
@@ -2806,16 +2806,16 @@ static void check_chain_complete(chain_head *chain)
 					    context, val_chain_list,
 					    &node->ds);
 				}
-				dns_req_free(node->ds_req->owner);
+				_getdns_dns_req_free(node->ds_req->owner);
 			}
 			if (node->soa_req) {
-				dns_req_free(node->soa_req->owner);
+				_getdns_dns_req_free(node->soa_req->owner);
 			}
 		}
 		GETDNS_FREE(head->my_mf, head);
 	}
 
-	response_dict = create_getdns_response(dnsreq);
+	response_dict = _getdns_create_getdns_response(dnsreq);
 	if (val_chain_list) {
 		(void) getdns_dict_set_list(
 		    response_dict, "validation_chain", val_chain_list);
@@ -2859,7 +2859,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 		check_chain_complete(chain);
 	else
 		_getdns_call_user_callback(dnsreq,
-		    create_getdns_response(dnsreq));
+		    _getdns_create_getdns_response(dnsreq));
 }
 
 
