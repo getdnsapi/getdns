@@ -180,17 +180,17 @@ static int
 match_and_process_server_cookie(
     getdns_upstream *upstream, uint8_t *response, size_t response_len)
 {
-	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
+	_getdns_rr_iter rr_iter_storage, *rr_iter;
 	uint8_t *pos;
 	uint16_t rdata_len, opt_code, opt_len;
 
 	/* Search for the OPT RR (if any) */
-	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
 	                                        , response, response_len)
 	    ; rr_iter
-	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
+	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
 
-		if (priv_getdns_rr_iter_section(rr_iter) !=
+		if (_getdns_rr_iter_section(rr_iter) !=
 		    GLDNS_SECTION_ADDITIONAL)
 			continue;
 
@@ -277,8 +277,8 @@ create_starttls_request(getdns_dns_req *dnsreq, getdns_upstream *upstream,
 static int
 is_starttls_response(getdns_network_req *netreq) 
 {
-	priv_getdns_rr_iter rr_iter_storage, *rr_iter;
-	priv_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
+	_getdns_rr_iter rr_iter_storage, *rr_iter;
+	_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
 	uint16_t rr_type;
 	gldns_pkt_section section;
 	uint8_t starttls_name_space[256], *starttls_name;
@@ -293,30 +293,30 @@ is_starttls_response(getdns_network_req *netreq)
 	if (GLDNS_ANCOUNT(netreq->response) != 1)
 		return 0;
 
-	for ( rr_iter = priv_getdns_rr_iter_init(&rr_iter_storage
+	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
 	                                        , netreq->response
 	                                        , netreq->response_len)
 	    ; rr_iter
-	    ; rr_iter = priv_getdns_rr_iter_next(rr_iter)) {
+	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
 
-		section = priv_getdns_rr_iter_section(rr_iter);
+		section = _getdns_rr_iter_section(rr_iter);
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
 		if (section != GLDNS_SECTION_ANSWER
 		    || rr_type != GETDNS_RRTYPE_TXT)
 			continue;
 
-		owner_name = priv_getdns_owner_if_or_as_decompressed(
+		owner_name = _getdns_owner_if_or_as_decompressed(
 		    rr_iter, owner_name_space, &owner_name_len);
-		if (!priv_getdns_dname_equal(netreq->owner->name, owner_name))
+		if (!_getdns_dname_equal(netreq->owner->name, owner_name))
 			continue;
 
-		if (!(rdf_iter = priv_getdns_rdf_iter_init(
+		if (!(rdf_iter = _getdns_rdf_iter_init(
 		     &rdf_iter_storage, rr_iter)))
 			continue;
 
-		if ((starttls_name = priv_getdns_rdf_if_or_as_decompressed(
+		if ((starttls_name = _getdns_rdf_if_or_as_decompressed(
 		    rdf_iter, starttls_name_space, &starttls_name_len)) &&
-		    priv_getdns_dname_equal(starttls_name, owner_name)) 
+		    _getdns_dname_equal(starttls_name, owner_name)) 
 			return 1;
 
 		return 0;
@@ -481,20 +481,20 @@ upstream_erred(getdns_upstream *upstream)
 	while ((netreq = upstream->write_queue)) {
 		stub_cleanup(netreq);
 		netreq->state = NET_REQ_FINISHED;
-		priv_getdns_check_dns_req_complete(netreq->owner);
+		_getdns_check_dns_req_complete(netreq->owner);
 	}
 	while (upstream->netreq_by_query_id.count) {
 		netreq = (getdns_network_req *)
 		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
 		stub_cleanup(netreq);
 		netreq->state = NET_REQ_FINISHED;
-		priv_getdns_check_dns_req_complete(netreq->owner);
+		_getdns_check_dns_req_complete(netreq->owner);
 	}
-	priv_getdns_upstream_shutdown(upstream);
+	_getdns_upstream_shutdown(upstream);
 }
 
 void
-priv_getdns_cancel_stub_request(getdns_network_req *netreq)
+_getdns_cancel_stub_request(getdns_network_req *netreq)
 {
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
@@ -510,7 +510,7 @@ stub_erred(getdns_network_req *netreq)
 	 * using to keep connections open should we leave the connection up here? */
 	if (netreq->fd >= 0) close(netreq->fd);
 	netreq->state = NET_REQ_FINISHED;
-	priv_getdns_check_dns_req_complete(netreq->owner);
+	_getdns_check_dns_req_complete(netreq->owner);
 }
 
 static void
@@ -535,7 +535,7 @@ stub_timeout_cb(void *userarg)
 		(void) getdns_context_request_timed_out(netreq->owner);
 	else {
 		netreq->state = NET_REQ_FINISHED;
-		priv_getdns_check_dns_req_complete(netreq->owner);
+		_getdns_check_dns_req_complete(netreq->owner);
 	}
 }
 
@@ -551,7 +551,7 @@ upstream_idle_timeout_cb(void *userarg)
 	upstream->event.timeout_cb = NULL;
 	upstream->event.read_cb = NULL;
 	upstream->event.write_cb = NULL;
-	priv_getdns_upstream_shutdown(upstream);
+	_getdns_upstream_shutdown(upstream);
 }
 
 static void
@@ -1147,7 +1147,7 @@ stub_udp_read_cb(void *userarg)
 	dnsreq->upstreams->current = 0;
 done:
 	netreq->state = NET_REQ_FINISHED;
-	priv_getdns_check_dns_req_complete(dnsreq);
+	_getdns_check_dns_req_complete(dnsreq);
 }
 
 static void
@@ -1226,7 +1226,7 @@ stub_tcp_read_cb(void *userarg)
 
 		stub_cleanup(netreq);
 		close(netreq->fd);
-		priv_getdns_check_dns_req_complete(dnsreq);
+		_getdns_check_dns_req_complete(dnsreq);
 	}
 }
 
@@ -1338,7 +1338,7 @@ upstream_read_cb(void *userarg)
 			upstream_reschedule_netreq_events(upstream, netreq);
 
 		if (netreq->owner != upstream->starttls_req)
-			priv_getdns_check_dns_req_complete(netreq->owner);
+			_getdns_check_dns_req_complete(netreq->owner);
 	}
 }
 
@@ -1381,7 +1381,7 @@ upstream_write_cb(void *userarg)
 		stub_cleanup(netreq);
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			netreq->state = NET_REQ_FINISHED;
-			priv_getdns_check_dns_req_complete(netreq->owner);
+			_getdns_check_dns_req_complete(netreq->owner);
 		}
 		return;
 
@@ -1640,7 +1640,7 @@ fallback_on_write(getdns_network_req *netreq)
 	getdns_upstream *upstream = netreq->upstream;
 
 	/* Try to find a fallback transport*/
-	getdns_return_t result = priv_getdns_submit_stub_request(netreq);
+	getdns_return_t result = _getdns_submit_stub_request(netreq);
 
 	/* For sync messages we must re-schedule the events on the old upstream
 	 * here too. Must schedule this last to make sure it is called back first! */
@@ -1714,7 +1714,7 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 		 * So we will have to be aggressive and shut the connection....*/
 		DEBUG_STUB("# %s: **Closing connection %d**\n",
 		            __FUNCTION__, upstream->fd);
-		priv_getdns_upstream_shutdown(upstream);
+		_getdns_upstream_shutdown(upstream);
 	}
 }
 
@@ -1753,7 +1753,7 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 }
 
 getdns_return_t
-priv_getdns_submit_stub_request(getdns_network_req *netreq)
+_getdns_submit_stub_request(getdns_network_req *netreq)
 {
 	DEBUG_STUB("--> %s\n", __FUNCTION__);
 	int fd = -1;

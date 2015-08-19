@@ -72,7 +72,7 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 
 #ifdef HAVE_LIBUNBOUND
 	loop->ub_event.userarg    = loop->context;
-	loop->ub_event.read_cb    = priv_getdns_context_ub_read_cb;
+	loop->ub_event.read_cb    = _getdns_context_ub_read_cb;
 	loop->ub_event.write_cb   = NULL;
 	loop->ub_event.timeout_cb = NULL;
 	loop->ub_event.ev         = NULL;
@@ -131,7 +131,7 @@ getdns_general_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_general_loop(context, &loop.loop.loop, name,
+	if ((r = _getdns_general_loop(context, &loop.loop.loop, name,
 	    request_type, extensions, &loop, NULL, getdns_sync_cb, NULL))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -156,7 +156,7 @@ getdns_address_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_address_loop(context, &loop.loop.loop, name,
+	if ((r = _getdns_address_loop(context, &loop.loop.loop, name,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -181,7 +181,7 @@ getdns_hostname_sync(getdns_context *context, getdns_dict *address,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_hostname_loop(context, &loop.loop.loop, address,
+	if ((r = _getdns_hostname_loop(context, &loop.loop.loop, address,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -206,7 +206,7 @@ getdns_service_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_service_loop(context, &loop.loop.loop, name,
+	if ((r = _getdns_service_loop(context, &loop.loop.loop, name,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);

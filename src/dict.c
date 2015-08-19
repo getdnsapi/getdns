@@ -521,7 +521,7 @@ getdns_indent(size_t indent)
 }				/* getdns_indent */
 
 static int
-priv_getdns_bindata_is_dname(getdns_bindata *bindata)
+_getdns_bindata_is_dname(getdns_bindata *bindata)
 {
 	size_t i = 0, n_labels = 0;
 
@@ -585,7 +585,7 @@ getdns_pp_bindata(gldns_buffer *buf, size_t indent,
 		if (gldns_buffer_printf(buf, json ? "\".\"" : "for .>") < 0)
 			return -1;
 
-	} else if (priv_getdns_bindata_is_dname(bindata)) {
+	} else if (_getdns_bindata_is_dname(bindata)) {
 		(void)gldns_wire2str_dname_buf(
 		    bindata->data, bindata->size, spc, sizeof(spc));
 		if (gldns_buffer_printf(
@@ -681,7 +681,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 				return -1;
 			if (!json && for_literals &&
 			    (strval =
-			     priv_getdns_get_const_info(int_item)->name)) {
+			     _getdns_get_const_info(int_item)->name)) {
 				if (gldns_buffer_printf(buf, "%s", strval) < 0)
 					return -1;
 			} else if (0 > 
@@ -732,7 +732,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 }				/* getdns_pp_list */
 
 static int
-priv_getdns_print_class(gldns_buffer *buf, uint32_t klass)
+_getdns_print_class(gldns_buffer *buf, uint32_t klass)
 {
 	switch (klass) {
 	case GETDNS_RRCLASS_IN:
@@ -755,7 +755,7 @@ priv_getdns_print_class(gldns_buffer *buf, uint32_t klass)
 }
 
 static int
-priv_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
+_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
 {
 	switch (opcode) {
 	case GETDNS_OPCODE_QUERY:
@@ -778,7 +778,7 @@ priv_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
 }
 
 static int
-priv_getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
+_getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
 {
 	static const char *rcodes[] = {
 		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR" ,
@@ -846,7 +846,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			    (strcmp(item->node.key, "type") == 0  ||
 			     strcmp(item->node.key, "type_covered") == 0 ||
 			     strcmp(item->node.key, "qtype") == 0) &&
-			    (strval = priv_getdns_rr_type_name(item->data.n))) {
+			    (strval = _getdns_rr_type_name(item->data.n))) {
 				if (gldns_buffer_printf(
 					buf, " GETDNS_RRTYPE_%s", strval) < 0)
 					return -1;
@@ -860,7 +860,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "follow_redirects") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0) &&
 			    (strval =
-			     priv_getdns_get_const_info(item->data.n)->name)) {
+			     _getdns_get_const_info(item->data.n)->name)) {
 				if (gldns_buffer_printf(buf, " %s", strval) < 0)
 					return -1;
 				break;
@@ -868,13 +868,13 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json &&
 			    (strcmp(item->node.key, "class")  == 0  ||
 			     strcmp(item->node.key, "qclass") == 0) &&
-			    priv_getdns_print_class(buf, item->data.n))
+			    _getdns_print_class(buf, item->data.n))
 				break;
 			if (!json && strcmp(item->node.key, "opcode") == 0 &&
-			    priv_getdns_print_opcode(buf, item->data.n))
+			    _getdns_print_opcode(buf, item->data.n))
 				break;
 			if (!json && strcmp(item->node.key, "rcode") == 0 &&
-			    priv_getdns_print_rcode(buf, item->data.n))
+			    _getdns_print_rcode(buf, item->data.n))
 				break;
 			if (gldns_buffer_printf(
 			    buf,(json < 2 ? " %d" : "%d"), item->data.n) < 0)

@@ -91,7 +91,7 @@ static int const_info_cmp(const void *a, const void *b)
 	return ((struct const_info *) a)->code - ((struct const_info *) b)->code;
 }
 struct const_info *
-priv_getdns_get_const_info(int value)
+_getdns_get_const_info(int value)
 {
 	struct const_info key = { value, "", "" };
 	struct const_info *i = bsearch(&key, consts_info,

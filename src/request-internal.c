@@ -191,7 +191,7 @@ dns_req_free(getdns_dns_req * req)
 		return;
 	}
 
-	priv_getdns_upstreams_dereference(req->upstreams);
+	_getdns_upstreams_dereference(req->upstreams);
 
 	/* cleanup network requests */
 	for (net_req = req->netreqs; *net_req; net_req++)

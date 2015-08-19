@@ -59,7 +59,7 @@ apl_n_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	return getdns_list_append_int(list, (*rdf  >> 7));
 }
-static priv_getdns_rdf_special apl_n = {
+static _getdns_rdf_special apl_n = {
     apl_n_rdf_end, apl_n_dict_set_value, apl_n_list_append_value
 };
 
@@ -81,7 +81,7 @@ apl_afdpart_list_append_value(getdns_list *list, uint8_t *rdf)
 	getdns_bindata bindata = { (rdf[-1] & 0x7F), rdf };
 	return getdns_list_append_bindata(list, &bindata);
 }
-static priv_getdns_rdf_special apl_afdpart = {
+static _getdns_rdf_special apl_afdpart = {
     apl_afdpart_rdf_end,
     apl_afdpart_dict_set_value, apl_afdpart_list_append_value
 };
@@ -167,7 +167,7 @@ ipseckey_gateway_list_append_value(getdns_list *list, uint8_t *rdf)
 	else
 		return getdns_list_append_bindata(list, &bindata);
 }
-static priv_getdns_rdf_special ipseckey_gateway = {
+static _getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
     ipseckey_gateway_dict_set_value, ipseckey_gateway_list_append_value
 };
@@ -189,7 +189,7 @@ hip_pk_algorithm_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	return getdns_list_append_int(list, rdf[1]);
 }
-static priv_getdns_rdf_special hip_pk_algorithm = {
+static _getdns_rdf_special hip_pk_algorithm = {
     hip_pk_algorithm_rdf_end,
     hip_pk_algorithm_dict_set_value, hip_pk_algorithm_list_append_value
 };
@@ -213,7 +213,7 @@ hip_hit_list_append_value(getdns_list *list, uint8_t *rdf)
 	getdns_bindata bindata = { rdf[-1], rdf + 3 };
 	return getdns_list_append_bindata(list, &bindata);
 }
-static priv_getdns_rdf_special hip_hit = {
+static _getdns_rdf_special hip_hit = {
     hip_hit_rdf_end, hip_hit_dict_set_value, hip_hit_list_append_value
 };
 
@@ -236,21 +236,21 @@ hip_public_key_list_append_value(getdns_list *list, uint8_t *rdf)
 	getdns_bindata bindata = { gldns_read_uint16(rdf), rdf + 2 + rdf[-2] };
 	return getdns_list_append_bindata(list, &bindata);
 }
-static priv_getdns_rdf_special hip_public_key = {
+static _getdns_rdf_special hip_public_key = {
     hip_public_key_rdf_end,
     hip_public_key_dict_set_value, hip_public_key_list_append_value
 };
 
 
-static priv_getdns_rdata_def          a_rdata[] = {
+static _getdns_rdata_def          a_rdata[] = {
 	{ "ipv4_address"                , GETDNS_RDF_A    }};
-static priv_getdns_rdata_def         ns_rdata[] = {
+static _getdns_rdata_def         ns_rdata[] = {
 	{ "nsdname"                     , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def         md_rdata[] = {
+static _getdns_rdata_def         md_rdata[] = {
 	{ "madname"                     , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def      cname_rdata[] = {
+static _getdns_rdata_def      cname_rdata[] = {
 	{ "cname"                       , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def        soa_rdata[] = {
+static _getdns_rdata_def        soa_rdata[] = {
 	{ "mname"                       , GETDNS_RDF_N_C  },
 	{ "rname"                       , GETDNS_RDF_N_C  },
 	{ "serial"                      , GETDNS_RDF_I4   },
@@ -258,115 +258,115 @@ static priv_getdns_rdata_def        soa_rdata[] = {
 	{ "retry"                       , GETDNS_RDF_I4   },
 	{ "expire"                      , GETDNS_RDF_I4   },
 	{ "minimum"                     , GETDNS_RDF_I4   }};
-static priv_getdns_rdata_def         mg_rdata[] = {
+static _getdns_rdata_def         mg_rdata[] = {
 	{ "mgmname"                     , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def         mr_rdata[] = {
+static _getdns_rdata_def         mr_rdata[] = {
 	{ "newname"                     , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def       null_rdata[] = {
+static _getdns_rdata_def       null_rdata[] = {
 	{ "anything"                    , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        wks_rdata[] = {
+static _getdns_rdata_def        wks_rdata[] = {
 	{ "address"                     , GETDNS_RDF_A    },
 	{ "protocol"                    , GETDNS_RDF_I1   },
 	{ "bitmap"                      , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        ptr_rdata[] = {
+static _getdns_rdata_def        ptr_rdata[] = {
 	{ "ptrdname"                    , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def      hinfo_rdata[] = {
+static _getdns_rdata_def      hinfo_rdata[] = {
 	{ "cpu"                         , GETDNS_RDF_S    },
 	{ "os"                          , GETDNS_RDF_S    }};
-static priv_getdns_rdata_def      minfo_rdata[] = {
+static _getdns_rdata_def      minfo_rdata[] = {
 	{ "rmailbx"                     , GETDNS_RDF_N_C  },
 	{ "emailbx"                     , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def         mx_rdata[] = {
+static _getdns_rdata_def         mx_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "exchange"                    , GETDNS_RDF_N_C  }};
-static priv_getdns_rdata_def        txt_rdata[] = {
+static _getdns_rdata_def        txt_rdata[] = {
 	{ "txt_strings"                 , GETDNS_RDF_S_M  }};
-static priv_getdns_rdata_def         rp_rdata[] = {
+static _getdns_rdata_def         rp_rdata[] = {
 	{ "mbox_dname"                  , GETDNS_RDF_N    },
 	{ "txt_dname"                   , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def      afsdb_rdata[] = {
+static _getdns_rdata_def      afsdb_rdata[] = {
 	{ "subtype"                     , GETDNS_RDF_I2   },
 	{ "hostname"                    , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def        x25_rdata[] = {
+static _getdns_rdata_def        x25_rdata[] = {
 	{ "psdn_address"                , GETDNS_RDF_S    }};
-static priv_getdns_rdata_def       isdn_rdata[] = {
+static _getdns_rdata_def       isdn_rdata[] = {
 	{ "isdn_address"                , GETDNS_RDF_S    },
 	{ "sa"                          , GETDNS_RDF_S    }};
-static priv_getdns_rdata_def         rt_rdata[] = {
+static _getdns_rdata_def         rt_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "intermediate_host"           , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def       nsap_rdata[] = {
+static _getdns_rdata_def       nsap_rdata[] = {
 	{ "nsap"                        , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        sig_rdata[] = {
+static _getdns_rdata_def        sig_rdata[] = {
 	{ "sig_obsolete"                , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        key_rdata[] = {
+static _getdns_rdata_def        key_rdata[] = {
 	{ "key_obsolete"                , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def         px_rdata[] = {
+static _getdns_rdata_def         px_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "map822"                      , GETDNS_RDF_N    },
 	{ "mapx400"                     , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def       gpos_rdata[] = {
+static _getdns_rdata_def       gpos_rdata[] = {
 	{ "longitude"                   , GETDNS_RDF_S    },
 	{ "latitude"                    , GETDNS_RDF_S    },
 	{ "altitude"                    , GETDNS_RDF_S    }};
-static priv_getdns_rdata_def       aaaa_rdata[] = {
+static _getdns_rdata_def       aaaa_rdata[] = {
 	{ "ipv6_address"                , GETDNS_RDF_AAAA }};
-static priv_getdns_rdata_def        loc_rdata[] = {
+static _getdns_rdata_def        loc_rdata[] = {
 	{ "loc_obsolete"                , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        nxt_rdata[] = {
+static _getdns_rdata_def        nxt_rdata[] = {
 	{ "nxt_obsolete"                , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        srv_rdata[] = {
+static _getdns_rdata_def        srv_rdata[] = {
 	{ "priority"                    , GETDNS_RDF_I2   },
 	{ "weight"                      , GETDNS_RDF_I2   },
 	{ "port"                        , GETDNS_RDF_I2   },
 	{ "target"                      , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def       atma_rdata[] = {
+static _getdns_rdata_def       atma_rdata[] = {
 	{ "format"                      , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def      naptr_rdata[] = {
+static _getdns_rdata_def      naptr_rdata[] = {
 	{ "order"                       , GETDNS_RDF_I2   },
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "flags"                       , GETDNS_RDF_S    },
 	{ "service"                     , GETDNS_RDF_S    },
 	{ "regexp"                      , GETDNS_RDF_S    },
 	{ "replacement"                 , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def         kx_rdata[] = {
+static _getdns_rdata_def         kx_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "exchanger"                   , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def       cert_rdata[] = {
+static _getdns_rdata_def       cert_rdata[] = {
 	{ "type"                        , GETDNS_RDF_I2   },
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "certificate_or_crl"          , GETDNS_RDF_B    }};
-static priv_getdns_rdata_def         a6_rdata[] = {
+static _getdns_rdata_def         a6_rdata[] = {
 	{ "a6_obsolete"                 , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def      dname_rdata[] = {
+static _getdns_rdata_def      dname_rdata[] = {
 	{ "target"                      , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def        opt_rdata[] = {
+static _getdns_rdata_def        opt_rdata[] = {
 	{ "options"                     , GETDNS_RDF_R    },
 	{ "option_code"                 , GETDNS_RDF_I2   },
 	{ "option_data"                 , GETDNS_RDF_X_S  }};
-static priv_getdns_rdata_def        apl_rdata[] = {
+static _getdns_rdata_def        apl_rdata[] = {
 	{ "apitems"                     , GETDNS_RDF_R    },
 	{ "address_family"              , GETDNS_RDF_I2   },
 	{ "prefix"                      , GETDNS_RDF_I1   },
 	{ "n"                           , GETDNS_RDF_SPECIAL, &apl_n },
 	{ "afdpart"                     , GETDNS_RDF_SPECIAL, &apl_afdpart }};
-static priv_getdns_rdata_def         ds_rdata[] = {
+static _getdns_rdata_def         ds_rdata[] = {
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "digest_type"                 , GETDNS_RDF_I1   },
 	{ "digest"                      , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def      sshfp_rdata[] = {
+static _getdns_rdata_def      sshfp_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "fp_type"                     , GETDNS_RDF_I1   },
 	{ "fingerprint"                 , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def   ipseckey_rdata[] = {
+static _getdns_rdata_def   ipseckey_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "gateway_type"                , GETDNS_RDF_I1   },
 	{ "precedence"                  , GETDNS_RDF_I1   },
 	{ "gateway"                     , GETDNS_RDF_SPECIAL, &ipseckey_gateway },
 	{ "public_key"                  , GETDNS_RDF_B    }};
-static priv_getdns_rdata_def      rrsig_rdata[] = {
+static _getdns_rdata_def      rrsig_rdata[] = {
 	{ "type_covered"                , GETDNS_RDF_I2   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "labels"                      , GETDNS_RDF_I1   },
@@ -376,61 +376,61 @@ static priv_getdns_rdata_def      rrsig_rdata[] = {
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "signers_name"                , GETDNS_RDF_N    },
 	{ "signature"                   , GETDNS_RDF_B    }};
-static priv_getdns_rdata_def       nsec_rdata[] = {
+static _getdns_rdata_def       nsec_rdata[] = {
 	{ "next_domain_name"            , GETDNS_RDF_N    },
 	{ "type_bit_maps"               , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def     dnskey_rdata[] = {
+static _getdns_rdata_def     dnskey_rdata[] = {
 	{ "flags"                       , GETDNS_RDF_I2   },
 	{ "protocol"                    , GETDNS_RDF_I1   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "public_key"                  , GETDNS_RDF_B    }};
-static priv_getdns_rdata_def      dhcid_rdata[] = {
+static _getdns_rdata_def      dhcid_rdata[] = {
 	{ "dhcid_opaque"                , GETDNS_RDF_B    }};
-static priv_getdns_rdata_def      nsec3_rdata[] = {
+static _getdns_rdata_def      nsec3_rdata[] = {
 	{ "hash_algorithm"              , GETDNS_RDF_I1   },
 	{ "flags"                       , GETDNS_RDF_I1   },
 	{ "iterations"                  , GETDNS_RDF_I2   },
 	{ "salt"                        , GETDNS_RDF_X_C  },
 	{ "next_hashed_owner_name"      , GETDNS_RDF_B32_C},
 	{ "type_bit_maps"               , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def nsec3param_rdata[] = {
+static _getdns_rdata_def nsec3param_rdata[] = {
 	{ "hash_algorithm"              , GETDNS_RDF_I1   },
 	{ "flags"                       , GETDNS_RDF_I1   },
 	{ "iterations"                  , GETDNS_RDF_I2   },
 	{ "salt"                        , GETDNS_RDF_X_C  }};
-static priv_getdns_rdata_def       tlsa_rdata[] = {
+static _getdns_rdata_def       tlsa_rdata[] = {
 	{ "certificate_usage"           , GETDNS_RDF_I1   },
 	{ "selector"                    , GETDNS_RDF_I1   },
 	{ "matching_type"               , GETDNS_RDF_I1   },
 	{ "certificate_association_data", GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        hip_rdata[] = {
+static _getdns_rdata_def        hip_rdata[] = {
 	{ "pk_algorithm"                , GETDNS_RDF_SPECIAL, &hip_pk_algorithm },
 	{ "hit"                         , GETDNS_RDF_SPECIAL, &hip_hit },
 	{ "public_key"                  , GETDNS_RDF_SPECIAL, &hip_public_key },
 	{ "rendezvous_servers"          , GETDNS_RDF_N_M  }};
-static priv_getdns_rdata_def        csync_rdata[] = {
+static _getdns_rdata_def        csync_rdata[] = {
 	{ "serial"                      , GETDNS_RDF_I4   },
 	{ "flags"                       , GETDNS_RDF_I2   },
 	{ "type_bit_maps"               , GETDNS_RDF_X    }};
-static priv_getdns_rdata_def        spf_rdata[] = {
+static _getdns_rdata_def        spf_rdata[] = {
 	{ "text"                        , GETDNS_RDF_S_M  }};
-static priv_getdns_rdata_def        nid_rdata[] = {
+static _getdns_rdata_def        nid_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "node_id"                     , GETDNS_RDF_AA   }};
-static priv_getdns_rdata_def        l32_rdata[] = {
+static _getdns_rdata_def        l32_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "locator32"                   , GETDNS_RDF_A    }};
-static priv_getdns_rdata_def        l64_rdata[] = {
+static _getdns_rdata_def        l64_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "locator64"                   , GETDNS_RDF_AA   }};
-static priv_getdns_rdata_def         lp_rdata[] = {
+static _getdns_rdata_def         lp_rdata[] = {
 	{ "preference"                  , GETDNS_RDF_I2   },
 	{ "fqdn"                        , GETDNS_RDF_N    }};
-static priv_getdns_rdata_def      eui48_rdata[] = {
+static _getdns_rdata_def      eui48_rdata[] = {
 	{ "eui48_address"               , GETDNS_RDF_X6   }};
-static priv_getdns_rdata_def      eui64_rdata[] = {
+static _getdns_rdata_def      eui64_rdata[] = {
 	{ "eui64_address"               , GETDNS_RDF_X8   }};
-static priv_getdns_rdata_def       tkey_rdata[] = {
+static _getdns_rdata_def       tkey_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_N    },
 	{ "inception"                   , GETDNS_RDF_T    },
 	{ "expiration"                  , GETDNS_RDF_T    },
@@ -438,7 +438,7 @@ static priv_getdns_rdata_def       tkey_rdata[] = {
 	{ "error"                       , GETDNS_RDF_I2   },
 	{ "key_data"                    , GETDNS_RDF_X_S  },
 	{ "other_data"                  , GETDNS_RDF_X_S  }};
-static priv_getdns_rdata_def       tsig_rdata[] = {
+static _getdns_rdata_def       tsig_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_N    },
 	{ "time_signed"                 , GETDNS_RDF_T6   },
 	{ "fudge"                       , GETDNS_RDF_I2   },
@@ -446,21 +446,21 @@ static priv_getdns_rdata_def       tsig_rdata[] = {
 	{ "original_id"                 , GETDNS_RDF_I2   },
 	{ "error"                       , GETDNS_RDF_I2   },
 	{ "other_data"                  , GETDNS_RDF_X_S  }};
-static priv_getdns_rdata_def        uri_rdata[] = {
+static _getdns_rdata_def        uri_rdata[] = {
 	{ "priority"                    , GETDNS_RDF_I2   },
 	{ "weight"                      , GETDNS_RDF_I2   },
 	{ "target"                      , GETDNS_RDF_S_L  }};
-static priv_getdns_rdata_def        caa_rdata[] = {
+static _getdns_rdata_def        caa_rdata[] = {
 	{ "flags"                       , GETDNS_RDF_I1   },
 	{ "tag"                         , GETDNS_RDF_S    },
 	{ "value"                       , GETDNS_RDF_S_L  }};
-static priv_getdns_rdata_def        dlv_rdata[] = {
+static _getdns_rdata_def        dlv_rdata[] = {
 	{ "key_tag"                     , GETDNS_RDF_I2   },
 	{ "algorithm"                   , GETDNS_RDF_I1   },
 	{ "digest_type"                 , GETDNS_RDF_I1   },
 	{ "digest"                      , GETDNS_RDF_X    }};
 
-static priv_getdns_rr_def priv_getdns_rr_defs[] = {
+static _getdns_rr_def _getdns_rr_defs[] = {
 	{         NULL,             NULL, 0                      },
 	{          "A",          a_rdata, ALEN(         a_rdata) }, /* 1 - */
 	{         "NS",         ns_rdata, ALEN(        ns_rdata) },
@@ -723,26 +723,26 @@ static priv_getdns_rr_def priv_getdns_rr_defs[] = {
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
 
-const priv_getdns_rr_def *
-priv_getdns_rr_def_lookup(uint16_t rr_type)
+const _getdns_rr_def *
+_getdns_rr_def_lookup(uint16_t rr_type)
 {
 	if (rr_type <= 257)
-		return &priv_getdns_rr_defs[rr_type];
+		return &_getdns_rr_defs[rr_type];
 	else if (rr_type == 32768)
-		return &priv_getdns_rr_defs[258];
+		return &_getdns_rr_defs[258];
 	else if (rr_type == 32769)
-		return &priv_getdns_rr_defs[259];
-	return priv_getdns_rr_defs;
+		return &_getdns_rr_defs[259];
+	return _getdns_rr_defs;
 }
 
 const char *
-priv_getdns_rr_type_name(int rr_type)
+_getdns_rr_type_name(int rr_type)
 {
-	return priv_getdns_rr_def_lookup(rr_type)->name;
+	return _getdns_rr_def_lookup(rr_type)->name;
 }
 
 getdns_return_t
-priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
+_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	struct getdns_bindata *name;
@@ -753,8 +753,8 @@ priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 	uint32_t rr_class = GETDNS_RRCLASS_IN;
 	uint32_t rr_ttl = 0;
 	uint32_t value;
-	const priv_getdns_rr_def *rr_def;
-	const priv_getdns_rdata_def *rd_def;
+	const _getdns_rr_def *rr_def;
+	const _getdns_rdata_def *rd_def;
 	int n_rdata_fields;
 	size_t j, rdata_size_mark;
 
@@ -778,7 +778,7 @@ priv_getdns_rr_dict2wire(getdns_dict *rr_dict, gldns_buffer *buf)
 	/* Does rdata contain compressed names?
 	 * Because rdata_raw is unusable then.
 	 */
-	rr_def = priv_getdns_rr_def_lookup(rr_type);
+	rr_def = _getdns_rr_def_lookup(rr_type);
 	for ( rd_def = rr_def->rdata
 	    , n_rdata_fields = rr_def->n_rdata_fields
 	    ; n_rdata_fields ; n_rdata_fields-- , rd_def++ ) {

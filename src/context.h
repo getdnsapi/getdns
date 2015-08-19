@@ -248,10 +248,10 @@ getdns_return_t getdns_context_local_namespace_resolve(
 
 int filechg_check(struct getdns_context *context, struct filechg *fchg);
 
-void priv_getdns_context_ub_read_cb(void *userarg);
+void _getdns_context_ub_read_cb(void *userarg);
 
-void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
+void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
-void priv_getdns_upstream_shutdown(getdns_upstream *upstream);
+void _getdns_upstream_shutdown(getdns_upstream *upstream);
 
 #endif /* _GETDNS_CONTEXT_H_ */

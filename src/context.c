@@ -523,7 +523,7 @@ upstreams_resize(getdns_upstreams *upstreams, size_t size)
 }
 
 void
-priv_getdns_upstreams_dereference(getdns_upstreams *upstreams)
+_getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
 	getdns_upstream *upstream;
 
@@ -554,7 +554,7 @@ priv_getdns_upstreams_dereference(getdns_upstreams *upstreams)
 }
 
 void
-priv_getdns_upstream_shutdown(getdns_upstream *upstream)
+_getdns_upstream_shutdown(getdns_upstream *upstream)
 {
 	/*There is a race condition with a new request being scheduled 
 	  while this happens so take ownership of the fd asap*/
@@ -986,7 +986,7 @@ getdns_context_destroy(struct getdns_context *context)
 	 * might be an idle_timeout schedules, which will not get unscheduled
 	 * with cancel_outstanding_requests.
 	 */
-	priv_getdns_upstreams_dereference(context->upstreams);
+	_getdns_upstreams_dereference(context->upstreams);
 
 #ifdef HAVE_LIBUNBOUND
 	if (context->unbound_ctx)
@@ -1109,7 +1109,7 @@ getdns_context_request_count_changed(getdns_context *context)
 }
 
 void
-priv_getdns_context_ub_read_cb(void *userarg)
+_getdns_context_ub_read_cb(void *userarg)
 {
 	getdns_context *context = (getdns_context *)userarg;
 
@@ -1148,7 +1148,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	set_ub_dns_transport(context);
 
 	context->ub_event.userarg    = context;
-	context->ub_event.read_cb    = priv_getdns_context_ub_read_cb;
+	context->ub_event.read_cb    = _getdns_context_ub_read_cb;
 	context->ub_event.write_cb   = NULL;
 	context->ub_event.timeout_cb = NULL;
 	context->ub_event.ev         = NULL;
@@ -1790,7 +1790,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			freeaddrinfo(ai);
 		}
 	}
-	priv_getdns_upstreams_dereference(context->upstreams);
+	_getdns_upstreams_dereference(context->upstreams);
 	context->upstreams = upstreams;
 	dispatch_updated(context,
 		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
@@ -1800,7 +1800,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 invalid_parameter:
 	r = GETDNS_RETURN_INVALID_PARAMETER;
 error:
-	priv_getdns_upstreams_dereference(upstreams);
+	_getdns_upstreams_dereference(upstreams);
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 } /* getdns_context_set_upstream_recursive_servers */
 
@@ -1948,7 +1948,7 @@ cancel_dns_req(getdns_dns_req *req)
 			netreq->unbound_id = -1;
 		} else
 #endif
-			priv_getdns_cancel_stub_request(netreq);
+			_getdns_cancel_stub_request(netreq);
 
 	req->canceled = 1;
 }
@@ -2124,10 +2124,10 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 #endif
 
 static getdns_return_t
-priv_getdns_ns_dns_setup(struct getdns_context *context)
+_getdns_ns_dns_setup(struct getdns_context *context)
 {
 #ifdef HAVE_LIBUNBOUND
-	priv_getdns_rr_iter rr_spc, *rr;
+	_getdns_rr_iter rr_spc, *rr;
 	char ta_str[8192];
 #endif
 	assert(context);
@@ -2147,10 +2147,10 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 		/* TODO: use the root servers via root hints file */
 		(void) ub_ctx_set_fwd(context->unbound_ctx, NULL);
 		if (!context->unbound_ta_set && context->trust_anchors) {
-			for ( rr = priv_getdns_rr_iter_init( &rr_spc
+			for ( rr = _getdns_rr_iter_init( &rr_spc
 						, context->trust_anchors
 						, context->trust_anchors_len)
-			    ; rr ; rr = priv_getdns_rr_iter_next(rr) ) {
+			    ; rr ; rr = _getdns_rr_iter_next(rr) ) {
 
 				(void) gldns_wire2str_rr_buf(rr->pos,
 				    rr->nxt - rr->pos, ta_str, sizeof(ta_str));
@@ -2214,7 +2214,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 
 
 	if (! usenamespaces) {
-		r = priv_getdns_ns_dns_setup(context);
+		r = _getdns_ns_dns_setup(context);
 		if (r == GETDNS_RETURN_GOOD)
 			context->resolution_type_set = context->resolution_type;
 		return r;
@@ -2224,7 +2224,7 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	for (i = 0; i < context->namespace_count; i++) {
 		switch (context->namespaces[i]) {
 		case GETDNS_NAMESPACE_DNS:
-			r = priv_getdns_ns_dns_setup(context);
+			r = _getdns_ns_dns_setup(context);
 			break;
 
 		default:

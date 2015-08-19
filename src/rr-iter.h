@@ -37,7 +37,7 @@
 #include "gldns/pkthdr.h"
 #include "gldns/gbuffer.h"
 
-typedef struct priv_getdns_rr_iter {
+typedef struct _getdns_rr_iter {
 	uint8_t *pkt;
 	uint8_t *pkt_end;
 
@@ -57,20 +57,20 @@ typedef struct priv_getdns_rr_iter {
 	/* nxt point to the owner name of the next RR or to pkt_end */
 	uint8_t *nxt;
 
-} priv_getdns_rr_iter;
+} _getdns_rr_iter;
 
-priv_getdns_rr_iter *priv_getdns_rr_iter_init(priv_getdns_rr_iter *i,
+_getdns_rr_iter *_getdns_rr_iter_init(_getdns_rr_iter *i,
     uint8_t *pkt, size_t pkt_len);
 
-priv_getdns_rr_iter *priv_getdns_rr_iter_rewind(priv_getdns_rr_iter *i);
+_getdns_rr_iter *_getdns_rr_iter_rewind(_getdns_rr_iter *i);
 
-priv_getdns_rr_iter *priv_getdns_rr_iter_next(priv_getdns_rr_iter *i);
+_getdns_rr_iter *_getdns_rr_iter_next(_getdns_rr_iter *i);
 
-uint8_t *priv_getdns_owner_if_or_as_decompressed(
-    priv_getdns_rr_iter *i, uint8_t *ff_bytes, size_t *len);
+uint8_t *_getdns_owner_if_or_as_decompressed(
+    _getdns_rr_iter *i, uint8_t *ff_bytes, size_t *len);
 
 static inline gldns_pkt_section
-priv_getdns_rr_iter_section(priv_getdns_rr_iter *i)
+_getdns_rr_iter_section(_getdns_rr_iter *i)
 {
 	return i->n < GLDNS_QDCOUNT(i->pkt) ? GLDNS_SECTION_QUESTION
 	     : i->n < GLDNS_QDCOUNT(i->pkt)
@@ -88,23 +88,23 @@ priv_getdns_rr_iter_section(priv_getdns_rr_iter *i)
 typedef struct piv_getdns_rdf_iter {
 	uint8_t                     *pkt;
 	uint8_t                     *pkt_end;
-	const priv_getdns_rdata_def *rdd_pos;
-	const priv_getdns_rdata_def *rdd_end;
-	const priv_getdns_rdata_def *rdd_repeat;
+	const _getdns_rdata_def *rdd_pos;
+	const _getdns_rdata_def *rdd_end;
+	const _getdns_rdata_def *rdd_repeat;
 	uint8_t                     *pos;
 	uint8_t                     *end;
 	uint8_t                     *nxt;
-} priv_getdns_rdf_iter;
+} _getdns_rdf_iter;
 
-priv_getdns_rdf_iter *priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i,
-    priv_getdns_rr_iter *rr);
+_getdns_rdf_iter *_getdns_rdf_iter_init(_getdns_rdf_iter *i,
+    _getdns_rr_iter *rr);
 
-priv_getdns_rdf_iter *priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i);
+_getdns_rdf_iter *_getdns_rdf_iter_next(_getdns_rdf_iter *i);
 
-priv_getdns_rdf_iter *priv_getdns_rdf_iter_init_at(priv_getdns_rdf_iter *i,
-    priv_getdns_rr_iter *rr, size_t pos);
+_getdns_rdf_iter *_getdns_rdf_iter_init_at(_getdns_rdf_iter *i,
+    _getdns_rr_iter *rr, size_t pos);
 
-uint8_t *priv_getdns_rdf_if_or_as_decompressed(
-    priv_getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len);
+uint8_t *_getdns_rdf_if_or_as_decompressed(
+    _getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len);
 
 #endif
