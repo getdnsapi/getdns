@@ -50,7 +50,7 @@ static void
 ub_resolve_timeout(void *arg)
 {
 	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
-	(void) getdns_context_request_timed_out(dns_req);
+	(void) _getdns_context_request_timed_out(dns_req);
 }
 
 void _getdns_call_user_callback(getdns_dns_req *dns_req,
@@ -62,7 +62,7 @@ void _getdns_call_user_callback(getdns_dns_req *dns_req,
 	void *user_arg = dns_req->user_pointer;
 
 	/* clean up */
-	getdns_context_clear_outbound_request(dns_req);
+	_getdns_context_clear_outbound_request(dns_req);
 	dns_req_free(dns_req);
 
 	cb(context,
@@ -194,7 +194,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	/* Set up the context assuming we won't use the specified namespaces.
 	   This is (currently) identical to setting up a pure DNS namespace */
-	if ((r = getdns_context_prepare_for_resolution(context, 0)))
+	if ((r = _getdns_context_prepare_for_resolution(context, 0)))
 		return r;
 
 	/* create the request */
@@ -208,7 +208,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	if (dnsreq_p)
 		*dnsreq_p = req;
 
-	getdns_context_track_outbound_request(req);
+	_getdns_context_track_outbound_request(req);
 
 	if (!usenamespaces)
 		/* issue all network requests */
@@ -220,7 +220,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	else for (i = 0; i < context->namespace_count; i++) {
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
 
-			if (!(r = getdns_context_local_namespace_resolve(
+			if (!(r = _getdns_context_local_namespace_resolve(
 			    req, &localnames_response))) {
 
 				_getdns_call_user_callback
@@ -245,7 +245,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	if (r != 0) {
 		/* clean up the request */
-		getdns_context_clear_outbound_request(req);
+		_getdns_context_clear_outbound_request(req);
 		dns_req_free(req);
 		return r;
 	}
@@ -279,7 +279,7 @@ _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 			return GETDNS_RETURN_MEMORY_ERROR;
 	} else if (
 	    getdns_dict_get_int(my_extensions, "return_both_v4_and_v6", &value)
-	    && (r = getdns_dict_copy(extensions, &my_extensions)))
+	    && (r = _getdns_dict_copy(extensions, &my_extensions)))
 		return r;
 
 	if (my_extensions != extensions && (r = getdns_dict_set_int(

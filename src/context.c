@@ -260,7 +260,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
 		return;
 	}
-	if (getdns_list_append_dict(*addrs, address) && !hnas_found) {
+	if (_getdns_list_append_dict(*addrs, address) && !hnas_found) {
 		getdns_list_destroy(*addrs);
 		GETDNS_FREE(context->mf, hnas);
 
@@ -1529,7 +1529,7 @@ getdns_context_set_dns_root_servers(struct getdns_context *context,
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     if (addresses != NULL) {
-        if (getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
+        if (_getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
             return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         }
         addresses = copy;
@@ -1600,7 +1600,7 @@ getdns_context_set_suffix(struct getdns_context *context, struct getdns_list * v
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     if (value != NULL) {
-        if (getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
+        if (_getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
             return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
         }
         value = copy;
@@ -1954,7 +1954,7 @@ cancel_dns_req(getdns_dns_req *req)
 }
 
 getdns_return_t
-getdns_context_cancel_request(getdns_context *context,
+_getdns_context_cancel_request(getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback)
 {
 	getdns_dns_req *dnsreq;
@@ -1991,7 +1991,7 @@ getdns_cancel_callback(getdns_context *context,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	context->processing = 1;
-	getdns_return_t r = getdns_context_cancel_request(context, transaction_id, 1);
+	getdns_return_t r = _getdns_context_cancel_request(context, transaction_id, 1);
 	context->processing = 0;
 	getdns_context_request_count_changed(context);
 	return r;
@@ -2168,7 +2168,7 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 }
 
 getdns_return_t
-getdns_context_prepare_for_resolution(struct getdns_context *context,
+_getdns_context_prepare_for_resolution(struct getdns_context *context,
     int usenamespaces)
 {
 	int i;
@@ -2236,10 +2236,10 @@ getdns_context_prepare_for_resolution(struct getdns_context *context,
 	}
 	context->resolution_type_set = context->resolution_type;
 	return r;
-} /* getdns_context_prepare_for_resolution */
+} /* _getdns_context_prepare_for_resolution */
 
 getdns_return_t
-getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
+_getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
 {
     	if (!dnsreq)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -2254,7 +2254,7 @@ getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
 }
 
 getdns_return_t
-getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
+_getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
 {
     	if (!dnsreq)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -2268,7 +2268,7 @@ getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
 }
 
 getdns_return_t
-getdns_context_request_timed_out(struct getdns_dns_req *req)
+_getdns_context_request_timed_out(struct getdns_dns_req *req)
 {
     /* Don't use req after callback */
     getdns_context* context = req->context;
@@ -2278,7 +2278,7 @@ getdns_context_request_timed_out(struct getdns_dns_req *req)
     getdns_dict *response = create_getdns_response(req);
 
     /* cancel the req - also clears it from outbound and cleans up*/
-    getdns_context_cancel_request(context, trans_id, 0);
+    _getdns_context_cancel_request(context, trans_id, 0);
     context->processing = 1;
     cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
     context->processing = 0;
@@ -2287,7 +2287,7 @@ getdns_context_request_timed_out(struct getdns_dns_req *req)
 }
 
 char *
-getdns_strdup(const struct mem_funcs *mfs, const char *s)
+_getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
     size_t sz = strlen(s) + 1;
     char *r = GETDNS_XMALLOC(*mfs, char, sz);
@@ -2298,7 +2298,7 @@ getdns_strdup(const struct mem_funcs *mfs, const char *s)
 }
 
 struct getdns_bindata *
-getdns_bindata_copy(struct mem_funcs *mfs,
+_getdns_bindata_copy(struct mem_funcs *mfs,
     const struct getdns_bindata *src)
 {
 	/* Don't know why, but nodata allows
@@ -2328,7 +2328,7 @@ getdns_bindata_copy(struct mem_funcs *mfs,
 }
 
 void
-getdns_bindata_destroy(struct mem_funcs *mfs,
+_getdns_bindata_destroy(struct mem_funcs *mfs,
     struct getdns_bindata *bindata)
 {
 	if (!bindata)
@@ -2409,7 +2409,7 @@ cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
         acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests.count);
         _getdns_traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
         for (i = 0; i < acc.idx; ++i) {
-            getdns_context_cancel_request(context, acc.ids[i], fire_callback);
+            _getdns_context_cancel_request(context, acc.ids[i], fire_callback);
         }
         GETDNS_FREE(context->my_mf, acc.ids);
     }
@@ -2504,7 +2504,7 @@ priv_get_context_settings(getdns_context* context) {
 				(void) getdns_dict_set_int(d, "tls_port",
 				    (uint32_t) upstream_port(upstream));
 			}
-			r |= getdns_list_append_dict(upstreams, d);
+			r |= _getdns_list_append_dict(upstreams, d);
 			getdns_dict_destroy(d);
 		}
 		r |= getdns_dict_set_list(result, "upstream_recursive_servers",
@@ -2592,7 +2592,7 @@ getdns_context_set_use_threads(getdns_context* context, int use_threads) {
 }
 
 getdns_return_t
-getdns_context_local_namespace_resolve(
+_getdns_context_local_namespace_resolve(
     getdns_dns_req *dnsreq, getdns_dict **response)
 {
 	getdns_context  *context = dnsreq->context;
@@ -2659,10 +2659,10 @@ getdns_context_local_namespace_resolve(
 	if (!(jaa = getdns_list_create_with_context(context)))
 		goto error;
 	for (i = 0; !getdns_list_get_dict(hnas->ipv4addrs, i, &addr); i++)
-		if (getdns_list_append_dict(jaa, addr))
+		if (_getdns_list_append_dict(jaa, addr))
 			break;
 	for (i = 0; !getdns_list_get_dict(hnas->ipv6addrs, i, &addr); i++)
-		if (getdns_list_append_dict(jaa, addr))
+		if (_getdns_list_append_dict(jaa, addr))
 			break;
 	if (!getdns_dict_set_list(*response, "just_address_answers", jaa)) {
 		getdns_list_destroy(jaa);
@@ -2807,7 +2807,7 @@ getdns_context_get_dns_root_servers(getdns_context *context,
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = NULL;
     if (context->dns_root_servers) {
-        return getdns_list_copy(context->dns_root_servers, value);
+        return _getdns_list_copy(context->dns_root_servers, value);
     }
     return GETDNS_RETURN_GOOD;
 }
@@ -2827,7 +2827,7 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value) {
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = NULL;
     if (context->suffix) {
-        return getdns_list_copy(context->suffix, value);
+        return _getdns_list_copy(context->suffix, value);
     }
     return GETDNS_RETURN_GOOD;
 }
@@ -2890,7 +2890,7 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 			(void) getdns_dict_set_int(d, "tls_port",
 			    (uint32_t) upstream_port(upstream));
 		}
-		r |= getdns_list_append_dict(upstreams, d);
+		r |= _getdns_list_append_dict(upstreams, d);
 		getdns_dict_destroy(d);
         }
         if (r != GETDNS_RETURN_GOOD) {

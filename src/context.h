@@ -215,35 +215,35 @@ struct getdns_context {
  * @param usenamespaces if 0 then only use the DNS, else use context namespace list
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_context_prepare_for_resolution(struct getdns_context *context,
+getdns_return_t _getdns_context_prepare_for_resolution(struct getdns_context *context,
  int usenamespaces);
 
 /* track an outbound request */
-getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
+getdns_return_t _getdns_context_track_outbound_request(struct getdns_dns_req
     *req);
 /* clear the outbound request from being tracked - does not cancel it */
-getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
+getdns_return_t _getdns_context_clear_outbound_request(struct getdns_dns_req
     *req);
 
-getdns_return_t getdns_context_request_timed_out(struct getdns_dns_req
+getdns_return_t _getdns_context_request_timed_out(struct getdns_dns_req
     *req);
 
 /* cancel callback internal - flag to indicate if req should be freed and callback fired */
-getdns_return_t getdns_context_cancel_request(struct getdns_context *context,
+getdns_return_t _getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback);
 
-char *getdns_strdup(const struct mem_funcs *mfs, const char *str);
+char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 
-struct getdns_bindata *getdns_bindata_copy(
+struct getdns_bindata *_getdns_bindata_copy(
     struct mem_funcs *mfs,
     const struct getdns_bindata *src);
 
-void getdns_bindata_destroy(
+void _getdns_bindata_destroy(
     struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
 
 /* perform name resolution in /etc/hosts */
-getdns_return_t getdns_context_local_namespace_resolve(
+getdns_return_t _getdns_context_local_namespace_resolve(
     getdns_dns_req* req, struct getdns_dict **response);
 
 int filechg_check(struct getdns_context *context, struct filechg *fchg);

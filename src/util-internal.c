@@ -321,12 +321,12 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 			
 			switch (val_type) {
 			case t_int:
-				if (getdns_list_append_int(repeat_list,
+				if (_getdns_list_append_int(repeat_list,
 				    int_val))
 					goto rdata_error;
 				break;
 			case t_bindata:
-				if (getdns_list_append_bindata(repeat_list,
+				if (_getdns_list_append_bindata(repeat_list,
 				    &bindata))
 					goto rdata_error;
 				break;
@@ -346,7 +346,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				    _getdns_list_create_with_mf(mf)))
 					goto rdata_error;
 	
-				if (getdns_list_append_dict(
+				if (_getdns_list_append_dict(
 				    repeat_list, repeat_dict))
 					goto rdata_error;
 
@@ -381,7 +381,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		if (!repeat_list && !(repeat_list =
 		    _getdns_list_create_with_mf(mf)))
 			goto rdata_error;
-		if (getdns_list_append_dict(repeat_list, repeat_dict))
+		if (_getdns_list_append_dict(repeat_list, repeat_dict))
 			goto rdata_error;
 		getdns_dict_destroy(repeat_dict);
 		repeat_dict = NULL;
@@ -552,7 +552,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			continue;
 		}
-		if (getdns_list_append_dict(sections[section], rr_dict))
+		if (_getdns_list_append_dict(sections[section], rr_dict))
 			goto error;
 
 
@@ -597,7 +597,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 		    getdns_dict_set_bindata(rr_dict,"address_data",&bindata) ||
 
-		    (just_addrs && getdns_list_append_dict(just_addrs, rr_dict))) {
+		    (just_addrs && _getdns_list_append_dict(just_addrs, rr_dict))) {
 
 			goto error;
 		}
@@ -765,7 +765,7 @@ create_getdns_response(getdns_dns_req *completed_request)
 				goto error;
 		}
 
-    		if (getdns_list_append_dict(replies_tree, reply)) {
+    		if (_getdns_list_append_dict(replies_tree, reply)) {
     			getdns_dict_destroy(reply);
 			goto error;
 		}
@@ -774,7 +774,7 @@ create_getdns_response(getdns_dns_req *completed_request)
     		/* buffer */
 		full_data.data = netreq->response;
 		full_data.size = netreq->response_len;
-		if (getdns_list_append_bindata(replies_full, &full_data))
+		if (_getdns_list_append_bindata(replies_full, &full_data))
 			goto error;
     	}
     	if (getdns_dict_set_list(result, "replies_tree", replies_tree))
@@ -1123,7 +1123,7 @@ void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
 		if (!(rr_dict = _getdns_rr_iter2rr_dict(&l->mf, rr)))
 			continue;
 
-		(void)getdns_list_append_dict(l, rr_dict);
+		(void)_getdns_list_append_dict(l, rr_dict);
 		getdns_dict_destroy(rr_dict);
 	}
 }

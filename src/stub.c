@@ -532,7 +532,7 @@ stub_timeout_cb(void *userarg)
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
 	if (netreq->owner->user_callback)
-		(void) getdns_context_request_timed_out(netreq->owner);
+		(void) _getdns_context_request_timed_out(netreq->owner);
 	else {
 		netreq->state = NET_REQ_FINISHED;
 		_getdns_check_dns_req_complete(netreq->owner);

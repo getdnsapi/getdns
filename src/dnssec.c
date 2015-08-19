@@ -1247,7 +1247,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	getdns_rrset *rrset;
 	rrsig_iter  *rrsig, rrsig_spc;
 
-	getdns_context_clear_outbound_request(dnsreq);
+	_getdns_context_clear_outbound_request(dnsreq);
 	switch (netreq->request_type) {
 	case GETDNS_RRTYPE_DS    : node->ds.pkt     = netreq->response;
 	                           node->ds.pkt_len = netreq->response_len;
@@ -1284,7 +1284,7 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	rrset_iter i_spc;
 	getdns_rrset *rrset;
 
-	getdns_context_clear_outbound_request(dnsreq);
+	_getdns_context_clear_outbound_request(dnsreq);
 
 	if ((rrset = rrset_by_type(&i_spc, netreq, GETDNS_RRTYPE_SOA))) {
 
@@ -2681,7 +2681,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 			    &ctxt->mf, &rr->rr_i)))
 				continue;
 
-			(void)getdns_list_append_dict(val_chain_list, rr_dict);
+			(void)_getdns_list_append_dict(val_chain_list, rr_dict);
 			getdns_dict_destroy(rr_dict);
 		}
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
@@ -2700,7 +2700,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 						&ctxt->mf, &rrsig->rr_i)))
 				continue;
 
-			(void)getdns_list_append_dict(val_chain_list, rr_dict);
+			(void)_getdns_list_append_dict(val_chain_list, rr_dict);
 			getdns_dict_destroy(rr_dict);
 		}
 	}
@@ -2732,7 +2732,7 @@ static void append_empty_ds2val_chain_list(
 	(void) getdns_dict_set_bindata(rdata_dict, "rdata_raw", &bindata);
 	getdns_dict_destroy(rdata_dict);
 
-	(void)getdns_list_append_dict(val_chain_list, rr_dict);
+	(void)_getdns_list_append_dict(val_chain_list, rr_dict);
 	getdns_dict_destroy(rr_dict);
 }
 

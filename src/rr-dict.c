@@ -57,7 +57,7 @@ apl_n_dict_set_value(getdns_dict *dict, uint8_t *rdf)
 static getdns_return_t
 apl_n_list_append_value(getdns_list *list, uint8_t *rdf)
 {
-	return getdns_list_append_int(list, (*rdf  >> 7));
+	return _getdns_list_append_int(list, (*rdf  >> 7));
 }
 static _getdns_rdf_special apl_n = {
     apl_n_rdf_end, apl_n_dict_set_value, apl_n_list_append_value
@@ -79,7 +79,7 @@ static getdns_return_t
 apl_afdpart_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	getdns_bindata bindata = { (rdf[-1] & 0x7F), rdf };
-	return getdns_list_append_bindata(list, &bindata);
+	return _getdns_list_append_bindata(list, &bindata);
 }
 static _getdns_rdf_special apl_afdpart = {
     apl_afdpart_rdf_end,
@@ -165,7 +165,7 @@ ipseckey_gateway_list_append_value(getdns_list *list, uint8_t *rdf)
 	else if (! bindata.size)
 		return GETDNS_RETURN_GOOD;
 	else
-		return getdns_list_append_bindata(list, &bindata);
+		return _getdns_list_append_bindata(list, &bindata);
 }
 static _getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
@@ -187,7 +187,7 @@ hip_pk_algorithm_dict_set_value(getdns_dict *dict, uint8_t *rdf)
 static getdns_return_t
 hip_pk_algorithm_list_append_value(getdns_list *list, uint8_t *rdf)
 {
-	return getdns_list_append_int(list, rdf[1]);
+	return _getdns_list_append_int(list, rdf[1]);
 }
 static _getdns_rdf_special hip_pk_algorithm = {
     hip_pk_algorithm_rdf_end,
@@ -211,7 +211,7 @@ static getdns_return_t
 hip_hit_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	getdns_bindata bindata = { rdf[-1], rdf + 3 };
-	return getdns_list_append_bindata(list, &bindata);
+	return _getdns_list_append_bindata(list, &bindata);
 }
 static _getdns_rdf_special hip_hit = {
     hip_hit_rdf_end, hip_hit_dict_set_value, hip_hit_list_append_value
@@ -234,7 +234,7 @@ static getdns_return_t
 hip_public_key_list_append_value(getdns_list *list, uint8_t *rdf)
 {
 	getdns_bindata bindata = { gldns_read_uint16(rdf), rdf + 2 + rdf[-2] };
-	return getdns_list_append_bindata(list, &bindata);
+	return _getdns_list_append_bindata(list, &bindata);
 }
 static _getdns_rdf_special hip_public_key = {
     hip_public_key_rdf_end,
