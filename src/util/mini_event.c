@@ -52,10 +52,10 @@
 #include "util/fptr_wlist.h"
 
 /** compare events in tree, based on timevalue, ptr for uniqueness */
-int getdns_mini_ev_cmp(const void* a, const void* b)
+int _getdns_mini_ev_cmp(const void* a, const void* b)
 {
-	const struct getdns_event *e = (const struct getdns_event*)a;
-	const struct getdns_event *f = (const struct getdns_event*)b;
+	const struct _getdns_event *e = (const struct _getdns_event*)a;
+	const struct _getdns_event *f = (const struct _getdns_event*)b;
 	if(e->ev_timeout.tv_sec < f->ev_timeout.tv_sec)
 		return -1;
 	if(e->ev_timeout.tv_sec > f->ev_timeout.tv_sec)
@@ -73,7 +73,7 @@ int getdns_mini_ev_cmp(const void* a, const void* b)
 
 /** set time */
 static int
-settime(struct getdns_event_base* base)
+settime(struct _getdns_event_base* base)
 {
 	if(gettimeofday(base->time_tv, NULL) < 0) {
 		return -1;
@@ -85,22 +85,22 @@ settime(struct getdns_event_base* base)
 }
 
 /** create event base */
-void *getdns_event_init(time_t* time_secs, struct timeval* time_tv)
+void *_getdns_event_init(time_t* time_secs, struct timeval* time_tv)
 {
-	struct getdns_event_base* base = (struct getdns_event_base*)malloc(
-		sizeof(struct getdns_event_base));
+	struct _getdns_event_base* base = (struct _getdns_event_base*)malloc(
+		sizeof(struct _getdns_event_base));
 	if(!base)
 		return NULL;
 	memset(base, 0, sizeof(*base));
 	base->time_secs = time_secs;
 	base->time_tv = time_tv;
 	if(settime(base) < 0) {
-		getdns_event_base_free(base);
+		_getdns_event_base_free(base);
 		return NULL;
 	}
-	base->times = getdns_rbtree_create(getdns_mini_ev_cmp);
+	base->times = _getdns_rbtree_create(_getdns_mini_ev_cmp);
 	if(!base->times) {
-		getdns_event_base_free(base);
+		_getdns_event_base_free(base);
 		return NULL;
 	}
 	base->capfd = MAX_FDS;
@@ -108,15 +108,15 @@ void *getdns_event_init(time_t* time_secs, struct timeval* time_tv)
 	if((int)FD_SETSIZE < base->capfd)
 		base->capfd = (int)FD_SETSIZE;
 #endif
-	base->fds = (struct getdns_event**)calloc((size_t)base->capfd, 
-		sizeof(struct getdns_event*));
+	base->fds = (struct _getdns_event**)calloc((size_t)base->capfd, 
+		sizeof(struct _getdns_event*));
 	if(!base->fds) {
-		getdns_event_base_free(base);
+		_getdns_event_base_free(base);
 		return NULL;
 	}
-	base->signals = (struct getdns_event**)calloc(MAX_SIG, sizeof(struct getdns_event*));
+	base->signals = (struct _getdns_event**)calloc(MAX_SIG, sizeof(struct _getdns_event*));
 	if(!base->signals) {
-		getdns_event_base_free(base);
+		_getdns_event_base_free(base);
 		return NULL;
 	}
 #ifndef S_SPLINT_S
@@ -127,27 +127,27 @@ void *getdns_event_init(time_t* time_secs, struct timeval* time_tv)
 }
 
 /** get version */
-const char *getdns_event_get_version(void)
+const char *_getdns_event_get_version(void)
 {
 	return "mini-event-"PACKAGE_VERSION;
 }
 
 /** get polling method, select */
-const char *getdns_event_get_method(void)
+const char *_getdns_event_get_method(void)
 {
 	return "select";
 }
 
 /** call timeouts handlers, and return how long to wait for next one or -1 */
-void getdns_handle_timeouts(struct getdns_event_base* base, struct timeval* now, 
+void _getdns_handle_timeouts(struct _getdns_event_base* base, struct timeval* now, 
 	struct timeval* wait)
 {
-	struct getdns_event* p;
+	struct _getdns_event* p;
 #ifndef S_SPLINT_S
 	wait->tv_sec = (time_t)-1;
 #endif
 
-	while((getdns_rbnode_t*)(p = (struct getdns_event*)getdns_rbtree_first(base->times))
+	while((_getdns_rbnode_t*)(p = (struct _getdns_event*)_getdns_rbtree_first(base->times))
 		!=RBTREE_NULL) {
 #ifndef S_SPLINT_S
 		if(p->ev_timeout.tv_sec > now->tv_sec ||
@@ -167,7 +167,7 @@ void getdns_handle_timeouts(struct getdns_event_base* base, struct timeval* now,
 		}
 #endif
 		/* event times out, remove it */
-		(void)getdns_rbtree_delete(base->times, p);
+		(void)_getdns_rbtree_delete(base->times, p);
 		p->ev_events &= ~EV_TIMEOUT;
 		fptr_ok(fptr_whitelist_event(p->ev_callback));
 		(*p->ev_callback)(p->ev_fd, EV_TIMEOUT, p->ev_arg);
@@ -175,7 +175,7 @@ void getdns_handle_timeouts(struct getdns_event_base* base, struct timeval* now,
 }
 
 /** call select and callbacks for that */
-int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait)
+int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait)
 {
 	fd_set r, w;
 	int ret, i;
@@ -227,7 +227,7 @@ int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait)
 }
 
 /** run select in a loop */
-int getdns_event_base_dispatch(struct getdns_event_base* base)
+int _getdns_event_base_dispatch(struct _getdns_event_base* base)
 {
 	struct timeval wait;
 	if(settime(base) < 0)
@@ -235,11 +235,11 @@ int getdns_event_base_dispatch(struct getdns_event_base* base)
 	while(!base->need_to_exit)
 	{
 		/* see if timeouts need handling */
-		getdns_handle_timeouts(base, base->time_tv, &wait);
+		_getdns_handle_timeouts(base, base->time_tv, &wait);
 		if(base->need_to_exit)
 			return 0;
 		/* do select */
-		if(getdns_handle_select(base, &wait) < 0) {
+		if(_getdns_handle_select(base, &wait) < 0) {
 			if(base->need_to_exit)
 				return 0;
 			return -1;
@@ -249,7 +249,7 @@ int getdns_event_base_dispatch(struct getdns_event_base* base)
 }
 
 /** exit that loop */
-int getdns_event_base_loopexit(struct getdns_event_base* base, 
+int _getdns_event_base_loopexit(struct _getdns_event_base* base, 
 	struct timeval* ATTR_UNUSED(tv))
 {
 	base->need_to_exit = 1;
@@ -257,7 +257,7 @@ int getdns_event_base_loopexit(struct getdns_event_base* base,
 }
 
 /* free event base, free events yourself */
-void getdns_event_base_free(struct getdns_event_base* base)
+void _getdns_event_base_free(struct _getdns_event_base* base)
 {
 	if(!base)
 		return;
@@ -271,7 +271,7 @@ void getdns_event_base_free(struct getdns_event_base* base)
 }
 
 /** set content of event */
-void getdns_event_set(struct getdns_event* ev, int fd, short bits, 
+void _getdns_event_set(struct _getdns_event* ev, int fd, short bits, 
 	void (*cb)(int, short, void *), void* arg)
 {
 	ev->node.key = ev;
@@ -284,18 +284,18 @@ void getdns_event_set(struct getdns_event* ev, int fd, short bits,
 }
 
 /* add event to a base */
-int getdns_event_base_set(struct getdns_event_base* base, struct getdns_event* ev)
+int _getdns_event_base_set(struct _getdns_event_base* base, struct _getdns_event* ev)
 {
 	ev->ev_base = base;
 	ev->added = 0;
 	return 0;
 }
 
-/* add event to make it active, you may not change it with getdns_event_set anymore */
-int getdns_event_add(struct getdns_event* ev, struct timeval* tv)
+/* add event to make it active, you may not change it with _getdns_event_set anymore */
+int _getdns_event_add(struct _getdns_event* ev, struct timeval* tv)
 {
 	if(ev->added)
-		getdns_event_del(ev);
+		_getdns_event_del(ev);
 	if(ev->ev_fd != -1 && ev->ev_fd >= ev->ev_base->capfd)
 		return -1;
 	if( (ev->ev_events&(EV_READ|EV_WRITE)) && ev->ev_fd != -1) {
@@ -321,19 +321,19 @@ int getdns_event_add(struct getdns_event* ev, struct timeval* tv)
 			ev->ev_timeout.tv_sec++;
 		}
 #endif
-		(void)getdns_rbtree_insert(ev->ev_base->times, &ev->node);
+		(void)_getdns_rbtree_insert(ev->ev_base->times, &ev->node);
 	}
 	ev->added = 1;
 	return 0;
 }
 
 /* remove event, you may change it again */
-int getdns_event_del(struct getdns_event* ev)
+int _getdns_event_del(struct _getdns_event* ev)
 {
 	if(ev->ev_fd != -1 && ev->ev_fd >= ev->ev_base->capfd)
 		return -1;
 	if((ev->ev_events&EV_TIMEOUT))
-		(void)getdns_rbtree_delete(ev->ev_base->times, &ev->node);
+		(void)_getdns_rbtree_delete(ev->ev_base->times, &ev->node);
 	if((ev->ev_events&(EV_READ|EV_WRITE)) && ev->ev_fd != -1) {
 		ev->ev_base->fds[ev->ev_fd] = NULL;
 		FD_CLR(FD_SET_T ev->ev_fd, &ev->ev_base->reads);
@@ -346,11 +346,11 @@ int getdns_event_del(struct getdns_event* ev)
 }
 
 /** which base gets to handle signals */
-static struct getdns_event_base* signal_base = NULL;
+static struct _getdns_event_base* signal_base = NULL;
 /** signal handler */
 static RETSIGTYPE sigh(int sig)
 {
-	struct getdns_event* ev;
+	struct _getdns_event* ev;
 	if(!signal_base || sig < 0 || sig >= MAX_SIG)
 		return;
 	ev = signal_base->signals[sig];
@@ -361,7 +361,7 @@ static RETSIGTYPE sigh(int sig)
 }
 
 /** install signal handler */
-int getdns_signal_add(struct getdns_event* ev, struct timeval* ATTR_UNUSED(tv))
+int _getdns_signal_add(struct _getdns_event* ev, struct timeval* ATTR_UNUSED(tv))
 {
 	if(ev->ev_fd == -1 || ev->ev_fd >= MAX_SIG)
 		return -1;
@@ -375,7 +375,7 @@ int getdns_signal_add(struct getdns_event* ev, struct timeval* ATTR_UNUSED(tv))
 }
 
 /** remove signal handler */
-int getdns_signal_del(struct getdns_event* ev)
+int _getdns_signal_del(struct _getdns_event* ev)
 {
 	if(ev->ev_fd == -1 || ev->ev_fd >= MAX_SIG)
 		return -1;
@@ -386,7 +386,7 @@ int getdns_signal_del(struct getdns_event* ev)
 
 #else /* USE_MINI_EVENT */
 #ifndef USE_WINSOCK
-int getdns_mini_ev_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
+int _getdns_mini_ev_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 {
 	return 0;
 }

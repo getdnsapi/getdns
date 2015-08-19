@@ -175,7 +175,7 @@ typedef struct getdns_tcp_state {
 typedef struct getdns_network_req
 {
 	/* For storage in upstream->netreq_by_query_id */
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 	/* the async_id from unbound */
 	int unbound_id;
 	/* state var */
@@ -227,7 +227,7 @@ typedef struct getdns_network_req
  */
 typedef struct getdns_dns_req {
 	/* For storage in context->outbound_requests */
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 
 	/* name */
 	uint8_t name[256];

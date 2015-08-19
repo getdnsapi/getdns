@@ -39,12 +39,12 @@
 #include "types-internal.h"
 
 typedef struct getdns_mini_event {
-	getdns_eventloop          loop;
-	time_t                    time_secs;
-	struct timeval            time_tv;
-	struct getdns_event_base *base;
-	size_t                    n_events;
-	struct mem_funcs          mf;
+	getdns_eventloop           loop;
+	time_t                     time_secs;
+	struct timeval             time_tv;
+	struct _getdns_event_base *base;
+	size_t                     n_events;
+	struct mem_funcs           mf;
 } getdns_mini_event;
 
 getdns_return_t

@@ -79,12 +79,12 @@
 #define MAX_SIG 32
 
 /** event base */
-struct getdns_event_base
+struct _getdns_event_base
 {
 	/** sorted by timeout (absolute), ptr */
-	getdns_rbtree_t* times;
+	_getdns_rbtree_t* times;
 	/** array of 0 - maxfd of ptr to event for it */
-	struct getdns_event** fds;
+	struct _getdns_event** fds;
 	/** max fd in use */
 	int maxfd;
 	/** capacity - size of the fds array */
@@ -100,7 +100,7 @@ struct getdns_event_base
 		/** ready plus newly added events. */
 		content;
 	/** array of 0 - maxsig of ptr to event for it */
-	struct getdns_event** signals;
+	struct _getdns_event** signals;
 	/** if we need to exit */
 	int need_to_exit;
 	/** where to store time in seconds */
@@ -112,14 +112,14 @@ struct getdns_event_base
 /**
  * Event structure. Has some of the event elements.
  */
-struct getdns_event {
+struct _getdns_event {
 	/** node in timeout rbtree */
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 	/** is event already added */
 	int added;
 
 	/** event base it belongs to */
-	struct getdns_event_base *ev_base;
+	struct _getdns_event_base *ev_base;
 	/** fd to poll or -1 for timeouts. signal number for sigs. */
 	int ev_fd;
 	/** what events this event is interested in, see EV_.. above. */
@@ -135,44 +135,44 @@ struct getdns_event {
 
 /* function prototypes (some are as they appear in event.h) */
 /** create event base */
-void *getdns_event_init(time_t* time_secs, struct timeval* time_tv);
+void *_getdns_event_init(time_t* time_secs, struct timeval* time_tv);
 /** get version */
-const char *getdns_event_get_version(void);
+const char *_getdns_event_get_version(void);
 /** get polling method, select */
-const char *getdns_event_get_method(void);
+const char *_getdns_event_get_method(void);
 /** run select in a loop */
-int getdns_event_base_dispatch(struct getdns_event_base *);
+int _getdns_event_base_dispatch(struct _getdns_event_base *);
 /** exit that loop */
-int getdns_event_base_loopexit(struct getdns_event_base *, struct timeval *);
+int _getdns_event_base_loopexit(struct _getdns_event_base *, struct timeval *);
 /** free event base. Free events yourself */
-void getdns_event_base_free(struct getdns_event_base *);
+void _getdns_event_base_free(struct _getdns_event_base *);
 /** set content of event */
-void getdns_event_set(struct getdns_event *, int, short, void (*)(int, short, void *), void *);
+void _getdns_event_set(struct _getdns_event *, int, short, void (*)(int, short, void *), void *);
 /** add event to a base. You *must* call this for every event. */
-int getdns_event_base_set(struct getdns_event_base *, struct getdns_event *);
-/** add event to make it active. You may not change it with getdns_event_set anymore */
-int getdns_event_add(struct getdns_event *, struct timeval *);
+int _getdns_event_base_set(struct _getdns_event_base *, struct _getdns_event *);
+/** add event to make it active. You may not change it with _getdns_event_set anymore */
+int _getdns_event_add(struct _getdns_event *, struct timeval *);
 /** remove event. You may change it again */
-int getdns_event_del(struct getdns_event *);
+int _getdns_event_del(struct _getdns_event *);
 
 /** add a timer */
-#define getdns_evtimer_add(ev, tv)             getdns_event_add(ev, tv)
+#define _getdns_evtimer_add(ev, tv)             _getdns_event_add(ev, tv)
 /** remove a timer */
-#define getdns_evtimer_del(ev)                 getdns_event_del(ev)
+#define _getdns_evtimer_del(ev)                 _getdns_event_del(ev)
 
 /* uses different implementation. Cannot mix fd/timeouts and signals inside
- * the same struct getdns_event. create several event structs for that.  */
+ * the same struct _getdns_event. create several event structs for that.  */
 /** install signal handler */
-int getdns_signal_add(struct getdns_event *, struct timeval *);
+int _getdns_signal_add(struct _getdns_event *, struct timeval *);
 /** set signal event contents */
-#define getdns_signal_set(ev, x, cb, arg)      \
-        getdns_event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define _getdns_signal_set(ev, x, cb, arg)      \
+        _getdns_event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 /** remove signal handler */
-int getdns_signal_del(struct getdns_event *);
+int _getdns_signal_del(struct _getdns_event *);
 
 #endif /* USE_MINI_EVENT and not USE_WINSOCK */
 
 /** compare events in tree, based on timevalue, ptr for uniqueness */
-int getdns_mini_ev_cmp(const void* a, const void* b);
+int _getdns_mini_ev_cmp(const void* a, const void* b);
 
 #endif /* MINI_EVENT_H */

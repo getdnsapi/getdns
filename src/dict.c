@@ -1,7 +1,7 @@
 /**
  *
  * getdns dict management functions, note that the internal storage is
- * accomplished via an getdns_rbtree_t
+ * accomplished via an _getdns_rbtree_t
  *
  * Interfaces originally taken from the getdns API description pseudo implementation.
  *
@@ -60,7 +60,7 @@ struct getdns_dict_item *
 getdns_dict_find(const struct getdns_dict *dict, const char *key)
 {
 	return (struct getdns_dict_item *)
-		   getdns_rbtree_search((getdns_rbtree_t *)&(dict->root), key);
+		   _getdns_rbtree_search((_getdns_rbtree_t *)&(dict->root), key);
 }				/* getdns_dict_find */
 
 struct getdns_dict_item *
@@ -69,14 +69,14 @@ getdns_dict_find_and_add(struct getdns_dict *dict, const char *key)
 	struct getdns_dict_item *item;
 
 	item = (struct getdns_dict_item *)
-		   getdns_rbtree_search(&(dict->root), key);
+		   _getdns_rbtree_search(&(dict->root), key);
 
 	if (!item) {
 		/* add a node */
 		item = GETDNS_MALLOC(dict->mf, struct getdns_dict_item);
 		item->node.key = getdns_strdup(&dict->mf, key);
 		item->data.n = 0;
-		getdns_rbtree_insert(&(dict->root), (getdns_rbnode_t *) item);
+		_getdns_rbtree_insert(&(dict->root), (_getdns_rbnode_t *) item);
 	}
 	return item;
 }				/* getdns_dict_find_and_add */
@@ -99,7 +99,7 @@ getdns_dict_get_names(const getdns_dict *dict, getdns_list **answer)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	RBTREE_FOR(item, struct getdns_dict_item *,
-		(getdns_rbtree_t *)&(dict->root)) {
+		(_getdns_rbtree_t *)&(dict->root)) {
 		getdns_list_append_string(*answer, item->node.key);
 	}
 	return GETDNS_RETURN_GOOD;
@@ -234,7 +234,7 @@ getdns_dict_create_with_extended_memory_functions(
 	dict->mf.mf.ext.realloc = realloc;
 	dict->mf.mf.ext.free    = free;
 
-	getdns_rbtree_init(&(dict->root),
+	_getdns_rbtree_init(&(dict->root),
 		(int (*)(const void *, const void *)) strcmp);
 	return dict;
 }
@@ -305,7 +305,7 @@ getdns_dict_copy(const struct getdns_dict * srcdict,
 
 	retval = GETDNS_RETURN_GOOD;
 	RBTREE_FOR(item, struct getdns_dict_item *,
-		(struct getdns_rbtree_t *)&(srcdict->root)) {
+		(struct _getdns_rbtree_t *)&(srcdict->root)) {
 		key = (char *) item->node.key;
 		switch (item->dtype) {
 		case t_bindata:
@@ -346,7 +346,7 @@ getdns_dict_copy(const struct getdns_dict * srcdict,
  * @return void
  */
 void
-getdns_dict_item_free(getdns_rbnode_t * node, void *arg)
+getdns_dict_item_free(_getdns_rbnode_t * node, void *arg)
 {
 	struct getdns_dict_item *item = (struct getdns_dict_item *) node;
 	struct getdns_dict *dict = (struct getdns_dict *)arg;
@@ -377,7 +377,7 @@ void
 getdns_dict_destroy(struct getdns_dict *dict)
 {
 	if (!dict) return;
-	getdns_traverse_postorder(&(dict->root), getdns_dict_item_free, dict);
+	_getdns_traverse_postorder(&(dict->root), getdns_dict_item_free, dict);
 	GETDNS_FREE(dict->mf, dict);
 }				/* getdns_dict_destroy */
 
@@ -829,7 +829,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 	i = 0;
 	indent += 2;
 	RBTREE_FOR(item, struct getdns_dict_item *,
-		(getdns_rbtree_t *)&(dict->root)) {
+		(_getdns_rbtree_t *)&(dict->root)) {
 
 		if (i && gldns_buffer_printf(buf, ",") < 0)
 			return -1;
@@ -1111,7 +1111,7 @@ getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	/* cleanup */
-	getdns_rbtree_delete(&this_dict->root, name);
+	_getdns_rbtree_delete(&this_dict->root, name);
 	getdns_dict_item_free(&item->node, this_dict);
 
 	return GETDNS_RETURN_GOOD;

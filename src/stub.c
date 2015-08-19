@@ -424,7 +424,7 @@ stub_cleanup(getdns_network_req *netreq)
 
 	/* Delete from upstream->netreq_by_query_id (if present) */
 	query_id_intptr = (intptr_t)netreq->query_id;
-	(void) getdns_rbtree_delete(
+	(void) _getdns_rbtree_delete(
 	    &upstream->netreq_by_query_id, (void *)query_id_intptr);
 
 	/* Delete from upstream->write_queue (if present) */
@@ -485,7 +485,7 @@ upstream_erred(getdns_upstream *upstream)
 	}
 	while (upstream->netreq_by_query_id.count) {
 		netreq = (getdns_network_req *)
-		    getdns_rbtree_first(&upstream->netreq_by_query_id);
+		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
 		stub_cleanup(netreq);
 		netreq->state = NET_REQ_FINISHED;
 		priv_getdns_check_dns_req_complete(netreq->owner);
@@ -698,7 +698,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			query_id_intptr = (intptr_t)query_id;
 			netreq->node.key = (void *)query_id_intptr;
 
-		} while (!getdns_rbtree_insert(
+		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
 		GLDNS_ID_SET(netreq->query, query_id);
@@ -1060,7 +1060,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			query_id_intptr = (intptr_t)query_id;
 			netreq->node.key = (void *)query_id_intptr;
 
-		} while (!getdns_rbtree_insert(
+		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
 		GLDNS_ID_SET(netreq->query, query_id);
@@ -1291,7 +1291,7 @@ upstream_read_cb(void *userarg)
 		/* Lookup netreq */
 		query_id = (uint16_t) q;
 		query_id_intptr = (intptr_t) query_id;
-		netreq = (getdns_network_req *)getdns_rbtree_delete(
+		netreq = (getdns_network_req *)_getdns_rbtree_delete(
 		    &upstream->netreq_by_query_id, (void *)query_id_intptr);
 		if (! netreq) /* maybe canceled */ {
 			/* reset read buffer */

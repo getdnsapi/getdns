@@ -106,7 +106,7 @@ typedef struct getdns_upstream {
 	/* Pipelining of TCP network requests */
 	getdns_network_req      *write_queue;
 	getdns_network_req      *write_queue_last;
-	getdns_rbtree_t          netreq_by_query_id;
+	_getdns_rbtree_t          netreq_by_query_id;
 
 	/* EDNS cookies */
 	uint32_t secret;
@@ -173,7 +173,7 @@ struct getdns_context {
 #endif
 
 	/* A tree to hold local host information*/
-	getdns_rbtree_t local_hosts;
+	_getdns_rbtree_t local_hosts;
 
 	int return_dnssec_status;
 
@@ -185,7 +185,7 @@ struct getdns_context {
 	/*
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
-	getdns_rbtree_t outbound_requests;
+	_getdns_rbtree_t outbound_requests;
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;

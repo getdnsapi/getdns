@@ -43,7 +43,7 @@ static void
 getdns_mini_event_cleanup(getdns_eventloop *loop)
 {
 	getdns_mini_event *ext = (getdns_mini_event *)loop;
-	getdns_event_base_free(ext->base);
+	_getdns_event_base_free(ext->base);
 }
 
 void
@@ -54,9 +54,9 @@ getdns_mini_event_destroy(getdns_mini_event *ext)
 	GETDNS_FREE(ext->mf, ext);
 }
 
-void getdns_handle_timeouts(struct getdns_event_base* base,
+void _getdns_handle_timeouts(struct _getdns_event_base* base,
     struct timeval* now, struct timeval* wait);
-int getdns_handle_select(struct getdns_event_base* base, struct timeval* wait);
+int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait);
 
 static int
 getdns_mini_event_settime(getdns_mini_event *ext)
@@ -77,12 +77,12 @@ getdns_mini_event_run(getdns_eventloop *loop)
 		return;
 
 	do {
-		(void) getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
+		(void) _getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
 
 		if (!ext->n_events)
 			break;
 
-		if (getdns_handle_select(ext->base, &wait))
+		if (_getdns_handle_select(ext->base, &wait))
 			break;
 
 	} while (ext->n_events);
@@ -98,14 +98,14 @@ getdns_mini_event_run_once(getdns_eventloop *loop, int blocking)
 	if (blocking) {
 		if (getdns_mini_event_settime(ext) < 0)
 			return;
-		getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
-		if (getdns_handle_select(ext->base, &wait) < 0)
+		_getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
+		if (_getdns_handle_select(ext->base, &wait) < 0)
 			return;
 
-	} else if (getdns_handle_select(ext->base, &immediately) < 0)
+	} else if (_getdns_handle_select(ext->base, &immediately) < 0)
 		return;
 
-	getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
+	_getdns_handle_timeouts(ext->base, &ext->time_tv, &wait);
 }
 
 static getdns_return_t
@@ -117,7 +117,7 @@ getdns_mini_event_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 	assert(el_ev->ev);
 	DEBUG_SCHED("1. getdns_mini_event_clear(loop: %p, el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d, times: %d\n", loop, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events, (int)ext->base->times->count);
 
-	if (getdns_event_del(el_ev->ev) != 0)
+	if (_getdns_event_del(el_ev->ev) != 0)
 		r = GETDNS_RETURN_GENERIC_ERROR;
 
 	GETDNS_FREE(ext->mf, el_ev->ev);
@@ -152,19 +152,19 @@ getdns_mini_event_schedule(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *el_ev)
 {
 	getdns_mini_event *ext = (getdns_mini_event *)loop;
-	struct getdns_event *my_ev;
+	struct _getdns_event *my_ev;
 	struct timeval tv = { timeout / 1000, (timeout % 1000) * 1000 };
 
 	assert(el_ev);
 	assert(!(el_ev->read_cb || el_ev->write_cb) || fd >= 0);
 	assert(  el_ev->read_cb || el_ev->write_cb  || el_ev->timeout_cb);
 
-	if (!(my_ev = GETDNS_MALLOC(ext->mf, struct getdns_event)))
+	if (!(my_ev = GETDNS_MALLOC(ext->mf, struct _getdns_event)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	el_ev->ev = my_ev;
 	DEBUG_SCHED("1. getdns_mini_event_schedule(loop: %p, fd: %d, timeout: %"PRId64", el_ev: %p[userarg: %p, r: %p, w: %p, t: %p, ev: %p]); n_events: %d\n", loop, fd, timeout, el_ev, el_ev->userarg, el_ev->read_cb, el_ev->write_cb, el_ev->timeout_cb, el_ev->ev, (int)ext->n_events);
-	getdns_event_set(my_ev, fd, (
+	_getdns_event_set(my_ev, fd, (
 	    (el_ev->read_cb ? EV_READ|EV_PERSIST : 0) |
 	    (el_ev->write_cb ? EV_WRITE|EV_PERSIST : 0) |
 	    (el_ev->timeout_cb ? EV_TIMEOUT : 0)),
@@ -173,8 +173,8 @@ getdns_mini_event_schedule(getdns_eventloop *loop,
 	if (getdns_mini_event_settime(ext))
 		goto error;
 
-	(void) getdns_event_base_set(ext->base, my_ev);
-	if (getdns_event_add(my_ev, el_ev->timeout_cb ? &tv : NULL))
+	(void) _getdns_event_base_set(ext->base, my_ev);
+	if (_getdns_event_add(my_ev, el_ev->timeout_cb ? &tv : NULL))
 		goto error;
 
 	ext->n_events++;
@@ -207,7 +207,7 @@ getdns_mini_event_init(getdns_context *context, getdns_mini_event *ext)
 
 	ext->n_events = 0;
 	ext->loop.vmt = &getdns_mini_event_vmt;
-	ext->base = getdns_event_init(&ext->time_secs, &ext->time_tv);
+	ext->base = _getdns_event_init(&ext->time_secs, &ext->time_tv);
 	if (!ext->base)
 		return GETDNS_RETURN_MEMORY_ERROR;
 

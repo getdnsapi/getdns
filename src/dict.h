@@ -52,7 +52,7 @@ union getdns_item
  */
 struct getdns_dict_item
 {
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 	getdns_data_type dtype;
 	union getdns_item data;
 };
@@ -66,7 +66,7 @@ struct getdns_dict_item
  */
 struct getdns_dict
 {
-	getdns_rbtree_t root;
+	_getdns_rbtree_t root;
 	struct mem_funcs mf;
 };
 

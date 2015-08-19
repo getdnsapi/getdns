@@ -64,7 +64,7 @@
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 typedef struct host_name_addrs {
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 	getdns_list *ipv4addrs;
 	getdns_list *ipv6addrs;
 	uint8_t host_name[];
@@ -117,7 +117,7 @@ static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
-static void destroy_local_host(getdns_rbnode_t * node, void *arg)
+static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
 {
 	getdns_context *context = (getdns_context *)arg;
 	host_name_addrs *hnas = (host_name_addrs *)node;
@@ -231,7 +231,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 
 	canonicalize_dname(host_name);
 	
-	if (!(hnas = (host_name_addrs *)getdns_rbtree_search(
+	if (!(hnas = (host_name_addrs *)_getdns_rbtree_search(
 	    &context->local_hosts, host_name))) {
 
 		if (!(hnas = (host_name_addrs *)GETDNS_XMALLOC(context->mf,
@@ -265,7 +265,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 		GETDNS_FREE(context->mf, hnas);
 
 	} else if (!hnas_found)
-		(void)getdns_rbtree_insert(&context->local_hosts, &hnas->node);
+		(void)_getdns_rbtree_insert(&context->local_hosts, &hnas->node);
 }
 
 static getdns_dict *
@@ -642,7 +642,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->has_server_cookie = 0;
 
 	/* Tracking of network requests on this socket */
-	getdns_rbtree_init(&upstream->netreq_by_query_id,
+	_getdns_rbtree_init(&upstream->netreq_by_query_id,
 	    net_req_query_id_cmp);
 }
 
@@ -843,8 +843,8 @@ getdns_context_create_with_extended_memory_functions(
 
 	result->resolution_type_set = 0;
 
-	getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
-	getdns_rbtree_init(&result->local_hosts, local_host_cmp);
+	_getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
+	_getdns_rbtree_init(&result->local_hosts, local_host_cmp);
 
 	result->resolution_type = GETDNS_RESOLUTION_RECURSING;
 	if ((r = create_default_namespaces(result)))
@@ -1022,7 +1022,7 @@ getdns_context_destroy(struct getdns_context *context)
 	    context->trust_anchors != context->trust_anchors_spc)
 		GETDNS_FREE(context->mf, context->trust_anchors);
 
-	getdns_traverse_postorder(&context->local_hosts,
+	_getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
 
 	GETDNS_FREE(context->my_mf, context);
@@ -1963,7 +1963,7 @@ getdns_context_cancel_request(getdns_context *context,
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	/* delete the node from the tree */
-	if (!(dnsreq = (getdns_dns_req *)getdns_rbtree_delete(
+	if (!(dnsreq = (getdns_dns_req *)_getdns_rbtree_delete(
 	    &context->outbound_requests, &transaction_id)))
 		return GETDNS_RETURN_UNKNOWN_TRANSACTION;
 
@@ -2245,7 +2245,7 @@ getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	dnsreq->node.key = &(dnsreq->trans_id);
-	if (!getdns_rbtree_insert(
+	if (!_getdns_rbtree_insert(
 	    &dnsreq->context->outbound_requests, &dnsreq->node))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -2259,7 +2259,7 @@ getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
     	if (!dnsreq)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (!getdns_rbtree_delete(
+	if (!_getdns_rbtree_delete(
 	    &dnsreq->context->outbound_requests, &dnsreq->trans_id))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -2340,7 +2340,7 @@ getdns_bindata_destroy(struct mem_funcs *mfs,
 
 /* TODO: Remove next_timeout argument from getdns_context_get_num_pending_requests
  */
-void getdns_handle_timeouts(struct getdns_event_base* base, struct timeval* now,
+void _getdns_handle_timeouts(struct _getdns_event_base* base, struct timeval* now,
     struct timeval* wait);
 uint32_t
 getdns_context_get_num_pending_requests(struct getdns_context* context,
@@ -2354,7 +2354,7 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 		context->extension->vmt->run_once(context->extension, 0);
 
 	/* TODO: Remove this when next_timeout is gone */
-	getdns_handle_timeouts(context->mini_event.base,
+	_getdns_handle_timeouts(context->mini_event.base,
 	    &context->mini_event.time_tv, next_timeout ? next_timeout : &dispose);
 
 	return context->outbound_requests.count;
@@ -2394,7 +2394,7 @@ typedef struct timeout_accumulator {
 } timeout_accumulator;
 
 static void
-accumulate_outstanding_transactions(getdns_rbnode_t* node, void* arg) {
+accumulate_outstanding_transactions(_getdns_rbnode_t* node, void* arg) {
     timeout_accumulator* acc = (timeout_accumulator*) arg;
     acc->ids[acc->idx] = *((getdns_transaction_t*) node->key);
     acc->idx++;
@@ -2407,7 +2407,7 @@ cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
         int i;
         acc.idx = 0;
         acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests.count);
-        getdns_traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
+        _getdns_traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
         for (i = 0; i < acc.idx; ++i) {
             getdns_context_cancel_request(context, acc.ids[i], fire_callback);
         }
@@ -2618,7 +2618,7 @@ getdns_context_local_namespace_resolve(
 	canonicalize_dname(lookup);
 
 	if (!(hnas = (host_name_addrs *)
-	    getdns_rbtree_search(&context->local_hosts, lookup)))
+	    _getdns_rbtree_search(&context->local_hosts, lookup)))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	if (!hnas->ipv4addrs && (!ipv6 || !hnas->ipv6addrs))
