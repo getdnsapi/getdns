@@ -40,7 +40,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <unbound.h>
 #include <assert.h>
 #include <netdb.h>
 #include <ctype.h>
@@ -103,6 +102,7 @@ static void cancel_dns_req(getdns_dns_req *);
 static void cancel_outstanding_requests(struct getdns_context*, int);
 
 /* unbound helpers */
+#ifdef HAVE_LIBUNBOUND
 static getdns_return_t rebuild_ub_ctx(struct getdns_context* context);
 static void set_ub_string_opt(struct getdns_context *, char *, char *);
 static void set_ub_number_opt(struct getdns_context *, char *, uint16_t);
@@ -112,6 +112,7 @@ static void set_ub_limit_outstanding_queries(struct getdns_context*,
 static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
 static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
     int);
+#endif
 
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
@@ -909,9 +910,11 @@ getdns_context_create_with_extended_memory_functions(
 	 * don't know that till later so we will have to do this every time. */
 
 	SSL_library_init();
+#ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
 	if ((r = rebuild_ub_ctx(result)))
 		goto error;
+#endif
 
 	create_local_hosts(result);
 
@@ -985,8 +988,10 @@ getdns_context_destroy(struct getdns_context *context)
 	 */
 	priv_getdns_upstreams_dereference(context->upstreams);
 
+#ifdef HAVE_LIBUNBOUND
 	if (context->unbound_ctx)
 		ub_ctx_delete(context->unbound_ctx);
+#endif
 
 	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
@@ -1059,6 +1064,7 @@ getdns_context_get_update_callback(getdns_context *context, void **userarg,
 	return GETDNS_RETURN_GOOD;
 }
 
+#ifdef HAVE_LIBUNBOUND
 /*
  * Helpers to set options on the unbound ctx
  */
@@ -1149,6 +1155,11 @@ rebuild_ub_ctx(struct getdns_context* context) {
 
 	return GETDNS_RETURN_GOOD;
 }
+#else
+#define set_ub_string_opt(ctx, opt, value) do {} while (0)
+#define set_ub_number_opt(ctx, opt, value) do {} while (0)
+#define getdns_context_request_count_changed(context) do {} while (0)
+#endif
 
 /**
  * Helper to dispatch the updated callback
@@ -1930,11 +1941,13 @@ cancel_dns_req(getdns_dns_req *req)
 	getdns_network_req *netreq, **netreq_p;
 
 	for (netreq_p = req->netreqs; (netreq = *netreq_p); netreq_p++)
+#ifdef HAVE_LIBUNBOUND
 		if (netreq->unbound_id != -1) {
 			ub_cancel(req->context->unbound_ctx,
 			    netreq->unbound_id);
 			netreq->unbound_id = -1;
 		} else
+#endif
 			priv_getdns_cancel_stub_request(netreq);
 
 	req->canceled = 1;
@@ -2113,8 +2126,10 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 static getdns_return_t
 priv_getdns_ns_dns_setup(struct getdns_context *context)
 {
+#ifdef HAVE_LIBUNBOUND
 	priv_getdns_rr_iter rr_spc, *rr;
 	char ta_str[8192];
+#endif
 	assert(context);
 
 	switch (context->resolution_type) {
@@ -2128,6 +2143,7 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 #endif
 
 	case GETDNS_RESOLUTION_RECURSING:
+#ifdef HAVE_LIBUNBOUND
 		/* TODO: use the root servers via root hints file */
 		(void) ub_ctx_set_fwd(context->unbound_ctx, NULL);
 		if (!context->unbound_ta_set && context->trust_anchors) {
@@ -2144,6 +2160,9 @@ priv_getdns_ns_dns_setup(struct getdns_context *context)
 			context->unbound_ta_set = 1;
 		}
 		return GETDNS_RETURN_GOOD;
+#else
+		return GETDNS_RETURN_GENERIC_ERROR;
+#endif
 	}
 	return GETDNS_RETURN_BAD_CONTEXT;
 }
@@ -2347,6 +2366,7 @@ getdns_context_process_async(struct getdns_context* context)
 {
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
+#ifdef HAVE_LIBUNBOUND
 	context->processing = 1;
 	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
 		/* need an async return code? */
@@ -2354,6 +2374,7 @@ getdns_context_process_async(struct getdns_context* context)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	context->processing = 0;
+#endif
 	context->extension->vmt->run_once(context->extension, 0);
 
 	return GETDNS_RETURN_GOOD;
@@ -2554,15 +2575,19 @@ getdns_context_set_return_dnssec_status(getdns_context* context, int enabled) {
 getdns_return_t
 getdns_context_set_use_threads(getdns_context* context, int use_threads) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    int r = 0;
     if (context->resolution_type_set != 0) {
         /* already setup */
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
-    int r = 0;
+#ifdef HAVE_LIBUNBOUND
     if (use_threads)
         r = ub_ctx_async(context->unbound_ctx, 1);
     else
         r = ub_ctx_async(context->unbound_ctx, 0);
+#else
+    (void)use_threads;
+#endif
     return r == 0 ? GETDNS_RETURN_GOOD : GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 }
 

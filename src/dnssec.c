@@ -191,7 +191,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <unbound.h>
 #include <ldns/ldns.h>
 #include "getdns/getdns.h"
 #include "config.h"

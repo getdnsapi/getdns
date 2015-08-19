@@ -38,7 +38,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <unbound.h>
 #include "getdns/getdns.h"
 #include "dict.h"
 #include "list.h"
@@ -846,6 +845,7 @@ priv_getdns_validate_extensions(struct getdns_dict * extensions)
 	return GETDNS_RETURN_GOOD;
 }				/* priv_getdns_validate_extensions */
 
+#ifdef HAVE_LIBUNBOUND
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     struct ub_result* ub_res)
@@ -908,6 +908,7 @@ getdns_apply_network_result(getdns_network_req* netreq,
 
 	return GETDNS_RETURN_GOOD;
 }
+#endif
 
 
 getdns_return_t

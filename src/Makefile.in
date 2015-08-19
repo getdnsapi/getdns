@@ -48,7 +48,7 @@ srcdir = @srcdir@
 LIBTOOL = ../libtool
 
 CC=@CC@
-CFLAGS=-I$(srcdir) -I. @CFLAGS@
+CFLAGS=-I$(srcdir) -I. @CFLAGS@ @CPPFLAGS@
 LDFLAGS=@LDFLAGS@ @LIBS@
 
 EXTENSION_LIBEVENT_LIB=@EXTENSION_LIBEVENT_LIB@

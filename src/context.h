@@ -166,9 +166,11 @@ struct getdns_context {
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
 
+#ifdef HAVE_LIBUNBOUND
 	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
 	int            unbound_ta_set;
+#endif
 
 	/* A tree to hold local host information*/
 	getdns_rbtree_t local_hosts;
@@ -187,7 +189,10 @@ struct getdns_context {
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;
+
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event  ub_event;
+#endif
 
 	/* The default extension */
 	getdns_mini_event mini_event;

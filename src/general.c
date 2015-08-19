@@ -37,7 +37,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unbound.h>
 #include "config.h"
 #include "gldns/wire2str.h"
 #include "context.h"
@@ -71,13 +70,6 @@ void priv_getdns_call_user_callback(getdns_dns_req *dns_req,
 	    response, user_arg, trans_id);
 }
 
-/* cleanup and send an error to the user callback */
-static void
-handle_network_request_error(getdns_network_req * netreq, int err)
-{
-	priv_getdns_call_user_callback(netreq->owner, NULL);
-}
-
 void
 priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
@@ -108,6 +100,7 @@ priv_getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		    dns_req, create_getdns_response(dns_req));
 }
 
+#ifdef HAVE_LIBUNBOUND
 static void
 ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 {
@@ -116,13 +109,13 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 
 	netreq->state = NET_REQ_FINISHED;
 	if (err != 0) {
-		handle_network_request_error(netreq, err);
+		priv_getdns_call_user_callback(dns_req, NULL);
 		return;
 	}
 	/* parse */
 	if (getdns_apply_network_result(netreq, ub_res)) {
 		ub_resolve_free(ub_res);
-		handle_network_request_error(netreq, err);
+		priv_getdns_call_user_callback(dns_req, NULL);
 		return;
 	}
 	ub_resolve_free(ub_res);
@@ -130,6 +123,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 	priv_getdns_check_dns_req_complete(dns_req);
 
 } /* ub_resolve_callback */
+#endif
 
 
 static getdns_return_t
@@ -164,10 +158,14 @@ submit_network_request(getdns_network_req *netreq)
 		(void) gldns_wire2str_dname_buf(dns_req->name,
 		    dns_req->name_len, name, sizeof(name));
 
+#ifdef HAVE_LIBUNBOUND
 		return ub_resolve_async(dns_req->context->unbound_ctx,
 		    name, netreq->request_type, netreq->request_class,
 		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+#else
+		return GETDNS_RETURN_GENERIC_ERROR;
+#endif
 	}
 	/* Submit with stub resolver */
 	return priv_getdns_submit_stub_request(netreq);

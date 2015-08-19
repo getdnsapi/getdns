@@ -259,6 +259,7 @@ else
 	fi
 fi
 
+my_with_libunbound=1
 # find libunbound
 AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
 	[path to libunbound (default: search /usr/local ..)]),
@@ -276,6 +277,9 @@ else
 	if test x_$withval != x_no; then
 		CFLAGS="$CFLAGS -I$withval/include"
 		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		AC_DEFINE_UNQUOTED([DISABLE_RESOLUTION_RECURSING], [1], [Define this to disable recursing resolution type.])
+		my_with_libunbound=0
 	fi
 fi
 
@@ -289,19 +293,15 @@ AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 AC_CHECK_MEMBER([struct ldns_struct_dnssec_zone.hashed_names],
 [AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns/ldns.h>]])
 
+if test $my_with_libunbound == 1
+then
+	AC_MSG_NOTICE([Checking for dependency libunbound])
+	AC_CHECK_LIB([unbound], [ub_fd], [], [found_all_libs=0])
+fi
+
 if test $found_all_libs == 0
 then
     AC_MSG_ERROR([One more dependencies is missing])
-fi
-
-# break out libunbound from other libraries since we are currently using a
-# patch to the sources
-found_libunbound=1
-AC_MSG_NOTICE([Checking for dependency libunbound])
-AC_CHECK_LIB([unbound], [ub_fd], [], [found_libunbound=0])
-if test $found_libunbound == 0
-then
-    AC_MSG_ERROR([libunbound is missing.])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
@@ -829,6 +829,10 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 
 #ifdef HAVE_BSD_STRING_H
 #include <bsd/string.h>
+#endif
+
+#ifdef HAVE_LIBUNBOUND
+#include <unbound.h>
 #endif
 ])
 

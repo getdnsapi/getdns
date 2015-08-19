@@ -34,7 +34,6 @@
  */
 
 #include <string.h>
-#include <unbound.h>
 #include "getdns/getdns.h"
 #include "config.h"
 #include "context.h"
@@ -48,7 +47,9 @@
 
 typedef struct getdns_sync_loop {
 	getdns_mini_event      loop;
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event ub_event;
+#endif
 	getdns_context        *context;
 	int                    to_run;
 	getdns_dict           *response;
@@ -57,8 +58,10 @@ typedef struct getdns_sync_loop {
 static getdns_return_t
 getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 {
-	getdns_return_t r;
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop *ext = &loop->loop.loop;
+#endif
+	getdns_return_t r;
 
 	loop->response = NULL;
 	loop->to_run   = 1;
@@ -67,6 +70,7 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 	if ((r = getdns_mini_event_init(context, &loop->loop)))
 		return r;
 
+#ifdef HAVE_LIBUNBOUND
 	loop->ub_event.userarg    = loop->context;
 	loop->ub_event.read_cb    = priv_getdns_context_ub_read_cb;
 	loop->ub_event.write_cb   = NULL;
@@ -75,6 +79,9 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 
 	return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
 	    TIMEOUT_FOREVER, &loop->ub_event);
+#else
+	return GETDNS_RETURN_GOOD;
+#endif
 }
 
 static void
@@ -82,7 +89,9 @@ getdns_sync_loop_cleanup(getdns_sync_loop *loop)
 {
 	getdns_eventloop *ext = &loop->loop.loop;
 
+#ifdef HAVE_LIBUNBOUND
 	ext->vmt->clear(ext, &loop->ub_event);
+#endif
 	ext->vmt->cleanup(ext);
 }
 
