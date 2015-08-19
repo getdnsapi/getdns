@@ -195,7 +195,7 @@ struct getdns_context {
 #endif
 
 	/* The default extension */
-	getdns_mini_event mini_event;
+	_getdns_mini_event mini_event;
 
 	/*
 	 * state data used to detect changes to the system config files

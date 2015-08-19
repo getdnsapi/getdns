@@ -38,22 +38,22 @@
 #include "util/mini_event.h"
 #include "types-internal.h"
 
-typedef struct getdns_mini_event {
+typedef struct _getdns_mini_event {
 	getdns_eventloop           loop;
 	time_t                     time_secs;
 	struct timeval             time_tv;
 	struct _getdns_event_base *base;
 	size_t                     n_events;
 	struct mem_funcs           mf;
-} getdns_mini_event;
+} _getdns_mini_event;
 
 getdns_return_t
-getdns_mini_event_init(getdns_context *context, getdns_mini_event *mini_event);
+_getdns_mini_event_init(getdns_context *context, _getdns_mini_event *mini_event);
 
 getdns_return_t
-getdns_mini_event_create(getdns_context *ctxt, getdns_mini_event **mini_event);
+_getdns_mini_event_create(getdns_context *ctxt, _getdns_mini_event **mini_event);
 
 void
-getdns_mini_event_destroy(getdns_mini_event *mini_event);
+_getdns_mini_event_destroy(_getdns_mini_event *mini_event);
 
 #endif /* _GETDNS_LIBMINI_EVENT_H_ */

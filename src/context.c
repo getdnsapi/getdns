@@ -889,7 +889,7 @@ getdns_context_create_with_extended_memory_functions(
 	result-> tls_ctx = NULL;
 
 	result->extension = &result->mini_event.loop;
-	if ((r = getdns_mini_event_init(result, &result->mini_event)))
+	if ((r = _getdns_mini_event_init(result, &result->mini_event)))
 		goto error;
 
 	result->fchg_resolvconf = NULL;
@@ -2433,7 +2433,7 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->mini_event.loop;
-	return getdns_mini_event_init(context, &context->mini_event);
+	return _getdns_mini_event_init(context, &context->mini_event);
 }
 
 getdns_return_t

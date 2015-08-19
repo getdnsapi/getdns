@@ -46,7 +46,7 @@
 #include "gldns/wire2str.h"
 
 typedef struct getdns_sync_loop {
-	getdns_mini_event      loop;
+	_getdns_mini_event      loop;
 #ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event ub_event;
 #endif
@@ -67,7 +67,7 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 	loop->to_run   = 1;
 	loop->context  = context;
 
-	if ((r = getdns_mini_event_init(context, &loop->loop)))
+	if ((r = _getdns_mini_event_init(context, &loop->loop)))
 		return r;
 
 #ifdef HAVE_LIBUNBOUND
