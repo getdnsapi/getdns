@@ -56,14 +56,14 @@
  * @return pointer to dictionary item, caller must not free storage associated with item
  * @return NULL if additnotfnd == FALSE and key is not in dictionary
  */
-struct getdns_dict_item *
+static struct getdns_dict_item *
 getdns_dict_find(const struct getdns_dict *dict, const char *key)
 {
 	return (struct getdns_dict_item *)
 		   _getdns_rbtree_search((_getdns_rbtree_t *)&(dict->root), key);
 }				/* getdns_dict_find */
 
-struct getdns_dict_item *
+static struct getdns_dict_item *
 getdns_dict_find_and_add(struct getdns_dict *dict, const char *key)
 {
 	struct getdns_dict_item *item;
@@ -345,7 +345,7 @@ getdns_dict_copy(const struct getdns_dict * srcdict,
  *            to free the items
  * @return void
  */
-void
+static void
 getdns_dict_item_free(_getdns_rbnode_t * node, void *arg)
 {
 	struct getdns_dict_item *item = (struct getdns_dict_item *) node;

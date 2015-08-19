@@ -146,7 +146,7 @@ getdns_list_get_int(const struct getdns_list * list, size_t index,
   * in case of an error the list should be considered unusable
   * @return GETDNS_RETURN_GOOD on success, GETDNS_RETURN_GENERIC_ERROR if out of memory
   */
-getdns_return_t
+static getdns_return_t
 getdns_list_realloc(struct getdns_list *list)
 {
 	struct getdns_list_item *newlist;

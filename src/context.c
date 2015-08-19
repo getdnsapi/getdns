@@ -92,8 +92,8 @@ getdns_port_str_array[] = {
 };
 
 /* Private functions */
-getdns_return_t create_default_namespaces(struct getdns_context *context);
-getdns_return_t create_default_dns_transports(struct getdns_context *context);
+static getdns_return_t create_default_namespaces(struct getdns_context *context);
+static getdns_return_t create_default_dns_transports(struct getdns_context *context);
 static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
@@ -130,7 +130,7 @@ static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
  * Helper to get default lookup namespaces.
  * TODO: Determine from OS
  */
-getdns_return_t
+static getdns_return_t
 create_default_namespaces(struct getdns_context *context)
 {
 	context->namespaces = GETDNS_XMALLOC(context->my_mf, getdns_namespace_t, 2);
@@ -147,7 +147,7 @@ create_default_namespaces(struct getdns_context *context)
 /**
  * Helper to get default transports.
  */
-getdns_return_t
+static getdns_return_t
 create_default_dns_transports(struct getdns_context *context)
 {
 	context->dns_transports = GETDNS_XMALLOC(context->my_mf, getdns_transport_list_t, 2);

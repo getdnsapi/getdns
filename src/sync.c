@@ -218,10 +218,4 @@ getdns_service_sync(getdns_context *context, const char *name,
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 
-void
-getdns_free_sync_request_memory(struct getdns_dict *response)
-{
-	getdns_dict_destroy(response);
-}
-
 /* getdns_core_sync.c */
