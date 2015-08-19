@@ -192,6 +192,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ldns/ldns.h>
+#include <openssl/sha.h>
 #include "getdns/getdns.h"
 #include "config.h"
 #include "context.h"
@@ -252,7 +253,7 @@ static int _dname_is_parent(
 	return *parent == 0;
 }
 
-static uint8_t *_dname_label_copy(uint8_t *dst, uint8_t *src, size_t dst_len)
+static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_len)
 {
 	uint8_t *r = dst, i;
 
@@ -1445,21 +1446,37 @@ static int _getdns_verify_rrsig(
 static uint8_t *_getdns_nsec3_hash_label(uint8_t *label, size_t label_len,
     uint8_t *name, uint8_t algorithm, uint16_t iterations, uint8_t *salt)
 {
-	ldns_rdf name_l = { _dname_len(name), LDNS_RDF_TYPE_DNAME, name };
-	ldns_rdf *hname_l;
-	
-	if (!(hname_l = ldns_nsec3_hash_name(
-	    &name_l, algorithm, iterations, *salt, salt + 1)))
+	uint8_t buf[512], *dst, *eob;
+	const uint8_t *src;
+	uint8_t md[SHA_DIGEST_LENGTH + 256];
+
+	assert(SHA_DIGEST_LENGTH + 256 < sizeof(buf));
+
+	if (algorithm != GLDNS_SHA1)
 		return NULL;
 
-	if (   label_len < hname_l->_size-1 
-	    || label_len < *((uint8_t *)hname_l->_data) + 1
-	    || hname_l->_size-1 < *((uint8_t *)hname_l->_data) + 1) {
-		ldns_rdf_deep_free(hname_l);
+	for ( src = name, dst = buf, eob = buf + sizeof(buf)
+	    ; *src && dst + *src < eob
+	    ;  src += *src + 1, dst += *dst + 1 )
+		_dname_label_copy(dst, src, eob - dst);
+
+	if (*src || dst + *salt >= eob)
 		return NULL;
+	*dst++ = 0;
+	(void)memcpy(dst, salt + 1, *salt);
+	dst += *salt;
+
+	(void)SHA1(buf, dst - buf, md);
+	if (iterations) {
+		(void)memcpy(buf + SHA_DIGEST_LENGTH, salt + 1, *salt);
+		while (iterations--) {
+			(void)memcpy(buf, md, SHA_DIGEST_LENGTH);
+			SHA1(buf, SHA_DIGEST_LENGTH + *salt, md);
+		}
 	}
-	memcpy(label, hname_l->_data,  *((uint8_t *)hname_l->_data) + 1);
-	ldns_rdf_deep_free(hname_l);
+	*label = gldns_b32_ntop_extended_hex(
+	    md, SHA_DIGEST_LENGTH, (char *)label + 1, label_len - 1);
+
 	return label;
 }
 
