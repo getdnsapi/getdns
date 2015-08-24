@@ -114,4 +114,5 @@ getdns_snprint_json_dict
 getdns_snprint_json_list
 getdns_strerror
 getdns_validate_dnssec
+plain_mem_funcs_user_arg
 priv_getdns_context_mf

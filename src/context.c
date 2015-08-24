@@ -61,7 +61,7 @@
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "1021"
 
-void *_getdns_plain_mem_funcs_user_arg = MF_PLAIN;
+void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 typedef struct host_name_addrs {
 	_getdns_rbnode_t node;
