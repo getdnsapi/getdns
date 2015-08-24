@@ -111,8 +111,8 @@ struct getdns_network_req;
 
 typedef void (*internal_cb_t)(struct getdns_dns_req *dns_req);
 
-#define MF_PLAIN ((void *)&plain_mem_funcs_user_arg)
-extern void *plain_mem_funcs_user_arg;
+#define MF_PLAIN ((void *)&_getdns_plain_mem_funcs_user_arg)
+extern void *_getdns_plain_mem_funcs_user_arg;
 
 typedef union {
         struct {
