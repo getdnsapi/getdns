@@ -33,6 +33,12 @@
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
 
+#if 0 
+#define DEBUG_GQ(...) do {fprintf(stderr, __VA_ARGS__);} while (0)
+#else
+#define DEBUG_GQ(...) do {} while (0)
+#endif
+
 #define MAX_TIMEOUTS FD_SETSIZE
 
 /* Eventloop based on select */
@@ -69,14 +75,16 @@ my_eventloop_schedule(getdns_eventloop *loop,
 	assert(event);
 	assert(fd < FD_SETSIZE);
 
+	DEBUG_GQ( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
+	        , __FUNCTION__, loop, fd, timeout, event);
 	if (fd >= 0 && (event->read_cb || event->write_cb)) {
-		assert(event->read_cb || event->write_cb);
 		assert(my_loop->fd_events[fd] == NULL);
 
 		my_loop->fd_events[fd] = event;
 		my_loop->fd_timeout_times[fd] = get_now_plus(timeout);
-		event->ev = (void *) (intptr_t) fd;
+		event->ev = (void *) (intptr_t) fd + 1;
 
+		DEBUG_GQ( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
 	}
 
@@ -86,8 +94,9 @@ my_eventloop_schedule(getdns_eventloop *loop,
 		if (my_loop->timeout_events[i] == NULL) {
 			my_loop->timeout_events[i] = event;
 			my_loop->timeout_times[i] = get_now_plus(timeout);
-			event->ev = (void *) (intptr_t) i;
+			event->ev = (void *) (intptr_t) i + 1;
 
+			DEBUG_GQ( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
 		}
 	}
@@ -98,16 +107,22 @@ getdns_return_t
 my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 {
 	my_eventloop *my_loop = (my_eventloop *)loop;
+	size_t i;
 
 	assert(loop);
 	assert(event);
 
+	DEBUG_GQ( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
+
+	i = (intptr_t)event->ev - 1;
+	assert(i >= 0 && i < FD_SETSIZE);
+
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
-		assert(my_loop->timeout_events[(intptr_t)event->ev] == event);
-		my_loop->timeout_events[(intptr_t)event->ev] = NULL;
+		assert(my_loop->timeout_events[i] == event);
+		my_loop->timeout_events[i] = NULL;
 	} else {
-		assert(my_loop->fd_events[(intptr_t)event->ev] == event);
-		my_loop->fd_events[(intptr_t)event->ev] = NULL;
+		assert(my_loop->fd_events[i] == event);
+		my_loop->fd_events[i] = NULL;
 	}
 	event->ev = NULL;
 	return GETDNS_RETURN_GOOD;
@@ -119,17 +134,19 @@ void my_eventloop_cleanup(getdns_eventloop *loop)
 
 void my_read_cb(int fd, getdns_eventloop_event *event)
 {
+	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->read_cb(event->userarg);
 }
 
 void my_write_cb(int fd, getdns_eventloop_event *event)
 {
+	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->write_cb(event->userarg);
 }
 
-void my_timeout_cb(uint64_t now, uint64_t timeout,
-		   int fd, getdns_eventloop_event *event)
+void my_timeout_cb(int fd, getdns_eventloop_event *event)
 {
+	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->timeout_cb(event->userarg);
 }
 
@@ -153,7 +170,7 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (!my_loop->timeout_events[i])
 			continue;
 		if (now > my_loop->timeout_times[i])
-			my_timeout_cb(now, my_loop->timeout_times[i], -1, my_loop->timeout_events[i]);
+			my_timeout_cb(-1, my_loop->timeout_events[i]);
 		else if (my_loop->timeout_times[i] < timeout)
 			timeout = my_loop->timeout_times[i];
 	}
@@ -198,13 +215,13 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (my_loop->fd_events[fd] &&
 		    my_loop->fd_events[fd]->timeout_cb &&
 		    now > my_loop->fd_timeout_times[fd])
-			my_timeout_cb(now, my_loop->fd_timeout_times[fd], fd, my_loop->fd_events[fd]);
+			my_timeout_cb(fd, my_loop->fd_events[fd]);
 
 		i = fd;
 		if (my_loop->timeout_events[i] &&
 		    my_loop->timeout_events[i]->timeout_cb &&
 		    now > my_loop->timeout_times[i])
-			my_timeout_cb(now, my_loop->timeout_times[i], -1, my_loop->timeout_events[i]);
+			my_timeout_cb(-1, my_loop->timeout_events[i]);
 	}
 }
 
