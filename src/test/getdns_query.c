@@ -29,7 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
@@ -56,7 +55,7 @@ static uint64_t get_now_plus(uint64_t amount)
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
 
-	return (now + amount) > now ? now + amount : -1;
+	return (now + amount * 1000) >= now ? now + amount * 1000 : -1;
 }
 
 getdns_return_t
@@ -70,7 +69,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 	assert(event);
 	assert(fd < FD_SETSIZE);
 
-	if (fd >= 0) {
+	if (fd >= 0 && (event->read_cb || event->write_cb)) {
 		assert(event->read_cb || event->write_cb);
 		assert(my_loop->fd_events[fd] == NULL);
 
@@ -110,11 +109,28 @@ my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 		assert(my_loop->fd_events[(intptr_t)event->ev] == event);
 		my_loop->fd_events[(intptr_t)event->ev] = NULL;
 	}
+	event->ev = NULL;
 	return GETDNS_RETURN_GOOD;
 }
 
 void my_eventloop_cleanup(getdns_eventloop *loop)
 {
+}
+
+void my_read_cb(int fd, getdns_eventloop_event *event)
+{
+	event->read_cb(event->userarg);
+}
+
+void my_write_cb(int fd, getdns_eventloop_event *event)
+{
+	event->write_cb(event->userarg);
+}
+
+void my_timeout_cb(uint64_t now, uint64_t timeout,
+		   int fd, getdns_eventloop_event *event)
+{
+	event->timeout_cb(event->userarg);
 }
 
 void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
@@ -134,10 +150,10 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	now = get_now_plus(0);
 
 	for (i = 0; i < MAX_TIMEOUTS; i++) {
-		if (my_loop->timeout_events[i] &&
-		    now > my_loop->timeout_times[i])
-			my_loop->timeout_events[i]->timeout_cb(
-			    my_loop->timeout_events[i]->userarg);
+		if (!my_loop->timeout_events[i])
+			continue;
+		if (now > my_loop->timeout_times[i])
+			my_timeout_cb(now, my_loop->timeout_times[i], -1, my_loop->timeout_events[i]);
 		else if (my_loop->timeout_times[i] < timeout)
 			timeout = my_loop->timeout_times[i];
 	}
@@ -160,10 +176,10 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_sec = 0;
 		tv.tv_usec = 0;
 	} else {
-		tv.tv_sec  = timeout / 1000000;
-		tv.tv_usec = timeout % 1000000;
+		tv.tv_sec  = (timeout - now) / 1000000;
+		tv.tv_usec = (timeout - now) % 1000000;
 	}
-	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv)) {
+	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv) < 0) {
 		perror("select() failed");
 		exit(EXIT_FAILURE);
 	}
@@ -172,27 +188,23 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (my_loop->fd_events[fd] &&
 		    my_loop->fd_events[fd]->read_cb &&
 		    FD_ISSET(fd, &readfds))
-			my_loop->fd_events[fd]->read_cb(
-			    my_loop->fd_events[fd]->userarg);
+			my_read_cb(fd, my_loop->fd_events[fd]);
 
 		if (my_loop->fd_events[fd] &&
 		    my_loop->fd_events[fd]->write_cb &&
 		    FD_ISSET(fd, &writefds))
-			my_loop->fd_events[fd]->write_cb(
-			    my_loop->fd_events[fd]->userarg);
+			my_write_cb(fd, my_loop->fd_events[fd]);
 
 		if (my_loop->fd_events[fd] &&
 		    my_loop->fd_events[fd]->timeout_cb &&
 		    now > my_loop->fd_timeout_times[fd])
-			my_loop->fd_events[fd]->timeout_cb(
-			    my_loop->fd_events[fd]->userarg);
+			my_timeout_cb(now, my_loop->fd_timeout_times[fd], fd, my_loop->fd_events[fd]);
 
 		i = fd;
 		if (my_loop->timeout_events[i] &&
 		    my_loop->timeout_events[i]->timeout_cb &&
 		    now > my_loop->timeout_times[i])
-			my_loop->timeout_events[i]->timeout_cb(
-			    my_loop->timeout_events[i]->userarg);
+			my_timeout_cb(now, my_loop->timeout_times[i], -1, my_loop->timeout_events[i]);
 	}
 }
 
