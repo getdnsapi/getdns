@@ -30,8 +30,203 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
+
+#define MAX_TIMEOUTS FD_SETSIZE
+
+/* Eventloop based on select */
+typedef struct my_eventloop {
+	getdns_eventloop        base;
+	getdns_eventloop_event *fd_events[FD_SETSIZE];
+	uint64_t                fd_timeout_times[FD_SETSIZE];
+	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
+	uint64_t                timeout_times[MAX_TIMEOUTS];
+} my_eventloop;
+
+static uint64_t get_now_plus(uint64_t amount)
+{
+	struct timeval tv;
+	uint64_t       now;
+	
+	if (gettimeofday(&tv, NULL)) {
+		perror("gettimeofday() failed");
+		exit(EXIT_FAILURE);
+	}
+	now = tv.tv_sec * 1000000 + tv.tv_usec;
+
+	return (now + amount) > now ? now + amount : -1;
+}
+
+getdns_return_t
+my_eventloop_schedule(getdns_eventloop *loop,
+    int fd, uint64_t timeout, getdns_eventloop_event *event)
+{
+	my_eventloop *my_loop  = (my_eventloop *)loop;
+	size_t        i;
+
+	assert(loop);
+	assert(event);
+	assert(fd < FD_SETSIZE);
+
+	if (fd >= 0) {
+		assert(event->read_cb || event->write_cb);
+		assert(my_loop->fd_events[fd] == NULL);
+
+		my_loop->fd_events[fd] = event;
+		my_loop->fd_timeout_times[fd] = get_now_plus(timeout);
+		event->ev = (void *) (intptr_t) fd;
+
+		return GETDNS_RETURN_GOOD;
+	}
+
+	assert(event->timeout_cb && !event->read_cb && !event->write_cb);
+
+	for (i = 0; i < MAX_TIMEOUTS; i++) {
+		if (my_loop->timeout_events[i] == NULL) {
+			my_loop->timeout_events[i] = event;
+			my_loop->timeout_times[i] = get_now_plus(timeout);
+			event->ev = (void *) (intptr_t) i;
+
+			return GETDNS_RETURN_GOOD;
+		}
+	}
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+
+getdns_return_t
+my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
+{
+	my_eventloop *my_loop = (my_eventloop *)loop;
+
+	assert(loop);
+	assert(event);
+
+	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
+		assert(my_loop->timeout_events[(intptr_t)event->ev] == event);
+		my_loop->timeout_events[(intptr_t)event->ev] = NULL;
+	} else {
+		assert(my_loop->fd_events[(intptr_t)event->ev] == event);
+		my_loop->fd_events[(intptr_t)event->ev] = NULL;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+void my_eventloop_cleanup(getdns_eventloop *loop)
+{
+}
+
+void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
+{
+	my_eventloop *my_loop = (my_eventloop *)loop;
+
+	fd_set   readfds, writefds;
+	int      fd, max_fd = -1;
+	uint64_t now, timeout = (uint64_t)-1;
+	size_t   i;
+	struct timeval tv;
+
+	assert(loop);
+
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	now = get_now_plus(0);
+
+	for (i = 0; i < MAX_TIMEOUTS; i++) {
+		if (my_loop->timeout_events[i] &&
+		    now > my_loop->timeout_times[i])
+			my_loop->timeout_events[i]->timeout_cb(
+			    my_loop->timeout_events[i]->userarg);
+		else if (my_loop->timeout_times[i] < timeout)
+			timeout = my_loop->timeout_times[i];
+	}
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		if (!my_loop->fd_events[fd])
+			continue;
+		if (my_loop->fd_events[fd]->read_cb)
+			FD_SET(fd, &readfds);
+		if (my_loop->fd_events[fd]->write_cb)
+			FD_SET(fd, &writefds);
+		if (fd > max_fd)
+			max_fd = fd;
+		if (my_loop->fd_timeout_times[fd] < timeout)
+			timeout = my_loop->fd_timeout_times[fd];
+	}
+	if (max_fd == -1 && timeout == (uint64_t)-1)
+		return;
+
+	if (! blocking || now > timeout) {
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+	} else {
+		tv.tv_sec  = timeout / 1000000;
+		tv.tv_usec = timeout % 1000000;
+	}
+	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv)) {
+		perror("select() failed");
+		exit(EXIT_FAILURE);
+	}
+	now = get_now_plus(0);
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		if (my_loop->fd_events[fd] &&
+		    my_loop->fd_events[fd]->read_cb &&
+		    FD_ISSET(fd, &readfds))
+			my_loop->fd_events[fd]->read_cb(
+			    my_loop->fd_events[fd]->userarg);
+
+		if (my_loop->fd_events[fd] &&
+		    my_loop->fd_events[fd]->write_cb &&
+		    FD_ISSET(fd, &writefds))
+			my_loop->fd_events[fd]->write_cb(
+			    my_loop->fd_events[fd]->userarg);
+
+		if (my_loop->fd_events[fd] &&
+		    my_loop->fd_events[fd]->timeout_cb &&
+		    now > my_loop->fd_timeout_times[fd])
+			my_loop->fd_events[fd]->timeout_cb(
+			    my_loop->fd_events[fd]->userarg);
+
+		i = fd;
+		if (my_loop->timeout_events[i] &&
+		    my_loop->timeout_events[i]->timeout_cb &&
+		    now > my_loop->timeout_times[i])
+			my_loop->timeout_events[i]->timeout_cb(
+			    my_loop->timeout_events[i]->userarg);
+	}
+}
+
+void my_eventloop_run(getdns_eventloop *loop)
+{
+	my_eventloop *my_loop = (my_eventloop *)loop;
+	size_t        i;
+
+	assert(loop);
+
+	i = 0;
+	while (i < MAX_TIMEOUTS) {
+		if (my_loop->fd_events[i] || my_loop->timeout_events[i]) {
+			my_eventloop_run_once(loop, 1);
+			i = 0;
+		} else {
+			i++;
+		}
+	}
+}
+
+void my_eventloop_init(my_eventloop *loop)
+{
+	static getdns_eventloop_vmt my_eventloop_vmt = {
+		my_eventloop_cleanup,
+		my_eventloop_schedule,
+		my_eventloop_clear,
+		my_eventloop_run,
+		my_eventloop_run_once
+	};
+
+	(void) memset(loop, 0, sizeof(my_eventloop));
+	loop->base.vmt = &my_eventloop_vmt;
+}
 
 static int quiet = 0;
 static int batch_mode = 0;
@@ -608,11 +803,16 @@ main(int argc, char **argv)
 	getdns_return_t r;
 	getdns_dict *address = NULL;
 	FILE *fp = NULL;
+	my_eventloop my_loop;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
 		fprintf(stderr, "Create context failed: %d\n", r);
 		return r;
+	}
+	my_eventloop_init(&my_loop);
+	if ((r = getdns_context_set_eventloop(context, &my_loop.base))) {
+		goto done_destroy_context;
 	}
 	extensions = getdns_dict_create();
 	if (! extensions) {
