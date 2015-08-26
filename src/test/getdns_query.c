@@ -824,15 +824,149 @@ next:		;
 	return r;
 }
 
+getdns_return_t do_the_call(void)
+{
+	getdns_return_t r;
+	getdns_dict *address = NULL;
+	getdns_dict *response = NULL;
+	char *response_str;
+	uint32_t status;
+
+	if (calltype == HOSTNAME &&
+	    !(address = ipaddr_dict(context, name))) {
+		fprintf(stderr, "Could not convert \"%s\" "
+				"to an IP address", name);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (async) {
+		switch (calltype) {
+		case GENERAL:
+			r = getdns_general(context, name, request_type,
+			    extensions, &response, NULL, callback);
+			break;
+		case ADDRESS:
+			r = getdns_address(context, name,
+			    extensions, &response, NULL, callback);
+			break;
+		case HOSTNAME:
+			r = getdns_hostname(context, address,
+			    extensions, &response, NULL, callback);
+			break;
+		case SERVICE:
+			r = getdns_service(context, name,
+			    extensions, &response, NULL, callback);
+			break;
+		default:
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		if (r == GETDNS_RETURN_GOOD && !batch_mode) 
+			getdns_context_run(context);
+	} else {
+		switch (calltype) {
+		case GENERAL:
+			r = getdns_general_sync(context, name,
+			    request_type, extensions, &response);
+			break;
+		case ADDRESS:
+			r = getdns_address_sync(context, name,
+			    extensions, &response);
+			break;
+		case HOSTNAME:
+			r = getdns_hostname_sync(context, address,
+			    extensions, &response);
+			break;
+		case SERVICE:
+			r = getdns_service_sync(context, name,
+			    extensions, &response);
+			break;
+		default:
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		if (r != GETDNS_RETURN_GOOD) {
+			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				 getdns_get_errorstr_by_id(r));
+			return r;
+		}
+		if (response && !quiet) {
+			if ((response_str = json ?
+			    getdns_print_json_dict(response, json == 1)
+			  : getdns_pretty_print_dict(response))) {
+
+				fprintf( stdout, "SYNC response:\n%s\n"
+				       , response_str);
+				validate_chain(response);
+				free(response_str);
+			} else {
+				r = GETDNS_RETURN_MEMORY_ERROR;
+				fprintf( stderr
+				       , "Could not print response\n");
+			}
+		}
+		getdns_dict_get_int(response, "status", &status);
+		fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
+			 getdns_get_errorstr_by_id(status));
+		if (response)
+			getdns_dict_destroy(response);
+	}
+	return r;
+}
+
+my_eventloop my_loop;
+FILE *fp;
+
+void read_line_cb(void *userarg)
+{
+	getdns_eventloop_event *read_line_ev = userarg;
+	getdns_return_t r;
+
+	char line[1024], *token, *linev[256];
+	int linec;
+
+	if (!fgets(line, 1024, fp) || !*line) {
+		if (query_file)
+			fprintf(stdout,"End of file.");
+		my_eventloop_clear(&my_loop.base, read_line_ev);
+		return;
+	}
+	if (query_file)
+		fprintf(stdout,"Found query: %s", line);
+
+	linev[0] = __FILE__;
+	linec = 1;
+	if (!(token = strtok(line, " \t\f\n\r"))) {
+		if (! query_file) {
+			printf("> ");
+			fflush(stdout);
+		}
+		return;
+	}
+	if (*token == '#') {
+		fprintf(stdout,"Result:      Skipping comment\n");
+		if (! query_file) {
+			printf("> ");
+			fflush(stdout);
+		}
+		return;
+	}
+	do linev[linec++] = token;
+	while (linec < 256 && (token = strtok(NULL, " \t\f\n\r")));
+
+	if (((r = parse_args(linec, linev)) || (r = do_the_call())) &&
+	    (r != CONTINUE && r != CONTINUE_ERROR))
+		my_eventloop_clear(&my_loop.base, read_line_ev);
+
+	else if (! query_file) {
+		printf("> ");
+		fflush(stdout);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
-	getdns_dict *response = NULL;
-	char *response_str;
 	getdns_return_t r;
-	getdns_dict *address = NULL;
-	FILE *fp = NULL;
-	my_eventloop my_loop;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -858,132 +992,30 @@ main(int argc, char **argv)
 			fprintf(stderr, "Could not open query file: %s\n", query_file);
 			goto done_destroy_context;
 		}
-	}
+	} else
+		fp = stdin;
 
 	/* Make the call */
-	do {
-		char line[1024], *token, *linev[256];
-		int linec;
-		if (interactive) {
-			if (!query_file) {
-				fprintf(stdout, "> ");
-				if (!fgets(line, 1024, stdin) || !*line)
-					break;
-			} else {
-				if (!fgets(line, 1024, fp) || !*line) {
-					fprintf(stdout,"End of file.");
-					break;
-				}
-				fprintf(stdout,"Found query: %s", line);
-			}
-
-			linev[0] = argv[0];
-			linec = 1;
-			if ( ! (token = strtok(line, " \t\f\n\r")))
-				continue;
-			if (*token == '#') {
-				fprintf(stdout,"Result:      Skipping comment\n");
-					continue;
-			}
-			do linev[linec++] = token;
-			while (linec < 256 &&
-			    (token = strtok(NULL, " \t\f\n\r")));
-			if ((r = parse_args(linec, linev))) {
-				if (r == CONTINUE || r == CONTINUE_ERROR)
-					continue;
-				else
-					goto done_destroy_context;
-			}
-
+	if (interactive) {
+		getdns_eventloop_event read_line_ev = {
+		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
+		(void) my_eventloop_schedule(
+		    &my_loop.base, fileno(fp), -1, &read_line_ev);
+		if (!query_file) {
+			printf("> ");
+			fflush(stdout);
 		}
-		if (calltype == HOSTNAME &&
-		    !(address = ipaddr_dict(context, name))) {
-			fprintf(stderr, "Could not convert \"%s\" "
-			                "to an IP address", name);
-			continue;
-		}
-		if (async) {
-			switch (calltype) {
-			case GENERAL:
-				r = getdns_general(context, name, request_type,
-				    extensions, &response, NULL, callback);
-				break;
-			case ADDRESS:
-				r = getdns_address(context, name,
-				    extensions, &response, NULL, callback);
-				break;
-			case HOSTNAME:
-				r = getdns_hostname(context, address,
-				    extensions, &response, NULL, callback);
-				break;
-			case SERVICE:
-				r = getdns_service(context, name,
-				    extensions, &response, NULL, callback);
-				break;
-			default:
-				r = GETDNS_RETURN_GENERIC_ERROR;
-				break;
-			}
-			if (r)
-				goto done_destroy_extensions;
-			if (!batch_mode) 
-				getdns_context_run(context);
-		} else {
-			switch (calltype) {
-			case GENERAL:
-				r = getdns_general_sync(context, name,
-				    request_type, extensions, &response);
-				break;
-			case ADDRESS:
-				r = getdns_address_sync(context, name,
-				    extensions, &response);
-				break;
-			case HOSTNAME:
-				r = getdns_hostname_sync(context, address,
-				    extensions, &response);
-				break;
-			case SERVICE:
-				r = getdns_service_sync(context, name,
-				    extensions, &response);
-				break;
-			default:
-				r = GETDNS_RETURN_GENERIC_ERROR;
-				break;
-			}
-			if (response && !quiet) {
-				if ((response_str = json ?
-				    getdns_print_json_dict(response, json == 1)
-				  : getdns_pretty_print_dict(response))) {
+		my_eventloop_run(&my_loop.base);
+	}
+	else
+		r = do_the_call();
 
-					fprintf( stdout, "SYNC response:\n%s\n"
-					       , response_str);
-					validate_chain(response);
-					free(response_str);
-				} else {
-					r = GETDNS_RETURN_MEMORY_ERROR;
-					fprintf( stderr
-					       , "Could not print response\n");
-				}
-			}
-			if (r == GETDNS_RETURN_GOOD) {
-				uint32_t status;
-				getdns_dict_get_int(response, "status", &status);
-				fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
-				         getdns_get_errorstr_by_id(status));
-			} else
-				fprintf(stderr, "An error occurred: %d '%s'\n", r,
-				         getdns_get_errorstr_by_id(r));
-		}
-	} while (interactive);
-
-	if (batch_mode) 
+	if ((r == GETDNS_RETURN_GOOD && batch_mode))
 		getdns_context_run(context);
 
 	/* Clean up */
-done_destroy_extensions:
 	getdns_dict_destroy(extensions);
 done_destroy_context:
-	if (response) getdns_dict_destroy(response);
 	getdns_context_destroy(context);
 
 	if (fp)
