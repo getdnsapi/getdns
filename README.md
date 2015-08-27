@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-05-20
+* Date:    2015-08-27
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -226,6 +226,7 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 
 Contributors
 ============
+* Theogene Bucuti
 * Craig Despeaux, Verisign, Inc.
 * John Dickinson, Sinodun
 * Sara Dickinson, Sinodun
@@ -235,10 +236,12 @@ Contributors
 * Olaf Kolkman, NLnet Labs
 * Sanjay Mahurpawar, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
+* Sai Mogali, Verisign, Inc.
 * Benno Overeinder, NLnet Labs
 * Prithvi Ranganath, Verisign, Inc.
 * Rushi Shah, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
+* Bob Steagall, Verisign, Inc.
 * Willem Toorop, NLnet Labs
 * Gowri Visweswaran, Verisign Labs
 * Wouter Wijngaards, NLnet Labs
