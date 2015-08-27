@@ -37,6 +37,7 @@
 #include <arpa/inet.h>
 #include <locale.h>
 #include <stringprep.h>
+#include "config.h"
 #ifdef HAVE_LIBIDN
 #include <idna.h>
 #endif
