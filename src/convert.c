@@ -37,7 +37,9 @@
 #include <arpa/inet.h>
 #include <locale.h>
 #include <stringprep.h>
+#ifdef HAVE_LIBIDN
 #include <idna.h>
+#endif
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "util-internal.h"
@@ -102,6 +104,7 @@ getdns_convert_fqdn_to_dns_name(
 char *
 getdns_convert_ulabel_to_alabel(const char *ulabel)
 {
+#ifdef HAVE_LIBIDN
     int ret;
     char *buf;
     char *prepped;
@@ -139,6 +142,9 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
     }
     free(prepped2);
     return buf;
+#else
+    return NULL;
+#endif
 }
 
 /*---------------------------------------- getdns_convert_alabel_to_ulabel */
@@ -155,6 +161,7 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
 char *
 getdns_convert_alabel_to_ulabel(const char *alabel)
 {
+#ifdef HAVE_LIBIDN
     int  ret;              /* just in case we might want to use it someday */
     char *buf;
 
@@ -164,6 +171,9 @@ getdns_convert_alabel_to_ulabel(const char *alabel)
         return NULL;
     }
     return buf;
+#else
+    return NULL;
+#endif
 }
 
 

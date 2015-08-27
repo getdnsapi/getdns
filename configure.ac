@@ -209,6 +209,7 @@ AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the
 
 # search to set include and library paths right
 # find libidn
+my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
 	[path to libidn (default: search /usr/local ..)]),
 	[], [withval="yes"])
@@ -236,6 +237,8 @@ else
 	if test x_$withval != x_no; then
 		CFLAGS="$CFLAGS -I$withval/include"
 		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		my_with_libidn=0
 	fi
 fi
 
@@ -287,19 +290,23 @@ fi
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependency ldns])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
-AC_MSG_NOTICE([Checking for dependency libidn])
-AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+
+if test $my_with_libidn = 1
+then
+	AC_MSG_NOTICE([Checking for dependency libidn])
+	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+fi
 
 AC_CHECK_MEMBER([struct ldns_struct_dnssec_zone.hashed_names],
 [AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns/ldns.h>]])
 
-if test $my_with_libunbound == 1
+if test $my_with_libunbound = 1
 then
 	AC_MSG_NOTICE([Checking for dependency libunbound])
 	AC_CHECK_LIB([unbound], [ub_fd], [], [found_all_libs=0])
 fi
 
-if test $found_all_libs == 0
+if test $found_all_libs = 0
 then
     AC_MSG_ERROR([One more dependencies is missing])
 fi
