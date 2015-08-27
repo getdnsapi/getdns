@@ -1,4 +1,13 @@
-* 2015-07.18: Version 0.3.1
+* 2015-09-??: Version 0.3.2
+  * Fix returned upstreams list by getdns_context_get_api_information()
+  * Fix some autoconf issues when srcdir != builddir
+  * Fix remove build date from manpage version for reproducable builds
+    Thanks DKG
+  * Fix transport fallback issues plus transport fallback unit test script
+  * Fix string bindata's need not contain trailing zero byte
+  * --without-libunbound configure option.  For stub only operation.
+
+* 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields
 
 * 2015-07-17: Version 0.3.0
