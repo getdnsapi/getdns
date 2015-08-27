@@ -974,9 +974,10 @@ main(int argc, char **argv)
 		return r;
 	}
 	my_eventloop_init(&my_loop);
-	if ((r = getdns_context_set_eventloop(context, &my_loop.base))) {
+	if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
 		goto done_destroy_context;
-	}
+	if ((r = getdns_context_set_use_threads(context, 1)))
+		goto done_destroy_context;
 	extensions = getdns_dict_create();
 	if (! extensions) {
 		fprintf(stderr, "Could not create extensions dict\n");
