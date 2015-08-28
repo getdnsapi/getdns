@@ -824,7 +824,11 @@ getdns_context_create_with_extended_memory_functions(
 	_getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
 	_getdns_rbtree_init(&result->local_hosts, local_host_cmp);
 
+#ifdef HAVE_LIBUNBOUND
 	result->resolution_type = GETDNS_RESOLUTION_RECURSING;
+#else
+	result->resolution_type = GETDNS_RESOLUTION_STUB;
+#endif
 	if ((r = create_default_namespaces(result)))
 		goto error;
 

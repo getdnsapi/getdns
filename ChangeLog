@@ -2,10 +2,10 @@
   * Fix returned upstreams list by getdns_context_get_api_information()
   * Fix some autoconf issues when srcdir != builddir
   * Fix remove build date from manpage version for reproducable builds
-    Thanks DKG
   * Fix transport fallback issues plus transport fallback unit test script
   * Fix string bindata's need not contain trailing zero byte
-  * --without-libunbound configure option.  For stub only operation.
+  * --enable-stub-only configure option for stub only operation.
+    Stub mode will be the default.  Removes the dependency on libunbound
 
 * 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields

@@ -208,6 +208,16 @@ esac
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the edns client cookie is refreshed.])
 
+my_with_libunbound=1
+AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
+case "$enable_stub_only" in
+	yes)
+		my_with_libunbound=0
+		;;
+	no|*)
+		;;
+esac
+
 # search to set include and library paths right
 # find libidn
 my_with_libidn=1
@@ -263,27 +273,29 @@ else
 	fi
 fi
 
-my_with_libunbound=1
-# find libunbound
-AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
-	[path to libunbound (default: search /usr/local ..)]),
-	[], [withval="yes"])
-if test x_$withval = x_yes; then
-	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-		if test -f "$dir/include/unbound.h"; then
-			CFLAGS="$CFLAGS -I$dir/include"
-			LDFLAGS="$LDFLAGS -L$dir/lib"
-			AC_MSG_NOTICE([Found libunbound in $dir])
-			break
-		fi
-	done
-else
-	if test x_$withval != x_no; then
-		CFLAGS="$CFLAGS -I$withval/include"
-		LDFLAGS="$LDFLAGS -L$withval/lib"
+if test $my_with_libunbound = 1
+then
+	# find libunbound
+	AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
+		[path to libunbound (default: search /usr/local ..)]),
+		[], [withval="yes"])
+	if test x_$withval = x_yes; then
+		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+			if test -f "$dir/include/unbound.h"; then
+				CFLAGS="$CFLAGS -I$dir/include"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libunbound in $dir])
+				break
+			fi
+		done
 	else
-		AC_DEFINE_UNQUOTED([DISABLE_RESOLUTION_RECURSING], [1], [Define this to disable recursing resolution type.])
-		my_with_libunbound=0
+		if test x_$withval != x_no; then
+			CFLAGS="$CFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		else
+			AC_DEFINE_UNQUOTED([DISABLE_RESOLUTION_RECURSING], [1], [Define this to disable recursing resolution type.])
+			my_with_libunbound=0
+		fi
 	fi
 fi
 
