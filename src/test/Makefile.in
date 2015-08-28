@@ -131,6 +131,9 @@ install: getdns_query
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp getdns_query $(DESTDIR)$(bindir)
 
+uninstall:
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/getdns_query
+
 nolibcheck:
 	@echo "***"
 	@echo "*** Cannot run unit tests, because they could not be compiled,"

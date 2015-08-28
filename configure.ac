@@ -218,6 +218,23 @@ case "$enable_stub_only" in
 		;;
 esac
 
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
+	[Also compile and install the getdns_query tool]),
+	[], [withval="no"])
+if test x_$withval = x_no; then
+	GETDNS_QUERY=""
+	INSTALL_GETDNS_QUERY=""
+	UNINSTALL_GETDNS_QUERY=""
+else
+	GETDNS_QUERY="getdns_query"
+	INSTALL_GETDNS_QUERY="install-getdns_query"
+	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
+fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
+
 # search to set include and library paths right
 # find libidn
 my_with_libidn=1

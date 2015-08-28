@@ -6,6 +6,7 @@
   * Fix string bindata's need not contain trailing zero byte
   * --enable-stub-only configure option for stub only operation.
     Stub mode will be the default.  Removes the dependency on libunbound
+  * --with-getdns_query compiles and installs the getdns_query tool too
 
 * 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields
