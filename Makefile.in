@@ -72,7 +72,7 @@ install: all @INSTALL_GETDNS_QUERY@
 	@echo "***"
 	@echo "***  We recomend using unbound-anchor to retrieve and install"
 	@echo "***  the root trust anchor like this: "
-	@echo "***        mkdir /etc/unbound"
+	@echo "***        mkdir -p `dirname @TRUST_ANCHOR_FILE@`"
 	@echo "***        unbound-anchor -a \"@TRUST_ANCHOR_FILE@\""
 	@echo "***"
 	@echo "***  We strongly recommend package maintainers to provide the"
