@@ -1,4 +1,4 @@
-* 2015-09-??: Version 0.3.2
+* 2015-09-04: Version 0.3.2
   * Fix returned upstreams list by getdns_context_get_api_information()
   * Fix some autoconf issues when srcdir != builddir
   * Fix remove build date from manpage version for reproducable builds
@@ -7,6 +7,7 @@
   * --enable-stub-only configure option for stub only operation.
     Stub mode will be the default.  Removes the dependency on libunbound
   * --with-getdns_query compiles and installs the getdns_query tool too
+  * Fix assert on context destruction from a callback in stub mode too.
 
 * 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields
