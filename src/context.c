@@ -2413,7 +2413,7 @@ upstream_port(getdns_upstream *upstream)
 }
 
 static getdns_dict*
-priv_get_context_settings(getdns_context* context) {
+_get_context_settings(getdns_context* context) {
     getdns_return_t r = GETDNS_RETURN_GOOD;
     getdns_dict* result = getdns_dict_create_with_context(context);
     if (!result) {
@@ -2505,7 +2505,7 @@ getdns_context_get_api_information(getdns_context* context) {
     r = getdns_dict_util_set_string(result, "version_string", PACKAGE_VERSION);
     r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
     r |= getdns_dict_set_int(result, "resolution_type", context->resolution_type);
-    settings = priv_get_context_settings(context);
+    settings = _get_context_settings(context);
     r |= getdns_dict_set_dict(result, "all_context", settings);
     getdns_dict_destroy(settings);
     if (r != GETDNS_RETURN_GOOD) {
