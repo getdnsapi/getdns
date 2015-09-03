@@ -951,7 +951,6 @@ getdns_context_destroy(struct getdns_context *context)
 		return;
 
 	context->destroying = 1;
-	context->processing = 1;
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
 
@@ -966,7 +965,6 @@ getdns_context_destroy(struct getdns_context *context)
 		ub_ctx_delete(context->unbound_ctx);
 #endif
 
-	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
 
 	if (context->namespaces)
@@ -1090,10 +1088,8 @@ _getdns_context_ub_read_cb(void *userarg)
 	 * (with context->extension->vmt->run*), because we are already
 	 * called from a running eventloop.
 	 */
-	context->processing = 1;
 	if (ub_poll(context->unbound_ctx))
 		(void) ub_process(context->unbound_ctx);
-	context->processing = 0;
 
 	/* No need to handle timeouts. They are handled by the extension. */
 
@@ -1925,9 +1921,12 @@ _getdns_context_cancel_request(getdns_context *context,
 	/* do the cancel */
 	cancel_dns_req(dnsreq);
 
-	if (fire_callback)
+	if (fire_callback) {
+		context->processing = 1;
 		dnsreq->user_callback(context, GETDNS_CALLBACK_CANCEL,
 		    NULL, dnsreq->user_pointer, transaction_id);
+		context->processing = 0;
+	}
 
 	/* clean up */
 	_getdns_dns_req_free(dnsreq);
@@ -1945,9 +1944,7 @@ getdns_cancel_callback(getdns_context *context,
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	context->processing = 1;
 	getdns_return_t r = _getdns_context_cancel_request(context, transaction_id, 1);
-	context->processing = 0;
 	getdns_context_request_count_changed(context);
 	return r;
 } /* getdns_cancel_callback */
@@ -2222,22 +2219,22 @@ _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
 }
 
 getdns_return_t
-_getdns_context_request_timed_out(struct getdns_dns_req *req)
+_getdns_context_request_timed_out(getdns_dns_req *req)
 {
-    /* Don't use req after callback */
-    getdns_context* context = req->context;
-    getdns_transaction_t trans_id = req->trans_id;
-    getdns_callback_t cb = req->user_callback;
-    void *user_arg = req->user_pointer;
-    getdns_dict *response = _getdns_create_getdns_response(req);
+	/* Don't use req after callback */
+	getdns_context* context = req->context;
+	getdns_transaction_t trans_id = req->trans_id;
+	getdns_callback_t cb = req->user_callback;
+	void *user_arg = req->user_pointer;
+	getdns_dict *response = _getdns_create_getdns_response(req);
 
-    /* cancel the req - also clears it from outbound and cleans up*/
-    _getdns_context_cancel_request(context, trans_id, 0);
-    context->processing = 1;
-    cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
-    context->processing = 0;
+	/* cancel the req - also clears it from outbound and cleans up*/
+	_getdns_context_cancel_request(context, trans_id, 0);
+	context->processing = 1;
+	cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
+	context->processing = 0;
 	getdns_context_request_count_changed(context);
-    return GETDNS_RETURN_GOOD;
+	return GETDNS_RETURN_GOOD;
 }
 
 char *
@@ -2321,13 +2318,10 @@ getdns_context_process_async(struct getdns_context* context)
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 #ifdef HAVE_LIBUNBOUND
-	context->processing = 1;
 	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
 		/* need an async return code? */
-		context->processing = 0;
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	context->processing = 0;
 #endif
 	context->extension->vmt->run_once(context->extension, 0);
 
@@ -2381,10 +2375,8 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	 * ( because callbacks occur in cancel_outstanding_requests,
 	 *   and they may destroy the context )
 	 */
-	context->processing = 1;
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
-	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->mini_event.loop;
 	return _getdns_mini_event_init(context, &context->mini_event);
