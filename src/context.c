@@ -631,7 +631,6 @@ set_os_defaults(struct getdns_context *context)
 	char line[1024], domain[1024];
 	char *parse, *token, prev_ch;
 	size_t upstreams_limit = 10, length;
-	struct getdns_bindata bindata;
 	struct addrinfo hints;
 	struct addrinfo *result;
 	getdns_upstream *upstream;
@@ -689,12 +688,7 @@ set_os_defaults(struct getdns_context *context)
 				prev_ch = *token;
 				*token = 0;
 
-				bindata.data = (uint8_t *)parse;
-				bindata.size = strlen(parse) + 1;
-				(void) getdns_list_get_length(
-				    context->suffix, &length);
-				(void) getdns_list_set_bindata(
-				    context->suffix, length, &bindata);
+				_getdns_list_append_string(context->suffix, parse);
 
 				*token = prev_ch;
 				parse = token;
@@ -731,11 +725,8 @@ set_os_defaults(struct getdns_context *context)
 	fclose(in);
 
 	(void) getdns_list_get_length(context->suffix, &length);
-	if (length == 0 && *domain != 0) {
-		bindata.data = (uint8_t *)domain;
-		bindata.size = strlen(domain) + 1;
-		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
-	}
+	if (length == 0 && *domain != 0)
+		_getdns_list_append_string(context->suffix, domain);
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 
