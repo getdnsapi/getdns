@@ -1,3 +1,6 @@
+* 2015-09-??: Version 0.3.3
+  * Fix clearing upstream events on shutdown
+	
 * 2015-09-04: Version 0.3.2
   * Fix returned upstreams list by getdns_context_get_api_information()
   * Fix some autoconf issues when srcdir != builddir
