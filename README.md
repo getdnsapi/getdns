@@ -96,8 +96,8 @@ package management system to install the compile time files.  If you checked
 out our git you need to copy the libtool helper scripts and rebuild configure
 with:
 
-    # libtoolize -fi
-    # autoreconf -ci
+    # libtoolize -ci
+    # autoreconf -fi
 
 ## Extensions / Event loop dependencies
 
