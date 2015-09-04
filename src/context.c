@@ -1106,6 +1106,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	}
 	/* setup */
 	context->unbound_ctx = ub_ctx_create();
+	(void) ub_ctx_async(context->unbound_ctx, 1)
 	context->unbound_ta_set = 0;
 	if (!context->unbound_ctx) {
 		return GETDNS_RETURN_MEMORY_ERROR;

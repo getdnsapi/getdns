@@ -8,6 +8,7 @@
     Stub mode will be the default.  Removes the dependency on libunbound
   * --with-getdns_query compiles and installs the getdns_query tool too
   * Fix assert on context destruction from a callback in stub mode too.
+  * Use a thread instead of a process for running the unbound event loop.
 
 * 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields
