@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-08-27
+* Date:    2015-09-04
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -93,7 +93,11 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 
 You have to install the library and also the library-devel (or -dev) for your
 package management system to install the compile time files.  If you checked
-out our git; the configure script is built with autoreconf --install.
+out our git you need to copy the libtool helper scripts and rebuild configure
+with:
+
+    # libtoolize -fi
+    # autoreconf -ci
 
 ## Extensions / Event loop dependencies
 
