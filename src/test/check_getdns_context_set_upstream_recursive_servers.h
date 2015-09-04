@@ -294,8 +294,8 @@
       struct getdns_list    *upstream_list = NULL;
       struct getdns_dict *dict = NULL;
       struct getdns_dict *response = NULL;
-      struct getdns_bindata address_type = { 5, (void *)"IPv4" };
-      struct getdns_bindata address_data = { 4, (void *)"\x0A\xAA\x0C\x38" };
+      struct getdns_bindata address_type = { 4, (void *)"IPv4" };
+      struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
       size_t index = 0;
 
       CONTEXT_CREATE(TRUE);
@@ -393,8 +393,8 @@
       struct getdns_list    *upstream_list = NULL;
       struct getdns_dict *dict = NULL;
       struct getdns_dict *response = NULL;
-      struct getdns_bindata address_type = { 5, (void *)"IPv4" };
-      struct getdns_bindata address_data = { 4, (void *)"\x0A\xAA\x0C\x38" };
+      struct getdns_bindata address_type = { 4, (void *)"IPv4" };
+      struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
       struct getdns_bindata port = { 3, (void *)"53" };
       size_t index = 0;
 

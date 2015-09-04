@@ -14,6 +14,9 @@ config.status
 autom4te.cache
 missing
 libtool
+config.guess
+config.sub
+install-sh
 spec/example/example-all-functions
 spec/example/example-reverse
 spec/example/example-simple-answers

@@ -1,4 +1,16 @@
-* 2015-07.18: Version 0.3.1
+* 2015-09-04: Version 0.3.2
+  * Fix returned upstreams list by getdns_context_get_api_information()
+  * Fix some autoconf issues when srcdir != builddir
+  * Fix remove build date from manpage version for reproducable builds
+  * Fix transport fallback issues plus transport fallback unit test script
+  * Fix string bindata's need not contain trailing zero byte
+  * --enable-stub-only configure option for stub only operation.
+    Stub mode will be the default.  Removes the dependency on libunbound
+  * --with-getdns_query compiles and installs the getdns_query tool too
+  * Fix assert on context destruction from a callback in stub mode too.
+  * Use a thread instead of a process for running the unbound event loop.
+
+* 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields
 
 * 2015-07-17: Version 0.3.0

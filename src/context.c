@@ -580,27 +580,6 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 }
 
 static int
-tls_is_in_transports_list(getdns_context *context) {
-	for (int i=0; i< context->dns_transport_count;i++) {
-		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS ||
-		    context->dns_transports[i] == GETDNS_TRANSPORT_STARTTLS)
-			return 1;
-	}
-	return 0;
-}
-
-static int
-tls_only_is_in_transports_list(getdns_context *context) {
-	if (context->dns_transport_count != 1)
-		return 0;
-	if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
-		context->dns_transports[0] == GETDNS_TRANSPORT_STARTTLS)
-			return 1;
-	return 0;
-}
-
-
-static int
 net_req_query_id_cmp(const void *id1, const void *id2)
 {
 	return (intptr_t)id1 - (intptr_t)id2;
@@ -627,7 +606,6 @@ upstream_init(getdns_upstream *upstream,
 	upstream->starttls_req = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
-	upstream->tls_auth_name[0] = '\0';
 	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
@@ -653,7 +631,6 @@ set_os_defaults(struct getdns_context *context)
 	char line[1024], domain[1024];
 	char *parse, *token, prev_ch;
 	size_t upstreams_limit = 10, length;
-	struct getdns_bindata bindata;
 	struct addrinfo hints;
 	struct addrinfo *result;
 	getdns_upstream *upstream;
@@ -711,12 +688,7 @@ set_os_defaults(struct getdns_context *context)
 				prev_ch = *token;
 				*token = 0;
 
-				bindata.data = (uint8_t *)parse;
-				bindata.size = strlen(parse) + 1;
-				(void) getdns_list_get_length(
-				    context->suffix, &length);
-				(void) getdns_list_set_bindata(
-				    context->suffix, length, &bindata);
+				_getdns_list_append_string(context->suffix, parse);
 
 				*token = prev_ch;
 				parse = token;
@@ -753,11 +725,8 @@ set_os_defaults(struct getdns_context *context)
 	fclose(in);
 
 	(void) getdns_list_get_length(context->suffix, &length);
-	if (length == 0 && *domain != 0) {
-		bindata.data = (uint8_t *)domain;
-		bindata.size = strlen(domain) + 1;
-		(void) getdns_list_set_bindata(context->suffix, 0, &bindata);
-	}
+	if (length == 0 && *domain != 0)
+		_getdns_list_append_string(context->suffix, domain);
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 
@@ -846,7 +815,11 @@ getdns_context_create_with_extended_memory_functions(
 	_getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
 	_getdns_rbtree_init(&result->local_hosts, local_host_cmp);
 
+#ifdef HAVE_LIBUNBOUND
 	result->resolution_type = GETDNS_RESOLUTION_RECURSING;
+#else
+	result->resolution_type = GETDNS_RESOLUTION_STUB;
+#endif
 	if ((r = create_default_namespaces(result)))
 		goto error;
 
@@ -978,7 +951,6 @@ getdns_context_destroy(struct getdns_context *context)
 		return;
 
 	context->destroying = 1;
-	context->processing = 1;
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
 
@@ -993,7 +965,6 @@ getdns_context_destroy(struct getdns_context *context)
 		ub_ctx_delete(context->unbound_ctx);
 #endif
 
-	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
 
 	if (context->namespaces)
@@ -1117,10 +1088,8 @@ _getdns_context_ub_read_cb(void *userarg)
 	 * (with context->extension->vmt->run*), because we are already
 	 * called from a running eventloop.
 	 */
-	context->processing = 1;
 	if (ub_poll(context->unbound_ctx))
 		(void) ub_process(context->unbound_ctx);
-	context->processing = 0;
 
 	/* No need to handle timeouts. They are handled by the extension. */
 
@@ -1137,6 +1106,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	}
 	/* setup */
 	context->unbound_ctx = ub_ctx_create();
+	(void) ub_ctx_async(context->unbound_ctx, 1)
 	context->unbound_ta_set = 0;
 	if (!context->unbound_ctx) {
 		return GETDNS_RETURN_MEMORY_ERROR;
@@ -1249,20 +1219,14 @@ getdns_set_base_dns_transports(
 	if (!context || transport_count == 0 || transports == NULL)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	/* Check for valid transports and that they are used only once*/
-	int u=0,t=0,l=0,s=0;
 	for(i=0; i<transport_count; i++)
 	{
-		switch (transports[i]) {
-			case GETDNS_TRANSPORT_UDP:       u++; break;
-			case GETDNS_TRANSPORT_TCP:       t++; break;
-			case GETDNS_TRANSPORT_TLS:       l++; break;
-			case GETDNS_TRANSPORT_STARTTLS:  s++; break;
-			default: return GETDNS_RETURN_INVALID_PARAMETER;
-		}
+		if( transports[i] != GETDNS_TRANSPORT_UDP
+		 && transports[i] != GETDNS_TRANSPORT_TCP
+		 && transports[i] != GETDNS_TRANSPORT_TLS
+		 && transports[i] != GETDNS_TRANSPORT_STARTTLS)
+			return GETDNS_RETURN_INVALID_PARAMETER;
 	}
-	if ( u>1 || t>1 || l>1 || s>1)
-		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if (!(new_transports = GETDNS_XMALLOC(context->my_mf,
 				getdns_transport_list_t, transport_count)))
@@ -1701,7 +1665,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		getdns_dict *dict;
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
-		getdns_bindata *tls_auth_name;
 		struct sockaddr_storage  addr;
 
 		getdns_bindata *scope_id;
@@ -1775,17 +1738,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS ||
-			    getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
-				if ((r = getdns_dict_get_bindata(
-					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
-					/*TODO: VALIDATE THIS STRING!*/
-					memcpy(upstream->tls_auth_name,
-					       (char *)tls_auth_name->data,
-						tls_auth_name->size);
-					upstream->tls_auth_name[tls_auth_name->size] = '\0';
-				}
-			}
 			upstreams->count++;
 			freeaddrinfo(ai);
 		}
@@ -1970,9 +1922,12 @@ _getdns_context_cancel_request(getdns_context *context,
 	/* do the cancel */
 	cancel_dns_req(dnsreq);
 
-	if (fire_callback)
+	if (fire_callback) {
+		context->processing = 1;
 		dnsreq->user_callback(context, GETDNS_CALLBACK_CANCEL,
 		    NULL, dnsreq->user_pointer, transaction_id);
+		context->processing = 0;
+	}
 
 	/* clean up */
 	_getdns_dns_req_free(dnsreq);
@@ -1990,9 +1945,7 @@ getdns_cancel_callback(getdns_context *context,
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	context->processing = 1;
 	getdns_return_t r = _getdns_context_cancel_request(context, transaction_id, 1);
-	context->processing = 0;
 	getdns_context_request_count_changed(context);
 	return r;
 } /* getdns_cancel_callback */
@@ -2181,24 +2134,23 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 
 	/* Transport can in theory be set per query in stub mode */
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-		if (tls_is_in_transports_list(context) == 1 &&
-		    context->tls_ctx == NULL) {
-#ifdef HAVE_LIBSSL_102
+		/*TODO[TLS]: Check if TLS is in the list of transports.*/
+		if (context->tls_ctx == NULL) {
+#ifdef HAVE_LIBTLS1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 #endif
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
-			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, NULL);
-			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
-				return GETDNS_RETURN_BAD_CONTEXT;
 		}
 	}
 	/* Block use of STARTTLS/TLS ONLY in recursive mode as it won't work */
     /* Note: If TLS is used in recursive mode this will try TLS on port
-     * 53 so it is blocked here.  So is 'STARTTLS only' at the moment. */
+     * 53 so it is blocked here.  So is STARTTLS only at the moment. */
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
-		tls_only_is_in_transports_list(context) == 1)
+		context->dns_transport_count == 1 && 
+	    (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
+	     context->dns_transports[0] == GETDNS_TRANSPORT_STARTTLS))
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	if (context->resolution_type_set == context->resolution_type)
@@ -2268,22 +2220,22 @@ _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
 }
 
 getdns_return_t
-_getdns_context_request_timed_out(struct getdns_dns_req *req)
+_getdns_context_request_timed_out(getdns_dns_req *req)
 {
-    /* Don't use req after callback */
-    getdns_context* context = req->context;
-    getdns_transaction_t trans_id = req->trans_id;
-    getdns_callback_t cb = req->user_callback;
-    void *user_arg = req->user_pointer;
-    getdns_dict *response = _getdns_create_getdns_response(req);
+	/* Don't use req after callback */
+	getdns_context* context = req->context;
+	getdns_transaction_t trans_id = req->trans_id;
+	getdns_callback_t cb = req->user_callback;
+	void *user_arg = req->user_pointer;
+	getdns_dict *response = _getdns_create_getdns_response(req);
 
-    /* cancel the req - also clears it from outbound and cleans up*/
-    _getdns_context_cancel_request(context, trans_id, 0);
-    context->processing = 1;
-    cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
-    context->processing = 0;
+	/* cancel the req - also clears it from outbound and cleans up*/
+	_getdns_context_cancel_request(context, trans_id, 0);
+	context->processing = 1;
+	cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
+	context->processing = 0;
 	getdns_context_request_count_changed(context);
-    return GETDNS_RETURN_GOOD;
+	return GETDNS_RETURN_GOOD;
 }
 
 char *
@@ -2367,13 +2319,10 @@ getdns_context_process_async(struct getdns_context* context)
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 #ifdef HAVE_LIBUNBOUND
-	context->processing = 1;
 	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
 		/* need an async return code? */
-		context->processing = 0;
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	context->processing = 0;
 #endif
 	context->extension->vmt->run_once(context->extension, 0);
 
@@ -2427,10 +2376,8 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	 * ( because callbacks occur in cancel_outstanding_requests,
 	 *   and they may destroy the context )
 	 */
-	context->processing = 1;
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
-	context->processing = 0;
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->mini_event.loop;
 	return _getdns_mini_event_init(context, &context->mini_event);
@@ -2459,7 +2406,7 @@ upstream_port(getdns_upstream *upstream)
 }
 
 static getdns_dict*
-priv_get_context_settings(getdns_context* context) {
+_get_context_settings(getdns_context* context) {
     getdns_return_t r = GETDNS_RETURN_GOOD;
     getdns_dict* result = getdns_dict_create_with_context(context);
     if (!result) {
@@ -2551,7 +2498,7 @@ getdns_context_get_api_information(getdns_context* context) {
     r = getdns_dict_util_set_string(result, "version_string", PACKAGE_VERSION);
     r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
     r |= getdns_dict_set_int(result, "resolution_type", context->resolution_type);
-    settings = priv_get_context_settings(context);
+    settings = _get_context_settings(context);
     r |= getdns_dict_set_dict(result, "all_context", settings);
     getdns_dict_destroy(settings);
     if (r != GETDNS_RETURN_GOOD) {

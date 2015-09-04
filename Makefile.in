@@ -43,12 +43,12 @@ docdir = @docdir@
 srcdir = @srcdir@
 INSTALL = @INSTALL@
 
+all : default @GETDNS_QUERY@
+
 default:
 	cd src && $(MAKE) $@
 
-all : default
-
-install: all
+install: all @INSTALL_GETDNS_QUERY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -80,7 +80,7 @@ install: all
 	@echo "***  at package installation time from the post-install script."
 	@echo "***"
 
-uninstall:
+uninstall: @UNINSTALL_GETDNS_QUERY@
 	rm -rf $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
@@ -96,6 +96,12 @@ test:
 
 getdns_query:
 	cd src && $(MAKE) $@
+
+install-getdns_query:
+	cd src/test && $(MAKE) install
+
+uninstall-getdns_query:
+	cd src/test && $(MAKE) uninstall
 
 clean:
 	cd src && $(MAKE) $@
@@ -121,8 +127,24 @@ distclean:
 	rm -f m4/ltoptions.m4
 	rm -f m4/ltsugar.m4
 	rm -f m4/ltversion.m4
+	rm -f $(distdir).tar.gz $(distdir).tar.gz.sha1
+	rm -f $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
+
+megaclean:
+	cd $(srcdir) && rm -fr * .dir-locals.el .gitignore .indent.pro .travis.yml && git reset --hard
 
 dist: $(distdir).tar.gz
+
+pub: $(distdir).tar.gz.sha1 $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
+
+$(distdir).tar.gz.sha1: $(distdir).tar.gz
+	openssl sha1 $(distdir).tar.gz >$@
+
+$(distdir).tar.gz.md5: $(distdir).tar.gz
+	openssl md5 $(distdir).tar.gz >$@
+
+$(distdir).tar.gz.asc: $(distdir).tar.gz
+	gpg --armor --detach-sig $(distdir).tar.gz
 
 bindist: $(bintar)
 

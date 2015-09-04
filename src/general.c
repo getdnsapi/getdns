@@ -65,9 +65,11 @@ void _getdns_call_user_callback(getdns_dns_req *dns_req,
 	_getdns_context_clear_outbound_request(dns_req);
 	_getdns_dns_req_free(dns_req);
 
+	context->processing = 1;
 	cb(context,
 	    (response ? GETDNS_CALLBACK_COMPLETE : GETDNS_CALLBACK_ERROR),
 	    response, user_arg, trans_id);
+	context->processing = 0;
 }
 
 void

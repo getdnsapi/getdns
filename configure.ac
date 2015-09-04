@@ -35,7 +35,7 @@ sinclude(./m4/acx_openssl.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [0.3.1], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_INIT([getdns], [0.3.2], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
 AC_SUBST(RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
@@ -46,7 +46,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00030000])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00030200])
 AC_SUBST(API_VERSION, ["July 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0700])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -70,9 +70,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.1.8 had libversion 1:3:0 (but should have had 2:1:1)
 # getdns-0.2.0 had libversion 2:2:1
 # getdns-0.3.0 had libversion 3:3:2
-# getdns-0.3.1 has libversion 3:4:2
+# getdns-0.3.1 had libversion 3:4:2
+# getdns-0.3.2 has libversion 3:5:2
 #
-GETDNS_LIBVERSION=3:3:2
+GETDNS_LIBVERSION=3:5:2
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -207,8 +208,36 @@ esac
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the edns client cookie is refreshed.])
 
+my_with_libunbound=1
+AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
+case "$enable_stub_only" in
+	yes)
+		my_with_libunbound=0
+		;;
+	no|*)
+		;;
+esac
+
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
+	[Also compile and install the getdns_query tool]),
+	[], [withval="no"])
+if test x_$withval = x_no; then
+	GETDNS_QUERY=""
+	INSTALL_GETDNS_QUERY=""
+	UNINSTALL_GETDNS_QUERY=""
+else
+	GETDNS_QUERY="getdns_query"
+	INSTALL_GETDNS_QUERY="install-getdns_query"
+	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
+fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
+
 # search to set include and library paths right
 # find libidn
+my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
 	[path to libidn (default: search /usr/local ..)]),
 	[], [withval="yes"])
@@ -236,6 +265,8 @@ else
 	if test x_$withval != x_no; then
 		CFLAGS="$CFLAGS -I$withval/include"
 		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		my_with_libidn=0
 	fi
 fi
 
@@ -259,27 +290,29 @@ else
 	fi
 fi
 
-my_with_libunbound=1
-# find libunbound
-AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
-	[path to libunbound (default: search /usr/local ..)]),
-	[], [withval="yes"])
-if test x_$withval = x_yes; then
-	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-		if test -f "$dir/include/unbound.h"; then
-			CFLAGS="$CFLAGS -I$dir/include"
-			LDFLAGS="$LDFLAGS -L$dir/lib"
-			AC_MSG_NOTICE([Found libunbound in $dir])
-			break
-		fi
-	done
-else
-	if test x_$withval != x_no; then
-		CFLAGS="$CFLAGS -I$withval/include"
-		LDFLAGS="$LDFLAGS -L$withval/lib"
+if test $my_with_libunbound = 1
+then
+	# find libunbound
+	AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
+		[path to libunbound (default: search /usr/local ..)]),
+		[], [withval="yes"])
+	if test x_$withval = x_yes; then
+		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+			if test -f "$dir/include/unbound.h"; then
+				CFLAGS="$CFLAGS -I$dir/include"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libunbound in $dir])
+				break
+			fi
+		done
 	else
-		AC_DEFINE_UNQUOTED([DISABLE_RESOLUTION_RECURSING], [1], [Define this to disable recursing resolution type.])
-		my_with_libunbound=0
+		if test x_$withval != x_no; then
+			CFLAGS="$CFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		else
+			AC_DEFINE_UNQUOTED([DISABLE_RESOLUTION_RECURSING], [1], [Define this to disable recursing resolution type.])
+			my_with_libunbound=0
+		fi
 	fi
 fi
 
@@ -287,19 +320,23 @@ fi
 found_all_libs=1
 AC_MSG_NOTICE([Checking for dependency ldns])
 AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
-AC_MSG_NOTICE([Checking for dependency libidn])
-AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+
+if test $my_with_libidn = 1
+then
+	AC_MSG_NOTICE([Checking for dependency libidn])
+	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+fi
 
 AC_CHECK_MEMBER([struct ldns_struct_dnssec_zone.hashed_names],
 [AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns/ldns.h>]])
 
-if test $my_with_libunbound == 1
+if test $my_with_libunbound = 1
 then
 	AC_MSG_NOTICE([Checking for dependency libunbound])
 	AC_CHECK_LIB([unbound], [ub_fd], [], [found_all_libs=0])
 fi
 
-if test $found_all_libs == 0
+if test $found_all_libs = 0
 then
     AC_MSG_ERROR([One more dependencies is missing])
 fi

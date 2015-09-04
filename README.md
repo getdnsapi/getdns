@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-05-20
+* Date:    2015-09-04
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -89,12 +89,15 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 * [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
 * [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
-* [libssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.2 or later is required for TLS support)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 You have to install the library and also the library-devel (or -dev) for your
 package management system to install the compile time files.  If you checked
-out our git; the configure script is built with autoreconf --install.
+out our git you need to copy the libtool helper scripts and rebuild configure
+with:
+
+    # libtoolize -fi
+    # autoreconf -ci
 
 ## Extensions / Event loop dependencies
 
@@ -149,6 +152,8 @@ Some platform specific features are not implemented in the first public release 
 There are a few known issues which we have summarized below - the most recent
 and helpful list is being maintained in the git issues list in the repository.
 Other known issues are being managed in the git repository issue list.
+
+* (#113) Changing the resolution type between stub and recursive after a query has been issued with a context will not work - the previous resolution type will continue to be used.  If you want to change the resolution type you will need to create a new context and set the resolution type for that context.
 
 * When doing a synchronous lookup with a context that has outstanding asynchronous lookups, the callbacks for the asynchronous lookups might get called as a side effect of the synchronous lookup.
 
@@ -213,9 +218,6 @@ build the packages, this is simplythe one we chose to use.
 
     create dmg
 
-    A self-compiled version of OpenSSL or the version installed via Homebrew is required.
-    Note: If using a self-compiled version manual configuration of certificates into /usr/local/etc/openssl/certs is required for TLS authentication to work.
-
 #### Homebrew
 
 If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.  By default, this will only build the core library without any 3rd party event loop support.
@@ -224,10 +226,11 @@ To install the [event loop integration libraries](https://github.com/getdnsapi/g
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
-As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS authentication should work out of the box.
+As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the openssl lib installed by Homebrew is linked against.
 
 Contributors
 ============
+* Theogene Bucuti
 * Craig Despeaux, Verisign, Inc.
 * John Dickinson, Sinodun
 * Sara Dickinson, Sinodun
@@ -237,10 +240,12 @@ Contributors
 * Olaf Kolkman, NLnet Labs
 * Sanjay Mahurpawar, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
+* Sai Mogali, Verisign, Inc.
 * Benno Overeinder, NLnet Labs
 * Prithvi Ranganath, Verisign, Inc.
 * Rushi Shah, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
+* Bob Steagall, Verisign, Inc.
 * Willem Toorop, NLnet Labs
 * Gowri Visweswaran, Verisign Labs
 * Wouter Wijngaards, NLnet Labs
