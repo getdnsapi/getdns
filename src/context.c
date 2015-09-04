@@ -538,10 +538,10 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		                       || upstream->event.write_cb
 		                       || upstream->event.timeout_cb) ) {
 
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			upstream->event.read_cb = NULL;
 			upstream->event.write_cb = NULL;
 			upstream->event.timeout_cb = NULL;
-			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		}
 		if (upstream->tls_obj != NULL) {
 			SSL_shutdown(upstream->tls_obj);
