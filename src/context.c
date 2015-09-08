@@ -2495,7 +2495,7 @@ getdns_context_get_api_information(getdns_context* context) {
     if (!result) {
         return NULL;
     }
-    r = getdns_dict_util_set_string(result, "version_string", PACKAGE_VERSION);
+    r = getdns_dict_util_set_string(result, "version_string", GETDNS_VERSION);
     r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
     r |= getdns_dict_set_int(result, "resolution_type", context->resolution_type);
     settings = _get_context_settings(context);

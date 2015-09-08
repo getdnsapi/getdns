@@ -2,6 +2,7 @@
   * Fix clearing upstream events on shutdown
   * Fix dnssec validation of direct CNAME queries.
     Thanks Simson L. Garfinkel.
+  * Fix get_api_information():version_string also for release candidates
 
 * 2015-09-04: Version 0.3.2
   * Fix returned upstreams list by getdns_context_get_api_information()
