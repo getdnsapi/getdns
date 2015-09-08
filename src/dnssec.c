@@ -1065,8 +1065,17 @@ static void add_question2val_chain(struct mem_funcs *mf,
 		q_rrset.name = _getdns_rdf_if_or_as_decompressed(
 				rdf, cname_spc, &cname_len);
 	}
+
+	/* If the qtype was a CNAME, and we got one, we'r done.
+	 * We asked for it directly, so no redirection applies.
+	 * Otherwise we have to check the refered to name/qtype.
+	 */
+	if (qtype == GETDNS_RRTYPE_CNAME && q_rrset.name != qname)
+		return;
+
 	q_rrset.rr_type  = qtype;
 	if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset))) {
+
 		/* No answer for the question.  Add a head for this rrset
 		 * anyway, to validate proof of non-existance, or to find
 		 * proof that the packet is insecure.
