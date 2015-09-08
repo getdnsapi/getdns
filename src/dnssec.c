@@ -1068,7 +1068,7 @@ static void add_question2val_chain(struct mem_funcs *mf,
 
 	/* If the qtype was a CNAME, and we got one, we'r done.
 	 * We asked for it directly, so no redirection applies.
-	 * Otherwise we have to check the refered to name/qtype.
+	 * Otherwise we have to check the referred to name/qtype.
 	 */
 	if (qtype == GETDNS_RRTYPE_CNAME && q_rrset.name != qname)
 		return;
