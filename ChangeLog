@@ -1,3 +1,6 @@
+* 2015-10-??: Version 0.3.4
+  * 
+
 * 2015-09-09: Version 0.3.3
   * Fix clearing upstream events on shutdown
   * Fix dnssec validation of direct CNAME queries.
