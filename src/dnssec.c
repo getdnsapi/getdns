@@ -1075,7 +1075,6 @@ static void add_question2val_chain(struct mem_funcs *mf,
 
 	q_rrset.rr_type  = qtype;
 	if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset))) {
-
 		/* No answer for the question.  Add a head for this rrset
 		 * anyway, to validate proof of non-existance, or to find
 		 * proof that the packet is insecure.
