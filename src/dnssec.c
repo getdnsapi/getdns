@@ -2142,9 +2142,8 @@ static int key_proves_nonexistance(
 	 * NSEC->name:
 	 *
 	 * - An empty non terminal (ENT) will result in a NSEC covering the
-	 *   qname, where qname > NSEC->name and ce(qname) is a subdomain
-	 *   of NXT.  This case is handled below after the covering NSEC is
-	 *   found.
+	 *   qname, where qname > NSEC->name and ce(qname) is parent of NXT.
+	 *   This case is handled below after the covering NSEC is found.
 	 *
 	 * - Or a wildcard match without the type.  The wildcard owner name
 	 *   match has special handing in the find_nsec_covering_name function.
