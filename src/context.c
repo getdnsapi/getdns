@@ -2176,15 +2176,21 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
 		if (tls_is_in_transports_list(context) == 1 &&
 		    context->tls_ctx == NULL) {
-#ifdef HAVE_LIBSSL_102
+#ifdef HAVE_LIBTLS1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
-#endif
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
-			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, NULL);
+			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, _getdns_tls_verify_callback);
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
 				return GETDNS_RETURN_BAD_CONTEXT;
+#else
+			if (tls_only_is_in_transports_list(context) == 1)
+				return GETDNS_RETURN_BAD_CONTEXT;
+			/* A null tls_ctx will make TLS fail and fallback to the other
+			   transports will kick-in.*/
+#endif
+
 		}
 	}
 	/* Block use of STARTTLS/TLS ONLY in recursive mode as it won't work */

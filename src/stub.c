@@ -827,8 +827,13 @@ tls_create_object(getdns_context *context, int fd, const char* auth_name)
 {
 #ifdef HAVE_LIBSSL_102
 	/* Create SSL instance */
-	if (context->tls_ctx == NULL || auth_name == NULL)
+	if (context->tls_ctx == NULL)
 		return NULL;
+
+	// if (auth_name[0] == '\0') {
+	// 	DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
+	// 	return NULL;
+	// }
 	SSL* ssl = SSL_new(context->tls_ctx);
 	X509_VERIFY_PARAM *param;
 
@@ -849,6 +854,16 @@ tls_create_object(getdns_context *context, int fd, const char* auth_name)
 #else
 	return NULL;
 #endif
+}
+
+int 
+_getdns_tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
+	int     err;
+	err = X509_STORE_CTX_get_error(ctx);
+	const char * err_str;
+	err_str = X509_verify_cert_error_string(err);
+	DEBUG_STUB("--- %s, ERROR: %s\n", __FUNCTION__, err_str);
+	return 1;
 }
 
 static int

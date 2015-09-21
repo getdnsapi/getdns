@@ -55,7 +55,7 @@ usage () {
 	echo "can be specified via the command line option."
 	echo
 	echo "usage: test_transport.sh"
-	ehco "         -p   path to getdns_query binary"
+	echo "         -p   path to getdns_query binary"
 	echo "         -s   server configured for only TCP and UDP"
 	echo "         -t   server configured for TLS, STARTTLS, TCP and UDP"
 	echo "              (This must include the hostname e.g. 185.49.141.38~www.dnssec-name-and-shame.com)"

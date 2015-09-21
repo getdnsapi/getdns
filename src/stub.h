@@ -41,6 +41,8 @@ getdns_return_t _getdns_submit_stub_request(getdns_network_req *netreq);
 
 void _getdns_cancel_stub_request(getdns_network_req *netreq);
 
+int _getdns_tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx);
+
 #endif
 
 /* stub.h */
