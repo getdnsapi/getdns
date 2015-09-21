@@ -1397,6 +1397,44 @@ static ldns_rr_list *rrset2ldns_rr_list(getdns_rrset *rrset)
 }
 
 
+static size_t _rr_uncompressed_rdata_size(rrtype_iter *rr)
+{
+	_getdns_rdf_iter *rdf, rdf_spc;
+	uint8_t decompressed[256];
+	size_t sz = 0, decompressed_sz;
+
+	for ( rdf = _getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)
+	    ; rdf
+	    ; rdf = _getdns_rdf_iter_next(rdf)) {
+
+		if ((rdf->rdd_pos->type & GETDNS_RDF_N_C) == GETDNS_RDF_N_C) {
+			decompressed_sz = sizeof(decompressed);
+			(void) _getdns_rdf_if_or_as_decompressed(
+			    rdf, decompressed, &decompressed_sz);
+			sz += decompressed_sz;
+		} else
+			sz += rdf->nxt - rdf->pos;
+	}
+	return sz;
+}
+
+static size_t _rr_rdata_size(rrtype_iter *rr)
+{
+	const _getdns_rr_def *rr_def;
+	size_t i;
+
+	rr_def = _getdns_rr_def_lookup(gldns_read_uint16(rr->rr_i.rr_type));
+
+	for (i = 0; i < rr_def->n_rdata_fields; i++)
+		if ((rr_def->rdata[i].type & GETDNS_RDF_N_C) == GETDNS_RDF_N_C)
+			return _rr_uncompressed_rdata_size(rr);
+
+	/* assert(gldns_read_uint16(rr->rr_type+8) == rr->nxt-rr->rr_type-10);
+	 */
+	return rr->rr_i.nxt - rr->rr_i.rr_type - 10;
+}
+
+
 /* Verifies the signature rrsig for rrset rrset with key key.
  * When the rrset was a wildcard expansion (rrsig labels < labels owner name),
  * nc_name will be set to the next closer (within rrset->name).
@@ -1413,19 +1451,30 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	_getdns_rr_iter  val_rrset_spc[VAL_RRSET_SPC_SZ];
 	_getdns_rr_iter *val_rrset = val_rrset_spc;
 	rrtype_iter rr_spc, *rr;
-	size_t i, valbuf_sz;
+	size_t i, valbuf_sz, owner_len;
+	_getdns_rdf_iter *rdf, rdf_spc;
 
 	/* nc_name should already have been initialized by the parent! */
 	assert(nc_name);
 	assert(!*nc_name);
 
+	if (!(rdf = _getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 7)))
+		return 0;
+	valbuf_sz = rdf->nxt - rrsig->rr_i.rr_type - 10;
+
+	owner_len = _dname_len(rrset->name);
 	do {
 		for ( rr = rrtype_iter_init(&rr_spc, rrset), i = 0
 		    ; rr
 		    ; rr = rrtype_iter_next(rr), i++) {
 
 			if (val_rrset == val_rrset_spc) {
-				valbuf_sz += 0;
+				valbuf_sz += owner_len
+				          +  2 /* type */
+				          +  2 /* class */
+				          +  4 /* Orig TTL */
+					  +  2 /* Rdata len */
+				          +  _rr_rdata_size(rr);
 				if (i < VAL_RRSET_SPC_SZ)
 					val_rrset[i] = rr->rr_i;
 			} else
@@ -1437,6 +1486,8 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 			continue;
 		}
 	} while (0);
+	DEBUG_SEC( "sizes: %zu rrs, %zu bytes for validation buffer\n"
+	         , i, valbuf_sz);
 
 	r = rrset_l && rrsig_l && key_l &&
 	    ldns_verify_rrsig(rrset_l, rrsig_l, key_l) == LDNS_STATUS_OK;
