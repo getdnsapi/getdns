@@ -1401,6 +1401,7 @@ static ldns_rr_list *rrset2ldns_rr_list(getdns_rrset *rrset)
  * When the rrset was a wildcard expansion (rrsig labels < labels owner name),
  * nc_name will be set to the next closer (within rrset->name).
  */
+#define VAL_RRSET_SPC_SZ 1024
 static int _getdns_verify_rrsig(struct mem_funcs *mf,
     getdns_rrset *rrset, rrsig_iter *rrsig, rrtype_iter *key, uint8_t **nc_name)
 {
@@ -1409,10 +1410,33 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	ldns_rr *key_l = rr2ldns_rr(&key->rr_i);
 	int r;
 	int to_skip;
+	_getdns_rr_iter  val_rrset_spc[VAL_RRSET_SPC_SZ];
+	_getdns_rr_iter *val_rrset = val_rrset_spc;
+	rrtype_iter rr_spc, *rr;
+	size_t i, valbuf_sz;
 
 	/* nc_name should already have been initialized by the parent! */
 	assert(nc_name);
 	assert(!*nc_name);
+
+	do {
+		for ( rr = rrtype_iter_init(&rr_spc, rrset), i = 0
+		    ; rr
+		    ; rr = rrtype_iter_next(rr), i++) {
+
+			if (val_rrset == val_rrset_spc) {
+				valbuf_sz += 0;
+				if (i < VAL_RRSET_SPC_SZ)
+					val_rrset[i] = rr->rr_i;
+			} else
+				val_rrset[i] = rr->rr_i;
+		}
+		/* More space needed for val_rrset */
+		if (val_rrset == val_rrset_spc && i > VAL_RRSET_SPC_SZ) {
+			val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, i);
+			continue;
+		}
+	} while (0);
 
 	r = rrset_l && rrsig_l && key_l &&
 	    ldns_verify_rrsig(rrset_l, rrsig_l, key_l) == LDNS_STATUS_OK;
@@ -1421,6 +1445,8 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	ldns_rr_free(rrsig_l);
 	ldns_rr_free(key_l);
 
+	if (val_rrset != val_rrset_spc)
+		GETDNS_FREE(*mf, val_rrset);
 	if (!r)
 		return 0;
 
