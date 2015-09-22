@@ -266,6 +266,20 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 	return r;
 }
 
+inline static void _dname_canonicalize(uint8_t *dname)
+{
+	uint8_t *next_label;
+
+	while (*dname) {
+		next_label = dname + *dname + 1;
+		dname += 1;
+		while (dname < next_label) {
+			*dname = (uint8_t)tolower((unsigned char)*dname);
+			dname++;
+		}
+	}
+}
+
 /* Fills the array pointed to by labels (of at least 128 uint8_t * pointers)
  * with pointers to labels in given dname in reversed order.  So that
  * labels[0] will point to the root.
@@ -1434,6 +1448,105 @@ static size_t _rr_rdata_size(rrtype_iter *rr)
 	return rr->rr_i.nxt - rr->rr_i.rr_type - 10;
 }
 
+/* Iterate byte by byte over rdata canonicalizing dname's */
+typedef struct canon_rdata_iter {
+	_getdns_rdf_iter  rdf_spc;
+	_getdns_rdf_iter *rdf;
+	uint8_t           cdname[256]; /* Canonical dname */
+	uint8_t          *pos;
+	size_t            len;
+} canon_rdata_iter;
+
+inline static void canon_rdata_iter_field_init(canon_rdata_iter *i)
+{
+	for (;;) {
+		if ((i->rdf->rdd_pos->type & GETDNS_RDF_N) == GETDNS_RDF_N) {
+			i->len = sizeof(i->cdname);
+			if ((i->pos = _getdns_rdf_if_or_as_decompressed(
+			    i->rdf, i->cdname, &i->len)))
+				_dname_canonicalize(i->pos);
+		} else {
+			i->pos = i->rdf->pos;
+			i->len = i->rdf->nxt - i->rdf->pos;
+		}
+		if (i->len || !(i->rdf = _getdns_rdf_iter_next(i->rdf)))
+			return;
+	}
+}
+
+inline static void canon_rdata_iter_init(canon_rdata_iter*i,_getdns_rr_iter*rr)
+{
+	if ((i->rdf = _getdns_rdf_iter_init(&i->rdf_spc, rr)))
+		canon_rdata_iter_field_init(i);
+}
+
+inline static int canon_rdata_iter_data(canon_rdata_iter *i)
+{
+	return i->rdf != NULL;
+}
+
+inline static uint8_t canon_rdata_iter_byte(canon_rdata_iter *i)
+{
+	return *i->pos;
+}
+
+inline static void canon_rdata_iter_next(canon_rdata_iter *i)
+{
+	if (--i->len == 0 && (i->rdf = _getdns_rdf_iter_next(i->rdf)))
+		canon_rdata_iter_field_init(i);
+	else
+		i->pos++;
+}
+
+inline static int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
+{
+	return rr_type == LDNS_RR_TYPE_NS    || rr_type == LDNS_RR_TYPE_MD
+	    || rr_type == LDNS_RR_TYPE_MF    || rr_type == LDNS_RR_TYPE_CNAME
+	    || rr_type == LDNS_RR_TYPE_SOA   || rr_type == LDNS_RR_TYPE_MB
+	    || rr_type == LDNS_RR_TYPE_MG    || rr_type == LDNS_RR_TYPE_MR
+	    || rr_type == LDNS_RR_TYPE_PTR   || rr_type == LDNS_RR_TYPE_MINFO
+	    || rr_type == LDNS_RR_TYPE_MX    || rr_type == LDNS_RR_TYPE_RP
+	    || rr_type == LDNS_RR_TYPE_AFSDB || rr_type == LDNS_RR_TYPE_RT
+	    || rr_type == LDNS_RR_TYPE_SIG   || rr_type == LDNS_RR_TYPE_PX
+	    || rr_type == LDNS_RR_TYPE_NXT   || rr_type == LDNS_RR_TYPE_NAPTR
+	    || rr_type == LDNS_RR_TYPE_KX    || rr_type == LDNS_RR_TYPE_SRV
+	    || rr_type == LDNS_RR_TYPE_DNAME || rr_type == LDNS_RR_TYPE_RRSIG;
+}
+
+static int _rr_iter_rdata_cmp(const void *a, const void *b)
+{
+	_getdns_rr_iter *x = (_getdns_rr_iter *)a;
+	_getdns_rr_iter *y = (_getdns_rr_iter *)b;
+
+	uint16_t rr_type = gldns_read_uint16(x->rr_type);
+	size_t x_rdata_len, y_rdata_len;
+	int r;
+
+	canon_rdata_iter p, q;
+
+	assert(rr_type == gldns_read_uint16(y->rr_type));
+
+	if (!_dnssec_rdata_to_canonicalize(rr_type)) {
+		/* Memory compare of rdata */
+		x_rdata_len = x->nxt - x->rr_type - 10;
+		y_rdata_len = y->nxt - y->rr_type - 10;
+		if ((r = memcmp(x->rr_type + 10, y->rr_type + 10,
+		    x_rdata_len < y_rdata_len ? x_rdata_len : y_rdata_len)))
+			return r;
+		return x_rdata_len < y_rdata_len ? -1 :
+		       x_rdata_len > y_rdata_len ?  1 : 0;
+	}
+	for ( canon_rdata_iter_init(&p, x), canon_rdata_iter_init(&q, y)
+	    ; canon_rdata_iter_data(&p)  && canon_rdata_iter_data(&q)
+	    ; canon_rdata_iter_next(&p)   , canon_rdata_iter_next(&q) ) {
+		
+		if (canon_rdata_iter_byte(&p) != canon_rdata_iter_byte(&q))
+			return canon_rdata_iter_byte(&p) >
+			       canon_rdata_iter_byte(&q) ? 1 : -1;
+	}
+	return canon_rdata_iter_data(&p) ?  1
+	     : canon_rdata_iter_data(&q) ? -1 : 0;
+}
 
 /* Verifies the signature rrsig for rrset rrset with key key.
  * When the rrset was a wildcard expansion (rrsig labels < labels owner name),
@@ -1458,12 +1571,12 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	assert(nc_name);
 	assert(!*nc_name);
 
-	if (!(rdf = _getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 7)))
+	if (!(rdf = _getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 8)))
 		return 0;
-	valbuf_sz = rdf->nxt - rrsig->rr_i.rr_type - 10;
+	valbuf_sz = rdf->pos - rrsig->rr_i.rr_type - 10;
 
 	owner_len = _dname_len(rrset->name);
-	do {
+	for (;;) {
 		for ( rr = rrtype_iter_init(&rr_spc, rrset), i = 0
 		    ; rr
 		    ; rr = rrtype_iter_next(rr), i++) {
@@ -1480,14 +1593,17 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 			} else
 				val_rrset[i] = rr->rr_i;
 		}
+		/* Did everything fit? Then break */
+		if (val_rrset != val_rrset_spc || i <= VAL_RRSET_SPC_SZ)
+			break;
+
 		/* More space needed for val_rrset */
-		if (val_rrset == val_rrset_spc && i > VAL_RRSET_SPC_SZ) {
-			val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, i);
-			continue;
-		}
-	} while (0);
+		val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, i);
+	}
 	DEBUG_SEC( "sizes: %zu rrs, %zu bytes for validation buffer\n"
 	         , i, valbuf_sz);
+
+	qsort(val_rrset, i, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
 
 	r = rrset_l && rrsig_l && key_l &&
 	    ldns_verify_rrsig(rrset_l, rrsig_l, key_l) == LDNS_STATUS_OK;
