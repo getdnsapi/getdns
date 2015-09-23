@@ -1395,22 +1395,6 @@ static ldns_rr *rr2ldns_rr(_getdns_rr_iter *rr)
 		return rr_l;
 }
 
-static ldns_rr_list *rrset2ldns_rr_list(getdns_rrset *rrset)
-{
-	rrtype_iter rr_spc, *rr;
-	ldns_rr_list *rr_list = ldns_rr_list_new();
-	ldns_rr *rr_l;
-
-	if (rr_list) {
-		for ( rr = rrtype_iter_init(&rr_spc, rrset)
-		    ; rr ; rr = rrtype_iter_next(rr) )
-			if ((rr_l = rr2ldns_rr(&rr->rr_i)))
-				(void)ldns_rr_list_push_rr(rr_list, rr_l);
-	}
-	return rr_list;
-}
-
-
 static size_t _rr_uncompressed_rdata_size(rrtype_iter *rr)
 {
 	_getdns_rdf_iter *rdf, rdf_spc;
@@ -1423,9 +1407,9 @@ static size_t _rr_uncompressed_rdata_size(rrtype_iter *rr)
 
 		if ((rdf->rdd_pos->type & GETDNS_RDF_N_C) == GETDNS_RDF_N_C) {
 			decompressed_sz = sizeof(decompressed);
-			(void) _getdns_rdf_if_or_as_decompressed(
-			    rdf, decompressed, &decompressed_sz);
-			sz += decompressed_sz;
+			if (_getdns_rdf_if_or_as_decompressed(
+			    rdf, decompressed, &decompressed_sz))
+				sz += decompressed_sz;
 		} else
 			sz += rdf->nxt - rdf->pos;
 	}
@@ -1556,30 +1540,34 @@ static int _rr_iter_rdata_cmp(const void *a, const void *b)
 static int _getdns_verify_rrsig(struct mem_funcs *mf,
     getdns_rrset *rrset, rrsig_iter *rrsig, rrtype_iter *key, uint8_t **nc_name)
 {
-	ldns_rr_list *rrset_l = rrset2ldns_rr_list(rrset);
-	ldns_rr *rrsig_l = rr2ldns_rr(&rrsig->rr_i);
-	ldns_rr *key_l = rr2ldns_rr(&key->rr_i);
 	int r;
 	int to_skip;
 	_getdns_rr_iter  val_rrset_spc[VAL_RRSET_SPC_SZ];
 	_getdns_rr_iter *val_rrset = val_rrset_spc;
 	rrtype_iter rr_spc, *rr;
-	size_t i, valbuf_sz, owner_len;
-	_getdns_rdf_iter *rdf, rdf_spc;
+	size_t n_rrs, i, valbuf_sz, owner_len;
+	_getdns_rdf_iter *signer, signer_spc, *rdf, rdf_spc;
+	uint8_t valbuf_spc[4096], *valbuf_buf = valbuf_spc;
+	uint8_t cdname_spc[256], *cdname, owner[256];
+	size_t cdname_len, pos;
+	uint32_t orig_ttl;
+	gldns_buffer valbuf;
 
 	/* nc_name should already have been initialized by the parent! */
 	assert(nc_name);
 	assert(!*nc_name);
 
-	if (!(rdf = _getdns_rdf_iter_init_at(&rdf_spc, &rrsig->rr_i, 8)))
+	if (!(signer = _getdns_rdf_iter_init_at(&signer_spc, &rrsig->rr_i, 7)))
 		return 0;
-	valbuf_sz = rdf->pos - rrsig->rr_i.rr_type - 10;
+	valbuf_sz = signer->nxt - rrsig->rr_i.rr_type - 10;
 
-	owner_len = _dname_len(rrset->name);
+	if ((owner_len = _dname_len(rrset->name)) > 255)
+		return 0;
+
 	for (;;) {
-		for ( rr = rrtype_iter_init(&rr_spc, rrset), i = 0
+		for ( rr = rrtype_iter_init(&rr_spc, rrset), n_rrs = 0
 		    ; rr
-		    ; rr = rrtype_iter_next(rr), i++) {
+		    ; rr = rrtype_iter_next(rr), n_rrs++) {
 
 			if (val_rrset == val_rrset_spc) {
 				valbuf_sz += owner_len
@@ -1588,32 +1576,103 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 				          +  4 /* Orig TTL */
 					  +  2 /* Rdata len */
 				          +  _rr_rdata_size(rr);
-				if (i < VAL_RRSET_SPC_SZ)
-					val_rrset[i] = rr->rr_i;
+				if (n_rrs < VAL_RRSET_SPC_SZ)
+					val_rrset[n_rrs] = rr->rr_i;
 			} else
-				val_rrset[i] = rr->rr_i;
+				val_rrset[n_rrs] = rr->rr_i;
 		}
 		/* Did everything fit? Then break */
-		if (val_rrset != val_rrset_spc || i <= VAL_RRSET_SPC_SZ)
+		if (val_rrset != val_rrset_spc || n_rrs <= VAL_RRSET_SPC_SZ)
 			break;
 
 		/* More space needed for val_rrset */
-		val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, i);
+		val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, n_rrs);
 	}
 	DEBUG_SEC( "sizes: %zu rrs, %zu bytes for validation buffer\n"
-	         , i, valbuf_sz);
+	         , n_rrs, valbuf_sz);
 
-	qsort(val_rrset, i, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
+	qsort(val_rrset, n_rrs, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
 
-	r = rrset_l && rrsig_l && key_l &&
-	    ldns_verify_rrsig(rrset_l, rrsig_l, key_l) == LDNS_STATUS_OK;
+	if (valbuf_sz >= sizeof(valbuf_spc))
+		valbuf_buf = GETDNS_XMALLOC(*mf, uint8_t, valbuf_sz);
 
-	ldns_rr_list_deep_free(rrset_l);
-	ldns_rr_free(rrsig_l);
-	ldns_rr_free(key_l);
+	gldns_buffer_init_frm_data(&valbuf, valbuf_buf, valbuf_sz);
+	gldns_buffer_write(&valbuf,
+	    rrsig->rr_i.rr_type + 10, signer->nxt - rrsig->rr_i.rr_type - 10);
+	_dname_canonicalize(gldns_buffer_at(&valbuf, 18));
 
+	orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
+
+	(void) memcpy(owner, rrset->name, owner_len);
+	_dname_canonicalize(owner);
+
+	if (!_dnssec_rdata_to_canonicalize(rrset->rr_type))
+		for (i = 0; i < n_rrs; i++) {
+			gldns_buffer_write(&valbuf, owner, owner_len);
+			gldns_buffer_write_u16(&valbuf, rrset->rr_type);
+			gldns_buffer_write_u16(&valbuf, rrset->rr_class);
+			gldns_buffer_write_u32(&valbuf, orig_ttl);
+			gldns_buffer_write(&valbuf, val_rrset[i].rr_type + 8,
+			    val_rrset[i].nxt - val_rrset[i].rr_type - 8);
+		}
+	else for (i = 0; i < n_rrs; i++) {
+		gldns_buffer_write(&valbuf, owner, owner_len);
+		gldns_buffer_write_u16(&valbuf, rrset->rr_type);
+		gldns_buffer_write_u16(&valbuf, rrset->rr_class);
+		gldns_buffer_write_u32(&valbuf, orig_ttl);
+		pos = gldns_buffer_position(&valbuf);
+		gldns_buffer_skip(&valbuf, 2);
+		for ( rdf = _getdns_rdf_iter_init(&rdf_spc, &val_rrset[i])
+		    ; rdf
+		    ; rdf = _getdns_rdf_iter_next(rdf) ) {
+			if (!(rdf->rdd_pos->type & GETDNS_RDF_N)) {
+				gldns_buffer_write(
+				    &valbuf, rdf->pos, rdf->nxt - rdf->pos);
+				continue;
+			}
+			cdname_len = sizeof(cdname);
+			if (!(cdname = _getdns_rdf_if_or_as_decompressed(
+			    rdf, cdname_spc, &cdname_len)))
+				continue;
+			gldns_buffer_write(&valbuf, cdname, cdname_len);
+			_dname_canonicalize(
+			    gldns_buffer_current(&valbuf) - cdname_len);
+		}
+		gldns_buffer_write_u16_at(&valbuf, pos, 
+		    (uint16_t)(gldns_buffer_position(&valbuf) - pos - 2));
+	}
+	DEBUG_SEC( "written to valbuf: %zu bytes\n"
+	         , gldns_buffer_position(&valbuf));
+	assert(gldns_buffer_position(&valbuf) == valbuf_sz);
+
+	/* Check with ldns to verify we're still on the right path.
+	 */
+	if (1) {
+		ldns_buffer lvalbuf;
+
+		ldns_buffer_new_frm_data( &lvalbuf
+		                        , gldns_buffer_begin(&valbuf)
+					, gldns_buffer_position(&valbuf));
+		ldns_buffer_set_position( &lvalbuf
+		                        , gldns_buffer_position(&valbuf));
+
+		r = ldns_verify_rrsig_buffers_raw(
+		    /* sig, siglen */
+		    signer->nxt, rrsig->rr_i.nxt - signer->nxt,
+
+		    /* verify buf */
+		    &lvalbuf,
+
+		    /* key, keylen */
+		    key->rr_i.rr_type+14, key->rr_i.nxt - key->rr_i.rr_type-14,
+
+		    /* algo */
+		    key->rr_i.rr_type[13]) == LDNS_STATUS_OK;
+	}
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(*mf, val_rrset);
+	if (valbuf_buf != valbuf_spc)
+		GETDNS_FREE(*mf, valbuf_buf);
 	if (!r)
 		return 0;
 
