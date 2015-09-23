@@ -35,6 +35,8 @@
 #define UTIL_LOG_H
 
 #define log_assert(x)
+#define verbose(...)
+#define log_err(...)
 
 #endif /* UTIL_LOG_H */
 

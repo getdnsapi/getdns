@@ -207,6 +207,7 @@
 #include "general.h"
 #include "dict.h"
 #include "list.h"
+#include "util/val_secalgo.h"
 
  /* Maximum number of canonical name redirections for one name */
 #define MAX_CNAMES 100

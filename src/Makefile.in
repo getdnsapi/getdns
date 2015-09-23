@@ -74,7 +74,7 @@ LIBOBJDIR=
 LIBOBJS=@LIBOBJS@
 COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 
-UTIL_OBJ=mini_event.lo rbtree.lo
+UTIL_OBJ=mini_event.lo rbtree.lo val_secalgo.lo
 
 EXTENSION_OBJ=libmini_event.lo libevent.lo libev.lo
 
@@ -241,7 +241,8 @@ dnssec.lo dnssec.o: $(srcdir)/dnssec.c getdns/getdns.h config.h $(srcdir)/contex
  $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/dnssec.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h \
- $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/parseutil.h $(srcdir)/general.h $(srcdir)/dict.h $(srcdir)/list.h
+ $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/parseutil.h $(srcdir)/general.h $(srcdir)/dict.h $(srcdir)/list.h \
+ $(srcdir)/util/val_secalgo.h
 general.lo general.o: $(srcdir)/general.c config.h $(srcdir)/gldns/wire2str.h $(srcdir)/context.h getdns/getdns.h \
  getdns/getdns_extra.h getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
  $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
@@ -306,6 +307,8 @@ mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c config.h $(srcdir)/util/
  $(srcdir)/util/fptr_wlist.h
 rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/log.h $(srcdir)/util/fptr_wlist.h \
  $(srcdir)/util/rbtree.h
+val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c config.h $(srcdir)/util/val_secalgo.h $(srcdir)/util/log.h \
+ $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/gbuffer.h
 libev.lo libev.o: $(srcdir)/extension/libev.c $(srcdir)/getdns/getdns_ext_libev.h getdns/getdns.h \
  getdns/getdns_extra.h $(srcdir)/types-internal.h getdns/getdns.h \
  getdns/getdns_extra.h $(srcdir)/util/rbtree.h config.h

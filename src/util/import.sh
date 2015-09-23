@@ -30,5 +30,26 @@ do
 	    -e '/^ \* linkers crosslink library-private symbols with other symbols, it works \*\//d' \
 	    $f > ../$f
 done
+for f in val_secalgo.h val_secalgo.c
+do
+	wget http://unbound.net/svn/trunk/validator/$f || \
+	ftp  http://unbound.net/svn/trunk/validator/$f || continue
+	sed -e 's/sldns/gldns/g' \
+	    -e '/^\/\* packed_rrset on top to define enum types (forced by c99 standard) \*\/$/d' \
+	    -e '/^#include "util\/data\/packed_rrset.h"$/d' \
+	    -e 's/^#include "validator/#include "util/g' \
+	    -e 's/^#include "gldns\/sbuffer/#include "gldns\/gbuffer/g' \
+	    -e 's/ds_digest_size_supported/_getdns_ds_digest_size_supported/g' \
+	    -e 's/secalgo_ds_digest/_getdns_secalgo_ds_digest/g' \
+	    -e 's/dnskey_algo_id_is_supported/_getdns_dnskey_algo_id_is_supported/g' \
+	    -e 's/verify_canonrrset/_getdns_verify_canonrrset/g' \
+	    -e 's/LDNS_/GLDNS_/g' \
+	    -e 's/enum sec_status/int/g' \
+	    -e 's/sec_status_bogus/0/g' \
+	    -e 's/sec_status_unchecked/0/g' \
+	    -e 's/sec_status_secure/1/g' \
+	    $f > ../$f
+done
+
 cd ..
 rm -r ub
