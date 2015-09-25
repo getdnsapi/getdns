@@ -862,6 +862,9 @@ getdns_return_t do_the_call(void)
 		}
 		if (r == GETDNS_RETURN_GOOD && !batch_mode) 
 			getdns_context_run(context);
+		if (r != GETDNS_RETURN_GOOD)
+			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				 getdns_get_errorstr_by_id(r));
 	} else {
 		switch (calltype) {
 		case GENERAL:

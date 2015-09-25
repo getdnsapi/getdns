@@ -91,6 +91,9 @@ doc:	FORCE
 example:
 	cd spec/example && $(MAKE) $@
 
+test_code:
+	cd src && $(MAKE) $@
+
 test:
 	cd src && $(MAKE) $@
 

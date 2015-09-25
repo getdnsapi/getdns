@@ -107,14 +107,13 @@ AC_CHECK_HEADERS([openssl/err.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/rand.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl TLS v1.2 requires OpenSSL 1.0.1
-AC_CHECK_LIB(ssl, TLSv1_2_client_method,AC_DEFINE([HAVE_LIBTLS1_2], [1],
+AC_CHECK_LIB(ssl, TLSv1_2_client_method,AC_DEFINE([HAVE_TLS_v1_2], [1],
     [Define if you have libssl with tls 1.2]),[AC_MSG_WARN([Cannot find TLSv1_2_client_method in libssl library. TLS will not be available.])])
-])dnl End of ACX_SSL_CHECKS
 
-dnl Authentication for TLS requires 1.0.2
-AC_CHECK_LIB(ssl, SSL_CTX_get0_param, AC_DEFINE([HAVE_LIBSSL_102], [1],
-    [Define if you have libssl 1.0.2 or later]),[AC_MSG_WARN([libssl 1.0.2 or higher is required for TLS authentication. Authenticated TLS will not be available.])])
-])dnl End of ACX_SSL_CHECKS
+dnl Native OpenSSL hostname verification requires OpenSSL 1.0.2
+AC_CHECK_LIB(ssl, SSL_CTX_get0_param,AC_DEFINE([HAVE_SSL_HN_AUTH], [1],
+    [Define if you have libssl with host name verification]),[AC_MSG_WARN([Cannot find SSL_CTX_get0_param in libssl library. Native TLS hostname verification will not be available, custom code will be used.])])
+])
 
 dnl Check for SSL, where SSL is mandatory
 dnl Adds --with-ssl option, searches for openssl and defines HAVE_SSL if found

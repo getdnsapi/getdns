@@ -145,6 +145,9 @@ struct getdns_context {
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
+	/*Make this a list*/
+	size_t               tls_auth_req;
+	size_t               tls_auth_fallback_ok; /*Redundant but convinient*/
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;

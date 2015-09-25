@@ -897,6 +897,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_maximum_udp_payload_size = -1;
 	if ((r = create_default_dns_transports(result)))
 		goto error;
+	result->tls_auth_req = 1; 
+	result->tls_auth_fallback_ok = 1;
 	result->limit_outstanding_queries = 0;
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
@@ -2176,11 +2178,22 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
 		if (tls_is_in_transports_list(context) == 1 &&
 		    context->tls_ctx == NULL) {
-#ifdef HAVE_LIBTLS1_2
+#ifdef HAVE_TLS_v1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
+			/* Be strict and only use the cipher suites recommended in RFC7525 */
+			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+				return GETDNS_RETURN_BAD_CONTEXT;
+			if ((tls_only_is_in_transports_list(context) == 1) && context->tls_auth_req)
+				context->tls_auth_fallback_ok = 0;
+				/* TODO: If no auth data provided for any upstream, fail here */
+			else
+				context->tls_auth_fallback_ok = 1;
+			/* By default cert chain will be verified, but note that per
+			   connection management of the result and hostname verification is done.*/
 			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, _getdns_tls_verify_callback);
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
 				return GETDNS_RETURN_BAD_CONTEXT;

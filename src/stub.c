@@ -32,6 +32,7 @@
  */
 
 #include <openssl/err.h>
+#include <openssl/conf.h>
 #include <openssl/x509v3.h>
 #include "config.h"
 #include <fcntl.h>
@@ -77,7 +78,6 @@ static void stub_timeout_cb(void *userarg);
 /*****************************/
 /* General utility functions */
 /*****************************/
-
 
 static void
 rollover_secret()
@@ -822,20 +822,39 @@ tls_failed(getdns_upstream *upstream)
 	         upstream->tls_hs_state == GETDNS_HS_FAILED) ? 1: 0;
 }
 
+int
+_getdns_tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
+	int     err;
+	err = X509_STORE_CTX_get_error(ctx);
+	const char * err_str;
+	err_str = X509_verify_cert_error_string(err);
+	DEBUG_STUB("--- %s, ERROR: %s\n", __FUNCTION__, err_str);
+	/*Always  proceed without changing result*/
+	return preverify_ok;
+}
+
+int
+_getdns_tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx) {
+	int     err;
+	err = X509_STORE_CTX_get_error(ctx);
+	const char * err_str;
+	err_str = X509_verify_cert_error_string(err);
+	DEBUG_STUB("--- %s, ERROR: (%d) \"%s\"\n", __FUNCTION__, err, err_str);
+	/*Proceed if error is hostname mismatch*/
+	if (err == X509_V_ERR_HOSTNAME_MISMATCH)
+		return 1;
+	else
+		return preverify_ok;
+}
+
 static SSL*
-tls_create_object(getdns_context *context, int fd, const char* auth_name)
+tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 {
-#ifdef HAVE_LIBSSL_102
 	/* Create SSL instance */
+	getdns_context *context = dnsreq->context;
 	if (context->tls_ctx == NULL)
 		return NULL;
-
-	// if (auth_name[0] == '\0') {
-	// 	DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
-	// 	return NULL;
-	// }
 	SSL* ssl = SSL_new(context->tls_ctx);
-	X509_VERIFY_PARAM *param;
 
 	if(!ssl) 
 		return NULL;
@@ -844,26 +863,47 @@ tls_create_object(getdns_context *context, int fd, const char* auth_name)
 		SSL_free(ssl);
 		return NULL;
 	}
-	SSL_set_tlsext_host_name(ssl, auth_name);
-	param = SSL_get0_param(ssl);
-	X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-	X509_VERIFY_PARAM_set1_host(param, auth_name, 0);
+
+	/* NOTE: this code will fallback on a given upstream, without trying
+	         authentication on other upstreams first. This is non-optimal and is
+	         an interim simplification. */
+
+	/* Lack of host name is OK unless only authenticated TLS is specified*/
+	if (upstream->tls_auth_name[0] == '\0') {
+		if (!dnsreq->netreqs[0]->tls_auth_fallback_ok) {
+			DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
+			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			return NULL;
+		} else {
+			SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
+		}
+	} else {
+		/*Request certificate for the auth_name*/
+		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
+
+#ifdef HAVE_SSL_HN_AUTH
+		/* Set up native OpenSSL hostname verification*/
+		X509_VERIFY_PARAM *param;
+		param = SSL_get0_param(ssl);
+		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
+#else
+		/* TODO: Trigger post-handshake custom validation*/
+		if (!dnsreq->netreqs[0]->tls_auth_fallback_ok) {
+			DEBUG_STUB("--- %s, ERROR: Authentication functionality not available\n", __FUNCTION__);
+			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			upstream->tls_auth_failed = 1;
+			return NULL;
+		}
+#endif
+		/* Allow fallback from authenticated TLS if settings permit it (use NONE here?)*/
+		if (dnsreq->netreqs[0]->tls_auth_fallback_ok)
+			SSL_set_verify(ssl, SSL_VERIFY_NONE, _getdns_tls_verify_callback_with_fallback);
+	}
+	
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 	return ssl;
-#else
-	return NULL;
-#endif
-}
-
-int 
-_getdns_tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
-	int     err;
-	err = X509_STORE_CTX_get_error(ctx);
-	const char * err_str;
-	err_str = X509_verify_cert_error_string(err);
-	DEBUG_STUB("--- %s, ERROR: %s\n", __FUNCTION__, err_str);
-	return 1;
 }
 
 static int
@@ -920,6 +960,17 @@ tls_do_handshake(getdns_upstream *upstream)
 	   }
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
+	/* TODO: Can we detect the authentication state of the connection here?*/
+//#ifndef HAVE_SSL_HN_AUTH
+	/*TODO: When OpenSSL 1.0.2 not available, use custom function to validate
+	        the hostname.*/
+	// X509* cert = SSL_get_peer_certificate(upstream->tls_obj);
+	// if(cert) { X509_free(cert); } /* Free immediately */
+	// if(NULL == cert) return 0;
+	// if (!verify_cert_hostname(cert, upstream->tls_auth_name))
+	// 	DEBUG_STUB("--- %s %s\n", __FUNCTION__, "Hostname verification failed: ");
+	// X509_free(cert);
+//#endif
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1328,9 +1379,9 @@ upstream_read_cb(void *userarg)
 		if (netreq->owner == upstream->starttls_req) {
 			dnsreq = netreq->owner;
 			if (is_starttls_response(netreq)) {
-				upstream->tls_obj = tls_create_object(dnsreq->context,
+				upstream->tls_obj = tls_create_object(dnsreq,
 				                                      upstream->fd,
-								      upstream->tls_auth_name);
+				                                      upstream);
 				if (upstream->tls_obj == NULL) 
 					upstream->tls_hs_state = GETDNS_HS_FAILED;
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
@@ -1570,7 +1621,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			return upstream->fd;
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) return -1;
-		upstream->tls_obj = tls_create_object(dnsreq->context, fd, upstream->tls_auth_name);
+		upstream->tls_obj = tls_create_object(dnsreq, fd, upstream);
 		if (upstream->tls_obj == NULL) {
 			close(fd);
 			return -1;
@@ -1633,7 +1684,7 @@ find_upstream_for_netreq(getdns_network_req *netreq)
 		                                  netreq->transports[i],
 		                                  &fd);
 		if (fd == -1 || !upstream)
-			continue;
+				continue;
 		netreq->transport_current = i;
 		netreq->upstream = upstream;
 		return fd;
