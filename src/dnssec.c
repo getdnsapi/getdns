@@ -191,7 +191,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <ldns/ldns.h>
+#include <ctype.h>
 #include <openssl/sha.h>
 #include "getdns/getdns.h"
 #include "config.h"
@@ -1384,18 +1384,6 @@ static int key_matches_signer(getdns_rrset *dnskey, getdns_rrset *rrset)
 	return 0;
 }
 
-static ldns_rr *rr2ldns_rr(_getdns_rr_iter *rr)
-{
-	ldns_rr *rr_l;
-	size_t pos = rr->pos - rr->pkt;
-
-	if (ldns_wire2rr(&rr_l, rr->pkt, rr->pkt_end - rr->pkt, &pos,
-			(ldns_pkt_section)_getdns_rr_iter_section(rr)))
-		return NULL;
-	else
-		return rr_l;
-}
-
 static size_t _rr_uncompressed_rdata_size(rrtype_iter *rr)
 {
 	_getdns_rdf_iter *rdf, rdf_spc;
@@ -1485,17 +1473,17 @@ inline static void canon_rdata_iter_next(canon_rdata_iter *i)
 
 inline static int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
 {
-	return rr_type == LDNS_RR_TYPE_NS    || rr_type == LDNS_RR_TYPE_MD
-	    || rr_type == LDNS_RR_TYPE_MF    || rr_type == LDNS_RR_TYPE_CNAME
-	    || rr_type == LDNS_RR_TYPE_SOA   || rr_type == LDNS_RR_TYPE_MB
-	    || rr_type == LDNS_RR_TYPE_MG    || rr_type == LDNS_RR_TYPE_MR
-	    || rr_type == LDNS_RR_TYPE_PTR   || rr_type == LDNS_RR_TYPE_MINFO
-	    || rr_type == LDNS_RR_TYPE_MX    || rr_type == LDNS_RR_TYPE_RP
-	    || rr_type == LDNS_RR_TYPE_AFSDB || rr_type == LDNS_RR_TYPE_RT
-	    || rr_type == LDNS_RR_TYPE_SIG   || rr_type == LDNS_RR_TYPE_PX
-	    || rr_type == LDNS_RR_TYPE_NXT   || rr_type == LDNS_RR_TYPE_NAPTR
-	    || rr_type == LDNS_RR_TYPE_KX    || rr_type == LDNS_RR_TYPE_SRV
-	    || rr_type == LDNS_RR_TYPE_DNAME || rr_type == LDNS_RR_TYPE_RRSIG;
+	return rr_type == GLDNS_RR_TYPE_NS    || rr_type == GLDNS_RR_TYPE_MD
+	    || rr_type == GLDNS_RR_TYPE_MF    || rr_type == GLDNS_RR_TYPE_CNAME
+	    || rr_type == GLDNS_RR_TYPE_SOA   || rr_type == GLDNS_RR_TYPE_MB
+	    || rr_type == GLDNS_RR_TYPE_MG    || rr_type == GLDNS_RR_TYPE_MR
+	    || rr_type == GLDNS_RR_TYPE_PTR   || rr_type == GLDNS_RR_TYPE_MINFO
+	    || rr_type == GLDNS_RR_TYPE_MX    || rr_type == GLDNS_RR_TYPE_RP
+	    || rr_type == GLDNS_RR_TYPE_AFSDB || rr_type == GLDNS_RR_TYPE_RT
+	    || rr_type == GLDNS_RR_TYPE_SIG   || rr_type == GLDNS_RR_TYPE_PX
+	    || rr_type == GLDNS_RR_TYPE_NXT   || rr_type == GLDNS_RR_TYPE_NAPTR
+	    || rr_type == GLDNS_RR_TYPE_KX    || rr_type == GLDNS_RR_TYPE_SRV
+	    || rr_type == GLDNS_RR_TYPE_DNAME || rr_type == GLDNS_RR_TYPE_RRSIG;
 }
 
 static int _rr_iter_rdata_cmp(const void *a, const void *b)
@@ -1918,10 +1906,12 @@ static int ds_authenticates_keys(
 	rrtype_iter ds_spc, *ds;
 	uint16_t keytag;
 	uint8_t *nc_name;
-	ldns_rr *dnskey_l, *ds_gen_l, *ds_l;
 	size_t valid_dsses = 0, supported_dsses = 0;
 	uint8_t max_supported_digest = 0;
 	int max_supported_result = 0;
+	unsigned char digest_spc[256], *digest;
+	unsigned char digest_buf_spc[2048], *digest_buf;
+	size_t digest_len, digest_buf_len, dnskey_owner_len;
 
 	assert(ds_set->rr_type == GETDNS_RRTYPE_DS);
 	assert(dnskey_set->rr_type == GETDNS_RRTYPE_DNSKEY);
@@ -1934,6 +1924,12 @@ static int ds_authenticates_keys(
 	debug_sec_print_rrset("ds_authenticates_keys DS: ", ds_set);
 	debug_sec_print_rrset("ds_authenticates_keys DNSKEY: ", dnskey_set);
 
+	if ((dnskey_owner_len = _dname_len(dnskey_set->name)) >= 255)
+		return 0;
+
+	(void) memcpy(digest_buf_spc, dnskey_set->name, dnskey_owner_len);
+	_dname_canonicalize(digest_buf_spc);
+
 	for ( dnskey = rrtype_iter_init(&dnskey_spc, dnskey_set)
 	    ; dnskey ; dnskey = rrtype_iter_next(dnskey)) {
 
@@ -1943,8 +1939,6 @@ static int ds_authenticates_keys(
 
 		keytag = gldns_calc_keytag_raw(dnskey->rr_i.rr_type + 10,
 				dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10);
-
-		dnskey_l = NULL;
 
 		for ( ds = rrtype_iter_init(&ds_spc, ds_set)
 		    ; ds ; ds = rrtype_iter_next(ds)) {
@@ -1966,28 +1960,40 @@ static int ds_authenticates_keys(
 			       ds->rr_i.rr_type[12] == GLDNS_RSAMD5
 
 			    /* Algorithm is supported */
-			    || !ldns_key_algo_supported(ds->rr_i.rr_type[12]))
+			    || !_getdns_dnskey_algo_id_is_supported(
+				    ds->rr_i.rr_type[12])
+
+			    /* Digest is supported */
+			    || !(digest_len = _getdns_ds_digest_size_supported(
+				    ds->rr_i.rr_type[13])))
 
 				continue;
 
-			if (!dnskey_l)
-				if (!(dnskey_l = rr2ldns_rr(&dnskey->rr_i)))
-					continue;
+			digest = digest_len <= sizeof(digest_spc) ? digest_spc
+			    : GETDNS_XMALLOC(*mf, unsigned char, digest_len);
 
-			/* Unfortunately there is no ldns_ds_digest_supported()
-			 * function.  The only way to check if a digest type is
-			 * supported, is by trying to hashing the key with the
-			 * given digest type.
-			 */
-			if (!(ds_gen_l = ldns_key_rr2ds(dnskey_l,
-							ds->rr_i.rr_type[13])))
+			digest_buf_len = dnskey->rr_i.nxt
+			               - dnskey->rr_i.rr_type - 10
+			               + dnskey_owner_len;
+			digest_buf = digest_buf_len <= sizeof(digest_buf_spc)
+			    ? digest_buf_spc
+			    : GETDNS_XMALLOC(*mf, unsigned char, digest_buf_len);
 
-				/* Hash algorithm not supported */
-				continue;
+			if (digest_buf != digest_buf_spc)
+				(void) memcpy(digest_buf,
+				    digest_buf_spc, dnskey_owner_len);
 
-			if (ldns_rr_rd_count(ds_gen_l) < 4) {
-				ldns_rr_free(ds_gen_l);
-				/* Hash algorithm not supported */
+			(void) memcpy(digest_buf + dnskey_owner_len,
+			    dnskey->rr_i.rr_type + 10,
+			    dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10);
+
+			if (!_getdns_secalgo_ds_digest(ds->rr_i.rr_type[13],
+			    digest_buf, digest_buf_len, digest)) {
+
+				if (digest != digest_spc)
+					GETDNS_FREE(*mf, digest);
+				if (digest_buf != digest_buf_spc)
+					GETDNS_FREE(*mf, digest_buf);
 				continue;
 			}
 			supported_dsses++;
@@ -2005,26 +2011,33 @@ static int ds_authenticates_keys(
 			     */
 			    || (   ds->rr_i.rr_type[13] == max_supported_digest
 				&& max_supported_result)) {
-				ldns_rr_free(ds_gen_l);
+				if (digest != digest_spc)
+					GETDNS_FREE(*mf, digest);
+				if (digest_buf != digest_buf_spc)
+					GETDNS_FREE(*mf, digest_buf);
+
+				DEBUG_SEC("Better DS available\n");
 				continue;
 			}
 			max_supported_digest = ds->rr_i.rr_type[13];
 			max_supported_result = 0;
 
-			if (!(ds_l = rr2ldns_rr(&ds->rr_i))) {
-				ldns_rr_free(ds_gen_l);
-				continue;
-			}
+			if (digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
+			    || memcmp(digest, ds->rr_i.rr_type+14, digest_len) != 0) {
+				if (digest != digest_spc)
+					GETDNS_FREE(*mf, digest);
+				if (digest_buf != digest_buf_spc)
+					GETDNS_FREE(*mf, digest_buf);
 
-			if (ldns_rr_compare(ds_l, ds_gen_l) != 0) {
-				/* No match */
-				ldns_rr_free(ds_l);
-				ldns_rr_free(ds_gen_l);
+				DEBUG_SEC("HASH length mismatch %zu != %zu\n",
+					digest_len, ds->rr_i.nxt - ds->rr_i.rr_type-14);
 				continue;
 			}
 			/* Match! */
-			ldns_rr_free(ds_l);
-			ldns_rr_free(ds_gen_l);
+			if (digest != digest_spc)
+				GETDNS_FREE(*mf, digest);
+			if (digest_buf != digest_buf_spc)
+				GETDNS_FREE(*mf, digest_buf);
 
 			if (!dnskey_signed_rrset(mf,dnskey,dnskey_set,&nc_name)
 			    || nc_name /* No DNSKEY's on wildcards! */) {
@@ -2037,7 +2050,6 @@ static int ds_authenticates_keys(
 			    "keyset authenticated: ", dnskey_set);
 			max_supported_result = SIGNATURE_VERIFIED | keytag;
 		}
-		ldns_rr_free(dnskey_l);
 	}
 	DEBUG_SEC("valid_dsses: %zu, supported_dsses: %zu\n",
 			valid_dsses, supported_dsses);
@@ -2769,8 +2781,8 @@ static int chain_head_validate(
 	    ; rr; rr = rrtype_iter_next(rr)) {
 
 		if (   rr->rr_i.rr_type + 14 <= rr->rr_i.nxt
-		    && rr->rr_i.rr_type[13] != GLDNS_RSAMD5 /* Deprecated */
-		    && ldns_key_algo_supported(rr->rr_i.rr_type[13])) 
+		    && _getdns_dnskey_algo_id_is_supported(
+			    rr->rr_i.rr_type[13]))
 
 			supported_algorithms++;
 	}
@@ -3334,9 +3346,9 @@ _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf)
 		if (len == 0)  /* empty, $TTL, $ORIGIN */
 			continue;
 		if (gldns_wirerr_get_type(rr, len, dname_len) 
-		    != LDNS_RR_TYPE_DS &&
+		    != GLDNS_RR_TYPE_DS &&
 		    gldns_wirerr_get_type(rr, len, dname_len)
-		    != LDNS_RR_TYPE_DNSKEY)
+		    != GLDNS_RR_TYPE_DNSKEY)
 			continue;
 
 		gldns_buffer_write(gbuf, rr, len);
