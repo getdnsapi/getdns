@@ -165,6 +165,20 @@ getdns_return_t _getdns_validate_extensions(struct getdns_dict * extensions);
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
 
+#define DEBUG_NL(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+		\
+		gettimeofday(&tv, NULL); \
+		gmtime_r(&tv.tv_sec, &tm); \
+		strftime(buf, 10, "%T", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+		fprintf(stderr, "\n"); \
+	} while (0)
+
+
 #define DEBUG_OFF(...) do {} while (0)
 
 #if defined(SCHED_DEBUG) && SCHED_DEBUG

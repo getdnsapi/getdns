@@ -34,9 +34,18 @@
 #ifndef UTIL_LOG_H
 #define UTIL_LOG_H
 
-#define log_assert(x)
+#include "config.h"
+#include "util-internal.h"
+
+#if defined(SEC_DEBUG) && SEC_DEBUG
+#define verbose(x, ...) DEBUG_NL(__VA_ARGS__)
+#define log_err(...) DEBUG_NL(__VA_ARGS__)
+#else
 #define verbose(...)
 #define log_err(...)
+#endif
+
+#define log_assert(x)
 
 #endif /* UTIL_LOG_H */
 

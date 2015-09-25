@@ -1553,6 +1553,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	size_t cdname_len, pos;
 	uint32_t orig_ttl;
 	gldns_buffer valbuf;
+	char *reason;
 
 	/* nc_name should already have been initialized by the parent! */
 	assert(nc_name);
@@ -1646,30 +1647,15 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	         , gldns_buffer_position(&valbuf));
 	assert(gldns_buffer_position(&valbuf) == valbuf_sz);
 
-	/* Check with ldns to verify we're still on the right path.
-	 */
-	if (1) {
-		ldns_buffer lvalbuf;
+	r = _getdns_verify_canonrrset(&valbuf, key->rr_i.rr_type[13],
+	    signer->nxt, rrsig->rr_i.nxt - signer->nxt,
+	    key->rr_i.rr_type+14, key->rr_i.nxt - key->rr_i.rr_type-14,
+	    &reason);
 
-		ldns_buffer_new_frm_data( &lvalbuf
-		                        , gldns_buffer_begin(&valbuf)
-					, gldns_buffer_position(&valbuf));
-		ldns_buffer_set_position( &lvalbuf
-		                        , gldns_buffer_position(&valbuf));
-
-		r = ldns_verify_rrsig_buffers_raw(
-		    /* sig, siglen */
-		    signer->nxt, rrsig->rr_i.nxt - signer->nxt,
-
-		    /* verify buf */
-		    &lvalbuf,
-
-		    /* key, keylen */
-		    key->rr_i.rr_type+14, key->rr_i.nxt - key->rr_i.rr_type-14,
-
-		    /* algo */
-		    key->rr_i.rr_type[13]) == LDNS_STATUS_OK;
-	}
+#if defined(SEC_DEBUG) && SEC_DEBUG
+	if (r == 0)
+		DEBUG_SEC("verification failed: %s\n", reason);
+#endif
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(*mf, val_rrset);
 	if (valbuf_buf != valbuf_spc)
@@ -1806,7 +1792,7 @@ static int nsec3_iteration_count_high(rrtype_iter *dnskey, getdns_rrset *nsec3)
 	    || rr->rr_i.rr_type + 14 > rr->rr_i.nxt)
 		return 1;
 	
-	bits = ldns_rr_dnskey_key_size_raw(dnskey->rr_i.rr_type + 10,
+	bits = gldns_rr_dnskey_key_size_raw(dnskey->rr_i.rr_type + 10,
 	    dnskey->rr_i.nxt - dnskey->rr_i.rr_type - 10,
 	    dnskey->rr_i.rr_type[13]);
 
