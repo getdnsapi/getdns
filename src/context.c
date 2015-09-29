@@ -567,8 +567,10 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->tcp.write_error = 0;
 	upstream->writes_done = 0;
 	upstream->responses_received = 0;
-	if (upstream->tls_hs_state != GETDNS_HS_FAILED)
+	if (upstream->tls_hs_state != GETDNS_HS_FAILED) {
 		upstream->tls_hs_state = GETDNS_HS_NONE;
+		upstream->tls_auth_failed = 0;
+	}
 	/* Now TLS stuff*/
 	if (upstream->tls_obj != NULL) {
 		SSL_shutdown(upstream->tls_obj);
@@ -627,6 +629,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->starttls_req = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
+	upstream->tls_auth_failed = 0;
 	upstream->tls_auth_name[0] = '\0';
 	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;

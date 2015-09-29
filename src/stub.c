@@ -819,7 +819,14 @@ tls_failed(getdns_upstream *upstream)
 	/* No messages should be scheduled onto an upstream in this state */
 	return ((upstream->transport == GETDNS_TRANSPORT_TLS ||
 	         upstream->transport == GETDNS_TRANSPORT_STARTTLS) &&
-	         upstream->tls_hs_state == GETDNS_HS_FAILED) ? 1: 0;
+	         upstream->tls_hs_state == GETDNS_HS_FAILED) ? 1 : 0;
+}
+
+static int
+tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
+	return (netreq->tls_auth_req &&
+	       !netreq->tls_auth_fallback_ok &&
+		     upstream->tls_auth_failed) ? 0 : 1;
 }
 
 int
@@ -828,21 +835,23 @@ _getdns_tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
 	err = X509_STORE_CTX_get_error(ctx);
 	const char * err_str;
 	err_str = X509_verify_cert_error_string(err);
-	DEBUG_STUB("--- %s, ERROR: %s\n", __FUNCTION__, err_str);
+	DEBUG_STUB("--- %s, VERIFY RESULT: %s\n", __FUNCTION__, err_str);
 	/*Always  proceed without changing result*/
 	return preverify_ok;
 }
 
 int
-_getdns_tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx) {
+tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx) {
 	int     err;
 	err = X509_STORE_CTX_get_error(ctx);
 	const char * err_str;
 	err_str = X509_verify_cert_error_string(err);
-	DEBUG_STUB("--- %s, ERROR: (%d) \"%s\"\n", __FUNCTION__, err, err_str);
+	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__, err, err_str);
 	/*Proceed if error is hostname mismatch*/
-	if (err == X509_V_ERR_HOSTNAME_MISMATCH)
+	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
+		DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 		return 1;
+	}
 	else
 		return preverify_ok;
 }
@@ -875,6 +884,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			return NULL;
 		} else {
+			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
+			upstream->tls_auth_failed = 1;
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
 		}
 	} else {
@@ -898,7 +909,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 #endif
 		/* Allow fallback from authenticated TLS if settings permit it (use NONE here?)*/
 		if (dnsreq->netreqs[0]->tls_auth_fallback_ok)
-			SSL_set_verify(ssl, SSL_VERIFY_NONE, _getdns_tls_verify_callback_with_fallback);
+			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
 	}
 	
 	SSL_set_connect_state(ssl);
@@ -960,17 +971,13 @@ tls_do_handshake(getdns_upstream *upstream)
 	   }
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
-	/* TODO: Can we detect the authentication state of the connection here?*/
+	r = SSL_get_verify_result(upstream->tls_obj);
+	if (r == X509_V_ERR_HOSTNAME_MISMATCH)
+		upstream->tls_auth_failed = 1;
 //#ifndef HAVE_SSL_HN_AUTH
 	/*TODO: When OpenSSL 1.0.2 not available, use custom function to validate
-	        the hostname.*/
-	// X509* cert = SSL_get_peer_certificate(upstream->tls_obj);
-	// if(cert) { X509_free(cert); } /* Free immediately */
-	// if(NULL == cert) return 0;
-	// if (!verify_cert_hostname(cert, upstream->tls_auth_name))
-	// 	DEBUG_STUB("--- %s %s\n", __FUNCTION__, "Hostname verification failed: ");
-	// X509_free(cert);
-//#endif
+	        the hostname e.g. see libcurl:openssl.c:verifyhost() */
+//#endif 
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1517,7 +1524,8 @@ netreq_upstream_write_cb(void *userarg)
 
 static int
 upstream_transport_valid(getdns_upstream *upstream,
-                        getdns_transport_list_t transport)
+                        getdns_transport_list_t transport,
+                        getdns_network_req *netreq)
 {
 	/* Single shot UDP, uses same upstream as plain TCP. */
 	if (transport == GETDNS_TRANSPORT_UDP)
@@ -1538,7 +1546,7 @@ upstream_transport_valid(getdns_upstream *upstream,
 	/* Otherwise, transport must match, and not have failed */
 	if (upstream->transport != transport)
 		return 0;
-	if (tls_failed(upstream))
+	if (tls_failed(upstream) || !tls_auth_status_ok(upstream, netreq))
 		return 0;
 	return 1;
 }
@@ -1566,7 +1574,7 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	DEBUG_STUB(" current upstream: %d of %d \n",(int)i, (int)upstreams->count);
 	do {
 		if (upstreams->upstreams[i].to_retry > 0 &&
-		    upstream_transport_valid(&upstreams->upstreams[i], transport)) {
+		    upstream_transport_valid(&upstreams->upstreams[i], transport, netreq)) {
 			upstreams->current = i;
 			DEBUG_STUB(" selected upstream: %d\n",(int)i);
 			return &upstreams->upstreams[i];
@@ -1578,11 +1586,11 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	upstream = upstreams->upstreams;
 	for (i = 0; i < upstreams->count; i++)
 		if (upstreams->upstreams[i].back_off < upstream->back_off &&
-			upstream_transport_valid(&upstreams->upstreams[i], transport))
+			upstream_transport_valid(&upstreams->upstreams[i], transport, netreq))
 			upstream = &upstreams->upstreams[i];
 
 	/* Need to check again that the transport is valid */
-	if (!upstream_transport_valid(upstream, transport)) {
+	if (!upstream_transport_valid(upstream, transport, netreq)) {
 		DEBUG_STUB(" ! No valid upstream available\n");
 		return NULL;
 	}
