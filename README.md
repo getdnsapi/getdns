@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-09-04
+* Date:    2015-09-29
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -85,9 +85,7 @@ Building/External Dependencies
 
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
-* [libldns from NLnet Labs](https://www.nlnetlabs.nl/projects/ldns/) version 1.6.11 or later (ldns requires openssl headers and libraries)
 * [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
-* [libexpat](http://expat.sourceforge.net/) for libunbound.
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
 * [libssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.2 or later is required for TLS support)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
@@ -233,25 +231,35 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 Contributors
 ============
 * Theogene Bucuti
+* Saúl Ibarra Corretgé
 * Craig Despeaux, Verisign, Inc.
 * John Dickinson, Sinodun
 * Sara Dickinson, Sinodun
+* Angelique Finan, Verisign, Inc.
+* Daniel Kahn Gillmor
 * Neel Goyal, Verisign, Inc.
+* Bryan Graham, Verisign, Inc.
+* Paul Hoffman
 * Scott Hollenbeck, Verising, Inc.
 * Shumon Huque, Verisign Labs
+* Shane Kerr
+* Anthony Kirby
 * Olaf Kolkman, NLnet Labs
 * Sanjay Mahurpawar, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
 * Sai Mogali, Verisign, Inc.
 * Benno Overeinder, NLnet Labs
+* Joel Purra
 * Prithvi Ranganath, Verisign, Inc.
 * Rushi Shah, Verisign, Inc.
+* Vinay Soni, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
 * Bob Steagall, Verisign, Inc.
 * Willem Toorop, NLnet Labs
 * Gowri Visweswaran, Verisign Labs
 * Wouter Wijngaards, NLnet Labs
 * Glen Wiley, Verisign, Inc.
+* Paul Wouters
 
 Acknowledgements
 ================

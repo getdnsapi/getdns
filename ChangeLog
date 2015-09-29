@@ -1,5 +1,6 @@
 * 2015-10-??: Version 0.3.4
-  * 
+  * Native crypto.  No ldns dependency anymore.
+    (ldns still necessary to be able to run tests though)
 
 * 2015-09-09: Version 0.3.3
   * Fix clearing upstream events on shutdown
