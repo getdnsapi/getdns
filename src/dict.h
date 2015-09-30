@@ -39,22 +39,13 @@
 #include "util/rbtree.h"
 #include "types-internal.h"
 
-union getdns_item
-{
-	struct getdns_list *list;
-	struct getdns_dict *dict;
-	uint32_t n;
-	struct getdns_bindata *bindata;
-};
-
 /**
  * this structure represents a single item in a dictionary type
  */
 struct getdns_dict_item
 {
 	_getdns_rbnode_t node;
-	getdns_data_type dtype;
-	union getdns_item data;
+	getdns_item i;
 };
 
 /**

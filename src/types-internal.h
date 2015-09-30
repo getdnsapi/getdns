@@ -41,6 +41,21 @@
 #include "util/rbtree.h"
 
 
+/**
+ * this structure represents a single item in a list or dict
+ */
+typedef struct getdns_item {
+	getdns_data_type dtype;
+	union
+	{
+		struct getdns_list *list;
+		struct getdns_dict *dict;
+		int n;
+		struct getdns_bindata *bindata;
+	} data;
+} getdns_item;
+
+
 struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;

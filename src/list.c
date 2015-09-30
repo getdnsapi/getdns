@@ -222,7 +222,7 @@ getdns_list_create_with_extended_memory_functions(
 
 	list->numinuse = 0;
 	if (!(list->items = GETDNS_XMALLOC(
-	    list->mf, struct getdns_list_item, GETDNS_LIST_BLOCKSZ))) {
+	    list->mf, getdns_item, GETDNS_LIST_BLOCKSZ))) {
 		GETDNS_FREE(list->mf, list);
 		return NULL;
 	}
@@ -308,7 +308,7 @@ getdns_list_destroy(struct getdns_list *list)
 static getdns_return_t
 _getdns_list_request_index(getdns_list *list, size_t index)
 {
-	struct getdns_list_item *newlist;
+	getdns_item *newlist;
 
 	assert(list);
 
@@ -325,7 +325,7 @@ _getdns_list_request_index(getdns_list *list, size_t index)
 		return GETDNS_RETURN_GOOD;
 	}
 	if (!(newlist = GETDNS_XREALLOC(list->mf, list->items,
-	    struct getdns_list_item, list->numalloc + GETDNS_LIST_BLOCKSZ)))
+	    getdns_item, list->numalloc + GETDNS_LIST_BLOCKSZ)))
 
 		return GETDNS_RETURN_MEMORY_ERROR;
 

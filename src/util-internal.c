@@ -839,7 +839,7 @@ _getdns_validate_extensions(struct getdns_dict * extensions)
 			if (!extformat)
 				return GETDNS_RETURN_NO_SUCH_EXTENSION;
 
-			if (item->dtype != extformat->exttype)
+			if (item->i.dtype != extformat->exttype)
 				return GETDNS_RETURN_EXTENSION_MISFORMAT;
 		}
 	return GETDNS_RETURN_GOOD;

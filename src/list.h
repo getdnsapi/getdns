@@ -43,21 +43,6 @@
 #define GETDNS_LIST_BLOCKSZ 10
 
 /**
- * this structure represents a single item in a list
- */
-struct getdns_list_item
-{
-	getdns_data_type dtype;
-	union
-	{
-		struct getdns_list *list;
-		struct getdns_dict *dict;
-		int n;
-		struct getdns_bindata *bindata;
-	} data;
-};
-
-/**
  * getdns list data type
  * Use helper functions getdns_list_* to manipulate and iterate lists
  * lists are implemented as arrays internally since the helper functions
@@ -70,7 +55,7 @@ struct getdns_list
 {
 	size_t numalloc;
 	size_t numinuse;
-	struct getdns_list_item *items;
+	struct getdns_item *items;
 	struct mem_funcs mf;
 };
 
