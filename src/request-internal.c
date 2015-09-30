@@ -104,8 +104,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->transport_current = 0;
     memcpy(net_req->transports, owner->context->dns_transports,
            net_req->transport_count * sizeof(getdns_transport_list_t));
-	net_req->tls_auth_req         = owner->context->tls_auth_req;
-	net_req->tls_auth_fallback_ok = owner->context->tls_auth_fallback_ok;
+	net_req->tls_auth_min = owner->context->tls_auth_min;
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->query_id = 0;

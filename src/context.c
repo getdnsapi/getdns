@@ -900,8 +900,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_maximum_udp_payload_size = -1;
 	if ((r = create_default_dns_transports(result)))
 		goto error;
-	result->tls_auth_req = 1; 
-	result->tls_auth_fallback_ok = 1;
+	result->tls_auth = GETDNS_AUTHENTICATION_HOSTNAME; 
+	result->tls_auth_min = GETDNS_AUTHENTICATION_HOSTNAME;
 	result->limit_outstanding_queries = 0;
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
@@ -1262,8 +1262,7 @@ getdns_set_base_dns_transports(
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if (!(new_transports = GETDNS_XMALLOC(context->my_mf,
-				getdns_transport_list_t, transport_count)))
-
+		getdns_transport_list_t, transport_count)))
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
 	if (context->dns_transports)
@@ -1274,7 +1273,7 @@ getdns_set_base_dns_transports(
 	memcpy(context->dns_transports, transports,
 	    transport_count * sizeof(getdns_transport_list_t));
 	context->dns_transport_count = transport_count;
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
 
 	return GETDNS_RETURN_GOOD;
 }
@@ -1422,6 +1421,26 @@ getdns_context_set_dns_transport_list(getdns_context *context,
     dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dns_transport_list */
+
+/*
+ * getdns_context_set_tls_authentication
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_authentication(getdns_context *context,
+                                      getdns_tls_authentication_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    if (value != GETDNS_AUTHENTICATION_NONE && 
+        value != GETDNS_AUTHENTICATION_HOSTNAME) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+    context->tls_auth = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_authentication_list */
 
 static void
 set_ub_limit_outstanding_queries(struct getdns_context* context, uint16_t value) {
@@ -2178,23 +2197,18 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
     }
 
 	/* Transport can in theory be set per query in stub mode */
-	if (context->resolution_type == GETDNS_RESOLUTION_STUB) {
-		if (tls_is_in_transports_list(context) == 1 &&
-		    context->tls_ctx == NULL) {
+	if (context->resolution_type == GETDNS_RESOLUTION_STUB && 
+		tls_is_in_transports_list(context) == 1) {
+		if (context->tls_ctx == NULL) {
 #ifdef HAVE_TLS_v1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
-			/* Be strict and only use the cipher suites recommended in RFC7525 */
-			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
-			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
-				return GETDNS_RETURN_BAD_CONTEXT;
-			if ((tls_only_is_in_transports_list(context) == 1) && context->tls_auth_req)
-				context->tls_auth_fallback_ok = 0;
-				/* TODO: If no auth data provided for any upstream, fail here */
-			else
-				context->tls_auth_fallback_ok = 1;
+			// /* Be strict and only use the cipher suites recommended in RFC7525 */
+			// const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
+			// if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+			// 	return GETDNS_RETURN_BAD_CONTEXT;
 			/* By default cert chain will be verified, but note that per
 			   connection management of the result and hostname verification is done.*/
 			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, _getdns_tls_verify_callback);
@@ -2206,9 +2220,19 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			/* A null tls_ctx will make TLS fail and fallback to the other
 			   transports will kick-in.*/
 #endif
-
+		}
+		if (tls_only_is_in_transports_list(context) == 1 && 
+		    context->tls_auth == GETDNS_AUTHENTICATION_HOSTNAME) {
+				fprintf(stdout, "Setting auth min to HOSTNAME\n");
+			context->tls_auth_min = GETDNS_AUTHENTICATION_HOSTNAME;
+			/* TODO: If no auth data provided for any upstream, fail here */
+		}
+		else {
+			context->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
+			fprintf(stdout, "Setting auth min to NONE\n");
 		}
 	}
+
 	/* Block use of STARTTLS/TLS ONLY in recursive mode as it won't work */
     /* Note: If TLS is used in recursive mode this will try TLS on port
      * 53 so it is blocked here.  So is 'STARTTLS only' at the moment. */

@@ -198,8 +198,7 @@ typedef struct getdns_network_req
 	getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
 	size_t                  transport_count;
 	size_t                  transport_current;
-	size_t                  tls_auth_req;
-	size_t                  tls_auth_fallback_ok;
+	getdns_tls_authentication_t  tls_auth_min;
 	getdns_eventloop_event  event;
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;

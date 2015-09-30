@@ -824,9 +824,9 @@ tls_failed(getdns_upstream *upstream)
 
 static int
 tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
-	return (netreq->tls_auth_req &&
-	       !netreq->tls_auth_fallback_ok &&
-		     upstream->tls_auth_failed) ? 0 : 1;
+	DEBUG_STUB("--- %s %d %d\n", __FUNCTION__, (int)netreq->tls_auth_min, (int)upstream->tls_auth_failed);
+	return (netreq->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME &&
+		    upstream->tls_auth_failed) ? 0 : 1;
 }
 
 int
@@ -879,13 +879,15 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 
 	/* Lack of host name is OK unless only authenticated TLS is specified*/
 	if (upstream->tls_auth_name[0] == '\0') {
-		if (!dnsreq->netreqs[0]->tls_auth_fallback_ok) {
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
 			DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			upstream->tls_auth_failed = 1;
 			return NULL;
 		} else {
 			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
+			/* TODO: Should we always enforce validation of the cert at least??*/
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
 		}
 	} else {
@@ -900,15 +902,15 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
 #else
 		/* TODO: Trigger post-handshake custom validation*/
-		if (!dnsreq->netreqs[0]->tls_auth_fallback_ok) {
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
 			DEBUG_STUB("--- %s, ERROR: Authentication functionality not available\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			upstream->tls_auth_failed = 1;
 			return NULL;
 		}
 #endif
-		/* Allow fallback from authenticated TLS if settings permit it (use NONE here?)*/
-		if (dnsreq->netreqs[0]->tls_auth_fallback_ok)
+		/* Allow fallback from authenticated TLS if settings permit it*/
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_NONE)
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
 	}
 	
@@ -1118,6 +1120,8 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	int q = tls_connected(upstream);
 	if (q != 0)
 		return q;
+	if (!tls_auth_status_ok(upstream, netreq))
+		return STUB_TLS_SETUP_ERROR;
 
 	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
@@ -1672,6 +1676,7 @@ find_upstream_for_specific_transport(getdns_network_req *netreq,
                              getdns_transport_list_t transport,
                              int *fd)
 {
+	// TODO[TLS]: Need to loop over upstreams here!! 
 	getdns_upstream *upstream = upstream_select(netreq, transport);
 	if (!upstream)
 		return NULL;

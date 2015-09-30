@@ -208,6 +208,23 @@ typedef enum getdns_transport_list_t {
  */
 
 
+/* Authentication options used when doing TLS */
+typedef enum getdns_tls_authentication_t {
+	GETDNS_AUTHENTICATION_NONE = 1300,
+	GETDNS_AUTHENTICATION_HOSTNAME = 1301,
+} getdns_tls_authentication_t;
+
+/**
+* \defgroup Base authentication texts
+* @{
+*/
+#define GETDNS_AUTHENTICATION_NONE_TEXT "See getdns_context_set_tls_authentication()"
+#define GETDNS_AUTHENTICATION_HOSTNAME_TEXT "See getdns_context_set_tls_authentication()"
+/** @}
+*/
+
+
+
 /* Suffix appending methods */
 typedef enum getdns_append_name_t {
 	GETDNS_APPEND_NAME_ALWAYS = 550,
@@ -247,7 +264,8 @@ typedef enum getdns_context_code_t {
 	GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW = 614,
 	GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS = 615,
 	GETDNS_CONTEXT_CODE_TIMEOUT = 616,
-	GETDNS_CONTEXT_CODE_IDLE_TIMEOUT = 617
+	GETDNS_CONTEXT_CODE_IDLE_TIMEOUT = 617,
+	GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION = 618
 } getdns_context_code_t;
 
 /**
@@ -272,6 +290,7 @@ typedef enum getdns_context_code_t {
 #define GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT "Change related to getdns_context_set_memory_functions"
 #define GETDNS_CONTEXT_CODE_TIMEOUT_TEXT "Change related to getdns_context_set_timeout"
 #define GETDNS_CONTEXT_CODE_IDLE_TIMEOUT_TEXT "Change related to getdns_context_set_idle_timeout"
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT "Change related to getdns_context_set_tls_authentication"
 /** @}
  */
 
@@ -346,6 +365,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT "A DNS query for a type other than CNAME returned a CNAME response"
 /** @}
  */
+
 
 /**
  * \defgroup rrtypes RR Types
@@ -974,6 +994,10 @@ getdns_context_set_dns_transport(getdns_context *context,
 getdns_return_t
 getdns_context_set_dns_transport_list(getdns_context *context,
     size_t transport_count, getdns_transport_list_t *transports);
+
+getdns_return_t
+getdns_context_set_tls_authentication(getdns_context *context,
+    getdns_tls_authentication_t value);
 
 getdns_return_t
 getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout);
