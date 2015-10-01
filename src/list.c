@@ -35,9 +35,47 @@
  */
 
 #include <string.h>
+#include <ctype.h>
 #include "types-internal.h"
 #include "util-internal.h"
 #include "list.h"
+#include "dict.h"
+
+getdns_return_t
+_getdns_list_find(const getdns_list *list, const char *key, getdns_item **item)
+{
+	const char *next;
+	char *endptr;
+	size_t index;
+
+	if (*key == '/')
+		key += 1;
+
+	if (!(next = strchr(key + 1, '/')))
+		next = key + strlen(key);
+
+	if (*key == '-')
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+	index = strtoul(key, &endptr, 10);
+	if (!isdigit((int)*key) || endptr != next)
+		/* Not a list index, so it was assumed */
+		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+
+	if (index >= list->numinuse)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+	if (*next)
+		switch (list->items[index].dtype) {
+		case t_dict: return _getdns_dict_find(
+		                 list->items[index].data.dict, next, item);
+		case t_list: return _getdns_list_find(
+		                 list->items[index].data.list, next, item);
+		default    : break;
+		}
+	*item = &list->items[index];
+	return GETDNS_RETURN_GOOD;
+}
 
 /*---------------------------------------- getdns_list_get_length */
 getdns_return_t

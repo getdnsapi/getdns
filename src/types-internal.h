@@ -44,15 +44,17 @@
 /**
  * this structure represents a single item in a list or dict
  */
+typedef union getdns_union {
+	void            *ptr;
+	getdns_dict     *dict;
+	getdns_list     *list;
+	getdns_bindata  *bindata;
+	uint32_t         n;
+} getdns_union;
+
 typedef struct getdns_item {
 	getdns_data_type dtype;
-	union
-	{
-		struct getdns_list *list;
-		struct getdns_dict *dict;
-		int n;
-		struct getdns_bindata *bindata;
-	} data;
+	getdns_union     data;
 } getdns_item;
 
 

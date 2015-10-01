@@ -43,6 +43,7 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dict.h"
+#include "list.h"
 #include "rr-dict.h"
 #include "const-info.h"
 #include "gldns/gbuffer.h"
@@ -83,20 +84,26 @@ _find_dict_item(const getdns_dict *dict, const char *key)
 	return d;
 }
 
-/*---------------------------------------- getdns_dict_find */
-/**
- * private function used to locate a key in a dictionary
- * @param dict dicitonary to search
- * @param key key to search for
- * @return pointer to dictionary item, caller must not free storage associated with item
- * @return NULL if additnotfnd == FALSE and key is not in dictionary
- */
-static inline getdns_item *
-getdns_dict_find(const getdns_dict *dict, const char *key)
+getdns_return_t
+_getdns_dict_find(const getdns_dict *dict, const char *key, getdns_item **item)
 {
-	struct getdns_dict_item *d = _find_dict_item(dict, key);
-	return d ? &d->i : NULL;
-}				/* getdns_dict_find */
+	const char *next;
+	struct getdns_dict_item *d;
+	
+	if (!(d = _find_dict_item(dict, key)))
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+	if (*key != '/' || !(next = strchr(key + 1, '/')))
+		*item = &d->i;
+
+	else switch (d->i.dtype) {
+	case t_dict: return _getdns_dict_find(d->i.data.dict, next, item);
+	case t_list: return _getdns_list_find(d->i.data.list, next, item);
+	default    : *item = &d->i;
+		     break;
+	}
+	return GETDNS_RETURN_GOOD;
+}
 
 static getdns_item *
 getdns_dict_find_and_add(struct getdns_dict *dict, const char *key)
@@ -144,14 +151,14 @@ getdns_return_t
 getdns_dict_get_data_type(
     const getdns_dict *dict, const char *name, getdns_data_type *answer)
 {
+	getdns_return_t r;
 	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	*answer = item->dtype;
 	return GETDNS_RETURN_GOOD;
@@ -162,20 +169,20 @@ getdns_return_t
 getdns_dict_get_dict(
     const getdns_dict *dict, const char *name, getdns_dict **answer)
 {
+	getdns_return_t r;
 	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	if (item->dtype != t_dict)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = item->data.dict;
-	return  GETDNS_RETURN_GOOD;
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_get_dict */
 
 /*---------------------------------------- getdns_dict_get_list */
@@ -183,14 +190,14 @@ getdns_return_t
 getdns_dict_get_list(
     const getdns_dict *dict, const char *name, getdns_list **answer)
 {
+	getdns_return_t r;
 	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	if (item->dtype != t_list)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -204,13 +211,13 @@ getdns_return_t
 getdns_dict_get_bindata(
     const getdns_dict *dict, const char *name, getdns_bindata **answer)
 {
+	getdns_return_t r;
 	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
+	if ((r = _getdns_dict_find(dict, name, &item)))
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	if (item->dtype != t_bindata)
@@ -225,14 +232,14 @@ getdns_return_t
 getdns_dict_get_int(
     const getdns_dict *dict, const char *name, uint32_t *answer)
 {
+	getdns_return_t r;
 	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	if (item->dtype != t_int)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;

@@ -48,9 +48,9 @@ LDFLAGS=@LDFLAGS@ -L../../src
 LDLIBS=../../src/libgetdns.la @LIBS@
 
 
-OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo
+OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo synchronous-concise.lo
 
-PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse
+PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer synchronous-concise
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -73,6 +73,12 @@ example-all-functions: example-all-functions.lo
 
 example-synchronous: example-synchronous.lo
 	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ example-synchronous.lo
+
+synchronous-json-pointer: synchronous-json-pointer.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ synchronous-json-pointer.lo
+
+synchronous-concise: synchronous-concise.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ synchronous-concise.lo
 
 $(EXTENSION_LIBEVENT_LIB):
 	@echo "***"
@@ -147,16 +153,20 @@ depend:
 
 # Dependencies for the examples
 example-all-functions.lo example-all-functions.o: $(srcdir)/example-all-functions.c $(srcdir)/getdns_libevent.h \
- ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
- $(srcdir)/../../src/getdns/getdns_extra.h
-example-reverse.lo example-reverse.o: $(srcdir)/example-reverse.c $(srcdir)/getdns_libevent.h \
+ ../../src/config.h ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h $(srcdir)/../../src/getdns/getdns_extra.h
+example-reverse.lo example-reverse.o: $(srcdir)/example-reverse.c $(srcdir)/getdns_libevent.h ../../src/config.h \
  ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  $(srcdir)/../../src/getdns/getdns_extra.h
 example-simple-answers.lo example-simple-answers.o: $(srcdir)/example-simple-answers.c $(srcdir)/getdns_libevent.h \
- ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
- $(srcdir)/../../src/getdns/getdns_extra.h
+ ../../src/config.h ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h $(srcdir)/../../src/getdns/getdns_extra.h
 example-synchronous.lo example-synchronous.o: $(srcdir)/example-synchronous.c $(srcdir)/getdns_core_only.h \
  ../../src/getdns/getdns.h
-example-tree.lo example-tree.o: $(srcdir)/example-tree.c $(srcdir)/getdns_libevent.h \
+example-tree.lo example-tree.o: $(srcdir)/example-tree.c $(srcdir)/getdns_libevent.h ../../src/config.h \
  ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  $(srcdir)/../../src/getdns/getdns_extra.h
+synchronous-concise.lo synchronous-concise.o: $(srcdir)/synchronous-concise.c $(srcdir)/getdns_core_only.h \
+ ../../src/getdns/getdns.h
+synchronous-json-pointer.lo synchronous-json-pointer.o: $(srcdir)/synchronous-json-pointer.c $(srcdir)/getdns_core_only.h \
+ ../../src/getdns/getdns.h
