@@ -1,6 +1,8 @@
 * 2015-10-??: Version 0.3.4
   * Native crypto.  No ldns dependency anymore.
     (ldns still necessary to be able to run tests though)
+  * Bugfix: DNSSEC code finding zone cut with redirects + pursuing unsigned
+    DS answers close to the root.  Thanks Theogene Bucuti!
 
 * 2015-09-09: Version 0.3.3
   * Fix clearing upstream events on shutdown
