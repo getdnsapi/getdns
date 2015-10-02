@@ -1269,6 +1269,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	rrset_iter *i, i_spc;
 	getdns_rrset *rrset;
 	rrsig_iter  *rrsig, rrsig_spc;
+	size_t n_signers;
 
 	_getdns_context_clear_outbound_request(dnsreq);
 	switch (netreq->request_type) {
@@ -1280,6 +1281,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	default                  : check_chain_complete(node->chains);
 				   return;
 	}
+	n_signers = 0;
 	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
 	    ; i
 	    ; i = rrset_iter_next(i)) {
@@ -1292,10 +1294,18 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 			continue;
 
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
-		    ; rrsig; rrsig = rrsig_iter_next(rrsig))
+		    ; rrsig; rrsig = rrsig_iter_next(rrsig)) {
 
 			val_chain_sched_signer_node(node, rrsig);
+			n_signers++;
+		}
 	}
+	if (netreq->request_type == GETDNS_RRTYPE_DS && n_signers == 0)
+		/* No signed DS and no signed proof of non-existance.
+		 * Search further up the tree...
+		 */
+		val_chain_sched_soa_node(node->parent);
+
 	check_chain_complete(node->chains);
 }
 
@@ -1317,6 +1327,11 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 
 		if (node)
 			val_chain_sched_ds_node(node);
+		else {
+			/* SOA for a different name */
+			node = (chain_node *)dnsreq->user_pointer;
+			val_chain_sched_soa_node(node->parent);
+		}
 
 	} else if (node->parent)
 		val_chain_sched_soa_node(node->parent);
