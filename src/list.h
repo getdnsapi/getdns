@@ -66,6 +66,9 @@ inline static getdns_list *_getdns_list_create_with_mf(struct mem_funcs *mf)
 getdns_return_t _getdns_list_find(
     const getdns_list *dict, const char *key, getdns_item **item);
 
+getdns_return_t _getdns_list_find_and_add(
+    getdns_list *list, const char *key, getdns_item **item);
+
 #endif
 
 /* list.h */

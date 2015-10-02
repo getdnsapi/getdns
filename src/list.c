@@ -54,7 +54,7 @@ _getdns_list_find(const getdns_list *list, const char *key, getdns_item **item)
 	if (!(next = strchr(key + 1, '/')))
 		next = key + strlen(key);
 
-	if (*key == '-')
+	if (key[0] == '-' && (key[1] == '/' || key[1] == '\0'))
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	index = strtoul(key, &endptr, 10);
@@ -76,6 +76,69 @@ _getdns_list_find(const getdns_list *list, const char *key, getdns_item **item)
 	*item = &list->items[index];
 	return GETDNS_RETURN_GOOD;
 }
+
+getdns_return_t
+_getdns_list_find_and_add(
+    getdns_list *list, const char *key, getdns_item **item)
+{
+	const char *next;
+	char *endptr;
+	size_t index;
+	getdns_item *newlist;
+
+	if (*key == '/')
+		key += 1;
+
+	if (!(next = strchr(key + 1, '/')))
+		next = key + strlen(key);
+
+	if (key[0] == '-' && key[1] == '/')
+		index = list->numinuse;
+	else {
+		index = strtoul(key, &endptr, 10);
+		if (!isdigit((int)*key) || endptr != next)
+			/* Not a list index, so it was assumed */
+			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+	if (*next && index == list->numinuse) {
+
+		if (list->numalloc < list->numinuse) {
+			if (!(newlist = GETDNS_XREALLOC(list->mf, list->items,
+			    getdns_item, list->numalloc+GETDNS_LIST_BLOCKSZ)))
+				return GETDNS_RETURN_MEMORY_ERROR;
+			list->items = newlist;
+			list->numalloc += GETDNS_LIST_BLOCKSZ;
+		}
+		list->numinuse++;
+
+		if ((next[1] == '0' || next[1] == '-') &&
+		    (next[2] == '/' || next[2] == '\0')) {
+
+			list->items[index].data.list =
+			    _getdns_list_create_with_mf(&list->mf);
+			return _getdns_list_find_and_add(
+			    list->items[index].data.list, next, item);
+		}
+		list->items[index].data.dict =
+		    _getdns_dict_create_with_mf(&list->mf);
+		return _getdns_dict_find_and_add(
+		    list->items[index].data.dict, next, item);
+	}
+	if (index >= list->numinuse)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+	if (*next)
+		switch (list->items[index].dtype) {
+		case t_dict: return _getdns_dict_find(
+		                 list->items[index].data.dict, next, item);
+		case t_list: return _getdns_list_find(
+		                 list->items[index].data.list, next, item);
+		default    : return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		}
+	*item = &list->items[index];
+	return GETDNS_RETURN_GOOD;
+}
+
 
 /*---------------------------------------- getdns_list_get_length */
 getdns_return_t

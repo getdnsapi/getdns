@@ -68,6 +68,9 @@ inline static getdns_dict *_getdns_dict_create_with_mf(struct mem_funcs *mf)
 getdns_return_t _getdns_dict_find(
     const getdns_dict *dict, const char *key, getdns_item **item);
 
+getdns_return_t _getdns_dict_find_and_add(
+    getdns_dict *dict, const char *key, getdns_item **item);
+
 #endif
 
 /* dict.h */
