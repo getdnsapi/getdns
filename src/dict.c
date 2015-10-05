@@ -50,39 +50,84 @@
 #include "gldns/wire2str.h"
 
 
-static struct getdns_dict_item *
-_find_dict_item(const getdns_dict *dict, const char *key)
+static char *_json_ptr_first(const struct mem_funcs *mf,
+    const char *jptr, char *first, size_t first_sz)
 {
 	const char *next_ref, *k;
-	char json_key_spc[1024], *json_key, *j;
-	struct getdns_dict_item *d;
+	char *j;
 
-	if (*key != '/')
-		return (struct getdns_dict_item *) _getdns_rbtree_search(
-		    (_getdns_rbtree_t *)&(dict->root), key);
-	key++;
-	if (!(next_ref = strchr(key, '/')))
-		next_ref = key + strlen(key);
-	if (next_ref - key > sizeof(json_key_spc))
-		json_key = GETDNS_XMALLOC(dict->mf, char, next_ref - key + 1);
-	else
-		json_key = json_key_spc;
+	if (*jptr != '/')
+		return (char *)jptr;
+	jptr++;
+	if (!(next_ref = strchr(jptr, '/')))
+		next_ref = strchr(jptr, '\0');
 
-	for (j = json_key, k = key; k < next_ref; j++, k++)
+	if (next_ref - jptr > first_sz)
+		first = GETDNS_XMALLOC(*mf, char, next_ref - jptr + 1);
+
+	for (j = first, k = jptr; k < next_ref; j++, k++)
 		*j = k[0] == '~' && k[1] == '1' ? (k++, '/') : *k;
 	*j = '\0';
-	for (j = json_key, k = json_key; *k; j++, k++)
+	for (j = first, k = first; *k; j++, k++)
 		*j = k[0] == '~' && k[1] == '0' ? (k++, '~') : *k;
 	*j = '\0';
 
-	d = (struct getdns_dict_item *) _getdns_rbtree_search(
-	    (_getdns_rbtree_t *)&(dict->root), json_key);
+	return first;
+}
 
-	if (json_key != json_key_spc)
-		GETDNS_FREE(dict->mf, json_key);
+
+static struct getdns_dict_item *
+_find_dict_item(const getdns_dict *dict, const char *jptr)
+{
+	char first_spc[1024], *first;
+	struct getdns_dict_item *d;
+
+	first = _json_ptr_first(&dict->mf, jptr,
+	    first_spc, sizeof(first_spc));
+
+	d = (struct getdns_dict_item *) _getdns_rbtree_search(
+	    (_getdns_rbtree_t *)&(dict->root), first);
+
+	if (first && first != jptr && first != first_spc)
+		GETDNS_FREE(dict->mf, first);
 
 	return d;
 }
+
+
+static struct getdns_dict_item *
+_delete_dict_item(const getdns_dict *dict, const char *jptr)
+{
+	char first_spc[1024], *first;
+	struct getdns_dict_item *d;
+
+	first = _json_ptr_first(&dict->mf, jptr,
+	    first_spc, sizeof(first_spc));
+
+	d = (struct getdns_dict_item *) _getdns_rbtree_delete(
+	    (_getdns_rbtree_t *)&(dict->root), first);
+
+	if (first && first != jptr && first != first_spc)
+		GETDNS_FREE(dict->mf, first);
+
+	return d;
+}
+
+
+static char *
+_json_ptr_keydup(const struct mem_funcs *mf, const char *jptr)
+{
+	char *first = _json_ptr_first(mf, jptr, NULL, 0);
+
+	if (first == jptr || first == jptr + 1) {
+		size_t sz = strlen(jptr);
+
+		if ((first = GETDNS_XMALLOC(*mf, char, sz)))
+			memcpy(first, jptr, sz);
+	}
+	return first;
+}
+
 
 getdns_return_t
 _getdns_dict_find(const getdns_dict *dict, const char *key, getdns_item **item)
@@ -93,16 +138,16 @@ _getdns_dict_find(const getdns_dict *dict, const char *key, getdns_item **item)
 	if (!(d = _find_dict_item(dict, key)))
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-	if (*key != '/' || !(next = strchr(key + 1, '/')))
+	if (*key != '/' || !(next = strchr(key + 1, '/'))) {
 		*item = &d->i;
+		return GETDNS_RETURN_GOOD;
 
-	else switch (d->i.dtype) {
+	} else switch (d->i.dtype) { /* Key was nested reference */
 	case t_dict: return _getdns_dict_find(d->i.data.dict, next, item);
 	case t_list: return _getdns_list_find(d->i.data.list, next, item);
-	default    : *item = &d->i;
-		     break;
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 	}
-	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
@@ -115,7 +160,7 @@ _getdns_dict_find_and_add(
 	if (!(d = _find_dict_item(dict, key))) {
 		/* add a node */
 		d = GETDNS_MALLOC(dict->mf, struct getdns_dict_item);
-		d->node.key = _getdns_strdup(&dict->mf, key);
+		d->node.key = _json_ptr_keydup(&dict->mf, key);
 		_getdns_rbtree_insert(&(dict->root), (_getdns_rbnode_t *) d);
 		if (*key != '/' || !(next = strchr(key + 1, '/'))) {
 			(void) memset(&d->i.data, 0, sizeof(d->i.data));
@@ -137,12 +182,13 @@ _getdns_dict_find_and_add(
 		*item = &d->i;
 		return GETDNS_RETURN_GOOD;
 
-	} else switch (d->i.dtype) {
+	} else switch (d->i.dtype) {  /* Key was nested reference */
 	case t_dict: return _getdns_dict_find_and_add(
 	                 d->i.data.dict, next, item);
 	case t_list: return _getdns_list_find_and_add(
 	                 d->i.data.list, next, item);
-	default    : return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 	}
 }				/* getdns_dict_find_and_add */
 
@@ -1159,17 +1205,23 @@ getdns_snprint_json_list(
 getdns_return_t
 getdns_dict_remove_name(getdns_dict *dict, const char *name)
 {
-	_getdns_rbnode_t *n;
-
-	if (!dict || !name)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if ((n = _getdns_rbtree_delete(&dict->root, name)))
-		getdns_dict_item_free(n, dict);
-	else
+	const char *next;
+	struct getdns_dict_item *d;
+	
+	if (!(d = _find_dict_item(dict, name)))
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
-	return GETDNS_RETURN_GOOD;
+	if (*name != '/' || !(next = strchr(name + 1, '/'))) {
+		d = _delete_dict_item(dict, name);
+		getdns_dict_item_free(&d->node, dict);
+		return GETDNS_RETURN_GOOD;
+
+	} else switch (d->i.dtype) {
+	case t_dict: return getdns_dict_remove_name(d->i.data.dict, next);
+	case t_list: return _getdns_list_remove_name(d->i.data.list, next);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
 }
 
 /* dict.c */

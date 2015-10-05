@@ -69,6 +69,9 @@ getdns_return_t _getdns_list_find(
 getdns_return_t _getdns_list_find_and_add(
     getdns_list *list, const char *key, getdns_item **item);
 
+getdns_return_t _getdns_list_remove_name(
+    getdns_list *list, const char *name);
+
 #endif
 
 /* list.h */
