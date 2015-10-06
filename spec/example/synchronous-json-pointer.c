@@ -1,9 +1,10 @@
 #include <stdio.h>
+#include <assert.h>
 #include <getdns_core_only.h>
 
 int main()
 {
-	getdns_return_t  r;
+	getdns_return_t  r; /* Holder for all function returns */
 	getdns_context  *context  = NULL;
 	getdns_dict     *response = NULL;
 	getdns_bindata  *address_data;
@@ -43,11 +44,13 @@ int main()
 	if (context)
 		getdns_context_destroy(context);
 
-	/* Assuming we get here, leave gracefully */
 	if (r) {
+		assert( r != GETDNS_RETURN_GOOD );
+
 		fprintf(stderr, ": %d\n", r);
 		exit(EXIT_FAILURE);
 	}
-	else
-		exit(EXIT_SUCCESS);
+	/* Assuming we get here, leave gracefully */
+	exit(EXIT_SUCCESS);
 }
+

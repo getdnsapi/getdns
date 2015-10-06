@@ -48,9 +48,9 @@ LDFLAGS=@LDFLAGS@ -L../../src
 LDLIBS=../../src/libgetdns.la @LIBS@
 
 
-OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo synchronous-concise.lo
+OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo simple-json-pointer.lo
 
-PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer synchronous-concise
+PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer simple-json-pointer
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -77,8 +77,8 @@ example-synchronous: example-synchronous.lo
 synchronous-json-pointer: synchronous-json-pointer.lo
 	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ synchronous-json-pointer.lo
 
-synchronous-concise: synchronous-concise.lo
-	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ synchronous-concise.lo
+simple-json-pointer: simple-json-pointer.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -o $@ simple-json-pointer.lo
 
 $(EXTENSION_LIBEVENT_LIB):
 	@echo "***"
@@ -166,6 +166,12 @@ example-synchronous.lo example-synchronous.o: $(srcdir)/example-synchronous.c $(
 example-tree.lo example-tree.o: $(srcdir)/example-tree.c $(srcdir)/getdns_libevent.h ../../src/config.h \
  ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  $(srcdir)/../../src/getdns/getdns_extra.h
+simple-concise.lo simple-concise.o: $(srcdir)/simple-concise.c $(srcdir)/getdns_libevent.h ../../src/config.h \
+ ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
+ $(srcdir)/../../src/getdns/getdns_extra.h
+simple-json-pointer.lo simple-json-pointer.o: $(srcdir)/simple-json-pointer.c $(srcdir)/getdns_libevent.h \
+ ../../src/config.h ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h $(srcdir)/../../src/getdns/getdns_extra.h
 synchronous-concise.lo synchronous-concise.o: $(srcdir)/synchronous-concise.c $(srcdir)/getdns_core_only.h \
  ../../src/getdns/getdns.h
 synchronous-json-pointer.lo synchronous-json-pointer.o: $(srcdir)/synchronous-json-pointer.c $(srcdir)/getdns_core_only.h \
