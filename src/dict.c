@@ -120,7 +120,7 @@ _json_ptr_keydup(const struct mem_funcs *mf, const char *jptr)
 	char *first = _json_ptr_first(mf, jptr, NULL, 0);
 
 	if (first == jptr || first == jptr + 1) {
-		size_t sz = strlen(jptr);
+		size_t sz = strlen(jptr) + 1;
 
 		if ((first = GETDNS_XMALLOC(*mf, char, sz)))
 			memcpy(first, jptr, sz);
