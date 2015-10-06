@@ -48,9 +48,9 @@ LDFLAGS=@LDFLAGS@ -L../../src
 LDLIBS=../../src/libgetdns.la @LIBS@
 
 
-OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo simple-json-pointer.lo
+OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo simple-json-pointer.lo tree-json-pointer.lo
 
-PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer simple-json-pointer
+PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer simple-json-pointer tree-json-pointer
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -79,6 +79,9 @@ synchronous-json-pointer: synchronous-json-pointer.lo
 
 simple-json-pointer: simple-json-pointer.lo
 	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -o $@ simple-json-pointer.lo
+
+tree-json-pointer: tree-json-pointer.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -o $@ tree-json-pointer.lo
 
 $(EXTENSION_LIBEVENT_LIB):
 	@echo "***"
@@ -176,3 +179,6 @@ synchronous-concise.lo synchronous-concise.o: $(srcdir)/synchronous-concise.c $(
  ../../src/getdns/getdns.h
 synchronous-json-pointer.lo synchronous-json-pointer.o: $(srcdir)/synchronous-json-pointer.c $(srcdir)/getdns_core_only.h \
  ../../src/getdns/getdns.h
+tree-json-pointer.lo tree-json-pointer.o: $(srcdir)/tree-json-pointer.c $(srcdir)/getdns_libevent.h \
+ ../../src/config.h ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h $(srcdir)/../../src/getdns/getdns_extra.h

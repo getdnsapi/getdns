@@ -11,12 +11,8 @@ void callback(getdns_context        *context,
               getdns_transaction_t   transaction_id)
 {
 	getdns_return_t r;  /* Holder for all function returns */
-	uint32_t        status;
-	getdns_list    *just_address_answers;
+	getdns_list    *replies_tree;
 	size_t          length, i;
-
-	printf( "Callback for query \"%s\" with request ID %"PRIu64".\n"
-	      , (char *)userarg, transaction_id );
 
 	switch(callback_type) {
 	case GETDNS_CALLBACK_CANCEL:
@@ -32,36 +28,49 @@ void callback(getdns_context        *context,
 	}
 	assert( callback_type == GETDNS_CALLBACK_COMPLETE );
 
-	if ((r = getdns_dict_get_int(response, "status", &status)))
-		fprintf(stderr, "Could not get \"status\" from reponse");
+	if ((r = getdns_dict_get_list(response, "replies_tree", &replies_tree)))
+		fprintf(stderr, "Could not get \"replies_tree\" from reponse");
 
-	else if (status != GETDNS_RESPSTATUS_GOOD)
-		fprintf(stderr, "The search had no results, and a return value of %"PRIu32".\n", status);
-
-	else if ((r = getdns_dict_get_list(response, "just_address_answers", &just_address_answers)))
-		fprintf(stderr, "Could not get \"just_address_answers\" from reponse");
-
-	else if ((r = getdns_list_get_length(just_address_answers, &length)))
-		fprintf(stderr, "Could not get just_address_answers\' length");
+	else if ((r = getdns_list_get_length(replies_tree, &length)))
+		fprintf(stderr, "Could not get replies_tree\'s length");
 
 	else for (i = 0; i < length && r == GETDNS_RETURN_GOOD; i++) {
-		getdns_dict    *address;
-		getdns_bindata *address_data;
-		char           *address_str;
+		getdns_dict *reply;
+		getdns_list *answer;
+		size_t       n_answers, j;
 
-		if ((r = getdns_list_get_dict(just_address_answers, i, &address)))
+		if ((r = getdns_list_get_dict(replies_tree, i, &reply)))
 			fprintf(stderr, "Could not get address %zu from just_address_answers", i);
 
-		else if ((r = getdns_dict_get_bindata(address, "address_data", &address_data)))
+		else if ((r = getdns_dict_get_list(reply, "answer", &answer)))
 			fprintf(stderr, "Could not get \"address_data\" from address");
 
-		else if (!(address_str = getdns_display_ip_address(address_data))) {
-			fprintf(stderr, "Could not convert address to string");
-			r = GETDNS_RETURN_MEMORY_ERROR;
-		}
-		else {
-			printf("The address is %s\n", address_str);
-			free(address_str);
+		else if ((r = getdns_list_get_length(answer, &n_answers)))
+			fprintf(stderr, "Could not get answer section\'s length");
+
+		else for (j = 0; j < n_answers && r == GETDNS_RETURN_GOOD; j++) {
+			getdns_dict    *rr;
+			getdns_bindata *address = NULL;
+
+			if ((r = getdns_list_get_dict(answer, j, &rr)))
+				fprintf(stderr, "Could net get rr %zu from answer section", j);
+
+			else if (getdns_dict_get_bindata(rr, "/rdata/ipv4_address", &address) == GETDNS_RETURN_GOOD)
+				printf("The IPv4 address is ");
+
+			else if (getdns_dict_get_bindata(rr, "/rdata/ipv6_address", &address) == GETDNS_RETURN_GOOD)
+				printf("The IPv6 address is ");
+
+			if (address) {
+				char *address_str;
+				if (!(address_str = getdns_display_ip_address(address))) {
+					fprintf(stderr, "Could not convert second address to string");
+					r = GETDNS_RETURN_MEMORY_ERROR;
+					break;
+				}
+				printf("%s\n", address_str);
+				free(address_str);
+			}
 		}
 	}
 	if (r) {
@@ -79,7 +88,7 @@ int main()
 	getdns_dict         *extensions = NULL;
 	char                *query_name = "www.example.com";
 	/* Could add things here to help identify this call */
-	char                *userarg    = query_name;
+	char                *userarg    = NULL;
 	getdns_transaction_t transaction_id;
 
 	if ((r = getdns_context_create(&context, 1)))
@@ -95,11 +104,8 @@ int main()
 	                            , userarg, &transaction_id, callback)))
 		fprintf(stderr, "Error scheduling asynchronous request");
 
-	else {
-		printf("Request with transaction ID %"PRIu64" scheduled.\n", transaction_id);
-		if (event_base_dispatch(event_base) < 0)
-			fprintf(stderr, "Error dispatching events\n");
-	}
+	else if (event_base_dispatch(event_base) < 0)
+		fprintf(stderr, "Error dispatching events\n");
 
 	/* Clean up */
 	if (event_base)

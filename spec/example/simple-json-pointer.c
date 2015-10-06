@@ -85,7 +85,7 @@ int main()
 	else if ((r = getdns_extension_set_libevent_base(context, event_base)))
 		fprintf(stderr, "Setting the event base failed");
 
-	else if ((r = getdns_address( context, "www.example.com", extensions
+	else if ((r = getdns_address( context, query_name, extensions
 	                            , userarg, &transaction_id, callback)))
 		fprintf(stderr, "Error scheduling asynchronous request");
 
