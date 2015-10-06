@@ -1207,6 +1207,9 @@ getdns_dict_remove_name(getdns_dict *dict, const char *name)
 {
 	const char *next;
 	struct getdns_dict_item *d;
+
+	if (!dict || !name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if (!(d = _find_dict_item(dict, name)))
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
