@@ -48,9 +48,9 @@ LDFLAGS=@LDFLAGS@ -L../../src
 LDLIBS=../../src/libgetdns.la @LIBS@
 
 
-OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo simple-json-pointer.lo tree-json-pointer.lo
+OBJS=example-all-functions.lo example-simple-answers.lo example-tree.lo example-synchronous.lo example-reverse.lo synchronous-json-pointer.lo simple-json-pointer.lo tree-json-pointer.lo reverse-json-pointer.lo
 
-PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer simple-json-pointer tree-json-pointer
+PROGRAMS=example-all-functions example-synchronous example-simple-answers example-tree example-reverse synchronous-json-pointer simple-json-pointer tree-json-pointer reverse-json-pointer
 
 .SUFFIXES: .c .o .a .lo .h
 
@@ -82,6 +82,9 @@ simple-json-pointer: simple-json-pointer.lo
 
 tree-json-pointer: tree-json-pointer.lo
 	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -o $@ tree-json-pointer.lo
+
+reverse-json-pointer: reverse-json-pointer.lo
+	 $(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -o $@ reverse-json-pointer.lo
 
 $(EXTENSION_LIBEVENT_LIB):
 	@echo "***"
@@ -169,6 +172,9 @@ example-synchronous.lo example-synchronous.o: $(srcdir)/example-synchronous.c $(
 example-tree.lo example-tree.o: $(srcdir)/example-tree.c $(srcdir)/getdns_libevent.h ../../src/config.h \
  ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  $(srcdir)/../../src/getdns/getdns_extra.h
+reverse-json-pointer.lo reverse-json-pointer.o: $(srcdir)/reverse-json-pointer.c $(srcdir)/getdns_libevent.h \
+ ../../src/config.h ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h $(srcdir)/../../src/getdns/getdns_extra.h
 simple-concise.lo simple-concise.o: $(srcdir)/simple-concise.c $(srcdir)/getdns_libevent.h ../../src/config.h \
  ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  $(srcdir)/../../src/getdns/getdns_extra.h
