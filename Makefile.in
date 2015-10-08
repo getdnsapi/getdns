@@ -97,6 +97,12 @@ test:
 getdns_query:
 	cd src && $(MAKE) $@
 
+scratchpad:
+	cd src && $(MAKE) $@
+
+pad: scratchpad
+	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
+
 install-getdns_query:
 	cd src/test && $(MAKE) install
 

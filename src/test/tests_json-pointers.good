@@ -1,0 +1,24 @@
+{
+  "bla":
+  {
+    "bloe":
+    {
+      "blie": 53280
+    },
+    "cola":
+    [
+      1,
+      5,
+      {
+        "drie": 3,
+        "zes": 6
+      },
+      4
+    ],
+    "hola": 53281
+  },
+  "die":
+  {
+    "bla": <bindata of "bla die bla">
+  }
+}

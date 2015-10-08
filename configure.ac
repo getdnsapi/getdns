@@ -112,6 +112,7 @@ AC_SUBST(libtool)
 AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 
+
 initial_LIBS="$LIBS"
 initial_LDFLAGS="$LDFLAGS"
 
@@ -416,23 +417,6 @@ case "$enable_stub_only" in
 	no|*)
 		;;
 esac
-
-AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
-	[Also compile and install the getdns_query tool]),
-	[], [withval="no"])
-if test x_$withval = x_no; then
-	GETDNS_QUERY=""
-	INSTALL_GETDNS_QUERY=""
-	UNINSTALL_GETDNS_QUERY=""
-else
-	GETDNS_QUERY="getdns_query"
-	INSTALL_GETDNS_QUERY="install-getdns_query"
-	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
-fi
-AC_SUBST(GETDNS_QUERY)
-AC_SUBST(INSTALL_GETDNS_QUERY)
-AC_SUBST(UNINSTALL_GETDNS_QUERY)
-
 
 # search to set include and library paths right
 # find libidn
@@ -865,6 +849,22 @@ AC_ARG_WITH(trust-anchor, AS_HELP_STRING([--with-trust-anchor=KEYFILE], [Default
 AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust anchor file])
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
+
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
+	[Also compile and install the getdns_query tool]),
+	[], [withval="no"])
+if test x_$withval = x_no; then
+	GETDNS_QUERY=""
+	INSTALL_GETDNS_QUERY=""
+	UNINSTALL_GETDNS_QUERY=""
+else
+	GETDNS_QUERY="getdns_query"
+	INSTALL_GETDNS_QUERY="install-getdns_query"
+	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
+fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
 AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]

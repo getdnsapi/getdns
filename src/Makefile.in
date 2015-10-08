@@ -148,11 +148,16 @@ libgetdns.la: $(GETDNS_OBJ) version.lo context.lo libmini_event.lo $(GLDNS_OBJ) 
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) version.lo context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
-test:	FORCE
+test:	all
 	cd test && $(MAKE) $@
 
-getdns_query:	FORCE
+getdns_query:	all
 	cd test && $(MAKE) $@
+
+scratchpad:	all
+	cd test && $(MAKE) $@
+
+pad: scratchpad
 
 clean:
 	cd test && $(MAKE) $@

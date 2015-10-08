@@ -150,6 +150,62 @@ _getdns_dict_find(const getdns_dict *dict, const char *key, getdns_item **item)
 	}
 }
 
+
+/*---------------------------------------- getdns_dict_item_free */
+/**
+ * private function used to release storage associated with a dictionary item
+ * @param node all memory in this structure and its children will be freed
+ * @param arg is a dict who's custom memory function will be used 
+ *            to free the items
+ * @return void
+ */
+static void
+getdns_dict_item_free(_getdns_rbnode_t *node, void *arg)
+{
+	struct getdns_dict_item *d = (struct getdns_dict_item *)node;
+	struct getdns_dict *dict = (struct getdns_dict *)arg;
+
+	assert(node);
+	assert(arg);
+
+	switch (d->i.dtype) {
+	case t_dict   : getdns_dict_destroy(d->i.data.dict); break;
+	case t_list   : getdns_list_destroy(d->i.data.list); break;
+	case t_bindata: _getdns_bindata_destroy(&dict->mf, d->i.data.bindata);
+	default       : break;
+	}
+	if (node->key)
+		GETDNS_FREE(dict->mf, (void *)node->key);
+	GETDNS_FREE(dict->mf, node);
+}				/* getdns_dict_item_free */
+
+
+getdns_return_t
+getdns_dict_remove_name(getdns_dict *dict, const char *name)
+{
+	const char *next;
+	struct getdns_dict_item *d;
+
+	if (!dict || !name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	
+	if (!(d = _find_dict_item(dict, name)))
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+	if (*name != '/' || !(next = strchr(name + 1, '/'))) {
+		d = _delete_dict_item(dict, name);
+		getdns_dict_item_free(&d->node, dict);
+		return GETDNS_RETURN_GOOD;
+
+	} else switch (d->i.dtype) {
+	case t_dict: return getdns_dict_remove_name(d->i.data.dict, next);
+	case t_list: return _getdns_list_remove_name(d->i.data.list, next);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+}
+
+
 getdns_return_t
 _getdns_dict_find_and_add(
     getdns_dict *dict, const char *key, getdns_item **item)
@@ -164,31 +220,41 @@ _getdns_dict_find_and_add(
 		_getdns_rbtree_insert(&(dict->root), (_getdns_rbnode_t *) d);
 		if (*key != '/' || !(next = strchr(key + 1, '/'))) {
 			(void) memset(&d->i.data, 0, sizeof(d->i.data));
+			d->i.dtype = t_int;
+			d->i.data.n = 55555333;
 			*item = &d->i;
 			return GETDNS_RETURN_GOOD;
 		}
 		if ((next[1] == '0' || next[1] == '-') && 
 		    (next[2] == '/' || next[2] == '\0')) {
 
+			d->i.dtype = t_list;
 			d->i.data.list =_getdns_list_create_with_mf(&dict->mf);
 			return _getdns_list_find_and_add(
 			    d->i.data.list, next, item);
 		}
+		d->i.dtype = t_dict;
 		d->i.data.dict = _getdns_dict_create_with_mf(&dict->mf);
-		return _getdns_dict_find_and_add(
-		    d->i.data.dict, next, item);
+		return _getdns_dict_find_and_add(d->i.data.dict, next, item);
 	}
 	if (*key != '/' || !(next = strchr(key + 1, '/'))) {
+		switch (d->i.dtype) {
+		case t_dict   : getdns_dict_destroy(d->i.data.dict); break;
+		case t_list   : getdns_list_destroy(d->i.data.list); break;
+		case t_bindata: _getdns_bindata_destroy(
+				      &dict->mf, d->i.data.bindata); break;
+		default       : break;
+		}
+		d->i.dtype = t_int;
+		d->i.data.n = 33355555;
 		*item = &d->i;
 		return GETDNS_RETURN_GOOD;
 
 	} else switch (d->i.dtype) {  /* Key was nested reference */
-	case t_dict: return _getdns_dict_find_and_add(
-	                 d->i.data.dict, next, item);
-	case t_list: return _getdns_list_find_and_add(
-	                 d->i.data.list, next, item);
-	default    : /* Trying to dereference a non list or dict */
-	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	case t_dict:return _getdns_dict_find_and_add(d->i.data.dict,next,item);
+	case t_list:return _getdns_list_find_and_add(d->i.data.list,next,item);
+	default    :/* Trying to dereference a non list or dict */
+	            return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 	}
 }				/* getdns_dict_find_and_add */
 
@@ -448,40 +514,6 @@ _getdns_dict_copy(const struct getdns_dict * srcdict,
 	return GETDNS_RETURN_GOOD;
 }				/* _getdns_dict_copy */
 
-/*---------------------------------------- getdns_dict_item_free */
-/**
- * private function used to release storage associated with a dictionary item
- * @param node all memory in this structure and its children will be freed
- * @param arg is a dict who's custom memory function will be used 
- *            to free the items
- * @return void
- */
-static void
-getdns_dict_item_free(_getdns_rbnode_t * node, void *arg)
-{
-	struct getdns_dict_item *item = (struct getdns_dict_item *) node;
-	struct getdns_dict *dict = (struct getdns_dict *)arg;
-
-	if (!item)
-		return;
-
-	switch (item->i.dtype) {
-	case t_bindata:
-		_getdns_bindata_destroy(&dict->mf, item->i.data.bindata);
-		break;
-	case t_dict:
-		getdns_dict_destroy(item->i.data.dict);
-		break;
-	case t_list:
-		getdns_list_destroy(item->i.data.list);
-		break;
-	default:
-		break;
-	}
-	if (item->node.key)
-		GETDNS_FREE(dict->mf, (void *)item->node.key);
-	GETDNS_FREE(dict->mf, item);
-}				/* getdns_dict_item_free */
 
 /*---------------------------------------- getdns_dict_destroy */
 void
@@ -1200,31 +1232,6 @@ getdns_snprint_json_list(
 	gldns_buffer_init_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, pretty ? 1 : 2) < 0
 	     ? -1 : gldns_buffer_position(&buf);
-}
-
-getdns_return_t
-getdns_dict_remove_name(getdns_dict *dict, const char *name)
-{
-	const char *next;
-	struct getdns_dict_item *d;
-
-	if (!dict || !name)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-	
-	if (!(d = _find_dict_item(dict, name)))
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
-
-	if (*name != '/' || !(next = strchr(name + 1, '/'))) {
-		d = _delete_dict_item(dict, name);
-		getdns_dict_item_free(&d->node, dict);
-		return GETDNS_RETURN_GOOD;
-
-	} else switch (d->i.dtype) {
-	case t_dict: return getdns_dict_remove_name(d->i.data.dict, next);
-	case t_list: return _getdns_list_remove_name(d->i.data.list, next);
-	default    : /* Trying to dereference a non list or dict */
-	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-	}
 }
 
 /* dict.c */

@@ -47,6 +47,7 @@ _getdns_list_find(const getdns_list *list, const char *key, getdns_item **item)
 	const char *next;
 	char *endptr;
 	size_t index;
+	getdns_item *i;
 
 	if (*key == '/') {
 		if (!(next = strchr(++key, '/')))
@@ -54,7 +55,7 @@ _getdns_list_find(const getdns_list *list, const char *key, getdns_item **item)
 	} else
 		next = strchr(key, '\0');
 
-	if (key[0] == '-' && (key[1] == '/' || key[1] == '\0'))
+	if (key[0] == '-' && next == key + 1)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	index = strtoul(key, &endptr, 10);
@@ -65,80 +66,17 @@ _getdns_list_find(const getdns_list *list, const char *key, getdns_item **item)
 	if (index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (*next)
-		switch (list->items[index].dtype) {
-		case t_dict: return _getdns_dict_find(
-		                 list->items[index].data.dict, next, item);
-		case t_list: return _getdns_list_find(
-		                 list->items[index].data.list, next, item);
-		default    : /* Trying to dereference a non list or dict */
-		             return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
-		}
-	*item = &list->items[index];
-	return GETDNS_RETURN_GOOD;
-}
+	i = &list->items[index];
+	if (!*next) {
+		*item = i;
+		return GETDNS_RETURN_GOOD;
 
-getdns_return_t
-_getdns_list_find_and_add(
-    getdns_list *list, const char *key, getdns_item **item)
-{
-	const char *next;
-	char *endptr;
-	size_t index;
-	getdns_item *newlist;
-
-	if (*key == '/') {
-		if (!(next = strchr(++key, '/')))
-			next = strchr(key, '\0');
-	} else
-		next = strchr(key, '\0');
-
-	if (key[0] == '-' && key[1] == '/')
-		index = list->numinuse;
-	else {
-		index = strtoul(key, &endptr, 10);
-		if (!isdigit((int)*key) || endptr != next)
-			/* Not a list index, so it was assumed */
-			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	} else switch (i->dtype) {
+	case t_dict: return _getdns_dict_find(i->data.dict, next, item);
+	case t_list: return _getdns_list_find(i->data.list, next, item);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 	}
-	if (*next && index == list->numinuse) {
-
-		if (list->numalloc < list->numinuse) {
-			if (!(newlist = GETDNS_XREALLOC(list->mf, list->items,
-			    getdns_item, list->numalloc+GETDNS_LIST_BLOCKSZ)))
-				return GETDNS_RETURN_MEMORY_ERROR;
-			list->items = newlist;
-			list->numalloc += GETDNS_LIST_BLOCKSZ;
-		}
-		list->numinuse++;
-
-		if ((next[1] == '0' || next[1] == '-') &&
-		    (next[2] == '/' || next[2] == '\0')) {
-
-			list->items[index].data.list =
-			    _getdns_list_create_with_mf(&list->mf);
-			return _getdns_list_find_and_add(
-			    list->items[index].data.list, next, item);
-		}
-		list->items[index].data.dict =
-		    _getdns_dict_create_with_mf(&list->mf);
-		return _getdns_dict_find_and_add(
-		    list->items[index].data.dict, next, item);
-	}
-	if (index >= list->numinuse)
-		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
-
-	if (*next)
-		switch (list->items[index].dtype) {
-		case t_dict: return _getdns_dict_find(
-		                 list->items[index].data.dict, next, item);
-		case t_list: return _getdns_list_find(
-		                 list->items[index].data.list, next, item);
-		default    : /* Trying to dereference a non list or dict */
-		             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-		}
-	*item = &list->items[index];
-	return GETDNS_RETURN_GOOD;
 }
 
 
@@ -148,6 +86,7 @@ _getdns_list_remove_name(getdns_list *list, const char *name)
 	const char *next, *key = name;
 	char *endptr;
 	size_t index;
+	getdns_item *i;
 
 	if (*key == '/') {
 		if (!(next = strchr(++key, '/')))
@@ -155,7 +94,7 @@ _getdns_list_remove_name(getdns_list *list, const char *name)
 	} else
 		next = strchr(key, '\0');
 
-	if (key[0] == '-' && (key[1] == '/' || key[1] == '\0'))
+	if (key[0] == '-' && next == key + 1)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
 	index = strtoul(key, &endptr, 10);
@@ -166,23 +105,100 @@ _getdns_list_remove_name(getdns_list *list, const char *name)
 	if (index >= list->numinuse)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
-	if (*next)
-		switch (list->items[index].dtype) {
-		case t_dict: return getdns_dict_remove_name(
-		                 list->items[index].data.dict, next);
-		case t_list: return _getdns_list_remove_name(
-		                 list->items[index].data.list, next);
-		default    : /* Trying to dereference a non list or dict */
-			     return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-		}
+	i = &list->items[index];
+	if (!*next) {
+		if (index < list->numinuse - 1)
+			(void) memmove( i, &i[1],
+			    (list->numinuse - index) * sizeof(getdns_item));
+		list->numinuse -= 1;
+		return GETDNS_RETURN_GOOD;
 
-	if (index < list->numinuse - 1)
-		(void) memmove( &list->items[index]
-			      , &list->items[index + 1]
-			      , list->numinuse - index);
-	list->numinuse -= 1;
-	return GETDNS_RETURN_GOOD;
+	} else switch (i->dtype) {
+	case t_dict: return getdns_dict_remove_name(i->data.dict, next);
+	case t_list: return _getdns_list_remove_name(i->data.list, next);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+	}
 }
+
+
+getdns_return_t
+_getdns_list_find_and_add(
+    getdns_list *list, const char *key, getdns_item **item)
+{
+	const char *next;
+	char *endptr;
+	size_t index;
+	getdns_item *newlist, *i;
+
+	if (*key == '/') {
+		if (!(next = strchr(++key, '/')))
+			next = strchr(key, '\0');
+	} else
+		next = strchr(key, '\0');
+
+	if (key[0] == '-' && next == key + 1)
+		index = list->numinuse;
+	else {
+		index = strtoul(key, &endptr, 10);
+		if (!isdigit((int)*key) || endptr != next)
+			/* Not a list index, so it was assumed */
+			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+	if (index > list->numinuse)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+	if (index == list->numinuse) {
+		if (list->numalloc <= list->numinuse) {
+			if (!(newlist = GETDNS_XREALLOC(list->mf, list->items,
+			    getdns_item, list->numalloc+GETDNS_LIST_BLOCKSZ)))
+				return GETDNS_RETURN_MEMORY_ERROR;
+			list->items = newlist;
+			list->numalloc += GETDNS_LIST_BLOCKSZ;
+		}
+		list->numinuse++;
+		i = &list->items[index];
+
+		if (!*next) {
+			i->dtype = t_int;
+			i->data.n = 55555333;
+			*item = i;
+			return GETDNS_RETURN_GOOD;
+		}
+		if ((next[1] == '0' || next[1] == '-') &&
+		    (next[2] == '/' || next[2] == '\0')) {
+
+			i->dtype = t_list;
+			i->data.list = _getdns_list_create_with_mf(&list->mf);
+			return _getdns_list_find_and_add(
+			    i->data.list, next, item);
+		}
+		i->dtype = t_dict;
+		i->data.dict = _getdns_dict_create_with_mf(&list->mf);
+		return _getdns_dict_find_and_add(i->data.dict, next, item);
+	}
+	i = &list->items[index];
+	if (!*next) {
+		switch (i->dtype) {
+		case t_dict   : getdns_dict_destroy(i->data.dict); break;
+		case t_list   : getdns_list_destroy(i->data.list); break;
+		case t_bindata: _getdns_bindata_destroy(
+		                      &list->mf, i->data.bindata); break;
+		default       : break;
+		}
+		i->dtype = t_int;
+		i->data.n = 33355555;
+		*item = i;
+		return GETDNS_RETURN_GOOD;
+
+	} else switch (i->dtype) {
+	case t_dict: return _getdns_dict_find_and_add(i->data.dict,next,item);
+	case t_list: return _getdns_list_find_and_add(i->data.list,next,item);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+}
+
 
 
 /*---------------------------------------- getdns_list_get_length */

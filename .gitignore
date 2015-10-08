@@ -29,6 +29,7 @@ src/test/tests_dict
 src/test/tests_list
 src/test/tests_stub_async
 src/test/tests_stub_sync
+src/test/tests_json-pointers
 src/test/tests_dnssec
 src/test/tests_namespaces
 src/test/check_getdns
@@ -36,6 +37,8 @@ src/test/check_getdns_event
 src/test/check_getdns_uv
 src/test/check_getdns_ev
 src/test/getdns_query
+src/test/scratchpad
+src/test/scratchpad.c
 doc/*.3
 src/getdns/getdns.h
 *.log
