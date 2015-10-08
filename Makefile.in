@@ -59,7 +59,7 @@ install: all @INSTALL_GETDNS_QUERY@
 	$(INSTALL) -m 644 $(srcdir)/README.md $(DESTDIR)$(docdir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 $(srcdir)/spec/index.html $(DESTDIR)$(docdir)/spec
-	$(INSTALL) -m 644 $(srcdir)/spec/getdns*tgz $(DESTDIR)$(docdir)/spec
+	$(INSTALL) -m 644 $(srcdir)/spec/getdns*tgz $(DESTDIR)$(docdir)/spec || true
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -211,7 +211,7 @@ $(distdir):
 	cp $(srcdir)/doc/*.in $(distdir)/doc
 	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc
 	cp $(srcdir)/spec/*.html $(distdir)/spec
-	cp $(srcdir)/spec/*.tgz $(distdir)/spec
+	cp $(srcdir)/spec/*.tgz $(distdir)/spec || true
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
