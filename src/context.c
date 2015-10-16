@@ -900,8 +900,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_maximum_udp_payload_size = -1;
 	if ((r = create_default_dns_transports(result)))
 		goto error;
-	result->tls_auth = GETDNS_AUTHENTICATION_HOSTNAME; 
-	result->tls_auth_min = GETDNS_AUTHENTICATION_HOSTNAME;
+	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
+	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
 	result->limit_outstanding_queries = 0;
 	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
@@ -1273,7 +1273,6 @@ getdns_set_base_dns_transports(
 	memcpy(context->dns_transports, transports,
 	    transport_count * sizeof(getdns_transport_list_t));
 	context->dns_transport_count = transport_count;
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_TRANSPORT);
 
 	return GETDNS_RETURN_GOOD;
 }

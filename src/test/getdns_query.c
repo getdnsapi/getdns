@@ -193,10 +193,8 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_sec = 0;
 		tv.tv_usec = 0;
 	} else {
-		//tv.tv_sec  = (timeout - now) / 1000000;
-		tv.tv_sec = 21474836;
+		tv.tv_sec  = (timeout - now) / 1000000;
 		tv.tv_usec = (timeout - now) % 1000000;
-		//fprintf(stdout, "Using BIG tv: %" PRIu64 " %" PRIu64 ", %lu %d \n", timeout, now, tv.tv_sec, tv.tv_usec);
 	}
 	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv) < 0) {
 		perror("select() failed");
@@ -386,7 +384,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
-	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default is to verify hostname)\n");
+	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");

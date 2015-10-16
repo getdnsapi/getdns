@@ -79,6 +79,7 @@ static void stub_timeout_cb(void *userarg);
 /* General utility functions */
 /*****************************/
 
+
 static void
 rollover_secret()
 {
@@ -824,7 +825,6 @@ tls_failed(getdns_upstream *upstream)
 
 static int
 tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
-	DEBUG_STUB("--- %s %d %d\n", __FUNCTION__, (int)netreq->tls_auth_min, (int)upstream->tls_auth_failed);
 	return (netreq->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME &&
 		    upstream->tls_auth_failed) ? 0 : 1;
 }
@@ -1697,7 +1697,7 @@ find_upstream_for_netreq(getdns_network_req *netreq)
 		                                  netreq->transports[i],
 		                                  &fd);
 		if (fd == -1 || !upstream)
-				continue;
+			continue;
 		netreq->transport_current = i;
 		netreq->upstream = upstream;
 		return fd;

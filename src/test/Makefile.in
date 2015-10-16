@@ -158,8 +158,6 @@ nolibldns:
 
 test:	$(NOLIBCHECK) $(NOLIBLDNS) all
 
-test_code:	$(NOLIBCHECK) all
-
 	(cd $(srcdir)/../.. && find . -type f -executable -and \( -name "*.[ch]" -or -name "*.html" -or -name "*.in" -or -name "*.good" -or -name "*.ac" \) | awk 'BEGIN{e=0}{print("ERROR! Executable bit found on", $$0);e=1}END{exit(e)}')
 	./$(CHECK_GETDNS)
 	if test $(have_libevent) = 1 ; then ./$(CHECK_EVENT_PROG) ; fi

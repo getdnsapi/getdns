@@ -87,7 +87,8 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 
 * [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
 * [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
-* [libssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.2 or later is required for TLS support)
+* [libssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2
+or later is required for TLS hostname authentication)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 You have to install the library and also the library-devel (or -dev) for your
@@ -226,7 +227,7 @@ To install the [event loop integration libraries](https://github.com/getdnsapi/g
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
-As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS authentication should work out of the box.
+As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS certificate authentication should work out of the box.
 
 Contributors
 ============

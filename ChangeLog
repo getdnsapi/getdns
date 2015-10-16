@@ -3,6 +3,12 @@
     (ldns still necessary to be able to run tests though)
   * Bugfix: DNSSEC code finding zone cut with redirects + pursuing unsigned
     DS answers close to the root.  Thanks Theogene Bucuti!
+  * Default port for TLS changed to 853
+  * Unofficial extension to the API to allow TLS hostname verification to be
+    required for stub mode when using only TLS as a transport. 
+    When required a hostname must be supplied in the
+    'hostname' field of the upstream_list dict and the TLS cipher suites are
+    restricted to the 4 AEAD suites recommended in RFC7525.
 
 * 2015-09-09: Version 0.3.3
   * Fix clearing upstream events on shutdown
