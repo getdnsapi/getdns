@@ -56,10 +56,10 @@
 
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
-#define GETDNS_PORT_DNS_OVER_TLS 1021
+#define GETDNS_PORT_DNS_OVER_TLS 853
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
-#define GETDNS_STR_PORT_DNS_OVER_TLS "1021"
+#define GETDNS_STR_PORT_DNS_OVER_TLS "853"
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -2205,13 +2205,11 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
-			// /* Be strict and only use the cipher suites recommended in RFC7525 */
-			// const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
-			// if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
-			// 	return GETDNS_RETURN_BAD_CONTEXT;
-			/* By default cert chain will be verified, but note that per
-			   connection management of the result and hostname verification is done.*/
-			SSL_CTX_set_verify(context->tls_ctx, SSL_VERIFY_PEER, _getdns_tls_verify_callback);
+			/* Be strict and only use the cipher suites recommended in RFC7525
+			   Unless we later fallback to oppotunistic. */
+			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+				return GETDNS_RETURN_BAD_CONTEXT;
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
 				return GETDNS_RETURN_BAD_CONTEXT;
 #else
@@ -2223,13 +2221,11 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 		}
 		if (tls_only_is_in_transports_list(context) == 1 && 
 		    context->tls_auth == GETDNS_AUTHENTICATION_HOSTNAME) {
-				fprintf(stdout, "Setting auth min to HOSTNAME\n");
 			context->tls_auth_min = GETDNS_AUTHENTICATION_HOSTNAME;
 			/* TODO: If no auth data provided for any upstream, fail here */
 		}
 		else {
 			context->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
-			fprintf(stdout, "Setting auth min to NONE\n");
 		}
 	}
 

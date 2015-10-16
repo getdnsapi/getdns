@@ -563,7 +563,7 @@ upstream_tls_timeout_cb(void *userarg)
 	tls_cleanup(upstream);
 
 	/* Need to handle the case where the far end doesn't respond to a
-	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@1021).
+	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
 	 * For that case the socket never becomes writable so doesn't trigger any
 	 * callbacks. If so then clear out the queue in one go.*/
 	int ret;
@@ -590,7 +590,7 @@ stub_tls_timeout_cb(void *userarg)
 	tls_cleanup(upstream);
 
 	/* Need to handle the case where the far end doesn't respond to a
-	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@1021).
+	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
 	 * For that case the socket never becomes writable so doesn't trigger any
 	 * callbacks. If so then clear out the queue in one go.*/
 	int ret;
@@ -830,13 +830,13 @@ tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
 }
 
 int
-_getdns_tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
+tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
 	int     err;
 	err = X509_STORE_CTX_get_error(ctx);
 	const char * err_str;
 	err_str = X509_verify_cert_error_string(err);
 	DEBUG_STUB("--- %s, VERIFY RESULT: %s\n", __FUNCTION__, err_str);
-	/*Always  proceed without changing result*/
+	/*Always proceed without changing result*/
 	return preverify_ok;
 }
 
@@ -864,7 +864,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	if (context->tls_ctx == NULL)
 		return NULL;
 	SSL* ssl = SSL_new(context->tls_ctx);
-
 	if(!ssl) 
 		return NULL;
 	/* Connect the SSL object with a file descriptor */
@@ -874,11 +873,38 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	}
 
 	/* NOTE: this code will fallback on a given upstream, without trying
-	         authentication on other upstreams first. This is non-optimal and is
-	         an interim simplification. */
+	   authentication on other upstreams first. This is non-optimal and but avoids
+	   multiple TLS handshakes before getting a usable connection. */
 
-	/* Lack of host name is OK unless only authenticated TLS is specified*/
-	if (upstream->tls_auth_name[0] == '\0') {
+	/* If we have a hostname, always use it */
+	if (upstream->tls_auth_name[0] != '\0') {
+		/*Request certificate for the auth_name*/
+		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
+#ifdef HAVE_SSL_HN_AUTH
+		/* Set up native OpenSSL hostname verification*/
+		X509_VERIFY_PARAM *param;
+		param = SSL_get0_param(ssl);
+		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
+		DEBUG_STUB("--- %s, HOSTNAME VERIFICATION REQUESTED \n", __FUNCTION__);
+#else
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
+			/* TODO: Trigger post-handshake custom validation*/
+			DEBUG_STUB("--- %s, ERROR: Authentication functionality not available\n", __FUNCTION__);
+			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			upstream->tls_auth_failed = 1;
+			return NULL;
+		}
+#endif
+		/* Allow fallback to oppotunisitc if settings permit it*/
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME)
+			SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
+		else {
+			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
+			SSL_CTX_set_cipher_list(context->tls_ctx, NULL);
+		}
+	} else {
+		/* Lack of host name is OK unless only authenticated TLS is specified*/
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
 			DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
@@ -887,31 +913,9 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		} else {
 			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
-			/* TODO: Should we always enforce validation of the cert at least??*/
-			SSL_set_verify(ssl, SSL_VERIFY_NONE, NULL);
-		}
-	} else {
-		/*Request certificate for the auth_name*/
-		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
-
-#ifdef HAVE_SSL_HN_AUTH
-		/* Set up native OpenSSL hostname verification*/
-		X509_VERIFY_PARAM *param;
-		param = SSL_get0_param(ssl);
-		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
-#else
-		/* TODO: Trigger post-handshake custom validation*/
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
-			DEBUG_STUB("--- %s, ERROR: Authentication functionality not available\n", __FUNCTION__);
-			upstream->tls_hs_state = GETDNS_HS_FAILED;
-			upstream->tls_auth_failed = 1;
-			return NULL;
-		}
-#endif
-		/* Allow fallback from authenticated TLS if settings permit it*/
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_NONE)
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
+			SSL_CTX_set_cipher_list(context->tls_ctx, NULL);
+		}
 	}
 	
 	SSL_set_connect_state(ssl);
@@ -976,10 +980,6 @@ tls_do_handshake(getdns_upstream *upstream)
 	r = SSL_get_verify_result(upstream->tls_obj);
 	if (r == X509_V_ERR_HOSTNAME_MISMATCH)
 		upstream->tls_auth_failed = 1;
-//#ifndef HAVE_SSL_HN_AUTH
-	/*TODO: When OpenSSL 1.0.2 not available, use custom function to validate
-	        the hostname e.g. see libcurl:openssl.c:verifyhost() */
-//#endif 
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
