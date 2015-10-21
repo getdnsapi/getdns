@@ -1,6 +1,8 @@
-* 2015-10-??: Version 0.3.4
+* 2015-10-??: Version 0.5.0
   * Native crypto.  No ldns dependency anymore.
     (ldns still necessary to be able to run tests though)
+  * JSON pointer arguments to getdns_dict_get_* and getdns_dict_set_* 
+    to dereference nested dicts and lists.
   * Bugfix: DNSSEC code finding zone cut with redirects + pursuing unsigned
     DS answers close to the root.  Thanks Theogene Bucuti!
   * Default port for TLS changed to 853
