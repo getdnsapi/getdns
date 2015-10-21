@@ -830,29 +830,41 @@ tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
 }
 
 int
-tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
+tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+#if defined(STUB_DEBUG) && STUB_DEBUG
 	int     err;
-	err = X509_STORE_CTX_get_error(ctx);
 	const char * err_str;
+
+	err = X509_STORE_CTX_get_error(ctx);
 	err_str = X509_verify_cert_error_string(err);
 	DEBUG_STUB("--- %s, VERIFY RESULT: %s\n", __FUNCTION__, err_str);
+#endif
 	/*Always proceed without changing result*/
 	return preverify_ok;
 }
 
 int
-tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx) {
+tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+#ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	int     err;
-	err = X509_STORE_CTX_get_error(ctx);
+# if defined(STUB_DEBUG) && STUB_DEBUG
 	const char * err_str;
+# endif
+	
+	err = X509_STORE_CTX_get_error(ctx);
+# if defined(STUB_DEBUG) && STUB_DEBUG
 	err_str = X509_verify_cert_error_string(err);
 	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__, err, err_str);
+# endif
 	/*Proceed if error is hostname mismatch*/
 	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
 		DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 		return 1;
 	}
 	else
+#endif
 		return preverify_ok;
 }
 
@@ -978,7 +990,9 @@ tls_do_handshake(getdns_upstream *upstream)
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
 	r = SSL_get_verify_result(upstream->tls_obj);
+#ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	if (r == X509_V_ERR_HOSTNAME_MISMATCH)
+#endif
 		upstream->tls_auth_failed = 1;
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
