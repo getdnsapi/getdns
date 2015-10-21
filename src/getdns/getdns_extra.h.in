@@ -349,6 +349,28 @@ uint32_t getdns_get_version_number(void);
 const char *getdns_get_api_version(void);
 uint32_t getdns_get_api_version_number(void);
 
+/* Authentication options used when doing TLS */
+typedef enum getdns_tls_authentication_t {
+	GETDNS_AUTHENTICATION_NONE = 1300,
+	GETDNS_AUTHENTICATION_HOSTNAME = 1301,
+} getdns_tls_authentication_t;
+
+/**
+  * \defgroup Base authentication texts
+  * @{
+  */
+#define GETDNS_AUTHENTICATION_NONE_TEXT "See getdns_context_set_tls_authentication()"
+#define GETDNS_AUTHENTICATION_HOSTNAME_TEXT "See getdns_context_set_tls_authentication()"
+/** @}
+  */
+
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION 618
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT "Change related to getdns_context_set_tls_authentication"
+
+getdns_return_t
+getdns_context_set_tls_authentication(
+    getdns_context *context, getdns_tls_authentication_t value);
+
 #ifdef __cplusplus
 }
 #endif
