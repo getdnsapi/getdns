@@ -32,6 +32,7 @@
  */
 
 #include <openssl/err.h>
+#include <openssl/conf.h>
 #include <openssl/x509v3.h>
 #include "config.h"
 #include <fcntl.h>
@@ -563,7 +564,7 @@ upstream_tls_timeout_cb(void *userarg)
 	tls_cleanup(upstream);
 
 	/* Need to handle the case where the far end doesn't respond to a
-	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@1021).
+	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
 	 * For that case the socket never becomes writable so doesn't trigger any
 	 * callbacks. If so then clear out the queue in one go.*/
 	int ret;
@@ -590,7 +591,7 @@ stub_tls_timeout_cb(void *userarg)
 	tls_cleanup(upstream);
 
 	/* Need to handle the case where the far end doesn't respond to a
-	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@1021).
+	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
 	 * For that case the socket never becomes writable so doesn't trigger any
 	 * callbacks. If so then clear out the queue in one go.*/
 	int ret;
@@ -819,19 +820,50 @@ tls_failed(getdns_upstream *upstream)
 	/* No messages should be scheduled onto an upstream in this state */
 	return ((upstream->transport == GETDNS_TRANSPORT_TLS ||
 	         upstream->transport == GETDNS_TRANSPORT_STARTTLS) &&
-	         upstream->tls_hs_state == GETDNS_HS_FAILED) ? 1: 0;
+	         upstream->tls_hs_state == GETDNS_HS_FAILED) ? 1 : 0;
+}
+
+static int
+tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
+	return (netreq->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME &&
+		    upstream->tls_auth_failed) ? 0 : 1;
+}
+
+int
+tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx) {
+	int     err;
+	err = X509_STORE_CTX_get_error(ctx);
+	const char * err_str;
+	err_str = X509_verify_cert_error_string(err);
+	DEBUG_STUB("--- %s, VERIFY RESULT: %s\n", __FUNCTION__, err_str);
+	/*Always proceed without changing result*/
+	return preverify_ok;
+}
+
+int
+tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx) {
+	int     err;
+	err = X509_STORE_CTX_get_error(ctx);
+	const char * err_str;
+	err_str = X509_verify_cert_error_string(err);
+	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__, err, err_str);
+	/*Proceed if error is hostname mismatch*/
+	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
+		DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
+		return 1;
+	}
+	else
+		return preverify_ok;
 }
 
 static SSL*
-tls_create_object(getdns_context *context, int fd, const char* auth_name)
+tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 {
-#ifdef HAVE_LIBSSL_102
 	/* Create SSL instance */
-	if (context->tls_ctx == NULL || auth_name == NULL)
+	getdns_context *context = dnsreq->context;
+	if (context->tls_ctx == NULL)
 		return NULL;
 	SSL* ssl = SSL_new(context->tls_ctx);
-	X509_VERIFY_PARAM *param;
-
 	if(!ssl) 
 		return NULL;
 	/* Connect the SSL object with a file descriptor */
@@ -839,16 +871,56 @@ tls_create_object(getdns_context *context, int fd, const char* auth_name)
 		SSL_free(ssl);
 		return NULL;
 	}
-	SSL_set_tlsext_host_name(ssl, auth_name);
-	param = SSL_get0_param(ssl);
-	X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-	X509_VERIFY_PARAM_set1_host(param, auth_name, 0);
+
+	/* NOTE: this code will fallback on a given upstream, without trying
+	   authentication on other upstreams first. This is non-optimal and but avoids
+	   multiple TLS handshakes before getting a usable connection. */
+
+	/* If we have a hostname, always use it */
+	if (upstream->tls_auth_name[0] != '\0') {
+		/*Request certificate for the auth_name*/
+		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
+#ifdef HAVE_SSL_HN_AUTH
+		/* Set up native OpenSSL hostname verification*/
+		X509_VERIFY_PARAM *param;
+		param = SSL_get0_param(ssl);
+		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
+		DEBUG_STUB("--- %s, HOSTNAME VERIFICATION REQUESTED \n", __FUNCTION__);
+#else
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
+			/* TODO: Trigger post-handshake custom validation*/
+			DEBUG_STUB("--- %s, ERROR: Authentication functionality not available\n", __FUNCTION__);
+			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			upstream->tls_auth_failed = 1;
+			return NULL;
+		}
+#endif
+		/* Allow fallback to oppotunisitc if settings permit it*/
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME)
+			SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
+		else {
+			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
+			SSL_CTX_set_cipher_list(context->tls_ctx, NULL);
+		}
+	} else {
+		/* Lack of host name is OK unless only authenticated TLS is specified*/
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
+			DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
+			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			upstream->tls_auth_failed = 1;
+			return NULL;
+		} else {
+			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
+			upstream->tls_auth_failed = 1;
+			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
+			SSL_CTX_set_cipher_list(context->tls_ctx, NULL);
+		}
+	}
+	
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 	return ssl;
-#else
-	return NULL;
-#endif
 }
 
 static int
@@ -905,6 +977,9 @@ tls_do_handshake(getdns_upstream *upstream)
 	   }
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
+	r = SSL_get_verify_result(upstream->tls_obj);
+	if (r == X509_V_ERR_HOSTNAME_MISMATCH)
+		upstream->tls_auth_failed = 1;
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1045,6 +1120,8 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	int q = tls_connected(upstream);
 	if (q != 0)
 		return q;
+	if (!tls_auth_status_ok(upstream, netreq))
+		return STUB_TLS_SETUP_ERROR;
 
 	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
@@ -1313,9 +1390,9 @@ upstream_read_cb(void *userarg)
 		if (netreq->owner == upstream->starttls_req) {
 			dnsreq = netreq->owner;
 			if (is_starttls_response(netreq)) {
-				upstream->tls_obj = tls_create_object(dnsreq->context,
+				upstream->tls_obj = tls_create_object(dnsreq,
 				                                      upstream->fd,
-								      upstream->tls_auth_name);
+				                                      upstream);
 				if (upstream->tls_obj == NULL) 
 					upstream->tls_hs_state = GETDNS_HS_FAILED;
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
@@ -1451,7 +1528,8 @@ netreq_upstream_write_cb(void *userarg)
 
 static int
 upstream_transport_valid(getdns_upstream *upstream,
-                        getdns_transport_list_t transport)
+                        getdns_transport_list_t transport,
+                        getdns_network_req *netreq)
 {
 	/* Single shot UDP, uses same upstream as plain TCP. */
 	if (transport == GETDNS_TRANSPORT_UDP)
@@ -1472,7 +1550,7 @@ upstream_transport_valid(getdns_upstream *upstream,
 	/* Otherwise, transport must match, and not have failed */
 	if (upstream->transport != transport)
 		return 0;
-	if (tls_failed(upstream))
+	if (tls_failed(upstream) || !tls_auth_status_ok(upstream, netreq))
 		return 0;
 	return 1;
 }
@@ -1500,7 +1578,7 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	DEBUG_STUB(" current upstream: %d of %d \n",(int)i, (int)upstreams->count);
 	do {
 		if (upstreams->upstreams[i].to_retry > 0 &&
-		    upstream_transport_valid(&upstreams->upstreams[i], transport)) {
+		    upstream_transport_valid(&upstreams->upstreams[i], transport, netreq)) {
 			upstreams->current = i;
 			DEBUG_STUB(" selected upstream: %d\n",(int)i);
 			return &upstreams->upstreams[i];
@@ -1512,11 +1590,11 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	upstream = upstreams->upstreams;
 	for (i = 0; i < upstreams->count; i++)
 		if (upstreams->upstreams[i].back_off < upstream->back_off &&
-			upstream_transport_valid(&upstreams->upstreams[i], transport))
+			upstream_transport_valid(&upstreams->upstreams[i], transport, netreq))
 			upstream = &upstreams->upstreams[i];
 
 	/* Need to check again that the transport is valid */
-	if (!upstream_transport_valid(upstream, transport)) {
+	if (!upstream_transport_valid(upstream, transport, netreq)) {
 		DEBUG_STUB(" ! No valid upstream available\n");
 		return NULL;
 	}
@@ -1555,7 +1633,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			return upstream->fd;
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) return -1;
-		upstream->tls_obj = tls_create_object(dnsreq->context, fd, upstream->tls_auth_name);
+		upstream->tls_obj = tls_create_object(dnsreq, fd, upstream);
 		if (upstream->tls_obj == NULL) {
 			close(fd);
 			return -1;
@@ -1598,6 +1676,7 @@ find_upstream_for_specific_transport(getdns_network_req *netreq,
                              getdns_transport_list_t transport,
                              int *fd)
 {
+	// TODO[TLS]: Need to loop over upstreams here!! 
 	getdns_upstream *upstream = upstream_select(netreq, transport);
 	if (!upstream)
 		return NULL;

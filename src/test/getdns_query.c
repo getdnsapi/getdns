@@ -371,9 +371,11 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
 	    "(default = synchronous)\n");
 	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
@@ -382,13 +384,15 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
+	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
+	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-R\tPrint root trust anchors\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
-	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
@@ -398,8 +402,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
 	fprintf(out, "\t\t\t U T L S for UDP, TCP, TLS or STARTTLS e.g 'UT' or 'LST' \n");
-	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
-	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
+
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -695,6 +698,14 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'k':
 				print_trust_anchors = 1;
 				break;
+			case 'n':
+				getdns_context_set_tls_authentication(context,
+				                 GETDNS_AUTHENTICATION_NONE);
+				break;
+			case 'm':
+				getdns_context_set_tls_authentication(context,
+				                 GETDNS_AUTHENTICATION_HOSTNAME);
+				break;
 			case 'p':
 				json = 0;
 			case 'q':
@@ -862,6 +873,9 @@ getdns_return_t do_the_call(void)
 		}
 		if (r == GETDNS_RETURN_GOOD && !batch_mode) 
 			getdns_context_run(context);
+		if (r != GETDNS_RETURN_GOOD)
+			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				 getdns_get_errorstr_by_id(r));
 	} else {
 		switch (calltype) {
 		case GENERAL:

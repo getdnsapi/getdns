@@ -55,7 +55,7 @@ usage () {
 	echo "can be specified via the command line option."
 	echo
 	echo "usage: test_transport.sh"
-	ehco "         -p   path to getdns_query binary"
+	echo "         -p   path to getdns_query binary"
 	echo "         -s   server configured for only TCP and UDP"
 	echo "         -t   server configured for TLS, STARTTLS, TCP and UDP"
 	echo "              (This must include the hostname e.g. 185.49.141.38~www.dnssec-name-and-shame.com)"
@@ -77,20 +77,22 @@ echo $TLS_SERVER_IP_NO_NAME
 GOOD_QUERIES=(
 "-s -A -q getdnsapi.net -l U      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l T      @${SERVER_IP}    "
-"-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP}"
-"-s -A -q getdnsapi.net -l S      @${TLS_SERVER_IP}")
+"-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP_NO_NAME}"
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP}")
+#"-s -A -q getdnsapi.net -l S      @${TLS_SERVER_IP_NO_NAME}")
 
 GOOD_FALLBACK_QUERIES=(
 "-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
 "-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
 "-s -A -q getdnsapi.net -l LT     @${TLS_SERVER_IP_NO_NAME}"
-"-s -A -q getdnsapi.net -l L      @${SERVER_IP} @${TLS_SERVER_IP}"
+"-s -A -q getdnsapi.net -l LT -m  @${TLS_SERVER_IP_NO_NAME}"
+"-s -A -q getdnsapi.net -l L      @${SERVER_IP} @${TLS_SERVER_IP_NO_NAME}"
 "-s -G -q DNSKEY getdnsapi.net -l UT  @${SERVER_IP} -b 512 -D")
 
 NOT_AVAILABLE_QUERIES=(
 "-s -A -q getdnsapi.net -l L      @${SERVER_IP}    "
-"-s -A -q getdnsapi.net -l S      @${SERVER_IP}    "
-"-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP_NO_NAME}    "
+#"-s -A -q getdnsapi.net -l S      @${SERVER_IP}    "
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}    "
 "-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
 
 echo "Starting transport test"

@@ -102,6 +102,7 @@ typedef struct getdns_upstream {
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
 	char                     tls_auth_name[256];
+	size_t                   tls_auth_failed;
 
 	/* Pipelining of TCP network requests */
 	getdns_network_req      *write_queue;
@@ -145,6 +146,8 @@ struct getdns_context {
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
+	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
+	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;
