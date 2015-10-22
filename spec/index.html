@@ -522,21 +522,21 @@ name-value pairs in a dict is not important.</li>
 <div class=forh id="datagetters">
 /* Lists: get the length, get the data_type of the value at a given
    position, and get the data at a given position */
-getdns_return_t getdns_list_get_length(const getdns_list *this_list, size_t *answer);
-getdns_return_t getdns_list_get_data_type(const getdns_list *this_list, size_t index, getdns_data_type *answer);
-getdns_return_t getdns_list_get_dict(const getdns_list *this_list, size_t index, getdns_dict **answer);
-getdns_return_t getdns_list_get_list(const getdns_list *this_list, size_t index, getdns_list **answer);
-getdns_return_t getdns_list_get_bindata(const getdns_list *this_list, size_t index, getdns_bindata **answer);
-getdns_return_t getdns_list_get_int(const getdns_list *this_list, size_t index, uint32_t *answer);
+getdns_return_t getdns_list_get_length(const getdns_list *list, size_t *answer);
+getdns_return_t getdns_list_get_data_type(const getdns_list *list, size_t index, getdns_data_type *answer);
+getdns_return_t getdns_list_get_dict(const getdns_list *list, size_t index, getdns_dict **answer);
+getdns_return_t getdns_list_get_list(const getdns_list *list, size_t index, getdns_list **answer);
+getdns_return_t getdns_list_get_bindata(const getdns_list *list, size_t index, getdns_bindata **answer);
+getdns_return_t getdns_list_get_int(const getdns_list *list, size_t index, uint32_t *answer);
 
 /* Dicts: get the list of names, get the data_type of the
    value at a given name, and get the data at a given name */
-getdns_return_t getdns_dict_get_names(const getdns_dict *this_dict, getdns_list **answer);
-getdns_return_t getdns_dict_get_data_type(const getdns_dict *this_dict, const char *name, getdns_data_type *answer);
-getdns_return_t getdns_dict_get_dict(const getdns_dict *this_dict, const char *name, getdns_dict **answer);
-getdns_return_t getdns_dict_get_list(const getdns_dict *this_dict, const char *name, getdns_list **answer);
-getdns_return_t getdns_dict_get_bindata(const getdns_dict *this_dict, const char *name, getdns_bindata **answer);
-getdns_return_t getdns_dict_get_int(const getdns_dict *this_dict, const char *name, uint32_t *answer);
+getdns_return_t getdns_dict_get_names(const getdns_dict *dict, getdns_list **answer);
+getdns_return_t getdns_dict_get_data_type(const getdns_dict *dict, const char *name, getdns_data_type *answer);
+getdns_return_t getdns_dict_get_dict(const getdns_dict *dict, const char *name, getdns_dict **answer);
+getdns_return_t getdns_dict_get_list(const getdns_dict *dict, const char *name, getdns_list **answer);
+getdns_return_t getdns_dict_get_bindata(const getdns_dict *dict, const char *name, getdns_bindata **answer);
+getdns_return_t getdns_dict_get_int(const getdns_dict *dict, const char *name, uint32_t *answer);
 </div>
 
 <p>All of these helper getter functions return <code>GETDNS_RETURN_GOOD</code> if the call is successful.
@@ -583,11 +583,11 @@ getdns_list * getdns_list_create_with_extended_memory_functions(
   void *(*realloc)(void *userarg, void *, size_t),
   void (*free)(void *userarg, void *)
 );
-void getdns_list_destroy(getdns_list *this_list);
-getdns_return_t getdns_list_set_dict(getdns_list *this_list, size_t index, const getdns_dict *child_dict);
-getdns_return_t getdns_list_set_list(getdns_list *this_list, size_t index, const getdns_list *child_list);
-getdns_return_t getdns_list_set_bindata(getdns_list *this_list, size_t index, const getdns_bindata *child_bindata);
-getdns_return_t getdns_list_set_int(getdns_list *this_list, size_t index, uint32_t child_uint32);
+void getdns_list_destroy(getdns_list *list);
+getdns_return_t getdns_list_set_dict(getdns_list *list, size_t index, const getdns_dict *child_dict);
+getdns_return_t getdns_list_set_list(getdns_list *list, size_t index, const getdns_list *child_list);
+getdns_return_t getdns_list_set_bindata(getdns_list *list, size_t index, const getdns_bindata *child_bindata);
+getdns_return_t getdns_list_set_int(getdns_list *list, size_t index, uint32_t child_uint32);
 
 /* Dicts: create, destroy, and set the data at a given name */
 getdns_dict * getdns_dict_create();
@@ -605,12 +605,12 @@ getdns_dict * getdns_dict_create_with_extended_memory_functions(
   void *(*realloc)(void *userarg, void *, size_t),
   void (*free)(void *userarg, void *)
 );
-void getdns_dict_destroy(getdns_dict *this_dict);
-getdns_return_t getdns_dict_set_dict(getdns_dict *this_dict, const char *name, const getdns_dict *child_dict);
-getdns_return_t getdns_dict_set_list(getdns_dict *this_dict, const char *name, const getdns_list *child_list);
-getdns_return_t getdns_dict_set_bindata(getdns_dict *this_dict, const char *name, const getdns_bindata *child_bindata);
-getdns_return_t getdns_dict_set_int(getdns_dict *this_dict, const char *name, uint32_t child_uint32);
-getdns_return_t getdns_dict_remove_name(getdns_dict *this_dict, const char *name);
+void getdns_dict_destroy(getdns_dict *dict);
+getdns_return_t getdns_dict_set_dict(getdns_dict *dict, const char *name, const getdns_dict *child_dict);
+getdns_return_t getdns_dict_set_list(getdns_dict *dict, const char *name, const getdns_list *child_list);
+getdns_return_t getdns_dict_set_bindata(getdns_dict *dict, const char *name, const getdns_bindata *child_bindata);
+getdns_return_t getdns_dict_set_int(getdns_dict *dict, const char *name, uint32_t child_uint32);
+getdns_return_t getdns_dict_remove_name(getdns_dict *dict, const char *name);
 </div>
 
 <p>Lists are extended with the <code>getdns_list_set_</code> calls with the <code>index</code> set to the
@@ -643,11 +643,11 @@ results that have been validated with DNSSEC, you might use:</p>
 
 <pre>
 /* . . . */
-getdns_dict * this_extensions = getdns_dict_create();
-this_ret = getdns_dict_set_int(this_extensions, "dnssec_return_only_secure", GETDNS_EXTENSION_TRUE);
+getdns_dict * extensions = getdns_dict_create();
+ret = getdns_dict_set_int(extensions, "dnssec_return_only_secure", GETDNS_EXTENSION_TRUE);
 /* . . . Do some processing with the extensions and results . . . */
 /* Remember to clean up memory*/
-getdns_dict_destroy(this_extensions);
+getdns_dict_destroy(extensions);
 </pre>
 
 <p>The extensions described in this section are are:
@@ -2426,7 +2426,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.700.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.701.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
