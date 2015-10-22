@@ -93,7 +93,7 @@ default: all
 all: $(PROGRAMS)
 
 $(ALL_OBJS):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(LDNS_CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
 
 $(NON_C99_OBJS):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600 -c $(srcdir)/$(@:.lo=.c) -o $@
@@ -277,7 +277,6 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
-scratchpad.lo scratchpad.o: $(srcdir)/scratchpad.c ../getdns/getdns.h ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h
@@ -288,4 +287,5 @@ tests_list.lo tests_list.o: $(srcdir)/tests_list.c $(srcdir)/testmessages.h ../g
 tests_namespaces.lo tests_namespaces.o: $(srcdir)/tests_namespaces.c $(srcdir)/testmessages.h ../getdns/getdns.h
 tests_stub_async.lo tests_stub_async.o: $(srcdir)/tests_stub_async.c ../config.h $(srcdir)/testmessages.h \
  ../getdns/getdns.h ../getdns/getdns_extra.h
-tests_stub_sync.lo tests_stub_sync.o: $(srcdir)/tests_stub_sync.c $(srcdir)/testmessages.h ../getdns/getdns.h
+tests_stub_sync.lo tests_stub_sync.o: $(srcdir)/tests_stub_sync.c $(srcdir)/testmessages.h ../getdns/getdns.h \
+ ../getdns/getdns_extra.h

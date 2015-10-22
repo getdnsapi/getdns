@@ -224,7 +224,8 @@ depend:
 FORCE:
 
 # Dependencies for gldns, utils, the extensions and compat functions
-const-info.lo const-info.o: $(srcdir)/const-info.c getdns/getdns.h $(srcdir)/const-info.h
+const-info.lo const-info.o: $(srcdir)/const-info.c getdns/getdns.h getdns/getdns_extra.h \
+ getdns/getdns.h $(srcdir)/const-info.h
 context.lo context.o: $(srcdir)/context.c config.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h \
  $(srcdir)/gldns/wire2str.h $(srcdir)/context.h getdns/getdns.h getdns/getdns_extra.h \
  getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
