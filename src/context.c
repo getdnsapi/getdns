@@ -2392,8 +2392,10 @@ getdns_context_get_num_pending_requests(struct getdns_context* context,
 		context->extension->vmt->run_once(context->extension, 0);
 
 	/* TODO: Remove this when next_timeout is gone */
-	_getdns_handle_timeouts(context->mini_event.base,
-	    &context->mini_event.time_tv, next_timeout ? next_timeout : &dispose);
+	if (context->extension == &context->mini_event.loop)
+		_getdns_handle_timeouts(context->mini_event.base,
+		    &context->mini_event.time_tv,
+		    next_timeout ? next_timeout : &dispose);
 
 	return context->outbound_requests.count;
 }
@@ -2418,8 +2420,12 @@ getdns_context_process_async(struct getdns_context* context)
 void
 getdns_context_run(getdns_context *context)
 {
-	if (getdns_context_get_num_pending_requests(context, NULL) > 0 &&
-	    !getdns_context_process_async(context))
+	if (context->extension == &context->mini_event.loop) {
+		if (getdns_context_get_num_pending_requests(context, NULL) > 0 &&
+		    !getdns_context_process_async(context))
+			context->extension->vmt->run(context->extension);
+	}
+	else
 		context->extension->vmt->run(context->extension);
 }
 
