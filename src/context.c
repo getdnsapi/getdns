@@ -1358,7 +1358,7 @@ getdns_context_set_dns_transport(
 	context->dns_transport_count = count;
 	context->dns_transports = new_transports;
 
-	switch (value) {
+	switch ((int)value) {
 	    case GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP:
 	        context->dns_transports[0] = GETDNS_TRANSPORT_UDP;
 	        context->dns_transports[1] = GETDNS_TRANSPORT_TCP;

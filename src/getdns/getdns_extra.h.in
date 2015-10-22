@@ -371,6 +371,19 @@ getdns_return_t
 getdns_context_set_tls_authentication(
     getdns_context *context, getdns_tls_authentication_t value);
 
+
+/* WARNING! Do not use the constants below.  They will be removed from future
+ * releases.  Please use the getdns_context_set_dns_transport_list with the
+ * GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP and GETDNS_TRANSPORT_TLS
+ * constants instead.
+ */
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN 544
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 545
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 546
+#define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+
 #ifdef __cplusplus
 }
 #endif

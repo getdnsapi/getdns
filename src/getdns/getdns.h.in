@@ -61,7 +61,8 @@ typedef enum getdns_return_t {
 	GETDNS_RETURN_EXTENSION_MISFORMAT = 308,
 	GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED = 309,
 	GETDNS_RETURN_MEMORY_ERROR = 310,
-	GETDNS_RETURN_INVALID_PARAMETER = 311
+	GETDNS_RETURN_INVALID_PARAMETER = 311,
+	GETDNS_RETURN_NOT_IMPLEMENTED = 312
 } getdns_return_t;
 
 /**
@@ -82,6 +83,7 @@ typedef enum getdns_return_t {
 #define GETDNS_RETURN_DNSSEC_WITH_STUB_DISALLOWED_TEXT "A query was made with a context that is using stub resolution and a DNSSEC extension specified."
 #define GETDNS_RETURN_MEMORY_ERROR_TEXT "Unable to allocate the memory required."
 #define GETDNS_RETURN_INVALID_PARAMETER_TEXT "A required parameter had an invalid value."
+#define GETDNS_RETURN_NOT_IMPLEMENTED_TEXT "The library did not have the requested API feature implemented."
 /** @}
  */
 
@@ -163,12 +165,7 @@ typedef enum getdns_transport_t {
 	GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP = 540,
 	GETDNS_TRANSPORT_UDP_ONLY = 541,
 	GETDNS_TRANSPORT_TCP_ONLY = 542,
-	GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN = 543,
-	/* <Not in official API> */
-	GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN = 544,
-	GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN = 545,
-	GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN = 546
-	/* </Not in official API> */
+	GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN = 543
 } getdns_transport_t;
 
 /**
@@ -179,11 +176,6 @@ typedef enum getdns_transport_t {
 #define GETDNS_TRANSPORT_UDP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
-/* <Not in official API> */
-#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
-#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
-#define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
-/* </Not in official API> */
 /** @}
 */
 
