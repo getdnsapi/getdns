@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-09-29
+* Date:    2015-10-22
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -85,9 +85,9 @@ Building/External Dependencies
 
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
 
-* [libunbound from NLnet Labs](http://www.nlnetlabs.nl/projects/unbound/) version 1.4.16 or later
-* [libidn from the FSF](http://www.gnu.org/software/libidn/) version 1.
-* [libssl from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
+* [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
+* [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.
+* [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
 * Doxygen is used to generate documentation, while this is not technically necessary for the build it makes things a lot more pleasant.
 
 You have to install the library and also the library-devel (or -dev) for your
@@ -98,6 +98,12 @@ with:
     # libtoolize -ci
     # autoreconf -fi
 
+## Minimal dependencies
+
+* getdns can be configured for stub resolution mode only with the `--enable-stub-only` option to configure.  This removed the dependency on `libunbound`.
+* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
+* When both `--enable-stub-only` and `--with-libidn` options are used, getdns had only one dependency left, which is OpenSSL.
+
 ## Extensions / Event loop dependencies
 
 The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
@@ -106,11 +112,11 @@ The implementation works with a variety of event loops, each built as a separate
 * [libuv](https://github.com/joyent/libuv)
 * [libev](http://software.schmorp.de/pkg/libev.html)
 
-##Regression Tests
+## Regression Tests
 
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
-to install [libcheck](http://check.sourceforge.net/).  Check is also available from
+to install [libcheck](http://check.sourceforge.net/) and [libldns from NLnet Labs](https://nlnetlabs.nl/projects/ldns/) version 1.6.17 or later.  Both libraries are also available from
 many of the package repositories for the more popular operating systems.
 
 ## DNSSEC
@@ -137,7 +143,6 @@ The following API calls are documented in getDNS but *not supported* by the impl
   * `getdns_context_set_append_name`
   * `getdns_context_set_suffix`
 * Setting root servers via `getdns_context_set_dns_root_servers`
-* `getdns_context_set_dnssec_trust_anchors`
 * Detecting changes to resolv.conf and hosts
 * MDNS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
@@ -231,6 +236,7 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 Contributors
 ============
 * Theogene Bucuti
+* Andrew Cathrow, Verisign Labs
 * Saúl Ibarra Corretgé
 * Craig Despeaux, Verisign, Inc.
 * John Dickinson, Sinodun
