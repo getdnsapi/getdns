@@ -2470,15 +2470,15 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 }
 
 getdns_return_t
-getdns_context_set_eventloop(struct getdns_context* context, getdns_eventloop* loop)
+getdns_context_set_eventloop(getdns_context* context, getdns_eventloop* loop)
 {
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(loop   , GETDNS_RETURN_INVALID_PARAMETER);
+	if (!context || !loop)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	getdns_return_t r = getdns_context_detach_eventloop(context);
-	if (r != GETDNS_RETURN_GOOD)
-		return r;
-
+	if (context->extension) {
+		cancel_outstanding_requests(context, 1);
+		context->extension->vmt->cleanup(context->extension);
+	}
 	context->extension = loop;
 	return GETDNS_RETURN_GOOD;
 }
