@@ -166,7 +166,7 @@ submit_network_request(getdns_network_req *netreq)
 		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 #else
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif
 	}
 	/* Submit with stub resolver */

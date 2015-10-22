@@ -1185,6 +1185,10 @@ getdns_context_set_resolution_type(struct getdns_context *context,
     if (value != GETDNS_RESOLUTION_STUB && value != GETDNS_RESOLUTION_RECURSING) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
+#ifndef HAVE_LIBUNBOUND
+    if (value == GETDNS_RESOLUTION_RECURSING)
+	    return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif
 #ifndef STUB_NATIVE_DNSSEC
     if (context->resolution_type_set != 0) {
         /* already setup */
