@@ -913,7 +913,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 		else {
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
-			SSL_CTX_set_cipher_list(context->tls_ctx, NULL);
+			SSL_set_cipher_list(ssl, "DEFAULT");
 		}
 	} else {
 		/* Lack of host name is OK unless only authenticated TLS is specified*/
@@ -926,7 +926,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
-			SSL_CTX_set_cipher_list(context->tls_ctx, NULL);
+			SSL_set_cipher_list(ssl, "DEFAULT");
 		}
 	}
 	
