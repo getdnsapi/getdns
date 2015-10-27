@@ -384,12 +384,12 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
+	fprintf(out, "\t-k\tPrint root trust anchors\n");
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
-	fprintf(out, "\t-R\tPrint root trust anchors\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
