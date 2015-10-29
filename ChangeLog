@@ -1,4 +1,4 @@
-* 2015-10-??: Version 0.5.0
+* 2015-10-29: Version 0.5.0
   * Native crypto.  No ldns dependency anymore.
     (ldns still necessary to be able to run tests though)
   * JSON pointer arguments to getdns_dict_get_* and getdns_dict_set_* 
