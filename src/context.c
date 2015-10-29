@@ -702,7 +702,7 @@ set_os_defaults(struct getdns_context *context)
 			token = parse + strcspn(parse, " \t\r\n");
 			*token = 0;
 
-			(void) strcpy(domain, parse);
+			(void) strlcpy(domain, parse, sizeof(domain));
 
 		} else if (strncmp(parse, "search", 6) == 0) {
 			parse += 6;

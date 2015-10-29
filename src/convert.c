@@ -36,9 +36,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <locale.h>
-#include <stringprep.h>
 #include "config.h"
 #ifdef HAVE_LIBIDN
+#include <stringprep.h>
 #include <idna.h>
 #endif
 #include "getdns/getdns.h"

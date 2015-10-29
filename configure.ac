@@ -877,7 +877,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -975,6 +975,14 @@ AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
 #include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -985,10 +993,12 @@ extern "C" {
 #include <stddef.h>
 #endif
 
-#if !defined(HAVE_STRLCPY) || !HAVE_DECL_STRLCPY
+#if !defined(HAVE_STRLCPY) || !HAVE_DECL_STRLCPY || !defined(strlcpy)
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #else
+#ifndef __BSD_VISIBLE
 #define __BSD_VISIBLE 1
+#endif
 #endif
 #if !defined(HAVE_ARC4RANDOM) || !HAVE_DECL_ARC4RANDOM
 uint32_t arc4random(void);
@@ -1030,11 +1040,6 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #  define GLDNS_BUILD_CONFIG_HAVE_SSL 1
 #endif
 
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <assert.h>
-
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -1043,6 +1048,10 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
@@ -1090,10 +1099,6 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 # else
 #  include <time.h>
 # endif
-#endif
-
-#ifdef HAVE_BSD_STRING_H
-#include <bsd/string.h>
 #endif
 
 #ifdef HAVE_LIBUNBOUND
