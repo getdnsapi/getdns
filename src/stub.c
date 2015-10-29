@@ -183,7 +183,7 @@ match_and_process_server_cookie(
 {
 	_getdns_rr_iter rr_iter_storage, *rr_iter;
 	uint8_t *pos;
-	uint16_t rdata_len, opt_code, opt_len;
+	uint16_t rdata_len, opt_code = 0, opt_len = 0;
 
 	/* Search for the OPT RR (if any) */
 	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
