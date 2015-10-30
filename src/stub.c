@@ -908,7 +908,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			return NULL;
 		}
 #endif
-		/* Allow fallback to oppotunisitc if settings permit it*/
+		/* Allow fallback to opportunistic if settings permit it*/
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME)
 			SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 		else {
@@ -923,6 +923,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			upstream->tls_auth_failed = 1;
 			return NULL;
 		} else {
+                  /* no hostname verification, so we will make opportunistic connections */
 			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);

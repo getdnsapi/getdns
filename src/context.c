@@ -2200,8 +2200,8 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* Be strict and only use the cipher suites recommended in RFC7525
-			   Unless we later fallback to oppotunistic. */
-			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
+			   Unless we later fallback to opportunistic. */
+			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
 			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
 				return GETDNS_RETURN_BAD_CONTEXT;
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
