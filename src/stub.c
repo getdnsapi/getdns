@@ -1879,6 +1879,54 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		/* For TLS, set a short timeout to catch setup problems. This is reset
 		   when the connection is successful.*/
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
+		/*************************************************************
+		 ******                                                  *****
+		 ******              Confusing code alert!               *****
+		 ******                                                  *****
+		 *************************************************************
+		 *
+		 * Synchronous requests have their own event loop for the
+		 * occasion of that single request.  That event loop is in
+		 * the dnsreq structure: dnsreq->loop;
+		 *
+		 * We do not schedule against and run the context's loop for
+		 * the duration of the synchronous query, because:
+		 * - Callbacks for outstanding asynchronous queries might fire
+		 *   as a side effect.
+		 * - But worse, since the context's loop is created and managed
+		 *   by the user, which may well have her own non-dns related
+		 *   events scheduled against it, they will fire as well as a
+		 *   side effect of doing the synchronous request!
+		 *
+		 * Transports that keep connections open, have their own event
+		 * structure because have to maintain their connection state.
+		 * The event is associated with the upstream struct which also
+		 * has a reference to the context's event loop.
+		 *
+		 * If a synchronous request is scheduled for such a transport,
+		 * then the synchronous specific event loop temporarily has
+		 * to "run" that upstream/transport's event!  Outstanding
+		 * requests for that upstream/transport might fire then as
+		 * well while running the synchronous specific event loop as a
+		 * side effect.
+		 *
+		 * Also, when a RECURSING resolution mode synchronous request
+		 * is done, then outstanding/asynchronous RECURSING requests
+		 * may fire, as we reuse the same code path as for asynchronous
+		 * requests which means that ub_resolve_async is used under the
+		 * hood instead of ub_resolve.
+		 *
+		 * If we would simply accept the facts that side effects will
+		 * happen, we could greatly simplify this code and have the
+		 * same code path (for scheduling the request and the timeout)
+		 * for both synchronous and asynchronous requests.
+		 *
+		 * We should ask ourself: How likely is it that an user that
+		 * uses asynchronous queries would do a synchronous query, that
+		 * should block all async activity, in between?  Is
+		 * anticipating this behaviour (in which we only partly succeed
+		 * to begin with) worth the complexity of divergent code paths?
+		 */
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, netreq->upstream->fd, /*dnsreq->context->timeout,*/
 		    (transport == GETDNS_TRANSPORT_TLS ?
