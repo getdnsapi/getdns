@@ -1889,37 +1889,48 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		 * occasion of that single request.  That event loop is in
 		 * the dnsreq structure: dnsreq->loop;
 		 *
-		 * We do not schedule against and run the context's loop for
-		 * the duration of the synchronous query, because:
-		 * - Callbacks for outstanding asynchronous queries might fire
-		 *   as a side effect.
+		 * We do not use the context's loop for the duration of the
+		 * synchronous query, because:
+		 * - Callbacks for outstanding (and thus asynchronous) queries
+		 *   might fire as a side effect.
 		 * - But worse, since the context's loop is created and managed
 		 *   by the user, which may well have her own non-dns related
 		 *   events scheduled against it, they will fire as well as a
 		 *   side effect of doing the synchronous request!
 		 *
 		 * Transports that keep connections open, have their own event
-		 * structure because have to maintain their connection state.
-		 * The event is associated with the upstream struct which also
-		 * has a reference to the context's event loop.
+		 * structure to keep their connection state.  The event is 
+		 * associated with the upstream struct.  Note that there is a
+		 * separate upstream struct for each statefull transport, so
+		 * each upstream has multiple transport structs!
+		 *
+		 *     side note: The upstream structs have their own reference
+		 *                to the "context's" event loop so they can,
+		 *                in theory, be detached (to finish running 
+		 *                queries for example).
 		 *
 		 * If a synchronous request is scheduled for such a transport,
-		 * then the synchronous specific event loop temporarily has
-		 * to "run" that upstream/transport's event!  Outstanding
-		 * requests for that upstream/transport might fire then as
-		 * well while running the synchronous specific event loop as a
-		 * side effect.
+		 * then the sync-loop temporarily has to "run" that 
+		 * upstream/transport's event!  Outstanding requests for that
+		 * upstream/transport might the fire then as well as a side
+		 * effect.
 		 *
-		 * Also, when a RECURSING resolution mode synchronous request
-		 * is done, then outstanding/asynchronous RECURSING requests
-		 * may fire, as we reuse the same code path as for asynchronous
-		 * requests which means that ub_resolve_async is used under the
-		 * hood instead of ub_resolve.
 		 *
-		 * If we would simply accept the facts that side effects will
-		 * happen, we could greatly simplify this code and have the
-		 * same code path (for scheduling the request and the timeout)
-		 * for both synchronous and asynchronous requests.
+		 * Discussion
+		 * ==========
+		 * Furthermore, when a RECURSING sync request is made (opposed
+		 * to a STUB sync request) then outstanding RECURSING requests
+		 * may fire as a side effect, as we reuse the same code path 
+		 * as with async RECURSING requests.  In both cases 
+		 * ub_resolve_async() is used under the hood instead of
+		 * ub_resolve().  The fix (by calling ub_resolver()) we have
+		 * to create more divergent code paths.
+		 *
+		 * If we would simply accept the fact that side effects can
+		 * happen while doing sync requests, we could greatly simplify
+		 * this code and have the same code path (for scheduling the
+		 * request and the timeout) for both synchronous and
+		 * asynchronous requests.
 		 *
 		 * We should ask ourself: How likely is it that an user that
 		 * uses asynchronous queries would do a synchronous query, that
