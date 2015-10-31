@@ -261,6 +261,10 @@ typedef struct getdns_dns_req {
 	int dnssec_return_status;
 	int dnssec_return_only_secure;
 	int dnssec_return_validation_chain;
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	int dnssec_roadblock_avoidance;
+	int avoid_dnssec_roadblocks;
+#endif
 	int edns_cookies;
 
 	/* Internally used by return_validation_chain */

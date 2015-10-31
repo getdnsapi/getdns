@@ -3089,6 +3089,25 @@ static void check_chain_complete(chain_head *chain)
 		                          , context->trust_anchors
 		                          , context->trust_anchors_len));
 #endif
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	if (   dnsreq->dnssec_roadblock_avoidance
+	    && dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+
+		getdns_return_t r = GETDNS_RETURN_GOOD;
+		getdns_network_req **netreq_p, *netreq;
+
+		dnsreq->avoid_dnssec_roadblocks = 1;
+
+		for ( netreq_p = dnsreq->netreqs
+		    ; !r && (netreq = *netreq_p)
+		    ; netreq_p++) {
+
+			netreq->state = NET_REQ_NOT_SENT;
+			(void) _getdns_submit_netreq(netreq);
+		}
+		return;
+	}
+#endif
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 

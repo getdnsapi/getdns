@@ -63,6 +63,9 @@ static getdns_extension_format extformats[] = {
 	{"dnssec_return_only_secure", t_int},
 	{"dnssec_return_status", t_int},
 	{"dnssec_return_validation_chain", t_int},
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	{"dnssec_roadblock_avoidance", t_int},
+#endif
 #ifdef EDNS_COOKIES
 	{"edns_cookies", t_int},
 #endif

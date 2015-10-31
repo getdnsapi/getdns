@@ -128,14 +128,20 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 #endif
 
 
-static getdns_return_t
-submit_network_request(getdns_network_req *netreq)
+getdns_return_t
+_getdns_submit_netreq(getdns_network_req *netreq)
 {
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
 	char name[1024];
 
-	if (dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	if (
+#ifdef STUB_NATIVE_DNSSEC
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	    (
+#endif
+#endif
+	    dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    /* TODO: Until DNSSEC with the new async stub resolver is finished,
 	     *       use unbound when we need DNSSEC.
 	     */
@@ -143,6 +149,11 @@ submit_network_request(getdns_network_req *netreq)
 	    || dns_req->dnssec_return_status
 	    || dns_req->dnssec_return_only_secure
 	    || dns_req->dnssec_return_validation_chain
+#else
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	    && !dns_req->dnssec_roadblock_avoidance
+	    ) ||  dns_req->avoid_dnssec_roadblocks
+#endif
 #endif
 	    ) {
 
@@ -217,7 +228,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++)
-			r = submit_network_request(netreq);
+			r = _getdns_submit_netreq(netreq);
 
 	else for (i = 0; i < context->namespace_count; i++) {
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
@@ -239,7 +250,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			for ( netreq_p = req->netreqs
 			    ; !r && (netreq = *netreq_p)
 			    ; netreq_p++)
-				r = submit_network_request(netreq);
+				r = _getdns_submit_netreq(netreq);
 			break;
 		} else
 			r = GETDNS_RETURN_BAD_CONTEXT;

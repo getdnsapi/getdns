@@ -372,6 +372,11 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
 	result->edns_cookies                   = edns_cookies;
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	result->dnssec_roadblock_avoidance     = is_extension_set(
+	    extensions, "dnssec_roadblock_avoidance");
+	result->avoid_dnssec_roadblocks        = 0;
+#endif
 
 	/* will be set by caller */
 	result->user_pointer = NULL;
