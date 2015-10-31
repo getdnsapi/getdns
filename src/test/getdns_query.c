@@ -491,16 +491,17 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 {
 	char *response_str;
 
-	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
-		/* This is a callback with data */;
-		if (!quiet && (response_str = json ?
-		    getdns_print_json_dict(response, json == 1)
-		  : getdns_pretty_print_dict(response))) {
+	/* This is a callback with data */;
+	if (response && !quiet && (response_str = json ?
+	    getdns_print_json_dict(response, json == 1)
+	  : getdns_pretty_print_dict(response))) {
 
-			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
-			validate_chain(response);
-			free(response_str);
-		}
+		fprintf(stdout, "ASYNC response:\n%s\n", response_str);
+		validate_chain(response);
+		free(response_str);
+	}
+
+	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
 		fprintf(stdout,
 			"Response code was: GOOD. Status was: Callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
