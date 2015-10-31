@@ -32,12 +32,7 @@
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
-
-#if 0 
-#define DEBUG_GQ(...) do {fprintf(stderr, __VA_ARGS__);} while (0)
-#else
-#define DEBUG_GQ(...) do {} while (0)
-#endif
+#include "util-internal.h"
 
 #define MAX_TIMEOUTS FD_SETSIZE
 
@@ -75,7 +70,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 	assert(event);
 	assert(fd < FD_SETSIZE);
 
-	DEBUG_GQ( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
+	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
 	        , __FUNCTION__, loop, fd, timeout, event);
 	if (fd >= 0 && (event->read_cb || event->write_cb)) {
 		assert(my_loop->fd_events[fd] == NULL);
@@ -84,7 +79,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 		my_loop->fd_timeout_times[fd] = get_now_plus(timeout);
 		event->ev = (void *) (intptr_t) fd + 1;
 
-		DEBUG_GQ( "scheduled read/write at %d\n", fd);
+		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
 	}
 
@@ -96,7 +91,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 			my_loop->timeout_times[i] = get_now_plus(timeout);
 			event->ev = (void *) (intptr_t) i + 1;
 
-			DEBUG_GQ( "scheduled timeout at %d\n", (int)i);
+			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
 		}
 	}
@@ -112,7 +107,7 @@ my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	assert(loop);
 	assert(event);
 
-	DEBUG_GQ( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
+	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
 	assert(i >= 0 && i < FD_SETSIZE);
@@ -134,19 +129,19 @@ void my_eventloop_cleanup(getdns_eventloop *loop)
 
 void my_read_cb(int fd, getdns_eventloop_event *event)
 {
-	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->read_cb(event->userarg);
 }
 
 void my_write_cb(int fd, getdns_eventloop_event *event)
 {
-	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->write_cb(event->userarg);
 }
 
 void my_timeout_cb(int fd, getdns_eventloop_event *event)
 {
-	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->timeout_cb(event->userarg);
 }
 
