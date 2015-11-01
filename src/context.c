@@ -2135,7 +2135,6 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 #endif
 
 
-#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 static getdns_return_t
 ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 {
@@ -2160,7 +2159,6 @@ ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 	}
 	return GETDNS_RETURN_GOOD;
 }
-#endif
 
 static getdns_return_t
 _getdns_ns_dns_setup(struct getdns_context *context)
