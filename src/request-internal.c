@@ -367,7 +367,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 
 	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != 512 ||
 	    edns_extended_rcode != 0 || edns_version != 0 || noptions ||
-	    edns_cookies || context->edns_client_subnet_private;
+	    edns_cookies || context->edns_client_subnet_private ||
+	    context->tls_query_padding_blocksize > 1;
 
 	edns_maximum_udp_payload_size = with_opt &&
 	    ( edns_maximum_udp_payload_size == -1 ||
@@ -438,6 +439,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
 	result->edns_cookies                   = edns_cookies;
 	result->edns_client_subnet_private     = context->edns_client_subnet_private;
+	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
 
 	/* will be set by caller */
 	result->user_pointer = NULL;
