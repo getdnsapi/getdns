@@ -467,14 +467,13 @@ tls_cleanup(getdns_upstream *upstream)
 	     NULL, upstream_write_cb, NULL));
 	/* Reset sync event, with full timeout (which isn't correct)*/
 	getdns_network_req *netreq = upstream->write_queue;
-	if (netreq && (netreq->event.write_cb || netreq->event.read_cb)) {
+	if (netreq) {
 		GETDNS_CLEAR_EVENT(netreq->owner->loop, &netreq->event);
 		GETDNS_SCHEDULE_EVENT(
 		    netreq->owner->loop, upstream->fd, netreq->owner->context->timeout,
-		    getdns_eventloop_event_init(
-		    &netreq->event, netreq,
-		    NULL, netreq_upstream_write_cb,
-		    stub_timeout_cb));
+		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
+		    ( netreq->owner->loop != netreq->upstream->loop /* Synchronous lookup? */
+		    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
 	}
 	return STUB_TLS_SETUP_ERROR;
 }
@@ -1011,6 +1010,12 @@ tls_do_handshake(getdns_upstream *upstream)
 	GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
 	    getdns_eventloop_event_init(&upstream->event, upstream,
 	     NULL, upstream_write_cb, NULL));
+	GETDNS_CLEAR_EVENT(netreq->owner->loop, &netreq->event);
+	GETDNS_SCHEDULE_EVENT(
+	    netreq->owner->loop, upstream->fd, netreq->owner->context->timeout,
+	    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
+	    ( netreq->owner->loop != netreq->upstream->loop /* Synchronous lookup? */
+	    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
 	/* Reschedule for synchronous */
 	/* TODO[TLS]: Re-instating full context->timeout here is wrong, as time has 
 	   passes since the netreq was originally scheduled, but we only hove one
@@ -1492,6 +1497,7 @@ static void
 upstream_write_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	DEBUG_STUB("# !!!!!!!!!!!!!%s: upstream %p, event %p, queue %p\n", __FUNCTION__, upstream, &upstream->event, upstream->write_queue);
 	getdns_network_req *netreq = upstream->write_queue;
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
@@ -1994,7 +2000,7 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, netreq->upstream->fd, /*dnsreq->context->timeout,*/
 		    (transport == GETDNS_TRANSPORT_TLS ?
-		    dnsreq->context->timeout / 2 : dnsreq->context->timeout),
+		    dnsreq->context->timeout /2 : dnsreq->context->timeout),
 		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
 		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
 		    ? netreq_upstream_write_cb : NULL), 
