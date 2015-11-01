@@ -261,7 +261,7 @@ static char *name;
 static getdns_context *context;
 static getdns_dict *extensions;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
-static int timeout, edns0_size;
+static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 
@@ -384,6 +384,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
+	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
@@ -657,7 +658,8 @@ getdns_return_t parse_args(int argc, char **argv)
 				    context, (uint16_t) edns0_size);
 				goto next;
 			case 'c':
-				getdns_context_set_edns_client_subnet_private(context, 1);
+				if (getdns_context_set_edns_client_subnet_private(context, 1))
+					return GETDNS_RETURN_GENERIC_ERROR;
 				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
@@ -706,6 +708,23 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_tls_authentication(context,
 				                 GETDNS_AUTHENTICATION_HOSTNAME);
 				break;
+			case 'P':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "tls_query_padding_blocksize "
+					    "expected after -P\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				padding_blocksize = strtol(argv[i], &endptr, 10);
+				if (*endptr || padding_blocksize < 0) {
+					fprintf(stderr, "non-negative "
+					    "numeric padding blocksize expected "
+					    "after -P\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (getdns_context_set_tls_query_padding_blocksize(
+					    context, padding_blocksize))
+					return GETDNS_RETURN_GENERIC_ERROR;
+				goto next;
 			case 'p':
 				json = 0;
 			case 'q':
