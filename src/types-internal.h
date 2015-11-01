@@ -230,7 +230,6 @@ typedef struct getdns_network_req
 	uint64_t                    debug_start_time;
 	uint64_t                    debug_end_time;
 	size_t                      debug_tls_auth_status;
-	struct getdns_upstream      *debug_upstream;
 
 	/* When more space is needed for the wire_data response than is
 	 * available in wire_data[], it will be allocated seperately.

@@ -118,7 +118,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->debug_start_time = 0;
 	net_req->debug_end_time = 0;
 	net_req->debug_tls_auth_status = 0;
-	net_req->debug_upstream = NULL;
 
 	net_req->wire_data_sz = wire_data_sz;
 	if (max_query_sz) {
