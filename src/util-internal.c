@@ -675,24 +675,64 @@ getdns_dict *
 _getdns_create_call_debugging_dict(getdns_context *context, 
 									getdns_network_req *netreq,
 									getdns_dict *reply) {
-	getdns_dict *netreq_debug = getdns_dict_create_with_context(context);
+
 	getdns_bindata *qname = NULL;
 	uint32_t qtype;
 	getdns_dict *question = NULL;
-	getdns_dict_get_dict(reply, "question", &question);
-	getdns_dict_get_bindata(question, "qname", &qname);
-	getdns_dict_set_bindata(netreq_debug, "qname", qname);
-	getdns_dict_get_int(question, "qtype", &qtype);
-	getdns_dict_set_int(netreq_debug, "qtype", qtype);
+	if (getdns_dict_get_dict(reply, "question", &question)) {
+		return NULL;
+	}
+	if (getdns_dict_get_bindata(question, "qname", &qname)) {
+		return NULL;
+	}	
+	if (getdns_dict_get_int(question, "qtype", &qtype)) {
+		return NULL;
+	}
+
+	/* It is the responsibility of the caller to free this */
+	getdns_dict *netreq_debug = getdns_dict_create_with_context(context);		
+	if (netreq_debug == NULL) {
+		return NULL;
+	}
+
 	getdns_dict *address_debug = getdns_dict_create_with_context(context);
+	if (address_debug == NULL){
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	_getdns_sockaddr_to_dict(context, &netreq->upstream->addr, &address_debug);
-	getdns_dict_set_dict(netreq_debug, "upstream", address_debug);
-	getdns_dict_set_int(netreq_debug, "transport", netreq->upstream->transport);
+
+	if (getdns_dict_set_bindata(netreq_debug, "qname", qname)) {
+		getdns_dict_destroy(netreq_debug);
+		getdns_dict_destroy(address_debug);
+		return NULL;
+	}
+	if (getdns_dict_set_int(netreq_debug, "qtype", qtype)) {
+		getdns_dict_destroy(netreq_debug);
+		getdns_dict_destroy(address_debug);
+		return NULL;
+	}
+	if (getdns_dict_set_dict(netreq_debug, "upstream", address_debug)) {
+		getdns_dict_destroy(netreq_debug);
+		getdns_dict_destroy(address_debug);
+		return NULL;
+	}
+	getdns_dict_destroy(address_debug);
+	
+	if (getdns_dict_set_int(netreq_debug, "transport",
+							netreq->upstream->transport)) {
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	/* Only include the auth status if TLS was used */
 	if (netreq->upstream->transport == GETDNS_TRANSPORT_TLS) {
-		getdns_dict_util_set_string(netreq_debug, "tls_auth", 
-	      netreq->debug_tls_auth_status == 0 ? "OK" : "FAILED");
+		if (getdns_dict_util_set_string(netreq_debug, "tls_auth", 
+			netreq->debug_tls_auth_status == 0 ? "OK" : "FAILED")) {
+				getdns_dict_destroy(netreq_debug);
+				return NULL;
+		}
 	}
+	
 	return netreq_debug;
 
 }
