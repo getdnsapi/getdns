@@ -672,12 +672,40 @@ success:
 }
 
 getdns_dict *
+_getdns_create_call_debugging_dict(getdns_context *context, 
+									getdns_network_req *netreq,
+									getdns_dict *reply) {
+	getdns_dict *netreq_debug = getdns_dict_create_with_context(context);
+	getdns_bindata *qname = NULL;
+	uint32_t qtype;
+	getdns_dict *question = NULL;
+	getdns_dict_get_dict(reply, "question", &question);
+	getdns_dict_get_bindata(question, "qname", &qname);
+	getdns_dict_set_bindata(netreq_debug, "qname", qname);
+	getdns_dict_get_int(question, "qtype", &qtype);
+	getdns_dict_set_int(netreq_debug, "qtype", qtype);
+	getdns_dict *address_debug = getdns_dict_create_with_context(context);
+	_getdns_sockaddr_to_dict(context, &netreq->upstream->addr, &address_debug);
+	getdns_dict_set_dict(netreq_debug, "upstream", address_debug);
+	getdns_dict_set_int(netreq_debug, "transport", netreq->upstream->transport);
+	/* Only include the auth status if TLS was used */
+	if (netreq->upstream->transport == GETDNS_TRANSPORT_TLS) {
+		getdns_dict_util_set_string(netreq_debug, "tls_auth", 
+	      netreq->debug_tls_auth_status == 0 ? "OK" : "FAILED");
+	}
+	return netreq_debug;
+
+}
+
+
+getdns_dict *
 _getdns_create_getdns_response(getdns_dns_req *completed_request)
 {
 	getdns_dict *result;
 	getdns_list *just_addrs = NULL;
 	getdns_list *replies_full;
 	getdns_list *replies_tree;
+	getdns_list *call_debugging;
 	getdns_network_req *netreq, **netreq_p;
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
@@ -712,6 +740,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 
 	if (!(replies_tree = getdns_list_create_with_context(context)))
 		goto error_free_replies_full;
+
+	if (completed_request->return_call_debugging) {
+		if (!(call_debugging = getdns_list_create_with_context(context)))
+			goto error_free_result;
+	}
 
 	for ( netreq_p = completed_request->netreqs
 	    ; (netreq = *netreq_p) ; netreq_p++) {
@@ -769,6 +802,17 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
     			getdns_dict_destroy(reply);
 			goto error;
 		}
+		
+		if (completed_request->return_call_debugging) {
+			getdns_dict *netreq_debug;
+			if (!(netreq_debug = _getdns_create_call_debugging_dict(context,
+															netreq, reply))) {
+				goto error;
+			}
+			_getdns_list_append_dict(call_debugging, netreq_debug);
+			getdns_dict_destroy(netreq_debug);
+		}
+
     		getdns_dict_destroy(reply);
 
     		/* buffer */
@@ -784,6 +828,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (getdns_dict_set_list(result, "replies_full", replies_full))
 		goto error_free_replies_full;
 	getdns_list_destroy(replies_full);
+
+	if (completed_request->return_call_debugging) {
+		if (getdns_dict_set_list(result, "return_call_debugging", call_debugging))
+			goto error_free_call_debugging;
+	}
 
 	if (just_addrs && getdns_dict_set_list(
 	    result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs))
@@ -806,6 +855,9 @@ error:
 	getdns_list_destroy(replies_tree);
 error_free_replies_full:
 	getdns_list_destroy(replies_full);
+error_free_call_debugging:
+	if (completed_request->return_call_debugging)
+		getdns_list_destroy(call_debugging);
 error_free_result:
 	getdns_list_destroy(just_addrs);
 	getdns_dict_destroy(result);

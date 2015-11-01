@@ -1276,6 +1276,8 @@ stub_udp_write_cb(void *userarg)
 	    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
 	    getdns_eventloop_event_init(&netreq->event, netreq,
 	    stub_udp_read_cb, NULL, stub_timeout_cb));
+			
+	netreq->debug_upstream = netreq->upstream;
 }
 
 /**************************/
@@ -1343,6 +1345,7 @@ stub_tcp_write_cb(void *userarg)
 		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
 		    getdns_eventloop_event_init(&netreq->event, netreq,
 		    stub_tcp_read_cb, NULL, stub_timeout_cb));
+		netreq->debug_upstream = netreq->upstream;
 		return;
 	}
 }
@@ -1477,6 +1480,9 @@ upstream_write_cb(void *userarg)
 		return;
 
 	default:
+		netreq->debug_upstream = netreq->upstream;
+		/* Need this because auth status is reset on connection clode */
+		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_failed;
 		upstream->writes_done++;
 		netreq->query_id = (uint16_t) q;
 		/* Unqueue the netreq from the write_queue */
