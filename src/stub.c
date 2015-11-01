@@ -1138,6 +1138,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
 	SSL* tls_obj = upstream->tls_obj;
+	uint16_t        padding_sz;
 
 	int q = tls_connected(upstream);
 	if (q != 0)
@@ -1173,6 +1174,17 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			if (netreq->owner->edns_client_subnet_private)
 				if (attach_edns_client_subnet_private(netreq))
 					return STUB_OUT_OF_OPTIONS;
+			if (netreq->owner->tls_query_padding_blocksize > 1) {
+				pkt_len = netreq->response - netreq->query;
+				pkt_len += 4; /* this accounts for the OPTION-CODE and OPTION-LENGTH of the padding */
+				padding_sz = pkt_len % netreq->owner->tls_query_padding_blocksize;
+				if (padding_sz)
+					padding_sz = netreq->owner->tls_query_padding_blocksize - padding_sz;
+				if (_getdns_network_req_add_upstream_option(netreq,
+									    EDNS_PADDING_OPCODE,
+									    padding_sz, NULL))
+					return STUB_OUT_OF_OPTIONS;
+			}
 		}
 
 		pkt_len = netreq->response - netreq->query;
