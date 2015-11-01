@@ -368,6 +368,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
+	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
@@ -655,6 +656,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_edns_maximum_udp_payload_size(
 				    context, (uint16_t) edns0_size);
 				goto next;
+			case 'c':
+				getdns_context_set_edns_client_subnet_private(context, 1);
+				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
 				break;
