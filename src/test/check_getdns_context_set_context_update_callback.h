@@ -365,6 +365,30 @@
     }
     END_TEST
 
+    START_TEST (getdns_context_set_context_update_callback_20)
+    {
+      /*
+      *  Create a context by calling getdns_context_create()
+      *  Define a callback routine for context changes and call getdns_context_set_context_update_callback() so that it gets called when there are context changes
+      *  Call getdns_context_set_edns_client_subnet_private() setting to 1
+      *  expect:  GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE
+      */ 
+      struct getdns_context *context = NULL;
+      CONTEXT_CREATE(TRUE);
+
+      ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_context_update_callback()");
+
+      expected_changed_item = GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE;
+
+      ASSERT_RC(getdns_context_set_edns_client_subnet_private(context, 1),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_client_subnet_private()");
+
+      CONTEXT_DESTROY;
+       
+    }
+    END_TEST
+
     
     
     Suite *
@@ -391,6 +415,7 @@
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_17);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_18);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_19);
+      tcase_add_test(tc_pos, getdns_context_set_context_update_callback_20);
       suite_add_tcase(s, tc_pos);
 
        return s;
