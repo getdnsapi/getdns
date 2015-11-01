@@ -512,16 +512,6 @@ upstreams_create(getdns_context *context, size_t size)
 	return r;
 }
 
-static getdns_upstreams *
-upstreams_resize(getdns_upstreams *upstreams, size_t size)
-{
-	getdns_upstreams *r = (void *) GETDNS_XREALLOC(
-	    upstreams->mf, upstreams, char,
-	    sizeof(getdns_upstreams) +
-	    sizeof(getdns_upstream) * size);
-	return r;
-}
-
 void
 _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
@@ -655,7 +645,7 @@ set_os_defaults(struct getdns_context *context)
 	FILE *in;
 	char line[1024], domain[1024];
 	char *parse, *token, prev_ch;
-	size_t upstreams_limit = 10, length;
+	size_t upstream_count, length;
 	struct addrinfo hints;
 	struct addrinfo *result;
 	getdns_upstream *upstream;
@@ -673,8 +663,20 @@ set_os_defaults(struct getdns_context *context)
 	}
 	_getdns_filechg_check(context, context->fchg_resolvconf);
 
+	in = fopen(context->fchg_resolvconf->fn, "r");
+	if (!in)
+		return GETDNS_RETURN_GOOD;
+
+	upstream_count = 0;
+	while (fgets(line, (int)sizeof(line), in))
+		if (strncmp(line, "nameserver", 10) == 0)
+			upstream_count++;
+	fclose(in);
+
+	fprintf(stderr, "%d\n", (int)upstream_count);
 	context->suffix = getdns_list_create_with_context(context);
-	context->upstreams = upstreams_create(context, upstreams_limit);
+	context->upstreams = upstreams_create(
+	    context, upstream_count * GETDNS_UPSTREAM_TRANSPORTS);
 
 	in = fopen(context->fchg_resolvconf->fn, "r");
 	if (!in)
@@ -734,11 +736,6 @@ set_os_defaults(struct getdns_context *context)
 				continue;
 			if (!result)
 				continue;
-
-			/* Grow array when needed */
-			if (context->upstreams->count == upstreams_limit)
-				context->upstreams = upstreams_resize(
-				    context->upstreams, (upstreams_limit *= 2));
 
 			upstream = &context->upstreams->
 			    upstreams[context->upstreams->count++];
@@ -1693,7 +1690,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	getdns_return_t r;
 	size_t count = 0;
 	size_t i;
-	//size_t upstreams_limit;
 	getdns_upstreams *upstreams;
 	char addrstr[1024], portstr[1024], *eos;
 	struct addrinfo hints;
@@ -1714,8 +1710,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	hints.ai_addr      = NULL;
 	hints.ai_next      = NULL;
 
-	upstreams = upstreams_create(context, count*3);
-	//upstreams_limit = count; 
+	upstreams = upstreams_create(
+	    context, count * GETDNS_UPSTREAM_TRANSPORTS);
 	for (i = 0; i < count; i++) {
 		getdns_dict *dict;
 		getdns_bindata *address_type;
@@ -1784,11 +1780,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			/* TODO[TLS]: Should probably check that the upstream doesn't
 			 * already exist (in case user has specified TLS port explicitly and
 			 * to prevent duplicates) */
-
-			/* TODO[TLS]: Grow array when needed. This causes a crash later....
-			if (upstreams->count == upstreams_limit)
-				upstreams = upstreams_resize(
-				    upstreams, (upstreams_limit *= 2)); */
 
 			upstream = &upstreams->upstreams[upstreams->count];
 			upstream->addr.ss_family = addr.ss_family;
