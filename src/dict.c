@@ -981,6 +981,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json &&
 			    (strcmp(item->node.key, "type") == 0  ||
 			     strcmp(item->node.key, "type_covered") == 0 ||
+				 strcmp(item->node.key, "query_type") == 0 || 
 			     strcmp(item->node.key, "qtype") == 0) &&
 			    (strval = _getdns_rr_type_name(item->i.data.n))) {
 				if (gldns_buffer_printf(

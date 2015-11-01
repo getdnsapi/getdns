@@ -724,13 +724,10 @@ _getdns_create_call_debugging_dict(getdns_context *context,
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
-	if (getdns_dict_set_int(netreq_debug, "start_time",
-							netreq->debug_start_time)) {
-		getdns_dict_destroy(netreq_debug);
-		return NULL;
-	}
-	if (getdns_dict_set_int(netreq_debug, "end_time",
-							netreq->debug_end_time)) {
+	
+	/* TODO: This is not safe */
+	uint32_t run_time = (uint32_t)(netreq->debug_end_time - netreq->debug_start_time);
+	if (getdns_dict_set_int(netreq_debug, "run_time/ms", run_time/1000)) {
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
