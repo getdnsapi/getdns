@@ -199,6 +199,11 @@ getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t v
 getdns_return_t
 getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* value);
 
+getdns_return_t
+getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t value);
+getdns_return_t
+getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t* value);
+
 
 /**
  * Pretty print the getdns_dict in a given buffer snprintf style.
@@ -373,6 +378,8 @@ typedef enum getdns_tls_authentication_t {
 #define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT "Change related to getdns_context_set_tls_authentication"
 #define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE 619
 #define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE_TEXT "Change related to getdns_context_set_edns_client_subnet_private"
+#define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE 620
+#define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE_TEXT "Change related to getdns_context_set_tls_query_padding_blocksize"
 
 getdns_return_t
 getdns_context_set_tls_authentication(

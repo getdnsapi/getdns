@@ -882,6 +882,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
 	result->edns_client_subnet_private = 0;
+	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
 	result-> tls_ctx = NULL;
 
 	result->extension = &result->mini_event.loop;
@@ -1918,6 +1919,26 @@ getdns_context_set_edns_client_subnet_private(struct getdns_context *context, ui
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_edns_client_subnet_private */
 
+/*
+ * getdns_context_set_tls_query_padding_blocksize
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_query_padding_blocksize(struct getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow values between 0 and MAXIMUM_UPSTREAM_OPTION_SPACE - 4
+       (4 is for the overhead of the option itself) */
+    if (value > MAXIMUM_UPSTREAM_OPTION_SPACE - 4) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->tls_query_padding_blocksize = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_query_padding_blocksize */
 /*
  * getdns_context_set_extended_memory_functions
  *
@@ -2992,6 +3013,14 @@ getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* 
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->edns_client_subnet_private;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_query_padding_blocksize;
     return GETDNS_RETURN_GOOD;
 }
 
