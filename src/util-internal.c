@@ -879,7 +879,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	getdns_list_destroy(replies_full);
 
 	if (completed_request->return_call_debugging) {
-		if (getdns_dict_set_list(result, "return_call_debugging", call_debugging))
+		if (getdns_dict_set_list(result, "call_debugging", call_debugging))
 			goto error_free_call_debugging;
 	}
 
