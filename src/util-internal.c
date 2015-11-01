@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "config.h"
 #include "getdns/getdns.h"
 #include "dict.h"
 #include "list.h"
@@ -699,7 +700,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		return NULL;
 
 	dnssec_return_status = completed_request->dnssec_return_status ||
-	                       completed_request->dnssec_return_only_secure;
+	                       completed_request->dnssec_return_only_secure
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	                    || completed_request->dnssec_roadblock_avoidance
+#endif
+	                       ;
 
 	if (completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_A ||
 	    completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_AAAA)

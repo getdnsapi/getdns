@@ -221,10 +221,19 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
 	int edns_cookies
 	    =  is_extension_set(extensions, "edns_cookies");
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	int dnssec_roadblock_avoidance
+	    = is_extension_set(extensions, "dnssec_roadblock_avoidance")
+	    || (extensions == dnssec_ok_checking_disabled);
+#endif
 
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_validation_chain
-	    || (extensions == dnssec_ok_checking_disabled);
+	    || (extensions == dnssec_ok_checking_disabled)
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	    || dnssec_roadblock_avoidance
+#endif
+	    ;
 
 	uint32_t edns_do_bit;
 	int      edns_maximum_udp_payload_size;
@@ -305,7 +314,12 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    ? edns_maximum_udp_payload_size : 512;
 
 	/* (x + 7) / 8 * 8 to align on 8 byte boundries */
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	    && !dnssec_roadblock_avoidance) 
+#else
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING)
+#endif
 		max_query_sz = 0;
 	else {
 		for (i = 0; i < noptions; i++) {
@@ -373,8 +387,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
 	result->edns_cookies                   = edns_cookies;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	result->dnssec_roadblock_avoidance     = is_extension_set(
-	    extensions, "dnssec_roadblock_avoidance");
+	result->dnssec_roadblock_avoidance     = dnssec_roadblock_avoidance;
 	result->avoid_dnssec_roadblocks        = 0;
 #endif
 
