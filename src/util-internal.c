@@ -727,9 +727,11 @@ _getdns_create_call_debugging_dict(getdns_context *context,
 	/* Only include the auth status if TLS was used */
 	if (netreq->upstream->transport == GETDNS_TRANSPORT_TLS) {
 		if (getdns_dict_util_set_string(netreq_debug, "tls_auth", 
-			netreq->debug_tls_auth_status == 0 ? "OK" : "FAILED")) {
-				getdns_dict_destroy(netreq_debug);
-				return NULL;
+			netreq->debug_tls_auth_status == 0 ?
+				"OK: Hostname matched valid cert." :
+				"FAILED: Server not validated.")) {
+					getdns_dict_destroy(netreq_debug);
+					return NULL;
 		}
 	}
 	
