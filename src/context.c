@@ -881,6 +881,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
+	result->edns_client_subnet_private = 0;
 	result-> tls_ctx = NULL;
 
 	result->extension = &result->mini_event.loop;
@@ -1896,6 +1897,26 @@ getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_edns_do_bit */
+
+/*
+ * getdns_context_set_edns_client_subnet_private
+ *
+ */
+getdns_return_t
+getdns_context_set_edns_client_subnet_private(struct getdns_context *context, uint8_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow 1 */
+    if (value != 0 && value != 1) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->edns_client_subnet_private = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_edns_client_subnet_private */
 
 /*
  * getdns_context_set_extended_memory_functions
@@ -2963,6 +2984,14 @@ getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->edns_do_bit;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_client_subnet_private;
     return GETDNS_RETURN_GOOD;
 }
 

@@ -131,6 +131,20 @@ calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
 }
 
 static getdns_return_t
+attach_edns_client_subnet_private(getdns_network_req *req)
+{
+	/* see
+	 * https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-04#section-6 */
+	/* all-zeros is a request to not leak the data further: */
+	/* "\x00\x00"  FAMILY: 0 (because no address) */
+	/* "\x00"  SOURCE PREFIX-LENGTH: 0 */ 
+	/* "\x00";  SCOPE PREFIX-LENGTH: 0 */
+	return _getdns_network_req_add_upstream_option(req,
+						       GLDNS_EDNS_CLIENT_SUBNET,
+						       4, NULL);
+}
+
+static getdns_return_t
 attach_edns_cookie(getdns_network_req *req)
 {
 	getdns_upstream *upstream = req->upstream;
@@ -702,6 +716,9 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			if (netreq->owner->edns_cookies)
 				if (attach_edns_cookie(netreq))
 					return STUB_OUT_OF_OPTIONS;
+			if (netreq->owner->edns_client_subnet_private)
+				if (attach_edns_client_subnet_private(netreq))
+					return STUB_OUT_OF_OPTIONS;
 		}
 		pkt_len = netreq->response - netreq->query;
 		/* We have an initialized packet buffer.
@@ -1153,6 +1170,9 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			/* we do not edns_cookie over TLS, since TLS
 			 * provides stronger guarantees than cookies
 			 * already */
+			if (netreq->owner->edns_client_subnet_private)
+				if (attach_edns_client_subnet_private(netreq))
+					return STUB_OUT_OF_OPTIONS;
 		}
 
 		pkt_len = netreq->response - netreq->query;
@@ -1259,6 +1279,9 @@ stub_udp_write_cb(void *userarg)
 			    ? 1232 : 1432));
 		if (netreq->owner->edns_cookies)
 			if (attach_edns_cookie(netreq))
+				return; /* too many upstream options */
+		if (netreq->owner->edns_client_subnet_private)
+			if (attach_edns_client_subnet_private(netreq))
 				return; /* too many upstream options */
 	}
 	pkt_len = netreq->response - netreq->query;

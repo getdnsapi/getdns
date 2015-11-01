@@ -157,6 +157,7 @@ struct getdns_context {
 	uint8_t edns_version;
 	uint8_t edns_do_bit;
 	int edns_maximum_udp_payload_size; /* -1 is unset */
+	uint8_t edns_client_subnet_private;
 	SSL_CTX* tls_ctx;
 
 	getdns_update_callback  update_callback;

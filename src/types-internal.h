@@ -275,6 +275,7 @@ typedef struct getdns_dns_req {
 	int dnssec_return_only_secure;
 	int dnssec_return_validation_chain;
 	int edns_cookies;
+	int edns_client_subnet_private;
 
 	/* Internally used by return_validation_chain */
 	int dnssec_ok_checking_disabled;
