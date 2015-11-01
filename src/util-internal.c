@@ -702,17 +702,17 @@ _getdns_create_call_debugging_dict(getdns_context *context,
 	}
 	_getdns_sockaddr_to_dict(context, &netreq->upstream->addr, &address_debug);
 
-	if (getdns_dict_set_bindata(netreq_debug, "qname", qname)) {
+	if (getdns_dict_set_bindata(netreq_debug, "query_name", qname)) {
 		getdns_dict_destroy(netreq_debug);
 		getdns_dict_destroy(address_debug);
 		return NULL;
 	}
-	if (getdns_dict_set_int(netreq_debug, "qtype", qtype)) {
+	if (getdns_dict_set_int(netreq_debug, "query_type", qtype)) {
 		getdns_dict_destroy(netreq_debug);
 		getdns_dict_destroy(address_debug);
 		return NULL;
 	}
-	if (getdns_dict_set_dict(netreq_debug, "upstream", address_debug)) {
+	if (getdns_dict_set_dict(netreq_debug, "query_to", address_debug)) {
 		getdns_dict_destroy(netreq_debug);
 		getdns_dict_destroy(address_debug);
 		return NULL;
@@ -724,9 +724,19 @@ _getdns_create_call_debugging_dict(getdns_context *context,
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_set_int(netreq_debug, "start_time",
+							netreq->debug_start_time)) {
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	if (getdns_dict_set_int(netreq_debug, "end_time",
+							netreq->debug_end_time)) {
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	/* Only include the auth status if TLS was used */
 	if (netreq->upstream->transport == GETDNS_TRANSPORT_TLS) {
-		if (getdns_dict_util_set_string(netreq_debug, "tls_auth", 
+		if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status", 
 			netreq->debug_tls_auth_status == 0 ?
 				"OK: Hostname matched valid cert." :
 				"FAILED: Server not validated.")) {
