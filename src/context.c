@@ -512,16 +512,6 @@ upstreams_create(getdns_context *context, size_t size)
 	return r;
 }
 
-static getdns_upstreams *
-upstreams_resize(getdns_upstreams *upstreams, size_t size)
-{
-	getdns_upstreams *r = (void *) GETDNS_XREALLOC(
-	    upstreams->mf, upstreams, char,
-	    sizeof(getdns_upstreams) +
-	    sizeof(getdns_upstream) * size);
-	return r;
-}
-
 void
 _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
@@ -655,7 +645,7 @@ set_os_defaults(struct getdns_context *context)
 	FILE *in;
 	char line[1024], domain[1024];
 	char *parse, *token, prev_ch;
-	size_t upstreams_limit = 10, length;
+	size_t upstream_count, length;
 	struct addrinfo hints;
 	struct addrinfo *result;
 	getdns_upstream *upstream;
@@ -673,8 +663,20 @@ set_os_defaults(struct getdns_context *context)
 	}
 	_getdns_filechg_check(context, context->fchg_resolvconf);
 
+	in = fopen(context->fchg_resolvconf->fn, "r");
+	if (!in)
+		return GETDNS_RETURN_GOOD;
+
+	upstream_count = 0;
+	while (fgets(line, (int)sizeof(line), in))
+		if (strncmp(line, "nameserver", 10) == 0)
+			upstream_count++;
+	fclose(in);
+
+	fprintf(stderr, "%d\n", (int)upstream_count);
 	context->suffix = getdns_list_create_with_context(context);
-	context->upstreams = upstreams_create(context, upstreams_limit);
+	context->upstreams = upstreams_create(
+	    context, upstream_count * GETDNS_UPSTREAM_TRANSPORTS);
 
 	in = fopen(context->fchg_resolvconf->fn, "r");
 	if (!in)
@@ -734,11 +736,6 @@ set_os_defaults(struct getdns_context *context)
 				continue;
 			if (!result)
 				continue;
-
-			/* Grow array when needed */
-			if (context->upstreams->count == upstreams_limit)
-				context->upstreams = upstreams_resize(
-				    context->upstreams, (upstreams_limit *= 2));
 
 			upstream = &context->upstreams->
 			    upstreams[context->upstreams->count++];
@@ -884,6 +881,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
+	result->edns_client_subnet_private = 0;
+	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
 	result-> tls_ctx = NULL;
 
 	result->extension = &result->mini_event.loop;
@@ -1693,7 +1692,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	getdns_return_t r;
 	size_t count = 0;
 	size_t i;
-	//size_t upstreams_limit;
 	getdns_upstreams *upstreams;
 	char addrstr[1024], portstr[1024], *eos;
 	struct addrinfo hints;
@@ -1714,8 +1712,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	hints.ai_addr      = NULL;
 	hints.ai_next      = NULL;
 
-	upstreams = upstreams_create(context, count*3);
-	//upstreams_limit = count; 
+	upstreams = upstreams_create(
+	    context, count * GETDNS_UPSTREAM_TRANSPORTS);
 	for (i = 0; i < count; i++) {
 		getdns_dict *dict;
 		getdns_bindata *address_type;
@@ -1784,11 +1782,6 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			/* TODO[TLS]: Should probably check that the upstream doesn't
 			 * already exist (in case user has specified TLS port explicitly and
 			 * to prevent duplicates) */
-
-			/* TODO[TLS]: Grow array when needed. This causes a crash later....
-			if (upstreams->count == upstreams_limit)
-				upstreams = upstreams_resize(
-				    upstreams, (upstreams_limit *= 2)); */
 
 			upstream = &upstreams->upstreams[upstreams->count];
 			upstream->addr.ss_family = addr.ss_family;
@@ -1906,6 +1899,46 @@ getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_edns_do_bit */
 
+/*
+ * getdns_context_set_edns_client_subnet_private
+ *
+ */
+getdns_return_t
+getdns_context_set_edns_client_subnet_private(struct getdns_context *context, uint8_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow 1 */
+    if (value != 0 && value != 1) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->edns_client_subnet_private = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_edns_client_subnet_private */
+
+/*
+ * getdns_context_set_tls_query_padding_blocksize
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_query_padding_blocksize(struct getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow values between 0 and MAXIMUM_UPSTREAM_OPTION_SPACE - 4
+       (4 is for the overhead of the option itself) */
+    if (value > MAXIMUM_UPSTREAM_OPTION_SPACE - 4) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->tls_query_padding_blocksize = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_query_padding_blocksize */
 /*
  * getdns_context_set_extended_memory_functions
  *
@@ -2209,8 +2242,8 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* Be strict and only use the cipher suites recommended in RFC7525
-			   Unless we later fallback to oppotunistic. */
-			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
+			   Unless we later fallback to opportunistic. */
+			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
 			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
 				return GETDNS_RETURN_BAD_CONTEXT;
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
@@ -2972,6 +3005,22 @@ getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->edns_do_bit;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_client_subnet_private;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_query_padding_blocksize;
     return GETDNS_RETURN_GOOD;
 }
 

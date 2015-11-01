@@ -32,12 +32,7 @@
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
-
-#if 0 
-#define DEBUG_GQ(...) do {fprintf(stderr, __VA_ARGS__);} while (0)
-#else
-#define DEBUG_GQ(...) do {} while (0)
-#endif
+#include "util-internal.h"
 
 #define MAX_TIMEOUTS FD_SETSIZE
 
@@ -75,7 +70,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 	assert(event);
 	assert(fd < FD_SETSIZE);
 
-	DEBUG_GQ( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
+	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
 	        , __FUNCTION__, loop, fd, timeout, event);
 	if (fd >= 0 && (event->read_cb || event->write_cb)) {
 		assert(my_loop->fd_events[fd] == NULL);
@@ -84,7 +79,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 		my_loop->fd_timeout_times[fd] = get_now_plus(timeout);
 		event->ev = (void *) (intptr_t) fd + 1;
 
-		DEBUG_GQ( "scheduled read/write at %d\n", fd);
+		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
 	}
 
@@ -96,7 +91,7 @@ my_eventloop_schedule(getdns_eventloop *loop,
 			my_loop->timeout_times[i] = get_now_plus(timeout);
 			event->ev = (void *) (intptr_t) i + 1;
 
-			DEBUG_GQ( "scheduled timeout at %d\n", (int)i);
+			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
 		}
 	}
@@ -112,7 +107,7 @@ my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	assert(loop);
 	assert(event);
 
-	DEBUG_GQ( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
+	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
 	assert(i >= 0 && i < FD_SETSIZE);
@@ -134,19 +129,19 @@ void my_eventloop_cleanup(getdns_eventloop *loop)
 
 void my_read_cb(int fd, getdns_eventloop_event *event)
 {
-	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->read_cb(event->userarg);
 }
 
 void my_write_cb(int fd, getdns_eventloop_event *event)
 {
-	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->write_cb(event->userarg);
 }
 
 void my_timeout_cb(int fd, getdns_eventloop_event *event)
 {
-	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->timeout_cb(event->userarg);
 }
 
@@ -266,7 +261,7 @@ static char *name;
 static getdns_context *context;
 static getdns_dict *extensions;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
-static int timeout, edns0_size;
+static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 
@@ -373,6 +368,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
+	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
@@ -388,6 +384,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
+	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
@@ -496,16 +493,17 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 {
 	char *response_str;
 
-	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
-		/* This is a callback with data */;
-		if (!quiet && (response_str = json ?
-		    getdns_print_json_dict(response, json == 1)
-		  : getdns_pretty_print_dict(response))) {
+	/* This is a callback with data */;
+	if (response && !quiet && (response_str = json ?
+	    getdns_print_json_dict(response, json == 1)
+	  : getdns_pretty_print_dict(response))) {
 
-			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
-			validate_chain(response);
-			free(response_str);
-		}
+		fprintf(stdout, "ASYNC response:\n%s\n", response_str);
+		validate_chain(response);
+		free(response_str);
+	}
+
+	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
 		fprintf(stdout,
 			"Response code was: GOOD. Status was: Callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
@@ -659,6 +657,10 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_edns_maximum_udp_payload_size(
 				    context, (uint16_t) edns0_size);
 				goto next;
+			case 'c':
+				if (getdns_context_set_edns_client_subnet_private(context, 1))
+					return GETDNS_RETURN_GENERIC_ERROR;
+				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
 				break;
@@ -706,6 +708,23 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_tls_authentication(context,
 				                 GETDNS_AUTHENTICATION_HOSTNAME);
 				break;
+			case 'P':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "tls_query_padding_blocksize "
+					    "expected after -P\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				padding_blocksize = strtol(argv[i], &endptr, 10);
+				if (*endptr || padding_blocksize < 0) {
+					fprintf(stderr, "non-negative "
+					    "numeric padding blocksize expected "
+					    "after -P\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (getdns_context_set_tls_query_padding_blocksize(
+					    context, padding_blocksize))
+					return GETDNS_RETURN_GENERIC_ERROR;
+				goto next;
 			case 'p':
 				json = 0;
 			case 'q':
