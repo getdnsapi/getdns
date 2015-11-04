@@ -898,6 +898,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	/* If we have a hostname, always use it */
 	if (upstream->tls_auth_name[0] != '\0') {
 		/*Request certificate for the auth_name*/
+		DEBUG_STUB("--- %s, HOSTNAME VERIFICATION REQUESTED for: %s\n"
+		          , __FUNCTION__, upstream->tls_auth_name);
 		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
 #ifdef HAVE_SSL_HN_AUTH
 		/* Set up native OpenSSL hostname verification*/
