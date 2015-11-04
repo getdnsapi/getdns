@@ -115,6 +115,11 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->response_len = 0;
         net_req->base_query_option_sz = opt_options_size;
 
+	/* Some fields to record info for return_call_debugging */
+	net_req->debug_start_time = 0;
+	net_req->debug_end_time = 0;
+	net_req->debug_tls_auth_status = 0;
+
 	net_req->wire_data_sz = wire_data_sz;
 	if (max_query_sz) {
 		/* first two bytes will contain query length (for tcp) */
@@ -440,7 +445,9 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->edns_cookies                   = edns_cookies;
 	result->edns_client_subnet_private     = context->edns_client_subnet_private;
 	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
-
+	result->return_call_debugging
+		= is_extension_set(extensions, "return_call_debugging");
+	
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;
