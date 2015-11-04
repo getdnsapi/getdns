@@ -364,6 +364,8 @@ typedef struct getdns_dns_req {
 /* utility methods */
 
 extern getdns_dict *dnssec_ok_checking_disabled;
+extern getdns_dict *dnssec_ok_checking_disabled_roadblock_avoidance;
+extern getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
