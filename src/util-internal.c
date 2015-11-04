@@ -672,80 +672,67 @@ success:
 }
 
 getdns_dict *
-_getdns_create_call_debugging_dict(getdns_context *context, 
-									getdns_network_req *netreq,
-									getdns_dict *reply) {
+_getdns_create_call_debugging_dict(
+    getdns_context *context, getdns_network_req *netreq)
+{
+	getdns_bindata  qname;
+	getdns_dict    *netreq_debug;
+	getdns_dict    *address_debug = NULL;
 
-	getdns_bindata *qname = NULL;
-	uint32_t qtype;
-	getdns_dict *question = NULL;
-	if (getdns_dict_get_dict(reply, "question", &question)) {
-		return NULL;
-	}
-	if (getdns_dict_get_bindata(question, "qname", &qname)) {
-		return NULL;
-	}	
-	if (getdns_dict_get_int(question, "qtype", &qtype)) {
-		return NULL;
-	}
+	assert(netreq);
 
 	/* It is the responsibility of the caller to free this */
-	getdns_dict *netreq_debug = getdns_dict_create_with_context(context);		
-	if (netreq_debug == NULL) {
+	if (!(netreq_debug = getdns_dict_create_with_context(context)))
 		return NULL;
-	}
 
-	getdns_dict *address_debug = getdns_dict_create_with_context(context);
-	if (address_debug == NULL){
-		getdns_dict_destroy(netreq_debug);
-		return NULL;
-	}
-	_getdns_sockaddr_to_dict(context, &netreq->upstream->addr, &address_debug);
+	qname.data = netreq->owner->name;
+	qname.size = netreq->owner->name_len;
 
-	if (getdns_dict_set_bindata(netreq_debug, "query_name", qname)) {
+	if (getdns_dict_set_bindata(netreq_debug, "query_name", &qname) ||
+	    getdns_dict_set_int( netreq_debug, "query_type"
+	                       , netreq->request_type ) ||
+
+	    /* Safe, because uint32_t facilitates RRT's of almost 50 days*/
+	    getdns_dict_set_int(netreq_debug, "run_time/ms",
+		    (uint32_t)(( netreq->debug_end_time
+	                       - netreq->debug_start_time)/1000))) {
+
 		getdns_dict_destroy(netreq_debug);
-		getdns_dict_destroy(address_debug);
 		return NULL;
-	}
-	if (getdns_dict_set_int(netreq_debug, "query_type", qtype)) {
-		getdns_dict_destroy(netreq_debug);
+
+	} else if (!netreq->upstream)
+
+		/* Nothing more for full recursion */
+		return netreq_debug;
+
+
+	/* Stub resolver debug data */
+	_getdns_sockaddr_to_dict(
+	    context, &netreq->upstream->addr, &address_debug);
+
+	if (getdns_dict_set_dict(netreq_debug, "query_to", address_debug) ||
+	    getdns_dict_set_int( netreq_debug, "transport"
+	                       , netreq->upstream->transport)) {
+
 		getdns_dict_destroy(address_debug);
-		return NULL;
-	}
-	if (getdns_dict_set_dict(netreq_debug, "query_to", address_debug)) {
 		getdns_dict_destroy(netreq_debug);
-		getdns_dict_destroy(address_debug);
 		return NULL;
 	}
 	getdns_dict_destroy(address_debug);
+
+	if (netreq->upstream->transport != GETDNS_TRANSPORT_TLS)
+		return netreq_debug;
 	
-	if (getdns_dict_set_int(netreq_debug, "transport",
-							netreq->upstream->transport)) {
-		getdns_dict_destroy(netreq_debug);
-		return NULL;
-	}
-	
-	/* TODO: This is not safe */
-	uint32_t run_time = (uint32_t)(netreq->debug_end_time - netreq->debug_start_time);
-	if (getdns_dict_set_int(netreq_debug, "run_time/ms", run_time/1000)) {
-		getdns_dict_destroy(netreq_debug);
-		return NULL;
-	}
 	/* Only include the auth status if TLS was used */
-	if (netreq->upstream->transport == GETDNS_TRANSPORT_TLS) {
-		if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status", 
-			netreq->debug_tls_auth_status == 0 ?
-				"OK: Hostname matched valid cert." :
-				"FAILED: Server not validated.")) {
-					getdns_dict_destroy(netreq_debug);
-					return NULL;
-		}
+	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
+	    netreq->debug_tls_auth_status == 0 ?
+	    "OK: Hostname matched valid cert":"FAILED: Server not validated")){
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
 	}
-	
 	return netreq_debug;
-
 }
-
 
 getdns_dict *
 _getdns_create_getdns_response(getdns_dns_req *completed_request)
@@ -754,13 +741,14 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	getdns_list *just_addrs = NULL;
 	getdns_list *replies_full;
 	getdns_list *replies_tree;
-	getdns_list *call_debugging;
+	getdns_list *call_debugging = NULL;
 	getdns_network_req *netreq, **netreq_p;
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
 	getdns_bindata *canonical_name = NULL;
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
     	getdns_bindata full_data;
+	getdns_dict   *netreq_debug;
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
@@ -790,10 +778,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (!(replies_tree = getdns_list_create_with_context(context)))
 		goto error_free_replies_full;
 
-	if (completed_request->return_call_debugging) {
-		if (!(call_debugging = getdns_list_create_with_context(context)))
-			goto error_free_result;
-	}
+	if (completed_request->return_call_debugging &&
+	    !(call_debugging = getdns_list_create_with_context(context)))
+		goto error_free_replies_full;
 
 	for ( netreq_p = completed_request->netreqs
 	    ; (netreq = *netreq_p) ; netreq_p++) {
@@ -852,13 +839,17 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			goto error;
 		}
 		
-		if (completed_request->return_call_debugging) {
-			getdns_dict *netreq_debug;
-			if (!(netreq_debug = _getdns_create_call_debugging_dict(context,
-															netreq, reply))) {
+		if (call_debugging) {
+			if (!(netreq_debug =
+			   _getdns_create_call_debugging_dict(context,netreq)))
+				goto error;
+
+			if (_getdns_list_append_dict(
+			    call_debugging, netreq_debug)) {
+
+				getdns_dict_destroy(netreq_debug);
 				goto error;
 			}
-			_getdns_list_append_dict(call_debugging, netreq_debug);
 			getdns_dict_destroy(netreq_debug);
 		}
 
@@ -874,14 +865,13 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		goto error;
 	getdns_list_destroy(replies_tree);
 
+	if (call_debugging &&
+	    getdns_dict_set_list(result, "call_debugging", call_debugging))
+	    goto error_free_call_debugging;
+
 	if (getdns_dict_set_list(result, "replies_full", replies_full))
 		goto error_free_replies_full;
 	getdns_list_destroy(replies_full);
-
-	if (completed_request->return_call_debugging) {
-		if (getdns_dict_set_list(result, "call_debugging", call_debugging))
-			goto error_free_call_debugging;
-	}
 
 	if (just_addrs && getdns_dict_set_list(
 	    result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs))
@@ -902,11 +892,10 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 error:
 	/* cleanup */
 	getdns_list_destroy(replies_tree);
+error_free_call_debugging:
+	getdns_list_destroy(call_debugging);
 error_free_replies_full:
 	getdns_list_destroy(replies_full);
-error_free_call_debugging:
-	if (completed_request->return_call_debugging)
-		getdns_list_destroy(call_debugging);
 error_free_result:
 	getdns_list_destroy(just_addrs);
 	getdns_dict_destroy(result);
