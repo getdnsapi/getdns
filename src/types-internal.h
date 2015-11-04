@@ -226,17 +226,37 @@ typedef struct getdns_network_req
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
 
+	/* Some fields to record info for return_call_debugging */
+	uint64_t                    debug_start_time;
+	uint64_t                    debug_end_time;
+	size_t                      debug_tls_auth_status;
+
 	/* When more space is needed for the wire_data response than is
 	 * available in wire_data[], it will be allocated seperately.
 	 * response will then not point to wire_data anymore.
 	 */
 	uint8_t *query;
 	uint8_t *opt; /* offset of OPT RR in query */
+
+	/* each network_req has a set of base options that are
+	 * specific to the query, which are static and included when
+	 * the network_req is created.  When the query is sent out to
+	 * a given upstream, some additional options are added that
+	 * are specific to the upstream.  There can be at most
+	 * GETDNS_MAXIMUM_UPSTREAM_OPTION_SPACE bytes of
+	 * upstream-specific options.
+
+	 * use _getdns_network_req_clear_upstream_options() and
+	 * _getdns_network_req_add_upstream_option() to fiddle with the
+	 */
+	size_t   base_query_option_sz;
 	size_t   response_len;
 	uint8_t *response;
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
 
+
+	
 } getdns_network_req;
 
 /**
@@ -266,6 +286,9 @@ typedef struct getdns_dns_req {
 	int avoid_dnssec_roadblocks;
 #endif
 	int edns_cookies;
+	int edns_client_subnet_private;
+	uint16_t tls_query_padding_blocksize;
+	int return_call_debugging;
 
 	/* Internally used by return_validation_chain */
 	int dnssec_ok_checking_disabled;
@@ -347,6 +370,11 @@ getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *l
     const char *name, uint16_t request_type, getdns_dict *extensions);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
+
+/* network request utils */
+getdns_return_t _getdns_network_req_add_upstream_option(getdns_network_req * req,
+					     uint16_t code, uint16_t sz, const void* data);
+void _getdns_network_req_clear_upstream_options(getdns_network_req * req);
 
 #endif
 /* types-internal.h */

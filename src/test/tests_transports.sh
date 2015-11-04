@@ -2,7 +2,7 @@
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 SERVER_IP="8.8.8.8"
-TLS_SERVER_IP="185.49.141.38~www.dnssec-name-and-shame.com"
+TLS_SERVER_IP="185.49.141.38~getdnsapi.net"
 GOOD_RESULT_SYNC="Status was: At least one response was returned"
 GOOD_RESULT_ASYNC="successfull"
 BAD_RESULT_SYNC="1 'Generic error'"
@@ -58,7 +58,7 @@ usage () {
 	echo "         -p   path to getdns_query binary"
 	echo "         -s   server configured for only TCP and UDP"
 	echo "         -t   server configured for TLS, STARTTLS, TCP and UDP"
-	echo "              (This must include the hostname e.g. 185.49.141.38~www.dnssec-name-and-shame.com)"
+	echo "              (This must include the hostname e.g. 185.49.141.38~getdnsapi.net)"
 }
 
 while getopts ":p:s:t:dh" opt; do

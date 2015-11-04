@@ -113,6 +113,12 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	                              ? edns_maximum_udp_payload_size : 1432;
 	net_req->write_queue_tail = NULL;
 	net_req->response_len = 0;
+        net_req->base_query_option_sz = opt_options_size;
+
+	/* Some fields to record info for return_call_debugging */
+	net_req->debug_start_time = 0;
+	net_req->debug_end_time = 0;
+	net_req->debug_tls_auth_status = 0;
 
 	net_req->wire_data_sz = wire_data_sz;
 	if (max_query_sz) {
@@ -182,6 +188,75 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 		net_req->response = net_req->wire_data;
 	}
 	return r;
+}
+
+/* req->opt + 9 is the length; req->opt + 11 is the start of the
+   options. 
+
+   clear_upstream_options() goes back to the per-query options.
+ */
+
+void
+_getdns_network_req_clear_upstream_options(getdns_network_req * req)
+{
+  size_t pktlen;
+  if (req->opt) {
+	  gldns_write_uint16(req->opt + 9, req->base_query_option_sz);
+	  req->response = req->opt + 11 + req->base_query_option_sz;
+	  pktlen = req->response - req->query;
+	  gldns_write_uint16(req->query - 2, pktlen);
+  }
+}
+
+/* add_upstream_option appends an option that is derived at send time.
+    (you can send data as NULL and it will fill with all zeros) */
+getdns_return_t
+_getdns_network_req_add_upstream_option(getdns_network_req * req, uint16_t code, uint16_t sz, const void* data)
+{
+  uint16_t oldlen;
+  uint32_t newlen;
+  uint32_t pktlen;
+  size_t cur_upstream_option_sz;
+
+  /* if no options are set, we can't add upstream options */
+  if (!req->opt)
+	  return GETDNS_RETURN_GENERIC_ERROR;
+  
+  /* if TCP, no overflow allowed for length field
+     https://tools.ietf.org/html/rfc1035#section-4.2.2 */
+  pktlen = req->response - req->query;
+  pktlen += 4 + sz;
+  if (pktlen > UINT16_MAX)
+    return GETDNS_RETURN_GENERIC_ERROR;
+  
+  /* no overflow allowed for OPT size either (maybe this is overkill
+     given the above check?) */
+  oldlen = gldns_read_uint16(req->opt + 9);  
+  newlen = oldlen + 4 + sz;
+  if (newlen > UINT16_MAX)
+    return GETDNS_RETURN_GENERIC_ERROR;
+
+  /* avoid overflowing MAXIMUM_UPSTREAM_OPTION_SPACE */
+  cur_upstream_option_sz = (size_t)oldlen - req->base_query_option_sz;
+  if (cur_upstream_option_sz  + 4 + sz > MAXIMUM_UPSTREAM_OPTION_SPACE)
+    return GETDNS_RETURN_GENERIC_ERROR;
+
+  /* actually add the option: */
+  gldns_write_uint16(req->opt + 11 + oldlen, code);
+  gldns_write_uint16(req->opt + 11 + oldlen + 2, sz);
+  if (data != NULL)
+	  memcpy(req->opt + 11 + oldlen + 4, data, sz);
+  else
+	  memset(req->opt + 11 + oldlen + 4, 0, sz);
+  gldns_write_uint16(req->opt + 9, newlen);
+
+  /* the response should start right after the options end: */
+  req->response = req->opt + 11 + newlen;
+  
+  /* for TCP, adjust the size of the wire format itself: */
+  gldns_write_uint16(req->query - 2, pktlen);
+  
+  return GETDNS_RETURN_GOOD;
 }
 
 void
@@ -306,7 +381,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 
 	with_opt = edns_do_bit != 0 || edns_maximum_udp_payload_size != 512 ||
 	    edns_extended_rcode != 0 || edns_version != 0 || noptions ||
-	    edns_cookies;
+	    edns_cookies || context->edns_client_subnet_private ||
+	    context->tls_query_padding_blocksize > 1;
 
 	edns_maximum_udp_payload_size = with_opt &&
 	    ( edns_maximum_udp_payload_size == -1 ||
@@ -337,12 +413,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		max_query_sz = ( GLDNS_HEADER_SIZE
 		    + strlen(name) + 1 + 4 /* dname always smaller then strlen(name) + 1 */
 		    + 12 + opt_options_size /* space needed for OPT (if needed) */
-		    + ( !edns_cookies ? 0
-		      :  2 /* EDNS0 Option Code */
-		      +  2 /* Option length = 8 + 16 = 24 */
-		      +  8 /* client cookie */
-		      + 16 /* server cookie */
-		      )
+		    + MAXIMUM_UPSTREAM_OPTION_SPACE
 		    /* TODO: TSIG */
 		    + 7) / 8 * 8;
 	}
@@ -390,7 +461,11 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_roadblock_avoidance     = dnssec_roadblock_avoidance;
 	result->avoid_dnssec_roadblocks        = 0;
 #endif
-
+	result->edns_client_subnet_private     = context->edns_client_subnet_private;
+	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
+	result->return_call_debugging
+		= is_extension_set(extensions, "return_call_debugging");
+	
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;

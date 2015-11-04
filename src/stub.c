@@ -46,6 +46,7 @@
 #include "util-internal.h"
 #include "general.h"
 
+#define STUB_OUT_OF_OPTIONS -5 /* upstream options exceeded MAXIMUM_UPSTREAM_OPTION_SPACE */
 #define STUB_TLS_SETUP_ERROR -4
 #define STUB_TCP_AGAIN -3
 #define STUB_TCP_ERROR -2
@@ -129,9 +130,27 @@ calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
                 cookie[i % 8] ^= md_value[i];
 }
 
-static uint8_t *
-attach_edns_cookie(getdns_upstream *upstream, uint8_t *opt)
+static getdns_return_t
+attach_edns_client_subnet_private(getdns_network_req *req)
 {
+	/* see
+	 * https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-04#section-6 */
+	/* all-zeros is a request to not leak the data further: */
+	/* "\x00\x00"  FAMILY: 0 (because no address) */
+	/* "\x00"  SOURCE PREFIX-LENGTH: 0 */ 
+	/* "\x00";  SCOPE PREFIX-LENGTH: 0 */
+	return _getdns_network_req_add_upstream_option(req,
+						       GLDNS_EDNS_CLIENT_SUBNET,
+						       4, NULL);
+}
+
+static getdns_return_t
+attach_edns_cookie(getdns_network_req *req)
+{
+	getdns_upstream *upstream = req->upstream;
+	uint16_t sz;
+	void* val;
+	uint8_t buf[8 + 32]; /* server cookies can be no larger than 32 bytes */
 	rollover_secret();
 
 	if (!upstream->has_client_cookie) {
@@ -139,12 +158,8 @@ attach_edns_cookie(getdns_upstream *upstream, uint8_t *opt)
 		upstream->secret = secret;
 		upstream->has_client_cookie = 1;
 
-		gldns_write_uint16(opt +  9, 12); /* rdata len */
-		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
-		gldns_write_uint16(opt + 13,  8); /* opt len */
-		memcpy(opt + 15, upstream->client_cookie, 8);
-		return opt + 23;
-
+		sz = 8;
+		val = upstream->client_cookie;
 	} else if (upstream->secret != secret) {
 		memcpy( upstream->prev_client_cookie
 		      , upstream->client_cookie, 8);
@@ -152,29 +167,19 @@ attach_edns_cookie(getdns_upstream *upstream, uint8_t *opt)
 		calc_new_cookie(upstream, upstream->client_cookie);
 		upstream->secret = secret;
 
-		gldns_write_uint16(opt +  9, 12); /* rdata len */
-		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
-		gldns_write_uint16(opt + 13,  8); /* opt len */
-		memcpy(opt + 15, upstream->client_cookie, 8);
-		return opt + 23;
-
+		sz = 8;
+		val = upstream->client_cookie;
 	} else if (!upstream->has_server_cookie) {
-		gldns_write_uint16(opt +  9, 12); /* rdata len */
-		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
-		gldns_write_uint16(opt + 13,  8); /* opt len */
-		memcpy(opt + 15, upstream->client_cookie, 8);
-		return opt + 23;
+		sz = 8;
+		val = upstream->client_cookie;
 	} else {
-		gldns_write_uint16( opt +  9, 12  /* rdata len */
-		                  + upstream->server_cookie_len);
-		gldns_write_uint16(opt + 11, EDNS_COOKIE_OPCODE);
-		gldns_write_uint16(opt + 13,  8   /* opt len */
-		                  + upstream->server_cookie_len);
-		memcpy(opt + 15, upstream->client_cookie, 8);
-		memcpy(opt + 23, upstream->server_cookie
-		               , upstream->server_cookie_len);
-		return opt + 23+ upstream->server_cookie_len;
+		sz = 8 + upstream->server_cookie_len;
+		memcpy(buf, upstream->client_cookie, 8);
+		memcpy(buf+8, upstream->server_cookie, upstream->server_cookie_len);
+		val = buf;
 	}
+	return _getdns_network_req_add_upstream_option(req, EDNS_COOKIE_OPCODE, sz, val);
+
 }
 
 static int
@@ -681,7 +686,7 @@ static int
 stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 {
 
-	size_t          pkt_len = netreq->response - netreq->query;
+	size_t          pkt_len;
 	ssize_t         written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
@@ -704,16 +709,18 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 		GLDNS_ID_SET(netreq->query, query_id);
 		if (netreq->opt) {
+			_getdns_network_req_clear_upstream_options(netreq);
 			/* no limits on the max udp payload size with tcp */
 			gldns_write_uint16(netreq->opt + 3, 65535);
 
-			if (netreq->owner->edns_cookies) {
-				netreq->response = attach_edns_cookie(
-				    netreq->upstream, netreq->opt);
-				pkt_len = netreq->response - netreq->query;
-				gldns_write_uint16(netreq->query - 2, pkt_len);
-			}
+			if (netreq->owner->edns_cookies)
+				if (attach_edns_cookie(netreq))
+					return STUB_OUT_OF_OPTIONS;
+			if (netreq->owner->edns_client_subnet_private)
+				if (attach_edns_client_subnet_private(netreq))
+					return STUB_OUT_OF_OPTIONS;
 		}
+		pkt_len = netreq->response - netreq->query;
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */
@@ -908,7 +915,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			return NULL;
 		}
 #endif
-		/* Allow fallback to oppotunisitc if settings permit it*/
+		/* Allow fallback to opportunistic if settings permit it*/
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME)
 			SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 		else {
@@ -923,6 +930,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			upstream->tls_auth_failed = 1;
 			return NULL;
 		} else {
+                  /* no hostname verification, so we will make opportunistic connections */
 			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
 			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
@@ -1125,11 +1133,12 @@ static int
 stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
                getdns_network_req *netreq)
 {
-	size_t          pkt_len = netreq->response - netreq->query;
+	size_t          pkt_len;
 	ssize_t         written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
 	SSL* tls_obj = upstream->tls_obj;
+	uint16_t        padding_sz;
 
 	int q = tls_connected(upstream);
 	if (q != 0)
@@ -1155,10 +1164,30 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
 		GLDNS_ID_SET(netreq->query, query_id);
-		if (netreq->opt)
+		if (netreq->opt) {
+			_getdns_network_req_clear_upstream_options(netreq);
 			/* no limits on the max udp payload size with tcp */
 			gldns_write_uint16(netreq->opt + 3, 65535);
+			/* we do not edns_cookie over TLS, since TLS
+			 * provides stronger guarantees than cookies
+			 * already */
+			if (netreq->owner->edns_client_subnet_private)
+				if (attach_edns_client_subnet_private(netreq))
+					return STUB_OUT_OF_OPTIONS;
+			if (netreq->owner->tls_query_padding_blocksize > 1) {
+				pkt_len = netreq->response - netreq->query;
+				pkt_len += 4; /* this accounts for the OPTION-CODE and OPTION-LENGTH of the padding */
+				padding_sz = pkt_len % netreq->owner->tls_query_padding_blocksize;
+				if (padding_sz)
+					padding_sz = netreq->owner->tls_query_padding_blocksize - padding_sz;
+				if (_getdns_network_req_add_upstream_option(netreq,
+									    EDNS_PADDING_OPCODE,
+									    padding_sz, NULL))
+					return STUB_OUT_OF_OPTIONS;
+			}
+		}
 
+		pkt_len = netreq->response - netreq->query;
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write */
 		
@@ -1174,6 +1203,19 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	} 
 
 	return STUB_TCP_ERROR;
+}
+
+static uint64_t
+_getdns_get_time_as_uintt64() {
+	
+	struct timeval tv;
+	uint64_t       now;
+	
+	if (gettimeofday(&tv, NULL)) {
+		return 0;
+	}
+	now = tv.tv_sec * 1000000 + tv.tv_usec;
+	return now;
 }
 
 /**************************/
@@ -1237,6 +1279,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->response_len = read;
 	dnsreq->upstreams->current = 0;
 done:
+	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	netreq->state = NET_REQ_FINISHED;
 	_getdns_check_dns_req_complete(dnsreq);
 }
@@ -1247,25 +1290,28 @@ stub_udp_write_cb(void *userarg)
 	DEBUG_STUB("%s\n", __FUNCTION__);
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req     *dnsreq = netreq->owner;
-	size_t             pkt_len = netreq->response - netreq->query;
+	size_t             pkt_len;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
+	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	netreq->query_id = arc4random();
 	GLDNS_ID_SET(netreq->query, netreq->query_id);
 	if (netreq->opt) {
+		_getdns_network_req_clear_upstream_options(netreq);
 		if (netreq->edns_maximum_udp_payload_size == -1)
 			gldns_write_uint16(netreq->opt + 3,
 			    ( netreq->max_udp_payload_size =
 			      netreq->upstream->addr.ss_family == AF_INET6
 			    ? 1232 : 1432));
-		if (netreq->owner->edns_cookies) {
-			netreq->response = attach_edns_cookie(
-			    netreq->upstream, netreq->opt);
-			pkt_len = netreq->response - netreq->query;
-		}
+		if (netreq->owner->edns_cookies)
+			if (attach_edns_cookie(netreq))
+				return; /* too many upstream options */
+		if (netreq->owner->edns_client_subnet_private)
+			if (attach_edns_client_subnet_private(netreq))
+				return; /* too many upstream options */
 	}
-
+	pkt_len = netreq->response - netreq->query;
 	if ((ssize_t)pkt_len != sendto(netreq->fd, netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
@@ -1314,7 +1360,7 @@ stub_tcp_read_cb(void *userarg)
 		    netreq->tcp.read_pos - netreq->tcp.read_buf;
 		netreq->tcp.read_buf = NULL;
 		dnsreq->upstreams->current = 0;
-
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		stub_cleanup(netreq);
 		close(netreq->fd);
 		_getdns_check_dns_req_complete(dnsreq);
@@ -1327,7 +1373,7 @@ stub_tcp_write_cb(void *userarg)
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
-
+	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	switch ((q = stub_tcp_write(netreq->fd, &netreq->tcp, netreq))) {
 	case STUB_TCP_AGAIN:
 		return;
@@ -1420,7 +1466,7 @@ upstream_read_cb(void *userarg)
 			    getdns_eventloop_event_init(&upstream->event, upstream,
 			     NULL, upstream_write_cb, NULL));
 		}
-
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		/* This also reschedules events for the upstream*/
 		stub_cleanup(netreq);
 
@@ -1447,7 +1493,10 @@ upstream_write_cb(void *userarg)
 	getdns_network_req *netreq = upstream->write_queue;
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
-
+	
+	/* TODO: think about TCP AGAIN */
+	netreq->debug_start_time = _getdns_get_time_as_uintt64();
+	
 	DEBUG_STUB("--- WRITE: %s: %p TYPE: %d\n", __FUNCTION__, netreq,
 	           netreq->request_type);
 	if (tls_requested(netreq) && tls_should_write(upstream))
@@ -1477,6 +1526,8 @@ upstream_write_cb(void *userarg)
 		return;
 
 	default:
+		/* Need this because auth status is reset on connection clode */
+		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_failed;
 		upstream->writes_done++;
 		netreq->query_id = (uint16_t) q;
 		/* Unqueue the netreq from the write_queue */

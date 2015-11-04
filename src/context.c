@@ -881,6 +881,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
+	result->edns_client_subnet_private = 0;
+	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
 	result-> tls_ctx = NULL;
 
 	result->extension = &result->mini_event.loop;
@@ -1898,6 +1900,46 @@ getdns_context_set_edns_do_bit(struct getdns_context *context, uint8_t value)
 }               /* getdns_context_set_edns_do_bit */
 
 /*
+ * getdns_context_set_edns_client_subnet_private
+ *
+ */
+getdns_return_t
+getdns_context_set_edns_client_subnet_private(struct getdns_context *context, uint8_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow 1 */
+    if (value != 0 && value != 1) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->edns_client_subnet_private = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_edns_client_subnet_private */
+
+/*
+ * getdns_context_set_tls_query_padding_blocksize
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_query_padding_blocksize(struct getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow values between 0 and MAXIMUM_UPSTREAM_OPTION_SPACE - 4
+       (4 is for the overhead of the option itself) */
+    if (value > MAXIMUM_UPSTREAM_OPTION_SPACE - 4) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->tls_query_padding_blocksize = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_query_padding_blocksize */
+/*
  * getdns_context_set_extended_memory_functions
  *
  */
@@ -2211,8 +2253,8 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* Be strict and only use the cipher suites recommended in RFC7525
-			   Unless we later fallback to oppotunistic. */
-			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EDH+aRSA+AESGCM";
+			   Unless we later fallback to opportunistic. */
+			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
 			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
 				return GETDNS_RETURN_BAD_CONTEXT;
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
@@ -2974,6 +3016,22 @@ getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->edns_do_bit;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->edns_client_subnet_private;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_query_padding_blocksize;
     return GETDNS_RETURN_GOOD;
 }
 
