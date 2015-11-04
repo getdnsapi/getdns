@@ -673,7 +673,6 @@ set_os_defaults(struct getdns_context *context)
 			upstream_count++;
 	fclose(in);
 
-	fprintf(stderr, "%d\n", (int)upstream_count);
 	context->suffix = getdns_list_create_with_context(context);
 	context->upstreams = upstreams_create(
 	    context, upstream_count * GETDNS_UPSTREAM_TRANSPORTS);

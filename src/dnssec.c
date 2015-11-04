@@ -1110,11 +1110,15 @@ static void add_question2val_chain(struct mem_funcs *mf,
 
 static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
 {
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	return !dnsreq->dnssec_roadblock_avoidance
 	     ? dnssec_ok_checking_disabled
 	     : !dnsreq->avoid_dnssec_roadblocks
 	     ? dnssec_ok_checking_disabled_roadblock_avoidance
 	     : dnssec_ok_checking_disabled_avoid_roadblocks;
+#else
+	return dnssec_ok_checking_disabled;
+#endif
 }
 
 static void check_chain_complete(chain_head *chain);
