@@ -1207,6 +1207,19 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	return STUB_TCP_ERROR;
 }
 
+static uint64_t
+_getdns_get_time_as_uintt64() {
+	
+	struct timeval tv;
+	uint64_t       now;
+	
+	if (gettimeofday(&tv, NULL)) {
+		return 0;
+	}
+	now = tv.tv_sec * 1000000 + tv.tv_usec;
+	return now;
+}
+
 /**************************/
 /* UDP callback functions */
 /**************************/
@@ -1268,6 +1281,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->response_len = read;
 	dnsreq->upstreams->current = 0;
 done:
+	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	netreq->state = NET_REQ_FINISHED;
 	_getdns_check_dns_req_complete(dnsreq);
 }
@@ -1282,6 +1296,7 @@ stub_udp_write_cb(void *userarg)
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
+	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	netreq->query_id = arc4random();
 	GLDNS_ID_SET(netreq->query, netreq->query_id);
 	if (netreq->opt) {
@@ -1347,7 +1362,7 @@ stub_tcp_read_cb(void *userarg)
 		    netreq->tcp.read_pos - netreq->tcp.read_buf;
 		netreq->tcp.read_buf = NULL;
 		dnsreq->upstreams->current = 0;
-
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		stub_cleanup(netreq);
 		close(netreq->fd);
 		_getdns_check_dns_req_complete(dnsreq);
@@ -1360,7 +1375,7 @@ stub_tcp_write_cb(void *userarg)
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
-
+	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	switch ((q = stub_tcp_write(netreq->fd, &netreq->tcp, netreq))) {
 	case STUB_TCP_AGAIN:
 		return;
@@ -1453,7 +1468,7 @@ upstream_read_cb(void *userarg)
 			    getdns_eventloop_event_init(&upstream->event, upstream,
 			     NULL, upstream_write_cb, NULL));
 		}
-
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		/* This also reschedules events for the upstream*/
 		stub_cleanup(netreq);
 
@@ -1480,7 +1495,10 @@ upstream_write_cb(void *userarg)
 	getdns_network_req *netreq = upstream->write_queue;
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
-
+	
+	/* TODO: think about TCP AGAIN */
+	netreq->debug_start_time = _getdns_get_time_as_uintt64();
+	
 	DEBUG_STUB("--- WRITE: %s: %p TYPE: %d\n", __FUNCTION__, netreq,
 	           netreq->request_type);
 	if (tls_requested(netreq) && tls_should_write(upstream))
@@ -1510,6 +1528,8 @@ upstream_write_cb(void *userarg)
 		return;
 
 	default:
+		/* Need this because auth status is reset on connection clode */
+		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_failed;
 		upstream->writes_done++;
 		netreq->query_id = (uint16_t) q;
 		/* Unqueue the netreq from the write_queue */

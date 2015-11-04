@@ -1108,6 +1108,15 @@ static void add_question2val_chain(struct mem_funcs *mf,
 /*************  Schedule Queries to Provision Validation Chain ***************
  *****************************************************************************/
 
+static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
+{
+	return !dnsreq->dnssec_roadblock_avoidance
+	     ? dnssec_ok_checking_disabled
+	     : !dnsreq->avoid_dnssec_roadblocks
+	     ? dnssec_ok_checking_disabled_roadblock_avoidance
+	     : dnssec_ok_checking_disabled_avoid_roadblocks;
+}
+
 static void check_chain_complete(chain_head *chain);
 static void val_chain_node_soa_cb(getdns_dns_req *dnsreq);
 static void val_chain_sched_soa_node(chain_node *node)
@@ -1127,7 +1136,7 @@ static void val_chain_sched_soa_node(chain_node *node)
 
 	if (! node->soa_req &&
 	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
-	    dnssec_ok_checking_disabled, node, &dnsreq, NULL,
+	    CD_extension(node->chains->netreq->owner), node, &dnsreq, NULL,
 	    val_chain_node_soa_cb))
 
 		node->soa_req     = dnsreq->netreqs[0];
@@ -1174,13 +1183,15 @@ static void val_chain_sched_node(chain_node *node)
 
 	if (! node->dnskey_req /* not scheduled */ &&
 	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
-	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
+	    CD_extension(node->chains->netreq->owner),
+	    node, &dnsreq, NULL, val_chain_node_cb))
 
 		node->dnskey_req     = dnsreq->netreqs[0];
 
 	if (! node->ds_req && node->parent /* not root */ &&
 	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
-	    dnssec_ok_checking_disabled, node, &dnsreq, NULL, val_chain_node_cb))
+	    CD_extension(node->chains->netreq->owner),
+	    node, &dnsreq, NULL, val_chain_node_cb))
 
 		node->ds_req = dnsreq->netreqs[0];
 }
@@ -1216,7 +1227,8 @@ static void val_chain_sched_ds_node(chain_node *node)
 
 	if (! node->ds_req && node->parent /* not root */ &&
 	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
-	    dnssec_ok_checking_disabled, node, &ds_req, NULL, val_chain_node_cb))
+	    CD_extension(node->chains->netreq->owner),
+	    node, &ds_req, NULL, val_chain_node_cb))
 
 		node->ds_req = ds_req->netreqs[0];
 }
@@ -3088,6 +3100,25 @@ static void check_chain_complete(chain_head *chain)
 		    chain, rrset_iter_init( &tas_iter
 		                          , context->trust_anchors
 		                          , context->trust_anchors_len));
+#endif
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	if (   dnsreq->dnssec_roadblock_avoidance
+	    && dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+
+		getdns_return_t r = GETDNS_RETURN_GOOD;
+		getdns_network_req **netreq_p, *netreq;
+
+		dnsreq->avoid_dnssec_roadblocks = 1;
+
+		for ( netreq_p = dnsreq->netreqs
+		    ; !r && (netreq = *netreq_p)
+		    ; netreq_p++) {
+
+			netreq->state = NET_REQ_NOT_SENT;
+			(void) _getdns_submit_netreq(netreq);
+		}
+		return;
+	}
 #endif
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;

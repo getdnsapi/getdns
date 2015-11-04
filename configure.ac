@@ -392,7 +392,14 @@ case "$enable_ecdsa" in
       ;;
 esac
 
-
+AC_ARG_ENABLE(draft-dnssec-roadblock-avoidance, AC_HELP_STRING([--enable-draft-dnssec-roadblock-avoidance], [Enable experimental dnssec roadblock avoidance]))
+case "$enable_draft_dnssec_roadblock_avoidance" in
+	yes)
+		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental draft dnssec roadblock avoidance.])
+		;;
+	no|*)
+		;;
+esac
 
 AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
 case "$enable_draft_edns_cookies" in

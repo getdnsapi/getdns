@@ -48,6 +48,21 @@ getdns_dict  dnssec_ok_checking_disabled_spc = {
 };
 getdns_dict *dnssec_ok_checking_disabled = &dnssec_ok_checking_disabled_spc;
 
+getdns_dict  dnssec_ok_checking_disabled_roadblock_avoidance_spc = {
+	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
+	{ 0 }
+};
+getdns_dict *dnssec_ok_checking_disabled_roadblock_avoidance
+    = &dnssec_ok_checking_disabled_roadblock_avoidance_spc;
+
+getdns_dict  dnssec_ok_checking_disabled_avoid_roadblocks_spc = {
+	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
+	{ 0 }
+};
+getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks
+    = &dnssec_ok_checking_disabled_avoid_roadblocks_spc;
+
+
 static int
 is_extension_set(getdns_dict *extensions, const char *extension)
 {
@@ -56,7 +71,9 @@ is_extension_set(getdns_dict *extensions, const char *extension)
 
 	if (! extensions)
 		return 0;
-	else if (extensions == dnssec_ok_checking_disabled)
+	else if (extensions == dnssec_ok_checking_disabled
+	    || extensions == dnssec_ok_checking_disabled_roadblock_avoidance
+	    || extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
 		return 0;
 
 	r = getdns_dict_get_int(extensions, extension, &value);
@@ -114,6 +131,11 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->write_queue_tail = NULL;
 	net_req->response_len = 0;
         net_req->base_query_option_sz = opt_options_size;
+
+	/* Some fields to record info for return_call_debugging */
+	net_req->debug_start_time = 0;
+	net_req->debug_end_time = 0;
+	net_req->debug_tls_auth_status = 0;
 
 	net_req->wire_data_sz = wire_data_sz;
 	if (max_query_sz) {
@@ -291,10 +313,24 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
 	int edns_cookies
 	    =  is_extension_set(extensions, "edns_cookies");
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	int avoid_dnssec_roadblocks
+	    =  (extensions == dnssec_ok_checking_disabled_avoid_roadblocks);
+	int dnssec_roadblock_avoidance
+	    = is_extension_set(extensions, "dnssec_roadblock_avoidance")
+	    || (extensions == dnssec_ok_checking_disabled_roadblock_avoidance)
+	    || avoid_dnssec_roadblocks;
+#endif
 
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_validation_chain
-	    || (extensions == dnssec_ok_checking_disabled);
+	    || (extensions == dnssec_ok_checking_disabled)
+	    || (extensions == dnssec_ok_checking_disabled_roadblock_avoidance)
+	    || (extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	    || dnssec_roadblock_avoidance
+#endif
+	    ;
 
 	uint32_t edns_do_bit;
 	int      edns_maximum_udp_payload_size;
@@ -329,7 +365,9 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
 	uint8_t *region;
 	
-	if (extensions == dnssec_ok_checking_disabled)
+	if (extensions == dnssec_ok_checking_disabled ||
+	    extensions == dnssec_ok_checking_disabled_roadblock_avoidance ||
+	    extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
 		extensions = NULL;
 
 	have_add_opt_parameters = getdns_dict_get_dict(extensions,
@@ -376,7 +414,12 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    ? edns_maximum_udp_payload_size : 512;
 
 	/* (x + 7) / 8 * 8 to align on 8 byte boundries */
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	    && (!dnssec_roadblock_avoidance || avoid_dnssec_roadblocks)) 
+#else
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING)
+#endif
 		max_query_sz = 0;
 	else {
 		for (i = 0; i < noptions; i++) {
@@ -438,9 +481,15 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
 	result->edns_cookies                   = edns_cookies;
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	result->dnssec_roadblock_avoidance     = dnssec_roadblock_avoidance;
+	result->avoid_dnssec_roadblocks        = avoid_dnssec_roadblocks;
+#endif
 	result->edns_client_subnet_private     = context->edns_client_subnet_private;
 	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
-
+	result->return_call_debugging
+		= is_extension_set(extensions, "return_call_debugging");
+	
 	/* will be set by caller */
 	result->user_pointer = NULL;
 	result->user_callback = NULL;

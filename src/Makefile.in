@@ -117,7 +117,7 @@ install:	libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)/getdns
 	$(INSTALL) -m 644 getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
-	$(INSTALL) -m 644 $(srcdir)/getdns/getdns_extra.h $(DESTDIR)$(includedir)/getdns/getdns_extra.h
+	$(INSTALL) -m 644 getdns/getdns_extra.h $(DESTDIR)$(includedir)/getdns/getdns_extra.h
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
 	if test $(have_libevent) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libevent.h $(DESTDIR)$(includedir)/getdns/ ; $(LIBTOOL) --mode=install cp $(EXTENSION_LIBEVENT_LIB) $(DESTDIR)$(libdir) ; fi

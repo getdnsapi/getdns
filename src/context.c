@@ -2176,13 +2176,35 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 }
 #endif
 
+
 static getdns_return_t
-_getdns_ns_dns_setup(struct getdns_context *context)
+ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 {
 #ifdef HAVE_LIBUNBOUND
 	_getdns_rr_iter rr_spc, *rr;
 	char ta_str[8192];
 #endif
+
+	/* TODO: use the root servers via root hints file */
+	(void) ub_ctx_set_fwd(ctx, NULL);
+	if (!context->unbound_ta_set && context->trust_anchors) {
+		for ( rr = _getdns_rr_iter_init( &rr_spc
+		                               , context->trust_anchors
+		                               , context->trust_anchors_len)
+		    ; rr ; rr = _getdns_rr_iter_next(rr) ) {
+
+			(void) gldns_wire2str_rr_buf(rr->pos,
+			    rr->nxt - rr->pos, ta_str, sizeof(ta_str));
+			(void) ub_ctx_add_ta(ctx, ta_str);
+		}
+		context->unbound_ta_set = 1;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+_getdns_ns_dns_setup(struct getdns_context *context)
+{
 	assert(context);
 
 	switch (context->resolution_type) {
@@ -2190,31 +2212,20 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 		if (!context->upstreams || !context->upstreams->count)
 			return GETDNS_RETURN_GENERIC_ERROR;
 #ifdef STUB_NATIVE_DNSSEC
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+		return ub_setup_recursing(context->unbound_ctx, context);
+#else
 		return GETDNS_RETURN_GOOD;
+#endif
 #else
 		return ub_setup_stub(context->unbound_ctx, context);
 #endif
 
 	case GETDNS_RESOLUTION_RECURSING:
 #ifdef HAVE_LIBUNBOUND
-		/* TODO: use the root servers via root hints file */
-		(void) ub_ctx_set_fwd(context->unbound_ctx, NULL);
-		if (!context->unbound_ta_set && context->trust_anchors) {
-			for ( rr = _getdns_rr_iter_init( &rr_spc
-						, context->trust_anchors
-						, context->trust_anchors_len)
-			    ; rr ; rr = _getdns_rr_iter_next(rr) ) {
-
-				(void) gldns_wire2str_rr_buf(rr->pos,
-				    rr->nxt - rr->pos, ta_str, sizeof(ta_str));
-				(void) ub_ctx_add_ta(
-				    context->unbound_ctx, ta_str);
-			}
-			context->unbound_ta_set = 1;
-		}
-		return GETDNS_RETURN_GOOD;
+		return ub_setup_recursing(context->unbound_ctx, context);
 #else
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif
 	}
 	return GETDNS_RETURN_BAD_CONTEXT;
@@ -2234,7 +2245,7 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 
 	/* Transport can in theory be set per query in stub mode */
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB && 
-		tls_is_in_transports_list(context) == 1) {
+	    tls_is_in_transports_list(context) == 1) {
 		if (context->tls_ctx == NULL) {
 #ifdef HAVE_TLS_v1_2
 			/* Create client context, use TLS v1.2 only for now */
