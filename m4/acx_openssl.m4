@@ -95,12 +95,6 @@ AC_DEFUN([ACX_SSL_CHECKS], [
         fi
         AC_SUBST(HAVE_SSL)
         AC_SUBST(RUNTIME_PATH)
-	# openssl engine functionality needs dlopen().
-	BAKLIBS="$LIBS"
-	AC_SEARCH_LIBS([dlopen], [dl])
-	if test "$LIBS" != "$BAKLIBS"; then
-		LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
-	fi
     fi
 AC_CHECK_HEADERS([openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/err.h],,, [AC_INCLUDES_DEFAULT])
