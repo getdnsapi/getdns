@@ -1497,7 +1497,6 @@ static void
 upstream_write_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
-	DEBUG_STUB("# !!!!!!!!!!!!!%s: upstream %p, event %p, queue %p\n", __FUNCTION__, upstream, &upstream->event, upstream->write_queue);
 	getdns_network_req *netreq = upstream->write_queue;
 	getdns_dns_req *dnsreq = netreq->owner;
 	int q;
