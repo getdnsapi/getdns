@@ -416,7 +416,7 @@ AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the edns client cookie is refreshed.])
 
 AC_DEFINE_UNQUOTED([MAXIMUM_UPSTREAM_OPTION_SPACE], [3000], [limit for dynamically-generated DNS options])
-AC_DEFINE_UNQUOTED([EDNS_PADDING_OPCODE], [65461], [The experimental edns padding option code.])
+AC_DEFINE_UNQUOTED([EDNS_PADDING_OPCODE], [12], [The edns padding option code.])
 
 my_with_libunbound=1
 AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
