@@ -1,151 +1,121 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <assert.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <getdns_libevent.h>
 
-#define UNUSED_PARAM(x) ((void)(x))
-
 /* Set up the callback function, which will also do the processing of the results */
-void this_callbackfn(getdns_context *this_context,
-                     getdns_callback_type_t this_callback_type,
-                     getdns_dict *this_response, 
-                     void *this_userarg,
-                     getdns_transaction_t this_transaction_id)
+void callback(getdns_context        *context,
+              getdns_callback_type_t callback_type,
+              getdns_dict           *response, 
+              void                  *userarg,
+              getdns_transaction_t   transaction_id)
 {
-	UNUSED_PARAM(this_userarg);  /* Not looking at the userarg for this example */
-	UNUSED_PARAM(this_context);  /* Not looking at the context for this example */
-	getdns_return_t this_ret;  /* Holder for all function returns */
-	if (this_callback_type == GETDNS_CALLBACK_COMPLETE)  /* This is a callback with data */
-	{
-		/* Be sure the search returned something */
-		uint32_t this_error;
-		this_ret = getdns_dict_get_int(this_response, "status", &this_error);  // Ignore any error
-		if (this_error != GETDNS_RESPSTATUS_GOOD)  // If the search didn't return "good"
-		{
-			fprintf(stderr, "The search had no results, and a return value of %d. Exiting.\n", this_error);
-			getdns_dict_destroy(this_response);
-			return;
-		}
-		/* Find all the answers returned */
-		getdns_list * these_answers;
-		this_ret = getdns_dict_get_list(this_response, "replies_tree", &these_answers);
-		if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
-		{
-			fprintf(stderr, "Weird: the response had no error, but also no replies_tree. Exiting.\n");
-			getdns_dict_destroy(this_response);
-			return;
-		}
-		size_t num_answers;
-		this_ret = getdns_list_get_length(these_answers, &num_answers);
-		/* Go through each answer */
-		for ( size_t rec_count = 0; rec_count < num_answers; ++rec_count )
-		{
-			getdns_dict * this_record;
-			this_ret = getdns_list_get_dict(these_answers, rec_count, &this_record);  // Ignore any error
-			/* Get the answer section */
-			getdns_list * this_answer;
-			this_ret = getdns_dict_get_list(this_record, "answer", &this_answer);  // Ignore any error
-			/* Get each RR in the answer section */
-			size_t num_rrs;
-			this_ret = getdns_list_get_length(this_answer, &num_rrs);
-			for ( size_t rr_count = 0; rr_count < num_rrs; ++rr_count )
-			{
-				getdns_dict *this_rr = NULL;
-				this_ret = getdns_list_get_dict(this_answer, rr_count, &this_rr);  // Ignore any error
-				/* Get the RDATA */
-				getdns_dict * this_rdata = NULL;
-				this_ret = getdns_dict_get_dict(this_rr, "rdata", &this_rdata);  // Ignore any error
-				/* Get the RDATA type */
-				uint32_t this_type;
-				this_ret = getdns_dict_get_int(this_rr, "type", &this_type);  // Ignore any error
-				/* If it is type A or AAAA, print the value */
-				if (this_type == GETDNS_RRTYPE_A)
-				{
-					getdns_bindata * this_a_record = NULL;
-					this_ret = getdns_dict_get_bindata(this_rdata, "ipv4_address", &this_a_record);
-					if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
-					{
-						fprintf(stderr, "Weird: the A record at %d in record at %d had no address. Exiting.\n",
-							(int) rr_count, (int) rec_count);
-						getdns_dict_destroy(this_response);
-						return;
-					}
-					char *this_address_str = getdns_display_ip_address(this_a_record);
-					printf("The IPv4 address is %s\n", this_address_str);
-					free(this_address_str);
+	getdns_return_t r;  /* Holder for all function returns */
+	getdns_list    *replies_tree;
+	size_t          n_replies, i;
+
+	(void) context; (void) userarg; /* unused parameters */
+
+	switch(callback_type) {
+	case GETDNS_CALLBACK_CANCEL:
+		printf("Transaction with ID %"PRIu64" was cancelled.\n", transaction_id);
+		return;
+	case GETDNS_CALLBACK_TIMEOUT:
+		printf("Transaction with ID %"PRIu64" timed out.\n", transaction_id);
+		return;
+	case GETDNS_CALLBACK_ERROR:
+		printf("An error occurred for transaction ID %"PRIu64".\n", transaction_id);
+		return;
+	default: break;
+	}
+	assert( callback_type == GETDNS_CALLBACK_COMPLETE );
+
+	if ((r = getdns_dict_get_list(response, "replies_tree", &replies_tree)))
+		fprintf(stderr, "Could not get \"replies_tree\" from reponse");
+
+	else if ((r = getdns_list_get_length(replies_tree, &n_replies)))
+		fprintf(stderr, "Could not get replies_tree\'s length");
+
+	else for (i = 0; i < n_replies && r == GETDNS_RETURN_GOOD; i++) {
+		getdns_dict *reply;
+		getdns_list *answer;
+		size_t       n_answers, j;
+
+		if ((r = getdns_list_get_dict(replies_tree, i, &reply)))
+			fprintf(stderr, "Could not get address %zu from just_address_answers", i);
+
+		else if ((r = getdns_dict_get_list(reply, "answer", &answer)))
+			fprintf(stderr, "Could not get \"address_data\" from address");
+
+		else if ((r = getdns_list_get_length(answer, &n_answers)))
+			fprintf(stderr, "Could not get answer section\'s length");
+
+		else for (j = 0; j < n_answers && r == GETDNS_RETURN_GOOD; j++) {
+			getdns_dict    *rr;
+			getdns_bindata *address = NULL;
+
+			if ((r = getdns_list_get_dict(answer, j, &rr)))
+				fprintf(stderr, "Could net get rr %zu from answer section", j);
+
+			else if (getdns_dict_get_bindata(rr, "/rdata/ipv4_address", &address) == GETDNS_RETURN_GOOD)
+				printf("The IPv4 address is ");
+
+			else if (getdns_dict_get_bindata(rr, "/rdata/ipv6_address", &address) == GETDNS_RETURN_GOOD)
+				printf("The IPv6 address is ");
+
+			if (address) {
+				char *address_str;
+				if (!(address_str = getdns_display_ip_address(address))) {
+					fprintf(stderr, "Could not convert second address to string");
+					r = GETDNS_RETURN_MEMORY_ERROR;
+					break;
 				}
-				else if (this_type == GETDNS_RRTYPE_AAAA)
-				{
-					getdns_bindata * this_aaaa_record = NULL;
-					this_ret = getdns_dict_get_bindata(this_rdata, "ipv6_address", &this_aaaa_record);
-					if (this_ret == GETDNS_RETURN_NO_SUCH_DICT_NAME)
-					{
-						fprintf(stderr, "Weird: the AAAA record at %d in record at %d had no address. Exiting.\n",
-							(int) rr_count, (int) rec_count);
-						getdns_dict_destroy(this_response);
-						return;
-					}
-					char *this_address_str = getdns_display_ip_address(this_aaaa_record);
-					printf("The IPv6 address is %s\n", this_address_str);
-					free(this_address_str);
-				}
+				printf("%s\n", address_str);
+				free(address_str);
 			}
 		}
 	}
-	else if (this_callback_type == GETDNS_CALLBACK_CANCEL)
-		fprintf(stderr, "The callback with ID %"PRIu64" was cancelled. Exiting.\n", this_transaction_id);
-	else
-		fprintf(stderr, "The callback got a callback_type of %d. Exiting.\n", this_callback_type);
-	getdns_dict_destroy(this_response);
+	if (r) {
+		assert( r != GETDNS_RETURN_GOOD );
+		fprintf(stderr, ": %d\n", r);
+	}
+	getdns_dict_destroy(response); 
 }
 
 int main()
 {
-	/* Create the DNS context for this call */
-	getdns_context *this_context = NULL;
-	getdns_return_t context_create_return = getdns_context_create(&this_context, 1);
-	if (context_create_return != GETDNS_RETURN_GOOD)
-	{
-		fprintf(stderr, "Trying to create the context failed: %d\n", context_create_return);
-		return(GETDNS_RETURN_GENERIC_ERROR);
-	}
-	/* Create an event base and put it in the context using the unknown function name */
-	struct event_base *this_event_base;
-	this_event_base = event_base_new();
-	if (this_event_base == NULL)
-	{
-		fprintf(stderr, "Trying to create the event base failed.\n");
-		getdns_context_destroy(this_context);
-		return(GETDNS_RETURN_GENERIC_ERROR);
-	}
-	(void)getdns_extension_set_libevent_base(this_context, this_event_base);
-	/* Set up the getdns call */
-	const char * this_name  = "www.example.com";
-	char* this_userarg = "somestring"; // Could add things here to help identify this call
-	getdns_transaction_t this_transaction_id = 0;
+	getdns_return_t      r;  /* Holder for all function returns */
+	getdns_context      *context    = NULL;
+	struct event_base   *event_base = NULL;
+	getdns_dict         *extensions = NULL;
+	char                *query_name = "www.example.com";
+	/* Could add things here to help identify this call */
+	char                *userarg    = NULL;
+	getdns_transaction_t transaction_id;
 
-	/* Make the call */
-	getdns_return_t dns_request_return = getdns_address(this_context, this_name,
-		NULL, this_userarg, &this_transaction_id, this_callbackfn);
-	if (dns_request_return == GETDNS_RETURN_BAD_DOMAIN_NAME)
-	{
-		fprintf(stderr, "A bad domain name was used: %s. Exiting.\n", this_name);
-		event_base_free(this_event_base);
-		getdns_context_destroy(this_context);
-		return(GETDNS_RETURN_GENERIC_ERROR);
-	}
-	else
-	{
-		/* Call the event loop */
-		int dispatch_return = event_base_dispatch(this_event_base);
-		UNUSED_PARAM(dispatch_return);
-		// TODO: check the return value above
-	}
+	if ((r = getdns_context_create(&context, 1)))
+		fprintf(stderr, "Trying to create the context failed");
+
+	else if (!(event_base = event_base_new()))
+		fprintf(stderr, "Trying to create the event base failed.\n");
+
+	else if ((r = getdns_extension_set_libevent_base(context, event_base)))
+		fprintf(stderr, "Setting the event base failed");
+
+	else if ((r = getdns_address( context, query_name, extensions
+	                            , userarg, &transaction_id, callback)))
+		fprintf(stderr, "Error scheduling asynchronous request");
+
+	else if (event_base_dispatch(event_base) < 0)
+		fprintf(stderr, "Error dispatching events\n");
+
 	/* Clean up */
-	event_base_free(this_event_base);
-	getdns_context_destroy(this_context);
+	if (event_base)
+		event_base_free(event_base);
+
+	if (context)
+		getdns_context_destroy(context);
+
 	/* Assuming we get here, leave gracefully */
 	exit(EXIT_SUCCESS);
 }

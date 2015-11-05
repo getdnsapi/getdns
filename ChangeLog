@@ -1,4 +1,36 @@
-* 2015-07.18: Version 0.3.1
+* 2015-10-29: Version 0.5.0
+  * Native crypto.  No ldns dependency anymore.
+    (ldns still necessary to be able to run tests though)
+  * JSON pointer arguments to getdns_dict_get_* and getdns_dict_set_* 
+    to dereference nested dicts and lists.
+  * Bugfix: DNSSEC code finding zone cut with redirects + pursuing unsigned
+    DS answers close to the root.  Thanks Theogene Bucuti!
+  * Default port for TLS changed to 853
+  * Unofficial extension to the API to allow TLS hostname verification to be
+    required for stub mode when using only TLS as a transport. 
+    When required a hostname must be supplied in the
+    'hostname' field of the upstream_list dict and the TLS cipher suites are
+    restricted to the 4 AEAD suites recommended in RFC7525.
+
+* 2015-09-09: Version 0.3.3
+  * Fix clearing upstream events on shutdown
+  * Fix dnssec validation of direct CNAME queries.
+    Thanks Simson L. Garfinkel.
+  * Fix get_api_information():version_string also for release candidates
+
+* 2015-09-04: Version 0.3.2
+  * Fix returned upstreams list by getdns_context_get_api_information()
+  * Fix some autoconf issues when srcdir != builddir
+  * Fix remove build date from manpage version for reproducable builds
+  * Fix transport fallback issues plus transport fallback unit test script
+  * Fix string bindata's need not contain trailing zero byte
+  * --enable-stub-only configure option for stub only operation.
+    Stub mode will be the default.  Removes the dependency on libunbound
+  * --with-getdns_query compiles and installs the getdns_query tool too
+  * Fix assert on context destruction from a callback in stub mode too.
+  * Use a thread instead of a process for running the unbound event loop.
+
+* 2015-07-18: Version 0.3.1
   * Fix repeating rdata fields
 
 * 2015-07-17: Version 0.3.0

@@ -2,7 +2,7 @@
  *
  * /brief functions for DNSSEC
  *
- * The priv_getdns_get_validation_chain function is called after an answer
+ * The _getdns_get_validation_chain function is called after an answer
  * has been fetched when the dnssec_return_validation_chain extension is set.
  * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
  * answer.
@@ -44,7 +44,7 @@
 #include "types-internal.h"
 
 /* Do some additional requests to fetch the complete validation chain */
-void priv_getdns_get_validation_chain(getdns_dns_req *dns_req);
+void _getdns_get_validation_chain(getdns_dns_req *dns_req);
 
 uint16_t _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf);
 

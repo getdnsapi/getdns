@@ -29,10 +29,233 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
+#include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
-#include <types-internal.h>
+
+#if 0 
+#define DEBUG_GQ(...) do {fprintf(stderr, __VA_ARGS__);} while (0)
+#else
+#define DEBUG_GQ(...) do {} while (0)
+#endif
+
+#define MAX_TIMEOUTS FD_SETSIZE
+
+/* Eventloop based on select */
+typedef struct my_eventloop {
+	getdns_eventloop        base;
+	getdns_eventloop_event *fd_events[FD_SETSIZE];
+	uint64_t                fd_timeout_times[FD_SETSIZE];
+	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
+	uint64_t                timeout_times[MAX_TIMEOUTS];
+} my_eventloop;
+
+static uint64_t get_now_plus(uint64_t amount)
+{
+	struct timeval tv;
+	uint64_t       now;
+	
+	if (gettimeofday(&tv, NULL)) {
+		perror("gettimeofday() failed");
+		exit(EXIT_FAILURE);
+	}
+	now = tv.tv_sec * 1000000 + tv.tv_usec;
+
+	return (now + amount * 1000) >= now ? now + amount * 1000 : -1;
+}
+
+getdns_return_t
+my_eventloop_schedule(getdns_eventloop *loop,
+    int fd, uint64_t timeout, getdns_eventloop_event *event)
+{
+	my_eventloop *my_loop  = (my_eventloop *)loop;
+	size_t        i;
+
+	assert(loop);
+	assert(event);
+	assert(fd < FD_SETSIZE);
+
+	DEBUG_GQ( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
+	        , __FUNCTION__, loop, fd, timeout, event);
+	if (fd >= 0 && (event->read_cb || event->write_cb)) {
+		assert(my_loop->fd_events[fd] == NULL);
+
+		my_loop->fd_events[fd] = event;
+		my_loop->fd_timeout_times[fd] = get_now_plus(timeout);
+		event->ev = (void *) (intptr_t) fd + 1;
+
+		DEBUG_GQ( "scheduled read/write at %d\n", fd);
+		return GETDNS_RETURN_GOOD;
+	}
+
+	assert(event->timeout_cb && !event->read_cb && !event->write_cb);
+
+	for (i = 0; i < MAX_TIMEOUTS; i++) {
+		if (my_loop->timeout_events[i] == NULL) {
+			my_loop->timeout_events[i] = event;
+			my_loop->timeout_times[i] = get_now_plus(timeout);
+			event->ev = (void *) (intptr_t) i + 1;
+
+			DEBUG_GQ( "scheduled timeout at %d\n", (int)i);
+			return GETDNS_RETURN_GOOD;
+		}
+	}
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+
+getdns_return_t
+my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
+{
+	my_eventloop *my_loop = (my_eventloop *)loop;
+	size_t i;
+
+	assert(loop);
+	assert(event);
+
+	DEBUG_GQ( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
+
+	i = (intptr_t)event->ev - 1;
+	assert(i >= 0 && i < FD_SETSIZE);
+
+	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
+		assert(my_loop->timeout_events[i] == event);
+		my_loop->timeout_events[i] = NULL;
+	} else {
+		assert(my_loop->fd_events[i] == event);
+		my_loop->fd_events[i] = NULL;
+	}
+	event->ev = NULL;
+	return GETDNS_RETURN_GOOD;
+}
+
+void my_eventloop_cleanup(getdns_eventloop *loop)
+{
+}
+
+void my_read_cb(int fd, getdns_eventloop_event *event)
+{
+	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	event->read_cb(event->userarg);
+}
+
+void my_write_cb(int fd, getdns_eventloop_event *event)
+{
+	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	event->write_cb(event->userarg);
+}
+
+void my_timeout_cb(int fd, getdns_eventloop_event *event)
+{
+	DEBUG_GQ( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	event->timeout_cb(event->userarg);
+}
+
+void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
+{
+	my_eventloop *my_loop = (my_eventloop *)loop;
+
+	fd_set   readfds, writefds;
+	int      fd, max_fd = -1;
+	uint64_t now, timeout = (uint64_t)-1;
+	size_t   i;
+	struct timeval tv;
+
+	assert(loop);
+
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	now = get_now_plus(0);
+
+	for (i = 0; i < MAX_TIMEOUTS; i++) {
+		if (!my_loop->timeout_events[i])
+			continue;
+		if (now > my_loop->timeout_times[i])
+			my_timeout_cb(-1, my_loop->timeout_events[i]);
+		else if (my_loop->timeout_times[i] < timeout)
+			timeout = my_loop->timeout_times[i];
+	}
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		if (!my_loop->fd_events[fd])
+			continue;
+		if (my_loop->fd_events[fd]->read_cb)
+			FD_SET(fd, &readfds);
+		if (my_loop->fd_events[fd]->write_cb)
+			FD_SET(fd, &writefds);
+		if (fd > max_fd)
+			max_fd = fd;
+		if (my_loop->fd_timeout_times[fd] < timeout)
+			timeout = my_loop->fd_timeout_times[fd];
+	}
+	if (max_fd == -1 && timeout == (uint64_t)-1)
+		return;
+
+	if (! blocking || now > timeout) {
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+	} else {
+		tv.tv_sec  = (timeout - now) / 1000000;
+		tv.tv_usec = (timeout - now) % 1000000;
+	}
+	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv) < 0) {
+		perror("select() failed");
+		exit(EXIT_FAILURE);
+	}
+	now = get_now_plus(0);
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		if (my_loop->fd_events[fd] &&
+		    my_loop->fd_events[fd]->read_cb &&
+		    FD_ISSET(fd, &readfds))
+			my_read_cb(fd, my_loop->fd_events[fd]);
+
+		if (my_loop->fd_events[fd] &&
+		    my_loop->fd_events[fd]->write_cb &&
+		    FD_ISSET(fd, &writefds))
+			my_write_cb(fd, my_loop->fd_events[fd]);
+
+		if (my_loop->fd_events[fd] &&
+		    my_loop->fd_events[fd]->timeout_cb &&
+		    now > my_loop->fd_timeout_times[fd])
+			my_timeout_cb(fd, my_loop->fd_events[fd]);
+
+		i = fd;
+		if (my_loop->timeout_events[i] &&
+		    my_loop->timeout_events[i]->timeout_cb &&
+		    now > my_loop->timeout_times[i])
+			my_timeout_cb(-1, my_loop->timeout_events[i]);
+	}
+}
+
+void my_eventloop_run(getdns_eventloop *loop)
+{
+	my_eventloop *my_loop = (my_eventloop *)loop;
+	size_t        i;
+
+	assert(loop);
+
+	i = 0;
+	while (i < MAX_TIMEOUTS) {
+		if (my_loop->fd_events[i] || my_loop->timeout_events[i]) {
+			my_eventloop_run_once(loop, 1);
+			i = 0;
+		} else {
+			i++;
+		}
+	}
+}
+
+void my_eventloop_init(my_eventloop *loop)
+{
+	static getdns_eventloop_vmt my_eventloop_vmt = {
+		my_eventloop_cleanup,
+		my_eventloop_schedule,
+		my_eventloop_clear,
+		my_eventloop_run,
+		my_eventloop_run_once
+	};
+
+	(void) memset(loop, 0, sizeof(my_eventloop));
+	loop->base.vmt = &my_eventloop_vmt;
+}
 
 static int quiet = 0;
 static int batch_mode = 0;
@@ -56,6 +279,7 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	char *s = strchr(ipstr, '%'), *scope_id_str = "";
 	char *p = strchr(ipstr, '@'), *portstr = "";
 	char *t = strchr(ipstr, '#'), *tls_portstr = "";
+	char *n = strchr(ipstr, '~'), *tls_namestr = "";
 	uint8_t buf[sizeof(struct in6_addr)];
 	getdns_bindata addr;
 
@@ -73,6 +297,10 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (t) {
 		*t = 0;
 		tls_portstr = t + 1;
+	}
+	if (n) {
+		*n = 0;
+		tls_namestr = n + 1;
 	}
 	if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
@@ -94,6 +322,9 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
 	if (*tls_portstr)
 		getdns_dict_set_int(r, "tls_port", (int32_t)atoi(tls_portstr));
+	if (*tls_namestr) {
+		getdns_dict_util_set_string(r, "tls_auth_name", tls_namestr);
+	}
 	if (*scope_id_str)
 		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
 
@@ -104,7 +335,11 @@ static getdns_return_t
 fill_transport_list(getdns_context *context, char *transport_list_str, 
                     getdns_transport_list_t *transports, size_t *transport_count)
 {
-	for (size_t i = 0; i < strlen(transport_list_str); i++, (*transport_count)++) {
+	size_t max_transports = *transport_count;
+	*transport_count = 0;
+	for ( size_t i = 0
+	    ; i < max_transports && i < strlen(transport_list_str)
+	    ; i++, (*transport_count)++) {
 		switch(*(transport_list_str + i)) {
 			case 'U': 
 				transports[i] = GETDNS_TRANSPORT_UDP;
@@ -136,9 +371,11 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
 	    "(default = synchronous)\n");
 	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
@@ -147,13 +384,15 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
+	fprintf(out, "\t-k\tPrint root trust anchors\n");
+	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
+	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
-	fprintf(out, "\t-R\tPrint root trust anchors\n");
+	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
-	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
@@ -163,8 +402,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
 	fprintf(out, "\t\t\t U T L S for UDP, TCP, TLS or STARTTLS e.g 'UT' or 'LST' \n");
-	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
-	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
+
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -269,16 +507,16 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			free(response_str);
 		}
 		fprintf(stdout,
-			"Result:      The callback with ID %llu  was successfull.\n",
+			"Response code was: GOOD. Status was: Callback with ID %llu  was successfull.\n",
 			(unsigned long long)trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-			"Result:      The callback with ID %llu was cancelled. Exiting.\n",
+			"An error occurred: The callback with ID %llu was cancelled. Exiting.\n",
 			(unsigned long long)trans_id);
 	else {
 		fprintf(stderr,
-			"Result:      The callback got a callback_type of %d. Exiting.\n",
+			"An error occurred: The callback got a callback_type of %d. Exiting.\n",
 			callback_type);
 		fprintf(stderr,
 			"Error :      '%s'\n",
@@ -460,6 +698,14 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'k':
 				print_trust_anchors = 1;
 				break;
+			case 'n':
+				getdns_context_set_tls_authentication(context,
+				                 GETDNS_AUTHENTICATION_NONE);
+				break;
+			case 'm':
+				getdns_context_set_tls_authentication(context,
+				                 GETDNS_AUTHENTICATION_HOSTNAME);
+				break;
 			case 'p':
 				json = 0;
 			case 'q':
@@ -543,8 +789,8 @@ getdns_return_t parse_args(int argc, char **argv)
 					    "after -l\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				size_t transport_count = 0;
-				getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
+				getdns_transport_list_t transports[10];
+				size_t transport_count = sizeof(transports);
 				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){
@@ -589,20 +835,163 @@ next:		;
 	return r;
 }
 
+getdns_return_t do_the_call(void)
+{
+	getdns_return_t r;
+	getdns_dict *address = NULL;
+	getdns_dict *response = NULL;
+	char *response_str;
+	uint32_t status;
+
+	if (calltype == HOSTNAME &&
+	    !(address = ipaddr_dict(context, name))) {
+		fprintf(stderr, "Could not convert \"%s\" "
+				"to an IP address", name);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (async) {
+		switch (calltype) {
+		case GENERAL:
+			r = getdns_general(context, name, request_type,
+			    extensions, &response, NULL, callback);
+			break;
+		case ADDRESS:
+			r = getdns_address(context, name,
+			    extensions, &response, NULL, callback);
+			break;
+		case HOSTNAME:
+			r = getdns_hostname(context, address,
+			    extensions, &response, NULL, callback);
+			break;
+		case SERVICE:
+			r = getdns_service(context, name,
+			    extensions, &response, NULL, callback);
+			break;
+		default:
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		if (r == GETDNS_RETURN_GOOD && !batch_mode) 
+			getdns_context_run(context);
+		if (r != GETDNS_RETURN_GOOD)
+			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				 getdns_get_errorstr_by_id(r));
+	} else {
+		switch (calltype) {
+		case GENERAL:
+			r = getdns_general_sync(context, name,
+			    request_type, extensions, &response);
+			break;
+		case ADDRESS:
+			r = getdns_address_sync(context, name,
+			    extensions, &response);
+			break;
+		case HOSTNAME:
+			r = getdns_hostname_sync(context, address,
+			    extensions, &response);
+			break;
+		case SERVICE:
+			r = getdns_service_sync(context, name,
+			    extensions, &response);
+			break;
+		default:
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		if (r != GETDNS_RETURN_GOOD) {
+			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+				 getdns_get_errorstr_by_id(r));
+			return r;
+		}
+		if (response && !quiet) {
+			if ((response_str = json ?
+			    getdns_print_json_dict(response, json == 1)
+			  : getdns_pretty_print_dict(response))) {
+
+				fprintf( stdout, "SYNC response:\n%s\n"
+				       , response_str);
+				validate_chain(response);
+				free(response_str);
+			} else {
+				r = GETDNS_RETURN_MEMORY_ERROR;
+				fprintf( stderr
+				       , "Could not print response\n");
+			}
+		}
+		getdns_dict_get_int(response, "status", &status);
+		fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
+			 getdns_get_errorstr_by_id(status));
+		if (response)
+			getdns_dict_destroy(response);
+	}
+	return r;
+}
+
+my_eventloop my_loop;
+FILE *fp;
+
+void read_line_cb(void *userarg)
+{
+	getdns_eventloop_event *read_line_ev = userarg;
+	getdns_return_t r;
+
+	char line[1024], *token, *linev[256];
+	int linec;
+
+	if (!fgets(line, 1024, fp) || !*line) {
+		if (query_file)
+			fprintf(stdout,"End of file.");
+		my_eventloop_clear(&my_loop.base, read_line_ev);
+		return;
+	}
+	if (query_file)
+		fprintf(stdout,"Found query: %s", line);
+
+	linev[0] = __FILE__;
+	linec = 1;
+	if (!(token = strtok(line, " \t\f\n\r"))) {
+		if (! query_file) {
+			printf("> ");
+			fflush(stdout);
+		}
+		return;
+	}
+	if (*token == '#') {
+		fprintf(stdout,"Result:      Skipping comment\n");
+		if (! query_file) {
+			printf("> ");
+			fflush(stdout);
+		}
+		return;
+	}
+	do linev[linec++] = token;
+	while (linec < 256 && (token = strtok(NULL, " \t\f\n\r")));
+
+	if (((r = parse_args(linec, linev)) || (r = do_the_call())) &&
+	    (r != CONTINUE && r != CONTINUE_ERROR))
+		my_eventloop_clear(&my_loop.base, read_line_ev);
+
+	else if (! query_file) {
+		printf("> ");
+		fflush(stdout);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
-	getdns_dict *response = NULL;
-	char *response_str;
 	getdns_return_t r;
-	getdns_dict *address = NULL;
-	FILE *fp = NULL;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
 		fprintf(stderr, "Create context failed: %d\n", r);
 		return r;
 	}
+	my_eventloop_init(&my_loop);
+	if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
+		goto done_destroy_context;
+	if ((r = getdns_context_set_use_threads(context, 1)))
+		goto done_destroy_context;
 	extensions = getdns_dict_create();
 	if (! extensions) {
 		fprintf(stderr, "Could not create extensions dict\n");
@@ -618,132 +1007,30 @@ main(int argc, char **argv)
 			fprintf(stderr, "Could not open query file: %s\n", query_file);
 			goto done_destroy_context;
 		}
-	}
+	} else
+		fp = stdin;
 
 	/* Make the call */
-	do {
-		char line[1024], *token, *linev[256];
-		int linec;
-		if (interactive) {
-			if (!query_file) {
-				fprintf(stdout, "> ");
-				if (!fgets(line, 1024, stdin) || !*line)
-					break;
-			} else {
-				if (!fgets(line, 1024, fp) || !*line) {
-					fprintf(stdout,"End of file.");
-					break;
-				}
-				fprintf(stdout,"Found query: %s", line);
-			}
-
-			linev[0] = argv[0];
-			linec = 1;
-			if ( ! (token = strtok(line, " \t\f\n\r")))
-				continue;
-			if (*token == '#') {
-				fprintf(stdout,"Result:      Skipping comment\n");
-					continue;
-			}
-			do linev[linec++] = token;
-			while (linec < 256 &&
-			    (token = strtok(NULL, " \t\f\n\r")));
-			if ((r = parse_args(linec, linev))) {
-				if (r == CONTINUE || r == CONTINUE_ERROR)
-					continue;
-				else
-					goto done_destroy_context;
-			}
-
+	if (interactive) {
+		getdns_eventloop_event read_line_ev = {
+		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
+		(void) my_eventloop_schedule(
+		    &my_loop.base, fileno(fp), -1, &read_line_ev);
+		if (!query_file) {
+			printf("> ");
+			fflush(stdout);
 		}
-		if (calltype == HOSTNAME &&
-		    !(address = ipaddr_dict(context, name))) {
-			fprintf(stderr, "Could not convert \"%s\" "
-			                "to an IP address", name);
-			continue;
-		}
-		if (async) {
-			switch (calltype) {
-			case GENERAL:
-				r = getdns_general(context, name, request_type,
-				    extensions, &response, NULL, callback);
-				break;
-			case ADDRESS:
-				r = getdns_address(context, name,
-				    extensions, &response, NULL, callback);
-				break;
-			case HOSTNAME:
-				r = getdns_hostname(context, address,
-				    extensions, &response, NULL, callback);
-				break;
-			case SERVICE:
-				r = getdns_service(context, name,
-				    extensions, &response, NULL, callback);
-				break;
-			default:
-				r = GETDNS_RETURN_GENERIC_ERROR;
-				break;
-			}
-			if (r)
-				goto done_destroy_extensions;
-			if (!batch_mode) 
-				getdns_context_run(context);
-		} else {
-			switch (calltype) {
-			case GENERAL:
-				r = getdns_general_sync(context, name,
-				    request_type, extensions, &response);
-				break;
-			case ADDRESS:
-				r = getdns_address_sync(context, name,
-				    extensions, &response);
-				break;
-			case HOSTNAME:
-				r = getdns_hostname_sync(context, address,
-				    extensions, &response);
-				break;
-			case SERVICE:
-				r = getdns_service_sync(context, name,
-				    extensions, &response);
-				break;
-			default:
-				r = GETDNS_RETURN_GENERIC_ERROR;
-				break;
-			}
-			if (response && !quiet) {
-				if ((response_str = json ?
-				    getdns_print_json_dict(response, json == 1)
-				  : getdns_pretty_print_dict(response))) {
+		my_eventloop_run(&my_loop.base);
+	}
+	else
+		r = do_the_call();
 
-					fprintf( stdout, "SYNC response:\n%s\n"
-					       , response_str);
-					validate_chain(response);
-					free(response_str);
-				} else {
-					r = GETDNS_RETURN_MEMORY_ERROR;
-					fprintf( stderr
-					       , "Could not print response\n");
-				}
-			}
-			if (r == GETDNS_RETURN_GOOD) {
-				uint32_t status;
-				getdns_dict_get_int(response, "status", &status);
-				fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
-				         getdns_get_errorstr_by_id(status));
-			} else
-				fprintf(stderr, "An error occurred: %d '%s'\n", r,
-				         getdns_get_errorstr_by_id(r));
-		}
-	} while (interactive);
-
-	if (batch_mode) 
+	if ((r == GETDNS_RETURN_GOOD && batch_mode))
 		getdns_context_run(context);
 
 	/* Clean up */
-done_destroy_extensions:
 	getdns_dict_destroy(extensions);
 done_destroy_context:
-	if (response) getdns_dict_destroy(response);
 	getdns_context_destroy(context);
 
 	if (fp)

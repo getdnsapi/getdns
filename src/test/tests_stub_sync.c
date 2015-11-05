@@ -37,6 +37,7 @@
 #include <string.h>
 #include "testmessages.h"
 #include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 
 #define TRANSPORT_UDP "udp"
 #define TRANSPORT_TCP "tcp"

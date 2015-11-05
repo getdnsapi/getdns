@@ -1,7 +1,7 @@
 /**
  *
  * getdns dict management functions, note that the internal storage is
- * accomplished via an getdns_rbtree_t
+ * accomplished via an _getdns_rbtree_t
  *
  * Interfaces originally taken from the getdns API description pseudo implementation.
  *
@@ -43,54 +43,228 @@
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dict.h"
+#include "list.h"
 #include "rr-dict.h"
 #include "const-info.h"
 #include "gldns/gbuffer.h"
 #include "gldns/wire2str.h"
 
-/*---------------------------------------- getdns_dict_find */
-/**
- * private function used to locate a key in a dictionary
- * @param dict dicitonary to search
- * @param key key to search for
- * @return pointer to dictionary item, caller must not free storage associated with item
- * @return NULL if additnotfnd == FALSE and key is not in dictionary
- */
-struct getdns_dict_item *
-getdns_dict_find(const struct getdns_dict *dict, const char *key)
+
+static char *_json_ptr_first(const struct mem_funcs *mf,
+    const char *jptr, char *first, size_t first_sz)
 {
-	return (struct getdns_dict_item *)
-		   getdns_rbtree_search((getdns_rbtree_t *)&(dict->root), key);
-}				/* getdns_dict_find */
+	const char *next_ref, *k;
+	char *j;
 
-struct getdns_dict_item *
-getdns_dict_find_and_add(struct getdns_dict *dict, const char *key)
+	if (*jptr != '/')
+		return (char *)jptr;
+	jptr++;
+	if (!(next_ref = strchr(jptr, '/')))
+		next_ref = strchr(jptr, '\0');
+
+	if (next_ref - jptr > first_sz)
+		first = GETDNS_XMALLOC(*mf, char, next_ref - jptr + 1);
+
+	for (j = first, k = jptr; k < next_ref; j++, k++)
+		*j = k[0] == '~' && k[1] == '1' ? (k++, '/') : *k;
+	*j = '\0';
+	for (j = first, k = first; *k; j++, k++)
+		*j = k[0] == '~' && k[1] == '0' ? (k++, '~') : *k;
+	*j = '\0';
+
+	return first;
+}
+
+
+static struct getdns_dict_item *
+_find_dict_item(const getdns_dict *dict, const char *jptr)
 {
-	struct getdns_dict_item *item;
+	char first_spc[1024], *first;
+	struct getdns_dict_item *d;
 
-	item = (struct getdns_dict_item *)
-		   getdns_rbtree_search(&(dict->root), key);
+	first = _json_ptr_first(&dict->mf, jptr,
+	    first_spc, sizeof(first_spc));
 
-	if (!item) {
-		/* add a node */
-		item = GETDNS_MALLOC(dict->mf, struct getdns_dict_item);
-		item->node.key = getdns_strdup(&dict->mf, key);
-		item->data.n = 0;
-		getdns_rbtree_insert(&(dict->root), (getdns_rbnode_t *) item);
+	d = (struct getdns_dict_item *) _getdns_rbtree_search(
+	    (_getdns_rbtree_t *)&(dict->root), first);
+
+	if (first && first != jptr && first != first_spc)
+		GETDNS_FREE(dict->mf, first);
+
+	return d;
+}
+
+
+static struct getdns_dict_item *
+_delete_dict_item(const getdns_dict *dict, const char *jptr)
+{
+	char first_spc[1024], *first;
+	struct getdns_dict_item *d;
+
+	first = _json_ptr_first(&dict->mf, jptr,
+	    first_spc, sizeof(first_spc));
+
+	d = (struct getdns_dict_item *) _getdns_rbtree_delete(
+	    (_getdns_rbtree_t *)&(dict->root), first);
+
+	if (first && first != jptr && first != first_spc)
+		GETDNS_FREE(dict->mf, first);
+
+	return d;
+}
+
+
+static char *
+_json_ptr_keydup(const struct mem_funcs *mf, const char *jptr)
+{
+	char *first = _json_ptr_first(mf, jptr, NULL, 0);
+
+	if (first == jptr || first == jptr + 1) {
+		size_t sz = strlen(jptr) + 1;
+
+		if ((first = GETDNS_XMALLOC(*mf, char, sz)))
+			memcpy(first, jptr, sz);
 	}
-	return item;
+	return first;
+}
+
+
+getdns_return_t
+_getdns_dict_find(const getdns_dict *dict, const char *key, getdns_item **item)
+{
+	const char *next;
+	struct getdns_dict_item *d;
+	
+	if (!(d = _find_dict_item(dict, key)))
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+	if (*key != '/' || !(next = strchr(key + 1, '/'))) {
+		*item = &d->i;
+		return GETDNS_RETURN_GOOD;
+
+	} else switch (d->i.dtype) { /* Key was nested reference */
+	case t_dict: return _getdns_dict_find(d->i.data.dict, next, item);
+	case t_list: return _getdns_list_find(d->i.data.list, next, item);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+}
+
+
+/*---------------------------------------- getdns_dict_item_free */
+/**
+ * private function used to release storage associated with a dictionary item
+ * @param node all memory in this structure and its children will be freed
+ * @param arg is a dict who's custom memory function will be used 
+ *            to free the items
+ * @return void
+ */
+static void
+getdns_dict_item_free(_getdns_rbnode_t *node, void *arg)
+{
+	struct getdns_dict_item *d = (struct getdns_dict_item *)node;
+	struct getdns_dict *dict = (struct getdns_dict *)arg;
+
+	assert(node);
+	assert(arg);
+
+	switch (d->i.dtype) {
+	case t_dict   : getdns_dict_destroy(d->i.data.dict); break;
+	case t_list   : getdns_list_destroy(d->i.data.list); break;
+	case t_bindata: _getdns_bindata_destroy(&dict->mf, d->i.data.bindata);
+	default       : break;
+	}
+	if (node->key)
+		GETDNS_FREE(dict->mf, (void *)node->key);
+	GETDNS_FREE(dict->mf, node);
+}				/* getdns_dict_item_free */
+
+
+getdns_return_t
+getdns_dict_remove_name(getdns_dict *dict, const char *name)
+{
+	const char *next;
+	struct getdns_dict_item *d;
+
+	if (!dict || !name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	
+	if (!(d = _find_dict_item(dict, name)))
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+
+	if (*name != '/' || !(next = strchr(name + 1, '/'))) {
+		d = _delete_dict_item(dict, name);
+		getdns_dict_item_free(&d->node, dict);
+		return GETDNS_RETURN_GOOD;
+
+	} else switch (d->i.dtype) {
+	case t_dict: return getdns_dict_remove_name(d->i.data.dict, next);
+	case t_list: return _getdns_list_remove_name(d->i.data.list, next);
+	default    : /* Trying to dereference a non list or dict */
+	             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+}
+
+
+getdns_return_t
+_getdns_dict_find_and_add(
+    getdns_dict *dict, const char *key, getdns_item **item)
+{
+	const char *next;
+	struct getdns_dict_item *d;
+
+	if (!(d = _find_dict_item(dict, key))) {
+		/* add a node */
+		d = GETDNS_MALLOC(dict->mf, struct getdns_dict_item);
+		d->node.key = _json_ptr_keydup(&dict->mf, key);
+		_getdns_rbtree_insert(&(dict->root), (_getdns_rbnode_t *) d);
+		if (*key != '/' || !(next = strchr(key + 1, '/'))) {
+			(void) memset(&d->i.data, 0, sizeof(d->i.data));
+			d->i.dtype = t_int;
+			d->i.data.n = 55555333;
+			*item = &d->i;
+			return GETDNS_RETURN_GOOD;
+		}
+		if ((next[1] == '0' || next[1] == '-') && 
+		    (next[2] == '/' || next[2] == '\0')) {
+
+			d->i.dtype = t_list;
+			d->i.data.list =_getdns_list_create_with_mf(&dict->mf);
+			return _getdns_list_find_and_add(
+			    d->i.data.list, next, item);
+		}
+		d->i.dtype = t_dict;
+		d->i.data.dict = _getdns_dict_create_with_mf(&dict->mf);
+		return _getdns_dict_find_and_add(d->i.data.dict, next, item);
+	}
+	if (*key != '/' || !(next = strchr(key + 1, '/'))) {
+		switch (d->i.dtype) {
+		case t_dict   : getdns_dict_destroy(d->i.data.dict); break;
+		case t_list   : getdns_list_destroy(d->i.data.list); break;
+		case t_bindata: _getdns_bindata_destroy(
+				      &dict->mf, d->i.data.bindata); break;
+		default       : break;
+		}
+		d->i.dtype = t_int;
+		d->i.data.n = 33355555;
+		*item = &d->i;
+		return GETDNS_RETURN_GOOD;
+
+	} else switch (d->i.dtype) {  /* Key was nested reference */
+	case t_dict:return _getdns_dict_find_and_add(d->i.data.dict,next,item);
+	case t_list:return _getdns_list_find_and_add(d->i.data.list,next,item);
+	default    :/* Trying to dereference a non list or dict */
+	            return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
 }				/* getdns_dict_find_and_add */
 
 
 /*---------------------------------------- getdns_dict_get_names
 */
 getdns_return_t
-getdns_dict_get_names(const struct getdns_dict * dict,
-	struct getdns_list ** answer)
+getdns_dict_get_names(const getdns_dict *dict, getdns_list **answer)
 {
 	struct getdns_dict_item *item;
-	size_t index;
-	struct getdns_bindata bindata;
 
 	if (!dict || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -102,29 +276,25 @@ getdns_dict_get_names(const struct getdns_dict * dict,
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	RBTREE_FOR(item, struct getdns_dict_item *,
-		(getdns_rbtree_t *)&(dict->root)) {
-		if (getdns_list_add_item(*answer, &index) != GETDNS_RETURN_GOOD)
-			continue;
-		bindata.size = strlen(item->node.key) + 1;
-		bindata.data = (void *) item->node.key;
-		getdns_list_set_bindata(*answer, index, &bindata);
+		(_getdns_rbtree_t *)&(dict->root)) {
+		_getdns_list_append_string(*answer, item->node.key);
 	}
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_get_names */
 
 /*---------------------------------------- getdns_dict_get_data_type */
 getdns_return_t
-getdns_dict_get_data_type(const struct getdns_dict * dict, const char *name,
-	getdns_data_type * answer)
+getdns_dict_get_data_type(
+    const getdns_dict *dict, const char *name, getdns_data_type *answer)
 {
-	struct getdns_dict_item *item;
+	getdns_return_t r;
+	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	*answer = item->dtype;
 	return GETDNS_RETURN_GOOD;
@@ -132,38 +302,38 @@ getdns_dict_get_data_type(const struct getdns_dict * dict, const char *name,
 
 /*---------------------------------------- getdns_dict_get_dict */
 getdns_return_t
-getdns_dict_get_dict(const struct getdns_dict * dict, const char *name,
-	struct getdns_dict ** answer)
+getdns_dict_get_dict(
+    const getdns_dict *dict, const char *name, getdns_dict **answer)
 {
-	struct getdns_dict_item *item;
+	getdns_return_t r;
+	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	if (item->dtype != t_dict)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	*answer = item->data.dict;
-	return  GETDNS_RETURN_GOOD;
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_get_dict */
 
 /*---------------------------------------- getdns_dict_get_list */
 getdns_return_t
-getdns_dict_get_list(const struct getdns_dict * dict, const char *name,
-	struct getdns_list ** answer)
+getdns_dict_get_list(
+    const getdns_dict *dict, const char *name, getdns_list **answer)
 {
-	struct getdns_dict_item *item;
+	getdns_return_t r;
+	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	if (item->dtype != t_list)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -174,16 +344,16 @@ getdns_dict_get_list(const struct getdns_dict * dict, const char *name,
 
 /*---------------------------------------- getdns_dict_get_bindata */
 getdns_return_t
-getdns_dict_get_bindata(const struct getdns_dict * dict, const char *name,
-	struct getdns_bindata ** answer)
+getdns_dict_get_bindata(
+    const getdns_dict *dict, const char *name, getdns_bindata **answer)
 {
-	struct getdns_dict_item *item;
+	getdns_return_t r;
+	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
+	if ((r = _getdns_dict_find(dict, name, &item)))
 		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	if (item->dtype != t_bindata)
@@ -195,17 +365,17 @@ getdns_dict_get_bindata(const struct getdns_dict * dict, const char *name,
 
 /*---------------------------------------- getdns_dict_get_int */
 getdns_return_t
-getdns_dict_get_int(const struct getdns_dict * dict, const char *name,
-	uint32_t * answer)
+getdns_dict_get_int(
+    const getdns_dict *dict, const char *name, uint32_t *answer)
 {
-	struct getdns_dict_item *item;
+	getdns_return_t r;
+	getdns_item *item;
 
 	if (!dict || !name || !answer)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find(dict, name, &item)))
+		return r;
 
 	if (item->dtype != t_int)
 		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -241,7 +411,7 @@ getdns_dict_create_with_extended_memory_functions(
 	dict->mf.mf.ext.realloc = realloc;
 	dict->mf.mf.ext.free    = free;
 
-	getdns_rbtree_init(&(dict->root),
+	_getdns_rbtree_init(&(dict->root),
 		(int (*)(const void *, const void *)) strcmp);
 	return dict;
 }
@@ -278,7 +448,7 @@ getdns_dict_create()
 	return getdns_dict_create_with_context(NULL);
 }					/* getdns_dict_create */
 
-/*---------------------------------------- getdns_dict_copy */
+/*---------------------------------------- _getdns_dict_copy */
 /**
  * private function used to make a copy of a dict structure,
  * the caller is responsible * for freeing storage allocated to returned value
@@ -288,7 +458,7 @@ getdns_dict_create()
  * @return NULL on error (out of memory, invalid srcdict)
  */
 getdns_return_t
-getdns_dict_copy(const struct getdns_dict * srcdict,
+_getdns_dict_copy(const struct getdns_dict * srcdict,
 	struct getdns_dict ** dstdict)
 {
 	struct getdns_dict_item *item;
@@ -312,27 +482,27 @@ getdns_dict_copy(const struct getdns_dict * srcdict,
 
 	retval = GETDNS_RETURN_GOOD;
 	RBTREE_FOR(item, struct getdns_dict_item *,
-		(struct getdns_rbtree_t *)&(srcdict->root)) {
+		(struct _getdns_rbtree_t *)&(srcdict->root)) {
 		key = (char *) item->node.key;
-		switch (item->dtype) {
+		switch (item->i.dtype) {
 		case t_bindata:
 			retval = getdns_dict_set_bindata(*dstdict, key,
-				item->data.bindata);
+				item->i.data.bindata);
 			break;
 
 		case t_dict:
 			retval = getdns_dict_set_dict(*dstdict, key,
-				item->data.dict);
+				item->i.data.dict);
 			break;
 
 		case t_int:
 			retval = getdns_dict_set_int(*dstdict, key,
-				item->data.n);
+				item->i.data.n);
 			break;
 
 		case t_list:
 			retval = getdns_dict_set_list(*dstdict, key,
-				item->data.list);
+				item->i.data.list);
 			break;
 		}
 		if (retval != GETDNS_RETURN_GOOD) {
@@ -342,72 +512,36 @@ getdns_dict_copy(const struct getdns_dict * srcdict,
 		}
 	}
 	return GETDNS_RETURN_GOOD;
-}				/* getdns_dict_copy */
+}				/* _getdns_dict_copy */
 
-/*---------------------------------------- getdns_dict_item_free */
-/**
- * private function used to release storage associated with a dictionary item
- * @param node all memory in this structure and its children will be freed
- * @param arg is a dict who's custom memory function will be used 
- *            to free the items
- * @return void
- */
-void
-getdns_dict_item_free(getdns_rbnode_t * node, void *arg)
-{
-	struct getdns_dict_item *item = (struct getdns_dict_item *) node;
-	struct getdns_dict *dict = (struct getdns_dict *)arg;
-
-	if (!item)
-		return;
-
-	switch (item->dtype) {
-	case t_bindata:
-		getdns_bindata_destroy(&dict->mf, item->data.bindata);
-		break;
-	case t_dict:
-		getdns_dict_destroy(item->data.dict);
-		break;
-	case t_list:
-		getdns_list_destroy(item->data.list);
-		break;
-	default:
-		break;
-	}
-	if (item->node.key)
-		GETDNS_FREE(dict->mf, (void *)item->node.key);
-	GETDNS_FREE(dict->mf, item);
-}				/* getdns_dict_item_free */
 
 /*---------------------------------------- getdns_dict_destroy */
 void
 getdns_dict_destroy(struct getdns_dict *dict)
 {
 	if (!dict) return;
-	getdns_traverse_postorder(&(dict->root), getdns_dict_item_free, dict);
+	_getdns_traverse_postorder(&(dict->root), getdns_dict_item_free, dict);
 	GETDNS_FREE(dict->mf, dict);
 }				/* getdns_dict_destroy */
 
 /*---------------------------------------- getdns_dict_set_dict */
 getdns_return_t
-getdns_dict_set_dict(struct getdns_dict * dict, const char *name,
-	const struct getdns_dict * child_dict)
+getdns_dict_set_dict(
+    getdns_dict *dict, const char *name, const getdns_dict *child_dict)
 {
-	struct getdns_dict_item *item;
-	struct getdns_dict *newdict;
-	getdns_return_t retval;
+	getdns_item    *item;
+	getdns_dict    *newdict;
+	getdns_return_t r;
 
 	if (!dict || !name || !child_dict)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	retval = getdns_dict_copy(child_dict, &newdict);
-	if (retval != GETDNS_RETURN_GOOD)
-		return retval;
+	if ((r = _getdns_dict_copy(child_dict, &newdict)))
+		return r;
 
-	item = getdns_dict_find_and_add(dict, name);
-	if (!item) {
+	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
 		getdns_dict_destroy(newdict);
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return r;
 	}
 	item->dtype = t_dict;
 	item->data.dict = newdict;
@@ -416,24 +550,22 @@ getdns_dict_set_dict(struct getdns_dict * dict, const char *name,
 
 /*---------------------------------------- getdns_dict_set_list */
 getdns_return_t
-getdns_dict_set_list(struct getdns_dict * dict, const char *name,
-	const struct getdns_list * child_list)
+getdns_dict_set_list(
+    getdns_dict *dict, const char *name, const getdns_list *child_list)
 {
-	struct getdns_dict_item *item;
-	struct getdns_list *newlist;
-	getdns_return_t retval;
+	getdns_item    *item;
+	getdns_list    *newlist;
+	getdns_return_t r;
 
 	if (!dict || !name || !child_list)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	retval = getdns_list_copy(child_list, &newlist);
-	if (retval != GETDNS_RETURN_GOOD)
-		return retval;
+	if ((r = _getdns_list_copy(child_list, &newlist)))
+		return r;
 
-	item = getdns_dict_find_and_add(dict, name);
-	if (!item) {
+	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
 		getdns_list_destroy(newlist);
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+		return r;
 	}
 	item->dtype = t_list;
 	item->data.list = newlist;
@@ -442,42 +574,68 @@ getdns_dict_set_list(struct getdns_dict * dict, const char *name,
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
-getdns_dict_set_bindata(struct getdns_dict * dict, const char *name,
-	const struct getdns_bindata * child_bindata)
+getdns_dict_set_bindata(
+    getdns_dict *dict, const char *name, const getdns_bindata *child_bindata)
 {
-	struct getdns_dict_item *item;
-	struct getdns_bindata *newbindata;
+	getdns_item    *item;
+	getdns_bindata *newbindata;
+	getdns_return_t r;
 
 	if (!dict || !name || !child_bindata)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	newbindata = getdns_bindata_copy(&dict->mf, child_bindata);
-	if (!newbindata)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if (!(newbindata = _getdns_bindata_copy(&dict->mf, child_bindata)))
+		return GETDNS_RETURN_MEMORY_ERROR;
 
-	item = getdns_dict_find_and_add(dict, name);
-	if (!item) {
-		getdns_bindata_destroy(&dict->mf, newbindata);
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
+		_getdns_bindata_destroy(&dict->mf, newbindata);
+		return r;
 	}
 	item->dtype = t_bindata;
 	item->data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_set_bindata */
 
+/*---------------------------------------- getdns_dict_set_bindata */
+getdns_return_t
+getdns_dict_util_set_string(getdns_dict *dict, char *name, const char *value)
+{
+	getdns_item    *item;
+	getdns_bindata *newbindata;
+	getdns_return_t r;
+
+	if (!dict || !name || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(newbindata = GETDNS_MALLOC(dict->mf, getdns_bindata)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	newbindata->size = strlen(value);
+	if (!(newbindata->data = (void *)_getdns_strdup(&dict->mf, value))) {
+		GETDNS_FREE(dict->mf, newbindata);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
+		_getdns_bindata_destroy(&dict->mf, newbindata);
+		return r;
+	}
+	item->dtype = t_bindata;
+	item->data.bindata = newbindata;
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_dict_util_set_dict */
+
 /*---------------------------------------- getdns_dict_set_int */
 getdns_return_t
-getdns_dict_set_int(struct getdns_dict * dict, const char *name,
-	uint32_t child_uint32)
+getdns_dict_set_int(getdns_dict *dict, const char *name, uint32_t child_uint32)
 {
-	struct getdns_dict_item *item;
+	getdns_item    *item;
+	getdns_return_t r;
 
 	if (!dict || !name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	item = getdns_dict_find_and_add(dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
+	if ((r = _getdns_dict_find_and_add(dict, name, &item)))
+		return r;
 
 	item->dtype = t_int;
 	item->data.n = child_uint32;
@@ -499,7 +657,7 @@ getdns_indent(size_t indent)
 }				/* getdns_indent */
 
 static int
-priv_getdns_bindata_is_dname(getdns_bindata *bindata)
+_getdns_bindata_is_dname(getdns_bindata *bindata)
 {
 	size_t i = 0, n_labels = 0;
 
@@ -563,7 +721,7 @@ getdns_pp_bindata(gldns_buffer *buf, size_t indent,
 		if (gldns_buffer_printf(buf, json ? "\".\"" : "for .>") < 0)
 			return -1;
 
-	} else if (priv_getdns_bindata_is_dname(bindata)) {
+	} else if (_getdns_bindata_is_dname(bindata)) {
 		(void)gldns_wire2str_dname_buf(
 		    bindata->data, bindata->size, spc, sizeof(spc));
 		if (gldns_buffer_printf(
@@ -659,7 +817,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 				return -1;
 			if (!json && for_literals &&
 			    (strval =
-			     priv_getdns_get_const_info(int_item)->name)) {
+			     _getdns_get_const_info(int_item)->name)) {
 				if (gldns_buffer_printf(buf, "%s", strval) < 0)
 					return -1;
 			} else if (0 > 
@@ -710,7 +868,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 }				/* getdns_pp_list */
 
 static int
-priv_getdns_print_class(gldns_buffer *buf, uint32_t klass)
+_getdns_print_class(gldns_buffer *buf, uint32_t klass)
 {
 	switch (klass) {
 	case GETDNS_RRCLASS_IN:
@@ -733,7 +891,7 @@ priv_getdns_print_class(gldns_buffer *buf, uint32_t klass)
 }
 
 static int
-priv_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
+_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
 {
 	switch (opcode) {
 	case GETDNS_OPCODE_QUERY:
@@ -756,7 +914,7 @@ priv_getdns_print_opcode(gldns_buffer *buf, uint32_t opcode)
 }
 
 static int
-priv_getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
+_getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
 {
 	static const char *rcodes[] = {
 		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR" ,
@@ -807,7 +965,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 	i = 0;
 	indent += 2;
 	RBTREE_FOR(item, struct getdns_dict_item *,
-		(getdns_rbtree_t *)&(dict->root)) {
+		(_getdns_rbtree_t *)&(dict->root)) {
 
 		if (i && gldns_buffer_printf(buf, ",") < 0)
 			return -1;
@@ -818,13 +976,13 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 		    buf, "\"%s\":",(const char *)item->node.key) < 0)
 			return -1;
 
-		switch (item->dtype) {
+		switch (item->i.dtype) {
 		case t_int:
 			if (!json &&
 			    (strcmp(item->node.key, "type") == 0  ||
 			     strcmp(item->node.key, "type_covered") == 0 ||
 			     strcmp(item->node.key, "qtype") == 0) &&
-			    (strval = priv_getdns_rr_type_name(item->data.n))) {
+			    (strval = _getdns_rr_type_name(item->i.data.n))) {
 				if (gldns_buffer_printf(
 					buf, " GETDNS_RRTYPE_%s", strval) < 0)
 					return -1;
@@ -838,7 +996,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "follow_redirects") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0) &&
 			    (strval =
-			     priv_getdns_get_const_info(item->data.n)->name)) {
+			     _getdns_get_const_info(item->i.data.n)->name)) {
 				if (gldns_buffer_printf(buf, " %s", strval) < 0)
 					return -1;
 				break;
@@ -846,16 +1004,16 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json &&
 			    (strcmp(item->node.key, "class")  == 0  ||
 			     strcmp(item->node.key, "qclass") == 0) &&
-			    priv_getdns_print_class(buf, item->data.n))
+			    _getdns_print_class(buf, item->i.data.n))
 				break;
 			if (!json && strcmp(item->node.key, "opcode") == 0 &&
-			    priv_getdns_print_opcode(buf, item->data.n))
+			    _getdns_print_opcode(buf, item->i.data.n))
 				break;
 			if (!json && strcmp(item->node.key, "rcode") == 0 &&
-			    priv_getdns_print_rcode(buf, item->data.n))
+			    _getdns_print_rcode(buf, item->i.data.n))
 				break;
 			if (gldns_buffer_printf(
-			    buf,(json < 2 ? " %d" : "%d"), item->data.n) < 0)
+			    buf,(json < 2 ? " %d" : "%d"), item->i.data.n) < 0)
 				return -1;
 			break;
 
@@ -863,21 +1021,21 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if ((strcmp(item->node.key, "address_data") == 0 ||
 			     strcmp(item->node.key, "ipv4_address") == 0 ||
 			     strcmp(item->node.key, "ipv6_address") == 0 ) &&
-			    (item->data.bindata->size == 4  ||
-			     item->data.bindata->size == 16 )) {
+			    (item->i.data.bindata->size == 4  ||
+			     item->i.data.bindata->size == 16 )) {
 
 				if (gldns_buffer_printf(buf, 
 				    (json ? "\"%s\"" : " <bindata for %s>"),
-				    inet_ntop(( item->data.bindata->size == 4
+				    inet_ntop(( item->i.data.bindata->size == 4
 				              ? AF_INET : AF_INET6)
-				              , item->data.bindata->data
+				              , item->i.data.bindata->data
 				              , abuf
 				              , 40
 				              )) < 0)
 					return -1;
 	
 			} else if (getdns_pp_bindata(
-			    buf, indent, item->data.bindata,
+			    buf, indent, item->i.data.bindata,
 			    (strcmp(item->node.key, "rdata_raw") == 0),
 			    json) < 0)
 				return -1;
@@ -885,7 +1043,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 
 		case t_list:	/* Don't put empty lists on a new line */
 
-			if (getdns_list_get_length(item->data.list, &length) !=
+			if (getdns_list_get_length(item->i.data.list, &length) !=
 			    GETDNS_RETURN_GOOD)
 				return -1;
 			if (length == 0) {
@@ -897,7 +1055,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (json < 2 && gldns_buffer_printf(buf, "\n%s",
 			    getdns_indent(indent)) < 0)
 				return -1;
-			if (getdns_pp_list(buf, indent, item->data.list, 
+			if (getdns_pp_list(buf, indent, item->i.data.list, 
 			    (strcmp(item->node.key, "namespaces") == 0 ||
 			     strcmp(item->node.key, "dns_transport_list") == 0),
 			    json) < 0)
@@ -909,7 +1067,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			    getdns_indent(indent)) < 0)
 				return -1;
 			if (getdns_pp_dict(
-			    buf, indent, item->data.dict, json) < 0)
+			    buf, indent, item->i.data.dict, json) < 0)
 				return -1;
 			break;
 
@@ -1074,25 +1232,6 @@ getdns_snprint_json_list(
 	gldns_buffer_init_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, pretty ? 1 : 2) < 0
 	     ? -1 : gldns_buffer_position(&buf);
-}
-
-getdns_return_t
-getdns_dict_remove_name(struct getdns_dict *this_dict, const char *name)
-{
-	struct getdns_dict_item *item;
-
-	if (!this_dict || !name)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	item = getdns_dict_find(this_dict, name);
-	if (!item)
-		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
-
-	/* cleanup */
-	getdns_rbtree_delete(&this_dict->root, name);
-	getdns_dict_item_free(&item->node, this_dict);
-
-	return GETDNS_RETURN_GOOD;
 }
 
 /* dict.c */

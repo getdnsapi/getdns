@@ -69,14 +69,16 @@ getdns_return_t getdns_apply_network_result(getdns_network_req* netreq, struct u
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
  */
-getdns_return_t getdns_list_add_item(struct getdns_list *list, size_t * index);
-getdns_return_t getdns_list_append_dict(getdns_list *list,
+getdns_return_t _getdns_list_append_dict(getdns_list *list,
     const getdns_dict *child_dict);
-getdns_return_t getdns_list_append_list(getdns_list *list,
+getdns_return_t _getdns_list_append_list(getdns_list *list,
     const getdns_list *child_list);
-getdns_return_t getdns_list_append_bindata(getdns_list *list,
+getdns_return_t _getdns_list_append_bindata(getdns_list *list,
     const getdns_bindata *child_bindata);
-getdns_return_t getdns_list_append_int(getdns_list *list,
+getdns_return_t _getdns_list_append_string(getdns_list *list,
+    const char *value);
+
+getdns_return_t _getdns_list_append_int(getdns_list *list,
     uint32_t child_uint32);
 
 /**
@@ -90,7 +92,7 @@ getdns_return_t getdns_list_append_int(getdns_list *list,
   * @return GETDNS_RETURN_NO_SUCH_LIST_ITEM if list is invalid
   * @return GETDNS_RETURN_GENERIC_ERROR if out of memory
   */
-getdns_return_t getdns_list_copy(const struct getdns_list *srclist,
+getdns_return_t _getdns_list_copy(const struct getdns_list *srclist,
     struct getdns_list **dstlist);
 
 /**
@@ -102,7 +104,7 @@ getdns_return_t getdns_list_copy(const struct getdns_list *srclist,
  * @return GETDNS_RETURN_GOOD on success
  */
 getdns_return_t
-getdns_dict_copy(const struct getdns_dict *srcdict,
+_getdns_dict_copy(const struct getdns_dict *srcdict,
     struct getdns_dict **dstdict);
 
 /**
@@ -114,23 +116,23 @@ getdns_dict_copy(const struct getdns_dict *srcdict,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERIC_ERROR if keys missing from dictionary
  */
-getdns_return_t dict_to_sockaddr(struct getdns_dict * ns,
+getdns_return_t _getdns_dict_to_sockaddr(struct getdns_dict * ns,
     struct sockaddr_storage *output);
-getdns_return_t sockaddr_to_dict(struct getdns_context *context,
+getdns_return_t _getdns_sockaddr_to_dict(struct getdns_context *context,
     struct sockaddr_storage *sockaddr, struct getdns_dict ** output);
 
 getdns_dict *
-priv_getdns_rr_iter2rr_dict(struct mem_funcs *mf, priv_getdns_rr_iter *i);
+_getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i);
 
 struct getdns_dns_req;
-struct getdns_dict *create_getdns_response(struct getdns_dns_req *completed_request);
+struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *completed_request);
 
-getdns_dict *priv_getdns_create_reply_dict(getdns_context *context,
+getdns_dict *_getdns_create_reply_dict(getdns_context *context,
     getdns_network_req *req, getdns_list *just_addrs, int *rrsigs_in_answer);
 
-getdns_return_t priv_getdns_validate_dname(const char* dname);
+getdns_return_t _getdns_validate_dname(const char* dname);
 
-int priv_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
+int _getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
 
 uint8_t *_getdns_list2wire(
     getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
@@ -149,7 +151,7 @@ void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
  * @return GETDNS_RETURN_NO_SUCH_EXTENSION A name in the extensions dict is not a valid extension.
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
-getdns_return_t priv_getdns_validate_extensions(struct getdns_dict * extensions);
+getdns_return_t _getdns_validate_extensions(struct getdns_dict * extensions);
 
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
@@ -162,6 +164,20 @@ getdns_return_t priv_getdns_validate_extensions(struct getdns_dict * extensions)
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
+
+#define DEBUG_NL(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+		\
+		gettimeofday(&tv, NULL); \
+		gmtime_r(&tv.tv_sec, &tm); \
+		strftime(buf, 10, "%T", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+		fprintf(stderr, "\n"); \
+	} while (0)
+
 
 #define DEBUG_OFF(...) do {} while (0)
 

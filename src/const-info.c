@@ -3,6 +3,7 @@
  */
 #include <stdlib.h>
 #include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 #include "const-info.h"
 
 static struct const_info consts_info[] = {
@@ -64,6 +65,7 @@ static struct const_info consts_info[] = {
 	{ 615, "GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS", GETDNS_CONTEXT_CODE_MEMORY_FUNCTIONS_TEXT },
 	{ 616, "GETDNS_CONTEXT_CODE_TIMEOUT", GETDNS_CONTEXT_CODE_TIMEOUT_TEXT },
 	{ 617, "GETDNS_CONTEXT_CODE_IDLE_TIMEOUT", GETDNS_CONTEXT_CODE_IDLE_TIMEOUT_TEXT },
+	{ 618, "GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION", GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT },
 	{ 700, "GETDNS_CALLBACK_COMPLETE", GETDNS_CALLBACK_COMPLETE_TEXT },
 	{ 701, "GETDNS_CALLBACK_CANCEL", GETDNS_CALLBACK_CANCEL_TEXT },
 	{ 702, "GETDNS_CALLBACK_TIMEOUT", GETDNS_CALLBACK_TIMEOUT_TEXT },
@@ -84,6 +86,8 @@ static struct const_info consts_info[] = {
 	{ 1201, "GETDNS_TRANSPORT_TCP", GETDNS_TRANSPORT_TCP_TEXT },
 	{ 1202, "GETDNS_TRANSPORT_TLS", GETDNS_TRANSPORT_TLS_TEXT },
 	{ 1203, "GETDNS_TRANSPORT_STARTTLS", GETDNS_TRANSPORT_STARTTLS_TEXT },
+	{ 1300, "GETDNS_AUTHENTICATION_NONE", GETDNS_AUTHENTICATION_NONE_TEXT },
+	{ 1301, "GETDNS_AUTHENTICATION_HOSTNAME", GETDNS_AUTHENTICATION_HOSTNAME_TEXT },
 };
 
 static int const_info_cmp(const void *a, const void *b)
@@ -91,7 +95,7 @@ static int const_info_cmp(const void *a, const void *b)
 	return ((struct const_info *) a)->code - ((struct const_info *) b)->code;
 }
 struct const_info *
-priv_getdns_get_const_info(int value)
+_getdns_get_const_info(int value)
 {
 	struct const_info key = { value, "", "" };
 	struct const_info *i = bsearch(&key, consts_info,

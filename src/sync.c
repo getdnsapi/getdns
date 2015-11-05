@@ -34,7 +34,6 @@
  */
 
 #include <string.h>
-#include <unbound.h>
 #include "getdns/getdns.h"
 #include "config.h"
 #include "context.h"
@@ -47,8 +46,10 @@
 #include "gldns/wire2str.h"
 
 typedef struct getdns_sync_loop {
-	getdns_mini_event      loop;
+	_getdns_mini_event      loop;
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event ub_event;
+#endif
 	getdns_context        *context;
 	int                    to_run;
 	getdns_dict           *response;
@@ -57,24 +58,30 @@ typedef struct getdns_sync_loop {
 static getdns_return_t
 getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 {
-	getdns_return_t r;
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop *ext = &loop->loop.loop;
+#endif
+	getdns_return_t r;
 
 	loop->response = NULL;
 	loop->to_run   = 1;
 	loop->context  = context;
 
-	if ((r = getdns_mini_event_init(context, &loop->loop)))
+	if ((r = _getdns_mini_event_init(context, &loop->loop)))
 		return r;
 
+#ifdef HAVE_LIBUNBOUND
 	loop->ub_event.userarg    = loop->context;
-	loop->ub_event.read_cb    = priv_getdns_context_ub_read_cb;
+	loop->ub_event.read_cb    = _getdns_context_ub_read_cb;
 	loop->ub_event.write_cb   = NULL;
 	loop->ub_event.timeout_cb = NULL;
 	loop->ub_event.ev         = NULL;
 
 	return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
 	    TIMEOUT_FOREVER, &loop->ub_event);
+#else
+	return GETDNS_RETURN_GOOD;
+#endif
 }
 
 static void
@@ -82,7 +89,9 @@ getdns_sync_loop_cleanup(getdns_sync_loop *loop)
 {
 	getdns_eventloop *ext = &loop->loop.loop;
 
+#ifdef HAVE_LIBUNBOUND
 	ext->vmt->clear(ext, &loop->ub_event);
+#endif
 	ext->vmt->cleanup(ext);
 }
 
@@ -122,7 +131,7 @@ getdns_general_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_general_loop(context, &loop.loop.loop, name,
+	if ((r = _getdns_general_loop(context, &loop.loop.loop, name,
 	    request_type, extensions, &loop, NULL, getdns_sync_cb, NULL))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -147,7 +156,7 @@ getdns_address_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_address_loop(context, &loop.loop.loop, name,
+	if ((r = _getdns_address_loop(context, &loop.loop.loop, name,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -172,7 +181,7 @@ getdns_hostname_sync(getdns_context *context, getdns_dict *address,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_hostname_loop(context, &loop.loop.loop, address,
+	if ((r = _getdns_hostname_loop(context, &loop.loop.loop, address,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -197,7 +206,7 @@ getdns_service_sync(getdns_context *context, const char *name,
 	if ((r = getdns_sync_loop_init(context, &loop)))
 		return r;
 
-	if ((r = priv_getdns_service_loop(context, &loop.loop.loop, name,
+	if ((r = _getdns_service_loop(context, &loop.loop.loop, name,
 	    extensions, &loop, NULL, getdns_sync_cb))) {
 
 		getdns_sync_loop_cleanup(&loop);
@@ -207,12 +216,6 @@ getdns_service_sync(getdns_context *context, const char *name,
 	
 	return (*response = loop.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
-}
-
-void
-getdns_free_sync_request_memory(struct getdns_dict *response)
-{
-	getdns_dict_destroy(response);
 }
 
 /* getdns_core_sync.c */

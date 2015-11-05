@@ -34,7 +34,7 @@
 #include "gldns/rrdef.h"
 
 static void
-rr_iter_find_nxt(priv_getdns_rr_iter *i)
+rr_iter_find_nxt(_getdns_rr_iter *i)
 {
 	assert(i);
 	assert(i->rr_type);
@@ -48,8 +48,8 @@ rr_iter_find_nxt(priv_getdns_rr_iter *i)
 	       : i->rr_type + 10 + gldns_read_uint16(i->rr_type + 8);
 }
 
-static priv_getdns_rr_iter *
-find_rrtype(priv_getdns_rr_iter *i)
+static _getdns_rr_iter *
+find_rrtype(_getdns_rr_iter *i)
 {
 	uint8_t *pos;
 
@@ -82,8 +82,8 @@ done:
 	return NULL;
 }
 
-priv_getdns_rr_iter *
-priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
+_getdns_rr_iter *
+_getdns_rr_iter_init(_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 {
 	assert(i);
 
@@ -99,16 +99,16 @@ priv_getdns_rr_iter_init(priv_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 	return find_rrtype(i);
 }
 
-priv_getdns_rr_iter *
-priv_getdns_rr_iter_rewind(priv_getdns_rr_iter *i)
+_getdns_rr_iter *
+_getdns_rr_iter_rewind(_getdns_rr_iter *i)
 {
 	assert(i);
 
-	return priv_getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt);
+	return _getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt);
 }
 
-priv_getdns_rr_iter *
-priv_getdns_rr_iter_next(priv_getdns_rr_iter *i)
+_getdns_rr_iter *
+_getdns_rr_iter_next(_getdns_rr_iter *i)
 {
 	assert(i);
 
@@ -205,15 +205,15 @@ error:
 }
 
 uint8_t *
-priv_getdns_owner_if_or_as_decompressed(priv_getdns_rr_iter *i,
+_getdns_owner_if_or_as_decompressed(_getdns_rr_iter *i,
     uint8_t *ff_bytes, size_t *len)
 {
 	return dname_if_or_as_decompressed(i->pkt, i->pkt_end, i->pos,
 	    ff_bytes, len, 0);
 }
 
-static priv_getdns_rdf_iter *
-rdf_iter_find_nxt(priv_getdns_rdf_iter *i)
+static _getdns_rdf_iter *
+rdf_iter_find_nxt(_getdns_rdf_iter *i)
 {
 	uint8_t *pos;
 
@@ -269,10 +269,10 @@ done:
 	return NULL;
 }
 
-priv_getdns_rdf_iter *
-priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr)
+_getdns_rdf_iter *
+_getdns_rdf_iter_init(_getdns_rdf_iter *i, _getdns_rr_iter *rr)
 {
-	const priv_getdns_rr_def *rr_def;
+	const _getdns_rr_def *rr_def;
 
 	assert(i);
 	assert(rr);
@@ -284,7 +284,7 @@ priv_getdns_rdf_iter_init(priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr)
 
 	i->pkt     = rr->pkt;
 	i->pkt_end = rr->pkt_end;
-	rr_def     = priv_getdns_rr_def_lookup(gldns_read_uint16(rr->rr_type));
+	rr_def     = _getdns_rr_def_lookup(gldns_read_uint16(rr->rr_type));
 	i->rdd_pos = rr_def->rdata;
 	i->rdd_end = rr_def->rdata + rr_def->n_rdata_fields;
 
@@ -304,8 +304,8 @@ done:
 	return NULL;
 }
 
-priv_getdns_rdf_iter *
-priv_getdns_rdf_iter_next(priv_getdns_rdf_iter *i)
+_getdns_rdf_iter *
+_getdns_rdf_iter_next(_getdns_rdf_iter *i)
 {
 	if (!i->pos)
 		return NULL;
@@ -324,19 +324,19 @@ done:
 	return NULL;
 }
 
-priv_getdns_rdf_iter *
-priv_getdns_rdf_iter_init_at(
-    priv_getdns_rdf_iter *i, priv_getdns_rr_iter *rr, size_t pos)
+_getdns_rdf_iter *
+_getdns_rdf_iter_init_at(
+    _getdns_rdf_iter *i, _getdns_rr_iter *rr, size_t pos)
 {
-	for ( i = priv_getdns_rdf_iter_init(i, rr)
+	for ( i = _getdns_rdf_iter_init(i, rr)
 	    ; i && pos
-	    ; i = priv_getdns_rdf_iter_next(i), pos--);
+	    ; i = _getdns_rdf_iter_next(i), pos--);
 	return i;
 }       
 
 uint8_t *
-priv_getdns_rdf_if_or_as_decompressed(
-    priv_getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len)
+_getdns_rdf_if_or_as_decompressed(
+    _getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len)
 {
 	return dname_if_or_as_decompressed(i->pkt, i->pkt_end, i->pos,
 	    ff_bytes, len, 0);

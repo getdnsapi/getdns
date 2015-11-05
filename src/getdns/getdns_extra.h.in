@@ -349,6 +349,41 @@ uint32_t getdns_get_version_number(void);
 const char *getdns_get_api_version(void);
 uint32_t getdns_get_api_version_number(void);
 
+/* Authentication options used when doing TLS */
+typedef enum getdns_tls_authentication_t {
+	GETDNS_AUTHENTICATION_NONE = 1300,
+	GETDNS_AUTHENTICATION_HOSTNAME = 1301,
+} getdns_tls_authentication_t;
+
+/**
+  * \defgroup Base authentication texts
+  * @{
+  */
+#define GETDNS_AUTHENTICATION_NONE_TEXT "See getdns_context_set_tls_authentication()"
+#define GETDNS_AUTHENTICATION_HOSTNAME_TEXT "See getdns_context_set_tls_authentication()"
+/** @}
+  */
+
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION 618
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT "Change related to getdns_context_set_tls_authentication"
+
+getdns_return_t
+getdns_context_set_tls_authentication(
+    getdns_context *context, getdns_tls_authentication_t value);
+
+
+/* WARNING! Do not use the constants below.  They will be removed from future
+ * releases.  Please use the getdns_context_set_dns_transport_list with the
+ * GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP and GETDNS_TRANSPORT_TLS
+ * constants instead.
+ */
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN 544
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 545
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 546
+#define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+
 #ifdef __cplusplus
 }
 #endif

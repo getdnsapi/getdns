@@ -1,9 +1,9 @@
 /**
  *
- * /brief priv_getdns_consts table with values, names and descriptions of the
+ * /brief _getdns_consts table with values, names and descriptions of the
  *        constants in getdns
  *
- * The priv_getdns_get_validation_chain function is called after an answer
+ * The _getdns_get_validation_chain function is called after an answer
  * has been fetched when the dnssec_return_validation_chain extension is set.
  * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
  * answer.
@@ -45,7 +45,7 @@ struct const_info {
 	const char *text;
 };
 
-struct const_info *priv_getdns_get_const_info(int value);
+struct const_info *_getdns_get_const_info(int value);
 
 #endif
 

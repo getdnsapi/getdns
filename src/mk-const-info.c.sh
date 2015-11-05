@@ -6,12 +6,13 @@ cat > const-info.c << END_OF_HEAD
  */
 #include <stdlib.h>
 #include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 #include "const-info.h"
 
 static struct const_info consts_info[] = {
 	{ -1, NULL, "/* <unknown getdns value> */" },
 END_OF_HEAD
-awk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ print "\t{ "$3", \""$1"\", "$1"_TEXT }," }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/^#define GETDNS_RRCLASS/ && !/^#define GETDNS_OPCODE/  && !/^#define GETDNS_RCODE/ && !/_TEXT/{ print "\t{ "$3", \""$2"\", "$2"_TEXT },"}' getdns/getdns.h.in | sed 's/,,/,/g' >> const-info.c
+gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ consts[$3] = $1; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/^#define GETDNS_RRCLASS/ && !/^#define GETDNS_OPCODE/  && !/^#define GETDNS_RCODE/ && !/_TEXT/{ consts[$3] = $2; }END{ n = asorti(consts, const_vals, "@ind_num_asc"); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ "val", \""name"\", "name"_TEXT },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in | sed 's/,,/,/g' >> const-info.c
 cat >> const-info.c << END_OF_TAIL
 };
 
@@ -20,7 +21,7 @@ static int const_info_cmp(const void *a, const void *b)
 	return ((struct const_info *) a)->code - ((struct const_info *) b)->code;
 }
 struct const_info *
-priv_getdns_get_const_info(int value)
+_getdns_get_const_info(int value)
 {
 	struct const_info key = { value, "", "" };
 	struct const_info *i = bsearch(&key, consts_info,

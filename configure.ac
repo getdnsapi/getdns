@@ -30,8 +30,12 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 AC_PREREQ([2.56])
+AC_CONFIG_MACRO_DIRS([m4])
+sinclude(./m4/acx_openssl.m4)
+sinclude(./m4/ax_check_compile_flag.m4)
+sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [0.3.1], [stub-resolver@verisignlabs.com], [], [http://getdnsapi.net])
+AC_INIT([getdns], [0.5.0], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
 AC_SUBST(RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
@@ -42,9 +46,9 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00030000])
-AC_SUBST(API_VERSION, ["July 2015"])
-AC_SUBST(API_NUMERIC_VERSION, [0x07df0700])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00050000])
+AC_SUBST(API_VERSION, ["October 2015"])
+AC_SUBST(API_NUMERIC_VERSION, [0x07df0a00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
 
@@ -66,9 +70,12 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.1.8 had libversion 1:3:0 (but should have had 2:1:1)
 # getdns-0.2.0 had libversion 2:2:1
 # getdns-0.3.0 had libversion 3:3:2
-# getdns-0.3.1 has libversion 3:4:2
+# getdns-0.3.1 had libversion 3:4:2
+# getdns-0.3.2 had libversion 3:5:2
+# getdns-0.3.3 had libversion 3:6:2
+# getdns-0.5.0 had libversion 4:0:3
 #
-GETDNS_LIBVERSION=3:3:2
+GETDNS_LIBVERSION=4:0:3
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -104,6 +111,7 @@ fi
 AC_SUBST(libtool)
 AC_PROG_LIBTOOL
 AC_PROG_INSTALL
+
 
 initial_LIBS="$LIBS"
 initial_LDFLAGS="$LDFLAGS"
@@ -186,7 +194,204 @@ case "$enable_native_stub_dnssec" in
 		;;
 esac
 
+USE_NSS="no"
+# openssl
+if test $USE_NSS = "no"; then
 ACX_WITH_SSL_OPTIONAL
+ACX_LIB_SSL
+AC_MSG_CHECKING([for LibreSSL])
+if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
+	# libressl provides these compat functions, but they may also be
+	# declared by the OS in libc.  See if they have been declared.
+	AC_CHECK_DECLS([strlcpy,strlcat,arc4random,arc4random_uniform,reallocarray])
+else
+	AC_MSG_RESULT([no])
+fi
+AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode])
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_OPENSSL_ERR_H
+#include <openssl/err.h>
+#endif
+
+#ifdef HAVE_OPENSSL_RAND_H
+#include <openssl/rand.h>
+#endif
+
+#ifdef HAVE_OPENSSL_CONF_H
+#include <openssl/conf.h>
+#endif
+
+#ifdef HAVE_OPENSSL_ENGINE_H
+#include <openssl/engine.h>
+#endif
+#include <openssl/ssl.h>
+#include <openssl/evp.h>
+])
+fi
+
+
+AC_ARG_ENABLE(sha2, AC_HELP_STRING([--disable-sha2], [Disable SHA256 and SHA512 RRSIG support]))
+case "$enable_sha2" in
+	no)
+	;;
+	yes|*)
+	AC_DEFINE([USE_SHA2], [1], [Define this to enable SHA256 and SHA512 support.])
+	;;
+esac
+
+# check wether gost also works
+AC_DEFUN([AC_CHECK_GOST_WORKS],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING([if GOST works])
+if test c${cross_compiling} = cno; then
+BAKCFLAGS="$CFLAGS"
+if test -n "$ssldir"; then
+	CFLAGS="$CFLAGS -Wl,-rpath,$ssldir/lib"
+fi
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#include <string.h>
+#include <openssl/ssl.h>
+#include <openssl/evp.h>
+#include <openssl/engine.h>
+#include <openssl/conf.h>
+/* routine to load gost (from sldns) */
+int load_gost_id(void)
+{
+	static int gost_id = 0;
+	const EVP_PKEY_ASN1_METHOD* meth;
+	ENGINE* e;
+
+	if(gost_id) return gost_id;
+
+	/* see if configuration loaded gost implementation from other engine*/
+	meth = EVP_PKEY_asn1_find_str(NULL, "gost2001", -1);
+	if(meth) {
+		EVP_PKEY_asn1_get0_info(&gost_id, NULL, NULL, NULL, NULL, meth);
+		return gost_id;
+	}
+
+	/* see if engine can be loaded already */
+	e = ENGINE_by_id("gost");
+	if(!e) {
+		/* load it ourself, in case statically linked */
+		ENGINE_load_builtin_engines();
+		ENGINE_load_dynamic();
+		e = ENGINE_by_id("gost");
+	}
+	if(!e) {
+		/* no gost engine in openssl */
+		return 0;
+	}
+	if(!ENGINE_set_default(e, ENGINE_METHOD_ALL)) {
+		ENGINE_finish(e);
+		ENGINE_free(e);
+		return 0;
+	}
+
+	meth = EVP_PKEY_asn1_find_str(&e, "gost2001", -1);
+	if(!meth) {
+		/* algo not found */
+		ENGINE_finish(e);
+		ENGINE_free(e);
+		return 0;
+	}
+	EVP_PKEY_asn1_get0_info(&gost_id, NULL, NULL, NULL, NULL, meth);
+	return gost_id;
+}
+int main(void) { 
+	EVP_MD_CTX* ctx;
+	const EVP_MD* md;
+	unsigned char digest[64]; /* its a 256-bit digest, so uses 32 bytes */
+	const char* str = "Hello world";
+	const unsigned char check[] = {
+		0x40 , 0xed , 0xf8 , 0x56 , 0x5a , 0xc5 , 0x36 , 0xe1 ,
+		0x33 , 0x7c , 0x7e , 0x87 , 0x62 , 0x1c , 0x42 , 0xe0 ,
+		0x17 , 0x1b , 0x5e , 0xce , 0xa8 , 0x46 , 0x65 , 0x4d ,
+		0x8d , 0x3e , 0x22 , 0x9b , 0xe1 , 0x30 , 0x19 , 0x9d
+	};
+	OPENSSL_config(NULL);
+	(void)load_gost_id();
+	md = EVP_get_digestbyname("md_gost94");
+	if(!md) return 1;
+	memset(digest, 0, sizeof(digest));
+	ctx = EVP_MD_CTX_create();
+	if(!ctx) return 2;
+	if(!EVP_DigestInit_ex(ctx, md, NULL)) return 3;
+	if(!EVP_DigestUpdate(ctx, str, 10)) return 4;
+	if(!EVP_DigestFinal_ex(ctx, digest, NULL)) return 5;
+	/* uncomment to see the hash calculated.
+		{int i;
+		for(i=0; i<32; i++)
+			printf(" %2.2x", (int)digest[i]);
+		printf("\n");}
+	*/
+	if(memcmp(digest, check, sizeof(check)) != 0)
+		return 6;
+	return 0;
+}
+]])] , [eval "ac_cv_c_gost_works=yes"], [eval "ac_cv_c_gost_works=no"])
+CFLAGS="$BAKCFLAGS"
+else
+eval "ac_cv_c_gost_works=maybe"
+fi
+AC_MSG_RESULT($ac_cv_c_gost_works)
+])dnl
+
+AC_ARG_ENABLE(gost, AC_HELP_STRING([--disable-gost], [Disable GOST support]))
+use_gost="no"
+if test $USE_NSS = "no"; then
+case "$enable_gost" in
+	no)
+	;;
+	*)
+	AC_CHECK_FUNC(EVP_PKEY_set_type_str, [:],[AC_MSG_ERROR([OpenSSL 1.0.0 is needed for GOST support])])
+	AC_CHECK_FUNC(EC_KEY_new, [], [AC_MSG_ERROR([OpenSSL does not support ECC, needed for GOST support])])
+	AC_CHECK_GOST_WORKS
+	if test "$ac_cv_c_gost_works" != no; then
+		use_gost="yes"
+		AC_DEFINE([USE_GOST], [1], [Define this to enable GOST support.])
+	fi
+	;;
+esac
+fi dnl !USE_NSS
+
+AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--disable-ecdsa], [Disable ECDSA support]))
+use_ecdsa="no"
+case "$enable_ecdsa" in
+    no)
+      ;;
+    *)
+      if test $USE_NSS = "no"; then
+	      AC_CHECK_FUNC(ECDSA_sign, [], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade or rerun with --disable-ecdsa])])
+	      AC_CHECK_FUNC(SHA384_Init, [], [AC_MSG_ERROR([OpenSSL does not support SHA384: please upgrade or rerun with --disable-ecdsa])])
+	      AC_CHECK_DECLS([NID_X9_62_prime256v1, NID_secp384r1], [], [AC_MSG_ERROR([OpenSSL does not support the ECDSA curves: please upgrade or rerun with --disable-ecdsa])], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+	      ])
+	      # see if OPENSSL 1.0.0 or later (has EVP MD and Verify independency)
+	      AC_MSG_CHECKING([if openssl supports SHA2 and ECDSA with EVP])
+	      if grep OPENSSL_VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "OpenSSL" >/dev/null; then
+		if grep OPENSSL_VERSION_NUMBER $ssldir/include/openssl/opensslv.h | grep 0x0 >/dev/null; then
+		  AC_MSG_RESULT([no])
+		  AC_DEFINE_UNQUOTED([USE_ECDSA_EVP_WORKAROUND], [1], [Define this to enable an EVP workaround for older openssl])
+		else
+		  AC_MSG_RESULT([yes])
+		fi
+	      else
+		# not OpenSSL, thus likely LibreSSL, which supports it
+		AC_MSG_RESULT([yes])
+	      fi
+      fi
+      # we now know we have ECDSA and the required curves.
+      AC_DEFINE_UNQUOTED([USE_ECDSA], [1], [Define this to enable ECDSA support.])
+      use_ecdsa="yes"
+      ;;
+esac
+
 
 
 AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
@@ -203,8 +408,19 @@ esac
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the edns client cookie is refreshed.])
 
+my_with_libunbound=1
+AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
+case "$enable_stub_only" in
+	yes)
+		my_with_libunbound=0
+		;;
+	no|*)
+		;;
+esac
+
 # search to set include and library paths right
 # find libidn
+my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
 	[path to libidn (default: search /usr/local ..)]),
 	[], [withval="yes"])
@@ -232,72 +448,54 @@ else
 	if test x_$withval != x_no; then
 		CFLAGS="$CFLAGS -I$withval/include"
 		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		my_with_libidn=0
 	fi
 fi
 
-# find libldns
-AC_ARG_WITH(libldns, AS_HELP_STRING([--with-libldns=pathname],
-	[path to libldns (default: search /usr/local ..)]),
-	[], [withval="yes"])
-if test x_$withval = x_yes; then
-	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-		if test -f "$dir/include/ldns/ldns.h"; then
-			CFLAGS="$CFLAGS -I$dir/include"
-			LDFLAGS="$LDFLAGS -L$dir/lib"
-			AC_MSG_NOTICE([Found libldns in $dir])
-			break
+if test $my_with_libunbound = 1
+then
+	# find libunbound
+	AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
+		[path to libunbound (default: search /usr/local ..)]),
+		[], [withval="yes"])
+	if test x_$withval = x_yes; then
+		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+			if test -f "$dir/include/unbound.h"; then
+				CFLAGS="$CFLAGS -I$dir/include"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libunbound in $dir])
+				break
+			fi
+		done
+	else
+		if test x_$withval != x_no; then
+			CFLAGS="$CFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		else
+			AC_DEFINE_UNQUOTED([DISABLE_RESOLUTION_RECURSING], [1], [Define this to disable recursing resolution type.])
+			my_with_libunbound=0
 		fi
-	done
-else
-	if test x_$withval != x_no; then
-		CFLAGS="$CFLAGS -I$withval/include"
-		LDFLAGS="$LDFLAGS -L$withval/lib"
-	fi
-fi
-
-# find libunbound
-AC_ARG_WITH(libunbound, AS_HELP_STRING([--with-libunbound=pathname],
-	[path to libunbound (default: search /usr/local ..)]),
-	[], [withval="yes"])
-if test x_$withval = x_yes; then
-	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-		if test -f "$dir/include/unbound.h"; then
-			CFLAGS="$CFLAGS -I$dir/include"
-			LDFLAGS="$LDFLAGS -L$dir/lib"
-			AC_MSG_NOTICE([Found libunbound in $dir])
-			break
-		fi
-	done
-else
-	if test x_$withval != x_no; then
-		CFLAGS="$CFLAGS -I$withval/include"
-		LDFLAGS="$LDFLAGS -L$withval/lib"
 	fi
 fi
 
 # Checks for libraries.
 found_all_libs=1
-AC_MSG_NOTICE([Checking for dependency ldns])
-AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [], [found_all_libs=0])
-AC_MSG_NOTICE([Checking for dependency libidn])
-AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
-
-AC_CHECK_MEMBER([struct ldns_struct_dnssec_zone.hashed_names],
-[AC_DEFINE_UNQUOTED([LDNS_DNSSEC_ZONE_HASHED_NAMES], [1], [When defined ldns_dnssec_zone contained the hashed_names member.])], [], [[#include <ldns/ldns.h>]])
-
-if test $found_all_libs == 0
+if test $my_with_libidn = 1
 then
-    AC_MSG_ERROR([One more dependencies is missing])
+	AC_MSG_NOTICE([Checking for dependency libidn])
+	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
 fi
 
-# break out libunbound from other libraries since we are currently using a
-# patch to the sources
-found_libunbound=1
-AC_MSG_NOTICE([Checking for dependency libunbound])
-AC_CHECK_LIB([unbound], [ub_fd], [], [found_libunbound=0])
-if test $found_libunbound == 0
+if test $my_with_libunbound = 1
 then
-    AC_MSG_ERROR([libunbound is missing.])
+	AC_MSG_NOTICE([Checking for dependency libunbound])
+	AC_CHECK_LIB([unbound], [ub_fd], [], [found_all_libs=0])
+fi
+
+if test $found_all_libs = 0
+then
+    AC_MSG_ERROR([One more dependencies is missing])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
@@ -340,6 +538,7 @@ AC_DEFINE(HAVE_IOCTLSOCKET, 1, [if the function 'ioctlsocket' is available])
 # afterwards.
 getdns_LIBS="$LIBS"
 getdns_LDFLAGS="$LDFLAGS"
+getdns_CFLAGS="$CFLAGS"
 
 #-------------------- libraries needed for libcheck
 LIBS="$initial_LIBS"
@@ -364,6 +563,60 @@ AC_SUBST([CHECK_GETDNS])
 AC_SUBST([CHECK_LIBS])
 AC_SUBST([CHECK_CFLAGS])
 # end libraries needed for libcheck
+
+# find libldns
+LIBS="$initial_LIBS"
+
+LDNS_LIBS=""
+LDNS_CFLAGS=""
+LDNS_LDFLAGS=""
+NOLIBLDNS=""
+
+AC_ARG_WITH(libldns, AS_HELP_STRING([--with-libldns=pathname],
+	[path to libldns (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/ldns/ldns.h"; then
+			LDNS_CFLAGS="-I$dir/include"
+			LDNS_LDFLAGS="-L$dir/lib"
+			CFLAGS="$CFLAGS $LDNS_CFLAGS"
+			LDFLAGS="$LDFLAGS $LDNS_LDFLAGS"
+			AC_MSG_NOTICE([Found libldns in $dir])
+			break
+		fi
+	done
+else
+	if test x_$withval != x_no; then
+		LDNS_CFLAGS="-I$withval/include"
+		LDNS_LDFLAGS="-L$withval/lib"
+		CFLAGS="$CFLAGS $LDNS_CFLAGS"
+		LDFLAGS="$LDFLAGS $LDNS_LDFLAGS"
+	else
+		NOLIBLDNS="nolibldns"
+		AC_MSG_WARN([libldns not found or usable; unit tests will not be compiled and run])
+	fi
+fi
+if test x$NOLIBLDNS = x
+then
+AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [
+LDNS_LIBS="-lldns"
+AC_DEFINE_UNQUOTED(HAVE_LIBLDNS, [1], [Have libldns])
+], [
+NOLIBLDNS="nolibldns"
+AC_MSG_WARN([libldns not found or usable; unit tests will not be compiled and run])
+])
+fi
+
+AC_SUBST([LDNS_LIBS])
+AC_SUBST([LDNS_CFLAGS])
+AC_SUBST([LDNS_LDFLAGS])
+AC_SUBST([NOLIBLDNS])
+
+LIBS="$getdns_LIBS"
+CFLAGS="$getdns_CFLAGS"
+LDFLAGS="$getdns_LDFLAGS"
+
 
 #-------------------- libevent extension
 AC_ARG_WITH([libevent],
@@ -597,6 +850,22 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
+	[Also compile and install the getdns_query tool]),
+	[], [withval="no"])
+if test x_$withval = x_no; then
+	GETDNS_QUERY=""
+	INSTALL_GETDNS_QUERY=""
+	UNINSTALL_GETDNS_QUERY=""
+else
+	GETDNS_QUERY="getdns_query"
+	INSTALL_GETDNS_QUERY="install-getdns_query"
+	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
+fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
 AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
@@ -608,7 +877,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -706,6 +975,14 @@ AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
 #include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -716,10 +993,12 @@ extern "C" {
 #include <stddef.h>
 #endif
 
-#if !defined(HAVE_STRLCPY) || !HAVE_DECL_STRLCPY
+#if !defined(HAVE_STRLCPY) || !HAVE_DECL_STRLCPY || !defined(strlcpy)
 size_t strlcpy(char *dst, const char *src, size_t siz);
 #else
+#ifndef __BSD_VISIBLE
 #define __BSD_VISIBLE 1
+#endif
 #endif
 #if !defined(HAVE_ARC4RANDOM) || !HAVE_DECL_ARC4RANDOM
 uint32_t arc4random(void);
@@ -761,11 +1040,6 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #  define GLDNS_BUILD_CONFIG_HAVE_SSL 1
 #endif
 
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <assert.h>
-
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -774,6 +1048,10 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
@@ -823,8 +1101,8 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 # endif
 #endif
 
-#ifdef HAVE_BSD_STRING_H
-#include <bsd/string.h>
+#ifdef HAVE_LIBUNBOUND
+#include <unbound.h>
 #endif
 ])
 

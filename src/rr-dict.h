@@ -36,19 +36,19 @@
 #include "getdns/getdns.h"
 #include "gldns/gbuffer.h"
 
-typedef uint8_t *(*priv_getdns_rdf_end_t)(
+typedef uint8_t *(*_getdns_rdf_end_t)(
     uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf);
-/* Limit checks are already done with priv_getdns_rdf_end_t */
-typedef getdns_return_t (*priv_getdns_rdf_dict_set_value_t)(
+/* Limit checks are already done with _getdns_rdf_end_t */
+typedef getdns_return_t (*_getdns_rdf_dict_set_value_t)(
     getdns_dict *dict, uint8_t *rdf);
-typedef getdns_return_t (*priv_getdns_rdf_list_append_value_t)(
+typedef getdns_return_t (*_getdns_rdf_list_append_value_t)(
     getdns_list *list, uint8_t *rdf);
 
-typedef struct priv_getdns_rdf_special {
-	priv_getdns_rdf_end_t               rdf_end;
-	priv_getdns_rdf_dict_set_value_t    dict_set_value;
-	priv_getdns_rdf_list_append_value_t list_append_value;
-} priv_getdns_rdf_special;
+typedef struct _getdns_rdf_special {
+	_getdns_rdf_end_t               rdf_end;
+	_getdns_rdf_dict_set_value_t    dict_set_value;
+	_getdns_rdf_list_append_value_t list_append_value;
+} _getdns_rdf_special;
 
 /* draft-levine-dnsextlang'ish type rr and rdata definitions */
 
@@ -61,7 +61,7 @@ typedef struct priv_getdns_rdf_special {
 #define GETDNS_RDF_FIXEDSZ    0x0000FF
 #define GETDNS_RDF_LEN_VAL    0x00FF00
 
-typedef enum priv_getdns_rdf_wf_type {
+typedef enum _getdns_rdf_wf_type {
 	GETDNS_RDF_N        = 0x060000,     /* N      */
 	GETDNS_RDF_N_A      = 0x060000,     /* N[A]   */
 	GETDNS_RDF_N_C      = 0x0E0000,     /* N[C]   */
@@ -117,26 +117,26 @@ typedef enum priv_getdns_rdf_wf_type {
 	GETDNS_RDF_R        = 0x100000, /* Repeat */
 
 	GETDNS_RDF_SPECIAL  = 0x800000,
-} priv_getdns_rdf_type;
+} _getdns_rdf_type;
 
-typedef struct priv_getdns_rdata_def {
+typedef struct _getdns_rdata_def {
 	const char              *name;
-	priv_getdns_rdf_type     type;
-	priv_getdns_rdf_special *special;
-} priv_getdns_rdata_def;
+	_getdns_rdf_type     type;
+	_getdns_rdf_special *special;
+} _getdns_rdata_def;
 
-typedef struct priv_getdns_rr_def {
+typedef struct _getdns_rr_def {
 	const char                  *name;
-	const priv_getdns_rdata_def *rdata;
+	const _getdns_rdata_def *rdata;
 	int                          n_rdata_fields;
-} priv_getdns_rr_def;
+} _getdns_rr_def;
 
-const priv_getdns_rr_def *priv_getdns_rr_def_lookup(uint16_t rr_type);
+const _getdns_rr_def *_getdns_rr_def_lookup(uint16_t rr_type);
 
-getdns_return_t priv_getdns_rr_dict2wire(
+getdns_return_t _getdns_rr_dict2wire(
     getdns_dict *rr_dict, gldns_buffer *buf);
 
-const char *priv_getdns_rr_type_name(int rr_type);
+const char *_getdns_rr_type_name(int rr_type);
 
 #endif
 

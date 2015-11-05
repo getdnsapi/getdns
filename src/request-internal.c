@@ -104,6 +104,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->transport_current = 0;
     memcpy(net_req->transports, owner->context->dns_transports,
            net_req->transport_count * sizeof(getdns_transport_list_t));
+	net_req->tls_auth_min = owner->context->tls_auth_min;
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->query_id = 0;
@@ -184,14 +185,14 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 }
 
 void
-dns_req_free(getdns_dns_req * req)
+_getdns_dns_req_free(getdns_dns_req * req)
 {
 	getdns_network_req **net_req;
 	if (!req) {
 		return;
 	}
 
-	priv_getdns_upstreams_dereference(req->upstreams);
+	_getdns_upstreams_dereference(req->upstreams);
 
 	/* cleanup network requests */
 	for (net_req = req->netreqs; *net_req; net_req++)
@@ -208,7 +209,7 @@ dns_req_free(getdns_dns_req * req)
 
 /* create a new dns req to be submitted */
 getdns_dns_req *
-dns_req_new(getdns_context *context, getdns_eventloop *loop,
+_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions)
 {
 	int dnssec_return_status

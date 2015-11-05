@@ -80,6 +80,7 @@ typedef enum getdns_tls_hs_state {
 } getdns_tls_hs_state_t;
 
 typedef struct getdns_upstream {
+	/* backpointer to containing upstreams structure */
 	struct getdns_upstreams *upstreams;
 
 	socklen_t                addr_len;
@@ -100,11 +101,13 @@ typedef struct getdns_upstream {
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
+	char                     tls_auth_name[256];
+	size_t                   tls_auth_failed;
 
 	/* Pipelining of TCP network requests */
 	getdns_network_req      *write_queue;
 	getdns_network_req      *write_queue_last;
-	getdns_rbtree_t          netreq_by_query_id;
+	_getdns_rbtree_t          netreq_by_query_id;
 
 	/* EDNS cookies */
 	uint32_t secret;
@@ -143,6 +146,8 @@ struct getdns_context {
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
+	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
+	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;
@@ -164,12 +169,14 @@ struct getdns_context {
 	struct mem_funcs mf;
 	struct mem_funcs my_mf;
 
+#ifdef HAVE_LIBUNBOUND
 	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
 	int            unbound_ta_set;
+#endif
 
 	/* A tree to hold local host information*/
-	getdns_rbtree_t local_hosts;
+	_getdns_rbtree_t local_hosts;
 
 	int return_dnssec_status;
 
@@ -181,14 +188,17 @@ struct getdns_context {
 	/*
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
-	getdns_rbtree_t outbound_requests;
+	_getdns_rbtree_t outbound_requests;
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;
+
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event  ub_event;
+#endif
 
 	/* The default extension */
-	getdns_mini_event mini_event;
+	_getdns_mini_event mini_event;
 
 	/*
 	 * state data used to detect changes to the system config files
@@ -208,43 +218,43 @@ struct getdns_context {
  * @param usenamespaces if 0 then only use the DNS, else use context namespace list
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t getdns_context_prepare_for_resolution(struct getdns_context *context,
+getdns_return_t _getdns_context_prepare_for_resolution(struct getdns_context *context,
  int usenamespaces);
 
 /* track an outbound request */
-getdns_return_t getdns_context_track_outbound_request(struct getdns_dns_req
+getdns_return_t _getdns_context_track_outbound_request(struct getdns_dns_req
     *req);
 /* clear the outbound request from being tracked - does not cancel it */
-getdns_return_t getdns_context_clear_outbound_request(struct getdns_dns_req
+getdns_return_t _getdns_context_clear_outbound_request(struct getdns_dns_req
     *req);
 
-getdns_return_t getdns_context_request_timed_out(struct getdns_dns_req
+getdns_return_t _getdns_context_request_timed_out(struct getdns_dns_req
     *req);
 
 /* cancel callback internal - flag to indicate if req should be freed and callback fired */
-getdns_return_t getdns_context_cancel_request(struct getdns_context *context,
+getdns_return_t _getdns_context_cancel_request(struct getdns_context *context,
     getdns_transaction_t transaction_id, int fire_callback);
 
-char *getdns_strdup(const struct mem_funcs *mfs, const char *str);
+char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 
-struct getdns_bindata *getdns_bindata_copy(
+struct getdns_bindata *_getdns_bindata_copy(
     struct mem_funcs *mfs,
     const struct getdns_bindata *src);
 
-void getdns_bindata_destroy(
+void _getdns_bindata_destroy(
     struct mem_funcs *mfs,
     struct getdns_bindata *bindata);
 
 /* perform name resolution in /etc/hosts */
-getdns_return_t getdns_context_local_namespace_resolve(
+getdns_return_t _getdns_context_local_namespace_resolve(
     getdns_dns_req* req, struct getdns_dict **response);
 
-int filechg_check(struct getdns_context *context, struct filechg *fchg);
+int _getdns_filechg_check(struct getdns_context *context, struct filechg *fchg);
 
-void priv_getdns_context_ub_read_cb(void *userarg);
+void _getdns_context_ub_read_cb(void *userarg);
 
-void priv_getdns_upstreams_dereference(getdns_upstreams *upstreams);
+void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
-void priv_getdns_upstream_shutdown(getdns_upstream *upstreams);
+void _getdns_upstream_shutdown(getdns_upstream *upstream);
 
 #endif /* _GETDNS_CONTEXT_H_ */

@@ -37,9 +37,9 @@
 #include "getdns/getdns.h"
 #include "types-internal.h"
 
-getdns_return_t priv_getdns_submit_stub_request(getdns_network_req *netreq);
+getdns_return_t _getdns_submit_stub_request(getdns_network_req *netreq);
 
-void priv_getdns_cancel_stub_request(getdns_network_req *netreq);
+void _getdns_cancel_stub_request(getdns_network_req *netreq);
 
 #endif
 

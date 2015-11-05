@@ -41,6 +41,23 @@
 #include "util/rbtree.h"
 
 
+/**
+ * this structure represents a single item in a list or dict
+ */
+typedef union getdns_union {
+	void            *ptr;
+	getdns_dict     *dict;
+	getdns_list     *list;
+	getdns_bindata  *bindata;
+	uint32_t         n;
+} getdns_union;
+
+typedef struct getdns_item {
+	getdns_data_type dtype;
+	getdns_union     data;
+} getdns_item;
+
+
 struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
@@ -175,7 +192,7 @@ typedef struct getdns_tcp_state {
 typedef struct getdns_network_req
 {
 	/* For storage in upstream->netreq_by_query_id */
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 	/* the async_id from unbound */
 	int unbound_id;
 	/* state var */
@@ -196,8 +213,9 @@ typedef struct getdns_network_req
 	struct getdns_upstream *upstream;
 	int                     fd;
 	getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
-	size_t                   transport_count;
-	size_t                   transport_current;
+	size_t                  transport_count;
+	size_t                  transport_current;
+	getdns_tls_authentication_t  tls_auth_min;
 	getdns_eventloop_event  event;
 	getdns_tcp_state        tcp;
 	uint16_t                query_id;
@@ -227,7 +245,7 @@ typedef struct getdns_network_req
  */
 typedef struct getdns_dns_req {
 	/* For storage in context->outbound_requests */
-	getdns_rbnode_t node;
+	_getdns_rbnode_t node;
 
 	/* name */
 	uint8_t name[256];
@@ -321,10 +339,10 @@ typedef struct getdns_dns_req {
 extern getdns_dict *dnssec_ok_checking_disabled;
 
 /* dns request utils */
-getdns_dns_req *dns_req_new(getdns_context *context, getdns_eventloop *loop,
+getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions);
 
-void dns_req_free(getdns_dns_req * req);
+void _getdns_dns_req_free(getdns_dns_req * req);
 
 #endif
 /* types-internal.h */
