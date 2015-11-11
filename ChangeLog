@@ -1,5 +1,25 @@
 * 2015-11-??: Version 0.5.1
-  * Bufix: growing upstreams arrow.
+  * Bugfix: growing upstreams arrow.
+  * Bugfix: Segfault on timeout in specific conditions
+  * Bugfix: install getdns_extra.h from build location
+  * Bugfix: Don't let cookies overwrite existing EDNS0 options
+  * The EDNS(0) Padding Option (draft-mayrhofer-edns0-padding).
+    When using DNS over TLS, query sizes will be padded to multiples
+    of a block size given with:
+    getdns_context_set_tls_query_padding_blocksize()
+  * An EDNS client subnet private option, that will ask a EDNS client
+    subnet aware resolver to not reveal any details about the 
+    originating network.  See: draft-ietf-dnsop-edns-client-subnet
+    Set with: getdns_context_set_edns_client_subnet_private()
+  * The return_call_debugging extension.  The extension will also return
+    the transport used on top of the information about the request which
+    is described in the API spec.
+  * A dnssec_roadblock_avoidance extension.  When set, the library will
+    work in stub resolution mode and try to get a by DNSSEC validation
+    assessed answer.  On BOGUS answers the library will retry rescursive
+    resolution mode.  This is the simplest form of passive roadblock
+    detection and avoidance.
+    See: draft-ietf-dnsop-dnssec-roadblock-avoidance
 
 * 2015-10-29: Version 0.5.0
   * Native crypto.  No ldns dependency anymore.
