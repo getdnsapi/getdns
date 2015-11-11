@@ -2176,13 +2176,12 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 #endif
 
 
+#ifdef HAVE_LIBUNBOUND
 static getdns_return_t
 ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 {
-#ifdef HAVE_LIBUNBOUND
 	_getdns_rr_iter rr_spc, *rr;
 	char ta_str[8192];
-#endif
 
 	/* TODO: use the root servers via root hints file */
 	(void) ub_ctx_set_fwd(ctx, NULL);
@@ -2200,6 +2199,7 @@ ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 	}
 	return GETDNS_RETURN_GOOD;
 }
+#endif
 
 static getdns_return_t
 _getdns_ns_dns_setup(struct getdns_context *context)
