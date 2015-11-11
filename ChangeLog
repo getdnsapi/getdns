@@ -3,6 +3,7 @@
   * Bugfix: Segfault on timeout in specific conditions
   * Bugfix: install getdns_extra.h from build location
   * Bugfix: Don't let cookies overwrite existing EDNS0 options
+  * Don't link libdl
   * The EDNS(0) Padding Option (draft-mayrhofer-edns0-padding).
     When using DNS over TLS, query sizes will be padded to multiples
     of a block size given with:
@@ -18,8 +19,9 @@
     work in stub resolution mode and try to get a by DNSSEC validation
     assessed answer.  On BOGUS answers the library will retry rescursive
     resolution mode.  This is the simplest form of passive roadblock
-    detection and avoidance.
-    See: draft-ietf-dnsop-dnssec-roadblock-avoidance
+    detection and avoidance: draft-ietf-dnsop-dnssec-roadblock-avoidance.
+    Use the --enable-draft-dnssec-roadblock-avoidance option to configure
+    to compile with this extension.
 
 * 2015-10-29: Version 0.5.0
   * Native crypto.  No ldns dependency anymore.
