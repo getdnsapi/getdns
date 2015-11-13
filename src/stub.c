@@ -694,6 +694,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 	if (q != 0)
 		return q;
 
+	netreq->debug_udp = 0;
 	/* Do we have remaining data that we could not write before?  */
 	if (! tcp->write_buf) {
 		/* No, this is an initial write. Try to send
@@ -1302,6 +1303,7 @@ stub_udp_write_cb(void *userarg)
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
 	netreq->debug_start_time = _getdns_get_time_as_uintt64();
+	netreq->debug_udp = 1;
 	netreq->query_id = arc4random();
 	GLDNS_ID_SET(netreq->query, netreq->query_id);
 	if (netreq->opt) {
@@ -1390,6 +1392,7 @@ stub_tcp_write_cb(void *userarg)
 		return;
 
 	default:
+		netreq->debug_udp = 0;
 		netreq->query_id = (uint16_t) q;
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		GETDNS_SCHEDULE_EVENT(
