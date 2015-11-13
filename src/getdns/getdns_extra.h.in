@@ -144,10 +144,6 @@ getdns_context_get_dns_transport_list(getdns_context *context,
     size_t* transport_count, getdns_transport_list_t **transports);
 
 getdns_return_t
-getdns_context_get_tls_authentication(getdns_context *context,
-    getdns_tls_authentication_t* value);
-
-getdns_return_t
 getdns_context_get_limit_outstanding_queries(getdns_context *context,
     uint16_t* limit);
 
@@ -388,6 +384,10 @@ typedef enum getdns_tls_authentication_t {
 getdns_return_t
 getdns_context_set_tls_authentication(
     getdns_context *context, getdns_tls_authentication_t value);
+
+getdns_return_t
+getdns_context_get_tls_authentication(getdns_context *context,
+    getdns_tls_authentication_t* value);
 
 
 /* WARNING! Do not use the constants below.  They will be removed from future
