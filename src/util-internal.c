@@ -714,11 +714,17 @@ _getdns_create_call_debugging_dict(
 	_getdns_sockaddr_to_dict(
 	    context, &netreq->upstream->addr, &address_debug);
 
-	if (getdns_dict_set_dict(netreq_debug, "query_to", address_debug) ||
-	    getdns_dict_set_int( netreq_debug, "transport"
-	                       , netreq->upstream->transport)) {
-
+	if (getdns_dict_set_dict(netreq_debug, "query_to", address_debug)) {
 		getdns_dict_destroy(address_debug);
+		return NULL;
+	}
+	getdns_transport_list_t transport = netreq->upstream->transport;
+	/* Same upstream is used for UDP and TCP, so netreq keeps track of what
+	   was actually used for the last successful query.*/
+	if (transport == GETDNS_TRANSPORT_TCP && netreq->debug_udp == 1) {
+		transport = GETDNS_TRANSPORT_UDP;
+	}
+	if (getdns_dict_set_int( netreq_debug, "transport", transport)) {
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}

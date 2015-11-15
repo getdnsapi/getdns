@@ -385,6 +385,10 @@ getdns_return_t
 getdns_context_set_tls_authentication(
     getdns_context *context, getdns_tls_authentication_t value);
 
+getdns_return_t
+getdns_context_get_tls_authentication(getdns_context *context,
+    getdns_tls_authentication_t* value);
+
 
 /* WARNING! Do not use the constants below.  They will be removed from future
  * releases.  Please use the getdns_context_set_dns_transport_list with the

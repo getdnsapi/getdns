@@ -2603,6 +2603,7 @@ _get_context_settings(getdns_context* context) {
             }
             r |= getdns_dict_set_list(result, "dns_transport_list", transports);
         }
+        r |= getdns_dict_set_int(result, "tls_authentication", context->tls_auth);
     }
     if (context->namespace_count > 0) {
         /* create a namespace list */
@@ -2845,6 +2846,15 @@ getdns_context_get_dns_transport_list(getdns_context *context,
     *transports = malloc(context->dns_transport_count * sizeof(getdns_transport_list_t));
     memcpy(*transports, context->dns_transports,
            context->dns_transport_count * sizeof(getdns_transport_list_t));
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_authentication(getdns_context *context,
+    getdns_tls_authentication_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_auth;
     return GETDNS_RETURN_GOOD;
 }
 
