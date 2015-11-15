@@ -1501,9 +1501,15 @@ upstream_write_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
-	getdns_dns_req *dnsreq = netreq->owner;
+	getdns_dns_req *dnsreq;
 	int q;
 	
+	if (!netreq) {
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.write_cb = NULL;
+		return;
+	}
+	dnsreq = netreq->owner;
 	/* TODO: think about TCP AGAIN */
 	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	
