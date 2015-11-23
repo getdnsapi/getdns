@@ -1,0 +1,150 @@
+#
+# @configure_input@
+#
+# Copyright (c) 2013, Verisign, Inc., NLNet Labs
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# * Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+# * Neither the names of the copyright holders nor the
+#   names of its contributors may be used to endorse or promote products
+#   derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+package = @PACKAGE_NAME@
+version = @PACKAGE_VERSION@
+tarname = @PACKAGE_TARNAME@
+distdir = $(tarname)-$(version)
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+INSTALL = @INSTALL@
+LIBTOOL = ../../libtool
+
+srcdir = @srcdir@
+
+have_libevent = @have_libevent@
+have_libuv = @have_libuv@
+have_libev = @have_libev@
+NOLIBCHECK = @NOLIBCHECK@
+NOLIBLDNS = @NOLIBLDNS@
+
+EXTENSION_LIBEVENT_EXT_LIBS=@EXTENSION_LIBEVENT_EXT_LIBS@
+EXTENSION_LIBEVENT_LDFLAGS=@EXTENSION_LIBEVENT_LDFLAGS@
+EXTENSION_LIBUV_EXT_LIBS=@EXTENSION_LIBUV_EXT_LIBS@
+EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
+EXTENSION_LIBEV_EXT_LIBS=@EXTENSION_LIBEV_EXT_LIBS@
+EXTENSION_LIBEV_LDFLAGS=@EXTENSION_LIBEV_LDFLAGS@
+
+CHECK_GETDNS=@CHECK_GETDNS@
+CHECK_UV_PROG=@CHECK_UV_PROG@
+CHECK_EVENT_PROG=@CHECK_EVENT_PROG@
+CHECK_EV_PROG=@CHECK_EV_PROG@
+
+CC=@CC@
+CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ -I/usr/local/ssl/include
+LDFLAGS=-L.. @LDFLAGS@ -L/usr/local/ssl/lib -L/usr/local/lib/
+LDLIBS=../libgetdns.la @LIBS@ -lldns -lssl -lcrypto -lgdi32 -lws2_32 -liphlpapi
+CHECK_LIBS=@CHECK_LIBS@
+CHECK_CFLAGS=@CHECK_CFLAGS@
+LDNS_LIBS=@LDNS_LIBS@
+LDNS_CFLAGS=@LDNS_CFLAGS@
+LDNS_LDFLAGS=@LDNS_LDFLAGS@
+
+CHECK_OBJS=check_getdns_common.lo check_getdns_context_set_timeout.lo \
+	check_getdns.lo check_getdns_transport.lo
+
+ALL_OBJS=$(CHECK_OBJS) getdns_query.lo
+
+PROGRAMS=getdns_query
+
+.SUFFIXES: .c .o .a .lo .h
+
+.c.o:
+	$(CC) $(CFLAGS) -c $< -o $@
+
+.c.lo:
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
+
+default: all
+
+all: $(PROGRAMS)
+
+$(ALL_OBJS):
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(LDNS_CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
+
+getdns_query: getdns_query.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
+
+
+
+clean:
+	rm -f *.o *.lo $(PROGRAMS) scratchpad
+	rm -rf .libs
+	rm -f check_getdns.log
+
+
+$(distdir): FORCE
+	mkdir -p $(distdir)/src
+	cp configure.ac $(distdir)
+	cp configure $(distdir)
+	cp Makefile.in $(distdir)
+	cp src/Makefile.in $(distdir)/src
+
+distcheck: $(distdir).tar.gz
+	gzip -cd $(distdir).tar.gz | tar xvf -
+	cd $(distdir) && ./configure
+	cd $(distdir) && $(MAKE) all
+	cd $(distdir) && $(MAKE) check
+	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst install
+	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst uninstall
+	@remaining="`find $${PWD}/$(distdir)/_inst -type f | wc -l`"; \
+	if test "$${remaining}" -ne 0; then
+	  echo "@@@ $${remaining} file(s) remaining in stage directory!"; \
+	  exit 1; \
+	fi
+	cd $(distdir) && $(MAKE) clean
+	rm -rf $(distdir)
+	@echo "*** Package $(distdir).tar.gz is ready for distribution"
+
+Makefile: $(srcdir)/Makefile.in ../../config.status
+	cd ../.. && ./config.status src/test/Makefile
+
+configure.status: configure
+	cd ../.. && ./config.status --recheck
+
+depend:
+	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
+	(cd $(srcdir) ; gcc -MM -I. -I.. *.c | \
+		sed -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
+		    -e 's? \$$(srcdir)/config\.h? ../config.h?g' \
+		    -e 's? $$(srcdir)/\.\./getdns/getdns_extra\.h? ../getdns/getdns_extra.h?g' \
+		    -e 's? \.\./getdns/getdns_ext_libevent\.h? $$(srcdir)/../getdns/getdns_ext_libevent.h?g' \
+		    -e 's? \.\./getdns/getdns_ext_libev\.h? $$(srcdir)/../getdns/getdns_ext_libev.h?g' \
+		    -e 's? \.\./getdns/getdns_ext_libuv\.h? $$(srcdir)/../getdns/getdns_ext_libuv.h?g' \
+		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
+	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
+	                                                 || mv Makefile.in.new Makefile.in )
+
+
+
+.PHONY: clean 
+
+getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h ../getdns/getdns.h \
+ ../getdns/getdns_extra.h

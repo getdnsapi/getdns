@@ -46,6 +46,12 @@
 #include "util-internal.h"
 #include "general.h"
 
+#ifdef USE_WINSOCK
+#define EINPROGRESS 112
+#define EWOULDBLOCK 140
+typedef u_short sa_family_t;
+#endif
+
 #define STUB_OUT_OF_OPTIONS -5 /* upstream options exceeded MAXIMUM_UPSTREAM_OPTION_SPACE */
 #define STUB_TLS_SETUP_ERROR -4
 #define STUB_TCP_AGAIN -3
@@ -742,7 +748,15 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		                       errno == EINPROGRESS)) ||
 		     written  < pkt_len + 2) {
 #else
+
+#ifdef USE_WINSOCK
+		written = sendto(fd, netreq->query - 2, pkt_len + 2,
+			0, (struct sockaddr *)&(netreq->upstream->addr),
+			netreq->upstream->addr_len);
+
+#else
 		written = write(fd, netreq->query - 2, pkt_len + 2);
+#endif
 		if ((written == -1 && (errno == EAGAIN ||
 		                       errno == EWOULDBLOCK)) ||
 		     written  < pkt_len + 2) {

@@ -205,6 +205,17 @@ _getdns_mini_event_init(getdns_context *context, _getdns_mini_event *ext)
 	if (!ext)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+#ifdef USE_WINSOCK
+	int r;
+	WSADATA wsa_data;
+
+	if ((r = WSAStartup(MAKEWORD(2, 2), &wsa_data)) != 0) {
+		printf("could not init winsock. WSAStartup: %s",
+			wsa_strerror(r));
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+#endif
+
 	ext->n_events = 0;
 	ext->loop.vmt = &_getdns_mini_event_vmt;
 	ext->base = _getdns_event_init(&ext->time_secs, &ext->time_tv);

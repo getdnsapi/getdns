@@ -34,17 +34,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
+#ifndef USE_WINSOCK
 #include <arpa/inet.h>
+#include <sys/time.h>
+#include <netdb.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+typedef unsigned short in_port_t;
+#endif
+
+#include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+
 #include <assert.h>
-#include <netdb.h>
 #include <ctype.h>
 
-#include "config.h"
+
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
 #include "context.h"
@@ -356,7 +366,11 @@ create_local_hosts(getdns_context *context)
 	int start_of_line = 1;
 	getdns_dict *address = NULL;
 
+#ifdef USE_WINSOCK
+	in = fopen("c:\\WINDOWS\\system32\\drivers\\etc\\hosts", "r");
+#else
 	in = fopen("/etc/hosts", "r");
+#endif
 	while (fgets(pos, (int)(sizeof(buf) - (pos - buf)), in)) {
 		pos = buf;
 		/* Break out of for to read more */
@@ -751,6 +765,95 @@ set_os_defaults(struct getdns_context *context)
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 
+#ifdef USE_WINSOCK
+static getdns_return_t
+set_os_defaults_windows(struct getdns_context *context)
+{
+	FILE *in;
+	char line[1024], domain[1024];
+	char *parse, *token, prev_ch;
+	size_t upstreams_limit = 10, length;
+	struct getdns_bindata bindata;
+	struct addrinfo hints;
+	struct addrinfo *result;
+	getdns_upstream *upstream;
+	int s;
+
+	if (context->fchg_resolvconf == NULL) {
+		context->fchg_resolvconf =
+			GETDNS_MALLOC(context->my_mf, struct filechg);
+		if (context->fchg_resolvconf == NULL)
+			return GETDNS_RETURN_MEMORY_ERROR;
+		context->fchg_resolvconf->fn = "InvalidOnWindows";
+		context->fchg_resolvconf->prevstat = NULL;
+		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
+		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
+	}
+	_getdns_filechg_check(context, context->fchg_resolvconf);
+
+	context->suffix = getdns_list_create_with_context(context);
+	context->upstreams = upstreams_create(context, upstreams_limit);
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = 0;              /* Datagram socket */
+	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol = 0;              /* Any protocol */
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
+
+	//g
+	FIXED_INFO *info;
+	ULONG buflen = sizeof(*info);
+	IP_ADDR_STRING *ptr;
+
+	info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
+	if (info == NULL)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
+		free(info);
+		info = (FIXED_INFO *)malloc(buflen);
+		if (info == NULL)
+			return GETDNS_RETURN_GENERIC_ERROR;
+	}
+
+	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
+		int retval = 0;
+		ptr = &(info->DnsServerList);
+		*domain = 0;
+		while (ptr) {
+			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
+				char *port_str = getdns_port_str_array[i];
+				if ((s = getaddrinfo(ptr->IpAddress.String, port_str, &hints, &result)))
+					continue;
+				if (!result)
+					continue;
+
+				upstream = &context->upstreams->
+					upstreams[context->upstreams->count++];
+				upstream_init(upstream, context->upstreams, result);
+				upstream->transport = getdns_upstream_transports[i];
+				freeaddrinfo(result);
+			}
+			ptr = ptr->Next;
+
+		}
+		free(info);
+	}
+
+
+	(void)getdns_list_get_length(context->suffix, &length);
+	if (length == 0 && *domain != 0) {
+		bindata.data = (uint8_t *)domain;
+		bindata.size = strlen(domain) + 1;
+		(void)getdns_list_set_bindata(context->suffix, 0, &bindata);
+	}
+	return GETDNS_RETURN_GOOD;
+} /* set_os_defaults_windows */
+#endif
+
 /* compare of transaction ids in DESCENDING order
    so that 0 comes last
 */
@@ -891,8 +994,14 @@ getdns_context_create_with_extended_memory_functions(
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
 
+	//g resolv.conf does not exist on Windows, handle differently
+#ifndef USE_WINSOCK 
 	if (set_from_os && (r = set_os_defaults(result)))
 		goto error;
+#else
+	if (set_from_os && (r = set_os_defaults_windows(result)))
+		goto error;
+#endif
 
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
@@ -1686,7 +1795,7 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
  */
 getdns_return_t
 getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
-    struct getdns_list *upstream_list)
+struct getdns_list *upstream_list)
 {
 	getdns_return_t r;
 	size_t count = 0;
@@ -1703,16 +1812,16 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
-	hints.ai_socktype  = 0;              /* Datagram socket */
-	hints.ai_flags     = AI_NUMERICHOST; /* No reverse name lookups */
-	hints.ai_protocol  = 0;              /* Any protocol */
+	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = 0;              /* Datagram socket */
+	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol = 0;              /* Any protocol */
 	hints.ai_canonname = NULL;
-	hints.ai_addr      = NULL;
-	hints.ai_next      = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
 
 	upstreams = upstreams_create(
-	    context, count * GETDNS_UPSTREAM_TRANSPORTS);
+		context, count * GETDNS_UPSTREAM_TRANSPORTS);
 	for (i = 0; i < count; i++) {
 		getdns_dict *dict;
 		getdns_bindata *address_type;
@@ -1727,7 +1836,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			goto error;
 
 		if ((r = getdns_dict_get_bindata(
-		    dict, "address_type",&address_type)))
+			dict, "address_type", &address_type)))
 			goto error;
 		if (address_type->size < 4)
 			goto invalid_parameter;
@@ -1738,24 +1847,24 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		else	goto invalid_parameter;
 
 		if ((r = getdns_dict_get_bindata(
-		    dict, "address_data", &address_data)))
+			dict, "address_data", &address_data)))
 			goto error;
 		if ((addr.ss_family == AF_INET &&
-		     address_data->size != 4) ||
-		    (addr.ss_family == AF_INET6 &&
-		     address_data->size != 16))
+			address_data->size != 4) ||
+			(addr.ss_family == AF_INET6 &&
+			address_data->size != 16))
 			goto invalid_parameter;
 		if (inet_ntop(addr.ss_family, address_data->data,
-		    addrstr, 1024) == NULL)
+			addrstr, 1024) == NULL)
 			goto invalid_parameter;
 
 		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
-		    GETDNS_RETURN_GOOD) {
+			GETDNS_RETURN_GOOD) {
 			if (strlen(addrstr) + scope_id->size > 1022)
 				goto invalid_parameter;
 			eos = &addrstr[strlen(addrstr)];
 			*eos++ = '%';
-			(void) memcpy(eos, scope_id->data, scope_id->size);
+			(void)memcpy(eos, scope_id->data, scope_id->size);
 			eos[scope_id->size] = 0;
 		}
 
@@ -1768,10 +1877,10 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				continue;
 
 			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS)
-				(void) getdns_dict_get_int(dict, "port", &port);
+				(void)getdns_dict_get_int(dict, "port", &port);
 			else
-				(void) getdns_dict_get_int(dict, "tls_port", &port);
-			(void) snprintf(portstr, 1024, "%d", (int)port);
+				(void)getdns_dict_get_int(dict, "tls_port", &port);
+			(void)snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
 				goto invalid_parameter;
@@ -1787,12 +1896,12 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS ||
-			    getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
+				getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
 				if ((r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/
 					memcpy(upstream->tls_auth_name,
-					       (char *)tls_auth_name->data,
+						(char *)tls_auth_name->data,
 						tls_auth_name->size);
 					upstream->tls_auth_name[tls_auth_name->size] = '\0';
 				}
@@ -1813,8 +1922,7 @@ invalid_parameter:
 error:
 	_getdns_upstreams_dereference(upstreams);
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-} /* getdns_context_set_upstream_recursive_servers */
-
+}
 
 static void
 set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
@@ -2249,8 +2357,9 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 #ifdef HAVE_TLS_v1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
-			if(context->tls_ctx == NULL)
-				return GETDNS_RETURN_BAD_CONTEXT;
+			if (context->tls_ctx == NULL)
+				printf("ERROR! Bad TLS context!");
+				//g return GETDNS_RETURN_BAD_CONTEXT;
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
 			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";

@@ -429,9 +429,30 @@ case "$enable_stub_only" in
 		;;
 esac
 
+
+
 # search to set include and library paths right
 # find libidn
 my_with_libidn=1
+
+AC_MSG_NOTICE([Checking if building on Windows])
+AC_ARG_ENABLE(use-winsock, AC_HELP_STRING([--enable-use-winsock], [Enable building on Microsoft Windows using mingw]))
+case "$enable_use_winsock" in
+	yes)
+	    AC_MSG_NOTICE([ Building on Windows ... YES! ])
+		AC_DEFINE_UNQUOTED([USE_WINSOCK], [1], [Define this to enable Windows build.])
+		AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
+		AC_DEFINE_UNQUOTED([HAVE_WINSOCK2_H], [1], [Define this to enable Windows build.])
+		AC_DEFINE_UNQUOTED([HAVE_WS2TCPIP_H], [1], [Define this to enable Windows build.])
+		AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1], [Define this to enable Windows build.])
+		my_with_libunbound=0
+		my_with_libidn=0
+		;;
+	no|*)
+	    AC_MSG_NOTICE([ Building on Windows ... YES! ])
+		;;
+esac
+
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
 	[path to libidn (default: search /usr/local ..)]),
 	[], [withval="yes"])
@@ -985,6 +1006,35 @@ esac
 AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
+
+/* the version of the windows API enabled */
+#undef WINVER
+#undef _WIN32_WINNT
+#define WINVER 0x0600 // 0x0502
+#define _WIN32_WINNT 0x0600 // 0x0502
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#include<BaseTsd.h>
+#endif
+
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+
+#ifndef USE_WINSOCK
+#define ARG_LL "%ll"
+#else
+#define ARG_LL "%I64"
+#endif
+
+/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
+#ifdef HAVE_WINSOCK2_H
+#define FD_SET_T (u_int)
+#else
+#define FD_SET_T 
+#endif
+
+
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -1093,13 +1143,6 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #else /* !HAVE_ATTR_UNUSED */
 #  define ATTR_UNUSED(x)  x
 #endif /* !HAVE_ATTR_UNUSED */
-
-/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
-#ifdef HAVE_WINSOCK2_H
-#define FD_SET_T (u_int)
-#else
-#define FD_SET_T 
-#endif
 
 #ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>
