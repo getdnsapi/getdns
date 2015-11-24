@@ -223,6 +223,8 @@ typedef struct getdns_network_req
 	int                     edns_maximum_udp_payload_size;
 	uint16_t                max_udp_payload_size;
 
+	size_t                  keepalive_sent;
+
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
 

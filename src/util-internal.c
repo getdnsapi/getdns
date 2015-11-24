@@ -730,6 +730,23 @@ _getdns_create_call_reporting_dict(
 	}
 	getdns_dict_destroy(address_debug);
 
+	if (transport != GETDNS_TRANSPORT_UDP) {
+		/* Report the idle timeout actually used on the connection. Must trim,
+		maximum used in practice is 6553500ms, but this is stored in a uint64_t.*/
+		if (netreq->upstream->keepalive_timeout > UINT32_MAX) {
+			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms (overflow)", UINT32_MAX)) {
+				getdns_dict_destroy(netreq_debug);
+				return NULL;
+			}
+		} else{
+			uint32_t idle_timeout = netreq->upstream->keepalive_timeout;
+			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms", idle_timeout)) {
+				getdns_dict_destroy(netreq_debug);
+				return NULL;
+			}
+		}
+	}
+
 	if (netreq->upstream->transport != GETDNS_TRANSPORT_TLS)
 		return netreq_debug;
 	
