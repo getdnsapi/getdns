@@ -48,8 +48,8 @@ AC_DEFUN([ACX_SSL_CHECKS], [
             fi
         
             AC_MSG_CHECKING([for HMAC_CTX_init in -lcrypto])
-            LIBS="$LIBS -lcrypto -lssl"
-            LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto -lssl"
+            LIBS="$LIBS -lssl -lcrypto"
+            LIBSSL_LIBS="$LIBSSL_LIBS -lssl -lcrypto"
             AC_TRY_LINK(, [
                 int HMAC_CTX_init(void);
                 (void)HMAC_CTX_init();
