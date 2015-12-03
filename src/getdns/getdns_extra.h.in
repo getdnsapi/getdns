@@ -402,6 +402,22 @@ getdns_context_get_tls_authentication(getdns_context *context,
 #define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 546
 #define GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 
+getdns_return_t
+getdns_rr_dict2wire(
+    const getdns_dict *rr_dict, uint8_t *wire, size_t *wire_sz);
+
+getdns_return_t
+getdns_wire2rr_dict(
+    const uint8_t *wire, size_t wire_sz, getdns_dict **rr_dict);
+
+getdns_return_t
+getdns_rr_dict2str(
+    const getdns_dict *rr_dict, char *str, size_t *str_sz);
+
+getdns_return_t
+getdns_str2rr_dict(
+    const char *str, getdns_dict **rr_dict, const char *origin, uint32_t default_ttl);
+
 #ifdef __cplusplus
 }
 #endif
