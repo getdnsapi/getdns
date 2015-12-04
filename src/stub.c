@@ -50,6 +50,7 @@
 #define EINPROGRESS 112
 #define EWOULDBLOCK 140
 typedef u_short sa_family_t;
+#include "util/winsock_event.h"
 #endif
 
 #define STUB_OUT_OF_OPTIONS -5 /* upstream options exceeded MAXIMUM_UPSTREAM_OPTION_SPACE */
@@ -623,7 +624,7 @@ stub_tls_timeout_cb(void *userarg)
 /****************************/
 
 static int
-stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
+stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventloop_event* event)
 {
 	ssize_t  read;
 	uint8_t *buf;
@@ -640,10 +641,24 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 	}
 	read = recv(fd, tcp->read_pos, tcp->to_read, 0);
 	if (read == -1) {
+#ifdef USE_WINSOCK 
+	printf("read (in tcp ) %s\n",
+			wsa_strerror(WSAGetLastError()));
+	if (WSAGetLastError() == WSAECONNRESET)
+		return STUB_TCP_AGAIN;
+	if (WSAGetLastError() == WSAEINPROGRESS)
+	    return STUB_TCP_AGAIN;
+	if (WSAGetLastError() == WSAEWOULDBLOCK) {
+		winsock_tcp_wouldblock(event, EV_READ);
+		return STUB_TCP_AGAIN;
+	}
+
+#else
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return STUB_TCP_AGAIN;
 		else
 			return STUB_TCP_ERROR;
+#endif
 	} else if (read == 0) {
 		/* Remote end closed the socket */
 		/* TODO: Try to reconnect */
@@ -758,8 +773,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		written = write(fd, netreq->query - 2, pkt_len + 2);
 #endif
 		if ((written == -1 && (errno == EAGAIN ||
-		                       errno == EWOULDBLOCK)) ||
-		     written  < pkt_len + 2) {
+			errno == EWOULDBLOCK)) ||
+			written  < pkt_len + 2) {
 #endif
 			/* We couldn't write the whole packet.
 			 * We have to return with STUB_TCP_AGAIN.
@@ -1359,7 +1374,7 @@ stub_tcp_read_cb(void *userarg)
 	int q;
 
 	switch ((q = stub_tcp_read(netreq->fd, &netreq->tcp,
-	                          &dnsreq->context->mf))) {
+		&dnsreq->context->mf, &netreq->event))) {
 
 	case STUB_TCP_AGAIN:
 		return;
@@ -1437,7 +1452,7 @@ upstream_read_cb(void *userarg)
 		              &upstream->upstreams->mf);
 	else
 		q = stub_tcp_read(upstream->fd, &upstream->tcp,
-		             &upstream->upstreams->mf);
+		&upstream->upstreams->mf, &netreq->event);
 
 	switch (q) {
 	case STUB_TCP_AGAIN:

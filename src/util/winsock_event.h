@@ -40,6 +40,7 @@
  * This file contains interface functions with the WinSock2 API on Windows.
  * It uses the winsock WSAWaitForMultipleEvents interface on a number of
  * sockets.
+ * Code is originally from the Unbound source for Windows.
  *
  * Note that windows can only wait for max 64 events at one time.
  * 
@@ -133,92 +134,92 @@
  */
 struct _getdns_event_base
 {
-	/** sorted by timeout (absolute), ptr */
-	_getdns_rbtree_t* times;
-	/** array (first part in use) of handles to work on */
-	struct _getdns_event** items;
-	/** number of items in use in array */
-	int max;
-	/** capacity of array, size of array in items */
-	int cap;
-	/** array of 0 - maxsig of ptr to event for it */
-        struct _getdns_event** signals;
-	/** if we need to exit */
-	int need_to_exit;
-	/** where to store time in seconds */
-	time_t* time_secs;
-	/** where to store time in microseconds */
-	struct timeval* time_tv;
-	/** 
-	 * TCP streams have sticky events to them, these are not
-	 * reported by the windows event system anymore, we have to
-	 * keep reporting those events as present until wouldblock() is
-	 * signalled by the handler back to use.
-	 */
-	int tcp_stickies;
-	/**
-	 * should next cycle process reinvigorated stickies,
-	 * these are stickies that have been stored, but due to a new
-	 * event_add a sudden interest in the event has incepted.
-	 */
-	int tcp_reinvigorated;
-	/** The list of events that is currently being processed. */
-	WSAEVENT waitfor[WSK_MAX_ITEMS];
+    /** sorted by timeout (absolute), ptr */
+    _getdns_rbtree_t* times;
+    /** array (first part in use) of handles to work on */
+    struct _getdns_event** items;
+    /** number of items in use in array */
+    int max;
+    /** capacity of array, size of array in items */
+    int cap;
+    /** array of 0 - maxsig of ptr to event for it */
+    struct _getdns_event** signals;
+    /** if we need to exit */
+    int need_to_exit;
+    /** where to store time in seconds */
+    time_t* time_secs;
+    /** where to store time in microseconds */
+    struct timeval* time_tv;
+    /** 
+     * TCP streams have sticky events to them, these are not
+     * reported by the windows event system anymore, we have to
+     * keep reporting those events as present until wouldblock() is
+     * signalled by the handler back to use.
+     */
+    int tcp_stickies;
+    /**
+     * should next cycle process reinvigorated stickies,
+     * these are stickies that have been stored, but due to a new
+     * event_add a sudden interest in the event has incepted.
+     */
+    int tcp_reinvigorated;
+    /** The list of events that is currently being processed. */
+    WSAEVENT waitfor[WSK_MAX_ITEMS];
 
-	/* fdset for read write, for fds ready, and added */
-	fd_set
-		/** fds for reading */
-		reads,
-		/** fds for writing */
-		writes,
-		/** fds determined ready for use */
-		ready,
-		/** ready plus newly added events. */
-		content;
+    /* fdset for read write, for fds ready, and added */
+    fd_set
+    	/** fds for reading */
+    	reads,
+    	/** fds for writing */
+    	writes,
+    	/** fds determined ready for use */
+    	ready,
+    	/** ready plus newly added events. */
+    	content;
 };
 
 /**
  * Event structure. Has some of the event elements.
  */
 struct _getdns_event {
-        /** node in timeout rbtree */
-        _getdns_rbnode_t node;
-        /** is event already added */
-        int added;
+    /** node in timeout rbtree */
+    _getdns_rbnode_t node;
+    /** is event already added */
+    int added;
 
-        /** event base it belongs to */
-        struct _getdns_event_base *ev_base;
-        /** fd to poll or -1 for timeouts. signal number for sigs. */
-        int ev_fd;
-        /** what events this event is interested in, see EV_.. above. */
-        short ev_events;
-        /** timeout value */
-        struct timeval ev_timeout;
+    /** event base it belongs to */
+    struct _getdns_event_base *ev_base;
+    /** fd to poll or -1 for timeouts. signal number for sigs. */
+    int ev_fd;
+    /** what events this event is interested in, see EV_.. above. */
+    short ev_events;
+    /** timeout value */
+    struct timeval ev_timeout;
 
-        /** callback to call: fd, eventbits, userarg */
-        void (*ev_callback)(int, short, void *);
-        /** callback user arg */
-        void *ev_arg;
+    /** callback to call: fd, eventbits, userarg */
+    void (*ev_callback)(int, short, void *);
+    /** callback user arg */
+    void *ev_arg;
 
-	/* ----- nonpublic part, for winsock_event only ----- */
-	/** index of this event in the items array (if added) */
-	int idx;
-	/** the event handle to wait for new events to become ready */
-	WSAEVENT hEvent;
-	/** true if this filedes is a TCP socket and needs special attention */
-	int is_tcp;
-	/** remembered EV_ values */
-	short old_events;
-	/** should remembered EV_ values be used for TCP streams. 
-	 * Reset after WOULDBLOCK is signaled using the function. */
-	int stick_events;
+    /* ----- nonpublic part, for winsock_event only ----- */
+    /** index of this event in the items array (if added) */
+    int idx;
+    /** the event handle to wait for new events to become ready */
+    WSAEVENT hEvent;
+    /** true if this filedes is a TCP socket and needs special attention */
+    int is_tcp;
+    /** remembered EV_ values */
+    short old_events;
+    /** should remembered EV_ values be used for TCP streams. 
+     * Reset after WOULDBLOCK is signaled using the function. */
+    int stick_events;
 
-	/** true if this event is a signaling WSAEvent by the user. 
-	 * User created and user closed WSAEvent. Only signaled/unsigneled,
-	 * no read/write/distinctions needed. */
-	int is_signal;
-	/** used during callbacks to see which events were just checked */
-	int just_checked;
+    /** true if this event is a signaling WSAEvent by the user. 
+     * User created and user closed WSAEvent. Only signaled/unsigneled,
+     * no read/write/distinctions needed. */
+    int is_signal;
+    /** used during callbacks to see which events were just checked */
+    int just_checked;
 };
 
 char* wsa_strerror(DWORD err);
@@ -267,7 +268,7 @@ int getdns_mini_ev_cmp(const void* a, const void* b);
  * retesting the event.
  * Pass if EV_READ or EV_WRITE gave wouldblock.
  */
-static void winsock_tcp_wouldblock(struct _getdns_event* ev, int eventbit);
+void winsock_tcp_wouldblock(struct _getdns_event* ev, int eventbit);
 
 /**
  * Routine for windows only. where you pass a signal WSAEvent that
@@ -275,14 +276,14 @@ static void winsock_tcp_wouldblock(struct _getdns_event* ev, int eventbit);
  * The callback has to WSAResetEvent to disable the signal. 
  * @param base: the event base.
  * @param ev: the event structure for data storage
- * 	can be passed uninitialised.
+ *     can be passed uninitialised.
  * @param wsaevent: the WSAEvent that gets signaled.
  * @param cb: callback routine.
  * @param arg: user argument to callback routine.
  * @return false on error.
  */
 static int winsock_register_wsaevent(struct _getdns_event_base* base, struct _getdns_event* ev,
-	WSAEVENT wsaevent, void (*cb)(int, short, void*), void* arg);
+    WSAEVENT wsaevent, void (*cb)(int, short, void*), void* arg);
 
 /**
  * Unregister a wsaevent. User has to close the WSAEVENT itself.

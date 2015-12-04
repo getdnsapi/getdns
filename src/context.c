@@ -803,10 +803,9 @@ set_os_defaults_windows(struct getdns_context *context)
 	hints.ai_addr = NULL;
 	hints.ai_next = NULL;
 
-	//g
 	FIXED_INFO *info;
 	ULONG buflen = sizeof(*info);
-	IP_ADDR_STRING *ptr;
+	IP_ADDR_STRING *ptr = 0;
 
 	info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
 	if (info == NULL)
@@ -821,7 +820,7 @@ set_os_defaults_windows(struct getdns_context *context)
 
 	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
 		int retval = 0;
-		ptr = &(info->DnsServerList);
+		ptr = info->DnsServerList.Next; 
 		*domain = 0;
 		while (ptr) {
 			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
@@ -842,7 +841,6 @@ set_os_defaults_windows(struct getdns_context *context)
 		}
 		free(info);
 	}
-
 
 	(void)getdns_list_get_length(context->suffix, &length);
 	if (length == 0 && *domain != 0) {
@@ -994,7 +992,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
 
-	//g resolv.conf does not exist on Windows, handle differently
+	// resolv.conf does not exist on Windows, handle differently
 #ifndef USE_WINSOCK 
 	if (set_from_os && (r = set_os_defaults(result)))
 		goto error;
@@ -2358,18 +2356,24 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 			if (context->tls_ctx == NULL)
-				printf("ERROR! Bad TLS context!");
-				//g return GETDNS_RETURN_BAD_CONTEXT;
+#ifndef USE_WINSOCK
+				return GETDNS_RETURN_BAD_CONTEXT;
+#else
+				printf("Warning! Bad TLS context, check openssl version on Windows!\n");;
+#endif
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
 			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
-			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS)) {
 				return GETDNS_RETURN_BAD_CONTEXT;
-			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
+			}
+			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
 				return GETDNS_RETURN_BAD_CONTEXT;
+			}
 #else
-			if (tls_only_is_in_transports_list(context) == 1)
+			if (tls_only_is_in_transports_list(context) == 1) {
 				return GETDNS_RETURN_BAD_CONTEXT;
+			}
 			/* A null tls_ctx will make TLS fail and fallback to the other
 			   transports will kick-in.*/
 #endif
