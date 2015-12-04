@@ -243,7 +243,16 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 
 ### Microsoft Windows 8.1
 
-The windows version of getdns currently only is supported in stub only mode. 
+Build tested using Mingw(3.21.0) and Msys 1.0 (http://www.mingw.org/) on Windows 8.1
+
+Dependencies: 
+The following dependencies are built from source on Mingw
+openssl1.0.2a
+libexpat
+ldns (dependency to be removed soon)
+libidn
+
+The windows version of getdns currently only is supported in the stub only mode. 
 
 To configure:
  ./configure --enable-use-winsock --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key"
