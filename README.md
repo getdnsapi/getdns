@@ -243,6 +243,8 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 
 ### Microsoft Windows 8.1
 
+This section has some Windows specific build instructions. 
+
 Build tested using Mingw(3.21.0) and Msys 1.0 (http://www.mingw.org/) on Windows 8.1
 
 Dependencies: 
@@ -263,7 +265,12 @@ To configure:
  After configuring, do a 'make' and 'make install' to build getdns for Windows.
 
  There is a sample, getdns_query.exe which can be built in src/samplewin using 'make'
-
+ 
+ Example test queries:
+ ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_debugging (UDP)
+ ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_debugging (TCP)
+ ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_debugging (TLS without authentication)
+ ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_debugging (DNSSEC)
 
 Contributors
 ============
