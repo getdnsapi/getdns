@@ -574,17 +574,17 @@ getdns_dict_set_list(
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
-getdns_dict_set_bindata(
-    getdns_dict *dict, const char *name, const getdns_bindata *child_bindata)
+_getdns_dict_set_const_bindata(
+    getdns_dict *dict, const char *name, size_t size, const uint8_t *data)
 {
 	getdns_item    *item;
 	getdns_bindata *newbindata;
 	getdns_return_t r;
 
-	if (!dict || !name || !child_bindata)
+	if (!dict || !name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (!(newbindata = _getdns_bindata_copy(&dict->mf, child_bindata)))
+	if (!(newbindata = _getdns_bindata_copy(&dict->mf, size, data)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
@@ -595,6 +595,15 @@ getdns_dict_set_bindata(
 	item->data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_set_bindata */
+
+getdns_return_t
+getdns_dict_set_bindata(
+    getdns_dict *dict, const char *name, const getdns_bindata *child_bindata)
+{
+	return !child_bindata ? GETDNS_RETURN_INVALID_PARAMETER
+	    : _getdns_dict_set_const_bindata(
+	    dict, name, child_bindata->size, child_bindata->data);
+}
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t

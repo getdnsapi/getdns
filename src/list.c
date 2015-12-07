@@ -545,17 +545,17 @@ getdns_list_set_list(
 }				/* getdns_list_set_list */
 
 /*---------------------------------------- getdns_list_set_bindata */
-getdns_return_t
-getdns_list_set_bindata(
-    getdns_list *list, size_t index, const getdns_bindata *child_bindata)
+static getdns_return_t
+_getdns_list_set_const_bindata(
+    getdns_list *list, size_t index, size_t size, const uint8_t *data)
 {
 	getdns_bindata *newbindata;
 	getdns_return_t r;
 
-	if (!list || !child_bindata)
+	if (!list)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (!(newbindata = _getdns_bindata_copy(&list->mf, child_bindata)))
+	if (!(newbindata = _getdns_bindata_copy(&list->mf, size, data)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if ((r = _getdns_list_request_index(list, index))) {
@@ -566,6 +566,15 @@ getdns_list_set_bindata(
 	list->items[index].data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_set_bindata */
+
+getdns_return_t
+getdns_list_set_bindata(
+    getdns_list *list, size_t index, const getdns_bindata *child_bindata)
+{
+	return !child_bindata ? GETDNS_RETURN_INVALID_PARAMETER
+	    : _getdns_list_set_const_bindata(
+	    list, index, child_bindata->size, child_bindata->data);
+}
 
 /*----------------------------------------- getdns_list_set_string */
 static getdns_return_t
@@ -629,6 +638,13 @@ _getdns_list_append_bindata(getdns_list *list, const getdns_bindata *child_binda
 {
 	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_list_set_bindata(list, list->numinuse, child_bindata);
+}
+getdns_return_t
+_getdns_list_append_const_bindata(
+    getdns_list *list, size_t size, const uint8_t *data)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return _getdns_list_set_const_bindata(list, list->numinuse, size, data);
 }
 getdns_return_t
 _getdns_list_append_string(getdns_list *list, const char *value)

@@ -187,7 +187,7 @@ match_and_process_server_cookie(
     getdns_upstream *upstream, uint8_t *response, size_t response_len)
 {
 	_getdns_rr_iter rr_iter_storage, *rr_iter;
-	uint8_t *pos;
+	const uint8_t *pos;
 	uint16_t rdata_len, opt_code = 0, opt_len = 0;
 
 	/* Search for the OPT RR (if any) */
@@ -287,8 +287,8 @@ is_starttls_response(getdns_network_req *netreq)
 	_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
 	uint16_t rr_type;
 	gldns_pkt_section section;
-	uint8_t starttls_name_space[256], *starttls_name;
-	uint8_t owner_name_space[256], *owner_name;
+	uint8_t starttls_name_space[256], owner_name_space[256];
+	const uint8_t *owner_name, *starttls_name;
 	size_t starttls_name_len = sizeof(starttls_name_space);
 	size_t owner_name_len = sizeof(owner_name_space);;
 

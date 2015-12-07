@@ -36,13 +36,13 @@
 #include "getdns/getdns.h"
 #include "gldns/gbuffer.h"
 
-typedef uint8_t *(*_getdns_rdf_end_t)(
-    uint8_t *pkt, uint8_t *pkt_end, uint8_t *rdf);
+typedef const uint8_t *(*_getdns_rdf_end_t)(
+    const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf);
 /* Limit checks are already done with _getdns_rdf_end_t */
 typedef getdns_return_t (*_getdns_rdf_dict_set_value_t)(
-    getdns_dict *dict, uint8_t *rdf);
+    getdns_dict *dict, const uint8_t *rdf);
 typedef getdns_return_t (*_getdns_rdf_list_append_value_t)(
-    getdns_list *list, uint8_t *rdf);
+    getdns_list *list, const uint8_t *rdf);
 
 typedef struct _getdns_rdf_special {
 	_getdns_rdf_end_t               rdf_end;
@@ -134,7 +134,7 @@ typedef struct _getdns_rr_def {
 const _getdns_rr_def *_getdns_rr_def_lookup(uint16_t rr_type);
 
 getdns_return_t _getdns_rr_dict2wire(
-    getdns_dict *rr_dict, gldns_buffer *buf);
+    const getdns_dict *rr_dict, gldns_buffer *buf);
 
 const char *_getdns_rr_type_name(int rr_type);
 

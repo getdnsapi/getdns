@@ -42,6 +42,7 @@
 #include "context.h"
 #include "rr-iter.h"
 
+#define UNCONST_UINT8_p uint8_t *
 
 #ifdef S_SPLINT_S
 #  define INLINE 
@@ -80,6 +81,12 @@ getdns_return_t _getdns_list_append_string(getdns_list *list,
 
 getdns_return_t _getdns_list_append_int(getdns_list *list,
     uint32_t child_uint32);
+
+getdns_return_t _getdns_list_append_const_bindata(getdns_list *list,
+    size_t size, const uint8_t *data);
+
+getdns_return_t _getdns_dict_set_const_bindata(getdns_dict *dict,
+    const char *name, size_t size, const uint8_t *data);
 
 /**
   * private function (API users should not be calling this), this uses library

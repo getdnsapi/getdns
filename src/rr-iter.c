@@ -39,6 +39,10 @@ rr_iter_find_nxt(_getdns_rr_iter *i)
 	assert(i);
 	assert(i->rr_type);
 
+	if (!i->pkt) {
+		i->nxt = i->pkt_end;
+		return;
+	}
 	i->nxt = i->n < GLDNS_QDCOUNT(i->pkt)
 	       ? i->rr_type + 4
 	       : i->rr_type + 10 > i->pkt_end
@@ -51,13 +55,14 @@ rr_iter_find_nxt(_getdns_rr_iter *i)
 static _getdns_rr_iter *
 find_rrtype(_getdns_rr_iter *i)
 {
-	uint8_t *pos;
+	const uint8_t *pos;
 
 	assert(i);
 	assert(i->pos);
 
 	/* Past the last RR in the pkt */
-	if (GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
+	if (i->pkt &&
+	    GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
 	    GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt) <= i->n)
 		goto done;
 
@@ -83,7 +88,7 @@ done:
 }
 
 _getdns_rr_iter *
-_getdns_rr_iter_init(_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
+_getdns_rr_iter_init(_getdns_rr_iter *i, const uint8_t *pkt, size_t pkt_len)
 {
 	assert(i);
 
@@ -98,6 +103,25 @@ _getdns_rr_iter_init(_getdns_rr_iter *i, uint8_t *pkt, size_t pkt_len)
 
 	return find_rrtype(i);
 }
+
+_getdns_rr_iter *
+_getdns_single_rr_iter_init(
+    _getdns_rr_iter *i, const uint8_t *wire, size_t wire_len)
+{
+	assert(i);
+
+	if (!wire || wire_len < 5 /* name + type + class */) {
+		i->pos = NULL;
+		return NULL;
+	}
+	i->pkt     = NULL;
+	i->pos     = wire;
+	i->pkt_end = wire + wire_len;
+	i->n       = 0;
+
+	return find_rrtype(i);
+}
+
 
 _getdns_rr_iter *
 _getdns_rr_iter_rewind(_getdns_rr_iter *i)
@@ -121,12 +145,13 @@ _getdns_rr_iter_next(_getdns_rr_iter *i)
 	return find_rrtype(i);
 }
 
-static uint8_t *
-dname_if_or_as_decompressed(uint8_t *pkt, uint8_t *pkt_end, uint8_t *pos,
-    uint8_t *buf, size_t *len, size_t refs)
+static const uint8_t *
+dname_if_or_as_decompressed(const uint8_t *pkt, const uint8_t *pkt_end,
+    const uint8_t *pos, uint8_t *buf, size_t *len, size_t refs)
 {
 	uint16_t offset;
-	uint8_t *start, *dst;
+	const uint8_t *start;
+	uint8_t *dst;
 
 	assert(pkt);
 	assert(pkt_end);
@@ -138,7 +163,7 @@ dname_if_or_as_decompressed(uint8_t *pkt, uint8_t *pkt_end, uint8_t *pos,
 		goto error;
 
 	if ((*pos & 0xC0) == 0xC0) {
-		if (pos + 1 >= pkt_end)
+		if (!pkt || pos + 1 >= pkt_end)
 			goto error;
 		offset = gldns_read_uint16(pos) & 0x3FFF;
 		if (pkt + offset >= pkt_end)
@@ -175,7 +200,7 @@ dname_if_or_as_decompressed(uint8_t *pkt, uint8_t *pkt_end, uint8_t *pos,
 			start = pos;
 		}
 		if ((*pos & 0xC0) == 0xC0) {
-			if (pos + 1 >= pkt_end)
+			if (!pkt || pos + 1 >= pkt_end)
 				goto error;
 			offset = gldns_read_uint16(pos) & 0x3FFF;
 			if (pkt + offset >= pkt_end)
@@ -204,7 +229,7 @@ error:
 	return NULL;
 }
 
-uint8_t *
+const uint8_t *
 _getdns_owner_if_or_as_decompressed(_getdns_rr_iter *i,
     uint8_t *ff_bytes, size_t *len)
 {
@@ -215,7 +240,7 @@ _getdns_owner_if_or_as_decompressed(_getdns_rr_iter *i,
 static _getdns_rdf_iter *
 rdf_iter_find_nxt(_getdns_rdf_iter *i)
 {
-	uint8_t *pos;
+	const uint8_t *pos;
 
 	assert(i);
 	assert(i->pos);
@@ -334,7 +359,7 @@ _getdns_rdf_iter_init_at(
 	return i;
 }       
 
-uint8_t *
+const uint8_t *
 _getdns_rdf_if_or_as_decompressed(
     _getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len)
 {
