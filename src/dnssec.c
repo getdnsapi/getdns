@@ -405,7 +405,7 @@ inline static void debug_sec_print_rr(const char *msg, _getdns_rr_iter *rr)
 {
 	char str_spc[8192], *str = str_spc;
 	size_t str_len = sizeof(str_spc);
-	uint8_t *data = rr->pos;
+	const uint8_t *data = rr->pos;
 	size_t data_len = rr->nxt - rr->pos;
 
 	if (!rr || !rr->pos) {
@@ -413,14 +413,16 @@ inline static void debug_sec_print_rr(const char *msg, _getdns_rr_iter *rr)
 		return;
 	}
 	(void) gldns_wire2str_rr_scan(
-	    &data, &data_len, &str, &str_len, rr->pkt, rr->pkt_end - rr->pkt);
+	    (UNCONST_UINT8_p *) &data, &data_len, &str, &str_len,
+	    (UNCONST_UINT8_p) rr->pkt, rr->pkt_end - rr->pkt);
 	DEBUG_SEC("%s%s", msg, str_spc);
 }
-inline static void debug_sec_print_dname(const char *msg, uint8_t *label)
+inline static void debug_sec_print_dname(const char *msg, const uint8_t *label)
 {
 	char str[1024];
 
-	if (label && gldns_wire2str_dname_buf(label, 256, str, sizeof(str)))
+	if (label && gldns_wire2str_dname_buf(
+	    (UNCONST_UINT8_p)label, 256, str, sizeof(str)))
 		DEBUG_SEC("%s%s\n", msg, str);
 	else
 		DEBUG_SEC("%s<nil>\n", msg);
@@ -599,7 +601,8 @@ static void debug_sec_print_rrset(const char *msg, getdns_rrset *rrset)
 		return;
 	}
 	gldns_buffer_init_frm_data(&buf, buf_space, sizeof(buf_space));
-	if (gldns_wire2str_dname_buf(rrset->name, 256, owner, sizeof(owner)))
+	if (gldns_wire2str_dname_buf(
+	    (UNCONST_UINT8_p)rrset->name, 256, owner, sizeof(owner)))
 		gldns_buffer_printf(&buf, "%s ", owner);
 	else	gldns_buffer_printf(&buf, "<nil> ");
 
