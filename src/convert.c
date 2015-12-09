@@ -46,6 +46,7 @@
 #include "util-internal.h"
 #include "gldns/wire2str.h"
 #include "gldns/str2wire.h"
+#include "dict.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -218,5 +219,127 @@ getdns_strerror(getdns_return_t err, char *buf, size_t buflen)
 
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_strerror */
+
+getdns_return_t
+getdns_rr_dict2wire(
+    const getdns_dict *rr_dict, uint8_t *wire, size_t *wire_sz)
+{
+	getdns_return_t r;
+	gldns_buffer gbuf;
+
+	if (!rr_dict || !wire || !wire_sz)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	gldns_buffer_init_frm_data(&gbuf, wire, *wire_sz);
+	r = _getdns_rr_dict2wire(rr_dict, &gbuf);
+	*wire_sz = gldns_buffer_position(&gbuf);
+
+	if (r)
+		return r;
+
+	if (gldns_buffer_position(&gbuf) == 0 ||
+	    gldns_buffer_position(&gbuf) > gldns_buffer_capacity(&gbuf))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_wire2rr_dict(
+    const uint8_t *wire, size_t wire_len, getdns_dict **rr_dict)
+{
+	static struct mem_funcs plain_mem_funcs = {
+		MF_PLAIN, .mf.pln = { malloc, realloc, free }
+	};
+	_getdns_rr_iter rr_iter_spc, *rr_iter;
+
+	if (!wire || !rr_dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(rr_iter = _getdns_single_rr_iter_init(
+	    &rr_iter_spc, wire, wire_len)))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (!(*rr_dict = _getdns_rr_iter2rr_dict(&plain_mem_funcs, rr_iter)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_rr_dict2str(
+    const getdns_dict *rr_dict, char **str)
+{
+	getdns_return_t r;
+	gldns_buffer gbuf;
+	uint8_t buf_spc[4096], *buf = buf_spc;
+	size_t sz;
+
+	if (!rr_dict || !str)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	gldns_buffer_init_frm_data(&gbuf, buf, sizeof(buf_spc));
+	r = _getdns_rr_dict2wire(rr_dict, &gbuf);
+	if (gldns_buffer_position(&gbuf) > sizeof(buf_spc)) {
+		if (!(buf = GETDNS_XMALLOC(
+		    rr_dict->mf, uint8_t, (sz = gldns_buffer_position(&gbuf))))) {
+			return GETDNS_RETURN_MEMORY_ERROR;
+		}
+		gldns_buffer_init_frm_data(&gbuf, buf, sz);
+		r = _getdns_rr_dict2wire(rr_dict, &gbuf);
+	}
+	if (r) {
+		if (buf != buf_spc)
+			GETDNS_FREE(rr_dict->mf, buf);
+		return r;
+	}
+	if (!(*str = gldns_wire2str_rr(gldns_buffer_begin(&gbuf),
+	    gldns_buffer_position(&gbuf))))
+		r = GETDNS_RETURN_MEMORY_ERROR;
+
+	if (buf != buf_spc)
+		GETDNS_FREE(rr_dict->mf, buf);
+	return r;
+}
+
+getdns_return_t
+getdns_str2rr_dict(
+    const char *str, getdns_dict **rr_dict, const char *origin, uint32_t default_ttl)
+{
+	uint8_t wire_spc[4096], *wire = wire_spc;
+	uint8_t origin_spc[256], *origin_wf;
+	size_t origin_len = sizeof(origin_spc), wire_len = sizeof(wire_spc);
+	int e;
+	getdns_return_t r;
+
+	if (!str || !rr_dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!origin)
+		origin_wf = NULL;
+
+	else if (gldns_str2wire_dname_buf(origin, origin_spc, &origin_len))
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else
+		origin_wf = origin_spc;
+
+	e = gldns_str2wire_rr_buf(str, wire, &wire_len,
+	    NULL, default_ttl, origin_wf, origin_len, NULL, 0);
+	if (GLDNS_WIREPARSE_ERROR(e) == GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL) {
+		if (!(wire = malloc((wire_len = GLDNS_RR_BUF_SIZE))))
+			return GETDNS_RETURN_MEMORY_ERROR;
+		e = gldns_str2wire_rr_buf(str, wire, &wire_len,
+	            NULL, default_ttl, origin_wf, origin_len, NULL, 0);
+	}
+	if (e) {
+		if (wire != wire_spc)
+			free(wire);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	r = getdns_wire2rr_dict(wire, wire_len, rr_dict);
+	if (wire != wire_spc)
+		free(wire);
+	return r;
+}
 
 /* convert.c */

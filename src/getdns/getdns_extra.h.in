@@ -412,7 +412,7 @@ getdns_wire2rr_dict(
 
 getdns_return_t
 getdns_rr_dict2str(
-    const getdns_dict *rr_dict, char *str, size_t *str_sz);
+    const getdns_dict *rr_dict, char **str);
 
 getdns_return_t
 getdns_str2rr_dict(
