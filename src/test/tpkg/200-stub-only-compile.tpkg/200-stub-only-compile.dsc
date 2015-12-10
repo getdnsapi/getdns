@@ -1,0 +1,16 @@
+BaseName: 200-stub-only-compile
+Version: 1.0
+Description: Create a builddir and compile simple
+CreationDate: do dec 10 11:08:24 CET 2015
+Maintainer: Willem Toorop
+Category: 
+Component:
+CmdDepends: 
+Depends: 
+Help: 200-stub-only-compile.help
+Pre: 200-stub-only-compile.pre
+Post:
+Test: 200-stub-only-compile.test
+AuxFiles: 
+Passed:
+Failure:

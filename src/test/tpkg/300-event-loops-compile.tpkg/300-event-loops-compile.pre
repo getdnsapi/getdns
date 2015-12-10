@@ -1,0 +1,16 @@
+# #-- 300-event-loops-compile.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+rm -fr "${BUILDDIR}/build-event-loops"
+mkdir  "${BUILDDIR}/build-event-loops"
+cd "${BUILDDIR}/build-event-loops"
+"${SRCROOT}/configure" --with-libevent --with-libev --with-libuv \
+    || "${SRCROOT}/configure" --with-libevent --with-libev \
+    || "${SRCROOT}/configure" --with-libevent --with-libuv \
+    || "${SRCROOT}/configure" --with-libev --with-libuv \
+    || "${SRCROOT}/configure" --with-libevent \
+    || "${SRCROOT}/configure" --with-libev \
+    || "${SRCROOT}/configure" --with-libuv

@@ -1,0 +1,10 @@
+# #-- 100-compile.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+rm -fr "${BUILDDIR}/build"
+mkdir  "${BUILDDIR}/build"
+cd "${BUILDDIR}/build"
+"${SRCROOT}/configure"

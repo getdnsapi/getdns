@@ -1,0 +1,921 @@
+#!/usr/bin/env bash
+
+# a utlity to run a shar test archive (aka tpkg)
+# Created by Miek Gieben, NLnetLabs, (c) 2005, 2006
+# Licensed under GPL version 2
+
+export TPKG_VAR_MASTER="../.tpkg.var.master"
+export TPKG_VAR_TEST=".tpkg.var.test"
+export TPKG_VERSION="1.12";
+export SHELL="/bin/sh"
+TPKG_LOGGER=/usr/bin/logger
+TPKG_BASE="."
+TPKG_ARGS=""
+TPKG_CURRENT=`pwd`
+TPKG_QUIET=0		# only output err() msgs
+TPKG_KEEP=0		# tpkg create doesn't remove dir/
+TPKG_PASS=0		# how much must succeed
+TPKG_LOG=0		# don't log
+TPKG_PRI=""		# log facility
+TPKG_FORMAT="targz"	# format of underlying tpkg files
+TPKG_FORCE=0		# execute tests even when .done file is found
+
+_DESC_WIDTH=${COLUMNS:-55}
+if [ $_DESC_WIDTH -ge 70 ]; then
+        _DESC_WIDTH=70
+fi
+
+### Helper functions
+function cleanup() {
+        out "[log] Cleaning up" 
+        [[ -f result.$dsc_basename ]] && cp result.$dsc_basename ../
+        cd ..
+	if [[ ! -z "$dir" ]]; then
+		rm -rf `basename $dir`
+	fi
+	cd $TPKG_CURRENT
+}
+
+function cleanup_and_exit() {
+        cleanup; exit 1
+}
+
+function err() {
+        if [[ -z $testname ]]; then
+                echo -e "  $1" 
+        else
+                echo -e "[$testname]  $1" 
+        fi
+}
+
+function tpkg_log() {
+        if [[ $TPKG_LOG -eq 0 ]]; then
+                return
+        fi
+        
+        if [[ -e $TPKG_LOGGER ]]; then
+                if [[ -z $TPKG_PRI ]]; then
+                        $TPKG_LOGGER "$1"
+                else
+                        $TPKG_LOGGER -p "$TPKG_PRI" "$1"
+                fi
+        fi
+}
+
+function out() {
+        if [[ $TPKG_QUIET -eq 1 ]]; then
+                return
+        fi
+        if [[ -z $testname ]]; then
+                echo -e "  $1"
+        else
+                echo -e "[$testname]  $1"
+        fi
+}
+
+function epoch() {
+        # make this sorta portable allthough not needed now
+        epoch=0
+        case $OSTYPE in
+                linux*)
+                epoch=`date +%s`
+                ;;
+                freebsd*)
+                epoch=`date +%s`
+                ;;
+        esac
+}
+
+function post() {
+        if [ -f "${dsc_post}" ]; then 
+                err "[log] Executing post script: ${dsc_post} ${TPKG_ARGS}"
+                echo "--------- Start Post Output ------------------ " >> result.$dsc_basename
+                ${SHELL} ${dsc_post} ${TPKG_ARGS} >> result.$dsc_basename
+                echo "----------- End Post Output ------------------ " >> result.$dsc_basename
+                result=$?
+                if [ $result -ne 0 ]; then
+                        err "[warning] Post-script executed with errors: $result."
+                fi
+        fi
+}
+
+function pre() {
+        if [ -f "${dsc_pre}" ]; then 
+                err "[log] Executing pre script: ${dsc_pre} ${TPKG_ARGS}"
+                echo "--------- Start Pre Output ------------------- " >> result.$dsc_basename
+                ${SHELL} ${dsc_pre} ${TPKG_ARGS} >> result.$dsc_basename
+                echo "----------- End Pre Output ------------------- " >> result.$dsc_basename
+                result=$?
+                if [ $result -ne 0 ]; then
+                        err "[warning] Pre-script executed with errors: $result."
+                fi
+        fi
+}
+ 
+function write_done() {
+        # we are executing in a subdir
+        if [ -f "../.done-${testname}" -a $TPKG_FORCE -ne 1 ]; then
+                err "[warning] Overwriting .done-${testname}"
+        fi
+        > ../.done-${testname}
+}
+
+# write done file in current dir
+function write_fake_done() {
+        if [ -f ".done-${testname}" -a $TPKG_FORCE -ne 1 ]; then
+                err "[warning] Overwriting .done-${testname}"
+        fi
+        > .done-${testname}
+}
+
+function mktempdir() {
+        # check if mktemp is there, if not use plain mkdir with $$
+        # as a side effect set $dir
+        dir=
+        case $OSTYPE in
+                solaris*)
+                # use mkdir
+                dir="$1.$$"
+                mkdir "$dir"
+                return
+                ;;
+                *)
+                dir=`mktemp -d "$1"`
+                return
+                ;;
+        esac
+}
+
+function usage() {
+        out "Usage:"
+        out "$0 [OPTIONS] [exe|create|extract|tmpl|fake] test.tpkg"
+        out "or:"
+        out "$0 [OPTIONS] [report|clean|list|desc|help] test.tpkg"
+        out "or:"
+        out "$0 [OPTIONS] clone test1.tpkg test2.tpkg"
+        out
+        out "Testing"
+        out " exe.........:\texecute a test, safe the result result.testname"
+        out " c | create..:\tcreate a .tpkg out of the test.{pre, post, test} files"
+        out " e | extract.:\textract a .tpkg to tmp. dir"
+        out " t | tmpl....:\tcreate empty template files for a new test"
+        out " f | fake....:\tfake the running of test, but do create a .done file"
+        out 
+        out "When no action is given a test is executed"
+        out
+        out "Reporting/Cleanup"
+        out " clean........:\tremove all the result files"
+        out " cd | cleandir:\tremove all .dir directories"
+        out " r  | report..:\tcreate a nice report from all the result files"
+        out " cl | clone...:\tclone test1.tpkg to test2.tkpg"
+        out " l  | list....:\tprint the files of the test to stdout"
+        out " d  | desc....:\tprint the test's description to stdout"
+        out " h  | help....:\tprint the help message for this test, if available"
+        out
+        out " When multiple tests depend on a single other test, this"
+        out " other test is only executed once."
+	out
+	out "OPTIONS"
+	out " -h\t\tshow this help"
+	out " -v\t\tshow version"
+        out " -q\t\tonly print errors"
+        out " -l\t\tlog test name to syslog when starting the test (using logger)"
+        out " -p PRI\tlog using PRI as priority"
+        out " -k\t\tdon't remove test directory when creating/executing a tpkg package"
+        out " -n NUM\tif less than NUM of the tests are passed exit with 1"
+        out " \t\tOtherwise exit with 0. Only valid when running tpkg report"
+	out " -b DIR\tuse DIR is a base directory in stead of ."
+	out " -a ARGS\tpass the string ARGS through to the test scripts"
+	out " -d\t\tUse directories instead of tar.gz for tpkg archive format"
+        out 
+        out " (C) NLnetLabs, Miek Gieben. Licensed under the GPL version 2."
+}
+
+function version() {
+	out "tpkg (test package), version $TPKG_VERSION"
+	out "Written by Miek Gieben, NLnet Labs"
+	out
+	out "Copyright (C) 2005, 2006 NLnet Labs"
+	out
+	out "This is free software; see the source for copying conditions. There is no"
+	out "warranty; even not for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE"
+}
+
+function cleanreport() {
+        # cleanup all the result. files
+        for result in `ls result.* 2>/dev/null`; do 
+                err "[log] rm $result"
+                rm $result
+        done
+        # rm any .var files
+        out "[log] rm `basename $TPKG_VAR_MASTER`"
+        rm -f `basename $TPKG_VAR_MASTER`
+        rm -f $TPKG_VAR_TEST
+        out "[log] rm .done files"
+        rm -f .done*
+	cd $TPKG_CURRENT
+}
+
+function cleandirs() {
+        for result in `ls -d *.dir 2> /dev/null`; do
+                err "[log] rm -rf $result"
+                rm -rf $result
+        done
+}
+
+function report() {
+        # generate a report from the result. files.
+        passed=0
+        failed=0
+        unknown=0
+        first=0
+
+        tp="passed"
+        tf="failed"
+        tu="unknown"
+        for result in `ls result.* 2>/dev/null` ; do 
+                passfailed=`head -1 $result | awk ' { print $2 }'`
+                basename=`head -3 $result | grep BaseName | awk -F': ?' ' { print $2 }'`
+                description=`head -4 $result | grep Description | awk -F': ?' ' { print $2 }'`
+                runend=`head -2 $result | grep DateRunEnd | awk -F': ?' ' { print $2 }'`
+                runstart=`head -5 $result | grep DateRunStart | awk -F': ?' ' { print $2 }'`
+
+                # truncate the description to 35 chars
+                if [ ${#description} -gt $_DESC_WIDTH ]; then
+                        description=${description:0:$_DESC_WIDTH}
+                        description=$description"..."
+                fi
+
+                if [ -z $runend ]; then
+                        runend=0
+                fi
+                if [ -z $runstart ]; then
+                        runstart=0
+                fi
+
+                ((period=$runend - $runstart))
+                # prefix period if < 9
+                if [ $period -lt 10 ]; then
+                        period="0$period"
+                fi
+
+                case $passfailed in
+                "FAILED")
+                        if [ $first -eq 0 ]; then
+                                echo "   STATUS    : ELAPSED : TESTNAME : TESTDESCRIPTION"
+                                first=1
+                        fi
+                        echo -e "!! $passfailed !! : $period s : $basename : $description"
+                        ((failed=$failed + 1)) 
+                        failed_tests="$failed_tests $basename"
+                        tf="FAILED"
+                        ;;
+                "PASSED")
+                        if [ $TPKG_QUIET -eq 0 ]; then
+                                if [ $first -eq 0 ]; then
+                                        echo "   STATUS    : ELAPSED : TESTNAME : TESTDESCRIPTION"
+                                        first=1
+                                fi
+                                echo -e "** $passfailed ** : $period s : $basename : $description"
+                        fi
+                        ((passed=$passed + 1)) 
+                        tp="PASSED"
+                        ;;
+                *) 
+                        if [ $first -eq 0 ]; then
+                                echo "   STATUS    : ELAPSED : TESTNAME : TESTDESCRIPTION"
+                                first=1
+                        fi
+                        echo -e "-- $passfailed -- : $period s : $basename : $description"
+                        ((unknown=$unknown + 1)) 
+                        failed_tests="$failed_tests $basename"
+                        tu="UNKNOWN"
+                        ;;
+                esac
+        done
+        ((total=$passed + $failed + $unknown))
+        if [[ $total -eq 0 ]]; then
+                fper=0
+                pper=0
+                uper=0
+        else
+                fper=`echo -e "scale=4\n$failed/$total*100" | bc | sed 's/00$//'`
+                pper=`echo -e "scale=4\n$passed/$total*100" | bc | sed 's/00$//'`
+                uper=`echo -e "scale=4\n$unknown/$total*100" | bc | sed 's/00$//'`
+        fi
+        echo
+        echo -e "$tp: $passed ($pper %)\t$tf: $failed ($fper %)\t$tu: $unknown ($uper %)"
+
+        # for each failed test include the complete result file
+        # $i is basename
+        echo
+        for i in $failed_tests; do 
+                echo --------------- Start Output: $i ------------------
+                cat result.$i
+                echo ---------------   End Output: $i   ------------------
+        done
+	cd $NT
+        if [[ $TPKG_PASS -gt 0 ]]; then
+                if [[ $passed -lt $TPKG_PASS ]]; then
+                        exit 1
+                fi
+	elif [[ $failed -gt 0 ]]; then
+		exit 1
+	else
+        	exit 0
+        fi
+}
+
+# clone test1 to test2
+function clone() {
+        $0 extract $test1.tpkg
+        if [ $? -ne 0 ]; then
+                err "[fatal] Extract of $test1.tpkg failed. Abort."
+                exit 1
+        fi
+
+        if [ ! -d "$test1.dir" ]; then
+                err "[fatal] No $test1.dir directory? Abort."
+                exit 1
+        fi
+        cd $test1.dir
+        for i in $test1.* ; do 
+                ext=`echo $i | sed s/$test1//`
+                if [ ! -z "$ext" ]; then
+                        # rename the content of the files too
+                        sed  "s/$test1/$test2/g" < $i > $i.$$
+                        mv $i.$$ $i
+                        # rename
+                        mv $i $test2$ext
+                fi
+        done
+        # edit the dsc file too
+        # update the date
+        sed "s/^CreationDate:.*/CreationDate: `date`/"  < $test2.dsc > $test2.dsc.$$
+        mv $test2.dsc.$$ $test2.dsc
+
+        cd ..
+        # rename the dir
+        mv $test1.dir $test2.dir
+        if [ $TPKG_KEEP -eq 0 ]; then
+		if [ $TPKG_FORMAT = "dir" ]; then
+                	$0 -d create $test2.tpkg
+		else
+                	$0 create $test2.tpkg
+		fi
+        else
+		if [ $TPKG_FORMAT = "dir" ]; then
+                	$0 -d -k create $test2.tpkg
+		else
+                	$0 -k create $test2.tpkg
+		fi
+        fi
+        if [ $? -ne 0 ]; then
+                err "[warning] Creating of $test2.tpkg failed."
+        fi
+	cd $TPKG_CURRENT
+}
+
+# try to find the specific cmd
+function find_cmd {
+        which "${i}" >/dev/null
+        if [ $? -ne 0 ]; then                
+                err "[fatal] CmdDepend \"$i\" could not be satisfied: not found. Abort."
+                cleanup; exit 1  
+        fi
+}
+
+# extract a tpkg to the given dir. The dir must exist already.
+function extract_tpkg_to { # <dir>
+        out "[log] Extracting..."
+        # tar xfz ${testname}.tpkg -C $1 2>/dev/null
+	if [ -d "${test_pkg}" ]
+	then
+		cp -pr "${test_pkg}" "$1/${testname}.dir"
+	else
+		gzip -cd "${test_pkg}" | (cd $1; tar xf -) 2>/dev/null
+	fi
+	if [ $? -ne 0 ]; then
+		err "[fatal] Could not untar archive. Abort."
+		cd $TPKG_CURRENT; exit 1
+	fi
+	# now stuff is in: $1/testname.dir/...
+	mv $1/${testname}.dir $1/${testname}.dir.tmp$$
+	mv $1/${testname}.dir.tmp$$/* $1/.
+	rm -rf $1/${testname}.dir.tmp$$
+}
+
+### MAIN 
+# check the arguments
+while getopts ":vhkqb:a:n:lp:df" o
+do case "$o" in
+	b) 	TPKG_BASE="$OPTARG";;
+	h) 	usage; exit 0;;
+	v) 	version; exit 0;;
+        l)      TPKG_LOG=1;;
+        p)      TPKG_PRI="$OPTARG";;
+	a) 	TPKG_ARGS="$OPTARG";;
+        q)      TPKG_QUIET=1;;
+        k)      TPKG_KEEP=1;;
+        n)      TPKG_PASS=$OPTARG
+                if [ $TPKG_PASS -eq 0 ]; then
+                        err "[fatal] A null or non numerical value is not valid. Abort."
+                        exit 1
+                fi
+                ;;
+	d) 	TPKG_FORMAT="dir";;
+	f) 	TPKG_FORCE=1;;
+        *)      err "[fatal] Unknown option. Abort."; exit 1;;
+esac
+done
+shift $(($OPTIND - 1))
+
+# go to the base dir
+if [ ! -d $TPKG_BASE ]; then
+	err "[fatal] Directory $TPKG_BASE does not exist. Abort"
+	exit 1
+else
+	cd $TPKG_BASE
+fi
+
+# either create a tpkg (ie. call shar) or exe (do a test)
+goal=$1
+archive=$2
+if [ -z "${goal}" ]; then
+        usage
+        cd $TPKG_CURRENT; exit 0
+fi
+
+# allow short goals
+case $goal in
+        # none for exe - short enough
+        c)      goal="create";;
+        e)      goal="extract";;
+        t)      goal="tmpl";;
+        f)      goal="fake";;
+        cd)     goal="cleandir";;
+
+        r)      goal="report";;
+        # none for clean
+        cl)     goal="clone";;
+        l)      goal="list";;
+        d)      goal="desc";;
+        h)      goal="help";;
+esac
+
+### REPORT ###
+# no extra args required
+if [ "${goal}" = "report" ]; then
+        report;
+fi
+if [ "${goal}" = "clean" ]; then
+        cleanreport; exit 0
+fi
+if [ "${goal}" = "cleandir" ]; then
+        cleandirs; exit 0
+fi
+if [ "${goal}" = "clone" ]; then
+        test1=`basename $2 .tpkg`
+        test2=`basename $3 .tpkg`;
+        if [ -z "$test1" -o -z "$test2" ]; then
+                usage; cd $TPKG_CURRENT; exit 0
+        fi
+        clone; exit 0
+fi
+
+if [ -z "${archive}" ]; then
+        out "[log] Defaulting to \`execute'"
+        archive=$1
+        goal="exe"
+fi
+
+if [ -z "${archive}" ]; then
+        usage; cd $TPKG_CURRENT; exit 0
+fi
+
+testname=`basename "${archive}" .tpkg`
+testpath=`dirname "${archive}"`
+test_pkg="${testpath}/${testname}.tpkg"
+dsc_file=$testname.dsc                  
+if  [ -z $testname ]; then
+        err "[fatal] The test package should have a .tpkg extension. Abort."
+	cd $TPKG_CURRENT; exit 1
+fi
+
+if [ "${goal}" = "fake" ]; then
+        out "[log] Writing .done-$testname file."
+        write_fake_done; exit 0
+fi
+
+if [ $goal = "create" ]; then
+### CREATE ###
+# get all files with the same basename except those that ends in .tpkg
+
+        # check for shar
+        which tar >/dev/null
+        if [ $? -ne 0 ]; then
+                err "[fatal] Tar command not found. Abort."
+                cd $TPKG_CURRENT; exit 1
+        fi
+
+        # assume there is a dir named $testname.dir
+        if [ ! -d "${testname}.dir" ]; then
+                err "[fatal] No $testname.dir directory found. Abort."
+        	cd $TPKG_CURRENT; exit 1
+        fi
+        cd $testname.dir
+
+        # rm unwanted files
+        cleanreport # this cd's to $TPKG_CURRENT
+        cd - >/dev/null # jump back
+
+        # tar is smart enough to handle this
+        cd ../
+        i=$( ls ${testname}.dir/$testname.* 2>/dev/null )
+        if [ -z "${i}" ]; then
+                err "[fatal] No $testname.* files found. Abort."
+		cd $TPKG_CURRENT; exit 1
+        fi
+
+
+        # tar --create --file $testname.tpkg --gzip ${testname}.dir
+	(
+		if [ -d "${test_pkg}" ]
+		then
+			TPKG_FORMAT="dir"
+		fi
+		if [ $TPKG_FORMAT = "dir" ]
+		then
+			if [ -e "${test_pkg}" ]
+			then
+				rm -fr "${test_pkg}"
+			fi
+			cp -pr "${testname}.dir" "${test_pkg}" \
+			|| cp -pr "${testname}.dir" "${test_pkg}" \
+			|| (   mkdir "${test_pkg}" \
+			   && ( ( cd "${testname}.dir" ; tar cf - . ) \
+			      | ( cd "${test_pkg}"; tar xf -)
+			      )
+			   )
+		else
+			tar -cf - ${testname}.dir | gzip - > "${test_pkg}"
+		fi
+	)
+	if [ $? -ne 0 ]; then
+		err "[fatal] Archive create error. Abort."
+		cd $TPKG_CURRENT; exit 1
+	fi
+        if [ $TPKG_KEEP -eq 0 ]; then
+                out "[log] Removing member files"
+                rm $i
+        fi
+        if [ $TPKG_KEEP -eq 0 ]; then
+                out "[log] Removing directory"
+                rmdir $testname.dir
+        fi
+	cd $TPKG_CURRENT; exit 0
+fi
+
+### TMPL ####
+# write out a .dsc and touch a .pre/.post/.test
+if [ $goal = "tmpl" ]; then
+        if [ -f $testname.dsc ]; then
+                err "[fatal] $testname.dsc already exists. Abort."
+		cd $TPKG_CURRENT; exit 1
+        fi
+        
+        # make tmp dir
+        dir="$testname.dir"
+        mkdir $dir
+        if [ ! -d $dir ]; then 
+                err "[fatal] Failure to create a temporary working directory. Abort."
+		cd $TPKG_CURRENT; exit 1
+        fi
+        cd $dir
+        
+        cat <<TMPL_EOF > $testname.dsc
+BaseName: $testname
+Version: 1.0
+Description: [Put something nice here]
+CreationDate: `date`
+Maintainer: `grep $LOGNAME /etc/passwd | awk -F: ' { print $5 }' | sed s/,//g`
+Category: 
+Component:
+CmdDepends: 
+Depends: 
+Help: $testname.help
+Pre: $testname.pre
+Post: $testname.post
+Test: $testname.test
+AuxFiles: 
+Passed:
+Failure:
+TMPL_EOF
+        # .help file
+        echo "Please describe how to use this test."  > $testname.help
+        echo "i.e. tpkg -a ARG exe testname:"  >> $testname.help
+        echo "   ARG is used to ..."  >> $testname.help
+
+        # .test file
+        echo "# #-- $testname.test --#" > $testname.test
+        echo "# source the master var file when it's there" >> $testname.test
+        echo "[ -f $TPKG_VAR_MASTER ] && source $TPKG_VAR_MASTER" >> $testname.test 
+        echo "# use $TPKG_VAR_TEST for in test variable passing" >> $testname.test
+        echo "[ -f $TPKG_VAR_TEST ] && source $TPKG_VAR_TEST" >> $testname.test
+
+        # .post file
+        echo "# #-- $testname.post --#" > $testname.post
+        echo "# source the master var file when it's there" >> $testname.post
+        echo "[ -f $TPKG_VAR_MASTER ] && source $TPKG_VAR_MASTER" >> $testname.post 
+        echo "# source the test var file when it's there" >> $testname.post
+        echo "[ -f $TPKG_VAR_TEST ] && source $TPKG_VAR_TEST" >> $testname.post 
+        echo "#" >> $testname.post 
+        echo "# do your teardown here" >> $testname.post
+
+        # .pre file
+        echo "# #-- $testname.pre--#" > $testname.pre
+        echo "# source the master var file when it's there" >> $testname.pre
+        echo "[ -f $TPKG_VAR_MASTER ] && source $TPKG_VAR_MASTER" >> $testname.pre
+        echo "# use $TPKG_VAR_TEST for in test variable passing" >> $testname.pre
+        echo "[ -f $TPKG_VAR_TEST ] && source $TPKG_VAR_TEST" >> $testname.pre
+
+        out "[log] created $testname.{dsc, test, help, pre, post}"
+        out "[log] please create the script(s) and then run: tpkg create $testname.tpkg"
+        out "[log] created $testname in $dir."
+	cd $TPKG_CURRENT; exit 0
+fi
+
+if [ ! -e $archive ]; then
+        err "[fatal] Cannot find the test package: $archive. Abort."
+        cd $TPKG_CURRENT; exit 1
+fi
+
+## EXTRACT
+if [ $goal = "extract" ]; then
+        dir="${testname}.dir"
+        if [ -d $dir ]; then 
+                err "[fatal] Directory $dir already exists. Abort."
+		cd $TPKG_CURRENT; exit 1
+        fi
+        mkdir $dir
+        if [ ! -d $dir ]; then 
+                err "[fatal] Failure to create $dir directory. Abort."
+		cd $TPKG_CURRENT; exit 1
+        fi
+
+	extract_tpkg_to $dir
+        cd $dir
+        trap cleanup_and_exit INT
+
+        # stop here
+        out "[log] extracted ${test_pkg} $dir."
+        cd $TPKG_CURRENT; exit 0
+fi
+
+## LIST OR DESC OR HELP
+if [ $goal = "list" -o $goal = "desc" -o $goal = "help" ]; then
+        $0 extract "${archive}"
+        if [ $? -ne 0 ]; then
+                cd $TPKG_CURRENT; exit 1
+        fi
+
+        cd ${testname}.dir/
+        
+        case $goal in
+        list*)
+                cat *
+                ;;
+        desc*)
+                echo -n "$testname: "
+                cat $testname.dsc | awk -F': ?' '/^Description/ { print $2 }'
+                ;;
+        help*)
+                if [ -f $testname.help ]; then
+                        cat $testname.help
+                else
+                        err "[warning] No help file found."
+                fi
+                ;;
+        esac
+        cd $TPKG_CURRENT
+        # dir can go
+        rm -rf ${testname}.dir; exit 0
+fi
+
+trap cleanup_and_exit INT
+
+# make a tmp dir during execution
+if [ "$goal" != "exe" ]; then
+        err "[fatal] What do you mean with $goal?. Abort."
+	cd $TPKG_CURRENT; exit 1
+fi
+
+mktempdir "${testname}.XXXXXX"
+if [ ! -d $dir ]; then 
+        err "[fatal] Failure to create a temporary working directory. Abort."
+	cd $TPKG_CURRENT; exit 1
+fi
+## EXTRACT
+extract_tpkg_to $dir
+cd $dir
+
+### EXE ###
+# extract the information out of the *.dsc files
+if [ ! -f $dsc_file ]; then
+        err "[fatal] Can't locate the description file: $dsc_file. Abort."
+        cleanup; exit 1
+fi
+
+SHELL=`which bash`
+if [ -z ${SHELL} ]; then
+       SHELL=/usr/local/bin/bash
+       if [ ! -x $SHELL ]; then
+               err "[fatal] Can't find the bash shell. Abort."
+               cleanup; exit 1
+       fi
+fi
+
+# check for a .done file
+if [ -f "../.done-${testname}" -a $TPKG_FORCE -ne 1 ]; then
+        out "[log] Found .done-${testname}. Not executing this test."
+        cleanup; exit 0
+fi
+
+# this is the template for .dsc files
+# we need to check if all these files also exist TODO
+dsc_basename=$testname
+function get_field_from_dsc() # fieldname
+{
+	grep "^$1: " $dsc_file | sed -e "s/^$1:[ 	]*//" -e "s/[ 	]*$//"
+}
+dsc_version=`get_field_from_dsc Version`
+dsc_description=`get_field_from_dsc Description`
+dsc_creationdate=`get_field_from_dsc CreationDate`
+dsc_category=`get_field_from_dsc Category`
+dsc_component=`get_field_from_dsc Component`
+dsc_cmddepends=`get_field_from_dsc CmdDepends`
+dsc_depends=`get_field_from_dsc Depends`
+dsc_maintainer=`get_field_from_dsc Maintainer`
+dsc_help=`get_field_from_dsc Help`
+dsc_pre=`get_field_from_dsc Pre`
+dsc_post=`get_field_from_dsc Post`
+dsc_test=`get_field_from_dsc Test`
+dsc_aux=`get_field_from_dsc AuxFiles`
+dsc_passed=`get_field_from_dsc Passed`
+dsc_failure=`get_field_from_dsc Failure`
+
+# consistency check the lot
+for i in $dsc_pre $dsc_post $dsc_test $dsc_help; do
+        if [ ! -z ${i} ]; then
+                if [ ! -f "${i}" ]; then
+                        err "[fatal] File defined, but ${i} cannot be found. Abort."
+                        cleanup; exit 1
+                fi
+        fi
+done
+for i in $dsc_pre $dsc_post $dsc_test $dsc_help; do
+        if [ -z ${i} ]; then
+                if [ -f "${i}" ]; then
+                        err "[fatal] File not defined, but ${i} is included in the package. Abort."
+                        cleanup; exit 1
+                fi
+        fi
+done
+
+# if we depend on another test to that one first and then return
+for deptest in ${dsc_depends}; do
+	cd ..  # go up one dir
+        out "[log] executing dependency test: ${testpath}/${deptest}"
+        ${SHELL} $0 "-b ${TPKG_BASE}" exe "${testpath}/${deptest}"
+        test_result=$?
+        cd - > /dev/null  # back where we belong
+        if [ $test_result -ne 0 ]; then
+                err "[fatal] Test depends on $deptest which failed.  Abort."
+                cleanup; exit 1
+        fi
+done
+
+# this enhances the template from above
+## Post Processing of some of these variables
+# dsc_aux is a comma seperated list of files, max 8 files
+i=$( echo $dsc_aux | awk -F', ?' '{ print $1 "\n" $2 "\n" $3 "\n" $4 "\n" \
+$5 "\n" $6 "\n" $7 "\n" $8 }' )
+dsc_aux_files=($i)
+dsc_aux_files_total=${#dsc_aux_files[*]}
+# cmd depends
+i=$( echo $dsc_cmddepends | awk -F', ?' '{ print $1 "\n" $2 "\n" $3 "\n" $4 "\n" \
+$5 "\n" $6 "\n" $7 "\n" $8 }' )
+dsc_cmddepends_files=($i)
+dsc_cmddepends_files_total=${#dsc_cmddepends_files[*]}
+
+for i in ${dsc_cmddepends_files[*]}; do
+        find_cmd $i
+done
+# depends can also be a comma seperated list of package
+# TODO 
+
+# check is the aux files are also really in the shar
+for i in ${dsc_aux_files[*]}; do
+        if [ ! -f $i ]; then
+                err "[fatal] Aux. file $i must be in the archive. Abort."
+                cleanup; exit 1
+        fi
+done
+
+if [ ! -f $dsc_test ]; then
+        err "[fatal] Can't locate the test script: $dsc_test. Abort."
+        cleanup; exit 1
+fi
+
+### Actual executing of the scripts
+tpkg_log "Starting test: '$dsc_basename'"
+
+epoch  # run before pre()
+echo "BaseName: $dsc_basename" > result.$dsc_basename
+echo "Description: $dsc_description" >> result.$dsc_basename
+echo "DateRunStart: $epoch " >> result.$dsc_basename
+echo "--------------- Test Output ------------------" >> result.$dsc_basename
+
+pre
+
+out "[log] Executing test" 
+
+( ${SHELL} $dsc_test ${TPKG_ARGS} 2>&1 ) >> result.$dsc_basename
+test_result=$?
+epoch   # would like to run after post, but that is not possible :-(
+if [ $test_result -ne 0 ]; then
+        err "[warning] Test executed with errors: $test_result." 
+        echo "!! FAILED !!     !! FAILED !!" > result.$dsc_basename.tmp
+        echo "DateRunEnd: $epoch" >> result.$dsc_basename.tmp
+        err "[log] !! FAILED !!"
+        cat result.$dsc_basename >> result.$dsc_basename.tmp
+        echo "exit code: $test_result" >> result.$dsc_basename.tmp
+        mv result.$dsc_basename.tmp result.$dsc_basename
+        post; 
+        if [ $TPKG_KEEP -eq 0 ]; then
+                out "[log] Removing temp directory $dir"
+                cleanup
+        else
+        	out "[log] Keeping temp directory $dir"
+        fi
+        exit 1
+fi
+ 
+cp -f result.$dsc_basename result.$dsc_basename.$$
+
+failed=-1  # -1 undef, 0 passed, 1 failed
+## PASSED
+[ ! -z "${dsc_passed}" ] && egrep "${dsc_passed}" result.$dsc_basename.$$ > /dev/null
+if [ $? -eq 0 ]; then
+        err "[log] ** PASSED **"
+        echo "** PASSED **     ** PASSED **" > result.$dsc_basename.tmp
+        echo "DateRunEnd: $epoch" >> result.$dsc_basename.tmp
+        cat result.$dsc_basename >> result.$dsc_basename.tmp
+        echo "exit code: $test_result" >> result.$dsc_basename.tmp
+        mv result.$dsc_basename.tmp result.$dsc_basename
+        write_done
+        failed=0
+fi 
+## FAILED
+[ ! -z "${dsc_failure}" ] && egrep "${dsc_failure}" result.$dsc_basename.$$ > /dev/null
+# if not found this actually means PASSED
+if [ $? -eq 0 ]; then
+        err "[log] !! FAILED !!"
+        echo "!! FAILED !!     !! FAILED !!" > result.$dsc_basename.tmp
+        echo "DateRunEnd: $epoch" >> result.$dsc_basename.tmp
+        cat result.$dsc_basename >> result.$dsc_basename.tmp
+        echo "exit code: $test_result" >> result.$dsc_basename.tmp
+        mv result.$dsc_basename.tmp result.$dsc_basename
+        failed=1
+else
+        err "[log] ** PASSED **"
+        echo "** PASSED **     ** PASSED **" > result.$dsc_basename.tmp
+        echo "DateRunEnd: $epoch" >> result.$dsc_basename.tmp
+        cat result.$dsc_basename >> result.$dsc_basename.tmp
+        echo "exit code: $test_result" >> result.$dsc_basename.tmp
+        mv result.$dsc_basename.tmp result.$dsc_basename
+        write_done
+        failed=0
+fi
+
+## UNKNOWN
+if [ $failed -eq -1 ]; then
+        # neither failed, not success, unknown
+        err "[log] -- UNKNOWN --"
+        echo "-- UNKNOWN --     -- UNKNOWN --" > result.$dsc_basename.tmp
+        echo "DateRunEnd: $epoch" >> result.$dsc_basename.tmp
+        cat result.$dsc_basename >> result.$dsc_basename.tmp
+        echo "exit code: $test_result" >> result.$dsc_basename.tmp
+        mv result.$dsc_basename.tmp result.$dsc_basename
+        write_done
+        failed=1 # not passed
+fi
+        
+post
+if [ $TPKG_KEEP -eq 0 ]; then
+        out "[log] Removing temp directory $dir"
+        cleanup
+else
+	out "[log] Keeping temp directory $dir"
+fi
+exit $failed
