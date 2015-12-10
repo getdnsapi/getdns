@@ -345,7 +345,7 @@
       struct getdns_dict *dict = NULL;
       struct getdns_dict *response = NULL;
       struct getdns_bindata address_type = { 5, (void *)"IPv6" };
-      struct getdns_bindata address_data = { 16, (void *)"\x20\x01\x48\x60\x48\x60\x00\x00\x00\x00\x00\x00\x00\x00\x88\x44" };
+      struct getdns_bindata address_data = { 16, (void *)"\x26\x20\x00\x74\x00\x1b\x00\x00\x00\x00\x00\x00\x00\x01\x00\x01" };
       size_t index = 0;
 
       CONTEXT_CREATE(TRUE);
