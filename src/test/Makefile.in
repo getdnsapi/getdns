@@ -92,6 +92,11 @@ default: all
 
 all: $(PROGRAMS)
 
+tpkg: run-tpkg-tests
+
+run-tpkg-tests:
+	cd tpkg && sh run-tpkg-tests.sh
+
 $(ALL_OBJS):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(LDNS_CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
 

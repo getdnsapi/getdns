@@ -148,6 +148,9 @@ libgetdns.la: $(GETDNS_OBJ) version.lo context.lo libmini_event.lo $(GLDNS_OBJ) 
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) version.lo context.lo libmini_event.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
+tpkg:
+	cd test && $(MAKE) $@
+
 test:	all
 	cd test && $(MAKE) $@
 

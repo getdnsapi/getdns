@@ -94,6 +94,9 @@ doc:	FORCE
 example:
 	cd spec/example && $(MAKE) $@
 
+tpkg:
+	cd src && $(MAKE) $@
+
 test:
 	cd src && $(MAKE) $@
 
