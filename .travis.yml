@@ -10,4 +10,4 @@ script:
   - autoreconf -fi
   - mkdir tests
   - cd tests
-  - sh src/test/tpkg/run-tpkg-tests.sh
+  - sh ../tests/src/test/tpkg/run-tpkg-tests.sh
