@@ -4,9 +4,10 @@ compiler:
   - clang
 before_script:
   - sudo apt-get update
-  - sudo apt-get install libunbound-dev libldns-dev libidn11-dev check libevent-dev libev-dev
+  - sudo apt-get install libunbound-dev libldns-dev libidn11-dev check libevent-dev libev-dev bc
 script:
   - libtoolize -fic
   - autoreconf -fi
-  - ./configure
-  - make tpkg
+  - mkdir tests
+  - cd tests
+  - sh src/test/tpkg/run-tpkg-tests.sh

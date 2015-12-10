@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export SRCDIR=`(cd "@srcdir@"; pwd)`
+export SRCDIR=`dirname $0`
 export SRCROOT=`(cd "${SRCDIR}/../../.."; pwd)`
 export TPKG="${SRCDIR}/tpkg"
 export BUILDDIR=`pwd`
