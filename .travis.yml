@@ -1,13 +1,21 @@
+sudo: false
 language: c
 compiler:
   - gcc
   - clang
-before_script:
-  - sudo apt-get update
-  - sudo apt-get install libunbound-dev libldns-dev libidn11-dev check libevent-dev libev-dev bc
+addons:
+  apt:
+    packages:
+    - libunbound-dev
+    - libldns-dev
+    - libidn11-dev
+    - check
+    - libevent-dev
+    - libev-dev
+    - bc
 script:
   - libtoolize -fic
   - autoreconf -fi
   - mkdir tests
   - cd tests
-  - sh ../src/test/tpkg/run-tpkg-tests.sh
+  - ../src/test/tpkg/run-all.sh
