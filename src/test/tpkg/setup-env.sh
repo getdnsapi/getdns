@@ -7,6 +7,14 @@ export BUILDDIR=`pwd`
 export BUILDROOT=`(cd "${BUILDDIR}/../../.."; pwd)`
 export LIBTOOL="${BUILDROOT}/libtool"
 
+if [ ! -f "${SRCROOT}/libtool" ]
+then
+	(cd "${SRCROOT}"; libtoolize -fic)
+fi
+if [ ! -f "${SRCROOT}/configure" ]
+then
+	(cd "${SRCROOT}"; autoreconf -fi)
+fi
 if [ -f .tpkg.var.master ]
 then
 	cat .tpkg.var.master \

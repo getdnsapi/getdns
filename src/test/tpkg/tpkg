@@ -494,8 +494,8 @@ if [ -z "${archive}" ]; then
 fi
 
 testname=`basename "${archive}" .tpkg`
-testpath=`dirname "${archive}"`
-test_pkg="${testpath}/${testname}.tpkg"
+export TPKG_SRCDIR=`dirname "${archive}"`
+test_pkg="${TPKG_SRCDIR}/${testname}.tpkg"
 dsc_file=$testname.dsc                  
 if  [ -z $testname ]; then
         err "[fatal] The test package should have a .tpkg extension. Abort."
@@ -785,8 +785,8 @@ done
 # if we depend on another test to that one first and then return
 for deptest in ${dsc_depends}; do
 	cd ..  # go up one dir
-        out "[log] executing dependency test: ${testpath}/${deptest}"
-        ${SHELL} $0 "-b ${TPKG_BASE}" exe "${testpath}/${deptest}"
+        out "[log] executing dependency test: ${TPKG_SRCDIR}/${deptest}"
+        ${SHELL} $0 "-b ${TPKG_BASE}" exe "${TPKG_SRCDIR}/${deptest}"
         test_result=$?
         cd - > /dev/null  # back where we belong
         if [ $test_result -ne 0 ]; then
