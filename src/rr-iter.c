@@ -153,7 +153,6 @@ dname_if_or_as_decompressed(const uint8_t *pkt, const uint8_t *pkt_end,
 	const uint8_t *start;
 	uint8_t *dst;
 
-	assert(pkt);
 	assert(pkt_end);
 	assert(pos);
 	assert(buf);
@@ -304,7 +303,7 @@ _getdns_rdf_iter_init(_getdns_rdf_iter *i, _getdns_rr_iter *rr)
 
 	i->end     = NULL;
 	/* rr_iter already done or in question section */
-	if (!rr->pos || rr->n < GLDNS_QDCOUNT(rr->pkt))
+	if (!rr->pos || _getdns_rr_iter_section(rr) == GLDNS_SECTION_QUESTION)
 		goto done;
 
 	i->pkt     = rr->pkt;
