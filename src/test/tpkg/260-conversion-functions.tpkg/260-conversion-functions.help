@@ -1,0 +1,2 @@
+Compile a program that setups a dict with json pointers and pretty prints the dict.
+Then compare the output to the known to be good output.

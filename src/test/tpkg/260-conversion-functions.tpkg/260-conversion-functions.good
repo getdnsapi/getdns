@@ -1,0 +1,45 @@
+{
+  "class": GETDNS_RRCLASS_CH,
+  "name": <bindata of "some.domain.tld.">,
+  "rdata":
+  {
+    "rdata_raw": <bindata of 0x0c666972737420737472696e67067365...>,
+    "txt_strings":
+    [
+       <bindata of "first string">,
+       <bindata of "second">,
+       <bindata of "and third">
+    ]
+  },
+  "ttl": 60,
+  "type": GETDNS_RRTYPE_TXT
+}
+0000  04 73 6f 6d 65 06 64 6f  6d 61 69 6e 03 74 6c 64  .some.do main.tld
+0010  00 00 10 00 03 00 00 00  3c 00 1e 0c 66 69 72 73  ........ <...firs
+0020  74 20 73 74 72 69 6e 67  06 73 65 63 6f 6e 64 09  t string .second.
+0030  61 6e 64 20 74 68 69 72  64                       and thir d.......
+{
+  "class": GETDNS_RRCLASS_CH,
+  "name": <bindata of "some.domain.tld.">,
+  "rdata":
+  {
+    "txt_strings":
+    [
+       <bindata of "first string">,
+       <bindata of "second">,
+       <bindata of "and third">
+    ]
+  },
+  "ttl": 60,
+  "type": GETDNS_RRTYPE_TXT
+}
+0000  04 73 6f 6d 65 06 64 6f  6d 61 69 6e 03 74 6c 64  .some.do main.tld
+0010  00 00 10 00 03 00 00 00  3c 00 1e 0c 66 69 72 73  ........ <...firs
+0020  74 20 73 74 72 69 6e 67  06 73 65 63 6f 6e 64 09  t string .second.
+0030  61 6e 64 20 74 68 69 72  64                       and thir d.......
+
+www.getdnsapi.net.	0	IN	A	185.49.141.37
+
+0000  03 77 77 77 09 67 65 74  64 6e 73 61 70 69 03 6e  .www.get dnsapi.n
+0010  65 74 00 00 01 00 01 00  00 00 00 00 04 b9 31 8d  et...... ......1.
+0020  25                                                %....... ........
