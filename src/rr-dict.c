@@ -745,22 +745,96 @@ _getdns_rr_type_name(int rr_type)
 	return _getdns_rr_def_lookup(rr_type)->name;
 }
 
+static void
+write_int_rdata(gldns_buffer *buf, _getdns_rdf_type type, uint32_t value)
+{
+	size_t j;
+
+	for (j = type & GETDNS_RDF_FIXEDSZ; j; j--)
+		gldns_buffer_write_u8(buf,
+		    (uint8_t)(value >> (8 * (j - 1))) & 0xff);
+}
+
+static void
+write_bindata_rdata(gldns_buffer *buf,
+    _getdns_rdf_type type, getdns_bindata *bindata)
+{
+	if (type & GETDNS_RDF_LEN_VAL)
+		write_int_rdata(buf, type >> 8, bindata->size);
+
+	gldns_buffer_write(buf, bindata->data, bindata->size);
+}
+
+
+static getdns_return_t
+write_rdata_field(gldns_buffer *buf, 
+    _getdns_rdf_type type, const char *name, getdns_dict *rdata)
+{
+	getdns_return_t  r;
+	getdns_list     *list;
+	uint32_t         value;
+	getdns_bindata  *bindata;
+	size_t           i;
+
+	if (type & GETDNS_RDF_INTEGER) {
+		if (!(type & GETDNS_RDF_REPEAT)) {
+			if ((r = getdns_dict_get_int(rdata, name, &value)))
+				return r;
+			else
+				write_int_rdata(buf, type, value);
+
+		} else if ((r = getdns_dict_get_list(rdata, name, &list)))
+			return r;
+
+		else for ( i = 0
+			 ; GETDNS_RETURN_GOOD ==
+			       (r = getdns_list_get_int(list, i, &value))
+			 ; i++)
+			write_int_rdata(buf, type, value);
+
+		if (r != GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+			return r;
+			
+	} else if (type & GETDNS_RDF_BINDATA) {
+		if (!(type & GETDNS_RDF_REPEAT)) {
+			if ((r = getdns_dict_get_bindata(rdata,name,&bindata)))
+				return r;
+			else
+				write_bindata_rdata(buf, type, bindata);
+
+		} else if ((r = getdns_dict_get_list(rdata, name, &list)))
+			return r;
+
+		else for ( i = 0
+			 ; GETDNS_RETURN_GOOD ==
+			       (r = getdns_list_get_bindata(list, i, &bindata))
+			 ; i++)
+			write_bindata_rdata(buf, type, bindata);
+
+		if (r != GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+			return r;
+
+	} else
+		/* TODO: Handle the special types */
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t
 _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	struct getdns_bindata *name;
 	struct getdns_bindata *rdata_raw;
-	struct getdns_bindata *bindata;
 	struct getdns_dict *rdata;
 	uint32_t rr_type;
 	uint32_t rr_class = GETDNS_RRCLASS_IN;
 	uint32_t rr_ttl = 0;
-	uint32_t value;
 	const _getdns_rr_def *rr_def;
 	const _getdns_rdata_def *rd_def;
 	int n_rdata_fields;
-	size_t j, rdata_size_mark;
+	size_t rdata_size_mark;
 
 	assert(rr_dict);
 	assert(buf);
@@ -784,7 +858,7 @@ _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 	 */
 	rr_def = _getdns_rr_def_lookup(rr_type);
 	for ( rd_def = rr_def->rdata
-	    , n_rdata_fields = rr_def->n_rdata_fields + 1
+	    , n_rdata_fields = rr_def->n_rdata_fields
 	    ; n_rdata_fields ; n_rdata_fields-- , rd_def++ ) {
 
 		if (rd_def->type & GETDNS_RDF_COMPRESSED)
@@ -809,26 +883,13 @@ _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 		    , n_rdata_fields = rr_def->n_rdata_fields
 		    ; n_rdata_fields ; n_rdata_fields-- , rd_def++ ) {
 
-			if (rd_def->type & GETDNS_RDF_BINDATA) {
-				if ((r = getdns_dict_get_bindata(rdata,
-				    rd_def->name, &bindata)))
-					break;
 
-				gldns_buffer_write(buf, bindata->data
-				                      , bindata->size );
-				continue;
-			}
-			if (!(rd_def->type & GETDNS_RDF_INTEGER)) {
-				r = GETDNS_RETURN_GENERIC_ERROR;
+			if (rd_def->type != GETDNS_RDF_REPEAT) {
+				if ((r = write_rdata_field(
+			    	    buf, rd_def->type, rd_def->name, rdata)))
 				break;
 			}
-			if ((r = getdns_dict_get_int(
-			    rdata, rd_def->name, &value)))
-				break;
-			
-			for (j = rd_def->type & GETDNS_RDF_FIXEDSZ; j; j--)
-				gldns_buffer_write_u8(buf,
-				    (uint8_t)(value >> (8 * (j - 1))) & 0xff);
+			/* TODO: Deal with repeat blocks */
 		}
 		gldns_buffer_write_u16_at(buf, rdata_size_mark,
 		    (uint16_t)(gldns_buffer_position(buf)-rdata_size_mark-2));
