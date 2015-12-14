@@ -132,15 +132,15 @@ typedef enum _getdns_rdf_wf_type {
 } _getdns_rdf_type;
 
 typedef struct _getdns_rdata_def {
-	const char              *name;
+	const char          *name;
 	_getdns_rdf_type     type;
 	_getdns_rdf_special *special;
 } _getdns_rdata_def;
 
 typedef struct _getdns_rr_def {
-	const char                  *name;
+	const char              *name;
 	const _getdns_rdata_def *rdata;
-	int                          n_rdata_fields;
+	int                      n_rdata_fields;
 } _getdns_rr_def;
 
 const _getdns_rr_def *_getdns_rr_def_lookup(uint16_t rr_type);

@@ -1,5 +1,5 @@
 {
-  "class": GETDNS_RRCLASS_CH,
+  "class": GETDNS_RRCLASS_IN,
   "name": <bindata of "some.domain.tld.">,
   "rdata":
   {
@@ -8,38 +8,95 @@
     [
        <bindata of "first string">,
        <bindata of "second">,
-       <bindata of "and third">
+       <bindata of "and third">,
+       <bindata of "last string">
     ]
   },
   "ttl": 60,
   "type": GETDNS_RRTYPE_TXT
 }
 0000  04 73 6f 6d 65 06 64 6f  6d 61 69 6e 03 74 6c 64  .some.do main.tld
-0010  00 00 10 00 03 00 00 00  3c 00 1e 0c 66 69 72 73  ........ <...firs
+0010  00 00 10 00 01 00 00 00  3c 00 1e 0c 66 69 72 73  ........ <...firs
 0020  74 20 73 74 72 69 6e 67  06 73 65 63 6f 6e 64 09  t string .second.
 0030  61 6e 64 20 74 68 69 72  64                       and thir d.......
-{
-  "class": GETDNS_RRCLASS_CH,
-  "name": <bindata of "some.domain.tld.">,
-  "rdata":
-  {
-    "txt_strings":
-    [
-       <bindata of "first string">,
-       <bindata of "second">,
-       <bindata of "and third">
-    ]
-  },
-  "ttl": 60,
-  "type": GETDNS_RRTYPE_TXT
-}
+
+removed "/rdata/rdata_raw":
+
 0000  04 73 6f 6d 65 06 64 6f  6d 61 69 6e 03 74 6c 64  .some.do main.tld
-0010  00 00 10 00 03 00 00 00  3c 00 1e 0c 66 69 72 73  ........ <...firs
+0010  00 00 10 00 01 00 00 00  3c 00 2a 0c 66 69 72 73  ........ <.*.firs
 0020  74 20 73 74 72 69 6e 67  06 73 65 63 6f 6e 64 09  t string .second.
-0030  61 6e 64 20 74 68 69 72  64                       and thir d.......
+0030  61 6e 64 20 74 68 69 72  64 0b 6c 61 73 74 20 73  and thir d.last s
+0040  74 72 69 6e 67                                    tring... ........
+
+some.domain.tld.	60	IN	TXT	"first string" "last string"
+some.domain.tld.	60	IN	TXT	\# 0
 
 www.getdnsapi.net.	0	IN	A	185.49.141.37
 
 0000  03 77 77 77 09 67 65 74  64 6e 73 61 70 69 03 6e  .www.get dnsapi.n
 0010  65 74 00 00 01 00 01 00  00 00 00 00 04 b9 31 8d  et...... ......1.
 0020  25                                                %....... ........
+
+{
+  "class": GETDNS_RRCLASS_IN,
+  "name": <bindata of "hip2.nlnetlabs.nl.">,
+  "rdata":
+  {
+    "hit": <bindata of 0x200100107b1a74df365639cc39f1d578>,
+    "pk_algorithm": 2,
+    "public_key": <bindata of 0x03010001b771ca136e4aeb5ce44333c5...>,
+    "rendezvous_servers":
+    [
+       <bindata of "rvs1.example.com.">,
+       <bindata of "rvs2.example.com.">
+    ]
+  },
+  "ttl": 3600,
+  "type": GETDNS_RRTYPE_HIP
+}
+hip2.nlnetlabs.nl.	3600	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D rvs1.example.com. rvs2.example.com.
+hip0.nlnetlabs.nl.	3600	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
+
+{
+  "class": GETDNS_RRCLASS_IN,
+  "name": <bindata of "apl.net-dns.org.">,
+  "rdata":
+  {
+    "apitems":
+    [
+      {
+        "address_family": 1,
+        "afdpart": <bindata of 0xc0a82a>,
+        "n": 0,
+        "prefix": 26
+      },
+      {
+        "address_family": 1,
+        "afdpart": <bindata of 0xc0a82a40>,
+        "n": 0,
+        "prefix": 26
+      },
+      {
+        "address_family": 1,
+        "afdpart": <bindata of 0xc0a82a80>,
+        "n": 1,
+        "prefix": 25
+      },
+      {
+        "address_family": 1,
+        "afdpart": <bindata of 0xe0>,
+        "n": 0,
+        "prefix": 4
+      },
+      {
+        "address_family": 2,
+        "afdpart": <bindata of 0xff>,
+        "n": 0,
+        "prefix": 8
+      }
+    ]
+  },
+  "ttl": 3600,
+  "type": GETDNS_RRTYPE_APL
+}
+apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.128/25 1:224.0.0.0/4 2:ff00:0000:0000:0000:0000:0000:0000:0000/8
