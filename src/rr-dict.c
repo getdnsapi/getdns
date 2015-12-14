@@ -50,17 +50,17 @@ apl_n_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 	return rdf < pkt_end ? rdf + 1 : NULL;
 }
 static getdns_return_t
-apl_n_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
+apl_n_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return getdns_dict_set_int(dict, "n", (*rdf  >> 7));
 }
 static getdns_return_t
-apl_n_list_append_value(getdns_list *list, const uint8_t *rdf)
+apl_n_wire2list(getdns_list *list, const uint8_t *rdf)
 {
 	return _getdns_list_append_int(list, (*rdf  >> 7));
 }
 static _getdns_rdf_special apl_n = {
-    apl_n_rdf_end, apl_n_dict_set_value, apl_n_list_append_value
+    apl_n_rdf_end, apl_n_wire2dict, apl_n_wire2list
 };
 
 static const uint8_t *
@@ -71,19 +71,19 @@ apl_afdpart_rdf_end(
 	return end <= pkt_end ? end : NULL;
 }
 static getdns_return_t
-apl_afdpart_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
+apl_afdpart_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(
 	    dict, "afdpart", (rdf[-1] & 0x7F), rdf);
 }
 static getdns_return_t
-apl_afdpart_list_append_value(getdns_list *list, const uint8_t *rdf)
+apl_afdpart_wire2list(getdns_list *list, const uint8_t *rdf)
 {
 	return _getdns_list_append_const_bindata(list, (rdf[-1] & 0x7F), rdf);
 }
 static _getdns_rdf_special apl_afdpart = {
     apl_afdpart_rdf_end,
-    apl_afdpart_dict_set_value, apl_afdpart_list_append_value
+    apl_afdpart_wire2dict, apl_afdpart_wire2list
 };
 
 static const uint8_t *
@@ -144,7 +144,7 @@ ipseckey_gateway_equip_const_bindata(
 }
 
 static getdns_return_t
-ipseckey_gateway_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
+ipseckey_gateway_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	size_t size;
 	const uint8_t *data;
@@ -158,7 +158,7 @@ ipseckey_gateway_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
 		return _getdns_dict_set_const_bindata(dict, "gateway", size, data);
 }
 static getdns_return_t
-ipseckey_gateway_list_append_value(getdns_list *list, const uint8_t *rdf)
+ipseckey_gateway_wire2list(getdns_list *list, const uint8_t *rdf)
 {
 	size_t size;
 	const uint8_t *data;
@@ -173,7 +173,7 @@ ipseckey_gateway_list_append_value(getdns_list *list, const uint8_t *rdf)
 }
 static _getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
-    ipseckey_gateway_dict_set_value, ipseckey_gateway_list_append_value
+    ipseckey_gateway_wire2dict, ipseckey_gateway_wire2list
 };
 
 static const uint8_t *
@@ -185,18 +185,18 @@ hip_pk_algorithm_rdf_end(
 	     : rdf + 1;
 }
 static getdns_return_t
-hip_pk_algorithm_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
+hip_pk_algorithm_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return getdns_dict_set_int(dict, "pk_algorithm", rdf[1]);
 }
 static getdns_return_t
-hip_pk_algorithm_list_append_value(getdns_list *list, const uint8_t *rdf)
+hip_pk_algorithm_wire2list(getdns_list *list, const uint8_t *rdf)
 {
 	return _getdns_list_append_int(list, rdf[1]);
 }
 static _getdns_rdf_special hip_pk_algorithm = {
     hip_pk_algorithm_rdf_end,
-    hip_pk_algorithm_dict_set_value, hip_pk_algorithm_list_append_value
+    hip_pk_algorithm_wire2dict, hip_pk_algorithm_wire2list
 };
 
 static const uint8_t *
@@ -207,17 +207,17 @@ hip_hit_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 	     : rdf + 1;
 }
 static getdns_return_t
-hip_hit_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
+hip_hit_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(dict, "hit", rdf[-1], rdf + 3);
 }
 static getdns_return_t
-hip_hit_list_append_value(getdns_list *list, const uint8_t *rdf)
+hip_hit_wire2list(getdns_list *list, const uint8_t *rdf)
 {
 	return _getdns_list_append_const_bindata(list, rdf[-1], rdf + 3);
 }
 static _getdns_rdf_special hip_hit = {
-    hip_hit_rdf_end, hip_hit_dict_set_value, hip_hit_list_append_value
+    hip_hit_rdf_end, hip_hit_wire2dict, hip_hit_wire2list
 };
 
 static const uint8_t *
@@ -229,20 +229,20 @@ hip_public_key_rdf_end(
 	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf);
 }
 static getdns_return_t
-hip_public_key_dict_set_value(getdns_dict *dict, const uint8_t *rdf)
+hip_public_key_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(
 	    dict, "public_key", gldns_read_uint16(rdf), rdf + 2 + rdf[-2]);
 }
 static getdns_return_t
-hip_public_key_list_append_value(getdns_list *list, const uint8_t *rdf)
+hip_public_key_wire2list(getdns_list *list, const uint8_t *rdf)
 {
 	return _getdns_list_append_const_bindata(
 	    list, gldns_read_uint16(rdf), rdf + 2 + rdf[-2]);
 }
 static _getdns_rdf_special hip_public_key = {
     hip_public_key_rdf_end,
-    hip_public_key_dict_set_value, hip_public_key_list_append_value
+    hip_public_key_wire2dict, hip_public_key_wire2list
 };
 
 

@@ -310,7 +310,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 					goto rdata_error;
 				break;
 			case wf_special:
-				if (rdf->rdd_pos->special->dict_set_value(
+				if (rdf->rdd_pos->special->wire2dict(
 				    rdata_dict, rdf->pos))
 					goto rdata_error;
 			default:
@@ -338,7 +338,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 					goto rdata_error;
 				break;
 			case wf_special:
-				if (rdf->rdd_pos->special->list_append_value(
+				if (rdf->rdd_pos->special->wire2list(
 				    repeat_list, rdf->pos))
 					goto rdata_error;
 			default:
@@ -377,7 +377,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				goto rdata_error;
 			break;
 		case wf_special:
-			if (rdf->rdd_pos->special->dict_set_value(
+			if (rdf->rdd_pos->special->wire2dict(
 			    repeat_dict, rdf->pos))
 				goto rdata_error;
 		default:
