@@ -175,7 +175,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	const uint8_t *bin_data;
 	size_t bin_size;
 	uint32_t int_val = 0;
-	getdns_data_type val_type;
+	enum wf_data_type { wf_int, wf_bindata, wf_special } val_type;
 	_getdns_rdf_iter rdf_storage, *rdf;
 	getdns_list *repeat_list = NULL;
 	getdns_dict *repeat_dict = NULL;
@@ -254,7 +254,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	for ( rdf = _getdns_rdf_iter_init(&rdf_storage, i)
 	    ; rdf; rdf = _getdns_rdf_iter_next(rdf)) {
 		if (rdf->rdd_pos->type & GETDNS_RDF_INTEGER) {
-			val_type = t_int;
+			val_type = wf_int;
 			switch (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
 			case 1:	int_val = *rdf->pos;
 				break;
@@ -266,13 +266,13 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				goto rdata_error;
 			}
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_DNAME) {
-			val_type = t_bindata;
+			val_type = wf_bindata;
 
 			bin_data = _getdns_rdf_if_or_as_decompressed(
 			    rdf, ff_bytes, &bin_size);
 
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_BINDATA) {
-			val_type = t_bindata;
+			val_type = wf_bindata;
 			if (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
 				bin_size = rdf->rdd_pos->type
 				    & GETDNS_RDF_FIXEDSZ;
@@ -293,24 +293,23 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				break;
 			}
 		} else if (rdf->rdd_pos->type == GETDNS_RDF_SPECIAL)
-			/* Abuse t_dict for special values */
-			val_type = t_dict;
+			val_type = wf_special;
 		else
 			assert(0);
 
 		if (! rdf->rdd_repeat) {
 			switch (val_type) {
-			case t_int:
+			case wf_int:
 				if (getdns_dict_set_int(rdata_dict,
 				    rdf->rdd_pos->name, int_val))
 					goto rdata_error;
 				break;
-			case t_bindata:
+			case wf_bindata:
 				if (_getdns_dict_set_const_bindata(rdata_dict,
 				    rdf->rdd_pos->name, bin_size, bin_data))
 					goto rdata_error;
 				break;
-			case t_dict:
+			case wf_special:
 				if (rdf->rdd_pos->special->dict_set_value(
 				    rdata_dict, rdf->pos))
 					goto rdata_error;
@@ -328,17 +327,17 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				goto rdata_error;
 			
 			switch (val_type) {
-			case t_int:
+			case wf_int:
 				if (_getdns_list_append_int(repeat_list,
 				    int_val))
 					goto rdata_error;
 				break;
-			case t_bindata:
+			case wf_bindata:
 				if (_getdns_list_append_const_bindata(
 				    repeat_list, bin_size, bin_data))
 					goto rdata_error;
 				break;
-			case t_dict:
+			case wf_special:
 				if (rdf->rdd_pos->special->list_append_value(
 				    repeat_list, rdf->pos))
 					goto rdata_error;
@@ -367,17 +366,17 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		}
 		assert(repeat_dict);
 		switch (val_type) {
-		case t_int:
+		case wf_int:
 			if (getdns_dict_set_int(repeat_dict,
 			    rdf->rdd_pos->name, int_val))
 				goto rdata_error;
 			break;
-		case t_bindata:
+		case wf_bindata:
 			if (_getdns_dict_set_const_bindata(repeat_dict,
 			    rdf->rdd_pos->name, bin_size, bin_data))
 				goto rdata_error;
 			break;
-		case t_dict:
+		case wf_special:
 			if (rdf->rdd_pos->special->dict_set_value(
 			    repeat_dict, rdf->pos))
 				goto rdata_error;
