@@ -107,6 +107,13 @@ _getdns_list_remove_name(getdns_list *list, const char *name)
 
 	i = &list->items[index];
 	if (!*next) {
+		switch (i->dtype) {
+		case t_dict   : getdns_dict_destroy(i->data.dict); break;
+		case t_list   : getdns_list_destroy(i->data.list); break;
+		case t_bindata: _getdns_bindata_destroy(
+		                    &list->mf, i->data.bindata);
+		default       : break;
+		}
 		if (index < list->numinuse - 1)
 			(void) memmove( i, &i[1],
 			    (list->numinuse - index) * sizeof(getdns_item));
