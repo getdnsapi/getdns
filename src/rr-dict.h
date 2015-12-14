@@ -36,6 +36,8 @@
 #include "getdns/getdns.h"
 #include "gldns/gbuffer.h"
 
+#define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t)399)
+
 /* rdf_end returns a pointer to the end of this rdf's data,
  * i.e. where the next rdata field will start.
  */
@@ -46,11 +48,18 @@ typedef getdns_return_t (*_getdns_rdf_wire2dict_t)(
     getdns_dict *dict, const uint8_t *rdf);
 typedef getdns_return_t (*_getdns_rdf_wire2list_t)(
     getdns_list *list, const uint8_t *rdf);
+typedef getdns_return_t (*_getdns_rdf_dict2wire_t)(
+    const getdns_dict *dict, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len);
+typedef getdns_return_t (*_getdns_rdf_list2wire_t)(
+    const getdns_list *list, size_t index,
+    uint8_t *rdata, uint8_t *rdf, size_t *rdf_len);
 
 typedef struct _getdns_rdf_special {
 	_getdns_rdf_end_t       rdf_end;
 	_getdns_rdf_wire2dict_t wire2dict;
 	_getdns_rdf_wire2list_t wire2list;
+	_getdns_rdf_dict2wire_t dict2wire;
+	_getdns_rdf_list2wire_t list2wire;
 } _getdns_rdf_special;
 
 /* draft-levine-dnsextlang'ish type rr and rdata definitions */
