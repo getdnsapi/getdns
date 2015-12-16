@@ -1629,6 +1629,10 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 
 	if (!_dnssec_rdata_to_canonicalize(rrset->rr_type))
 		for (i = 0; i < n_rrs; i++) {
+			if (i && !_rr_iter_rdata_cmp(
+			    &val_rrset[i], &val_rrset[i-1]))
+				continue;
+
 			gldns_buffer_write(&valbuf, owner, owner_len);
 			gldns_buffer_write_u16(&valbuf, rrset->rr_type);
 			gldns_buffer_write_u16(&valbuf, rrset->rr_class);
@@ -1637,6 +1641,8 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 			    val_rrset[i].nxt - val_rrset[i].rr_type - 8);
 		}
 	else for (i = 0; i < n_rrs; i++) {
+		if (i && !_rr_iter_rdata_cmp(&val_rrset[i], &val_rrset[i-1]))
+			continue;
 		gldns_buffer_write(&valbuf, owner, owner_len);
 		gldns_buffer_write_u16(&valbuf, rrset->rr_type);
 		gldns_buffer_write_u16(&valbuf, rrset->rr_class);
@@ -1664,16 +1670,21 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	}
 	DEBUG_SEC( "written to valbuf: %zu bytes\n"
 	         , gldns_buffer_position(&valbuf));
-	assert(gldns_buffer_position(&valbuf) == valbuf_sz);
+	assert(gldns_buffer_position(&valbuf) <= valbuf_sz);
 
+	gldns_buffer_flip(&valbuf);
 	r = _getdns_verify_canonrrset(&valbuf, key->rr_i.rr_type[13],
 	    signer->nxt, rrsig->rr_i.nxt - signer->nxt,
 	    key->rr_i.rr_type+14, key->rr_i.nxt - key->rr_i.rr_type-14,
 	    &reason);
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
-	if (r == 0)
+	if (r == 0) {
 		DEBUG_SEC("verification failed: %s\n", reason);
+		debug_sec_print_rrset("verification failed: ", rrset);
+		debug_sec_print_rr("verification failed: ", &rrsig->rr_i);
+		debug_sec_print_rr("verification failed: ", &key->rr_i);
+	}
 #endif
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(*mf, val_rrset);
