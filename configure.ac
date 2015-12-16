@@ -163,29 +163,22 @@ case "$enable_debug_sec" in
 		;;
 esac
 
-AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--enable-tcp-fastopen], [Enable TCP Fast Open]))
-case "$enable_tcp_fastopen" in
-	yes)
-		AC_CHECK_DECL([MSG_FASTOPEN], [], [AC_MSG_ERROR([TCP Fast Open is not available: please rerun without --enable-tcp-fastopen])], [AC_INCLUDES_DEFAULT
-#include <sys/socket.h>
-		])
-		AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])
-		;;
-	no|*)
-		;;
-esac
-
-# Not yet enabled by default as crash found when TCP fails.
-# AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
-# 	enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
-# if test "x$enable_tcp_fastopen" = xno; then
-# 		AC_MSG_WARN([TCP Fast Open is disabled])
-# else
-# 		AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
-# 		              [AC_MSG_WARN([TCP Fast Open is not available.])], [AC_INCLUDES_DEFAULT
-# #include <sys/socket.h>
-# 		])
-# fi
+AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
+    enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
+if test "x$enable_tcp_fastopen" = xno; then
+        AC_MSG_WARN([TCP Fast Open is disabled])
+else
+    case `uname` in
+        Linux) AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
+                          [AC_MSG_WARN([TCP Fast Open is not available, continuing without])], [#include <sys/socket.h>])
+          ;;
+        Darwin) AC_CHECK_DECL([CONNECT_RESUME_ON_READ_WRITE], [AC_DEFINE_UNQUOTED([USE_OSX_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
+                      [AC_MSG_WARN([TCP Fast Open is not available, continuing without])], [#include <sys/socket.h>])
+          ;;
+        *) AC_MSG_WARN([TCP Fast Open is not available, continuing without])
+          ;;
+    esac
+fi
 
 AC_ARG_ENABLE(native-stub-dnssec, AC_HELP_STRING([--disable-native-stub-dnssec], [Disable native stub DNSSEC support]))
 case "$enable_native_stub_dnssec" in
