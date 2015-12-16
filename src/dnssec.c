@@ -2777,7 +2777,7 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 
 	if ((s = chain_node_get_trusted_keys(
 	    mf, now, skew, head->parent, ta, &keys)) != GETDNS_DNSSEC_SECURE)
-			return s;
+		return s;
 
 	if (rrset_has_rrs(&head->rrset)) {
 		if ((keytag = a_key_signed_rrset(
