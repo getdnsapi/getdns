@@ -363,6 +363,22 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	if (transport == GETDNS_TRANSPORT_TCP || 
 	    transport == GETDNS_TRANSPORT_STARTTLS)
 		return fd;
+#elif USE_OSX_TCP_FASTOPEN
+	sa_endpoints_t endpoints;
+	endpoints.sae_srcif = 0;
+	endpoints.sae_srcaddr = NULL;
+	endpoints.sae_srcaddrlen = 0;
+	endpoints.sae_dstaddr = (struct sockaddr *)&upstream->addr;
+	endpoints.sae_dstaddrlen = upstream->addr_len;
+	if (connectx(fd, &endpoints, SAE_ASSOCID_ANY,  
+	             CONNECT_DATA_IDEMPOTENT | CONNECT_RESUME_ON_READ_WRITE,
+	             NULL, 0, NULL, NULL) == -1) {
+		if (errno != EINPROGRESS) {
+			close(fd);
+			return -1;
+		}
+	}
+	return fd;
 #endif
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
