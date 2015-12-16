@@ -2991,6 +2991,26 @@ static size_t count_outstanding_requests(chain_head *head)
 	return count + count_outstanding_requests(head->next);
 }
 
+static int rrset_in_list(getdns_rrset *rrset, getdns_list *list)
+{
+	size_t          i;
+	getdns_dict    *rr_dict;
+	uint32_t        rr_type;
+	uint32_t        rr_class;
+	getdns_bindata *name;
+
+	for (i = 0; !getdns_list_get_dict(list, i, &rr_dict); i++) {
+		if (!getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+		    rrset->rr_type == rr_type &&
+		    !getdns_dict_get_int(rr_dict, "class", &rr_class) &&
+		    rrset->rr_class == rr_class &&
+		    !getdns_dict_get_bindata(rr_dict, "name", &name) &&
+		    dname_compare(rrset->name, name->data) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 static void append_rrs2val_chain_list(getdns_context *ctxt,
     getdns_list *val_chain_list, getdns_network_req *netreq, int signer)
 {
@@ -3006,10 +3026,14 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 
 		rrset = rrset_iter_value(i);
 
-		if (rrset->rr_type != GETDNS_RRTYPE_DNSKEY &&
-		    rrset->rr_type != GETDNS_RRTYPE_DS     &&
-		    rrset->rr_type != GETDNS_RRTYPE_NSEC   &&
-		    rrset->rr_type != GETDNS_RRTYPE_NSEC3)
+		if (rrset->rr_type == GETDNS_RRTYPE_NSEC   ||
+		    rrset->rr_type == GETDNS_RRTYPE_NSEC3) {
+
+			if (rrset_in_list(rrset, val_chain_list))
+				continue;
+
+		} else if (rrset->rr_type != GETDNS_RRTYPE_DNSKEY &&
+		           rrset->rr_type != GETDNS_RRTYPE_DS)
 			continue;
 
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)
