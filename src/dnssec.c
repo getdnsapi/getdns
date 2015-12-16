@@ -1653,6 +1653,10 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 
 	if (!_dnssec_rdata_to_canonicalize(rrset->rr_type))
 		for (i = 0; i < n_rrs; i++) {
+			if (i && !_rr_iter_rdata_cmp(
+			    &val_rrset[i], &val_rrset[i-1]))
+				continue;
+
 			gldns_buffer_write(&valbuf, owner, owner_len);
 			gldns_buffer_write_u16(&valbuf, rrset->rr_type);
 			gldns_buffer_write_u16(&valbuf, rrset->rr_class);
@@ -1661,6 +1665,8 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 			    val_rrset[i].nxt - val_rrset[i].rr_type - 8);
 		}
 	else for (i = 0; i < n_rrs; i++) {
+		if (i && !_rr_iter_rdata_cmp(&val_rrset[i], &val_rrset[i-1]))
+			continue;
 		gldns_buffer_write(&valbuf, owner, owner_len);
 		gldns_buffer_write_u16(&valbuf, rrset->rr_type);
 		gldns_buffer_write_u16(&valbuf, rrset->rr_class);
@@ -1688,8 +1694,9 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	}
 	DEBUG_SEC( "written to valbuf: %zu bytes\n"
 	         , gldns_buffer_position(&valbuf));
-	assert(gldns_buffer_position(&valbuf) == valbuf_sz);
+	assert(gldns_buffer_position(&valbuf) <= valbuf_sz);
 
+	gldns_buffer_flip(&valbuf);
 	r = _getdns_verify_canonrrset(&valbuf, key->rr_i.rr_type[13],
 	    (UNCONST_UINT8_p)signer->nxt, rrsig->rr_i.nxt - signer->nxt,
 	    (UNCONST_UINT8_p)key->rr_i.rr_type+14,
@@ -1697,8 +1704,12 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	    &reason);
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
-	if (r == 0)
+	if (r == 0) {
 		DEBUG_SEC("verification failed: %s\n", reason);
+		debug_sec_print_rrset("verification failed: ", rrset);
+		debug_sec_print_rr("verification failed: ", &rrsig->rr_i);
+		debug_sec_print_rr("verification failed: ", &key->rr_i);
+	}
 #endif
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(*mf, val_rrset);
@@ -2797,7 +2808,7 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 
 	if ((s = chain_node_get_trusted_keys(
 	    mf, now, skew, head->parent, ta, &keys)) != GETDNS_DNSSEC_SECURE)
-			return s;
+		return s;
 
 	if (rrset_has_rrs(&head->rrset)) {
 		if ((keytag = a_key_signed_rrset(
@@ -3011,6 +3022,26 @@ static size_t count_outstanding_requests(chain_head *head)
 	return count + count_outstanding_requests(head->next);
 }
 
+static int rrset_in_list(getdns_rrset *rrset, getdns_list *list)
+{
+	size_t          i;
+	getdns_dict    *rr_dict;
+	uint32_t        rr_type;
+	uint32_t        rr_class;
+	getdns_bindata *name;
+
+	for (i = 0; !getdns_list_get_dict(list, i, &rr_dict); i++) {
+		if (!getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+		    rrset->rr_type == rr_type &&
+		    !getdns_dict_get_int(rr_dict, "class", &rr_class) &&
+		    rrset->rr_class == rr_class &&
+		    !getdns_dict_get_bindata(rr_dict, "name", &name) &&
+		    dname_compare(rrset->name, name->data) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 static void append_rrs2val_chain_list(getdns_context *ctxt,
     getdns_list *val_chain_list, getdns_network_req *netreq, int signer)
 {
@@ -3026,10 +3057,14 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 
 		rrset = rrset_iter_value(i);
 
-		if (rrset->rr_type != GETDNS_RRTYPE_DNSKEY &&
-		    rrset->rr_type != GETDNS_RRTYPE_DS     &&
-		    rrset->rr_type != GETDNS_RRTYPE_NSEC   &&
-		    rrset->rr_type != GETDNS_RRTYPE_NSEC3)
+		if (rrset->rr_type == GETDNS_RRTYPE_NSEC   ||
+		    rrset->rr_type == GETDNS_RRTYPE_NSEC3) {
+
+			if (rrset_in_list(rrset, val_chain_list))
+				continue;
+
+		} else if (rrset->rr_type != GETDNS_RRTYPE_DNSKEY &&
+		           rrset->rr_type != GETDNS_RRTYPE_DS)
 			continue;
 
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)

@@ -1165,11 +1165,11 @@ _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 	assert(buf);
 
 	if ((r = getdns_dict_get_bindata(rr_dict, "name", &name)))
-		goto error;
+		return r;
 	gldns_buffer_write(buf, name->data, name->size);
 
 	if ((r = getdns_dict_get_int(rr_dict, "type", &rr_type)))
-		goto error;
+		return r;
 	gldns_buffer_write_u16(buf, (uint16_t)rr_type);
 
 	(void) getdns_dict_get_int(rr_dict, "class", &rr_class);
@@ -1190,10 +1190,13 @@ _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 			break;
 	}
 
-	if ((r = getdns_dict_get_dict(rr_dict, "rdata", &rdata)))
-		goto error;
+	if ((r = getdns_dict_get_dict(rr_dict, "rdata", &rdata))) {
+		if (r == GETDNS_RETURN_NO_SUCH_DICT_NAME) {
+			gldns_buffer_write_u16(buf, 0);
+			r = GETDNS_RETURN_GOOD;
+		}
 
-	if (n_rdata_fields == 0 && GETDNS_RETURN_GOOD ==
+	} else if (n_rdata_fields == 0 && GETDNS_RETURN_GOOD ==
 	    (r = getdns_dict_get_bindata(rdata, "rdata_raw", &rdata_raw))) {
 
 		gldns_buffer_write_u16(buf, (uint16_t)rdata_raw->size);
@@ -1246,7 +1249,6 @@ _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 		gldns_buffer_write_u16_at(buf, rdata_size_mark,
 		    (uint16_t)(gldns_buffer_position(buf)-rdata_size_mark-2));
 	}
-error:
 	return r;
 }
 
