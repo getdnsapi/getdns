@@ -1,0 +1,14 @@
+# #-- 050-constants.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+cp -p ${SRCROOT}/src/const-info.c const-info.c.orig
+(
+ 	cd ${SRCROOT}/src
+	sh mk-const-info.c.sh
+)
+cp -p ${SRCROOT}/src/const-info.c const-info.c.new
+cp -p const-info.c.orig ${SRCROOT}/src/const-info.c
+diff const-info.c.orig const-info.c.new
