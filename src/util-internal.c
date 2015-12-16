@@ -72,7 +72,7 @@ static getdns_extension_format extformats[] = {
 #endif
 	{"return_api_information", t_int},
 	{"return_both_v4_and_v6", t_int},
-	{"return_call_debugging", t_int},
+	{"return_call_reporting", t_int},
 	{"specify_class", t_int},
 };
 
@@ -676,7 +676,7 @@ success:
 }
 
 getdns_dict *
-_getdns_create_call_debugging_dict(
+_getdns_create_call_reporting_dict(
     getdns_context *context, getdns_network_req *netreq)
 {
 	getdns_bindata  qname;
@@ -751,7 +751,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	getdns_list *just_addrs = NULL;
 	getdns_list *replies_full;
 	getdns_list *replies_tree;
-	getdns_list *call_debugging = NULL;
+	getdns_list *call_reporting = NULL;
 	getdns_network_req *netreq, **netreq_p;
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
@@ -792,8 +792,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (!(replies_tree = getdns_list_create_with_context(context)))
 		goto error_free_replies_full;
 
-	if (completed_request->return_call_debugging &&
-	    !(call_debugging = getdns_list_create_with_context(context)))
+	if (completed_request->return_call_reporting &&
+	    !(call_reporting = getdns_list_create_with_context(context)))
 		goto error_free_replies_full;
 
 	for ( netreq_p = completed_request->netreqs
@@ -853,13 +853,13 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			goto error;
 		}
 		
-		if (call_debugging) {
+		if (call_reporting) {
 			if (!(netreq_debug =
-			   _getdns_create_call_debugging_dict(context,netreq)))
+			   _getdns_create_call_reporting_dict(context,netreq)))
 				goto error;
 
 			if (_getdns_list_append_dict(
-			    call_debugging, netreq_debug)) {
+			    call_reporting, netreq_debug)) {
 
 				getdns_dict_destroy(netreq_debug);
 				goto error;
@@ -879,9 +879,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		goto error;
 	getdns_list_destroy(replies_tree);
 
-	if (call_debugging &&
-	    getdns_dict_set_list(result, "call_debugging", call_debugging))
-	    goto error_free_call_debugging;
+	if (call_reporting &&
+	    getdns_dict_set_list(result, "call_reporting", call_reporting))
+	    goto error_free_call_reporting;
 
 	if (getdns_dict_set_list(result, "replies_full", replies_full))
 		goto error_free_replies_full;
@@ -906,8 +906,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 error:
 	/* cleanup */
 	getdns_list_destroy(replies_tree);
-error_free_call_debugging:
-	getdns_list_destroy(call_debugging);
+error_free_call_reporting:
+	getdns_list_destroy(call_reporting);
 error_free_replies_full:
 	getdns_list_destroy(replies_full);
 error_free_result:

@@ -668,7 +668,7 @@ getdns_dict_destroy(extensions);
 
 <li><code>specify_class</code></li>
 
-<li><code>return_call_debugging</code></li>
+<li><code>return_call_reporting</code></li>
 
 </ul>
 
@@ -865,9 +865,9 @@ contains the class number. Few applications will ever use this extension.</p>
 <h2>3.6 Extensions Relating to the API</h2>
 
 <p>An application might want to see debugging information for queries such as the length of time it
-takes for each query to return to the API. Use the <code>return_call_debugging</code> extension. The
+takes for each query to return to the API. Use the <code>return_call_reporting</code> extension. The
 extension's value (an int) is set to <code>GETDNS_EXTENSION_TRUE</code> to add the name
-<code>call_debugging</code> (a list) to the top level of the response object. Each member of the
+<code>call_reporting</code> (a list) to the top level of the response object. Each member of the
 list is a dict that represents one call made for the call to the API. Each member has the following
 names:</p>
 
@@ -875,10 +875,10 @@ names:</p>
 <li><code>query_name</code> (a bindata) is the name that was sent</li>
 <li><code>query_type</code> (an int) is the type that was queried for</li>
 <li><code>query_to</code> (a bindata) is the address to which the query was sent</li>
-<li><code>start_time</code> (a bindata) is the time the query started in milliseconds since the epoch,
-represented as a uint64_t</li>
-<li><code>end_time</code> (a bindata) is the time the query was received in milliseconds since the epoch,
-represented as a uint64_t</li>
+<li><code>run_time</code> (a bindata) is the difference between the time the successful
+query started and ended in milliseconds, represented
+as a uint32_t (this does not include time taken for connection set up
+or transport fallback)</li>
 <li><code>entire_reply</code> (a bindata) is the entire response received</li>
 <li><code>dnssec_result</code> (an int) is the DNSSEC status, or <code>GETDNS_DNSSEC_NOT_PERFORMED</code>
 if DNSSEC validation was not performed</li>
