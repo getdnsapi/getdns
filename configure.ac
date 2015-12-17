@@ -947,6 +947,8 @@ if test $ac_cv_c_unused_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_UNUSED, 1, [Whether the C compiler accepts the "unused" attribute])
 fi
 AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
+AC_REPLACE_FUNCS(inet_pton)
+AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(arc4random)
 AC_REPLACE_FUNCS(arc4random_uniform)
