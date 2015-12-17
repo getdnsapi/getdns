@@ -1793,7 +1793,7 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
  */
 getdns_return_t
 getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
-struct getdns_list *upstream_list)
+    struct getdns_list *upstream_list)
 {
 	getdns_return_t r;
 	size_t count = 0;
@@ -1810,16 +1810,16 @@ struct getdns_list *upstream_list)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = 0;              /* Datagram socket */
-	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
-	hints.ai_protocol = 0;              /* Any protocol */
+	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype  = 0;              /* Datagram socket */
+	hints.ai_flags     = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol  = 0;              /* Any protocol */
 	hints.ai_canonname = NULL;
-	hints.ai_addr = NULL;
-	hints.ai_next = NULL;
+	hints.ai_addr      = NULL;
+	hints.ai_next      = NULL;
 
 	upstreams = upstreams_create(
-		context, count * GETDNS_UPSTREAM_TRANSPORTS);
+	    context, count * GETDNS_UPSTREAM_TRANSPORTS);
 	for (i = 0; i < count; i++) {
 		getdns_dict *dict;
 		getdns_bindata *address_type;
@@ -1834,7 +1834,7 @@ struct getdns_list *upstream_list)
 			goto error;
 
 		if ((r = getdns_dict_get_bindata(
-			dict, "address_type", &address_type)))
+		    dict, "address_type",&address_type)))
 			goto error;
 		if (address_type->size < 4)
 			goto invalid_parameter;
@@ -1845,24 +1845,24 @@ struct getdns_list *upstream_list)
 		else	goto invalid_parameter;
 
 		if ((r = getdns_dict_get_bindata(
-			dict, "address_data", &address_data)))
+		    dict, "address_data", &address_data)))
 			goto error;
 		if ((addr.ss_family == AF_INET &&
-			address_data->size != 4) ||
-			(addr.ss_family == AF_INET6 &&
-			address_data->size != 16))
+		     address_data->size != 4) ||
+		    (addr.ss_family == AF_INET6 &&
+		     address_data->size != 16))
 			goto invalid_parameter;
 		if (inet_ntop(addr.ss_family, address_data->data,
-			addrstr, 1024) == NULL)
+		    addrstr, 1024) == NULL)
 			goto invalid_parameter;
 
 		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
-			GETDNS_RETURN_GOOD) {
+		    GETDNS_RETURN_GOOD) {
 			if (strlen(addrstr) + scope_id->size > 1022)
 				goto invalid_parameter;
 			eos = &addrstr[strlen(addrstr)];
 			*eos++ = '%';
-			(void)memcpy(eos, scope_id->data, scope_id->size);
+			(void) memcpy(eos, scope_id->data, scope_id->size);
 			eos[scope_id->size] = 0;
 		}
 
@@ -1875,10 +1875,10 @@ struct getdns_list *upstream_list)
 				continue;
 
 			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS)
-				(void)getdns_dict_get_int(dict, "port", &port);
+				(void) getdns_dict_get_int(dict, "port", &port);
 			else
-				(void)getdns_dict_get_int(dict, "tls_port", &port);
-			(void)snprintf(portstr, 1024, "%d", (int)port);
+				(void) getdns_dict_get_int(dict, "tls_port", &port);
+			(void) snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
 				goto invalid_parameter;
@@ -1894,12 +1894,12 @@ struct getdns_list *upstream_list)
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS ||
-				getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
+			    getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
 				if ((r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/
 					memcpy(upstream->tls_auth_name,
-						(char *)tls_auth_name->data,
+					       (char *)tls_auth_name->data,
 						tls_auth_name->size);
 					upstream->tls_auth_name[tls_auth_name->size] = '\0';
 				}
@@ -1920,7 +1920,8 @@ invalid_parameter:
 error:
 	_getdns_upstreams_dereference(upstreams);
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-}
+} /* getdns_context_set_upstream_recursive_servers */
+
 
 static void
 set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
@@ -2355,7 +2356,7 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 #ifdef HAVE_TLS_v1_2
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
-			if (context->tls_ctx == NULL)
+			if(context->tls_ctx == NULL)
 #ifndef USE_WINSOCK
 				return GETDNS_RETURN_BAD_CONTEXT;
 #else
@@ -2364,16 +2365,13 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
 			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
-			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS)) {
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
 				return GETDNS_RETURN_BAD_CONTEXT;
-			}
-			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
+			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
 				return GETDNS_RETURN_BAD_CONTEXT;
-			}
 #else
-			if (tls_only_is_in_transports_list(context) == 1) {
+			if (tls_only_is_in_transports_list(context) == 1)
 				return GETDNS_RETURN_BAD_CONTEXT;
-			}
 			/* A null tls_ctx will make TLS fail and fallback to the other
 			   transports will kick-in.*/
 #endif

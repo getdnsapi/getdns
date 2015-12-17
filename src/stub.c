@@ -773,8 +773,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		written = write(fd, netreq->query - 2, pkt_len + 2);
 #endif
 		if ((written == -1 && (errno == EAGAIN ||
-			errno == EWOULDBLOCK)) ||
-			written  < pkt_len + 2) {
+		                       errno == EWOULDBLOCK)) ||
+		     written  < pkt_len + 2) {
 #endif
 			/* We couldn't write the whole packet.
 			 * We have to return with STUB_TCP_AGAIN.
@@ -1374,7 +1374,7 @@ stub_tcp_read_cb(void *userarg)
 	int q;
 
 	switch ((q = stub_tcp_read(netreq->fd, &netreq->tcp,
-		&dnsreq->context->mf, &netreq->event))) {
+	                          &dnsreq->context->mf))) {
 
 	case STUB_TCP_AGAIN:
 		return;
@@ -1452,7 +1452,7 @@ upstream_read_cb(void *userarg)
 		              &upstream->upstreams->mf);
 	else
 		q = stub_tcp_read(upstream->fd, &upstream->tcp,
-		&upstream->upstreams->mf, &netreq->event);
+		             &upstream->upstreams->mf);
 
 	switch (q) {
 	case STUB_TCP_AGAIN:

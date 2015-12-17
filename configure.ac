@@ -429,8 +429,6 @@ case "$enable_stub_only" in
 		;;
 esac
 
-
-
 # search to set include and library paths right
 # find libidn
 my_with_libidn=1
