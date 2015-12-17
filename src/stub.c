@@ -624,7 +624,7 @@ stub_tls_timeout_cb(void *userarg)
 /****************************/
 
 static int
-stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventloop_event* qweroiuyqwer)
+stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventloop_event* event)
 {
 	ssize_t  read;
 	uint8_t *buf;
