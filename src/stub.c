@@ -624,7 +624,7 @@ stub_tls_timeout_cb(void *userarg)
 /****************************/
 
 static int
-stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventloop_event* event)
+stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventloop_event* qweroiuyqwer)
 {
 	ssize_t  read;
 	uint8_t *buf;
@@ -1374,7 +1374,7 @@ stub_tcp_read_cb(void *userarg)
 	int q;
 
 	switch ((q = stub_tcp_read(netreq->fd, &netreq->tcp,
-	                          &dnsreq->context->mf))) {
+	                          &dnsreq->context->mf, &netreq->event))) {
 
 	case STUB_TCP_AGAIN:
 		return;
@@ -1452,7 +1452,7 @@ upstream_read_cb(void *userarg)
 		              &upstream->upstreams->mf);
 	else
 		q = stub_tcp_read(upstream->fd, &upstream->tcp,
-		             &upstream->upstreams->mf);
+		             &upstream->upstreams->mf, &netreq->event);
 
 	switch (q) {
 	case STUB_TCP_AGAIN:
