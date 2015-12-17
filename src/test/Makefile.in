@@ -58,7 +58,7 @@ CHECK_EVENT_PROG=@CHECK_EVENT_PROG@
 CHECK_EV_PROG=@CHECK_EV_PROG@
 
 CC=@CC@
-CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ 
+CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ -I/usr/local/opt/openssl/include
 LDFLAGS=-L.. @LDFLAGS@
 LDLIBS=../libgetdns.la @LIBS@
 CHECK_LIBS=@CHECK_LIBS@
