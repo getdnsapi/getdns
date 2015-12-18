@@ -294,7 +294,8 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
- ../config.h $(srcdir)/../debug.h \
+ ../config.h \
+ $(srcdir)/../debug.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c \
