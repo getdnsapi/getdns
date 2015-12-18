@@ -71,6 +71,9 @@ typedef struct host_name_addrs {
 	uint8_t host_name[];
 } host_name_addrs;
 
+
+/*  If changing these lists also remember to 
+    change the value of GETDNS_UPSTREAM_TRANSPORTS */
 static getdns_transport_list_t 
 getdns_upstream_transports[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_TRANSPORT_TCP,
