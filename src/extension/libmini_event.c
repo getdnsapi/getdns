@@ -32,9 +32,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "extension/libmini_event.h"
-#include "context.h"
+#include "config.h"
 #include "debug.h"
+#include "types-internal.h"
+#include "extension/libmini_event.h"
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 #include <inttypes.h>
 #endif
