@@ -203,7 +203,7 @@ configure.status: configure
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
-	(cd $(srcdir) ; gcc -MM -I. *.c gldns/*.c compat/*.c util/*.c extension/*.c| \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" *.c gldns/*.c compat/*.c util/*.c extension/*.c| \
 		sed -e 's?gldns/?$$(srcdir)/gldns/?g' \
 		    -e 's?compat/?$$(srcdir)/compat/?g' \
 		    -e 's?util/?$$(srcdir)/util/?g' \

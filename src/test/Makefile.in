@@ -213,7 +213,7 @@ configure.status: configure
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
-	(cd $(srcdir) ; gcc -MM -I. -I.. *.c | \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I.. -I"$$blddir"/.. *.c | \
 		sed -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
 		    -e 's? \$$(srcdir)/config\.h? ../config.h?g' \
 		    -e 's? $$(srcdir)/\.\./getdns/getdns_extra\.h? ../getdns/getdns_extra.h?g' \

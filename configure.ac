@@ -387,7 +387,18 @@ case "$enable_ecdsa" in
       ;;
 esac
 
+
 AC_ARG_ENABLE(draft-dnssec-roadblock-avoidance, AC_HELP_STRING([--enable-draft-dnssec-roadblock-avoidance], [Enable experimental dnssec roadblock avoidance]))
+AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enable cookies and roadblock avoidance]))
+case "$enable_all_drafts" in
+	yes)
+		enable_draft_dnssec_roadblock_avoidance=yes
+		enable_draft_edns_cookies=yes
+		;;
+	no|*)
+		;;
+esac
 case "$enable_draft_dnssec_roadblock_avoidance" in
 	yes)
 		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental draft dnssec roadblock avoidance.])
@@ -395,8 +406,6 @@ case "$enable_draft_dnssec_roadblock_avoidance" in
 	no|*)
 		;;
 esac
-
-AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
 case "$enable_draft_edns_cookies" in
 	yes)
 		if test "x_$HAVE_SSL" != "x_yes"; then
