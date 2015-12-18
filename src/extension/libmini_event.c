@@ -212,7 +212,7 @@ _getdns_mini_event_init(getdns_context *context, _getdns_mini_event *ext)
 	if (!ext->base)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	ext->mf = context->mf;
+	ext->mf = *priv_getdns_context_mf(context);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -222,6 +222,6 @@ _getdns_mini_event_create(getdns_context *context, _getdns_mini_event **ext)
 	if (!context) return GETDNS_RETURN_BAD_CONTEXT;
 	if (!ext)     return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*ext = GETDNS_MALLOC(context->mf, _getdns_mini_event);
+	*ext = GETDNS_MALLOC(*priv_getdns_context_mf(context), _getdns_mini_event);
 	return _getdns_mini_event_init(context, *ext);
 }
