@@ -26,13 +26,13 @@
  */
 
 #include "config.h"
+#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
-#include "util-internal.h"
 
 #define MAX_TIMEOUTS FD_SETSIZE
 

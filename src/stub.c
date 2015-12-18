@@ -31,10 +31,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+#include "debug.h"
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
-#include "config.h"
 #include <fcntl.h>
 #include "stub.h"
 #include "gldns/gbuffer.h"

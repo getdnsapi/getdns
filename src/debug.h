@@ -1,11 +1,12 @@
 /**
  *
- * /brief dummy prototypes for logging a la unbound
+ * \file debug.h
+ * /brief Macro's for debugging
  *
  */
 
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2015, NLnet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,21 +32,59 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef UTIL_LOG_H
-#define UTIL_LOG_H
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #include "config.h"
-#include "debug.h"
 
-#if defined(SEC_DEBUG) && SEC_DEBUG
-#define verbose(x, ...) DEBUG_NL(__VA_ARGS__)
-#define log_err(...) DEBUG_NL(__VA_ARGS__)
+#define DEBUG_ON(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+		\
+		gettimeofday(&tv, NULL); \
+		gmtime_r(&tv.tv_sec, &tm); \
+		strftime(buf, 10, "%T", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (0)
+
+#define DEBUG_NL(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+		\
+		gettimeofday(&tv, NULL); \
+		gmtime_r(&tv.tv_sec, &tm); \
+		strftime(buf, 10, "%T", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+		fprintf(stderr, "\n"); \
+	} while (0)
+
+
+#define DEBUG_OFF(...) do {} while (0)
+
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+#include <time.h>
+#define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
 #else
-#define verbose(...)
-#define log_err(...)
+#define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
-#define log_assert(x)
+#if defined(STUB_DEBUG) && STUB_DEBUG
+#include <time.h>
+#define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
+#endif
 
-#endif /* UTIL_LOG_H */
+#if defined(SEC_DEBUG) && SEC_DEBUG
+#include <time.h>
+#define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_SEC(...) DEBUG_OFF(__VA_ARGS__)
+#endif
 
+#endif
+/* debug.h */

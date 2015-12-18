@@ -45,6 +45,7 @@
 #include <ctype.h>
 
 #include "config.h"
+#include "debug.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
 #include "context.h"

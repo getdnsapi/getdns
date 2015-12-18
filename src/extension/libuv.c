@@ -34,7 +34,7 @@
 #include "config.h"
 #include <uv.h>
 #include "getdns/getdns_ext_libuv.h"
-#include "util-internal.h"
+#include "debug.h"
 
 #define UV_DEBUG 0
 

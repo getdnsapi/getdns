@@ -214,13 +214,14 @@ configure.status: configure
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
 	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I.. -I"$$blddir"/.. *.c | \
-		sed -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
+		sed -e "s? $$blddir/? ?g" \
+		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
 		    -e 's? \$$(srcdir)/config\.h? ../config.h?g' \
 		    -e 's? $$(srcdir)/\.\./getdns/getdns_extra\.h? ../getdns/getdns_extra.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libevent\.h? $$(srcdir)/../getdns/getdns_ext_libevent.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libev\.h? $$(srcdir)/../getdns/getdns_ext_libev.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libuv\.h? $$(srcdir)/../getdns/getdns_ext_libuv.h?g' \
-		    -e "s? $$blddir/? ?g" \
+		    -e 's? \.\./debug\.h? $$(srcdir)/../debug.h?g' \
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
@@ -293,13 +294,9 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
- ../config.h \
+ ../config.h $(srcdir)/../debug.h \
  ../getdns/getdns.h \
- ../getdns/getdns_extra.h \
- ../util-internal.h ../context.h ../types-internal.h ../util/rbtree.h \
- ../extension/libmini_event.h ../util/mini_event.h ../util/rbtree.h \
- ../types-internal.h ../rr-iter.h ../rr-dict.h ../gldns/gbuffer.h \
- ../gldns/pkthdr.h
+ ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h

@@ -34,7 +34,7 @@
 
 #include "extension/libmini_event.h"
 #include "context.h"
-#include "util-internal.h"
+#include "debug.h"
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 #include <inttypes.h>
 #endif
