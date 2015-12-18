@@ -1,6 +1,6 @@
 BaseName: 300-event-loops-configure
 Version: 1.0
-Description: Create a build dir and configure for convering the largest codebase
+Description: Configure for maximum coverage
 CreationDate: vr dec 18 11:21:07 CET 2015
 Maintainer: Willem Toorop
 Category: 

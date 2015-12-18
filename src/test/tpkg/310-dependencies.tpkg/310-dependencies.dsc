@@ -1,6 +1,6 @@
 BaseName: 310-dependencies
 Version: 1.0
-Description: Check if all dependencies are (still) correct in the Makefiles
+Description: Check Makefile dependencies
 CreationDate: vr dec 18 11:25:59 CET 2015
 Maintainer: Willem Toorop
 Category: 

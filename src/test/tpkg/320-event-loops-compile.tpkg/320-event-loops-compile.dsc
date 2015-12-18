@@ -1,6 +1,6 @@
 BaseName: 320-event-loops-compile
 Version: 1.0
-Description: Compile the with event loops configured getdns
+Description: Compile
 CreationDate: vr dec 18 11:20:35 CET 2015
 Maintainer: Willem Toorop
 Category: 

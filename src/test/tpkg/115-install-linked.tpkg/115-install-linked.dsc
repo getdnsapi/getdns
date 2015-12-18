@@ -1,6 +1,6 @@
 BaseName: 115-install-linked
 Version: 1.0
-Description: Link getdns_query program
+Description: Install the getdns_query program
 CreationDate: vr dec 18 10:52:26 CET 2015
 Maintainer: Willem Toorop
 Category: 
