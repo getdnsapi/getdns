@@ -1391,6 +1391,8 @@ upstream_read_cb(void *userarg)
 		/* More to read/write for syncronous lookups? */
 		if (netreq->event.read_cb)
 			upstream_reschedule_netreq_events(upstream, netreq);
+
+		_getdns_check_dns_req_complete(netreq->owner);
 	}
 }
 
