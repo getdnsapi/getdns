@@ -434,7 +434,7 @@ esac
 my_with_libidn=1
 
 AC_MSG_NOTICE([Checking if building on Windows])
-AC_ARG_ENABLE(use-winsock, AC_HELP_STRING([--enable-use-winsock], [Enable building on Microsoft Windows using mingw]))
+AC_ARG_ENABLE(use-winsock, AC_HELP_STRING([--enable-use-winsock], [Enable building for Microsoft Windows using mingw]))
 case "$enable_use_winsock" in
 	yes)
 	    AC_MSG_NOTICE([ Building on Windows ... YES! ])
