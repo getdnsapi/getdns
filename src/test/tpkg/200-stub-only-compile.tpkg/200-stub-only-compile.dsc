@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 
-Help: 200-stub-only-compile.help
+Help:
 Pre: 200-stub-only-compile.pre
 Post:
 Test: 200-stub-only-compile.test

@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 
-Help: 100-compile.help
+Help:
 Pre: 100-compile.pre
 Post:
 Test: 100-compile.test

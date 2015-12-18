@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 
-Help: 060-symbols.help
+Help:
 Pre: 060-symbols.pre
 Post:
 Test: 060-symbols.test

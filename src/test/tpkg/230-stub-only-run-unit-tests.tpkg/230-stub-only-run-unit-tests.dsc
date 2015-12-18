@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 210-stub-only-link.tpkg
-Help: 230-stub-only-run-unit-tests.help
+Help:
 Pre: 
 Post: 
 Test: 230-stub-only-run-unit-tests.test

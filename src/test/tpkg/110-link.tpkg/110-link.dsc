@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 100-compile.tpkg
-Help: 110-link.help
+Help:
 Pre: 
 Post: 
 Test: 110-link.test

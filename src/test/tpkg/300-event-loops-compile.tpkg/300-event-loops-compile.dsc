@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 
-Help: 300-event-loops-compile.help
+Help:
 Pre: 300-event-loops-compile.pre
 Post:
 Test: 300-event-loops-compile.test

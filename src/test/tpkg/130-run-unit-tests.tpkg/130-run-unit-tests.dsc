@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 110-link.tpkg
-Help: 130-run-unit-tests.help
+Help:
 Pre: 
 Post: 
 Test: 130-run-unit-tests.test

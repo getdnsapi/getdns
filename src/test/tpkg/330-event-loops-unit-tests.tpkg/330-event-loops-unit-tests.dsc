@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 300-event-loops-compile.tpkg
-Help: 330-event-loops-unit-tests.help
+Help:
 Pre: 
 Post: 
 Test: 330-event-loops-unit-tests.test

@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 
-Help: 050-constants.help
+Help:
 Pre: 050-constants.pre
 Post:
 Test: 050-constants.test
