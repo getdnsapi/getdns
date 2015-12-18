@@ -622,7 +622,6 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
 
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
 	int q = tcp_connected(netreq->upstream);
 	if (q != 0)
 		return q;
@@ -676,7 +675,6 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		     written  < pkt_len + 2) {
 #else
 		written = write(fd, netreq->query - 2, pkt_len + 2);
-		DEBUG_STUB("*** %s Written: %d\n", __FUNCTION__, (int)written);
 		if ((written == -1 && (errno == EAGAIN ||
 		                       errno == EWOULDBLOCK)) ||
 		     written  < pkt_len + 2) {
