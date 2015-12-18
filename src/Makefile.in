@@ -224,118 +224,196 @@ depend:
 FORCE:
 
 # Dependencies for gldns, utils, the extensions and compat functions
-const-info.lo const-info.o: $(srcdir)/const-info.c getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/const-info.h
-context.lo context.o: $(srcdir)/context.c config.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h \
- $(srcdir)/gldns/wire2str.h $(srcdir)/context.h getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
- config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h \
- $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
- $(srcdir)/dnssec.h $(srcdir)/stub.h $(srcdir)/list.h
-convert.lo convert.o: $(srcdir)/convert.c config.h getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
+const-info.lo const-info.o: $(srcdir)/const-info.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/const-info.h
+context.lo context.o: $(srcdir)/context.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h \
+ $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/dnssec.h $(srcdir)/stub.h \
+ $(srcdir)/list.h
+convert.lo convert.o: $(srcdir)/convert.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
+ $(srcdir)/extension/libmini_event.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
  $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h
-dict.lo dict.o: $(srcdir)/dict.c $(srcdir)/types-internal.h getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h config.h $(srcdir)/context.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
+dict.lo dict.o: $(srcdir)/dict.c $(srcdir)/types-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/context.h $(srcdir)/extension/libmini_event.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
  $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/const-info.h $(srcdir)/gldns/wire2str.h
-dnssec.lo dnssec.o: $(srcdir)/dnssec.c getdns/getdns.h config.h $(srcdir)/context.h \
- getdns/getdns_extra.h getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
- $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
- $(srcdir)/gldns/pkthdr.h $(srcdir)/dnssec.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h \
- $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/parseutil.h $(srcdir)/general.h $(srcdir)/dict.h $(srcdir)/list.h \
- $(srcdir)/util/val_secalgo.h
-general.lo general.o: $(srcdir)/general.c config.h $(srcdir)/gldns/wire2str.h $(srcdir)/context.h getdns/getdns.h \
- getdns/getdns_extra.h getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
- $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
- $(srcdir)/gldns/pkthdr.h $(srcdir)/dnssec.h $(srcdir)/stub.h
-list.lo list.o: $(srcdir)/list.c $(srcdir)/types-internal.h getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h config.h $(srcdir)/context.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
+dnssec.lo dnssec.o: $(srcdir)/dnssec.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h \
+ $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/dnssec.h \
+ $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/keyraw.h \
+ $(srcdir)/gldns/parseutil.h $(srcdir)/general.h $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/util/val_secalgo.h
+general.lo general.o: $(srcdir)/general.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/wire2str.h $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h \
+ $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/dnssec.h $(srcdir)/stub.h
+list.lo list.o: $(srcdir)/list.c $(srcdir)/types-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/context.h $(srcdir)/extension/libmini_event.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
  $(srcdir)/list.h $(srcdir)/dict.h
-request-internal.lo request-internal.o: $(srcdir)/request-internal.c config.h $(srcdir)/types-internal.h \
- getdns/getdns.h getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
- $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h \
+request-internal.lo request-internal.o: $(srcdir)/request-internal.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/types-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h \
  $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/str2wire.h \
  $(srcdir)/gldns/rrdef.h $(srcdir)/dict.h
-rr-dict.lo rr-dict.o: $(srcdir)/rr-dict.c $(srcdir)/rr-dict.h config.h getdns/getdns.h $(srcdir)/gldns/gbuffer.h \
- $(srcdir)/util-internal.h $(srcdir)/context.h getdns/getdns_extra.h getdns/getdns.h \
- $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h config.h \
+rr-dict.lo rr-dict.o: $(srcdir)/rr-dict.c $(srcdir)/rr-dict.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ $(srcdir)/gldns/gbuffer.h $(srcdir)/util-internal.h $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
  $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-iter.h \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/dict.h
-rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h getdns/getdns.h $(srcdir)/rr-dict.h config.h \
+rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ $(srcdir)/rr-dict.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h
-stub.lo stub.o: $(srcdir)/stub.c config.h $(srcdir)/stub.h getdns/getdns.h $(srcdir)/types-internal.h \
- getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/gldns/gbuffer.h \
- $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/rr-iter.h \
- $(srcdir)/rr-dict.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h \
- $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/general.h
-sync.lo sync.o: $(srcdir)/sync.c getdns/getdns.h config.h $(srcdir)/context.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
- config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/general.h \
+stub.lo stub.o: $(srcdir)/stub.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/stub.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ $(srcdir)/types-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h \
+ $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/context.h \
+ $(srcdir)/extension/libmini_event.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
+ $(srcdir)/types-internal.h $(srcdir)/util-internal.h $(srcdir)/general.h
+sync.lo sync.o: $(srcdir)/sync.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/general.h \
  $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
  $(srcdir)/dnssec.h $(srcdir)/stub.h $(srcdir)/gldns/wire2str.h
-util-internal.lo util-internal.o: $(srcdir)/util-internal.c getdns/getdns.h $(srcdir)/dict.h $(srcdir)/util/rbtree.h \
- $(srcdir)/types-internal.h getdns/getdns_extra.h getdns/getdns.h $(srcdir)/list.h \
- $(srcdir)/util-internal.h config.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h \
+util-internal.lo util-internal.o: $(srcdir)/util-internal.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ $(srcdir)/dict.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/list.h $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/libmini_event.h \
  $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h
-version.lo version.o: version.c
-gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c config.h $(srcdir)/gldns/gbuffer.h
-keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c config.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
-parse.lo parse.o: $(srcdir)/gldns/parse.c config.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h \
+gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
  $(srcdir)/gldns/gbuffer.h
-parseutil.lo parseutil.o: $(srcdir)/gldns/parseutil.c config.h $(srcdir)/gldns/parseutil.h
-rrdef.lo rrdef.o: $(srcdir)/gldns/rrdef.c config.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h
-str2wire.lo str2wire.o: $(srcdir)/gldns/str2wire.c config.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h \
- $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h
-wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c config.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h \
- $(srcdir)/gldns/keyraw.h
-arc4_lock.lo arc4_lock.o: $(srcdir)/compat/arc4_lock.c config.h
-arc4random.lo arc4random.o: $(srcdir)/compat/arc4random.c config.h $(srcdir)/compat/chacha_private.h
-arc4random_uniform.lo arc4random_uniform.o: $(srcdir)/compat/arc4random_uniform.c config.h
-explicit_bzero.lo explicit_bzero.o: $(srcdir)/compat/explicit_bzero.c config.h
-getentropy_linux.lo getentropy_linux.o: $(srcdir)/compat/getentropy_linux.c config.h
-getentropy_osx.lo getentropy_osx.o: $(srcdir)/compat/getentropy_osx.c config.h
-getentropy_solaris.lo getentropy_solaris.o: $(srcdir)/compat/getentropy_solaris.c config.h
+keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
+parse.lo parse.o: $(srcdir)/gldns/parse.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h
+parseutil.lo parseutil.o: $(srcdir)/gldns/parseutil.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/parseutil.h
+rrdef.lo rrdef.o: $(srcdir)/gldns/rrdef.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h
+str2wire.lo str2wire.o: $(srcdir)/gldns/str2wire.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/gbuffer.h \
+ $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h
+wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h \
+ $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/keyraw.h
+arc4_lock.lo arc4_lock.o: $(srcdir)/compat/arc4_lock.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+arc4random.lo arc4random.o: $(srcdir)/compat/arc4random.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/compat/chacha_private.h
+arc4random_uniform.lo arc4random_uniform.o: $(srcdir)/compat/arc4random_uniform.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+explicit_bzero.lo explicit_bzero.o: $(srcdir)/compat/explicit_bzero.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+getentropy_linux.lo getentropy_linux.o: $(srcdir)/compat/getentropy_linux.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+getentropy_osx.lo getentropy_osx.o: $(srcdir)/compat/getentropy_osx.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+getentropy_solaris.lo getentropy_solaris.o: $(srcdir)/compat/getentropy_solaris.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
 getentropy_win.lo getentropy_win.o: $(srcdir)/compat/getentropy_win.c
-sha512.lo sha512.o: $(srcdir)/compat/sha512.c config.h
-strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c config.h
-mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
- $(srcdir)/util/fptr_wlist.h
-rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/log.h $(srcdir)/util-internal.h config.h \
- $(srcdir)/context.h getdns/getdns.h getdns/getdns_extra.h getdns/getdns.h \
+sha512.lo sha512.o: $(srcdir)/compat/sha512.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
+mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/util/fptr_wlist.h
+rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/util/log.h $(srcdir)/util-internal.h $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
  $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/util/fptr_wlist.h
-val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c config.h $(srcdir)/util/val_secalgo.h $(srcdir)/util/log.h \
- $(srcdir)/util-internal.h config.h $(srcdir)/context.h getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
+val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/util/val_secalgo.h $(srcdir)/util/log.h $(srcdir)/util-internal.h $(srcdir)/context.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h \
  $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/keyraw.h \
  $(srcdir)/gldns/gbuffer.h
-libev.lo libev.o: $(srcdir)/extension/libev.c $(srcdir)/getdns/getdns_ext_libev.h getdns/getdns.h \
- getdns/getdns_extra.h $(srcdir)/types-internal.h getdns/getdns.h \
- getdns/getdns_extra.h $(srcdir)/util/rbtree.h config.h
+libev.lo libev.o: $(srcdir)/extension/libev.c $(srcdir)/getdns/getdns_ext_libev.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
 libevent.lo libevent.o: $(srcdir)/extension/libevent.c $(srcdir)/getdns/getdns_ext_libevent.h \
- getdns/getdns.h getdns/getdns_extra.h $(srcdir)/types-internal.h getdns/getdns.h \
- getdns/getdns_extra.h $(srcdir)/util/rbtree.h config.h
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h
 libmini_event.lo libmini_event.o: $(srcdir)/extension/libmini_event.c $(srcdir)/extension/libmini_event.h \
- config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h \
- getdns/getdns.h getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
- $(srcdir)/context.h config.h $(srcdir)/types-internal.h $(srcdir)/extension/libmini_event.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/context.h $(srcdir)/types-internal.h $(srcdir)/extension/libmini_event.h \
  $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h
-libuv.lo libuv.o: $(srcdir)/extension/libuv.c config.h $(srcdir)/getdns/getdns_ext_libuv.h \
- getdns/getdns.h getdns/getdns_extra.h $(srcdir)/util-internal.h config.h $(srcdir)/context.h \
- getdns/getdns.h getdns/getdns_extra.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
+libuv.lo libuv.o: $(srcdir)/extension/libuv.c \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/config.h \
+ $(srcdir)/getdns/getdns_ext_libuv.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns.h \
+ /home/willem/repos/getdns/src/test/tpkg/build-event-loops/src/getdns/getdns_extra.h \
+ $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
  $(srcdir)/extension/libmini_event.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h
