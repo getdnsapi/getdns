@@ -250,8 +250,6 @@ Build tested using Mingw(3.21.0) and Msys 1.0 (http://www.mingw.org/) on Windows
 Dependencies: 
 The following dependencies are built from source on Mingw
 openssl1.0.2a
-libexpat
-ldns (dependency to be removed soon)
 libidn
 
 The windows version of getdns currently only is supported in the stub only mode. 
