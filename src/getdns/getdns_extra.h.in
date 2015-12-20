@@ -342,6 +342,41 @@ getdns_context_get_update_callback(getdns_context *context, void **userarg,
  */
 const char *getdns_get_errorstr_by_id(uint16_t err);
 
+	
+
+/**
+ * Public Key Pinning functionality:
+ * 
+ * a public key pinset is a list of dicts.  each dict should have a
+ * "digest" and a "value".
+ * 
+ * "digest": a string indicating the type of digest. at the moment, we
+ *           only support a "digest" of "sha256".
+ * 
+ * "value": a binary representation of the digest provided.
+ * 
+ * given a such a pinset, we should be able to validate a chain
+ * properly according to section 2.6 of RFC 7469.
+ */
+
+/**
+ * convert an HPKP-style pin description to an appropriate getdns data
+ * structure.  An example string is: (with the quotes, without any
+ * leading or trailing whitespace):
+ *
+ *    pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="
+ *
+ * It is the caller's responsibility to call getdns_dict_destroy() on
+ * the dict returned when it is no longer needed.
+ *
+ * @param context a context to use to create the dict, or NULL to create
+ *            it generically
+ * @param str the pinning string to parse
+ * @return a dict created from ctx, or  NULL if the string did not match. 
+ */
+getdns_dict* getdns_pubkey_pin_create_from_string(
+	getdns_context* context,
+	const char* str);
 
 /* WARNING! Function getdns_strerror is not in the API specification and
  * is likely to be removed from future versions of our implementation, to be
@@ -381,6 +416,8 @@ typedef enum getdns_tls_authentication_t {
 #define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE_TEXT "Change related to getdns_context_set_edns_client_subnet_private"
 #define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE 620
 #define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE_TEXT "Change related to getdns_context_set_tls_query_padding_blocksize"
+#define GETDNS_CONTEXT_CODE_PUBKEY_PINSET 621
+#define GETDNS_CONTEXT_CODE_PUBKEY_PINSET_TEXT "Change related to getdns_context_set_pubkey_pinset"
 
 getdns_return_t
 getdns_context_set_tls_authentication(
