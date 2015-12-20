@@ -378,6 +378,26 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 	getdns_context* context,
 	const char* str);
 
+
+/**
+ * Test whether a given pinset is reasonable, including:
+ *
+ * is it well-formed?
+ * are there at least two pins?
+ * are the digests used sane?
+ *
+ * @param pinset the set of public key pins to check for sanity.  This
+ *               should be a list of dicts.
+ * @return errorlist if not NULL, a list of human-readable strings is 
+ *                   appended to errorlist.
+ * @return GETDNS_RETURN_GOOD if the pinset passes the sanity check.
+ */ 
+getdns_return_t getdns_pubkey_pinset_sanity_check(
+	const getdns_list* pinset,
+	getdns_list* errorlist);
+
+
+	
 /* WARNING! Function getdns_strerror is not in the API specification and
  * is likely to be removed from future versions of our implementation, to be
  * replaced by getdns_get_errorstr_by_id or something similar.
