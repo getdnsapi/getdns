@@ -137,4 +137,79 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 	return NULL;
 }
 
+
+/* Test whether a given pinset is reasonable, including:
+
+ * is it well-formed?
+ * are there at least two pins?
+ * are the digests used sane?
+
+   if errorlist is NULL, the sanity check just returns success or
+   failure.
+
+   if errorlist is not NULL, we append human-readable strings to
+   report the errors.
+*/
+
+#define PKP_SC_ERR(e) { \
+       err.size = sizeof(e); \
+       err.data = (uint8_t*)e; \
+       if (errorlist) \
+	       getdns_list_set_bindata(errorlist, \
+				       preverrs + errorcount, &err); \
+       errorcount++; \
+	}
+#define PKP_SC_HARDERR(e, val) { \
+		PKP_SC_ERR(e); return val; \
+	}
+getdns_return_t getdns_pubkey_pinset_sanity_check(
+	const getdns_list* pinset,
+	getdns_list* errorlist)
+{
+	size_t errorcount = 0, preverrs = 0, pins = 0, i;
+	getdns_bindata err;
+	getdns_dict * pin;
+	getdns_bindata * data;
+
+	if (errorlist)
+		if (getdns_list_get_length(errorlist, &preverrs))
+			return GETDNS_RETURN_INVALID_PARAMETER;
+	
+	if (getdns_list_get_length(pinset, &pins))
+		PKP_SC_HARDERR("Can't get length of pinset",
+			       GETDNS_RETURN_INVALID_PARAMETER);
+	if (pins < 2)
+		PKP_SC_ERR("This pinset has fewer than 2 pins");
+	for (i = 0; i < pins; i++)
+	{
+		/* is it a dict? */
+		if (getdns_list_get_dict(pinset, i, &pin)) {
+			PKP_SC_ERR("Could not retrieve a pin");
+		} else {
+		/* does the pin have the right digest type? */
+			if (getdns_dict_get_bindata(pin, "digest", &data)) {
+				PKP_SC_ERR("Pin has no 'digest' entry");
+			} else {
+				if (data->size != sha256.size ||
+				    memcmp(data->data, sha256.data, sha256.size))
+					PKP_SC_ERR("Pin has 'digest' other than sha256");
+			}
+			/* if it does, is the value the right length? */
+			if (getdns_dict_get_bindata(pin, "value", &data)) {
+				PKP_SC_ERR("Pin has no 'value' entry");
+			} else {
+				if (data->size != SHA256_DIGEST_LENGTH)
+					PKP_SC_ERR("Pin has the wrong size 'value' (should be 32 octets for sha256)");
+			}
+			
+		/* should we choke if it has some other key? for
+		 * extensibility, we will not treat this as an
+		 * error.*/
+		}
+	}
+	
+	if (errorcount > 0)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	return GETDNS_RETURN_GOOD;
+}
 /* pubkey-pinning.c */
