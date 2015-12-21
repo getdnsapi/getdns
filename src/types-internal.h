@@ -116,8 +116,8 @@ struct getdns_upstream;
 #define TIMEOUT_FOREVER ((int64_t)-1)
 #define ASSERT_UNREACHABLE 0
 
-#define GETDNS_TRANSPORTS_MAX 4
-#define GETDNS_UPSTREAM_TRANSPORTS 3
+#define GETDNS_TRANSPORTS_MAX 3
+#define GETDNS_UPSTREAM_TRANSPORTS 2
 
 /** @}
  */

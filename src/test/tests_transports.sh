@@ -49,7 +49,7 @@ usage () {
 	echo "it can be used to check the basic functionality for now. It is recommended that"
 	echo "local or known test servers are used, but it should work with the default servers:"
 	echo " - Google Open DNS for TCP and UDP only "
-	echo  "- the getdnsapi.net test server Open Resolver for TLS, STARTTLS, TCP and UDP"
+	echo  "- the getdnsapi.net test server Open Resolver for TLS, TCP and UDP"
 	echo "NOTE: By default this script assumes it is located in the same directory"
 	echo "as the getdns_query binary. If it is not, then the location of the binary"
 	echo "can be specified via the command line option."
@@ -57,7 +57,7 @@ usage () {
 	echo "usage: test_transport.sh"
 	echo "         -p   path to getdns_query binary"
 	echo "         -s   server configured for only TCP and UDP"
-	echo "         -t   server configured for TLS, STARTTLS, TCP and UDP"
+	echo "         -t   server configured for TLS, TCP and UDP"
 	echo "              (This must include the hostname e.g. 185.49.141.38~getdnsapi.net)"
 }
 
@@ -79,7 +79,6 @@ GOOD_QUERIES=(
 "-s -A -q getdnsapi.net -l T      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP_NO_NAME}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP}")
-#"-s -A -q getdnsapi.net -l S      @${TLS_SERVER_IP_NO_NAME}")
 
 GOOD_FALLBACK_QUERIES=(
 "-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
@@ -91,7 +90,6 @@ GOOD_FALLBACK_QUERIES=(
 
 NOT_AVAILABLE_QUERIES=(
 "-s -A -q getdnsapi.net -l L      @${SERVER_IP}    "
-#"-s -A -q getdnsapi.net -l S      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}    "
 "-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
 

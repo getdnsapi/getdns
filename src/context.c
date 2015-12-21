@@ -71,9 +71,11 @@ typedef struct host_name_addrs {
 	uint8_t host_name[];
 } host_name_addrs;
 
+
+/*  If changing these lists also remember to 
+    change the value of GETDNS_UPSTREAM_TRANSPORTS */
 static getdns_transport_list_t 
 getdns_upstream_transports[GETDNS_UPSTREAM_TRANSPORTS] = {
-	GETDNS_TRANSPORT_STARTTLS, // Define before TCP to ease fallback
 	GETDNS_TRANSPORT_TCP,
 	GETDNS_TRANSPORT_TLS,
 };
@@ -81,13 +83,11 @@ getdns_upstream_transports[GETDNS_UPSTREAM_TRANSPORTS] = {
 static in_port_t 
 getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_PORT_DNS,
-	GETDNS_PORT_DNS,
 	GETDNS_PORT_DNS_OVER_TLS
 };
 
 char*
 getdns_port_str_array[] = {
-	GETDNS_STR_PORT_DNS,
 	GETDNS_STR_PORT_DNS,
 	GETDNS_STR_PORT_DNS_OVER_TLS
 };
@@ -575,8 +575,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 static int
 tls_is_in_transports_list(getdns_context *context) {
 	for (int i=0; i< context->dns_transport_count;i++) {
-		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS ||
-		    context->dns_transports[i] == GETDNS_TRANSPORT_STARTTLS)
+		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS)
 			return 1;
 	}
 	return 0;
@@ -586,8 +585,7 @@ static int
 tls_only_is_in_transports_list(getdns_context *context) {
 	if (context->dns_transport_count != 1)
 		return 0;
-	if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS ||
-		context->dns_transports[0] == GETDNS_TRANSPORT_STARTTLS)
+	if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS)
 			return 1;
 	return 0;
 }
@@ -617,7 +615,6 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
-	upstream->starttls_req = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_failed = 0;
@@ -1250,18 +1247,17 @@ getdns_set_base_dns_transports(
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	/* Check for valid transports and that they are used only once*/
-	int u=0,t=0,l=0,s=0;
+	int u=0,t=0,l=0;
 	for(i=0; i<transport_count; i++)
 	{
 		switch (transports[i]) {
 			case GETDNS_TRANSPORT_UDP:       u++; break;
 			case GETDNS_TRANSPORT_TCP:       t++; break;
 			case GETDNS_TRANSPORT_TLS:       l++; break;
-			case GETDNS_TRANSPORT_STARTTLS:  s++; break;
 			default: return GETDNS_RETURN_INVALID_PARAMETER;
 		}
 	}
-	if ( u>1 || t>1 || l>1 || s>1)
+	if ( u>1 || t>1 || l>1)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
 	if (!(new_transports = GETDNS_XMALLOC(context->my_mf,
@@ -1298,7 +1294,6 @@ set_ub_dns_transport(struct getdns_context* context) {
             set_ub_string_opt(context, "do-tcp:", "yes");
             break;
         case GETDNS_TRANSPORT_TLS:
-        case GETDNS_TRANSPORT_STARTTLS:
             set_ub_string_opt(context, "do-udp:", "no");
             set_ub_string_opt(context, "do-tcp:", "yes");
             /* Find out if there is a fallback available. */
@@ -1315,15 +1310,9 @@ set_ub_dns_transport(struct getdns_context* context) {
                     break;
                 }
             }
-            if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS) {
-                if (fallback == 0) 
-                    /* Use TLS if it is the only thing.*/
-                    set_ub_string_opt(context, "ssl-upstream:", "yes");
-                break;
-            } else if (fallback == 0)
-                /* Can't support STARTTLS with no fallback. This leads to
-                 * timeouts with un stub validation.... */
-                set_ub_string_opt(context, "do-tcp:", "no");
+            if (fallback == 0) 
+                /* Use TLS if it is the only thing.*/
+                set_ub_string_opt(context, "ssl-upstream:", "yes");
             break;
        default:
            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -1378,10 +1367,6 @@ getdns_context_set_dns_transport(
 	        break;
 	    case GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
 	        context->dns_transports[0] = GETDNS_TRANSPORT_TLS;
-	        context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
-	       break;
-	    case GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN:
-	        context->dns_transports[0] = GETDNS_TRANSPORT_STARTTLS;
 	        context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
 	       break;
 	   default:
@@ -1787,8 +1772,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS ||
-			    getdns_upstream_transports[j] == GETDNS_TRANSPORT_STARTTLS) {
+			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				if ((r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/
@@ -2276,9 +2260,9 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 		}
 	}
 
-	/* Block use of STARTTLS/TLS ONLY in recursive mode as it won't work */
+	/* Block use of TLS ONLY in recursive mode as it won't work */
     /* Note: If TLS is used in recursive mode this will try TLS on port
-     * 53 so it is blocked here.  So is 'STARTTLS only' at the moment. */
+     * 53 so it is blocked here. */
 	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
 		tls_only_is_in_transports_list(context) == 1)
 		return GETDNS_RETURN_BAD_CONTEXT;
@@ -2820,12 +2804,6 @@ getdns_context_get_dns_transport(getdns_context *context,
             *value = GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN;
         else if (count == 2 && transports[1] == GETDNS_TRANSPORT_TCP)
             *value = GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN;
-        else
-            return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
-    }
-    if (transports[0] == GETDNS_TRANSPORT_STARTTLS) {
-        if (count == 2 && transports[1] == GETDNS_TRANSPORT_TCP)
-            *value = GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN;
         else
             return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
     }

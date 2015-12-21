@@ -185,7 +185,6 @@ typedef enum getdns_transport_list_t {
 	GETDNS_TRANSPORT_UDP = 1200,
 	GETDNS_TRANSPORT_TCP = 1201,
 	GETDNS_TRANSPORT_TLS = 1202,
-	GETDNS_TRANSPORT_STARTTLS = 1203
 } getdns_transport_list_t;
 
 /**
@@ -195,7 +194,6 @@ typedef enum getdns_transport_list_t {
 #define GETDNS_TRANSPORT_UDP_TEXT "See getdns_context_set_dns_transport_list()"
 #define GETDNS_TRANSPORT_TCP_TEXT "See getdns_context_set_dns_transport_list()"
 #define GETDNS_TRANSPORT_TLS_TEXT "See getdns_context_set_dns_transport_list()"
-#define GETDNS_TRANSPORT_STARTTLS_TEXT "See getdns_context_set_dns_transport_list()"
 /** @}
  */
 

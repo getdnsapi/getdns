@@ -1,4 +1,5 @@
-* 
+*
+  * Remove STARTTLS implementation (no change to SPEC)
   * Enable TCP Fast Open when possible. Add OSX support for TFO.
   * Rename return_call_debugging to return_call_reporting
 

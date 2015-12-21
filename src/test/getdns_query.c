@@ -345,9 +345,6 @@ fill_transport_list(getdns_context *context, char *transport_list_str,
 			case 'L': 
 				transports[i] = GETDNS_TRANSPORT_TLS;
 				break;
-			case 'S': 
-				transports[i] = GETDNS_TRANSPORT_STARTTLS;
-				break;
 			default:
 				fprintf(stderr, "Unrecognised transport '%c' in string %s\n", 
 				       *(transport_list_str + i), transport_list_str);
@@ -360,7 +357,7 @@ fill_transport_list(getdns_context *context, char *transport_list_str,
 void
 print_usage(FILE *out, const char *progname)
 {
-	fprintf(out, "usage: %s [@<server>] [+extension] [<name>] [<type>]\n",
+	fprintf(out, "usage: %s [@<server>][~<server_hostname>] [+extension] [<name>] [<type>]\n",
 	    progname);
 	fprintf(out, "options:\n");
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
@@ -394,11 +391,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
 	fprintf(out, "\t-E\tSet transport to TLS with TCP fallback only keep connections open\n");
-	fprintf(out, "\t-R\tSet transport to STARTTLS with TCP fallback only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
-	fprintf(out, "\t\t\t U T L S for UDP, TCP, TLS or STARTTLS e.g 'UT' or 'LST' \n");
+	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
 
 }
 
@@ -789,10 +785,6 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'E':
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
-				break;
-			case 'R':
-				getdns_context_set_dns_transport(context,
-				    GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
 				break;
 			case 'u':
 				getdns_context_set_dns_transport(context,
