@@ -55,6 +55,7 @@
 #include "stub.h"
 #include "list.h"
 #include "dict.h"
+#include "pubkey-pinning.h"
 
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
@@ -1950,6 +1951,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+				getdns_list *pubkey_pinset = NULL;
 				if ((r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/
@@ -1957,6 +1959,16 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					       (char *)tls_auth_name->data,
 						tls_auth_name->size);
 					upstream->tls_auth_name[tls_auth_name->size] = '\0';
+				}
+				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
+							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
+			   /* TODO: what if the user supplies tls_pubkey_pinset with
+			    * something other than a list? */
+					r = _getdns_get_pubkey_pinset_from_list(pubkey_pinset,
+										&(upstreams->mf),
+										&(upstream->tls_pubkey_pinset));
+					if (r != GETDNS_RETURN_GOOD)
+						goto invalid_parameter;
 				}
 			}
 			if ((upstream->tsig_alg = tsig_alg)) {
@@ -3170,11 +3182,19 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 			    (uint32_t)upstream_port(upstream))))
 				break;
 
-			if (upstream->transport == GETDNS_TRANSPORT_TLS &&
-			    upstream_port(upstream) != getdns_port_array[j] &&
-			    (r = getdns_dict_set_int(d, "tls_port",
-			    (uint32_t)upstream_port(upstream))))
-				break;
+			if (upstream->transport == GETDNS_TRANSPORT_TLS) {
+				if (upstream_port(upstream) == getdns_port_array[j])
+					(void) getdns_dict_set_int(d, "tls_port",
+								   (uint32_t) upstream_port(upstream));
+				if (upstream->tls_pubkey_pinset) {
+					getdns_list *pins = NULL;
+					if (_getdns_get_pubkey_pinset_list(context,
+									   upstream->tls_pubkey_pinset,
+									   &pins) == GETDNS_RETURN_GOOD)
+						(void) getdns_dict_set_list(d, "tls_pubkey_pinset", pins);
+					getdns_list_destroy(pins);
+				}
+			}
 		}
 		if (!r)
 			r = _getdns_list_append_dict(upstreams, d);
