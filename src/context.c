@@ -558,6 +558,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->tcp.write_error = 0;
 	upstream->writes_done = 0;
 	upstream->responses_received = 0;
+	upstream->keepalive_timeout = 0;
 	if (upstream->tls_hs_state != GETDNS_HS_FAILED) {
 		upstream->tls_hs_state = GETDNS_HS_NONE;
 		upstream->tls_auth_failed = 0;
@@ -609,6 +610,7 @@ upstream_init(getdns_upstream *upstream,
 	/* How is this upstream doing? */
 	upstream->writes_done = 0;
 	upstream->responses_received = 0;
+	upstream->keepalive_timeout = 0;
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
 
@@ -1482,9 +1484,8 @@ getdns_context_set_idle_timeout(struct getdns_context *context, uint64_t timeout
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
-    if (timeout == 0) {
-        return GETDNS_RETURN_INVALID_PARAMETER;
-    }
+    /* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
+    /* 0 should be allowed as that is the default.*/
 
     context->idle_timeout = timeout;
 

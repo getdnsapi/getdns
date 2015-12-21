@@ -417,7 +417,8 @@ enum gldns_enum_edns_option
 	GLDNS_EDNS_DAU = 5, /* RFC6975 */
 	GLDNS_EDNS_DHU = 6, /* RFC6975 */
 	GLDNS_EDNS_N3U = 7, /* RFC6975 */
-	GLDNS_EDNS_CLIENT_SUBNET = 8 /* draft-vandergaast-edns-client-subnet */
+	GLDNS_EDNS_CLIENT_SUBNET = 8, /* draft-vandergaast-edns-client-subnet */
+	GLDNS_EDNS_KEEPALIVE = 11 /* draft-ietf-dnsop-edns-tcp-keepalive*/
 };
 typedef enum gldns_enum_edns_option gldns_edns_option;
 

@@ -89,6 +89,7 @@ typedef struct getdns_upstream {
 	/* How is this upstream doing? */
 	size_t                   writes_done;
 	size_t                   responses_received;
+	uint64_t                 keepalive_timeout;
 	int                      to_retry;
 	int                      back_off;
 

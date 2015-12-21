@@ -128,6 +128,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->edns_maximum_udp_payload_size = edns_maximum_udp_payload_size;
 	net_req->max_udp_payload_size = edns_maximum_udp_payload_size != -1
 	                              ? edns_maximum_udp_payload_size : 1432;
+	net_req->keepalive_sent = 0;
 	net_req->write_queue_tail = NULL;
 	net_req->response_len = 0;
         net_req->base_query_option_sz = opt_options_size;
