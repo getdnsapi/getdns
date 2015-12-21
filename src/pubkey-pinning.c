@@ -50,6 +50,7 @@
 #include <openssl/bio.h>
 #include <openssl/sha.h>
 #include <string.h>
+#include "context.h"
 
 /* we only support sha256 at the moment.  adding support for another
    digest is more complex than just adding another entry here. in
@@ -212,4 +213,100 @@ getdns_return_t getdns_pubkey_pinset_sanity_check(
 		return GETDNS_RETURN_GENERIC_ERROR;
 	return GETDNS_RETURN_GOOD;
 }
+
+getdns_return_t
+_getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
+				    struct mem_funcs *mf,
+				    sha256_pin_t **pinset_out)
+{
+	getdns_return_t r;
+	size_t pins, i;
+	sha256_pin_t *out = NULL, *onext = NULL;
+	getdns_dict * pin;
+	getdns_bindata * data = NULL;
+	
+	if (r = getdns_list_get_length(pinset_list, &pins), r)
+		return r;
+	for (i = 0; i < pins; i++)
+	{
+		if (r = getdns_list_get_dict(pinset_list, i, &pin), r)
+			goto fail;
+		/* does the pin have the right digest type? */
+		if (r = getdns_dict_get_bindata(pin, "digest", &data), r)
+			goto fail;
+		if (data->size != sha256.size ||
+		    memcmp(data->data, sha256.data, sha256.size)) {
+			r = GETDNS_RETURN_INVALID_PARAMETER;
+			goto fail;
+		}
+		/* if it does, is the value the right length? */
+		if (r = getdns_dict_get_bindata(pin, "value", &data), r)
+			goto fail;
+		if (data->size != SHA256_DIGEST_LENGTH) {
+			r = GETDNS_RETURN_INVALID_PARAMETER;
+			goto fail;
+		}
+		/* make a new pin */
+		onext = GETDNS_MALLOC(*mf, sha256_pin_t);
+		if (onext == NULL) {
+			r = GETDNS_RETURN_MEMORY_ERROR;
+			goto fail;
+		}
+		onext->next = out;
+		memcpy(onext->pin, data->data, SHA256_DIGEST_LENGTH);
+		out = onext;
+	}
+	
+	*pinset_out = out;
+	return GETDNS_RETURN_GOOD;
+ fail:
+	while (out) {
+		onext = out->next;
+		GETDNS_FREE(*mf, out);
+		out = onext;
+	}
+	return r;
+}
+
+getdns_return_t
+_getdns_get_pubkey_pinset_list(getdns_context *ctx,
+			       const sha256_pin_t *pinset_in,
+			       getdns_list **pinset_list)
+{
+	getdns_list *out = getdns_list_create_with_context(ctx);
+	getdns_return_t r;
+	uint8_t buf[SHA256_DIGEST_LENGTH];
+	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
+	getdns_dict *pin = NULL;
+	size_t idx = 0;
+
+	if (out == NULL)
+		return GETDNS_RETURN_MEMORY_ERROR;
+	while (pinset_in) {
+		pin = getdns_dict_create_with_context(ctx);
+		if (pin == NULL) {
+			r = GETDNS_RETURN_MEMORY_ERROR;
+			goto fail;
+		}
+		if (r = getdns_dict_set_bindata(pin, "digest", &sha256), r)
+			goto fail;
+		memcpy(buf, pinset_in->pin, sizeof(buf));
+		if (r = getdns_dict_set_bindata(pin, "value", &value), r)
+			goto fail;
+		if (r = getdns_list_set_dict(out, idx++, pin), r)
+			goto fail;
+		getdns_dict_destroy(pin);
+		pin = NULL;
+		pinset_in = pinset_in->next;
+	}
+
+	*pinset_list = out;
+	return GETDNS_RETURN_GOOD;
+ fail:
+	getdns_dict_destroy(pin);
+	getdns_list_destroy(out);
+	return r;
+}
+
+
 /* pubkey-pinning.c */
