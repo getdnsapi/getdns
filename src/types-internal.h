@@ -379,5 +379,8 @@ getdns_return_t _getdns_network_req_add_upstream_option(getdns_network_req * req
 					     uint16_t code, uint16_t sz, const void* data);
 void _getdns_network_req_clear_upstream_options(getdns_network_req * req);
 
+/* Adds TSIG signature (if needed) and returns query length */
+size_t _getdns_network_req_add_tsig(getdns_network_req *req);
+
 #endif
 /* types-internal.h */

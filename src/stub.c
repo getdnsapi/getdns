@@ -737,7 +737,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 				if (attach_edns_client_subnet_private(netreq))
 					return STUB_OUT_OF_OPTIONS;
 		}
-		pkt_len = netreq->response - netreq->query;
+		pkt_len = _getdns_network_req_add_tsig(netreq);
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */
@@ -1212,7 +1212,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			}
 		}
 
-		pkt_len = netreq->response - netreq->query;
+		pkt_len = _getdns_network_req_add_tsig(netreq);
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write */
 		
@@ -1337,7 +1337,7 @@ stub_udp_write_cb(void *userarg)
 			if (attach_edns_client_subnet_private(netreq))
 				return; /* too many upstream options */
 	}
-	pkt_len = netreq->response - netreq->query;
+	pkt_len = _getdns_network_req_add_tsig(netreq);
 	if ((ssize_t)pkt_len != sendto(netreq->fd, netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
