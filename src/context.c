@@ -515,6 +515,7 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	    ; upstreams->count
 	    ; upstreams->count--, upstream++ ) {
 
+		sha256_pin_t *pin = upstream->tls_pubkey_pinset;
 		if (upstream->loop && (   upstream->event.read_cb
 		                       || upstream->event.write_cb
 		                       || upstream->event.timeout_cb) ) {
@@ -530,6 +531,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		}
 		if (upstream->fd != -1)
 			close(upstream->fd);
+		while (pin) {
+			sha256_pin_t *nextpin = pin->next;
+			GETDNS_FREE(upstreams->mf, pin);
+			pin = nextpin;
+		}
+		upstream->tls_pubkey_pinset = NULL;
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
@@ -669,6 +676,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_failed = 0;
 	upstream->tls_auth_name[0] = '\0';
+	upstream->tls_pubkey_pinset = NULL;
 	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
