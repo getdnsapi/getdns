@@ -102,6 +102,12 @@ typedef struct getdns_tsig_info {
 
 const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg);
 
+/* for doing public key pinning of TLS-capable upstreams: */
+typedef struct sha256_pin {
+	char pin[SHA256_DIGEST_LENGTH];
+	struct sha256_pin *next;
+} sha256_pin_t;
+
 typedef struct getdns_upstream {
 	/* backpointer to containing upstreams structure */
 	struct getdns_upstreams *upstreams;
@@ -126,6 +132,7 @@ typedef struct getdns_upstream {
 	getdns_tcp_state         tcp;
 	char                     tls_auth_name[256];
 	size_t                   tls_auth_failed;
+	sha256_pin_t            *tls_pubkey_pinset;
 
 	/* Pipelining of TCP network requests */
 	getdns_network_req      *write_queue;
