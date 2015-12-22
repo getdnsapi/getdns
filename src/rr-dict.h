@@ -36,8 +36,6 @@
 #include "getdns/getdns.h"
 #include "gldns/gbuffer.h"
 
-#define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t)399)
-
 /* rdf_end returns a pointer to the end of this rdf's data,
  * i.e. where the next rdata field will start.
  */

@@ -39,11 +39,7 @@ rr_iter_find_nxt(_getdns_rr_iter *i)
 	assert(i);
 	assert(i->rr_type);
 
-	if (!i->pkt) {
-		i->nxt = i->pkt_end;
-		return;
-	}
-	i->nxt = i->n < GLDNS_QDCOUNT(i->pkt)
+	i->nxt = i->pkt && i->n < GLDNS_QDCOUNT(i->pkt)
 	       ? i->rr_type + 4
 	       : i->rr_type + 10 > i->pkt_end
 	       ? i->pkt_end

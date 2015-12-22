@@ -400,21 +400,166 @@ getdns_context_get_tls_authentication(getdns_context *context,
 #define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 545
 #define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
 
+#define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t) 399 )
+#define GETDNS_RETURN_NEED_MORE_SPACE_TEXT "The buffer was too small"
+
+/**
+ * Convert rr_dict to wireformat representation of the resource record.
+ *
+ * @param  rr_dict The getdns dict representation of the resource record
+ * @return wire    A newly allocated buffer which will contain the wireformat.
+ * @return wire_sz The size of the allocated buffer and the wireformat.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
 getdns_return_t
 getdns_rr_dict2wire(
+    const getdns_dict *rr_dict, uint8_t **wire, size_t *wire_sz);
+
+/**
+ * Convert rr_dict to wireformat representation of the resource record.
+ *
+ * @param  rr_dict The getdns dict representation of the resource record
+ * @param  wire    The buffer in which the wireformat will be written
+ * @param  wire_sz On input the size of the wire buffer,
+ *                 On output the amount of wireformat needed for the
+ *                 wireformat representation of the resource record;
+ *                 even if it did not fit.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * GETDNS_RETURN_NEED_MORE_SPACE will be returned when the buffer was too
+ * small.  wire_sz will be set to the needed buffer space then.
+ */
+getdns_return_t
+getdns_rr_dict2wire_buf(
     const getdns_dict *rr_dict, uint8_t *wire, size_t *wire_sz);
 
+/**
+ * Convert rr_dict to wireformat representation of the resource record.
+ *
+ * @param  rr_dict The getdns dict representation of the resource record
+ * @param  wire    A pointer to the buffer pointer in which the wireformat 
+ *                 will be written.
+ *                 On output the buffer pointer will have moved along
+ *                 the buffer and point right after the just written RR.
+ * @param  wire_sz On input the size of the wire buffer,
+ *                 On output the amount of wireformat needed for the
+ *                 wireformat will have been substracted from wire_sz.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * GETDNS_RETURN_NEED_MORE_SPACE will be returned when the buffer was too
+ * small.  The function will pretend that it had written beyond the end
+ * of the buffer, and wire will point past the buffer and wire_sz will
+ * contain a negative value.
+ */
+getdns_return_t
+getdns_rr_dict2wire_scan(
+    const getdns_dict *rr_dict, uint8_t **wire, ssize_t *wire_sz);
+
+
+/**
+ * Convert wireformat resource record in a getdns rr_dict representation.
+ *
+ * @param  wire    Buffer containing the wireformat rr
+ * @param  wire_sz Size of the wire buffer
+ * @return rr_dict The returned rr_dict
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
 getdns_return_t
 getdns_wire2rr_dict(
     const uint8_t *wire, size_t wire_sz, getdns_dict **rr_dict);
 
+/**
+ * Convert wireformat resource record in a getdns rr_dict representation.
+ *
+ * @param  wire    Buffer containing the wireformat rr
+ * @param  wire_sz On input the size of the wire buffer
+ *                 On output the length of the wireformat rr.
+ * @return rr_dict The returned rr_dict
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_wire2rr_dict_buf(
+    const uint8_t *wire, size_t *wire_sz, getdns_dict **rr_dict);
+
+/**
+ * Convert wireformat resource record in a getdns rr_dict representation.
+ *
+ * @param  wire    A pointer to the pointer of the wireformat buffer.
+ *                 On return this pointer is moved to after first read
+ *                 in resource record.
+ * @param  wire_sz On input the size of the wire buffer
+ *                 On output the size is decreased with the length
+ *                 of the wireformat resource record.
+ * @return rr_dict The returned rr_dict
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_wire2rr_dict_scan(
+    const uint8_t **wire, size_t *wire_sz, getdns_dict **rr_dict);
+
+
+/**
+ * Convert rr_dict to the string representation of the resource record.
+ *
+ * @param  rr_dict The getdns dict representation of the resource record
+ * @return str     A newly allocated string representation of the rr
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
 getdns_return_t
 getdns_rr_dict2str(
     const getdns_dict *rr_dict, char **str);
 
+/**
+ * Convert rr_dict to the string representation of the resource record.
+ *
+ * @param  rr_dict The getdns dict representation of the resource record
+ * @param  str     The buffer in which the string will be written
+ * @param  str_len On input the size of the text buffer,
+ *                 On output the amount of characters needed to write
+ *                 the string representation of the rr.  Even if it does
+ *                 not fit.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * GETDNS_RETURN_NEED_MORE_SPACE will be returned when the buffer was too
+ * small.  str_len will be set to the needed buffer space then.
+ */
+getdns_return_t
+getdns_rr_dict2str_buf(
+    const getdns_dict *rr_dict, char *str, size_t *str_len);
+
+/**
+ * Convert rr_dict to the string representation of the resource record.
+ *
+ * @param  rr_dict The getdns dict representation of the resource record
+ * @param  str     A pointer to the buffer pointer in which the string 
+ *                 will be written.
+ *                 On output the buffer pointer will have moved along
+ *                 the buffer and point right after the just written RR.
+ * @param  str_len On input the size of the str buffer,
+ *                 On output the number of characters needed for the
+ *                 string will have been substracted from strlen.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * GETDNS_RETURN_NEED_MORE_SPACE will be returned when the buffer was too
+ * small.  The function will pretend that it had written beyond the end
+ * of the buffer, and str will point past the buffer and str_len will
+ * contain a negative value.
+ */
+getdns_return_t
+getdns_rr_dict2str_scan(
+    const getdns_dict *rr_dict, char **str, ssize_t *str_len);
+
+
+/**
+ * Convert the string representation of the resource record to rr_dict format.
+ *
+ * @param  str        String representation of the resource record.
+ * @return rr_dict     The result getdns dict representation of the resource record
+ * @param  origin      Default suffix for not fully qualified domain names
+ * @param  default_ttl Default ttl
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
 getdns_return_t
 getdns_str2rr_dict(
-    const char *str, getdns_dict **rr_dict, const char *origin, uint32_t default_ttl);
+    const char *str, getdns_dict **rr_dict,
+    const char *origin, uint32_t default_ttl);
+
 
 #ifdef __cplusplus
 }

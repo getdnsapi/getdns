@@ -58,7 +58,7 @@ int main()
 	size_t          length;
 	getdns_list    *list;
 	char           *str;
-	uint8_t         wire_buf[4096], *wire = wire_buf, *end_of_wire;
+	uint8_t        *wire;
 	size_t          wire_len;
 
 
@@ -81,11 +81,12 @@ int main()
 	/* Convert to wireformat from rdata_raw.
 	 * Added fourth list element should NOT show.
 	 */
-	wire_len = sizeof(wire_buf);
-	if ((r = getdns_rr_dict2wire(rr_dict, wire, &wire_len)))
+	wire = NULL;
+	if ((r = getdns_rr_dict2wire(rr_dict, &wire, &wire_len)))
 		FAIL_r("getdns_rr_dict2wire");
 
 	print_wire(wire, wire_len);
+	free(wire);
 
 
 	/* Convert to wireformat from parsing rdata fields.
@@ -96,11 +97,11 @@ int main()
 
 	printf("\nremoved \"/rdata/rdata_raw\":\n\n");
 
-	wire_len = sizeof(wire_buf);
-	if ((r = getdns_rr_dict2wire(rr_dict, wire, &wire_len)))
+	if ((r = getdns_rr_dict2wire(rr_dict, &wire, &wire_len)))
 		FAIL_r("getdns_rr_dict2wire");
 
 	print_wire(wire, wire_len);
+	free(wire);
 
 
 	/* Remove second and third string elements and show text format.
@@ -132,11 +133,6 @@ int main()
 
 	getdns_dict_destroy(rr_dict);
 
-	/* Forward wireformat to test scanning from wireformat later on
-	 */
-	wire += wire_len;
-	wire_len = sizeof(wire_buf) - (wire - wire_buf);
-
 	/* Construct rr_dict and convert to string
 	 */
 	if (!(rr_dict = getdns_dict_create()))
@@ -163,14 +159,12 @@ int main()
 	printf("\n%s\n", str);
 	free(str);
 
-	if ((r = getdns_rr_dict2wire(rr_dict, wire, &wire_len)))
+	if ((r = getdns_rr_dict2wire(rr_dict, &wire, &wire_len)))
 		FAIL_r("getdns_rr_dict2wire");
 
 	getdns_dict_destroy(rr_dict);
 	print_wire(wire, wire_len);
-
-	wire += wire_len;
-	wire_len = sizeof(wire_buf) - (wire - wire_buf);
+	free(wire);
 
 
 	/* Convert RR with special rdata fields and repeating last element 
@@ -238,11 +232,6 @@ int main()
 	free(str);
 	getdns_dict_destroy(rr_dict);
 
-
-	/* Parse over wire data, convert to string via dict, and print */
-	end_of_wire = wire;
-	wire = wire_buf;
-	wire_len = end_of_wire - wire;
 
 	exit(EXIT_SUCCESS);
 }
