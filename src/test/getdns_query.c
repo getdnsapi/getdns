@@ -481,7 +481,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-K <pin>\tPin a public key for TLS connections (can repeat)\n");
 	fprintf(out, "\t\t(should look like '" EXAMPLE_PIN "')\n");
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
-	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
+	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
@@ -865,7 +865,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'm':
 				getdns_context_set_tls_authentication(context,
-				                 GETDNS_AUTHENTICATION_HOSTNAME);
+				                 GETDNS_AUTHENTICATION_REQUIRED);
 				break;
 			case 'P':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {

@@ -835,7 +835,7 @@ tls_failed(getdns_upstream *upstream)
 
 static int
 tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
-	return (netreq->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME &&
+	return (netreq->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED &&
 		    upstream->tls_auth_failed) ? 0 : 1;
 }
 
@@ -909,7 +909,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
 #else
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
 			/* TODO: Trigger post-handshake custom validation*/
 			DEBUG_STUB("--- %s, ERROR: TLS Authentication functionality not available\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
@@ -918,11 +918,11 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		}
 #endif
 		/* Allow fallback to opportunistic if settings permit it*/
-		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_HOSTNAME)
+		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 			upstream->tls_fallback_ok = 1;
 	} else {
 		/* Lack of host name is OK unless only authenticated TLS is specified*/
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
+		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
 			DEBUG_STUB("--- %s, ERROR: No host name provided for TLS authentication\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			upstream->tls_auth_failed = 1;

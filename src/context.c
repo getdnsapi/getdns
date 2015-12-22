@@ -1487,7 +1487,7 @@ getdns_context_set_tls_authentication(getdns_context *context,
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     if (value != GETDNS_AUTHENTICATION_NONE && 
-        value != GETDNS_AUTHENTICATION_HOSTNAME) {
+        value != GETDNS_AUTHENTICATION_REQUIRED) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     context->tls_auth = value;
@@ -2462,8 +2462,8 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 #endif
 		}
 		if (tls_only_is_in_transports_list(context) == 1 && 
-		    context->tls_auth == GETDNS_AUTHENTICATION_HOSTNAME) {
-			context->tls_auth_min = GETDNS_AUTHENTICATION_HOSTNAME;
+		    context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED) {
+			context->tls_auth_min = GETDNS_AUTHENTICATION_REQUIRED;
 			/* TODO: If no auth data provided for any upstream, fail here */
 		}
 		else {
