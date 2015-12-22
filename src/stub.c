@@ -1276,17 +1276,19 @@ stub_udp_read_cb(void *userarg)
 		return; /* Client cookie didn't match? */
 
 	close(netreq->fd);
-	if (GLDNS_TC_WIRE(netreq->response)) {
+	while (GLDNS_TC_WIRE(netreq->response)) {
+		DEBUG_STUB("TC bit set\n");
 		if (!(netreq->transport_current < netreq->transport_count))
-			goto done;
+			break;
 		getdns_transport_list_t next_transport = 
 		                      netreq->transports[++netreq->transport_current];
-		if (next_transport != GETDNS_TRANSPORT_TCP)
-			goto done;
+		if (next_transport != GETDNS_TRANSPORT_TCP &&
+		    next_transport != GETDNS_TRANSPORT_TLS)
+			break;
 		/* For now, special case where fallback should be on the same upstream*/
 		if ((netreq->fd = upstream_connect(upstream, next_transport,
 		                                   dnsreq)) == -1)
-			goto done;
+			break;
 		upstream_schedule_netreq(netreq->upstream, netreq);
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, netreq->upstream->fd, dnsreq->context->timeout,
@@ -1298,7 +1300,6 @@ stub_udp_read_cb(void *userarg)
 	}
 	netreq->response_len = read;
 	dnsreq->upstreams->current = 0;
-done:
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	netreq->state = NET_REQ_FINISHED;
 	_getdns_check_dns_req_complete(dnsreq);
