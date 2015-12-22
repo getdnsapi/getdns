@@ -30,6 +30,7 @@
 
 #include <getdns/getdns.h>
 #include <sys/time.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -560,6 +561,19 @@ getdns_str2rr_dict(
     const char *str, getdns_dict **rr_dict,
     const char *origin, uint32_t default_ttl);
 
+/**
+ * Read the zonefile and convert to a list of rr_dict's.
+ *
+ * @param  fp          String representation of the resource record.
+ * @return rr_list     The result list of rr_dicts representing the zone file.
+ * @param  origin      Default suffix for not fully qualified domain names
+ * @param  default_ttl Default ttl
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_fp2rr_list(
+    FILE *in, getdns_list **rr_list,
+    const char *origin, uint32_t default_ttl);
 
 #ifdef __cplusplus
 }

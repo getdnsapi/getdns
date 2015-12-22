@@ -20,6 +20,13 @@ void print_dict(getdns_dict *rr_dict)
 	free(str);
 }
 
+void print_list(getdns_list *rr_list)
+{
+	char *str = getdns_pretty_print_list(rr_list);
+	printf("%s\n", str);
+	free(str);
+}
+
 void print_wire(uint8_t *wire, size_t wire_len)
 {
 	size_t pos, i;
@@ -48,7 +55,7 @@ void print_wire(uint8_t *wire, size_t wire_len)
 }
 
 
-int main()
+int main(int argc, char const * const argv[])
 {
 	getdns_return_t r;
 	getdns_dict    *rr_dict;
@@ -56,11 +63,16 @@ int main()
 	getdns_bindata  address = { 4, "\xb9\x31\x8d\x25" };
 	getdns_bindata  fourth  = { 11, "last string" };
 	size_t          length;
-	getdns_list    *list;
 	char           *str;
 	uint8_t        *wire;
 	size_t          wire_len;
-
+	getdns_list    *rr_list;
+	FILE           *in;
+	uint8_t         wire_buf[7800];
+	size_t          i;
+	ssize_t         available;
+	char            str_buf[10000];
+	ssize_t         str_len = sizeof(str_buf);
 
 	/* Convert string to rr_dict
 	 */
@@ -232,6 +244,65 @@ int main()
 	free(str);
 	getdns_dict_destroy(rr_dict);
 
+	if (!(in = fopen(argv[1], "r")))
+		FAIL("Could not fopen %s\n", argv[1]);
+
+	if ((r = getdns_fp2rr_list(in, &rr_list, NULL, 0)))
+		FAIL_r("getdns_fp2rr_list");
+
+	fclose(in);
+
+	print_list(rr_list);
+
+
+	/* Fill the wire_buf with wireformat RR's in rr_list
+	 * wire_buf is too small for last two rr's.
+	 */
+	wire = wire_buf;
+	available = sizeof(wire_buf);
+
+	for (i = 0; !(r = getdns_list_get_dict(rr_list, i, &rr_dict)); i++) {
+		if ((r = getdns_rr_dict2wire_scan(rr_dict, &wire, &available))) {
+			if (r == GETDNS_RETURN_NEED_MORE_SPACE) {
+				printf("record %.3zu, available buffer space: "
+				       "%zi\n", i, available);
+				break;
+			}
+			else
+				FAIL_r("getdns_rr_dict2wire_scan");
+		}
+		printf("record %3zu, available buffer space: "
+		       "%zi\n", i, available);
+	}
+	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+		r = GETDNS_RETURN_GOOD;
+
+	getdns_list_destroy(rr_list);
+
+	/* Now scan over the wireformat buffer and convert to rr_dicts again.
+	 * Then fill a string buffer with those rr_dicts.
+	 */
+	wire = wire_buf;
+	available = sizeof(wire_buf);
+
+	str = str_buf;
+	str_len = sizeof(str_buf);
+
+	while (available > 0 && str_len > 0) {
+		rr_dict = NULL;
+		if ((r = getdns_wire2rr_dict_scan(
+		    (const uint8_t **)&wire, &available, &rr_dict)))
+			FAIL_r("getdns_wire2rr_dict_scan");
+		
+		if ((r = getdns_rr_dict2str_scan(rr_dict, &str, &str_len)))
+			FAIL_r("getdns_rr_dict2str_scan");
+
+		getdns_dict_destroy(rr_dict);
+	}
+	*str = 0;
+
+	/* Print the entire buffer */
+	printf("%s", str_buf);
 
 	exit(EXIT_SUCCESS);
 }

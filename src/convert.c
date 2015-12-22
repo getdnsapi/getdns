@@ -47,6 +47,8 @@
 #include "gldns/wire2str.h"
 #include "gldns/str2wire.h"
 #include "dict.h"
+#include "list.h"
+#include "convert.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -295,15 +297,26 @@ getdns_rr_dict2wire_scan(
 		return GETDNS_RETURN_GOOD;
 }
 
+static struct mem_funcs _getdns_plain_mem_funcs = {
+	MF_PLAIN, .mf.pln = { malloc, realloc, free }
+};
+
+getdns_return_t
+_getdns_wire2rr_dict(struct mem_funcs *mf,
+    const uint8_t *wire, size_t wire_len, getdns_dict **rr_dict)
+{
+	return _getdns_wire2rr_dict_scan(mf, &wire, &wire_len, rr_dict);
+}
 getdns_return_t
 getdns_wire2rr_dict(
     const uint8_t *wire, size_t wire_len, getdns_dict **rr_dict)
 {
-	return getdns_wire2rr_dict_scan(&wire, &wire_len, rr_dict);
+	return _getdns_wire2rr_dict(
+	    &_getdns_plain_mem_funcs, wire, wire_len, rr_dict);
 }
 
 getdns_return_t
-getdns_wire2rr_dict_buf(
+_getdns_wire2rr_dict_buf(struct mem_funcs *mf,
     const uint8_t *wire, size_t *wire_len, getdns_dict **rr_dict)
 {
 	size_t my_wire_len;
@@ -314,20 +327,24 @@ getdns_wire2rr_dict_buf(
 	else
 		my_wire_len = *wire_len;
 
-	if ((r = getdns_wire2rr_dict_scan(&wire, &my_wire_len, rr_dict)))
+	if ((r = _getdns_wire2rr_dict_scan(mf, &wire, &my_wire_len, rr_dict)))
 		return r;
 	
 	*wire_len -= my_wire_len;
 	return GETDNS_RETURN_GOOD;
 }
+getdns_return_t
+getdns_wire2rr_dict_buf(
+    const uint8_t *wire, size_t *wire_len, getdns_dict **rr_dict)
+{
+	return _getdns_wire2rr_dict_buf(
+	    &_getdns_plain_mem_funcs, wire, wire_len, rr_dict);
+}
 
 getdns_return_t
-getdns_wire2rr_dict_scan(
+_getdns_wire2rr_dict_scan(struct mem_funcs *mf,
     const uint8_t **wire, size_t *wire_len, getdns_dict **rr_dict)
 {
-	static struct mem_funcs plain_mem_funcs = {
-		MF_PLAIN, .mf.pln = { malloc, realloc, free }
-	};
 	_getdns_rr_iter rr_iter_spc, *rr_iter;
 
 	if (!wire || !*wire || !wire_len || !rr_dict)
@@ -337,13 +354,20 @@ getdns_wire2rr_dict_scan(
 	    &rr_iter_spc, *wire, *wire_len)))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	if (!(*rr_dict = _getdns_rr_iter2rr_dict(&plain_mem_funcs, rr_iter)))
+	if (!(*rr_dict = _getdns_rr_iter2rr_dict(mf, rr_iter)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	*wire_len -= (rr_iter->nxt - rr_iter->pos);
-	*wire = rr_iter->pos;
+	*wire = rr_iter->nxt;
 
 	return GETDNS_RETURN_GOOD;
+}
+getdns_return_t
+getdns_wire2rr_dict_scan(
+    const uint8_t **wire, size_t *wire_len, getdns_dict **rr_dict)
+{
+	return _getdns_wire2rr_dict_scan(
+	    &_getdns_plain_mem_funcs, wire, wire_len, rr_dict);
 }
 
 
@@ -445,7 +469,7 @@ getdns_rr_dict2str_scan(
 
 
 getdns_return_t
-getdns_str2rr_dict(
+_getdns_str2rr_dict(struct mem_funcs *mf,
     const char *str, getdns_dict **rr_dict, const char *origin, uint32_t default_ttl)
 {
 	uint8_t wire_spc[4096], *wire = wire_spc;
@@ -468,20 +492,92 @@ getdns_str2rr_dict(
 	e = gldns_str2wire_rr_buf(str, wire, &wire_len,
 	    NULL, default_ttl, origin_wf, origin_len, NULL, 0);
 	if (GLDNS_WIREPARSE_ERROR(e) == GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL) {
-		if (!(wire = malloc((wire_len = GLDNS_RR_BUF_SIZE))))
+
+		if (!(wire = GETDNS_XMALLOC(
+		    *mf, uint8_t, (wire_len = GLDNS_RR_BUF_SIZE))))
 			return GETDNS_RETURN_MEMORY_ERROR;
 		e = gldns_str2wire_rr_buf(str, wire, &wire_len,
 	            NULL, default_ttl, origin_wf, origin_len, NULL, 0);
 	}
 	if (e) {
 		if (wire != wire_spc)
-			free(wire);
+			GETDNS_FREE(*mf, wire);
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	r = getdns_wire2rr_dict(wire, wire_len, rr_dict);
+	r = _getdns_wire2rr_dict(mf, wire, wire_len, rr_dict);
 	if (wire != wire_spc)
-		free(wire);
+		GETDNS_FREE(*mf, wire);
 	return r;
+}
+getdns_return_t
+getdns_str2rr_dict(
+    const char *str, getdns_dict **rr_dict, const char *origin, uint32_t default_ttl)
+{
+	return _getdns_str2rr_dict(
+	    &_getdns_plain_mem_funcs, str, rr_dict, origin, default_ttl);
+}
+
+
+getdns_return_t
+_getdns_fp2rr_list(struct mem_funcs *mf,
+    FILE *in, getdns_list **rr_list, const char *origin, uint32_t default_ttl)
+{
+	struct gldns_file_parse_state pst;
+	getdns_list *rrs;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	uint8_t *rr;
+	size_t len, dname_len;
+	getdns_dict *rr_dict;
+
+	if (!in || !rr_list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!origin) {
+		*pst.origin = 0;
+		pst.origin_len = 0;
+
+	} else if (gldns_str2wire_dname_buf(origin,pst.origin,&pst.origin_len))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	*pst.prev_rr = 0;
+	pst.prev_rr_len = 1;
+	pst.default_ttl = default_ttl;
+	pst.lineno = 1;
+
+	if (!(rrs = _getdns_list_create_with_mf(mf)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+	
+
+	if (!(rr = GETDNS_XMALLOC(*mf, uint8_t, GLDNS_RR_BUF_SIZE)))
+		r = GETDNS_RETURN_MEMORY_ERROR;
+
+	else while (r == GETDNS_RETURN_GOOD && !feof(in)) {
+		len = GLDNS_RR_BUF_SIZE;
+		dname_len = 0;
+		if (gldns_fp2wire_rr_buf(in, rr, &len, &dname_len, &pst))
+			break;
+		if (len == 0)
+			continue;
+		if ((r = _getdns_wire2rr_dict(mf, rr, len, &rr_dict)))
+			break;
+		r = _getdns_list_append_dict(rrs, rr_dict);
+		getdns_dict_destroy(rr_dict);
+	}
+	if (rr)
+		GETDNS_FREE(*mf, rr);
+	if (r)
+		getdns_list_destroy(rrs);
+	else
+		*rr_list = rrs;
+	return r;
+}
+
+getdns_return_t
+getdns_fp2rr_list(
+    FILE *in, getdns_list **rr_list, const char *origin, uint32_t default_ttl)
+{
+	return _getdns_fp2rr_list(
+	    &_getdns_plain_mem_funcs, in, rr_list, origin, default_ttl);
 }
 
 /* convert.c */

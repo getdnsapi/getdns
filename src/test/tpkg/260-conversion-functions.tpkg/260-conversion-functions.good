@@ -100,3 +100,1749 @@ hip0.nlnetlabs.nl.	3600	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSu
   "type": GETDNS_RRTYPE_APL
 }
 apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.128/25 1:224.0.0.0/4 2:ff00:0000:0000:0000:0000:0000:0000:0000/8
+[
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "expire": 345600,
+      "minimum": 300,
+      "mname": <bindata of "ns.nlnetlabs.nl.">,
+      "rdata_raw": <bindata of 0x026e73096e6c6e65746c616273026e6c...>,
+      "refresh": 450,
+      "retry": 600,
+      "rname": <bindata of "sysadmin.nlnetlabs.nl.">,
+      "serial": 2015081800
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_SOA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "nsdname": <bindata of "ns.nlnetlabs.nl.">,
+      "rdata_raw": <bindata of "ns.nlnetlabs.nl.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_NS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "nsdname": <bindata of "ns.hactrn.net.">,
+      "rdata_raw": <bindata of "ns.hactrn.net.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_NS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "nsdname": <bindata of "mcvax.nlnet.nl.">,
+      "rdata_raw": <bindata of "mcvax.nlnet.nl.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_NS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "nsdname": <bindata of "sec2.authdns.ripe.net.">,
+      "rdata_raw": <bindata of "sec2.authdns.ripe.net.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_NS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 185.49.140.22>,
+      "rdata_raw": <bindata of 0xb9318c16>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
+      "rdata_raw": <bindata of 0x2a04b900000000000002000000000022>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_AAAA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "exchange": <bindata of "dicht.nlnetlabs.nl.">,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a056469636874096e6c6e65746c61...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "exchange": <bindata of "mcvax.nlnet.nl.">,
+      "preference": 20,
+      "rdata_raw": <bindata of 0x0014056d63766178056e6c6e6574026e...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for .>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x104e65743a3a444e532020646f6d6169...>,
+      "txt_strings":
+      [
+         <bindata of "Net::DNS  domain">
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "_443._tcp.net-dns.org.">,
+    "rdata":
+    {
+      "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
+      "certificate_usage": 3,
+      "matching_type": 1,
+      "rdata_raw": <bindata of 0x030101274c6f96c9885c8050e8a05ad1...>,
+      "selector": 1
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TLSA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "_443._tcp.www.net-dns.org.">,
+    "rdata":
+    {
+      "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
+      "certificate_usage": 3,
+      "matching_type": 1,
+      "rdata_raw": <bindata of 0x030101274c6f96c9885c8050e8a05ad1...>,
+      "selector": 1
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TLSA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "dynup.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x07666f6f466f6f3209426c61203b2046...>,
+      "txt_strings":
+      [
+         <bindata of "fooFoo2">,
+         <bindata of "Bla ; Foo">
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "lists.net-dns.org.">,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 63.209.15.196>,
+      "rdata_raw": <bindata of 0x3fd10fc4>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "localhost.net-dns.org.">,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 127.0.0.1>,
+      "rdata_raw": <bindata of 0x7f000001>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "overflow.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652031206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 1 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652032206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 2 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652033206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 3 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652034206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 4 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652035206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 5 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652036206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 6 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652037206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 7 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652038206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 8 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3e416e64206c696e652039206f662061...>,
+      "txt_strings":
+      [
+         <bindata of "And line 9 of al sorts of crap t"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203130206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 10 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203131206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 11 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203132206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 12 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203133206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 13 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203134206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 14 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203135206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 15 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203136206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 16 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203137206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 17 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203138206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 18 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203139206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 19 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203230206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 20 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203231206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 21 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203232206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 22 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203233206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 23 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203235206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 25 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203236206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 26 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203237206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 27 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203238206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 28 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203239206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 29 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203330206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 30 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203331206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 31 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203332206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 32 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203333206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 33 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203334206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 34 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203335206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 35 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203336206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 36 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203337206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 37 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203338206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 38 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203339206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 39 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203430206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 40 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203431206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 41 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203432206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 42 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203433206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 43 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203434206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 44 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203435206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 45 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203436206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 46 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203437206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 47 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203438206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 48 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203439206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 49 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203530206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 50 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203531206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 51 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203532206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 52 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203533206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 53 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203534206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 54 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203535206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 55 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203536206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 56 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203537206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 57 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203538206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 58 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203539206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 59 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3f416e64206c696e65203630206f6620...>,
+      "txt_strings":
+      [
+         <bindata of "And line 60 of al sorts of crap "...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x40416e64206c696e6520323234206f66...>,
+      "txt_strings":
+      [
+         <bindata of "And line 224 of al sorts of crap"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x45416e20696e637265616469626c7920...>,
+      "txt_strings":
+      [
+         <bindata of "An increadibly large answer sect"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x31546865206e616d6573207769746869...>,
+      "txt_strings":
+      [
+         <bindata of "The names within this domain are"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "a.t.net-dns.org.">,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 10.0.1.128>,
+      "rdata_raw": <bindata of 0x0a000180>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "a2.t.net-dns.org.">,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 10.0.1.129>,
+      "rdata_raw": <bindata of 0x0a000181>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "a.t.net-dns.org.">,
+      "rdata_raw": <bindata of "a.t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "mx.t.net-dns.org.">,
+    "rdata":
+    {
+      "exchange": <bindata of "a.t.net-dns.org.">,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a01610174076e65742d646e73036f...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "mx2.t.net-dns.org.">,
+    "rdata":
+    {
+      "exchange": <bindata of "a.t.net-dns.org.">,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a01610174076e65742d646e73036f...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "t.net-dns.org.">,
+    "rdata":
+    {
+      "exchange": <bindata of "a2.t.net-dns.org.">,
+      "preference": 15,
+      "rdata_raw": <bindata of 0x000f0261320174076e65742d646e7303...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "txt.t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x074e65742d444e53>,
+      "txt_strings":
+      [
+         <bindata of "Net-DNS">
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "txt2.t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x1a4e65742d444e533b20636f6d706c69...>,
+      "txt_strings":
+      [
+         <bindata of "Net-DNS; complicated $tuff">,
+         <bindata of 0x736f7274206f66202220746578743b20...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "connection-test.t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x16636f6e6e656374696f6e2d74657374...>,
+      "txt_strings":
+      [
+         <bindata of "connection-test succes">
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "txt-utf8.t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x09e58fa4e6b1a0e382840ce89b99e9a3...>,
+      "txt_strings":
+      [
+         <bindata of 0xe58fa4e6b1a0e38284>,
+         <bindata of 0xe89b99e9a39be8bebce38280>,
+         <bindata of 0xe6b0b4e381aee99fb3>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "txt-utf8-bin.t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x09e58fa4e6b1a0e382840ce89b99e9a3...>,
+      "txt_strings":
+      [
+         <bindata of 0xe58fa4e6b1a0e38284>,
+         <bindata of 0xe89b99e9a39be8bebce38280>,
+         <bindata of 0xe6b0b4e381aee99fb3>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "a.few.empty.non.terminals.t.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x01610366657705656d707479036e6f6e...>,
+      "txt_strings":
+      [
+         <bindata of "a">,
+         <bindata of "few">,
+         <bindata of "empty">,
+         <bindata of "non">,
+         <bindata of "terminals">
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "t.net-dns.org.">,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 185.49.140.22>,
+      "rdata_raw": <bindata of 0xb9318c16>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "t.net-dns.org.">,
+    "rdata":
+    {
+      "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
+      "rdata_raw": <bindata of 0x2a04b900000000000002000000000022>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_AAAA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "yx1.cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "-.t.net-dns.org.">,
+      "rdata_raw": <bindata of "-.t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "yx2.cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "a-a.t.net-dns.org.">,
+      "rdata_raw": <bindata of "a-a.t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "yx3.cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "a\..t.net-dns.org.">,
+      "rdata_raw": <bindata of "a\..t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "yx4.cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "a\000.t.net-dns.org.">,
+      "rdata_raw": <bindata of "a\000.t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "nx1.cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "does.not.exist.t.net-dns.org.">,
+      "rdata_raw": <bindata of "does.not.exist.t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "nx2.cname.t.net-dns.org.">,
+    "rdata":
+    {
+      "cname": <bindata of "empty.non.terminals.t.net-dns.org.">,
+      "rdata_raw": <bindata of "empty.non.terminals.t.net-dns.org.">
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "www.net-dns.org.">,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 185.49.140.22>,
+      "rdata_raw": <bindata of 0xb9318c16>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "www.net-dns.org.">,
+    "rdata":
+    {
+      "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
+      "rdata_raw": <bindata of 0x2a04b900000000000002000000000022>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_AAAA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "apl.net-dns.org.">,
+    "rdata":
+    {
+      "apitems":
+      [
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xc0a82a>,
+          "n": 0,
+          "prefix": 26
+        },
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xc0a82a40>,
+          "n": 0,
+          "prefix": 26
+        },
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xc0a82a80>,
+          "n": 1,
+          "prefix": 25
+        },
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xe0>,
+          "n": 0,
+          "prefix": 4
+        },
+        {
+          "address_family": 2,
+          "afdpart": <bindata of 0xff>,
+          "n": 0,
+          "prefix": 8
+        }
+      ],
+      "rdata_raw": <bindata of 0x00011a03c0a82a00011a04c0a82a4000...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_APL
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "ipseckey0.net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway_type": 0,
+      "precedence": 2,
+      "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "ipseckey1.net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0xc0000226>,
+      "gateway_type": 1,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "ipseckey2.net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0x20010db8000080020000000020000001>,
+      "gateway_type": 2,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "ipseckey3.net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of "mygateway.example.com.">,
+      "gateway_type": 3,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "ipseckey.net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway_type": 0,
+      "precedence": 2,
+      "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0xc0000226>,
+      "gateway_type": 1,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0x20010db8000080020000000020000001>,
+      "gateway_type": 2,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "net-dns.org.">,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of "mygateway.example.com.">,
+      "gateway_type": 3,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "default._domainkey.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0xfd763d444b494d313b20723d706f7374...>,
+      "txt_strings":
+      [
+         <bindata of "v=DKIM1; r=postmaster; g=*; k=rs"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "2.3.3.updates.spamassassin.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x083134313832313920>,
+      "txt_strings":
+      [
+         <bindata of "1418219 ">
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata of "mirrors.updates.spamassassin.net-dns.org.">,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x3c687474703a2f2f616e6f6e796d6f75...>,
+      "txt_strings":
+      [
+         <bindata of "http://anonymous@spamassassin.ap"...>
+      ]
+    },
+    "ttl": 3600,
+    "type": GETDNS_RRTYPE_TXT
+  }
+]
+record   0, available buffer space: 7717
+record   1, available buffer space: 7689
+record   2, available buffer space: 7663
+record   3, available buffer space: 7636
+record   4, available buffer space: 7602
+record   5, available buffer space: 7587
+record   6, available buffer space: 7560
+record   7, available buffer space: 7527
+record   8, available buffer space: 7498
+record   9, available buffer space: 7470
+record  10, available buffer space: 7402
+record  11, available buffer space: 7330
+record  12, available buffer space: 7283
+record  13, available buffer space: 7250
+record  14, available buffer space: 7213
+record  15, available buffer space: 7118
+record  16, available buffer space: 7032
+record  17, available buffer space: 6946
+record  18, available buffer space: 6860
+record  19, available buffer space: 6774
+record  20, available buffer space: 6688
+record  21, available buffer space: 6602
+record  22, available buffer space: 6516
+record  23, available buffer space: 6430
+record  24, available buffer space: 6343
+record  25, available buffer space: 6256
+record  26, available buffer space: 6169
+record  27, available buffer space: 6082
+record  28, available buffer space: 5995
+record  29, available buffer space: 5908
+record  30, available buffer space: 5821
+record  31, available buffer space: 5734
+record  32, available buffer space: 5647
+record  33, available buffer space: 5560
+record  34, available buffer space: 5473
+record  35, available buffer space: 5386
+record  36, available buffer space: 5299
+record  37, available buffer space: 5212
+record  38, available buffer space: 5125
+record  39, available buffer space: 5038
+record  40, available buffer space: 4951
+record  41, available buffer space: 4864
+record  42, available buffer space: 4777
+record  43, available buffer space: 4690
+record  44, available buffer space: 4603
+record  45, available buffer space: 4516
+record  46, available buffer space: 4429
+record  47, available buffer space: 4342
+record  48, available buffer space: 4255
+record  49, available buffer space: 4168
+record  50, available buffer space: 4081
+record  51, available buffer space: 3994
+record  52, available buffer space: 3907
+record  53, available buffer space: 3820
+record  54, available buffer space: 3733
+record  55, available buffer space: 3646
+record  56, available buffer space: 3559
+record  57, available buffer space: 3472
+record  58, available buffer space: 3385
+record  59, available buffer space: 3298
+record  60, available buffer space: 3211
+record  61, available buffer space: 3124
+record  62, available buffer space: 3037
+record  63, available buffer space: 2950
+record  64, available buffer space: 2863
+record  65, available buffer space: 2776
+record  66, available buffer space: 2689
+record  67, available buffer space: 2602
+record  68, available buffer space: 2515
+record  69, available buffer space: 2428
+record  70, available buffer space: 2341
+record  71, available buffer space: 2254
+record  72, available buffer space: 2167
+record  73, available buffer space: 2080
+record  74, available buffer space: 1992
+record  75, available buffer space: 1899
+record  76, available buffer space: 1824
+record  77, available buffer space: 1793
+record  78, available buffer space: 1761
+record  79, available buffer space: 1713
+record  80, available buffer space: 1666
+record  81, available buffer space: 1618
+record  82, available buffer space: 1573
+record  83, available buffer space: 1536
+record  84, available buffer space: 1445
+record  85, available buffer space: 1381
+record  86, available buffer space: 1314
+record  87, available buffer space: 1243
+record  88, available buffer space: 1166
+record  89, available buffer space: 1137
+record  90, available buffer space: 1096
+record  91, available buffer space: 1044
+record  92, available buffer space: 990
+record  93, available buffer space: 937
+record  94, available buffer space: 884
+record  95, available buffer space: 819
+record  96, available buffer space: 749
+record  97, available buffer space: 718
+record  98, available buffer space: 675
+record  99, available buffer space: 615
+record 100, available buffer space: 545
+record 101, available buffer space: 471
+record 102, available buffer space: 385
+record 103, available buffer space: 292
+record 104, available buffer space: 223
+record 105, available buffer space: 159
+record 106, available buffer space: 83
+record 107, available buffer space: 0
+record 108, available buffer space: -296
+net-dns.org.	3600	IN	SOA	ns.nlnetlabs.nl. sysadmin.nlnetlabs.nl. 2015081800 450 600 345600 300
+.	3600	IN	NS	ns.nlnetlabs.nl.
+.	3600	IN	NS	ns.hactrn.net.
+.	3600	IN	NS	mcvax.nlnet.nl.
+.	3600	IN	NS	sec2.authdns.ripe.net.
+.	3600	IN	A	185.49.140.22
+.	3600	IN	AAAA	2a04:b900::2:0:0:22
+.	3600	IN	MX	10 dicht.nlnetlabs.nl.
+.	3600	IN	MX	20 mcvax.nlnet.nl.
+.	3600	IN	TXT	"Net::DNS  domain"
+_443._tcp.net-dns.org.	3600	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
+_443._tcp.www.net-dns.org.	3600	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
+dynup.net-dns.org.	3600	IN	TXT	"fooFoo2" "Bla ; Foo"
+lists.net-dns.org.	3600	IN	A	63.209.15.196
+localhost.net-dns.org.	3600	IN	A	127.0.0.1
+overflow.net-dns.org.	3600	IN	TXT	"And line 1 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 2 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 3 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 4 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 5 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 6 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 7 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 8 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 9 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 10 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 11 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 12 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 13 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 14 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 15 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 16 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 17 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 18 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 19 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 20 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 21 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 22 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 23 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 25 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 26 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 27 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 28 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 29 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 30 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 31 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 32 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 33 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 34 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 35 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 36 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 37 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 38 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 39 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 40 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 41 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 42 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 43 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 44 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 45 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 46 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 47 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 48 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 49 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 50 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 51 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 52 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 53 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 54 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 55 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 56 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 57 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 58 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 59 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 60 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"And line 224 of al sorts of crap that will just fill the packet "
+net-dns.org.	3600	IN	TXT	"An increadibly large answer section that will lead to packet overflow"
+t.net-dns.org.	3600	IN	TXT	"The names within this domain are used for testing"
+a.t.net-dns.org.	3600	IN	A	10.0.1.128
+a2.t.net-dns.org.	3600	IN	A	10.0.1.129
+cname.t.net-dns.org.	3600	IN	CNAME	a.t.net-dns.org.
+mx.t.net-dns.org.	3600	IN	MX	10 a.t.net-dns.org.
+mx2.t.net-dns.org.	3600	IN	MX	10 a.t.net-dns.org.
+t.net-dns.org.	3600	IN	MX	15 a2.t.net-dns.org.
+txt.t.net-dns.org.	3600	IN	TXT	"Net-DNS"
+txt2.t.net-dns.org.	3600	IN	TXT	"Net-DNS; complicated $tuff" "sort of \" text; and binary \000 data"
+connection-test.t.net-dns.org.	3600	IN	TXT	"connection-test succes"
+txt-utf8.t.net-dns.org.	3600	IN	TXT	"\229\143\164\230\177\160\227\130\132" "\232\155\153\233\163\155\232\190\188\227\130\128" "\230\176\180\227\129\174\233\159\179"
+txt-utf8-bin.t.net-dns.org.	3600	IN	TXT	"\229\143\164\230\177\160\227\130\132" "\232\155\153\233\163\155\232\190\188\227\130\128" "\230\176\180\227\129\174\233\159\179"
+a.few.empty.non.terminals.t.net-dns.org.	3600	IN	TXT	"a" "few" "empty" "non" "terminals"
+t.net-dns.org.	3600	IN	A	185.49.140.22
+t.net-dns.org.	3600	IN	AAAA	2a04:b900::2:0:0:22
+yx1.cname.t.net-dns.org.	3600	IN	CNAME	-.t.net-dns.org.
+yx2.cname.t.net-dns.org.	3600	IN	CNAME	a-a.t.net-dns.org.
+yx3.cname.t.net-dns.org.	3600	IN	CNAME	a\..t.net-dns.org.
+yx4.cname.t.net-dns.org.	3600	IN	CNAME	a\000.t.net-dns.org.
+nx1.cname.t.net-dns.org.	3600	IN	CNAME	does.not.exist.t.net-dns.org.
+nx2.cname.t.net-dns.org.	3600	IN	CNAME	empty.non.terminals.t.net-dns.org.
+www.net-dns.org.	3600	IN	A	185.49.140.22
+www.net-dns.org.	3600	IN	AAAA	2a04:b900::2:0:0:22
+apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.128/25 1:224.0.0.0/4 2:ff00:0000:0000:0000:0000:0000:0000:0000/8
+ipseckey0.net-dns.org.	3600	IN	IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey1.net-dns.org.	3600	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey2.net-dns.org.	3600	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey3.net-dns.org.	3600	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	3600	IN	IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+net-dns.org.	3600	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+net-dns.org.	3600	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+net-dns.org.	3600	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
