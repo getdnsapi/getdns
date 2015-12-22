@@ -862,6 +862,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	if (pinset_ret != GETDNS_RETURN_GOOD) {
 		DEBUG_STUB("--- %s, PINSET VALIDATION FAILURE!!\n", __FUNCTION__);
 		preverify_ok = 0;
+		upstream->tls_auth_failed = 1;
 		if (upstream->tls_fallback_ok)
 			DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH PINSET VALIDATION FAILED!!\n", __FUNCTION__);
 	}
@@ -1006,10 +1007,15 @@ tls_do_handshake(getdns_upstream *upstream)
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
 	r = SSL_get_verify_result(upstream->tls_obj);
+	if (upstream->tls_auth_name[0])
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
-	if (r == X509_V_ERR_HOSTNAME_MISMATCH)
+		if (r == X509_V_ERR_HOSTNAME_MISMATCH)
+#else
+ /* if we weren't built against OpenSSL with hostname matching we
+  * could not have matched the hostname, so this would be an automatic
+  * tls_auth_fail. */
 #endif
-		upstream->tls_auth_failed = 1;
+			upstream->tls_auth_failed = 1;
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
