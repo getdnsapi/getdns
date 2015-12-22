@@ -308,5 +308,54 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 	return r;
 }
 
+/* this should only happen once ever in the life of the library. it's
+   used to associate a getdns_context_t with an SSL_CTX, to be able to
+   do custom verification.
+   
+   see doc/HOWTO/proxy_certificates.txt as an example
+*/
+static int
+_get_ssl_getdns_upstream_idx()
+{
+	static volatile int idx = -1;
+	if (idx < 0) {
+		CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+		if (idx < 0)
+			idx = SSL_get_ex_new_index(0, "associated getdns upstream",
+						   NULL,NULL,NULL);
+		CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+	}
+	return idx;
+}
+
+getdns_upstream*
+_getdns_upstream_from_x509_store(X509_STORE_CTX *store)
+{
+	int uidx = _get_ssl_getdns_upstream_idx();
+	int sslidx = SSL_get_ex_data_X509_STORE_CTX_idx();
+	const SSL *ssl;
+
+	/* all *_get_ex_data() should return NULL on failure anyway */
+	ssl = X509_STORE_CTX_get_ex_data(store, sslidx);
+	if (ssl)
+		return (getdns_upstream*) SSL_get_ex_data(ssl, uidx);
+	else
+		return NULL;
+	/* TODO: if we want more details about errors somehow, we
+	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
+}
+
+getdns_return_t
+_getdns_associate_upstream_with_SSL(SSL *ssl,
+				    getdns_upstream *upstream)
+{
+	int uidx = _get_ssl_getdns_upstream_idx();
+	if (SSL_set_ex_data(ssl, uidx, upstream))
+		return GETDNS_RETURN_GOOD;
+	else
+		return GETDNS_RETURN_GENERIC_ERROR;
+	/* TODO: if we want more details about errors somehow, we
+	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
+}
 
 /* pubkey-pinning.c */
