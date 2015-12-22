@@ -87,6 +87,19 @@ gldns_write_uint32(void *dst, uint32_t data)
 }
 
 
+INLINE void
+gldns_write_uint48(void *dst, uint64_t data)
+{
+        uint8_t *p = (uint8_t *) dst;
+        p[0] = (uint8_t) ((data >> 40) & 0xff);
+        p[1] = (uint8_t) ((data >> 32) & 0xff);
+        p[2] = (uint8_t) ((data >> 24) & 0xff);
+        p[3] = (uint8_t) ((data >> 16) & 0xff);
+        p[4] = (uint8_t) ((data >> 8) & 0xff);
+        p[5] = (uint8_t) (data & 0xff);
+}
+
+
 /**
  * \file gbuffer.h
  *
@@ -535,6 +548,20 @@ gldns_buffer_write_u32_at(gldns_buffer *buffer, size_t at, uint32_t data)
 }
 
 /**
+ * writes the given 6 byte integer at the given position in the buffer
+ * \param[in] buffer the buffer
+ * \param[in] at the position in the buffer
+ * \param[in] data the (lower) 48 bits to write
+ */
+INLINE void
+gldns_buffer_write_u48_at(gldns_buffer *buffer, size_t at, uint64_t data)
+{
+	if (buffer->_fixed && at + 6 > buffer->_limit) return;
+	assert(gldns_buffer_available_at(buffer, at, 6));
+	gldns_write_uint48(buffer->_data + at, data);
+}
+
+/**
  * writes the given 4 byte integer at the current position in the buffer
  * \param[in] buffer the buffer
  * \param[in] data the 32 bits to write
@@ -544,6 +571,18 @@ gldns_buffer_write_u32(gldns_buffer *buffer, uint32_t data)
 {
 	gldns_buffer_write_u32_at(buffer, buffer->_position, data);
 	buffer->_position += sizeof(data);
+}
+
+/**
+ * writes the given 6 byte integer at the current position in the buffer
+ * \param[in] buffer the buffer
+ * \param[in] data the 48 bits to write
+ */
+INLINE void
+gldns_buffer_write_u48(gldns_buffer *buffer, uint64_t data)
+{
+	gldns_buffer_write_u48_at(buffer, buffer->_position, data);
+	buffer->_position += 6;
 }
 
 /**

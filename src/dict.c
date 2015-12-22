@@ -656,12 +656,15 @@ getdns_indent(size_t indent)
 	return spaces + 80 - (indent < 80 ? indent : 0);
 }				/* getdns_indent */
 
-static int
+int
 _getdns_bindata_is_dname(getdns_bindata *bindata)
 {
 	size_t i = 0, n_labels = 0;
 
 	while (i < bindata->size && bindata->data[i]) {
+		if (bindata->data[i] & 0xC0) /* Compression pointer! */
+			return 0;
+
 		i += ((size_t)bindata->data[i]) + 1;
 		n_labels++;
 	}
@@ -992,6 +995,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json &&
 			    (strcmp(item->node.key, "answer_type") == 0  ||
 			     strcmp(item->node.key, "dnssec_status") == 0 ||
+			     strcmp(item->node.key, "tsig_status") == 0 ||
 			     strcmp(item->node.key, "status") == 0 ||
 			     strcmp(item->node.key, "append_name") == 0 ||
 			     strcmp(item->node.key, "follow_redirects") == 0 ||

@@ -209,6 +209,14 @@ typedef struct getdns_network_req
 	/* dnssec status */
 	int dnssec_status;
 
+	/* tsig status:
+	 * GETDNS_DNSSEC_INDETERMINATE means "No TSIG processing"
+	 * GETDNS_DNSSEC_INSECURE      means "TSIG sent, validate reply"
+	 * GETDNS_DNSSEC_SECURE        means "Validated"
+	 * GETDNS_DNSSEC_BOGUS         means "Validation failed"
+	 */
+	int tsig_status;
+
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
@@ -380,6 +388,11 @@ void _getdns_dns_req_free(getdns_dns_req * req);
 getdns_return_t _getdns_network_req_add_upstream_option(getdns_network_req * req,
 					     uint16_t code, uint16_t sz, const void* data);
 void _getdns_network_req_clear_upstream_options(getdns_network_req * req);
+
+/* Adds TSIG signature (if needed) and returns query length */
+size_t _getdns_network_req_add_tsig(getdns_network_req *req);
+
+void _getdns_network_validate_tsig(getdns_network_req *req);
 
 #endif
 /* types-internal.h */
