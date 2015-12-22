@@ -60,6 +60,9 @@ getdns_return_t
 _getdns_associate_upstream_with_SSL(SSL *ssl,
 				    getdns_upstream *upstream);
 
-	
+getdns_return_t
+_getdns_verify_pinset_match(const sha256_pin_t *pinset,
+			    X509_STORE_CTX *store);
+
 #endif
 /* pubkey-pinning.h */

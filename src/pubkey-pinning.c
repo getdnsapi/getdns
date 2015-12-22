@@ -45,10 +45,13 @@
  * given a such a pinset, we should be able to validate a chain
  * properly according to section 2.6 of RFC 7469.
  */
+#include "config.h"
+#include "debug.h"
 #include <getdns/getdns.h>
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/sha.h>
+#include <openssl/x509.h>
 #include <string.h>
 #include "context.h"
 
@@ -356,6 +359,86 @@ _getdns_associate_upstream_with_SSL(SSL *ssl,
 		return GETDNS_RETURN_GENERIC_ERROR;
 	/* TODO: if we want more details about errors somehow, we
 	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
+}
+
+getdns_return_t
+_getdns_verify_pinset_match(const sha256_pin_t *pinset,
+			    X509_STORE_CTX *store)
+{
+	getdns_return_t ret = GETDNS_RETURN_GENERIC_ERROR;
+	X509 *x;
+	int i, len;
+	unsigned char raw[4096];
+	unsigned char *next = raw;
+	unsigned char buf[sizeof(pinset->pin)];
+	const sha256_pin_t *p;
+
+	if (pinset == NULL || store == NULL)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	
+	/* start at the base of the chain (the end-entity cert) and
+	 * make sure that some valid element of the chain does match
+	 * the pinset. */
+
+	/* Testing with OpenSSL 1.0.1e-1 on debian indicates that
+	 * store->untrusted holds the chain offered by the server in
+	 * the order that the server offers it.  If the server offers
+	 * bogus certificates (that is, matching and valid certs that
+	 * belong to private keys that the server does not control),
+	 * the the verification will succeed (including this pinset
+	 * check), but the handshake will fail outside of this
+	 * verification. */
+
+	/* TODO: how do we handle raw public keys? */
+
+	for (i = 0; i < sk_X509_num(store->untrusted); i++) {
+		if (i > 0) {
+		/* TODO: how do we ensure that the certificates in
+		 * each stage appropriately sign the previous one?
+		 * for now, to be safe, we only examine the end-entity
+		 * cert: */
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+
+		x = sk_X509_value(store->untrusted, i);
+		if (x->cert_info == NULL)
+			continue;
+#if defined(STUB_DEBUG) && STUB_DEBUG
+		DEBUG_STUB("--- %s: name of cert %d:\n", __FUNCTION__, i);
+		if (x->cert_info->subject != NULL)
+			X509_NAME_print_ex_fp(stderr, x->cert_info->subject, 4, XN_FLAG_ONELINE);
+		fprintf(stderr, "\n");
+#endif
+		if (x->cert_info->key == NULL)
+			continue;
+
+		/* digest the cert with sha256 */
+		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
+		if (len > sizeof(raw)) {
+			DEBUG_STUB("--- %s: pubkey %d is larger than %ld octets\n",
+				   __FUNCTION__, i, sizeof(raw));
+			continue;
+		}
+		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
+		if (next - raw != len) {
+			DEBUG_STUB("--- %s: pubkey %d claimed it needed %d octets, really needed %ld\n",
+				   __FUNCTION__, i, len, next - raw);
+			continue;
+		}
+		SHA256(raw, len, buf);
+
+		/* compare it */
+		for (p = pinset; p; p = p->next)
+			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
+				DEBUG_STUB("--- %s: pubkey %d matched pin %p (%ld)!\n",
+					   __FUNCTION__, i, p, sizeof(p->pin));
+				return GETDNS_RETURN_GOOD;
+			} else
+				DEBUG_STUB("--- %s: pubkey %d did not match pin %p!\n",
+					   __FUNCTION__, i, p);
+	}
+
+	return ret;
 }
 
 /* pubkey-pinning.c */

@@ -844,6 +844,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
 	int     err;
 	getdns_upstream *upstream;
+	getdns_return_t pinset_ret = GETDNS_RETURN_GOOD;
 	
 	err = X509_STORE_CTX_get_error(ctx);
 	upstream = _getdns_upstream_from_x509_store(ctx);
@@ -855,6 +856,15 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	if (upstream && upstream->tls_fallback_ok && err == X509_V_ERR_HOSTNAME_MISMATCH)
 		DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 #endif
+	if (upstream && upstream->tls_pubkey_pinset)
+		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
+
+	if (pinset_ret != GETDNS_RETURN_GOOD) {
+		DEBUG_STUB("--- %s, PINSET VALIDATION FAILURE!!\n", __FUNCTION__);
+		preverify_ok = 0;
+		if (upstream->tls_fallback_ok)
+			DEBUG_STUB("--- %s, PROCEEDING WITHOUT PINSET VALIDATION!!\n", __FUNCTION__);
+	}
 	return (upstream && upstream->tls_fallback_ok) ? 1 : preverify_ok;
 }
 
