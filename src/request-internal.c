@@ -41,6 +41,26 @@
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
 #include "dict.h"
+#include "debug.h"
+
+/* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
+ *                      TSIG type      (uint16_t) :   2
+ *                      TSIG class     (uint16_t) :   2
+ *                      TSIG TTL       (uint32_t) :   4
+ *                      RdLen          (uint16_t) :   2
+ *                      Algorithm name (dname)    : 256
+ *                      Time Signed    (uint48_t) :   6
+ *                      Fudge          (uint16_t) :   2
+ *                      Mac Size       (uint16_t) :   2
+ *                      Mac            (variable) :   EVP_MAX_MD_SIZE
+ *                      Original Id    (uint16_t) :   2
+ *                      Error          (uint16_t) :   2
+ *                      Other Len      (uint16_t) :   2
+ *                      Other Data     (nothing)  :   0
+ *                                                 ---- +
+ *                                                  538 + EVP_MAX_MD_SIZE
+ */
+#define MAXIMUM_TSIG_SPACE (538 + EVP_MAX_MD_SIZE)
 
 getdns_dict  dnssec_ok_checking_disabled_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
@@ -114,6 +134,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->owner = owner;
 
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 
 	net_req->upstream = NULL;
 	net_req->fd = -1;
@@ -128,11 +149,12 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->edns_maximum_udp_payload_size = edns_maximum_udp_payload_size;
 	net_req->max_udp_payload_size = edns_maximum_udp_payload_size != -1
 	                              ? edns_maximum_udp_payload_size : 1432;
+	net_req->keepalive_sent = 0;
 	net_req->write_queue_tail = NULL;
 	net_req->response_len = 0;
         net_req->base_query_option_sz = opt_options_size;
 
-	/* Some fields to record info for return_call_debugging */
+	/* Some fields to record info for return_call_reporting */
 	net_req->debug_start_time = 0;
 	net_req->debug_end_time = 0;
 	net_req->debug_tls_auth_status = 0;
@@ -249,7 +271,7 @@ _getdns_network_req_add_upstream_option(getdns_network_req * req, uint16_t code,
   
   /* no overflow allowed for OPT size either (maybe this is overkill
      given the above check?) */
-  oldlen = gldns_read_uint16(req->opt + 9);  
+  oldlen = gldns_read_uint16(req->opt + 9);
   newlen = oldlen + 4 + sz;
   if (newlen > UINT16_MAX)
     return GETDNS_RETURN_GENERIC_ERROR;
@@ -275,6 +297,267 @@ _getdns_network_req_add_upstream_option(getdns_network_req * req, uint16_t code,
   gldns_write_uint16(req->query - 2, pktlen);
   
   return GETDNS_RETURN_GOOD;
+}
+
+size_t
+_getdns_network_req_add_tsig(getdns_network_req *req)
+{
+	getdns_upstream *upstream = req->upstream;
+	gldns_buffer gbuf;
+	uint16_t arcount;
+	const getdns_tsig_info *tsig_info;
+	uint8_t md_buf[EVP_MAX_MD_SIZE];
+	unsigned int md_len = EVP_MAX_MD_SIZE;
+	const EVP_MD *digester;
+
+	/* Should only be called when in stub mode */
+	assert(req->query);
+
+	if (upstream->tsig_alg == GETDNS_NO_TSIG || !upstream->tsig_dname_len)
+		return req->response - req->query;
+
+	arcount = gldns_read_uint16(req->query + 10);
+
+#if defined(STUB_DEBUG) && STUB_DEBUG
+	/* TSIG should not have been written yet. */
+	if (req->opt) {
+		assert(arcount == 1);
+		assert(req->opt + 11 + gldns_read_uint16(req->opt + 9)
+		    == req->response);
+	} else
+		assert(arcount == 0);
+#endif
+	tsig_info = _getdns_get_tsig_info(upstream->tsig_alg);
+
+	gldns_buffer_init_frm_data(&gbuf, req->response, MAXIMUM_TSIG_SPACE);
+	gldns_buffer_write(&gbuf,
+	    upstream->tsig_dname, upstream->tsig_dname_len);	/* Name */
+	gldns_buffer_write_u16(&gbuf, GETDNS_RRCLASS_ANY);	/* Class */
+	gldns_buffer_write_u32(&gbuf, 0);			/* TTL */
+	gldns_buffer_write(&gbuf,
+	    tsig_info->dname, tsig_info->dname_len);	/* Algorithm Name */
+	gldns_buffer_write_u48(&gbuf, time(NULL));	/* Time Signed */
+	gldns_buffer_write_u16(&gbuf, 300);		/* Fudge */
+	gldns_buffer_write_u16(&gbuf, 0);		/* Error */
+	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
+
+	switch (upstream->tsig_alg) {
+#ifdef HAVE_EVP_MD5
+	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
+#endif
+#ifdef HAVE_EVP_SHA1
+	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
+#endif
+#ifdef HAVE_EVP_SHA224
+	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
+#endif
+#ifdef HAVE_EVP_SHA256
+	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
+#endif
+#ifdef HAVE_EVP_SHA384
+	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
+#endif
+#ifdef HAVE_EVP_SHA512
+	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
+#endif
+	default                : return req->response - req->query;
+	}
+
+	(void) HMAC(digester, upstream->tsig_key, upstream->tsig_size,
+	    (void *)req->query, gldns_buffer_current(&gbuf) - req->query,
+	    md_buf, &md_len);
+
+	gldns_buffer_rewind(&gbuf);
+	gldns_buffer_write(&gbuf,
+	    upstream->tsig_dname, upstream->tsig_dname_len);	/* Name */
+	gldns_buffer_write_u16(&gbuf, GETDNS_RRTYPE_TSIG);	/* Type*/
+	gldns_buffer_write_u16(&gbuf, GETDNS_RRCLASS_ANY);	/* Class */
+	gldns_buffer_write_u32(&gbuf, 0);			/* TTL */
+	gldns_buffer_write_u16(&gbuf,
+	    tsig_info->dname_len + 10 + md_len + 6);	/* RdLen */
+	gldns_buffer_write(&gbuf,
+	    tsig_info->dname, tsig_info->dname_len);	/* Algorithm Name */
+	gldns_buffer_write_u48(&gbuf, time(NULL));	/* Time Signed */
+	gldns_buffer_write_u16(&gbuf, 300);		/* Fudge */
+	gldns_buffer_write_u16(&gbuf, md_len);		/* MAC Size */
+	gldns_buffer_write(&gbuf, md_buf, md_len);	/* MAC*/
+	gldns_buffer_write(&gbuf, req->query, 2);	/* Original ID */
+	gldns_buffer_write_u16(&gbuf, 0);		/* Error */
+	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
+
+	if (gldns_buffer_position(&gbuf) > gldns_buffer_limit(&gbuf))
+		return req->response - req->query;
+
+	DEBUG_STUB("Sending with TSIG, mac length: %d\n", (int)md_len);
+	req->tsig_status = GETDNS_DNSSEC_INSECURE;
+	gldns_write_uint16(req->query + 10, arcount + 1);
+	req->response = gldns_buffer_current(&gbuf);
+	return req->response - req->query;
+}
+
+
+
+void
+_getdns_network_validate_tsig(getdns_network_req *req)
+{
+	_getdns_rr_iter  rr_spc, *rr;
+	_getdns_rdf_iter rdf_spc, *rdf;
+	uint8_t  *request_mac;
+	uint16_t  request_mac_len;
+	uint8_t   tsig_vars[MAXIMUM_TSIG_SPACE];
+	gldns_buffer gbuf;
+	uint8_t  *dname;
+	size_t    dname_len;
+	uint8_t  *response_mac;
+	uint16_t  response_mac_len;
+	uint8_t   other_len;
+	uint8_t   result_mac[EVP_MAX_MD_SIZE];
+	unsigned int result_mac_len = EVP_MAX_MD_SIZE;
+	uint16_t original_id;
+	const EVP_MD *digester;
+	HMAC_CTX ctx;
+
+	DEBUG_STUB("Validate TSIG\n");
+	for ( rr = _getdns_rr_iter_init(&rr_spc, req->query,
+	                                (req->response - req->query))
+	    ; rr
+	    ; rr = _getdns_rr_iter_next(rr)) {
+
+		if (_getdns_rr_iter_section(rr) == GLDNS_SECTION_ADDITIONAL &&
+		    gldns_read_uint16(rr->rr_type) == GETDNS_RRTYPE_TSIG)
+			break;
+	}
+	if (!rr || !(rdf = _getdns_rdf_iter_init_at(&rdf_spc, rr, 3)))
+		return; /* No good TSIG sent, so nothing expected on reply */
+	
+	request_mac_len = gldns_read_uint16(rdf->pos);
+	if (request_mac_len != rdf->nxt - rdf->pos - 2)
+		return;
+	DEBUG_STUB("Request MAC found length: %d\n", (int)(request_mac_len));
+	request_mac = rdf->pos + 2;
+
+	/* Now we expect a TSIG on the response! */
+	req->tsig_status = GETDNS_DNSSEC_BOGUS;
+
+	for ( rr = _getdns_rr_iter_init(
+	            &rr_spc, req->response, req->response_len)
+	    ; rr
+	    ; rr = _getdns_rr_iter_next(rr)) {
+
+		if (_getdns_rr_iter_section(rr) == GLDNS_SECTION_ADDITIONAL &&
+		    gldns_read_uint16(rr->rr_type) == GETDNS_RRTYPE_TSIG)
+			break;
+	}
+	if (!rr || !(rdf = _getdns_rdf_iter_init(&rdf_spc, rr)))
+		return;
+	gldns_buffer_init_frm_data(&gbuf, tsig_vars, MAXIMUM_TSIG_SPACE);
+	
+	dname_len = gldns_buffer_remaining(&gbuf);
+	if (!(dname = _getdns_owner_if_or_as_decompressed(
+	    rr, gldns_buffer_current(&gbuf), &dname_len)))
+		return;
+	if (dname == gldns_buffer_current(&gbuf))
+		gldns_buffer_skip(&gbuf, dname_len);
+	else
+		gldns_buffer_write(&gbuf, dname, dname_len);
+
+	gldns_buffer_write(&gbuf, rr->rr_type + 2, 2);	/* Class */
+	gldns_buffer_write(&gbuf, rr->rr_type + 4, 4);	/* TTL */
+
+	dname_len = gldns_buffer_remaining(&gbuf);
+	if (!(dname = _getdns_rdf_if_or_as_decompressed(
+	    rdf, gldns_buffer_current(&gbuf), &dname_len)))
+		return;
+	if (dname == gldns_buffer_current(&gbuf))
+		gldns_buffer_skip(&gbuf, dname_len);
+	else
+		gldns_buffer_write(&gbuf, dname, dname_len);
+
+	if (!(rdf = _getdns_rdf_iter_next(rdf)) ||
+	    rdf->nxt - rdf->pos != 6)
+		return;
+	gldns_buffer_write(&gbuf, rdf->pos, 6);		/* Time Signed */
+
+	if (!(rdf = _getdns_rdf_iter_next(rdf)) ||
+	    rdf->nxt - rdf->pos != 2)
+		return;
+	gldns_buffer_write(&gbuf, rdf->pos, 2);		/* Fudge */
+
+	if (!(rdf = _getdns_rdf_iter_next(rdf)))	/* mac */
+		return;
+	response_mac_len = gldns_read_uint16(rdf->pos);
+	if (response_mac_len != rdf->nxt - rdf->pos - 2)
+		return;
+	DEBUG_STUB("Response MAC found length: %d\n", (int)(response_mac_len));
+	response_mac = rdf->pos + 2;
+
+	if (!(rdf = _getdns_rdf_iter_next(rdf)) ||
+	    rdf->nxt -rdf->pos != 2)			/* Original ID */
+		return;
+	original_id = gldns_read_uint16(rdf->pos);
+
+	if (!(rdf = _getdns_rdf_iter_next(rdf)) ||
+	    rdf->nxt - rdf->pos != 2)
+		return;
+	gldns_buffer_write(&gbuf, rdf->pos, 2);		/* Error */
+
+	if (!(rdf = _getdns_rdf_iter_next(rdf)))	/* Other */
+		return;
+
+	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
+	other_len = gldns_read_uint16(rdf->pos);
+	if (other_len != rdf->nxt - rdf->pos - 2)
+		return;
+	if (other_len)
+		gldns_buffer_write(&gbuf, rdf->pos, other_len);
+
+	/* TSIG found */
+	DEBUG_STUB("TSIG found, original ID: %d\n", (int)original_id);
+
+	gldns_write_uint16(req->response + 10,
+	    gldns_read_uint16(req->response + 10) - 1);
+	gldns_write_uint16(req->response, original_id);
+
+	switch (req->upstream->tsig_alg) {
+#ifdef HAVE_EVP_MD5
+	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
+#endif
+#ifdef HAVE_EVP_SHA1
+	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
+#endif
+#ifdef HAVE_EVP_SHA224
+	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
+#endif
+#ifdef HAVE_EVP_SHA256
+	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
+#endif
+#ifdef HAVE_EVP_SHA384
+	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
+#endif
+#ifdef HAVE_EVP_SHA512
+	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
+#endif
+	default                : return;
+	}
+	
+	HMAC_CTX_init(&ctx);
+	(void) HMAC_Init_ex(&ctx, req->upstream->tsig_key,
+	    req->upstream->tsig_size, digester, NULL);
+	(void) HMAC_Update(&ctx, request_mac - 2, request_mac_len + 2);
+	(void) HMAC_Update(&ctx, req->response, rr->pos - req->response);
+	(void) HMAC_Update(&ctx, tsig_vars, gldns_buffer_position(&gbuf));
+	HMAC_Final(&ctx, result_mac, &result_mac_len);
+
+	DEBUG_STUB("Result MAC length: %d\n", (int)(result_mac_len));
+	if (result_mac_len == response_mac_len &&
+	    memcmp(result_mac, response_mac, result_mac_len) == 0)
+		req->tsig_status = GETDNS_DNSSEC_SECURE;
+
+	HMAC_CTX_cleanup(&ctx);
+
+	gldns_write_uint16(req->response, gldns_read_uint16(req->query));
+	gldns_write_uint16(req->response + 10,
+	    gldns_read_uint16(req->response + 10) + 1);
 }
 
 void
@@ -439,7 +722,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    + strlen(name) + 1 + 4 /* dname always smaller then strlen(name) + 1 */
 		    + 12 + opt_options_size /* space needed for OPT (if needed) */
 		    + MAXIMUM_UPSTREAM_OPTION_SPACE
-		    /* TODO: TSIG */
+		    + MAXIMUM_TSIG_SPACE
 		    + 7) / 8 * 8;
 	}
 	max_response_sz = (( edns_maximum_udp_payload_size != -1
@@ -488,8 +771,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 #endif
 	result->edns_client_subnet_private     = context->edns_client_subnet_private;
 	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
-	result->return_call_debugging
-		= is_extension_set(extensions, "return_call_debugging");
+	result->return_call_reporting
+		= is_extension_set(extensions, "return_call_reporting");
 	
 	/* will be set by caller */
 	result->user_pointer = NULL;

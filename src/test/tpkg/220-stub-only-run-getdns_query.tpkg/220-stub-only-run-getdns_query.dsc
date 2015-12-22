@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 210-stub-only-link.tpkg
-Help: 220-stub-only-run-getdns_query.help
+Help:
 Pre: 
 Post: 
 Test: 220-stub-only-run-getdns_query.test

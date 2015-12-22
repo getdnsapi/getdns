@@ -16,4 +16,4 @@ fi
 rm -fr "${BUILDDIR}/build"
 mkdir  "${BUILDDIR}/build"
 cd "${BUILDDIR}/build"
-"${SRCROOT}/configure"
+"${SRCROOT}/configure" --prefix "${BUILDDIR}/install"

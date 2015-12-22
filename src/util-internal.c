@@ -72,7 +72,7 @@ static getdns_extension_format extformats[] = {
 #endif
 	{"return_api_information", t_int},
 	{"return_both_v4_and_v6", t_int},
-	{"return_call_debugging", t_int},
+	{"return_call_reporting", t_int},
 	{"specify_class", t_int},
 };
 
@@ -679,7 +679,7 @@ success:
 }
 
 getdns_dict *
-_getdns_create_call_debugging_dict(
+_getdns_create_call_reporting_dict(
     getdns_context *context, getdns_network_req *netreq)
 {
 	getdns_bindata  qname;
@@ -733,6 +733,23 @@ _getdns_create_call_debugging_dict(
 	}
 	getdns_dict_destroy(address_debug);
 
+	if (transport != GETDNS_TRANSPORT_UDP) {
+		/* Report the idle timeout actually used on the connection. Must trim,
+		maximum used in practice is 6553500ms, but this is stored in a uint64_t.*/
+		if (netreq->upstream->keepalive_timeout > UINT32_MAX) {
+			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms (overflow)", UINT32_MAX)) {
+				getdns_dict_destroy(netreq_debug);
+				return NULL;
+			}
+		} else{
+			uint32_t idle_timeout = netreq->upstream->keepalive_timeout;
+			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms", idle_timeout)) {
+				getdns_dict_destroy(netreq_debug);
+				return NULL;
+			}
+		}
+	}
+
 	if (netreq->upstream->transport != GETDNS_TRANSPORT_TLS)
 		return netreq_debug;
 	
@@ -754,7 +771,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	getdns_list *just_addrs = NULL;
 	getdns_list *replies_full;
 	getdns_list *replies_tree;
-	getdns_list *call_debugging = NULL;
+	getdns_list *call_reporting = NULL;
 	getdns_network_req *netreq, **netreq_p;
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
@@ -795,8 +812,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (!(replies_tree = getdns_list_create_with_context(context)))
 		goto error_free_replies_full;
 
-	if (completed_request->return_call_debugging &&
-	    !(call_debugging = getdns_list_create_with_context(context)))
+	if (completed_request->return_call_reporting &&
+	    !(call_reporting = getdns_list_create_with_context(context)))
 		goto error_free_replies_full;
 
 	for ( netreq_p = completed_request->netreqs
@@ -804,6 +821,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 
 		if (! netreq->response_len)
 			continue;
+
+		if (netreq->tsig_status == GETDNS_DNSSEC_INSECURE)
+			_getdns_network_validate_tsig(netreq);
 
 		nreplies++;
 		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
@@ -822,6 +842,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 				continue;
 			else if (completed_request->dnssec_return_only_secure
 			    && netreq->dnssec_status != GETDNS_DNSSEC_SECURE)
+				continue;
+			else if (netreq->tsig_status == GETDNS_DNSSEC_BOGUS)
 				continue;
 		}
     		if (!(reply = _getdns_create_reply_dict(context,
@@ -850,19 +872,23 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			    netreq->dnssec_status))
 				goto error;
 		}
-
+		if (netreq->tsig_status != GETDNS_DNSSEC_INDETERMINATE) {
+			if (getdns_dict_set_int(reply, "tsig_status",
+			    netreq->tsig_status))
+				goto error;
+		}
     		if (_getdns_list_append_dict(replies_tree, reply)) {
     			getdns_dict_destroy(reply);
 			goto error;
 		}
 		
-		if (call_debugging) {
+		if (call_reporting) {
 			if (!(netreq_debug =
-			   _getdns_create_call_debugging_dict(context,netreq)))
+			   _getdns_create_call_reporting_dict(context,netreq)))
 				goto error;
 
 			if (_getdns_list_append_dict(
-			    call_debugging, netreq_debug)) {
+			    call_reporting, netreq_debug)) {
 
 				getdns_dict_destroy(netreq_debug);
 				goto error;
@@ -882,9 +908,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		goto error;
 	getdns_list_destroy(replies_tree);
 
-	if (call_debugging &&
-	    getdns_dict_set_list(result, "call_debugging", call_debugging))
-	    goto error_free_call_debugging;
+	if (call_reporting &&
+	    getdns_dict_set_list(result, "call_reporting", call_reporting))
+	    goto error_free_call_reporting;
 
 	if (getdns_dict_set_list(result, "replies_full", replies_full))
 		goto error_free_replies_full;
@@ -909,8 +935,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 error:
 	/* cleanup */
 	getdns_list_destroy(replies_tree);
-error_free_call_debugging:
-	getdns_list_destroy(call_debugging);
+error_free_call_reporting:
+	getdns_list_destroy(call_reporting);
 error_free_replies_full:
 	getdns_list_destroy(replies_full);
 error_free_result:

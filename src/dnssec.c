@@ -188,13 +188,14 @@
  * "dnssec_return_validation_chain Extension".
  */
 
+#include "config.h"
+#include "debug.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <openssl/sha.h>
 #include "getdns/getdns.h"
-#include "config.h"
 #include "context.h"
 #include "util-internal.h"
 #include "types-internal.h"

@@ -275,10 +275,10 @@ GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE: query type for other than CNAME re
 Set to the DNS class number (other than Internet (IN) class desired in query.
 
 .HP 3
-"return_call_debugging" (int)
+"return_call_reporting" (int)
 
 Set to GETDNS_EXTENSION_TRUE to add the name
-.I call_debugging
+.I call_reporting
 (list) to the top level of the response object that includes a dict for each call made to the API.  TBD: more detail
 
 .LP

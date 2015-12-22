@@ -71,6 +71,11 @@ getdns_return_t _getdns_dict_find(
 getdns_return_t _getdns_dict_find_and_add(
     getdns_dict *dict, const char *key, getdns_item **item);
 
+/* Return 1 (true) if bindata can be interpreted as an
+ * uncompressed dname.
+ */
+int _getdns_bindata_is_dname(getdns_bindata *bindata);
+
 #endif
 
 /* dict.h */

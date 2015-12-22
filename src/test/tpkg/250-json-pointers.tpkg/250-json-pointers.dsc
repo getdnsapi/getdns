@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 200-stub-only-compile.tpkg
-Help: 250-json-pointers.help
+Help:
 Pre: 250-json-pointers.pre
 Post: 
 Test: 250-json-pointers.test

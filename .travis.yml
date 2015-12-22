@@ -14,8 +14,6 @@ addons:
     - libev-dev
     - bc
 script:
-  - libtoolize -fic
-  - autoreconf -fi
   - mkdir tests
   - cd tests
   - ../src/test/tpkg/run-all.sh

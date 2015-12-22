@@ -58,7 +58,7 @@ install: all getdns.pc @INSTALL_GETDNS_QUERY@
 	$(INSTALL) -m 644 $(srcdir)/LICENSE $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/NEWS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/README.md $(DESTDIR)$(docdir)
-	$(INSTALL) -m 644 -d $(DESTDIR)$(libdir)/pkgconfig
+	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)/pkgconfig
 	$(INSTALL) -m 644 getdns.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 $(srcdir)/spec/index.html $(DESTDIR)$(docdir)/spec
@@ -235,7 +235,7 @@ distcheck: $(distdir).tar.gz
 	rm -rf $(distdir)
 	@echo "*** Package $(distdir).tar.gz is ready for distribution"
 
-getdns.pc: getdns.pc.in
+getdns.pc: $(srcdir)/getdns.pc.in
 	./config.status $@
 
 Makefile: $(srcdir)/Makefile.in config.status

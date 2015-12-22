@@ -6,8 +6,8 @@ Maintainer: Willem Toorop
 Category: 
 Component:
 CmdDepends: 
-Depends: 300-event-loops-compile.tpkg
-Help: 330-event-loops-unit-tests.help
+Depends: 320-event-loops-compile.tpkg
+Help:
 Pre: 
 Post: 
 Test: 330-event-loops-unit-tests.test

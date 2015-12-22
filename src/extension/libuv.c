@@ -32,9 +32,10 @@
  */
 
 #include "config.h"
+#include "debug.h"
+#include "types-internal.h"
 #include <uv.h>
 #include "getdns/getdns_ext_libuv.h"
-#include "util-internal.h"
 
 #define UV_DEBUG 0
 

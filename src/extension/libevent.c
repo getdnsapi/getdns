@@ -31,10 +31,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+#include "types-internal.h"
 #include <sys/time.h>
 #include "getdns/getdns_ext_libevent.h"
-#include "types-internal.h"
-#include "config.h"
 
 #ifdef HAVE_EVENT2_EVENT_H
 #  include <event2/event.h>

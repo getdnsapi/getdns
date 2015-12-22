@@ -7,7 +7,7 @@ write_symbols() {
 	| sed -e 's/(.*$//g' -e 's/^.*getdns_/getdns_/g' | sort | uniq > $OUTPUT
 }
 
-write_symbols libgetdns.symbols getdns/getdns.h.in getdns/getdns_extra.h
+write_symbols libgetdns.symbols getdns/getdns.h.in getdns/getdns_extra.h.in
 echo plain_mem_funcs_user_arg >> libgetdns.symbols
 echo priv_getdns_context_mf >> libgetdns.symbols
 write_symbols extension/libevent.symbols getdns/getdns_ext_libevent.h

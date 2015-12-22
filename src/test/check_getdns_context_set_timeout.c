@@ -96,14 +96,14 @@ START_TEST (getdns_context_set_idle_timeout_2)
 {
  /*
   *  timeout is 0
-  *  expect: GETDNS_RETURN_INVALID_PARAMETER
+  *  expect: GETDNS_RETURN_GOOD
   */
 
   struct getdns_context *context = NULL;
   CONTEXT_CREATE(TRUE);
 
   ASSERT_RC(getdns_context_set_idle_timeout(context, 0),
-    GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_timeout()");
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
 
   CONTEXT_DESTROY;
 

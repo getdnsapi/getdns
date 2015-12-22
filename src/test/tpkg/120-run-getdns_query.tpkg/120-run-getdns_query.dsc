@@ -7,7 +7,7 @@ Category:
 Component:
 CmdDepends: 
 Depends: 110-link.tpkg
-Help: 120-run-getdns_query.help
+Help:
 Pre: 
 Post: 
 Test: 120-run-getdns_query.test

@@ -79,6 +79,29 @@ typedef enum getdns_tls_hs_state {
 	GETDNS_HS_FAILED
 } getdns_tls_hs_state_t;
 
+typedef enum getdns_tsig_algo {
+	GETDNS_NO_TSIG     = 0, /* Do not use tsig */
+	GETDNS_HMAC_MD5    = 1, /* 128 bits */
+	GETDNS_GSS_TSIG    = 2, /* Not supported */
+	GETDNS_HMAC_SHA1   = 3, /* 160 bits */
+	GETDNS_HMAC_SHA224 = 4,
+	GETDNS_HMAC_SHA256 = 5,
+	GETDNS_HMAC_SHA384 = 6,
+	GETDNS_HMAC_SHA512 = 7
+} getdns_tsig_algo;
+
+typedef struct getdns_tsig_info {
+	getdns_tsig_algo  alg;
+	const char       *name;
+	size_t            strlen_name;
+	const uint8_t    *dname;
+	size_t            dname_len;
+	size_t            min_size; /* in # octets */
+	size_t            max_size; /* Actual size in # octets */
+} getdns_tsig_info;
+
+const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg);
+
 typedef struct getdns_upstream {
 	/* backpointer to containing upstreams structure */
 	struct getdns_upstreams *upstreams;
@@ -89,6 +112,7 @@ typedef struct getdns_upstream {
 	/* How is this upstream doing? */
 	size_t                   writes_done;
 	size_t                   responses_received;
+	uint64_t                 keepalive_timeout;
 	int                      to_retry;
 	int                      back_off;
 
@@ -97,7 +121,6 @@ typedef struct getdns_upstream {
 	getdns_transport_list_t  transport;
 	SSL*                     tls_obj;
 	getdns_tls_hs_state_t    tls_hs_state;
-	getdns_dns_req *         starttls_req;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
@@ -119,6 +142,13 @@ typedef struct getdns_upstream {
 	unsigned has_prev_client_cookie : 1;
 	unsigned has_server_cookie : 1;
 	unsigned server_cookie_len : 5;
+
+	/* TSIG */
+	uint8_t          tsig_dname[256];
+	size_t           tsig_dname_len;
+	size_t           tsig_size;
+	uint8_t          tsig_key[256];
+	getdns_tsig_algo tsig_alg;
 
 } getdns_upstream;
 

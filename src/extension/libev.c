@@ -31,9 +31,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "getdns/getdns_ext_libev.h"
-#include "types-internal.h"
 #include "config.h"
+#include "types-internal.h"
+#include "getdns/getdns_ext_libev.h"
 
 #ifdef HAVE_LIBEV_EV_H
 #include <libev/ev.h>

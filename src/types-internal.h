@@ -116,8 +116,8 @@ struct getdns_upstream;
 #define TIMEOUT_FOREVER ((int64_t)-1)
 #define ASSERT_UNREACHABLE 0
 
-#define GETDNS_TRANSPORTS_MAX 4
-#define GETDNS_UPSTREAM_TRANSPORTS 3
+#define GETDNS_TRANSPORTS_MAX 3
+#define GETDNS_UPSTREAM_TRANSPORTS 2
 
 /** @}
  */
@@ -209,6 +209,14 @@ typedef struct getdns_network_req
 	/* dnssec status */
 	int dnssec_status;
 
+	/* tsig status:
+	 * GETDNS_DNSSEC_INDETERMINATE means "No TSIG processing"
+	 * GETDNS_DNSSEC_INSECURE      means "TSIG sent, validate reply"
+	 * GETDNS_DNSSEC_SECURE        means "Validated"
+	 * GETDNS_DNSSEC_BOGUS         means "Validation failed"
+	 */
+	int tsig_status;
+
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
@@ -223,10 +231,12 @@ typedef struct getdns_network_req
 	int                     edns_maximum_udp_payload_size;
 	uint16_t                max_udp_payload_size;
 
+	size_t                  keepalive_sent;
+
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
 
-	/* Some fields to record info for return_call_debugging */
+	/* Some fields to record info for return_call_reporting */
 	uint64_t                    debug_start_time;
 	uint64_t                    debug_end_time;
 	size_t                      debug_tls_auth_status;
@@ -289,7 +299,7 @@ typedef struct getdns_dns_req {
 	int edns_cookies;
 	int edns_client_subnet_private;
 	uint16_t tls_query_padding_blocksize;
-	int return_call_debugging;
+	int return_call_reporting;
 
 	/* Internally used by return_validation_chain */
 	int dnssec_ok_checking_disabled;
@@ -378,6 +388,11 @@ void _getdns_dns_req_free(getdns_dns_req * req);
 getdns_return_t _getdns_network_req_add_upstream_option(getdns_network_req * req,
 					     uint16_t code, uint16_t sz, const void* data);
 void _getdns_network_req_clear_upstream_options(getdns_network_req * req);
+
+/* Adds TSIG signature (if needed) and returns query length */
+size_t _getdns_network_req_add_tsig(getdns_network_req *req);
+
+void _getdns_network_validate_tsig(getdns_network_req *req);
 
 #endif
 /* types-internal.h */
