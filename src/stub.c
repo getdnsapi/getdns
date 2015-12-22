@@ -921,12 +921,17 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 			upstream->tls_fallback_ok = 1;
 	} else {
-		/* Lack of host name is OK unless only authenticated TLS is specified*/
+		/* Lack of host name is OK unless only authenticated
+		 * TLS is specified and we have no pubkey_pinset */
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
-			DEBUG_STUB("--- %s, ERROR: No host name provided for TLS authentication\n", __FUNCTION__);
-			upstream->tls_hs_state = GETDNS_HS_FAILED;
-			upstream->tls_auth_failed = 1;
-			return NULL;
+			if (upstream->tls_pubkey_pinset) {
+				DEBUG_STUB("--- %s, PROCEEDING WITH ONLY PUBKEY PINNING AUTHENTICATION\n", __FUNCTION__);
+			} else {
+				DEBUG_STUB("--- %s, ERROR: No host name or pubkey pinset provided for TLS authentication\n", __FUNCTION__);
+				upstream->tls_hs_state = GETDNS_HS_FAILED;
+				upstream->tls_auth_failed = 1;
+				return NULL;
+			}
 		} else {
 			/* no hostname verification, so we will make opportunistic connections */
 			DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH NO HOSTNAME PROVIDED!!\n", __FUNCTION__);
