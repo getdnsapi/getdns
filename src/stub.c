@@ -852,9 +852,9 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		   err, X509_verify_cert_error_string(err));
 
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
-	/*Proceed if error is hostname mismatch*/
+	/*Report if error is hostname mismatch*/
 	if (upstream && upstream->tls_fallback_ok && err == X509_V_ERR_HOSTNAME_MISMATCH)
-		DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
+		DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH HOSTNAME VALIDATION FAILED!!\n", __FUNCTION__);
 #endif
 	if (upstream && upstream->tls_pubkey_pinset)
 		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
@@ -863,8 +863,10 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		DEBUG_STUB("--- %s, PINSET VALIDATION FAILURE!!\n", __FUNCTION__);
 		preverify_ok = 0;
 		if (upstream->tls_fallback_ok)
-			DEBUG_STUB("--- %s, PROCEEDING WITHOUT PINSET VALIDATION!!\n", __FUNCTION__);
+			DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH PINSET VALIDATION FAILED!!\n", __FUNCTION__);
 	}
+	/* If fallback is allowed, proceed regardless of what the auth error is
+	   (might not be hostname or pinset related) */
 	return (upstream && upstream->tls_fallback_ok) ? 1 : preverify_ok;
 }
 
@@ -906,11 +908,10 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		param = SSL_get0_param(ssl);
 		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
-		DEBUG_STUB("--- %s, HOSTNAME VERIFICATION REQUESTED \n", __FUNCTION__);
 #else
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
 			/* TODO: Trigger post-handshake custom validation*/
-			DEBUG_STUB("--- %s, ERROR: Authentication functionality not available\n", __FUNCTION__);
+			DEBUG_STUB("--- %s, ERROR: TLS Authentication functionality not available\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			upstream->tls_auth_failed = 1;
 			return NULL;
@@ -922,21 +923,24 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	} else {
 		/* Lack of host name is OK unless only authenticated TLS is specified*/
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
-			DEBUG_STUB("--- %s, ERROR: No host name provided for authentication\n", __FUNCTION__);
+			DEBUG_STUB("--- %s, ERROR: No host name provided for TLS authentication\n", __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			upstream->tls_auth_failed = 1;
 			return NULL;
 		} else {
-                  /* no hostname verification, so we will make opportunistic connections */
-			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
+			/* no hostname verification, so we will make opportunistic connections */
+			DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH NO HOSTNAME PROVIDED!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
 			upstream->tls_fallback_ok = 1;
 		}
 	}
-	if (upstream->tls_fallback_ok)
+	if (upstream->tls_fallback_ok) {
 		SSL_set_cipher_list(ssl, "DEFAULT");
+		DEBUG_STUB("--- %s, PROCEEDING WITH OPPOTUNISTIC TLS CONNECTION (FALLBACK ALLOWED)!!\n", __FUNCTION__);
+	} else
+		DEBUG_STUB("--- %s, PROCEEDING WITH STRICT TLS CONNECTION!!\n", __FUNCTION__);
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
-	
+
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 	return ssl;
