@@ -47,6 +47,7 @@
 #include "context.h"
 #include "util-internal.h"
 #include "general.h"
+#include "pubkey-pinning.h"
 
 #define STUB_OUT_OF_OPTIONS -5 /* upstream options exceeded MAXIMUM_UPSTREAM_OPTION_SPACE */
 #define STUB_TLS_SETUP_ERROR -4
@@ -841,40 +842,20 @@ tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
 int
 tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
-#if defined(STUB_DEBUG) && STUB_DEBUG
 	int     err;
-	const char * err_str;
-
-	err = X509_STORE_CTX_get_error(ctx);
-	err_str = X509_verify_cert_error_string(err);
-	DEBUG_STUB("--- %s, VERIFY RESULT: %s\n", __FUNCTION__, err_str);
-#endif
-	/*Always proceed without changing result*/
-	return preverify_ok;
-}
-
-int
-tls_verify_callback_with_fallback(int preverify_ok, X509_STORE_CTX *ctx)
-{
-#ifdef X509_V_ERR_HOSTNAME_MISMATCH
-	int     err;
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	const char * err_str;
-# endif
+	getdns_upstream *upstream;
 	
 	err = X509_STORE_CTX_get_error(ctx);
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	err_str = X509_verify_cert_error_string(err);
-	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__, err, err_str);
-# endif
+	upstream = _getdns_upstream_from_x509_store(ctx);
+	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__,
+		   err, X509_verify_cert_error_string(err));
+
+#ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	/*Proceed if error is hostname mismatch*/
-	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
+	if (upstream && upstream->tls_fallback_ok && err == X509_V_ERR_HOSTNAME_MISMATCH)
 		DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
-		return 1;
-	}
-	else
 #endif
-		return preverify_ok;
+	return (upstream && upstream->tls_fallback_ok) ? 1 : preverify_ok;
 }
 
 static SSL*
@@ -892,11 +873,17 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		SSL_free(ssl);
 		return NULL;
 	}
+	/* make sure we'll be able to find the context again when we need it */
+	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
+		SSL_free(ssl);
+		return NULL;
+	}
 
 	/* NOTE: this code will fallback on a given upstream, without trying
 	   authentication on other upstreams first. This is non-optimal and but avoids
 	   multiple TLS handshakes before getting a usable connection. */
 
+	upstream->tls_fallback_ok = 0;
 	/* If we have a hostname, always use it */
 	if (upstream->tls_auth_name[0] != '\0') {
 		/*Request certificate for the auth_name*/
@@ -920,12 +907,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		}
 #endif
 		/* Allow fallback to opportunistic if settings permit it*/
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME)
-			SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
-		else {
-			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
-			SSL_set_cipher_list(ssl, "DEFAULT");
-		}
+		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_HOSTNAME)
+			upstream->tls_fallback_ok = 1;
 	} else {
 		/* Lack of host name is OK unless only authenticated TLS is specified*/
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_HOSTNAME) {
@@ -937,10 +920,12 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
                   /* no hostname verification, so we will make opportunistic connections */
 			DEBUG_STUB("--- %s, PROCEEDING WITHOUT HOSTNAME VALIDATION!!\n", __FUNCTION__);
 			upstream->tls_auth_failed = 1;
-			SSL_set_verify(ssl, SSL_VERIFY_NONE, tls_verify_callback_with_fallback);
-			SSL_set_cipher_list(ssl, "DEFAULT");
+			upstream->tls_fallback_ok = 1;
 		}
 	}
+	if (upstream->tls_fallback_ok)
+		SSL_set_cipher_list(ssl, "DEFAULT");
+	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 	
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);

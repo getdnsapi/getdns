@@ -48,6 +48,18 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list);
 
+
+/* internal functions for associating X.509 verification processes in
+ * OpenSSL with getdns_upstream objects. */
+
+getdns_upstream*
+_getdns_upstream_from_x509_store(X509_STORE_CTX *store);
+
+
+getdns_return_t
+_getdns_associate_upstream_with_SSL(SSL *ssl,
+				    getdns_upstream *upstream);
+
 	
 #endif
 /* pubkey-pinning.h */
