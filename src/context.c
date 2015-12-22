@@ -3085,10 +3085,9 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 		if (upstream->tsig_alg) {
 			tsig_info = _getdns_get_tsig_info(upstream->tsig_alg);
 
-			bindata.data = tsig_info->dname;
-			bindata.size = tsig_info->dname_len;
-			if ((r = getdns_dict_set_bindata(
-			    d, "tsig_algorithm", &bindata)))
+			if ((r = _getdns_dict_set_const_bindata(
+			    d, "tsig_algorithm",
+			    tsig_info->dname_len, tsig_info->dname)))
 				break;
 
 			if (upstream->tsig_dname_len) {

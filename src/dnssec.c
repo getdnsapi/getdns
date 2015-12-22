@@ -268,7 +268,7 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 	return r;
 }
 
-inline void _dname_canonicalize(const uint8_t *src, uint8_t *dst)
+inline static void _dname_canonicalize(const uint8_t *src, uint8_t *dst)
 {
 	const uint8_t *next_label;
 
@@ -280,7 +280,7 @@ inline void _dname_canonicalize(const uint8_t *src, uint8_t *dst)
 	}
 }
 
-inline void _dname_canonicalize2(uint8_t *dname)
+inline static void _dname_canonicalize2(uint8_t *dname)
 {
 	_dname_canonicalize(dname, dname);
 }
