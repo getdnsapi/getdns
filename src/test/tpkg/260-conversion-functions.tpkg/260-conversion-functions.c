@@ -64,11 +64,11 @@ int main(int argc, char const * const argv[])
 	getdns_bindata  fourth  = { 11, "last string" };
 	size_t          length;
 	char           *str;
-	uint8_t        *wire;
+	uint8_t        *wire, *prev_wire;
 	size_t          wire_len;
 	getdns_list    *rr_list;
 	FILE           *in;
-	uint8_t         wire_buf[7800];
+	uint8_t         wire_buf[8200];
 	size_t          i;
 	ssize_t         available;
 	char            str_buf[10000];
@@ -262,10 +262,12 @@ int main(int argc, char const * const argv[])
 	available = sizeof(wire_buf);
 
 	for (i = 0; !(r = getdns_list_get_dict(rr_list, i, &rr_dict)); i++) {
+		prev_wire = wire;
 		if ((r = getdns_rr_dict2wire_scan(rr_dict, &wire, &available))) {
 			if (r == GETDNS_RETURN_NEED_MORE_SPACE) {
 				printf("record %.3zu, available buffer space: "
 				       "%zi\n", i, available);
+				wire = prev_wire;
 				break;
 			}
 			else
@@ -273,6 +275,7 @@ int main(int argc, char const * const argv[])
 		}
 		printf("record %3zu, available buffer space: "
 		       "%zi\n", i, available);
+		fflush(stdout);
 	}
 	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
 		r = GETDNS_RETURN_GOOD;
@@ -282,8 +285,8 @@ int main(int argc, char const * const argv[])
 	/* Now scan over the wireformat buffer and convert to rr_dicts again.
 	 * Then fill a string buffer with those rr_dicts.
 	 */
+	available = wire - wire_buf;
 	wire = wire_buf;
-	available = sizeof(wire_buf);
 
 	str = str_buf;
 	str_len = sizeof(str_buf);

@@ -120,18 +120,18 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
-      "nsdname": <bindata of "ns.nlnetlabs.nl.">,
-      "rdata_raw": <bindata of "ns.nlnetlabs.nl.">
+      "nsdname": <bindata of "ns.nlnetlabs.nl.net-dns.org.">,
+      "rdata_raw": <bindata of "ns.nlnetlabs.nl.net-dns.org.">
     },
     "ttl": 3600,
     "type": GETDNS_RRTYPE_NS
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "nsdname": <bindata of "ns.hactrn.net.">,
@@ -142,7 +142,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "nsdname": <bindata of "mcvax.nlnet.nl.">,
@@ -153,7 +153,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "nsdname": <bindata of "sec2.authdns.ripe.net.">,
@@ -164,7 +164,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "ipv4_address": <bindata for 185.49.140.22>,
@@ -175,7 +175,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
@@ -186,7 +186,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "exchange": <bindata of "dicht.nlnetlabs.nl.">,
@@ -198,7 +198,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "exchange": <bindata of "mcvax.nlnet.nl.">,
@@ -210,7 +210,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for .>,
+    "name": <bindata of "net-dns.org.">,
     "rdata":
     {
       "rdata_raw": <bindata of 0x104e65743a3a444e532020646f6d6169...>,
@@ -1629,125 +1629,125 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
     "type": GETDNS_RRTYPE_TXT
   }
 ]
-record   0, available buffer space: 7717
-record   1, available buffer space: 7689
-record   2, available buffer space: 7663
-record   3, available buffer space: 7636
-record   4, available buffer space: 7602
-record   5, available buffer space: 7587
-record   6, available buffer space: 7560
-record   7, available buffer space: 7527
-record   8, available buffer space: 7498
-record   9, available buffer space: 7470
-record  10, available buffer space: 7402
-record  11, available buffer space: 7330
-record  12, available buffer space: 7283
-record  13, available buffer space: 7250
-record  14, available buffer space: 7213
-record  15, available buffer space: 7118
-record  16, available buffer space: 7032
-record  17, available buffer space: 6946
-record  18, available buffer space: 6860
-record  19, available buffer space: 6774
-record  20, available buffer space: 6688
-record  21, available buffer space: 6602
-record  22, available buffer space: 6516
-record  23, available buffer space: 6430
-record  24, available buffer space: 6343
-record  25, available buffer space: 6256
-record  26, available buffer space: 6169
-record  27, available buffer space: 6082
-record  28, available buffer space: 5995
-record  29, available buffer space: 5908
-record  30, available buffer space: 5821
-record  31, available buffer space: 5734
-record  32, available buffer space: 5647
-record  33, available buffer space: 5560
-record  34, available buffer space: 5473
-record  35, available buffer space: 5386
-record  36, available buffer space: 5299
-record  37, available buffer space: 5212
-record  38, available buffer space: 5125
-record  39, available buffer space: 5038
-record  40, available buffer space: 4951
-record  41, available buffer space: 4864
-record  42, available buffer space: 4777
-record  43, available buffer space: 4690
-record  44, available buffer space: 4603
-record  45, available buffer space: 4516
-record  46, available buffer space: 4429
-record  47, available buffer space: 4342
-record  48, available buffer space: 4255
-record  49, available buffer space: 4168
-record  50, available buffer space: 4081
-record  51, available buffer space: 3994
-record  52, available buffer space: 3907
-record  53, available buffer space: 3820
-record  54, available buffer space: 3733
-record  55, available buffer space: 3646
-record  56, available buffer space: 3559
-record  57, available buffer space: 3472
-record  58, available buffer space: 3385
-record  59, available buffer space: 3298
-record  60, available buffer space: 3211
-record  61, available buffer space: 3124
-record  62, available buffer space: 3037
-record  63, available buffer space: 2950
-record  64, available buffer space: 2863
-record  65, available buffer space: 2776
-record  66, available buffer space: 2689
-record  67, available buffer space: 2602
-record  68, available buffer space: 2515
-record  69, available buffer space: 2428
-record  70, available buffer space: 2341
-record  71, available buffer space: 2254
-record  72, available buffer space: 2167
-record  73, available buffer space: 2080
-record  74, available buffer space: 1992
-record  75, available buffer space: 1899
-record  76, available buffer space: 1824
-record  77, available buffer space: 1793
-record  78, available buffer space: 1761
-record  79, available buffer space: 1713
-record  80, available buffer space: 1666
-record  81, available buffer space: 1618
-record  82, available buffer space: 1573
-record  83, available buffer space: 1536
-record  84, available buffer space: 1445
-record  85, available buffer space: 1381
-record  86, available buffer space: 1314
-record  87, available buffer space: 1243
-record  88, available buffer space: 1166
-record  89, available buffer space: 1137
-record  90, available buffer space: 1096
-record  91, available buffer space: 1044
-record  92, available buffer space: 990
-record  93, available buffer space: 937
-record  94, available buffer space: 884
-record  95, available buffer space: 819
-record  96, available buffer space: 749
-record  97, available buffer space: 718
-record  98, available buffer space: 675
-record  99, available buffer space: 615
-record 100, available buffer space: 545
-record 101, available buffer space: 471
-record 102, available buffer space: 385
-record 103, available buffer space: 292
-record 104, available buffer space: 223
-record 105, available buffer space: 159
-record 106, available buffer space: 83
-record 107, available buffer space: 0
-record 108, available buffer space: -296
+record   0, available buffer space: 8117
+record   1, available buffer space: 8065
+record   2, available buffer space: 8027
+record   3, available buffer space: 7988
+record   4, available buffer space: 7942
+record   5, available buffer space: 7915
+record   6, available buffer space: 7876
+record   7, available buffer space: 7831
+record   8, available buffer space: 7790
+record   9, available buffer space: 7750
+record  10, available buffer space: 7682
+record  11, available buffer space: 7610
+record  12, available buffer space: 7563
+record  13, available buffer space: 7530
+record  14, available buffer space: 7493
+record  15, available buffer space: 7398
+record  16, available buffer space: 7312
+record  17, available buffer space: 7226
+record  18, available buffer space: 7140
+record  19, available buffer space: 7054
+record  20, available buffer space: 6968
+record  21, available buffer space: 6882
+record  22, available buffer space: 6796
+record  23, available buffer space: 6710
+record  24, available buffer space: 6623
+record  25, available buffer space: 6536
+record  26, available buffer space: 6449
+record  27, available buffer space: 6362
+record  28, available buffer space: 6275
+record  29, available buffer space: 6188
+record  30, available buffer space: 6101
+record  31, available buffer space: 6014
+record  32, available buffer space: 5927
+record  33, available buffer space: 5840
+record  34, available buffer space: 5753
+record  35, available buffer space: 5666
+record  36, available buffer space: 5579
+record  37, available buffer space: 5492
+record  38, available buffer space: 5405
+record  39, available buffer space: 5318
+record  40, available buffer space: 5231
+record  41, available buffer space: 5144
+record  42, available buffer space: 5057
+record  43, available buffer space: 4970
+record  44, available buffer space: 4883
+record  45, available buffer space: 4796
+record  46, available buffer space: 4709
+record  47, available buffer space: 4622
+record  48, available buffer space: 4535
+record  49, available buffer space: 4448
+record  50, available buffer space: 4361
+record  51, available buffer space: 4274
+record  52, available buffer space: 4187
+record  53, available buffer space: 4100
+record  54, available buffer space: 4013
+record  55, available buffer space: 3926
+record  56, available buffer space: 3839
+record  57, available buffer space: 3752
+record  58, available buffer space: 3665
+record  59, available buffer space: 3578
+record  60, available buffer space: 3491
+record  61, available buffer space: 3404
+record  62, available buffer space: 3317
+record  63, available buffer space: 3230
+record  64, available buffer space: 3143
+record  65, available buffer space: 3056
+record  66, available buffer space: 2969
+record  67, available buffer space: 2882
+record  68, available buffer space: 2795
+record  69, available buffer space: 2708
+record  70, available buffer space: 2621
+record  71, available buffer space: 2534
+record  72, available buffer space: 2447
+record  73, available buffer space: 2360
+record  74, available buffer space: 2272
+record  75, available buffer space: 2179
+record  76, available buffer space: 2104
+record  77, available buffer space: 2073
+record  78, available buffer space: 2041
+record  79, available buffer space: 1993
+record  80, available buffer space: 1946
+record  81, available buffer space: 1898
+record  82, available buffer space: 1853
+record  83, available buffer space: 1816
+record  84, available buffer space: 1725
+record  85, available buffer space: 1661
+record  86, available buffer space: 1594
+record  87, available buffer space: 1523
+record  88, available buffer space: 1446
+record  89, available buffer space: 1417
+record  90, available buffer space: 1376
+record  91, available buffer space: 1324
+record  92, available buffer space: 1270
+record  93, available buffer space: 1217
+record  94, available buffer space: 1164
+record  95, available buffer space: 1099
+record  96, available buffer space: 1029
+record  97, available buffer space: 998
+record  98, available buffer space: 955
+record  99, available buffer space: 895
+record 100, available buffer space: 825
+record 101, available buffer space: 751
+record 102, available buffer space: 665
+record 103, available buffer space: 572
+record 104, available buffer space: 503
+record 105, available buffer space: 439
+record 106, available buffer space: 363
+record 107, available buffer space: 280
+record 108, available buffer space: -16
 net-dns.org.	3600	IN	SOA	ns.nlnetlabs.nl. sysadmin.nlnetlabs.nl. 2015081800 450 600 345600 300
-.	3600	IN	NS	ns.nlnetlabs.nl.
-.	3600	IN	NS	ns.hactrn.net.
-.	3600	IN	NS	mcvax.nlnet.nl.
-.	3600	IN	NS	sec2.authdns.ripe.net.
-.	3600	IN	A	185.49.140.22
-.	3600	IN	AAAA	2a04:b900::2:0:0:22
-.	3600	IN	MX	10 dicht.nlnetlabs.nl.
-.	3600	IN	MX	20 mcvax.nlnet.nl.
-.	3600	IN	TXT	"Net::DNS  domain"
+net-dns.org.	3600	IN	NS	ns.nlnetlabs.nl.net-dns.org.
+net-dns.org.	3600	IN	NS	ns.hactrn.net.
+net-dns.org.	3600	IN	NS	mcvax.nlnet.nl.
+net-dns.org.	3600	IN	NS	sec2.authdns.ripe.net.
+net-dns.org.	3600	IN	A	185.49.140.22
+net-dns.org.	3600	IN	AAAA	2a04:b900::2:0:0:22
+net-dns.org.	3600	IN	MX	10 dicht.nlnetlabs.nl.
+net-dns.org.	3600	IN	MX	20 mcvax.nlnet.nl.
+net-dns.org.	3600	IN	TXT	"Net::DNS  domain"
 _443._tcp.net-dns.org.	3600	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
 _443._tcp.www.net-dns.org.	3600	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
 dynup.net-dns.org.	3600	IN	TXT	"fooFoo2" "Bla ; Foo"
