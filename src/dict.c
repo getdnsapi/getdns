@@ -995,6 +995,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json &&
 			    (strcmp(item->node.key, "answer_type") == 0  ||
 			     strcmp(item->node.key, "dnssec_status") == 0 ||
+			     strcmp(item->node.key, "tsig_status") == 0 ||
 			     strcmp(item->node.key, "status") == 0 ||
 			     strcmp(item->node.key, "append_name") == 0 ||
 			     strcmp(item->node.key, "follow_redirects") == 0 ||

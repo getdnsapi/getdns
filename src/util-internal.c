@@ -802,6 +802,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		if (! netreq->response_len)
 			continue;
 
+		if (netreq->tsig_status == GETDNS_DNSSEC_INSECURE)
+			_getdns_network_validate_tsig(netreq);
+
 		nreplies++;
 		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
 			nsecure++;
@@ -819,6 +822,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 				continue;
 			else if (completed_request->dnssec_return_only_secure
 			    && netreq->dnssec_status != GETDNS_DNSSEC_SECURE)
+				continue;
+			else if (netreq->tsig_status == GETDNS_DNSSEC_BOGUS)
 				continue;
 		}
     		if (!(reply = _getdns_create_reply_dict(context,
@@ -847,7 +852,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			    netreq->dnssec_status))
 				goto error;
 		}
-
+		if (netreq->tsig_status != GETDNS_DNSSEC_INDETERMINATE) {
+			if (getdns_dict_set_int(reply, "tsig_status",
+			    netreq->tsig_status))
+				goto error;
+		}
     		if (_getdns_list_append_dict(replies_tree, reply)) {
     			getdns_dict_destroy(reply);
 			goto error;
