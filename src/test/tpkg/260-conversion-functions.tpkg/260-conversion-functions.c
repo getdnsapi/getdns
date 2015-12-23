@@ -263,10 +263,24 @@ int main(int argc, char const * const argv[])
 
 	for (i = 0; !(r = getdns_list_get_dict(rr_list, i, &rr_dict)); i++) {
 		prev_wire = wire;
-		if ((r = getdns_rr_dict2wire_scan(rr_dict, &wire, &available))) {
+		if ((r = getdns_rr_dict2wire_scan(rr_dict,&wire,&available))) {
 			if (r == GETDNS_RETURN_NEED_MORE_SPACE) {
 				printf("record %.3zu, available buffer space: "
 				       "%zi\n", i, available);
+
+				/* The buffer was too small to fit the wire-
+				 * format representation.  available now holds
+				 * a negative number.  the wire pointer is this
+				 * much beyond the end of the buffer space.
+				 *
+				 * If we would add available to wire, wire
+				 * would be positioned at the end of the buffer
+				 * but would not be positioned at a clean RR
+				 * border.  Therefore we have to remember the
+				 * previous position of wire, so we can reset
+				 * it at the end of the wireformat representa-
+				 * tion of the previously converted rr_dict.
+				 */
 				wire = prev_wire;
 				break;
 			}

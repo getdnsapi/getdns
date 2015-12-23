@@ -534,7 +534,7 @@ _getdns_fp2rr_list(struct mem_funcs *mf,
 
 	if (!origin) {
 		*pst.origin = 0;
-		pst.origin_len = 0;
+		pst.origin_len = 1;
 
 	} else if (gldns_str2wire_dname_buf(origin,pst.origin,&pst.origin_len))
 		return GETDNS_RETURN_GENERIC_ERROR;
@@ -556,6 +556,10 @@ _getdns_fp2rr_list(struct mem_funcs *mf,
 		dname_len = 0;
 		if (gldns_fp2wire_rr_buf(in, rr, &len, &dname_len, &pst))
 			break;
+		if (dname_len && dname_len < sizeof(pst.prev_rr)) {
+			memcpy(pst.prev_rr, rr, dname_len);
+			pst.prev_rr_len = dname_len;
+		}
 		if (len == 0)
 			continue;
 		if ((r = _getdns_wire2rr_dict(mf, rr, len, &rr_dict)))

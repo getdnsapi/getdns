@@ -867,7 +867,7 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 		return s;
 	} else if(strncmp(line, "$TTL", 4) == 0 && isspace(line[4])) {
 		const char* end = NULL;
-		size_t off = 8;
+		size_t off = 5;
 		*len = 0;
 		*dname_len = 0;
 		if(!parse_state) return GLDNS_WIREPARSE_ERR_OK;

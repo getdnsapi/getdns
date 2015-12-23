@@ -8,7 +8,6 @@ net-dns.org		IN SOA	ns.nlnetlabs.nl. sysadmin.nlnetlabs.nl. (
 				345600     ; expire (4 days)
 				300        ; minimum (5 minutes)
 				)
-$ORIGIN net-dns.org.
 			NS	ns.nlnetlabs.nl
 			NS	ns.hactrn.net.
 			NS      mcvax.nlnet.nl.
@@ -20,6 +19,7 @@ $ORIGIN net-dns.org.
 			MX	10 dicht.nlnetlabs.nl.
 			MX	20 mcvax.nlnet.nl.
 			TXT	"Net::DNS  domain"
+$ORIGIN net-dns.org.
 _443._tcp		TLSA	3 1 1 274c6f96c9885c8050e8a05ad1c3162c1d51752c35b6196474e3f05ad31cd923
 _443._tcp.www		TLSA	3 1 1 274c6f96c9885c8050e8a05ad1c3162c1d51752c35b6196474e3f05ad31cd923
 
