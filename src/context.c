@@ -2356,12 +2356,8 @@ ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 	_getdns_rr_iter rr_spc, *rr;
 	char ta_str[8192];
 
-	/* TODO: use the root servers via root hints file */
 	(void) ub_ctx_set_fwd(ctx, NULL);
 	if (!context->unbound_ta_set && context->trust_anchors) {
-		/* fprintf(stderr, "set root hints %d\n",
-		    ub_ctx_set_option(ctx, "root-hints:", "/home/willem/test.hints")); */
-
 		for ( rr = _getdns_rr_iter_init( &rr_spc
 		                               , context->trust_anchors
 		                               , context->trust_anchors_len)
