@@ -1,4 +1,12 @@
 *
+  * Update of unofficial extension to the API that supports stub mode 
+    TLS verification. GETDNS_AUTHENTICATION_HOSTNAME is replaced by 
+    GETDNS_AUTHENTICATION_REQUIRED (but remains available as an alias). 
+    Upstreams can now be configured with either a hostname or a SPKI pinset 
+    for TLS authentication (or both). If the GETDNS_AUTHENTICATION_REQUIRED
+    option is used at least one piece of authentication information must be 
+    configured for each upstream, and all the configured authentication 
+    information for an upstream must validate.
   * Remove STARTTLS implementation (no change to SPEC)
   * Enable TCP Fast Open when possible. Add OSX support for TFO.
   * Rename return_call_debugging to return_call_reporting
