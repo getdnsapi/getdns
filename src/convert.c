@@ -382,8 +382,9 @@ getdns_rr_dict2str(
 
 	if (r != GETDNS_RETURN_GOOD && r != GETDNS_RETURN_NEED_MORE_SPACE)
 		return r;
-
-	if (!(buf = malloc(buf_len + 1)))
+	
+	buf_len += 1;
+	if (!(buf = malloc(buf_len)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if (!r)
@@ -460,7 +461,7 @@ getdns_rr_dict2str_scan(
 		r = GETDNS_RETURN_NEED_MORE_SPACE;
 	} else  {
 		*str_len = sz;
-		*str = 0;
+		**str = 0;
 	}
 	if (buf != buf_spc)
 		GETDNS_FREE(rr_dict->mf, buf);
