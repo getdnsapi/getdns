@@ -393,7 +393,6 @@ getdns_rr_dict2str(
 		free(buf);
 		return r;
 	}
-	buf[buf_len] = 0;
 	*str = buf;
 	return GETDNS_RETURN_GOOD;
 }
@@ -459,9 +458,10 @@ getdns_rr_dict2str_scan(
 		*str = prev_str + sz_needed;
 		*str_len = prev_str_len - sz_needed;
 		r = GETDNS_RETURN_NEED_MORE_SPACE;
-	} else 
+	} else  {
 		*str_len = sz;
-	 
+		*str = 0;
+	}
 	if (buf != buf_spc)
 		GETDNS_FREE(rr_dict->mf, buf);
 	return r;

@@ -465,6 +465,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -478,6 +479,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
@@ -507,7 +509,8 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	if (!(to_validate = getdns_list_create()))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	trust_anchor = getdns_root_trust_anchor(NULL);
+	if (getdns_context_get_dnssec_trust_anchors(context, &trust_anchor))
+		trust_anchor = getdns_root_trust_anchor(NULL);
 
 	if ((r = getdns_dict_get_list(
 	    response, "validation_chain", &validation_chain)))
@@ -677,8 +680,9 @@ getdns_return_t parse_args(int argc, char **argv)
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
-	getdns_list *tas = NULL;
+	getdns_list *tas = NULL, *hints = NULL;
 	size_t upstream_count = 0;
+	FILE *fh;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -758,6 +762,33 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'd':
 				(void) getdns_context_set_edns_do_bit(context, 0);
 				break;
+			case 'f':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -f\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(fh = fopen(argv[i], "r"))) {
+					fprintf(stderr, "Could not open \"%s\""
+					    ": %s\n",argv[i], strerror(errno));
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (getdns_fp2rr_list(fh, &tas, NULL, 3600)) {
+					fprintf(stderr,"Could not parse "
+					    "\"%s\"\n", argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				fclose(fh);
+				if (getdns_context_set_dnssec_trust_anchors(
+				    context, tas)) {
+					fprintf(stderr,"Could not set "
+					    "trust anchors from \"%s\"\n",
+					    argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_list_destroy(tas);
+				tas = NULL;
+				break;
 			case 'F':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "file name expected "
@@ -825,6 +856,33 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_resolution_type(
 				    context,
 				    GETDNS_RESOLUTION_RECURSING);
+				break;
+			case 'R':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -f\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(fh = fopen(argv[i], "r"))) {
+					fprintf(stderr, "Could not open \"%s\""
+					    ": %s\n",argv[i], strerror(errno));
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (getdns_fp2rr_list(fh, &hints, NULL, 3600)) {
+					fprintf(stderr,"Could not parse "
+					    "\"%s\"\n", argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				fclose(fh);
+				if (getdns_context_set_dns_root_servers(
+				    context, hints)) {
+					fprintf(stderr,"Could not set "
+					    "root servers from \"%s\"\n",
+					    argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_list_destroy(hints);
+				hints = NULL;
 				break;
 			case 's':
 				getdns_context_set_resolution_type(
@@ -932,7 +990,8 @@ next:		;
 		return CONTINUE;
 	}
 	if (print_trust_anchors) {
-		if ((tas = getdns_root_trust_anchor(NULL))) {
+		if (!getdns_context_get_dnssec_trust_anchors(context, &tas)) {
+		/* if ((tas = getdns_root_trust_anchor(NULL))) { */
 			fprintf(stdout, "%s\n", getdns_pretty_print_list(tas));
 			return CONTINUE;
 		} else

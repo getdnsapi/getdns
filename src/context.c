@@ -96,7 +96,6 @@ getdns_port_str_array[] = {
 /* Private functions */
 static getdns_return_t create_default_namespaces(struct getdns_context *context);
 static getdns_return_t create_default_dns_transports(struct getdns_context *context);
-static struct getdns_list *create_default_root_servers(void);
 static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
@@ -437,16 +436,6 @@ read_more:	;
 			add_local_host(context, address, start_of_word);
 		getdns_dict_destroy(address);
 	}
-}
-
-/**
- * Helper to get the default root servers.
- * TODO: Implement
- */
-static struct getdns_list *
-create_default_root_servers()
-{
-    return NULL;
 }
 
 /**
@@ -910,7 +899,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->timeout = 5000;
 	result->idle_timeout = 0;
 	result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
-	result->dns_root_servers = create_default_root_servers();
+	result->dns_root_servers = NULL;
+	result->root_servers_fn[0] = 0;
 	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
 	result->suffix = NULL;
 
@@ -1074,7 +1064,11 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->tls_ctx)
 		SSL_CTX_free(context->tls_ctx);
 
-	getdns_list_destroy(context->dns_root_servers);
+	if (context->dns_root_servers)
+		getdns_list_destroy(context->dns_root_servers);
+	if (context->root_servers_fn[0])
+		unlink(context->root_servers_fn);
+
 	getdns_list_destroy(context->suffix);
 
 	if (context->trust_anchors &&
@@ -1585,49 +1579,97 @@ getdns_context_set_follow_redirects(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_dns_root_servers(struct getdns_context *context,
-    struct getdns_list * addresses)
+getdns_context_set_dns_root_servers(
+    getdns_context *context, getdns_list *addresses)
 {
-    struct getdns_list *copy = NULL;
-    size_t count = 0;
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (context->resolution_type_set != 0) {
-        /* already setup */
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    if (addresses != NULL) {
-        if (_getdns_list_copy(addresses, &copy) != GETDNS_RETURN_GOOD) {
-            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-        }
-        addresses = copy;
-        getdns_list_get_length(addresses, &count);
-        if (count == 0) {
-            getdns_list_destroy(addresses);
-            addresses = NULL;
-        } else {
-            size_t i = 0;
-            getdns_return_t r = GETDNS_RETURN_GOOD;
-            /* validate and add ip str */
-            for (i = 0; i < count; ++i) {
-                struct getdns_dict *dict = NULL;
-                getdns_list_get_dict(addresses, i, &dict);
-                if (r != GETDNS_RETURN_GOOD) {
-                    break;
-                }
-            }
-            if (r != GETDNS_RETURN_GOOD) {
-                getdns_list_destroy(addresses);
-                return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-            }
-        }
-    }
+	char tmpfn[L_tmpnam];
+	FILE *fh;
+	size_t i;
+	getdns_dict *rr_dict;
+	getdns_return_t r;
+	getdns_bindata *addr_bd;
+	char dst[2048];
+	size_t dst_len;
+	getdns_list *newlist;
 
-    getdns_list_destroy(context->dns_root_servers);
-    context->dns_root_servers = addresses;
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
+	if (!addresses) {
+#ifdef HAVE_LIBUNBOUND
+		if (ub_ctx_set_option(
+		    context->unbound_ctx, "root-hints:", ""))
+			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+#endif
+		if (context->dns_root_servers)
+			getdns_list_destroy(context->dns_root_servers);
+		context->dns_root_servers = NULL;
 
-    return GETDNS_RETURN_GOOD;
+		if (context->root_servers_fn[0])
+			unlink(context->root_servers_fn);
+		context->root_servers_fn[0] = 0;
+
+		dispatch_updated(
+		    context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!tmpnam(tmpfn))
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+
+	if (!(fh = fopen(tmpfn, "w")))
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+
+	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
+		dst_len = sizeof(dst);
+		if (!getdns_rr_dict2str_buf(rr_dict, dst, &dst_len))
+
+			fprintf(fh, "%s", dst);
+
+		else if (getdns_dict_get_bindata(
+		    rr_dict, "address_data", &addr_bd) &&
+		    getdns_dict_get_bindata(
+		    rr_dict, "/rdata/ipv4_address", &addr_bd) &&
+		    getdns_dict_get_bindata(
+		    rr_dict, "/rdata/ipv6_address", &addr_bd))
+
+			; /* pass */
+
+		else if (addr_bd->size == 16 &&
+		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst)))
+
+			fprintf(fh, ". NS %zu.root-servers.getdnsapi.net.\n"
+			    "%zu.root-servers.getdnsapi.net. AAAA %s\n",
+			    i, i, dst);
+
+		else if (addr_bd->size == 4 &&
+		    inet_ntop(AF_INET, addr_bd->data, dst, sizeof(dst)))
+
+			fprintf(fh, ". NS %zu.root-servers.getdnsapi.net.\n"
+			    "%zu.root-servers.getdnsapi.net. A %s\n",
+			    i, i, dst);
+	}
+	fclose(fh);
+#ifdef HAVE_LIBUNBOUND
+	if (ub_ctx_set_option(
+	    context->unbound_ctx, "root-hints:", tmpfn)) {
+		unlink(tmpfn);
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
+#endif
+	if (_getdns_list_copy(addresses, &newlist)) {
+		unlink(tmpfn);
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	}
+	if (context->dns_root_servers)
+		getdns_list_destroy(context->dns_root_servers);
+	context->dns_root_servers = newlist;
+
+	if (context->root_servers_fn[0])
+		unlink(context->root_servers_fn);
+	(void) memcpy(context->root_servers_fn, tmpfn, L_tmpnam);
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dns_root_servers */
 
 /*
@@ -2317,6 +2359,9 @@ ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 	/* TODO: use the root servers via root hints file */
 	(void) ub_ctx_set_fwd(ctx, NULL);
 	if (!context->unbound_ta_set && context->trust_anchors) {
+		/* fprintf(stderr, "set root hints %d\n",
+		    ub_ctx_set_option(ctx, "root-hints:", "/home/willem/test.hints")); */
+
 		for ( rr = _getdns_rr_iter_init( &rr_spc
 		                               , context->trust_anchors
 		                               , context->trust_anchors_len)
@@ -2995,9 +3040,8 @@ getdns_context_get_dns_root_servers(getdns_context *context,
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = NULL;
-    if (context->dns_root_servers) {
+    if (context->dns_root_servers)
         return _getdns_list_copy(context->dns_root_servers, value);
-    }
     return GETDNS_RETURN_GOOD;
 }
 
