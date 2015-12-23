@@ -418,9 +418,11 @@ uint32_t getdns_get_api_version_number(void);
 /* Authentication options used when doing TLS */
 typedef enum getdns_tls_authentication_t {
 	GETDNS_AUTHENTICATION_NONE = 1300,
-	GETDNS_AUTHENTICATION_REQUIRED = 1301,
-	GETDNS_AUTHENTICATION_HOSTNAME = 1301, /* an alias for REQUIRED */
+	GETDNS_AUTHENTICATION_REQUIRED = 1301
 } getdns_tls_authentication_t;
+
+/* an alias for REQUIRED */
+#define GETDNS_AUTHENTICATION_HOSTNAME GETDNS_AUTHENTICATION_REQUIRED
 
 /**
   * \defgroup Base authentication texts
