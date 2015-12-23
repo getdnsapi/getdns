@@ -197,10 +197,10 @@ attach_edns_cookie(getdns_network_req *req)
 /* Will find a matching OPT RR, but leaves the caller to validate it*/
 static int
 match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
-                  uint8_t **position, uint16_t *option_len)
+                  const uint8_t **position, uint16_t *option_len)
 {
 	_getdns_rr_iter rr_iter_storage, *rr_iter;
-	uint8_t *pos;
+	const uint8_t *pos;
 	uint16_t rdata_len, opt_code = 0, opt_len = 0;
 
 	/* Search for the OPT RR (if any) */
@@ -226,10 +226,10 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 #if defined(STUB_DEBUG) && STUB_DEBUG
 	char str_spc[8192], *str = str_spc;
 	size_t str_len = sizeof(str_spc);
-	uint8_t *data = rr_iter->pos;
+	uint8_t *data = (uint8_t *)rr_iter->pos;
 	size_t data_len = rr_iter->nxt - rr_iter->pos;
 	(void) gldns_wire2str_rr_scan(
-	    &data, &data_len, &str, &str_len, rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt);
+	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt);
 	DEBUG_STUB("OPT RR: %s", str_spc);
 #endif
 
@@ -262,7 +262,7 @@ static int
 match_and_process_server_cookie(
     getdns_upstream *upstream, uint8_t *response, size_t response_len) 
 {
-	uint8_t *position = NULL;
+	const uint8_t *position = NULL;
 	uint16_t option_len = 0;
 	int found = match_edns_opt_rr(EDNS_COOKIE_OPCODE, response, 
 	                              response_len, &position, &option_len);
@@ -299,7 +299,7 @@ process_keepalive(
     getdns_upstream *upstream, getdns_network_req *netreq, 
     uint8_t *response, size_t response_len) 
 {
-	uint8_t *position = NULL;
+	const uint8_t *position = NULL;
 	uint16_t option_len = 0;
 	int found = match_edns_opt_rr(GLDNS_EDNS_KEEPALIVE, response, 
 	                              response_len, &position, &option_len);

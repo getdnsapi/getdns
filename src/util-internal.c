@@ -172,9 +172,10 @@ getdns_dict *
 _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 {
 	getdns_dict *rr_dict, *rdata_dict;
-	getdns_bindata bindata;
+	const uint8_t *bin_data;
+	size_t bin_size;
 	uint32_t int_val = 0;
-	getdns_data_type val_type;
+	enum wf_data_type { wf_int, wf_bindata, wf_special } val_type;
 	_getdns_rdf_iter rdf_storage, *rdf;
 	getdns_list *repeat_list = NULL;
 	getdns_dict *repeat_dict = NULL;
@@ -185,8 +186,8 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	if (!(rr_dict = _getdns_dict_create_with_mf(mf)))
 		return NULL;
 
-	bindata.data = _getdns_owner_if_or_as_decompressed(
-	    i, ff_bytes, &bindata.size);
+	bin_data = _getdns_owner_if_or_as_decompressed(
+	    i, ff_bytes, &bin_size);
 
 	/* question */
 	if (_getdns_rr_iter_section(i) == GLDNS_SECTION_QUESTION) {
@@ -197,7 +198,8 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		    getdns_dict_set_int(rr_dict, "qclass",
 		    (uint32_t) gldns_read_uint16(i->rr_type + 2)) ||
 
-		    getdns_dict_set_bindata(rr_dict, "qname", &bindata)) {
+		    _getdns_dict_set_const_bindata(
+		    rr_dict, "qname", bin_size, bin_data)) {
 
 			goto error;
 		}
@@ -234,7 +236,8 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	    getdns_dict_set_int(rr_dict, "ttl",
 	    (uint32_t) gldns_read_uint32(i->rr_type + 4)) ||
 
-	    getdns_dict_set_bindata(rr_dict, "name", &bindata)) {
+	    _getdns_dict_set_const_bindata(
+	    rr_dict, "name", bin_size, bin_data)) {
 
 		goto error;
 	}
@@ -242,15 +245,16 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		return NULL;
 
 	if (i->rr_type + 10 <= i->nxt) {
-		bindata.size = i->nxt - (i->rr_type + 10);
-		bindata.data = i->rr_type + 10;
-		if (getdns_dict_set_bindata(rdata_dict, "rdata_raw", &bindata))
+		bin_size = i->nxt - (i->rr_type + 10);
+		bin_data = i->rr_type + 10;
+		if (_getdns_dict_set_const_bindata(
+		    rdata_dict, "rdata_raw", bin_size, bin_data))
 			goto rdata_error;
 	}
 	for ( rdf = _getdns_rdf_iter_init(&rdf_storage, i)
 	    ; rdf; rdf = _getdns_rdf_iter_next(rdf)) {
 		if (rdf->rdd_pos->type & GETDNS_RDF_INTEGER) {
-			val_type = t_int;
+			val_type = wf_int;
 			switch (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
 			case 1:	int_val = *rdf->pos;
 				break;
@@ -262,52 +266,51 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				goto rdata_error;
 			}
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_DNAME) {
-			val_type = t_bindata;
+			val_type = wf_bindata;
 
-			bindata.data = _getdns_rdf_if_or_as_decompressed(
-			    rdf, ff_bytes, &bindata.size);
+			bin_data = _getdns_rdf_if_or_as_decompressed(
+			    rdf, ff_bytes, &bin_size);
 
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_BINDATA) {
-			val_type = t_bindata;
+			val_type = wf_bindata;
 			if (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
-				bindata.size = rdf->rdd_pos->type
-				             & GETDNS_RDF_FIXEDSZ;
-				bindata.data = rdf->pos;
+				bin_size = rdf->rdd_pos->type
+				    & GETDNS_RDF_FIXEDSZ;
+				bin_data = rdf->pos;
 
 			} else switch(rdf->rdd_pos->type & GETDNS_RDF_LEN_VAL){
 			case 0x100:
-				bindata.size = *rdf->pos;
-				bindata.data = rdf->pos + 1;
+				bin_size = *rdf->pos;
+				bin_data = rdf->pos + 1;
 				break;
 			case 0x200:
-				bindata.size = gldns_read_uint16(rdf->pos);
-				bindata.data = rdf->pos + 2;
+				bin_size = gldns_read_uint16(rdf->pos);
+				bin_data = rdf->pos + 2;
 				break;
 			default:
-				bindata.size = rdf->nxt - rdf->pos;
-				bindata.data = rdf->pos;
+				bin_size = rdf->nxt - rdf->pos;
+				bin_data = rdf->pos;
 				break;
 			}
 		} else if (rdf->rdd_pos->type == GETDNS_RDF_SPECIAL)
-			/* Abuse t_dict for special values */
-			val_type = t_dict;
+			val_type = wf_special;
 		else
 			assert(0);
 
 		if (! rdf->rdd_repeat) {
 			switch (val_type) {
-			case t_int:
+			case wf_int:
 				if (getdns_dict_set_int(rdata_dict,
 				    rdf->rdd_pos->name, int_val))
 					goto rdata_error;
 				break;
-			case t_bindata:
-				if (getdns_dict_set_bindata(rdata_dict,
-				    rdf->rdd_pos->name, &bindata))
+			case wf_bindata:
+				if (_getdns_dict_set_const_bindata(rdata_dict,
+				    rdf->rdd_pos->name, bin_size, bin_data))
 					goto rdata_error;
 				break;
-			case t_dict:
-				if (rdf->rdd_pos->special->dict_set_value(
+			case wf_special:
+				if (rdf->rdd_pos->special->wire2dict(
 				    rdata_dict, rdf->pos))
 					goto rdata_error;
 			default:
@@ -324,18 +327,18 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				goto rdata_error;
 			
 			switch (val_type) {
-			case t_int:
+			case wf_int:
 				if (_getdns_list_append_int(repeat_list,
 				    int_val))
 					goto rdata_error;
 				break;
-			case t_bindata:
-				if (_getdns_list_append_bindata(repeat_list,
-				    &bindata))
+			case wf_bindata:
+				if (_getdns_list_append_const_bindata(
+				    repeat_list, bin_size, bin_data))
 					goto rdata_error;
 				break;
-			case t_dict:
-				if (rdf->rdd_pos->special->list_append_value(
+			case wf_special:
+				if (rdf->rdd_pos->special->wire2list(
 				    repeat_list, rdf->pos))
 					goto rdata_error;
 			default:
@@ -363,18 +366,18 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		}
 		assert(repeat_dict);
 		switch (val_type) {
-		case t_int:
+		case wf_int:
 			if (getdns_dict_set_int(repeat_dict,
 			    rdf->rdd_pos->name, int_val))
 				goto rdata_error;
 			break;
-		case t_bindata:
-			if (getdns_dict_set_bindata(repeat_dict,
-			    rdf->rdd_pos->name, &bindata))
+		case wf_bindata:
+			if (_getdns_dict_set_const_bindata(repeat_dict,
+			    rdf->rdd_pos->name, bin_size, bin_data))
 				goto rdata_error;
 			break;
-		case t_dict:
-			if (rdf->rdd_pos->special->dict_set_value(
+		case wf_special:
+			if (rdf->rdd_pos->special->wire2dict(
 			    repeat_dict, rdf->pos))
 				goto rdata_error;
 		default:
@@ -497,11 +500,11 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	getdns_dict *rr_dict = NULL;
 	_getdns_rr_iter rr_iter_storage, *rr_iter;
 	_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
-	getdns_bindata bindata;
+	size_t bin_size;
+	const uint8_t *bin_data;
 	gldns_pkt_section section;
-	uint8_t canonical_name_space[256],
-	       *canonical_name = canonical_name_space;
-	uint8_t owner_name_space[256], *owner_name;
+	uint8_t canonical_name_space[256], owner_name_space[256];
+	const uint8_t *canonical_name = canonical_name_space, *owner_name;
 	size_t canonical_name_len = sizeof(canonical_name_space),
 	       owner_name_len = sizeof(owner_name_space);
 	int new_canonical = 0;
@@ -592,14 +595,15 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		     &rdf_iter_storage, rr_iter)))
 			continue;
 
-		bindata.size = rdf_iter->nxt - rdf_iter->pos;
-		bindata.data = rdf_iter->pos;
+		bin_size = rdf_iter->nxt - rdf_iter->pos;
+		bin_data = rdf_iter->pos;
 		if (!set_dict(&rr_dict, getdns_dict_create_with_context(context)) ||
 
 		    getdns_dict_util_set_string(rr_dict, "address_type",
 			    rr_type == GETDNS_RRTYPE_A ? "IPv4" : "IPv6" ) ||
 
-		    getdns_dict_set_bindata(rr_dict,"address_data",&bindata) ||
+		    _getdns_dict_set_const_bindata(
+		    rr_dict, "address_data", bin_size, bin_data) ||
 
 		    (just_addrs && _getdns_list_append_dict(just_addrs, rr_dict))) {
 
@@ -656,9 +660,8 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			new_canonical = 1;
 		}
 	}
-	bindata.data = canonical_name;
-	bindata.size = canonical_name_len;
-	if (getdns_dict_set_bindata(result, "canonical_name", &bindata))
+	if (_getdns_dict_set_const_bindata(
+	    result, "canonical_name", canonical_name_len, canonical_name))
 		goto error;
 
 	goto success;

@@ -138,7 +138,20 @@ fi
 ])
 ACX_ARG_RPATH
 
+
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
+AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
+AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
+AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
+case "$enable_all_debugging" in
+	yes)
+		enable_debug_sched=yes
+		enable_debug_stub=yes
+		enable_debug_sec=yes
+		;;
+	no|*)
+		;;
+esac
 case "$enable_debug_sched" in
 	yes)
 		AC_DEFINE_UNQUOTED([SCHED_DEBUG], [1], [Define this to enable printing of scheduling debugging messages.])
@@ -146,7 +159,6 @@ case "$enable_debug_sched" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
 case "$enable_debug_stub" in
 	yes)
 		AC_DEFINE_UNQUOTED([STUB_DEBUG], [1], [Define this to enable printing of stub debugging messages.])
@@ -154,7 +166,6 @@ case "$enable_debug_stub" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 case "$enable_debug_sec" in
 	yes)
 		AC_DEFINE_UNQUOTED([SEC_DEBUG], [1], [Define this to enable printing of dnssec debugging messages.])

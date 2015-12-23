@@ -402,13 +402,13 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 {
 	_getdns_rr_iter  rr_spc, *rr;
 	_getdns_rdf_iter rdf_spc, *rdf;
-	uint8_t  *request_mac;
-	uint16_t  request_mac_len;
+	const uint8_t *request_mac;
+	uint16_t       request_mac_len;
 	uint8_t   tsig_vars[MAXIMUM_TSIG_SPACE];
 	gldns_buffer gbuf;
-	uint8_t  *dname;
+	const uint8_t  *dname;
 	size_t    dname_len;
-	uint8_t  *response_mac;
+	const uint8_t  *response_mac;
 	uint16_t  response_mac_len;
 	uint8_t   other_len;
 	uint8_t   result_mac[EVP_MAX_MD_SIZE];

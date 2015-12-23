@@ -270,8 +270,7 @@ getdns_return_t _getdns_context_cancel_request(struct getdns_context *context,
 char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 
 struct getdns_bindata *_getdns_bindata_copy(
-    struct mem_funcs *mfs,
-    const struct getdns_bindata *src);
+    struct mem_funcs *mfs, size_t size, const uint8_t *data);
 
 void _getdns_bindata_destroy(
     struct mem_funcs *mfs,
