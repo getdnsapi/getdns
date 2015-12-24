@@ -1582,8 +1582,9 @@ getdns_return_t
 getdns_context_set_dns_root_servers(
     getdns_context *context, getdns_list *addresses)
 {
-	char tmpfn[L_tmpnam];
+	char tmpfn[FILENAME_MAX] = P_tmpdir "/getdns-root-dns-servers-XXXXXX";
 	FILE *fh;
+	int fd;
 	size_t i;
 	getdns_dict *rr_dict;
 	getdns_return_t r;
@@ -1613,10 +1614,10 @@ getdns_context_set_dns_root_servers(
 		    context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
 		return GETDNS_RETURN_GOOD;
 	}
-	if (!tmpnam(tmpfn))
+	if ((fd = mkstemp(tmpfn)) < 0)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
-	if (!(fh = fopen(tmpfn, "w")))
+	if (!(fh = fdopen(fd, "w")))
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
 	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
@@ -1666,7 +1667,7 @@ getdns_context_set_dns_root_servers(
 
 	if (context->root_servers_fn[0])
 		unlink(context->root_servers_fn);
-	(void) memcpy(context->root_servers_fn, tmpfn, L_tmpnam);
+	(void) memcpy(context->root_servers_fn, tmpfn, strlen(tmpfn));
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
 	return GETDNS_RETURN_GOOD;

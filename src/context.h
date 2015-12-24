@@ -169,7 +169,7 @@ struct getdns_context {
 	uint64_t             idle_timeout;
 	getdns_redirects_t   follow_redirects;
 	getdns_list          *dns_root_servers;
-	char                 root_servers_fn[L_tmpnam];
+	char                 root_servers_fn[FILENAME_MAX];
 	getdns_append_name_t append_name;
 	struct getdns_list   *suffix;
 	uint8_t              *trust_anchors;
