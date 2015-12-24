@@ -94,7 +94,7 @@ tr.code { font-family: monospace }
 <p class=title2>Originally edited by Paul Hoffman</p>
 <p class=title2>Currently maintained by the <a
 href="mailto:team@getdnsapi.net">getdns team</a></p>
-<p class=title2>Document version: "getdns October 2015"</p>
+<p class=title2>Document version: "getdns December 2015"</p>
 
 <p>This document describes a modern asynchronous DNS API. This new API is intended to be useful to
 application developers and operating system distributors as a way of making
@@ -2284,7 +2284,7 @@ For IPv6 link-local addresses, a <code>scope_id</code> name (a bindata) can be p
 <code>port</code> to specify which port to use to contact these DNS servers; the default is 53. If
 the stub and a recursive resolver both support TSIG (RFC 2845), the <code>upstream_list</code> entry
 can also contain <code>tsig_algorithm</code> (a bindata) that is the name of the TSIG hash
-algorithm, and <code>tsig_secret</code> (a bindata) that is the TSIG key.</p>
+algorithm, <code>tsig_name</code> (a bindata) that is the name of the TSIG key, and <code>tsig_secret</code> (a bindata) that is the TSIG key.</p>
 
 <h2>8.8 Context for EDNS</h2>
 
@@ -2426,7 +2426,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.701.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.900.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
