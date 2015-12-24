@@ -95,15 +95,15 @@
 
 /* redefine the calls to different names so that there is no name
  * collision with other code that uses libevent names. (that uses libunbound)*/
-#define event_init winsockevent_init
+#define _getdns_event_init winsockevent_init
 #define event_get_version winsockevent_get_version
 #define event_get_method winsockevent_get_method
 #define _getdns_event_base_dispatch winsockevent_base_dispatch
 #define event_base_loopexit winsockevent_base_loopexit
 #define _getdns_event_base_free winsockevent_base_free
-#define event_set winsockevent_set
-#define event_base_set winsockevent_base_set
-#define event_add winsockevent_add
+#define _getdns_event_set winsockevent_set
+#define _getdns_event_base_set winsockevent_base_set
+#define _getdns_event_add winsockevent_add
 #define _getdns_event_del winsockevent_del
 #define signal_add winsocksignal_add
 #define signal_del winsocksignal_del
@@ -225,26 +225,26 @@ struct _getdns_event {
 char* wsa_strerror(DWORD err);
 void log_err(const char *format, ...);
 /** create event base */
-void *event_init(time_t* time_secs, struct timeval* time_tv);
+void *_getdns_event_init(time_t* time_secs, struct timeval* time_tv);
 /** get version */
 const char *event_get_version(void);
 /** get polling method (select,epoll) */
 const char *event_get_method(void);
 /** run select in a loop */
-int event_base_dispatch(struct _getdns_event_base *);
+int _getdns_event_base_dispatch(struct _getdns_event_base *);
 /** exit that loop */
 int event_base_loopexit(struct _getdns_event_base *, struct timeval *);
 /** free event base. Free events yourself */
-void event_base_free(struct _getdns_event_base *);
+void _getdns_event_base_free(struct _getdns_event_base *);
 /** set content of event */
-void event_set(struct _getdns_event *, int, short, void (*)(int, short, void *), void *);
+void _getdns_event_set(struct _getdns_event *, int, short, void (*)(int, short, void *), void *);
 
 /** add event to a base. You *must* call this for every event. */
-int event_base_set(struct _getdns_event_base *, struct _getdns_event *);
+int _getdns_event_base_set(struct _getdns_event_base *, struct _getdns_event *);
 /** add event to make it active. You may not change it with event_set anymore */
-int event_add(struct _getdns_event *, struct timeval *);
+int _getdns_event_add(struct _getdns_event *, struct timeval *);
 /** remove event. You may change it again */
-int event_del(struct _getdns_event *);
+int _getdns_event_del(struct _getdns_event *);
 
 #define evtimer_add(ev, tv)             event_add(ev, tv)
 #define evtimer_del(ev)                 event_del(ev)
@@ -282,14 +282,14 @@ void winsock_tcp_wouldblock(struct _getdns_event* ev, int eventbit);
  * @param arg: user argument to callback routine.
  * @return false on error.
  */
-static int winsock_register_wsaevent(struct _getdns_event_base* base, struct _getdns_event* ev,
+int winsock_register_wsaevent(struct _getdns_event_base* base, struct _getdns_event* ev,
     WSAEVENT wsaevent, void (*cb)(int, short, void*), void* arg);
 
 /**
  * Unregister a wsaevent. User has to close the WSAEVENT itself.
  * @param ev: event data storage.
  */
-static void winsock_unregister_wsaevent(struct _getdns_event* ev);
+void winsock_unregister_wsaevent(struct _getdns_event* ev);
 
 #endif /* USE_WINSOCK */
 #endif /* UTIL_WINSOCK_EVENT_H */

@@ -193,6 +193,7 @@ $(distdir):
 	cp $(srcdir)/install-sh $(distdir)
 	cp $(srcdir)/config.sub $(distdir)
 	cp $(srcdir)/config.guess $(distdir)
+	cp $(srcdir)/getdns.pc.in $(distdir)
 	cp libtool $(distdir)
 	cp $(srcdir)/ltmain.sh $(distdir)
 	cp $(srcdir)/m4/*.m4 $(distdir)/m4

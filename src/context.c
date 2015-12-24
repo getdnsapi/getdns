@@ -106,7 +106,6 @@ getdns_port_str_array[] = {
 /* Private functions */
 static getdns_return_t create_default_namespaces(struct getdns_context *context);
 static getdns_return_t create_default_dns_transports(struct getdns_context *context);
-static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
@@ -705,6 +704,89 @@ upstream_init(getdns_upstream *upstream,
 	    net_req_query_id_cmp);
 }
 
+#ifdef USE_WINSOCK
+static getdns_return_t
+set_os_defaults_windows(struct getdns_context *context)
+{
+	char domain[1024];
+	size_t upstreams_limit = 10, length;
+	struct getdns_bindata bindata;
+	struct addrinfo hints;
+	struct addrinfo *result;
+	getdns_upstream *upstream;
+	int s;
+
+	if (context->fchg_resolvconf == NULL) {
+		context->fchg_resolvconf =
+			GETDNS_MALLOC(context->my_mf, struct filechg);
+		if (context->fchg_resolvconf == NULL)
+			return GETDNS_RETURN_MEMORY_ERROR;
+		context->fchg_resolvconf->fn = "InvalidOnWindows";
+		context->fchg_resolvconf->prevstat = NULL;
+		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
+		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
+	}
+	_getdns_filechg_check(context, context->fchg_resolvconf);
+
+	context->suffix = getdns_list_create_with_context(context);
+	context->upstreams = upstreams_create(context, upstreams_limit);
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = 0;              /* Datagram socket */
+	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol = 0;              /* Any protocol */
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
+
+	FIXED_INFO *info;
+	ULONG buflen = sizeof(*info);
+	IP_ADDR_STRING *ptr = 0;
+
+	info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
+	if (info == NULL)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
+		free(info);
+		info = (FIXED_INFO *)malloc(buflen);
+		if (info == NULL)
+			return GETDNS_RETURN_GENERIC_ERROR;
+	}
+
+	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
+		ptr = info->DnsServerList.Next; 
+		*domain = 0;
+		while (ptr) {
+			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
+				char *port_str = getdns_port_str_array[i];
+				if ((s = getaddrinfo(ptr->IpAddress.String, port_str, &hints, &result)))
+					continue;
+				if (!result)
+					continue;
+
+				upstream = &context->upstreams->
+					upstreams[context->upstreams->count++];
+				upstream_init(upstream, context->upstreams, result);
+				upstream->transport = getdns_upstream_transports[i];
+				freeaddrinfo(result);
+			}
+			ptr = ptr->Next;
+
+		}
+		free(info);
+	}
+
+	(void)getdns_list_get_length(context->suffix, &length);
+	if (length == 0 && *domain != 0) {
+		bindata.data = (uint8_t *)domain;
+		bindata.size = strlen(domain) + 1;
+		(void)getdns_list_set_bindata(context->suffix, 0, &bindata);
+	}
+	return GETDNS_RETURN_GOOD;
+} /* set_os_defaults_windows */
+#else
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
@@ -816,92 +898,6 @@ set_os_defaults(struct getdns_context *context)
 		_getdns_list_append_string(context->suffix, domain);
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
-
-#ifdef USE_WINSOCK
-static getdns_return_t
-set_os_defaults_windows(struct getdns_context *context)
-{
-	FILE *in;
-	char line[1024], domain[1024];
-	char *parse, *token, prev_ch;
-	size_t upstreams_limit = 10, length;
-	struct getdns_bindata bindata;
-	struct addrinfo hints;
-	struct addrinfo *result;
-	getdns_upstream *upstream;
-	int s;
-
-	if (context->fchg_resolvconf == NULL) {
-		context->fchg_resolvconf =
-			GETDNS_MALLOC(context->my_mf, struct filechg);
-		if (context->fchg_resolvconf == NULL)
-			return GETDNS_RETURN_MEMORY_ERROR;
-		context->fchg_resolvconf->fn = "InvalidOnWindows";
-		context->fchg_resolvconf->prevstat = NULL;
-		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
-		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
-	}
-	_getdns_filechg_check(context, context->fchg_resolvconf);
-
-	context->suffix = getdns_list_create_with_context(context);
-	context->upstreams = upstreams_create(context, upstreams_limit);
-
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = 0;              /* Datagram socket */
-	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
-	hints.ai_protocol = 0;              /* Any protocol */
-	hints.ai_canonname = NULL;
-	hints.ai_addr = NULL;
-	hints.ai_next = NULL;
-
-	FIXED_INFO *info;
-	ULONG buflen = sizeof(*info);
-	IP_ADDR_STRING *ptr = 0;
-
-	info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
-	if (info == NULL)
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
-		free(info);
-		info = (FIXED_INFO *)malloc(buflen);
-		if (info == NULL)
-			return GETDNS_RETURN_GENERIC_ERROR;
-	}
-
-	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
-		int retval = 0;
-		ptr = info->DnsServerList.Next; 
-		*domain = 0;
-		while (ptr) {
-			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
-				char *port_str = getdns_port_str_array[i];
-				if ((s = getaddrinfo(ptr->IpAddress.String, port_str, &hints, &result)))
-					continue;
-				if (!result)
-					continue;
-
-				upstream = &context->upstreams->
-					upstreams[context->upstreams->count++];
-				upstream_init(upstream, context->upstreams, result);
-				upstream->transport = getdns_upstream_transports[i];
-				freeaddrinfo(result);
-			}
-			ptr = ptr->Next;
-
-		}
-		free(info);
-	}
-
-	(void)getdns_list_get_length(context->suffix, &length);
-	if (length == 0 && *domain != 0) {
-		bindata.data = (uint8_t *)domain;
-		bindata.size = strlen(domain) + 1;
-		(void)getdns_list_set_bindata(context->suffix, 0, &bindata);
-	}
-	return GETDNS_RETURN_GOOD;
-} /* set_os_defaults_windows */
 #endif
 
 /* compare of transaction ids in DESCENDING order

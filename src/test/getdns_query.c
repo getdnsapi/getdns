@@ -549,8 +549,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		if ((r = getdns_list_set_dict(to_validate, 0, reply)))
 			goto error;
 
-		fprintf( stdout
-		       , "reply %zu, dnssec_status: ", i);
+		printf("reply %u, dnssec_status: ", (unsigned)i);
 		switch ((s = getdns_validate_dnssec(
 		    to_validate, validation_chain, trust_anchor))) {
 
@@ -598,14 +597,13 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 	}
 
 	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
-		fprintf(stdout,
-			"Response code was: GOOD. Status was: Callback with ID %llu  was successfull.\n",
-			(unsigned long long)trans_id);
+		printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successfull.\n",
+			trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
-			"An error occurred: The callback with ID %llu was cancelled. Exiting.\n",
-			(unsigned long long)trans_id);
+			"An error occurred: The callback with ID %"PRIu64" was cancelled. Exiting.\n",
+			trans_id);
 	else {
 		fprintf(stderr,
 			"An error occurred: The callback got a callback_type of %d. Exiting.\n",

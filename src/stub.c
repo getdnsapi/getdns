@@ -639,7 +639,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventl
 		tcp->read_pos = tcp->read_buf;
 		tcp->to_read = 2; /* Packet size */
 	}
-	read = recv(fd, tcp->read_pos, tcp->to_read, 0);
+	read = recv(fd, (void *)tcp->read_pos, tcp->to_read, 0);
 	if (read == -1) {
 #ifdef USE_WINSOCK 
 	printf("read (in tcp ) %s\n",
@@ -649,7 +649,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventl
 	if (WSAGetLastError() == WSAEINPROGRESS)
 	    return STUB_TCP_AGAIN;
 	if (WSAGetLastError() == WSAEWOULDBLOCK) {
-		winsock_tcp_wouldblock(event, EV_READ);
+		winsock_tcp_wouldblock(event->ev, EV_READ);
 		return STUB_TCP_AGAIN;
 	}
 
@@ -773,9 +773,10 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 #else
 
 #ifdef USE_WINSOCK
-		written = sendto(fd, netreq->query - 2, pkt_len + 2,
-			0, (struct sockaddr *)&(netreq->upstream->addr),
-			netreq->upstream->addr_len);
+		written = sendto(fd, (const char *)(netreq->query - 2),
+		    pkt_len + 2, 0,
+		    (struct sockaddr *)&(netreq->upstream->addr),
+		    netreq->upstream->addr_len);
 
 #else
 		written = write(fd, netreq->query - 2, pkt_len + 2);
@@ -1283,7 +1284,7 @@ stub_udp_read_cb(void *userarg)
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-	read = recvfrom(netreq->fd, netreq->response,
+	read = recvfrom(netreq->fd, (void *)netreq->response,
 	    netreq->max_udp_payload_size + 1, /* If read == max_udp_payload_size
 	                                       * then all is good.  If read ==
 	                                       * max_udp_payload_size + 1, then
@@ -1363,7 +1364,8 @@ stub_udp_write_cb(void *userarg)
 				return; /* too many upstream options */
 	}
 	pkt_len = _getdns_network_req_add_tsig(netreq);
-	if ((ssize_t)pkt_len != sendto(netreq->fd, netreq->query, pkt_len, 0,
+	if ((ssize_t)pkt_len != sendto(
+	    netreq->fd, (const void *)netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
 		close(netreq->fd);
@@ -1394,7 +1396,7 @@ upstream_read_cb(void *userarg)
 		              &upstream->upstreams->mf);
 	else
 		q = stub_tcp_read(upstream->fd, &upstream->tcp,
-		             &upstream->upstreams->mf, &netreq->event);
+		             &upstream->upstreams->mf, &upstream->event);
 
 	switch (q) {
 	case STUB_TCP_AGAIN:

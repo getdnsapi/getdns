@@ -58,7 +58,8 @@ log_err(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    fprintf(stderr, "error", format, args);
+    fprintf(stderr, "error ");
+    fprintf(stderr, format, args);
     va_end(args);
 }
 
@@ -353,7 +354,7 @@ int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait)
     DWORD ret;
     WSANETWORKEVENTS netev;
     struct _getdns_event* eventlist[WSK_MAX_ITEMS];
-    int i, numwait = 0, startidx = 0, was_timeout = 0;
+    int i, numwait = 0, startidx = 0;
     int newstickies = 0;
     struct timeval nultm;
 
@@ -379,7 +380,7 @@ int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait)
     	base->waitfor[numwait++] = base->items[i]->hEvent;
     	printf("winsock_event bmax=%d numwait=%d wait=%x "
     		"timeout=%d hEvent %d\n", base->max, numwait, (int)wait, 
-    		(int)timeout, base->items[i]->hEvent);
+    		(int)timeout, (int)base->items[i]->hEvent);
     	if (numwait == WSK_MAX_ITEMS)
     		break; /* sanity check */
     }
@@ -391,7 +392,6 @@ int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait)
     	if(wait) {
     		Sleep(timeout);
     	}
-    	was_timeout = 1;
     }
     else {
     	//gv: do not schedule udp write
@@ -409,7 +409,7 @@ int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait)
     		0 /* do not wait for all, just one will do */,
     		wait?timeout:WSA_INFINITE,
     		0); /* we are not alertable (IO completion events) */
-    	printf("after wait %d %d\n", ret, numwait);
+    	printf("after wait %d %d\n", (int)ret, numwait);
     	if(ret == WSA_WAIT_IO_COMPLETION) {
     		//printf("getdns: WSAWaitForMultipleEvents failed: WSA_WAIT_IO_COMPLETION");
     		return -1;
@@ -419,7 +419,6 @@ int _getdns_handle_select(struct _getdns_event_base* base, struct timeval* wait)
     		return -1;
     	} else if(ret == WSA_WAIT_TIMEOUT) {
     		printf("timeout\n");
-    		was_timeout = 1;
     	} else
     		startidx = ret - WSA_WAIT_EVENT_0;
     }
@@ -633,25 +632,6 @@ int _getdns_event_base_set(struct _getdns_event_base *base, struct _getdns_event
     return 0;
 }
 
-/**
-* Find a fd in the list of items.
-* Note that not all items have a fd associated (those are -1).
-* Signals are stored separately, and not searched.
-* @param base: event base to look in.
-* @param fd: what socket to look for.
-* @return the index in the array, or -1 on failure.
-*/
-static int
-find_fd(struct _getdns_event_base* base, int fd)
-{
-    int i;
-    for (i = 0; i<base->max; i++) {
-    	if (base->items[i]->ev_fd == fd)
-    		return i;
-    }
-    return -1;
-}
-
 int _getdns_event_add(struct _getdns_event *ev, struct timeval *tv)
 {
     printf( "event_add %p added=%d fd=%d tv=" ARG_LL "d %s%s%s\n", 
@@ -714,7 +694,7 @@ int _getdns_event_add(struct _getdns_event *ev, struct timeval *tv)
     			wsa_strerror(WSAGetLastError()));
     	/* automatically sets fd to nonblocking mode.
     	 * nonblocking cannot be disabled, until wsaES(fd, NULL, 0) */
-    	printf("\nWSAEventSelect %d events %d hEvent %d\n", ev->ev_fd, events, ev->hEvent); 
+    	printf("\nWSAEventSelect %d events %d hEvent %d\n", ev->ev_fd, (int)events, (int)ev->hEvent); 
     	if (WSAEventSelect(ev->ev_fd, ev->hEvent, events) != 0) {
     		log_err("getdns: WSAEventSelect in getdns failed: %s",
     			wsa_strerror(WSAGetLastError()));
@@ -722,13 +702,13 @@ int _getdns_event_add(struct _getdns_event *ev, struct timeval *tv)
     	if(ev->is_tcp && ev->stick_events && 
     		(ev->ev_events & ev->old_events)) {
     		/* go to processing the sticky event right away */
-    		printf("\nWSAEventSelect sticky %d events %d hEvent %d\n", ev->ev_fd, events, ev->hEvent);
+    		printf("\nWSAEventSelect sticky %d events %d hEvent %d\n", ev->ev_fd, (int)events, (int)ev->hEvent);
     		ev->ev_base->tcp_reinvigorated = 1;
     	}
     }
 
     if(tv && (ev->ev_events&EV_TIMEOUT)) {
-    	printf("\nWSAEventSelect timeout %d hEvent %d\n", ev->ev_fd, ev->hEvent);
+    	printf("\nWSAEventSelect timeout %d hEvent %d\n", ev->ev_fd, (int)ev->hEvent);
 
 #ifndef S_SPLINT_S
                 struct timeval *now = ev->ev_base->time_tv;
@@ -787,14 +767,8 @@ static struct _getdns_event_base* signal_base = NULL;
 /** signal handler */
 static RETSIGTYPE sigh(int sig)
 {
-        struct getdns_event* ev;
         if(!signal_base || sig < 0 || sig >= MAX_SIG)
                 return;
-        ev = signal_base->signals[sig];
-        if(!ev)
-                return;
-      //g  fptr_ok(fptr_whitelist_event(ev->ev_callback));
-      //g (*ev->ev_callback)(sig, EV_SIGNAL, ev->ev_arg);
 }
 
 int _getdns_signal_add(struct _getdns_event *ev, struct timeval * ATTR_UNUSED(tv))

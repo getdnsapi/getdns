@@ -255,20 +255,18 @@ libidn
 The windows version of getdns currently only is supported in the stub only mode. 
 
 To configure:
- ./configure --enable-use-winsock --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key"
+ ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=/c/OpenSSL --with-getdns_query
 
  The trust anchor is also installed by unbound on c:\program Files (X86)\unbound\root.key and can be referenced from there
  or anywhere else that the user chooses to configure it.
 
  After configuring, do a 'make' and 'make install' to build getdns for Windows.
 
- There is a sample, getdns_query.exe which can be built in src/samplewin using 'make'
- 
  Example test queries:
- ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_debugging (UDP)
- ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_debugging (TCP)
- ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_debugging (TLS without authentication)
- ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_debugging (DNSSEC)
+ ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_reporting (UDP)
+ ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_reporting (TCP)
+ ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_reporting (TLS without authentication)
+ ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_reporting (DNSSEC)
 
 Contributors
 ============
