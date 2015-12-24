@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [0.6.1], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
+AC_INIT([getdns], [0.9.0], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
 AC_SUBST(RELEASE_CANDIDATE, [rc1])
 
 # Set current date from system if not set
@@ -47,9 +47,9 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00060001])
-AC_SUBST(API_VERSION, ["October 2015"])
-AC_SUBST(API_NUMERIC_VERSION, [0x07df0a00])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00090001])
+AC_SUBST(API_VERSION, ["December 2015"])
+AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
 
@@ -76,9 +76,9 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.3.3 had libversion 3:6:2
 # getdns-0.5.0 had libversion 4:0:3
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
-# getdns-0.6.1 will have libversion 4:2:3
+# getdns-0.9.0 will have libversion 5:0:4
 #
-GETDNS_LIBVERSION=4:2:3
+GETDNS_LIBVERSION=5:0:4
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)

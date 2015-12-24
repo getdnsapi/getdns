@@ -1,4 +1,4 @@
-*
+* 2015-12-??: Version 0.9.0
   * Update of unofficial extension to the API that supports stub mode 
     TLS verification. GETDNS_AUTHENTICATION_HOSTNAME is replaced by 
     GETDNS_AUTHENTICATION_REQUIRED (but remains available as an alias). 
@@ -10,6 +10,25 @@
   * Remove STARTTLS implementation (no change to SPEC)
   * Enable TCP Fast Open when possible. Add OSX support for TFO.
   * Rename return_call_debugging to return_call_reporting
+  * Bugfix: configure problem with getdns-0.5.1 on OpenBSD
+    Thanks Claus Assmann.
+  * pkg-config support.  Thanks Neil Cook.
+  * Functions to convert from RR dicts to wireformat and text format
+    and vice versa.  Including a function that builds a getdns_list
+    of RR dicts from a zonefile.
+  * Use the with the getdns_context_set_dns_root_servers() function provided
+    root servers in recursing resolution modus.
+  * getdns_query option (-f) to read a DNSSEC trust anchor from file.
+  * getdns_query option (-R) to read a "root hints" file.
+  * Bugfix: Detect and prevent duplicate NSEC(3)s to be returned with
+    dnssec_return_validation_chain.
+  * Bugfix: Remove duplicate RRs from RRsets when DNSSEC verifying
+  * Client side edns-tcp-keepalive support
+  * TSIG support
+  * Verify upstream TLS pubkeys with pinsets; A getdns_query option
+    (-K) to attach pinsets to getdns_contexts.
+    Thanks Daniel Kahn Gillmor
+  * Initial support for Windows.  Thanks Gowri Visweswaran
 
 * 2015-11-18: Version 0.5.1
   * Bugfix: growing upstreams arrow.
