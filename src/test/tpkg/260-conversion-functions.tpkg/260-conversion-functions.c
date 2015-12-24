@@ -70,9 +70,9 @@ int main(int argc, char const * const argv[])
 	FILE           *in;
 	uint8_t         wire_buf[8200];
 	size_t          i;
-	ssize_t         available;
+	int             available;
 	char            str_buf[10000];
-	ssize_t         str_len = sizeof(str_buf);
+	int             str_len = sizeof(str_buf);
 
 	/* Convert string to rr_dict
 	 */
@@ -266,7 +266,7 @@ int main(int argc, char const * const argv[])
 		if ((r = getdns_rr_dict2wire_scan(rr_dict,&wire,&available))) {
 			if (r == GETDNS_RETURN_NEED_MORE_SPACE) {
 				printf("record %.3zu, available buffer space: "
-				       "%zi\n", i, available);
+				       "%d\n", i, available);
 
 				/* The buffer was too small to fit the wire-
 				 * format representation.  available now holds
@@ -288,7 +288,7 @@ int main(int argc, char const * const argv[])
 				FAIL_r("getdns_rr_dict2wire_scan");
 		}
 		printf("record %3zu, available buffer space: "
-		       "%zi\n", i, available);
+		       "%d\n", i, available);
 		fflush(stdout);
 	}
 	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
