@@ -326,7 +326,6 @@ libevent.lo libevent.o: $(srcdir)/extension/libevent.c config.h $(srcdir)/types-
 libmini_event.lo libmini_event.o: $(srcdir)/extension/libmini_event.c config.h $(srcdir)/debug.h config.h \
  $(srcdir)/types-internal.h getdns/getdns.h getdns/getdns_extra.h getdns/getdns.h \
  $(srcdir)/util/rbtree.h $(srcdir)/extension/libmini_event.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h
-<<<<<<< HEAD
 libuv.lo libuv.o: $(srcdir)/extension/libuv.c config.h $(srcdir)/debug.h config.h $(srcdir)/types-internal.h \
  getdns/getdns.h getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
  $(srcdir)/getdns/getdns_ext_libuv.h getdns/getdns_extra.h

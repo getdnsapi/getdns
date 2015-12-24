@@ -85,7 +85,8 @@ GOOD_QUERIES=(
 "-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP_NO_NAME}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\""
-"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"")
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\""
+"-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
 
 GOOD_FALLBACK_QUERIES=(
 "-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
@@ -99,8 +100,8 @@ NOT_AVAILABLE_QUERIES=(
 "-s -A -q getdnsapi.net -l L      @${SERVER_IP}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}"
-"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} ${TLS_SERVER_WRONG_KEY}"
-"-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} ${TLS_SERVER_WRONG_KEY}")
+
 
 echo "Starting transport test"
 echo
