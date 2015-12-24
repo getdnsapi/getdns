@@ -2147,9 +2147,8 @@ Should it not be available basic resolution will fail.
 Fallback transport options are specified by including multiple values in the list.
 The values are <span class=default>
 <code>GETDNS_TRANSPORT_UDP</code></span>,
-<code>GETDNS_TRANSPORT_TCP</code>,
-<code>GETDNS_TRANSPORT_TLS</code>, or
-<code>GETDNS_TRANSPORT_STARTTLS</code>.
+<code>GETDNS_TRANSPORT_TCP</code>, or
+<code>GETDNS_TRANSPORT_TLS</code>.
 The default is <span class=default> a list containing <code>GETDNS_TRANSPORT_UDP</code> then <code>GETDNS_TRANSPORT_TCP</code></span>.</p>
 
 <div class=forh>
@@ -2158,7 +2157,7 @@ getdns_context_set_idle_timeout(
   getdns_context  *context,
   uint64_t        timeout
 );</div>
-<p class=cont>Specifies number of milliseconds the API will leave an idle TCP, TLS or STARTTLS connection open for (idle means no outstanding responses and no pending queries).
+<p class=cont>Specifies number of milliseconds the API will leave an idle TCP or TLS connection open for (idle means no outstanding responses and no pending queries).
 The default is <span class=default>0</span>.</p>
 
 <div class=forh>
@@ -2426,7 +2425,7 @@ getdns_pretty_print_dict() for debugging.</li>
 
 <h1>9. The Generated Files</h1>
 
-<p>There is <a href="getdns-0.900.tgz">a tarball</a> that includes the .h files,
+<p>There is <a href="getdns-0.901.tgz">a tarball</a> that includes the .h files,
 the examples, and so on. The examples all make, even though there is no API implementation, based
 on a pseudo-implementation in the tarball; see make-examples-PLATFORM.sh. Note that this currently builds fine
 on the Macintosh and Ubuntu; help is definitely appreciated on making the build process
