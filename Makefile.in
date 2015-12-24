@@ -129,7 +129,7 @@ distclean:
 	cd spec/example && $(MAKE) $@
 	rmdir spec/example 2>/dev/null || true
 	rmdir spec 2>/dev/null || true
-	rm -f config.log config.status Makefile libtool
+	rm -f config.log config.status Makefile libtool getdns.pc
 	rm -fR autom4te.cache
 	rm -f m4/libtool.m4
 	rm -f m4/lt~obsolete.m4

@@ -167,7 +167,7 @@ clean:
 distclean : clean
 	cd test && $(MAKE) $@
 	rmdir test 2>/dev/null || true
-	rm -f Makefile config.status config.log Doxyfile config.h getdns/Makefile getdns/getdns.h
+	rm -f Makefile config.status config.log Doxyfile config.h getdns/Makefile getdns/getdns.h getdns/getdns_extra.h
 	rmdir getdns 2>/dev/null || true
 	rmdir extension 2>/dev/null || true
 	rm -Rf autom4te.cache
