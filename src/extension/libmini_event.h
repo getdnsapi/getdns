@@ -35,7 +35,11 @@
 #define _GETDNS_LIBMINI_EVENT_H_
 
 #include "config.h"
+#ifndef USE_WINSOCK
 #include "util/mini_event.h"
+#else
+#include "util/winsock_event.h"
+#endif
 #include "types-internal.h"
 
 typedef struct _getdns_mini_event {

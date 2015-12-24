@@ -16,7 +16,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
 #include "config.h"
+#ifndef GETDNS_ON_WINDOWS
+
 
 /*
 #define	_POSIX_C_SOURCE 199309L
@@ -538,3 +541,4 @@ getentropy_fallback(void *buf, size_t len)
 	errno = EIO;
 	return -1;
 }
+#endif 

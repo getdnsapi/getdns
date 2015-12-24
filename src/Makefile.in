@@ -74,7 +74,7 @@ LIBOBJDIR=
 LIBOBJS=@LIBOBJS@
 COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 
-UTIL_OBJ=mini_event.lo rbtree.lo val_secalgo.lo
+UTIL_OBJ=mini_event.lo winsock_event.lo rbtree.lo val_secalgo.lo
 
 EXTENSION_OBJ=libmini_event.lo libevent.lo libev.lo
 
@@ -238,11 +238,11 @@ convert.lo convert.o: $(srcdir)/convert.c config.h getdns/getdns.h getdns/getdns
  $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
  $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
  $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/convert.h
-dict.lo dict.o: $(srcdir)/dict.c $(srcdir)/types-internal.h getdns/getdns.h getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h config.h $(srcdir)/context.h \
- $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
- $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
- $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/const-info.h $(srcdir)/gldns/wire2str.h
+dict.lo dict.o: $(srcdir)/dict.c config.h $(srcdir)/types-internal.h getdns/getdns.h \
+ getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h \
+ $(srcdir)/context.h $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h \
+ $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
+ $(srcdir)/gldns/pkthdr.h $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/const-info.h $(srcdir)/gldns/wire2str.h
 dnssec.lo dnssec.o: $(srcdir)/dnssec.c config.h $(srcdir)/debug.h getdns/getdns.h $(srcdir)/context.h \
  getdns/getdns_extra.h getdns/getdns.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h \
  $(srcdir)/extension/libmini_event.h config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
@@ -309,6 +309,8 @@ getentropy_linux.lo getentropy_linux.o: $(srcdir)/compat/getentropy_linux.c conf
 getentropy_osx.lo getentropy_osx.o: $(srcdir)/compat/getentropy_osx.c config.h
 getentropy_solaris.lo getentropy_solaris.o: $(srcdir)/compat/getentropy_solaris.c config.h
 getentropy_win.lo getentropy_win.o: $(srcdir)/compat/getentropy_win.c
+inet_ntop.lo inet_ntop.o: $(srcdir)/compat/inet_ntop.c config.h
+inet_pton.lo inet_pton.o: $(srcdir)/compat/inet_pton.c config.h
 sha512.lo sha512.o: $(srcdir)/compat/sha512.c config.h
 strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c config.h
 mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
@@ -317,6 +319,7 @@ rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/log.h $(srcd
  $(srcdir)/util/fptr_wlist.h $(srcdir)/util/rbtree.h
 val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c config.h $(srcdir)/util/val_secalgo.h $(srcdir)/util/log.h \
  $(srcdir)/debug.h config.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/gbuffer.h
+winsock_event.lo winsock_event.o: $(srcdir)/util/winsock_event.c config.h
 libev.lo libev.o: $(srcdir)/extension/libev.c config.h $(srcdir)/types-internal.h getdns/getdns.h \
  getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
  $(srcdir)/getdns/getdns_ext_libev.h getdns/getdns_extra.h

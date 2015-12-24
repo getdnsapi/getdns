@@ -32,6 +32,7 @@
 AC_PREREQ([2.56])
 AC_CONFIG_MACRO_DIRS([m4])
 sinclude(./m4/acx_openssl.m4)
+sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
@@ -444,37 +445,53 @@ case "$enable_stub_only" in
 esac
 
 # search to set include and library paths right
-# find libidn
-my_with_libidn=1
-AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
-	[path to libidn (default: search /usr/local ..)]),
-	[], [withval="yes"])
-if test x_$withval = x_yes; then
-	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-		if test -f "$dir/include/idna.h"; then
-			CFLAGS="$CFLAGS -I$dir/include"
-			LDFLAGS="$LDFLAGS -L$dir/lib"
-			AC_MSG_NOTICE([Found libidn in $dir])
-			break
-		fi
-		if test -f "$dir/include/idn/idna.h"; then
-			CFLAGS="$CFLAGS -I$dir/include/idn"
-			LDFLAGS="$LDFLAGS -L$dir/lib"
-			AC_MSG_NOTICE([Found libidn in $dir])
-			break
-		fi
-	done
-	if test -f "/usr/include/idn/idna.h"; then
-		CFLAGS="$CFLAGS -I/usr/include/idn"
-		#LDFLAGS="$LDFLAGS -L/usr/lib"
-		AC_MSG_NOTICE([Found libidn in /usr])
-	fi
+# find libidn (no libidn on windows though)
+AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
+ACX_CHECK_GETADDRINFO_WITH_INCLUDES
+if test "$USE_WINSOCK" = 1; then
+	AC_MSG_NOTICE([ Building on Windows ... YES! ])
+	AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
+	AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1])
+	LIBS="$LIBS -lgdi32 -liphlpapi"
+	my_with_libunbound=0
+	my_with_libidn=0
 else
-	if test x_$withval != x_no; then
-		CFLAGS="$CFLAGS -I$withval/include"
-		LDFLAGS="$LDFLAGS -L$withval/lib"
+	my_with_libidn=1
+fi
+
+
+if test $my_with_libidn = 1
+then
+	AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
+		[path to libidn (default: search /usr/local ..)]),
+		[], [withval="yes"])
+	if test x_$withval = x_yes; then
+		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+			if test -f "$dir/include/idna.h"; then
+				CFLAGS="$CFLAGS -I$dir/include"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libidn in $dir])
+				break
+			fi
+			if test -f "$dir/include/idn/idna.h"; then
+				CFLAGS="$CFLAGS -I$dir/include/idn"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libidn in $dir])
+				break
+			fi
+		done
+		if test -f "/usr/include/idn/idna.h"; then
+			CFLAGS="$CFLAGS -I/usr/include/idn"
+			#LDFLAGS="$LDFLAGS -L/usr/lib"
+			AC_MSG_NOTICE([Found libidn in /usr])
+		fi
 	else
-		my_with_libidn=0
+		if test x_$withval != x_no; then
+			CFLAGS="$CFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		else
+			my_with_libidn=0
+		fi
 	fi
 fi
 
@@ -942,6 +959,8 @@ if test $ac_cv_c_unused_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_UNUSED, 1, [Whether the C compiler accepts the "unused" attribute])
 fi
 AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
+AC_REPLACE_FUNCS(inet_pton)
+AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(arc4random)
 AC_REPLACE_FUNCS(arc4random_uniform)
@@ -999,6 +1018,35 @@ esac
 AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
+
+/* the version of the windows API enabled */
+#undef WINVER
+#undef _WIN32_WINNT
+#define WINVER 0x0600 // 0x0502
+#define _WIN32_WINNT 0x0600 // 0x0502
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#include<BaseTsd.h>
+#endif
+
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+
+#ifndef USE_WINSOCK
+#define ARG_LL "%ll"
+#else
+#define ARG_LL "%I64"
+#endif
+
+/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
+#ifdef HAVE_WINSOCK2_H
+#define FD_SET_T (u_int)
+#else
+#define FD_SET_T 
+#endif
+
+
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -1055,6 +1103,14 @@ void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
 unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #endif /* COMPAT_SHA512 */
 
+#ifndef HAVE_INET_PTON
+int inet_pton(int af, const char* src, void* dst);
+#endif /* HAVE_INET_PTON */
+
+#ifndef HAVE_INET_NTOP
+const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
@@ -1107,13 +1163,6 @@ unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #else /* !HAVE_ATTR_UNUSED */
 #  define ATTR_UNUSED(x)  x
 #endif /* !HAVE_ATTR_UNUSED */
-
-/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
-#ifdef HAVE_WINSOCK2_H
-#define FD_SET_T (u_int)
-#else
-#define FD_SET_T 
-#endif
 
 #ifdef TIME_WITH_SYS_TIME
 # include <sys/time.h>

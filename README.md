@@ -35,6 +35,7 @@ The goals of this implementation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API by getdns API team at <https://getdnsapi.net/spec.html>
 * Initial support for FreeBSD, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
+* Initial support for Windows 8.1 
 * Initial support to include the Android platform
 * Include examples and tests as part of the build
 * Document code using doxygen
@@ -84,6 +85,7 @@ Building/External Dependencies
 ==============================
 
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.
+Please refer to section for building on Windows for separate dependency and build instructions.
 
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
 * [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.
@@ -112,12 +114,16 @@ The implementation works with a variety of event loops, each built as a separate
 * [libuv](https://github.com/joyent/libuv)
 * [libev](http://software.schmorp.de/pkg/libev.html)
 
+NOTE: The current Windows implementation does not support the above.
+
 ## Regression Tests
 
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
 to install [libcheck](http://check.sourceforge.net/) and [libldns from NLnet Labs](https://nlnetlabs.nl/projects/ldns/) version 1.6.17 or later.  Both libraries are also available from
 many of the package repositories for the more popular operating systems.
+
+NOTE: The current Windows implementation does not support the above.
 
 ## DNSSEC
 
@@ -167,8 +173,9 @@ The primary platforms targeted are Linux and FreeBSD, other platform are support
 * RHEL/CentOS 6.4
 * OSX 10.8
 * Ubuntu 14.04
+* Microsoft Windows 8.1 (initial support for DNSSEC but no TLS provided for version 0.5.1)
 
-We intend to add MS-Windows, Android and other platforms to the releases as we have time to port it.
+We intend to add Android and other platforms to the releases as we have time to port it.
 
 
 ##Platform Specific Build Reports
@@ -232,6 +239,34 @@ To install the [event loop integration libraries](https://github.com/getdnsapi/g
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
 As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS certificate authentication should work out of the box.
+
+
+### Microsoft Windows 8.1
+
+This section has some Windows specific build instructions. 
+
+Build tested using Mingw(3.21.0) and Msys 1.0 (http://www.mingw.org/) on Windows 8.1
+
+Dependencies: 
+The following dependencies are built from source on Mingw
+openssl1.0.2a
+libidn
+
+The windows version of getdns currently only is supported in the stub only mode. 
+
+To configure:
+ ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=/c/OpenSSL --with-getdns_query
+
+ The trust anchor is also installed by unbound on c:\program Files (X86)\unbound\root.key and can be referenced from there
+ or anywhere else that the user chooses to configure it.
+
+ After configuring, do a 'make' and 'make install' to build getdns for Windows.
+
+ Example test queries:
+ ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_reporting (UDP)
+ ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_reporting (TCP)
+ ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_reporting (TLS without authentication)
+ ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_reporting (DNSSEC)
 
 Contributors
 ============

@@ -34,14 +34,24 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
+#ifndef USE_WINSOCK
 #include <arpa/inet.h>
+#include <sys/time.h>
+#include <netdb.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+typedef unsigned short in_port_t;
+#endif
+
+#include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+
 #include <assert.h>
-#include <netdb.h>
 #include <ctype.h>
 
 #include "config.h"
@@ -97,7 +107,6 @@ getdns_port_str_array[] = {
 /* Private functions */
 static getdns_return_t create_default_namespaces(struct getdns_context *context);
 static getdns_return_t create_default_dns_transports(struct getdns_context *context);
-static getdns_return_t set_os_defaults(struct getdns_context *);
 static int transaction_id_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
 static void cancel_dns_req(getdns_dns_req *);
@@ -358,7 +367,11 @@ create_local_hosts(getdns_context *context)
 	int start_of_line = 1;
 	getdns_dict *address = NULL;
 
+#ifdef USE_WINSOCK
+	in = fopen("c:\\WINDOWS\\system32\\drivers\\etc\\hosts", "r");
+#else
 	in = fopen("/etc/hosts", "r");
+#endif
 	while (fgets(pos, (int)(sizeof(buf) - (pos - buf)), in)) {
 		pos = buf;
 		/* Break out of for to read more */
@@ -700,6 +713,89 @@ upstream_init(getdns_upstream *upstream,
 	    net_req_query_id_cmp);
 }
 
+#ifdef USE_WINSOCK
+static getdns_return_t
+set_os_defaults_windows(struct getdns_context *context)
+{
+	char domain[1024];
+	size_t upstreams_limit = 10, length;
+	struct getdns_bindata bindata;
+	struct addrinfo hints;
+	struct addrinfo *result;
+	getdns_upstream *upstream;
+	int s;
+
+	if (context->fchg_resolvconf == NULL) {
+		context->fchg_resolvconf =
+			GETDNS_MALLOC(context->my_mf, struct filechg);
+		if (context->fchg_resolvconf == NULL)
+			return GETDNS_RETURN_MEMORY_ERROR;
+		context->fchg_resolvconf->fn = "InvalidOnWindows";
+		context->fchg_resolvconf->prevstat = NULL;
+		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
+		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
+	}
+	_getdns_filechg_check(context, context->fchg_resolvconf);
+
+	context->suffix = getdns_list_create_with_context(context);
+	context->upstreams = upstreams_create(context, upstreams_limit);
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_socktype = 0;              /* Datagram socket */
+	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
+	hints.ai_protocol = 0;              /* Any protocol */
+	hints.ai_canonname = NULL;
+	hints.ai_addr = NULL;
+	hints.ai_next = NULL;
+
+	FIXED_INFO *info;
+	ULONG buflen = sizeof(*info);
+	IP_ADDR_STRING *ptr = 0;
+
+	info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
+	if (info == NULL)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
+		free(info);
+		info = (FIXED_INFO *)malloc(buflen);
+		if (info == NULL)
+			return GETDNS_RETURN_GENERIC_ERROR;
+	}
+
+	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
+		ptr = info->DnsServerList.Next; 
+		*domain = 0;
+		while (ptr) {
+			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
+				char *port_str = getdns_port_str_array[i];
+				if ((s = getaddrinfo(ptr->IpAddress.String, port_str, &hints, &result)))
+					continue;
+				if (!result)
+					continue;
+
+				upstream = &context->upstreams->
+					upstreams[context->upstreams->count++];
+				upstream_init(upstream, context->upstreams, result);
+				upstream->transport = getdns_upstream_transports[i];
+				freeaddrinfo(result);
+			}
+			ptr = ptr->Next;
+
+		}
+		free(info);
+	}
+
+	(void)getdns_list_get_length(context->suffix, &length);
+	if (length == 0 && *domain != 0) {
+		bindata.data = (uint8_t *)domain;
+		bindata.size = strlen(domain) + 1;
+		(void)getdns_list_set_bindata(context->suffix, 0, &bindata);
+	}
+	return GETDNS_RETURN_GOOD;
+} /* set_os_defaults_windows */
+#else
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
@@ -811,6 +907,7 @@ set_os_defaults(struct getdns_context *context)
 		_getdns_list_append_string(context->suffix, domain);
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
+#endif
 
 /* compare of transaction ids in DESCENDING order
    so that 0 comes last
@@ -953,8 +1050,14 @@ getdns_context_create_with_extended_memory_functions(
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
 
+	// resolv.conf does not exist on Windows, handle differently
+#ifndef USE_WINSOCK 
 	if (set_from_os && (r = set_os_defaults(result)))
 		goto error;
+#else
+	if (set_from_os && (r = set_os_defaults_windows(result)))
+		goto error;
+#endif
 
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
@@ -2443,7 +2546,11 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			/* Create client context, use TLS v1.2 only for now */
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 			if(context->tls_ctx == NULL)
+#ifndef USE_WINSOCK
 				return GETDNS_RETURN_BAD_CONTEXT;
+#else
+				printf("Warning! Bad TLS context, check openssl version on Windows!\n");;
+#endif
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
 			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";

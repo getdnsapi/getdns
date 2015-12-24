@@ -34,9 +34,11 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <arpa/inet.h>
 #include <locale.h>
 #include "config.h"
+#ifndef USE_WINSOCK
+#include <arpa/inet.h>
+#endif
 #ifdef HAVE_LIBIDN
 #include <stringprep.h>
 #include <idna.h>

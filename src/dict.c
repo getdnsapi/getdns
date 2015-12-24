@@ -35,10 +35,13 @@
  */
 
 #include <ctype.h>
+#include "config.h"
+#ifndef USE_WINSOCK
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 
 #include "types-internal.h"
 #include "util-internal.h"

@@ -33,8 +33,42 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#ifndef UB_ON_WINDOWS
+#ifndef GETDNS_ON_WINDOWS
 #include <sys/mman.h>
+#else
+#include <wincrypt.h>
+#include <process.h>
+
+int	getentropy(void *buf, size_t len);
+
+/*
+* On Windows, CryptGenRandom is supposed to be a well-seeded
+* cryptographically strong random number generator.
+*/
+int
+getentropy(void *buf, size_t len)
+{
+	HCRYPTPROV provider;
+
+	if (len > 256) {
+		errno = EIO;
+		return -1;
+	}
+
+	if (CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL,
+		CRYPT_VERIFYCONTEXT) == 0)
+		goto fail;
+	if (CryptGenRandom(provider, len, buf) == 0) {
+		CryptReleaseContext(provider, 0);
+		goto fail;
+	}
+	CryptReleaseContext(provider, 0);
+	return (0);
+
+fail:
+	errno = EIO;
+	return (-1);
+}
 #endif
 
 #define KEYSTREAM_ONLY
@@ -73,7 +107,7 @@ _rs_init(u_char *buf, size_t n)
 		return;
 
 	if (rs == NULL) {
-#ifndef UB_ON_WINDOWS
+#ifndef GETDNS_ON_WINDOWS
 		if ((rs = mmap(NULL, sizeof(*rs), PROT_READ|PROT_WRITE,
 		    MAP_ANON|MAP_PRIVATE, -1, 0)) == MAP_FAILED)
 			abort();
@@ -88,7 +122,7 @@ _rs_init(u_char *buf, size_t n)
 #endif
 	}
 	if (rsx == NULL) {
-#ifndef UB_ON_WINDOWS
+#ifndef GETDNS_ON_WINDOWS
 		if ((rsx = mmap(NULL, sizeof(*rsx), PROT_READ|PROT_WRITE,
 		    MAP_ANON|MAP_PRIVATE, -1, 0)) == MAP_FAILED)
 			abort();
