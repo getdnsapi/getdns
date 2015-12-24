@@ -1,3 +1,8 @@
+*
+  * Remove STARTTLS implementation (no change to SPEC)
+  * Enable TCP Fast Open when possible. Add OSX support for TFO.
+  * Rename return_call_debugging to return_call_reporting
+
 * 2015-11-18: Version 0.5.1
   * Bugfix: growing upstreams arrow.
   * Bugfix: Segfault on timeout in specific conditions

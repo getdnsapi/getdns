@@ -577,17 +577,17 @@ getdns_dict_set_list(
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
-getdns_dict_set_bindata(
-    getdns_dict *dict, const char *name, const getdns_bindata *child_bindata)
+_getdns_dict_set_const_bindata(
+    getdns_dict *dict, const char *name, size_t size, const uint8_t *data)
 {
 	getdns_item    *item;
 	getdns_bindata *newbindata;
 	getdns_return_t r;
 
-	if (!dict || !name || !child_bindata)
+	if (!dict || !name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (!(newbindata = _getdns_bindata_copy(&dict->mf, child_bindata)))
+	if (!(newbindata = _getdns_bindata_copy(&dict->mf, size, data)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
@@ -598,6 +598,15 @@ getdns_dict_set_bindata(
 	item->data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_set_bindata */
+
+getdns_return_t
+getdns_dict_set_bindata(
+    getdns_dict *dict, const char *name, const getdns_bindata *child_bindata)
+{
+	return !child_bindata ? GETDNS_RETURN_INVALID_PARAMETER
+	    : _getdns_dict_set_const_bindata(
+	    dict, name, child_bindata->size, child_bindata->data);
+}
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
@@ -659,12 +668,15 @@ getdns_indent(size_t indent)
 	return spaces + 80 - (indent < 80 ? indent : 0);
 }				/* getdns_indent */
 
-static int
+int
 _getdns_bindata_is_dname(getdns_bindata *bindata)
 {
 	size_t i = 0, n_labels = 0;
 
 	while (i < bindata->size && bindata->data[i]) {
+		if (bindata->data[i] & 0xC0) /* Compression pointer! */
+			return 0;
+
 		i += ((size_t)bindata->data[i]) + 1;
 		n_labels++;
 	}
@@ -995,6 +1007,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json &&
 			    (strcmp(item->node.key, "answer_type") == 0  ||
 			     strcmp(item->node.key, "dnssec_status") == 0 ||
+			     strcmp(item->node.key, "tsig_status") == 0 ||
 			     strcmp(item->node.key, "status") == 0 ||
 			     strcmp(item->node.key, "append_name") == 0 ||
 			     strcmp(item->node.key, "follow_redirects") == 0 ||

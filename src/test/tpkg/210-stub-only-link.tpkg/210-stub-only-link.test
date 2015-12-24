@@ -1,0 +1,10 @@
+# #-- 210-stub-only-link.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+cd "${BUILDDIR}/build-stub-only"
+make getdns_query \
+    &&  echo "export GETDNS_STUB_QUERY=\"${BUILDDIR}/build-stub-only/src/test/getdns_query\"" \
+        >> ../.tpkg.var.master

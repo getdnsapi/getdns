@@ -39,16 +39,17 @@ datarootdir=@datarootdir@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
 docdir = @docdir@
+libdir = @libdir@
 
 srcdir = @srcdir@
 INSTALL = @INSTALL@
 
-all : default @GETDNS_QUERY@
+all : default @GETDNS_QUERY@ 
 
 default:
 	cd src && $(MAKE) $@
 
-install: all @INSTALL_GETDNS_QUERY@
+install: all getdns.pc @INSTALL_GETDNS_QUERY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -57,6 +58,8 @@ install: all @INSTALL_GETDNS_QUERY@
 	$(INSTALL) -m 644 $(srcdir)/LICENSE $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/NEWS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/README.md $(DESTDIR)$(docdir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)/pkgconfig
+	$(INSTALL) -m 644 getdns.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 $(srcdir)/spec/index.html $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 $(srcdir)/spec/getdns*tgz $(DESTDIR)$(docdir)/spec || true
@@ -113,7 +116,7 @@ clean:
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	cd spec/example && $(MAKE) $@
-	rm -f *.o
+	rm -f *.o *.pc
 
 depend:
 	cd src && $(MAKE) $@
@@ -231,6 +234,9 @@ distcheck: $(distdir).tar.gz
 	cd $(distdir) && $(MAKE) clean
 	rm -rf $(distdir)
 	@echo "*** Package $(distdir).tar.gz is ready for distribution"
+
+getdns.pc: $(srcdir)/getdns.pc.in
+	./config.status $@
 
 Makefile: $(srcdir)/Makefile.in config.status
 	./config.status $@

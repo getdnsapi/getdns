@@ -38,8 +38,8 @@
 #include "gldns/gbuffer.h"
 
 typedef struct _getdns_rr_iter {
-	uint8_t *pkt;
-	uint8_t *pkt_end;
+	const uint8_t *pkt;
+	const uint8_t *pkt_end;
 
 	/* Which RR are we currently at */
 	size_t   n;
@@ -47,32 +47,37 @@ typedef struct _getdns_rr_iter {
 	/* pos points to start of the owner name the RR.
 	 * Or is NULL when there are no RR's left.
 	 */
-	uint8_t *pos;
+	const uint8_t *pos;
 
 	/* rr_type will point to the rr_type right after the RR's owner name.
 	 * rr_type is guaranteed to have a value when pos has a value
 	 */
-	uint8_t *rr_type;
+	const uint8_t *rr_type;
 
 	/* nxt point to the owner name of the next RR or to pkt_end */
-	uint8_t *nxt;
+	const uint8_t *nxt;
 
 } _getdns_rr_iter;
 
 _getdns_rr_iter *_getdns_rr_iter_init(_getdns_rr_iter *i,
-    uint8_t *pkt, size_t pkt_len);
+    const uint8_t *pkt, const size_t pkt_len);
+
+_getdns_rr_iter *_getdns_single_rr_iter_init(_getdns_rr_iter *i,
+    const uint8_t *wire, const size_t wire_len);
 
 _getdns_rr_iter *_getdns_rr_iter_rewind(_getdns_rr_iter *i);
 
 _getdns_rr_iter *_getdns_rr_iter_next(_getdns_rr_iter *i);
 
-uint8_t *_getdns_owner_if_or_as_decompressed(
+const uint8_t *_getdns_owner_if_or_as_decompressed(
     _getdns_rr_iter *i, uint8_t *ff_bytes, size_t *len);
 
 static inline gldns_pkt_section
 _getdns_rr_iter_section(_getdns_rr_iter *i)
 {
-	return i->n < GLDNS_QDCOUNT(i->pkt) ? GLDNS_SECTION_QUESTION
+	return !i->pkt ? (i->nxt - i->rr_type == 4 ? GLDNS_SECTION_QUESTION
+	                                           : GLDNS_SECTION_ANSWER  )
+             : i->n < GLDNS_QDCOUNT(i->pkt) ? GLDNS_SECTION_QUESTION
 	     : i->n < GLDNS_QDCOUNT(i->pkt)
 	            + GLDNS_ANCOUNT(i->pkt) ? GLDNS_SECTION_ANSWER
 	     : i->n < GLDNS_QDCOUNT(i->pkt)
@@ -86,14 +91,14 @@ _getdns_rr_iter_section(_getdns_rr_iter *i)
 }
 
 typedef struct piv_getdns_rdf_iter {
-	uint8_t                     *pkt;
-	uint8_t                     *pkt_end;
+	const uint8_t           *pkt;
+	const uint8_t           *pkt_end;
 	const _getdns_rdata_def *rdd_pos;
 	const _getdns_rdata_def *rdd_end;
 	const _getdns_rdata_def *rdd_repeat;
-	uint8_t                     *pos;
-	uint8_t                     *end;
-	uint8_t                     *nxt;
+	const uint8_t           *pos;
+	const uint8_t           *end;
+	const uint8_t           *nxt;
 } _getdns_rdf_iter;
 
 _getdns_rdf_iter *_getdns_rdf_iter_init(_getdns_rdf_iter *i,
@@ -104,7 +109,7 @@ _getdns_rdf_iter *_getdns_rdf_iter_next(_getdns_rdf_iter *i);
 _getdns_rdf_iter *_getdns_rdf_iter_init_at(_getdns_rdf_iter *i,
     _getdns_rr_iter *rr, size_t pos);
 
-uint8_t *_getdns_rdf_if_or_as_decompressed(
+const uint8_t *_getdns_rdf_if_or_as_decompressed(
     _getdns_rdf_iter *i, uint8_t *ff_bytes, size_t *len);
 
 #endif

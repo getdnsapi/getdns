@@ -58,7 +58,7 @@ CHECK_EVENT_PROG=@CHECK_EVENT_PROG@
 CHECK_EV_PROG=@CHECK_EV_PROG@
 
 CC=@CC@
-CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ 
+CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@
 LDFLAGS=-L.. @LDFLAGS@
 LDLIBS=../libgetdns.la @LIBS@
 CHECK_LIBS=@CHECK_LIBS@
@@ -73,11 +73,11 @@ CHECK_OBJS=check_getdns_common.lo check_getdns_context_set_timeout.lo \
 ALL_OBJS=$(CHECK_OBJS) check_getdns_libevent.lo check_getdns_libev.lo \
 	check_getdns_selectloop.lo getdns_query.lo scratchpad.lo \
 	testmessages.lo tests_dict.lo tests_list.lo tests_namespaces.lo \
-	tests_stub_async.lo tests_stub_sync.lo tests_json-pointers.lo
+	tests_stub_async.lo tests_stub_sync.lo
 
 NON_C99_OBJS=check_getdns_libuv.lo
 
-PROGRAMS=tests_dict tests_list tests_namespaces tests_stub_async tests_stub_sync tests_json-pointers getdns_query $(CHECK_GETDNS) $(CHECK_EV_PROG) $(CHECK_EVENT_PROG) $(CHECK_UV_PROG)
+PROGRAMS=tests_dict tests_list tests_namespaces tests_stub_async tests_stub_sync getdns_query $(CHECK_GETDNS) $(CHECK_EV_PROG) $(CHECK_EVENT_PROG) $(CHECK_UV_PROG)
 
 
 .SUFFIXES: .c .o .a .lo .h
@@ -112,9 +112,6 @@ tests_stub_async: tests_stub_async.lo testmessages.lo
 
 tests_stub_sync: tests_stub_sync.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_stub_sync.lo
-
-tests_json-pointers: tests_json-pointers.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_json-pointers.lo
 
 check_getdns_common: check_getdns_common.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.lo
@@ -216,13 +213,15 @@ configure.status: configure
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
-	(cd $(srcdir) ; gcc -MM -I. -I.. *.c | \
-		sed -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I.. -I"$$blddir"/.. *.c | \
+		sed -e "s? $$blddir/? ?g" \
+		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
 		    -e 's? \$$(srcdir)/config\.h? ../config.h?g' \
 		    -e 's? $$(srcdir)/\.\./getdns/getdns_extra\.h? ../getdns/getdns_extra.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libevent\.h? $$(srcdir)/../getdns/getdns_ext_libevent.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libev\.h? $$(srcdir)/../getdns/getdns_ext_libev.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libuv\.h? $$(srcdir)/../getdns/getdns_ext_libuv.h?g' \
+		    -e 's? \.\./debug\.h? $$(srcdir)/../debug.h?g' \
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
@@ -275,14 +274,12 @@ check_getdns_selectloop.lo check_getdns_selectloop.o: $(srcdir)/check_getdns_sel
 check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_transport.c \
  $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
-getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h ../getdns/getdns.h \
- ../getdns/getdns_extra.h
+getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
+ ../getdns/getdns.h ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h
 tests_dict.lo tests_dict.o: $(srcdir)/tests_dict.c $(srcdir)/testmessages.h ../getdns/getdns.h
-tests_json-pointers.lo tests_json-pointers.o: $(srcdir)/tests_json-pointers.c ../getdns/getdns.h \
- ../getdns/getdns_extra.h
 tests_list.lo tests_list.o: $(srcdir)/tests_list.c $(srcdir)/testmessages.h ../getdns/getdns.h
 tests_namespaces.lo tests_namespaces.o: $(srcdir)/tests_namespaces.c $(srcdir)/testmessages.h ../getdns/getdns.h
 tests_stub_async.lo tests_stub_async.o: $(srcdir)/tests_stub_async.c ../config.h $(srcdir)/testmessages.h \

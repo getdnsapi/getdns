@@ -35,7 +35,7 @@
 #define UTIL_LOG_H
 
 #include "config.h"
-#include "util-internal.h"
+#include "debug.h"
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
 #define verbose(x, ...) DEBUG_NL(__VA_ARGS__)

@@ -1,0 +1,49 @@
+# #-- 310-dependencies.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+export TPKG_HERE=`pwd`
+# Temporarily copy Makefile.in files
+find . -type f -name "Makefile.in" -print0 | xargs -0 rm -f  && (
+ 	cd "${SRCROOT}"
+	find . -maxdepth 3 -type f -name "Makefile.in" -print0 | xargs -0 tar cf -
+) | (
+	cd "${TPKG_HERE}"
+	tar xf -
+)
+(
+	cd "${BUILDDIR}/build-event-loops"
+	if ! ./config.status --config | grep -q 'enable-all-drafts.*--with-libevent.*--with-libev.*--with-libuv'
+	then
+		echo Skipping because not covering enough code
+		exit 0
+	fi
+	make depend >/dev/null 2>&1
+)
+CHANGED_DEPENDENCIES=0
+N_MAKEFILES=0
+for mf in `find . -type f -name "Makefile.in"`
+do
+	N_MAKEFILES=`expr $N_MAKEFILES + 1`
+	if ! diff -q "${mf}" "${SRCROOT}"/"${mf#./}"
+	then
+		echo "${mf}" and "${SRCROOT}"/"${mf#./}" differ
+		CHANGED_DEPENDENCIES=1
+	fi
+done
+if [ $N_MAKEFILES = 0 ]
+then
+	echo "No Makefiles compared"
+	exit 1
+fi
+# Restore Makefile.in files
+(
+ 	cd "${TPKG_HERE}"
+	find . -type f -name "Makefile.in" -print0 | xargs -0 tar cf -
+)| (
+	cd "${SRCROOT}"
+	tar xf -
+)
+exit ${CHANGED_DEPENDENCIES}

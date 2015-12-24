@@ -1,0 +1,133 @@
+$ORIGIN .
+$TTL 30	        ; 30 seconds
+
+net-dns.org		IN SOA	ns.nlnetlabs.nl. sysadmin.nlnetlabs.nl. (
+				2015081800 ; serial
+				450        ; refresh (7 minutes 30 seconds)
+				600        ; retry (10 minutes)
+				345600     ; expire (4 days)
+				300        ; minimum (5 minutes)
+				)
+			NS	ns.nlnetlabs.nl
+			NS	ns.hactrn.net.
+			NS      mcvax.nlnet.nl.
+			NS	sec2.authdns.ripe.net.
+
+			A	185.49.140.22
+			AAAA	2a04:b900::2:0:0:22
+
+			MX	10 dicht.nlnetlabs.nl.
+			MX	20 mcvax.nlnet.nl.
+			TXT	"Net::DNS  domain"
+$ORIGIN net-dns.org.
+_443._tcp		TLSA	3 1 1 274c6f96c9885c8050e8a05ad1c3162c1d51752c35b6196474e3f05ad31cd923
+_443._tcp.www		TLSA	3 1 1 274c6f96c9885c8050e8a05ad1c3162c1d51752c35b6196474e3f05ad31cd923
+
+dynup			TXT	"fooFoo2" "Bla \; Foo"
+lists			A	63.209.15.196
+localhost		A	127.0.0.1
+
+overflow		TXT	"And line 1 of al sorts of crap that will just fill the packet "
+			TXT	"And line 2 of al sorts of crap that will just fill the packet "
+			TXT	"And line 3 of al sorts of crap that will just fill the packet "
+			TXT	"And line 4 of al sorts of crap that will just fill the packet "
+			TXT	"And line 5 of al sorts of crap that will just fill the packet "
+			TXT	"And line 6 of al sorts of crap that will just fill the packet "
+			TXT	"And line 7 of al sorts of crap that will just fill the packet "
+			TXT	"And line 8 of al sorts of crap that will just fill the packet "
+			TXT	"And line 9 of al sorts of crap that will just fill the packet "
+			TXT	"And line 10 of al sorts of crap that will just fill the packet "
+			TXT	"And line 11 of al sorts of crap that will just fill the packet "
+			TXT	"And line 12 of al sorts of crap that will just fill the packet "
+			TXT	"And line 13 of al sorts of crap that will just fill the packet "
+			TXT	"And line 14 of al sorts of crap that will just fill the packet "
+			TXT	"And line 15 of al sorts of crap that will just fill the packet "
+			TXT	"And line 16 of al sorts of crap that will just fill the packet "
+			TXT	"And line 17 of al sorts of crap that will just fill the packet "
+			TXT	"And line 18 of al sorts of crap that will just fill the packet "
+			TXT	"And line 19 of al sorts of crap that will just fill the packet "
+			TXT	"And line 20 of al sorts of crap that will just fill the packet "
+			TXT	"And line 21 of al sorts of crap that will just fill the packet "
+			TXT	"And line 22 of al sorts of crap that will just fill the packet "
+			TXT	"And line 23 of al sorts of crap that will just fill the packet "
+			TXT	"And line 25 of al sorts of crap that will just fill the packet "
+			TXT	"And line 26 of al sorts of crap that will just fill the packet "
+			TXT	"And line 27 of al sorts of crap that will just fill the packet "
+			TXT	"And line 28 of al sorts of crap that will just fill the packet "
+			TXT	"And line 29 of al sorts of crap that will just fill the packet "
+			TXT	"And line 30 of al sorts of crap that will just fill the packet "
+			TXT	"And line 31 of al sorts of crap that will just fill the packet "
+			TXT	"And line 32 of al sorts of crap that will just fill the packet "
+			TXT	"And line 33 of al sorts of crap that will just fill the packet "
+			TXT	"And line 34 of al sorts of crap that will just fill the packet "
+			TXT	"And line 35 of al sorts of crap that will just fill the packet "
+			TXT	"And line 36 of al sorts of crap that will just fill the packet "
+			TXT	"And line 37 of al sorts of crap that will just fill the packet "
+			TXT	"And line 38 of al sorts of crap that will just fill the packet "
+			TXT	"And line 39 of al sorts of crap that will just fill the packet "
+			TXT	"And line 40 of al sorts of crap that will just fill the packet "
+			TXT	"And line 41 of al sorts of crap that will just fill the packet "
+			TXT	"And line 42 of al sorts of crap that will just fill the packet "
+			TXT	"And line 43 of al sorts of crap that will just fill the packet "
+			TXT	"And line 44 of al sorts of crap that will just fill the packet "
+			TXT	"And line 45 of al sorts of crap that will just fill the packet "
+			TXT	"And line 46 of al sorts of crap that will just fill the packet "
+			TXT	"And line 47 of al sorts of crap that will just fill the packet "
+			TXT	"And line 48 of al sorts of crap that will just fill the packet "
+			TXT	"And line 49 of al sorts of crap that will just fill the packet "
+			TXT	"And line 50 of al sorts of crap that will just fill the packet "
+			TXT	"And line 51 of al sorts of crap that will just fill the packet "
+			TXT	"And line 52 of al sorts of crap that will just fill the packet "
+			TXT	"And line 53 of al sorts of crap that will just fill the packet "
+			TXT	"And line 54 of al sorts of crap that will just fill the packet "
+			TXT	"And line 55 of al sorts of crap that will just fill the packet "
+			TXT	"And line 56 of al sorts of crap that will just fill the packet "
+			TXT	"And line 57 of al sorts of crap that will just fill the packet "
+			TXT	"And line 58 of al sorts of crap that will just fill the packet "
+			TXT	"And line 59 of al sorts of crap that will just fill the packet "
+			TXT	"And line 60 of al sorts of crap that will just fill the packet "
+			TXT	"And line 224 of al sorts of crap that will just fill the packet "
+			TXT	"An increadibly large answer section that will lead to packet overflow"
+t			TXT	"The names within this domain are used for testing"
+$ORIGIN t.net-dns.org.
+a			A	10.0.1.128
+a2			A	10.0.1.129
+cname			CNAME	a
+mx			MX	10 a
+mx2			MX	10 a
+			MX	15 a2
+txt			TXT	"Net-DNS"
+txt2			TXT	"Net-DNS\; complicated $tuff" "sort of \" text\; and binary \000 data"
+connection-test		TXT	"connection-test succes"
+txt-utf8		TXT	\# 33 09E58FA4E6B1A0E382840CE89B99E9A39BE8BEBCE3828009E6B0B4E381AEE99FB3
+txt-utf8-bin		TXT	"古池や" "蛙飛込む" "水の音"
+a.few.empty.non.terminals	TXT	a few empty non terminals
+			A 	185.49.140.22
+			AAAA	2a04:b900::2:0:0:22
+yx1.cname		CNAME	-
+yx2.cname 		CNAME	a-a
+yx3.cname 		CNAME	a\.
+yx4.cname 		CNAME	a\000
+nx1.cname		CNAME	does.not.exist
+nx2.cname		CNAME	empty.non.terminals
+
+$ORIGIN net-dns.org.
+
+www			A	185.49.140.22
+www			AAAA	2a04:b900::2:0:0:22
+
+apl			APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.128/25  1:224.0.0.0/4  2:FF00:0:0:0:0:0:0:0/8
+
+ipseckey0		IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey1		IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey2		IPSECKEY	10 2 2 2001:0DB8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey3		IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey		IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+			IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+			IPSECKEY	10 2 2 2001:0DB8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+			IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+
+default._domainkey IN TXT "v=DKIM1; r=postmaster; g=*; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVG/lfF5GtPlMOcSGnfbp5u+EWM+OOg/f6QmbDXOW/zKQkRIRIZ+BtfSYchP8MeFPfMvUZtdRPzCWg1G7OdD7qaTUqc6kV84on6/8kPVMgdDLyLl2DeU/Lts9hfVHVDSpWuChwDAFXnbnW8jpp54zuof9OIbWSWIxZqLL8flgOsQIDAQAB" ; ----- DKIM default for example.com
+
+2.3.3.updates.spamassassin	TXT	"1418219 "
+mirrors.updates.spamassassin	TXT	"http://anonymous@spamassassin.apache.org/updates/MIRRORED.BY"

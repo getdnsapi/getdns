@@ -35,8 +35,8 @@ sinclude(./m4/acx_openssl.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [0.5.1], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [])
+AC_INIT([getdns], [0.6.1], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
+AC_SUBST(RELEASE_CANDIDATE, [rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -46,7 +46,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00050100])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00060001])
 AC_SUBST(API_VERSION, ["October 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0a00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -74,9 +74,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.3.2 had libversion 3:5:2
 # getdns-0.3.3 had libversion 3:6:2
 # getdns-0.5.0 had libversion 4:0:3
-# getdns-0.5.1 has libversion 4:1:3
+# getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
+# getdns-0.6.1 will have libversion 4:2:3
 #
-GETDNS_LIBVERSION=4:1:3
+GETDNS_LIBVERSION=4:2:3
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -137,7 +138,20 @@ fi
 ])
 ACX_ARG_RPATH
 
+
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
+AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
+AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
+AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
+case "$enable_all_debugging" in
+	yes)
+		enable_debug_sched=yes
+		enable_debug_stub=yes
+		enable_debug_sec=yes
+		;;
+	no|*)
+		;;
+esac
 case "$enable_debug_sched" in
 	yes)
 		AC_DEFINE_UNQUOTED([SCHED_DEBUG], [1], [Define this to enable printing of scheduling debugging messages.])
@@ -145,7 +159,6 @@ case "$enable_debug_sched" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
 case "$enable_debug_stub" in
 	yes)
 		AC_DEFINE_UNQUOTED([STUB_DEBUG], [1], [Define this to enable printing of stub debugging messages.])
@@ -153,7 +166,6 @@ case "$enable_debug_stub" in
 	no|*)
 		;;
 esac
-AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 case "$enable_debug_sec" in
 	yes)
 		AC_DEFINE_UNQUOTED([SEC_DEBUG], [1], [Define this to enable printing of dnssec debugging messages.])
@@ -162,29 +174,22 @@ case "$enable_debug_sec" in
 		;;
 esac
 
-AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--enable-tcp-fastopen], [Enable TCP Fast Open]))
-case "$enable_tcp_fastopen" in
-	yes)
-		AC_CHECK_DECL([MSG_FASTOPEN], [], [AC_MSG_ERROR([TCP Fast Open is not available: please rerun without --enable-tcp-fastopen])], [AC_INCLUDES_DEFAULT
-#include <sys/socket.h>
-		])
-		AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])
-		;;
-	no|*)
-		;;
-esac
-
-# Not yet enabled by default as crash found when TCP fails.
-# AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
-# 	enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
-# if test "x$enable_tcp_fastopen" = xno; then
-# 		AC_MSG_WARN([TCP Fast Open is disabled])
-# else
-# 		AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
-# 		              [AC_MSG_WARN([TCP Fast Open is not available.])], [AC_INCLUDES_DEFAULT
-# #include <sys/socket.h>
-# 		])
-# fi
+AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
+    enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
+if test "x$enable_tcp_fastopen" = xno; then
+        AC_MSG_WARN([TCP Fast Open is disabled])
+else
+    case `uname` in
+        Linux) AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
+                          [AC_MSG_WARN([TCP Fast Open is not available, continuing without])], [#include <sys/socket.h>])
+          ;;
+        Darwin) AC_CHECK_DECL([CONNECT_RESUME_ON_READ_WRITE], [AC_DEFINE_UNQUOTED([USE_OSX_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
+                      [AC_MSG_WARN([TCP Fast Open is not available, continuing without])], [#include <sys/socket.h>])
+          ;;
+        *) AC_MSG_WARN([TCP Fast Open is not available, continuing without])
+          ;;
+    esac
+fi
 
 AC_ARG_ENABLE(native-stub-dnssec, AC_HELP_STRING([--disable-native-stub-dnssec], [Disable native stub DNSSEC support]))
 case "$enable_native_stub_dnssec" in
@@ -212,7 +217,7 @@ else
 fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -393,7 +398,18 @@ case "$enable_ecdsa" in
       ;;
 esac
 
+
 AC_ARG_ENABLE(draft-dnssec-roadblock-avoidance, AC_HELP_STRING([--enable-draft-dnssec-roadblock-avoidance], [Enable experimental dnssec roadblock avoidance]))
+AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enable cookies and roadblock avoidance]))
+case "$enable_all_drafts" in
+	yes)
+		enable_draft_dnssec_roadblock_avoidance=yes
+		enable_draft_edns_cookies=yes
+		;;
+	no|*)
+		;;
+esac
 case "$enable_draft_dnssec_roadblock_avoidance" in
 	yes)
 		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental draft dnssec roadblock avoidance.])
@@ -401,8 +417,6 @@ case "$enable_draft_dnssec_roadblock_avoidance" in
 	no|*)
 		;;
 esac
-
-AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
 case "$enable_draft_edns_cookies" in
 	yes)
 		if test "x_$HAVE_SSL" != "x_yes"; then
@@ -896,7 +910,7 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
-AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile getdns.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi

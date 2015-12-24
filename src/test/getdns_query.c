@@ -26,13 +26,13 @@
  */
 
 #include "config.h"
+#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
-#include "util-internal.h"
 
 #define MAX_TIMEOUTS FD_SETSIZE
 
@@ -267,6 +267,66 @@ static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 
 int get_rrtype(const char *t);
 
+int gqldns_b64_pton(char const *src, uint8_t *target, size_t targsize)
+{
+	const uint8_t pad64 = 64; /* is 64th in the b64 array */
+	const char* s = src;
+	uint8_t in[4];
+	size_t o = 0, incount = 0;
+
+	while(*s) {
+		/* skip any character that is not base64 */
+		/* conceptually we do:
+		const char* b64 =      pad'=' is appended to array
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+		const char* d = strchr(b64, *s++);
+		and use d-b64;
+		*/
+		char d = *s++;
+		if(d <= 'Z' && d >= 'A')
+			d -= 'A';
+		else if(d <= 'z' && d >= 'a')
+			d = d - 'a' + 26;
+		else if(d <= '9' && d >= '0')
+			d = d - '0' + 52;
+		else if(d == '+')
+			d = 62;
+		else if(d == '/')
+			d = 63;
+		else if(d == '=')
+			d = 64;
+		else	continue;
+		in[incount++] = (uint8_t)d;
+		if(incount != 4)
+			continue;
+		/* process whole block of 4 characters into 3 output bytes */
+		if(in[3] == pad64 && in[2] == pad64) { /* A B = = */
+			if(o+1 > targsize)
+				return -1;
+			target[o] = (in[0]<<2) | ((in[1]&0x30)>>4);
+			o += 1;
+			break; /* we are done */
+		} else if(in[3] == pad64) { /* A B C = */
+			if(o+2 > targsize)
+				return -1;
+			target[o] = (in[0]<<2) | ((in[1]&0x30)>>4);
+			target[o+1]= ((in[1]&0x0f)<<4) | ((in[2]&0x3c)>>2);
+			o += 2;
+			break; /* we are done */
+		} else {
+			if(o+3 > targsize)
+				return -1;
+			/* write xxxxxxyy yyyyzzzz zzwwwwww */
+			target[o] = (in[0]<<2) | ((in[1]&0x30)>>4);
+			target[o+1]= ((in[1]&0x0f)<<4) | ((in[2]&0x3c)>>2);
+			target[o+2]= ((in[2]&0x03)<<6) | in[3];
+			o += 3;
+		}
+		incount = 0;
+	}
+	return (int)o;
+}
+
 getdns_dict *
 ipaddr_dict(getdns_context *context, char *ipstr)
 {
@@ -275,6 +335,13 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	char *p = strchr(ipstr, '@'), *portstr = "";
 	char *t = strchr(ipstr, '#'), *tls_portstr = "";
 	char *n = strchr(ipstr, '~'), *tls_namestr = "";
+	/* ^[alg:]name:key */
+	char *T = strchr(ipstr, '^'), *tsig_name_str = ""
+	                            , *tsig_secret_str = ""
+	                            , *tsig_algorithm_str = "";
+	int            tsig_secret_size;
+	uint8_t        tsig_secret_buf[256]; /* 4 times SHA512 */
+	getdns_bindata tsig_secret;
 	uint8_t buf[sizeof(struct in6_addr)];
 	getdns_bindata addr;
 
@@ -296,6 +363,22 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (n) {
 		*n = 0;
 		tls_namestr = n + 1;
+	}
+	if (T) {
+		*T = 0;
+		tsig_name_str = T + 1;
+		if ((T = strchr(tsig_name_str, ':'))) {
+			*T = 0;
+			tsig_secret_str = T + 1;
+			if ((T = strchr(tsig_secret_str, ':'))) {
+				*T = 0;
+				tsig_algorithm_str  = tsig_name_str;
+				tsig_name_str = tsig_secret_str;
+				tsig_secret_str  = T + 1;
+			}
+		} else {
+			tsig_name_str = "";
+		}
 	}
 	if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
@@ -322,7 +405,19 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	}
 	if (*scope_id_str)
 		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
-
+	if (*tsig_name_str)
+		getdns_dict_util_set_string(r, "tsig_name", tsig_name_str);
+	if (*tsig_algorithm_str)
+		getdns_dict_util_set_string(r, "tsig_algorithm", tsig_name_str);
+	if (*tsig_secret_str) {
+		tsig_secret_size = gqldns_b64_pton(
+		    tsig_secret_str, tsig_secret_buf, sizeof(tsig_secret_buf));
+		if (tsig_secret_size > 0) {
+			tsig_secret.size = tsig_secret_size;
+			tsig_secret.data = tsig_secret_buf;
+			getdns_dict_set_bindata(r, "tsig_secret", &tsig_secret);
+		}
+	}
 	return r;
 }
 
@@ -345,9 +440,6 @@ fill_transport_list(getdns_context *context, char *transport_list_str,
 			case 'L': 
 				transports[i] = GETDNS_TRANSPORT_TLS;
 				break;
-			case 'S': 
-				transports[i] = GETDNS_TRANSPORT_STARTTLS;
-				break;
 			default:
 				fprintf(stderr, "Unrecognised transport '%c' in string %s\n", 
 				       *(transport_list_str + i), transport_list_str);
@@ -360,7 +452,7 @@ fill_transport_list(getdns_context *context, char *transport_list_str,
 void
 print_usage(FILE *out, const char *progname)
 {
-	fprintf(out, "usage: %s [@<server>] [+extension] [<name>] [<type>]\n",
+	fprintf(out, "usage: %s [@<server>][~<server_hostname>] [+extension] [<name>] [<type>]\n",
 	    progname);
 	fprintf(out, "options:\n");
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
@@ -373,6 +465,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -386,6 +479,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
@@ -394,11 +488,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
 	fprintf(out, "\t-E\tSet transport to TLS with TCP fallback only keep connections open\n");
-	fprintf(out, "\t-R\tSet transport to STARTTLS with TCP fallback only keep connections open\n");
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
-	fprintf(out, "\t\t\t U T L S for UDP, TCP, TLS or STARTTLS e.g 'UT' or 'LST' \n");
+	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
 
 }
 
@@ -416,7 +509,8 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	if (!(to_validate = getdns_list_create()))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	trust_anchor = getdns_root_trust_anchor(NULL);
+	if (getdns_context_get_dnssec_trust_anchors(context, &trust_anchor))
+		trust_anchor = getdns_root_trust_anchor(NULL);
 
 	if ((r = getdns_dict_get_list(
 	    response, "validation_chain", &validation_chain)))
@@ -586,8 +680,9 @@ getdns_return_t parse_args(int argc, char **argv)
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
-	getdns_list *tas = NULL;
+	getdns_list *tas = NULL, *hints = NULL;
 	size_t upstream_count = 0;
+	FILE *fh;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -667,6 +762,33 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'd':
 				(void) getdns_context_set_edns_do_bit(context, 0);
 				break;
+			case 'f':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -f\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(fh = fopen(argv[i], "r"))) {
+					fprintf(stderr, "Could not open \"%s\""
+					    ": %s\n",argv[i], strerror(errno));
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (getdns_fp2rr_list(fh, &tas, NULL, 3600)) {
+					fprintf(stderr,"Could not parse "
+					    "\"%s\"\n", argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				fclose(fh);
+				if (getdns_context_set_dnssec_trust_anchors(
+				    context, tas)) {
+					fprintf(stderr,"Could not set "
+					    "trust anchors from \"%s\"\n",
+					    argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_list_destroy(tas);
+				tas = NULL;
+				break;
 			case 'F':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "file name expected "
@@ -735,6 +857,33 @@ getdns_return_t parse_args(int argc, char **argv)
 				    context,
 				    GETDNS_RESOLUTION_RECURSING);
 				break;
+			case 'R':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -f\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(fh = fopen(argv[i], "r"))) {
+					fprintf(stderr, "Could not open \"%s\""
+					    ": %s\n",argv[i], strerror(errno));
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (getdns_fp2rr_list(fh, &hints, NULL, 3600)) {
+					fprintf(stderr,"Could not parse "
+					    "\"%s\"\n", argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				fclose(fh);
+				if (getdns_context_set_dns_root_servers(
+				    context, hints)) {
+					fprintf(stderr,"Could not set "
+					    "root servers from \"%s\"\n",
+					    argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_list_destroy(hints);
+				hints = NULL;
+				break;
 			case 's':
 				getdns_context_set_resolution_type(
 				    context, GETDNS_RESOLUTION_STUB);
@@ -790,10 +939,6 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
 				break;
-			case 'R':
-				getdns_context_set_dns_transport(context,
-				    GETDNS_TRANSPORT_STARTTLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN);
-				break;
 			case 'u':
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP);
@@ -845,7 +990,8 @@ next:		;
 		return CONTINUE;
 	}
 	if (print_trust_anchors) {
-		if ((tas = getdns_root_trust_anchor(NULL))) {
+		if (!getdns_context_get_dnssec_trust_anchors(context, &tas)) {
+		/* if ((tas = getdns_root_trust_anchor(NULL))) { */
 			fprintf(stdout, "%s\n", getdns_pretty_print_list(tas));
 			return CONTINUE;
 		} else

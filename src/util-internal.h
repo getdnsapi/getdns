@@ -42,6 +42,7 @@
 #include "context.h"
 #include "rr-iter.h"
 
+#define UNCONST_UINT8_p uint8_t *
 
 #ifdef S_SPLINT_S
 #  define INLINE 
@@ -80,6 +81,12 @@ getdns_return_t _getdns_list_append_string(getdns_list *list,
 
 getdns_return_t _getdns_list_append_int(getdns_list *list,
     uint32_t child_uint32);
+
+getdns_return_t _getdns_list_append_const_bindata(getdns_list *list,
+    size_t size, const uint8_t *data);
+
+getdns_return_t _getdns_dict_set_const_bindata(getdns_dict *dict,
+    const char *name, size_t size, const uint8_t *data);
 
 /**
   * private function (API users should not be calling this), this uses library
@@ -152,55 +159,6 @@ void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
  * @return GETDNS_RETURN_EXTENSION_MISFORMAT One or more of the extensions has a bad format.
  */
 getdns_return_t _getdns_validate_extensions(struct getdns_dict * extensions);
-
-#define DEBUG_ON(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
-		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%T", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
-		fprintf(stderr, __VA_ARGS__); \
-	} while (0)
-
-#define DEBUG_NL(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
-		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%T", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
-		fprintf(stderr, __VA_ARGS__); \
-		fprintf(stderr, "\n"); \
-	} while (0)
-
-
-#define DEBUG_OFF(...) do {} while (0)
-
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-#include <time.h>
-#define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
-#else
-#define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
-#endif
-
-#if defined(STUB_DEBUG) && STUB_DEBUG
-#include <time.h>
-#define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
-#else
-#define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
-#endif
-
-#if defined(SEC_DEBUG) && SEC_DEBUG
-#include <time.h>
-#define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
-#else
-#define DEBUG_SEC(...) DEBUG_OFF(__VA_ARGS__)
-#endif
 
 INLINE getdns_eventloop_event *getdns_eventloop_event_init(
     getdns_eventloop_event *ev,void *userarg, getdns_eventloop_callback read_cb,
