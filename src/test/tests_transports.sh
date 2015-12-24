@@ -3,6 +3,8 @@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 SERVER_IP="8.8.8.8"
 TLS_SERVER_IP="185.49.141.38~getdnsapi.net"
+TLS_SERVER_KEY="foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc9S="
+TLS_SERVER_WRONG_KEY="foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc1S="
 GOOD_RESULT_SYNC="Status was: At least one response was returned"
 GOOD_RESULT_ASYNC="successfull"
 BAD_RESULT_SYNC="1 'Generic error'"
@@ -59,26 +61,32 @@ usage () {
 	echo "         -s   server configured for only TCP and UDP"
 	echo "         -t   server configured for TLS, TCP and UDP"
 	echo "              (This must include the hostname e.g. 185.49.141.38~getdnsapi.net)"
+	echo "         -k   SPKI pin for server configured for TLS, TCP and UDP"
 }
 
-while getopts ":p:s:t:dh" opt; do
+while getopts ":p:s:t:k:dh" opt; do
 	case $opt in
 		d ) set -x ;;
 		p ) DIR=$OPTARG ;;
 		s ) SERVER_IP=$OPTARG ; echo "Setting server to $OPTARG" ;;
 		t ) TLS_SERVER_IP=$OPTARG ; echo "Setting TLS server to $OPTARG" ;;
+		k ) TLS_SERVER_KEY=$OPTARG ; echo "Setting TLS server key to $OPTARG" ;;
 		h ) usage ; exit ;;
 	esac
 done
 
 TLS_SERVER_IP_NO_NAME=`echo ${TLS_SERVER_IP%~*}`
 echo $TLS_SERVER_IP_NO_NAME
+TLS_SERVER_IP_WRONG_NAME=`echo ${TLS_SERVER_IP::${#TLS_SERVER_IP}-1}`
 
 GOOD_QUERIES=(
 "-s -A -q getdnsapi.net -l U      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l T      @${SERVER_IP}    "
 "-s -A -q getdnsapi.net -l L      @${TLS_SERVER_IP_NO_NAME}"
-"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP}")
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP}"
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\""
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\""
+"-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
 
 GOOD_FALLBACK_QUERIES=(
 "-s -A -q getdnsapi.net -l LT     @${SERVER_IP}"
@@ -89,9 +97,11 @@ GOOD_FALLBACK_QUERIES=(
 "-s -G -q DNSKEY getdnsapi.net -l UT  @${SERVER_IP} -b 512 -D")
 
 NOT_AVAILABLE_QUERIES=(
-"-s -A -q getdnsapi.net -l L      @${SERVER_IP}    "
-"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}    "
-"-s -G -q DNSKEY getdnsapi.net -l U   @${SERVER_IP} -b 512 -D")
+"-s -A -q getdnsapi.net -l L      @${SERVER_IP}"
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME}"
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}"
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} ${TLS_SERVER_WRONG_KEY}")
+
 
 echo "Starting transport test"
 echo

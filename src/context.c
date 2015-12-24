@@ -55,6 +55,7 @@
 #include "stub.h"
 #include "list.h"
 #include "dict.h"
+#include "pubkey-pinning.h"
 
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
@@ -515,6 +516,7 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	    ; upstreams->count
 	    ; upstreams->count--, upstream++ ) {
 
+		sha256_pin_t *pin = upstream->tls_pubkey_pinset;
 		if (upstream->loop && (   upstream->event.read_cb
 		                       || upstream->event.write_cb
 		                       || upstream->event.timeout_cb) ) {
@@ -530,6 +532,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		}
 		if (upstream->fd != -1)
 			close(upstream->fd);
+		while (pin) {
+			sha256_pin_t *nextpin = pin->next;
+			GETDNS_FREE(upstreams->mf, pin);
+			pin = nextpin;
+		}
+		upstream->tls_pubkey_pinset = NULL;
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
@@ -669,6 +677,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_failed = 0;
 	upstream->tls_auth_name[0] = '\0';
+	upstream->tls_pubkey_pinset = NULL;
 	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
@@ -1478,7 +1487,7 @@ getdns_context_set_tls_authentication(getdns_context *context,
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     if (value != GETDNS_AUTHENTICATION_NONE && 
-        value != GETDNS_AUTHENTICATION_HOSTNAME) {
+        value != GETDNS_AUTHENTICATION_REQUIRED) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
     context->tls_auth = value;
@@ -1943,6 +1952,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+				getdns_list *pubkey_pinset = NULL;
 				if ((r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/
@@ -1950,6 +1960,16 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					       (char *)tls_auth_name->data,
 						tls_auth_name->size);
 					upstream->tls_auth_name[tls_auth_name->size] = '\0';
+				}
+				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
+							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
+			   /* TODO: what if the user supplies tls_pubkey_pinset with
+			    * something other than a list? */
+					r = _getdns_get_pubkey_pinset_from_list(pubkey_pinset,
+										&(upstreams->mf),
+										&(upstream->tls_pubkey_pinset));
+					if (r != GETDNS_RETURN_GOOD)
+						goto invalid_parameter;
 				}
 			}
 			if ((upstream->tsig_alg = tsig_alg)) {
@@ -2439,8 +2459,8 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 #endif
 		}
 		if (tls_only_is_in_transports_list(context) == 1 && 
-		    context->tls_auth == GETDNS_AUTHENTICATION_HOSTNAME) {
-			context->tls_auth_min = GETDNS_AUTHENTICATION_HOSTNAME;
+		    context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED) {
+			context->tls_auth_min = GETDNS_AUTHENTICATION_REQUIRED;
 			/* TODO: If no auth data provided for any upstream, fail here */
 		}
 		else {
@@ -3159,11 +3179,19 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 			    (uint32_t)upstream_port(upstream))))
 				break;
 
-			if (upstream->transport == GETDNS_TRANSPORT_TLS &&
-			    upstream_port(upstream) != getdns_port_array[j] &&
-			    (r = getdns_dict_set_int(d, "tls_port",
-			    (uint32_t)upstream_port(upstream))))
-				break;
+			if (upstream->transport == GETDNS_TRANSPORT_TLS) {
+				if (upstream_port(upstream) == getdns_port_array[j])
+					(void) getdns_dict_set_int(d, "tls_port",
+								   (uint32_t) upstream_port(upstream));
+				if (upstream->tls_pubkey_pinset) {
+					getdns_list *pins = NULL;
+					if (_getdns_get_pubkey_pinset_list(context,
+									   upstream->tls_pubkey_pinset,
+									   &pins) == GETDNS_RETURN_GOOD)
+						(void) getdns_dict_set_list(d, "tls_pubkey_pinset", pins);
+					getdns_list_destroy(pins);
+				}
+			}
 		}
 		if (!r)
 			r = _getdns_list_append_dict(upstreams, d);

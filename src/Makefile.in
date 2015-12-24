@@ -64,8 +64,8 @@ EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
 C99COMPATFLAGS=@C99COMPATFLAGS@
 
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
-	list.lo request-internal.lo rr-dict.lo rr-iter.lo stub.lo sync.lo \
-	util-internal.lo
+	list.lo request-internal.lo pubkey-pinning.lo rr-dict.lo \
+	rr-iter.lo stub.lo sync.lo util-internal.lo
 
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
@@ -329,3 +329,5 @@ libmini_event.lo libmini_event.o: $(srcdir)/extension/libmini_event.c config.h $
 libuv.lo libuv.o: $(srcdir)/extension/libuv.c config.h $(srcdir)/debug.h config.h $(srcdir)/types-internal.h \
  getdns/getdns.h getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
  $(srcdir)/getdns/getdns_ext_libuv.h getdns/getdns_extra.h
+pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/pubkey-pinning.c \
+ config.h getdns/getdns.h

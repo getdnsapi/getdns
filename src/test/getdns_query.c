@@ -36,6 +36,8 @@
 
 #define MAX_TIMEOUTS FD_SETSIZE
 
+#define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
+
 /* Eventloop based on select */
 typedef struct my_eventloop {
 	getdns_eventloop        base;
@@ -260,6 +262,8 @@ static char *the_root = ".";
 static char *name;
 static getdns_context *context;
 static getdns_dict *extensions;
+static getdns_list *pubkey_pinset = NULL;
+static size_t pincount = 0;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
 static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
@@ -474,8 +478,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
+	fprintf(out, "\t-K <pin>\tPin a public key for TLS connections (can repeat)\n");
+	fprintf(out, "\t\t(should look like '" EXAMPLE_PIN "')\n");
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
-	fprintf(out, "\t-m\tSet TLS authentication mode to HOSTNAME\n");
+	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
@@ -681,6 +687,7 @@ getdns_return_t parse_args(int argc, char **argv)
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
 	getdns_list *tas = NULL, *hints = NULL;
+	getdns_dict *pubkey_pin = NULL;
 	size_t upstream_count = 0;
 	FILE *fh;
 
@@ -819,6 +826,36 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'J':
 				json = 1;
 				break;
+			case 'K':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "pin string of the form "
+						EXAMPLE_PIN
+						"expected after -K\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				pubkey_pin = getdns_pubkey_pin_create_from_string(context,
+										 argv[i]);
+				if (pubkey_pin == NULL) {
+					fprintf(stderr, "could not convert '%s' into a "
+						"public key pin.\n"
+						"Good pins look like: " EXAMPLE_PIN "\n"
+						"Please see RFC 7469 for details about "
+						"the format\n", argv[i]);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (pubkey_pinset == NULL)
+					pubkey_pinset = getdns_list_create_with_context(context);
+				if (r = getdns_list_set_dict(pubkey_pinset, pincount++,
+							     pubkey_pin), r) {
+					fprintf(stderr, "Failed to add pin to pinset (error %d: %s)\n",
+						r, getdns_get_errorstr_by_id(r));
+					getdns_dict_destroy(pubkey_pin);
+					pubkey_pin = NULL;
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_dict_destroy(pubkey_pin);
+				pubkey_pin = NULL;
+				break;
 			case 'k':
 				print_trust_anchors = 1;
 				break;
@@ -828,7 +865,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'm':
 				getdns_context_set_tls_authentication(context,
-				                 GETDNS_AUTHENTICATION_HOSTNAME);
+				                 GETDNS_AUTHENTICATION_REQUIRED);
 				break;
 			case 'P':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
@@ -979,6 +1016,20 @@ next:		;
 	}
 	if (r)
 		return r;
+	if (pubkey_pinset && upstream_count) {
+		getdns_dict *upstream;
+		/* apply the accumulated pubkey pinset to all upstreams: */
+		for (i = 0; i < upstream_count; i++) {
+			if (r = getdns_list_get_dict(upstream_list, i, &upstream), r) {
+				fprintf(stderr, "Failed to get upstream %lu when adding pinset\n", i);
+				return r;
+			}
+			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
+				fprintf(stderr, "Failed to set pubkey pinset on upstream %lu\n", i);
+				return r;
+			}
+		}
+	}
 	if (upstream_count &&
 	    (r = getdns_context_set_upstream_recursive_servers(
 	    context, upstream_list))) {

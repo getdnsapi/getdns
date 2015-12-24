@@ -114,6 +114,8 @@ getdns_pretty_snprint_dict
 getdns_pretty_snprint_list
 getdns_print_json_dict
 getdns_print_json_list
+getdns_pubkey_pin_create_from_string
+getdns_pubkey_pinset_sanity_check
 getdns_root_trust_anchor
 getdns_rr_dict2str
 getdns_rr_dict2str_buf
