@@ -635,7 +635,7 @@ const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg)
 	    : &tsig_info[tsig_alg];
 }
 
-static const getdns_tsig_algo _getdns_get_tsig_algo(getdns_bindata *algo)
+static getdns_tsig_algo _getdns_get_tsig_algo(getdns_bindata *algo)
 {
 	getdns_tsig_info *i;
 

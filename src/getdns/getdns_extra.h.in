@@ -512,7 +512,7 @@ getdns_rr_dict2wire_buf(
  */
 getdns_return_t
 getdns_rr_dict2wire_scan(
-    const getdns_dict *rr_dict, uint8_t **wire, ssize_t *wire_sz);
+    const getdns_dict *rr_dict, uint8_t **wire, int *wire_sz);
 
 
 /**
@@ -604,7 +604,7 @@ getdns_rr_dict2str_buf(
  */
 getdns_return_t
 getdns_rr_dict2str_scan(
-    const getdns_dict *rr_dict, char **str, ssize_t *str_len);
+    const getdns_dict *rr_dict, char **str, int *str_len);
 
 
 /**

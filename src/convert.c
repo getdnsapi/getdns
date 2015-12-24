@@ -259,7 +259,7 @@ getdns_return_t
 getdns_rr_dict2wire_buf(
     const getdns_dict *rr_dict, uint8_t *wire, size_t *wire_sz)
 {
-	ssize_t my_wire_sz;
+	int my_wire_sz;
 	getdns_return_t r;
 
 	if (!wire_sz)
@@ -275,7 +275,7 @@ getdns_rr_dict2wire_buf(
 
 getdns_return_t
 getdns_rr_dict2wire_scan(
-    const getdns_dict *rr_dict, uint8_t **wire, ssize_t *wire_sz)
+    const getdns_dict *rr_dict, uint8_t **wire, int *wire_sz)
 {
 	getdns_return_t r;
 	gldns_buffer gbuf;
@@ -404,7 +404,7 @@ getdns_return_t
 getdns_rr_dict2str_buf(
     const getdns_dict *rr_dict, char *str, size_t *str_len)
 {
-	ssize_t my_str_len;
+	int my_str_len;
 	getdns_return_t r;
 
 	if (!str_len)
@@ -421,13 +421,13 @@ getdns_rr_dict2str_buf(
 
 getdns_return_t
 getdns_rr_dict2str_scan(
-    const getdns_dict *rr_dict, char **str, ssize_t *str_len)
+    const getdns_dict *rr_dict, char **str, int *str_len)
 {
 	getdns_return_t r;
 	gldns_buffer gbuf;
 	uint8_t buf_spc[4096], *buf = buf_spc, *scan_buf;
 	size_t sz, scan_sz;
-	ssize_t prev_str_len;
+	int prev_str_len;
 	char *prev_str;
 	int sz_needed;
 
