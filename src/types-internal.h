@@ -398,5 +398,7 @@ size_t _getdns_network_req_add_tsig(getdns_network_req *req);
 
 void _getdns_network_validate_tsig(getdns_network_req *req);
 
+void _getdns_netreq_reinit(getdns_network_req *netreq);
+
 #endif
 /* types-internal.h */

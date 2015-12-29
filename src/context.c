@@ -1866,7 +1866,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 		else
 			break;
 
-		gldns_buffer_write_u8(&gbuf, 0);
+		gldns_buffer_write_u8(&gbuf, 1);
 		gldns_buffer_write_u8(&gbuf, 0);
 
 		if (gldns_buffer_begin(&gbuf) != buf_spc)
