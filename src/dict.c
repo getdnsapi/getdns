@@ -280,7 +280,8 @@ getdns_dict_get_names(const getdns_dict *dict, getdns_list **answer)
 
 	RBTREE_FOR(item, struct getdns_dict_item *,
 		(_getdns_rbtree_t *)&(dict->root)) {
-		_getdns_list_append_string(*answer, item->node.key);
+		_getdns_list_append_const_bindata(*answer,
+		    strlen(item->node.key) + 1, item->node.key);
 	}
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_get_names */
