@@ -104,7 +104,7 @@ getdns_port_str_array[] = {
 	GETDNS_STR_PORT_DNS_OVER_TLS
 };
 
-static uint8_t no_suffixes[] = { 0, 0 };
+static const uint8_t no_suffixes[] = { 1, 0 };
 
 /* Private functions */
 static getdns_return_t create_default_namespaces(struct getdns_context *context);
@@ -1181,7 +1181,7 @@ getdns_context_destroy(struct getdns_context *context)
 		unlink(context->root_servers_fn);
 
 	if (context->suffixes && context->suffixes != no_suffixes)
-		GETDNS_FREE(context->mf, context->suffixes);
+		GETDNS_FREE(context->mf, (void *)context->suffixes);
 
 	if (context->trust_anchors &&
 	    context->trust_anchors != context->trust_anchors_spc)
@@ -1830,7 +1830,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 
 	if (value == NULL) {
 		if (context->suffixes && context->suffixes != no_suffixes)
-			GETDNS_FREE(context->mf, context->suffixes);
+			GETDNS_FREE(context->mf, (void *)context->suffixes);
 
 		context->suffixes = no_suffixes;
 		context->suffixes_len = sizeof(no_suffixes);
@@ -1890,7 +1890,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 		return r;
 	}
 	if (context->suffixes && context->suffixes != no_suffixes)
-		GETDNS_FREE(context->mf, context->suffixes);
+		GETDNS_FREE(context->mf, (void *)context->suffixes);
 
 	context->suffixes = suffixes;
 	context->suffixes_len = suffixes_len;
@@ -3248,7 +3248,7 @@ getdns_return_t
 getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 {
 	size_t dname_len;
-	uint8_t *dname;
+	const uint8_t *dname;
 	char name[1024];
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_list *list;
@@ -3263,7 +3263,7 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 	dname_len = context->suffixes[0];
 	dname = context->suffixes + 1;
 	while (dname_len && *dname) {
-		if (! gldns_wire2str_dname_buf(
+		if (! gldns_wire2str_dname_buf((UNCONST_UINT8_p)
 		    dname, dname_len, name, sizeof(name))) {
 			r = GETDNS_RETURN_GENERIC_ERROR;
 			break;

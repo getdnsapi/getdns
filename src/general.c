@@ -173,7 +173,7 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 
 #ifdef HAVE_LIBUNBOUND
 		return ub_resolve_async(dns_req->context->unbound_ctx,
-		    name, netreq->request_type, netreq->request_class,
+		    name, netreq->request_type, netreq->owner->request_class,
 		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 #else

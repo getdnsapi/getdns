@@ -203,9 +203,6 @@ typedef struct getdns_network_req
 	/* request type */
 	uint16_t request_type;
 
-	/* request class */
-	uint16_t request_class;
-
 	/* dnssec status */
 	int dnssec_status;
 
@@ -281,6 +278,13 @@ typedef struct getdns_dns_req {
 	/* name */
 	uint8_t name[256];
 	size_t  name_len;
+
+	getdns_append_name_t append_name;
+	const uint8_t *suffix;
+	size_t  suffix_len;
+	int suffix_appended;
+
+	uint16_t request_class;
 
 	/* canceled flag */
 	int canceled;

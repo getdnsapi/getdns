@@ -1035,7 +1035,7 @@ getdns_apply_network_result(getdns_network_req* netreq,
 	                  , netreq->request_type);
 	gldns_write_uint16( netreq->response + GLDNS_HEADER_SIZE
 	                                     + netreq->owner->name_len + 2
-	                  , netreq->request_class);
+	                  , netreq->owner->request_class);
 
 	netreq->response_len = GLDNS_HEADER_SIZE + netreq->owner->name_len + 4;
 
