@@ -1006,8 +1006,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->dns_root_servers = NULL;
 	result->root_servers_fn[0] = 0;
 	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
-	result->suffix = no_suffixes;
-	result->suffix_len = sizeof(no_suffixes);
+	result->suffixes = no_suffixes;
+	result->suffixes_len = sizeof(no_suffixes);
 
 	gldns_buffer_init_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
@@ -1180,8 +1180,8 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->root_servers_fn[0])
 		unlink(context->root_servers_fn);
 
-	if (context->suffix && context->suffix != no_suffixes)
-		GETDNS_FREE(context->mf, context->suffix);
+	if (context->suffixes && context->suffixes != no_suffixes)
+		GETDNS_FREE(context->mf, context->suffixes);
 
 	if (context->trust_anchors &&
 	    context->trust_anchors != context->trust_anchors_spc)
@@ -1818,8 +1818,8 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 	getdns_return_t r;
 	size_t i;
 	gldns_buffer gbuf;
-	uint8_t buf_spc[1024], *suffix = NULL;
-	size_t suffix_len = 0;
+	uint8_t buf_spc[1024], *suffixes = NULL;
+	size_t suffixes_len = 0;
 	uint8_t dname[256];
 	size_t dname_len;
 	char name_spc[1025], *name;
@@ -1829,11 +1829,11 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (value == NULL) {
-		if (context->suffix && context->suffix != no_suffixes)
-			GETDNS_FREE(context->mf, context->suffix);
+		if (context->suffixes && context->suffixes != no_suffixes)
+			GETDNS_FREE(context->mf, context->suffixes);
 
-		context->suffix = no_suffixes;
-		context->suffix_len = sizeof(no_suffixes);
+		context->suffixes = no_suffixes;
+		context->suffixes_len = sizeof(no_suffixes);
 		return GETDNS_RETURN_GOOD;
 	}
 	gldns_buffer_init_frm_data(&gbuf, buf_spc, sizeof(buf_spc));
@@ -1872,28 +1872,28 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 		if (gldns_buffer_begin(&gbuf) != buf_spc)
 			break;
 
-		suffix_len = gldns_buffer_position(&gbuf);
-		if (!(suffix = GETDNS_XMALLOC(
-		    context->mf, uint8_t, suffix_len))) {
+		suffixes_len = gldns_buffer_position(&gbuf);
+		if (!(suffixes = GETDNS_XMALLOC(
+		    context->mf, uint8_t, suffixes_len))) {
 			r = GETDNS_RETURN_MEMORY_ERROR;
 			break;
 		}
-		if (suffix_len <= gldns_buffer_limit(&gbuf)) {
-			(void) memcpy (suffix, buf_spc, suffix_len);
+		if (suffixes_len <= gldns_buffer_limit(&gbuf)) {
+			(void) memcpy (suffixes, buf_spc, suffixes_len);
 			break;
 		}
-		gldns_buffer_init_frm_data(&gbuf, suffix, suffix_len);
+		gldns_buffer_init_frm_data(&gbuf, suffixes, suffixes_len);
 	}
 	if (r) {
 		if (gldns_buffer_begin(&gbuf) != buf_spc)
-			GETDNS_FREE(context->mf, suffix);
+			GETDNS_FREE(context->mf, suffixes);
 		return r;
 	}
-	if (context->suffix && context->suffix != no_suffixes)
-		GETDNS_FREE(context->mf, context->suffix);
+	if (context->suffixes && context->suffixes != no_suffixes)
+		GETDNS_FREE(context->mf, context->suffixes);
 
-	context->suffix = suffix;
-	context->suffix_len = suffix_len;
+	context->suffixes = suffixes;
+	context->suffixes_len = suffixes_len;
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
 	return GETDNS_RETURN_GOOD;
@@ -3259,9 +3259,9 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 	if (!(list = getdns_list_create_with_context(context)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 	
-	assert(context->suffix);
-	dname_len = context->suffix[0];
-	dname = context->suffix + 1;
+	assert(context->suffixes);
+	dname_len = context->suffixes[0];
+	dname = context->suffixes + 1;
 	while (dname_len && *dname) {
 		if (! gldns_wire2str_dname_buf(
 		    dname, dname_len, name, sizeof(name))) {
@@ -3269,7 +3269,7 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 			break;
 		}
 		if ((r = _getdns_list_append_const_bindata(
-		    list, strlen(name), name)))
+		    list, strlen(name) + 1, name)))
 			break;
 		dname += dname_len;
 		dname_len = *dname++;

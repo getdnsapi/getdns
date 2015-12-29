@@ -183,9 +183,9 @@ struct getdns_context {
 	 * length bytes contains the length of the following dname.
 	 * The last dname should be the zero byte.
 	 */
-	uint8_t              *suffix;
+	uint8_t              *suffixes;
 	/* Length of all suffixes in the suffix buffer */
-	size_t               suffix_len; 
+	size_t               suffixes_len; 
 	uint8_t              *trust_anchors;
 	size_t                trust_anchors_len;
 	getdns_upstreams     *upstreams;
