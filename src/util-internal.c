@@ -439,6 +439,22 @@ set_dict(getdns_dict **var, getdns_dict *value)
 	return *var = value;
 }
 
+inline static int has_all_numeric_label(const uint8_t *dname)
+{
+	size_t i;
+
+	while (*dname && !(*dname & 0xc0)) {
+		for (i = 1; i <= *dname; i++) {
+			if (!isdigit(dname[i]))
+				break;
+		}
+		if (i > *dname)
+			return 1;
+		dname += *dname + 1;
+	}
+	return 0;
+}
+
 #define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
                               GLDNS_ ## Y ## _WIRE(req->response))) goto error
 #define SET_WIRE_BIT(X,Y) if (getdns_dict_set_int(header, #X , \
@@ -507,9 +523,11 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	const uint8_t *canonical_name = canonical_name_space, *owner_name;
 	size_t canonical_name_len = sizeof(canonical_name_space),
 	       owner_name_len = sizeof(owner_name_space);
-	int new_canonical = 0;
+	int new_canonical = 0, cnames_followed,
+	    request_answered, all_numeric_label;
 	uint16_t rr_type;
 	getdns_dict *header = NULL;
+	getdns_list *bad_dns = NULL;
 
 	if (!result)
 		goto error;
@@ -628,12 +646,13 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;
 	
+	cnames_followed = new_canonical;
 	while (new_canonical) {
 		new_canonical = 0;
 
 		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
-							, req->response
-							, req->response_len)
+		                                    , req->response
+		                                    , req->response_len)
 		    ; rr_iter && _getdns_rr_iter_section(rr_iter)
 		              <= GLDNS_SECTION_ANSWER
 		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
@@ -664,6 +683,81 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	    result, "canonical_name", canonical_name_len, canonical_name))
 		goto error;
 
+	if (!req->owner->add_warning_for_bad_dns)
+		goto success;
+
+	if (!(bad_dns = getdns_list_create_with_context(context)))
+		goto error;
+
+	if (cnames_followed && req->request_type != GETDNS_RRTYPE_CNAME) {
+		request_answered = 0;
+		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
+						    , req->response
+						    , req->response_len)
+		    ; rr_iter && _getdns_rr_iter_section(rr_iter)
+			      <= GLDNS_SECTION_ANSWER
+		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+
+			if (_getdns_rr_iter_section(rr_iter) !=
+			    GLDNS_SECTION_ANSWER)
+				continue;
+			if (gldns_read_uint16(rr_iter->rr_type) !=
+			    req->request_type)
+				continue;
+
+			owner_name=_getdns_owner_if_or_as_decompressed(
+			    rr_iter, owner_name_space,&owner_name_len);
+			if (_getdns_dname_equal(
+			    canonical_name, owner_name)) {
+				request_answered = 1;
+				break;
+			}
+		}
+		if (!request_answered && 
+		    _getdns_list_append_int(bad_dns,
+		    GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE))
+			goto error;
+	}
+	all_numeric_label = 0;
+	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
+					    , req->response
+					    , req->response_len)
+	    ; rr_iter && !all_numeric_label
+	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+
+		owner_name = _getdns_owner_if_or_as_decompressed(
+		    rr_iter, owner_name_space, &owner_name_len);
+
+		if (has_all_numeric_label(owner_name)) {
+			all_numeric_label = 1;
+			break;
+		}
+		if (_getdns_rr_iter_section(rr_iter) ==
+		    GLDNS_SECTION_QUESTION)
+			continue;
+
+		for ( rdf_iter = _getdns_rdf_iter_init(&rdf_iter_storage, rr_iter)
+		    ; rdf_iter; rdf_iter = _getdns_rdf_iter_next(rdf_iter)) {
+		
+			if (!(rdf_iter->rdd_pos->type & GETDNS_RDF_DNAME))
+				continue;
+
+			owner_name = _getdns_rdf_if_or_as_decompressed(
+			    rdf_iter, owner_name_space, &owner_name_len);
+
+			if (has_all_numeric_label(owner_name)) {
+				all_numeric_label = 1;
+				break;
+			}
+		}
+	}
+	if (all_numeric_label &&
+	    _getdns_list_append_int(bad_dns, GETDNS_BAD_DNS_ALL_NUMERIC_LABEL))
+		goto error;
+
+	if (getdns_dict_set_list(result, "bad_dns", bad_dns))
+		goto error;
+
 	goto success;
 error:
 	getdns_dict_destroy(result);
@@ -675,6 +769,7 @@ success:
 	getdns_list_destroy(sections[GLDNS_SECTION_AUTHORITY]);
 	getdns_list_destroy(sections[GLDNS_SECTION_ANSWER]);
 	getdns_dict_destroy(question);
+	getdns_list_destroy(bad_dns);
 	return result;
 }
 

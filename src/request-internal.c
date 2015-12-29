@@ -771,8 +771,10 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 #endif
 	result->edns_client_subnet_private     = context->edns_client_subnet_private;
 	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
-	result->return_call_reporting
-		= is_extension_set(extensions, "return_call_reporting");
+	result->return_call_reporting          =
+	    is_extension_set(extensions, "return_call_reporting");
+	result->add_warning_for_bad_dns        =
+	    is_extension_set(extensions, "add_warning_for_bad_dns");
 	
 	/* will be set by caller */
 	result->user_pointer = NULL;
