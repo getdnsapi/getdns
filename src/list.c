@@ -554,7 +554,7 @@ getdns_list_set_list(
 /*---------------------------------------- getdns_list_set_bindata */
 static getdns_return_t
 _getdns_list_set_const_bindata(
-    getdns_list *list, size_t index, size_t size, const uint8_t *data)
+    getdns_list *list, size_t index, size_t size, const void *data)
 {
 	getdns_bindata *newbindata;
 	getdns_return_t r;
@@ -587,28 +587,9 @@ getdns_list_set_bindata(
 static getdns_return_t
 getdns_list_set_string(getdns_list *list, size_t index, const char *value)
 {
-	getdns_bindata *newbindata;
-	getdns_return_t r;
-
-	if (!list || !value)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (!(newbindata = GETDNS_MALLOC(list->mf, getdns_bindata)))
-		return GETDNS_RETURN_MEMORY_ERROR;
-
-	newbindata->size = strlen(value);
-	if (!(newbindata->data = (void *)_getdns_strdup(&list->mf, value))) {
-		GETDNS_FREE(list->mf, newbindata);
-		return GETDNS_RETURN_MEMORY_ERROR;
-	}
-	if ((r = _getdns_list_request_index(list, index))) {
-		GETDNS_FREE(list->mf, newbindata->data);
-		GETDNS_FREE(list->mf, newbindata);
-		return r;
-	}
-	list->items[index].dtype = t_bindata;
-	list->items[index].data.bindata = newbindata;
-	return GETDNS_RETURN_GOOD;
+	return value
+	    ? _getdns_list_set_const_bindata(list, index, strlen(value), value)
+	    : GETDNS_RETURN_INVALID_PARAMETER;
 }				/* getdns_list_set_string */
 
 /*---------------------------------------- getdns_list_set_int */
@@ -648,7 +629,7 @@ _getdns_list_append_bindata(getdns_list *list, const getdns_bindata *child_binda
 }
 getdns_return_t
 _getdns_list_append_const_bindata(
-    getdns_list *list, size_t size, const uint8_t *data)
+    getdns_list *list, size_t size, const void *data)
 {
 	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
 	return _getdns_list_set_const_bindata(list, list->numinuse, size, data);

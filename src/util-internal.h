@@ -83,10 +83,10 @@ getdns_return_t _getdns_list_append_int(getdns_list *list,
     uint32_t child_uint32);
 
 getdns_return_t _getdns_list_append_const_bindata(getdns_list *list,
-    size_t size, const uint8_t *data);
+    size_t size, const void *data);
 
 getdns_return_t _getdns_dict_set_const_bindata(getdns_dict *dict,
-    const char *name, size_t size, const uint8_t *data);
+    const char *name, size_t size, const void *data);
 
 /**
   * private function (API users should not be calling this), this uses library
