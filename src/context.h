@@ -179,7 +179,13 @@ struct getdns_context {
 	getdns_list          *dns_root_servers;
 	char                 root_servers_fn[FILENAME_MAX];
 	getdns_append_name_t append_name;
-	struct getdns_list   *suffix;
+	/* Suffix buffer containing a list of (length byte | dname) where 
+	 * length bytes contains the length of the following dname.
+	 * The last dname should be the zero byte.
+	 */
+	uint8_t              *suffix;
+	/* Length of all suffixes in the suffix buffer */
+	size_t               suffix_len; 
 	uint8_t              *trust_anchors;
 	size_t                trust_anchors_len;
 	getdns_upstreams     *upstreams;

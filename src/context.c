@@ -98,11 +98,13 @@ getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_PORT_DNS_OVER_TLS
 };
 
-char*
+static char*
 getdns_port_str_array[] = {
 	GETDNS_STR_PORT_DNS,
 	GETDNS_STR_PORT_DNS_OVER_TLS
 };
+
+static uint8_t no_suffixes[] = { 0, 0 };
 
 /* Private functions */
 static getdns_return_t create_default_namespaces(struct getdns_context *context);
@@ -717,7 +719,7 @@ upstream_init(getdns_upstream *upstream,
 static getdns_return_t
 set_os_defaults_windows(struct getdns_context *context)
 {
-	char domain[1024];
+	char domain[1024] = "";
 	size_t upstreams_limit = 10, length;
 	struct getdns_bindata bindata;
 	struct addrinfo hints;
@@ -737,7 +739,6 @@ set_os_defaults_windows(struct getdns_context *context)
 	}
 	_getdns_filechg_check(context, context->fchg_resolvconf);
 
-	context->suffix = getdns_list_create_with_context(context);
 	context->upstreams = upstreams_create(context, upstreams_limit);
 
 	memset(&hints, 0, sizeof(struct addrinfo));
@@ -786,13 +787,6 @@ set_os_defaults_windows(struct getdns_context *context)
 		}
 		free(info);
 	}
-
-	(void)getdns_list_get_length(context->suffix, &length);
-	if (length == 0 && *domain != 0) {
-		bindata.data = (uint8_t *)domain;
-		bindata.size = strlen(domain) + 1;
-		(void)getdns_list_set_bindata(context->suffix, 0, &bindata);
-	}
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults_windows */
 #else
@@ -806,6 +800,7 @@ set_os_defaults(struct getdns_context *context)
 	struct addrinfo hints;
 	struct addrinfo *result;
 	getdns_upstream *upstream;
+	getdns_list     *suffix;
 	int s;
 
 	if(context->fchg_resolvconf == NULL) {
@@ -830,7 +825,7 @@ set_os_defaults(struct getdns_context *context)
 			upstream_count++;
 	fclose(in);
 
-	context->suffix = getdns_list_create_with_context(context);
+	suffix = getdns_list_create_with_context(context);
 	context->upstreams = upstreams_create(
 	    context, upstream_count * GETDNS_UPSTREAM_TRANSPORTS);
 
@@ -871,7 +866,7 @@ set_os_defaults(struct getdns_context *context)
 				prev_ch = *token;
 				*token = 0;
 
-				_getdns_list_append_string(context->suffix, parse);
+				_getdns_list_append_string(suffix, parse);
 
 				*token = prev_ch;
 				parse = token;
@@ -902,9 +897,12 @@ set_os_defaults(struct getdns_context *context)
 	}
 	fclose(in);
 
-	(void) getdns_list_get_length(context->suffix, &length);
+	(void) getdns_list_get_length(suffix, &length);
 	if (length == 0 && *domain != 0)
-		_getdns_list_append_string(context->suffix, domain);
+		_getdns_list_append_string(suffix, domain);
+	(void )getdns_context_set_suffix(context, suffix);
+	getdns_list_destroy(suffix);
+
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 #endif
@@ -1008,7 +1006,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->dns_root_servers = NULL;
 	result->root_servers_fn[0] = 0;
 	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
-	result->suffix = NULL;
+	result->suffix = no_suffixes;
+	result->suffix_len = sizeof(no_suffixes);
 
 	gldns_buffer_init_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
@@ -1181,7 +1180,8 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->root_servers_fn[0])
 		unlink(context->root_servers_fn);
 
-	getdns_list_destroy(context->suffix);
+	if (context->suffix && context->suffix != no_suffixes)
+		GETDNS_FREE(context->mf, context->suffix);
 
 	if (context->trust_anchors &&
 	    context->trust_anchors != context->trust_anchors_spc)
@@ -1813,26 +1813,90 @@ getdns_context_set_append_name(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_suffix(struct getdns_context *context, struct getdns_list * value)
+getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 {
-    struct getdns_list *copy = NULL;
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (context->resolution_type_set != 0) {
-        /* already setup */
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
-    if (value != NULL) {
-        if (_getdns_list_copy(value, &copy) != GETDNS_RETURN_GOOD) {
-            return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-        }
-        value = copy;
-    }
-    getdns_list_destroy(context->suffix);
-    context->suffix = value;
+	getdns_return_t r;
+	size_t i;
+	gldns_buffer gbuf;
+	uint8_t buf_spc[1024], *suffix = NULL;
+	size_t suffix_len = 0;
+	uint8_t dname[256];
+	size_t dname_len;
+	char name_spc[1025], *name;
+	getdns_bindata *bindata;
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    return GETDNS_RETURN_GOOD;
+	if (value == NULL) {
+		if (context->suffix && context->suffix != no_suffixes)
+			GETDNS_FREE(context->mf, context->suffix);
+
+		context->suffix = no_suffixes;
+		context->suffix_len = sizeof(no_suffixes);
+		return GETDNS_RETURN_GOOD;
+	}
+	gldns_buffer_init_frm_data(&gbuf, buf_spc, sizeof(buf_spc));
+	for (;;) {
+		for ( i = 0
+		    ; !(r = getdns_list_get_bindata(value, i, &bindata))
+		    ; i++) {
+
+			if (bindata->size == 0 || bindata->size >= sizeof(name_spc))
+				continue;
+
+			if (bindata->data[bindata->size-1] != 0) {
+				/* Unterminated string */
+				(void) memcpy(name_spc, bindata->data, bindata->size);
+				name_spc[bindata->size] = 0;
+				name = name_spc;
+			} else
+				/* Terminated string */
+				name = (char *)bindata->data;
+
+			dname_len = sizeof(dname);
+			if (gldns_str2wire_dname_buf(name, dname, &dname_len))
+				return GETDNS_RETURN_GENERIC_ERROR;
+
+			gldns_buffer_write_u8(&gbuf, dname_len);
+			gldns_buffer_write(&gbuf, dname, dname_len);
+		}
+		if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+			r = GETDNS_RETURN_GOOD;
+		else
+			break;
+
+		gldns_buffer_write_u8(&gbuf, 0);
+		gldns_buffer_write_u8(&gbuf, 0);
+
+		if (gldns_buffer_begin(&gbuf) != buf_spc)
+			break;
+
+		suffix_len = gldns_buffer_position(&gbuf);
+		if (!(suffix = GETDNS_XMALLOC(
+		    context->mf, uint8_t, suffix_len))) {
+			r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		if (suffix_len <= gldns_buffer_limit(&gbuf)) {
+			(void) memcpy (suffix, buf_spc, suffix_len);
+			break;
+		}
+		gldns_buffer_init_frm_data(&gbuf, suffix, suffix_len);
+	}
+	if (r) {
+		if (gldns_buffer_begin(&gbuf) != buf_spc)
+			GETDNS_FREE(context->mf, suffix);
+		return r;
+	}
+	if (context->suffix && context->suffix != no_suffixes)
+		GETDNS_FREE(context->mf, context->suffix);
+
+	context->suffix = suffix;
+	context->suffix_len = suffix_len;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_SUFFIX);
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_suffix */
 
 /*
@@ -2840,7 +2904,7 @@ _get_context_settings(getdns_context* context)
 {
     getdns_return_t r = GETDNS_RETURN_GOOD;
     getdns_dict* result = getdns_dict_create_with_context(context);
-	getdns_list *upstreams;
+	getdns_list *list;
 
     if (!result) {
         return NULL;
@@ -2858,12 +2922,14 @@ _get_context_settings(getdns_context* context)
     r |= getdns_dict_set_int(result, "edns_do_bit", context->edns_do_bit);
     r |= getdns_dict_set_int(result, "append_name", context->append_name);
     /* list fields */
-    if (context->suffix) r |= getdns_dict_set_list(result, "suffix", context->suffix);
-	
-	if (!getdns_context_get_upstream_recursive_servers(context, &upstreams)) {
+	if (!getdns_context_get_suffix(context, &list)) {
+		r |= getdns_dict_set_list(result, "suffix", list);
+		getdns_list_destroy(list);
+	}
+	if (!getdns_context_get_upstream_recursive_servers(context, &list)) {
 		r |= getdns_dict_set_list(result, "upstream_recursive_servers",
-		    upstreams);
-		getdns_list_destroy(upstreams);
+		    list);
+		getdns_list_destroy(list);
 	}
     if (context->dns_transport_count > 0) {
         /* create a namespace list */
@@ -3179,14 +3245,40 @@ getdns_context_get_append_name(getdns_context *context,
 }
 
 getdns_return_t
-getdns_context_get_suffix(getdns_context *context, getdns_list **value) {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = NULL;
-    if (context->suffix) {
-        return _getdns_list_copy(context->suffix, value);
-    }
-    return GETDNS_RETURN_GOOD;
+getdns_context_get_suffix(getdns_context *context, getdns_list **value)
+{
+	size_t dname_len;
+	uint8_t *dname;
+	char name[1024];
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	getdns_list *list;
+
+	if (!context || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(list = getdns_list_create_with_context(context)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+	
+	assert(context->suffix);
+	dname_len = context->suffix[0];
+	dname = context->suffix + 1;
+	while (dname_len && *dname) {
+		if (! gldns_wire2str_dname_buf(
+		    dname, dname_len, name, sizeof(name))) {
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		if ((r = _getdns_list_append_string(list, name)))
+			break;
+		dname += dname_len;
+		dname_len = *dname++;
+	}
+	if (r)
+		getdns_list_destroy(list);
+	else
+		*value = list;
+
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
