@@ -239,7 +239,7 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 
 This section has some Windows specific build instructions. 
 
-Build tested using Mingw(3.21.0) and [Msys 1.0](http://www.mingw.org/) on Windows 8.1
+Build tested using [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
 
 Dependencies: 
 The following dependencies are built from source on Mingw
@@ -249,18 +249,21 @@ libidn
 The windows version of getdns currently only is supported in the stub only mode. 
 
 To configure:
+    
     ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=/c/OpenSSL --with-getdns_query
 
  The trust anchor is also installed by unbound on c:\program Files (X86)\unbound\root.key and can be referenced from there
  or anywhere else that the user chooses to configure it.
 
- After configuring, do a 'make' and 'make install' to build getdns for Windows.
+ After configuring, do a `make` and `make install` to build getdns for Windows.
 
  Example test queries:
+ 
     ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_reporting (UDP)
     ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_reporting (TCP)
     ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_reporting (TLS without authentication)
     ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_reporting (DNSSEC)
+
 
 Contributors
 ============
