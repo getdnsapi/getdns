@@ -1383,37 +1383,40 @@ getdns_context_set_resolution_type(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_namespaces(struct getdns_context *context,
+getdns_context_set_namespaces(getdns_context *context,
     size_t namespace_count, getdns_namespace_t *namespaces)
 {
 	size_t i;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (namespace_count == 0 || namespaces == NULL) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	for(i=0; i<namespace_count; i++)
-	{
-		if( namespaces[i] != GETDNS_NAMESPACE_DNS
-		 && namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES
-		 && namespaces[i] != GETDNS_NAMESPACE_NETBIOS
-		 && namespaces[i] != GETDNS_NAMESPACE_MDNS
-		 && namespaces[i] != GETDNS_NAMESPACE_NIS)
+	if (namespace_count == 0 || namespaces == NULL)
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+
+	for (i = 0; i < namespace_count; i++) {
+		if (namespaces[i] == GETDNS_NAMESPACE_NETBIOS ||
+		    namespaces[i] == GETDNS_NAMESPACE_MDNS ||
+		    namespaces[i] == GETDNS_NAMESPACE_NIS)
+			r = GETDNS_RETURN_NOT_IMPLEMENTED;
+
+		else if (namespaces[i] != GETDNS_NAMESPACE_DNS &&
+		    namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES)
 			return GETDNS_RETURN_INVALID_PARAMETER;
 	}
+	GETDNS_FREE(context->my_mf, context->namespaces);
 
-    GETDNS_FREE(context->my_mf, context->namespaces);
-
-    /** duplicate **/
-    context->namespaces = GETDNS_XMALLOC(context->my_mf, getdns_namespace_t,
-        namespace_count);
-    memcpy(context->namespaces, namespaces,
-        namespace_count * sizeof(getdns_namespace_t));
+	/** duplicate **/
+	context->namespaces = GETDNS_XMALLOC(
+	    context->my_mf, getdns_namespace_t, namespace_count);
+	(void) memcpy(context->namespaces, namespaces,
+	    namespace_count * sizeof(getdns_namespace_t));
 	context->namespace_count = namespace_count;
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
 
-    return GETDNS_RETURN_GOOD;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_NAMESPACES);
+
+	return r;
 }               /* getdns_context_set_namespaces */
 
 static getdns_return_t
@@ -1678,21 +1681,21 @@ getdns_context_set_idle_timeout(struct getdns_context *context, uint64_t timeout
  *
  */
 getdns_return_t
-getdns_context_set_follow_redirects(struct getdns_context *context,
-    getdns_redirects_t value)
+getdns_context_set_follow_redirects(
+    getdns_context *context, getdns_redirects_t value)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != GETDNS_REDIRECTS_FOLLOW && value != GETDNS_REDIRECTS_DO_NOT_FOLLOW)
-        return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    context->follow_redirects = value;
-    if (context->resolution_type_set != 0) {
-        /* already setup */
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	if (value != GETDNS_REDIRECTS_FOLLOW &&
+	    value != GETDNS_REDIRECTS_DO_NOT_FOLLOW)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
-    return GETDNS_RETURN_GOOD;
+	context->follow_redirects = value;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
+
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
 }               /* getdns_context_set_follow_redirects */
 
 /*
@@ -3225,12 +3228,13 @@ getdns_context_get_idle_timeout(getdns_context *context, uint64_t* value) {
 }
 
 getdns_return_t
-getdns_context_get_follow_redirects(getdns_context *context,
-    getdns_redirects_t* value) {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = context->follow_redirects;
-    return GETDNS_RETURN_GOOD;
+getdns_context_get_follow_redirects(
+    getdns_context *context, getdns_redirects_t* value)
+{
+	if (!context || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	*value = context->follow_redirects;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
 }
 
 getdns_return_t
