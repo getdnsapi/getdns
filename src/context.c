@@ -611,7 +611,7 @@ net_req_query_id_cmp(const void *id1, const void *id2)
 	return (intptr_t)id1 - (intptr_t)id2;
 }
 
-static getdns_tsig_info tsig_info[] = {
+static getdns_tsig_info const tsig_info[] = {
 	  { GETDNS_NO_TSIG, NULL, 0, NULL, 0, 0, 0 }
 	, { GETDNS_HMAC_MD5   , "hmac-md5.sig-alg.reg.int", 24
 	       , (uint8_t *)"\x08hmac-md5\x07sig-alg\x03reg\x03int", 26, 10, 16 }
@@ -620,41 +620,50 @@ static getdns_tsig_info tsig_info[] = {
 	       , (uint8_t *)"\x09hmac-sha1"  , 11, 10, 20 }
 	, { GETDNS_HMAC_SHA224, "hmac-sha224", 11
 	       , (uint8_t *)"\x0bhmac-sha224", 13, 14, 28 }
-	, { GETDNS_HMAC_SHA224, "hmac-sha256", 11
+	, { GETDNS_HMAC_SHA256, "hmac-sha256", 11
 	       , (uint8_t *)"\x0bhmac-sha256", 13, 16, 32 }
-	, { GETDNS_HMAC_SHA224, "hmac-sha384", 11
-	       , (uint8_t *)"\x0bhmac-sha383", 13, 24, 48 }
-	, { GETDNS_HMAC_SHA224, "hmac-sha512", 11
+	, { GETDNS_HMAC_SHA384, "hmac-sha384", 11
+	       , (uint8_t *)"\x0bhmac-sha384", 13, 24, 48 }
+	, { GETDNS_HMAC_SHA512, "hmac-sha512", 11
 	       , (uint8_t *)"\x0bhmac-sha512", 13, 32, 64 }
 	, { GETDNS_HMAC_MD5   , "hmac-md5"   ,  8
 	       , (uint8_t *)"\x08hmac-md5"   , 10, 10, 16 }
 };
+static size_t const n_tsig_infos =
+    sizeof(tsig_info) / sizeof(getdns_tsig_info);
+
+static getdns_tsig_info const * const last_tsig_info =
+    tsig_info + (sizeof(tsig_info) / sizeof(getdns_tsig_info));
 
 const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg)
 {
-	return tsig_alg > sizeof(tsig_info) - 1
+	return tsig_alg > n_tsig_infos - 1
 	    || tsig_info[tsig_alg].alg == GETDNS_NO_TSIG ? NULL
 	    : &tsig_info[tsig_alg];
 }
 
 static getdns_tsig_algo _getdns_get_tsig_algo(getdns_bindata *algo)
 {
-	getdns_tsig_info *i;
+	const getdns_tsig_info *i;
 
 	if (!algo || algo->size == 0)
 		return GETDNS_NO_TSIG;
 
 	if (algo->data[algo->size-1] != 0) {
 		/* Unterminated string */
-		for (i = tsig_info; i < tsig_info + sizeof(tsig_info); i++)
-			if (algo->size == i->strlen_name &&
+		for (i = tsig_info; i < last_tsig_info; i++)
+			if ((algo->size == i->strlen_name ||
+			     (algo->size - 1 == i->strlen_name &&
+			      algo->data[algo->size - 1] == '.'
+			     )
+			    )&&
 			    strncasecmp((const char *)algo->data, i->name,
 			    i->strlen_name) == 0)
 				return i->alg;
 		
 	} else if (!_getdns_bindata_is_dname(algo)) {
 		/* Terminated string */
-		for (i = tsig_info; i < tsig_info + sizeof(tsig_info); i++)
+		for (i = tsig_info; i < last_tsig_info; i++)
 			if (algo->size - 1 == i->strlen_name &&
 			    strncasecmp((const char *)algo->data, i->name,
 			    i->strlen_name) == 0)
@@ -662,7 +671,7 @@ static getdns_tsig_algo _getdns_get_tsig_algo(getdns_bindata *algo)
 
 	} else {
 		/* fqdn, canonical_dname_compare is now safe to use! */
-		for (i = tsig_info; i < tsig_info + sizeof(tsig_info); i++)
+		for (i = tsig_info; i < last_tsig_info; i++)
 			if (canonical_dname_compare(algo->data, i->dname) == 0)
 				return i->alg;
 	}

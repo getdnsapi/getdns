@@ -412,7 +412,7 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	if (*tsig_name_str)
 		getdns_dict_util_set_string(r, "tsig_name", tsig_name_str);
 	if (*tsig_algorithm_str)
-		getdns_dict_util_set_string(r, "tsig_algorithm", tsig_name_str);
+		getdns_dict_util_set_string(r, "tsig_algorithm", tsig_algorithm_str);
 	if (*tsig_secret_str) {
 		tsig_secret_size = gqldns_b64_pton(
 		    tsig_secret_str, tsig_secret_buf, sizeof(tsig_secret_buf));
