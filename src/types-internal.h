@@ -300,6 +300,7 @@ typedef struct getdns_dns_req {
 	int edns_client_subnet_private;
 	uint16_t tls_query_padding_blocksize;
 	int return_call_reporting;
+	int add_warning_for_bad_dns;
 
 	/* Internally used by return_validation_chain */
 	int dnssec_ok_checking_disabled;
