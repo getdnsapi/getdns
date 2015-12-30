@@ -750,7 +750,7 @@ getdns_return_t parse_args(int argc, char **argv)
 					    "specify_class", GETDNS_RRCLASS_ANY);
 				else if (strncasecmp(arg+15, "CLASS", 5) == 0) {
 					klass = strtol(arg + 20, &endptr, 10);
-					if (*endptr || klass < 0 || klass > 255)
+					if (*endptr || klass > 255)
 						fprintf(stderr,
 						    "Unknown class: %s\n",
 						    arg+15);
@@ -1114,11 +1114,11 @@ next:		;
 		/* apply the accumulated pubkey pinset to all upstreams: */
 		for (i = 0; i < upstream_count; i++) {
 			if (r = getdns_list_get_dict(upstream_list, i, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream %lu when adding pinset\n", i);
+				fprintf(stderr, "Failed to get upstream %lu when adding pinset\n", (long unsigned int)i);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream %lu\n", i);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream %lu\n", (long unsigned int)i);
 				return r;
 			}
 		}

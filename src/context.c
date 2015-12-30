@@ -729,8 +729,7 @@ static getdns_return_t
 set_os_defaults_windows(struct getdns_context *context)
 {
 	char domain[1024] = "";
-	size_t upstreams_limit = 10, length;
-	struct getdns_bindata bindata;
+	size_t upstreams_limit = 10;
 	struct addrinfo hints;
 	struct addrinfo *result;
 	getdns_upstream *upstream;

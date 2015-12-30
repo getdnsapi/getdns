@@ -428,13 +428,6 @@ inline static void debug_sec_print_dname(const char *msg, const uint8_t *label)
 	else
 		DEBUG_SEC("%s<nil>\n", msg);
 }
-inline static void debug_sec_print_pkt(
-		const char *msg, uint8_t *pkt, size_t pkt_len)
-{
-	char *str;
-	DEBUG_SEC("%s%s\n", msg, (str = gldns_wire2str_pkt(pkt, pkt_len)));
-	if (str) free(str);
-}
 #else
 #define debug_sec_print_rr(...) DEBUG_OFF(__VA_ARGS__)
 #define debug_sec_print_dname(...) DEBUG_OFF(__VA_ARGS__)
