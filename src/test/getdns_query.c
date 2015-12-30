@@ -456,9 +456,27 @@ fill_transport_list(getdns_context *context, char *transport_list_str,
 void
 print_usage(FILE *out, const char *progname)
 {
-	fprintf(out, "usage: %s [@<server>][~<server_hostname>] [+extension] [<name>] [<type>]\n",
-	    progname);
-	fprintf(out, "options:\n");
+	fprintf(out, "usage: %s [<option> ...] \\\n"
+	    "\t\t[@<upstream> ...] [+<extension> ...] [<name>] [<type>]\n", progname);
+	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]\n");
+	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
+	fprintf(out, "\nextensions:\n");
+	fprintf(out, "\t+add_warning_for_bad_dns\n");
+	fprintf(out, "\t+dnssec_return_status\n");
+	fprintf(out, "\t+dnssec_return_only_secure\n");
+	fprintf(out, "\t+dnssec_return_validation_chain\n");
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	fprintf(out, "\t+dnssec_roadblock_avoidance\n");
+#endif
+#ifdef EDNS_COOKIES
+	fprintf(out, "\t+edns_cookies\n");
+#endif
+	fprintf(out, "\t+return_both_v4_and_v6\n");
+	fprintf(out, "\t+return_call_reporting\n");
+	fprintf(out, "\t+sit=<cookie>\t\tSend along cookie OPT with value <cookie>\n");
+	fprintf(out, "\t+specify_class=<class>\n");
+	fprintf(out, "\t+0\t\t\tClear all extensions\n");
+	fprintf(out, "\noptions:\n");
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
 	    "(default = synchronous)\n");
 	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
@@ -698,6 +716,7 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
+	uint32_t klass;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -713,6 +732,35 @@ getdns_return_t parse_args(int argc, char **argv)
 					    " %d", r);
 					break;
 				}
+			} else if (strncmp(arg+1, "specify_class=", 14) == 0) {
+				if (strncasecmp(arg+15, "IN", 3) == 0)
+					r = getdns_dict_set_int(extensions,
+					    "specify_class", GETDNS_RRCLASS_IN);
+				else if (strncasecmp(arg+15, "CH", 3) == 0)
+					r = getdns_dict_set_int(extensions,
+					    "specify_class", GETDNS_RRCLASS_CH);
+				else if (strncasecmp(arg+15, "HS", 3) == 0)
+					r = getdns_dict_set_int(extensions,
+					    "specify_class", GETDNS_RRCLASS_HS);
+				else if (strncasecmp(arg+15, "NONE", 5) == 0)
+					r = getdns_dict_set_int(extensions,
+					    "specify_class", GETDNS_RRCLASS_NONE);
+				else if (strncasecmp(arg+15, "ANY", 4) == 0)
+					r = getdns_dict_set_int(extensions,
+					    "specify_class", GETDNS_RRCLASS_ANY);
+				else if (strncasecmp(arg+15, "CLASS", 5) == 0) {
+					klass = strtol(arg + 20, &endptr, 10);
+					if (*endptr || klass < 0 || klass > 255)
+						fprintf(stderr,
+						    "Unknown class: %s\n",
+						    arg+15);
+					else
+						r = getdns_dict_set_int(extensions,
+						    "specify_class", klass);
+
+				} else
+					fprintf(stderr,
+					    "Unknown class: %s\n", arg+15);
 			} else if (arg[1] == '0') {
 			    /* Unset all existing extensions*/
 				getdns_dict_destroy(extensions);
