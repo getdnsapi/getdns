@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-10-22
+* Date:    2015-12-30
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
@@ -15,12 +15,14 @@ implementation.  This implementation is licensed under the New BSD License
 Download the sources from our [github repo](https://github.com/getdnsapi/getdns) 
 or from [getdnsapi.net](https://getdnsapi.net) and verify the download using
 the checksums (SHA1 or MD5) or using gpg to verify the signature.  Our keys are
-available from the [pgp keyservers](http://keyserver.pgp.com)
+available from the [pgp keyservers](https://keyserver.pgp.com)
 
 * willem@nlnetlabs.nl, key id E5F8F8212F77A498
 * gwiley@verisign.com, key id 9DC3D572A6B73532
 
-The [getdns-api mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api)
+We have a [users list](https://getdnsapi.net/mailman/listinfo/spec) for this implementation.
+
+The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec)
 is a good place to engage in discussions regarding the design of the API.
 
 If you are just getting started with the library take a look at the section
@@ -120,7 +122,7 @@ NOTE: The current Windows implementation does not support the above.
 
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
-to install [libcheck](http://check.sourceforge.net/) and [libldns from NLnet Labs](https://nlnetlabs.nl/projects/ldns/) version 1.6.17 or later.  Both libraries are also available from
+to install [libcheck](https://libcheck.github.io/check/) and [libldns from NLnet Labs](https://nlnetlabs.nl/projects/ldns/) version 1.6.17 or later.  Both libraries are also available from
 many of the package repositories for the more popular operating systems.
 
 NOTE: The current Windows implementation does not support the above.
@@ -134,7 +136,7 @@ or more `DS` or `DNSKEY` resource records in presentation (i.e. zone file)
 format.  Note that this is different than the format of BIND.keys.
 
 The best way to setup or update the root trust anchor is by using
-[`unbound-anchor`](http://www.unbound.net/documentation/unbound-anchor.html).
+[`unbound-anchor`](https://www.unbound.net/documentation/unbound-anchor.html).
 To setup the library with the root trust anchor at the default location,
 execute the following steps as root:
 
@@ -145,17 +147,9 @@ execute the following steps as root:
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
-* DNS Search suffixes
-  * `getdns_context_set_append_name`
-  * `getdns_context_set_suffix`
-* Setting root servers via `getdns_context_set_dns_root_servers`
+* Disabling following of `CNAME`s with `getdns_context_set_follow_redirects()`
 * Detecting changes to resolv.conf and hosts
-* MDNS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
-
-Some platform specific features are not implemented in the first public release of getdns, however they are on the radar.  These include:
-
-* Respecting settings in /etc/nsswitch.conf (linux and some other OSes), for the first release we simply check local files (/etc/hosts) before checking the DNS.
-* Search suffixes specified in /etc/resolv.conf
+* MDNS, NIS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
 #Known Issues
 
@@ -184,7 +178,7 @@ We intend to add Android and other platforms to the releases as we have time to 
 
 ###FreeBSD
 
-If you're using [FreeBSD](http://www.freebsd.org/), you may install getdns via the [ports tree](http://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
+If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via the [ports tree](https://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
@@ -245,7 +239,7 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 
 This section has some Windows specific build instructions. 
 
-Build tested using Mingw(3.21.0) and Msys 1.0 (http://www.mingw.org/) on Windows 8.1
+Build tested using Mingw(3.21.0) and [Msys 1.0](http://www.mingw.org/) on Windows 8.1
 
 Dependencies: 
 The following dependencies are built from source on Mingw
@@ -255,7 +249,7 @@ libidn
 The windows version of getdns currently only is supported in the stub only mode. 
 
 To configure:
- ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=/c/OpenSSL --with-getdns_query
+    ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=/c/OpenSSL --with-getdns_query
 
  The trust anchor is also installed by unbound on c:\program Files (X86)\unbound\root.key and can be referenced from there
  or anywhere else that the user chooses to configure it.
@@ -263,15 +257,16 @@ To configure:
  After configuring, do a 'make' and 'make install' to build getdns for Windows.
 
  Example test queries:
- ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_reporting (UDP)
- ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_reporting (TCP)
- ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_reporting (TLS without authentication)
- ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_reporting (DNSSEC)
+    ./getdns_query.exe -s gmadkat.com A @64.6.64.6  +return_call_reporting (UDP)
+    ./getdns_query.exe -s gmadkat.com A @64.6.64.6 -T  +return_call_reporting (TCP)
+    ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_reporting (TLS without authentication)
+    ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_reporting (DNSSEC)
 
 Contributors
 ============
 * Theogene Bucuti
 * Andrew Cathrow, Verisign Labs
+* Neil Cook
 * Saúl Ibarra Corretgé
 * Craig Despeaux, Verisign, Inc.
 * John Dickinson, Sinodun
@@ -304,4 +299,4 @@ Contributors
 
 Acknowledgements
 ================
-The development team explicitly acknowledges Paul Hoffman for his initiative and efforts to develop a consensus based DNS API. We would like to thank the participants of the [mailing list](http://www.vpnc.org/mailman/listinfo/getdns-api) for their contributions.
+The development team explicitly acknowledges Paul Hoffman for his initiative and efforts to develop a consensus based DNS API. We would like to thank the participants of the [mailing list](https://getdnsapi.net/mailman/listinfo/spec) for their contributions.

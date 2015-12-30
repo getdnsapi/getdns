@@ -1,4 +1,4 @@
-* 2015-12-??: Version 0.9.0
+* 2015-12-31: Version 0.9.0
   * Update of unofficial extension to the API that supports stub mode 
     TLS verification. GETDNS_AUTHENTICATION_HOSTNAME is replaced by 
     GETDNS_AUTHENTICATION_REQUIRED (but remains available as an alias). 
@@ -16,19 +16,35 @@
   * Functions to convert from RR dicts to wireformat and text format
     and vice versa.  Including a function that builds a getdns_list
     of RR dicts from a zonefile.
-  * Use the with the getdns_context_set_dns_root_servers() function provided
-    root servers in recursing resolution modus.
+  * Use the with the getdns_context_set_dns_root_servers() function
+    provided root servers in recursing resolution modus.
   * getdns_query option (-f) to read a DNSSEC trust anchor from file.
   * getdns_query option (-R) to read a "root hints" file.
   * Bugfix: Detect and prevent duplicate NSEC(3)s to be returned with
     dnssec_return_validation_chain.
   * Bugfix: Remove duplicate RRs from RRsets when DNSSEC verifying
   * Client side edns-tcp-keepalive support
-  * TSIG support
+  * TSIG support + getdns_query syntax to specify TSIG parameters
+    per upstream: @<ip>[^[<algorithm>:]<name>:<secret in Base64>]
+  * Bugfix: Allow truncated answers to be returned in case of missing
+    fallback transport.
   * Verify upstream TLS pubkeys with pinsets; A getdns_query option
     (-K) to attach pinsets to getdns_contexts.
     Thanks Daniel Kahn Gillmor
   * Initial support for Windows.  Thanks Gowri Visweswaran
+  * add_warning_for_bad_dns extension
+  * Try and retry with suffixes giving with getdns_context_set_suffix()
+    following directions given by getdns_context_set_append_name()
+    getdns_query options to set suffixes and append_name directions:
+    '-W' to append suffix always (default)
+    '-1' to append suffix only to single label after failure
+    '-M' to append suffix only to multi label name after failure
+    '-N' to never append a suffix
+    '-Z <suffixes>' to set suffixes with the given comma separed list
+  * Better help text for getdns_query (printed with the '-h' option)
+  * Setting the +specify_class extension with getdns_query
+  * Return NOT_IMPLEMENTED for not implemented namespaces, and the
+    not implemented getdns_context_set_follow_redirects() function.
 
 * 2015-11-18: Version 0.5.1
   * Bugfix: growing upstreams arrow.
