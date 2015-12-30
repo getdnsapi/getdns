@@ -490,6 +490,13 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+
+	fprintf(out, "\t-W\tAppend suffix always (default)\n");
+	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
+	fprintf(out, "\t-M\tAppend suffix only to multi label name after failure\n");
+	fprintf(out, "\t-N\tNever append a suffix\n");
+	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separed list\n");
+
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
@@ -680,12 +687,15 @@ done:
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	size_t i;
+	size_t i, j;
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
 	getdns_list *tas = NULL, *hints = NULL;
 	getdns_dict *pubkey_pin = NULL;
+	getdns_list *suffixes;
+	char *suffix;
+	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
 
@@ -958,6 +968,43 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_idle_timeout(
 					context, timeout);
 				goto next;
+			case 'W':
+				(void) getdns_context_set_append_name(context,
+				    GETDNS_APPEND_NAME_ALWAYS);
+				break;
+			case '1':
+				(void) getdns_context_set_append_name(context,
+			GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE);
+				break;
+			case 'M':
+				(void) getdns_context_set_append_name(context,
+		GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE);
+				break;
+			case 'N':
+				(void) getdns_context_set_append_name(context,
+				    GETDNS_APPEND_NAME_NEVER);
+				break;
+			case 'Z':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "suffixes expected"
+					    "after -Z\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(suffixes = getdns_list_create()))
+					return GETDNS_RETURN_MEMORY_ERROR;
+				suffix = strtok(argv[i], ",");
+				j = 0;
+				while (suffix) {
+					bindata.size = strlen(suffix);
+					bindata.data = (void *)suffix;
+					(void) getdns_list_set_bindata(
+					    suffixes, j++, &bindata);
+					suffix = strtok(NULL, ",");
+				}
+				(void) getdns_context_set_suffix(context,
+				    suffixes);
+				getdns_list_destroy(suffixes);
+				goto next;
 			case 'T':
 				getdns_context_set_dns_transport(context,
 				    GETDNS_TRANSPORT_TCP_ONLY);
@@ -999,7 +1046,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'B':
 				batch_mode = 1;
-			break;
+				break;
 
 
 			default:
