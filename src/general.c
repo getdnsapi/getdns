@@ -44,6 +44,7 @@
 #include "util-internal.h"
 #include "dnssec.h"
 #include "stub.h"
+#include "general.h"
 
 /* cancel, cleanup and send timeout to callback */
 static void
@@ -72,6 +73,83 @@ void _getdns_call_user_callback(getdns_dns_req *dns_req,
 	context->processing = 0;
 }
 
+static int
+no_answer(getdns_dns_req *dns_req)
+{
+	getdns_network_req **netreq_p, *netreq;
+	int new_canonical = 0;
+	uint8_t canon_spc[256];
+	const uint8_t *canon;
+	size_t canon_len;
+	uint8_t owner_spc[256];
+	const uint8_t *owner;
+	size_t owner_len;
+
+	_getdns_rr_iter rr_spc, *rr;
+	_getdns_rdf_iter rdf_spc, *rdf;
+
+	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
+		if (netreq->response_len == 0 ||
+		    GLDNS_ANCOUNT(netreq->response) == 0)
+			continue;
+		canon = netreq->owner->name;
+		canon_len = netreq->owner->name_len;
+		if (netreq->request_type != GETDNS_RRTYPE_CNAME
+		    && GLDNS_ANCOUNT(netreq->response) > 1) do {
+			new_canonical = 0;
+			for ( rr = _getdns_rr_iter_init(&rr_spc
+			                               , netreq->response
+			                               , netreq->response_len)
+			    ; rr && _getdns_rr_iter_section(rr)
+			         <= GLDNS_SECTION_ANSWER
+			    ; rr = _getdns_rr_iter_next(rr)) {
+
+				if (_getdns_rr_iter_section(rr) !=
+				    GLDNS_SECTION_ANSWER)
+					continue;
+
+				if (gldns_read_uint16(rr->rr_type) !=
+				    GETDNS_RRTYPE_CNAME)
+					continue;
+				
+				owner = _getdns_owner_if_or_as_decompressed(
+				    rr, owner_spc, &owner_len);
+				if (!_getdns_dname_equal(canon, owner))
+					continue;
+
+				if (!(rdf = _getdns_rdf_iter_init(
+				    &rdf_spc, rr)))
+					continue;
+
+				canon = _getdns_rdf_if_or_as_decompressed(
+				    rdf, canon_spc, &canon_len);
+				new_canonical = 1;
+			}
+		} while (new_canonical);
+		for ( rr = _getdns_rr_iter_init(&rr_spc
+					       , netreq->response
+					       , netreq->response_len)
+		    ; rr && _getdns_rr_iter_section(rr)
+			 <= GLDNS_SECTION_ANSWER
+		    ; rr = _getdns_rr_iter_next(rr)) {
+
+			if (_getdns_rr_iter_section(rr) !=
+			    GLDNS_SECTION_ANSWER)
+				continue;
+
+			if (gldns_read_uint16(rr->rr_type) !=
+			    netreq->request_type)
+				continue;
+			
+			owner = _getdns_owner_if_or_as_decompressed(
+			    rr, owner_spc, &owner_len);
+			if (_getdns_dname_equal(canon, owner))
+				return 0;
+		}
+	}
+	return 1;
+}
+
 void
 _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
@@ -85,6 +163,74 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		else if (netreq->response_len > 0)
 			results_found = 1;
 
+	/* Do we have to check more suffixes on nxdomain/nodata?
+	 */
+	if (dns_req->suffix_appended && /* Something was appended */
+	    dns_req->suffix_len > 1 &&  /* Next suffix available */
+	    no_answer(dns_req)) {
+		/* Remove suffix from name */
+		dns_req->name_len -= dns_req->suffix_len - 1;
+		dns_req->name[dns_req->name_len - 1] = 0;
+		do {
+			dns_req->suffix += dns_req->suffix_len;
+			dns_req->suffix_len = *dns_req->suffix++;
+			if (dns_req->suffix_len + dns_req->name_len - 1 < 
+			    sizeof(dns_req->name)) {
+				memcpy(dns_req->name + dns_req->name_len - 1,
+				    dns_req->suffix, dns_req->suffix_len);
+				dns_req->name_len += dns_req->suffix_len - 1;
+				dns_req->suffix_appended = 1;
+				break;
+			}
+		} while (dns_req->suffix_len > 1 && *dns_req->suffix);
+		if (dns_req->append_name == GETDNS_APPEND_NAME_ALWAYS ||
+		    (dns_req->suffix_len > 1 && *dns_req->suffix)) {
+			for ( netreq_p = dns_req->netreqs
+			    ; (netreq = *netreq_p)
+			    ; netreq_p++ ) {
+				_getdns_netreq_reinit(netreq);
+				if (_getdns_submit_netreq(netreq))
+					netreq->state = NET_REQ_FINISHED;
+			}
+			_getdns_check_dns_req_complete(dns_req);
+			return;
+		}
+	} else if (
+	    ( dns_req->append_name ==
+	      GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE ||
+	      dns_req->append_name ==
+	      GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE
+	    ) &&
+	    !dns_req->suffix_appended &&
+	    dns_req->suffix_len > 1 &&
+	    no_answer(dns_req)) {
+		/* Initial suffix append */
+		for (
+		    ; dns_req->suffix_len > 1 && *dns_req->suffix
+		    ; dns_req->suffix += dns_req->suffix_len
+		    , dns_req->suffix_len = *dns_req->suffix++) {
+
+			if (dns_req->suffix_len + dns_req->name_len - 1 < 
+			    sizeof(dns_req->name)) {
+				memcpy(dns_req->name + dns_req->name_len - 1,
+				    dns_req->suffix, dns_req->suffix_len);
+				dns_req->name_len += dns_req->suffix_len - 1;
+				dns_req->suffix_appended = 1;
+				break;
+			}
+		}
+		if (dns_req->suffix_appended) {
+			for ( netreq_p = dns_req->netreqs
+			    ; (netreq = *netreq_p)
+			    ; netreq_p++ ) {
+				_getdns_netreq_reinit(netreq);
+				if (_getdns_submit_netreq(netreq))
+					netreq->state = NET_REQ_FINISHED;
+			}
+			_getdns_check_dns_req_complete(dns_req);
+			return;
+		}
+	}
 	if (dns_req->internal_cb)
 		dns_req->internal_cb(dns_req);
 	else if (! results_found)
@@ -173,7 +319,7 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 
 #ifdef HAVE_LIBUNBOUND
 		return ub_resolve_async(dns_req->context->unbound_ctx,
-		    name, netreq->request_type, netreq->request_class,
+		    name, netreq->request_type, netreq->owner->request_class,
 		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 #else

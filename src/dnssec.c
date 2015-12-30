@@ -3269,7 +3269,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 		                      , netreq->response, netreq->response_len
 		                      , netreq->owner->name
 		                      , netreq->request_type
-		                      , netreq->request_class
+		                      , netreq->owner->request_class
 				      , netreq
 		                      );
 	}

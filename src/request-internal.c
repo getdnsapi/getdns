@@ -110,123 +110,134 @@ network_req_cleanup(getdns_network_req *net_req)
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
 }
 
+static uint8_t *
+netreq_reset(getdns_network_req *net_req)
+{
+	uint8_t *buf;
+	/* variables that need to be reset on reinit 
+	 */
+	net_req->unbound_id = -1;
+	net_req->state = NET_REQ_NOT_SENT;
+	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
+	net_req->query_id = 0;
+	net_req->response_len = 0;
+	/* Some fields to record info for return_call_reporting */
+	net_req->debug_start_time = 0;
+	net_req->debug_end_time = 0;
+	if (!net_req->query)
+		return NULL;
+
+	buf = net_req->query + GLDNS_HEADER_SIZE;
+	(void) memcpy(buf, net_req->owner->name, net_req->owner->name_len);
+	buf += net_req->owner->name_len;
+
+	gldns_write_uint16(buf, net_req->request_type);
+	gldns_write_uint16(buf + 2, net_req->owner->request_class);
+	return buf + 4;
+}
+
 static int
 network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
-    const char *name, uint16_t request_type, uint16_t request_class,
-    int dnssec_extension_set, int with_opt,
+    uint16_t request_type, int dnssec_extension_set, int with_opt,
     int edns_maximum_udp_payload_size,
     uint8_t edns_extended_rcode, uint8_t edns_version, int edns_do_bit,
     uint16_t opt_options_size, size_t noptions, getdns_list *options,
     size_t wire_data_sz, size_t max_query_sz)
 {
 	uint8_t *buf;
-	size_t dname_len;
 	getdns_dict    *option;
 	uint32_t        option_code;
 	getdns_bindata *option_data;
 	size_t i;
 	int r = 0;
 
+	/* variables that stay the same on reinit, don't touch
+	 */
 	net_req->request_type = request_type;
-	net_req->request_class = request_class;
-	net_req->unbound_id = -1;
-	net_req->state = NET_REQ_NOT_SENT;
 	net_req->owner = owner;
-
-	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
-	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
-
-	net_req->upstream = NULL;
-	net_req->fd = -1;
-    net_req->transport_count = owner->context->dns_transport_count;
-	net_req->transport_current = 0;
-    memcpy(net_req->transports, owner->context->dns_transports,
-           net_req->transport_count * sizeof(getdns_transport_list_t));
-	net_req->tls_auth_min = owner->context->tls_auth_min;
-	memset(&net_req->event, 0, sizeof(net_req->event));
-	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
-	net_req->query_id = 0;
 	net_req->edns_maximum_udp_payload_size = edns_maximum_udp_payload_size;
 	net_req->max_udp_payload_size = edns_maximum_udp_payload_size != -1
 	                              ? edns_maximum_udp_payload_size : 1432;
+        net_req->base_query_option_sz = opt_options_size;
+	net_req->wire_data_sz = wire_data_sz;
+
+	net_req->transport_count = owner->context->dns_transport_count;
+	memcpy(net_req->transports, owner->context->dns_transports,
+	    net_req->transport_count * sizeof(getdns_transport_list_t));
+	net_req->tls_auth_min = owner->context->tls_auth_min;
+
+	/* state variables from the resolver, don't touch
+	 */
+	net_req->upstream = NULL;
+	net_req->fd = -1;
+	net_req->transport_current = 0;
+	memset(&net_req->event, 0, sizeof(net_req->event));
+	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->keepalive_sent = 0;
 	net_req->write_queue_tail = NULL;
-	net_req->response_len = 0;
-        net_req->base_query_option_sz = opt_options_size;
-
 	/* Some fields to record info for return_call_reporting */
-	net_req->debug_start_time = 0;
-	net_req->debug_end_time = 0;
 	net_req->debug_tls_auth_status = 0;
 	net_req->debug_udp = 0;
 
-	net_req->wire_data_sz = wire_data_sz;
-	if (max_query_sz) {
-		/* first two bytes will contain query length (for tcp) */
-		buf = net_req->query = net_req->wire_data + 2;
-
-		gldns_write_uint16(buf + 2, 0); /* reset all flags */
-		GLDNS_RD_SET(buf);
-		if (dnssec_extension_set) /* We will do validation ourselves */
-			GLDNS_CD_SET(buf);
-		GLDNS_OPCODE_SET(buf, GLDNS_PACKET_QUERY);
-		gldns_write_uint16(buf + GLDNS_QDCOUNT_OFF, 1); /* 1 query */
-		gldns_write_uint16(buf + GLDNS_ANCOUNT_OFF, 0); /* 0 answers */
-		gldns_write_uint16(buf + GLDNS_NSCOUNT_OFF, 0); /* 0 authorities */
-		gldns_write_uint16(buf + GLDNS_ARCOUNT_OFF, with_opt ? 1 : 0);
-
-		buf += GLDNS_HEADER_SIZE;
-		dname_len = max_query_sz - GLDNS_HEADER_SIZE;
-		if ((r = gldns_str2wire_dname_buf(name, buf, &dname_len))) {
-			net_req->opt = NULL;
-			return r;
-		}
-
-		buf += dname_len;
-
-		gldns_write_uint16(buf, request_type);
-		gldns_write_uint16(buf + 2, request_class);
-		buf += 4;
-
-		if (with_opt) {
-			net_req->opt = buf;
-			buf[0] = 0; /* dname for . */
-			gldns_write_uint16(buf + 1, GLDNS_RR_TYPE_OPT);
-			gldns_write_uint16(net_req->opt + 3,
-			    net_req->max_udp_payload_size);
-			buf[5] = edns_extended_rcode;
-			buf[6] = edns_version;
-			buf[7] = edns_do_bit ? 0x80 : 0;
-			buf[8] = 0;
-			gldns_write_uint16(buf + 9, opt_options_size);
-			buf += 11;
-			for (i = 0; i < noptions; i++) {
-				if (getdns_list_get_dict(options, i, &option))
-					continue;
-				if (getdns_dict_get_int(
-				    option, "option_code", &option_code))
-					continue;
-				if (getdns_dict_get_bindata(
-				    option, "option_data", &option_data))
-					continue;
-
-				gldns_write_uint16(buf, (uint16_t) option_code);
-				gldns_write_uint16(buf + 2,
-				    (uint16_t) option_data->size);
-				(void) memcpy(buf + 4, option_data->data,
-				    option_data->size);
-
-				buf += option_data->size + 4;
-			}
-		} else
-			net_req->opt = NULL;
-		net_req->response = buf;
-		gldns_write_uint16(net_req->wire_data, net_req->response - net_req->query);
-	} else {
+	if (max_query_sz == 0) {
 		net_req->query    = NULL;
 		net_req->opt      = NULL;
 		net_req->response = net_req->wire_data;
+		netreq_reset(net_req);
+		return r;
 	}
+	/* first two bytes will contain query length (for tcp) */
+	net_req->query = net_req->wire_data + 2;
+
+	buf = net_req->query;
+	gldns_write_uint16(buf + 2, 0); /* reset all flags */
+	GLDNS_RD_SET(buf);
+	if (dnssec_extension_set) /* We will do validation ourselves */
+		GLDNS_CD_SET(buf);
+	GLDNS_OPCODE_SET(buf, GLDNS_PACKET_QUERY);
+	gldns_write_uint16(buf + GLDNS_QDCOUNT_OFF, 1); /* 1 query */
+	gldns_write_uint16(buf + GLDNS_ANCOUNT_OFF, 0); /* 0 answers */
+	gldns_write_uint16(buf + GLDNS_NSCOUNT_OFF, 0); /* 0 authorities */
+	gldns_write_uint16(buf + GLDNS_ARCOUNT_OFF, with_opt ? 1 : 0);
+
+	buf = netreq_reset(net_req);
+	if (with_opt) {
+		net_req->opt = buf;
+		buf[0] = 0; /* dname for . */
+		gldns_write_uint16(buf + 1, GLDNS_RR_TYPE_OPT);
+		gldns_write_uint16(net_req->opt + 3,
+		    net_req->max_udp_payload_size);
+		buf[5] = edns_extended_rcode;
+		buf[6] = edns_version;
+		buf[7] = edns_do_bit ? 0x80 : 0;
+		buf[8] = 0;
+		gldns_write_uint16(buf + 9, opt_options_size);
+		buf += 11;
+		for (i = 0; i < noptions; i++) {
+			if (getdns_list_get_dict(options, i, &option))
+				continue;
+			if (getdns_dict_get_int(
+			    option, "option_code", &option_code))
+				continue;
+			if (getdns_dict_get_bindata(
+			    option, "option_data", &option_data))
+				continue;
+
+			gldns_write_uint16(buf, (uint16_t) option_code);
+			gldns_write_uint16(buf + 2,
+			    (uint16_t) option_data->size);
+			(void) memcpy(buf + 4, option_data->data,
+			    option_data->size);
+
+			buf += option_data->size + 4;
+		}
+	} else
+		net_req->opt = NULL;
+
+	net_req->response = buf;
+	gldns_write_uint16(net_req->wire_data, net_req->response - net_req->query);
+
 	return r;
 }
 
@@ -247,6 +258,39 @@ _getdns_network_req_clear_upstream_options(getdns_network_req * req)
 	  gldns_write_uint16(req->query - 2, pktlen);
   }
 }
+
+void
+_getdns_netreq_reinit(getdns_network_req *netreq)
+{
+	uint8_t *base_opt_backup;
+	size_t base_opt_rr_sz;
+
+	if (!netreq->query) {
+		(void) netreq_reset(netreq);
+		return;
+
+	} else if (!netreq->opt) {
+		/* Remove TSIG (if any) */
+		gldns_write_uint16(netreq->query + GLDNS_ARCOUNT_OFF,  0);
+		netreq->response = netreq_reset(netreq);
+		gldns_write_uint16(netreq->wire_data,
+		    netreq->response - netreq->query);
+		return;
+	}
+	_getdns_network_req_clear_upstream_options(netreq);
+	base_opt_rr_sz = netreq->base_query_option_sz + 11;
+	base_opt_backup = netreq->wire_data + netreq->wire_data_sz
+	    - base_opt_rr_sz;
+	(void) memcpy(base_opt_backup, netreq->opt, base_opt_rr_sz);
+	netreq->opt = netreq_reset(netreq);
+	(void) memcpy(netreq->opt, base_opt_backup, base_opt_rr_sz);
+	netreq->response = netreq->opt + base_opt_rr_sz;
+	/* Remove TSIG (if any), but leave the opt RR */
+	gldns_write_uint16(netreq->query + GLDNS_ARCOUNT_OFF,  1);
+	gldns_write_uint16(netreq->wire_data,
+	    netreq->response - netreq->query);
+}
+
 
 /* add_upstream_option appends an option that is derived at send time.
     (you can send data as NULL and it will fill with all zeros) */
@@ -583,6 +627,8 @@ _getdns_dns_req_free(getdns_dns_req * req)
 	GETDNS_FREE(req->my_mf, req);
 }
 
+static const uint8_t no_suffixes[] = { 1, 0 };
+
 /* create a new dns req to be submitted */
 getdns_dns_req *
 _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
@@ -647,7 +693,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	 * And align on the 8 byte boundry  (hence the (x + 7) / 8 * 8)
 	 */
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
-	uint8_t *region;
+	uint8_t *region, *suffixes;
 	
 	if (extensions == dnssec_ok_checking_disabled ||
 	    extensions == dnssec_ok_checking_disabled_roadblock_avoidance ||
@@ -719,7 +765,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 			    ;
 		}
 		max_query_sz = ( GLDNS_HEADER_SIZE
-		    + strlen(name) + 1 + 4 /* dname always smaller then strlen(name) + 1 */
+		    + 256 + 4 /* dname maximum 255 bytes (256 with mdns)*/
 		    + 12 + opt_options_size /* space needed for OPT (if needed) */
 		    + MAXIMUM_UPSTREAM_OPTION_SPACE
 		    + MAXIMUM_TSIG_SPACE
@@ -734,6 +780,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	            + max_query_sz + max_response_sz  + 7 ) / 8 * 8;
 	dnsreq_base_sz = (( sizeof(getdns_dns_req) 
 	                  + (a_aaaa_query ? 3 : 2) * sizeof(getdns_network_req*)
+			  + context->suffixes_len
 			  ) + 7) / 8 * 8;
 
 	if (! (region = GETDNS_XMALLOC(context->mf, uint8_t, 
@@ -750,11 +797,51 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		result->netreqs[1] = NULL;
 
 	result->my_mf = context->mf;
+	
+	suffixes = region + dnsreq_base_sz - context->suffixes_len;
+	assert(context->suffixes);
+	assert(context->suffixes_len);
+	memcpy(suffixes, context->suffixes, context->suffixes_len);
 
+	result->append_name = context->append_name;
+	if (!strlen(name) || name[strlen(name)-1] == '.' ||
+	    result->append_name == GETDNS_APPEND_NAME_NEVER) {
+		/* Absolute query string, no appending */
+		result->suffix_len = no_suffixes[0];
+		result->suffix = no_suffixes + 1;
+		result->suffix_appended = 1;
+	} else {
+		result->suffix_len = suffixes[0];
+		result->suffix = suffixes + 1;
+		result->suffix_appended = 0;
+	}
 	result->name_len = sizeof(result->name);
 	if (gldns_str2wire_dname_buf(name, result->name, &result->name_len)) {
 		GETDNS_FREE(result->my_mf, result);
 		return NULL;
+	}
+	if (result->append_name == GETDNS_APPEND_NAME_ALWAYS) {
+		for (
+		    ; result->suffix_len > 1 && *result->suffix
+		    ; result->suffix += result->suffix_len
+		    , result->suffix_len = *result->suffix++) {
+
+			if (result->suffix_len + result->name_len - 1 < 
+			    sizeof(result->name)) {
+				memcpy(result->name + result->name_len - 1,
+				    result->suffix, result->suffix_len);
+				result->name_len += result->suffix_len - 1;
+				result->suffix_appended = 1;
+				break;
+			}
+		}
+	} else if (result->append_name ==
+	    GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE &&
+	    result->name[result->name[0]+1] != 0) {
+		/* We have multiple labels, no appending */
+		result->suffix_len = no_suffixes[0];
+		result->suffix = no_suffixes + 1;
+		result->suffix_appended = 1;
 	}
 	result->context = context;
 	result->loop = loop;
@@ -783,23 +870,23 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 
         /* check the specify_class extension */
         (void) getdns_dict_get_int(extensions, "specify_class", &klass);
+	result->request_class = klass;
         
 	result->upstreams = context->upstreams;
 	if (result->upstreams)
 		result->upstreams->referenced++;
 
 	network_req_init(result->netreqs[0], result,
-	    name, request_type, klass,
-	    dnssec_extension_set, with_opt,
+	    request_type, dnssec_extension_set, with_opt,
 	    edns_maximum_udp_payload_size,
 	    edns_extended_rcode, edns_version, edns_do_bit,
 	    opt_options_size, noptions, options,
 	    netreq_sz - sizeof(getdns_network_req), max_query_sz);
 
 	if (a_aaaa_query)
-		network_req_init(result->netreqs[1], result, name,
+		network_req_init(result->netreqs[1], result,
 		    ( request_type == GETDNS_RRTYPE_A
-		    ? GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A ), klass,
+		    ? GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A ),
 		    dnssec_extension_set, with_opt,
 		    edns_maximum_udp_payload_size,
 		    edns_extended_rcode, edns_version, edns_do_bit,
