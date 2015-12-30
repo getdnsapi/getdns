@@ -214,8 +214,7 @@
 
       expected_changed_item = GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS;
 
-      ASSERT_RC(getdns_context_set_follow_redirects(context, GETDNS_REDIRECTS_DO_NOT_FOLLOW),
-        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_follow_redirects()");
+      (void) getdns_context_set_follow_redirects(context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
 
       CONTEXT_DESTROY;
        
