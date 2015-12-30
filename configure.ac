@@ -37,7 +37,7 @@ sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
 AC_INIT([getdns], [0.9.0], [stub-resolver@verisignlabs.com], [], [https://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [rc1])
+AC_SUBST(RELEASE_CANDIDATE, [rc2])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -47,7 +47,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00090001])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x00090002])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
