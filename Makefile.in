@@ -120,6 +120,7 @@ clean:
 
 depend:
 	cd src && $(MAKE) $@
+	cd spec/example && $(MAKE) $@
 
 distclean:
 	cd src && $(MAKE) $@

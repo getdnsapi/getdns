@@ -180,6 +180,7 @@ clean:
 distclean : clean
 	rm -f scratchpad.c
 	rm -f Makefile config.status config.log
+	rm -f check_getdns_uv.core check_getdns.core check_getdns_event.core
 	rm -Rf autom4te.cache
 
 $(distdir): FORCE
