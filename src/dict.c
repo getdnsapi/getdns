@@ -1058,7 +1058,8 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 				return -1;
 			if (getdns_pp_list(buf, indent, item->i.data.list, 
 			    (strcmp(item->node.key, "namespaces") == 0 ||
-			     strcmp(item->node.key, "dns_transport_list") == 0),
+			     strcmp(item->node.key, "dns_transport_list") == 0
+			     || strcmp(item->node.key, "bad_dns") == 0),
 			    json) < 0)
 				return -1;
 			break;
