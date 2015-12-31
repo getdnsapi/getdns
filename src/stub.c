@@ -872,14 +872,16 @@ tls_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
 int
 tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
-	int     err;
 	getdns_upstream *upstream;
 	getdns_return_t pinset_ret = GETDNS_RETURN_GOOD;
-	
-	err = X509_STORE_CTX_get_error(ctx);
-	upstream = _getdns_upstream_from_x509_store(ctx);
+
+#if defined(STUB_DEBUG) && STUB_DEBUG || defined(X509_V_ERR_HOSTNAME_MISMATCH)
+	int     err = X509_STORE_CTX_get_error(ctx);
+
 	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__,
 		   err, X509_verify_cert_error_string(err));
+#endif
+	upstream = _getdns_upstream_from_x509_store(ctx);
 
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	/*Report if error is hostname mismatch*/
