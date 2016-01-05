@@ -35,9 +35,9 @@ INLINE uint16_t
 gldns_read_uint16(const void *src)
 {
 #ifdef ALLOW_UNALIGNED_ACCESSES
-        return ntohs(*(uint16_t *) src);
+        return ntohs(*(const uint16_t *) src);
 #else
-        uint8_t *p = (uint8_t *) src;
+        const uint8_t *p = (const uint8_t *) src;
         return ((uint16_t) p[0] << 8) | (uint16_t) p[1];
 #endif
 }
@@ -46,9 +46,9 @@ INLINE uint32_t
 gldns_read_uint32(const void *src)
 {
 #ifdef ALLOW_UNALIGNED_ACCESSES
-        return ntohl(*(uint32_t *) src);
+        return ntohl(*(const uint32_t *) src);
 #else
-        uint8_t *p = (uint8_t *) src;
+        const uint8_t *p = (const uint8_t *) src;
         return (  ((uint32_t) p[0] << 24)
                 | ((uint32_t) p[1] << 16)
                 | ((uint32_t) p[2] << 8)
@@ -366,7 +366,6 @@ gldns_buffer_end(gldns_buffer *buffer)
 INLINE uint8_t *
 gldns_buffer_current(gldns_buffer *buffer)
 {
-	assert(buffer->_position <= buffer->_limit || buffer->_fixed);
 	return gldns_buffer_at(buffer, buffer->_position);
 }
 
