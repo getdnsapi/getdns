@@ -38,13 +38,14 @@
 #include <stdio.h>
 #include <string.h>
 #include "config.h"
+#include "general.h"
 #include "gldns/wire2str.h"
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
 #include "dnssec.h"
 #include "stub.h"
-#include "general.h"
+#include "dict.h"
 
 /* cancel, cleanup and send timeout to callback */
 static void
@@ -330,6 +331,84 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 	return _getdns_submit_stub_request(netreq);
 }
 
+
+/**
+ * structure used by validate_extensions() to check extension formats
+ */
+typedef struct getdns_extension_format
+{
+	char *extstring;
+	getdns_data_type exttype;
+	int implemented;
+} getdns_extension_format;
+
+static int
+extformatcmp(const void *a, const void *b)
+{
+	return strcmp(((getdns_extension_format *) a)->extstring,
+	    ((getdns_extension_format *) b)->extstring);
+}
+
+/*---------------------------------------- validate_extensions */
+static getdns_return_t
+validate_extensions(struct getdns_dict * extensions)
+{
+	/**
+	  * this is a comprehensive list of extensions and their data types
+	  * used by validate_extensions()
+	  * The list has to be in sorted order for bsearch lookup in function
+	  * validate_extensions.
+	  */
+	static getdns_extension_format extformats[] = {
+		{"add_opt_parameters"            , t_dict, 1},
+		{"add_warning_for_bad_dns"       , t_int , 1},
+		{"dnssec_return_only_secure"     , t_int , 1},
+		{"dnssec_return_status"          , t_int , 1},
+		{"dnssec_return_validation_chain", t_int , 1},
+		{"dnssec_roadblock_avoidance"    , t_int ,
+#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
+							   1},
+#else
+							   0},
+#endif
+		{"edns_cookies"                  , t_int ,
+#ifdef EDNS_COOKIES
+							   1},
+#else
+							   0},
+#endif
+		{"return_api_information"        , t_int , 1},
+		{"return_both_v4_and_v6"         , t_int , 1},
+		{"return_call_reporting"         , t_int , 1},
+		{"specify_class"                 , t_int , 1},
+	};
+
+	struct getdns_dict_item *item;
+	getdns_extension_format *extformat;
+
+	if (extensions)
+		RBTREE_FOR(item, struct getdns_dict_item *,
+		    &(extensions->root)) {
+
+			getdns_extension_format key;
+			key.extstring = (char *) item->node.key;
+			extformat = bsearch(&key, extformats,
+			    sizeof(extformats) /
+			    sizeof(getdns_extension_format),
+			    sizeof(getdns_extension_format), extformatcmp);
+			if (!extformat)
+				return GETDNS_RETURN_NO_SUCH_EXTENSION;
+
+			if (!extformat->implemented)
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+			if (item->i.dtype != extformat->exttype)
+				return GETDNS_RETURN_EXTENSION_MISFORMAT;
+		}
+	return GETDNS_RETURN_GOOD;
+}				/* _getdns_validate_extensions */
+
+
 static getdns_return_t
 getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
@@ -348,7 +427,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	if ((r = _getdns_validate_dname(name)))
 		return r;
 
-	if (extensions && (r = _getdns_validate_extensions(extensions)))
+	if (extensions && (r = validate_extensions(extensions)))
 		return r;
 
 	/* Set up the context assuming we won't use the specified namespaces.

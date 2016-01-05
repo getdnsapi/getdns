@@ -160,15 +160,6 @@ typedef enum network_req_state_enum
 	NET_REQ_CANCELED
 } network_req_state;
 
-/**
- * structure used by validate_extensions() to check extension formats
- */
-typedef struct getdns_extension_format
-{
-	char *extstring;
-	getdns_data_type exttype;
-} getdns_extension_format;
-
 
 /* State for async tcp stub resolving */
 typedef struct getdns_tcp_state {
