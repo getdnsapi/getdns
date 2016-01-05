@@ -458,6 +458,7 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t\t[@<upstream> ...] [+<extension> ...] [<name>] [<type>]\n", progname);
+	fprintf(out, "\ndefault mode: recursive, synchronous resolution of NS record using UDP with TCP fallback\n");
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]\n");
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
@@ -519,7 +520,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
 	fprintf(out, "\t-L\tSet transport to TLS only keep connections open\n");
 	fprintf(out, "\t-E\tSet transport to TLS with TCP fallback only keep connections open\n");
-	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback\n");
+	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback (default)\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
 	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");

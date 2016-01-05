@@ -2922,6 +2922,7 @@ _get_context_settings(getdns_context* context)
     }
     /* int fields */
     r = getdns_dict_set_int(result, "timeout", context->timeout);
+    r = getdns_dict_set_int(result, "idle_timeout", context->idle_timeout);
     r |= getdns_dict_set_int(result, "limit_outstanding_queries", context->limit_outstanding_queries);
     r |= getdns_dict_set_int(result, "dnssec_allowed_skew", context->dnssec_allowed_skew);
     r |= getdns_dict_set_int(result, "follow_redirects", context->follow_redirects);
@@ -3392,15 +3393,22 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 				break;
 
 			if (upstream->transport == GETDNS_TRANSPORT_TLS) {
-				if (upstream_port(upstream) == getdns_port_array[j])
-					(void) getdns_dict_set_int(d, "tls_port",
-								   (uint32_t) upstream_port(upstream));
+				if (upstream_port(upstream) != getdns_port_array[j] &&
+					(r = getdns_dict_set_int(d, "tls_port",
+								   (uint32_t) upstream_port(upstream))))
+					break;
+				if (upstream->tls_auth_name[0] != '\0' &&
+				    (r = getdns_dict_util_set_string(d,
+				                                     "tls_auth_name",
+				                                     upstream->tls_auth_name)))
+					break;
 				if (upstream->tls_pubkey_pinset) {
 					getdns_list *pins = NULL;
-					if (_getdns_get_pubkey_pinset_list(context,
+					if ((_getdns_get_pubkey_pinset_list(context,
 									   upstream->tls_pubkey_pinset,
-									   &pins) == GETDNS_RETURN_GOOD)
-						(void) getdns_dict_set_list(d, "tls_pubkey_pinset", pins);
+									   &pins) == GETDNS_RETURN_GOOD) &&
+						(r = getdns_dict_set_list(d, "tls_pubkey_pinset", pins)))
+						break;
 					getdns_list_destroy(pins);
 				}
 			}
