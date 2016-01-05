@@ -220,8 +220,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_MAILA = 254,
 	/**  any type (wildcard) */
 	GLDNS_RR_TYPE_ANY = 255,
-	/** draft-faltstrom-uri-06 */
-	GLDNS_RR_TYPE_URI = 256,
+	GLDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 
 	/** DNSSEC Trust Authorities */
@@ -343,7 +342,7 @@ enum gldns_enum_rdf_type
 
         /** A <character-string> encoding of the value field as specified 
          * [RFC1035], Section 5.1., encoded as remaining rdata.
-         * For CAA.
+         * For CAA, URI.
          */
         GLDNS_RDF_TYPE_LONG_STR,
 

@@ -14,7 +14,6 @@
 
 #include "config.h"
 #include "gldns/parseutil.h"
-#include <strings.h>
 #include <sys/time.h>
 #include <time.h>
 #include <ctype.h>
@@ -52,7 +51,7 @@ static const int mdays[] = {
 static int
 is_leap_year(int year)
 {
-	return GLDNS_MOD(year,   4) == 0 && (GLDNS_MOD(year, 100) != 0
+	return GLDNS_MOD(year,   4) == 0 && (GLDNS_MOD(year, 100) != 0 
 	    || GLDNS_MOD(year, 400) == 0);
 }
 
@@ -61,7 +60,7 @@ leap_days(int y1, int y2)
 {
 	--y1;
 	--y2;
-	return (GLDNS_DIV(y2,   4) - GLDNS_DIV(y1,   4)) -
+	return (GLDNS_DIV(y2,   4) - GLDNS_DIV(y1,   4)) - 
 	       (GLDNS_DIV(y2, 100) - GLDNS_DIV(y1, 100)) +
 	       (GLDNS_DIV(y2, 400) - GLDNS_DIV(y1, 400));
 }
@@ -121,7 +120,7 @@ static void
 gldns_mon_and_mday_from_year_and_yday(struct tm *result)
 {
 	int idays = result->tm_yday;
-	const int *mon_lengths = is_leap_year(result->tm_year) ?
+	const int *mon_lengths = is_leap_year(result->tm_year) ? 
 					leap_year_mdays : mdays;
 
 	result->tm_mon = 0;
@@ -289,9 +288,9 @@ gldns_parse_escape(uint8_t *ch_p, const char** str_p)
 {
 	uint16_t val;
 
-	if ((*str_p)[0] && isdigit((*str_p)[0])  &&
-	    (*str_p)[1] && isdigit((*str_p)[1])  &&
-	    (*str_p)[2] && isdigit((*str_p)[2]))  {
+	if ((*str_p)[0] && isdigit((unsigned char)(*str_p)[0]) &&
+	    (*str_p)[1] && isdigit((unsigned char)(*str_p)[1]) &&
+	    (*str_p)[2] && isdigit((unsigned char)(*str_p)[2])) {
 
 		val = (uint16_t)(((*str_p)[0] - '0') * 100 +
 				 ((*str_p)[1] - '0') *  10 +
@@ -304,7 +303,7 @@ gldns_parse_escape(uint8_t *ch_p, const char** str_p)
 		*str_p += 3;
 		return 1;
 
-	} else if ((*str_p)[0] && !isdigit((*str_p)[0])) {
+	} else if ((*str_p)[0] && !isdigit((unsigned char)(*str_p)[0])) {
 
 		*ch_p = (uint8_t)*(*str_p)++;
 		return 1;
@@ -348,14 +347,14 @@ gldns_b32_ntop_base(const uint8_t* src, size_t src_sz, char* dst, size_t dst_sz,
 	const char* b32 = extended_hex ?  "0123456789abcdefghijklmnopqrstuv"
 					: "abcdefghijklmnopqrstuvwxyz234567";
 
-	size_t c = 0; /* c is used to carry partial base32 character over
+	size_t c = 0; /* c is used to carry partial base32 character over 
 		       * byte boundaries for sizes with a remainder.
 		       * (i.e. src_sz % 5 != 0)
 		       */
 
 	ret_sz = add_padding ? gldns_b32_ntop_calculate_size(src_sz)
 			     : gldns_b32_ntop_calculate_size_no_padding(src_sz);
-
+	
 	/* Do we have enough space? */
 	if (dst_sz < ret_sz + 1)
 		return -1;
@@ -433,13 +432,13 @@ gldns_b32_ntop_base(const uint8_t* src, size_t src_sz, char* dst, size_t dst_sz,
 	return (int)ret_sz;
 }
 
-int
+int 
 gldns_b32_ntop(const uint8_t* src, size_t src_sz, char* dst, size_t dst_sz)
 {
 	return gldns_b32_ntop_base(src, src_sz, dst, dst_sz, 0, 1);
 }
 
-int
+int 
 gldns_b32_ntop_extended_hex(const uint8_t* src, size_t src_sz,
 		char* dst, size_t dst_sz)
 {
@@ -468,7 +467,7 @@ gldns_b32_pton_base(const char* src, size_t src_sz, uint8_t* dst, size_t dst_sz,
 				ch = *src++;
 				--src_sz;
 
-			} while (isspace(ch) && src_sz > 0);
+			} while (isspace((unsigned char)ch) && src_sz > 0);
 
 			if (ch == '=' || ch == '\0')
 				break;
@@ -573,7 +572,7 @@ gldns_b32_pton_base(const char* src, size_t src_sz, uint8_t* dst, size_t dst_sz,
 					ch = *src++;
 					src_sz--;
 
-				} while (isspace(ch));
+				} while (isspace((unsigned char)ch));
 
 				if (ch != '=')
 					return -1;
@@ -590,7 +589,7 @@ gldns_b32_pton(const char* src, size_t src_sz, uint8_t* dst, size_t dst_sz)
 }
 
 int
-gldns_b32_pton_extended_hex(const char* src, size_t src_sz,
+gldns_b32_pton_extended_hex(const char* src, size_t src_sz, 
 		uint8_t* dst, size_t dst_sz)
 {
 	return gldns_b32_pton_base(src, src_sz, dst, dst_sz, 1, 1);

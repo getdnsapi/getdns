@@ -15,7 +15,6 @@
 #include "config.h"
 #include "gldns/rrdef.h"
 #include "gldns/parseutil.h"
-#include <strings.h>
 
 /* classes  */
 static gldns_lookup_table gldns_rr_classes_data[] = {
@@ -36,7 +35,7 @@ static const gldns_rdf_type type_md_wireformat[] = { GLDNS_RDF_TYPE_DNAME };
 static const gldns_rdf_type type_mf_wireformat[] = { GLDNS_RDF_TYPE_DNAME };
 static const gldns_rdf_type type_cname_wireformat[] = { GLDNS_RDF_TYPE_DNAME };
 static const gldns_rdf_type type_soa_wireformat[] = {
-	GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_INT32,
+	GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_DNAME, GLDNS_RDF_TYPE_INT32, 
 	GLDNS_RDF_TYPE_PERIOD, GLDNS_RDF_TYPE_PERIOD, GLDNS_RDF_TYPE_PERIOD,
 	GLDNS_RDF_TYPE_PERIOD
 };
@@ -214,13 +213,11 @@ static const gldns_rdf_type type_eui48_wireformat[] = {
 static const gldns_rdf_type type_eui64_wireformat[] = {
 	GLDNS_RDF_TYPE_EUI64
 };
-#ifdef DRAFT_RRTYPES
 static const gldns_rdf_type type_uri_wireformat[] = {
 	GLDNS_RDF_TYPE_INT16,
 	GLDNS_RDF_TYPE_INT16,
 	GLDNS_RDF_TYPE_LONG_STR
 };
-#endif
 static const gldns_rdf_type type_caa_wireformat[] = {
 	GLDNS_RDF_TYPE_INT8,
 	GLDNS_RDF_TYPE_TAG,
@@ -591,12 +588,8 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 	/* ANY: A request for all (available) records */
 {GLDNS_RR_TYPE_ANY, "ANY", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 
-#ifdef DRAFT_RRTYPES
 	/* 256 */
 	{GLDNS_RR_TYPE_URI, "URI", 3, 3, type_uri_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-#else
-{GLDNS_RR_TYPE_NULL, "TYPE256", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-#endif
 	/* 257 */
 	{GLDNS_RR_TYPE_CAA, "CAA", 3, 3, type_caa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 
