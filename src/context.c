@@ -2582,11 +2582,18 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 		if (!context->upstreams || !context->upstreams->count)
 			return GETDNS_RETURN_GENERIC_ERROR;
 #ifdef STUB_NATIVE_DNSSEC
-#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+# ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+#  ifdef HAVE_LIBUNBOUND
 		return ub_setup_recursing(context->unbound_ctx, context);
-#else
+#  else
+		/* Return NOT_IMPLEMENTED on query with an
+		 * roadblock avoidance extension.
+		 */
 		return GETDNS_RETURN_GOOD;
-#endif
+#  endif
+# else
+		return GETDNS_RETURN_GOOD;
+# endif
 #else
 		return ub_setup_stub(context->unbound_ctx, context);
 #endif

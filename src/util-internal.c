@@ -52,30 +52,6 @@
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
 
-/**
-  * this is a comprehensive list of extensions and their data types
-  * used by validate_extensions()
-  * The list has to be in sorted order for bsearch lookup in function
-  * validate_extensions.
-  */
-static getdns_extension_format extformats[] = {
-	{"add_opt_parameters", t_dict},
-	{"add_warning_for_bad_dns", t_int},
-	{"dnssec_return_only_secure", t_int},
-	{"dnssec_return_status", t_int},
-	{"dnssec_return_validation_chain", t_int},
-#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	{"dnssec_roadblock_avoidance", t_int},
-#endif
-#ifdef EDNS_COOKIES
-	{"edns_cookies", t_int},
-#endif
-	{"return_api_information", t_int},
-	{"return_both_v4_and_v6", t_int},
-	{"return_call_reporting", t_int},
-	{"specify_class", t_int},
-};
-
 
 getdns_return_t
 getdns_dict_util_get_string(struct getdns_dict * dict, char *name, char **result)
@@ -1040,38 +1016,6 @@ error_free_result:
 	return NULL;
 }
 
-static int
-extformatcmp(const void *a, const void *b)
-{
-	return strcmp(((getdns_extension_format *) a)->extstring,
-	    ((getdns_extension_format *) b)->extstring);
-}
-
-/*---------------------------------------- validate_extensions */
-getdns_return_t
-_getdns_validate_extensions(struct getdns_dict * extensions)
-{
-	struct getdns_dict_item *item;
-	getdns_extension_format *extformat;
-
-	if (extensions)
-		RBTREE_FOR(item, struct getdns_dict_item *,
-		    &(extensions->root)) {
-
-			getdns_extension_format key;
-			key.extstring = (char *) item->node.key;
-			extformat = bsearch(&key, extformats,
-			    sizeof(extformats) /
-			    sizeof(getdns_extension_format),
-			    sizeof(getdns_extension_format), extformatcmp);
-			if (!extformat)
-				return GETDNS_RETURN_NO_SUCH_EXTENSION;
-
-			if (item->i.dtype != extformat->exttype)
-				return GETDNS_RETURN_EXTENSION_MISFORMAT;
-		}
-	return GETDNS_RETURN_GOOD;
-}				/* _getdns_validate_extensions */
 
 #ifdef HAVE_LIBUNBOUND
 getdns_return_t

@@ -458,7 +458,13 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t\t[@<upstream> ...] [+<extension> ...] [<name>] [<type>]\n", progname);
-	fprintf(out, "\ndefault mode: recursive, synchronous resolution of NS record using UDP with TCP fallback\n");
+	fprintf(out, "\ndefault mode: "
+#ifdef HAVE_LIBUNBOUND
+	    "recursive"
+#else
+	    "stub"
+#endif
+	    ", synchronous resolution of NS record using UDP with TCP fallback\n");
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]\n");
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
