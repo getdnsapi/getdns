@@ -271,7 +271,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		} else if (rdf->rdd_pos->type == GETDNS_RDF_SPECIAL)
 			val_type = wf_special;
 		else
-			assert(0);
+			assert(((val_type = wf_int), 0));
 
 		if (! rdf->rdd_repeat) {
 			switch (val_type) {

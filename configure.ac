@@ -1019,14 +1019,25 @@ AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
 
+#include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
+
 /* the version of the windows API enabled */
-#undef WINVER
-#undef _WIN32_WINNT
+#ifndef WINVER
 #define WINVER 0x0600 // 0x0502
+#endif
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600 // 0x0502
+#endif
 #ifdef HAVE_WINSOCK2_H
 #include <winsock2.h>
-#include<BaseTsd.h>
 #endif
 
 #ifdef HAVE_WS2TCPIP_H
@@ -1047,15 +1058,6 @@ AH_BOTTOM([
 #endif
 
 
-#include <stdint.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
-#include <string.h>
-
-#ifdef HAVE_BSD_STRING_H
-#include <bsd/string.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
