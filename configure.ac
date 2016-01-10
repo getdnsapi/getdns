@@ -1019,6 +1019,14 @@ AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
 
+#ifdef GETDNS_ON_WINDOWS
+/* On windows it is allowed to increase the FD_SETSIZE
+ * (and nescessary to make our custom eventloop work)
+ * See: https://support.microsoft.com/en-us/kb/111855
+ */
+#define FD_SETSIZE 1024
+#endif
+
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
