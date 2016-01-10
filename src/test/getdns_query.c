@@ -68,12 +68,13 @@ my_eventloop_schedule(getdns_eventloop *loop,
 	my_eventloop *my_loop  = (my_eventloop *)loop;
 	size_t        i;
 
+	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, FD_SETSIZE: %d)\n"
+	        , __FUNCTION__, loop, fd, timeout, event, FD_SETSIZE);
+
 	assert(loop);
 	assert(event);
 	assert(fd < FD_SETSIZE);
 
-	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
-	        , __FUNCTION__, loop, fd, timeout, event);
 	if (fd >= 0 && (event->read_cb || event->write_cb)) {
 		assert(my_loop->fd_events[fd] == NULL);
 

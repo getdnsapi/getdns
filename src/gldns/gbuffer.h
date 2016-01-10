@@ -27,6 +27,21 @@ extern "C" {
 #  endif
 #endif
 
+#ifndef USE_WINSOCK
+#define _gldns_vsnprintf vsnprintf
+#else
+/* Unlike Linux and BSD, vsnprintf on Windows returns -1 on overflow.
+ * Here it is redefined to always return the amount printed
+ * if enough space had been available.
+ */
+INLINE int
+_gldns_vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{
+	int r = vsnprintf(str, size, format, ap);
+	return r == -1 ? _vscprintf(format, ap) : r;
+}
+#endif
+
 /*
  * Copy data allowing for unaligned accesses in network byte order
  * (big endian).
