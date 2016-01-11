@@ -1761,15 +1761,15 @@ getdns_context_set_dns_root_servers(
 		else if (addr_bd->size == 16 &&
 		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst)))
 
-			fprintf(fh, ". NS %zu.root-servers.getdnsapi.net.\n"
-			    "%zu.root-servers.getdnsapi.net. AAAA %s\n",
+			fprintf(fh,". NS "PRIsz".root-servers.getdnsapi.net.\n"
+			    PRIsz".root-servers.getdnsapi.net. AAAA %s\n",
 			    i, i, dst);
 
 		else if (addr_bd->size == 4 &&
 		    inet_ntop(AF_INET, addr_bd->data, dst, sizeof(dst)))
 
-			fprintf(fh, ". NS %zu.root-servers.getdnsapi.net.\n"
-			    "%zu.root-servers.getdnsapi.net. A %s\n",
+			fprintf(fh,". NS "PRIsz".root-servers.getdnsapi.net.\n"
+			    PRIsz".root-servers.getdnsapi.net. A %s\n",
 			    i, i, dst);
 	}
 	fclose(fh);

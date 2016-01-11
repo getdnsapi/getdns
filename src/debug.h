@@ -44,7 +44,7 @@
 		\
 		gettimeofday(&tv, NULL); \
 		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%T", &tm); \
+		strftime(buf, 10, "%H:%M:%S", &tm); \
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
@@ -56,7 +56,7 @@
 		\
 		gettimeofday(&tv, NULL); \
 		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%T", &tm); \
+		strftime(buf, 10, "%H:%M:%S", &tm); \
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 		fprintf(stderr, "\n"); \

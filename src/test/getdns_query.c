@@ -588,7 +588,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		if ((r = getdns_list_set_dict(to_validate, 0, reply)))
 			goto error;
 
-		printf("reply %u, dnssec_status: ", (unsigned)i);
+		printf("reply "PRIsz", dnssec_status: ", i);
 		switch ((s = getdns_validate_dnssec(
 		    to_validate, validation_chain, trust_anchor))) {
 
@@ -646,7 +646,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 	else {
 		fprintf(stderr,
 			"An error occurred: The callback got a callback_type of %d. Exiting.\n",
-			callback_type);
+			(int)callback_type);
 		fprintf(stderr,
 			"Error :      '%s'\n",
 			getdns_get_errorstr_by_id(callback_type));
@@ -737,7 +737,7 @@ getdns_return_t parse_args(int argc, char **argv)
 			   (arg[4] == '=' || arg[4] == '\0')) {
 				if ((r = set_cookie(extensions, arg+4))) {
 					fprintf(stderr, "Could not set cookie:"
-					    " %d", r);
+					    " %d", (int)r);
 					break;
 				}
 			} else if (strncmp(arg+1, "specify_class=", 14) == 0) {
@@ -777,7 +777,7 @@ getdns_return_t parse_args(int argc, char **argv)
 			} else if ((r = getdns_dict_set_int(extensions, arg+1,
 			    GETDNS_EXTENSION_TRUE))) {
 				fprintf(stderr, "Could not set extension "
-				    "\"%s\": %d\n", argv[i], r);
+				    "\"%s\": %d\n", argv[i], (int)r);
 				break;
 			}
 			continue;
@@ -912,7 +912,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				if (r = getdns_list_set_dict(pubkey_pinset, pincount++,
 							     pubkey_pin), r) {
 					fprintf(stderr, "Failed to add pin to pinset (error %d: %s)\n",
-						r, getdns_get_errorstr_by_id(r));
+						(int)r, getdns_get_errorstr_by_id(r));
 					getdns_dict_destroy(pubkey_pin);
 					pubkey_pin = NULL;
 					return GETDNS_RETURN_GENERIC_ERROR;
@@ -1122,11 +1122,11 @@ next:		;
 		/* apply the accumulated pubkey pinset to all upstreams: */
 		for (i = 0; i < upstream_count; i++) {
 			if (r = getdns_list_get_dict(upstream_list, i, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream %lu when adding pinset\n", (long unsigned int)i);
+				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", i);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream %lu\n", (long unsigned int)i);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", i);
 				return r;
 			}
 		}
@@ -1191,7 +1191,7 @@ getdns_return_t do_the_call(void)
 		if (r == GETDNS_RETURN_GOOD && !batch_mode) 
 			getdns_context_run(context);
 		if (r != GETDNS_RETURN_GOOD)
-			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+			fprintf(stderr, "An error occurred: %d '%s'\n", (int)r,
 				 getdns_get_errorstr_by_id(r));
 	} else {
 		switch (calltype) {
@@ -1216,7 +1216,7 @@ getdns_return_t do_the_call(void)
 			break;
 		}
 		if (r != GETDNS_RETURN_GOOD) {
-			fprintf(stderr, "An error occurred: %d '%s'\n", r,
+			fprintf(stderr, "An error occurred: %d '%s'\n", (int)r,
 				 getdns_get_errorstr_by_id(r));
 			return r;
 		}
@@ -1301,7 +1301,7 @@ main(int argc, char **argv)
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
-		fprintf(stderr, "Create context failed: %d\n", r);
+		fprintf(stderr, "Create context failed: %d\n", (int)r);
 		return r;
 	}
 	my_eventloop_init(&my_loop);

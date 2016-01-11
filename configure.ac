@@ -1025,6 +1025,10 @@ AH_BOTTOM([
  * See: https://support.microsoft.com/en-us/kb/111855
  */
 #define FD_SETSIZE 1024
+
+#define PRIsz "%Iu"
+#else
+#define PRIsz "%zu"
 #endif
 
 #include <stdint.h>
