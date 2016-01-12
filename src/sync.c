@@ -68,7 +68,7 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 
 	_getdns_default_eventloop_init(&loop->loop);
 
-#ifdef HAVE_LIBUNBOUND
+#if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
 	loop->ub_event.userarg    = loop->context;
 	loop->ub_event.read_cb    = _getdns_context_ub_read_cb;
 	loop->ub_event.write_cb   = NULL;

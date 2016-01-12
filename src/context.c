@@ -1280,17 +1280,21 @@ getdns_context_request_count_changed(getdns_context *context)
 		DEBUG_SCHED("gc_request_count_changed "
 		    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
 		    &context->ub_event, context->ub_event.ev);
+#ifndef USE_WINSOCK
 		context->extension->vmt->schedule(
 		    context->extension, ub_fd(context->unbound_ctx),
 		    TIMEOUT_FOREVER, &context->ub_event);
+#endif
 	}
 	else if (context->ub_event.ev) /* Only test if count == 0! */ {
 		DEBUG_SCHED("gc_request_count_changed "
 		    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
 		    &context->ub_event, context->ub_event.ev);
 
+#ifndef USE_WINSOCK
 		context->extension->vmt->clear(
 		    context->extension, &context->ub_event);
+#endif
 	}
 }
 
