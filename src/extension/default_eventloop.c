@@ -1,0 +1,281 @@
+/*
+ * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * * Neither the names of the copyright holders nor the
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "extension/default_eventloop.h"
+#include "debug.h"
+
+static uint64_t get_now_plus(uint64_t amount)
+{
+	struct timeval tv;
+	uint64_t       now;
+	
+	if (gettimeofday(&tv, NULL)) {
+		perror("gettimeofday() failed");
+		exit(EXIT_FAILURE);
+	}
+	now = tv.tv_sec * 1000000 + tv.tv_usec;
+
+	return (now + amount * 1000) >= now ? now + amount * 1000 : -1;
+}
+
+static getdns_return_t
+default_eventloop_schedule(getdns_eventloop *loop,
+    int fd, uint64_t timeout, getdns_eventloop_event *event)
+{
+	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	size_t i;
+
+	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, FD_SETSIZE: %d)\n"
+	        , __FUNCTION__, loop, fd, timeout, event, FD_SETSIZE);
+
+	if (!loop || !event)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (fd >= FD_SETSIZE) {
+		DEBUG_SCHED( "ERROR: fd %d >= FD_SETSIZE: %d!\n"
+		           , fd, FD_SETSIZE);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (fd >= 0) {
+		if (!(event->read_cb || event->write_cb)) {
+			DEBUG_SCHED("ERROR: fd event without "
+			            "read or write cb!\n");
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+		if (default_loop->fd_events[fd]) {
+			DEBUG_SCHED( "ERROR: Event present at fd slot: %p!\n"
+			           , default_loop->fd_events[fd]);
+		}
+#endif
+		default_loop->fd_events[fd] = event;
+		default_loop->fd_timeout_times[fd] = get_now_plus(timeout);
+		event->ev = (void *) (intptr_t) fd + 1;
+
+		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!event->timeout_cb) {
+		DEBUG_SCHED("ERROR: fd < 0 without timeout_cb!\n");
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (event->read_cb) {
+		DEBUG_SCHED("ERROR: timeout event with read_cb! Clearing.\n");
+		event->read_cb = NULL;
+	}
+	if (event->write_cb) {
+		DEBUG_SCHED("ERROR: timeout event with write_cb! Clearing.\n");
+		event->write_cb = NULL;
+	}
+	for (i = 0; i < MAX_TIMEOUTS; i++) {
+		if (default_loop->timeout_events[i] == NULL) {
+			default_loop->timeout_events[i] = event;
+			default_loop->timeout_times[i] = get_now_plus(timeout);
+			event->ev = (void *) (intptr_t) i + 1;
+
+			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
+			return GETDNS_RETURN_GOOD;
+		}
+	}
+	DEBUG_SCHED("ERROR: Out of timeout slots!\n");
+	return GETDNS_RETURN_GENERIC_ERROR;
+}
+
+static getdns_return_t
+default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
+{
+	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	ssize_t i;
+
+	if (!loop || !event)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
+
+	i = (intptr_t)event->ev - 1;
+	if (i < 0 || i > FD_SETSIZE) {
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+		if (default_loop->timeout_events[i] != event)
+			DEBUG_SCHED( "ERROR: Different/wrong event present at "
+			             "timeout slot: %p!\n"
+			           , default_loop->timeout_events[i]);
+#endif
+		default_loop->timeout_events[i] = NULL;
+	} else {
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+		if (default_loop->fd_events[i] != event)
+			DEBUG_SCHED( "ERROR: Different/wrong event present at "
+			             "fd slot: %p!\n"
+			           , default_loop->fd_events[i]);
+#endif
+		default_loop->fd_events[i] = NULL;
+	}
+	event->ev = NULL;
+	return GETDNS_RETURN_GOOD;
+}
+
+static void
+default_eventloop_cleanup(getdns_eventloop *loop)
+{
+}
+
+static void
+default_read_cb(int fd, getdns_eventloop_event *event)
+{
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	event->read_cb(event->userarg);
+}
+
+static void
+default_write_cb(int fd, getdns_eventloop_event *event)
+{
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	event->write_cb(event->userarg);
+}
+
+static void
+default_timeout_cb(int fd, getdns_eventloop_event *event)
+{
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	event->timeout_cb(event->userarg);
+}
+
+static void
+default_eventloop_run_once(getdns_eventloop *loop, int blocking)
+{
+	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+
+	fd_set   readfds, writefds;
+	int      fd, max_fd = -1;
+	uint64_t now, timeout = (uint64_t)-1;
+	size_t   i;
+	struct timeval tv;
+
+	if (!loop)
+		return;
+
+	FD_ZERO(&readfds);
+	FD_ZERO(&writefds);
+	now = get_now_plus(0);
+
+	for (i = 0; i < MAX_TIMEOUTS; i++) {
+		if (!default_loop->timeout_events[i])
+			continue;
+		if (now > default_loop->timeout_times[i])
+			default_timeout_cb(-1, default_loop->timeout_events[i]);
+		else if (default_loop->timeout_times[i] < timeout)
+			timeout = default_loop->timeout_times[i];
+	}
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		if (!default_loop->fd_events[fd])
+			continue;
+		if (default_loop->fd_events[fd]->read_cb)
+			FD_SET(fd, &readfds);
+		if (default_loop->fd_events[fd]->write_cb)
+			FD_SET(fd, &writefds);
+		if (fd > max_fd)
+			max_fd = fd;
+		if (default_loop->fd_timeout_times[fd] < timeout)
+			timeout = default_loop->fd_timeout_times[fd];
+	}
+	if (max_fd == -1 && timeout == (uint64_t)-1)
+		return;
+
+	if (! blocking || now > timeout) {
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+	} else {
+		tv.tv_sec  = (timeout - now) / 1000000;
+		tv.tv_usec = (timeout - now) % 1000000;
+	}
+	if (select(max_fd + 1, &readfds, &writefds, NULL,
+	    (timeout == ((uint64_t)-1) ? NULL : &tv)) < 0) {
+		perror("select() failed");
+		exit(EXIT_FAILURE);
+	}
+	now = get_now_plus(0);
+	for (fd = 0; fd < FD_SETSIZE; fd++) {
+		if (default_loop->fd_events[fd] &&
+		    default_loop->fd_events[fd]->read_cb &&
+		    FD_ISSET(fd, &readfds))
+			default_read_cb(fd, default_loop->fd_events[fd]);
+
+		if (default_loop->fd_events[fd] &&
+		    default_loop->fd_events[fd]->write_cb &&
+		    FD_ISSET(fd, &writefds))
+			default_write_cb(fd, default_loop->fd_events[fd]);
+
+		if (default_loop->fd_events[fd] &&
+		    default_loop->fd_events[fd]->timeout_cb &&
+		    now > default_loop->fd_timeout_times[fd])
+			default_timeout_cb(fd, default_loop->fd_events[fd]);
+
+		i = fd;
+		if (default_loop->timeout_events[i] &&
+		    default_loop->timeout_events[i]->timeout_cb &&
+		    now > default_loop->timeout_times[i])
+			default_timeout_cb(-1, default_loop->timeout_events[i]);
+	}
+}
+
+static void
+default_eventloop_run(getdns_eventloop *loop)
+{
+	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	size_t        i;
+
+	if (!loop)
+		return;
+
+	i = 0;
+	while (i < MAX_TIMEOUTS) {
+		if (default_loop->fd_events[i] || default_loop->timeout_events[i]) {
+			default_eventloop_run_once(loop, 1);
+			i = 0;
+		} else {
+			i++;
+		}
+	}
+}
+
+void
+_getdns_default_eventloop_init(_getdns_default_eventloop *loop)
+{
+	static getdns_eventloop_vmt default_eventloop_vmt = {
+		default_eventloop_cleanup,
+		default_eventloop_schedule,
+		default_eventloop_clear,
+		default_eventloop_run,
+		default_eventloop_run_once
+	};
+
+	(void) memset(loop, 0, sizeof(_getdns_default_eventloop));
+	loop->loop.vmt = &default_eventloop_vmt;
+}

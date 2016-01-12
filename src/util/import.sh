@@ -4,7 +4,7 @@
 
 mkdir ub || true
 cd ub
-for f in mini_event.c mini_event.h rbtree.c rbtree.h
+for f in rbtree.c rbtree.h
 do
 	wget http://unbound.net/svn/trunk/util/$f || \
 	ftp  http://unbound.net/svn/trunk/util/$f || continue

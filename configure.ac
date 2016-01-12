@@ -453,45 +453,39 @@ if test "$USE_WINSOCK" = 1; then
 	AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
 	AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1])
 	LIBS="$LIBS -lgdi32 -liphlpapi"
-	my_with_libunbound=0
-	my_with_libidn=0
-else
-	my_with_libidn=1
 fi
 
 
-if test $my_with_libidn = 1
-then
-	AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
-		[path to libidn (default: search /usr/local ..)]),
-		[], [withval="yes"])
-	if test x_$withval = x_yes; then
-		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-			if test -f "$dir/include/idna.h"; then
-				CFLAGS="$CFLAGS -I$dir/include"
-				LDFLAGS="$LDFLAGS -L$dir/lib"
-				AC_MSG_NOTICE([Found libidn in $dir])
-				break
-			fi
-			if test -f "$dir/include/idn/idna.h"; then
-				CFLAGS="$CFLAGS -I$dir/include/idn"
-				LDFLAGS="$LDFLAGS -L$dir/lib"
-				AC_MSG_NOTICE([Found libidn in $dir])
-				break
-			fi
-		done
-		if test -f "/usr/include/idn/idna.h"; then
-			CFLAGS="$CFLAGS -I/usr/include/idn"
-			#LDFLAGS="$LDFLAGS -L/usr/lib"
-			AC_MSG_NOTICE([Found libidn in /usr])
+my_with_libidn=1
+AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
+	[path to libidn (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/idna.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
 		fi
+		if test -f "$dir/include/idn/idna.h"; then
+			CFLAGS="$CFLAGS -I$dir/include/idn"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
+		fi
+	done
+	if test -f "/usr/include/idn/idna.h"; then
+		CFLAGS="$CFLAGS -I/usr/include/idn"
+		#LDFLAGS="$LDFLAGS -L/usr/lib"
+		AC_MSG_NOTICE([Found libidn in /usr])
+	fi
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
 	else
-		if test x_$withval != x_no; then
-			CFLAGS="$CFLAGS -I$withval/include"
-			LDFLAGS="$LDFLAGS -L$withval/lib"
-		else
-			my_with_libidn=0
-		fi
+		my_with_libidn=0
 	fi
 fi
 
@@ -1159,6 +1153,14 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
+#endif
+
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+
+#ifndef PRIu64
+#define PRIu64 "llu"
 #endif
 
 #ifdef HAVE_ATTR_FORMAT

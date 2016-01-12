@@ -1,11 +1,10 @@
-/**
- *
- * \file libmini_event.h
+/*
+ * \file default_eventloop.h
  * @brief Build in default eventloop extension that uses select.
  *
  */
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,34 +29,31 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef _GETDNS_LIBMINI_EVENT_H_
-#define _GETDNS_LIBMINI_EVENT_H_
-
+#ifndef DEFAULT_EVENTLOOP_H_
+#define DEFAULT_EVENTLOOP_H_
 #include "config.h"
-#ifndef USE_WINSOCK
-#include "util/mini_event.h"
-#else
-#include "util/winsock_event.h"
-#endif
-#include "types-internal.h"
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
 
-typedef struct _getdns_mini_event {
-	getdns_eventloop           loop;
-	time_t                     time_secs;
-	struct timeval             time_tv;
-	struct _getdns_event_base *base;
-	size_t                     n_events;
-	struct mem_funcs           mf;
-} _getdns_mini_event;
+/* No more than select's capability queries can be outstanding,
+ * The number of outstanding timeouts should be less or equal then
+ * the number of outstanding queries, so MAX_TIMEOUTS equal to
+ * FD_SETSIZE should be safe.
+ */
+#define MAX_TIMEOUTS FD_SETSIZE
 
-getdns_return_t
-_getdns_mini_event_init(getdns_context *context, _getdns_mini_event *mini_event);
+/* Eventloop based on select */
+typedef struct _getdns_default_eventloop {
+	getdns_eventloop        loop;
+	getdns_eventloop_event *fd_events[FD_SETSIZE];
+	uint64_t                fd_timeout_times[FD_SETSIZE];
+	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
+	uint64_t                timeout_times[MAX_TIMEOUTS];
+} _getdns_default_eventloop;
 
-getdns_return_t
-_getdns_mini_event_create(getdns_context *ctxt, _getdns_mini_event **mini_event);
 
 void
-_getdns_mini_event_destroy(_getdns_mini_event *mini_event);
+_getdns_default_eventloop_init(_getdns_default_eventloop *loop);
 
-#endif /* _GETDNS_LIBMINI_EVENT_H_ */
+#endif
+

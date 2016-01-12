@@ -966,6 +966,9 @@ getdns_context_create_with_extended_memory_functions(
 	struct getdns_context *result = NULL;
 	mf_union mf;
 	gldns_buffer gbuf;
+#ifdef USE_WINSOCK
+	WORD wVersionRequested;
+#endif
 
 	if (!context || !malloc || !realloc || !free)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -979,6 +982,14 @@ getdns_context_create_with_extended_memory_functions(
 	if (!result)
 		return GETDNS_RETURN_MEMORY_ERROR;
 
+#ifdef USE_WINSOCK
+	/* We need to run WSAStartup() to be able to use getaddrinfo() */
+	wVersionRequested = MAKEWORD(2, 2);
+	if (WSAStartup(wVersionRequested, &result->wsaData)) {
+		r = GETDNS_RETURN_GENERIC_ERROR;
+		goto error;
+	}
+#endif
 	result->processing = 0;
 	result->destroying = 0;
 	result->my_mf.mf_arg         = userarg;
@@ -1050,9 +1061,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
 	result-> tls_ctx = NULL;
 
-	result->extension = &result->mini_event.loop;
-	if ((r = _getdns_mini_event_init(result, &result->mini_event)))
-		goto error;
+	result->extension = &result->default_eventloop.loop;
+	_getdns_default_eventloop_init(&result->default_eventloop);
 
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
@@ -1198,6 +1208,9 @@ getdns_context_destroy(struct getdns_context *context)
 	_getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
 
+#ifdef USE_WINSOCK
+	WSACleanup();
+#endif
 	GETDNS_FREE(context->my_mf, context);
 }               /* getdns_context_destroy */
 
@@ -2798,55 +2811,36 @@ _getdns_bindata_destroy(struct mem_funcs *mfs,
 
 /* TODO: Remove next_timeout argument from getdns_context_get_num_pending_requests
  */
-void _getdns_handle_timeouts(struct _getdns_event_base* base, struct timeval* now,
-    struct timeval* wait);
 uint32_t
-getdns_context_get_num_pending_requests(struct getdns_context* context,
+getdns_context_get_num_pending_requests(getdns_context* context,
     struct timeval* next_timeout)
 {
-	struct timeval dispose;
+	(void)next_timeout;
 
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (context->outbound_requests.count)
 		context->extension->vmt->run_once(context->extension, 0);
-
-	/* TODO: Remove this when next_timeout is gone */
-	if (context->extension == &context->mini_event.loop)
-		_getdns_handle_timeouts(context->mini_event.base,
-		    &context->mini_event.time_tv,
-		    next_timeout ? next_timeout : &dispose);
 
 	return context->outbound_requests.count;
 }
 
 /* process async reqs */
 getdns_return_t
-getdns_context_process_async(struct getdns_context* context)
+getdns_context_process_async(getdns_context *context)
 {
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-#ifdef HAVE_LIBUNBOUND
-	if (ub_poll(context->unbound_ctx) && ub_process(context->unbound_ctx)){
-		/* need an async return code? */
-		return GETDNS_RETURN_GENERIC_ERROR;
-	}
-#endif
 	context->extension->vmt->run_once(context->extension, 0);
-
 	return GETDNS_RETURN_GOOD;
 }
 
 void
 getdns_context_run(getdns_context *context)
 {
-	if (context->extension == &context->mini_event.loop) {
-		if (getdns_context_get_num_pending_requests(context, NULL) > 0 &&
-		    !getdns_context_process_async(context))
-			context->extension->vmt->run(context->extension);
-	}
-	else
-		context->extension->vmt->run(context->extension);
+	context->extension->vmt->run(context->extension);
 }
 
 typedef struct timeout_accumulator {
@@ -2891,8 +2885,9 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context, 1);
 	context->extension->vmt->cleanup(context->extension);
-	context->extension = &context->mini_event.loop;
-	return _getdns_mini_event_init(context, &context->mini_event);
+	context->extension = &context->default_eventloop.loop;
+	_getdns_default_eventloop_init(&context->default_eventloop);
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
