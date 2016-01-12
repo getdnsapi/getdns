@@ -87,7 +87,7 @@ getdns_sync_loop_cleanup(getdns_sync_loop *loop)
 {
 	getdns_eventloop *ext = &loop->loop.loop;
 
-#ifdef HAVE_LIBUNBOUND
+#if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
 	ext->vmt->clear(ext, &loop->ub_event);
 #endif
 	ext->vmt->cleanup(ext);
