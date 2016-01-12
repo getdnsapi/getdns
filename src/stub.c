@@ -390,12 +390,8 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	}
 	return fd;
 #endif
-	printf("fd: %d\n",fd);
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
-#if USE_WINSOCK
-		printf("WSAGetLastError(): %d\n", WSAGetLastError());
-#endif
 		if (_getdns_EINPROGRESS || _getdns_EWOULDBLOCK)
 			return fd;
 		close(fd);
