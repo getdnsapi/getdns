@@ -256,6 +256,26 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 }
 
 #ifdef HAVE_LIBUNBOUND
+#ifdef HAVE_UNBOUND_EVENT_API
+static void
+ub_resolve_event_callback(void* arg, int rcode, void *pkt, int pkt_len,
+    int sec, char* why_bogus)
+{
+	getdns_network_req *netreq = (getdns_network_req *) arg;
+	getdns_dns_req *dns_req = netreq->owner;
+
+	netreq->state = NET_REQ_FINISHED;
+	/* parse */
+	if (getdns_apply_network_result(
+	    netreq, rcode, pkt, pkt_len, sec, why_bogus)) {
+		_getdns_call_user_callback(dns_req, NULL);
+		return;
+	}
+	_getdns_check_dns_req_complete(dns_req);
+
+} /* ub_resolve_event_callback */
+#endif
+
 static void
 ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 {
@@ -268,7 +288,9 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 		return;
 	}
 	/* parse */
-	if (getdns_apply_network_result(netreq, ub_res)) {
+	if (getdns_apply_network_result(netreq, ub_res->rcode,
+	    ub_res->answer_packet, ub_res->answer_len,
+	    (ub_res->secure ? 2 : ub_res->bogus ? 1 : 0), ub_res->why_bogus)) {
 		ub_resolve_free(ub_res);
 		_getdns_call_user_callback(dns_req, NULL);
 		return;
@@ -319,10 +341,18 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 		    dns_req->name_len, name, sizeof(name));
 
 #ifdef HAVE_LIBUNBOUND
-		return ub_resolve_async(dns_req->context->unbound_ctx,
-		    name, netreq->request_type, netreq->owner->request_class,
-		    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
-		    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+#ifdef HAVE_UNBOUND_EVENT_API
+		if (dns_req->context->unbound_event_api)
+			return ub_resolve_event(dns_req->context->unbound_ctx,
+			    name, netreq->request_type, netreq->owner->request_class,
+			    netreq, ub_resolve_event_callback, &(netreq->unbound_id)) ?
+			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+		else
+#endif
+			return ub_resolve_async(dns_req->context->unbound_ctx,
+			    name, netreq->request_type, netreq->owner->request_class,
+			    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
+			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 #else
 		return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif

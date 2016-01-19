@@ -1281,9 +1281,12 @@ getdns_context_request_count_changed(getdns_context *context)
 		    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
 		    &context->ub_event, context->ub_event.ev);
 #ifndef USE_WINSOCK
-		context->extension->vmt->schedule(
-		    context->extension, ub_fd(context->unbound_ctx),
-		    TIMEOUT_FOREVER, &context->ub_event);
+#ifdef HAVE_UNBOUND_EVENT_API
+		if (!context->unbound_event_api)
+#endif
+			context->extension->vmt->schedule(
+			    context->extension, ub_fd(context->unbound_ctx),
+			    TIMEOUT_FOREVER, &context->ub_event);
 #endif
 	}
 	else if (context->ub_event.ev) /* Only test if count == 0! */ {
@@ -1292,8 +1295,11 @@ getdns_context_request_count_changed(getdns_context *context)
 		    &context->ub_event, context->ub_event.ev);
 
 #ifndef USE_WINSOCK
-		context->extension->vmt->clear(
-		    context->extension, &context->ub_event);
+#ifdef HAVE_UNBOUND_EVENT_API
+		if (!context->unbound_event_api)
+#endif
+			context->extension->vmt->clear(
+			    context->extension, &context->ub_event);
 #endif
 	}
 }
@@ -1324,8 +1330,18 @@ rebuild_ub_ctx(struct getdns_context* context) {
 		context->unbound_ctx = NULL;
 	}
 	/* setup */
-	context->unbound_ctx = ub_ctx_create();
-	(void) ub_ctx_async(context->unbound_ctx, 1);
+#ifdef HAVE_UNBOUND_EVENT_API
+	context->unbound_event_api =
+	    strncmp(ub_event_get_version(), "getdns-event", 12) == 0;
+	if (context->unbound_event_api) {
+		context->unbound_ctx = ub_ctx_create_event((void *)context->extension);
+	} else {
+#endif
+		context->unbound_ctx = ub_ctx_create();
+		(void) ub_ctx_async(context->unbound_ctx, 1);
+#ifdef HAVE_UNBOUND_EVENT_API
+	}
+#endif
 	context->unbound_ta_set = 0;
 	if (!context->unbound_ctx) {
 		return GETDNS_RETURN_MEMORY_ERROR;
@@ -2891,6 +2907,11 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->default_eventloop.loop;
 	_getdns_default_eventloop_init(&context->default_eventloop);
+#ifdef HAVE_UNBOUND_EVENT_API
+	if (context->unbound_event_api)
+		(void) ub_ctx_set_event(
+		    context->unbound_ctx, (void *)context->extension);
+#endif
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -2905,6 +2926,11 @@ getdns_context_set_eventloop(getdns_context* context, getdns_eventloop* loop)
 		context->extension->vmt->cleanup(context->extension);
 	}
 	context->extension = loop;
+#ifdef HAVE_UNBOUND_EVENT_API
+	if (context->unbound_event_api)
+		(void) ub_ctx_set_event(
+		    context->unbound_ctx, (void *)context->extension);
+#endif
 	return GETDNS_RETURN_GOOD;
 }
 

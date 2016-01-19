@@ -526,7 +526,15 @@ fi
 if test $my_with_libunbound = 1
 then
 	AC_MSG_NOTICE([Checking for dependency libunbound])
-	AC_CHECK_LIB([unbound], [ub_fd], [], [found_all_libs=0])
+	AC_CHECK_LIB([unbound], [ub_fd], [
+		AC_DEFINE_UNQUOTED([HAVE_LIBUNBOUND], [1], [Define to 1 if you have the `unbound' library (-lunbound).])
+		LIBS="$LIBS -lunbound"
+		AC_CHECK_HEADER([unbound-event.h],[
+			AC_CHECK_FUNC([ub_event_get_version], [
+				AC_DEFINE_UNQUOTED([HAVE_UNBOUND_EVENT_API], [1], [Define this when libunbound is compiled with the --enable-event-api option.])
+			])
+		],,[AC_INCLUDES_DEFAULT])
+	], [found_all_libs=0])
 fi
 
 if test $found_all_libs = 0
@@ -1192,7 +1200,10 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 
 #ifdef HAVE_LIBUNBOUND
-#include <unbound.h>
+# include <unbound.h>
+# ifdef HAVE_UNBOUND_EVENT_API
+#  include <unbound-event.h>
+# endif
 #endif
 ])
 

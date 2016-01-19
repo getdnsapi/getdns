@@ -1305,8 +1305,6 @@ main(int argc, char **argv)
 		return r;
 	}
 	my_eventloop_init(&my_loop);
-	if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
-		goto done_destroy_context;
 	if ((r = getdns_context_set_use_threads(context, 1)))
 		goto done_destroy_context;
 	extensions = getdns_dict_create();
@@ -1329,10 +1327,14 @@ main(int argc, char **argv)
 
 	/* Make the call */
 	if (interactive) {
+
 		getdns_eventloop_event read_line_ev = {
 		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
 		(void) my_eventloop_schedule(
 		    &my_loop.base, fileno(fp), -1, &read_line_ev);
+		if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
+			goto done_destroy_context;
+
 		if (!query_file) {
 			printf("> ");
 			fflush(stdout);

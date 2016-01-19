@@ -75,11 +75,15 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 	loop->ub_event.timeout_cb = NULL;
 	loop->ub_event.ev         = NULL;
 
-	return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
-	    TIMEOUT_FOREVER, &loop->ub_event);
-#else
-	return GETDNS_RETURN_GOOD;
+#  ifdef HAVE_UNBOUND_EVENT_API
+	if (context->unbound_event_api) {
+		(void) ub_ctx_set_event(context->unbound_ctx, (void *)ext);
+	} else
+#  endif
+		return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
+		    TIMEOUT_FOREVER, &loop->ub_event);
 #endif
+	return GETDNS_RETURN_GOOD;
 }
 
 static void
@@ -88,7 +92,13 @@ getdns_sync_loop_cleanup(getdns_sync_loop *loop)
 	getdns_eventloop *ext = &loop->loop.loop;
 
 #if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
-	ext->vmt->clear(ext, &loop->ub_event);
+#  ifdef HAVE_UNBOUND_EVENT_API
+	if (loop->context->unbound_event_api) {
+		(void) ub_ctx_set_event(loop->context->unbound_ctx,
+		    (void *)loop->context->extension);
+	} else
+#  endif
+		ext->vmt->clear(ext, &loop->ub_event);
 #endif
 	ext->vmt->cleanup(ext);
 }

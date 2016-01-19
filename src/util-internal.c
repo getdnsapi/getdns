@@ -1020,30 +1020,24 @@ error_free_result:
 #ifdef HAVE_LIBUNBOUND
 getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
-    struct ub_result* ub_res)
+    int rcode, void *pkt, int pkt_len, int sec, char* why_bogus)
 {
-	if (ub_res->bogus)
-		netreq->dnssec_status = GETDNS_DNSSEC_BOGUS;
-	else if (ub_res->secure)
-		netreq->dnssec_status = GETDNS_DNSSEC_SECURE;
-	else if (netreq->owner->context->trust_anchors)
-		netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
+	netreq->dnssec_status = sec == 0 ? GETDNS_DNSSEC_INSECURE
+	                      : sec == 2 ? GETDNS_DNSSEC_SECURE
+			      :            GETDNS_DNSSEC_BOGUS;
 
-	if (ub_res == NULL) /* Timeout */
-		return GETDNS_RETURN_GOOD;
-
-	if (ub_res->answer_packet) {
-		if (netreq->max_udp_payload_size < ub_res->answer_len)
+	if (pkt) {
+		if (netreq->max_udp_payload_size < pkt_len)
 			netreq->response = GETDNS_XMALLOC(
 			    netreq->owner->context->mf,
-			    uint8_t, ub_res->answer_len
+			    uint8_t, pkt_len
 			);
-		(void) memcpy(netreq->response, ub_res->answer_packet,
-		    (netreq->response_len = ub_res->answer_len));
+		(void) memcpy(netreq->response, pkt,
+		    (netreq->response_len = pkt_len));
 		return GETDNS_RETURN_GOOD;
 	}
 
-    	if (ub_res->rcode == GETDNS_RCODE_SERVFAIL) {
+    	if (rcode == GETDNS_RCODE_SERVFAIL) {
 		/* Likely to be caused by timeout from a synchronous
 		 * lookup.  Don't forge a packet.
 		 */
@@ -1064,7 +1058,7 @@ getdns_apply_network_result(getdns_network_req* netreq,
 	GLDNS_QR_SET(netreq->response);
 	GLDNS_RD_SET(netreq->response);
 	GLDNS_RA_SET(netreq->response);
-	GLDNS_RCODE_SET(netreq->response, ub_res->rcode);
+	GLDNS_RCODE_SET(netreq->response, rcode);
 
 	(void) memcpy( netreq->response + GLDNS_HEADER_SIZE
 	             , netreq->owner->name, netreq->owner->name_len);
