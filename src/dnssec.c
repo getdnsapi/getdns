@@ -749,6 +749,8 @@ struct chain_head {
 
 struct chain_node {
 	chain_node  *parent;
+
+	size_t              lock;
 	
 	getdns_rrset        dnskey;
 	getdns_network_req *dnskey_req;
@@ -878,6 +880,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	    ; node_count
 	    ; node_count--, node = node->parent =&node[1], dname += *dname + 1) {
 
+		node->lock            = 0;
 		node->ds.name         = dname;
 		node->dnskey.name     = dname;
 		node->ds.rr_class     = head->rrset.rr_class;
@@ -1135,7 +1138,6 @@ static void val_chain_sched_soa_node(chain_node *node)
 {
 	getdns_context *context;
 	getdns_eventloop *loop;
-	getdns_dns_req *dnsreq;
 	char  name[1024];
 
 	context = node->chains->netreq->owner->context;
@@ -1147,12 +1149,15 @@ static void val_chain_sched_soa_node(chain_node *node)
 
 	DEBUG_SEC("schedule SOA lookup for %s\n", name);
 
+	node->lock++;
 	if (! node->soa_req &&
-	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
-	    CD_extension(node->chains->netreq->owner), node, &dnsreq, NULL,
-	    val_chain_node_soa_cb))
+	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
+	    CD_extension(node->chains->netreq->owner), node, &node->soa_req,
+	    NULL, val_chain_node_soa_cb))
 
-		node->soa_req     = dnsreq->netreqs[0];
+		node->soa_req     = NULL;
+
+	node->lock--;
 }
 
 /* A SOA lookup is scheduled as a last resort.  No signatures were found and
@@ -1183,7 +1188,6 @@ static void val_chain_sched_node(chain_node *node)
 {
 	getdns_context *context;
 	getdns_eventloop *loop;
-	getdns_dns_req *dnsreq;
 	char  name[1024];
 
 	context = node->chains->netreq->owner->context;
@@ -1195,19 +1199,22 @@ static void val_chain_sched_node(chain_node *node)
 
 	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
 
+	node->lock++;
 	if (! node->dnskey_req /* not scheduled */ &&
-	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
+	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
 	    CD_extension(node->chains->netreq->owner),
-	    node, &dnsreq, NULL, val_chain_node_cb))
+	    node, &node->dnskey_req, NULL, val_chain_node_cb))
 
-		node->dnskey_req     = dnsreq->netreqs[0];
+		node->dnskey_req     = NULL;
 
 	if (! node->ds_req && node->parent /* not root */ &&
-	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
+	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
 	    CD_extension(node->chains->netreq->owner),
-	    node, &dnsreq, NULL, val_chain_node_cb))
+	    node, &node->ds_req, NULL, val_chain_node_cb))
 
-		node->ds_req = dnsreq->netreqs[0];
+		node->ds_req = NULL;
+
+	node->lock--;
 }
 
 static void val_chain_sched(chain_head *head, const uint8_t *dname)
@@ -1228,7 +1235,6 @@ static void val_chain_sched_ds_node(chain_node *node)
 {
 	getdns_context *context;
 	getdns_eventloop *loop;
-	getdns_dns_req *ds_req;
 	char  name[1024];
 
 	context = node->chains->netreq->owner->context;
@@ -1241,12 +1247,15 @@ static void val_chain_sched_ds_node(chain_node *node)
 
 	DEBUG_SEC("schedule DS lookup for %s\n", name);
 
+	node->lock++;
 	if (! node->ds_req && node->parent /* not root */ &&
-	    ! _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
+	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
 	    CD_extension(node->chains->netreq->owner),
-	    node, &ds_req, NULL, val_chain_node_cb))
+	    node, &node->ds_req, NULL, val_chain_node_cb))
 
-		node->ds_req = ds_req->netreqs[0];
+		node->ds_req = NULL;
+
+	node->lock--;
 }
 
 static void val_chain_sched_ds(chain_head *head, const uint8_t *dname)
@@ -2997,6 +3006,8 @@ static size_t count_outstanding_requests(chain_head *head)
 	for ( node = head->parent, count = 0
 	    ; node
 	    ; node = node->parent) {
+
+		count += node->lock;
 
 		if (node->dnskey_req &&
 		    node->dnskey_req->state != NET_REQ_FINISHED &&
