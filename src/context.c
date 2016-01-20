@@ -1343,9 +1343,11 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	}
 #endif
 	context->unbound_ta_set = 0;
-	if (!context->unbound_ctx) {
+	if (!context->unbound_ctx)
 		return GETDNS_RETURN_MEMORY_ERROR;
-	}
+
+        ub_ctx_set_option(context->unbound_ctx,
+	    "target-fetch-policy:", "0 0 0 0 0");
 	set_ub_dnssec_allowed_skew(context,
 		context->dnssec_allowed_skew);
 	set_ub_edns_maximum_udp_payload_size(context,
