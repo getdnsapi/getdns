@@ -528,7 +528,7 @@ then
 	AC_MSG_NOTICE([Checking for dependency libunbound])
 	AC_CHECK_LIB([unbound], [ub_fd], [
 		AC_DEFINE_UNQUOTED([HAVE_LIBUNBOUND], [1], [Define to 1 if you have the `unbound' library (-lunbound).])
-		LIBS="$LIBS -lunbound"
+		LIBS="-lunbound $LIBS"
 		AC_CHECK_HEADER([unbound-event.h],[
 			AC_CHECK_FUNC([ub_event_get_version], [
 				AC_DEFINE_UNQUOTED([HAVE_UNBOUND_EVENT_API], [1], [Define this when libunbound is compiled with the --enable-event-api option.])
