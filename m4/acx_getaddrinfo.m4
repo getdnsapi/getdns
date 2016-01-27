@@ -32,12 +32,12 @@ dnl see if on windows
 if test "$ac_cv_header_windows_h" = "yes"; then
 	AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
 	USE_WINSOCK="1"
-	LIBS="$LIBS -lws2_32"
+	LIBS="$LIBS -lws2_32 -lcrypt32"
 fi
 ],
 dnl no quick getaddrinfo, try mingw32 and winsock2 library.
 ORIGLIBS="$LIBS"
-LIBS="$LIBS -lws2_32"
+LIBS="$LIBS -lws2_32 -lcrypt32"
 AC_LINK_IFELSE(
 [AC_LANG_PROGRAM(
 [
@@ -62,7 +62,7 @@ AC_LINK_IFELSE(
 )],
 [
 ac_cv_func_getaddrinfo="yes"
-dnl already: LIBS="$LIBS -lws2_32"
+dnl already: LIBS="$LIBS -lws2_32 -lcrypt32"
 AC_DEFINE(USE_WINSOCK, 1, [Whether the windows socket API is used])
 USE_WINSOCK="1"
 ],
