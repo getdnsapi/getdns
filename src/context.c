@@ -144,13 +144,15 @@ static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
 // Add code to open the trust store using wincrypt API and add
 // the root certs into openssl trust store
 static int 
-add_WIN_cacerts_to_openssl_store(SSL_CTX *tls_ctx)
+add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 {
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
 
-	if !(tls_ctx)
-		return 1;
+	// load just once per context lifetime for this version of getdns
+	// TODO: dynamically update CA trust changes as they are available
+	if (!tls_ctx)
+		return 0;
 
 	// Call wincrypt's CertOpenStore to open the CA root store.
 
@@ -158,30 +160,33 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX *tls_ctx)
 		CERT_STORE_PROV_SYSTEM,
 		0,
 		NULL,
-		// mingw does not have this const: replace with 1 << 16 from code
+		// NOTE: mingw does not have this const: replace with 1 << 16 from code
 		// CERT_SYSTEM_STORE_CURRENT_USER,
 		1 << 16,
 		L"root")) == 0)
 	{
-		return 1;
+		return 0;
 	}
 
-	X509_STORE *store = SSL_CTX_get_cert_store(tls_ctx);
+	X509_STORE* store = SSL_CTX_get_cert_store(tls_ctx);
 	if (!store)
-		return 1;
+		return 0;
 
 	// iterate over the windows cert store and add to openssl store
 	while (pTargetCert = CertEnumCertificatesInStore(
 		hSystemStore,
 		pTargetCert))
 	{
-		BYTE* cert = pTargetCert->pbCertEncoded;
 		X509 *cert1 = d2i_X509(NULL, (const unsigned char **)&pTargetCert->pbCertEncoded, pTargetCert->cbCertEncoded);
 		if (!cert1) 
-			return 1;
+			// do not return if a cert fails, continue and retrieve the rest
+			DEBUG_STUB("*** %s(%s)\n", __FUNCTION__,
+			"unable to parse certificate in memory");
 		else {
+			// do not return if a cert add to store fails, continue and retrieve the rest
 			if (X509_STORE_add_cert(store, cert1) == 0)
-				return 1;
+				DEBUG_STUB("*** %s(%s)\n", __FUNCTION__,
+				"error adding certificate");
 			X509_free(cert1);
 		}
 	}
@@ -193,9 +198,9 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX *tls_ctx)
 	{
 		if (!CertCloseStore(
 			hSystemStore, 0))
-			return 1;
+			return 0;
 	}
-	return 0;
+	return 1;
 
 }
 #endif
@@ -2719,7 +2724,7 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 #ifndef USE_WINSOCK
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
 #else
-			if (!add_WIN_cacerts_to_openssl_store(context)) {
+			if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
 #endif /* USE_WINSOCK */
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
