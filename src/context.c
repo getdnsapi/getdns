@@ -177,16 +177,24 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		hSystemStore,
 		pTargetCert))
 	{
-		X509 *cert1 = d2i_X509(NULL, (const unsigned char **)&pTargetCert->pbCertEncoded, pTargetCert->cbCertEncoded);
-		if (!cert1) 
+		X509 *cert1 = d2i_X509(NULL, 
+			(const unsigned char **)&pTargetCert->pbCertEncoded,
+			pTargetCert->cbCertEncoded);
+		if (!cert1) {
 			// do not return if a cert fails, continue and retrieve the rest
-			DEBUG_STUB("*** %s(%s)\n", __FUNCTION__,
-			"unable to parse certificate in memory");
+			DEBUG_STUB("*** %s(%s %d:%s)\n", __FUNCTION__,
+				"unable to parse certificate in memory",
+				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
+			return 0;
+		}
 		else {
 			// do not return if a cert add to store fails, continue and retrieve the rest
-			if (X509_STORE_add_cert(store, cert1) == 0)
-				DEBUG_STUB("*** %s(%s)\n", __FUNCTION__,
-				"error adding certificate");
+			if (X509_STORE_add_cert(store, cert1) == 0) {
+				DEBUG_STUB("*** %s(%s %d:%s)\n", __FUNCTION__,
+					"error adding certificate", ERR_get_error(),
+					ERR_error_string(ERR_get_error(), NULL));
+				return 0;
+			}
 			X509_free(cert1);
 		}
 	}
