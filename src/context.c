@@ -44,6 +44,14 @@
 #include <winsock2.h>
 #include <iphlpapi.h>
 typedef unsigned short in_port_t;
+
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+
+#include <stdio.h>
+#include <windows.h>
+#include <wincrypt.h>
 #endif
 
 #include <sys/stat.h>
@@ -129,6 +137,86 @@ static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
 
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
+
+
+#ifdef USE_WINSOCK
+/* For windows, the CA trust store is not read by openssl. 
+   Add code to open the trust store using wincrypt API and add
+   the root certs into openssl trust store */
+static int 
+add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
+{
+	HCERTSTORE      hSystemStore;
+	PCCERT_CONTEXT  pTargetCert = NULL;
+
+	/* load just once per context lifetime for this version of getdns
+	   TODO: dynamically update CA trust changes as they are available */
+	if (!tls_ctx)
+		return 0;
+
+	/* Call wincrypt's CertOpenStore to open the CA root store. */
+
+	if ((hSystemStore = CertOpenStore(
+		CERT_STORE_PROV_SYSTEM,
+		0,
+		0,
+		/* NOTE: mingw does not have this const: replace with 1 << 16 from code 
+		   CERT_SYSTEM_STORE_CURRENT_USER, */
+		1 << 16,
+		L"root")) == 0)
+	{
+		return 0;
+	}
+
+	X509_STORE* store = SSL_CTX_get_cert_store(tls_ctx);
+	if (!store)
+		return 0;
+
+	/* failure if the CA store is empty or the call fails */
+	if ((pTargetCert = CertEnumCertificatesInStore(
+		hSystemStore, pTargetCert)) == 0) {
+		DEBUG_STUB("*** %s(%s %d:%s)\n", __FUNCTION__,
+			"CA certificate store for Windows is empty.");
+			return 0;
+	}
+	/* iterate over the windows cert store and add to openssl store */
+	do 
+	{
+		X509 *cert1 = d2i_X509(NULL, 
+			(const unsigned char **)&pTargetCert->pbCertEncoded,
+			pTargetCert->cbCertEncoded);
+		if (!cert1) {
+			/* return error if a cert fails */
+			DEBUG_STUB("*** %s(%s %d:%s)\n", __FUNCTION__,
+				"unable to parse certificate in memory",
+				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
+			return 0;
+		}
+		else {
+			/* return error if a cert add to store fails */
+			if (X509_STORE_add_cert(store, cert1) == 0) {
+				DEBUG_STUB("*** %s(%s %d:%s)\n", __FUNCTION__,
+					"error adding certificate", ERR_get_error(),
+					ERR_error_string(ERR_get_error(), NULL));
+				return 0;
+			}
+			X509_free(cert1);
+		}
+	} while ((pTargetCert = CertEnumCertificatesInStore(
+		hSystemStore, pTargetCert)) != 0);
+
+	/* Clean up memory and quit. */
+	if (pTargetCert)
+		CertFreeCertificateContext(pTargetCert);
+	if (hSystemStore)
+	{
+		if (!CertCloseStore(
+			hSystemStore, 0))
+			return 0;
+	}
+	return 1;
+}
+#endif
 
 static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
 {
@@ -2623,30 +2711,7 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 	/* Transport can in theory be set per query in stub mode */
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB && 
 	    tls_is_in_transports_list(context) == 1) {
-		if (context->tls_ctx == NULL) {
-#ifdef HAVE_TLS_v1_2
-			/* Create client context, use TLS v1.2 only for now */
-			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
-			if(context->tls_ctx == NULL)
-#ifndef USE_WINSOCK
-				return GETDNS_RETURN_BAD_CONTEXT;
-#else
-				printf("Warning! Bad TLS context, check openssl version on Windows!\n");;
-#endif
-			/* Be strict and only use the cipher suites recommended in RFC7525
-			   Unless we later fallback to opportunistic. */
-			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
-			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
-				return GETDNS_RETURN_BAD_CONTEXT;
-			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx))
-				return GETDNS_RETURN_BAD_CONTEXT;
-#else
-			if (tls_only_is_in_transports_list(context) == 1)
-				return GETDNS_RETURN_BAD_CONTEXT;
-			/* A null tls_ctx will make TLS fail and fallback to the other
-			   transports will kick-in.*/
-#endif
-		}
+		/* Check minimum require authentication level*/
 		if (tls_only_is_in_transports_list(context) == 1 && 
 		    context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED) {
 			context->tls_auth_min = GETDNS_AUTHENTICATION_REQUIRED;
@@ -2654,6 +2719,35 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 		}
 		else {
 			context->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
+		}
+
+		if (context->tls_ctx == NULL) {
+#ifdef HAVE_TLS_v1_2
+			/* Create client context, use TLS v1.2 only for now */
+			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
+			if(context->tls_ctx == NULL)
+				return GETDNS_RETURN_BAD_CONTEXT;
+			/* Be strict and only use the cipher suites recommended in RFC7525
+			   Unless we later fallback to opportunistic. */
+			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+				return GETDNS_RETURN_BAD_CONTEXT;
+			/* For strict authentication, we must have local root certs available
+		       Set up is done only when the tls_ctx is created (per getdns_context)*/
+#ifndef USE_WINSOCK
+			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
+#else
+			if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
+#endif /* USE_WINSOCK */
+				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
+					return GETDNS_RETURN_BAD_CONTEXT;
+			}
+#else /* HAVE_TLS_v1_2 */
+			if (tls_only_is_in_transports_list(context) == 1)
+				return GETDNS_RETURN_BAD_CONTEXT;
+			/* A null tls_ctx will make TLS fail and fallback to the other
+			   transports will kick-in.*/
+#endif /* HAVE_TLS_v1_2 */
 		}
 	}
 
