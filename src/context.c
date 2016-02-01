@@ -51,7 +51,7 @@ typedef unsigned short in_port_t;
 
 #include <stdio.h>
 #include <windows.h>
-#include <Wincrypt.h>
+#include <wincrypt.h>
 #endif
 
 #include <sys/stat.h>
