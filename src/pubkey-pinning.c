@@ -99,7 +99,7 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 	getdns_dict* out = NULL;
 	
 	/* we only do sha256 right now, make sure this is well-formed */
-	if (strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
+	if (!str || strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
 		return NULL;
 	for (i = PIN_PREFIX_LENGTH; i < PIN_PREFIX_LENGTH + B64_ENCODED_SHA256_LENGTH - 1; i++)
 		if (!((str[i] >= 'a' && str[i] <= 'z') ||
