@@ -48,8 +48,8 @@ AC_DEFUN([ACX_SSL_CHECKS], [
             fi
         
             AC_MSG_CHECKING([for HMAC_CTX_init in -lcrypto])
-            LIBS="$LIBS -lssl -lcrypto"
-            LIBSSL_LIBS="$LIBSSL_LIBS -lssl -lcrypto"
+            LIBS="-lssl -lcrypto $LIBS"
+            LIBSSL_LIBS="-lssl -lcrypto $LIBSSL_LIBS"
             AC_TRY_LINK(, [
                 int HMAC_CTX_init(void);
                 (void)HMAC_CTX_init();
@@ -101,11 +101,11 @@ AC_CHECK_HEADERS([openssl/err.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/rand.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl TLS v1.2 requires OpenSSL 1.0.1
-AC_CHECK_LIB(ssl, TLSv1_2_client_method,AC_DEFINE([HAVE_TLS_v1_2], [1],
+AC_CHECK_FUNC(TLSv1_2_client_method,AC_DEFINE([HAVE_TLS_v1_2], [1],
     [Define if you have libssl with tls 1.2]),[AC_MSG_WARN([Cannot find TLSv1_2_client_method in libssl library. TLS will not be available.])])
 
 dnl Native OpenSSL hostname verification requires OpenSSL 1.0.2
-AC_CHECK_LIB(ssl, SSL_CTX_get0_param,AC_DEFINE([HAVE_SSL_HN_AUTH], [1],
+AC_CHECK_FUNC(SSL_CTX_get0_param,AC_DEFINE([HAVE_SSL_HN_AUTH], [1],
     [Define if you have libssl with host name verification]),[AC_MSG_WARN([Cannot find SSL_CTX_get0_param in libssl library. TLS hostname verification will not be available.])])
 ])
 

@@ -201,6 +201,11 @@ case "$enable_native_stub_dnssec" in
 		;;
 esac
 
+# search to set include and library paths right
+# find libidn (no libidn on windows though)
+AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
+ACX_CHECK_GETADDRINFO_WITH_INCLUDES
+
 USE_NSS="no"
 # openssl
 if test $USE_NSS = "no"; then
@@ -444,10 +449,6 @@ case "$enable_stub_only" in
 		;;
 esac
 
-# search to set include and library paths right
-# find libidn (no libidn on windows though)
-AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
-ACX_CHECK_GETADDRINFO_WITH_INCLUDES
 if test "$USE_WINSOCK" = 1; then
 	AC_MSG_NOTICE([ Building on Windows ... YES! ])
 	AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
