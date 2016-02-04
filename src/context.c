@@ -952,8 +952,9 @@ set_os_defaults(struct getdns_context *context)
 			*token = 0;
 
 			(void) strlcpy(domain, parse, sizeof(domain));
-
-		} else if (strncmp(parse, "search", 6) == 0) {
+			continue;
+		}
+		if (strncmp(parse, "search", 6) == 0) {
 			parse += 6;
 			do {
 				parse += strspn(parse, " \t");
@@ -967,8 +968,9 @@ set_os_defaults(struct getdns_context *context)
 				*token = prev_ch;
 				parse = token;
 			} while (*parse);
-
-		} else if (strncmp(parse, "nameserver", 10) != 0)
+			continue;
+		}
+		if (strncmp(parse, "nameserver", 10) != 0)
 			continue;
 
 		parse += 10;
