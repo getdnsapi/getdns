@@ -37,7 +37,7 @@ DNS Resolver library (libgetdns, -lgetdns)
 .SH SYNOPSIS
 #include <getdns.h>
 
-getdns_list * 
+char *
 .br
 .B getdns_pretty_print_dict
 (const getdns_dict *this_dict)
