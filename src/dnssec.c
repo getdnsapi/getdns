@@ -3359,9 +3359,10 @@ static int wire_validate_dnssec(struct mem_funcs *mf,
  *
  */
 getdns_return_t
-getdns_validate_dnssec(getdns_list *records_to_validate,
+getdns_validate_dnssec2(getdns_list *records_to_validate,
     getdns_list *support_records,
-    getdns_list *trust_anchors)
+    getdns_list *trust_anchors,
+    time_t now, uint32_t skew)
 {
 	uint8_t to_val_buf[4096], *to_val,
 		support_buf[4096], *support,
@@ -3377,9 +3378,6 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 	size_t i;
 	getdns_dict *reply;
 
-	time_t now;
-	uint32_t skew;
-
 #if defined(SEC_DEBUG) && SEC_DEBUG
 	fflush(stdout);
 #endif
@@ -3387,8 +3385,6 @@ getdns_validate_dnssec(getdns_list *records_to_validate,
 	if (!records_to_validate || !support_records || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	mf = &records_to_validate->mf;
-	now = time(NULL);
-	skew = 0;
 
 	/* First convert everything to wire format
 	 */
@@ -3452,6 +3448,15 @@ exit_free_support:
 	return r;
 }
 
+
+getdns_return_t
+getdns_validate_dnssec(getdns_list *records_to_validate,
+    getdns_list *support_records,
+    getdns_list *trust_anchors)
+{
+	return getdns_validate_dnssec2(records_to_validate, support_records,
+	    trust_anchors, time(NULL), 0);
+}
 
 /******************  getdns_root_trust_anchor() Function  ********************
  *****************************************************************************/
