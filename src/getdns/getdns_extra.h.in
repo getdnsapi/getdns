@@ -31,6 +31,7 @@
 #include <getdns/getdns.h>
 #include <sys/time.h>
 #include <stdio.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -634,6 +635,40 @@ getdns_return_t
 getdns_fp2rr_list(
     FILE *in, getdns_list **rr_list,
     const char *origin, uint32_t default_ttl);
+
+/**
+ * Validate replies or resource records.
+ *
+ * @param  to_validate     A list of RR-dicts with companion RRSIG-RR-dicts
+ *                         which will be validated.  Or a list of reply-dicts
+ *                         that will be validated.  The "replies_tree" list
+ *                         of a response dict can be used directly here.
+ * @param  support_records A list of DS's RR-dicts and DNSKEY RR-dicts with
+ *                         companion RRSIG-RR-dicts that lead up from one of
+ *                         the trust_anchors to the RR-dicts or replies to
+ *                         validate.  The "validation_chain" list of a response
+ *                         dict (with the dnssec_return_validation_chain
+ *                         extension) can be used directly here.
+ * @param  trust_anchors   The list of trusted DNSKEYs or DS'es RR-dicts.
+ *                         The result of the getdns_root_trust_anchor() or the
+ *                         getdns_context_get_dnssec_trust_anchors() function
+ *                         can be used directly here.
+ * @param  validation_time The point in time in seconds since 1 January 1970
+ *                         00:00:00 UTC, ignoring leap seconds, wrapping using
+ *                         "Serial number arithmetic", as defined in RFC1982.
+ * @param  skew            The numer of seconds of skew that is allowed in 
+ *                         either direction when checking an RRSIG's 
+ *                         Expiration and Inception fields
+ * @return The dnssec status of validated records or replies, 
+ *         GETDNS_DNSSEC_SECURE, GETDNS_DNSSEC_INSECURE,
+ *         GETDNS_DNSSEC_INDETERMINATE or GETDNS_DNSSEC_BOGUS, or an error
+ *         return code.
+ */
+getdns_return_t
+getdns_validate_dnssec2(getdns_list *to_validate,
+    getdns_list *support_records,
+    getdns_list *trust_anchors,
+    time_t validation_time, uint32_t skew);
 
 #ifdef __cplusplus
 }

@@ -130,6 +130,7 @@ getdns_snprint_json_list
 getdns_str2rr_dict
 getdns_strerror
 getdns_validate_dnssec
+getdns_validate_dnssec2
 getdns_wire2rr_dict
 getdns_wire2rr_dict_buf
 getdns_wire2rr_dict_scan
