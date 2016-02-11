@@ -3385,7 +3385,6 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 	if (!records_to_validate || !support_records || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	mf = &records_to_validate->mf;
-	skew = 0;
 
 	/* First convert everything to wire format
 	 */
