@@ -99,7 +99,7 @@ package management system to install the compile time files.  If you checked
 out our git you need to copy the libtool helper scripts and rebuild configure
 with:
 
-    # libtoolize -ci
+    # libtoolize -ci (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
     # autoreconf -fi
 
 ## Minimal dependencies
