@@ -3055,6 +3055,7 @@ _get_context_settings(getdns_context* context)
                 r |= getdns_list_set_int(transports, i, context->dns_transports[i]);
             }
             r |= getdns_dict_set_list(result, "dns_transport_list", transports);
+            getdns_list_destroy(transports);
         }
         r |= getdns_dict_set_int(result, "tls_authentication", context->tls_auth);
     }
@@ -3067,6 +3068,7 @@ _get_context_settings(getdns_context* context)
                 r |= getdns_list_set_int(namespaces, i, context->namespaces[i]);
             }
             r |= getdns_dict_set_list(result, "namespaces", namespaces);
+            getdns_list_destroy(namespaces);
         }
     }
     if (r != GETDNS_RETURN_GOOD) {
