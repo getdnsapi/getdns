@@ -404,9 +404,10 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		if (x->cert_info == NULL)
 			continue;
 #if defined(STUB_DEBUG) && STUB_DEBUG
-		DEBUG_STUB("--- %s: name of cert %d:\n", __FUNCTION__, i);
+		DEBUG_STUB("%s %-30s: Name of cert: %d ",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i);
 		if (x->cert_info->subject != NULL)
-			X509_NAME_print_ex_fp(stderr, x->cert_info->subject, 4, XN_FLAG_ONELINE);
+			X509_NAME_print_ex_fp(stderr, x->cert_info->subject, 1, XN_FLAG_ONELINE);
 		fprintf(stderr, "\n");
 #endif
 		if (x->cert_info->key == NULL)
@@ -415,14 +416,14 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		/* digest the cert with sha256 */
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
 		if (len > sizeof(raw)) {
-			DEBUG_STUB("--- %s: pubkey %d is larger than "PRIsz" octets\n",
-				   __FUNCTION__, i, sizeof(raw));
+			DEBUG_STUB("%s %-30s: Pubkey %d is larger than "PRIsz" octets\n",
+			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, sizeof(raw));
 			continue;
 		}
 		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
 		if (next - raw != len) {
-			DEBUG_STUB("--- %s: pubkey %d claimed it needed %d octets, really needed "PRIsz"\n",
-				   __FUNCTION__, i, len, next - raw);
+			DEBUG_STUB("%s %-30s: Pubkey %d claimed it needed %d octets, really needed "PRIsz"\n",
+			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, len, next - raw);
 			continue;
 		}
 		SHA256(raw, len, buf);
@@ -430,12 +431,12 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		/* compare it */
 		for (p = pinset; p; p = p->next)
 			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
-				DEBUG_STUB("--- %s: pubkey %d matched pin %p ("PRIsz")!\n",
-					   __FUNCTION__, i, p, sizeof(p->pin));
+				DEBUG_STUB("%s %-30s: Pubkey %d matched pin %p ("PRIsz")\n",
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, p, sizeof(p->pin));
 				return GETDNS_RETURN_GOOD;
 			} else
-				DEBUG_STUB("--- %s: pubkey %d did not match pin %p!\n",
-					   __FUNCTION__, i, p);
+				DEBUG_STUB("%s %-30s: Pubkey %d did not match pin %p\n",
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, p);
 	}
 
 	return ret;
