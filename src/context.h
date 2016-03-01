@@ -43,6 +43,7 @@
 #include "types-internal.h"
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
+#include "ub_loop.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -221,10 +222,9 @@ struct getdns_context {
 	struct ub_ctx *unbound_ctx;
 	int            unbound_ta_set;
 #ifdef HAVE_UNBOUND_EVENT_API
-	int            unbound_event_api;
+	_getdns_ub_loop ub_loop;
 #endif
 #endif
-
 	/* A tree to hold local host information*/
 	_getdns_rbtree_t local_hosts;
 

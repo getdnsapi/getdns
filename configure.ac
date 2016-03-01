@@ -526,15 +526,14 @@ fi
 
 if test $my_with_libunbound = 1
 then
+	AC_CHECK_HEADERS([unbound-event.h],,, [AC_INCLUDES_DEFAULT])
 	AC_MSG_NOTICE([Checking for dependency libunbound])
 	AC_CHECK_LIB([unbound], [ub_fd], [
 		AC_DEFINE_UNQUOTED([HAVE_LIBUNBOUND], [1], [Define to 1 if you have the `unbound' library (-lunbound).])
 		LIBS="-lunbound $LIBS"
-		AC_CHECK_HEADER([unbound-event.h],[
-			AC_CHECK_FUNC([ub_event_get_version], [
-				AC_DEFINE_UNQUOTED([HAVE_UNBOUND_EVENT_API], [1], [Define this when libunbound is compiled with the --enable-event-api option.])
-			])
-		],,[AC_INCLUDES_DEFAULT])
+		AC_CHECK_FUNC([ub_ctx_create_ub_event], [
+			AC_DEFINE_UNQUOTED([HAVE_UNBOUND_EVENT_API], [1], [Define this when libunbound is compiled with the --enable-event-api option.])
+		])
 	], [found_all_libs=0])
 fi
 
@@ -1202,8 +1201,14 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 
 #ifdef HAVE_LIBUNBOUND
 # include <unbound.h>
-# ifdef HAVE_UNBOUND_EVENT_API
+# ifdef HAVE_UNBOUND_EVENT_H
 #  include <unbound-event.h>
+# else
+struct ub_event_base;
+struct ub_ctx* ub_ctx_create_ub_event(struct ub_event_base* base);
+typedef void (*ub_event_callback_t)(void*, int, void*, int, int, char*);
+int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype, 
+        int rrclass, void* mydata, ub_event_callback_t callback, int* async_id);
 # endif
 #endif
 ])

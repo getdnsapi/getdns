@@ -63,6 +63,9 @@ typedef unsigned short in_port_t;
 #include <ctype.h>
 
 #include "config.h"
+#ifdef HAVE_LIBUNBOUND
+#include <unbound.h>
+#endif
 #include "debug.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
@@ -1372,7 +1375,7 @@ getdns_context_request_count_changed(getdns_context *context)
 		    &context->ub_event, context->ub_event.ev);
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (!context->unbound_event_api)
+		if (!_getdns_ub_loop_enabled(&context->ub_loop))
 #endif
 			context->extension->vmt->schedule(
 			    context->extension, ub_fd(context->unbound_ctx),
@@ -1386,7 +1389,7 @@ getdns_context_request_count_changed(getdns_context *context)
 
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (!context->unbound_event_api)
+		if (!_getdns_ub_loop_enabled(&context->ub_loop))
 #endif
 			context->extension->vmt->clear(
 			    context->extension, &context->ub_event);
@@ -1421,10 +1424,9 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	}
 	/* setup */
 #ifdef HAVE_UNBOUND_EVENT_API
-	context->unbound_event_api =
-	    strncmp(ub_event_get_version(), "getdns-event", 12) == 0;
-	if (context->unbound_event_api) {
-		context->unbound_ctx = ub_ctx_create_event((void *)context->extension);
+	_getdns_ub_loop_init(&context->ub_loop, &context->mf, context->extension);
+	if (_getdns_ub_loop_enabled(&context->ub_loop)) {
+		context->unbound_ctx = ub_ctx_create_ub_event(&context->ub_loop.super);
 	} else {
 #endif
 		context->unbound_ctx = ub_ctx_create();
@@ -3006,9 +3008,8 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	context->extension = &context->default_eventloop.loop;
 	_getdns_default_eventloop_init(&context->default_eventloop);
 #ifdef HAVE_UNBOUND_EVENT_API
-	if (context->unbound_event_api)
-		(void) ub_ctx_set_event(
-		    context->unbound_ctx, (void *)context->extension);
+	if (_getdns_ub_loop_enabled(&context->ub_loop))
+		context->ub_loop.extension = context->extension;
 #endif
 	return GETDNS_RETURN_GOOD;
 }
@@ -3025,9 +3026,8 @@ getdns_context_set_eventloop(getdns_context* context, getdns_eventloop* loop)
 	}
 	context->extension = loop;
 #ifdef HAVE_UNBOUND_EVENT_API
-	if (context->unbound_event_api)
-		(void) ub_ctx_set_event(
-		    context->unbound_ctx, (void *)context->extension);
+	if (_getdns_ub_loop_enabled(&context->ub_loop))
+		context->ub_loop.extension = loop;
 #endif
 	return GETDNS_RETURN_GOOD;
 }

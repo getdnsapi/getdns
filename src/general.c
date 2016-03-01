@@ -39,6 +39,12 @@
 #include <string.h>
 #include "config.h"
 #include "general.h"
+#ifdef HAVE_LIBUNBOUND
+#include <unbound.h>
+#endif
+#ifdef HAVE_UNBOUND_EVENT_API
+#include "ub_loop.h"
+#endif
 #include "gldns/wire2str.h"
 #include "context.h"
 #include "types-internal.h"
@@ -342,7 +348,7 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 
 #ifdef HAVE_LIBUNBOUND
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (dns_req->context->unbound_event_api)
+		if (_getdns_ub_loop_enabled(&dns_req->context->ub_loop))
 			return ub_resolve_event(dns_req->context->unbound_ctx,
 			    name, netreq->request_type, netreq->owner->request_class,
 			    netreq, ub_resolve_event_callback, &(netreq->unbound_id)) ?
