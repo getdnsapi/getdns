@@ -44,6 +44,7 @@
 #ifndef HAVE_UNBOUND_EVENT_H
 struct ub_event_base_vmt;
 struct ub_event_base {
+	unsigned long magic;
         struct ub_event_base_vmt* vmt;
 };
 struct ub_event_base;

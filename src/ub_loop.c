@@ -38,6 +38,8 @@
 #include "ub_loop.h"
 #ifdef HAVE_UNBOUND_EVENT_API
 
+#define UB_EVENT_API_MAGIC 0x44d74d78
+
 #ifndef HAVE_UNBOUND_EVENT_H
 /** event timeout */
 #define UB_EV_TIMEOUT      0x01
@@ -51,37 +53,39 @@
 #define UB_EV_PERSIST      0x10
 
 struct ub_event_base_vmt {
-	void (*event_base_free)(struct ub_event_base*);
-	int (*event_base_dispatch)(struct ub_event_base*);
-	int (*event_base_loopexit)(struct ub_event_base*, struct timeval*);
-	struct ub_event* (*event_new)(struct ub_event_base*,
+	void (*free)(struct ub_event_base*);
+	int (*dispatch)(struct ub_event_base*);
+	int (*loopexit)(struct ub_event_base*, struct timeval*);
+	struct ub_event* (*new_event)(struct ub_event_base*,
 	    int fd, short bits, void (*cb)(int, short, void*), void* arg);
-	struct ub_event* (*signal_new)(struct ub_event_base*, int fd,
+	struct ub_event* (*new_signal)(struct ub_event_base*, int fd,
 	    void (*cb)(int, short, void*), void* arg);
 	struct ub_event* (*winsock_register_wsaevent)(struct ub_event_base*,
 	    void* wsaevent, void (*cb)(int, short, void*), void* arg);
 };
 
 struct ub_event_vmt {
-	void (*event_add_bits)(struct ub_event*, short);
-	void (*event_del_bits)(struct ub_event*, short);
-	void (*event_set_fd)(struct ub_event*, int);
-	void (*event_free)(struct ub_event*);
-	int (*event_add)(struct ub_event*, struct timeval*);
-	int (*event_del)(struct ub_event*);
-	int (*timer_add)(struct ub_event*, struct ub_event_base*,
+	void (*add_bits)(struct ub_event*, short);
+	void (*del_bits)(struct ub_event*, short);
+	void (*set_fd)(struct ub_event*, int);
+	void (*free)(struct ub_event*);
+	int (*add)(struct ub_event*, struct timeval*);
+	int (*del)(struct ub_event*);
+	int (*add_timer)(struct ub_event*, struct ub_event_base*,
 	    void (*cb)(int, short, void*), void* arg, struct timeval*);
-	int (*timer_del)(struct ub_event*);
-	int (*signal_add)(struct ub_event*, struct timeval*);
-	int (*signal_del)(struct ub_event*);
+	int (*del_timer)(struct ub_event*);
+	int (*add_signal)(struct ub_event*, struct timeval*);
+	int (*del_signal)(struct ub_event*);
 	void (*winsock_unregister_wsaevent)(struct ub_event* ev);
 	void (*winsock_tcp_wouldblock)(struct ub_event*, int eventbit);
 };
 
 struct ub_event {
+	unsigned long magic;
 	struct ub_event_vmt* vmt;
 };
 #endif
+
 
 typedef struct my_event {
 	struct ub_event        super;
@@ -291,6 +295,7 @@ static struct ub_event* my_event_new(struct ub_event_base* base, int fd,
 		return NULL;
        
 	ev = GETDNS_MALLOC(AS_UB_LOOP(base)->mf, my_event);
+	ev->super.magic = UB_EVENT_API_MAGIC;
 	ev->super.vmt = &vmt;
 	ev->loop = AS_UB_LOOP(base);
 	ev->added = 0;
@@ -331,6 +336,7 @@ void _getdns_ub_loop_init(_getdns_ub_loop *loop, struct mem_funcs *mf, getdns_ev
 		my_winsock_register_wsaevent
 	};
 
+	loop->super.magic = UB_EVENT_API_MAGIC;
 	loop->super.vmt = &vmt;
 	loop->mf = *mf;
 	loop->extension = extension;
