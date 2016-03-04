@@ -41,7 +41,9 @@
 #include "getdns/getdns_extra.h"
 #include "types-internal.h"
 
-#ifndef HAVE_UNBOUND_EVENT_H
+#ifdef HAVE_UNBOUND_EVENT_H
+#include <unbound-event.h>
+#else
 struct ub_event_base_vmt;
 struct ub_event_base {
 	unsigned long magic;

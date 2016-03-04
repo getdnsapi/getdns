@@ -115,6 +115,7 @@ typedef struct my_event {
 
 static void my_event_base_free(struct ub_event_base* base)
 {
+	/* We don't allocate our event base, so no need to free */
 	(void)base;
 	return;
 }
@@ -122,13 +123,18 @@ static void my_event_base_free(struct ub_event_base* base)
 static int my_event_base_dispatch(struct ub_event_base* base)
 {
 	(void)base;
-	/* We don't run the pluggable event base ourselfs */
+	/* We run the event loop extension for which this ub_event_base is an
+	 * interface ourselfs, so no need to let libunbound call dispatch.
+	 */
 	return -1;
 }
 
 static int my_event_base_loopexit(struct ub_event_base* base, struct timeval* tv)
 {
 	(void)tv;
+	/* Not sure when this will be called.  But it is of no influence as we
+	 * run the event loop ourself.
+	 */
 	AS_UB_LOOP(base)->running = 0;
 	return 0;
 }
@@ -137,10 +143,18 @@ static int my_event_base_loopexit(struct ub_event_base* base, struct timeval* tv
 	do { (ev)->loop->extension->vmt->clear((ev)->loop->extension, \
 	    &(ev)->gev); (ev)->added = 0; } while(0)
 
-#define SCHEDULE_MY_EVENT(ev) \
-	do { if ((ev)->gev.read_cb||(ev)->gev.write_cb||(ev)->gev.timeout_cb){\
-		(ev)->loop->extension->vmt->schedule((ev)->loop->extension, \
-		(ev)->fd, (uint64_t)-1, &(ev)->gev); (ev)->added=1; }}while(0)
+static inline getdns_return_t schedule_my_event(my_event *ev)
+{
+	getdns_return_t r;
+
+	if (ev->gev.read_cb || ev->gev.write_cb || ev->gev.write_cb) {
+		if ((r = ev->loop->extension->vmt->schedule(
+		    ev->loop->extension, ev->fd, ev->timeout, &ev->gev)))
+			return r;
+		ev->added = 1;
+	}
+	return GETDNS_RETURN_GOOD;
+}
 
 static void read_cb(void *userarg)
 {
@@ -166,7 +180,7 @@ static void timeout_cb(void *userarg)
 		CLEAR_MY_EVENT(ev);
 }
 
-static void set_gev_callbacks(my_event* ev, short bits)
+static getdns_return_t set_gev_callbacks(my_event* ev, short bits)
 {
 	int added = ev->added;
 
@@ -180,18 +194,19 @@ static void set_gev_callbacks(my_event* ev, short bits)
 		ev->bits = bits;
 
 		if (added)
-			SCHEDULE_MY_EVENT(ev);
+			return schedule_my_event(ev);
 	}
+	return GETDNS_RETURN_GOOD;
 }
 
 static void my_event_add_bits(struct ub_event* ev, short bits)
 {
-	set_gev_callbacks(AS_MY_EVENT(ev), AS_MY_EVENT(ev)->bits | bits);
+	(void) set_gev_callbacks(AS_MY_EVENT(ev), AS_MY_EVENT(ev)->bits | bits);
 }
 
 static void my_event_del_bits(struct ub_event* ev, short bits)
 {
-	set_gev_callbacks(AS_MY_EVENT(ev), AS_MY_EVENT(ev)->bits & ~bits);
+	(void) set_gev_callbacks(AS_MY_EVENT(ev), AS_MY_EVENT(ev)->bits & ~bits);
 }
 
 static void my_event_set_fd(struct ub_event* ub_ev, int fd)
@@ -202,7 +217,7 @@ static void my_event_set_fd(struct ub_event* ub_ev, int fd)
 		if (ev->added) {
 			CLEAR_MY_EVENT(ev);
 			ev->fd = fd;
-			SCHEDULE_MY_EVENT(ev);
+			(void) schedule_my_event(ev);
 		} else
 			ev->fd = fd;
 	}
@@ -226,7 +241,8 @@ static int my_event_add(struct ub_event* ev, struct timeval* tv)
 		my_event_del(ev);
 	if (tv && (AS_MY_EVENT(ev)->bits & UB_EV_TIMEOUT) != 0)
 		AS_MY_EVENT(ev)->timeout = (tv->tv_sec * 1000) + (tv->tv_usec / 1000);
-	SCHEDULE_MY_EVENT(AS_MY_EVENT(ev));
+	if (schedule_my_event(AS_MY_EVENT(ev)))
+		return -1;
 	return 0;
 }
 
@@ -254,16 +270,19 @@ static int my_timer_del(struct ub_event* ev)
 
 static int my_signal_add(struct ub_event* ub_ev, struct timeval* tv)
 {
+	/* Only unbound daaemon workers use signals */
 	return -1;
 }
 
 static int my_signal_del(struct ub_event* ub_ev)
 {
+	/* Only unbound daaemon workers use signals */
 	return -1;
 }
 
 static void my_winsock_unregister_wsaevent(struct ub_event* ev)
 {
+	/* wsa events don't get registered with libunbound */
 	(void)ev;
 }
 
