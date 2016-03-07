@@ -68,20 +68,28 @@ getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
 
 	_getdns_default_eventloop_init(&loop->loop);
 
-#if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
+#ifdef HAVE_LIBUNBOUND
+#  ifndef USE_WINSOCK
 	loop->ub_event.userarg    = loop->context;
 	loop->ub_event.read_cb    = _getdns_context_ub_read_cb;
 	loop->ub_event.write_cb   = NULL;
 	loop->ub_event.timeout_cb = NULL;
 	loop->ub_event.ev         = NULL;
-
+#  endif
 #  ifdef HAVE_UNBOUND_EVENT_API
-	if (context->unbound_event_api) {
-		(void) ub_ctx_set_event(context->unbound_ctx, (void *)ext);
+	if (_getdns_ub_loop_enabled(&context->ub_loop)) {
+		context->ub_loop.extension = ext;
 	} else
 #  endif
+#  ifndef USE_WINSOCK
 		return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
 		    TIMEOUT_FOREVER, &loop->ub_event);
+#  else
+		/* No sync full recursion requests on windows without 
+		 * UNBOUND_EVENT_API because ub_fd() doesn't work on windows.
+		 */
+		; /* pass */
+#  endif
 #endif
 	return GETDNS_RETURN_GOOD;
 }
@@ -93,9 +101,8 @@ getdns_sync_loop_cleanup(getdns_sync_loop *loop)
 
 #if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
 #  ifdef HAVE_UNBOUND_EVENT_API
-	if (loop->context->unbound_event_api) {
-		(void) ub_ctx_set_event(loop->context->unbound_ctx,
-		    (void *)loop->context->extension);
+	if (_getdns_ub_loop_enabled(&loop->context->ub_loop)) {
+		loop->context->ub_loop.extension = loop->context->extension;
 	} else
 #  endif
 		ext->vmt->clear(ext, &loop->ub_event);
