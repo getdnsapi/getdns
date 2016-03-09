@@ -1117,7 +1117,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
 	result->dns_root_servers = NULL;
 	result->root_servers_fn[0] = 0;
-	result->append_name = GETDNS_APPEND_NAME_ALWAYS;
+	result->append_name = GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE;
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
 
