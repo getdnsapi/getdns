@@ -249,6 +249,7 @@ struct getdns_context {
 
 	/* The default extension */
 	_getdns_default_eventloop default_eventloop;
+	_getdns_default_eventloop sync_eventloop;
 
 	/*
 	 * state data used to detect changes to the system config files

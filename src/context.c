@@ -1156,6 +1156,7 @@ getdns_context_create_with_extended_memory_functions(
 
 	result->extension = &result->default_eventloop.loop;
 	_getdns_default_eventloop_init(&result->default_eventloop);
+	_getdns_default_eventloop_init(&result->sync_eventloop);
 
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
@@ -1260,12 +1261,12 @@ getdns_context_destroy(struct getdns_context *context)
 	 */
 	_getdns_upstreams_dereference(context->upstreams);
 
+	context->sync_eventloop.loop.vmt->cleanup(&context->sync_eventloop.loop);
+	context->extension->vmt->cleanup(context->extension);
 #ifdef HAVE_LIBUNBOUND
 	if (context->unbound_ctx)
 		ub_ctx_delete(context->unbound_ctx);
 #endif
-
-	context->extension->vmt->cleanup(context->extension);
 
 	if (context->namespaces)
 		GETDNS_FREE(context->my_mf, context->namespaces);
