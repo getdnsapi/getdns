@@ -175,7 +175,7 @@ test:	$(NOLIBCHECK) $(NOLIBLDNS) all
 clean:
 	rm -f *.o *.lo $(PROGRAMS) scratchpad
 	rm -rf .libs
-	rm -f check_getdns.log
+	rm -f check_getdns.log check_getdns_event.log check_getdns_ev.log check_getdns_uv.log
 
 distclean : clean
 	rm -f scratchpad.c
