@@ -43,7 +43,6 @@ have_libevent = @have_libevent@
 have_libuv = @have_libuv@
 have_libev = @have_libev@
 NOLIBCHECK = @NOLIBCHECK@
-NOLIBLDNS = @NOLIBLDNS@
 
 EXTENSION_LIBEVENT_EXT_LIBS=@EXTENSION_LIBEVENT_EXT_LIBS@
 EXTENSION_LIBEVENT_LDFLAGS=@EXTENSION_LIBEVENT_LDFLAGS@
@@ -63,9 +62,6 @@ LDFLAGS=-L.. @LDFLAGS@
 LDLIBS=../libgetdns.la @LIBS@
 CHECK_LIBS=@CHECK_LIBS@
 CHECK_CFLAGS=@CHECK_CFLAGS@
-LDNS_LIBS=@LDNS_LIBS@
-LDNS_CFLAGS=@LDNS_CFLAGS@
-LDNS_LDFLAGS=@LDNS_LDFLAGS@
 
 CHECK_OBJS=check_getdns_common.lo check_getdns_context_set_timeout.lo \
 	check_getdns.lo check_getdns_transport.lo
@@ -93,7 +89,7 @@ default: all
 all: $(PROGRAMS)
 
 $(ALL_OBJS):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(LDNS_CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
 
 $(NON_C99_OBJS):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600 -c $(srcdir)/$(@:.lo=.c) -o $@
@@ -117,16 +113,16 @@ check_getdns_common: check_getdns_common.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ check_getdns_common.lo
 
 check_getdns: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_selectloop.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) $(LDNS_CFLAGS) $(LDNS_LDFLAGS) $(LDNS_LIBS) -o $@ check_getdns.lo check_getdns_common.lo  check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_selectloop.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) -o $@ check_getdns.lo check_getdns_common.lo  check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_selectloop.lo
 
 check_getdns_event: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libevent.lo ../libgetdns_ext_event.la
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libevent.lo $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) $(LDNS_CFLAGS) $(LDNS_LDFLAGS) $(LDNS_LIBS) ../libgetdns_ext_event.la $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libevent.lo $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) ../libgetdns_ext_event.la $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS)
 
 check_getdns_uv: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libuv.lo ../libgetdns_ext_uv.la
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libuv.lo $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) $(LDNS_CFLAGS) $(LDNS_LDFLAGS) $(LDNS_LIBS) ../libgetdns_ext_uv.la $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libuv.lo $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) ../libgetdns_ext_uv.la $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS)
 
 check_getdns_ev: check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libev.lo ../libgetdns_ext_ev.la
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libev.lo $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) $(LDNS_CFLAGS) $(LDNS_LDFLAGS) $(LDNS_LIBS) ../libgetdns_ext_ev.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ check_getdns.lo check_getdns_common.lo check_getdns_context_set_timeout.lo check_getdns_transport.lo check_getdns_libev.lo $(LDFLAGS) $(LDLIBS) $(CHECK_CFLAGS) $(CHECK_LIBS) ../libgetdns_ext_ev.la $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS)
 
 getdns_query: getdns_query.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
@@ -155,16 +151,7 @@ nolibcheck:
 	@echo "***"
 	@false
 
-nolibldns:
-	@echo "***"
-	@echo "*** Cannot run unit tests, because they could not be compiled,"
-	@echo "*** because libldns was not found or usable at configure time."
-	@echo "*** To compile and run unit tests make sure libldns is available"
-	@echo "*** and usable during configuration"
-	@echo "***"
-	@false
-
-test:	$(NOLIBCHECK) $(NOLIBLDNS) all
+test:	$(NOLIBCHECK) all
 	(cd $(srcdir)/../.. && find . -type f -executable -and \( -name "*.[ch]" -or -name "*.html" -or -name "*.in" -or -name "*.good" -or -name "*.ac" \) | awk 'BEGIN{e=0}{print("ERROR! Executable bit found on", $$0);e=1}END{exit(e)}')
 	./$(CHECK_GETDNS)
 	if test $(have_libevent) = 1 ; then ./$(CHECK_EVENT_PROG) ; fi

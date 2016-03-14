@@ -266,7 +266,7 @@ AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <openssl/evp.h>
 #include <openssl/engine.h>
 #include <openssl/conf.h>
-/* routine to load gost (from sldns) */
+/* routine to load gost (from gldns) */
 int load_gost_id(void)
 {
 	static int gost_id = 0;
@@ -605,60 +605,6 @@ AC_SUBST([CHECK_GETDNS])
 AC_SUBST([CHECK_LIBS])
 AC_SUBST([CHECK_CFLAGS])
 # end libraries needed for libcheck
-
-# find libldns
-LIBS="$initial_LIBS"
-
-LDNS_LIBS=""
-LDNS_CFLAGS=""
-LDNS_LDFLAGS=""
-NOLIBLDNS=""
-
-AC_ARG_WITH(libldns, AS_HELP_STRING([--with-libldns=pathname],
-	[path to libldns (default: search /usr/local ..)]),
-	[], [withval="yes"])
-if test x_$withval = x_yes; then
-	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-		if test -f "$dir/include/ldns/ldns.h"; then
-			LDNS_CFLAGS="-I$dir/include"
-			LDNS_LDFLAGS="-L$dir/lib"
-			CFLAGS="$CFLAGS $LDNS_CFLAGS"
-			LDFLAGS="$LDFLAGS $LDNS_LDFLAGS"
-			AC_MSG_NOTICE([Found libldns in $dir])
-			break
-		fi
-	done
-else
-	if test x_$withval != x_no; then
-		LDNS_CFLAGS="-I$withval/include"
-		LDNS_LDFLAGS="-L$withval/lib"
-		CFLAGS="$CFLAGS $LDNS_CFLAGS"
-		LDFLAGS="$LDFLAGS $LDNS_LDFLAGS"
-	else
-		NOLIBLDNS="nolibldns"
-		AC_MSG_WARN([libldns not found or usable; unit tests will not be compiled and run])
-	fi
-fi
-if test x$NOLIBLDNS = x
-then
-AC_CHECK_LIB([ldns], [ldns_dname_new_frm_str], [
-LDNS_LIBS="-lldns"
-AC_DEFINE_UNQUOTED(HAVE_LIBLDNS, [1], [Have libldns])
-], [
-NOLIBLDNS="nolibldns"
-AC_MSG_WARN([libldns not found or usable; unit tests will not be compiled and run])
-])
-fi
-
-AC_SUBST([LDNS_LIBS])
-AC_SUBST([LDNS_CFLAGS])
-AC_SUBST([LDNS_LDFLAGS])
-AC_SUBST([NOLIBLDNS])
-
-LIBS="$getdns_LIBS"
-CFLAGS="$getdns_CFLAGS"
-LDFLAGS="$getdns_LDFLAGS"
-
 
 #-------------------- libevent extension
 AC_ARG_WITH([libevent],

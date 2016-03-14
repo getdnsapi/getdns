@@ -122,7 +122,7 @@ NOTE: The current Windows implementation does not support the above.
 
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
-to install [libcheck](https://libcheck.github.io/check/) and [libldns from NLnet Labs](https://nlnetlabs.nl/projects/ldns/) version 1.6.17 or later.  Both libraries are also available from
+to install [libcheck](https://libcheck.github.io/check/).  The check library is also available from
 many of the package repositories for the more popular operating systems.
 
 NOTE: The current Windows implementation does not support the above.
@@ -198,7 +198,7 @@ build the packages, this is simplythe one we chose to use.
     # cd /home/deploy/build
     # mv lib lib64
     # . /usr/local/rvm/config/alias
-    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.2.0rc1 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
+    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.2.0rc1 -d "unbound" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
 ###OSX
 
