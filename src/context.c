@@ -1116,7 +1116,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->idle_timeout = 0;
 	result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
 	result->dns_root_servers = NULL;
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	result->root_servers_fn[0] = 0;
+#endif
 	result->append_name = GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE;
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
@@ -1289,8 +1291,11 @@ getdns_context_destroy(struct getdns_context *context)
 
 	if (context->dns_root_servers)
 		getdns_list_destroy(context->dns_root_servers);
+
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	if (context->root_servers_fn[0])
 		unlink(context->root_servers_fn);
+#endif
 
 	if (context->suffixes && context->suffixes != no_suffixes)
 		GETDNS_FREE(context->mf, (void *)context->suffixes);
@@ -1833,15 +1838,17 @@ getdns_return_t
 getdns_context_set_dns_root_servers(
     getdns_context *context, getdns_list *addresses)
 {
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	char tmpfn[FILENAME_MAX] = P_tmpdir "/getdns-root-dns-servers-XXXXXX";
 	FILE *fh;
 	int fd;
+	size_t dst_len;
+#endif
 	size_t i;
 	getdns_dict *rr_dict;
 	getdns_return_t r;
 	getdns_bindata *addr_bd;
 	char dst[2048];
-	size_t dst_len;
 	getdns_list *newlist;
 
 	if (!context)
@@ -1857,20 +1864,50 @@ getdns_context_set_dns_root_servers(
 			getdns_list_destroy(context->dns_root_servers);
 		context->dns_root_servers = NULL;
 
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 		if (context->root_servers_fn[0])
 			unlink(context->root_servers_fn);
 		context->root_servers_fn[0] = 0;
-
+#endif
 		dispatch_updated(
 		    context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
 		return GETDNS_RETURN_GOOD;
 	}
+
+#ifdef HAVE_LIBUNBOUND
+#  ifdef HAVE_UB_CTX_SET_STUB
+	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
+		if (getdns_dict_get_bindata(
+		    rr_dict, "address_data", &addr_bd) &&
+		    getdns_dict_get_bindata(
+		    rr_dict, "/rdata/ipv4_address", &addr_bd) &&
+		    getdns_dict_get_bindata(
+		    rr_dict, "/rdata/ipv6_address", &addr_bd))
+
+			; /* Not a parsable address,
+			   * pass because we allow root.hint's files as input
+			   */
+
+		else if (addr_bd->size == 16 &&
+		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst))) {
+
+			if (ub_ctx_set_stub(context->unbound_ctx,".",dst,1)) {
+				return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+			}
+		
+		} else if (addr_bd->size == 4 &&
+		    inet_ntop(AF_INET, addr_bd->data, dst, sizeof(dst))) {
+			if (ub_ctx_set_stub(context->unbound_ctx,".",dst,1)) {
+				return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+			}
+		}
+	}
+#  else
 	if ((fd = mkstemp(tmpfn)) < 0)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
 	if (!(fh = fdopen(fd, "w")))
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-
 	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
 		dst_len = sizeof(dst);
 		if (!getdns_rr_dict2str_buf(rr_dict, dst, &dst_len))
@@ -1901,24 +1938,28 @@ getdns_context_set_dns_root_servers(
 			    i, i, dst);
 	}
 	fclose(fh);
-#ifdef HAVE_LIBUNBOUND
 	if (ub_ctx_set_option(
 	    context->unbound_ctx, "root-hints:", tmpfn)) {
 		unlink(tmpfn);
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
+#  endif
 #endif
 	if (_getdns_list_copy(addresses, &newlist)) {
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 		unlink(tmpfn);
+#endif
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	if (context->dns_root_servers)
 		getdns_list_destroy(context->dns_root_servers);
 	context->dns_root_servers = newlist;
 
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	if (context->root_servers_fn[0])
 		unlink(context->root_servers_fn);
 	(void) memcpy(context->root_servers_fn, tmpfn, strlen(tmpfn));
+#endif
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNS_ROOT_SERVERS);
 	return GETDNS_RETURN_GOOD;
