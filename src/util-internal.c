@@ -862,7 +862,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		return NULL;
 
 	dnssec_return_status = completed_request->dnssec_return_status ||
-	                       completed_request->dnssec_return_only_secure
+	                       completed_request->dnssec_return_only_secure ||
+	                       completed_request->dnssec_return_all_statuses
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	                    || completed_request->dnssec_roadblock_avoidance
 #endif
@@ -907,7 +908,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			nbogus++;
 
 
-		if (! completed_request->dnssec_return_validation_chain) {
+		if (! completed_request->dnssec_return_all_statuses &&
+		    ! completed_request->dnssec_return_validation_chain) {
 			if (dnssec_return_status &&
 			    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
 				continue;

@@ -286,6 +286,7 @@ typedef struct getdns_dns_req {
 	/* request extensions */
 	int dnssec_return_status;
 	int dnssec_return_only_secure;
+	int dnssec_return_all_statuses;
 	int dnssec_return_validation_chain;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	int dnssec_roadblock_avoidance;

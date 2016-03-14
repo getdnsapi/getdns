@@ -245,7 +245,8 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #ifdef STUB_NATIVE_DNSSEC
 	    || (dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
 	        && (dns_req->dnssec_return_status ||
-	            dns_req->dnssec_return_only_secure
+	            dns_req->dnssec_return_only_secure ||
+	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
 	    )
@@ -302,6 +303,7 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 	if ( dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    || dns_req->dnssec_return_status
 	    || dns_req->dnssec_return_only_secure
+	    || dns_req->dnssec_return_all_statuses
 	    || dns_req->dnssec_return_validation_chain) {
 #endif
 		/* schedule the timeout */
@@ -362,6 +364,7 @@ validate_extensions(struct getdns_dict * extensions)
 	static getdns_extension_format extformats[] = {
 		{"add_opt_parameters"            , t_dict, 1},
 		{"add_warning_for_bad_dns"       , t_int , 1},
+		{"dnssec_return_all_statuses"    , t_int , 1},
 		{"dnssec_return_only_secure"     , t_int , 1},
 		{"dnssec_return_status"          , t_int , 1},
 		{"dnssec_return_validation_chain", t_int , 1},

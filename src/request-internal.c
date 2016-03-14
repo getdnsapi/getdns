@@ -639,6 +639,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    || is_extension_set(extensions, "dnssec_return_status");
 	int dnssec_return_only_secure
 	    =  is_extension_set(extensions, "dnssec_return_only_secure");
+	int dnssec_return_all_statuses
+	    =  is_extension_set(extensions, "dnssec_return_all_statuses");
 	int dnssec_return_validation_chain
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
 	int edns_cookies
@@ -653,7 +655,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 #endif
 
 	int dnssec_extension_set = dnssec_return_status
-	    || dnssec_return_only_secure || dnssec_return_validation_chain
+	    || dnssec_return_only_secure || dnssec_return_all_statuses
+	    || dnssec_return_validation_chain
 	    || (extensions == dnssec_ok_checking_disabled)
 	    || (extensions == dnssec_ok_checking_disabled_roadblock_avoidance)
 	    || (extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
@@ -850,6 +853,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	                    ((uint64_t)arc4random());
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
+	result->dnssec_return_all_statuses     = dnssec_return_all_statuses;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
 	result->edns_cookies                   = edns_cookies;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
