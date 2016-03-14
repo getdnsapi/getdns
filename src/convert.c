@@ -587,4 +587,417 @@ getdns_fp2rr_list(
 	    &_getdns_plain_mem_funcs, in, rr_list, origin, default_ttl);
 }
 
+#define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
+                              GLDNS_ ## Y ## _WIRE(*wire))) goto error
+#define SET_WIRE_BIT(X,Y) if (getdns_dict_set_int(header, #X , \
+                              GLDNS_ ## Y ## _WIRE(*wire) ? 1 : 0)) goto error
+#define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
+                              GLDNS_ ## Y (*wire))) goto error 
+
+getdns_return_t
+_getdns_wire2msg_dict_scan(struct mem_funcs *mf,
+    const uint8_t **wire, size_t *wire_len, getdns_dict **msg_dict)
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	getdns_dict *result = NULL, *header = NULL, *rr_dict = NULL;
+	_getdns_rr_iter rr_iter_storage, *rr_iter;
+	gldns_pkt_section section;
+	getdns_list *sections[4] = { NULL, NULL, NULL, NULL };
+	const uint8_t *eop; /* end of packet */
+
+	if (!wire || !*wire || !wire_len || !msg_dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+       	if (!(result = _getdns_dict_create_with_mf(mf)) ||
+	    !(header = _getdns_dict_create_with_mf(mf)) ||
+	    !(sections[GLDNS_SECTION_ANSWER]
+	             = _getdns_list_create_with_mf(mf)) ||
+	    !(sections[GLDNS_SECTION_AUTHORITY]
+	             = _getdns_list_create_with_mf(mf)) ||
+	    !(sections[GLDNS_SECTION_ADDITIONAL]
+	             = _getdns_list_create_with_mf(mf))) {
+		r = GETDNS_RETURN_MEMORY_ERROR;
+		goto error;
+	}
+	SET_WIRE_INT(id, ID);
+	SET_WIRE_BIT(qr, QR);
+	SET_WIRE_BIT(aa, AA);
+	SET_WIRE_BIT(tc, TC);
+	SET_WIRE_BIT(rd, RD);
+	SET_WIRE_BIT(cd, CD);
+	SET_WIRE_BIT(ra, RA);
+	SET_WIRE_BIT(ad, AD);
+	SET_WIRE_INT(opcode, OPCODE);
+	SET_WIRE_INT(rcode, RCODE);
+	SET_WIRE_BIT(z, Z);
+
+	SET_WIRE_CNT(qdcount, QDCOUNT);
+	SET_WIRE_CNT(ancount, ANCOUNT);
+	SET_WIRE_CNT(nscount, NSCOUNT);
+	SET_WIRE_CNT(arcount, ARCOUNT);
+
+	/* header */
+    	if ((r = getdns_dict_set_dict(result, "header", header)))
+		goto error;
+	getdns_dict_destroy(header);
+	header = NULL;
+	eop = *wire + 12;
+
+	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage,*wire,*wire_len)
+	    ; rr_iter
+	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+
+		if (rr_iter->nxt > eop)
+			eop = rr_iter->nxt;
+
+		if (!(rr_dict = _getdns_rr_iter2rr_dict(mf, rr_iter)))
+			continue;
+
+		switch ((section = _getdns_rr_iter_section(rr_iter))) {
+		case GLDNS_SECTION_QUESTION:
+			if ((r = getdns_dict_set_dict(
+			     result, "question", rr_dict)))
+				goto error;
+			break;
+		default:
+			if ((r = _getdns_list_append_dict(
+			     sections[section], rr_dict)))
+				goto error;
+			break;
+		}
+		rr_dict = NULL;
+	}
+	if ((r = getdns_dict_set_list(result, "answer",
+					sections[GLDNS_SECTION_ANSWER])) ||
+	    (r = getdns_dict_set_list(result, "authority",
+				      sections[GLDNS_SECTION_AUTHORITY])) ||
+	    (r = getdns_dict_set_list(result, "additional",
+				      sections[GLDNS_SECTION_ADDITIONAL])))
+		goto error;
+
+	*wire_len -= (eop - *wire);
+	*wire = eop;
+error:
+	getdns_dict_destroy(rr_dict);
+	getdns_list_destroy(sections[GLDNS_SECTION_ADDITIONAL]);
+	getdns_list_destroy(sections[GLDNS_SECTION_AUTHORITY]);
+	getdns_list_destroy(sections[GLDNS_SECTION_ANSWER]);
+	getdns_dict_destroy(header);
+	if (r)
+		getdns_dict_destroy(result);
+	else
+		*msg_dict = result;
+
+	return r;
+}
+
+
+getdns_return_t
+_getdns_wire2msg_dict(struct mem_funcs *mf,
+    const uint8_t *wire, size_t wire_len, getdns_dict **msg_dict)
+{
+	return _getdns_wire2msg_dict_scan(mf, &wire, &wire_len, msg_dict);
+}
+getdns_return_t
+getdns_wire2msg_dict(
+    const uint8_t *wire, size_t wire_len, getdns_dict **msg_dict)
+{
+	return _getdns_wire2msg_dict(
+	    &_getdns_plain_mem_funcs, wire, wire_len, msg_dict);
+}
+
+getdns_return_t
+_getdns_wire2msg_dict_buf(struct mem_funcs *mf,
+    const uint8_t *wire, size_t *wire_len, getdns_dict **msg_dict)
+{
+	size_t my_wire_len;
+	getdns_return_t r;
+
+	if (!wire_len)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	else
+		my_wire_len = *wire_len;
+
+	if ((r = _getdns_wire2msg_dict_scan(mf, &wire, &my_wire_len, msg_dict)))
+		return r;
+	
+	*wire_len -= my_wire_len;
+	return GETDNS_RETURN_GOOD;
+}
+getdns_return_t
+getdns_wire2msg_dict_buf(
+    const uint8_t *wire, size_t *wire_len, getdns_dict **msg_dict)
+{
+	return _getdns_wire2msg_dict_buf(
+	    &_getdns_plain_mem_funcs, wire, wire_len, msg_dict);
+}
+
+getdns_return_t
+getdns_wire2msg_dict_scan(
+    const uint8_t **wire, size_t *wire_len, getdns_dict **msg_dict)
+{
+	return _getdns_wire2msg_dict_scan(
+	    &_getdns_plain_mem_funcs, wire, wire_len, msg_dict);
+}
+
+#define SET_HEADER_INT(X,Y) \
+	if (!getdns_dict_get_int(reply, "/header/" #X, &n)) \
+		GLDNS_ ## Y ## _SET(header, n);
+#define SET_HEADER_BIT(X,Y) \
+	if (!getdns_dict_get_int(reply, "/header/" #X, &n) && n) \
+		GLDNS_ ## Y ## _SET(header);
+
+static getdns_return_t
+_getdns_reply_dict2wire(const getdns_dict *reply, gldns_buffer *buf)
+{
+	uint8_t header[GLDNS_HEADER_SIZE];
+	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN;
+	size_t pkt_start, i;
+	getdns_list *section;
+	getdns_dict *rr_dict;
+	getdns_bindata *qname;
+
+	(void) memset(header, 0, sizeof(GLDNS_HEADER_SIZE));
+	SET_HEADER_INT(id, ID);
+	SET_HEADER_BIT(qr, QR);
+	SET_HEADER_BIT(aa, AA);
+	SET_HEADER_BIT(tc, TC);
+	SET_HEADER_BIT(rd, RD);
+	SET_HEADER_BIT(cd, CD);
+	SET_HEADER_BIT(ra, RA);
+	SET_HEADER_BIT(ad, AD);
+	SET_HEADER_INT(opcode, OPCODE);
+	SET_HEADER_INT(rcode, RCODE);
+	SET_HEADER_BIT(z, Z);
+
+	pkt_start = gldns_buffer_position(buf);
+	gldns_buffer_write(buf, header, sizeof(header));
+
+	if (!getdns_dict_get_bindata(reply, "/question/qname", &qname) &&
+	    !getdns_dict_get_int(reply, "/question/qtype", &qtype)) {
+		(void)getdns_dict_get_int(reply, "/question/qclass", &qclass);
+		gldns_buffer_write(buf, qname->data, qname->size);
+		gldns_buffer_write_u16(buf, (uint16_t)qtype);
+		gldns_buffer_write_u16(buf, (uint16_t)qclass);
+		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
+	}
+	if (!getdns_dict_get_list(reply, "answer", &section)) {
+		for ( n = 0, i = 0
+		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
+
+			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+				 n++;
+		}
+		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, n);
+	}
+	if (!getdns_dict_get_list(reply, "authority", &section)) {
+		for ( n = 0, i = 0
+		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
+
+			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+				 n++;
+		}
+		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_NSCOUNT_OFF, n);
+	}
+	if (!getdns_dict_get_list(reply, "additional", &section)) {
+		for ( n = 0, i = 0
+		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
+
+			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+				 n++;
+		}
+		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ARCOUNT_OFF, n);
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+_getdns_msg_dict2wire_buf(const getdns_dict *msg_dict, gldns_buffer *gbuf)
+{
+	getdns_return_t r;
+	getdns_list *replies;
+	getdns_dict *reply;
+	size_t i;
+
+	if ((r = getdns_dict_get_list(msg_dict, "replies_tree", &replies))) {
+		if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+			return r;
+		return _getdns_reply_dict2wire(msg_dict, gbuf);
+	}
+	for (i = 0; r == GETDNS_RETURN_GOOD; i++) {
+		if (!(r = getdns_list_get_dict(replies, i, &reply)))
+			r = _getdns_reply_dict2wire(reply, gbuf);
+	}
+	return r == GETDNS_RETURN_NO_SUCH_LIST_ITEM ? GETDNS_RETURN_GOOD : r;
+}
+
+getdns_return_t
+getdns_msg_dict2wire(
+    const getdns_dict *msg_dict, uint8_t **wire, size_t *wire_sz)
+{
+	uint8_t buf_spc[4096], *buf;
+	size_t buf_len = sizeof(buf_spc);
+	getdns_return_t r = getdns_msg_dict2wire_buf(
+	    msg_dict, buf_spc, &buf_len);
+
+	if (r != GETDNS_RETURN_GOOD && r != GETDNS_RETURN_NEED_MORE_SPACE)
+		return r;
+
+	if (!(buf = malloc(buf_len)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	if (!r)
+		memcpy(buf, buf_spc, buf_len);
+
+	else if ((r = getdns_msg_dict2wire_buf(msg_dict, buf, &buf_len))) {
+		free(buf);
+		return r;
+	}
+	*wire = buf;
+	*wire_sz = buf_len;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_msg_dict2wire_buf(
+    const getdns_dict *msg_dict, uint8_t *wire, size_t *wire_sz)
+{
+	int my_wire_sz;
+	getdns_return_t r;
+
+	if (!wire_sz)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	else
+		my_wire_sz = *wire_sz;
+
+	r = getdns_msg_dict2wire_scan(msg_dict, &wire, &my_wire_sz);
+	if (r == GETDNS_RETURN_GOOD || r == GETDNS_RETURN_NEED_MORE_SPACE)
+		*wire_sz -= my_wire_sz;
+	return r;
+}
+
+getdns_return_t
+getdns_msg_dict2wire_scan(
+    const getdns_dict *msg_dict, uint8_t **wire, int *wire_sz)
+{
+	getdns_return_t r;
+	gldns_buffer gbuf;
+
+	if (!msg_dict || !wire || !*wire || !wire_sz)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+
+	gldns_buffer_init_frm_data(&gbuf, *wire, *wire_sz);
+	if ((r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf)))
+		return r;
+
+	if (gldns_buffer_position(&gbuf) == 0)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	*wire += gldns_buffer_position(&gbuf);
+	*wire_sz -= gldns_buffer_position(&gbuf);
+	if (gldns_buffer_position(&gbuf) > gldns_buffer_limit(&gbuf))
+		return GETDNS_RETURN_NEED_MORE_SPACE;
+	else
+		return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_msg_dict2str(
+    const getdns_dict *msg_dict, char **str)
+{
+	char buf_spc[4096], *buf;
+	size_t buf_len = sizeof(buf_spc) - 1;
+	getdns_return_t r = getdns_msg_dict2str_buf(
+	    msg_dict, buf_spc, &buf_len);
+
+	if (r != GETDNS_RETURN_GOOD && r != GETDNS_RETURN_NEED_MORE_SPACE)
+		return r;
+	
+	buf_len += 1;
+	if (!(buf = malloc(buf_len)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	if (!r)
+		memcpy(buf, buf_spc, buf_len);
+
+	else if ((r = getdns_msg_dict2str_buf(msg_dict, buf, &buf_len))) {
+		free(buf);
+		return r;
+	}
+	*str = buf;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_msg_dict2str_buf(
+    const getdns_dict *msg_dict, char *str, size_t *str_len)
+{
+	int my_str_len;
+	getdns_return_t r;
+
+	if (!str_len)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	else
+		my_str_len = *str_len;
+
+	r = getdns_msg_dict2str_scan(msg_dict, &str, &my_str_len);
+	if (r == GETDNS_RETURN_GOOD || r == GETDNS_RETURN_NEED_MORE_SPACE)
+		*str_len -= my_str_len;
+	return r;
+
+}
+
+getdns_return_t
+getdns_msg_dict2str_scan(
+    const getdns_dict *msg_dict, char **str, int *str_len)
+{
+	getdns_return_t r;
+	gldns_buffer gbuf;
+	uint8_t buf_spc[4096], *buf = buf_spc, *scan_buf;
+	size_t sz, scan_sz;
+	int prev_str_len;
+	char *prev_str;
+	int sz_needed;
+
+	if (!msg_dict || !str || !*str || !str_len)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	gldns_buffer_init_frm_data(&gbuf, buf, sizeof(buf_spc));
+	r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf);
+	if (gldns_buffer_position(&gbuf) > sizeof(buf_spc)) {
+		if (!(buf = GETDNS_XMALLOC(
+		    msg_dict->mf, uint8_t, (sz = gldns_buffer_position(&gbuf))))) {
+			return GETDNS_RETURN_MEMORY_ERROR;
+		}
+		gldns_buffer_init_frm_data(&gbuf, buf, sz);
+		r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf);
+	}
+	if (r) {
+		if (buf != buf_spc)
+			GETDNS_FREE(msg_dict->mf, buf);
+		return r;
+	}
+	scan_buf = gldns_buffer_begin(&gbuf);
+	scan_sz  = gldns_buffer_position(&gbuf);
+	prev_str = *str;
+	prev_str_len = *str_len;
+	sz = (size_t)*str_len;
+	sz_needed = gldns_wire2str_pkt_scan(
+	    &scan_buf, &scan_sz, str, &sz);
+
+	if (sz_needed > prev_str_len) {
+		*str = prev_str + sz_needed;
+		*str_len = prev_str_len - sz_needed;
+		r = GETDNS_RETURN_NEED_MORE_SPACE;
+	} else  {
+		*str_len = sz;
+		**str = 0;
+	}
+	if (buf != buf_spc)
+		GETDNS_FREE(msg_dict->mf, buf);
+	return r;
+}
+
+
 /* convert.c */

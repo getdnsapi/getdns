@@ -108,6 +108,12 @@ getdns_list_set_bindata
 getdns_list_set_dict
 getdns_list_set_int
 getdns_list_set_list
+getdns_msg_dict2str
+getdns_msg_dict2str_buf
+getdns_msg_dict2str_scan
+getdns_msg_dict2wire
+getdns_msg_dict2wire_buf
+getdns_msg_dict2wire_scan
 getdns_pretty_print_dict
 getdns_pretty_print_list
 getdns_pretty_snprint_dict
@@ -131,6 +137,9 @@ getdns_str2rr_dict
 getdns_strerror
 getdns_validate_dnssec
 getdns_validate_dnssec2
+getdns_wire2msg_dict
+getdns_wire2msg_dict_buf
+getdns_wire2msg_dict_scan
 getdns_wire2rr_dict
 getdns_wire2rr_dict_buf
 getdns_wire2rr_dict_scan
