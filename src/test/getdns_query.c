@@ -472,6 +472,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
 	fprintf(out, "\t+dnssec_return_status\n");
 	fprintf(out, "\t+dnssec_return_only_secure\n");
+	fprintf(out, "\t+dnssec_return_all_statuses\n");
 	fprintf(out, "\t+dnssec_return_validation_chain\n");
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	fprintf(out, "\t+dnssec_roadblock_avoidance\n");
