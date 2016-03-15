@@ -178,7 +178,10 @@ struct getdns_context {
 	uint64_t             idle_timeout;
 	getdns_redirects_t   follow_redirects;
 	getdns_list          *dns_root_servers;
+
+#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	char                 root_servers_fn[FILENAME_MAX];
+#endif
 	getdns_append_name_t append_name;
 	/* Suffix buffer containing a list of (length byte | dname) where 
 	 * length bytes contains the length of the following dname.

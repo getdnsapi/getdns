@@ -529,11 +529,12 @@ then
 	AC_CHECK_HEADERS([unbound-event.h],,, [AC_INCLUDES_DEFAULT])
 	AC_MSG_NOTICE([Checking for dependency libunbound])
 	AC_CHECK_LIB([unbound], [ub_fd], [
-		AC_DEFINE_UNQUOTED([HAVE_LIBUNBOUND], [1], [Define to 1 if you have the `unbound' library (-lunbound).])
+		AC_DEFINE_UNQUOTED([HAVE_LIBUNBOUND], [1], [Define to 1 if you have the `unbound' library (-lunbound).]) dnl `
 		LIBS="-lunbound $LIBS"
 		AC_CHECK_FUNC([ub_ctx_create_ub_event], [
 			AC_DEFINE_UNQUOTED([HAVE_UNBOUND_EVENT_API], [1], [Define this when libunbound is compiled with the --enable-event-api option.])
 		])
+		AC_CHECK_FUNCS([ub_ctx_set_stub])
 	], [found_all_libs=0])
 fi
 
