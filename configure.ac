@@ -201,6 +201,11 @@ case "$enable_native_stub_dnssec" in
 		;;
 esac
 
+# search to set include and library paths right
+# find libidn (no libidn on windows though)
+AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
+ACX_CHECK_GETADDRINFO_WITH_INCLUDES
+
 USE_NSS="no"
 # openssl
 if test $USE_NSS = "no"; then
@@ -444,54 +449,44 @@ case "$enable_stub_only" in
 		;;
 esac
 
-# search to set include and library paths right
-# find libidn (no libidn on windows though)
-AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
-ACX_CHECK_GETADDRINFO_WITH_INCLUDES
 if test "$USE_WINSOCK" = 1; then
 	AC_MSG_NOTICE([ Building on Windows ... YES! ])
 	AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
 	AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1])
 	LIBS="$LIBS -lgdi32 -liphlpapi"
-	my_with_libunbound=0
-	my_with_libidn=0
-else
-	my_with_libidn=1
 fi
 
 
-if test $my_with_libidn = 1
-then
-	AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
-		[path to libidn (default: search /usr/local ..)]),
-		[], [withval="yes"])
-	if test x_$withval = x_yes; then
-		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-			if test -f "$dir/include/idna.h"; then
-				CFLAGS="$CFLAGS -I$dir/include"
-				LDFLAGS="$LDFLAGS -L$dir/lib"
-				AC_MSG_NOTICE([Found libidn in $dir])
-				break
-			fi
-			if test -f "$dir/include/idn/idna.h"; then
-				CFLAGS="$CFLAGS -I$dir/include/idn"
-				LDFLAGS="$LDFLAGS -L$dir/lib"
-				AC_MSG_NOTICE([Found libidn in $dir])
-				break
-			fi
-		done
-		if test -f "/usr/include/idn/idna.h"; then
-			CFLAGS="$CFLAGS -I/usr/include/idn"
-			#LDFLAGS="$LDFLAGS -L/usr/lib"
-			AC_MSG_NOTICE([Found libidn in /usr])
+my_with_libidn=1
+AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
+	[path to libidn (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/idna.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
 		fi
+		if test -f "$dir/include/idn/idna.h"; then
+			CFLAGS="$CFLAGS -I$dir/include/idn"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn in $dir])
+			break
+		fi
+	done
+	if test -f "/usr/include/idn/idna.h"; then
+		CFLAGS="$CFLAGS -I/usr/include/idn"
+		#LDFLAGS="$LDFLAGS -L/usr/lib"
+		AC_MSG_NOTICE([Found libidn in /usr])
+	fi
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
 	else
-		if test x_$withval != x_no; then
-			CFLAGS="$CFLAGS -I$withval/include"
-			LDFLAGS="$LDFLAGS -L$withval/lib"
-		else
-			my_with_libidn=0
-		fi
+		my_with_libidn=0
 	fi
 fi
 
@@ -531,8 +526,15 @@ fi
 
 if test $my_with_libunbound = 1
 then
+	AC_CHECK_HEADERS([unbound-event.h],,, [AC_INCLUDES_DEFAULT])
 	AC_MSG_NOTICE([Checking for dependency libunbound])
-	AC_CHECK_LIB([unbound], [ub_fd], [], [found_all_libs=0])
+	AC_CHECK_LIB([unbound], [ub_fd], [
+		AC_DEFINE_UNQUOTED([HAVE_LIBUNBOUND], [1], [Define to 1 if you have the `unbound' library (-lunbound).])
+		LIBS="-lunbound $LIBS"
+		AC_CHECK_FUNC([ub_ctx_create_ub_event], [
+			AC_DEFINE_UNQUOTED([HAVE_UNBOUND_EVENT_API], [1], [Define this when libunbound is compiled with the --enable-event-api option.])
+		])
+	], [found_all_libs=0])
 fi
 
 if test $found_all_libs = 0
@@ -1019,14 +1021,37 @@ AC_SUBST(C99COMPATFLAGS)
 
 AH_BOTTOM([
 
+#ifdef GETDNS_ON_WINDOWS
+/* On windows it is allowed to increase the FD_SETSIZE
+ * (and nescessary to make our custom eventloop work)
+ * See: https://support.microsoft.com/en-us/kb/111855
+ */
+#define FD_SETSIZE 1024
+
+#define PRIsz "%Iu"
+#else
+#define PRIsz "%zu"
+#endif
+
+#include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <assert.h>
+#include <string.h>
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
+#endif
+
 /* the version of the windows API enabled */
-#undef WINVER
-#undef _WIN32_WINNT
+#ifndef WINVER
 #define WINVER 0x0600 // 0x0502
+#endif
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600 // 0x0502
+#endif
 #ifdef HAVE_WINSOCK2_H
 #include <winsock2.h>
-#include<BaseTsd.h>
 #endif
 
 #ifdef HAVE_WS2TCPIP_H
@@ -1047,15 +1072,6 @@ AH_BOTTOM([
 #endif
 
 
-#include <stdint.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
-#include <string.h>
-
-#ifdef HAVE_BSD_STRING_H
-#include <bsd/string.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -1147,6 +1163,14 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #include <openssl/ssl.h>
 #endif
 
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+
+#ifndef PRIu64
+#define PRIu64 "llu"
+#endif
+
 #ifdef HAVE_ATTR_FORMAT
 #  define ATTR_FORMAT(archetype, string_index, first_to_check) \
     __attribute__ ((format (archetype, string_index, first_to_check)))
@@ -1176,7 +1200,16 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 
 #ifdef HAVE_LIBUNBOUND
-#include <unbound.h>
+# include <unbound.h>
+# ifdef HAVE_UNBOUND_EVENT_H
+#  include <unbound-event.h>
+# else
+struct ub_event_base;
+struct ub_ctx* ub_ctx_create_ub_event(struct ub_event_base* base);
+typedef void (*ub_event_callback_t)(void*, int, void*, int, int, char*);
+int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype, 
+        int rrclass, void* mydata, ub_event_callback_t callback, int* async_id);
+# endif
 #endif
 ])
 

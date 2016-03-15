@@ -50,12 +50,20 @@
 #include "pubkey-pinning.h"
 
 #ifdef USE_WINSOCK
-#define EINPROGRESS 112
-#define EWOULDBLOCK 140
 typedef u_short sa_family_t;
-#include "util/winsock_event.h"
+#define _getdns_EWOULDBLOCK (WSAGetLastError() == WSATRY_AGAIN ||\
+                             WSAGetLastError() == WSAEWOULDBLOCK)
+#define _getdns_EINPROGRESS (WSAGetLastError() == WSAEINPROGRESS)
+#else
+#define _getdns_EWOULDBLOCK (errno == EAGAIN || errno == EWOULDBLOCK)
+#define _getdns_EINPROGRESS (errno == EINPROGRESS)
 #endif
 
+/* WSA TODO: 
+ * STUB_TCP_WOULDBLOCK added to deal with edge triggered event loops (versus
+ * level triggered).  See also lines containing WSA TODO below...
+ */
+#define STUB_TCP_WOULDBLOCK -6
 #define STUB_OUT_OF_OPTIONS -5 /* upstream options exceeded MAXIMUM_UPSTREAM_OPTION_SPACE */
 #define STUB_TLS_SETUP_ERROR -4
 #define STUB_TCP_AGAIN -3
@@ -384,10 +392,10 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 #endif
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
-		if (errno != EINPROGRESS) {
-			close(fd);
-			return -1;
-		}
+		if (_getdns_EINPROGRESS || _getdns_EWOULDBLOCK)
+			return fd;
+		close(fd);
+		return -1;
 	}
 	return fd;
 }
@@ -402,10 +410,21 @@ tcp_connected(getdns_upstream *upstream) {
 	int error = 0;
 	socklen_t len = (socklen_t)sizeof(error);
 	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
-	if (error == EINPROGRESS || error == EWOULDBLOCK) 
-		return STUB_TCP_AGAIN; /* try again */
+#ifdef USE_WINSOCK
+	if (error == WSAEINPROGRESS)
+		return STUB_TCP_WOULDBLOCK;
+	else if (error == WSAEWOULDBLOCK) 
+		return STUB_TCP_WOULDBLOCK;
 	else if (error != 0)
 		return STUB_TCP_ERROR;
+#else
+	if (error == EINPROGRESS)
+		return STUB_TCP_WOULDBLOCK;
+	else if (error == EWOULDBLOCK || error == EAGAIN) 
+		return STUB_TCP_WOULDBLOCK;
+	else if (error != 0)
+		return STUB_TCP_ERROR;
+#endif
 	return 0;
 }
 
@@ -625,7 +644,7 @@ stub_tls_timeout_cb(void *userarg)
 /****************************/
 
 static int
-stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventloop_event* event)
+stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 {
 	ssize_t  read;
 	uint8_t *buf;
@@ -642,33 +661,21 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf, getdns_eventl
 	}
 	read = recv(fd, (void *)tcp->read_pos, tcp->to_read, 0);
 	if (read == -1) {
-#ifdef USE_WINSOCK 
-	printf("read (in tcp ) %s\n",
-			wsa_strerror(WSAGetLastError()));
-	if (WSAGetLastError() == WSAECONNRESET)
-		return STUB_TCP_AGAIN;
-	if (WSAGetLastError() == WSAEINPROGRESS)
-	    return STUB_TCP_AGAIN;
-	if (WSAGetLastError() == WSAEWOULDBLOCK) {
-		winsock_tcp_wouldblock(event->ev, EV_READ);
-		return STUB_TCP_AGAIN;
-	}
-
-#else
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-			return STUB_TCP_AGAIN;
+		if (_getdns_EWOULDBLOCK)
+			return STUB_TCP_WOULDBLOCK;
 		else
 			return STUB_TCP_ERROR;
-#endif
 	} else if (read == 0) {
 		/* Remote end closed the socket */
 		/* TODO: Try to reconnect */
+		return STUB_TCP_ERROR;
+	} else if (read> tcp->to_read) {
 		return STUB_TCP_ERROR;
 	}
 	tcp->to_read  -= read;
 	tcp->read_pos += read;
 	
-	if ((int)tcp->to_read > 0)
+	if (tcp->to_read > 0)
 		return STUB_TCP_AGAIN;
 
 	read = tcp->read_pos - tcp->read_buf;
@@ -721,7 +728,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 	if (! tcp->write_buf) {
 		/* No, this is an initial write. Try to send
 		 */
-        do {
+		do {
 			query_id = arc4random();
 			query_id_intptr = (intptr_t)query_id;
 			netreq->node.key = (void *)query_id_intptr;
@@ -754,8 +761,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		/* We have an initialized packet buffer.
 		 * Lets see how much of it we can write
 		 */
-#ifdef USE_TCP_FASTOPEN
 		/* We use sendto() here which will do both a connect and send */
+#ifdef USE_TCP_FASTOPEN
 		written = sendto(fd, netreq->query - 2, pkt_len + 2,
 		    MSG_FASTOPEN, (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
@@ -763,29 +770,19 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		   just fall back to a 'normal' write. */
 		if (written == -1 && errno == EISCONN) 
 			written = write(fd, netreq->query - 2, pkt_len + 2);
-
-		if ((written == -1 && (errno == EAGAIN ||
-		                       errno == EWOULDBLOCK ||
-		/* Add the error case where the connection is in progress which is when
-		   a cookie is not available (e.g. when doing the first request to an
-		   upstream). We must let the handshake complete since non-blocking. */
-		                       errno == EINPROGRESS)) ||
-		     written  < pkt_len + 2) {
 #else
-
-#ifdef USE_WINSOCK
 		written = sendto(fd, (const char *)(netreq->query - 2),
 		    pkt_len + 2, 0,
 		    (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
-
-#else
-		written = write(fd, netreq->query - 2, pkt_len + 2);
 #endif
-		if ((written == -1 && (errno == EAGAIN ||
-		                       errno == EWOULDBLOCK)) ||
+		if ((written == -1 && (_getdns_EWOULDBLOCK ||
+		/* Add the error case where the connection is in progress which is when
+		   a cookie is not available (e.g. when doing the first request to an
+		   upstream). We must let the handshake complete since non-blocking. */
+		                       _getdns_EINPROGRESS)) ||
 		     written  < pkt_len + 2) {
-#endif
+
 			/* We couldn't write the whole packet.
 			 * We have to return with STUB_TCP_AGAIN.
 			 * Setup tcp to track the state.
@@ -794,7 +791,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			tcp->write_buf_len = pkt_len + 2;
 			tcp->written = written >= 0 ? written : 0;
 
-			return STUB_TCP_AGAIN;
+			return STUB_TCP_WOULDBLOCK;
 
 		} else if (written == -1)
 			return STUB_TCP_ERROR;
@@ -809,8 +806,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		written = write(fd, tcp->write_buf     + tcp->written,
 		                    tcp->write_buf_len - tcp->written);
 		if (written == -1) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				return STUB_TCP_AGAIN;
+			if (_getdns_EWOULDBLOCK)
+				return STUB_TCP_WOULDBLOCK;
 			else
 				return STUB_TCP_ERROR;
 		}
@@ -1304,7 +1301,7 @@ stub_udp_read_cb(void *userarg)
 	                                       * i.e. overflow
 	                                       */
 	    0, NULL, NULL);
-	if (read == -1 && (errno = EAGAIN || errno == EWOULDBLOCK))
+	if (read == -1 && _getdns_EWOULDBLOCK)
 		return;
 
 	if (read < GLDNS_HEADER_SIZE)
@@ -1405,13 +1402,16 @@ upstream_read_cb(void *userarg)
 
 	if (tls_should_read(upstream))
 		q = stub_tls_read(upstream, &upstream->tcp,
-		              &upstream->upstreams->mf);
+		                 &upstream->upstreams->mf);
 	else
 		q = stub_tcp_read(upstream->fd, &upstream->tcp,
-		             &upstream->upstreams->mf, &upstream->event);
+		                 &upstream->upstreams->mf);
 
 	switch (q) {
 	case STUB_TCP_AGAIN:
+		/* WSA TODO: if callback is still upstream_read_cb, do it again
+		 */
+	case STUB_TCP_WOULDBLOCK:
 		return;
 
 	case STUB_TCP_ERROR:
@@ -1463,6 +1463,10 @@ upstream_read_cb(void *userarg)
 			upstream_reschedule_netreq_events(upstream, netreq);
 
 		_getdns_check_dns_req_complete(netreq->owner);
+
+		/* WSA TODO: if callback is still upstream_read_cb, do it again
+		 */
+		return;
 	}
 }
 
@@ -1499,6 +1503,10 @@ upstream_write_cb(void *userarg)
 
 	switch (q) {
 	case STUB_TCP_AGAIN:
+		/* WSA TODO: if callback is still upstream_write_cb, do it again
+		 */
+
+	case STUB_TCP_WOULDBLOCK:
 		return;
 
 	case STUB_TCP_ERROR:
@@ -1553,6 +1561,8 @@ upstream_write_cb(void *userarg)
 			      netreq_upstream_write_cb : NULL),
 			    stub_timeout_cb));
 		}
+		/* WSA TODO: if callback is still upstream_write_cb, do it again
+		 */
 		return;
 	}
 }

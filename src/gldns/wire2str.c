@@ -278,7 +278,7 @@ int gldns_wire2str_dname_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
 
 int gldns_str_vprint(char** str, size_t* slen, const char* format, va_list args)
 {
-	int w = vsnprintf(*str, *slen, format, args);
+	int w = _gldns_vsnprintf(*str, *slen, format, args);
 	if(w < 0) {
 		/* error in printout */
 		return 0;

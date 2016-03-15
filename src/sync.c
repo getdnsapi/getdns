@@ -45,101 +45,108 @@
 #include "stub.h"
 #include "gldns/wire2str.h"
 
-typedef struct getdns_sync_loop {
-	_getdns_mini_event      loop;
+typedef struct getdns_sync_data {
 #ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event ub_event;
 #endif
 	getdns_context        *context;
 	int                    to_run;
 	getdns_dict           *response;
-} getdns_sync_loop;
+} getdns_sync_data;
 
 static getdns_return_t
-getdns_sync_loop_init(getdns_context *context, getdns_sync_loop *loop)
+getdns_sync_data_init(getdns_context *context, getdns_sync_data *data)
 {
 #ifdef HAVE_LIBUNBOUND
-	getdns_eventloop *ext = &loop->loop.loop;
+	getdns_eventloop *ext = &context->sync_eventloop.loop;
 #endif
-	getdns_return_t r;
 
-	loop->response = NULL;
-	loop->to_run   = 1;
-	loop->context  = context;
-
-	if ((r = _getdns_mini_event_init(context, &loop->loop)))
-		return r;
+	data->context  = context;
+	data->to_run   = 1;
+	data->response = NULL;
 
 #ifdef HAVE_LIBUNBOUND
-	loop->ub_event.userarg    = loop->context;
-	loop->ub_event.read_cb    = _getdns_context_ub_read_cb;
-	loop->ub_event.write_cb   = NULL;
-	loop->ub_event.timeout_cb = NULL;
-	loop->ub_event.ev         = NULL;
-
-	return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
-	    TIMEOUT_FOREVER, &loop->ub_event);
-#else
+#  ifndef USE_WINSOCK
+	data->ub_event.userarg    = data->context;
+	data->ub_event.read_cb    = _getdns_context_ub_read_cb;
+	data->ub_event.write_cb   = NULL;
+	data->ub_event.timeout_cb = NULL;
+	data->ub_event.ev         = NULL;
+#  endif
+#  ifdef HAVE_UNBOUND_EVENT_API
+	if (_getdns_ub_loop_enabled(&context->ub_loop)) {
+		context->ub_loop.extension = ext;
+	} else
+#  endif
+#  ifndef USE_WINSOCK
+		return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
+		    TIMEOUT_FOREVER, &data->ub_event);
+#  else
+		/* No sync full recursion requests on windows without 
+		 * UNBOUND_EVENT_API because ub_fd() doesn't work on windows.
+		 */
+		; /* pass */
+#  endif
+#endif
 	return GETDNS_RETURN_GOOD;
+}
+
+static void
+getdns_sync_data_cleanup(getdns_sync_data *data)
+{
+#if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
+#  ifdef HAVE_UNBOUND_EVENT_API
+	if (_getdns_ub_loop_enabled(&data->context->ub_loop)) {
+		data->context->ub_loop.extension = data->context->extension;
+	} else
+#  endif
+		data->context->sync_eventloop.loop.vmt->clear(
+		    &data->context->sync_eventloop.loop, &data->ub_event);
 #endif
 }
 
 static void
-getdns_sync_loop_cleanup(getdns_sync_loop *loop)
+getdns_sync_loop_run(getdns_sync_data *data)
 {
-	getdns_eventloop *ext = &loop->loop.loop;
-
-#ifdef HAVE_LIBUNBOUND
-	ext->vmt->clear(ext, &loop->ub_event);
-#endif
-	ext->vmt->cleanup(ext);
-}
-
-static void
-getdns_sync_loop_run(getdns_sync_loop *loop)
-{
-	getdns_eventloop *ext = &loop->loop.loop;
-
-	while (loop->to_run)
-		ext->vmt->run_once(ext, 1);
-	
-	getdns_sync_loop_cleanup(loop);
+	while (data->to_run)
+		data->context->sync_eventloop.loop.vmt->run_once(
+		    &data->context->sync_eventloop.loop, 1);
 }
 
 static void
 getdns_sync_cb(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
 {
-	getdns_sync_loop *loop = (getdns_sync_loop *)userarg;
+	getdns_sync_data *data = (getdns_sync_data *)userarg;
 
-	assert(loop);
+	assert(data);
 
-	loop->response = response;
-	loop->to_run = 0;
+	data->response = response;
+	data->to_run = 0;
 }
 
 getdns_return_t
 getdns_general_sync(getdns_context *context, const char *name,
     uint16_t request_type, getdns_dict *extensions, getdns_dict **response)
 {
-	getdns_sync_loop loop;
+	getdns_sync_data data;
 	getdns_return_t r;
 
 	if (!context || !name || !response)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_sync_loop_init(context, &loop)))
+	if ((r = getdns_sync_data_init(context, &data)))
 		return r;
 
-	if ((r = _getdns_general_loop(context, &loop.loop.loop, name,
-	    request_type, extensions, &loop, NULL, getdns_sync_cb, NULL))) {
+	if ((r = _getdns_general_loop(context, &context->sync_eventloop.loop,
+	    name, request_type, extensions, &data, NULL, getdns_sync_cb, NULL))) {
 
-		getdns_sync_loop_cleanup(&loop);
+		getdns_sync_data_cleanup(&data);
 		return r;
 	}
-	getdns_sync_loop_run(&loop);
+	getdns_sync_loop_run(&data);
 	
-	return (*response = loop.response) ?
+	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 
@@ -147,24 +154,24 @@ getdns_return_t
 getdns_address_sync(getdns_context *context, const char *name,
     getdns_dict *extensions, getdns_dict **response)
 {
-	getdns_sync_loop loop;
+	getdns_sync_data data;
 	getdns_return_t r;
 
 	if (!context || !name || !response)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_sync_loop_init(context, &loop)))
+	if ((r = getdns_sync_data_init(context, &data)))
 		return r;
 
-	if ((r = _getdns_address_loop(context, &loop.loop.loop, name,
-	    extensions, &loop, NULL, getdns_sync_cb))) {
+	if ((r = _getdns_address_loop(context, &context->sync_eventloop.loop,
+	    name, extensions, &data, NULL, getdns_sync_cb))) {
 
-		getdns_sync_loop_cleanup(&loop);
+		getdns_sync_data_cleanup(&data);
 		return r;
 	}
-	getdns_sync_loop_run(&loop);
+	getdns_sync_loop_run(&data);
 	
-	return (*response = loop.response) ?
+	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 
@@ -172,24 +179,24 @@ getdns_return_t
 getdns_hostname_sync(getdns_context *context, getdns_dict *address,
     getdns_dict *extensions, getdns_dict **response)
 {
-	getdns_sync_loop loop;
+	getdns_sync_data data;
 	getdns_return_t r;
 
 	if (!context || !address || !response)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_sync_loop_init(context, &loop)))
+	if ((r = getdns_sync_data_init(context, &data)))
 		return r;
 
-	if ((r = _getdns_hostname_loop(context, &loop.loop.loop, address,
-	    extensions, &loop, NULL, getdns_sync_cb))) {
+	if ((r = _getdns_hostname_loop(context, &context->sync_eventloop.loop,
+	    address, extensions, &data, NULL, getdns_sync_cb))) {
 
-		getdns_sync_loop_cleanup(&loop);
+		getdns_sync_data_cleanup(&data);
 		return r;
 	}
-	getdns_sync_loop_run(&loop);
+	getdns_sync_loop_run(&data);
 	
-	return (*response = loop.response) ?
+	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 
@@ -197,24 +204,24 @@ getdns_return_t
 getdns_service_sync(getdns_context *context, const char *name,
     getdns_dict *extensions, getdns_dict **response)
 {
-	getdns_sync_loop loop;
+	getdns_sync_data data;
 	getdns_return_t r;
 
 	if (!context || !name || !response)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = getdns_sync_loop_init(context, &loop)))
+	if ((r = getdns_sync_data_init(context, &data)))
 		return r;
 
-	if ((r = _getdns_service_loop(context, &loop.loop.loop, name,
-	    extensions, &loop, NULL, getdns_sync_cb))) {
+	if ((r = _getdns_service_loop(context, &context->sync_eventloop.loop,
+	    name, extensions, &data, NULL, getdns_sync_cb))) {
 
-		getdns_sync_loop_cleanup(&loop);
+		getdns_sync_data_cleanup(&data);
 		return r;
 	}
-	getdns_sync_loop_run(&loop);
+	getdns_sync_loop_run(&data);
 	
-	return (*response = loop.response) ?
+	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 

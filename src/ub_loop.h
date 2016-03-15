@@ -1,7 +1,7 @@
 /**
  *
- * \file debug.h
- * /brief Macro's for debugging
+ * \file ub_loop.h
+ * /brief Interface for the pluggable unbound event API
  *
  */
 
@@ -32,59 +32,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef DEBUG_H
-#define DEBUG_H
+#ifndef UB_LOOP_H
+#define UB_LOOP_H 
 
 #include "config.h"
+#ifdef HAVE_UNBOUND_EVENT_API
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
+#include "types-internal.h"
 
-#define DEBUG_ON(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
-		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%H:%M:%S", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
-		fprintf(stderr, __VA_ARGS__); \
-	} while (0)
-
-#define DEBUG_NL(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
-		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%H:%M:%S", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
-		fprintf(stderr, __VA_ARGS__); \
-		fprintf(stderr, "\n"); \
-	} while (0)
-
-
-#define DEBUG_OFF(...) do {} while (0)
-
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-#include <time.h>
-#define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
+#ifdef HAVE_UNBOUND_EVENT_H
+#include <unbound-event.h>
 #else
-#define DEBUG_SCHED(...) DEBUG_OFF(__VA_ARGS__)
+struct ub_event_base_vmt;
+struct ub_event_base {
+	unsigned long magic;
+        struct ub_event_base_vmt* vmt;
+};
+struct ub_event_base;
+struct ub_ctx* ub_ctx_create_ub_event(struct ub_event_base* base);
+typedef void (*ub_event_callback_t)(void*, int, void*, int, int, char*);
+int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
+        int rrclass, void* mydata, ub_event_callback_t callback, int* async_id);
 #endif
 
-#if defined(STUB_DEBUG) && STUB_DEBUG
-#include <time.h>
-#define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
-#else
-#define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
-#endif
+typedef struct _getdns_ub_loop {
+	struct ub_event_base super;
+	struct mem_funcs     mf;
+	getdns_eventloop    *extension;
+	int                  running;
+} _getdns_ub_loop;
 
-#if defined(SEC_DEBUG) && SEC_DEBUG
-#include <time.h>
-#define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
-#else
-#define DEBUG_SEC(...) DEBUG_OFF(__VA_ARGS__)
-#endif
+void _getdns_ub_loop_init(_getdns_ub_loop *loop, struct mem_funcs *mf, getdns_eventloop *extension);
 
+inline static int _getdns_ub_loop_enabled(_getdns_ub_loop *loop)
+{ return loop->super.vmt ? 1 : 0; }
+
+#endif /* HAVE_UNBOUND_EVENT_API */
 #endif
-/* debug.h */
+/* ub_loop.h */

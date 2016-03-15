@@ -41,8 +41,9 @@
 #include "getdns/getdns_extra.h"
 #include "config.h"
 #include "types-internal.h"
-#include "extension/libmini_event.h"
+#include "extension/default_eventloop.h"
 #include "util/rbtree.h"
+#include "ub_loop.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -220,8 +221,10 @@ struct getdns_context {
 	/* The underlying contexts that do the real work */
 	struct ub_ctx *unbound_ctx;
 	int            unbound_ta_set;
+#ifdef HAVE_UNBOUND_EVENT_API
+	_getdns_ub_loop ub_loop;
 #endif
-
+#endif
 	/* A tree to hold local host information*/
 	_getdns_rbtree_t local_hosts;
 
@@ -245,7 +248,8 @@ struct getdns_context {
 #endif
 
 	/* The default extension */
-	_getdns_mini_event mini_event;
+	_getdns_default_eventloop default_eventloop;
+	_getdns_default_eventloop sync_eventloop;
 
 	/*
 	 * state data used to detect changes to the system config files
@@ -255,6 +259,10 @@ struct getdns_context {
 
 	uint8_t trust_anchors_spc[1024];
 
+#ifdef USE_WINSOCK
+	/* We need to run WSAStartup() to be able to use getaddrinfo() */
+	WSADATA wsaData;
+#endif
 }; /* getdns_context */
 
 /** internal functions **/

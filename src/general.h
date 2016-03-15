@@ -50,7 +50,7 @@ getdns_return_t _getdns_submit_netreq(getdns_network_req *netreq);
 getdns_return_t
 _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions,
-    void *userarg, getdns_dns_req **dnsreq,
+    void *userarg, getdns_network_req **netreq_p,
     getdns_callback_t callbackfn, internal_cb_t internal_cb);
 
 getdns_return_t

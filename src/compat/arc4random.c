@@ -26,7 +26,9 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -35,40 +37,6 @@
 #include <sys/time.h>
 #ifndef GETDNS_ON_WINDOWS
 #include <sys/mman.h>
-#else
-#include <wincrypt.h>
-#include <process.h>
-
-int	getentropy(void *buf, size_t len);
-
-/*
-* On Windows, CryptGenRandom is supposed to be a well-seeded
-* cryptographically strong random number generator.
-*/
-int
-getentropy(void *buf, size_t len)
-{
-	HCRYPTPROV provider;
-
-	if (len > 256) {
-		errno = EIO;
-		return -1;
-	}
-
-	if (CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL,
-		CRYPT_VERIFYCONTEXT) == 0)
-		goto fail;
-	if (CryptGenRandom(provider, len, buf) == 0) {
-		CryptReleaseContext(provider, 0);
-		goto fail;
-	}
-	CryptReleaseContext(provider, 0);
-	return (0);
-
-fail:
-	errno = EIO;
-	return (-1);
-}
 #endif
 
 #define KEYSTREAM_ONLY
