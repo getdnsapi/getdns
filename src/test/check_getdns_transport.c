@@ -33,7 +33,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <ldns/ldns.h>
 #include <sys/param.h>
 
 
@@ -58,11 +57,25 @@ void* run_transport_server(void* data) {
   struct sockaddr_in serv_addr;
   uint8_t mesg[65536], tcplength[2];
   fd_set read_fds;
-  ldns_rdf* answerfrom;
-  ldns_resolver* resolver;
+  size_t pkt_len;
+  getdns_context *ctxt;
+  getdns_return_t r;
+  getdns_dict *dns_msg;
+  getdns_bindata *qname;
+  char *qname_str;
+  uint32_t qtype, qid;
   int udp_count = 0;
   int tcp_count = 0;
-  ldns_resolver_new_frm_file(&resolver, NULL);
+  if ((r = getdns_context_create(&ctxt, 1))) {
+    fprintf( stderr, "Could not create a getdns context: \"%s\"\n"
+           , getdns_get_errorstr_by_id(r));
+    return NULL;
+  }
+  if ((r = getdns_context_set_resolution_type(ctxt, GETDNS_RESOLUTION_STUB))) {
+    fprintf( stderr, "Could not set context in stub mode resolution: \"%s\"\n"
+           , getdns_get_errorstr_by_id(r));
+    return NULL;
+  }
 
   udp = socket(AF_INET, SOCK_DGRAM, 0);
   tcp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -83,7 +96,6 @@ void* run_transport_server(void* data) {
     FD_ZERO(&read_fds);
     FD_SET(udp, &read_fds);
     FD_SET(tcp, &read_fds);
-    ldns_pkt* pkt;
     int n = 0;
     struct timeval tv;
     tv.tv_sec = 1;
@@ -91,7 +103,6 @@ void* run_transport_server(void* data) {
     int maxfdp1 = MAX(udp, tcp) + 1;
     int r = select(maxfdp1, &read_fds, NULL, NULL, &tv);
     if (r > 0) {
-      ldns_pkt* query;
       socklen_t len = sizeof (client_addr);
       if (FD_ISSET(udp, &read_fds)) {
         n = recvfrom(udp, mesg, 65536, 0, (struct sockaddr *) &client_addr, &len);
@@ -107,37 +118,66 @@ void* run_transport_server(void* data) {
 	break;
       }
 
-      ldns_wire2pkt(&query, mesg, n);
-      ldns_resolver_send_pkt(&pkt, resolver, query);
-      ldns_str2rdf_a(&answerfrom, "127.0.0.1");
-      ldns_pkt_set_answerfrom(pkt, answerfrom);
-      ldns_pkt_free(query);
-
-      ldns_buffer *send_buf;
-      send_buf = ldns_buffer_new(LDNS_MIN_BUFLEN);
-      ldns_pkt2buffer_wire(send_buf, pkt);
+      if ((r = getdns_wire2msg_dict(mesg, n, &dns_msg))) {
+        fprintf( stderr, "Could not convert wireformat to DNS message dict: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      if ((r = getdns_dict_get_bindata(dns_msg, "/question/qname", &qname))) {
+        fprintf( stderr, "Could not get query name from request dict: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      if ((r = getdns_convert_dns_name_to_fqdn(qname, &qname_str))) {
+        fprintf( stderr, "Could not convert qname to fqdn: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      if ((r = getdns_dict_get_int(dns_msg, "/question/qtype", &qtype))) {
+        fprintf( stderr, "Could not get query type from request dict: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      if ((r = getdns_dict_get_int(dns_msg, "/header/id", &qid))) {
+        fprintf( stderr, "Could not get message ID from request dict: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      getdns_dict_destroy(dns_msg);
+      r = getdns_general_sync(ctxt, qname_str, qtype, NULL, &dns_msg);
+      free(qname_str);
+      if (r) {
+        fprintf( stderr, "Could query for \"%s\" %d: \"%s\"\n", qname_str, (int)qtype
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      if ((r = getdns_dict_set_int(dns_msg, "/replies_tree/0/header/id", qid))) {
+        fprintf( stderr, "Could not set message ID on reply dict: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        continue;
+      }
+      pkt_len = sizeof(mesg) - 2;
+      if ((r = getdns_msg_dict2wire_buf(dns_msg, mesg + 2, &pkt_len))) {
+        fprintf( stderr, "Could not convert DNS message dict to wireformat: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+      }
+      getdns_dict_destroy(dns_msg);
 
       if (udp_count > 0) {
-        sendto(udp, (void*)ldns_buffer_begin(send_buf), ldns_buffer_position(send_buf), 
+        sendto(udp, mesg + 2, pkt_len, 
                 0, (struct sockaddr *) &client_addr, sizeof (client_addr));
       } else if (conn > 0) {
-        uint8_t *send_array;
         /* add length of packet */
-        send_array = LDNS_XMALLOC(uint8_t, ldns_buffer_position(send_buf) + 2);
-        if(!send_array) return 0;
-        ldns_write_uint16(send_array, ldns_buffer_position(send_buf));
-        memcpy(send_array + 2, ldns_buffer_begin(send_buf), ldns_buffer_position(send_buf));
-        if (write(conn, (void*)send_array, ldns_buffer_position(send_buf) + 2) == -1) return 0;
-        LDNS_FREE(send_array);
+        mesg[0] = (uint8_t) ((pkt_len >> 8) & 0xff);
+        mesg[1] = (uint8_t) (pkt_len & 0xff);
+        if (write(conn, mesg, pkt_len + 2) == -1) return 0;
       }
-      LDNS_FREE(send_buf);
-      ldns_pkt_free(pkt);
     } /* End of if */
   } /* end of while loop */
   close(udp);
   close(tcp);
   if (conn > 0) close(conn);
-  ldns_resolver_deep_free(resolver);
+  getdns_context_destroy(ctxt);
   tdata->udp_count = udp_count;
   tdata->tcp_count = tcp_count;
   return NULL;

@@ -33,7 +33,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <ldns/ldns.h>
 
 
 /*
@@ -126,7 +125,7 @@ typedef struct timeout_thread_data {
 
 typedef struct queued_response {
     struct sockaddr_in client_addr;
-    ldns_pkt* pkt;
+    getdns_dict *reply;
 } queued_response;
 
 void* run_server(void* data) {
@@ -135,13 +134,25 @@ void* run_server(void* data) {
     struct sockaddr_in serv_addr;
     uint8_t mesg[65536];
     fd_set read_fds;
-    ldns_rdf* answerfrom;
-    ldns_resolver* resolver;
+    getdns_context *ctxt;
+    getdns_return_t r;
+    getdns_dict *dns_msg;
+    getdns_bindata *qname;
+    char *qname_str;
+    uint32_t qtype, qid;
     int num_received = 0;
     queued_response responses[10];
 
-    ldns_resolver_new_frm_file(&resolver, NULL);
-
+    if ((r = getdns_context_create(&ctxt, 1))) {
+        fprintf( stderr, "Could not create a getdns context: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        return NULL;
+    }
+    if ((r = getdns_context_set_resolution_type(ctxt, GETDNS_RESOLUTION_STUB))) {
+        fprintf( stderr, "Could not set context in stub mode resolution: \"%s\"\n"
+               , getdns_get_errorstr_by_id(r));
+        return NULL;
+    }
 
     fd=socket(AF_INET,SOCK_DGRAM,0);
 
@@ -166,32 +177,63 @@ void* run_server(void* data) {
         tv.tv_usec = 0;
         int r = select(fd + 1, &read_fds, NULL, NULL, &tv);
         if (r > 0 && num_received < 10) {
-            ldns_pkt* query;
             socklen_t len = sizeof(client_addr);
             int n = recvfrom(fd,mesg,65536,0,(struct sockaddr *)&(responses[num_received].client_addr),&len);
-            ldns_wire2pkt(&query, mesg, n);
-            ldns_resolver_send_pkt(&(responses[num_received].pkt), resolver, query);
-            ldns_str2rdf_a(&answerfrom, "127.0.0.1");
-            ldns_pkt_set_answerfrom(responses[num_received].pkt, answerfrom);
-            ldns_pkt_free(query);
+            if ((r = getdns_wire2msg_dict(mesg, n, &dns_msg))) {
+                fprintf( stderr, "Could not convert wireformat to DNS message dict: \"%s\"\n"
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
+            if ((r = getdns_dict_get_bindata(dns_msg, "/question/qname", &qname))) {
+                fprintf( stderr, "Could not get query name from request dict: \"%s\"\n"
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
+            if ((r = getdns_convert_dns_name_to_fqdn(qname, &qname_str))) {
+                fprintf( stderr, "Could not convert qname to fqdn: \"%s\"\n"
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
+            if ((r = getdns_dict_get_int(dns_msg, "/question/qtype", &qtype))) {
+                fprintf( stderr, "Could not get query type from request dict: \"%s\"\n"
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
+            if ((r = getdns_dict_get_int(dns_msg, "/header/id", &qid))) {
+                fprintf( stderr, "Could not get message ID from request dict: \"%s\"\n"
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
+            getdns_dict_destroy(dns_msg);
+            r = getdns_general_sync(ctxt, qname_str, qtype, NULL, &responses[num_received].reply);
+            free(qname_str);
+            if (r) {
+                fprintf( stderr, "Could query for \"%s\" %d: \"%s\"\n", qname_str, (int)qtype
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
+            if ((r = getdns_dict_set_int(responses[num_received].reply, "/replies_tree/0/header/id", qid))) {
+                fprintf( stderr, "Could not set message ID on reply dict: \"%s\"\n"
+                       , getdns_get_errorstr_by_id(r));
+                continue;
+            }
             ++num_received;
         } else if (r == 0 && num_received > 0) {
             int i = 0;
             /* timeout - see if we have anything to send */
             for (i = 0; i < num_received; ++i) {
-                uint8_t* pkt_data;
-                size_t pkt_len;
-                ldns_pkt* answer = responses[i].pkt;
-                ldns_pkt2wire(&pkt_data, answer, &pkt_len);
-                sendto(fd,pkt_data,pkt_len,0,(struct sockaddr *)&(responses[i].client_addr),sizeof(client_addr));
-                free(pkt_data);
-                ldns_pkt_free(answer);
+                size_t pkt_len = sizeof(mesg);
+                if ((r = getdns_msg_dict2wire_buf(responses[i].reply, mesg, &pkt_len))) {
+                    fprintf( stderr, "Could not convert DNS message dict to wireformat: \"%s\"\n"
+                           , getdns_get_errorstr_by_id(r));
+                }
+                sendto(fd,mesg,pkt_len,0,(struct sockaddr *)&(responses[i].client_addr),sizeof(client_addr));
+                getdns_dict_destroy(responses[i].reply);
             }
             num_received = 0;
         }
     }
-    ldns_resolver_deep_free(resolver);
-
+    getdns_context_destroy(ctxt);
     return NULL;
 
 }
@@ -214,7 +256,6 @@ void timeout_3_cb(struct getdns_context *context,
 }
 
 /* Temporarily disabled because of unpredictable results */
-#if 0
 START_TEST (getdns_context_set_timeout_3)
 {
   /*
@@ -290,7 +331,6 @@ START_TEST (getdns_context_set_timeout_3)
 
 }
 END_TEST
-#endif
 
 
 
@@ -309,12 +349,10 @@ getdns_context_set_timeout_suite (void)
 
   /* Positive test cases */
   /* Temporarily disabled because of unpredictable results */
-#if 0
   TCase *tc_pos = tcase_create("Positive");
   tcase_set_timeout(tc_pos, 15.0);
   tcase_add_test(tc_pos, getdns_context_set_timeout_3);
   suite_add_tcase(s, tc_pos);
-#endif
 
    return s;
 

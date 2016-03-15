@@ -299,9 +299,9 @@ function report() {
                 pper=0
                 uper=0
         else
-                fper=`echo -e "scale=4\n$failed/$total*100" | bc | sed 's/00$//'`
-                pper=`echo -e "scale=4\n$passed/$total*100" | bc | sed 's/00$//'`
-                uper=`echo -e "scale=4\n$unknown/$total*100" | bc | sed 's/00$//'`
+		fper=`awk -vN=$failed -vT=$total 'BEGIN{printf("%.0f",(N/T*100))}'`
+		pper=`awk -vN=$passed -vT=$total 'BEGIN{printf("%.0f",(N/T*100))}'`
+		uper=`awk -vN=$unknown -vT=$total 'BEGIN{printf("%.0f",(N/T*100))}'`
         fi
         echo
         echo -e "$tp: $passed ($pper %)\t$tf: $failed ($fper %)\t$tu: $unknown ($uper %)"
