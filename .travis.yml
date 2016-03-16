@@ -7,12 +7,10 @@ addons:
   apt:
     packages:
     - libunbound-dev
-    - libldns-dev
     - libidn11-dev
     - check
     - libevent-dev
     - libev-dev
-    - bc
 script:
   - mkdir tests
   - cd tests
