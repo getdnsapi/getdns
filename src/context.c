@@ -1371,36 +1371,45 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 static void
 getdns_context_request_count_changed(getdns_context *context)
 {
-	DEBUG_SCHED("getdns_context_request_count_changed(%d)\n",
-	    (int) context->outbound_requests.count);
-	if (context->outbound_requests.count) {
-		if (context->ub_event.ev) return;
+	size_t prev_count;
 
-		DEBUG_SCHED("gc_request_count_changed "
-		    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
-		    &context->ub_event, context->ub_event.ev);
+	if (context->ub_event_scheduling) {
+		return;
+	}
+	context->ub_event_scheduling++;
+	do {
+		prev_count = context->outbound_requests.count;
+		DEBUG_SCHED("getdns_context_request_count_changed(%d)\n",
+		    (int) context->outbound_requests.count);
+		if (context->outbound_requests.count && ! context->ub_event.ev){
+			DEBUG_SCHED("gc_request_count_changed "
+			    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
+			    &context->ub_event, context->ub_event.ev);
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (!_getdns_ub_loop_enabled(&context->ub_loop))
+			if (!_getdns_ub_loop_enabled(&context->ub_loop))
 #endif
-			context->extension->vmt->schedule(
-			    context->extension, ub_fd(context->unbound_ctx),
-			    TIMEOUT_FOREVER, &context->ub_event);
+				context->extension->vmt->schedule(
+				    context->extension,
+				    ub_fd(context->unbound_ctx),
+				    TIMEOUT_FOREVER, &context->ub_event);
 #endif
-	}
-	else if (context->ub_event.ev) /* Only test if count == 0! */ {
-		DEBUG_SCHED("gc_request_count_changed "
-		    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
-		    &context->ub_event, context->ub_event.ev);
+		} else if (! context->outbound_requests.count &&
+		    context->ub_event.ev) {
+			DEBUG_SCHED("gc_request_count_changed "
+			    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
+			    &context->ub_event, context->ub_event.ev);
 
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (!_getdns_ub_loop_enabled(&context->ub_loop))
+			if (!_getdns_ub_loop_enabled(&context->ub_loop))
 #endif
-			context->extension->vmt->clear(
-			    context->extension, &context->ub_event);
+				context->extension->vmt->clear(
+				    context->extension, &context->ub_event);
 #endif
-	}
+		}
+	} while (prev_count != context->outbound_requests.count);
+	context->ub_event_scheduling--;
 }
 
 void
@@ -1457,6 +1466,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	context->ub_event.write_cb   = NULL;
 	context->ub_event.timeout_cb = NULL;
 	context->ub_event.ev         = NULL;
+	context->ub_event_scheduling = 0;
 
 	return GETDNS_RETURN_GOOD;
 }

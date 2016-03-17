@@ -60,16 +60,23 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		           , fd, FD_SETSIZE);
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
+	if (fd >= 0 && !(event->read_cb || event->write_cb)) {
+		DEBUG_SCHED("WARNING: fd event without "
+		            "read or write cb!\n");
+		fd = -1;
+	}
 	if (fd >= 0) {
-		if (!(event->read_cb || event->write_cb)) {
-			DEBUG_SCHED("ERROR: fd event without "
-			            "read or write cb!\n");
-			return GETDNS_RETURN_GENERIC_ERROR;
-		}
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 		if (default_loop->fd_events[fd]) {
-			DEBUG_SCHED( "ERROR: Event present at fd slot: %p!\n"
-			           , default_loop->fd_events[fd]);
+			if (default_loop->fd_events[fd] == event) {
+				DEBUG_SCHED("WARNING: Event %p not cleared "
+				            "before being rescheduled!\n"
+				           , default_loop->fd_events[fd]);
+			} else {
+				DEBUG_SCHED("ERROR: A different event is "
+				            "already present at fd slot: %p!\n"
+				           , default_loop->fd_events[fd]);
+			}
 		}
 #endif
 		default_loop->fd_events[fd] = event;

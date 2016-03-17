@@ -57,9 +57,7 @@ typedef struct getdns_sync_data {
 static getdns_return_t
 getdns_sync_data_init(getdns_context *context, getdns_sync_data *data)
 {
-#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop *ext = &context->sync_eventloop.loop;
-#endif
 
 	data->context  = context;
 	data->to_run   = 1;
@@ -145,6 +143,7 @@ getdns_general_sync(getdns_context *context, const char *name,
 		return r;
 	}
 	getdns_sync_loop_run(&data);
+	getdns_sync_data_cleanup(&data);
 	
 	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
@@ -170,6 +169,7 @@ getdns_address_sync(getdns_context *context, const char *name,
 		return r;
 	}
 	getdns_sync_loop_run(&data);
+	getdns_sync_data_cleanup(&data);
 	
 	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
@@ -195,6 +195,7 @@ getdns_hostname_sync(getdns_context *context, getdns_dict *address,
 		return r;
 	}
 	getdns_sync_loop_run(&data);
+	getdns_sync_data_cleanup(&data);
 	
 	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
@@ -220,6 +221,7 @@ getdns_service_sync(getdns_context *context, const char *name,
 		return r;
 	}
 	getdns_sync_loop_run(&data);
+	getdns_sync_data_cleanup(&data);
 	
 	return (*response = data.response) ?
 	    GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
