@@ -461,7 +461,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	const EVP_MD *digester;
 	HMAC_CTX ctx;
 
-	DEBUG_STUB("%s %-30s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNCTION__);
+	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNCTION__);
 	for ( rr = _getdns_rr_iter_init(&rr_spc, req->query,
 	                                (req->response - req->query))
 	    ; rr
@@ -477,7 +477,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	request_mac_len = gldns_read_uint16(rdf->pos);
 	if (request_mac_len != rdf->nxt - rdf->pos - 2)
 		return;
-	DEBUG_STUB("%s %-30s: Request MAC found length %d\n",
+	DEBUG_STUB("%s %-35s: Request MAC found length %d\n",
 	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(request_mac_len));
 	
 	request_mac = rdf->pos + 2;
@@ -534,7 +534,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	response_mac_len = gldns_read_uint16(rdf->pos);
 	if (response_mac_len != rdf->nxt - rdf->pos - 2)
 		return;
-	DEBUG_STUB("%s %-30s: Response MAC found length: %d\n",
+	DEBUG_STUB("%s %-35s: Response MAC found length: %d\n",
 	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(response_mac_len));
 	response_mac = rdf->pos + 2;
 
@@ -559,7 +559,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 		gldns_buffer_write(&gbuf, rdf->pos, other_len);
 
 	/* TSIG found */
-	DEBUG_STUB("%s %-30s: TSIG found, original ID: %d\n",
+	DEBUG_STUB("%s %-35s: TSIG found, original ID: %d\n",
 	           STUB_DEBUG_TSIG, __FUNCTION__, (int)original_id);
 
 	gldns_write_uint16(req->response + 10,
@@ -596,7 +596,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	(void) HMAC_Update(&ctx, tsig_vars, gldns_buffer_position(&gbuf));
 	HMAC_Final(&ctx, result_mac, &result_mac_len);
 
-	DEBUG_STUB("%s %-30s: Result MAC length: %d\n",
+	DEBUG_STUB("%s %-35s: Result MAC length: %d\n",
 	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(result_mac_len));
 	if (result_mac_len == response_mac_len &&
 	    memcmp(result_mac, response_mac, result_mac_len) == 0)

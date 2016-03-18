@@ -152,7 +152,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
 
-	DEBUG_STUB("%s %-30s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
 		"Adding Windows certificates to CA store");
 
 	/* load just once per context lifetime for this version of getdns
@@ -181,7 +181,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	/* failure if the CA store is empty or the call fails */
 	if ((pTargetCert = CertEnumCertificatesInStore(
 		hSystemStore, pTargetCert)) == 0) {
-		DEBUG_STUB("%s %-30s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
 			"CA certificate store for Windows is empty.");
 			return 0;
 	}
@@ -193,7 +193,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
 			/* return error if a cert fails */
-			DEBUG_STUB("%s %-30s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
 				"Unable to parse certificate in memory",
 				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
 			return 0;
@@ -201,7 +201,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		else {
 			/* return error if a cert add to store fails */
 			if (X509_STORE_add_cert(store, cert1) == 0) {
-				DEBUG_STUB("%s %-30s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+				DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
 					"Error adding certificate", ERR_get_error(),
 					ERR_error_string(ERR_get_error(), NULL));
 				return 0;
