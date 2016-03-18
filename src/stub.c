@@ -246,7 +246,8 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 	size_t data_len = rr_iter->nxt - rr_iter->pos;
 	(void) gldns_wire2str_rr_scan(
 	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt);
-	DEBUG_STUB("OPT RR: %s", str_spc);
+	DEBUG_STUB("%s %-35s: OPT RR: %s\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, str_spc);
 #endif
 
 	/* OPT found, now search for the specified option */
@@ -335,8 +336,9 @@ process_keepalive(
 		upstream->keepalive_timeout = netreq->owner->context->idle_timeout;
 	else {
 		upstream->keepalive_timeout = server_keepalive;
-		DEBUG_STUB("*** %s: SERVER KEEPALIVE USED : %d ms\n",
-			__FUNCTION__, (int)server_keepalive);
+		DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive used: %d ms\n",
+		           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
+		           (int)server_keepalive);
 	}
 	return 0;
 }
@@ -365,6 +367,8 @@ static int
 tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport) 
 {
 	int fd = -1;
+	DEBUG_STUB("%s %-35s: Creating TCP connection:       %p\n", STUB_DEBUG_SETUP, 
+	           __FUNCTION__, upstream);
 	if ((fd = socket(upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
 		return -1;
 
@@ -451,7 +455,8 @@ stub_next_upstream(getdns_network_req *netreq)
 static void
 stub_cleanup(getdns_network_req *netreq)
 {
-	DEBUG_STUB("*** %s(%p)\n", __FUNCTION__, netreq);
+	DEBUG_STUB("%s %-35s: MSG: %p\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, netreq);
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_network_req *r, *prev_r;
 	getdns_upstream *upstream;
@@ -492,7 +497,8 @@ stub_cleanup(getdns_network_req *netreq)
 static int
 tls_cleanup(getdns_upstream *upstream)
 {
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
+	DEBUG_STUB("%s %-35s: FD:  %d\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 	if (upstream->tls_obj != NULL)
 		SSL_free(upstream->tls_obj);
 	upstream->tls_obj = NULL;
@@ -557,9 +563,9 @@ stub_erred(getdns_network_req *netreq)
 static void
 stub_timeout_cb(void *userarg)
 {
-	DEBUG_STUB("*** %s(%p)\n", __FUNCTION__, userarg);
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
-
+	DEBUG_STUB("%s %-35s: MSG:  %p\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, netreq);
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
@@ -576,9 +582,8 @@ static void
 upstream_idle_timeout_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
-	DEBUG_STUB("*** %s: **Closing connection %d**\n", 
-	           __FUNCTION__, upstream->fd);
-
+	DEBUG_STUB("%s %-35s: FD:  %d Closing connection\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.timeout_cb = NULL;
 	upstream->event.read_cb = NULL;
@@ -589,8 +594,9 @@ upstream_idle_timeout_cb(void *userarg)
 static void
 upstream_tls_timeout_cb(void *userarg)
 {
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	DEBUG_STUB("%s %-35s: FD:  %d\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 	/* Clean up and trigger a write to let the fallback code to its job */
 	tls_cleanup(upstream);
 
@@ -615,9 +621,10 @@ upstream_tls_timeout_cb(void *userarg)
 static void
 stub_tls_timeout_cb(void *userarg)
 {
-	DEBUG_STUB("*** %s\n", __FUNCTION__);
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_upstream *upstream = netreq->upstream;
+	DEBUG_STUB("%s %-35s: MSG: %p\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, netreq);
 	/* Clean up and trigger a write to let the fallback code to its job */
 	tls_cleanup(upstream);
 
@@ -751,7 +758,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			if (netreq->upstream->writes_done == 0 && 
 				netreq->owner->context->idle_timeout != 0) {
 				/* Add the keepalive option to the first query on this connection*/
-				DEBUG_STUB("# %s: Requesting keepalive\n", __FUNCTION__);
+				DEBUG_STUB("%s %-35s: FD:  %d Requesting keepalive \n",
+				           STUB_DEBUG_WRITE, __FUNCTION__, fd);
 				if (attach_edns_keepalive(netreq))
 					return STUB_OUT_OF_OPTIONS;
 				netreq->keepalive_sent = 1;
@@ -871,29 +879,33 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
 	getdns_upstream *upstream;
 	getdns_return_t pinset_ret = GETDNS_RETURN_GOOD;
+	upstream = _getdns_upstream_from_x509_store(ctx);
 
 #if defined(STUB_DEBUG) && STUB_DEBUG || defined(X509_V_ERR_HOSTNAME_MISMATCH)
 	int     err = X509_STORE_CTX_get_error(ctx);
 
-	DEBUG_STUB("--- %s, VERIFY RESULT: (%d) \"%s\"\n", __FUNCTION__,
-		   err, X509_verify_cert_error_string(err));
+	DEBUG_STUB("%s %-35s: FD:  %d Verify result: (%d) \"%s\"\n",
+	            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, err,
+	            X509_verify_cert_error_string(err));
 #endif
-	upstream = _getdns_upstream_from_x509_store(ctx);
 
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	/*Report if error is hostname mismatch*/
 	if (upstream && upstream->tls_fallback_ok && err == X509_V_ERR_HOSTNAME_MISMATCH)
-		DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH HOSTNAME VALIDATION FAILED!!\n", __FUNCTION__);
+		DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
 #endif
 	if (upstream && upstream->tls_pubkey_pinset)
 		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
 
 	if (pinset_ret != GETDNS_RETURN_GOOD) {
-		DEBUG_STUB("--- %s, PINSET VALIDATION FAILURE!!\n", __FUNCTION__);
+		DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Pinset validation failure!\n",
+	           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
 		preverify_ok = 0;
 		upstream->tls_auth_failed = 1;
 		if (upstream->tls_fallback_ok)
-			DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH PINSET VALIDATION FAILED!!\n", __FUNCTION__);
+			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
+			            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
 	}
 	/* If fallback is allowed, proceed regardless of what the auth error is
 	   (might not be hostname or pinset related) */
@@ -929,8 +941,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	/* If we have a hostname, always use it */
 	if (upstream->tls_auth_name[0] != '\0') {
 		/*Request certificate for the auth_name*/
-		DEBUG_STUB("--- %s, HOSTNAME VERIFICATION REQUESTED for: %s\n"
-		          , __FUNCTION__, upstream->tls_auth_name);
+		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->tls_auth_name);
 		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
 #ifdef HAVE_SSL_HN_AUTH
 		/* Set up native OpenSSL hostname verification*/
@@ -941,7 +953,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 #else
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
 			/* TODO: Trigger post-handshake custom validation*/
-			DEBUG_STUB("--- %s, ERROR: TLS Authentication functionality not available\n", __FUNCTION__);
+			DEBUG_STUB("%s %-35s: ERROR: TLS Authentication functionality not available\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			upstream->tls_auth_failed = 1;
 			return NULL;
@@ -955,25 +968,30 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		 * TLS is specified and we have no pubkey_pinset */
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
 			if (upstream->tls_pubkey_pinset) {
-				DEBUG_STUB("--- %s, PROCEEDING WITH ONLY PUBKEY PINNING AUTHENTICATION\n", __FUNCTION__);
+				DEBUG_STUB("%s %-35s: Proceeding with only pubkey pinning authentication\n",
+			           STUB_DEBUG_SETUP_TLS, __FUNCTION__);
 			} else {
-				DEBUG_STUB("--- %s, ERROR: No host name or pubkey pinset provided for TLS authentication\n", __FUNCTION__);
+				DEBUG_STUB("%s %-35s: ERROR: No host name or pubkey pinset provided for TLS authentication\n",
+			           STUB_DEBUG_SETUP_TLS, __FUNCTION__);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
 				upstream->tls_auth_failed = 1;
 				return NULL;
 			}
 		} else {
 			/* no hostname verification, so we will make opportunistic connections */
-			DEBUG_STUB("--- %s, PROCEEDING EVEN THOUGH NO HOSTNAME PROVIDED!!\n", __FUNCTION__);
+			DEBUG_STUB("%s %-35s: Proceeding even though no hostname provided!\n",
+			           STUB_DEBUG_SETUP_TLS, __FUNCTION__);
 			upstream->tls_auth_failed = 1;
 			upstream->tls_fallback_ok = 1;
 		}
 	}
 	if (upstream->tls_fallback_ok) {
 		SSL_set_cipher_list(ssl, "DEFAULT");
-		DEBUG_STUB("--- %s, PROCEEDING WITH OPPOTUNISTIC TLS CONNECTION (FALLBACK ALLOWED)!!\n", __FUNCTION__);
+		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__);
 	} else
-		DEBUG_STUB("--- %s, PROCEEDING WITH STRICT TLS CONNECTION!!\n", __FUNCTION__);
+		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
+		             __FUNCTION__);
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 
 	SSL_set_connect_state(ssl);
@@ -984,7 +1002,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 static int
 tls_do_handshake(getdns_upstream *upstream)
 {
-	DEBUG_STUB("--- %s\n", __FUNCTION__);
+	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SETUP_TLS, 
+	             __FUNCTION__, upstream->fd);
 	int r;
 	int want;
 	ERR_clear_error();
@@ -1030,11 +1049,15 @@ tls_do_handshake(getdns_upstream *upstream)
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
 				return STUB_TCP_AGAIN;
 			default:
-				DEBUG_STUB("--- %s %s %d\n", __FUNCTION__, "Handshake failed: ", want);
+				DEBUG_STUB("%s %-35s: FD:  %d Handshake failed %d\n", 
+				            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd,
+				            want);
 				return tls_cleanup(upstream);
 	   }
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
+	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded\n", 
+	            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
 	r = SSL_get_verify_result(upstream->tls_obj);
 	if (upstream->tls_auth_name[0])
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
@@ -1228,7 +1251,8 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 				netreq->owner->context->idle_timeout != 0) {
 				/* Add the keepalive option to every nth query on this 
 				   connection */
-				DEBUG_STUB("# %s: Requesting keepalive\n", __FUNCTION__);
+				DEBUG_STUB("%s %-35s: FD:  %d Requesting keepalive \n",  
+			             STUB_DEBUG_SETUP, __FUNCTION__, upstream->fd);
 				if (attach_edns_keepalive(netreq))
 					return STUB_OUT_OF_OPTIONS;
 				netreq->keepalive_sent = 1;
@@ -1284,12 +1308,12 @@ _getdns_get_time_as_uintt64() {
 static void
 stub_udp_read_cb(void *userarg)
 {
-	DEBUG_STUB("%s\n", __FUNCTION__);
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_upstream *upstream = netreq->upstream;
-
 	ssize_t       read;
+	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_READ, 
+	             __FUNCTION__, netreq);
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -1316,7 +1340,8 @@ stub_udp_read_cb(void *userarg)
 
 	close(netreq->fd);
 	while (GLDNS_TC_WIRE(netreq->response)) {
-		DEBUG_STUB("TC bit set\n");
+		DEBUG_STUB("%s %-35s: MSG: %p TC bit set in response \n", STUB_DEBUG_READ, 
+		             __FUNCTION__, netreq);
 		if (!(netreq->transport_current < netreq->transport_count))
 			break;
 		getdns_transport_list_t next_transport = 
@@ -1347,10 +1372,11 @@ stub_udp_read_cb(void *userarg)
 static void
 stub_udp_write_cb(void *userarg)
 {
-	DEBUG_STUB("%s\n", __FUNCTION__);
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req     *dnsreq = netreq->owner;
 	size_t             pkt_len;
+	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_WRITE, 
+	             __FUNCTION__, netreq);
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -1393,8 +1419,9 @@ stub_udp_write_cb(void *userarg)
 static void
 upstream_read_cb(void *userarg)
 {
-	DEBUG_STUB("--- READ: %s\n", __FUNCTION__);
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_READ, __FUNCTION__,
+	            upstream->fd);
 	getdns_network_req *netreq;
 	int q;
 	uint16_t query_id;
@@ -1432,6 +1459,8 @@ upstream_read_cb(void *userarg)
 			return;
 		}
 
+    	DEBUG_STUB("%s %-35s: MSG: %p (read)\n", STUB_DEBUG_READ, __FUNCTION__,
+    	            netreq);
 		netreq->state = NET_REQ_FINISHED;
 		netreq->response = upstream->tcp.read_buf;
 		netreq->response_len =
@@ -1473,7 +1502,8 @@ upstream_read_cb(void *userarg)
 static void
 netreq_upstream_read_cb(void *userarg)
 {
-	DEBUG_STUB("--- READ: %s\n", __FUNCTION__);
+	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_READ,
+	            __FUNCTION__, ((getdns_network_req *)userarg)->upstream->fd);
 	upstream_read_cb(((getdns_network_req *)userarg)->upstream);
 }
 
@@ -1493,9 +1523,9 @@ upstream_write_cb(void *userarg)
 	dnsreq = netreq->owner;
 	/* TODO: think about TCP AGAIN */
 	netreq->debug_start_time = _getdns_get_time_as_uintt64();
-	
-	DEBUG_STUB("--- WRITE: %s: %p TYPE: %d\n", __FUNCTION__, netreq,
-	           netreq->request_type);
+	DEBUG_STUB("%s %-35s: MSG: %p (writing)\n", STUB_DEBUG_WRITE,
+	            __FUNCTION__, netreq);
+
 	if (tls_requested(netreq) && tls_should_write(upstream))
 		q = stub_tls_write(upstream, &upstream->tcp, netreq);
 	else
@@ -1511,7 +1541,8 @@ upstream_write_cb(void *userarg)
 
 	case STUB_TCP_ERROR:
 		/* Problem with the TCP connection itself. Need to fallback.*/
-		DEBUG_STUB("--- WRITE: Setting write error\n");
+		DEBUG_STUB("%s %-35s: MSG: %p ERROR!\n", STUB_DEBUG_WRITE,
+		             __FUNCTION__, ((getdns_network_req *)userarg));
 		upstream->tcp.write_error = 1;
 		/* Use policy of trying next upstream in this case. Need more work on
 		 * TCP connection re-use.*/
@@ -1570,9 +1601,8 @@ upstream_write_cb(void *userarg)
 static void
 netreq_upstream_write_cb(void *userarg)
 {
-	DEBUG_STUB("--- WRITE: %s: %p TYPE: %d\n", __FUNCTION__,
-	           ((getdns_network_req *)userarg),
-	           ((getdns_network_req *)userarg)->request_type);
+	DEBUG_STUB("%s %-35s: MSG: %p (catch event)\n", STUB_DEBUG_WRITE,
+	            __FUNCTION__, ((getdns_network_req *)userarg));
 	upstream_write_cb(((getdns_network_req *)userarg)->upstream);
 }
 
@@ -1606,7 +1636,6 @@ upstream_transport_valid(getdns_upstream *upstream,
 static getdns_upstream *
 upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 {
-	DEBUG_STUB(" %s\n", __FUNCTION__);
 	getdns_upstream *upstream;
 	getdns_upstreams *upstreams = netreq->owner->upstreams;
 	size_t i;
@@ -1623,12 +1652,15 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 	/* TODO[TLS]: Should we create a tmp array of upstreams with correct*/
 	/*  transport type and/or maintain separate current for transports?*/
 	i = upstreams->current;
-	DEBUG_STUB(" current upstream: %d of %d \n",(int)i, (int)upstreams->count);
+	DEBUG_STUB("%s %-35s: Starting from upstream: %d of %d available \n", STUB_DEBUG_SETUP,
+	            __FUNCTION__, (int)i, (int)upstreams->count);
 	do {
 		if (upstreams->upstreams[i].to_retry > 0 &&
 		    upstream_transport_valid(&upstreams->upstreams[i], transport, netreq)) {
 			upstreams->current = i;
-			DEBUG_STUB(" selected upstream: %d\n",(int)i);
+			DEBUG_STUB("%s %-35s: Selected upstream:      %d      %p transport: %d\n",
+			           STUB_DEBUG_SETUP, __FUNCTION__, (int)i, 
+			           &upstreams->upstreams[i], transport);
 			return &upstreams->upstreams[i];
 		}
 		if (++i >= upstreams->count)
@@ -1643,7 +1675,8 @@ upstream_select(getdns_network_req *netreq, getdns_transport_list_t transport)
 
 	/* Need to check again that the transport is valid */
 	if (!upstream_transport_valid(upstream, transport, netreq)) {
-		DEBUG_STUB(" ! No valid upstream available\n");
+		DEBUG_STUB("%s %-35s: No valid upstream available for transport %d!\n",
+		           STUB_DEBUG_SETUP, __FUNCTION__, transport);
 		return NULL;
 	}
 	upstream->back_off++;
@@ -1657,6 +1690,8 @@ int
 upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
                     getdns_dns_req *dnsreq) 
 {
+	DEBUG_STUB("%s %-35s: Checking upstream connection:  %p\n", STUB_DEBUG_SETUP, 
+	           __FUNCTION__, upstream);
 	int fd = -1;
 	switch(transport) {
 	case GETDNS_TRANSPORT_UDP:
@@ -1698,7 +1733,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 }
 
 static getdns_upstream*
-find_upstream_for_specific_transport(getdns_network_req *netreq,
+upstream_find_for_transport(getdns_network_req *netreq,
                              getdns_transport_list_t transport,
                              int *fd)
 {
@@ -1707,19 +1742,19 @@ find_upstream_for_specific_transport(getdns_network_req *netreq,
 	if (!upstream)
 		return NULL;
 	*fd = upstream_connect(upstream, transport, netreq->owner);
-	DEBUG_STUB(" %s: Found: %d %p fd:%d\n", __FUNCTION__,
-	            transport, upstream, upstream->fd);
+	DEBUG_STUB("%s %-35s: FD:  %d Connected for upstream: %p\n", 
+	           STUB_DEBUG_SETUP, __FUNCTION__, *fd, upstream);
 	return upstream;
 }
 
 static int
-find_upstream_for_netreq(getdns_network_req *netreq)
+upstream_find_for_netreq(getdns_network_req *netreq)
 {
 	int fd = -1;
 	getdns_upstream *upstream;
 	for (size_t i = netreq->transport_current; 
 	            i < netreq->transport_count; i++) {
-		upstream = find_upstream_for_specific_transport(netreq,
+		upstream = upstream_find_for_transport(netreq,
 		                                  netreq->transports[i],
 		                                  &fd);
 		if (fd == -1 || !upstream)
@@ -1742,7 +1777,7 @@ fallback_on_write(getdns_network_req *netreq)
 
 	/* Deal with UDP and change error code*/
 
-	DEBUG_STUB("#-----> %s: %p TYPE: %d\n", __FUNCTION__, netreq, netreq->request_type);
+	DEBUG_STUB("%s %-35s: MSG: %p FALLING BACK \n", STUB_DEBUG_SCHEDULE, __FUNCTION__, netreq);
 	getdns_upstream *upstream = netreq->upstream;
 
 	/* Try to find a fallback transport*/
@@ -1764,7 +1799,8 @@ fallback_on_write(getdns_network_req *netreq)
 static void
 upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 
-	DEBUG_STUB("# %s: %p %d\n", __FUNCTION__, upstream, upstream->fd);
+	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SCHEDULE, 
+	             __FUNCTION__, upstream->fd);
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
@@ -1782,8 +1818,8 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 		GETDNS_SCHEDULE_EVENT(upstream->loop,
 		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 	else {
-		DEBUG_STUB("# %s: *Idle connection %d* \n", 
-			    __FUNCTION__, upstream->fd);
+		DEBUG_STUB("%s %-35s: FD:  %d Connection idle \n", 
+			    STUB_DEBUG_SCHEDULE, __FUNCTION__, upstream->fd);
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
 		if (upstream->tcp.write_error != 0)
 			idle_timeout = 0;
@@ -1796,19 +1832,19 @@ static void
 upstream_reschedule_netreq_events(getdns_upstream *upstream,
                                   getdns_network_req *netreq) {
 	if (netreq) {
-	DEBUG_STUB("# %s: %p: TYPE: %d\n", __FUNCTION__,
-	             netreq, netreq->request_type);
-	getdns_dns_req *dnsreq = netreq->owner;
-	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-	if (upstream->netreq_by_query_id.count || upstream->write_queue)
-		GETDNS_SCHEDULE_EVENT(
-		    dnsreq->loop, upstream->fd, dnsreq->context->timeout,
-		    getdns_eventloop_event_init(&netreq->event, netreq,
-		        (upstream->netreq_by_query_id.count ?
-		         netreq_upstream_read_cb : NULL ),
-		        (upstream->write_queue ?
-		         netreq_upstream_write_cb : NULL),
-		        stub_timeout_cb));
+		DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_SCHEDULE, __FUNCTION__,
+		           netreq);
+		getdns_dns_req *dnsreq = netreq->owner;
+		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
+		if (upstream->netreq_by_query_id.count || upstream->write_queue)
+			GETDNS_SCHEDULE_EVENT(
+			    dnsreq->loop, upstream->fd, dnsreq->context->timeout,
+			    getdns_eventloop_event_init(&netreq->event, netreq,
+			        (upstream->netreq_by_query_id.count ?
+			         netreq_upstream_read_cb : NULL ),
+			        (upstream->write_queue ?
+			         netreq_upstream_write_cb : NULL),
+			        stub_timeout_cb));
 	}
 	if (!upstream->netreq_by_query_id.count && !upstream->write_queue) {
 		/* This is a sync call, and the connection is idle. But we can't set a
@@ -1818,8 +1854,8 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 		 * req the conneciton is no longer idle so probably better to re-use
 		 * than shut and immediately open a new one!
 		 * So we will have to be aggressive and shut the connection....*/
-		DEBUG_STUB("# %s: **Closing connection %d**\n",
-		            __FUNCTION__, upstream->fd);
+		DEBUG_STUB("%s %-35s: FD:  %d Closing connection!\n",
+		            STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 		_getdns_upstream_shutdown(upstream);
 	}
 }
@@ -1827,7 +1863,7 @@ upstream_reschedule_netreq_events(getdns_upstream *upstream,
 static void
 upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 {
-	DEBUG_STUB("# %s: %p TYPE: %d\n", __FUNCTION__, netreq, netreq->request_type);
+	DEBUG_STUB("%s %-35s: MSG: %p (schedule event)\n", STUB_DEBUG_SCHEDULE, __FUNCTION__, netreq);
 	/* We have a connected socket and a global event loop */
 	assert(upstream->fd >= 0);
 	assert(upstream->loop);
@@ -1859,13 +1895,14 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 getdns_return_t
 _getdns_submit_stub_request(getdns_network_req *netreq)
 {
-	DEBUG_STUB("--> %s\n", __FUNCTION__);
+	DEBUG_STUB("%s %-35s: MSG: %p TYPE: %d\n", STUB_DEBUG_ENTRY, __FUNCTION__,
+	           netreq, netreq->request_type);
 	int fd = -1;
 	getdns_dns_req *dnsreq = netreq->owner;
 
 	/* This does a best effort to get a initial fd.
 	 * All other set up is done async*/
-	fd = find_upstream_for_netreq(netreq);
+	fd = upstream_find_for_netreq(netreq);
 	if (fd == -1)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
