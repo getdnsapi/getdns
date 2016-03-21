@@ -637,9 +637,8 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 	SET_WIRE_CNT(arcount, ARCOUNT);
 
 	/* header */
-    	if ((r = getdns_dict_set_dict(result, "header", header)))
+    	if ((r = _getdns_dict_set_this_dict(result, "header", header)))
 		goto error;
-	getdns_dict_destroy(header);
 	header = NULL;
 	eop = *wire + 12;
 
@@ -655,7 +654,7 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 
 		switch ((section = _getdns_rr_iter_section(rr_iter))) {
 		case GLDNS_SECTION_QUESTION:
-			if ((r = getdns_dict_set_dict(
+			if ((r = _getdns_dict_set_this_dict(
 			     result, "question", rr_dict)))
 				goto error;
 			break;
@@ -663,6 +662,7 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 			if ((r = _getdns_list_append_dict(
 			     sections[section], rr_dict)))
 				goto error;
+			getdns_dict_destroy(rr_dict);
 			break;
 		}
 		rr_dict = NULL;

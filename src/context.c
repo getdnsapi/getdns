@@ -3158,24 +3158,31 @@ _get_context_settings(getdns_context* context)
 }
 
 getdns_dict*
-getdns_context_get_api_information(getdns_context* context) {
-    getdns_return_t r = GETDNS_RETURN_GOOD;
-    getdns_dict* result = getdns_dict_create_with_context(context);
-    getdns_dict* settings;
-    if (!result) {
-        return NULL;
-    }
-    r = getdns_dict_util_set_string(result, "version_string", GETDNS_VERSION);
-    r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
-    r |= getdns_dict_set_int(result, "resolution_type", context->resolution_type);
-    settings = _get_context_settings(context);
-    r |= getdns_dict_set_dict(result, "all_context", settings);
-    getdns_dict_destroy(settings);
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(result);
-        result = NULL;
-    }
-    return result;
+getdns_context_get_api_information(getdns_context* context)
+{
+	getdns_dict* result;
+	getdns_dict* settings;
+
+	if ((result = getdns_dict_create_with_context(context))
+			
+	    && ! getdns_dict_util_set_string(
+	    result, "version_string", GETDNS_VERSION)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "implementation_string", PACKAGE_URL)
+
+	    && ! getdns_dict_set_int(
+	    result, "resolution_type", context->resolution_type)
+
+	    && (settings = _get_context_settings(context))) {
+
+		if (!_getdns_dict_set_this_dict(result,"all_context",settings))
+			return result;
+
+		getdns_dict_destroy(settings);
+	}
+	getdns_dict_destroy(result);
+	return NULL;
 }
 
 getdns_return_t

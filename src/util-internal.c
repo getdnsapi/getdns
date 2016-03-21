@@ -376,10 +376,9 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		getdns_list_destroy(repeat_list);
 		repeat_list = NULL;
 	}
-	if (getdns_dict_set_dict(rr_dict, "rdata", rdata_dict))
+	if (_getdns_dict_set_this_dict(rr_dict, "rdata", rdata_dict))
 		goto rdata_error;
 
-	getdns_dict_destroy(rdata_dict);
 	return rr_dict;
 
 rdata_error:
@@ -529,8 +528,9 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	SET_WIRE_CNT(arcount, ARCOUNT);
 
 	/* header */
-    	if ((r = getdns_dict_set_dict(result, "header", header)))
+    	if ((r = _getdns_dict_set_this_dict(result, "header", header)))
 		goto error;
+	header = NULL;
 
 	canonical_name = req->owner->name;
 	canonical_name_len = req->owner->name_len;
@@ -548,9 +548,10 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		section = _getdns_rr_iter_section(rr_iter);
 		if (section == GLDNS_SECTION_QUESTION) {
 
-			if (getdns_dict_set_dict(result, "question", rr_dict))
+			if (_getdns_dict_set_this_dict(result, "question", rr_dict))
 				goto error;
 
+			rr_dict = NULL;
 			continue;
 		}
 		if (_getdns_list_append_dict(sections[section], rr_dict))
@@ -788,7 +789,7 @@ _getdns_create_call_reporting_dict(
 	_getdns_sockaddr_to_dict(
 	    context, &netreq->upstream->addr, &address_debug);
 
-	if (getdns_dict_set_dict(netreq_debug, "query_to", address_debug)) {
+	if (_getdns_dict_set_this_dict(netreq_debug,"query_to",address_debug)){
 		getdns_dict_destroy(address_debug);
 		return NULL;
 	}
@@ -802,8 +803,6 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
-	getdns_dict_destroy(address_debug);
-
 	if (transport != GETDNS_TRANSPORT_UDP) {
 		/* Report the idle timeout actually used on the connection. Must trim,
 		maximum used in practice is 6553500ms, but this is stored in a uint64_t.*/
