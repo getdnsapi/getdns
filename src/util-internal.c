@@ -329,11 +329,10 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 				    _getdns_list_create_with_mf(mf)))
 					goto rdata_error;
 	
-				if (_getdns_list_append_dict(
+				if (_getdns_list_append_this_dict(
 				    repeat_list, repeat_dict))
 					goto rdata_error;
 
-				getdns_dict_destroy(repeat_dict);
 				repeat_dict = NULL;
 			}
 			if (!(repeat_dict =
@@ -364,9 +363,8 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		if (!repeat_list && !(repeat_list =
 		    _getdns_list_create_with_mf(mf)))
 			goto rdata_error;
-		if (_getdns_list_append_dict(repeat_list, repeat_dict))
+		if (_getdns_list_append_this_dict(repeat_list, repeat_dict))
 			goto rdata_error;
-		getdns_dict_destroy(repeat_dict);
 		repeat_dict = NULL;
 	}
 	if (repeat_list) {
@@ -549,13 +547,12 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 			if (_getdns_dict_set_this_dict(result, "question", rr_dict))
 				goto error;
-
-			rr_dict = NULL;
+			else 	rr_dict = NULL;
 			continue;
 		}
-		if (_getdns_list_append_dict(sections[section], rr_dict))
+		if (_getdns_list_append_this_dict(sections[section], rr_dict))
 			goto error;
-
+		else	rr_dict = NULL;
 
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
 		if (section > GLDNS_SECTION_QUESTION &&
@@ -589,6 +586,9 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		     &rdf_iter_storage, rr_iter)))
 			continue;
 
+		if (!just_addrs)
+			continue;
+
 		bin_size = rdf_iter->nxt - rdf_iter->pos;
 		bin_data = rdf_iter->pos;
 		if (!set_dict(&rr_dict, getdns_dict_create_with_context(context)) ||
@@ -599,10 +599,11 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		    _getdns_dict_set_const_bindata(
 		    rr_dict, "address_data", bin_size, bin_data) ||
 
-		    (just_addrs && _getdns_list_append_dict(just_addrs, rr_dict))) {
+		    _getdns_list_append_this_dict(just_addrs, rr_dict)) {
 
 			goto error;
 		}
+		rr_dict = NULL;
 	}
 	if (!_getdns_dict_set_this_list(result, "answer",
 	    sections[GLDNS_SECTION_ANSWER]))
@@ -951,7 +952,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			    netreq->tsig_status))
 				goto error;
 		}
-    		if (_getdns_list_append_dict(replies_tree, reply)) {
+    		if (_getdns_list_append_this_dict(replies_tree, reply)) {
     			getdns_dict_destroy(reply);
 			goto error;
 		}
@@ -961,16 +962,13 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			   _getdns_create_call_reporting_dict(context,netreq)))
 				goto error;
 
-			if (_getdns_list_append_dict(
+			if (_getdns_list_append_this_dict(
 			    call_reporting, netreq_debug)) {
 
 				getdns_dict_destroy(netreq_debug);
 				goto error;
 			}
-			getdns_dict_destroy(netreq_debug);
 		}
-
-    		getdns_dict_destroy(reply);
 
 		if (_getdns_list_append_const_bindata(replies_full,
 		    netreq->response_len, netreq->response))
@@ -1293,8 +1291,8 @@ void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
 		if (!(rr_dict = _getdns_rr_iter2rr_dict(&l->mf, rr)))
 			continue;
 
-		(void)_getdns_list_append_dict(l, rr_dict);
-		getdns_dict_destroy(rr_dict);
+		if (_getdns_list_append_this_dict(l, rr_dict))
+			getdns_dict_destroy(rr_dict);
 	}
 }
 

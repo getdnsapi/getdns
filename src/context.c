@@ -320,7 +320,8 @@ local_host_cmp(const void *id1, const void *id2)
 	return canonical_dname_compare(id1, id2);
 }
 
-static void
+/** return 0 on success */
+static int
 add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 {
 	uint8_t host_name[256];
@@ -331,7 +332,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 	getdns_list **addrs;
 
 	if (gldns_str2wire_dname_buf(str, host_name, &host_name_len))
-		return;
+		return -1;
 
 	canonicalize_dname(host_name);
 	
@@ -340,7 +341,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 
 		if (!(hnas = (host_name_addrs *)GETDNS_XMALLOC(context->mf,
 		    uint8_t, sizeof(host_name_addrs) + host_name_len)))
-			return;
+			return -1;
 
 		hnas->ipv4addrs = NULL;
 		hnas->ipv6addrs = NULL;
@@ -358,18 +359,23 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 	            : address_type->data[3] == '6'? &hnas->ipv4addrs : NULL)) {
 
 		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
-		return;
+		return -1;
 	}
 	if (!*addrs && !(*addrs = getdns_list_create_with_context(context))) {
 		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
-		return;
+		return -1;
 	}
-	if (_getdns_list_append_dict(*addrs, address) && !hnas_found) {
-		getdns_list_destroy(*addrs);
-		GETDNS_FREE(context->mf, hnas);
+	if (_getdns_list_append_this_dict(*addrs, address)) {
+	       	if (!hnas_found) {
+			getdns_list_destroy(*addrs);
+			GETDNS_FREE(context->mf, hnas);
+		}
+		return -1;
 
 	} else if (!hnas_found)
 		(void)_getdns_rbtree_insert(&context->local_hosts, &hnas->node);
+
+	return 0;
 }
 
 static getdns_dict *
@@ -515,8 +521,8 @@ create_local_hosts(getdns_context *context)
 				    str_addr_dict(context, start_of_word)))
 					/* Unparseable address */
 					break; /* skip to next line */
-			} else 
-				add_local_host(context, address, start_of_word);
+			} else if (!add_local_host(context, address, start_of_word))
+				address = NULL;
 
 			start_of_word = NULL;
 			*pos = prev_c;
@@ -540,7 +546,8 @@ read_more:	;
 	if (address) {
 		/* One last name for this address? */
 		if (start_of_word && !start_of_line)
-			add_local_host(context, address, start_of_word);
+			if (!add_local_host(context, address, start_of_word))
+				address = NULL;
 		getdns_dict_destroy(address);
 	}
 }
@@ -3634,7 +3641,8 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 			}
 		}
 		if (!r)
-			r = _getdns_list_append_dict(upstreams, d);
+			if (!(r = _getdns_list_append_this_dict(upstreams, d)))
+				d = NULL;
 		getdns_dict_destroy(d);
         }
         if (r)

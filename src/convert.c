@@ -567,8 +567,8 @@ _getdns_fp2rr_list(struct mem_funcs *mf,
 			continue;
 		if ((r = _getdns_wire2rr_dict(mf, rr, len, &rr_dict)))
 			break;
-		r = _getdns_list_append_dict(rrs, rr_dict);
-		getdns_dict_destroy(rr_dict);
+		if ((r = _getdns_list_append_this_dict(rrs, rr_dict)))
+			getdns_dict_destroy(rr_dict);
 	}
 	if (rr)
 		GETDNS_FREE(*mf, rr);
@@ -659,10 +659,9 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 				goto error;
 			break;
 		default:
-			if ((r = _getdns_list_append_dict(
+			if ((r = _getdns_list_append_this_dict(
 			     sections[section], rr_dict)))
 				goto error;
-			getdns_dict_destroy(rr_dict);
 			break;
 		}
 		rr_dict = NULL;
