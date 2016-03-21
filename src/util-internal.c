@@ -850,7 +850,6 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	getdns_dict *reply;
 	getdns_bindata *canonical_name = NULL;
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
-    	getdns_bindata full_data;
 	getdns_dict   *netreq_debug;
 
 	/* info (bools) about dns_req */
@@ -973,10 +972,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 
     		getdns_dict_destroy(reply);
 
-    		/* buffer */
-		full_data.data = netreq->response;
-		full_data.size = netreq->response_len;
-		if (_getdns_list_append_bindata(replies_full, &full_data))
+		if (_getdns_list_append_const_bindata(replies_full,
+		    netreq->response_len, netreq->response))
 			goto error;
     	}
     	if (_getdns_dict_set_this_list(result, "replies_tree", replies_tree))

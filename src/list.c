@@ -344,8 +344,9 @@ _getdns_list_copy(const struct getdns_list * srclist,
 			break;
 
 		case t_bindata:
-			retval = _getdns_list_append_bindata(*dstlist,
-				srclist->items[i].data.bindata);
+			retval = _getdns_list_append_const_bindata(*dstlist,
+				srclist->items[i].data.bindata->size, 
+				srclist->items[i].data.bindata->data);
 			break;
 
 		case t_dict:
@@ -620,12 +621,6 @@ _getdns_list_append_list(getdns_list *list, const getdns_list *child_list)
 {
 	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_list_set_list(list, list->numinuse, child_list);
-}
-getdns_return_t
-_getdns_list_append_bindata(getdns_list *list, const getdns_bindata *child_bindata)
-{
-	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
-	return getdns_list_set_bindata(list, list->numinuse, child_bindata);
 }
 getdns_return_t
 _getdns_list_append_const_bindata(

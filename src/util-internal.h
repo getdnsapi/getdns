@@ -75,8 +75,7 @@ getdns_return_t _getdns_list_append_dict(getdns_list *list,
     const getdns_dict *child_dict);
 getdns_return_t _getdns_list_append_list(getdns_list *list,
     const getdns_list *child_list);
-getdns_return_t _getdns_list_append_bindata(getdns_list *list,
-    const getdns_bindata *child_bindata);
+
 getdns_return_t _getdns_list_append_string(getdns_list *list,
     const char *value);
 
