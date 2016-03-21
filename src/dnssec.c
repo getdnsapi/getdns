@@ -3239,9 +3239,9 @@ static void check_chain_complete(chain_head *chain)
 
 	response_dict = _getdns_create_getdns_response(dnsreq);
 	if (val_chain_list) {
-		(void) getdns_dict_set_list(
-		    response_dict, "validation_chain", val_chain_list);
-		getdns_list_destroy(val_chain_list);
+		if (_getdns_dict_set_this_list(
+		    response_dict, "validation_chain", val_chain_list))
+			getdns_list_destroy(val_chain_list);
 	}
 
 	/* Final user callback */

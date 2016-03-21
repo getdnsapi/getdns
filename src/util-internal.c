@@ -370,10 +370,9 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 		repeat_dict = NULL;
 	}
 	if (repeat_list) {
-		if (getdns_dict_set_list(rdata_dict,
+		if (_getdns_dict_set_this_list(rdata_dict,
 		    rdf_storage.rdd_repeat->name, repeat_list))
 			goto rdata_error;
-		getdns_list_destroy(repeat_list);
 		repeat_list = NULL;
 	}
 	if (_getdns_dict_set_this_dict(rr_dict, "rdata", rdata_dict))
@@ -605,17 +604,20 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			goto error;
 		}
 	}
-	if (getdns_dict_set_list(result, "answer",
-	    sections[GLDNS_SECTION_ANSWER]) ||
+	if (!_getdns_dict_set_this_list(result, "answer",
+	    sections[GLDNS_SECTION_ANSWER]))
+		sections[GLDNS_SECTION_ANSWER] = NULL;
+	else	goto error;
 
-	    getdns_dict_set_list(result, "authority",
-	    sections[GLDNS_SECTION_AUTHORITY]) ||
+	if (!_getdns_dict_set_this_list(result, "authority",
+	    sections[GLDNS_SECTION_AUTHORITY]))
+		sections[GLDNS_SECTION_AUTHORITY] = NULL;
+	else	goto error;
 
-	    getdns_dict_set_list(result, "additional",
-	    sections[GLDNS_SECTION_ADDITIONAL])) {
-
-		goto error;
-	}
+	if (!_getdns_dict_set_this_list(result, "additional",
+	    sections[GLDNS_SECTION_ADDITIONAL]))
+		sections[GLDNS_SECTION_ADDITIONAL] = NULL;
+	else	goto error;
 
 	/* other stuff
 	 * Note that spec doesn't explicitely mention these.
@@ -732,8 +734,9 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	    _getdns_list_append_int(bad_dns, GETDNS_BAD_DNS_ALL_NUMERIC_LABEL))
 		goto error;
 
-	if (getdns_dict_set_list(result, "bad_dns", bad_dns))
+	if (_getdns_dict_set_this_list(result, "bad_dns", bad_dns))
 		goto error;
+	else	bad_dns = NULL;
 
 	goto success;
 error:
@@ -976,23 +979,26 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		if (_getdns_list_append_bindata(replies_full, &full_data))
 			goto error;
     	}
-    	if (getdns_dict_set_list(result, "replies_tree", replies_tree))
+    	if (_getdns_dict_set_this_list(result, "replies_tree", replies_tree))
 		goto error;
-	getdns_list_destroy(replies_tree);
+	replies_tree = NULL;
 
-	if (call_reporting &&
-	    getdns_dict_set_list(result, "call_reporting", call_reporting))
-	    goto error_free_call_reporting;
-
-	if (getdns_dict_set_list(result, "replies_full", replies_full))
+	if (call_reporting) {
+		if (_getdns_dict_set_this_list(
+		   result, "call_reporting", call_reporting))
+			goto error_free_call_reporting;
+		call_reporting = NULL;
+	}
+	if (_getdns_dict_set_this_list(result, "replies_full", replies_full))
 		goto error_free_replies_full;
-	getdns_list_destroy(replies_full);
+	replies_full = NULL;
 
-	if (just_addrs && getdns_dict_set_list(
-	    result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs))
-		goto error_free_result;
-	getdns_list_destroy(just_addrs);
-
+	if (just_addrs) {
+	       if (_getdns_dict_set_this_list(
+		    result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs))
+			goto error_free_result;
+		just_addrs = NULL;
+	}
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
 	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0

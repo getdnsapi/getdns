@@ -667,13 +667,20 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 		}
 		rr_dict = NULL;
 	}
-	if ((r = getdns_dict_set_list(result, "answer",
-					sections[GLDNS_SECTION_ANSWER])) ||
-	    (r = getdns_dict_set_list(result, "authority",
-				      sections[GLDNS_SECTION_AUTHORITY])) ||
-	    (r = getdns_dict_set_list(result, "additional",
-				      sections[GLDNS_SECTION_ADDITIONAL])))
-		goto error;
+	if (!(r = _getdns_dict_set_this_list(result, "answer",
+	    sections[GLDNS_SECTION_ANSWER])))
+		sections[GLDNS_SECTION_ANSWER] = NULL;
+	else	goto error;
+
+	if (!(r = _getdns_dict_set_this_list(result, "authority",
+	    sections[GLDNS_SECTION_AUTHORITY])))
+		sections[GLDNS_SECTION_AUTHORITY] = NULL;
+	else	goto error;
+
+	if (!(r = _getdns_dict_set_this_list(result, "additional",
+	    sections[GLDNS_SECTION_ADDITIONAL])))
+		sections[GLDNS_SECTION_ADDITIONAL] = NULL;
+	else	goto error;
 
 	*wire_len -= (eop - *wire);
 	*wire = eop;

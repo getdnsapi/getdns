@@ -3095,66 +3095,94 @@ upstream_port(getdns_upstream *upstream)
 static getdns_dict*
 _get_context_settings(getdns_context* context)
 {
-    getdns_return_t r = GETDNS_RETURN_GOOD;
-    getdns_dict* result = getdns_dict_create_with_context(context);
+	getdns_dict *result = getdns_dict_create_with_context(context);
 	getdns_list *list;
+	size_t       i;
 
-    if (!result) {
-        return NULL;
-    }
-    /* int fields */
-    r = getdns_dict_set_int(result, "timeout", context->timeout);
-    r = getdns_dict_set_int(result, "idle_timeout", context->idle_timeout);
-    r |= getdns_dict_set_int(result, "limit_outstanding_queries", context->limit_outstanding_queries);
-    r |= getdns_dict_set_int(result, "dnssec_allowed_skew", context->dnssec_allowed_skew);
-    r |= getdns_dict_set_int(result, "follow_redirects", context->follow_redirects);
-    if (context->edns_maximum_udp_payload_size != -1)
-    	r |= getdns_dict_set_int(result, "edns_maximum_udp_payload_size",
-	    context->edns_maximum_udp_payload_size);
-    r |= getdns_dict_set_int(result, "edns_extended_rcode", context->edns_extended_rcode);
-    r |= getdns_dict_set_int(result, "edns_version", context->edns_version);
-    r |= getdns_dict_set_int(result, "edns_do_bit", context->edns_do_bit);
-    r |= getdns_dict_set_int(result, "append_name", context->append_name);
-    /* list fields */
-	if (!getdns_context_get_suffix(context, &list)) {
-		r |= getdns_dict_set_list(result, "suffix", list);
+	if (!result)
+		return NULL;
+
+	/* int fields */
+	if (   getdns_dict_set_int(result, "timeout",
+	                           context->timeout)
+	    || getdns_dict_set_int(result, "idle_timeout",
+	                           context->idle_timeout)
+	    || getdns_dict_set_int(result, "limit_outstanding_queries",
+	                           context->limit_outstanding_queries)
+            || getdns_dict_set_int(result, "dnssec_allowed_skew",
+	                           context->dnssec_allowed_skew)
+	    || getdns_dict_set_int(result, "follow_redirects",
+	                           context->follow_redirects)
+	    || (  context->edns_maximum_udp_payload_size != -1
+	       && getdns_dict_set_int(result, "edns_maximum_udp_payload_size",
+	                              context->edns_maximum_udp_payload_size))
+	    || getdns_dict_set_int(result, "edns_extended_rcode",
+	                           context->edns_extended_rcode)
+	    || getdns_dict_set_int(result, "edns_version",
+	                           context->edns_version)
+	    || getdns_dict_set_int(result, "edns_do_bit",
+	                           context->edns_do_bit)
+	    || getdns_dict_set_int(result, "append_name",
+	                           context->append_name)
+	    || getdns_dict_set_int(result, "tls_authentication",
+	                           context->tls_auth))
+		goto error;
+	
+	/* list fields */
+	if (getdns_context_get_suffix(context, &list))
+		goto error;
+
+	if (_getdns_dict_set_this_list(result, "suffix", list)) {
 		getdns_list_destroy(list);
+		goto error;
 	}
-	if (!getdns_context_get_upstream_recursive_servers(context, &list)) {
-		r |= getdns_dict_set_list(result, "upstream_recursive_servers",
-		    list);
+	if (getdns_context_get_upstream_recursive_servers(context, &list))
+		goto error;
+
+	if (_getdns_dict_set_this_list(
+	    result, "upstream_recursive_servers", list)) {
 		getdns_list_destroy(list);
+		goto error;
 	}
-    if (context->dns_transport_count > 0) {
+	if (context->dns_transport_count > 0) {
+		/* create a namespace list */
+		if (!(list = getdns_list_create_with_context(context)))
+			goto error;
+
+		for (i = 0; i < context->dns_transport_count; ++i) {
+			if (getdns_list_set_int(list, i,
+			    context->dns_transports[i])) {
+				getdns_list_destroy(list);
+				goto error;
+			}
+		}
+		if (_getdns_dict_set_this_list(
+		    result, "dns_transport_list", list)) {
+			getdns_list_destroy(list);
+			goto error;
+		}
+	}
+	if (context->namespace_count > 0) {
         /* create a namespace list */
-        size_t i;
-        getdns_list* transports = getdns_list_create_with_context(context);
-        if (transports) {
-            for (i = 0; i < context->dns_transport_count; ++i) {
-                r |= getdns_list_set_int(transports, i, context->dns_transports[i]);
-            }
-            r |= getdns_dict_set_list(result, "dns_transport_list", transports);
-            getdns_list_destroy(transports);
-        }
-        r |= getdns_dict_set_int(result, "tls_authentication", context->tls_auth);
-    }
-    if (context->namespace_count > 0) {
-        /* create a namespace list */
-        size_t i;
-        getdns_list* namespaces = getdns_list_create_with_context(context);
-        if (namespaces) {
-            for (i = 0; i < context->namespace_count; ++i) {
-                r |= getdns_list_set_int(namespaces, i, context->namespaces[i]);
-            }
-            r |= getdns_dict_set_list(result, "namespaces", namespaces);
-            getdns_list_destroy(namespaces);
-        }
-    }
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(result);
-        result = NULL;
-    }
-    return result;
+		if (!(list = getdns_list_create_with_context(context)))
+			goto error;
+
+		for (i = 0; i < context->namespace_count; ++i) {
+			if (getdns_list_set_int(list, i,
+			    context->namespaces[i])) {
+				getdns_list_destroy(list);
+				goto error;
+			}
+		}
+		if (_getdns_dict_set_this_list(result, "namespaces", list)) {
+			getdns_list_destroy(list);
+			return NULL;
+		}
+	}
+	return result;
+error:
+	getdns_dict_destroy(result);
+	return NULL;
 }
 
 getdns_dict*
@@ -3282,17 +3310,17 @@ _getdns_context_local_namespace_resolve(
 	}
 	if (!(jaa = getdns_list_create_with_context(context)))
 		goto error;
+
 	for (i = 0; !getdns_list_get_dict(hnas->ipv4addrs, i, &addr); i++)
 		if (_getdns_list_append_dict(jaa, addr))
 			break;
 	for (i = 0; !getdns_list_get_dict(hnas->ipv6addrs, i, &addr); i++)
 		if (_getdns_list_append_dict(jaa, addr))
 			break;
-	if (!getdns_dict_set_list(*response, "just_address_answers", jaa)) {
-		getdns_list_destroy(jaa);
+	if (!_getdns_dict_set_this_list(*response, "just_address_answers", jaa))
 		return GETDNS_RETURN_GOOD;
-	}
-	getdns_list_destroy(jaa);
+	else
+		getdns_list_destroy(jaa);
 error:
 	getdns_dict_destroy(*response);
 	return GETDNS_RETURN_GENERIC_ERROR;
@@ -3598,9 +3626,10 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 					if ((_getdns_get_pubkey_pinset_list(context,
 									   upstream->tls_pubkey_pinset,
 									   &pins) == GETDNS_RETURN_GOOD) &&
-						(r = getdns_dict_set_list(d, "tls_pubkey_pinset", pins)))
+						(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
+						getdns_list_destroy(pins);
 						break;
-					getdns_list_destroy(pins);
+					}
 				}
 			}
 		}
