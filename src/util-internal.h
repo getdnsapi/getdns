@@ -86,6 +86,15 @@ getdns_return_t _getdns_list_append_int(getdns_list *list,
 getdns_return_t _getdns_list_append_const_bindata(getdns_list *list,
     size_t size, const void *data);
 
+getdns_return_t _getdns_dict_set_this_dict(getdns_dict *dict,
+    const char *name, getdns_dict *child_dict);
+
+getdns_return_t _getdns_dict_set_this_list(getdns_dict *dict,
+    const char *name, getdns_list *child_list);
+
+getdns_return_t _getdns_dict_set_this_bindata(getdns_dict *dict,
+    const char *name, getdns_bindata *child_bindata);
+
 getdns_return_t _getdns_dict_set_const_bindata(getdns_dict *dict,
     const char *name, size_t size, const void *data);
 
