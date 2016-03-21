@@ -11,6 +11,7 @@ addons:
     - check
     - libevent-dev
     - libev-dev
+    - valgrind
 script:
   - mkdir tests
   - cd tests

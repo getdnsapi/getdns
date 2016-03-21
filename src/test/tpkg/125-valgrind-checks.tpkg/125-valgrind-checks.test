@@ -1,0 +1,15 @@
+# #-- 125-valgrind-checks.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+cat >queries <<EOT
+NS .
+-A getdnsapi.net
+qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
+-G TXT bogus.nlnetlabs.nl
+-H 8.8.8.8
+-H 2a04:b900:0:100::37
+EOT
+"${BUILDDIR}/build/libtool" exec valgrind -v --leak-check=full --show-leak-kinds=definite,possible --error-exitcode=1 --errors-for-leak-kinds=definite,possible --track-origins=yes "${GETDNS_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
