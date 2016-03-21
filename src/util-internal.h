@@ -71,8 +71,15 @@ getdns_return_t getdns_apply_network_result(getdns_network_req* netreq,
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
  */
+getdns_return_t _getdns_list_append_this_dict(getdns_list *list,
+    getdns_dict *child_dict);
+
+getdns_return_t _getdns_list_append_this_list(getdns_list *list,
+    getdns_list *child_list);
+
 getdns_return_t _getdns_list_append_dict(getdns_list *list,
     const getdns_dict *child_dict);
+
 getdns_return_t _getdns_list_append_list(getdns_list *list,
     const getdns_list *child_list);
 

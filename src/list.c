@@ -507,6 +507,23 @@ _getdns_list_request_index(getdns_list *list, size_t index)
 }
 
 /*---------------------------------------- getdns_list_set_dict */
+static getdns_return_t
+_getdns_list_set_this_dict(
+    getdns_list *list, size_t index, getdns_dict *child_dict)
+{
+	getdns_return_t r;
+
+	if (!list || !child_dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if ((r = _getdns_list_request_index(list, index)))
+		return r;
+
+	list->items[index].dtype = t_dict;
+	list->items[index].data.dict = child_dict;
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_list_set_dict */
+
 getdns_return_t
 getdns_list_set_dict(
     getdns_list *list, size_t index, const getdns_dict *child_dict)
@@ -520,16 +537,30 @@ getdns_list_set_dict(
 	if ((r = _getdns_dict_copy(child_dict, &newdict)))
 		return r;
 
-	if ((r = _getdns_list_request_index(list, index))) {
+	if ((r = _getdns_list_set_this_dict(list, index, newdict)))
 		getdns_dict_destroy(newdict);
-		return r;
-	}
-	list->items[index].dtype = t_dict;
-	list->items[index].data.dict = newdict;
-	return GETDNS_RETURN_GOOD;
+
+	return r;
 }				/* getdns_list_set_dict */
 
 /*---------------------------------------- getdns_list_set_list */
+static getdns_return_t
+getdns_list_set_this_list(
+    getdns_list *list, size_t index, getdns_list *child_list)
+{
+	getdns_return_t r;
+
+	if (!list || !child_list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if ((r = _getdns_list_request_index(list, index)))
+		return r;
+
+	list->items[index].dtype = t_list;
+	list->items[index].data.list = child_list;
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_list_set_list */
+
 getdns_return_t
 getdns_list_set_list(
     getdns_list *list, size_t index, const getdns_list *child_list)
@@ -543,13 +574,10 @@ getdns_list_set_list(
 	if ((r = _getdns_list_copy(child_list, &newlist)))
 		return r;
 
-	if ((r = _getdns_list_request_index(list, index))) {
+	if ((r = _getdns_list_set_this_list(list, index, newlist)))
 		getdns_list_destroy(newlist);
-		return r;
-	}
-	list->items[index].dtype = t_list;
-	list->items[index].data.list = newlist;
-	return GETDNS_RETURN_GOOD;
+
+	return r;
 }				/* getdns_list_set_list */
 
 /*---------------------------------------- getdns_list_set_bindata */
@@ -617,10 +645,22 @@ _getdns_list_append_dict(getdns_list *list, const getdns_dict *child_dict)
 	return getdns_list_set_dict(list, list->numinuse, child_dict);
 }
 getdns_return_t
+_getdns_list_append_thist_dict(getdns_list *list, getdns_dict *child_dict)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_this_dict(list, list->numinuse, child_dict);
+}
+getdns_return_t
 _getdns_list_append_list(getdns_list *list, const getdns_list *child_list)
 {
 	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
 	return getdns_list_set_list(list, list->numinuse, child_list);
+}
+getdns_return_t
+_getdns_list_append_this_list(getdns_list *list, getdns_list *child_list)
+{
+	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
+	return getdns_list_set_this_list(list, list->numinuse, child_list);
 }
 getdns_return_t
 _getdns_list_append_const_bindata(
