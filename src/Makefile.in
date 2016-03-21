@@ -282,7 +282,8 @@ pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/pubkey-pinning.c \
  getdns/getdns.h \
  $(srcdir)/context.h \
  getdns/getdns_extra.h \
- $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
+ $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h
 request-internal.lo request-internal.o: $(srcdir)/request-internal.c \
  config.h \
  $(srcdir)/types-internal.h \
