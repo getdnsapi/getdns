@@ -12,4 +12,4 @@ qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
 -H 8.8.8.8
 -H 2a04:b900:0:100::37
 EOT
-"${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --leak-check=full --show-leak-kinds=definite,possible --error-exitcode=1 --errors-for-leak-kinds=definite,possible --track-origins=yes "${GETDNS_STUB_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
+"${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --leak-check=full --error-exitcode=1 --errors-for-leak-kinds=definite,possible --track-origins=yes "${GETDNS_STUB_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
