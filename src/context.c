@@ -819,17 +819,72 @@ upstream_init(getdns_upstream *upstream,
 }
 
 #ifdef USE_WINSOCK
+
+/*
+Read the Windows search suffix and add to context
+*/
+static int get_dns_suffix_windows(getdns_list *suffix)
+{
+    char *parse, *token, prev_ch;
+    char lszValue[255];
+    HKEY hKey;
+    LONG returnStatus;
+    DWORD dwType=REG_SZ;
+    DWORD dwSize=255;
+    returnStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                    "SYSTEM\\CurrentControlSet\\Services\\TcpIp\\Parameters",
+                     0,  KEY_READ, &hKey);
+    if (returnStatus != ERROR_SUCCESS)
+    {
+        /* try windows 9x/me */
+        returnStatus = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+                    "SYSTEM\\CurrentControlSet\\Services\\VxD\\MSTCP",
+                     0,  KEY_READ, &hKey);
+
+    }
+    if (returnStatus == ERROR_SUCCESS)
+    {
+        returnStatus = RegQueryValueEx(hKey,
+             TEXT("SearchList"), 0, &dwType,(LPBYTE)&lszValue, &dwSize);
+        if (returnStatus == ERROR_SUCCESS)
+        {
+           parse = lszValue;
+           do {
+               parse += strspn(parse, ",");
+               token = parse + strcspn(parse, ",");
+               prev_ch = *token;
+               *token = 0;
+
+               _getdns_list_append_string(suffix, parse);
+
+               *token = prev_ch;
+               parse = token;
+           } while (*parse);
+        } else {
+            return 0; /* no DNS suffixes keys */
+        }
+        RegCloseKey(hKey);
+    } else {
+        return 0; /* no DNS keys or suffixes */
+    }
+
+    return 1;
+}
+
+
 static getdns_return_t
 set_os_defaults_windows(struct getdns_context *context)
 {
-	char domain[1024] = "";
-	size_t upstreams_limit = 10;
-	struct addrinfo hints;
-	struct addrinfo *result;
-	getdns_upstream *upstream;
-	int s;
+    char domain[1024] = "";
+    size_t upstreams_limit = 10;
+    struct addrinfo hints;
+    struct addrinfo *result;
+    getdns_list *suffix;
+    getdns_upstream *upstream;
+    size_t length;
+    int s;
 
-	if (context->fchg_resolvconf == NULL) {
+    if (context->fchg_resolvconf == NULL) {
 		context->fchg_resolvconf =
 			GETDNS_MALLOC(context->my_mf, struct filechg);
 		if (context->fchg_resolvconf == NULL)
@@ -838,29 +893,29 @@ set_os_defaults_windows(struct getdns_context *context)
 		context->fchg_resolvconf->prevstat = NULL;
 		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
 		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
-	}
-	_getdns_filechg_check(context, context->fchg_resolvconf);
+    }
+    _getdns_filechg_check(context, context->fchg_resolvconf);
 
-	context->upstreams = upstreams_create(context, upstreams_limit);
+    context->upstreams = upstreams_create(context, upstreams_limit);
 
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = 0;              /* Datagram socket */
-	hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
-	hints.ai_protocol = 0;              /* Any protocol */
-	hints.ai_canonname = NULL;
-	hints.ai_addr = NULL;
-	hints.ai_next = NULL;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = 0;              /* Datagram socket */
+    hints.ai_flags = AI_NUMERICHOST; /* No reverse name lookups */
+    hints.ai_protocol = 0;              /* Any protocol */
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
 
-	FIXED_INFO *info;
-	ULONG buflen = sizeof(*info);
-	IP_ADDR_STRING *ptr = 0;
+    FIXED_INFO *info;
+    ULONG buflen = sizeof(*info);
+    IP_ADDR_STRING *ptr = 0;
 
-	info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
-	if (info == NULL)
+    info = (FIXED_INFO *)malloc(sizeof(FIXED_INFO));
+    if (info == NULL)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
+    if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
 		free(info);
 		info = (FIXED_INFO *)malloc(buflen);
 		if (info == NULL)
@@ -889,9 +944,22 @@ set_os_defaults_windows(struct getdns_context *context)
 		}
 		free(info);
 	}
-	return GETDNS_RETURN_GOOD;
+
+    suffix = getdns_list_create_with_context(context);
+
+    if (get_dns_suffix_windows(suffix)) {
+
+        (void) getdns_list_get_length(suffix, &length);
+        if (length > 0)
+            (void )getdns_context_set_suffix(context, suffix);
+    }
+    getdns_list_destroy(suffix);
+
+    return GETDNS_RETURN_GOOD;
 } /* set_os_defaults_windows */
+
 #else
+
 static getdns_return_t
 set_os_defaults(struct getdns_context *context)
 {
