@@ -13,9 +13,14 @@ qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
 -H 2a04:b900:0:100::37
 EOT
 (
-	if !  "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_STUB_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
+	if !  "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_STUB_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
 	then
 		exit 1
 	fi
-) 2>&1 | tee output
-awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' output
+) 2>&1 > output
+if ! awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' valgrind.log
+then
+	cat valgrind.log
+	cat output
+	exit 1
+fi

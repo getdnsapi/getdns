@@ -18,13 +18,9 @@ EOT
 		exit 1
 	fi
 ) 2>&1 > output
-echo '**************************************'
-echo '**************  hiero  ***************'
-echo '**************         ***************'
-awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' valgrind.log
-echo '**************         ***************'
-echo '**************  hiero  ***************'
-echo '**************************************'
-cat valgrind.log
-cat output
-exit 1
+if ! awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' valgrind.log
+then
+	cat valgrind.log
+	cat output
+	exit 1
+fi
