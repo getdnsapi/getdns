@@ -37,6 +37,15 @@
 
 #include "config.h"
 
+#define STUB_DEBUG_ENTRY     "-> ENTRY:       "
+#define STUB_DEBUG_SETUP     "--- SETUP:      "
+#define STUB_DEBUG_SETUP_TLS "--- SETUP(TLS): "
+#define STUB_DEBUG_TSIG      "--- TSIG:       "
+#define STUB_DEBUG_SCHEDULE  "----- SCHEDULE: "
+#define STUB_DEBUG_READ      "------- READ:   "
+#define STUB_DEBUG_WRITE     "------- WRITE:  "
+#define STUB_DEBUG_CLEANUP   "--- CLEANUP:    "
+
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
 		struct tm tm; \

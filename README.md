@@ -239,18 +239,31 @@ As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expec
 
 This section has some Windows specific build instructions. 
 
-Build tested using [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
+Build tested using the following:
+32 bit only Mingw: [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
+32 bit build on a 64 bit Mingw [Download latest from: http://mingw-w64.org/doku.php/download/mingw-builds and http://msys2.github.io/]. IMPORTANT: Install tested ONLY on the  "x86_64" for 64-bit installer of msys2.
 
 Dependencies: 
-The following dependencies are built from source on Mingw
-openssl1.0.2a
+The following dependencies are 
+openssl-1.0.2e
 libidn
 
-The windows version of getdns currently only is supported in the stub only mode. 
+Instructions to build openssl-1.0.2e:
+Open the mingw32_shell.bat from msys2 in order to build:
+
+If necessary, install the following using pacman:
+pacman -S pkg-config  libtool automake
+pacman -S autoconf automake-wrapper
+
+ tar -xvf openssl-1.0.2e.tar 
+cd openssl-1.0.2e/
+./Configure --prefix=${LOCALDESTDIR} --openssldir=${LOCALDESTDIR}/etc/ssl --libdir=lib shared zlib-dynamic mingw
+make
+make install
 
 To configure:
     
-    ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=/c/OpenSSL --with-getdns_query
+    ./configure --enable-stub-only --with-trust-anchor="c:\\\MinGW\\\msys\\\1.0\\\etc\\\unbound\\\getdns-root.key" --with-ssl=<location of openssl from above> --with-getdns_query
 
  The trust anchor is also installed by unbound on c:\program Files (X86)\unbound\root.key and can be referenced from there
  or anywhere else that the user chooses to configure it.
