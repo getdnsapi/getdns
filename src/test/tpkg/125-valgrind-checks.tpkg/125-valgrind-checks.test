@@ -18,6 +18,12 @@ EOT
 		exit 1
 	fi
 ) 2>&1 > output
+echo '**************************************'
+echo '**************  hiero  ***************'
+echo '**************         ***************'
 awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' output
+echo '**************         ***************'
+echo '**************  hiero  ***************'
+echo '**************************************'
 cat output
 exit 1
