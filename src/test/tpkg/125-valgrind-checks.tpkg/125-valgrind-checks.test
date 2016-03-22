@@ -17,6 +17,7 @@ EOT
 	then
 		exit 1
 	fi
-) 2>&1 | tee output
+) 2>&1 > output
 awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' output
+cat output
 exit 1
