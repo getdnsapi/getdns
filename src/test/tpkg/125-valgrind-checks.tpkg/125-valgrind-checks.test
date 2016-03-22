@@ -13,7 +13,7 @@ qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
 -H 2a04:b900:0:100::37
 EOT
 (
-	if ! "${BUILDDIR}/build/libtool" exec valgrind -v --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
+	if ! "${BUILDDIR}/build/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
 	then
 		exit 1
 	fi
@@ -21,9 +21,10 @@ EOT
 echo '**************************************'
 echo '**************  hiero  ***************'
 echo '**************         ***************'
-awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' output
+awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' valgrind.log
 echo '**************         ***************'
 echo '**************  hiero  ***************'
 echo '**************************************'
+cat valgrind.log
 cat output
 exit 1
