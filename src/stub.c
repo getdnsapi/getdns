@@ -99,6 +99,8 @@ static void stub_timeout_cb(void *userarg);
 /* General utility functions */
 /*****************************/
 
+static inline int is_synchronous_request(getdns_network_req *netreq)
+{ return netreq->owner->loop != netreq->upstream->loop; }
 
 static void
 rollover_secret()
@@ -515,7 +517,8 @@ tls_cleanup(getdns_upstream *upstream)
 		GETDNS_SCHEDULE_EVENT(
 		    netreq->owner->loop, upstream->fd, netreq->owner->context->timeout,
 		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
-		    ( netreq->owner->loop != netreq->upstream->loop /* Synchronous lookup? */
+
+		    ( is_synchronous_request(netreq)
 		    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
 	}
 	return STUB_TLS_SETUP_ERROR;
@@ -1079,8 +1082,8 @@ tls_do_handshake(getdns_upstream *upstream)
 	GETDNS_SCHEDULE_EVENT(
 	    netreq->owner->loop, upstream->fd, netreq->owner->context->timeout,
 	    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
-	    ( netreq->owner->loop != netreq->upstream->loop /* Synchronous lookup? */
-	    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
+	    (is_synchronous_request(netreq) ? netreq_upstream_write_cb : NULL),
+	    stub_timeout_cb));
 	/* Reschedule for synchronous */
 	/* TODO[TLS]: Re-instating full context->timeout here is wrong, as time has 
 	   passes since the netreq was originally scheduled, but we only hove one
@@ -1357,7 +1360,7 @@ stub_udp_read_cb(void *userarg)
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, netreq->upstream->fd, dnsreq->context->timeout,
 		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
-		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
+		    ( is_synchronous_request(netreq)
 		    ? netreq_upstream_write_cb : NULL), stub_timeout_cb));
 
 		return;
@@ -1417,15 +1420,31 @@ stub_udp_write_cb(void *userarg)
 /**************************/
 
 static void
-upstream_read_cb(void *userarg)
+process_finished_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+	getdns_dns_req *dnsreq;
+
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->finished_event);
+	upstream->finished_event.timeout_cb = NULL;
+	while (upstream->finished_dnsreqs) {
+		dnsreq = upstream->finished_dnsreqs;
+		upstream->finished_dnsreqs = dnsreq->finished_next;
+		_getdns_check_dns_req_complete(dnsreq);
+	}
+}
+
+static void
+upstream_read_cb_for_netreq(
+    getdns_upstream *upstream, getdns_network_req *sync_netreq)
+{
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_READ, __FUNCTION__,
 	            upstream->fd);
 	getdns_network_req *netreq;
 	int q;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
+	getdns_dns_req *dnsreq;
 
 	if (tls_should_read(upstream))
 		q = stub_tls_read(upstream, &upstream->tcp,
@@ -1471,7 +1490,7 @@ upstream_read_cb(void *userarg)
 		 * on a working connection until we hit a problem.*/
 		upstream->upstreams->current = 0;
 		
-		/* !THIS CODE NEEDS TESTING!*/
+		/* !THIS CODE NEEDS TESTING! */
 		if (netreq->owner->edns_cookies &&
 		    match_and_process_server_cookie(
 		    netreq->upstream, netreq->tcp.read_buf,
@@ -1491,7 +1510,40 @@ upstream_read_cb(void *userarg)
 		if (netreq->event.read_cb)
 			upstream_reschedule_netreq_events(upstream, netreq);
 
-		_getdns_check_dns_req_complete(netreq->owner);
+		if (!sync_netreq || netreq == sync_netreq)
+			_getdns_check_dns_req_complete(netreq->owner);
+
+		else if (sync_netreq
+		    && netreq->owner->loop != sync_netreq->owner->loop) {
+
+			/* We have a netreq with a different event loop then
+			 * the synchronous loop (so async).
+			 * Queue dns_req_complete checks.
+			 */
+
+			/* First check if one for the dns_req already exists */
+			for ( dnsreq = upstream->finished_dnsreqs
+			    ; dnsreq && dnsreq != netreq->owner
+			    ; dnsreq = dnsreq->finished_next)
+				; /* pass */
+
+			if (!dnsreq) {
+				/* Schedule dns_req_complete check for this
+				 * netreq's owner
+				 */
+				dnsreq = netreq->owner;
+				dnsreq->finished_next =
+				    upstream->finished_dnsreqs;
+				upstream->finished_dnsreqs = dnsreq;
+			
+				if (!upstream->finished_event.timeout_cb) {
+					upstream->finished_event.timeout_cb
+					    = process_finished_cb;
+					GETDNS_SCHEDULE_EVENT(upstream->loop,
+					    -1, 1, &upstream->finished_event);
+				}
+			}
+		}
 
 		/* WSA TODO: if callback is still upstream_read_cb, do it again
 		 */
@@ -1500,11 +1552,18 @@ upstream_read_cb(void *userarg)
 }
 
 static void
+upstream_read_cb(void *userarg)
+{
+	upstream_read_cb_for_netreq((getdns_upstream *)userarg, NULL);
+}
+
+static void
 netreq_upstream_read_cb(void *userarg)
 {
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_READ,
 	            __FUNCTION__, ((getdns_network_req *)userarg)->upstream->fd);
-	upstream_read_cb(((getdns_network_req *)userarg)->upstream);
+	upstream_read_cb_for_netreq(((getdns_network_req *)userarg)->upstream,
+	    (getdns_network_req *)userarg);
 }
 
 static void
@@ -1886,7 +1945,12 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 		}
+	} else if (netreq->owner->loop != upstream->loop) {
+		/* Synchronous call, prioritize this request (insert at 0) */
+		netreq->write_queue_tail = upstream->write_queue;
+		upstream->write_queue = netreq;
 	} else {
+		/* Asynchronous call, this request comes last (append) */
 		upstream->write_queue_last->write_queue_tail = netreq;
 		upstream->write_queue_last = netreq;
 	}
@@ -1927,27 +1991,31 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 		/*************************************************************
 		 ******                                                  *****
-		 ******              Confusing code alert!               *****
+		 ******            Scheduling differences of             *****
+		 ******      synchronous and asynchronous requests       *****
 		 ******                                                  *****
 		 *************************************************************
 		 *
-		 * Synchronous requests have their own event loop for the
-		 * occasion of that single request.  That event loop is in
-		 * the dnsreq structure: dnsreq->loop;
+		 * Besides the asynchronous event loop, which is typically
+		 * shared with the application, every getdns context also
+		 * has another event loop (not registered by the user) which
+		 * is used specifically and only for synchronous requests:
+		 * context->sync_eventloop.
 		 *
-		 * We do not use the context's loop for the duration of the
+		 * We do not use the asynchronous loop for the duration of the
 		 * synchronous query, because:
 		 * - Callbacks for outstanding (and thus asynchronous) queries
 		 *   might fire as a side effect.
-		 * - But worse, since the context's loop is created and managed
-		 *   by the user, which may well have her own non-dns related
-		 *   events scheduled against it, they will fire as well as a
-		 *   side effect of doing the synchronous request!
+		 * - But worse, since the asynchronous loop is created and 
+		 *   managed by the user, which may well have her own non-dns
+		 *   related events scheduled against it, they will fire as
+		 *   well as a side effect of doing the synchronous request!
+		 *
 		 *
 		 * Transports that keep connections open, have their own event
 		 * structure to keep their connection state.  The event is 
 		 * associated with the upstream struct.  Note that there is a
-		 * separate upstream struct for each statefull transport, so
+		 * separate upstream struct for each state full transport, so
 		 * each upstream has multiple transport structs!
 		 *
 		 *     side note: The upstream structs have their own reference
@@ -1958,44 +2026,56 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		 * If a synchronous request is scheduled for such a transport,
 		 * then the sync-loop temporarily has to "run" that 
 		 * upstream/transport's event!  Outstanding requests for that
-		 * upstream/transport might the fire then as well as a side
-		 * effect.
+		 * upstream/transport might come in while processing the 
+		 * synchronous call.  When this happens, they are queued up
+		 * (at upstream->finished_queue) and an timeout event of 1
+		 * will be scheduled against the asynchronous loop to start
+		 * processing those received request as soon as the 
+		 * asynchronous loop will be run.
 		 *
 		 *
-		 * Discussion
-		 * ==========
-		 * Furthermore, when a RECURSING sync request is made (opposed
-		 * to a STUB sync request) then outstanding RECURSING requests
+		 * When getdns is linked with libunbound 1.5.8 or older, then
+		 * when a RECURSING synchronous request is made then 
+		 * outstanding asynchronously scheduled RECURSING requests
 		 * may fire as a side effect, as we reuse the same code path 
-		 * as with async RECURSING requests.  In both cases 
-		 * ub_resolve_async() is used under the hood instead of
-		 * ub_resolve().  The fix (by calling ub_resolver()) we have
-		 * to create more divergent code paths.
+		 * For both synchronous and asynchronous calls,
+		 * ub_resolve_async() is used under the hood.
 		 *
-		 * If we would simply accept the fact that side effects can
-		 * happen while doing sync requests, we could greatly simplify
-		 * this code and have the same code path (for scheduling the
-		 * request and the timeout) for both synchronous and
-		 * asynchronous requests.
+		 * With libunbound versions newer than 1.5.8, libunbound will
+		 * share the event loops used with getdns which will prevent
+		 * these side effects from happening.
 		 *
-		 * We should ask ourself: How likely is it that an user that
-		 * uses asynchronous queries would do a synchronous query, that
-		 * should block all async activity, in between?  Is
-		 * anticipating this behaviour (in which we only partly succeed
-		 * to begin with) worth the complexity of divergent code paths?
+		 *
+		 * The event loop used for a specific request is in 
+		 * dnsreq->loop.  The asynchronous is always also available
+		 * at the upstream as upstream->loop. 
 		 */
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop,
-		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
-		    ? netreq->upstream->fd : -1),
-		    /*dnsreq->context->timeout,*/
-		    (transport == GETDNS_TRANSPORT_TLS ?
-		    dnsreq->context->timeout /2 : dnsreq->context->timeout),
+		    /* Synchronous lookup?, then this event will be used to
+		     * schedule IO for the network request, starting with a
+		     * write (for which we need the file descriptor).
+		     * Otherwise this event will be used to schedule a timeout
+		     * only (-1 means no file descriptor; a timeout event).
+		     */
+		    ( is_synchronous_request(netreq)
+		    ? netreq->upstream->fd : -1 ),
+
+		    ( transport == GETDNS_TRANSPORT_TLS
+		    ?  dnsreq->context->timeout /2 : dnsreq->context->timeout),
+
 		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,
-		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
+
+		    /* Synchronous lookup?, then this event will be used to
+		     * schedule IO for the network request, starting with a
+		     * write.  Otherwise this event will be used to schedule
+		     * a timeout only.
+		     */
+		    ( is_synchronous_request(netreq)
 		    ? netreq_upstream_write_cb : NULL), 
-		    ( transport == GETDNS_TRANSPORT_TLS ? 
-		      stub_tls_timeout_cb : stub_timeout_cb)));
+
+		    ( transport == GETDNS_TRANSPORT_TLS
+		    ?  stub_tls_timeout_cb : stub_timeout_cb)));
 
 		return GETDNS_RETURN_GOOD;
 	default:
