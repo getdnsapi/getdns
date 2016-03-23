@@ -517,6 +517,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-x\tDo not follow redirects\n");
+	fprintf(out, "\t-X\tFollow redirects (default)\n");
 
 	fprintf(out, "\t-W\tAppend suffix always (default)\n");
 	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
@@ -1009,6 +1011,14 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_timeout(
 					context, timeout);
 				goto next;
+			case 'x': 
+				getdns_context_set_follow_redirects(
+				    context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
+				break;
+			case 'X': 
+				getdns_context_set_follow_redirects(
+				    context, GETDNS_REDIRECTS_FOLLOW);
+				break;
 			case 'e':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "idle timeout expected "

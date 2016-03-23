@@ -491,10 +491,13 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	size_t bin_size;
 	const uint8_t *bin_data;
 	gldns_pkt_section section;
-	uint8_t canonical_name_space[256], owner_name_space[256];
-	const uint8_t *canonical_name = canonical_name_space, *owner_name;
+	uint8_t canonical_name_space[256], owner_name_space[256],
+	    query_name_space[256];
+	const uint8_t *canonical_name = canonical_name_space, *owner_name,
+	    *query_name;
 	size_t canonical_name_len = sizeof(canonical_name_space),
-	       owner_name_len = sizeof(owner_name_space);
+	       owner_name_len = sizeof(owner_name_space),
+	       query_name_len = sizeof(query_name_space);
 	int new_canonical = 0, cnames_followed,
 	    request_answered, all_numeric_label;
 	uint16_t rr_type;
@@ -532,6 +535,15 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	canonical_name = req->owner->name;
 	canonical_name_len = req->owner->name_len;
 
+	if (req->query &&
+	    (rr_iter = _getdns_rr_iter_init(&rr_iter_storage, req->query
+	                                   , req->response  - req->query)))
+
+		query_name = _getdns_owner_if_or_as_decompressed(
+		    rr_iter, query_name_space, &query_name_len);
+	else
+		query_name = NULL;
+
 	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
 	                                        , req->response
 	                                        , req->response_len)
@@ -544,26 +556,44 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 
 		section = _getdns_rr_iter_section(rr_iter);
 		if (section == GLDNS_SECTION_QUESTION) {
+			if (!query_name)
+				query_name
+				    = _getdns_owner_if_or_as_decompressed(
+				    rr_iter, query_name_space, &query_name_len);
 
 			if (_getdns_dict_set_this_dict(result, "question", rr_dict))
 				goto error;
 			else 	rr_dict = NULL;
 			continue;
 		}
-		if (_getdns_list_append_this_dict(sections[section], rr_dict))
-			goto error;
-		else	rr_dict = NULL;
-
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
 		if (section > GLDNS_SECTION_QUESTION &&
 		    rr_type == GETDNS_RRTYPE_RRSIG && rrsigs_in_answer)
 			*rrsigs_in_answer = 1;
 
-		if (section != GLDNS_SECTION_ANSWER)
+		if (section != GLDNS_SECTION_ANSWER) {
+			if (_getdns_list_append_this_dict(
+			    sections[section], rr_dict))
+				goto error;
+			else	rr_dict = NULL;
 			continue;
+		}
+		if (req->follow_redirects == GETDNS_REDIRECTS_DO_NOT_FOLLOW) {
+			owner_name_len = sizeof(owner_name_space);
+			owner_name = _getdns_owner_if_or_as_decompressed(
+			    rr_iter, owner_name_space, &owner_name_len);
+
+			if (!_getdns_dname_equal(query_name, owner_name))
+				continue;
+		}
+		if (_getdns_list_append_this_dict(
+		    sections[GLDNS_SECTION_ANSWER], rr_dict))
+			goto error;
+		else	rr_dict = NULL;
 
 		if (rr_type == GETDNS_RRTYPE_CNAME) {
 
+			owner_name_len = sizeof(owner_name_space);
 			owner_name = _getdns_owner_if_or_as_decompressed(
 			    rr_iter, owner_name_space, &owner_name_len);
 			if (!_getdns_dname_equal(canonical_name, owner_name))

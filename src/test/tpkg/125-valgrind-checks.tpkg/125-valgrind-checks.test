@@ -11,6 +11,10 @@ qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
 -G TXT bogus.nlnetlabs.nl
 -H 8.8.8.8
 -H 2a04:b900:0:100::37
+-a -A -x www.microsoft.com
+-s
+-S
+-X
 EOT
 (
 	if ! "${BUILDDIR}/build/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
