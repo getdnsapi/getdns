@@ -40,6 +40,7 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "types-internal.h"
+#include "debug.h"
 
 #ifdef HAVE_UNBOUND_EVENT_H
 #include <unbound-event.h>
@@ -61,6 +62,9 @@ typedef struct _getdns_ub_loop {
 	struct mem_funcs     mf;
 	getdns_eventloop    *extension;
 	int                  running;
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+	int                  n_events;
+#endif
 } _getdns_ub_loop;
 
 void _getdns_ub_loop_init(_getdns_ub_loop *loop, struct mem_funcs *mf, getdns_eventloop *extension);

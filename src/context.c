@@ -323,7 +323,8 @@ local_host_cmp(const void *id1, const void *id2)
 	return canonical_dname_compare(id1, id2);
 }
 
-static void
+/** return 0 on success */
+static int
 add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 {
 	uint8_t host_name[256];
@@ -334,7 +335,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 	getdns_list **addrs;
 
 	if (gldns_str2wire_dname_buf(str, host_name, &host_name_len))
-		return;
+		return -1;
 
 	canonicalize_dname(host_name);
 	
@@ -343,7 +344,7 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 
 		if (!(hnas = (host_name_addrs *)GETDNS_XMALLOC(context->mf,
 		    uint8_t, sizeof(host_name_addrs) + host_name_len)))
-			return;
+			return -1;
 
 		hnas->ipv4addrs = NULL;
 		hnas->ipv6addrs = NULL;
@@ -361,18 +362,23 @@ add_local_host(getdns_context *context, getdns_dict *address, const char *str)
 	            : address_type->data[3] == '6'? &hnas->ipv4addrs : NULL)) {
 
 		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
-		return;
+		return -1;
 	}
 	if (!*addrs && !(*addrs = getdns_list_create_with_context(context))) {
 		if (!hnas_found) GETDNS_FREE(context->mf, hnas);
-		return;
+		return -1;
 	}
-	if (_getdns_list_append_dict(*addrs, address) && !hnas_found) {
-		getdns_list_destroy(*addrs);
-		GETDNS_FREE(context->mf, hnas);
+	if (_getdns_list_append_this_dict(*addrs, address)) {
+	       	if (!hnas_found) {
+			getdns_list_destroy(*addrs);
+			GETDNS_FREE(context->mf, hnas);
+		}
+		return -1;
 
 	} else if (!hnas_found)
 		(void)_getdns_rbtree_insert(&context->local_hosts, &hnas->node);
+
+	return 0;
 }
 
 static getdns_dict *
@@ -518,8 +524,8 @@ create_local_hosts(getdns_context *context)
 				    str_addr_dict(context, start_of_word)))
 					/* Unparseable address */
 					break; /* skip to next line */
-			} else 
-				add_local_host(context, address, start_of_word);
+			} else if (!add_local_host(context, address, start_of_word))
+				address = NULL;
 
 			start_of_word = NULL;
 			*pos = prev_c;
@@ -543,7 +549,8 @@ read_more:	;
 	if (address) {
 		/* One last name for this address? */
 		if (start_of_word && !start_of_line)
-			add_local_host(context, address, start_of_word);
+			if (!add_local_host(context, address, start_of_word))
+				address = NULL;
 		getdns_dict_destroy(address);
 	}
 }
@@ -1442,36 +1449,45 @@ set_ub_number_opt(struct getdns_context *ctx, char *opt, uint16_t value)
 static void
 getdns_context_request_count_changed(getdns_context *context)
 {
-	DEBUG_SCHED("getdns_context_request_count_changed(%d)\n",
-	    (int) context->outbound_requests.count);
-	if (context->outbound_requests.count) {
-		if (context->ub_event.ev) return;
+	size_t prev_count;
 
-		DEBUG_SCHED("gc_request_count_changed "
-		    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
-		    &context->ub_event, context->ub_event.ev);
+	if (context->ub_event_scheduling) {
+		return;
+	}
+	context->ub_event_scheduling++;
+	do {
+		prev_count = context->outbound_requests.count;
+		DEBUG_SCHED("getdns_context_request_count_changed(%d)\n",
+		    (int) context->outbound_requests.count);
+		if (context->outbound_requests.count && ! context->ub_event.ev){
+			DEBUG_SCHED("gc_request_count_changed "
+			    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
+			    &context->ub_event, context->ub_event.ev);
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (!_getdns_ub_loop_enabled(&context->ub_loop))
+			if (!_getdns_ub_loop_enabled(&context->ub_loop))
 #endif
-			context->extension->vmt->schedule(
-			    context->extension, ub_fd(context->unbound_ctx),
-			    TIMEOUT_FOREVER, &context->ub_event);
+				context->extension->vmt->schedule(
+				    context->extension,
+				    ub_fd(context->unbound_ctx),
+				    TIMEOUT_FOREVER, &context->ub_event);
 #endif
-	}
-	else if (context->ub_event.ev) /* Only test if count == 0! */ {
-		DEBUG_SCHED("gc_request_count_changed "
-		    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
-		    &context->ub_event, context->ub_event.ev);
+		} else if (! context->outbound_requests.count &&
+		    context->ub_event.ev) {
+			DEBUG_SCHED("gc_request_count_changed "
+			    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
+			    &context->ub_event, context->ub_event.ev);
 
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (!_getdns_ub_loop_enabled(&context->ub_loop))
+			if (!_getdns_ub_loop_enabled(&context->ub_loop))
 #endif
-			context->extension->vmt->clear(
-			    context->extension, &context->ub_event);
+				context->extension->vmt->clear(
+				    context->extension, &context->ub_event);
 #endif
-	}
+		}
+	} while (prev_count != context->outbound_requests.count);
+	context->ub_event_scheduling--;
 }
 
 void
@@ -1528,6 +1544,7 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	context->ub_event.write_cb   = NULL;
 	context->ub_event.timeout_cb = NULL;
 	context->ub_event.ev         = NULL;
+	context->ub_event_scheduling = 0;
 
 	return GETDNS_RETURN_GOOD;
 }
@@ -3156,87 +3173,122 @@ upstream_port(getdns_upstream *upstream)
 static getdns_dict*
 _get_context_settings(getdns_context* context)
 {
-    getdns_return_t r = GETDNS_RETURN_GOOD;
-    getdns_dict* result = getdns_dict_create_with_context(context);
+	getdns_dict *result = getdns_dict_create_with_context(context);
 	getdns_list *list;
+	size_t       i;
 
-    if (!result) {
-        return NULL;
-    }
-    /* int fields */
-    r = getdns_dict_set_int(result, "timeout", context->timeout);
-    r = getdns_dict_set_int(result, "idle_timeout", context->idle_timeout);
-    r |= getdns_dict_set_int(result, "limit_outstanding_queries", context->limit_outstanding_queries);
-    r |= getdns_dict_set_int(result, "dnssec_allowed_skew", context->dnssec_allowed_skew);
-    r |= getdns_dict_set_int(result, "follow_redirects", context->follow_redirects);
-    if (context->edns_maximum_udp_payload_size != -1)
-    	r |= getdns_dict_set_int(result, "edns_maximum_udp_payload_size",
-	    context->edns_maximum_udp_payload_size);
-    r |= getdns_dict_set_int(result, "edns_extended_rcode", context->edns_extended_rcode);
-    r |= getdns_dict_set_int(result, "edns_version", context->edns_version);
-    r |= getdns_dict_set_int(result, "edns_do_bit", context->edns_do_bit);
-    r |= getdns_dict_set_int(result, "append_name", context->append_name);
-    /* list fields */
-	if (!getdns_context_get_suffix(context, &list)) {
-		r |= getdns_dict_set_list(result, "suffix", list);
+	if (!result)
+		return NULL;
+
+	/* int fields */
+	if (   getdns_dict_set_int(result, "timeout",
+	                           context->timeout)
+	    || getdns_dict_set_int(result, "idle_timeout",
+	                           context->idle_timeout)
+	    || getdns_dict_set_int(result, "limit_outstanding_queries",
+	                           context->limit_outstanding_queries)
+            || getdns_dict_set_int(result, "dnssec_allowed_skew",
+	                           context->dnssec_allowed_skew)
+	    || getdns_dict_set_int(result, "follow_redirects",
+	                           context->follow_redirects)
+	    || (  context->edns_maximum_udp_payload_size != -1
+	       && getdns_dict_set_int(result, "edns_maximum_udp_payload_size",
+	                              context->edns_maximum_udp_payload_size))
+	    || getdns_dict_set_int(result, "edns_extended_rcode",
+	                           context->edns_extended_rcode)
+	    || getdns_dict_set_int(result, "edns_version",
+	                           context->edns_version)
+	    || getdns_dict_set_int(result, "edns_do_bit",
+	                           context->edns_do_bit)
+	    || getdns_dict_set_int(result, "append_name",
+	                           context->append_name)
+	    || getdns_dict_set_int(result, "tls_authentication",
+	                           context->tls_auth))
+		goto error;
+	
+	/* list fields */
+	if (getdns_context_get_suffix(context, &list))
+		goto error;
+
+	if (_getdns_dict_set_this_list(result, "suffix", list)) {
 		getdns_list_destroy(list);
+		goto error;
 	}
-	if (!getdns_context_get_upstream_recursive_servers(context, &list)) {
-		r |= getdns_dict_set_list(result, "upstream_recursive_servers",
-		    list);
+	if (getdns_context_get_upstream_recursive_servers(context, &list))
+		goto error;
+
+	if (_getdns_dict_set_this_list(
+	    result, "upstream_recursive_servers", list)) {
 		getdns_list_destroy(list);
+		goto error;
 	}
-    if (context->dns_transport_count > 0) {
+	if (context->dns_transport_count > 0) {
+		/* create a namespace list */
+		if (!(list = getdns_list_create_with_context(context)))
+			goto error;
+
+		for (i = 0; i < context->dns_transport_count; ++i) {
+			if (getdns_list_set_int(list, i,
+			    context->dns_transports[i])) {
+				getdns_list_destroy(list);
+				goto error;
+			}
+		}
+		if (_getdns_dict_set_this_list(
+		    result, "dns_transport_list", list)) {
+			getdns_list_destroy(list);
+			goto error;
+		}
+	}
+	if (context->namespace_count > 0) {
         /* create a namespace list */
-        size_t i;
-        getdns_list* transports = getdns_list_create_with_context(context);
-        if (transports) {
-            for (i = 0; i < context->dns_transport_count; ++i) {
-                r |= getdns_list_set_int(transports, i, context->dns_transports[i]);
-            }
-            r |= getdns_dict_set_list(result, "dns_transport_list", transports);
-            getdns_list_destroy(transports);
-        }
-        r |= getdns_dict_set_int(result, "tls_authentication", context->tls_auth);
-    }
-    if (context->namespace_count > 0) {
-        /* create a namespace list */
-        size_t i;
-        getdns_list* namespaces = getdns_list_create_with_context(context);
-        if (namespaces) {
-            for (i = 0; i < context->namespace_count; ++i) {
-                r |= getdns_list_set_int(namespaces, i, context->namespaces[i]);
-            }
-            r |= getdns_dict_set_list(result, "namespaces", namespaces);
-            getdns_list_destroy(namespaces);
-        }
-    }
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(result);
-        result = NULL;
-    }
-    return result;
+		if (!(list = getdns_list_create_with_context(context)))
+			goto error;
+
+		for (i = 0; i < context->namespace_count; ++i) {
+			if (getdns_list_set_int(list, i,
+			    context->namespaces[i])) {
+				getdns_list_destroy(list);
+				goto error;
+			}
+		}
+		if (_getdns_dict_set_this_list(result, "namespaces", list)) {
+			getdns_list_destroy(list);
+			return NULL;
+		}
+	}
+	return result;
+error:
+	getdns_dict_destroy(result);
+	return NULL;
 }
 
 getdns_dict*
-getdns_context_get_api_information(getdns_context* context) {
-    getdns_return_t r = GETDNS_RETURN_GOOD;
-    getdns_dict* result = getdns_dict_create_with_context(context);
-    getdns_dict* settings;
-    if (!result) {
-        return NULL;
-    }
-    r = getdns_dict_util_set_string(result, "version_string", GETDNS_VERSION);
-    r |= getdns_dict_util_set_string(result, "implementation_string", PACKAGE_URL);
-    r |= getdns_dict_set_int(result, "resolution_type", context->resolution_type);
-    settings = _get_context_settings(context);
-    r |= getdns_dict_set_dict(result, "all_context", settings);
-    getdns_dict_destroy(settings);
-    if (r != GETDNS_RETURN_GOOD) {
-        getdns_dict_destroy(result);
-        result = NULL;
-    }
-    return result;
+getdns_context_get_api_information(getdns_context* context)
+{
+	getdns_dict* result;
+	getdns_dict* settings;
+
+	if ((result = getdns_dict_create_with_context(context))
+			
+	    && ! getdns_dict_util_set_string(
+	    result, "version_string", GETDNS_VERSION)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "implementation_string", PACKAGE_URL)
+
+	    && ! getdns_dict_set_int(
+	    result, "resolution_type", context->resolution_type)
+
+	    && (settings = _get_context_settings(context))) {
+
+		if (!_getdns_dict_set_this_dict(result,"all_context",settings))
+			return result;
+
+		getdns_dict_destroy(settings);
+	}
+	getdns_dict_destroy(result);
+	return NULL;
 }
 
 getdns_return_t
@@ -3336,17 +3388,17 @@ _getdns_context_local_namespace_resolve(
 	}
 	if (!(jaa = getdns_list_create_with_context(context)))
 		goto error;
+
 	for (i = 0; !getdns_list_get_dict(hnas->ipv4addrs, i, &addr); i++)
 		if (_getdns_list_append_dict(jaa, addr))
 			break;
 	for (i = 0; !getdns_list_get_dict(hnas->ipv6addrs, i, &addr); i++)
 		if (_getdns_list_append_dict(jaa, addr))
 			break;
-	if (!getdns_dict_set_list(*response, "just_address_answers", jaa)) {
-		getdns_list_destroy(jaa);
+	if (!_getdns_dict_set_this_list(*response, "just_address_answers", jaa))
 		return GETDNS_RETURN_GOOD;
-	}
-	getdns_list_destroy(jaa);
+	else
+		getdns_list_destroy(jaa);
 error:
 	getdns_dict_destroy(*response);
 	return GETDNS_RETURN_GENERIC_ERROR;
@@ -3652,14 +3704,16 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 					if ((_getdns_get_pubkey_pinset_list(context,
 									   upstream->tls_pubkey_pinset,
 									   &pins) == GETDNS_RETURN_GOOD) &&
-						(r = getdns_dict_set_list(d, "tls_pubkey_pinset", pins)))
+						(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
+						getdns_list_destroy(pins);
 						break;
-					getdns_list_destroy(pins);
+					}
 				}
 			}
 		}
 		if (!r)
-			r = _getdns_list_append_dict(upstreams, d);
+			if (!(r = _getdns_list_append_this_dict(upstreams, d)))
+				d = NULL;
 		getdns_dict_destroy(d);
         }
         if (r)

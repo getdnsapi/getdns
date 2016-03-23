@@ -1219,6 +1219,7 @@ getdns_return_t do_the_call(void)
 		if (r != GETDNS_RETURN_GOOD) {
 			fprintf(stderr, "An error occurred: %d '%s'\n", (int)r,
 				 getdns_get_errorstr_by_id(r));
+			getdns_dict_destroy(address);
 			return r;
 		}
 		if (response && !quiet) {
@@ -1242,6 +1243,7 @@ getdns_return_t do_the_call(void)
 		if (response)
 			getdns_dict_destroy(response);
 	}
+	getdns_dict_destroy(address);
 	return r;
 }
 

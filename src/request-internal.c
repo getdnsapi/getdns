@@ -845,6 +845,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		}
 	} else if (result->append_name ==
 	    GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE &&
+	    result->name[0] &&
 	    result->name[result->name[0]+1] != 0) {
 		/* We have multiple labels, no appending */
 		result->suffix_len = no_suffixes[0];

@@ -54,6 +54,7 @@
 #include <openssl/x509.h>
 #include <string.h>
 #include "context.h"
+#include "util-internal.h"
 
 /* we only support sha256 at the moment.  adding support for another
    digest is more complex than just adding another entry here. in
@@ -156,11 +157,9 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 */
 
 #define PKP_SC_ERR(e) { \
-       err.size = sizeof(e); \
-       err.data = (uint8_t*)e; \
        if (errorlist) \
-	       getdns_list_set_bindata(errorlist, \
-				       preverrs + errorcount, &err); \
+	       _getdns_list_append_const_bindata(errorlist, \
+				       sizeof(e), e); \
        errorcount++; \
 	}
 #define PKP_SC_HARDERR(e, val) { \
@@ -170,15 +169,10 @@ getdns_return_t getdns_pubkey_pinset_sanity_check(
 	const getdns_list* pinset,
 	getdns_list* errorlist)
 {
-	size_t errorcount = 0, preverrs = 0, pins = 0, i;
-	getdns_bindata err;
+	size_t errorcount = 0, pins = 0, i;
 	getdns_dict * pin;
 	getdns_bindata * data;
 
-	if (errorlist)
-		if (getdns_list_get_length(errorlist, &preverrs))
-			return GETDNS_RETURN_INVALID_PARAMETER;
-	
 	if (getdns_list_get_length(pinset, &pins))
 		PKP_SC_HARDERR("Can't get length of pinset",
 			       GETDNS_RETURN_INVALID_PARAMETER);
@@ -281,7 +275,6 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 	uint8_t buf[SHA256_DIGEST_LENGTH];
 	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
 	getdns_dict *pin = NULL;
-	size_t idx = 0;
 
 	if (out == NULL)
 		return GETDNS_RETURN_MEMORY_ERROR;
@@ -296,9 +289,8 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 		memcpy(buf, pinset_in->pin, sizeof(buf));
 		if (r = getdns_dict_set_bindata(pin, "value", &value), r)
 			goto fail;
-		if (r = getdns_list_set_dict(out, idx++, pin), r)
+		if (r = _getdns_list_append_this_dict(out, pin), r)
 			goto fail;
-		getdns_dict_destroy(pin);
 		pin = NULL;
 		pinset_in = pinset_in->next;
 	}

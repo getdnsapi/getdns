@@ -132,6 +132,7 @@ static int my_event_base_dispatch(struct ub_event_base* base)
 	/* We run the event loop extension for which this ub_event_base is an
 	 * interface ourselfs, so no need to let libunbound call dispatch.
 	 */
+	DEBUG_SCHED("UB_LOOP ERROR: my_event_base_dispatch()\n");
 	return -1;
 }
 
@@ -145,20 +146,36 @@ static int my_event_base_loopexit(struct ub_event_base* base, struct timeval* tv
 	return 0;
 }
 
-#define CLEAR_MY_EVENT(ev) \
-	do { (ev)->loop->extension->vmt->clear((ev)->loop->extension, \
-	    &(ev)->gev); (ev)->added = 0; if ((ev)->active) { \
-		*(ev)->active = 0; (ev)->active = NULL; }} while(0)
+static void clear_my_event(my_event *ev)
+{
+	DEBUG_SCHED("UB_LOOP: to clear %p(%d, %d, %"PRIu64"), total: %d\n"
+	           , ev, ev->fd, ev->bits, ev->timeout, ev->loop->n_events);
+	(ev)->loop->extension->vmt->clear((ev)->loop->extension, &(ev)->gev);
+	(ev)->added = 0;
+	if ((ev)->active) {
+		*(ev)->active = 0;
+		(ev)->active = NULL;
+	}
+	DEBUG_SCHED("UB_LOOP: %p(%d, %d, %"PRIu64") cleared, total: %d\n"
+	           , ev, ev->fd, ev->bits, ev->timeout, --ev->loop->n_events);
+}
 
 static getdns_return_t schedule_my_event(my_event *ev)
 {
 	getdns_return_t r;
 
-	if (ev->gev.read_cb || ev->gev.write_cb || ev->gev.write_cb) {
+	DEBUG_SCHED("UB_LOOP: to schedule %p(%d, %d, %"PRIu64"), total: %d\n"
+	           , ev, ev->fd, ev->bits, ev->timeout, ev->loop->n_events);
+	if (ev->gev.read_cb || ev->gev.write_cb || ev->gev.timeout_cb) {
 		if ((r = ev->loop->extension->vmt->schedule(
-		    ev->loop->extension, ev->fd, ev->timeout, &ev->gev)))
+		    ev->loop->extension, ev->fd, ev->timeout, &ev->gev))) {
+			DEBUG_SCHED("UB_LOOP ERROR: scheduling event: %p\n", ev);
 			return r;
+		}
 		ev->added = 1;
+		DEBUG_SCHED("UB_LOOP: event %p(%d, %d, %"PRIu64") scheduled, "
+		            "total: %d\n", ev, ev->fd, ev->bits, ev->timeout
+		           , ++ev->loop->n_events);
 	}
 	return GETDNS_RETURN_GOOD;
 }
@@ -184,7 +201,7 @@ static void read_cb(void *userarg)
 	if (active) {
 		ev->active = NULL;
 		if ((ev->bits & UB_EV_PERSIST) == 0)
-			CLEAR_MY_EVENT(ev);
+			clear_my_event(ev);
 	}
 }
 
@@ -209,7 +226,7 @@ static void write_cb(void *userarg)
 	if (active) {
 		ev->active = NULL;
 		if ((ev->bits & UB_EV_PERSIST) == 0)
-			CLEAR_MY_EVENT(ev);
+			clear_my_event(ev);
 	}
 }
 
@@ -224,7 +241,7 @@ static void timeout_cb(void *userarg)
 	if (active) {
 		ev->active = NULL;
 		if ((ev->bits & UB_EV_PERSIST) == 0)
-			CLEAR_MY_EVENT(ev);
+			clear_my_event(ev);
 	}
 }
 
@@ -234,7 +251,7 @@ static getdns_return_t set_gev_callbacks(my_event* ev, short bits)
 
 	if (ev->bits != bits) {
 		if (added)
-			CLEAR_MY_EVENT(ev);
+			clear_my_event(ev);
 
 		ev->gev.read_cb    = bits & UB_EV_READ    ? read_cb    : NULL;
 		ev->gev.write_cb   = bits & UB_EV_WRITE   ? write_cb   : NULL;
@@ -263,7 +280,7 @@ static void my_event_set_fd(struct ub_event* ub_ev, int fd)
 
 	if (ev->fd != fd) {
 		if (ev->added) {
-			CLEAR_MY_EVENT(ev);
+			clear_my_event(ev);
 			ev->fd = fd;
 			(void) schedule_my_event(ev);
 		} else
@@ -279,7 +296,7 @@ static void my_event_free(struct ub_event* ev)
 static int my_event_del(struct ub_event* ev)
 {
 	if (AS_MY_EVENT(ev)->added)
-		CLEAR_MY_EVENT(AS_MY_EVENT(ev));
+		clear_my_event(AS_MY_EVENT(ev));
 	return 0;
 }
 
@@ -315,11 +332,13 @@ static int my_timer_add(struct ub_event* ub_ev, struct ub_event_base* base,
 {
 	my_event *ev = AS_MY_EVENT(ub_ev);
 
-	if (!base || !cb || !tv || AS_UB_LOOP(base) != ev->loop)
+	if (!base || !cb || !tv || AS_UB_LOOP(base) != ev->loop) {
+		DEBUG_SCHED("UB_LOOP ERROR: my_timer_add()\n");
 		return -1;
+	}
 
 	if (ev->added)
-		CLEAR_MY_EVENT(ev);
+		clear_my_event(ev);
 
 	ev->cb = cb;
 	ev->arg = arg;
@@ -335,12 +354,14 @@ static int my_timer_del(struct ub_event* ev)
 static int my_signal_add(struct ub_event* ub_ev, struct timeval* tv)
 {
 	/* Only unbound daaemon workers use signals */
+	DEBUG_SCHED("UB_LOOP ERROR: signal_add()\n");
 	return -1;
 }
 
 static int my_signal_del(struct ub_event* ub_ev)
 {
 	/* Only unbound daaemon workers use signals */
+	DEBUG_SCHED("UB_LOOP ERROR: signal_del()\n");
 	return -1;
 }
 
@@ -439,6 +460,9 @@ void _getdns_ub_loop_init(_getdns_ub_loop *loop, struct mem_funcs *mf, getdns_ev
 	loop->mf = *mf;
 	loop->extension = extension;
 	loop->running = 1;
+#if defined(SCHED_DEBUG) && SCHED_DEBUG
+	loop->n_events = 0;
+#endif
 }
 
 #endif

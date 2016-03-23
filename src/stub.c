@@ -1823,7 +1823,7 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
 		if (upstream->tcp.write_error != 0)
 			idle_timeout = 0;
-		GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, 
+		GETDNS_SCHEDULE_EVENT(upstream->loop, -1, 
 		    idle_timeout, &upstream->event);
 	}
 }
@@ -1985,7 +1985,10 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		 * to begin with) worth the complexity of divergent code paths?
 		 */
 		GETDNS_SCHEDULE_EVENT(
-		    dnsreq->loop, netreq->upstream->fd, /*dnsreq->context->timeout,*/
+		    dnsreq->loop,
+		    ( dnsreq->loop != netreq->upstream->loop /* Synchronous lookup? */
+		    ? netreq->upstream->fd : -1),
+		    /*dnsreq->context->timeout,*/
 		    (transport == GETDNS_TRANSPORT_TLS ?
 		    dnsreq->context->timeout /2 : dnsreq->context->timeout),
 		    getdns_eventloop_event_init(&netreq->event, netreq, NULL,

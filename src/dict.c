@@ -530,51 +530,75 @@ getdns_dict_destroy(struct getdns_dict *dict)
 
 /*---------------------------------------- getdns_dict_set_dict */
 getdns_return_t
-getdns_dict_set_dict(
-    getdns_dict *dict, const char *name, const getdns_dict *child_dict)
+_getdns_dict_set_this_dict(
+    getdns_dict *dict, const char *name, getdns_dict *child_dict)
 {
 	getdns_item    *item;
-	getdns_dict    *newdict;
 	getdns_return_t r;
 
 	if (!dict || !name || !child_dict)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if ((r = _getdns_dict_copy(child_dict, &newdict)))
+	if ((r = _getdns_dict_find_and_add(dict, name, &item)))
 		return r;
 
-	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
-		getdns_dict_destroy(newdict);
-		return r;
-	}
 	item->dtype = t_dict;
-	item->data.dict = newdict;
+	item->data.dict = child_dict;
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_set_dict */
 
+getdns_return_t
+getdns_dict_set_dict(
+    getdns_dict *dict, const char *name, const getdns_dict *child_dict)
+{
+	getdns_dict    *newdict;
+	getdns_return_t r;
+
+	if ((r = _getdns_dict_copy(child_dict, &newdict)))
+		return r;
+
+	if ((r = _getdns_dict_set_this_dict(dict, name, newdict)))
+		getdns_dict_destroy(newdict);
+
+	return r;
+}
+
+
 /*---------------------------------------- getdns_dict_set_list */
 getdns_return_t
-getdns_dict_set_list(
-    getdns_dict *dict, const char *name, const getdns_list *child_list)
+_getdns_dict_set_this_list(
+    getdns_dict *dict, const char *name, getdns_list *child_list)
 {
 	getdns_item    *item;
-	getdns_list    *newlist;
 	getdns_return_t r;
 
 	if (!dict || !name || !child_list)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+	if ((r = _getdns_dict_find_and_add(dict, name, &item)))
+		return r;
+
+	item->dtype = t_list;
+	item->data.list = child_list;
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_dict_set_list */
+
+getdns_return_t
+getdns_dict_set_list(
+    getdns_dict *dict, const char *name, const getdns_list *child_list)
+{
+	getdns_list    *newlist;
+	getdns_return_t r;
+
 	if ((r = _getdns_list_copy(child_list, &newlist)))
 		return r;
 
-	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
+	if ((r = _getdns_dict_set_this_list(dict, name, newlist)))
 		getdns_list_destroy(newlist);
-		return r;
-	}
-	item->dtype = t_list;
-	item->data.list = newlist;
-	return GETDNS_RETURN_GOOD;
-}				/* getdns_dict_set_list */
+
+	return r;
+}
+
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
@@ -598,7 +622,7 @@ _getdns_dict_set_const_bindata(
 	item->dtype = t_bindata;
 	item->data.bindata = newbindata;
 	return GETDNS_RETURN_GOOD;
-}				/* getdns_dict_set_bindata */
+}
 
 getdns_return_t
 getdns_dict_set_bindata(

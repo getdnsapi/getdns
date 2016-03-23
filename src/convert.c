@@ -567,8 +567,8 @@ _getdns_fp2rr_list(struct mem_funcs *mf,
 			continue;
 		if ((r = _getdns_wire2rr_dict(mf, rr, len, &rr_dict)))
 			break;
-		r = _getdns_list_append_dict(rrs, rr_dict);
-		getdns_dict_destroy(rr_dict);
+		if ((r = _getdns_list_append_this_dict(rrs, rr_dict)))
+			getdns_dict_destroy(rr_dict);
 	}
 	if (rr)
 		GETDNS_FREE(*mf, rr);
@@ -637,9 +637,8 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 	SET_WIRE_CNT(arcount, ARCOUNT);
 
 	/* header */
-    	if ((r = getdns_dict_set_dict(result, "header", header)))
+    	if ((r = _getdns_dict_set_this_dict(result, "header", header)))
 		goto error;
-	getdns_dict_destroy(header);
 	header = NULL;
 	eop = *wire + 12;
 
@@ -655,25 +654,32 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 
 		switch ((section = _getdns_rr_iter_section(rr_iter))) {
 		case GLDNS_SECTION_QUESTION:
-			if ((r = getdns_dict_set_dict(
+			if ((r = _getdns_dict_set_this_dict(
 			     result, "question", rr_dict)))
 				goto error;
 			break;
 		default:
-			if ((r = _getdns_list_append_dict(
+			if ((r = _getdns_list_append_this_dict(
 			     sections[section], rr_dict)))
 				goto error;
 			break;
 		}
 		rr_dict = NULL;
 	}
-	if ((r = getdns_dict_set_list(result, "answer",
-					sections[GLDNS_SECTION_ANSWER])) ||
-	    (r = getdns_dict_set_list(result, "authority",
-				      sections[GLDNS_SECTION_AUTHORITY])) ||
-	    (r = getdns_dict_set_list(result, "additional",
-				      sections[GLDNS_SECTION_ADDITIONAL])))
-		goto error;
+	if (!(r = _getdns_dict_set_this_list(result, "answer",
+	    sections[GLDNS_SECTION_ANSWER])))
+		sections[GLDNS_SECTION_ANSWER] = NULL;
+	else	goto error;
+
+	if (!(r = _getdns_dict_set_this_list(result, "authority",
+	    sections[GLDNS_SECTION_AUTHORITY])))
+		sections[GLDNS_SECTION_AUTHORITY] = NULL;
+	else	goto error;
+
+	if (!(r = _getdns_dict_set_this_list(result, "additional",
+	    sections[GLDNS_SECTION_ADDITIONAL])))
+		sections[GLDNS_SECTION_ADDITIONAL] = NULL;
+	else	goto error;
 
 	*wire_len -= (eop - *wire);
 	*wire = eop;

@@ -335,22 +335,23 @@ _getdns_list_copy(const struct getdns_list * srclist,
 		switch (srclist->items[i].dtype) {
 		case t_int:
 			retval = _getdns_list_append_int(*dstlist,
-			         srclist->items[i].data.n);
+			    srclist->items[i].data.n);
 			break;
 
 		case t_list:
-			retval = _getdns_list_append_list(*dstlist,
-				srclist->items[i].data.list);
+			retval = getdns_list_set_list(*dstlist,
+			    (*dstlist)->numinuse, srclist->items[i].data.list);
 			break;
 
 		case t_bindata:
-			retval = _getdns_list_append_bindata(*dstlist,
-				srclist->items[i].data.bindata);
+			retval = _getdns_list_append_const_bindata(*dstlist,
+			    srclist->items[i].data.bindata->size, 
+			    srclist->items[i].data.bindata->data);
 			break;
 
 		case t_dict:
 			retval = _getdns_list_append_dict(*dstlist,
-				srclist->items[i].data.dict);
+			    srclist->items[i].data.dict);
 			break;
 		}
 		if (retval != GETDNS_RETURN_GOOD) {
@@ -506,6 +507,23 @@ _getdns_list_request_index(getdns_list *list, size_t index)
 }
 
 /*---------------------------------------- getdns_list_set_dict */
+static getdns_return_t
+_getdns_list_set_this_dict(
+    getdns_list *list, size_t index, getdns_dict *child_dict)
+{
+	getdns_return_t r;
+
+	if (!list || !child_dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if ((r = _getdns_list_request_index(list, index)))
+		return r;
+
+	list->items[index].dtype = t_dict;
+	list->items[index].data.dict = child_dict;
+	return GETDNS_RETURN_GOOD;
+}				/* getdns_list_set_dict */
+
 getdns_return_t
 getdns_list_set_dict(
     getdns_list *list, size_t index, const getdns_dict *child_dict)
@@ -519,13 +537,10 @@ getdns_list_set_dict(
 	if ((r = _getdns_dict_copy(child_dict, &newdict)))
 		return r;
 
-	if ((r = _getdns_list_request_index(list, index))) {
+	if ((r = _getdns_list_set_this_dict(list, index, newdict)))
 		getdns_dict_destroy(newdict);
-		return r;
-	}
-	list->items[index].dtype = t_dict;
-	list->items[index].data.dict = newdict;
-	return GETDNS_RETURN_GOOD;
+
+	return r;
 }				/* getdns_list_set_dict */
 
 /*---------------------------------------- getdns_list_set_list */
@@ -616,16 +631,10 @@ _getdns_list_append_dict(getdns_list *list, const getdns_dict *child_dict)
 	return getdns_list_set_dict(list, list->numinuse, child_dict);
 }
 getdns_return_t
-_getdns_list_append_list(getdns_list *list, const getdns_list *child_list)
+_getdns_list_append_this_dict(getdns_list *list, getdns_dict *child_dict)
 {
 	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
-	return getdns_list_set_list(list, list->numinuse, child_list);
-}
-getdns_return_t
-_getdns_list_append_bindata(getdns_list *list, const getdns_bindata *child_bindata)
-{
-	if (!list) return GETDNS_RETURN_INVALID_PARAMETER;
-	return getdns_list_set_bindata(list, list->numinuse, child_bindata);
+	return _getdns_list_set_this_dict(list, list->numinuse, child_dict);
 }
 getdns_return_t
 _getdns_list_append_const_bindata(

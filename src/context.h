@@ -248,6 +248,8 @@ struct getdns_context {
 
 #ifdef HAVE_LIBUNBOUND
 	getdns_eventloop_event  ub_event;
+	/* lock to prevent nested ub_event scheduling */
+	int                     ub_event_scheduling;
 #endif
 
 	/* The default extension */

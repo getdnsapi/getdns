@@ -20,3 +20,10 @@ A typical flow might be illustrated via tests_list:
 
 Some of the tests that remain to be implemented:
 - memory leak testing integrated into the test progs
+
+libcheck facilitates selectively debugging of specific cases.
+Example usage:
+$ CK_LOG_FILE_NAME="/dev/stderr" CK_FORK=no \
+    CK_RUN_SUITE="getdns_context_set_timeout()" CK_RUN_CASE="Positive" \
+    ../../libtool exe gdb --args ./check_getdns
+

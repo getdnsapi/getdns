@@ -76,7 +76,6 @@ main (int argc, char** argv)
 {
   int number_failed;
   SRunner *sr ;
-  char log_fn[1024], *exe_fn;
 
   Suite *getdns_general_suite(void);
   Suite *getdns_general_sync_suite(void);
@@ -153,20 +152,6 @@ main (int argc, char** argv)
   srunner_add_suite(sr,getdns_service_sync_suite());
   srunner_add_suite(sr,getdns_transport_suite());
   
-  if ((exe_fn = strrchr(argv[0], '/')) && *exe_fn) {
-    exe_fn += 1;
-    if (exe_fn[0] == 'l' && exe_fn[1] == 't' && exe_fn[2] == '-') {
-      exe_fn += 3;
-    }
-    if (strlen(strncpy(log_fn, exe_fn, sizeof(log_fn) - 1)) < sizeof(log_fn) - 5) {
-      (void) strncat(log_fn, ".log", 4);
-      srunner_set_log(sr, log_fn);
-    }
-    else
-      srunner_set_log(sr, "check_getdns.log");
-  }
-  else
-    srunner_set_log(sr, "check_getdns.log");
   srunner_run_all(sr, CK_NORMAL);
   number_failed = srunner_ntests_failed(sr);
   srunner_free(sr);
