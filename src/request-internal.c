@@ -167,6 +167,8 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	    net_req->transport_count * sizeof(getdns_transport_list_t));
 	net_req->tls_auth_min = owner->context->tls_auth_min;
 
+	net_req->follow_redirects = owner->context->follow_redirects;
+
 	/* state variables from the resolver, don't touch
 	 */
 	net_req->upstream = NULL;

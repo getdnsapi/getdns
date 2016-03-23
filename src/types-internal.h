@@ -205,6 +205,8 @@ typedef struct getdns_network_req
 	 */
 	int tsig_status;
 
+	getdns_redirects_t      follow_redirects;
+
 	/* For stub resolving */
 	struct getdns_upstream *upstream;
 	int                     fd;
