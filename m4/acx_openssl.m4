@@ -47,16 +47,16 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 ACX_RUNTIME_PATH_ADD([$ssldir/lib])
             fi
         
-            AC_MSG_CHECKING([for HMAC_CTX_init in -lcrypto])
+            AC_MSG_CHECKING([for HMAC_Update in -lcrypto])
             LIBS="-lssl -lcrypto $LIBS"
             LIBSSL_LIBS="-lssl -lcrypto $LIBSSL_LIBS"
             AC_TRY_LINK(, [
-                int HMAC_CTX_init(void);
-                (void)HMAC_CTX_init();
+                int HMAC_Update(void);
+                (void)HMAC_Update();
               ], [
+                AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                          [If you have HMAC_Update])
                 AC_MSG_RESULT(yes)
-                AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                          [If you have HMAC_CTX_init])
               ], [
                 AC_MSG_RESULT(no)
                 # check if -lwsock32 or -lgdi32 are needed.	
@@ -66,11 +66,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32"
                 AC_MSG_CHECKING([if -lcrypto needs -lgdi32])
                 AC_TRY_LINK([], [
-                    int HMAC_CTX_init(void);
-                    (void)HMAC_CTX_init();
+                    int HMAC_Update(void);
+                    (void)HMAC_Update();
                   ],[
-                    AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                        [If you have HMAC_CTX_init])
+                    AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                        [If you have HMAC_Update])
                     AC_MSG_RESULT(yes) 
                   ],[
                     AC_MSG_RESULT(no)
@@ -80,11 +80,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                     LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
                     AC_MSG_CHECKING([if -lcrypto needs -ldl])
                     AC_TRY_LINK([], [
-                        int HMAC_CTX_init(void);
-                        (void)HMAC_CTX_init();
+                        int HMAC_Update(void);
+                        (void)HMAC_Update();
                       ],[
-                        AC_DEFINE([HAVE_HMAC_CTX_INIT], 1, 
-                            [If you have HMAC_CTX_init])
+                        AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
+                            [If you have HMAC_Update])
                         AC_MSG_RESULT(yes) 
                       ],[
                         AC_MSG_RESULT(no)
