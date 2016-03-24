@@ -461,7 +461,10 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	unsigned int result_mac_len = EVP_MAX_MD_SIZE;
 	uint16_t original_id;
 	const EVP_MD *digester;
-	HMAC_CTX ctx;
+	HMAC_CTX *ctx;
+#ifndef HAVE_HMAC_CTX_NEW
+	HMAC_CTX ctx_space;
+#endif
 
 	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNCTION__);
 	for ( rr = _getdns_rr_iter_init(&rr_spc, req->query,
@@ -589,14 +592,18 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 #endif
 	default                : return;
 	}
-	
-	HMAC_CTX_init(&ctx);
-	(void) HMAC_Init_ex(&ctx, req->upstream->tsig_key,
+#ifdef HAVE_HMAC_CTX_NEW
+	ctx = HMAC_CTX_new();
+#else
+	ctx = &ctx_space;
+	HMAC_CTX_init(ctx);
+#endif	
+	(void) HMAC_Init_ex(ctx, req->upstream->tsig_key,
 	    req->upstream->tsig_size, digester, NULL);
-	(void) HMAC_Update(&ctx, request_mac - 2, request_mac_len + 2);
-	(void) HMAC_Update(&ctx, req->response, rr->pos - req->response);
-	(void) HMAC_Update(&ctx, tsig_vars, gldns_buffer_position(&gbuf));
-	HMAC_Final(&ctx, result_mac, &result_mac_len);
+	(void) HMAC_Update(ctx, request_mac - 2, request_mac_len + 2);
+	(void) HMAC_Update(ctx, req->response, rr->pos - req->response);
+	(void) HMAC_Update(ctx, tsig_vars, gldns_buffer_position(&gbuf));
+	HMAC_Final(ctx, result_mac, &result_mac_len);
 
 	DEBUG_STUB("%s %-35s: Result MAC length: %d\n",
 	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(result_mac_len));
@@ -604,8 +611,11 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	    memcmp(result_mac, response_mac, result_mac_len) == 0)
 		req->tsig_status = GETDNS_DNSSEC_SECURE;
 
-	HMAC_CTX_cleanup(&ctx);
-
+#ifdef HAVE_HMAC_CTX_FREE
+	HMAC_CTX_free(ctx);
+#else
+	HMAC_CTX_cleanup(ctx);
+#endif
 	gldns_write_uint16(req->response, gldns_read_uint16(req->query));
 	gldns_write_uint16(req->response + 10,
 	    gldns_read_uint16(req->response + 10) + 1);

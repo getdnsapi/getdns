@@ -338,7 +338,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv6" };
-       struct getdns_bindata address_data = { 16, (void *)"\x2a\x04\xb9\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x37" };
+       struct getdns_bindata address_data = { 16, (void *)"\x20\x01\x48\x60\x48\x60\x00\x00\x00\x00\x00\x00\x00\x00\x88\x88" };
        struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE(TRUE);

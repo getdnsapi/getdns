@@ -393,18 +393,13 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		}
 
 		x = sk_X509_value(store->untrusted, i);
-		if (x->cert_info == NULL)
-			continue;
 #if defined(STUB_DEBUG) && STUB_DEBUG
 		DEBUG_STUB("%s %-35s: Name of cert: %d ",
 		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i);
 		if (x->cert_info->subject != NULL)
-			X509_NAME_print_ex_fp(stderr, x->cert_info->subject, 1, XN_FLAG_ONELINE);
+			X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
 		fprintf(stderr, "\n");
 #endif
-		if (x->cert_info->key == NULL)
-			continue;
-
 		/* digest the cert with sha256 */
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
 		if (len > sizeof(raw)) {

@@ -57,7 +57,9 @@ typedef struct getdns_sync_data {
 static getdns_return_t
 getdns_sync_data_init(getdns_context *context, getdns_sync_data *data)
 {
+#ifdef HAVE_LIBUNBOUND
 	getdns_eventloop *ext = &context->sync_eventloop.loop;
+#endif
 
 	data->context  = context;
 	data->to_run   = 1;
