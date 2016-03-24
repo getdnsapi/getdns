@@ -624,6 +624,7 @@ void
 _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
 	getdns_upstream *upstream;
+	getdns_dns_req *dnsreq;
 
 	if (!upstreams || --upstreams->referenced > 0)
 		return;
@@ -641,6 +642,17 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			upstream->event.read_cb = NULL;
 			upstream->event.write_cb = NULL;
 			upstream->event.timeout_cb = NULL;
+		}
+		if (upstream->loop &&  upstream->finished_event.timeout_cb) {
+			GETDNS_CLEAR_EVENT(upstream->loop,
+			    &upstream->finished_event);
+			upstream->finished_event.timeout_cb = NULL;
+		}
+		while (upstream->finished_dnsreqs) {
+			dnsreq = upstream->finished_dnsreqs;
+			upstream->finished_dnsreqs = dnsreq->finished_next;
+			(void) _getdns_context_cancel_request(dnsreq->context,
+			    dnsreq->trans_id, 1);
 		}
 		if (upstream->tls_obj != NULL) {
 			SSL_shutdown(upstream->tls_obj);
@@ -811,6 +823,10 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->write_queue = NULL;
 	upstream->write_queue_last = NULL;
+
+	upstream->finished_dnsreqs = NULL;
+	(void) getdns_eventloop_event_init(
+	    &upstream->finished_event, upstream, NULL, NULL, NULL);
 
 	upstream->has_client_cookie = 0;
 	upstream->has_prev_client_cookie = 0;

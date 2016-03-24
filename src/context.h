@@ -140,6 +140,23 @@ typedef struct getdns_upstream {
 	getdns_network_req      *write_queue_last;
 	_getdns_rbtree_t          netreq_by_query_id;
 
+	/* When requests have been scheduled asynchronously on an upstream
+	 * that is kept open, and a synchronous call is then done with the
+	 * upstream before all scheduled requests have been answered, answers
+	 * for the asynchronous requests may be received on the open upstream.
+	 * Those cannot be processed immediately, because then asynchronous
+	 * callbacks will be fired as a side-effect.
+	 *
+	 * finished_dnsreqs is a list of dnsreqs for which answers have been
+	 * received during a synchronous request.  They will be processed
+	 * when the asynchronous eventloop is run.  For this the finished_event
+	 * will be scheduled to the registered asynchronous event loop with a
+	 * timeout of 1, so it will fire immediately (but not while scheduling)
+	 * when the asynchronous eventloop is run.
+	 */
+	getdns_dns_req          *finished_dnsreqs;
+	getdns_eventloop_event   finished_event;
+
 	/* EDNS cookies */
 	uint32_t secret;
 	uint8_t  client_cookie[8];

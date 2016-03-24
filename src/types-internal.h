@@ -325,6 +325,13 @@ typedef struct getdns_dns_req {
 	/* Stuff for stub resolving */
 	struct getdns_upstreams *upstreams;
 
+	/* Linked list pointer for dns requests, for which answers are received
+	 * from open connections as aside-effect of doing a synchronous call.
+	 * See also the type definition of getdns_upstream in context.h for a
+	 * more elaborate description.
+	 */
+	struct getdns_dns_req *finished_next;
+
 	/* network requests for this dns request.
 	 * The array is terminated with NULL.
 	 *
