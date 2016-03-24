@@ -840,7 +840,9 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		GETDNS_FREE(result->my_mf, result);
 		return NULL;
 	}
-	if (result->append_name == GETDNS_APPEND_NAME_ALWAYS) {
+	if (result->append_name == GETDNS_APPEND_NAME_ALWAYS ||
+	    (  result->append_name == GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST
+	    && result->name[0] && result->name[result->name[0]+1] == 0)){
 		for (
 		    ; result->suffix_len > 1 && *result->suffix
 		    ; result->suffix += result->suffix_len
