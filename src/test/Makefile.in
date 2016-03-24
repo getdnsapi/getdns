@@ -154,10 +154,10 @@ nolibcheck:
 test:	$(NOLIBCHECK) all
 	(cd $(srcdir)/../.. && find . -type f -executable -and \( -name "*.[ch]" -or -name "*.html" -or -name "*.in" -or -name "*.good" -or -name "*.ac" \) | awk 'BEGIN{e=0}{print("ERROR! Executable bit found on", $$0);e=1}END{exit(e)}')
 	rm -f fails
-	CK_LOG_FILE_NAME="$(CHECK_GETDNS).log" ./$(CHECK_GETDNS) || echo "$(CHECK_GETDNS) failed" >> fails
-	if test $(have_libevent) = 1 ; then CK_LOG_FILE_NAME="$(CHECK_EVENT_PROG).log" ./$(CHECK_EVENT_PROG) || echo "$(CHECK_EVENT_PROG) failed" >> fails; fi
-	if test $(have_libev) = 1 ; then CK_LOG_FILE_NAME="$(CHECK_EV_PROG).log" ./$(CHECK_EV_PROG) || echo "$(CHECK_EV_PROG) failed" >> fails; fi
-	if test $(have_libuv) = 1 ; then CK_LOG_FILE_NAME="$(CHECK_UV_PROG).log" ./$(CHECK_UV_PROG) || echo "$(CHECK_UV_PROG) failed" >> fails; fi
+	CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_GETDNS).log" ./$(CHECK_GETDNS) || echo "$(CHECK_GETDNS) failed" >> fails
+	if test $(have_libevent) = 1 ; then CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_EVENT_PROG).log" ./$(CHECK_EVENT_PROG) || echo "$(CHECK_EVENT_PROG) failed" >> fails; fi
+	if test $(have_libev) = 1 ; then CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_EV_PROG).log" ./$(CHECK_EV_PROG) || echo "$(CHECK_EV_PROG) failed" >> fails; fi
+	if test $(have_libuv) = 1 ; then CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_UV_PROG).log" ./$(CHECK_UV_PROG) || echo "$(CHECK_UV_PROG) failed" >> fails; fi
 	test ! -e fails
 	@echo "All tests OK"
 

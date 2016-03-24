@@ -1248,7 +1248,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_do_bit = 0;
 	result->edns_client_subnet_private = 0;
 	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
-	result-> tls_ctx = NULL;
+	result->tls_ctx = NULL;
 
 	result->extension = &result->default_eventloop.loop;
 	_getdns_default_eventloop_init(&result->default_eventloop);
@@ -1942,17 +1942,19 @@ getdns_return_t
 getdns_context_set_dns_root_servers(
     getdns_context *context, getdns_list *addresses)
 {
-#if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
+#ifdef HAVE_LIBUNBOUND
+#  ifndef HAVE_UB_CTX_SET_STUB
 	char tmpfn[FILENAME_MAX] = P_tmpdir "/getdns-root-dns-servers-XXXXXX";
 	FILE *fh;
 	int fd;
 	size_t dst_len;
-#endif
+#  endif
 	size_t i;
 	getdns_dict *rr_dict;
 	getdns_return_t r;
 	getdns_bindata *addr_bd;
 	char dst[2048];
+#endif
 	getdns_list *newlist;
 
 	if (!context)
@@ -2909,9 +2911,22 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 		if (context->tls_ctx == NULL) {
 #ifdef HAVE_TLS_v1_2
 			/* Create client context, use TLS v1.2 only for now */
+#  ifdef HAVE_TLS_CLIENT_METHOD
+			context->tls_ctx = SSL_CTX_new(TLS_client_method());
+#  else
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
+#  endif
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
+
+#  ifdef HAVE_TLS_CLIENT_METHOD
+			if (!SSL_CTX_set_min_proto_version(
+			    context->tls_ctx, TLS1_2_VERSION)) {
+				SSL_CTX_free(context->tls_ctx);
+				context->tls_ctx = NULL;
+				return GETDNS_RETURN_BAD_CONTEXT;
+			}
+#  endif
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
 			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
@@ -2919,11 +2934,11 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/
-#ifndef USE_WINSOCK
+#  ifndef USE_WINSOCK
 			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
-#else
+#  else
 			if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
-#endif /* USE_WINSOCK */
+#  endif /* USE_WINSOCK */
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}

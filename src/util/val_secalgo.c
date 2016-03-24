@@ -42,12 +42,13 @@
  */
 #include "config.h"
 #include "util/val_secalgo.h"
+#define NSEC3_HASH_SHA1 0x01
 #include "util/log.h"
 #include "gldns/rrdef.h"
 #include "gldns/keyraw.h"
 #include "gldns/gbuffer.h"
 
-#if !defined(HAVE_SSL) && !defined(HAVE_NSS)
+#if !defined(HAVE_SSL) && !defined(HAVE_NSS) && !defined(HAVE_NETTLE)
 #error "Need crypto library to do digital signature cryptography"
 #endif
 
@@ -69,10 +70,36 @@
 #include <openssl/engine.h>
 #endif
 
+/* return size of digest if supported, or 0 otherwise */
+size_t
+nsec3_hash_algo_size_supported(int id)
+{
+	switch(id) {
+	case NSEC3_HASH_SHA1:
+		return SHA_DIGEST_LENGTH;
+	default:
+		return 0;
+	}
+}
+
+/* perform nsec3 hash. return false on failure */
+int
+secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+        unsigned char* res)
+{
+	switch(algo) {
+	case NSEC3_HASH_SHA1:
+		(void)SHA1(buf, len, res);
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 /**
  * Return size of DS digest according to its hash algorithm.
  * @param algo: DS digest algo.
- * @return size in bytes of digest, or 0 if not supported. 
+ * @return size in bytes of digest, or 0 if not supported.
  */
 size_t
 _getdns_ds_digest_size_supported(int algo)
@@ -88,7 +115,8 @@ _getdns_ds_digest_size_supported(int algo)
 #endif
 #ifdef USE_GOST
 		case GLDNS_HASH_GOST:
-			(void) gldns_key_EVP_load_gost_id();
+			/* we support GOST if it can be loaded */
+			(void)gldns_key_EVP_load_gost_id();
 			if(EVP_get_digestbyname("md_gost94"))
 				return 32;
 			else	return 0;
@@ -156,8 +184,10 @@ _getdns_dnskey_algo_id_is_supported(int id)
 	case GLDNS_RSAMD5:
 		/* RFC 6725 deprecates RSAMD5 */
 		return 0;
+#ifdef USE_DSA
 	case GLDNS_DSA:
 	case GLDNS_DSA_NSEC3:
+#endif
 	case GLDNS_RSASHA1:
 	case GLDNS_RSASHA1_NSEC3:
 #if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
@@ -197,6 +227,7 @@ log_crypto_error(const char* str, unsigned long e)
 	log_err("%s crypto %s", str, buf);
 }
 
+#ifdef USE_DSA
 /**
  * Setup DSA key digest in DER encoding ... 
  * @param sig: input is signature output alloced ptr (unless failure).
@@ -238,6 +269,7 @@ setup_dsa_sig(unsigned char** sig, unsigned int* len)
 	DSA_SIG_free(dsasig);
 	return 1;
 }
+#endif /* USE_DSA */
 
 #ifdef USE_ECDSA
 /**
@@ -251,32 +283,61 @@ setup_dsa_sig(unsigned char** sig, unsigned int* len)
 static int
 setup_ecdsa_sig(unsigned char** sig, unsigned int* len)
 {
-	ECDSA_SIG* ecdsa_sig;
-	int newlen;
+        /* convert from two BIGNUMs in the rdata buffer, to ASN notation.
+	 * ASN preable:  30440220 <R 32bytefor256> 0220 <S 32bytefor256>
+	 * the '20' is the length of that field (=bnsize).
+i	 * the '44' is the total remaining length.
+	 * if negative, start with leading zero.
+	 * if starts with 00s, remove them from the number.
+	 */
+        uint8_t pre[] = {0x30, 0x44, 0x02, 0x20};
+        int pre_len = 4;
+        uint8_t mid[] = {0x02, 0x20};
+        int mid_len = 2;
+        int raw_sig_len, r_high, s_high, r_rem=0, s_rem=0;
 	int bnsize = (int)((*len)/2);
+        unsigned char* d = *sig;
+	uint8_t* p;
 	/* if too short or not even length, fails */
 	if(*len < 16 || bnsize*2 != (int)*len)
 		return 0;
-	/* use the raw data to parse two evenly long BIGNUMs, "r | s". */
-	ecdsa_sig = ECDSA_SIG_new();
-	if(!ecdsa_sig) return 0;
-	ecdsa_sig->r = BN_bin2bn(*sig, bnsize, ecdsa_sig->r);
-	ecdsa_sig->s = BN_bin2bn(*sig+bnsize, bnsize, ecdsa_sig->s);
-	if(!ecdsa_sig->r || !ecdsa_sig->s) {
-		ECDSA_SIG_free(ecdsa_sig);
-		return 0;
-	}
 
-	/* spool it into ASN format */
-	*sig = NULL;
-	newlen = i2d_ECDSA_SIG(ecdsa_sig, sig);
-	if(newlen <= 0) {
-		ECDSA_SIG_free(ecdsa_sig);
-		free(*sig);
+        /* strip leading zeroes from r (but not last one) */
+        while(r_rem < bnsize-1 && d[r_rem] == 0)
+                r_rem++;
+        /* strip leading zeroes from s (but not last one) */
+        while(s_rem < bnsize-1 && d[bnsize+s_rem] == 0)
+                s_rem++;
+
+        r_high = ((d[0+r_rem]&0x80)?1:0);
+        s_high = ((d[bnsize+s_rem]&0x80)?1:0);
+        raw_sig_len = pre_len + r_high + bnsize - r_rem + mid_len +
+                s_high + bnsize - s_rem;
+	*sig = (unsigned char*)malloc((size_t)raw_sig_len);
+	if(!*sig)
 		return 0;
+	p = (uint8_t*)*sig;
+	p[0] = pre[0];
+	p[1] = (uint8_t)(raw_sig_len-2);
+	p[2] = pre[2];
+	p[3] = (uint8_t)(bnsize + r_high - r_rem);
+	p += 4;
+	if(r_high) {
+		*p = 0;
+		p += 1;
 	}
-	*len = (unsigned int)newlen;
-	ECDSA_SIG_free(ecdsa_sig);
+	memmove(p, d+r_rem, (size_t)bnsize-r_rem);
+	p += bnsize-r_rem;
+	memmove(p, mid, (size_t)mid_len-1);
+	p += mid_len-1;
+	*p = (uint8_t)(bnsize + s_high - s_rem);
+	p += 1;
+        if(s_high) {
+		*p = 0;
+		p += 1;
+	}
+	memmove(p, d+bnsize+s_rem, (size_t)bnsize-s_rem);
+	*len = (unsigned int)raw_sig_len;
 	return 1;
 }
 #endif /* USE_ECDSA */
@@ -295,10 +356,13 @@ static int
 setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type, 
 	unsigned char* key, size_t keylen)
 {
+#ifdef USE_DSA
 	DSA* dsa;
+#endif
 	RSA* rsa;
 
 	switch(algo) {
+#ifdef USE_DSA
 		case GLDNS_DSA:
 		case GLDNS_DSA_NSEC3:
 			*evp_key = EVP_PKEY_new();
@@ -320,6 +384,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 			*digest_type = EVP_dss1();
 
 			break;
+#endif /* USE_DSA */
 		case GLDNS_RSASHA1:
 		case GLDNS_RSASHA1_NSEC3:
 #if defined(HAVE_EVP_SHA256) && defined(USE_SHA2)
@@ -478,7 +543,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 	char** reason)
 {
 	const EVP_MD *digest_type;
-	EVP_MD_CTX ctx;
+	EVP_MD_CTX* ctx;
 	int res, dofree = 0;
 	EVP_PKEY *evp_key = NULL;
 	
@@ -488,6 +553,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_PKEY_free(evp_key);
 		return 0;
 	}
+#ifdef USE_DSA
 	/* if it is a DSA signature in bind format, convert to DER format */
 	if((algo == GLDNS_DSA || algo == GLDNS_DSA_NSEC3) && 
 		sigblock_len == 1+2*SHA_DIGEST_LENGTH) {
@@ -499,8 +565,12 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		}
 		dofree = 1;
 	}
+#endif
+#if defined(USE_ECDSA) && defined(USE_DSA)
+	else 
+#endif
 #ifdef USE_ECDSA
-	else if(algo == GLDNS_ECDSAP256SHA256 || algo == GLDNS_ECDSAP384SHA384) {
+	if(algo == GLDNS_ECDSAP256SHA256 || algo == GLDNS_ECDSAP384SHA384) {
 		/* EVP uses ASN prefix on sig, which is not in the wire data */
 		if(!setup_ecdsa_sig(&sigblock, &sigblock_len)) {
 			verbose(VERB_QUERY, "verify: failed to setup ECDSA sig");
@@ -513,28 +583,36 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 #endif /* USE_ECDSA */
 
 	/* do the signature cryptography work */
-	EVP_MD_CTX_init(&ctx);
-	if(EVP_VerifyInit(&ctx, digest_type) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyInit failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
+	ctx = EVP_MD_CTX_new();
+#else
+	ctx = (EVP_MD_CTX*)malloc(sizeof(*ctx));
+	if(ctx) EVP_MD_CTX_init(ctx);
+#endif
+	if(!ctx) {
+		log_err("EVP_MD_CTX_new: malloc failure");
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
 		return 0;
 	}
-	if(EVP_VerifyUpdate(&ctx, (unsigned char*)gldns_buffer_begin(buf), 
+	if(EVP_VerifyInit(ctx, digest_type) == 0) {
+		verbose(VERB_QUERY, "verify: EVP_VerifyInit failed");
+		EVP_MD_CTX_destroy(ctx);
+		EVP_PKEY_free(evp_key);
+		if(dofree) free(sigblock);
+		return 0;
+	}
+	if(EVP_VerifyUpdate(ctx, (unsigned char*)gldns_buffer_begin(buf), 
 		(unsigned int)gldns_buffer_limit(buf)) == 0) {
 		verbose(VERB_QUERY, "verify: EVP_VerifyUpdate failed");
+		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
 		return 0;
 	}
 
-	res = EVP_VerifyFinal(&ctx, sigblock, sigblock_len, evp_key);
-	if(EVP_MD_CTX_cleanup(&ctx) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_MD_CTX_cleanup failed");
-		EVP_PKEY_free(evp_key);
-		if(dofree) free(sigblock);
-		return 0;
-	}
+	res = EVP_VerifyFinal(ctx, sigblock, sigblock_len, evp_key);
+	EVP_MD_CTX_destroy(ctx);
 	EVP_PKEY_free(evp_key);
 
 	if(dofree)
@@ -563,6 +641,32 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 #include "cryptohi.h"
 /* nspr4 */
 #include "prerror.h"
+
+/* return size of digest if supported, or 0 otherwise */
+size_t
+nsec3_hash_algo_size_supported(int id)
+{
+	switch(id) {
+	case NSEC3_HASH_SHA1:
+		return SHA1_LENGTH;
+	default:
+		return 0;
+	}
+}
+
+/* perform nsec3 hash. return false on failure */
+int
+secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+        unsigned char* res)
+{
+	switch(algo) {
+	case NSEC3_HASH_SHA1:
+		(void)HASH_HashBuf(HASH_AlgSHA1, res, buf, (unsigned long)len);
+		return 1;
+	default:
+		return 0;
+	}
+}
 
 size_t
 _getdns_ds_digest_size_supported(int algo)
@@ -622,8 +726,10 @@ _getdns_dnskey_algo_id_is_supported(int id)
 	case GLDNS_RSAMD5:
 		/* RFC 6725 deprecates RSAMD5 */
 		return 0;
+#ifdef USE_DSA
 	case GLDNS_DSA:
 	case GLDNS_DSA_NSEC3:
+#endif
 	case GLDNS_RSASHA1:
 	case GLDNS_RSASHA1_NSEC3:
 #ifdef USE_SHA2
@@ -864,6 +970,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 	*/
 
 	switch(algo) {
+#ifdef USE_DSA
 		case GLDNS_DSA:
 		case GLDNS_DSA_NSEC3:
 			*pubkey = nss_buf2dsa(key, keylen);
@@ -874,6 +981,7 @@ nss_setup_key_digest(int algo, SECKEYPublicKey** pubkey, HASH_HashType* htype,
 			*htype = HASH_AlgSHA1;
 			/* no prefix for DSA verification */
 			break;
+#endif
 		case GLDNS_RSASHA1:
 		case GLDNS_RSASHA1_NSEC3:
 #ifdef USE_SHA2
@@ -990,6 +1098,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		return 0;
 	}
 
+#ifdef USE_DSA
 	/* need to convert DSA, ECDSA signatures? */
 	if((algo == GLDNS_DSA || algo == GLDNS_DSA_NSEC3)) {
 		if(sigblock_len == 1+2*SHA1_LENGTH) {
@@ -1012,6 +1121,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 			SECITEM_FreeItem(p, PR_TRUE);
 		}
 	}
+#endif /* USE_DSA */
 
 	/* do the signature cryptography work */
 	/* hash the data */
@@ -1068,5 +1178,470 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 	return 0;
 }
 
+#elif defined(HAVE_NETTLE)
 
-#endif /* HAVE_SSL or HAVE_NSS */
+#include "sha.h"
+#include "bignum.h"
+#include "macros.h"
+#include "rsa.h"
+#include "dsa.h"
+#include "asn1.h"
+#ifdef USE_ECDSA
+#include "ecdsa.h"
+#include "ecc-curve.h"
+#endif
+
+static int
+_digest_nettle(int algo, uint8_t* buf, size_t len,
+	unsigned char* res)
+{
+	switch(algo) {
+		case SHA1_DIGEST_SIZE:
+		{
+			struct sha1_ctx ctx;
+			sha1_init(&ctx);
+			sha1_update(&ctx, len, buf);
+			sha1_digest(&ctx, SHA1_DIGEST_SIZE, res);
+			return 1;
+		}
+		case SHA256_DIGEST_SIZE:
+		{
+			struct sha256_ctx ctx;
+			sha256_init(&ctx);
+			sha256_update(&ctx, len, buf);
+			sha256_digest(&ctx, SHA256_DIGEST_SIZE, res);
+			return 1;
+		}
+		case SHA384_DIGEST_SIZE:
+		{
+			struct sha384_ctx ctx;
+			sha384_init(&ctx);
+			sha384_update(&ctx, len, buf);
+			sha384_digest(&ctx, SHA384_DIGEST_SIZE, res);
+			return 1;
+		}
+		case SHA512_DIGEST_SIZE:
+		{
+			struct sha512_ctx ctx;
+			sha512_init(&ctx);
+			sha512_update(&ctx, len, buf);
+			sha512_digest(&ctx, SHA512_DIGEST_SIZE, res);
+			return 1;
+		}
+		default:
+			break;
+	}
+	return 0;
+}
+
+/* return size of digest if supported, or 0 otherwise */
+size_t
+nsec3_hash_algo_size_supported(int id)
+{
+	switch(id) {
+	case NSEC3_HASH_SHA1:
+		return SHA1_DIGEST_SIZE;
+	default:
+		return 0;
+	}
+}
+
+/* perform nsec3 hash. return false on failure */
+int
+secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+        unsigned char* res)
+{
+	switch(algo) {
+	case NSEC3_HASH_SHA1:
+		return _digest_nettle(SHA1_DIGEST_SIZE, (uint8_t*)buf, len,
+			res);
+	default:
+		return 0;
+	}
+}
+
+/**
+ * Return size of DS digest according to its hash algorithm.
+ * @param algo: DS digest algo.
+ * @return size in bytes of digest, or 0 if not supported.
+ */
+size_t
+_getdns_ds_digest_size_supported(int algo)
+{
+	switch(algo) {
+		case GLDNS_SHA1:
+			return SHA1_DIGEST_SIZE;
+#ifdef USE_SHA2
+		case GLDNS_SHA256:
+			return SHA256_DIGEST_SIZE;
+#endif
+#ifdef USE_ECDSA
+		case GLDNS_SHA384:
+			return SHA384_DIGEST_SIZE;
+#endif
+		/* GOST not supported */
+		case GLDNS_HASH_GOST:
+		default:
+			break;
+	}
+	return 0;
+}
+
+int
+_getdns_secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
+	unsigned char* res)
+{
+	switch(algo) {
+		case GLDNS_SHA1:
+			return _digest_nettle(SHA1_DIGEST_SIZE, buf, len, res);
+#if defined(USE_SHA2)
+		case GLDNS_SHA256:
+			return _digest_nettle(SHA256_DIGEST_SIZE, buf, len, res);
+#endif
+#ifdef USE_ECDSA
+		case GLDNS_SHA384:
+			return _digest_nettle(SHA384_DIGEST_SIZE, buf, len, res);
+
+#endif
+		case GLDNS_HASH_GOST:
+		default:
+			verbose(VERB_QUERY, "unknown DS digest algorithm %d",
+				algo);
+			break;
+	}
+	return 0;
+}
+
+int
+_getdns_dnskey_algo_id_is_supported(int id)
+{
+	/* uses libnettle */
+	switch(id) {
+#ifdef USE_DSA
+	case GLDNS_DSA:
+	case GLDNS_DSA_NSEC3:
+#endif
+	case GLDNS_RSASHA1:
+	case GLDNS_RSASHA1_NSEC3:
+#ifdef USE_SHA2
+	case GLDNS_RSASHA256:
+	case GLDNS_RSASHA512:
+#endif
+#ifdef USE_ECDSA
+	case GLDNS_ECDSAP256SHA256:
+	case GLDNS_ECDSAP384SHA384:
+#endif
+		return 1;
+	case GLDNS_RSAMD5: /* RFC 6725 deprecates RSAMD5 */
+	case GLDNS_ECC_GOST:
+	default:
+		return 0;
+	}
+}
+
+static char *
+_verify_nettle_dsa(gldns_buffer* buf, unsigned char* sigblock,
+	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
+{
+	uint8_t digest[SHA1_DIGEST_SIZE];
+	uint8_t key_t;
+	int res = 0;
+	size_t offset;
+	struct dsa_public_key pubkey;
+	struct dsa_signature signature;
+	unsigned int expected_len;
+
+	/* Extract DSA signature from the record */
+	nettle_dsa_signature_init(&signature);
+	/* Signature length: 41 bytes - RFC 2536 sec. 3 */
+	if(sigblock_len == 41) {
+		if(key[0] != sigblock[0])
+			return "invalid T value in DSA signature or pubkey";
+		nettle_mpz_set_str_256_u(signature.r, 20, sigblock+1);
+		nettle_mpz_set_str_256_u(signature.s, 20, sigblock+1+20);
+	} else {
+		/* DER encoded, decode the ASN1 notated R and S bignums */
+		/* SEQUENCE { r INTEGER, s INTEGER } */
+		struct asn1_der_iterator i, seq;
+		if(asn1_der_iterator_first(&i, sigblock_len,
+			(uint8_t*)sigblock) != ASN1_ITERATOR_CONSTRUCTED
+			|| i.type != ASN1_SEQUENCE)
+			return "malformed DER encoded DSA signature";
+		/* decode this element of i using the seq iterator */
+		if(asn1_der_decode_constructed(&i, &seq) !=
+			ASN1_ITERATOR_PRIMITIVE || seq.type != ASN1_INTEGER)
+			return "malformed DER encoded DSA signature";
+		if(!asn1_der_get_bignum(&seq, signature.r, 20*8))
+			return "malformed DER encoded DSA signature";
+		if(asn1_der_iterator_next(&seq) != ASN1_ITERATOR_PRIMITIVE
+			|| seq.type != ASN1_INTEGER)
+			return "malformed DER encoded DSA signature";
+		if(!asn1_der_get_bignum(&seq, signature.s, 20*8))
+			return "malformed DER encoded DSA signature";
+		if(asn1_der_iterator_next(&i) != ASN1_ITERATOR_END)
+			return "malformed DER encoded DSA signature";
+	}
+
+	/* Validate T values constraints - RFC 2536 sec. 2 & sec. 3 */
+	key_t = key[0];
+	if (key_t > 8) {
+		return "invalid T value in DSA pubkey";
+	}
+
+	/* Pubkey minimum length: 21 bytes - RFC 2536 sec. 2 */
+	if (keylen < 21) {
+		return "DSA pubkey too short";
+	}
+
+	expected_len =   1 +		/* T */
+		        20 +		/* Q */
+		       (64 + key_t*8) +	/* P */
+		       (64 + key_t*8) +	/* G */
+		       (64 + key_t*8);	/* Y */
+	if (keylen != expected_len ) {
+		return "invalid DSA pubkey length";
+	}
+
+	/* Extract DSA pubkey from the record */
+	nettle_dsa_public_key_init(&pubkey);
+	offset = 1;
+	nettle_mpz_set_str_256_u(pubkey.q, 20, key+offset);
+	offset += 20;
+	nettle_mpz_set_str_256_u(pubkey.p, (64 + key_t*8), key+offset);
+	offset += (64 + key_t*8);
+	nettle_mpz_set_str_256_u(pubkey.g, (64 + key_t*8), key+offset);
+	offset += (64 + key_t*8);
+	nettle_mpz_set_str_256_u(pubkey.y, (64 + key_t*8), key+offset);
+
+	/* Digest content of "buf" and verify its DSA signature in "sigblock"*/
+	res = _digest_nettle(SHA1_DIGEST_SIZE, (unsigned char*)gldns_buffer_begin(buf),
+						(unsigned int)gldns_buffer_limit(buf), (unsigned char*)digest);
+	res &= dsa_sha1_verify_digest(&pubkey, digest, &signature);
+
+	/* Clear and return */
+	nettle_dsa_signature_clear(&signature);
+	nettle_dsa_public_key_clear(&pubkey);
+	if (!res)
+		return "DSA signature verification failed";
+	else
+		return NULL;
+}
+
+static char *
+_verify_nettle_rsa(gldns_buffer* buf, unsigned int digest_size, char* sigblock,
+	unsigned int sigblock_len, uint8_t* key, unsigned int keylen)
+{
+	uint16_t exp_len = 0;
+	size_t exp_offset = 0, mod_offset = 0;
+	struct rsa_public_key pubkey;
+	mpz_t signature;
+	int res = 0;
+
+	/* RSA pubkey parsing as per RFC 3110 sec. 2 */
+	if( keylen <= 1) {
+		return "null RSA key";
+	}
+	if (key[0] != 0) {
+		/* 1-byte length */
+		exp_len = key[0];
+		exp_offset = 1;
+	} else {
+		/* 1-byte NUL + 2-bytes exponent length */
+		if (keylen < 3) {
+			return "incorrect RSA key length";
+		}
+		exp_len = READ_UINT16(key+1);
+		if (exp_len == 0)
+			return "null RSA exponent length";
+		exp_offset = 3;
+	}
+	/* Check that we are not over-running input length */
+	if (keylen < exp_offset + exp_len + 1) {
+		return "RSA key content shorter than expected";
+	}
+	mod_offset = exp_offset + exp_len;
+	nettle_rsa_public_key_init(&pubkey);
+	pubkey.size = keylen - mod_offset;
+	nettle_mpz_set_str_256_u(pubkey.e, exp_len, &key[exp_offset]);
+	nettle_mpz_set_str_256_u(pubkey.n, pubkey.size, &key[mod_offset]);
+
+	/* Digest content of "buf" and verify its RSA signature in "sigblock"*/
+	nettle_mpz_init_set_str_256_u(signature, sigblock_len, (uint8_t*)sigblock);
+	switch (digest_size) {
+		case SHA1_DIGEST_SIZE:
+		{
+			uint8_t digest[SHA1_DIGEST_SIZE];
+			res = _digest_nettle(SHA1_DIGEST_SIZE, (unsigned char*)gldns_buffer_begin(buf),
+						(unsigned int)gldns_buffer_limit(buf), (unsigned char*)digest);
+			res &= rsa_sha1_verify_digest(&pubkey, digest, signature);
+			break;
+		}
+		case SHA256_DIGEST_SIZE:
+		{
+			uint8_t digest[SHA256_DIGEST_SIZE];
+			res = _digest_nettle(SHA256_DIGEST_SIZE, (unsigned char*)gldns_buffer_begin(buf),
+						(unsigned int)gldns_buffer_limit(buf), (unsigned char*)digest);
+			res &= rsa_sha256_verify_digest(&pubkey, digest, signature);
+			break;
+		}
+		case SHA512_DIGEST_SIZE:
+		{
+			uint8_t digest[SHA512_DIGEST_SIZE];
+			res = _digest_nettle(SHA512_DIGEST_SIZE, (unsigned char*)gldns_buffer_begin(buf),
+						(unsigned int)gldns_buffer_limit(buf), (unsigned char*)digest);
+			res &= rsa_sha512_verify_digest(&pubkey, digest, signature);
+			break;
+		}
+		default:
+			break;
+	}
+
+	/* Clear and return */
+	nettle_rsa_public_key_clear(&pubkey);
+	mpz_clear(signature);
+	if (!res) {
+		return "RSA signature verification failed";
+	} else {
+		return NULL;
+	}
+}
+
+#ifdef USE_ECDSA
+static char *
+_verify_nettle_ecdsa(gldns_buffer* buf, unsigned int digest_size, unsigned char* sigblock,
+	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
+{
+	int res = 0;
+	struct ecc_point pubkey;
+	struct dsa_signature signature;
+
+	/* Always matched strength, as per RFC 6605 sec. 1 */
+	if (sigblock_len != 2*digest_size || keylen != 2*digest_size) {
+		return "wrong ECDSA signature length";
+	}
+
+	/* Parse ECDSA signature as per RFC 6605 sec. 4 */
+	nettle_dsa_signature_init(&signature);
+	switch (digest_size) {
+		case SHA256_DIGEST_SIZE:
+		{
+			uint8_t digest[SHA256_DIGEST_SIZE];
+			mpz_t x, y;
+			nettle_ecc_point_init(&pubkey, &nettle_secp_256r1);
+			nettle_mpz_init_set_str_256_u(x, SHA256_DIGEST_SIZE, key);
+			nettle_mpz_init_set_str_256_u(y, SHA256_DIGEST_SIZE, key+SHA256_DIGEST_SIZE);
+			nettle_mpz_set_str_256_u(signature.r, SHA256_DIGEST_SIZE, sigblock);
+			nettle_mpz_set_str_256_u(signature.s, SHA256_DIGEST_SIZE, sigblock+SHA256_DIGEST_SIZE);
+			res = _digest_nettle(SHA256_DIGEST_SIZE, (unsigned char*)gldns_buffer_begin(buf),
+						(unsigned int)gldns_buffer_limit(buf), (unsigned char*)digest);
+			res &= nettle_ecc_point_set(&pubkey, x, y);
+			res &= nettle_ecdsa_verify (&pubkey, SHA256_DIGEST_SIZE, digest, &signature);
+			mpz_clear(x);
+			mpz_clear(y);
+			break;
+		}
+		case SHA384_DIGEST_SIZE:
+		{
+			uint8_t digest[SHA384_DIGEST_SIZE];
+			mpz_t x, y;
+			nettle_ecc_point_init(&pubkey, &nettle_secp_384r1);
+			nettle_mpz_init_set_str_256_u(x, SHA384_DIGEST_SIZE, key);
+			nettle_mpz_init_set_str_256_u(y, SHA384_DIGEST_SIZE, key+SHA384_DIGEST_SIZE);
+			nettle_mpz_set_str_256_u(signature.r, SHA384_DIGEST_SIZE, sigblock);
+			nettle_mpz_set_str_256_u(signature.s, SHA384_DIGEST_SIZE, sigblock+SHA384_DIGEST_SIZE);
+			res = _digest_nettle(SHA384_DIGEST_SIZE, (unsigned char*)gldns_buffer_begin(buf),
+						(unsigned int)gldns_buffer_limit(buf), (unsigned char*)digest);
+			res &= nettle_ecc_point_set(&pubkey, x, y);
+			res &= nettle_ecdsa_verify (&pubkey, SHA384_DIGEST_SIZE, digest, &signature);
+			mpz_clear(x);
+			mpz_clear(y);
+			nettle_ecc_point_clear(&pubkey);
+			break;
+		}
+		default:
+			return "unknown ECDSA algorithm";
+	}
+
+	/* Clear and return */
+	nettle_dsa_signature_clear(&signature);
+	if (!res)
+		return "ECDSA signature verification failed";
+	else
+		return NULL;
+}
+#endif
+
+/**
+ * Check a canonical sig+rrset and signature against a dnskey
+ * @param buf: buffer with data to verify, the first rrsig part and the
+ *	canonicalized rrset.
+ * @param algo: DNSKEY algorithm.
+ * @param sigblock: signature rdata field from RRSIG
+ * @param sigblock_len: length of sigblock data.
+ * @param key: public key data from DNSKEY RR.
+ * @param keylen: length of keydata.
+ * @param reason: bogus reason in more detail.
+ * @return secure if verification succeeded, bogus on crypto failure,
+ *	unchecked on format errors and alloc failures.
+ */
+int
+_getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
+	unsigned int sigblock_len, unsigned char* key, unsigned int keylen,
+	char** reason)
+{
+	unsigned int digest_size = 0;
+
+	if (sigblock_len == 0 || keylen == 0) {
+		*reason = "null signature";
+		return 0;
+	}
+
+	switch(algo) {
+#ifdef USE_DSA
+	case GLDNS_DSA:
+	case GLDNS_DSA_NSEC3:
+		*reason = _verify_nettle_dsa(buf, sigblock, sigblock_len, key, keylen);
+		if (*reason != NULL)
+			return 0;
+		else
+			return 1;
+#endif /* USE_DSA */
+
+	case GLDNS_RSASHA1:
+	case GLDNS_RSASHA1_NSEC3:
+		digest_size = (digest_size ? digest_size : SHA1_DIGEST_SIZE);
+#ifdef USE_SHA2
+	case GLDNS_RSASHA256:
+		digest_size = (digest_size ? digest_size : SHA256_DIGEST_SIZE);
+	case GLDNS_RSASHA512:
+		digest_size = (digest_size ? digest_size : SHA512_DIGEST_SIZE);
+
+#endif
+		*reason = _verify_nettle_rsa(buf, digest_size, (char*)sigblock,
+						sigblock_len, key, keylen);
+		if (*reason != NULL)
+			return 0;
+		else
+			return 1;
+
+#ifdef USE_ECDSA
+	case GLDNS_ECDSAP256SHA256:
+		digest_size = (digest_size ? digest_size : SHA256_DIGEST_SIZE);
+	case GLDNS_ECDSAP384SHA384:
+		digest_size = (digest_size ? digest_size : SHA384_DIGEST_SIZE);
+		*reason = _verify_nettle_ecdsa(buf, digest_size, sigblock,
+						sigblock_len, key, keylen);
+		if (*reason != NULL)
+			return 0;
+		else
+			return 1;
+#endif
+	case GLDNS_RSAMD5:
+	case GLDNS_ECC_GOST:
+	default:
+		*reason = "unable to verify signature, unknown algorithm";
+		return 0;
+	}
+}
+
+#endif /* HAVE_SSL or HAVE_NSS or HAVE_NETTLE */

@@ -39,6 +39,7 @@ do
 	    -e '/^#include "util\/data\/packed_rrset.h"$/d' \
 	    -e 's/^#include "validator/#include "util/g' \
 	    -e 's/^#include "gldns\/sbuffer/#include "gldns\/gbuffer/g' \
+	    -e 's/^#include "util\/val_nsec3.h"/#define NSEC3_HASH_SHA1 0x01/g' \
 	    -e 's/ds_digest_size_supported/_getdns_ds_digest_size_supported/g' \
 	    -e 's/secalgo_ds_digest/_getdns_secalgo_ds_digest/g' \
 	    -e 's/dnskey_algo_id_is_supported/_getdns_dnskey_algo_id_is_supported/g' \
