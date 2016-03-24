@@ -520,7 +520,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
 
-	fprintf(out, "\t-W\tAppend suffix always (default)\n");
+	fprintf(out, "\t-0\tAppend suffix to single label first (default)\n");
+	fprintf(out, "\t-W\tAppend suffix always\n");
 	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
 	fprintf(out, "\t-M\tAppend suffix only to multi label name after failure\n");
 	fprintf(out, "\t-N\tNever append a suffix\n");
@@ -1042,6 +1043,10 @@ getdns_return_t parse_args(int argc, char **argv)
 			case '1':
 				(void) getdns_context_set_append_name(context,
 			GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE);
+				break;
+			case '0':
+				(void) getdns_context_set_append_name(context,
+				    GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST);
 				break;
 			case 'M':
 				(void) getdns_context_set_append_name(context,

@@ -1213,7 +1213,7 @@ getdns_context_create_with_extended_memory_functions(
 #if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	result->root_servers_fn[0] = 0;
 #endif
-	result->append_name = GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE;
+	result->append_name = GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST;
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
 

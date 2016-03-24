@@ -191,6 +191,8 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			}
 		} while (dns_req->suffix_len > 1 && *dns_req->suffix);
 		if (dns_req->append_name == GETDNS_APPEND_NAME_ALWAYS ||
+		    dns_req->append_name ==
+		    GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST ||
 		    (dns_req->suffix_len > 1 && *dns_req->suffix)) {
 			for ( netreq_p = dns_req->netreqs
 			    ; (netreq = *netreq_p)
