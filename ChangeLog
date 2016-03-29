@@ -1,4 +1,4 @@
-* 2016-??-??: Version ?
+* 2016-??-??: Version 1.0.0 
   * Bugfix: Memory leak with getdns_get_api_information()
     Thanks Robert Groenenberg.
 

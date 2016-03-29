@@ -1,7 +1,7 @@
 getdns API
 ==========
 
-* Date:    2015-12-30
+* Date:    2016-03-24
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
