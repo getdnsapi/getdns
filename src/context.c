@@ -845,11 +845,13 @@ upstream_init(getdns_upstream *upstream,
 
 /*
 Read the Windows search suffix and add to context
+There may or may not be domains and suffixes so do not error if missing
 */
-static int get_dns_suffix_windows(getdns_list *suffix)
+static int get_dns_suffix_windows(getdns_list *suffix, char* domain)
 {
     char *parse, *token, prev_ch;
-    char lszValue[255];
+    char lszValue[255] = "";
+    char lszDomain[255] = "";
     HKEY hKey;
     LONG returnStatus;
     DWORD dwType=REG_SZ;
@@ -869,23 +871,32 @@ static int get_dns_suffix_windows(getdns_list *suffix)
     {
         returnStatus = RegQueryValueEx(hKey,
              TEXT("SearchList"), 0, &dwType,(LPBYTE)&lszValue, &dwSize);
-        if (returnStatus == ERROR_SUCCESS)
+        if (returnStatus == ERROR_SUCCESS) 
         {
+           if ((strlen(lszValue)) > 0) {
            parse = lszValue;
            do {
                parse += strspn(parse, ",");
                token = parse + strcspn(parse, ",");
                prev_ch = *token;
                *token = 0;
-
                _getdns_list_append_string(suffix, parse);
 
                *token = prev_ch;
                parse = token;
            } while (*parse);
-        } else {
-            return 0; /* no DNS suffixes keys */
+           }
+
         }
+
+        dwSize = 255;
+        returnStatus = RegQueryValueEx(hKey,
+             TEXT("Domain"), 0, &dwType,(LPBYTE)&lszDomain, &dwSize);
+        if (returnStatus == ERROR_SUCCESS)
+        {
+             strcpy_s(domain, dwSize, lszDomain);
+        }
+
         RegCloseKey(hKey);
     } else {
         return 0; /* no DNS keys or suffixes */
@@ -970,11 +981,15 @@ set_os_defaults_windows(struct getdns_context *context)
 
     suffix = getdns_list_create_with_context(context);
 
-    if (get_dns_suffix_windows(suffix)) {
-
+    if (get_dns_suffix_windows(suffix, domain)) {
         (void) getdns_list_get_length(suffix, &length);
-        if (length > 0)
+        if (*domain != 0) {
+            _getdns_list_append_string(suffix, domain);
+        }
+        (void) getdns_list_get_length(suffix, &length);
+        if (length > 0) {
             (void )getdns_context_set_suffix(context, suffix);
+        }
     }
     getdns_list_destroy(suffix);
 
