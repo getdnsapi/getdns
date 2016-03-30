@@ -1,5 +1,30 @@
-* 2016-??-??: Version 1.0.0 
-  * Bugfix: Memory leak with getdns_get_api_information()
+* 2016-??-??: Version 1.0.0
+  * openssl 1.1.0 support
+  * GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST default suffix handling
+  * getdns_context_set_follow_redirects()
+  * Read suffix list from registry on Windows
+  * A dnssec_return_all_statuses extension
+  * Set root servers without temporary file (libunbound >= 1.5.8 needed)
+  * Eliminate unit test's ldns dependency
+  * pkts wireformat <-> getdns_dict <-> string
+    conversion functions
+  * Eliminate all side effects when doing sync requests
+    (libunbound >= 1.5.9 needed)
+  * Bugfix: Load gost algorithm if digest is seen before key algorithm
+    Thanks Jelte Janssen
+  * Bugfix: Respect DNSSEC skew.
+  * Offline dnssec validation for any given point in time
+  * Correct return value in documentation for getdns_pretty_print_dict().
+    Thanks Linus Nordberg
+  * Bugfix: Don't treat "domain" or "search" as a nameserver.
+    Thanks Linus Nordberg
+  * Use the default CA trust store on Windows (for DNS over TLS).
+  * Propagate eventloop to unbound when unbound has pluggable event loops
+    (libunbound >= 1.5.9 needed)
+  * Replace mini_event extension by default_eventloop
+  * Bugfix: Segfault on NULL pin
+  * Bugfix: Correct output of get_api_settings
+  * Bugfix: Memory leak with getdns_get_api_information() 
     Thanks Robert Groenenberg.
 
 * 2015-12-31: Version 0.9.0
