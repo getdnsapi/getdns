@@ -55,7 +55,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (fd >= FD_SETSIZE) {
+	if (fd >= (int)FD_SETSIZE) {
 		DEBUG_SCHED( "ERROR: fd %d >= FD_SETSIZE: %d!\n"
 		           , fd, FD_SETSIZE);
 		return GETDNS_RETURN_GENERIC_ERROR;
