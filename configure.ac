@@ -1178,11 +1178,14 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 # ifdef HAVE_UNBOUND_EVENT_H
 #  include <unbound-event.h>
 # else
+#  ifndef _UB_EVENT_PRIMITIVES
+#  define _UB_EVENT_PRIMITIVES
 struct ub_event_base;
 struct ub_ctx* ub_ctx_create_ub_event(struct ub_event_base* base);
 typedef void (*ub_event_callback_t)(void*, int, void*, int, int, char*);
 int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype, 
         int rrclass, void* mydata, ub_event_callback_t callback, int* async_id);
+#  endif
 # endif
 #endif
 ])
