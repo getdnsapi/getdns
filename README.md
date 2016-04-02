@@ -106,7 +106,7 @@ with:
 
 * getdns can be configured for stub resolution mode only with the `--enable-stub-only` option to configure.  This removed the dependency on `libunbound`.
 * Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
-* When both `--enable-stub-only` and `--with-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
+* When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
 
 ## Extensions / Event loop dependencies
 
