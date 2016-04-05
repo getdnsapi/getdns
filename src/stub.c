@@ -2050,6 +2050,12 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		 * dnsreq->loop.  The asynchronous is always also available
 		 * at the upstream as upstream->loop. 
 		 */
+		if (is_synchronous_request(netreq)) {
+			DEBUG_STUB("%s %-35s: MSG: %p TYPE: %d SYNCHROUNOUS\n", STUB_DEBUG_ENTRY, __FUNCTION__, netreq, netreq->request_type);
+		} else {
+			DEBUG_STUB("%s %-35s: MSG: %p TYPE: %d asynchronous\n", STUB_DEBUG_ENTRY, __FUNCTION__, netreq, netreq->request_type);
+		}
+
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop,
 		    /* Synchronous lookup?, then this event will be used to
