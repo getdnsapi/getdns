@@ -396,8 +396,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 #if defined(STUB_DEBUG) && STUB_DEBUG
 		DEBUG_STUB("%s %-35s: Name of cert: %d ",
 		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i);
-		if (x->cert_info->subject != NULL)
-			X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
+		X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
 		fprintf(stderr, "\n");
 #endif
 		/* digest the cert with sha256 */
