@@ -56,3 +56,4 @@ m4/lt~obsolete.m4
 src/config.h.in
 build/
 getdns.pc
+getdns_ext_event.pc
