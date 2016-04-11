@@ -168,6 +168,7 @@ typedef struct getdns_upstream {
 	unsigned has_server_cookie : 1;
 	unsigned server_cookie_len : 5;
 	unsigned tls_fallback_ok : 1;
+	unsigned is_sync_loop : 1;
 
 	/* TSIG */
 	uint8_t          tsig_dname[256];

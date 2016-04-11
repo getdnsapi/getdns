@@ -477,12 +477,14 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		return r;
 
 	/* create the request */
-	if (!(req = _getdns_dns_req_new(context, loop, name, request_type, extensions)))
+	if (!(req = _getdns_dns_req_new(
+	    context, loop, name, request_type, extensions)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	req->user_pointer = userarg;
 	req->user_callback = callbackfn;
 	req->internal_cb = internal_cb;
+	req->is_sync_request = loop == &context->sync_eventloop.loop;
 
 	if (return_netreq_p)
 		*return_netreq_p = req->netreqs[0];

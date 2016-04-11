@@ -94,6 +94,10 @@ getdns_sync_data_init(getdns_context *context, getdns_sync_data *data)
 static void
 getdns_sync_data_cleanup(getdns_sync_data *data)
 {
+	size_t i;
+	getdns_context *ctxt = data->context;
+	getdns_upstream *upstream;
+
 #if defined(HAVE_LIBUNBOUND) && !defined(USE_WINSOCK)
 #  ifdef HAVE_UNBOUND_EVENT_API
 	if (_getdns_ub_loop_enabled(&data->context->ub_loop)) {
@@ -103,6 +107,23 @@ getdns_sync_data_cleanup(getdns_sync_data *data)
 		data->context->sync_eventloop.loop.vmt->clear(
 		    &data->context->sync_eventloop.loop, &data->ub_event);
 #endif
+	/* If statefull upstream have events scheduled against the sync loop,
+	 * reschedule against the async loop.
+	 */
+	for (i = 0; i < ctxt->upstreams->count; i++) {
+		upstream = &ctxt->upstreams->upstreams[i];
+		if (upstream->loop != &data->context->sync_eventloop.loop)
+			continue;
+		if (upstream->event.read_cb || upstream->event.write_cb ||
+		    upstream->event.timeout_cb) {
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		}
+		upstream->loop = data->context->extension;
+		upstream->is_sync_loop = 0;
+		if (upstream->event.read_cb || upstream->event.write_cb)
+			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
+			    TIMEOUT_FOREVER, &upstream->event);
+	}
 }
 
 static void
