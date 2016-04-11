@@ -1455,11 +1455,12 @@ upstream_read_cb(void *userarg)
 		/* This also reschedules events for the upstream*/
 		stub_cleanup(netreq);
 
-		if (netreq->owner->is_sync_request)
+		if (!upstream->is_sync_loop || netreq->owner->is_sync_request)
 			_getdns_check_dns_req_complete(netreq->owner);
 
-		else if (upstream->is_sync_loop &&
-		    !netreq->owner->is_sync_request) {
+		else {
+			assert(upstream->is_sync_loop &&
+			    !netreq->owner->is_sync_request);
 
 			/* We have a result for an asynchronously scheduled
 			 * netreq, while processing the synchronous loop.
