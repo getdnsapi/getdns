@@ -205,7 +205,12 @@ attach_edns_cookie(getdns_network_req *req)
 
 }
 
-/* Will find a matching OPT RR, but leaves the caller to validate it*/
+/* Will find a matching OPT RR, but leaves the caller to validate it
+ *
+ * Returns 2 when found
+ *         0 when not found
+ *     and 1 on FORMERR
+ */
 static int
 match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
                   const uint8_t **position, uint16_t *option_len)
@@ -306,7 +311,7 @@ match_and_process_server_cookie(
 	return 0;
 }
 
-static int
+static void
 process_keepalive(
     getdns_upstream *upstream, getdns_network_req *netreq, 
     uint8_t *response, size_t response_len) 
@@ -320,10 +325,10 @@ process_keepalive(
 			/* If no keepalive sent back, then we must use 0 idle timeout
 			   as server does not support it.*/
 			upstream->keepalive_timeout = 0;
-		return found;
+		return;
 	}
 	if (option_len != 2)
-		return 1; /* FORMERR */
+		return; /* FORMERR */
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
@@ -335,7 +340,6 @@ process_keepalive(
 		           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
 		           (int)server_keepalive);
 	}
-	return 0;
 }
 
 /** best effort to set nonblocking */
@@ -1444,12 +1448,11 @@ upstream_read_cb(void *userarg)
 		    match_and_process_server_cookie(
 		    netreq->upstream, netreq->tcp.read_buf,
 		    netreq->tcp.read_pos - netreq->tcp.read_buf))
-			return; /* Client cookie didn't match? */
+			return; /* Client cookie didn't match (or FORMERR) */
 
-		if ((netreq->owner->context->idle_timeout != 0) &&
+		if (netreq->owner->context->idle_timeout != 0)
 		     process_keepalive(netreq->upstream, netreq, netreq->response,
-		                       netreq->response_len))
-				return;
+		                       netreq->response_len);
 
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		/* This also reschedules events for the upstream*/

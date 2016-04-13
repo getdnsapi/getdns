@@ -114,9 +114,21 @@ getdns_sync_data_cleanup(getdns_sync_data *data)
 		upstream = &ctxt->upstreams->upstreams[i];
 		if (upstream->loop != &data->context->sync_eventloop.loop)
 			continue;
-		if (upstream->event.read_cb || upstream->event.write_cb ||
-		    upstream->event.timeout_cb) {
+		if (upstream->event.read_cb || upstream->event.write_cb) {
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+
+		} else if (upstream->event.timeout_cb) {
+			/* Timeout's at upstream are idle-timeouts only.
+			 * They should be fired on completion of the
+			 * synchronous request.
+			 */
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+			(*upstream->event.timeout_cb)(upstream->event.userarg);
+
+			/* This should have cleared the event */
+			assert(!upstream->event.read_cb &&
+			       !upstream->event.write_cb &&
+			       !upstream->event.timeout_cb);
 		}
 		upstream->loop = data->context->extension;
 		upstream->is_sync_loop = 0;
