@@ -227,10 +227,10 @@ typedef struct getdns_network_req
 	struct getdns_network_req *write_queue_tail;
 
 	/* Some fields to record info for return_call_reporting */
-	uint64_t                    debug_start_time;
-	uint64_t                    debug_end_time;
-	size_t                      debug_tls_auth_status;
-    size_t                      debug_udp;
+	uint64_t                debug_start_time;
+	uint64_t                debug_end_time;
+	size_t                  debug_tls_auth_status;
+	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
 	 * available in wire_data[], it will be allocated seperately.
@@ -302,6 +302,7 @@ typedef struct getdns_dns_req {
 
 	/* Internally used by return_validation_chain */
 	int dnssec_ok_checking_disabled;
+	int is_sync_request;
 
 	/* internally scheduled request */
 	internal_cb_t internal_cb;
