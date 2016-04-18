@@ -160,6 +160,9 @@ _getdns_rr_iter2rr_dict_canonical(
 	uint8_t ff_bytes[256];
 	uint16_t rr_type;
 	int canonicalize;
+	gldns_buffer gbuf;
+	getdns_bindata *bindata;
+	uint8_t *data;
 
 	assert(i);
 	if (!(rr_dict = _getdns_dict_create_with_mf(mf)))
@@ -402,14 +405,8 @@ _getdns_rr_iter2rr_dict_canonical(
 		goto rdata_error;
 
 	if (canonicalize && rdata_sz) {
-		fprintf(stderr, "XXXXXXXXXX: owner_len: %zu, rdata_len: %zu\n", owner_len, rdata_sz);
-
-		gldns_buffer gbuf;
-		getdns_bindata *bindata;
-		uint8_t *data = GETDNS_XMALLOC(
-		    *mf, uint8_t, owner_len + 10 + rdata_sz);
-
-		if (!data)
+		if (!(data = GETDNS_XMALLOC(
+		    *mf, uint8_t, owner_len + 10 + rdata_sz)))
 			return rr_dict;
 
 		gldns_buffer_init_frm_data(&gbuf, data, owner_len+10+rdata_sz);

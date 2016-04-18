@@ -848,7 +848,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->rrset.pkt = rrset->pkt;
 	head->rrset.pkt_len = rrset->pkt_len;
 	head->netreq = netreq;
-	head->signer = 0;
+	head->signer = -1;
 	head->node_count = node_count;
 
 	if (!node_count) {
@@ -877,8 +877,8 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		node->ds_req          = NULL;
 		node->dnskey_req      = NULL;
 		node->soa_req         = NULL;
-		node->ds_signer       = 0;
-		node->dnskey_signer   = 0;
+		node->ds_signer       = -1;
+		node->dnskey_signer   = -1;
 
 		node->chains          = *chain_p;
 	}
@@ -3016,8 +3016,8 @@ static int rrset_in_list(getdns_rrset *rrset, getdns_list *list)
 	return 0;
 }
 
-static void append_canonical_rrset2val_chain_list(
-    getdns_list *val_chain_list, getdns_rrset *rrset, rrsig_iter  *rrsig)
+static void append_rrset2val_chain_list(
+    getdns_list *val_chain_list, getdns_rrset *rrset, int signer)
 {
 	_getdns_rr_iter  val_rrset_spc[VAL_RRSET_SPC_SZ];
 	_getdns_rr_iter *val_rrset = val_rrset_spc;
@@ -3025,8 +3025,23 @@ static void append_canonical_rrset2val_chain_list(
 	size_t n_rrs, i;
 	uint32_t orig_ttl;
 	getdns_dict *rr_dict;
+	rrsig_iter  *rrsig, rrsig_spc;
 
-	assert(val_chain_list && rrset && rrsig);
+	assert(val_chain_list && rrset);
+
+	if (signer < 0)
+		return;
+
+	for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
+	    ; rrsig &&
+	      (   rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
+	       || gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+	          != (signer & 0xFFFF))
+	    ; rrsig = rrsig_iter_next(rrsig))
+		; /* pass */
+
+	if (!rrsig)
+		return;
 
 	/* keytag was already read, so orig_ttl should cause no problem */
 	assert(rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 18);
@@ -3097,25 +3112,13 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		           rrset->rr_type != GETDNS_RRTYPE_DS)
 			continue;
 
-		if ((signer & 0xFFFF)) {
+		if (signer > 0) {
 			/* We have a signer!  Return RRset in canonical
 			 * form and order with only the RRSIG that signed
 			 * the RRset.
 			 */
-			for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
-			    ; rrsig &&
-			      (   rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
-			       || gldns_read_uint16(rrsig->rr_i.rr_type + 26)
-			          != (signer & 0xFFFF))
-			    ; rrsig = rrsig_iter_next(rrsig))
-				; /* pass */
-
-			if (!rrsig) {
-				/* Signer not found, try next RR set */
-				continue;
-			}
-			append_canonical_rrset2val_chain_list(
-			    val_chain_list, rrset, rrsig);
+			append_rrset2val_chain_list(
+			   val_chain_list, rrset, signer);
 			continue;
 		}
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)
@@ -3176,7 +3179,7 @@ static void check_chain_complete(chain_head *chain)
 	getdns_dns_req *dnsreq;
 	getdns_context *context;
 	size_t o, node_count;
-	chain_head *head, *next;
+	chain_head *head, *next, *same_chain;
 	chain_node *node;
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
@@ -3240,22 +3243,39 @@ static void check_chain_complete(chain_head *chain)
 	/* Walk chain to add values to val_chain_list and to cleanup */
 	for ( head = chain; head ; head = next ) {
 		next = head->next;
+		if (dnsreq->dnssec_return_full_validation_chain &&
+		    head->node_count && head->signer > 0) {
+
+			append_rrset2val_chain_list(
+			    val_chain_list, &head->rrset, head->signer);
+
+			for ( same_chain = next
+			    ; same_chain && same_chain->signer == head->signer
+			    ; same_chain = same_chain->next) {
+				append_rrset2val_chain_list(val_chain_list,
+				    &same_chain->rrset, same_chain->signer);
+				same_chain->signer = -1;
+			}
+		}
 		for ( node_count = head->node_count, node = head->parent
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
 			if (node->dnskey_req) {
-				append_rrs2val_chain_list(
-				    context, val_chain_list,
-				    node->dnskey_req, node->dnskey_signer);
+				if (val_chain_list)
+					append_rrs2val_chain_list(
+					    context, val_chain_list,
+					    node->dnskey_req,
+					    node->dnskey_signer);
 				_getdns_dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
-				append_rrs2val_chain_list(
-				    context, val_chain_list,
-				    node->ds_req, node->ds_signer);
+				if (val_chain_list)
+					append_rrs2val_chain_list(
+					    context, val_chain_list,
+					    node->ds_req, node->ds_signer);
 
-				if (!node->ds_signer &&
+				if (val_chain_list && node->ds_signer == -1 &&
 				    !rrset_has_rrs(&node->ds)) {
 					/* Add empty DS, to prevent less
 					 * specific to be able to authenticate

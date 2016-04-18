@@ -272,37 +272,39 @@ typedef struct getdns_dns_req {
 	uint8_t name[256];
 	size_t  name_len;
 
-	getdns_append_name_t append_name;
-	const uint8_t *suffix;
-	size_t  suffix_len;
-	int suffix_appended;
-
 	uint16_t request_class;
-
-	/* canceled flag */
-	int canceled;
 
 	/* context that owns the request */
 	struct getdns_context *context;
 
+	getdns_append_name_t append_name;
+	const uint8_t *suffix;
+	size_t  suffix_len;
+	int suffix_appended			: 1;
+
+	/* canceled flag */
+	int canceled				: 1;
+
 	/* request extensions */
-	int dnssec_return_status;
-	int dnssec_return_only_secure;
-	int dnssec_return_all_statuses;
-	int dnssec_return_validation_chain;
+	int dnssec_return_status		: 1;
+	int dnssec_return_only_secure		: 1;
+	int dnssec_return_all_statuses		: 1;
+	int dnssec_return_validation_chain	: 1;
+	int dnssec_return_full_validation_chain	: 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	int dnssec_roadblock_avoidance;
-	int avoid_dnssec_roadblocks;
+	int dnssec_roadblock_avoidance		: 1;
+	int avoid_dnssec_roadblocks		: 1;
 #endif
-	int edns_cookies;
-	int edns_client_subnet_private;
-	uint16_t tls_query_padding_blocksize;
-	int return_call_reporting;
-	int add_warning_for_bad_dns;
+	int edns_cookies			: 1;
+	int edns_client_subnet_private		: 1;
+	int return_call_reporting		: 1;
+	int add_warning_for_bad_dns		: 1;
 
 	/* Internally used by return_validation_chain */
-	int dnssec_ok_checking_disabled;
-	int is_sync_request;
+	int dnssec_ok_checking_disabled		: 1;
+	int is_sync_request			: 1;
+
+	uint16_t tls_query_padding_blocksize;
 
 	/* internally scheduled request */
 	internal_cb_t internal_cb;
