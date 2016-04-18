@@ -268,23 +268,6 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 	return r;
 }
 
-inline static void _dname_canonicalize(const uint8_t *src, uint8_t *dst)
-{
-	const uint8_t *next_label;
-
-	while (*src) {
-		next_label = src + *src + 1;
-		*dst++ = *src++;
-		while (src < next_label)
-			*dst++ = (uint8_t)tolower((unsigned char)*src++);
-	}
-}
-
-inline static void _dname_canonicalize2(uint8_t *dname)
-{
-	_dname_canonicalize(dname, dname);
-}
-
 
 /* Fills the array pointed to by labels (of at least 128 uint8_t * pointers)
  * with pointers to labels in given dname in reversed order.  So that
@@ -1528,21 +1511,6 @@ inline static void canon_rdata_iter_next(canon_rdata_iter *i)
 		i->pos++;
 }
 
-inline static int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
-{
-	return rr_type == GLDNS_RR_TYPE_NS    || rr_type == GLDNS_RR_TYPE_MD
-	    || rr_type == GLDNS_RR_TYPE_MF    || rr_type == GLDNS_RR_TYPE_CNAME
-	    || rr_type == GLDNS_RR_TYPE_SOA   || rr_type == GLDNS_RR_TYPE_MB
-	    || rr_type == GLDNS_RR_TYPE_MG    || rr_type == GLDNS_RR_TYPE_MR
-	    || rr_type == GLDNS_RR_TYPE_PTR   || rr_type == GLDNS_RR_TYPE_MINFO
-	    || rr_type == GLDNS_RR_TYPE_MX    || rr_type == GLDNS_RR_TYPE_RP
-	    || rr_type == GLDNS_RR_TYPE_AFSDB || rr_type == GLDNS_RR_TYPE_RT
-	    || rr_type == GLDNS_RR_TYPE_SIG   || rr_type == GLDNS_RR_TYPE_PX
-	    || rr_type == GLDNS_RR_TYPE_NXT   || rr_type == GLDNS_RR_TYPE_NAPTR
-	    || rr_type == GLDNS_RR_TYPE_KX    || rr_type == GLDNS_RR_TYPE_SRV
-	    || rr_type == GLDNS_RR_TYPE_DNAME || rr_type == GLDNS_RR_TYPE_RRSIG;
-}
-
 static int _rr_iter_rdata_cmp(const void *a, const void *b)
 {
 	_getdns_rr_iter *x = (_getdns_rr_iter *)a;
@@ -1656,6 +1624,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 
 	if (!_dnssec_rdata_to_canonicalize(rrset->rr_type))
 		for (i = 0; i < n_rrs; i++) {
+			/* Get rid of doubles */
 			if (i && !_rr_iter_rdata_cmp(
 			    &val_rrset[i], &val_rrset[i-1]))
 				continue;
@@ -3047,6 +3016,62 @@ static int rrset_in_list(getdns_rrset *rrset, getdns_list *list)
 	return 0;
 }
 
+static void append_canonical_rrset2val_chain_list(
+    getdns_list *val_chain_list, getdns_rrset *rrset, rrsig_iter  *rrsig)
+{
+	_getdns_rr_iter  val_rrset_spc[VAL_RRSET_SPC_SZ];
+	_getdns_rr_iter *val_rrset = val_rrset_spc;
+	rrtype_iter rr_spc, *rr;
+	size_t n_rrs, i;
+	uint32_t orig_ttl;
+	getdns_dict *rr_dict;
+
+	assert(val_chain_list && rrset && rrsig);
+
+	/* keytag was already read, so orig_ttl should cause no problem */
+	assert(rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 18);
+
+	orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
+
+	for (;;) {
+		for ( rr = rrtype_iter_init(&rr_spc, rrset), n_rrs = 0
+		    ; rr
+		    ; rr = rrtype_iter_next(rr), n_rrs++) {
+
+			if (n_rrs < VAL_RRSET_SPC_SZ ||
+			    val_rrset != val_rrset_spc)
+				val_rrset[n_rrs] = rr->rr_i;
+		}
+		/* Did everything fit? Then break */
+		if (val_rrset != val_rrset_spc || n_rrs <= VAL_RRSET_SPC_SZ)
+			break;
+
+		/* More space needed for val_rrset */
+		val_rrset = GETDNS_XMALLOC(
+		    val_chain_list->mf, _getdns_rr_iter, n_rrs);
+	}
+	qsort(val_rrset, n_rrs, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
+	for (i = 0; i < n_rrs; i++) {
+		/* Get rid of doubles */
+		if (i && !_rr_iter_rdata_cmp(&val_rrset[i], &val_rrset[i-1]))
+			continue;
+
+		if (!(rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+		    &val_chain_list->mf, &val_rrset[i], &orig_ttl)))
+			continue;
+
+		if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
+			getdns_dict_destroy(rr_dict);
+	}
+	if ((rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+	    &val_chain_list->mf, &rrsig->rr_i, &orig_ttl)) &&
+	    _getdns_list_append_this_dict(val_chain_list, rr_dict))
+		getdns_dict_destroy(rr_dict);
+
+	if (val_rrset != val_rrset_spc)
+		GETDNS_FREE(val_chain_list->mf, val_rrset);
+}
+
 static void append_rrs2val_chain_list(getdns_context *ctxt,
     getdns_list *val_chain_list, getdns_network_req *netreq, int signer)
 {
@@ -3072,6 +3097,27 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		           rrset->rr_type != GETDNS_RRTYPE_DS)
 			continue;
 
+		if ((signer & 0xFFFF)) {
+			/* We have a signer!  Return RRset in canonical
+			 * form and order with only the RRSIG that signed
+			 * the RRset.
+			 */
+			for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
+			    ; rrsig &&
+			      (   rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
+			       || gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+			          != (signer & 0xFFFF))
+			    ; rrsig = rrsig_iter_next(rrsig))
+				; /* pass */
+
+			if (!rrsig) {
+				/* Signer not found, try next RR set */
+				continue;
+			}
+			append_canonical_rrset2val_chain_list(
+			    val_chain_list, rrset, rrsig);
+			continue;
+		}
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)
 		    ; rr; rr = rrtype_iter_next(rr)) {
 
@@ -3085,16 +3131,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
 		    ; rrsig; rrsig = rrsig_iter_next(rrsig)) {
 
-			if (/* No space for keytag & signer in rrsig rdata? */
-			       rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
-
-			    /* We have a signer and it doesn't match? */
-			    || ((signer & 0xFFFF) &&
-			        gldns_read_uint16(rrsig->rr_i.rr_type + 26)
-					    != (signer & 0xFFFF))
-
-			    /* Could not convert to rr_dict */
-			    || !(rr_dict = _getdns_rr_iter2rr_dict(
+			if (!(rr_dict = _getdns_rr_iter2rr_dict(
 						&ctxt->mf, &rrsig->rr_i)))
 				continue;
 
