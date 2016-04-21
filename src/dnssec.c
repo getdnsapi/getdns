@@ -3181,7 +3181,7 @@ static void check_chain_complete(chain_head *chain)
 	    && !dnsreq->avoid_dnssec_roadblocks
 	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
 
-		getdns_return_t r = GETDNS_RETURN_GOOD;
+		int r = GETDNS_RETURN_GOOD;
 		getdns_network_req **netreq_p, *netreq;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;

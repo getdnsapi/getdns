@@ -304,6 +304,12 @@ typedef struct getdns_dns_req {
 	int dnssec_ok_checking_disabled;
 	int is_sync_request;
 
+	/* Integer pointed to by pointer will be set to 1 (if set),
+	 * before the request is freed.
+	 * To be used by _getdns_submit_netreq only!
+	 */
+	int *freed;
+
 	/* internally scheduled request */
 	internal_cb_t internal_cb;
 
