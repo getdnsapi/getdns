@@ -304,10 +304,15 @@ typedef struct getdns_dns_req {
 	int dnssec_ok_checking_disabled;
 	int is_sync_request;
 
-	/* Integer pointed to by pointer will be set to 1 (if set),
-	 * before the request is freed.
-	 * To be used by _getdns_submit_netreq only!
+	/* The validating and freed variables are used to make sure a single
+	 * code path is followed while processing a DNS request, even when
+	 * callbacks are already fired whilst the registering/scheduling call
+	 * (i.e. ub_resolve_event) has not returned yet.
+	 *
+	 * validating is touched by _getdns_get_validation_chain only and
+	 * freed      is touched by _getdns_submit_netreq only
 	 */
+	int validating;
 	int *freed;
 
 	/* internally scheduled request */

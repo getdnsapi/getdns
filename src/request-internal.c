@@ -903,6 +903,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 
 	result->finished_next = NULL;
 	result->freed = NULL;
+	result->validating = 0;
 
 	network_req_init(result->netreqs[0], result,
 	    request_type, dnssec_extension_set, with_opt,
