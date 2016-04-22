@@ -719,6 +719,8 @@ typedef struct chain_node chain_node;
 struct chain_head {
 	struct mem_funcs  my_mf;
 
+	size_t              lock;
+
 	chain_head         *next;
 	chain_node         *parent;
 	size_t              node_count; /* Number of nodes attached directly
@@ -840,6 +842,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		head = *chain_p   = (chain_head *)region;
 
 	head->my_mf = *mf;
+	head->lock = 1;
 	head->next = NULL;
 	head->rrset.name = head->name_spc;
 	memcpy(head->name_spc, rrset->name, dname_len);
@@ -1302,6 +1305,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	default                  : check_chain_complete(node->chains);
 				   return;
 	}
+	node->lock++;
 	n_signers = 0;
 	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
 	    ; i
@@ -1327,6 +1331,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 		 */
 		val_chain_sched_soa_node(node->parent);
 
+	node->lock--;
 	check_chain_complete(node->chains);
 }
 
@@ -1346,17 +1351,21 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		    ! _dname_equal(node->ds.name, rrset->name))
 			node = node->parent;
 
-		if (node)
+		if (node) {
+			node->lock++;
 			val_chain_sched_ds_node(node);
-		else {
+		} else {
 			/* SOA for a different name */
 			node = (chain_node *)dnsreq->user_pointer;
+			node->lock++;
 			val_chain_sched_soa_node(node->parent);
 		}
 
-	} else if (node->parent)
+	} else if (node->parent) {
+		node->lock++;
 		val_chain_sched_soa_node(node->parent);
-
+	}
+	node->lock--;
 	check_chain_complete(node->chains);
 }
 
@@ -2972,7 +2981,7 @@ static size_t count_outstanding_requests(chain_head *head)
 	if (!head)
 		return 0;
 
-	for ( node = head->parent, count = 0
+	for ( node = head->parent, count = head->lock
 	    ; node
 	    ; node = node->parent) {
 
@@ -3221,7 +3230,7 @@ static void check_chain_complete(chain_head *chain)
 	    && !dnsreq->avoid_dnssec_roadblocks
 	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
 
-		getdns_return_t r = GETDNS_RETURN_GOOD;
+		int r = GETDNS_RETURN_GOOD;
 		getdns_network_req **netreq_p, *netreq;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;
@@ -3302,6 +3311,7 @@ static void check_chain_complete(chain_head *chain)
 	}
 
 	/* Final user callback */
+	dnsreq->validating = 0;
 	_getdns_call_user_callback(dnsreq, response_dict);
 }
 
@@ -3309,7 +3319,11 @@ static void check_chain_complete(chain_head *chain)
 void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 {
 	getdns_network_req *netreq, **netreq_p;
-	chain_head *chain = NULL;
+	chain_head *chain = NULL, *chain_p;
+
+	if (dnsreq->validating)
+		return;
+	dnsreq->validating = 1;
 
 	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		if (!  netreq->response
@@ -3334,11 +3348,15 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 				      , netreq
 		                      );
 	}
-	if (chain)
+	if (chain) {
+		for (chain_p = chain; chain_p; chain_p = chain_p->next)
+			chain_p->lock--;
 		check_chain_complete(chain);
-	else
+	} else {
+		dnsreq->validating = 0;
 		_getdns_call_user_callback(dnsreq,
 		    _getdns_create_getdns_response(dnsreq));
+	}
 }
 
 

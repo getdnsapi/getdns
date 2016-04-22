@@ -161,7 +161,7 @@ void
 _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
 	getdns_network_req **netreq_p, *netreq;
-	int results_found = 0;
+	int results_found = 0, r;
 	
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++)
 		if (netreq->state != NET_REQ_FINISHED &&
@@ -198,8 +198,11 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			    ; (netreq = *netreq_p)
 			    ; netreq_p++ ) {
 				_getdns_netreq_reinit(netreq);
-				if (_getdns_submit_netreq(netreq))
+				if ((r = _getdns_submit_netreq(netreq))) {
+					if (r == DNS_REQ_FINISHED)
+						return;
 					netreq->state = NET_REQ_FINISHED;
+				}
 			}
 			_getdns_check_dns_req_complete(dns_req);
 			return;
@@ -233,8 +236,11 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			    ; (netreq = *netreq_p)
 			    ; netreq_p++ ) {
 				_getdns_netreq_reinit(netreq);
-				if (_getdns_submit_netreq(netreq))
+				if ((r = _getdns_submit_netreq(netreq))) {
+					if (r == DNS_REQ_FINISHED)
+						return;
 					netreq->state = NET_REQ_FINISHED;
+				}
 			}
 			_getdns_check_dns_req_complete(dns_req);
 			return;
@@ -312,13 +318,16 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 #endif
 
 
-getdns_return_t
+int
 _getdns_submit_netreq(getdns_network_req *netreq)
 {
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
 	char name[1024];
-
+	int dnsreq_freed = 0;
+#ifdef HAVE_LIBUNBOUND
+	int ub_resolve_r;
+#endif
 
 #ifdef STUB_NATIVE_DNSSEC
 # ifdef DNSSEC_ROADBLOCK_AVOIDANCE
@@ -351,24 +360,34 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 		    dns_req->name_len, name, sizeof(name));
 
 #ifdef HAVE_LIBUNBOUND
+		dns_req->freed = &dnsreq_freed;
 #ifdef HAVE_UNBOUND_EVENT_API
 		if (_getdns_ub_loop_enabled(&dns_req->context->ub_loop))
-			return ub_resolve_event(dns_req->context->unbound_ctx,
+			ub_resolve_r = ub_resolve_event(dns_req->context->unbound_ctx,
 			    name, netreq->request_type, netreq->owner->request_class,
 			    netreq, ub_resolve_event_callback, &(netreq->unbound_id)) ?
 			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 		else
 #endif
-			return ub_resolve_async(dns_req->context->unbound_ctx,
+			ub_resolve_r = ub_resolve_async(dns_req->context->unbound_ctx,
 			    name, netreq->request_type, netreq->owner->request_class,
 			    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+		if (dnsreq_freed)
+			return DNS_REQ_FINISHED;
+		dns_req->freed = NULL;
+		return ub_resolve_r ? GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 #else
 		return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif
 	}
 	/* Submit with stub resolver */
-	return _getdns_submit_stub_request(netreq);
+	dns_req->freed = &dnsreq_freed;
+	r = _getdns_submit_stub_request(netreq);
+	if (dnsreq_freed)
+		return DNS_REQ_FINISHED;
+	dns_req->freed = NULL;
+	return r;
 }
 
 
@@ -457,7 +476,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
     void *userarg, getdns_network_req **return_netreq_p,
     getdns_callback_t callbackfn, internal_cb_t internal_cb, int usenamespaces)
 {
-	getdns_return_t r = GETDNS_RETURN_GOOD;
+	int r = GETDNS_RETURN_GOOD;
 	getdns_network_req *netreq, **netreq_p;
 	getdns_dns_req *req;
 	getdns_dict *localnames_response;
@@ -496,8 +515,16 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		/* issue all network requests */
 		for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
-		    ; netreq_p++)
-			r = _getdns_submit_netreq(netreq);
+		    ; netreq_p++) {
+			if ((r = _getdns_submit_netreq(netreq))) {
+				if (r == DNS_REQ_FINISHED) {
+					if (return_netreq_p)
+						*return_netreq_p = NULL;
+					return GETDNS_RETURN_GOOD;
+				}
+				netreq->state = NET_REQ_FINISHED;
+			}
+		}
 
 	else for (i = 0; i < context->namespace_count; i++) {
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
@@ -518,14 +545,21 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			r = GETDNS_RETURN_GOOD;
 			for ( netreq_p = req->netreqs
 			    ; !r && (netreq = *netreq_p)
-			    ; netreq_p++)
-				r = _getdns_submit_netreq(netreq);
+			    ; netreq_p++) {
+				if ((r = _getdns_submit_netreq(netreq))) {
+					if (r == DNS_REQ_FINISHED) {
+						if (return_netreq_p)
+							*return_netreq_p = NULL;
+						return GETDNS_RETURN_GOOD;
+					}
+					netreq->state = NET_REQ_FINISHED;
+				}
+			}
 			break;
 		} else
 			r = GETDNS_RETURN_BAD_CONTEXT;
 	}
-
-	if (r != 0) {
+	if (r > 0) { /* i.e. r != GETDNS_RETURN_GOOD && r != DNS_REQ_FINISHED */
 		/* clean up the request */
 		_getdns_context_clear_outbound_request(req);
 		_getdns_dns_req_free(req);

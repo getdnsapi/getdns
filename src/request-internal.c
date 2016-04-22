@@ -640,7 +640,8 @@ _getdns_dns_req_free(getdns_dns_req * req)
 		req->loop->vmt->clear(req->loop, &req->timeout);
 		req->timeout.timeout_cb = NULL;
 	}
-
+	if (req->freed)
+		*req->freed = 1;
 	GETDNS_FREE(req->my_mf, req);
 }
 
@@ -907,6 +908,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		result->upstreams->referenced++;
 
 	result->finished_next = NULL;
+	result->freed = NULL;
+	result->validating = 0;
 
 	network_req_init(result->netreqs[0], result,
 	    request_type, dnssec_extension_set, with_opt,

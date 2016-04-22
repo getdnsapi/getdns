@@ -5,4 +5,10 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-event-loops"
-make test
+if make test
+then
+	if grep ERROR "${BUILDDIR}/build-event-loops/src/test/*.log"
+	then
+		exit 1
+	fi
+fi
