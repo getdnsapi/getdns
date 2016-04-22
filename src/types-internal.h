@@ -304,8 +304,6 @@ typedef struct getdns_dns_req {
 	int dnssec_ok_checking_disabled		: 1;
 	int is_sync_request			: 1;
 
-	uint16_t tls_query_padding_blocksize;
-
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when
 	 * callbacks are already fired whilst the registering/scheduling call
@@ -314,8 +312,10 @@ typedef struct getdns_dns_req {
 	 * validating is touched by _getdns_get_validation_chain only and
 	 * freed      is touched by _getdns_submit_netreq only
 	 */
-	int validating;
+	int validating                          : 1;
 	int *freed;
+
+	uint16_t tls_query_padding_blocksize;
 
 	/* internally scheduled request */
 	internal_cb_t internal_cb;
