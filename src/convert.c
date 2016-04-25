@@ -753,17 +753,26 @@ getdns_wire2msg_dict_scan(
 	if (!getdns_dict_get_int(reply, "/header/" #X, &n) && n) \
 		GLDNS_ ## Y ## _SET(header);
 
-static getdns_return_t
-_getdns_reply_dict2wire(const getdns_dict *reply, gldns_buffer *buf)
+getdns_return_t
+_getdns_reply_dict2wire(
+    const getdns_dict *reply, gldns_buffer *buf,int reuse_header)
 {
-	uint8_t header[GLDNS_HEADER_SIZE];
+	uint8_t header_spc[GLDNS_HEADER_SIZE], *header;
 	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN;
 	size_t pkt_start, i;
 	getdns_list *section;
 	getdns_dict *rr_dict;
 	getdns_bindata *qname;
 
-	(void) memset(header, 0, sizeof(GLDNS_HEADER_SIZE));
+	pkt_start = gldns_buffer_position(buf);
+	if (reuse_header) {
+		if (gldns_buffer_remaining(buf) < GLDNS_HEADER_SIZE)
+			return GETDNS_RETURN_NEED_MORE_SPACE;
+		header = gldns_buffer_current(buf);
+		gldns_buffer_skip(buf, GLDNS_HEADER_SIZE);
+	} else
+		(void) memset((header = header_spc), 0, GLDNS_HEADER_SIZE);
+
 	SET_HEADER_INT(id, ID);
 	SET_HEADER_BIT(qr, QR);
 	SET_HEADER_BIT(aa, AA);
@@ -776,8 +785,8 @@ _getdns_reply_dict2wire(const getdns_dict *reply, gldns_buffer *buf)
 	SET_HEADER_INT(rcode, RCODE);
 	SET_HEADER_BIT(z, Z);
 
-	pkt_start = gldns_buffer_position(buf);
-	gldns_buffer_write(buf, header, sizeof(header));
+	if (!reuse_header)
+		gldns_buffer_write(buf, header, sizeof(header));
 
 	if (!getdns_dict_get_bindata(reply, "/question/qname", &qname) &&
 	    !getdns_dict_get_int(reply, "/question/qtype", &qtype)) {
@@ -786,6 +795,14 @@ _getdns_reply_dict2wire(const getdns_dict *reply, gldns_buffer *buf)
 		gldns_buffer_write_u16(buf, (uint16_t)qtype);
 		gldns_buffer_write_u16(buf, (uint16_t)qclass);
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
+		if (reuse_header) {
+			gldns_buffer_write_u16_at(
+			    buf, pkt_start+GLDNS_ANCOUNT_OFF, 0);
+			gldns_buffer_write_u16_at(
+			    buf, pkt_start+GLDNS_NSCOUNT_OFF, 0);
+			gldns_buffer_write_u16_at(
+			    buf, pkt_start+GLDNS_ARCOUNT_OFF, 0);
+		}
 	}
 	if (!getdns_dict_get_list(reply, "answer", &section)) {
 		for ( n = 0, i = 0
@@ -817,7 +834,7 @@ _getdns_reply_dict2wire(const getdns_dict *reply, gldns_buffer *buf)
 	return GETDNS_RETURN_GOOD;
 }
 
-static getdns_return_t
+getdns_return_t
 _getdns_msg_dict2wire_buf(const getdns_dict *msg_dict, gldns_buffer *gbuf)
 {
 	getdns_return_t r;
@@ -828,11 +845,11 @@ _getdns_msg_dict2wire_buf(const getdns_dict *msg_dict, gldns_buffer *gbuf)
 	if ((r = getdns_dict_get_list(msg_dict, "replies_tree", &replies))) {
 		if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
 			return r;
-		return _getdns_reply_dict2wire(msg_dict, gbuf);
+		return _getdns_reply_dict2wire(msg_dict, gbuf, 0);
 	}
 	for (i = 0; r == GETDNS_RETURN_GOOD; i++) {
 		if (!(r = getdns_list_get_dict(replies, i, &reply)))
-			r = _getdns_reply_dict2wire(reply, gbuf);
+			r = _getdns_reply_dict2wire(reply, gbuf, 0);
 	}
 	return r == GETDNS_RETURN_NO_SUCH_LIST_ITEM ? GETDNS_RETURN_GOOD : r;
 }
@@ -889,9 +906,8 @@ getdns_msg_dict2wire_scan(
 	getdns_return_t r;
 	gldns_buffer gbuf;
 
-	if (!msg_dict || !wire || !*wire || !wire_sz)
+	if (!msg_dict || !wire || !wire_sz || (!*wire && *wire_sz))
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
 
 	gldns_buffer_init_frm_data(&gbuf, *wire, *wire_sz);
 	if ((r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf)))

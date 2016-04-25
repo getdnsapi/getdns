@@ -164,7 +164,7 @@ gldns_buffer_invariant(gldns_buffer *buffer)
 	assert(buffer != NULL);
 	assert(buffer->_position <= buffer->_limit || buffer->_fixed);
 	assert(buffer->_limit <= buffer->_capacity);
-	assert(buffer->_data != NULL);
+	assert(buffer->_data != NULL || (buffer->_capacity == 0 && buffer->_fixed));
 }
 #endif
 
