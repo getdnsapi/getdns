@@ -750,12 +750,14 @@ getdns_wire2msg_dict_scan(
 	if (!getdns_dict_get_int(reply, "/header/" #X, &n)) \
 		GLDNS_ ## Y ## _SET(header, n);
 #define SET_HEADER_BIT(X,Y) \
-	if (!getdns_dict_get_int(reply, "/header/" #X, &n) && n) \
-		GLDNS_ ## Y ## _SET(header);
+	if (!getdns_dict_get_int(reply, "/header/" #X, &n)) { \
+		if (n) GLDNS_ ## Y ## _SET(header); \
+		else   GLDNS_ ## Y ## _CLR(header); \
+	}
 
 getdns_return_t
 _getdns_reply_dict2wire(
-    const getdns_dict *reply, gldns_buffer *buf,int reuse_header)
+    const getdns_dict *reply, gldns_buffer *buf, int reuse_header)
 {
 	uint8_t header_spc[GLDNS_HEADER_SIZE], *header;
 	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN;
@@ -786,7 +788,7 @@ _getdns_reply_dict2wire(
 	SET_HEADER_BIT(z, Z);
 
 	if (!reuse_header)
-		gldns_buffer_write(buf, header, sizeof(header));
+		gldns_buffer_write(buf, header, GLDNS_HEADER_SIZE);
 
 	if (!getdns_dict_get_bindata(reply, "/question/qname", &qname) &&
 	    !getdns_dict_get_int(reply, "/question/qtype", &qtype)) {
