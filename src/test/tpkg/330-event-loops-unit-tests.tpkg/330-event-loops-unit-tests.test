@@ -4,5 +4,13 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-cd "${BUILDDIR}/build-event-loops"
-make test
+(
+  cd "${BUILDDIR}/build-event-loops"
+  make test 
+) && if grep 'ERROR:' result.330-event-loops-unit-tests
+then
+	exit 1
+else
+	echo 'No ERROR:s found in result.330-event-loops-unit-tests'
+	ls -l result.330-event-loops-unit-tests
+fi
