@@ -9,7 +9,7 @@ CmdDepends:
 Depends: 
 Help:
 Pre: 200-stub-only-compile.pre
-Post:
+Post: 200-stub-only-compile.post
 Test: 200-stub-only-compile.test
 AuxFiles: 
 Passed:
