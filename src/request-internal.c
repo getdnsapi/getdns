@@ -42,7 +42,6 @@
 #include "gldns/pkthdr.h"
 #include "dict.h"
 #include "debug.h"
-#include "convert.h"
 
 /* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
  *                      TSIG type      (uint16_t) :   2
@@ -144,7 +143,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
     int edns_maximum_udp_payload_size,
     uint8_t edns_extended_rcode, uint8_t edns_version, int edns_do_bit,
     uint16_t opt_options_size, size_t noptions, getdns_list *options,
-    size_t wire_data_sz, size_t max_query_sz, getdns_dict *extensions)
+    size_t wire_data_sz, size_t max_query_sz)
 {
 	uint8_t *buf;
 	getdns_dict    *option;
@@ -152,7 +151,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	getdns_bindata *option_data;
 	size_t i;
 	int r = 0;
-	gldns_buffer gbuf;
 
 	/* variables that stay the same on reinit, don't touch
 	 */
@@ -206,10 +204,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	gldns_write_uint16(buf + GLDNS_ARCOUNT_OFF, with_opt ? 1 : 0);
 
 	buf = netreq_reset(net_req);
-	gldns_buffer_init_frm_data(
-	    &gbuf, net_req->query, net_req->wire_data_sz - 2);
-	_getdns_reply_dict2wire(extensions, &gbuf, 1);
-
 	if (with_opt) {
 		net_req->opt = buf;
 		buf[0] = 0; /* dname for . */
@@ -913,8 +907,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    edns_maximum_udp_payload_size,
 	    edns_extended_rcode, edns_version, edns_do_bit,
 	    opt_options_size, noptions, options,
-	    netreq_sz - sizeof(getdns_network_req), max_query_sz,
-	    extensions);
+	    netreq_sz - sizeof(getdns_network_req), max_query_sz);
 
 	if (a_aaaa_query)
 		network_req_init(result->netreqs[1], result,
@@ -924,8 +917,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    edns_maximum_udp_payload_size,
 		    edns_extended_rcode, edns_version, edns_do_bit,
 		    opt_options_size, noptions, options,
-		    netreq_sz - sizeof(getdns_network_req), max_query_sz,
-		    extensions);
+		    netreq_sz - sizeof(getdns_network_req), max_query_sz);
 
 	return result;
 }

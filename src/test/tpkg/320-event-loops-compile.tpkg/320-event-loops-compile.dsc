@@ -8,8 +8,8 @@ Component:
 CmdDepends: 
 Depends: 300-event-loops-configure.tpkg
 Help:
-Pre: 320-event-loops-compile.pre
-Post: 320-event-loops-compile.post
+Pre:
+Post:
 Test: 320-event-loops-compile.test
 AuxFiles: 
 Passed:
