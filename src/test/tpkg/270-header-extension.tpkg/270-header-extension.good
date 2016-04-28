@@ -1,0 +1,32 @@
+{
+  "answer_type": GETDNS_NAMETYPE_DNS,
+  "canonical_name": <bindata of "bogus.nlnetlabs.nl.">,
+  "replies_tree":
+  [
+    {
+      "additional": [],
+      "answer": [],
+      "answer_type": GETDNS_NAMETYPE_DNS,
+      "authority": [],
+      "canonical_name": <bindata of "bogus.nlnetlabs.nl.">,
+      "header":
+      {
+        "aa": 0,
+        "ad": 0,
+        "ancount": 0,
+        "arcount": 0,
+        "cd": 0,
+        "nscount": 0,
+        "opcode": GETDNS_OPCODE_STATUS,
+        "qdcount": 0,
+        "qr": 1,
+        "ra": 0,
+        "rcode": GETDNS_RCODE_NOTIMP,
+        "rd": 0,
+        "tc": 0,
+        "z": 0
+      }
+    }
+  ],
+  "status": GETDNS_RESPSTATUS_NO_NAME
+}
