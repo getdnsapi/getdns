@@ -418,6 +418,7 @@ validate_extensions(struct getdns_dict * extensions)
 #else
 							   0},
 #endif
+		{"header"                        , t_dict, 1},
 		{"return_api_information"        , t_int , 1},
 		{"return_both_v4_and_v6"         , t_int , 1},
 		{"return_call_reporting"         , t_int , 1},

@@ -53,5 +53,8 @@ getdns_return_t _getdns_str2rr_dict(struct mem_funcs *mf, const char *str,
 getdns_return_t _getdns_fp2rr_list(struct mem_funcs *mf, FILE *in,
     getdns_list **rr_list, const char *origin, uint32_t default_ttl);
 
+getdns_return_t _getdns_reply_dict2wire(
+    const getdns_dict *reply, gldns_buffer *buf, int reuse_header);
+
 #endif
 /* convert.h */
