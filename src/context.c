@@ -655,6 +655,8 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			    dnsreq->trans_id, 1);
 		}
 		if (upstream->tls_obj != NULL) {
+		    if (upstream->tls_session != NULL)
+				SSL_SESSION_free(upstream->tls_session);
 			SSL_shutdown(upstream->tls_obj);
 			SSL_free(upstream->tls_obj);
 		}
@@ -810,6 +812,7 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
+	upstream->tls_session = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_failed = 0;
