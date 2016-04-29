@@ -51,6 +51,7 @@
 #include "gldns/str2wire.h"
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
+#include "dnssec.h"
 
 
 getdns_return_t
@@ -145,11 +146,12 @@ _getdns_sockaddr_to_dict(struct getdns_context *context, struct sockaddr_storage
 }
 
 getdns_dict *
-_getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
+_getdns_rr_iter2rr_dict_canonical(
+    struct mem_funcs *mf, _getdns_rr_iter *i, uint32_t *orig_ttl)
 {
 	getdns_dict *rr_dict, *rdata_dict;
 	const uint8_t *bin_data;
-	size_t bin_size;
+	size_t bin_size, owner_len = 0, rdata_sz;
 	uint32_t int_val = 0;
 	enum wf_data_type { wf_int, wf_bindata, wf_special } val_type;
 	_getdns_rdf_iter rdf_storage, *rdf;
@@ -157,6 +159,10 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	getdns_dict *repeat_dict = NULL;
 	uint8_t ff_bytes[256];
 	uint16_t rr_type;
+	int canonicalize;
+	gldns_buffer gbuf;
+	getdns_bindata *bindata;
+	uint8_t *data;
 
 	assert(i);
 	if (!(rr_dict = _getdns_dict_create_with_mf(mf)))
@@ -165,6 +171,12 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	bin_data = _getdns_owner_if_or_as_decompressed(
 	    i, ff_bytes, &bin_size);
 
+	if (orig_ttl) {
+		if (bin_data != ff_bytes)
+			bin_data = memcpy(ff_bytes, bin_data, bin_size);
+		_dname_canonicalize2(ff_bytes);
+		owner_len = bin_size;
+	}
 	/* question */
 	if (_getdns_rr_iter_section(i) == GLDNS_SECTION_QUESTION) {
 
@@ -186,6 +198,9 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 
 		goto error;
 	}
+	canonicalize = orig_ttl && _dnssec_rdata_to_canonicalize(rr_type)
+	    && (i->rr_type + 12 <= i->nxt) /* To estimate rdata size */;
+
 	if (rr_type == GETDNS_RRTYPE_OPT) {
 		int_val = gldns_read_uint16(i->rr_type + 6);
 
@@ -210,7 +225,8 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	    (uint32_t) gldns_read_uint16(i->rr_type + 2)) ||
 
 	    getdns_dict_set_int(rr_dict, "ttl",
-	    (uint32_t) gldns_read_uint32(i->rr_type + 4)) ||
+	    (  orig_ttl && rr_type != GETDNS_RRTYPE_RRSIG
+	    ? *orig_ttl : (uint32_t) gldns_read_uint32(i->rr_type + 4))) ||
 
 	    _getdns_dict_set_const_bindata(
 	    rr_dict, "name", bin_size, bin_data)) {
@@ -220,15 +236,21 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	if (!(rdata_dict = _getdns_dict_create_with_mf(mf)))
 		return NULL;
 
-	if (i->rr_type + 10 <= i->nxt) {
+	if (i->rr_type + 10 <= i->nxt && !canonicalize) {
 		bin_size = i->nxt - (i->rr_type + 10);
 		bin_data = i->rr_type + 10;
 		if (_getdns_dict_set_const_bindata(
 		    rdata_dict, "rdata_raw", bin_size, bin_data))
 			goto rdata_error;
 	}
+	if (canonicalize)
+		rdata_sz = 0;
+
 	for ( rdf = _getdns_rdf_iter_init(&rdf_storage, i)
 	    ; rdf; rdf = _getdns_rdf_iter_next(rdf)) {
+		if (canonicalize && !(rdf->rdd_pos->type & GETDNS_RDF_DNAME)) {
+			rdata_sz += rdf->nxt - rdf->pos;
+		}
 		if (rdf->rdd_pos->type & GETDNS_RDF_INTEGER) {
 			val_type = wf_int;
 			switch (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
@@ -247,6 +269,12 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 			bin_data = _getdns_rdf_if_or_as_decompressed(
 			    rdf, ff_bytes, &bin_size);
 
+			if (canonicalize) {
+				if (bin_data != ff_bytes)
+					bin_data = memcpy(ff_bytes, bin_data, bin_size);
+				_dname_canonicalize2(ff_bytes);
+				rdata_sz += bin_size;
+			}
 		} else if (rdf->rdd_pos->type & GETDNS_RDF_BINDATA) {
 			val_type = wf_bindata;
 			if (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) {
@@ -376,6 +404,23 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	if (_getdns_dict_set_this_dict(rr_dict, "rdata", rdata_dict))
 		goto rdata_error;
 
+	if (canonicalize && rdata_sz) {
+		if (!(data = GETDNS_XMALLOC(
+		    *mf, uint8_t, owner_len + 10 + rdata_sz)))
+			return rr_dict;
+
+		gldns_buffer_init_frm_data(&gbuf, data, owner_len+10+rdata_sz);
+		if (_getdns_rr_dict2wire(rr_dict, &gbuf) ||
+		    gldns_buffer_position(&gbuf) != owner_len + 10 + rdata_sz ||
+		    !(bindata = GETDNS_MALLOC(*mf, struct getdns_bindata))) {
+			GETDNS_FREE(*mf, data);
+			return rr_dict;
+		}
+		bindata->size = rdata_sz;
+		bindata->data = memmove(data, data + owner_len + 10, rdata_sz);
+		(void) _getdns_dict_set_this_bindata(rr_dict,
+		    "/rdata/rdata_raw", bindata);
+	}
 	return rr_dict;
 
 rdata_error:
@@ -385,6 +430,12 @@ rdata_error:
 error:
 	getdns_dict_destroy(rr_dict);
 	return NULL;
+}
+
+getdns_dict *
+_getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
+{
+	return _getdns_rr_iter2rr_dict_canonical(mf, i, NULL);
 }
 
 int

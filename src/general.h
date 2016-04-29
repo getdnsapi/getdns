@@ -42,9 +42,11 @@
 
 /* private inner helper used by sync and async */
 
+#define DNS_REQ_FINISHED -1
+
 void _getdns_call_user_callback(getdns_dns_req *, getdns_dict *);
 void _getdns_check_dns_req_complete(getdns_dns_req *dns_req);
-getdns_return_t _getdns_submit_netreq(getdns_network_req *netreq);
+int _getdns_submit_netreq(getdns_network_req *netreq);
 
 
 getdns_return_t

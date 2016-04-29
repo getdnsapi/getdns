@@ -41,12 +41,28 @@
 #include "getdns/getdns.h"
 #include "config.h"
 #include "gldns/gbuffer.h"
+#include "gldns/rrdef.h"
 #include "types-internal.h"
 
 /* Do some additional requests to fetch the complete validation chain */
 void _getdns_get_validation_chain(getdns_dns_req *dns_req);
 
 uint16_t _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf);
+
+inline static int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
+{
+	return rr_type == GLDNS_RR_TYPE_NS    || rr_type == GLDNS_RR_TYPE_MD
+	    || rr_type == GLDNS_RR_TYPE_MF    || rr_type == GLDNS_RR_TYPE_CNAME
+	    || rr_type == GLDNS_RR_TYPE_SOA   || rr_type == GLDNS_RR_TYPE_MB
+	    || rr_type == GLDNS_RR_TYPE_MG    || rr_type == GLDNS_RR_TYPE_MR
+	    || rr_type == GLDNS_RR_TYPE_PTR   || rr_type == GLDNS_RR_TYPE_MINFO
+	    || rr_type == GLDNS_RR_TYPE_MX    || rr_type == GLDNS_RR_TYPE_RP
+	    || rr_type == GLDNS_RR_TYPE_AFSDB || rr_type == GLDNS_RR_TYPE_RT
+	    || rr_type == GLDNS_RR_TYPE_SIG   || rr_type == GLDNS_RR_TYPE_PX
+	    || rr_type == GLDNS_RR_TYPE_NXT   || rr_type == GLDNS_RR_TYPE_NAPTR
+	    || rr_type == GLDNS_RR_TYPE_KX    || rr_type == GLDNS_RR_TYPE_SRV
+	    || rr_type == GLDNS_RR_TYPE_DNAME || rr_type == GLDNS_RR_TYPE_RRSIG;
+}
 
 #endif
 

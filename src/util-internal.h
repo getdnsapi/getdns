@@ -41,6 +41,7 @@
 #include "config.h"
 #include "context.h"
 #include "rr-iter.h"
+#include <ctype.h>
 
 #define UNCONST_UINT8_p uint8_t *
 
@@ -95,6 +96,9 @@ getdns_return_t _getdns_dict_set_this_list(getdns_dict *dict,
 getdns_return_t _getdns_dict_set_const_bindata(getdns_dict *dict,
     const char *name, size_t size, const void *data);
 
+getdns_return_t _getdns_dict_set_this_bindata(getdns_dict *dict,
+    const char *name, getdns_bindata *child_bindata);
+
 /**
   * private function (API users should not be calling this), this uses library
   * routines to make a copy of the list - would be faster to make the copy directly
@@ -138,6 +142,10 @@ getdns_return_t _getdns_sockaddr_to_dict(struct getdns_context *context,
 getdns_dict *
 _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i);
 
+getdns_dict *
+_getdns_rr_iter2rr_dict_canonical(
+    struct mem_funcs *mf, _getdns_rr_iter *i, uint32_t *orig_ttl);
+
 struct getdns_dns_req;
 struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *completed_request);
 
@@ -177,6 +185,23 @@ INLINE getdns_eventloop_event *getdns_eventloop_event_init(
 	do { if ((event)->ev) (loop)->vmt->clear((loop), (event)); } while(0)
 #define GETDNS_SCHEDULE_EVENT(loop, fd, timeout, event) \
 	do { (loop)->vmt->schedule((loop),(fd),(timeout),(event)); } while(0)
+
+INLINE void _dname_canonicalize(const uint8_t *src, uint8_t *dst)
+{
+	const uint8_t *next_label;
+
+	while (*src) {
+		next_label = src + *src + 1;
+		*dst++ = *src++;
+		while (src < next_label)
+			*dst++ = (uint8_t)tolower((unsigned char)*src++);
+	}
+}
+
+INLINE void _dname_canonicalize2(uint8_t *dname)
+{
+	_dname_canonicalize(dname, dname);
+}
 
 #endif
 /* util-internal.h */
