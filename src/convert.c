@@ -240,7 +240,7 @@ getdns_rr_dict2wire(
 	if (r != GETDNS_RETURN_GOOD && r != GETDNS_RETURN_NEED_MORE_SPACE)
 		return r;
 
-	if (!(buf = malloc(buf_len)))
+	if (!(buf = malloc(buf_len ? buf_len : 1)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if (!r)
@@ -658,11 +658,16 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 			     result, "question", rr_dict)))
 				goto error;
 			break;
-		default:
+		case GLDNS_SECTION_ANSWER:
+		case GLDNS_SECTION_AUTHORITY:
+		case GLDNS_SECTION_ADDITIONAL:
 			if ((r = _getdns_list_append_this_dict(
 			     sections[section], rr_dict)))
 				goto error;
 			break;
+		default:
+			r = GETDNS_RETURN_GENERIC_ERROR;
+			goto error;
 		}
 		rr_dict = NULL;
 	}
@@ -849,7 +854,7 @@ getdns_msg_dict2wire(
 	if (r != GETDNS_RETURN_GOOD && r != GETDNS_RETURN_NEED_MORE_SPACE)
 		return r;
 
-	if (!(buf = malloc(buf_len)))
+	if (!(buf = malloc(buf_len ? buf_len : 1)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	if (!r)

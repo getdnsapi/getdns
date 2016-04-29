@@ -65,7 +65,7 @@ static char *_json_ptr_first(const struct mem_funcs *mf,
 	if (!(next_ref = strchr(jptr, '/')))
 		next_ref = strchr(jptr, '\0');
 
-	if (next_ref - jptr > first_sz)
+	if (next_ref - jptr + 1 > first_sz || !first)
 		first = GETDNS_XMALLOC(*mf, char, next_ref - jptr + 1);
 
 	for (j = first, k = jptr; k < next_ref; j++, k++)
@@ -484,7 +484,6 @@ _getdns_dict_copy(const struct getdns_dict * srcdict,
 	if (!*dstdict)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	retval = GETDNS_RETURN_GOOD;
 	RBTREE_FOR(item, struct getdns_dict_item *,
 		(struct _getdns_rbtree_t *)&(srcdict->root)) {
 		key = (char *) item->node.key;
@@ -507,6 +506,9 @@ _getdns_dict_copy(const struct getdns_dict * srcdict,
 		case t_list:
 			retval = getdns_dict_set_list(*dstdict, key,
 				item->i.data.list);
+			break;
+		default:
+			retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 			break;
 		}
 		if (retval != GETDNS_RETURN_GOOD) {

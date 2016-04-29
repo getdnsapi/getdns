@@ -828,7 +828,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		    ; node = node->parent, n++);
 
 		for ( n -= max_labels, node = max_head->parent
-		    ; n
+		    ; n && node
 		    ; n--, node = node->parent);
 
 		max_node = node;
@@ -2646,8 +2646,8 @@ static int key_proves_nonexistance(
 		for ( i = rrset_iter_init(&i_spc, rrset->pkt, rrset->pkt_len)
 		    ; i ; i = rrset_iter_next(i)) {
 
-			if (   (ce = rrset_iter_value(i))->rr_type
-					!= GETDNS_RRTYPE_NSEC3
+			if (   !(ce = rrset_iter_value(i))
+			    || ce->rr_type != GETDNS_RRTYPE_NSEC3
 
 			    /* Get the bitmap rdata field */
 			    || !(nsec_rr = rrtype_iter_init(&nsec_spc, ce))

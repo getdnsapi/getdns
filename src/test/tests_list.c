@@ -56,7 +56,7 @@ tst_bindatasetget(void)
 	size_t index = 0;
 	getdns_return_t retval;
 	struct getdns_list *list = NULL;
-	struct getdns_bindata *new_bindata = NULL;
+	struct getdns_bindata  new_bindata = { 0, NULL };
 	struct getdns_bindata *ans_bindata = NULL;
 
 	tstmsg_case_begin("tst_bindatasetget");
@@ -101,12 +101,10 @@ tst_bindatasetget(void)
 
 	/* test set and get legitimate use case */
 
-	new_bindata =
-	    (struct getdns_bindata *) malloc(sizeof(struct getdns_bindata));
-	new_bindata->size = strlen("foobar") + 1;
-	new_bindata->data = (uint8_t *) "foobar";
+	new_bindata.size = strlen("foobar") + 1;
+	new_bindata.data = (uint8_t *) "foobar";
 
-	getdns_list_set_bindata(list, index, new_bindata);
+	getdns_list_set_bindata(list, index, &new_bindata);
 	retval = getdns_list_get_bindata(list, index, &ans_bindata);
 	snprintf(msg, sizeof(msg),
 	    "getdns_list_set/get_bindata,retval = %d, bindata->data = %d,%s",
@@ -378,7 +376,7 @@ tst_create(void)
 
 	tstmsg_case_msg("getdns_list_get_length(list)");
 	retval = getdns_list_get_length(list, &index);
-	snprintf(msg, sizeof(msg), "list length = %d", (int) index);
+	snprintf(msg, sizeof(msg), "list length = %d, retval = %d", (int) index, retval);
 	tstmsg_case_msg(msg);
 
 	tstmsg_case_msg("getdns_list_get_length()");
