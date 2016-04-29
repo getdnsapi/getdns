@@ -1147,12 +1147,14 @@ getdns_return_t
 _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
+	getdns_bindata root = { 1, (void *)"" };
 	getdns_bindata *name;
 	getdns_bindata *rdata_raw;
 	getdns_dict *rdata;
 	uint32_t rr_type;
 	uint32_t rr_class = GETDNS_RRCLASS_IN;
 	uint32_t rr_ttl = 0;
+	uint32_t value;
 	const _getdns_rr_def *rr_def;
 	const _getdns_rdata_def *rd_def, *rep_rd_def;
 	int n_rdata_fields, rep_n_rdata_fields;
@@ -1164,18 +1166,35 @@ _getdns_rr_dict2wire(const getdns_dict *rr_dict, gldns_buffer *buf)
 	assert(rr_dict);
 	assert(buf);
 
-	if ((r = getdns_dict_get_bindata(rr_dict, "name", &name)))
-		return r;
-	gldns_buffer_write(buf, name->data, name->size);
-
 	if ((r = getdns_dict_get_int(rr_dict, "type", &rr_type)))
 		return r;
+	if ((r = getdns_dict_get_bindata(rr_dict, "name", &name))) {
+		if (r == GETDNS_RETURN_NO_SUCH_DICT_NAME &&
+		    rr_type == GETDNS_RRTYPE_OPT) {
+			name = &root;
+		} else
+			return r;
+	}
+	gldns_buffer_write(buf, name->data, name->size);
 	gldns_buffer_write_u16(buf, (uint16_t)rr_type);
 
 	(void) getdns_dict_get_int(rr_dict, "class", &rr_class);
+	if (rr_type == GETDNS_RRTYPE_OPT) 
+		(void) getdns_dict_get_int(
+		    rr_dict, "udp_payload_size", &rr_class);
 	gldns_buffer_write_u16(buf, (uint16_t)rr_class);
 
 	(void) getdns_dict_get_int(rr_dict, "ttl", &rr_ttl);
+	if (rr_type == GETDNS_RRTYPE_OPT) {
+		if (!getdns_dict_get_int(rr_dict, "extended_rcode", &value))
+			rr_ttl = (rr_ttl & 0x00FFFFFF)|((value & 0xFF) << 24);
+		if (!getdns_dict_get_int(rr_dict, "version", &value))
+			rr_ttl = (rr_ttl & 0xFF00FFFF)|((value & 0xFF) << 16);
+		if (!getdns_dict_get_int(rr_dict, "z", &value))
+			rr_ttl = (rr_ttl & 0xFFFF0000)| (value & 0xFFFF);
+		if (!getdns_dict_get_int(rr_dict, "do", &value))
+			rr_ttl = (rr_ttl & 0xFFFF7FFF)| (value ? 0x8000 : 0);
+	}
 	gldns_buffer_write_u32(buf, rr_ttl);
 
 	/* Does rdata contain compressed names?

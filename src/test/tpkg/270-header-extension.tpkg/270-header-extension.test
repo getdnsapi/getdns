@@ -1,14 +1,7 @@
-# #-- 330-event-loops-unit-tests.test --#
+# #-- 270-header-extension.test --#
 # source the master var file when it's there
 [ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-cd "${BUILDDIR}/build-event-loops"
-if make test
-then
-	if grep ERROR "${BUILDDIR}/build-event-loops/src/test/*.log"
-	then
-		exit 1
-	fi
-fi
+make && "./${TPKG_NAME}" | tee out && diff out "${TPKG_NAME}.good"

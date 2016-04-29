@@ -42,6 +42,7 @@
 #include "gldns/pkthdr.h"
 #include "dict.h"
 #include "debug.h"
+#include "convert.h"
 
 /* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
  *                      TSIG type      (uint16_t) :   2
@@ -143,7 +144,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
     int edns_maximum_udp_payload_size,
     uint8_t edns_extended_rcode, uint8_t edns_version, int edns_do_bit,
     uint16_t opt_options_size, size_t noptions, getdns_list *options,
-    size_t wire_data_sz, size_t max_query_sz)
+    size_t wire_data_sz, size_t max_query_sz, getdns_dict *extensions)
 {
 	uint8_t *buf;
 	getdns_dict    *option;
@@ -151,6 +152,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	getdns_bindata *option_data;
 	size_t i;
 	int r = 0;
+	gldns_buffer gbuf;
 
 	/* variables that stay the same on reinit, don't touch
 	 */
@@ -204,6 +206,10 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	gldns_write_uint16(buf + GLDNS_ARCOUNT_OFF, with_opt ? 1 : 0);
 
 	buf = netreq_reset(net_req);
+	gldns_buffer_init_frm_data(
+	    &gbuf, net_req->query, net_req->wire_data_sz - 2);
+	_getdns_reply_dict2wire(extensions, &gbuf, 1);
+
 	if (with_opt) {
 		net_req->opt = buf;
 		buf[0] = 0; /* dname for . */
@@ -640,7 +646,8 @@ _getdns_dns_req_free(getdns_dns_req * req)
 		req->loop->vmt->clear(req->loop, &req->timeout);
 		req->timeout.timeout_cb = NULL;
 	}
-
+	if (req->freed)
+		*req->freed = 1;
 	GETDNS_FREE(req->my_mf, req);
 }
 
@@ -658,6 +665,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    =  is_extension_set(extensions, "dnssec_return_only_secure");
 	int dnssec_return_all_statuses
 	    =  is_extension_set(extensions, "dnssec_return_all_statuses");
+	int dnssec_return_full_validation_chain
+	    =  is_extension_set(extensions, "dnssec_return_full_validation_chain");
 	int dnssec_return_validation_chain
 	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
 	int edns_cookies
@@ -674,6 +683,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_all_statuses
 	    || dnssec_return_validation_chain
+	    || dnssec_return_full_validation_chain
 	    || (extensions == dnssec_ok_checking_disabled)
 	    || (extensions == dnssec_ok_checking_disabled_roadblock_avoidance)
 	    || (extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
@@ -874,7 +884,10 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_all_statuses     = dnssec_return_all_statuses;
-	result->dnssec_return_validation_chain = dnssec_return_validation_chain;
+	result->dnssec_return_full_validation_chain =
+		dnssec_return_full_validation_chain;
+	result->dnssec_return_validation_chain = dnssec_return_validation_chain
+	     || dnssec_return_full_validation_chain;
 	result->edns_cookies                   = edns_cookies;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	result->dnssec_roadblock_avoidance     = dnssec_roadblock_avoidance;
@@ -901,13 +914,16 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		result->upstreams->referenced++;
 
 	result->finished_next = NULL;
+	result->freed = NULL;
+	result->validating = 0;
 
 	network_req_init(result->netreqs[0], result,
 	    request_type, dnssec_extension_set, with_opt,
 	    edns_maximum_udp_payload_size,
 	    edns_extended_rcode, edns_version, edns_do_bit,
 	    opt_options_size, noptions, options,
-	    netreq_sz - sizeof(getdns_network_req), max_query_sz);
+	    netreq_sz - sizeof(getdns_network_req), max_query_sz,
+	    extensions);
 
 	if (a_aaaa_query)
 		network_req_init(result->netreqs[1], result,
@@ -917,7 +933,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    edns_maximum_udp_payload_size,
 		    edns_extended_rcode, edns_version, edns_do_bit,
 		    opt_options_size, noptions, options,
-		    netreq_sz - sizeof(getdns_network_req), max_query_sz);
+		    netreq_sz - sizeof(getdns_network_req), max_query_sz,
+		    extensions);
 
 	return result;
 }

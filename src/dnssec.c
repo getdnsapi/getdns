@@ -268,23 +268,6 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 	return r;
 }
 
-inline static void _dname_canonicalize(const uint8_t *src, uint8_t *dst)
-{
-	const uint8_t *next_label;
-
-	while (*src) {
-		next_label = src + *src + 1;
-		*dst++ = *src++;
-		while (src < next_label)
-			*dst++ = (uint8_t)tolower((unsigned char)*src++);
-	}
-}
-
-inline static void _dname_canonicalize2(uint8_t *dname)
-{
-	_dname_canonicalize(dname, dname);
-}
-
 
 /* Fills the array pointed to by labels (of at least 128 uint8_t * pointers)
  * with pointers to labels in given dname in reversed order.  So that
@@ -736,6 +719,8 @@ typedef struct chain_node chain_node;
 struct chain_head {
 	struct mem_funcs  my_mf;
 
+	size_t              lock;
+
 	chain_head         *next;
 	chain_node         *parent;
 	size_t              node_count; /* Number of nodes attached directly
@@ -857,6 +842,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		head = *chain_p   = (chain_head *)region;
 
 	head->my_mf = *mf;
+	head->lock = 1;
 	head->next = NULL;
 	head->rrset.name = head->name_spc;
 	memcpy(head->name_spc, rrset->name, dname_len);
@@ -865,7 +851,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->rrset.pkt = rrset->pkt;
 	head->rrset.pkt_len = rrset->pkt_len;
 	head->netreq = netreq;
-	head->signer = 0;
+	head->signer = -1;
 	head->node_count = node_count;
 
 	if (!node_count) {
@@ -894,8 +880,8 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		node->ds_req          = NULL;
 		node->dnskey_req      = NULL;
 		node->soa_req         = NULL;
-		node->ds_signer       = 0;
-		node->dnskey_signer   = 0;
+		node->ds_signer       = -1;
+		node->dnskey_signer   = -1;
 
 		node->chains          = *chain_p;
 	}
@@ -1319,6 +1305,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	default                  : check_chain_complete(node->chains);
 				   return;
 	}
+	node->lock++;
 	n_signers = 0;
 	for ( i = rrset_iter_init(&i_spc,netreq->response,netreq->response_len)
 	    ; i
@@ -1344,6 +1331,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 		 */
 		val_chain_sched_soa_node(node->parent);
 
+	node->lock--;
 	check_chain_complete(node->chains);
 }
 
@@ -1363,17 +1351,21 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		    ! _dname_equal(node->ds.name, rrset->name))
 			node = node->parent;
 
-		if (node)
+		if (node) {
+			node->lock++;
 			val_chain_sched_ds_node(node);
-		else {
+		} else {
 			/* SOA for a different name */
 			node = (chain_node *)dnsreq->user_pointer;
+			node->lock++;
 			val_chain_sched_soa_node(node->parent);
 		}
 
-	} else if (node->parent)
+	} else if (node->parent) {
+		node->lock++;
 		val_chain_sched_soa_node(node->parent);
-
+	}
+	node->lock--;
 	check_chain_complete(node->chains);
 }
 
@@ -1528,21 +1520,6 @@ inline static void canon_rdata_iter_next(canon_rdata_iter *i)
 		i->pos++;
 }
 
-inline static int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
-{
-	return rr_type == GLDNS_RR_TYPE_NS    || rr_type == GLDNS_RR_TYPE_MD
-	    || rr_type == GLDNS_RR_TYPE_MF    || rr_type == GLDNS_RR_TYPE_CNAME
-	    || rr_type == GLDNS_RR_TYPE_SOA   || rr_type == GLDNS_RR_TYPE_MB
-	    || rr_type == GLDNS_RR_TYPE_MG    || rr_type == GLDNS_RR_TYPE_MR
-	    || rr_type == GLDNS_RR_TYPE_PTR   || rr_type == GLDNS_RR_TYPE_MINFO
-	    || rr_type == GLDNS_RR_TYPE_MX    || rr_type == GLDNS_RR_TYPE_RP
-	    || rr_type == GLDNS_RR_TYPE_AFSDB || rr_type == GLDNS_RR_TYPE_RT
-	    || rr_type == GLDNS_RR_TYPE_SIG   || rr_type == GLDNS_RR_TYPE_PX
-	    || rr_type == GLDNS_RR_TYPE_NXT   || rr_type == GLDNS_RR_TYPE_NAPTR
-	    || rr_type == GLDNS_RR_TYPE_KX    || rr_type == GLDNS_RR_TYPE_SRV
-	    || rr_type == GLDNS_RR_TYPE_DNAME || rr_type == GLDNS_RR_TYPE_RRSIG;
-}
-
 static int _rr_iter_rdata_cmp(const void *a, const void *b)
 {
 	_getdns_rr_iter *x = (_getdns_rr_iter *)a;
@@ -1656,6 +1633,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 
 	if (!_dnssec_rdata_to_canonicalize(rrset->rr_type))
 		for (i = 0; i < n_rrs; i++) {
+			/* Get rid of doubles */
 			if (i && !_rr_iter_rdata_cmp(
 			    &val_rrset[i], &val_rrset[i-1]))
 				continue;
@@ -3003,7 +2981,7 @@ static size_t count_outstanding_requests(chain_head *head)
 	if (!head)
 		return 0;
 
-	for ( node = head->parent, count = 0
+	for ( node = head->parent, count = head->lock
 	    ; node
 	    ; node = node->parent) {
 
@@ -3047,6 +3025,77 @@ static int rrset_in_list(getdns_rrset *rrset, getdns_list *list)
 	return 0;
 }
 
+static void append_rrset2val_chain_list(
+    getdns_list *val_chain_list, getdns_rrset *rrset, int signer)
+{
+	_getdns_rr_iter  val_rrset_spc[VAL_RRSET_SPC_SZ];
+	_getdns_rr_iter *val_rrset = val_rrset_spc;
+	rrtype_iter rr_spc, *rr;
+	size_t n_rrs, i;
+	uint32_t orig_ttl;
+	getdns_dict *rr_dict;
+	rrsig_iter  *rrsig, rrsig_spc;
+
+	assert(val_chain_list && rrset);
+
+	if (signer < 0)
+		return;
+
+	for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
+	    ; rrsig &&
+	      (   rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
+	       || gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+	          != (signer & 0xFFFF))
+	    ; rrsig = rrsig_iter_next(rrsig))
+		; /* pass */
+
+	if (!rrsig)
+		return;
+
+	/* keytag was already read, so orig_ttl should cause no problem */
+	assert(rrsig->rr_i.nxt >= rrsig->rr_i.rr_type + 18);
+
+	orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
+
+	for (;;) {
+		for ( rr = rrtype_iter_init(&rr_spc, rrset), n_rrs = 0
+		    ; rr
+		    ; rr = rrtype_iter_next(rr), n_rrs++) {
+
+			if (n_rrs < VAL_RRSET_SPC_SZ ||
+			    val_rrset != val_rrset_spc)
+				val_rrset[n_rrs] = rr->rr_i;
+		}
+		/* Did everything fit? Then break */
+		if (val_rrset != val_rrset_spc || n_rrs <= VAL_RRSET_SPC_SZ)
+			break;
+
+		/* More space needed for val_rrset */
+		val_rrset = GETDNS_XMALLOC(
+		    val_chain_list->mf, _getdns_rr_iter, n_rrs);
+	}
+	qsort(val_rrset, n_rrs, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
+	for (i = 0; i < n_rrs; i++) {
+		/* Get rid of doubles */
+		if (i && !_rr_iter_rdata_cmp(&val_rrset[i], &val_rrset[i-1]))
+			continue;
+
+		if (!(rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+		    &val_chain_list->mf, &val_rrset[i], &orig_ttl)))
+			continue;
+
+		if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
+			getdns_dict_destroy(rr_dict);
+	}
+	if ((rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+	    &val_chain_list->mf, &rrsig->rr_i, &orig_ttl)) &&
+	    _getdns_list_append_this_dict(val_chain_list, rr_dict))
+		getdns_dict_destroy(rr_dict);
+
+	if (val_rrset != val_rrset_spc)
+		GETDNS_FREE(val_chain_list->mf, val_rrset);
+}
+
 static void append_rrs2val_chain_list(getdns_context *ctxt,
     getdns_list *val_chain_list, getdns_network_req *netreq, int signer)
 {
@@ -3072,6 +3121,15 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		           rrset->rr_type != GETDNS_RRTYPE_DS)
 			continue;
 
+		if (signer > 0) {
+			/* We have a signer!  Return RRset in canonical
+			 * form and order with only the RRSIG that signed
+			 * the RRset.
+			 */
+			append_rrset2val_chain_list(
+			   val_chain_list, rrset, signer);
+			continue;
+		}
 		for ( rr = rrtype_iter_init(&rr_spc, rrset)
 		    ; rr; rr = rrtype_iter_next(rr)) {
 
@@ -3085,16 +3143,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		for ( rrsig = rrsig_iter_init(&rrsig_spc, rrset)
 		    ; rrsig; rrsig = rrsig_iter_next(rrsig)) {
 
-			if (/* No space for keytag & signer in rrsig rdata? */
-			       rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28
-
-			    /* We have a signer and it doesn't match? */
-			    || ((signer & 0xFFFF) &&
-			        gldns_read_uint16(rrsig->rr_i.rr_type + 26)
-					    != (signer & 0xFFFF))
-
-			    /* Could not convert to rr_dict */
-			    || !(rr_dict = _getdns_rr_iter2rr_dict(
+			if (!(rr_dict = _getdns_rr_iter2rr_dict(
 						&ctxt->mf, &rrsig->rr_i)))
 				continue;
 
@@ -3139,7 +3188,7 @@ static void check_chain_complete(chain_head *chain)
 	getdns_dns_req *dnsreq;
 	getdns_context *context;
 	size_t o, node_count;
-	chain_head *head, *next;
+	chain_head *head, *next, *same_chain;
 	chain_node *node;
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
@@ -3181,7 +3230,7 @@ static void check_chain_complete(chain_head *chain)
 	    && !dnsreq->avoid_dnssec_roadblocks
 	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
 
-		getdns_return_t r = GETDNS_RETURN_GOOD;
+		int r = GETDNS_RETURN_GOOD;
 		getdns_network_req **netreq_p, *netreq;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;
@@ -3203,22 +3252,39 @@ static void check_chain_complete(chain_head *chain)
 	/* Walk chain to add values to val_chain_list and to cleanup */
 	for ( head = chain; head ; head = next ) {
 		next = head->next;
+		if (dnsreq->dnssec_return_full_validation_chain &&
+		    head->node_count && head->signer > 0) {
+
+			append_rrset2val_chain_list(
+			    val_chain_list, &head->rrset, head->signer);
+
+			for ( same_chain = next
+			    ; same_chain && same_chain->signer == head->signer
+			    ; same_chain = same_chain->next) {
+				append_rrset2val_chain_list(val_chain_list,
+				    &same_chain->rrset, same_chain->signer);
+				same_chain->signer = -1;
+			}
+		}
 		for ( node_count = head->node_count, node = head->parent
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
 			if (node->dnskey_req) {
-				append_rrs2val_chain_list(
-				    context, val_chain_list,
-				    node->dnskey_req, node->dnskey_signer);
+				if (val_chain_list)
+					append_rrs2val_chain_list(
+					    context, val_chain_list,
+					    node->dnskey_req,
+					    node->dnskey_signer);
 				_getdns_dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
-				append_rrs2val_chain_list(
-				    context, val_chain_list,
-				    node->ds_req, node->ds_signer);
+				if (val_chain_list)
+					append_rrs2val_chain_list(
+					    context, val_chain_list,
+					    node->ds_req, node->ds_signer);
 
-				if (!node->ds_signer &&
+				if (val_chain_list && node->ds_signer == -1 &&
 				    !rrset_has_rrs(&node->ds)) {
 					/* Add empty DS, to prevent less
 					 * specific to be able to authenticate
@@ -3245,6 +3311,7 @@ static void check_chain_complete(chain_head *chain)
 	}
 
 	/* Final user callback */
+	dnsreq->validating = 0;
 	_getdns_call_user_callback(dnsreq, response_dict);
 }
 
@@ -3252,7 +3319,11 @@ static void check_chain_complete(chain_head *chain)
 void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 {
 	getdns_network_req *netreq, **netreq_p;
-	chain_head *chain = NULL;
+	chain_head *chain = NULL, *chain_p;
+
+	if (dnsreq->validating)
+		return;
+	dnsreq->validating = 1;
 
 	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		if (!  netreq->response
@@ -3277,11 +3348,15 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 				      , netreq
 		                      );
 	}
-	if (chain)
+	if (chain) {
+		for (chain_p = chain; chain_p; chain_p = chain_p->next)
+			chain_p->lock--;
 		check_chain_complete(chain);
-	else
+	} else {
+		dnsreq->validating = 0;
 		_getdns_call_user_callback(dnsreq,
 		    _getdns_create_getdns_response(dnsreq));
+	}
 }
 
 

@@ -604,6 +604,24 @@ getdns_dict_set_list(
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
+_getdns_dict_set_this_bindata(
+    getdns_dict *dict, const char *name, getdns_bindata *bindata)
+{
+	getdns_item    *item;
+	getdns_return_t r;
+
+	if (!dict || !name || !bindata)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if ((r = _getdns_dict_find_and_add(dict, name, &item)))
+		return r;
+
+	item->dtype = t_bindata;
+	item->data.bindata = bindata;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
 _getdns_dict_set_const_bindata(
     getdns_dict *dict, const char *name, size_t size, const void *data)
 {
