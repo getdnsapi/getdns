@@ -1,0 +1,4 @@
+[submodule "src/test/jsmn"]
+	path = src/test/jsmn
+	url = github.com:getdnsapi/jsmn.git
+	branch = getdns
