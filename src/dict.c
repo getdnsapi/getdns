@@ -764,7 +764,7 @@ getdns_pp_bindata(gldns_buffer *buf, size_t indent,
 		(void)gldns_wire2str_dname_buf(
 		    bindata->data, bindata->size, spc, sizeof(spc));
 		if (gldns_buffer_printf(
-		    buf, (json ? "\"%s\"" : "of \"%s\">"), spc) < 0)
+		    buf, (json ? "\"%s\"" : "for %s>"), spc) < 0)
 			return -1;
 	} else if (json) {
 		if (gldns_buffer_printf(buf, "[") < 0)
