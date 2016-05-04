@@ -33,6 +33,18 @@
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
+#ifndef USE_WINSOCK
+#include <arpa/inet.h>
+#include <sys/time.h>
+#include <netdb.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+typedef unsigned short in_port_t;
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
 
 #define MAX_TIMEOUTS FD_SETSIZE
 
@@ -264,7 +276,9 @@ static char *name;
 static getdns_context *context;
 static getdns_dict *extensions;
 static getdns_list *pubkey_pinset = NULL;
+static getdns_list *listen_list = NULL;
 static size_t pincount = 0;
+static size_t listen_count = 0;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
 static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
@@ -512,9 +526,9 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
+	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
-	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
@@ -798,6 +812,19 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				getdns_list_set_dict(upstream_list,
 				    upstream_count++, upstream);
+			}
+			continue;
+		} else if (arg[0] == '~') {
+			getdns_dict *ipaddr = ipaddr_dict(context, arg + 1);
+			if (ipaddr) {
+				if (!listen_list &&
+				    !(listen_list =
+				    getdns_list_create_with_context(context))){
+					fprintf(stderr, "Could not create upstream list\n");
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				getdns_list_set_dict(listen_list,
+				    listen_count++, ipaddr);
 			}
 			continue;
 		} else if (arg[0] != '-') {
@@ -1313,6 +1340,260 @@ void read_line_cb(void *userarg)
 	}
 }
 
+typedef struct listen_data {
+	socklen_t                addr_len;
+	struct sockaddr_storage  addr;
+	int                      fd;
+	getdns_transport_list_t  transport;
+	getdns_eventloop_event   event;
+} listen_data;
+
+
+listen_data *listening = NULL;
+
+typedef struct dns_msg {
+	listen_data *ld;
+	getdns_dict *query;
+	getdns_transaction_t transaction_id;
+} dns_msg;
+
+typedef struct udp_msg {
+	dns_msg super;
+	struct sockaddr_storage remote_in;
+	socklen_t addrlen;
+} udp_msg;
+
+void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
+    getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
+{
+	dns_msg *msg = (dns_msg *)userarg;
+	uint32_t qid;
+	getdns_return_t r;
+	uint8_t buf[65536];
+	size_t len = sizeof(buf);
+
+	if (callback_type != GETDNS_CALLBACK_COMPLETE) {
+		if (response)
+			getdns_dict_destroy(response);
+		return;
+	}
+	if ((r = getdns_dict_get_int(msg->query, "/header/id", &qid)))
+		fprintf(stderr, "Could not get qid: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if (!response)
+		fprintf(stderr, "No response in request_cb\n");
+
+	else if ((r = getdns_dict_set_int(response,
+	    "/replies_tree/0/header/id", qid)))
+		fprintf(stderr, "Could not set qid: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_msg_dict2wire_buf(response, buf, &len)))
+		fprintf(stderr, "Could not convert reply: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if (msg->ld->transport == GETDNS_TRANSPORT_UDP) {
+		udp_msg *msg = (udp_msg *)userarg;
+
+		fprintf(stderr, "fd: %d, len: %d, reply: %s\n", msg->super.ld->fd, (int)len,
+		    getdns_pretty_print_dict(response));
+
+		if (sendto(msg->super.ld->fd, buf, len, 0,
+		    (struct sockaddr *)&msg->remote_in, msg->addrlen) == -1)
+			perror("sendto");
+	}
+	if (msg) {
+		getdns_dict_destroy(msg->query);
+		free(msg);
+	}
+	if (response)
+		getdns_dict_destroy(response);
+
+}	
+
+getdns_return_t schedule_request(dns_msg *msg)
+{
+	getdns_bindata *qname;
+	char *qname_str = NULL;
+	uint32_t qtype;
+	getdns_return_t r;
+
+	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
+		fprintf(stderr, "Could not get qname from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_convert_dns_name_to_fqdn(qname, &qname_str)))
+		fprintf(stderr, "Could not convert qname: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r=getdns_dict_get_int(msg->query,"/question/qtype",&qtype)))
+		fprintf(stderr, "Could get qtype from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_general(context, qname_str, qtype,
+	    extensions, msg, &msg->transaction_id, request_cb)))
+		fprintf(stderr, "Could not schedule query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	return r;
+}
+
+void udp_read_cb(void *userarg)
+{
+	listen_data *ld = (listen_data *)userarg;
+	udp_msg *msg;
+	uint8_t buf[65536];
+	ssize_t len;
+	getdns_return_t r;
+	
+	assert(userarg);
+
+	if (!(msg = malloc(sizeof(udp_msg))))
+		return;
+
+	msg->super.ld = ld;
+	msg->addrlen = sizeof(msg->remote_in);
+	if ((len = recvfrom(ld->fd, buf, sizeof(buf), 0,
+	    (struct sockaddr *)&msg->remote_in, &msg->addrlen)) == -1)
+		perror("recvfrom");
+
+	else if ((r = getdns_wire2msg_dict(buf, len, &msg->super.query)))
+		fprintf(stderr, "Error converting query dns msg: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = schedule_request(&msg->super))) {
+		fprintf(stderr, "Error scheduling query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+		getdns_dict_destroy(msg->super.query);
+	} else
+		return;
+	free(msg);
+}
+
+getdns_return_t start_daemon()
+{
+	static const getdns_transport_list_t listen_transports[]
+		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
+	static const uint32_t transport_ports[] = { 53, 53 };
+	static const size_t n_transports = sizeof( listen_transports)
+	                                 / sizeof(*listen_transports);
+
+	size_t i;
+	size_t t;
+	struct addrinfo hints;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	char addrstr[1024], portstr[1024], *eos;
+
+	if (!listen_count)
+		return GETDNS_RETURN_GOOD;
+
+	if (!(listening = malloc(
+	    sizeof(listen_data) * n_transports * listen_count)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	(void) memset(listening, 0,
+	    sizeof(listen_data) * n_transports * listen_count);
+	(void) memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family    = AF_UNSPEC;
+	hints.ai_flags     = AI_NUMERICHOST;
+
+	for (i = 0; !r && i < listen_count; i++) {
+		getdns_dict    *dict;
+		getdns_bindata *address_data;
+		struct sockaddr_storage  addr;
+		getdns_bindata  *scope_id;
+
+		if ((r = getdns_list_get_dict(listen_list, i, &dict)))
+			break;
+		if ((r = getdns_dict_get_bindata(
+		    dict, "address_data", &address_data)))
+			break;
+		if (address_data->size == 4)
+			addr.ss_family = AF_INET;
+		else if (address_data->size == 16)
+			addr.ss_family = AF_INET6;
+		else {
+			r = GETDNS_RETURN_INVALID_PARAMETER;
+			break;
+		}
+		if (inet_ntop(addr.ss_family,
+		    address_data->data, addrstr, 1024) == NULL) {
+			r = GETDNS_RETURN_INVALID_PARAMETER;
+			break;
+		}
+		if (dict && getdns_dict_get_bindata(dict,"scope_id",&scope_id)
+		    == GETDNS_RETURN_GOOD) {
+			if (strlen(addrstr) + scope_id->size > 1022) {
+				r = GETDNS_RETURN_INVALID_PARAMETER;
+				break;
+			}
+			eos = &addrstr[strlen(addrstr)];
+			*eos++ = '%';
+			(void) memcpy(eos, scope_id->data, scope_id->size);
+			eos[scope_id->size] = 0;
+		}
+		for (t = 0; !r && t < n_transports; t++) {
+			getdns_transport_list_t transport
+			    = listen_transports[t];
+			uint32_t port = transport_ports[t];
+			struct addrinfo *ai;
+			listen_data *ld = &listening[i * n_transports + t];
+
+			ld->fd = -1;
+			(void) getdns_dict_get_int(dict,
+			    ( transport == GETDNS_TRANSPORT_TLS
+			    ? "tls_port" : "port" ), &port);
+
+			(void) snprintf(portstr, 1024, "%d", (int)port);
+
+			if (getaddrinfo(addrstr, portstr, &hints, &ai)) {
+				r = GETDNS_RETURN_INVALID_PARAMETER;
+				break;
+			}
+			if (!ai)
+				continue;
+
+			ld->addr.ss_family = addr.ss_family;
+			ld->addr_len = ai->ai_addrlen;
+			(void) memcpy(&ld->addr, ai->ai_addr, ai->ai_addrlen);
+			ld->transport = transport;
+			freeaddrinfo(ai);
+		}
+
+	}
+	if (r) {
+		free(listening);
+		listening = NULL;
+	} else for (i = 0; !r && i < listen_count * n_transports; i++) {
+		listen_data *ld = &listening[i];
+
+		if (ld->transport != GETDNS_TRANSPORT_UDP &&
+		    ld->transport != GETDNS_TRANSPORT_TCP)
+			continue;
+
+		if ((ld->fd = socket(ld->addr.ss_family,
+		    ( ld->transport == GETDNS_TRANSPORT_UDP
+		    ? SOCK_DGRAM : SOCK_STREAM), 0)) == -1)
+			perror("socket");
+
+		else if (bind(ld->fd, (struct sockaddr *)&ld->addr,
+		    ld->addr_len) == -1)
+			perror("bind");
+
+		else if (ld->transport == GETDNS_TRANSPORT_UDP) {
+			ld->event.userarg = ld;
+			ld->event.read_cb = udp_read_cb;
+			(void) my_eventloop_schedule(
+			    &my_loop.base, ld->fd, -1, &ld->event);
+
+		} else if (listen(ld->fd, 16) == -1)
+			perror("listen");
+	}
+	return r;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1344,6 +1625,11 @@ main(int argc, char **argv)
 	} else
 		fp = stdin;
 
+	if (listen_count || interactive) {
+		if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
+			goto done_destroy_context;
+	}
+	start_daemon();
 	/* Make the call */
 	if (interactive) {
 
@@ -1351,8 +1637,6 @@ main(int argc, char **argv)
 		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
 		(void) my_eventloop_schedule(
 		    &my_loop.base, fileno(fp), -1, &read_line_ev);
-		if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
-			goto done_destroy_context;
 
 		if (!query_file) {
 			printf("> ");
@@ -1360,6 +1644,8 @@ main(int argc, char **argv)
 		}
 		my_eventloop_run(&my_loop.base);
 	}
+	else if (listen_count)
+		my_eventloop_run(&my_loop.base);
 	else
 		r = do_the_call();
 
