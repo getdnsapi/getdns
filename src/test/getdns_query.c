@@ -1352,16 +1352,102 @@ typedef struct listen_data {
 listen_data *listening = NULL;
 
 typedef struct dns_msg {
-	listen_data *ld;
-	getdns_dict *query;
+	listen_data         *ld;
+	getdns_dict         *query;
 	getdns_transaction_t transaction_id;
 } dns_msg;
 
 typedef struct udp_msg {
-	dns_msg super;
+	dns_msg                 super;
 	struct sockaddr_storage remote_in;
-	socklen_t addrlen;
+	socklen_t               addrlen;
 } udp_msg;
+
+typedef struct tcp_to_write tcp_to_write;
+struct tcp_to_write {
+	size_t        write_buf_len;
+	size_t        written;
+	tcp_to_write *next;
+	uint8_t       write_buf[];
+};
+
+#define DOWNSTREAM_IDLE_TIMEOUT 5000
+typedef struct downstream {
+	listen_data            *ld;
+	struct sockaddr_storage remote_in;
+	socklen_t               addrlen;
+	int                     fd;
+	getdns_eventloop_event  event;
+
+	uint8_t                *read_buf;
+	size_t                  read_buf_len;
+	uint8_t                *read_pos;
+	size_t                  to_read;
+
+	tcp_to_write           *to_write;
+	size_t                  to_answer;
+} downstream;
+
+typedef struct tcp_msg {
+	dns_msg     super;
+	downstream *conn;
+} tcp_msg;
+
+void downstream_destroy(downstream *conn)
+{
+	tcp_to_write *cur, *next;
+
+	if (conn->event.read_cb||conn->event.write_cb||conn->event.timeout_cb)
+		my_eventloop_clear(&my_loop.base, &conn->event);
+	if (conn->fd >= 0) {
+		if (close(conn->fd) == -1)
+			perror("close");
+	}
+	free(conn->read_buf);
+	for (cur = conn->to_write; cur; cur = next) {
+		next = cur->next;
+		free(cur);
+	}
+	free(conn);
+}
+
+void tcp_write_cb(void *userarg)
+{
+	downstream *conn = (downstream *)userarg;
+	tcp_to_write *to_write;
+	ssize_t written;
+
+	assert(userarg);
+
+	/* Reset downstream idle timeout */
+	my_eventloop_clear(&my_loop.base, &conn->event);
+	
+	if (!conn->to_write) {
+		conn->event.write_cb = NULL;
+		(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+		    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+		return;
+	}
+	to_write = conn->to_write;
+	if ((written = write(conn->fd, &to_write->write_buf[to_write->written],
+	    to_write->write_buf_len - to_write->written)) == -1) {
+
+		perror("write");
+		conn->event.read_cb = conn->event.write_cb =
+		    conn->event.timeout_cb = NULL;
+		downstream_destroy(conn);
+		return;
+	}
+	to_write->written += written;
+	if (to_write->written == to_write->write_buf_len) {
+		conn->to_write = to_write->next;
+		free(to_write);
+	}
+	if (!conn->to_write)
+		conn->event.write_cb = NULL;
+	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+}
 
 void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
@@ -1396,12 +1482,39 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	else if (msg->ld->transport == GETDNS_TRANSPORT_UDP) {
 		udp_msg *msg = (udp_msg *)userarg;
 
-		fprintf(stderr, "fd: %d, len: %d, reply: %s\n", msg->super.ld->fd, (int)len,
-		    getdns_pretty_print_dict(response));
-
 		if (sendto(msg->super.ld->fd, buf, len, 0,
 		    (struct sockaddr *)&msg->remote_in, msg->addrlen) == -1)
 			perror("sendto");
+
+	} else if (msg->ld->transport == GETDNS_TRANSPORT_TCP) {
+		tcp_msg *msg = (tcp_msg *)userarg;
+		tcp_to_write **to_write_p;
+		tcp_to_write *to_write = malloc(sizeof(tcp_to_write) + len + 2);
+
+		if (!to_write) 
+			fprintf(stderr, "Could not allocate memory for"
+					"message to write on tcp stream\n");
+		else {
+			to_write->write_buf_len = len + 2;
+			to_write->write_buf[0] = (len >> 8) & 0xFF;
+			to_write->write_buf[1] = len & 0xFF;
+			to_write->written = 0;
+			to_write->next = NULL;
+			(void) memcpy(to_write->write_buf + 2, buf, len);
+
+			/* Appen to_write to conn->to_write list */
+			for ( to_write_p = &msg->conn->to_write
+			    ; *to_write_p
+			    ; to_write_p = &(*to_write_p)->next)
+				; /* pass */
+			*to_write_p = to_write;
+
+			my_eventloop_clear(&my_loop.base, &msg->conn->event);
+			msg->conn->event.write_cb = tcp_write_cb;
+			(void) my_eventloop_schedule(&my_loop.base,
+			    msg->conn->fd, DOWNSTREAM_IDLE_TIMEOUT,
+			    &msg->conn->event);
+		}
 	}
 	if (msg) {
 		getdns_dict_destroy(msg->query);
@@ -1409,7 +1522,6 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	}
 	if (response)
 		getdns_dict_destroy(response);
-
 }	
 
 getdns_return_t schedule_request(dns_msg *msg)
@@ -1437,6 +1549,132 @@ getdns_return_t schedule_request(dns_msg *msg)
 		    getdns_get_errorstr_by_id(r));
 
 	return r;
+}
+
+void tcp_read_cb(void *userarg)
+{
+	downstream *conn = (downstream *)userarg;
+	ssize_t bytes_read;
+	tcp_msg *msg;
+	getdns_return_t r;
+
+	assert(userarg);
+
+	/* Reset downstream idle timeout */
+	my_eventloop_clear(&my_loop.base, &conn->event);
+	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+
+	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return;
+		perror("read");
+		downstream_destroy(conn);
+		return;
+	}
+	if (bytes_read == 0) {
+		/* fprintf(stderr, "Remote end closed connection\n"); */
+		downstream_destroy(conn);
+		return;
+	}
+	assert(bytes_read <= conn->to_read);
+
+	conn->to_read  -= bytes_read;
+	conn->read_pos += bytes_read;
+	if (conn->to_read)
+		return; /* More to read */
+
+	if (conn->read_pos - conn->read_buf == 2) {
+		/* read length of dns msg to read */
+		conn->to_read = (conn->read_buf[0] << 8) | conn->read_buf[1];
+		if (conn->to_read > conn->read_buf_len) {
+			free(conn->read_buf);
+			while (conn->to_read > conn->read_buf_len)
+				conn->read_buf_len *= 2;
+			if (!(conn->read_buf = malloc(conn->read_buf_len))) {
+				fprintf(stderr, "Could not enlarge "
+				                "downstream read buffer\n");
+				downstream_destroy(conn);
+				return;
+			}
+		}
+		if (conn->to_read < 12) {
+			fprintf(stderr, "Request smaller than DNS header\n");
+			downstream_destroy(conn);
+			return;
+		}
+		conn->read_pos = conn->read_buf;
+		return;  /* Read DNS message */
+	}
+	if (!(msg = malloc(sizeof(tcp_msg)))) {
+		fprintf(stderr, "Could not allocate tcp_msg\n");
+		downstream_destroy(conn);
+		return;
+	}
+	msg->super.ld = conn->ld;
+	msg->conn = conn;
+	if ((r = getdns_wire2msg_dict(conn->read_buf,
+	    (conn->read_pos - conn->read_buf), &msg->super.query)))
+		fprintf(stderr, "Error converting query dns msg: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = schedule_request(&msg->super))) {
+		fprintf(stderr, "Error scheduling query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+		getdns_dict_destroy(msg->super.query);
+	} else {
+		conn->to_answer += 1;
+		conn->read_pos = conn->read_buf;
+		conn->to_read = 2;
+		return; /* Read more requests */
+	}
+	free(msg);
+	conn->read_pos = conn->read_buf;
+	conn->to_read = 2;
+	 /* Read more requests */
+}
+
+void tcp_timeout_cb(void *userarg)
+{
+	downstream *conn = (downstream *)userarg;
+
+	assert(userarg);
+
+	downstream_destroy(conn);
+}
+
+void tcp_accept_cb(void *userarg)
+{
+	listen_data *ld = (listen_data *)userarg;
+	downstream *conn;
+
+	assert(userarg);
+
+	if (!(conn = malloc(sizeof(downstream))))
+		return;
+
+	(void) memset(conn, 0, sizeof(downstream));
+
+	conn->ld = ld;
+	conn->addrlen = sizeof(conn->remote_in);
+	if ((conn->fd = accept(ld->fd,
+	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
+		perror("accept");
+		free(conn);
+	}
+	if (!(conn->read_buf = malloc(4096))) {
+		fprintf(stderr, "Could not allocate downstream read buffer.\n");
+		free(conn);
+	}
+	conn->read_buf_len = 4096;
+	conn->read_pos = conn->read_buf;
+	conn->to_read = 2;
+	conn->event.userarg = conn;
+	conn->event.read_cb = tcp_read_cb;
+	conn->event.timeout_cb = tcp_timeout_cb;
+	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 }
 
 void udp_read_cb(void *userarg)
@@ -1590,6 +1828,13 @@ getdns_return_t start_daemon()
 
 		} else if (listen(ld->fd, 16) == -1)
 			perror("listen");
+
+		else {
+			ld->event.userarg = ld;
+			ld->event.read_cb = tcp_accept_cb;
+			(void) my_eventloop_schedule(
+			    &my_loop.base, ld->fd, -1, &ld->event);
+		}
 	}
 	return r;
 }
