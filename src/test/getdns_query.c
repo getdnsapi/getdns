@@ -27,6 +27,8 @@
 
 #include "config.h"
 #include "debug.h"
+#include "const-info.h"
+#include "jsmn/jsmn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -729,6 +731,252 @@ done:
 	return r;
 }
 
+static int _jsmn_get_integer(char *js, jsmntok_t *t, uint32_t *num)
+{
+	char c = js[t->end];
+	;unsigned long int value;
+	char *endptr;
+
+	js[t->end] = '\0';
+	value = strtoul(js + t->start, &endptr, 10);
+	if (js[t->start] != '\0' && *endptr == '\0') {
+		js[t->end] = c;
+		*num = value;
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_constant(char *js, jsmntok_t *t, uint32_t *num)
+{
+	char c = js[t->end];
+	int code;
+
+	js[t->end] = '\0';
+	if (_getdns_get_const_name_info(js + t->start, &code)) {
+		js[t->end] = c;
+		*num = code;
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
+    getdns_dict **dict, getdns_return_t *r);
+
+static int _jsmn_get_list(char *js, jsmntok_t *t, size_t count,
+    getdns_list **list, getdns_return_t *r)
+{
+	getdns_list *new_list, *child_list;
+	getdns_dict *child_dict;
+	size_t i, j;
+	getdns_bindata bindata;
+	size_t index = 0;
+	uint32_t num;
+
+	if (t->type != JSMN_ARRAY) {
+		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		return 0;
+	}
+	new_list = getdns_list_create();
+	j = 1;
+	for (i = 0; i < t->size; i++) {
+		switch (t[j].type) {
+		case JSMN_OBJECT:
+			j += _jsmn_get_dict(js, t+j, count-j, &child_dict, r);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			*r = getdns_list_set_dict(new_list, index++, child_dict);
+			getdns_dict_destroy(child_dict);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			break;
+		case JSMN_ARRAY:
+			j += _jsmn_get_list(js, t+j, count-j, &child_list, r);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			*r = getdns_list_set_list(new_list, index++, child_list);
+			getdns_list_destroy(child_list);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			break;
+		case JSMN_STRING:
+			bindata.size = t[j].end - t[j].start;
+			bindata.data = (uint8_t *)js + t[j].start;
+			*r = getdns_list_set_bindata(
+			    new_list, index++, &bindata);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			j += 1;
+			break;
+		case JSMN_PRIMITIVE:
+			if (_jsmn_get_integer(js, t+j, &num) ||
+			    _jsmn_get_constant(js, t+j, &num)) {
+				*r = getdns_list_set_int(
+				    new_list, index++, num);
+			} else {
+				*r = getdns_list_set_int(
+				    new_list, index++, 123456789);
+			}
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			j += 1;
+			break;
+
+		default:
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			getdns_list_destroy(new_list);
+			return 0;
+		}
+	}
+	*list = new_list;
+	*r = GETDNS_RETURN_GOOD;
+	return j;
+}
+
+static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
+    getdns_dict **dict, getdns_return_t *r)
+{
+	getdns_dict *new_dict, *child_dict;
+	getdns_list *child_list;
+	size_t i, j;
+	getdns_bindata bindata;
+	char *key;
+	uint32_t num;
+
+	if (t->type != JSMN_OBJECT) {
+		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		return 0;
+	}
+	new_dict = getdns_dict_create();
+	j = 1;
+	for (i = 0; i < t->size; i++) {
+		if (t[j].type != JSMN_STRING) {
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			getdns_dict_destroy(new_dict);
+			return 0;
+		}
+		key = js + t[j].start;
+		js[t[j].end] = '\0';
+		j += 1;
+		switch (t[j].type) {
+		case JSMN_OBJECT:
+			j += _jsmn_get_dict(js, t+j, count-j, &child_dict, r);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			*r = getdns_dict_set_dict(new_dict, key, child_dict);
+			getdns_dict_destroy(child_dict);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			break;
+		case JSMN_ARRAY:
+			j += _jsmn_get_list(js, t+j, count-j, &child_list, r);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			*r = getdns_dict_set_list(new_dict, key, child_list);
+			getdns_list_destroy(child_list);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			break;
+		case JSMN_STRING:
+			bindata.size = t[j].end - t[j].start;
+			bindata.data = (uint8_t *)js + t[j].start;
+			*r = getdns_dict_set_bindata(
+			    new_dict, key, &bindata);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			j += 1;
+			break;
+		case JSMN_PRIMITIVE:
+			if (_jsmn_get_integer(js, t+j, &num) ||
+			    _jsmn_get_constant(js, t+j, &num)) {
+				*r = getdns_dict_set_int(
+				    new_dict, key, num);
+			} else {
+				*r = getdns_dict_set_int(
+				    new_dict, key, 123456789);
+
+			}
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			j += 1;
+			break;
+
+		default:
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			getdns_dict_destroy(new_dict);
+			return 0;
+		}
+	}
+	*dict = new_dict;
+	*r = GETDNS_RETURN_GOOD;
+	return j;
+}
+
+void parse_config(char *config)
+{
+	jsmn_parser p;
+	jsmntok_t *tok = NULL, *new_tok;
+	size_t tokcount = 100;
+	int r;
+	getdns_return_t gr;
+	getdns_dict *d;
+
+	jsmn_init(&p);
+	tok = malloc(sizeof(*tok) * tokcount);
+	do {
+		r = jsmn_parse(&p, config, strlen(config), tok, tokcount);
+		if (r == JSMN_ERROR_NOMEM) {
+			fprintf(stderr, "new tokcount: %d\n", (int)tokcount);
+			tokcount *= 2;
+			if (!(new_tok = realloc(tok, sizeof(*tok)*tokcount))){
+				free(tok);
+				fprintf(stderr,
+				    "Memory error during config parsing\n");
+				return;
+			} 
+			tok  = new_tok;
+		}
+	} while (r == JSMN_ERROR_NOMEM);
+	if (r < 0) 
+		fprintf(stderr, "Config parse error: %d\n", r);
+	else {
+		(void) _jsmn_get_dict(config, tok, p.toknext, &d, &gr);
+		if (gr)
+			fprintf(stderr, "Config parse error: %d\n", (int)gr);
+		else
+			fprintf(stderr, "config dict: %s\n",
+			    getdns_pretty_print_dict(d));
+	}
+	free(tok);
+}
+
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -744,6 +992,8 @@ getdns_return_t parse_args(int argc, char **argv)
 	size_t upstream_count = 0;
 	FILE *fh;
 	uint32_t klass;
+	char *config_file = NULL;
+	long config_file_sz;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -858,6 +1108,49 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'c':
 				if (getdns_context_set_edns_client_subnet_private(context, 1))
 					return GETDNS_RETURN_GENERIC_ERROR;
+				break;
+			case 'C':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -C\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(fh = fopen(argv[i], "r"))) {
+					fprintf(stderr, "Could not open \"%s\""
+					    ": %s\n",argv[i], strerror(errno));
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (fseek(fh, 0,SEEK_END) == -1) {
+					perror("fseek");
+					fclose(fh);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				config_file_sz = ftell(fh);
+				if (config_file_sz <= 0) {
+					/* Empty config is no config */
+					fclose(fh);
+					break;
+				}
+				if (!(config_file=malloc(config_file_sz + 1))){
+					fclose(fh);
+					fprintf(stderr, "Could not allocate me"
+					    "mory for \"%s\"\n", argv[i]);
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				rewind(fh);
+				if (fread(config_file, 1, config_file_sz, fh)
+				    != config_file_sz) {
+					fprintf(stderr, "An error occurred whil"
+					    "e reading \"%s\": %s\n",argv[i],
+					    strerror(errno));
+					fclose(fh);
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				config_file[config_file_sz] = 0;
+				fclose(fh);
+				parse_config(config_file);
+				free(config_file);
+				config_file = NULL;
 				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);

@@ -10,6 +10,7 @@ write_symbols() {
 write_symbols libgetdns.symbols getdns/getdns.h.in getdns/getdns_extra.h.in
 echo plain_mem_funcs_user_arg >> libgetdns.symbols
 echo priv_getdns_context_mf >> libgetdns.symbols
+echo _getdns_get_const_name_info >> libgetdns.symbols
 write_symbols extension/libevent.symbols getdns/getdns_ext_libevent.h
 write_symbols extension/libev.symbols getdns/getdns_ext_libev.h
 write_symbols extension/libuv.symbols getdns/getdns_ext_libuv.h
