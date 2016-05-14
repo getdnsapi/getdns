@@ -5,7 +5,7 @@ CreationDate: ma mrt 21 16:24:56 CET 2016
 Maintainer: Willem Toorop
 Category: 
 Component:
-CmdDepends: 
+CmdDepends: valgrind
 Depends: 110-link.tpkg
 Help:
 Pre: 
