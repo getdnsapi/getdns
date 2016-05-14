@@ -12,6 +12,7 @@ addons:
     - libevent-dev
     - libev-dev
     - valgrind
+    - clang
 script:
   - mkdir tests
   - cd tests
