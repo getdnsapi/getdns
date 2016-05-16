@@ -11,4 +11,6 @@ cp -p ${SRCROOT}/src/libgetdns.symbols libgetdns.symbols.orig
 )
 cp -p ${SRCROOT}/src/libgetdns.symbols libgetdns.symbols.new
 cp -p libgetdns.symbols.orig ${SRCROOT}/src/libgetdns.symbols
-diff libgetdns.symbols.orig libgetdns.symbols.new
+sort libgetdns.symbols.orig > libgetdns.symbols.temp
+diff libgetdns.symbols.temp libgetdns.symbols.new
+

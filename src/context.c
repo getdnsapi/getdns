@@ -1645,8 +1645,7 @@ getdns_context_set_namespaces(getdns_context *context,
 	size_t i;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 
-	if (!context)
-		return GETDNS_RETURN_INVALID_PARAMETER;
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
 	if (namespace_count == 0 || namespaces == NULL)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -1659,7 +1658,7 @@ getdns_context_set_namespaces(getdns_context *context,
 
 		else if (namespaces[i] != GETDNS_NAMESPACE_DNS &&
 		    namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES)
-			return GETDNS_RETURN_INVALID_PARAMETER;
+			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	GETDNS_FREE(context->my_mf, context->namespaces);
 
@@ -1682,7 +1681,8 @@ getdns_set_base_dns_transports(
 	size_t i;
 	getdns_transport_list_t *new_transports;
 
-	if (!context || transport_count == 0 || transports == NULL)
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	if (transport_count == 0 || !transports)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	/* Check for valid transports and that they are used only once*/
@@ -1693,11 +1693,11 @@ getdns_set_base_dns_transports(
 			case GETDNS_TRANSPORT_UDP:       u++; break;
 			case GETDNS_TRANSPORT_TCP:       t++; break;
 			case GETDNS_TRANSPORT_TLS:       l++; break;
-			default: return GETDNS_RETURN_INVALID_PARAMETER;
+			default: return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 		}
 	}
 	if ( u>1 || t>1 || l>1)
-		return GETDNS_RETURN_INVALID_PARAMETER;
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	
 	if (!(new_transports = GETDNS_XMALLOC(context->my_mf,
 		getdns_transport_list_t, transport_count)))
@@ -1770,18 +1770,17 @@ getdns_context_set_dns_transport(
 	size_t count = 2;
 	getdns_transport_list_t *new_transports;
 
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+
 	if (value == GETDNS_TRANSPORT_UDP_ONLY ||
 	    value == GETDNS_TRANSPORT_TCP_ONLY ||
 	    value == GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN ||
 	    value == GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN)
 	    count = 1;
 
-	if (!context)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
 	if (!(new_transports = GETDNS_XMALLOC(
-			context->my_mf, getdns_transport_list_t, count)))
-	       return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	       context->my_mf, getdns_transport_list_t, count)))
+		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 
 	if (context->dns_transports)
 		GETDNS_FREE(context->my_mf, context->dns_transports);
