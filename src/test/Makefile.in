@@ -95,7 +95,7 @@ $(NON_C99_OBJS):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600 -c $(srcdir)/$(@:.lo=.c) -o $@
 
 jsmn.lo:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/jsmn/jsmn.c -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -DJSMN_GETDNS -c $(srcdir)/jsmn/jsmn.c -o $@
 
 tests_dict: tests_dict.lo testmessages.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ tests_dict.lo testmessages.lo
@@ -268,7 +268,7 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
- ../getdns/getdns.h ../getdns/getdns_extra.h
+ ../const-info.h jsmn/jsmn.h ../getdns/getdns.h ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h

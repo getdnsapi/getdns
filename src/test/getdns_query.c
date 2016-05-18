@@ -731,6 +731,71 @@ done:
 	return r;
 }
 
+static int _jsmn_get_dname(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	char c = js[t->end];
+	getdns_return_t r;
+
+	if (t->end <= t->start || js[t->end - 1] != '.')
+		return 0;
+
+	js[t->end] = '\0';
+	r = getdns_convert_fqdn_to_dns_name(js + t->start, value);
+	js[t->end] = c;
+
+	return r == GETDNS_RETURN_GOOD;
+}
+
+static int _jsmn_get_ipv4(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	char c = js[t->end];
+	uint8_t buf[4];
+
+	js[t->end] = '\0';
+	if (inet_pton(AF_INET, js + t->start, buf) <= 0)
+		; /* pass */
+
+	else if (!(*value = malloc(sizeof(getdns_bindata))))
+		; /* pass */
+
+	else if (!((*value)->data = malloc(4)))
+		free(*value);
+
+	else {
+		js[t->end] = c;
+		(*value)->size = 4;
+		(void) memcpy((*value)->data, buf, 4);
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_ipv6(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	char c = js[t->end];
+	uint8_t buf[16];
+
+	js[t->end] = '\0';
+	if (inet_pton(AF_INET6, js + t->start, buf) <= 0)
+		; /* pass */
+
+	else if (!(*value = malloc(sizeof(getdns_bindata))))
+		; /* pass */
+
+	else if (!((*value)->data = malloc(16)))
+		free(*value);
+
+	else {
+		js[t->end] = c;
+		(*value)->size = 16;
+		(void) memcpy((*value)->data, buf, 16);
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
 static int _jsmn_get_integer(char *js, jsmntok_t *t, uint32_t *num)
 {
 	char c = js[t->end];
@@ -775,6 +840,7 @@ static int _jsmn_get_list(char *js, jsmntok_t *t, size_t count,
 	getdns_bindata bindata;
 	size_t index = 0;
 	uint32_t num;
+	getdns_bindata *value;
 
 	if (t->type != JSMN_ARRAY) {
 		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -826,9 +892,19 @@ static int _jsmn_get_list(char *js, jsmntok_t *t, size_t count,
 			    _jsmn_get_constant(js, t+j, &num)) {
 				*r = getdns_list_set_int(
 				    new_list, index++, num);
+			} else if (_jsmn_get_dname(js, t+j, &value) ||
+			    _jsmn_get_ipv4(js, t+j, &value) ||
+			    _jsmn_get_ipv6(js, t+j, &value)) {
+
+				*r = getdns_list_set_bindata(
+				    new_list, index++, value);
+
+				free(value->data);
+				free(value);
 			} else {
-				*r = getdns_list_set_int(
-				    new_list, index++, 123456789);
+				fprintf(stderr, "Could not convert primitive %.*s\n",
+				    t[j].end  - t[j].start, js+t[j].start);
+				*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 			}
 			if (*r) {
 				getdns_list_destroy(new_list);
@@ -857,6 +933,7 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 	getdns_bindata bindata;
 	char *key;
 	uint32_t num;
+	getdns_bindata *value;
 
 	if (t->type != JSMN_OBJECT) {
 		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
@@ -916,10 +993,19 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 			    _jsmn_get_constant(js, t+j, &num)) {
 				*r = getdns_dict_set_int(
 				    new_dict, key, num);
-			} else {
-				*r = getdns_dict_set_int(
-				    new_dict, key, 123456789);
+			} else if (_jsmn_get_dname(js, t+j, &value) ||
+			    _jsmn_get_ipv4(js, t+j, &value) ||
+			    _jsmn_get_ipv6(js, t+j, &value)) {
 
+				*r = getdns_dict_set_bindata(
+				    new_dict, key, value);
+
+				free(value->data);
+				free(value);
+			} else {
+				*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+				fprintf(stderr, "Could not convert primitive %.*s\n",
+				    t[j].end  - t[j].start, js+t[j].start);
 			}
 			if (*r) {
 				getdns_dict_destroy(new_dict);
