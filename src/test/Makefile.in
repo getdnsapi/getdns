@@ -215,6 +215,7 @@ depend:
 		    -e 's? \.\./getdns/getdns_ext_libev\.h? $$(srcdir)/../getdns/getdns_ext_libev.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libuv\.h? $$(srcdir)/../getdns/getdns_ext_libuv.h?g' \
 		    -e 's? \.\./debug\.h? $$(srcdir)/../debug.h?g' \
+		    -e 's? \.\./const-info\.h? $$(srcdir)/../const-info.h?g' \
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
@@ -268,7 +269,7 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
- ../const-info.h jsmn/jsmn.h ../getdns/getdns.h ../getdns/getdns_extra.h
+ $(srcdir)/../const-info.h jsmn/jsmn.h ../getdns/getdns.h ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h
