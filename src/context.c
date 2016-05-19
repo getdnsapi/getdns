@@ -2473,7 +2473,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	return GETDNS_RETURN_GOOD;
 
 invalid_parameter:
-	r = GETDNS_RETURN_INVALID_PARAMETER;
+	_getdns_upstreams_dereference(upstreams);
+	return GETDNS_RETURN_INVALID_PARAMETER;
 error:
 	_getdns_upstreams_dereference(upstreams);
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -3637,7 +3638,7 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 	else
 		*value = list;
 
-	return GETDNS_RETURN_GOOD;
+	return r;
 }
 
 getdns_return_t

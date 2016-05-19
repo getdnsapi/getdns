@@ -206,12 +206,13 @@ void* run_server(void* data) {
             }
             getdns_dict_destroy(dns_msg);
             r = getdns_general_sync(ctxt, qname_str, qtype, NULL, &responses[num_received].reply);
-            free(qname_str);
             if (r) {
                 fprintf( stderr, "Could query for \"%s\" %d: \"%s\"\n", qname_str, (int)qtype
                        , getdns_get_errorstr_by_id(r));
+                free(qname_str);
                 continue;
             }
+            free(qname_str);
             if ((r = getdns_dict_set_int(responses[num_received].reply, "/replies_tree/0/header/id", qid))) {
                 fprintf( stderr, "Could not set message ID on reply dict: \"%s\"\n"
                        , getdns_get_errorstr_by_id(r));

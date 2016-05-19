@@ -46,6 +46,9 @@ INSTALL = @INSTALL@
 
 all : default @GETDNS_QUERY@ 
 
+everything: default
+	cd src/test && $(MAKE)
+
 default:
 	cd src && $(MAKE) $@
 

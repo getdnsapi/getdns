@@ -29,6 +29,7 @@
 #include "check_getdns_transport.h"
 #include "check_getdns_common.h"
 #include <pthread.h>
+#include <assert.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -111,7 +112,9 @@ void* run_transport_server(void* data) {
         conn = accept(tcp, (struct sockaddr *) &client_addr, &len);
         /* throw away the length */
         n = read(conn, tcplength, 2);
+	assert(n == 2);
         n = read(conn, mesg, 65536);
+	assert(n == ((tcplength[0] << 8) | tcplength[1]));
         tcp_count++;
       } else {
         fprintf(stderr, "Timeout in run_transport_server\n");
@@ -145,12 +148,13 @@ void* run_transport_server(void* data) {
       }
       getdns_dict_destroy(dns_msg);
       r = getdns_general_sync(ctxt, qname_str, qtype, NULL, &dns_msg);
-      free(qname_str);
       if (r) {
         fprintf( stderr, "Could query for \"%s\" %d: \"%s\"\n", qname_str, (int)qtype
                , getdns_get_errorstr_by_id(r));
+        free(qname_str);
         continue;
       }
+      free(qname_str);
       if ((r = getdns_dict_set_int(dns_msg, "/replies_tree/0/header/id", qid))) {
         fprintf( stderr, "Could not set message ID on reply dict: \"%s\"\n"
                , getdns_get_errorstr_by_id(r));

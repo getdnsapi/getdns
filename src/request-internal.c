@@ -701,7 +701,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	getdns_dict *add_opt_parameters;
 	int     have_add_opt_parameters;
 
-	getdns_list *options;
+	getdns_list *options = NULL;
 	size_t      noptions = 0;
 	size_t       i;
 
