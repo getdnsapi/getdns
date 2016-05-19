@@ -880,6 +880,18 @@ else
 	INSTALL_GETDNS_QUERY="install-getdns_query"
 	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
 fi
+AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
+	[Set maximum file descriptor number that can be used by select]),
+	[], [withval="no"])
+case "$withval" in
+	no)
+		;;
+	*)
+		AC_DEFINE_UNQUOTED([FD_SETSIZE], [$withval], [Alternate value for the FD_SETSIZE])
+		my_enable_unbound_event_api=1
+		;;
+esac
+
 AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
@@ -1000,7 +1012,9 @@ AH_BOTTOM([
  * (and nescessary to make our custom eventloop work)
  * See: https://support.microsoft.com/en-us/kb/111855
  */
+#ifndef FD_SETSIZE
 #define FD_SETSIZE 1024
+#endif
 
 #define PRIsz "%Iu"
 #else
