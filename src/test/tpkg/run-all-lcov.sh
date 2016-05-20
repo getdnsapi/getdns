@@ -19,7 +19,7 @@ do
     # after the test is complete, we need to collect the coverage data
     INFO_FILE=`echo $TEST_PKG | sed 's/.tpkg$//'`.info
     geninfo $SRCDIR/.. -o $INFO_FILE
-    LCOV_MERGE="$LCOV_MERGE -a $INFO_FILE"
+    [ -s $INFO_FILE ] && LCOV_MERGE="$LCOV_MERGE -a $INFO_FILE"
     # trap keyboard interrupt (control-c)
     trap control_c 2
 done
