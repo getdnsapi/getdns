@@ -151,7 +151,7 @@
        ASSERT_RC(getdns_context_set_edns_do_bit(context, 1),
            GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_do_bit()");
 
-       ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+       ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
        ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
@@ -165,7 +165,7 @@
        ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
 
-       ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+       ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
        ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
@@ -178,7 +178,7 @@
        /* Now let it fall back to TCP */
        ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
-       ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+       ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
        ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
@@ -214,51 +214,57 @@
           if the response is trucated. Also, transport can't be changed on a ub ctx.*/
 
        CONTEXT_CREATE(TRUE);
+       /* Need to explicit check as we may be compiled stub-only*/
+       getdns_resolution_t resolution_type;
+       ASSERT_RC(getdns_context_get_resolution_type(context, &resolution_type),
+            GETDNS_RETURN_GOOD, "Return code from getdns_context_get_resolution_type()"); 
+       if (resolution_type == GETDNS_RESOLUTION_RECURSING) {
 
-       /* Request a response that should be truncated over UDP */
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_ONLY),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
-       ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
-           GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()"); 
+           /* Request a response that should be truncated over UDP */
+           ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_ONLY),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
+           ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
+               GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()"); 
 
-       ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+             GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
-       ASSERT_RC(getdns_dict_get_int(response, "status", &status),
-         GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
+           ASSERT_RC(getdns_dict_get_int(response, "status", &status),
+             GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
          
-         /*   THIS SHOULDN'T BE A TIMEOUT, but that seems to be what libunbound is doing */
-       ASSERT_RC(status, GETDNS_RESPSTATUS_ALL_TIMEOUT, "Status not as expected");
+             /*  TODO: INVESTIGATE THIS AS IT SHOULDN'T BE A TIMEOUT...*/
+           ASSERT_RC(status, GETDNS_RESPSTATUS_ALL_TIMEOUT, "Status not as expected");
 
-       CONTEXT_DESTROY;
-       CONTEXT_CREATE(TRUE);
+           CONTEXT_DESTROY;
+           CONTEXT_CREATE(TRUE);
 
-       /* Re-do over TCP */
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
-       ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-       ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+           /* Re-do over TCP */
+           ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
+           ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
+           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+             GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
        
-       ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
-         GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
-       ASSERT_RC(tc, 0, "Packet trucated - not as expected");
+           ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
+             GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
+           ASSERT_RC(tc, 0, "Packet trucated - not as expected");
 
-       CONTEXT_DESTROY;
-       CONTEXT_CREATE(TRUE);
+           CONTEXT_DESTROY;
+           CONTEXT_CREATE(TRUE);
 
-       /* Now let it fall back to TCP */
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
-       ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-       ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+           /* Now let it fall back to TCP */
+           ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
+           ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
+           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+             GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
        
-       ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
-         GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
-       ASSERT_RC(tc, 0, "Packet trucated - not as expected");
+           ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
+             GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
+           ASSERT_RC(tc, 0, "Packet trucated - not as expected");
+      }
 
       CONTEXT_DESTROY;
 

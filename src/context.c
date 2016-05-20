@@ -1645,7 +1645,8 @@ getdns_context_set_namespaces(getdns_context *context,
 	size_t i;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (namespace_count == 0 || namespaces == NULL)
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
