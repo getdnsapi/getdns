@@ -544,8 +544,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	gldns_pkt_section section;
 	uint8_t canonical_name_space[256], owner_name_space[256],
 	    query_name_space[256];
-	const uint8_t *canonical_name = canonical_name_space, *owner_name,
-	    *query_name;
+	const uint8_t *canonical_name, *owner_name, *query_name;
 	size_t canonical_name_len = sizeof(canonical_name_space),
 	       owner_name_len = sizeof(owner_name_space),
 	       query_name_len = sizeof(query_name_space);

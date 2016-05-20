@@ -638,7 +638,7 @@ error:
 	getdns_list_destroy(trust_anchor);
 	getdns_list_destroy(to_validate);
 
-	return GETDNS_RETURN_GOOD;
+	return r;
 }
 
 void callback(getdns_context *context, getdns_callback_type_t callback_type,

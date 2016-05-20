@@ -11,5 +11,5 @@ LDLIBS=$(builddir)/src/libgetdns.la
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
 
 $(testname): $(testname).lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(LDLIBS) $(LDFLAGS) -o $@ $<
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(LDLIBS) $(LDFLAGS) -o $(testname) $(testname).lo
 

@@ -414,7 +414,13 @@ do case "$o" in
 	v) 	version; exit 0;;
         l)      TPKG_LOG=1;;
         p)      TPKG_PRI="$OPTARG";;
-	a) 	TPKG_ARGS="$OPTARG";;
+	a) 	if [ -z "$TPKG_ARGS" ]
+		then
+			TPKG_ARGS="$OPTARG"
+		else
+			TPKG_ARGS="$TPKG_ARGS $OPTARG"
+		fi
+		;;
         q)      TPKG_QUIET=1;;
         k)      TPKG_KEEP=1;;
         n)      TPKG_PASS=$OPTARG

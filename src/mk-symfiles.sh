@@ -4,7 +4,7 @@ write_symbols() {
 	OUTPUT=$1
 	shift
 	grep 'getdns_[0-9a-zA-Z_]*(' $* | grep -v '^#' | grep -v 'INLINE' \
-	| sed -e 's/(.*$//g' -e 's/^.*getdns_/getdns_/g' | sort | uniq > $OUTPUT
+	| sed -e 's/(.*$//g' -e 's/^.*getdns_/getdns_/g' | LC_ALL=C sort | uniq > $OUTPUT
 }
 
 write_symbols libgetdns.symbols getdns/getdns.h.in getdns/getdns_extra.h.in

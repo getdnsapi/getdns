@@ -45,7 +45,6 @@ tstmsg_prog_begin(char *prognm)
 {
 	if (testprog != NULL) {
 		tstmsg_prog_end();
-		free(testprog);
 	}
 	testprog = strdup(prognm);
 	printf("TESTPROG %s START\n", testprog);
