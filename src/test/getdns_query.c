@@ -279,6 +279,7 @@ static getdns_context *context;
 static getdns_dict *extensions;
 static getdns_list *pubkey_pinset = NULL;
 static getdns_list *listen_list = NULL;
+static getdns_dict *listen_dict = NULL;
 static size_t pincount = 0;
 static size_t listen_count = 0;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
@@ -360,6 +361,7 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	char *T = strchr(ipstr, '^'), *tsig_name_str = ""
 	                            , *tsig_secret_str = ""
 	                            , *tsig_algorithm_str = "";
+	char *br, *c;
 	int            tsig_secret_size;
 	uint8_t        tsig_secret_buf[256]; /* 4 times SHA512 */
 	getdns_bindata tsig_secret;
@@ -369,6 +371,22 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	addr.data = buf;
 
 	if (!r) return NULL;
+
+	if (*ipstr == '[') {
+		char *br = strchr(ipstr, ']');
+		if (br) {
+			ipstr += 1;
+			*br = 0;
+			if ((c = strchr(br + 1, ':'))) {
+				p = c;
+			}
+		}
+	} else if ((br = strchr(ipstr, '.')) && ((c = strchr(br + 1, ':'))))
+		p = c;
+
+	else if ((*ipstr == '*') && (c = strchr(ipstr+1, ':')))
+		p = c;
+
 	if (s) {
 		*s = 0;
 		scope_id_str = s + 1;
@@ -401,7 +419,11 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 			tsig_name_str = "";
 		}
 	}
-	if (strchr(ipstr, ':')) {
+	if (*ipstr == '*') {
+		getdns_dict_util_set_string(r, "address_type", "IPv6");
+		addr.size = 16;
+		(void) memset(buf, 0, 16);
+	} else if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
 		addr.size = 16;
 		if (inet_pton(AF_INET6, ipstr, buf) <= 0) {
@@ -482,7 +504,9 @@ print_usage(FILE *out, const char *progname)
 	    "stub"
 #endif
 	    ", synchronous resolution of NS record using UDP with TCP fallback\n");
-	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]\n");
+	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
+	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
+	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
@@ -552,7 +576,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
 	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
-
+	fprintf(out, "\t-z <listen address>\n");
+	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
+	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
+	fprintf(out, "\t\tThis option can be given more than once.\n");
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -731,6 +758,16 @@ done:
 	return r;
 }
 
+static int _jsmn_get_ipdict(char *js, jsmntok_t *t, getdns_dict **value)
+{
+	char c = js[t->end];
+
+	js[t->end] = '\0';
+	*value = ipaddr_dict(context, js + t->start);
+	js[t->end] = c;
+	return *value != NULL;
+}
+
 static int _jsmn_get_dname(char *js, jsmntok_t *t, getdns_bindata **value)
 {
 	char c = js[t->end];
@@ -901,6 +938,11 @@ static int _jsmn_get_list(char *js, jsmntok_t *t, size_t count,
 
 				free(value->data);
 				free(value);
+
+			} else if (_jsmn_get_ipdict(js, t+j, &child_dict)) {
+				*r = getdns_list_set_dict(
+				    new_list, index++, child_dict);
+				getdns_dict_destroy(child_dict);
 			} else {
 				fprintf(stderr, "Could not convert primitive %.*s\n",
 				    t[j].end  - t[j].start, js+t[j].start);
@@ -1002,6 +1044,11 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 
 				free(value->data);
 				free(value);
+
+			} else if (_jsmn_get_ipdict(js, t+j, &child_dict)) {
+				*r = getdns_dict_set_dict(
+				    new_dict, key, child_dict);
+				getdns_dict_destroy(child_dict);
 			} else {
 				*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 				fprintf(stderr, "Could not convert primitive %.*s\n",
@@ -1032,6 +1079,44 @@ static int _streq(const getdns_bindata *name, const char *str)
 	else	return strncmp((const char *)name->data, str, name->size) == 0;
 }
 
+static getdns_return_t _get_list_or_read_file(const getdns_dict *config,
+    const char *setting, getdns_list **r_list, int *destroy_list)
+{
+	getdns_bindata *fn_bd;
+	char fn[FILENAME_MAX];
+	FILE *fh;
+	getdns_return_t r;
+
+	assert(r_list);
+	assert(destroy_list);
+
+	*destroy_list = 0;
+	if (!(r = getdns_dict_get_list(config, setting, r_list)))
+		return GETDNS_RETURN_GOOD;
+
+	else if ((r = getdns_dict_get_bindata(config, setting, &fn_bd)))
+		return r;
+
+	else if (fn_bd->size >= FILENAME_MAX)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	(void)memcpy(fn, fn_bd->data, fn_bd->size);
+	fn[fn_bd->size] = 0;
+
+	if (!(fh = fopen(fn, "r"))) {
+		fprintf(stderr, "Could not open \"%s\": %s\n"
+		              , fn, strerror(errno));
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if ((r = getdns_fp2rr_list(fh, r_list, NULL, 3600)))
+		fprintf(stderr,"Could not parse \"%s\"\n", fn);
+
+	else	*destroy_list = 1;
+
+	fclose(fh);
+	return r;
+}
+
 static getdns_return_t configure_with_config_dict(const getdns_dict *config);
 static getdns_return_t configure_setting_with_config_dict(
     const getdns_dict *config, const getdns_bindata *setting)
@@ -1043,6 +1128,7 @@ static getdns_return_t configure_setting_with_config_dict(
 	getdns_transport_list_t transports[100];
 	size_t count, i;
 	uint32_t n;
+	int destroy_list = 0;
 
 	if (_streq(setting, "all_context")) {
 		if ((r = getdns_dict_get_dict(config, "all_context", &dict)))
@@ -1152,14 +1238,17 @@ static getdns_return_t configure_setting_with_config_dict(
 			       ,"Error configuring \"follow_redirects\"");
 
 	} else if (_streq(setting, "dns_root_servers")) {
-		if ((r = getdns_dict_get_list(
-		    config, "dns_root_servers", &list)))
+		if ((r = _get_list_or_read_file(
+		    config, "dns_root_servers", &list, &destroy_list)))
 			fprintf(stderr, "Could not get \"dns_root_servers\"");
 
 		else if ((r = getdns_context_set_dns_root_servers(
 		    context, list)))
 			fprintf( stderr
 			       ,"Error configuring \"dns_root_servers\"");
+
+		if (destroy_list)
+			getdns_list_destroy(list);
 
 	} else if (_streq(setting, "append_name")) {
 		if ((r = getdns_dict_get_int(config, "append_name", &n)))
@@ -1180,8 +1269,8 @@ static getdns_return_t configure_setting_with_config_dict(
 			       ,"Error configuring \"suffix\"");
 
 	} else if (_streq(setting, "dnssec_trust_anchors")) {
-		if ((r = getdns_dict_get_list(
-		    config, "dnssec_trust_anchors", &list)))
+		if ((r = _get_list_or_read_file(
+		    config, "dnssec_trust_anchors", &list, &destroy_list)))
 			fprintf( stderr
 			       ,"Could not get \"dnssec_trust_anchors\"");
 
@@ -1189,6 +1278,9 @@ static getdns_return_t configure_setting_with_config_dict(
 		    context, list)))
 			fprintf( stderr
 			       ,"Error configuring \"dnssec_trust_anchors\"");
+
+		if (destroy_list)
+			getdns_list_destroy(list);
 
 	} else if (_streq(setting, "dnssec_allowed_skew")) {
 		if ((r = getdns_dict_get_int(config,"dnssec_allowed_skew",&n)))
@@ -1261,6 +1353,40 @@ static getdns_return_t configure_setting_with_config_dict(
 			fprintf( stderr
 			       ,"Error configuring \"tls_authentication\"");
 
+	}  else if (_streq(setting, "listen_addresses")) {
+		if ((r = getdns_dict_get_list(
+		    config, "listen_addresses", &list)))
+			fprintf(stderr, "Could not get \"listen_addresses\"");
+
+		else {
+			if (listen_list && !listen_dict) {
+				/* TODO: Stop listening */
+				getdns_list_destroy(listen_list);
+				listen_count = 0;
+				listen_list = NULL;
+			}
+			/* Strange construction to copy the list.
+			 * Needs to be done, because config dict
+			 * will get destroyed.
+			 */
+			if (!listen_dict &&
+			    !(listen_dict = getdns_dict_create())) {
+				fprintf(stderr, "Could not create "
+						"listen_dict");
+				r = GETDNS_RETURN_MEMORY_ERROR;
+
+			} else if ((r = getdns_dict_set_list(
+			    listen_dict, "listen_list", list)))
+				fprintf(stderr, "Could not set listen_list");
+
+			else if ((r = getdns_dict_get_list(
+			    listen_dict, "listen_list", &listen_list)))
+				fprintf(stderr, "Could not get listen_list");
+
+			else if ((r = getdns_list_get_length(
+			    listen_list, &listen_count)))
+				fprintf(stderr, "Could not get listen_count");
+		}
 
 	/************************************/
 	/****                            ****/
@@ -1269,7 +1395,7 @@ static getdns_return_t configure_setting_with_config_dict(
 	/************************************/
 	} else if (!_streq(setting, "implementation_string") &&
 	    !_streq(setting, "version_string")) {
-		fprintf( stderr, "Unknown configuration key \"%.*s\""
+		fprintf( stderr, "Unknown setting \"%.*s\""
 		       , (int)setting->size, (const char *)setting->data);
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
 	}
@@ -1330,8 +1456,10 @@ static void parse_config(char *config)
 		(void) _jsmn_get_dict(config, tok, p.toknext, &d, &gr);
 		if (gr)
 			fprintf(stderr, "Config parse error: %d\n", (int)gr);
-		else
+		else {
 			configure_with_config_dict(d);
+			getdns_dict_destroy(d);
+		}
 	}
 	free(tok);
 }
@@ -1421,19 +1549,6 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				getdns_list_set_dict(upstream_list,
 				    upstream_count++, upstream);
-			}
-			continue;
-		} else if (arg[0] == '~') {
-			getdns_dict *ipaddr = ipaddr_dict(context, arg + 1);
-			if (ipaddr) {
-				if (!listen_list &&
-				    !(listen_list =
-				    getdns_list_create_with_context(context))){
-					fprintf(stderr, "Could not create upstream list\n");
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				getdns_list_set_dict(listen_list,
-				    listen_count++, ipaddr);
 			}
 			continue;
 		} else if (arg[0] != '-') {
@@ -1800,7 +1915,29 @@ getdns_return_t parse_args(int argc, char **argv)
 				batch_mode = 1;
 				break;
 
-
+			case 'z':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "listed address "
+					                "expected after -z\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_dict *downstream =
+				    ipaddr_dict(context, argv[i]);
+				if (!downstream) {
+					fprintf(stderr, "could not parse "
+					        "listen address: %s", argv[i]);
+				}
+				if (!listen_list &&
+				    !(listen_list =
+				    getdns_list_create_with_context(context))){
+					fprintf(stderr, "Could not create "
+							"downstram list\n");
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				getdns_list_set_dict(listen_list,
+				    listen_count++, downstream);
+				getdns_dict_destroy(downstream);
+				break;
 			default:
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
@@ -2390,14 +2527,16 @@ getdns_return_t start_daemon()
 	hints.ai_flags     = AI_NUMERICHOST;
 
 	for (i = 0; !r && i < listen_count; i++) {
-		getdns_dict    *dict;
+		getdns_dict    *dict = NULL;
 		getdns_bindata *address_data;
 		struct sockaddr_storage  addr;
 		getdns_bindata  *scope_id;
 
-		if ((r = getdns_list_get_dict(listen_list, i, &dict)))
-			break;
-		if ((r = getdns_dict_get_bindata(
+		if ((r = getdns_list_get_dict(listen_list, i, &dict))) {
+			if ((r = getdns_list_get_bindata(
+			    listen_list, i, &address_data)))
+				break;
+		} else if ((r = getdns_dict_get_bindata(
 		    dict, "address_data", &address_data)))
 			break;
 		if (address_data->size == 4)
@@ -2432,9 +2571,10 @@ getdns_return_t start_daemon()
 			listen_data *ld = &listening[i * n_transports + t];
 
 			ld->fd = -1;
-			(void) getdns_dict_get_int(dict,
-			    ( transport == GETDNS_TRANSPORT_TLS
-			    ? "tls_port" : "port" ), &port);
+			if (dict)
+				(void) getdns_dict_get_int(dict,
+				    ( transport == GETDNS_TRANSPORT_TLS
+				    ? "tls_port" : "port" ), &port);
 
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
