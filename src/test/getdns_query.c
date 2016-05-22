@@ -2143,6 +2143,7 @@ listen_data *listening = NULL;
 typedef struct dns_msg {
 	listen_data         *ld;
 	getdns_dict         *query;
+	getdns_resolution_t  rt;
 	getdns_transaction_t transaction_id;
 } dns_msg;
 
@@ -2246,6 +2247,8 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	getdns_return_t r;
 	uint8_t buf[65536];
 	size_t len = sizeof(buf);
+	uint32_t n;
+	getdns_dict *dict;
 
 	if (callback_type != GETDNS_CALLBACK_COMPLETE) {
 		if (response)
@@ -2258,6 +2261,26 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 
 	else if (!response)
 		fprintf(stderr, "No response in request_cb\n");
+
+	else if (getdns_dict_get_int(
+	    response, "/replies_tree/0/header/rcode", &n) && (
+	    (r = getdns_dict_get_dict(msg->query, "header", &dict)) ||
+	    (r = getdns_dict_set_dict(response, "/replies_tree/0/header", dict)) ||
+	    (r = getdns_dict_get_dict(msg->query, "question", &dict)) ||
+	    (r = getdns_dict_set_dict(response, "/replies_tree/0/question", dict)) ||
+	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL)) ||
+	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/qr", 1)) ||
+	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/ad", 0))
+	    ))
+		fprintf(stderr, "Could not set answer rcode: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if (!getdns_dict_get_int(
+	    response, "/replies_tree/0/dnssec_status", &n) &&
+	    n == GETDNS_DNSSEC_BOGUS &&
+	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL)))
+		fprintf(stderr, "Could not set answer rcode: %s\n",
+		    getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_dict_set_int(response,
 	    "/replies_tree/0/header/id", qid)))
@@ -2324,13 +2347,22 @@ getdns_return_t schedule_request(dns_msg *msg)
 	getdns_list *list;
 
 	/* pass through the header and the OPT record */
-	if (!getdns_dict_get_dict(msg->query, "header", &header))
-		(void)getdns_dict_set_dict(extensions, "header", header);
-
-	if (!getdns_dict_get_int(msg->query, "/additional/0/do", &n))
+	n = 0;
+	(void) getdns_dict_get_int(msg->query, "/additional/0/do", &n);
+	if (msg->rt == GETDNS_RESOLUTION_STUB) {
 		(void)getdns_dict_set_int(
 		    extensions, "/add_opt_parameters/do_bit", n);
+		if (!getdns_dict_get_dict(msg->query, "header", &header))
+			(void)getdns_dict_set_dict(extensions, "header", header);
 
+	} else {
+		(void)getdns_dict_set_int(extensions, "dnssec_return_status",
+		    n ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+		n = 0;
+		(void) getdns_dict_get_int(msg->query, "/header/cd", &n);
+		r = getdns_dict_set_int(extensions, "dnssec_return_all_statuses",
+		    n ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+	}
 	if (!getdns_dict_get_int(msg->query,"/additional/0/extended_rcode",&n))
 		(void)getdns_dict_set_int(
 		    extensions, "/add_opt_parameters/extended_rcode", n);
@@ -2360,6 +2392,10 @@ getdns_return_t schedule_request(dns_msg *msg)
 
 	else if ((r=getdns_dict_get_int(msg->query,"/question/qtype",&qtype)))
 		fprintf(stderr, "Could get qtype from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
+		fprintf(stderr, "Could get resolution type from context: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_general(context, qname_str, qtype,
