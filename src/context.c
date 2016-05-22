@@ -1948,7 +1948,7 @@ getdns_context_set_follow_redirects(
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
 
-	return GETDNS_RETURN_NOT_IMPLEMENTED;
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_follow_redirects */
 
 /*
@@ -2093,22 +2093,23 @@ getdns_context_set_dns_root_servers(
  *
  */
 getdns_return_t
-getdns_context_set_append_name(struct getdns_context *context,
-    getdns_append_name_t value)
+getdns_context_set_append_name(
+    getdns_context *context, getdns_append_name_t value)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != GETDNS_APPEND_NAME_ALWAYS &&
-        value != GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE &&
-        value != GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE
-        && value != GETDNS_APPEND_NAME_NEVER) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    context->append_name = value;
-
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_APPEND_NAME);
-
-    return GETDNS_RETURN_GOOD;
+	switch ((int)value) {
+	case GETDNS_APPEND_NAME_ALWAYS:
+	case GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE:
+	case GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE:
+	case GETDNS_APPEND_NAME_NEVER:
+	case GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST:
+		context->append_name = value;
+		dispatch_updated(context, GETDNS_CONTEXT_CODE_APPEND_NAME);
+		return GETDNS_RETURN_GOOD;
+	}
+	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 }               /* getdns_context_set_append_name */
 
 /*
@@ -2369,7 +2370,10 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		else
 			tsig_alg = GETDNS_HMAC_MD5;
 
-		if (dict && getdns_dict_get_bindata(
+		if (!dict)
+			tsig_alg = GETDNS_NO_TSIG; /* No name, no TSIG */
+
+		else if (getdns_dict_get_bindata(
 		    dict, "tsig_name", &tsig_name))
 			tsig_alg = GETDNS_NO_TSIG; /* No name, no TSIG */
 

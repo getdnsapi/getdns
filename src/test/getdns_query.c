@@ -1025,7 +1025,281 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 	return j;
 }
 
-void parse_config(char *config)
+static int _streq(const getdns_bindata *name, const char *str)
+{
+	if (strlen(str) != name->size)
+		return 0;
+	else	return strncmp((const char *)name->data, str, name->size) == 0;
+}
+
+static getdns_return_t configure_with_config_dict(const getdns_dict *config);
+static getdns_return_t configure_setting_with_config_dict(
+    const getdns_dict *config, const getdns_bindata *setting)
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	getdns_dict *dict;
+	getdns_list *list;
+	getdns_namespace_t namespaces[100];
+	getdns_transport_list_t transports[100];
+	size_t count, i;
+	uint32_t n;
+
+	if (_streq(setting, "all_context")) {
+		if ((r = getdns_dict_get_dict(config, "all_context", &dict)))
+			fprintf(stderr, "Could not get \"all_context\"");
+
+		else if ((r = configure_with_config_dict(dict)))
+			fprintf( stderr
+			       ,"Error configuring with \"all_context\"");
+
+	} else 	if (_streq(setting, "resolution_type")) {
+		if ((r = getdns_dict_get_int(config, "resolution_type", &n)))
+			fprintf(stderr, "Could not get \"resolution_type\"");
+
+		else if ((r = getdns_context_set_resolution_type(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"resolution_type\"");
+
+	} else 	if (_streq(setting, "namespaces")) {
+		if ((r = getdns_dict_get_list(config, "namespaces", &list)))
+			fprintf(stderr, "Could not get \"namespaces\"");
+
+		else if ((r =  getdns_list_get_length(list, &count)))
+			fprintf(stderr, "Could not length of \"namespaces\"");
+
+		else for ( i = 0
+		         ; i < count &&
+			   i < sizeof(namespaces) / sizeof(*namespaces); i++) {
+
+			if ((r = getdns_list_get_int(list, i, &n))) {
+				fprintf( stderr
+				       , "Could not get namespaces[%zu]", i);
+				break;
+			}
+			namespaces[i] = (getdns_namespace_t)n;
+		}
+		if (!r && (r = getdns_context_set_namespaces(
+		    context, count, namespaces)))
+			fprintf(stderr,"Error configuring \"namespaces\"");
+
+	} else 	if (_streq(setting, "dns_transport")) {
+		if ((r = getdns_dict_get_int(config, "dns_transport", &n)))
+			fprintf(stderr, "Could not get \"dns_transport\"");
+
+		else if ((r = getdns_context_set_dns_transport(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"dns_transport\"");
+
+	} else if (_streq(setting, "dns_transport_list")) {
+		if ((r = getdns_dict_get_list(
+		    config, "dns_transport_list", &list)))
+			fprintf( stderr
+			       ,"Could not get \"dns_transport_list\"");
+
+		else if ((r =  getdns_list_get_length(list, &count)))
+			fprintf( stderr
+			       ,"Could not length of \"dns_transport_list\"");
+
+		else for ( i = 0
+		         ; i < count &&
+			   i < sizeof(transports) / sizeof(*transports); i++) {
+
+			if ((r = getdns_list_get_int(list, i, &n))) {
+				fprintf(stderr, "Could not get "
+				                "dns_transport_list[%zu]", i);
+				break;
+			}
+			transports[i] = (getdns_transport_list_t)n;
+		}
+		if (!r && (r = getdns_context_set_dns_transport_list(
+		    context, count, transports)))
+			fprintf( stderr
+			       ,"Error configuring \"dns_transport_list\"");
+
+	} else if (_streq(setting, "idle_timeout")) {
+		if ((r = getdns_dict_get_int(config, "idle_timeout", &n)))
+			fprintf(stderr, "Could not get \"idle_timeout\"");
+
+		else if ((r = getdns_context_set_idle_timeout(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"idle_timeout\"");
+
+	} else if (_streq(setting, "limit_outstanding_queries")) {
+		if ((r = getdns_dict_get_int(
+		    config, "limit_outstanding_queries", &n)))
+			fprintf( stderr
+			       ,"Could not get \"limit_outstanding_queries\"");
+
+		else if ((r = getdns_context_set_limit_outstanding_queries(
+		    context, n)))
+			fprintf(stderr, "Error configuring "
+			                "\"limit_outstanding_queries\"");
+
+	} else if (_streq(setting, "timeout")) {
+		if ((r = getdns_dict_get_int(config, "timeout", &n)))
+			fprintf(stderr, "Could not get \"timeout\"");
+
+		else if ((r = getdns_context_set_timeout(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"timeout\"");
+
+	} else if (_streq(setting, "follow_redirects")) {
+		if ((r = getdns_dict_get_int(config, "follow_redirects", &n)))
+			fprintf(stderr, "Could not get \"follow_redirects\"");
+
+		else if ((r = getdns_context_set_follow_redirects(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"follow_redirects\"");
+
+	} else if (_streq(setting, "dns_root_servers")) {
+		if ((r = getdns_dict_get_list(
+		    config, "dns_root_servers", &list)))
+			fprintf(stderr, "Could not get \"dns_root_servers\"");
+
+		else if ((r = getdns_context_set_dns_root_servers(
+		    context, list)))
+			fprintf( stderr
+			       ,"Error configuring \"dns_root_servers\"");
+
+	} else if (_streq(setting, "append_name")) {
+		if ((r = getdns_dict_get_int(config, "append_name", &n)))
+			fprintf(stderr, "Could not get \"append_name\"");
+
+		else if ((r = getdns_context_set_append_name(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"append_name\"");
+
+	} else if (_streq(setting, "suffix")) {
+		if ((r = getdns_dict_get_list(
+		    config, "suffix", &list)))
+			fprintf(stderr, "Could not get \"suffix\"");
+
+		else if ((r = getdns_context_set_suffix(
+		    context, list)))
+			fprintf( stderr
+			       ,"Error configuring \"suffix\"");
+
+	} else if (_streq(setting, "dnssec_trust_anchors")) {
+		if ((r = getdns_dict_get_list(
+		    config, "dnssec_trust_anchors", &list)))
+			fprintf( stderr
+			       ,"Could not get \"dnssec_trust_anchors\"");
+
+		else if ((r = getdns_context_set_dnssec_trust_anchors(
+		    context, list)))
+			fprintf( stderr
+			       ,"Error configuring \"dnssec_trust_anchors\"");
+
+	} else if (_streq(setting, "dnssec_allowed_skew")) {
+		if ((r = getdns_dict_get_int(config,"dnssec_allowed_skew",&n)))
+			fprintf( stderr
+			       ,"Could not get \"dnssec_allowed_skew\"");
+
+		else if ((r=getdns_context_set_dnssec_allowed_skew(context,n)))
+			fprintf( stderr
+			       ,"Error configuring \"dnssec_allowed_skew\"");
+
+	} else if (_streq(setting, "upstream_recursive_servers")) {
+		if ((r = getdns_dict_get_list(
+		    config, "upstream_recursive_servers", &list)))
+			fprintf(stderr , "Could not get "
+			                 "\"upstream_recursive_servers\"");
+
+		else if ((r = getdns_context_set_upstream_recursive_servers(
+		    context, list)))
+			fprintf(stderr, "Error configuring "
+			                "\"upstream_recursive_servers\"");
+
+	} else if (_streq(setting, "edns_maximum_udp_payload_size")) {
+		if ((r = getdns_dict_get_int(
+		    config, "edns_maximum_udp_payload_size", &n)))
+			fprintf(stderr, "Could not get "
+			                "\"edns_maximum_udp_payload_size\"");
+
+		else if ((r = getdns_context_set_edns_maximum_udp_payload_size(
+		    context, n)))
+			fprintf(stderr, "Error configuring "
+			                "\"edns_maximum_udp_payload_size\"");
+
+	} else if (_streq(setting, "edns_extended_rcode")) {
+		if ((r = getdns_dict_get_int(config,"edns_extended_rcode",&n)))
+			fprintf( stderr
+			       ,"Could not get \"edns_extended_rcode\"");
+
+		else if ((r = getdns_context_set_edns_extended_rcode(
+		    context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"edns_extended_rcode\"");
+
+	} else if (_streq(setting, "edns_version")) {
+		if ((r = getdns_dict_get_int(config, "edns_version", &n)))
+			fprintf(stderr, "Could not get \"edns_version\"");
+
+		else if ((r = getdns_context_set_edns_version(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"edns_version\"");
+
+	} else if (_streq(setting, "edns_do_bit")) {
+		if ((r = getdns_dict_get_int(config, "edns_do_bit", &n)))
+			fprintf(stderr, "Could not get \"edns_do_bit\"");
+
+		else if ((r = getdns_context_set_edns_do_bit(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"edns_do_bit\"");
+
+
+	/***************************************/
+	/****                               ****/
+	/****  Unofficial context settings  ****/
+	/****                               ****/
+	/***************************************/
+	}  else if (_streq(setting, "tls_authentication")) {
+		if ((r = getdns_dict_get_int(config,"tls_authentication", &n)))
+			fprintf(stderr,"Could not get \"tls_authentication\"");
+
+		else if ((r=getdns_context_set_tls_authentication(context, n)))
+			fprintf( stderr
+			       ,"Error configuring \"tls_authentication\"");
+
+
+	/************************************/
+	/****                            ****/
+	/****  Ignored context settings  ****/
+	/****                            ****/
+	/************************************/
+	} else if (!_streq(setting, "implementation_string") &&
+	    !_streq(setting, "version_string")) {
+		fprintf( stderr, "Unknown configuration key \"%.*s\""
+		       , (int)setting->size, (const char *)setting->data);
+		r = GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
+	if (r)
+		fprintf(stderr, ": %s\n", getdns_get_errorstr_by_id(r));
+	return r;
+}
+
+static getdns_return_t configure_with_config_dict(const getdns_dict *config)
+{
+	getdns_list *names;
+	getdns_return_t r;
+	getdns_bindata *name;
+	size_t i;
+
+	if ((r = getdns_dict_get_names(config, &names)))
+		return r;
+
+	for (i = 0; !(r = getdns_list_get_bindata(names, i, &name)); i++) {
+		if ((r = configure_setting_with_config_dict(config, name)))
+			break;
+	}
+	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+		r = GETDNS_RETURN_GOOD;
+
+	getdns_list_destroy(names);
+	return r;
+}
+
+static void parse_config(char *config)
 {
 	jsmn_parser p;
 	jsmntok_t *tok = NULL, *new_tok;
@@ -1057,8 +1331,7 @@ void parse_config(char *config)
 		if (gr)
 			fprintf(stderr, "Config parse error: %d\n", (int)gr);
 		else
-			fprintf(stderr, "config dict: %s\n",
-			    getdns_pretty_print_dict(d));
+			configure_with_config_dict(d);
 	}
 	free(tok);
 }
