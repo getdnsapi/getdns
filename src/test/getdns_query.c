@@ -2319,6 +2319,36 @@ getdns_return_t schedule_request(dns_msg *msg)
 	char *qname_str = NULL;
 	uint32_t qtype;
 	getdns_return_t r;
+	getdns_dict *header;
+	uint32_t n;
+	getdns_list *list;
+
+	/* pass through the header and the OPT record */
+	if (!getdns_dict_get_dict(msg->query, "header", &header))
+		(void)getdns_dict_set_dict(extensions, "header", header);
+
+	if (!getdns_dict_get_int(msg->query, "/additional/0/do", &n))
+		(void)getdns_dict_set_int(
+		    extensions, "/add_opt_parameters/do_bit", n);
+
+	if (!getdns_dict_get_int(msg->query,"/additional/0/extended_rcode",&n))
+		(void)getdns_dict_set_int(
+		    extensions, "/add_opt_parameters/extended_rcode", n);
+
+	if (!getdns_dict_get_int(msg->query, "/additional/0/version", &n))
+		(void)getdns_dict_set_int(
+		    extensions, "/add_opt_parameters/version", n);
+
+	if (!getdns_dict_get_int(
+	    msg->query, "/additional/0/udp_payload_size", &n))
+		(void)getdns_dict_set_int(extensions,
+		    "/add_opt_parameters/maximum_udp_payload_size", n);
+
+	if (!getdns_dict_get_list(
+	    msg->query, "/additional/0/rdata/options", &list))
+		(void)getdns_dict_set_list(extensions,
+		    "/add_opt_parameters/options", list);
+
 
 	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
 		fprintf(stderr, "Could not get qname from query: %s\n",
