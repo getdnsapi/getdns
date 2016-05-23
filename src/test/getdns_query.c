@@ -761,6 +761,43 @@ done:
 	return r;
 }
 
+static int _jsmn_get_data(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	size_t i, j;
+	uint8_t h, l;
+
+	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1 ||
+	    js[t->start] != '0' || js[t->start + 1] != 'x')
+		return 0;
+
+	for (i = t->start + 2; i < t->end; i++)
+		if (!((js[i] >= '0' && js[i] <= '9')
+		    ||(js[i] >= 'a' && js[i] <= 'f')
+		    ||(js[i] >= 'A' && js[i] <= 'F')))
+			return 0;
+
+	if (!(*value = malloc(sizeof(getdns_bindata))))
+		return 0;
+
+	else if (!((*value)->data = malloc((t->end - t->start) / 2 - 1))) {
+		free(*value);
+		return 0;
+	}
+	for (i = t->start + 2, j = 0; i < t->end; i++, j++) {
+		h = js[i] >= '0' && js[i] <= '9' ? js[i] - '0'
+		  : js[i] >= 'A' && js[i] <= 'F' ? js[i] + 10 - 'A'
+		                                 : js[i] + 10 - 'a';
+		h <<= 4;
+		i++;
+		l = js[i] >= '0' && js[i] <= '9' ? js[i] - '0'
+		  : js[i] >= 'A' && js[i] <= 'F' ? js[i] + 10 - 'A'
+		                                 : js[i] + 10 - 'a';
+		(*value)->data[j] = h | l;
+	}
+	(*value)->size = j;
+	return 1;
+}
+
 static int _jsmn_get_ipdict(char *js, jsmntok_t *t, getdns_dict **value)
 {
 	char c = js[t->end];
@@ -934,7 +971,8 @@ static int _jsmn_get_list(char *js, jsmntok_t *t, size_t count,
 				    new_list, index++, num);
 			} else if (_jsmn_get_dname(js, t+j, &value) ||
 			    _jsmn_get_ipv4(js, t+j, &value) ||
-			    _jsmn_get_ipv6(js, t+j, &value)) {
+			    _jsmn_get_ipv6(js, t+j, &value) ||
+			    _jsmn_get_data(js, t+j, &value)) {
 
 				*r = getdns_list_set_bindata(
 				    new_list, index++, value);
@@ -1048,7 +1086,8 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 				    new_dict, key, num);
 			} else if (_jsmn_get_dname(js, t+j, &value) ||
 			    _jsmn_get_ipv4(js, t+j, &value) ||
-			    _jsmn_get_ipv6(js, t+j, &value)) {
+			    _jsmn_get_ipv6(js, t+j, &value) ||
+			    _jsmn_get_data(js, t+j, &value)) {
 
 				*r = getdns_dict_set_bindata(
 				    new_dict, key, value);
