@@ -1968,7 +1968,7 @@ getdns_context_set_dns_root_servers(
 #  endif
 	size_t i;
 	getdns_dict *rr_dict;
-	getdns_return_t r;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_bindata *addr_bd;
 	char dst[2048];
 #endif
@@ -1999,19 +1999,28 @@ getdns_context_set_dns_root_servers(
 
 #ifdef HAVE_LIBUNBOUND
 #  ifdef HAVE_UB_CTX_SET_STUB
-	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
-		if (getdns_dict_get_bindata(
+	for (i=0; !r; i++) {
+		if (!(r = getdns_list_get_bindata(addresses, i, &addr_bd)))
+			/* success! */
+			;
+
+		else if ((r = getdns_list_get_dict(addresses, i, &rr_dict)))
+			/* Not a bindata, not a dict? ERROR! */
+			break;
+
+		else if (getdns_dict_get_bindata(
 		    rr_dict, "address_data", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv4_address", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv6_address", &addr_bd))
 
-			; /* Not a parsable address,
-			   * pass because we allow root.hint's files as input
-			   */
+		       	/* Not a parsable address,
+			 * pass because we allow root.hint's files as input
+			 */
+			continue;
 
-		else if (addr_bd->size == 16 &&
+		if (addr_bd->size == 16 &&
 		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst))) {
 
 			if (ub_ctx_set_stub(context->unbound_ctx,".",dst,1)) {
@@ -2031,22 +2040,34 @@ getdns_context_set_dns_root_servers(
 
 	if (!(fh = fdopen(fd, "w")))
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
+	for (i=0; !r; i++) {
 		dst_len = sizeof(dst);
-		if (!getdns_rr_dict2str_buf(rr_dict, dst, &dst_len))
+		if (!(r = getdns_list_get_bindata(addresses, i, &addr_bd)))
+			/* success! */
+			;
+
+		else if ((r = getdns_list_get_dict(addresses, i, &rr_dict)))
+			/* Not a bindata, not a dict? ERROR! */
+			break;
+
+		else if (!getdns_rr_dict2str_buf(rr_dict, dst, &dst_len)) {
 
 			fprintf(fh, "%s", dst);
+			continue;
 
-		else if (getdns_dict_get_bindata(
+		} else if (getdns_dict_get_bindata(
 		    rr_dict, "address_data", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv4_address", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv6_address", &addr_bd))
 
-			; /* pass */
+		       	/* Not a parsable address,
+			 * pass because we allow root.hint's files as input
+			 */
+			continue;
 
-		else if (addr_bd->size == 16 &&
+		if (addr_bd->size == 16 &&
 		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst)))
 
 			fprintf(fh,". NS "PRIsz".root-servers.getdnsapi.net.\n"
