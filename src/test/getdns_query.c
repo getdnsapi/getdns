@@ -496,14 +496,14 @@ void
 print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
-	    "\t\t[@<upstream> ...] [+<extension> ...] [<name>] [<type>]\n", progname);
+	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
 	fprintf(out, "\ndefault mode: "
 #ifdef HAVE_LIBUNBOUND
 	    "recursive"
 #else
 	    "stub"
 #endif
-	    ", synchronous resolution of NS record using UDP with TCP fallback\n");
+	    ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
@@ -526,6 +526,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+sit=<cookie>\t\tSend along cookie OPT with value <cookie>\n");
 	fprintf(out, "\t+specify_class=<class>\n");
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
+	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
 	    "(default = synchronous)\n");
@@ -536,6 +537,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
+	fprintf(out, "\t\tThe file must be in json dict format.\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
