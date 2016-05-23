@@ -197,8 +197,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	buf = net_req->query;
 	gldns_write_uint16(buf + 2, 0); /* reset all flags */
 	GLDNS_RD_SET(buf);
-	if (dnssec_extension_set) /* We will do validation ourselves */
-		GLDNS_CD_SET(buf);
 	GLDNS_OPCODE_SET(buf, GLDNS_PACKET_QUERY);
 	gldns_write_uint16(buf + GLDNS_QDCOUNT_OFF, 1); /* 1 query */
 	gldns_write_uint16(buf + GLDNS_ANCOUNT_OFF, 0); /* 0 answers */
@@ -209,6 +207,8 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	gldns_buffer_init_frm_data(
 	    &gbuf, net_req->query, net_req->wire_data_sz - 2);
 	_getdns_reply_dict2wire(extensions, &gbuf, 1);
+	if (dnssec_extension_set) /* We will do validation ourselves */
+		GLDNS_CD_SET(net_req->query);
 
 	if (with_opt) {
 		net_req->opt = buf;
