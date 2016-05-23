@@ -2356,6 +2356,10 @@ getdns_return_t schedule_request(dns_msg *msg)
 	/* pass through the header and the OPT record */
 	n = 0;
 	(void) getdns_dict_get_int(msg->query, "/additional/0/do", &n);
+	if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
+		fprintf(stderr, "Could get resolution type from context: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
 	if (msg->rt == GETDNS_RESOLUTION_STUB) {
 		(void)getdns_dict_set_int(
 		    extensions, "/add_opt_parameters/do_bit", n);
@@ -2388,7 +2392,9 @@ getdns_return_t schedule_request(dns_msg *msg)
 		(void)getdns_dict_set_list(extensions,
 		    "/add_opt_parameters/options", list);
 
-
+#if 0
+	fprintf(stderr, "query with extensions: %s\n", getdns_pretty_print_dict(extensions));
+#endif
 	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
 		fprintf(stderr, "Could not get qname from query: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -2399,10 +2405,6 @@ getdns_return_t schedule_request(dns_msg *msg)
 
 	else if ((r=getdns_dict_get_int(msg->query,"/question/qtype",&qtype)))
 		fprintf(stderr, "Could get qtype from query: %s\n",
-		    getdns_get_errorstr_by_id(r));
-
-	else if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
-		fprintf(stderr, "Could get resolution type from context: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_general(context, qname_str, qtype,
