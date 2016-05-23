@@ -533,6 +533,9 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
+	fprintf(out, "\t-C\t<filename>\n");
+	fprintf(out, "\t\tRead settings from config file <filename>\n");
+	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
@@ -984,13 +987,17 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 	new_dict = getdns_dict_create();
 	j = 1;
 	for (i = 0; i < t->size; i++) {
-		if (t[j].type != JSMN_STRING) {
+		if (t[j].type == JSMN_UNDEFINED)
+			/* Happend when primitives are used as keys */
+			break;
+
+		if (t[j].type != JSMN_STRING && t[j].type != JSMN_PRIMITIVE) {
 			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 			getdns_dict_destroy(new_dict);
 			return 0;
 		}
 		key = js + t[j].start;
-		js[t[j].end] = '\0';
+		js[t[j].type == JSMN_STRING ? t[j].end : t[j].end - 1] = '\0';
 		j += 1;
 		switch (t[j].type) {
 		case JSMN_OBJECT:
