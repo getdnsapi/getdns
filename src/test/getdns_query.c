@@ -1031,7 +1031,11 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 			/* Happend when primitives are used as keys */
 			break;
 
-		if (t[j].type != JSMN_STRING && t[j].type != JSMN_PRIMITIVE) {
+		if (t[j].type != JSMN_STRING
+#if 0
+			       	&& t[j].type != JSMN_PRIMITIVE
+#endif
+				) {
 			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 			getdns_dict_destroy(new_dict);
 			return 0;
@@ -2332,7 +2336,7 @@ getdns_return_t schedule_request(dns_msg *msg)
 		(void)getdns_dict_set_list(extensions,
 		    "/add_opt_parameters/options", list);
 
-#if 1
+#if 0
 	fprintf(stderr, "query with extensions: %s\n", getdns_pretty_print_dict(extensions));
 #endif
 	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
