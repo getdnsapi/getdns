@@ -997,7 +997,11 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 			return 0;
 		}
 		key = js + t[j].start;
-		js[t[j].type == JSMN_STRING ? t[j].end : t[j].end - 1] = '\0';
+		if (t[j].type== JSMN_PRIMITIVE) {
+			js[t[j].end - 1] = '\0';
+			i++;
+		} else
+			js[t[j].end] = '\0';
 		j += 1;
 		switch (t[j].type) {
 		case JSMN_OBJECT:
@@ -1123,6 +1127,20 @@ static getdns_return_t _get_list_or_read_file(const getdns_dict *config,
 	fclose(fh);
 	return r;
 }
+
+#define EXTENSION_SETTING_INT(X) \
+	} else if (_streq(setting, #X )) { \
+		if ((r = getdns_dict_get_int(config, #X , &n))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_dict_set_int(extensions, #X , n))) \
+			fprintf(stderr,"Error setting \"" #X "\"");
+
+#define EXTENSION_SETTING_DICT(X) \
+	} else if (_streq(setting, #X )) { \
+		if ((r = getdns_dict_get_dict(config, #X , &dict))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_dict_set_dict(extensions, #X , dict))) \
+			fprintf(stderr,"Error setting \"" #X "\"");
 
 static getdns_return_t configure_with_config_dict(const getdns_dict *config);
 static getdns_return_t configure_setting_with_config_dict(
@@ -1394,6 +1412,30 @@ static getdns_return_t configure_setting_with_config_dict(
 			    listen_list, &listen_count)))
 				fprintf(stderr, "Could not get listen_count");
 		}
+
+	/**************************************/
+	/****                              ****/
+	/****  Default extensions setting  ****/
+	/****                              ****/
+	/**************************************/
+	EXTENSION_SETTING_DICT(add_opt_parameters)
+	EXTENSION_SETTING_INT(add_warning_for_bad_dns)
+	EXTENSION_SETTING_INT(dnssec_return_all_statuses)
+	EXTENSION_SETTING_INT(dnssec_return_full_validation_chain)
+	EXTENSION_SETTING_INT(dnssec_return_only_secure)
+	EXTENSION_SETTING_INT(dnssec_return_status)
+	EXTENSION_SETTING_INT(dnssec_return_validation_chain)
+#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
+	EXTENSION_SETTING_INT(dnssec_roadblock_avoidance)
+#endif
+#ifdef EDNS_COOKIES
+	EXTENSION_SETTING_INT(edns_cookies)
+#endif
+	EXTENSION_SETTING_DICT(header)
+	EXTENSION_SETTING_INT(return_api_information)
+	EXTENSION_SETTING_INT(return_both_v4_and_v6)
+	EXTENSION_SETTING_INT(return_call_reporting)
+	EXTENSION_SETTING_INT(specify_class)
 
 	/************************************/
 	/****                            ****/
