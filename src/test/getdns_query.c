@@ -1266,7 +1266,9 @@ static getdns_return_t configure_setting_with_config_dict(
 	/****                               ****/
 	/***************************************/
 
+	CONTEXT_SETTING_INT(edns_client_subnet_private)
 	CONTEXT_SETTING_INT(tls_authentication)
+	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
 
 	}  else if (_streq(setting, "listen_addresses")) {
 		if ((r = getdns_dict_get_list(
