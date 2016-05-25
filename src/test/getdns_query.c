@@ -2221,6 +2221,8 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	    (r = getdns_dict_set_dict(response, "/replies_tree/0/question", dict)) ||
 	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL)) ||
 	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/qr", 1)) ||
+	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/ra",
+	    msg->rt == GETDNS_RESOLUTION_RECURSING ? 1 : 0)) ||
 	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/ad", 0))
 	    ))
 		fprintf(stderr, "Could not set answer rcode: %s\n",
