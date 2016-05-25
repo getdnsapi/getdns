@@ -412,7 +412,28 @@
     }
     END_TEST
 
-    
+    START_TEST (getdns_context_set_context_update_callback_22)
+    {
+     /*
+      *  value is NULL
+      *  expect: GETDNS_RETURN_INVALID_PARAMETER
+      */
+
+      struct getdns_context *context = NULL;
+      CONTEXT_CREATE(TRUE);
+
+      ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_context_update_callback()");
+
+      expected_changed_item = GETDNS_CONTEXT_CODE_IDLE_TIMEOUT;
+
+      ASSERT_RC(getdns_context_set_idle_timeout(context, 100),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+
+      CONTEXT_DESTROY;
+
+    }
+    END_TEST    
     
     Suite *
     getdns_context_set_context_update_callback_suite (void)
@@ -440,6 +461,7 @@
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_19);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_20);
       tcase_add_test(tc_pos, getdns_context_set_context_update_callback_21);
+      tcase_add_test(tc_pos, getdns_context_set_context_update_callback_22);
       suite_add_tcase(s, tc_pos);
 
        return s;
