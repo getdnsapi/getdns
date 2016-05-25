@@ -324,7 +324,11 @@ process_keepalive(
 		if (netreq->keepalive_sent == 1)
 			/* If no keepalive sent back, then we must use 0 idle timeout
 			   as server does not support it.*/
+#if defined(KEEP_CONNECTIONS_OPEN_DEBUG) && KEEP_CONNECTIONS_OPEN_DEBUG
+			upstream->keepalive_timeout = netreq->owner->context->idle_timeout;
+#else
 			upstream->keepalive_timeout = 0;
+#endif
 		return;
 	}
 	/* Use server sent value unless the client specified a shorter one.
