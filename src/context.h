@@ -127,6 +127,7 @@ typedef struct getdns_upstream {
 	int                      fd;
 	getdns_transport_list_t  transport;
 	SSL*                     tls_obj;
+	SSL_SESSION*             tls_session;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;

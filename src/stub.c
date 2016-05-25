@@ -320,15 +320,13 @@ process_keepalive(
 	uint16_t option_len = 0;
 	int found = match_edns_opt_rr(GLDNS_EDNS_KEEPALIVE, response, 
 	                              response_len, &position, &option_len);
-	if (found != 2) {
+	if (found != 2 || option_len != 2) {
 		if (netreq->keepalive_sent == 1)
 			/* If no keepalive sent back, then we must use 0 idle timeout
 			   as server does not support it.*/
 			upstream->keepalive_timeout = 0;
 		return;
 	}
-	if (option_len != 2)
-		return; /* FORMERR */
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
@@ -1036,6 +1034,12 @@ tls_do_handshake(getdns_upstream *upstream)
   * tls_auth_fail. */
 #endif
 			upstream->tls_auth_failed = 1;
+	DEBUG_STUB("%s %-35s: FD:  %d Session is %s\n", 
+		         STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd,
+		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
+	if (upstream->tls_session != NULL)
+	    SSL_SESSION_free(upstream->tls_session);
+	upstream->tls_session = SSL_get1_session(upstream->tls_obj);
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1696,6 +1700,9 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			close(fd);
 			return -1;
 		}
+
+		if (upstream->tls_session != NULL) 
+		    SSL_set_session(upstream->tls_obj, upstream->tls_session);
 		upstream->tls_hs_state = GETDNS_HS_WRITE;
 		upstream->loop = dnsreq->loop;
 		upstream->is_sync_loop = dnsreq->is_sync_request;

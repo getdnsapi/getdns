@@ -1119,7 +1119,7 @@ getdns_apply_network_result(getdns_network_req* netreq,
 		return GETDNS_RETURN_GOOD;
 	}
 
-    	if (rcode == GETDNS_RCODE_SERVFAIL) {
+	if (rcode == GETDNS_RCODE_SERVFAIL) {
 		/* Likely to be caused by timeout from a synchronous
 		 * lookup.  Don't forge a packet.
 		 */
