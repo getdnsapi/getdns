@@ -2379,7 +2379,7 @@ getdns_return_t schedule_request(dns_msg *msg)
 		    getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_general(context, qname_str, qtype,
-	    extensions, msg, &msg->transaction_id, request_cb)))
+	    extensions, msg, &transaction_id, request_cb)))
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
