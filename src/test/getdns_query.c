@@ -2094,8 +2094,9 @@ listen_data *listening = NULL;
 typedef struct dns_msg {
 	listen_data         *ld;
 	getdns_dict         *query;
-	getdns_resolution_t  rt;
-	getdns_transaction_t transaction_id;
+	uint32_t             rt;
+	uint32_t             do_bit;
+	uint32_t             cd_bit;
 } dns_msg;
 
 typedef struct udp_msg {
@@ -2206,6 +2207,7 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 			getdns_dict_destroy(response);
 		return;
 	}
+	DEBUG_TRACE("reply for: %p %"PRIu64"\n", msg, transaction_id);
 	if ((r = getdns_dict_get_int(msg->query, "/header/id", &qid)))
 		fprintf(stderr, "Could not get qid: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -2228,9 +2230,30 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		fprintf(stderr, "Could not set answer rcode: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
+	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
+	    (r =  getdns_dict_set_int(response, "/replies_tree/0/header/cd", msg->cd_bit)))
+		fprintf(stderr, "Could not set cd bit in answer: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
+	    !(r = getdns_dict_get_int(response, "/replies_tree/0/header/ra", &n)) &&
+	    n == 0 &&
+	    (  (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL))
+	    || (r = getdns_dict_set_int(response, "/replies_tree/0/header/rd", 1))
+	    || (r = getdns_dict_set_int(response, "/replies_tree/0/header/ra", 1))
+	    || (r = getdns_dict_get_dict(msg->query, "question", &dict))
+	    || (r = getdns_dict_set_dict(response, "/replies_tree/0/question", dict))
+	    || (r = getdns_dict_remove_name(response, "/replies_tree/0/answer"))
+	    || (r = getdns_dict_remove_name(response, "/replies_tree/0/authority"))
+	    || (r = getdns_dict_remove_name(response, "/replies_tree/0/additional"))
+	    ))
+		fprintf(stderr, "Could not create fake SERVFAIL packet: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
 	else if (!getdns_dict_get_int(
 	    response, "/replies_tree/0/dnssec_status", &n) &&
 	    n == GETDNS_DNSSEC_BOGUS &&
+	    msg->cd_bit != 1 &&
 	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL)))
 		fprintf(stderr, "Could not set answer rcode: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -2298,27 +2321,29 @@ getdns_return_t schedule_request(dns_msg *msg)
 	getdns_dict *header;
 	uint32_t n;
 	getdns_list *list;
+	getdns_transaction_t transaction_id;
 
 	/* pass through the header and the OPT record */
 	n = 0;
-	(void) getdns_dict_get_int(msg->query, "/additional/0/do", &n);
+	msg->do_bit = msg->cd_bit = 0;
+	msg->rt = GETDNS_RESOLUTION_STUB;
+	(void) getdns_dict_get_int(msg->query, "/additional/0/do", &msg->do_bit);
+	(void) getdns_dict_get_int(msg->query, "/header/cd", &msg->cd_bit);
 	if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
 		fprintf(stderr, "Could get resolution type from context: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
 	if (msg->rt == GETDNS_RESOLUTION_STUB) {
 		(void)getdns_dict_set_int(
-		    extensions, "/add_opt_parameters/do_bit", n);
+		    extensions, "/add_opt_parameters/do_bit", msg->do_bit);
 		if (!getdns_dict_get_dict(msg->query, "header", &header))
 			(void)getdns_dict_set_dict(extensions, "header", header);
 
 	} else {
 		(void)getdns_dict_set_int(extensions, "dnssec_return_status",
-		    n ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
-		n = 0;
-		(void) getdns_dict_get_int(msg->query, "/header/cd", &n);
+		    msg->do_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
 		r = getdns_dict_set_int(extensions, "dnssec_return_all_statuses",
-		    n ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+		    msg->cd_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
 	}
 	if (!getdns_dict_get_int(msg->query,"/additional/0/extended_rcode",&n))
 		(void)getdns_dict_set_int(
@@ -2357,6 +2382,8 @@ getdns_return_t schedule_request(dns_msg *msg)
 	    extensions, msg, &msg->transaction_id, request_cb)))
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
+
+	DEBUG_TRACE("scheduled: %p %"PRIu64"\n", msg, transaction_id);
 
 	return r;
 }
