@@ -1026,6 +1026,8 @@ FreeBSD)
 esac
 AC_SUBST(C99COMPATFLAGS)
 
+AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname referrals.])
+
 AH_BOTTOM([
 
 #ifdef GETDNS_ON_WINDOWS

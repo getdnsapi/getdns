@@ -210,9 +210,6 @@
 #include "list.h"
 #include "util/val_secalgo.h"
 
- /* Maximum number of canonical name redirections for one name */
-#define MAX_CNAMES 100
-
 #define SIGNATURE_VERIFIED         0x10000
 #define NSEC3_ITERATION_COUNT_HIGH 0x20000
 #define NO_SUPPORTED_ALGORITHMS    0x40000
@@ -1069,7 +1066,7 @@ static void add_question2val_chain(struct mem_funcs *mf,
 	q_rrset.pkt      = pkt;
 	q_rrset.pkt_len  = pkt_len;
 
-	for (anti_loop = MAX_CNAMES; anti_loop; anti_loop--) {
+	for (anti_loop = MAX_CNAME_REFERRALS; anti_loop; anti_loop--) {
 		if (!(rr = rrtype_iter_init(&rr_spc, &q_rrset)))
 			break;
 		if (!(rdf = _getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)))
