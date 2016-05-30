@@ -2191,78 +2191,92 @@ void tcp_write_cb(void *userarg)
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 }
 
+#if defined(TRACE_DEBUG) && TRACE_DEBUG
+#define SERVFAIL(error,r,msg,resp_p) do { \
+	if (r)	DEBUG_TRACE("%s: %s\n", error, getdns_get_errorstr_by_id(r)); \
+	else	DEBUG_TRACE("%s\n", error); \
+	servfail(msg, resp_p); \
+	} while (0)
+#else
+#define SERVFAIL(error,r,msg,resp_p) servfail(msg, resp_p)
+#endif
+
+void servfail(dns_msg *msg, getdns_dict **resp_p)
+{
+	getdns_dict *dict;
+
+	if (*resp_p)
+		getdns_dict_destroy(*resp_p);
+	if (!(*resp_p = getdns_dict_create()))
+		return;
+	if (!getdns_dict_get_dict(msg->query, "header", &dict))
+		getdns_dict_set_dict(*resp_p, "header", dict);
+	if (!getdns_dict_get_dict(msg->query, "question", &dict));
+		getdns_dict_set_dict(*resp_p, "question", dict);
+	(void) getdns_dict_set_int(
+	    *resp_p, "/header/rcode", GETDNS_RCODE_SERVFAIL);
+	(void) getdns_dict_set_int(*resp_p, "/header/qr", 1);
+	(void) getdns_dict_set_int(*resp_p, "/header/ad", 0);
+	(void) getdns_dict_set_int(*resp_p, "/header/ra",
+	    msg->rt == GETDNS_RESOLUTION_RECURSING ? 1 : 0);
+}
+
 void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
 {
 	dns_msg *msg = (dns_msg *)userarg;
 	uint32_t qid;
-	getdns_return_t r;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint8_t buf[65536];
 	size_t len = sizeof(buf);
 	uint32_t n;
-	getdns_dict *dict;
 
 	DEBUG_TRACE("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
-	if (callback_type != GETDNS_CALLBACK_COMPLETE) {
-		if (response)
-			getdns_dict_destroy(response);
-		return;
-	}
-	if ((r = getdns_dict_get_int(msg->query, "/header/id", &qid)))
-		fprintf(stderr, "Could not get qid: %s\n",
-		    getdns_get_errorstr_by_id(r));
+	assert(msg);
+
+	if (callback_type != GETDNS_CALLBACK_COMPLETE)
+		SERVFAIL("Callback type not complete",
+		    callback_type, msg, &response);
 
 	else if (!response)
-		fprintf(stderr, "No response in request_cb\n");
+		SERVFAIL("Missing response", 0, msg, &response);
+
+	else if ((r = getdns_dict_get_int(msg->query, "/header/id", &qid)) ||
+	    (r=getdns_dict_set_int(response,"/replies_tree/0/header/id",qid)))
+		SERVFAIL("Could not copy QID", r, msg, &response);
 
 	else if (getdns_dict_get_int(
-	    response, "/replies_tree/0/header/rcode", &n) && (
-	    (r = getdns_dict_get_dict(msg->query, "header", &dict)) ||
-	    (r = getdns_dict_set_dict(response, "/replies_tree/0/header", dict)) ||
-	    (r = getdns_dict_get_dict(msg->query, "question", &dict)) ||
-	    (r = getdns_dict_set_dict(response, "/replies_tree/0/question", dict)) ||
-	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL)) ||
-	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/qr", 1)) ||
-	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/ra",
-	    msg->rt == GETDNS_RESOLUTION_RECURSING ? 1 : 0)) ||
-	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/ad", 0))
-	    ))
-		fprintf(stderr, "Could not set answer rcode: %s\n",
-		    getdns_get_errorstr_by_id(r));
+	    response, "/replies_tree/0/header/rcode", &n))
+		SERVFAIL("No reply in replies tree", 0, msg, &response);
 
-	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
-	    (r =  getdns_dict_set_int(response, "/replies_tree/0/header/cd", msg->cd_bit)))
-		fprintf(stderr, "Could not set cd bit in answer: %s\n",
-		    getdns_get_errorstr_by_id(r));
+	else if (msg->cd_bit != 1 && !getdns_dict_get_int(
+	    response, "/replies_tree/0/dnssec_status", &n)
+	    && n == GETDNS_DNSSEC_BOGUS)
+		SERVFAIL("DNSSEC status was bogus", 0, msg, &response);
 
-	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
-	    (  (!(r = getdns_dict_get_int(response, "/replies_tree/0/header/ra", &n)) && n == 0)
-	    || (!(r = getdns_dict_get_int(response, "/replies_tree/0/header/rcode", &n)) && n == GETDNS_RCODE_SERVFAIL)
-	    ) &&
-	    (  (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL))
-	    || (r = getdns_dict_set_int(response, "/replies_tree/0/header/rd", 1))
-	    || (r = getdns_dict_set_int(response, "/replies_tree/0/header/ra", 1))
-	    || (r = getdns_dict_get_dict(msg->query, "question", &dict))
-	    || (r = getdns_dict_set_dict(response, "/replies_tree/0/question", dict))
-	    || (r = getdns_dict_remove_name(response, "/replies_tree/0/answer"))
-	    || (r = getdns_dict_remove_name(response, "/replies_tree/0/authority"))
-	    || (r = getdns_dict_remove_name(response, "/replies_tree/0/additional"))
-	    ))
-		fprintf(stderr, "Could not create fake SERVFAIL packet: %s\n",
-		    getdns_get_errorstr_by_id(r));
+	else if ((r = getdns_dict_get_int(
+	    response, "/replies_tree/0/header/rcode", &n)))
+		SERVFAIL("Could not get rcode from reply", r, msg, &response);
 
-	else if (!getdns_dict_get_int(
-	    response, "/replies_tree/0/dnssec_status", &n) &&
-	    n == GETDNS_DNSSEC_BOGUS &&
-	    msg->cd_bit != 1 &&
-	    (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL)))
-		fprintf(stderr, "Could not set answer rcode: %s\n",
-		    getdns_get_errorstr_by_id(r));
+	else if (n == GETDNS_RCODE_SERVFAIL)
+		servfail(msg, &response);
 
-	else if ((r = getdns_dict_set_int(response,
-	    "/replies_tree/0/header/id", qid)))
-		fprintf(stderr, "Could not set qid: %s\n",
-		    getdns_get_errorstr_by_id(r));
+	else if (msg->rt == GETDNS_RESOLUTION_STUB)
+		; /* following checks are for RESOLUTION_RECURSING only */
+	
+	else if ((r =  getdns_dict_set_int(
+	    response, "/replies_tree/0/header/cd", msg->cd_bit)))
+		SERVFAIL("Could not copy CD bit", r, msg, &response);
+
+	else if ((r = getdns_dict_get_int(
+	    response, "/replies_tree/0/header/ra", &n)))
+		SERVFAIL("Could not get RA bit from reply", r, msg, &response);
+
+	else if (n == 0)
+		SERVFAIL("Recursion not available", 0, msg, &response);
+
+	if (!response)
+		; /* No response, no reply */
 
 	else if ((r = getdns_msg_dict2wire_buf(response, buf, &len)))
 		fprintf(stderr, "Could not convert reply: %s\n",
