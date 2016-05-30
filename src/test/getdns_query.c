@@ -2202,12 +2202,12 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	uint32_t n;
 	getdns_dict *dict;
 
+	DEBUG_TRACE("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
 	if (callback_type != GETDNS_CALLBACK_COMPLETE) {
 		if (response)
 			getdns_dict_destroy(response);
 		return;
 	}
-	DEBUG_TRACE("reply for: %p %"PRIu64"\n", msg, transaction_id);
 	if ((r = getdns_dict_get_int(msg->query, "/header/id", &qid)))
 		fprintf(stderr, "Could not get qid: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -2236,8 +2236,9 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		    getdns_get_errorstr_by_id(r));
 
 	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
-	    !(r = getdns_dict_get_int(response, "/replies_tree/0/header/ra", &n)) &&
-	    n == 0 &&
+	    (  (!(r = getdns_dict_get_int(response, "/replies_tree/0/header/ra", &n)) && n == 0)
+	    || (!(r = getdns_dict_get_int(response, "/replies_tree/0/header/rcode", &n)) && n == GETDNS_RCODE_SERVFAIL)
+	    ) &&
 	    (  (r = getdns_dict_set_int(response, "/replies_tree/0/header/rcode", GETDNS_RCODE_SERVFAIL))
 	    || (r = getdns_dict_set_int(response, "/replies_tree/0/header/rd", 1))
 	    || (r = getdns_dict_set_int(response, "/replies_tree/0/header/ra", 1))
