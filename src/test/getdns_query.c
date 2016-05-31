@@ -2587,6 +2587,7 @@ getdns_return_t start_daemon()
 	struct addrinfo hints;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	char addrstr[1024], portstr[1024], *eos;
+	const int enable = 1; /* For SO_REUSEADDR */
 
 	if (!listen_count)
 		return GETDNS_RETURN_GOOD;
@@ -2682,6 +2683,10 @@ getdns_return_t start_daemon()
 		    ( ld->transport == GETDNS_TRANSPORT_UDP
 		    ? SOCK_DGRAM : SOCK_STREAM), 0)) == -1)
 			perror("socket");
+
+		else if (setsockopt(ld->fd, SOL_SOCKET, SO_REUSEADDR,
+		    &enable, sizeof(int)) < 0)
+			perror("setsockopt(SO_REUSEADDR) failed");
 
 		else if (bind(ld->fd, (struct sockaddr *)&ld->addr,
 		    ld->addr_len) == -1)
