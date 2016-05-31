@@ -2228,6 +2228,10 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	DEBUG_TRACE("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
 	assert(msg);
 
+#if 0
+	fprintf(stderr, "reply: %s\n", getdns_pretty_print_dict(response));
+#endif
+
 	if (callback_type != GETDNS_CALLBACK_COMPLETE)
 		SERVFAIL("Callback type not complete",
 		    callback_type, msg, &response);
@@ -2391,7 +2395,7 @@ getdns_return_t schedule_request(dns_msg *msg)
 		    "/add_opt_parameters/options", list);
 
 #if 0
-	fprintf(stderr, "query with extensions: %s\n", getdns_pretty_print_dict(extensions));
+	fprintf(stderr, "query with extensions: %s\n", getdns_pretty_print_dict(qext));
 #endif
 	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
 		fprintf(stderr, "Could not get qname from query: %s\n",
@@ -2406,7 +2410,7 @@ getdns_return_t schedule_request(dns_msg *msg)
 		    getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_general(context, qname_str, qtype,
-	    extensions, msg, &transaction_id, request_cb)))
+	    qext, msg, &transaction_id, request_cb)))
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
