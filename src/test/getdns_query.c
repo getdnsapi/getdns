@@ -277,6 +277,7 @@ static char *the_root = ".";
 static char *name;
 static getdns_context *context;
 static getdns_dict *extensions;
+static getdns_dict *query_extensions_spc = NULL;
 static getdns_list *pubkey_pinset = NULL;
 static getdns_list *listen_list = NULL;
 static getdns_dict *listen_dict = NULL;
@@ -2337,6 +2338,20 @@ getdns_return_t schedule_request(dns_msg *msg)
 	uint32_t n;
 	getdns_list *list;
 	getdns_transaction_t transaction_id;
+	getdns_dict *qext;
+
+	if (!query_extensions_spc &&
+	    !(query_extensions_spc = getdns_dict_create()))
+		fprintf(stderr, "Could not create query extensions space\n");
+
+	else if ((r = getdns_dict_set_dict(
+	    query_extensions_spc, "qext", extensions)))
+		fprintf(stderr, "Could not copy extensions in query extensions"
+		                " space: %s\n", getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_dict_get_dict(query_extensions_spc,"qext",&qext)))
+		fprintf(stderr, "Could not get query extensions from space: %s"
+		              , getdns_get_errorstr_by_id(r));
 
 	/* pass through the header and the OPT record */
 	n = 0;
@@ -2350,32 +2365,36 @@ getdns_return_t schedule_request(dns_msg *msg)
 
 	if (msg->rt == GETDNS_RESOLUTION_STUB) {
 		(void)getdns_dict_set_int(
-		    extensions, "/add_opt_parameters/do_bit", msg->do_bit);
+		    qext , "/add_opt_parameters/do_bit", msg->do_bit);
 		if (!getdns_dict_get_dict(msg->query, "header", &header))
-			(void)getdns_dict_set_dict(extensions, "header", header);
+			(void)getdns_dict_set_dict(qext, "header", header);
 
-	} else {
-		(void)getdns_dict_set_int(extensions, "dnssec_return_status",
+	} else if (getdns_dict_get_int(extensions,"dnssec_return_status",&n) ||
+	    n == GETDNS_EXTENSION_FALSE)
+		(void)getdns_dict_set_int(qext, "dnssec_return_status",
 		    msg->do_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
-		r = getdns_dict_set_int(extensions, "dnssec_return_all_statuses",
+
+	if (!getdns_dict_get_int(qext, "dnssec_return_status", &n) &&
+	    n == GETDNS_EXTENSION_TRUE)
+		(void) getdns_dict_set_int(qext, "dnssec_return_all_statuses",
 		    msg->cd_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
-	}
+
 	if (!getdns_dict_get_int(msg->query,"/additional/0/extended_rcode",&n))
 		(void)getdns_dict_set_int(
-		    extensions, "/add_opt_parameters/extended_rcode", n);
+		    qext, "/add_opt_parameters/extended_rcode", n);
 
 	if (!getdns_dict_get_int(msg->query, "/additional/0/version", &n))
 		(void)getdns_dict_set_int(
-		    extensions, "/add_opt_parameters/version", n);
+		    qext, "/add_opt_parameters/version", n);
 
 	if (!getdns_dict_get_int(
 	    msg->query, "/additional/0/udp_payload_size", &n))
-		(void)getdns_dict_set_int(extensions,
+		(void)getdns_dict_set_int(qext,
 		    "/add_opt_parameters/maximum_udp_payload_size", n);
 
 	if (!getdns_dict_get_list(
 	    msg->query, "/additional/0/rdata/options", &list))
-		(void)getdns_dict_set_list(extensions,
+		(void)getdns_dict_set_list(qext,
 		    "/add_opt_parameters/options", list);
 
 #if 0
