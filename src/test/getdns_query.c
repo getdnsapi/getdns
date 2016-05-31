@@ -2395,7 +2395,14 @@ getdns_return_t schedule_request(dns_msg *msg)
 		    "/add_opt_parameters/options", list);
 
 #if 0
-	fprintf(stderr, "query with extensions: %s\n", getdns_pretty_print_dict(qext));
+	do {
+		char *str = getdns_pretty_print_dict(msg->query);
+		fprintf(stderr, "query: %s\n", str);
+		free(str);
+		str = getdns_pretty_print_dict(qext);
+		fprintf(stderr, "query with extensions: %s\n", str);
+		free(str);
+	} while (0);
 #endif
 	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
 		fprintf(stderr, "Could not get qname from query: %s\n",
@@ -2414,7 +2421,9 @@ getdns_return_t schedule_request(dns_msg *msg)
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
-	DEBUG_TRACE("scheduled: %p %"PRIu64"\n", msg, transaction_id);
+	DEBUG_TRACE("scheduled: %p %"PRIu64" for %s %d\n",
+	    msg, transaction_id, qname_str, (int)qtype);
+	free(qname_str);
 
 	return r;
 }
