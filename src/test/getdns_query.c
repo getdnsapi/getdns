@@ -1032,20 +1032,13 @@ static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
 			/* Happend when primitives are used as keys */
 			break;
 
-		if (t[j].type != JSMN_STRING
-#if 0
-			       	&& t[j].type != JSMN_PRIMITIVE
-#endif
-				) {
+		if (t[j].type != JSMN_STRING &&
+		    t[j].type != JSMN_PRIMITIVE) {
 			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 			getdns_dict_destroy(new_dict);
 			return 0;
 		}
 		key = js + t[j].start;
-		if (t[j].type== JSMN_PRIMITIVE) {
-			js[t[j].end - 1] = '\0';
-			i++;
-		} else
 			js[t[j].end] = '\0';
 		j += 1;
 		switch (t[j].type) {
