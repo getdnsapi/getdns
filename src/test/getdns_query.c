@@ -382,7 +382,8 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 				p = c;
 			}
 		}
-	} else if ((br = strchr(ipstr, '.')) && ((c = strchr(br + 1, ':'))))
+	} else if ((br = strchr(ipstr, '.')) && (c = strchr(br + 1, ':'))
+	    && (T == NULL || c < T))
 		p = c;
 
 	else if ((*ipstr == '*') && (c = strchr(ipstr+1, ':')))
