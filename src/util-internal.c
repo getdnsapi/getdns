@@ -707,7 +707,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		goto error;
 	
 	cnames_followed = new_canonical;
-	while (new_canonical) {
+	while (cnames_followed < MAX_CNAME_REFERRALS && new_canonical) {
 		new_canonical = 0;
 
 		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
@@ -737,6 +737,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			canonical_name = _getdns_rdf_if_or_as_decompressed(
 			    rdf_iter,canonical_name_space,&canonical_name_len);
 			new_canonical = 1;
+			cnames_followed++;
 		}
 	}
 	if (_getdns_dict_set_const_bindata(

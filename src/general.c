@@ -84,7 +84,7 @@ static int
 no_answer(getdns_dns_req *dns_req)
 {
 	getdns_network_req **netreq_p, *netreq;
-	int new_canonical = 0;
+	int new_canonical = 0, cnames_followed;
 	uint8_t canon_spc[256];
 	const uint8_t *canon;
 	size_t canon_len;
@@ -103,7 +103,7 @@ no_answer(getdns_dns_req *dns_req)
 		canon_len = netreq->owner->name_len;
 		if (netreq->request_type != GETDNS_RRTYPE_CNAME
 		    && GLDNS_ANCOUNT(netreq->response) > 1) do {
-			new_canonical = 0;
+			new_canonical = 0, cnames_followed = 0;
 			for ( rr = _getdns_rr_iter_init(&rr_spc
 			                               , netreq->response
 			                               , netreq->response_len)
@@ -131,8 +131,9 @@ no_answer(getdns_dns_req *dns_req)
 				canon = _getdns_rdf_if_or_as_decompressed(
 				    rdf, canon_spc, &canon_len);
 				new_canonical = 1;
+				cnames_followed++;
 			}
-		} while (new_canonical);
+		} while (new_canonical && cnames_followed<MAX_CNAME_REFERRALS);
 		for ( rr = _getdns_rr_iter_init(&rr_spc
 					       , netreq->response
 					       , netreq->response_len)

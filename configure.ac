@@ -143,12 +143,14 @@ ACX_ARG_RPATH
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
 AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
+AC_ARG_ENABLE(debug-trace, AC_HELP_STRING([--enable-debug-trace], [Enable trace debugging of individual dns messages]))
 AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
 case "$enable_all_debugging" in
 	yes)
 		enable_debug_sched=yes
 		enable_debug_stub=yes
 		enable_debug_sec=yes
+		enable_debug_trace=yes
 		;;
 	no|*)
 		;;
@@ -172,6 +174,25 @@ case "$enable_debug_sec" in
 		AC_DEFINE_UNQUOTED([SEC_DEBUG], [1], [Define this to enable printing of dnssec debugging messages.])
 		;;
 	no|*)
+		;;
+esac
+case "$enable_debug_trace" in
+	yes)
+		AC_DEFINE_UNQUOTED([TRACE_DEBUG], [1], [Define this enable printing of transaction ids of individual dns messages.])
+		;;
+	no|*)
+		;;
+esac
+
+
+dnl  Hidden debugging options
+dnl
+AC_ARG_ENABLE(debug-keep-connections-open,[])
+case "$enable_debug_keep_connections_open" in
+	yes)
+		AC_DEFINE_UNQUOTED([KEEP_CONNECTIONS_OPEN_DEBUG], [1], [Do not set this])
+		;;
+	no)
 		;;
 esac
 
@@ -1004,6 +1025,8 @@ FreeBSD)
 ;;
 esac
 AC_SUBST(C99COMPATFLAGS)
+
+AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname referrals.])
 
 AH_BOTTOM([
 

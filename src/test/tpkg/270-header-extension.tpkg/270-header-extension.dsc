@@ -1,6 +1,6 @@
 BaseName: 270-header-extension
 Version: 1.0
-Description: Test json pointers
+Description: Set values in the DNS header with the header extension
 CreationDate: do 28 apr 2016 13:48:05 CEST
 Maintainer: Willem Toorop
 Category: 

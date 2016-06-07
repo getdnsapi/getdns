@@ -95,5 +95,12 @@
 #define DEBUG_SEC(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
+#if defined(TRACE_DEBUG) && TRACE_DEBUG
+#include <time.h>
+#define DEBUG_TRACE(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_TRACE(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 #endif
 /* debug.h */

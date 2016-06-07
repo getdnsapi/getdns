@@ -1,6 +1,6 @@
 {
   "class": GETDNS_RRCLASS_IN,
-  "name": <bindata of "some.domain.tld.">,
+  "name": <bindata for some.domain.tld.>,
   "rdata":
   {
     "rdata_raw": <bindata of 0x0c666972737420737472696e67067365...>,
@@ -39,7 +39,7 @@ www.getdnsapi.net.	0	IN	A	185.49.141.37
 
 {
   "class": GETDNS_RRCLASS_IN,
-  "name": <bindata of "hip2.nlnetlabs.nl.">,
+  "name": <bindata for hip2.nlnetlabs.nl.>,
   "rdata":
   {
     "hit": <bindata of 0x200100107b1a74df365639cc39f1d578>,
@@ -47,8 +47,8 @@ www.getdnsapi.net.	0	IN	A	185.49.141.37
     "public_key": <bindata of 0x03010001b771ca136e4aeb5ce44333c5...>,
     "rendezvous_servers":
     [
-       <bindata of "rvs1.example.com.">,
-       <bindata of "rvs2.example.com.">
+       <bindata for rvs1.example.com.>,
+       <bindata for rvs2.example.com.>
     ]
   },
   "ttl": 3600,
@@ -59,7 +59,7 @@ hip0.nlnetlabs.nl.	3600	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSu
 
 {
   "class": GETDNS_RRCLASS_IN,
-  "name": <bindata of "apl.net-dns.org.">,
+  "name": <bindata for apl.net-dns.org.>,
   "rdata":
   {
     "apitems":
@@ -103,16 +103,16 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
 [
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
       "expire": 345600,
       "minimum": 300,
-      "mname": <bindata of "ns.nlnetlabs.nl.">,
+      "mname": <bindata for ns.nlnetlabs.nl.>,
       "rdata_raw": <bindata of 0x026e73096e6c6e65746c616273026e6c...>,
       "refresh": 450,
       "retry": 600,
-      "rname": <bindata of "sysadmin.nlnetlabs.nl.">,
+      "rname": <bindata for sysadmin.nlnetlabs.nl.>,
       "serial": 2015081800
     },
     "ttl": 30,
@@ -120,51 +120,51 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
-      "nsdname": <bindata of "ns.nlnetlabs.nl.">,
-      "rdata_raw": <bindata of "ns.nlnetlabs.nl.">
+      "nsdname": <bindata for ns.nlnetlabs.nl.>,
+      "rdata_raw": <bindata for ns.nlnetlabs.nl.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_NS
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
-      "nsdname": <bindata of "ns.hactrn.net.">,
-      "rdata_raw": <bindata of "ns.hactrn.net.">
+      "nsdname": <bindata for ns.hactrn.net.>,
+      "rdata_raw": <bindata for ns.hactrn.net.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_NS
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
-      "nsdname": <bindata of "mcvax.nlnet.nl.">,
-      "rdata_raw": <bindata of "mcvax.nlnet.nl.">
+      "nsdname": <bindata for mcvax.nlnet.nl.>,
+      "rdata_raw": <bindata for mcvax.nlnet.nl.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_NS
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
-      "nsdname": <bindata of "sec2.authdns.ripe.net.">,
-      "rdata_raw": <bindata of "sec2.authdns.ripe.net.">
+      "nsdname": <bindata for sec2.authdns.ripe.net.>,
+      "rdata_raw": <bindata for sec2.authdns.ripe.net.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_NS
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 185.49.140.22>,
@@ -175,7 +175,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
       "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
@@ -186,10 +186,10 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
-      "exchange": <bindata of "dicht.nlnetlabs.nl.">,
+      "exchange": <bindata for dicht.nlnetlabs.nl.>,
       "preference": 10,
       "rdata_raw": <bindata of 0x000a056469636874096e6c6e65746c61...>
     },
@@ -198,10 +198,10 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
-      "exchange": <bindata of "mcvax.nlnet.nl.">,
+      "exchange": <bindata for mcvax.nlnet.nl.>,
       "preference": 20,
       "rdata_raw": <bindata of 0x0014056d63766178056e6c6e6574026e...>
     },
@@ -210,7 +210,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "net-dns.org.">,
+    "name": <bindata for net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x104e65743a3a444e532020646f6d6169...>,
@@ -224,7 +224,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "_443._tcp.net-dns.org.">,
+    "name": <bindata for _443._tcp.net-dns.org.>,
     "rdata":
     {
       "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
@@ -238,7 +238,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "_443._tcp.www.net-dns.org.">,
+    "name": <bindata for _443._tcp.www.net-dns.org.>,
     "rdata":
     {
       "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
@@ -252,7 +252,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "dynup.net-dns.org.">,
+    "name": <bindata for dynup.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x07666f6f466f6f3209426c61203b2046...>,
@@ -267,7 +267,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "lists.net-dns.org.">,
+    "name": <bindata for lists.net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 63.209.15.196>,
@@ -278,7 +278,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "localhost.net-dns.org.">,
+    "name": <bindata for localhost.net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 127.0.0.1>,
@@ -289,7 +289,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652031206f662061...>,
@@ -303,7 +303,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652032206f662061...>,
@@ -317,7 +317,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652033206f662061...>,
@@ -331,7 +331,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652034206f662061...>,
@@ -345,7 +345,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652035206f662061...>,
@@ -359,7 +359,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652036206f662061...>,
@@ -373,7 +373,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652037206f662061...>,
@@ -387,7 +387,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652038206f662061...>,
@@ -401,7 +401,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3e416e64206c696e652039206f662061...>,
@@ -415,7 +415,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203130206f6620...>,
@@ -429,7 +429,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203131206f6620...>,
@@ -443,7 +443,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203132206f6620...>,
@@ -457,7 +457,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203133206f6620...>,
@@ -471,7 +471,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203134206f6620...>,
@@ -485,7 +485,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203135206f6620...>,
@@ -499,7 +499,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203136206f6620...>,
@@ -513,7 +513,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203137206f6620...>,
@@ -527,7 +527,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203138206f6620...>,
@@ -541,7 +541,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203139206f6620...>,
@@ -555,7 +555,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203230206f6620...>,
@@ -569,7 +569,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203231206f6620...>,
@@ -583,7 +583,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203232206f6620...>,
@@ -597,7 +597,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203233206f6620...>,
@@ -611,7 +611,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203235206f6620...>,
@@ -625,7 +625,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203236206f6620...>,
@@ -639,7 +639,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203237206f6620...>,
@@ -653,7 +653,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203238206f6620...>,
@@ -667,7 +667,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203239206f6620...>,
@@ -681,7 +681,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203330206f6620...>,
@@ -695,7 +695,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203331206f6620...>,
@@ -709,7 +709,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203332206f6620...>,
@@ -723,7 +723,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203333206f6620...>,
@@ -737,7 +737,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203334206f6620...>,
@@ -751,7 +751,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203335206f6620...>,
@@ -765,7 +765,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203336206f6620...>,
@@ -779,7 +779,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203337206f6620...>,
@@ -793,7 +793,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203338206f6620...>,
@@ -807,7 +807,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203339206f6620...>,
@@ -821,7 +821,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203430206f6620...>,
@@ -835,7 +835,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203431206f6620...>,
@@ -849,7 +849,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203432206f6620...>,
@@ -863,7 +863,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203433206f6620...>,
@@ -877,7 +877,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203434206f6620...>,
@@ -891,7 +891,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203435206f6620...>,
@@ -905,7 +905,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203436206f6620...>,
@@ -919,7 +919,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203437206f6620...>,
@@ -933,7 +933,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203438206f6620...>,
@@ -947,7 +947,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203439206f6620...>,
@@ -961,7 +961,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203530206f6620...>,
@@ -975,7 +975,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203531206f6620...>,
@@ -989,7 +989,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203532206f6620...>,
@@ -1003,7 +1003,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203533206f6620...>,
@@ -1017,7 +1017,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203534206f6620...>,
@@ -1031,7 +1031,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203535206f6620...>,
@@ -1045,7 +1045,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203536206f6620...>,
@@ -1059,7 +1059,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203537206f6620...>,
@@ -1073,7 +1073,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203538206f6620...>,
@@ -1087,7 +1087,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203539206f6620...>,
@@ -1101,7 +1101,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3f416e64206c696e65203630206f6620...>,
@@ -1115,7 +1115,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x40416e64206c696e6520323234206f66...>,
@@ -1129,7 +1129,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "overflow.net-dns.org.">,
+    "name": <bindata for overflow.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x45416e20696e637265616469626c7920...>,
@@ -1143,7 +1143,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "t.net-dns.org.">,
+    "name": <bindata for t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x31546865206e616d6573207769746869...>,
@@ -1157,7 +1157,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "a.t.net-dns.org.">,
+    "name": <bindata for a.t.net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 10.0.1.128>,
@@ -1168,7 +1168,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "a2.t.net-dns.org.">,
+    "name": <bindata for a2.t.net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 10.0.1.129>,
@@ -1179,21 +1179,21 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "cname.t.net-dns.org.">,
+    "name": <bindata for cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "a.t.net-dns.org.">,
-      "rdata_raw": <bindata of "a.t.net-dns.org.">
+      "cname": <bindata for a.t.net-dns.org.>,
+      "rdata_raw": <bindata for a.t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "mx.t.net-dns.org.">,
+    "name": <bindata for mx.t.net-dns.org.>,
     "rdata":
     {
-      "exchange": <bindata of "a.t.net-dns.org.">,
+      "exchange": <bindata for a.t.net-dns.org.>,
       "preference": 10,
       "rdata_raw": <bindata of 0x000a01610174076e65742d646e73036f...>
     },
@@ -1202,10 +1202,10 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "mx2.t.net-dns.org.">,
+    "name": <bindata for mx2.t.net-dns.org.>,
     "rdata":
     {
-      "exchange": <bindata of "a.t.net-dns.org.">,
+      "exchange": <bindata for a.t.net-dns.org.>,
       "preference": 10,
       "rdata_raw": <bindata of 0x000a01610174076e65742d646e73036f...>
     },
@@ -1214,10 +1214,10 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "mx2.t.net-dns.org.">,
+    "name": <bindata for mx2.t.net-dns.org.>,
     "rdata":
     {
-      "exchange": <bindata of "a2.t.net-dns.org.">,
+      "exchange": <bindata for a2.t.net-dns.org.>,
       "preference": 15,
       "rdata_raw": <bindata of 0x000f0261320174076e65742d646e7303...>
     },
@@ -1226,7 +1226,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "txt.t.net-dns.org.">,
+    "name": <bindata for txt.t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x074e65742d444e53>,
@@ -1240,7 +1240,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "txt2.t.net-dns.org.">,
+    "name": <bindata for txt2.t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x1a4e65742d444e533b20636f6d706c69...>,
@@ -1255,7 +1255,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "connection-test.t.net-dns.org.">,
+    "name": <bindata for connection-test.t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x16636f6e6e656374696f6e2d74657374...>,
@@ -1269,7 +1269,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "txt-utf8.t.net-dns.org.">,
+    "name": <bindata for txt-utf8.t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x09e58fa4e6b1a0e382840ce89b99e9a3...>,
@@ -1285,7 +1285,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "txt-utf8-bin.t.net-dns.org.">,
+    "name": <bindata for txt-utf8-bin.t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x09e58fa4e6b1a0e382840ce89b99e9a3...>,
@@ -1301,7 +1301,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "a.few.empty.non.terminals.t.net-dns.org.">,
+    "name": <bindata for a.few.empty.non.terminals.t.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x01610366657705656d707479036e6f6e...>,
@@ -1319,7 +1319,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "a.few.empty.non.terminals.t.net-dns.org.">,
+    "name": <bindata for a.few.empty.non.terminals.t.net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 185.49.140.22>,
@@ -1330,7 +1330,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "a.few.empty.non.terminals.t.net-dns.org.">,
+    "name": <bindata for a.few.empty.non.terminals.t.net-dns.org.>,
     "rdata":
     {
       "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
@@ -1341,73 +1341,73 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "yx1.cname.t.net-dns.org.">,
+    "name": <bindata for yx1.cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "-.t.net-dns.org.">,
-      "rdata_raw": <bindata of "-.t.net-dns.org.">
+      "cname": <bindata for -.t.net-dns.org.>,
+      "rdata_raw": <bindata for -.t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "yx2.cname.t.net-dns.org.">,
+    "name": <bindata for yx2.cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "a-a.t.net-dns.org.">,
-      "rdata_raw": <bindata of "a-a.t.net-dns.org.">
+      "cname": <bindata for a-a.t.net-dns.org.>,
+      "rdata_raw": <bindata for a-a.t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "yx3.cname.t.net-dns.org.">,
+    "name": <bindata for yx3.cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "a\..t.net-dns.org.">,
-      "rdata_raw": <bindata of "a\..t.net-dns.org.">
+      "cname": <bindata for a\..t.net-dns.org.>,
+      "rdata_raw": <bindata for a\..t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "yx4.cname.t.net-dns.org.">,
+    "name": <bindata for yx4.cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "a\000.t.net-dns.org.">,
-      "rdata_raw": <bindata of "a\000.t.net-dns.org.">
+      "cname": <bindata for a\000.t.net-dns.org.>,
+      "rdata_raw": <bindata for a\000.t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "nx1.cname.t.net-dns.org.">,
+    "name": <bindata for nx1.cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "does.not.exist.t.net-dns.org.">,
-      "rdata_raw": <bindata of "does.not.exist.t.net-dns.org.">
+      "cname": <bindata for does.not.exist.t.net-dns.org.>,
+      "rdata_raw": <bindata for does.not.exist.t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "nx2.cname.t.net-dns.org.">,
+    "name": <bindata for nx2.cname.t.net-dns.org.>,
     "rdata":
     {
-      "cname": <bindata of "empty.non.terminals.t.net-dns.org.">,
-      "rdata_raw": <bindata of "empty.non.terminals.t.net-dns.org.">
+      "cname": <bindata for empty.non.terminals.t.net-dns.org.>,
+      "rdata_raw": <bindata for empty.non.terminals.t.net-dns.org.>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_CNAME
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "www.net-dns.org.">,
+    "name": <bindata for www.net-dns.org.>,
     "rdata":
     {
       "ipv4_address": <bindata for 185.49.140.22>,
@@ -1418,7 +1418,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "www.net-dns.org.">,
+    "name": <bindata for www.net-dns.org.>,
     "rdata":
     {
       "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
@@ -1429,7 +1429,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "apl.net-dns.org.">,
+    "name": <bindata for apl.net-dns.org.>,
     "rdata":
     {
       "apitems":
@@ -1472,7 +1472,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey0.net-dns.org.">,
+    "name": <bindata for ipseckey0.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
@@ -1485,7 +1485,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey1.net-dns.org.">,
+    "name": <bindata for ipseckey1.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
@@ -1500,7 +1500,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey2.net-dns.org.">,
+    "name": <bindata for ipseckey2.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
@@ -1515,11 +1515,11 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey3.net-dns.org.">,
+    "name": <bindata for ipseckey3.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
-      "gateway": <bindata of "mygateway.example.com.">,
+      "gateway": <bindata for mygateway.example.com.>,
       "gateway_type": 3,
       "precedence": 2,
       "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
@@ -1530,7 +1530,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey.net-dns.org.">,
+    "name": <bindata for ipseckey.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
@@ -1543,7 +1543,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey.net-dns.org.">,
+    "name": <bindata for ipseckey.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
@@ -1558,7 +1558,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey.net-dns.org.">,
+    "name": <bindata for ipseckey.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
@@ -1573,11 +1573,11 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "ipseckey.net-dns.org.">,
+    "name": <bindata for ipseckey.net-dns.org.>,
     "rdata":
     {
       "algorithm": 10,
-      "gateway": <bindata of "mygateway.example.com.">,
+      "gateway": <bindata for mygateway.example.com.>,
       "gateway_type": 3,
       "precedence": 2,
       "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
@@ -1588,7 +1588,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "default._domainkey.net-dns.org.">,
+    "name": <bindata for default._domainkey.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0xfd763d444b494d313b20723d706f7374...>,
@@ -1602,7 +1602,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "2.3.3.updates.spamassassin.net-dns.org.">,
+    "name": <bindata for 2.3.3.updates.spamassassin.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x083134313832313920>,
@@ -1616,7 +1616,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
   },
   {
     "class": GETDNS_RRCLASS_IN,
-    "name": <bindata of "mirrors.updates.spamassassin.net-dns.org.">,
+    "name": <bindata for mirrors.updates.spamassassin.net-dns.org.>,
     "rdata":
     {
       "rdata_raw": <bindata of 0x3c687474703a2f2f616e6f6e796d6f75...>,
