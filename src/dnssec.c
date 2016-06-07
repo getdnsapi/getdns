@@ -912,7 +912,7 @@ static void val_chain_sched_soa_node(chain_node *node)
 
 		node->soa_req     = NULL;
 
-	node->lock--;
+	if (node->lock) node->lock--;
 }
 
 /* A SOA lookup is scheduled as a last resort.  No signatures were found and
@@ -969,7 +969,7 @@ static void val_chain_sched_node(chain_node *node)
 
 		node->ds_req = NULL;
 
-	node->lock--;
+	if (node->lock) node->lock--;
 }
 
 static void val_chain_sched(chain_head *head, const uint8_t *dname)
@@ -1010,7 +1010,7 @@ static void val_chain_sched_ds_node(chain_node *node)
 
 		node->ds_req = NULL;
 
-	node->lock--;
+	if (node->lock) node->lock--;
 }
 
 static void val_chain_sched_ds(chain_head *head, const uint8_t *dname)
@@ -1102,7 +1102,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 		 */
 		val_chain_sched_soa_node(node->parent);
 
-	node->lock--;
+	if (node->lock) node->lock--;
 	check_chain_complete(node->chains);
 }
 
@@ -1146,7 +1146,7 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		node->lock++;
 		val_chain_sched_soa_node(node->parent);
 	}
-	node->lock--;
+	if (node->lock) node->lock--;
 	check_chain_complete(node->chains);
 }
 
@@ -3138,8 +3138,9 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 		                      );
 	}
 	if (chain) {
-		for (chain_p = chain; chain_p; chain_p = chain_p->next)
-			chain_p->lock--;
+		for (chain_p = chain; chain_p; chain_p = chain_p->next) {
+			if (chain_p->lock) chain_p->lock--;
+		}
 		check_chain_complete(chain);
 	} else {
 		dnsreq->validating = 0;
