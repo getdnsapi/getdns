@@ -771,7 +771,7 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 	/* For all things without signature, find SOA (zonecut) and query DS */
 
 	for ( i = _getdns_rrset_iter_init(&i_spc, pkt, pkt_len
-	                                        , SECTION_NO_QUESTION)
+	                                        , SECTION_NO_ADDITIONAL)
 	    ; i
 	    ; i = _getdns_rrset_iter_next(i)) {
 
@@ -836,6 +836,7 @@ static void add_question2val_chain(struct mem_funcs *mf,
 	q_rrset.rr_class = qclass;
 	q_rrset.pkt      = pkt;
 	q_rrset.pkt_len  = pkt_len;
+	q_rrset.sections = SECTION_ANSWER;
 
 	for (anti_loop = MAX_CNAMES; anti_loop; anti_loop--) {
 		if (!(rr = _getdns_rrtype_iter_init(&rr_spc, &q_rrset)))
