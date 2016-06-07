@@ -108,11 +108,11 @@ no_answer(getdns_dns_req *dns_req)
 			                               , netreq->response
 			                               , netreq->response_len)
 			    ; rr && _getdns_rr_iter_section(rr)
-			         <= GLDNS_SECTION_ANSWER
+			         <= SECTION_ANSWER
 			    ; rr = _getdns_rr_iter_next(rr)) {
 
 				if (_getdns_rr_iter_section(rr) !=
-				    GLDNS_SECTION_ANSWER)
+				    SECTION_ANSWER)
 					continue;
 
 				if (gldns_read_uint16(rr->rr_type) !=
@@ -137,11 +137,11 @@ no_answer(getdns_dns_req *dns_req)
 					       , netreq->response
 					       , netreq->response_len)
 		    ; rr && _getdns_rr_iter_section(rr)
-			 <= GLDNS_SECTION_ANSWER
+			 <= SECTION_ANSWER
 		    ; rr = _getdns_rr_iter_next(rr)) {
 
 			if (_getdns_rr_iter_section(rr) !=
-			    GLDNS_SECTION_ANSWER)
+			    SECTION_ANSWER)
 				continue;
 
 			if (gldns_read_uint16(rr->rr_type) !=

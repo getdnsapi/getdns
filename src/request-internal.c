@@ -478,7 +478,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	    ; rr
 	    ; rr = _getdns_rr_iter_next(rr)) {
 
-		if (_getdns_rr_iter_section(rr) == GLDNS_SECTION_ADDITIONAL &&
+		if (_getdns_rr_iter_section(rr) == SECTION_ADDITIONAL &&
 		    gldns_read_uint16(rr->rr_type) == GETDNS_RRTYPE_TSIG)
 			break;
 	}
@@ -501,7 +501,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	    ; rr
 	    ; rr = _getdns_rr_iter_next(rr)) {
 
-		if (_getdns_rr_iter_section(rr) == GLDNS_SECTION_ADDITIONAL &&
+		if (_getdns_rr_iter_section(rr) == SECTION_ADDITIONAL &&
 		    gldns_read_uint16(rr->rr_type) == GETDNS_RRTYPE_TSIG)
 			break;
 	}

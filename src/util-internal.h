@@ -149,12 +149,7 @@ _getdns_rr_iter2rr_dict_canonical(
 struct getdns_dns_req;
 struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *completed_request);
 
-getdns_dict *_getdns_create_reply_dict(getdns_context *context,
-    getdns_network_req *req, getdns_list *just_addrs, int *rrsigs_in_answer);
-
 getdns_return_t _getdns_validate_dname(const char* dname);
-
-int _getdns_dname_equal(const uint8_t *s1, const uint8_t *s2);
 
 uint8_t *_getdns_list2wire(
     getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
