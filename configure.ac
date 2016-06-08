@@ -238,7 +238,7 @@ if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/
 	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
 	# libressl provides these compat functions, but they may also be
 	# declared by the OS in libc.  See if they have been declared.
-	AC_CHECK_DECLS([strlcpy,strlcat,arc4random,arc4random_uniform,reallocarray])
+	AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
 else
 	AC_MSG_RESULT([no])
 fi
@@ -928,7 +928,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h bsd/string.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -967,6 +967,14 @@ AC_MSG_RESULT($ac_cv_c_unused_attribute)
 if test $ac_cv_c_unused_attribute = yes; then
   AC_DEFINE(HAVE_ATTR_UNUSED, 1, [Whether the C compiler accepts the "unused" attribute])
 fi
+# Check for libbsd, so that the next function checks pick it as their
+# system implementation.
+PKG_CHECK_MODULES([LIBBSD],[libbsd-overlay],[
+LIBS="$LIBS $LIBBSD_LIBS"
+CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
+],[
+AC_MSG_WARN([libbsd not found or usable; using embedded code instead])
+])
 AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
@@ -1049,10 +1057,6 @@ AH_BOTTOM([
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-
-#ifdef HAVE_BSD_STRING_H
-#include <bsd/string.h>
-#endif
 
 /* the version of the windows API enabled */
 #ifndef WINVER
