@@ -462,18 +462,23 @@ inline static int has_all_numeric_label(const uint8_t *dname)
 	return 0;
 }
 
+typedef struct _srv_rr {
+	_getdns_rr_iter i;
+	unsigned        running_sum;
+} _srv_rr;
+
 typedef struct _srvs {
-	size_t           capacity;
-	size_t           count;
-	_getdns_rr_iter  *rrs;
+	size_t  capacity;
+	size_t  count;
+	_srv_rr *rrs;
 } _srvs;
 
 static int _grow_srvs(struct mem_funcs *mf, _srvs *srvs)
 {
-	_getdns_rr_iter *new_rrs;
+	_srv_rr *new_rrs;
 
 	if (!(new_rrs = GETDNS_XREALLOC(
-	    *mf, srvs->rrs, _getdns_rr_iter, srvs->capacity * 2)))
+	    *mf, srvs->rrs, _srv_rr, srvs->capacity * 2)))
 		return 0; /* Memory error */
 
 	srvs->capacity *= 2;
@@ -669,7 +674,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			    !_grow_srvs(&context->mf, srvs))
 				goto error;
 
-			srvs->rrs[srvs->count++] = *rr_iter;
+			srvs->rrs[srvs->count++].i = *rr_iter;
 			continue;
 		}
 		if (rr_type != GETDNS_RRTYPE_A && rr_type != GETDNS_RRTYPE_AAAA)
@@ -932,17 +937,104 @@ _getdns_create_call_reporting_dict(
 	return netreq_debug;
 }
 
+static inline int _srv_prio(_getdns_rr_iter *x)
+{ return x->nxt < x->rr_type+12
+       ? 65536 : (int)gldns_read_uint16(x->rr_type+10); }
+
+static inline int _srv_weight(_getdns_rr_iter *x)
+{ return x->nxt < x->rr_type+14 ? 0 : (int)gldns_read_uint16(x->rr_type+12); }
+
+
+static int _srv_cmp(const void *a, const void *b)
+{
+	return _srv_prio((_getdns_rr_iter *)a)
+	     - _srv_prio((_getdns_rr_iter *)b);
+}
+
+static void _rfc2782_sort(_srv_rr *start, _srv_rr *end)
+{
+	int running_sum, n;
+	_srv_rr *i, *j, swap;
+
+	/* First move all SRVs with weight 0 to the beginning of the list */
+
+	for (i = start; i < end && _srv_weight(&i->i) == 0; i++)
+		; /* pass */
+
+	for (j = i + 1; j < end; j++) {
+		if (_srv_weight(&j->i) == 0) {
+			swap = *i;
+			*i = *j;
+			*j = swap;
+			i++;
+		}
+	}
+	/* Now all SRVs are at the beginning, calculate running_sum */
+	running_sum = 0;
+	for (i = start; i < end; i++) {
+		running_sum += _srv_weight(&i->i);
+		i->running_sum = running_sum;
+	}
+	n = arc4random_uniform(running_sum);
+	for (i = start; i < end; i++) {
+		if (i->running_sum >= n)
+			break;
+	}
+	if (i > start && i < end) {
+		swap = *start;
+		*start = *i;
+		*i = swap;
+		_rfc2782_sort(start + 1, end);
+	}
+}
+
 static getdns_list *
 _create_srv_addrs(getdns_context *context, _srvs *srvs)
 {
 	getdns_list *srv_addrs;
-	size_t i;
+	size_t i, j;
 
+	qsort(srvs->rrs, srvs->count, sizeof(_srv_rr), _srv_cmp);
+	/* The SRVs are now sorted by priority (lowest first).  Now determine
+	 * server selection order for the SRVs with the same priority with
+	 * the algorithm described in RFC2782:
+	 * 
+	 *   To select a target to be contacted next, arrange all SRV RRs
+	 *   (that have not been ordered yet) in any order, except that all
+	 *   those with weight 0 are placed at the beginning of the list.
+	 * 
+	 *   Compute the sum of the weights of those RRs, and with each RR
+	 *   associate the running sum in the selected order. Then choose a
+	 *   uniform random number between 0 and the sum computed
+	 *   (inclusive), and select the RR whose running sum value is the
+	 *   first in the selected order which is greater than or equal to
+	 *   the random number selected. The target host specified in the
+	 *   selected SRV RR is the next one to be contacted by the client.
+	 *   Remove this SRV RR from the set of the unordered SRV RRs and
+	 *   apply the described algorithm to the unordered SRV RRs to select
+	 *   the next target host.  Continue the ordering process until there
+	 *   are no unordered SRV RRs.  This process is repeated for each
+	 *   Priority.
+	 */
+	for (i = 0; i < srvs->count; i = j) {
+		/* Determine range of SRVs with same priority */
+		for ( j = i + 1
+		    ; j < srvs->count && _srv_prio(&srvs->rrs[i].i)
+		                      == _srv_prio(&srvs->rrs[j].i)
+		    ; j++)
+			; /* pass */
+
+		if (j == i + 1)
+			continue;
+
+		/* SRVs with same prio range from i till j (exclusive). */
+		_rfc2782_sort(srvs->rrs + i, srvs->rrs + j);
+	}
 	if (!(srv_addrs = getdns_list_create_with_context(context)))
 		return NULL;
 
 	for (i = 0; i < srvs->count; i++) {
-		_getdns_rr_iter *rr = srvs->rrs + i;
+		_getdns_rr_iter *rr = &srvs->rrs[i].i;
 		getdns_dict *d;
 		_getdns_rdf_iter rdf_storage, *rdf;
 
@@ -1058,7 +1150,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 
 		srvs.capacity = 100;
 		if (!(srvs.rrs = GETDNS_XMALLOC(
-		    context->mf, _getdns_rr_iter, srvs.capacity))) {
+		    context->mf, _srv_rr, srvs.capacity))) {
 			srvs.capacity = 0;
 			goto error_free_result;
 		}
