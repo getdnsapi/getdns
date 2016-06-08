@@ -2200,6 +2200,7 @@ static int key_proves_nonexistance(
 	 */
 	nsec_rrset = *rrset;
 	nsec_rrset.rr_type = GETDNS_RRTYPE_NSEC;
+	nsec_rrset.sections = SECTION_NO_ADDITIONAL;
 
 	if (/* A NSEC RR exists at the owner name of rrset */
 	      (nsec_rr = _getdns_rrtype_iter_init(&nsec_spc, &nsec_rrset))
