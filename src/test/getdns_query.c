@@ -27,12 +27,26 @@
 
 #include "config.h"
 #include "debug.h"
+#include "const-info.h"
+#include "jsmn/jsmn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
+#ifndef USE_WINSOCK
+#include <arpa/inet.h>
+#include <sys/time.h>
+#include <netdb.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+typedef unsigned short in_port_t;
+#include <windows.h>
+#include <wincrypt.h>
+#endif
+
 
 #define MAX_TIMEOUTS FD_SETSIZE
 
@@ -263,8 +277,12 @@ static char *the_root = ".";
 static char *name;
 static getdns_context *context;
 static getdns_dict *extensions;
+static getdns_dict *query_extensions_spc = NULL;
 static getdns_list *pubkey_pinset = NULL;
+static getdns_list *listen_list = NULL;
+static getdns_dict *listen_dict = NULL;
 static size_t pincount = 0;
+static size_t listen_count = 0;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
 static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
@@ -344,6 +362,7 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	char *T = strchr(ipstr, '^'), *tsig_name_str = ""
 	                            , *tsig_secret_str = ""
 	                            , *tsig_algorithm_str = "";
+	char *br, *c;
 	int            tsig_secret_size;
 	uint8_t        tsig_secret_buf[256]; /* 4 times SHA512 */
 	getdns_bindata tsig_secret;
@@ -353,6 +372,23 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 	addr.data = buf;
 
 	if (!r) return NULL;
+
+	if (*ipstr == '[') {
+		char *br = strchr(ipstr, ']');
+		if (br) {
+			ipstr += 1;
+			*br = 0;
+			if ((c = strchr(br + 1, ':'))) {
+				p = c;
+			}
+		}
+	} else if ((br = strchr(ipstr, '.')) && (c = strchr(br + 1, ':'))
+	    && (T == NULL || c < T))
+		p = c;
+
+	else if ((*ipstr == '*') && (c = strchr(ipstr+1, ':')))
+		p = c;
+
 	if (s) {
 		*s = 0;
 		scope_id_str = s + 1;
@@ -385,7 +421,11 @@ ipaddr_dict(getdns_context *context, char *ipstr)
 			tsig_name_str = "";
 		}
 	}
-	if (strchr(ipstr, ':')) {
+	if (*ipstr == '*') {
+		getdns_dict_util_set_string(r, "address_type", "IPv6");
+		addr.size = 16;
+		(void) memset(buf, 0, 16);
+	} else if (strchr(ipstr, ':')) {
 		getdns_dict_util_set_string(r, "address_type", "IPv6");
 		addr.size = 16;
 		if (inet_pton(AF_INET6, ipstr, buf) <= 0) {
@@ -458,15 +498,17 @@ void
 print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
-	    "\t\t[@<upstream> ...] [+<extension> ...] [<name>] [<type>]\n", progname);
+	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
 	fprintf(out, "\ndefault mode: "
 #ifdef HAVE_LIBUNBOUND
 	    "recursive"
 #else
 	    "stub"
 #endif
-	    ", synchronous resolution of NS record using UDP with TCP fallback\n");
-	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]\n");
+	    ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
+	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
+	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
@@ -486,6 +528,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+sit=<cookie>\t\tSend along cookie OPT with value <cookie>\n");
 	fprintf(out, "\t+specify_class=<class>\n");
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
+	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
 	fprintf(out, "\t-a\tPerform asynchronous resolution "
 	    "(default = synchronous)\n");
@@ -493,6 +536,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
+	fprintf(out, "\t-C\t<filename>\n");
+	fprintf(out, "\t\tRead settings from config file <filename>\n");
+	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
+	fprintf(out, "\t\tThe file must be in json dict format.\n");
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
@@ -512,9 +559,9 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
+	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-r\tSet recursing resolution type\n");
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
-	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
@@ -536,7 +583,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
 	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
-
+	fprintf(out, "\t-z <listen address>\n");
+	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
+	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
+	fprintf(out, "\t\tThis option can be given more than once.\n");
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -715,6 +765,647 @@ done:
 	return r;
 }
 
+static int _jsmn_get_data(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	size_t i, j;
+	uint8_t h, l;
+
+	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1 ||
+	    js[t->start] != '0' || js[t->start + 1] != 'x')
+		return 0;
+
+	for (i = t->start + 2; i < t->end; i++)
+		if (!((js[i] >= '0' && js[i] <= '9')
+		    ||(js[i] >= 'a' && js[i] <= 'f')
+		    ||(js[i] >= 'A' && js[i] <= 'F')))
+			return 0;
+
+	if (!(*value = malloc(sizeof(getdns_bindata))))
+		return 0;
+
+	else if (!((*value)->data = malloc((t->end - t->start) / 2 - 1))) {
+		free(*value);
+		return 0;
+	}
+	for (i = t->start + 2, j = 0; i < t->end; i++, j++) {
+		h = js[i] >= '0' && js[i] <= '9' ? js[i] - '0'
+		  : js[i] >= 'A' && js[i] <= 'F' ? js[i] + 10 - 'A'
+		                                 : js[i] + 10 - 'a';
+		h <<= 4;
+		i++;
+		l = js[i] >= '0' && js[i] <= '9' ? js[i] - '0'
+		  : js[i] >= 'A' && js[i] <= 'F' ? js[i] + 10 - 'A'
+		                                 : js[i] + 10 - 'a';
+		(*value)->data[j] = h | l;
+	}
+	(*value)->size = j;
+	return 1;
+}
+
+static int _jsmn_get_ipdict(char *js, jsmntok_t *t, getdns_dict **value)
+{
+	char c = js[t->end];
+
+	js[t->end] = '\0';
+	*value = ipaddr_dict(context, js + t->start);
+	js[t->end] = c;
+	return *value != NULL;
+}
+
+static int _jsmn_get_dname(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	char c = js[t->end];
+	getdns_return_t r;
+
+	if (t->end <= t->start || js[t->end - 1] != '.')
+		return 0;
+
+	js[t->end] = '\0';
+	r = getdns_convert_fqdn_to_dns_name(js + t->start, value);
+	js[t->end] = c;
+
+	return r == GETDNS_RETURN_GOOD;
+}
+
+static int _jsmn_get_ipv4(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	char c = js[t->end];
+	uint8_t buf[4];
+
+	js[t->end] = '\0';
+	if (inet_pton(AF_INET, js + t->start, buf) <= 0)
+		; /* pass */
+
+	else if (!(*value = malloc(sizeof(getdns_bindata))))
+		; /* pass */
+
+	else if (!((*value)->data = malloc(4)))
+		free(*value);
+
+	else {
+		js[t->end] = c;
+		(*value)->size = 4;
+		(void) memcpy((*value)->data, buf, 4);
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_ipv6(char *js, jsmntok_t *t, getdns_bindata **value)
+{
+	char c = js[t->end];
+	uint8_t buf[16];
+
+	js[t->end] = '\0';
+	if (inet_pton(AF_INET6, js + t->start, buf) <= 0)
+		; /* pass */
+
+	else if (!(*value = malloc(sizeof(getdns_bindata))))
+		; /* pass */
+
+	else if (!((*value)->data = malloc(16)))
+		free(*value);
+
+	else {
+		js[t->end] = c;
+		(*value)->size = 16;
+		(void) memcpy((*value)->data, buf, 16);
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_integer(char *js, jsmntok_t *t, uint32_t *num)
+{
+	char c = js[t->end];
+	;unsigned long int value;
+	char *endptr;
+
+	js[t->end] = '\0';
+	value = strtoul(js + t->start, &endptr, 10);
+	if (js[t->start] != '\0' && *endptr == '\0') {
+		js[t->end] = c;
+		*num = value;
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_constant(char *js, jsmntok_t *t, uint32_t *num)
+{
+	char c = js[t->end];
+	int code;
+
+	js[t->end] = '\0';
+	if (_getdns_get_const_name_info(js + t->start, &code)) {
+		js[t->end] = c;
+		*num = code;
+		return 1;
+	}
+	js[t->end] = c;
+	return 0;
+}
+
+static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
+    getdns_dict **dict, getdns_return_t *r);
+
+static int _jsmn_get_list(char *js, jsmntok_t *t, size_t count,
+    getdns_list **list, getdns_return_t *r)
+{
+	getdns_list *new_list, *child_list;
+	getdns_dict *child_dict;
+	size_t i, j;
+	getdns_bindata bindata;
+	size_t index = 0;
+	uint32_t num;
+	getdns_bindata *value;
+
+	if (t->type != JSMN_ARRAY) {
+		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		return 0;
+	}
+	new_list = getdns_list_create();
+	j = 1;
+	for (i = 0; i < t->size; i++) {
+		switch (t[j].type) {
+		case JSMN_OBJECT:
+			j += _jsmn_get_dict(js, t+j, count-j, &child_dict, r);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			*r = getdns_list_set_dict(new_list, index++, child_dict);
+			getdns_dict_destroy(child_dict);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			break;
+		case JSMN_ARRAY:
+			j += _jsmn_get_list(js, t+j, count-j, &child_list, r);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			*r = getdns_list_set_list(new_list, index++, child_list);
+			getdns_list_destroy(child_list);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			break;
+		case JSMN_STRING:
+			bindata.size = t[j].end - t[j].start;
+			bindata.data = (uint8_t *)js + t[j].start;
+			*r = getdns_list_set_bindata(
+			    new_list, index++, &bindata);
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			j += 1;
+			break;
+		case JSMN_PRIMITIVE:
+			if (_jsmn_get_integer(js, t+j, &num) ||
+			    _jsmn_get_constant(js, t+j, &num)) {
+				*r = getdns_list_set_int(
+				    new_list, index++, num);
+			} else if (_jsmn_get_dname(js, t+j, &value) ||
+			    _jsmn_get_ipv4(js, t+j, &value) ||
+			    _jsmn_get_ipv6(js, t+j, &value) ||
+			    _jsmn_get_data(js, t+j, &value)) {
+
+				*r = getdns_list_set_bindata(
+				    new_list, index++, value);
+
+				free(value->data);
+				free(value);
+
+			} else if (_jsmn_get_ipdict(js, t+j, &child_dict)) {
+				*r = getdns_list_set_dict(
+				    new_list, index++, child_dict);
+				getdns_dict_destroy(child_dict);
+			} else {
+				fprintf(stderr, "Could not convert primitive %.*s\n",
+				    t[j].end  - t[j].start, js+t[j].start);
+				*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			}
+			if (*r) {
+				getdns_list_destroy(new_list);
+				return 0;
+			}
+			j += 1;
+			break;
+
+		default:
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			getdns_list_destroy(new_list);
+			return 0;
+		}
+	}
+	*list = new_list;
+	*r = GETDNS_RETURN_GOOD;
+	return j;
+}
+
+static int _jsmn_get_dict(char *js, jsmntok_t *t, size_t count,
+    getdns_dict **dict, getdns_return_t *r)
+{
+	getdns_dict *new_dict, *child_dict;
+	getdns_list *child_list;
+	size_t i, j;
+	getdns_bindata bindata;
+	char *key;
+	uint32_t num;
+	getdns_bindata *value;
+
+	if (t->type != JSMN_OBJECT) {
+		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		return 0;
+	}
+	new_dict = getdns_dict_create();
+	j = 1;
+	for (i = 0; i < t->size; i++) {
+		if (t[j].type == JSMN_UNDEFINED)
+			/* Happend when primitives are used as keys */
+			break;
+
+		if (t[j].type != JSMN_STRING &&
+		    t[j].type != JSMN_PRIMITIVE) {
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			getdns_dict_destroy(new_dict);
+			return 0;
+		}
+		key = js + t[j].start;
+			js[t[j].end] = '\0';
+		j += 1;
+		switch (t[j].type) {
+		case JSMN_OBJECT:
+			j += _jsmn_get_dict(js, t+j, count-j, &child_dict, r);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			*r = getdns_dict_set_dict(new_dict, key, child_dict);
+			getdns_dict_destroy(child_dict);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			break;
+		case JSMN_ARRAY:
+			j += _jsmn_get_list(js, t+j, count-j, &child_list, r);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			*r = getdns_dict_set_list(new_dict, key, child_list);
+			getdns_list_destroy(child_list);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			break;
+		case JSMN_STRING:
+			bindata.size = t[j].end - t[j].start;
+			bindata.data = (uint8_t *)js + t[j].start;
+			*r = getdns_dict_set_bindata(
+			    new_dict, key, &bindata);
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			j += 1;
+			break;
+		case JSMN_PRIMITIVE:
+			if (_jsmn_get_integer(js, t+j, &num) ||
+			    _jsmn_get_constant(js, t+j, &num)) {
+				*r = getdns_dict_set_int(
+				    new_dict, key, num);
+			} else if (_jsmn_get_dname(js, t+j, &value) ||
+			    _jsmn_get_ipv4(js, t+j, &value) ||
+			    _jsmn_get_ipv6(js, t+j, &value) ||
+			    _jsmn_get_data(js, t+j, &value)) {
+
+				*r = getdns_dict_set_bindata(
+				    new_dict, key, value);
+
+				free(value->data);
+				free(value);
+
+			} else if (_jsmn_get_ipdict(js, t+j, &child_dict)) {
+				*r = getdns_dict_set_dict(
+				    new_dict, key, child_dict);
+				getdns_dict_destroy(child_dict);
+			} else {
+				*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+				fprintf(stderr, "Could not convert primitive %.*s\n",
+				    t[j].end  - t[j].start, js+t[j].start);
+			}
+			if (*r) {
+				getdns_dict_destroy(new_dict);
+				return 0;
+			}
+			j += 1;
+			break;
+
+		default:
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			getdns_dict_destroy(new_dict);
+			return 0;
+		}
+	}
+	*dict = new_dict;
+	*r = GETDNS_RETURN_GOOD;
+	return j;
+}
+
+static int _streq(const getdns_bindata *name, const char *str)
+{
+	if (strlen(str) != name->size)
+		return 0;
+	else	return strncmp((const char *)name->data, str, name->size) == 0;
+}
+
+static getdns_return_t _get_list_or_read_file(const getdns_dict *config,
+    const char *setting, getdns_list **r_list, int *destroy_list)
+{
+	getdns_bindata *fn_bd;
+	char fn[FILENAME_MAX];
+	FILE *fh;
+	getdns_return_t r;
+
+	assert(r_list);
+	assert(destroy_list);
+
+	*destroy_list = 0;
+	if (!(r = getdns_dict_get_list(config, setting, r_list)))
+		return GETDNS_RETURN_GOOD;
+
+	else if ((r = getdns_dict_get_bindata(config, setting, &fn_bd)))
+		return r;
+
+	else if (fn_bd->size >= FILENAME_MAX)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	(void)memcpy(fn, fn_bd->data, fn_bd->size);
+	fn[fn_bd->size] = 0;
+
+	if (!(fh = fopen(fn, "r"))) {
+		fprintf(stderr, "Could not open \"%s\": %s\n"
+		              , fn, strerror(errno));
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if ((r = getdns_fp2rr_list(fh, r_list, NULL, 3600)))
+		fprintf(stderr,"Could not parse \"%s\"\n", fn);
+
+	else	*destroy_list = 1;
+
+	fclose(fh);
+	return r;
+}
+
+#define CONTEXT_SETTING_INT(X) \
+	} else 	if (_streq(setting, #X)) { \
+		if ((r = getdns_dict_get_int(config, #X , &n))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_context_set_ ## X (context, n))) \
+			fprintf(stderr,"Error configuring \"" #X "\"");
+
+#define CONTEXT_SETTING_LIST(X) \
+	} else 	if (_streq(setting, #X)) { \
+		if ((r = getdns_dict_get_list(config, #X , &list))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_context_set_ ## X (context, list))) \
+			fprintf(stderr,"Error configuring \"" #X "\"");
+
+#define CONTEXT_SETTING_LIST_OR_ZONEFILE(X) \
+	} else if (_streq(setting, #X)) { \
+		if ((r = _get_list_or_read_file( \
+		    config, #X , &list, &destroy_list))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_context_set_ ## X(context, list))) \
+			fprintf(stderr, "Error configuring \"" #X "\""); \
+		if (destroy_list) getdns_list_destroy(list);
+
+#define CONTEXT_SETTING_ARRAY(X, T) \
+	} else 	if (_streq(setting, #X )) { \
+		if ((r = getdns_dict_get_list(config, #X , &list))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r =  getdns_list_get_length(list, &count))) \
+			fprintf(stderr, "Could not length of \"" #X "\""); \
+		else for (i=0; i<count && i<(sizeof(X)/sizeof(*X)); i++) { \
+			if ((r = getdns_list_get_int(list, i, &n))) { \
+				fprintf(stderr,"Could not get "#X"[%zu]",i); \
+				break; \
+			} \
+			X[i] = (getdns_ ## T ## _t)n; \
+		} \
+		if (!r && (r = getdns_context_set_ ##X (context, count, X))) \
+			fprintf(stderr,"Error configuring \"" #X "\""); \
+
+#define EXTENSION_SETTING_INT(X) \
+	} else if (_streq(setting, #X )) { \
+		if ((r = getdns_dict_get_int(config, #X , &n))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_dict_set_int(extensions, #X , n))) \
+			fprintf(stderr,"Error setting \"" #X "\"");
+
+#define EXTENSION_SETTING_DICT(X) \
+	} else if (_streq(setting, #X )) { \
+		if ((r = getdns_dict_get_dict(config, #X , &dict))) \
+			fprintf(stderr, "Could not get \"" #X "\""); \
+		else if ((r = getdns_dict_set_dict(extensions, #X , dict))) \
+			fprintf(stderr,"Error setting \"" #X "\"");
+
+static getdns_return_t configure_with_config_dict(const getdns_dict *config);
+static getdns_return_t configure_setting_with_config_dict(
+    const getdns_dict *config, const getdns_bindata *setting)
+{
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	getdns_dict *dict;
+	getdns_list *list;
+	getdns_namespace_t namespaces[100];
+	getdns_transport_list_t dns_transport_list[100];
+	size_t count, i;
+	uint32_t n;
+	int destroy_list = 0;
+
+	if (_streq(setting, "all_context")) {
+		if ((r = getdns_dict_get_dict(config, "all_context", &dict)))
+			fprintf(stderr, "Could not get \"all_context\"");
+
+		else if ((r = configure_with_config_dict(dict)))
+			fprintf( stderr
+			       ,"Error configuring with \"all_context\"");
+
+	CONTEXT_SETTING_INT(resolution_type)
+	CONTEXT_SETTING_ARRAY(namespaces, namespace)
+	CONTEXT_SETTING_INT(dns_transport)
+	CONTEXT_SETTING_ARRAY(dns_transport_list, transport_list)
+	CONTEXT_SETTING_INT(idle_timeout)
+	CONTEXT_SETTING_INT(limit_outstanding_queries)
+	CONTEXT_SETTING_INT(timeout)
+	CONTEXT_SETTING_INT(follow_redirects)
+	CONTEXT_SETTING_LIST_OR_ZONEFILE(dns_root_servers)
+	CONTEXT_SETTING_INT(append_name)
+	CONTEXT_SETTING_LIST(suffix)
+	CONTEXT_SETTING_LIST_OR_ZONEFILE(dnssec_trust_anchors)
+	CONTEXT_SETTING_INT(dnssec_allowed_skew)
+	CONTEXT_SETTING_LIST(upstream_recursive_servers)
+	CONTEXT_SETTING_INT(edns_maximum_udp_payload_size)
+	CONTEXT_SETTING_INT(edns_extended_rcode)
+	CONTEXT_SETTING_INT(edns_version)
+	CONTEXT_SETTING_INT(edns_do_bit)
+
+	/***************************************/
+	/****                               ****/
+	/****  Unofficial context settings  ****/
+	/****                               ****/
+	/***************************************/
+
+	CONTEXT_SETTING_INT(edns_client_subnet_private)
+	CONTEXT_SETTING_INT(tls_authentication)
+	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
+
+	}  else if (_streq(setting, "listen_addresses")) {
+		if ((r = getdns_dict_get_list(
+		    config, "listen_addresses", &list)))
+			fprintf(stderr, "Could not get \"listen_addresses\"");
+
+		else {
+			if (listen_list && !listen_dict) {
+				/* TODO: Stop listening */
+				getdns_list_destroy(listen_list);
+				listen_count = 0;
+				listen_list = NULL;
+			}
+			/* Strange construction to copy the list.
+			 * Needs to be done, because config dict
+			 * will get destroyed.
+			 */
+			if (!listen_dict &&
+			    !(listen_dict = getdns_dict_create())) {
+				fprintf(stderr, "Could not create "
+						"listen_dict");
+				r = GETDNS_RETURN_MEMORY_ERROR;
+
+			} else if ((r = getdns_dict_set_list(
+			    listen_dict, "listen_list", list)))
+				fprintf(stderr, "Could not set listen_list");
+
+			else if ((r = getdns_dict_get_list(
+			    listen_dict, "listen_list", &listen_list)))
+				fprintf(stderr, "Could not get listen_list");
+
+			else if ((r = getdns_list_get_length(
+			    listen_list, &listen_count)))
+				fprintf(stderr, "Could not get listen_count");
+		}
+
+	/**************************************/
+	/****                              ****/
+	/****  Default extensions setting  ****/
+	/****                              ****/
+	/**************************************/
+	EXTENSION_SETTING_DICT(add_opt_parameters)
+	EXTENSION_SETTING_INT(add_warning_for_bad_dns)
+	EXTENSION_SETTING_INT(dnssec_return_all_statuses)
+	EXTENSION_SETTING_INT(dnssec_return_full_validation_chain)
+	EXTENSION_SETTING_INT(dnssec_return_only_secure)
+	EXTENSION_SETTING_INT(dnssec_return_status)
+	EXTENSION_SETTING_INT(dnssec_return_validation_chain)
+#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
+	EXTENSION_SETTING_INT(dnssec_roadblock_avoidance)
+#endif
+#ifdef EDNS_COOKIES
+	EXTENSION_SETTING_INT(edns_cookies)
+#endif
+	EXTENSION_SETTING_DICT(header)
+	EXTENSION_SETTING_INT(return_api_information)
+	EXTENSION_SETTING_INT(return_both_v4_and_v6)
+	EXTENSION_SETTING_INT(return_call_reporting)
+	EXTENSION_SETTING_INT(specify_class)
+
+	/************************************/
+	/****                            ****/
+	/****  Ignored context settings  ****/
+	/****                            ****/
+	/************************************/
+	} else if (!_streq(setting, "implementation_string") &&
+	    !_streq(setting, "version_string")) {
+		fprintf( stderr, "Unknown setting \"%.*s\""
+		       , (int)setting->size, (const char *)setting->data);
+		r = GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
+	if (r)
+		fprintf(stderr, ": %s\n", getdns_get_errorstr_by_id(r));
+	return r;
+}
+
+static getdns_return_t configure_with_config_dict(const getdns_dict *config)
+{
+	getdns_list *names;
+	getdns_return_t r;
+	getdns_bindata *name;
+	size_t i;
+
+	if ((r = getdns_dict_get_names(config, &names)))
+		return r;
+
+	for (i = 0; !(r = getdns_list_get_bindata(names, i, &name)); i++) {
+		if ((r = configure_setting_with_config_dict(config, name)))
+			break;
+	}
+	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
+		r = GETDNS_RETURN_GOOD;
+
+	getdns_list_destroy(names);
+	return r;
+}
+
+static void parse_config(char *config)
+{
+	jsmn_parser p;
+	jsmntok_t *tok = NULL, *new_tok;
+	size_t tokcount = 100;
+	int r;
+	getdns_return_t gr;
+	getdns_dict *d;
+
+	jsmn_init(&p);
+	tok = malloc(sizeof(*tok) * tokcount);
+	do {
+		r = jsmn_parse(&p, config, strlen(config), tok, tokcount);
+		if (r == JSMN_ERROR_NOMEM) {
+			fprintf(stderr, "new tokcount: %d\n", (int)tokcount);
+			tokcount *= 2;
+			if (!(new_tok = realloc(tok, sizeof(*tok)*tokcount))){
+				free(tok);
+				fprintf(stderr,
+				    "Memory error during config parsing\n");
+				return;
+			} 
+			tok  = new_tok;
+		}
+	} while (r == JSMN_ERROR_NOMEM);
+	if (r < 0) 
+		fprintf(stderr, "Config parse error: %d\n", r);
+	else {
+		(void) _jsmn_get_dict(config, tok, p.toknext, &d, &gr);
+		if (gr)
+			fprintf(stderr, "Config parse error: %d\n", (int)gr);
+		else {
+			configure_with_config_dict(d);
+			getdns_dict_destroy(d);
+		}
+	}
+	free(tok);
+}
+
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -730,6 +1421,8 @@ getdns_return_t parse_args(int argc, char **argv)
 	size_t upstream_count = 0;
 	FILE *fh;
 	uint32_t klass;
+	char *config_file = NULL;
+	long config_file_sz;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -800,6 +1493,10 @@ getdns_return_t parse_args(int argc, char **argv)
 				    upstream_count++, upstream);
 			}
 			continue;
+		} else if (arg[0] == '{') {
+			parse_config(arg);
+			continue;
+
 		} else if (arg[0] != '-') {
 			name = arg;
 			continue;
@@ -831,6 +1528,49 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'c':
 				if (getdns_context_set_edns_client_subnet_private(context, 1))
 					return GETDNS_RETURN_GENERIC_ERROR;
+				break;
+			case 'C':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "file name expected "
+					    "after -C\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (!(fh = fopen(argv[i], "r"))) {
+					fprintf(stderr, "Could not open \"%s\""
+					    ": %s\n",argv[i], strerror(errno));
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				if (fseek(fh, 0,SEEK_END) == -1) {
+					perror("fseek");
+					fclose(fh);
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				config_file_sz = ftell(fh);
+				if (config_file_sz <= 0) {
+					/* Empty config is no config */
+					fclose(fh);
+					break;
+				}
+				if (!(config_file=malloc(config_file_sz + 1))){
+					fclose(fh);
+					fprintf(stderr, "Could not allocate me"
+					    "mory for \"%s\"\n", argv[i]);
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				rewind(fh);
+				if (fread(config_file, 1, config_file_sz, fh)
+				    != config_file_sz) {
+					fprintf(stderr, "An error occurred whil"
+					    "e reading \"%s\": %s\n",argv[i],
+					    strerror(errno));
+					fclose(fh);
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				config_file[config_file_sz] = 0;
+				fclose(fh);
+				parse_config(config_file);
+				free(config_file);
+				config_file = NULL;
 				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
@@ -1121,7 +1861,29 @@ getdns_return_t parse_args(int argc, char **argv)
 				batch_mode = 1;
 				break;
 
-
+			case 'z':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "listed address "
+					                "expected after -z\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				getdns_dict *downstream =
+				    ipaddr_dict(context, argv[i]);
+				if (!downstream) {
+					fprintf(stderr, "could not parse "
+					        "listen address: %s", argv[i]);
+				}
+				if (!listen_list &&
+				    !(listen_list =
+				    getdns_list_create_with_context(context))){
+					fprintf(stderr, "Could not create "
+							"downstram list\n");
+					return GETDNS_RETURN_MEMORY_ERROR;
+				}
+				getdns_list_set_dict(listen_list,
+				    listen_count++, downstream);
+				getdns_dict_destroy(downstream);
+				break;
 			default:
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
@@ -1313,6 +2075,656 @@ void read_line_cb(void *userarg)
 	}
 }
 
+typedef struct listen_data {
+	socklen_t                addr_len;
+	struct sockaddr_storage  addr;
+	int                      fd;
+	getdns_transport_list_t  transport;
+	getdns_eventloop_event   event;
+} listen_data;
+
+
+listen_data *listening = NULL;
+
+typedef struct dns_msg {
+	listen_data         *ld;
+	getdns_dict         *query;
+	uint32_t             rt;
+	uint32_t             do_bit;
+	uint32_t             cd_bit;
+} dns_msg;
+
+typedef struct udp_msg {
+	dns_msg                 super;
+	struct sockaddr_storage remote_in;
+	socklen_t               addrlen;
+} udp_msg;
+
+typedef struct tcp_to_write tcp_to_write;
+struct tcp_to_write {
+	size_t        write_buf_len;
+	size_t        written;
+	tcp_to_write *next;
+	uint8_t       write_buf[];
+};
+
+#define DOWNSTREAM_IDLE_TIMEOUT 5000
+typedef struct downstream {
+	listen_data            *ld;
+	struct sockaddr_storage remote_in;
+	socklen_t               addrlen;
+	int                     fd;
+	getdns_eventloop_event  event;
+
+	uint8_t                *read_buf;
+	size_t                  read_buf_len;
+	uint8_t                *read_pos;
+	size_t                  to_read;
+
+	tcp_to_write           *to_write;
+	size_t                  to_answer;
+} downstream;
+
+typedef struct tcp_msg {
+	dns_msg     super;
+	downstream *conn;
+} tcp_msg;
+
+void downstream_destroy(downstream *conn)
+{
+	tcp_to_write *cur, *next;
+
+	if (conn->event.read_cb||conn->event.write_cb||conn->event.timeout_cb)
+		my_eventloop_clear(&my_loop.base, &conn->event);
+	if (conn->fd >= 0) {
+		if (close(conn->fd) == -1)
+			perror("close");
+	}
+	free(conn->read_buf);
+	for (cur = conn->to_write; cur; cur = next) {
+		next = cur->next;
+		free(cur);
+	}
+	free(conn);
+}
+
+void tcp_write_cb(void *userarg)
+{
+	downstream *conn = (downstream *)userarg;
+	tcp_to_write *to_write;
+	ssize_t written;
+
+	assert(userarg);
+
+	/* Reset downstream idle timeout */
+	my_eventloop_clear(&my_loop.base, &conn->event);
+	
+	if (!conn->to_write) {
+		conn->event.write_cb = NULL;
+		(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+		    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+		return;
+	}
+	to_write = conn->to_write;
+	if ((written = write(conn->fd, &to_write->write_buf[to_write->written],
+	    to_write->write_buf_len - to_write->written)) == -1) {
+
+		perror("write");
+		conn->event.read_cb = conn->event.write_cb =
+		    conn->event.timeout_cb = NULL;
+		downstream_destroy(conn);
+		return;
+	}
+	to_write->written += written;
+	if (to_write->written == to_write->write_buf_len) {
+		conn->to_write = to_write->next;
+		free(to_write);
+	}
+	if (!conn->to_write)
+		conn->event.write_cb = NULL;
+	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+}
+
+#if defined(TRACE_DEBUG) && TRACE_DEBUG
+#define SERVFAIL(error,r,msg,resp_p) do { \
+	if (r)	DEBUG_TRACE("%s: %s\n", error, getdns_get_errorstr_by_id(r)); \
+	else	DEBUG_TRACE("%s\n", error); \
+	servfail(msg, resp_p); \
+	} while (0)
+#else
+#define SERVFAIL(error,r,msg,resp_p) servfail(msg, resp_p)
+#endif
+
+void servfail(dns_msg *msg, getdns_dict **resp_p)
+{
+	getdns_dict *dict;
+
+	if (*resp_p)
+		getdns_dict_destroy(*resp_p);
+	if (!(*resp_p = getdns_dict_create()))
+		return;
+	if (!getdns_dict_get_dict(msg->query, "header", &dict))
+		getdns_dict_set_dict(*resp_p, "header", dict);
+	if (!getdns_dict_get_dict(msg->query, "question", &dict));
+		getdns_dict_set_dict(*resp_p, "question", dict);
+	(void) getdns_dict_set_int(
+	    *resp_p, "/header/rcode", GETDNS_RCODE_SERVFAIL);
+	(void) getdns_dict_set_int(*resp_p, "/header/qr", 1);
+	(void) getdns_dict_set_int(*resp_p, "/header/ad", 0);
+	(void) getdns_dict_set_int(*resp_p, "/header/ra",
+	    msg->rt == GETDNS_RESOLUTION_RECURSING ? 1 : 0);
+}
+
+void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
+    getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
+{
+	dns_msg *msg = (dns_msg *)userarg;
+	uint32_t qid;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	uint8_t buf[65536];
+	size_t len = sizeof(buf);
+	uint32_t n;
+
+	DEBUG_TRACE("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
+	assert(msg);
+
+#if 0
+	fprintf(stderr, "reply: %s\n", getdns_pretty_print_dict(response));
+#endif
+
+	if (callback_type != GETDNS_CALLBACK_COMPLETE)
+		SERVFAIL("Callback type not complete",
+		    callback_type, msg, &response);
+
+	else if (!response)
+		SERVFAIL("Missing response", 0, msg, &response);
+
+	else if ((r = getdns_dict_get_int(msg->query, "/header/id", &qid)) ||
+	    (r=getdns_dict_set_int(response,"/replies_tree/0/header/id",qid)))
+		SERVFAIL("Could not copy QID", r, msg, &response);
+
+	else if (getdns_dict_get_int(
+	    response, "/replies_tree/0/header/rcode", &n))
+		SERVFAIL("No reply in replies tree", 0, msg, &response);
+
+	else if (msg->cd_bit != 1 && !getdns_dict_get_int(
+	    response, "/replies_tree/0/dnssec_status", &n)
+	    && n == GETDNS_DNSSEC_BOGUS)
+		SERVFAIL("DNSSEC status was bogus", 0, msg, &response);
+
+	else if ((r = getdns_dict_get_int(
+	    response, "/replies_tree/0/header/rcode", &n)))
+		SERVFAIL("Could not get rcode from reply", r, msg, &response);
+
+	else if (n == GETDNS_RCODE_SERVFAIL)
+		servfail(msg, &response);
+
+	else if (msg->rt == GETDNS_RESOLUTION_STUB)
+		; /* following checks are for RESOLUTION_RECURSING only */
+	
+	else if ((r =  getdns_dict_set_int(
+	    response, "/replies_tree/0/header/cd", msg->cd_bit)))
+		SERVFAIL("Could not copy CD bit", r, msg, &response);
+
+	else if ((r = getdns_dict_get_int(
+	    response, "/replies_tree/0/header/ra", &n)))
+		SERVFAIL("Could not get RA bit from reply", r, msg, &response);
+
+	else if (n == 0)
+		SERVFAIL("Recursion not available", 0, msg, &response);
+
+	if (!response)
+		; /* No response, no reply */
+
+	else if ((r = getdns_msg_dict2wire_buf(response, buf, &len)))
+		fprintf(stderr, "Could not convert reply: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if (msg->ld->transport == GETDNS_TRANSPORT_UDP) {
+		udp_msg *msg = (udp_msg *)userarg;
+
+		if (sendto(msg->super.ld->fd, buf, len, 0,
+		    (struct sockaddr *)&msg->remote_in, msg->addrlen) == -1)
+			perror("sendto");
+
+	} else if (msg->ld->transport == GETDNS_TRANSPORT_TCP) {
+		tcp_msg *msg = (tcp_msg *)userarg;
+		tcp_to_write **to_write_p;
+		tcp_to_write *to_write = malloc(sizeof(tcp_to_write) + len + 2);
+
+		if (!to_write) 
+			fprintf(stderr, "Could not allocate memory for"
+					"message to write on tcp stream\n");
+		else {
+			to_write->write_buf_len = len + 2;
+			to_write->write_buf[0] = (len >> 8) & 0xFF;
+			to_write->write_buf[1] = len & 0xFF;
+			to_write->written = 0;
+			to_write->next = NULL;
+			(void) memcpy(to_write->write_buf + 2, buf, len);
+
+			/* Appen to_write to conn->to_write list */
+			for ( to_write_p = &msg->conn->to_write
+			    ; *to_write_p
+			    ; to_write_p = &(*to_write_p)->next)
+				; /* pass */
+			*to_write_p = to_write;
+
+			my_eventloop_clear(&my_loop.base, &msg->conn->event);
+			msg->conn->event.write_cb = tcp_write_cb;
+			(void) my_eventloop_schedule(&my_loop.base,
+			    msg->conn->fd, DOWNSTREAM_IDLE_TIMEOUT,
+			    &msg->conn->event);
+		}
+	}
+	if (msg) {
+		getdns_dict_destroy(msg->query);
+		free(msg);
+	}
+	if (response)
+		getdns_dict_destroy(response);
+}	
+
+getdns_return_t schedule_request(dns_msg *msg)
+{
+	getdns_bindata *qname;
+	char *qname_str = NULL;
+	uint32_t qtype;
+	getdns_return_t r;
+	getdns_dict *header;
+	uint32_t n;
+	getdns_list *list;
+	getdns_transaction_t transaction_id;
+	getdns_dict *qext;
+
+	if (!query_extensions_spc &&
+	    !(query_extensions_spc = getdns_dict_create()))
+		fprintf(stderr, "Could not create query extensions space\n");
+
+	else if ((r = getdns_dict_set_dict(
+	    query_extensions_spc, "qext", extensions)))
+		fprintf(stderr, "Could not copy extensions in query extensions"
+		                " space: %s\n", getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_dict_get_dict(query_extensions_spc,"qext",&qext)))
+		fprintf(stderr, "Could not get query extensions from space: %s"
+		              , getdns_get_errorstr_by_id(r));
+
+	/* pass through the header and the OPT record */
+	n = 0;
+	msg->do_bit = msg->cd_bit = 0;
+	msg->rt = GETDNS_RESOLUTION_STUB;
+	(void) getdns_dict_get_int(msg->query, "/additional/0/do", &msg->do_bit);
+	(void) getdns_dict_get_int(msg->query, "/header/cd", &msg->cd_bit);
+	if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
+		fprintf(stderr, "Could get resolution type from context: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	if (msg->rt == GETDNS_RESOLUTION_STUB) {
+		(void)getdns_dict_set_int(
+		    qext , "/add_opt_parameters/do_bit", msg->do_bit);
+		if (!getdns_dict_get_dict(msg->query, "header", &header))
+			(void)getdns_dict_set_dict(qext, "header", header);
+
+	} else if (getdns_dict_get_int(extensions,"dnssec_return_status",&n) ||
+	    n == GETDNS_EXTENSION_FALSE)
+		(void)getdns_dict_set_int(qext, "dnssec_return_status",
+		    msg->do_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+
+	if (!getdns_dict_get_int(qext, "dnssec_return_status", &n) &&
+	    n == GETDNS_EXTENSION_TRUE)
+		(void) getdns_dict_set_int(qext, "dnssec_return_all_statuses",
+		    msg->cd_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+
+	if (!getdns_dict_get_int(msg->query,"/additional/0/extended_rcode",&n))
+		(void)getdns_dict_set_int(
+		    qext, "/add_opt_parameters/extended_rcode", n);
+
+	if (!getdns_dict_get_int(msg->query, "/additional/0/version", &n))
+		(void)getdns_dict_set_int(
+		    qext, "/add_opt_parameters/version", n);
+
+	if (!getdns_dict_get_int(
+	    msg->query, "/additional/0/udp_payload_size", &n))
+		(void)getdns_dict_set_int(qext,
+		    "/add_opt_parameters/maximum_udp_payload_size", n);
+
+	if (!getdns_dict_get_list(
+	    msg->query, "/additional/0/rdata/options", &list))
+		(void)getdns_dict_set_list(qext,
+		    "/add_opt_parameters/options", list);
+
+#if 0
+	do {
+		char *str = getdns_pretty_print_dict(msg->query);
+		fprintf(stderr, "query: %s\n", str);
+		free(str);
+		str = getdns_pretty_print_dict(qext);
+		fprintf(stderr, "query with extensions: %s\n", str);
+		free(str);
+	} while (0);
+#endif
+	if ((r = getdns_dict_get_bindata(msg->query,"/question/qname",&qname)))
+		fprintf(stderr, "Could not get qname from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_convert_dns_name_to_fqdn(qname, &qname_str)))
+		fprintf(stderr, "Could not convert qname: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r=getdns_dict_get_int(msg->query,"/question/qtype",&qtype)))
+		fprintf(stderr, "Could get qtype from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_general(context, qname_str, qtype,
+	    qext, msg, &transaction_id, request_cb)))
+		fprintf(stderr, "Could not schedule query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	DEBUG_TRACE("scheduled: %p %"PRIu64" for %s %d\n",
+	    msg, transaction_id, qname_str, (int)qtype);
+	free(qname_str);
+
+	return r;
+}
+
+void tcp_read_cb(void *userarg)
+{
+	downstream *conn = (downstream *)userarg;
+	ssize_t bytes_read;
+	tcp_msg *msg;
+	getdns_return_t r;
+
+	assert(userarg);
+
+	/* Reset downstream idle timeout */
+	my_eventloop_clear(&my_loop.base, &conn->event);
+	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+
+	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK)
+			return;
+		perror("read");
+		downstream_destroy(conn);
+		return;
+	}
+	if (bytes_read == 0) {
+		/* fprintf(stderr, "Remote end closed connection\n"); */
+		downstream_destroy(conn);
+		return;
+	}
+	assert(bytes_read <= conn->to_read);
+
+	conn->to_read  -= bytes_read;
+	conn->read_pos += bytes_read;
+	if (conn->to_read)
+		return; /* More to read */
+
+	if (conn->read_pos - conn->read_buf == 2) {
+		/* read length of dns msg to read */
+		conn->to_read = (conn->read_buf[0] << 8) | conn->read_buf[1];
+		if (conn->to_read > conn->read_buf_len) {
+			free(conn->read_buf);
+			while (conn->to_read > conn->read_buf_len)
+				conn->read_buf_len *= 2;
+			if (!(conn->read_buf = malloc(conn->read_buf_len))) {
+				fprintf(stderr, "Could not enlarge "
+				                "downstream read buffer\n");
+				downstream_destroy(conn);
+				return;
+			}
+		}
+		if (conn->to_read < 12) {
+			fprintf(stderr, "Request smaller than DNS header\n");
+			downstream_destroy(conn);
+			return;
+		}
+		conn->read_pos = conn->read_buf;
+		return;  /* Read DNS message */
+	}
+	if (!(msg = malloc(sizeof(tcp_msg)))) {
+		fprintf(stderr, "Could not allocate tcp_msg\n");
+		downstream_destroy(conn);
+		return;
+	}
+	msg->super.ld = conn->ld;
+	msg->conn = conn;
+	if ((r = getdns_wire2msg_dict(conn->read_buf,
+	    (conn->read_pos - conn->read_buf), &msg->super.query)))
+		fprintf(stderr, "Error converting query dns msg: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = schedule_request(&msg->super))) {
+		fprintf(stderr, "Error scheduling query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+		getdns_dict_destroy(msg->super.query);
+	} else {
+		conn->to_answer += 1;
+		conn->read_pos = conn->read_buf;
+		conn->to_read = 2;
+		return; /* Read more requests */
+	}
+	free(msg);
+	conn->read_pos = conn->read_buf;
+	conn->to_read = 2;
+	 /* Read more requests */
+}
+
+void tcp_timeout_cb(void *userarg)
+{
+	downstream *conn = (downstream *)userarg;
+
+	assert(userarg);
+
+	downstream_destroy(conn);
+}
+
+void tcp_accept_cb(void *userarg)
+{
+	listen_data *ld = (listen_data *)userarg;
+	downstream *conn;
+
+	assert(userarg);
+
+	if (!(conn = malloc(sizeof(downstream))))
+		return;
+
+	(void) memset(conn, 0, sizeof(downstream));
+
+	conn->ld = ld;
+	conn->addrlen = sizeof(conn->remote_in);
+	if ((conn->fd = accept(ld->fd,
+	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
+		perror("accept");
+		free(conn);
+	}
+	if (!(conn->read_buf = malloc(4096))) {
+		fprintf(stderr, "Could not allocate downstream read buffer.\n");
+		free(conn);
+	}
+	conn->read_buf_len = 4096;
+	conn->read_pos = conn->read_buf;
+	conn->to_read = 2;
+	conn->event.userarg = conn;
+	conn->event.read_cb = tcp_read_cb;
+	conn->event.timeout_cb = tcp_timeout_cb;
+	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+}
+
+void udp_read_cb(void *userarg)
+{
+	listen_data *ld = (listen_data *)userarg;
+	udp_msg *msg;
+	uint8_t buf[65536];
+	ssize_t len;
+	getdns_return_t r;
+	
+	assert(userarg);
+
+	if (!(msg = malloc(sizeof(udp_msg))))
+		return;
+
+	msg->super.ld = ld;
+	msg->addrlen = sizeof(msg->remote_in);
+	if ((len = recvfrom(ld->fd, buf, sizeof(buf), 0,
+	    (struct sockaddr *)&msg->remote_in, &msg->addrlen)) == -1)
+		perror("recvfrom");
+
+	else if ((r = getdns_wire2msg_dict(buf, len, &msg->super.query)))
+		fprintf(stderr, "Error converting query dns msg: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = schedule_request(&msg->super))) {
+		fprintf(stderr, "Error scheduling query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+		getdns_dict_destroy(msg->super.query);
+	} else
+		return;
+	free(msg);
+}
+
+getdns_return_t start_daemon()
+{
+	static const getdns_transport_list_t listen_transports[]
+		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
+	static const uint32_t transport_ports[] = { 53, 53 };
+	static const size_t n_transports = sizeof( listen_transports)
+	                                 / sizeof(*listen_transports);
+
+	size_t i;
+	size_t t;
+	struct addrinfo hints;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+	char addrstr[1024], portstr[1024], *eos;
+	const int enable = 1; /* For SO_REUSEADDR */
+
+	if (!listen_count)
+		return GETDNS_RETURN_GOOD;
+
+	if (!(listening = malloc(
+	    sizeof(listen_data) * n_transports * listen_count)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	(void) memset(listening, 0,
+	    sizeof(listen_data) * n_transports * listen_count);
+	(void) memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family    = AF_UNSPEC;
+	hints.ai_flags     = AI_NUMERICHOST;
+
+	for (i = 0; !r && i < listen_count; i++) {
+		getdns_dict    *dict = NULL;
+		getdns_bindata *address_data;
+		struct sockaddr_storage  addr;
+		getdns_bindata  *scope_id;
+
+		if ((r = getdns_list_get_dict(listen_list, i, &dict))) {
+			if ((r = getdns_list_get_bindata(
+			    listen_list, i, &address_data)))
+				break;
+		} else if ((r = getdns_dict_get_bindata(
+		    dict, "address_data", &address_data)))
+			break;
+		if (address_data->size == 4)
+			addr.ss_family = AF_INET;
+		else if (address_data->size == 16)
+			addr.ss_family = AF_INET6;
+		else {
+			r = GETDNS_RETURN_INVALID_PARAMETER;
+			break;
+		}
+		if (inet_ntop(addr.ss_family,
+		    address_data->data, addrstr, 1024) == NULL) {
+			r = GETDNS_RETURN_INVALID_PARAMETER;
+			break;
+		}
+		if (dict && getdns_dict_get_bindata(dict,"scope_id",&scope_id)
+		    == GETDNS_RETURN_GOOD) {
+			if (strlen(addrstr) + scope_id->size > 1022) {
+				r = GETDNS_RETURN_INVALID_PARAMETER;
+				break;
+			}
+			eos = &addrstr[strlen(addrstr)];
+			*eos++ = '%';
+			(void) memcpy(eos, scope_id->data, scope_id->size);
+			eos[scope_id->size] = 0;
+		}
+		for (t = 0; !r && t < n_transports; t++) {
+			getdns_transport_list_t transport
+			    = listen_transports[t];
+			uint32_t port = transport_ports[t];
+			struct addrinfo *ai;
+			listen_data *ld = &listening[i * n_transports + t];
+
+			ld->fd = -1;
+			if (dict)
+				(void) getdns_dict_get_int(dict,
+				    ( transport == GETDNS_TRANSPORT_TLS
+				    ? "tls_port" : "port" ), &port);
+
+			(void) snprintf(portstr, 1024, "%d", (int)port);
+
+			if (getaddrinfo(addrstr, portstr, &hints, &ai)) {
+				r = GETDNS_RETURN_INVALID_PARAMETER;
+				break;
+			}
+			if (!ai)
+				continue;
+
+			ld->addr.ss_family = addr.ss_family;
+			ld->addr_len = ai->ai_addrlen;
+			(void) memcpy(&ld->addr, ai->ai_addr, ai->ai_addrlen);
+			ld->transport = transport;
+			freeaddrinfo(ai);
+		}
+
+	}
+	if (r) {
+		free(listening);
+		listening = NULL;
+	} else for (i = 0; !r && i < listen_count * n_transports; i++) {
+		listen_data *ld = &listening[i];
+
+		if (ld->transport != GETDNS_TRANSPORT_UDP &&
+		    ld->transport != GETDNS_TRANSPORT_TCP)
+			continue;
+
+		if ((ld->fd = socket(ld->addr.ss_family,
+		    ( ld->transport == GETDNS_TRANSPORT_UDP
+		    ? SOCK_DGRAM : SOCK_STREAM), 0)) == -1)
+			perror("socket");
+
+		else if (setsockopt(ld->fd, SOL_SOCKET, SO_REUSEADDR,
+		    &enable, sizeof(int)) < 0)
+			perror("setsockopt(SO_REUSEADDR) failed");
+
+		else if (bind(ld->fd, (struct sockaddr *)&ld->addr,
+		    ld->addr_len) == -1)
+			perror("bind");
+
+		else if (ld->transport == GETDNS_TRANSPORT_UDP) {
+			ld->event.userarg = ld;
+			ld->event.read_cb = udp_read_cb;
+			(void) my_eventloop_schedule(
+			    &my_loop.base, ld->fd, -1, &ld->event);
+
+		} else if (listen(ld->fd, 16) == -1)
+			perror("listen");
+
+		else {
+			ld->event.userarg = ld;
+			ld->event.read_cb = tcp_accept_cb;
+			(void) my_eventloop_schedule(
+			    &my_loop.base, ld->fd, -1, &ld->event);
+		}
+	}
+	return r;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1344,6 +2756,11 @@ main(int argc, char **argv)
 	} else
 		fp = stdin;
 
+	if (listen_count || interactive) {
+		if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
+			goto done_destroy_context;
+	}
+	start_daemon();
 	/* Make the call */
 	if (interactive) {
 
@@ -1351,8 +2768,6 @@ main(int argc, char **argv)
 		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
 		(void) my_eventloop_schedule(
 		    &my_loop.base, fileno(fp), -1, &read_line_ev);
-		if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
-			goto done_destroy_context;
 
 		if (!query_file) {
 			printf("> ");
@@ -1360,6 +2775,8 @@ main(int argc, char **argv)
 		}
 		my_eventloop_run(&my_loop.base);
 	}
+	else if (listen_count)
+		my_eventloop_run(&my_loop.base);
 	else
 		r = do_the_call();
 

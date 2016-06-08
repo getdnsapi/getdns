@@ -8,11 +8,19 @@ cat > const-info.c << END_OF_HEAD
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "const-info.h"
+#include <string.h>
 
 static struct const_info consts_info[] = {
 	{   -1, NULL, "/* <unknown getdns value> */" },
 END_OF_HEAD
 gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%4d", $3); consts[key] = $1; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/^#define GETDNS_RRCLASS/ && !/^#define GETDNS_OPCODE/  && !/^#define GETDNS_RCODE/ && !/_TEXT/{ key = sprintf("%4d", $3); consts[key] = $2; }/^#define GETDNS_[A-Z_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%4d", $4); consts[key] = $2; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ "val", \""name"\", "name"_TEXT },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in | sed 's/,,/,/g' >> const-info.c
+cat >> const-info.c << END_OF_MIDDLE
+};
+
+struct const_name_info { const char *name; int code; };
+static struct const_name_info consts_name_info[] = {
+END_OF_MIDDLE
+gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%d", $3); consts[$1] = key; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/_TEXT/{ key = sprintf("%d", $3); consts[$2] = key; }/^#define GETDNS_[A-Z_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%d", $4); consts[$2] = key; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ \""val"\", "name" },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in | sed 's/,,/,/g' >> const-info.c
 cat >> const-info.c << END_OF_TAIL
 };
 
@@ -30,6 +38,25 @@ _getdns_get_const_info(int value)
 	if (i)
 		return i;
 	return consts_info;
+}
+
+static int const_name_info_cmp(const void *a, const void *b)
+{
+	return strcmp( ((struct const_name_info *) a)->name
+	             , ((struct const_name_info *) b)->name );
+}
+int
+_getdns_get_const_name_info(const char *name, int *code)
+{
+	struct const_name_info key = { name, 0 };
+	struct const_name_info *i = bsearch(&key, consts_name_info,
+	    sizeof(consts_name_info) / sizeof(struct const_name_info),
+	    sizeof(struct const_name_info), const_name_info_cmp);
+	if (!i)
+		return 0;
+	if (code)
+		*code = i->code;
+	return 1;
 }
 
 const char *

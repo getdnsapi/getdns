@@ -210,9 +210,6 @@
 #include "list.h"
 #include "util/val_secalgo.h"
 
- /* Maximum number of canonical name redirections for one name */
-#define MAX_CNAMES 100
-
 #define SIGNATURE_VERIFIED         0x10000
 #define NSEC3_ITERATION_COUNT_HIGH 0x20000
 #define NO_SUPPORTED_ALGORITHMS    0x40000

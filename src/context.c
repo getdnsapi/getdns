@@ -1951,7 +1951,7 @@ getdns_context_set_follow_redirects(
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS);
 
-	return GETDNS_RETURN_NOT_IMPLEMENTED;
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_follow_redirects */
 
 /*
@@ -1971,7 +1971,7 @@ getdns_context_set_dns_root_servers(
 #  endif
 	size_t i;
 	getdns_dict *rr_dict;
-	getdns_return_t r;
+	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_bindata *addr_bd;
 	char dst[2048];
 #endif
@@ -2002,19 +2002,28 @@ getdns_context_set_dns_root_servers(
 
 #ifdef HAVE_LIBUNBOUND
 #  ifdef HAVE_UB_CTX_SET_STUB
-	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
-		if (getdns_dict_get_bindata(
+	for (i=0; !r; i++) {
+		if (!(r = getdns_list_get_bindata(addresses, i, &addr_bd)))
+			/* success! */
+			;
+
+		else if ((r = getdns_list_get_dict(addresses, i, &rr_dict)))
+			/* Not a bindata, not a dict? ERROR! */
+			break;
+
+		else if (getdns_dict_get_bindata(
 		    rr_dict, "address_data", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv4_address", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv6_address", &addr_bd))
 
-			; /* Not a parsable address,
-			   * pass because we allow root.hint's files as input
-			   */
+		       	/* Not a parsable address,
+			 * pass because we allow root.hint's files as input
+			 */
+			continue;
 
-		else if (addr_bd->size == 16 &&
+		if (addr_bd->size == 16 &&
 		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst))) {
 
 			if (ub_ctx_set_stub(context->unbound_ctx,".",dst,1)) {
@@ -2034,22 +2043,34 @@ getdns_context_set_dns_root_servers(
 
 	if (!(fh = fdopen(fd, "w")))
 		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-	for (i=0; (!(r = getdns_list_get_dict(addresses, i, &rr_dict))); i++) {
+	for (i=0; !r; i++) {
 		dst_len = sizeof(dst);
-		if (!getdns_rr_dict2str_buf(rr_dict, dst, &dst_len))
+		if (!(r = getdns_list_get_bindata(addresses, i, &addr_bd)))
+			/* success! */
+			;
+
+		else if ((r = getdns_list_get_dict(addresses, i, &rr_dict)))
+			/* Not a bindata, not a dict? ERROR! */
+			break;
+
+		else if (!getdns_rr_dict2str_buf(rr_dict, dst, &dst_len)) {
 
 			fprintf(fh, "%s", dst);
+			continue;
 
-		else if (getdns_dict_get_bindata(
+		} else if (getdns_dict_get_bindata(
 		    rr_dict, "address_data", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv4_address", &addr_bd) &&
 		    getdns_dict_get_bindata(
 		    rr_dict, "/rdata/ipv6_address", &addr_bd))
 
-			; /* pass */
+		       	/* Not a parsable address,
+			 * pass because we allow root.hint's files as input
+			 */
+			continue;
 
-		else if (addr_bd->size == 16 &&
+		if (addr_bd->size == 16 &&
 		    inet_ntop(AF_INET6, addr_bd->data, dst, sizeof(dst)))
 
 			fprintf(fh,". NS "PRIsz".root-servers.getdnsapi.net.\n"
@@ -2096,22 +2117,23 @@ getdns_context_set_dns_root_servers(
  *
  */
 getdns_return_t
-getdns_context_set_append_name(struct getdns_context *context,
-    getdns_append_name_t value)
+getdns_context_set_append_name(
+    getdns_context *context, getdns_append_name_t value)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != GETDNS_APPEND_NAME_ALWAYS &&
-        value != GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE &&
-        value != GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE
-        && value != GETDNS_APPEND_NAME_NEVER) {
-        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-    }
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    context->append_name = value;
-
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_APPEND_NAME);
-
-    return GETDNS_RETURN_GOOD;
+	switch ((int)value) {
+	case GETDNS_APPEND_NAME_ALWAYS:
+	case GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE:
+	case GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE:
+	case GETDNS_APPEND_NAME_NEVER:
+	case GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST:
+		context->append_name = value;
+		dispatch_updated(context, GETDNS_CONTEXT_CODE_APPEND_NAME);
+		return GETDNS_RETURN_GOOD;
+	}
+	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 }               /* getdns_context_set_append_name */
 
 /*
@@ -2304,34 +2326,56 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		uint8_t          tsig_dname_spc[256], *tsig_dname;
 		size_t           tsig_dname_len;
 
-		if ((r = getdns_list_get_dict(upstream_list, i, &dict)))
-			goto error;
+		if ((r = getdns_list_get_dict(upstream_list, i, &dict))) {
+			dict = NULL;
 
-		if ((r = getdns_dict_get_bindata(
-		    dict, "address_type",&address_type)))
-			goto error;
-		if (address_type->size < 4)
-			goto invalid_parameter;
-		if (strncmp((char *)address_type->data, "IPv4", 4) == 0)
-			addr.ss_family = AF_INET;
-		else if (strncmp((char *)address_type->data, "IPv6", 4) == 0)
-			addr.ss_family = AF_INET6;
-		else	goto invalid_parameter;
+			if ((r = getdns_list_get_bindata(
+			    upstream_list, i, &address_data)))
+				goto error;
 
-		if ((r = getdns_dict_get_bindata(
-		    dict, "address_data", &address_data)))
-			goto error;
-		if ((addr.ss_family == AF_INET &&
-		     address_data->size != 4) ||
-		    (addr.ss_family == AF_INET6 &&
-		     address_data->size != 16))
-			goto invalid_parameter;
+			if (address_data->size == 4)
+				addr.ss_family = AF_INET;
+			else if (address_data->size == 16)
+				addr.ss_family = AF_INET6;
+			else	goto invalid_parameter;
+
+		} else if ((r = getdns_dict_get_bindata(
+		    dict, "address_type",&address_type))) {
+			/* Just address_data is also okay */
+			if ((r = getdns_dict_get_bindata(
+			    dict, "address_data", &address_data)))
+				goto error;
+
+			if (address_data->size == 4)
+				addr.ss_family = AF_INET;
+			else if (address_data->size == 16)
+				addr.ss_family = AF_INET6;
+			else	goto invalid_parameter;
+
+		} else {
+			if (address_type->size < 4)
+				goto invalid_parameter;
+			else if (!strncmp((char*)address_type->data,"IPv4",4))
+				addr.ss_family = AF_INET;
+			else if (!strncmp((char*)address_type->data,"IPv6",4))
+				addr.ss_family = AF_INET6;
+			else	goto invalid_parameter;
+
+			if ((r = getdns_dict_get_bindata(
+			    dict, "address_data", &address_data)))
+				goto error;
+			if ((addr.ss_family == AF_INET &&
+			     address_data->size != 4) ||
+			    (addr.ss_family == AF_INET6 &&
+			     address_data->size != 16))
+				goto invalid_parameter;
+		}
 		if (inet_ntop(addr.ss_family, address_data->data,
 		    addrstr, 1024) == NULL)
 			goto invalid_parameter;
 
-		if (getdns_dict_get_bindata(dict, "scope_id", &scope_id) ==
-		    GETDNS_RETURN_GOOD) {
+		if (dict && getdns_dict_get_bindata(dict,"scope_id",&scope_id)
+		    == GETDNS_RETURN_GOOD) {
 			if (strlen(addrstr) + scope_id->size > 1022)
 				goto invalid_parameter;
 			eos = &addrstr[strlen(addrstr)];
@@ -2344,13 +2388,17 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		tsig_dname = NULL;
 		tsig_dname_len = 0;
 
-		if (getdns_dict_get_bindata(dict,
+		if (dict && getdns_dict_get_bindata(dict,
 		    "tsig_algorithm", &tsig_alg_name) == GETDNS_RETURN_GOOD)
 			tsig_alg = _getdns_get_tsig_algo(tsig_alg_name);
 		else
 			tsig_alg = GETDNS_HMAC_MD5;
 
-		if (getdns_dict_get_bindata(dict, "tsig_name", &tsig_name))
+		if (!dict)
+			tsig_alg = GETDNS_NO_TSIG; /* No name, no TSIG */
+
+		else if (getdns_dict_get_bindata(
+		    dict, "tsig_name", &tsig_name))
 			tsig_alg = GETDNS_NO_TSIG; /* No name, no TSIG */
 
 		else if (tsig_name->size == 0)
@@ -2390,7 +2438,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			                                  , tsig_name->size);
 			tsig_dname_len = tsig_name->size;
 		}
-		if (getdns_dict_get_bindata(dict, "tsig_secret", &tsig_key))
+		if (dict && getdns_dict_get_bindata(
+		    dict, "tsig_secret", &tsig_key))
 			tsig_alg = GETDNS_NO_TSIG; /* No key, no TSIG */
 
 		/* Don't check TSIG length contraints here.
@@ -2405,10 +2454,13 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			if (port == GETDNS_PORT_ZERO)
 				continue;
 
-			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS)
-				(void) getdns_dict_get_int(dict, "port", &port);
-			else
-				(void) getdns_dict_get_int(dict, "tls_port", &port);
+			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS) {
+				if (dict)
+					(void) getdns_dict_get_int(dict, "port", &port);
+			} else {
+				if (dict)
+					(void) getdns_dict_get_int(dict, "tls_port", &port);
+			}
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
@@ -2426,7 +2478,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->transport = getdns_upstream_transports[j];
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
-				if ((r = getdns_dict_get_bindata(
+				if (dict && (r = getdns_dict_get_bindata(
 					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 					/*TODO: VALIDATE THIS STRING!*/
 					memcpy(upstream->tls_auth_name,
@@ -2434,7 +2486,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 						tls_auth_name->size);
 					upstream->tls_auth_name[tls_auth_name->size] = '\0';
 				}
-				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
+				if (dict && (r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
 			   /* TODO: what if the user supplies tls_pubkey_pinset with
 			    * something other than a list? */

@@ -46,6 +46,7 @@ struct const_info {
 };
 
 struct const_info *_getdns_get_const_info(int value);
+int _getdns_get_const_name_info(const char *name, int *code);
 
 #endif
 

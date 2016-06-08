@@ -280,8 +280,7 @@ getdns_dict_get_names(const getdns_dict *dict, getdns_list **answer)
 
 	RBTREE_FOR(item, struct getdns_dict_item *,
 		(_getdns_rbtree_t *)&(dict->root)) {
-		_getdns_list_append_const_bindata(*answer,
-		    strlen(item->node.key) + 1, item->node.key);
+		_getdns_list_append_string(*answer, item->node.key);
 	}
 	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_get_names */
@@ -657,9 +656,26 @@ getdns_dict_set_bindata(
 getdns_return_t
 getdns_dict_util_set_string(getdns_dict *dict, char *name, const char *value)
 {
-	return value
-	    ? _getdns_dict_set_const_bindata(dict, name, strlen(value), value)
-	    : GETDNS_RETURN_INVALID_PARAMETER;
+	getdns_item    *item;
+	getdns_bindata *newbindata;
+	getdns_return_t r;
+
+	if (!dict || !name || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(newbindata = _getdns_bindata_copy(
+	    &dict->mf, strlen(value) + 1, (uint8_t *)value)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	newbindata->size -= 1;
+
+	if ((r = _getdns_dict_find_and_add(dict, name, &item))) {
+		_getdns_bindata_destroy(&dict->mf, newbindata);
+		return r;
+	}
+	item->dtype = t_bindata;
+	item->data.bindata = newbindata;
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_dict_util_set_dict */
 
 /*---------------------------------------- getdns_dict_set_int */
@@ -766,7 +782,7 @@ getdns_pp_bindata(gldns_buffer *buf, size_t indent,
 		(void)gldns_wire2str_dname_buf(
 		    bindata->data, bindata->size, spc, sizeof(spc));
 		if (gldns_buffer_printf(
-		    buf, (json ? "\"%s\"" : "of \"%s\">"), spc) < 0)
+		    buf, (json ? "\"%s\"" : "for %s>"), spc) < 0)
 			return -1;
 	} else if (json) {
 		if (gldns_buffer_printf(buf, "[") < 0)

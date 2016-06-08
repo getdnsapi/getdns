@@ -602,9 +602,25 @@ getdns_list_set_bindata(
 static getdns_return_t
 getdns_list_set_string(getdns_list *list, size_t index, const char *value)
 {
-	return value
-	    ? _getdns_list_set_const_bindata(list, index, strlen(value), value)
-	    : GETDNS_RETURN_INVALID_PARAMETER;
+	getdns_bindata *newbindata;
+	getdns_return_t r;
+
+	if (!list || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(newbindata = _getdns_bindata_copy(
+	    &list->mf, strlen(value) + 1, (uint8_t *)value)))
+		return GETDNS_RETURN_MEMORY_ERROR;
+
+	newbindata->size -= 1;
+
+	if ((r = _getdns_list_request_index(list, index))) {
+		_getdns_bindata_destroy(&list->mf, newbindata);
+		return r;
+	}
+	list->items[index].dtype = t_bindata;
+	list->items[index].data.bindata = newbindata;
+	return GETDNS_RETURN_GOOD;
 }				/* getdns_list_set_string */
 
 /*---------------------------------------- getdns_list_set_int */
