@@ -84,76 +84,15 @@ static int
 no_answer(getdns_dns_req *dns_req)
 {
 	getdns_network_req **netreq_p, *netreq;
-	int new_canonical = 0, cnames_followed;
-	uint8_t canon_spc[256];
-	const uint8_t *canon;
-	size_t canon_len;
-	uint8_t owner_spc[256];
-	const uint8_t *owner;
-	size_t owner_len;
-
-	_getdns_rr_iter rr_spc, *rr;
-	_getdns_rdf_iter rdf_spc, *rdf;
 
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++) {
-		if (netreq->response_len == 0 ||
-		    GLDNS_ANCOUNT(netreq->response) == 0)
-			continue;
-		canon = netreq->owner->name;
-		canon_len = netreq->owner->name_len;
-		if (netreq->request_type != GETDNS_RRTYPE_CNAME
-		    && GLDNS_ANCOUNT(netreq->response) > 1) do {
-			new_canonical = 0, cnames_followed = 0;
-			for ( rr = _getdns_rr_iter_init(&rr_spc
-			                               , netreq->response
-			                               , netreq->response_len)
-			    ; rr && _getdns_rr_iter_section(rr)
-			         <= GLDNS_SECTION_ANSWER
-			    ; rr = _getdns_rr_iter_next(rr)) {
+		_getdns_rrset_spc answer;
 
-				if (_getdns_rr_iter_section(rr) !=
-				    GLDNS_SECTION_ANSWER)
-					continue;
-
-				if (gldns_read_uint16(rr->rr_type) !=
-				    GETDNS_RRTYPE_CNAME)
-					continue;
-				
-				owner = _getdns_owner_if_or_as_decompressed(
-				    rr, owner_spc, &owner_len);
-				if (!_getdns_dname_equal(canon, owner))
-					continue;
-
-				if (!(rdf = _getdns_rdf_iter_init(
-				    &rdf_spc, rr)))
-					continue;
-
-				canon = _getdns_rdf_if_or_as_decompressed(
-				    rdf, canon_spc, &canon_len);
-				new_canonical = 1;
-				cnames_followed++;
-			}
-		} while (new_canonical && cnames_followed<MAX_CNAME_REFERRALS);
-		for ( rr = _getdns_rr_iter_init(&rr_spc
-					       , netreq->response
-					       , netreq->response_len)
-		    ; rr && _getdns_rr_iter_section(rr)
-			 <= GLDNS_SECTION_ANSWER
-		    ; rr = _getdns_rr_iter_next(rr)) {
-
-			if (_getdns_rr_iter_section(rr) !=
-			    GLDNS_SECTION_ANSWER)
-				continue;
-
-			if (gldns_read_uint16(rr->rr_type) !=
-			    netreq->request_type)
-				continue;
-			
-			owner = _getdns_owner_if_or_as_decompressed(
-			    rr, owner_spc, &owner_len);
-			if (_getdns_dname_equal(canon, owner))
-				return 0;
-		}
+		if (netreq->response_len > 0 &&
+		    GLDNS_ANCOUNT(netreq->response) > 0 &&
+		    _getdns_rrset_answer(&answer, netreq->response
+		                                , netreq->response_len))
+			return 0;
 	}
 	return 1;
 }

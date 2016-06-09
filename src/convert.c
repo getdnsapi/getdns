@@ -601,8 +601,11 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_dict *result = NULL, *header = NULL, *rr_dict = NULL;
 	_getdns_rr_iter rr_iter_storage, *rr_iter;
-	gldns_pkt_section section;
-	getdns_list *sections[4] = { NULL, NULL, NULL, NULL };
+	_getdns_section section;
+	getdns_list *sections[16] = { NULL, NULL, NULL, NULL
+	                            , NULL, NULL, NULL, NULL
+	                            , NULL, NULL, NULL, NULL
+	                            , NULL, NULL, NULL, NULL };
 	const uint8_t *eop; /* end of packet */
 
 	if (!wire || !*wire || !wire_len || !msg_dict)
@@ -610,11 +613,11 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 
        	if (!(result = _getdns_dict_create_with_mf(mf)) ||
 	    !(header = _getdns_dict_create_with_mf(mf)) ||
-	    !(sections[GLDNS_SECTION_ANSWER]
+	    !(sections[SECTION_ANSWER]
 	             = _getdns_list_create_with_mf(mf)) ||
-	    !(sections[GLDNS_SECTION_AUTHORITY]
+	    !(sections[SECTION_AUTHORITY]
 	             = _getdns_list_create_with_mf(mf)) ||
-	    !(sections[GLDNS_SECTION_ADDITIONAL]
+	    !(sections[SECTION_ADDITIONAL]
 	             = _getdns_list_create_with_mf(mf))) {
 		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto error;
@@ -653,14 +656,14 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 			continue;
 
 		switch ((section = _getdns_rr_iter_section(rr_iter))) {
-		case GLDNS_SECTION_QUESTION:
+		case SECTION_QUESTION:
 			if ((r = _getdns_dict_set_this_dict(
 			     result, "question", rr_dict)))
 				goto error;
 			break;
-		case GLDNS_SECTION_ANSWER:
-		case GLDNS_SECTION_AUTHORITY:
-		case GLDNS_SECTION_ADDITIONAL:
+		case SECTION_ANSWER:
+		case SECTION_AUTHORITY:
+		case SECTION_ADDITIONAL:
 			if ((r = _getdns_list_append_this_dict(
 			     sections[section], rr_dict)))
 				goto error;
@@ -672,27 +675,27 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 		rr_dict = NULL;
 	}
 	if (!(r = _getdns_dict_set_this_list(result, "answer",
-	    sections[GLDNS_SECTION_ANSWER])))
-		sections[GLDNS_SECTION_ANSWER] = NULL;
+	    sections[SECTION_ANSWER])))
+		sections[SECTION_ANSWER] = NULL;
 	else	goto error;
 
 	if (!(r = _getdns_dict_set_this_list(result, "authority",
-	    sections[GLDNS_SECTION_AUTHORITY])))
-		sections[GLDNS_SECTION_AUTHORITY] = NULL;
+	    sections[SECTION_AUTHORITY])))
+		sections[SECTION_AUTHORITY] = NULL;
 	else	goto error;
 
 	if (!(r = _getdns_dict_set_this_list(result, "additional",
-	    sections[GLDNS_SECTION_ADDITIONAL])))
-		sections[GLDNS_SECTION_ADDITIONAL] = NULL;
+	    sections[SECTION_ADDITIONAL])))
+		sections[SECTION_ADDITIONAL] = NULL;
 	else	goto error;
 
 	*wire_len -= (eop - *wire);
 	*wire = eop;
 error:
 	getdns_dict_destroy(rr_dict);
-	getdns_list_destroy(sections[GLDNS_SECTION_ADDITIONAL]);
-	getdns_list_destroy(sections[GLDNS_SECTION_AUTHORITY]);
-	getdns_list_destroy(sections[GLDNS_SECTION_ANSWER]);
+	getdns_list_destroy(sections[SECTION_ADDITIONAL]);
+	getdns_list_destroy(sections[SECTION_AUTHORITY]);
+	getdns_list_destroy(sections[SECTION_ANSWER]);
 	getdns_dict_destroy(header);
 	if (r)
 		getdns_dict_destroy(result);

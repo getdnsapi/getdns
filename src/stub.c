@@ -225,8 +225,7 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 	    ; rr_iter
 	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
 
-		if (_getdns_rr_iter_section(rr_iter) !=
-		    GLDNS_SECTION_ADDITIONAL)
+		if (_getdns_rr_iter_section(rr_iter) != SECTION_ADDITIONAL)
 			continue;
 
 		if (gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_OPT)

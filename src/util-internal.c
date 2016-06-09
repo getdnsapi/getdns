@@ -37,7 +37,6 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include "config.h"
 #include "getdns/getdns.h"
 #include "dict.h"
@@ -178,7 +177,7 @@ _getdns_rr_iter2rr_dict_canonical(
 		owner_len = bin_size;
 	}
 	/* question */
-	if (_getdns_rr_iter_section(i) == GLDNS_SECTION_QUESTION) {
+	if (_getdns_rr_iter_section(i) == SECTION_QUESTION) {
 
 		if (getdns_dict_set_int(rr_dict, "qtype",
 		    (uint32_t) gldns_read_uint16(i->rr_type)) ||
@@ -438,21 +437,6 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 	return _getdns_rr_iter2rr_dict_canonical(mf, i, NULL);
 }
 
-int
-_getdns_dname_equal(const uint8_t *s1, const uint8_t *s2)
-{
-	uint8_t i;
-	for (;;) {
-		if (*s1 != *s2)
-			return 0;
-		else if (!*s1)
-			return 1;
-		for (i = *s1++, s2++; i > 0; i--, s1++, s2++)
-			if (*s1 != *s2 && tolower((unsigned char)*s1)
-			               != tolower((unsigned char)*s2))
-				return 0;
-	}
-}
 
 inline static getdns_dict *
 set_dict(getdns_dict **var, getdns_dict *value)
@@ -478,6 +462,30 @@ inline static int has_all_numeric_label(const uint8_t *dname)
 	return 0;
 }
 
+typedef struct _srv_rr {
+	_getdns_rr_iter i;
+	unsigned        running_sum;
+} _srv_rr;
+
+typedef struct _srvs {
+	size_t  capacity;
+	size_t  count;
+	_srv_rr *rrs;
+} _srvs;
+
+static int _grow_srvs(struct mem_funcs *mf, _srvs *srvs)
+{
+	_srv_rr *new_rrs;
+
+	if (!(new_rrs = GETDNS_XREALLOC(
+	    *mf, srvs->rrs, _srv_rr, srvs->capacity * 2)))
+		return 0; /* Memory error */
+
+	srvs->capacity *= 2;
+	srvs->rrs = new_rrs;
+	return 1; /* Success */
+}
+
 #define SET_WIRE_INT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
                               GLDNS_ ## Y ## _WIRE(req->response))) goto error
 #define SET_WIRE_BIT(X,Y) if (getdns_dict_set_int(header, #X , \
@@ -485,9 +493,9 @@ inline static int has_all_numeric_label(const uint8_t *dname)
 #define SET_WIRE_CNT(X,Y) if (getdns_dict_set_int(header, #X , (int) \
                               GLDNS_ ## Y (req->response))) goto error 
 
-getdns_dict *
+static getdns_dict *
 _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
-    getdns_list *just_addrs, int *rrsigs_in_answer)
+    getdns_list *just_addrs, int *rrsigs_in_answer, _srvs *srvs)
 {
 	/* turn a packet into this glorious structure
 	 *
@@ -531,28 +539,30 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_dict *result = getdns_dict_create_with_context(context);
 	getdns_dict *question = NULL;
-	getdns_list *sections[4] = { NULL
-	                           , getdns_list_create_with_context(context)
-	                           , getdns_list_create_with_context(context)
-	                           , getdns_list_create_with_context(context)
-	                           };
+	getdns_list *sections[16] = { NULL, NULL
+	                            , getdns_list_create_with_context(context)
+	                            , NULL
+	                            , getdns_list_create_with_context(context)
+				    , NULL, NULL, NULL
+	                            , getdns_list_create_with_context(context)
+				    , NULL, NULL, NULL, NULL, NULL, NULL, NULL
+	                            };
 	getdns_dict *rr_dict = NULL;
 	_getdns_rr_iter rr_iter_storage, *rr_iter;
 	_getdns_rdf_iter rdf_iter_storage, *rdf_iter;
 	size_t bin_size;
 	const uint8_t *bin_data;
-	gldns_pkt_section section;
-	uint8_t canonical_name_space[256], owner_name_space[256],
-	    query_name_space[256];
-	const uint8_t *canonical_name, *owner_name, *query_name;
-	size_t canonical_name_len = sizeof(canonical_name_space),
-	       owner_name_len = sizeof(owner_name_space),
+	_getdns_section section;
+	uint8_t owner_name_space[256], query_name_space[256];
+	const uint8_t *owner_name, *query_name;
+	size_t owner_name_len = sizeof(owner_name_space),
 	       query_name_len = sizeof(query_name_space);
-	int new_canonical = 0, cnames_followed,
-	    request_answered, all_numeric_label;
+	int all_numeric_label;
 	uint16_t rr_type;
 	getdns_dict *header = NULL;
 	getdns_list *bad_dns = NULL;
+	_getdns_rrset_spc answer_spc;
+	_getdns_rrset *answer;
 
 	if (!result)
 		goto error;
@@ -582,9 +592,6 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		goto error;
 	header = NULL;
 
-	canonical_name = req->owner->name;
-	canonical_name_len = req->owner->name_len;
-
 	if (req->query &&
 	    (rr_iter = _getdns_rr_iter_init(&rr_iter_storage, req->query
 	                                   , req->response  - req->query)))
@@ -605,7 +612,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			continue;
 
 		section = _getdns_rr_iter_section(rr_iter);
-		if (section == GLDNS_SECTION_QUESTION) {
+		if (section == SECTION_QUESTION) {
 			if (!query_name)
 				query_name
 				    = _getdns_owner_if_or_as_decompressed(
@@ -617,11 +624,11 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			continue;
 		}
 		rr_type = gldns_read_uint16(rr_iter->rr_type);
-		if (section > GLDNS_SECTION_QUESTION &&
+		if (section > SECTION_QUESTION &&
 		    rr_type == GETDNS_RRTYPE_RRSIG && rrsigs_in_answer)
 			*rrsigs_in_answer = 1;
 
-		if (section != GLDNS_SECTION_ANSWER) {
+		if (section != SECTION_ANSWER) {
 			if (_getdns_list_append_this_dict(
 			    sections[section], rr_dict))
 				goto error;
@@ -637,36 +644,26 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 				continue;
 		}
 		if (_getdns_list_append_this_dict(
-		    sections[GLDNS_SECTION_ANSWER], rr_dict))
+		    sections[SECTION_ANSWER], rr_dict))
 			goto error;
 		else	rr_dict = NULL;
 
-		if (rr_type == GETDNS_RRTYPE_CNAME) {
+		if (srvs->capacity && rr_type == GETDNS_RRTYPE_SRV) {
+			if (srvs->count >= srvs->capacity &&
+			    !_grow_srvs(&context->mf, srvs))
+				goto error;
 
-			owner_name_len = sizeof(owner_name_space);
-			owner_name = _getdns_owner_if_or_as_decompressed(
-			    rr_iter, owner_name_space, &owner_name_len);
-			if (!_getdns_dname_equal(canonical_name, owner_name))
-				continue;
-
-			if (!(rdf_iter = _getdns_rdf_iter_init(
-			     &rdf_iter_storage, rr_iter)))
-				continue;
-
-			new_canonical = 1;
-			canonical_name = _getdns_rdf_if_or_as_decompressed(
-			    rdf_iter,canonical_name_space,&canonical_name_len);
+			srvs->rrs[srvs->count++].i = *rr_iter;
 			continue;
 		}
-
 		if (rr_type != GETDNS_RRTYPE_A && rr_type != GETDNS_RRTYPE_AAAA)
+			continue;
+
+		if (!just_addrs)
 			continue;
 
 		if (!(rdf_iter = _getdns_rdf_iter_init(
 		     &rdf_iter_storage, rr_iter)))
-			continue;
-
-		if (!just_addrs)
 			continue;
 
 		bin_size = rdf_iter->nxt - rdf_iter->pos;
@@ -686,18 +683,18 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		rr_dict = NULL;
 	}
 	if (!_getdns_dict_set_this_list(result, "answer",
-	    sections[GLDNS_SECTION_ANSWER]))
-		sections[GLDNS_SECTION_ANSWER] = NULL;
+	    sections[SECTION_ANSWER]))
+		sections[SECTION_ANSWER] = NULL;
 	else	goto error;
 
 	if (!_getdns_dict_set_this_list(result, "authority",
-	    sections[GLDNS_SECTION_AUTHORITY]))
-		sections[GLDNS_SECTION_AUTHORITY] = NULL;
+	    sections[SECTION_AUTHORITY]))
+		sections[SECTION_AUTHORITY] = NULL;
 	else	goto error;
 
 	if (!_getdns_dict_set_this_list(result, "additional",
-	    sections[GLDNS_SECTION_ADDITIONAL]))
-		sections[GLDNS_SECTION_ADDITIONAL] = NULL;
+	    sections[SECTION_ADDITIONAL]))
+		sections[SECTION_ADDITIONAL] = NULL;
 	else	goto error;
 
 	/* other stuff
@@ -706,42 +703,13 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;
 	
-	cnames_followed = new_canonical;
-	while (cnames_followed < MAX_CNAME_REFERRALS && new_canonical) {
-		new_canonical = 0;
+	answer = _getdns_rrset_answer(&answer_spc, req->response
+	                                         , req->response_len);
 
-		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
-		                                    , req->response
-		                                    , req->response_len)
-		    ; rr_iter && _getdns_rr_iter_section(rr_iter)
-		              <= GLDNS_SECTION_ANSWER
-		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
-
-			if (_getdns_rr_iter_section(rr_iter) !=
-			    GLDNS_SECTION_ANSWER)
-				continue;
-
-			if (gldns_read_uint16(rr_iter->rr_type) !=
-			    GETDNS_RRTYPE_CNAME)
-				continue;
-
-			owner_name = _getdns_owner_if_or_as_decompressed(
-			    rr_iter, owner_name_space, &owner_name_len);
-			if (!_getdns_dname_equal(canonical_name, owner_name))
-				continue;
-
-			if (!(rdf_iter = _getdns_rdf_iter_init(
-			     &rdf_iter_storage, rr_iter)))
-				continue;
-
-			canonical_name = _getdns_rdf_if_or_as_decompressed(
-			    rdf_iter,canonical_name_space,&canonical_name_len);
-			new_canonical = 1;
-			cnames_followed++;
-		}
-	}
-	if (_getdns_dict_set_const_bindata(
-	    result, "canonical_name", canonical_name_len, canonical_name))
+	if (answer_spc.rrset.name &&
+	    _getdns_dict_set_const_bindata(result, "canonical_name"
+	                                         , answer_spc.name_len
+	                                         , answer_spc.rrset.name))
 		goto error;
 
 	if (!req->owner->add_warning_for_bad_dns)
@@ -750,35 +718,15 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (!(bad_dns = getdns_list_create_with_context(context)))
 		goto error;
 
-	if (cnames_followed && req->request_type != GETDNS_RRTYPE_CNAME) {
-		request_answered = 0;
-		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
-						    , req->response
-						    , req->response_len)
-		    ; rr_iter && _getdns_rr_iter_section(rr_iter)
-			      <= GLDNS_SECTION_ANSWER
-		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+	if (   !answer
+	    && req->request_type != GETDNS_RRTYPE_CNAME
+	    && query_name
+	    && answer_spc.rrset.name
+	    && !_getdns_dname_equal(query_name, answer_spc.rrset.name)
+	    && _getdns_list_append_int(bad_dns
+		    , GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE))
+		goto error;
 
-			if (_getdns_rr_iter_section(rr_iter) !=
-			    GLDNS_SECTION_ANSWER)
-				continue;
-			if (gldns_read_uint16(rr_iter->rr_type) !=
-			    req->request_type)
-				continue;
-
-			owner_name=_getdns_owner_if_or_as_decompressed(
-			    rr_iter, owner_name_space,&owner_name_len);
-			if (_getdns_dname_equal(
-			    canonical_name, owner_name)) {
-				request_answered = 1;
-				break;
-			}
-		}
-		if (!request_answered && 
-		    _getdns_list_append_int(bad_dns,
-		    GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE))
-			goto error;
-	}
 	all_numeric_label = 0;
 	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
 					    , req->response
@@ -794,7 +742,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			break;
 		}
 		if (_getdns_rr_iter_section(rr_iter) ==
-		    GLDNS_SECTION_QUESTION)
+		    SECTION_QUESTION)
 			continue;
 
 		for ( rdf_iter = _getdns_rdf_iter_init(&rdf_iter_storage, rr_iter)
@@ -827,15 +775,15 @@ error:
 success:
 	getdns_dict_destroy(header);
 	getdns_dict_destroy(rr_dict);
-	getdns_list_destroy(sections[GLDNS_SECTION_ADDITIONAL]);
-	getdns_list_destroy(sections[GLDNS_SECTION_AUTHORITY]);
-	getdns_list_destroy(sections[GLDNS_SECTION_ANSWER]);
+	getdns_list_destroy(sections[SECTION_ADDITIONAL]);
+	getdns_list_destroy(sections[SECTION_AUTHORITY]);
+	getdns_list_destroy(sections[SECTION_ANSWER]);
 	getdns_dict_destroy(question);
 	getdns_list_destroy(bad_dns);
 	return result;
 }
 
-getdns_dict *
+static getdns_dict *
 _getdns_create_call_reporting_dict(
     getdns_context *context, getdns_network_req *netreq)
 {
@@ -919,11 +867,180 @@ _getdns_create_call_reporting_dict(
 	return netreq_debug;
 }
 
+static inline int _srv_prio(_getdns_rr_iter *x)
+{ return x->nxt < x->rr_type+12
+       ? 65536 : (int)gldns_read_uint16(x->rr_type+10); }
+
+static inline int _srv_weight(_getdns_rr_iter *x)
+{ return x->nxt < x->rr_type+14 ? 0 : (int)gldns_read_uint16(x->rr_type+12); }
+
+
+static int _srv_cmp(const void *a, const void *b)
+{
+	return _srv_prio((_getdns_rr_iter *)a)
+	     - _srv_prio((_getdns_rr_iter *)b);
+}
+
+static void _rfc2782_sort(_srv_rr *start, _srv_rr *end)
+{
+	int running_sum, n;
+	_srv_rr *i, *j, swap;
+
+	/* First move all SRVs with weight 0 to the beginning of the list */
+
+	for (i = start; i < end && _srv_weight(&i->i) == 0; i++)
+		; /* pass */
+
+	for (j = i + 1; j < end; j++) {
+		if (_srv_weight(&j->i) == 0) {
+			swap = *i;
+			*i = *j;
+			*j = swap;
+			i++;
+		}
+	}
+	/* Now all SRVs are at the beginning, calculate running_sum */
+	running_sum = 0;
+	for (i = start; i < end; i++) {
+		running_sum += _srv_weight(&i->i);
+		i->running_sum = running_sum;
+	}
+	n = arc4random_uniform(running_sum);
+	for (i = start; i < end; i++) {
+		if (i->running_sum >= n)
+			break;
+	}
+	if (i > start && i < end) {
+		swap = *start;
+		*start = *i;
+		*i = swap;
+		_rfc2782_sort(start + 1, end);
+	}
+}
+
+static getdns_list *
+_create_srv_addrs(getdns_context *context, _srvs *srvs)
+{
+	getdns_list *srv_addrs;
+	size_t i, j;
+
+	qsort(srvs->rrs, srvs->count, sizeof(_srv_rr), _srv_cmp);
+	/* The SRVs are now sorted by priority (lowest first).  Now determine
+	 * server selection order for the SRVs with the same priority with
+	 * the algorithm described in RFC2782:
+	 * 
+	 *   To select a target to be contacted next, arrange all SRV RRs
+	 *   (that have not been ordered yet) in any order, except that all
+	 *   those with weight 0 are placed at the beginning of the list.
+	 * 
+	 *   Compute the sum of the weights of those RRs, and with each RR
+	 *   associate the running sum in the selected order. Then choose a
+	 *   uniform random number between 0 and the sum computed
+	 *   (inclusive), and select the RR whose running sum value is the
+	 *   first in the selected order which is greater than or equal to
+	 *   the random number selected. The target host specified in the
+	 *   selected SRV RR is the next one to be contacted by the client.
+	 *   Remove this SRV RR from the set of the unordered SRV RRs and
+	 *   apply the described algorithm to the unordered SRV RRs to select
+	 *   the next target host.  Continue the ordering process until there
+	 *   are no unordered SRV RRs.  This process is repeated for each
+	 *   Priority.
+	 */
+	for (i = 0; i < srvs->count; i = j) {
+		/* Determine range of SRVs with same priority */
+		for ( j = i + 1
+		    ; j < srvs->count && _srv_prio(&srvs->rrs[i].i)
+		                      == _srv_prio(&srvs->rrs[j].i)
+		    ; j++)
+			; /* pass */
+
+		if (j == i + 1)
+			continue;
+
+		/* SRVs with same prio range from i till j (exclusive). */
+		_rfc2782_sort(srvs->rrs + i, srvs->rrs + j);
+	}
+	if (!(srv_addrs = getdns_list_create_with_context(context)))
+		return NULL;
+
+	for (i = 0; i < srvs->count; i++) {
+		_getdns_rr_iter *rr = &srvs->rrs[i].i;
+		getdns_dict *d;
+		_getdns_rdf_iter rdf_storage, *rdf;
+
+		const uint8_t *dname;
+		uint8_t dname_spc[256];
+		size_t dname_sz = sizeof(dname_spc);
+
+		_getdns_rrset a;
+		_getdns_rrtype_iter a_rr_spc, *a_rr;
+		int addresses_found = 0;
+
+		if (   !(d = getdns_dict_create_with_context(context))
+		    || !(rdf = _getdns_rdf_iter_init_at(&rdf_storage, rr, 2))
+		    || !(rdf->rdd_pos->type & GETDNS_RDF_INTEGER)
+		    ||  (rdf->rdd_pos->type & GETDNS_RDF_FIXEDSZ) != 2
+		    || getdns_dict_set_int(d, "port", (uint32_t)
+		                           gldns_read_uint16(rdf->pos))
+
+		    || !(rdf = _getdns_rdf_iter_init_at(&rdf_storage, rr, 3))
+		    || !(rdf->rdd_pos->type & GETDNS_RDF_DNAME)
+		    || !(dname = _getdns_rdf_if_or_as_decompressed(
+				    rdf, dname_spc, &dname_sz))
+		    || _getdns_dict_set_const_bindata(
+			    d, "domain_name", dname_sz, dname)) {
+
+			/* error */
+			getdns_dict_destroy(d);
+			continue;
+		}
+
+		a.name = dname;
+		a.rr_class = rr_iter_class(rr);
+		a.rr_type = GETDNS_RRTYPE_AAAA;
+		a.pkt = rr->pkt;
+		a.pkt_len = rr->pkt_end - rr->pkt;
+		a.sections = SECTION_ADDITIONAL;
+
+		for ( a_rr = _getdns_rrtype_iter_init(&a_rr_spc, &a)
+		    ; a_rr ; a_rr = _getdns_rrtype_iter_next(a_rr)) {
+
+			if (   a_rr->rr_i.nxt - (a_rr->rr_i.rr_type + 10) == 16
+			    && !getdns_dict_util_set_string(
+					d, "address_type", "IPv6")
+			    && !_getdns_dict_set_const_bindata(
+					d, "address_data", 16,
+					a_rr->rr_i.rr_type + 10)
+			    && !_getdns_list_append_dict(srv_addrs, d))
+				addresses_found++;
+		}
+		a.rr_type = GETDNS_RRTYPE_A;
+
+		for ( a_rr = _getdns_rrtype_iter_init(&a_rr_spc, &a)
+		    ; a_rr ; a_rr = _getdns_rrtype_iter_next(a_rr)) {
+
+			if (   a_rr->rr_i.nxt - (a_rr->rr_i.rr_type + 10) ==4 
+			    && !getdns_dict_util_set_string(
+					d, "address_type", "IPv4")
+			    && !_getdns_dict_set_const_bindata(
+					d, "address_data", 4,
+					a_rr->rr_i.rr_type + 10)
+			    && !_getdns_list_append_dict(srv_addrs, d))
+				addresses_found++;
+		}
+		if (   addresses_found
+		    || _getdns_list_append_this_dict(srv_addrs, d))
+			getdns_dict_destroy(d);
+	}
+	return srv_addrs;
+}
+
 getdns_dict *
 _getdns_create_getdns_response(getdns_dns_req *completed_request)
 {
 	getdns_dict *result;
 	getdns_list *just_addrs = NULL;
+	getdns_list *srv_addrs = NULL;
 	getdns_list *replies_full;
 	getdns_list *replies_tree;
 	getdns_list *call_reporting = NULL;
@@ -933,6 +1050,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	getdns_bindata *canonical_name = NULL;
 	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
 	getdns_dict   *netreq_debug;
+	_srvs srvs = { 0, 0, NULL };
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
@@ -957,6 +1075,16 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		just_addrs = getdns_list_create_with_context(
 		    completed_request->context);
 
+	else if (
+	    completed_request->netreqs[0]->request_type == GETDNS_RRTYPE_SRV) {
+
+		srvs.capacity = 100;
+		if (!(srvs.rrs = GETDNS_XMALLOC(
+		    context->mf, _srv_rr, srvs.capacity))) {
+			srvs.capacity = 0;
+			goto error_free_result;
+		}
+	}
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_ANSWER_TYPE,
 	    GETDNS_NAMETYPE_DNS))
 		goto error_free_result;
@@ -1003,14 +1131,13 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 				continue;
 		}
     		if (!(reply = _getdns_create_reply_dict(context,
-		    netreq, just_addrs, &rrsigs_in_answer)))
+		    netreq, just_addrs, &rrsigs_in_answer, &srvs)))
 			goto error;
 
 		if (!canonical_name) {
-			if (getdns_dict_get_bindata(
-			    reply, "canonical_name", &canonical_name))
-				goto error;
-			if (getdns_dict_set_bindata(
+			if (!getdns_dict_get_bindata(
+			    reply, "canonical_name", &canonical_name) &&
+			    getdns_dict_set_bindata(
 			    result, "canonical_name", canonical_name))
 				goto error;
 		}
@@ -1059,6 +1186,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		goto error;
 	replies_tree = NULL;
 
+	if (!canonical_name &&
+	    _getdns_dict_set_const_bindata(result, "canonical_name",
+		    completed_request->name_len, completed_request->name))
+		goto error;
+
 	if (call_reporting) {
 		if (_getdns_dict_set_this_list(
 		   result, "call_reporting", call_reporting))
@@ -1074,6 +1206,14 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		    result, GETDNS_STR_KEY_JUST_ADDRS, just_addrs))
 			goto error_free_result;
 		just_addrs = NULL;
+	}
+	if (srvs.capacity) {
+		if (!(srv_addrs = _create_srv_addrs(context, &srvs)) ||
+		    _getdns_dict_set_this_list(
+		    result, "srv_addresses", srv_addrs))
+			goto error_free_result;
+
+		GETDNS_FREE(context->mf, srvs.rrs);
 	}
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
@@ -1094,6 +1234,9 @@ error_free_call_reporting:
 error_free_replies_full:
 	getdns_list_destroy(replies_full);
 error_free_result:
+	if (srvs.capacity)
+		GETDNS_FREE(context->mf, srvs.rrs);
+	getdns_list_destroy(srv_addrs);
 	getdns_list_destroy(just_addrs);
 	getdns_dict_destroy(result);
 	return NULL;
