@@ -1569,7 +1569,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	_getdns_rdf_iter *signer, signer_spc, *rdf, rdf_spc;
 	uint8_t valbuf_spc[4096], *valbuf_buf = valbuf_spc;
 	uint8_t cdname_spc[256], owner[256];
-	const uint8_t *cdname;
+	const uint8_t *cdname, *owner_offset;
 	size_t cdname_len, pos;
 	uint32_t orig_ttl;
 	gldns_buffer valbuf;
@@ -1583,8 +1583,39 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 		return 0;
 	valbuf_sz = signer->nxt - rrsig->rr_i.rr_type - 10;
 
-	if ((owner_len = _dname_len(rrset->name)) > 255)
+	/* We were able to get the signer,
+	 * so the labels rdata field is definitely readable
+	 */
+	assert(rrsig->rr_i.rr_type + 14 <= rrsig->rr_i.nxt);
+
+	/* If the number of labels in the owner is larger than  "labels" rdata
+	 * field, then this is a wildcard expansion.
+	 */
+	if (_dname_label_count(rrset->name) > (size_t)rrsig->rr_i.rr_type[13]) {
+
+		/* This is a valid wildcard expansion.  Calculate and return the 
+		 * "Next closer" name, because we need another NSEC to cover it.
+		 * (except for rrsigs for NSECs, but those are dealt with later)
+		 */
+		to_skip = (int)_dname_label_count(rrset->name)
+			- (int)rrsig->rr_i.rr_type[13];
+
+		for ( owner_offset = rrset->name
+		    ; to_skip > 0
+		    ; owner_offset += *owner_offset + 1, to_skip--);
+
+		if ((owner_len = _dname_len(owner_offset) + 2) > 255)
+			return 0;
+
+		owner[0] = 1; owner[1] = '*';
+		(void) memcpy(owner + 2, owner_offset, owner_len - 2);
+
+	} else if ((owner_len = _dname_len(rrset->name)) > 255)
 		return 0;
+	else
+		(void) memcpy(owner, rrset->name, owner_len);
+
+	_dname_canonicalize2(owner);
 
 	for (;;) {
 		for ( rr = rrtype_iter_init(&rr_spc, rrset), n_rrs = 0
@@ -1624,9 +1655,6 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 	_dname_canonicalize2(gldns_buffer_at(&valbuf, 18));
 
 	orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
-
-	(void) memcpy(owner, rrset->name, owner_len);
-	_dname_canonicalize2(owner);
 
 	if (!_dnssec_rdata_to_canonicalize(rrset->rr_type))
 		for (i = 0; i < n_rrs; i++) {
@@ -1684,9 +1712,10 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 #if defined(SEC_DEBUG) && SEC_DEBUG
 	if (r == 0) {
 		DEBUG_SEC("verification failed: %s\n", reason);
-		debug_sec_print_rrset("verification failed: ", rrset);
-		debug_sec_print_rr("verification failed: ", &rrsig->rr_i);
-		debug_sec_print_rr("verification failed: ", &key->rr_i);
+		debug_sec_print_dname("verification failed for: ", owner);
+		debug_sec_print_rrset("verification failed for rrset: ", rrset);
+		debug_sec_print_rr("verification failed sig: ", &rrsig->rr_i);
+		debug_sec_print_rr("verification failed key: ", &key->rr_i);
 	}
 #endif
 	if (val_rrset != val_rrset_spc)
