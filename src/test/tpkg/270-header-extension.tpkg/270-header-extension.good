@@ -8,7 +8,6 @@
       "answer": [],
       "answer_type": GETDNS_NAMETYPE_DNS,
       "authority": [],
-      "canonical_name": <bindata for bogus.nlnetlabs.nl.>,
       "header":
       {
         "aa": 0,
