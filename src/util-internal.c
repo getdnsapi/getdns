@@ -703,7 +703,6 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;
 	
-	
 	answer = _getdns_rrset_answer(&answer_spc, req->response
 	                                         , req->response_len);
 
@@ -1136,10 +1135,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			goto error;
 
 		if (!canonical_name) {
-			if (getdns_dict_get_bindata(
-			    reply, "canonical_name", &canonical_name))
-				goto error;
-			if (getdns_dict_set_bindata(
+			if (!getdns_dict_get_bindata(
+			    reply, "canonical_name", &canonical_name) &&
+			    getdns_dict_set_bindata(
 			    result, "canonical_name", canonical_name))
 				goto error;
 		}
@@ -1187,6 +1185,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
     	if (_getdns_dict_set_this_list(result, "replies_tree", replies_tree))
 		goto error;
 	replies_tree = NULL;
+
+	if (!canonical_name &&
+	    _getdns_dict_set_const_bindata(result, "canonical_name",
+		    completed_request->name_len, completed_request->name))
+		goto error;
 
 	if (call_reporting) {
 		if (_getdns_dict_set_this_list(
