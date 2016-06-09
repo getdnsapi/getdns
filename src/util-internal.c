@@ -553,17 +553,16 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	size_t bin_size;
 	const uint8_t *bin_data;
 	_getdns_section section;
-	uint8_t canonical_name_space[256], owner_name_space[256],
-	    query_name_space[256];
-	const uint8_t *canonical_name, *owner_name, *query_name;
-	size_t canonical_name_len = sizeof(canonical_name_space),
-	       owner_name_len = sizeof(owner_name_space),
+	uint8_t owner_name_space[256], query_name_space[256];
+	const uint8_t *owner_name, *query_name;
+	size_t owner_name_len = sizeof(owner_name_space),
 	       query_name_len = sizeof(query_name_space);
-	int new_canonical = 0, cnames_followed,
-	    request_answered, all_numeric_label;
+	int all_numeric_label;
 	uint16_t rr_type;
 	getdns_dict *header = NULL;
 	getdns_list *bad_dns = NULL;
+	_getdns_rrset_spc answer_spc;
+	_getdns_rrset *answer;
 
 	if (!result)
 		goto error;
@@ -592,9 +591,6 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
     	if ((r = _getdns_dict_set_this_dict(result, "header", header)))
 		goto error;
 	header = NULL;
-
-	canonical_name = req->owner->name;
-	canonical_name_len = req->owner->name_len;
 
 	if (req->query &&
 	    (rr_iter = _getdns_rr_iter_init(&rr_iter_storage, req->query
@@ -652,23 +648,6 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			goto error;
 		else	rr_dict = NULL;
 
-		if (rr_type == GETDNS_RRTYPE_CNAME) {
-
-			owner_name_len = sizeof(owner_name_space);
-			owner_name = _getdns_owner_if_or_as_decompressed(
-			    rr_iter, owner_name_space, &owner_name_len);
-			if (!_getdns_dname_equal(canonical_name, owner_name))
-				continue;
-
-			if (!(rdf_iter = _getdns_rdf_iter_init(
-			     &rdf_iter_storage, rr_iter)))
-				continue;
-
-			new_canonical = 1;
-			canonical_name = _getdns_rdf_if_or_as_decompressed(
-			    rdf_iter,canonical_name_space,&canonical_name_len);
-			continue;
-		}
 		if (srvs->capacity && rr_type == GETDNS_RRTYPE_SRV) {
 			if (srvs->count >= srvs->capacity &&
 			    !_grow_srvs(&context->mf, srvs))
@@ -724,42 +703,14 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;
 	
-	cnames_followed = new_canonical;
-	while (cnames_followed < MAX_CNAME_REFERRALS && new_canonical) {
-		new_canonical = 0;
+	
+	answer = _getdns_rrset_answer(&answer_spc, req->response
+	                                         , req->response_len);
 
-		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
-		                                    , req->response
-		                                    , req->response_len)
-		    ; rr_iter && _getdns_rr_iter_section(rr_iter)
-		              <= SECTION_ANSWER
-		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
-
-			if (_getdns_rr_iter_section(rr_iter) !=
-			    SECTION_ANSWER)
-				continue;
-
-			if (gldns_read_uint16(rr_iter->rr_type) !=
-			    GETDNS_RRTYPE_CNAME)
-				continue;
-
-			owner_name = _getdns_owner_if_or_as_decompressed(
-			    rr_iter, owner_name_space, &owner_name_len);
-			if (!_getdns_dname_equal(canonical_name, owner_name))
-				continue;
-
-			if (!(rdf_iter = _getdns_rdf_iter_init(
-			     &rdf_iter_storage, rr_iter)))
-				continue;
-
-			canonical_name = _getdns_rdf_if_or_as_decompressed(
-			    rdf_iter,canonical_name_space,&canonical_name_len);
-			new_canonical = 1;
-			cnames_followed++;
-		}
-	}
-	if (_getdns_dict_set_const_bindata(
-	    result, "canonical_name", canonical_name_len, canonical_name))
+	if (answer_spc.rrset.name &&
+	    _getdns_dict_set_const_bindata(result, "canonical_name"
+	                                         , answer_spc.name_len
+	                                         , answer_spc.rrset.name))
 		goto error;
 
 	if (!req->owner->add_warning_for_bad_dns)
@@ -768,35 +719,15 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	if (!(bad_dns = getdns_list_create_with_context(context)))
 		goto error;
 
-	if (cnames_followed && req->request_type != GETDNS_RRTYPE_CNAME) {
-		request_answered = 0;
-		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
-						    , req->response
-						    , req->response_len)
-		    ; rr_iter && _getdns_rr_iter_section(rr_iter)
-			      <= SECTION_ANSWER
-		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+	if (   !answer
+	    && req->request_type != GETDNS_RRTYPE_CNAME
+	    && query_name
+	    && answer_spc.rrset.name
+	    && !_getdns_dname_equal(query_name, answer_spc.rrset.name)
+	    && _getdns_list_append_int(bad_dns
+		    , GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE))
+		goto error;
 
-			if (_getdns_rr_iter_section(rr_iter) !=
-			    SECTION_ANSWER)
-				continue;
-			if (gldns_read_uint16(rr_iter->rr_type) !=
-			    req->request_type)
-				continue;
-
-			owner_name=_getdns_owner_if_or_as_decompressed(
-			    rr_iter, owner_name_space,&owner_name_len);
-			if (_getdns_dname_equal(
-			    canonical_name, owner_name)) {
-				request_answered = 1;
-				break;
-			}
-		}
-		if (!request_answered && 
-		    _getdns_list_append_int(bad_dns,
-		    GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE))
-			goto error;
-	}
 	all_numeric_label = 0;
 	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
 					    , req->response

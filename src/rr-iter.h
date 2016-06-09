@@ -108,7 +108,6 @@ static inline uint16_t rr_iter_type(_getdns_rr_iter *rr)
 static inline uint16_t rr_iter_class(_getdns_rr_iter *rr)
 { return rr->rr_type + 4 <= rr->nxt ? gldns_read_uint16(rr->rr_type + 2) : 0; }
 
-
 typedef struct _getdns_rrset {
 	const uint8_t  *name;
 	uint16_t        rr_class;
@@ -117,6 +116,18 @@ typedef struct _getdns_rrset {
 	size_t          pkt_len;
 	_getdns_section sections;
 } _getdns_rrset;
+
+typedef struct _getdns_rrset_spc {
+	_getdns_rrset rrset;
+	uint8_t       name_spc[256];
+	size_t        name_len;
+} _getdns_rrset_spc;
+
+_getdns_rrset *_getdns_rrset_answer(
+    _getdns_rrset_spc *rrset2init, const uint8_t *pkt, size_t pkt_len);
+
+_getdns_rrset *_getdns_initialized_rrset_answer(
+    _getdns_rrset_spc *query_rrset);
 
 typedef struct _getdns_rrtype_iter {
 	_getdns_rr_iter  rr_i;
@@ -163,6 +174,8 @@ typedef struct _getdns_rrset_iter {
 _getdns_rrset_iter *_getdns_rrset_iter_init(_getdns_rrset_iter *i,
     const uint8_t *pkt, size_t pkt_len, _getdns_section sections);
 _getdns_rrset_iter *_getdns_rrset_iter_next(_getdns_rrset_iter *i);
+
+
 
 static inline _getdns_rrset *_getdns_rrset_iter_value(_getdns_rrset_iter *i)
 { return i && i->rr_i.pos ? &i->rrset : NULL; }

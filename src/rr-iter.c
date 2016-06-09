@@ -240,6 +240,62 @@ _getdns_owner_if_or_as_decompressed(_getdns_rr_iter *i,
 	    ff_bytes, len, 0);
 }
 
+_getdns_rrset *
+_getdns_initialized_rrset_answer(_getdns_rrset_spc *query_rrset)
+{
+	_getdns_rrset *rrset = &query_rrset->rrset;
+	uint16_t qtype = rrset->rr_type;
+	size_t cname_loop_protection;
+
+	assert(query_rrset);
+
+	/* Follow CNAMEs */
+	rrset->rr_type = GETDNS_RRTYPE_CNAME;
+	for ( cname_loop_protection = MAX_CNAME_REFERRALS
+	    ; cname_loop_protection > 0
+	    ; cname_loop_protection-- ) {
+		_getdns_rrtype_iter rr_spc, *rr;
+		_getdns_rdf_iter rdf_spc, *rdf;
+
+		if (!(rr = _getdns_rrtype_iter_init(&rr_spc, rrset)))
+			break;
+		if (!(rdf = _getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)))
+			break;
+		query_rrset->name_len = sizeof(query_rrset->name_spc);
+		rrset->name = _getdns_rdf_if_or_as_decompressed(
+		    rdf, query_rrset->name_spc, &query_rrset->name_len);
+	}
+	rrset->rr_type = qtype;
+	if (qtype == GETDNS_RRTYPE_CNAME &&
+	    cname_loop_protection < MAX_CNAME_REFERRALS)
+		return rrset; /* The CNAME was the answer */
+
+	return _getdns_rrset_has_rrs(rrset) ? rrset : NULL;
+}
+
+_getdns_rrset *
+_getdns_rrset_answer(_getdns_rrset_spc *spc, const uint8_t *pkt, size_t len)
+{
+	_getdns_rr_iter rr_spc, *rr;
+
+	assert(spc);
+
+	spc->rrset.name = NULL;
+	spc->name_len = sizeof(spc->name_spc);
+	if (   !(rr = _getdns_rr_iter_init(&rr_spc, pkt, len))
+	    || _getdns_rr_iter_section(rr) != SECTION_QUESTION
+	    || !(spc->rrset.name = _getdns_owner_if_or_as_decompressed(
+			    rr, spc->name_spc, &spc->name_len))
+	    || rr->nxt < rr->rr_type + 4)
+		return NULL;
+
+	spc->rrset.rr_class = rr_iter_class(rr);
+	spc->rrset.rr_type = rr_iter_type(rr);
+	spc->rrset.pkt = pkt;
+	spc->rrset.pkt_len = len;
+	spc->rrset.sections = SECTION_ANSWER;
+	return _getdns_initialized_rrset_answer(spc);
+}
 
 /* Utility function to compare owner name of rr with name */
 static int rr_owner_equal(_getdns_rr_iter *rr, const uint8_t *name)

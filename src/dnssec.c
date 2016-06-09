@@ -814,13 +814,7 @@ static void add_question2val_chain(struct mem_funcs *mf,
     const uint8_t *qname, uint16_t qtype, uint16_t qclass,
     getdns_network_req *netreq)
 {
-	_getdns_rrset q_rrset;
-	uint8_t cname_spc[256];
-	size_t cname_len = sizeof(cname_spc);
-	size_t anti_loop;
-	_getdns_rdf_iter rdf_spc, *rdf;
-	_getdns_rrtype_iter *rr, rr_spc;
-
+	_getdns_rrset_spc q_rrset;
 	chain_head *head;
 
 	assert(pkt);
@@ -828,43 +822,26 @@ static void add_question2val_chain(struct mem_funcs *mf,
 	assert(qname);
 
 	/* First find the canonical name for the question */
-	q_rrset.name     = qname;
-	q_rrset.rr_type  = GETDNS_RRTYPE_CNAME;
-	q_rrset.rr_class = qclass;
-	q_rrset.pkt      = pkt;
-	q_rrset.pkt_len  = pkt_len;
-	q_rrset.sections = SECTION_ANSWER;
+	q_rrset.rrset.name     = qname;
+	q_rrset.rrset.rr_type  = qtype;
+	q_rrset.rrset.rr_class = qclass;
+	q_rrset.rrset.pkt      = pkt;
+	q_rrset.rrset.pkt_len  = pkt_len;
+	q_rrset.rrset.sections = SECTION_ANSWER;
 
-	for (anti_loop = MAX_CNAME_REFERRALS; anti_loop; anti_loop--) {
-		if (!(rr = _getdns_rrtype_iter_init(&rr_spc, &q_rrset)))
-			break;
-		if (!(rdf = _getdns_rdf_iter_init(&rdf_spc, &rr->rr_i)))
-			break;
-		q_rrset.name = _getdns_rdf_if_or_as_decompressed(
-				rdf, cname_spc, &cname_len);
-	}
-
-	/* If the qtype was a CNAME, and we got one, we'r done.
-	 * We asked for it directly, so no redirection applies.
-	 * Otherwise we have to check the referred to name/qtype.
-	 */
-	if (qtype == GETDNS_RRTYPE_CNAME && q_rrset.name != qname)
+	if (_getdns_initialized_rrset_answer(&q_rrset))
 		return;
 
-	q_rrset.rr_type  = qtype;
-	if (!(rr = _getdns_rrtype_iter_init(&rr_spc, &q_rrset))) {
-		/* No answer for the question.  Add a head for this rrset
-		 * anyway, to validate proof of non-existance, or to find
-		 * proof that the packet is insecure.
-		 */
-		debug_sec_print_rrset("Adding NX rrset: ", &q_rrset);
-		head = add_rrset2val_chain(mf, chain_p, &q_rrset, netreq);
+	/* No answer for the question.  Add a head for this rrset
+	 * anyway, to validate proof of non-existance, or to find
+	 * proof that the packet is insecure.
+	 */
+	debug_sec_print_rrset("Adding NX rrset: ", &q_rrset.rrset);
+	head = add_rrset2val_chain(mf, chain_p, &q_rrset.rrset, netreq);
 
-		/* On empty packet, find SOA (zonecut) for the qname */
-		if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
-
-			val_chain_sched_soa(head, q_rrset.name);
-	}
+	/* On empty packet, find SOA (zonecut) for the qname */
+	if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
+		val_chain_sched_soa(head, q_rrset.rrset.name);
 }
 
 
