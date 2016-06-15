@@ -204,11 +204,12 @@ void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	if (! blocking || now > timeout) {
 		tv.tv_sec = 0;
 		tv.tv_usec = 0;
-	} else {
+	} else if (timeout != (uint64_t)-1) {
 		tv.tv_sec  = (timeout - now) / 1000000;
 		tv.tv_usec = (timeout - now) % 1000000;
 	}
-	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv) < 0) {
+	if (select(max_fd + 1, &readfds, &writefds, NULL, 
+	    (timeout == ((uint64_t)-1) ? NULL : &tv)) < 0) {
 		perror("select() failed");
 		exit(EXIT_FAILURE);
 	}
