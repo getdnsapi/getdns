@@ -210,7 +210,7 @@ depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
 	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I.. -I"$$blddir"/.. *.c | \
 		sed -e "s? $$blddir/? ?g" \
-		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
+		    -e 's? \([a-z0-9_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
 		    -e 's? \$$(srcdir)/config\.h? ../config.h?g' \
 		    -e 's? $$(srcdir)/\.\./getdns/getdns_extra\.h? ../getdns/getdns_extra.h?g' \
 		    -e 's? \.\./getdns/getdns_ext_libevent\.h? $$(srcdir)/../getdns/getdns_ext_libevent.h?g' \
@@ -273,9 +273,9 @@ check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_trans
  $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
- getdns_str2dict.h ../getdns/getdns.h ../getdns/getdns_extra.h
-getdns_str2dict.lo getdns_str2dict.o: getdns_str2dict.c ../config.h $(srcdir)/../const-info.h \
- $(srcdir)/jsmn/jsmn.h getdns_str2dict.h ../getdns/getdns.h ../types-internal.h \
+ $(srcdir)/getdns_str2dict.h ../getdns/getdns.h ../getdns/getdns_extra.h
+getdns_str2dict.lo getdns_str2dict.o: $(srcdir)/getdns_str2dict.c ../config.h $(srcdir)/../const-info.h \
+ $(srcdir)/jsmn/jsmn.h $(srcdir)/getdns_str2dict.h ../getdns/getdns.h ../types-internal.h \
  ../getdns/getdns.h ../getdns/getdns_extra.h ../util/rbtree.h ../list.h \
  ../types-internal.h ../dict.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
