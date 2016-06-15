@@ -1,16 +1,5 @@
-/**
- *
- * /brief _getdns_consts table with values, names and descriptions of the
- *        constants in getdns
- *
- * The _getdns_get_validation_chain function is called after an answer
- * has been fetched when the dnssec_return_validation_chain extension is set.
- * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
- * answer.
- */
-
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,17 +25,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CONST_INFO_H_
-#define CONST_INFO_H_
+#ifndef GETDNS_STR2DICT_H_
+#define GETDNS_STR2DICT_H_
+#include "getdns/getdns.h"
 
-struct const_info {
-	int code;
-	const char *name;
-	const char *text;
-};
+getdns_dict *_getdns_ipaddr_dict(const char *ipstr);
 
-struct const_info *_getdns_get_const_info(int value);
+getdns_return_t getdns_str2dict(const char *str, getdns_dict **dict);
+getdns_return_t getdns_str2list(const char *str, getdns_list **list);
+getdns_return_t getdns_str2bindata(const char *str, getdns_bindata **bindata);
+getdns_return_t getdns_str2int(const char *str, uint32_t *value);
 
 #endif
-
-/* const-info.h */

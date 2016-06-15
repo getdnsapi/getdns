@@ -145,4 +145,3 @@ getdns_wire2rr_dict_buf
 getdns_wire2rr_dict_scan
 plain_mem_funcs_user_arg
 priv_getdns_context_mf
-_getdns_get_const_name_info
