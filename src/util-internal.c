@@ -812,12 +812,19 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 
-	} else if (!netreq->upstream)
-
+	} else if (!netreq->upstream) {
+		if (getdns_dict_set_int( netreq_debug, "resolution_mode", GETDNS_RESOLUTION_RECURSING)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 		/* Nothing more for full recursion */
 		return netreq_debug;
+	}
 
-
+	if (getdns_dict_set_int( netreq_debug, "resolution_mode", GETDNS_RESOLUTION_STUB)) {
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	/* Stub resolver debug data */
 	_getdns_sockaddr_to_dict(
 	    context, &netreq->upstream->addr, &address_debug);
