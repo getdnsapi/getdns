@@ -2207,7 +2207,7 @@ void servfail(dns_msg *msg, getdns_dict **resp_p)
 		return;
 	if (!getdns_dict_get_dict(msg->query, "header", &dict))
 		getdns_dict_set_dict(*resp_p, "header", dict);
-	if (!getdns_dict_get_dict(msg->query, "question", &dict));
+	if (!getdns_dict_get_dict(msg->query, "question", &dict))
 		getdns_dict_set_dict(*resp_p, "question", dict);
 	(void) getdns_dict_set_int(
 	    *resp_p, "/header/rcode", GETDNS_RCODE_SERVFAIL);
@@ -2332,12 +2332,13 @@ getdns_return_t schedule_request(dns_msg *msg)
 	getdns_bindata *qname;
 	char *qname_str = NULL;
 	uint32_t qtype;
+	uint32_t qclass;
 	getdns_return_t r;
 	getdns_dict *header;
 	uint32_t n;
 	getdns_list *list;
 	getdns_transaction_t transaction_id;
-	getdns_dict *qext;
+	getdns_dict *qext = NULL;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -2416,6 +2417,14 @@ getdns_return_t schedule_request(dns_msg *msg)
 
 	else if ((r=getdns_dict_get_int(msg->query,"/question/qtype",&qtype)))
 		fprintf(stderr, "Could get qtype from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r=getdns_dict_get_int(msg->query,"/question/qclass",&qclass)))
+		fprintf(stderr, "Could get qclass from query: %s\n",
+		    getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_dict_set_int(qext, "specify_class", qclass)))
+		fprintf(stderr, "Could set class from query: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_general(context, qname_str, qtype,

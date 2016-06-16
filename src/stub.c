@@ -495,14 +495,17 @@ stub_cleanup(getdns_network_req *netreq)
 }
 
 static int
-tls_cleanup(getdns_upstream *upstream)
+tls_cleanup(getdns_upstream *upstream, int handshake_fail)
 {
 	DEBUG_STUB("%s %-35s: FD:  %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 	if (upstream->tls_obj != NULL)
 		SSL_free(upstream->tls_obj);
 	upstream->tls_obj = NULL;
-	upstream->tls_hs_state = GETDNS_HS_FAILED;
+	/* This will prevent the connection from being tried again for the cases
+	   where we know it didn't work. Otherwise leave it to try again.*/
+	if (handshake_fail)
+		upstream->tls_hs_state = GETDNS_HS_FAILED;
 	/* Reset timeout on failure*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
@@ -514,6 +517,8 @@ tls_cleanup(getdns_upstream *upstream)
 static void
 upstream_erred(getdns_upstream *upstream)
 {
+	DEBUG_STUB("%s %-35s: FD:  %d\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 	getdns_network_req *netreq;
 
 	while ((netreq = upstream->write_queue)) {
@@ -588,7 +593,7 @@ upstream_tls_timeout_cb(void *userarg)
 	DEBUG_STUB("%s %-35s: FD:  %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 	/* Clean up and trigger a write to let the fallback code to its job */
-	tls_cleanup(upstream);
+	tls_cleanup(upstream, 1);
 
 	/* Need to handle the case where the far end doesn't respond to a
 	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
@@ -616,7 +621,7 @@ stub_tls_timeout_cb(void *userarg)
 	DEBUG_STUB("%s %-35s: MSG: %p\n",
 	           STUB_DEBUG_CLEANUP, __FUNCTION__, netreq);
 	/* Clean up and trigger a write to let the fallback code to its job */
-	tls_cleanup(upstream);
+	tls_cleanup(upstream, 0);
 
 	/* Need to handle the case where the far end doesn't respond to a
 	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
@@ -1021,7 +1026,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				DEBUG_STUB("%s %-35s: FD:  %d Handshake failed %d\n", 
 				            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd,
 				            want);
-				return tls_cleanup(upstream);
+				return tls_cleanup(upstream, 1);
 	   }
 	}
 	upstream->tls_hs_state = GETDNS_HS_DONE;
@@ -1069,7 +1074,7 @@ tls_connected(getdns_upstream* upstream)
 	int q = tcp_connected(upstream);
 	if (q != 0) {
 		if (q == STUB_TCP_ERROR)
-			tls_cleanup(upstream);
+			tls_cleanup(upstream, 0);
 		return q;
 	}
 
@@ -1798,8 +1803,8 @@ upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
 		GETDNS_SCHEDULE_EVENT(upstream->loop,
 		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 	else {
-		DEBUG_STUB("%s %-35s: FD:  %d Connection idle \n", 
-			    STUB_DEBUG_SCHEDULE, __FUNCTION__, upstream->fd);
+		DEBUG_STUB("%s %-35s: FD:  %d Connection idle - timeout is %d\n", 
+			    STUB_DEBUG_SCHEDULE, __FUNCTION__, upstream->fd, (int)idle_timeout);
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
 		if (upstream->tcp.write_error != 0)
 			idle_timeout = 0;
@@ -1890,7 +1895,6 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 	case GETDNS_TRANSPORT_TLS:
 	case GETDNS_TRANSPORT_TCP:
 		upstream_schedule_netreq(netreq->upstream, netreq);
-		/* TODO[TLS]: Change scheduling for sync calls. */
 		/* For TLS, set a short timeout to catch setup problems. This is reset
 		   when the connection is successful.*/
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
@@ -1958,8 +1962,7 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, -1,
 
-		    ( transport == GETDNS_TRANSPORT_TLS
-		    ?  dnsreq->context->timeout /2 : dnsreq->context->timeout),
+		    dnsreq->context->timeout,
 
 		    getdns_eventloop_event_init(
 		    &netreq->event, netreq, NULL, NULL,
