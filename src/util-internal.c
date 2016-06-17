@@ -813,7 +813,7 @@ _getdns_create_call_reporting_dict(
 		return NULL;
 
 	} else if (!netreq->upstream) {
-		if (getdns_dict_set_int( netreq_debug, "resolution_mode", GETDNS_RESOLUTION_RECURSING)) {
+		if (getdns_dict_set_int( netreq_debug, "resolution_type", GETDNS_RESOLUTION_RECURSING)) {
 			getdns_dict_destroy(netreq_debug);
 			return NULL;
 		}
@@ -821,7 +821,7 @@ _getdns_create_call_reporting_dict(
 		return netreq_debug;
 	}
 
-	if (getdns_dict_set_int( netreq_debug, "resolution_mode", GETDNS_RESOLUTION_STUB)) {
+	if (getdns_dict_set_int( netreq_debug, "resolution_type", GETDNS_RESOLUTION_STUB)) {
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}

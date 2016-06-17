@@ -158,8 +158,8 @@
        ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
          GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
        ASSERT_RC(transport, GETDNS_TRANSPORT_UDP, "Query did not go over UDP");
-       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_mode", &mode),
-         GETDNS_RETURN_GOOD, "Failed to extract \"resolution_mode\"");
+       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &mode),
+         GETDNS_RETURN_GOOD, "Failed to extract \"resolution_type\"");
        ASSERT_RC(mode, GETDNS_RESOLUTION_STUB, "Query did not use stub mode");
        ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
          GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
@@ -253,8 +253,8 @@
            ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
-           ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_mode", &mode),
-             GETDNS_RETURN_GOOD, "Failed to extract \"resolution_mode\"");
+           ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &mode),
+             GETDNS_RETURN_GOOD, "Failed to extract \"resolution_type\"");
            ASSERT_RC(mode, GETDNS_RESOLUTION_RECURSING, "Query did not use Recursive mode");
            ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
              GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
