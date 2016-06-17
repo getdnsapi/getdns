@@ -119,6 +119,11 @@ getdns_return_t
 getdns_context_set_eventloop(getdns_context* context,
     getdns_eventloop *eventloop);
 
+/* get the currently active (pluggable) eventloop from the context */
+getdns_return_t
+getdns_context_get_eventloop(getdns_context* context,
+    getdns_eventloop **eventloop);
+
 /* detach the eventloop from the context */
 getdns_return_t
 getdns_context_detach_eventloop(getdns_context *context);

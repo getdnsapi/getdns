@@ -3266,6 +3266,20 @@ getdns_context_set_eventloop(getdns_context* context, getdns_eventloop* loop)
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t
+getdns_context_get_eventloop(getdns_context *context, getdns_eventloop **loop)
+{
+	if (!context || !loop)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!context->extension)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else
+		*loop = context->extension;
+
+	return GETDNS_RETURN_GOOD;
+}
+
 static in_port_t
 upstream_port(getdns_upstream *upstream)
 {
