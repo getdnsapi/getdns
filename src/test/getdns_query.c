@@ -28,6 +28,7 @@
 #include "config.h"
 #include "debug.h"
 #include "getdns_str2dict.h"
+#include "getdns_context_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -588,160 +589,19 @@ done:
 	return r;
 }
 
-static int _streq(const getdns_bindata *name, const char *str)
+static void parse_config(const char *config_str)
 {
-	if (strlen(str) != name->size)
-		return 0;
-	else	return strncmp((const char *)name->data, str, name->size) == 0;
-}
-
-static getdns_return_t _get_list_or_read_file(const getdns_dict *config,
-    const char *setting, getdns_list **r_list, int *destroy_list)
-{
-	getdns_bindata *fn_bd;
-	char fn[FILENAME_MAX];
-	FILE *fh;
+	getdns_dict *config_dict;
+	getdns_list *list;
 	getdns_return_t r;
 
-	assert(r_list);
-	assert(destroy_list);
+	if ((r = getdns_str2dict(config_str, &config_dict)))
+		fprintf(stderr, "Could not parse config file: %s\n",
+		    getdns_get_errorstr_by_id(r));
 
-	*destroy_list = 0;
-	if (!(r = getdns_dict_get_list(config, setting, r_list)))
-		return GETDNS_RETURN_GOOD;
-
-	else if ((r = getdns_dict_get_bindata(config, setting, &fn_bd)))
-		return r;
-
-	else if (fn_bd->size >= FILENAME_MAX)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	(void)memcpy(fn, fn_bd->data, fn_bd->size);
-	fn[fn_bd->size] = 0;
-
-	if (!(fh = fopen(fn, "r"))) {
-		fprintf(stderr, "Could not open \"%s\": %s\n"
-		              , fn, strerror(errno));
-		return GETDNS_RETURN_GENERIC_ERROR;
-	}
-	if ((r = getdns_fp2rr_list(fh, r_list, NULL, 3600)))
-		fprintf(stderr,"Could not parse \"%s\"\n", fn);
-
-	else	*destroy_list = 1;
-
-	fclose(fh);
-	return r;
-}
-
-#define CONTEXT_SETTING_INT(X) \
-	} else 	if (_streq(setting, #X)) { \
-		if ((r = getdns_dict_get_int(config, #X , &n))) \
-			fprintf(stderr, "Could not get \"" #X "\""); \
-		else if ((r = getdns_context_set_ ## X (context, n))) \
-			fprintf(stderr,"Error configuring \"" #X "\"");
-
-#define CONTEXT_SETTING_LIST(X) \
-	} else 	if (_streq(setting, #X)) { \
-		if ((r = getdns_dict_get_list(config, #X , &list))) \
-			fprintf(stderr, "Could not get \"" #X "\""); \
-		else if ((r = getdns_context_set_ ## X (context, list))) \
-			fprintf(stderr,"Error configuring \"" #X "\"");
-
-#define CONTEXT_SETTING_LIST_OR_ZONEFILE(X) \
-	} else if (_streq(setting, #X)) { \
-		if ((r = _get_list_or_read_file( \
-		    config, #X , &list, &destroy_list))) \
-			fprintf(stderr, "Could not get \"" #X "\""); \
-		else if ((r = getdns_context_set_ ## X(context, list))) \
-			fprintf(stderr, "Error configuring \"" #X "\""); \
-		if (destroy_list) getdns_list_destroy(list);
-
-#define CONTEXT_SETTING_ARRAY(X, T) \
-	} else 	if (_streq(setting, #X )) { \
-		if ((r = getdns_dict_get_list(config, #X , &list))) \
-			fprintf(stderr, "Could not get \"" #X "\""); \
-		else if ((r =  getdns_list_get_length(list, &count))) \
-			fprintf(stderr, "Could not length of \"" #X "\""); \
-		else for (i=0; i<count && i<(sizeof(X)/sizeof(*X)); i++) { \
-			if ((r = getdns_list_get_int(list, i, &n))) { \
-				fprintf(stderr,"Could not get "#X"[%zu]",i); \
-				break; \
-			} \
-			X[i] = (getdns_ ## T ## _t)n; \
-		} \
-		if (!r && (r = getdns_context_set_ ##X (context, count, X))) \
-			fprintf(stderr,"Error configuring \"" #X "\""); \
-
-#define EXTENSION_SETTING_INT(X) \
-	} else if (_streq(setting, #X )) { \
-		if ((r = getdns_dict_get_int(config, #X , &n))) \
-			fprintf(stderr, "Could not get \"" #X "\""); \
-		else if ((r = getdns_dict_set_int(extensions, #X , n))) \
-			fprintf(stderr,"Error setting \"" #X "\"");
-
-#define EXTENSION_SETTING_DICT(X) \
-	} else if (_streq(setting, #X )) { \
-		if ((r = getdns_dict_get_dict(config, #X , &dict))) \
-			fprintf(stderr, "Could not get \"" #X "\""); \
-		else if ((r = getdns_dict_set_dict(extensions, #X , dict))) \
-			fprintf(stderr,"Error setting \"" #X "\"");
-
-static getdns_return_t configure_with_config_dict(const getdns_dict *config);
-static getdns_return_t configure_setting_with_config_dict(
-    const getdns_dict *config, const getdns_bindata *setting)
-{
-	getdns_return_t r = GETDNS_RETURN_GOOD;
-	getdns_dict *dict;
-	getdns_list *list;
-	getdns_namespace_t namespaces[100];
-	getdns_transport_list_t dns_transport_list[100];
-	size_t count, i;
-	uint32_t n;
-	int destroy_list = 0;
-
-	if (_streq(setting, "all_context")) {
-		if ((r = getdns_dict_get_dict(config, "all_context", &dict)))
-			fprintf(stderr, "Could not get \"all_context\"");
-
-		else if ((r = configure_with_config_dict(dict)))
-			fprintf( stderr
-			       ,"Error configuring with \"all_context\"");
-
-	CONTEXT_SETTING_INT(resolution_type)
-	CONTEXT_SETTING_ARRAY(namespaces, namespace)
-	CONTEXT_SETTING_INT(dns_transport)
-	CONTEXT_SETTING_ARRAY(dns_transport_list, transport_list)
-	CONTEXT_SETTING_INT(idle_timeout)
-	CONTEXT_SETTING_INT(limit_outstanding_queries)
-	CONTEXT_SETTING_INT(timeout)
-	CONTEXT_SETTING_INT(follow_redirects)
-	CONTEXT_SETTING_LIST_OR_ZONEFILE(dns_root_servers)
-	CONTEXT_SETTING_INT(append_name)
-	CONTEXT_SETTING_LIST(suffix)
-	CONTEXT_SETTING_LIST_OR_ZONEFILE(dnssec_trust_anchors)
-	CONTEXT_SETTING_INT(dnssec_allowed_skew)
-	CONTEXT_SETTING_LIST(upstream_recursive_servers)
-	CONTEXT_SETTING_INT(edns_maximum_udp_payload_size)
-	CONTEXT_SETTING_INT(edns_extended_rcode)
-	CONTEXT_SETTING_INT(edns_version)
-	CONTEXT_SETTING_INT(edns_do_bit)
-
-	/***************************************/
-	/****                               ****/
-	/****  Unofficial context settings  ****/
-	/****                               ****/
-	/***************************************/
-
-	CONTEXT_SETTING_INT(edns_client_subnet_private)
-	CONTEXT_SETTING_INT(tls_authentication)
-	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
-
-	}  else if (_streq(setting, "listen_addresses")) {
-		if ((r = getdns_dict_get_list(
-		    config, "listen_addresses", &list)))
-			fprintf(stderr, "Could not get \"listen_addresses\"");
-
-		else {
+	else {
+		if (!(r = getdns_dict_get_list(
+		    config_dict, "listen_addresses", &list))) {
 			if (listen_list && !listen_dict) {
 				/* TODO: Stop listening */
 				getdns_list_destroy(listen_list);
@@ -769,80 +629,15 @@ static getdns_return_t configure_setting_with_config_dict(
 			else if ((r = getdns_list_get_length(
 			    listen_list, &listen_count)))
 				fprintf(stderr, "Could not get listen_count");
+
+			(void) getdns_dict_remove_name(
+			    config_dict, "listen_addresses");
 		}
-
-	/**************************************/
-	/****                              ****/
-	/****  Default extensions setting  ****/
-	/****                              ****/
-	/**************************************/
-	EXTENSION_SETTING_DICT(add_opt_parameters)
-	EXTENSION_SETTING_INT(add_warning_for_bad_dns)
-	EXTENSION_SETTING_INT(dnssec_return_all_statuses)
-	EXTENSION_SETTING_INT(dnssec_return_full_validation_chain)
-	EXTENSION_SETTING_INT(dnssec_return_only_secure)
-	EXTENSION_SETTING_INT(dnssec_return_status)
-	EXTENSION_SETTING_INT(dnssec_return_validation_chain)
-#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
-	EXTENSION_SETTING_INT(dnssec_roadblock_avoidance)
-#endif
-#ifdef EDNS_COOKIES
-	EXTENSION_SETTING_INT(edns_cookies)
-#endif
-	EXTENSION_SETTING_DICT(header)
-	EXTENSION_SETTING_INT(return_api_information)
-	EXTENSION_SETTING_INT(return_both_v4_and_v6)
-	EXTENSION_SETTING_INT(return_call_reporting)
-	EXTENSION_SETTING_INT(specify_class)
-
-	/************************************/
-	/****                            ****/
-	/****  Ignored context settings  ****/
-	/****                            ****/
-	/************************************/
-	} else if (!_streq(setting, "implementation_string") &&
-	    !_streq(setting, "version_string")) {
-		fprintf( stderr, "Unknown setting \"%.*s\""
-		       , (int)setting->size, (const char *)setting->data);
-		r = GETDNS_RETURN_NOT_IMPLEMENTED;
-	}
-	if (r)
-		fprintf(stderr, ": %s\n", getdns_get_errorstr_by_id(r));
-	return r;
-}
-
-static getdns_return_t configure_with_config_dict(const getdns_dict *config)
-{
-	getdns_list *names;
-	getdns_return_t r;
-	getdns_bindata *name;
-	size_t i;
-
-	if ((r = getdns_dict_get_names(config, &names)))
-		return r;
-
-	for (i = 0; !(r = getdns_list_get_bindata(names, i, &name)); i++) {
-		if ((r = configure_setting_with_config_dict(config, name)))
-			break;
-	}
-	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
-		r = GETDNS_RETURN_GOOD;
-
-	getdns_list_destroy(names);
-	return r;
-}
-
-static void parse_config(const char *config_str)
-{
-	getdns_dict *config_dict;
-	getdns_return_t r;
-
-	if ((r = getdns_str2dict(config_str, &config_dict)))
-		fprintf(stderr, "Could not parse config file: %s\n",
-		    getdns_get_errorstr_by_id(r));
-
-	else {
-		configure_with_config_dict(config_dict);
+		if ((r = _getdns_context_config_(
+		    context, extensions, config_dict))) {
+			fprintf(stderr, "Could not configure context with "
+			    "config dict: %s\n", getdns_get_errorstr_by_id(r));
+		}
 		getdns_dict_destroy(config_dict);
 	}
 }
