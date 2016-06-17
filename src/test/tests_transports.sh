@@ -2,7 +2,9 @@
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 SERVER_IP="8.8.8.8"
+SERVER_IPv6="2001:4860:4860::8888"
 TLS_SERVER_IP="185.49.141.38~getdnsapi.net"
+TLS_SERVER_IPv6="2a04:b900:0:100::38~getdnsapi.net"
 TLS_SERVER_KEY="foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc9S="
 TLS_SERVER_WRONG_KEY="foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc1S="
 GOOD_RESULT_SYNC="Status was: At least one response was returned"
@@ -62,21 +64,22 @@ usage () {
 	echo "         -t   server configured for TLS, TCP and UDP"
 	echo "              (This must include the hostname e.g. 185.49.141.38~getdnsapi.net)"
 	echo "         -k   SPKI pin for server configured for TLS, TCP and UDP"
+	echo "         -i   Use IPv6 addresses (when using default servers)"
 }
 
-while getopts ":p:s:t:k:dh" opt; do
+while getopts ":p:s:t:k:idh" opt; do
 	case $opt in
-		d ) set -x ;;
+		d ) set -x ; echo "DEBUG mode set" ;;
 		p ) DIR=$OPTARG ;;
 		s ) SERVER_IP=$OPTARG ; echo "Setting server to $OPTARG" ;;
 		t ) TLS_SERVER_IP=$OPTARG ; echo "Setting TLS server to $OPTARG" ;;
 		k ) TLS_SERVER_KEY=$OPTARG ; echo "Setting TLS server key to $OPTARG" ;;
+		i ) SERVER_IP=$SERVER_IPv6; TLS_SERVER_IP=$TLS_SERVER_IPv6 ; echo "Using IPv6" ;;
 		h ) usage ; exit ;;
 	esac
 done
 
 TLS_SERVER_IP_NO_NAME=`echo ${TLS_SERVER_IP%~*}`
-echo $TLS_SERVER_IP_NO_NAME
 TLS_SERVER_IP_WRONG_NAME=`echo ${TLS_SERVER_IP::${#TLS_SERVER_IP}-1}`
 
 GOOD_QUERIES=(
@@ -100,7 +103,7 @@ NOT_AVAILABLE_QUERIES=(
 "-s -A -q getdnsapi.net -l L      @${SERVER_IP}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME}"
 "-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}"
-"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} ${TLS_SERVER_WRONG_KEY}")
+"-s -A -q getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\"")
 
 
 echo "Starting transport test"

@@ -131,6 +131,7 @@
        struct getdns_dict *extensions = getdns_dict_create();
        uint32_t tc;
        uint32_t transport;
+       uint32_t mode;
 
        /* Note that stricly this test just establishes that the requested transport
           and the reported transport are consistent, it does not guarentee which
@@ -157,6 +158,9 @@
        ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
          GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
        ASSERT_RC(transport, GETDNS_TRANSPORT_UDP, "Query did not go over UDP");
+       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &mode),
+         GETDNS_RETURN_GOOD, "Failed to extract \"resolution_type\"");
+       ASSERT_RC(mode, GETDNS_RESOLUTION_STUB, "Query did not use stub mode");
        ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
          GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
        ASSERT_RC(tc, 1, "Packet not trucated as expected");
@@ -208,6 +212,7 @@
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
        uint32_t status;
+       uint32_t mode;
        uint32_t tc;
 
        /* Recursive mode does not report the transport used and does not answer
@@ -239,13 +244,18 @@
            CONTEXT_CREATE(TRUE);
 
            /* Re-do over TCP */
+           ASSERT_RC(getdns_dict_set_int(extensions,"return_call_reporting", GETDNS_EXTENSION_TRUE),
+             GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
            ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
            ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-       
+
+           ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &mode),
+             GETDNS_RETURN_GOOD, "Failed to extract \"resolution_type\"");
+           ASSERT_RC(mode, GETDNS_RESOLUTION_RECURSING, "Query did not use Recursive mode");
            ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
              GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
            ASSERT_RC(tc, 0, "Packet trucated - not as expected");
