@@ -426,7 +426,7 @@ typedef enum getdns_tls_authentication_t {
 #define GETDNS_AUTHENTICATION_HOSTNAME GETDNS_AUTHENTICATION_REQUIRED
 
 /**
-  * \defgroup Base authentication texts
+  * \defgroup authtext Authentication texts
   * @{
   */
 #define GETDNS_AUTHENTICATION_NONE_TEXT "See getdns_context_set_tls_authentication()"
