@@ -47,227 +47,7 @@ typedef unsigned short in_port_t;
 #include <wincrypt.h>
 #endif
 
-
-#define MAX_TIMEOUTS FD_SETSIZE
-
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
-
-/* Eventloop based on select */
-typedef struct my_eventloop {
-	getdns_eventloop        base;
-	getdns_eventloop_event *fd_events[FD_SETSIZE];
-	uint64_t                fd_timeout_times[FD_SETSIZE];
-	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
-	uint64_t                timeout_times[MAX_TIMEOUTS];
-} my_eventloop;
-
-static uint64_t get_now_plus(uint64_t amount)
-{
-	struct timeval tv;
-	uint64_t       now;
-	
-	if (gettimeofday(&tv, NULL)) {
-		perror("gettimeofday() failed");
-		exit(EXIT_FAILURE);
-	}
-	now = tv.tv_sec * 1000000 + tv.tv_usec;
-
-	return (now + amount * 1000) >= now ? now + amount * 1000 : -1;
-}
-
-getdns_return_t
-my_eventloop_schedule(getdns_eventloop *loop,
-    int fd, uint64_t timeout, getdns_eventloop_event *event)
-{
-	my_eventloop *my_loop  = (my_eventloop *)loop;
-	size_t        i;
-
-	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, FD_SETSIZE: %d)\n"
-	        , __FUNCTION__, loop, fd, timeout, event, FD_SETSIZE);
-
-	assert(loop);
-	assert(event);
-	assert(fd < FD_SETSIZE);
-
-	if (fd >= 0 && (event->read_cb || event->write_cb)) {
-		assert(my_loop->fd_events[fd] == NULL);
-
-		my_loop->fd_events[fd] = event;
-		my_loop->fd_timeout_times[fd] = get_now_plus(timeout);
-		event->ev = (void *) (intptr_t) fd + 1;
-
-		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
-		return GETDNS_RETURN_GOOD;
-	}
-
-	assert(event->timeout_cb && !event->read_cb && !event->write_cb);
-
-	for (i = 0; i < MAX_TIMEOUTS; i++) {
-		if (my_loop->timeout_events[i] == NULL) {
-			my_loop->timeout_events[i] = event;
-			my_loop->timeout_times[i] = get_now_plus(timeout);
-			event->ev = (void *) (intptr_t) i + 1;
-
-			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
-			return GETDNS_RETURN_GOOD;
-		}
-	}
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
-
-getdns_return_t
-my_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
-{
-	my_eventloop *my_loop = (my_eventloop *)loop;
-	size_t i;
-
-	assert(loop);
-	assert(event);
-
-	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
-
-	i = (intptr_t)event->ev - 1;
-	assert(i >= 0 && i < FD_SETSIZE);
-
-	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
-		assert(my_loop->timeout_events[i] == event);
-		my_loop->timeout_events[i] = NULL;
-	} else {
-		assert(my_loop->fd_events[i] == event);
-		my_loop->fd_events[i] = NULL;
-	}
-	event->ev = NULL;
-	return GETDNS_RETURN_GOOD;
-}
-
-void my_eventloop_cleanup(getdns_eventloop *loop)
-{
-}
-
-void my_read_cb(int fd, getdns_eventloop_event *event)
-{
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
-	event->read_cb(event->userarg);
-}
-
-void my_write_cb(int fd, getdns_eventloop_event *event)
-{
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
-	event->write_cb(event->userarg);
-}
-
-void my_timeout_cb(int fd, getdns_eventloop_event *event)
-{
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
-	event->timeout_cb(event->userarg);
-}
-
-void my_eventloop_run_once(getdns_eventloop *loop, int blocking)
-{
-	my_eventloop *my_loop = (my_eventloop *)loop;
-
-	fd_set   readfds, writefds;
-	int      fd, max_fd = -1;
-	uint64_t now, timeout = (uint64_t)-1;
-	size_t   i;
-	struct timeval tv;
-
-	assert(loop);
-
-	FD_ZERO(&readfds);
-	FD_ZERO(&writefds);
-	now = get_now_plus(0);
-
-	for (i = 0; i < MAX_TIMEOUTS; i++) {
-		if (!my_loop->timeout_events[i])
-			continue;
-		if (now > my_loop->timeout_times[i])
-			my_timeout_cb(-1, my_loop->timeout_events[i]);
-		else if (my_loop->timeout_times[i] < timeout)
-			timeout = my_loop->timeout_times[i];
-	}
-	for (fd = 0; fd < FD_SETSIZE; fd++) {
-		if (!my_loop->fd_events[fd])
-			continue;
-		if (my_loop->fd_events[fd]->read_cb)
-			FD_SET(fd, &readfds);
-		if (my_loop->fd_events[fd]->write_cb)
-			FD_SET(fd, &writefds);
-		if (fd > max_fd)
-			max_fd = fd;
-		if (my_loop->fd_timeout_times[fd] < timeout)
-			timeout = my_loop->fd_timeout_times[fd];
-	}
-	if (max_fd == -1 && timeout == (uint64_t)-1)
-		return;
-
-	if (! blocking || now > timeout) {
-		tv.tv_sec = 0;
-		tv.tv_usec = 0;
-	} else {
-		tv.tv_sec  = (timeout - now) / 1000000;
-		tv.tv_usec = (timeout - now) % 1000000;
-	}
-	if (select(max_fd + 1, &readfds, &writefds, NULL, &tv) < 0) {
-		perror("select() failed");
-		exit(EXIT_FAILURE);
-	}
-	now = get_now_plus(0);
-	for (fd = 0; fd < FD_SETSIZE; fd++) {
-		if (my_loop->fd_events[fd] &&
-		    my_loop->fd_events[fd]->read_cb &&
-		    FD_ISSET(fd, &readfds))
-			my_read_cb(fd, my_loop->fd_events[fd]);
-
-		if (my_loop->fd_events[fd] &&
-		    my_loop->fd_events[fd]->write_cb &&
-		    FD_ISSET(fd, &writefds))
-			my_write_cb(fd, my_loop->fd_events[fd]);
-
-		if (my_loop->fd_events[fd] &&
-		    my_loop->fd_events[fd]->timeout_cb &&
-		    now > my_loop->fd_timeout_times[fd])
-			my_timeout_cb(fd, my_loop->fd_events[fd]);
-
-		i = fd;
-		if (my_loop->timeout_events[i] &&
-		    my_loop->timeout_events[i]->timeout_cb &&
-		    now > my_loop->timeout_times[i])
-			my_timeout_cb(-1, my_loop->timeout_events[i]);
-	}
-}
-
-void my_eventloop_run(getdns_eventloop *loop)
-{
-	my_eventloop *my_loop = (my_eventloop *)loop;
-	size_t        i;
-
-	assert(loop);
-
-	i = 0;
-	while (i < MAX_TIMEOUTS) {
-		if (my_loop->fd_events[i] || my_loop->timeout_events[i]) {
-			my_eventloop_run_once(loop, 1);
-			i = 0;
-		} else {
-			i++;
-		}
-	}
-}
-
-void my_eventloop_init(my_eventloop *loop)
-{
-	static getdns_eventloop_vmt my_eventloop_vmt = {
-		my_eventloop_cleanup,
-		my_eventloop_schedule,
-		my_eventloop_clear,
-		my_eventloop_run,
-		my_eventloop_run_once
-	};
-
-	(void) memset(loop, 0, sizeof(my_eventloop));
-	loop->base.vmt = &my_eventloop_vmt;
-}
 
 static int quiet = 0;
 static int batch_mode = 0;
@@ -1261,7 +1041,7 @@ getdns_return_t do_the_call(void)
 	return r;
 }
 
-my_eventloop my_loop;
+getdns_eventloop *loop = NULL;
 FILE *fp;
 
 void read_line_cb(void *userarg)
@@ -1275,7 +1055,7 @@ void read_line_cb(void *userarg)
 	if (!fgets(line, 1024, fp) || !*line) {
 		if (query_file)
 			fprintf(stdout,"End of file.");
-		my_eventloop_clear(&my_loop.base, read_line_ev);
+		loop->vmt->clear(loop, read_line_ev);
 		return;
 	}
 	if (query_file)
@@ -1303,7 +1083,7 @@ void read_line_cb(void *userarg)
 
 	if (((r = parse_args(linec, linev)) || (r = do_the_call())) &&
 	    (r != CONTINUE && r != CONTINUE_ERROR))
-		my_eventloop_clear(&my_loop.base, read_line_ev);
+		loop->vmt->clear(loop, read_line_ev);
 
 	else if (! query_file) {
 		printf("> ");
@@ -1371,7 +1151,7 @@ void downstream_destroy(downstream *conn)
 	tcp_to_write *cur, *next;
 
 	if (conn->event.read_cb||conn->event.write_cb||conn->event.timeout_cb)
-		my_eventloop_clear(&my_loop.base, &conn->event);
+		loop->vmt->clear(loop, &conn->event);
 	if (conn->fd >= 0) {
 		if (close(conn->fd) == -1)
 			perror("close");
@@ -1393,11 +1173,11 @@ void tcp_write_cb(void *userarg)
 	assert(userarg);
 
 	/* Reset downstream idle timeout */
-	my_eventloop_clear(&my_loop.base, &conn->event);
+	loop->vmt->clear(loop, &conn->event);
 	
 	if (!conn->to_write) {
 		conn->event.write_cb = NULL;
-		(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+		(void) loop->vmt->schedule(loop, conn->fd,
 		    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 		return;
 	}
@@ -1418,7 +1198,7 @@ void tcp_write_cb(void *userarg)
 	}
 	if (!conn->to_write)
 		conn->event.write_cb = NULL;
-	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 }
 
@@ -1547,9 +1327,9 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 				; /* pass */
 			*to_write_p = to_write;
 
-			my_eventloop_clear(&my_loop.base, &msg->conn->event);
+			loop->vmt->clear(loop, &msg->conn->event);
 			msg->conn->event.write_cb = tcp_write_cb;
-			(void) my_eventloop_schedule(&my_loop.base,
+			(void) loop->vmt->schedule(loop,
 			    msg->conn->fd, DOWNSTREAM_IDLE_TIMEOUT,
 			    &msg->conn->event);
 		}
@@ -1675,8 +1455,8 @@ void tcp_read_cb(void *userarg)
 	assert(userarg);
 
 	/* Reset downstream idle timeout */
-	my_eventloop_clear(&my_loop.base, &conn->event);
-	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	loop->vmt->clear(loop, &conn->event);
+	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 
 	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
@@ -1787,7 +1567,7 @@ void tcp_accept_cb(void *userarg)
 	conn->event.userarg = conn;
 	conn->event.read_cb = tcp_read_cb;
 	conn->event.timeout_cb = tcp_timeout_cb;
-	(void) my_eventloop_schedule(&my_loop.base, conn->fd,
+	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 }
 
@@ -1945,8 +1725,8 @@ getdns_return_t start_daemon()
 		else if (ld->transport == GETDNS_TRANSPORT_UDP) {
 			ld->event.userarg = ld;
 			ld->event.read_cb = udp_read_cb;
-			(void) my_eventloop_schedule(
-			    &my_loop.base, ld->fd, -1, &ld->event);
+			(void) loop->vmt->schedule(
+			    loop, ld->fd, -1, &ld->event);
 
 		} else if (listen(ld->fd, 16) == -1)
 			perror("listen");
@@ -1954,8 +1734,8 @@ getdns_return_t start_daemon()
 		else {
 			ld->event.userarg = ld;
 			ld->event.read_cb = tcp_accept_cb;
-			(void) my_eventloop_schedule(
-			    &my_loop.base, ld->fd, -1, &ld->event);
+			(void) loop->vmt->schedule(
+			    loop, ld->fd, -1, &ld->event);
 		}
 	}
 	return r;
@@ -1971,7 +1751,6 @@ main(int argc, char **argv)
 		fprintf(stderr, "Create context failed: %d\n", (int)r);
 		return r;
 	}
-	my_eventloop_init(&my_loop);
 	if ((r = getdns_context_set_use_threads(context, 1)))
 		goto done_destroy_context;
 	extensions = getdns_dict_create();
@@ -1993,27 +1772,30 @@ main(int argc, char **argv)
 		fp = stdin;
 
 	if (listen_count || interactive) {
-		if ((r = getdns_context_set_eventloop(context, &my_loop.base)))
+		if ((r = getdns_context_get_eventloop(context, &loop)))
 			goto done_destroy_context;
+		assert(loop);
 	}
 	start_daemon();
 	/* Make the call */
 	if (interactive) {
-
 		getdns_eventloop_event read_line_ev = {
 		    &read_line_ev, read_line_cb, NULL, NULL, NULL };
-		(void) my_eventloop_schedule(
-		    &my_loop.base, fileno(fp), -1, &read_line_ev);
+
+		assert(loop);
+		(void) loop->vmt->schedule(
+		    loop, fileno(fp), -1, &read_line_ev);
 
 		if (!query_file) {
 			printf("> ");
 			fflush(stdout);
 		}
-		my_eventloop_run(&my_loop.base);
+		loop->vmt->run(loop);
 	}
-	else if (listen_count)
-		my_eventloop_run(&my_loop.base);
-	else
+	else if (listen_count) {
+		assert(loop);
+		loop->vmt->run(loop);
+	} else
 		r = do_the_call();
 
 	if ((r == GETDNS_RETURN_GOOD && batch_mode))
