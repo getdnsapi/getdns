@@ -157,7 +157,8 @@ typedef enum network_req_state_enum
 	NET_REQ_NOT_SENT,
 	NET_REQ_IN_FLIGHT,
 	NET_REQ_FINISHED,
-	NET_REQ_CANCELED
+	NET_REQ_CANCELED,
+	NET_REQ_TIMED_OUT
 } network_req_state;
 
 

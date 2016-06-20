@@ -91,6 +91,7 @@ static int  upstream_connect(getdns_upstream *upstream,
 static int  fallback_on_write(getdns_network_req *netreq);
 
 static void stub_timeout_cb(void *userarg);
+static uint64_t _getdns_get_time_as_uintt64()
 /*****************************/
 /* General utility functions */
 /*****************************/
@@ -564,9 +565,11 @@ stub_timeout_cb(void *userarg)
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
-	if (netreq->owner->user_callback)
+	if (netreq->owner->user_callback) {
+		netreq->state = NET_REQ_TIMED_OUT;
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		(void) _getdns_context_request_timed_out(netreq->owner);
-	else {
+	} else {
 		netreq->state = NET_REQ_FINISHED;
 		_getdns_check_dns_req_complete(netreq->owner);
 	}
