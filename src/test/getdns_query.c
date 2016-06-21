@@ -504,8 +504,9 @@ getdns_return_t parse_args(int argc, char **argv)
 					fprintf(stderr, "Could not create upstream list\n");
 					return GETDNS_RETURN_MEMORY_ERROR;
 				}
-				getdns_list_set_dict(upstream_list,
+				(void) getdns_list_set_dict(upstream_list,
 				    upstream_count++, upstream);
+				getdns_dict_destroy(upstream);
 			}
 			continue;
 		} else if (arg[0] == '{') {
@@ -930,15 +931,26 @@ next:		;
 	    context, upstream_list))) {
 		fprintf(stderr, "Error setting upstream recursive servers\n");
 	}
+	if (upstream_list)
+		getdns_list_destroy(upstream_list);
+
 	if (print_api_info) {
-		fprintf(stdout, "%s\n", getdns_pretty_print_dict(
-		    getdns_context_get_api_information(context)));
+		getdns_dict *api_information = 
+		    getdns_context_get_api_information(context);
+		char *api_information_str =
+		    getdns_pretty_print_dict(api_information);
+		fprintf(stdout, "%s\n", api_information_str);
+		free(api_information_str);
+		getdns_dict_destroy(api_information);
 		return CONTINUE;
 	}
 	if (print_trust_anchors) {
 		if (!getdns_context_get_dnssec_trust_anchors(context, &tas)) {
 		/* if ((tas = getdns_root_trust_anchor(NULL))) { */
-			fprintf(stdout, "%s\n", getdns_pretty_print_list(tas));
+			char *tas_str = getdns_pretty_print_list(tas);
+			fprintf(stdout, "%s\n", tas_str);
+			free(tas_str);
+			getdns_list_destroy(tas);
 			return CONTINUE;
 		} else
 			return CONTINUE_ERROR;
@@ -1402,6 +1414,9 @@ main(int argc, char **argv)
 	getdns_dict_destroy(extensions);
 done_destroy_context:
 	getdns_context_destroy(context);
+
+	if (listen_list)
+		getdns_list_destroy(listen_list);
 
 	if (fp)
 		fclose(fp);
