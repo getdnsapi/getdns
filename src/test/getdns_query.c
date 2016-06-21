@@ -29,6 +29,7 @@
 #include "debug.h"
 #include "getdns_str2dict.h"
 #include "getdns_context_config.h"
+#include "getdns_context_set_listen_addresses.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -383,9 +384,7 @@ static void parse_config(const char *config_str)
 		if (!(r = getdns_dict_get_list(
 		    config_dict, "listen_addresses", &list))) {
 			if (listen_list && !listen_dict) {
-				/* TODO: Stop listening */
 				getdns_list_destroy(listen_list);
-				listen_count = 0;
 				listen_list = NULL;
 			}
 			/* Strange construction to copy the list.
@@ -1091,116 +1090,13 @@ void read_line_cb(void *userarg)
 	}
 }
 
-typedef struct listen_data {
-	socklen_t                addr_len;
-	struct sockaddr_storage  addr;
-	int                      fd;
-	getdns_transport_list_t  transport;
-	getdns_eventloop_event   event;
-} listen_data;
-
-
-listen_data *listening = NULL;
-
 typedef struct dns_msg {
-	listen_data         *ld;
-	getdns_dict         *query;
-	uint32_t             rt;
-	uint32_t             do_bit;
+	getdns_transaction_t  request_id;
+	getdns_dict          *query;
+	uint32_t              rt;
+	uint32_t              do_bit;
 	uint32_t             cd_bit;
 } dns_msg;
-
-typedef struct udp_msg {
-	dns_msg                 super;
-	struct sockaddr_storage remote_in;
-	socklen_t               addrlen;
-} udp_msg;
-
-typedef struct tcp_to_write tcp_to_write;
-struct tcp_to_write {
-	size_t        write_buf_len;
-	size_t        written;
-	tcp_to_write *next;
-	uint8_t       write_buf[];
-};
-
-#define DOWNSTREAM_IDLE_TIMEOUT 5000
-typedef struct downstream {
-	listen_data            *ld;
-	struct sockaddr_storage remote_in;
-	socklen_t               addrlen;
-	int                     fd;
-	getdns_eventloop_event  event;
-
-	uint8_t                *read_buf;
-	size_t                  read_buf_len;
-	uint8_t                *read_pos;
-	size_t                  to_read;
-
-	tcp_to_write           *to_write;
-	size_t                  to_answer;
-} downstream;
-
-typedef struct tcp_msg {
-	dns_msg     super;
-	downstream *conn;
-} tcp_msg;
-
-void downstream_destroy(downstream *conn)
-{
-	tcp_to_write *cur, *next;
-
-	if (conn->event.read_cb||conn->event.write_cb||conn->event.timeout_cb)
-		loop->vmt->clear(loop, &conn->event);
-	if (conn->fd >= 0) {
-		if (close(conn->fd) == -1)
-			perror("close");
-	}
-	free(conn->read_buf);
-	for (cur = conn->to_write; cur; cur = next) {
-		next = cur->next;
-		free(cur);
-	}
-	free(conn);
-}
-
-void tcp_write_cb(void *userarg)
-{
-	downstream *conn = (downstream *)userarg;
-	tcp_to_write *to_write;
-	ssize_t written;
-
-	assert(userarg);
-
-	/* Reset downstream idle timeout */
-	loop->vmt->clear(loop, &conn->event);
-	
-	if (!conn->to_write) {
-		conn->event.write_cb = NULL;
-		(void) loop->vmt->schedule(loop, conn->fd,
-		    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
-		return;
-	}
-	to_write = conn->to_write;
-	if ((written = write(conn->fd, &to_write->write_buf[to_write->written],
-	    to_write->write_buf_len - to_write->written)) == -1) {
-
-		perror("write");
-		conn->event.read_cb = conn->event.write_cb =
-		    conn->event.timeout_cb = NULL;
-		downstream_destroy(conn);
-		return;
-	}
-	to_write->written += written;
-	if (to_write->written == to_write->write_buf_len) {
-		conn->to_write = to_write->next;
-		free(to_write);
-	}
-	if (!conn->to_write)
-		conn->event.write_cb = NULL;
-	(void) loop->vmt->schedule(loop, conn->fd,
-	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
-}
 
 #if defined(TRACE_DEBUG) && TRACE_DEBUG
 #define SERVFAIL(error,r,msg,resp_p) do { \
@@ -1238,8 +1134,6 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	dns_msg *msg = (dns_msg *)userarg;
 	uint32_t qid;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	uint8_t buf[65536];
-	size_t len = sizeof(buf);
 	uint32_t n;
 
 	DEBUG_TRACE("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
@@ -1291,48 +1185,13 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		SERVFAIL("Recursion not available", 0, msg, &response);
 
 	if (!response)
-		; /* No response, no reply */
+		/* No response, no reply */
+		_getdns_cancel_reply(context, msg->request_id);
 
-	else if ((r = getdns_msg_dict2wire_buf(response, buf, &len)))
-		fprintf(stderr, "Could not convert reply: %s\n",
+	else if ((r = getdns_reply(context, msg->request_id, response))) {
+		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
-
-	else if (msg->ld->transport == GETDNS_TRANSPORT_UDP) {
-		udp_msg *msg = (udp_msg *)userarg;
-
-		if (sendto(msg->super.ld->fd, buf, len, 0,
-		    (struct sockaddr *)&msg->remote_in, msg->addrlen) == -1)
-			perror("sendto");
-
-	} else if (msg->ld->transport == GETDNS_TRANSPORT_TCP) {
-		tcp_msg *msg = (tcp_msg *)userarg;
-		tcp_to_write **to_write_p;
-		tcp_to_write *to_write = malloc(sizeof(tcp_to_write) + len + 2);
-
-		if (!to_write) 
-			fprintf(stderr, "Could not allocate memory for"
-					"message to write on tcp stream\n");
-		else {
-			to_write->write_buf_len = len + 2;
-			to_write->write_buf[0] = (len >> 8) & 0xFF;
-			to_write->write_buf[1] = len & 0xFF;
-			to_write->written = 0;
-			to_write->next = NULL;
-			(void) memcpy(to_write->write_buf + 2, buf, len);
-
-			/* Appen to_write to conn->to_write list */
-			for ( to_write_p = &msg->conn->to_write
-			    ; *to_write_p
-			    ; to_write_p = &(*to_write_p)->next)
-				; /* pass */
-			*to_write_p = to_write;
-
-			loop->vmt->clear(loop, &msg->conn->event);
-			msg->conn->event.write_cb = tcp_write_cb;
-			(void) loop->vmt->schedule(loop,
-			    msg->conn->fd, DOWNSTREAM_IDLE_TIMEOUT,
-			    &msg->conn->event);
-		}
+		_getdns_cancel_reply(context, msg->request_id);
 	}
 	if (msg) {
 		getdns_dict_destroy(msg->query);
@@ -1342,7 +1201,8 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		getdns_dict_destroy(response);
 }	
 
-getdns_return_t schedule_request(dns_msg *msg)
+void incoming_request_handler(getdns_context *context,
+    getdns_dict *request, getdns_transaction_t request_id)
 {
 	getdns_bindata *qname;
 	char *qname_str = NULL;
@@ -1353,6 +1213,20 @@ getdns_return_t schedule_request(dns_msg *msg)
 	getdns_list *list;
 	getdns_transaction_t transaction_id;
 	getdns_dict *qext;
+	dns_msg *msg;
+	getdns_dict *response = NULL;
+
+	assert(context);
+	assert(request);
+
+	if (!(msg = malloc(sizeof(dns_msg)))) {
+		fprintf(stderr, "Could not handle incoming query due to "
+				"memory error\n");
+		getdns_dict_destroy(request);
+		return;
+	}
+	msg->query = request;
+	msg->request_id = request_id;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -1437,308 +1311,27 @@ getdns_return_t schedule_request(dns_msg *msg)
 	    qext, msg, &transaction_id, request_cb)))
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
-
-	DEBUG_TRACE("scheduled: %p %"PRIu64" for %s %d\n",
-	    msg, transaction_id, qname_str, (int)qtype);
+	else {
+		DEBUG_TRACE("scheduled: %p %"PRIu64" for %s %d\n",
+		    msg, transaction_id, qname_str, (int)qtype);
+		free(qname_str);
+		return;
+	}
 	free(qname_str);
+	servfail(msg, &response);
+	if (!response)
+		/* No response, no reply */
+		_getdns_cancel_reply(context, msg->request_id);
 
-	return r;
-}
-
-void tcp_read_cb(void *userarg)
-{
-	downstream *conn = (downstream *)userarg;
-	ssize_t bytes_read;
-	tcp_msg *msg;
-	getdns_return_t r;
-
-	assert(userarg);
-
-	/* Reset downstream idle timeout */
-	loop->vmt->clear(loop, &conn->event);
-	(void) loop->vmt->schedule(loop, conn->fd,
-	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
-
-	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
-			return;
-		perror("read");
-		downstream_destroy(conn);
-		return;
-	}
-	if (bytes_read == 0) {
-		/* fprintf(stderr, "Remote end closed connection\n"); */
-		downstream_destroy(conn);
-		return;
-	}
-	assert(bytes_read <= conn->to_read);
-
-	conn->to_read  -= bytes_read;
-	conn->read_pos += bytes_read;
-	if (conn->to_read)
-		return; /* More to read */
-
-	if (conn->read_pos - conn->read_buf == 2) {
-		/* read length of dns msg to read */
-		conn->to_read = (conn->read_buf[0] << 8) | conn->read_buf[1];
-		if (conn->to_read > conn->read_buf_len) {
-			free(conn->read_buf);
-			while (conn->to_read > conn->read_buf_len)
-				conn->read_buf_len *= 2;
-			if (!(conn->read_buf = malloc(conn->read_buf_len))) {
-				fprintf(stderr, "Could not enlarge "
-				                "downstream read buffer\n");
-				downstream_destroy(conn);
-				return;
-			}
-		}
-		if (conn->to_read < 12) {
-			fprintf(stderr, "Request smaller than DNS header\n");
-			downstream_destroy(conn);
-			return;
-		}
-		conn->read_pos = conn->read_buf;
-		return;  /* Read DNS message */
-	}
-	if (!(msg = malloc(sizeof(tcp_msg)))) {
-		fprintf(stderr, "Could not allocate tcp_msg\n");
-		downstream_destroy(conn);
-		return;
-	}
-	msg->super.ld = conn->ld;
-	msg->conn = conn;
-	if ((r = getdns_wire2msg_dict(conn->read_buf,
-	    (conn->read_pos - conn->read_buf), &msg->super.query)))
-		fprintf(stderr, "Error converting query dns msg: %s\n",
+	else if ((r = getdns_reply(context, msg->request_id, response))) {
+		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
-
-	else if ((r = schedule_request(&msg->super))) {
-		fprintf(stderr, "Error scheduling query: %s\n",
-		    getdns_get_errorstr_by_id(r));
-
-		getdns_dict_destroy(msg->super.query);
-	} else {
-		conn->to_answer += 1;
-		conn->read_pos = conn->read_buf;
-		conn->to_read = 2;
-		return; /* Read more requests */
+		_getdns_cancel_reply(context, msg->request_id);
 	}
+	getdns_dict_destroy(msg->query);
 	free(msg);
-	conn->read_pos = conn->read_buf;
-	conn->to_read = 2;
-	 /* Read more requests */
-}
-
-void tcp_timeout_cb(void *userarg)
-{
-	downstream *conn = (downstream *)userarg;
-
-	assert(userarg);
-
-	downstream_destroy(conn);
-}
-
-void tcp_accept_cb(void *userarg)
-{
-	listen_data *ld = (listen_data *)userarg;
-	downstream *conn;
-
-	assert(userarg);
-
-	if (!(conn = malloc(sizeof(downstream))))
-		return;
-
-	(void) memset(conn, 0, sizeof(downstream));
-
-	conn->ld = ld;
-	conn->addrlen = sizeof(conn->remote_in);
-	if ((conn->fd = accept(ld->fd,
-	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
-		perror("accept");
-		free(conn);
-	}
-	if (!(conn->read_buf = malloc(4096))) {
-		fprintf(stderr, "Could not allocate downstream read buffer.\n");
-		free(conn);
-	}
-	conn->read_buf_len = 4096;
-	conn->read_pos = conn->read_buf;
-	conn->to_read = 2;
-	conn->event.userarg = conn;
-	conn->event.read_cb = tcp_read_cb;
-	conn->event.timeout_cb = tcp_timeout_cb;
-	(void) loop->vmt->schedule(loop, conn->fd,
-	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
-}
-
-void udp_read_cb(void *userarg)
-{
-	listen_data *ld = (listen_data *)userarg;
-	udp_msg *msg;
-	uint8_t buf[65536];
-	ssize_t len;
-	getdns_return_t r;
-	
-	assert(userarg);
-
-	if (!(msg = malloc(sizeof(udp_msg))))
-		return;
-
-	msg->super.ld = ld;
-	msg->addrlen = sizeof(msg->remote_in);
-	if ((len = recvfrom(ld->fd, buf, sizeof(buf), 0,
-	    (struct sockaddr *)&msg->remote_in, &msg->addrlen)) == -1)
-		perror("recvfrom");
-
-	else if ((r = getdns_wire2msg_dict(buf, len, &msg->super.query)))
-		fprintf(stderr, "Error converting query dns msg: %s\n",
-		    getdns_get_errorstr_by_id(r));
-
-	else if ((r = schedule_request(&msg->super))) {
-		fprintf(stderr, "Error scheduling query: %s\n",
-		    getdns_get_errorstr_by_id(r));
-
-		getdns_dict_destroy(msg->super.query);
-	} else
-		return;
-	free(msg);
-}
-
-getdns_return_t start_daemon()
-{
-	static const getdns_transport_list_t listen_transports[]
-		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
-	static const uint32_t transport_ports[] = { 53, 53 };
-	static const size_t n_transports = sizeof( listen_transports)
-	                                 / sizeof(*listen_transports);
-
-	size_t i;
-	size_t t;
-	struct addrinfo hints;
-	getdns_return_t r = GETDNS_RETURN_GOOD;
-	char addrstr[1024], portstr[1024], *eos;
-	const int enable = 1; /* For SO_REUSEADDR */
-
-	if (!listen_count)
-		return GETDNS_RETURN_GOOD;
-
-	if (!(listening = malloc(
-	    sizeof(listen_data) * n_transports * listen_count)))
-		return GETDNS_RETURN_MEMORY_ERROR;
-
-	(void) memset(listening, 0,
-	    sizeof(listen_data) * n_transports * listen_count);
-	(void) memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family    = AF_UNSPEC;
-	hints.ai_flags     = AI_NUMERICHOST;
-
-	for (i = 0; !r && i < listen_count; i++) {
-		getdns_dict    *dict = NULL;
-		getdns_bindata *address_data;
-		struct sockaddr_storage  addr;
-		getdns_bindata  *scope_id;
-
-		if ((r = getdns_list_get_dict(listen_list, i, &dict))) {
-			if ((r = getdns_list_get_bindata(
-			    listen_list, i, &address_data)))
-				break;
-		} else if ((r = getdns_dict_get_bindata(
-		    dict, "address_data", &address_data)))
-			break;
-		if (address_data->size == 4)
-			addr.ss_family = AF_INET;
-		else if (address_data->size == 16)
-			addr.ss_family = AF_INET6;
-		else {
-			r = GETDNS_RETURN_INVALID_PARAMETER;
-			break;
-		}
-		if (inet_ntop(addr.ss_family,
-		    address_data->data, addrstr, 1024) == NULL) {
-			r = GETDNS_RETURN_INVALID_PARAMETER;
-			break;
-		}
-		if (dict && getdns_dict_get_bindata(dict,"scope_id",&scope_id)
-		    == GETDNS_RETURN_GOOD) {
-			if (strlen(addrstr) + scope_id->size > 1022) {
-				r = GETDNS_RETURN_INVALID_PARAMETER;
-				break;
-			}
-			eos = &addrstr[strlen(addrstr)];
-			*eos++ = '%';
-			(void) memcpy(eos, scope_id->data, scope_id->size);
-			eos[scope_id->size] = 0;
-		}
-		for (t = 0; !r && t < n_transports; t++) {
-			getdns_transport_list_t transport
-			    = listen_transports[t];
-			uint32_t port = transport_ports[t];
-			struct addrinfo *ai;
-			listen_data *ld = &listening[i * n_transports + t];
-
-			ld->fd = -1;
-			if (dict)
-				(void) getdns_dict_get_int(dict,
-				    ( transport == GETDNS_TRANSPORT_TLS
-				    ? "tls_port" : "port" ), &port);
-
-			(void) snprintf(portstr, 1024, "%d", (int)port);
-
-			if (getaddrinfo(addrstr, portstr, &hints, &ai)) {
-				r = GETDNS_RETURN_INVALID_PARAMETER;
-				break;
-			}
-			if (!ai)
-				continue;
-
-			ld->addr.ss_family = addr.ss_family;
-			ld->addr_len = ai->ai_addrlen;
-			(void) memcpy(&ld->addr, ai->ai_addr, ai->ai_addrlen);
-			ld->transport = transport;
-			freeaddrinfo(ai);
-		}
-
-	}
-	if (r) {
-		free(listening);
-		listening = NULL;
-	} else for (i = 0; !r && i < listen_count * n_transports; i++) {
-		listen_data *ld = &listening[i];
-
-		if (ld->transport != GETDNS_TRANSPORT_UDP &&
-		    ld->transport != GETDNS_TRANSPORT_TCP)
-			continue;
-
-		if ((ld->fd = socket(ld->addr.ss_family,
-		    ( ld->transport == GETDNS_TRANSPORT_UDP
-		    ? SOCK_DGRAM : SOCK_STREAM), 0)) == -1)
-			perror("socket");
-
-		else if (setsockopt(ld->fd, SOL_SOCKET, SO_REUSEADDR,
-		    &enable, sizeof(int)) < 0)
-			perror("setsockopt(SO_REUSEADDR) failed");
-
-		else if (bind(ld->fd, (struct sockaddr *)&ld->addr,
-		    ld->addr_len) == -1)
-			perror("bind");
-
-		else if (ld->transport == GETDNS_TRANSPORT_UDP) {
-			ld->event.userarg = ld;
-			ld->event.read_cb = udp_read_cb;
-			(void) loop->vmt->schedule(
-			    loop, ld->fd, -1, &ld->event);
-
-		} else if (listen(ld->fd, 16) == -1)
-			perror("listen");
-
-		else {
-			ld->event.userarg = ld;
-			ld->event.read_cb = tcp_accept_cb;
-			(void) loop->vmt->schedule(
-			    loop, ld->fd, -1, &ld->event);
-		}
-	}
-	return r;
+	if (response)
+		getdns_dict_destroy(response);
 }
 
 int
@@ -1776,7 +1369,11 @@ main(int argc, char **argv)
 			goto done_destroy_context;
 		assert(loop);
 	}
-	start_daemon();
+	if (listen_count)
+		if ((r = getdns_context_set_listen_addresses(context,
+		    incoming_request_handler, listen_list)))
+			goto done_destroy_context;
+
 	/* Make the call */
 	if (interactive) {
 		getdns_eventloop_event read_line_ev = {
