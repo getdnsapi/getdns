@@ -91,7 +91,7 @@ static int  upstream_connect(getdns_upstream *upstream,
 static int  fallback_on_write(getdns_network_req *netreq);
 
 static void stub_timeout_cb(void *userarg);
-static uint64_t _getdns_get_time_as_uintt64()
+static uint64_t _getdns_get_time_as_uintt64();
 /*****************************/
 /* General utility functions */
 /*****************************/
