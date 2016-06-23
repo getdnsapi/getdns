@@ -1109,6 +1109,18 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	for ( netreq_p = completed_request->netreqs
 	    ; (netreq = *netreq_p) ; netreq_p++) {
 
+		if (call_reporting && (  netreq->response_len
+		                      || netreq->state == NET_REQ_TIMED_OUT)) {
+			if (!(netreq_debug =
+			   _getdns_create_call_reporting_dict(context,netreq)))
+				goto error;
+
+			if (_getdns_list_append_this_dict(
+			    call_reporting, netreq_debug))
+				goto error;
+
+			netreq_debug = NULL;
+		}
 		if (! netreq->response_len)
 			continue;
 
@@ -1171,20 +1183,6 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
     			getdns_dict_destroy(reply);
 			goto error;
 		}
-		
-		if (call_reporting) {
-			if (!(netreq_debug =
-			   _getdns_create_call_reporting_dict(context,netreq)))
-				goto error;
-
-			if (_getdns_list_append_this_dict(
-			    call_reporting, netreq_debug)) {
-
-				getdns_dict_destroy(netreq_debug);
-				goto error;
-			}
-		}
-
 		if (_getdns_list_append_const_bindata(replies_full,
 		    netreq->response_len, netreq->response))
 			goto error;
