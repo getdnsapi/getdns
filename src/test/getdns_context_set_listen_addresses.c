@@ -35,6 +35,7 @@
 #define DOWNSTREAM_IDLE_TIMEOUT 5000
 #define TCP_LISTEN_BACKLOG      16
 
+typedef struct connection connection;
 typedef struct listen_data {
 	getdns_eventloop_event   event;
 	socklen_t                addr_len;
@@ -45,6 +46,8 @@ typedef struct listen_data {
 	getdns_context          *context;
 	/* Should be per context eventually */
 	getdns_request_handler_t handler;
+
+	connection              *connections;
 } listen_data;
 
 typedef struct tcp_to_write tcp_to_write;
@@ -55,16 +58,24 @@ struct tcp_to_write {
 	uint8_t       write_buf[];
 };
 
-typedef struct connection {
+struct connection {
 	listen_data            *ld;
 	struct sockaddr_storage remote_in;
 	socklen_t               addrlen;
-} connection;
+
+	connection             *next;
+	connection            **prev_next;
+};
 
 typedef struct tcp_connection {
+	/* A TCP connection is a connection */
 	listen_data            *ld;
 	struct sockaddr_storage remote_in;
 	socklen_t               addrlen;
+
+	connection             *next;
+	connection            **prev_next;
+	/************************************/
 
 	int                     fd;
 	getdns_eventloop_event  event;
@@ -102,6 +113,9 @@ static void tcp_connection_destroy(tcp_connection *conn)
 		next = cur->next;
 		GETDNS_FREE(*mf, cur);
 	}
+	/* Unlink this connection */
+	if ((*conn->prev_next = conn->next))
+		conn->next->prev_next = conn->prev_next;
 	GETDNS_FREE(*mf, conn);
 }
 
@@ -169,8 +183,13 @@ _getdns_cancel_reply(getdns_context *context, getdns_transaction_t request_id)
 			conn->to_answer--;
 
 	} else if (conn->ld->transport == GETDNS_TRANSPORT_UDP &&
-	    (mf = priv_getdns_context_mf(conn->ld->context)))
+	    (mf = priv_getdns_context_mf(conn->ld->context))) {
+
+		/* Unlink this connection */
+		if ((*conn->prev_next = conn->next))
+			conn->next->prev_next = conn->prev_next;
 		GETDNS_FREE(*mf, conn);
+	}
 }
 
 getdns_return_t
@@ -202,6 +221,11 @@ getdns_reply(
 		if (sendto(conn->ld->fd, buf, len, 0,
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1)
 			; /* IO error, TODO: cleanup this listener */
+
+		/* Unlink this connection */
+		if ((*conn->prev_next = conn->next))
+			conn->next->prev_next = conn->prev_next;
+
 		GETDNS_FREE(*mf, conn);
 
 	} else if (conn->ld->transport == GETDNS_TRANSPORT_TCP) {
@@ -369,7 +393,7 @@ static void tcp_accept_cb(void *userarg)
 	conn->addrlen = sizeof(conn->remote_in);
 	if ((conn->fd = accept(ld->fd,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
-		/* IO error, TODO: cleanup this listener */
+		/* IO error, TODO: cleanup this listener? */
 		GETDNS_FREE(*mf, conn);
 	}
 	if (!(conn->read_buf = malloc(DNS_REQUEST_SZ))) {
@@ -383,6 +407,13 @@ static void tcp_accept_cb(void *userarg)
 	conn->event.userarg = conn;
 	conn->event.read_cb = tcp_read_cb;
 	conn->event.timeout_cb = tcp_timeout_cb;
+
+	/* Insert connection */
+	if ((conn->next = ld->connections))
+		conn->next->prev_next = &conn->next;
+	conn->prev_next = &ld->connections;
+	ld->connections = (connection *)conn;
+
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 }
@@ -417,6 +448,12 @@ static void udp_read_cb(void *userarg)
 		; /* FROMERR on input, ignore */
 
 	else {
+		/* Insert connection */
+		if ((conn->next = ld->connections))
+			conn->next->prev_next = &conn->next;
+		conn->prev_next = &ld->connections;
+		ld->connections = conn;
+
 		/* Call request handler */
 		ld->handler(ld->context, request_dict, (intptr_t)conn);
 		return;
@@ -538,6 +575,7 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 			ld->transport = transport;
 			ld->handler = request_handler;
 			ld->context = context;
+			ld->connections = NULL;
 			freeaddrinfo(ai);
 		}
 	}
