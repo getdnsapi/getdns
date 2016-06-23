@@ -264,7 +264,6 @@ create_default_dns_transports(struct getdns_context *context)
 	context->dns_transports[0] = GETDNS_TRANSPORT_UDP;
 	context->dns_transports[1] = GETDNS_TRANSPORT_TCP;
 	context->dns_transport_count = 2;
-	context->dns_transport_current = 0;
 
 	return GETDNS_RETURN_GOOD;
 }
@@ -616,7 +615,7 @@ upstreams_create(getdns_context *context, size_t size)
 	r->mf = context->mf;
 	r->referenced = 1;
 	r->count = 0;
-	r->current = 0;
+	r->current_udp = 0;
 	return r;
 }
 
@@ -675,30 +674,54 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 void
 _getdns_upstream_shutdown(getdns_upstream *upstream)
 {
-	/*There is a race condition with a new request being scheduled 
-	  while this happens so take ownership of the fd asap*/
-	int fd = upstream->fd;
-	upstream->fd = -1;
-	/* If the connection had a problem, but had worked this time,
-	 * then allow re-use in the future*/
-	if (upstream->tcp.write_error == 1 &&
-	    upstream->responses_received > 0)
-		upstream->tcp.write_error = 0;
-	upstream->writes_done = 0;
+	/*Set condition to tear down asap to stop any further scheduling*/
+	upstream->conn_state = GETDNS_CONN_TEARDOWN;
+	/* Update total stats for the upstream.*/
+	upstream->total_responses+=upstream->responses_received;
+	upstream->total_timeouts+=upstream->responses_timeouts;
+	/* Pick up the auth state if it is of interest*/
+	if (upstream->tls_auth_state != GETDNS_AUTH_NONE)
+		upstream->past_tls_auth_state = upstream->tls_auth_state;
+
+	DEBUG_STUB("%s %-35s: FD:  %d Stats on shutdown: TR=%d,TT=%d,CC=%d,CSF=%d,CS=%d,AS=%d\n",
+	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
+	           (int)upstream->total_responses, (int)upstream->total_timeouts,
+	           (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
+	           (int)upstream->conn_shutdowns, upstream->past_tls_auth_state);
+
+	/* Back off connections that never got up service at all (probably no
+	   TCP service or incompatible TLS version/cipher). 
+	   Leave choice between working upstreams to the stub. 
+	   This back-off should be time based for TLS according to RFC7858. For now,
+	   use the same basis if we simply can't get TCP service either.*/
+
+	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
+	if (upstream->conn_setup_failed >= GETDNS_MAX_CONN_FAILS ||
+	    (upstream->conn_shutdowns >= GETDNS_MAX_CONN_FAILS*GETDNS_CONN_FAIL_MULT
+	     && upstream->total_responses == 0) ||
+	    (upstream->total_timeouts > 0 && 
+	     upstream->total_responses*GETDNS_MAX_CONN_FAILS == 0))
+		upstream->conn_state = GETDNS_CONN_BACKOFF;
+	// Reset per connection counters
+	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
+	upstream->responses_timeouts = 0;
 	upstream->keepalive_timeout = 0;
-	if (upstream->tls_hs_state != GETDNS_HS_FAILED) {
-		upstream->tls_hs_state = GETDNS_HS_NONE;
-		upstream->tls_auth_failed = 0;
-	}
+
 	/* Now TLS stuff*/
+	upstream->tls_auth_state = GETDNS_AUTH_NONE;
 	if (upstream->tls_obj != NULL) {
 		SSL_shutdown(upstream->tls_obj);
 		SSL_free(upstream->tls_obj);
 		upstream->tls_obj = NULL;
 	}
-	if (fd != -1)
-		close(fd);
+	if (upstream->fd != -1) {
+		close(upstream->fd);
+		upstream->fd = -1;
+	}
+	/* Set connection ready for use again*/
+	if (upstream->conn_state != GETDNS_CONN_BACKOFF)
+		upstream->conn_state = GETDNS_CONN_CLOSED;
 }
 
 static int
@@ -803,8 +826,12 @@ upstream_init(getdns_upstream *upstream,
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
 
 	/* How is this upstream doing? */
-	upstream->writes_done = 0;
+	upstream->conn_setup_failed = 0;
+	upstream->conn_shutdowns = 0;
+	upstream->conn_state = GETDNS_CONN_CLOSED;
+	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
+	upstream->responses_timeouts = 0;
 	upstream->keepalive_timeout = 0;
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
@@ -815,10 +842,9 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_session = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
-	upstream->tls_auth_failed = 0;
 	upstream->tls_auth_name[0] = '\0';
+	upstream->tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
-	upstream->tcp.write_error = 0;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);

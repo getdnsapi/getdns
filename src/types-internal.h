@@ -57,6 +57,11 @@ typedef struct getdns_item {
 	getdns_union     data;
 } getdns_item;
 
+typedef enum getdns_auth_state {
+	GETDNS_AUTH_NONE,      /* Not tried (Oppotunistic)*/
+	GETDNS_AUTH_FAILED,    /* Tried but failed or not possible*/
+	GETDNS_AUTH_OK,        /* Tried and worked (Strict) */
+} getdns_auth_state_t;
 
 struct getdns_context;
 struct getdns_upstreams;
@@ -115,6 +120,8 @@ struct getdns_upstream;
 
 #define GETDNS_TRANSPORTS_MAX 3
 #define GETDNS_UPSTREAM_TRANSPORTS 2
+#define GETDNS_MAX_CONN_FAILS 2
+#define GETDNS_CONN_FAIL_MULT 5
 
 
 /* declarations */
@@ -164,7 +171,6 @@ typedef struct getdns_tcp_state {
 	uint8_t *write_buf;
 	size_t   write_buf_len;
 	size_t   written;
-	int      write_error;
 
 	uint8_t *read_buf;
 	size_t   read_buf_len;
@@ -212,7 +218,6 @@ typedef struct getdns_network_req
 	size_t                  transport_current;
 	getdns_tls_authentication_t  tls_auth_min;
 	getdns_eventloop_event  event;
-	getdns_tcp_state        tcp;
 	uint16_t                query_id;
 
 	int                     edns_maximum_udp_payload_size;
@@ -226,7 +231,7 @@ typedef struct getdns_network_req
 	/* Some fields to record info for return_call_reporting */
 	uint64_t                debug_start_time;
 	uint64_t                debug_end_time;
-	size_t                  debug_tls_auth_status;
+	getdns_auth_state_t     debug_tls_auth_status;
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is

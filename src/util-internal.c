@@ -864,9 +864,10 @@ _getdns_create_call_reporting_dict(
 		return netreq_debug;
 	
 	/* Only include the auth status if TLS was used */
+	/* TODO: output all 3 options */
 	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
-	    netreq->debug_tls_auth_status == 0 ?
-	    "OK: Hostname matched valid cert":"FAILED: Server not validated")){
+	    netreq->debug_tls_auth_status == GETDNS_AUTH_OK ?
+	    "OK: Server authenticated":"FAILED or NOT TRIED: Server not authenticated")){
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
