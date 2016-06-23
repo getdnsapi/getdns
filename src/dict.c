@@ -1053,7 +1053,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "status") == 0 ||
 			     strcmp(item->node.key, "append_name") == 0 ||
 			     strcmp(item->node.key, "follow_redirects") == 0 ||
-				 strcmp(item->node.key, "transport") == 0 ||
+			     strcmp(item->node.key, "transport") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0 ||
 			     strcmp(item->node.key, "tls_authentication") == 0 ) &&
 			    (strval =
