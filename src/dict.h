@@ -61,7 +61,7 @@ struct getdns_dict
 	struct mem_funcs mf;
 };
 
-inline static getdns_dict *_getdns_dict_create_with_mf(struct mem_funcs *mf)
+static inline getdns_dict *_getdns_dict_create_with_mf(struct mem_funcs *mf)
 { return getdns_dict_create_with_extended_memory_functions(
          mf->mf_arg, mf->mf.ext.malloc, mf->mf.ext.realloc, mf->mf.ext.free); }
 

@@ -438,7 +438,7 @@ _getdns_rr_iter2rr_dict(struct mem_funcs *mf, _getdns_rr_iter *i)
 }
 
 
-inline static getdns_dict *
+static inline getdns_dict *
 set_dict(getdns_dict **var, getdns_dict *value)
 {
 	if (*var)
@@ -446,7 +446,7 @@ set_dict(getdns_dict **var, getdns_dict *value)
 	return *var = value;
 }
 
-inline static int has_all_numeric_label(const uint8_t *dname)
+static inline int has_all_numeric_label(const uint8_t *dname)
 {
 	size_t i;
 
