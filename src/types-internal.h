@@ -154,11 +154,12 @@ priv_getdns_context_mf(getdns_context *context);
 
 typedef enum network_req_state_enum
 {
-	NET_REQ_NOT_SENT,
-	NET_REQ_IN_FLIGHT,
-	NET_REQ_FINISHED,
-	NET_REQ_CANCELED,
-	NET_REQ_TIMED_OUT
+	NET_REQ_NOT_SENT  =  0,
+	NET_REQ_IN_FLIGHT =  1,
+	NET_REQ_FINISHED  =  2, /* Finish type in bits 2 and 3 */
+	NET_REQ_CANCELED  =  6, /* 2 + (1 << 2) */
+	NET_REQ_TIMED_OUT = 10, /* 2 + (2 << 2) */
+	NET_REQ_ERRORED   = 14  /* 2 + (3 << 2) */
 } network_req_state;
 
 
@@ -256,10 +257,11 @@ typedef struct getdns_network_req
 	uint8_t *response;
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
-
-
 	
 } getdns_network_req;
+
+static inline int _getdns_netreq_finished(getdns_network_req *req)
+{ return !req || (req->state & NET_REQ_FINISHED); }
 
 /**
  * dns request - manages a number of network requests and

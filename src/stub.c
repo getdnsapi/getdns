@@ -565,14 +565,12 @@ stub_timeout_cb(void *userarg)
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) close(netreq->fd);
-	if (netreq->owner->user_callback) {
-		netreq->state = NET_REQ_TIMED_OUT;
+	netreq->state = NET_REQ_TIMED_OUT;
+	if (netreq->owner->user_callback) {		
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		(void) _getdns_context_request_timed_out(netreq->owner);
-	} else {
-		netreq->state = NET_REQ_FINISHED;
+	} else
 		_getdns_check_dns_req_complete(netreq->owner);
-	}
 }
 
 

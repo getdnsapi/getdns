@@ -104,8 +104,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	int results_found = 0, r;
 	
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++)
-		if (netreq->state != NET_REQ_FINISHED &&
-		    netreq->state != NET_REQ_CANCELED)
+		if (!_getdns_netreq_finished(netreq))
 			return;
 		else if (netreq->response_len > 0)
 			results_found = 1;
