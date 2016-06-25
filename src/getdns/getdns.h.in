@@ -33,6 +33,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef GETDNS_H
 #define GETDNS_H
 
@@ -47,7 +48,7 @@ extern "C" {
 #define GETDNS_COMPILATION_COMMENT "@GETDNS_COMPILATION_COMMENT@"
 
 /**
- * \defgroup returntypes Return types
+ * \defgroup returntypes Return values
  * @{
  */
 typedef enum getdns_return_t {
@@ -71,7 +72,7 @@ typedef enum getdns_return_t {
  */
 
 /**
- * \defgroup returntypestext Return value texts
+ * \defgroup returntypestext Return values texts
  * @{
  */
 #define GETDNS_RETURN_GOOD_TEXT "Good"
@@ -94,25 +95,18 @@ typedef enum getdns_return_t {
 
 
 /**
- * \defgroup dnssecvalues DNSSEC values
+ * \defgroup dnssecvalues DNSSEC values and texts
  * @{
  */
 #define GETDNS_DNSSEC_SECURE 400
-#define GETDNS_DNSSEC_BOGUS 401
-#define GETDNS_DNSSEC_INDETERMINATE 402
-#define GETDNS_DNSSEC_INSECURE 403
-#define GETDNS_DNSSEC_NOT_PERFORMED 404
-/** @}
- */
-
-/**
- * \defgroup dnssecvaluestext DNSSEC value texts
- * @{
- */
 #define GETDNS_DNSSEC_SECURE_TEXT "The record was determined to be secure in DNSSEC"
+#define GETDNS_DNSSEC_BOGUS 401
 #define GETDNS_DNSSEC_BOGUS_TEXT "The record was determined to be bogus in DNSSEC"
+#define GETDNS_DNSSEC_INDETERMINATE 402
 #define GETDNS_DNSSEC_INDETERMINATE_TEXT "The record was not determined to be any state in DNSSEC"
+#define GETDNS_DNSSEC_INSECURE 403
 #define GETDNS_DNSSEC_INSECURE_TEXT "The record was determined to be insecure in DNSSEC"
+#define GETDNS_DNSSEC_NOT_PERFORMED 404
 #define GETDNS_DNSSEC_NOT_PERFORMED_TEXT "DNSSEC validation was not performed (only used for debugging)"
 /** @}
  */
@@ -133,7 +127,7 @@ typedef enum getdns_namespace_t {
  */
 
 /**
- * \defgroup namespacetypestext Namespace type texts
+ * \defgroup namespacetypestext Namespace types texts
  * @{
  */
 #define GETDNS_NAMESPACE_DNS_TEXT "See getdns_context_set_namespaces()"
@@ -167,7 +161,7 @@ typedef enum getdns_resolution_t {
 
 
 /**
- * \defgroup redirectpolicytype Redirect policy types
+ * \defgroup redirectpolicytype Redirect policies
  * @{
  */
 typedef enum getdns_redirects_t {
@@ -178,7 +172,7 @@ typedef enum getdns_redirects_t {
  */
 
 /**
- * \defgroup redirectpoliciestext Redirect policy type texts
+ * \defgroup redirectpoliciestext Redirect policies texts
  * @{
  */
 #define GETDNS_REDIRECTS_FOLLOW_TEXT "See getdns_context_set_follow_redirects()"
@@ -188,7 +182,7 @@ typedef enum getdns_redirects_t {
 
 
 /**
- * \defgroup transporttypes Transport arrangements types
+ * \defgroup transporttypes Transport arrangements 
  * @{
  */
 typedef enum getdns_transport_t {
@@ -201,7 +195,7 @@ typedef enum getdns_transport_t {
 */
 
 /**
- * \defgroup transporttypestext Transport arrangement type texts
+ * \defgroup transporttypestext Transport arrangements texts
  * @{
  */
 #define GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT "See getdns_context_set_dns_transport()"
@@ -213,7 +207,7 @@ typedef enum getdns_transport_t {
 
 
 /**
- * \defgroup transportlisttypes Transport list types
+ * \defgroup transportlisttypes Transport list values
  * @{
  */
 /* Base transports for use in transport list */
@@ -226,7 +220,7 @@ typedef enum getdns_transport_list_t {
  */
 
 /**
- * \defgroup transportlisttypestext Transport list types texts
+ * \defgroup transportlisttypestext Transport list values texts
  * @{
  */
 #define GETDNS_TRANSPORT_UDP_TEXT "See getdns_context_set_dns_transport_list()"
@@ -237,7 +231,7 @@ typedef enum getdns_transport_list_t {
 
 
 /**
- * \defgroup suffixappendtypes Suffix appending types
+ * \defgroup suffixappendtypes Suffix appending values
  * @{
  */
 typedef enum getdns_append_name_t {
@@ -250,7 +244,7 @@ typedef enum getdns_append_name_t {
  */
 
 /**
- * \defgroup suffixappendtypestext Suffix appending type texts
+ * \defgroup suffixappendtypestext Suffix appending values texts
  * @{
  */
 #define GETDNS_APPEND_NAME_ALWAYS_TEXT "See getdns_context_set_append_name()"
@@ -261,10 +255,10 @@ typedef enum getdns_append_name_t {
  */
 
 
- /**
-  * \defgroup contextcodetypes Context code types
-  * @{
-  */
+/**
+* \defgroup contextcodetypes Context code values
+* @{
+*/
 /* Context codes */
 typedef enum getdns_context_code_t {
 	GETDNS_CONTEXT_CODE_NAMESPACES = 600,
@@ -290,7 +284,7 @@ typedef enum getdns_context_code_t {
  */
 
 /**
- * \defgroup contextcodetypestext Context code type texts
+ * \defgroup contextcodetypestext Context code values texts
  * @{
  */
 #define GETDNS_CONTEXT_CODE_NAMESPACES_TEXT "Change related to getdns_context_set_namespaces"
@@ -329,7 +323,7 @@ typedef enum getdns_callback_type_t {
  */
 
 /**
- * \defgroup callbacktypetext Callback type texts
+ * \defgroup callbacktypetext Callback types texts
  * @{
  */
 #define GETDNS_CALLBACK_COMPLETE_TEXT "The response has the requested data in it"
@@ -341,84 +335,54 @@ typedef enum getdns_callback_type_t {
 
 
 /**
- * \defgroup nametype Types of name services
+ * \defgroup nametype Types of name services and texts
  * @{
  */
 #define GETDNS_NAMETYPE_DNS 800
-#define GETDNS_NAMETYPE_WINS 801
-/** @}
- */
-
-/**
- * \defgroup nametypetext Types of name service text
- * @{
- */
 #define GETDNS_NAMETYPE_DNS_TEXT "Normal DNS (RFC 1035)"
+#define GETDNS_NAMETYPE_WINS 801
 #define GETDNS_NAMETYPE_WINS_TEXT "The WINS name service (some reference needed)"
 /** @}
  */
 
 
 /**
- * \defgroup respstatus Status Codes for responses
+ * \defgroup respstatus Status Codes for responses and text
  * @{
  */
 #define GETDNS_RESPSTATUS_GOOD 900
-#define GETDNS_RESPSTATUS_NO_NAME 901
-#define GETDNS_RESPSTATUS_ALL_TIMEOUT 902
-#define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS 903
-#define GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS 904
-/** @}
- */
-
-/**
- * \defgroup respstatustext Status Codes for responses texts
- * @{
- */
 #define GETDNS_RESPSTATUS_GOOD_TEXT "At least one response was returned"
+#define GETDNS_RESPSTATUS_NO_NAME 901
 #define GETDNS_RESPSTATUS_NO_NAME_TEXT "Queries for the name yielded all negative responses"
+#define GETDNS_RESPSTATUS_ALL_TIMEOUT 902
 #define GETDNS_RESPSTATUS_ALL_TIMEOUT_TEXT "All queries for the name timed out"
+#define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS 903
 #define GETDNS_RESPSTATUS_NO_SECURE_ANSWERS_TEXT "The context setting for getting only secure responses was specified, and at least one DNS response was received, but no DNS response was determined to be secure through DNSSEC."
+#define GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS 904
 #define GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS_TEXT "The context setting for getting only secure responses was specified, and at least one DNS response was received, but all received responses for the requested name were bogus."
 /** @}
  */
-
 
 /**
  * \defgroup extvals Values associated with extensions
  * @{
  */
 #define GETDNS_EXTENSION_TRUE  1000
-#define GETDNS_EXTENSION_FALSE 1001
-/** @}
- */
-
-/**
- * \defgroup extvalstext Values associated with extensions text
- * @{
- */
 #define GETDNS_EXTENSION_TRUE_TEXT "Turn on the extension"
+#define GETDNS_EXTENSION_FALSE 1001
 #define GETDNS_EXTENSION_FALSE_TEXT "Do not turn on the extension"
 /** @}
  */
 
-
 /**
- * \defgroup dnserrors Values associated with DNS errors found by the API
+ * \defgroup dnserrors Values associated with DNS errors found by the API and text
  * @{
  */
 #define GETDNS_BAD_DNS_CNAME_IN_TARGET 1100
-#define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL 1101
-#define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
-/** @}
- */
-
-/**
- * \defgroup dnserrorstext Values associated with DNS errors found by the API text
- * @{
- */
 #define GETDNS_BAD_DNS_CNAME_IN_TARGET_TEXT "A DNS query type that does not allow a target to be a CNAME pointed to a CNAME"
+#define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL 1101
 #define GETDNS_BAD_DNS_ALL_NUMERIC_LABEL_TEXT "One or more labels in a returned domain name is all-numeric; this is not legal for a hostname"
+#define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE 1102
 #define GETDNS_BAD_DNS_CNAME_RETURNED_FOR_OTHER_TYPE_TEXT "A DNS query for a type other than CNAME returned a CNAME response"
 /** @}
  */
@@ -593,78 +557,27 @@ typedef struct getdns_dict getdns_dict;
  */
 typedef struct getdns_list getdns_list;
 
+/* Specify the order of the following groups manually here so they appear in 
+   a better order in doxygen */
 
 /**
  * \defgroup list_create getdns_list creation/destruction functions
- * @{
- */
-
-/**
- * create a new list with no items
- * @return pointer to an allocated list, NULL if insufficient memory
- */
-getdns_list *getdns_list_create();
-getdns_list *getdns_list_create_with_context(getdns_context *context);
-getdns_list *getdns_list_create_with_memory_functions(
-    void *(*malloc) (size_t),
-    void *(*realloc) (void *, size_t),
-    void (*free) (void *)
-);
-getdns_list *getdns_list_create_with_extended_memory_functions(
-    void *userarg,
-    void *(*malloc) (void *userarg, size_t),
-    void *(*realloc) (void *userarg, void *, size_t),
-    void (*free) (void *userarg, void *)
-);
-
-
-/**
- * free memory allocated to the list (also frees all children of the list)
- * note that lists and bindata retrieved from the list via the getdns_list_get_*
- * helper functions will be destroyed as well - if you fetched them previously
- * you MUST copy those instances BEFORE you destroy the list else
- * unpleasant things will happen at run-time
- */
-void getdns_list_destroy(getdns_list *list);
-/** @}
- */
-
-
-/**
- * \defgroup dict_create getdns_dict creation/destruction functions
- * @{
- */
-
-/**
- * create a new dictionary with no items
- * @return pointer to an allocated dictionary, NULL if insufficient memory
- */
-getdns_dict *getdns_dict_create();
-getdns_dict *getdns_dict_create_with_context(getdns_context *context);
-getdns_dict *getdns_dict_create_with_memory_functions(
-    void *(*malloc) (size_t),
-    void *(*realloc) (void *, size_t),
-    void (*free) (void *)
-);
-getdns_dict *getdns_dict_create_with_extended_memory_functions(
-    void *userarg,
-    void *(*malloc) (void *userarg, size_t),
-    void *(*realloc) (void *userarg, void *, size_t),
-    void (*free) (void *userarg, void *)
-);
-
-/**
- * destroy a dictionary and all items within that dictionary
- * be aware that if you have fetched any data from the dictionary it will
- * no longer be available (you are likely to experience bad things if you try)
- */
-void getdns_dict_destroy(getdns_dict *dict);
-/** @}
- */
-
-
-/**
+ * \defgroup getdns_list_set getdns_list_set functions
  * \defgroup getdns_list_get_functions getdns_list_get functions
+ * \defgroup dict_create getdns_dict creation/destruction functions
+ * \defgroup getdns_dict_set getdns_dict_set functions
+ * \defgroup getdns_dict_get_functions getdns_dict_get functions
+ * \defgroup context_create getdns_context creation/destruction functions
+ * \defgroup context_set getdns_context_set functions
+ * \defgroup callbacks getdns_callback functions
+ * \defgroup funcs Asynchronous API functions
+ * \defgroup syncfuns Synchronous API functions that do not use callbacks
+ * \defgroup utils Utility functions
+ */
+
+
+/**
+ * \ingroup getdns_list_get_functions getdns_list_get functions
  * @{
  */
 
@@ -743,7 +656,7 @@ getdns_return_t getdns_list_get_int(const getdns_list *list, size_t index,
 
 
 /**
- * \defgroup getdns_dict_get_functions getdns_dict_get functions
+ * \ingroup getdns_dict_get_functions getdns_dict_get functions
  * @{
  */
 
@@ -817,7 +730,43 @@ getdns_return_t getdns_dict_get_int(const getdns_dict *dict,
 
 
 /**
- * \defgroup getdns_list_set getdns_list_set functions
+ * \ingroup list_create getdns_list creation/destruction functions
+ * @{
+ */
+
+/**
+ * create a new list with no items
+ * @return pointer to an allocated list, NULL if insufficient memory
+ */
+getdns_list *getdns_list_create();
+getdns_list *getdns_list_create_with_context(getdns_context *context);
+getdns_list *getdns_list_create_with_memory_functions(
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+);
+getdns_list *getdns_list_create_with_extended_memory_functions(
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
+
+
+/**
+ * free memory allocated to the list (also frees all children of the list)
+ * note that lists and bindata retrieved from the list via the getdns_list_get_*
+ * helper functions will be destroyed as well - if you fetched them previously
+ * you MUST copy those instances BEFORE you destroy the list else
+ * unpleasant things will happen at run-time
+ */
+void getdns_list_destroy(getdns_list *list);
+/** @}
+*/
+
+
+/**
+ * \ingroup getdns_list_set getdns_list_set functions
  * @{
  */
 
@@ -867,7 +816,40 @@ getdns_return_t getdns_list_set_int(getdns_list *list, size_t index,
 
 
 /**
- * \defgroup getdns_dict_set getdns_dict_set functions
+ * \ingroup dict_create getdns_dict creation/destruction functions
+ * @{
+ */
+
+/**
+ * create a new dictionary with no items
+ * @return pointer to an allocated dictionary, NULL if insufficient memory
+ */
+getdns_dict *getdns_dict_create();
+getdns_dict *getdns_dict_create_with_context(getdns_context *context);
+getdns_dict *getdns_dict_create_with_memory_functions(
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+);
+getdns_dict *getdns_dict_create_with_extended_memory_functions(
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
+
+/**
+ * destroy a dictionary and all items within that dictionary
+ * be aware that if you have fetched any data from the dictionary it will
+ * no longer be available (you are likely to experience bad things if you try)
+ */
+void getdns_dict_destroy(getdns_dict *dict);
+/** @}
+*/
+
+
+/**
+ * \ingroup getdns_dict_set getdns_dict_set functions
  * @{
  */
 
@@ -917,7 +899,7 @@ getdns_return_t getdns_dict_remove_name(getdns_dict *dict, const char *name);
 
 
 /**
- * \defgroup callbacks getdns_callback functions
+ * \ingroup callbacks getdns_callback functions
  * @{
  */
 
@@ -926,16 +908,12 @@ typedef void (*getdns_callback_t) (getdns_context *context,
     getdns_callback_type_t callback_type,
     getdns_dict * response,
     void *userarg, getdns_transaction_t transaction_id);
-
-getdns_return_t
-getdns_cancel_callback(getdns_context *context,
-    getdns_transaction_t transaction_id);
 /** @}
  */
 
 
 /**
- * \defgroup funcs Asynchronous API functions
+ * \ingroup funcs Asynchronous API functions
  * @{
  */
 
@@ -1016,7 +994,82 @@ getdns_service(getdns_context *context,
 
 
 /**
- * \defgroup syncfuns Synchronous API functions that do not use callbacks
+ * \ingroup context_create getdns_context creation/destruction functions
+ * @{
+ */
+
+/**
+ * creates a new getdns context with default settings.
+ * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
+ * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
+ * @param context context that can be used immediately with other API calls
+ * @param set_from_os select to use os defaults or to specify user defined values
+ * @return GETDNS_RETURN_GOOD on success
+*/
+getdns_return_t
+getdns_context_create(getdns_context ** context, int set_from_os);
+
+
+/**
+ * creates a new getdns context with default settings using custom memory functions.
+ * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
+ * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
+ * @param context context that can be used immediately with other API calls
+ * @param set_from_os select to use os defaults or to specify user defined values
+ * @param malloc custom malloc function
+ * @param realloc custom realloc function
+ * @param malloc custom free function
+ * @return GETDNS_RETURN_GOOD on success
+*/
+getdns_return_t
+getdns_context_create_with_memory_functions(
+    getdns_context ** context,
+    int set_from_os,
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+);
+
+
+/**
+ * creates a new getdns context with default settings using extended custom memory functions.
+ * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
+ * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
+ * @param context context that can be used immediately with other API calls
+ * @param set_from_os select to use os defaults or to specify user defined values
+ * @param malloc custom malloc function
+ * @param realloc custom realloc function
+ * @param malloc custom free function
+ * @return GETDNS_RETURN_GOOD on success
+*/
+getdns_return_t
+getdns_context_create_with_extended_memory_functions(
+    getdns_context **context,
+    int set_from_os,
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
+
+void getdns_context_destroy(getdns_context *context);
+/** @}
+ */
+
+
+/**
+* \ingroup callbacks getdns_callback functions
+* @{
+*/
+getdns_return_t
+getdns_cancel_callback(getdns_context *context,
+    getdns_transaction_t transaction_id);
+/** @}
+ */
+
+
+/**
+ * \ingroup syncfuns Synchronous API functions that do not use callbacks
  * These functions do not use callbacks, when the application calls one of these
  * functions the library retrieves all of the data before returning.  Return
  * values are exactly the same as if you had used a callback with the
@@ -1086,7 +1139,7 @@ getdns_service_sync(getdns_context *context,
  */
 
 /**
- * \defgroup utils Utility functions
+ * \ingroup utils Utility functions
  * @{
  */
 
@@ -1128,71 +1181,7 @@ char *getdns_display_ip_address(const getdns_bindata
 
 
 /**
- * \defgroup context_create getdns_context creation/destruction functions
- * @{
- */
-
-/**
- * creates a new getdns context with default settings.
- * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
- * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
- * @param context context that can be used immediately with other API calls
- * @param set_from_os select to use os defaults or to specify user defined values
- * @return GETDNS_RETURN_GOOD on success
- */
-getdns_return_t
-getdns_context_create(getdns_context ** context, int set_from_os);
-
-
-/**
- * creates a new getdns context with default settings using custom memory functions.
- * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
- * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
- * @param context context that can be used immediately with other API calls
- * @param set_from_os select to use os defaults or to specify user defined values
- * @param malloc custom malloc function
- * @param realloc custom realloc function
- * @param malloc custom free function
- * @return GETDNS_RETURN_GOOD on success
- */
-getdns_return_t
-getdns_context_create_with_memory_functions(
-    getdns_context ** context,
-    int set_from_os,
-    void *(*malloc) (size_t),
-    void *(*realloc) (void *, size_t),
-    void (*free) (void *)
-);
-
-
-/**
- * creates a new getdns context with default settings using extended custom memory functions.
- * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
- * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
- * @param context context that can be used immediately with other API calls
- * @param set_from_os select to use os defaults or to specify user defined values
- * @param malloc custom malloc function
- * @param realloc custom realloc function
- * @param malloc custom free function
- * @return GETDNS_RETURN_GOOD on success
- */
-getdns_return_t
-getdns_context_create_with_extended_memory_functions(
-    getdns_context **context,
-    int set_from_os,
-    void *userarg,
-    void *(*malloc) (void *userarg, size_t),
-    void *(*realloc) (void *userarg, void *, size_t),
-    void (*free) (void *userarg, void *)
-);
-
-void getdns_context_destroy(getdns_context *context);
-/** @}
- */
-
-
-/**
- * \defgroup context_set getdns_context_set functions
+ * \ingroup context_set getdns_context_set functions
  * @{
  */
 getdns_return_t
