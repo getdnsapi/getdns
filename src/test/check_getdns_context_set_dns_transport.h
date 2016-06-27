@@ -131,7 +131,7 @@
        struct getdns_dict *extensions = getdns_dict_create();
        uint32_t tc;
        uint32_t transport;
-       uint32_t mode;
+       uint32_t type;
 
        /* Note that stricly this test just establishes that the requested transport
           and the reported transport are consistent, it does not guarentee which
@@ -158,9 +158,9 @@
        ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
          GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
        ASSERT_RC(transport, GETDNS_TRANSPORT_UDP, "Query did not go over UDP");
-       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &mode),
+       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &type),
          GETDNS_RETURN_GOOD, "Failed to extract \"resolution_type\"");
-       ASSERT_RC(mode, GETDNS_RESOLUTION_STUB, "Query did not use stub mode");
+       ASSERT_RC(type, GETDNS_RESOLUTION_STUB, "Query did not use stub mode");
        ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
          GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
        ASSERT_RC(tc, 1, "Packet not trucated as expected");
@@ -208,8 +208,6 @@
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
        uint32_t status;
-       uint32_t mode;
-       uint32_t tc;
 
        /* Recursive mode does not report the transport used and does not answer
           if the response is trucated. Also, transport can't be changed on a ub ctx.*/
@@ -233,7 +231,7 @@
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),
              GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
-
+         
              /*  TODO: INVESTIGATE THIS AS IT SHOULDN'T BE A TIMEOUT...*/
            ASSERT_RC(status, GETDNS_RESPSTATUS_ALL_TIMEOUT, "Status not as expected");
       }
@@ -253,7 +251,7 @@
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
        uint32_t status;
-       uint32_t mode;
+       uint32_t type;
        uint32_t tc;
 
        CONTEXT_CREATE(TRUE);
@@ -273,9 +271,12 @@
            ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
-           ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &mode),
+           ASSERT_RC(getdns_dict_get_int(response, "status", &status),
+             GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
+           ASSERT_RC(status, GETDNS_RESPSTATUS_GOOD, "Status not as expected");
+           ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/resolution_type", &type),
              GETDNS_RETURN_GOOD, "Failed to extract \"resolution_type\"");
-           ASSERT_RC(mode, GETDNS_RESOLUTION_RECURSING, "Query did not use Recursive mode");
+           ASSERT_RC(type, GETDNS_RESOLUTION_RECURSING, "Query did not use Recursive mode");
            ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
              GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
            ASSERT_RC(tc, 0, "Packet trucated - not as expected");
@@ -296,7 +297,6 @@
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
        uint32_t status;
-       uint32_t mode;
        uint32_t tc;
 
        CONTEXT_CREATE(TRUE);
@@ -314,6 +314,10 @@
            ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
+           ASSERT_RC(getdns_dict_get_int(response, "status", &status),
+             GETDNS_RETURN_GOOD, "Failed to extract \"status\"");
+           ASSERT_RC(status, GETDNS_RESPSTATUS_GOOD, "Status not as expected");
+
            ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
              GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
            ASSERT_RC(tc, 0, "Packet trucated - not as expected");
@@ -323,6 +327,7 @@
 
      }
      END_TEST
+
 
 
 
@@ -344,7 +349,7 @@
        TCase *tc_pos = tcase_create("Positive");
        /* TODO: Test which specific lists are supported */
        tcase_add_test(tc_pos, getdns_context_set_dns_transport_stub_5);
-       tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_6);
+       tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_6);     
        tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_7);
        tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_8);
        /* TODO: TLS... */
