@@ -217,7 +217,7 @@
 /*******************  Frequently Used Utility Functions  *********************
  *****************************************************************************/
 
-inline static size_t _dname_len(const uint8_t *name)
+static inline size_t _dname_len(const uint8_t *name)
 {
 	const uint8_t *p;
 	for (p = name; *p; p += *p + 1)
@@ -226,7 +226,7 @@ inline static size_t _dname_len(const uint8_t *name)
 	return p - name + 1;
 }
 
-inline static size_t _dname_label_count(const uint8_t *name)
+static inline size_t _dname_label_count(const uint8_t *name)
 {
 	size_t c;
 	for (c = 0; *name; name += *name + 1, c++)
@@ -235,7 +235,7 @@ inline static size_t _dname_label_count(const uint8_t *name)
 	return c;
 }
 
-inline static int _dname_equal(const uint8_t *left, const uint8_t *right)
+static inline int _dname_equal(const uint8_t *left, const uint8_t *right)
 {
 	return _getdns_dname_equal(left, right);
 }
@@ -382,7 +382,7 @@ static int bitmap_has_type(_getdns_rdf_iter *bitmap, uint16_t rr_type)
 }
 
 #if defined(SEC_DEBUG) && SEC_DEBUG
-inline static void debug_sec_print_rr(const char *msg, _getdns_rr_iter *rr)
+static inline void debug_sec_print_rr(const char *msg, _getdns_rr_iter *rr)
 {
 	char str_spc[8192], *str = str_spc;
 	size_t str_len = sizeof(str_spc);
@@ -398,7 +398,7 @@ inline static void debug_sec_print_rr(const char *msg, _getdns_rr_iter *rr)
 	    (UNCONST_UINT8_p) rr->pkt, rr->pkt_end - rr->pkt);
 	DEBUG_SEC("%s%s", msg, str_spc);
 }
-inline static void debug_sec_print_dname(const char *msg, const uint8_t *label)
+static inline void debug_sec_print_dname(const char *msg, const uint8_t *label)
 {
 	char str[1024];
 
@@ -1232,7 +1232,7 @@ typedef struct canon_rdata_iter {
 	size_t            len;
 } canon_rdata_iter;
 
-inline static void canon_rdata_iter_field_init(canon_rdata_iter *i)
+static inline void canon_rdata_iter_field_init(canon_rdata_iter *i)
 {
 	for (;;) {
 		if ((i->rdf->rdd_pos->type & GETDNS_RDF_N) == GETDNS_RDF_N) {
@@ -1251,23 +1251,23 @@ inline static void canon_rdata_iter_field_init(canon_rdata_iter *i)
 	}
 }
 
-inline static void canon_rdata_iter_init(canon_rdata_iter*i,_getdns_rr_iter*rr)
+static inline void canon_rdata_iter_init(canon_rdata_iter*i,_getdns_rr_iter*rr)
 {
 	if ((i->rdf = _getdns_rdf_iter_init(&i->rdf_spc, rr)))
 		canon_rdata_iter_field_init(i);
 }
 
-inline static int canon_rdata_iter_data(canon_rdata_iter *i)
+static inline int canon_rdata_iter_data(canon_rdata_iter *i)
 {
 	return i->rdf != NULL;
 }
 
-inline static uint8_t canon_rdata_iter_byte(canon_rdata_iter *i)
+static inline uint8_t canon_rdata_iter_byte(canon_rdata_iter *i)
 {
 	return *i->pos;
 }
 
-inline static void canon_rdata_iter_next(canon_rdata_iter *i)
+static inline void canon_rdata_iter_next(canon_rdata_iter *i)
 {
 	if (--i->len == 0 && (i->rdf = _getdns_rdf_iter_next(i->rdf)))
 		canon_rdata_iter_field_init(i);

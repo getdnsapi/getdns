@@ -49,7 +49,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dns_req);
 
 uint16_t _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf);
 
-inline static int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
+static inline int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
 {
 	return rr_type == GLDNS_RR_TYPE_NS    || rr_type == GLDNS_RR_TYPE_MD
 	    || rr_type == GLDNS_RR_TYPE_MF    || rr_type == GLDNS_RR_TYPE_CNAME

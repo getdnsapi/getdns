@@ -69,7 +69,7 @@ typedef struct _getdns_ub_loop {
 
 void _getdns_ub_loop_init(_getdns_ub_loop *loop, struct mem_funcs *mf, getdns_eventloop *extension);
 
-inline static int _getdns_ub_loop_enabled(_getdns_ub_loop *loop)
+static inline int _getdns_ub_loop_enabled(_getdns_ub_loop *loop)
 { return loop->super.vmt ? 1 : 0; }
 
 #endif /* HAVE_UNBOUND_EVENT_API */
