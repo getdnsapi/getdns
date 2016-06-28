@@ -1110,10 +1110,10 @@ typedef struct dns_msg {
 	uint32_t              cd_bit;
 } dns_msg;
 
-#if defined(TRACE_DEBUG) && TRACE_DEBUG
+#if defined(SERVER_DEBUG) && SERVER_DEBUG
 #define SERVFAIL(error,r,msg,resp_p) do { \
-	if (r)	DEBUG_TRACE("%s: %s\n", error, getdns_get_errorstr_by_id(r)); \
-	else	DEBUG_TRACE("%s\n", error); \
+	if (r)	DEBUG_SERVER("%s: %s\n", error, getdns_get_errorstr_by_id(r)); \
+	else	DEBUG_SERVER("%s\n", error); \
 	servfail(msg, resp_p); \
 	} while (0)
 #else
@@ -1150,7 +1150,7 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint32_t n;
 
-	DEBUG_TRACE("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
+	DEBUG_SERVER("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
 	assert(msg);
 
 #if 0
@@ -1328,7 +1328,7 @@ void incoming_request_handler(getdns_context *context,
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
 	else {
-		DEBUG_TRACE("scheduled: %p %"PRIu64" for %s %d\n",
+		DEBUG_SERVER("scheduled: %p %"PRIu64" for %s %d\n",
 		    msg, transaction_id, qname_str, (int)qtype);
 		free(qname_str);
 		return;
