@@ -891,7 +891,9 @@ getdns_return_t parse_args(int argc, char **argv)
 						getdns_list_destroy(
 						    listen_list);
 					listen_list = NULL;
+					listen_count = 0;
 					touched_listen_list = 1;
+					DEBUG_SERVER("Clear listen list\n");
 					break;
 				}
 				getdns_dict *downstream =

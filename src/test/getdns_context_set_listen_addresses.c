@@ -550,6 +550,7 @@ static void free_listen_set_when_done(listen_set *set)
 	if (!(mf = priv_getdns_context_mf(set->context)))
 		return;
 
+	DEBUG_SERVER("To free listen set: %p\n", set);
 	for (i = 0; i < set->count; i++) {
 		listener *l = &set->items[i];
 
@@ -560,6 +561,7 @@ static void free_listen_set_when_done(listen_set *set)
 			return;
 	}
 	GETDNS_FREE(*mf, set);
+	DEBUG_SERVER("Listen set: %p freed\n", set);
 }
 
 static void remove_listeners(listen_set *set)
@@ -692,6 +694,8 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	size_t i;
 	struct addrinfo hints;
 
+	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, %p, %p)\n", context, request_handler,
+	    listen_addresses);
 	if (!(mf = priv_getdns_context_mf(context)))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -713,7 +717,8 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 			return GETDNS_RETURN_GOOD;
 		
 		rm_listen_set(&root, current_set);
-		remove_listeners(current_set); /* Is already remove */
+		/* action is already to_remove */
+		remove_listeners(current_set);
 		return GETDNS_RETURN_GOOD;
 	}
 	if (!request_handler)
@@ -723,6 +728,8 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	    sizeof(listen_set) +
 	    sizeof(listener) * new_set_count * n_transports)))
 		return GETDNS_RETURN_MEMORY_ERROR;
+
+	DEBUG_SERVER("New listen set: %p, current_set: %p\n", new_set, current_set);
 
 	new_set->context = context;
 	new_set->next = root;
@@ -827,12 +834,9 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 				l->action = to_add;
 				continue;
 			}
-			l->action = cl->action = to_stay;
-			l->fd = cl->fd;
-			l->connections = cl->connections;
-			l->event = cl->event;
-			/* So the event can be rescheduled */
+			l->action = to_stay;
 			l->to_replace = cl;
+			/* So the event can be rescheduled */
 		}
 	}
 	if ((r = add_listeners(new_set))) {
@@ -847,7 +851,21 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 		listener *l = &new_set->items[i];
 
 		if (l->action == to_stay) {
+			connection *conn;
+
 			loop->vmt->clear(loop, &l->to_replace->event);
+			(void) memset(&l->to_replace->event, 0,
+			    sizeof(getdns_eventloop_event));
+
+			l->fd = l->to_replace->fd;
+			l->event = l->to_replace->event;
+			l->connections = l->to_replace->connections;
+			for (conn = l->connections; conn; conn = conn->next)
+				conn->l = l;
+
+			l->to_replace->connections = NULL;
+			l->to_replace->fd = -1;
+
 			/* assume success on reschedule */
 			(void) loop->vmt->schedule(loop, l->fd, -1, &l->event);
 		}
