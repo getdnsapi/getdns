@@ -250,6 +250,8 @@
        struct getdns_context *context = NULL;
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
+       struct getdns_list *root_servers = getdns_list_create();
+       struct getdns_bindata nlnetlabs_root = { 4, (void *)"\xB9\x31\x8D\x25" };
        uint32_t status;
        uint32_t type;
        uint32_t tc;
@@ -264,6 +266,10 @@
            /* Re-do over TCP */
            ASSERT_RC(getdns_dict_set_int(extensions,"return_call_reporting", GETDNS_EXTENSION_TRUE),
              GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
+           ASSERT_RC(getdns_list_set_bindata(root_servers,0,&nlnetlabs_root),
+             GETDNS_RETURN_GOOD, "Return code from getdns_list_set_bindata()");
+           ASSERT_RC(getdns_context_set_dns_root_servers(context, root_servers),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_root_servers()");
            ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
@@ -283,6 +289,8 @@
       }
 
       CONTEXT_DESTROY;
+      getdns_dict_destroy(extensions);
+      getdns_list_destroy(root_servers);
 
      }
      END_TEST
