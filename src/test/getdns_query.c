@@ -1252,7 +1252,7 @@ static void incoming_request_handler(getdns_context *context,
 	getdns_dict *header;
 	uint32_t n;
 	getdns_list *list;
-	getdns_transaction_t transaction_id;
+	getdns_transaction_t transaction_id = 0;
 	getdns_dict *qext = NULL;
 	dns_msg *msg = NULL;
 	getdns_dict *response = NULL;
