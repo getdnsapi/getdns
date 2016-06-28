@@ -134,6 +134,16 @@ will be called with a callback_type of GETDNS_CALLBACK_CANCEL.
 getdns_context_destroy() returns after all of the needed cleanup is done and
 callbacks are made.
 
+.LP
+If you are using getdns in a multi-threaded manner, you are then of course using
+the underlying OpenSSL library multi-threaded and the version of that library
+in use might have a requirements on this issue. You may need to provide one or 
+two functions to allow it to function properly. For example before you call 
+getdns_context_create() you may need to use 
+the openssl functions CRYPTO_set_id_callback and CRYPTO_set_locking_callback to set up
+asyncronous operation (the  application calls these functions once for initialisation).  
+Openssl 1.0.0 or later uses the CRYPTO_THREADID_set_callback function.
+
 .HP 3
 .I context
 Used to return the pointer to an opaque structure.  The caller passes the address of a pointer (decl: getdns_context *context; passed as &context) which will be populated as a result of returning from the function.  The result is a newly allocated and initialized context (if there are no errors).  In the getdns_destroy_context function this is the context whose associated memory will be released.

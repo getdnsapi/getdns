@@ -62,10 +62,7 @@ struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
 
-/**
- * \defgroup strings String Constants
- * @{
- */
+/* String constants for internal use */
 #define GETDNS_STR_IPV4 "IPv4"
 #define GETDNS_STR_IPV6 "IPv6"
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
@@ -119,8 +116,6 @@ struct getdns_upstream;
 #define GETDNS_TRANSPORTS_MAX 3
 #define GETDNS_UPSTREAM_TRANSPORTS 2
 
-/** @}
- */
 
 /* declarations */
 struct getdns_dns_req;
