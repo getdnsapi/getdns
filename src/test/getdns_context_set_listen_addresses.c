@@ -29,6 +29,7 @@
 #include "getdns_context_set_listen_addresses.h"
 #include "getdns/getdns_extra.h"
 #include "types-internal.h"
+#include "debug.h"
 #include <netdb.h>
 
 #define DNS_REQUEST_SZ          4096

@@ -61,6 +61,7 @@ static getdns_dict *extensions;
 static getdns_dict *query_extensions_spc = NULL;
 static getdns_list *pubkey_pinset = NULL;
 static getdns_list *listen_list = NULL;
+int touched_listen_list;
 static getdns_dict *listen_dict = NULL;
 static size_t pincount = 0;
 static size_t listen_count = 0;
@@ -411,6 +412,8 @@ static void parse_config(const char *config_str)
 
 			(void) getdns_dict_remove_name(
 			    config_dict, "listen_addresses");
+
+			touched_listen_list = 1;
 		}
 		if ((r = _getdns_context_config_(
 		    context, extensions, config_dict))) {
@@ -883,6 +886,14 @@ getdns_return_t parse_args(int argc, char **argv)
 					                "expected after -z\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
+				if (argv[i][0] == '-' && argv[i][1] == '\0') {
+					if (listen_list && !listen_dict)
+						getdns_list_destroy(
+						    listen_list);
+					listen_list = NULL;
+					touched_listen_list = 1;
+					break;
+				}
 				getdns_dict *downstream =
 				    _getdns_ipaddr_dict(argv[i]);
 				if (!downstream) {
@@ -899,6 +910,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_list_set_dict(listen_list,
 				    listen_count++, downstream);
 				getdns_dict_destroy(downstream);
+				touched_listen_list = 1;
 				break;
 			default:
 				fprintf(stderr, "Unknown option "
@@ -1054,6 +1066,9 @@ getdns_return_t do_the_call(void)
 
 getdns_eventloop *loop = NULL;
 FILE *fp;
+static void incoming_request_handler(getdns_context *context,
+    getdns_dict *request, getdns_transaction_t request_id);
+
 
 void read_line_cb(void *userarg)
 {
@@ -1067,6 +1082,9 @@ void read_line_cb(void *userarg)
 		if (query_file)
 			fprintf(stdout,"End of file.");
 		loop->vmt->clear(loop, read_line_ev);
+		if (listen_count)
+			(void) getdns_context_set_listen_addresses(
+			    context, NULL, NULL);
 		return;
 	}
 	if (query_file)
@@ -1092,7 +1110,13 @@ void read_line_cb(void *userarg)
 	do linev[linec++] = token;
 	while (linec < 256 && (token = strtok(NULL, " \t\f\n\r")));
 
-	if (((r = parse_args(linec, linev)) || (r = do_the_call())) &&
+	touched_listen_list = 0;
+	r = parse_args(linec, linev);
+	if (!r && touched_listen_list) {
+		r = getdns_context_set_listen_addresses(
+		    context, incoming_request_handler, listen_list);
+	}
+	if ((r || (r = do_the_call())) &&
 	    (r != CONTINUE && r != CONTINUE_ERROR))
 		loop->vmt->clear(loop, read_line_ev);
 
@@ -1215,7 +1239,7 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		getdns_dict_destroy(response);
 }	
 
-void incoming_request_handler(getdns_context *context,
+static void incoming_request_handler(getdns_context *context,
     getdns_dict *request, getdns_transaction_t request_id)
 {
 	getdns_bindata *qname;
@@ -1390,10 +1414,9 @@ main(int argc, char **argv)
 			goto done_destroy_context;
 		assert(loop);
 	}
-	if (listen_count)
-		if ((r = getdns_context_set_listen_addresses(context,
-		    incoming_request_handler, listen_list)))
-			goto done_destroy_context;
+	if (listen_count && (r = getdns_context_set_listen_addresses(
+	    context, incoming_request_handler, listen_list)))
+		goto done_destroy_context;
 
 	/* Make the call */
 	if (interactive) {
