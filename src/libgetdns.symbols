@@ -18,6 +18,7 @@ getdns_context_get_edns_do_bit
 getdns_context_get_edns_extended_rcode
 getdns_context_get_edns_maximum_udp_payload_size
 getdns_context_get_edns_version
+getdns_context_get_eventloop
 getdns_context_get_follow_redirects
 getdns_context_get_idle_timeout
 getdns_context_get_limit_outstanding_queries
@@ -145,4 +146,3 @@ getdns_wire2rr_dict_buf
 getdns_wire2rr_dict_scan
 plain_mem_funcs_user_arg
 priv_getdns_context_mf
-_getdns_get_const_name_info

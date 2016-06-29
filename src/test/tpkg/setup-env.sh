@@ -7,6 +7,10 @@ export BUILDDIR=`pwd`
 export BUILDROOT=`(cd "${BUILDDIR}/../../.."; pwd)`
 export LIBTOOL="${BUILDROOT}/libtool"
 
+if [ ! -f "${SRCROOT}/src/test/jsmn/jsmn.c" ]
+then
+	(cd "${SRCROOT}"; git submodule update --init)
+fi
 if [ ! -f "${SRCROOT}/libtool" ]
 then
 	(cd "${SRCROOT}"; libtoolize -fic)

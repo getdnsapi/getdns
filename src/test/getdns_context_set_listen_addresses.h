@@ -1,16 +1,5 @@
-/**
- *
- * /brief _getdns_consts table with values, names and descriptions of the
- *        constants in getdns
- *
- * The _getdns_get_validation_chain function is called after an answer
- * has been fetched when the dnssec_return_validation_chain extension is set.
- * It fetches DNSKEYs, DSes and their signatures for all RRSIGs found in the
- * answer.
- */
-
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,17 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CONST_INFO_H_
-#define CONST_INFO_H_
+#ifndef GETDNS_CONTEXT_SET_LISTEN_ADDRESSES_H_
+#define GETDNS_CONTEXT_SET_LISTEN_ADDRESSES_H_
+#include "getdns/getdns.h"
 
-struct const_info {
-	int code;
-	const char *name;
-	const char *text;
-};
+typedef void (*getdns_request_handler_t)(
+	getdns_context      *context,
+	getdns_dict         *request,
+	getdns_transaction_t request_id
+);
 
-struct const_info *_getdns_get_const_info(int value);
+getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
+    getdns_request_handler_t request_handler, getdns_list *listen_addresses);
+
+getdns_return_t getdns_reply(getdns_context *context,
+    getdns_transaction_t request_id, getdns_dict *reply);
+
+void _getdns_cancel_reply(getdns_context *context,
+    getdns_transaction_t request_id);
 
 #endif
-
-/* const-info.h */

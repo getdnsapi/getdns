@@ -143,14 +143,14 @@ ACX_ARG_RPATH
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
 AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
-AC_ARG_ENABLE(debug-trace, AC_HELP_STRING([--enable-debug-trace], [Enable trace debugging of individual dns messages]))
+AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
 AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
 case "$enable_all_debugging" in
 	yes)
 		enable_debug_sched=yes
 		enable_debug_stub=yes
 		enable_debug_sec=yes
-		enable_debug_trace=yes
+		enable_debug_server=yes
 		;;
 	no|*)
 		;;
@@ -176,9 +176,9 @@ case "$enable_debug_sec" in
 	no|*)
 		;;
 esac
-case "$enable_debug_trace" in
+case "$enable_debug_server" in
 	yes)
-		AC_DEFINE_UNQUOTED([TRACE_DEBUG], [1], [Define this enable printing of transaction ids of individual dns messages.])
+		AC_DEFINE_UNQUOTED([SERVER_DEBUG], [1], [Define this enable printing of server debugging messages.])
 		;;
 	no|*)
 		;;

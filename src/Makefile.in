@@ -274,7 +274,7 @@ rr-dict.lo rr-dict.o: $(srcdir)/rr-dict.c $(srcdir)/rr-dict.h config.h getdns/ge
  $(srcdir)/util-internal.h $(srcdir)/context.h getdns/getdns_extra.h getdns/getdns.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h config.h \
  getdns/getdns_extra.h $(srcdir)/ub_loop.h $(srcdir)/debug.h $(srcdir)/rr-iter.h $(srcdir)/gldns/pkthdr.h $(srcdir)/dict.h
-rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h getdns/getdns.h $(srcdir)/rr-dict.h config.h \
+rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h config.h getdns/getdns.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h
 stub.lo stub.o: $(srcdir)/stub.c config.h $(srcdir)/debug.h $(srcdir)/stub.h getdns/getdns.h $(srcdir)/types-internal.h \
  getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h $(srcdir)/gldns/gbuffer.h \
