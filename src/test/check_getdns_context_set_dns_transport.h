@@ -244,14 +244,25 @@
      START_TEST (getdns_context_set_dns_transport_recursing_7)
      {
        /*
-       *  Call getdns_context_set_dns_transport() with value = GETDNS_TRANSPORT_TCP_ONLY
-       *  expect: Response returned
-       */
+        *  Call getdns_context_set_dns_transport() with value = GETDNS_TRANSPORT_TCP_ONLY
+        *  expect: Response returned
+        */
        struct getdns_context *context = NULL;
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
+
+       /*
+        * Not all servers in the path to large.getdnsapi.net seem to support
+        * TCP consistently.  Many (root) servers are anycasted which decreases
+        * reliability of TCP availability (as we've seen in practice).
+        * To mitigate we provide our own root server for which we are sure that
+        * it supports TCP.  The .net authoritative server are still out of our
+        * control tough.  But because they are managed by a single party I
+        * suspect them to be a bit more reliable.
+        */
        struct getdns_list *root_servers = getdns_list_create();
        struct getdns_bindata nlnetlabs_root = { 4, (void *)"\xB9\x31\x8D\x25" };
+
        uint32_t status;
        uint32_t type;
        uint32_t tc;
@@ -274,7 +285,7 @@
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+           ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),
@@ -319,7 +330,7 @@
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+           ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),
