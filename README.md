@@ -1,16 +1,27 @@
-getdns API
-==========
+getdns
+======
 
-* Date:    2016-03-24
+# Overview of getdns
+
 * GitHub:  <https://github.com/getdnsapi/getdns>
 
 getdns is an implementation of a modern asynchronous DNS API specification
 originally edited by Paul Hoffman.  It is intended to make all types of DNS
 information easily available to application developers and non-DNS experts.
 The project home page at [getdnsapi.net](https://getdnsapi.net) provides
-documentation, binary downloads and new regarding the getdns API
+documentation, binary downloads and news regarding the getdns API
 implementation.  This implementation is licensed under the New BSD License
 (BSD-new).
+
+This file captures the goals and direction of the project and the current state
+of the implementation.
+
+If you are just getting started with the library take a look at the section
+below that describes building and handling external dependencies for the
+library.  Once it is built you should take a look at src/examples to see how
+the library is used.
+
+## Download
 
 Download the sources from our [github repo](https://github.com/getdnsapi/getdns) 
 or from [getdnsapi.net](https://getdnsapi.net) and verify the download using
@@ -20,18 +31,23 @@ available from the [pgp keyservers](https://keyserver.pgp.com)
 * willem@nlnetlabs.nl, key id E5F8F8212F77A498
 * gwiley@verisign.com, key id 9DC3D572A6B73532
 
-We have a [users list](https://getdnsapi.net/mailman/listinfo/spec) for this implementation.
+## Mailing lists
+
+We have a [getdns users list](https://getdnsapi.net/mailman/listinfo/spec) for this implementation.
 
 The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec)
 is a good place to engage in discussions regarding the design of the API.
 
-If you are just getting started with the library take a look at the section
-below that describes building and handling external dependencies for the
-library.  Once it is built you should take a look at src/examples to see how
-the library is used.
+## Motivation for providing the API
 
-This file captures the goals and direction of the project and the current state
-of the implementation.
+The developers are of the opinion that DNSSEC offers a unique global
+infrastructure for establishing and enhancing cryptographic trust relations.
+With the development of this API we intend to offer application developers a
+modern and flexible way that enables end-to-end trust in the DNS architecture
+and will inspire application developers towards innovative security solutions
+in their applications.
+
+## Goals
 
 The goals of this implementation of the getdns API are:
 
@@ -47,21 +63,19 @@ The goals of this implementation of the getdns API are:
 Non-goals (things we will not be doing at least initially) include:
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
+## Official and Additional API
+
+Note that this implementation offers additional functionality to supplement that
+in the official getdns API. Some additions are convenient utility functions but other functionality
+is experimental prior to be being recommended for inclusion in the official API.
+The 'Modules' page in the doxygen documentation provides a guide to both the
+official API and the additional functionality.
+
 ## Language Bindings
 
 In parallel, the team is actively developing bindings for various languages.
 For more information, visit the
 [wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
-
-Motivation for providing the API
-================================
-
-The developers are of the opinion that DNSSEC offers a unique global
-infrastructure for establishing and enhancing cryptographic trust relations.
-With the development of this API we intend to offer application developers a
-modern and flexible way that enables end-to-end trust in the DNS architecture
-and will inspire application developers towards innovative security solutions
-in their applications.
 
 
 Releases
@@ -101,6 +115,16 @@ with:
 
     # libtoolize -ci (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
     # autoreconf -fi
+
+If you want to make use of the configuration files that utilise a JSON-like format, you must do 
+
+    # git submodule update --init
+
+before building. 
+
+If you want to use the getdns_query command line wrapper script for testing or to enable getdns as a daemon then you must build it using
+
+    # make getdns_query
 
 ## Minimal dependencies
 
@@ -143,7 +167,7 @@ execute the following steps as root:
     # mkdir -p /etc/unbound
     # unbound-anchor -a /etc/unbound/getdns-root.key
 
-#Unsupported Features
+# Unsupported Features
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
@@ -151,7 +175,7 @@ The following API calls are documented in getDNS but *not supported* by the impl
 * Detecting changes to resolv.conf and hosts
 * MDNS, NIS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
-#Known Issues
+# Known Issues
 
 There are a few known issues which we have summarized below - the most recent
 and helpful list is being maintained in the git issues list in the repository.
@@ -160,7 +184,7 @@ Other known issues are being managed in the git repository issue list.
 * When doing a synchronous lookup with a context that has outstanding asynchronous lookups, the callbacks for the asynchronous lookups might get called as a side effect of the synchronous lookup.
 
 
-#Supported Platforms
+# Supported Platforms
 
 The primary platforms targeted are Linux and FreeBSD, other platform are supported as we get time.  The names listed here are intended to help ensure that we catch platform specific breakage, not to limit the work that folks are doing.
 
@@ -172,17 +196,17 @@ The primary platforms targeted are Linux and FreeBSD, other platform are support
 We intend to add Android and other platforms to the releases as we have time to port it.
 
 
-##Platform Specific Build Reports
+##  Platform Specific Build Reports
 
 [![Build Status](https://travis-ci.org/getdnsapi/getdns.png?branch=master)](https://travis-ci.org/getdnsapi/getdns)
 
-###FreeBSD
+### FreeBSD
 
 If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via the [ports tree](https://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
-###CentOS/RHEL 6.5
+### CentOS/RHEL 6.5
 
 We rely on the most excellent package manager fpm to build the linux packages which
 means that the packaging platform requires ruby 2.1.0.  There are other ways to
@@ -200,7 +224,7 @@ build the packages, this is simplythe one we chose to use.
     # . /usr/local/rvm/config/alias
     # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.2.0rc1 -d "unbound" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
-###OSX
+### OSX
 
     # sw_vers
     ProductName:	Mac OS X
@@ -277,7 +301,6 @@ To configure:
     ./getdns_query.exe -s gmadkat.com A -l L @185.49.141.37  +return_call_reporting (TLS without authentication)
     ./getdns_query.exe -s www.huque.com A +dnssec_return_status +return_call_reporting (DNSSEC)
 
-
 Contributors
 ============
 * Theogene Bucuti
@@ -312,6 +335,7 @@ Contributors
 * Wouter Wijngaards, NLnet Labs
 * Glen Wiley, Verisign, Inc.
 * Paul Wouters
+
 
 Acknowledgements
 ================

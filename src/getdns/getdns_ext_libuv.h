@@ -44,6 +44,9 @@ extern "C" {
 #include <getdns/getdns_extra.h>
 struct uv_loop_s;
 
+/**
+ *  \ingroup eventloops
+ */
 /* For libevent, which we are using for these examples */
 getdns_return_t
 getdns_extension_set_libuv_loop(struct getdns_context *context,

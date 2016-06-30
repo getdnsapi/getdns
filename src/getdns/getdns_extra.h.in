@@ -1,3 +1,10 @@
+/**
+ * \file
+ * \brief Public interface to getdns that is ADDITIONAL to the official getdns API, include
+ *        in your application to use additional functionality offered by
+ *        this implementation.
+ */
+
 /*
  * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
  * All rights reserved.
@@ -37,34 +44,111 @@
 extern "C" {
 #endif
 
-/* Enable the return_dnssec_status extension on every request.
-   value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
-   returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
-   if context or value is invalid */
-getdns_return_t getdns_context_set_return_dnssec_status(
-    getdns_context *context, int enabled);
+/** \defgroup UnofficialgetdnsAPI Additional API for getdns implementation
+ *  @{
+ */
 
-/* dict util */
-/* set a string as bindata */
-getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict,
-    char *name, const char *value);
+/** \defgroup Uvaluesandtexts Additional values and texts
+ *  @{
+ */
 
-/* get a string from a dict.  the result must be freed if valid */
-getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict,
-    char *name, char **result);
+/**
+ * \defgroup Ureturnvaluesandtext Additional return values and texts
+ *  @{
+ */
+#define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t) 399 )
+#define GETDNS_RETURN_NEED_MORE_SPACE_TEXT "The buffer was too small"
+/** @}
+  */
 
-/* tells underlying unbound to use background threads or fork */
-getdns_return_t getdns_context_set_use_threads(getdns_context* context,
-    int use_threads);
 
-/* Async support */
-uint32_t getdns_context_get_num_pending_requests(getdns_context* context,
-    struct timeval* next_timeout);
+/**
+ * \defgroup Ucontextcodes Additional context codes and texts
+ *  @{
+ */
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION 618
+#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT "Change related to getdns_context_set_tls_authentication"
+#define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE 619
+#define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE_TEXT "Change related to getdns_context_set_edns_client_subnet_private"
+#define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE 620
+#define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE_TEXT "Change related to getdns_context_set_tls_query_padding_blocksize"
+#define GETDNS_CONTEXT_CODE_PUBKEY_PINSET 621
+#define GETDNS_CONTEXT_CODE_PUBKEY_PINSET_TEXT "Change related to getdns_context_set_pubkey_pinset"
+/** @}
+  */
 
-/* process async reqs */
-getdns_return_t getdns_context_process_async(getdns_context* context);
 
-/*****************    functions for eventloop extensions    ******************/
+/**
+ * \defgroup versions Additional version values
+ *  @{
+ */
+#define GETDNS_VERSION "@GETDNS_VERSION@"
+#define GETDNS_NUMERIC_VERSION @GETDNS_NUMERIC_VERSION@
+#define GETDNS_API_VERSION "@API_VERSION@"
+#define GETDNS_API_NUMERIC_VERSION @API_NUMERIC_VERSION@
+/** @}
+  */
+
+
+/* an alias for REQUIRED */
+#define GETDNS_AUTHENTICATION_HOSTNAME GETDNS_AUTHENTICATION_REQUIRED
+
+/**
+  * \defgroup authvaulesandtext Additional authentication values and texts
+  * @{
+  */
+/* Authentication options used when doing TLS */
+typedef enum getdns_tls_authentication_t {
+	GETDNS_AUTHENTICATION_NONE = 1300,
+	GETDNS_AUTHENTICATION_REQUIRED = 1301
+} getdns_tls_authentication_t;
+
+#define GETDNS_AUTHENTICATION_NONE_TEXT "See getdns_context_set_tls_authentication()"
+#define GETDNS_AUTHENTICATION_REQUIRED_TEXT "See getdns_context_set_tls_authentication()"
+/** @}
+  */
+
+
+/**
+ * \defgroup appendname Additional append name values and texts
+ *  @{
+ */
+#define GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST ((getdns_append_name_t) 554 )
+#define GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST_TEXT "See getdns_context_set_append_name()"
+/** @}
+  */
+
+
+/**
+ * \defgroup Uvaluesandtextsdepricated Additional transport values and texts (will be deprecated)
+ *  @{
+ */
+
+/** WARNING! Do not use the constants below.  They will be removed from future
+ * releases.  Please use the getdns_context_set_dns_transport_list with the
+ * GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP and GETDNS_TRANSPORT_TLS
+ * constants instead.
+ */
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN 544
+#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 545
+#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
+
+/** @}
+  */
+/** @}
+  */
+
+
+/**
+ * \defgroup Ufunctions Additional functions
+ *  @{
+ */
+
+/**
+ * \defgroup Ueventloops Additional event loop extension functions
+ *  @{
+ */
 
 typedef void (*getdns_eventloop_callback)(void *userarg);
 
@@ -131,7 +215,66 @@ getdns_context_detach_eventloop(getdns_context *context);
 /* Run the context's event loop until nothing more to do */
 void
 getdns_context_run(getdns_context *context);
+/** @}
+ */
 
+
+/**
+ * \defgroup contextfunction Additional getdns_context async functions
+ *  @{
+ */
+/* process async reqs */
+getdns_return_t getdns_context_process_async(getdns_context* context);
+/** @}
+ */
+
+/**
+ * \defgroup Ucontextset Additional getdns_context_set functions
+ *  @{
+ */
+/**
+ * Register a callback function for context changes.
+ * @param context The context to monitor for changes
+ * @param userarg A user defined argument that will be passed to the callback
+ *                function.
+ * @param value   The callback function that will be called when a context
+ *                value is changed.  The arguments to the callback function
+ *                are the context for which the value changes, a code
+ *                referencing the changed value and the userarg parameter
+ *                supplied during callback registration.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_context_set_update_callback(getdns_context *context, void *userarg,
+    void (*value) (getdns_context *, getdns_context_code_t, void *));
+
+/* Enable the return_dnssec_status extension on every request.
+   value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
+   returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
+   if context or value is invalid */
+getdns_return_t getdns_context_set_return_dnssec_status(
+    getdns_context *context, int enabled);
+
+/* tells underlying unbound to use background threads or fork */
+getdns_return_t getdns_context_set_use_threads(getdns_context* context,
+    int use_threads);
+
+getdns_return_t
+getdns_context_set_tls_authentication(
+    getdns_context *context, getdns_tls_authentication_t value);
+
+getdns_return_t
+getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t value);
+
+getdns_return_t
+getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t value);
+/** @}
+ */
+
+ /**
+  * \defgroup Ucontextget Additional getdns_context_get functions
+  *  @{
+  */
 /** begin getters **/
 getdns_return_t
 getdns_context_get_resolution_type(getdns_context *context,
@@ -202,14 +345,152 @@ getdns_return_t
 getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value);
 
 getdns_return_t
-getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t value);
-getdns_return_t
 getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* value);
 
 getdns_return_t
-getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t value);
-getdns_return_t
 getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t* value);
+
+getdns_return_t
+getdns_context_get_tls_authentication(getdns_context *context,
+    getdns_tls_authentication_t* value);
+
+/**
+ * Get the currently registered callback function and user defined argument
+ * for context changes.
+ * Combined with getdns_context_set_update_callback this can be used to
+ * "chain" context update callbacks and in this way create a subscription
+ * service catering multiple interested parties.
+ * @param context The context to monitor for changes
+ * @return userarg A user defined argument to be passed to the callback
+ *                 function.
+ * @return value   The callback function to be called on context value
+ *                 changes.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_context_get_update_callback(getdns_context *context, void **userarg,
+    void (**value) (getdns_context *, getdns_context_code_t, void *));
+
+/* Async support */
+uint32_t getdns_context_get_num_pending_requests(getdns_context* context,
+    struct timeval* next_timeout);
+/** @}
+ */
+
+
+/**
+ * \defgroup Uutilityfunctions Additional utility functions
+ *  @{
+ */
+
+const char *getdns_get_version(void);
+uint32_t getdns_get_version_number(void);
+const char *getdns_get_api_version(void);
+uint32_t getdns_get_api_version_number(void);
+
+/**
+ * Returns a text describing the getdns error code, or NULL when the error
+ * code is unkown.
+ * @param err The error code for which to return the describing text
+ * @return The describing text for the error code.  The string is in library
+ * space and the caller must *not* free this.
+ */
+const char *getdns_get_errorstr_by_id(uint16_t err);
+
+/* dict util */
+/* set a string as bindata */
+getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict,
+    char *name, const char *value);
+
+/* get a string from a dict.  the result must be freed if valid */
+getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict,
+    char *name, char **result);
+
+/**
+ * Validate replies or resource records.
+ *
+ * @param  to_validate     A list of RR-dicts with companion RRSIG-RR-dicts
+ *                         which will be validated.  Or a list of reply-dicts
+ *                         that will be validated.  The "replies_tree" list
+ *                         of a response dict can be used directly here.
+ * @param  support_records A list of DS's RR-dicts and DNSKEY RR-dicts with
+ *                         companion RRSIG-RR-dicts that lead up from one of
+ *                         the trust_anchors to the RR-dicts or replies to
+ *                         validate.  The "validation_chain" list of a response
+ *                         dict (with the dnssec_return_validation_chain
+ *                         extension) can be used directly here.
+ * @param  trust_anchors   The list of trusted DNSKEYs or DS'es RR-dicts.
+ *                         The result of the getdns_root_trust_anchor() or the
+ *                         getdns_context_get_dnssec_trust_anchors() function
+ *                         can be used directly here.
+ * @param  validation_time The point in time in seconds since 1 January 1970
+ *                         00:00:00 UTC, ignoring leap seconds, wrapping using
+ *                         "Serial number arithmetic", as defined in RFC1982.
+ * @param  skew            The numer of seconds of skew that is allowed in 
+ *                         either direction when checking an RRSIG's 
+ *                         Expiration and Inception fields
+ * @return The dnssec status of validated records or replies, 
+ *         GETDNS_DNSSEC_SECURE, GETDNS_DNSSEC_INSECURE,
+ *         GETDNS_DNSSEC_INDETERMINATE or GETDNS_DNSSEC_BOGUS, or an error
+ *         return code.
+ */
+getdns_return_t
+getdns_validate_dnssec2(getdns_list *to_validate,
+    getdns_list *support_records,
+    getdns_list *trust_anchors,
+    time_t validation_time, uint32_t skew);
+
+/**
+ * Public Key Pinning functionality:
+ * 
+ * a public key pinset is a list of dicts.  each dict should have a
+ * "digest" and a "value".
+ * 
+ * "digest": a string indicating the type of digest. at the moment, we
+ *           only support a "digest" of "sha256".
+ * 
+ * "value": a binary representation of the digest provided.
+ * 
+ * given a such a pinset, we should be able to validate a chain
+ * properly according to section 2.6 of RFC 7469.
+ */
+
+/**
+ * convert an HPKP-style pin description to an appropriate getdns data
+ * structure.  An example string is: (with the quotes, without any
+ * leading or trailing whitespace):
+ *
+ *    pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="
+ *
+ * It is the caller's responsibility to call getdns_dict_destroy() on
+ * the dict returned when it is no longer needed.
+ *
+ * @param context a context to use to create the dict, or NULL to create
+ *            it generically
+ * @param str the pinning string to parse
+ * @return a dict created from ctx, or  NULL if the string did not match. 
+ */
+getdns_dict* getdns_pubkey_pin_create_from_string(
+	getdns_context* context,
+	const char* str);
+
+
+/**
+ * Test whether a given pinset is reasonable, including:
+ *
+ * is it well-formed?
+ * are there at least two pins?
+ * are the digests used sane?
+ *
+ * @param pinset the set of public key pins to check for sanity.  This
+ *               should be a list of dicts.
+ * @return errorlist if not NULL, a list of human-readable strings is 
+ *                   appended to errorlist.
+ * @return GETDNS_RETURN_GOOD if the pinset passes the sanity check.
+ */ 
+getdns_return_t getdns_pubkey_pinset_sanity_check(
+	const getdns_list* pinset,
+	getdns_list* errorlist);
 
 
 /**
@@ -306,169 +587,6 @@ int
 getdns_snprint_json_list(
     char *str, size_t size, const getdns_list *list, int pretty);
 
-/**
- * Register a callback function for context changes.
- * @param context The context to monitor for changes
- * @param userarg A user defined argument that will be passed to the callback
- *                function.
- * @param value   The callback function that will be called when a context
- *                value is changed.  The arguments to the callback function
- *                are the context for which the value changes, a code
- *                referencing the changed value and the userarg parameter
- *                supplied during callback registration.
- * @return GETDNS_RETURN_GOOD on success or an error code on failure.
- */
-getdns_return_t
-getdns_context_set_update_callback(getdns_context *context, void *userarg,
-    void (*value) (getdns_context *, getdns_context_code_t, void *));
-
-/**
- * Get the currently registered callback function and user defined argument
- * for context changes.
- * Combined with getdns_context_set_update_callback this can be used to
- * "chain" context update callbacks and in this way create a subscription
- * service catering multiple interested parties.
- * @param context The context to monitor for changes
- * @return userarg A user defined argument to be passed to the callback
- *                 function.
- * @return value   The callback function to be called on context value
- *                 changes.
- * @return GETDNS_RETURN_GOOD on success or an error code on failure.
- */
-getdns_return_t
-getdns_context_get_update_callback(getdns_context *context, void **userarg,
-    void (**value) (getdns_context *, getdns_context_code_t, void *));
-
-/**
- * Returns a text describing the getdns error code, or NULL when the error
- * code is unkown.
- * @param err The error code for which to return the describing text
- * @return The describing text for the error code.  The string is in library
- * space and the caller must *not* free this.
- */
-const char *getdns_get_errorstr_by_id(uint16_t err);
-
-	
-
-/**
- * Public Key Pinning functionality:
- * 
- * a public key pinset is a list of dicts.  each dict should have a
- * "digest" and a "value".
- * 
- * "digest": a string indicating the type of digest. at the moment, we
- *           only support a "digest" of "sha256".
- * 
- * "value": a binary representation of the digest provided.
- * 
- * given a such a pinset, we should be able to validate a chain
- * properly according to section 2.6 of RFC 7469.
- */
-
-/**
- * convert an HPKP-style pin description to an appropriate getdns data
- * structure.  An example string is: (with the quotes, without any
- * leading or trailing whitespace):
- *
- *    pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="
- *
- * It is the caller's responsibility to call getdns_dict_destroy() on
- * the dict returned when it is no longer needed.
- *
- * @param context a context to use to create the dict, or NULL to create
- *            it generically
- * @param str the pinning string to parse
- * @return a dict created from ctx, or  NULL if the string did not match. 
- */
-getdns_dict* getdns_pubkey_pin_create_from_string(
-	getdns_context* context,
-	const char* str);
-
-
-/**
- * Test whether a given pinset is reasonable, including:
- *
- * is it well-formed?
- * are there at least two pins?
- * are the digests used sane?
- *
- * @param pinset the set of public key pins to check for sanity.  This
- *               should be a list of dicts.
- * @return errorlist if not NULL, a list of human-readable strings is 
- *                   appended to errorlist.
- * @return GETDNS_RETURN_GOOD if the pinset passes the sanity check.
- */ 
-getdns_return_t getdns_pubkey_pinset_sanity_check(
-	const getdns_list* pinset,
-	getdns_list* errorlist);
-
-
-	
-/* WARNING! Function getdns_strerror is not in the API specification and
- * is likely to be removed from future versions of our implementation, to be
- * replaced by getdns_get_errorstr_by_id or something similar.
- * Please use getdns_get_errorstr_by_id instead of getdns_strerror.
- */
-getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
-
-#define GETDNS_VERSION "@GETDNS_VERSION@"
-#define GETDNS_NUMERIC_VERSION @GETDNS_NUMERIC_VERSION@
-#define GETDNS_API_VERSION "@API_VERSION@"
-#define GETDNS_API_NUMERIC_VERSION @API_NUMERIC_VERSION@
-
-const char *getdns_get_version(void);
-uint32_t getdns_get_version_number(void);
-const char *getdns_get_api_version(void);
-uint32_t getdns_get_api_version_number(void);
-
-/* Authentication options used when doing TLS */
-typedef enum getdns_tls_authentication_t {
-	GETDNS_AUTHENTICATION_NONE = 1300,
-	GETDNS_AUTHENTICATION_REQUIRED = 1301
-} getdns_tls_authentication_t;
-
-/* an alias for REQUIRED */
-#define GETDNS_AUTHENTICATION_HOSTNAME GETDNS_AUTHENTICATION_REQUIRED
-
-/**
-  * \defgroup authtext Authentication texts
-  * @{
-  */
-#define GETDNS_AUTHENTICATION_NONE_TEXT "See getdns_context_set_tls_authentication()"
-#define GETDNS_AUTHENTICATION_REQUIRED_TEXT "See getdns_context_set_tls_authentication()"
-/** @}
-  */
-
-#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION 618
-#define GETDNS_CONTEXT_CODE_TLS_AUTHENTICATION_TEXT "Change related to getdns_context_set_tls_authentication"
-#define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE 619
-#define GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE_TEXT "Change related to getdns_context_set_edns_client_subnet_private"
-#define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE 620
-#define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE_TEXT "Change related to getdns_context_set_tls_query_padding_blocksize"
-#define GETDNS_CONTEXT_CODE_PUBKEY_PINSET 621
-#define GETDNS_CONTEXT_CODE_PUBKEY_PINSET_TEXT "Change related to getdns_context_set_pubkey_pinset"
-
-getdns_return_t
-getdns_context_set_tls_authentication(
-    getdns_context *context, getdns_tls_authentication_t value);
-
-getdns_return_t
-getdns_context_get_tls_authentication(getdns_context *context,
-    getdns_tls_authentication_t* value);
-
-
-/* WARNING! Do not use the constants below.  They will be removed from future
- * releases.  Please use the getdns_context_set_dns_transport_list with the
- * GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP and GETDNS_TRANSPORT_TLS
- * constants instead.
- */
-#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN 544
-#define GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
-#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN 545
-#define GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN_TEXT "See getdns_context_set_dns_transport()"
-
-#define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t) 399 )
-#define GETDNS_RETURN_NEED_MORE_SPACE_TEXT "The buffer was too small"
 
 /**
  * Convert rr_dict to wireformat representation of the resource record.
@@ -630,7 +748,7 @@ getdns_str2rr_dict(
 /**
  * Read the zonefile and convert to a list of rr_dict's.
  *
- * @param  fp          An opened FILE pointer on the zone file.
+ * @param  FILE        An opened FILE pointer on the zone file.
  * @return rr_list     The result list of rr_dicts representing the zone file.
  * @param  origin      Default suffix for not fully qualified domain names
  * @param  default_ttl Default ttl
@@ -782,46 +900,27 @@ getdns_msg_dict2str_buf(
 getdns_return_t
 getdns_msg_dict2str_scan(
     const getdns_dict *msg_dict, char **str, int *str_len);
+/** @}
+ */
 
 
 /**
- * Validate replies or resource records.
- *
- * @param  to_validate     A list of RR-dicts with companion RRSIG-RR-dicts
- *                         which will be validated.  Or a list of reply-dicts
- *                         that will be validated.  The "replies_tree" list
- *                         of a response dict can be used directly here.
- * @param  support_records A list of DS's RR-dicts and DNSKEY RR-dicts with
- *                         companion RRSIG-RR-dicts that lead up from one of
- *                         the trust_anchors to the RR-dicts or replies to
- *                         validate.  The "validation_chain" list of a response
- *                         dict (with the dnssec_return_validation_chain
- *                         extension) can be used directly here.
- * @param  trust_anchors   The list of trusted DNSKEYs or DS'es RR-dicts.
- *                         The result of the getdns_root_trust_anchor() or the
- *                         getdns_context_get_dnssec_trust_anchors() function
- *                         can be used directly here.
- * @param  validation_time The point in time in seconds since 1 January 1970
- *                         00:00:00 UTC, ignoring leap seconds, wrapping using
- *                         "Serial number arithmetic", as defined in RFC1982.
- * @param  skew            The numer of seconds of skew that is allowed in 
- *                         either direction when checking an RRSIG's 
- *                         Expiration and Inception fields
- * @return The dnssec status of validated records or replies, 
- *         GETDNS_DNSSEC_SECURE, GETDNS_DNSSEC_INSECURE,
- *         GETDNS_DNSSEC_INDETERMINATE or GETDNS_DNSSEC_BOGUS, or an error
- *         return code.
+ * \defgroup Uutilityfunctionsdeprecated  Additional utility functions (will be deprecated)
+ *  @{
  */
-getdns_return_t
-getdns_validate_dnssec2(getdns_list *to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors,
-    time_t validation_time, uint32_t skew);
+/* WARNING! Function getdns_strerror is not in the API specification and
+ * is likely to be removed from future versions of our implementation, to be
+ * replaced by getdns_get_errorstr_by_id or something similar.
+ * Please use getdns_get_errorstr_by_id instead of getdns_strerror.
+ */
+getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
+/** @}
+ */
+/** @}
+ */
 
-
-#define GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST ((getdns_append_name_t) 554 )
-#define GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST_TEXT "See getdns_context_set_append_name()"
-
+/** @}
+ */
 
 #ifdef __cplusplus
 }

@@ -68,7 +68,7 @@ getdns_return_t getdns_apply_network_result(getdns_network_req* netreq,
  * description but the list_set functions seem to be designed to modify an existing
  * item in the list.  The newly added item has no data type.
  * @param list list containing the item to which child_list is to be added
- * @param *index assigned to the index of the newly added item on success
+ * @param *child_dict dict to append to the list
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_GENERAL_ERROR if out of memory
  */

@@ -665,7 +665,7 @@ getdns_return_t
 getdns_general(getdns_context *context,
     const char *name, uint16_t request_type, getdns_dict *extensions,
     void *userarg, getdns_transaction_t * transaction_id,
-    getdns_callback_t callback)
+    getdns_callback_t callbackfn)
 {
 	getdns_return_t r;
 	getdns_network_req *netreq = NULL;
@@ -673,7 +673,7 @@ getdns_general(getdns_context *context,
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	r = _getdns_general_loop(context, context->extension,
 	    name, request_type, extensions,
-	    userarg, &netreq, callback, NULL);
+	    userarg, &netreq, callbackfn, NULL);
 	if (netreq && transaction_id)
 		*transaction_id = netreq->owner->trans_id;
 	return r;
@@ -686,12 +686,12 @@ getdns_general(getdns_context *context,
 getdns_return_t
 getdns_address(getdns_context *context,
     const char *name, getdns_dict *extensions, void *userarg,
-    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return _getdns_address_loop(context, context->extension,
 	    name, extensions, userarg,
-	    transaction_id, callback);
+	    transaction_id, callbackfn);
 } /* getdns_address */
 
 /*
@@ -701,11 +701,11 @@ getdns_address(getdns_context *context,
 getdns_return_t
 getdns_hostname(getdns_context *context,
     getdns_dict *address, getdns_dict *extensions, void *userarg,
-    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return _getdns_hostname_loop(context, context->extension,
-	    address, extensions, userarg, transaction_id, callback);
+	    address, extensions, userarg, transaction_id, callbackfn);
 }				/* getdns_hostname */
 
 /*
@@ -715,11 +715,11 @@ getdns_hostname(getdns_context *context,
 getdns_return_t
 getdns_service(getdns_context *context,
     const char *name, getdns_dict *extensions, void *userarg,
-    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
 	return _getdns_service_loop(context, context->extension,
-	    name, extensions, userarg, transaction_id, callback);
+	    name, extensions, userarg, transaction_id, callbackfn);
 }				/* getdns_service */
 
 /* getdns_general.c */
