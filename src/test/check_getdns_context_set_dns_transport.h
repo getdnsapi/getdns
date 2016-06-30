@@ -226,7 +226,7 @@
                GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
            ASSERT_RC(getdns_context_set_timeout(context, 2000),
                GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+           ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),
