@@ -326,14 +326,17 @@ process_keepalive(
 	int found = match_edns_opt_rr(GLDNS_EDNS_KEEPALIVE, response, 
 	                              response_len, &position, &option_len);
 	if (found != 2 || option_len != 2) {
-		if (netreq->keepalive_sent == 1)
-			/* If no keepalive sent back, then we must use 0 idle timeout
-			   as server does not support it.*/
-#if defined(KEEP_CONNECTIONS_OPEN_DEBUG) && KEEP_CONNECTIONS_OPEN_DEBUG
-			upstream->keepalive_timeout = netreq->owner->context->idle_timeout;
-#else
-			upstream->keepalive_timeout = 0;
+		if (netreq->keepalive_sent == 1) {
+			/* For TCP if no keepalive sent back, then we must use 0 idle timeout
+			   as server does not support it. TLS allows idle connections without
+			   keepalive, according to RFC7858. */
+#if !defined(KEEP_CONNECTIONS_OPEN_DEBUG) && !KEEP_CONNECTIONS_OPEN_DEBUG
+			if (upstream->transport != GETDNS_TRANSPORT_TLS)
+				upstream->keepalive_timeout = 0;
+			else
 #endif
+				upstream->keepalive_timeout = netreq->owner->context->idle_timeout;
+		}
 		return;
 	}
 	/* Use server sent value unless the client specified a shorter one.
