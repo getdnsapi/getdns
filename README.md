@@ -175,6 +175,18 @@ The following API calls are documented in getDNS but *not supported* by the impl
 * Detecting changes to resolv.conf and hosts
 * MDNS, NIS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
+## Non-uniform implementation
+
+The following minor implementation omissions are noted:
+
+Recursive mode does not support:
+* TLS as a transport
+* Non-zero connection idle timeouts or query pipelining
+
+Stub mode does not support:
+* Non zero idle timeouts for synchronous calls
+* Limit on number of outstanding queries
+
 # Known Issues
 
 There are a few known issues which we have summarized below - the most recent
