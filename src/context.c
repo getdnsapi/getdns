@@ -696,11 +696,12 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	   use the same basis if we simply can't get TCP service either.*/
 
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
-	if (upstream->conn_setup_failed >= GETDNS_MAX_CONN_FAILS ||
-	    (upstream->conn_shutdowns >= GETDNS_MAX_CONN_FAILS*GETDNS_CONN_FAIL_MULT
+	if (upstream->conn_setup_failed >= GETDNS_CONN_ATTEMPTS ||
+	    (upstream->conn_shutdowns >= GETDNS_CONN_ATTEMPTS*GETDNS_TRANSPORT_FAIL_MULT
 	     && upstream->total_responses == 0) ||
-	    (upstream->total_timeouts > 0 && 
-	     upstream->total_responses*GETDNS_MAX_CONN_FAILS == 0))
+	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
+	     upstream->total_responses == 0 && 
+	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT))
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
 	// Reset per connection counters
 	upstream->queries_sent = 0;

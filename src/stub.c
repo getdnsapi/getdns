@@ -1542,7 +1542,7 @@ upstream_working_ok(getdns_upstream *upstream)
 {
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
 	return (upstream->responses_timeouts > 
-		upstream->responses_received*GETDNS_MAX_CONN_FAILS ? 0 : 1);
+		upstream->responses_received*GETDNS_CONN_ATTEMPTS ? 0 : 1);
 }
 
 static int
@@ -1564,7 +1564,7 @@ upstream_stats(getdns_upstream *upstream)
 {
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
 	return (upstream->total_responses - upstream->total_timeouts
-	        - upstream->conn_shutdowns*GETDNS_CONN_FAIL_MULT);
+	        - upstream->conn_shutdowns*GETDNS_TRANSPORT_FAIL_MULT);
 }
 
 static int

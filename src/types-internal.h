@@ -120,8 +120,8 @@ struct getdns_upstream;
 
 #define GETDNS_TRANSPORTS_MAX 3
 #define GETDNS_UPSTREAM_TRANSPORTS 2
-#define GETDNS_MAX_CONN_FAILS 2
-#define GETDNS_CONN_FAIL_MULT 5
+#define GETDNS_CONN_ATTEMPTS 2
+#define GETDNS_TRANSPORT_FAIL_MULT 5
 
 
 /* declarations */
