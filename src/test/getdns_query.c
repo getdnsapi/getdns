@@ -27,7 +27,6 @@
 
 #include "config.h"
 #include "debug.h"
-#include "getdns_str2dict.h"
 #include "getdns_context_config.h"
 #include "getdns_context_set_listen_addresses.h"
 #include <stdio.h>

@@ -822,6 +822,10 @@ getdns_validate_dnssec2(getdns_list *to_validate,
 #define GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST ((getdns_append_name_t) 554 )
 #define GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST_TEXT "See getdns_context_set_append_name()"
 
+getdns_return_t getdns_str2dict(const char *str, getdns_dict **dict);
+getdns_return_t getdns_str2list(const char *str, getdns_list **list);
+getdns_return_t getdns_str2bindata(const char *str, getdns_bindata **bindata);
+getdns_return_t getdns_str2int(const char *str, uint32_t *value);
 
 #ifdef __cplusplus
 }

@@ -134,6 +134,10 @@ getdns_service
 getdns_service_sync
 getdns_snprint_json_dict
 getdns_snprint_json_list
+getdns_str2bindata
+getdns_str2dict
+getdns_str2int
+getdns_str2list
 getdns_str2rr_dict
 getdns_strerror
 getdns_validate_dnssec
