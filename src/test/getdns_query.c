@@ -499,8 +499,23 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] == '@') {
-			getdns_dict *upstream = _getdns_ipaddr_dict(arg + 1);
-			if (upstream) {
+			getdns_dict *upstream;
+			getdns_bindata *address;
+
+			if ((r = getdns_str2dict(arg + 1, &upstream)))
+				fprintf(stderr, "Could not convert \"%s\" to "
+				    "an IP dict: %s\n", arg + 1,
+				    getdns_get_errorstr_by_id(r));
+
+			else if ((r = getdns_dict_get_bindata(
+			    upstream, "address_data", &address))) {
+
+				fprintf(stderr, "\"%s\" did not translate to "
+				    "an IP dict: %s\n", arg + 1,
+				    getdns_get_errorstr_by_id(r));
+
+				getdns_dict_destroy(upstream);
+			} else {
 				if (!upstream_list &&
 				    !(upstream_list =
 				    getdns_list_create_with_context(context))){
@@ -521,6 +536,9 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 		}
 		for (c = arg+1; *c; c++) {
+			getdns_dict *downstream;
+			getdns_bindata *address;
+
 			switch (*c) {
 			case 'a':
 				async = 1;
@@ -896,23 +914,33 @@ getdns_return_t parse_args(int argc, char **argv)
 					DEBUG_SERVER("Clear listen list\n");
 					break;
 				}
-				getdns_dict *downstream =
-				    _getdns_ipaddr_dict(argv[i]);
-				if (!downstream) {
-					fprintf(stderr, "could not parse "
-					        "listen address: %s", argv[i]);
+
+				if ((r = getdns_str2dict(argv[i], &downstream)))
+					fprintf(stderr, "Could not convert \"%s\" to "
+					    "an IP dict: %s\n", argv[i],
+					    getdns_get_errorstr_by_id(r));
+
+				else if ((r = getdns_dict_get_bindata(
+				    downstream, "address_data", &address))) {
+
+					fprintf(stderr, "\"%s\" did not translate to "
+					    "an IP dict: %s\n", argv[i],
+					    getdns_get_errorstr_by_id(r));
+
+					getdns_dict_destroy(downstream);
+				} else {
+					if (!listen_list &&
+					    !(listen_list =
+					    getdns_list_create_with_context(context))){
+						fprintf(stderr, "Could not create "
+								"downstream list\n");
+						return GETDNS_RETURN_MEMORY_ERROR;
+					}
+					getdns_list_set_dict(listen_list,
+					    listen_count++, downstream);
+					getdns_dict_destroy(downstream);
+					touched_listen_list = 1;
 				}
-				if (!listen_list &&
-				    !(listen_list =
-				    getdns_list_create_with_context(context))){
-					fprintf(stderr, "Could not create "
-							"downstram list\n");
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				getdns_list_set_dict(listen_list,
-				    listen_count++, downstream);
-				getdns_dict_destroy(downstream);
-				touched_listen_list = 1;
 				break;
 			default:
 				fprintf(stderr, "Unknown option "
@@ -976,14 +1004,26 @@ getdns_return_t do_the_call(void)
 {
 	getdns_return_t r;
 	getdns_dict *address = NULL;
+	getdns_bindata *address_bindata;
 	getdns_dict *response = NULL;
 	char *response_str;
 	uint32_t status;
 
-	if (calltype == HOSTNAME &&
-	    !(address = _getdns_ipaddr_dict(name))) {
-		fprintf(stderr, "Could not convert \"%s\" "
-				"to an IP address", name);
+	if (calltype != HOSTNAME)
+		; /* pass */
+
+	else if ((r = getdns_str2dict(name, &address))) {
+
+		fprintf(stderr, "Could not convert \"%s\" to an IP dict: %s\n"
+		              , name, getdns_get_errorstr_by_id(r));
+		return GETDNS_RETURN_GOOD;
+
+	} else if ((r = getdns_dict_get_bindata(
+	    address, "address_data", &address_bindata))) {
+
+		fprintf(stderr, "Could not convert \"%s\" to an IP dict: %s\n"
+		              , name, getdns_get_errorstr_by_id(r));
+		getdns_dict_destroy(address);
 		return GETDNS_RETURN_GOOD;
 	}
 	if (async) {
