@@ -1,6 +1,6 @@
 /**
  * \file
- * \brief Public interfaces to getdns, include in your application to use getdns API.
+ * \brief Testing interfaces to getdns
  *
  * This source was taken from the original pseudo-implementation by
  * Paul Hoffman.

@@ -47,8 +47,17 @@ extern "C" {
 
 #define GETDNS_COMPILATION_COMMENT "@GETDNS_COMPILATION_COMMENT@"
 
+/** \defgroup getdnsAPI Official getdns API 
+ *  @{
+ */
+
+
+/** \defgroup valuesandtexts Values and texts
+ *  @{
+ */
+
 /**
- * \defgroup returntypes Return values
+ * \defgroup returntypestext Return values and texts
  * @{
  */
 typedef enum getdns_return_t {
@@ -68,13 +77,8 @@ typedef enum getdns_return_t {
 	GETDNS_RETURN_INVALID_PARAMETER = 311,
 	GETDNS_RETURN_NOT_IMPLEMENTED = 312
 } getdns_return_t;
-/** @}
- */
 
-/**
- * \defgroup returntypestext Return values texts
- * @{
- */
+
 #define GETDNS_RETURN_GOOD_TEXT "Good"
 #define GETDNS_RETURN_GENERIC_ERROR_TEXT "Generic error"
 #define GETDNS_RETURN_BAD_DOMAIN_NAME_TEXT "Badly-formed domain name in first argument"
@@ -113,7 +117,7 @@ typedef enum getdns_return_t {
 
 
 /**
- * \defgroup namespacetypes Namespace types
+ * \defgroup namespacetypestext Namespace types and texts
  * @{
  */
 typedef enum getdns_namespace_t {
@@ -123,13 +127,8 @@ typedef enum getdns_namespace_t {
 	GETDNS_NAMESPACE_MDNS = 503,
 	GETDNS_NAMESPACE_NIS = 504
 } getdns_namespace_t;
-/** @}
- */
 
-/**
- * \defgroup namespacetypestext Namespace types texts
- * @{
- */
+
 #define GETDNS_NAMESPACE_DNS_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_NAMESPACE_LOCALNAMES_TEXT "See getdns_context_set_namespaces()"
 #define GETDNS_NAMESPACE_NETBIOS_TEXT "See getdns_context_set_namespaces()"
@@ -140,20 +139,15 @@ typedef enum getdns_namespace_t {
 
 
 /**
- * \defgroup resolutiontypes Resolution types
+ * \defgroup resolutiontypestext Resolution types and texts
  * @{
  */
 typedef enum getdns_resolution_t {
 	GETDNS_RESOLUTION_STUB = 520,
 	GETDNS_RESOLUTION_RECURSING = 521
 } getdns_resolution_t;
-/** @}
- */
 
-/**
- * \defgroup resolutiontypestext Resolution types texts
- * @{
- */
+
 #define GETDNS_RESOLUTION_STUB_TEXT "See getdns_context_set_resolution_type()"
 #define GETDNS_RESOLUTION_RECURSING_TEXT "See getdns_context_set_resolution_type()"
 /** @}
@@ -161,20 +155,15 @@ typedef enum getdns_resolution_t {
 
 
 /**
- * \defgroup redirectpolicytype Redirect policies
+ * \defgroup redirectpoliciestext Redirect policies and texts
  * @{
  */
 typedef enum getdns_redirects_t {
 	GETDNS_REDIRECTS_FOLLOW = 530,
 	GETDNS_REDIRECTS_DO_NOT_FOLLOW = 531
 } getdns_redirects_t;
-/** @}
- */
 
-/**
- * \defgroup redirectpoliciestext Redirect policies texts
- * @{
- */
+
 #define GETDNS_REDIRECTS_FOLLOW_TEXT "See getdns_context_set_follow_redirects()"
 #define GETDNS_REDIRECTS_DO_NOT_FOLLOW_TEXT "See getdns_context_set_follow_redirects()"
 /** @}
@@ -182,7 +171,7 @@ typedef enum getdns_redirects_t {
 
 
 /**
- * \defgroup transporttypes Transport arrangements 
+ * \defgroup transporttypestext Transport arrangements and texts
  * @{
  */
 typedef enum getdns_transport_t {
@@ -191,13 +180,7 @@ typedef enum getdns_transport_t {
 	GETDNS_TRANSPORT_TCP_ONLY = 542,
 	GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN = 543
 } getdns_transport_t;
-/** @}
-*/
 
-/**
- * \defgroup transporttypestext Transport arrangements texts
- * @{
- */
 #define GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_UDP_ONLY_TEXT "See getdns_context_set_dns_transport()"
 #define GETDNS_TRANSPORT_TCP_ONLY_TEXT "See getdns_context_set_dns_transport()"
@@ -207,7 +190,7 @@ typedef enum getdns_transport_t {
 
 
 /**
- * \defgroup transportlisttypes Transport list values
+ * \defgroup transportlisttypestext Transport list values and tests
  * @{
  */
 /* Base transports for use in transport list */
@@ -216,13 +199,8 @@ typedef enum getdns_transport_list_t {
 	GETDNS_TRANSPORT_TCP = 1201,
 	GETDNS_TRANSPORT_TLS = 1202,
 } getdns_transport_list_t;
-/** @}
- */
 
-/**
- * \defgroup transportlisttypestext Transport list values texts
- * @{
- */
+
 #define GETDNS_TRANSPORT_UDP_TEXT "See getdns_context_set_dns_transport_list()"
 #define GETDNS_TRANSPORT_TCP_TEXT "See getdns_context_set_dns_transport_list()"
 #define GETDNS_TRANSPORT_TLS_TEXT "See getdns_context_set_dns_transport_list()"
@@ -231,7 +209,7 @@ typedef enum getdns_transport_list_t {
 
 
 /**
- * \defgroup suffixappendtypes Suffix appending values
+ * \defgroup suffixappendtypestext Suffix appending values and texts
  * @{
  */
 typedef enum getdns_append_name_t {
@@ -240,13 +218,8 @@ typedef enum getdns_append_name_t {
 	GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE = 552,
 	GETDNS_APPEND_NAME_NEVER = 553
 } getdns_append_name_t;
-/** @}
- */
 
-/**
- * \defgroup suffixappendtypestext Suffix appending values texts
- * @{
- */
+
 #define GETDNS_APPEND_NAME_ALWAYS_TEXT "See getdns_context_set_append_name()"
 #define GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE_TEXT "See getdns_context_set_append_name()"
 #define GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE_TEXT "See getdns_context_set_append_name()"
@@ -256,7 +229,7 @@ typedef enum getdns_append_name_t {
 
 
 /**
-* \defgroup contextcodetypes Context code values
+* \defgroup contextcodetypestext Context code values and texts
 * @{
 */
 /* Context codes */
@@ -280,13 +253,8 @@ typedef enum getdns_context_code_t {
 	GETDNS_CONTEXT_CODE_TIMEOUT = 616,
 	GETDNS_CONTEXT_CODE_IDLE_TIMEOUT = 617
 } getdns_context_code_t;
-/** @}
- */
 
-/**
- * \defgroup contextcodetypestext Context code values texts
- * @{
- */
+
 #define GETDNS_CONTEXT_CODE_NAMESPACES_TEXT "Change related to getdns_context_set_namespaces"
 #define GETDNS_CONTEXT_CODE_RESOLUTION_TYPE_TEXT "Change related to getdns_context_set_resolution_type"
 #define GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS_TEXT "Change related to getdns_context_set_follow_redirects"
@@ -310,7 +278,7 @@ typedef enum getdns_context_code_t {
 
 
 /**
- * \defgroup callbacktype Callback types
+ * \defgroup callbacktype Callback types and texts
  * @{
  */
 typedef enum getdns_callback_type_t {
@@ -319,13 +287,7 @@ typedef enum getdns_callback_type_t {
 	GETDNS_CALLBACK_TIMEOUT = 702,
 	GETDNS_CALLBACK_ERROR = 703
 } getdns_callback_type_t;
-/** @}
- */
 
-/**
- * \defgroup callbacktypetext Callback types texts
- * @{
- */
 #define GETDNS_CALLBACK_COMPLETE_TEXT "The response has the requested data in it"
 #define GETDNS_CALLBACK_CANCEL_TEXT "The calling program cancelled the callback; response is NULL"
 #define GETDNS_CALLBACK_TIMEOUT_TEXT "The requested action timed out; response is filled in with empty structures"
@@ -347,7 +309,7 @@ typedef enum getdns_callback_type_t {
 
 
 /**
- * \defgroup respstatus Status Codes for responses and text
+ * \defgroup respstatus Status Codes for responses and texts
  * @{
  */
 #define GETDNS_RESPSTATUS_GOOD 900
@@ -364,7 +326,7 @@ typedef enum getdns_callback_type_t {
  */
 
 /**
- * \defgroup extvals Values associated with extensions
+ * \defgroup extvals Values associated with extensions and texts
  * @{
  */
 #define GETDNS_EXTENSION_TRUE  1000
@@ -375,7 +337,7 @@ typedef enum getdns_callback_type_t {
  */
 
 /**
- * \defgroup dnserrors Values associated with DNS errors found by the API and text
+ * \defgroup dnserrors Values associated with DNS errors found by the API and texts
  * @{
  */
 #define GETDNS_BAD_DNS_CNAME_IN_TARGET 1100
@@ -556,7 +518,13 @@ typedef struct getdns_dict getdns_dict;
  * Indexes are 0 based.
  */
 typedef struct getdns_list getdns_list;
+/** @}
+ */
 
+
+/** \defgroup functions Functions
+ *  @{
+ */
 /* Specify the order of the following groups manually here so they appear in 
    a better order in doxygen */
 
@@ -569,15 +537,16 @@ typedef struct getdns_list getdns_list;
  * \defgroup getdns_dict_get_functions getdns_dict_get functions
  * \defgroup context_create getdns_context creation/destruction functions
  * \defgroup context_set getdns_context_set functions
- * \defgroup callbacks getdns_callback functions
+ * \defgroup callbackfns getdns_callback functions
+ * \defgroup eventloops  getdns event loop extension functions
  * \defgroup funcs Asynchronous API functions
- * \defgroup syncfuns Synchronous API functions that do not use callbacks
+ * \defgroup syncfuncs Synchronous API functions that do not use callbacks
  * \defgroup utils Utility functions
  */
 
 
 /**
- * \ingroup getdns_list_get_functions getdns_list_get functions
+ * \addtogroup getdns_list_get_functions getdns_list_get functions
  * @{
  */
 
@@ -656,7 +625,7 @@ getdns_return_t getdns_list_get_int(const getdns_list *list, size_t index,
 
 
 /**
- * \ingroup getdns_dict_get_functions getdns_dict_get functions
+ * \addtogroup getdns_dict_get_functions getdns_dict_get functions
  * @{
  */
 
@@ -730,7 +699,7 @@ getdns_return_t getdns_dict_get_int(const getdns_dict *dict,
 
 
 /**
- * \ingroup list_create getdns_list creation/destruction functions
+ * \addtogroup list_create getdns_list creation/destruction functions
  * @{
  */
 
@@ -766,7 +735,7 @@ void getdns_list_destroy(getdns_list *list);
 
 
 /**
- * \ingroup getdns_list_set getdns_list_set functions
+ * \addtogroup getdns_list_set getdns_list_set functions
  * @{
  */
 
@@ -816,7 +785,7 @@ getdns_return_t getdns_list_set_int(getdns_list *list, size_t index,
 
 
 /**
- * \ingroup dict_create getdns_dict creation/destruction functions
+ * \addtogroup dict_create getdns_dict creation/destruction functions
  * @{
  */
 
@@ -849,7 +818,7 @@ void getdns_dict_destroy(getdns_dict *dict);
 
 
 /**
- * \ingroup getdns_dict_set getdns_dict_set functions
+ * \addtogroup getdns_dict_set getdns_dict_set functions
  * @{
  */
 
@@ -889,6 +858,7 @@ getdns_return_t getdns_dict_set_int(getdns_dict *dict, const char *name,
 
 
 /**
+ * \addtogroup utils
  * remove the value associated with the specified name
  * @param dict dictionary from which to fetch the integer
  * @param name a name/key value to look up in the dictionary
@@ -899,21 +869,16 @@ getdns_return_t getdns_dict_remove_name(getdns_dict *dict, const char *name);
 
 
 /**
- * \ingroup callbacks getdns_callback functions
- * @{
+ * \addtogroup callbackfns getdns_callback functions
  */
-
 /* Callback arguments */
 typedef void (*getdns_callback_t) (getdns_context *context,
     getdns_callback_type_t callback_type,
     getdns_dict * response,
     void *userarg, getdns_transaction_t transaction_id);
-/** @}
- */
-
 
 /**
- * \ingroup funcs Asynchronous API functions
+ * \addtogroup funcs Asynchronous API functions
  * @{
  */
 
@@ -940,7 +905,6 @@ getdns_general(getdns_context *context,
  * retrieve address assigned to a DNS name
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
- * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
  * @param extensions dict data structures, NULL to use no extensions
  * @param userarg void* returned to the callback  untouched
  * @param[out] transaction_id id used to identify the callback, NULL is ignored
@@ -958,7 +922,6 @@ getdns_address(getdns_context *context,
  * retrieve hostname assigned to an IP address
  * @param context pointer to a previously created context to be used for this call
  * @param address the address to look up
- * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
  * @param extensions dict data structures, NULL to use no extensions
  * @param userarg void* returned to the callback  untouched
  * @param[out] transaction_id id used to identify the callback, NULL is ignored
@@ -976,7 +939,6 @@ getdns_hostname(getdns_context *context,
  * retrieve a service assigned to a DNS name
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
- * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
  * @param extensions dict data structures, NULL to use no extensions
  * @param userarg void* returned to the callback  untouched
  * @param[out] transaction_id id used to identify the callback, NULL is ignored
@@ -994,7 +956,7 @@ getdns_service(getdns_context *context,
 
 
 /**
- * \ingroup context_create getdns_context creation/destruction functions
+ * \addtogroup context_create getdns_context creation/destruction functions
  * @{
  */
 
@@ -1058,9 +1020,9 @@ void getdns_context_destroy(getdns_context *context);
 
 
 /**
-* \ingroup callbacks getdns_callback functions
-* @{
-*/
+ * \addtogroup callbackfns getdns_callback functions
+ * @{
+ */
 getdns_return_t
 getdns_cancel_callback(getdns_context *context,
     getdns_transaction_t transaction_id);
@@ -1069,12 +1031,13 @@ getdns_cancel_callback(getdns_context *context,
 
 
 /**
- * \ingroup syncfuns Synchronous API functions that do not use callbacks
- * These functions do not use callbacks, when the application calls one of these
+ * \addtogroup syncfuncs Synchronous API functions that do not use callbacks
+ * @{
+ */
+/** These functions do not use callbacks, when the application calls one of these
  * functions the library retrieves all of the data before returning.  Return
  * values are exactly the same as if you had used a callback with the
  * asynchronous functions.
- * @{
  */
 
 /**
@@ -1139,7 +1102,7 @@ getdns_service_sync(getdns_context *context,
  */
 
 /**
- * \ingroup utils Utility functions
+ * \addtogroup utils Utility functions
  * @{
  */
 
@@ -1181,7 +1144,7 @@ char *getdns_display_ip_address(const getdns_bindata
 
 
 /**
- * \ingroup context_set getdns_context_set functions
+ * \addtogroup context_set getdns_context_set functions
  * @{
  */
 getdns_return_t
@@ -1278,6 +1241,12 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
 /* api information support */
 getdns_dict*
 getdns_context_get_api_information(getdns_context* context);
+
+/** @}
+ */
+ 
+/** @}
+ */
 
 #ifdef __cplusplus
 }
