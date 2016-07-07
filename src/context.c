@@ -1272,6 +1272,27 @@ getdns_context_create_with_extended_memory_functions(
 	_getdns_default_eventloop_init(&result->default_eventloop);
 	_getdns_default_eventloop_init(&result->sync_eventloop);
 
+	/* request extension defaults
+	 */
+	result->header = NULL;
+	result->add_opt_parameters = NULL;
+	result->add_warning_for_bad_dns = 0;
+	result->dnssec_return_all_statuses = 0;
+	result->dnssec_return_full_validation_chain = 0;
+	result->dnssec_return_only_secure = 0;
+	result->dnssec_return_status = 0;
+	result->dnssec_return_validation_chain = 0;
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	result->dnssec_roadblock_avoidance = 0;
+#endif
+	result->edns_cookies = 0;
+	result->return_api_information = 0;
+	result->return_both_v4_and_v6 = 0;
+	result->return_call_reporting = 0;
+	result->specify_class = GETDNS_RRCLASS_IN;
+
+	/* state data used to detect changes to the system config files
+	 */
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
 
@@ -1291,7 +1312,6 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
 	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
 	result->limit_outstanding_queries = 0;
-	result->return_dnssec_status = GETDNS_EXTENSION_FALSE;
 
 	/* unbound context is initialized here */
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
@@ -1401,8 +1421,7 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->tls_ctx)
 		SSL_CTX_free(context->tls_ctx);
 
-	if (context->dns_root_servers)
-		getdns_list_destroy(context->dns_root_servers);
+	getdns_list_destroy(context->dns_root_servers);
 
 #if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
 	if (context->root_servers_fn[0])
@@ -1418,6 +1437,10 @@ getdns_context_destroy(struct getdns_context *context)
 
 	_getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
+
+
+	getdns_dict_destroy(context->header);
+	getdns_dict_destroy(context->add_opt_parameters);
 
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -3416,7 +3439,7 @@ getdns_context_set_return_dnssec_status(getdns_context* context, int enabled) {
         enabled != GETDNS_EXTENSION_FALSE) {
         return GETDNS_RETURN_INVALID_PARAMETER;
     }
-    context->return_dnssec_status = enabled;
+    context->dnssec_return_status = enabled == GETDNS_EXTENSION_TRUE;
     return GETDNS_RETURN_GOOD;
 }
 
