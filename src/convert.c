@@ -51,6 +51,7 @@
 #include "dict.h"
 #include "list.h"
 #include "convert.h"
+#include "debug.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))

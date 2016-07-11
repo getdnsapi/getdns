@@ -1239,7 +1239,7 @@ void servfail(dns_msg *msg, getdns_dict **resp_p)
 }
 
 static getdns_return_t _handle_edns0(
-    getdns_dict *response, int has_edns0, uint32_t do_bit)
+    getdns_dict *response, int has_edns0)
 {
 	getdns_return_t r;
 	getdns_list *additional;
@@ -1249,10 +1249,8 @@ static getdns_return_t _handle_edns0(
 	char remove_str[100] = "/replies_tree/0/additional/";
 
 	if ((r = getdns_dict_set_int(
-	    response, "/replies_tree/0/header/do", do_bit)))
+	    response, "/replies_tree/0/header/do", 0)))
 		return r;
-	if (has_edns0)
-		return GETDNS_RETURN_GOOD;
 	if ((r = getdns_dict_get_list(response, "/replies_tree/0/additional",
 	    &additional)))
 		return r;
@@ -1265,6 +1263,10 @@ static getdns_return_t _handle_edns0(
 			return r;
 		if (rr_type != GETDNS_RRTYPE_OPT)
 			continue;
+		if (has_edns0) {
+			(void) getdns_dict_set_int(rr, "do", 0);
+			break;
+		}
 		(void) snprintf(remove_str + 27, 60, "%d", (int)i);
 		if ((r = getdns_dict_remove_name(response, remove_str)))
 			return r;
@@ -1320,8 +1322,8 @@ static void request_cb(
 	 * bit.  In recursing resolution mode we have to copy the do bit from
 	 * the request, because libunbound has it in the answer always.
 	 */
-	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
-	    (r = _handle_edns0(response, msg->has_edns0, msg->do_bit)))
+	else if (msg->rt == GETDNS_RESOLUTION_RECURSING && !msg->do_bit &&
+	    (r = _handle_edns0(response, msg->has_edns0)))
 		SERVFAIL("Could not handle EDNS0", r, msg, &response);
 
 	/* AD when (DO or AD) and SECURE */
