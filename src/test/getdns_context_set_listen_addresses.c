@@ -503,6 +503,72 @@ static void udp_read_cb(void *userarg)
 		close(l->fd);
 		l->fd = -1;
 
+#if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
+	} else {
+		char addrbuf[100];
+		char hexbuf[4096], *hexptr;
+		size_t l, i, j;
+
+		if (conn->remote_in.ss_family == AF_INET) {
+			if (inet_ntop(AF_INET,
+			    &((struct sockaddr_in*)&conn->remote_in)->sin_addr,
+			    addrbuf, sizeof(addrbuf))) {
+
+				l = strlen(addrbuf);
+				(void) snprintf(addrbuf + l,
+				    sizeof(addrbuf) - l, ":%d", 
+				    (int)((struct sockaddr_in*)
+				    &conn->remote_in)->sin_port);
+			} else
+				(void) strncpy(
+				    addrbuf, "error ipv4", sizeof(addrbuf));
+
+		} else if (conn->remote_in.ss_family == AF_INET6) {
+			addrbuf[0] = '[';
+			if (inet_ntop(AF_INET6,
+			    &((struct sockaddr_in6*)
+			    &conn->remote_in)->sin6_addr,
+			    addrbuf, sizeof(addrbuf))) {
+
+				l = strlen(addrbuf);
+				(void) snprintf(addrbuf + l,
+				    sizeof(addrbuf) - l, ":%d", 
+				    (int)((struct sockaddr_in6*)
+				    &conn->remote_in)->sin6_port);
+			} else
+				(void) strncpy(
+				    addrbuf, "error ipv6", sizeof(addrbuf));
+
+		} else {
+			(void) strncpy(
+			    addrbuf, "unknown address", sizeof(addrbuf));
+		}
+		*(hexptr = hexbuf) = 0;
+		for (i = 0; i < len; i++) {
+			if (i % 12 == 0) {
+				hexptr += snprintf(hexptr,
+				    sizeof(hexbuf) - (hexptr - hexbuf) - 1,
+				    "\n%.4x", (int)i);
+			} else if (i % 4 == 0) {
+				hexptr += snprintf(hexptr,
+				    sizeof(hexbuf) - (hexptr - hexbuf) - 1,
+				    " ");
+			}
+			if (hexptr - hexbuf > sizeof(hexbuf))
+				break;
+			hexptr += snprintf(hexptr,
+			    sizeof(hexbuf) - (hexptr - hexbuf) - 1,
+			    " %.2x", (int)buf[i]);
+			if (hexptr - hexbuf > sizeof(hexbuf))
+				break;
+		}
+		DEBUG_SERVER("Received %d bytes from %s: %s\n",
+		    (int)len, addrbuf, hexbuf);
+	}
+	if (len == -1) {
+		; /* pass */
+#endif
+
 	} else if ((r = getdns_wire2msg_dict(buf, len, &request_dict)))
 		; /* FROMERR on input, ignore */
 

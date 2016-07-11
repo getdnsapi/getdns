@@ -1200,8 +1200,10 @@ typedef struct dns_msg {
 	getdns_transaction_t  request_id;
 	getdns_dict          *request;
 	uint32_t              rt;
+	uint32_t              ad_bit;
 	uint32_t              do_bit;
 	uint32_t              cd_bit;
+	int                   has_edns0;
 } dns_msg;
 
 #if defined(SERVER_DEBUG) && SERVER_DEBUG
@@ -1236,15 +1238,53 @@ void servfail(dns_msg *msg, getdns_dict **resp_p)
 	(void) getdns_dict_set_int(*resp_p, "/header/ad", 0);
 }
 
-void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
+static getdns_return_t _handle_edns0(
+    getdns_dict *response, int has_edns0, uint32_t do_bit)
+{
+	getdns_return_t r;
+	getdns_list *additional;
+	size_t len, i;
+	getdns_dict *rr;
+	uint32_t rr_type;
+	char remove_str[100] = "/replies_tree/0/additional/";
+
+	if ((r = getdns_dict_set_int(
+	    response, "/replies_tree/0/header/do", do_bit)))
+		return r;
+	if (has_edns0)
+		return GETDNS_RETURN_GOOD;
+	if ((r = getdns_dict_get_list(response, "/replies_tree/0/additional",
+	    &additional)))
+		return r;
+	if ((r = getdns_list_get_length(additional, &len)))
+		return r;
+	for (i = 0; i < len; i++) {
+		if ((r = getdns_list_get_dict(additional, i, &rr)))
+			return r;
+		if ((r = getdns_dict_get_int(rr, "type", &rr_type)))
+			return r;
+		if (rr_type != GETDNS_RRTYPE_OPT)
+			continue;
+		(void) snprintf(remove_str + 27, 60, "%d", (int)i);
+		if ((r = getdns_dict_remove_name(response, remove_str)))
+			return r;
+		break;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static void request_cb(
+    getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
 {
 	dns_msg *msg = (dns_msg *)userarg;
 	uint32_t qid;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	uint32_t n;
+	uint32_t n, rcode, dnssec_status;
 
-	DEBUG_SERVER("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
+	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
+	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
+	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
 	assert(msg);
 
 #if 0
@@ -1263,20 +1303,35 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		SERVFAIL("Could not copy QID", r, msg, &response);
 
 	else if (getdns_dict_get_int(
-	    response, "/replies_tree/0/header/rcode", &n))
+	    response, "/replies_tree/0/header/rcode", &rcode))
 		SERVFAIL("No reply in replies tree", 0, msg, &response);
 
-	else if (msg->cd_bit != 1 && !getdns_dict_get_int(
-	    response, "/replies_tree/0/dnssec_status", &n)
-	    && n == GETDNS_DNSSEC_BOGUS)
+	/* ansers when CD or not BOGUS */
+	else if (!msg->cd_bit && !getdns_dict_get_int(
+	    response, "/replies_tree/0/dnssec_status", &dnssec_status)
+	    && dnssec_status == GETDNS_DNSSEC_BOGUS)
 		SERVFAIL("DNSSEC status was bogus", 0, msg, &response);
 
-	else if ((r = getdns_dict_get_int(
-	    response, "/replies_tree/0/header/rcode", &n)))
-		SERVFAIL("Could not get rcode from reply", r, msg, &response);
-
-	else if (n == GETDNS_RCODE_SERVFAIL)
+	else if (rcode == GETDNS_RCODE_SERVFAIL)
 		servfail(msg, &response);
+
+	/* RRsigs when DO and (CD or not BOGUS) 
+	 * Implemented in conversion to wireformat function by checking for DO
+	 * bit.  In recursing resolution mode we have to copy the do bit from
+	 * the request, because libunbound has it in the answer always.
+	 */
+	else if (msg->rt == GETDNS_RESOLUTION_RECURSING &&
+	    (r = _handle_edns0(response, msg->has_edns0, msg->do_bit)))
+		SERVFAIL("Could not handle EDNS0", r, msg, &response);
+
+	/* AD when (DO or AD) and SECURE */
+	else if ((r = getdns_dict_set_int(response,"/replies_tree/0/header/ad",
+	    ((msg->do_bit || msg->ad_bit)
+	    && (  (!msg->cd_bit && dnssec_status == GETDNS_DNSSEC_SECURE)
+	       || ( msg->cd_bit && !getdns_dict_get_int(response,
+	            "/replies_tree/0/dnssec_status", &dnssec_status)
+	          && dnssec_status == GETDNS_DNSSEC_SECURE ))) ? 1 : 0)))
+		SERVFAIL("Could not set AD bit", r, msg, &response);
 
 	else if (msg->rt == GETDNS_RESOLUTION_STUB)
 		; /* following checks are for RESOLUTION_RECURSING only */
@@ -1324,6 +1379,10 @@ static void incoming_request_handler(getdns_context *context,
 	getdns_dict *qext = NULL;
 	dns_msg *msg = NULL;
 	getdns_dict *response = NULL;
+	size_t i, len;
+	getdns_list *additional;
+	getdns_dict *rr;
+	uint32_t rr_type;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -1345,10 +1404,26 @@ static void incoming_request_handler(getdns_context *context,
 	n = 0;
 	msg->request_id = request_id;
 	msg->request = request;
-	msg->do_bit = msg->cd_bit = 0;
-	msg->rt = GETDNS_RESOLUTION_STUB;
-	(void) getdns_dict_get_int(request, "/additional/0/do", &msg->do_bit);
+	msg->ad_bit = msg->do_bit = msg->cd_bit = 0;
+	msg->has_edns0 = 0;
+	msg->rt = GETDNS_RESOLUTION_RECURSING;
+	(void) getdns_dict_get_int(request, "/header/ad", &msg->ad_bit);
 	(void) getdns_dict_get_int(request, "/header/cd", &msg->cd_bit);
+	if (!getdns_dict_get_list(request, "additional", &additional)) {
+		if (getdns_list_get_length(additional, &len))
+			len = 0;
+		for (i = 0; i < len; i++) {
+			if (getdns_list_get_dict(additional, i, &rr))
+				break;
+			if (getdns_dict_get_int(rr, "type", &rr_type))
+				break;
+			if (rr_type != GETDNS_RRTYPE_OPT)
+				continue;
+			msg->has_edns0 = 1;
+			(void) getdns_dict_get_int(rr, "do", &msg->do_bit);
+			break;
+		}
+	}
 	if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
 		fprintf(stderr, "Could get resolution type from context: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -1359,15 +1434,10 @@ static void incoming_request_handler(getdns_context *context,
 		if (!getdns_dict_get_dict(request, "header", &header))
 			(void)getdns_dict_set_dict(qext, "header", header);
 
-	} else if (getdns_dict_get_int(extensions,"dnssec_return_status",&n) ||
-	    n == GETDNS_EXTENSION_FALSE)
-		(void)getdns_dict_set_int(qext, "dnssec_return_status",
-		    msg->do_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
-
-	if (!getdns_dict_get_int(qext, "dnssec_return_status", &n) &&
-	    n == GETDNS_EXTENSION_TRUE)
-		(void) getdns_dict_set_int(qext, "dnssec_return_all_statuses",
-		    msg->cd_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+	}
+	if (msg->cd_bit)
+		getdns_dict_set_int(qext, "dnssec_return_all_statuses",
+		    GETDNS_EXTENSION_TRUE);
 
 	if (!getdns_dict_get_int(request, "/additional/0/extended_rcode",&n))
 		(void)getdns_dict_set_int(
@@ -1431,6 +1501,16 @@ error:
 	if (qname_str)
 		free(qname_str);
 	servfail(msg, &response);
+#if defined(SERVER_DEBUG) && SERVER_DEBUG
+	do {
+		char *request_str = getdns_pretty_print_dict(request);
+		char *response_str = getdns_pretty_print_dict(response);
+		DEBUG_SERVER("request error, request: %s\n, response: %s\n"
+		            , request_str, response_str);
+		free(response_str);
+		free(request_str);
+	} while(0);
+#endif
 	if (!response)
 		/* No response, no reply */
 		_getdns_cancel_reply(context, request_id);
