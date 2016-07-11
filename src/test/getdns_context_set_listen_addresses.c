@@ -739,7 +739,8 @@ static getdns_return_t add_listeners(listen_set *set)
 }
 
 getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t request_handler, getdns_list *listen_addresses)
+    getdns_request_handler_t request_handler,
+    const getdns_list *listen_addresses)
 {
 	static const getdns_transport_list_t listen_transports[]
 		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
