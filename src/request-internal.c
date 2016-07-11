@@ -208,6 +208,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	    &gbuf, net_req->query, net_req->wire_data_sz - 2);
 	if (owner->context->header)
 		_getdns_reply_dict2wire(owner->context->header, &gbuf, 1);
+	gldns_buffer_rewind(&gbuf);
 	_getdns_reply_dict2wire(extensions, &gbuf, 1);
 	if (dnssec_extension_set) /* We will do validation ourselves */
 		GLDNS_CD_SET(net_req->query);

@@ -66,7 +66,7 @@ CHECK_CFLAGS=@CHECK_CFLAGS@
 CHECK_OBJS=check_getdns_common.lo check_getdns_context_set_timeout.lo \
 	check_getdns.lo check_getdns_transport.lo
 
-DECOMPOSED_OBJS=getdns_context_config.lo getdns_context_set_listen_addresses.lo
+DECOMPOSED_OBJS=getdns_context_set_listen_addresses.lo
 
 ALL_OBJS=$(CHECK_OBJS) check_getdns_libevent.lo check_getdns_libev.lo \
 	check_getdns_selectloop.lo getdns_query.lo scratchpad.lo \
@@ -266,7 +266,6 @@ check_getdns_selectloop.lo check_getdns_selectloop.o: $(srcdir)/check_getdns_sel
 check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_transport.c \
  $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h
-const-info.lo const-info.o: $(srcdir)/const-info.c
 getdns_context_config.lo getdns_context_config.o: $(srcdir)/getdns_context_config.c $(srcdir)/getdns_context_config.h \
  ../getdns/getdns.h ../getdns/getdns_extra.h
 getdns_context_set_listen_addresses.lo getdns_context_set_listen_addresses.o: \
@@ -275,9 +274,8 @@ getdns_context_set_listen_addresses.lo getdns_context_set_listen_addresses.o: \
  ../getdns/getdns_extra.h $(srcdir)/../types-internal.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h $(srcdir)/../util/rbtree.h $(srcdir)/../debug.h ../config.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
- $(srcdir)/getdns_context_config.h ../getdns/getdns.h \
- $(srcdir)/getdns_context_set_listen_addresses.h ../getdns/getdns_extra.h
-new-getdns_str2dict.lo new-getdns_str2dict.o: $(srcdir)/new-getdns_str2dict.c
+ $(srcdir)/getdns_context_set_listen_addresses.h ../getdns/getdns.h \
+ ../getdns/getdns_extra.h
 scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h

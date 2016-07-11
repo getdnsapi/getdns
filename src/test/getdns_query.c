@@ -27,7 +27,6 @@
 
 #include "config.h"
 #include "debug.h"
-#include "getdns_context_config.h"
 #include "getdns_context_set_listen_addresses.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -463,8 +462,7 @@ static void parse_config(const char *config_str)
 
 			touched_listen_list = 1;
 		}
-		if ((r = _getdns_context_config_(
-		    context, extensions, config_dict))) {
+		if ((r = getdns_context_config(context, config_dict))) {
 			fprintf(stderr, "Could not configure context with "
 			    "config dict: %s\n", getdns_get_errorstr_by_id(r));
 		}
