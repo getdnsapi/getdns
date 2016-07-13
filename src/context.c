@@ -1319,7 +1319,9 @@ getdns_context_create_with_extended_memory_functions(
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
 	 * don't know that till later so we will have to do this every time. */
 
-	SSL_library_init();
+	if (set_from_os & 2 == 0)
+		SSL_library_init();
+
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
 	if ((r = rebuild_ub_ctx(result)))
