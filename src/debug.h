@@ -37,7 +37,7 @@
 
 #include "config.h"
 
-#define STUB_DEBUG_ENTRY     "-> ENTRY:       "
+#define STUB_DEBUG_ENTRY     "=> ENTRY:       "
 #define STUB_DEBUG_SETUP     "--- SETUP:      "
 #define STUB_DEBUG_SETUP_TLS "--- SETUP(TLS): "
 #define STUB_DEBUG_TSIG      "--- TSIG:       "

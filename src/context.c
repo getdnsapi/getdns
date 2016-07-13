@@ -683,7 +683,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	if (upstream->tls_auth_state != GETDNS_AUTH_NONE)
 		upstream->past_tls_auth_state = upstream->tls_auth_state;
 
-	DEBUG_STUB("%s %-35s: FD:  %d Stats on shutdown: TR=%d,TT=%d,CC=%d,CSF=%d,CS=%d,AS=%d\n",
+	DEBUG_STUB("%s %-35s: FD:  %d Upstream Stats: Resp=%d,Timeouts=%d,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Auth=%d\n",
 	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
 	           (int)upstream->total_responses, (int)upstream->total_timeouts,
 	           (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
@@ -701,8 +701,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	     && upstream->total_responses == 0) ||
 	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
 	     upstream->total_responses == 0 && 
-	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT))
+	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
+		DEBUG_STUB("%s %-35s: FD:  %d BACKING OFF THIS UPSTREAM! \n", 
+		            STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
+		}
 	// Reset per connection counters
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;

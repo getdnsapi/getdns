@@ -251,8 +251,8 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 	size_t data_len = rr_iter->nxt - rr_iter->pos;
 	(void) gldns_wire2str_rr_scan(
 	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt);
-	DEBUG_STUB("%s %-35s: OPT RR: %s\n",
-	           STUB_DEBUG_CLEANUP, __FUNCTION__, str_spc);
+	DEBUG_STUB("%s %-35s: OPT RR: %s",
+	           STUB_DEBUG_READ, __FUNCTION__, str_spc);
 #endif
 
 	/* OPT found, now search for the specified option */
@@ -347,7 +347,7 @@ process_keepalive(
 	else {
 		upstream->keepalive_timeout = server_keepalive;
 		DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive used: %d ms\n",
-		           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
+		           STUB_DEBUG_READ, __FUNCTION__, upstream->fd, 
 		           (int)server_keepalive);
 	}
 }
