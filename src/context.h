@@ -44,6 +44,7 @@
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
 #include "ub_loop.h"
+#include "server.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -250,8 +251,6 @@ struct getdns_context {
 	/* A tree to hold local host information*/
 	_getdns_rbtree_t local_hosts;
 
-	int return_dnssec_status;
-
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set
 	 */
@@ -261,6 +260,8 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	_getdns_rbtree_t outbound_requests;
+
+	struct listen_set *server;
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;
@@ -274,6 +275,24 @@ struct getdns_context {
 	/* The default extension */
 	_getdns_default_eventloop default_eventloop;
 	_getdns_default_eventloop sync_eventloop;
+
+	/* request extension defaults */
+	getdns_dict *header;
+	getdns_dict *add_opt_parameters;
+	int add_warning_for_bad_dns             : 1;
+	int dnssec_return_all_statuses          : 1;
+	int dnssec_return_full_validation_chain : 1;
+	int dnssec_return_only_secure           : 1;
+	int dnssec_return_status                : 1;
+	int dnssec_return_validation_chain      : 1;
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	int dnssec_roadblock_avoidance          : 1;
+#endif
+	int edns_cookies                        : 1;
+	int return_api_information              : 1; /* Not used */
+	int return_both_v4_and_v6               : 1;
+	int return_call_reporting               : 1;
+	uint16_t specify_class;
 
 	/*
 	 * state data used to detect changes to the system config files

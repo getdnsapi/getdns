@@ -48,9 +48,14 @@
 #include "util-internal.h"
 #include "gldns/wire2str.h"
 #include "gldns/str2wire.h"
+#include "gldns/parseutil.h"
+#include "const-info.h"
+#include "types-internal.h"	/* For getdns_item */
 #include "dict.h"
 #include "list.h"
+#include "jsmn/jsmn.h"
 #include "convert.h"
+#include "debug.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -611,6 +616,15 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 	if (!wire || !*wire || !wire_len || !msg_dict)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+#if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
+	do {
+		char *str = gldns_wire2str_pkt((uint8_t *)*wire, *wire_len);
+		DEBUG_SERVER("_getdns_wire2msg_dict_scan for a packet size: %d: %s\n",
+		    (int)*wire_len, str);
+		free(str);
+	} while(0);
+#endif
+
        	if (!(result = _getdns_dict_create_with_mf(mf)) ||
 	    !(header = _getdns_dict_create_with_mf(mf)) ||
 	    !(sections[SECTION_ANSWER]
@@ -768,11 +782,12 @@ _getdns_reply_dict2wire(
     const getdns_dict *reply, gldns_buffer *buf, int reuse_header)
 {
 	uint8_t header_spc[GLDNS_HEADER_SIZE], *header;
-	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN;
+	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN, rr_type;
 	size_t pkt_start, i;
 	getdns_list *section;
 	getdns_dict *rr_dict;
 	getdns_bindata *qname;
+	int remove_dnssec;
 
 	pkt_start = gldns_buffer_position(buf);
 	if (reuse_header) {
@@ -814,11 +829,18 @@ _getdns_reply_dict2wire(
 			    buf, pkt_start+GLDNS_ARCOUNT_OFF, 0);
 		}
 	}
+	remove_dnssec = !getdns_dict_get_int(reply, "/header/do", &n) && n == 0;
+	DEBUG_SERVER("remove_dnssec: %d\n", remove_dnssec);
+
 	if (!getdns_dict_get_list(reply, "answer", &section)) {
 		for ( n = 0, i = 0
 		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
 
-			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+			if (remove_dnssec &&
+			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+			    rr_type == GETDNS_RRTYPE_RRSIG)
+				continue;
+			if (!_getdns_rr_dict2wire(rr_dict, buf))
 				 n++;
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, n);
@@ -827,7 +849,15 @@ _getdns_reply_dict2wire(
 		for ( n = 0, i = 0
 		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
 
-			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+			if (remove_dnssec &&
+			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+			    (  rr_type == GETDNS_RRTYPE_RRSIG
+			    || rr_type == GETDNS_RRTYPE_NSEC
+			    || rr_type == GETDNS_RRTYPE_NSEC3
+			    || rr_type == GETDNS_RRTYPE_DS
+			    ))
+				continue;
+			if (!_getdns_rr_dict2wire(rr_dict, buf))
 				 n++;
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_NSCOUNT_OFF, n);
@@ -836,6 +866,10 @@ _getdns_reply_dict2wire(
 		for ( n = 0, i = 0
 		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
 
+			if (remove_dnssec &&
+			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+			    rr_type == GETDNS_RRTYPE_RRSIG)
+				continue;
 			 if (!_getdns_rr_dict2wire(rr_dict, buf))
 				 n++;
 		}
@@ -1031,5 +1065,641 @@ getdns_msg_dict2str_scan(
 	return r;
 }
 
+static getdns_dict *
+_getdns_ipaddr_dict_mf(struct mem_funcs *mf, char *ipstr)
+{
+	getdns_dict *r = _getdns_dict_create_with_mf(mf);
+	char *s = strchr(ipstr, '%'), *scope_id_str = "";
+	char *p = strchr(ipstr, '@'), *portstr = "";
+	char *t = strchr(ipstr, '#'), *tls_portstr = "";
+	char *n = strchr(ipstr, '~'), *tls_namestr = "";
+	/* ^[alg:]name:key */
+	char *T = strchr(ipstr, '^'), *tsig_name_str = ""
+	                            , *tsig_secret_str = ""
+	                            , *tsig_algorithm_str = "";
+	char *br, *c;
+	int            tsig_secret_size;
+	uint8_t        tsig_secret_buf[256]; /* 4 times SHA512 */
+	getdns_bindata tsig_secret;
+	uint8_t buf[sizeof(struct in6_addr)];
+	getdns_bindata addr;
 
-/* convert.c */
+	addr.data = buf;
+
+	if (!r) return NULL;
+
+	if (*ipstr == '[') {
+		char *br = strchr(ipstr, ']');
+		if (br) {
+			ipstr += 1;
+			*br = 0;
+			if ((c = strchr(br + 1, ':'))) {
+				p = c;
+			}
+		}
+	} else if ((br = strchr(ipstr, '.')) && (c = strchr(br + 1, ':'))
+	    && (T == NULL || c < T))
+		p = c;
+
+	else if ((*ipstr == '*') && (c = strchr(ipstr+1, ':')))
+		p = c;
+
+	if (s) {
+		*s = 0;
+		scope_id_str = s + 1;
+	}
+	if (p) {
+		*p = 0;
+		portstr = p + 1;
+	}
+	if (t) {
+		*t = 0;
+		tls_portstr = t + 1;
+	}
+	if (n) {
+		*n = 0;
+		tls_namestr = n + 1;
+	}
+	if (T) {
+		*T = 0;
+		tsig_name_str = T + 1;
+		if ((T = strchr(tsig_name_str, ':'))) {
+			*T = 0;
+			tsig_secret_str = T + 1;
+			if ((T = strchr(tsig_secret_str, ':'))) {
+				*T = 0;
+				tsig_algorithm_str  = tsig_name_str;
+				tsig_name_str = tsig_secret_str;
+				tsig_secret_str  = T + 1;
+			}
+		} else {
+			tsig_name_str = "";
+		}
+	}
+	if (*ipstr == '*') {
+		getdns_dict_util_set_string(r, "address_type", "IPv6");
+		addr.size = 16;
+		(void) memset(buf, 0, 16);
+	} else if (strchr(ipstr, ':')) {
+		getdns_dict_util_set_string(r, "address_type", "IPv6");
+		addr.size = 16;
+		if (inet_pton(AF_INET6, ipstr, buf) <= 0) {
+			getdns_dict_destroy(r);
+			return NULL;
+		}
+	} else {
+		getdns_dict_util_set_string(r, "address_type", "IPv4");
+		addr.size = 4;
+		if (inet_pton(AF_INET, ipstr, buf) <= 0) {
+			getdns_dict_destroy(r);
+			return NULL;
+		}
+	}
+	getdns_dict_set_bindata(r, "address_data", &addr);
+	if (*portstr)
+		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
+	if (*tls_portstr)
+		getdns_dict_set_int(r, "tls_port", (int32_t)atoi(tls_portstr));
+	if (*tls_namestr) {
+		getdns_dict_util_set_string(r, "tls_auth_name", tls_namestr);
+	}
+	if (*scope_id_str)
+		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
+	if (*tsig_name_str)
+		getdns_dict_util_set_string(r, "tsig_name", tsig_name_str);
+	if (*tsig_algorithm_str)
+		getdns_dict_util_set_string(r, "tsig_algorithm", tsig_algorithm_str);
+	if (*tsig_secret_str) {
+		tsig_secret_size = gldns_b64_pton(
+		    tsig_secret_str, tsig_secret_buf, sizeof(tsig_secret_buf));
+		if (tsig_secret_size > 0) {
+			tsig_secret.size = tsig_secret_size;
+			tsig_secret.data = tsig_secret_buf;
+			getdns_dict_set_bindata(r, "tsig_secret", &tsig_secret);
+		}
+	}
+	return r;
+}
+
+static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_dict **value)
+{
+	char value_str[3072];
+	int size = t->end - t->start;
+
+	if (size <= 0 || size >= sizeof(value_str))
+		return 0;
+
+	(void) memcpy(value_str, js + t->start, size);
+	value_str[size] = '\0';
+
+	*value = _getdns_ipaddr_dict_mf(mf, value_str);
+	return *value != NULL;
+}
+
+static int _jsmn_get_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_bindata **value)
+{
+	size_t i, j;
+	uint8_t h, l;
+
+	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1 ||
+	    js[t->start] != '0' || js[t->start + 1] != 'x')
+		return 0;
+
+	for (i = t->start + 2; i < t->end; i++)
+		if (!((js[i] >= '0' && js[i] <= '9')
+		    ||(js[i] >= 'a' && js[i] <= 'f')
+		    ||(js[i] >= 'A' && js[i] <= 'F')))
+			return 0;
+
+	if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
+		return 0;
+
+	else if (!((*value)->data = GETDNS_XMALLOC(
+	    *mf, uint8_t, (t->end - t->start) / 2 - 1))) {
+		GETDNS_FREE(*mf, *value);
+		return 0;
+	}
+	for (i = t->start + 2, j = 0; i < t->end; i++, j++) {
+		h = js[i] >= '0' && js[i] <= '9' ? js[i] - '0'
+		  : js[i] >= 'A' && js[i] <= 'F' ? js[i] + 10 - 'A'
+		                                 : js[i] + 10 - 'a';
+		h <<= 4;
+		i++;
+		l = js[i] >= '0' && js[i] <= '9' ? js[i] - '0'
+		  : js[i] >= 'A' && js[i] <= 'F' ? js[i] + 10 - 'A'
+		                                 : js[i] + 10 - 'a';
+		(*value)->data[j] = h | l;
+	}
+	(*value)->size = j;
+	return 1;
+}
+
+static int _jsmn_get_dname(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_bindata **value)
+{
+	char value_str[1025];
+	int size = t->end - t->start;
+
+	if (size <= 0 || size >= sizeof(value_str) || js[t->end - 1] != '.')
+		return 0;
+
+	(void) memcpy(value_str, js + t->start, size);
+	value_str[size] = '\0';
+
+	return !getdns_convert_fqdn_to_dns_name(value_str, value);
+}
+
+static int _jsmn_get_ipv4(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_bindata **value)
+{
+	char value_str[16];
+	int size = t->end - t->start;
+	uint8_t buf[4];
+
+	if (size <= 0 || size >= sizeof(value_str))
+		return 0;
+
+	(void) memcpy(value_str, js + t->start, size);
+	value_str[size] = '\0';
+
+	if (inet_pton(AF_INET, value_str, buf) <= 0)
+		; /* pass */
+
+	else if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
+		; /* pass */
+
+	else if (!((*value)->data = GETDNS_XMALLOC(*mf, uint8_t, 4)))
+		GETDNS_FREE(*mf, *value);
+
+	else {
+		(*value)->size = 4;
+		(void) memcpy((*value)->data, buf, 4);
+		return 1;
+	}
+	return 0;
+}
+
+static int _jsmn_get_ipv6(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_bindata **value)
+{
+	char value_str[40];
+	int size = t->end - t->start;
+	uint8_t buf[16];
+
+	if (size <= 0 || size >= sizeof(value_str))
+		return 0;
+
+	(void) memcpy(value_str, js + t->start, size);
+	value_str[size] = '\0';
+
+	if (inet_pton(AF_INET6, value_str, buf) <= 0)
+		; /* pass */
+
+	else if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
+		; /* pass */
+
+	else if (!((*value)->data = GETDNS_XMALLOC(*mf, uint8_t, 16)))
+		GETDNS_FREE(*mf, *value);
+
+	else {
+		(*value)->size = 16;
+		(void) memcpy((*value)->data, buf, 16);
+		return 1;
+	}
+	return 0;
+}
+
+static int _jsmn_get_int(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    uint32_t *value)
+{
+	char value_str[11];
+	int size = t->end - t->start;
+	char *endptr;
+
+	if (size <= 0 || size >= sizeof(value_str))
+		return 0;
+
+	(void) memcpy(value_str, js + t->start, size);
+	value_str[size] = '\0';
+
+	*value = (uint32_t)strtoul(value_str, &endptr, 10);
+	return *value_str != '\0' && *endptr == '\0';
+}
+
+static int _jsmn_get_const(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    uint32_t *value)
+{
+	char value_str[80];
+	int size = t->end - t->start;
+
+	if (size <= 0 || size >= sizeof(value_str))
+		return 0;
+
+	(void) memcpy(value_str, js + t->start, size);
+	value_str[size] = '\0';
+
+	return _getdns_get_const_name_info(value_str, value);
+}
+
+static void
+_getdns_destroy_item_data(struct mem_funcs *mf, getdns_item *item)
+{
+	switch (item->dtype) {
+	case t_dict:
+		getdns_dict_destroy(item->data.dict);
+		break;
+
+	case t_list:
+		getdns_list_destroy(item->data.list);
+		break;
+
+	case t_bindata:
+		GETDNS_FREE(*mf, item->data.bindata->data);
+		GETDNS_FREE(*mf, item->data.bindata);
+	default:
+		break;
+	}
+}
+static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    size_t count, getdns_item *item, getdns_return_t *r);
+
+static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    size_t count, getdns_dict *dict, getdns_return_t *r)
+{
+	size_t i, j = 1;
+	char key_spc[1024], *key = NULL;
+	getdns_item child_item;
+
+	for (i = 0; i < t->size; i++) {
+		if (t[j].type != JSMN_STRING &&
+		    t[j].type != JSMN_PRIMITIVE) {
+
+			/* Key must be string or primitive */
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			break;
+		}
+		if (t[j].end <= t[j].start) {
+			/* Key must be at least 1 character */
+			*r = GETDNS_RETURN_GENERIC_ERROR; /* range error */
+			break;
+		}
+		if (t[j].end - t[j].start < sizeof(key_spc))
+			key = key_spc;
+
+		else if (!(key = GETDNS_XMALLOC(
+		    *mf, char, t[j].end - t[j].start + 1))) {
+
+			*r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		(void) memcpy(key, js + t[j].start, t[j].end - t[j].start);
+		key[t[j].end - t[j].start] = '\0';
+		j += 1;
+
+		j += _jsmn_get_item(mf, js, t + j, count - j, &child_item, r);
+		if (*r) break;
+
+		switch (child_item.dtype) {
+		case t_int:
+			*r = getdns_dict_set_int(dict, key,
+			    child_item.data.n);
+			break;
+		case t_bindata:
+			*r = getdns_dict_set_bindata(dict, key,
+			    child_item.data.bindata);
+			break;
+		case t_list:
+			*r = getdns_dict_set_list(dict, key,
+			    child_item.data.list);
+			break;
+		case t_dict:
+			*r = getdns_dict_set_dict(dict, key,
+			    child_item.data.dict);
+			break;
+		default:
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			break;
+
+		}
+		_getdns_destroy_item_data(mf, &child_item);
+		if (*r) break;
+		if (key && key != key_spc) {
+			GETDNS_FREE(*mf, key);
+			key = NULL;
+		}
+	}
+	if (key && key != key_spc)
+		GETDNS_FREE(*mf, key);
+
+	if (*r) {
+		getdns_dict_destroy(dict);
+		return 0;
+	}
+	return j;
+}
+
+static int _jsmn_get_list(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    size_t count, getdns_list *list, getdns_return_t *r)
+{
+	size_t i, j = 1, index = 0;
+	getdns_item child_item;
+
+	for (i = 0; i < t->size; i++) {
+		j += _jsmn_get_item(mf, js, t + j, count - j, &child_item, r);
+		if (*r) break;
+
+		switch (child_item.dtype) {
+		case t_int:
+			*r = getdns_list_set_int(list, index++,
+			    child_item.data.n);
+			break;
+		case t_bindata:
+			*r = getdns_list_set_bindata(list, index++,
+			    child_item.data.bindata);
+			break;
+		case t_list:
+			*r = getdns_list_set_list(list, index++,
+			    child_item.data.list);
+			break;
+		case t_dict:
+			*r = getdns_list_set_dict(list, index++,
+			    child_item.data.dict);
+			break;
+		default:
+			*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			break;
+
+		}
+		_getdns_destroy_item_data(mf, &child_item);
+		if (*r) break;
+	}
+	if (*r) {
+		getdns_list_destroy(list);
+		return 0;
+	}
+	return j;
+}
+
+static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    size_t count, getdns_item *item, getdns_return_t *r)
+{
+	assert(item);
+
+	switch (t->type) {
+	case JSMN_STRING:
+		if (t->end < t->start)
+			*r = GETDNS_RETURN_GENERIC_ERROR;
+
+		else if (!(item->data.bindata =
+		    GETDNS_MALLOC(*mf, getdns_bindata)))
+			*r = GETDNS_RETURN_MEMORY_ERROR;
+
+		else if (!(item->data.bindata->data = GETDNS_XMALLOC(
+		    *mf, uint8_t, t->end - t->start + 1))) {
+			GETDNS_FREE(*mf, item->data.bindata);
+			*r = GETDNS_RETURN_MEMORY_ERROR;
+		} else {
+			item->dtype = t_bindata;
+			if (t->end - t->start) {
+				(void) memcpy(item->data.bindata->data,
+				    js + t->start, t->end - t->start);
+			}
+			item->data.bindata->data[t->end - t->start] = '\0';
+			item->data.bindata->size = t->end - t->start;
+			*r = GETDNS_RETURN_GOOD;
+			return 1;
+		}
+		break;
+
+	case JSMN_PRIMITIVE:
+		/* There is no such thing as an empty primitive */
+		if (t->end <= t->start) {
+			*r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+
+		} else if (_jsmn_get_int(mf, js, t, &item->data.n)
+		    || _jsmn_get_const(mf, js, t, &item->data.n)) {
+
+			item->dtype = t_int;
+		}
+		else if (_jsmn_get_data(mf, js, t, &item->data.bindata)
+		    || _jsmn_get_dname(mf, js, t,  &item->data.bindata)
+		    || _jsmn_get_ipv4(mf, js, t,  &item->data.bindata)
+		    || _jsmn_get_ipv6(mf, js, t,  &item->data.bindata))
+
+			item->dtype = t_bindata;
+
+		else if (_jsmn_get_ipdict(mf, js, t, &item->data.dict))
+
+			item->dtype = t_dict;
+		else {
+			*r = GETDNS_RETURN_GENERIC_ERROR;
+			break;
+		}
+		*r = GETDNS_RETURN_GOOD;
+		return 1;
+
+	case JSMN_OBJECT:
+		if (!(item->data.dict = _getdns_dict_create_with_mf(mf))) {
+			*r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		item->dtype = t_dict;
+		return _jsmn_get_dict(mf, js, t, count, item->data.dict, r);
+
+	case JSMN_ARRAY:
+		if (!(item->data.list = _getdns_list_create_with_mf(mf))) {
+			*r = GETDNS_RETURN_MEMORY_ERROR;
+			break;
+		}
+		item->dtype = t_list;
+		return _jsmn_get_list(mf, js, t, count, item->data.list, r);
+
+	default:
+		*r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		break;
+	}
+	return 0;
+}
+
+static getdns_return_t
+_getdns_str2item_mf(struct mem_funcs *mf, const char *str, getdns_item *item)
+{
+	jsmn_parser p;
+	jsmntok_t *tok = NULL, *new_tok;
+	size_t tokcount = 100;
+	int r;
+	getdns_return_t gr;
+
+	jsmn_init(&p);
+	tok = GETDNS_XMALLOC(*mf, jsmntok_t, tokcount);
+	do {
+		r = jsmn_parse(&p, str, strlen(str), tok, tokcount);
+		if (r == JSMN_ERROR_NOMEM) {
+			tokcount *= 2;
+			if (!(new_tok = GETDNS_XREALLOC(
+			    *mf, tok, jsmntok_t, tokcount))) {
+				GETDNS_FREE(*mf, tok);
+				return GETDNS_RETURN_MEMORY_ERROR;
+			} 
+			tok  = new_tok;
+		}
+	} while (r == JSMN_ERROR_NOMEM);
+	if (r < 0) 
+		gr = GETDNS_RETURN_GENERIC_ERROR;
+	else
+		(void) _jsmn_get_item(mf, str, tok, p.toknext, item, &gr);
+	GETDNS_FREE(*mf, tok);
+	return gr;
+}
+
+getdns_return_t
+getdns_str2dict(const char *str, getdns_dict **dict)
+{
+	getdns_item item;
+	getdns_return_t r;
+
+	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
+		return r;
+
+	else if (item.dtype != t_dict) {
+		uint8_t buf[16];
+		getdns_dict *dict_r;
+
+		if (item.dtype != t_bindata)
+			r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+
+		else if (item.data.bindata->size == 4 &&
+		    inet_pton(AF_INET, str, buf) == 1) {
+
+			if (!(dict_r = getdns_dict_create()))
+				r = GETDNS_RETURN_MEMORY_ERROR;
+
+			else if ((r = getdns_dict_util_set_string(
+			    dict_r, "address_type", "IPv4")))
+				getdns_dict_destroy(dict_r);
+
+			else if ((r = getdns_dict_set_bindata(
+			    dict_r, "address_data", item.data.bindata)))
+				getdns_dict_destroy(dict_r);
+			else
+				*dict = dict_r;
+
+		} else if (item.data.bindata->size == 16 &&
+		    inet_pton(AF_INET6, str, buf) == 1) {
+
+			if (!(dict_r = getdns_dict_create()))
+				r = GETDNS_RETURN_MEMORY_ERROR;
+
+			else if ((r = getdns_dict_util_set_string(
+			    dict_r, "address_type", "IPv6")))
+				getdns_dict_destroy(dict_r);
+
+			else if ((r = getdns_dict_set_bindata(
+			    dict_r, "address_data", item.data.bindata)))
+				getdns_dict_destroy(dict_r);
+			else
+				*dict = dict_r;
+		} else
+			r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+
+		_getdns_destroy_item_data(&_getdns_plain_mem_funcs, &item);
+		return r;
+	}
+	*dict = item.data.dict;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_str2list(const char *str, getdns_list **list)
+{
+	getdns_item item;
+	getdns_return_t r;
+
+	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
+		return r;
+
+	else if (item.dtype != t_list) {
+		_getdns_destroy_item_data(&_getdns_plain_mem_funcs, &item);
+		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+	*list = item.data.list;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_str2bindata(const char *str, getdns_bindata **bindata)
+{
+	getdns_item item;
+	getdns_return_t r;
+
+	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
+		return r;
+
+	else if (item.dtype != t_bindata) {
+		_getdns_destroy_item_data(&_getdns_plain_mem_funcs, &item);
+		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+	*bindata = item.data.bindata;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_str2int(const char *str, uint32_t *value)
+{
+	getdns_item item;
+	getdns_return_t r;
+
+	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
+		return r;
+
+	else if (item.dtype != t_int) {
+		_getdns_destroy_item_data(&_getdns_plain_mem_funcs, &item);
+		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+	}
+	*value = item.data.n;
+	return GETDNS_RETURN_GOOD;
+}
+

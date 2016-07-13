@@ -26,11 +26,13 @@
  */
 
 #include "config.h"
-#include "getdns_context_set_listen_addresses.h"
+#include <netdb.h>
 #include "getdns/getdns_extra.h"
+#include "context.h"
 #include "types-internal.h"
 #include "debug.h"
-#include <netdb.h>
+#include "util/rbtree.h"
+#include "server.h"
 
 #define DNS_REQUEST_SZ          4096
 #define DOWNSTREAM_IDLE_TIMEOUT 5000
@@ -63,9 +65,9 @@ struct listener {
  */
 struct listen_set {
 	getdns_context           *context;
-	listen_set               *next;
 	getdns_request_handler_t  handler;
 
+	_getdns_rbtree_t          connections_set;
 	size_t                    count;
 	listener                  items[];
 };
@@ -79,6 +81,9 @@ struct tcp_to_write {
 };
 
 struct connection {
+	/* struct connection is a sub struct of _getdns_rbnode_t */
+	_getdns_rbnode_t        super;
+
 	listener               *l;
 	struct sockaddr_storage remote_in;
 	socklen_t               addrlen;
@@ -88,14 +93,8 @@ struct connection {
 };
 
 typedef struct tcp_connection {
-	/* A TCP connection is a connection */
-	listener               *l;
-	struct sockaddr_storage remote_in;
-	socklen_t               addrlen;
-
-	connection             *next;
-	connection            **prev_next;
-	/************************************/
+	/* struct tcp_connection is a sub struct of connection */
+	connection              super;
 
 	int                     fd;
 	getdns_eventloop_event  event;
@@ -118,10 +117,10 @@ static void tcp_connection_destroy(tcp_connection *conn)
 
 	tcp_to_write *cur, *next;
 
-	if (!(mf = priv_getdns_context_mf(conn->l->set->context)))
+	if (!(mf = &conn->super.l->set->context->mf))
 		return;
 
-	if (getdns_context_get_eventloop(conn->l->set->context, &loop))
+	if (getdns_context_get_eventloop(conn->super.l->set->context, &loop))
 		return;
 
 	if (conn->event.read_cb||conn->event.write_cb||conn->event.timeout_cb)
@@ -139,10 +138,14 @@ static void tcp_connection_destroy(tcp_connection *conn)
 		return;
 
 	/* Unlink this connection */
-	if ((*conn->prev_next = conn->next))
-		conn->next->prev_next = conn->prev_next;
+	(void) _getdns_rbtree_delete(
+	    &conn->super.l->set->connections_set, conn);
+	DEBUG_SERVER("[connection del] count: %d\n",
+	    (int)conn->super.l->set->connections_set.count);
+	if ((*conn->super.prev_next = conn->super.next))
+		conn->super.next->prev_next = conn->super.prev_next;
 
-	free_listen_set_when_done(conn->l->set);
+	free_listen_set_when_done(conn->super.l->set);
 	GETDNS_FREE(*mf, conn);
 }
 
@@ -157,10 +160,10 @@ static void tcp_write_cb(void *userarg)
 
 	assert(userarg);
 
-	if (!(mf = priv_getdns_context_mf(conn->l->set->context)))
+	if (!(mf = &conn->super.l->set->context->mf))
 		return;
 
-	if (getdns_context_get_eventloop(conn->l->set->context, &loop))
+	if (getdns_context_get_eventloop(conn->super.l->set->context, &loop))
 		return;
 
 	/* Reset tcp_connection idle timeout */
@@ -195,28 +198,30 @@ static void tcp_write_cb(void *userarg)
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 }
 
-void
-_getdns_cancel_reply(getdns_context *context, getdns_transaction_t request_id)
+static void
+_getdns_cancel_reply(getdns_context *context, connection *conn)
 {
-	/* TODO: Check request_id at context->outbound_requests */
-	connection *conn = (connection *)(intptr_t)request_id;
 	struct mem_funcs *mf;
 
 	if (!context || !conn)
 		return;
 
 	if (conn->l->transport == GETDNS_TRANSPORT_TCP) {
-		tcp_connection *conn = (tcp_connection *)(intptr_t)request_id;
+		tcp_connection *conn = (tcp_connection *)conn;
 
 		if (conn->to_answer > 0 && --conn->to_answer == 0 &&
 		    conn->fd == -1)
 			tcp_connection_destroy(conn);
 
 	} else if (conn->l->transport == GETDNS_TRANSPORT_UDP &&
-	    (mf = priv_getdns_context_mf(conn->l->set->context))) {
+	    (mf = &conn->l->set->context->mf)) {
 		listen_set *set = conn->l->set;
 
 		/* Unlink this connection */
+		(void) _getdns_rbtree_delete(
+		    &set->connections_set, conn);
+		DEBUG_SERVER("[connection del] count: %d\n",
+		    (int)set->connections_set.count);
 		if ((*conn->prev_next = conn->next))
 			conn->next->prev_next = conn->prev_next;
 		GETDNS_FREE(*mf, conn);
@@ -236,10 +241,21 @@ getdns_reply(
 	size_t len;
 	getdns_return_t r;
 
-	if (!context || !reply || !conn)
+	if (!context || !conn)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (!(mf = priv_getdns_context_mf(conn->l->set->context)))
+	if (!context->server)
+		return GETDNS_RETURN_GENERIC_ERROR;;
+
+	if (_getdns_rbtree_search(&context->server->connections_set, conn)
+	    != &conn->super)
+		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+
+	if (!reply) {
+		_getdns_cancel_reply(context, conn);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!(mf = &conn->l->set->context->mf))
 		return GETDNS_RETURN_GENERIC_ERROR;;
 
 	if ((r = getdns_context_get_eventloop(conn->l->set->context, &loop)))
@@ -260,6 +276,10 @@ getdns_reply(
 			conn->l->fd = -1;
 		}
 		/* Unlink this connection */
+		(void) _getdns_rbtree_delete(
+		    &l->set->connections_set, conn);
+		DEBUG_SERVER("[connection del] count: %d\n",
+		    (int)l->set->connections_set.count);
 		if ((*conn->prev_next = conn->next))
 			conn->next->prev_next = conn->prev_next;
 
@@ -320,10 +340,10 @@ static void tcp_read_cb(void *userarg)
 
 	assert(userarg);
 
-	if (!(mf = priv_getdns_context_mf(conn->l->set->context)))
+	if (!(mf = &conn->super.l->set->context->mf))
 		return;
 
-	if ((r = getdns_context_get_eventloop(conn->l->set->context, &loop)))
+	if ((r = getdns_context_get_eventloop(conn->super.l->set->context, &loop)))
 		return;
 
 	/* Reset tcp_connection idle timeout */
@@ -381,8 +401,8 @@ static void tcp_read_cb(void *userarg)
 		conn->to_answer++;
 
 		/* Call request handler */
-		conn->l->set->handler(
-		    conn->l->set->context, request_dict, (intptr_t)conn);
+		conn->super.l->set->handler(
+		    conn->super.l->set->context, request_dict, (intptr_t)conn);
 
 		conn->read_pos = conn->read_buf;
 		conn->to_read = 2;
@@ -402,7 +422,8 @@ static void tcp_timeout_cb(void *userarg)
 	if (conn->to_answer) {
 		getdns_eventloop *loop;
 
-		if (getdns_context_get_eventloop(conn->l->set->context, &loop))
+		if (getdns_context_get_eventloop(
+		    conn->super.l->set->context, &loop))
 			return;
 
 		loop->vmt->clear(loop, &conn->event);
@@ -423,7 +444,7 @@ static void tcp_accept_cb(void *userarg)
 
 	assert(userarg);
 
-	if (!(mf = priv_getdns_context_mf(l->set->context)))
+	if (!(mf = &l->set->context->mf))
 		return;
 
 	if ((r = getdns_context_get_eventloop(l->set->context, &loop)))
@@ -433,11 +454,10 @@ static void tcp_accept_cb(void *userarg)
 		return;
 
 	(void) memset(conn, 0, sizeof(tcp_connection));
-
-	conn->l = l;
-	conn->addrlen = sizeof(conn->remote_in);
-	if ((conn->fd = accept(l->fd,
-	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
+	conn->super.l = l;
+	conn->super.addrlen = sizeof(conn->super.remote_in);
+	if ((conn->fd = accept(l->fd, (struct sockaddr *)
+	    &conn->super.remote_in, &conn->super.addrlen)) == -1) {
 		/* IO error, cleanup this listener */
 		loop->vmt->clear(loop, &l->event);
 		close(l->fd);
@@ -458,10 +478,20 @@ static void tcp_accept_cb(void *userarg)
 	conn->event.timeout_cb = tcp_timeout_cb;
 
 	/* Insert connection */
-	if ((conn->next = l->connections))
-		conn->next->prev_next = &conn->next;
-	conn->prev_next = &l->connections;
+	conn->super.super.key = conn;
+	if (!_getdns_rbtree_insert(
+	    &l->set->connections_set, &conn->super.super)) {
+		/* Memory error */
+		GETDNS_FREE(*mf, conn);
+		return;
+	}
+	DEBUG_SERVER("[connection add] count: %d\n",
+	    (int)l->set->connections_set.count);
+	if ((conn->super.next = l->connections))
+		conn->super.next->prev_next = &conn->super.next;
+	conn->super.prev_next = &l->connections;
 	l->connections = (connection *)conn;
+	
 
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
@@ -485,7 +515,7 @@ static void udp_read_cb(void *userarg)
 	if (l->fd == -1)
 		return;
 
-	if (!(mf = priv_getdns_context_mf(l->set->context)))
+	if (!(mf = &l->set->context->mf))
 		return;
 
 	if ((r = getdns_context_get_eventloop(l->set->context, &loop)))
@@ -503,11 +533,86 @@ static void udp_read_cb(void *userarg)
 		close(l->fd);
 		l->fd = -1;
 
+#if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
+	} else {
+		char addrbuf[100];
+		char hexbuf[4096], *hexptr;
+		size_t l, i, j;
+
+		if (conn->remote_in.ss_family == AF_INET) {
+			if (inet_ntop(AF_INET,
+			    &((struct sockaddr_in*)&conn->remote_in)->sin_addr,
+			    addrbuf, sizeof(addrbuf))) {
+
+				l = strlen(addrbuf);
+				(void) snprintf(addrbuf + l,
+				    sizeof(addrbuf) - l, ":%d", 
+				    (int)((struct sockaddr_in*)
+				    &conn->remote_in)->sin_port);
+			} else
+				(void) strncpy(
+				    addrbuf, "error ipv4", sizeof(addrbuf));
+
+		} else if (conn->remote_in.ss_family == AF_INET6) {
+			addrbuf[0] = '[';
+			if (inet_ntop(AF_INET6,
+			    &((struct sockaddr_in6*)
+			    &conn->remote_in)->sin6_addr,
+			    addrbuf, sizeof(addrbuf))) {
+
+				l = strlen(addrbuf);
+				(void) snprintf(addrbuf + l,
+				    sizeof(addrbuf) - l, ":%d", 
+				    (int)((struct sockaddr_in6*)
+				    &conn->remote_in)->sin6_port);
+			} else
+				(void) strncpy(
+				    addrbuf, "error ipv6", sizeof(addrbuf));
+
+		} else {
+			(void) strncpy(
+			    addrbuf, "unknown address", sizeof(addrbuf));
+		}
+		*(hexptr = hexbuf) = 0;
+		for (i = 0; i < len; i++) {
+			if (i % 12 == 0) {
+				hexptr += snprintf(hexptr,
+				    sizeof(hexbuf) - (hexptr - hexbuf) - 1,
+				    "\n%.4x", (int)i);
+			} else if (i % 4 == 0) {
+				hexptr += snprintf(hexptr,
+				    sizeof(hexbuf) - (hexptr - hexbuf) - 1,
+				    " ");
+			}
+			if (hexptr - hexbuf > sizeof(hexbuf))
+				break;
+			hexptr += snprintf(hexptr,
+			    sizeof(hexbuf) - (hexptr - hexbuf) - 1,
+			    " %.2x", (int)buf[i]);
+			if (hexptr - hexbuf > sizeof(hexbuf))
+				break;
+		}
+		DEBUG_SERVER("Received %d bytes from %s: %s\n",
+		    (int)len, addrbuf, hexbuf);
+	}
+	if (len == -1) {
+		; /* pass */
+#endif
+
 	} else if ((r = getdns_wire2msg_dict(buf, len, &request_dict)))
 		; /* FROMERR on input, ignore */
 
 	else {
 		/* Insert connection */
+		conn->super.key = conn;
+		if (!_getdns_rbtree_insert(
+		    &l->set->connections_set, &conn->super)) {
+			/* Memory error */
+			GETDNS_FREE(*mf, conn);
+			return;
+		}
+		DEBUG_SERVER("[connection add] count: %d\n",
+		    (int)l->set->connections_set.count);
 		if ((conn->next = l->connections))
 			conn->next->prev_next = &conn->next;
 		conn->prev_next = &l->connections;
@@ -520,25 +625,6 @@ static void udp_read_cb(void *userarg)
 	GETDNS_FREE(*mf, conn);
 }
 
-static void rm_listen_set(listen_set **root, listen_set *set)
-{
-	assert(root);
-
-	while (*root && *root != set)
-		root = &(*root)->next;
-
-	*root = set->next;
-	set->next = NULL;
-}
-
-static listen_set *lookup_listen_set(listen_set *root, getdns_context *key)
-{
-	while (root && root->context != key)
-		root = root->next;
-
-	return root;
-}
-
 static void free_listen_set_when_done(listen_set *set)
 {
 	struct mem_funcs *mf;
@@ -547,7 +633,7 @@ static void free_listen_set_when_done(listen_set *set)
 	assert(set);
 	assert(set->context);
 
-	if (!(mf = priv_getdns_context_mf(set->context)))
+	if (!(mf = &set->context->mf))
 		return;
 
 	DEBUG_SERVER("To free listen set: %p\n", set);
@@ -573,7 +659,7 @@ static void remove_listeners(listen_set *set)
 	assert(set);
 	assert(set->context);
 
-	if (!(mf = priv_getdns_context_mf(set->context)))
+	if (!(mf = &set->context->mf))
 		return;
 
 	if (getdns_context_get_eventloop(set->context, &loop))
@@ -597,7 +683,8 @@ static void remove_listeners(listen_set *set)
 		while (*conn_p) {
 			tcp_connection_destroy(*conn_p);
 			if (*conn_p && (*conn_p)->to_answer > 0)
-				conn_p = (tcp_connection **)&(*conn_p)->next;
+				conn_p = (tcp_connection **)
+				    &(*conn_p)->super.next;
 		}
 	}
 	free_listen_set_when_done(set);
@@ -615,7 +702,7 @@ static getdns_return_t add_listeners(listen_set *set)
 	assert(set);
 	assert(set->context);
 
-	if (!(mf = priv_getdns_context_mf(set->context)))
+	if (!(mf = &set->context->mf))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	if ((r = getdns_context_get_eventloop(set->context, &loop)))
@@ -672,16 +759,21 @@ static getdns_return_t add_listeners(listen_set *set)
 	return GETDNS_RETURN_GOOD;
 }
 
+static int
+ptr_cmp(const void *a, const void *b)
+{
+	return a == b ? 0 : (a < b ? -1 : 1);
+}
+
 getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t request_handler, getdns_list *listen_addresses)
+    getdns_request_handler_t request_handler,
+    const getdns_list *listen_addresses)
 {
 	static const getdns_transport_list_t listen_transports[]
 		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
 	static const uint32_t transport_ports[] = { 53, 53 };
 	static const size_t n_transports = sizeof( listen_transports)
 	                                 / sizeof(*listen_transports);
-	static listen_set *root = NULL;
-
 	listen_set        *current_set;
 	listen_set        *new_set;
 	size_t             new_set_count;
@@ -694,9 +786,11 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	size_t i;
 	struct addrinfo hints;
 
-	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, %p, %p)\n", context, request_handler,
+	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, %p, %p)\n",
+	    context, request_handler,
+
 	    listen_addresses);
-	if (!(mf = priv_getdns_context_mf(context)))
+	if (!(mf = &context->mf))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	if ((r = getdns_context_get_eventloop(context, &loop)))
@@ -708,7 +802,7 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	else if ((r = getdns_list_get_length(listen_addresses, &new_set_count)))
 		return r;
 
-	if ((current_set = lookup_listen_set(root, context))) {
+	if ((current_set = context->server)) {
 		for (i = 0; i < current_set->count; i++)
 			current_set->items[i].action = to_remove;
 	}
@@ -716,7 +810,7 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 		if (!current_set)
 			return GETDNS_RETURN_GOOD;
 		
-		rm_listen_set(&root, current_set);
+		context->server = NULL;
 		/* action is already to_remove */
 		remove_listeners(current_set);
 		return GETDNS_RETURN_GOOD;
@@ -729,10 +823,12 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	    sizeof(listener) * new_set_count * n_transports)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
-	DEBUG_SERVER("New listen set: %p, current_set: %p\n", new_set, current_set);
+	_getdns_rbtree_init(&new_set->connections_set, ptr_cmp);
+
+	DEBUG_SERVER("New listen set: %p, current_set: %p\n",
+	    new_set, current_set);
 
 	new_set->context = context;
-	new_set->next = root;
 	new_set->handler = request_handler;
 	new_set->count = new_set_count * n_transports;
 	(void) memset(new_set->items, 0,
@@ -871,10 +967,10 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 		}
 	}
 	if (current_set) {
-		rm_listen_set(&root, current_set);
+		context->server = NULL;
 		remove_listeners(current_set); /* Is already remove */
 	}
-	root = new_set;
+	context->server = new_set;
 	return GETDNS_RETURN_GOOD;
 }
 
