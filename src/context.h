@@ -44,6 +44,7 @@
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
 #include "ub_loop.h"
+#include "server.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -259,6 +260,8 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	_getdns_rbtree_t outbound_requests;
+
+	struct listen_set *server;
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;

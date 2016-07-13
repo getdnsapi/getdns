@@ -27,7 +27,6 @@
 
 #include "config.h"
 #include "debug.h"
-#include "getdns_context_set_listen_addresses.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1346,14 +1345,11 @@ static void request_cb(
 	else if (n == 0)
 		SERVFAIL("Recursion not available", 0, msg, &response);
 
-	if (!response)
-		/* No response, no reply */
-		_getdns_cancel_reply(context, msg->request_id);
-
-	else if ((r = getdns_reply(context, msg->request_id, response))) {
+	if ((r = getdns_reply(context, msg->request_id, response))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
-		_getdns_cancel_reply(context, msg->request_id);
+		/* Cancel reply */
+		(void) getdns_reply(context, msg->request_id, NULL);
 	}
 	if (msg) {
 		getdns_dict_destroy(msg->request);
@@ -1510,14 +1506,11 @@ error:
 		free(request_str);
 	} while(0);
 #endif
-	if (!response)
-		/* No response, no reply */
-		_getdns_cancel_reply(context, request_id);
-
-	else if ((r = getdns_reply(context, request_id, response))) {
+	if ((r = getdns_reply(context, request_id, response))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
-		_getdns_cancel_reply(context, request_id);
+		/* Cancel reply */
+		getdns_reply(context, request_id, NULL);
 	}
 	if (msg) {
 		if (msg->request)

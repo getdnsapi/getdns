@@ -1,3 +1,11 @@
+/**
+ * \file server.h
+ * @brief Functions for serving requests
+ *
+ * getdns_context_set_listen_addresses() and getdns_reply() are implemented
+ * here.
+ */
+
 /*
  * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
  * All rights reserved.
@@ -24,25 +32,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _GETDNS_SERVER_H_
+#define _GETDNS_SERVER_H_
 
-#ifndef GETDNS_CONTEXT_SET_LISTEN_ADDRESSES_H_
-#define GETDNS_CONTEXT_SET_LISTEN_ADDRESSES_H_
-#include "getdns/getdns.h"
+struct listen_set;
 
-typedef void (*getdns_request_handler_t)(
-	getdns_context      *context,
-	getdns_dict         *request,
-	getdns_transaction_t request_id
-);
-
-getdns_return_t getdns_context_set_listen_addresses(
-    getdns_context *context, getdns_request_handler_t request_handler,
-    const getdns_list *listen_addresses);
-
-getdns_return_t getdns_reply(getdns_context *context,
-    getdns_transaction_t request_id, getdns_dict *reply);
-
-void _getdns_cancel_reply(getdns_context *context,
-    getdns_transaction_t request_id);
-
-#endif
+#endif /* _GETDNS_SERVER_H_ */
