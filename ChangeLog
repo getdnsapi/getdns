@@ -40,6 +40,8 @@
   * Bugfix: Build fails with autoconf 2.63, works with 2.68.
     Thanks Robert Groenenberg
   * Doxygen output for getdns.h and getdns_extra.h only
+  * Do not call SSL_library_init() from getdns_context_create() when
+    the second bit from the set_from_os parameter is set.
 
 * 2016-03-31: Version 1.0.0b1
   * openssl 1.1.0 support
