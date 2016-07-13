@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <ctype.h>
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
 #ifndef USE_WINSOCK
@@ -70,7 +71,55 @@ static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 
-int get_rrtype(const char *t);
+static int get_rrtype(const char *t)
+{
+	char buf[1024] = "GETDNS_RRTYPE_";
+	uint32_t rrtype;
+	long int l;
+	size_t i;
+	char *endptr;
+
+	if (strlen(t) > sizeof(buf) - 15)
+		return -1;
+	for (i = 14; *t && i < sizeof(buf) - 1; i++, t++)
+		buf[i] = toupper(*t);
+	buf[i] = '\0';
+
+	if (!getdns_str2int(buf, &rrtype))
+		return (int)rrtype;
+
+	if (strncasecmp(buf + 14, "TYPE", 4) == 0) {
+		l = strtol(buf + 18, &endptr, 10);
+		if (!*endptr && l >= 0 && l < 65536)
+			return l;
+	}
+	return -1;
+}
+
+static int get_rrclass(const char *t)
+{
+	char buf[1024] = "GETDNS_RRCLASS_";
+	uint32_t rrclass;
+	long int l;
+	size_t i;
+	char *endptr;
+
+	if (strlen(t) > sizeof(buf) - 16)
+		return -1;
+	for (i = 15; *t && i < sizeof(buf) - 1; i++, t++)
+		buf[i] = toupper(*t);
+	buf[i] = '\0';
+
+	if (!getdns_str2int(buf, &rrclass))
+		return (int)rrclass;
+
+	if (strncasecmp(buf + 15, "CLASS", 5) == 0) {
+		l = strtol(buf + 20, &endptr, 10);
+		if (!*endptr && l >= 0 && l < 65536)
+			return l;
+	}
+	return -1;
+}
 
 static getdns_return_t
 fill_transport_list(getdns_context *context, char *transport_list_str, 
@@ -457,34 +506,13 @@ getdns_return_t parse_args(int argc, char **argv)
 					break;
 				}
 			} else if (strncmp(arg+1, "specify_class=", 14) == 0) {
-				if (strncasecmp(arg+15, "IN", 3) == 0)
+				if ((klass = get_rrclass(arg+15)) >= 0)
 					r = getdns_dict_set_int(extensions,
-					    "specify_class", GETDNS_RRCLASS_IN);
-				else if (strncasecmp(arg+15, "CH", 3) == 0)
-					r = getdns_dict_set_int(extensions,
-					    "specify_class", GETDNS_RRCLASS_CH);
-				else if (strncasecmp(arg+15, "HS", 3) == 0)
-					r = getdns_dict_set_int(extensions,
-					    "specify_class", GETDNS_RRCLASS_HS);
-				else if (strncasecmp(arg+15, "NONE", 5) == 0)
-					r = getdns_dict_set_int(extensions,
-					    "specify_class", GETDNS_RRCLASS_NONE);
-				else if (strncasecmp(arg+15, "ANY", 4) == 0)
-					r = getdns_dict_set_int(extensions,
-					    "specify_class", GETDNS_RRCLASS_ANY);
-				else if (strncasecmp(arg+15, "CLASS", 5) == 0) {
-					klass = strtol(arg + 20, &endptr, 10);
-					if (*endptr || klass > 255)
-						fprintf(stderr,
-						    "Unknown class: %s\n",
-						    arg+15);
-					else
-						r = getdns_dict_set_int(extensions,
 						    "specify_class", klass);
-
-				} else
+				else
 					fprintf(stderr,
 					    "Unknown class: %s\n", arg+15);
+
 			} else if (arg[1] == '0') {
 			    /* Unset all existing extensions*/
 				getdns_dict_destroy(extensions);
@@ -499,8 +527,23 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] == '@') {
-			getdns_dict *upstream = _getdns_ipaddr_dict(arg + 1);
-			if (upstream) {
+			getdns_dict *upstream;
+			getdns_bindata *address;
+
+			if ((r = getdns_str2dict(arg + 1, &upstream)))
+				fprintf(stderr, "Could not convert \"%s\" to "
+				    "an IP dict: %s\n", arg + 1,
+				    getdns_get_errorstr_by_id(r));
+
+			else if ((r = getdns_dict_get_bindata(
+			    upstream, "address_data", &address))) {
+
+				fprintf(stderr, "\"%s\" did not translate to "
+				    "an IP dict: %s\n", arg + 1,
+				    getdns_get_errorstr_by_id(r));
+
+				getdns_dict_destroy(upstream);
+			} else {
 				if (!upstream_list &&
 				    !(upstream_list =
 				    getdns_list_create_with_context(context))){
@@ -521,6 +564,9 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 		}
 		for (c = arg+1; *c; c++) {
+			getdns_dict *downstream;
+			getdns_bindata *address;
+
 			switch (*c) {
 			case 'a':
 				async = 1;
@@ -896,23 +942,33 @@ getdns_return_t parse_args(int argc, char **argv)
 					DEBUG_SERVER("Clear listen list\n");
 					break;
 				}
-				getdns_dict *downstream =
-				    _getdns_ipaddr_dict(argv[i]);
-				if (!downstream) {
-					fprintf(stderr, "could not parse "
-					        "listen address: %s", argv[i]);
+
+				if ((r = getdns_str2dict(argv[i], &downstream)))
+					fprintf(stderr, "Could not convert \"%s\" to "
+					    "an IP dict: %s\n", argv[i],
+					    getdns_get_errorstr_by_id(r));
+
+				else if ((r = getdns_dict_get_bindata(
+				    downstream, "address_data", &address))) {
+
+					fprintf(stderr, "\"%s\" did not translate to "
+					    "an IP dict: %s\n", argv[i],
+					    getdns_get_errorstr_by_id(r));
+
+					getdns_dict_destroy(downstream);
+				} else {
+					if (!listen_list &&
+					    !(listen_list =
+					    getdns_list_create_with_context(context))){
+						fprintf(stderr, "Could not create "
+								"downstream list\n");
+						return GETDNS_RETURN_MEMORY_ERROR;
+					}
+					getdns_list_set_dict(listen_list,
+					    listen_count++, downstream);
+					getdns_dict_destroy(downstream);
+					touched_listen_list = 1;
 				}
-				if (!listen_list &&
-				    !(listen_list =
-				    getdns_list_create_with_context(context))){
-					fprintf(stderr, "Could not create "
-							"downstram list\n");
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				getdns_list_set_dict(listen_list,
-				    listen_count++, downstream);
-				getdns_dict_destroy(downstream);
-				touched_listen_list = 1;
 				break;
 			default:
 				fprintf(stderr, "Unknown option "
@@ -976,14 +1032,26 @@ getdns_return_t do_the_call(void)
 {
 	getdns_return_t r;
 	getdns_dict *address = NULL;
+	getdns_bindata *address_bindata;
 	getdns_dict *response = NULL;
 	char *response_str;
 	uint32_t status;
 
-	if (calltype == HOSTNAME &&
-	    !(address = _getdns_ipaddr_dict(name))) {
-		fprintf(stderr, "Could not convert \"%s\" "
-				"to an IP address", name);
+	if (calltype != HOSTNAME)
+		; /* pass */
+
+	else if ((r = getdns_str2dict(name, &address))) {
+
+		fprintf(stderr, "Could not convert \"%s\" to an IP dict: %s\n"
+		              , name, getdns_get_errorstr_by_id(r));
+		return GETDNS_RETURN_GOOD;
+
+	} else if ((r = getdns_dict_get_bindata(
+	    address, "address_data", &address_bindata))) {
+
+		fprintf(stderr, "Could not convert \"%s\" to an IP dict: %s\n"
+		              , name, getdns_get_errorstr_by_id(r));
+		getdns_dict_destroy(address);
 		return GETDNS_RETURN_GOOD;
 	}
 	if (async) {
@@ -1132,8 +1200,10 @@ typedef struct dns_msg {
 	getdns_transaction_t  request_id;
 	getdns_dict          *request;
 	uint32_t              rt;
+	uint32_t              ad_bit;
 	uint32_t              do_bit;
 	uint32_t              cd_bit;
+	int                   has_edns0;
 } dns_msg;
 
 #if defined(SERVER_DEBUG) && SERVER_DEBUG
@@ -1168,15 +1238,55 @@ void servfail(dns_msg *msg, getdns_dict **resp_p)
 	(void) getdns_dict_set_int(*resp_p, "/header/ad", 0);
 }
 
-void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
+static getdns_return_t _handle_edns0(
+    getdns_dict *response, int has_edns0)
+{
+	getdns_return_t r;
+	getdns_list *additional;
+	size_t len, i;
+	getdns_dict *rr;
+	uint32_t rr_type;
+	char remove_str[100] = "/replies_tree/0/additional/";
+
+	if ((r = getdns_dict_set_int(
+	    response, "/replies_tree/0/header/do", 0)))
+		return r;
+	if ((r = getdns_dict_get_list(response, "/replies_tree/0/additional",
+	    &additional)))
+		return r;
+	if ((r = getdns_list_get_length(additional, &len)))
+		return r;
+	for (i = 0; i < len; i++) {
+		if ((r = getdns_list_get_dict(additional, i, &rr)))
+			return r;
+		if ((r = getdns_dict_get_int(rr, "type", &rr_type)))
+			return r;
+		if (rr_type != GETDNS_RRTYPE_OPT)
+			continue;
+		if (has_edns0) {
+			(void) getdns_dict_set_int(rr, "do", 0);
+			break;
+		}
+		(void) snprintf(remove_str + 27, 60, "%d", (int)i);
+		if ((r = getdns_dict_remove_name(response, remove_str)))
+			return r;
+		break;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static void request_cb(
+    getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
 {
 	dns_msg *msg = (dns_msg *)userarg;
 	uint32_t qid;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	uint32_t n;
+	uint32_t n, rcode, dnssec_status;
 
-	DEBUG_SERVER("reply for: %p %"PRIu64" %d\n", msg, transaction_id, (int)callback_type);
+	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
+	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
+	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
 	assert(msg);
 
 #if 0
@@ -1195,20 +1305,35 @@ void request_cb(getdns_context *context, getdns_callback_type_t callback_type,
 		SERVFAIL("Could not copy QID", r, msg, &response);
 
 	else if (getdns_dict_get_int(
-	    response, "/replies_tree/0/header/rcode", &n))
+	    response, "/replies_tree/0/header/rcode", &rcode))
 		SERVFAIL("No reply in replies tree", 0, msg, &response);
 
-	else if (msg->cd_bit != 1 && !getdns_dict_get_int(
-	    response, "/replies_tree/0/dnssec_status", &n)
-	    && n == GETDNS_DNSSEC_BOGUS)
+	/* ansers when CD or not BOGUS */
+	else if (!msg->cd_bit && !getdns_dict_get_int(
+	    response, "/replies_tree/0/dnssec_status", &dnssec_status)
+	    && dnssec_status == GETDNS_DNSSEC_BOGUS)
 		SERVFAIL("DNSSEC status was bogus", 0, msg, &response);
 
-	else if ((r = getdns_dict_get_int(
-	    response, "/replies_tree/0/header/rcode", &n)))
-		SERVFAIL("Could not get rcode from reply", r, msg, &response);
-
-	else if (n == GETDNS_RCODE_SERVFAIL)
+	else if (rcode == GETDNS_RCODE_SERVFAIL)
 		servfail(msg, &response);
+
+	/* RRsigs when DO and (CD or not BOGUS) 
+	 * Implemented in conversion to wireformat function by checking for DO
+	 * bit.  In recursing resolution mode we have to copy the do bit from
+	 * the request, because libunbound has it in the answer always.
+	 */
+	else if (msg->rt == GETDNS_RESOLUTION_RECURSING && !msg->do_bit &&
+	    (r = _handle_edns0(response, msg->has_edns0)))
+		SERVFAIL("Could not handle EDNS0", r, msg, &response);
+
+	/* AD when (DO or AD) and SECURE */
+	else if ((r = getdns_dict_set_int(response,"/replies_tree/0/header/ad",
+	    ((msg->do_bit || msg->ad_bit)
+	    && (  (!msg->cd_bit && dnssec_status == GETDNS_DNSSEC_SECURE)
+	       || ( msg->cd_bit && !getdns_dict_get_int(response,
+	            "/replies_tree/0/dnssec_status", &dnssec_status)
+	          && dnssec_status == GETDNS_DNSSEC_SECURE ))) ? 1 : 0)))
+		SERVFAIL("Could not set AD bit", r, msg, &response);
 
 	else if (msg->rt == GETDNS_RESOLUTION_STUB)
 		; /* following checks are for RESOLUTION_RECURSING only */
@@ -1256,6 +1381,10 @@ static void incoming_request_handler(getdns_context *context,
 	getdns_dict *qext = NULL;
 	dns_msg *msg = NULL;
 	getdns_dict *response = NULL;
+	size_t i, len;
+	getdns_list *additional;
+	getdns_dict *rr;
+	uint32_t rr_type;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -1277,10 +1406,26 @@ static void incoming_request_handler(getdns_context *context,
 	n = 0;
 	msg->request_id = request_id;
 	msg->request = request;
-	msg->do_bit = msg->cd_bit = 0;
-	msg->rt = GETDNS_RESOLUTION_STUB;
-	(void) getdns_dict_get_int(request, "/additional/0/do", &msg->do_bit);
+	msg->ad_bit = msg->do_bit = msg->cd_bit = 0;
+	msg->has_edns0 = 0;
+	msg->rt = GETDNS_RESOLUTION_RECURSING;
+	(void) getdns_dict_get_int(request, "/header/ad", &msg->ad_bit);
 	(void) getdns_dict_get_int(request, "/header/cd", &msg->cd_bit);
+	if (!getdns_dict_get_list(request, "additional", &additional)) {
+		if (getdns_list_get_length(additional, &len))
+			len = 0;
+		for (i = 0; i < len; i++) {
+			if (getdns_list_get_dict(additional, i, &rr))
+				break;
+			if (getdns_dict_get_int(rr, "type", &rr_type))
+				break;
+			if (rr_type != GETDNS_RRTYPE_OPT)
+				continue;
+			msg->has_edns0 = 1;
+			(void) getdns_dict_get_int(rr, "do", &msg->do_bit);
+			break;
+		}
+	}
 	if ((r = getdns_context_get_resolution_type(context, &msg->rt)))
 		fprintf(stderr, "Could get resolution type from context: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -1291,15 +1436,10 @@ static void incoming_request_handler(getdns_context *context,
 		if (!getdns_dict_get_dict(request, "header", &header))
 			(void)getdns_dict_set_dict(qext, "header", header);
 
-	} else if (getdns_dict_get_int(extensions,"dnssec_return_status",&n) ||
-	    n == GETDNS_EXTENSION_FALSE)
-		(void)getdns_dict_set_int(qext, "dnssec_return_status",
-		    msg->do_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
-
-	if (!getdns_dict_get_int(qext, "dnssec_return_status", &n) &&
-	    n == GETDNS_EXTENSION_TRUE)
-		(void) getdns_dict_set_int(qext, "dnssec_return_all_statuses",
-		    msg->cd_bit ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+	}
+	if (msg->cd_bit)
+		getdns_dict_set_int(qext, "dnssec_return_all_statuses",
+		    GETDNS_EXTENSION_TRUE);
 
 	if (!getdns_dict_get_int(request, "/additional/0/extended_rcode",&n))
 		(void)getdns_dict_set_int(
@@ -1363,6 +1503,16 @@ error:
 	if (qname_str)
 		free(qname_str);
 	servfail(msg, &response);
+#if defined(SERVER_DEBUG) && SERVER_DEBUG
+	do {
+		char *request_str = getdns_pretty_print_dict(request);
+		char *response_str = getdns_pretty_print_dict(response);
+		DEBUG_SERVER("request error, request: %s\n, response: %s\n"
+		            , request_str, response_str);
+		free(response_str);
+		free(request_str);
+	} while(0);
+#endif
 	if (!response)
 		/* No response, no reply */
 		_getdns_cancel_reply(context, request_id);
@@ -1471,462 +1621,4 @@ done_destroy_context:
 	return r;
 }
 
-int get_rrtype(const char *t) {
-	char *endptr;
-	int r;
-
-	switch (t[0]) {
-	case 'A':
-	case 'a': switch (t[1]) {
-	          case '\0': return GETDNS_RRTYPE_A;
-	          case '6': if (t[2] == '\0') return GETDNS_RRTYPE_A6;
-                            return -1;
-	          case 'A':
-	          case 'a': /* before "AA", final "AA" (GETDNS_RRTYPE_AAAA) */
-	                    if ((t[2]|0x20) == 'a' && (t[3]|0x20) == 'a' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_AAAA;
-	                    return -1;
-	          case 'F':
-	          case 'f': /* before "AF", final "SDB" (GETDNS_RRTYPE_AFSDB) */
-	                    if ((t[2]|0x20) == 's' && (t[3]|0x20) == 'd' && (t[4]|0x20) == 'b' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_AFSDB;
-	                    return -1;
-	          case 'P':
-	          case 'p': /* before "AP", final "L" (GETDNS_RRTYPE_APL) */
-	                    if ((t[2]|0x20) == 'l' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_APL;
-	                    return -1;
-	          case 'T':
-	          case 't': /* before "AT", final "MA" (GETDNS_RRTYPE_ATMA) */
-	                    if ((t[2]|0x20) == 'm' && (t[3]|0x20) == 'a' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_ATMA;
-	                    return -1;
-	          case 'X':
-	          case 'x': /* before "AX", final "FR" (GETDNS_RRTYPE_AXFR) */
-	                    if ((t[2]|0x20) == 'f' && (t[3]|0x20) == 'r' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_AXFR;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'C':
-	case 'c': switch (t[1]) {
-	          case 'A':
-	          case 'a': /* before "CA", final "A" (GETDNS_RRTYPE_CAA) */
-	                    if ((t[2]|0x20) == 'a' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_CAA;
-	                    return -1;
-	          case 'D':
-	          case 'd': switch (t[2]) {
-	                    case 'N':
-	                    case 'n': /* before "CDN", final "SKEY" (GETDNS_RRTYPE_CDNSKEY) */
-	                              if ((t[3]|0x20) == 's' && (t[4]|0x20) == 'k' && (t[5]|0x20) == 'e' && (t[6]|0x20) == 'y' && t[7] == '\0')
-	                                        return GETDNS_RRTYPE_CDNSKEY;
-	                              return -1;
-	                    case 'S':
-	                    case 's': if (t[3] == '\0') return GETDNS_RRTYPE_CDS;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'E':
-	          case 'e': /* before "CE", final "RT" (GETDNS_RRTYPE_CERT) */
-	                    if ((t[2]|0x20) == 'r' && (t[3]|0x20) == 't' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_CERT;
-	                    return -1;
-	          case 'N':
-	          case 'n': /* before "CN", final "AME" (GETDNS_RRTYPE_CNAME) */
-	                    if ((t[2]|0x20) == 'a' && (t[3]|0x20) == 'm' && (t[4]|0x20) == 'e' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_CNAME;
-	                    return -1;
-	          case 'S':
-	          case 's': /* before "CS", final "YNC" (GETDNS_RRTYPE_CSYNC) */
-	                    if ((t[2]|0x20) == 'y' && (t[3]|0x20) == 'n' && (t[4]|0x20) == 'c' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_CSYNC;
-	                    return -1;
-
-	          default : return -1;
-	          };
-	case 'D':
-	case 'd': switch (t[1]) {
-	          case 'H':
-	          case 'h': /* before "DH", final "CID" (GETDNS_RRTYPE_DHCID) */
-	                    if ((t[2]|0x20) == 'c' && (t[3]|0x20) == 'i' && (t[4]|0x20) == 'd' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_DHCID;
-	                    return -1;
-	          case 'L':
-	          case 'l': /* before "DL", final "V" (GETDNS_RRTYPE_DLV) */
-	                    if ((t[2]|0x20) == 'v' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_DLV;
-	                    return -1;
-	          case 'N':
-	          case 'n': switch (t[2]) {
-	                    case 'A':
-	                    case 'a': /* before "DNA", final "ME" (GETDNS_RRTYPE_DNAME) */
-	                              if ((t[3]|0x20) == 'm' && (t[4]|0x20) == 'e' && t[5] == '\0')
-	                                        return GETDNS_RRTYPE_DNAME;
-	                              return -1;
-	                    case 'S':
-	                    case 's': /* before "DNS", final "KEY" (GETDNS_RRTYPE_DNSKEY) */
-	                              if ((t[3]|0x20) == 'k' && (t[4]|0x20) == 'e' && (t[5]|0x20) == 'y' && t[6] == '\0')
-	                                        return GETDNS_RRTYPE_DNSKEY;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'S':
-	          case 's': if (t[2] == '\0') return GETDNS_RRTYPE_DS;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'E':
-	case 'e': switch (t[1]) {
-	          case 'I':
-	          case 'i': /* before "EI", final "D" (GETDNS_RRTYPE_EID) */
-	                    if ((t[2]|0x20) == 'd' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_EID;
-	                    return -1;
-	          case 'U':
-	          case 'u': /* before "EU", next "I" */
-	                    if ((t[2]|0x20) != 'i')
-	                              return -1;
-	                    switch (t[3]) {
-	                    case '4': /* before "EUI4", final "8" (GETDNS_RRTYPE_EUI48) */
-	                              if (t[4] == '8' && t[5] == '\0')
-	                                        return GETDNS_RRTYPE_EUI48;
-	                              return -1;
-	                    case '6': /* before "EUI6", final "4" (GETDNS_RRTYPE_EUI64) */
-	                              if (t[4] == '4' && t[5] == '\0')
-	                                        return GETDNS_RRTYPE_EUI64;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          default : return -1;
-	          };
-	case 'G':
-	case 'g': switch (t[1]) {
-	          case 'I':
-	          case 'i': /* before "GI", final "D" (GETDNS_RRTYPE_GID) */
-	                    if ((t[2]|0x20) == 'd' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_GID;
-	                    return -1;
-	          case 'P':
-	          case 'p': /* before "GP", final "OS" (GETDNS_RRTYPE_GPOS) */
-	                    if ((t[2]|0x20) == 'o' && (t[3]|0x20) == 's' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_GPOS;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'H':
-	case 'h': /* before "H", next "I" */
-	          if ((t[1]|0x20) != 'i')
-	                    return -1;
-	          switch (t[2]) {
-	          case 'N':
-	          case 'n': /* before "HIN", final "FO" (GETDNS_RRTYPE_HINFO) */
-	                    if ((t[3]|0x20) == 'f' && (t[4]|0x20) == 'o' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_HINFO;
-	                    return -1;
-	          case 'P':
-	          case 'p': if (t[3] == '\0') return GETDNS_RRTYPE_HIP;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'I':
-	case 'i': switch (t[1]) {
-	          case 'P':
-	          case 'p': /* before "IP", final "SECKEY" (GETDNS_RRTYPE_IPSECKEY) */
-	                    if ((t[2]|0x20) == 's' && (t[3]|0x20) == 'e' && (t[4]|0x20) == 'c' && (t[5]|0x20) == 'k' && (t[6]|0x20) == 'e' && (t[7]|0x20) == 'y' && t[8] == '\0')
-	                              return GETDNS_RRTYPE_IPSECKEY;
-	                    return -1;
-	          case 'S':
-	          case 's': /* before "IS", final "DN" (GETDNS_RRTYPE_ISDN) */
-	                    if ((t[2]|0x20) == 'd' && (t[3]|0x20) == 'n' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_ISDN;
-	                    return -1;
-	          case 'X':
-	          case 'x': /* before "IX", final "FR" (GETDNS_RRTYPE_IXFR) */
-	                    if ((t[2]|0x20) == 'f' && (t[3]|0x20) == 'r' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_IXFR;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'K':
-	case 'k': switch (t[1]) {
-	          case 'E':
-	          case 'e': /* before "KE", final "Y" (GETDNS_RRTYPE_KEY) */
-	                    if ((t[2]|0x20) == 'y' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_KEY;
-	                    return -1;
-	          case 'X':
-	          case 'x': if (t[2] == '\0') return GETDNS_RRTYPE_KX;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'L':
-	case 'l': switch (t[1]) {
-	          case '3': /* before "L3", final "2" (GETDNS_RRTYPE_L32) */
-	                    if (t[2] == '2' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_L32;
-	                    return -1;
-	          case '6': /* before "L6", final "4" (GETDNS_RRTYPE_L64) */
-	                    if (t[2] == '4' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_L64;
-	                    return -1;
-	          case 'O':
-	          case 'o': /* before "LO", final "C" (GETDNS_RRTYPE_LOC) */
-	                    if ((t[2]|0x20) == 'c' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_LOC;
-	                    return -1;
-	          case 'P':
-	          case 'p': if (t[2] == '\0') return GETDNS_RRTYPE_LP;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'M':
-	case 'm': switch (t[1]) {
-	          case 'A':
-	          case 'a': /* before "MA", next "IL" */
-	                    if ((t[2]|0x20) != 'i' && (t[3]|0x20) != 'l')
-	                              return -1;
-	                    switch (t[4]) {
-	                    case 'A':
-	                    case 'a': if (t[5] == '\0') return GETDNS_RRTYPE_MAILA;
-	                              return -1;
-	                    case 'B':
-	                    case 'b': if (t[5] == '\0') return GETDNS_RRTYPE_MAILB;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'B':
-	          case 'b': if (t[2] == '\0') return GETDNS_RRTYPE_MB;
-                            return -1;
-	          case 'D':
-	          case 'd': if (t[2] == '\0') return GETDNS_RRTYPE_MD;
-                            return -1;
-	          case 'F':
-	          case 'f': if (t[2] == '\0') return GETDNS_RRTYPE_MF;
-                            return -1;
-	          case 'G':
-	          case 'g': if (t[2] == '\0') return GETDNS_RRTYPE_MG;
-                            return -1;
-	          case 'I':
-	          case 'i': /* before "MI", final "NFO" (GETDNS_RRTYPE_MINFO) */
-	                    if ((t[2]|0x20) == 'n' && (t[3]|0x20) == 'f' && (t[4]|0x20) == 'o' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_MINFO;
-	                    return -1;
-	          case 'R':
-	          case 'r': if (t[2] == '\0') return GETDNS_RRTYPE_MR;
-	                    return -1;
-	          case 'X':
-	          case 'x': if (t[2] == '\0') return GETDNS_RRTYPE_MX;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'N':
-	case 'n': switch (t[1]) {
-	          case 'A':
-	          case 'a': /* before "NA", final "PTR" (GETDNS_RRTYPE_NAPTR) */
-	                    if ((t[2]|0x20) == 'p' && (t[3]|0x20) == 't' && (t[4]|0x20) == 'r' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_NAPTR;
-	                    return -1;
-	          case 'I':
-	          case 'i': switch (t[2]) {
-	                    case 'D':
-	                    case 'd': if (t[3] == '\0') return GETDNS_RRTYPE_NID;
-	                              return -1;
-	                    case 'M':
-	                    case 'm': /* before "NIM", final "LOC" (GETDNS_RRTYPE_NIMLOC) */
-	                              if ((t[3]|0x20) == 'l' && (t[4]|0x20) == 'o' && (t[5]|0x20) == 'c' && t[6] == '\0')
-	                                        return GETDNS_RRTYPE_NIMLOC;
-	                              return -1;
-	                    case 'N':
-	                    case 'n': /* before "NIN", final "FO" (GETDNS_RRTYPE_NINFO) */
-	                              if ((t[3]|0x20) == 'f' && (t[4]|0x20) == 'o' && t[5] == '\0')
-	                                        return GETDNS_RRTYPE_NINFO;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'S':
-	          case 's': switch (t[2]) {
-	                    case '\0': return GETDNS_RRTYPE_NS;
-	                    case 'A':
-	                    case 'a': /* before "NSA", final "P" (GETDNS_RRTYPE_NSAP) */
-	                              if ((t[3]|0x20) == 'p' && t[4] == '\0')
-	                                        return GETDNS_RRTYPE_NSAP;
-	                              return -1;
-	                    case 'E':
-	                    case 'e': /* before "NSE", final "C3PARAM" (GETDNS_RRTYPE_NSEC3PARAM) */
-	                              if ((t[3]|0x20) == 'c' && t[4] == '3' && (t[5]|0x20) == 'p' && (t[6]|0x20) == 'a' && (t[7]|0x20) == 'r' && (t[8]|0x20) == 'a' && (t[9]|0x20) == 'm' && t[10] == '\0')
-	                                        return GETDNS_RRTYPE_NSEC3PARAM;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'U':
-	          case 'u': /* before "NU", final "LL" (GETDNS_RRTYPE_NULL) */
-	                    if ((t[2]|0x20) == 'l' && (t[3]|0x20) == 'l' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_NULL;
-	                    return -1;
-	          case 'X':
-	          case 'x': /* before "NX", final "T" (GETDNS_RRTYPE_NXT) */
-	                    if ((t[2]|0x20) == 't' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_NXT;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'O':
-	case 'o': /* before "O", next "P" */
-	          if ((t[1]|0x20) != 'p')
-	                    return -1;
-	          switch (t[2]) {
-	          case 'E':
-	          case 'e': /* before "OPE", final "NPGPKEY" (GETDNS_RRTYPE_OPENPGPKEY) */
-	                    if ((t[3]|0x20) == 'n' && (t[4]|0x20) == 'p' && (t[5]|0x20) == 'g' && (t[6]|0x20) == 'p' && (t[7]|0x20) == 'k' && (t[8]|0x20) == 'e' && (t[9]|0x20) == 'y' && t[10] == '\0')
-	                              return GETDNS_RRTYPE_OPENPGPKEY;
-	                    return -1;
-	          case 'T':
-	          case 't': if (t[3] == '\0') return GETDNS_RRTYPE_OPT;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'P':
-	case 'p': switch (t[1]) {
-	          case 'T':
-	          case 't': /* before "PT", final "R" (GETDNS_RRTYPE_PTR) */
-	                    if ((t[2]|0x20) == 'r' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_PTR;
-	                    return -1;
-	          case 'X':
-	          case 'x': if (t[2] == '\0') return GETDNS_RRTYPE_PX;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'R':
-	case 'r': switch (t[1]) {
-	          case 'K':
-	          case 'k': /* before "RK", final "EY" (GETDNS_RRTYPE_RKEY) */
-	                    if ((t[2]|0x20) == 'e' && (t[3]|0x20) == 'y' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_RKEY;
-	                    return -1;
-	          case 'P':
-	          case 'p': if (t[2] == '\0') return GETDNS_RRTYPE_RP;
-	                    return -1;
-	          case 'R':
-	          case 'r': /* before "RR", final "SIG" (GETDNS_RRTYPE_RRSIG) */
-	                    if ((t[2]|0x20) == 's' && (t[3]|0x20) == 'i' && (t[4]|0x20) == 'g' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_RRSIG;
-	                    return -1;
-	          case 'T':
-	          case 't': if (t[2] == '\0') return GETDNS_RRTYPE_RT;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'S':
-	case 's': switch (t[1]) {
-	          case 'I':
-	          case 'i': switch (t[2]) {
-	                    case 'G':
-	                    case 'g': if (t[3] == '\0') return GETDNS_RRTYPE_SIG;
-	                              return -1;
-	                    case 'N':
-	                    case 'n': /* before "SIN", final "K" (GETDNS_RRTYPE_SINK) */
-	                              if ((t[3]|0x20) == 'k' && t[4] == '\0')
-	                                        return GETDNS_RRTYPE_SINK;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'O':
-	          case 'o': /* before "SO", final "A" (GETDNS_RRTYPE_SOA) */
-	                    if ((t[2]|0x20) == 'a' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_SOA;
-	                    return -1;
-	          case 'P':
-	          case 'p': /* before "SP", final "F" (GETDNS_RRTYPE_SPF) */
-	                    if ((t[2]|0x20) == 'f' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_SPF;
-	                    return -1;
-	          case 'R':
-	          case 'r': /* before "SR", final "V" (GETDNS_RRTYPE_SRV) */
-	                    if ((t[2]|0x20) == 'v' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_SRV;
-	                    return -1;
-	          case 'S':
-	          case 's': /* before "SS", final "HFP" (GETDNS_RRTYPE_SSHFP) */
-	                    if ((t[2]|0x20) == 'h' && (t[3]|0x20) == 'f' && (t[4]|0x20) == 'p' && t[5] == '\0')
-	                              return GETDNS_RRTYPE_SSHFP;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'T':
-	case 't': switch (t[1]) {
-	          case 'A':
-	          case 'a': /* before "TA", final "LINK" (GETDNS_RRTYPE_TALINK) */
-	                    if ((t[2]|0x20) == 'l' && (t[3]|0x20) == 'i' && (t[4]|0x20) == 'n' && (t[5]|0x20) == 'k' && t[6] == '\0')
-	                              return GETDNS_RRTYPE_TALINK;
-	                    return -1;
-	          case 'K':
-	          case 'k': /* before "TK", final "EY" (GETDNS_RRTYPE_TKEY) */
-	                    if ((t[2]|0x20) == 'e' && (t[3]|0x20) == 'y' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_TKEY;
-	                    return -1;
-	          case 'L':
-	          case 'l': /* before "TL", final "SA" (GETDNS_RRTYPE_TLSA) */
-	                    if ((t[2]|0x20) == 's' && (t[3]|0x20) == 'a' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_TLSA;
-	                    return -1;
-	          case 'S':
-	          case 's': /* before "TS", final "IG" (GETDNS_RRTYPE_TSIG) */
-	                    if ((t[2]|0x20) == 'i' && (t[3]|0x20) == 'g' && t[4] == '\0')
-	                              return GETDNS_RRTYPE_TSIG;
-	                    return -1;
-	          case 'X':
-	          case 'x': /* before "TX", final "T" (GETDNS_RRTYPE_TXT) */
-	                    if ((t[2]|0x20) == 't' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_TXT;
-	                    return -1;
-	          case 'Y':
-		  case 'y': /* before "TY", then "PE" followed by a number */
-	                    if ((t[2]|0x20) == 'p' && (t[3]|0x20) == 'e' && t[4] != '\0') {
-	                            r = (int) strtol(t + 4, &endptr, 10);
-	                            if (*endptr == '\0') return r;
-	                    }
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'U':
-	case 'u': switch (t[1]) {
-	          case 'I':
-	          case 'i': switch (t[2]) {
-	                    case 'D':
-	                    case 'd': if (t[3] == '\0') return GETDNS_RRTYPE_UID;
-	                              return -1;
-	                    case 'N':
-	                    case 'n': /* before "UIN", final "FO" (GETDNS_RRTYPE_UINFO) */
-	                              if ((t[3]|0x20) == 'f' && (t[4]|0x20) == 'o' && t[5] == '\0')
-	                                        return GETDNS_RRTYPE_UINFO;
-	                              return -1;
-	                    default : return -1;
-	                    };
-	          case 'N':
-	          case 'n': /* before "UN", final "SPEC" (GETDNS_RRTYPE_UNSPEC) */
-	                    if ((t[2]|0x20) == 's' && (t[3]|0x20) == 'p' && (t[4]|0x20) == 'e' && (t[5]|0x20) == 'c' && t[6] == '\0')
-	                              return GETDNS_RRTYPE_UNSPEC;
-	                    return -1;
-	          case 'R':
-	          case 'r': /* before "UR", final "I" (GETDNS_RRTYPE_URI) */
-	                    if ((t[2]|0x20) == 'i' && t[3] == '\0')
-	                              return GETDNS_RRTYPE_URI;
-	                    return -1;
-	          default : return -1;
-	          };
-	case 'W':
-	case 'w': /* before "W", final "KS" (GETDNS_RRTYPE_WKS) */
-	          if ((t[1]|0x20) == 'k' && (t[2]|0x20) == 's' && t[3] == '\0')
-	                    return GETDNS_RRTYPE_WKS;
-	          return -1;
-	case 'X':
-	case 'x': /* before "X", final "25" (GETDNS_RRTYPE_X25) */
-	          if (t[1] == '2' && t[2] == '5' && t[3] == '\0')
-	                    return GETDNS_RRTYPE_X25;
-	          return -1;
-	default : return -1;
-	};
-}
 

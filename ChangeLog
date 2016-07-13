@@ -1,4 +1,49 @@
-* 2016-??-??: Version 1.0.0
+* 2016-??-??: Version 1.0.0b2
+  * Collect coverage information from the unit tests
+    Thanks Shane Kerr
+  * pkg-config for the getdns_ext_event library
+    Thanks Tom Pusateri
+  * Bugfix: Multiple requests on the same upstream with a transport 
+    that keeps connections open in synchronous stub mode.
+  * Canonicalized DNSSEC chain with dnssec_return_validation_chain
+    (when validated)
+  * A dnssec_return_full_validation_chain extension which includes
+    then validated resource records.
+  * Bugfix: Callbacks fired while scheduling (answer from cache)
+    with the unbound plugable event API
+  * header extension to set opcode and flags in stub mode
+  * Unit tests that cover more code
+  * Static checking with the clang analyzer
+  * getdns_pretty_print_dict prints dname's as primitives
+  * Accept just bindata's instead of address dicts.
+    Allow misshing "address_type" in address dicts.
+  * TLS session resumption
+  * -C <config file> option to getdns_query to configure context 
+    from a json like formated file.  The output of -i (print API
+    information) can be used as config file directly.
+    Settings may also be given in this format as arguments of
+    the getdns_query command directly.
+  * DNS server mode for getdns_query.  Enable by providing addresses
+    to listen on, either by giving "-z <listen address>" options or by
+    providing "listen_addresses" in the config file or settings.
+  * Bugfixes from deckard testing: CNAME loop protection.
+  * "srv_addresses" in response dict with getdns_service()
+  * use libbsd when available
+    Thanks Guillem Jover
+  * Bugfix: DNSSEC wildcard validation issue
+  * Bugfix: TLS timeouts not re-using a connection
+  * A getdns_context_get_eventloop(), to get the current
+    (pluggable) eventloop from context
+  * getdns_query now uses the default event loop (instead of custom)
+  * Return call_reporting info in case of timeout
+    Thanks Robert Groenenberg
+  * Bugfix: Build fails with autoconf 2.63, works with 2.68.
+    Thanks Robert Groenenberg
+  * Doxygen output for getdns.h and getdns_extra.h only
+  * Do not call SSL_library_init() from getdns_context_create() when
+    the second bit from the set_from_os parameter is set.
+
+* 2016-03-31: Version 1.0.0b1
   * openssl 1.1.0 support
   * GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST default suffix handling
   * getdns_context_set_follow_redirects()

@@ -51,6 +51,7 @@
 #include "dict.h"
 #include "list.h"
 #include "convert.h"
+#include "debug.h"
 
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
@@ -611,6 +612,15 @@ _getdns_wire2msg_dict_scan(struct mem_funcs *mf,
 	if (!wire || !*wire || !wire_len || !msg_dict)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+#if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
+	do {
+		char *str = gldns_wire2str_pkt((uint8_t *)*wire, *wire_len);
+		DEBUG_SERVER("_getdns_wire2msg_dict_scan for a packet size: %d: %s\n",
+		    (int)*wire_len, str);
+		free(str);
+	} while(0);
+#endif
+
        	if (!(result = _getdns_dict_create_with_mf(mf)) ||
 	    !(header = _getdns_dict_create_with_mf(mf)) ||
 	    !(sections[SECTION_ANSWER]
@@ -768,11 +778,12 @@ _getdns_reply_dict2wire(
     const getdns_dict *reply, gldns_buffer *buf, int reuse_header)
 {
 	uint8_t header_spc[GLDNS_HEADER_SIZE], *header;
-	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN;
+	uint32_t n, qtype, qclass = GETDNS_RRCLASS_IN, rr_type;
 	size_t pkt_start, i;
 	getdns_list *section;
 	getdns_dict *rr_dict;
 	getdns_bindata *qname;
+	int remove_dnssec;
 
 	pkt_start = gldns_buffer_position(buf);
 	if (reuse_header) {
@@ -814,11 +825,18 @@ _getdns_reply_dict2wire(
 			    buf, pkt_start+GLDNS_ARCOUNT_OFF, 0);
 		}
 	}
+	remove_dnssec = !getdns_dict_get_int(reply, "/header/do", &n) && n == 0;
+	DEBUG_SERVER("remove_dnssec: %d\n", remove_dnssec);
+
 	if (!getdns_dict_get_list(reply, "answer", &section)) {
 		for ( n = 0, i = 0
 		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
 
-			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+			if (remove_dnssec &&
+			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+			    rr_type == GETDNS_RRTYPE_RRSIG)
+				continue;
+			if (!_getdns_rr_dict2wire(rr_dict, buf))
 				 n++;
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, n);
@@ -827,7 +845,15 @@ _getdns_reply_dict2wire(
 		for ( n = 0, i = 0
 		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
 
-			 if (!_getdns_rr_dict2wire(rr_dict, buf))
+			if (remove_dnssec &&
+			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+			    (  rr_type == GETDNS_RRTYPE_RRSIG
+			    || rr_type == GETDNS_RRTYPE_NSEC
+			    || rr_type == GETDNS_RRTYPE_NSEC3
+			    || rr_type == GETDNS_RRTYPE_DS
+			    ))
+				continue;
+			if (!_getdns_rr_dict2wire(rr_dict, buf))
 				 n++;
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_NSCOUNT_OFF, n);
@@ -836,6 +862,10 @@ _getdns_reply_dict2wire(
 		for ( n = 0, i = 0
 		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
 
+			if (remove_dnssec &&
+			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
+			    rr_type == GETDNS_RRTYPE_RRSIG)
+				continue;
 			 if (!_getdns_rr_dict2wire(rr_dict, buf))
 				 n++;
 		}

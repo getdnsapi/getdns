@@ -35,8 +35,9 @@ typedef void (*getdns_request_handler_t)(
 	getdns_transaction_t request_id
 );
 
-getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t request_handler, getdns_list *listen_addresses);
+getdns_return_t getdns_context_set_listen_addresses(
+    getdns_context *context, getdns_request_handler_t request_handler,
+    const getdns_list *listen_addresses);
 
 getdns_return_t getdns_reply(getdns_context *context,
     getdns_transaction_t request_id, getdns_dict *reply);

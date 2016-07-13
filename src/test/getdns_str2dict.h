@@ -29,8 +29,6 @@
 #define GETDNS_STR2DICT_H_
 #include "getdns/getdns.h"
 
-getdns_dict *_getdns_ipaddr_dict(const char *ipstr);
-
 getdns_return_t getdns_str2dict(const char *str, getdns_dict **dict);
 getdns_return_t getdns_str2list(const char *str, getdns_list **list);
 getdns_return_t getdns_str2bindata(const char *str, getdns_bindata **bindata);

@@ -233,21 +233,6 @@ static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return *value != NULL;
 }
 
-getdns_dict *
-_getdns_ipaddr_dict(const char *ipstr)
-{
-	char value_str[3072];
-	size_t size = strlen(ipstr);
-
-	if (size >= sizeof(value_str))
-		return NULL;
-
-	(void) memcpy(value_str, ipstr, size);
-	value_str[size] = '\0';
-
-	return _getdns_ipaddr_dict_mf(&_getdns_plain_mem_funcs, value_str);
-}
-
 static int _jsmn_get_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     getdns_bindata **value)
 {
@@ -658,8 +643,48 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 		return r;
 
 	else if (item.dtype != t_dict) {
+		uint8_t buf[16];
+		getdns_dict *dict_r;
+
+		if (item.dtype != t_bindata)
+			r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+
+		else if (item.data.bindata->size == 4 &&
+		    inet_pton(AF_INET, str, buf) == 1) {
+
+			if (!(dict_r = getdns_dict_create()))
+				r = GETDNS_RETURN_MEMORY_ERROR;
+
+			else if ((r = getdns_dict_util_set_string(
+			    dict_r, "address_type", "IPv4")))
+				getdns_dict_destroy(dict_r);
+
+			else if ((r = getdns_dict_set_bindata(
+			    dict_r, "address_data", item.data.bindata)))
+				getdns_dict_destroy(dict_r);
+			else
+				*dict = dict_r;
+
+		} else if (item.data.bindata->size == 16 &&
+		    inet_pton(AF_INET6, str, buf) == 1) {
+
+			if (!(dict_r = getdns_dict_create()))
+				r = GETDNS_RETURN_MEMORY_ERROR;
+
+			else if ((r = getdns_dict_util_set_string(
+			    dict_r, "address_type", "IPv6")))
+				getdns_dict_destroy(dict_r);
+
+			else if ((r = getdns_dict_set_bindata(
+			    dict_r, "address_data", item.data.bindata)))
+				getdns_dict_destroy(dict_r);
+			else
+				*dict = dict_r;
+		} else
+			r = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+
 		_getdns_destroy_item_data(&_getdns_plain_mem_funcs, &item);
-		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+		return r;
 	}
 	*dict = item.data.dict;
 	return GETDNS_RETURN_GOOD;
