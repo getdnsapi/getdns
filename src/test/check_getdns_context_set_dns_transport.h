@@ -226,7 +226,7 @@
                GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
            ASSERT_RC(getdns_context_set_timeout(context, 2000),
                GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+           ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),
@@ -244,12 +244,25 @@
      START_TEST (getdns_context_set_dns_transport_recursing_7)
      {
        /*
-       *  Call getdns_context_set_dns_transport() with value = GETDNS_TRANSPORT_TCP_ONLY
-       *  expect: Response returned
-       */
+        *  Call getdns_context_set_dns_transport() with value = GETDNS_TRANSPORT_TCP_ONLY
+        *  expect: Response returned
+        */
        struct getdns_context *context = NULL;
        struct getdns_dict *response = NULL;
        struct getdns_dict *extensions = getdns_dict_create();
+
+       /*
+        * Not all servers in the path to large.getdnsapi.net seem to support
+        * TCP consistently.  Many (root) servers are anycasted which decreases
+        * reliability of TCP availability (as we've seen in practice).
+        * To mitigate we provide our own root server for which we are sure that
+        * it supports TCP.  The .net authoritative server are still out of our
+        * control tough.  But because they are managed by a single party I
+        * suspect them to be a bit more reliable.
+        */
+       struct getdns_list *root_servers = getdns_list_create();
+       struct getdns_bindata nlnetlabs_root = { 4, (void *)"\xB9\x31\x8D\x25" };
+
        uint32_t status;
        uint32_t type;
        uint32_t tc;
@@ -264,11 +277,15 @@
            /* Re-do over TCP */
            ASSERT_RC(getdns_dict_set_int(extensions,"return_call_reporting", GETDNS_EXTENSION_TRUE),
              GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
+           ASSERT_RC(getdns_list_set_bindata(root_servers,0,&nlnetlabs_root),
+             GETDNS_RETURN_GOOD, "Return code from getdns_list_set_bindata()");
+           ASSERT_RC(getdns_context_set_dns_root_servers(context, root_servers),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_root_servers()");
            ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+           ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),
@@ -283,6 +300,8 @@
       }
 
       CONTEXT_DESTROY;
+      getdns_dict_destroy(extensions);
+      getdns_list_destroy(root_servers);
 
      }
      END_TEST
@@ -311,7 +330,7 @@
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
-           ASSERT_RC(getdns_general_sync(context, "getdnsapi.net", 48, extensions, &response), 
+           ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
              GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
 
            ASSERT_RC(getdns_dict_get_int(response, "status", &status),

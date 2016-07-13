@@ -1521,6 +1521,14 @@ error:
 		getdns_dict_destroy(response);
 }
 
+/**
+ * \brief A wrapper script for command line testing of getdns
+ *  getdns_query -h provides details of the available options (the syntax is 
+ *  similar to that of drill)
+ *  Note that for getdns the -z options enables getdns as a daemon which
+ *  allows getdns to be used as the local stub (or recursive) resolver
+ */
+
 int
 main(int argc, char **argv)
 {
