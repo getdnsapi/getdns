@@ -833,6 +833,8 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	new_set->count = new_set_count * n_transports;
 	(void) memset(new_set->items, 0,
 	    sizeof(listener) * new_set_count * n_transports);
+	for (i = 0; i < new_set->count; i++)
+		new_set->items[i].fd = -1;
 
 	(void) memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family    = AF_UNSPEC;
@@ -935,7 +937,7 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 			/* So the event can be rescheduled */
 		}
 	}
-	if ((r = add_listeners(new_set))) {
+	if (r || (r = add_listeners(new_set))) {
 		for (i = 0; i < new_set->count; i++)
 			new_set->items[i].action = to_remove;
 

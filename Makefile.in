@@ -178,6 +178,7 @@ $(distdir):
 	mkdir -p $(distdir)/src
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
+	mkdir -p $(distdir)/src/test/jsmn
 	mkdir -p $(distdir)/src/extension
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
