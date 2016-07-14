@@ -306,7 +306,7 @@ static int rr_owner_equal(_getdns_rr_iter *rr, const uint8_t *name)
 
 	return (owner = _getdns_owner_if_or_as_decompressed(rr, owner_spc
 	                                                      ,&owner_len))
-	    && _getdns_dname_equal(owner, name);
+	    && name && _getdns_dname_equal(owner, name);
 }
 
 /* First a few filter functions that filter a RR iterator to point only
