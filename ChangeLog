@@ -1,3 +1,12 @@
+* 2016-07-14: Version 1.1.0a1
+  * Conversion functions from text strings to getdns native types:
+    getdns_str2dict(), getdns_str2list(), getdns_str2bindata() and
+    getdns_str2int()
+  * A getdns_context_config() function that configures a context
+    with settings given in a getdns_dict
+  * A a getdns_context_set_listen_addresses() function and companion
+    getdns_reply() function to construct simple name servers.
+
 * 2016-07-14: Version 1.0.0b2
   * Collect coverage information from the unit tests
     Thanks Shane Kerr
