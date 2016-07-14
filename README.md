@@ -315,6 +315,7 @@ To configure:
 
 Contributors
 ============
+* Claus Assman
 * Theogene Bucuti
 * Andrew Cathrow, Verisign Labs
 * Neil Cook
@@ -322,26 +323,34 @@ Contributors
 * Craig Despeaux, Verisign, Inc.
 * John Dickinson, Sinodun
 * Sara Dickinson, Sinodun
+* Robert Edmonds
 * Angelique Finan, Verisign, Inc.
+* Simson Garfinkel
 * Daniel Kahn Gillmor
 * Neel Goyal, Verisign, Inc.
 * Bryan Graham, Verisign, Inc.
+* Robert Groenenberg
 * Paul Hoffman
 * Scott Hollenbeck, Verising, Inc.
 * Shumon Huque, Verisign Labs
+* Jelte Janssen
+* Guillem Jover
 * Shane Kerr
 * Anthony Kirby
 * Olaf Kolkman, NLnet Labs
 * Sanjay Mahurpawar, Verisign, Inc.
 * Allison Mankin, Verisign, Inc. - Verisign Labs.
 * Sai Mogali, Verisign, Inc.
+* Linus Nordberg
 * Benno Overeinder, NLnet Labs
 * Joel Purra
+* Tom Pusateri
 * Prithvi Ranganath, Verisign, Inc.
 * Rushi Shah, Verisign, Inc.
 * Vinay Soni, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
 * Bob Steagall, Verisign, Inc.
+* Ondřej Surý
 * Willem Toorop, NLnet Labs
 * Gowri Visweswaran, Verisign Labs
 * Wouter Wijngaards, NLnet Labs
