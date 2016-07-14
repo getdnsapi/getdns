@@ -361,9 +361,9 @@ getdns_context_get_tls_authentication(getdns_context *context,
  * "chain" context update callbacks and in this way create a subscription
  * service catering multiple interested parties.
  * @param context The context to monitor for changes
- * @return userarg A user defined argument to be passed to the callback
+ * @param userarg A user defined argument to be passed to the callback
  *                 function.
- * @return value   The callback function to be called on context value
+ * @param value   The callback function to be called on context value
  *                 changes.
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
@@ -484,7 +484,7 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
  *
  * @param pinset the set of public key pins to check for sanity.  This
  *               should be a list of dicts.
- * @return errorlist if not NULL, a list of human-readable strings is 
+ * @param errorlist if not NULL, a list of human-readable strings is 
  *                   appended to errorlist.
  * @return GETDNS_RETURN_GOOD if the pinset passes the sanity check.
  */ 
@@ -592,8 +592,8 @@ getdns_snprint_json_list(
  * Convert rr_dict to wireformat representation of the resource record.
  *
  * @param  rr_dict The getdns dict representation of the resource record
- * @return wire    A newly allocated buffer which will contain the wireformat.
- * @return wire_sz The size of the allocated buffer and the wireformat.
+ * @param wire    A newly allocated buffer which will contain the wireformat.
+ * @param wire_sz The size of the allocated buffer and the wireformat.
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -644,7 +644,7 @@ getdns_rr_dict2wire_scan(
  *
  * @param  wire    Buffer containing the wireformat rr
  * @param  wire_sz Size of the wire buffer
- * @return rr_dict The returned rr_dict
+ * @param rr_dict The returned rr_dict
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -657,7 +657,7 @@ getdns_wire2rr_dict(
  * @param  wire    Buffer containing the wireformat rr
  * @param  wire_sz On input the size of the wire buffer
  *                 On output the length of the wireformat rr.
- * @return rr_dict The returned rr_dict
+ * @param rr_dict The returned rr_dict
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -673,7 +673,7 @@ getdns_wire2rr_dict_buf(
  * @param  wire_sz On input the size of the wire buffer
  *                 On output the size is decreased with the length
  *                 of the wireformat resource record.
- * @return rr_dict The returned rr_dict
+ * @param rr_dict The returned rr_dict
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -685,7 +685,7 @@ getdns_wire2rr_dict_scan(
  * Convert rr_dict to the string representation of the resource record.
  *
  * @param  rr_dict The getdns dict representation of the resource record
- * @return str     A newly allocated string representation of the rr
+ * @param str     A newly allocated string representation of the rr
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -735,7 +735,7 @@ getdns_rr_dict2str_scan(
  * Convert the string representation of the resource record to rr_dict format.
  *
  * @param  str         String representation of the resource record.
- * @return rr_dict     The result getdns dict representation of the resource record
+ * @param  rr_dict     The result getdns dict representation of the resource record
  * @param  origin      Default suffix for not fully qualified domain names
  * @param  default_ttl Default ttl
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
@@ -748,8 +748,8 @@ getdns_str2rr_dict(
 /**
  * Read the zonefile and convert to a list of rr_dict's.
  *
- * @param  FILE        An opened FILE pointer on the zone file.
- * @return rr_list     The result list of rr_dicts representing the zone file.
+ * @param  in          An opened FILE pointer on the zone file.
+ * @param  rr_list     The result list of rr_dicts representing the zone file.
  * @param  origin      Default suffix for not fully qualified domain names
  * @param  default_ttl Default ttl
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
@@ -763,8 +763,8 @@ getdns_fp2rr_list(
  * Convert DNS message dict to wireformat representation.
  *
  * @param  msg_dict The getdns dict representation of a DNS message
- * @return wire     A newly allocated buffer which will contain the wireformat.
- * @return wire_sz  The size of the allocated buffer and the wireformat.
+ * @param  wire     A newly allocated buffer which will contain the wireformat.
+ * @param  wire_sz  The size of the allocated buffer and the wireformat.
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -815,7 +815,7 @@ getdns_msg_dict2wire_scan(
  *
  * @param  wire     Buffer containing the wireformat rr
  * @param  wire_sz  Size of the wire buffer
- * @return msg_dict The returned DNS message
+ * @param  msg_dict The returned DNS message
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -828,7 +828,7 @@ getdns_wire2msg_dict(
  * @param  wire     Buffer containing the wireformat rr
  * @param  wire_sz  On input the size of the wire buffer
  *                  On output the length of the wireformat rr.
- * @return msg_dict The returned DNS message
+ * @param  msg_dict The returned DNS message
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -844,7 +844,7 @@ getdns_wire2msg_dict_buf(
  * @param  wire_sz  On input the size of the wire buffer
  *                  On output the size is decreased with the length
  *                  of the wireformat DNS message.
- * @return msg_dict The returned DNS message
+ * @param  msg_dict The returned DNS message
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t
@@ -856,7 +856,7 @@ getdns_wire2msg_dict_scan(
  * Convert msg_dict to the string representation of the DNS message.
  *
  * @param  msg_dict The getdns dict representation of the DNS message
- * @return str      A newly allocated string representation of the rr
+ * @param  str      A newly allocated string representation of the rr
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  */
 getdns_return_t

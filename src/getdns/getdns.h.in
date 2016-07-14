@@ -965,7 +965,8 @@ getdns_service(getdns_context *context,
  * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
  * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
  * @param context context that can be used immediately with other API calls
- * @param set_from_os select to use os defaults or to specify user defined values
+ * @param set_from_os set to 1 to initialize the context with os defaults
+ *                    the second bit set (2) prevents OpenSSL library initialization.
  * @return GETDNS_RETURN_GOOD on success
 */
 getdns_return_t
@@ -977,10 +978,11 @@ getdns_context_create(getdns_context ** context, int set_from_os);
  * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
  * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
  * @param context context that can be used immediately with other API calls
- * @param set_from_os select to use os defaults or to specify user defined values
+ * @param set_from_os set to 1 to initialize the context with os defaults
+ *                    the second bit set (2) prevents OpenSSL library initialization.
  * @param malloc custom malloc function
  * @param realloc custom realloc function
- * @param malloc custom free function
+ * @param free custom free function
  * @return GETDNS_RETURN_GOOD on success
 */
 getdns_return_t
@@ -998,10 +1000,12 @@ getdns_context_create_with_memory_functions(
  * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
  * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
  * @param context context that can be used immediately with other API calls
- * @param set_from_os select to use os defaults or to specify user defined values
+ * @param set_from_os set to 1 to initialize the context with os defaults
+ *                    the second bit set (2) prevents OpenSSL library initialization.
+ * @param userarg parameter passed to the custom malloc, realloc and free functions
  * @param malloc custom malloc function
  * @param realloc custom realloc function
- * @param malloc custom free function
+ * @param free custom free function
  * @return GETDNS_RETURN_GOOD on success
 */
 getdns_return_t
