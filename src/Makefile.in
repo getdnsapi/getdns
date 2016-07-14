@@ -213,8 +213,8 @@ const-info.lo const-info.o: $(srcdir)/const-info.c \
  getdns/getdns_extra.h \
  $(srcdir)/const-info.h
 context.lo context.o: $(srcdir)/context.c \
- config.h $(srcdir)/debug.h \
- $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/context.h \
+ config.h \
+ $(srcdir)/debug.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/context.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
@@ -230,15 +230,18 @@ convert.lo convert.o: $(srcdir)/convert.c \
  $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/wire2str.h \
  $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h $(srcdir)/const-info.h $(srcdir)/dict.h \
  $(srcdir)/list.h $(srcdir)/jsmn/jsmn.h $(srcdir)/convert.h
-dict.lo dict.o: $(srcdir)/dict.c config.h \
+dict.lo dict.o: $(srcdir)/dict.c \
+ config.h \
  $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/default_eventloop.h \
  $(srcdir)/ub_loop.h $(srcdir)/debug.h $(srcdir)/server.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/const-info.h $(srcdir)/gldns/wire2str.h
-dnssec.lo dnssec.o: $(srcdir)/dnssec.c config.h \
- $(srcdir)/debug.h getdns/getdns.h \
+dnssec.lo dnssec.o: $(srcdir)/dnssec.c \
+ config.h \
+ $(srcdir)/debug.h \
+ getdns/getdns.h \
  $(srcdir)/context.h \
  getdns/getdns_extra.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
@@ -247,7 +250,8 @@ dnssec.lo dnssec.o: $(srcdir)/dnssec.c config.h \
  $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/parseutil.h $(srcdir)/general.h $(srcdir)/dict.h \
  $(srcdir)/list.h $(srcdir)/util/val_secalgo.h
 general.lo general.o: $(srcdir)/general.c \
- config.h $(srcdir)/general.h \
+ config.h \
+ $(srcdir)/general.h \
  getdns/getdns.h \
  $(srcdir)/types-internal.h \
  getdns/getdns_extra.h \
@@ -259,18 +263,21 @@ list.lo list.o: $(srcdir)/list.c $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h \
- config.h $(srcdir)/context.h \
- $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h $(srcdir)/debug.h $(srcdir)/server.h $(srcdir)/rr-iter.h \
- $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/list.h $(srcdir)/dict.h
+ config.h \
+ $(srcdir)/context.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h $(srcdir)/debug.h $(srcdir)/server.h \
+ $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/list.h $(srcdir)/dict.h
 pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/pubkey-pinning.c \
- config.h $(srcdir)/debug.h \
- getdns/getdns.h $(srcdir)/context.h \
+ config.h \
+ $(srcdir)/debug.h \
+ getdns/getdns.h \
+ $(srcdir)/context.h \
  getdns/getdns_extra.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
  $(srcdir)/server.h $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h
 request-internal.lo request-internal.o: $(srcdir)/request-internal.c \
- config.h $(srcdir)/types-internal.h \
+ config.h \
+ $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/util/rbtree.h $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/default_eventloop.h \
@@ -288,12 +295,14 @@ rr-iter.lo rr-iter.o: $(srcdir)/rr-iter.c $(srcdir)/rr-iter.h $(srcdir)/rr-dict.
  config.h \
  getdns/getdns.h \
  $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/rrdef.h
-server.lo server.o: $(srcdir)/server.c config.h \
+server.lo server.o: $(srcdir)/server.c \
+ config.h \
  getdns/getdns_extra.h \
- getdns/getdns.h $(srcdir)/context.h \
- $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
- $(srcdir)/debug.h $(srcdir)/server.h
-stub.lo stub.o: $(srcdir)/stub.c config.h \
+ getdns/getdns.h \
+ $(srcdir)/context.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h \
+ $(srcdir)/ub_loop.h $(srcdir)/debug.h $(srcdir)/server.h
+stub.lo stub.o: $(srcdir)/stub.c \
+ config.h \
  $(srcdir)/debug.h $(srcdir)/stub.h \
  getdns/getdns.h \
  $(srcdir)/types-internal.h \
@@ -304,7 +313,8 @@ stub.lo stub.o: $(srcdir)/stub.c config.h \
  $(srcdir)/util-internal.h $(srcdir)/general.h $(srcdir)/pubkey-pinning.h
 sync.lo sync.o: $(srcdir)/sync.c \
  getdns/getdns.h \
- config.h $(srcdir)/context.h \
+ config.h \
+ $(srcdir)/context.h \
  getdns/getdns_extra.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
  $(srcdir)/debug.h $(srcdir)/server.h $(srcdir)/general.h $(srcdir)/util-internal.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h \
@@ -317,33 +327,35 @@ ub_loop.lo ub_loop.o: $(srcdir)/ub_loop.c $(srcdir)/ub_loop.h \
  $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/debug.h
 util-internal.lo util-internal.o: $(srcdir)/util-internal.c \
  config.h \
- getdns/getdns.h $(srcdir)/dict.h \
- $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h \
+ getdns/getdns.h \
+ $(srcdir)/dict.h $(srcdir)/util/rbtree.h $(srcdir)/types-internal.h \
  getdns/getdns_extra.h \
  $(srcdir)/list.h $(srcdir)/util-internal.h $(srcdir)/context.h $(srcdir)/extension/default_eventloop.h $(srcdir)/ub_loop.h \
  $(srcdir)/debug.h $(srcdir)/server.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h \
  $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/dnssec.h $(srcdir)/gldns/rrdef.h
 gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c \
- config.h $(srcdir)/gldns/gbuffer.h
+ config.h \
+ $(srcdir)/gldns/gbuffer.h
 keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c \
- config.h $(srcdir)/gldns/keyraw.h \
- $(srcdir)/gldns/rrdef.h
+ config.h \
+ $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/rrdef.h
 parse.lo parse.o: $(srcdir)/gldns/parse.c \
- config.h $(srcdir)/gldns/parse.h \
- $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h
+ config.h \
+ $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h
 parseutil.lo parseutil.o: $(srcdir)/gldns/parseutil.c \
- config.h $(srcdir)/gldns/parseutil.h
+ config.h \
+ $(srcdir)/gldns/parseutil.h
 rrdef.lo rrdef.o: $(srcdir)/gldns/rrdef.c \
- config.h $(srcdir)/gldns/rrdef.h \
- $(srcdir)/gldns/parseutil.h
+ config.h \
+ $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h
 str2wire.lo str2wire.o: $(srcdir)/gldns/str2wire.c \
- config.h $(srcdir)/gldns/str2wire.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/parse.h \
- $(srcdir)/gldns/parseutil.h
+ config.h \
+ $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/gbuffer.h \
+ $(srcdir)/gldns/parse.h $(srcdir)/gldns/parseutil.h
 wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c \
- config.h $(srcdir)/gldns/wire2str.h \
- $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h \
- $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/keyraw.h
+ config.h \
+ $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h \
+ $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/keyraw.h
 arc4_lock.lo arc4_lock.o: $(srcdir)/compat/arc4_lock.c \
  config.h
 arc4random.lo arc4random.o: $(srcdir)/compat/arc4random.c \
@@ -369,11 +381,12 @@ sha512.lo sha512.o: $(srcdir)/compat/sha512.c \
 strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c \
  config.h
 rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c \
- config.h $(srcdir)/util/log.h $(srcdir)/debug.h \
- $(srcdir)/util/fptr_wlist.h $(srcdir)/util/rbtree.h
+ config.h \
+ $(srcdir)/util/log.h $(srcdir)/debug.h $(srcdir)/util/fptr_wlist.h $(srcdir)/util/rbtree.h
 val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c \
- config.h $(srcdir)/util/val_secalgo.h \
- $(srcdir)/util/log.h $(srcdir)/debug.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/gbuffer.h
+ config.h \
+ $(srcdir)/util/val_secalgo.h $(srcdir)/util/log.h $(srcdir)/debug.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/keyraw.h \
+ $(srcdir)/gldns/gbuffer.h
 jsmn.lo jsmn.o: $(srcdir)/jsmn/jsmn.c $(srcdir)/jsmn/jsmn.h
 default_eventloop.lo default_eventloop.o: $(srcdir)/extension/default_eventloop.c \
  $(srcdir)/extension/default_eventloop.h \
@@ -382,18 +395,20 @@ default_eventloop.lo default_eventloop.o: $(srcdir)/extension/default_eventloop.
  getdns/getdns_extra.h \
  $(srcdir)/debug.h
 libev.lo libev.o: $(srcdir)/extension/libev.c \
- config.h $(srcdir)/types-internal.h \
+ config.h \
+ $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/util/rbtree.h $(srcdir)/getdns/getdns_ext_libev.h
 libevent.lo libevent.o: $(srcdir)/extension/libevent.c \
- config.h $(srcdir)/types-internal.h \
+ config.h \
+ $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/util/rbtree.h $(srcdir)/getdns/getdns_ext_libevent.h
 libuv.lo libuv.o: $(srcdir)/extension/libuv.c \
- config.h $(srcdir)/debug.h \
- $(srcdir)/types-internal.h \
+ config.h \
+ $(srcdir)/debug.h $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
  $(srcdir)/util/rbtree.h $(srcdir)/getdns/getdns_ext_libuv.h
