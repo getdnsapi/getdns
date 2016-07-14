@@ -900,6 +900,191 @@ getdns_msg_dict2str_buf(
 getdns_return_t
 getdns_msg_dict2str_scan(
     const getdns_dict *msg_dict, char **str, int *str_len);
+
+/**
+ * Convert string text to a getdns_dict.
+ *
+ * @param  str   A textual representation of a getdns_dict.
+ *               The format is similar, but not precisely JSON.
+ *               - dict keys may be given without quotes.
+ *                 For example: `{ timeout: 2000 }` is the same as { "timeout": 2000 }
+ *               - When str contains an IP or IPv6 address, it is converted
+ *                 to an getdns dict representation of that address.  This may contain
+ *                 a port, tls_port, tsig spec or tls authentication name in the same
+ *                 way as may be given with the `getdns_query` tool.  For example:
+ *                 `185.49.140.67:80#443` will result in the following getdns_dict:
+ *
+ *                      { address_type: "IPv4"
+ *                      , address_data: "185.49.140.67"
+ *                      , port: 80
+ *                      , tls_port: 443
+ *                      }
+ *
+ * @param  dict The returned getdns_dict.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_str2dict(const char *str, getdns_dict **dict);
+
+/**
+ * Convert string text to a getdns_list.
+ *
+ * @param  str   A textual representation of a getdns_list.
+ *               The format is similar, but not precisely JSON.
+ * @param  list The returned getdns_list.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_str2list(const char *str, getdns_list **list);
+
+/**
+ * Convert string text to a getdns_bindata.
+ *
+ * @param  str   A textual representation of a getdns_bindata
+ *               The format is similar, but not precisely JSON.
+ *               - Strings between double-quotes will be converted to bindata
+ *                 containers, but *without the trailing null byte*.
+ *                 For example: `{ suffix: [ "nlnetlabs.nl.", "nlnet.nl." ] }`
+ *               - bindata representation of IP or IPv6 addresses may be
+ *                 given in their presentation format.  For example:
+ *                 `{ dns_root_servers: [ 2001:7fd::1, 193.0.14.129 ] }`
+ *               - Arbitrary binary data may be given with a `0x` prefix.
+ *                 For example:
+ *
+ *                      { add_opt_parameters:
+ *                        { options: [ { option_code: 10
+ *                                     , option_data: 0xA9E4EC50C03F5D65
+ *                                     } ]
+ *                        }
+ *                      }
+ *
+ *               - Wireformat domain name bindatas can be given with a trailing dot.
+ *                 For example:
+ *
+ *                      { upstream_recursive_servers:
+ *                        [ { address_data  : 2a04:b900:0:100::37
+ *                          , tsig_name     : hmac-md5.tsigs.getdnsapi.net.
+ *                          , tsig_algorithm: hmac-md5.sig-alg.reg.int.
+ *                          , tsig_secret : 0xD7A1BAF4E4DE5D6EB149
+ *                          } ]
+ *                      }
+ *
+ * @param  bindata The returned getdns_bindata.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_str2bindata(const char *str, getdns_bindata **bindata);
+
+/**
+ * Convert string text to a getdns 32 bits unsigned integer.
+ *
+ * @param  str   A textual representation of the integer.
+ *               The format is similar, but not precisely JSON.
+ *               - integer values may be given by the constant name.
+ *                 For example: `{ resolution_type: GETDNS_RESOLUTION_STUB }`
+ *                 or `{ specify_class: GETDNS_RRCLASS_CH }`
+ * @param  value The returned integer.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_str2int(const char *str, uint32_t *value);
+
+/**
+ * Configure a context with settings given in a getdns_dict.
+ *
+ * @param  context The context to be configured.
+ * @param  config_dict The getdns_dict containing the settings.
+ *                     The settings have the same name as returned by the
+ *                     getdns_context_get_api_information() function, or as
+ *                     used in the names of the getdns_context_get_*() and
+ *                     getdns_context_set_*() functions.
+ *                     - The dict returned by
+ *                       getdns_context_get_api_information() can be used
+ *                       as the config_dict directly, but context settings
+ *                       do *not* have to be below a `"all_context"` key.
+ *                     - It is possible to set default values for extensions
+ *                       that could otherwise only be given on a per query
+ *                       basis.  For example:
+ *                       `{ dnssec_return_status: GETDNS_EXTENSION_TRUE }` is
+ *                       equivalent to using the
+ *                       getdns_context_set_return_dnssec_status() function
+ *                       with that value, but default values for the other 
+ *                       extensions can be set by this method now too.
+ *                       For example
+ *                       `{ return_call_reporting: GETDNS_EXTENSION_TRUE}`
+ *                     - Trust anchor files and root hints content can also be
+ *                       given by file, for example:
+ *
+ *                            { dns_root_servers : "named.root"
+ *                            , dnssec_trust_anchors: "/etc/unbound/getdns-root.key"
+ *                            }
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * **Beware** that context might be partially configured on error.  For retry
+ * strategies it is advised to recreate a new config.
+ */
+getdns_return_t
+getdns_context_config(getdns_context *context, const getdns_dict *config_dict);
+
+
+/**
+ * The user defined request handler that will be called on incoming requests.
+ */
+typedef void (*getdns_request_handler_t)(
+	getdns_context      *context,
+	getdns_dict         *request,
+	getdns_transaction_t request_id
+);
+
+/**
+ * Create a name server by registering a list of addresses to listen on and
+ * a user defined function that will handle the requests.
+ *
+ * @param context The context managing the eventloop that needs to be run to
+ *                start serving.
+ * @param handler The user defined request handler that will be called with the
+ *                request received in reply dict format.  To reply to this request
+ *                the function has to construct a response (or modify the request)
+ *                and call getdns_reply() with the response and the with the request
+ *                associated request_id.  The user is responsible of destroying
+ *                both the replies and the response.  **Beware** that if requests are
+ *                not answered by the function, by not calling getdns_reply() this
+ *                will cause a memory leak.  The user most use getdns_reply()
+ *                with NULL as the response to not answer/cancel a request.
+ * @param listen_addresses  A list of address dicts or bindatas that will be
+ *                          listened on for DNS requests.  Both UDP and TCP
+ *                          transports will be used.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * On failure, the current set of listening addresses is left in place.
+ * Also, if there is overlap in listening_addresses between the active set
+ * and the newly given set, the ones in the active set will remain in their
+ * current condition and will not be closed and reopened, also all assoicated
+ * DNS transactions will remain.
+ */
+getdns_return_t
+getdns_context_set_listen_addresses(getdns_context *context,
+    getdns_request_handler_t handler, const getdns_list *listen_addresses);
+
+/**
+ * Answer the request associated with a request_id that is received by a
+ * request handler
+ *
+ * @param context The context managing the eventloop that needs to be run to
+ *                listen for and answer requests.
+ * @param request_id The identifier that links this response with the
+ *                   received request.
+ * @param reply The answer in getdns reply dict or response dict format.
+ *              When NULL is given as reply, the request is not answered
+ *              but all associated state is deleted.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * On fatal failure (no retry strategy possible) the user still needs to
+ * cancel the request by recalling getdns_reply() but with NULL as response,
+ * to clean up state.
+ */
+getdns_return_t
+getdns_reply(getdns_context *context,
+    getdns_transaction_t request_id, getdns_dict *reply);
+
+
 /** @}
  */
 
@@ -920,27 +1105,6 @@ getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
  */
 /** @}
  */
-
-getdns_return_t getdns_str2dict(const char *str, getdns_dict **dict);
-getdns_return_t getdns_str2list(const char *str, getdns_list **list);
-getdns_return_t getdns_str2bindata(const char *str, getdns_bindata **bindata);
-getdns_return_t getdns_str2int(const char *str, uint32_t *value);
-
-getdns_return_t
-getdns_context_config(getdns_context *context, const getdns_dict *config_dict);
-
-typedef void (*getdns_request_handler_t)(
-	getdns_context      *context,
-	getdns_dict         *request,
-	getdns_transaction_t request_id
-);
-
-getdns_return_t
-getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t handler, const getdns_list *listen_addresses);
-
-getdns_return_t getdns_reply(getdns_context *context,
-    getdns_transaction_t request_id, getdns_dict *reply);
 
 #ifdef __cplusplus
 }
