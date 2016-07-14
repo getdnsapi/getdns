@@ -45,7 +45,7 @@
 struct gldns_buffer;
 
 /** Return size of nsec3 hash algorithm, 0 if not supported */
-size_t nsec3_hash_algo_size_supported(int id);
+size_t _getdns_nsec3_hash_algo_size_supported(int id);
 
 /**
  * Hash a single hash call of an NSEC3 hash algorithm.
@@ -56,8 +56,16 @@ size_t nsec3_hash_algo_size_supported(int id);
  * @param res: result stored here (must have sufficient space).
  * @return false on failure.
 */
-int secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+int _getdns_secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
         unsigned char* res);
+
+/**
+ * Calculate the sha256 hash for the data buffer into the result.
+ * @param buf: buffer to digest.
+ * @param len: length of the buffer to digest.
+ * @param res: result is stored here (space 256/8 bytes).
+ */
+void _getdns_secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res);
 
 /**
  * Return size of DS digest according to its hash algorithm.

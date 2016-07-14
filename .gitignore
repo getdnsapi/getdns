@@ -36,9 +36,9 @@ src/test/check_getdns
 src/test/check_getdns_event
 src/test/check_getdns_uv
 src/test/check_getdns_ev
-src/test/getdns_query
 src/test/scratchpad
 src/test/scratchpad.c
+src/tools/getdns_query
 doc/*.3
 src/getdns/getdns.h
 *.log

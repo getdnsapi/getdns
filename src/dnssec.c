@@ -2049,7 +2049,8 @@ static int find_nsec_covering_name(
 	                                        , SECTION_NO_ADDITIONAL)
 	    ; i ; i = _getdns_rrset_iter_next(i)) {
 
-		if ((n = _getdns_rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC3
+		if ((n = _getdns_rrset_iter_value(i))
+		    && n->rr_type == GETDNS_RRTYPE_NSEC3
 
 		    /* Get the bitmap rdata field */
 		    && (nsec_rr = _getdns_rrtype_iter_init(&nsec_spc, n))
@@ -2085,7 +2086,8 @@ static int find_nsec_covering_name(
 
 			return keytag;
 		}
-		if ((n = _getdns_rrset_iter_value(i))->rr_type == GETDNS_RRTYPE_NSEC
+		if ((n = _getdns_rrset_iter_value(i))
+		    && n->rr_type == GETDNS_RRTYPE_NSEC
 		    && nsec_covers_name(n, name, NULL)
 
 		    /* Get the bitmap rdata field */

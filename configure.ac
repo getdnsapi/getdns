@@ -76,9 +76,11 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.3.3 had libversion 3:6:2
 # getdns-0.5.0 had libversion 4:0:3
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
-# getdns-0.9.0 will have libversion 5:0:4
+# getdns-0.9.0 had libversion 5:0:4
+# getdns-1.0.0 will have libversion 5:1:4
+# getdns-1.1.0 will have libversion 6:0:5
 #
-GETDNS_LIBVERSION=5:0:4
+GETDNS_LIBVERSION=6:0:5
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -889,9 +891,9 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
-AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
-	[Also compile and install the getdns_query tool]),
-	[], [withval="no"])
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--without-getdns_query],
+	[Do not compile and install the getdns_query tool]),
+	[], [withval="yes"])
 if test x_$withval = x_no; then
 	GETDNS_QUERY=""
 	INSTALL_GETDNS_QUERY=""
@@ -917,7 +919,7 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
-AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
+AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi

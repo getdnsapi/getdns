@@ -166,6 +166,7 @@ static gldns_lookup_table gldns_edns_options_data[] = {
 	{ 7, "N3U" },
 	{ 8, "edns-client-subnet" },
 	{ 11, "edns-tcp-keepalive"},
+	{ 12, "Padding" },
 	{ 0, NULL}
 };
 gldns_lookup_table* gldns_edns_options = gldns_edns_options_data;
@@ -1886,7 +1887,10 @@ int gldns_wire2str_edns_option_print(char** s, size_t* sl,
 		break;
 	 case GLDNS_EDNS_KEEPALIVE:
 		w += gldns_wire2str_edns_keepalive_print(s, sl, optdata, optlen);
-		break; 
+		break;
+	case GLDNS_EDNS_PADDING:
+		w += print_hex_buf(s, sl, optdata, optlen);
+		break;
 	default:
 		/* unknown option code */
 		w += print_hex_buf(s, sl, optdata, optlen);

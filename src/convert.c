@@ -1372,7 +1372,10 @@ static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	char key_spc[1024], *key = NULL;
 	getdns_item child_item;
 
-	for (i = 0; i < t->size; i++) {
+	if (t->size <= 0)
+		*r = GETDNS_RETURN_GOOD;
+
+	else for (i = 0; i < t->size; i++) {
 		if (t[j].type != JSMN_STRING &&
 		    t[j].type != JSMN_PRIMITIVE) {
 
@@ -1446,7 +1449,10 @@ static int _jsmn_get_list(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	size_t i, j = 1, index = 0;
 	getdns_item child_item;
 
-	for (i = 0; i < t->size; i++) {
+	if (t->size <= 0)
+		*r = GETDNS_RETURN_GOOD;
+
+	else for (i = 0; i < t->size; i++) {
 		j += _jsmn_get_item(mf, js, t + j, count - j, &child_item, r);
 		if (*r) break;
 

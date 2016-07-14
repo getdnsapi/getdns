@@ -207,11 +207,11 @@ _getdns_cancel_reply(getdns_context *context, connection *conn)
 		return;
 
 	if (conn->l->transport == GETDNS_TRANSPORT_TCP) {
-		tcp_connection *conn = (tcp_connection *)conn;
+		tcp_connection *tcp_conn = (tcp_connection *)conn;
 
-		if (conn->to_answer > 0 && --conn->to_answer == 0 &&
-		    conn->fd == -1)
-			tcp_connection_destroy(conn);
+		if (tcp_conn->to_answer > 0 && --tcp_conn->to_answer == 0 &&
+		    tcp_conn->fd == -1)
+			tcp_connection_destroy(tcp_conn);
 
 	} else if (conn->l->transport == GETDNS_TRANSPORT_UDP &&
 	    (mf = &conn->l->set->context->mf)) {
@@ -833,6 +833,8 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	new_set->count = new_set_count * n_transports;
 	(void) memset(new_set->items, 0,
 	    sizeof(listener) * new_set_count * n_transports);
+	for (i = 0; i < new_set->count; i++)
+		new_set->items[i].fd = -1;
 
 	(void) memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family    = AF_UNSPEC;
@@ -935,7 +937,7 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 			/* So the event can be rescheduled */
 		}
 	}
-	if ((r = add_listeners(new_set))) {
+	if (r || (r = add_listeners(new_set))) {
 		for (i = 0; i < new_set->count; i++)
 			new_set->items[i].action = to_remove;
 
