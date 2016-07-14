@@ -1597,7 +1597,7 @@ upstream_valid_and_open(getdns_upstream *upstream,
 		return 1;
 	/* Connection is complete, we know the auth status so check*/
 	if (upstream->conn_state == GETDNS_CONN_OPEN && 
-	    !upstream_auth_status_ok(upstream, netreq) == 1) 
+	    !upstream_auth_status_ok(upstream, netreq)) 
 		return 0;
 	/* We must have a TLS connection still setting up so schedule and the
 	   write code will check again once the connection is complete*/
