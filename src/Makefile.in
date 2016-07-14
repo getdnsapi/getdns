@@ -157,7 +157,7 @@ test:	all
 	cd test && $(MAKE) $@
 
 getdns_query:	all
-	cd test && $(MAKE) $@
+	cd tools && $(MAKE) $@
 
 scratchpad:	all
 	cd test && $(MAKE) $@
@@ -165,11 +165,13 @@ scratchpad:	all
 pad: scratchpad
 
 clean:
+	cd tools && $(MAKE) $@
 	cd test && $(MAKE) $@
 	rm -f *.o *.lo extension/*.lo extension/*.o $(PROGRAMS) libgetdns.la libgetdns_ext_*.la
 	rm -rf .libs extension/.libs
 
 distclean : clean
+	cd tools && $(MAKE) $@
 	cd test && $(MAKE) $@
 	rmdir test 2>/dev/null || true
 	rm -f Makefile config.status config.log Doxyfile config.h version.c getdns/Makefile getdns/getdns.h getdns/getdns_extra.h
@@ -177,34 +179,8 @@ distclean : clean
 	rmdir extension 2>/dev/null || true
 	rm -Rf autom4te.cache
 
-$(distdir): FORCE
-	mkdir -p $(distdir)/src
-	cp configure.ac $(distdir)
-	cp configure $(distdir)
-	cp Makefile.in $(distdir)
-	cp src/Makefile.in $(distdir)/src
-
-distcheck: $(distdir).tar.gz
-	gzip -cd $(distdir).tar.gz | tar xvf -
-	cd $(distdir) && ./configure
-	cd $(distdir) && $(MAKE) all
-	cd $(distdir) && $(MAKE) check
-	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst install
-	cd $(distdir) && $(MAKE) DESTDIR=$${PWD}/_inst uninstall
-	@remaining="`find $${PWD}/$(distdir)/_inst -type f | wc -l`"; \
-	if test "$${remaining}" -ne 0; then
-	  echo "@@@ $${remaining} file(s) remaining in stage directory!"; \
-	  exit 1; \
-	fi
-	cd $(distdir) && $(MAKE) clean
-	rm -rf $(distdir)
-	@echo "*** Package $(distdir).tar.gz is ready for distribution"
-
 Makefile: $(srcdir)/Makefile.in ../config.status
 	cd .. && ./config.status src/Makefile
-
-configure.status: configure
-	cd .. && ./config.status --recheck
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
@@ -225,6 +201,7 @@ depend:
 		    -e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' >> Makefile.in.new )
 	(cd $(srcdir) ; diff Makefile.in.new Makefile.in && rm Makefile.in.new \
 	                                                 || mv Makefile.in.new Makefile.in )
+	cd tools && $(MAKE) $@
 	cd test && $(MAKE) $@
 
 .PHONY: clean test

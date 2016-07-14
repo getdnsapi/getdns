@@ -111,10 +111,10 @@ pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
 
 install-getdns_query:
-	cd src/test && $(MAKE) install
+	cd src/tools && $(MAKE) install
 
 uninstall-getdns_query:
-	cd src/test && $(MAKE) uninstall
+	cd src/tools && $(MAKE) uninstall
 
 clean:
 	cd src && $(MAKE) $@
@@ -182,6 +182,8 @@ $(distdir):
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
 	mkdir -p $(distdir)/src/gldns
+	mkdir -p $(distdir)/src/tools
+	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
@@ -224,6 +226,11 @@ $(distdir):
 	cp $(srcdir)/spec/*.tgz $(distdir)/spec || true
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
+	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
+	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
+	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
+	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
+	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz

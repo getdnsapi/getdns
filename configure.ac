@@ -889,9 +889,9 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
-AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
-	[Also compile and install the getdns_query tool]),
-	[], [withval="no"])
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--without-getdns_query],
+	[Do not compile and install the getdns_query tool]),
+	[], [withval="yes"])
 if test x_$withval = x_no; then
 	GETDNS_QUERY=""
 	INSTALL_GETDNS_QUERY=""
@@ -917,7 +917,7 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
-AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
+AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
