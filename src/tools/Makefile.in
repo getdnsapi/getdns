@@ -102,5 +102,8 @@ depend:
 .PHONY: clean test
 
 # Dependencies for getdns_query
-getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
- ../getdns/getdns.h ../getdns/getdns_extra.h
+getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
+ ../config.h \
+ $(srcdir)/../debug.h \
+ ../getdns/getdns.h \
+ ../getdns/getdns_extra.h

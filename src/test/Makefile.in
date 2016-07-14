@@ -215,10 +215,13 @@ depend:
 .PHONY: clean test
 
 # Dependencies for the unit tests
-check_getdns.lo check_getdns.o: $(srcdir)/check_getdns.c ../getdns/getdns.h $(srcdir)/check_getdns_common.h \
- ../getdns/getdns_extra.h $(srcdir)/check_getdns_address.h \
- $(srcdir)/check_getdns_address_sync.h $(srcdir)/check_getdns_cancel_callback.h \
- $(srcdir)/check_getdns_context_create.h $(srcdir)/check_getdns_context_destroy.h \
+check_getdns.lo check_getdns.o: $(srcdir)/check_getdns.c \
+ ../getdns/getdns.h \
+ $(srcdir)/check_getdns_common.h \
+ ../getdns/getdns_extra.h \
+ $(srcdir)/check_getdns_address.h $(srcdir)/check_getdns_address_sync.h \
+ $(srcdir)/check_getdns_cancel_callback.h $(srcdir)/check_getdns_context_create.h \
+ $(srcdir)/check_getdns_context_destroy.h \
  $(srcdir)/check_getdns_context_set_context_update_callback.h \
  $(srcdir)/check_getdns_context_set_dns_transport.h \
  $(srcdir)/check_getdns_context_set_timeout.h \
@@ -238,34 +241,58 @@ check_getdns.lo check_getdns.o: $(srcdir)/check_getdns.c ../getdns/getdns.h $(sr
  $(srcdir)/check_getdns_list_get_list.h $(srcdir)/check_getdns_pretty_print_dict.h \
  $(srcdir)/check_getdns_service.h $(srcdir)/check_getdns_service_sync.h \
  $(srcdir)/check_getdns_transport.h
-check_getdns_common.lo check_getdns_common.o: $(srcdir)/check_getdns_common.c ../getdns/getdns.h \
- ../config.h $(srcdir)/check_getdns_common.h ../getdns/getdns_extra.h \
+check_getdns_common.lo check_getdns_common.o: $(srcdir)/check_getdns_common.c \
+ ../getdns/getdns.h \
+ ../config.h \
+ $(srcdir)/check_getdns_common.h \
+ ../getdns/getdns_extra.h \
  $(srcdir)/check_getdns_eventloop.h
 check_getdns_context_set_timeout.lo check_getdns_context_set_timeout.o: $(srcdir)/check_getdns_context_set_timeout.c \
  $(srcdir)/check_getdns_context_set_timeout.h $(srcdir)/check_getdns_common.h \
- ../getdns/getdns.h ../getdns/getdns_extra.h
+ ../getdns/getdns.h \
+ ../getdns/getdns_extra.h
 check_getdns_libev.lo check_getdns_libev.o: $(srcdir)/check_getdns_libev.c $(srcdir)/check_getdns_eventloop.h \
- ../config.h ../getdns/getdns.h $(srcdir)/../getdns/getdns_ext_libev.h \
- ../getdns/getdns_extra.h $(srcdir)/check_getdns_common.h
+ ../config.h \
+ ../getdns/getdns.h \
+ $(srcdir)/../getdns/getdns_ext_libev.h \
+ ../getdns/getdns_extra.h \
+ $(srcdir)/check_getdns_common.h
 check_getdns_libevent.lo check_getdns_libevent.o: $(srcdir)/check_getdns_libevent.c $(srcdir)/check_getdns_eventloop.h \
- ../config.h ../getdns/getdns.h $(srcdir)/../getdns/getdns_ext_libevent.h \
- ../getdns/getdns_extra.h $(srcdir)/check_getdns_libevent.h $(srcdir)/check_getdns_common.h
+ ../config.h \
+ ../getdns/getdns.h \
+ $(srcdir)/../getdns/getdns_ext_libevent.h \
+ ../getdns/getdns_extra.h \
+ $(srcdir)/check_getdns_libevent.h $(srcdir)/check_getdns_common.h
 check_getdns_libuv.lo check_getdns_libuv.o: $(srcdir)/check_getdns_libuv.c $(srcdir)/check_getdns_eventloop.h \
- ../config.h ../getdns/getdns.h $(srcdir)/../getdns/getdns_ext_libuv.h \
- ../getdns/getdns_extra.h $(srcdir)/check_getdns_common.h
+ ../config.h \
+ ../getdns/getdns.h \
+ $(srcdir)/../getdns/getdns_ext_libuv.h \
+ ../getdns/getdns_extra.h \
+ $(srcdir)/check_getdns_common.h
 check_getdns_selectloop.lo check_getdns_selectloop.o: $(srcdir)/check_getdns_selectloop.c \
- $(srcdir)/check_getdns_eventloop.h ../config.h ../getdns/getdns.h \
+ $(srcdir)/check_getdns_eventloop.h \
+ ../config.h \
+ ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 check_getdns_transport.lo check_getdns_transport.o: $(srcdir)/check_getdns_transport.c \
- $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h ../getdns/getdns.h \
+ $(srcdir)/check_getdns_transport.h $(srcdir)/check_getdns_common.h \
+ ../getdns/getdns.h \
  ../getdns/getdns_extra.h
-scratchpad.template.lo scratchpad.template.o: scratchpad.template.c ../getdns/getdns.h \
+scratchpad.template.lo scratchpad.template.o: scratchpad.template.c \
+ ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 testmessages.lo testmessages.o: $(srcdir)/testmessages.c $(srcdir)/testmessages.h
-tests_dict.lo tests_dict.o: $(srcdir)/tests_dict.c $(srcdir)/testmessages.h ../getdns/getdns.h
-tests_list.lo tests_list.o: $(srcdir)/tests_list.c $(srcdir)/testmessages.h ../getdns/getdns.h
-tests_namespaces.lo tests_namespaces.o: $(srcdir)/tests_namespaces.c $(srcdir)/testmessages.h ../getdns/getdns.h
-tests_stub_async.lo tests_stub_async.o: $(srcdir)/tests_stub_async.c ../config.h $(srcdir)/testmessages.h \
- ../getdns/getdns.h ../getdns/getdns_extra.h
-tests_stub_sync.lo tests_stub_sync.o: $(srcdir)/tests_stub_sync.c $(srcdir)/testmessages.h ../getdns/getdns.h \
+tests_dict.lo tests_dict.o: $(srcdir)/tests_dict.c $(srcdir)/testmessages.h \
+ ../getdns/getdns.h
+tests_list.lo tests_list.o: $(srcdir)/tests_list.c $(srcdir)/testmessages.h \
+ ../getdns/getdns.h
+tests_namespaces.lo tests_namespaces.o: $(srcdir)/tests_namespaces.c $(srcdir)/testmessages.h \
+ ../getdns/getdns.h
+tests_stub_async.lo tests_stub_async.o: $(srcdir)/tests_stub_async.c \
+ ../config.h \
+ $(srcdir)/testmessages.h \
+ ../getdns/getdns.h \
+ ../getdns/getdns_extra.h
+tests_stub_sync.lo tests_stub_sync.o: $(srcdir)/tests_stub_sync.c $(srcdir)/testmessages.h \
+ ../getdns/getdns.h \
  ../getdns/getdns_extra.h
