@@ -177,11 +177,10 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->fd = -1;
 	net_req->transport_current = 0;
 	memset(&net_req->event, 0, sizeof(net_req->event));
-	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->keepalive_sent = 0;
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
-	net_req->debug_tls_auth_status = 0;
+	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
 	net_req->debug_udp = 0;
 
 	if (max_query_sz == 0) {
