@@ -442,12 +442,11 @@ static void parse_config(const char *config_str)
 			 * will get destroyed.
 			 */
 			if (!listen_dict &&
-			    !(listen_dict = getdns_dict_create())) {
+			    !(listen_dict = getdns_dict_create()))
 				fprintf(stderr, "Could not create "
 						"listen_dict");
-				r = GETDNS_RETURN_MEMORY_ERROR;
 
-			} else if ((r = getdns_dict_set_list(
+			else if ((r = getdns_dict_set_list(
 			    listen_dict, "listen_list", list)))
 				fprintf(stderr, "Could not set listen_list");
 
