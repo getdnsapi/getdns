@@ -1277,10 +1277,10 @@ getdns_context_create_with_extended_memory_functions(
 
 	// resolv.conf does not exist on Windows, handle differently
 #ifndef USE_WINSOCK 
-	if (set_from_os && (r = set_os_defaults(result)))
+	if ((set_from_os & 1) && (r = set_os_defaults(result)))
 		goto error;
 #else
-	if (set_from_os && (r = set_os_defaults_windows(result)))
+	if ((set_from_os & 1) && (r = set_os_defaults_windows(result)))
 		goto error;
 #endif
 
