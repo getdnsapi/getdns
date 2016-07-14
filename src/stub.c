@@ -330,7 +330,7 @@ process_keepalive(
 			/* For TCP if no keepalive sent back, then we must use 0 idle timeout
 			   as server does not support it. TLS allows idle connections without
 			   keepalive, according to RFC7858. */
-#if !defined(KEEP_CONNECTIONS_OPEN_DEBUG) && !KEEP_CONNECTIONS_OPEN_DEBUG
+#if !defined(KEEP_CONNECTIONS_OPEN_DEBUG) || !KEEP_CONNECTIONS_OPEN_DEBUG
 			if (upstream->transport != GETDNS_TRANSPORT_TLS)
 				upstream->keepalive_timeout = 0;
 			else
