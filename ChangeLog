@@ -1,4 +1,4 @@
-* 2016-??-??: Version 1.0.0b2
+* 2016-07-14: Version 1.0.0b2
   * Collect coverage information from the unit tests
     Thanks Shane Kerr
   * pkg-config for the getdns_ext_event library
