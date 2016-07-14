@@ -44,6 +44,10 @@ do
 	    -e 's/secalgo_ds_digest/_getdns_secalgo_ds_digest/g' \
 	    -e 's/dnskey_algo_id_is_supported/_getdns_dnskey_algo_id_is_supported/g' \
 	    -e 's/verify_canonrrset/_getdns_verify_canonrrset/g' \
+	    -e 's/nsec3_hash_algo_size_supported/_getdns_nsec3_hash_algo_size_supported/g' \
+	    -e 's/secalgo_nsec3_hash/_getdns_secalgo_nsec3_hash/g' \
+	    -e 's/secalgo_hash_sha256/_getdns_secalgo_hash_sha256/g' \
+	    -e 's/ecdsa_evp_workaround_init/_getdns_ecdsa_evp_workaround_init/g' \
 	    -e 's/LDNS_/GLDNS_/g' \
 	    -e 's/enum sec_status/int/g' \
 	    -e 's/sec_status_bogus/0/g' \

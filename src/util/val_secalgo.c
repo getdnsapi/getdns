@@ -72,7 +72,7 @@
 
 /* return size of digest if supported, or 0 otherwise */
 size_t
-nsec3_hash_algo_size_supported(int id)
+_getdns_nsec3_hash_algo_size_supported(int id)
 {
 	switch(id) {
 	case NSEC3_HASH_SHA1:
@@ -84,7 +84,7 @@ nsec3_hash_algo_size_supported(int id)
 
 /* perform nsec3 hash. return false on failure */
 int
-secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+_getdns_secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
         unsigned char* res)
 {
 	switch(algo) {
@@ -94,6 +94,12 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 	default:
 		return 0;
 	}
+}
+
+void
+_getdns_secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
+{
+	(void)SHA256(buf, len, res);
 }
 
 /**
@@ -342,6 +348,23 @@ i	 * the '44' is the total remaining length.
 }
 #endif /* USE_ECDSA */
 
+#ifdef USE_ECDSA_EVP_WORKAROUND
+static EVP_MD ecdsa_evp_256_md;
+static EVP_MD ecdsa_evp_384_md;
+void _getdns_ecdsa_evp_workaround_init(void)
+{
+	/* openssl before 1.0.0 fixes RSA with the SHA256
+	 * hash in EVP.  We create one for ecdsa_sha256 */
+	ecdsa_evp_256_md = *EVP_sha256();
+	ecdsa_evp_256_md.required_pkey_type[0] = EVP_PKEY_EC;
+	ecdsa_evp_256_md.verify = (void*)ECDSA_verify;
+
+	ecdsa_evp_384_md = *EVP_sha384();
+	ecdsa_evp_384_md.required_pkey_type[0] = EVP_PKEY_EC;
+	ecdsa_evp_384_md.verify = (void*)ECDSA_verify;
+}
+#endif /* USE_ECDSA_EVP_WORKAROUND */
+
 /**
  * Setup key and digest for verification. Adjust sig if necessary.
  *
@@ -470,20 +493,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA256
-			 * hash in EVP.  We create one for ecdsa_sha256 */
-			{
-				static int md_ecdsa_256_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_256_done) {
-					EVP_MD m = *EVP_sha256();
-					md_ecdsa_256_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
+			*digest_type = &ecdsa_evp_256_md;
 #else
 			*digest_type = EVP_sha256();
 #endif
@@ -497,20 +507,7 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 				return 0;
 			}
 #ifdef USE_ECDSA_EVP_WORKAROUND
-			/* openssl before 1.0.0 fixes RSA with the SHA384
-			 * hash in EVP.  We create one for ecdsa_sha384 */
-			{
-				static int md_ecdsa_384_done = 0;
-				static EVP_MD md;
-				if(!md_ecdsa_384_done) {
-					EVP_MD m = *EVP_sha384();
-					md_ecdsa_384_done = 1;
-					m.required_pkey_type[0] = (*evp_key)->type;
-					m.verify = (void*)ECDSA_verify;
-					md = m;
-				}
-				*digest_type = &md;
-			}
+			*digest_type = &ecdsa_evp_384_md;
 #else
 			*digest_type = EVP_sha384();
 #endif
@@ -544,7 +541,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 {
 	const EVP_MD *digest_type;
 	EVP_MD_CTX* ctx;
-	int res, dofree = 0;
+	int res, dofree = 0, docrypto_free = 0;
 	EVP_PKEY *evp_key = NULL;
 	
 	if(!setup_key_digest(algo, &evp_key, &digest_type, key, keylen)) {
@@ -563,7 +560,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 			EVP_PKEY_free(evp_key);
 			return 0;
 		}
-		dofree = 1;
+		docrypto_free = 1;
 	}
 #endif
 #if defined(USE_ECDSA) && defined(USE_DSA)
@@ -593,6 +590,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		log_err("EVP_MD_CTX_new: malloc failure");
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
+		else if(docrypto_free) CRYPTO_free(sigblock);
 		return 0;
 	}
 	if(EVP_VerifyInit(ctx, digest_type) == 0) {
@@ -600,6 +598,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
+		else if(docrypto_free) CRYPTO_free(sigblock);
 		return 0;
 	}
 	if(EVP_VerifyUpdate(ctx, (unsigned char*)gldns_buffer_begin(buf), 
@@ -608,15 +607,21 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
+		else if(docrypto_free) CRYPTO_free(sigblock);
 		return 0;
 	}
 
 	res = EVP_VerifyFinal(ctx, sigblock, sigblock_len, evp_key);
+#ifdef HAVE_EVP_MD_CTX_NEW
 	EVP_MD_CTX_destroy(ctx);
+#else
+	EVP_MD_CTX_cleanup(ctx);
+	free(ctx);
+#endif
 	EVP_PKEY_free(evp_key);
 
-	if(dofree)
-		free(sigblock);
+	if(dofree) free(sigblock);
+	else if(docrypto_free) CRYPTO_free(sigblock);
 
 	if(res == 1) {
 		return 1;
@@ -644,7 +649,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 
 /* return size of digest if supported, or 0 otherwise */
 size_t
-nsec3_hash_algo_size_supported(int id)
+_getdns_nsec3_hash_algo_size_supported(int id)
 {
 	switch(id) {
 	case NSEC3_HASH_SHA1:
@@ -656,7 +661,7 @@ nsec3_hash_algo_size_supported(int id)
 
 /* perform nsec3 hash. return false on failure */
 int
-secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+_getdns_secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
         unsigned char* res)
 {
 	switch(algo) {
@@ -666,6 +671,12 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 	default:
 		return 0;
 	}
+}
+
+void
+_getdns_secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
+{
+	(void)HASH_HashBuf(HASH_AlgSHA256, res, buf, (unsigned long)len);
 }
 
 size_t
@@ -1185,6 +1196,9 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 #include "macros.h"
 #include "rsa.h"
 #include "dsa.h"
+#ifdef HAVE_NETTLE_DSA_COMPAT_H
+#include "dsa-compat.h"
+#endif
 #include "asn1.h"
 #ifdef USE_ECDSA
 #include "ecdsa.h"
@@ -1236,7 +1250,7 @@ _digest_nettle(int algo, uint8_t* buf, size_t len,
 
 /* return size of digest if supported, or 0 otherwise */
 size_t
-nsec3_hash_algo_size_supported(int id)
+_getdns_nsec3_hash_algo_size_supported(int id)
 {
 	switch(id) {
 	case NSEC3_HASH_SHA1:
@@ -1248,7 +1262,7 @@ nsec3_hash_algo_size_supported(int id)
 
 /* perform nsec3 hash. return false on failure */
 int
-secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
+_getdns_secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
         unsigned char* res)
 {
 	switch(algo) {
@@ -1258,6 +1272,12 @@ secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
 	default:
 		return 0;
 	}
+}
+
+void
+_getdns_secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res)
+{
+	_digest_nettle(SHA256_DIGEST_SIZE, (uint8_t*)buf, len, res);
 }
 
 /**
