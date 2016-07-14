@@ -475,7 +475,7 @@ static void parse_config(const char *config_str)
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	size_t i, j;
+	size_t i, j, klass;
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
@@ -486,7 +486,6 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
-	uint32_t klass;
 	char *config_file = NULL;
 	long config_file_sz;
 
@@ -507,7 +506,7 @@ getdns_return_t parse_args(int argc, char **argv)
 			} else if (strncmp(arg+1, "specify_class=", 14) == 0) {
 				if ((klass = get_rrclass(arg+15)) >= 0)
 					r = getdns_dict_set_int(extensions,
-						    "specify_class", klass);
+					    "specify_class", (uint32_t )klass);
 				else
 					fprintf(stderr,
 					    "Unknown class: %s\n", arg+15);
