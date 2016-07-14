@@ -6,6 +6,10 @@
     with settings given in a getdns_dict
   * A a getdns_context_set_listen_addresses() function and companion
     getdns_reply() function to construct simple name servers.
+  * Relocate getdns_query to src/tools and build by default
+  * Enhancements to the logic used to select connection based upstream
+    transports (TCP, TLS) to improve robustness and re-use of
+    connections/upstreams.
 
 * 2016-07-14: Version 1.0.0b2
   * Collect coverage information from the unit tests
