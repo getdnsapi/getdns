@@ -178,6 +178,7 @@ $(distdir):
 	mkdir -p $(distdir)/src
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
+	mkdir -p $(distdir)/src/test/jsmn
 	mkdir -p $(distdir)/src/extension
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
@@ -224,6 +225,9 @@ $(distdir):
 	cp $(srcdir)/spec/*.tgz $(distdir)/spec || true
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
+	cp $(srcdir)/src/test/jsmn/*.[ch] $(distdir)/src/test/jsmn
+	cp $(srcdir)/src/test/jsmn/LICENSE $(distdir)/src/test/jsmn
+	cp $(srcdir)/src/test/jsmn/README.md $(distdir)/src/test/jsmn
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz

@@ -76,9 +76,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.3.3 had libversion 3:6:2
 # getdns-0.5.0 had libversion 4:0:3
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
-# getdns-0.9.0 will have libversion 5:0:4
+# getdns-0.9.0 had libversion 5:0:4
+# getdns-1.0.0 will have libversion 5:1:4
 #
-GETDNS_LIBVERSION=5:0:4
+GETDNS_LIBVERSION=5:1:4
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
