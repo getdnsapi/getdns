@@ -207,11 +207,11 @@ _getdns_cancel_reply(getdns_context *context, connection *conn)
 		return;
 
 	if (conn->l->transport == GETDNS_TRANSPORT_TCP) {
-		tcp_connection *conn = (tcp_connection *)conn;
+		tcp_connection *tcp_conn = (tcp_connection *)conn;
 
-		if (conn->to_answer > 0 && --conn->to_answer == 0 &&
-		    conn->fd == -1)
-			tcp_connection_destroy(conn);
+		if (tcp_conn->to_answer > 0 && --tcp_conn->to_answer == 0 &&
+		    tcp_conn->fd == -1)
+			tcp_connection_destroy(tcp_conn);
 
 	} else if (conn->l->transport == GETDNS_TRANSPORT_UDP &&
 	    (mf = &conn->l->set->context->mf)) {
