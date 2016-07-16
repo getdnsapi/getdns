@@ -289,6 +289,7 @@ typedef struct getdns_dns_req {
 	int canceled				: 1;
 
 	/* request extensions */
+	int dns64                               : 1;
 	int dnssec_return_status		: 1;
 	int dnssec_return_only_secure		: 1;
 	int dnssec_return_all_statuses		: 1;
@@ -318,6 +319,8 @@ typedef struct getdns_dns_req {
 	int validating                          : 1;
 	int *freed;
 
+	/* Non boolean request extensions */
+	uint8_t dns64_prefix[16];
 	uint16_t tls_query_padding_blocksize;
 
 	/* internally scheduled request */

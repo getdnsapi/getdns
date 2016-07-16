@@ -301,6 +301,7 @@ struct getdns_context {
 	getdns_dict *header;
 	getdns_dict *add_opt_parameters;
 	int add_warning_for_bad_dns             : 1;
+	int dns64                               : 1;
 	int dnssec_return_all_statuses          : 1;
 	int dnssec_return_full_validation_chain : 1;
 	int dnssec_return_only_secure           : 1;
@@ -314,6 +315,7 @@ struct getdns_context {
 	int return_both_v4_and_v6               : 1;
 	int return_call_reporting               : 1;
 	uint16_t specify_class;
+	uint8_t dns64_prefix[16];
 
 	/*
 	 * state data used to detect changes to the system config files

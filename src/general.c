@@ -360,6 +360,8 @@ validate_extensions(struct getdns_dict * extensions)
 	static getdns_extension_format extformats[] = {
 		{"add_opt_parameters"            , t_dict, 1},
 		{"add_warning_for_bad_dns"       , t_int , 1},
+		{"dns64"                         , t_int , 1},
+		{"dns64_prefix"                  , t_bindata, 1},
 		{"dnssec_return_all_statuses"    , t_int , 1},
 		{"dnssec_return_full_validation_chain", t_int , 1},
 		{"dnssec_return_only_secure"     , t_int , 1},

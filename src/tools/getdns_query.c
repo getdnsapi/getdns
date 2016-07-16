@@ -164,6 +164,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
+	fprintf(out, "\t+dns64\n");
+	fprintf(out, "\t+dns64_prefix=<ipv6 prefix>\n");
 	fprintf(out, "\t+dnssec_return_status\n");
 	fprintf(out, "\t+dnssec_return_only_secure\n");
 	fprintf(out, "\t+dnssec_return_all_statuses\n");
@@ -477,10 +479,10 @@ getdns_return_t parse_args(int argc, char **argv)
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
 	getdns_list *tas = NULL, *hints = NULL;
-	getdns_dict *pubkey_pin = NULL;
+	getdns_dict *pubkey_pin = NULL, *addr_dict;
 	getdns_list *suffixes;
 	char *suffix;
-	getdns_bindata bindata;
+	getdns_bindata bindata, *address;
 	size_t upstream_count = 0;
 	FILE *fh;
 	char *config_file = NULL;
@@ -508,6 +510,14 @@ getdns_return_t parse_args(int argc, char **argv)
 					fprintf(stderr,
 					    "Unknown class: %s\n", arg+15);
 
+			} else if (strncmp(arg+1, "dns64_prefix=", 13) == 0) {
+				if (!(r = getdns_str2dict(arg+14, &addr_dict))
+				    && !(r = getdns_dict_get_bindata(
+				    addr_dict, "address_data", &address))) {
+					r = getdns_dict_set_bindata(extensions,
+					    "dns64_prefix", address);
+					getdns_dict_destroy(addr_dict);
+				}
 			} else if (arg[1] == '0') {
 			    /* Unset all existing extensions*/
 				getdns_dict_destroy(extensions);

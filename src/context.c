@@ -1309,6 +1309,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->header = NULL;
 	result->add_opt_parameters = NULL;
 	result->add_warning_for_bad_dns = 0;
+	result->dns64 = 0;
 	result->dnssec_return_all_statuses = 0;
 	result->dnssec_return_full_validation_chain = 0;
 	result->dnssec_return_only_secure = 0;
@@ -1321,6 +1322,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->return_api_information = 0;
 	result->return_both_v4_and_v6 = 0;
 	result->return_call_reporting = 0;
+	(void) memset(result->dns64_prefix, 0, 16);
 	result->specify_class = GETDNS_RRCLASS_IN;
 
 	/* state data used to detect changes to the system config files
@@ -4036,6 +4038,7 @@ _getdns_context_config_setting(getdns_context *context,
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	getdns_dict *dict;
 	getdns_list *list;
+	getdns_bindata *bindata;
 	getdns_namespace_t namespaces[100];
 	getdns_transport_list_t dns_transport_list[100];
 	size_t count, i;
@@ -4081,6 +4084,7 @@ _getdns_context_config_setting(getdns_context *context,
 	/****                              ****/
 	/**************************************/
 	EXTENSION_SETTING_BOOL(add_warning_for_bad_dns)
+	EXTENSION_SETTING_BOOL(dns64)
 	EXTENSION_SETTING_BOOL(dnssec_return_all_statuses)
 	EXTENSION_SETTING_BOOL(dnssec_return_full_validation_chain)
 	EXTENSION_SETTING_BOOL(dnssec_return_only_secure)
@@ -4097,13 +4101,25 @@ _getdns_context_config_setting(getdns_context *context,
 	EXTENSION_SETTING_BOOL(return_call_reporting)
 
 	} else if (_streq(setting, "add_opt_parameters")) {
-		if (!(r = getdns_dict_get_dict(config_dict, "add_opt_parameters" , &dict))) {
+		if (!(r = getdns_dict_get_dict(config_dict,
+		    "add_opt_parameters", &dict))) {
 			if (context->add_opt_parameters)
-				getdns_dict_destroy(context->add_opt_parameters);
+				getdns_dict_destroy(
+				    context->add_opt_parameters);
 			context->add_opt_parameters = NULL;
-			r = _getdns_dict_copy(dict, &context->add_opt_parameters);
+			r = _getdns_dict_copy(
+			    dict, &context->add_opt_parameters);
 		}
 
+	} else if (_streq(setting, "dns64_prefix")) {
+		if (!(r = getdns_dict_get_bindata(config_dict, "dns64_prefix",
+		    &bindata))) {
+			if (bindata->size != 16)
+				r = GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+			else
+				(void) memcpy(context->dns64_prefix,
+				    bindata->data, 16);
+		}
 	} else if (_streq(setting, "header")) {
 		if (!(r = getdns_dict_get_dict(config_dict, "header" , &dict))) {
 			if (context->header)

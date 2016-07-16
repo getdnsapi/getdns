@@ -720,6 +720,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 
 	getdns_dns_req *result = NULL;
         uint32_t klass = context->specify_class;
+	getdns_bindata *dns64_prefix = NULL;
 	int a_aaaa_query = is_extension_set(extensions,
 	    "return_both_v4_and_v6", context->return_both_v4_and_v6) &&
 	    ( request_type == GETDNS_RRTYPE_A ||
@@ -908,6 +909,12 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    "return_call_reporting"  , context->return_call_reporting);
 	result->add_warning_for_bad_dns        = is_extension_set(extensions,
 	    "add_warning_for_bad_dns", context->add_warning_for_bad_dns);
+
+	result->dns64 = is_extension_set(extensions, "dns64", context->dns64);
+	if (!getdns_dict_get_bindata(extensions, "dns64_prefix", &dns64_prefix)
+	    && dns64_prefix->size == 16)
+		(void) memcpy(result->dns64_prefix, dns64_prefix->data, 16);
+	else	(void) memcpy(result->dns64_prefix, context->dns64_prefix, 16);
 	
 	/* will be set by caller */
 	result->user_pointer = NULL;
