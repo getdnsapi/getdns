@@ -1431,7 +1431,7 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 	}
 }
 
-static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
+static void _getdns_list2wire_buf(gldns_buffer *buf, const getdns_list *l)
 {
 	getdns_dict *rr_dict;
 	size_t i, pkt_start, ancount;
@@ -1468,8 +1468,8 @@ static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
 }
 
-uint8_t *_getdns_list2wire(
-    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+uint8_t *_getdns_list2wire(const getdns_list *l,
+    uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;

@@ -152,7 +152,7 @@ struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *comple
 getdns_return_t _getdns_validate_dname(const char* dname);
 
 uint8_t *_getdns_list2wire(
-    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+    const getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
 
 uint8_t *_getdns_reply2wire(
     getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);

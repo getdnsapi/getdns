@@ -1125,9 +1125,9 @@ char *getdns_convert_ulabel_to_alabel(const char *ulabel);
 char *getdns_convert_alabel_to_ulabel(const char *alabel);
 
 getdns_return_t
-getdns_validate_dnssec(getdns_list *to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors);
+getdns_validate_dnssec(const getdns_list *to_validate,
+    const getdns_list *support_records,
+    const getdns_list *trust_anchors);
 
 /* Get root trust anchor */
 getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);

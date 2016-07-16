@@ -2881,7 +2881,7 @@ static void append_rrset2val_chain_list(
 		GETDNS_FREE(val_chain_list->mf, val_rrset);
 }
 
-static void append_rrs2val_chain_list(getdns_context *ctxt,
+static void append_rrs2val_chain_list(
     getdns_list *val_chain_list, getdns_network_req *netreq, int signer)
 {
 	_getdns_rrset_iter *i, i_spc;
@@ -2921,7 +2921,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		    ; rr; rr = _getdns_rrtype_iter_next(rr)) {
 
 			if (!(rr_dict = _getdns_rr_iter2rr_dict(
-			    &ctxt->mf, &rr->rr_i)))
+			    &val_chain_list->mf, &rr->rr_i)))
 				continue;
 
 			if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
@@ -2931,7 +2931,7 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 		    ; rrsig; rrsig = _getdns_rrsig_iter_next(rrsig)) {
 
 			if (!(rr_dict = _getdns_rr_iter2rr_dict(
-						&ctxt->mf, &rrsig->rr_i)))
+			    &val_chain_list->mf, &rrsig->rr_i)))
 				continue;
 
 			if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
@@ -2941,13 +2941,14 @@ static void append_rrs2val_chain_list(getdns_context *ctxt,
 }
 
 static void append_empty_ds2val_chain_list(
-    getdns_context *context, getdns_list *val_chain_list, _getdns_rrset *ds)
+    getdns_list *val_chain_list, _getdns_rrset *ds)
 {
 	getdns_dict *rr_dict;
 	getdns_bindata bindata;
 	getdns_dict *rdata_dict;
 
-	if (!(rr_dict = getdns_dict_create_with_context(context)))
+	if (!(rr_dict = _getdns_dict_create_with_mf(
+	    &val_chain_list->mf)))
 		return;
 
 	bindata.size = _dname_len(ds->name);
@@ -2957,7 +2958,8 @@ static void append_empty_ds2val_chain_list(
 	(void) getdns_dict_set_int(rr_dict, "type", ds->rr_type);
 	(void) getdns_dict_set_int(rr_dict, "ttl", 0);
 
-	if (!(rdata_dict = getdns_dict_create_with_context(context))) {
+	if (!(rdata_dict = _getdns_dict_create_with_mf(
+	    &val_chain_list->mf))) {
 		getdns_dict_destroy(rr_dict);
 		return;
 	}
@@ -2970,13 +2972,79 @@ static void append_empty_ds2val_chain_list(
 		getdns_dict_destroy(rr_dict);
 }
 
+static void _cleanup_chain(chain_head *chain,
+    getdns_list *val_chain_list, int full)
+{
+	chain_head *head, *next, *same_chain;
+	chain_node *node;
+	size_t node_count;
+
+	if (!val_chain_list) {
+		for ( head = chain; head ; head = next ) {
+			next = head->next;
+			GETDNS_FREE(head->my_mf, head);
+		}
+		return;
+	}
+	/* Walk chain to add values to val_chain_list and to cleanup */
+	for ( head = chain; head ; head = next ) {
+		next = head->next;
+		if (full && head->node_count && head->signer > 0) {
+
+			append_rrset2val_chain_list(
+			    val_chain_list, &head->rrset, head->signer);
+
+			for ( same_chain = next
+			    ; same_chain && same_chain->signer == head->signer
+			    ; same_chain = same_chain->next) {
+				append_rrset2val_chain_list(val_chain_list,
+				    &same_chain->rrset, same_chain->signer);
+				same_chain->signer = -1;
+			}
+		}
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count
+		    ; node_count--, node = node->parent ) {
+
+			if (node->dnskey_req) {
+				if (val_chain_list)
+					append_rrs2val_chain_list(
+					    val_chain_list,
+					    node->dnskey_req,
+					    node->dnskey_signer);
+				_getdns_dns_req_free(node->dnskey_req->owner);
+			}
+			if (node->ds_req) {
+				if (val_chain_list)
+					append_rrs2val_chain_list(
+					    val_chain_list,
+					    node->ds_req, node->ds_signer);
+
+				if (val_chain_list && node->ds_signer == -1 &&
+				    !_getdns_rrset_has_rrs(&node->ds)) {
+					/* Add empty DS, to prevent less
+					 * specific to be able to authenticate
+					 * below a zone cut (closer to head)
+					 */
+					append_empty_ds2val_chain_list(
+					    val_chain_list,
+					    &node->ds);
+				}
+				_getdns_dns_req_free(node->ds_req->owner);
+			}
+			if (node->soa_req) {
+				_getdns_dns_req_free(node->soa_req->owner);
+			}
+		}
+		GETDNS_FREE(head->my_mf, head);
+	}
+}
+
 static void check_chain_complete(chain_head *chain)
 {
 	getdns_dns_req *dnsreq;
 	getdns_context *context;
-	size_t o, node_count;
-	chain_head *head, *next, *same_chain;
-	chain_node *node;
+	size_t o;
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
 	_getdns_rrset_iter tas_iter;
@@ -3038,59 +3106,8 @@ static void check_chain_complete(chain_head *chain)
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
-	/* Walk chain to add values to val_chain_list and to cleanup */
-	for ( head = chain; head ; head = next ) {
-		next = head->next;
-		if (dnsreq->dnssec_return_full_validation_chain &&
-		    head->node_count && head->signer > 0) {
-
-			append_rrset2val_chain_list(
-			    val_chain_list, &head->rrset, head->signer);
-
-			for ( same_chain = next
-			    ; same_chain && same_chain->signer == head->signer
-			    ; same_chain = same_chain->next) {
-				append_rrset2val_chain_list(val_chain_list,
-				    &same_chain->rrset, same_chain->signer);
-				same_chain->signer = -1;
-			}
-		}
-		for ( node_count = head->node_count, node = head->parent
-		    ; node_count
-		    ; node_count--, node = node->parent ) {
-
-			if (node->dnskey_req) {
-				if (val_chain_list)
-					append_rrs2val_chain_list(
-					    context, val_chain_list,
-					    node->dnskey_req,
-					    node->dnskey_signer);
-				_getdns_dns_req_free(node->dnskey_req->owner);
-			}
-			if (node->ds_req) {
-				if (val_chain_list)
-					append_rrs2val_chain_list(
-					    context, val_chain_list,
-					    node->ds_req, node->ds_signer);
-
-				if (val_chain_list && node->ds_signer == -1 &&
-				    !_getdns_rrset_has_rrs(&node->ds)) {
-					/* Add empty DS, to prevent less
-					 * specific to be able to authenticate
-					 * below a zone cut (closer to head)
-					 */
-					append_empty_ds2val_chain_list(
-					    context, val_chain_list,
-					    &node->ds);
-				}
-				_getdns_dns_req_free(node->ds_req->owner);
-			}
-			if (node->soa_req) {
-				_getdns_dns_req_free(node->soa_req->owner);
-			}
-		}
-		GETDNS_FREE(head->my_mf, head);
-	}
+	_cleanup_chain(chain, val_chain_list,
+	    dnsreq->dnssec_return_full_validation_chain);
 
 	response_dict = _getdns_create_getdns_response(dnsreq);
 	if (val_chain_list) {
@@ -3156,9 +3173,10 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 static int wire_validate_dnssec(struct mem_funcs *mf,
     time_t now, uint32_t skew, uint8_t *to_val, size_t to_val_len,
-    uint8_t *support, size_t support_len, uint8_t *tas, size_t tas_len)
+    uint8_t *support, size_t support_len, uint8_t *tas, size_t tas_len,
+    getdns_list *validation_chain)
 {
-	chain_head *chain, *head, *next_head;
+	chain_head *chain, *head;
 	chain_node *node;
 
 	uint8_t qname_spc[256];
@@ -3223,11 +3241,8 @@ static int wire_validate_dnssec(struct mem_funcs *mf,
 	    _getdns_rrset_iter_init(
 		    &tas_iter, tas, tas_len, SECTION_ANSWER));
 
-	/* Cleanup the chain */
-	for (head = chain; head; head = next_head) {
-		next_head = head->next;
-		GETDNS_FREE(*mf, head);
-	}
+	_cleanup_chain(chain, validation_chain, 1);
+
 	return s;
 }
 
@@ -3236,10 +3251,11 @@ static int wire_validate_dnssec(struct mem_funcs *mf,
  *
  */
 getdns_return_t
-getdns_validate_dnssec2(getdns_list *records_to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors,
-    time_t now, uint32_t skew)
+getdns_validate_dnssec3(const getdns_list *records_to_validate,
+    const getdns_list *support_records,
+    const getdns_list *trust_anchors,
+    time_t now, uint32_t skew,
+    getdns_list *validation_chain)
 {
 	uint8_t to_val_buf[4096], *to_val,
 		support_buf[4096], *support,
@@ -3261,7 +3277,7 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 
 	if (!records_to_validate || !support_records || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	mf = &records_to_validate->mf;
+	mf = (struct mem_funcs *)&records_to_validate->mf;
 
 	/* First convert everything to wire format
 	 */
@@ -3278,7 +3294,8 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 		goto exit_free_tas;
 
 	if ((r = wire_validate_dnssec(mf, now, skew, to_val, to_val_len,
-	    support,support_len, tas,tas_len)) != GETDNS_RETURN_GENERIC_ERROR)
+	    support,support_len, tas, tas_len, validation_chain))
+	    != GETDNS_RETURN_GENERIC_ERROR)
 		goto exit_free_to_val;
 
 	for (i = 0; !getdns_list_get_dict(records_to_validate,i,&reply); i++) {
@@ -3294,7 +3311,8 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 
 		r = GETDNS_DNSSEC_INDETERMINATE;
 		switch (wire_validate_dnssec(mf, now, skew,
-		    to_val, to_val_len, support, support_len, tas, tas_len)) {
+		    to_val, to_val_len, support, support_len, tas, tas_len,
+		    validation_chain)) {
 		case GETDNS_DNSSEC_SECURE:
 			if (r == GETDNS_DNSSEC_INDETERMINATE)
 				r = GETDNS_DNSSEC_SECURE;
@@ -3325,14 +3343,23 @@ exit_free_support:
 	return r;
 }
 
+getdns_return_t
+getdns_validate_dnssec2(const getdns_list *records_to_validate,
+    const getdns_list *support_records,
+    const getdns_list *trust_anchors,
+    time_t now, uint32_t skew)
+{
+	return getdns_validate_dnssec3(records_to_validate, support_records,
+	    trust_anchors, now, skew, NULL);
+}
 
 getdns_return_t
-getdns_validate_dnssec(getdns_list *records_to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors)
+getdns_validate_dnssec(const getdns_list *records_to_validate,
+    const getdns_list *support_records,
+    const getdns_list *trust_anchors)
 {
-	return getdns_validate_dnssec2(records_to_validate, support_records,
-	    trust_anchors, time(NULL), 0);
+	return getdns_validate_dnssec3(records_to_validate, support_records,
+	    trust_anchors, time(NULL), 0, NULL);
 }
 
 /******************  getdns_root_trust_anchor() Function  ********************
