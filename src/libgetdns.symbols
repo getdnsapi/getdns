@@ -145,6 +145,7 @@ getdns_str2rr_dict
 getdns_strerror
 getdns_validate_dnssec
 getdns_validate_dnssec2
+getdns_validate_dnssec3
 getdns_wire2msg_dict
 getdns_wire2msg_dict_buf
 getdns_wire2msg_dict_scan
