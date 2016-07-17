@@ -1323,6 +1323,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->return_both_v4_and_v6 = 0;
 	result->return_call_reporting = 0;
 	(void) memset(result->dns64_prefix, 0, 16);
+	result->dns64_prefix[1] = 0x64;
+	result->dns64_prefix[2] = 0xff;
+	result->dns64_prefix[3] = 0x9b;
 	result->specify_class = GETDNS_RRCLASS_IN;
 
 	/* state data used to detect changes to the system config files

@@ -563,6 +563,12 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	getdns_list *bad_dns = NULL;
 	_getdns_rrset_spc answer_spc;
 	_getdns_rrset *answer;
+	uint8_t dns64_address[16];
+
+	int dns64_translate = req->owner->dns64 &&
+	    req->owner->netreqs[1] &&
+	    req->request_type == GETDNS_RRTYPE_A &&
+	    just_addrs && !just_addrs->numinuse;
 
 	if (!result)
 		goto error;
@@ -667,7 +673,15 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 			continue;
 
 		bin_size = rdf_iter->nxt - rdf_iter->pos;
-		bin_data = rdf_iter->pos;
+		if (dns64_translate && rr_type == GETDNS_RRTYPE_A) {
+			(void) memcpy(dns64_address, req->owner->dns64_prefix, 12);
+			(void) memcpy(dns64_address + 12, rdf_iter->pos, 4);
+			rr_type = GETDNS_RRTYPE_AAAA;
+			bin_size = 16;
+			bin_data = dns64_address;
+		}
+		else
+			bin_data = rdf_iter->pos;
 		if (!set_dict(&rr_dict, getdns_dict_create_with_context(context)) ||
 
 		    getdns_dict_util_set_string(rr_dict, "address_type",
@@ -1125,6 +1139,13 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		if (! netreq->response_len)
 			continue;
 
+		/* Skip dns64 translation if we had IPv6 answers alread */
+		if (completed_request->dns64 &&
+		    completed_request->netreqs[1] &&
+		    netreq->request_type == GETDNS_RRTYPE_A &&
+		    just_addrs && just_addrs->numinuse)
+			continue;
+
 		if (netreq->tsig_status == GETDNS_DNSSEC_INSECURE)
 			_getdns_network_validate_tsig(netreq);
 
@@ -1137,7 +1158,6 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		if (dnssec_return_status &&
 		    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
 			nbogus++;
-
 
 		if (! completed_request->dnssec_return_all_statuses &&
 		    ! completed_request->dnssec_return_validation_chain) {

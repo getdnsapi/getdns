@@ -721,10 +721,13 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	getdns_dns_req *result = NULL;
         uint32_t klass = context->specify_class;
 	getdns_bindata *dns64_prefix = NULL;
-	int a_aaaa_query = is_extension_set(extensions,
-	    "return_both_v4_and_v6", context->return_both_v4_and_v6) &&
-	    ( request_type == GETDNS_RRTYPE_A ||
-	      request_type == GETDNS_RRTYPE_AAAA );
+	int dns64 = is_extension_set(extensions, "dns64", context->dns64);
+	int a_aaaa_query =  (dns64 && request_type == GETDNS_RRTYPE_AAAA) ||
+	    ( is_extension_set( extensions, "return_both_v4_and_v6"
+                               , context->return_both_v4_and_v6)
+	    && (  request_type == GETDNS_RRTYPE_A
+	       || request_type == GETDNS_RRTYPE_AAAA ));
+
 	/* Reserve for the buffer at least one more byte
 	 * (to test for udp overflow) (hence the + 1),
 	 * And align on the 8 byte boundry  (hence the (x + 7) / 8 * 8)
@@ -910,7 +913,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->add_warning_for_bad_dns        = is_extension_set(extensions,
 	    "add_warning_for_bad_dns", context->add_warning_for_bad_dns);
 
-	result->dns64 = is_extension_set(extensions, "dns64", context->dns64);
+	result->dns64 = dns64;
 	if (!getdns_dict_get_bindata(extensions, "dns64_prefix", &dns64_prefix)
 	    && dns64_prefix->size == 16)
 		(void) memcpy(result->dns64_prefix, dns64_prefix->data, 16);
