@@ -249,6 +249,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	getdns_dict *reply;
 	getdns_list *to_validate;
 	getdns_list *trust_anchor;
+	getdns_list *new_chain = getdns_list_create();
 	size_t i;
 	int s;
 	
@@ -267,8 +268,9 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		goto error;
 
 	fprintf(stdout, "replies_tree dnssec_status: ");
-	switch ((s = getdns_validate_dnssec(
-	    replies_tree, validation_chain, trust_anchor))) {
+	switch ((s = getdns_validate_dnssec3(
+	    replies_tree, validation_chain, trust_anchor,
+	    time(NULL), 0, new_chain))) {
 
 	case GETDNS_DNSSEC_SECURE:
 		fprintf(stdout, "GETDNS_DNSSEC_SECURE\n");
@@ -288,7 +290,11 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	default:
 		fprintf(stdout, "%d\n", (int)s);
 	}
-
+	if (new_chain) {
+		char *new_chain_str = getdns_pretty_print_list(new_chain);
+		printf("new canonicalized chain: %s\n", new_chain_str);
+		free(new_chain_str);
+	}
 	i = 0;
 	while (!(r = getdns_list_get_dict(replies_tree, i++, &reply))) {
 
