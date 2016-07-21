@@ -54,7 +54,7 @@
 
 
 getdns_return_t
-getdns_dict_util_get_string(struct getdns_dict * dict, char *name, char **result)
+getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result)
 {
 	struct getdns_bindata *bindata = NULL;
 	if (!result) {
