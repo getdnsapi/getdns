@@ -711,6 +711,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
 	upstream->keepalive_timeout = 0;
+	upstream->keepalive_shutdown = 0;
 
 	/* Now TLS stuff*/
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
@@ -836,6 +837,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
+	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
 	upstream->to_retry =  2;
 	upstream->back_off =  1;

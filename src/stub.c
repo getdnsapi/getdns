@@ -342,9 +342,17 @@ process_keepalive(
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
+	DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive recived: %d ms\n",
+           STUB_DEBUG_READ, __FUNCTION__, upstream->fd, 
+           (int)server_keepalive);
 	if (netreq->owner->context->idle_timeout < server_keepalive)
 		upstream->keepalive_timeout = netreq->owner->context->idle_timeout;
 	else {
+		if (server_keepalive == 0) {
+			/* This means the server wants us to shut the connection (sending no
+			   more queries). */
+			upstream->keepalive_shutdown = 1;
+		}
 		upstream->keepalive_timeout = server_keepalive;
 		DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive used: %d ms\n",
 		           STUB_DEBUG_READ, __FUNCTION__, upstream->fd, 
@@ -1551,8 +1559,11 @@ upstream_working_ok(getdns_upstream *upstream)
 static int
 upstream_active(getdns_upstream *upstream) 
 {
-	return ((upstream->conn_state == GETDNS_CONN_SETUP || 
-	         upstream->conn_state == GETDNS_CONN_OPEN) ? 1 : 0);
+	if ((upstream->conn_state == GETDNS_CONN_SETUP || 
+	     upstream->conn_state == GETDNS_CONN_OPEN) &&
+	     upstream->keepalive_shutdown == 0)
+		return 1;
+	return 0;
 }
 
 static int

@@ -148,6 +148,7 @@ typedef struct getdns_upstream {
 	size_t                   queries_sent;
 	size_t                   responses_received;
 	size_t                   responses_timeouts;
+	size_t                   keepalive_shutdown;
 	uint64_t                 keepalive_timeout;
 
 	/* Management of outstanding requests on stateful transports */
