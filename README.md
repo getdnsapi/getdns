@@ -179,7 +179,7 @@ Stub mode does not support:
 
 # Known Issues
 
-*the issue that was described here doesn't seem to be open in the issue tracker, and other issues there are not clearly related to this release.  Replace this section with a pointer to the issue tracker?*
+* None
 
 # Supported Platforms
 
@@ -188,7 +188,7 @@ The primary platforms targeted are Linux and FreeBSD, other platform are support
 * RHEL/CentOS 6.4
 * OSX 10.8
 * Ubuntu 14.04
-* Microsoft Windows 8.1 (initial support for DNSSEC but no TLS provided for version 0.5.1)
+* Microsoft Windows 8.1
 
 We intend to add Android and other platforms to future releases as we have time to port it.
 
@@ -332,6 +332,7 @@ Contributors
 * Vinay Soni, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC
 * Bob Steagall, Verisign, Inc.
+* Andrew Sullivan
 * Ondřej Surý
 * Willem Toorop, NLnet Labs
 * Gowri Visweswaran, Verisign Labs
