@@ -124,6 +124,9 @@ typedef struct getdns_upstream {
 
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	char                     addr_str[INET6_ADDRSTRLEN];
+#endif
 
 	/* How is this upstream doing over UDP? */
 	int                      to_retry;

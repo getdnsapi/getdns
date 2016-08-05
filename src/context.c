@@ -224,6 +224,14 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 }
 #endif
 
+static uint8_t*
+upstream_addr(getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET
+	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
+	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
+
 static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
 {
 	getdns_context *context = (getdns_context *)arg;
@@ -683,11 +691,17 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	if (upstream->tls_auth_state != GETDNS_AUTH_NONE)
 		upstream->past_tls_auth_state = upstream->tls_auth_state;
 
-	DEBUG_STUB("%s %-35s: FD:  %d Upstream Stats: Resp=%d,Timeouts=%d,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Auth=%d\n",
-	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
-	           (int)upstream->total_responses, (int)upstream->total_timeouts,
-	           (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
-	           (int)upstream->conn_shutdowns, upstream->past_tls_auth_state);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s Upstream %s : Connection closed: Connection stats - Resp=%d,Timeouts=%d,Keepalive(ms)=%d,Auth=%s\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
+	             (int)upstream->keepalive_timeout, getdns_auth_str_array[upstream->tls_auth_state]);
+	DEBUG_DAEMON("%s Upstream %s : Connection closed: Upstream stats   - Resp=%d,Timeouts=%d,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Auth=%s\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (int)upstream->total_responses, (int)upstream->total_timeouts,
+	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
+	             (int)upstream->conn_shutdowns, getdns_auth_str_array[upstream->tls_auth_state]);
+#endif
 
 	/* Back off connections that never got up service at all (probably no
 	   TCP service or incompatible TLS version/cipher). 
@@ -829,6 +843,10 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
+	          upstream->addr_str, INET6_ADDRSTRLEN);
+#endif
 
 	/* How is this upstream doing? */
 	upstream->conn_setup_failed = 0;
@@ -2831,15 +2849,8 @@ getdns_cancel_callback(getdns_context *context,
 	return r;
 } /* getdns_cancel_callback */
 
-#ifndef STUB_NATIVE_DNSSEC
-static uint8_t*
-upstream_addr(getdns_upstream *upstream)
-{
-	return upstream->addr.ss_family == AF_INET
-	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
-	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
-}
 
+#ifndef STUB_NATIVE_DNSSEC
 static in_port_t
 upstream_port(getdns_upstream *upstream)
 {

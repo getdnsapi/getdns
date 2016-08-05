@@ -522,9 +522,14 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	if (during_setup) {
 		/* Reset timeout on setup failure to trigger fallback handling.*/
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-		GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
-		    getdns_eventloop_event_init(&upstream->event, upstream,
-		     NULL, upstream_write_cb, NULL));
+		/* Need this check because if the setup failed because the interface is
+		   not up we get -1 and then a seg fault. Found when using IPv6 address
+		   but IPv6 interface not enabled.*/
+		if (upstream->fd != -1) {
+			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
+			    getdns_eventloop_event_init(&upstream->event, upstream,
+			     NULL, upstream_write_cb, NULL));
+		}
 		/* Special case if failure was due to authentication issues since this
 		   upstream could be used oppotunistically with no problem.*/
 		if (!(upstream->transport == GETDNS_TRANSPORT_TLS &&
@@ -1739,6 +1744,10 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		return -1;
 		/* Nothing to do*/
 	}
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s Upstream %s : Connection initialised\n",
+                  STUB_DEBUG_DAEMON, upstream->addr_str);
+#endif
 	return fd;
 }
 
