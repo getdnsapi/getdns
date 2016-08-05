@@ -84,6 +84,9 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+/* How long to wait in seconds before re-trying a connection based backed-off 
+   upstream. Using 1 hour for all transports - based on RFC7858 value for for TLS.*/
+#define BACKOFF_RETRY 3600
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -692,15 +695,16 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->past_tls_auth_state = upstream->tls_auth_state;
 
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s Upstream %s : Connection closed: Connection stats - Resp=%d,Timeouts=%d,Keepalive(ms)=%d,Auth=%s\n",
+	DEBUG_DAEMON("%s %s : Conn closed: Conn stats     - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
-	             (int)upstream->keepalive_timeout, getdns_auth_str_array[upstream->tls_auth_state]);
-	DEBUG_DAEMON("%s Upstream %s : Connection closed: Upstream stats   - Resp=%d,Timeouts=%d,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Auth=%s\n",
+	             getdns_auth_str_array[upstream->tls_auth_state], (int)upstream->keepalive_timeout);
+	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Auth=%s,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
-	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
-	             (int)upstream->conn_shutdowns, getdns_auth_str_array[upstream->tls_auth_state]);
+	             getdns_auth_str_array[upstream->tls_auth_state], 
+	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
+	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
 #endif
 
 	/* Back off connections that never got up service at all (probably no
@@ -716,10 +720,18 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
 	     upstream->total_responses == 0 && 
 	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
-		DEBUG_STUB("%s %-35s: FD:  %d BACKING OFF THIS UPSTREAM! \n", 
-		            STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
-		}
+		upstream->conn_retry_time = time(NULL) + BACKOFF_RETRY;
+		upstream->total_responses = 0;
+		upstream->total_timeouts = 0;
+		upstream->conn_completed = 0;
+		upstream->conn_setup_failed = 0;
+		upstream->conn_shutdowns = 0;
+		upstream->conn_backoffs++;
+		DEBUG_DAEMON("%s %s : !Backing off this upstream  - will retry as new upstream at %s\n",
+		            STUB_DEBUG_DAEMON, upstream->addr_str,
+		            asctime(gmtime(&upstream->conn_retry_time)));
+	}
 	// Reset per connection counters
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
@@ -848,15 +860,21 @@ upstream_init(getdns_upstream *upstream,
 	          upstream->addr_str, INET6_ADDRSTRLEN);
 #endif
 
-	/* How is this upstream doing? */
-	upstream->conn_setup_failed = 0;
+	/* How is this upstream doing on connections? */
+	upstream->conn_completed = 0;
 	upstream->conn_shutdowns = 0;
+	upstream->conn_setup_failed = 0;
+	upstream->conn_retry_time = 0;
+	upstream->conn_backoffs = 0;
+	upstream->total_responses = 0;
+	upstream->total_timeouts = 0;
 	upstream->conn_state = GETDNS_CONN_CLOSED;
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
 	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
+	/* How is this upstream doing on UDP? */
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
 

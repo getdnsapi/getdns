@@ -1626,12 +1626,20 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	getdns_upstream *upstream = NULL;
 	getdns_upstreams *upstreams = netreq->owner->upstreams;
 	size_t i;
+	time_t now = time(NULL);
 	
 	if (!upstreams->count)
 		return NULL;
 
-	/* [TLS1]TODO: Add check to re-instate backed-off upstreams after X amount 
-	   of time*/
+	/* A check to re-instate backed-off upstreams after X amount of time*/
+	for (i = 0; i < upstreams->count; i++) {
+		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
+		    upstreams->upstreams[i].conn_retry_time < now) {
+			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
+			DEBUG_DAEMON("%s %s : Re-instating upstream\n",
+		            STUB_DEBUG_DAEMON, upstreams->upstreams[i].addr_str);
+		}
+	}
 
 	/* First find if an open upstream has the correct properties and use that*/
 	for (i = 0; i < upstreams->count; i++) {
@@ -1745,7 +1753,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		/* Nothing to do*/
 	}
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s Upstream %s : Connection initialised\n",
+	DEBUG_DAEMON("%s %s : Conn init\n",
                   STUB_DEBUG_DAEMON, upstream->addr_str);
 #endif
 	return fd;

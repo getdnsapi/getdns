@@ -63,8 +63,8 @@ typedef enum getdns_auth_state {
 	GETDNS_AUTH_OK,        /* Tried and worked (Strict) */
 } getdns_auth_state_t;
 
-#define GETDNS_STR_AUTH_NONE "N/A"
-#define GETDNS_STR_AUTH_FAILED "Failed or not tried"
+#define GETDNS_STR_AUTH_NONE "None"
+#define GETDNS_STR_AUTH_FAILED "Failed"
 #define GETDNS_STR_AUTH_OK "Success"
 
 static char*
