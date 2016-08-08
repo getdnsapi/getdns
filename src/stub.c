@@ -342,7 +342,7 @@ process_keepalive(
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
-	DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive recived: %d ms\n",
+	DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive recieved: %d ms\n",
            STUB_DEBUG_READ, __FUNCTION__, upstream->fd, 
            (int)server_keepalive);
 	if (netreq->owner->context->idle_timeout < server_keepalive)
@@ -1636,8 +1636,10 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 			DEBUG_DAEMON("%s %s : Re-instating upstream\n",
 		            STUB_DEBUG_DAEMON, upstreams->upstreams[i].addr_str);
+#endif
 		}
 	}
 

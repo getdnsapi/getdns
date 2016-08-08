@@ -2687,6 +2687,7 @@ static int chain_head_validate(struct mem_funcs *mf, time_t now, uint32_t skew,
  * evaluated by processing each head in turn.  The worst outcome per network request
  * is the dnssec status for that network request.
  */
+#ifdef STUB_NATIVE_DNSSEC
 static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter *tas)
 {
 	chain_head *head;
@@ -2723,6 +2724,7 @@ static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter
 		}
 	}
 }
+#endif
 
 /* The DNSSEC status of all heads for a chain structure is evaluated by 
  * processing each head in turn.  The worst outcome is the dnssec status for

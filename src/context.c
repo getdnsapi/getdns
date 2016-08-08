@@ -227,12 +227,23 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 }
 #endif
 
+#if !defined(STUB_NATIVE_DNSSEC) || (defined(DAEMON_DEBUG) && DAEMON_DEBUG)
 static uint8_t*
 upstream_addr(getdns_upstream *upstream)
 {
 	return upstream->addr.ss_family == AF_INET
 	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
 	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
+#endif
+
+
+static in_port_t
+upstream_port(getdns_upstream *upstream)
+{
+	return ntohs(upstream->addr.ss_family == AF_INET
+	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
+	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
 }
 
 static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
@@ -728,9 +739,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->conn_setup_failed = 0;
 		upstream->conn_shutdowns = 0;
 		upstream->conn_backoffs++;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 		DEBUG_DAEMON("%s %s : !Backing off this upstream  - will retry as new upstream at %s\n",
 		            STUB_DEBUG_DAEMON, upstream->addr_str,
 		            asctime(gmtime(&upstream->conn_retry_time)));
+#endif
 	}
 	// Reset per connection counters
 	upstream->queries_sent = 0;
@@ -2869,13 +2882,6 @@ getdns_cancel_callback(getdns_context *context,
 
 
 #ifndef STUB_NATIVE_DNSSEC
-static in_port_t
-upstream_port(getdns_upstream *upstream)
-{
-	return ntohs(upstream->addr.ss_family == AF_INET
-	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	    : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
-}
 
 static uint32_t *
 upstream_scope_id(getdns_upstream *upstream)
@@ -3369,14 +3375,6 @@ getdns_context_get_eventloop(getdns_context *context, getdns_eventloop **loop)
 		*loop = context->extension;
 
 	return GETDNS_RETURN_GOOD;
-}
-
-static in_port_t
-upstream_port(getdns_upstream *upstream)
-{
-	return ntohs(upstream->addr.ss_family == AF_INET
-	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
 }
 
 static getdns_dict*
