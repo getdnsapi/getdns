@@ -1764,21 +1764,28 @@ upstream_find_for_transport(getdns_network_req *netreq,
                             getdns_transport_list_t transport,
                             int *fd)
 {
-	/* [TLS1]TODO: Don't currently loop over upstreams here as UDP will timeout
-	   and stateful will fallback. But there is a case where connect returns -1 
-	   that we need to deal with!!!! so add a while loop to test fd*/
 	getdns_upstream *upstream = NULL;
+
+	/*  UDP always returns an upstream, the only reason this will fail is if
+	    no socket is available, in which case that is an error.*/
 	if (transport == GETDNS_TRANSPORT_UDP) {
 		upstream = upstream_select(netreq);
+		*fd = upstream_connect(upstream, transport, netreq->owner);
+		return upstream;
 	}
-	else 
-		upstream = upstream_select_stateful(netreq, transport);
-	if (!upstream)
-		return NULL;
-	*fd = upstream_connect(upstream, transport, netreq->owner);
-	DEBUG_STUB("%s %-35s: FD:  %d Connecting to upstream: %p   No: %d\n", 
+	else {
+		/* For stateful transport we should keep trying until all our transports
+		   are exhausted/backed-off (no upstream)*/
+		do {
+			upstream = upstream_select_stateful(netreq, transport);
+			if (!upstream)
+				return NULL;
+			*fd = upstream_connect(upstream, transport, netreq->owner);
+		} while (*fd == -1);
+		DEBUG_STUB("%s %-35s: FD:  %d Connecting to upstream: %p   No: %d\n", 
 	           STUB_DEBUG_SETUP, __FUNCTION__, *fd, upstream,
 	           (int)(upstream - netreq->owner->context->upstreams->upstreams));
+	}
 	return upstream;
 }
 
