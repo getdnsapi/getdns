@@ -124,6 +124,9 @@ typedef struct getdns_upstream {
 
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	char                     addr_str[INET6_ADDRSTRLEN];
+#endif
 
 	/* How is this upstream doing over UDP? */
 	int                      to_retry;
@@ -140,6 +143,8 @@ typedef struct getdns_upstream {
 	size_t                   conn_completed;
 	size_t                   conn_shutdowns;
 	size_t                   conn_setup_failed;
+	time_t                   conn_retry_time;
+	size_t                   conn_backoffs;
 	size_t                   total_responses;
 	size_t                   total_timeouts;
 	getdns_auth_state_t      past_tls_auth_state;
@@ -148,6 +153,7 @@ typedef struct getdns_upstream {
 	size_t                   queries_sent;
 	size_t                   responses_received;
 	size_t                   responses_timeouts;
+	size_t                   keepalive_shutdown;
 	uint64_t                 keepalive_timeout;
 
 	/* Management of outstanding requests on stateful transports */

@@ -45,6 +45,7 @@
 #define STUB_DEBUG_READ      "------- READ:   "
 #define STUB_DEBUG_WRITE     "------- WRITE:  "
 #define STUB_DEBUG_CLEANUP   "--- CLEANUP:    "
+#define STUB_DEBUG_DAEMON    "GETDNS_DAEMON:  "
 
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
@@ -86,6 +87,13 @@
 #define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+#include <time.h>
+#define DEBUG_DAEMON(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_DAEMON(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 #if defined(SEC_DEBUG) && SEC_DEBUG

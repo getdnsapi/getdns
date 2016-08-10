@@ -342,9 +342,17 @@ process_keepalive(
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
+	DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive recieved: %d ms\n",
+           STUB_DEBUG_READ, __FUNCTION__, upstream->fd, 
+           (int)server_keepalive);
 	if (netreq->owner->context->idle_timeout < server_keepalive)
 		upstream->keepalive_timeout = netreq->owner->context->idle_timeout;
 	else {
+		if (server_keepalive == 0) {
+			/* This means the server wants us to shut the connection (sending no
+			   more queries). */
+			upstream->keepalive_shutdown = 1;
+		}
 		upstream->keepalive_timeout = server_keepalive;
 		DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive used: %d ms\n",
 		           STUB_DEBUG_READ, __FUNCTION__, upstream->fd, 
@@ -514,9 +522,14 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	if (during_setup) {
 		/* Reset timeout on setup failure to trigger fallback handling.*/
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-		GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
-		    getdns_eventloop_event_init(&upstream->event, upstream,
-		     NULL, upstream_write_cb, NULL));
+		/* Need this check because if the setup failed because the interface is
+		   not up we get -1 and then a seg fault. Found when using IPv6 address
+		   but IPv6 interface not enabled.*/
+		if (upstream->fd != -1) {
+			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
+			    getdns_eventloop_event_init(&upstream->event, upstream,
+			     NULL, upstream_write_cb, NULL));
+		}
 		/* Special case if failure was due to authentication issues since this
 		   upstream could be used oppotunistically with no problem.*/
 		if (!(upstream->transport == GETDNS_TRANSPORT_TLS &&
@@ -1551,8 +1564,11 @@ upstream_working_ok(getdns_upstream *upstream)
 static int
 upstream_active(getdns_upstream *upstream) 
 {
-	return ((upstream->conn_state == GETDNS_CONN_SETUP || 
-	         upstream->conn_state == GETDNS_CONN_OPEN) ? 1 : 0);
+	if ((upstream->conn_state == GETDNS_CONN_SETUP || 
+	     upstream->conn_state == GETDNS_CONN_OPEN) &&
+	     upstream->keepalive_shutdown == 0)
+		return 1;
+	return 0;
 }
 
 static int
@@ -1610,12 +1626,22 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	getdns_upstream *upstream = NULL;
 	getdns_upstreams *upstreams = netreq->owner->upstreams;
 	size_t i;
+	time_t now = time(NULL);
 	
 	if (!upstreams->count)
 		return NULL;
 
-	/* [TLS1]TODO: Add check to re-instate backed-off upstreams after X amount 
-	   of time*/
+	/* A check to re-instate backed-off upstreams after X amount of time*/
+	for (i = 0; i < upstreams->count; i++) {
+		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
+		    upstreams->upstreams[i].conn_retry_time < now) {
+			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+			DEBUG_DAEMON("%s %s : Re-instating upstream\n",
+		            STUB_DEBUG_DAEMON, upstreams->upstreams[i].addr_str);
+#endif
+		}
+	}
 
 	/* First find if an open upstream has the correct properties and use that*/
 	for (i = 0; i < upstreams->count; i++) {
@@ -1728,6 +1754,10 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		return -1;
 		/* Nothing to do*/
 	}
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s %s : Conn init\n",
+                  STUB_DEBUG_DAEMON, upstream->addr_str);
+#endif
 	return fd;
 }
 
@@ -1736,21 +1766,28 @@ upstream_find_for_transport(getdns_network_req *netreq,
                             getdns_transport_list_t transport,
                             int *fd)
 {
-	/* [TLS1]TODO: Don't currently loop over upstreams here as UDP will timeout
-	   and stateful will fallback. But there is a case where connect returns -1 
-	   that we need to deal with!!!! so add a while loop to test fd*/
 	getdns_upstream *upstream = NULL;
+
+	/*  UDP always returns an upstream, the only reason this will fail is if
+	    no socket is available, in which case that is an error.*/
 	if (transport == GETDNS_TRANSPORT_UDP) {
 		upstream = upstream_select(netreq);
+		*fd = upstream_connect(upstream, transport, netreq->owner);
+		return upstream;
 	}
-	else 
-		upstream = upstream_select_stateful(netreq, transport);
-	if (!upstream)
-		return NULL;
-	*fd = upstream_connect(upstream, transport, netreq->owner);
-	DEBUG_STUB("%s %-35s: FD:  %d Connecting to upstream: %p   No: %d\n", 
+	else {
+		/* For stateful transport we should keep trying until all our transports
+		   are exhausted/backed-off (no upstream)*/
+		do {
+			upstream = upstream_select_stateful(netreq, transport);
+			if (!upstream)
+				return NULL;
+			*fd = upstream_connect(upstream, transport, netreq->owner);
+		} while (*fd == -1);
+		DEBUG_STUB("%s %-35s: FD:  %d Connecting to upstream: %p   No: %d\n", 
 	           STUB_DEBUG_SETUP, __FUNCTION__, *fd, upstream,
 	           (int)(upstream - netreq->owner->context->upstreams->upstreams));
+	}
 	return upstream;
 }
 

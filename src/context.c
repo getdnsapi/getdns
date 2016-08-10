@@ -84,6 +84,9 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+/* How long to wait in seconds before re-trying a connection based backed-off 
+   upstream. Using 1 hour for all transports - based on RFC7858 value for for TLS.*/
+#define BACKOFF_RETRY 3600
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -223,6 +226,25 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	return 1;
 }
 #endif
+
+#if !defined(STUB_NATIVE_DNSSEC) || (defined(DAEMON_DEBUG) && DAEMON_DEBUG)
+static uint8_t*
+upstream_addr(getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET
+	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
+	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
+#endif
+
+
+static in_port_t
+upstream_port(getdns_upstream *upstream)
+{
+	return ntohs(upstream->addr.ss_family == AF_INET
+	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
+	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
+}
 
 static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
 {
@@ -683,11 +705,18 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	if (upstream->tls_auth_state != GETDNS_AUTH_NONE)
 		upstream->past_tls_auth_state = upstream->tls_auth_state;
 
-	DEBUG_STUB("%s %-35s: FD:  %d Upstream Stats: Resp=%d,Timeouts=%d,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Auth=%d\n",
-	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
-	           (int)upstream->total_responses, (int)upstream->total_timeouts,
-	           (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
-	           (int)upstream->conn_shutdowns, upstream->past_tls_auth_state);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s %s : Conn closed: Conn stats     - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
+	             getdns_auth_str_array[upstream->tls_auth_state], (int)upstream->keepalive_timeout);
+	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Auth=%s,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (int)upstream->total_responses, (int)upstream->total_timeouts,
+	             getdns_auth_str_array[upstream->tls_auth_state], 
+	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
+	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
+#endif
 
 	/* Back off connections that never got up service at all (probably no
 	   TCP service or incompatible TLS version/cipher). 
@@ -702,15 +731,26 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
 	     upstream->total_responses == 0 && 
 	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
-		DEBUG_STUB("%s %-35s: FD:  %d BACKING OFF THIS UPSTREAM! \n", 
-		            STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
-		}
+		upstream->conn_retry_time = time(NULL) + BACKOFF_RETRY;
+		upstream->total_responses = 0;
+		upstream->total_timeouts = 0;
+		upstream->conn_completed = 0;
+		upstream->conn_setup_failed = 0;
+		upstream->conn_shutdowns = 0;
+		upstream->conn_backoffs++;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+		DEBUG_DAEMON("%s %s : !Backing off this upstream  - will retry as new upstream at %s\n",
+		            STUB_DEBUG_DAEMON, upstream->addr_str,
+		            asctime(gmtime(&upstream->conn_retry_time)));
+#endif
+	}
 	// Reset per connection counters
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
 	upstream->keepalive_timeout = 0;
+	upstream->keepalive_shutdown = 0;
 
 	/* Now TLS stuff*/
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
@@ -828,15 +868,26 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
+	          upstream->addr_str, INET6_ADDRSTRLEN);
+#endif
 
-	/* How is this upstream doing? */
-	upstream->conn_setup_failed = 0;
+	/* How is this upstream doing on connections? */
+	upstream->conn_completed = 0;
 	upstream->conn_shutdowns = 0;
+	upstream->conn_setup_failed = 0;
+	upstream->conn_retry_time = 0;
+	upstream->conn_backoffs = 0;
+	upstream->total_responses = 0;
+	upstream->total_timeouts = 0;
 	upstream->conn_state = GETDNS_CONN_CLOSED;
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
+	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
+	/* How is this upstream doing on UDP? */
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
 
@@ -2829,22 +2880,8 @@ getdns_cancel_callback(getdns_context *context,
 	return r;
 } /* getdns_cancel_callback */
 
-#ifndef STUB_NATIVE_DNSSEC
-static uint8_t*
-upstream_addr(getdns_upstream *upstream)
-{
-	return upstream->addr.ss_family == AF_INET
-	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
-	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
-}
 
-static in_port_t
-upstream_port(getdns_upstream *upstream)
-{
-	return ntohs(upstream->addr.ss_family == AF_INET
-	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	    : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
-}
+#ifndef STUB_NATIVE_DNSSEC
 
 static uint32_t *
 upstream_scope_id(getdns_upstream *upstream)
@@ -3338,14 +3375,6 @@ getdns_context_get_eventloop(getdns_context *context, getdns_eventloop **loop)
 		*loop = context->extension;
 
 	return GETDNS_RETURN_GOOD;
-}
-
-static in_port_t
-upstream_port(getdns_upstream *upstream)
-{
-	return ntohs(upstream->addr.ss_family == AF_INET
-	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
 }
 
 static getdns_dict*
