@@ -67,13 +67,6 @@ typedef enum getdns_auth_state {
 #define GETDNS_STR_AUTH_FAILED "Failed"
 #define GETDNS_STR_AUTH_OK "Success"
 
-static char*
-getdns_auth_str_array[] = {
-	GETDNS_STR_AUTH_NONE,
-	GETDNS_STR_AUTH_FAILED,
-	GETDNS_STR_AUTH_OK
-};
-
 struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
