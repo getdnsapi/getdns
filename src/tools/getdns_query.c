@@ -54,6 +54,7 @@ static const char *default_stubby_config =
 ", listen_addresses: [ { 127.0.0.1:53 } ]"
 "}";
 static int clear_listen_list_on_arg = 0;
+static int run_in_foreground = 0;
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -203,6 +204,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
+	if (i_am_stubby)
+		fprintf(out, "\t-g\tRun stubby in foreground\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -983,6 +986,10 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				break;
 			default:
+				if (i_am_stubby && *c == 'g') {
+					run_in_foreground = 1;
+					break;
+				}
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
 				for (i = 0; i < argc; i++)
@@ -1642,7 +1649,25 @@ main(int argc, char **argv)
 	}
 	else if (listen_count) {
 		assert(loop);
-		loop->vmt->run(loop);
+		if (i_am_stubby && !run_in_foreground) {
+			pid_t pid = fork();
+			if (pid == -1) {
+				perror("Could not fork of stubby daemon\n");
+				r = GETDNS_RETURN_GENERIC_ERROR;
+
+			} else if (pid) {
+				FILE *fh = fopen("/var/rub/stubby.pid", "w");
+				if (! fh)
+					fh = fopen("/tmp/stubby.pid", "w");
+				if (fh) {
+					fprintf(fh, "%d", (int)pid);
+					fclose(fh);
+					batch_mode = 0;
+				}
+			} else
+				loop->vmt->run(loop);
+		} else
+			loop->vmt->run(loop);
 	} else
 		r = do_the_call();
 
@@ -1665,10 +1690,8 @@ done_destroy_context:
 	else if (r == CONTINUE_ERROR)
 		return 1;
 
-	if (!i_am_stubby || !r) {
+	if (!i_am_stubby)
 		fprintf(stdout, "\nAll done.\n");
-	}
+
 	return r;
 }
-
-
