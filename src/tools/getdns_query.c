@@ -199,13 +199,17 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
 	fprintf(out, "\t\tThe file must be in json dict format.\n");
+	if (i_am_stubby) {
+		fprintf(out, "\t\tBy default, configuration is first read from");
+		fprintf(out, "\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"");
+	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
 	if (i_am_stubby)
-		fprintf(out, "\t-g\tRun stubby in foreground\n");
+		fprintf(out, "\t-g\tRun stubby in foreground (default is background)\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -221,9 +225,11 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
-	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf( out, "\t-r\tSet recursing resolution type%s\n"
+	       , i_am_stubby ? "(default = stub)" : "");
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
-	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
+	fprintf(out, "\t-s\tSet stub resolution type%s\n"
+	       , i_am_stubby ? "" : "(default = recursing)" );
 	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
@@ -248,6 +254,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
 	fprintf(out, "\t\tThis option can be given more than once.\n");
+	if (i_am_stubby)
+		fprintf(out, "\t\t(default is to listen on 127.0.0.1:53)\n");
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
