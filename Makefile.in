@@ -44,7 +44,7 @@ libdir = @libdir@
 srcdir = @srcdir@
 INSTALL = @INSTALL@
 
-all : default @GETDNS_QUERY@ 
+all : default @GETDNS_QUERY@ @STUBBY@
 
 everything: default
 	cd src/test && $(MAKE)
@@ -52,7 +52,7 @@ everything: default
 default:
 	cd src && $(MAKE) $@
 
-install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@
+install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -87,7 +87,7 @@ install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@
 	@echo "***  at package installation time from the post-install script."
 	@echo "***"
 
-uninstall: @UNINSTALL_GETDNS_QUERY@
+uninstall: @UNINSTALL_GETDNS_QUERY@ @UNINSTALL_STUBBY@
 	rm -rf $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
@@ -104,6 +104,9 @@ test:
 getdns_query:
 	cd src && $(MAKE) $@
 
+stubby:
+	cd src && $(MAKE) $@
+
 scratchpad:
 	cd src && $(MAKE) $@
 
@@ -111,10 +114,16 @@ pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
 
 install-getdns_query:
-	cd src/tools && $(MAKE) install
+	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_query:
-	cd src/tools && $(MAKE) uninstall
+	cd src/tools && $(MAKE) $@
+
+install-stubby:
+	cd src/tools && $(MAKE) $@
+
+uninstall-stubby:
+	cd src/tools && $(MAKE) $@
 
 clean:
 	cd src && $(MAKE) $@

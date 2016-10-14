@@ -159,6 +159,9 @@ test:	all
 getdns_query:	all
 	cd tools && $(MAKE) $@
 
+stubby:	all
+	cd tools && $(MAKE) $@
+
 scratchpad:	all
 	cd test && $(MAKE) $@
 
