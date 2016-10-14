@@ -48,6 +48,12 @@ typedef unsigned short in_port_t;
 
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
+static int i_am_stubby = 0;
+static const char *default_stubby_config =
+"{ resolution_type: GETDNS_RESOLUTION_STUB"
+", listen_addresses: [ { 127.0.0.1:53 } ]"
+"}";
+static int clear_listen_list_on_arg = 0;
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -469,6 +475,48 @@ static void parse_config(const char *config_str)
 	}
 }
 
+int parse_config_file(const char *fn, int report_open_failure)
+{
+	FILE *fh;
+	char *config_file = NULL;
+	long config_file_sz;
+
+	if (!(fh = fopen(fn, "r"))) {
+		if (report_open_failure)
+			fprintf( stderr, "Could not open \"%s\": %s\n"
+			       , fn, strerror(errno));
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (fseek(fh, 0,SEEK_END) == -1) {
+		perror("fseek");
+		fclose(fh);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	config_file_sz = ftell(fh);
+	if (config_file_sz <= 0) {
+		/* Empty config is no config */
+		fclose(fh);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!(config_file = malloc(config_file_sz + 1))){
+		fclose(fh);
+		fprintf(stderr, "Could not allocate memory for \"%s\"\n", fn);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	rewind(fh);
+	if (fread(config_file, 1, config_file_sz, fh) != config_file_sz) {
+		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
+		       , fn, strerror(errno));
+		fclose(fh);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	config_file[config_file_sz] = 0;
+	fclose(fh);
+	parse_config(config_file);
+	free(config_file);
+	return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
@@ -483,8 +531,6 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
-	char *config_file = NULL;
-	long config_file_sz;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -595,42 +641,7 @@ getdns_return_t parse_args(int argc, char **argv)
 					    "after -C\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				if (!(fh = fopen(argv[i], "r"))) {
-					fprintf(stderr, "Could not open \"%s\""
-					    ": %s\n",argv[i], strerror(errno));
-					return GETDNS_RETURN_GENERIC_ERROR;
-				}
-				if (fseek(fh, 0,SEEK_END) == -1) {
-					perror("fseek");
-					fclose(fh);
-					return GETDNS_RETURN_GENERIC_ERROR;
-				}
-				config_file_sz = ftell(fh);
-				if (config_file_sz <= 0) {
-					/* Empty config is no config */
-					fclose(fh);
-					break;
-				}
-				if (!(config_file=malloc(config_file_sz + 1))){
-					fclose(fh);
-					fprintf(stderr, "Could not allocate me"
-					    "mory for \"%s\"\n", argv[i]);
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				rewind(fh);
-				if (fread(config_file, 1, config_file_sz, fh)
-				    != config_file_sz) {
-					fprintf(stderr, "An error occurred whil"
-					    "e reading \"%s\": %s\n",argv[i],
-					    strerror(errno));
-					fclose(fh);
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				config_file[config_file_sz] = 0;
-				fclose(fh);
-				parse_config(config_file);
-				free(config_file);
-				config_file = NULL;
+				(void) parse_config_file(argv[i], 1);
 				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
@@ -927,17 +938,23 @@ getdns_return_t parse_args(int argc, char **argv)
 					                "expected after -z\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				if (argv[i][0] == '-' && argv[i][1] == '\0') {
+				if (clear_listen_list_on_arg ||
+				    (argv[i][0] == '-' && argv[i][1] == '\0')) {
 					if (listen_list && !listen_dict)
 						getdns_list_destroy(
 						    listen_list);
 					listen_list = NULL;
 					listen_count = 0;
-					touched_listen_list = 1;
-					DEBUG_SERVER("Clear listen list\n");
-					break;
+					if (!clear_listen_list_on_arg) {
+						touched_listen_list = 1;
+						DEBUG_SERVER("Clear listen list\n");
+						break;
+					} else if (listen_dict) {
+						getdns_dict_destroy(listen_dict);
+						listen_dict = NULL;
+					}
+					clear_listen_list_on_arg = 0;
 				}
-
 				if ((r = getdns_str2dict(argv[i], &downstream)))
 					fprintf(stderr, "Could not convert \"%s\" to "
 					    "an IP dict: %s\n", argv[i],
@@ -1002,7 +1019,24 @@ next:		;
 	if (print_api_info) {
 		getdns_dict *api_information = 
 		    getdns_context_get_api_information(context);
-		char *api_information_str =
+		char *api_information_str;
+	       
+		if (listen_dict && !getdns_dict_get_list(
+		    listen_dict, "listen_list", &listen_list)) {
+
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+		} else if (listen_list) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+
+		} else if ((listen_list = getdns_list_create())) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+			getdns_list_destroy(listen_list);
+			listen_list = NULL;
+		}
+		api_information_str =
 		    getdns_pretty_print_dict(api_information);
 		fprintf(stdout, "%s\n", api_information_str);
 		free(api_information_str);
@@ -1531,7 +1565,17 @@ error:
 int
 main(int argc, char **argv)
 {
+	char home_stubby_conf_fn[1024];
 	getdns_return_t r;
+#ifndef USE_WINSOCK
+	char *prg_name = strrchr(argv[0], '/');
+#else
+	char *prg_name = strrchr(argv[0], '\\');
+#endif
+	prg_name = prg_name ? prg_name + 1 : argv[0];
+
+	i_am_stubby = strcasecmp(prg_name, "stubby") == 0
+	           || strcasecmp(prg_name, "lt-stubby") == 0;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -1546,8 +1590,20 @@ main(int argc, char **argv)
 		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto done_destroy_context;
 	}
+	if (i_am_stubby) {
+		(void) parse_config(default_stubby_config);
+		(void) parse_config_file("/etc/stubby.conf", 0);
+		if (snprintf( home_stubby_conf_fn, sizeof(home_stubby_conf_fn)
+		            , "%s/.stubby.conf", getenv("HOME")
+			    ) < sizeof(home_stubby_conf_fn)) {
+
+			(void) parse_config_file(home_stubby_conf_fn, 0);
+		}
+		clear_listen_list_on_arg = 1;
+	}
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
+	clear_listen_list_on_arg = 0;
 
 	if (query_file) {
 		fp = fopen(query_file, "rt");
@@ -1564,8 +1620,10 @@ main(int argc, char **argv)
 		assert(loop);
 	}
 	if (listen_count && (r = getdns_context_set_listen_addresses(
-	    context, incoming_request_handler, listen_list)))
+	    context, incoming_request_handler, listen_list))) {
+		perror("error: Could not bind on given addresses");
 		goto done_destroy_context;
+	}
 
 	/* Make the call */
 	if (interactive) {
@@ -1606,7 +1664,10 @@ done_destroy_context:
 		return 0;
 	else if (r == CONTINUE_ERROR)
 		return 1;
-	fprintf(stdout, "\nAll done.\n");
+
+	if (!i_am_stubby || !r) {
+		fprintf(stdout, "\nAll done.\n");
+	}
 	return r;
 }
 
