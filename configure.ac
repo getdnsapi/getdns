@@ -37,7 +37,7 @@ sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
 AC_INIT([getdns], [1.1.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [a1])
+AC_SUBST(RELEASE_CANDIDATE, [-a2])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
