@@ -54,7 +54,7 @@ static const char *default_stubby_config =
 ", listen_addresses: [ { 127.0.0.1:53 } ]"
 "}";
 static int clear_listen_list_on_arg = 0;
-static int run_in_foreground = 0;
+static int run_in_foreground = 1;
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -209,7 +209,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
 	if (i_am_stubby)
-		fprintf(out, "\t-g\tRun stubby in foreground (default is background)\n");
+		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -995,7 +995,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			default:
 				if (i_am_stubby && *c == 'g') {
-					run_in_foreground = 1;
+					run_in_foreground = 0;
 					break;
 				}
 				fprintf(stderr, "Unknown option "
