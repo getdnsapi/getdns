@@ -590,7 +590,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		log_err("EVP_MD_CTX_new: malloc failure");
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
-		else if(docrypto_free) CRYPTO_free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return 0;
 	}
 	if(EVP_VerifyInit(ctx, digest_type) == 0) {
@@ -598,7 +598,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
-		else if(docrypto_free) CRYPTO_free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return 0;
 	}
 	if(EVP_VerifyUpdate(ctx, (unsigned char*)gldns_buffer_begin(buf), 
@@ -607,7 +607,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 		EVP_MD_CTX_destroy(ctx);
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
-		else if(docrypto_free) CRYPTO_free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
 		return 0;
 	}
 
@@ -621,7 +621,7 @@ _getdns_verify_canonrrset(gldns_buffer* buf, int algo, unsigned char* sigblock,
 	EVP_PKEY_free(evp_key);
 
 	if(dofree) free(sigblock);
-	else if(docrypto_free) CRYPTO_free(sigblock);
+	else if(docrypto_free) OPENSSL_free(sigblock);
 
 	if(res == 1) {
 		return 1;
@@ -1359,6 +1359,7 @@ _getdns_dnskey_algo_id_is_supported(int id)
 	}
 }
 
+#ifdef USE_DSA
 static char *
 _verify_nettle_dsa(gldns_buffer* buf, unsigned char* sigblock,
 	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
@@ -1446,6 +1447,7 @@ _verify_nettle_dsa(gldns_buffer* buf, unsigned char* sigblock,
 	else
 		return NULL;
 }
+#endif /* USE_DSA */
 
 static char *
 _verify_nettle_rsa(gldns_buffer* buf, unsigned int digest_size, char* sigblock,

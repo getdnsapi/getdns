@@ -37,7 +37,7 @@ sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
 AC_INIT([getdns], [1.1.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [a1])
+AC_SUBST(RELEASE_CANDIDATE, [-a2])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -255,6 +255,7 @@ else
 fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
@@ -912,6 +913,26 @@ else
 	INSTALL_GETDNS_QUERY="install-getdns_query"
 	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
 fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
+AC_ARG_WITH(stubby, AS_HELP_STRING([--without-stubby],
+	[Do not compile and install stubby, the (stub) resolver daemon]),
+	[], [withval="yes"])
+if test x_$withval = x_no; then
+	STUBBY=""
+	INSTALL_STUBBY=""
+	UNINSTALL_STUBBY=""
+else
+	STUBBY="stubby"
+	INSTALL_STUBBY="install-stubby"
+	UNINSTALL_STUBBY="uninstall-stubby"
+fi
+AC_SUBST(STUBBY)
+AC_SUBST(INSTALL_STUBBY)
+AC_SUBST(UNINSTALL_STUBBY)
+
 AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
 	[Set maximum file descriptor number that can be used by select]),
 	[], [withval="no"])
@@ -923,10 +944,6 @@ case "$withval" in
 		my_enable_unbound_event_api=1
 		;;
 esac
-
-AC_SUBST(GETDNS_QUERY)
-AC_SUBST(INSTALL_GETDNS_QUERY)
-AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
 AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]

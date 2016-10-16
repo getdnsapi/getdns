@@ -56,6 +56,10 @@
 #include "context.h"
 #include "util-internal.h"
 
+#ifndef X509_STORE_CTX_get0_untrusted
+#define X509_STORE_CTX_get0_untrusted(store) store->untrusted
+#endif
+
 /* we only support sha256 at the moment.  adding support for another
    digest is more complex than just adding another entry here. in
    particular, you'll probably need a match for a particular cert
@@ -314,11 +318,11 @@ _get_ssl_getdns_upstream_idx()
 {
 	static volatile int idx = -1;
 	if (idx < 0) {
-		CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+		/* CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE); */
 		if (idx < 0)
 			idx = SSL_get_ex_new_index(0, "associated getdns upstream",
 						   NULL,NULL,NULL);
-		CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+		/* CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE); */
 	}
 	return idx;
 }
@@ -383,7 +387,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 
 	/* TODO: how do we handle raw public keys? */
 
-	for (i = 0; i < sk_X509_num(store->untrusted); i++) {
+	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++) {
 		if (i > 0) {
 		/* TODO: how do we ensure that the certificates in
 		 * each stage appropriately sign the previous one?
@@ -392,7 +396,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			return GETDNS_RETURN_GENERIC_ERROR;
 		}
 
-		x = sk_X509_value(store->untrusted, i);
+		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
 #if defined(STUB_DEBUG) && STUB_DEBUG
 		DEBUG_STUB("%s %-35s: Name of cert: %d ",
 		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i);
