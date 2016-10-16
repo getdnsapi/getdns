@@ -51,7 +51,7 @@ typedef unsigned short in_port_t;
 static int i_am_stubby = 0;
 static const char *default_stubby_config =
 "{ resolution_type: GETDNS_RESOLUTION_STUB"
-", listen_addresses: [ { 127.0.0.1:53 } ]"
+", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
 "}";
 static int clear_listen_list_on_arg = 0;
 static int run_in_foreground = 1;
