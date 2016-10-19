@@ -1,3 +1,10 @@
+* 2016-10-19: Version 1.1.0-a2
+  * Improved TLS connection management
+  * OpenSSL 1.1 support
+  * Stubby, Server version of getdns_query that by default listens
+    on 127.0.0.1 and ::1 and reads config from /etc/stubby.conf
+    and $HOME/.stubby.conf
+
 * 2016-07-14: Version 1.1.0a1
   * Conversion functions from text strings to getdns native types:
     getdns_str2dict(), getdns_str2list(), getdns_str2bindata() and

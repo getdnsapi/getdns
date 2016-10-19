@@ -830,7 +830,6 @@ _getdns_reply_dict2wire(
 		}
 	}
 	remove_dnssec = !getdns_dict_get_int(reply, "/header/do", &n) && n == 0;
-	DEBUG_SERVER("remove_dnssec: %d\n", remove_dnssec);
 
 	if (!getdns_dict_get_list(reply, "answer", &section)) {
 		for ( n = 0, i = 0

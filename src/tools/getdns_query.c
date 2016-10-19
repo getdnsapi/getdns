@@ -51,6 +51,7 @@ typedef unsigned short in_port_t;
 static int i_am_stubby = 0;
 static const char *default_stubby_config =
 "{ resolution_type: GETDNS_RESOLUTION_STUB"
+", idle_timeout: 10000"
 ", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
 "}";
 static int clear_listen_list_on_arg = 0;
@@ -1328,9 +1329,21 @@ static void request_cb(
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint32_t n, rcode, dnssec_status;
 
+#if defined(SERVER_DEBUG) && SERVER_DEBUG
+	getdns_bindata *qname;
+	char *qname_str, *unknown_qname = "<unknown_qname>";
+
+	if (getdns_dict_get_bindata(msg->request, "/question/qname", &qname)
+	||  getdns_convert_dns_name_to_fqdn(qname, &qname_str))
+		qname_str = unknown_qname;
+
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
-	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
-	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
+	    " cd: %d, qname: %s)\n", msg, transaction_id, (int)callback_type,
+	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit, qname_str);
+
+	if (qname_str != unknown_qname)
+		free(qname_str);
+#endif
 	assert(msg);
 
 #if 0
