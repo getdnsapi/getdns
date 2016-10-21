@@ -954,6 +954,20 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
+	/* Session resumption. There are trade-offs here. Want to do it when
+	   possible only if we have the right type of connection. Note a change
+	   to the upstream auth info creates a new upstream so never re-uses.*/
+	if (upstream->tls_session != NULL) {
+		if ((upstream->tls_fallback_ok == 0 &&
+		     upstream->last_tls_auth_state == GETDNS_AUTH_OK) ||
+		     upstream->tls_fallback_ok == 1) {
+			SSL_set_session(ssl, upstream->tls_session);
+			DEBUG_STUB("%s %-35s: Attempting session re-use\n", STUB_DEBUG_SETUP_TLS, 
+			            __FUNCTION__);
+			}
+	}
+
 	return ssl;
 }
 
@@ -995,6 +1009,9 @@ tls_do_handshake(getdns_upstream *upstream)
 	upstream->tls_hs_state = GETDNS_HS_DONE;
 	upstream->conn_state = GETDNS_CONN_OPEN;
 	upstream->conn_completed++;
+	/* A re-used session is not verified so need to fix up state in that case */
+	if (SSL_session_reused(upstream->tls_obj))
+		upstream->tls_auth_state = upstream->last_tls_auth_state;
 	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %d. Session is %s.\n", 
 		         STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, upstream->tls_auth_state,
 		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
@@ -1598,8 +1615,8 @@ upstream_valid(getdns_upstream *upstream,
 	/* We need to check past authentication history to see if this is usable for TLS.*/
 	if (netreq->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 		return 1;
-	return ((upstream->past_tls_auth_state == GETDNS_AUTH_OK ||
-	         upstream->past_tls_auth_state == GETDNS_AUTH_NONE) ? 1 : 0);
+	return ((upstream->best_tls_auth_state == GETDNS_AUTH_OK ||
+	         upstream->best_tls_auth_state == GETDNS_AUTH_NONE) ? 1 : 0);
 }
 
 static int
@@ -1654,7 +1671,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	   upstreams we may have no valid upstream at all (in contrast to UDP). This
 	   will be better communicated to the user when we have better error codes*/
 	for (i = 0; i < upstreams->count; i++) {
-		DEBUG_STUB("%s %-35s: Testing  %d %d\n", STUB_DEBUG_SETUP, 
+		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d\n", STUB_DEBUG_SETUP, 
 	           __FUNCTION__, (int)i, (int)upstreams->upstreams[i].conn_state);
 		if (upstream_valid(&upstreams->upstreams[i], transport, netreq)) {
 			upstream = &upstreams->upstreams[i];
@@ -1744,8 +1761,6 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 				close(fd);
 				return -1;
 			}
-			if (upstream->tls_session != NULL) 
-			    SSL_set_session(upstream->tls_obj, upstream->tls_session);
 			upstream->tls_hs_state = GETDNS_HS_WRITE;
 		}
 		upstream->conn_state = GETDNS_CONN_SETUP;

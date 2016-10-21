@@ -147,7 +147,8 @@ typedef struct getdns_upstream {
 	size_t                   conn_backoffs;
 	size_t                   total_responses;
 	size_t                   total_timeouts;
-	getdns_auth_state_t      past_tls_auth_state;
+	getdns_auth_state_t      best_tls_auth_state;
+	getdns_auth_state_t      last_tls_auth_state;
 	/* These are per connection. */
 	getdns_conn_state_t      conn_state;
 	size_t                   queries_sent;
