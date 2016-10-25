@@ -710,19 +710,20 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	/* Update total stats for the upstream.*/
 	upstream->total_responses+=upstream->responses_received;
 	upstream->total_timeouts+=upstream->responses_timeouts;
-	/* Pick up the auth state if it is of interest*/
-	if (upstream->tls_auth_state != GETDNS_AUTH_NONE)
-		upstream->past_tls_auth_state = upstream->tls_auth_state;
-
+	/* Need the last auth state when using session resumption*/
+	upstream->last_tls_auth_state = upstream->tls_auth_state;
+	/* Keep track of the best auth state this upstream has had*/
+	if (upstream->tls_auth_state > upstream->best_tls_auth_state)
+		upstream->best_tls_auth_state = upstream->tls_auth_state;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	DEBUG_DAEMON("%s %s : Conn closed: Conn stats     - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             getdns_auth_str_array[upstream->tls_auth_state], (int)upstream->keepalive_timeout);
-	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Auth=%s,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Best_auth=%s,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
-	             getdns_auth_str_array[upstream->tls_auth_state], 
+	             getdns_auth_str_array[upstream->best_tls_auth_state], 
 	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
 	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
 #endif
@@ -908,6 +909,8 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
+	upstream->last_tls_auth_state = GETDNS_AUTH_NONE;
+	upstream->best_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
