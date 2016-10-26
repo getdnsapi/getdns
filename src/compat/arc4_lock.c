@@ -34,6 +34,23 @@
 #include "config.h"
 #define LOCKRET(func) func
 
+#ifdef HAVE_PTHREADS
+#include "pthread.h"
+
+static pthread_mutex_t arc_lock = PTHREAD_MUTEX_INITIALIZER;
+
+void _ARC4_LOCK(void)
+{
+    pthread_mutex_lock(&arc_lock);
+}
+
+void _ARC4_UNLOCK(void)
+{
+    pthread_mutex_unlock(&arc_lock);
+}
+
+#else
+/* XXX - add windows-(or at least non pthread) specific lock routines here */
 void _ARC4_LOCK(void)
 {
 }
@@ -41,4 +58,4 @@ void _ARC4_LOCK(void)
 void _ARC4_UNLOCK(void)
 {
 }
-
+#endif
