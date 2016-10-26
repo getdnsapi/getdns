@@ -644,7 +644,7 @@ CHECK_CFLAGS=""
 PKG_CHECK_MODULES([CHECK],[check >= 0.9.6],[CHECK_GETDNS="check_getdns"],[
 AC_SEARCH_LIBS([floor], [m])
 AC_SEARCH_LIBS([timer_create], [rt])
-AC_SEARCH_LIBS([pthread_create], [pthread], [AC_DEFINE([HAVE_PTHREADS], [1], [Define if pthreads exist.])])
+AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([srunner_create],[check check_pic],[
 CHECK_GETDNS="check_getdns"
 CHECK_LIBS="$LIBS"],[
@@ -922,6 +922,10 @@ AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/get
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
+
+
+#---- check for pthreads library
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREADS], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
 
 
 dnl -----
