@@ -3698,8 +3698,7 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 			r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
 		}
-		if ((r = _getdns_list_append_const_bindata(
-		    list, strlen(name) + 1, name)))
+		if ((r = _getdns_list_append_string(list, name)))
 			break;
 		dname += dname_len;
 		dname_len = *dname++;
