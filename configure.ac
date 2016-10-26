@@ -552,10 +552,16 @@ fi
 
 # Checks for libraries.
 found_all_libs=1
+MISSING_DEPS=""
+MISSING_SEP=""
 if test $my_with_libidn = 1
 then
 	AC_MSG_NOTICE([Checking for dependency libidn])
-	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
 fi
 
 AC_ARG_ENABLE(unbound-event-api, AC_HELP_STRING([--disable-unbound-event-api], [Disable usage of libunbounds event API]))
@@ -584,12 +590,16 @@ then
 			])
 		fi
 		AC_CHECK_FUNCS([ub_ctx_set_stub])
-	], [found_all_libs=0])
+	], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libunbound"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
 fi
 
 if test $found_all_libs = 0
 then
-    AC_MSG_ERROR([One more dependencies is missing])
+    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
