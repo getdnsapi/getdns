@@ -13,7 +13,7 @@ then
 fi
 if [ ! -f "${SRCROOT}/libtool" ]
 then
-	(cd "${SRCROOT}"; libtoolize -fic)
+	(cd "${SRCROOT}"; (glibtoolize -fic || libtoolize -fic))
 fi
 if [ ! -f "${SRCROOT}/configure" ]
 then

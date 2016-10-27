@@ -951,6 +951,10 @@ if [ test -n "$DOXYGEN" ]
 fi
 
 
+#---- check for pthreads library
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREADS], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
+
+
 dnl -----
 dnl ----- Start of "Things needed for gldns" section
 dnl -----
