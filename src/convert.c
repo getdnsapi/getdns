@@ -1065,7 +1065,7 @@ getdns_msg_dict2str_scan(
 }
 
 static getdns_dict *
-_getdns_ipaddr_dict_mf(struct mem_funcs *mf, char *ipstr)
+_getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 {
 	getdns_dict *r = _getdns_dict_create_with_mf(mf);
 	char *s = strchr(ipstr, '%'), *scope_id_str = "";
@@ -1606,6 +1606,21 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 	getdns_item item;
 	getdns_return_t r;
 
+	if (!str || !dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	while (*str && isspace(*str))
+		str++;
+
+	if (*str != '{') {
+		getdns_dict *dict_r = _getdns_ipaddr_dict_mf(
+		    &_getdns_plain_mem_funcs, str);
+
+		if (dict_r) {
+			*dict = dict_r;
+			return GETDNS_RETURN_GOOD;
+		}
+	}
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
@@ -1663,6 +1678,9 @@ getdns_str2list(const char *str, getdns_list **list)
 	getdns_item item;
 	getdns_return_t r;
 
+	if (!str || !list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
@@ -1680,6 +1698,9 @@ getdns_str2bindata(const char *str, getdns_bindata **bindata)
 	getdns_item item;
 	getdns_return_t r;
 
+	if (!str || !bindata)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
@@ -1696,6 +1717,9 @@ getdns_str2int(const char *str, uint32_t *value)
 {
 	getdns_item item;
 	getdns_return_t r;
+
+	if (!str || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
