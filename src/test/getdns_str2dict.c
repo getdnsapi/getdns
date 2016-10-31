@@ -33,6 +33,7 @@
 #include "list.h"		/* For _getdns_list_create_from_mf() */
 #include "dict.h"		/* For _getdns_dict_create_from_mf() */
 #include <stdlib.h>		/* For bsearch */
+#include <ctype.h>              /* For isspace */
 
 static struct mem_funcs _getdns_plain_mem_funcs = {
 	MF_PLAIN, .mf.pln = { malloc, realloc, free }
@@ -102,7 +103,7 @@ static int _gldns_b64_pton(char const *src, uint8_t *target, size_t targsize)
 }
 
 static getdns_dict *
-_getdns_ipaddr_dict_mf(struct mem_funcs *mf, char *ipstr)
+_getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 {
 	getdns_dict *r = _getdns_dict_create_with_mf(mf);
 	char *s = strchr(ipstr, '%'), *scope_id_str = "";
@@ -645,6 +646,17 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 	getdns_item item;
 	getdns_return_t r;
 
+	while (*str && isspace(*str))
+		str++;
+
+	if (*str != '{') {
+		getdns_dict *dict_r = _getdns_ipaddr_dict_mf(
+		    &_getdns_plain_mem_funcs, str);
+		if (dict_r) {
+			*dict = dict_r;
+			return GETDNS_RETURN_GOOD;
+		}
+	}
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
