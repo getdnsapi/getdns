@@ -56,7 +56,7 @@
 #include "context.h"
 #include "util-internal.h"
 
-#ifndef X509_STORE_CTX_get0_untrusted
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #define X509_STORE_CTX_get0_untrusted(store) store->untrusted
 #endif
 
@@ -314,15 +314,27 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
    see doc/HOWTO/proxy_certificates.txt as an example
 */
 static int
-_get_ssl_getdns_upstream_idx()
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+_get_ssl_getdns_upstream_idx(void)
+#else
+_get_ssl_getdns_upstream_idx(X509_STORE *store)
+#endif
 {
 	static volatile int idx = -1;
 	if (idx < 0) {
-		/* CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE); */
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+		CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
+#else
+		X509_STORE_lock(store);
+#endif
 		if (idx < 0)
 			idx = SSL_get_ex_new_index(0, "associated getdns upstream",
 						   NULL,NULL,NULL);
-		/* CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE); */
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+		CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
+#else
+		X509_STORE_unlock(store);
+#endif
 	}
 	return idx;
 }
@@ -330,7 +342,11 @@ _get_ssl_getdns_upstream_idx()
 getdns_upstream*
 _getdns_upstream_from_x509_store(X509_STORE_CTX *store)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 	int uidx = _get_ssl_getdns_upstream_idx();
+#else
+	int uidx = _get_ssl_getdns_upstream_idx(X509_STORE_CTX_get0_store(store));
+#endif
 	int sslidx = SSL_get_ex_data_X509_STORE_CTX_idx();
 	const SSL *ssl;
 
@@ -348,7 +364,11 @@ getdns_return_t
 _getdns_associate_upstream_with_SSL(SSL *ssl,
 				    getdns_upstream *upstream)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 	int uidx = _get_ssl_getdns_upstream_idx();
+#else
+	int uidx = _get_ssl_getdns_upstream_idx(SSL_CTX_get_cert_store(SSL_get_SSL_CTX(ssl)));
+#endif
 	if (SSL_set_ex_data(ssl, uidx, upstream))
 		return GETDNS_RETURN_GOOD;
 	else
