@@ -245,6 +245,7 @@ else
 fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
@@ -552,10 +553,16 @@ fi
 
 # Checks for libraries.
 found_all_libs=1
+MISSING_DEPS=""
+MISSING_SEP=""
 if test $my_with_libidn = 1
 then
 	AC_MSG_NOTICE([Checking for dependency libidn])
-	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
 fi
 
 AC_ARG_ENABLE(unbound-event-api, AC_HELP_STRING([--disable-unbound-event-api], [Disable usage of libunbounds event API]))
@@ -584,12 +591,16 @@ then
 			])
 		fi
 		AC_CHECK_FUNCS([ub_ctx_set_stub])
-	], [found_all_libs=0])
+	], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libunbound"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
 fi
 
 if test $found_all_libs = 0
 then
-    AC_MSG_ERROR([One more dependencies is missing])
+    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
