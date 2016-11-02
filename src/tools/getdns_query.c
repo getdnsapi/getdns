@@ -1182,7 +1182,8 @@ getdns_return_t do_the_call(void)
 getdns_eventloop *loop = NULL;
 FILE *fp;
 static void incoming_request_handler(getdns_context *context,
-    getdns_dict *request, getdns_transaction_t request_id);
+    getdns_callback_type_t callback_type, getdns_dict *request,
+    void *userarg, getdns_transaction_t request_id);
 
 
 void read_line_cb(void *userarg)
@@ -1199,7 +1200,7 @@ void read_line_cb(void *userarg)
 		loop->vmt->clear(loop, read_line_ev);
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
-			    context, NULL, NULL);
+			    context, NULL, NULL, NULL);
 		return;
 	}
 	if (query_file)
@@ -1229,7 +1230,7 @@ void read_line_cb(void *userarg)
 	r = parse_args(linec, linev);
 	if (!r && touched_listen_list) {
 		r = getdns_context_set_listen_addresses(
-		    context, incoming_request_handler, listen_list);
+		    context, listen_list, NULL, incoming_request_handler);
 	}
 	if ((r || (r = do_the_call())) &&
 	    (r != CONTINUE && r != CONTINUE_ERROR))
@@ -1406,11 +1407,11 @@ static void request_cb(
 	else if (n == 0)
 		SERVFAIL("Recursion not available", 0, msg, &response);
 
-	if ((r = getdns_reply(context, msg->request_id, response))) {
+	if ((r = getdns_reply(context, response, msg->request_id))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
 		/* Cancel reply */
-		(void) getdns_reply(context, msg->request_id, NULL);
+		(void) getdns_reply(context, NULL, msg->request_id);
 	}
 	if (msg) {
 		getdns_dict_destroy(msg->request);
@@ -1421,7 +1422,8 @@ static void request_cb(
 }	
 
 static void incoming_request_handler(getdns_context *context,
-    getdns_dict *request, getdns_transaction_t request_id)
+    getdns_callback_type_t callback_type, getdns_dict *request,
+    void *userarg, getdns_transaction_t request_id)
 {
 	getdns_bindata *qname;
 	char *qname_str = NULL;
@@ -1439,6 +1441,9 @@ static void incoming_request_handler(getdns_context *context,
 	getdns_list *additional;
 	getdns_dict *rr;
 	uint32_t rr_type;
+
+	(void)callback_type;
+	(void)userarg;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -1567,11 +1572,11 @@ error:
 		free(request_str);
 	} while(0);
 #endif
-	if ((r = getdns_reply(context, request_id, response))) {
+	if ((r = getdns_reply(context, response, request_id))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
 		/* Cancel reply */
-		getdns_reply(context, request_id, NULL);
+		getdns_reply(context, NULL, request_id);
 	}
 	if (msg) {
 		if (msg->request)
@@ -1648,7 +1653,7 @@ main(int argc, char **argv)
 		assert(loop);
 	}
 	if (listen_count && (r = getdns_context_set_listen_addresses(
-	    context, incoming_request_handler, listen_list))) {
+	    context, listen_list, NULL, incoming_request_handler))) {
 		perror("error: Could not bind on given addresses");
 		goto done_destroy_context;
 	}

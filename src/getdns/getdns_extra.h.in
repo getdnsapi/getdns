@@ -1030,9 +1030,11 @@ getdns_context_config(getdns_context *context, const getdns_dict *config_dict);
  * The user defined request handler that will be called on incoming requests.
  */
 typedef void (*getdns_request_handler_t)(
-	getdns_context      *context,
-	getdns_dict         *request,
-	getdns_transaction_t request_id
+	getdns_context        *context,
+	getdns_callback_type_t callback_type,
+	getdns_dict           *request,
+	void                  *userarg,
+	getdns_transaction_t   request_id
 );
 
 /**
@@ -1041,6 +1043,11 @@ typedef void (*getdns_request_handler_t)(
  *
  * @param context The context managing the eventloop that needs to be run to
  *                start serving.
+ * @param listen_addresses  A list of address dicts or bindatas that will be
+ *                          listened on for DNS requests.  Both UDP and TCP
+ *                          transports will be used.
+ * @param userarg A user defined argument that will be passed to the handler
+ *                untouched.
  * @param handler The user defined request handler that will be called with the
  *                request received in reply dict format.  To reply to this request
  *                the function has to construct a response (or modify the request)
@@ -1050,9 +1057,6 @@ typedef void (*getdns_request_handler_t)(
  *                not answered by the function, by not calling getdns_reply() this
  *                will cause a memory leak.  The user most use getdns_reply()
  *                with NULL as the response to not answer/cancel a request.
- * @param listen_addresses  A list of address dicts or bindatas that will be
- *                          listened on for DNS requests.  Both UDP and TCP
- *                          transports will be used.
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  * On failure, the current set of listening addresses is left in place.
  * Also, if there is overlap in listening_addresses between the active set
@@ -1061,8 +1065,9 @@ typedef void (*getdns_request_handler_t)(
  * DNS transactions will remain.
  */
 getdns_return_t
-getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t handler, const getdns_list *listen_addresses);
+getdns_context_set_listen_addresses(
+    getdns_context *context, const getdns_list *listen_addresses,
+    void *userarg, getdns_request_handler_t handler);
 
 /**
  * Answer the request associated with a request_id that is received by a
@@ -1070,11 +1075,11 @@ getdns_context_set_listen_addresses(getdns_context *context,
  *
  * @param context The context managing the eventloop that needs to be run to
  *                listen for and answer requests.
- * @param request_id The identifier that links this response with the
- *                   received request.
  * @param reply The answer in getdns reply dict or response dict format.
  *              When NULL is given as reply, the request is not answered
  *              but all associated state is deleted.
+ * @param request_id The identifier that links this response with the
+ *                   received request.
  * @return GETDNS_RETURN_GOOD on success or an error code on failure.
  * On fatal failure (no retry strategy possible) the user still needs to
  * cancel the request by recalling getdns_reply() but with NULL as response,
@@ -1082,7 +1087,7 @@ getdns_context_set_listen_addresses(getdns_context *context,
  */
 getdns_return_t
 getdns_reply(getdns_context *context,
-    getdns_transaction_t request_id, getdns_dict *reply);
+    getdns_dict *reply, getdns_transaction_t request_id);
 
 
 /** @}

@@ -65,6 +65,7 @@ struct listener {
  */
 struct listen_set {
 	getdns_context           *context;
+	void                     *userarg;
 	getdns_request_handler_t  handler;
 
 	_getdns_rbtree_t          connections_set;
@@ -231,7 +232,7 @@ _getdns_cancel_reply(getdns_context *context, connection *conn)
 
 getdns_return_t
 getdns_reply(
-    getdns_context *context, getdns_transaction_t request_id, getdns_dict *reply)
+    getdns_context *context, getdns_dict *reply, getdns_transaction_t request_id)
 {
 	/* TODO: Check request_id at context->outbound_requests */
 	connection *conn = (connection *)(intptr_t)request_id;
@@ -400,9 +401,14 @@ static void tcp_read_cb(void *userarg)
 	else {
 		conn->to_answer++;
 
+		/* TODO: wish list item:
+		 * (void) getdns_dict_set_int64(
+		 *     request_dict, "request_id", intptr_t)conn);
+		 */
 		/* Call request handler */
 		conn->super.l->set->handler(
-		    conn->super.l->set->context, request_dict, (intptr_t)conn);
+		    conn->super.l->set->context, GETDNS_CALLBACK_COMPLETE,
+		    request_dict, conn->super.l->set->userarg, (intptr_t)conn);
 
 		conn->read_pos = conn->read_buf;
 		conn->to_read = 2;
@@ -618,8 +624,14 @@ static void udp_read_cb(void *userarg)
 		conn->prev_next = &l->connections;
 		l->connections = conn;
 
+		/* TODO: wish list item:
+		 * (void) getdns_dict_set_int64(
+		 *     request_dict, "request_id", (intptr_t)conn);
+		 */
 		/* Call request handler */
-		l->set->handler(l->set->context, request_dict, (intptr_t)conn);
+		l->set->handler(l->set->context, GETDNS_CALLBACK_COMPLETE,
+		    request_dict, l->set->userarg, (intptr_t)conn);
+
 		return;
 	}
 	GETDNS_FREE(*mf, conn);
@@ -765,9 +777,9 @@ ptr_cmp(const void *a, const void *b)
 	return a == b ? 0 : (a < b ? -1 : 1);
 }
 
-getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t request_handler,
-    const getdns_list *listen_addresses)
+getdns_return_t getdns_context_set_listen_addresses(
+    getdns_context *context, const getdns_list *listen_addresses,
+    void *userarg, getdns_request_handler_t request_handler)
 {
 	static const getdns_transport_list_t listen_transports[]
 		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
@@ -830,6 +842,7 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 
 	new_set->context = context;
 	new_set->handler = request_handler;
+	new_set->userarg = userarg;
 	new_set->count = new_set_count * n_transports;
 	(void) memset(new_set->items, 0,
 	    sizeof(listener) * new_set_count * n_transports);

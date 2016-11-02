@@ -1487,7 +1487,7 @@ getdns_context_destroy(struct getdns_context *context)
 	cancel_outstanding_requests(context, 1);
 
 	/* Destroy listening addresses */
-	(void) getdns_context_set_listen_addresses(context, NULL, NULL);
+	(void) getdns_context_set_listen_addresses(context, NULL, NULL, NULL);
 
 	/* This needs to be done before cleaning the extension, because there
 	 * might be an idle_timeout schedules, which will not get unscheduled
