@@ -47,7 +47,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x0100A100])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x0100A300])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -78,9 +78,9 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
 # getdns-0.9.0 had libversion 5:0:4
 # getdns-1.0.0 will have libversion 5:1:4
-# getdns-1.1.0 will have libversion 6:0:5
+# getdns-1.1.0 will have libversion 6:0:0
 #
-GETDNS_LIBVERSION=6:0:5
+GETDNS_LIBVERSION=6:0:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
