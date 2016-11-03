@@ -26,7 +26,14 @@
  */
 
 #include "config.h"
+
+#ifndef USE_WINSOCK
 #include <netdb.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+#endif
+
 #include "getdns/getdns_extra.h"
 #include "context.h"
 #include "types-internal.h"
@@ -269,7 +276,7 @@ getdns_reply(
 	else if (conn->l->transport == GETDNS_TRANSPORT_UDP) {
 		listener *l = conn->l;
 
-		if (conn->l->fd >= 0 && sendto(conn->l->fd, buf, len, 0,
+		if (conn->l->fd >= 0 && sendto(conn->l->fd, (void *)buf, len, 0,
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1) {
 			/* IO error, cleanup this listener */
 			loop->vmt->clear(loop, &conn->l->event);
@@ -532,7 +539,7 @@ static void udp_read_cb(void *userarg)
 
 	conn->l = l;
 	conn->addrlen = sizeof(conn->remote_in);
-	if ((len = recvfrom(l->fd, buf, sizeof(buf), 0,
+	if ((len = recvfrom(l->fd, (void *)buf, sizeof(buf), 0,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
 		/* IO error, cleanup this listener. */
 		loop->vmt->clear(loop, &l->event);
@@ -704,7 +711,11 @@ static void remove_listeners(listen_set *set)
 
 static getdns_return_t add_listeners(listen_set *set)
 {
+#ifdef USE_WINSOCK
+	static const char enable = 1;
+#else
 	static const int  enable = 1;
+#endif
 
 	struct mem_funcs *mf;
 	getdns_eventloop *loop;

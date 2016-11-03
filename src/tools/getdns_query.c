@@ -55,7 +55,9 @@ static const char *default_stubby_config =
 ", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
 "}";
 static int clear_listen_list_on_arg = 0;
+#ifndef GETDNS_ON_WINDOWS
 static int run_in_foreground = 1;
+#endif
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -209,8 +211,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
 	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
+#ifndef GETDNS_ON_WINDOWS
 	if (i_am_stubby)
 		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
+#endif
 	fprintf(out, "\t-G\tgeneral lookup\n");
 	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
@@ -995,10 +999,12 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				break;
 			default:
+#ifndef GETDNS_ON_WINDOWS
 				if (i_am_stubby && *c == 'g') {
 					run_in_foreground = 0;
 					break;
 				}
+#endif
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
 				for (i = 0; i < argc; i++)
@@ -1608,7 +1614,8 @@ main(int argc, char **argv)
 	prg_name = prg_name ? prg_name + 1 : argv[0];
 
 	i_am_stubby = strcasecmp(prg_name, "stubby") == 0
-	           || strcasecmp(prg_name, "lt-stubby") == 0;
+	           || strcasecmp(prg_name, "lt-stubby") == 0
+	           || strcasecmp(prg_name, "stubby.exe") == 0;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -1675,6 +1682,7 @@ main(int argc, char **argv)
 	}
 	else if (listen_count) {
 		assert(loop);
+#ifndef GETDNS_ON_WINDOWS
 		if (i_am_stubby && !run_in_foreground) {
 			pid_t pid = fork();
 			if (pid == -1) {
@@ -1693,6 +1701,7 @@ main(int argc, char **argv)
 			} else
 				loop->vmt->run(loop);
 		} else
+#endif
 			loop->vmt->run(loop);
 	} else
 		r = do_the_call();
