@@ -62,6 +62,11 @@ typedef unsigned short in_port_t;
 #include <assert.h>
 #include <ctype.h>
 
+#ifdef HAVE_PTHREADS
+#include <pthread.h>
+#endif
+#include <stdbool.h>
+
 #include "config.h"
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
@@ -84,6 +89,11 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+
+#ifdef HAVE_PTHREADS
+static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+static bool ssl_init=false;
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -1306,8 +1316,21 @@ getdns_context_create_with_extended_memory_functions(
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
 	 * don't know that till later so we will have to do this every time. */
 
-	if ((set_from_os & 2) == 0)
+#ifdef HAVE_PTHREADS
+	pthread_mutex_lock(&ssl_init_lock);
+#else
+	/* XXX implement Windows-style lock here */
+#endif
+	/* Only initialise SSL once and ideally in a thread-safe manner */
+	if (ssl_init == false) {
 		SSL_library_init();
+		ssl_init = true;
+	}
+#ifdef HAVE_PTHREADS
+	pthread_mutex_unlock(&ssl_init_lock);
+#else
+	/* XXX implement Windows-style unlock here */
+#endif
 
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
