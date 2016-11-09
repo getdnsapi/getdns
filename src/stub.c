@@ -830,6 +830,8 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	getdns_upstream *upstream;
 	getdns_return_t pinset_ret = GETDNS_RETURN_GOOD;
 	upstream = _getdns_upstream_from_x509_store(ctx);
+	if (!upstream)
+		return 0;
 
 #if defined(STUB_DEBUG) && STUB_DEBUG || defined(X509_V_ERR_HOSTNAME_MISMATCH)
 	int     err = X509_STORE_CTX_get_error(ctx);
@@ -841,10 +843,11 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	/*Report if error is hostname mismatch*/
-	if (upstream && upstream->tls_fallback_ok && err == X509_V_ERR_HOSTNAME_MISMATCH) {
-		DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
+	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
+		if (upstream->tls_fallback_ok) 
+			DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
+			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
 	}
 #else
 	/* if we weren't built against OpenSSL with hostname matching we
@@ -853,7 +856,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	if (upstream->tls_auth_name[0])
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 #endif
-	if (upstream && upstream->tls_pubkey_pinset)
+	if (upstream->tls_pubkey_pinset)
 		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
 
 	if (pinset_ret != GETDNS_RETURN_GOOD) {
@@ -871,7 +874,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		upstream->tls_auth_state = GETDNS_AUTH_OK;
 	/* If fallback is allowed, proceed regardless of what the auth error is
 	   (might not be hostname or pinset related) */
-	return (upstream && upstream->tls_fallback_ok) ? 1 : preverify_ok;
+	return (upstream->tls_fallback_ok) ? 1 : preverify_ok;
 }
 
 static SSL*
