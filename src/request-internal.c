@@ -755,17 +755,26 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		edns_do_bit = context->edns_do_bit;
 
 		if (have_add_opt_parameters) {
-			if (!getdns_dict_get_int(add_opt_parameters,
+			if (getdns_dict_get_int(add_opt_parameters,
 			    "maximum_udp_payload_size",
-			    &get_edns_maximum_udp_payload_size))
+			    &get_edns_maximum_udp_payload_size)) {
+				if (!getdns_dict_get_int(
+				    add_opt_parameters, "udp_payload_size",
+				    &get_edns_maximum_udp_payload_size))
+					edns_maximum_udp_payload_size =
+					    get_edns_maximum_udp_payload_size;
+			} else
 				edns_maximum_udp_payload_size =
 				    get_edns_maximum_udp_payload_size;
+
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "extended_rcode", &edns_extended_rcode);
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "version", &edns_version);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "do_bit", &edns_do_bit);
+			if (getdns_dict_get_int(add_opt_parameters,
+			    "do_bit", &edns_do_bit))
+				(void) getdns_dict_get_int(
+				    add_opt_parameters, "do", &edns_do_bit);
 		}
 	}
 	if (have_add_opt_parameters && getdns_dict_get_list(
