@@ -1523,7 +1523,7 @@ upstream_write_cb(void *userarg)
 		/* Fall through */
 	case STUB_SETUP_ERROR:
 		/* Could not complete the set up. Need to fallback.*/
-		DEBUG_STUB("%s %-35s: MSG: %p ERROR = %d\n", STUB_DEBUG_WRITE,
+		DEBUG_STUB("%s %-35s: Upstream: %p ERROR = %d\n", STUB_DEBUG_WRITE,
 		             __FUNCTION__, ((getdns_network_req *)userarg), q);
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1));
 		/* Fall through */
