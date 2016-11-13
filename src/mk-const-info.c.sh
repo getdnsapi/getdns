@@ -46,18 +46,20 @@ getdns_get_errorstr_by_id(uint16_t err)
 	else
 		return NULL;
 }
-END_OF_TAIL
 
-gawk 'BEGIN{p=1}{if(p)print}/^static struct const_name_info consts_name_info\[\] = {$/{p=0}' test/getdns_str2dict.c > test/new-getdns_str2dict.c
-gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%d", $3); consts[$1] = key; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/_TEXT/{ key = sprintf("%d", $3); consts[$2] = key; }/^#define GETDNS_[A-Z_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%d", $4); consts[$2] = key; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ \""val"\", "name" },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in | sed 's/,,/,/g' >> test/new-getdns_str2dict.c
-cat >> test/new-getdns_str2dict.c << END_OF_TAIL
+static struct const_name_info consts_name_info[] = {
+END_OF_TAIL
+gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%d", $3); consts[$1] = key; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/_TEXT/{ key = sprintf("%d", $3); consts[$2] = key; }/^#define GETDNS_[A-Z_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%d", $4); consts[$2] = key; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ \""val"\", "name" },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in | sed 's/,,/,/g' >> const-info.c
+cat >> const-info.c << END_OF_TAIL
 };
+
 static int const_name_info_cmp(const void *a, const void *b)
 {
 	return strcmp( ((struct const_name_info *) a)->name
 	             , ((struct const_name_info *) b)->name );
 }
-static int
+
+int
 _getdns_get_const_name_info(const char *name, uint32_t *code)
 {
 	struct const_name_info key = { name, 0 };
@@ -71,5 +73,4 @@ _getdns_get_const_name_info(const char *name, uint32_t *code)
 	return 1;
 }
 END_OF_TAIL
-mv test/new-getdns_str2dict.c test/getdns_str2dict.c
 

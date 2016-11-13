@@ -382,10 +382,10 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			    X509_STORE_CTX *store)
 {
 	getdns_return_t ret = GETDNS_RETURN_GENERIC_ERROR;
-	X509 *x;
+	X509 *x, *prev;
 	int i, len;
 	unsigned char raw[4096];
-	unsigned char *next = raw;
+	unsigned char *next;
 	unsigned char buf[sizeof(pinset->pin)];
 	const sha256_pin_t *p;
 
@@ -408,13 +408,6 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 	/* TODO: how do we handle raw public keys? */
 
 	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++) {
-		if (i > 0) {
-		/* TODO: how do we ensure that the certificates in
-		 * each stage appropriately sign the previous one?
-		 * for now, to be safe, we only examine the end-entity
-		 * cert: */
-			return GETDNS_RETURN_GENERIC_ERROR;
-		}
 
 		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
 #if defined(STUB_DEBUG) && STUB_DEBUG
@@ -423,6 +416,24 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
 		fprintf(stderr, "\n");
 #endif
+		if (i > 0) {
+		/* we ensure that "prev" is signed by "x" */
+			EVP_PKEY *pkey = X509_get_pubkey(x);
+			int verified;
+			if (!pkey) {
+				DEBUG_STUB("%s %-35s: Could not get pubkey from cert %d (%p)\n",
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, x);
+				return GETDNS_RETURN_GENERIC_ERROR;
+			}
+			verified = X509_verify(prev, pkey);
+			EVP_PKEY_free(pkey);
+			if (!verified) {
+				DEBUG_STUB("%s %-35s: cert %d (%p) was not signed by cert %d\n",
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i-1, prev, i);
+				return GETDNS_RETURN_GENERIC_ERROR;
+			}
+		}
+
 		/* digest the cert with sha256 */
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
 		if (len > sizeof(raw)) {
@@ -430,6 +441,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, sizeof(raw));
 			continue;
 		}
+		next = raw;
 		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
 		if (next - raw != len) {
 			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed "PRIsz"\n",
@@ -447,6 +459,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			} else
 				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
 					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, p);
+		prev = x;
 	}
 
 	return ret;
