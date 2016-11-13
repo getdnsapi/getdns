@@ -720,12 +720,16 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             getdns_auth_str_array[upstream->tls_auth_state], (int)upstream->keepalive_timeout);
-	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Best_auth=%s,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Best_auth=%s,Conns=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
 	             getdns_auth_str_array[upstream->best_tls_auth_state], 
-	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
+	             (int)upstream->conn_completed);
+	DEBUG_DAEMON("%s %s :              Upstream stats - Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (int)upstream->conn_setup_failed,
 	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
+
 #endif
 
 	/* Back off connections that never got up service at all (probably no
