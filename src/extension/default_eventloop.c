@@ -27,9 +27,14 @@
 
 #include "config.h"
 
+#include <poll.h>
+#include <sys/resource.h>
 #include "extension/default_eventloop.h"
 #include "debug.h"
 #include "types-internal.h"
+
+static int max_fds = 0;
+static int max_timeouts = 0;
 
 static uint64_t get_now_plus(uint64_t amount)
 {
@@ -53,15 +58,15 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
 	size_t i;
 
-	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, FD_SETSIZE: %d)\n"
-	        , __FUNCTION__, loop, fd, timeout, event, FD_SETSIZE);
+	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, max_fds: %d)\n"
+	        , __FUNCTION__, loop, fd, timeout, event, max_fds);
 
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (fd >= (int)FD_SETSIZE) {
-		DEBUG_SCHED( "ERROR: fd %d >= FD_SETSIZE: %d!\n"
-		           , fd, FD_SETSIZE);
+	if (fd >= (int)max_fds) {
+		DEBUG_SCHED( "ERROR: fd %d >= max_fds: %d!\n"
+		           , fd, max_fds);
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (fd >= 0 && !(event->read_cb || event->write_cb)) {
@@ -101,7 +106,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		DEBUG_SCHED("ERROR: timeout event with write_cb! Clearing.\n");
 		event->write_cb = NULL;
 	}
-	for (i = 0; i < MAX_TIMEOUTS; i++) {
+	for (i = 0; i < max_timeouts; i++) {
 		if (default_loop->timeout_events[i] == NULL) {
 			default_loop->timeout_events[i] = event;
 			default_loop->timeout_times[i] = get_now_plus(timeout);		
@@ -126,7 +131,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
-	if (i < 0 || i >= FD_SETSIZE) {
+	if (i < 0 || i > max_fds) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
@@ -153,7 +158,15 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 static void
 default_eventloop_cleanup(getdns_eventloop *loop)
 {
-	(void)loop;
+	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	if (default_loop->fd_events)
+		free(default_loop->fd_events);
+	if (default_loop->fd_timeout_times)
+		free(default_loop->fd_timeout_times);
+	if (default_loop->timeout_events)
+		free(default_loop->timeout_events);
+	if (default_loop->timeout_times)
+		free(default_loop->timeout_times);
 }
 
 static void
@@ -191,20 +204,19 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 {
 	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
 
-	fd_set   readfds, writefds;
 	int      fd, max_fd = -1;
 	uint64_t now, timeout = TIMEOUT_FOREVER;
 	size_t   i;
-	struct timeval tv;
-
+	int poll_timeout = 0;
+	struct pollfd* pfds = NULL;
+	int num_pfds = 0;
+	
 	if (!loop)
 		return;
-
-	FD_ZERO(&readfds);
-	FD_ZERO(&writefds);
+	
 	now = get_now_plus(0);
 
-	for (i = 0; i < MAX_TIMEOUTS; i++) {
+	for (i = 0; i < max_timeouts; i++) {
 		if (!default_loop->timeout_events[i])
 			continue;
 		if (now > default_loop->timeout_times[i])
@@ -212,50 +224,65 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		else if (default_loop->timeout_times[i] < timeout)
 			timeout = default_loop->timeout_times[i];
 	}
-	for (fd = 0; fd < FD_SETSIZE; fd++) {
+	// first we count the number of fds that will be active
+	for (fd = 0; fd < max_fds; fd++) {
 		if (!default_loop->fd_events[fd])
 			continue;
-		if (default_loop->fd_events[fd]->read_cb)
-			FD_SET(fd, &readfds);
-		if (default_loop->fd_events[fd]->write_cb)
-			FD_SET(fd, &writefds);
+		if (default_loop->fd_events[fd]->read_cb ||
+		    default_loop->fd_events[fd]->write_cb)
+			num_pfds++;
 		if (fd > max_fd)
 			max_fd = fd;
 		if (default_loop->fd_timeout_times[fd] < timeout)
 			timeout = default_loop->fd_timeout_times[fd];
 	}
-	if (max_fd == -1 && timeout == TIMEOUT_FOREVER)
+
+	if ((max_fd == -1 && timeout == (uint64_t)-1) || (num_pfds == 0))
 		return;
 
-	if (! blocking || now > timeout) {
-		tv.tv_sec = 0;
-		tv.tv_usec = 0;
-	} else {
-		tv.tv_sec  = (long)((timeout - now) / 1000000);
-		tv.tv_usec = (long)((timeout - now) % 1000000);
+	pfds = calloc(num_pfds, sizeof(struct pollfd));
+	for (fd = 0, i=0; fd < max_fds; fd++) {
+		if (!default_loop->fd_events[fd])
+			continue;
+		if (default_loop->fd_events[fd]->read_cb) {
+			pfds[i].fd = fd;
+			pfds[i].events |= POLLIN;
+		}	
+		if (default_loop->fd_events[fd]->write_cb) {
+			pfds[i].fd = fd;
+			pfds[i].events |= POLLOUT;
+		}
 	}
-	if (select(max_fd + 1, &readfds, &writefds, NULL,
-	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
-		perror("select() failed");
+
+	if (! blocking || now > timeout) {
+		poll_timeout = 0;
+	} else {
+		poll_timeout = (timeout - now) * 1000; /* turn seconds in millseconds */
+	}
+	if (poll(pfds, num_pfds, poll_timeout) < 0) {
+		perror("poll() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = get_now_plus(0);
-	for (fd = 0; fd < FD_SETSIZE; fd++) {
+	for (int i = 0; i < num_pfds; i++) {
+		int fd = pfds[i].fd;
 		if (default_loop->fd_events[fd] &&
 		    default_loop->fd_events[fd]->read_cb &&
-		    FD_ISSET(fd, &readfds))
+		    (pfds[i].revents & POLLIN))
 			default_read_cb(fd, default_loop->fd_events[fd]);
 
 		if (default_loop->fd_events[fd] &&
 		    default_loop->fd_events[fd]->write_cb &&
-		    FD_ISSET(fd, &writefds))
+		    (pfds[i].revents & POLLOUT))
 			default_write_cb(fd, default_loop->fd_events[fd]);
-
+	}
+	if (pfds)
+		free(pfds);
+	for (int fd=0; fd < max_fds; fd++) {
 		if (default_loop->fd_events[fd] &&
 		    default_loop->fd_events[fd]->timeout_cb &&
 		    now > default_loop->fd_timeout_times[fd])
 			default_timeout_cb(fd, default_loop->fd_events[fd]);
-
 		i = fd;
 		if (default_loop->timeout_events[i] &&
 		    default_loop->timeout_events[i]->timeout_cb &&
@@ -274,7 +301,7 @@ default_eventloop_run(getdns_eventloop *loop)
 		return;
 
 	i = 0;
-	while (i < MAX_TIMEOUTS) {
+	while (i < max_timeouts) {
 		if (default_loop->fd_events[i] || default_loop->timeout_events[i]) {
 			default_eventloop_run_once(loop, 1);
 			i = 0;
@@ -297,4 +324,22 @@ _getdns_default_eventloop_init(_getdns_default_eventloop *loop)
 
 	(void) memset(loop, 0, sizeof(_getdns_default_eventloop));
 	loop->loop.vmt = &default_eventloop_vmt;
+
+	struct rlimit rl;
+	if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
+		max_fds = rl.rlim_cur;
+		max_timeouts = max_fds;
+	} else {
+		DEBUG_SCHED("ERROR: could not obtain RLIMIT_NOFILE from getrlimit()\n");
+		max_fds = 0;
+		max_timeouts = max_fds;
+	}
+	if (max_fds) {
+		loop->fd_events = calloc(max_fds, sizeof(getdns_eventloop_event *));
+		loop->fd_timeout_times = calloc(max_fds, sizeof(uint64_t));
+	}
+	if (max_timeouts) {
+		loop->timeout_events = calloc(max_timeouts, sizeof(getdns_eventloop_event *));
+		loop->timeout_times = calloc(max_timeouts, sizeof(uint64_t));
+	}
 }

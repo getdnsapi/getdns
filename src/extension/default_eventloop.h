@@ -35,20 +35,13 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 
-/* No more than select's capability queries can be outstanding,
- * The number of outstanding timeouts should be less or equal then
- * the number of outstanding queries, so MAX_TIMEOUTS equal to
- * FD_SETSIZE should be safe.
- */
-#define MAX_TIMEOUTS FD_SETSIZE
-
-/* Eventloop based on select */
+/* Eventloop based on poll */
 typedef struct _getdns_default_eventloop {
 	getdns_eventloop        loop;
-	getdns_eventloop_event *fd_events[FD_SETSIZE];
-	uint64_t                fd_timeout_times[FD_SETSIZE];
-	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
-	uint64_t                timeout_times[MAX_TIMEOUTS];
+	getdns_eventloop_event **fd_events;
+	uint64_t                *fd_timeout_times;
+	getdns_eventloop_event **timeout_events;
+	uint64_t                *timeout_times;
 } _getdns_default_eventloop;
 
 
