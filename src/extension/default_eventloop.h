@@ -38,6 +38,8 @@
 /* Eventloop based on poll */
 typedef struct _getdns_default_eventloop {
 	getdns_eventloop        loop;
+	int			max_fds;
+	int			max_timeouts;
 	getdns_eventloop_event **fd_events;
 	uint64_t                *fd_timeout_times;
 	getdns_eventloop_event **timeout_events;
