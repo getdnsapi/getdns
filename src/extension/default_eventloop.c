@@ -33,9 +33,6 @@
 #include "debug.h"
 #include "types-internal.h"
 
-static int max_fds = 0;
-static int max_timeouts = 0;
-
 static uint64_t get_now_plus(uint64_t amount)
 {
 	struct timeval tv;
@@ -59,14 +56,14 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	size_t i;
 
 	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, max_fds: %d)\n"
-	        , __FUNCTION__, loop, fd, timeout, event, max_fds);
+	        , __FUNCTION__, loop, fd, timeout, event, default_loop->max_fds);
 
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (fd >= (int)max_fds) {
+	if (fd >= (int)default_loop->max_fds) {
 		DEBUG_SCHED( "ERROR: fd %d >= max_fds: %d!\n"
-		           , fd, max_fds);
+		           , fd, default_loop->max_fds);
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (fd >= 0 && !(event->read_cb || event->write_cb)) {
@@ -106,7 +103,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		DEBUG_SCHED("ERROR: timeout event with write_cb! Clearing.\n");
 		event->write_cb = NULL;
 	}
-	for (i = 0; i < max_timeouts; i++) {
+	for (i = 0; i < default_loop->max_timeouts; i++) {
 		if (default_loop->timeout_events[i] == NULL) {
 			default_loop->timeout_events[i] = event;
 			default_loop->timeout_times[i] = get_now_plus(timeout);		
@@ -131,7 +128,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
-	if (i < 0 || i > max_fds) {
+	if (i < 0 || i > default_loop->max_fds) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
@@ -216,7 +213,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	
 	now = get_now_plus(0);
 
-	for (i = 0; i < max_timeouts; i++) {
+	for (i = 0; i < default_loop->max_timeouts; i++) {
 		if (!default_loop->timeout_events[i])
 			continue;
 		if (now > default_loop->timeout_times[i])
@@ -225,7 +222,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 			timeout = default_loop->timeout_times[i];
 	}
 	// first we count the number of fds that will be active
-	for (fd = 0; fd < max_fds; fd++) {
+	for (fd = 0; fd < default_loop->max_fds; fd++) {
 		if (!default_loop->fd_events[fd])
 			continue;
 		if (default_loop->fd_events[fd]->read_cb ||
@@ -241,7 +238,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		return;
 
 	pfds = calloc(num_pfds, sizeof(struct pollfd));
-	for (fd = 0, i=0; fd < max_fds; fd++) {
+	for (fd = 0, i=0; fd < default_loop->max_fds; fd++) {
 		if (!default_loop->fd_events[fd])
 			continue;
 		if (default_loop->fd_events[fd]->read_cb) {
@@ -278,7 +275,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	}
 	if (pfds)
 		free(pfds);
-	for (int fd=0; fd < max_fds; fd++) {
+	for (int fd=0; fd < default_loop->max_fds; fd++) {
 		if (default_loop->fd_events[fd] &&
 		    default_loop->fd_events[fd]->timeout_cb &&
 		    now > default_loop->fd_timeout_times[fd])
@@ -301,7 +298,7 @@ default_eventloop_run(getdns_eventloop *loop)
 		return;
 
 	i = 0;
-	while (i < max_timeouts) {
+	while (i < default_loop->max_timeouts) {
 		if (default_loop->fd_events[i] || default_loop->timeout_events[i]) {
 			default_eventloop_run_once(loop, 1);
 			i = 0;
@@ -327,19 +324,19 @@ _getdns_default_eventloop_init(_getdns_default_eventloop *loop)
 
 	struct rlimit rl;
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
-		max_fds = rl.rlim_cur;
-		max_timeouts = max_fds;
+		loop->max_fds = rl.rlim_cur;
+		loop->max_timeouts = loop->max_fds;
 	} else {
 		DEBUG_SCHED("ERROR: could not obtain RLIMIT_NOFILE from getrlimit()\n");
-		max_fds = 0;
-		max_timeouts = max_fds;
+		loop->max_fds = 0;
+		loop->max_timeouts = loop->max_fds;
 	}
-	if (max_fds) {
-		loop->fd_events = calloc(max_fds, sizeof(getdns_eventloop_event *));
-		loop->fd_timeout_times = calloc(max_fds, sizeof(uint64_t));
+	if (loop->max_fds) {
+		loop->fd_events = calloc(loop->max_fds, sizeof(getdns_eventloop_event *));
+		loop->fd_timeout_times = calloc(loop->max_fds, sizeof(uint64_t));
 	}
-	if (max_timeouts) {
-		loop->timeout_events = calloc(max_timeouts, sizeof(getdns_eventloop_event *));
-		loop->timeout_times = calloc(max_timeouts, sizeof(uint64_t));
+	if (loop->max_timeouts) {
+		loop->timeout_events = calloc(loop->max_timeouts, sizeof(getdns_eventloop_event *));
+		loop->timeout_times = calloc(loop->max_timeouts, sizeof(uint64_t));
 	}
 }
