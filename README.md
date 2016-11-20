@@ -19,6 +19,8 @@ Traditional access to DNS data from applications has several limitations:
 
 * Sophisticated uses of the DNS (things like IDNA and DNSSEC validation) require considerable application work, possibly by application developers with little experience with the vagaries of DNS.
 
+getdns also provides a prototype DNS Privacy enabled client called 'stubby' - see below for more details.
+
 ## Motivation for providing the API
 
 The developers are of the opinion that DNSSEC offers a unique global infrastructure for establishing and enhancing cryptographic trust relations.  With the development of this API we intend to offer application developers a modern and flexible interface that enables end-to-end trust in the DNS architecture, and which will inspire application developers to implement innovative security solutions in their applications.
@@ -73,9 +75,13 @@ If you want to make use of the configuration files that utilise a JSON-like form
 
 before building. 
 
-If you want to use the getdns_query command line wrapper script for testing or to enable getdns as a daemon then you must build it using
+As well as building the getdns library 2 other tools are installed by default by the above process:
 
-    # make getdns_query
+* getdns_query: a command line test script wrapper for getdns
+* stubby: a DNS Privacy enabled client
+
+Note: If you only want to build stubby, then use the `--enable-stub-only` and `--without-libidn` options when running 'configure'.
+
 
 ## Minimizing dependencies
 
@@ -90,6 +96,17 @@ The implementation works with a variety of event loops, each built as a separate
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
 * [libuv](https://github.com/joyent/libuv)
 * [libev](http://software.schmorp.de/pkg/libev.html)
+
+## Stubby
+
+* Stubby is a prototype implementation of a DNS Privacy enabled stub resolver. Feedback is welcome!
+* A default configuration file is available here uses a 'Strict' privacy usage profile using some of the available test DNS Privacy servers to resolve queries. Note these servers are test servers that offer no service guarantees. An alternative file can be specified with the '-C' flag
+* If you would like minimal logging output from Stubby (which servers are used and connection level statistics) then also use the '--enable-debug-daemon' flag when running 'configure'.
+
+To use stubby
+* Start stubby from the command line
+* Test it by doing, for example, 'dig @127.0.0.1 www.example.com'
+* Alter the default DNS resolvers on your system to point at localhost (127.0.0.1, ::1)
 
 ## Regression Tests
 
