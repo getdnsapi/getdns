@@ -399,11 +399,11 @@ const char *getdns_get_errorstr_by_id(uint16_t err);
 
 /* dict util */
 /* set a string as bindata */
-getdns_return_t getdns_dict_util_set_string(struct getdns_dict * dict,
+getdns_return_t getdns_dict_util_set_string(getdns_dict * dict,
     char *name, const char *value);
 
 /* get a string from a dict.  the result must be freed if valid */
-getdns_return_t getdns_dict_util_get_string(struct getdns_dict * dict,
+getdns_return_t getdns_dict_util_get_string(getdns_dict * dict,
     char *name, char **result);
 
 /**
