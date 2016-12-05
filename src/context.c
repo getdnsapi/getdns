@@ -716,17 +716,19 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	if (upstream->tls_auth_state > upstream->best_tls_auth_state)
 		upstream->best_tls_auth_state = upstream->tls_auth_state;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s %s : Conn closed: Conn stats     - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
+	DEBUG_DAEMON("%s %s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             getdns_auth_str_array[upstream->tls_auth_state], (int)upstream->keepalive_timeout);
-	DEBUG_DAEMON("%s %s :              Upstream stats - Resp=%d,Timeouts=%d,Transport=%s,Best_auth=%s\n",
+	DEBUG_DAEMON("%s %s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
-	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "UDP/TCP"),
 	             getdns_auth_str_array[upstream->best_tls_auth_state]);
-	DEBUG_DAEMON("%s %s :              Upstream stats - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	DEBUG_DAEMON("%s %s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
 	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
 #endif
@@ -903,6 +905,8 @@ upstream_init(getdns_upstream *upstream,
 	/* How is this upstream doing on UDP? */
 	upstream->to_retry =  2;
 	upstream->back_off =  1;
+	upstream->udp_responses = 0;
+	upstream->udp_timeouts = 0;
 
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
