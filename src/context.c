@@ -929,6 +929,7 @@ set_os_defaults_windows(struct getdns_context *context)
     getdns_upstream *upstream;
     size_t length;
     int s;
+	uint32_t info_err = 0;
 
     if (context->fchg_resolvconf == NULL) {
 		context->fchg_resolvconf =
@@ -961,15 +962,16 @@ set_os_defaults_windows(struct getdns_context *context)
     if (info == NULL)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-    if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
+	if ((info_err = GetNetworkParams(info, &buflen)) == ERROR_BUFFER_OVERFLOW) {
 		free(info);
 		info = (FIXED_INFO *)malloc(buflen);
 		if (info == NULL)
 			return GETDNS_RETURN_GENERIC_ERROR;
+		info_err = GetNetworkParams(info, &buflen);
 	}
 
-	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
-		ptr = info->DnsServerList.Next; 
+	if (info_err == NO_ERROR) {
+		ptr = &info->DnsServerList;
 		*domain = 0;
 		while (ptr) {
 			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
@@ -986,10 +988,11 @@ set_os_defaults_windows(struct getdns_context *context)
 				freeaddrinfo(result);
 			}
 			ptr = ptr->Next;
-
 		}
-		free(info);
 	}
+
+	if (info != NULL)
+		free(info);
 
     suffix = getdns_list_create_with_context(context);
 
