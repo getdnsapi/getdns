@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Config.h"
+#include "config.h"
 
 #include "extension/default_eventloop.h"
 #include "debug.h"
