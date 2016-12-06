@@ -1546,9 +1546,11 @@ upstream_write_cb(void *userarg)
 	case STUB_NO_AUTH:
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 		DEBUG_DAEMON("%s %s : Conn closed   : Transport=%s - *Failure*\n",
 		             STUB_DEBUG_DAEMON, upstream->addr_str,
 		             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
+#endif
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
 			netreq->state = NET_REQ_FINISHED;
@@ -1847,8 +1849,10 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	}
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNCTION__, netreq);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	DEBUG_DAEMON("%s *FAILURE* no valid transports or upstreams available!\n",
 	              STUB_DEBUG_DAEMON);
+#endif
 	return -1;
 }
 
