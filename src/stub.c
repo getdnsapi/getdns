@@ -1314,7 +1314,8 @@ stub_udp_read_cb(void *userarg)
 	netreq->state = NET_REQ_FINISHED;
 	upstream->udp_responses++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	if (upstream->udp_responses % 100 == 0)
+	if (upstream->udp_responses == 1 || 
+	    upstream->udp_responses % 100 == 0)
 		DEBUG_DAEMON("%s %s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 		             STUB_DEBUG_DAEMON, upstream->addr_str,
 		             (int)upstream->udp_responses, (int)upstream->udp_timeouts);
@@ -1545,6 +1546,9 @@ upstream_write_cb(void *userarg)
 	case STUB_NO_AUTH:
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
+		DEBUG_DAEMON("%s %s : Conn closed   : Transport=%s - *Failure*\n",
+		             STUB_DEBUG_DAEMON, upstream->addr_str,
+		             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
 			netreq->state = NET_REQ_FINISHED;
@@ -1782,7 +1786,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		}
 		upstream->conn_state = GETDNS_CONN_SETUP;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s %s : Conn init     : Transport= %s - Profile=%s\n", STUB_DEBUG_DAEMON, 
+	DEBUG_DAEMON("%s %s : Conn init     : Transport=%s - Profile=%s\n", STUB_DEBUG_DAEMON, 
 	             upstream->addr_str, transport == GETDNS_TRANSPORT_TLS ? "TLS":"TCP",
 	             dnsreq->context->tls_auth_min == GETDNS_AUTHENTICATION_NONE ? "Opportunistic":"Strict");
 #endif
@@ -1843,6 +1847,8 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	}
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNCTION__, netreq);
+	DEBUG_DAEMON("%s *FAILURE* no valid transports or upstreams available!\n",
+	              STUB_DEBUG_DAEMON);
 	return -1;
 }
 
@@ -1856,7 +1862,6 @@ fallback_on_write(getdns_network_req *netreq)
 
 	/* Deal with UDP one day*/
 	DEBUG_STUB("%s %-35s: MSG: %p FALLING BACK \n", STUB_DEBUG_SCHEDULE, __FUNCTION__, netreq);
-	DEBUG_DAEMON("%s Falling back...\n", STUB_DEBUG_DAEMON);
 
 	/* Try to find a fallback transport*/
 	getdns_return_t result = _getdns_submit_stub_request(netreq);

@@ -755,7 +755,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->conn_shutdowns = 0;
 		upstream->conn_backoffs++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-		DEBUG_DAEMON("%s %s : !Backing off this upstream  - will retry as new upstream at %s\n",
+		DEBUG_DAEMON("%s %s : !Backing off this upstream    - Will retry as new upstream at %s",
 		            STUB_DEBUG_DAEMON, upstream->addr_str,
 		            asctime(gmtime(&upstream->conn_retry_time)));
 #endif
