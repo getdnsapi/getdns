@@ -399,7 +399,11 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	    upstream->addr_len) == -1) {
 		if (_getdns_EINPROGRESS || _getdns_EWOULDBLOCK)
 			return fd;
+#ifdef USE_WINSOCK
+		closesocket(fd);
+#else
 		close(fd);
+#endif
 		return -1;
 	}
 	return fd;
@@ -541,7 +545,13 @@ void
 _getdns_cancel_stub_request(getdns_network_req *netreq)
 {
 	stub_cleanup(netreq);
-	if (netreq->fd >= 0) close(netreq->fd);
+	if (netreq->fd >= 0) {
+#ifdef USE_WINSOCK
+		closesocket(netreq->fd);
+#else
+		close(netreq->fd);
+#endif
+	}
 }
 
 /* May be needed in future for better UDP error handling?*/
@@ -564,7 +574,12 @@ stub_timeout_cb(void *userarg)
 	           STUB_DEBUG_CLEANUP, __FUNCTION__, netreq);
 	stub_next_upstream(netreq);
 	stub_cleanup(netreq);
-	if (netreq->fd >= 0) close(netreq->fd);
+	if (netreq->fd >= 0)
+#ifdef USE_WINSOCK
+		closesocket(netreq->fd);
+#else
+		close(netreq->fd);
+#endif
 	netreq->state = NET_REQ_TIMED_OUT;
 	if (netreq->owner->user_callback) {		
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
@@ -807,8 +822,13 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 		/* Coming back from an earlier unfinished write or handshake.
 		 * Try to send remaining data */
+#ifdef USE_WINSOCK
+		written = send(fd, tcp->write_buf + tcp->written,
+			tcp->write_buf_len - tcp->written, 0);
+#else
 		written = write(fd, tcp->write_buf     + tcp->written,
 		                    tcp->write_buf_len - tcp->written);
+#endif
 		if (written == -1) {
 			if (_getdns_EWOULDBLOCK)
 				return STUB_TCP_WOULDBLOCK;
@@ -1257,16 +1277,17 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 static uint64_t
 _getdns_get_time_as_uintt64() {
-	
+
 	struct timeval tv;
 	uint64_t       now;
-	
+
 	if (gettimeofday(&tv, NULL)) {
 		return 0;
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
 	return now;
 }
+
 
 /**************************/
 /* UDP callback functions */
@@ -1305,7 +1326,11 @@ stub_udp_read_cb(void *userarg)
 	    upstream, netreq->response, read))
 		return; /* Client cookie didn't match? */
 
+#ifdef USE_WINSOCK
+	closesocket(netreq->fd);
+#else
 	close(netreq->fd);
+#endif
 	while (GLDNS_TC_WIRE(netreq->response)) {
 		DEBUG_STUB("%s %-35s: MSG: %p TC bit set in response \n", STUB_DEBUG_READ, 
 		             __FUNCTION__, netreq);
@@ -1369,7 +1394,11 @@ stub_udp_write_cb(void *userarg)
 	    netreq->fd, (const void *)netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
+#ifdef USE_WINSOCK
+		closesocket(netreq->fd);
+#else
 		close(netreq->fd);
+#endif
 		return;
 	}
 	GETDNS_SCHEDULE_EVENT(
@@ -1706,7 +1735,11 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		if (fd == -1) return -1;
 		upstream->tls_obj = tls_create_object(dnsreq, fd, upstream);
 		if (upstream->tls_obj == NULL) {
+#ifdef USE_WINSOCK
+			closesocket(fd);
+#else
 			close(fd);
+#endif
 			return -1;
 		}
 

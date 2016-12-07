@@ -38,6 +38,9 @@
 #ifndef GETDNS_ON_WINDOWS
 #include <sys/mman.h>
 #endif
+#if defined(GETDNS_ON_WINDOWS) && !defined(MAP_INHERIT_ZERO)
+#define explicit_bzero(rnd, rnd_size) memset(rnd, 0, rnd_size)
+#endif
 
 #define KEYSTREAM_ONLY
 #include "chacha_private.h"
@@ -136,7 +139,15 @@ _rs_stir_if_needed(size_t len)
 {
 #ifndef MAP_INHERIT_ZERO
 	static pid_t _rs_pid = 0;
+#ifdef GETDNS_ON_WINDOWS
+	/* 
+	 * TODO: if compiling for the Windows Runtime, use GetCurrentProcessId(),
+	 * but this requires linking with kernel32.lib
+	 */
+	pid_t pid = _getpid();
+#else
 	pid_t pid = getpid();
+#endif
 
 	/* If a system lacks MAP_INHERIT_ZERO, resort to getpid() */
 	if (_rs_pid == 0 || _rs_pid != pid) {
