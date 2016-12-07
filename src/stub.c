@@ -84,7 +84,7 @@ static void upstream_idle_timeout_cb(void *userarg);
 static void upstream_schedule_netreq(getdns_upstream *upstream, 
                                      getdns_network_req *netreq);
 static void upstream_reschedule_events(getdns_upstream *upstream, 
-                                     size_t idle_timeout);
+                                     uint64_t idle_timeout);
 static int  upstream_connect(getdns_upstream *upstream, 
                              getdns_transport_list_t transport,
                              getdns_dns_req *dnsreq);
@@ -1816,7 +1816,7 @@ fallback_on_write(getdns_network_req *netreq)
 }
 
 static void
-upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
+upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
 
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SCHEDULE, 
 	             __FUNCTION__, upstream->fd);
