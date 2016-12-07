@@ -862,29 +862,30 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	if (!upstream)
 		return 0;
 
-#if defined(STUB_DEBUG) && STUB_DEBUG || defined(X509_V_ERR_HOSTNAME_MISMATCH)
-	int     err = X509_STORE_CTX_get_error(ctx);
-
+	int err = X509_STORE_CTX_get_error(ctx);
+#if defined(STUB_DEBUG) && STUB_DEBUG
 	DEBUG_STUB("%s %-35s: FD:  %d Verify result: (%d) \"%s\"\n",
 	            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, err,
 	            X509_verify_cert_error_string(err));
 #endif
 
+	/* First deal with the hostname authentication done by OpenSSL. */
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	/*Report if error is hostname mismatch*/
-	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
-		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		if (upstream->tls_fallback_ok) 
-			DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
-	}
+	if (err == X509_V_ERR_HOSTNAME_MISMATCH && upstream->tls_fallback_ok)
+		DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
 #else
 	/* if we weren't built against OpenSSL with hostname matching we
 	 * could not have matched the hostname, so this would be an automatic
 	 * tls_auth_fail if there is a hostname provided*/
-	if (upstream->tls_auth_name[0])
+	if (upstream->tls_auth_name[0]) {
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
+		preverify_ok == 0;
+	}
 #endif
+
+	/* Now deal with the pinset validation*/
 	if (upstream->tls_pubkey_pinset)
 		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
 
@@ -896,10 +897,23 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		if (upstream->tls_fallback_ok)
 			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
 			            STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd);
+	} else {
+		/* If we _only_ had a pinset and it is good then force succesful
+		   authentication when the cert self-signed */
+		if ((upstream->tls_pubkey_pinset && upstream->tls_auth_name[0] == '\0') &&
+		     (err == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ||
+		      err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)) {
+			preverify_ok = 1;
+			DEBUG_STUB("%s %-35s: FD:  %d, Allowing self-signed (%d) cert since pins match\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, err);
+		}
 	}
+
 	/* If nothing has failed yet and we had credentials, we have succesfully authenticated*/
-	if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
-	   (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]))
+	if (preverify_ok == 0)
+		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
+	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
+	         (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]))
 		upstream->tls_auth_state = GETDNS_AUTH_OK;
 	/* If fallback is allowed, proceed regardless of what the auth error is
 	   (might not be hostname or pinset related) */
@@ -1044,8 +1058,9 @@ tls_do_handshake(getdns_upstream *upstream)
 	/* A re-used session is not verified so need to fix up state in that case */
 	if (SSL_session_reused(upstream->tls_obj))
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
-	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %d. Session is %s.\n", 
-		         STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, upstream->tls_auth_state,
+	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %s. Session is %s.\n", 
+		         STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, 
+		         getdns_auth_str_array[upstream->tls_auth_state],
 		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
 	if (upstream->tls_session != NULL)
 	    SSL_SESSION_free(upstream->tls_session);

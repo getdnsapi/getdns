@@ -699,15 +699,6 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
 
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-static char*
-getdns_auth_str_array[] = {
-	GETDNS_STR_AUTH_NONE,
-	GETDNS_STR_AUTH_FAILED,
-	GETDNS_STR_AUTH_OK
-};
-#endif
-
 void
 _getdns_upstream_shutdown(getdns_upstream *upstream)
 {

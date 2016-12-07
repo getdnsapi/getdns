@@ -838,6 +838,16 @@ _getdns_create_call_reporting_dict(
 	   was actually used for the last successful query.*/
 	if (transport == GETDNS_TRANSPORT_TCP && netreq->debug_udp == 1) {
 		transport = GETDNS_TRANSPORT_UDP;
+		if (getdns_dict_set_int( netreq_debug, "udp_responses_for_this_upstream",
+		                         netreq->upstream->udp_responses)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "udp_timeouts_for_this_upstream",
+		                         netreq->upstream->udp_timeouts)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 	}
 	if (getdns_dict_set_int( netreq_debug, "transport", transport)) {
 		getdns_dict_destroy(netreq_debug);
@@ -858,16 +868,38 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		}
+		/* The running totals are only updated when a connection is closed.
+		   Since it is open as we have just used it, calcualte the value on the fly */
+		if (getdns_dict_set_int( netreq_debug, "responses_on_this_connection",
+		                         netreq->upstream->responses_received)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "timeouts_on_this_connection",
+		                         netreq->upstream->responses_timeouts)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "responses_for_this_upstream",
+		                         netreq->upstream->responses_received + 
+		                         netreq->upstream->total_responses)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "timeouts_for_this_upstream",
+		                         netreq->upstream->responses_timeouts +
+		                         netreq->upstream->total_timeouts)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 	}
 
 	if (netreq->upstream->transport != GETDNS_TRANSPORT_TLS)
 		return netreq_debug;
 	
 	/* Only include the auth status if TLS was used */
-	/* TODO: output all 3 options */
 	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
-	    netreq->debug_tls_auth_status == GETDNS_AUTH_OK ?
-	    "OK: Server authenticated":"FAILED or NOT TRIED: Server not authenticated")){
+	    getdns_auth_str_array[netreq->debug_tls_auth_status])){
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
