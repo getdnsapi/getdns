@@ -131,6 +131,8 @@ typedef struct getdns_upstream {
 	/* How is this upstream doing over UDP? */
 	int                      to_retry;
 	int                      back_off;
+	size_t                   udp_responses;
+	size_t                   udp_timeouts;
 
 	/* For stateful upstreams, need to share the connection and track the
 	   activity on the connection */

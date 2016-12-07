@@ -571,6 +571,13 @@ stub_timeout_cb(void *userarg)
 	/* Handle upstream*/
 	if (netreq->fd >= 0) {
 		close(netreq->fd);
+		netreq->upstream->udp_timeouts++;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	if (netreq->upstream->udp_timeouts % 100 == 0)
+		DEBUG_DAEMON("%s %s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+		             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
+		             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
+#endif
 		stub_next_upstream(netreq);
 	} else {
 		netreq->upstream->responses_timeouts++;
@@ -1305,6 +1312,14 @@ stub_udp_read_cb(void *userarg)
 	dnsreq->upstreams->current_udp = 0;
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	netreq->state = NET_REQ_FINISHED;
+	upstream->udp_responses++;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	if (upstream->udp_responses == 1 || 
+	    upstream->udp_responses % 100 == 0)
+		DEBUG_DAEMON("%s %s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+		             STUB_DEBUG_DAEMON, upstream->addr_str,
+		             (int)upstream->udp_responses, (int)upstream->udp_timeouts);
+#endif
 	_getdns_check_dns_req_complete(dnsreq);
 }
 
@@ -1531,6 +1546,11 @@ upstream_write_cb(void *userarg)
 	case STUB_NO_AUTH:
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+		DEBUG_DAEMON("%s %s : Conn closed   : Transport=%s - *Failure*\n",
+		             STUB_DEBUG_DAEMON, upstream->addr_str,
+		             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
+#endif
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
 			netreq->state = NET_REQ_FINISHED;
@@ -1767,15 +1787,16 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			upstream->tls_hs_state = GETDNS_HS_WRITE;
 		}
 		upstream->conn_state = GETDNS_CONN_SETUP;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s %s : Conn init     : Transport=%s - Profile=%s\n", STUB_DEBUG_DAEMON, 
+	             upstream->addr_str, transport == GETDNS_TRANSPORT_TLS ? "TLS":"TCP",
+	             dnsreq->context->tls_auth_min == GETDNS_AUTHENTICATION_NONE ? "Opportunistic":"Strict");
+#endif
 		break;
 	default:
 		return -1;
 		/* Nothing to do*/
 	}
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s %s : Conn init\n",
-                  STUB_DEBUG_DAEMON, upstream->addr_str);
-#endif
 	return fd;
 }
 
@@ -1828,6 +1849,10 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	}
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNCTION__, netreq);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s *FAILURE* no valid transports or upstreams available!\n",
+	              STUB_DEBUG_DAEMON);
+#endif
 	return -1;
 }
 

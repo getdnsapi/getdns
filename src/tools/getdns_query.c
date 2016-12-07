@@ -51,8 +51,11 @@ typedef unsigned short in_port_t;
 static int i_am_stubby = 0;
 static const char *default_stubby_config =
 "{ resolution_type: GETDNS_RESOLUTION_STUB"
+", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
 ", idle_timeout: 10000"
 ", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
+", tls_query_padding_blocksize: 256"
+", edns_client_subnet_private : 1"
 "}";
 static int clear_listen_list_on_arg = 0;
 #ifndef GETDNS_ON_WINDOWS
@@ -161,13 +164,19 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
-	fprintf(out, "\ndefault mode: "
+	if (!i_am_stubby) {
+		fprintf(out, "\ndefault mode: "
 #ifdef HAVE_LIBUNBOUND
-	    "recursive"
+	            "recursive"
 #else
-	    "stub"
+	            "stub"
 #endif
-	    ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	            ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	}
+	else {
+		fprintf(out, "\ndefault mode: "
+			    "stub, asynchronous resolution \n\t\tusing TLS with UDP then TCP fallback\n");
+	}
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
@@ -192,10 +201,12 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
 	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
-	fprintf(out, "\t-a\tPerform asynchronous resolution "
-	    "(default = synchronous)\n");
-	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
-	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	if (!i_am_stubby) {
+		fprintf(out, "\t-a\tPerform asynchronous resolution "
+		    "(default = synchronous)\n");
+		fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+		fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	}
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-C\t<filename>\n");
@@ -209,17 +220,21 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
-	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
 #ifndef GETDNS_ON_WINDOWS
 	if (i_am_stubby)
 		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
 #endif
-	fprintf(out, "\t-G\tgeneral lookup\n");
-	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	if (!i_am_stubby) {
+		fprintf(out, "\t-G\tgeneral lookup\n");
+		fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	}
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
-	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
@@ -235,8 +250,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
 	fprintf(out, "\t-s\tSet stub resolution type%s\n"
 	       , i_am_stubby ? "" : "(default = recursing)" );
-	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-v\tPrint getdns release version\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
 
@@ -840,6 +857,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_timeout(
 					context, timeout);
 				goto next;
+			case 'v':
+				fprintf(stdout, "Version %s\n", GETDNS_VERSION);
+				return CONTINUE;
 			case 'x': 
 				getdns_context_set_follow_redirects(
 				    context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
