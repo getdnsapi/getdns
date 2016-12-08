@@ -42,6 +42,7 @@
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
     uv_loop_t* loop = (uv_loop_t*) eventloop;
+    (void)context;
     uv_run(loop, UV_RUN_DEFAULT);
 }
 

@@ -75,7 +75,7 @@
 
 
 int
-main (int argc, char** argv)
+main ()
 {
   int number_failed;
   SRunner *sr ;

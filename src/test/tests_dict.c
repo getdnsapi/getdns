@@ -214,7 +214,7 @@ tst_getnames(void)
 	size_t index;
 	size_t llen;
 	uint32_t ansint;
-	int i;
+	size_t i;
 	getdns_return_t result;
 	getdns_data_type dtype;
 	struct getdns_dict *dict = NULL;
@@ -508,7 +508,7 @@ tst_create(void)
  *  runs unit tests against list management routines
  */
 int
-main(int argc, char *argv[])
+main()
 {
 	tstmsg_prog_begin("tests_dict");
 

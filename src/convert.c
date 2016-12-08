@@ -57,9 +57,6 @@
 #include "convert.h"
 #include "debug.h"
 
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
-
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
     const getdns_bindata *dns_name_wire_fmt, char **fqdn_as_string)

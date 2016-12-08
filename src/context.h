@@ -224,7 +224,7 @@ struct getdns_context {
 	/* Context values */
 	getdns_resolution_t  resolution_type;
 	getdns_namespace_t   *namespaces;
-	int                  namespace_count;
+	size_t               namespace_count;
 	uint64_t             timeout;
 	uint64_t             idle_timeout;
 	getdns_redirects_t   follow_redirects;

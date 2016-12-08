@@ -108,9 +108,9 @@ typedef struct tcp_connection {
 	getdns_eventloop_event  event;
 
 	uint8_t                *read_buf;
-	size_t                  read_buf_len;
+	ssize_t                 read_buf_len;
 	uint8_t                *read_pos;
-	size_t                  to_read;
+	ssize_t                 to_read;
 
 	tcp_to_write           *to_write;
 	size_t                  to_answer;
@@ -359,7 +359,7 @@ static void tcp_read_cb(void *userarg)
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 
-	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
+	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return; /* Come back to do the read later */
 
@@ -749,9 +749,9 @@ static getdns_return_t add_listeners(listen_set *set)
 			break;
 
 		if (setsockopt(l->fd, SOL_SOCKET, SO_REUSEADDR,
-		    &enable, sizeof(int)) < 0)
+		    &enable, sizeof(int)) < 0) {
 			; /* Ignore */
-
+		}
 		if (bind(l->fd, (struct sockaddr *)&l->addr,
 		    l->addr_len) == -1)
 			/* IO error */
