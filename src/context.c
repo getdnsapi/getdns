@@ -661,7 +661,13 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			SSL_free(upstream->tls_obj);
 		}
 		if (upstream->fd != -1)
+		{
+#ifdef USE_WINSOCK
+			closesocket(upstream->fd);
+#else
 			close(upstream->fd);
+#endif
+		}
 		while (pin) {
 			sha256_pin_t *nextpin = pin->next;
 			GETDNS_FREE(upstreams->mf, pin);
@@ -707,12 +713,18 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->tls_obj = NULL;
 	}
 	if (fd != -1)
+	{
+#ifdef USE_WINSOCK
+		closesocket(fd);
+#else
 		close(fd);
+#endif
+	}
 }
 
 static int
 tls_is_in_transports_list(getdns_context *context) {
-	for (int i=0; i< context->dns_transport_count;i++) {
+	for (size_t i=0; i< context->dns_transport_count;i++) {
 		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS)
 			return 1;
 	}
@@ -761,7 +773,7 @@ static getdns_tsig_info const * const last_tsig_info =
 
 const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg)
 {
-	return tsig_alg > n_tsig_infos - 1
+	return ((unsigned) tsig_alg > n_tsig_infos - 1)
 	    || tsig_info[tsig_alg].alg == GETDNS_NO_TSIG ? NULL
 	    : &tsig_info[tsig_alg];
 }
@@ -2200,7 +2212,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 			if (gldns_str2wire_dname_buf(name, dname, &dname_len))
 				return GETDNS_RETURN_GENERIC_ERROR;
 
-			gldns_buffer_write_u8(&gbuf, dname_len);
+			gldns_buffer_write_u8(&gbuf, (uint8_t) dname_len);
 			gldns_buffer_write(&gbuf, dname, dname_len);
 		}
 		if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
@@ -3377,7 +3389,7 @@ _get_context_settings(getdns_context* context)
 		if (!(list = getdns_list_create_with_context(context)))
 			goto error;
 
-		for (i = 0; i < context->namespace_count; ++i) {
+		for (i = 0; (int) i < context->namespace_count; ++i) {
 			if (getdns_list_set_int(list, i,
 			    context->namespaces[i])) {
 				getdns_list_destroy(list);

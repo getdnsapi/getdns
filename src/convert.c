@@ -56,6 +56,14 @@
 /* stuff to make it compile pedantically */
 #define UNUSED_PARAM(x) ((void)(x))
 
+/* strdup is marked deprecated by the Windows compiler */
+#ifndef STRDUP
+#ifdef GETDNS_ON_WINDOWS
+#define STRDUP(x) _strdup(x)
+#else
+#define STRDUP(x) strdup(x)
+#endif
+#endif
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
     const getdns_bindata *dns_name_wire_fmt, char **fqdn_as_string)
@@ -200,7 +208,7 @@ getdns_display_ip_address(const struct getdns_bindata
 		    buff,
 		    256);
 		if (ipStr) {
-			return strdup(ipStr);
+			return STRDUP(ipStr);
 		}
 	} else if (bindata_of_ipv4_or_ipv6_address->size == 16) {
 		const char *ipStr = inet_ntop(AF_INET6,
@@ -208,7 +216,7 @@ getdns_display_ip_address(const struct getdns_bindata
 		    buff,
 		    256);
 		if (ipStr) {
-			return strdup(ipStr);
+			return STRDUP(ipStr);
 		}
 	}
 	return NULL;
