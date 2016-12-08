@@ -1372,6 +1372,8 @@ static void request_cb(
 
 	if (qname_str != unknown_qname)
 		free(qname_str);
+#else
+	(void)transaction_id;
 #endif
 	assert(msg);
 
