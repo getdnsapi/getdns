@@ -25,14 +25,4 @@ done
 rm -fr "${BUILDDIR}/build"
 mkdir  "${BUILDDIR}/build"
 cd "${BUILDDIR}/build"
-if [ -z "$CFLAGS" ]
-then
-	if (echo $*|grep -q CFLAGS)
-	then
-		"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install"
-	else
-		"${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --prefix "${BUILDDIR}/install"
-	fi
-else
-	"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install"
-fi
+"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install"
