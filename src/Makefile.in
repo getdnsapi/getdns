@@ -99,10 +99,10 @@ $(GLDNS_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/gldns/$(@:.lo=.c) -o $@
 
 $(COMPAT_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/compat/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -Wno-error=pedantic -c $(srcdir)/compat/$(@:.lo=.c) -o $@
 
 $(UTIL_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/util/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -Wno-error=pedantic -Wno-error=unused-parameter -c $(srcdir)/util/$(@:.lo=.c) -o $@
 
 $(EXTENSION_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/extension/$(@:.lo=.c) -o $@
