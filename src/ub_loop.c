@@ -115,9 +115,9 @@ typedef struct my_event {
 } my_event;
 
 #define AS_UB_LOOP(x) \
-	(((union {struct ub_event_base* a; _getdns_ub_loop* b;})x).b)
+	((_getdns_ub_loop *)(x))
 #define AS_MY_EVENT(x) \
-	(((union {struct ub_event* a; my_event* b;})x).b)
+	((my_event *)(x))
 
 static void my_event_base_free(struct ub_event_base* base)
 {

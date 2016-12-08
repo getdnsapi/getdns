@@ -83,7 +83,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 #endif
 		default_loop->fd_events[fd] = event;
 		default_loop->fd_timeout_times[fd] = get_now_plus(timeout);
-		event->ev = (void *) (intptr_t) fd + 1;
+		event->ev = (void *) (intptr_t) (fd + 1);
 
 		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
@@ -104,7 +104,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		if (default_loop->timeout_events[i] == NULL) {
 			default_loop->timeout_events[i] = event;
 			default_loop->timeout_times[i] = get_now_plus(timeout);
-			event->ev = (void *) (intptr_t) i + 1;
+			event->ev = (void *) (intptr_t) (i + 1);
 
 			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
@@ -159,6 +159,9 @@ default_eventloop_cleanup(getdns_eventloop *loop)
 static void
 default_read_cb(int fd, getdns_eventloop_event *event)
 {
+#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
+	(void)fd;
+#endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->read_cb(event->userarg);
 }
@@ -166,6 +169,9 @@ default_read_cb(int fd, getdns_eventloop_event *event)
 static void
 default_write_cb(int fd, getdns_eventloop_event *event)
 {
+#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
+	(void)fd;
+#endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->write_cb(event->userarg);
 }
@@ -173,6 +179,9 @@ default_write_cb(int fd, getdns_eventloop_event *event)
 static void
 default_timeout_cb(int fd, getdns_eventloop_event *event)
 {
+#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
+	(void)fd;
+#endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->timeout_cb(event->userarg);
 }

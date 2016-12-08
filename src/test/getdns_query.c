@@ -1284,6 +1284,9 @@ static void request_cb(
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint32_t n, rcode, dnssec_status;
 
+#if !defined(SERVER_DEBUG) || !SERVER_DEBUG
+	(void)transaction_id;
+#endif
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
 	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
 	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
