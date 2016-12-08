@@ -414,7 +414,7 @@ static struct ub_event* my_event_new(struct ub_event_base* base, int fd,
 	ev->added = 0;
 	ev->fd = fd;
 	ev->bits = bits;
-	ev->timeout = 0xFFFFFFFFFFFFFFFF;
+	ev->timeout = TIMEOUT_FOREVER;
 	ev->cb = cb;
 	ev->arg = arg;
 #ifdef USE_WINSOCK

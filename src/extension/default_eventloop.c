@@ -27,6 +27,7 @@
 
 #include "extension/default_eventloop.h"
 #include "debug.h"
+#include "types-internal.h"
 
 static uint64_t get_now_plus(uint64_t amount)
 {
@@ -40,7 +41,7 @@ static uint64_t get_now_plus(uint64_t amount)
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
 
 	return (now + amount * 1000) >= now
-	      ? now + amount * 1000 : 0xFFFFFFFFFFFFFFFF;
+	      ? now + amount * 1000 : TIMEOUT_FOREVER;
 }
 
 static getdns_return_t
@@ -183,7 +184,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	fd_set   readfds, writefds;
 	int      fd, max_fd = -1;
-	uint64_t now, timeout = 0xFFFFFFFFFFFFFFFF;
+	uint64_t now, timeout = TIMEOUT_FOREVER;
 	size_t   i;
 	struct timeval tv;
 
@@ -214,7 +215,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (default_loop->fd_timeout_times[fd] < timeout)
 			timeout = default_loop->fd_timeout_times[fd];
 	}
-	if (max_fd == -1 && timeout == 0xFFFFFFFFFFFFFFFF)
+	if (max_fd == -1 && timeout == TIMEOUT_FOREVER)
 		return;
 
 	if (! blocking || now > timeout) {
@@ -225,7 +226,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_usec = (timeout - now) % 1000000;
 	}
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
-	    (timeout == 0xFFFFFFFFFFFFFFFF ? NULL : &tv)) < 0) {
+	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
 		perror("select() failed");
 		exit(EXIT_FAILURE);
 	}
