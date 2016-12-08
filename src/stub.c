@@ -663,7 +663,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 		tcp->to_read = 2; /* Packet size */
 	}
 	read = recv(fd, (void *)tcp->read_pos, tcp->to_read, 0);
-	if (read == -1) {
+	if (read < 0) {
 		if (_getdns_EWOULDBLOCK)
 			return STUB_TCP_WOULDBLOCK;
 		else
@@ -672,7 +672,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 		/* Remote end closed the socket */
 		/* TODO: Try to reconnect */
 		return STUB_TCP_ERROR;
-	} else if (read> tcp->to_read) {
+	} else if ((size_t)read > tcp->to_read) {
 		return STUB_TCP_ERROR;
 	}
 	tcp->to_read  -= read;
@@ -780,12 +780,12 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
 #endif
-		if ((written == -1 && (_getdns_EWOULDBLOCK ||
+		if ((written < 0 && (_getdns_EWOULDBLOCK ||
 		/* Add the error case where the connection is in progress which is when
 		   a cookie is not available (e.g. when doing the first request to an
 		   upstream). We must let the handshake complete since non-blocking. */
 		                       _getdns_EINPROGRESS)) ||
-		     written  < pkt_len + 2) {
+		     (size_t)written < pkt_len + 2) {
 
 			/* We couldn't write the whole packet.
 			 * We have to return with STUB_TCP_AGAIN.

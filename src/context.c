@@ -711,8 +711,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 }
 
 static int
-tls_is_in_transports_list(getdns_context *context) {
-	for (int i=0; i< context->dns_transport_count;i++) {
+tls_is_in_transports_list(getdns_context *context)
+{
+	size_t i;
+
+	for (i = 0; i< context->dns_transport_count;i++) {
 		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS)
 			return 1;
 	}
@@ -2971,7 +2974,7 @@ getdns_return_t
 _getdns_context_prepare_for_resolution(struct getdns_context *context,
     int usenamespaces)
 {
-	int i;
+	size_t i;
 	getdns_return_t r;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);

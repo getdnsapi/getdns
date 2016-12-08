@@ -110,7 +110,7 @@ struct getdns_upstream;
 #define GETDNS_STR_KEY_NSCOUNT "nscount"
 #define GETDNS_STR_KEY_ARCOUNT "arcount"
 
-#define TIMEOUT_FOREVER ((int64_t)-1)
+#define TIMEOUT_FOREVER ((uint64_t)0xFFFFFFFFFFFFFFFF)
 #define ASSERT_UNREACHABLE 0
 
 #define GETDNS_TRANSPORTS_MAX 3

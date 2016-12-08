@@ -353,6 +353,7 @@ static int my_timer_del(struct ub_event* ev)
 
 static int my_signal_add(struct ub_event* ub_ev, struct timeval* tv)
 {
+	(void)ub_ev; (void)tv;
 	/* Only unbound daaemon workers use signals */
 	DEBUG_SCHED("UB_LOOP ERROR: signal_add()\n");
 	return -1;
@@ -360,6 +361,7 @@ static int my_signal_add(struct ub_event* ub_ev, struct timeval* tv)
 
 static int my_signal_del(struct ub_event* ub_ev)
 {
+	(void)ub_ev;
 	/* Only unbound daaemon workers use signals */
 	DEBUG_SCHED("UB_LOOP ERROR: signal_del()\n");
 	return -1;
@@ -412,7 +414,7 @@ static struct ub_event* my_event_new(struct ub_event_base* base, int fd,
 	ev->added = 0;
 	ev->fd = fd;
 	ev->bits = bits;
-	ev->timeout = (uint64_t)-1;
+	ev->timeout = 0xFFFFFFFFFFFFFFFF;
 	ev->cb = cb;
 	ev->arg = arg;
 #ifdef USE_WINSOCK

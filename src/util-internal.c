@@ -890,7 +890,7 @@ static int _srv_cmp(const void *a, const void *b)
 
 static void _rfc2782_sort(_srv_rr *start, _srv_rr *end)
 {
-	int running_sum, n;
+	uint32_t running_sum, n;
 	_srv_rr *i, *j, swap;
 
 	/* First move all SRVs with weight 0 to the beginning of the list */
@@ -1253,6 +1253,8 @@ getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     int rcode, void *pkt, int pkt_len, int sec, char* why_bogus)
 {
+	(void)why_bogus;
+
 	netreq->dnssec_status = sec == 0 ? GETDNS_DNSSEC_INSECURE
 	                      : sec == 2 ? GETDNS_DNSSEC_SECURE
 			      :            GETDNS_DNSSEC_BOGUS;
