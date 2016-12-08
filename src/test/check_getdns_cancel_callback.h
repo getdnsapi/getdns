@@ -451,6 +451,8 @@
          void *userarg,
          getdns_transaction_t transaction_id)
      {
+       (void)context; (void)response; (void)userarg;
+
        callback_called++;
 
        if(callback_type == GETDNS_CALLBACK_CANCEL)
@@ -483,6 +485,7 @@
      */
      void verify_getdns_cancel_callback(struct extracted_response *ex_response)
      {
+       (void)ex_response;
        /*
         *  increment callback_called global to prove callback was called.
         */
