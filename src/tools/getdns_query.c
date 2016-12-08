@@ -538,7 +538,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 		return GETDNS_RETURN_MEMORY_ERROR;
 	}
 	rewind(fh);
-	if (fread(config_file, 1, config_file_sz, fh) != config_file_sz) {
+	if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
 		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
 		       , fn, strerror(errno));
 		fclose(fh);
@@ -1653,12 +1653,14 @@ main(int argc, char **argv)
 		goto done_destroy_context;
 	}
 	if (i_am_stubby) {
+		int n_chars = snprintf( home_stubby_conf_fn
+		                      , sizeof(home_stubby_conf_fn)
+		                      , "%s/.stubby.conf"
+		                      , getenv("HOME")
+		                      );
 		(void) parse_config(default_stubby_config);
 		(void) parse_config_file("/etc/stubby.conf", 0);
-		if (snprintf( home_stubby_conf_fn, sizeof(home_stubby_conf_fn)
-		            , "%s/.stubby.conf", getenv("HOME")
-			    ) < sizeof(home_stubby_conf_fn)) {
-
+		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
 			(void) parse_config_file(home_stubby_conf_fn, 0);
 		}
 		clear_listen_list_on_arg = 1;

@@ -1183,7 +1183,7 @@ static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	char value_str[3072];
 	int size = t->end - t->start;
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1196,7 +1196,8 @@ static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 static int _jsmn_get_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     getdns_bindata **value)
 {
-	size_t i, j;
+	int i;
+	size_t j;
 	uint8_t h, l;
 
 	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1 ||
@@ -1237,8 +1238,9 @@ static int _jsmn_get_dname(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 {
 	char value_str[1025];
 	int size = t->end - t->start;
+	(void)mf; /* TODO: Fix to use  mf */
 
-	if (size <= 0 || size >= sizeof(value_str) || js[t->end - 1] != '.')
+	if (size <= 0 || size >= (int)sizeof(value_str) || js[t->end - 1] != '.')
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1254,7 +1256,7 @@ static int _jsmn_get_ipv4(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	int size = t->end - t->start;
 	uint8_t buf[4];
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1284,7 +1286,7 @@ static int _jsmn_get_ipv6(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	int size = t->end - t->start;
 	uint8_t buf[16];
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1307,14 +1309,13 @@ static int _jsmn_get_ipv6(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return 0;
 }
 
-static int _jsmn_get_int(struct mem_funcs *mf, const char *js, jsmntok_t *t,
-    uint32_t *value)
+static int _jsmn_get_int(const char *js, jsmntok_t *t, uint32_t *value)
 {
 	char value_str[11];
 	int size = t->end - t->start;
 	char *endptr;
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1324,13 +1325,12 @@ static int _jsmn_get_int(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return *value_str != '\0' && *endptr == '\0';
 }
 
-static int _jsmn_get_const(struct mem_funcs *mf, const char *js, jsmntok_t *t,
-    uint32_t *value)
+static int _jsmn_get_const(const char *js, jsmntok_t *t, uint32_t *value)
 {
 	char value_str[80];
 	int size = t->end - t->start;
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1364,7 +1364,8 @@ static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     size_t count, getdns_dict *dict, getdns_return_t *r)
 {
-	size_t i, j = 1;
+	int i;
+	size_t j = 1;
 	char key_spc[1024], *key = NULL;
 	getdns_item child_item;
 
@@ -1384,7 +1385,7 @@ static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 			*r = GETDNS_RETURN_GENERIC_ERROR; /* range error */
 			break;
 		}
-		if (t[j].end - t[j].start < sizeof(key_spc))
+		if (t[j].end - t[j].start < (int)sizeof(key_spc))
 			key = key_spc;
 
 		else if (!(key = GETDNS_XMALLOC(
@@ -1442,7 +1443,8 @@ static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 static int _jsmn_get_list(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     size_t count, getdns_list *list, getdns_return_t *r)
 {
-	size_t i, j = 1, index = 0;
+	int i;
+	size_t j = 1, index = 0;
 	getdns_item child_item;
 
 	if (t->size <= 0)
@@ -1521,8 +1523,8 @@ static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 			*r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
 
-		} else if (_jsmn_get_int(mf, js, t, &item->data.n)
-		    || _jsmn_get_const(mf, js, t, &item->data.n)) {
+		} else if (_jsmn_get_int(js, t, &item->data.n)
+		    || _jsmn_get_const(js, t, &item->data.n)) {
 
 			item->dtype = t_int;
 		}
