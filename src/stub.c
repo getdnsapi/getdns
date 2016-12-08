@@ -379,6 +379,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	if (transport == GETDNS_TRANSPORT_TCP)
 		return fd;
 #elif USE_OSX_TCP_FASTOPEN
+	(void)transport;
 	sa_endpoints_t endpoints;
 	endpoints.sae_srcif = 0;
 	endpoints.sae_srcaddr = NULL;
@@ -394,6 +395,8 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 		}
 	}
 	return fd;
+#else
+	(void)transport;
 #endif
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
