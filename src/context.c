@@ -3472,7 +3472,7 @@ _getdns_context_local_namespace_resolve(
 	getdns_context  *context = dnsreq->context;
 	host_name_addrs *hnas;
 	uint8_t lookup[256];
-	getdns_list    empty_list = { 0 };
+	getdns_list    empty_list = { 0, 0, NULL, { NULL, {{ NULL, NULL, NULL }}}};
 	getdns_bindata bindata;
 	getdns_list   *jaa;
 	size_t         i;
