@@ -40,7 +40,8 @@ LIBTOOL = ../../libtool
 srcdir = @srcdir@
 
 CC=@CC@
-CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@
+WPEDANTICFLAG=@WPEDANTICFLAG@
+CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@ $(WPEDANTICFLAG) $(XTRA_CFLAGS)
 LDFLAGS=-L.. @LDFLAGS@
 LDLIBS=../libgetdns.la @LIBS@
 
