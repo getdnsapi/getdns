@@ -559,7 +559,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 			if (! _dname_is_parent(*label, head->rrset.name))
 				break;
 		}
-		if (label - labels > max_labels) {
+		if ((unsigned)(label - labels) > max_labels) {
 			max_labels = label - labels;
 			max_head = head;
 		}
@@ -616,6 +616,11 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->node_count = node_count;
 
 	if (!node_count) {
+		/* When this head has no nodes of itself, it must have found
+		 * another head which has nodes for its labels (i.e. max_head)
+		 */
+		assert(max_head != NULL);
+
 		head->parent = max_head->parent;
 		return head;
 	}
@@ -857,6 +862,7 @@ static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
 	     ? dnssec_ok_checking_disabled_roadblock_avoidance
 	     : dnssec_ok_checking_disabled_avoid_roadblocks;
 #else
+	(void)dnsreq;
 	return dnssec_ok_checking_disabled;
 #endif
 }
@@ -1089,6 +1095,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	_getdns_rrset *rrset;
 
 	_getdns_context_clear_outbound_request(dnsreq);
+	/* A SOA query is always scheduled with a node as the user argument.
+	 */
+	assert(node != NULL);
 
 	for ( i = _getdns_rrset_iter_init(&i_spc, netreq->response
 	                                        , netreq->response_len
@@ -1626,7 +1635,7 @@ static int nsec3_iteration_count_high(_getdns_rrtype_iter *dnskey, _getdns_rrset
 		return gldns_read_uint16(rr->rr_i.rr_type + 12) > 150;
 }
 
-static int check_dates(int32_t now, int32_t skew, int32_t exp, int32_t inc)
+static int check_dates(time_t now, int32_t skew, int32_t exp, int32_t inc)
 {
 	return (exp - inc > 0) && (inc - now < skew) && (now - exp < skew);
 }

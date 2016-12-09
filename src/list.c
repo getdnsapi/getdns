@@ -353,6 +353,9 @@ _getdns_list_copy(const struct getdns_list * srclist,
 			retval = _getdns_list_append_dict(*dstlist,
 			    srclist->items[i].data.dict);
 			break;
+		default:
+			retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
+			break;
 		}
 		if (retval != GETDNS_RETURN_GOOD) {
 			getdns_list_destroy(*dstlist);

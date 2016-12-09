@@ -86,7 +86,7 @@ static void upstream_idle_timeout_cb(void *userarg);
 static void upstream_schedule_netreq(getdns_upstream *upstream, 
                                      getdns_network_req *netreq);
 static void upstream_reschedule_events(getdns_upstream *upstream, 
-                                     size_t idle_timeout);
+                                     uint64_t idle_timeout);
 static int  upstream_working_ok(getdns_upstream *upstream);
 static int  upstream_auth_status_ok(getdns_upstream *upstream, 
                                     getdns_network_req *netreq);
@@ -398,6 +398,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	if (transport == GETDNS_TRANSPORT_TCP)
 		return fd;
 #elif USE_OSX_TCP_FASTOPEN
+	(void)transport;
 	sa_endpoints_t endpoints;
 	endpoints.sae_srcif = 0;
 	endpoints.sae_srcaddr = NULL;
@@ -413,12 +414,18 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 		}
 	}
 	return fd;
+#else
+	(void)transport;
 #endif
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
 		if (_getdns_EINPROGRESS || _getdns_EWOULDBLOCK)
 			return fd;
+#ifdef USE_WINSOCK
+		closesocket(fd);
+#else
 		close(fd);
+#endif
 		return -1;
 	}
 	return fd;
@@ -557,7 +564,13 @@ _getdns_cancel_stub_request(getdns_network_req *netreq)
 	DEBUG_STUB("%s %-35s: MSG:  %p\n",
 	           STUB_DEBUG_CLEANUP, __FUNCTION__, netreq);
 	stub_cleanup(netreq);
-	if (netreq->fd >= 0) close(netreq->fd);
+	if (netreq->fd >= 0) {
+#ifdef USE_WINSOCK
+		closesocket(netreq->fd);
+#else
+		close(netreq->fd);
+#endif
+	}
 }
 
 static void
@@ -570,7 +583,11 @@ stub_timeout_cb(void *userarg)
 	netreq->state = NET_REQ_TIMED_OUT;
 	/* Handle upstream*/
 	if (netreq->fd >= 0) {
+#ifdef USE_WINSOCK
+		closesocket(netreq->fd);
+#else
 		close(netreq->fd);
+#endif
 		netreq->upstream->udp_timeouts++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	if (netreq->upstream->udp_timeouts % 100 == 0)
@@ -798,8 +815,13 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 		/* Coming back from an earlier unfinished write or handshake.
 		 * Try to send remaining data */
+#ifdef USE_WINSOCK
+		written = send(fd, tcp->write_buf + tcp->written,
+			tcp->write_buf_len - tcp->written, 0);
+#else
 		written = write(fd, tcp->write_buf     + tcp->written,
 		                    tcp->write_buf_len - tcp->written);
+#endif
 		if (written == -1) {
 			if (_getdns_EWOULDBLOCK)
 				return STUB_TCP_WOULDBLOCK;
@@ -1236,16 +1258,17 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 static uint64_t
 _getdns_get_time_as_uintt64() {
-	
+
 	struct timeval tv;
 	uint64_t       now;
-	
+
 	if (gettimeofday(&tv, NULL)) {
 		return 0;
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
 	return now;
 }
+
 
 /**************************/
 /* UDP callback functions */
@@ -1284,8 +1307,12 @@ stub_udp_read_cb(void *userarg)
 	    upstream, netreq->response, read))
 		return; /* Client cookie didn't match? */
 
+#ifdef USE_WINSOCK
+	closesocket(netreq->fd);
+#else
 	close(netreq->fd);
 	netreq->fd = -1;
+#endif
 	while (GLDNS_TC_WIRE(netreq->response)) {
 		DEBUG_STUB("%s %-35s: MSG: %p TC bit set in response \n", STUB_DEBUG_READ, 
 		             __FUNCTION__, netreq);
@@ -1357,7 +1384,11 @@ stub_udp_write_cb(void *userarg)
 	    netreq->fd, (const void *)netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
 	                        netreq->upstream->addr_len)) {
+#ifdef USE_WINSOCK
+		closesocket(netreq->fd);
+#else
 		close(netreq->fd);
+#endif
 		return;
 	}
 	GETDNS_SCHEDULE_EVENT(
@@ -1781,7 +1812,11 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			upstream->tls_obj = tls_create_object(dnsreq, fd, upstream);
 			if (upstream->tls_obj == NULL) {
 				upstream_failed(upstream, 1);
+#ifdef USE_WINSOCK
+				closesocket(fd);
+#else
 				close(fd);
+#endif
 				return -1;
 			}
 			upstream->tls_hs_state = GETDNS_HS_WRITE;
@@ -1879,7 +1914,7 @@ fallback_on_write(getdns_network_req *netreq)
 }
 
 static void
-upstream_reschedule_events(getdns_upstream *upstream, size_t idle_timeout) {
+upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
 
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SCHEDULE, 
 	             __FUNCTION__, upstream->fd);

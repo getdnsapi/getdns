@@ -433,7 +433,7 @@ hip_hit_2wire(
 		return GETDNS_RETURN_NEED_MORE_SPACE;
 	}
 	*rdf_len = value->size;
-	rdata[0] = value->size;
+	rdata[0] = (uint8_t) value->size;
 	(void)memcpy(rdf, value->data, value->size);
 	return GETDNS_RETURN_GOOD;
 }
@@ -506,7 +506,7 @@ hip_public_key_2wire(
 		return GETDNS_RETURN_NEED_MORE_SPACE;
 	}
 	*rdf_len = value->size;
-	gldns_write_uint16(rdata + 2, value->size);
+	gldns_write_uint16(rdata + 2, (uint16_t) value->size);
 	(void)memcpy(rdf, value->data, value->size);
 	return GETDNS_RETURN_GOOD;
 }

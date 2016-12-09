@@ -339,7 +339,7 @@ void callbackfn(struct getdns_context *context,
                 getdns_transaction_t transaction_id)
 {
   typedef void (*fn_ptr)(struct extracted_response *ex_response);
-  fn_ptr fn = userarg;
+  fn_ptr fn = ((fn_cont *)userarg)->fn;
   (void)context; (void)transaction_id;
 
   /*

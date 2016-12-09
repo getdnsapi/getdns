@@ -7,32 +7,10 @@
 rm -fr "${BUILDDIR}/build-event-loops"
 mkdir  "${BUILDDIR}/build-event-loops"
 cd "${BUILDDIR}/build-event-loops"
-if [ -z "$CFLAGS" ]
-then
-	if (echo $*|grep -q CFLAGS)
-	then
-		"${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev --with-libuv \
-		    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev \
-		    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libuv \
-		    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev --with-libuv \
-		    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent \
-		    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev \
-		    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libuv
-	else
-		"${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev --with-libuv \
-		    || "${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev \
-		    || "${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libuv \
-		    || "${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libev --with-libuv \
-		    || "${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libevent \
-		    || "${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libev \
-		    || "${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-all-drafts --with-getdns_query --with-libuv
-	fi
-else
-	"${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev --with-libuv \
-	    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev \
-	    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libuv \
-	    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev --with-libuv \
-	    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent \
-	    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev \
-	    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libuv
-fi
+"${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev --with-libuv \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libuv \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev --with-libuv \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libuv

@@ -5,4 +5,5 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-event-loops"
+make clean
 make

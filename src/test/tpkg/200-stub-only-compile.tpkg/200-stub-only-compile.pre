@@ -25,14 +25,4 @@ done
 rm -fr "${BUILDDIR}/build-stub-only"
 mkdir  "${BUILDDIR}/build-stub-only"
 cd "${BUILDDIR}/build-stub-only"
-if [ -z "$CFLAGS" ]
-then
-	if (echo $*|grep -q CFLAGS)
-	then
-		"${SRCROOT}/configure" $* --enable-stub-only
-	else
-		"${SRCROOT}/configure" CFLAGS="-Wpedantic -Werror" $* --enable-stub-only
-	fi
-else
-	"${SRCROOT}/configure" $* --enable-stub-only
-fi
+"${SRCROOT}/configure" $* --enable-stub-only

@@ -25,6 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
+
 #include "extension/default_eventloop.h"
 #include "debug.h"
 #include "types-internal.h"
@@ -33,7 +35,7 @@ static uint64_t get_now_plus(uint64_t amount)
 {
 	struct timeval tv;
 	uint64_t       now;
-	
+
 	if (gettimeofday(&tv, NULL)) {
 		perror("gettimeofday() failed");
 		exit(EXIT_FAILURE);
@@ -83,8 +85,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 #endif
 		default_loop->fd_events[fd] = event;
 		default_loop->fd_timeout_times[fd] = get_now_plus(timeout);
-		event->ev = (void *) (intptr_t) (fd + 1);
-
+		event->ev = (void *)(intptr_t)(fd + 1);
 		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
 	}
@@ -103,9 +104,8 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	for (i = 0; i < MAX_TIMEOUTS; i++) {
 		if (default_loop->timeout_events[i] == NULL) {
 			default_loop->timeout_events[i] = event;
-			default_loop->timeout_times[i] = get_now_plus(timeout);
-			event->ev = (void *) (intptr_t) (i + 1);
-
+			default_loop->timeout_times[i] = get_now_plus(timeout);		
+			event->ev = (void *)(intptr_t)(i + 1);
 			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
 		}
@@ -126,7 +126,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
-	if (i < 0 || i > FD_SETSIZE) {
+	if (i < 0 || i >= FD_SETSIZE) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
@@ -231,8 +231,8 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_sec = 0;
 		tv.tv_usec = 0;
 	} else {
-		tv.tv_sec  = (timeout - now) / 1000000;
-		tv.tv_usec = (timeout - now) % 1000000;
+		tv.tv_sec  = (long)((timeout - now) / 1000000);
+		tv.tv_usec = (long)((timeout - now) % 1000000);
 	}
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {

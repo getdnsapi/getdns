@@ -65,20 +65,20 @@
 
 getdns_dict  dnssec_ok_checking_disabled_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled = &dnssec_ok_checking_disabled_spc;
 
 getdns_dict  dnssec_ok_checking_disabled_roadblock_avoidance_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled_roadblock_avoidance
     = &dnssec_ok_checking_disabled_roadblock_avoidance_spc;
 
 getdns_dict  dnssec_ok_checking_disabled_avoid_roadblocks_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks
     = &dnssec_ok_checking_disabled_avoid_roadblocks_spc;
@@ -262,10 +262,10 @@ _getdns_network_req_clear_upstream_options(getdns_network_req * req)
 {
   size_t pktlen;
   if (req->opt) {
-	  gldns_write_uint16(req->opt + 9, req->base_query_option_sz);
+	  gldns_write_uint16(req->opt + 9, (uint16_t) req->base_query_option_sz);
 	  req->response = req->opt + 11 + req->base_query_option_sz;
 	  pktlen = req->response - req->query;
-	  gldns_write_uint16(req->query - 2, pktlen);
+	  gldns_write_uint16(req->query - 2, (uint16_t) pktlen);
   }
 }
 
@@ -428,7 +428,7 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer_write_u16(&gbuf, GETDNS_RRCLASS_ANY);	/* Class */
 	gldns_buffer_write_u32(&gbuf, 0);			/* TTL */
 	gldns_buffer_write_u16(&gbuf,
-	    tsig_info->dname_len + 10 + md_len + 6);	/* RdLen */
+	    (uint16_t)(tsig_info->dname_len + 10 + md_len + 6));	/* RdLen */
 	gldns_buffer_write(&gbuf,
 	    tsig_info->dname, tsig_info->dname_len);	/* Algorithm Name */
 	gldns_buffer_write_u48(&gbuf, time(NULL));	/* Time Signed */
@@ -565,7 +565,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 		return;
 
 	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
-	other_len = gldns_read_uint16(rdf->pos);
+	other_len = (uint8_t) gldns_read_uint16(rdf->pos);
 	if (other_len != rdf->nxt - rdf->pos - 2)
 		return;
 	if (other_len)
@@ -930,7 +930,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    request_type, dnssec_extension_set, with_opt,
 	    edns_maximum_udp_payload_size,
 	    edns_extended_rcode, edns_version, edns_do_bit,
-	    opt_options_size, noptions, options,
+	    (uint16_t) opt_options_size, noptions, options,
 	    netreq_sz - sizeof(getdns_network_req), max_query_sz,
 	    extensions);
 
@@ -941,7 +941,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    dnssec_extension_set, with_opt,
 		    edns_maximum_udp_payload_size,
 		    edns_extended_rcode, edns_version, edns_do_bit,
-		    opt_options_size, noptions, options,
+		    (uint16_t) opt_options_size, noptions, options,
 		    netreq_sz - sizeof(getdns_network_req), max_query_sz,
 		    extensions);
 
