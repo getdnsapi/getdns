@@ -1211,7 +1211,7 @@ static size_t _rr_uncompressed_rdata_size(_getdns_rrtype_iter *rr)
 static size_t _rr_rdata_size(_getdns_rrtype_iter *rr)
 {
 	const _getdns_rr_def *rr_def;
-	int i;
+	size_t i;
 
 	rr_def = _getdns_rr_def_lookup(gldns_read_uint16(rr->rr_i.rr_type));
 

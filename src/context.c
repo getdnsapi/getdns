@@ -3404,7 +3404,7 @@ _get_context_settings(getdns_context* context)
 		if (!(list = getdns_list_create_with_context(context)))
 			goto error;
 
-		for (i = 0; (int) i < context->namespace_count; ++i) {
+		for (i = 0; i < context->namespace_count; ++i) {
 			if (getdns_list_set_int(list, i,
 			    context->namespaces[i])) {
 				getdns_list_destroy(list);
