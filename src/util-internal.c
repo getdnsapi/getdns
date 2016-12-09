@@ -890,7 +890,7 @@ static int _srv_cmp(const void *a, const void *b)
 
 static void _rfc2782_sort(_srv_rr *start, _srv_rr *end)
 {
-	int running_sum, n;
+	unsigned int running_sum, n;
 	_srv_rr *i, *j, swap;
 
 	/* First move all SRVs with weight 0 to the beginning of the list */
@@ -1379,7 +1379,8 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 {
 	getdns_dict *rr_dict, *q_dict, *h_dict;
 	getdns_list *section;
-	size_t i, pkt_start, ancount, nscount;
+	size_t i, pkt_start;
+	uint16_t ancount, nscount;
 	uint32_t qtype, qclass = GETDNS_RRCLASS_IN, rcode = GETDNS_RCODE_NOERROR;
 	getdns_bindata *qname;
 
@@ -1433,7 +1434,8 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 {
 	getdns_dict *rr_dict;
-	size_t i, pkt_start, ancount;
+	size_t i, pkt_start;
+	uint16_t ancount;
 	uint32_t qtype, qclass = GETDNS_RRCLASS_IN;
 	getdns_bindata *qname;
 

@@ -75,8 +75,8 @@ find_rrtype(_getdns_rr_iter *i)
 
 	/* Past the last RR in the pkt */
 	if (i->pkt &&
-	    GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
-	    GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt) <= i->n)
+	    (unsigned)(GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
+	               GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt)) <= i->n)
 		goto done;
 
 	for (pos = i->pos; pos + 4 < i->pkt_end; pos += *pos + 1)
@@ -101,7 +101,7 @@ done:
 }
 
 _getdns_rr_iter *
-_getdns_rr_iter_init(_getdns_rr_iter *i, const uint8_t *pkt, size_t pkt_len)
+_getdns_rr_iter_init(_getdns_rr_iter *i, const uint8_t *pkt, const size_t pkt_len)
 {
 	assert(i);
 
@@ -119,7 +119,7 @@ _getdns_rr_iter_init(_getdns_rr_iter *i, const uint8_t *pkt, size_t pkt_len)
 
 _getdns_rr_iter *
 _getdns_single_rr_iter_init(
-    _getdns_rr_iter *i, const uint8_t *wire, size_t wire_len)
+    _getdns_rr_iter *i, const uint8_t *wire, const size_t wire_len)
 {
 	assert(i);
 

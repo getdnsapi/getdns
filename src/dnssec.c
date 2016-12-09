@@ -256,7 +256,7 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 {
 	uint8_t *r = dst, i;
 
-	if (!src || *src + 1 > dst_len)
+	if (!src || (unsigned)(*src + 1) > dst_len)
 		return NULL;
 
 	for (i = (*dst++ = *src++); i ; i--)
@@ -559,7 +559,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 			if (! _dname_is_parent(*label, head->rrset.name))
 				break;
 		}
-		if (label - labels > max_labels) {
+		if ((unsigned)(label - labels) > max_labels) {
 			max_labels = label - labels;
 			max_head = head;
 		}
@@ -1210,7 +1210,7 @@ static size_t _rr_uncompressed_rdata_size(_getdns_rrtype_iter *rr)
 static size_t _rr_rdata_size(_getdns_rrtype_iter *rr)
 {
 	const _getdns_rr_def *rr_def;
-	size_t i;
+	int i;
 
 	rr_def = _getdns_rr_def_lookup(gldns_read_uint16(rr->rr_i.rr_type));
 
@@ -1626,7 +1626,7 @@ static int nsec3_iteration_count_high(_getdns_rrtype_iter *dnskey, _getdns_rrset
 		return gldns_read_uint16(rr->rr_i.rr_type + 12) > 150;
 }
 
-static int check_dates(int32_t now, int32_t skew, int32_t exp, int32_t inc)
+static int check_dates(time_t now, int32_t skew, int32_t exp, int32_t inc)
 {
 	return (exp - inc > 0) && (inc - now < skew) && (now - exp < skew);
 }

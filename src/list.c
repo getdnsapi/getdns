@@ -312,7 +312,7 @@ getdns_return_t
 _getdns_list_copy(const struct getdns_list * srclist,
 	struct getdns_list ** dstlist)
 {
-	int i;
+	unsigned int i;
 	getdns_return_t retval;
 
 	if (!dstlist)
