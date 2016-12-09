@@ -62,8 +62,6 @@ check_good () {
 	fi
 	if [[ $result_ok == 1 ]] ; then
 		trans_ok=$(check_trans "$1" "$2")
-	fi
-	if [[ $result_ok == 1 ]] ; then
 		auth_ok=$(check_auth "$1" "$3")
 	fi
 	if [[ $result_ok == 1 ]] && [[ $auth_ok == 1 ]] && [[ $trans_ok == 1 ]]; then
