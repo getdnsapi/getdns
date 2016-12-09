@@ -407,7 +407,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 
 	/* TODO: how do we handle raw public keys? */
 
-	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++) {
+	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++, prev = x) {
 
 		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
 #if defined(STUB_DEBUG) && STUB_DEBUG
@@ -459,7 +459,6 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			} else
 				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
 					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, p);
-		prev = x;
 	}
 
 	return ret;
