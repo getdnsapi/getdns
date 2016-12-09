@@ -318,6 +318,7 @@ getentropy_linux.lo getentropy_linux.o: $(srcdir)/compat/getentropy_linux.c conf
 getentropy_osx.lo getentropy_osx.o: $(srcdir)/compat/getentropy_osx.c config.h
 getentropy_solaris.lo getentropy_solaris.o: $(srcdir)/compat/getentropy_solaris.c config.h
 getentropy_win.lo getentropy_win.o: $(srcdir)/compat/getentropy_win.c
+gettimeofday.lo gettimeofday.o: $(srcdir)/compat/gettimeofday.c config.h
 inet_ntop.lo inet_ntop.o: $(srcdir)/compat/inet_ntop.c config.h
 inet_pton.lo inet_pton.o: $(srcdir)/compat/inet_pton.c config.h
 sha512.lo sha512.o: $(srcdir)/compat/sha512.c config.h
@@ -326,9 +327,10 @@ rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/log.h $(srcd
  $(srcdir)/util/fptr_wlist.h $(srcdir)/util/rbtree.h
 val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c config.h $(srcdir)/util/val_secalgo.h $(srcdir)/util/log.h \
  $(srcdir)/debug.h config.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/gbuffer.h
-default_eventloop.lo default_eventloop.o: $(srcdir)/extension/default_eventloop.c \
- $(srcdir)/extension/default_eventloop.h config.h getdns/getdns.h \
- getdns/getdns_extra.h $(srcdir)/debug.h config.h
+default_eventloop.lo default_eventloop.o: $(srcdir)/extension/default_eventloop.c config.h \
+ $(srcdir)/extension/default_eventloop.h getdns/getdns.h getdns/getdns_extra.h \
+ $(srcdir)/debug.h config.h $(srcdir)/types-internal.h getdns/getdns.h getdns/getdns_extra.h \
+ $(srcdir)/util/rbtree.h
 libev.lo libev.o: $(srcdir)/extension/libev.c config.h $(srcdir)/types-internal.h getdns/getdns.h \
  getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
  $(srcdir)/getdns/getdns_ext_libev.h getdns/getdns_extra.h

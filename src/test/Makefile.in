@@ -280,7 +280,7 @@ getdns_context_set_listen_addresses.lo getdns_context_set_listen_addresses.o: \
  $(srcdir)/getdns_context_set_listen_addresses.c ../config.h \
  $(srcdir)/getdns_context_set_listen_addresses.h ../getdns/getdns.h \
  ../getdns/getdns_extra.h $(srcdir)/../types-internal.h ../getdns/getdns.h \
- ../getdns/getdns_extra.h $(srcdir)/../util/rbtree.h
+ ../getdns/getdns_extra.h $(srcdir)/../util/rbtree.h $(srcdir)/../debug.h ../config.h
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
  $(srcdir)/getdns_str2dict.h ../getdns/getdns.h $(srcdir)/getdns_context_config.h \
  $(srcdir)/getdns_context_set_listen_addresses.h ../getdns/getdns_extra.h
