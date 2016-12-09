@@ -55,6 +55,7 @@
        *  expect: GETDNS_RETURN_UNKNOWN_TRANSACTION
        */
        void verify_getdns_cancel_callback(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_cancel_callback };
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
@@ -65,7 +66,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
-         verify_getdns_cancel_callback, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -86,6 +87,7 @@
        *  expect: GETDNS_RETURN_UNKNOWN_TRANSACTION
        */
        void verify_getdns_cancel_callback(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_cancel_callback };
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
@@ -96,7 +98,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
-         verify_getdns_cancel_callback, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -133,7 +135,8 @@
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-       getdns_transaction_t transaction_id_array[10] = {};
+       getdns_transaction_t transaction_id_array[10]
+	       = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
        int i;
        int odd = 0;
        int even = 0;
@@ -212,7 +215,8 @@
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-       getdns_transaction_t transaction_id_array[10] = {};
+       getdns_transaction_t transaction_id_array[10]
+	       = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
        int i;
        int odd = 0;
        int even = 0;
@@ -295,7 +299,8 @@
        struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x08" };
        struct getdns_dict *address = NULL;
        getdns_transaction_t transaction_id = 0;
-       getdns_transaction_t transaction_id_array[10] = {};
+       getdns_transaction_t transaction_id_array[10]
+	       = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
        int i;
        int odd = 0;
        int even = 0;
@@ -381,7 +386,8 @@
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
-       getdns_transaction_t transaction_id_array[10] = {};
+       getdns_transaction_t transaction_id_array[10]
+	       = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
        int i;
        int odd = 0;
        int even = 0;
@@ -451,6 +457,8 @@
          void *userarg,
          getdns_transaction_t transaction_id)
      {
+       (void)context; (void)response; (void)userarg;
+
        callback_called++;
 
        if(callback_type == GETDNS_CALLBACK_CANCEL)
@@ -483,6 +491,7 @@
      */
      void verify_getdns_cancel_callback(struct extracted_response *ex_response)
      {
+       (void)ex_response;
        /*
         *  increment callback_called global to prove callback was called.
         */

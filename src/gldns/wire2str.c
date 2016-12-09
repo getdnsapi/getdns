@@ -668,7 +668,7 @@ int gldns_wire2str_rdata_scan(uint8_t** d, size_t* dlen, char** s,
 	uint8_t* origd = *d;
 	char* origs = *s;
 	size_t origdlen = *dlen, origslen = *slen;
-	uint16_t r_cnt, r_max;
+	size_t r_cnt, r_max;
 	gldns_rdf_type rdftype;
 	int w = 0, n;
 
@@ -789,8 +789,9 @@ int gldns_wire2str_dname_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 		}
 
 		/* spool label characters, end with '.' */
-		if(in_buf && *dlen < labellen) labellen = *dlen;
-		else if(!in_buf && pos+labellen > pkt+pktlen)
+		if(in_buf && *dlen < (size_t)labellen)
+			labellen = (uint8_t)*dlen;
+		else if(!in_buf && pos+(size_t)labellen > pkt+pktlen)
 			labellen = (uint8_t)(pkt + pktlen - pos);
 		for(i=0; i<(unsigned)labellen; i++) {
 			w += dname_char_print(s, slen, *pos++);
@@ -1983,10 +1984,10 @@ int gldns_wire2str_edns_scan(uint8_t** data, size_t* data_len, char** str,
 	w += gldns_str_print(str, str_len, " ; udp: %u", (unsigned)udpsize);
 
 	if(rdatalen) {
-		if(*data_len < rdatalen) {
+		if((size_t)*data_len < rdatalen) {
 			w += gldns_str_print(str, str_len,
 				" ; Error EDNS rdata too short; ");
-			rdatalen = *data_len;
+			rdatalen = (uint16_t)*data_len;
 		}
 		w += print_edns_opts(str, str_len, *data, rdatalen);
 		(*data) += rdatalen;

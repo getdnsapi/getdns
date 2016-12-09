@@ -86,19 +86,19 @@ const uint8_t *_getdns_owner_if_or_as_decompressed(
 static inline _getdns_section 
 _getdns_rr_iter_section(_getdns_rr_iter *i)
 {
-	return !i->pkt ? (i->nxt - i->rr_type == 4 ? SECTION_QUESTION
-	                                           : SECTION_ANSWER  )
-         : i->n < GLDNS_QDCOUNT(i->pkt) ? SECTION_QUESTION
-	     : i->n < (unsigned)(GLDNS_QDCOUNT(i->pkt)
-	                       + GLDNS_ANCOUNT(i->pkt)) ? SECTION_ANSWER
-	     : i->n < (unsigned)(GLDNS_QDCOUNT(i->pkt)
-	                       + GLDNS_ANCOUNT(i->pkt)
-	                       + GLDNS_NSCOUNT(i->pkt)) ? SECTION_AUTHORITY
-	     : i->n < (unsigned)(GLDNS_QDCOUNT(i->pkt)
-	                       + GLDNS_ANCOUNT(i->pkt)
-	                       + GLDNS_NSCOUNT(i->pkt)
-	                       + GLDNS_ARCOUNT(i->pkt)) ? SECTION_ADDITIONAL
-	                                    : SECTION_ANY;
+	return ! i->pkt ? (i->nxt - i->rr_type == 4 ? SECTION_QUESTION
+	                                            : SECTION_ANSWER  )
+             : i->n < (size_t)GLDNS_QDCOUNT(i->pkt) ? SECTION_QUESTION
+	     : i->n < (size_t)GLDNS_QDCOUNT(i->pkt)
+	                    + GLDNS_ANCOUNT(i->pkt) ? SECTION_ANSWER
+	     : i->n < (size_t)GLDNS_QDCOUNT(i->pkt)
+	                    + GLDNS_ANCOUNT(i->pkt)
+	                    + GLDNS_NSCOUNT(i->pkt) ? SECTION_AUTHORITY
+	     : i->n < (size_t)GLDNS_QDCOUNT(i->pkt)
+	                    + GLDNS_ANCOUNT(i->pkt)
+	                    + GLDNS_NSCOUNT(i->pkt)
+	                    + GLDNS_ARCOUNT(i->pkt) ? SECTION_ADDITIONAL
+	                                            : SECTION_ANY;
 }
 
 /* Utility functions to read rr_type and rr_class from a rr iterator */

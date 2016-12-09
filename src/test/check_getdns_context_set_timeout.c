@@ -243,6 +243,7 @@ void timeout_3_cb(struct getdns_context *context,
                   getdns_callback_type_t callback_type,
                   struct getdns_dict * response,
                   void *userarg, getdns_transaction_t transaction_id) {
+    (void)response; (void)transaction_id;
     timeout_thread_data *tdata = (timeout_thread_data*)userarg;
     tdata->num_callbacks++;
     if (callback_type == GETDNS_CALLBACK_TIMEOUT) {

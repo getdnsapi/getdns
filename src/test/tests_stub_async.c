@@ -57,6 +57,8 @@ this_callbackfn(struct getdns_context *this_context,
 	struct getdns_dict *this_response,
 	void *this_userarg, getdns_transaction_t this_transaction_id)
 {
+	(void)this_context; (void)this_userarg;
+
 	if (this_callback_type == GETDNS_CALLBACK_COMPLETE) {	/* This is a callback with data */
 		char *res = getdns_pretty_print_dict(this_response);
 		fprintf(stdout, "%s\n", res);

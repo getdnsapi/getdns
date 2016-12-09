@@ -723,8 +723,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 }
 
 static int
-tls_is_in_transports_list(getdns_context *context) {
-	for (size_t i=0; i< context->dns_transport_count;i++) {
+tls_is_in_transports_list(getdns_context *context)
+{
+	size_t i;
+
+	for (i = 0; i< context->dns_transport_count;i++) {
 		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS)
 			return 1;
 	}
@@ -1894,11 +1897,13 @@ getdns_context_set_tls_authentication(getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_tls_authentication_list */
 
+#ifdef HAVE_LIBUNBOUND
 static void
-set_ub_limit_outstanding_queries(struct getdns_context* context, uint16_t value) {
+set_ub_limit_outstanding_queries(getdns_context* context, uint16_t value) {
     /* num-queries-per-thread */
     set_ub_number_opt(context, "num-queries-per-thread:", value);
 }
+#endif
 /*
  * getdns_context_set_limit_outstanding_queries
  *
@@ -1908,7 +1913,9 @@ getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
     uint16_t limit)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+#ifdef HAVE_LIBUNBOUND
     set_ub_limit_outstanding_queries(context, limit);
+#endif
     if (limit != context->limit_outstanding_queries) {
         context->limit_outstanding_queries = limit;
         dispatch_updated(context,
@@ -2280,11 +2287,13 @@ getdns_context_set_dnssec_trust_anchors(
 	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dnssec_trust_anchors */
 
+#ifdef HAVE_LIBUNBOUND
 static void
 set_ub_dnssec_allowed_skew(struct getdns_context* context, uint32_t value) {
     set_ub_number_opt(context, "val-sig-skew-min:", value);
     set_ub_number_opt(context, "val-sig-skew-max:", value);
 }
+#endif
 /*
  * getdns_context_set_dnssec_allowed_skew
  *
@@ -2294,7 +2303,9 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     uint32_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+#ifdef HAVE_LIBUNBOUND
     set_ub_dnssec_allowed_skew(context, value);
+#endif
     if (value != context->dnssec_allowed_skew) {
         context->dnssec_allowed_skew = value;
         dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW);
@@ -2562,6 +2573,7 @@ error:
 } /* getdns_context_set_upstream_recursive_servers */
 
 
+#ifdef HAVE_LIBUNBOUND
 static void
 set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
     int value) {
@@ -2569,6 +2581,7 @@ set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
     if (value >= 512 && value <= 65535)
     	set_ub_number_opt(context, "edns-buffer-size:", (uint16_t)value);
 }
+#endif
 
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
@@ -2585,7 +2598,9 @@ getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
 	if (value < 512)
 		value = 512;
 
+#ifdef HAVE_LIBUNBOUND
 	set_ub_edns_maximum_udp_payload_size(context, value);
+#endif
 	if (value != context->edns_maximum_udp_payload_size) {
 		context->edns_maximum_udp_payload_size = value;
 		dispatch_updated(context,
@@ -2986,7 +3001,7 @@ getdns_return_t
 _getdns_context_prepare_for_resolution(struct getdns_context *context,
     int usenamespaces)
 {
-	int i;
+	size_t i;
 	getdns_return_t r;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
@@ -3472,7 +3487,7 @@ _getdns_context_local_namespace_resolve(
 	getdns_context  *context = dnsreq->context;
 	host_name_addrs *hnas;
 	uint8_t lookup[256];
-	getdns_list    empty_list = { 0 };
+	getdns_list    empty_list = { 0, 0, NULL, { NULL, {{ NULL, NULL, NULL }}}};
 	getdns_bindata bindata;
 	getdns_list   *jaa;
 	size_t         i;

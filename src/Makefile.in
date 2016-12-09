@@ -48,7 +48,9 @@ srcdir = @srcdir@
 LIBTOOL = ../libtool
 
 CC=@CC@
-CFLAGS=-I$(srcdir) -I. @CFLAGS@ @CPPFLAGS@
+CFLAGS=-I$(srcdir) -I. @CFLAGS@ @CPPFLAGS@ $(XTRA_CFLAGS)
+WPEDANTICFLAG=@WPEDANTICFLAG@
+WNOERRORFLAG=@WNOERRORFLAG@
 LDFLAGS=@LDFLAGS@ @LIBS@
 
 EXTENSION_LIBEVENT_LIB=@EXTENSION_LIBEVENT_LIB@
@@ -83,35 +85,35 @@ NON_C99_OBJS=context.lo libuv.lo
 .SUFFIXES: .c .o .a .lo .h
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $< -o $@
 
 .c.lo:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $< -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $< -o $@
 
 default: all
 
 all: libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_LIBEV_LIB)
 
 $(GETDNS_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/$(@:.lo=.c) -o $@
 
 $(GLDNS_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/gldns/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/gldns/$(@:.lo=.c) -o $@
 
 $(COMPAT_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/compat/$(@:.lo=.c) -o $@
 
 $(UTIL_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/util/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WNOERRORFLAG) -c $(srcdir)/util/$(@:.lo=.c) -o $@
 
 $(EXTENSION_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/extension/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/extension/$(@:.lo=.c) -o $@
 
 context.lo:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(C99COMPATFLAGS) -c $(srcdir)/context.c -o context.lo
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/context.c -o context.lo
 
 libuv.lo:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(C99COMPATFLAGS) -c $(srcdir)/extension/libuv.c -o libuv.lo
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/extension/libuv.c -o libuv.lo
 
 install:	libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
@@ -134,18 +136,18 @@ uninstall:
 	if test $(have_libev) = 1; then $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$(EXTENSION_LIBEV_LIB) ; fi
 
 libgetdns_ext_event.la: libgetdns.la libevent.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ libevent.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libevent.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ libevent.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libevent.symbols
 
 libgetdns_ext_uv.la: libgetdns.la libuv.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ libuv.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libuv.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ libuv.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBUV_LDFLAGS) $(EXTENSION_LIBUV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libuv.symbols
 
 
 libgetdns_ext_ev.la: libgetdns.la libev.lo
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ libev.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ libev.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
 libgetdns.la: $(GETDNS_OBJ) version.lo context.lo default_eventloop.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $(GETDNS_OBJ) version.lo context.lo default_eventloop.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(GETDNS_OBJ) version.lo context.lo default_eventloop.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 
 test:	all

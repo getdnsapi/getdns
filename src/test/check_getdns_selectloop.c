@@ -37,9 +37,11 @@
 #include "getdns/getdns_extra.h"
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
+	(void)eventloop;
  	getdns_context_run(context);
 }
 
 void* create_eventloop_impl(struct getdns_context* context) {
+    (void)context;
     return NULL;
 }

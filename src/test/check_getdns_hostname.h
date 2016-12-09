@@ -315,6 +315,7 @@
        *  expect:  response with correct hostname
        */
        void verify_getdns_hostname_10(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_hostname_10 };
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
@@ -333,7 +334,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_hostname(context, address, NULL,
-         verify_getdns_hostname_10, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
        RUN_EVENT_LOOP;
@@ -356,6 +357,7 @@
        *  expect:  response with no hostname
        */
        void verify_getdns_hostname_11(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_hostname_11 };
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
@@ -374,7 +376,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_hostname(context, address, NULL,
-         verify_getdns_hostname_11, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
        RUN_EVENT_LOOP;
@@ -398,6 +400,7 @@
        *  expect:  response with correct hostname
        */
        void verify_getdns_hostname_12(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_hostname_12 };
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv6" };
@@ -419,7 +422,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_hostname(context, address, NULL,
-         verify_getdns_hostname_12, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
        RUN_EVENT_LOOP;
@@ -442,6 +445,7 @@
        *  expect:  response with no hostname
        */
        void verify_getdns_hostname_13(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_hostname_13 };
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv6" };
@@ -460,7 +464,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_hostname(context, address, NULL,
-         verify_getdns_hostname_13, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_hostname()");
 
        RUN_EVENT_LOOP;

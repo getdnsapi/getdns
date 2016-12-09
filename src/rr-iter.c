@@ -75,8 +75,8 @@ find_rrtype(_getdns_rr_iter *i)
 
 	/* Past the last RR in the pkt */
 	if (i->pkt &&
-	    (unsigned)(GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
-	               GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt)) <= i->n)
+	    (size_t)GLDNS_QDCOUNT(i->pkt) + GLDNS_ANCOUNT(i->pkt) +
+	            GLDNS_NSCOUNT(i->pkt) + GLDNS_ARCOUNT(i->pkt) <= i->n)
 		goto done;
 
 	for (pos = i->pos; pos + 4 < i->pkt_end; pos += *pos + 1)

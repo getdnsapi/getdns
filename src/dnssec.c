@@ -256,7 +256,7 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 {
 	uint8_t *r = dst, i;
 
-	if (!src || (unsigned)(*src + 1) > dst_len)
+	if (!src || (size_t)*src + 1 > dst_len)
 		return NULL;
 
 	for (i = (*dst++ = *src++); i ; i--)
@@ -528,7 +528,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	chain_head *head;
 	const uint8_t *labels[128], **last_label, **label;
 
-	size_t      max_labels; /* max labels in common */
+	ssize_t     max_labels; /* max labels in common */
 	chain_head *max_head;
 	chain_node *max_node;
 
@@ -857,6 +857,7 @@ static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
 	     ? dnssec_ok_checking_disabled_roadblock_avoidance
 	     : dnssec_ok_checking_disabled_avoid_roadblocks;
 #else
+	(void)dnsreq;
 	return dnssec_ok_checking_disabled;
 #endif
 }
@@ -1871,7 +1872,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 			max_supported_digest = ds->rr_i.rr_type[13];
 			max_supported_result = 0;
 
-			if (digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
+			if ((int)digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
 			    || memcmp(digest, ds->rr_i.rr_type+14, digest_len) != 0) {
 				if (digest != digest_spc)
 					GETDNS_FREE(*mf, digest);
