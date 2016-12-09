@@ -126,7 +126,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
-	if (i < 0 || i > FD_SETSIZE) {
+	if (i < 0 || i >= FD_SETSIZE) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {

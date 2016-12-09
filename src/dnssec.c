@@ -616,6 +616,11 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->node_count = node_count;
 
 	if (!node_count) {
+		/* When this head has no nodes of itself, it must have found
+		 * another head which has nodes for its labels (i.e. max_head)
+		 */
+		assert(max_head != NULL);
+
 		head->parent = max_head->parent;
 		return head;
 	}
@@ -1090,6 +1095,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	_getdns_rrset *rrset;
 
 	_getdns_context_clear_outbound_request(dnsreq);
+	/* A SOA query is always scheduled with a node as the user argument.
+	 */
+	assert(node != NULL);
 
 	for ( i = _getdns_rrset_iter_init(&i_spc, netreq->response
 	                                        , netreq->response_len

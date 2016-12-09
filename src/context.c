@@ -419,7 +419,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		if (port != GETDNS_PORT_DNS && port != GETDNS_PORT_DNS &&
+		if (port != GETDNS_PORT_ZERO && port != GETDNS_PORT_DNS &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
