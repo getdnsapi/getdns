@@ -256,7 +256,7 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 {
 	uint8_t *r = dst, i;
 
-	if (!src || (unsigned)(*src + 1) > dst_len)
+	if (!src || (size_t)*src + 1 > dst_len)
 		return NULL;
 
 	for (i = (*dst++ = *src++); i ; i--)
@@ -528,7 +528,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	chain_head *head;
 	const uint8_t *labels[128], **last_label, **label;
 
-	size_t      max_labels; /* max labels in common */
+	ssize_t     max_labels; /* max labels in common */
 	chain_head *max_head;
 	chain_node *max_node;
 
@@ -616,6 +616,11 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->node_count = node_count;
 
 	if (!node_count) {
+		/* When this head has no nodes of itself, it must have found
+		 * another head which has nodes for its labels (i.e. max_head)
+		 */
+		assert(max_head != NULL);
+
 		head->parent = max_head->parent;
 		return head;
 	}
@@ -857,6 +862,7 @@ static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
 	     ? dnssec_ok_checking_disabled_roadblock_avoidance
 	     : dnssec_ok_checking_disabled_avoid_roadblocks;
 #else
+	(void)dnsreq;
 	return dnssec_ok_checking_disabled;
 #endif
 }
@@ -1089,6 +1095,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	_getdns_rrset *rrset;
 
 	_getdns_context_clear_outbound_request(dnsreq);
+	/* A SOA query is always scheduled with a node as the user argument.
+	 */
+	assert(node != NULL);
 
 	for ( i = _getdns_rrset_iter_init(&i_spc, netreq->response
 	                                        , netreq->response_len
@@ -1210,7 +1219,7 @@ static size_t _rr_uncompressed_rdata_size(_getdns_rrtype_iter *rr)
 static size_t _rr_rdata_size(_getdns_rrtype_iter *rr)
 {
 	const _getdns_rr_def *rr_def;
-	int i;
+	size_t i;
 
 	rr_def = _getdns_rr_def_lookup(gldns_read_uint16(rr->rr_i.rr_type));
 
@@ -1871,7 +1880,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 			max_supported_digest = ds->rr_i.rr_type[13];
 			max_supported_result = 0;
 
-			if (digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
+			if ((int)digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
 			    || memcmp(digest, ds->rr_i.rr_type+14, digest_len) != 0) {
 				if (digest != digest_spc)
 					GETDNS_FREE(*mf, digest);

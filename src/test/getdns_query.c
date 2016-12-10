@@ -122,8 +122,8 @@ static int get_rrclass(const char *t)
 }
 
 static getdns_return_t
-fill_transport_list(getdns_context *context, char *transport_list_str, 
-                    getdns_transport_list_t *transports, size_t *transport_count)
+fill_transport_list(char *transport_list_str,
+    getdns_transport_list_t *transports, size_t *transport_count)
 {
 	size_t max_transports = *transport_count;
 	*transport_count = 0;
@@ -334,6 +334,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t trans_id)
 {
 	char *response_str;
+	(void)context; (void)userarg;
 
 	/* This is a callback with data */;
 	if (response && !quiet && (response_str = json ?
@@ -475,7 +476,8 @@ static void parse_config(const char *config_str)
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	size_t i, j, klass;
+	size_t j;
+	int i, klass;
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
@@ -622,7 +624,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				rewind(fh);
 				if (fread(config_file, 1, config_file_sz, fh)
-				    != config_file_sz) {
+				    != (size_t)config_file_sz) {
 					fprintf(stderr, "An error occurred whil"
 					    "e reading \"%s\": %s\n",argv[i],
 					    strerror(errno));
@@ -913,7 +915,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				getdns_transport_list_t transports[10];
 				size_t transport_count = sizeof(transports);
-				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
+				if ((r = fill_transport_list(argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){
 						fprintf(stderr, "Could not set transports\n");
@@ -983,13 +985,13 @@ next:		;
 	if (pubkey_pinset && upstream_count) {
 		getdns_dict *upstream;
 		/* apply the accumulated pubkey pinset to all upstreams: */
-		for (i = 0; i < upstream_count; i++) {
-			if (r = getdns_list_get_dict(upstream_list, i, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", i);
+		for (j = 0; j < upstream_count; j++) {
+			if (r = getdns_list_get_dict(upstream_list, j, &upstream), r) {
+				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", j);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", i);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", j);
 				return r;
 			}
 		}
@@ -1282,6 +1284,9 @@ static void request_cb(
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint32_t n, rcode, dnssec_status;
 
+#if !defined(SERVER_DEBUG) || !SERVER_DEBUG
+	(void)transaction_id;
+#endif
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
 	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
 	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);

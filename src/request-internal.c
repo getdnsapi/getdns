@@ -65,20 +65,20 @@
 
 getdns_dict  dnssec_ok_checking_disabled_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled = &dnssec_ok_checking_disabled_spc;
 
 getdns_dict  dnssec_ok_checking_disabled_roadblock_avoidance_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled_roadblock_avoidance
     = &dnssec_ok_checking_disabled_roadblock_avoidance_spc;
 
 getdns_dict  dnssec_ok_checking_disabled_avoid_roadblocks_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks
     = &dnssec_ok_checking_disabled_avoid_roadblocks_spc;

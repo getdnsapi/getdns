@@ -97,6 +97,7 @@ static void
 getdns_libev_read_cb(struct ev_loop *l, struct ev_io *io, int revents)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)io->data;
+	(void)l; (void)revents;
         assert(el_ev->read_cb);
         el_ev->read_cb(el_ev->userarg);
 }
@@ -105,14 +106,16 @@ static void
 getdns_libev_write_cb(struct ev_loop *l, struct ev_io *io, int revents)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)io->data;
+	(void)l; (void)revents;
         assert(el_ev->write_cb);
         el_ev->write_cb(el_ev->userarg);
 }
 
 static void
-getdns_libev_timeout_cb(struct ev_loop *l, struct ev_timer *timer, int revent)
+getdns_libev_timeout_cb(struct ev_loop *l, struct ev_timer *timer, int revents)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
+	(void)l; (void)revents;
         assert(el_ev->timeout_cb);
         el_ev->timeout_cb(el_ev->userarg);
 }

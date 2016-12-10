@@ -46,6 +46,7 @@
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
     struct ev_loop* loop = (struct ev_loop*) eventloop;
+    (void)context;
     ev_run(loop, 0);
 }
 

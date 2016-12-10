@@ -29,6 +29,7 @@
 
 #include "extension/default_eventloop.h"
 #include "debug.h"
+#include "types-internal.h"
 
 static uint64_t get_now_plus(uint64_t amount)
 {
@@ -41,7 +42,8 @@ static uint64_t get_now_plus(uint64_t amount)
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
 
-	return (now + amount * 1000) >= now ? now + amount * 1000 : -1;
+	return (now + amount * 1000) >= now
+	      ? now + amount * 1000 : TIMEOUT_FOREVER;
 }
 
 static getdns_return_t
@@ -124,7 +126,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
 
 	i = (intptr_t)event->ev - 1;
-	if (i < 0 || i > FD_SETSIZE) {
+	if (i < 0 || i >= FD_SETSIZE) {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
@@ -151,11 +153,15 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 static void
 default_eventloop_cleanup(getdns_eventloop *loop)
 {
+	(void)loop;
 }
 
 static void
 default_read_cb(int fd, getdns_eventloop_event *event)
 {
+#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
+	(void)fd;
+#endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->read_cb(event->userarg);
 }
@@ -163,6 +169,9 @@ default_read_cb(int fd, getdns_eventloop_event *event)
 static void
 default_write_cb(int fd, getdns_eventloop_event *event)
 {
+#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
+	(void)fd;
+#endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->write_cb(event->userarg);
 }
@@ -170,6 +179,9 @@ default_write_cb(int fd, getdns_eventloop_event *event)
 static void
 default_timeout_cb(int fd, getdns_eventloop_event *event)
 {
+#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
+	(void)fd;
+#endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
 	event->timeout_cb(event->userarg);
 }
@@ -181,7 +193,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	fd_set   readfds, writefds;
 	int      fd, max_fd = -1;
-	uint64_t now, timeout = (uint64_t)-1;
+	uint64_t now, timeout = TIMEOUT_FOREVER;
 	size_t   i;
 	struct timeval tv;
 
@@ -212,7 +224,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (default_loop->fd_timeout_times[fd] < timeout)
 			timeout = default_loop->fd_timeout_times[fd];
 	}
-	if (max_fd == -1 && timeout == (uint64_t)-1)
+	if (max_fd == -1 && timeout == TIMEOUT_FOREVER)
 		return;
 
 	if (! blocking || now > timeout) {
@@ -223,7 +235,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_usec = (long)((timeout - now) % 1000000);
 	}
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
-	    (timeout == ((uint64_t)-1) ? NULL : &tv)) < 0) {
+	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
 		perror("select() failed");
 		exit(EXIT_FAILURE);
 	}

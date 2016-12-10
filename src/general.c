@@ -420,7 +420,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	getdns_network_req *netreq, **netreq_p;
 	getdns_dns_req *req;
 	getdns_dict *localnames_response;
-	int i;
+	size_t i;
 
 	if (!context || !name || (!callbackfn && !internal_cb))
 		return GETDNS_RETURN_INVALID_PARAMETER;

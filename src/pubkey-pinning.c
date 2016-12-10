@@ -97,7 +97,7 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 	const char* str)
 {
 	BIO *bio = NULL;
-	int i;
+	size_t i;
 	uint8_t buf[SHA256_DIGEST_LENGTH];
 	char inbuf[B64_ENCODED_SHA256_LENGTH + 1];
 	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
@@ -425,7 +425,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 #endif
 		/* digest the cert with sha256 */
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
-		if (len > sizeof(raw)) {
+		if (len > (int)sizeof(raw)) {
 			DEBUG_STUB("%s %-35s: Pubkey %d is larger than "PRIsz" octets\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, sizeof(raw));
 			continue;

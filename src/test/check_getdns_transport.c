@@ -193,6 +193,8 @@ void transport_cb(struct getdns_context *context,
   struct getdns_dict * response,
   void *userarg, getdns_transaction_t transaction_id) {
   /* Don't really care about the answer*/
+  (void)context; (void)callback_type; (void)response;
+  (void)userarg; (void)transaction_id;
   return;
 }
 
