@@ -1060,7 +1060,7 @@ tls_do_handshake(getdns_upstream *upstream)
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
 	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %s. Session is %s.\n", 
 		         STUB_DEBUG_SETUP_TLS, __FUNCTION__, upstream->fd, 
-		         getdns_auth_str_array[upstream->tls_auth_state],
+		         _getdns_auth_str(upstream->tls_auth_state),
 		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
 	if (upstream->tls_session != NULL)
 	    SSL_SESSION_free(upstream->tls_session);

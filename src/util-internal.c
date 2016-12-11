@@ -899,7 +899,7 @@ _getdns_create_call_reporting_dict(
 	
 	/* Only include the auth status if TLS was used */
 	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
-	    getdns_auth_str_array[netreq->debug_tls_auth_status])){
+	    _getdns_auth_str(netreq->debug_tls_auth_status))){
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
@@ -1560,6 +1560,16 @@ void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
 		if (_getdns_list_append_this_dict(l, rr_dict))
 			getdns_dict_destroy(rr_dict);
 	}
+}
+
+const char * _getdns_auth_str(getdns_auth_state_t auth) {
+	static const char*
+	getdns_auth_str_array[] = {
+		GETDNS_STR_AUTH_NONE,
+		GETDNS_STR_AUTH_FAILED,
+		GETDNS_STR_AUTH_OK
+	};
+	return getdns_auth_str_array[auth];
 }
 
 /* util-internal.c */
