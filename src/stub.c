@@ -881,7 +881,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	 * tls_auth_fail if there is a hostname provided*/
 	if (upstream->tls_auth_name[0]) {
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		preverify_ok == 0;
+		preverify_ok = 0;
 	}
 #endif
 
