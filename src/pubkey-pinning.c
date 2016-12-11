@@ -422,14 +422,14 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			int verified;
 			if (!pkey) {
 				DEBUG_STUB("%s %-35s: Could not get pubkey from cert %d (%p)\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, x);
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, (void*)x);
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 			verified = X509_verify(prev, pkey);
 			EVP_PKEY_free(pkey);
 			if (!verified) {
 				DEBUG_STUB("%s %-35s: cert %d (%p) was not signed by cert %d\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i-1, prev, i);
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i-1, (void*)prev, i);
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 		}
@@ -454,11 +454,11 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		for (p = pinset; p; p = p->next)
 			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
 				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p ("PRIsz")\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, p, sizeof(p->pin));
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, (void*)p, sizeof(p->pin));
 				return GETDNS_RETURN_GOOD;
 			} else
 				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, p);
+					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, (void*)p);
 	}
 
 	return ret;
