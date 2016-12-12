@@ -412,7 +412,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
 #if defined(STUB_DEBUG) && STUB_DEBUG
 		DEBUG_STUB("%s %-35s: Name of cert: %d ",
-		           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i);
+		           STUB_DEBUG_SETUP_TLS, __FUNC__, i);
 		X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
 		fprintf(stderr, "\n");
 #endif
@@ -422,14 +422,14 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			int verified;
 			if (!pkey) {
 				DEBUG_STUB("%s %-35s: Could not get pubkey from cert %d (%p)\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, (void*)x);
+					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)x);
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 			verified = X509_verify(prev, pkey);
 			EVP_PKEY_free(pkey);
 			if (!verified) {
 				DEBUG_STUB("%s %-35s: cert %d (%p) was not signed by cert %d\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i-1, (void*)prev, i);
+					   STUB_DEBUG_SETUP_TLS, __FUNC__, i-1, (void*)prev, i);
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 		}
@@ -438,14 +438,14 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
 		if (len > (int)sizeof(raw)) {
 			DEBUG_STUB("%s %-35s: Pubkey %d is larger than "PRIsz" octets\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, sizeof(raw));
+			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, sizeof(raw));
 			continue;
 		}
 		next = raw;
 		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
 		if (next - raw != len) {
 			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed "PRIsz"\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, len, next - raw);
+			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, len, next - raw);
 			continue;
 		}
 		SHA256(raw, len, buf);
@@ -454,11 +454,11 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		for (p = pinset; p; p = p->next)
 			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
 				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p ("PRIsz")\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, (void*)p, sizeof(p->pin));
+					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p, sizeof(p->pin));
 				return GETDNS_RETURN_GOOD;
 			} else
 				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNCTION__, i, (void*)p);
+					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p);
 	}
 
 	return ret;

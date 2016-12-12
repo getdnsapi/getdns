@@ -1367,7 +1367,7 @@ static void request_cb(
 		qname_str = unknown_qname;
 
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
-	    " cd: %d, qname: %s)\n", msg, transaction_id, (int)callback_type,
+	    " cd: %d, qname: %s)\n", (void *)msg, transaction_id, (int)callback_type,
 	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit, qname_str);
 
 	if (qname_str != unknown_qname)
@@ -1584,7 +1584,7 @@ static void incoming_request_handler(getdns_context *context,
 		    getdns_get_errorstr_by_id(r));
 	else {
 		DEBUG_SERVER("scheduled: %p %"PRIu64" for %s %d\n",
-		    msg, transaction_id, qname_str, (int)qtype);
+		    (void *)msg, transaction_id, qname_str, (int)qtype);
 		free(qname_str);
 		return;
 	}
