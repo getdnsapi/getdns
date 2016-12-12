@@ -423,5 +423,7 @@ void _getdns_network_validate_tsig(getdns_network_req *req);
 
 void _getdns_netreq_reinit(getdns_network_req *netreq);
 
+const char * _getdns_auth_str(getdns_auth_state_t auth);
+
 #endif
 /* types-internal.h */

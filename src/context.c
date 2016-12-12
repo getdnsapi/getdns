@@ -699,15 +699,6 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
 
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-static char*
-getdns_auth_str_array[] = {
-	GETDNS_STR_AUTH_NONE,
-	GETDNS_STR_AUTH_FAILED,
-	GETDNS_STR_AUTH_OK
-};
-#endif
-
 void
 _getdns_upstream_shutdown(getdns_upstream *upstream)
 {
@@ -726,12 +717,12 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
-	             getdns_auth_str_array[upstream->tls_auth_state], (int)upstream->keepalive_timeout);
+	             _getdns_auth_str(upstream->tls_auth_state), (int)upstream->keepalive_timeout);
 	DEBUG_DAEMON("%s %s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
-	             getdns_auth_str_array[upstream->best_tls_auth_state]);
+	             _getdns_auth_str(upstream->best_tls_auth_state));
 	DEBUG_DAEMON("%s %s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
