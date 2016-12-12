@@ -117,6 +117,9 @@ _rs_stir(void)
 #ifdef SIGKILL
 		raise(SIGKILL);
 #else
+#ifdef GETDNS_ON_WINDOWS
+		DebugBreak();
+#endif
 		exit(9); /* windows */
 #endif
 	}
@@ -128,6 +131,9 @@ _rs_stir(void)
 	explicit_bzero(rnd, sizeof(rnd));	/* discard source seed */
 
 	/* invalidate rs_buf */
+#ifdef GETDNS_ON_WINDOWS
+	_Analysis_assume_(rs != NULL);
+#endif
 	rs->rs_have = 0;
 	memset(rsx->rs_buf, 0, sizeof(rsx->rs_buf));
 
@@ -158,6 +164,9 @@ _rs_stir_if_needed(size_t len)
 #endif
 	if (!rs || rs->rs_count <= len)
 		_rs_stir();
+#ifdef GETDNS_ON_WINDOWS
+	_Analysis_assume_(rs != NULL);
+#endif
 	if (rs->rs_count <= len)
 		rs->rs_count = 0;
 	else

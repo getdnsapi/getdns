@@ -1323,7 +1323,7 @@ static int _rr_iter_rdata_cmp(const void *a, const void *b)
  * When the rrset was a wildcard expansion (rrsig labels < labels owner name),
  * nc_name will be set to the next closer (within rrset->name).
  */
-#define VAL_RRSET_SPC_SZ 1024
+#define VAL_RRSET_SPC_SZ 256
 static int _getdns_verify_rrsig(struct mem_funcs *mf,
     _getdns_rrset *rrset, _getdns_rrsig_iter *rrsig, _getdns_rrtype_iter *key, const uint8_t **nc_name)
 {
