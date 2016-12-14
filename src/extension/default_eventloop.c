@@ -47,6 +47,7 @@ _getdns_eventloop_info *find_event(_getdns_eventloop_info** events, int id)
 void add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("default_eventloop: add_event with id %d", id);
+	ev->id = id;
 	HASH_ADD_INT(*events, id, ev);
 }
 
@@ -115,7 +116,6 @@ default_eventloop_schedule(getdns_eventloop *loop,
 			free(fd_event);
 		}
 		fd_event = calloc(1, sizeof(_getdns_eventloop_info));
-		fd_event->id = fd;
 		fd_event->event = event;
 		fd_event->timeout_time = get_now_plus(timeout);
 		add_event(&default_loop->fd_events, fd, fd_event);
@@ -140,7 +140,6 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		_getdns_eventloop_info* timeout_event = NULL;
 		if ((timeout_event = find_event(&default_loop->timeout_events, i)) == NULL) {
 			timeout_event = calloc(1, sizeof(_getdns_eventloop_info));
-			timeout_event->id = i;
 			timeout_event->event = event;
 			timeout_event->timeout_time = get_now_plus(timeout);
 			add_event(&default_loop->timeout_events, i, timeout_event);
