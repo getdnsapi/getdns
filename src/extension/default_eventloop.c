@@ -39,24 +39,18 @@ _getdns_eventloop_info *find_event(_getdns_eventloop_info** events, int id)
 {
 	_getdns_eventloop_info* ev;
 
-	DEBUG_SCHED("finding event in events ptr %p with id %d", *events, id);
-	
 	HASH_FIND_INT(*events, &id, ev);
-
-	DEBUG_SCHED("found event in events ptr %p with id %d and ptr %p", *events, id, ev);
 
 	return ev;
 }
 
 void add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
-	DEBUG_SCHED("adding event in events ptr %p with id %d and ptr %p", *events, id, ev);
 	HASH_ADD_INT(*events, id, ev);
 }
 
 void delete_event(_getdns_eventloop_info** events, _getdns_eventloop_info* ev)
 {
-	DEBUG_SCHED("deleting event in events ptr %p and ptr %p", *events, ev);
 	HASH_DEL(*events, ev);
 }
 
@@ -99,7 +93,6 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		fd = -1;
 	}
 	if (fd >= 0) {
-		DEBUG_SCHED("default_eventloop_schedule: find_event(default_loop->fd_events)");
 		_getdns_eventloop_info* fd_event = find_event(&default_loop->fd_events, fd);
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 		if (fd_event) {
@@ -143,7 +136,6 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	}
 	for (i = 0; i < default_loop->max_timeouts; i++) {
 		_getdns_eventloop_info* timeout_event = NULL;
-		DEBUG_SCHED("default_eventloop_schedule: find_event(default_loop->timeout_events)");
 		if ((timeout_event = find_event(&default_loop->timeout_events, i)) == NULL) {
 			timeout_event = calloc(1, sizeof(_getdns_eventloop_info));
 			timeout_event->id = i;
@@ -176,7 +168,6 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
-		DEBUG_SCHED("default_eventloop_clear: find_event(default_loop->timeout_events)");
 		_getdns_eventloop_info* timeout_event = find_event(&default_loop->timeout_events, i);
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 		if (timeout_event && timeout_event->event != event)
@@ -189,7 +180,6 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 			free(timeout_event);
 		}
 	} else {
-		DEBUG_SCHED("default_eventloop_clear: find_event(default_loop->fd_events)");
 		_getdns_eventloop_info* fd_event = find_event(&default_loop->fd_events, i);
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 		if (fd_event && fd_event->event != event)
@@ -308,7 +298,6 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	now = get_now_plus(0);
 	for (i = 0; i < num_pfds; i++) {
 		int fd = pfds[i].fd;
-		DEBUG_SCHED("default_eventloop_runonce: find_event(default_loop->fd_events)");
 		_getdns_eventloop_info* fd_event = find_event(&default_loop->fd_events, fd);
 		if (fd_event &&
 		    fd_event->event &&
