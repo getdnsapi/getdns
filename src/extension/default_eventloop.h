@@ -34,18 +34,24 @@
 #include "config.h"
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
+#include "util/uthash.h"
 
 /* Eventloop based on poll */
+
+typedef struct _getdns_eventloop_info {
+	int			id;
+	getdns_eventloop_event *event;
+	uint64_t                timeout_time;
+	UT_hash_handle		hh;
+} _getdns_eventloop_info;
+
 typedef struct _getdns_default_eventloop {
 	getdns_eventloop        loop;
 	int			max_fds;
 	int			max_timeouts;
-	getdns_eventloop_event **fd_events;
-	uint64_t                *fd_timeout_times;
-	getdns_eventloop_event **timeout_events;
-	uint64_t                *timeout_times;
+	_getdns_eventloop_info  *fd_events;
+	_getdns_eventloop_info  *timeout_events;
 } _getdns_default_eventloop;
-
 
 void
 _getdns_default_eventloop_init(_getdns_default_eventloop *loop);
