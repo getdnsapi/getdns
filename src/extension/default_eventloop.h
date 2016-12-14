@@ -47,8 +47,8 @@ typedef struct _getdns_eventloop_info {
 
 typedef struct _getdns_default_eventloop {
 	getdns_eventloop        loop;
-	int			max_fds;
-	int			max_timeouts;
+	unsigned int		max_fds;
+	unsigned int		max_timeouts;
 	_getdns_eventloop_info  *fd_events;
 	_getdns_eventloop_info  *timeout_events;
 } _getdns_default_eventloop;

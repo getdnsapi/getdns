@@ -46,11 +46,13 @@ _getdns_eventloop_info *find_event(_getdns_eventloop_info** events, int id)
 
 void add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
+	DEBUG_SCHED("default_eventloop: add_event with id %d", id);
 	HASH_ADD_INT(*events, id, ev);
 }
 
 void delete_event(_getdns_eventloop_info** events, _getdns_eventloop_info* ev)
 {
+	DEBUG_SCHED("default_eventloop: delete_event with id %d", ev->id);
 	HASH_DEL(*events, ev);
 }
 
@@ -243,7 +245,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	size_t   i=0;
 	int poll_timeout = 0;
 	struct pollfd* pfds = NULL;
-	int num_pfds = 0;
+	unsigned int num_pfds = 0;
 
 	if (!loop)
 		return;
