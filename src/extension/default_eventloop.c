@@ -27,9 +27,7 @@
 
 #include "config.h"
 
-#ifdef USE_WINSOCK
-
-#else
+#ifndef USE_WINSOCK
 #include <poll.h>
 #endif
 #include <sys/resource.h>
