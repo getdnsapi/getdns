@@ -266,7 +266,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 			timeout = s->timeout_time;
 	}
 
-	if ((timeout == (uint64_t)-1) && (num_pfds == 0))
+	if ((timeout == TIMEOUT_FOREVER) && (num_pfds == 0))
 		return;
 
 	pfds = calloc(num_pfds, sizeof(struct pollfd));
@@ -283,7 +283,10 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		i++;
 	}
 
-	if (! blocking || now > timeout) {
+	if (timeout == TIMEOUT_FOREVER) {
+		poll_timeout = -1;
+	}
+	else if (! blocking || now > timeout) {
 		poll_timeout = 0;
 	} else {
 		poll_timeout = (timeout - now) * 1000; /* turn seconds into millseconds */
