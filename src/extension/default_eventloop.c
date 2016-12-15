@@ -80,7 +80,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	size_t i;
 
 	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, max_fds: %d)\n"
-	        , __FUNCTION__, loop, fd, timeout, event, default_loop->max_fds);
+	        , __FUNC__, (void *)loop, fd, timeout, (void *)event, default_loop->max_fds);
 
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -106,7 +106,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 			} else {
 				DEBUG_SCHED("ERROR: A different event is "
 				            "already present at fd slot: %p!\n"
-				           , fd_event->event);
+				           , (void *)fd_event->event);
 			}
 		}
 #endif
@@ -162,7 +162,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNCTION__, loop, event);
+	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNC__, (void *)loop, (void *)event);
 
 	i = (intptr_t)event->ev - 1;
 	if (i < 0 || i > default_loop->max_fds) {
@@ -174,7 +174,8 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 		if (timeout_event && timeout_event->event != event)
 			DEBUG_SCHED( "ERROR: Different/wrong event present at "
 			             "timeout slot: %p!\n"
-				     , timeout_event);
+				     , (void *)timeout_event);
+
 #endif
 		if (timeout_event) {
 			delete_event(&default_loop->timeout_events, timeout_event);
@@ -186,7 +187,7 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 		if (fd_event && fd_event->event != event)
 			DEBUG_SCHED( "ERROR: Different/wrong event present at "
 			             "fd slot: %p!\n"
-			           , fd_event);
+			           , (void *)fd_event);
 #endif
 		if (fd_event) {
 			delete_event(&default_loop->fd_events, fd_event);
@@ -211,7 +212,7 @@ default_read_cb(int fd, getdns_eventloop_event *event)
 #if !defined(SCHED_DEBUG) || !SCHED_DEBUG
 	(void)fd;
 #endif
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
 	event->read_cb(event->userarg);
 }
 
@@ -221,7 +222,7 @@ default_write_cb(int fd, getdns_eventloop_event *event)
 #if !defined(SCHED_DEBUG) || !SCHED_DEBUG
 	(void)fd;
 #endif
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
 	event->write_cb(event->userarg);
 }
 
@@ -231,7 +232,7 @@ default_timeout_cb(int fd, getdns_eventloop_event *event)
 #if !defined(SCHED_DEBUG) || !SCHED_DEBUG
 	(void)fd;
 #endif
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNCTION__, fd, event);
+	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
 	event->timeout_cb(event->userarg);
 }
 
