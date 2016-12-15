@@ -102,7 +102,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 			if (fd_event->event == event) {
 				DEBUG_SCHED("WARNING: Event %p not cleared "
 				            "before being rescheduled!\n"
-				           , fd_event->event);
+				           , (void *)fd_event->event);
 			} else {
 				DEBUG_SCHED("ERROR: A different event is "
 				            "already present at fd slot: %p!\n"
@@ -119,7 +119,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		fd_event->event = event;
 		fd_event->timeout_time = get_now_plus(timeout);
 		add_event(&default_loop->fd_events, fd, fd_event);
-		event->ev = (void *) (intptr_t) fd + 1;
+		event->ev = (void *) (intptr_t) (fd + 1);
 
 		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
@@ -143,7 +143,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 			timeout_event->event = event;
 			timeout_event->timeout_time = get_now_plus(timeout);
 			add_event(&default_loop->timeout_events, i, timeout_event);
-			event->ev = (void *) (intptr_t) i + 1;
+			event->ev = (void *) (intptr_t) (i + 1);
 
 			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
