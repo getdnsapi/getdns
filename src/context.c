@@ -62,6 +62,11 @@ typedef unsigned short in_port_t;
 #include <assert.h>
 #include <ctype.h>
 
+#ifdef HAVE_PTHREADS
+#include <pthread.h>
+#endif
+#include <stdbool.h>
+
 #include "config.h"
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
@@ -84,6 +89,11 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+
+#ifdef HAVE_PTHREADS
+static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+static bool ssl_init=false;
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -152,7 +162,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
 
-	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 		"Adding Windows certificates to CA store");
 
 	/* load just once per context lifetime for this version of getdns
@@ -181,7 +191,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	/* failure if the CA store is empty or the call fails */
 	if ((pTargetCert = CertEnumCertificatesInStore(
 		hSystemStore, pTargetCert)) == 0) {
-		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 			"CA certificate store for Windows is empty.");
 			return 0;
 	}
@@ -193,7 +203,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
 			/* return error if a cert fails */
-			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 				"Unable to parse certificate in memory",
 				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
 			return 0;
@@ -201,7 +211,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		else {
 			/* return error if a cert add to store fails */
 			if (X509_STORE_add_cert(store, cert1) == 0) {
-				DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+				DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 					"Error adding certificate", ERR_get_error(),
 					ERR_error_string(ERR_get_error(), NULL));
 				return 0;
@@ -1324,8 +1334,21 @@ getdns_context_create_with_extended_memory_functions(
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
 	 * don't know that till later so we will have to do this every time. */
 
-	if ((set_from_os & 2) == 0)
+#ifdef HAVE_PTHREADS
+	pthread_mutex_lock(&ssl_init_lock);
+#else
+	/* XXX implement Windows-style lock here */
+#endif
+	/* Only initialise SSL once and ideally in a thread-safe manner */
+	if (ssl_init == false) {
 		SSL_library_init();
+		ssl_init = true;
+	}
+#ifdef HAVE_PTHREADS
+	pthread_mutex_unlock(&ssl_init_lock);
+#else
+	/* XXX implement Windows-style unlock here */
+#endif
 
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
@@ -1525,7 +1548,7 @@ getdns_context_request_count_changed(getdns_context *context)
 		if (context->outbound_requests.count && ! context->ub_event.ev){
 			DEBUG_SCHED("gc_request_count_changed "
 			    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
-			    &context->ub_event, context->ub_event.ev);
+			    (void *)&context->ub_event, (void *)context->ub_event.ev);
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
 			if (!_getdns_ub_loop_enabled(&context->ub_loop))
@@ -1539,7 +1562,7 @@ getdns_context_request_count_changed(getdns_context *context)
 		    context->ub_event.ev) {
 			DEBUG_SCHED("gc_request_count_changed "
 			    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
-			    &context->ub_event, context->ub_event.ev);
+			    (void *)&context->ub_event, (void *)context->ub_event.ev);
 
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API

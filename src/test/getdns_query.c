@@ -1288,7 +1288,7 @@ static void request_cb(
 	(void)transaction_id;
 #endif
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
-	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
+	    " cd: %d)\n", (void *)msg, transaction_id, (int)callback_type,
 	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
 	assert(msg);
 
@@ -1498,7 +1498,7 @@ static void incoming_request_handler(getdns_context *context,
 		    getdns_get_errorstr_by_id(r));
 	else {
 		DEBUG_SERVER("scheduled: %p %"PRIu64" for %s %d\n",
-		    msg, transaction_id, qname_str, (int)qtype);
+		    (void *)msg, transaction_id, qname_str, (int)qtype);
 		free(qname_str);
 		return;
 	}
