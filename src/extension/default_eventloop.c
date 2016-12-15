@@ -46,14 +46,14 @@ _getdns_eventloop_info *find_event(_getdns_eventloop_info** events, int id)
 
 void add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
-	DEBUG_SCHED("default_eventloop: add_event with id %d", id);
+	DEBUG_SCHED("default_eventloop: add_event with id %d\n", id);
 	ev->id = id;
 	HASH_ADD_INT(*events, id, ev);
 }
 
 void delete_event(_getdns_eventloop_info** events, _getdns_eventloop_info* ev)
 {
-	DEBUG_SCHED("default_eventloop: delete_event with id %d", ev->id);
+	DEBUG_SCHED("default_eventloop: delete_event with id %d\n", ev->id);
 	HASH_DEL(*events, ev);
 }
 
@@ -121,7 +121,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		add_event(&default_loop->fd_events, fd, fd_event);
 		event->ev = (void *) (intptr_t) (fd + 1);
 
-		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
+		DEBUG_SCHED( "scheduled read/write at fd %d\n", fd);
 		return GETDNS_RETURN_GOOD;
 	}
 	if (!event->timeout_cb) {
@@ -145,7 +145,7 @@ default_eventloop_schedule(getdns_eventloop *loop,
 			add_event(&default_loop->timeout_events, i, timeout_event);
 			event->ev = (void *) (intptr_t) (i + 1);
 
-			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
+			DEBUG_SCHED( "scheduled timeout at slot %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
 		}
 	}
@@ -249,7 +249,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	if (!loop)
 		return;
-	
+
 	now = get_now_plus(0);
 
 	HASH_ITER(hh, default_loop->timeout_events, s, tmp) {
@@ -318,18 +318,37 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	}
 	if (pfds)
 		free(pfds);
+	_getdns_eventloop_info* fd_timeout_cbs = NULL;
 	HASH_ITER(hh, default_loop->fd_events, s, tmp) {
 		if (s->event &&
 		    s->event->timeout_cb &&
 		    now > s->timeout_time)
-			default_timeout_cb(s->id, s->event);
+			add_event(&fd_timeout_cbs, s->id, s);
 	}
+	/* this is in case the timeout callback deletes the event
+	   and thus messes with the iteration */
+	HASH_ITER(hh, fd_timeout_cbs, s, tmp) {
+		int fd = s->id;
+		getdns_eventloop_event* event = s->event;
+		delete_event(&fd_timeout_cbs, s);
+		default_timeout_cb(fd, event);
+	}
+	_getdns_eventloop_info* timeout_timeout_cbs = NULL;
 	HASH_ITER(hh, default_loop->timeout_events, s, tmp) {
 		if (s->event &&
 		    s->event->timeout_cb &&
 		    now > s->timeout_time)
-			default_timeout_cb(s->id, s->event);
+			add_event(&timeout_timeout_cbs, s->id, s);
 	}
+	/* this is in case the timeout callback deletes the event
+	   and thus messes with the iteration */
+	HASH_ITER(hh, timeout_timeout_cbs, s, tmp) {
+		int fd = s->id;
+		getdns_eventloop_event* event = s->event;
+		delete_event(&timeout_timeout_cbs, s);
+		default_timeout_cb(fd, event);
+	}
+
 }
 
 static void
@@ -341,7 +360,7 @@ default_eventloop_run(getdns_eventloop *loop)
 		return;
 
 	/* keep going until all the events are cleared */
-	while (default_loop->fd_events && default_loop->timeout_events) {
+	while (default_loop->fd_events || default_loop->timeout_events) {
 		default_eventloop_run_once(loop, 1);
 	}
 }
