@@ -655,7 +655,7 @@ static void free_listen_set_when_done(listen_set *set)
 	if (!(mf = &set->context->mf))
 		return;
 
-	DEBUG_SERVER("To free listen set: %p\n", set);
+	DEBUG_SERVER("To free listen set: %p\n", (void *)set);
 	for (i = 0; i < set->count; i++) {
 		listener *l = &set->items[i];
 
@@ -666,7 +666,7 @@ static void free_listen_set_when_done(listen_set *set)
 			return;
 	}
 	GETDNS_FREE(*mf, set);
-	DEBUG_SERVER("Listen set: %p freed\n", set);
+	DEBUG_SERVER("Listen set: %p freed\n", (void *)set);
 }
 
 static void remove_listeners(listen_set *set)
@@ -809,10 +809,9 @@ getdns_return_t getdns_context_set_listen_addresses(
 	size_t i;
 	struct addrinfo hints;
 
-	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, %p, %p)\n",
-	    context, request_handler,
+	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, <func>, %p)\n",
+	    (void *)context, (void *)listen_addresses);
 
-	    listen_addresses);
 	if (!(mf = &context->mf))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -849,7 +848,7 @@ getdns_return_t getdns_context_set_listen_addresses(
 	_getdns_rbtree_init(&new_set->connections_set, ptr_cmp);
 
 	DEBUG_SERVER("New listen set: %p, current_set: %p\n",
-	    new_set, current_set);
+	    (void *)new_set, (void *)current_set);
 
 	new_set->context = context;
 	new_set->handler = request_handler;
