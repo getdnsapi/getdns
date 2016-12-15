@@ -945,6 +945,14 @@ fi
 #---- check for pthreads library
 AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREADS], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
 
+AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
+AC_LANG_PUSH(C)
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([[char*s=__func__;]],[[]])],
+	[AC_MSG_RESULT([yes])
+	 AC_DEFINE(HAVE___FUNC__, [1], [Whether the C compiler support the __func__ variable])],
+	[AC_MSG_RESULT([no])])
+AC_LANG_POP(C)
 
 dnl -----
 dnl ----- Start of "Things needed for gldns" section
@@ -1060,6 +1068,12 @@ AC_SUBST(C99COMPATFLAGS)
 AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname referrals.])
 
 AH_BOTTOM([
+
+#ifdef HAVE___FUNC__
+#define __FUNC__ __func__
+#else
+#define __FUNC__ __FUNCTION__
+#endif
 
 #ifdef GETDNS_ON_WINDOWS
 /* On windows it is allowed to increase the FD_SETSIZE
