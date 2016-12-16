@@ -304,17 +304,16 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	for (i = 0; i < num_pfds; i++) {
 		int fd = pfds[i].fd;
 		_getdns_eventloop_info* fd_event = find_event(&default_loop->fd_events, fd);
-		if (fd_event &&
-		    fd_event->event &&
-		    fd_event->event->read_cb &&
-		    (pfds[i].revents & POLLIN))
-			default_read_cb(fd, fd_event->event);
+		if (fd_event && fd_event->event) { 
+			getdns_eventloop_event* event = fd_event->event;
+			if (event->read_cb &&
+			    (pfds[i].revents & POLLIN))
+				default_read_cb(fd, event);
 
-		if (fd_event &&
-		    fd_event->event &&
-		    fd_event->event->write_cb &&
-		    (pfds[i].revents & POLLOUT))
-			default_write_cb(fd, fd_event->event);
+			if (event->write_cb &&
+			    (pfds[i].revents & POLLOUT))
+				default_write_cb(fd, event);
+		}
 	}
 	if (pfds)
 		free(pfds);
