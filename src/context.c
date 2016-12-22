@@ -1682,12 +1682,12 @@ getdns_context_set_namespaces(getdns_context *context,
 
 	for (i = 0; i < namespace_count; i++) {
 		if (namespaces[i] == GETDNS_NAMESPACE_NETBIOS ||
-		    namespaces[i] == GETDNS_NAMESPACE_MDNS ||
 		    namespaces[i] == GETDNS_NAMESPACE_NIS)
 			r = GETDNS_RETURN_NOT_IMPLEMENTED;
 
 		else if (namespaces[i] != GETDNS_NAMESPACE_DNS &&
-		    namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES)
+		    namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES &&
+			namespaces[i] != GETDNS_NAMESPACE_MDNS)
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	GETDNS_FREE(context->my_mf, context->namespaces);
