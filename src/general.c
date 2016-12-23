@@ -52,6 +52,7 @@
 #include "dnssec.h"
 #include "stub.h"
 #include "dict.h"
+#include "mdns.h"
 
 /* cancel, cleanup and send timeout to callback */
 static void
@@ -476,6 +477,28 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 				    ( req, localnames_response);
 				break;
 			}
+#ifdef HAVE_MDNS_SUPPORT
+		} else if (context->namespaces[i] == GETDNS_NAMESPACE_MDNS) {
+			/* Check whether the name belongs in the MDNS space */
+			if (!(r = _getdns_mdns_namespace_check(req)))
+			{
+				// Submit the query to the MDNS transport.
+				for (netreq_p = req->netreqs
+					; !r && (netreq = *netreq_p)
+					; netreq_p++) {
+					if ((r = _getdns_submit_mdns_request(netreq))) {
+						if (r == DNS_REQ_FINISHED) {
+							if (return_netreq_p)
+								*return_netreq_p = NULL;
+							return GETDNS_RETURN_GOOD;
+						}
+						netreq->state = NET_REQ_FINISHED;
+					}
+				}
+				/* Stop processing more namespaces, since there was a match */
+				break;
+			}
+#endif /* HAVE_MDNS_SUPPORT */
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
 
 			/* TODO: We will get a good return code here even if
