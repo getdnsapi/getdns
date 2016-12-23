@@ -477,6 +477,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 				    ( req, localnames_response);
 				break;
 			}
+#ifdef HAVE_MDNS_SUPPORT
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_MDNS) {
 			/* Check whether the name belongs in the MDNS space */
 			if (!(r = _getdns_mdns_namespace_check(req)))
@@ -497,6 +498,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 				/* Stop processing more namespaces, since there was a match */
 				break;
 			}
+#endif /* HAVE_MDNS_SUPPORT */
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
 
 			/* TODO: We will get a good return code here even if

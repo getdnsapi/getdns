@@ -27,6 +27,8 @@
 #include "util-internal.h"
 #include "mdns.h"
 
+#ifdef HAVE_MDNS_SUPPORT
+
 #ifdef USE_WINSOCK
 typedef u_short sa_family_t;
 #define _getdns_EWOULDBLOCK (WSAGetLastError() == WSATRY_AGAIN ||\
@@ -46,10 +48,12 @@ uint64_t _getdns_get_time_as_uintt64();
 #define MDNS_MCAST_IPV4_LONG 0xE00000FB /* 224.0.0.251 */
 #define MDNS_MCAST_PORT 5353
 
-static uint8_t mdns_mcast_ipv6[] = { 
-	0xFF, 0x02, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0xFB };
-
+/*
+ * TODO: When we start supporting IPv6 with MDNS, need to define this:
+ * static uint8_t mdns_mcast_ipv6[] = { 
+ *	0xFF, 0x02, 0, 0, 0, 0, 0, 0,
+ *	0, 0, 0, 0, 0, 0, 0, 0xFB };
+ */
 
 static uint8_t mdns_suffix_dot_local[] = { 5, 'l', 'o', 'c', 'a', 'l', 0 };
 static uint8_t mdns_suffix_254_169_in_addr_arpa[] = {
@@ -353,3 +357,5 @@ _getdns_mdns_namespace_check(
 
 	return ret;
 }
+
+#endif /* HAVE_MDNS_SUPPORT */

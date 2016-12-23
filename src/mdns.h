@@ -21,6 +21,7 @@
 #ifndef MDNS_H
 #define MDNS_H
 
+#ifdef HAVE_MDNS_SUPPORT
 #include "getdns/getdns.h"
 #include "types-internal.h"
 
@@ -29,5 +30,6 @@ _getdns_submit_mdns_request(getdns_network_req *netreq);
 
 getdns_return_t
 _getdns_mdns_namespace_check(getdns_dns_req *dnsreq);
+#endif /* HAVE_MDNS_SUPPORT */
 
 #endif /* MDNS_H */
