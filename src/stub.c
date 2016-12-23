@@ -91,7 +91,7 @@ static int  upstream_connect(getdns_upstream *upstream,
 static int  fallback_on_write(getdns_network_req *netreq);
 
 static void stub_timeout_cb(void *userarg);
-static uint64_t _getdns_get_time_as_uintt64();
+uint64_t _getdns_get_time_as_uintt64();
 /*****************************/
 /* General utility functions */
 /*****************************/
@@ -475,7 +475,7 @@ stub_cleanup(getdns_network_req *netreq)
 	GETDNS_NULL_FREE(dnsreq->context->mf, netreq->tcp.read_buf);
 
 	/* Nothing globally scheduled? Then nothing queued */
-	if (!(upstream = netreq->upstream)->event.ev)
+	if (!netreq->upstream || !(upstream = netreq->upstream)->event.ev)
 		return;
 
 	/* Delete from upstream->netreq_by_query_id (if present) */
@@ -1278,7 +1278,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	return STUB_TCP_ERROR;
 }
 
-static uint64_t
+uint64_t
 _getdns_get_time_as_uintt64() {
 
 	struct timeval tv;
