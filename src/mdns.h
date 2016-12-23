@@ -28,6 +28,6 @@ getdns_return_t
 _getdns_submit_mdns_request(getdns_network_req *netreq);
 
 getdns_return_t
-getdns_mdns_namespace_check(getdns_dns_req *dnsreq);
+_getdns_mdns_namespace_check(getdns_dns_req *dnsreq);
 
 #endif /* MDNS_H */
