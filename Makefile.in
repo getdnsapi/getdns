@@ -145,7 +145,11 @@ distclean:
 	rm -f $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
 
 megaclean:
-	cd $(srcdir) && rm -fr * .dir-locals.el .gitignore .indent.pro .travis.yml && git reset --hard
+	cd $(srcdir) && rm -fr * .dir-locals.el .gitignore .indent.pro .travis.yml && git reset --hard && git submodule update --init
+
+autoclean: megaclean
+	libtoolize -ci
+	autoreconf -fi
 
 dist: $(distdir).tar.gz
 
