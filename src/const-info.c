@@ -188,6 +188,7 @@ static struct const_name_info consts_name_info[] = {
 	{ "GETDNS_RCODE_BADTIME", 18 },
 	{ "GETDNS_RCODE_BADTRUNC", 22 },
 	{ "GETDNS_RCODE_BADVERS", 16 },
+	{ "GETDNS_RCODE_COOKIE", 23 },
 	{ "GETDNS_RCODE_FORMERR", 1 },
 	{ "GETDNS_RCODE_NOERROR", 0 },
 	{ "GETDNS_RCODE_NOTAUTH", 9 },
