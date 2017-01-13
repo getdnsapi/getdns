@@ -1,3 +1,19 @@
+* 2017-01-13: Version 1.0.0
+  * edns0_cookies extension enabled by default (per RFC7873)
+  * dnssec_roadblock_avoidance enabled by default (per RFC8027)
+  * bugfix: DSA support with OpenSSL 1.1.0
+  * Initialize OpenSSL just once in a thread safe way
+  * Thread safety with arc4random function
+  * Improvements that came from Visual Studio static analysis
+    Thanks Christian Huitema
+  * Conventional RFC3986 IPv6 [address]:port parsing from getdns_query
+  * bugfix: OpenSSL 1.1.0 style crypto locking
+    Thanks volkommenheit
+  * configure tells *which* dependency is missing
+  * bugfix: Exclude terminating '\0' from bindata's returned by
+    getdns_get_suffix(). Thanks Jim Hague
+  * Better README.md.  Thanks Andrew Sullivan
+
 * 2016-07-14: Version 1.0.0b2
   * Collect coverage information from the unit tests
     Thanks Shane Kerr
