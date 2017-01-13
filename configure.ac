@@ -447,32 +447,31 @@ case "$enable_dsa" in
       ;;
 esac
 
-AC_ARG_ENABLE(draft-dnssec-roadblock-avoidance, AC_HELP_STRING([--enable-draft-dnssec-roadblock-avoidance], [Enable experimental dnssec roadblock avoidance]))
-AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
-AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enable cookies and roadblock avoidance]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [No drafts in this release]))
 case "$enable_all_drafts" in
 	yes)
-		enable_draft_dnssec_roadblock_avoidance=yes
-		enable_draft_edns_cookies=yes
 		;;
 	no|*)
 		;;
 esac
-case "$enable_draft_dnssec_roadblock_avoidance" in
-	yes)
-		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental draft dnssec roadblock avoidance.])
+AC_ARG_ENABLE(dnssec-roadblock-avoidance, AC_HELP_STRING([--disable-dnssec-roadblock-avoidance], [Disable dnssec roadblock avoidance]))
+case "$enable_dnssec_roadblock_avoidance" in
+	no)
 		;;
-	no|*)
+	yes|*)
+		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental dnssec roadblock avoidance.])
 		;;
 esac
-case "$enable_draft_edns_cookies" in
-	yes)
+
+AC_ARG_ENABLE(edns-cookies, AC_HELP_STRING([--disable-edns-cookies], [Disable edns cookies]))
+case "$enable_edns_cookies" in
+	no)
+		;;
+	yes|*)
 		if test "x_$HAVE_SSL" != "x_yes"; then
-			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun without --enable-draft-edns-cookies])
+			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun with --disable-edns-cookies])
 		fi
-		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental draft edns cookies.])
-		;;
-	no|*)
+		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental edns cookies.])
 		;;
 esac
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
