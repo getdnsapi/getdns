@@ -83,7 +83,7 @@ If you want to use the getdns_query command line wrapper script for testing or t
 * Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
 * When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
 
-## Extensions / Event loop dependencies
+## Extensions and Event loop dependencies
 
 The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
 
@@ -124,7 +124,7 @@ We have a [getdns users list](https://getdnsapi.net/mailman/listinfo/users) for 
 
 The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec) is a good place to engage in discussions regarding the design of the API.
 
-# Tickets/Bug Reports
+# Tickets and Bug Reports
 
 Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/getdnsapi/getdns/issues).
 
@@ -214,7 +214,7 @@ If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via 
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
-### CentOS/RHEL 6.5
+### CentOS and RHEL 6.5
 
 We rely on the most excellent package manager fpm to build the linux packages, which
 means that the packaging platform requires ruby 2.1.0.  There are other ways to
@@ -272,7 +272,7 @@ The build has been tested using the following:
 32 bit only Mingw: [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
 32 bit build on a 64 bit Mingw [Download latest from: http://mingw-w64.org/doku.php/download/mingw-builds and http://msys2.github.io/]. IMPORTANT: Install tested ONLY on the  "x86_64" for 64-bit installer of msys2.
 
-#### Dependencies: 
+#### Dependencies
 The following dependencies are 
 * openssl-1.0.2j
 * libidn
