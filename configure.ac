@@ -36,8 +36,8 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.0.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [])
+AC_INIT([getdns], [1.1.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
+AC_SUBST(RELEASE_CANDIDATE, [-alpha3])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -47,7 +47,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01000000])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x0100A300])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -78,8 +78,9 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
 # getdns-0.9.0 had libversion 5:0:4
 # getdns-1.0.0 will have libversion 5:1:4
+# getdns-1.1.0 will have libversion 6:0:0
 #
-GETDNS_LIBVERSION=5:1:4
+GETDNS_LIBVERSION=6:0:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -150,6 +151,7 @@ ACX_ARG_RPATH
 
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
 AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
+AC_ARG_ENABLE(debug-daemon, AC_HELP_STRING([--enable-debug-daemon], [Enable daemon debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
 AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
@@ -157,6 +159,7 @@ case "$enable_all_debugging" in
 	yes)
 		enable_debug_sched=yes
 		enable_debug_stub=yes
+		enable_debug_daemon=yes
 		enable_debug_sec=yes
 		enable_debug_server=yes
 		;;
@@ -173,6 +176,13 @@ esac
 case "$enable_debug_stub" in
 	yes)
 		AC_DEFINE_UNQUOTED([STUB_DEBUG], [1], [Define this to enable printing of stub debugging messages.])
+		;;
+	no|*)
+		;;
+esac
+case "$enable_debug_daemon" in
+	yes)
+		AC_DEFINE_UNQUOTED([DAEMON_DEBUG], [1], [Define this to enable printing of daemon debugging messages.])
 		;;
 	no|*)
 		;;
@@ -907,9 +917,9 @@ AC_DEFINE_UNQUOTED([TRUST_ANCHOR_FILE], ["$TRUST_ANCHOR_FILE"], [Default trust a
 AC_SUBST(TRUST_ANCHOR_FILE)
 AC_MSG_NOTICE([Default trust anchor: $TRUST_ANCHOR_FILE])
 
-AC_ARG_WITH(getdns_query, AS_HELP_STRING([--with-getdns_query],
-	[Also compile and install the getdns_query tool]),
-	[], [withval="no"])
+AC_ARG_WITH(getdns_query, AS_HELP_STRING([--without-getdns_query],
+	[Do not compile and install the getdns_query tool]),
+	[], [withval="yes"])
 if test x_$withval = x_no; then
 	GETDNS_QUERY=""
 	INSTALL_GETDNS_QUERY=""
@@ -919,6 +929,26 @@ else
 	INSTALL_GETDNS_QUERY="install-getdns_query"
 	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
 fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
+AC_ARG_WITH(stubby, AS_HELP_STRING([--without-stubby],
+	[Do not compile and install stubby, the (stub) resolver daemon]),
+	[], [withval="yes"])
+if test x_$withval = x_no; then
+	STUBBY=""
+	INSTALL_STUBBY=""
+	UNINSTALL_STUBBY=""
+else
+	STUBBY="stubby"
+	INSTALL_STUBBY="install-stubby"
+	UNINSTALL_STUBBY="uninstall-stubby"
+fi
+AC_SUBST(STUBBY)
+AC_SUBST(INSTALL_STUBBY)
+AC_SUBST(UNINSTALL_STUBBY)
+
 AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
 	[Set maximum file descriptor number that can be used by select]),
 	[], [withval="no"])
@@ -931,11 +961,7 @@ case "$withval" in
 		;;
 esac
 
-AC_SUBST(GETDNS_QUERY)
-AC_SUBST(INSTALL_GETDNS_QUERY)
-AC_SUBST(UNINSTALL_GETDNS_QUERY)
-
-AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
+AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
