@@ -76,7 +76,7 @@ _getdns_rr_iter *_getdns_single_rr_iter_init(_getdns_rr_iter *i,
     const uint8_t *wire, const size_t wire_len);
 
 static inline _getdns_rr_iter *_getdns_rr_iter_rewind(_getdns_rr_iter *i)
-{ return _getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt); }
+{ return i ? _getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt) : NULL; }
 
 _getdns_rr_iter *_getdns_rr_iter_next(_getdns_rr_iter *i);
 
@@ -181,7 +181,7 @@ static inline _getdns_rrset *_getdns_rrset_iter_value(_getdns_rrset_iter *i)
 { return i && i->rr_i.pos ? &i->rrset : NULL; }
 
 static inline _getdns_rrset_iter *_getdns_rrset_iter_rewind(_getdns_rrset_iter *i)
-{ return _getdns_rrset_iter_init(i, i->rrset.pkt, i->rrset.pkt_len, i->rrset.sections); }
+{ return i ? _getdns_rrset_iter_init(i, i->rrset.pkt, i->rrset.pkt_len, i->rrset.sections) : NULL; }
 
 typedef struct _getdns_rdf_iter {
 	const uint8_t           *pkt;
