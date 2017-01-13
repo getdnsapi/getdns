@@ -160,6 +160,7 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
     free(prepped2);
     return buf;
 #else
+    (void)ulabel;
     return NULL;
 #endif
 }
@@ -189,6 +190,7 @@ getdns_convert_alabel_to_ulabel(const char *alabel)
     }
     return buf;
 #else
+    (void)alabel;
     return NULL;
 #endif
 }

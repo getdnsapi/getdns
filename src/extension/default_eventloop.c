@@ -212,7 +212,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		else if (default_loop->timeout_times[i] < timeout)
 			timeout = default_loop->timeout_times[i];
 	}
-	for (fd = 0; fd < FD_SETSIZE; fd++) {
+	for (fd = 0; fd < (int)FD_SETSIZE; fd++) {
 		if (!default_loop->fd_events[fd])
 			continue;
 		if (default_loop->fd_events[fd]->read_cb)
@@ -240,7 +240,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		exit(EXIT_FAILURE);
 	}
 	now = get_now_plus(0);
-	for (fd = 0; fd < FD_SETSIZE; fd++) {
+	for (fd = 0; fd < (int)FD_SETSIZE; fd++) {
 		if (default_loop->fd_events[fd] &&
 		    default_loop->fd_events[fd]->read_cb &&
 		    FD_ISSET(fd, &readfds))

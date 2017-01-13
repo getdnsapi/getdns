@@ -89,7 +89,7 @@ Note: If you only want to build stubby, then use the `--enable-stub-only` and `-
 * Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
 * When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
 
-## Extensions / Event loop dependencies
+## Extensions and Event loop dependencies
 
 The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
 
@@ -142,7 +142,7 @@ We have a [getdns users list](https://getdnsapi.net/mailman/listinfo/users) for 
 
 The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec) is a good place to engage in discussions regarding the design of the API.
 
-# Tickets/Bug Reports
+# Tickets and Bug Reports
 
 Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/getdnsapi/getdns/issues).
 
@@ -197,7 +197,18 @@ Stub mode does not support:
 
 # Known Issues
 
-* None
+* The synchronous lookup functions will not work when new file descriptors
+  needed for the lookup will be larger than `FD_SETSIZE`.  This is because
+  the synchronous functions use a "default" event loop under the hood
+  which is based on `select()` and thus inherits the limits that `select()` has.
+
+  If you need only slightly more file descriptors, it is possible to enlarge
+  the `FD_SETSIZE` with the `--with-fd-setsize=`*`size`* flag to `configure`.
+
+  To resolve, use the asynchronous functions with an event loop extension for
+  libevent, libev or libuv.  Note that the asynchronous functions will have
+  the same problem when used in combination with `getdns_context_run()`, which
+  also uses the default event loop.
 
 # Supported Platforms
 
@@ -221,7 +232,7 @@ If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via 
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
-### CentOS/RHEL 6.5
+### CentOS and RHEL 6.5
 
 We rely on the most excellent package manager fpm to build the linux packages, which
 means that the packaging platform requires ruby 2.1.0.  There are other ways to
@@ -279,7 +290,7 @@ The build has been tested using the following:
 32 bit only Mingw: [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
 32 bit build on a 64 bit Mingw [Download latest from: http://mingw-w64.org/doku.php/download/mingw-builds and http://msys2.github.io/]. IMPORTANT: Install tested ONLY on the  "x86_64" for 64-bit installer of msys2.
 
-#### Dependencies: 
+#### Dependencies
 The following dependencies are 
 * openssl-1.0.2j
 * libidn
