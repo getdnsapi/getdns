@@ -119,7 +119,7 @@ struct getdns_upstream;
 #define GETDNS_STR_KEY_NSCOUNT "nscount"
 #define GETDNS_STR_KEY_ARCOUNT "arcount"
 
-#define TIMEOUT_FOREVER ((int64_t)-1)
+#define TIMEOUT_FOREVER ((uint64_t)0xFFFFFFFFFFFFFFFF)
 #define ASSERT_UNREACHABLE 0
 
 #define GETDNS_TRANSPORTS_MAX 3
@@ -287,29 +287,29 @@ typedef struct getdns_dns_req {
 	getdns_append_name_t append_name;
 	const uint8_t *suffix;
 	size_t  suffix_len;
-	int suffix_appended			: 1;
+	unsigned suffix_appended			: 1;
 
 	/* canceled flag */
-	int canceled				: 1;
+	unsigned canceled				: 1;
 
 	/* request extensions */
-	int dnssec_return_status		: 1;
-	int dnssec_return_only_secure		: 1;
-	int dnssec_return_all_statuses		: 1;
-	int dnssec_return_validation_chain	: 1;
-	int dnssec_return_full_validation_chain	: 1;
+	unsigned dnssec_return_status			: 1;
+	unsigned dnssec_return_only_secure		: 1;
+	unsigned dnssec_return_all_statuses		: 1;
+	unsigned dnssec_return_validation_chain		: 1;
+	unsigned dnssec_return_full_validation_chain	: 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	int dnssec_roadblock_avoidance		: 1;
-	int avoid_dnssec_roadblocks		: 1;
+	unsigned dnssec_roadblock_avoidance		: 1;
+	unsigned avoid_dnssec_roadblocks		: 1;
 #endif
-	int edns_cookies			: 1;
-	int edns_client_subnet_private		: 1;
-	int return_call_reporting		: 1;
-	int add_warning_for_bad_dns		: 1;
+	unsigned edns_cookies				: 1;
+	unsigned edns_client_subnet_private		: 1;
+	unsigned return_call_reporting			: 1;
+	unsigned add_warning_for_bad_dns		: 1;
 
 	/* Internally used by return_validation_chain */
-	int dnssec_ok_checking_disabled		: 1;
-	int is_sync_request			: 1;
+	unsigned dnssec_ok_checking_disabled		: 1;
+	unsigned is_sync_request			: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when
@@ -319,7 +319,7 @@ typedef struct getdns_dns_req {
 	 * validating is touched by _getdns_get_validation_chain only and
 	 * freed      is touched by _getdns_submit_netreq only
 	 */
-	int validating                          : 1;
+	unsigned validating				: 1;
 	int *freed;
 
 	uint16_t tls_query_padding_blocksize;
@@ -422,6 +422,8 @@ size_t _getdns_network_req_add_tsig(getdns_network_req *req);
 void _getdns_network_validate_tsig(getdns_network_req *req);
 
 void _getdns_netreq_reinit(getdns_network_req *netreq);
+
+const char * _getdns_auth_str(getdns_auth_state_t auth);
 
 #endif
 /* types-internal.h */

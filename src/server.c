@@ -108,9 +108,9 @@ typedef struct tcp_connection {
 	getdns_eventloop_event  event;
 
 	uint8_t                *read_buf;
-	size_t                  read_buf_len;
+	ssize_t                 read_buf_len;
 	uint8_t                *read_pos;
-	size_t                  to_read;
+	ssize_t                 to_read;
 
 	tcp_to_write           *to_write;
 	size_t                  to_answer;
@@ -359,7 +359,7 @@ static void tcp_read_cb(void *userarg)
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 
-	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
+	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return; /* Come back to do the read later */
 
@@ -655,7 +655,7 @@ static void free_listen_set_when_done(listen_set *set)
 	if (!(mf = &set->context->mf))
 		return;
 
-	DEBUG_SERVER("To free listen set: %p\n", set);
+	DEBUG_SERVER("To free listen set: %p\n", (void *)set);
 	for (i = 0; i < set->count; i++) {
 		listener *l = &set->items[i];
 
@@ -666,7 +666,7 @@ static void free_listen_set_when_done(listen_set *set)
 			return;
 	}
 	GETDNS_FREE(*mf, set);
-	DEBUG_SERVER("Listen set: %p freed\n", set);
+	DEBUG_SERVER("Listen set: %p freed\n", (void *)set);
 }
 
 static void remove_listeners(listen_set *set)
@@ -749,9 +749,9 @@ static getdns_return_t add_listeners(listen_set *set)
 			break;
 
 		if (setsockopt(l->fd, SOL_SOCKET, SO_REUSEADDR,
-		    &enable, sizeof(int)) < 0)
+		    &enable, sizeof(int)) < 0) {
 			; /* Ignore */
-
+		}
 		if (bind(l->fd, (struct sockaddr *)&l->addr,
 		    l->addr_len) == -1)
 			/* IO error */
@@ -809,10 +809,9 @@ getdns_return_t getdns_context_set_listen_addresses(
 	size_t i;
 	struct addrinfo hints;
 
-	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, %p, %p)\n",
-	    context, request_handler,
+	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, <func>, %p)\n",
+	    (void *)context, (void *)listen_addresses);
 
-	    listen_addresses);
 	if (!(mf = &context->mf))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -849,7 +848,7 @@ getdns_return_t getdns_context_set_listen_addresses(
 	_getdns_rbtree_init(&new_set->connections_set, ptr_cmp);
 
 	DEBUG_SERVER("New listen set: %p, current_set: %p\n",
-	    new_set, current_set);
+	    (void *)new_set, (void *)current_set);
 
 	new_set->context = context;
 	new_set->handler = request_handler;

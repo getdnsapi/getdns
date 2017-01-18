@@ -148,6 +148,7 @@
        *  expect: NXDOMAIN response (with SOA record)
        */
        void verify_getdns_service_7(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_service_7 };
        struct getdns_context *context = NULL;   \
        void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -157,7 +158,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_service(context, "nitinsinghit.com", NULL, 
-         verify_getdns_address_8, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_service()");
 
        RUN_EVENT_LOOP;

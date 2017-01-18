@@ -211,6 +211,10 @@
                      struct getdns_dict *response,
                      void *userarg,
                      getdns_transaction_t transaction_id);
+
+     typedef struct fn_cont {
+          void (*fn)(struct extracted_response *ex_response);
+     } fn_cont;
      /*
       *    callbackfn is the callback function given to all
       *    asynchronous query tests.  It is expected to only

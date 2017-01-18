@@ -40,7 +40,8 @@ LIBTOOL = ../../libtool
 srcdir = @srcdir@
 
 CC=@CC@
-CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@
+WPEDANTICFLAG=@WPEDANTICFLAG@
+CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@ $(WPEDANTICFLAG) $(XTRA_CFLAGS)
 LDFLAGS=-L.. @LDFLAGS@
 LDLIBS=../libgetdns.la @LIBS@
 
@@ -112,8 +113,5 @@ depend:
 .PHONY: clean test
 
 # Dependencies for getdns_query
-getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
- ../config.h \
- $(srcdir)/../debug.h \
- ../getdns/getdns.h \
- ../getdns/getdns_extra.h
+getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c ../config.h $(srcdir)/../debug.h ../config.h \
+ ../getdns/getdns.h ../getdns/getdns_extra.h

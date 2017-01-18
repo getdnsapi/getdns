@@ -404,7 +404,7 @@ tst_create(void)
  *  runs unit tests against list management routines
  */
 int
-main(int argc, char *argv[])
+main()
 {
 	tstmsg_prog_begin("tests_list");
 

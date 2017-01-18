@@ -76,7 +76,7 @@ _getdns_rr_iter *_getdns_single_rr_iter_init(_getdns_rr_iter *i,
     const uint8_t *wire, const size_t wire_len);
 
 static inline _getdns_rr_iter *_getdns_rr_iter_rewind(_getdns_rr_iter *i)
-{ return _getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt); }
+{ return i ? _getdns_rr_iter_init(i, i->pkt, i->pkt_end - i->pkt) : NULL; }
 
 _getdns_rr_iter *_getdns_rr_iter_next(_getdns_rr_iter *i);
 
@@ -86,19 +86,19 @@ const uint8_t *_getdns_owner_if_or_as_decompressed(
 static inline _getdns_section 
 _getdns_rr_iter_section(_getdns_rr_iter *i)
 {
-	return !i->pkt ? (i->nxt - i->rr_type == 4 ? SECTION_QUESTION
-	                                           : SECTION_ANSWER  )
-             : i->n < GLDNS_QDCOUNT(i->pkt) ? SECTION_QUESTION
-	     : i->n < GLDNS_QDCOUNT(i->pkt)
-	            + GLDNS_ANCOUNT(i->pkt) ? SECTION_ANSWER
-	     : i->n < GLDNS_QDCOUNT(i->pkt)
-	            + GLDNS_ANCOUNT(i->pkt)
-	            + GLDNS_NSCOUNT(i->pkt) ? SECTION_AUTHORITY
-	     : i->n < GLDNS_QDCOUNT(i->pkt)
-	            + GLDNS_ANCOUNT(i->pkt)
-	            + GLDNS_NSCOUNT(i->pkt)
-	            + GLDNS_ARCOUNT(i->pkt) ? SECTION_ADDITIONAL
-	                                    : SECTION_ANY;
+	return ! i->pkt ? (i->nxt - i->rr_type == 4 ? SECTION_QUESTION
+	                                            : SECTION_ANSWER  )
+             : i->n < (size_t)GLDNS_QDCOUNT(i->pkt) ? SECTION_QUESTION
+	     : i->n < (size_t)GLDNS_QDCOUNT(i->pkt)
+	                    + GLDNS_ANCOUNT(i->pkt) ? SECTION_ANSWER
+	     : i->n < (size_t)GLDNS_QDCOUNT(i->pkt)
+	                    + GLDNS_ANCOUNT(i->pkt)
+	                    + GLDNS_NSCOUNT(i->pkt) ? SECTION_AUTHORITY
+	     : i->n < (size_t)GLDNS_QDCOUNT(i->pkt)
+	                    + GLDNS_ANCOUNT(i->pkt)
+	                    + GLDNS_NSCOUNT(i->pkt)
+	                    + GLDNS_ARCOUNT(i->pkt) ? SECTION_ADDITIONAL
+	                                            : SECTION_ANY;
 }
 
 /* Utility functions to read rr_type and rr_class from a rr iterator */
@@ -181,7 +181,7 @@ static inline _getdns_rrset *_getdns_rrset_iter_value(_getdns_rrset_iter *i)
 { return i && i->rr_i.pos ? &i->rrset : NULL; }
 
 static inline _getdns_rrset_iter *_getdns_rrset_iter_rewind(_getdns_rrset_iter *i)
-{ return _getdns_rrset_iter_init(i, i->rrset.pkt, i->rrset.pkt_len, i->rrset.sections); }
+{ return i ? _getdns_rrset_iter_init(i, i->rrset.pkt, i->rrset.pkt_len, i->rrset.sections) : NULL; }
 
 typedef struct _getdns_rdf_iter {
 	const uint8_t           *pkt;

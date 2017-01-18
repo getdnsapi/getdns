@@ -138,7 +138,7 @@ typedef struct _getdns_rdata_def {
 typedef struct _getdns_rr_def {
 	const char              *name;
 	const _getdns_rdata_def *rdata;
-	int                      n_rdata_fields;
+	size_t                   n_rdata_fields;
 } _getdns_rr_def;
 
 const _getdns_rr_def *_getdns_rr_def_lookup(uint16_t rr_type);

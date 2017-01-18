@@ -51,8 +51,11 @@ typedef unsigned short in_port_t;
 static int i_am_stubby = 0;
 static const char *default_stubby_config =
 "{ resolution_type: GETDNS_RESOLUTION_STUB"
+", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
 ", idle_timeout: 10000"
 ", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
+", tls_query_padding_blocksize: 256"
+", edns_client_subnet_private : 1"
 "}";
 static int clear_listen_list_on_arg = 0;
 #ifndef GETDNS_ON_WINDOWS
@@ -129,8 +132,8 @@ static int get_rrclass(const char *t)
 }
 
 static getdns_return_t
-fill_transport_list(getdns_context *context, char *transport_list_str, 
-                    getdns_transport_list_t *transports, size_t *transport_count)
+fill_transport_list(char *transport_list_str,
+    getdns_transport_list_t *transports, size_t *transport_count)
 {
 	size_t max_transports = *transport_count;
 	*transport_count = 0;
@@ -161,13 +164,19 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
-	fprintf(out, "\ndefault mode: "
+	if (!i_am_stubby) {
+		fprintf(out, "\ndefault mode: "
 #ifdef HAVE_LIBUNBOUND
-	    "recursive"
+	            "recursive"
 #else
-	    "stub"
+	            "stub"
 #endif
-	    ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	            ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	}
+	else {
+		fprintf(out, "\ndefault mode: "
+			    "stub, asynchronous resolution \n\t\tusing TLS with UDP then TCP fallback\n");
+	}
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
@@ -192,10 +201,12 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
 	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
-	fprintf(out, "\t-a\tPerform asynchronous resolution "
-	    "(default = synchronous)\n");
-	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
-	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	if (!i_am_stubby) {
+		fprintf(out, "\t-a\tPerform asynchronous resolution "
+		    "(default = synchronous)\n");
+		fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+		fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	}
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-C\t<filename>\n");
@@ -209,17 +220,21 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
-	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
 #ifndef GETDNS_ON_WINDOWS
 	if (i_am_stubby)
 		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
 #endif
-	fprintf(out, "\t-G\tgeneral lookup\n");
-	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	if (!i_am_stubby) {
+		fprintf(out, "\t-G\tgeneral lookup\n");
+		fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	}
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
-	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
@@ -235,8 +250,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
 	fprintf(out, "\t-s\tSet stub resolution type%s\n"
 	       , i_am_stubby ? "" : "(default = recursing)" );
-	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-v\tPrint getdns release version\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
 
@@ -353,6 +370,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t trans_id)
 {
 	char *response_str;
+	(void)context; (void)userarg;
 
 	/* This is a callback with data */;
 	if (response && !quiet && (response_str = json ?
@@ -520,7 +538,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 		return GETDNS_RETURN_MEMORY_ERROR;
 	}
 	rewind(fh);
-	if (fread(config_file, 1, config_file_sz, fh) != config_file_sz) {
+	if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
 		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
 		       , fn, strerror(errno));
 		fclose(fh);
@@ -536,7 +554,8 @@ int parse_config_file(const char *fn, int report_open_failure)
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	size_t i, j, klass;
+	size_t j;
+	int i, klass;
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
@@ -840,6 +859,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_timeout(
 					context, timeout);
 				goto next;
+			case 'v':
+				fprintf(stdout, "Version %s\n", GETDNS_VERSION);
+				return CONTINUE;
 			case 'x': 
 				getdns_context_set_follow_redirects(
 				    context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
@@ -937,7 +959,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				getdns_transport_list_t transports[10];
 				size_t transport_count = sizeof(transports);
-				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
+				if ((r = fill_transport_list(argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){
 						fprintf(stderr, "Could not set transports\n");
@@ -1019,13 +1041,13 @@ next:		;
 	if (pubkey_pinset && upstream_count) {
 		getdns_dict *upstream;
 		/* apply the accumulated pubkey pinset to all upstreams: */
-		for (i = 0; i < upstream_count; i++) {
-			if (r = getdns_list_get_dict(upstream_list, i, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", i);
+		for (j = 0; j < upstream_count; j++) {
+			if (r = getdns_list_get_dict(upstream_list, j, &upstream), r) {
+				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", j);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", i);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", j);
 				return r;
 			}
 		}
@@ -1345,11 +1367,13 @@ static void request_cb(
 		qname_str = unknown_qname;
 
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
-	    " cd: %d, qname: %s)\n", msg, transaction_id, (int)callback_type,
+	    " cd: %d, qname: %s)\n", (void *)msg, transaction_id, (int)callback_type,
 	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit, qname_str);
 
 	if (qname_str != unknown_qname)
 		free(qname_str);
+#else
+	(void)transaction_id;
 #endif
 	assert(msg);
 
@@ -1560,7 +1584,7 @@ static void incoming_request_handler(getdns_context *context,
 		    getdns_get_errorstr_by_id(r));
 	else {
 		DEBUG_SERVER("scheduled: %p %"PRIu64" for %s %d\n",
-		    msg, transaction_id, qname_str, (int)qtype);
+		    (void *)msg, transaction_id, qname_str, (int)qtype);
 		free(qname_str);
 		return;
 	}
@@ -1631,12 +1655,14 @@ main(int argc, char **argv)
 		goto done_destroy_context;
 	}
 	if (i_am_stubby) {
+		int n_chars = snprintf( home_stubby_conf_fn
+		                      , sizeof(home_stubby_conf_fn)
+		                      , "%s/.stubby.conf"
+		                      , getenv("HOME")
+		                      );
 		(void) parse_config(default_stubby_config);
 		(void) parse_config_file("/etc/stubby.conf", 0);
-		if (snprintf( home_stubby_conf_fn, sizeof(home_stubby_conf_fn)
-		            , "%s/.stubby.conf", getenv("HOME")
-			    ) < sizeof(home_stubby_conf_fn)) {
-
+		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
 			(void) parse_config_file(home_stubby_conf_fn, 0);
 		}
 		clear_listen_list_on_arg = 1;

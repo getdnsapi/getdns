@@ -54,7 +54,7 @@
 
 
 static char *_json_ptr_first(const struct mem_funcs *mf,
-    const char *jptr, char *first, size_t first_sz)
+    const char *jptr, char *first, ssize_t first_sz)
 {
 	const char *next_ref, *k;
 	char *j;
@@ -65,7 +65,7 @@ static char *_json_ptr_first(const struct mem_funcs *mf,
 	if (!(next_ref = strchr(jptr, '/')))
 		next_ref = strchr(jptr, '\0');
 
-	if (next_ref - jptr + 1 > first_sz || !first)
+	if ((unsigned)(next_ref - jptr + 1) > first_sz || !first)
 		first = GETDNS_XMALLOC(*mf, char, next_ref - jptr + 1);
 
 	for (j = first, k = jptr; k < next_ref; j++, k++)
@@ -735,14 +735,13 @@ _getdns_bindata_is_dname(getdns_bindata *bindata)
 /**
  * private function to pretty print bindata to a gldns_buffer
  * @param buf     buffer to write to
- * @param indent  number of spaces to append after newline
  * @param bindata the bindata to print
  * @return        on success the number of written characters
  *                if an output error is encountered, a negative value
  */
 static int
-getdns_pp_bindata(gldns_buffer *buf, size_t indent,
-	getdns_bindata *bindata, int rdata_raw, int json)
+getdns_pp_bindata(gldns_buffer *buf, getdns_bindata *bindata,
+    int rdata_raw, int json)
 {
 	size_t i, p = gldns_buffer_position(buf);
 	uint8_t *dptr;
@@ -887,7 +886,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 			    GETDNS_RETURN_GOOD)
 				return -1;
 			if (getdns_pp_bindata(
-			    buf, indent, bindata_item, 0, json) < 0)
+			    buf, bindata_item, 0, json) < 0)
 				return -1;
 			break;
 
@@ -1096,7 +1095,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 					return -1;
 	
 			} else if (getdns_pp_bindata(
-			    buf, indent, item->i.data.bindata,
+			    buf, item->i.data.bindata,
 			    (strcmp(item->node.key, "rdata_raw") == 0),
 			    json) < 0)
 				return -1;
@@ -1189,7 +1188,7 @@ getdns_pretty_snprint_dict(char *str, size_t size, const getdns_dict *dict)
 
 	gldns_buffer_init_frm_data(&buf, str, size);
 	return getdns_pp_dict(&buf, 0, dict, 0) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 char *
@@ -1223,7 +1222,7 @@ getdns_pretty_snprint_list(char *str, size_t size, const getdns_list *list)
 
 	gldns_buffer_init_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, 0) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 char *
@@ -1258,7 +1257,7 @@ getdns_snprint_json_dict(
 
 	gldns_buffer_init_frm_data(&buf, str, size);
 	return getdns_pp_dict(&buf, 0, dict, pretty ? 1 : 2) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 char *
@@ -1293,7 +1292,7 @@ getdns_snprint_json_list(
 
 	gldns_buffer_init_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, pretty ? 1 : 2) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 /* dict.c */

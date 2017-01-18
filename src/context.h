@@ -131,6 +131,8 @@ typedef struct getdns_upstream {
 	/* How is this upstream doing over UDP? */
 	int                      to_retry;
 	int                      back_off;
+	size_t                   udp_responses;
+	size_t                   udp_timeouts;
 
 	/* For stateful upstreams, need to share the connection and track the
 	   activity on the connection */
@@ -222,7 +224,7 @@ struct getdns_context {
 	/* Context values */
 	getdns_resolution_t  resolution_type;
 	getdns_namespace_t   *namespaces;
-	int                  namespace_count;
+	size_t               namespace_count;
 	uint64_t             timeout;
 	uint64_t             idle_timeout;
 	getdns_redirects_t   follow_redirects;
@@ -307,19 +309,19 @@ struct getdns_context {
 	/* request extension defaults */
 	getdns_dict *header;
 	getdns_dict *add_opt_parameters;
-	int add_warning_for_bad_dns             : 1;
-	int dnssec_return_all_statuses          : 1;
-	int dnssec_return_full_validation_chain : 1;
-	int dnssec_return_only_secure           : 1;
-	int dnssec_return_status                : 1;
-	int dnssec_return_validation_chain      : 1;
+	unsigned add_warning_for_bad_dns             : 1;
+	unsigned dnssec_return_all_statuses          : 1;
+	unsigned dnssec_return_full_validation_chain : 1;
+	unsigned dnssec_return_only_secure           : 1;
+	unsigned dnssec_return_status                : 1;
+	unsigned dnssec_return_validation_chain      : 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	int dnssec_roadblock_avoidance          : 1;
+	unsigned dnssec_roadblock_avoidance          : 1;
 #endif
-	int edns_cookies                        : 1;
-	int return_api_information              : 1; /* Not used */
-	int return_both_v4_and_v6               : 1;
-	int return_call_reporting               : 1;
+	unsigned edns_cookies                        : 1;
+	unsigned return_api_information              : 1; /* Not used */
+	unsigned return_both_v4_and_v6               : 1;
+	unsigned return_call_reporting               : 1;
 	uint16_t specify_class;
 
 	/*

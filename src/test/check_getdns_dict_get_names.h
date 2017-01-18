@@ -79,7 +79,7 @@
       struct getdns_list *answer = NULL;
       char *keys[3] = { "ten", "eleven", "twelve" };
       uint32_t values[3] = { 10, 11, 12 };
-      int i;
+      size_t i;
       size_t length;
       struct getdns_bindata *key = NULL;
       char string_buffer[20] = "";

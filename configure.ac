@@ -96,9 +96,16 @@ AC_PROG_CPP
 AC_CANONICAL_HOST
 
 CFLAGS="$CFLAGS"
+WPEDANTICFLAG=""
+WNOERRORFLAG=""
 AC_PROG_CC_C99
 AX_CHECK_COMPILE_FLAG([-xc99],[CFLAGS="$CFLAGS -xc99"],[],[])
 AX_CHECK_COMPILE_FLAG([-Wall],[CFLAGS="$CFLAGS -Wall"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wextra],[CFLAGS="$CFLAGS -Wextra"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wpedantic],[WPEDANTICFLAG="-Wpedantic"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wno-error=unused-parameter],[WNOERRORFLAG="-Wno-error=unused-parameter"],[],[])
+AC_SUBST(WPEDANTICFLAG)
+AC_SUBST(WNOERRORFLAG)
 
 case "$host_os" in
   linux* ) CFLAGS="$CFLAGS -D_BSD_SOURCE -D_DEFAULT_SOURCE"
@@ -256,7 +263,7 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -443,39 +450,38 @@ case "$enable_dsa" in
       ;;
     *) dnl default
       # detect if DSA is supported, and turn it off if not.
-      AC_CHECK_FUNC(EVP_dss1, [
+      AC_CHECK_FUNC(DSA_SIG_new, [
 	AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
       ], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
 	  fi ])
       ;;
 esac
 
-AC_ARG_ENABLE(draft-dnssec-roadblock-avoidance, AC_HELP_STRING([--enable-draft-dnssec-roadblock-avoidance], [Enable experimental dnssec roadblock avoidance]))
-AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
-AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enable cookies and roadblock avoidance]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [No drafts in this release]))
 case "$enable_all_drafts" in
 	yes)
-		enable_draft_dnssec_roadblock_avoidance=yes
-		enable_draft_edns_cookies=yes
 		;;
 	no|*)
 		;;
 esac
-case "$enable_draft_dnssec_roadblock_avoidance" in
-	yes)
-		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental draft dnssec roadblock avoidance.])
+AC_ARG_ENABLE(dnssec-roadblock-avoidance, AC_HELP_STRING([--disable-dnssec-roadblock-avoidance], [Disable dnssec roadblock avoidance]))
+case "$enable_dnssec_roadblock_avoidance" in
+	no)
 		;;
-	no|*)
+	yes|*)
+		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental dnssec roadblock avoidance.])
 		;;
 esac
-case "$enable_draft_edns_cookies" in
-	yes)
+
+AC_ARG_ENABLE(edns-cookies, AC_HELP_STRING([--disable-edns-cookies], [Disable edns cookies]))
+case "$enable_edns_cookies" in
+	no)
+		;;
+	yes|*)
 		if test "x_$HAVE_SSL" != "x_yes"; then
-			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun without --enable-draft-edns-cookies])
+			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun with --disable-edns-cookies])
 		fi
-		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental draft edns cookies.])
-		;;
-	no|*)
+		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental edns cookies.])
 		;;
 esac
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
@@ -964,6 +970,14 @@ fi
 #---- check for pthreads library
 AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREADS], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
 
+AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
+AC_LANG_PUSH(C)
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([[char*s=__func__;]],[[]])],
+	[AC_MSG_RESULT([yes])
+	 AC_DEFINE(HAVE___FUNC__, [1], [Whether the C compiler support the __func__ variable])],
+	[AC_MSG_RESULT([no])])
+AC_LANG_POP(C)
 
 dnl -----
 dnl ----- Start of "Things needed for gldns" section
@@ -1079,6 +1093,12 @@ AC_SUBST(C99COMPATFLAGS)
 AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname referrals.])
 
 AH_BOTTOM([
+
+#ifdef HAVE___FUNC__
+#define __FUNC__ __func__
+#else
+#define __FUNC__ __FUNCTION__
+#endif
 
 #ifdef GETDNS_ON_WINDOWS
 /* On windows it is allowed to increase the FD_SETSIZE

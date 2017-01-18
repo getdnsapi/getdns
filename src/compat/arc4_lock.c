@@ -48,9 +48,65 @@ void _ARC4_UNLOCK(void)
 {
     pthread_mutex_unlock(&arc_lock);
 }
+#elif defined(GETDNS_ON_WINDOWS)
+ /*
+ * There is no explicit arc4random_init call, and thus
+ * the critical section must be allocated on the first call to
+ * ARC4_LOCK(). The interlocked test is used to verify that
+ * the critical section will be allocated only once.
+ *
+ * The work around is for the main program to call arc4random()
+ * at the beginning of execution, before spinning new threads.
+ *
+ * There is also no explicit arc4random_close call, and thus
+ * the critical section is never deleted. It will remain allocated
+ * as long as the program runs.
+ */
+static CRITICAL_SECTION arc_critical_section;
+static volatile long arc_critical_section_initialized = 0;
+
+void _ARC4_LOCK(void)
+{
+	long r = InterlockedCompareExchange(&arc_critical_section_initialized, 1, 0);
+
+	if (r != 2)
+	{
+		if (r == 0)
+		{
+			InitializeCriticalSection(&arc_critical_section);
+			arc_critical_section_initialized = 2;
+		}
+		else if (r == 1)
+		{
+			/*
+			* If the critical section is initialized, the first test
+			* will return the value 2.
+			*
+			* If several threads try to initialize the arc4random
+			* state "at the same time", the first one will find
+			* the "initialized" variable at 0, the other ones at 1.
+			*
+			* Since this is a fairly rare event, we resolve it with a
+			* simple active wait loop.
+			*/
+
+			while (arc_critical_section_initialized != 2)
+			{
+				Sleep(1);
+			}
+		}
+	}
+
+	EnterCriticalSection(&arc_critical_section);
+}
+
+void _ARC4_UNLOCK(void)
+{
+	LeaveCriticalSection(&arc_critical_section);
+}
 
 #else
-/* XXX - add windows-(or at least non pthread) specific lock routines here */
+ /* XXX - add non pthread specific lock routines here */
 void _ARC4_LOCK(void)
 {
 }

@@ -312,7 +312,7 @@ getdns_return_t
 _getdns_list_copy(const struct getdns_list * srclist,
 	struct getdns_list ** dstlist)
 {
-	int i;
+	size_t i;
 	getdns_return_t retval;
 
 	if (!dstlist)
@@ -352,6 +352,9 @@ _getdns_list_copy(const struct getdns_list * srclist,
 		case t_dict:
 			retval = _getdns_list_append_dict(*dstlist,
 			    srclist->items[i].data.dict);
+			break;
+		default:
+			retval = GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 			break;
 		}
 		if (retval != GETDNS_RETURN_GOOD) {
