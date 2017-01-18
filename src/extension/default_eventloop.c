@@ -246,6 +246,8 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	int poll_timeout = 0;
 	struct pollfd* pfds = NULL;
 	unsigned int num_pfds = 0;
+	_getdns_eventloop_info* timeout_timeout_cbs = NULL;
+	_getdns_eventloop_info* fd_timeout_cbs = NULL;
 
 	if (!loop)
 		return;
@@ -254,9 +256,16 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	HASH_ITER(hh, default_loop->timeout_events, s, tmp) {
 		if (now > s->timeout_time)
-			default_timeout_cb(-1, s->event);
+			add_event(&timeout_timeout_cbs, s->id, s);
 		else if (s->timeout_time < timeout)
 			timeout = s->timeout_time;
+	}
+	/* this is in case the timeout callback deletes the event
+	   and thus messes with the iteration */
+	HASH_ITER(hh, timeout_timeout_cbs, s, tmp) {
+		getdns_eventloop_event* event = s->event;
+		delete_event(&timeout_timeout_cbs, s);
+		default_timeout_cb(-1, event);
 	}
 	// first we count the number of fds that will be active
 	HASH_ITER(hh, default_loop->fd_events, s, tmp) {
@@ -317,7 +326,6 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	}
 	if (pfds)
 		free(pfds);
-	_getdns_eventloop_info* fd_timeout_cbs = NULL;
 	HASH_ITER(hh, default_loop->fd_events, s, tmp) {
 		if (s->event &&
 		    s->event->timeout_cb &&
@@ -332,7 +340,6 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		delete_event(&fd_timeout_cbs, s);
 		default_timeout_cb(fd, event);
 	}
-	_getdns_eventloop_info* timeout_timeout_cbs = NULL;
 	HASH_ITER(hh, default_loop->timeout_events, s, tmp) {
 		if (s->event &&
 		    s->event->timeout_cb &&
@@ -342,10 +349,9 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	/* this is in case the timeout callback deletes the event
 	   and thus messes with the iteration */
 	HASH_ITER(hh, timeout_timeout_cbs, s, tmp) {
-		int fd = s->id;
 		getdns_eventloop_event* event = s->event;
 		delete_event(&timeout_timeout_cbs, s);
-		default_timeout_cb(fd, event);
+		default_timeout_cb(-1, event);
 	}
 
 }
