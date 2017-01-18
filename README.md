@@ -19,6 +19,8 @@ Traditional access to DNS data from applications has several limitations:
 
 * Sophisticated uses of the DNS (things like IDNA and DNSSEC validation) require considerable application work, possibly by application developers with little experience with the vagaries of DNS.
 
+getdns also provides a experimental DNS Privacy enabled client called 'stubby' - see below for more details.
+
 ## Motivation for providing the API
 
 The developers are of the opinion that DNSSEC offers a unique global infrastructure for establishing and enhancing cryptographic trust relations.  With the development of this API we intend to offer application developers a modern and flexible interface that enables end-to-end trust in the DNS architecture, and which will inspire application developers to implement innovative security solutions in their applications.
@@ -73,9 +75,13 @@ If you want to make use of the configuration files that utilise a JSON-like form
 
 before building. 
 
-If you want to use the getdns_query command line wrapper script for testing or to enable getdns as a daemon then you must build it using
+As well as building the getdns library 2 other tools are installed by default by the above process:
 
-    # make getdns_query
+* getdns_query: a command line test script wrapper for getdns
+* stubby: a experimental DNS Privacy enabled client
+
+Note: If you only want to build stubby, then use the `--enable-stub-only` and `--without-libidn` options when running 'configure'.
+
 
 ## Minimizing dependencies
 
@@ -83,13 +89,25 @@ If you want to use the getdns_query command line wrapper script for testing or t
 * Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
 * When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
 
-## Extensions / Event loop dependencies
+## Extensions and Event loop dependencies
 
 The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
 
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
 * [libuv](https://github.com/joyent/libuv)
 * [libev](http://software.schmorp.de/pkg/libev.html)
+
+## Stubby
+
+* Stubby is an experimental implementation of a DNS Privacy enabled stub resolver. It is currently suitable for advanced/technical users - all feedback is welcome! Also see [dnsprivacy.org](https://dnsprivacy.org) for more information on DNS Privacy and stubby.
+* By default stubby will attempt to use 'Opportunistic' Privacy for DNS queries.
+* A sample configuration file is available in the source code (src/tools/stubby.conf) which uses 'Strict' Privacy and some of the available test DNS Privacy servers to resolve queries. Note these servers are test servers that offer no service guarantees. The location of a configuration file can be specified with the '-C' flag
+* RECOMMENDED: Minimal logging output from Stubby is available  (e.g. which servers are used and connection level statistics) by also using the '--enable-debug-daemon' flag when running 'configure'.
+
+To use stubby
+* Start stubby from the command line
+* Test it by doing, for example, 'dig @127.0.0.1 www.example.com'
+* Alter the default DNS resolvers on your system to point at localhost (127.0.0.1, ::1)
 
 ## Regression Tests
 
@@ -124,7 +142,7 @@ We have a [getdns users list](https://getdnsapi.net/mailman/listinfo/users) for 
 
 The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec) is a good place to engage in discussions regarding the design of the API.
 
-# Tickets/Bug Reports
+# Tickets and Bug Reports
 
 Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/getdnsapi/getdns/issues).
 
@@ -179,7 +197,18 @@ Stub mode does not support:
 
 # Known Issues
 
-* None
+* The synchronous lookup functions will not work when new file descriptors
+  needed for the lookup will be larger than `FD_SETSIZE`.  This is because
+  the synchronous functions use a "default" event loop under the hood
+  which is based on `select()` and thus inherits the limits that `select()` has.
+
+  If you need only slightly more file descriptors, it is possible to enlarge
+  the `FD_SETSIZE` with the `--with-fd-setsize=`*`size`* flag to `configure`.
+
+  To resolve, use the asynchronous functions with an event loop extension for
+  libevent, libev or libuv.  Note that the asynchronous functions will have
+  the same problem when used in combination with `getdns_context_run()`, which
+  also uses the default event loop.
 
 # Supported Platforms
 
@@ -203,7 +232,7 @@ If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via 
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
-### CentOS/RHEL 6.5
+### CentOS and RHEL 6.5
 
 We rely on the most excellent package manager fpm to build the linux packages, which
 means that the packaging platform requires ruby 2.1.0.  There are other ways to
@@ -261,7 +290,7 @@ The build has been tested using the following:
 32 bit only Mingw: [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
 32 bit build on a 64 bit Mingw [Download latest from: http://mingw-w64.org/doku.php/download/mingw-builds and http://msys2.github.io/]. IMPORTANT: Install tested ONLY on the  "x86_64" for 64-bit installer of msys2.
 
-#### Dependencies: 
+#### Dependencies
 The following dependencies are 
 * openssl-1.0.2j
 * libidn

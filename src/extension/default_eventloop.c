@@ -290,7 +290,7 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	else if (! blocking || now > timeout) {
 		poll_timeout = 0;
 	} else {
-		poll_timeout = (timeout - now) * 1000; /* turn seconds into millseconds */
+		poll_timeout = (timeout - now) / 1000; /* turn microseconds into milliseconds */
 	}
 #ifdef USE_WINSOCK
 	if (WSAPoll(pfds, num_pfds, poll_timeout) < 0) {

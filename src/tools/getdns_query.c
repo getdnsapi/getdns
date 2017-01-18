@@ -27,9 +27,6 @@
 
 #include "config.h"
 #include "debug.h"
-#include "getdns_str2dict.h"
-#include "getdns_context_config.h"
-#include "getdns_context_set_listen_addresses.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,6 +48,19 @@ typedef unsigned short in_port_t;
 
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
+static int i_am_stubby = 0;
+static const char *default_stubby_config =
+"{ resolution_type: GETDNS_RESOLUTION_STUB"
+", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
+", idle_timeout: 10000"
+", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
+", tls_query_padding_blocksize: 256"
+", edns_client_subnet_private : 1"
+"}";
+static int clear_listen_list_on_arg = 0;
+#ifndef GETDNS_ON_WINDOWS
+static int run_in_foreground = 1;
+#endif
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -154,13 +164,19 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
-	fprintf(out, "\ndefault mode: "
+	if (!i_am_stubby) {
+		fprintf(out, "\ndefault mode: "
 #ifdef HAVE_LIBUNBOUND
-	    "recursive"
+	            "recursive"
 #else
-	    "stub"
+	            "stub"
 #endif
-	    ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	            ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	}
+	else {
+		fprintf(out, "\ndefault mode: "
+			    "stub, asynchronous resolution \n\t\tusing TLS with UDP then TCP fallback\n");
+	}
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
@@ -185,26 +201,40 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
 	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
-	fprintf(out, "\t-a\tPerform asynchronous resolution "
-	    "(default = synchronous)\n");
-	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
-	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	if (!i_am_stubby) {
+		fprintf(out, "\t-a\tPerform asynchronous resolution "
+		    "(default = synchronous)\n");
+		fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+		fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	}
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
 	fprintf(out, "\t\tThe file must be in json dict format.\n");
+	if (i_am_stubby) {
+		fprintf(out, "\t\tBy default, configuration is first read from");
+		fprintf(out, "\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"");
+	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
-	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
-	fprintf(out, "\t-G\tgeneral lookup\n");
-	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+#ifndef GETDNS_ON_WINDOWS
+	if (i_am_stubby)
+		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
+#endif
+	if (!i_am_stubby) {
+		fprintf(out, "\t-G\tgeneral lookup\n");
+		fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	}
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
-	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
@@ -215,11 +245,15 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-p\tPretty print response dict\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
-	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf( out, "\t-r\tSet recursing resolution type%s\n"
+	       , i_am_stubby ? "(default = stub)" : "");
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
-	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
-	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
+	fprintf(out, "\t-s\tSet stub resolution type%s\n"
+	       , i_am_stubby ? "" : "(default = recursing)" );
+	if (!i_am_stubby)
+		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-v\tPrint getdns release version\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
 
@@ -242,6 +276,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
 	fprintf(out, "\t\tThis option can be given more than once.\n");
+	if (i_am_stubby)
+		fprintf(out, "\t\t(default is to listen on 127.0.0.1:53)\n");
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -443,11 +479,12 @@ static void parse_config(const char *config_str)
 			 * will get destroyed.
 			 */
 			if (!listen_dict &&
-			    !(listen_dict = getdns_dict_create()))
+			    !(listen_dict = getdns_dict_create())) {
 				fprintf(stderr, "Could not create "
 						"listen_dict");
+				r = GETDNS_RETURN_MEMORY_ERROR;
 
-			else if ((r = getdns_dict_set_list(
+			} else if ((r = getdns_dict_set_list(
 			    listen_dict, "listen_list", list)))
 				fprintf(stderr, "Could not set listen_list");
 
@@ -464,13 +501,54 @@ static void parse_config(const char *config_str)
 
 			touched_listen_list = 1;
 		}
-		if ((r = _getdns_context_config_(
-		    context, extensions, config_dict))) {
+		if ((r = getdns_context_config(context, config_dict))) {
 			fprintf(stderr, "Could not configure context with "
 			    "config dict: %s\n", getdns_get_errorstr_by_id(r));
 		}
 		getdns_dict_destroy(config_dict);
 	}
+}
+
+int parse_config_file(const char *fn, int report_open_failure)
+{
+	FILE *fh;
+	char *config_file = NULL;
+	long config_file_sz;
+
+	if (!(fh = fopen(fn, "r"))) {
+		if (report_open_failure)
+			fprintf( stderr, "Could not open \"%s\": %s\n"
+			       , fn, strerror(errno));
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (fseek(fh, 0,SEEK_END) == -1) {
+		perror("fseek");
+		fclose(fh);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	config_file_sz = ftell(fh);
+	if (config_file_sz <= 0) {
+		/* Empty config is no config */
+		fclose(fh);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!(config_file = malloc(config_file_sz + 1))){
+		fclose(fh);
+		fprintf(stderr, "Could not allocate memory for \"%s\"\n", fn);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	rewind(fh);
+	if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
+		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
+		       , fn, strerror(errno));
+		fclose(fh);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	config_file[config_file_sz] = 0;
+	fclose(fh);
+	parse_config(config_file);
+	free(config_file);
+	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t parse_args(int argc, char **argv)
@@ -488,8 +566,6 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
-	char *config_file = NULL;
-	long config_file_sz;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -600,42 +676,7 @@ getdns_return_t parse_args(int argc, char **argv)
 					    "after -C\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				if (!(fh = fopen(argv[i], "r"))) {
-					fprintf(stderr, "Could not open \"%s\""
-					    ": %s\n",argv[i], strerror(errno));
-					return GETDNS_RETURN_GENERIC_ERROR;
-				}
-				if (fseek(fh, 0,SEEK_END) == -1) {
-					perror("fseek");
-					fclose(fh);
-					return GETDNS_RETURN_GENERIC_ERROR;
-				}
-				config_file_sz = ftell(fh);
-				if (config_file_sz <= 0) {
-					/* Empty config is no config */
-					fclose(fh);
-					break;
-				}
-				if (!(config_file=malloc(config_file_sz + 1))){
-					fclose(fh);
-					fprintf(stderr, "Could not allocate me"
-					    "mory for \"%s\"\n", argv[i]);
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				rewind(fh);
-				if (fread(config_file, 1, config_file_sz, fh)
-				    != (size_t)config_file_sz) {
-					fprintf(stderr, "An error occurred whil"
-					    "e reading \"%s\": %s\n",argv[i],
-					    strerror(errno));
-					fclose(fh);
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				config_file[config_file_sz] = 0;
-				fclose(fh);
-				parse_config(config_file);
-				free(config_file);
-				config_file = NULL;
+				(void) parse_config_file(argv[i], 1);
 				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
@@ -818,6 +859,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_timeout(
 					context, timeout);
 				goto next;
+			case 'v':
+				fprintf(stdout, "Version %s\n", GETDNS_VERSION);
+				return CONTINUE;
 			case 'x': 
 				getdns_context_set_follow_redirects(
 				    context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
@@ -932,17 +976,23 @@ getdns_return_t parse_args(int argc, char **argv)
 					                "expected after -z\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				if (argv[i][0] == '-' && argv[i][1] == '\0') {
+				if (clear_listen_list_on_arg ||
+				    (argv[i][0] == '-' && argv[i][1] == '\0')) {
 					if (listen_list && !listen_dict)
 						getdns_list_destroy(
 						    listen_list);
 					listen_list = NULL;
 					listen_count = 0;
-					touched_listen_list = 1;
-					DEBUG_SERVER("Clear listen list\n");
-					break;
+					if (!clear_listen_list_on_arg) {
+						touched_listen_list = 1;
+						DEBUG_SERVER("Clear listen list\n");
+						break;
+					} else if (listen_dict) {
+						getdns_dict_destroy(listen_dict);
+						listen_dict = NULL;
+					}
+					clear_listen_list_on_arg = 0;
 				}
-
 				if ((r = getdns_str2dict(argv[i], &downstream)))
 					fprintf(stderr, "Could not convert \"%s\" to "
 					    "an IP dict: %s\n", argv[i],
@@ -971,6 +1021,12 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				break;
 			default:
+#ifndef GETDNS_ON_WINDOWS
+				if (i_am_stubby && *c == 'g') {
+					run_in_foreground = 0;
+					break;
+				}
+#endif
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
 				for (i = 0; i < argc; i++)
@@ -1007,7 +1063,24 @@ next:		;
 	if (print_api_info) {
 		getdns_dict *api_information = 
 		    getdns_context_get_api_information(context);
-		char *api_information_str =
+		char *api_information_str;
+	       
+		if (listen_dict && !getdns_dict_get_list(
+		    listen_dict, "listen_list", &listen_list)) {
+
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+		} else if (listen_list) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+
+		} else if ((listen_list = getdns_list_create())) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+			getdns_list_destroy(listen_list);
+			listen_list = NULL;
+		}
+		api_information_str =
 		    getdns_pretty_print_dict(api_information);
 		fprintf(stdout, "%s\n", api_information_str);
 		free(api_information_str);
@@ -1137,7 +1210,8 @@ getdns_return_t do_the_call(void)
 getdns_eventloop *loop = NULL;
 FILE *fp;
 static void incoming_request_handler(getdns_context *context,
-    getdns_dict *request, getdns_transaction_t request_id);
+    getdns_callback_type_t callback_type, getdns_dict *request,
+    void *userarg, getdns_transaction_t request_id);
 
 
 void read_line_cb(void *userarg)
@@ -1154,7 +1228,7 @@ void read_line_cb(void *userarg)
 		loop->vmt->clear(loop, read_line_ev);
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
-			    context, NULL, NULL);
+			    context, NULL, NULL, NULL);
 		return;
 	}
 	if (query_file)
@@ -1184,7 +1258,7 @@ void read_line_cb(void *userarg)
 	r = parse_args(linec, linev);
 	if (!r && touched_listen_list) {
 		r = getdns_context_set_listen_addresses(
-		    context, incoming_request_handler, listen_list);
+		    context, listen_list, NULL, incoming_request_handler);
 	}
 	if ((r || (r = do_the_call())) &&
 	    (r != CONTINUE && r != CONTINUE_ERROR))
@@ -1284,12 +1358,23 @@ static void request_cb(
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint32_t n, rcode, dnssec_status;
 
-#if !defined(SERVER_DEBUG) || !SERVER_DEBUG
+#if defined(SERVER_DEBUG) && SERVER_DEBUG
+	getdns_bindata *qname;
+	char *qname_str, *unknown_qname = "<unknown_qname>";
+
+	if (getdns_dict_get_bindata(msg->request, "/question/qname", &qname)
+	||  getdns_convert_dns_name_to_fqdn(qname, &qname_str))
+		qname_str = unknown_qname;
+
+	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
+	    " cd: %d, qname: %s)\n", (void *)msg, transaction_id, (int)callback_type,
+	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit, qname_str);
+
+	if (qname_str != unknown_qname)
+		free(qname_str);
+#else
 	(void)transaction_id;
 #endif
-	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
-	    " cd: %d)\n", (void *)msg, transaction_id, (int)callback_type,
-	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
 	assert(msg);
 
 #if 0
@@ -1352,14 +1437,11 @@ static void request_cb(
 	else if (n == 0)
 		SERVFAIL("Recursion not available", 0, msg, &response);
 
-	if (!response)
-		/* No response, no reply */
-		_getdns_cancel_reply(context, msg->request_id);
-
-	else if ((r = getdns_reply(context, msg->request_id, response))) {
+	if ((r = getdns_reply(context, response, msg->request_id))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
-		_getdns_cancel_reply(context, msg->request_id);
+		/* Cancel reply */
+		(void) getdns_reply(context, NULL, msg->request_id);
 	}
 	if (msg) {
 		getdns_dict_destroy(msg->request);
@@ -1370,7 +1452,8 @@ static void request_cb(
 }	
 
 static void incoming_request_handler(getdns_context *context,
-    getdns_dict *request, getdns_transaction_t request_id)
+    getdns_callback_type_t callback_type, getdns_dict *request,
+    void *userarg, getdns_transaction_t request_id)
 {
 	getdns_bindata *qname;
 	char *qname_str = NULL;
@@ -1388,6 +1471,9 @@ static void incoming_request_handler(getdns_context *context,
 	getdns_list *additional;
 	getdns_dict *rr;
 	uint32_t rr_type;
+
+	(void)callback_type;
+	(void)userarg;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -1516,14 +1602,11 @@ error:
 		free(request_str);
 	} while(0);
 #endif
-	if (!response)
-		/* No response, no reply */
-		_getdns_cancel_reply(context, request_id);
-
-	else if ((r = getdns_reply(context, request_id, response))) {
+	if ((r = getdns_reply(context, response, request_id))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
-		_getdns_cancel_reply(context, request_id);
+		/* Cancel reply */
+		getdns_reply(context, NULL, request_id);
 	}
 	if (msg) {
 		if (msg->request)
@@ -1545,7 +1628,18 @@ error:
 int
 main(int argc, char **argv)
 {
+	char home_stubby_conf_fn[1024];
 	getdns_return_t r;
+#ifndef USE_WINSOCK
+	char *prg_name = strrchr(argv[0], '/');
+#else
+	char *prg_name = strrchr(argv[0], '\\');
+#endif
+	prg_name = prg_name ? prg_name + 1 : argv[0];
+
+	i_am_stubby = strcasecmp(prg_name, "stubby") == 0
+	           || strcasecmp(prg_name, "lt-stubby") == 0
+	           || strcasecmp(prg_name, "stubby.exe") == 0;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -1560,8 +1654,22 @@ main(int argc, char **argv)
 		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto done_destroy_context;
 	}
+	if (i_am_stubby) {
+		int n_chars = snprintf( home_stubby_conf_fn
+		                      , sizeof(home_stubby_conf_fn)
+		                      , "%s/.stubby.conf"
+		                      , getenv("HOME")
+		                      );
+		(void) parse_config(default_stubby_config);
+		(void) parse_config_file("/etc/stubby.conf", 0);
+		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
+			(void) parse_config_file(home_stubby_conf_fn, 0);
+		}
+		clear_listen_list_on_arg = 1;
+	}
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
+	clear_listen_list_on_arg = 0;
 
 	if (query_file) {
 		fp = fopen(query_file, "rt");
@@ -1578,8 +1686,10 @@ main(int argc, char **argv)
 		assert(loop);
 	}
 	if (listen_count && (r = getdns_context_set_listen_addresses(
-	    context, incoming_request_handler, listen_list)))
+	    context, listen_list, NULL, incoming_request_handler))) {
+		perror("error: Could not bind on given addresses");
 		goto done_destroy_context;
+	}
 
 	/* Make the call */
 	if (interactive) {
@@ -1598,7 +1708,27 @@ main(int argc, char **argv)
 	}
 	else if (listen_count) {
 		assert(loop);
-		loop->vmt->run(loop);
+#ifndef GETDNS_ON_WINDOWS
+		if (i_am_stubby && !run_in_foreground) {
+			pid_t pid = fork();
+			if (pid == -1) {
+				perror("Could not fork of stubby daemon\n");
+				r = GETDNS_RETURN_GENERIC_ERROR;
+
+			} else if (pid) {
+				FILE *fh = fopen("/var/rub/stubby.pid", "w");
+				if (! fh)
+					fh = fopen("/tmp/stubby.pid", "w");
+				if (fh) {
+					fprintf(fh, "%d", (int)pid);
+					fclose(fh);
+					batch_mode = 0;
+				}
+			} else
+				loop->vmt->run(loop);
+		} else
+#endif
+			loop->vmt->run(loop);
 	} else
 		r = do_the_call();
 
@@ -1620,8 +1750,9 @@ done_destroy_context:
 		return 0;
 	else if (r == CONTINUE_ERROR)
 		return 1;
-	fprintf(stdout, "\nAll done.\n");
+
+	if (!i_am_stubby)
+		fprintf(stdout, "\nAll done.\n");
+
 	return r;
 }
-
-

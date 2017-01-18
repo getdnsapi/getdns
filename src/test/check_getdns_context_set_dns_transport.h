@@ -300,6 +300,7 @@
       }
 
       CONTEXT_DESTROY;
+
       getdns_dict_destroy(extensions);
       getdns_list_destroy(root_servers);
 

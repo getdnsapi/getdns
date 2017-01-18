@@ -37,7 +37,7 @@
 
 #include "config.h"
 
-#define STUB_DEBUG_ENTRY     "-> ENTRY:       "
+#define STUB_DEBUG_ENTRY     "=> ENTRY:       "
 #define STUB_DEBUG_SETUP     "--- SETUP:      "
 #define STUB_DEBUG_SETUP_TLS "--- SETUP(TLS): "
 #define STUB_DEBUG_TSIG      "--- TSIG:       "
@@ -45,7 +45,23 @@
 #define STUB_DEBUG_READ      "------- READ:   "
 #define STUB_DEBUG_WRITE     "------- WRITE:  "
 #define STUB_DEBUG_CLEANUP   "--- CLEANUP:    "
+#define STUB_DEBUG_DAEMON    "GETDNS_DAEMON:  "
 
+#ifdef GETDNS_ON_WINDOWS
+#define DEBUG_ON(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+        time_t tsec; \
+		\
+		gettimeofday(&tv, NULL); \
+		tsec = (time_t) tv.tv_sec; \
+		gmtime_s(&tm, (const time_t *) &tsec); \
+		strftime(buf, 10, "%H:%M:%S", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (0)
+#else
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
 		struct tm tm; \
@@ -57,6 +73,7 @@
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
+#endif
 
 #define DEBUG_NL(...) do { \
 		struct timeval tv; \
@@ -88,6 +105,13 @@
 #define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+#include <time.h>
+#define DEBUG_DAEMON(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_DAEMON(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 #if defined(SEC_DEBUG) && SEC_DEBUG
 #include <time.h>
 #define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
@@ -100,6 +124,18 @@
 #define DEBUG_SERVER(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_SERVER(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#define MDNS_DEBUG_ENTRY     "-> MDNS ENTRY:  "
+#define MDNS_DEBUG_READ      "-- MDNS READ:   "
+#define MDNS_DEBUG_WRITE     "-- MDNS WRITE:  "
+#define MDNS_DEBUG_CLEANUP   "-- MDNS CLEANUP:"
+
+#if defined(MDNS_DEBUG) && MDNS_DEBUG
+#include <time.h>
+#define DEBUG_MDNS(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 #endif

@@ -1,6 +1,7 @@
 getdns_address
 getdns_address_sync
 getdns_cancel_callback
+getdns_context_config
 getdns_context_create
 getdns_context_create_with_extended_memory_functions
 getdns_context_create_with_memory_functions
@@ -50,6 +51,7 @@ getdns_context_set_extended_memory_functions
 getdns_context_set_follow_redirects
 getdns_context_set_idle_timeout
 getdns_context_set_limit_outstanding_queries
+getdns_context_set_listen_addresses
 getdns_context_set_memory_functions
 getdns_context_set_namespaces
 getdns_context_set_resolution_type
@@ -123,6 +125,7 @@ getdns_print_json_dict
 getdns_print_json_list
 getdns_pubkey_pin_create_from_string
 getdns_pubkey_pinset_sanity_check
+getdns_reply
 getdns_root_trust_anchor
 getdns_rr_dict2str
 getdns_rr_dict2str_buf
@@ -134,6 +137,10 @@ getdns_service
 getdns_service_sync
 getdns_snprint_json_dict
 getdns_snprint_json_list
+getdns_str2bindata
+getdns_str2dict
+getdns_str2int
+getdns_str2list
 getdns_str2rr_dict
 getdns_strerror
 getdns_validate_dnssec

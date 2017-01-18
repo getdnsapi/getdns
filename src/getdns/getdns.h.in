@@ -485,6 +485,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RCODE_BADNAME  20
 #define GETDNS_RCODE_BADALG   21
 #define GETDNS_RCODE_BADTRUNC 22
+#define GETDNS_RCODE_COOKIE   23
 /** @}
  */
 

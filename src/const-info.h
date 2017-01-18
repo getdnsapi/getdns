@@ -47,6 +47,13 @@ struct const_info {
 
 struct const_info *_getdns_get_const_info(int value);
 
+struct const_name_info {
+	const char *name;
+	uint32_t code;
+};
+
+int _getdns_get_const_name_info(const char *name, uint32_t *code);
+
 #endif
 
 /* const-info.h */
