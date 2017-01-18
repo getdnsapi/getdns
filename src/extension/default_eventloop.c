@@ -47,14 +47,18 @@ _getdns_eventloop_info *find_event(_getdns_eventloop_info** events, int id)
 void add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("default_eventloop: add_event with id %d\n", id);
-	ev->id = id;
-	HASH_ADD_INT(*events, id, ev);
+	_getdns_eventloop_info* myevent = calloc(1, sizeof(_getdns_eventloop_info));
+	myevent->event = ev->event;
+	myevent->id = id;
+	myevent->timeout_time = ev->timeout_time;
+	HASH_ADD_INT(*events, id, myevent);
 }
 
 void delete_event(_getdns_eventloop_info** events, _getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("default_eventloop: delete_event with id %d\n", ev->id);
 	HASH_DEL(*events, ev);
+	free(ev);
 }
 
 static uint64_t get_now_plus(uint64_t amount)
@@ -113,13 +117,12 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		/* cleanup the old event if it exists */
 		if (fd_event) {
 			delete_event(&default_loop->fd_events, fd_event);
-			free(fd_event);
 		}
-		fd_event = calloc(1, sizeof(_getdns_eventloop_info));
-		fd_event->event = event;
-		fd_event->timeout_time = get_now_plus(timeout);
-		add_event(&default_loop->fd_events, fd, fd_event);
+		_getdns_eventloop_info fd_ev;
 		event->ev = (void *) (intptr_t) (fd + 1);
+		fd_ev.event = event;
+		fd_ev.timeout_time = get_now_plus(timeout);
+		add_event(&default_loop->fd_events, fd, &fd_ev);
 
 		DEBUG_SCHED( "scheduled read/write at fd %d\n", fd);
 		return GETDNS_RETURN_GOOD;
@@ -137,12 +140,11 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		event->write_cb = NULL;
 	}
 	for (i = 0; i < default_loop->max_timeouts; i++) {
-		_getdns_eventloop_info* timeout_event = NULL;
-		if ((timeout_event = find_event(&default_loop->timeout_events, i)) == NULL) {
-			timeout_event = calloc(1, sizeof(_getdns_eventloop_info));
-			timeout_event->event = event;
-			timeout_event->timeout_time = get_now_plus(timeout);
-			add_event(&default_loop->timeout_events, i, timeout_event);
+		if (find_event(&default_loop->timeout_events, i) == NULL) {
+			_getdns_eventloop_info timeout_ev;
+			timeout_ev.event = event;
+			timeout_ev.timeout_time = get_now_plus(timeout);
+			add_event(&default_loop->timeout_events, i, &timeout_ev);
 			event->ev = (void *) (intptr_t) (i + 1);
 
 			DEBUG_SCHED( "scheduled timeout at slot %d\n", (int)i);
@@ -179,7 +181,6 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 #endif
 		if (timeout_event) {
 			delete_event(&default_loop->timeout_events, timeout_event);
-			free(timeout_event);
 		}
 	} else {
 		_getdns_eventloop_info* fd_event = find_event(&default_loop->fd_events, i);
@@ -191,7 +192,6 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 #endif
 		if (fd_event) {
 			delete_event(&default_loop->fd_events, fd_event);
-			free(fd_event);
 		}
 	}
 	event->ev = NULL;
