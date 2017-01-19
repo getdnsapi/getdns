@@ -124,7 +124,7 @@
        */
        struct getdns_context *context = NULL;   
        struct getdns_dict *response = NULL;
-       const char *name = "labelsizeofsixtythreecharacterscom";
+       const char *name = "labelsizeofsixtythreecharacterscom.";
 
        CONTEXT_CREATE(TRUE);
 

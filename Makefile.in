@@ -44,7 +44,7 @@ libdir = @libdir@
 srcdir = @srcdir@
 INSTALL = @INSTALL@
 
-all : default @GETDNS_QUERY@ 
+all : default @GETDNS_QUERY@ @STUBBY@
 
 everything: default
 	cd src/test && $(MAKE)
@@ -52,7 +52,7 @@ everything: default
 default:
 	cd src && $(MAKE) $@
 
-install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@
+install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -87,7 +87,7 @@ install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@
 	@echo "***  at package installation time from the post-install script."
 	@echo "***"
 
-uninstall: @UNINSTALL_GETDNS_QUERY@
+uninstall: @UNINSTALL_GETDNS_QUERY@ @UNINSTALL_STUBBY@
 	rm -rf $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
@@ -104,6 +104,9 @@ test:
 getdns_query:
 	cd src && $(MAKE) $@
 
+stubby:
+	cd src && $(MAKE) $@
+
 scratchpad:
 	cd src && $(MAKE) $@
 
@@ -111,10 +114,16 @@ pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
 
 install-getdns_query:
-	cd src/test && $(MAKE) install
+	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_query:
-	cd src/test && $(MAKE) uninstall
+	cd src/tools && $(MAKE) $@
+
+install-stubby:
+	cd src/tools && $(MAKE) $@
+
+uninstall-stubby:
+	cd src/tools && $(MAKE) $@
 
 clean:
 	cd src && $(MAKE) $@
@@ -141,18 +150,22 @@ distclean:
 	rm -f m4/ltoptions.m4
 	rm -f m4/ltsugar.m4
 	rm -f m4/ltversion.m4
-	rm -f $(distdir).tar.gz $(distdir).tar.gz.sha1
+	rm -f $(distdir).tar.gz $(distdir).tar.gz.sha256
 	rm -f $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
 
 megaclean:
-	cd $(srcdir) && rm -fr * .dir-locals.el .gitignore .indent.pro .travis.yml && git reset --hard
+	cd $(srcdir) && rm -fr * .dir-locals.el .gitignore .indent.pro .travis.yml && git reset --hard && git submodule update --init
+
+autoclean: megaclean
+	libtoolize -ci
+	autoreconf -fi
 
 dist: $(distdir).tar.gz
 
-pub: $(distdir).tar.gz.sha1 $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
+pub: $(distdir).tar.gz.sha256 $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
 
-$(distdir).tar.gz.sha1: $(distdir).tar.gz
-	openssl sha1 $(distdir).tar.gz >$@
+$(distdir).tar.gz.sha256: $(distdir).tar.gz
+	openssl sha256 $(distdir).tar.gz >$@
 
 $(distdir).tar.gz.md5: $(distdir).tar.gz
 	openssl md5 $(distdir).tar.gz >$@
@@ -183,6 +196,8 @@ $(distdir):
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
 	mkdir -p $(distdir)/src/gldns
+	mkdir -p $(distdir)/src/tools
+	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
@@ -225,9 +240,11 @@ $(distdir):
 	cp $(srcdir)/spec/*.tgz $(distdir)/spec || true
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
-	cp $(srcdir)/src/test/jsmn/*.[ch] $(distdir)/src/test/jsmn
-	cp $(srcdir)/src/test/jsmn/LICENSE $(distdir)/src/test/jsmn
-	cp $(srcdir)/src/test/jsmn/README.md $(distdir)/src/test/jsmn
+	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
+	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
+	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
+	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
+	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz

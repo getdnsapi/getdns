@@ -149,7 +149,7 @@ static int my_event_base_loopexit(struct ub_event_base* base, struct timeval* tv
 static void clear_my_event(my_event *ev)
 {
 	DEBUG_SCHED("UB_LOOP: to clear %p(%d, %d, %"PRIu64"), total: %d\n"
-	           , ev, ev->fd, ev->bits, ev->timeout, ev->loop->n_events);
+	           , (void *)ev, ev->fd, ev->bits, ev->timeout, ev->loop->n_events);
 	(ev)->loop->extension->vmt->clear((ev)->loop->extension, &(ev)->gev);
 	(ev)->added = 0;
 	if ((ev)->active) {
@@ -157,7 +157,7 @@ static void clear_my_event(my_event *ev)
 		(ev)->active = NULL;
 	}
 	DEBUG_SCHED("UB_LOOP: %p(%d, %d, %"PRIu64") cleared, total: %d\n"
-	           , ev, ev->fd, ev->bits, ev->timeout, --ev->loop->n_events);
+	           , (void *)ev, ev->fd, ev->bits, ev->timeout, --ev->loop->n_events);
 }
 
 static getdns_return_t schedule_my_event(my_event *ev)
@@ -165,16 +165,16 @@ static getdns_return_t schedule_my_event(my_event *ev)
 	getdns_return_t r;
 
 	DEBUG_SCHED("UB_LOOP: to schedule %p(%d, %d, %"PRIu64"), total: %d\n"
-	           , ev, ev->fd, ev->bits, ev->timeout, ev->loop->n_events);
+	           , (void *)ev, ev->fd, ev->bits, ev->timeout, ev->loop->n_events);
 	if (ev->gev.read_cb || ev->gev.write_cb || ev->gev.timeout_cb) {
 		if ((r = ev->loop->extension->vmt->schedule(
 		    ev->loop->extension, ev->fd, ev->timeout, &ev->gev))) {
-			DEBUG_SCHED("UB_LOOP ERROR: scheduling event: %p\n", ev);
+			DEBUG_SCHED("UB_LOOP ERROR: scheduling event: %p\n", (void *)ev);
 			return r;
 		}
 		ev->added = 1;
 		DEBUG_SCHED("UB_LOOP: event %p(%d, %d, %"PRIu64") scheduled, "
-		            "total: %d\n", ev, ev->fd, ev->bits, ev->timeout
+		            "total: %d\n", (void *)ev, ev->fd, ev->bits, ev->timeout
 		           , ++ev->loop->n_events);
 	}
 	return GETDNS_RETURN_GOOD;

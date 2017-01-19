@@ -44,6 +44,7 @@
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
 #include "ub_loop.h"
+#include "server.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -80,6 +81,14 @@ typedef enum getdns_tls_hs_state {
 	GETDNS_HS_FAILED
 } getdns_tls_hs_state_t;
 
+typedef enum getdns_conn_state {
+	GETDNS_CONN_CLOSED,
+	GETDNS_CONN_SETUP,
+	GETDNS_CONN_OPEN,
+	GETDNS_CONN_TEARDOWN,
+	GETDNS_CONN_BACKOFF
+} getdns_conn_state_t;
+
 typedef enum getdns_tsig_algo {
 	GETDNS_NO_TSIG     = 0, /* Do not use tsig */
 	GETDNS_HMAC_MD5    = 1, /* 128 bits */
@@ -115,31 +124,55 @@ typedef struct getdns_upstream {
 
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	char                     addr_str[INET6_ADDRSTRLEN];
+#endif
 
-	/* How is this upstream doing? */
-	size_t                   writes_done;
-	size_t                   responses_received;
-	uint64_t                 keepalive_timeout;
+	/* How is this upstream doing over UDP? */
 	int                      to_retry;
 	int                      back_off;
+	size_t                   udp_responses;
+	size_t                   udp_timeouts;
 
-	/* For sharing a TCP socket to this upstream */
+	/* For stateful upstreams, need to share the connection and track the
+	   activity on the connection */
 	int                      fd;
 	getdns_transport_list_t  transport;
-	SSL*                     tls_obj;
-	SSL_SESSION*             tls_session;
-	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_eventloop_event   event;
 	getdns_eventloop        *loop;
 	getdns_tcp_state         tcp;
-	char                     tls_auth_name[256];
-	size_t                   tls_auth_failed;
-	sha256_pin_t            *tls_pubkey_pinset;
+	/* These are running totals or historical info */
+	size_t                   conn_completed;
+	size_t                   conn_shutdowns;
+	size_t                   conn_setup_failed;
+	time_t                   conn_retry_time;
+	size_t                   conn_backoffs;
+	size_t                   total_responses;
+	size_t                   total_timeouts;
+	getdns_auth_state_t      best_tls_auth_state;
+	getdns_auth_state_t      last_tls_auth_state;
+	/* These are per connection. */
+	getdns_conn_state_t      conn_state;
+	size_t                   queries_sent;
+	size_t                   responses_received;
+	size_t                   responses_timeouts;
+	size_t                   keepalive_shutdown;
+	uint64_t                 keepalive_timeout;
 
-	/* Pipelining of TCP network requests */
+	/* Management of outstanding requests on stateful transports */
 	getdns_network_req      *write_queue;
 	getdns_network_req      *write_queue_last;
-	_getdns_rbtree_t          netreq_by_query_id;
+	_getdns_rbtree_t         netreq_by_query_id;
+
+    /* TLS specific connection handling*/
+	SSL*                     tls_obj;
+	SSL_SESSION*             tls_session;
+	getdns_tls_hs_state_t    tls_hs_state;
+	getdns_auth_state_t      tls_auth_state;
+	unsigned                 tls_fallback_ok : 1;
+	/* Auth credentials*/
+	char                     tls_auth_name[256];
+	sha256_pin_t            *tls_pubkey_pinset;
 
 	/* When requests have been scheduled asynchronously on an upstream
 	 * that is kept open, and a synchronous call is then done with the
@@ -157,6 +190,7 @@ typedef struct getdns_upstream {
 	 */
 	getdns_dns_req          *finished_dnsreqs;
 	getdns_eventloop_event   finished_event;
+	unsigned is_sync_loop : 1;
 
 	/* EDNS cookies */
 	uint32_t secret;
@@ -168,8 +202,6 @@ typedef struct getdns_upstream {
 	unsigned has_prev_client_cookie : 1;
 	unsigned has_server_cookie : 1;
 	unsigned server_cookie_len : 5;
-	unsigned tls_fallback_ok : 1;
-	unsigned is_sync_loop : 1;
 
 	/* TSIG */
 	uint8_t          tsig_dname[256];
@@ -184,7 +216,7 @@ typedef struct getdns_upstreams {
 	struct mem_funcs mf;
 	size_t referenced;
 	size_t count;
-	size_t current;
+	size_t current_udp;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
@@ -219,7 +251,6 @@ struct getdns_context {
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;
-	size_t                     dns_transport_current;
 
 	uint8_t edns_extended_rcode;
 	uint8_t edns_version;
@@ -250,8 +281,6 @@ struct getdns_context {
 	/* A tree to hold local host information*/
 	_getdns_rbtree_t local_hosts;
 
-	int return_dnssec_status;
-
 	/* which resolution type the contexts are configured for
 	 * 0 means nothing set
 	 */
@@ -261,6 +290,8 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	_getdns_rbtree_t outbound_requests;
+
+	struct listen_set *server;
 
 	/* Event loop extension.  */
 	getdns_eventloop       *extension;
@@ -274,6 +305,24 @@ struct getdns_context {
 	/* The default extension */
 	_getdns_default_eventloop default_eventloop;
 	_getdns_default_eventloop sync_eventloop;
+
+	/* request extension defaults */
+	getdns_dict *header;
+	getdns_dict *add_opt_parameters;
+	unsigned add_warning_for_bad_dns             : 1;
+	unsigned dnssec_return_all_statuses          : 1;
+	unsigned dnssec_return_full_validation_chain : 1;
+	unsigned dnssec_return_only_secure           : 1;
+	unsigned dnssec_return_status                : 1;
+	unsigned dnssec_return_validation_chain      : 1;
+#ifdef DNSSEC_ROADBLOCK_AVOIDANCE
+	unsigned dnssec_roadblock_avoidance          : 1;
+#endif
+	unsigned edns_cookies                        : 1;
+	unsigned return_api_information              : 1; /* Not used */
+	unsigned return_both_v4_and_v6               : 1;
+	unsigned return_call_reporting               : 1;
+	uint16_t specify_class;
 
 	/*
 	 * state data used to detect changes to the system config files
