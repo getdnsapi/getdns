@@ -37,7 +37,7 @@
 
 #include "config.h"
 
-#define STUB_DEBUG_ENTRY     "-> ENTRY:       "
+#define STUB_DEBUG_ENTRY     "=> ENTRY:       "
 #define STUB_DEBUG_SETUP     "--- SETUP:      "
 #define STUB_DEBUG_SETUP_TLS "--- SETUP(TLS): "
 #define STUB_DEBUG_TSIG      "--- TSIG:       "
@@ -45,6 +45,7 @@
 #define STUB_DEBUG_READ      "------- READ:   "
 #define STUB_DEBUG_WRITE     "------- WRITE:  "
 #define STUB_DEBUG_CLEANUP   "--- CLEANUP:    "
+#define STUB_DEBUG_DAEMON    "GETDNS_DAEMON:  "
 
 #ifdef GETDNS_ON_WINDOWS
 #define DEBUG_ON(...) do { \
@@ -67,7 +68,7 @@
 		char buf[10]; \
 		\
 		gettimeofday(&tv, NULL); \
-		gmtime_r(&tm, &tv.tv_sec); \
+		gmtime_r(&tv.tv_sec, &tm); \
 		strftime(buf, 10, "%H:%M:%S", &tm); \
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
@@ -102,6 +103,13 @@
 #define DEBUG_STUB(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+#include <time.h>
+#define DEBUG_DAEMON(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_DAEMON(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 #if defined(SEC_DEBUG) && SEC_DEBUG

@@ -85,20 +85,20 @@ getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks
 
 
 static int
-is_extension_set(getdns_dict *extensions, const char *extension)
+is_extension_set(getdns_dict *extensions, const char *name, int default_value)
 {
 	getdns_return_t r;
 	uint32_t value;
 
-	if (! extensions)
-		return 0;
-	else if (extensions == dnssec_ok_checking_disabled
+	if ( ! extensions
+	    || extensions == dnssec_ok_checking_disabled
 	    || extensions == dnssec_ok_checking_disabled_roadblock_avoidance
 	    || extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
 		return 0;
 
-	r = getdns_dict_get_int(extensions, extension, &value);
-	return r == GETDNS_RETURN_GOOD && value == GETDNS_EXTENSION_TRUE;
+	r = getdns_dict_get_int(extensions, name, &value);
+	return r == GETDNS_RETURN_GOOD ? ( value == GETDNS_EXTENSION_TRUE )
+	                               : default_value;
 }
 
 static void
@@ -177,11 +177,10 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->fd = -1;
 	net_req->transport_current = 0;
 	memset(&net_req->event, 0, sizeof(net_req->event));
-	memset(&net_req->tcp, 0, sizeof(net_req->tcp));
 	net_req->keepalive_sent = 0;
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
-	net_req->debug_tls_auth_status = 0;
+	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
 	net_req->debug_udp = 0;
 
 	if (max_query_sz == 0) {
@@ -206,6 +205,9 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	buf = netreq_reset(net_req);
 	gldns_buffer_init_frm_data(
 	    &gbuf, net_req->query, net_req->wire_data_sz - 2);
+	if (owner->context->header)
+		_getdns_reply_dict2wire(owner->context->header, &gbuf, 1);
+	gldns_buffer_rewind(&gbuf);
 	_getdns_reply_dict2wire(extensions, &gbuf, 1);
 	if (dnssec_extension_set) /* We will do validation ourselves */
 		GLDNS_CD_SET(net_req->query);
@@ -472,7 +474,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	HMAC_CTX ctx_space;
 #endif
 
-	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNCTION__);
+	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNC__);
 	for ( rr = _getdns_rr_iter_init(&rr_spc, req->query,
 	                                (req->response - req->query))
 	    ; rr
@@ -489,7 +491,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	if (request_mac_len != rdf->nxt - rdf->pos - 2)
 		return;
 	DEBUG_STUB("%s %-35s: Request MAC found length %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(request_mac_len));
+	           STUB_DEBUG_TSIG, __FUNC__, (int)(request_mac_len));
 	
 	request_mac = rdf->pos + 2;
 
@@ -546,7 +548,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	if (response_mac_len != rdf->nxt - rdf->pos - 2)
 		return;
 	DEBUG_STUB("%s %-35s: Response MAC found length: %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(response_mac_len));
+	           STUB_DEBUG_TSIG, __FUNC__, (int)(response_mac_len));
 	response_mac = rdf->pos + 2;
 
 	if (!(rdf = _getdns_rdf_iter_next(rdf)) ||
@@ -571,7 +573,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 
 	/* TSIG found */
 	DEBUG_STUB("%s %-35s: TSIG found, original ID: %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)original_id);
+	           STUB_DEBUG_TSIG, __FUNC__, (int)original_id);
 
 	gldns_write_uint16(req->response + 10,
 	    gldns_read_uint16(req->response + 10) - 1);
@@ -612,7 +614,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	HMAC_Final(ctx, result_mac, &result_mac_len);
 
 	DEBUG_STUB("%s %-35s: Result MAC length: %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(result_mac_len));
+	           STUB_DEBUG_TSIG, __FUNC__, (int)(result_mac_len));
 	if (result_mac_len == response_mac_len &&
 	    memcmp(result_mac, response_mac, result_mac_len) == 0)
 		req->tsig_status = GETDNS_DNSSEC_SECURE;
@@ -658,28 +660,32 @@ getdns_dns_req *
 _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, getdns_dict *extensions)
 {
-	int dnssec_return_status
-	    =  context->return_dnssec_status == GETDNS_EXTENSION_TRUE
-	    || is_extension_set(extensions, "dnssec_return_status");
-	int dnssec_return_only_secure
-	    =  is_extension_set(extensions, "dnssec_return_only_secure");
-	int dnssec_return_all_statuses
-	    =  is_extension_set(extensions, "dnssec_return_all_statuses");
-	int dnssec_return_full_validation_chain
-	    =  is_extension_set(extensions, "dnssec_return_full_validation_chain");
-	int dnssec_return_validation_chain
-	    =  is_extension_set(extensions, "dnssec_return_validation_chain");
-	int edns_cookies
-	    =  is_extension_set(extensions, "edns_cookies");
+	int dnssec_return_status                 = is_extension_set(
+	    extensions, "dnssec_return_status",
+	        context->dnssec_return_status);
+	int dnssec_return_only_secure            = is_extension_set(
+	    extensions, "dnssec_return_only_secure",
+	        context->dnssec_return_only_secure);
+	int dnssec_return_all_statuses           = is_extension_set(
+	    extensions, "dnssec_return_all_statuses",
+	        context->dnssec_return_all_statuses);
+	int  dnssec_return_full_validation_chain = is_extension_set(
+	    extensions, "dnssec_return_full_validation_chain",
+	        context->dnssec_return_full_validation_chain);
+	int dnssec_return_validation_chain       = is_extension_set(
+	    extensions, "dnssec_return_validation_chain",
+	        context->dnssec_return_validation_chain);
+	int edns_cookies                         = is_extension_set(
+	    extensions, "edns_cookies",
+	        context->edns_cookies);
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	int avoid_dnssec_roadblocks
 	    =  (extensions == dnssec_ok_checking_disabled_avoid_roadblocks);
-	int dnssec_roadblock_avoidance
-	    = is_extension_set(extensions, "dnssec_roadblock_avoidance")
+	int dnssec_roadblock_avoidance = avoid_dnssec_roadblocks
 	    || (extensions == dnssec_ok_checking_disabled_roadblock_avoidance)
-	    || avoid_dnssec_roadblocks;
+	    || is_extension_set(extensions, "dnssec_roadblock_avoidance",
+	                            context->dnssec_roadblock_avoidance);
 #endif
-
 	int dnssec_extension_set = dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_all_statuses
 	    || dnssec_return_validation_chain
@@ -713,9 +719,9 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	int with_opt;
 
 	getdns_dns_req *result = NULL;
-        uint32_t klass = GLDNS_RR_CLASS_IN;
-	int a_aaaa_query =
-	    is_extension_set(extensions, "return_both_v4_and_v6") &&
+        uint32_t klass = context->specify_class;
+	int a_aaaa_query = is_extension_set(extensions,
+	    "return_both_v4_and_v6", context->return_both_v4_and_v6) &&
 	    ( request_type == GETDNS_RRTYPE_A ||
 	      request_type == GETDNS_RRTYPE_AAAA );
 	/* Reserve for the buffer at least one more byte
@@ -732,7 +738,10 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 
 	have_add_opt_parameters = getdns_dict_get_dict(extensions,
 	    "add_opt_parameters", &add_opt_parameters) == GETDNS_RETURN_GOOD;
-
+	if (!have_add_opt_parameters && context->add_opt_parameters) {
+		add_opt_parameters = context->add_opt_parameters;
+		have_add_opt_parameters = 1;
+	}
 	if (dnssec_extension_set) {
 		edns_maximum_udp_payload_size = -1;
 		edns_extended_rcode = 0;
@@ -746,17 +755,26 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		edns_do_bit = context->edns_do_bit;
 
 		if (have_add_opt_parameters) {
-			if (!getdns_dict_get_int(add_opt_parameters,
+			if (getdns_dict_get_int(add_opt_parameters,
 			    "maximum_udp_payload_size",
-			    &get_edns_maximum_udp_payload_size))
+			    &get_edns_maximum_udp_payload_size)) {
+				if (!getdns_dict_get_int(
+				    add_opt_parameters, "udp_payload_size",
+				    &get_edns_maximum_udp_payload_size))
+					edns_maximum_udp_payload_size =
+					    get_edns_maximum_udp_payload_size;
+			} else
 				edns_maximum_udp_payload_size =
 				    get_edns_maximum_udp_payload_size;
+
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "extended_rcode", &edns_extended_rcode);
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "version", &edns_version);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "do_bit", &edns_do_bit);
+			if (getdns_dict_get_int(add_opt_parameters,
+			    "do_bit", &edns_do_bit))
+				(void) getdns_dict_get_int(
+				    add_opt_parameters, "do", &edns_do_bit);
 		}
 	}
 	if (have_add_opt_parameters && getdns_dict_get_list(
@@ -895,10 +913,10 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 #endif
 	result->edns_client_subnet_private     = context->edns_client_subnet_private;
 	result->tls_query_padding_blocksize    = context->tls_query_padding_blocksize;
-	result->return_call_reporting          =
-	    is_extension_set(extensions, "return_call_reporting");
-	result->add_warning_for_bad_dns        =
-	    is_extension_set(extensions, "add_warning_for_bad_dns");
+	result->return_call_reporting          = is_extension_set(extensions,
+	    "return_call_reporting"  , context->return_call_reporting);
+	result->add_warning_for_bad_dns        = is_extension_set(extensions,
+	    "add_warning_for_bad_dns", context->add_warning_for_bad_dns);
 	
 	/* will be set by caller */
 	result->user_pointer = NULL;

@@ -224,7 +224,7 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_address(context, "hostnamedoesntexist", NULL,
+       ASSERT_RC(getdns_address(context, "hostnamedoesntexist.", NULL,
          &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 

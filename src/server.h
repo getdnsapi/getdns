@@ -1,3 +1,11 @@
+/**
+ * \file server.h
+ * @brief Functions for serving requests
+ *
+ * getdns_context_set_listen_addresses() and getdns_reply() are implemented
+ * here.
+ */
+
 /*
  * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
  * All rights reserved.
@@ -24,14 +32,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef _GETDNS_SERVER_H_
+#define _GETDNS_SERVER_H_
 
-#ifndef GETDNS_STR2DICT_H_
-#define GETDNS_STR2DICT_H_
-#include "getdns/getdns.h"
+struct listen_set;
 
-getdns_return_t getdns_str2dict(const char *str, getdns_dict **dict);
-getdns_return_t getdns_str2list(const char *str, getdns_list **list);
-getdns_return_t getdns_str2bindata(const char *str, getdns_bindata **bindata);
-getdns_return_t getdns_str2int(const char *str, uint32_t *value);
-
-#endif
+#endif /* _GETDNS_SERVER_H_ */
