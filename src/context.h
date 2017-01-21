@@ -287,6 +287,22 @@ struct getdns_context {
 	/* We need to run WSAStartup() to be able to use getaddrinfo() */
 	WSADATA wsaData;
 #endif
+
+	/* MDNS */
+#ifdef HAVE_MDNS_SUPPORT
+	/* 
+	 * If supporting MDNS, context may be instantiated either in basic mode
+	 * or in full mode. If working in extended mode, two multicast sockets are
+	 * left open, for IPv4 and IPv6. Data can be received on either socket.
+	 * The context also keeps a list of open queries, characterized by a 
+	 * name and an RR type. 
+	 */
+	int mdns_extended_support;
+	int fd_mdns_v4;
+	int fd_mdns_v6;
+	_getdns_rbtree_t mdns_continuous_queries_by_name_rrtype;
+
+#endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
 
 /** internal functions **/

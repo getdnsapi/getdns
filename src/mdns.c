@@ -78,6 +78,131 @@ static uint8_t mdns_suffix_b_e_f_ip6_arpa[] = {
 	7, 'i', 'p', 'v', '6',
 	4, 'a', 'r', 'p', 'a', 0 };
 
+
+/*
+* Compare function for the netreq_by_query_id,
+* used in the red-black tree of all netreq by continuous query.
+*/
+static int mdns_cmp_netreq_by_query_id(const void * id1, const void * id2)
+{
+	int ret = 0;
+
+	if (id1 != id2)
+	{
+		ret = (((intptr_t)id1) < ((intptr_t)id2)) ? -1 : 1;
+	}
+	return ret;
+}
+
+/*
+ * Compare function for the getdns_mdns_known_record type,
+ * used in the red-black tree of known records per query.
+ */
+
+static int mdns_cmp_known_records(const void * nkr1, const void * nkr2)
+{
+	int ret = 0;
+	getdns_mdns_known_record * kr1 = (getdns_mdns_known_record *)nkr1;
+	getdns_mdns_known_record * kr2 = (getdns_mdns_known_record *)nkr2;
+
+	if (kr1->record_length != kr2->record_length)
+	{
+		ret = (kr1->record_length < kr2->record_length) ? -1 : 1;
+	}
+	else
+	{
+		ret = memcmp((const void*)kr1->record_data, (const void*)kr2->record_data, kr1->record_length);
+	}
+
+	return ret;
+}
+
+/*
+ * Compare function for the mdns_continuous_query_by_name_rrtype,
+ * used in the red-black tree of all ongoing queries.
+ */
+static int mdns_cmp_continuous_queries_by_name_rrtype(const void * nqnr1, const void * nqnr2)
+{
+	int ret = 0;
+	getdns_mdns_continuous_query * qnr1 = (getdns_mdns_continuous_query *)nqnr1;
+	getdns_mdns_continuous_query * qnr2 = (getdns_mdns_continuous_query *)nqnr2;
+
+	if (qnr1->request_class != qnr2->request_class) 
+	{
+		ret = (qnr1->request_class < qnr2->request_class) ? -1 : 1;
+	} 
+	else if (qnr1->request_type != qnr2->request_type)
+	{
+		ret = (qnr1->request_type < qnr2->request_type) ? -1 : 1;
+	}
+	else if (qnr1->name_len != qnr2->name_len)
+	{
+		ret = (qnr1->name_len < qnr2->name_len) ? -1 : 1;
+	}
+	else
+	{
+		ret = memcmp((void*)qnr1->name, (void*)qnr2->name, qnr1->name_len);
+	}
+	return ret;
+}
+
+/*
+ * Initialize a continuous query from netreq
+ */
+static int mdns_initialize_continuous_request(getdns_network_req *netreq)
+{
+	int ret = 0;
+	getdns_mdns_continuous_query temp_query, *continuous_query, *inserted_query;
+	getdns_dns_req *dnsreq = netreq->owner;
+	/*
+	 * Fill the target request, but only initialize name and request_type
+	 */
+	temp_query.request_class = dnsreq->request_class;
+	temp_query.request_type = netreq->request_type;
+	temp_query.name_len = dnsreq->name_len;
+	/* TODO: check that dnsreq is in canonical form */
+	memcpy(temp_query.name, dnsreq->name, dnsreq->name_len);
+	/*
+	 * Check whether the continuous query is already in the RB tree.
+	 * if there is not, create one.
+	 * TODO: should lock the context object when doing that.
+	 */
+	continuous_query = (getdns_mdns_continuous_query *)
+		_getdns_rbtree_search(&dnsreq->context->mdns_continuous_queries_by_name_rrtype, &temp_query);
+	if (continuous_query == NULL)
+	{
+		continuous_query = (getdns_mdns_continuous_query *)
+			GETDNS_MALLOC(dnsreq->context->mf, getdns_mdns_continuous_query);
+		if (continuous_query != NULL)
+		{
+			continuous_query->request_class = temp_query.request_class;
+			continuous_query->request_type = temp_query.request_type;
+			continuous_query->name_len = temp_query.name_len;
+			memcpy(continuous_query->name, temp_query.name, temp_query.name_len);
+			_getdns_rbtree_init(&continuous_query->known_records_by_value, mdns_cmp_known_records);
+			/* Tracking of network requests on this socket */
+			_getdns_rbtree_init(&continuous_query->netreq_by_query_id, mdns_cmp_netreq_by_query_id);
+			/* Add the new continuous query to the context */
+			inserted_query = _getdns_rbtree_insert(&dnsreq->context->mdns_continuous_queries_by_name_rrtype,
+				continuous_query);
+			if (inserted_query == NULL)
+			{
+				/* Weird. This can only happen in a race condition */
+				GETDNS_FREE(dnsreq->context->mf, continuous_query);
+				ret = GETDNS_RETURN_GENERIC_ERROR;
+			}
+		}
+		else
+		{
+			ret = GETDNS_RETURN_MEMORY_ERROR;
+		}
+	}
+	/* To do: insert netreq into query list */
+	/* to do: queue message request to socket */
+
+	return ret;
+}
+
 /* TODO: actualy delete what is required.. */
 static void
 mdns_cleanup(getdns_network_req *netreq)

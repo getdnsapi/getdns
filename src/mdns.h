@@ -30,6 +30,33 @@ _getdns_submit_mdns_request(getdns_network_req *netreq);
 
 getdns_return_t
 _getdns_mdns_namespace_check(getdns_dns_req *dnsreq);
+
+/*
+ * data structure for continuous queries
+ */
+
+typedef struct getdns_mdns_known_record
+{
+	uint32_t ttl; /* todo: should this be an expiration date? */
+	uint8_t * record_data;
+	int record_length;
+} getdns_mdns_known_record;
+
+typedef struct getdns_mdns_continuous_query
+{
+	uint8_t name[256]; /* binary representation of name being queried */
+	int name_len;
+	uint16_t request_class;
+	uint16_t request_type;
+	/* list of known records */
+	_getdns_rbtree_t known_records_by_value;
+	/* list of user queries */
+	_getdns_rbtree_t netreq_by_query_id;
+	/* todo: do we need an expiration date, or a timer? */
+	/* todo: do we need an update mark for showing last results? */
+} getdns_mdns_continuous_query;
+
+
 #endif /* HAVE_MDNS_SUPPORT */
 
 #endif /* MDNS_H */
