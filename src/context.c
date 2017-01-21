@@ -747,7 +747,14 @@ tls_only_is_in_transports_list(getdns_context *context) {
 static int
 net_req_query_id_cmp(const void *id1, const void *id2)
 {
-	return (intptr_t)id1 - (intptr_t)id2;
+	int ret = 0;
+
+	if (id1 != id2)
+	{
+		ret = ((intptr_t)id1 < (intptr_t)id2) ? -1 : 1;
+	}
+
+	return ret;
 }
 
 static getdns_tsig_info const tsig_info[] = {
