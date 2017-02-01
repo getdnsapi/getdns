@@ -383,7 +383,7 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 #endif
 	tsig_info = _getdns_get_tsig_info(upstream->tsig_alg);
 
-	gldns_buffer_init_frm_data(&gbuf, req->response, MAXIMUM_TSIG_SPACE);
+	gldns_buffer_init_frm_data_v(&gbuf, req->response, MAXIMUM_TSIG_SPACE);
 	gldns_buffer_write(&gbuf,
 	    upstream->tsig_dname, upstream->tsig_dname_len);	/* Name */
 	gldns_buffer_write_u16(&gbuf, GETDNS_RRCLASS_ANY);	/* Class */

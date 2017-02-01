@@ -1354,7 +1354,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
 
-	gldns_buffer_init_frm_data(&gbuf, result->trust_anchors_spc
+	gldns_buffer_init_frm_data_v(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
 
 	if (!_getdns_parse_ta_file(NULL, &gbuf)) {
@@ -2333,7 +2333,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 		context->suffixes_len = sizeof(no_suffixes);
 		return GETDNS_RETURN_GOOD;
 	}
-	gldns_buffer_init_frm_data(&gbuf, buf_spc, sizeof(buf_spc));
+	gldns_buffer_init_frm_data_v(&gbuf, buf_spc, sizeof(buf_spc));
 	for (;;) {
 		for ( i = 0
 		    ; !(r = getdns_list_get_bindata(value, i, &bindata))

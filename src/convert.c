@@ -297,7 +297,7 @@ getdns_rr_dict2wire_scan(
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 
-	gldns_buffer_init_frm_data(&gbuf, *wire, *wire_sz);
+	gldns_buffer_init_frm_data_v(&gbuf, *wire, *wire_sz);
 	if ((r = _getdns_rr_dict2wire(rr_dict, &gbuf)))
 		return r;
 
@@ -447,7 +447,7 @@ getdns_rr_dict2str_scan(
 	if (!rr_dict || !str || !*str || !str_len)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	gldns_buffer_init_frm_data(&gbuf, buf, sizeof(buf_spc));
+	gldns_buffer_init_frm_data_v(&gbuf, buf, sizeof(buf_spc));
 	r = _getdns_rr_dict2wire(rr_dict, &gbuf);
 	if (gldns_buffer_position(&gbuf) > sizeof(buf_spc)) {
 		if (!(buf = GETDNS_XMALLOC(
@@ -960,7 +960,7 @@ getdns_msg_dict2wire_scan(
 	if (!msg_dict || !wire || !wire_sz || (!*wire && *wire_sz))
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	gldns_buffer_init_frm_data(&gbuf, *wire, *wire_sz);
+	gldns_buffer_init_frm_data_v(&gbuf, *wire, *wire_sz);
 	if ((r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf)))
 		return r;
 
@@ -1036,7 +1036,7 @@ getdns_msg_dict2str_scan(
 	if (!msg_dict || !str || !*str || !str_len)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	gldns_buffer_init_frm_data(&gbuf, buf, sizeof(buf_spc));
+	gldns_buffer_init_frm_data_v(&gbuf, buf, sizeof(buf_spc));
 	r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf);
 	if (gldns_buffer_position(&gbuf) > sizeof(buf_spc)) {
 		if (!(buf = GETDNS_XMALLOC(
