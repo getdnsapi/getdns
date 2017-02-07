@@ -37,25 +37,35 @@ _getdns_mdns_namespace_check(getdns_dns_req *dnsreq);
 
 typedef struct getdns_mdns_known_record
 {
-	uint32_t ttl; /* todo: should this be an expiration date? */
+	/* For storage in context->mdns_known_records_by_value */
+	_getdns_rbnode_t node;
+	uint64_t insertion_microsec;
+	uint16_t request_type;
+	uint16_t request_class;
+	uint32_t ttl;
+	int name_len;
+	int record_len;
+	uint8_t* name;
 	uint8_t * record_data;
-	int record_length;
 } getdns_mdns_known_record;
 
 typedef struct getdns_mdns_continuous_query
 {
+	/* For storage in context->mdns_continuous_queries_by_name_rrtype */
+	_getdns_rbnode_t node;
 	uint8_t name[256]; /* binary representation of name being queried */
 	int name_len;
 	uint16_t request_class;
 	uint16_t request_type;
-	/* list of known records */
-	_getdns_rbtree_t known_records_by_value;
 	/* list of user queries */
-	_getdns_rbtree_t netreq_by_query_id;
+	getdns_network_req *netreq_first;
 	/* todo: do we need an expiration date, or a timer? */
 	/* todo: do we need an update mark for showing last results? */
 } getdns_mdns_continuous_query;
 
+
+void _getdns_mdns_context_init(struct getdns_context *context);
+void _getdns_mdns_context_destroy(struct getdns_context *context);
 
 #endif /* HAVE_MDNS_SUPPORT */
 

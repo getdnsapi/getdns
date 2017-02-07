@@ -344,12 +344,14 @@ struct getdns_context {
 	 * or in full mode. If working in extended mode, two multicast sockets are
 	 * left open, for IPv4 and IPv6. Data can be received on either socket.
 	 * The context also keeps a list of open queries, characterized by a 
-	 * name and an RR type. 
+	 * name and an RR type, and a list of received answers, characterized
+	 * by name, RR type and data value.
 	 */
-	int mdns_extended_support;
-	int fd_mdns_v4;
-	int fd_mdns_v6;
+	int mdns_extended_support; /* 0 = no support, 1 = supported, 2 = initialization needed */
+	int mdns_fdv4;
+	int mdns_fdv6;
 	_getdns_rbtree_t mdns_continuous_queries_by_name_rrtype;
+	_getdns_rbtree_t mdns_known_records_by_value;
 
 #endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */

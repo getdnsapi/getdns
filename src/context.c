@@ -98,6 +98,16 @@ static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static bool ssl_init=false;
 
+#ifdef HAVE_MDNS_SUPPORT
+/*
+ * Forward declaration of MDNS context init and destroy function.
+ * We do this here instead of including mdns.h, in order to
+ * minimize dependencies.
+ */
+void _getdns_mdns_context_init(struct getdns_context *context);
+void _getdns_mdns_context_destroy(struct getdns_context *context);
+#endif
+
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
 typedef struct host_name_addrs {
@@ -1471,7 +1481,13 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 #endif
 
+
+#ifdef HAVE_MDNS_SUPPORT
+	_getdns_mdns_context_init(result);
+#endif
+
 	create_local_hosts(result);
+
 
 	*context = result;
 	return GETDNS_RETURN_GOOD;
@@ -1550,6 +1566,13 @@ getdns_context_destroy(struct getdns_context *context)
 #ifdef HAVE_LIBUNBOUND
 	if (context->unbound_ctx)
 		ub_ctx_delete(context->unbound_ctx);
+#endif
+
+#ifdef HAVE_MDNS_SUPPORT
+	/*
+	 * Release all ressource allocated for MDNS.
+	 */
+	_getdns_mdns_context_destroy(context);
 #endif
 
 	if (context->namespaces)

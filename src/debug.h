@@ -128,6 +128,7 @@
 
 #define MDNS_DEBUG_ENTRY     "-> MDNS ENTRY:  "
 #define MDNS_DEBUG_READ      "-- MDNS READ:   "
+#define MDNS_DEBUG_MREAD      "-- MDNS MREAD:  "
 #define MDNS_DEBUG_WRITE     "-- MDNS WRITE:  "
 #define MDNS_DEBUG_CLEANUP   "-- MDNS CLEANUP:"
 

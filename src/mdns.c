@@ -48,12 +48,10 @@ uint64_t _getdns_get_time_as_uintt64();
 #define MDNS_MCAST_IPV4_LONG 0xE00000FB /* 224.0.0.251 */
 #define MDNS_MCAST_PORT 5353
 
-/*
- * TODO: When we start supporting IPv6 with MDNS, need to define this:
- * static uint8_t mdns_mcast_ipv6[] = { 
- *	0xFF, 0x02, 0, 0, 0, 0, 0, 0,
- *	0, 0, 0, 0, 0, 0, 0, 0xFB };
- */
+static uint8_t mdns_mcast_ipv6[] = {
+	0xFF, 0x02, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0xFB 
+};
 
 static uint8_t mdns_suffix_dot_local[] = { 5, 'l', 'o', 'c', 'a', 'l', 0 };
 static uint8_t mdns_suffix_254_169_in_addr_arpa[] = {
@@ -63,19 +61,19 @@ static uint8_t mdns_suffix_254_169_in_addr_arpa[] = {
 	4, 'a', 'r', 'p', 'a', 0 };
 static uint8_t mdns_suffix_8_e_f_ip6_arpa[] = {
 	1, '8', 1, 'e', 1, 'f',
-	7, 'i', 'p', 'v', '6',
+	3, 'i', 'p', '6',
 	4, 'a', 'r', 'p', 'a', 0 };
 static uint8_t mdns_suffix_9_e_f_ip6_arpa[] = {
 	1, '9', 1, 'e', 1, 'f',
-	7, 'i', 'p', 'v', '6',
+	3, 'i', 'p', '6',
 	4, 'a', 'r', 'p', 'a', 0 };
 static uint8_t mdns_suffix_a_e_f_ip6_arpa[] = {
 	1, 'a', 1, 'e', 1, 'f',
-	7, 'i', 'p', 'v', '6',
+	3, 'i', 'p', '6',
 	4, 'a', 'r', 'p', 'a', 0 };
 static uint8_t mdns_suffix_b_e_f_ip6_arpa[] = {
 	1, 'b', 1, 'e', 1, 'f',
-	7, 'i', 'p', 'v', '6',
+	3, 'i', 'p', '6',
 	4, 'a', 'r', 'p', 'a', 0 };
 
 
@@ -105,13 +103,25 @@ static int mdns_cmp_known_records(const void * nkr1, const void * nkr2)
 	getdns_mdns_known_record * kr1 = (getdns_mdns_known_record *)nkr1;
 	getdns_mdns_known_record * kr2 = (getdns_mdns_known_record *)nkr2;
 
-	if (kr1->record_length != kr2->record_length)
+	if (kr1->request_class != kr2->request_class)
 	{
-		ret = (kr1->record_length < kr2->record_length) ? -1 : 1;
+		ret = (kr1->request_class < kr2->request_class) ? -1 : 1;
 	}
-	else
+	else if (kr1->request_type != kr2->request_type)
 	{
-		ret = memcmp((const void*)kr1->record_data, (const void*)kr2->record_data, kr1->record_length);
+		ret = (kr1->request_type < kr2->request_type) ? -1 : 1;
+	}
+	else if (kr1->name_len != kr2->name_len)
+	{
+		ret = (kr1->name_len < kr2->name_len) ? -1 : 1;
+	}
+	else if (kr1->record_len != kr2->record_len)
+	{
+		ret = (kr1->record_len < kr2->record_len) ? -1 : 1;
+	}
+	else if ((ret = memcmp((void*)kr1->name, (void*)kr2->name, kr2->name_len)) == 0)
+	{
+		ret = memcmp((const void*)kr1->record_data, (const void*)kr2->record_data, kr1->record_len);
 	}
 
 	return ret;
@@ -146,14 +156,181 @@ static int mdns_cmp_continuous_queries_by_name_rrtype(const void * nqnr1, const 
 	return ret;
 }
 
+
+/*
+* Create the two required multicast sockets
+*/
+static int mdns_open_ipv4_multicast()
+{
+	getdns_return_t ret = 0;
+	SOCKET fd4 = -1;
+	SOCKADDR_IN ipv4_dest;
+	SOCKADDR_IN ipv4_port;
+	uint8_t so_reuse_bool = 1;
+	uint8_t ttl = 255;
+	IP_MREQ mreq4;
+
+	memset(&ipv4_dest, 0, sizeof(ipv4_dest));
+	memset(&ipv4_port, 0, sizeof(ipv4_dest));
+	ipv4_dest.sin_family = AF_INET;
+	ipv4_dest.sin_port = htons(MDNS_MCAST_PORT);
+	ipv4_dest.sin_addr.S_un.S_addr = htonl(MDNS_MCAST_IPV4_LONG);
+	ipv4_port.sin_family = AF_INET;
+	ipv4_port.sin_port = htons(MDNS_MCAST_PORT);
+
+
+	fd4 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+	if (fd4 != -1)
+	{
+		/*
+		 * No need to test the output of the so_reuse call,
+		 * since the only result that matters is that of bind.
+		 */
+		(void)setsockopt(fd4, SOL_SOCKET, SO_REUSEADDR
+			, (const char*)&so_reuse_bool, (int) sizeof(BOOL));
+
+		if (bind(fd4, (SOCKADDR*)&ipv4_port, sizeof(ipv4_port)) != 0)
+		{
+			ret = -1;
+		}
+		else
+		{
+			mreq4.imr_multiaddr = ipv4_dest.sin_addr;
+			mreq4.imr_interface = ipv4_port.sin_addr;
+
+			if (setsockopt(fd4, IPPROTO_IP, IP_ADD_MEMBERSHIP
+				, (const char*)&mreq4, (int) sizeof(mreq4)) != 0)
+			{
+				ret = -1;
+			}
+			else if (setsockopt(fd4, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) != 0)
+			{
+				ret = -1;
+			}
+		}
+	}
+
+	if (ret != 0 && fd4 != -1)
+	{
+#ifdef USE_WINSOCK
+			closesocket(fd4);
+#else
+			close(fd4);
+#endif
+			fd4 = -1;
+	}
+
+	return fd4;
+}
+
+static int mdns_open_ipv6_multicast()
+{
+	getdns_return_t ret = 0;
+	SOCKET fd6 = -1;
+	SOCKADDR_IN6 ipv6_dest;
+	SOCKADDR_IN6 ipv6_port;
+	uint8_t so_reuse_bool = 1;
+	uint8_t ttl = 255;
+	IPV6_MREQ mreq6;
+
+	memset(&ipv6_dest, 0, sizeof(ipv6_dest));
+	memset(&ipv6_port, 0, sizeof(ipv6_dest));
+	ipv6_dest.sin6_family = AF_INET6;
+	ipv6_dest.sin6_port = htons(MDNS_MCAST_PORT);
+	ipv6_port.sin6_family = AF_INET6;
+	ipv6_port.sin6_port = htons(MDNS_MCAST_PORT);
+	memcpy(&ipv6_dest.sin6_addr
+		, mdns_mcast_ipv6, sizeof(mdns_mcast_ipv6));
+
+
+	fd6 = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+
+	if (fd6 != -1)
+	{
+		/*
+		* No need to test the output of the so_reuse call,
+		* since the only result that matters is that of bind.
+		*/
+		(void)setsockopt(fd6, SOL_SOCKET, SO_REUSEADDR
+			, (const char*)&so_reuse_bool, (int) sizeof(BOOL));
+
+		if (bind(fd6, (SOCKADDR*)&ipv6_port, sizeof(ipv6_port)) != 0)
+		{
+			ret = -1;
+		}
+		else
+		{
+			memcpy(&mreq6.ipv6mr_multiaddr
+				, &ipv6_dest.sin6_addr, sizeof(mreq6.ipv6mr_multiaddr));
+			memcpy(&mreq6.ipv6mr_interface
+				, &ipv6_port.sin6_addr, sizeof(mreq6.ipv6mr_interface));
+
+			if (setsockopt(fd6, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP
+				, (const char*)&mreq6, (int) sizeof(mreq6)) != 0)
+			{
+				ret = -1;
+			}
+			else if (setsockopt(fd6, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &ttl, sizeof(ttl)) != 0)
+			{
+				ret = -1;
+			}
+		}
+	}
+
+	if (ret != 0 && fd6 != -1)
+	{
+#ifdef USE_WINSOCK
+		closesocket(fd6);
+#else
+		close(fd6);
+#endif
+		fd6 = -1;
+	}
+
+	return fd6;
+}
+
+/*
+ * Delayed opening of the MDNS sockets, and launch of the MDNS listeners
+ */
+static getdns_return_t mdns_delayed_network_init(struct getdns_context *context)
+{
+	getdns_return_t ret = 0;
+
+	if (context->mdns_extended_support == 2)
+	{
+		context->mdns_fdv4 = mdns_open_ipv4_multicast();
+		context->mdns_fdv6 = mdns_open_ipv6_multicast();
+
+		if (context->mdns_fdv4 == -1 || context->mdns_fdv6 == -1)
+		{
+			if (context->mdns_fdv4 != -1)
+#ifdef USE_WINSOCK
+				closesocket(context->mdns_fdv4);
+#else
+				close(context->mdns_fdv4);
+#endif
+			ret = GETDNS_RETURN_GENERIC_ERROR;
+		}
+		else
+		{
+			/* TODO: launch the receive loops */
+		}
+	}
+
+	return ret;
+}
+
 /*
  * Initialize a continuous query from netreq
  */
-static int mdns_initialize_continuous_request(getdns_network_req *netreq)
+static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *netreq)
 {
 	int ret = 0;
 	getdns_mdns_continuous_query temp_query, *continuous_query, *inserted_query;
 	getdns_dns_req *dnsreq = netreq->owner;
+	struct getdns_context *context = dnsreq->context;
 	/*
 	 * Fill the target request, but only initialize name and request_type
 	 */
@@ -168,27 +345,30 @@ static int mdns_initialize_continuous_request(getdns_network_req *netreq)
 	 * TODO: should lock the context object when doing that.
 	 */
 	continuous_query = (getdns_mdns_continuous_query *)
-		_getdns_rbtree_search(&dnsreq->context->mdns_continuous_queries_by_name_rrtype, &temp_query);
+		_getdns_rbtree_search(&context->mdns_continuous_queries_by_name_rrtype, &temp_query);
 	if (continuous_query == NULL)
 	{
 		continuous_query = (getdns_mdns_continuous_query *)
-			GETDNS_MALLOC(dnsreq->context->mf, getdns_mdns_continuous_query);
+			GETDNS_MALLOC(context->mf, getdns_mdns_continuous_query);
 		if (continuous_query != NULL)
 		{
+			continuous_query->node.parent = NULL;
+			continuous_query->node.left = NULL;
+			continuous_query->node.right = NULL;
+			continuous_query->node.key = (void*)continuous_query;
 			continuous_query->request_class = temp_query.request_class;
 			continuous_query->request_type = temp_query.request_type;
 			continuous_query->name_len = temp_query.name_len;
 			memcpy(continuous_query->name, temp_query.name, temp_query.name_len);
-			_getdns_rbtree_init(&continuous_query->known_records_by_value, mdns_cmp_known_records);
-			/* Tracking of network requests on this socket */
-			_getdns_rbtree_init(&continuous_query->netreq_by_query_id, mdns_cmp_netreq_by_query_id);
+			continuous_query->netreq_first = NULL;
 			/* Add the new continuous query to the context */
-			inserted_query = _getdns_rbtree_insert(&dnsreq->context->mdns_continuous_queries_by_name_rrtype,
-				continuous_query);
+			inserted_query = (getdns_mdns_continuous_query *)
+				_getdns_rbtree_insert(&context->mdns_continuous_queries_by_name_rrtype,
+				&continuous_query->node);
 			if (inserted_query == NULL)
 			{
 				/* Weird. This can only happen in a race condition */
-				GETDNS_FREE(dnsreq->context->mf, continuous_query);
+				GETDNS_FREE(context->mf, &continuous_query);
 				ret = GETDNS_RETURN_GENERIC_ERROR;
 			}
 		}
@@ -197,10 +377,40 @@ static int mdns_initialize_continuous_request(getdns_network_req *netreq)
 			ret = GETDNS_RETURN_MEMORY_ERROR;
 		}
 	}
-	/* To do: insert netreq into query list */
+	/* insert netreq into query list */
+	netreq->mdns_netreq_next = continuous_query->netreq_first;
+	continuous_query->netreq_first = netreq;
+
 	/* to do: queue message request to socket */
 
 	return ret;
+}
+
+/*
+ * Initialize the MDNS part of the context structure.
+ */
+void _getdns_mdns_context_init(struct getdns_context *context)
+{
+
+	context->mdns_extended_support = 2; /* 0 = no support, 1 = supported, 2 = initialization needed */
+	context->mdns_fdv4 = -1; /* invalid socket, i.e. not initialized */
+	context->mdns_fdv6 = -1; /* invalid socket, i.e. not initialized */
+	_getdns_rbtree_init(&context->mdns_continuous_queries_by_name_rrtype
+		, mdns_cmp_continuous_queries_by_name_rrtype);
+	_getdns_rbtree_init(&context->mdns_known_records_by_value
+		, mdns_cmp_known_records);
+}
+
+/*
+ * Delete all the data allocated for MDNS in a context
+ */
+void _getdns_mdns_context_destroy(struct getdns_context *context)
+{
+	/* Close the sockets */
+
+	/* Clear all the continuous queries */
+
+	/* Clear all the cached records */
 }
 
 /* TODO: actualy delete what is required.. */
@@ -212,8 +422,6 @@ mdns_cleanup(getdns_network_req *netreq)
 	getdns_dns_req *dnsreq = netreq->owner;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-
-	GETDNS_NULL_FREE(dnsreq->context->mf, netreq->tcp.read_buf);
 }
 
 void
