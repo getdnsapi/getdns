@@ -133,8 +133,8 @@ gldns_buffer_printf(gldns_buffer *buffer, const char *format, ...)
 
 		remaining = gldns_buffer_remaining(buffer);
 		va_start(args, format);
-		written = _gldns_vsnprintf((char*)gldns_buffer_current(buffer),
-		    remaining, format, args);
+		written = vsnprintf((char *) gldns_buffer_current(buffer), remaining,
+				    format, args);
 		va_end(args);
 		if (written == -1) {
 			buffer->_status_err = 1;
@@ -145,8 +145,7 @@ gldns_buffer_printf(gldns_buffer *buffer, const char *format, ...)
 				return -1;
 			}
 			va_start(args, format);
-			written = _gldns_vsnprintf(
-			    (char *) gldns_buffer_current(buffer),
+			written = vsnprintf((char *) gldns_buffer_current(buffer),
 			    gldns_buffer_remaining(buffer), format, args);
 			va_end(args);
 			if (written == -1) {

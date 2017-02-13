@@ -1101,17 +1101,16 @@ AH_BOTTOM([
 #endif
 
 #ifdef GETDNS_ON_WINDOWS
-/* On windows it is allowed to increase the FD_SETSIZE
- * (and nescessary to make our custom eventloop work)
- * See: https://support.microsoft.com/en-us/kb/111855
- */
-#ifndef FD_SETSIZE
-#define FD_SETSIZE 1024
-#endif
-
-#define PRIsz "%Iu"
+ /* On windows it is allowed to increase the FD_SETSIZE
+  * (and nescessary to make our custom eventloop work)
+  * See: https://support.microsoft.com/en-us/kb/111855
+  */
+# ifndef FD_SETSIZE
+# define FD_SETSIZE 1024
+# endif
+# define PRIsz "%Iu"
 #else
-#define PRIsz "%zu"
+# define PRIsz "%zu"
 #endif
 
 #include <stdint.h>
@@ -1147,8 +1146,6 @@ AH_BOTTOM([
 #else
 #define FD_SET_T 
 #endif
-
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -1202,6 +1199,12 @@ int inet_pton(int af, const char* src, void* dst);
 
 #ifndef HAVE_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifdef USE_WINSOCK
+static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{ int r = vsnprintf(str, size, format, ap); return r == -1 ? _vscprintf(format, ap) : r; }
+# define vsnprintf _gldns_custom_vsnprintf
 #endif
 
 #ifdef __cplusplus

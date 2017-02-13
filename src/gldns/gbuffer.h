@@ -27,21 +27,6 @@ extern "C" {
 #  endif
 #endif
 
-#ifndef USE_WINSOCK
-#define _gldns_vsnprintf vsnprintf
-#else
-/* Unlike Linux and BSD, vsnprintf on Windows returns -1 on overflow.
- * Here it is redefined to always return the amount printed
- * if enough space had been available.
- */
-INLINE int
-_gldns_vsnprintf(char *str, size_t size, const char *format, va_list ap)
-{
-	int r = vsnprintf(str, size, format, ap);
-	return r == -1 ? _vscprintf(format, ap) : r;
-}
-#endif
-
 /*
  * Copy data allowing for unaligned accesses in network byte order
  * (big endian).
@@ -175,7 +160,7 @@ gldns_buffer_invariant(gldns_buffer *buffer)
 	assert(buffer != NULL);
 	assert(buffer->_position <= buffer->_limit || buffer->_vfixed);
 	assert(buffer->_limit <= buffer->_capacity);
-	assert(buffer->_data != NULL || (buffer->_capacity == 0 && buffer->_vfixed));
+	assert(buffer->_data != NULL || (buffer->_vfixed && buffer->_capacity == 0));
 }
 #endif
 
@@ -210,7 +195,7 @@ void gldns_buffer_init_frm_data(gldns_buffer *buffer, void *data, size_t size);
 /**
  * Setup a buffer with the data pointed to. No data copied, no memory allocs.
  * The buffer is fixed.  Writes beyond size (the capacity) will update the 
- * position (and not write data.  This allows to determine how big the buffer
+ * position (and not write data).  This allows to determine how big the buffer
  * should have been to contain all the written data.
  * \param[in] buffer pointer to the buffer to put the data in
  * \param[in] data the data to encapsulate in the buffer
