@@ -65,6 +65,8 @@ EXTENSION_LIBUV_LDFLAGS=@EXTENSION_LIBUV_LDFLAGS@
 
 C99COMPATFLAGS=@C99COMPATFLAGS@
 
+DEFAULT_EVENTLOOP_OBJ=@DEFAULT_EVENTLOOP@.lo
+
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
 	list.lo request-internal.lo pubkey-pinning.lo rr-dict.lo \
 	rr-iter.lo server.lo stub.lo sync.lo ub_loop.lo util-internal.lo \
@@ -81,7 +83,7 @@ UTIL_OBJ=rbtree.lo val_secalgo.lo
 
 JSMN_OBJ=jsmn.lo
 
-EXTENSION_OBJ=default_eventloop.lo libevent.lo libev.lo
+EXTENSION_OBJ=$(DEFAULT_EVENTLOOP_OBJ) libevent.lo libev.lo
 
 NON_C99_OBJS=context.lo libuv.lo
 
@@ -152,8 +154,8 @@ libgetdns_ext_ev.la: libgetdns.la libev.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ libev.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
-libgetdns.la: $(GETDNS_OBJ) version.lo context.lo default_eventloop.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(GETDNS_OBJ) version.lo context.lo default_eventloop.lo $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
+libgetdns.la: $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 test:	all
 	cd test && $(MAKE) $@

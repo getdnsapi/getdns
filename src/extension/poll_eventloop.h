@@ -1,6 +1,6 @@
 /*
- * \file default_eventloop.h
- * @brief Build in default eventloop extension that uses either poll or select.
+ * \file poll_eventloop.h
+ * @brief Build in default eventloop extension that uses select.
  *
  */
 /*
@@ -29,16 +29,32 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DEFAULT_EVENTLOOP_H_
-#define DEFAULT_EVENTLOOP_H_
+#ifndef POLL_EVENTLOOP_H_
+#define POLL_EVENTLOOP_H_
 #include "config.h"
-#ifdef USE_POLL_DEFAULT_EVENTLOOP
-#include "extension/poll_eventloop.h"
-#define _getdns_default_eventloop	_getdns_poll_eventloop
-#define _getdns_default_eventloop_init	_getdns_poll_eventloop_init
-#else
-#include "extension/select_eventloop.h"
-#define _getdns_default_eventloop	_getdns_select_eventloop
-#define _getdns_default_eventloop_init	_getdns_select_eventloop_init
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
+#include "util/uthash.h"
+
+/* Eventloop based on poll */
+
+typedef struct _getdns_eventloop_info {
+	int			id;
+	getdns_eventloop_event *event;
+	uint64_t                timeout_time;
+	UT_hash_handle		hh;
+} _getdns_eventloop_info;
+
+typedef struct _getdns_poll_eventloop {
+	getdns_eventloop        loop;
+	unsigned int		max_fds;
+	unsigned int		timeout_id;
+	_getdns_eventloop_info  *fd_events;
+	_getdns_eventloop_info  *timeout_events;
+} _getdns_poll_eventloop;
+
+void
+_getdns_poll_eventloop_init(_getdns_poll_eventloop *loop);
+
 #endif
-#endif
+

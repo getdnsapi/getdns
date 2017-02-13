@@ -1,6 +1,6 @@
 /*
- * \file default_eventloop.h
- * @brief Build in default eventloop extension that uses either poll or select.
+ * \file select_eventloop.h
+ * @brief Build in default eventloop extension that uses select.
  *
  */
 /*
@@ -29,16 +29,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DEFAULT_EVENTLOOP_H_
-#define DEFAULT_EVENTLOOP_H_
+#ifndef SELECT_EVENTLOOP_H_
+#define SELECT_EVENTLOOP_H_
 #include "config.h"
-#ifdef USE_POLL_DEFAULT_EVENTLOOP
-#include "extension/poll_eventloop.h"
-#define _getdns_default_eventloop	_getdns_poll_eventloop
-#define _getdns_default_eventloop_init	_getdns_poll_eventloop_init
-#else
-#include "extension/select_eventloop.h"
-#define _getdns_default_eventloop	_getdns_select_eventloop
-#define _getdns_default_eventloop_init	_getdns_select_eventloop_init
-#endif
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
+
+/* No more than select's capability queries can be outstanding,
+ * The number of outstanding timeouts should be less or equal then
+ * the number of outstanding queries, so MAX_TIMEOUTS equal to
+ * FD_SETSIZE should be safe.
+ */
+#define MAX_TIMEOUTS FD_SETSIZE
+
+/* Eventloop based on select */
+typedef struct _getdns_select_eventloop {
+	getdns_eventloop        loop;
+	getdns_eventloop_event *fd_events[FD_SETSIZE];
+	uint64_t                fd_timeout_times[FD_SETSIZE];
+	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
+	uint64_t                timeout_times[MAX_TIMEOUTS];
+} _getdns_select_eventloop;
+
+
+void
+_getdns_select_eventloop_init(_getdns_select_eventloop *loop);
+
 #endif
