@@ -139,5 +139,9 @@
 #define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
+#ifndef log_info
+#define log_info(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
 #endif
 /* debug.h */

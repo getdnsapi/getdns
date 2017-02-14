@@ -708,7 +708,11 @@ static void remove_listeners(listen_set *set)
 			continue;
 
 		loop->vmt->clear(loop, &l->event);
+#ifdef USE_WINSOCK
+		closesocket(l->fd);
+#else
 		close(l->fd);
+#endif
 		l->fd = -1;
 
 		if (l->transport != GETDNS_TRANSPORT_TCP)

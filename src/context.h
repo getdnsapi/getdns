@@ -348,10 +348,10 @@ struct getdns_context {
 	 * by name, RR type and data value.
 	 */
 	int mdns_extended_support; /* 0 = no support, 1 = supported, 2 = initialization needed */
-	int mdns_fdv4;
-	int mdns_fdv6;
+	int mdns_connection_nb; /* typically 0 or 2 for IPv4 and IPv6 */
+	struct mdns_network_connection * mdns_connection;
+	struct lruhash * mdns_cache;
 	_getdns_rbtree_t mdns_continuous_queries_by_name_rrtype;
-	_getdns_rbtree_t mdns_known_records_by_value;
 
 #endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
