@@ -351,7 +351,6 @@ struct getdns_context {
 	int mdns_connection_nb; /* typically 0 or 2 for IPv4 and IPv6 */
 	struct mdns_network_connection * mdns_connection;
 	struct lruhash * mdns_cache;
-	_getdns_rbtree_t mdns_continuous_queries_by_name_rrtype;
 
 #endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */

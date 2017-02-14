@@ -192,12 +192,9 @@ typedef struct getdns_network_req
 	_getdns_rbnode_t node;
 #ifdef HAVE_MDNS_SUPPORT
 	/*
-	 * for storage in continuous query context. We never
-	 * expect much more than one query per msdn context,
-	 * so no need for RB Tree.
+	 * for storage of continuous query context in hash table of cached results. 
 	 */
 	struct getdns_network_req * mdns_netreq_next;
-	struct getdns_mdns_continuous_query * mdns_continuous_query;
 #endif /* HAVE_MDNS_SUPPORT */
 	/* the async_id from unbound */
 	int unbound_id;

@@ -72,6 +72,8 @@ typedef struct getdns_mdns_cached_record_header
 	uint64_t insertion_microsec;
 	uint32_t content_len;
 	uint32_t allocated_length;
+	/* list of user queries */
+	getdns_network_req *netreq_first;
 } getdns_mdns_cached_record_header;
 
 typedef struct getdns_mdns_continuous_query
