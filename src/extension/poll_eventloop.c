@@ -37,7 +37,6 @@
 #endif
 #include "extension/poll_eventloop.h"
 #include "debug.h"
-#include "types-internal.h"
 
 static _getdns_eventloop_info *
 find_event(_getdns_eventloop_info** events, int id)
@@ -50,7 +49,8 @@ find_event(_getdns_eventloop_info** events, int id)
 }
 
 static void
-add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
+add_event(struct mem_funcs *mf,
+    _getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("poll_eventloop: add_event with id %d\n", id);
 	_getdns_eventloop_info* myevent = calloc(1, sizeof(_getdns_eventloop_info));
@@ -61,7 +61,8 @@ add_event(_getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 }
 
 static void
-delete_event(_getdns_eventloop_info** events, _getdns_eventloop_info* ev)
+delete_event(struct mem_funcs *mf,
+    _getdns_eventloop_info** events,_getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("poll_eventloop: delete_event with id %d\n", ev->id);
 	HASH_DEL(*events, ev);
@@ -88,6 +89,7 @@ poll_eventloop_schedule(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *event)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
+	struct mem_funcs *mf = &poll_loop->mf;
 	size_t i;
 
 	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, max_fds: %d)\n"
@@ -126,13 +128,13 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 #endif
 		/* cleanup the old event if it exists */
 		if (fd_event) {
-			delete_event(&poll_loop->fd_events, fd_event);
+			delete_event(mf, &poll_loop->fd_events, fd_event);
 		}
 		_getdns_eventloop_info fd_ev;
 		event->ev = (void *) (intptr_t) (fd + 1);
 		fd_ev.event = event;
 		fd_ev.timeout_time = get_now_plus(timeout);
-		add_event(&poll_loop->fd_events, fd, &fd_ev);
+		add_event(mf, &poll_loop->fd_events, fd, &fd_ev);
 
 		DEBUG_SCHED( "scheduled read/write at fd %d\n", fd);
 		return GETDNS_RETURN_GOOD;
@@ -154,7 +156,7 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 			_getdns_eventloop_info timeout_ev;
 			timeout_ev.event = event;
 			timeout_ev.timeout_time = get_now_plus(timeout);
-			add_event(&poll_loop->timeout_events, i, &timeout_ev);
+			add_event(mf, &poll_loop->timeout_events, i, &timeout_ev);
 			event->ev = (void *) (intptr_t) (i + 1);
 
 			DEBUG_SCHED( "scheduled timeout at slot %d\n", (int)i);
@@ -169,6 +171,7 @@ static getdns_return_t
 poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
+	struct mem_funcs *mf = &poll_loop->mf;
 	ssize_t i;
 
 	if (!loop || !event)
@@ -194,7 +197,7 @@ poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 
 #endif
 		if (timeout_event) {
-			delete_event(&poll_loop->timeout_events, timeout_event);
+			delete_event(mf, &poll_loop->timeout_events, timeout_event);
 		}
 	} else {
 		_getdns_eventloop_info* fd_event = find_event(&poll_loop->fd_events, i);
@@ -205,7 +208,7 @@ poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 			           , (void *)fd_event);
 #endif
 		if (fd_event) {
-			delete_event(&poll_loop->fd_events, fd_event);
+			delete_event(mf, &poll_loop->fd_events, fd_event);
 		}
 	}
 	event->ev = NULL;
@@ -216,6 +219,8 @@ static void
 poll_eventloop_cleanup(getdns_eventloop *loop)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
+	struct mem_funcs *mf = &poll_loop->mf;
+
 	HASH_CLEAR(hh, poll_loop->fd_events);
 	HASH_CLEAR(hh, poll_loop->timeout_events);
 }
@@ -254,6 +259,7 @@ static void
 poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
+	struct mem_funcs *mf = &poll_loop->mf;
 	_getdns_eventloop_info *s, *tmp;
 	uint64_t now, timeout = TIMEOUT_FOREVER;
 	size_t   i=0;
@@ -270,7 +276,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	HASH_ITER(hh, poll_loop->timeout_events, s, tmp) {
 		if (now > s->timeout_time)
-			add_event(&timeout_timeout_cbs, s->id, s);
+			add_event(mf, &timeout_timeout_cbs, s->id, s);
 		else if (s->timeout_time < timeout)
 			timeout = s->timeout_time;
 	}
@@ -278,7 +284,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	   and thus messes with the iteration */
 	HASH_ITER(hh, timeout_timeout_cbs, s, tmp) {
 		getdns_eventloop_event* event = s->event;
-		delete_event(&timeout_timeout_cbs, s);
+		delete_event(mf, &timeout_timeout_cbs, s);
 		poll_timeout_cb(-1, event);
 	}
 	// first we count the number of fds that will be active
@@ -344,27 +350,27 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (s->event &&
 		    s->event->timeout_cb &&
 		    now > s->timeout_time)
-			add_event(&fd_timeout_cbs, s->id, s);
+			add_event(mf, &fd_timeout_cbs, s->id, s);
 	}
 	/* this is in case the timeout callback deletes the event
 	   and thus messes with the iteration */
 	HASH_ITER(hh, fd_timeout_cbs, s, tmp) {
 		int fd = s->id;
 		getdns_eventloop_event* event = s->event;
-		delete_event(&fd_timeout_cbs, s);
+		delete_event(mf, &fd_timeout_cbs, s);
 		poll_timeout_cb(fd, event);
 	}
 	HASH_ITER(hh, poll_loop->timeout_events, s, tmp) {
 		if (s->event &&
 		    s->event->timeout_cb &&
 		    now > s->timeout_time)
-			add_event(&timeout_timeout_cbs, s->id, s);
+			add_event(mf, &timeout_timeout_cbs, s->id, s);
 	}
 	/* this is in case the timeout callback deletes the event
 	   and thus messes with the iteration */
 	HASH_ITER(hh, timeout_timeout_cbs, s, tmp) {
 		getdns_eventloop_event* event = s->event;
-		delete_event(&timeout_timeout_cbs, s);
+		delete_event(mf, &timeout_timeout_cbs, s);
 		poll_timeout_cb(-1, event);
 	}
 
