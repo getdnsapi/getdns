@@ -324,16 +324,18 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	}
 	i = 0;
 	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
-		if (s->event->read_cb) {
-			poll_loop->pfds[i].fd = s->id;
+		if (!s->event->read_cb && !s->event->write_cb)
+			continue;
+		poll_loop->pfds[i].fd = s->id;
+		poll_loop->pfds[i].events = 0;
+		poll_loop->pfds[i].revents = 0; /* <-- probably not needed */
+		if (s->event->read_cb)
 			poll_loop->pfds[i].events |= POLLIN;
-		}	
-		if (s->event->write_cb) {
-			poll_loop->pfds[i].fd = s->id;
+		if (s->event->write_cb) 
 			poll_loop->pfds[i].events |= POLLOUT;
-		}
 		i++;
 	}
+	assert(i == num_pfds);
 
 	if (timeout == TIMEOUT_FOREVER) {
 		poll_timeout = -1;
