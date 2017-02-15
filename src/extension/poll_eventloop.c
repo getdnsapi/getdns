@@ -48,7 +48,7 @@ find_event(_getdns_eventloop_info** events, int id)
 	return ev;
 }
 
-static void
+static _getdns_eventloop_info *
 add_event(struct mem_funcs *mf, _getdns_eventloop_info** events,
     int id, getdns_eventloop_event *event, uint64_t timeout_time)
 {
@@ -60,6 +60,7 @@ add_event(struct mem_funcs *mf, _getdns_eventloop_info** events,
 	myevent->event = event;
 	myevent->timeout_time = timeout_time;
 	HASH_ADD_INT(*events, id, myevent);
+	return myevent;
 }
 
 static void
@@ -132,8 +133,7 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 		if (fd_event) {
 			delete_event(mf, &poll_loop->fd_events, fd_event);
 		}
-		event->ev = (void *) (intptr_t) (fd + 1);
-		add_event(mf, &poll_loop->fd_events, fd, event, get_now_plus(timeout));
+		event->ev = add_event(mf, &poll_loop->fd_events, fd, event, get_now_plus(timeout));
 
 		DEBUG_SCHED( "scheduled read/write at fd %d\n", fd);
 		return GETDNS_RETURN_GOOD;
@@ -152,8 +152,7 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 	}
 	for (i = poll_loop->timeout_id + 1; i != poll_loop->timeout_id; i++) {
 		if (find_event(&poll_loop->timeout_events, i) == NULL) {
-			event->ev = (void *) (intptr_t) (i + 1);
-			add_event(mf, &poll_loop->timeout_events, i, event, get_now_plus(timeout));
+			event->ev = add_event(mf, &poll_loop->timeout_events, i, event, get_now_plus(timeout));
 
 			DEBUG_SCHED( "scheduled timeout at slot %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
@@ -168,46 +167,20 @@ poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
 	struct mem_funcs *mf = &poll_loop->mf;
-	ssize_t i;
 
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNC__, (void *)loop, (void *)event);
 
-	i = (intptr_t)event->ev - 1;
-	if (i < 0
-#ifdef HAVE_GETRLIMIT
-			|| i > poll_loop->max_fds
-#endif
-			) {
-		return GETDNS_RETURN_GENERIC_ERROR;
-	}
-	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
-		_getdns_eventloop_info* timeout_event = find_event(&poll_loop->timeout_events, i);
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-		if (timeout_event && timeout_event->event != event)
-			DEBUG_SCHED( "ERROR: Different/wrong event present at "
-			             "timeout slot: %p!\n"
-				     , (void *)timeout_event);
+	assert(event->ev);
 
-#endif
-		if (timeout_event) {
-			delete_event(mf, &poll_loop->timeout_events, timeout_event);
-		}
-	} else {
-		_getdns_eventloop_info* fd_event = find_event(&poll_loop->fd_events, i);
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-		if (fd_event && fd_event->event != event)
-			DEBUG_SCHED( "ERROR: Different/wrong event present at "
-			             "fd slot: %p!\n"
-			           , (void *)fd_event);
-#endif
-		if (fd_event) {
-			delete_event(mf, &poll_loop->fd_events, fd_event);
-		}
-	}
+	delete_event(mf,
+	    ( event->timeout_cb && !event->read_cb && !event->write_cb
+	    ? &poll_loop->timeout_events : &poll_loop->fd_events
+	    ), event->ev);
 	event->ev = NULL;
+
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -287,7 +260,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	HASH_ITER(hh, poll_loop->timeout_events, s, tmp) {
 		if (now > s->timeout_time)
-			add_event(mf, &timeout_timeout_cbs, s->id, s->event, s->timeout_time);
+			(void) add_event(mf, &timeout_timeout_cbs, s->id, s->event, s->timeout_time);
 		else if (s->timeout_time < timeout)
 			timeout = s->timeout_time;
 	}
@@ -371,7 +344,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (s->event &&
 		    s->event->timeout_cb &&
 		    now > s->timeout_time)
-			add_event(mf, &fd_timeout_cbs, s->id, s->event, s->timeout_time);
+			(void) add_event(mf, &fd_timeout_cbs, s->id, s->event, s->timeout_time);
 	}
 	/* this is in case the timeout callback deletes the event
 	   and thus messes with the iteration */
@@ -385,7 +358,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (s->event &&
 		    s->event->timeout_cb &&
 		    now > s->timeout_time)
-			add_event(mf, &timeout_timeout_cbs, s->id, s->event, s->timeout_time);
+			(void) add_event(mf, &timeout_timeout_cbs, s->id, s->event, s->timeout_time);
 	}
 	/* this is in case the timeout callback deletes the event
 	   and thus messes with the iteration */
