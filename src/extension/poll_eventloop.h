@@ -54,8 +54,10 @@ typedef struct _getdns_poll_eventloop {
 	struct mem_funcs        mf;
 	unsigned int		max_fds;
 	unsigned int		timeout_id;
-	_getdns_eventloop_info  *fd_events;
-	_getdns_eventloop_info  *timeout_events;
+	struct pollfd          *pfds;
+	unsigned long           pfds_capacity;
+	_getdns_eventloop_info *fd_events;
+	_getdns_eventloop_info *timeout_events;
 } _getdns_poll_eventloop;
 
 void

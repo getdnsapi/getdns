@@ -53,7 +53,8 @@ add_event(struct mem_funcs *mf,
     _getdns_eventloop_info** events, int id, _getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("poll_eventloop: add_event with id %d\n", id);
-	_getdns_eventloop_info* myevent = calloc(1, sizeof(_getdns_eventloop_info));
+	_getdns_eventloop_info* myevent = GETDNS_MALLOC(*mf, _getdns_eventloop_info);
+	/* not necessary -- (void) memset(myevent, 0, sizeof(_getdns_eventloop_info)); */
 	myevent->event = ev->event;
 	myevent->id = id;
 	myevent->timeout_time = ev->timeout_time;
@@ -62,11 +63,11 @@ add_event(struct mem_funcs *mf,
 
 static void
 delete_event(struct mem_funcs *mf,
-    _getdns_eventloop_info** events,_getdns_eventloop_info* ev)
+    _getdns_eventloop_info** events, _getdns_eventloop_info* ev)
 {
 	DEBUG_SCHED("poll_eventloop: delete_event with id %d\n", ev->id);
 	HASH_DEL(*events, ev);
-	free(ev);
+	GETDNS_FREE(*mf, ev);
 }
 
 static uint64_t get_now_plus(uint64_t amount)
@@ -221,6 +222,11 @@ poll_eventloop_cleanup(getdns_eventloop *loop)
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
 	struct mem_funcs *mf = &poll_loop->mf;
 
+	if (poll_loop->pfds) {
+		GETDNS_FREE(*mf, poll_loop->pfds);
+		poll_loop->pfds = NULL;
+		poll_loop->pfds_capacity = 0;
+	}
 	HASH_CLEAR(hh, poll_loop->fd_events);
 	HASH_CLEAR(hh, poll_loop->timeout_events);
 }
@@ -255,6 +261,17 @@ poll_timeout_cb(int fd, getdns_eventloop_event *event)
 	event->timeout_cb(event->userarg);
 }
 
+static unsigned long up_pow2(unsigned long v)
+{
+	v--;
+	v |= v >>  1;
+	v |= v >>  2;
+	v |= v >>  4;
+	v |= v >>  8;
+	v |= v >> 16;
+	return v + 1;
+}
+
 static void
 poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 {
@@ -264,7 +281,6 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	uint64_t now, timeout = TIMEOUT_FOREVER;
 	size_t   i=0;
 	int poll_timeout = 0;
-	struct pollfd* pfds = NULL;
 	unsigned int num_pfds = 0;
 	_getdns_eventloop_info* timeout_timeout_cbs = NULL;
 	_getdns_eventloop_info* fd_timeout_cbs = NULL;
@@ -287,7 +303,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		delete_event(mf, &timeout_timeout_cbs, s);
 		poll_timeout_cb(-1, event);
 	}
-	// first we count the number of fds that will be active
+	/* first we count the number of fds that will be active */
 	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
 		if (s->event->read_cb ||
 		    s->event->write_cb)
@@ -299,16 +315,22 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	if ((timeout == TIMEOUT_FOREVER) && (num_pfds == 0))
 		return;
 
-	pfds = calloc(num_pfds, sizeof(struct pollfd));
+	if (num_pfds > poll_loop->pfds_capacity) {
+		poll_loop->pfds_capacity = up_pow2(num_pfds);
+		if (poll_loop->pfds) {
+			poll_loop->pfds = GETDNS_XMALLOC(poll_loop->mf, struct pollfd, poll_loop->pfds_capacity);
+		} else
+			poll_loop->pfds = GETDNS_XREALLOC(poll_loop->mf, poll_loop->pfds, struct pollfd, poll_loop->pfds_capacity);
+	}
 	i = 0;
 	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
 		if (s->event->read_cb) {
-			pfds[i].fd = s->id;
-			pfds[i].events |= POLLIN;
+			poll_loop->pfds[i].fd = s->id;
+			poll_loop->pfds[i].events |= POLLIN;
 		}	
 		if (s->event->write_cb) {
-			pfds[i].fd = s->id;
-			pfds[i].events |= POLLOUT;
+			poll_loop->pfds[i].fd = s->id;
+			poll_loop->pfds[i].events |= POLLOUT;
 		}
 		i++;
 	}
@@ -322,30 +344,28 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		poll_timeout = (timeout - now) / 1000; /* turn microseconds into milliseconds */
 	}
 #ifdef USE_WINSOCK
-	if (WSAPoll(pfds, num_pfds, poll_timeout) < 0) {
+	if (WSAPoll(poll_loop->pfds, num_pfds, poll_timeout) < 0) {
 #else	
-	if (poll(pfds, num_pfds, poll_timeout) < 0) {
+	if (poll(poll_loop->pfds, num_pfds, poll_timeout) < 0) {
 #endif
 		perror("poll() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = get_now_plus(0);
 	for (i = 0; i < num_pfds; i++) {
-		int fd = pfds[i].fd;
+		int fd = poll_loop->pfds[i].fd;
 		_getdns_eventloop_info* fd_event = find_event(&poll_loop->fd_events, fd);
 		if (fd_event && fd_event->event) { 
 			getdns_eventloop_event* event = fd_event->event;
 			if (event->read_cb &&
-			    (pfds[i].revents & POLLIN))
+			    (poll_loop->pfds[i].revents & POLLIN))
 				poll_read_cb(fd, event);
 
 			if (event->write_cb &&
-			    (pfds[i].revents & POLLOUT))
+			    (poll_loop->pfds[i].revents & POLLOUT))
 				poll_write_cb(fd, event);
 		}
 	}
-	if (pfds)
-		free(pfds);
 	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
 		if (s->event &&
 		    s->event->timeout_cb &&
@@ -404,7 +424,6 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 		poll_eventloop_run_once
 	};
 
-	(void) memset(loop, 0, sizeof(_getdns_poll_eventloop));
 	loop->loop.vmt = &poll_eventloop_vmt;
 	loop->mf = *mf;
 
@@ -419,4 +438,8 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 	}
 #endif
 	loop->timeout_id = 0;
+	loop->pfds = NULL;
+	loop->pfds_capacity = 0;
+	loop->fd_events = NULL;
+	loop->timeout_events = NULL;
 }
