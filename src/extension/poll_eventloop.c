@@ -315,12 +315,16 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	if ((timeout == TIMEOUT_FOREVER) && (num_pfds == 0))
 		return;
 
-	if (num_pfds > poll_loop->pfds_capacity) {
-		poll_loop->pfds_capacity = up_pow2(num_pfds);
+	if (num_pfds >= poll_loop->pfds_capacity) {
+		poll_loop->pfds_capacity = up_pow2(num_pfds + 1);
 		if (poll_loop->pfds) {
 			poll_loop->pfds = GETDNS_XMALLOC(poll_loop->mf, struct pollfd, poll_loop->pfds_capacity);
 		} else
 			poll_loop->pfds = GETDNS_XREALLOC(poll_loop->mf, poll_loop->pfds, struct pollfd, poll_loop->pfds_capacity);
+		if (poll_loop->pfds == 0) {
+			poll_loop->pfds_capacity = 0;
+			return;
+		}
 	}
 	i = 0;
 	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
