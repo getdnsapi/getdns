@@ -214,6 +214,31 @@ case "$enable_debug_keep_connections_open" in
 		;;
 esac
 
+
+DEFAULT_EVENTLOOP=select_eventloop
+AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_FUNCS([getrlimit])
+AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
+case "$enable_poll_eventloop" in
+	no)
+		;;
+	yes|*)
+AC_MSG_CHECKING(for poll)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
+], [int rc; rc = poll((struct pollfd *)(0), 0, 0);])], [
+AC_MSG_RESULT(yes)
+AC_DEFINE_UNQUOTED([USE_POLL_DEFAULT_EVENTLOOP], [1], [Define this to enable a default eventloop based on poll().])
+DEFAULT_EVENTLOOP=poll_eventloop
+],[AC_MSG_RESULT(no)])
+		;;
+esac
+AC_SUBST(DEFAULT_EVENTLOOP)
+
 AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
     enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
 if test "x$enable_tcp_fastopen" = xno; then
@@ -1075,8 +1100,6 @@ if test "$ac_cv_func_arc4random" = "no"; then
 	    fi
 	])
 fi
-
-AC_DEFINE(USE_MINI_EVENT, 1, [Needed for sync stub resolver functions])
 
 AC_TYPE_SIGNAL
 
