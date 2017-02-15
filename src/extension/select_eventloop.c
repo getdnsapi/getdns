@@ -285,7 +285,7 @@ select_eventloop_run(getdns_eventloop *loop)
 }
 
 void
-_getdns_select_eventloop_init(_getdns_select_eventloop *loop)
+_getdns_select_eventloop_init(struct mem_funcs *mf, _getdns_select_eventloop *loop)
 {
 	static getdns_eventloop_vmt select_eventloop_vmt = {
 		select_eventloop_cleanup,
@@ -294,7 +294,7 @@ _getdns_select_eventloop_init(_getdns_select_eventloop *loop)
 		select_eventloop_run,
 		select_eventloop_run_once
 	};
-
+	(void) mf;
 	(void) memset(loop, 0, sizeof(_getdns_select_eventloop));
 	loop->loop.vmt = &select_eventloop_vmt;
 }

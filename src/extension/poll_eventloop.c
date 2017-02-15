@@ -391,7 +391,7 @@ poll_eventloop_run(getdns_eventloop *loop)
 }
 
 void
-_getdns_poll_eventloop_init(_getdns_poll_eventloop *loop)
+_getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 {
 #ifdef HAVE_GETRLIMIT
 	struct rlimit rl;
@@ -406,6 +406,7 @@ _getdns_poll_eventloop_init(_getdns_poll_eventloop *loop)
 
 	(void) memset(loop, 0, sizeof(_getdns_poll_eventloop));
 	loop->loop.vmt = &poll_eventloop_vmt;
+	loop->mf = *mf;
 
 #ifdef HAVE_GETRLIMIT
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {

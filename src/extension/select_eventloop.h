@@ -53,6 +53,6 @@ typedef struct _getdns_select_eventloop {
 
 
 void
-_getdns_select_eventloop_init(_getdns_select_eventloop *loop);
+_getdns_select_eventloop_init(struct mem_funcs *mf, _getdns_select_eventloop *loop);
 
 #endif

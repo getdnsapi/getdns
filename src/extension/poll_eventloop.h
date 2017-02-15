@@ -59,7 +59,7 @@ typedef struct _getdns_poll_eventloop {
 } _getdns_poll_eventloop;
 
 void
-_getdns_poll_eventloop_init(_getdns_poll_eventloop *loop);
+_getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop);
 
 #endif
 

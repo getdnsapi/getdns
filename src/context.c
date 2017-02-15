@@ -1388,8 +1388,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_ctx = NULL;
 
 	result->extension = &result->default_eventloop.loop;
-	_getdns_default_eventloop_init(&result->default_eventloop);
-	_getdns_default_eventloop_init(&result->sync_eventloop);
+	_getdns_default_eventloop_init(&result->mf, &result->default_eventloop);
+	_getdns_default_eventloop_init(&result->mf, &result->sync_eventloop);
 
 	/* request extension defaults
 	 */
@@ -3403,7 +3403,7 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	cancel_outstanding_requests(context, 1);
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->default_eventloop.loop;
-	_getdns_default_eventloop_init(&context->default_eventloop);
+	_getdns_default_eventloop_init(&context->mf, &context->default_eventloop);
 #ifdef HAVE_UNBOUND_EVENT_API
 	if (_getdns_ub_loop_enabled(&context->ub_loop))
 		context->ub_loop.extension = context->extension;
