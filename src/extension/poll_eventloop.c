@@ -44,20 +44,18 @@ enum { init_pfds_capacity = 64
 static void *get_to_event(_getdns_poll_eventloop *loop,
     getdns_eventloop_event *event, uint64_t timeout_time)
 {
-	unsigned long i = 0;
-
-	while (i < loop->to_events_capacity && loop->to_events[i].event) i++;
-
-	if (i == loop->to_events_capacity) {
-		if (i) {
+	if (loop->to_events_free == loop->to_events_capacity) {
+		if (loop->to_events_free) {
 			_getdns_poll_to_event *to_events = GETDNS_XREALLOC(
-			    loop->mf, loop->to_events, _getdns_poll_to_event, i * 2);
+			    loop->mf, loop->to_events, _getdns_poll_to_event,
+			    loop->to_events_free * 2);
 			if (!to_events)
 				return NULL;
-			(void) memset(&loop->to_events[i], 0,
-			    sizeof(_getdns_poll_to_event) * i);
+			(void) memset(&loop->to_events[loop->to_events_free],
+			    0, sizeof(_getdns_poll_to_event)
+			     * loop->to_events_free);
 
-			loop->to_events_capacity = i * 2;
+			loop->to_events_capacity = loop->to_events_free * 2;
 			loop->to_events = to_events;
 		} else {
 			if (!(loop->to_events = GETDNS_XMALLOC(loop->mf,
@@ -71,9 +69,10 @@ static void *get_to_event(_getdns_poll_eventloop *loop,
 			loop->to_events_capacity = init_to_events_capacity;
 		}
 	}
-	loop->to_events[i].event = event;
-	loop->to_events[i].timeout_time = timeout_time;
-	return (void *) (intptr_t) (i + 1);
+	loop->to_events[loop->to_events_free].event = event;
+	loop->to_events[loop->to_events_free].timeout_time = timeout_time;
+	loop->to_events_n_used++;
+	return (void *) (intptr_t) (++loop->to_events_free);
 }
 
 static _getdns_eventloop_info *
@@ -209,7 +208,7 @@ poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	assert(event->ev);
 
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
-		unsigned long i = ((unsigned long) (intptr_t) event->ev) - 1;
+		size_t i = ((size_t) (intptr_t) event->ev) - 1;
 
 		/* This may happen with full recursive synchronous requests
 		 * with the unbound pluggable event API, because the default
@@ -224,8 +223,10 @@ poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 			DEBUG_SCHED( "ERROR: Event mismatch %p\n", (void *)event->ev);
 			return GETDNS_RETURN_GENERIC_ERROR;
 		}
-
 		poll_loop->to_events[i].event = NULL;
+		if (--poll_loop->to_events_n_used == 0) {
+			poll_loop->to_events_free = 0;
+		}
 		DEBUG_SCHED( "cleared timeout at slot %p\n", event->ev);
 	} else
 		delete_event(mf, &poll_loop->fd_events, event->ev);
@@ -249,6 +250,8 @@ poll_eventloop_cleanup(getdns_eventloop *loop)
 		GETDNS_FREE(*mf, poll_loop->to_events);
 		poll_loop->to_events = NULL;
 		poll_loop->to_events_capacity = 0;
+		poll_loop->to_events_free     = 0;
+		poll_loop->to_events_n_used   = 0;
 	}
 	HASH_CLEAR(hh, poll_loop->fd_events);
 }
@@ -301,7 +304,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	struct mem_funcs *mf = &poll_loop->mf;
 	_getdns_eventloop_info *s, *tmp;
 	uint64_t now, timeout = TIMEOUT_FOREVER;
-	size_t   i = 0;
+	size_t  i = 0, j;
 	int poll_timeout = 0;
 	unsigned int num_pfds = 0;
 	_getdns_eventloop_info* fd_timeout_cbs = NULL;
@@ -311,15 +314,41 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 
 	now = get_now_plus(0);
 
-	for (i = 0; i < poll_loop->to_events_capacity; i++) {
-		if (poll_loop->to_events[i].event &&
-		    poll_loop->to_events[i].timeout_time < now)
-			poll_timeout_cb(-1, poll_loop->to_events[i].event);
+	for (i = 0, j = 0; i < poll_loop->to_events_free; i++, j++) {
+		while (poll_loop->to_events[i].event == NULL) {
+			if (++i == poll_loop->to_events_free) {
+				poll_loop->to_events_free = j;
+				break;
+			}
+		}
+		if (j < i) {
+			if (j >= poll_loop->to_events_free)
+				break;
+			poll_loop->to_events[j] = poll_loop->to_events[i];
+			poll_loop->to_events[i].event = NULL;
+			poll_loop->to_events[j].event->ev =
+			    (void *) (intptr_t) (j + 1);
+		}
+		if (poll_loop->to_events[j].timeout_time < now)
+			poll_timeout_cb(-1, poll_loop->to_events[j].event);
 	}
-	for (i = 0; i < poll_loop->to_events_capacity; i++) {
-		if (poll_loop->to_events[i].event &&
-		    poll_loop->to_events[i].timeout_time < timeout)
-			timeout = poll_loop->to_events[i].timeout_time;
+	for (i = 0, j = 0; i < poll_loop->to_events_free; i++, j++) {
+		while (poll_loop->to_events[i].event == NULL) {
+			if (++i == poll_loop->to_events_free) {
+				poll_loop->to_events_free = j;
+				break;
+			}
+		}
+		if (j < i) {
+			if (j >= poll_loop->to_events_free)
+				break;
+			poll_loop->to_events[j] = poll_loop->to_events[i];
+			poll_loop->to_events[i].event = NULL;
+			poll_loop->to_events[j].event->ev =
+			    (void *) (intptr_t) (j + 1);
+		}
+		if (poll_loop->to_events[j].timeout_time < timeout)
+			timeout = poll_loop->to_events[j].timeout_time;
 	}
 	/* first we count the number of fds that will be active */
 	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
@@ -404,22 +433,24 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		delete_event(mf, &fd_timeout_cbs, s);
 		poll_timeout_cb(fd, event);
 	}
-	for (i = 0; i < poll_loop->to_events_capacity; i++) {
-		if (poll_loop->to_events[i].event &&
-		    poll_loop->to_events[i].timeout_time < now)
-			poll_timeout_cb(-1, poll_loop->to_events[i].event);
+	for (i = 0, j = 0; i < poll_loop->to_events_free; i++, j++) {
+		while (poll_loop->to_events[i].event == NULL) {
+			if (++i == poll_loop->to_events_free) {
+				poll_loop->to_events_free = j;
+				break;
+			}
+		}
+		if (j < i) {
+			if (j >= poll_loop->to_events_free)
+				break;
+			poll_loop->to_events[j] = poll_loop->to_events[i];
+			poll_loop->to_events[i].event = NULL;
+			poll_loop->to_events[j].event->ev =
+			    (void *) (intptr_t) (j + 1);
+		}
+		if (poll_loop->to_events[j].timeout_time < now)
+			poll_timeout_cb(-1, poll_loop->to_events[j].event);
 	}
-}
-
-static unsigned long to_events_used(_getdns_poll_eventloop *loop)
-{
-	unsigned int i, count = 0;
-
-	for (i = 0; i < loop->to_events_capacity; i++) {
-		if (loop->to_events[i].event)
-			count++;
-	}
-	return count;
 }
 
 static void
@@ -431,7 +462,7 @@ poll_eventloop_run(getdns_eventloop *loop)
 		return;
 
 	/* keep going until all the events are cleared */
-	while (poll_loop->fd_events || to_events_used(poll_loop)) {
+	while (poll_loop->fd_events || poll_loop->to_events_n_used) {
 		poll_eventloop_run_once(loop, 1);
 	}
 }
@@ -469,6 +500,7 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 		loop->pfds_capacity = 0;
 
 	loop->fd_events = NULL;
+
 	loop->to_events_capacity = init_to_events_capacity;
 	if ((loop->to_events = GETDNS_XMALLOC(
 	    *mf, _getdns_poll_to_event, init_to_events_capacity)))
@@ -476,6 +508,7 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 		    sizeof(_getdns_poll_to_event) * init_to_events_capacity);
 	else
 		loop->to_events_capacity = 0;
-
+	loop->to_events_free = 0;
+	loop->to_events_n_used = 0;
 }
 

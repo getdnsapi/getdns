@@ -61,8 +61,11 @@ typedef struct _getdns_poll_eventloop {
 	unsigned long           pfds_capacity;
 	struct pollfd          *pfds;
 	_getdns_eventloop_info *fd_events;
-	unsigned long           to_events_capacity;
+
+	size_t                  to_events_capacity;
 	_getdns_poll_to_event  *to_events;
+	size_t                  to_events_free;
+	size_t                  to_events_n_used;
 } _getdns_poll_eventloop;
 
 void
