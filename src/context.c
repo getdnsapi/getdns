@@ -2918,7 +2918,7 @@ _getdns_context_cancel_request(getdns_context *context,
 	/* do the cancel */
 	cancel_dns_req(dnsreq);
 
-	if (fire_callback) {
+	if (fire_callback && dnsreq->user_callback) {
 		context->processing = 1;
 		dnsreq->user_callback(context, GETDNS_CALLBACK_CANCEL,
 		    NULL, dnsreq->user_pointer, transaction_id);
