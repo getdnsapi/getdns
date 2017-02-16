@@ -1186,7 +1186,7 @@ getdns_pretty_snprint_dict(char *str, size_t size, const getdns_dict *dict)
 
 	if (!dict) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_dict(&buf, 0, dict, 0) < 0
 	     ? -1 : (int)gldns_buffer_position(&buf);
 }
@@ -1220,7 +1220,7 @@ getdns_pretty_snprint_list(char *str, size_t size, const getdns_list *list)
 
 	if (!list) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, 0) < 0
 	     ? -1 : (int)gldns_buffer_position(&buf);
 }
@@ -1255,7 +1255,7 @@ getdns_snprint_json_dict(
 
 	if (!dict) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_dict(&buf, 0, dict, pretty ? 1 : 2) < 0
 	     ? -1 : (int)gldns_buffer_position(&buf);
 }
@@ -1290,7 +1290,7 @@ getdns_snprint_json_list(
 
 	if (!list) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, pretty ? 1 : 2) < 0
 	     ? -1 : (int)gldns_buffer_position(&buf);
 }
