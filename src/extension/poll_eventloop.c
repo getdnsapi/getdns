@@ -38,7 +38,7 @@
 #include "extension/poll_eventloop.h"
 #include "debug.h"
 
-enum { init_pfds_capacity = 64
+enum { init_fd_events_capacity = 64
      , init_to_events_capacity = 64 };
 
 static void *get_to_event(_getdns_poll_eventloop *loop,
@@ -46,24 +46,24 @@ static void *get_to_event(_getdns_poll_eventloop *loop,
 {
 	if (loop->to_events_free == loop->to_events_capacity) {
 		if (loop->to_events_free) {
-			_getdns_poll_to_event *to_events = GETDNS_XREALLOC(
-			    loop->mf, loop->to_events, _getdns_poll_to_event,
+			_getdns_poll_event *to_events = GETDNS_XREALLOC(
+			    loop->mf, loop->to_events, _getdns_poll_event,
 			    loop->to_events_free * 2);
 			if (!to_events)
 				return NULL;
 			(void) memset(&loop->to_events[loop->to_events_free],
-			    0, sizeof(_getdns_poll_to_event)
+			    0, sizeof(_getdns_poll_event)
 			     * loop->to_events_free);
 
 			loop->to_events_capacity = loop->to_events_free * 2;
 			loop->to_events = to_events;
 		} else {
 			if (!(loop->to_events = GETDNS_XMALLOC(loop->mf,
-			    _getdns_poll_to_event, init_to_events_capacity)))
+			    _getdns_poll_event, init_to_events_capacity)))
 				return NULL;
 
 			(void) memset(loop->to_events, 0,
-			    sizeof(_getdns_poll_to_event)
+			    sizeof(_getdns_poll_event)
 			    * init_to_events_capacity);
 
 			loop->to_events_capacity = init_to_events_capacity;
@@ -75,38 +75,61 @@ static void *get_to_event(_getdns_poll_eventloop *loop,
 	return (void *) (intptr_t) (++loop->to_events_free);
 }
 
-static _getdns_eventloop_info *
-find_event(_getdns_eventloop_info** events, int id)
+static void *get_fd_event(_getdns_poll_eventloop *loop, int fd,
+    getdns_eventloop_event *event, uint64_t timeout_time)
 {
-	_getdns_eventloop_info* ev;
+	if (loop->fd_events_free == loop->fd_events_capacity) {
+		if (loop->fd_events_free) {
+			_getdns_poll_event *fd_events = GETDNS_XREALLOC(
+			    loop->mf, loop->fd_events, _getdns_poll_event,
+			    loop->fd_events_free * 2);
+			struct pollfd *pfds = GETDNS_XREALLOC(
+			    loop->mf, loop->pfds, struct pollfd,
+			    loop->fd_events_free * 2);
 
-	HASH_FIND_INT(*events, &id, ev);
+			if (!fd_events || !pfds) {
+				if (fd_events)
+					GETDNS_FREE(loop->mf, fd_events);
+				if (pfds)
+					GETDNS_FREE(loop->mf, pfds);
+				return NULL;
+			}
+			(void) memset(&loop->fd_events[loop->fd_events_free],
+			    0, sizeof(_getdns_poll_event)
+			     * loop->fd_events_free);
+			(void) memset(&loop->pfds[loop->fd_events_free],
+			    0, sizeof(struct pollfd) * loop->fd_events_free);
 
-	return ev;
-}
+			loop->fd_events_capacity = loop->fd_events_free * 2;
+			loop->fd_events = fd_events;
+			loop->pfds = pfds;
+		} else {
+			if (!(loop->fd_events = GETDNS_XMALLOC(loop->mf,
+			    _getdns_poll_event, init_fd_events_capacity)) ||
+			    !(loop->pfds = GETDNS_XMALLOC(loop->mf,
+			    struct pollfd, init_fd_events_capacity))) {
+				GETDNS_NULL_FREE(loop->mf, loop->fd_events);
+				return NULL;
+			}
+			(void) memset(loop->fd_events, 0,
+			    sizeof(_getdns_poll_event)
+			    * init_fd_events_capacity);
+			(void) memset(loop->pfds, 0,
+			    sizeof(struct pollfd) * init_fd_events_capacity);
 
-static _getdns_eventloop_info *
-add_event(struct mem_funcs *mf, _getdns_eventloop_info** events,
-    int id, getdns_eventloop_event *event, uint64_t timeout_time)
-{
-	DEBUG_SCHED("poll_eventloop: add_event with id %d\n", id);
-	_getdns_eventloop_info* myevent = GETDNS_MALLOC(*mf, _getdns_eventloop_info);
-	/* not necessary -- (void) memset(myevent, 0, sizeof(_getdns_eventloop_info)); */
-
-	myevent->id = id;
-	myevent->event = event;
-	myevent->timeout_time = timeout_time;
-	HASH_ADD_INT(*events, id, myevent);
-	return myevent;
-}
-
-static void
-delete_event(struct mem_funcs *mf,
-    _getdns_eventloop_info** events, _getdns_eventloop_info* ev)
-{
-	DEBUG_SCHED("poll_eventloop: delete_event with id %d\n", ev->id);
-	HASH_DEL(*events, ev);
-	GETDNS_FREE(*mf, ev);
+			loop->fd_events_capacity = init_fd_events_capacity;
+		}
+	}
+	loop->pfds[loop->fd_events_free].fd = fd;
+	loop->pfds[loop->fd_events_free].events = 0;
+	if (event->read_cb)
+		loop->pfds[loop->fd_events_free].events |= POLLIN;
+	if (event->write_cb)
+		loop->pfds[loop->fd_events_free].events |= POLLOUT;
+	loop->fd_events[loop->fd_events_free].event = event;
+	loop->fd_events[loop->fd_events_free].timeout_time = timeout_time;
+	loop->fd_events_n_used++;
+	return (void *) (intptr_t) (++loop->fd_events_free);
 }
 
 static uint64_t get_now_plus(uint64_t amount)
@@ -129,7 +152,6 @@ poll_eventloop_schedule(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *event)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
-	struct mem_funcs *mf = &poll_loop->mf;
 
 	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, max_fds: %d)\n"
 	        , __FUNC__, (void *)loop, fd, timeout, (void *)event, poll_loop->max_fds);
@@ -151,27 +173,13 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 		fd = -1;
 	}
 	if (fd >= 0) {
-		_getdns_eventloop_info* fd_event = find_event(&poll_loop->fd_events, fd);
-#if defined(SCHED_DEBUG) && SCHED_DEBUG
-		if (fd_event) {
-			if (fd_event->event == event) {
-				DEBUG_SCHED("WARNING: Event %p not cleared "
-				            "before being rescheduled!\n"
-				           , (void *)fd_event->event);
-			} else {
-				DEBUG_SCHED("ERROR: A different event is "
-				            "already present at fd slot: %p!\n"
-				           , (void *)fd_event->event);
-			}
+		if (!(event->ev = get_fd_event(
+		    poll_loop, fd, event, get_now_plus(timeout)))) {
+			DEBUG_SCHED("ERROR: scheduled read/write slots!\n");
+			return GETDNS_RETURN_GENERIC_ERROR;
 		}
-#endif
-		/* cleanup the old event if it exists */
-		if (fd_event) {
-			delete_event(mf, &poll_loop->fd_events, fd_event);
-		}
-		event->ev = add_event(mf, &poll_loop->fd_events, fd, event, get_now_plus(timeout));
-
-		DEBUG_SCHED( "scheduled read/write at fd %d\n", fd);
+		DEBUG_SCHED( "scheduled read/write at for %d at %p\n"
+		           , fd, (void *)event->ev);
 		return GETDNS_RETURN_GOOD;
 	}
 	if (!event->timeout_cb) {
@@ -186,28 +194,28 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 		DEBUG_SCHED("ERROR: timeout event with write_cb! Clearing.\n");
 		event->write_cb = NULL;
 	}
-	if ((event->ev = get_to_event(poll_loop, event, get_now_plus(timeout)))) {
-		DEBUG_SCHED("scheduled timeout at slot %p\n", event->ev);
-		return GETDNS_RETURN_GOOD;
+	if (!(event->ev = get_to_event(poll_loop, event, get_now_plus(timeout)))) {
+		DEBUG_SCHED("ERROR: Out of timeout slots!\n");
+		return GETDNS_RETURN_GENERIC_ERROR;
 	}
-	DEBUG_SCHED("ERROR: Out of timeout slots!\n");
-	return GETDNS_RETURN_GENERIC_ERROR;
+	DEBUG_SCHED("scheduled timeout at slot %p\n", (void *)event->ev);
+	return GETDNS_RETURN_GOOD;
 }
 
 static getdns_return_t
 poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
-	struct mem_funcs *mf = &poll_loop->mf;
 
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	DEBUG_SCHED( "%s(loop: %p, event: %p)\n", __FUNC__, (void *)loop, (void *)event);
 
-	assert(event->ev);
+	if (!event->ev)
+		return GETDNS_RETURN_GOOD;
 
-	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
+	else if (event->timeout_cb && !event->read_cb && !event->write_cb) {
 		size_t i = ((size_t) (intptr_t) event->ev) - 1;
 
 		/* This may happen with full recursive synchronous requests
@@ -227,10 +235,31 @@ poll_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 		if (--poll_loop->to_events_n_used == 0) {
 			poll_loop->to_events_free = 0;
 		}
-		DEBUG_SCHED( "cleared timeout at slot %p\n", event->ev);
-	} else
-		delete_event(mf, &poll_loop->fd_events, event->ev);
+		DEBUG_SCHED( "cleared timeout at slot %p\n", (void *)event->ev);
+	} else {
+		size_t i = ((size_t) (intptr_t) event->ev) - 1;
 
+		/* This may happen with full recursive synchronous requests
+		 * with the unbound pluggable event API, because the default
+		 * poll_eventloop is temporarily replaced by a poll_eventloop
+		 * used only in synchronous calls. When the synchronous request
+		 * had an answer, the poll_eventloop for the synchronous is
+		 * cleaned, however it could still have outstanding events.
+		 */
+		if (i >= poll_loop->fd_events_capacity ||
+		    poll_loop->fd_events[i].event != event) {
+			event->ev = NULL;
+			DEBUG_SCHED( "ERROR: Event mismatch %p\n", (void *)event->ev);
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+		poll_loop->fd_events[i].event = NULL;
+		if (--poll_loop->fd_events_n_used == 0) {
+			poll_loop->fd_events_free = 0;
+		}
+		DEBUG_SCHED( "cleared read/write for %d at slot %p\n"
+		           , poll_loop->pfds[i].fd, (void *)event->ev);
+		poll_loop->pfds[i].fd = -1; /* Not necessary, but to be sure */
+	}
 	event->ev = NULL;
 	return GETDNS_RETURN_GOOD;
 }
@@ -241,10 +270,13 @@ poll_eventloop_cleanup(getdns_eventloop *loop)
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
 	struct mem_funcs *mf = &poll_loop->mf;
 
-	if (poll_loop->pfds) {
-		GETDNS_FREE(*mf, poll_loop->pfds);
-		poll_loop->pfds = NULL;
-		poll_loop->pfds_capacity = 0;
+	GETDNS_NULL_FREE(*mf, poll_loop->pfds);
+	if (poll_loop->fd_events) {
+		GETDNS_FREE(*mf, poll_loop->fd_events);
+		poll_loop->fd_events = NULL;
+		poll_loop->fd_events_capacity = 0;
+		poll_loop->fd_events_free     = 0;
+		poll_loop->fd_events_n_used   = 0;
 	}
 	if (poll_loop->to_events) {
 		GETDNS_FREE(*mf, poll_loop->to_events);
@@ -253,7 +285,6 @@ poll_eventloop_cleanup(getdns_eventloop *loop)
 		poll_loop->to_events_free     = 0;
 		poll_loop->to_events_n_used   = 0;
 	}
-	HASH_CLEAR(hh, poll_loop->fd_events);
 }
 
 static void
@@ -277,37 +308,19 @@ poll_write_cb(int fd, getdns_eventloop_event *event)
 }
 
 static void
-poll_timeout_cb(int fd, getdns_eventloop_event *event)
+poll_timeout_cb(getdns_eventloop_event *event)
 {
-#if !defined(SCHED_DEBUG) || !SCHED_DEBUG
-	(void)fd;
-#endif
-	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
+	DEBUG_SCHED( "%s(event: %p)\n", __FUNC__, (void *)event);
 	event->timeout_cb(event->userarg);
-}
-
-static unsigned long up_pow2(unsigned long v)
-{
-	v--;
-	v |= v >>  1;
-	v |= v >>  2;
-	v |= v >>  4;
-	v |= v >>  8;
-	v |= v >> 16;
-	return v + 1;
 }
 
 static void
 poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
-	struct mem_funcs *mf = &poll_loop->mf;
-	_getdns_eventloop_info *s, *tmp;
 	uint64_t now, timeout = TIMEOUT_FOREVER;
 	size_t  i = 0, j;
 	int poll_timeout = 0;
-	unsigned int num_pfds = 0;
-	_getdns_eventloop_info* fd_timeout_cbs = NULL;
 
 	if (!loop)
 		return;
@@ -330,7 +343,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 			    (void *) (intptr_t) (j + 1);
 		}
 		if (poll_loop->to_events[j].timeout_time < now)
-			poll_timeout_cb(-1, poll_loop->to_events[j].event);
+			poll_timeout_cb(poll_loop->to_events[j].event);
 	}
 	for (i = 0, j = 0; i < poll_loop->to_events_free; i++, j++) {
 		while (poll_loop->to_events[i].event == NULL) {
@@ -350,89 +363,98 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		if (poll_loop->to_events[j].timeout_time < timeout)
 			timeout = poll_loop->to_events[j].timeout_time;
 	}
-	/* first we count the number of fds that will be active */
-	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
-		if (s->event->read_cb ||
-		    s->event->write_cb)
-			num_pfds++;
-		if (s->timeout_time < timeout)
-			timeout = s->timeout_time;
-	}
-
-	if ((timeout == TIMEOUT_FOREVER) && (num_pfds == 0))
+	if ((timeout == TIMEOUT_FOREVER) && (poll_loop->fd_events_free == 0))
 		return;
 
-	if (num_pfds >= poll_loop->pfds_capacity) {
-		poll_loop->pfds_capacity = up_pow2(num_pfds + 1);
-		if (!poll_loop->pfds) {
-			poll_loop->pfds = GETDNS_XMALLOC(poll_loop->mf, struct pollfd, poll_loop->pfds_capacity);
-		} else
-			poll_loop->pfds = GETDNS_XREALLOC(poll_loop->mf, poll_loop->pfds, struct pollfd, poll_loop->pfds_capacity);
-		if (poll_loop->pfds == 0) {
-			poll_loop->pfds_capacity = 0;
-			return;
+	for (i = 0, j = 0; i < poll_loop->fd_events_free; i++, j++) {
+		while (poll_loop->fd_events[i].event == NULL) {
+			if (++i == poll_loop->fd_events_free) {
+				poll_loop->fd_events_free = j;
+				break;
+			}
 		}
+		if (j < i) {
+			if (j >= poll_loop->fd_events_free)
+				break;
+			poll_loop->fd_events[j] = poll_loop->fd_events[i];
+			poll_loop->fd_events[i].event = NULL;
+			poll_loop->fd_events[j].event->ev =
+			    (void *) (intptr_t) (j + 1);
+			poll_loop->pfds[j] = poll_loop->pfds[i];
+			poll_loop->pfds[i].fd = -1;
+		}
+		if (poll_loop->fd_events[j].timeout_time < timeout)
+			timeout = poll_loop->fd_events[j].timeout_time;
 	}
-	i = 0;
-	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
-		if (!s->event->read_cb && !s->event->write_cb)
-			continue;
-		poll_loop->pfds[i].fd = s->id;
-		poll_loop->pfds[i].events = 0;
-		poll_loop->pfds[i].revents = 0; /* <-- probably not needed */
-		if (s->event->read_cb)
-			poll_loop->pfds[i].events |= POLLIN;
-		if (s->event->write_cb) 
-			poll_loop->pfds[i].events |= POLLOUT;
-		i++;
-	}
-	assert(i == num_pfds);
 
 	if (timeout == TIMEOUT_FOREVER) {
 		poll_timeout = -1;
-	}
-	else if (! blocking || now > timeout) {
+
+	} else if (! blocking || now > timeout) {
 		poll_timeout = 0;
 	} else {
-		poll_timeout = (timeout - now) / 1000; /* turn microseconds into milliseconds */
+		/* turn microseconds into milliseconds */
+		poll_timeout = (timeout - now) / 1000;
 	}
 #ifdef USE_WINSOCK
-	if (WSAPoll(poll_loop->pfds, num_pfds, poll_timeout) < 0) {
+	if (WSAPoll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 #else	
-	if (poll(poll_loop->pfds, num_pfds, poll_timeout) < 0) {
+	if (poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 #endif
 		perror("poll() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = get_now_plus(0);
-	for (i = 0; i < num_pfds; i++) {
-		int fd = poll_loop->pfds[i].fd;
-		_getdns_eventloop_info* fd_event = find_event(&poll_loop->fd_events, fd);
-		if (fd_event && fd_event->event) { 
-			getdns_eventloop_event* event = fd_event->event;
-			if (event->write_cb &&
-			    (poll_loop->pfds[i].revents & POLLOUT))
-				poll_write_cb(fd, event);
 
-			else if (event->read_cb &&
-			    (poll_loop->pfds[i].revents & POLLIN))
-				poll_read_cb(fd, event);
+	for (i = 0, j = 0; i < poll_loop->fd_events_free; i++, j++) {
+		while (poll_loop->fd_events[i].event == NULL) {
+			if (++i == poll_loop->fd_events_free) {
+				poll_loop->fd_events_free = j;
+				break;
+			}
 		}
+		if (j < i) {
+			if (j >= poll_loop->fd_events_free)
+				break;
+			poll_loop->fd_events[j] = poll_loop->fd_events[i];
+			poll_loop->fd_events[i].event = NULL;
+			poll_loop->fd_events[j].event->ev =
+			    (void *) (intptr_t) (j + 1);
+			poll_loop->pfds[j] = poll_loop->pfds[i];
+			poll_loop->pfds[i].fd = -1;
+		}
+		if (poll_loop->fd_events[j].event->write_cb &&
+		    poll_loop->pfds[j].revents & POLLOUT)
+			poll_write_cb( poll_loop->pfds[j].fd
+			             , poll_loop->fd_events[j].event);
+
+		if (poll_loop->fd_events[j].event &&
+		    poll_loop->fd_events[j].event->read_cb &&
+		    poll_loop->pfds[j].revents & POLLIN)
+			poll_read_cb( poll_loop->pfds[j].fd
+			            , poll_loop->fd_events[j].event);
 	}
-	HASH_ITER(hh, poll_loop->fd_events, s, tmp) {
-		if (s->event &&
-		    s->event->timeout_cb &&
-		    now > s->timeout_time)
-			(void) add_event(mf, &fd_timeout_cbs, s->id, s->event, s->timeout_time);
+	for (i = 0, j = 0; i < poll_loop->fd_events_free; i++, j++) {
+		while (poll_loop->fd_events[i].event == NULL) {
+			if (++i == poll_loop->fd_events_free) {
+				poll_loop->fd_events_free = j;
+				break;
+			}
+		}
+		if (j < i) {
+			if (j >= poll_loop->fd_events_free)
+				break;
+			poll_loop->fd_events[j] = poll_loop->fd_events[i];
+			poll_loop->fd_events[i].event = NULL;
+			poll_loop->fd_events[j].event->ev =
+			    (void *) (intptr_t) (j + 1);
+			poll_loop->pfds[j] = poll_loop->pfds[i];
+			poll_loop->pfds[i].fd = -1;
+		}
+		if (poll_loop->fd_events[j].timeout_time < now)
+			poll_timeout_cb(poll_loop->fd_events[j].event);
 	}
-	/* this is in case the timeout callback deletes the event
-	   and thus messes with the iteration */
-	HASH_ITER(hh, fd_timeout_cbs, s, tmp) {
-		int fd = s->id;
-		getdns_eventloop_event* event = s->event;
-		delete_event(mf, &fd_timeout_cbs, s);
-		poll_timeout_cb(fd, event);
-	}
+
 	for (i = 0, j = 0; i < poll_loop->to_events_free; i++, j++) {
 		while (poll_loop->to_events[i].event == NULL) {
 			if (++i == poll_loop->to_events_free) {
@@ -449,7 +471,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 			    (void *) (intptr_t) (j + 1);
 		}
 		if (poll_loop->to_events[j].timeout_time < now)
-			poll_timeout_cb(-1, poll_loop->to_events[j].event);
+			poll_timeout_cb(poll_loop->to_events[j].event);
 	}
 }
 
@@ -462,7 +484,7 @@ poll_eventloop_run(getdns_eventloop *loop)
 		return;
 
 	/* keep going until all the events are cleared */
-	while (poll_loop->fd_events || poll_loop->to_events_n_used) {
+	while (poll_loop->fd_events_n_used || poll_loop->to_events_n_used) {
 		poll_eventloop_run_once(loop, 1);
 	}
 }
@@ -494,21 +516,33 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 #if HAVE_GETRLIMIT
 	}
 #endif
-	loop->pfds_capacity = init_pfds_capacity;
-	if (!(loop->pfds = GETDNS_XMALLOC(
-	    *mf, struct pollfd, init_pfds_capacity)))
-		loop->pfds_capacity = 0;
-
-	loop->fd_events = NULL;
-
 	loop->to_events_capacity = init_to_events_capacity;
 	if ((loop->to_events = GETDNS_XMALLOC(
-	    *mf, _getdns_poll_to_event, init_to_events_capacity)))
+	    *mf, _getdns_poll_event, init_to_events_capacity)))
 		(void) memset(loop->to_events, 0,
-		    sizeof(_getdns_poll_to_event) * init_to_events_capacity);
+		    sizeof(_getdns_poll_event) * init_to_events_capacity);
 	else
 		loop->to_events_capacity = 0;
 	loop->to_events_free = 0;
 	loop->to_events_n_used = 0;
+
+	loop->fd_events_capacity = init_fd_events_capacity;
+	if ((loop->fd_events = GETDNS_XMALLOC(
+	    *mf, _getdns_poll_event, init_fd_events_capacity)) &&
+	    (loop->pfds = GETDNS_XMALLOC(
+	    *mf, struct pollfd, init_fd_events_capacity))) {
+		(void) memset(loop->fd_events, 0,
+		    sizeof(_getdns_poll_event) * init_fd_events_capacity);
+		(void) memset(loop->pfds, 0,
+		    sizeof(struct pollfd) * init_fd_events_capacity);
+	} else {
+		loop->fd_events_capacity = 0;
+		if (loop->fd_events) {
+			GETDNS_FREE(*mf, loop->fd_events);
+			loop->fd_events = NULL;
+		}
+	}
+	loop->fd_events_free = 0;
+	loop->fd_events_n_used = 0;
 }
 
