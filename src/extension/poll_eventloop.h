@@ -49,15 +49,20 @@ typedef struct _getdns_eventloop_info {
 	UT_hash_handle		hh;
 } _getdns_eventloop_info;
 
+typedef struct _getdns_poll_to_event {
+	getdns_eventloop_event *event;
+	uint64_t                timeout_time;
+} _getdns_poll_to_event;
+
 typedef struct _getdns_poll_eventloop {
 	getdns_eventloop        loop;
 	struct mem_funcs        mf;
 	unsigned int		max_fds;
-	unsigned int		timeout_id;
-	struct pollfd          *pfds;
 	unsigned long           pfds_capacity;
+	struct pollfd          *pfds;
 	_getdns_eventloop_info *fd_events;
-	_getdns_eventloop_info *timeout_events;
+	unsigned long           to_events_capacity;
+	_getdns_poll_to_event  *to_events;
 } _getdns_poll_eventloop;
 
 void
