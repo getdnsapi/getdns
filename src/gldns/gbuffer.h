@@ -194,14 +194,16 @@ void gldns_buffer_init_frm_data(gldns_buffer *buffer, void *data, size_t size);
 
 /**
  * Setup a buffer with the data pointed to. No data copied, no memory allocs.
- * The buffer is fixed.  Writes beyond size (the capacity) will update the 
- * position (and not write data).  This allows to determine how big the buffer
- * should have been to contain all the written data.
+ * The buffer is "virtually" fixed.  Writes beyond size (the capacity) will
+ * only update position, but no data will be written beyond capacity.  This
+ * allows to determine how big the buffer should have been to contain all the
+ * written data, by looking at the position with gldns_buffer_position(),
+ * similarly to the return value of POSIX's snprintf.
  * \param[in] buffer pointer to the buffer to put the data in
  * \param[in] data the data to encapsulate in the buffer
  * \param[in] size the size of the data
  */
-void gldns_buffer_init_frm_data_v(gldns_buffer *buffer, void *data, size_t size);
+void gldns_buffer_init_vfixed_frm_data(gldns_buffer *buffer, void *data, size_t size);
 
 /**
  * clears the buffer and make it ready for writing.  The buffer's limit

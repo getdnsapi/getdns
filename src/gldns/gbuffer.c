@@ -72,7 +72,7 @@ gldns_buffer_init_frm_data(gldns_buffer *buffer, void *data, size_t size)
 }
 
 void
-gldns_buffer_init_frm_data_v(gldns_buffer *buffer, void *data, size_t size)
+gldns_buffer_init_vfixed_frm_data(gldns_buffer *buffer, void *data, size_t size)
 {
 	memset(buffer, 0, sizeof(*buffer));
 	buffer->_data = data;

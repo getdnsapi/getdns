@@ -1510,7 +1510,7 @@ uint8_t *_getdns_list2wire(
 	gldns_buffer gbuf;
 	size_t sz;
 
-	gldns_buffer_init_frm_data_v(&gbuf, buf, *buf_len);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf, *buf_len);
 	_getdns_list2wire_buf(&gbuf, l);
 
 	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len) {
@@ -1531,7 +1531,7 @@ uint8_t *_getdns_reply2wire(
 	gldns_buffer gbuf;
 	size_t sz;
 
-	gldns_buffer_init_frm_data_v(&gbuf, buf, *buf_len);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf, *buf_len);
 	_getdns_reply2wire_buf(&gbuf, r);
 
 	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len) {
