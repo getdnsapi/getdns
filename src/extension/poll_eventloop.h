@@ -46,7 +46,6 @@ typedef struct _getdns_poll_event {
 typedef struct _getdns_poll_eventloop {
 	getdns_eventloop    loop;
 	struct mem_funcs    mf;
-	unsigned int        max_fds;
 
 	struct pollfd      *pfds;
 	size_t              fd_events_capacity;

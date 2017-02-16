@@ -153,20 +153,12 @@ poll_eventloop_schedule(getdns_eventloop *loop,
 {
 	_getdns_poll_eventloop *poll_loop  = (_getdns_poll_eventloop *)loop;
 
-	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, max_fds: %d)\n"
-	        , __FUNC__, (void *)loop, fd, timeout, (void *)event, poll_loop->max_fds);
+	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p)\n"
+	        , __FUNC__, (void *)loop, fd, timeout, (void *)event);
 
 	if (!loop || !event)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-
-#ifdef HAVE_GETRLIMIT
-	if (fd >= (int)poll_loop->max_fds) {
-		DEBUG_SCHED( "ERROR: fd %d >= max_fds: %d!\n"
-		           , fd, poll_loop->max_fds);
-		return GETDNS_RETURN_GENERIC_ERROR;
-	}
-#endif
 	if (fd >= 0 && !(event->read_cb || event->write_cb)) {
 		DEBUG_SCHED("WARNING: fd event without "
 		            "read or write cb!\n");
@@ -492,9 +484,6 @@ poll_eventloop_run(getdns_eventloop *loop)
 void
 _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 {
-#ifdef HAVE_GETRLIMIT
-	struct rlimit rl;
-#endif
 	static getdns_eventloop_vmt poll_eventloop_vmt = {
 		poll_eventloop_cleanup,
 		poll_eventloop_schedule,
@@ -506,16 +495,6 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 	loop->loop.vmt = &poll_eventloop_vmt;
 	loop->mf = *mf;
 
-#ifdef HAVE_GETRLIMIT
-	if (getrlimit(RLIMIT_NOFILE, &rl) == 0) {
-		loop->max_fds = rl.rlim_cur;
-	} else {
-		DEBUG_SCHED("ERROR: could not obtain RLIMIT_NOFILE from getrlimit()\n");
-#endif
-		loop->max_fds = 0;
-#if HAVE_GETRLIMIT
-	}
-#endif
 	loop->to_events_capacity = init_to_events_capacity;
 	if ((loop->to_events = GETDNS_XMALLOC(
 	    *mf, _getdns_poll_event, init_to_events_capacity)))
