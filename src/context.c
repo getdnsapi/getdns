@@ -3275,9 +3275,11 @@ _getdns_context_request_timed_out(getdns_dns_req *req)
 
 	/* cancel the req - also clears it from outbound and cleans up*/
 	_getdns_context_cancel_request(context, trans_id, 0);
-	context->processing = 1;
-	cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
-	context->processing = 0;
+	if (cb) {
+		context->processing = 1;
+		cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
+		context->processing = 0;
+	}
 	getdns_context_request_count_changed(context);
 	return GETDNS_RETURN_GOOD;
 }
