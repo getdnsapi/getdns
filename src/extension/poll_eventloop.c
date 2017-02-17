@@ -51,7 +51,7 @@ static void *get_to_event(_getdns_poll_eventloop *loop,
 			    loop->to_events_free * 2);
 			if (!to_events)
 				return NULL;
-			(void) memset(&loop->to_events[loop->to_events_free],
+			(void) memset(&to_events[loop->to_events_free],
 			    0, sizeof(_getdns_poll_event)
 			     * loop->to_events_free);
 
@@ -78,6 +78,8 @@ static void *get_to_event(_getdns_poll_eventloop *loop,
 static void *get_fd_event(_getdns_poll_eventloop *loop, int fd,
     getdns_eventloop_event *event, uint64_t timeout_time)
 {
+	size_t i;
+
 	if (loop->fd_events_free == loop->fd_events_capacity) {
 		if (loop->fd_events_free) {
 			_getdns_poll_event *fd_events = GETDNS_XREALLOC(
@@ -94,12 +96,16 @@ static void *get_fd_event(_getdns_poll_eventloop *loop, int fd,
 					GETDNS_FREE(loop->mf, pfds);
 				return NULL;
 			}
-			(void) memset(&loop->fd_events[loop->fd_events_free],
+			(void) memset(&fd_events[loop->fd_events_free],
 			    0, sizeof(_getdns_poll_event)
 			     * loop->fd_events_free);
-			(void) memset(&loop->pfds[loop->fd_events_free],
-			    0, sizeof(struct pollfd) * loop->fd_events_free);
-
+			for ( i = loop->fd_events_free
+			    ; i < loop->fd_events_free * 2
+			    ; i++) {
+				pfds[i].fd = -1;
+				pfds[i].events  = 0;
+				pfds[i].revents = 0;
+			}
 			loop->fd_events_capacity = loop->fd_events_free * 2;
 			loop->fd_events = fd_events;
 			loop->pfds = pfds;
@@ -114,9 +120,11 @@ static void *get_fd_event(_getdns_poll_eventloop *loop, int fd,
 			(void) memset(loop->fd_events, 0,
 			    sizeof(_getdns_poll_event)
 			    * init_fd_events_capacity);
-			(void) memset(loop->pfds, 0,
-			    sizeof(struct pollfd) * init_fd_events_capacity);
-
+			for (i = 0; i < init_fd_events_capacity; i++) {
+				loop->pfds[i].fd = -1;
+				loop->pfds[i].events  = 0;
+				loop->pfds[i].revents = 0;
+			}
 			loop->fd_events_capacity = init_fd_events_capacity;
 		}
 	}
@@ -510,10 +518,15 @@ _getdns_poll_eventloop_init(struct mem_funcs *mf, _getdns_poll_eventloop *loop)
 	    *mf, _getdns_poll_event, init_fd_events_capacity)) &&
 	    (loop->pfds = GETDNS_XMALLOC(
 	    *mf, struct pollfd, init_fd_events_capacity))) {
+		size_t i;
+
 		(void) memset(loop->fd_events, 0,
 		    sizeof(_getdns_poll_event) * init_fd_events_capacity);
-		(void) memset(loop->pfds, 0,
-		    sizeof(struct pollfd) * init_fd_events_capacity);
+		for (i = 0; i < init_fd_events_capacity; i++) {
+			loop->pfds[i].fd = -1;
+			loop->pfds[i].events  = 0;
+			loop->pfds[i].revents = 0;
+		}
 	} else {
 		loop->fd_events_capacity = 0;
 		if (loop->fd_events) {
