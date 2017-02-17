@@ -267,6 +267,7 @@ typedef struct getdns_network_req
 static inline int _getdns_netreq_finished(getdns_network_req *req)
 { return !req || (req->state & NET_REQ_FINISHED); }
 
+struct chain_head;
 /**
  * dns request - manages a number of network requests and
  * the initial data passed to getdns_general
@@ -321,6 +322,9 @@ typedef struct getdns_dns_req {
 	 */
 	unsigned validating				: 1;
 	int *freed;
+
+	/* Validation chain to be canceled when this request is canceled */
+	struct chain_head *chain;
 
 	uint16_t tls_query_padding_blocksize;
 

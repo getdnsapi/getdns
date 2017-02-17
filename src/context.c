@@ -2915,6 +2915,9 @@ _getdns_context_cancel_request(getdns_context *context,
 	    &context->outbound_requests, &transaction_id)))
 		return GETDNS_RETURN_UNKNOWN_TRANSACTION;
 
+	if (dnsreq->chain)
+		_getdns_cancel_validation_chain(dnsreq);
+
 	/* do the cancel */
 	cancel_dns_req(dnsreq);
 
