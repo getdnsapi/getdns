@@ -602,7 +602,7 @@ stub_timeout_cb(void *userarg)
 	if (netreq->owner->user_callback) {
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		/* Note this calls cancel_request which calls stub_cleanup again....!*/
-		(void) _getdns_context_request_timed_out(netreq->owner);
+		_getdns_context_request_timed_out(netreq->owner);
 	} else
 		_getdns_check_dns_req_complete(netreq->owner);
 }

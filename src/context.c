@@ -135,8 +135,7 @@ static getdns_return_t create_default_namespaces(struct getdns_context *context)
 static getdns_return_t create_default_dns_transports(struct getdns_context *context);
 static int transaction_id_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
-static void cancel_dns_req(getdns_dns_req *);
-static void cancel_outstanding_requests(struct getdns_context*, int);
+static void cancel_outstanding_requests(getdns_context*);
 
 /* unbound helpers */
 #ifdef HAVE_LIBUNBOUND
@@ -682,8 +681,7 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		while (upstream->finished_dnsreqs) {
 			dnsreq = upstream->finished_dnsreqs;
 			upstream->finished_dnsreqs = dnsreq->finished_next;
-			(void) _getdns_context_cancel_request(dnsreq->context,
-			    dnsreq->trans_id, 1);
+			_getdns_context_cancel_request(dnsreq);
 		}
 		if (upstream->tls_obj != NULL) {
 		    if (upstream->tls_session != NULL)
@@ -1521,7 +1519,7 @@ getdns_context_destroy(struct getdns_context *context)
 
 	context->destroying = 1;
 	/* cancel all outstanding requests */
-	cancel_outstanding_requests(context, 1);
+	cancel_outstanding_requests(context);
 
 	/* Destroy listening addresses */
 	(void) getdns_context_set_listen_addresses(context, NULL, NULL, NULL);
@@ -1705,7 +1703,7 @@ static getdns_return_t
 rebuild_ub_ctx(struct getdns_context* context) {
 	if (context->unbound_ctx != NULL) {
 		/* cancel all requests and delete */
-		cancel_outstanding_requests(context, 1);
+		cancel_outstanding_requests(context);
 		ub_ctx_delete(context->unbound_ctx);
 		context->unbound_ctx = NULL;
 	}
@@ -2882,28 +2880,68 @@ getdns_context_set_memory_functions(struct getdns_context *context,
         context, MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 } /* getdns_context_set_memory_functions*/
 
-/* cancel the request */
-static void
-cancel_dns_req(getdns_dns_req *req)
+void
+_getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
+{
+	/* Called only by getdns_general_ns() after successful allocation */
+	assert(dnsreq);
+
+	dnsreq->node.key = &(dnsreq->trans_id);
+	if (_getdns_rbtree_insert(
+	    &dnsreq->context->outbound_requests, &dnsreq->node))
+		getdns_context_request_count_changed(dnsreq->context);
+}
+
+void
+_getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
+{
+    	if (!dnsreq) return;
+
+	if (dnsreq->loop && dnsreq->loop->vmt && dnsreq->timeout.timeout_cb) {
+		dnsreq->loop->vmt->clear(dnsreq->loop, &dnsreq->timeout);
+		dnsreq->timeout.timeout_cb = NULL;
+	}
+	/* delete the node from the tree */
+	if (_getdns_rbtree_delete(
+	    &dnsreq->context->outbound_requests, &dnsreq->trans_id))
+		getdns_context_request_count_changed(dnsreq->context);
+
+	if (dnsreq->chain)
+		_getdns_cancel_validation_chain(dnsreq);
+}
+
+void
+_getdns_context_cancel_request(getdns_dns_req *dnsreq)
 {
 	getdns_network_req *netreq, **netreq_p;
 
-	for (netreq_p = req->netreqs; (netreq = *netreq_p); netreq_p++)
+	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
+	if (!dnsreq) return;
+
+	_getdns_context_clear_outbound_request(dnsreq);
+
+	/* cancel network requests */
+	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p); netreq_p++)
 #ifdef HAVE_LIBUNBOUND
 		if (netreq->unbound_id != -1) {
-			ub_cancel(req->context->unbound_ctx,
+			ub_cancel(dnsreq->context->unbound_ctx,
 			    netreq->unbound_id);
 			netreq->unbound_id = -1;
 		} else
 #endif
 			_getdns_cancel_stub_request(netreq);
 
-	req->canceled = 1;
+	/* clean up */
+	_getdns_dns_req_free(dnsreq);
 }
 
+/*
+ * getdns_cancel_callback
+ *
+ */
 getdns_return_t
-_getdns_context_cancel_request(getdns_context *context,
-    getdns_transaction_t transaction_id, int fire_callback)
+getdns_cancel_callback(getdns_context *context,
+    getdns_transaction_t transaction_id)
 {
 	getdns_dns_req *dnsreq;
 
@@ -2915,40 +2953,69 @@ _getdns_context_cancel_request(getdns_context *context,
 	    &context->outbound_requests, &transaction_id)))
 		return GETDNS_RETURN_UNKNOWN_TRANSACTION;
 
-	if (dnsreq->chain)
-		_getdns_cancel_validation_chain(dnsreq);
-
-	/* do the cancel */
-	cancel_dns_req(dnsreq);
-
-	if (fire_callback && dnsreq->user_callback) {
-		context->processing = 1;
-		dnsreq->user_callback(context, GETDNS_CALLBACK_CANCEL,
-		    NULL, dnsreq->user_pointer, transaction_id);
-		context->processing = 0;
-	}
-
-	/* clean up */
-	_getdns_dns_req_free(dnsreq);
-	return GETDNS_RETURN_GOOD;
-}
-
-/*
- * getdns_cancel_callback
- *
- */
-getdns_return_t
-getdns_cancel_callback(getdns_context *context,
-    getdns_transaction_t transaction_id)
-{
-	if (!context)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	getdns_return_t r = _getdns_context_cancel_request(context, transaction_id, 1);
 	getdns_context_request_count_changed(context);
-	return r;
+
+	if (dnsreq->user_callback) {
+		dnsreq->context->processing = 1;
+		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_CANCEL,
+		    NULL, dnsreq->user_pointer, dnsreq->trans_id);
+		dnsreq->context->processing = 0;
+	}
+	_getdns_context_cancel_request(dnsreq);
+	return GETDNS_RETURN_GOOD;
 } /* getdns_cancel_callback */
 
+void
+_getdns_context_request_timed_out(getdns_dns_req *dnsreq)
+{
+	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
+
+	if (dnsreq->user_callback) {
+		dnsreq->context->processing = 1;
+		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_TIMEOUT,
+		    _getdns_create_getdns_response(dnsreq),
+		     dnsreq->user_pointer, dnsreq->trans_id);
+		dnsreq->context->processing = 0;
+	}
+	_getdns_context_cancel_request(dnsreq);
+}
+
+static void
+accumulate_outstanding_transactions(_getdns_rbnode_t *node, void* arg)
+{
+	*(*(getdns_dns_req ***)arg)++ = (getdns_dns_req *)node;
+}
+
+static void
+cancel_outstanding_requests(getdns_context* context)
+{
+	getdns_dns_req **dnsreqs, **dnsreq_a, **dnsreq_i;
+
+	if (context->outbound_requests.count == 0)
+		return;
+
+	dnsreq_i = dnsreq_a = dnsreqs = GETDNS_XMALLOC(context->my_mf,
+	    getdns_dns_req *, context->outbound_requests.count);
+
+	_getdns_traverse_postorder(&context->outbound_requests,
+	    accumulate_outstanding_transactions, &dnsreq_a);
+
+	while (dnsreq_i < dnsreq_a) {
+		getdns_dns_req *dnsreq = *dnsreq_i;
+
+		if (dnsreq->user_callback) {
+			dnsreq->context->processing = 1;
+			dnsreq->user_callback(dnsreq->context,
+			    GETDNS_CALLBACK_CANCEL, NULL,
+			    dnsreq->user_pointer, dnsreq->trans_id);
+			dnsreq->context->processing = 0;
+		}
+		_getdns_context_cancel_request(dnsreq);
+
+		dnsreq_i += 1;
+	}
+	GETDNS_FREE(context->my_mf, dnsreqs);
+}
 
 #ifndef STUB_NATIVE_DNSSEC
 
@@ -3234,56 +3301,6 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 	return r;
 } /* _getdns_context_prepare_for_resolution */
 
-getdns_return_t
-_getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
-{
-    	if (!dnsreq)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	dnsreq->node.key = &(dnsreq->trans_id);
-	if (!_getdns_rbtree_insert(
-	    &dnsreq->context->outbound_requests, &dnsreq->node))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	getdns_context_request_count_changed(dnsreq->context);
-	return GETDNS_RETURN_GOOD;
-}
-
-getdns_return_t
-_getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
-{
-    	if (!dnsreq)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (!_getdns_rbtree_delete(
-	    &dnsreq->context->outbound_requests, &dnsreq->trans_id))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	getdns_context_request_count_changed(dnsreq->context);
-	return GETDNS_RETURN_GOOD;
-}
-
-getdns_return_t
-_getdns_context_request_timed_out(getdns_dns_req *req)
-{
-	/* Don't use req after callback */
-	getdns_context* context = req->context;
-	getdns_transaction_t trans_id = req->trans_id;
-	getdns_callback_t cb = req->user_callback;
-	void *user_arg = req->user_pointer;
-	getdns_dict *response = _getdns_create_getdns_response(req);
-
-	/* cancel the req - also clears it from outbound and cleans up*/
-	_getdns_context_cancel_request(context, trans_id, 0);
-	if (cb) {
-		context->processing = 1;
-		cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
-		context->processing = 0;
-	}
-	getdns_context_request_count_changed(context);
-	return GETDNS_RETURN_GOOD;
-}
-
 char *
 _getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
@@ -3365,33 +3382,6 @@ getdns_context_run(getdns_context *context)
 	context->extension->vmt->run(context->extension);
 }
 
-typedef struct timeout_accumulator {
-    getdns_transaction_t* ids;
-    int idx;
-} timeout_accumulator;
-
-static void
-accumulate_outstanding_transactions(_getdns_rbnode_t* node, void* arg) {
-    timeout_accumulator* acc = (timeout_accumulator*) arg;
-    acc->ids[acc->idx] = *((getdns_transaction_t*) node->key);
-    acc->idx++;
-}
-
-static void
-cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
-    if (context->outbound_requests.count > 0) {
-        timeout_accumulator acc;
-        int i;
-        acc.idx = 0;
-        acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests.count);
-        _getdns_traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
-        for (i = 0; i < acc.idx; ++i) {
-            _getdns_context_cancel_request(context, acc.ids[i], fire_callback);
-        }
-        GETDNS_FREE(context->my_mf, acc.ids);
-    }
-}
-
 getdns_return_t
 getdns_context_detach_eventloop(struct getdns_context* context)
 {
@@ -3405,7 +3395,7 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	 *   and they may destroy the context )
 	 */
 	/* cancel all outstanding requests */
-	cancel_outstanding_requests(context, 1);
+	cancel_outstanding_requests(context);
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->default_eventloop.loop;
 	_getdns_default_eventloop_init(&context->mf, &context->default_eventloop);
@@ -3423,7 +3413,7 @@ getdns_context_set_eventloop(getdns_context* context, getdns_eventloop* loop)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (context->extension) {
-		cancel_outstanding_requests(context, 1);
+		cancel_outstanding_requests(context);
 		context->extension->vmt->cleanup(context->extension);
 	}
 	context->extension = loop;

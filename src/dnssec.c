@@ -1044,7 +1044,6 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	_getdns_rrsig_iter  *rrsig, rrsig_spc;
 	size_t n_signers;
 
-	_getdns_context_clear_outbound_request(dnsreq);
 	switch (netreq->request_type) {
 	case GETDNS_RRTYPE_DS    : node->ds.pkt     = netreq->response;
 	                           node->ds.pkt_len = netreq->response_len;
@@ -1094,7 +1093,6 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	_getdns_rrset_iter i_spc, *i;
 	_getdns_rrset *rrset;
 
-	_getdns_context_clear_outbound_request(dnsreq);
 	/* A SOA query is always scheduled with a node as the user argument.
 	 */
 	assert(node != NULL);
@@ -1121,8 +1119,10 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		} else {
 			/* SOA for a different name */
 			node = (chain_node *)dnsreq->user_pointer;
-			node->lock++;
-			val_chain_sched_soa_node(node->parent);
+			if (node->parent) {
+				node->lock++;
+				val_chain_sched_soa_node(node->parent);
+			}
 		}
 
 	} else if (node->parent) {
@@ -3049,7 +3049,10 @@ static void check_chain_complete(chain_head *chain)
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
-	/* Walk chain to add values to val_chain_list and to cleanup */
+	/* Walk chain to add values to val_chain_list.  We do not cleanup yet.
+	 * The chain will eventually be freed when the dns request is descheduled
+	 * with getdns_context_clear_outbound_request().
+	 */
 	for ( head = chain; head ; head = next ) {
 		next = head->next;
 		if (dnsreq->dnssec_return_full_validation_chain &&
@@ -3076,7 +3079,6 @@ static void check_chain_complete(chain_head *chain)
 					    context, val_chain_list,
 					    node->dnskey_req,
 					    node->dnskey_signer);
-				_getdns_dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
 				if (val_chain_list)
@@ -3094,13 +3096,8 @@ static void check_chain_complete(chain_head *chain)
 					    context, val_chain_list,
 					    &node->ds);
 				}
-				_getdns_dns_req_free(node->ds_req->owner);
-			}
-			if (node->soa_req) {
-				_getdns_dns_req_free(node->soa_req->owner);
 			}
 		}
-		GETDNS_FREE(head->my_mf, head);
 	}
 
 	response_dict = _getdns_create_getdns_response(dnsreq);
@@ -3117,11 +3114,12 @@ static void check_chain_complete(chain_head *chain)
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
-	chain_head *head, *next;
+	chain_head *head = dnsreq->chain, *next;
 	chain_node *node;
 	size_t      node_count;
 
-	for ( head = dnsreq->chain; head ; head = next ) {
+	dnsreq->chain = NULL;
+	while (head) {
 		next = head->next;
 
 		for ( node_count = head->node_count, node = head->parent
@@ -3130,22 +3128,19 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 
 			if (node->dnskey_req)
 				_getdns_context_cancel_request(
-				    node->dnskey_req->owner->context,
-				    node->dnskey_req->owner->trans_id, 0);
+				    node->dnskey_req->owner);
 
 			if (node->ds_req)
 				_getdns_context_cancel_request(
-				    node->ds_req->owner->context,
-				    node->ds_req->owner->trans_id, 0);
-			
-			if (node->soa_req) 
+				    node->ds_req->owner);
+
+			if (node->soa_req)
 				_getdns_context_cancel_request(
-				    node->soa_req->owner->context,
-				    node->soa_req->owner->trans_id, 0);
+				    node->soa_req->owner);
 		}
 		GETDNS_FREE(head->my_mf, head);
+		head = next;
 	}
-	dnsreq->chain = NULL;
 }
 
 void _getdns_get_validation_chain(getdns_dns_req *dnsreq)

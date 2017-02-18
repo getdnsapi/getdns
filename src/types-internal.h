@@ -290,9 +290,6 @@ typedef struct getdns_dns_req {
 	size_t  suffix_len;
 	unsigned suffix_appended			: 1;
 
-	/* canceled flag */
-	unsigned canceled				: 1;
-
 	/* request extensions */
 	unsigned dnssec_return_status			: 1;
 	unsigned dnssec_return_only_secure		: 1;

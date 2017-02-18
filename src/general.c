@@ -54,14 +54,6 @@
 #include "dict.h"
 #include "mdns.h"
 
-/* cancel, cleanup and send timeout to callback */
-static void
-ub_resolve_timeout(void *arg)
-{
-	getdns_dns_req *dns_req = (getdns_dns_req *) arg;
-	(void) _getdns_context_request_timed_out(dns_req);
-}
-
 void _getdns_call_user_callback(getdns_dns_req *dns_req,
     struct getdns_dict *response)
 {
@@ -72,13 +64,14 @@ void _getdns_call_user_callback(getdns_dns_req *dns_req,
 
 	/* clean up */
 	_getdns_context_clear_outbound_request(dns_req);
-	_getdns_dns_req_free(dns_req);
 
 	context->processing = 1;
 	cb(context,
 	    (response ? GETDNS_CALLBACK_COMPLETE : GETDNS_CALLBACK_ERROR),
 	    response, user_arg, trans_id);
 	context->processing = 0;
+
+	_getdns_dns_req_free(dns_req);
 }
 
 static int
@@ -186,9 +179,10 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			return;
 		}
 	}
-	if (dns_req->internal_cb)
+	if (dns_req->internal_cb) {
+		_getdns_context_clear_outbound_request(dns_req);
 		dns_req->internal_cb(dns_req);
-	else if (! results_found)
+	} else if (! results_found)
 		_getdns_call_user_callback(dns_req, NULL);
 	else if (dns_req->dnssec_return_validation_chain
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
@@ -290,7 +284,9 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 			dns_req->timeout.userarg    = dns_req;
 			dns_req->timeout.read_cb    = NULL;
 			dns_req->timeout.write_cb   = NULL;
-			dns_req->timeout.timeout_cb = ub_resolve_timeout;
+			dns_req->timeout.timeout_cb =
+			    (getdns_eventloop_callback)
+			    _getdns_context_request_timed_out;
 			dns_req->timeout.ev         = NULL;
 			if ((r = dns_req->loop->vmt->schedule(dns_req->loop, -1,
 			    dns_req->context->timeout, &dns_req->timeout)))

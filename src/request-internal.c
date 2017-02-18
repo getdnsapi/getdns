@@ -644,7 +644,7 @@ _getdns_dns_req_free(getdns_dns_req * req)
 		network_req_cleanup(*net_req);
 
 	/* clear timeout event */
-	if (req->timeout.timeout_cb) {
+	if (req->loop && req->loop->vmt && req->timeout.timeout_cb) {
 		req->loop->vmt->clear(req->loop, &req->timeout);
 		req->timeout.timeout_cb = NULL;
 	}
@@ -896,9 +896,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	}
 	result->context = context;
 	result->loop = loop;
-	result->canceled = 0;
-	result->trans_id = (((uint64_t)arc4random()) << 32) |
-	                    ((uint64_t)arc4random());
+	result->trans_id = (uint64_t) (intptr_t) result;
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_all_statuses     = dnssec_return_all_statuses;
