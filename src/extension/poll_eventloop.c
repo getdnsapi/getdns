@@ -396,6 +396,11 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		/* turn microseconds into milliseconds */
 		poll_timeout = (timeout - now) / 1000;
 	}
+	DEBUG_SCHED( "poll(fd_free: %d, fd_used: %d, to_free: %d, to_used: %d, timeout: %d)\n"
+	           , (int)poll_loop->fd_events_free, (int)poll_loop->fd_events_n_used
+	           , (int)poll_loop->to_events_free, (int)poll_loop->to_events_n_used
+		   , poll_timeout
+		   );
 #ifdef USE_WINSOCK
 	if (WSAPoll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 #else	
