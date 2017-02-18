@@ -217,7 +217,6 @@ esac
 
 DEFAULT_EVENTLOOP=select_eventloop
 AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([getrlimit])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)

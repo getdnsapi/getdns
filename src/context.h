@@ -349,19 +349,34 @@ struct getdns_context {
 getdns_return_t _getdns_context_prepare_for_resolution(struct getdns_context *context,
  int usenamespaces);
 
-/* track an outbound request */
-getdns_return_t _getdns_context_track_outbound_request(struct getdns_dns_req
-    *req);
-/* clear the outbound request from being tracked - does not cancel it */
-getdns_return_t _getdns_context_clear_outbound_request(struct getdns_dns_req
-    *req);
+/* Register a getdns_dns_req with context.
+ * - Without pluggable unbound event API,
+ *   ub_fd() is scheduled when this was the first request.
+ */
+void _getdns_context_track_outbound_request(getdns_dns_req *dnsreq);
 
-getdns_return_t _getdns_context_request_timed_out(struct getdns_dns_req
-    *req);
+/* Deregister getdns_dns_req from the context.
+ * - Without pluggable unbound event API,
+ *   ub_fd() is scheduled when this was the first request.
+ * - Potential timeout events will be cleared.
+ * - All associated getdns_dns_reqs (to get the validation chain)
+ *   will be canceled.
+ */
+void _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq);
 
-/* cancel callback internal - flag to indicate if req should be freed and callback fired */
-getdns_return_t _getdns_context_cancel_request(struct getdns_context *context,
-    getdns_transaction_t transaction_id, int fire_callback);
+/* Cancels and frees a getdns_dns_req (without calling user callbacks)
+ * - Deregisters getdns_dns_req with _getdns_context_clear_outbound_request()
+ * - Cancels associated getdns_network_reqs
+ *   (by calling ub_cancel() or _getdns_cancel_stub_request())
+ * - Frees the getdns_dns_req
+ */
+void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
+
+
+/* Calls user callback (with GETDNS_CALLBACK_TIMEOUT + response dict), then
+ * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()
+ */
+void _getdns_context_request_timed_out(getdns_dns_req *dnsreq);
 
 char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 

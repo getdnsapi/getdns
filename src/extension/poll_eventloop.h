@@ -36,28 +36,27 @@
 #include "getdns/getdns_extra.h"
 #include "types-internal.h"
 
-#define uthash_malloc(sz) ((void *)GETDNS_XMALLOC(*mf, unsigned char, sz))
-#define uthash_free(ptr,sz) GETDNS_FREE(*mf, ptr)
-#include "util/uthash.h"
-
 /* Eventloop based on poll */
 
-typedef struct _getdns_eventloop_info {
-	int			id;
+typedef struct _getdns_poll_event {
 	getdns_eventloop_event *event;
 	uint64_t                timeout_time;
-	UT_hash_handle		hh;
-} _getdns_eventloop_info;
+} _getdns_poll_event;
 
 typedef struct _getdns_poll_eventloop {
-	getdns_eventloop        loop;
-	struct mem_funcs        mf;
-	unsigned int		max_fds;
-	unsigned int		timeout_id;
-	struct pollfd          *pfds;
-	unsigned long           pfds_capacity;
-	_getdns_eventloop_info *fd_events;
-	_getdns_eventloop_info *timeout_events;
+	getdns_eventloop    loop;
+	struct mem_funcs    mf;
+
+	struct pollfd      *pfds;
+	size_t              fd_events_capacity;
+	_getdns_poll_event *fd_events;
+	size_t              fd_events_free;
+	size_t              fd_events_n_used;
+
+	size_t              to_events_capacity;
+	_getdns_poll_event *to_events;
+	size_t              to_events_free;
+	size_t              to_events_n_used;
 } _getdns_poll_eventloop;
 
 void
