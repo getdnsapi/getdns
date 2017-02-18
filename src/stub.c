@@ -1299,8 +1299,6 @@ stub_udp_read_cb(void *userarg)
 	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_READ, 
 	             __FUNC__, (void*)netreq);
 
-	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-
 	read = recvfrom(netreq->fd, (void *)netreq->response,
 	    netreq->max_udp_payload_size + 1, /* If read == max_udp_payload_size
 	                                       * then all is good.  If read ==
@@ -1321,6 +1319,8 @@ stub_udp_read_cb(void *userarg)
 	if (netreq->owner->edns_cookies && match_and_process_server_cookie(
 	    upstream, netreq->response, read))
 		return; /* Client cookie didn't match? */
+
+	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
 #ifdef USE_WINSOCK
 	closesocket(netreq->fd);
