@@ -2983,38 +2983,34 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 static void
 accumulate_outstanding_transactions(_getdns_rbnode_t *node, void* arg)
 {
-	*(*(getdns_dns_req ***)arg)++ = (getdns_dns_req *)node;
+	*(*(getdns_transaction_t**)arg)++ = ((getdns_dns_req*)node)->trans_id;
 }
 
 static void
 cancel_outstanding_requests(getdns_context* context)
 {
-	getdns_dns_req **dnsreqs, **dnsreq_a, **dnsreq_i;
+	getdns_transaction_t *trans_ids, *tids_a, *tids_i;
 
 	if (context->outbound_requests.count == 0)
 		return;
 
-	dnsreq_i = dnsreq_a = dnsreqs = GETDNS_XMALLOC(context->my_mf,
-	    getdns_dns_req *, context->outbound_requests.count);
+	tids_i = tids_a = trans_ids = GETDNS_XMALLOC(context->my_mf,
+	    getdns_transaction_t, context->outbound_requests.count);
 
 	_getdns_traverse_postorder(&context->outbound_requests,
-	    accumulate_outstanding_transactions, &dnsreq_a);
+	    accumulate_outstanding_transactions, &tids_a);
 
-	while (dnsreq_i < dnsreq_a) {
-		getdns_dns_req *dnsreq = *dnsreq_i;
+	while (tids_i < tids_a) {
 
-		if (dnsreq->user_callback) {
-			dnsreq->context->processing = 1;
-			dnsreq->user_callback(dnsreq->context,
-			    GETDNS_CALLBACK_CANCEL, NULL,
-			    dnsreq->user_pointer, dnsreq->trans_id);
-			dnsreq->context->processing = 0;
-		}
-		_getdns_context_cancel_request(dnsreq);
-
-		dnsreq_i += 1;
+		/* We have to cancel by transaction_id because we do not know
+		 * what happens when the user_callback is called.  It might
+		 * delete getdns_dns_req's that were scheduled to be canceled.
+		 * The extra lookup with transaction_id makes sure we do not
+		 * access freed memory.
+		 */
+		(void) getdns_cancel_callback(context, *tids_i++);
 	}
-	GETDNS_FREE(context->my_mf, dnsreqs);
+	GETDNS_FREE(context->my_mf, trans_ids);
 }
 
 #ifndef STUB_NATIVE_DNSSEC
