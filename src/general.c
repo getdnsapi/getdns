@@ -54,24 +54,19 @@
 #include "dict.h"
 #include "mdns.h"
 
-void _getdns_call_user_callback(getdns_dns_req *dns_req,
-    struct getdns_dict *response)
+void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 {
-	struct getdns_context *context = dns_req->context;
-	getdns_transaction_t trans_id = dns_req->trans_id;
-	getdns_callback_t cb = dns_req->user_callback;
-	void *user_arg = dns_req->user_pointer;
+	_getdns_context_clear_outbound_request(dnsreq);
 
-	/* clean up */
-	_getdns_context_clear_outbound_request(dns_req);
-
-	context->processing = 1;
-	cb(context,
-	    (response ? GETDNS_CALLBACK_COMPLETE : GETDNS_CALLBACK_ERROR),
-	    response, user_arg, trans_id);
-	context->processing = 0;
-
-	_getdns_dns_req_free(dns_req);
+	if (dnsreq->user_callback) {
+		dnsreq->context->processing = 1;
+		dnsreq->user_callback(dnsreq->context,
+		    (response ? GETDNS_CALLBACK_COMPLETE
+		              : GETDNS_CALLBACK_ERROR),
+		    response, dnsreq->user_pointer, dnsreq->trans_id);
+		dnsreq->context->processing = 0;
+	}
+	_getdns_dns_req_free(dnsreq);
 }
 
 static int
