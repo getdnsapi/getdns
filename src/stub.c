@@ -520,7 +520,7 @@ stub_cleanup(getdns_network_req *netreq)
 static void
 upstream_failed(getdns_upstream *upstream, int during_setup)
 {
-	DEBUG_STUB("%s %-35s: FD:  %d During setup = %d\n",
+	DEBUG_STUB("%s %-35s: FD:  %d Failure during connection setup = %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd, during_setup);
 	/* Fallback code should take care of queue queries and then close conn
 	   when idle.*/
@@ -2023,8 +2023,7 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 	 * All other set up is done async*/
 	fd = upstream_find_for_netreq(netreq);
 	if (fd == -1)
-		/* Handle better, will give unhelpful error is some cases */
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NO_UPSTREAM_AVAILABLE;
 
 	getdns_transport_list_t transport =
 	                             netreq->transports[netreq->transport_current];
