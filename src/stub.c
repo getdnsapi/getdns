@@ -872,9 +872,16 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	/* First deal with the hostname authentication done by OpenSSL. */
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
 	/*Report if error is hostname mismatch*/
-	if (err == X509_V_ERR_HOSTNAME_MISMATCH && upstream->tls_fallback_ok)
-		DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+	if (err == X509_V_ERR_HOSTNAME_MISMATCH) {
+		if (upstream->tls_fallback_ok)
+			DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
+		                STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+		else
+			DEBUG_DAEMON("%s %s : Conn failed   : Transport=TLS - *Failure* - Hostname mismatch\n",
+		                  STUB_DEBUG_DAEMON, upstream->addr_str);
+#endif
+	}
 #else
 	/* if we weren't built against OpenSSL with hostname matching we
 	 * could not have matched the hostname, so this would be an automatic
@@ -897,9 +904,15 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		if (upstream->tls_fallback_ok)
 			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+		else
+			DEBUG_DAEMON("%s %s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
+		                  STUB_DEBUG_DAEMON, upstream->addr_str);
+#endif
 	} else {
 		/* If we _only_ had a pinset and it is good then force succesful
-		   authentication when the cert self-signed */
+		   authentication when the cert self-signed
+		   TODO: We need to check for other error cases here, not blindly accept the cert!! */
 		if ((upstream->tls_pubkey_pinset && upstream->tls_auth_name[0] == '\0') &&
 		     (err == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ||
 		      err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)) {
@@ -915,6 +928,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
 	         (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]))
 		upstream->tls_auth_state = GETDNS_AUTH_OK;
+
 	/* If fallback is allowed, proceed regardless of what the auth error is
 	   (might not be hostname or pinset related) */
 	return (upstream->tls_fallback_ok) ? 1 : preverify_ok;
