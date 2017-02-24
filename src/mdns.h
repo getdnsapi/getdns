@@ -24,6 +24,7 @@
 #ifdef HAVE_MDNS_SUPPORT
 #include "getdns/getdns.h"
 #include "types-internal.h"
+#include "util/storage/lruhash.h"
 
 getdns_return_t
 _getdns_submit_mdns_request(getdns_network_req *netreq);
@@ -51,20 +52,26 @@ typedef struct getdns_mdns_known_record
 
 /* 
  * Each entry in the hash table is keyed by type, class and name.
+ * The key structure also contains the LRU hash entry structure.
  * The data part contains:
  * - 64 bit time stamp
  * - 32 bit word describing the record size
  * - 32 bit word describing teh allocated memory size
  * - valid DNS response, including 1 query and N answers, 0 AUTH, 0 AD.
- * For economy, all answers are encoded using header compression, pointing
- * to the name in the query, i.e. offset 12 from beginning of message
+ * For economy, the names of all answers are encoded using header compression, pointing
+ * to the name in the query, i.e. offset 12 from beginning of message.
+ * For stability, the names included in the data part of records are not compressed.
  */
 
 typedef struct getdns_mdns_cached_key_header
 {
+	/* embedded entry, for LRU hash */
+	struct lruhash_entry entry;
+	/* identification */
 	uint16_t record_type;
 	uint16_t record_class;
 	int name_len;
+	/* the octets following this structure contain the name */
 } getdns_mdns_cached_key_header;
 
 typedef struct getdns_mdns_cached_record_header

@@ -24,6 +24,7 @@
 #include "context.h"
 #include "general.h"
 #include "gldns/pkthdr.h"
+#include "gldns/rrdef.h"
 #include "util-internal.h"
 #include "mdns.h"
 
@@ -166,6 +167,34 @@ struct lruhash_entry* entry, void* data, void* cb_arg)
 }
 
 /*
+ * Another missing LRU hash function: demote, move an entry to the bottom
+ * of the LRU pile.
+ */
+
+static void
+lru_demote(struct lruhash* table, struct lruhash_entry* entry)
+{
+	log_assert(table && entry);
+	if (entry == table->lru_end)
+		return; /* nothing to do */
+				/* remove from current lru position */
+	lru_remove(table, entry);
+	/* add at end */
+	entry->lru_next = NULL;
+	entry->lru_prev = table->lru_end;
+
+	if (table->lru_end == NULL)
+	{
+		table->lru_start = entry;
+	}
+	else
+	{
+		table->lru_end->lru_next = entry;
+	}
+	table->lru_end = entry;
+}
+
+/*
  * For the data part, we want to allocate in rounded increments, so as to reduce the
  * number of calls to XMALLOC
  */
@@ -206,12 +235,298 @@ mdns_util_skip_name(uint8_t *p)
 	return x;
 }
 
+static size_t 
+mdns_util_copy_name(uint8_t * message, size_t message_length, size_t current_index,
+	uint8_t *name, int name_len_max, int name_index, int * name_len)
+{
+	uint8_t l;
+	size_t recursive_index;
+
+	*name_len = 0;
+	while (current_index < message_length && name_index < name_len_max) {
+		l = message[current_index++];
+		if (l == 0)
+		{
+			name[name_index++] = 0;
+			*name_len = name_index;
+			break;
+		}
+		else if (l >= 0xC0)
+		{
+			if (current_index < message_length)
+			{
+				recursive_index = ((l & 63) << 8) | message[current_index++];
+
+				(void) mdns_util_copy_name(message, message_length, 
+					recursive_index, name, name_len_max, name_index, name_len);
+
+				if (*name_len == 0)
+				{
+					current_index = message_length;
+				}
+			}
+			break;
+		}
+		else if (current_index + l < message_length &&
+			name_index + l + 1 < name_len_max)
+		{
+			name[name_index++] = l;
+
+			memcpy(name + name_index, message + current_index, l);
+			name_index += l;
+			current_index += l;
+		}
+		else
+		{
+			current_index = message_length;
+			break;
+		}
+	}
+
+	return current_index;
+}
+
 static int
 mdns_util_skip_query(uint8_t *p)
 {
 	return mdns_util_skip_name(p) + 4;
 }
 
+/*
+ * Single copy procedure for many record types
+ * copy N octets, then the canonical value of the name.
+ */
+static int
+mdns_util_canonical_flags_and_name(uint8_t *message, int message_length,
+	int record_length,
+	int current_index,
+	int nb_octets_to_copy,
+	uint8_t *buffer, int buffer_max,
+	uint8_t **actual_record, int *actual_length)
+{
+	int ret = 0;
+	int buffer_index = 0;
+	int name_len = 0;
+
+	if (buffer_max <= nb_octets_to_copy || record_length <= nb_octets_to_copy)
+	{
+		/* incorrect buffer */
+		ret = GETDNS_RETURN_GENERIC_ERROR;
+	}
+	else
+	{
+		for (int i = 0; i < nb_octets_to_copy; i++)
+		{
+			buffer[buffer_index++] = message[current_index++];
+		}
+
+		current_index = mdns_util_copy_name(message, message_length, current_index, buffer, buffer_max, buffer_index, &name_len);
+		if (current_index == record_length)
+		{
+			buffer_index += name_len;
+			*actual_record = buffer;
+			*actual_length = buffer_index;
+		}
+		else
+		{
+			/* something went wrong. */
+			ret = GETDNS_RETURN_BAD_DOMAIN_NAME;
+		}
+	}
+
+	return ret;
+}
+/*
+ * Set record value to canonical form
+ */
+static int
+mdns_util_canonical_record(uint8_t *message, int message_length,
+	int record_type, int record_class, int record_length,
+	int record_index,  
+	uint8_t *buffer, int buffer_max,
+	uint8_t **actual_record, int *actual_length)
+{
+	int ret = 0;
+	int current_index = record_index;
+	int buffer_index = 0;
+	int name_len = 0;
+	/* Check whether the record needs canonization */
+	*actual_record = message + record_index;
+	*actual_length = record_length;
+
+	if (record_class != GLDNS_RR_CLASS_IN)
+	{
+		/*
+		 * No attempt at canonization outside the IN class.
+		 */
+		return 0;
+	}
+	
+	switch (record_type)
+	{
+		
+	case GLDNS_RR_TYPE_NS:
+	case GLDNS_RR_TYPE_CNAME:
+	case GLDNS_RR_TYPE_PTR:
+	case GLDNS_RR_TYPE_MD:
+	case GLDNS_RR_TYPE_MB:
+	case GLDNS_RR_TYPE_MF:
+	case GLDNS_RR_TYPE_MG:
+	case GLDNS_RR_TYPE_MR:
+	case GLDNS_RR_TYPE_NSAP_PTR:
+		/* 
+		 * copy the name in canonical form 
+		 */
+		ret = mdns_util_canonical_flags_and_name(message, message_length,
+			record_length, current_index, 0,
+			buffer, buffer_max, actual_record, actual_length);
+		break;
+
+	case GLDNS_RR_TYPE_A:
+	case GLDNS_RR_TYPE_AAAA:
+	case GLDNS_RR_TYPE_TXT:
+	case GLDNS_RR_TYPE_HINFO:
+	case GLDNS_RR_TYPE_MINFO:
+	case GLDNS_RR_TYPE_NULL:
+	case GLDNS_RR_TYPE_WKS:
+	case GLDNS_RR_TYPE_X25:
+	case GLDNS_RR_TYPE_ISDN:
+	case GLDNS_RR_TYPE_NSAP:
+	case GLDNS_RR_TYPE_SIG:
+	case GLDNS_RR_TYPE_KEY:
+	case GLDNS_RR_TYPE_GPOS:
+	case GLDNS_RR_TYPE_LOC:
+	case GLDNS_RR_TYPE_EID:
+	case GLDNS_RR_TYPE_NIMLOC:
+		/* leave the content as is, no domain name in content */
+		break;
+
+	case GLDNS_RR_TYPE_SRV:
+		/*
+		 * Copy 6 octets for weight(2), priority(2) and port(2),
+		 * then copy the name.
+		 */
+		ret = mdns_util_canonical_flags_and_name(message, message_length,
+			record_length, current_index, 6,
+			buffer, buffer_max, actual_record, actual_length);
+		break;
+
+	case GLDNS_RR_TYPE_MX:
+	case GLDNS_RR_TYPE_RT:
+	case GLDNS_RR_TYPE_AFSDB:
+		/* 
+		 * copy two bytes preference or subtype, then 
+		 * copy the name in canonical form 
+		 */
+		ret = mdns_util_canonical_flags_and_name(message, message_length,
+			record_length, current_index, 2,
+			buffer, buffer_max, actual_record, actual_length);
+		break;
+
+	case GLDNS_RR_TYPE_NAPTR:
+	case GLDNS_RR_TYPE_SOA:
+	case GLDNS_RR_TYPE_RP:
+	case GLDNS_RR_TYPE_NXT:
+	case GLDNS_RR_TYPE_PX:
+	case GLDNS_RR_TYPE_ATMA:
+		/*
+		 * Group of record types that are complex, and also
+		 * unexpected in MDNS/DNS-SD operation. Copying the 
+		 * record directly will work as long as the sender
+		 * does not attempt name compression.
+		 * TODO: log some kind of error.
+		 */
+		break;
+#if 0
+
+			/**  RFC2915 */
+			GLDNS_RR_TYPE_NAPTR = 35,
+			/**  RFC2230 */
+			GLDNS_RR_TYPE_KX = 36,
+			/**  RFC2538 */
+			GLDNS_RR_TYPE_CERT = 37,
+			/**  RFC2874 */
+			GLDNS_RR_TYPE_A6 = 38,
+			/**  RFC2672 */
+			GLDNS_RR_TYPE_DNAME = 39,
+			/**  dnsind-kitchen-sink-02.txt */
+			GLDNS_RR_TYPE_SINK = 40,
+			/**  Pseudo OPT record... */
+			GLDNS_RR_TYPE_OPT = 41,
+			/**  RFC3123 */
+			GLDNS_RR_TYPE_APL = 42,
+			/**  RFC4034, RFC3658 */
+			GLDNS_RR_TYPE_DS = 43,
+			/**  SSH Key Fingerprint */
+			GLDNS_RR_TYPE_SSHFP = 44, /* RFC 4255 */
+									  /**  IPsec Key */
+			GLDNS_RR_TYPE_IPSECKEY = 45, /* RFC 4025 */
+										 /**  DNSSEC */
+			GLDNS_RR_TYPE_RRSIG = 46, /* RFC 4034 */
+			GLDNS_RR_TYPE_NSEC = 47, /* RFC 4034 */
+			GLDNS_RR_TYPE_DNSKEY = 48, /* RFC 4034 */
+
+			GLDNS_RR_TYPE_DHCID = 49, /* RFC 4701 */
+									  /* NSEC3 */
+			GLDNS_RR_TYPE_NSEC3 = 50, /* RFC 5155 */
+			GLDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
+			GLDNS_RR_TYPE_NSEC3PARAMS = 51,
+			GLDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
+			GLDNS_RR_TYPE_SMIMEA = 53, /* draft-ietf-dane-smime, TLSA-like but may
+									   be extended */
+
+			GLDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
+
+									/** draft-reid-dnsext-zs */
+			GLDNS_RR_TYPE_NINFO = 56,
+			/** draft-reid-dnsext-rkey */
+			GLDNS_RR_TYPE_RKEY = 57,
+			/** draft-ietf-dnsop-trust-history */
+			GLDNS_RR_TYPE_TALINK = 58,
+			GLDNS_RR_TYPE_CDS = 59, /** RFC 7344 */
+			GLDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
+			GLDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
+			GLDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
+
+			GLDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
+
+			GLDNS_RR_TYPE_UINFO = 100,
+			GLDNS_RR_TYPE_UID = 101,
+			GLDNS_RR_TYPE_GID = 102,
+			GLDNS_RR_TYPE_UNSPEC = 103,
+
+			GLDNS_RR_TYPE_NID = 104, /* RFC 6742 */
+			GLDNS_RR_TYPE_L32 = 105, /* RFC 6742 */
+			GLDNS_RR_TYPE_L64 = 106, /* RFC 6742 */
+			GLDNS_RR_TYPE_LP = 107, /* RFC 6742 */
+
+									/** draft-jabley-dnsext-eui48-eui64-rrtypes */
+			GLDNS_RR_TYPE_EUI48 = 108,
+			GLDNS_RR_TYPE_EUI64 = 109,
+
+			GLDNS_RR_TYPE_TKEY = 249, /* RFC 2930 */
+			GLDNS_RR_TYPE_TSIG = 250,
+			GLDNS_RR_TYPE_IXFR = 251,
+			GLDNS_RR_TYPE_AXFR = 252,
+			/**  A request for mailbox-related records (MB, MG or MR) */
+			GLDNS_RR_TYPE_MAILB = 253,
+			/**  A request for mail agent RRs (Obsolete - see MX) */
+			GLDNS_RR_TYPE_MAILA = 254,
+			/**  any type (wildcard) */
+			GLDNS_RR_TYPE_ANY = 255,
+			GLDNS_RR_TYPE_URI = 256, /* RFC 7553 */
+			GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
+#endif
+	default:
+		/* 
+		 * Unknown record type. Not expected in MDNS/DNS-SD. Just keep the current value. 
+		 * TODO: log some kind of error.
+		 */
+		break;
+	}
+
+	return ret;
+}
 /*
  * Comparison and other functions required for cache management
  */
@@ -256,7 +571,8 @@ static int mdns_cache_key_comp(void* vkey1, void* vkey2)
 /** old keys are deleted.
 * markdel() is used first.
 * This function is called: func(key, userarg)
-* the userarg is set to the context in which the LRU hash table was created
+* the userarg is set to the context in which the LRU hash table was created.
+* TODO: is there a need to free the lock in the embedded hash entry structure?
 */
 static void msdn_cache_delkey(void* vkey, void* vcontext)
 {
@@ -270,7 +586,6 @@ static void msdn_cache_delkey(void* vkey, void* vcontext)
  */
 static void msdn_cache_deldata(void* vdata, void* vcontext)
 {
-	/* need to terminate the pending queries? */
 	getdns_mdns_cached_record_header* header = ((getdns_mdns_cached_record_header*)vdata);
 
 	while (header->netreq_first)
@@ -302,6 +617,8 @@ static void msdn_cache_create_key_in_buffer(
 	int record_type, int record_class)
 {
 	getdns_mdns_cached_key_header * header = (getdns_mdns_cached_key_header*)key;
+
+	memset(key, 0, sizeof(getdns_mdns_cached_key_header));
 	header->record_type = record_type;
 	header->record_class = record_class;
 	header->name_len = name_len;
@@ -447,7 +764,7 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	int not_matched_yet = (record_data == NULL) ? 0 : 1;
 	int current_record_match;
 	int last_copied_index;
-	int current_hole_index;
+	int current_hole_index = 0;
 
 	/*
 	 * Skip the query
@@ -562,13 +879,17 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 		*new_record = old_record;
 	}
 
-	/*
-	 * TODO: if there are no record left standing, return a signal that the cache should be pruned.
-	 */
-
 	return ret;
 }
 
+static int
+mdns_cache_nb_records_in_entry(uint8_t * cached_data)
+{
+	int message_index = sizeof(getdns_mdns_cached_record_header);
+	int nb_answers = (cached_data[message_index + 4] << 8) | cached_data[message_index + 5];
+
+	return nb_answers;
+}
 
 /*
 * Add entry function for the MDNS record cache.
@@ -606,9 +927,8 @@ mdns_propose_entry_to_cache(
 		key = mdns_cache_create_key(name, name_len, record_type, record_class, context);
 		data = mdns_cache_create_data(name, name_len, record_type, record_class,
 				record_data_len, current_time, context);
-		new_entry = GETDNS_XMALLOC(context->mf, struct lruhash_entry, 1);
 
-		if (key == NULL || data == NULL || new_entry == NULL)
+		if (key == NULL || data == NULL)
 		{
 			if (key != NULL)
 			{
@@ -621,16 +941,11 @@ mdns_propose_entry_to_cache(
 				GETDNS_FREE(context->mf, data);
 				data = NULL;
 			}
-
-			if (new_entry != NULL)
-			{
-				GETDNS_FREE(context->mf, new_entry);
-				new_entry = NULL;
-			}
-
 		}
 		else
 		{
+			new_entry = &((getdns_mdns_cached_key_header*)key)->entry;
+
 			memset(new_entry, 0, sizeof(struct lruhash_entry));
 			lock_rw_init(new_entry->lock);
 			new_entry->hash = hash;
@@ -641,8 +956,13 @@ mdns_propose_entry_to_cache(
 
 			if (entry != new_entry)
 			{
-				lock_rw_destroy(new_entry->lock);
-				GETDNS_FREE(context->mf, new_entry);
+				/* There was already an entry for this name, which is really weird. 
+				 * But it can in theory happen in a race condition.
+				 */
+				GETDNS_FREE(context->mf, key);
+				key = NULL;
+				GETDNS_FREE(context->mf, data);
+				data = NULL;
 			}
 		}
 	}
@@ -663,41 +983,87 @@ mdns_propose_entry_to_cache(
 			header->netreq_first = netreq;
 		}
 
+		/* if the entry is empty, move it to the bottom of the LRU */
+		if (mdns_cache_nb_records_in_entry((uint8_t*)(entry->data)) == 0)
+		{
+			lru_demote(context->mdns_cache, entry);
+		}
+
 		/* then, unlock the entry */
 		lock_rw_unlock(entry->lock);
-
-		/* TODO: if the entry was marked for deletion, move it to the bottom of the LRU */
 	} 
 
 	return ret;
 }
 
 /*
- * Compare function for the mdns_continuous_query_by_name_rrtype,
- * used in the red-black tree of all ongoing queries.
+ * Processing of requests after cache update.
+ * This is coded as synchronous processing, under lock. This is probably wrong.
+ * It would be better to just collate the responses for now, and 
+ * process the queries out of the loop.
  */
-static int mdns_cmp_continuous_queries_by_name_rrtype(const void * nqnr1, const void * nqnr2)
+static int
+mdns_cache_complete_queries(
+	struct getdns_context *context,
+	uint8_t * name, int name_len,
+	int record_type, int record_class)
 {
 	int ret = 0;
-	getdns_mdns_continuous_query * qnr1 = (getdns_mdns_continuous_query *)nqnr1;
-	getdns_mdns_continuous_query * qnr2 = (getdns_mdns_continuous_query *)nqnr2;
+	size_t required_memory = 0;
+	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
+	hashvalue_type hash;
+	struct lruhash_entry *entry;
+	uint8_t *packet;
+	int packet_length;
+	getdns_mdns_cached_record_header * header;
+	getdns_network_req * netreq;
 
-	if (qnr1->request_class != qnr2->request_class) 
+	msdn_cache_create_key_in_buffer(temp_key, name, name_len, record_type, record_class);
+
+
+	/* TODO: make hash init value a random number in the context, for defense against DOS */
+	hash = hashlittle(temp_key, name_len + sizeof(getdns_mdns_cached_key_header), 0xCAC8E);
+
+	entry = lruhash_lookup(context->mdns_cache, hash, temp_key, 1);
+
+	if (entry != NULL && entry->data != NULL)
 	{
-		ret = (qnr1->request_class < qnr2->request_class) ? -1 : 1;
-	} 
-	else if (qnr1->request_type != qnr2->request_type)
-	{
-		ret = (qnr1->request_type < qnr2->request_type) ? -1 : 1;
+		header = (getdns_mdns_cached_record_header *)entry->data;
+
+		packet = ((uint8_t *)entry->data) + sizeof(getdns_mdns_cached_record_header);
+		packet_length = header->content_len; /* TODO: check that */
+
+		while ((netreq = header->netreq_first) != NULL)
+		{
+			header->netreq_first = netreq->mdns_netreq_next;
+			netreq->mdns_netreq_next = NULL;
+			/* TODO: copy the returned value in the response field  */
+			if (packet_length > netreq->wire_data_sz)
+			{
+				/* TODO: allocation. */
+			}
+
+			if (netreq->response != NULL)
+			{
+				memcpy(netreq->response, packet, packet_length);
+				/* TODO: process the query */
+				netreq->response_len = packet_length;
+				netreq->debug_end_time = _getdns_get_time_as_uintt64();
+				netreq->state = NET_REQ_FINISHED;
+				_getdns_check_dns_req_complete(netreq->owner);
+			}
+			else
+			{
+				/* Fail the query? */
+				netreq->response_len = 0;
+				netreq->debug_end_time = _getdns_get_time_as_uintt64();
+				netreq->state = NET_REQ_ERRORED;
+				_getdns_check_dns_req_complete(netreq->owner);
+			}
+		}
+		lock_rw_unlock(entry->lock);
 	}
-	else if (qnr1->name_len != qnr2->name_len)
-	{
-		ret = (qnr1->name_len < qnr2->name_len) ? -1 : 1;
-	}
-	else
-	{
-		ret = memcmp((void*)qnr1->name, (void*)qnr2->name, qnr1->name_len);
-	}
+
 	return ret;
 }
 
@@ -708,9 +1074,12 @@ static void
 mdns_udp_multicast_read_cb(void *userarg)
 {
 	mdns_network_connection * cnx = (mdns_network_connection *)userarg;
+	uint64_t current_time;
 	ssize_t       read;
 	DEBUG_MDNS("%s %-35s: CTX: %p, NET=%d \n", MDNS_DEBUG_MREAD,
 		__FUNCTION__, cnx->context, cnx->addr_mcast.ss_family);
+
+	current_time = _getdns_get_time_as_uintt64();
 
 	GETDNS_CLEAR_EVENT(
 		cnx->context->extension, &cnx->event);
@@ -725,13 +1094,128 @@ mdns_udp_multicast_read_cb(void *userarg)
 	if (read >= GLDNS_HEADER_SIZE)
 	{
 		/* parse the response, find the relevant queries, submit the records to the cache */
+		int opcodeAndflags = cnx->response[2];
+		int nb_queries = (cnx->response[4] << 8) | cnx->response[5];
+		int nb_responses = (cnx->response[6] << 8) | cnx->response[7];
 
-		/*
-		netreq->response_len = read;
-		netreq->debug_end_time = _getdns_get_time_as_uintt64();
-		netreq->state = NET_REQ_FINISHED;
-		_getdns_check_dns_req_complete(dnsreq);
-		*/
+		if (opcodeAndflags != 0x84)
+		{
+			/* this is not an MDNS answer packet. */
+		}
+		else
+		{
+			size_t current_index = 12;
+			uint8_t name[256];
+			int name_len;
+			int record_type;
+			int record_class;
+			int record_ttl;
+			int record_data_len;
+			int nb_records = 0;
+			int nb_queries_skipped = 0;
+			int start_of_records;
+			int signalled_records = 0;
+
+			/*
+			 * In normal mDNS operation, there should not be any query here. 
+			 * But just in case, we can skip the queries...
+			 */
+			while (current_index < read && nb_queries_skipped < nb_queries)
+			{
+				current_index += mdns_util_skip_query(&cnx->response[current_index]);
+				nb_queries_skipped++;
+			}
+			start_of_records = current_index;
+			/*
+			 * Parse the answers and propose them to the cache
+			 */
+
+			while (current_index < read && nb_records < nb_responses)
+			{
+				/* Copy and skip the name */
+				current_index = mdns_util_copy_name(cnx->response, read, current_index,
+					name, sizeof(name), 0, &name_len);
+				if (current_index + 12 >= read)
+				{
+					/* bogus packet.. Should log. */
+					current_index = read;
+				}
+				else
+				{
+					/* Parse the record header */
+					record_type = (cnx->response[current_index++] << 8);
+					record_type |= (cnx->response[current_index++]);
+					record_class = (cnx->response[current_index++] << 8);
+					record_class |= (cnx->response[current_index++]);
+					record_ttl = (cnx->response[current_index++] << 24);
+					record_ttl |= (cnx->response[current_index++] << 16);
+					record_ttl |= (cnx->response[current_index++] << 8);
+					record_ttl |= (cnx->response[current_index++]);
+					record_data_len = (cnx->response[current_index++] << 8);
+					record_data_len |= (cnx->response[current_index++]);
+
+					if (current_index + record_data_len < read)
+					{
+						/* 
+						 * Set the record to canonical form. This is required, since 
+						 * MDNS software commonly uses name compression for PTR or SRV records.
+						 */
+						int actual_length;
+						uint8_t *actual_record;
+						uint8_t buffer[1024];
+
+						/* TODO: do something in case of canonization failures */
+						(void) mdns_util_canonical_record(cnx->response, read,
+							record_type, record_class, record_data_len, current_index,
+							buffer, sizeof(buffer), &actual_record, &actual_length);
+
+
+						/* Submit to the cache. As a side effect, may signal that a continuous request is done. */
+						(void) mdns_propose_entry_to_cache(cnx->context, name, name_len,
+							record_type, record_class, record_ttl,
+							actual_record, actual_length, NULL,
+							current_time);
+
+						current_index += record_data_len;
+						nb_records++;
+					}
+					else
+					{
+						/* bogus packet.. Should log. */
+						current_index = read;
+					}
+				}
+			}
+
+			/* Go over the queries that were mentioned in the update, and prepare returns. */
+			current_index = start_of_records;
+			while (current_index < read && signalled_records < nb_responses)
+			{
+				/* copy the name */
+				current_index = mdns_util_copy_name(cnx->response, read, current_index,
+					name, sizeof(name), 0, &name_len);
+				if (current_index + 12 >= read)
+				{
+					/* bogus packet.. Should log. */
+					current_index = read;
+				}
+				else
+				{
+					/* Parse the record header */
+					record_type = (cnx->response[current_index++] << 8);
+					record_type |= (cnx->response[current_index++]);
+					record_class = (cnx->response[current_index++] << 8);
+					record_class |= (cnx->response[current_index++]);
+					current_index += 4;
+					record_data_len = (cnx->response[current_index++] << 8);
+					record_data_len |= (cnx->response[current_index++]);
+					current_index += record_data_len;
+
+					/* process the pending requests */
+					(void)mdns_cache_complete_queries(cnx->context, name, name_len, record_type, record_class);
+				}
+			}
+		}
 	}
 	else
 	{
@@ -999,11 +1483,68 @@ static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *ne
 	getdns_dns_req *dnsreq = netreq->owner;
 	struct getdns_context *context = dnsreq->context;
 
-	ret = mdns_propose_entry_to_cache(context, dnsreq->name, dnsreq->name_len,
-		netreq->request_type, dnsreq->request_class, 1, NULL, 0,
-		netreq, _getdns_get_time_as_uintt64());
+	size_t required_memory = 0;
+	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
+	hashvalue_type hash;
+	struct lruhash_entry *entry;
+	size_t pkt_len = netreq->response - netreq->query;
 
-	/* to do: queue message request to socket */
+	msdn_cache_create_key_in_buffer(temp_key, dnsreq->name, dnsreq->name_len,
+		netreq->request_type, dnsreq->request_class);
+
+	/* TODO: make hash init value a random number in the context, for defense against DOS */
+	hash = hashlittle(temp_key, dnsreq->name_len + sizeof(getdns_mdns_cached_key_header), 0xCAC8E);
+
+	entry = lruhash_lookup(context->mdns_cache, hash, temp_key, 1);
+
+	if (entry == NULL)
+	{
+		/*
+		 * First, create an entry for the query
+		 */
+
+		ret = mdns_propose_entry_to_cache(context, dnsreq->name, dnsreq->name_len,
+			netreq->request_type, dnsreq->request_class, 1, NULL, 0,
+			netreq, _getdns_get_time_as_uintt64());
+	}
+	else
+	{
+		/*
+		 * Check whether the cache entry is recent.
+		 * If yes, just return it, but first update the entry tracking in the cache entry.
+		 */
+
+		 /*
+		  * and unlock the entry!
+		  */
+	}
+
+	if (ret == 0)
+	{
+		/* If the entry was created less than 1 sec ago, send a query */
+
+		if (context->mdns_connection_nb <= 0)
+		{
+			/* oops, no network! */
+			ret = GETDNS_RETURN_GENERIC_ERROR;
+		}
+		else
+		{
+			/* TODO? Set TTL=255 for compliance with RFC 6762 */
+			int fd_index = context->mdns_connection_nb - 1;
+
+			if ((ssize_t)pkt_len != sendto(
+				context->mdns_connection[fd_index].fd
+				, (const void *)netreq->query, pkt_len, 0
+				, (SOCKADDR*)&context->mdns_connection[fd_index].addr_mcast
+				, context->mdns_connection[fd_index].addr_mcast_len))
+			{
+				ret = GETDNS_RETURN_GENERIC_ERROR;
+			}
+
+			/* TODO: update the send query time */
+		}
+	}
 
 	return ret;
 }
@@ -1103,9 +1644,9 @@ mdns_timeout_cb(void *userarg)
 
 
 
-/**************************/
-/* UDP callback functions */
-/**************************/
+/*****************************************/
+/* UDP callback functions for basic MDNS */
+/*****************************************/
 
 static void
 mdns_udp_read_cb(void *userarg)
@@ -1220,21 +1761,50 @@ _getdns_submit_mdns_request(getdns_network_req *netreq)
 		netreq, netreq->request_type);
 	int fd = -1;
 	getdns_dns_req *dnsreq = netreq->owner;
+	struct getdns_context * context = dnsreq->context;
+	getdns_return_t ret = 0;
 
-	/* Open the UDP socket required for the request */
-	if ((fd = socket(
-		AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-		return -1;
-	/* TODO: do we need getdns_sock_nonblock(fd); */
+	/*
+	 * TO DO: depending on context type, perform basic processing versus full MDNS
+	 */
 
-	/* Schedule the MDNS request */
-	netreq->fd = fd;
-	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-	GETDNS_SCHEDULE_EVENT(
-		dnsreq->loop, netreq->fd, dnsreq->context->timeout,
-		getdns_eventloop_event_init(&netreq->event, netreq,
-			NULL, mdns_udp_write_cb, mdns_timeout_cb));
-	return GETDNS_RETURN_GOOD;
+	if (context->mdns_extended_support == 2)
+	{
+		/* Not initialize yet. Do it know before processing the query */
+		ret = mdns_delayed_network_init(context);
+
+		if (ret != 0)
+		{
+			return ret;
+		}
+	}
+
+	if (context->mdns_extended_support == 1)
+	{
+		/* extended DNS support */
+		ret = mdns_initialize_continuous_request(netreq);
+	}
+	else
+	{
+		/* basic MDNS request */
+
+		/* Open the UDP socket required for the request */
+		if ((fd = socket(
+			AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+			return -1;
+		/* TODO: do we need getdns_sock_nonblock(fd); */
+
+		/* Schedule the MDNS request */
+		netreq->fd = fd;
+		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
+		GETDNS_SCHEDULE_EVENT(
+			dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+			getdns_eventloop_event_init(&netreq->event, netreq,
+				NULL, mdns_udp_write_cb, mdns_timeout_cb));
+		ret = GETDNS_RETURN_GOOD;
+	}
+
+	return ret;
 }
 
 /*
