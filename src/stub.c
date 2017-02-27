@@ -877,10 +877,12 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 
 	/* First deal with the hostname authentication done by OpenSSL. */
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
+# if defined(STUB_DEBUG) && STUB_DEBUG
 	/*Report if error is hostname mismatch*/
 	if (err == X509_V_ERR_HOSTNAME_MISMATCH && upstream->tls_fallback_ok)
 			DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
 		                STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+# endif
 #else
 	/* if we weren't built against OpenSSL with hostname matching we
 	 * could not have matched the hostname, so this would be an automatic
