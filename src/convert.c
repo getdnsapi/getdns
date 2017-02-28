@@ -1238,9 +1238,6 @@ static int _jsmn_get_base64_data(struct mem_funcs *mf, const char *js, jsmntok_t
 		GETDNS_FREE(*mf, *value);
 		return 0;
 	}
-	if (size <= 0 || size >= (int)sizeof(value_str) || js[t->end - 1] != '.')
-		return 0;
-
 	if ((size_t)size >= sizeof(value_str_buf))
 		value_str = GETDNS_XMALLOC(*mf, char, size + 1);
 	else	value_str = value_str_buf;
