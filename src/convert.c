@@ -1204,6 +1204,63 @@ static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return *value != NULL;
 }
 
+static int _jsmn_get_base64_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_bindata **value)
+{
+	int e, i;
+	int size = t->end - t->start;
+	char value_str_buf[1025];
+	char *value_str;
+	size_t target_buf_size;
+
+	assert(size >= 4);
+
+	if (size % 4 != 0)
+		return 0;
+
+	e = t->end;
+	if (js[e - 1] == '=') e -= 1;
+	if (js[e - 1] == '=') e -= 1;
+
+	for (i = t->start; i < e; i++)
+		if (!((js[i] >= '0' && js[i] <= '9')
+		    ||(js[i] >= 'a' && js[i] <= 'z')
+		    ||(js[i] >= 'A' && js[i] <= 'Z')
+		    || js[i] == '+' || js[i] == '/'))
+			return 0;
+
+	target_buf_size = gldns_b64_pton_calculate_size(size);
+	if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
+		return 0;
+
+	else if (!((*value)->data = GETDNS_XMALLOC(
+	    *mf, uint8_t, target_buf_size))) {
+		GETDNS_FREE(*mf, *value);
+		return 0;
+	}
+	if ((size_t)size >= sizeof(value_str_buf))
+		value_str = GETDNS_XMALLOC(*mf, char, size + 1);
+	else	value_str = value_str_buf;
+	
+	if (value_str) {
+		(void) memcpy(value_str, js + t->start, size);
+		value_str[size] = '\0';
+
+		e = gldns_b64_pton(value_str, (*value)->data, target_buf_size);
+
+		if (value_str != value_str_buf)
+			GETDNS_FREE(*mf, value_str);
+
+		if (e > 0) {
+			(*value)->size = e;
+			return 1;
+		}
+	}
+	GETDNS_FREE(*mf, (*value)->data);
+	GETDNS_FREE(*mf,  *value);
+	return 0;
+}
+
 static int _jsmn_get_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     getdns_bindata **value)
 {
@@ -1211,15 +1268,17 @@ static int _jsmn_get_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	size_t j;
 	uint8_t h, l;
 
-	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1 ||
-	    js[t->start] != '0' || js[t->start + 1] != 'x')
+	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1)
 		return 0;
+
+	if (js[t->start] != '0' || js[t->start + 1] != 'x')
+		return _jsmn_get_base64_data(mf, js, t, value);
 
 	for (i = t->start + 2; i < t->end; i++)
 		if (!((js[i] >= '0' && js[i] <= '9')
 		    ||(js[i] >= 'a' && js[i] <= 'f')
 		    ||(js[i] >= 'A' && js[i] <= 'F')))
-			return 0;
+			return _jsmn_get_base64_data(mf, js, t, value);
 
 	if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
 		return 0;

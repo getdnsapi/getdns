@@ -51,6 +51,7 @@
 #include "const-info.h"
 #include "gldns/gbuffer.h"
 #include "gldns/wire2str.h"
+#include "gldns/parseutil.h"
 
 
 static char *_json_ptr_first(const struct mem_funcs *mf,
@@ -731,6 +732,33 @@ _getdns_bindata_is_dname(getdns_bindata *bindata)
 		bindata->data[bindata->size - 1] == 0;
 }
 
+static int
+getdns_pp_base64(gldns_buffer *buf, getdns_bindata *bindata)
+{
+	size_t p = gldns_buffer_position(buf);
+	size_t base64str_sz;
+	char *target;
+	size_t avail;
+
+	if (gldns_buffer_printf(buf, " <bindata of ") < 0)
+		return -1;
+
+	base64str_sz = gldns_b64_ntop_calculate_size(bindata->size);
+	target = (char *)gldns_buffer_current(buf);
+	avail = gldns_buffer_remaining(buf);
+	if (avail >= base64str_sz)
+		gldns_buffer_skip(buf, gldns_b64_ntop(
+		    bindata->data, bindata->size,
+		    target, base64str_sz));
+	else
+		gldns_buffer_skip(buf, base64str_sz);
+
+	if (gldns_buffer_printf(buf, ">") < 0)
+		return -1;
+
+	return gldns_buffer_position(buf) - p;
+}
+
 /*---------------------------------------- getdns_pp_bindata */
 /**
  * private function to pretty print bindata to a gldns_buffer
@@ -1094,6 +1122,16 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 				              )) < 0)
 					return -1;
 	
+			} else if (!json &&
+			    (strcmp(item->node.key, "pin-sha256") == 0 ||
+			     strcmp(item->node.key, "value") == 0) &&
+			     item->i.data.bindata->size > 0 &&
+			     item->i.data.bindata->size % 4 == 0) {
+
+				if (getdns_pp_base64(buf,
+				    item->i.data.bindata) < 0)
+					return -1;
+
 			} else if (getdns_pp_bindata(
 			    buf, item->i.data.bindata,
 			    (strcmp(item->node.key, "rdata_raw") == 0),
