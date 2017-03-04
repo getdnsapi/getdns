@@ -85,6 +85,10 @@ static uint8_t mdns_suffix_b_e_f_ip6_arpa[] = {
 	3, 'i', 'p', '6',
 	4, 'a', 'r', 'p', 'a', 0 };
 
+#define MDNS_PACKET_INDEX_QCODE 2
+#define MDNS_PACKET_INDEX_QUERY 4
+#define MDNS_PACKET_INDEX_ANSWER 6
+
 /*
  * MDNS cache management using LRU Hash.
  *
@@ -608,6 +612,19 @@ static void msdn_cache_deldata(void* vdata, void* vcontext)
 }
 
 /*
+ * Read the number of answers in a cached record
+ */
+static int
+mdns_cache_nb_records_in_entry(uint8_t * cached_data)
+{
+	int message_index = sizeof(getdns_mdns_cached_record_header);
+	int nb_answers = (cached_data[message_index + MDNS_PACKET_INDEX_ANSWER] << 8) | 
+		cached_data[message_index + MDNS_PACKET_INDEX_ANSWER + 1];
+
+	return nb_answers;
+}
+
+/*
  * Create a key in preallocated buffer
  * the allocated size of key should be >= sizeof(getdns_mdns_cached_key_header) + name_len
  */
@@ -663,6 +680,7 @@ static uint8_t * mdns_cache_create_data(
 		header->netreq_first = NULL;
 		current_index = sizeof(getdns_mdns_cached_record_header);
 		memset(data + current_index, 0, 12);
+		data[current_index + MDNS_PACKET_INDEX_QUERY + 1] = 1; /* 1 query present by default */
 		current_index += 12;
 		memcpy(data + current_index, name, name_len);
 		current_index += name_len;
@@ -691,13 +709,13 @@ mdns_add_record_to_cache_entry(struct getdns_context *context,
 	uint32_t record_length = 2 + 2 + 2 + 4 + 2 + record_data_len;
 	uint32_t current_length = header->content_len;
 	/* update the number of records */
-	uint8_t *start_answer_code = old_record + sizeof(getdns_mdns_cached_record_header) + 2 + 2;
+	uint8_t *start_answer_code = old_record + sizeof(getdns_mdns_cached_record_header) + MDNS_PACKET_INDEX_ANSWER;
 	uint16_t nb_answers = (start_answer_code[0] << 8) + start_answer_code[1];
 	nb_answers++;
 	start_answer_code[0] = (uint8_t)(nb_answers >> 8);
 	start_answer_code[1] = (uint8_t)(nb_answers&0xFF);
 
-	/* Update the content length */
+	/* Update the content length and reallocate memory if needed */
 	header->content_len += record_length;
 	if (header->content_len > header->allocated_length)
 	{
@@ -722,7 +740,7 @@ mdns_add_record_to_cache_entry(struct getdns_context *context,
 		/* copy the record */
 		/* First, point name relative to beginning of DNS message */
 		(*new_record)[current_length++] = 0xC0;
-		(*new_record)[current_length++] = 0x12;
+		(*new_record)[current_length++] = 12;
 		/* encode the components of the per record header */
 		(*new_record)[current_length++] = (uint8_t)((record_type >> 8) & 0xFF);
 		(*new_record)[current_length++] = (uint8_t)((record_type)& 0xFF);
@@ -735,6 +753,7 @@ mdns_add_record_to_cache_entry(struct getdns_context *context,
 		(*new_record)[current_length++] = (uint8_t)((record_data_len >> 8) & 0xFF);
 		(*new_record)[current_length++] = (uint8_t)((record_data_len) & 0xFF);
 		memcpy(*new_record + current_length, record_data, record_data_len);
+
 	}
 
 	return ret;
@@ -765,14 +784,17 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	int current_record_match;
 	int last_copied_index;
 	int current_hole_index = 0;
+	int record_name_length = 0;
+	int record_ttl_index = 0;
 
 	/*
 	 * Skip the query
 	 */
 	message_index = sizeof(getdns_mdns_cached_record_header);
-	nb_answers = (old_record[message_index + 4] << 8) | old_record[message_index + 5];
+	nb_answers = (old_record[message_index + MDNS_PACKET_INDEX_ANSWER] << 8) |
+		old_record[message_index + MDNS_PACKET_INDEX_ANSWER + 1];
 	nb_answers_left = nb_answers;
-	answer_index = mdns_util_skip_query(old_record + message_index + 12);
+	answer_index = message_index + 12 + mdns_util_skip_query(old_record + message_index + 12);
 	last_copied_index = answer_index;
 
 	/*
@@ -780,19 +802,22 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	 */
 	for (int i = 0; i < nb_answers; i++)
 	{
-		current_record_ttl = (old_record[answer_index + 2 + 2 + 2] << 24)
-			| (old_record[answer_index + 2 + 2 + 2 + 1] << 16)
-			| (old_record[answer_index + 2 + 2 + 2 + 2] << 8)
-			| (old_record[answer_index + 2 + 2 + 2 + 3]);
+		record_name_length = mdns_util_skip_name(old_record + answer_index);
+		record_ttl_index = answer_index + record_name_length + 2 + 2;
 
-		current_record_data_len = (old_record[answer_index + 2 + 2 + 2 + 4] << 8)
-			| (old_record[answer_index + 2 + 2 + 2 + 4 + 1]);
+		current_record_ttl = (old_record[record_ttl_index] << 24)
+			| (old_record[record_ttl_index + 1] << 16)
+			| (old_record[record_ttl_index + 2] << 8)
+			| (old_record[record_ttl_index + 3]);
 
-		current_record_length = 2 + 2 + 2 + 4 + 2 + current_record_data_len;
+		current_record_data_len = (old_record[record_ttl_index + 4] << 8)
+			| (old_record[record_ttl_index + 5]);
+
+		current_record_length = record_name_length + 2 + 2 + 4 + 2 + current_record_data_len;
 
 		if (not_matched_yet &&
 		    current_record_data_len == record_data_len &&
-			memcmp(old_record + answer_index + 2 + 2 + 2 + 4 + 2, record_data, record_data_len) == 0)
+			memcmp(old_record + record_ttl_index + 4 + 2, record_data, record_data_len) == 0)
 		{
 			current_record_match = 1;
 			not_matched_yet = 0;
@@ -813,7 +838,7 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 			}
 		}
 
-		if (current_record_ttl != 0)
+		if (current_record_ttl == 0)
 		{
 			nb_answers_left--;
 
@@ -833,42 +858,43 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 				last_copied_index += answer_index - current_hole_index;
 			}
 			
-			/* in all cases, the current hole begins after the message's encoding */
+			/* extend the current hole */
 			current_hole_index = answer_index + current_record_length;
 		}
 		else
 		{
 			/* keeping this record, but updating the TTL */
-			old_record[answer_index + 2 + 2 + 2] = (uint8_t)(current_record_ttl >> 24);
-			old_record[answer_index + 2 + 2 + 2 + 1] = (uint8_t)(current_record_ttl >> 16);
-			old_record[answer_index + 2 + 2 + 2 + 2] = (uint8_t)(current_record_ttl >> 8);
-			old_record[answer_index + 2 + 2 + 2 + 3] = (uint8_t)(current_record_ttl);
+			old_record[record_ttl_index] = (uint8_t)(current_record_ttl >> 24);
+			old_record[record_ttl_index + 1] = (uint8_t)(current_record_ttl >> 16);
+			old_record[record_ttl_index + 2] = (uint8_t)(current_record_ttl >> 8);
+			old_record[record_ttl_index + 3] = (uint8_t)(current_record_ttl);
 		}
 		/* progress to the next record */
 		answer_index += current_record_length;
 	}
 
 	/* if necessary, copy the pending data */
-	if (current_hole_index != answer_index)
+	if (current_hole_index != answer_index && current_hole_index != 0)
 	{
 		/* copy the data from hole to last answer */
 		memmove(old_record + last_copied_index, old_record + current_hole_index,
 			answer_index - current_hole_index);
 		last_copied_index += answer_index - current_hole_index;
+		answer_index = last_copied_index;
 	}
 
 	/* if some records were deleted, update the record headers */
 	if (nb_answers != nb_answers_left)
 	{
 		header->content_len = last_copied_index;
-		old_record[message_index + 4] = (uint8_t)(nb_answers >> 8);
-		old_record[message_index + 5] = (uint8_t)(nb_answers);
+		old_record[message_index + MDNS_PACKET_INDEX_ANSWER] = (uint8_t)(nb_answers_left >> 8);
+		old_record[message_index + MDNS_PACKET_INDEX_ANSWER + 1] = (uint8_t)(nb_answers_left);
 	}
 
 	/*
 	* if the update was never seen, ask for an addition
 	*/
-	if (ttl == 0 && not_matched_yet)
+	if (ttl > 0 && not_matched_yet)
 	{
 		mdns_add_record_to_cache_entry(context, old_record, new_record,
 			record_type, record_class, ttl, record_data, record_data_len);
@@ -882,14 +908,29 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	return ret;
 }
 
-static int
-mdns_cache_nb_records_in_entry(uint8_t * cached_data)
+/*
+ * Get a cached entry by name and record type .
+ */
+static struct lruhash_entry *
+mdns_access_cached_entry_by_name(
+struct getdns_context *context,
+	uint8_t * name, int name_len,
+	int record_type, int record_class)
 {
-	int message_index = sizeof(getdns_mdns_cached_record_header);
-	int nb_answers = (cached_data[message_index + 4] << 8) | cached_data[message_index + 5];
+	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
+	hashvalue_type hash;
+	struct lruhash_entry *entry;
 
-	return nb_answers;
+	msdn_cache_create_key_in_buffer(temp_key, name, name_len, record_type, record_class);
+
+	/* TODO: make hash init value a random number in the context, for defense against DOS */
+	hash = hashlittle(temp_key, name_len + sizeof(getdns_mdns_cached_key_header), 0xCAC8E);
+
+	entry = lruhash_lookup(context->mdns_cache, hash, temp_key, 1);
+
+	return entry;
 }
+
 
 /*
 * Add entry function for the MDNS record cache.
@@ -982,16 +1023,105 @@ mdns_propose_entry_to_cache(
 			netreq->mdns_netreq_next = header->netreq_first;
 			header->netreq_first = netreq;
 		}
-
-		/* if the entry is empty, move it to the bottom of the LRU */
-		if (mdns_cache_nb_records_in_entry((uint8_t*)(entry->data)) == 0)
+		else
 		{
-			lru_demote(context->mdns_cache, entry);
+			header = (getdns_mdns_cached_record_header *)entry->data;
+
+			/* if the entry is empty, move it to the bottom of the LRU */
+			if (mdns_cache_nb_records_in_entry((uint8_t*)(entry->data)) == 0 &&
+				header->netreq_first == NULL)
+			{
+				lru_demote(context->mdns_cache, entry);
+			}
 		}
 
 		/* then, unlock the entry */
 		lock_rw_unlock(entry->lock);
 	} 
+
+	return ret;
+}
+
+
+/*
+ * Serve a request from the cached value
+ */
+static int
+mdns_complete_query_from_cache_entry(
+	getdns_network_req *netreq,
+	struct lruhash_entry *entry)
+{
+	int ret = 0;
+	uint8_t *packet = ((uint8_t *)entry->data) + sizeof(getdns_mdns_cached_record_header);
+	getdns_mdns_cached_record_header * header = (getdns_mdns_cached_record_header*)entry->data;
+	size_t packet_length = header->content_len - sizeof(getdns_mdns_cached_record_header);
+	getdns_network_req **prev_netreq;
+	int found = 0;
+	int nb_answers = mdns_cache_nb_records_in_entry((uint8_t *)entry->data);
+
+	/* Clear the event associated to the query */
+	GETDNS_CLEAR_EVENT(netreq->owner->loop, &netreq->event);
+
+	/* remove the completed query from the waiting list */
+	prev_netreq = &header->netreq_first;
+	while (*prev_netreq != NULL)
+	{
+		if (*prev_netreq == netreq)
+		{
+			*prev_netreq = netreq->mdns_netreq_next;
+			netreq->mdns_netreq_next = NULL;
+			found = 1;
+			break;
+		}
+		else
+		{
+			prev_netreq = &((*prev_netreq)->mdns_netreq_next);
+		}
+	}
+
+	if (found)
+	{
+		if (nb_answers == 0)
+		{
+		}
+		else
+		{
+			/* copy the returned value in the response field  */
+			if (packet_length > netreq->wire_data_sz)
+			{
+				netreq->response = GETDNS_XREALLOC(
+					netreq->owner->context->mf, netreq->response, uint8_t, packet_length);
+			}
+
+			if (netreq->response != NULL)
+			{
+				memcpy(netreq->response, packet, packet_length);
+
+				netreq->response[MDNS_PACKET_INDEX_QCODE] = 0x84;
+
+				netreq->response_len = packet_length;
+				netreq->debug_end_time = _getdns_get_time_as_uintt64();
+				netreq->state = NET_REQ_FINISHED;
+				_getdns_check_dns_req_complete(netreq->owner);
+			}
+			else
+			{
+				/* Fail the query? */
+				netreq->response_len = 0;
+				netreq->debug_end_time = _getdns_get_time_as_uintt64();
+				netreq->state = NET_REQ_ERRORED;
+				_getdns_check_dns_req_complete(netreq->owner);
+			}
+		}
+	}
+	else
+	{
+		/* Failure */
+		netreq->response_len = 0;
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
+		netreq->state = NET_REQ_ERRORED;
+		_getdns_check_dns_req_complete(netreq->owner);
+	}
 
 	return ret;
 }
@@ -1010,61 +1140,78 @@ mdns_cache_complete_queries(
 {
 	int ret = 0;
 	size_t required_memory = 0;
-	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
-	hashvalue_type hash;
 	struct lruhash_entry *entry;
-	uint8_t *packet;
-	int packet_length;
 	getdns_mdns_cached_record_header * header;
 	getdns_network_req * netreq;
 
-	msdn_cache_create_key_in_buffer(temp_key, name, name_len, record_type, record_class);
+	entry = mdns_access_cached_entry_by_name(context, name, name_len, record_type, record_class);
 
-
-	/* TODO: make hash init value a random number in the context, for defense against DOS */
-	hash = hashlittle(temp_key, name_len + sizeof(getdns_mdns_cached_key_header), 0xCAC8E);
-
-	entry = lruhash_lookup(context->mdns_cache, hash, temp_key, 1);
-
-	if (entry != NULL && entry->data != NULL)
+	if (entry != NULL)
 	{
-		header = (getdns_mdns_cached_record_header *)entry->data;
-
-		packet = ((uint8_t *)entry->data) + sizeof(getdns_mdns_cached_record_header);
-		packet_length = header->content_len; /* TODO: check that */
-
-		while ((netreq = header->netreq_first) != NULL)
+		if (entry->data != NULL)
 		{
-			header->netreq_first = netreq->mdns_netreq_next;
-			netreq->mdns_netreq_next = NULL;
-			/* TODO: copy the returned value in the response field  */
-			if (packet_length > netreq->wire_data_sz)
-			{
-				/* TODO: allocation. */
-			}
+			header = (getdns_mdns_cached_record_header *)entry->data;
 
-			if (netreq->response != NULL)
+			while ((netreq = header->netreq_first) != NULL)
 			{
-				memcpy(netreq->response, packet, packet_length);
-				/* TODO: process the query */
-				netreq->response_len = packet_length;
-				netreq->debug_end_time = _getdns_get_time_as_uintt64();
-				netreq->state = NET_REQ_FINISHED;
-				_getdns_check_dns_req_complete(netreq->owner);
-			}
-			else
-			{
-				/* Fail the query? */
-				netreq->response_len = 0;
-				netreq->debug_end_time = _getdns_get_time_as_uintt64();
-				netreq->state = NET_REQ_ERRORED;
-				_getdns_check_dns_req_complete(netreq->owner);
+				mdns_complete_query_from_cache_entry(netreq, entry);
 			}
 		}
 		lock_rw_unlock(entry->lock);
 	}
 
 	return ret;
+}
+
+/*
+* Timeout of multicast MDNS query
+*/
+static void
+mdns_mcast_timeout_cb(void *userarg)
+{
+	getdns_network_req *netreq = (getdns_network_req *)userarg;
+	getdns_dns_req *dnsreq = netreq->owner;
+	getdns_context *context = dnsreq->context;
+
+	int ret = 0;
+	size_t required_memory = 0;
+	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
+	hashvalue_type hash;
+	struct lruhash_entry *entry;
+	int found = 0;
+
+	DEBUG_MDNS("%s %-35s: MSG:  %p\n",
+		MDNS_DEBUG_CLEANUP, __FUNCTION__, netreq);
+
+	msdn_cache_create_key_in_buffer(temp_key, dnsreq->name, dnsreq->name_len,
+		netreq->request_type, dnsreq->request_class);
+
+
+	/* TODO: make hash init value a random number in the context, for defense against DOS */
+	hash = hashlittle(temp_key, dnsreq->name_len + sizeof(getdns_mdns_cached_key_header), 0xCAC8E);
+
+	/* Open the corresponding cache entry */
+	entry = lruhash_lookup(context->mdns_cache, hash, temp_key, 1);
+
+	if (entry != NULL)
+	{
+		if (entry->data != NULL)
+		{
+			/* Remove entry from chain and serve the query */
+			found = 1;
+			mdns_complete_query_from_cache_entry(netreq, entry);
+		}
+		lock_rw_unlock(entry->lock);
+	}
+
+	if (!found)
+	{
+		/* Fail the request on timeout */
+		netreq->response_len = 0;
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
+		netreq->state = NET_REQ_ERRORED;
+		_getdns_check_dns_req_complete(netreq->owner);
+	}
 }
 
 /*
@@ -1145,7 +1292,8 @@ mdns_udp_multicast_read_cb(void *userarg)
 					/* Parse the record header */
 					record_type = (cnx->response[current_index++] << 8);
 					record_type |= (cnx->response[current_index++]);
-					record_class = (cnx->response[current_index++] << 8);
+					/* TODO: handle the cache flush bit! */
+					record_class = (cnx->response[current_index++] << 8)&0x7F;
 					record_class |= (cnx->response[current_index++]);
 					record_ttl = (cnx->response[current_index++] << 24);
 					record_ttl |= (cnx->response[current_index++] << 16);
@@ -1154,7 +1302,7 @@ mdns_udp_multicast_read_cb(void *userarg)
 					record_data_len = (cnx->response[current_index++] << 8);
 					record_data_len |= (cnx->response[current_index++]);
 
-					if (current_index + record_data_len < read)
+					if (current_index + record_data_len <= read)
 					{
 						/* 
 						 * Set the record to canonical form. This is required, since 
@@ -1244,7 +1392,7 @@ static int mdns_open_ipv4_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 	uint8_t ttl = 255;
 	IP_MREQ mreq4;
 
-	memset(&mcast_dest, 0, sizeof(SOCKADDR_STORAGE));
+	memset(mcast_dest, 0, sizeof(SOCKADDR_STORAGE));
 	*mcast_dest_len = 0;
 	memset(&ipv4_dest, 0, sizeof(ipv4_dest));
 	memset(&ipv4_port, 0, sizeof(ipv4_dest));
@@ -1299,7 +1447,7 @@ static int mdns_open_ipv4_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 
 	if (ret == 0)
 	{
-		memcpy(&mcast_dest, &ipv4_dest, sizeof(ipv4_dest));
+		memcpy(mcast_dest, &ipv4_dest, sizeof(ipv4_dest));
 		*mcast_dest_len = sizeof(ipv4_dest);
 	}
 
@@ -1316,7 +1464,7 @@ static int mdns_open_ipv6_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 	uint8_t ttl = 255;
 	IPV6_MREQ mreq6;
 
-	memset(&mcast_dest, 0, sizeof(SOCKADDR_STORAGE));
+	memset(mcast_dest, 0, sizeof(SOCKADDR_STORAGE));
 	*mcast_dest_len = 0;
 	memset(&ipv6_dest, 0, sizeof(ipv6_dest));
 	memset(&ipv6_port, 0, sizeof(ipv6_dest));
@@ -1374,7 +1522,7 @@ static int mdns_open_ipv6_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 
 	if (ret == 0)
 	{
-		memcpy(&mcast_dest, &ipv6_dest, sizeof(ipv6_dest));
+		memcpy(mcast_dest, &ipv6_dest, sizeof(ipv6_dest));
 		*mcast_dest_len = sizeof(ipv6_dest);
 	}
 	return fd6;
@@ -1414,9 +1562,11 @@ static getdns_return_t mdns_delayed_network_init(struct getdns_context *context)
 				context->mdns_connection[0].fd = mdns_open_ipv4_multicast(
 					&context->mdns_connection[0].addr_mcast
 					, &context->mdns_connection[0].addr_mcast_len);
+				context->mdns_connection[0].context = context;
 				context->mdns_connection[1].fd = mdns_open_ipv6_multicast(
-					&context->mdns_connection[0].addr_mcast
-					, &context->mdns_connection[0].addr_mcast_len);
+					&context->mdns_connection[1].addr_mcast
+					, &context->mdns_connection[1].addr_mcast_len);
+				context->mdns_connection[1].context = context;
 
 				if (context->mdns_connection[0].fd == -1 ||
 					context->mdns_connection[1].fd == -1)
@@ -1479,7 +1629,7 @@ static getdns_return_t mdns_delayed_network_init(struct getdns_context *context)
  */
 static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *netreq)
 {
-	int ret = 0;
+	getdns_return_t ret = 0;
 	getdns_dns_req *dnsreq = netreq->owner;
 	struct getdns_context *context = dnsreq->context;
 
@@ -1521,6 +1671,15 @@ static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *ne
 
 	if (ret == 0)
 	{
+		/* If the query is not actually complete, are a per query timer. */
+		if (netreq->state < NET_REQ_FINISHED)
+		{
+			GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
+			GETDNS_SCHEDULE_EVENT(
+				dnsreq->loop, -1, dnsreq->context->timeout,
+				getdns_eventloop_event_init(&netreq->event, netreq,
+					NULL, NULL, mdns_mcast_timeout_cb));
+		}
 		/* If the entry was created less than 1 sec ago, send a query */
 
 		if (context->mdns_connection_nb <= 0)
@@ -1532,12 +1691,13 @@ static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *ne
 		{
 			/* TODO? Set TTL=255 for compliance with RFC 6762 */
 			int fd_index = context->mdns_connection_nb - 1;
-
-			if ((ssize_t)pkt_len != sendto(
+			int sent = sendto(
 				context->mdns_connection[fd_index].fd
 				, (const void *)netreq->query, pkt_len, 0
 				, (SOCKADDR*)&context->mdns_connection[fd_index].addr_mcast
-				, context->mdns_connection[fd_index].addr_mcast_len))
+				, context->mdns_connection[fd_index].addr_mcast_len);
+
+			if (pkt_len != sent)
 			{
 				ret = GETDNS_RETURN_GENERIC_ERROR;
 			}
@@ -1900,3 +2060,188 @@ _getdns_mdns_namespace_check(
 }
 
 #endif /* HAVE_MDNS_SUPPORT */
+
+#ifdef MDNS_UNIT_TEST
+
+/*
+ * Test adding data to the LRU Cache
+ */
+
+static BYTE mdns_exampleRRAM[] = {
+	0, 0, /* Transaction ID = 0 */
+	0x84, 0, /* Answer: QR=1 (80), AA=1 (04) */
+	0, 0, /* QD Count = 0 */
+	0, 1, /* AN Count = 1 */
+	0, 0, /* NS Count = 0 */
+	0, 0, /* AD Count = 0 */
+	7, /* length of "example" name part */
+	'e', 'x', 'a', 'm', 'p', 'l', 'e',
+	5, /* length of "local" name part */
+	'l', 'o', 'c', 'a', 'l',
+	0, /* length of the root name part */
+	0, 1, /* QTYPE = 1, A record */
+	0, 1, /* QCLASS = 1, IN */
+	0, 0, 0, 255, /* TTL: 255 sec */
+	0, 4, /* length of RDATA */
+	10, 0, 0, 1 /* Value of RDATA (some IPv4 address) */
+};
+
+
+uint8_t mdns_test_name[] = {
+	7, /* length of "example" name part */
+	't', 'e', 's', 't', 'i', 'n', 'g',
+	5, /* length of "local" name part */
+	'l', 'o', 'c', 'a', 'l',
+	0, /* length of the root name part */
+};
+
+uint8_t mdns_test_first_address[4] = { 10, 0, 0, 1 };
+uint8_t mdns_test_second_address[4] = { 10, 0, 0, 2 };
+uint8_t mdns_test_third_address[4] = { 10, 0, 0, 3 };
+
+int mdns_finalize_lru_test(struct getdns_context* context,
+	uint8_t * name, int name_len, int record_type, int record_class,
+	int expected_nb_records,
+	uint8_t * buffer, size_t buffer_max, size_t* entry_length)
+{
+	int ret = 0;
+	/* verify that the entry is there */
+	struct lruhash_entry * entry =
+		mdns_access_cached_entry_by_name(context, name, name_len, record_type, record_class);
+
+	
+	*entry_length = 0;
+
+	if (entry == NULL)
+	{
+		if (expected_nb_records != 0)
+			ret = -1;
+	}
+	else
+	{
+		int nbanswers = mdns_cache_nb_records_in_entry((uint8_t*)entry->data);
+		if (nbanswers != expected_nb_records)
+		{
+			ret = -2;
+		}
+		
+		if (buffer != NULL)
+		{
+			getdns_mdns_cached_record_header * header =
+				(getdns_mdns_cached_record_header*)entry->data;
+			size_t record_length = header->content_len - sizeof(getdns_mdns_cached_record_header);
+
+			if (record_length > buffer_max)
+			{
+				ret = -3;
+			}
+			else
+			{
+				memcpy(buffer, ((uint8_t *)entry->data) + sizeof(getdns_mdns_cached_record_header),
+					record_length);
+				*entry_length = record_length;
+			}
+		}
+
+		lock_rw_unlock(entry->lock);
+	}
+
+	return ret;
+}
+
+int mdns_addition_test(struct getdns_context* context, 
+	uint8_t * buffer, size_t buffer_max, size_t* entry_length)
+{
+	int ret = 
+	mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 255,
+		mdns_test_first_address, 4, NULL, _getdns_get_time_as_uintt64());
+
+	if (ret == 0)
+	{
+		ret = mdns_finalize_lru_test(context, &mdns_exampleRRAM[12], 15, 1, 1,
+			1, buffer, buffer_max, entry_length);
+	}
+
+	return ret;
+}
+
+int mdns_addition_test2(struct getdns_context* context,
+	uint8_t * buffer, size_t buffer_max, size_t* entry_length)
+{
+	int ret =
+		mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 255,
+			mdns_test_first_address, 4, NULL, _getdns_get_time_as_uintt64());
+
+	if (ret == 0)
+	{
+		/* add a second entry, with a different value */
+		ret =
+			mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 255,
+				mdns_test_second_address, 4, NULL, _getdns_get_time_as_uintt64());
+	}
+
+	if (ret == 0)
+	{
+		/* add a third entry, with a different value */
+		ret =
+			mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 255,
+				mdns_test_third_address, 4, NULL, _getdns_get_time_as_uintt64());
+	}
+
+	if (ret == 0)
+	{
+		ret = mdns_finalize_lru_test(context, mdns_test_name, sizeof(mdns_test_name), 1, 1,
+			3, buffer, buffer_max, entry_length);
+	}
+
+	return ret;
+}
+
+int mdns_deletion_test(struct getdns_context* context,
+	uint8_t * buffer, size_t buffer_max, size_t* entry_length)
+{
+	/* insert data with TTL = 0 to trigger suppression */
+	int ret =
+		mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 0,
+			mdns_test_second_address, 4, NULL, _getdns_get_time_as_uintt64());
+
+	if (ret == 0)
+	{
+		ret = mdns_finalize_lru_test(context, mdns_test_name, sizeof(mdns_test_name), 1, 1,
+			2, buffer, buffer_max, entry_length);
+	}
+
+	return ret;
+}
+
+int mdns_deletion_test2(struct getdns_context* context,
+	uint8_t * buffer, size_t buffer_max, size_t* entry_length)
+{
+	/* insert data with TTL = 0 to trigger suppression */
+	int ret =
+		mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 0,
+			mdns_test_first_address, 4, NULL, _getdns_get_time_as_uintt64());
+
+	if (ret == 0)
+	{
+		ret =
+			mdns_propose_entry_to_cache(context, mdns_test_name, sizeof(mdns_test_name), 1, 1, 0,
+				mdns_test_third_address, 4, NULL, _getdns_get_time_as_uintt64());
+	}
+
+	if (ret == 0)
+	{
+		ret = mdns_finalize_lru_test(context, mdns_test_name, sizeof(mdns_test_name), 1, 1,
+			0, buffer, buffer_max, entry_length);
+	}
+
+	return ret;
+}
+
+
+int mdns_test_prepare(struct getdns_context* context)
+{
+	return mdns_delayed_network_init(context);
+}
+
+#endif
