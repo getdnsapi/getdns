@@ -55,6 +55,13 @@ m4/ltsugar.m4
 m4/ltversion.m4
 m4/lt~obsolete.m4
 src/config.h.in
-build/
 getdns.pc
 getdns_ext_event.pc
+/src/test/tpkg/result.*
+/src/test/tpkg/.done-*
+/src/test/tpkg/.tpkg.var.master
+/src/test/tpkg/scan-build-reports/
+/src/test/tpkg/install/
+/src/test/tpkg/build/
+/src/test/tpkg/build-stub-only/
+/src/test/tpkg/build-event-loops/

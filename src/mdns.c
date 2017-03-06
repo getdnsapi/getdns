@@ -1757,7 +1757,7 @@ static void
 mdns_cleanup(getdns_network_req *netreq)
 {
 	DEBUG_MDNS("%s %-35s: MSG: %p\n",
-		MDNS_DEBUG_CLEANUP, __FUNCTION__, netreq);
+		MDNS_DEBUG_CLEANUP, __FUNC__, netreq);
 	getdns_dns_req *dnsreq = netreq->owner;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
@@ -1781,7 +1781,7 @@ mdns_timeout_cb(void *userarg)
 {
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	DEBUG_MDNS("%s %-35s: MSG:  %p\n",
-		MDNS_DEBUG_CLEANUP, __FUNCTION__, netreq);
+		MDNS_DEBUG_CLEANUP, __FUNC__, netreq);
 
 	/* TODO: do we need a retry logic here? */
 
@@ -1815,7 +1815,7 @@ mdns_udp_read_cb(void *userarg)
 	getdns_dns_req *dnsreq = netreq->owner;
 	ssize_t       read;
 	DEBUG_MDNS("%s %-35s: MSG: %p \n", MDNS_DEBUG_READ,
-		__FUNCTION__, netreq);
+		__FUNC__, netreq);
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -1869,7 +1869,7 @@ mdns_udp_write_cb(void *userarg)
 	int r;
 
 	DEBUG_MDNS("%s %-35s: MSG: %p \n", MDNS_DEBUG_WRITE,
-		__FUNCTION__, netreq);
+		__FUNC__, netreq);
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -1917,7 +1917,7 @@ mdns_udp_write_cb(void *userarg)
 getdns_return_t
 _getdns_submit_mdns_request(getdns_network_req *netreq)
 {
-	DEBUG_MDNS("%s %-35s: MSG: %p TYPE: %d\n", MDNS_DEBUG_ENTRY, __FUNCTION__,
+	DEBUG_MDNS("%s %-35s: MSG: %p TYPE: %d\n", MDNS_DEBUG_ENTRY, __FUNC__,
 		netreq, netreq->request_type);
 	int fd = -1;
 	getdns_dns_req *dnsreq = netreq->owner;

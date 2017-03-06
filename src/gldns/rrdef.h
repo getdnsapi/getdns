@@ -372,6 +372,8 @@ enum gldns_enum_algorithm
         GLDNS_ECC_GOST           = 12,  /* RFC 5933 */
         GLDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
         GLDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+	GLDNS_ED25519		= 15,  /* RFC 8080 */
+	GLDNS_ED448		= 16,  /* RFC 8080 */
         GLDNS_INDIRECT           = 252,
         GLDNS_PRIVATEDNS         = 253,
         GLDNS_PRIVATEOID         = 254

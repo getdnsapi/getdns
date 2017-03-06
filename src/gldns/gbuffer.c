@@ -33,6 +33,7 @@ gldns_buffer_new(size_t capacity)
 	buffer->_position = 0;
 	buffer->_limit = buffer->_capacity = capacity;
 	buffer->_fixed = 0;
+	buffer->_vfixed = 0;
 	buffer->_status_err = 0;
 	
 	gldns_buffer_invariant(buffer);
@@ -48,6 +49,7 @@ gldns_buffer_new_frm_data(gldns_buffer *buffer, void *data, size_t size)
 	buffer->_position = 0; 
 	buffer->_limit = buffer->_capacity = size;
 	buffer->_fixed = 0;
+	buffer->_vfixed = 0;
 	buffer->_data = malloc(size);
 	if(!buffer->_data) {
 		buffer->_status_err = 1;
@@ -66,6 +68,17 @@ gldns_buffer_init_frm_data(gldns_buffer *buffer, void *data, size_t size)
 	buffer->_data = data;
 	buffer->_capacity = buffer->_limit = size;
 	buffer->_fixed = 1;
+	buffer->_vfixed = 0;
+}
+
+void
+gldns_buffer_init_vfixed_frm_data(gldns_buffer *buffer, void *data, size_t size)
+{
+	memset(buffer, 0, sizeof(*buffer));
+	buffer->_data = data;
+	buffer->_capacity = buffer->_limit = size;
+	buffer->_fixed = 1;
+	buffer->_vfixed = 1;
 }
 
 int
@@ -120,20 +133,19 @@ gldns_buffer_printf(gldns_buffer *buffer, const char *format, ...)
 
 		remaining = gldns_buffer_remaining(buffer);
 		va_start(args, format);
-		written = _gldns_vsnprintf((char*)gldns_buffer_current(buffer),
-		    remaining, format, args);
+		written = vsnprintf((char *) gldns_buffer_current(buffer), remaining,
+				    format, args);
 		va_end(args);
 		if (written == -1) {
 			buffer->_status_err = 1;
 			return -1;
-		} else if (!buffer->_fixed && (size_t) written >= remaining) {
+		} else if (!buffer->_vfixed && (size_t) written >= remaining) {
 			if (!gldns_buffer_reserve(buffer, (size_t) written + 1)) {
 				buffer->_status_err = 1;
 				return -1;
 			}
 			va_start(args, format);
-			written = _gldns_vsnprintf(
-			    (char *) gldns_buffer_current(buffer),
+			written = vsnprintf((char *) gldns_buffer_current(buffer),
 			    gldns_buffer_remaining(buffer), format, args);
 			va_end(args);
 			if (written == -1) {

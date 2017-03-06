@@ -215,7 +215,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\tThe file must be in json dict format.\n");
 	if (i_am_stubby) {
 		fprintf(out, "\t\tBy default, configuration is first read from");
-		fprintf(out, "\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"");
+		fprintf(out, "\n\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"\n");
 	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");

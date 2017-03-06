@@ -56,6 +56,8 @@ extern "C" {
  * \defgroup Ureturnvaluesandtext Additional return values and texts
  *  @{
  */
+#define GETDNS_RETURN_NO_UPSTREAM_AVAILABLE ((getdns_return_t) 398 )
+#define GETDNS_RETURN_NO_UPSTREAM_AVAILABLE_TEXT "None of the configured upstreams could be used to send queries on the specified transports"
 #define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t) 399 )
 #define GETDNS_RETURN_NEED_MORE_SPACE_TEXT "The buffer was too small"
 /** @}

@@ -214,6 +214,30 @@ case "$enable_debug_keep_connections_open" in
 		;;
 esac
 
+
+DEFAULT_EVENTLOOP=select_eventloop
+AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h],,, [AC_INCLUDES_DEFAULT])
+AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
+case "$enable_poll_eventloop" in
+	no)
+		;;
+	yes|*)
+AC_MSG_CHECKING(for poll)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
+], [int rc; rc = poll((struct pollfd *)(0), 0, 0);])], [
+AC_MSG_RESULT(yes)
+AC_DEFINE_UNQUOTED([USE_POLL_DEFAULT_EVENTLOOP], [1], [Define this to enable a default eventloop based on poll().])
+DEFAULT_EVENTLOOP=poll_eventloop
+],[AC_MSG_RESULT(no)])
+		;;
+esac
+AC_SUBST(DEFAULT_EVENTLOOP)
+
 AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
     enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
 if test "x$enable_tcp_fastopen" = xno; then
@@ -1076,8 +1100,6 @@ if test "$ac_cv_func_arc4random" = "no"; then
 	])
 fi
 
-AC_DEFINE(USE_MINI_EVENT, 1, [Needed for sync stub resolver functions])
-
 AC_TYPE_SIGNAL
 
 case `uname` in
@@ -1101,17 +1123,16 @@ AH_BOTTOM([
 #endif
 
 #ifdef GETDNS_ON_WINDOWS
-/* On windows it is allowed to increase the FD_SETSIZE
- * (and nescessary to make our custom eventloop work)
- * See: https://support.microsoft.com/en-us/kb/111855
- */
-#ifndef FD_SETSIZE
-#define FD_SETSIZE 1024
-#endif
-
-#define PRIsz "%Iu"
+ /* On windows it is allowed to increase the FD_SETSIZE
+  * (and nescessary to make our custom eventloop work)
+  * See: https://support.microsoft.com/en-us/kb/111855
+  */
+# ifndef FD_SETSIZE
+# define FD_SETSIZE 1024
+# endif
+# define PRIsz "%Iu"
 #else
-#define PRIsz "%zu"
+# define PRIsz "%zu"
 #endif
 
 #include <stdint.h>
@@ -1147,8 +1168,6 @@ AH_BOTTOM([
 #else
 #define FD_SET_T 
 #endif
-
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -1202,6 +1221,12 @@ int inet_pton(int af, const char* src, void* dst);
 
 #ifndef HAVE_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifdef USE_WINSOCK
+static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{ int r = vsnprintf(str, size, format, ap); return r == -1 ? _vscprintf(format, ap) : r; }
+# define vsnprintf _gldns_custom_vsnprintf
 #endif
 
 #ifdef __cplusplus
