@@ -48,7 +48,7 @@ srcdir = @srcdir@
 LIBTOOL = ../libtool
 
 CC=@CC@
-CFLAGS=-I$(srcdir) -I. @CFLAGS@ @CPPFLAGS@ $(XTRA_CFLAGS)
+CFLAGS=-I$(srcdir) -I. -I$(srcdir)/util/ub_reroute @CFLAGS@ @CPPFLAGS@ $(XTRA_CFLAGS)
 WPEDANTICFLAG=@WPEDANTICFLAG@
 WNOERRORFLAG=@WNOERRORFLAG@
 LDFLAGS=@LDFLAGS@ @LIBS@
