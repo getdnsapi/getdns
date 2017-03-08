@@ -481,9 +481,10 @@ case "$enable_dsa" in
       ;;
 esac
 
-AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [No drafts in this release]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enables the draft mdns client support]))
 case "$enable_all_drafts" in
 	yes)
+		AC_DEFINE_UNQUOTED([HAVE_MDNS_SUPPORT], [1], [Define this to enable the draft mdns client support.])
 		;;
 	no|*)
 		;;
@@ -513,6 +514,15 @@ AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the
 
 AC_DEFINE_UNQUOTED([MAXIMUM_UPSTREAM_OPTION_SPACE], [3000], [limit for dynamically-generated DNS options])
 AC_DEFINE_UNQUOTED([EDNS_PADDING_OPCODE], [12], [The edns padding option code.])
+
+AC_ARG_ENABLE(draft-mdns-support, AC_HELP_STRING([--enable-draft-mdns-support], [Enable draft mdns client support]))
+case "$enable_draft_mdns_support" in
+	yes)
+		AC_DEFINE_UNQUOTED([HAVE_MDNS_SUPPORT], [1], [Define this to enable the draft mdns client support.])
+		;;
+	no|*)
+		;;
+esac
 
 my_with_libunbound=1
 AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
