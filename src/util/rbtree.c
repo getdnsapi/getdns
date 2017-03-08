@@ -40,8 +40,8 @@
  */
 
 #include "config.h"
-#include "util/log.h"
-#include "util/fptr_wlist.h"
+#include "log.h"
+#include "fptr_wlist.h"
 #include "util/rbtree.h"
 
 /** Node colour black */
@@ -50,7 +50,7 @@
 #define	RED	1
 
 /** the NULL node, global alloc */
-_getdns_rbnode_t	_getdns_rbtree_null_node = {
+rbnode_type	rbtree_null_node = {
 	RBTREE_NULL,		/* Parent.  */
 	RBTREE_NULL,		/* Left.  */
 	RBTREE_NULL,		/* Right.  */
@@ -59,13 +59,14 @@ _getdns_rbnode_t	_getdns_rbtree_null_node = {
 };
 
 /** rotate subtree left (to preserve redblack property) */
-static void _getdns_rbtree_rotate_left(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node);
+static void rbtree_rotate_left(rbtree_type *rbtree, rbnode_type *node);
 /** rotate subtree right (to preserve redblack property) */
-static void _getdns_rbtree_rotate_right(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node);
+static void rbtree_rotate_right(rbtree_type *rbtree, rbnode_type *node);
 /** Fixup node colours when insert happened */
-static void _getdns_rbtree_insert_fixup(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node);
+static void rbtree_insert_fixup(rbtree_type *rbtree, rbnode_type *node);
 /** Fixup node colours when delete happened */
-static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode_t* child, _getdns_rbnode_t* child_parent);
+static void rbtree_delete_fixup(rbtree_type* rbtree, rbnode_type* child,
+	rbnode_type* child_parent);
 
 /*
  * Creates a new red black tree, initializes and returns a pointer to it.
@@ -73,25 +74,25 @@ static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode
  * Return NULL on failure.
  *
  */
-_getdns_rbtree_t *
-_getdns_rbtree_create (int (*cmpf)(const void *, const void *))
+rbtree_type *
+rbtree_create (int (*cmpf)(const void *, const void *))
 {
-	_getdns_rbtree_t *rbtree;
+	rbtree_type *rbtree;
 
 	/* Allocate memory for it */
-	rbtree = (_getdns_rbtree_t *) malloc(sizeof(_getdns_rbtree_t));
+	rbtree = (rbtree_type *) malloc(sizeof(rbtree_type));
 	if (!rbtree) {
 		return NULL;
 	}
 
 	/* Initialize it */
-	_getdns_rbtree_init(rbtree, cmpf);
+	rbtree_init(rbtree, cmpf);
 
 	return rbtree;
 }
 
 void 
-_getdns_rbtree_init(_getdns_rbtree_t *rbtree, int (*cmpf)(const void *, const void *))
+rbtree_init(rbtree_type *rbtree, int (*cmpf)(const void *, const void *))
 {
 	/* Initialize it */
 	rbtree->root = RBTREE_NULL;
@@ -104,9 +105,9 @@ _getdns_rbtree_init(_getdns_rbtree_t *rbtree, int (*cmpf)(const void *, const vo
  *
  */
 static void
-_getdns_rbtree_rotate_left(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
+rbtree_rotate_left(rbtree_type *rbtree, rbnode_type *node)
 {
-	_getdns_rbnode_t *right = node->right;
+	rbnode_type *right = node->right;
 	node->right = right->left;
 	if (right->left != RBTREE_NULL)
 		right->left->parent = node;
@@ -131,9 +132,9 @@ _getdns_rbtree_rotate_left(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
  *
  */
 static void
-_getdns_rbtree_rotate_right(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
+rbtree_rotate_right(rbtree_type *rbtree, rbnode_type *node)
 {
-	_getdns_rbnode_t *left = node->left;
+	rbnode_type *left = node->left;
 	node->left = left->right;
 	if (left->right != RBTREE_NULL)
 		left->right->parent = node;
@@ -154,9 +155,9 @@ _getdns_rbtree_rotate_right(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
 }
 
 static void
-_getdns_rbtree_insert_fixup(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
+rbtree_insert_fixup(rbtree_type *rbtree, rbnode_type *node)
 {
-	_getdns_rbnode_t	*uncle;
+	rbnode_type	*uncle;
 
 	/* While not at the root and need fixing... */
 	while (node != rbtree->root && node->parent->color == RED) {
@@ -179,12 +180,12 @@ _getdns_rbtree_insert_fixup(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
 				/* Are we the right child? */
 				if (node == node->parent->right) {
 					node = node->parent;
-					_getdns_rbtree_rotate_left(rbtree, node);
+					rbtree_rotate_left(rbtree, node);
 				}
 				/* Now we're the left child, repaint and rotate... */
 				node->parent->color = BLACK;
 				node->parent->parent->color = RED;
-				_getdns_rbtree_rotate_right(rbtree, node->parent->parent);
+				rbtree_rotate_right(rbtree, node->parent->parent);
 			}
 		} else {
 			uncle = node->parent->parent->left;
@@ -204,12 +205,12 @@ _getdns_rbtree_insert_fixup(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
 				/* Are we the right child? */
 				if (node == node->parent->left) {
 					node = node->parent;
-					_getdns_rbtree_rotate_right(rbtree, node);
+					rbtree_rotate_right(rbtree, node);
 				}
 				/* Now we're the right child, repaint and rotate... */
 				node->parent->color = BLACK;
 				node->parent->parent->color = RED;
-				_getdns_rbtree_rotate_left(rbtree, node->parent->parent);
+				rbtree_rotate_left(rbtree, node->parent->parent);
 			}
 		}
 	}
@@ -223,17 +224,17 @@ _getdns_rbtree_insert_fixup(_getdns_rbtree_t *rbtree, _getdns_rbnode_t *node)
  * Returns NULL on failure or the pointer to the newly added node
  * otherwise.
  */
-_getdns_rbnode_t *
-_getdns_rbtree_insert (_getdns_rbtree_t *rbtree, _getdns_rbnode_t *data)
+rbnode_type *
+rbtree_insert (rbtree_type *rbtree, rbnode_type *data)
 {
 	/* XXX Not necessary, but keeps compiler quiet... */
 	int r = 0;
 
 	/* We start at the root of the tree */
-	_getdns_rbnode_t	*node = rbtree->root;
-	_getdns_rbnode_t	*parent = RBTREE_NULL;
+	rbnode_type	*node = rbtree->root;
+	rbnode_type	*parent = RBTREE_NULL;
 
-	fptr_ok(fptr_whitelist__getdns_rbtree_cmp(rbtree->cmp));
+	fptr_ok(fptr_whitelist_rbtree_cmp(rbtree->cmp));
 	/* Lets find the new parent... */
 	while (node != RBTREE_NULL) {
 		/* Compare two keys, do we have a duplicate? */
@@ -267,7 +268,7 @@ _getdns_rbtree_insert (_getdns_rbtree_t *rbtree, _getdns_rbnode_t *data)
 	}
 
 	/* Fix up the red-black properties... */
-	_getdns_rbtree_insert_fixup(rbtree, data);
+	rbtree_insert_fixup(rbtree, data);
 
 	return data;
 }
@@ -276,12 +277,12 @@ _getdns_rbtree_insert (_getdns_rbtree_t *rbtree, _getdns_rbnode_t *data)
  * Searches the red black tree, returns the data if key is found or NULL otherwise.
  *
  */
-_getdns_rbnode_t *
-_getdns_rbtree_search (_getdns_rbtree_t *rbtree, const void *key)
+rbnode_type *
+rbtree_search (rbtree_type *rbtree, const void *key)
 {
-	_getdns_rbnode_t *node;
+	rbnode_type *node;
 
-	if (_getdns_rbtree_find_less_equal(rbtree, key, &node)) {
+	if (rbtree_find_less_equal(rbtree, key, &node)) {
 		return node;
 	} else {
 		return NULL;
@@ -295,13 +296,14 @@ static void swap_int8(uint8_t* x, uint8_t* y)
 }
 
 /** helpers for delete: swap node pointers */
-static void swap_np(_getdns_rbnode_t** x, _getdns_rbnode_t** y) 
+static void swap_np(rbnode_type** x, rbnode_type** y) 
 {
-	_getdns_rbnode_t* t = *x; *x = *y; *y = t; 
+	rbnode_type* t = *x; *x = *y; *y = t; 
 }
 
 /** Update parent pointers of child trees of 'parent' */
-static void change_parent_ptr(_getdns_rbtree_t* rbtree, _getdns_rbnode_t* parent, _getdns_rbnode_t* old, _getdns_rbnode_t* new)
+static void change_parent_ptr(rbtree_type* rbtree, rbnode_type* parent,
+	rbnode_type* old, rbnode_type* new)
 {
 	if(parent == RBTREE_NULL)
 	{
@@ -315,30 +317,31 @@ static void change_parent_ptr(_getdns_rbtree_t* rbtree, _getdns_rbnode_t* parent
 	if(parent->right == old) parent->right = new;
 }
 /** Update parent pointer of a node 'child' */
-static void change_child_ptr(_getdns_rbnode_t* child, _getdns_rbnode_t* old, _getdns_rbnode_t* new)
+static void change_child_ptr(rbnode_type* child, rbnode_type* old,
+	rbnode_type* new)
 {
 	if(child == RBTREE_NULL) return;
 	log_assert(child->parent == old || child->parent == new);
 	if(child->parent == old) child->parent = new;
 }
 
-_getdns_rbnode_t* 
-_getdns_rbtree_delete(_getdns_rbtree_t *rbtree, const void *key)
+rbnode_type* 
+rbtree_delete(rbtree_type *rbtree, const void *key)
 {
-	_getdns_rbnode_t *to_delete;
-	_getdns_rbnode_t *child;
-	if((to_delete = _getdns_rbtree_search(rbtree, key)) == 0) return 0;
+	rbnode_type *to_delete;
+	rbnode_type *child;
+	if((to_delete = rbtree_search(rbtree, key)) == 0) return 0;
 	rbtree->count--;
 
 	/* make sure we have at most one non-leaf child */
 	if(to_delete->left != RBTREE_NULL && to_delete->right != RBTREE_NULL)
 	{
 		/* swap with smallest from right subtree (or largest from left) */
-		_getdns_rbnode_t *smright = to_delete->right;
+		rbnode_type *smright = to_delete->right;
 		while(smright->left != RBTREE_NULL)
 			smright = smright->left;
 		/* swap the smright and to_delete elements in the tree,
-		 * but the _getdns_rbnode_t is first part of user data struct
+		 * but the rbnode_type is first part of user data struct
 		 * so cannot just swap the keys and data pointers. Instead
 		 * readjust the pointers left,right,parent */
 
@@ -390,7 +393,7 @@ _getdns_rbtree_delete(_getdns_rbtree_t *rbtree, const void *key)
 		/* change child to BLACK, removing a RED node is no problem */
 		if(child!=RBTREE_NULL) child->color = BLACK;
 	}
-	else _getdns_rbtree_delete_fixup(rbtree, child, to_delete->parent);
+	else rbtree_delete_fixup(rbtree, child, to_delete->parent);
 
 	/* unlink completely */
 	to_delete->parent = RBTREE_NULL;
@@ -400,9 +403,10 @@ _getdns_rbtree_delete(_getdns_rbtree_t *rbtree, const void *key)
 	return to_delete;
 }
 
-static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode_t* child, _getdns_rbnode_t* child_parent)
+static void rbtree_delete_fixup(rbtree_type* rbtree, rbnode_type* child,
+	rbnode_type* child_parent)
 {
-	_getdns_rbnode_t* sibling;
+	rbnode_type* sibling;
 	int go_up = 1;
 
 	/* determine sibling to the node that is one-black short */
@@ -422,8 +426,8 @@ static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode
 			child_parent->color = RED;
 			sibling->color = BLACK;
 			if(child_parent->right == child)
-				_getdns_rbtree_rotate_right(rbtree, child_parent);
-			else	_getdns_rbtree_rotate_left(rbtree, child_parent);
+				rbtree_rotate_right(rbtree, child_parent);
+			else	rbtree_rotate_left(rbtree, child_parent);
 			/* new sibling after rotation */
 			if(child_parent->right == child) sibling = child_parent->left;
 			else sibling = child_parent->right;
@@ -468,7 +472,7 @@ static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode
 	{
 		sibling->color = RED;
 		sibling->right->color = BLACK;
-		_getdns_rbtree_rotate_left(rbtree, sibling);
+		rbtree_rotate_left(rbtree, sibling);
 		/* new sibling after rotation */
 		if(child_parent->right == child) sibling = child_parent->left;
 		else sibling = child_parent->right;
@@ -480,7 +484,7 @@ static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode
 	{
 		sibling->color = RED;
 		sibling->left->color = BLACK;
-		_getdns_rbtree_rotate_right(rbtree, sibling);
+		rbtree_rotate_right(rbtree, sibling);
 		/* new sibling after rotation */
 		if(child_parent->right == child) sibling = child_parent->left;
 		else sibling = child_parent->right;
@@ -493,21 +497,22 @@ static void _getdns_rbtree_delete_fixup(_getdns_rbtree_t* rbtree, _getdns_rbnode
 	{
 		log_assert(sibling->left->color == RED);
 		sibling->left->color = BLACK;
-		_getdns_rbtree_rotate_right(rbtree, child_parent);
+		rbtree_rotate_right(rbtree, child_parent);
 	}
 	else
 	{
 		log_assert(sibling->right->color == RED);
 		sibling->right->color = BLACK;
-		_getdns_rbtree_rotate_left(rbtree, child_parent);
+		rbtree_rotate_left(rbtree, child_parent);
 	}
 }
 
 int
-_getdns_rbtree_find_less_equal(_getdns_rbtree_t *rbtree, const void *key, _getdns_rbnode_t **result)
+rbtree_find_less_equal(rbtree_type *rbtree, const void *key,
+	rbnode_type **result)
 {
 	int r;
-	_getdns_rbnode_t *node;
+	rbnode_type *node;
 
 	log_assert(result);
 	
@@ -515,7 +520,7 @@ _getdns_rbtree_find_less_equal(_getdns_rbtree_t *rbtree, const void *key, _getdn
 	node = rbtree->root;
 
 	*result = NULL;
-	fptr_ok(fptr_whitelist__getdns_rbtree_cmp(rbtree->cmp));
+	fptr_ok(fptr_whitelist_rbtree_cmp(rbtree->cmp));
 
 	/* While there are children... */
 	while (node != RBTREE_NULL) {
@@ -540,19 +545,19 @@ _getdns_rbtree_find_less_equal(_getdns_rbtree_t *rbtree, const void *key, _getdn
  * Finds the first element in the red black tree
  *
  */
-_getdns_rbnode_t *
-_getdns_rbtree_first (_getdns_rbtree_t *rbtree)
+rbnode_type *
+rbtree_first (rbtree_type *rbtree)
 {
-	_getdns_rbnode_t *node;
+	rbnode_type *node;
 
 	for (node = rbtree->root; node->left != RBTREE_NULL; node = node->left);
 	return node;
 }
 
-_getdns_rbnode_t *
-_getdns_rbtree_last (_getdns_rbtree_t *rbtree)
+rbnode_type *
+rbtree_last (rbtree_type *rbtree)
 {
-	_getdns_rbnode_t *node;
+	rbnode_type *node;
 
 	for (node = rbtree->root; node->right != RBTREE_NULL; node = node->right);
 	return node;
@@ -562,10 +567,10 @@ _getdns_rbtree_last (_getdns_rbtree_t *rbtree)
  * Returns the next node...
  *
  */
-_getdns_rbnode_t *
-_getdns_rbtree_next (_getdns_rbnode_t *node)
+rbnode_type *
+rbtree_next (rbnode_type *node)
 {
-	_getdns_rbnode_t *parent;
+	rbnode_type *parent;
 
 	if (node->right != RBTREE_NULL) {
 		/* One right, then keep on going left... */
@@ -581,10 +586,10 @@ _getdns_rbtree_next (_getdns_rbnode_t *node)
 	return node;
 }
 
-_getdns_rbnode_t *
-_getdns_rbtree_previous(_getdns_rbnode_t *node)
+rbnode_type *
+rbtree_previous(rbnode_type *node)
 {
-	_getdns_rbnode_t *parent;
+	rbnode_type *parent;
 
 	if (node->left != RBTREE_NULL) {
 		/* One left, then keep on going right... */
@@ -602,19 +607,20 @@ _getdns_rbtree_previous(_getdns_rbnode_t *node)
 
 /** recursive descent traverse */
 static void 
-_getdns_traverse_post(void (*func)(_getdns_rbnode_t*, void*), void* arg, _getdns_rbnode_t* node)
+traverse_post(void (*func)(rbnode_type*, void*), void* arg, rbnode_type* node)
 {
 	if(!node || node == RBTREE_NULL)
 		return;
 	/* recurse */
-	_getdns_traverse_post(func, arg, node->left);
-	_getdns_traverse_post(func, arg, node->right);
+	traverse_post(func, arg, node->left);
+	traverse_post(func, arg, node->right);
 	/* call user func */
 	(*func)(node, arg);
 }
 
 void 
-_getdns_traverse_postorder(_getdns_rbtree_t* tree, void (*func)(_getdns_rbnode_t*, void*), void* arg)
+traverse_postorder(rbtree_type* tree, void (*func)(rbnode_type*, void*),
+	void* arg)
 {
-	_getdns_traverse_post(func, arg, tree->root);
+	traverse_post(func, arg, tree->root);
 }
