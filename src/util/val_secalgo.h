@@ -74,5 +74,5 @@ enum sec_status { sec_status_bogus     = 0
 #define sldns_ecdsa2pkey_raw		gldns_ecdsa2pkey_raw
 #define sldns_buffer_begin		gldns_buffer_begin
 #define sldns_buffer_limit		gldns_buffer_limit
-#include "util/ub/val_secalgo.h"
+#include "util/orig-headers/val_secalgo.h"
 #endif

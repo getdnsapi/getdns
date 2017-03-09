@@ -46,5 +46,5 @@
 #define rbtree_next		_getdns_rbtree_next
 #define rbtree_previous		_getdns_rbtree_previous
 #define traverse_postorder	_getdns_traverse_postorder
-#include "util/ub/rbtree.h"
+#include "util/orig-headers/rbtree.h"
 #endif
