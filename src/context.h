@@ -45,6 +45,9 @@
 #include "util/rbtree.h"
 #include "ub_loop.h"
 #include "server.h"
+#ifdef HAVE_MDNS_SUPPORT
+#include "util/lruhash.h"
+#endif
 
 struct getdns_dns_req;
 struct ub_ctx;

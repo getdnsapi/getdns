@@ -667,7 +667,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
-AC_CHECK_TYPE([u_char])
+AC_CHECK_TYPES([u_char])
 
 AC_CHECK_FUNCS([fcntl])
 # check ioctlsocket
@@ -752,7 +752,7 @@ AS_IF([test x_$withval = x_no],
                     [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
                     [have_libevent=0],
                     [AC_INCLUDES_DEFAULT]
-                    [#if HAVE_U_CHAR == 0
+                    [#ifndef HAVE_U_CHAR
                      typedef unsigned char u_char;
                      #endif])],
                 [AC_INCLUDES_DEFAULT])],
