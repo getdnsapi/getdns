@@ -139,8 +139,13 @@
 #define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
-#ifndef log_info
-#define log_info(...) fprintf(stderr, __VA_ARGS__)
+#if (defined(SCHED_DEBUG)  && SCHED_DEBUG)  || \
+    (defined(STUB_DEBUG)   && STUB_DEBUG)   || \
+    (defined(DAEMON_DEBUG) && DAEMON_DEBUG) || \
+    (defined(SEC_DEBUG)    && SEC_DEBUG)    || \
+    (defined(SERVER_DEBUG) && SERVER_DEBUG) || \
+    (defined(MDNS_DEBUG)   && MDNS_DEBUG)
+#define DEBUGGING 1
 #endif
 
 #endif

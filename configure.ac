@@ -1002,7 +1002,7 @@ fi
 
 
 #---- check for pthreads library
-AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREADS], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
 
 AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
 AC_LANG_PUSH(C)
@@ -1018,7 +1018,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  

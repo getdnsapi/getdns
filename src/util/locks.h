@@ -1,7 +1,7 @@
 /**
  *
- * \file rbtree.h
- * /brief Alternative symbol names for unbound's rbtree.h
+ * \file locks.h
+ * /brief Alternative symbol names for unbound's locks.h
  *
  */
 /*
@@ -30,21 +30,35 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RBTREE_H_SYMBOLS
-#define RBTREE_H_SYMBOLS
-#define rbnode_type		_getdns_rbnode_t
-#define rbtree_null_node	_getdns_rbtree_null_node
-#define rbtree_type		_getdns_rbtree_t
-#define rbtree_create		_getdns_rbtree_create
-#define rbtree_init		_getdns_rbtree_init
-#define rbtree_insert		_getdns_rbtree_insert
-#define rbtree_delete		_getdns_rbtree_delete
-#define rbtree_search		_getdns_rbtree_search
-#define rbtree_find_less_equal	_getdns_rbtree_find_less_equal
-#define rbtree_first		_getdns_rbtree_first
-#define rbtree_last		_getdns_rbtree_last
-#define rbtree_next		_getdns_rbtree_next
-#define rbtree_previous		_getdns_rbtree_previous
-#define traverse_postorder	_getdns_traverse_postorder
-#include "util/orig-headers/rbtree.h"
+#ifndef LOCKS_H_SYMBOLS
+#define LOCKS_H_SYMBOLS
+
+#include "config.h"
+
+#define ub_thread_blocksigs	_getdns_ub_thread_blocksigs
+#define ub_thread_sig_unblock	_getdns_ub_thread_sig_unblock
+
+#define ub_thread_type		_getdns_ub_thread_type
+#define ub_thr_fork_create	_getdns_ub_thr_fork_create
+#define ub_thr_fork_wait	_getdns_ub_thr_fork_wait
+
+#if defined(HAVE_SOLARIS_THREADS) || defined(HAVE_WINDOWS_THREADS)
+#define ub_thread_key_type	_getdns_ub_thread_key_type
+#define ub_thread_key_create	_getdns_ub_thread_key_create
+#define ub_thread_key_set	_getdns_ub_thread_key_set
+#define ub_thread_key_get	_getdns_ub_thread_key_get
+#endif
+
+#ifdef HAVE_WINDOWS_THREADS
+#define lock_basic_type		_getdns_lock_basic_type
+#define lock_basic_init		_getdns_lock_basic_init
+#define lock_basic_destroy	_getdns_lock_basic_destroy
+#define lock_basic_lock		_getdns_lock_basic_lock_
+#define lock_basic_unlock	_getdns_lock_basic_unlock
+
+#define ub_thread_create	_getdns_ub_thread_create
+#define ub_thread_self		_getdns_ub_thread_self
+#endif
+
+#include "util/orig-headers/locks.h"
 #endif
