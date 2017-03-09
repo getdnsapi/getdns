@@ -193,11 +193,12 @@ depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
 	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iutil/auxiliary *.c gldns/*.c compat/*.c util/*.c jsmn/*.c extension/*.c| \
 		sed -e "s? $$blddir/? ?g" \
-		    -e 's?gldns/?$$(srcdir)/gldns/?g' \
-		    -e 's?compat/?$$(srcdir)/compat/?g' \
-		    -e 's?util/?$$(srcdir)/util/?g' \
-		    -e 's?jsmn/?$$(srcdir)/jsmn/?g' \
-		    -e 's?extension/?$$(srcdir)/extension/?g' \
+		    -e 's? gldns/? $$(srcdir)/gldns/?g' \
+		    -e 's? compat/? $$(srcdir)/compat/?g' \
+		    -e 's? util/auxiliary/util/? $$(srcdir)/util/auxiliary/util/?g' \
+		    -e 's? util/? $$(srcdir)/util/?g' \
+		    -e 's? jsmn/? $$(srcdir)/jsmn/?g' \
+		    -e 's? extension/? $$(srcdir)/extension/?g' \
 		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
 		    -e 's? \$$(srcdir)/config\.h? config.h?g' \
 		    -e 's? \$$(srcdir)/getdns/getdns_extra\.h? getdns/getdns_extra.h?g' \
@@ -342,22 +343,22 @@ inet_pton.lo inet_pton.o: $(srcdir)/compat/inet_pton.c config.h
 sha512.lo sha512.o: $(srcdir)/compat/sha512.c config.h
 strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c config.h
 locks.lo locks.o: $(srcdir)/util/locks.c config.h $(srcdir)/util/locks.h $(srcdir)/util/orig-headers/locks.h \
- $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h
-lookup3.lo lookup3.o: $(srcdir)/util/lookup3.c config.h $(srcdir)/util/auxiliary/$(srcdir)/util/storage/lookup3.h \
+ $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h config.h
+lookup3.lo lookup3.o: $(srcdir)/util/lookup3.c config.h $(srcdir)/util/auxiliary/util/storage/lookup3.h \
  $(srcdir)/util/lookup3.h $(srcdir)/util/orig-headers/lookup3.h
-lruhash.lo lruhash.o: $(srcdir)/util/lruhash.c config.h $(srcdir)/util/auxiliary/$(srcdir)/util/storage/lruhash.h \
+lruhash.lo lruhash.o: $(srcdir)/util/lruhash.c config.h $(srcdir)/util/auxiliary/util/storage/lruhash.h \
  $(srcdir)/util/lruhash.h $(srcdir)/util/orig-headers/lruhash.h $(srcdir)/util/locks.h \
- $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h \
- $(srcdir)/util/auxiliary/$(srcdir)/util/fptr_wlist.h
+ $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h config.h \
+ $(srcdir)/util/auxiliary/util/fptr_wlist.h
 rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/auxiliary/log.h \
- $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h $(srcdir)/util/auxiliary/fptr_wlist.h \
- $(srcdir)/util/auxiliary/$(srcdir)/util/fptr_wlist.h $(srcdir)/util/rbtree.h \
+ $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h config.h $(srcdir)/util/auxiliary/fptr_wlist.h \
+ $(srcdir)/util/auxiliary/util/fptr_wlist.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/orig-headers/rbtree.h
 val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c config.h \
- $(srcdir)/util/auxiliary/$(srcdir)/util/data/packed_rrset.h \
+ $(srcdir)/util/auxiliary/util/data/packed_rrset.h \
  $(srcdir)/util/auxiliary/validator/val_secalgo.h $(srcdir)/util/val_secalgo.h \
  $(srcdir)/util/orig-headers/val_secalgo.h $(srcdir)/util/auxiliary/validator/val_nsec3.h \
- $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h $(srcdir)/util/auxiliary/sldns/rrdef.h \
+ $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h config.h $(srcdir)/util/auxiliary/sldns/rrdef.h \
  $(srcdir)/gldns/rrdef.h $(srcdir)/util/auxiliary/sldns/keyraw.h $(srcdir)/gldns/keyraw.h \
  $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
 jsmn.lo jsmn.o: $(srcdir)/jsmn/jsmn.c $(srcdir)/jsmn/jsmn.h
