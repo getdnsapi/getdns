@@ -1,11 +1,11 @@
 /**
  *
- * /brief dummy prototypes for logging a la unbound
+ * \file lookup3.h
+ * /brief Alternative symbol names for unbound's lookup3.h
  *
  */
-
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2017, NLnet Labs, the getdns team
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,29 +30,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef LOOKUP3_H_SYMBOLS
+#define LOOKUP3_H_SYMBOLS
 
-#ifndef UTIL_LOG_H
-#define UTIL_LOG_H
+#define hashword		_getdns_hashword
+#define hashlittle		_getdns_hashlittle
+#define hash_set_raninit	_getdns_hash_set_raninit
 
-#include "config.h"
-#include "debug.h"
-
-#ifdef DEBUGGING
-#define verbose(x, ...) DEBUG_NL(__VA_ARGS__)
-#define log_err(...)	DEBUG_NL(__VA_ARGS__)
-#define log_info(...)	DEBUG_NL(__VA_ARGS__)
-#define fatal_exit(...) do { DEBUG_NL(__VA_ARGS__); exit(EXIT_FAILURE); } while(0)
-#define log_assert(x)	do { if(!(x)) fatal_exit("%s:%d: %s: assertion %s failed", \
-                                                __FILE__, __LINE__, __FUNC__, #x); \
-                        } while(0)
-#else
-#define verbose(...)	((void)0)
-#define log_err(...)	((void)0)
-#define log_info(...)	((void)0)
-#define fatal_exit(...)	((void)0)
-#define log_assert(x)	((void)0)
+#include "util/orig-headers/lookup3.h"
 #endif
-
-
-#endif /* UTIL_LOG_H */
-

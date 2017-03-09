@@ -1,6 +1,6 @@
 /**
  *
- * /brief dummy prototypes for logging a la unbound
+ * /brief dummy prototypes for function pointer whitelisting
  *
  */
 
@@ -31,28 +31,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef UTIL_LOG_H
-#define UTIL_LOG_H
+#ifndef UTIL_FPTR_WLIST_H
+#define UTIL_FPTR_WLIST_H
 
-#include "config.h"
-#include "debug.h"
+#define fptr_ok(x)
+#define fptr_whitelist_event(x)
+#define fptr_whitelist_rbtree_cmp(x)
 
-#ifdef DEBUGGING
-#define verbose(x, ...) DEBUG_NL(__VA_ARGS__)
-#define log_err(...)	DEBUG_NL(__VA_ARGS__)
-#define log_info(...)	DEBUG_NL(__VA_ARGS__)
-#define fatal_exit(...) do { DEBUG_NL(__VA_ARGS__); exit(EXIT_FAILURE); } while(0)
-#define log_assert(x)	do { if(!(x)) fatal_exit("%s:%d: %s: assertion %s failed", \
-                                                __FILE__, __LINE__, __FUNC__, #x); \
-                        } while(0)
-#else
-#define verbose(...)	((void)0)
-#define log_err(...)	((void)0)
-#define log_info(...)	((void)0)
-#define fatal_exit(...)	((void)0)
-#define log_assert(x)	((void)0)
-#endif
-
-
-#endif /* UTIL_LOG_H */
+#endif /* UTIL_FPTR_WLIST_H */
 

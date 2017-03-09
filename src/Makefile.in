@@ -79,7 +79,7 @@ LIBOBJDIR=
 LIBOBJS=@LIBOBJS@
 COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 
-UTIL_OBJ=rbtree.lo val_secalgo.lo
+UTIL_OBJ=rbtree.lo val_secalgo.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
 
@@ -341,9 +341,18 @@ inet_ntop.lo inet_ntop.o: $(srcdir)/compat/inet_ntop.c config.h
 inet_pton.lo inet_pton.o: $(srcdir)/compat/inet_pton.c config.h
 sha512.lo sha512.o: $(srcdir)/compat/sha512.c config.h
 strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c config.h
+locks.lo locks.o: $(srcdir)/util/locks.c config.h $(srcdir)/util/locks.h $(srcdir)/util/orig-headers/locks.h \
+ $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h
+lookup3.lo lookup3.o: $(srcdir)/util/lookup3.c config.h $(srcdir)/util/auxiliary/$(srcdir)/util/storage/lookup3.h \
+ $(srcdir)/util/lookup3.h $(srcdir)/util/orig-headers/lookup3.h
+lruhash.lo lruhash.o: $(srcdir)/util/lruhash.c config.h $(srcdir)/util/auxiliary/$(srcdir)/util/storage/lruhash.h \
+ $(srcdir)/util/lruhash.h $(srcdir)/util/orig-headers/lruhash.h $(srcdir)/util/locks.h \
+ $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h \
+ $(srcdir)/util/auxiliary/$(srcdir)/util/fptr_wlist.h
 rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c config.h $(srcdir)/util/auxiliary/log.h \
  $(srcdir)/util/auxiliary/$(srcdir)/util/log.h $(srcdir)/debug.h config.h $(srcdir)/util/auxiliary/fptr_wlist.h \
- $(srcdir)/util/rbtree.h $(srcdir)/util/orig-headers/rbtree.h
+ $(srcdir)/util/auxiliary/$(srcdir)/util/fptr_wlist.h $(srcdir)/util/rbtree.h \
+ $(srcdir)/util/orig-headers/rbtree.h
 val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c config.h \
  $(srcdir)/util/auxiliary/$(srcdir)/util/data/packed_rrset.h \
  $(srcdir)/util/auxiliary/validator/val_secalgo.h $(srcdir)/util/val_secalgo.h \
