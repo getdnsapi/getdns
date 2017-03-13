@@ -47,6 +47,8 @@ static gldns_lookup_table gldns_algorithms_data[] = {
 	{ GLDNS_ECC_GOST, "ECC-GOST"},
 	{ GLDNS_ECDSAP256SHA256, "ECDSAP256SHA256"},
 	{ GLDNS_ECDSAP384SHA384, "ECDSAP384SHA384"},
+	{ GLDNS_ED25519, "ED25519"},
+	{ GLDNS_ED448, "ED448"},
 	{ GLDNS_INDIRECT, "INDIRECT" },
 	{ GLDNS_PRIVATEDNS, "PRIVATEDNS" },
 	{ GLDNS_PRIVATEOID, "PRIVATEOID" },
@@ -279,7 +281,7 @@ int gldns_wire2str_dname_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
 
 int gldns_str_vprint(char** str, size_t* slen, const char* format, va_list args)
 {
-	int w = _gldns_vsnprintf(*str, *slen, format, args);
+	int w = vsnprintf(*str, *slen, format, args);
 	if(w < 0) {
 		/* error in printout */
 		return 0;

@@ -520,7 +520,7 @@ stub_cleanup(getdns_network_req *netreq)
 static void
 upstream_failed(getdns_upstream *upstream, int during_setup)
 {
-	DEBUG_STUB("%s %-35s: FD:  %d During setup = %d\n",
+	DEBUG_STUB("%s %-35s: FD:  %d Failure during connection setup = %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd, during_setup);
 	/* Fallback code should take care of queue queries and then close conn
 	   when idle.*/
@@ -602,7 +602,7 @@ stub_timeout_cb(void *userarg)
 	if (netreq->owner->user_callback) {
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		/* Note this calls cancel_request which calls stub_cleanup again....!*/
-		(void) _getdns_context_request_timed_out(netreq->owner);
+		_getdns_context_request_timed_out(netreq->owner);
 	} else
 		_getdns_check_dns_req_complete(netreq->owner);
 }
@@ -868,13 +868,21 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err,
 	            X509_verify_cert_error_string(err));
 #endif
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	if (!preverify_ok && !upstream->tls_fallback_ok)
+			DEBUG_DAEMON("%s %s : Conn failed   : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
+		                  STUB_DEBUG_DAEMON, upstream->addr_str, err,
+			              X509_verify_cert_error_string(err));
+#endif
 
 	/* First deal with the hostname authentication done by OpenSSL. */
 #ifdef X509_V_ERR_HOSTNAME_MISMATCH
+# if defined(STUB_DEBUG) && STUB_DEBUG
 	/*Report if error is hostname mismatch*/
 	if (err == X509_V_ERR_HOSTNAME_MISMATCH && upstream->tls_fallback_ok)
-		DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+			DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
+		                STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+# endif
 #else
 	/* if we weren't built against OpenSSL with hostname matching we
 	 * could not have matched the hostname, so this would be an automatic
@@ -897,9 +905,15 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		if (upstream->tls_fallback_ok)
 			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+		else
+			DEBUG_DAEMON("%s %s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
+		                  STUB_DEBUG_DAEMON, upstream->addr_str);
+#endif
 	} else {
 		/* If we _only_ had a pinset and it is good then force succesful
-		   authentication when the cert self-signed */
+		   authentication when the cert self-signed
+		   TODO: We need to check for other error cases here, not blindly accept the cert!! */
 		if ((upstream->tls_pubkey_pinset && upstream->tls_auth_name[0] == '\0') &&
 		     (err == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ||
 		      err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)) {
@@ -915,6 +929,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
 	         (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]))
 		upstream->tls_auth_state = GETDNS_AUTH_OK;
+
 	/* If fallback is allowed, proceed regardless of what the auth error is
 	   (might not be hostname or pinset related) */
 	return (upstream->tls_fallback_ok) ? 1 : preverify_ok;
@@ -1299,8 +1314,6 @@ stub_udp_read_cb(void *userarg)
 	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_READ, 
 	             __FUNC__, (void*)netreq);
 
-	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-
 	read = recvfrom(netreq->fd, (void *)netreq->response,
 	    netreq->max_udp_payload_size + 1, /* If read == max_udp_payload_size
 	                                       * then all is good.  If read ==
@@ -1321,6 +1334,8 @@ stub_udp_read_cb(void *userarg)
 	if (netreq->owner->edns_cookies && match_and_process_server_cookie(
 	    upstream, netreq->response, read))
 		return; /* Client cookie didn't match? */
+
+	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
 #ifdef USE_WINSOCK
 	closesocket(netreq->fd);
@@ -2023,8 +2038,7 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 	 * All other set up is done async*/
 	fd = upstream_find_for_netreq(netreq);
 	if (fd == -1)
-		/* Handle better, will give unhelpful error is some cases */
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NO_UPSTREAM_AVAILABLE;
 
 	getdns_transport_list_t transport =
 	                             netreq->transports[netreq->transport_current];

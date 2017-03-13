@@ -27,7 +27,7 @@
 
 #include "config.h"
 
-#include "extension/default_eventloop.h"
+#include "extension/select_eventloop.h"
 #include "debug.h"
 #include "types-internal.h"
 
@@ -47,10 +47,10 @@ static uint64_t get_now_plus(uint64_t amount)
 }
 
 static getdns_return_t
-default_eventloop_schedule(getdns_eventloop *loop,
+select_eventloop_schedule(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *event)
 {
-	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	_getdns_select_eventloop *select_loop  = (_getdns_select_eventloop *)loop;
 	size_t i;
 
 	DEBUG_SCHED( "%s(loop: %p, fd: %d, timeout: %"PRIu64", event: %p, FD_SETSIZE: %d)\n"
@@ -71,20 +71,20 @@ default_eventloop_schedule(getdns_eventloop *loop,
 	}
 	if (fd >= 0) {
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
-		if (default_loop->fd_events[fd]) {
-			if (default_loop->fd_events[fd] == event) {
+		if (select_loop->fd_events[fd]) {
+			if (select_loop->fd_events[fd] == event) {
 				DEBUG_SCHED("WARNING: Event %p not cleared "
 				            "before being rescheduled!\n"
-				           , (void *)default_loop->fd_events[fd]);
+				           , (void *)select_loop->fd_events[fd]);
 			} else {
 				DEBUG_SCHED("ERROR: A different event is "
 				            "already present at fd slot: %p!\n"
-				           , (void *)default_loop->fd_events[fd]);
+				           , (void *)select_loop->fd_events[fd]);
 			}
 		}
 #endif
-		default_loop->fd_events[fd] = event;
-		default_loop->fd_timeout_times[fd] = get_now_plus(timeout);
+		select_loop->fd_events[fd] = event;
+		select_loop->fd_timeout_times[fd] = get_now_plus(timeout);
 		event->ev = (void *)(intptr_t)(fd + 1);
 		DEBUG_SCHED( "scheduled read/write at %d\n", fd);
 		return GETDNS_RETURN_GOOD;
@@ -102,9 +102,9 @@ default_eventloop_schedule(getdns_eventloop *loop,
 		event->write_cb = NULL;
 	}
 	for (i = 0; i < MAX_TIMEOUTS; i++) {
-		if (default_loop->timeout_events[i] == NULL) {
-			default_loop->timeout_events[i] = event;
-			default_loop->timeout_times[i] = get_now_plus(timeout);		
+		if (select_loop->timeout_events[i] == NULL) {
+			select_loop->timeout_events[i] = event;
+			select_loop->timeout_times[i] = get_now_plus(timeout);		
 			event->ev = (void *)(intptr_t)(i + 1);
 			DEBUG_SCHED( "scheduled timeout at %d\n", (int)i);
 			return GETDNS_RETURN_GOOD;
@@ -115,9 +115,9 @@ default_eventloop_schedule(getdns_eventloop *loop,
 }
 
 static getdns_return_t
-default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
+select_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 {
-	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	_getdns_select_eventloop *select_loop  = (_getdns_select_eventloop *)loop;
 	ssize_t i;
 
 	if (!loop || !event)
@@ -131,33 +131,33 @@ default_eventloop_clear(getdns_eventloop *loop, getdns_eventloop_event *event)
 	}
 	if (event->timeout_cb && !event->read_cb && !event->write_cb) {
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
-		if (default_loop->timeout_events[i] != event)
+		if (select_loop->timeout_events[i] != event)
 			DEBUG_SCHED( "ERROR: Different/wrong event present at "
 			             "timeout slot: %p!\n"
-			           , (void *)default_loop->timeout_events[i]);
+			           , (void *)select_loop->timeout_events[i]);
 #endif
-		default_loop->timeout_events[i] = NULL;
+		select_loop->timeout_events[i] = NULL;
 	} else {
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
-		if (default_loop->fd_events[i] != event)
+		if (select_loop->fd_events[i] != event)
 			DEBUG_SCHED( "ERROR: Different/wrong event present at "
 			             "fd slot: %p!\n"
-			           , (void *)default_loop->fd_events[i]);
+			           , (void *)select_loop->fd_events[i]);
 #endif
-		default_loop->fd_events[i] = NULL;
+		select_loop->fd_events[i] = NULL;
 	}
 	event->ev = NULL;
 	return GETDNS_RETURN_GOOD;
 }
 
 static void
-default_eventloop_cleanup(getdns_eventloop *loop)
+select_eventloop_cleanup(getdns_eventloop *loop)
 {
 	(void)loop;
 }
 
 static void
-default_read_cb(int fd, getdns_eventloop_event *event)
+select_read_cb(int fd, getdns_eventloop_event *event)
 {
 #if !defined(SCHED_DEBUG) || !SCHED_DEBUG
 	(void)fd;
@@ -167,7 +167,7 @@ default_read_cb(int fd, getdns_eventloop_event *event)
 }
 
 static void
-default_write_cb(int fd, getdns_eventloop_event *event)
+select_write_cb(int fd, getdns_eventloop_event *event)
 {
 #if !defined(SCHED_DEBUG) || !SCHED_DEBUG
 	(void)fd;
@@ -177,7 +177,7 @@ default_write_cb(int fd, getdns_eventloop_event *event)
 }
 
 static void
-default_timeout_cb(int fd, getdns_eventloop_event *event)
+select_timeout_cb(int fd, getdns_eventloop_event *event)
 {
 #if !defined(SCHED_DEBUG) || !SCHED_DEBUG
 	(void)fd;
@@ -187,9 +187,9 @@ default_timeout_cb(int fd, getdns_eventloop_event *event)
 }
 
 static void
-default_eventloop_run_once(getdns_eventloop *loop, int blocking)
+select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 {
-	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	_getdns_select_eventloop *select_loop  = (_getdns_select_eventloop *)loop;
 
 	fd_set   readfds, writefds;
 	int      fd, max_fd = -1;
@@ -205,24 +205,24 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	now = get_now_plus(0);
 
 	for (i = 0; i < MAX_TIMEOUTS; i++) {
-		if (!default_loop->timeout_events[i])
+		if (!select_loop->timeout_events[i])
 			continue;
-		if (now > default_loop->timeout_times[i])
-			default_timeout_cb(-1, default_loop->timeout_events[i]);
-		else if (default_loop->timeout_times[i] < timeout)
-			timeout = default_loop->timeout_times[i];
+		if (now > select_loop->timeout_times[i])
+			select_timeout_cb(-1, select_loop->timeout_events[i]);
+		else if (select_loop->timeout_times[i] < timeout)
+			timeout = select_loop->timeout_times[i];
 	}
 	for (fd = 0; fd < (int)FD_SETSIZE; fd++) {
-		if (!default_loop->fd_events[fd])
+		if (!select_loop->fd_events[fd])
 			continue;
-		if (default_loop->fd_events[fd]->read_cb)
+		if (select_loop->fd_events[fd]->read_cb)
 			FD_SET(fd, &readfds);
-		if (default_loop->fd_events[fd]->write_cb)
+		if (select_loop->fd_events[fd]->write_cb)
 			FD_SET(fd, &writefds);
 		if (fd > max_fd)
 			max_fd = fd;
-		if (default_loop->fd_timeout_times[fd] < timeout)
-			timeout = default_loop->fd_timeout_times[fd];
+		if (select_loop->fd_timeout_times[fd] < timeout)
+			timeout = select_loop->fd_timeout_times[fd];
 	}
 	if (max_fd == -1 && timeout == TIMEOUT_FOREVER)
 		return;
@@ -241,33 +241,33 @@ default_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	}
 	now = get_now_plus(0);
 	for (fd = 0; fd < (int)FD_SETSIZE; fd++) {
-		if (default_loop->fd_events[fd] &&
-		    default_loop->fd_events[fd]->read_cb &&
+		if (select_loop->fd_events[fd] &&
+		    select_loop->fd_events[fd]->read_cb &&
 		    FD_ISSET(fd, &readfds))
-			default_read_cb(fd, default_loop->fd_events[fd]);
+			select_read_cb(fd, select_loop->fd_events[fd]);
 
-		if (default_loop->fd_events[fd] &&
-		    default_loop->fd_events[fd]->write_cb &&
+		if (select_loop->fd_events[fd] &&
+		    select_loop->fd_events[fd]->write_cb &&
 		    FD_ISSET(fd, &writefds))
-			default_write_cb(fd, default_loop->fd_events[fd]);
+			select_write_cb(fd, select_loop->fd_events[fd]);
 
-		if (default_loop->fd_events[fd] &&
-		    default_loop->fd_events[fd]->timeout_cb &&
-		    now > default_loop->fd_timeout_times[fd])
-			default_timeout_cb(fd, default_loop->fd_events[fd]);
+		if (select_loop->fd_events[fd] &&
+		    select_loop->fd_events[fd]->timeout_cb &&
+		    now > select_loop->fd_timeout_times[fd])
+			select_timeout_cb(fd, select_loop->fd_events[fd]);
 
 		i = fd;
-		if (default_loop->timeout_events[i] &&
-		    default_loop->timeout_events[i]->timeout_cb &&
-		    now > default_loop->timeout_times[i])
-			default_timeout_cb(-1, default_loop->timeout_events[i]);
+		if (select_loop->timeout_events[i] &&
+		    select_loop->timeout_events[i]->timeout_cb &&
+		    now > select_loop->timeout_times[i])
+			select_timeout_cb(-1, select_loop->timeout_events[i]);
 	}
 }
 
 static void
-default_eventloop_run(getdns_eventloop *loop)
+select_eventloop_run(getdns_eventloop *loop)
 {
-	_getdns_default_eventloop *default_loop  = (_getdns_default_eventloop *)loop;
+	_getdns_select_eventloop *select_loop  = (_getdns_select_eventloop *)loop;
 	size_t        i;
 
 	if (!loop)
@@ -275,8 +275,8 @@ default_eventloop_run(getdns_eventloop *loop)
 
 	i = 0;
 	while (i < MAX_TIMEOUTS) {
-		if (default_loop->fd_events[i] || default_loop->timeout_events[i]) {
-			default_eventloop_run_once(loop, 1);
+		if (select_loop->fd_events[i] || select_loop->timeout_events[i]) {
+			select_eventloop_run_once(loop, 1);
 			i = 0;
 		} else {
 			i++;
@@ -285,16 +285,16 @@ default_eventloop_run(getdns_eventloop *loop)
 }
 
 void
-_getdns_default_eventloop_init(_getdns_default_eventloop *loop)
+_getdns_select_eventloop_init(struct mem_funcs *mf, _getdns_select_eventloop *loop)
 {
-	static getdns_eventloop_vmt default_eventloop_vmt = {
-		default_eventloop_cleanup,
-		default_eventloop_schedule,
-		default_eventloop_clear,
-		default_eventloop_run,
-		default_eventloop_run_once
+	static getdns_eventloop_vmt select_eventloop_vmt = {
+		select_eventloop_cleanup,
+		select_eventloop_schedule,
+		select_eventloop_clear,
+		select_eventloop_run,
+		select_eventloop_run_once
 	};
-
-	(void) memset(loop, 0, sizeof(_getdns_default_eventloop));
-	loop->loop.vmt = &default_eventloop_vmt;
+	(void) mf;
+	(void) memset(loop, 0, sizeof(_getdns_select_eventloop));
+	loop->loop.vmt = &select_eventloop_vmt;
 }
