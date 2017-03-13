@@ -658,7 +658,8 @@ static const uint8_t no_suffixes[] = { 1, 0 };
 /* create a new dns req to be submitted */
 getdns_dns_req *
 _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions)
+    const char *name, uint16_t request_type, getdns_dict *extensions,
+    uint64_t *now_ms)
 {
 	int dnssec_return_status                 = is_extension_set(
 	    extensions, "dnssec_return_status",
@@ -952,6 +953,11 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    (uint16_t) opt_options_size, noptions, options,
 		    netreq_sz - sizeof(getdns_network_req), max_query_sz,
 		    extensions);
+
+	if (*now_ms == 0 && (*now_ms = _getdns_get_now_ms()) == 0)
+		result->expires = 0;
+	else
+		result->expires = *now_ms + context->timeout;
 
 	return result;
 }

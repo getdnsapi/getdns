@@ -91,6 +91,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
 	getdns_network_req **netreq_p, *netreq;
 	int results_found = 0, r;
+	uint64_t now_ms  = 0;
 	
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++)
 		if (!_getdns_netreq_finished(netreq))
@@ -126,7 +127,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			    ; (netreq = *netreq_p)
 			    ; netreq_p++ ) {
 				_getdns_netreq_reinit(netreq);
-				if ((r = _getdns_submit_netreq(netreq))) {
+				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED)
 						return;
 					netreq->state = NET_REQ_FINISHED;
@@ -164,7 +165,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			    ; (netreq = *netreq_p)
 			    ; netreq_p++ ) {
 				_getdns_netreq_reinit(netreq);
-				if ((r = _getdns_submit_netreq(netreq))) {
+				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED)
 						return;
 					netreq->state = NET_REQ_FINISHED;
@@ -248,7 +249,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 
 
 int
-_getdns_submit_netreq(getdns_network_req *netreq)
+_getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 {
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
@@ -284,7 +285,8 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 			    _getdns_context_request_timed_out;
 			dns_req->timeout.ev         = NULL;
 			if ((r = dns_req->loop->vmt->schedule(dns_req->loop, -1,
-			    dns_req->context->timeout, &dns_req->timeout)))
+			    _getdns_ms_until_expiry2(dns_req->expires, now_ms),
+			    &dns_req->timeout)))
 				return r;
 		}
 		(void) gldns_wire2str_dname_buf(dns_req->name,
@@ -314,7 +316,7 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 	}
 	/* Submit with stub resolver */
 	dns_req->freed = &dnsreq_freed;
-	r = _getdns_submit_stub_request(netreq);
+	r = _getdns_submit_stub_request(netreq, now_ms);
 	if (dnsreq_freed)
 		return DNS_REQ_FINISHED;
 	dns_req->freed = NULL;
@@ -413,6 +415,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	getdns_dns_req *req;
 	getdns_dict *localnames_response;
 	size_t i;
+	uint64_t now_ms = 0;
 
 	if (!context || !name || (!callbackfn && !internal_cb))
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -430,7 +433,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	/* create the request */
 	if (!(req = _getdns_dns_req_new(
-	    context, loop, name, request_type, extensions)))
+	    context, loop, name, request_type, extensions, &now_ms)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	req->user_pointer = userarg;
@@ -448,7 +451,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++) {
-			if ((r = _getdns_submit_netreq(netreq))) {
+			if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 				if (r == DNS_REQ_FINISHED) {
 					if (return_netreq_p)
 						*return_netreq_p = NULL;
@@ -500,7 +503,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			for ( netreq_p = req->netreqs
 			    ; !r && (netreq = *netreq_p)
 			    ; netreq_p++) {
-				if ((r = _getdns_submit_netreq(netreq))) {
+				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED) {
 						if (return_netreq_p)
 							*return_netreq_p = NULL;

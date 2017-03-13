@@ -1358,8 +1358,8 @@ stub_udp_read_cb(void *userarg)
 		                                   dnsreq)) == -1)
 			break;
 		upstream_schedule_netreq(netreq->upstream, netreq);
-		GETDNS_SCHEDULE_EVENT(
-		    dnsreq->loop, -1, dnsreq->context->timeout,
+		GETDNS_SCHEDULE_EVENT(dnsreq->loop, -1,
+		    _getdns_ms_until_expiry(dnsreq->expires),
 		    getdns_eventloop_event_init(&netreq->event,
 		    netreq, NULL, NULL, stub_timeout_cb));
 
@@ -1421,8 +1421,8 @@ stub_udp_write_cb(void *userarg)
 #endif
 		return;
 	}
-	GETDNS_SCHEDULE_EVENT(
-	    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+	GETDNS_SCHEDULE_EVENT(dnsreq->loop, netreq->fd,
+	    _getdns_ms_until_expiry(dnsreq->expires),
 	    getdns_eventloop_event_init(&netreq->event, netreq,
 	    stub_udp_read_cb, NULL, stub_timeout_cb));
 }
@@ -1928,12 +1928,13 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 static int
 fallback_on_write(getdns_network_req *netreq) 
 {
+	uint64_t now_ms = 0;
 
 	/* Deal with UDP one day*/
 	DEBUG_STUB("%s %-35s: MSG: %p FALLING BACK \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
 
 	/* Try to find a fallback transport*/
-	getdns_return_t result = _getdns_submit_stub_request(netreq);
+	getdns_return_t result = _getdns_submit_stub_request(netreq, &now_ms);
 
 	if (result != GETDNS_RETURN_GOOD)
 		return STUB_TCP_ERROR;
@@ -1997,8 +1998,8 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 		if (upstream->queries_sent == 0) {
 			/* Set a timeout on the upstream so we can catch failed setup*/
 			upstream->event.timeout_cb = upstream_setup_timeout_cb;
-			GETDNS_SCHEDULE_EVENT(upstream->loop,
-			    upstream->fd, netreq->owner->context->timeout / 2, 
+			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
+			    _getdns_ms_until_expiry(netreq->owner->expires)/2,
 			    &upstream->event);
 		} else {
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
@@ -2027,7 +2028,7 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 }
 
 getdns_return_t
-_getdns_submit_stub_request(getdns_network_req *netreq)
+_getdns_submit_stub_request(getdns_network_req *netreq, uint64_t *now_ms)
 {
 	DEBUG_STUB("%s %-35s: MSG: %p TYPE: %d\n", STUB_DEBUG_ENTRY, __FUNC__,
 	           (void*)netreq, netreq->request_type);
@@ -2046,8 +2047,8 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 	case GETDNS_TRANSPORT_UDP:
 		netreq->fd = fd;
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-		GETDNS_SCHEDULE_EVENT(
-		    dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+		GETDNS_SCHEDULE_EVENT(dnsreq->loop, netreq->fd,
+		    _getdns_ms_until_expiry2(dnsreq->expires, now_ms),
 		    getdns_eventloop_event_init(&netreq->event, netreq,
 		    NULL, stub_udp_write_cb, stub_timeout_cb));
 		return GETDNS_RETURN_GOOD;
@@ -2121,7 +2122,7 @@ _getdns_submit_stub_request(getdns_network_req *netreq)
 		 */
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, -1,
-		    dnsreq->context->timeout,
+		    _getdns_ms_until_expiry2(dnsreq->expires, now_ms),
 		    getdns_eventloop_event_init(
 		    &netreq->event, netreq, NULL, NULL,
 		    stub_timeout_cb));
