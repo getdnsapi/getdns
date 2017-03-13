@@ -1,11 +1,11 @@
 /**
  *
- * /brief dummy prototypes for logging a la unbound
+ * \file lookup3.h
+ * /brief Alternative symbol names for unbound's lookup3.h
  *
  */
-
 /*
- * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
+ * Copyright (c) 2017, NLnet Labs, the getdns team
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,22 +30,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef LOOKUP3_H_SYMBOLS
+#define LOOKUP3_H_SYMBOLS
 
-#ifndef UTIL_LOG_H
-#define UTIL_LOG_H
+#define hashword		_getdns_hashword
+#define hashlittle		_getdns_hashlittle
+#define hash_set_raninit	_getdns_hash_set_raninit
 
-#include "config.h"
-#include "debug.h"
-
-#if defined(SEC_DEBUG) && SEC_DEBUG
-#define verbose(x, ...) DEBUG_NL(__VA_ARGS__)
-#define log_err(...) DEBUG_NL(__VA_ARGS__)
-#else
-#define verbose(...)
-#define log_err(...)
+#include "util/orig-headers/lookup3.h"
 #endif
-
-#define log_assert(x)
-
-#endif /* UTIL_LOG_H */
-

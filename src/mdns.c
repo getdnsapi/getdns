@@ -38,17 +38,20 @@ typedef u_short sa_family_t;
 #else
 #define _getdns_EWOULDBLOCK (errno == EAGAIN || errno == EWOULDBLOCK)
 #define _getdns_EINPROGRESS (errno == EINPROGRESS)
+#define SOCKADDR struct sockaddr
+#define SOCKADDR_IN struct sockaddr_in
+#define SOCKADDR_IN6 struct sockaddr_in6
+#define SOCKET int
+#define IP_MREQ struct ip_mreq
+#define IPV6_MREQ struct ipv6_mreq
+#define BOOL int
+#define TRUE 1
 #endif
 
 uint64_t _getdns_get_time_as_uintt64();
 
-#include "util/storage/lruhash.h"
-#include "util/storage/lookup3.h"
-
-#ifndef HAVE_LIBUNBOUND
-#include "util/storage/lruhash.c"
-#include "util/storage/lookup3.c"
-#endif
+#include "util/fptr_wlist.h"
+#include "util/lookup3.h"
 
 /*
  * Constants defined in RFC 6762
@@ -352,8 +355,6 @@ mdns_util_canonical_record(uint8_t *message, int message_length,
 {
 	int ret = 0;
 	int current_index = record_index;
-	int buffer_index = 0;
-	int name_len = 0;
 	/* Check whether the record needs canonization */
 	*actual_record = message + record_index;
 	*actual_length = record_length;
@@ -781,7 +782,6 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	int current_record_data_len;
 	uint32_t current_record_ttl;
 	int not_matched_yet = (record_data == NULL) ? 0 : 1;
-	int current_record_match;
 	int last_copied_index;
 	int current_hole_index = 0;
 	int record_name_length = 0;
@@ -819,15 +819,12 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 		    current_record_data_len == record_data_len &&
 			memcmp(old_record + record_ttl_index + 4 + 2, record_data, record_data_len) == 0)
 		{
-			current_record_match = 1;
 			not_matched_yet = 0;
 			current_record_ttl = ttl;
 		}
 		else
 		{
 			/* Not a match */
-			current_record_match = 0;
-
 			if (current_record_ttl > delta_t_sec)
 			{
 				current_record_ttl -= delta_t_sec;
@@ -945,7 +942,6 @@ mdns_propose_entry_to_cache(
 	uint64_t current_time)
 {
 	int ret = 0;
-	size_t required_memory = 0;
 	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
 	hashvalue_type hash;
 	struct lruhash_entry *entry, *new_entry;
@@ -988,7 +984,7 @@ mdns_propose_entry_to_cache(
 			new_entry = &((getdns_mdns_cached_key_header*)key)->entry;
 
 			memset(new_entry, 0, sizeof(struct lruhash_entry));
-			lock_rw_init(new_entry->lock);
+			lock_rw_init(&new_entry->lock);
 			new_entry->hash = hash;
 			new_entry->key = key;
 			new_entry->data = data;
@@ -1036,7 +1032,7 @@ mdns_propose_entry_to_cache(
 		}
 
 		/* then, unlock the entry */
-		lock_rw_unlock(entry->lock);
+		lock_rw_unlock(&entry->lock);
 	} 
 
 	return ret;
@@ -1139,7 +1135,6 @@ mdns_cache_complete_queries(
 	int record_type, int record_class)
 {
 	int ret = 0;
-	size_t required_memory = 0;
 	struct lruhash_entry *entry;
 	getdns_mdns_cached_record_header * header;
 	getdns_network_req * netreq;
@@ -1157,7 +1152,7 @@ mdns_cache_complete_queries(
 				mdns_complete_query_from_cache_entry(netreq, entry);
 			}
 		}
-		lock_rw_unlock(entry->lock);
+		lock_rw_unlock(&entry->lock);
 	}
 
 	return ret;
@@ -1173,8 +1168,6 @@ mdns_mcast_timeout_cb(void *userarg)
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_context *context = dnsreq->context;
 
-	int ret = 0;
-	size_t required_memory = 0;
 	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
 	hashvalue_type hash;
 	struct lruhash_entry *entry;
@@ -1201,7 +1194,7 @@ mdns_mcast_timeout_cb(void *userarg)
 			found = 1;
 			mdns_complete_query_from_cache_entry(netreq, entry);
 		}
-		lock_rw_unlock(entry->lock);
+		lock_rw_unlock(&entry->lock);
 	}
 
 	if (!found)
@@ -1251,7 +1244,7 @@ mdns_udp_multicast_read_cb(void *userarg)
 		}
 		else
 		{
-			size_t current_index = 12;
+			ssize_t current_index = 12;
 			uint8_t name[256];
 			int name_len;
 			int record_type;
@@ -1388,7 +1381,8 @@ static int mdns_open_ipv4_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 	SOCKET fd4 = -1;
 	SOCKADDR_IN ipv4_dest;
 	SOCKADDR_IN ipv4_port;
-	uint8_t so_reuse_bool = 1;
+	BOOL so_reuse_bool = TRUE;
+	int so_reuse_bool_OptLen = sizeof(BOOL);
 	uint8_t ttl = 255;
 	IP_MREQ mreq4;
 
@@ -1398,9 +1392,11 @@ static int mdns_open_ipv4_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 	memset(&ipv4_port, 0, sizeof(ipv4_dest));
 	ipv4_dest.sin_family = AF_INET;
 	ipv4_dest.sin_port = htons(MDNS_MCAST_PORT);
-	ipv4_dest.sin_addr.S_un.S_addr = htonl(MDNS_MCAST_IPV4_LONG);
+	ipv4_dest.sin_addr.s_addr = htonl(MDNS_MCAST_IPV4_LONG);
 	ipv4_port.sin_family = AF_INET;
 	ipv4_port.sin_port = htons(MDNS_MCAST_PORT);
+	/* memcpy(&ipv4_dest.sin_addr, mdns_mcast_ipv4, sizeof(mdns_mcast_ipv4)); */
+
 
 
 	fd4 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -1412,7 +1408,7 @@ static int mdns_open_ipv4_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 		 * since the only result that matters is that of bind.
 		 */
 		(void)setsockopt(fd4, SOL_SOCKET, SO_REUSEADDR
-			, (const char*)&so_reuse_bool, (int) sizeof(BOOL));
+			, (const char*)&so_reuse_bool, so_reuse_bool_OptLen);
 
 		if (bind(fd4, (SOCKADDR*)&ipv4_port, sizeof(ipv4_port)) != 0)
 		{
@@ -1633,7 +1629,6 @@ static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *ne
 	getdns_dns_req *dnsreq = netreq->owner;
 	struct getdns_context *context = dnsreq->context;
 
-	size_t required_memory = 0;
 	uint8_t temp_key[256 + sizeof(getdns_mdns_cached_key_header)];
 	hashvalue_type hash;
 	struct lruhash_entry *entry;
@@ -1697,7 +1692,7 @@ static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *ne
 				, (SOCKADDR*)&context->mdns_connection[fd_index].addr_mcast
 				, context->mdns_connection[fd_index].addr_mcast_len);
 
-			if (pkt_len != sent)
+			if (sent < 0 || pkt_len != (size_t)sent)
 			{
 				ret = GETDNS_RETURN_GENERIC_ERROR;
 			}
@@ -1887,7 +1882,7 @@ mdns_udp_write_cb(void *userarg)
 	mdns_mcast_v4.sin_family = AF_INET;
 	mdns_mcast_v4.sin_port = htons(MDNS_MCAST_PORT);
 	mdns_mcast_v4.sin_addr.s_addr = htonl(MDNS_MCAST_IPV4_LONG);
-
+	/* memcpy(&mdns_mcast_v4.sin_addr.s_addr, mdns_mcast_ipv4, sizeof(mdns_mcast_ipv4)); */
 
 	/* Set TTL=255 for compliance with RFC 6762 */
 	r = setsockopt(netreq->fd, IPPROTO_IP, IP_TTL, (const char *)&ttl, sizeof(ttl));
@@ -2143,7 +2138,7 @@ int mdns_finalize_lru_test(struct getdns_context* context,
 			}
 		}
 
-		lock_rw_unlock(entry->lock);
+		lock_rw_unlock(&entry->lock);
 	}
 
 	return ret;

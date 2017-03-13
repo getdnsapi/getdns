@@ -1,7 +1,7 @@
 /**
  *
- * \file rbtree.h
- * /brief Alternative symbol names for unbound's rbtree.h
+ * \file lruhash.h
+ * /brief Alternative symbol names for unbound's lruhash.h
  *
  */
 /*
@@ -30,21 +30,39 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RBTREE_H_SYMBOLS
-#define RBTREE_H_SYMBOLS
-#define rbnode_type		_getdns_rbnode_t
-#define rbtree_null_node	_getdns_rbtree_null_node
-#define rbtree_type		_getdns_rbtree_t
-#define rbtree_create		_getdns_rbtree_create
-#define rbtree_init		_getdns_rbtree_init
-#define rbtree_insert		_getdns_rbtree_insert
-#define rbtree_delete		_getdns_rbtree_delete
-#define rbtree_search		_getdns_rbtree_search
-#define rbtree_find_less_equal	_getdns_rbtree_find_less_equal
-#define rbtree_first		_getdns_rbtree_first
-#define rbtree_last		_getdns_rbtree_last
-#define rbtree_next		_getdns_rbtree_next
-#define rbtree_previous		_getdns_rbtree_previous
-#define traverse_postorder	_getdns_traverse_postorder
-#include "util/orig-headers/rbtree.h"
+#ifndef LRUHASH_H_SYMBOLS
+#define LRUHASH_H_SYMBOLS
+
+#define lruhash				_getdns_lruhash
+#define lruhash_bin			_getdns_lruhash_bin
+#define lruhash_entry			_getdns_lruhash_entry
+#define hashvalue_type			_getdns_hashvalue_type
+#define lruhash_sizefunc_type		_getdns_lruhash_sizefunc_type
+#define lruhash_compfunc_type		_getdns_lruhash_compfunc_type
+#define lruhash_delkeyfunc_type		_getdns_lruhash_delkeyfunc_type
+#define lruhash_deldatafunc_type	_getdns_lruhash_deldatafunc_type
+#define lruhash_markdelfunc_type	_getdns_lruhash_markdelfunc_type
+#define lruhash_create			_getdns_lruhash_create
+#define lruhash_delete			_getdns_lruhash_delete
+#define lruhash_clear			_getdns_lruhash_clear
+#define lruhash_insert			_getdns_lruhash_insert
+#define lruhash_lookup			_getdns_lruhash_lookup
+#define lru_touch			_getdns_lru_touch
+#define lruhash_setmarkdel		_getdns_lruhash_setmarkdel
+
+#define lruhash_remove			_getdns_lruhash_remove
+#define bin_init			_getdns_bin_init
+#define bin_delete			_getdns_bin_delete
+#define bin_find_entry			_getdns_bin_find_entry
+#define bin_overflow_remove		_getdns_bin_overflow_remove
+#define bin_split			_getdns_bin_split
+#define reclaim_space			_getdns_reclaim_space
+#define table_grow			_getdns_table_grow
+#define lru_front			_getdns_lru_front
+#define lru_remove			_getdns_lru_remove
+#define lruhash_status			_getdns_lruhash_status
+#define lruhash_get_mem			_getdns_lruhash_get_mem
+#define lruhash_traverse		_getdns_lruhash_traverse
+
+#include "util/orig-headers/lruhash.h"
 #endif

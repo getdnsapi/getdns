@@ -481,9 +481,10 @@ case "$enable_dsa" in
       ;;
 esac
 
-AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [No drafts in this release]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enables the draft mdns client support]))
 case "$enable_all_drafts" in
 	yes)
+		AC_DEFINE_UNQUOTED([HAVE_MDNS_SUPPORT], [1], [Define this to enable the draft mdns client support.])
 		;;
 	no|*)
 		;;
@@ -513,6 +514,15 @@ AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the
 
 AC_DEFINE_UNQUOTED([MAXIMUM_UPSTREAM_OPTION_SPACE], [3000], [limit for dynamically-generated DNS options])
 AC_DEFINE_UNQUOTED([EDNS_PADDING_OPCODE], [12], [The edns padding option code.])
+
+AC_ARG_ENABLE(draft-mdns-support, AC_HELP_STRING([--enable-draft-mdns-support], [Enable draft mdns client support]))
+case "$enable_draft_mdns_support" in
+	yes)
+		AC_DEFINE_UNQUOTED([HAVE_MDNS_SUPPORT], [1], [Define this to enable the draft mdns client support.])
+		;;
+	no|*)
+		;;
+esac
 
 my_with_libunbound=1
 AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
@@ -657,7 +667,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
-AC_CHECK_TYPE([u_char])
+AC_CHECK_TYPES([u_char])
 
 AC_CHECK_FUNCS([fcntl])
 # check ioctlsocket
@@ -742,7 +752,7 @@ AS_IF([test x_$withval = x_no],
                     [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
                     [have_libevent=0],
                     [AC_INCLUDES_DEFAULT]
-                    [#if HAVE_U_CHAR == 0
+                    [#ifndef HAVE_U_CHAR
                      typedef unsigned char u_char;
                      #endif])],
                 [AC_INCLUDES_DEFAULT])],
@@ -992,7 +1002,7 @@ fi
 
 
 #---- check for pthreads library
-AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREADS], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
 
 AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
 AC_LANG_PUSH(C)
@@ -1008,7 +1018,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  

@@ -62,7 +62,7 @@ typedef unsigned short in_port_t;
 #include <assert.h>
 #include <ctype.h>
 
-#ifdef HAVE_PTHREADS
+#ifdef HAVE_PTHREAD
 #include <pthread.h>
 #endif
 #include <stdbool.h>
@@ -93,7 +93,7 @@ typedef unsigned short in_port_t;
    upstream. Using 1 hour for all transports - based on RFC7858 value for for TLS.*/
 #define BACKOFF_RETRY 3600
 
-#ifdef HAVE_PTHREADS
+#ifdef HAVE_PTHREAD
 static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 static bool ssl_init=false;
@@ -1457,7 +1457,7 @@ getdns_context_create_with_extended_memory_functions(
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
 	 * don't know that till later so we will have to do this every time. */
 
-#ifdef HAVE_PTHREADS
+#ifdef HAVE_PTHREAD
 	pthread_mutex_lock(&ssl_init_lock);
 #else
 	/* XXX implement Windows-style lock here */
@@ -1467,7 +1467,7 @@ getdns_context_create_with_extended_memory_functions(
 		SSL_library_init();
 		ssl_init = true;
 	}
-#ifdef HAVE_PTHREADS
+#ifdef HAVE_PTHREAD
 	pthread_mutex_unlock(&ssl_init_lock);
 #else
 	/* XXX implement Windows-style unlock here */
