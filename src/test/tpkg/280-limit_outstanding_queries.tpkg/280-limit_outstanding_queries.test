@@ -1,0 +1,21 @@
+# #-- 280-limit_outstanding_queries.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+QLIMIT=10
+make && "./${TPKG_NAME}" | (
+	read PORT
+	${GETDNS_STUB_QUERY} @127.0.0.1:$PORT TXT \
+	    -a -F "./${TPKG_NAME}.queries" \
+	          "{limit_outstanding_queries:$QLIMIT}" 2>&1 > out
+
+	${GETDNS_STUB_QUERY} -q @127.0.0.1:$PORT TXT quit.
+) && grep '"n_requests: [0-9][0-9]*"' out | sed -e 's/^.*n_requests: //g' -e 's/".*$//g' \
+    | awk -vQLIMIT=$QLIMIT '{
+	if ($1 > QLIMIT) {
+		print "ERROR: More than "QLIMIT" outstanding queries!";
+		exit(-1);
+	}
+}' && echo "SUCCESS: No more than ${QLIMIT} outstanding queries"
