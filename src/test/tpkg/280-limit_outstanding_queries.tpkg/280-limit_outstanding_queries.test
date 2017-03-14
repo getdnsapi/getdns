@@ -13,9 +13,19 @@ make && "./${TPKG_NAME}" | (
 
 	${GETDNS_STUB_QUERY} -q @127.0.0.1:$PORT TXT quit.
 ) && grep '"n_requests: [0-9][0-9]*"' out | sed -e 's/^.*n_requests: //g' -e 's/".*$//g' \
-    | awk -vQLIMIT=$QLIMIT '{
-	if ($1 > QLIMIT) {
-		print "ERROR: More than "QLIMIT" outstanding queries!";
+    | awk -vQLIMIT=$QLIMIT '
+
+BEGIN{
+	max_outstanding = 0;
+}
+{
+	if ($1 > max_outstanding)
+		max_outstanding = $1;
+}
+END{
+	if (max_outstanding > QLIMIT) {
+		print "ERROR: More than "QLIMIT" outstanding queries: "max_outstanding;
 		exit(-1);
-	}
-}' && echo "SUCCESS: No more than ${QLIMIT} outstanding queries"
+	} else
+		print "SUCCESS: No more than "QLIMIT" outstanding queries: "max_outstanding;
+}'
