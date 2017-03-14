@@ -130,7 +130,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED)
 						return;
-					netreq->state = NET_REQ_FINISHED;
+					_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				}
 			}
 			_getdns_check_dns_req_complete(dns_req);
@@ -168,7 +168,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED)
 						return;
-					netreq->state = NET_REQ_FINISHED;
+					_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				}
 			}
 			_getdns_check_dns_req_complete(dns_req);
@@ -209,7 +209,7 @@ ub_resolve_event_callback(void* arg, int rcode, void *pkt, int pkt_len,
 	getdns_network_req *netreq = (getdns_network_req *) arg;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	netreq->state = NET_REQ_FINISHED;
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	/* parse */
 	if (getdns_apply_network_result(
 	    netreq, rcode, pkt, pkt_len, sec, why_bogus)) {
@@ -227,7 +227,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 	getdns_network_req *netreq = (getdns_network_req *) arg;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	netreq->state = NET_REQ_FINISHED;
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	if (err != 0) {
 		_getdns_call_user_callback(dns_req, NULL);
 		return;
@@ -258,6 +258,8 @@ _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 #ifdef HAVE_LIBUNBOUND
 	int ub_resolve_r;
 #endif
+
+	_getdns_netreq_change_state(netreq, NET_REQ_IN_FLIGHT);
 
 #ifdef STUB_NATIVE_DNSSEC
 # ifdef DNSSEC_ROADBLOCK_AVOIDANCE
@@ -457,7 +459,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 						*return_netreq_p = NULL;
 					return GETDNS_RETURN_GOOD;
 				}
-				netreq->state = NET_REQ_FINISHED;
+				_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			}
 		}
 
@@ -486,7 +488,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 								*return_netreq_p = NULL;
 							return GETDNS_RETURN_GOOD;
 						}
-						netreq->state = NET_REQ_FINISHED;
+						_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 					}
 				}
 				/* Stop processing more namespaces, since there was a match */
@@ -509,7 +511,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 							*return_netreq_p = NULL;
 						return GETDNS_RETURN_GOOD;
 					}
-					netreq->state = NET_REQ_FINISHED;
+					_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				}
 			}
 			break;

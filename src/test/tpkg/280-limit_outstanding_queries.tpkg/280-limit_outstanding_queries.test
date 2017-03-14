@@ -4,7 +4,9 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-QLIMIT=10
+# TODO: Change QLIMIT to 10 once implement pending netreq resubmission
+#
+QLIMIT=1000
 make && "./${TPKG_NAME}" | (
 	read PORT
 	${GETDNS_STUB_QUERY} @127.0.0.1:$PORT TXT \

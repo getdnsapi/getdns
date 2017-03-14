@@ -118,7 +118,7 @@ netreq_reset(getdns_network_req *net_req)
 	/* variables that need to be reset on reinit 
 	 */
 	net_req->unbound_id = -1;
-	net_req->state = NET_REQ_NOT_SENT;
+	_getdns_netreq_change_state(net_req, NET_REQ_NOT_SENT);
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->query_id = 0;
@@ -182,6 +182,10 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
 	net_req->debug_udp = 0;
+
+	/* Scheduling, touch only via _getdns_netreq_change_state!
+	 */
+	net_req->state = NET_REQ_NOT_SENT;
 
 	if (max_query_sz == 0) {
 		net_req->query    = NULL;

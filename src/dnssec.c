@@ -3040,7 +3040,7 @@ static void check_chain_complete(chain_head *chain)
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++) {
 
-			netreq->state = NET_REQ_NOT_SENT;
+			_getdns_netreq_change_state(netreq, NET_REQ_NOT_SENT);
 			netreq->owner = dnsreq;
 			r = _getdns_submit_netreq(netreq, &now_ms);
 		}

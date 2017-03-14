@@ -550,7 +550,7 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 			netreq = (getdns_network_req *)
 			    _getdns_rbtree_first(&upstream->netreq_by_query_id);
 			stub_cleanup(netreq);
-			netreq->state = NET_REQ_FINISHED;
+			_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
 	}
@@ -580,7 +580,7 @@ stub_timeout_cb(void *userarg)
 	DEBUG_STUB("%s %-35s: MSG:  %p\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, (void*)netreq);
 	stub_cleanup(netreq);
-	netreq->state = NET_REQ_TIMED_OUT;
+	_getdns_netreq_change_state(netreq, NET_REQ_TIMED_OUT);
 	/* Handle upstream*/
 	if (netreq->fd >= 0) {
 #ifdef USE_WINSOCK
@@ -1368,7 +1368,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->response_len = read;
 	dnsreq->upstreams->current_udp = 0;
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
-	netreq->state = NET_REQ_FINISHED;
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	upstream->udp_responses++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	if (upstream->udp_responses == 1 || 
@@ -1495,7 +1495,7 @@ upstream_read_cb(void *userarg)
 
 		DEBUG_STUB("%s %-35s: MSG: %p (read)\n",
 		    STUB_DEBUG_READ, __FUNC__, (void*)netreq);
-		netreq->state = NET_REQ_FINISHED;
+		_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 		netreq->response = upstream->tcp.read_buf;
 		netreq->response_len =
 		    upstream->tcp.read_pos - upstream->tcp.read_buf;
@@ -1614,7 +1614,7 @@ upstream_write_cb(void *userarg)
 #endif
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
-			netreq->state = NET_REQ_FINISHED;
+			_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
 		return;
