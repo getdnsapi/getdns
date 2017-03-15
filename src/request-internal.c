@@ -43,6 +43,7 @@
 #include "dict.h"
 #include "debug.h"
 #include "convert.h"
+#include "general.h"
 
 /* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
  *                      TSIG type      (uint16_t) :   2

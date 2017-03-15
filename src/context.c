@@ -1267,6 +1267,26 @@ NULL_update_callback(
     getdns_context *context, getdns_context_code_t code, void *userarg)
 { (void)context; (void)code; (void)userarg; }
 
+static int
+netreq_expiry_cmp(const void *id1, const void *id2)
+{
+	getdns_network_req *req1 = (getdns_network_req *)id1;
+	getdns_network_req *req2 = (getdns_network_req *)id2;
+
+	return req1->owner->expires < req2->owner->expires ? -1 :
+	       req1->owner->expires > req2->owner->expires ?  1 :
+	       req1 < req2 ? -1 :
+	       req1 > req2 ?  1 : 0;
+}
+
+void _getdns_check_expired_pending_netreqs(
+    getdns_context *context, uint64_t *now_ms);
+static void _getdns_check_expired_pending_netreqs_cb(void *arg)
+{
+	uint64_t now_ms = 0;
+	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
+}
+
 /*
  * getdns_context_create
  *
@@ -1330,8 +1350,15 @@ getdns_context_create_with_extended_memory_functions(
 
 	_getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
 	_getdns_rbtree_init(&result->local_hosts, local_host_cmp);
-	/* TODO: Initialize pending_netreqs */
+	_getdns_rbtree_init(&result->pending_netreqs, netreq_expiry_cmp);
+	result->first_pending_netreq = NULL;
 	result->netreqs_in_flight = 0;
+	result->pending_timeout_event.userarg    = result;
+	result->pending_timeout_event.read_cb    = NULL;
+	result->pending_timeout_event.write_cb   = NULL;
+	result->pending_timeout_event.timeout_cb =
+	    _getdns_check_expired_pending_netreqs_cb;
+	result->pending_timeout_event.ev         = NULL;
 
 	result->server = NULL;
 
@@ -2980,27 +3007,6 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 		dnsreq->context->processing = 0;
 	}
 	_getdns_context_cancel_request(dnsreq);
-}
-
-
-void
-_getdns_netreq_change_state(getdns_network_req *netreq, network_req_state new_state)
-{
-	if (!netreq)
-		return;
-
-	if (netreq->state != NET_REQ_IN_FLIGHT) {
-		if (new_state == NET_REQ_IN_FLIGHT)
-			netreq->owner->context->netreqs_in_flight += 1;
-		netreq->state = new_state;
-		return;
-	}
-	if (new_state == NET_REQ_IN_FLIGHT) /* No change */
-		return;
-	netreq->state = new_state;
-	netreq->owner->context->netreqs_in_flight -= 1;
-	/* TODO: Schedule pending netreqs
-	 *       when netreqs_in_flight < oustanding_queries */
 }
 
 static void

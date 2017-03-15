@@ -4,9 +4,15 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-# TODO: Change QLIMIT to 10 once implement pending netreq resubmission
-#
-QLIMIT=1000
+
+QLIMIT=64
+NQUERIES=`wc "./${TPKG_NAME}.queries"|sed 's/ .*$//g'`
+
+# Test will take NQUERIES / QLIMIT * answer delay
+# For current parameters this is 1000 / 64 * 0.3 = 4.6875
+# which is smaller than 5 seconds default query timeout value,
+# so the test should succeed.
+
 make && "./${TPKG_NAME}" | (
 	read PORT
 	${GETDNS_STUB_QUERY} @127.0.0.1:$PORT TXT \
@@ -15,7 +21,7 @@ make && "./${TPKG_NAME}" | (
 
 	${GETDNS_STUB_QUERY} -q @127.0.0.1:$PORT TXT quit.
 ) && grep '"n_requests: [0-9][0-9]*"' out | sed -e 's/^.*n_requests: //g' -e 's/".*$//g' \
-    | awk -vQLIMIT=$QLIMIT '
+    | awk -vQLIMIT=$QLIMIT -vNQUERIES=$NQUERIES '
 
 BEGIN{
 	max_outstanding = 0;
@@ -25,6 +31,7 @@ BEGIN{
 		max_outstanding = $1;
 }
 END{
+	printf("%d of %d queries answered (%.1f%%)\n", NR, NQUERIES, (NR / NQUERIES * 100));
 	if (max_outstanding > QLIMIT) {
 		print "ERROR: More than "QLIMIT" outstanding queries: "max_outstanding;
 		exit(-1);

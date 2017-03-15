@@ -294,7 +294,10 @@ struct getdns_context {
 	/* network requests
 	 */
 	size_t netreqs_in_flight;
-	_getdns_rbtree_t pending_netreqs;
+
+	_getdns_rbtree_t       pending_netreqs;
+	getdns_network_req    *first_pending_netreq;
+	getdns_eventloop_event pending_timeout_event;
 
 	struct listen_set *server;
 
@@ -381,17 +384,6 @@ void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
  * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()
  */
 void _getdns_context_request_timed_out(getdns_dns_req *dnsreq);
-
-/* Change state of the netreq req.
- * - Increments context->netreqs_in_flight
- *   when state changes from NOT_SENT to IN_FLIGHT
- * - Decrements context->netreqs_in_flight
- *   when state changes from IN_FLIGHT to FINISHED, TIMED_OUT or ERRORED
- * - Resubmits NOT_SENT netreqs from context->pending_netreqs,
- *   when # pending_netreqs < limit_outstanding_queries
- */
-void _getdns_netreq_change_state(
-    getdns_network_req *req, network_req_state new_state);
 
 char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 
