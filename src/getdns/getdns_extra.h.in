@@ -76,6 +76,8 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE_TEXT "Change related to getdns_context_set_tls_query_padding_blocksize"
 #define GETDNS_CONTEXT_CODE_PUBKEY_PINSET 621
 #define GETDNS_CONTEXT_CODE_PUBKEY_PINSET_TEXT "Change related to getdns_context_set_pubkey_pinset"
+#define GETDNS_CONTEXT_CODE_TLS_USE_ALL_UPSTREAMS 622
+#define GETDNS_CONTEXT_CODE_TLS_USE_ALL_UPSTREAMS_TEXT "Change related to getdns_context_set_pubkey_pinset"
 /** @}
   */
 
@@ -266,6 +268,9 @@ getdns_context_set_tls_authentication(
     getdns_context *context, getdns_tls_authentication_t value);
 
 getdns_return_t
+getdns_context_set_tls_use_all_upstreams(getdns_context *context, uint8_t value);
+
+getdns_return_t
 getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t value);
 
 getdns_return_t
@@ -355,6 +360,10 @@ getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t
 getdns_return_t
 getdns_context_get_tls_authentication(getdns_context *context,
     getdns_tls_authentication_t* value);
+
+getdns_return_t
+getdns_context_get_tls_use_all_upstreams(getdns_context *context,
+    uint8_t* value);
 
 /**
  * Get the currently registered callback function and user defined argument

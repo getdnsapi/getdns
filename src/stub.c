@@ -591,7 +591,7 @@ stub_timeout_cb(void *userarg)
 		netreq->upstream->udp_timeouts++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	if (netreq->upstream->udp_timeouts % 100 == 0)
-		DEBUG_DAEMON("%s %s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+		DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 		             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
 		             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
 #endif
@@ -907,7 +907,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 		else
-			DEBUG_DAEMON("%s %s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
+			DEBUG_DAEMON("%s %-40s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
 		                  STUB_DEBUG_DAEMON, upstream->addr_str);
 #endif
 	} else {
@@ -1373,7 +1373,7 @@ stub_udp_read_cb(void *userarg)
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
-		DEBUG_DAEMON("%s %s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+		DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 		             STUB_DEBUG_DAEMON, upstream->addr_str,
 		             (int)upstream->udp_responses, (int)upstream->udp_timeouts);
 #endif
@@ -1608,7 +1608,7 @@ upstream_write_cb(void *userarg)
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-		DEBUG_DAEMON("%s %s : Conn closed   : Transport=%s - *Failure*\n",
+		DEBUG_DAEMON("%s %-40s : Conn closed   : Transport=%s - *Failure*\n",
 		             STUB_DEBUG_DAEMON, upstream->addr_str,
 		             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
 #endif
@@ -1673,6 +1673,17 @@ upstream_active(getdns_upstream *upstream)
 }
 
 static int
+upstream_usable(getdns_upstream *upstream) 
+{
+	if ((upstream->conn_state == GETDNS_CONN_CLOSED || 
+	     upstream->conn_state == GETDNS_CONN_SETUP || 
+	     upstream->conn_state == GETDNS_CONN_OPEN) &&
+	     upstream->keepalive_shutdown == 0)
+		return 1;
+	return 0;
+}
+
+static int
 upstream_auth_status_ok(getdns_upstream *upstream, getdns_network_req *netreq) {
 	if (netreq->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 		return 1;
@@ -1692,10 +1703,16 @@ upstream_valid(getdns_upstream *upstream,
                           getdns_transport_list_t transport,
                           getdns_network_req *netreq)
 {
-	if (upstream->transport != transport || upstream->conn_state != GETDNS_CONN_CLOSED)
+	if (upstream->transport != transport && upstream_usable(upstream))
 		return 0;
 	if (transport == GETDNS_TRANSPORT_TCP)
 		return 1;
+	if (upstream->conn_state == GETDNS_CONN_OPEN) {
+		if (!upstream_auth_status_ok(upstream, netreq))
+			return 0;
+		else
+			return 1;
+	}
 	/* We need to check past authentication history to see if this is usable for TLS.*/
 	if (netreq->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 		return 1;
@@ -1728,7 +1745,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	getdns_upstreams *upstreams = netreq->owner->upstreams;
 	size_t i;
 	time_t now = time(NULL);
-	
+
 	if (!upstreams->count)
 		return NULL;
 
@@ -1738,37 +1755,55 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-			DEBUG_DAEMON("%s %s : Re-instating upstream\n",
+			DEBUG_DAEMON("%s %-40s : Re-instating upstream\n",
 		            STUB_DEBUG_DAEMON, upstreams->upstreams[i].addr_str);
 #endif
 		}
 	}
 
-	/* First find if an open upstream has the correct properties and use that*/
-	for (i = 0; i < upstreams->count; i++) {
-		if (upstream_valid_and_open(&upstreams->upstreams[i], transport, netreq)) 
-			return &upstreams->upstreams[i];
+	if (netreq->owner->context->tls_use_all_upstreams == 0) {
+		/* First find if an open upstream has the correct properties and use that*/
+		for (i = 0; i < upstreams->count; i++) {
+			if (upstream_valid_and_open(&upstreams->upstreams[i], transport, netreq)) 
+				return &upstreams->upstreams[i];
+		}
 	}
 
-	/* OK - we will have to open one. Choose the first one that has the best stats
-	   and the right properties, but because we completely back off failed 
+	/* OK - Find the next one to use. First check we have at least one valid
+	   upstream because we completely back off failed 
 	   upstreams we may have no valid upstream at all (in contrast to UDP). This
 	   will be better communicated to the user when we have better error codes*/
-	for (i = 0; i < upstreams->count; i++) {
+	i = upstreams->current_stateful;
+	do {
 		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d\n", STUB_DEBUG_SETUP, 
 	           __FUNC__, (int)i, (int)upstreams->upstreams[i].conn_state);
 		if (upstream_valid(&upstreams->upstreams[i], transport, netreq)) {
 			upstream = &upstreams->upstreams[i];
 			break;
 		}
-	}
+		i++;
+		if (i >= upstreams->count)
+			i = 0;
+	} while (i != upstreams->current_stateful);
 	if (!upstream)
 		return NULL;
-	for (i++; i < upstreams->count; i++) {
-		if (upstream_valid(&upstreams->upstreams[i], transport, netreq) &&
-		    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
-			upstream = &upstreams->upstreams[i];
+
+	/* Now select the specific upstream */
+	if (netreq->owner->context->tls_use_all_upstreams == 0) {
+		/* Base the decision on the stats, noting we will have started from 0*/
+		for (i++; i < upstreams->count; i++) {
+			if (upstream_valid(&upstreams->upstreams[i], transport, netreq) &&
+			    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
+				upstream = &upstreams->upstreams[i];
+		}
+	} else {
+		/* Simplistic, but always just pick the first one, incrementing the current.
+		   Note we are not distinguishing TCP/TLS here....*/
+		upstreams->current_stateful+=GETDNS_UPSTREAM_TRANSPORTS;
+		if (upstreams->current_stateful >= upstreams->count)
+			upstreams->current_stateful = 0;
 	}
+
 	return upstream;
 }
 
@@ -1853,7 +1888,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		}
 		upstream->conn_state = GETDNS_CONN_SETUP;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s %s : Conn init     : Transport=%s - Profile=%s\n", STUB_DEBUG_DAEMON, 
+	DEBUG_DAEMON("%s %-40s : Conn init     : Transport=%s - Profile=%s\n", STUB_DEBUG_DAEMON, 
 	             upstream->addr_str, transport == GETDNS_TRANSPORT_TLS ? "TLS":"TCP",
 	             dnsreq->context->tls_auth_min == GETDNS_AUTHENTICATION_NONE ? "Opportunistic":"Strict");
 #endif
