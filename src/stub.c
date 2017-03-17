@@ -870,7 +870,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 #endif
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	if (!preverify_ok && !upstream->tls_fallback_ok)
-			DEBUG_DAEMON("%s %s : Conn failed   : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
+			DEBUG_DAEMON("%s %-40s : Verify failed : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
 		                  STUB_DEBUG_DAEMON, upstream->addr_str, err,
 			              X509_verify_cert_error_string(err));
 #endif
@@ -920,6 +920,10 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			preverify_ok = 1;
 			DEBUG_STUB("%s %-35s: FD:  %d, Allowing self-signed (%d) cert since pins match\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+			DEBUG_DAEMON("%s %-40s : Verify passed : Transport=TLS - Allowing self-signed cert since pins match\n",
+		                  STUB_DEBUG_DAEMON, upstream->addr_str);
+#endif
 		}
 	}
 
