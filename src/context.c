@@ -3528,7 +3528,7 @@ _get_context_settings(getdns_context* context)
 	    || getdns_dict_set_int(result, "tls_authentication",
 	                           context->tls_auth)
 	    || getdns_dict_set_int(result, "round_robin_upstreams",
-	                           context->round_robin_upstreams))
+	                           context->round_robin_upstreams)
 	    || getdns_dict_set_int(result, "tls_backoff_time",
 	                           context->tls_backoff_time)
 	    || getdns_dict_set_int(result, "tls_connection_retries",
