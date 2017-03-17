@@ -278,7 +278,7 @@ getdns_return_t
 getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value);
 
 getdns_return_t
-getdns_context_set_tls_connection_reuse(getdns_context *context, uint16_t value);
+getdns_context_set_tls_connection_retries(getdns_context *context, uint16_t value);
 
 getdns_return_t
 getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t value);
