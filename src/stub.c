@@ -1669,7 +1669,8 @@ upstream_working_ok(getdns_upstream *upstream)
 {
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
 	return (upstream->responses_timeouts > 
-		upstream->responses_received*GETDNS_CONN_ATTEMPTS ? 0 : 1);
+	        upstream->responses_received*
+	        upstream->upstreams->tls_connection_retries ? 0 : 1);
 }
 
 static int

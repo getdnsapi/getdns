@@ -78,6 +78,10 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_PUBKEY_PINSET_TEXT "Change related to getdns_context_set_pubkey_pinset"
 #define GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS 622
 #define GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS_TEXT "Change related to getdns_context_set_pubkey_pinset"
+#define GETDNS_CONTEXT_CODE_TLS_BACKOFF_TIME 623
+#define GETDNS_CONTEXT_CODE_TLS_BACKOFF_TIME_TEXT "Change related to getdns_context_set_pubkey_pinset"
+#define GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES 624
+#define GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES_TEXT "Change related to getdns_context_set_pubkey_pinset"
 /** @}
   */
 
@@ -271,6 +275,12 @@ getdns_return_t
 getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value);
 
 getdns_return_t
+getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value);
+
+getdns_return_t
+getdns_context_set_tls_connection_reuse(getdns_context *context, uint16_t value);
+
+getdns_return_t
 getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t value);
 
 getdns_return_t
@@ -364,6 +374,14 @@ getdns_context_get_tls_authentication(getdns_context *context,
 getdns_return_t
 getdns_context_get_round_robin_upstreams(getdns_context *context,
     uint8_t* value);
+
+getdns_return_t
+getdns_context_get_tls_backoff_time(getdns_context *context,
+    uint16_t* value);
+
+getdns_return_t
+getdns_context_get_tls_connection_retries(getdns_context *context,
+    uint16_t* value);
 
 /**
  * Get the currently registered callback function and user defined argument

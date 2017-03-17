@@ -89,9 +89,6 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
-/* How long to wait in seconds before re-trying a connection based backed-off 
-   upstream. Using 1 hour for all transports - based on RFC7858 value for for TLS.*/
-#define BACKOFF_RETRY 3600
 
 #ifdef HAVE_PTHREADS
 static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -648,6 +645,8 @@ upstreams_create(getdns_context *context, size_t size)
 	r->count = 0;
 	r->current_udp = 0;
 	r->current_stateful = 0;
+	r->tls_backoff_time = context->tls_backoff_time;
+	r->tls_connection_retries = context->tls_connection_retries;
 	return r;
 }
 
@@ -744,16 +743,16 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	   Leave choice between working upstreams to the stub. 
 	   This back-off should be time based for TLS according to RFC7858. For now,
 	   use the same basis if we simply can't get TCP service either.*/
-
+	uint16_t conn_retries = upstream->upstreams->tls_connection_retries;
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
-	if (upstream->conn_setup_failed >= GETDNS_CONN_ATTEMPTS ||
-	    (upstream->conn_shutdowns >= GETDNS_CONN_ATTEMPTS*GETDNS_TRANSPORT_FAIL_MULT
-	     && upstream->total_responses == 0) ||
-	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
+	if (upstream->conn_setup_failed >= conn_retries
+	    || (upstream->conn_shutdowns >= conn_retries*GETDNS_TRANSPORT_FAIL_MULT
+	     && upstream->total_responses == 0)
+	    || (upstream->conn_completed >= conn_retries &&
 	     upstream->total_responses == 0 && 
 	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
-		upstream->conn_retry_time = time(NULL) + BACKOFF_RETRY;
+		upstream->conn_retry_time = time(NULL) + upstream->upstreams->tls_backoff_time;
 		upstream->total_responses = 0;
 		upstream->total_timeouts = 0;
 		upstream->conn_completed = 0;
@@ -1430,6 +1429,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
 	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
 	result->round_robin_upstreams = 0;
+	result->tls_backoff_time = 3600;
+	result->tls_connection_retries = 2;
 	result->limit_outstanding_queries = 0;
 
 	/* unbound context is initialized here */
@@ -2053,6 +2054,41 @@ getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_round_robin_upstreams */
 
+/*
+ * getdns_context_set_tls_backoff_time
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Value is in seconds. Should we have a lower limit? 1 second?*/
+    context->tls_backoff_time = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_BACKOFF_TIME);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_backoff_time */
+
+/*
+ * getdns_context_set_tls_connection_retries
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_connection_retries(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Should we put a sensible upper limit on this? 10?*/
+    // if (value > 10) {
+    //     return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    // }
+
+    context->tls_connection_retries = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_connection retries */
 
 #ifdef HAVE_LIBUNBOUND
 static void
@@ -3493,6 +3529,10 @@ _get_context_settings(getdns_context* context)
 	                           context->tls_auth)
 	    || getdns_dict_set_int(result, "round_robin_upstreams",
 	                           context->round_robin_upstreams))
+	    || getdns_dict_set_int(result, "tls_backoff_time",
+	                           context->tls_backoff_time)
+	    || getdns_dict_set_int(result, "tls_connection_retries",
+	                           context->tls_connection_retries))
 		goto error;
 	
 	/* list fields */
@@ -3794,6 +3834,24 @@ getdns_context_get_round_robin_upstreams(getdns_context *context,
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->round_robin_upstreams;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_backoff_time(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_backoff_time;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_connection_retries(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_connection_retries;
     return GETDNS_RETURN_GOOD;
 }
 
@@ -4193,6 +4251,8 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_INT(edns_client_subnet_private)
 	CONTEXT_SETTING_INT(tls_authentication)
 	CONTEXT_SETTING_INT(round_robin_upstreams)
+	CONTEXT_SETTING_INT(tls_backoff_time)
+	CONTEXT_SETTING_INT(tls_connection_retries)
 	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
 
 	/**************************************/
