@@ -1370,7 +1370,13 @@ stub_udp_read_cb(void *userarg)
 		return;
 	}
 	netreq->response_len = read;
-	dnsreq->upstreams->current_udp = 0;
+	if (!dnsreq->context->round_robin_upstreams)
+		dnsreq->upstreams->current_udp = 0;
+	else {
+		dnsreq->upstreams->current_udp+=GETDNS_UPSTREAM_TRANSPORTS;
+		if (dnsreq->upstreams->current_udp >= dnsreq->upstreams->count)
+			dnsreq->upstreams->current_udp = 0;
+	}
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	netreq->state = NET_REQ_FINISHED;
 	upstream->udp_responses++;
