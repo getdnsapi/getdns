@@ -249,7 +249,7 @@ struct getdns_context {
 	uint32_t             dnssec_allowed_skew;
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
-	uint8_t              tls_use_all_upstreams;
+	uint8_t              round_robin_upstreams;
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;

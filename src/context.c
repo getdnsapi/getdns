@@ -1429,7 +1429,7 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
 	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
-	result->tls_use_all_upstreams = 0;
+	result->round_robin_upstreams = 0;
 	result->limit_outstanding_queries = 0;
 
 	/* unbound context is initialized here */
@@ -2034,11 +2034,11 @@ getdns_context_set_tls_authentication(getdns_context *context,
 }               /* getdns_context_set_tls_authentication_list */
 
 /*
- * getdns_context_set_tls_use_all_upstreams
+ * getdns_context_set_round_robin_upstreams
  *
  */
 getdns_return_t
-getdns_context_set_tls_use_all_upstreams(getdns_context *context, uint8_t value)
+getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     /* only allow 0 or 1 */
@@ -2046,12 +2046,12 @@ getdns_context_set_tls_use_all_upstreams(getdns_context *context, uint8_t value)
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
 
-    context->tls_use_all_upstreams = value;
+    context->round_robin_upstreams = value;
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_USE_ALL_UPSTREAMS);
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS);
 
     return GETDNS_RETURN_GOOD;
-}               /* getdns_context_set_tls_use_all_upstreams */
+}               /* getdns_context_set_round_robin_upstreams */
 
 
 #ifdef HAVE_LIBUNBOUND
@@ -3491,8 +3491,8 @@ _get_context_settings(getdns_context* context)
 	                           context->append_name)
 	    || getdns_dict_set_int(result, "tls_authentication",
 	                           context->tls_auth)
-	    || getdns_dict_set_int(result, "tls_use_all_upstreams",
-	                           context->tls_use_all_upstreams))
+	    || getdns_dict_set_int(result, "round_robin_upstreams",
+	                           context->round_robin_upstreams))
 		goto error;
 	
 	/* list fields */
@@ -3789,11 +3789,11 @@ getdns_context_get_tls_authentication(getdns_context *context,
 }
 
 getdns_return_t
-getdns_context_get_tls_use_all_upstreams(getdns_context *context,
+getdns_context_get_round_robin_upstreams(getdns_context *context,
     uint8_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = context->tls_use_all_upstreams;
+    *value = context->round_robin_upstreams;
     return GETDNS_RETURN_GOOD;
 }
 
@@ -4192,7 +4192,7 @@ _getdns_context_config_setting(getdns_context *context,
 
 	CONTEXT_SETTING_INT(edns_client_subnet_private)
 	CONTEXT_SETTING_INT(tls_authentication)
-	CONTEXT_SETTING_INT(tls_use_all_upstreams)
+	CONTEXT_SETTING_INT(round_robin_upstreams)
 	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
 
 	/**************************************/

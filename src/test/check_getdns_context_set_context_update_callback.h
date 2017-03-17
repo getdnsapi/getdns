@@ -448,9 +448,9 @@
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_context_update_callback()");
 
-      expected_changed_item = GETDNS_CONTEXT_CODE_TLS_USE_ALL_UPSTREAMS;
+      expected_changed_item = GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS;
 
-      ASSERT_RC(getdns_context_set_tls_use_all_upstreams(context, 1),
+      ASSERT_RC(getdns_context_set_round_robin_upstreams(context, 1),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
 
       CONTEXT_DESTROY;

@@ -1707,7 +1707,7 @@ upstream_valid(getdns_upstream *upstream,
                           getdns_transport_list_t transport,
                           getdns_network_req *netreq)
 {
-	if (upstream->transport != transport && upstream_usable(upstream))
+	if (!(upstream->transport == transport && upstream_usable(upstream)))
 		return 0;
 	if (transport == GETDNS_TRANSPORT_TCP)
 		return 1;
@@ -1765,7 +1765,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		}
 	}
 
-	if (netreq->owner->context->tls_use_all_upstreams == 0) {
+	if (netreq->owner->context->round_robin_upstreams == 0) {
 		/* First find if an open upstream has the correct properties and use that*/
 		for (i = 0; i < upstreams->count; i++) {
 			if (upstream_valid_and_open(&upstreams->upstreams[i], transport, netreq)) 
@@ -1793,7 +1793,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		return NULL;
 
 	/* Now select the specific upstream */
-	if (netreq->owner->context->tls_use_all_upstreams == 0) {
+	if (netreq->owner->context->round_robin_upstreams == 0) {
 		/* Base the decision on the stats, noting we will have started from 0*/
 		for (i++; i < upstreams->count; i++) {
 			if (upstream_valid(&upstreams->upstreams[i], transport, netreq) &&
