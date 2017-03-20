@@ -45,7 +45,6 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 /*#define SELF_TEST 1*/
 
 #include "config.h"
-#include "util/lookup3.h"
 #include "util/storage/lookup3.h"
 #include <stdio.h>      /* defines printf for tests */
 #include <time.h>       /* defines time_t for timings in the test */
