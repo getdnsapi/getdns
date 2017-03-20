@@ -3032,6 +3032,7 @@ static void check_chain_complete(chain_head *chain)
 
 		int r = GETDNS_RETURN_GOOD;
 		getdns_network_req **netreq_p, *netreq;
+		uint64_t now_ms = 0;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;
 
@@ -3039,9 +3040,9 @@ static void check_chain_complete(chain_head *chain)
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++) {
 
-			netreq->state = NET_REQ_NOT_SENT;
+			_getdns_netreq_change_state(netreq, NET_REQ_NOT_SENT);
 			netreq->owner = dnsreq;
-			r = _getdns_submit_netreq(netreq);
+			r = _getdns_submit_netreq(netreq, &now_ms);
 		}
 		return;
 	}

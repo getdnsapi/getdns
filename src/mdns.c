@@ -1699,7 +1699,7 @@ mdns_timeout_cb(void *userarg)
 #else
 		close(netreq->fd);
 #endif
-	netreq->state = NET_REQ_TIMED_OUT;
+	_getdns_netreq_change_state(netreq, NET_REQ_TIMED_OUT);
 	if (netreq->owner->user_callback) {
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		(void)_getdns_context_request_timed_out(netreq->owner);
@@ -1760,7 +1760,7 @@ mdns_udp_read_cb(void *userarg)
 	
 	netreq->response_len = read;
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
-	netreq->state = NET_REQ_FINISHED;
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	_getdns_check_dns_req_complete(dnsreq);
 }
 
