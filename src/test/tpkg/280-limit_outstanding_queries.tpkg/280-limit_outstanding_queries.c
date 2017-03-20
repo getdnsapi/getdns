@@ -64,12 +64,12 @@ void delay_cb(void *userarg)
 void handler(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *request, void *userarg, getdns_transaction_t request_id)
 {
-	transaction_t  *trans;
+	transaction_t  *trans = NULL;
 	getdns_bindata *qname;
 	char           nreq_str[255];
-	getdns_bindata nreq_bd = { 0, nreq_str };
+	getdns_bindata nreq_bd = { 0, (void *)nreq_str };
 
-	(void) userarg;
+	(void) userarg; (void)callback_type;
 	nreq_bd.size = snprintf(nreq_str, sizeof(nreq_str), "n_requests: %d", ++n_requests);
 
 	if (getdns_dict_get_bindata(request, "/question/qname", &qname) ||
@@ -83,8 +83,8 @@ void handler(getdns_context *context, getdns_callback_type_t callback_type,
 	    qname->data[3] == 'i' && qname->data[4] == 't') {
 
 		(void) getdns_reply(context, request, request_id);
-		(void) getdns_context_set_listen_addresses(trans->context, NULL, NULL, NULL);
-		n_requests -= 1;
+		(void) getdns_context_set_listen_addresses(context, NULL, NULL, NULL);
+		getdns_dict_destroy(request);
 		return;
 
 	} else if (!(trans = malloc(sizeof(transaction_t))))
@@ -102,6 +102,8 @@ void handler(getdns_context *context, getdns_callback_type_t callback_type,
 			fprintf(stderr, "Could not schedule delay\n");
 		else	return;
 	}
+	getdns_dict_destroy(trans->request);
+	if (trans) free(trans);
 	exit(EXIT_FAILURE);
 }
 

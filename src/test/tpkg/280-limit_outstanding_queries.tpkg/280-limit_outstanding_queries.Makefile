@@ -2,7 +2,7 @@ builddir = @BUILDDIR@
 testname = @TPKG_NAME@
 LIBTOOL  = $(builddir)/libtool
 
-CFLAGS=-I$(builddir)/src
+CFLAGS=-Wall -Wextra -I$(builddir)/src
 LDLIBS=$(builddir)/src/libgetdns.la
 
 .SUFFIXES: .c .o .a .lo .h
