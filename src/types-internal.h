@@ -338,6 +338,11 @@ typedef struct getdns_dns_req {
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
+	/* Absolute time (in miliseconds since epoch),
+	 * after which this dns request is expired; i.e. timed out
+	 */
+	uint64_t expires;
+
 	/* for scheduling timeouts when using libunbound */
 	getdns_eventloop_event timeout;
 
@@ -408,7 +413,7 @@ extern getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions);
+    const char *name, uint16_t request_type, getdns_dict *extensions, uint64_t *now_ms);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
 

@@ -90,13 +90,23 @@ void
 _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 {
 	getdns_network_req **netreq_p, *netreq;
-	int results_found = 0, r;
+	int results_found = 0, timed_out = 1, r;
+	uint64_t now_ms  = 0;
 	
 	for (netreq_p = dns_req->netreqs; (netreq = *netreq_p); netreq_p++)
 		if (!_getdns_netreq_finished(netreq))
 			return;
-		else if (netreq->response_len > 0)
-			results_found = 1;
+		else {
+			if (netreq->state != NET_REQ_TIMED_OUT)
+				timed_out = 0;
+			if (netreq->response_len > 0)
+				results_found = 1;
+		}
+
+	if (timed_out) {
+		_getdns_context_request_timed_out(dns_req);
+		return;
+	}
 
 	/* Do we have to check more suffixes on nxdomain/nodata?
 	 */
@@ -126,10 +136,10 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			    ; (netreq = *netreq_p)
 			    ; netreq_p++ ) {
 				_getdns_netreq_reinit(netreq);
-				if ((r = _getdns_submit_netreq(netreq))) {
+				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED)
 						return;
-					netreq->state = NET_REQ_FINISHED;
+					_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				}
 			}
 			_getdns_check_dns_req_complete(dns_req);
@@ -164,10 +174,10 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			    ; (netreq = *netreq_p)
 			    ; netreq_p++ ) {
 				_getdns_netreq_reinit(netreq);
-				if ((r = _getdns_submit_netreq(netreq))) {
+				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED)
 						return;
-					netreq->state = NET_REQ_FINISHED;
+					_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				}
 			}
 			_getdns_check_dns_req_complete(dns_req);
@@ -208,7 +218,7 @@ ub_resolve_event_callback(void* arg, int rcode, void *pkt, int pkt_len,
 	getdns_network_req *netreq = (getdns_network_req *) arg;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	netreq->state = NET_REQ_FINISHED;
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	/* parse */
 	if (getdns_apply_network_result(
 	    netreq, rcode, pkt, pkt_len, sec, why_bogus)) {
@@ -226,7 +236,7 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 	getdns_network_req *netreq = (getdns_network_req *) arg;
 	getdns_dns_req *dns_req = netreq->owner;
 
-	netreq->state = NET_REQ_FINISHED;
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	if (err != 0) {
 		_getdns_call_user_callback(dns_req, NULL);
 		return;
@@ -247,28 +257,124 @@ ub_resolve_callback(void* arg, int err, struct ub_result* ub_res)
 #endif
 
 
+void _getdns_check_expired_pending_netreqs(
+    getdns_context *context, uint64_t *now_ms)
+{
+	getdns_network_req *first;
+
+	assert(context);
+
+	while (context->pending_netreqs.count) {
+		first = (getdns_network_req *)
+		    _getdns_rbtree_first(&context->pending_netreqs);
+
+		if (_getdns_ms_until_expiry2(first->owner->expires, now_ms) > 0)
+			break;
+
+		(void) _getdns_rbtree_delete(&context->pending_netreqs, first);
+		_getdns_netreq_change_state(first, NET_REQ_TIMED_OUT);
+		_getdns_check_dns_req_complete(first->owner);
+	}
+	first = context->pending_netreqs.count ? (getdns_network_req *)
+	    _getdns_rbtree_first(&context->pending_netreqs) : NULL;
+
+	if (first == context->first_pending_netreq ||
+	    (first && context->first_pending_netreq &&
+	     first->owner->expires == context->first_pending_netreq->owner->expires))
+		return; /* Nothing changed */
+
+	if (context->first_pending_netreq)
+		GETDNS_CLEAR_EVENT(  context->extension
+		                  , &context->pending_timeout_event);
+
+	if ((context->first_pending_netreq = first))
+		GETDNS_SCHEDULE_EVENT( context->extension, -1,
+		    _getdns_ms_until_expiry2(first->owner->expires, now_ms),
+		    &context->pending_timeout_event);
+}
+
+void
+_getdns_netreq_change_state(
+    getdns_network_req *netreq, network_req_state new_state)
+{
+	getdns_context *context;
+	uint64_t now_ms;
+	getdns_network_req *prev;
+
+	if (!netreq)
+		return;
+
+	context = netreq->owner->context;
+
+	if (netreq->state != NET_REQ_IN_FLIGHT) {
+		if (new_state == NET_REQ_IN_FLIGHT)
+			context->netreqs_in_flight += 1;
+		netreq->state = new_state;
+		return;
+	}
+	if (new_state == NET_REQ_IN_FLIGHT) /* No change */
+		return;
+	netreq->state = new_state;
+	context->netreqs_in_flight -= 1;
+
+	now_ms = 0;
+	prev = NULL;
+	while (context->pending_netreqs.count > 0 &&
+	    (  context->limit_outstanding_queries > context->netreqs_in_flight
+	    || context->limit_outstanding_queries == 0 ))  {
+
+		getdns_network_req *first = (getdns_network_req *)
+		    _getdns_rbtree_first(&context->pending_netreqs);
+		
+		/* To prevent loops due to _getdns_submit_netreq re-inserting
+		 * because of errno == EMFILE
+		 */
+		if (first == prev)
+			break;
+		else
+			prev = first;
+
+		(void) _getdns_rbtree_delete(&context->pending_netreqs, first);
+		(void) _getdns_submit_netreq(first, &now_ms);
+	}
+}
+
 int
-_getdns_submit_netreq(getdns_network_req *netreq)
+_getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 {
 	getdns_return_t r;
 	getdns_dns_req *dns_req = netreq->owner;
+	getdns_context *context = dns_req->context;
 	char name[1024];
 	int dnsreq_freed = 0;
 #ifdef HAVE_LIBUNBOUND
 	int ub_resolve_r;
 #endif
 
+	if (context->limit_outstanding_queries > 0 &&
+	    context->netreqs_in_flight >= context->limit_outstanding_queries) {
+
+		netreq->node.key = netreq;
+		if (_getdns_rbtree_insert(
+		    &context->pending_netreqs, &netreq->node)) {
+			
+			_getdns_check_expired_pending_netreqs(context, now_ms);
+			return GETDNS_RETURN_GOOD;
+		}
+	}
+	_getdns_netreq_change_state(netreq, NET_REQ_IN_FLIGHT);
+
 #ifdef STUB_NATIVE_DNSSEC
 # ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 
-	if ((dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	if ((context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    && !dns_req->dnssec_roadblock_avoidance)
 	    ||  dns_req->avoid_dnssec_roadblocks) {
 # else
-	if ( dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
+	if ( context->resolution_type == GETDNS_RESOLUTION_RECURSING) {
 # endif
 #else
-	if ( dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	if ( context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    || dns_req->dnssec_return_status
 	    || dns_req->dnssec_return_only_secure
 	    || dns_req->dnssec_return_all_statuses
@@ -284,7 +390,8 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 			    _getdns_context_request_timed_out;
 			dns_req->timeout.ev         = NULL;
 			if ((r = dns_req->loop->vmt->schedule(dns_req->loop, -1,
-			    dns_req->context->timeout, &dns_req->timeout)))
+			    _getdns_ms_until_expiry2(dns_req->expires, now_ms),
+			    &dns_req->timeout)))
 				return r;
 		}
 		(void) gldns_wire2str_dname_buf(dns_req->name,
@@ -293,15 +400,15 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 #ifdef HAVE_LIBUNBOUND
 		dns_req->freed = &dnsreq_freed;
 #ifdef HAVE_UNBOUND_EVENT_API
-		if (_getdns_ub_loop_enabled(&dns_req->context->ub_loop))
-			ub_resolve_r = ub_resolve_event(dns_req->context->unbound_ctx,
-			    name, netreq->request_type, netreq->owner->request_class,
+		if (_getdns_ub_loop_enabled(&context->ub_loop))
+			ub_resolve_r = ub_resolve_event(context->unbound_ctx,
+			    name, netreq->request_type, dns_req->request_class,
 			    netreq, ub_resolve_event_callback, &(netreq->unbound_id)) ?
 			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 		else
 #endif
-			ub_resolve_r = ub_resolve_async(dns_req->context->unbound_ctx,
-			    name, netreq->request_type, netreq->owner->request_class,
+			ub_resolve_r = ub_resolve_async(context->unbound_ctx,
+			    name, netreq->request_type, dns_req->request_class,
 			    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
 			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
 		if (dnsreq_freed)
@@ -314,7 +421,7 @@ _getdns_submit_netreq(getdns_network_req *netreq)
 	}
 	/* Submit with stub resolver */
 	dns_req->freed = &dnsreq_freed;
-	r = _getdns_submit_stub_request(netreq);
+	r = _getdns_submit_stub_request(netreq, now_ms);
 	if (dnsreq_freed)
 		return DNS_REQ_FINISHED;
 	dns_req->freed = NULL;
@@ -413,6 +520,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	getdns_dns_req *req;
 	getdns_dict *localnames_response;
 	size_t i;
+	uint64_t now_ms = 0;
 
 	if (!context || !name || (!callbackfn && !internal_cb))
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -430,7 +538,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	/* create the request */
 	if (!(req = _getdns_dns_req_new(
-	    context, loop, name, request_type, extensions)))
+	    context, loop, name, request_type, extensions, &now_ms)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
 	req->user_pointer = userarg;
@@ -448,13 +556,13 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++) {
-			if ((r = _getdns_submit_netreq(netreq))) {
+			if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 				if (r == DNS_REQ_FINISHED) {
 					if (return_netreq_p)
 						*return_netreq_p = NULL;
 					return GETDNS_RETURN_GOOD;
 				}
-				netreq->state = NET_REQ_FINISHED;
+				_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			}
 		}
 
@@ -483,7 +591,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 								*return_netreq_p = NULL;
 							return GETDNS_RETURN_GOOD;
 						}
-						netreq->state = NET_REQ_FINISHED;
+						_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 					}
 				}
 				/* Stop processing more namespaces, since there was a match */
@@ -500,13 +608,13 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			for ( netreq_p = req->netreqs
 			    ; !r && (netreq = *netreq_p)
 			    ; netreq_p++) {
-				if ((r = _getdns_submit_netreq(netreq))) {
+				if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
 					if (r == DNS_REQ_FINISHED) {
 						if (return_netreq_p)
 							*return_netreq_p = NULL;
 						return GETDNS_RETURN_GOOD;
 					}
-					netreq->state = NET_REQ_FINISHED;
+					_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				}
 			}
 			break;

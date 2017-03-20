@@ -291,6 +291,14 @@ struct getdns_context {
 	 */
 	_getdns_rbtree_t outbound_requests;
 
+	/* network requests
+	 */
+	size_t netreqs_in_flight;
+
+	_getdns_rbtree_t       pending_netreqs;
+	getdns_network_req    *first_pending_netreq;
+	getdns_eventloop_event pending_timeout_event;
+
 	struct listen_set *server;
 
 	/* Event loop extension.  */
@@ -371,7 +379,6 @@ void _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq);
  * - Frees the getdns_dns_req
  */
 void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
-
 
 /* Calls user callback (with GETDNS_CALLBACK_TIMEOUT + response dict), then
  * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()
