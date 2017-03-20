@@ -299,6 +299,7 @@ _getdns_netreq_change_state(
 {
 	getdns_context *context;
 	uint64_t now_ms;
+	getdns_network_req *prev;
 
 	if (!netreq)
 		return;
@@ -317,12 +318,22 @@ _getdns_netreq_change_state(
 	context->netreqs_in_flight -= 1;
 
 	now_ms = 0;
-	while (context->limit_outstanding_queries > 0 &&
-	    context->pending_netreqs.count > 0 &&
-	    context->netreqs_in_flight < context->limit_outstanding_queries)  {
+	prev = NULL;
+	while (context->pending_netreqs.count > 0 &&
+	    (  context->limit_outstanding_queries > context->netreqs_in_flight
+	    || context->limit_outstanding_queries == 0 ))  {
 
 		getdns_network_req *first = (getdns_network_req *)
 		    _getdns_rbtree_first(&context->pending_netreqs);
+		
+		/* To prevent loops due to _getdns_submit_netreq re-inserting
+		 * because of errno == EMFILE
+		 */
+		if (first == prev)
+			break;
+		else
+			prev = first;
+
 		(void) _getdns_rbtree_delete(&context->pending_netreqs, first);
 		(void) _getdns_submit_netreq(first, &now_ms);
 	}

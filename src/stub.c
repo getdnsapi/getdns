@@ -54,15 +54,18 @@ typedef u_short sa_family_t;
 #define _getdns_EWOULDBLOCK (WSAGetLastError() == WSATRY_AGAIN ||\
                              WSAGetLastError() == WSAEWOULDBLOCK)
 #define _getdns_EINPROGRESS (WSAGetLastError() == WSAEINPROGRESS)
+#define _getdns_EMFILE      (WSAGetLastError() == WSAEMFILE)
 #else
 #define _getdns_EWOULDBLOCK (errno == EAGAIN || errno == EWOULDBLOCK)
 #define _getdns_EINPROGRESS (errno == EINPROGRESS)
+#define _getdns_EMFILE      (errno == EMFILE)
 #endif
 
 /* WSA TODO: 
  * STUB_TCP_WOULDBLOCK added to deal with edge triggered event loops (versus
  * level triggered).  See also lines containing WSA TODO below...
  */
+#define STUB_TRY_AGAIN_LATER -24 /* EMFILE, i.e. Out of OS resources */
 #define STUB_NO_AUTH -8 /* Existing TLS connection is not authenticated */
 #define STUB_CONN_GONE -7 /* Connection has failed, clear queue*/
 #define STUB_TCP_WOULDBLOCK -6
@@ -1905,8 +1908,14 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 		upstream = upstream_find_for_transport(netreq,
 		                                  netreq->transports[i],
 		                                  &fd);
-		if (fd == -1 || !upstream)
+		if (!upstream)
 			continue;
+
+		if (fd == -1) {
+			if (_getdns_EMFILE)
+				return STUB_TRY_AGAIN_LATER;
+			return -1;
+		}
 		netreq->transport_current = i;
 		netreq->upstream = upstream;
 		netreq->keepalive_sent = 0;
@@ -2030,10 +2039,15 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 getdns_return_t
 _getdns_submit_stub_request(getdns_network_req *netreq, uint64_t *now_ms)
 {
+	int fd = -1;
+	getdns_dns_req *dnsreq;
+	getdns_context *context;
+
 	DEBUG_STUB("%s %-35s: MSG: %p TYPE: %d\n", STUB_DEBUG_ENTRY, __FUNC__,
 	           (void*)netreq, netreq->request_type);
-	int fd = -1;
-	getdns_dns_req *dnsreq = netreq->owner;
+
+	dnsreq = netreq->owner;
+	context = dnsreq->context;
 
 	/* This does a best effort to get a initial fd.
 	 * All other set up is done async*/
@@ -2041,9 +2055,15 @@ _getdns_submit_stub_request(getdns_network_req *netreq, uint64_t *now_ms)
 	if (fd == -1)
 		return GETDNS_RETURN_NO_UPSTREAM_AVAILABLE;
 
-	getdns_transport_list_t transport =
-	                             netreq->transports[netreq->transport_current];
-	switch(transport) {
+	else if (fd == STUB_TRY_AGAIN_LATER) {
+		_getdns_netreq_change_state(netreq, NET_REQ_NOT_SENT);
+		netreq->node.key = netreq;
+		if (_getdns_rbtree_insert(
+		    &context->pending_netreqs, &netreq->node))
+			return GETDNS_RETURN_GOOD;
+		return GETDNS_RETURN_NO_UPSTREAM_AVAILABLE;
+	}
+	switch(netreq->transports[netreq->transport_current]) {
 	case GETDNS_TRANSPORT_UDP:
 		netreq->fd = fd;
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
