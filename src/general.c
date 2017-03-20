@@ -110,7 +110,8 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 
 	/* Do we have to check more suffixes on nxdomain/nodata?
 	 */
-	if (dns_req->suffix_appended && /* Something was appended */
+	if (dns_req->is_dns_request &&
+	    dns_req->suffix_appended && /* Something was appended */
 	    dns_req->suffix_len > 1 &&  /* Next suffix available */
 	    no_answer(dns_req)) {
 		/* Remove suffix from name */
@@ -146,6 +147,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			return;
 		}
 	} else if (
+	    dns_req->is_dns_request &&
 	    ( dns_req->append_name ==
 	      GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE ||
 	      dns_req->append_name ==
@@ -189,7 +191,9 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		dns_req->internal_cb(dns_req);
 	} else if (! results_found)
 		_getdns_call_user_callback(dns_req, NULL);
-	else if (dns_req->dnssec_return_validation_chain
+	else if (
+	    dns_req->is_dns_request &&
+	    (dns_req->dnssec_return_validation_chain
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	    || (   dns_req->dnssec_roadblock_avoidance 
 	       && !dns_req->avoid_dnssec_roadblocks)
@@ -202,7 +206,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
-	    )
+	    ))
 		_getdns_get_validation_chain(dns_req);
 	else
 		_getdns_call_user_callback(
@@ -301,7 +305,7 @@ _getdns_netreq_change_state(
 	uint64_t now_ms;
 	getdns_network_req *prev;
 
-	if (!netreq)
+	if (!netreq || !netreq->owner->is_dns_request)
 		return;
 
 	context = netreq->owner->context;
@@ -571,7 +575,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 			if (!(r = _getdns_context_local_namespace_resolve(
 			    req, &localnames_response))) {
-
+				req->is_dns_request = 0;
 				_getdns_call_user_callback
 				    ( req, localnames_response);
 				break;
@@ -581,6 +585,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			/* Check whether the name belongs in the MDNS space */
 			if (!(r = _getdns_mdns_namespace_check(req)))
 			{
+				req->is_dns_request = 0;
 				// Submit the query to the MDNS transport.
 				for (netreq_p = req->netreqs
 					; !r && (netreq = *netreq_p)

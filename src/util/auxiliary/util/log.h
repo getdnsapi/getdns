@@ -1,11 +1,11 @@
 /**
  *
- * \file rbtree.h
- * /brief Alternative symbol names for unbound's rbtree.h
+ * /brief dummy prototypes for logging a la unbound
  *
  */
+
 /*
- * Copyright (c) 2017, NLnet Labs, the getdns team
+ * Copyright (c) 2013, NLnet Labs, Verisign, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,21 +30,29 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RBTREE_H_SYMBOLS
-#define RBTREE_H_SYMBOLS
-#define rbnode_type		_getdns_rbnode_t
-#define rbtree_null_node	_getdns_rbtree_null_node
-#define rbtree_type		_getdns_rbtree_t
-#define rbtree_create		_getdns_rbtree_create
-#define rbtree_init		_getdns_rbtree_init
-#define rbtree_insert		_getdns_rbtree_insert
-#define rbtree_delete		_getdns_rbtree_delete
-#define rbtree_search		_getdns_rbtree_search
-#define rbtree_find_less_equal	_getdns_rbtree_find_less_equal
-#define rbtree_first		_getdns_rbtree_first
-#define rbtree_last		_getdns_rbtree_last
-#define rbtree_next		_getdns_rbtree_next
-#define rbtree_previous		_getdns_rbtree_previous
-#define traverse_postorder	_getdns_traverse_postorder
-#include "util/orig-headers/rbtree.h"
+
+#ifndef UTIL_LOG_H
+#define UTIL_LOG_H
+
+#include "config.h"
+#include "debug.h"
+
+#ifdef DEBUGGING
+#define verbose(x, ...) DEBUG_NL(__VA_ARGS__)
+#define log_err(...)	DEBUG_NL(__VA_ARGS__)
+#define log_info(...)	DEBUG_NL(__VA_ARGS__)
+#define fatal_exit(...) do { DEBUG_NL(__VA_ARGS__); exit(EXIT_FAILURE); } while(0)
+#define log_assert(x)	do { if(!(x)) fatal_exit("%s:%d: %s: assertion %s failed", \
+                                                __FILE__, __LINE__, __FUNC__, #x); \
+                        } while(0)
+#else
+#define verbose(...)	((void)0)
+#define log_err(...)	((void)0)
+#define log_info(...)	((void)0)
+#define fatal_exit(...)	((void)0)
+#define log_assert(x)	((void)0)
 #endif
+
+
+#endif /* UTIL_LOG_H */
+

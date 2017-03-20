@@ -45,6 +45,9 @@
 #include "util/rbtree.h"
 #include "ub_loop.h"
 #include "server.h"
+#ifdef HAVE_MDNS_SUPPORT
+#include "util/lruhash.h"
+#endif
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -344,6 +347,23 @@ struct getdns_context {
 	/* We need to run WSAStartup() to be able to use getaddrinfo() */
 	WSADATA wsaData;
 #endif
+
+	/* MDNS */
+#ifdef HAVE_MDNS_SUPPORT
+	/* 
+	 * If supporting MDNS, context may be instantiated either in basic mode
+	 * or in full mode. If working in extended mode, two multicast sockets are
+	 * left open, for IPv4 and IPv6. Data can be received on either socket.
+	 * The context also keeps a list of open queries, characterized by a 
+	 * name and an RR type, and a list of received answers, characterized
+	 * by name, RR type and data value.
+	 */
+	int mdns_extended_support; /* 0 = no support, 1 = supported, 2 = initialization needed */
+	int mdns_connection_nb; /* typically 0 or 2 for IPv4 and IPv6 */
+	struct mdns_network_connection * mdns_connection;
+	struct lruhash * mdns_cache;
+
+#endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
 
 /** internal functions **/

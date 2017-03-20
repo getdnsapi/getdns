@@ -34,7 +34,7 @@
 #include "config.h"
 #define LOCKRET(func) func
 
-#ifdef HAVE_PTHREADS
+#ifdef HAVE_PTHREAD
 #include "pthread.h"
 
 static pthread_mutex_t arc_lock = PTHREAD_MUTEX_INITIALIZER;

@@ -183,7 +183,6 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
-
 /**
  * Request data
  **/
@@ -191,6 +190,12 @@ typedef struct getdns_network_req
 {
 	/* For storage in upstream->netreq_by_query_id */
 	_getdns_rbnode_t node;
+#ifdef HAVE_MDNS_SUPPORT
+	/*
+	 * for storage of continuous query context in hash table of cached results. 
+	 */
+	struct getdns_network_req * mdns_netreq_next;
+#endif /* HAVE_MDNS_SUPPORT */
 	/* the async_id from unbound */
 	int unbound_id;
 	/* state var */
@@ -308,6 +313,7 @@ typedef struct getdns_dns_req {
 	/* Internally used by return_validation_chain */
 	unsigned dnssec_ok_checking_disabled		: 1;
 	unsigned is_sync_request			: 1;
+	unsigned is_dns_request				: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when

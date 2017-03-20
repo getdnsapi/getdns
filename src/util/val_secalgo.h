@@ -1,107 +1,78 @@
+/**
+ *
+ * \file rbtree.h
+ * /brief Alternative symbol names for unbound's rbtree.h
+ *
+ */
 /*
- * validator/val_secalgo.h - validator security algorithm functions.
+ * Copyright (c) 2017, NLnet Labs, the getdns team
+ * All rights reserved.
  *
- * Copyright (c) 2012, NLnet Labs. All rights reserved.
- *
- * This software is open source.
- * 
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- * Redistributions of source code must retain the above copyright notice,
- * this list of conditions and the following disclaimer.
- * 
- * Redistributions in binary form must reproduce the above copyright notice,
- * this list of conditions and the following disclaimer in the documentation
- * and/or other materials provided with the distribution.
- * 
- * Neither the name of the NLNET LABS nor the names of its contributors may
- * be used to endorse or promote products derived from this software without
- * specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * modification, are permitted provided that the following conditions are met:
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * * Neither the names of the copyright holders nor the
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Verisign, Inc. BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifndef VAL_SECALGO_H_SYMBOLS
+#define VAL_SECALGO_H_SYMBOLS
+#define sldns_buffer			gldns_buffer
+#define nsec3_hash_algo_size_supported	_getdns_nsec3_hash_algo_size_supported
+#define secalgo_nsec3_hash		_getdns_secalgo_nsec3_hash
+#define secalgo_hash_sha256		_getdns_secalgo_hash_sha256
+#define ds_digest_size_supported	_getdns_ds_digest_size_supported
+#define secalgo_ds_digest		_getdns_secalgo_ds_digest
+#define dnskey_algo_id_is_supported	_getdns_dnskey_algo_id_is_supported
+#define verify_canonrrset		_getdns_verify_canonrrset
+#define sec_status			_getdns_sec_status
+#define sec_status_secure		_getdns_sec_status_secure
+#define sec_status_insecure		_getdns_sec_status_insecure
+#define sec_status_unchecked		_getdns_sec_status_unchecked
+#define sec_status_bogus		_getdns_sec_status_bogus
 
-/**
- * \file
- *
- * This file contains helper functions for the validator module.
- * The functions take buffers with raw data and convert to library calls.
- */
+enum sec_status { sec_status_bogus     = 0
+                , sec_status_unchecked = 0
+                , sec_status_insecure  = 0
+		, sec_status_secure    = 1 };
+#define NSEC3_HASH_SHA1			0x01
 
-#ifndef VALIDATOR_VAL_SECALGO_H
-#define VALIDATOR_VAL_SECALGO_H
-struct gldns_buffer;
-
-/** Return size of nsec3 hash algorithm, 0 if not supported */
-size_t _getdns_nsec3_hash_algo_size_supported(int id);
-
-/**
- * Hash a single hash call of an NSEC3 hash algorithm.
- * Iterations and salt are done by the caller.
- * @param algo: nsec3 hash algorithm.
- * @param buf: the buffer to digest
- * @param len: length of buffer to digest.
- * @param res: result stored here (must have sufficient space).
- * @return false on failure.
-*/
-int _getdns_secalgo_nsec3_hash(int algo, unsigned char* buf, size_t len,
-        unsigned char* res);
-
-/**
- * Calculate the sha256 hash for the data buffer into the result.
- * @param buf: buffer to digest.
- * @param len: length of the buffer to digest.
- * @param res: result is stored here (space 256/8 bytes).
- */
-void _getdns_secalgo_hash_sha256(unsigned char* buf, size_t len, unsigned char* res);
-
-/**
- * Return size of DS digest according to its hash algorithm.
- * @param algo: DS digest algo.
- * @return size in bytes of digest, or 0 if not supported. 
- */
-size_t _getdns_ds_digest_size_supported(int algo);
-
-/**
- * @param algo: the DS digest algo
- * @param buf: the buffer to digest
- * @param len: length of buffer to digest.
- * @param res: result stored here (must have sufficient space).
- * @return false on failure.
- */
-int _getdns_secalgo_ds_digest(int algo, unsigned char* buf, size_t len,
-	unsigned char* res);
-
-/** return true if DNSKEY algorithm id is supported */
-int _getdns_dnskey_algo_id_is_supported(int id);
-
-/**
- * Check a canonical sig+rrset and signature against a dnskey
- * @param buf: buffer with data to verify, the first rrsig part and the
- *	canonicalized rrset.
- * @param algo: DNSKEY algorithm.
- * @param sigblock: signature rdata field from RRSIG
- * @param sigblock_len: length of sigblock data.
- * @param key: public key data from DNSKEY RR.
- * @param keylen: length of keydata.
- * @param reason: bogus reason in more detail.
- * @return secure if verification succeeded, bogus on crypto failure,
- *	unchecked on format errors and alloc failures.
- */
-int _getdns_verify_canonrrset(struct gldns_buffer* buf, int algo,
-	unsigned char* sigblock, unsigned int sigblock_len,
-	unsigned char* key, unsigned int keylen, char** reason);
-
-#endif /* VALIDATOR_VAL_SECALGO_H */
+#define	LDNS_SHA1			GLDNS_SHA1
+#define	LDNS_SHA256			GLDNS_SHA256
+#define LDNS_SHA384			GLDNS_SHA384
+#define LDNS_HASH_GOST			GLDNS_HASH_GOST
+#define LDNS_RSAMD5			GLDNS_RSAMD5
+#define LDNS_DSA			GLDNS_DSA
+#define LDNS_DSA_NSEC3			GLDNS_DSA_NSEC3
+#define LDNS_RSASHA1			GLDNS_RSASHA1
+#define LDNS_RSASHA1_NSEC3		GLDNS_RSASHA1_NSEC3
+#define LDNS_RSASHA256			GLDNS_RSASHA256
+#define LDNS_RSASHA512			GLDNS_RSASHA512
+#define LDNS_ECDSAP256SHA256		GLDNS_ECDSAP256SHA256
+#define LDNS_ECDSAP384SHA384		GLDNS_ECDSAP384SHA384
+#define LDNS_ECC_GOST			GLDNS_ECC_GOST
+#define sldns_key_EVP_load_gost_id	gldns_key_EVP_load_gost_id
+#define sldns_digest_evp		gldns_digest_evp
+#define sldns_key_buf2dsa_raw		gldns_key_buf2dsa_raw
+#define sldns_key_buf2rsa_raw		gldns_key_buf2rsa_raw
+#define sldns_gost2pkey_raw		gldns_gost2pkey_raw
+#define sldns_ecdsa2pkey_raw		gldns_ecdsa2pkey_raw
+#define sldns_buffer_begin		gldns_buffer_begin
+#define sldns_buffer_limit		gldns_buffer_limit
+#include "util/orig-headers/val_secalgo.h"
+#endif

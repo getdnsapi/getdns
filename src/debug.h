@@ -128,6 +128,7 @@
 
 #define MDNS_DEBUG_ENTRY     "-> MDNS ENTRY:  "
 #define MDNS_DEBUG_READ      "-- MDNS READ:   "
+#define MDNS_DEBUG_MREAD      "-- MDNS MREAD:  "
 #define MDNS_DEBUG_WRITE     "-- MDNS WRITE:  "
 #define MDNS_DEBUG_CLEANUP   "-- MDNS CLEANUP:"
 
@@ -136,6 +137,15 @@
 #define DEBUG_MDNS(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if (defined(SCHED_DEBUG)  && SCHED_DEBUG)  || \
+    (defined(STUB_DEBUG)   && STUB_DEBUG)   || \
+    (defined(DAEMON_DEBUG) && DAEMON_DEBUG) || \
+    (defined(SEC_DEBUG)    && SEC_DEBUG)    || \
+    (defined(SERVER_DEBUG) && SERVER_DEBUG) || \
+    (defined(MDNS_DEBUG)   && MDNS_DEBUG)
+#define DEBUGGING 1
 #endif
 
 #endif
