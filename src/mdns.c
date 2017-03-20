@@ -788,7 +788,9 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 		memmove(old_record + last_copied_index, old_record + current_hole_index,
 			answer_index - current_hole_index);
 		last_copied_index += answer_index - current_hole_index;
-		answer_index = last_copied_index;
+
+		/* dead assignment */
+		/* answer_index = last_copied_index; */
 	}
 
 	/* if some records were deleted, update the record headers */
