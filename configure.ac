@@ -1011,7 +1011,10 @@ fi
 
 
 #---- check for pthreads library
-AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
+	AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
+	LIBS="-lpthread $LIBS"
+], [AC_MSG_WARN([pthreads not available])])
 
 AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
 AC_LANG_PUSH(C)

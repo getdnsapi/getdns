@@ -513,7 +513,7 @@ static void msdn_cache_deldata(void* vdata, void* vcontext)
 
 		/* TODO: treating as a timeout for now, may consider treating as error */
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
-		netreq->state = NET_REQ_TIMED_OUT;
+		_getdns_netreq_change_state(netreq, NET_REQ_TIMED_OUT);
 		if (netreq->owner->user_callback) {
 			(void)_getdns_context_request_timed_out(netreq->owner);
 		}
@@ -1008,7 +1008,7 @@ mdns_complete_query_from_cache_entry(
 
 				netreq->response_len = packet_length;
 				netreq->debug_end_time = _getdns_get_time_as_uintt64();
-				netreq->state = NET_REQ_FINISHED;
+				_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 				_getdns_check_dns_req_complete(netreq->owner);
 			}
 			else
@@ -1016,7 +1016,7 @@ mdns_complete_query_from_cache_entry(
 				/* Fail the query? */
 				netreq->response_len = 0;
 				netreq->debug_end_time = _getdns_get_time_as_uintt64();
-				netreq->state = NET_REQ_ERRORED;
+				_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 				_getdns_check_dns_req_complete(netreq->owner);
 			}
 		}
@@ -1026,7 +1026,7 @@ mdns_complete_query_from_cache_entry(
 		/* Failure */
 		netreq->response_len = 0;
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
-		netreq->state = NET_REQ_ERRORED;
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		_getdns_check_dns_req_complete(netreq->owner);
 	}
 
@@ -1085,7 +1085,7 @@ mdns_mcast_timeout_cb(void *userarg)
 	int found = 0;
 
 	DEBUG_MDNS("%s %-35s: MSG:  %p\n",
-		MDNS_DEBUG_CLEANUP, __FUNCTION__, netreq);
+		MDNS_DEBUG_CLEANUP, __FUNC__, netreq);
 
 	msdn_cache_create_key_in_buffer(temp_key, dnsreq->name, dnsreq->name_len,
 		netreq->request_type, dnsreq->request_class);
@@ -1113,7 +1113,7 @@ mdns_mcast_timeout_cb(void *userarg)
 		/* Fail the request on timeout */
 		netreq->response_len = 0;
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
-		netreq->state = NET_REQ_ERRORED;
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		_getdns_check_dns_req_complete(netreq->owner);
 	}
 }
@@ -1128,7 +1128,7 @@ mdns_udp_multicast_read_cb(void *userarg)
 	uint64_t current_time;
 	ssize_t       read;
 	DEBUG_MDNS("%s %-35s: CTX: %p, NET=%d \n", MDNS_DEBUG_MREAD,
-		__FUNCTION__, cnx->context, cnx->addr_mcast.ss_family);
+		__FUNC__, cnx->context, cnx->addr_mcast.ss_family);
 
 	current_time = _getdns_get_time_as_uintt64();
 
