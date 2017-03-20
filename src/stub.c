@@ -32,6 +32,13 @@
  */
 
 #include "config.h"
+#ifdef USE_POLL_DEFAULT_EVENTLOOP
+# ifdef HAVE_SYS_POLL_H
+#  include <sys/poll.h>
+# else
+#  include <poll.h>
+# endif
+#endif
 #include "debug.h"
 #include <openssl/err.h>
 #include <openssl/conf.h>
@@ -626,7 +633,15 @@ upstream_idle_timeout_cb(void *userarg)
 static void
 upstream_setup_timeout_cb(void *userarg)
 {
+	int ret;
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+#ifdef USE_POLL_DEFAULT_EVENTLOOP
+	struct pollfd fds;
+#else
+	fd_set fds;
+	struct timeval tval;
+#endif
+
 	DEBUG_STUB("%s %-35s: FD:  %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd);
 	/* Clean up and trigger a write to let the fallback code to its job */
@@ -636,14 +651,17 @@ upstream_setup_timeout_cb(void *userarg)
 	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
 	 * For that case the socket never becomes writable so doesn't trigger any
 	 * callbacks. If so then clear out the queue in one go.*/
-	int ret;
-	fd_set fds;
+#ifdef USE_POLL_DEFAULT_EVENTLOOP
+	fds.fd = upstream->fd;
+	fds.events = POLLOUT;
+	ret = poll(&fds, 1, 0);
+#else
 	FD_ZERO(&fds);
-	FD_SET(FD_SET_T upstream->fd, &fds);
-	struct timeval tval;
+	FD_SET((int)(upstream->fd), &fds);
 	tval.tv_sec = 0;
 	tval.tv_usec = 0;
 	ret = select(upstream->fd+1, NULL, &fds, NULL, &tval);
+#endif
 	if (ret == 0) {
 		DEBUG_STUB("%s %-35s: FD:  %d Cleaning up dangling queue\n",
 		           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd);
