@@ -19,7 +19,7 @@ Traditional access to DNS data from applications has several limitations:
 
 * Sophisticated uses of the DNS (things like IDNA and DNSSEC validation) require considerable application work, possibly by application developers with little experience with the vagaries of DNS.
 
-getdns also provides a experimental DNS Privacy enabled client called 'stubby' - see below for more details.
+getdns also provides an experimental DNS Privacy enabled client called 'stubby' - see below for more details.
 
 ## Motivation for providing the API
 
@@ -78,7 +78,7 @@ before building.
 As well as building the getdns library 2 other tools are installed by default by the above process:
 
 * getdns_query: a command line test script wrapper for getdns
-* stubby: a experimental DNS Privacy enabled client
+* stubby: an experimental DNS Privacy enabled client
 
 Note: If you only want to build stubby, then use the `--enable-stub-only` and `--without-libidn` options when running 'configure'.
 
@@ -344,6 +344,7 @@ Contributors
 * Robert Groenenberg
 * Paul Hoffman
 * Scott Hollenbeck, Verising, Inc.
+* Christian Huitema
 * Shumon Huque, Verisign Labs
 * Jelte Janssen
 * Guillem Jover
@@ -358,6 +359,7 @@ Contributors
 * Joel Purra
 * Tom Pusateri
 * Prithvi Ranganath, Verisign, Inc.
+* Hoda Rohani, NLnet Labs
 * Rushi Shah, Verisign, Inc.
 * Vinay Soni, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC

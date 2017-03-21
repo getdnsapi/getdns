@@ -126,7 +126,6 @@ typedef enum getdns_tls_authentication_t {
 /** @}
   */
 
-
 /**
  * \defgroup Uvaluesandtextsdepricated Additional transport values and texts (will be deprecated)
  *  @{
@@ -226,15 +225,6 @@ getdns_context_run(getdns_context *context);
 /** @}
  */
 
-
-/**
- * \defgroup contextfunction Additional getdns_context async functions
- *  @{
- */
-/* process async reqs */
-getdns_return_t getdns_context_process_async(getdns_context* context);
-/** @}
- */
 
 /**
  * \defgroup Ucontextset Additional getdns_context_set functions
@@ -400,9 +390,6 @@ getdns_return_t
 getdns_context_get_update_callback(getdns_context *context, void **userarg,
     void (**value) (getdns_context *, getdns_context_code_t, void *));
 
-/* Async support */
-uint32_t getdns_context_get_num_pending_requests(getdns_context* context,
-    struct timeval* next_timeout);
 /** @}
  */
 
@@ -434,6 +421,8 @@ getdns_return_t getdns_dict_util_set_string(getdns_dict * dict,
 /* get a string from a dict.  the result must be freed if valid */
 getdns_return_t getdns_dict_util_get_string(getdns_dict * dict,
     char *name, char **result);
+
+
 
 /**
  * Validate replies or resource records.
@@ -521,6 +510,51 @@ getdns_return_t getdns_pubkey_pinset_sanity_check(
 	const getdns_list* pinset,
 	getdns_list* errorlist);
 
+/**
+ * Configure a context with settings given in a getdns_dict.
+ *
+ * @param  context The context to be configured.
+ * @param  config_dict The getdns_dict containing the settings.
+ *                     The settings have the same name as returned by the
+ *                     getdns_context_get_api_information() function, or as
+ *                     used in the names of the getdns_context_get_*() and
+ *                     getdns_context_set_*() functions.
+ *                     - The dict returned by
+ *                       getdns_context_get_api_information() can be used
+ *                       as the config_dict directly, but context settings
+ *                       do *not* have to be below a `"all_context"` key.
+ *                     - It is possible to set default values for extensions
+ *                       that could otherwise only be given on a per query
+ *                       basis.  For example:
+ *                       `{ dnssec_return_status: GETDNS_EXTENSION_TRUE }` is
+ *                       equivalent to using the
+ *                       getdns_context_set_return_dnssec_status() function
+ *                       with that value, but default values for the other 
+ *                       extensions can be set by this method now too.
+ *                       For example
+ *                       `{ return_call_reporting: GETDNS_EXTENSION_TRUE}`
+ *                     - Trust anchor files and root hints content can also be
+ *                       given by file, for example:
+ *
+ *                            { dns_root_servers : "named.root"
+ *                            , dnssec_trust_anchors: "/etc/unbound/getdns-root.key"
+ *                            }
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ * **Beware** that context might be partially configured on error.  For retry
+ * strategies it is advised to recreate a new config.
+ */
+getdns_return_t
+getdns_context_config(getdns_context *context, const getdns_dict *config_dict);
+
+
+
+/** @}
+ */
+
+/**
+ * \defgroup UXTRAPrettyPrinting Pretty printing of getdns dicts and lists
+ *  @{
+ */
 
 /**
  * Pretty print the getdns_dict in a given buffer snprintf style.
@@ -616,6 +650,14 @@ int
 getdns_snprint_json_list(
     char *str, size_t size, const getdns_list *list, int pretty);
 
+
+/** @}
+ */
+
+/**
+ * \defgroup UDNSDataConversionFunctions Functions for converting between getdns DNS dicts, DNS wire format and DNS presentation format
+ *  @{
+ */
 
 /**
  * Convert rr_dict to wireformat representation of the resource record.
@@ -930,6 +972,14 @@ getdns_return_t
 getdns_msg_dict2str_scan(
     const getdns_dict *msg_dict, char **str, int *str_len);
 
+/** @}
+ */
+
+/**
+ * \defgroup Ustring2getdns_data Functions for converting strings to getdns data structures
+ *  @{
+ */
+
 /**
  * Convert string text to a getdns_dict.
  *
@@ -1018,42 +1068,13 @@ getdns_str2bindata(const char *str, getdns_bindata **bindata);
 getdns_return_t
 getdns_str2int(const char *str, uint32_t *value);
 
-/**
- * Configure a context with settings given in a getdns_dict.
- *
- * @param  context The context to be configured.
- * @param  config_dict The getdns_dict containing the settings.
- *                     The settings have the same name as returned by the
- *                     getdns_context_get_api_information() function, or as
- *                     used in the names of the getdns_context_get_*() and
- *                     getdns_context_set_*() functions.
- *                     - The dict returned by
- *                       getdns_context_get_api_information() can be used
- *                       as the config_dict directly, but context settings
- *                       do *not* have to be below a `"all_context"` key.
- *                     - It is possible to set default values for extensions
- *                       that could otherwise only be given on a per query
- *                       basis.  For example:
- *                       `{ dnssec_return_status: GETDNS_EXTENSION_TRUE }` is
- *                       equivalent to using the
- *                       getdns_context_set_return_dnssec_status() function
- *                       with that value, but default values for the other 
- *                       extensions can be set by this method now too.
- *                       For example
- *                       `{ return_call_reporting: GETDNS_EXTENSION_TRUE}`
- *                     - Trust anchor files and root hints content can also be
- *                       given by file, for example:
- *
- *                            { dns_root_servers : "named.root"
- *                            , dnssec_trust_anchors: "/etc/unbound/getdns-root.key"
- *                            }
- * @return GETDNS_RETURN_GOOD on success or an error code on failure.
- * **Beware** that context might be partially configured on error.  For retry
- * strategies it is advised to recreate a new config.
+/** @}
  */
-getdns_return_t
-getdns_context_config(getdns_context *context, const getdns_dict *config_dict);
 
+/**
+ * \defgroup UServerFunctions Functions for creating simple DNS servers
+ *  @{
+ */
 
 /**
  * The user defined request handler that will be called on incoming requests.
@@ -1133,6 +1154,13 @@ getdns_reply(getdns_context *context,
  * Please use getdns_get_errorstr_by_id instead of getdns_strerror.
  */
 getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
+
+getdns_return_t getdns_context_process_async(getdns_context* context);
+
+/* Async support */
+uint32_t getdns_context_get_num_pending_requests(getdns_context* context,
+    struct timeval* next_timeout);
+
 /** @}
  */
 /** @}
