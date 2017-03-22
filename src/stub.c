@@ -600,10 +600,10 @@ stub_timeout_cb(void *userarg)
 #endif
 		netreq->upstream->udp_timeouts++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	if (netreq->upstream->udp_timeouts % 100 == 0)
-		DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
-		             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
-		             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
+		if (netreq->upstream->udp_timeouts % 100 == 0)
+			DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+			             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
+			             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
 #endif
 		stub_next_upstream(netreq);
 	} else {
@@ -1329,6 +1329,7 @@ _getdns_get_time_as_uintt64() {
 /* UDP callback functions */
 /**************************/
 
+
 static void
 stub_udp_read_cb(void *userarg)
 {
@@ -1348,8 +1349,28 @@ stub_udp_read_cb(void *userarg)
 	                                       */
 	    0, NULL, NULL);
 	if (read == -1 && _getdns_EWOULDBLOCK)
-		return;
+		return; /* Try again later */
 
+	if (read == -1) {
+		DEBUG_STUB("%s %-35s: MSG: %p error while reading from socket:"
+		           " %s\n", STUB_DEBUG_READ, __FUNC__, (void*)netreq
+			   , strerror(errno));
+
+		stub_cleanup(netreq);
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+		/* Handle upstream*/
+		if (netreq->fd >= 0) {
+#ifdef USE_WINSOCK
+			closesocket(netreq->fd);
+#else
+			close(netreq->fd);
+#endif
+			stub_next_upstream(netreq);
+		}
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
+		_getdns_check_dns_req_complete(netreq->owner);
+		return;
+	}
 	if (read < GLDNS_HEADER_SIZE)
 		return; /* Not DNS */
 	
@@ -1871,9 +1892,10 @@ upstream_select(getdns_network_req *netreq)
 		    upstream->back_off)
 			upstream = &upstreams->upstreams[i];
 
-	upstream->back_off++;
+	if (upstream->back_off > 1)
+		upstream->back_off--;
 	upstream->to_retry = 1;
-	upstreams->current_udp = (upstream - upstreams->upstreams) / GETDNS_UPSTREAM_TRANSPORTS;
+	upstreams->current_udp = upstream - upstreams->upstreams;
 	return upstream;
 }
 

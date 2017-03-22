@@ -938,7 +938,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
 	/* How is this upstream doing on UDP? */
-	upstream->to_retry =  2;
+	upstream->to_retry =  1;
 	upstream->back_off =  1;
 	upstream->udp_responses = 0;
 	upstream->udp_timeouts = 0;
