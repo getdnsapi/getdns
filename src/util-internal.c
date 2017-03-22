@@ -862,7 +862,7 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		} else{
-			uint32_t idle_timeout = netreq->upstream->keepalive_timeout;
+			uint32_t idle_timeout = (uint32_t) netreq->upstream->keepalive_timeout;
 			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms", idle_timeout)) {
 				getdns_dict_destroy(netreq_debug);
 				return NULL;

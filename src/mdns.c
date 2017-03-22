@@ -1584,7 +1584,7 @@ static getdns_return_t mdns_initialize_continuous_request(getdns_network_req *ne
 		{
 			GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 			GETDNS_SCHEDULE_EVENT(
-				dnsreq->loop, -1, dnsreq->context->timeout,
+				dnsreq->loop, -1, dnsreq->context->timeout*1000,
 				getdns_eventloop_event_init(&netreq->event, netreq,
 					NULL, NULL, mdns_mcast_timeout_cb));
 		}
@@ -1813,7 +1813,7 @@ mdns_udp_write_cb(void *userarg)
 		return;
 	}
 	GETDNS_SCHEDULE_EVENT(
-		dnsreq->loop, netreq->fd, dnsreq->context->timeout,
+		dnsreq->loop, netreq->fd, dnsreq->context->timeout*1000,
 		getdns_eventloop_event_init(&netreq->event, netreq,
 			mdns_udp_read_cb, NULL, mdns_timeout_cb));
 }
