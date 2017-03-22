@@ -45,8 +45,20 @@
 #define DNS_REQ_FINISHED -1
 
 void _getdns_call_user_callback(getdns_dns_req *, getdns_dict *);
+
+/* Change state of the netreq req.
+ * - Increments context->netreqs_in_flight
+ *   when state changes from NOT_SENT to IN_FLIGHT
+ * - Decrements context->netreqs_in_flight
+ *   when state changes from IN_FLIGHT to FINISHED, TIMED_OUT or ERRORED
+ * - Resubmits NOT_SENT netreqs from context->pending_netreqs,
+ *   when # pending_netreqs < limit_outstanding_queries
+ */
+void _getdns_netreq_change_state(
+    getdns_network_req *netreq, network_req_state new_state);
+
 void _getdns_check_dns_req_complete(getdns_dns_req *dns_req);
-int _getdns_submit_netreq(getdns_network_req *netreq);
+int _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms);
 
 
 getdns_return_t

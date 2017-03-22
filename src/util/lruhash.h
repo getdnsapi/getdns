@@ -46,11 +46,12 @@
 #define lruhash_delete			_getdns_lruhash_delete
 #define lruhash_clear			_getdns_lruhash_clear
 #define lruhash_insert			_getdns_lruhash_insert
-#define lruhash_insert_or_retrieve _getdns_lruhash_insert_or_retrieve
 #define lruhash_lookup			_getdns_lruhash_lookup
 #define lru_touch			_getdns_lru_touch
-#define lru_demote			_getdns_lru_demote
 #define lruhash_setmarkdel		_getdns_lruhash_setmarkdel
+
+#define lru_demote			_getdns_lru_demote
+#define lruhash_insert_or_retrieve	_getdns_lruhash_insert_or_retrieve
 
 #define lruhash_remove			_getdns_lruhash_remove
 #define bin_init			_getdns_bin_init
@@ -67,37 +68,4 @@
 #define lruhash_traverse		_getdns_lruhash_traverse
 
 #include "util/orig-headers/lruhash.h"
-
-/*
- * Additional function definitions, not found in original header.
- */
-
- /**
-  * Demote entry, so it becomes the least recently used in the LRU list.
-  * Caller must hold hash table lock. The entry must be inserted already.
-  * @param table: hash table.
-  * @param entry: entry to make last in LRU.
-  */
-void lru_demote(struct lruhash* table, struct lruhash_entry* entry);
-
-/**
- * Insert a new element into the hashtable, or retrieve the corresponding
- * element of it exits.
- *
- * If key is already present data pointer in that entry is kept.
- * If it is not present, a new entry is created. In that case, 
- * the space calculation function is called with the key, data.
- * If necessary the least recently used entries are deleted to make space.
- * If necessary the hash array is grown up.
- *
- * @param table: hash table.
- * @param hash: hash value. User calculates the hash.
- * @param entry: identifies the entry.
- * @param data: the data.
- * @param cb_override: if not null overrides the cb_arg for the deletefunc.
- * @return: pointer to the existing entry if the key was already present,
- *     or to the entry argument if it was not.
- */
-struct lruhash_entry* lruhash_insert_or_retrieve(struct lruhash* table, hashvalue_type hash,
-	struct lruhash_entry* entry, void* data, void* cb_arg);
 #endif

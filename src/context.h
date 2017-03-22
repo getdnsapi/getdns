@@ -220,6 +220,9 @@ typedef struct getdns_upstreams {
 	size_t referenced;
 	size_t count;
 	size_t current_udp;
+	size_t current_stateful;
+	uint16_t tls_backoff_time;
+	uint16_t tls_connection_retries;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
@@ -251,6 +254,9 @@ struct getdns_context {
 	uint32_t             dnssec_allowed_skew;
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
+	uint8_t              round_robin_upstreams;
+	uint16_t             tls_backoff_time;
+	uint16_t             tls_connection_retries;
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;
@@ -293,6 +299,14 @@ struct getdns_context {
 	 * outbound requests -> transaction to getdns_dns_req
 	 */
 	_getdns_rbtree_t outbound_requests;
+
+	/* network requests
+	 */
+	size_t netreqs_in_flight;
+
+	_getdns_rbtree_t       pending_netreqs;
+	getdns_network_req    *first_pending_netreq;
+	getdns_eventloop_event pending_timeout_event;
 
 	struct listen_set *server;
 
@@ -391,7 +405,6 @@ void _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq);
  * - Frees the getdns_dns_req
  */
 void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
-
 
 /* Calls user callback (with GETDNS_CALLBACK_TIMEOUT + response dict), then
  * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()

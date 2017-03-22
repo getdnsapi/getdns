@@ -89,9 +89,6 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
-/* How long to wait in seconds before re-trying a connection based backed-off 
-   upstream. Using 1 hour for all transports - based on RFC7858 value for for TLS.*/
-#define BACKOFF_RETRY 3600
 
 #ifdef HAVE_PTHREAD
 static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -657,6 +654,9 @@ upstreams_create(getdns_context *context, size_t size)
 	r->referenced = 1;
 	r->count = 0;
 	r->current_udp = 0;
+	r->current_stateful = 0;
+	r->tls_backoff_time = context->tls_backoff_time;
+	r->tls_connection_retries = context->tls_connection_retries;
 	return r;
 }
 
@@ -731,17 +731,17 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	if (upstream->tls_auth_state > upstream->best_tls_auth_state)
 		upstream->best_tls_auth_state = upstream->tls_auth_state;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s %s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
+	DEBUG_DAEMON("%s %-40s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             _getdns_auth_str(upstream->tls_auth_state), (int)upstream->keepalive_timeout);
-	DEBUG_DAEMON("%s %s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
+	DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
 	             _getdns_auth_str(upstream->best_tls_auth_state));
-	DEBUG_DAEMON("%s %s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
@@ -753,16 +753,16 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	   Leave choice between working upstreams to the stub. 
 	   This back-off should be time based for TLS according to RFC7858. For now,
 	   use the same basis if we simply can't get TCP service either.*/
-
+	uint16_t conn_retries = upstream->upstreams->tls_connection_retries;
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
-	if (upstream->conn_setup_failed >= GETDNS_CONN_ATTEMPTS ||
-	    (upstream->conn_shutdowns >= GETDNS_CONN_ATTEMPTS*GETDNS_TRANSPORT_FAIL_MULT
-	     && upstream->total_responses == 0) ||
-	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
+	if (upstream->conn_setup_failed >= conn_retries
+	    || (upstream->conn_shutdowns >= conn_retries*GETDNS_TRANSPORT_FAIL_MULT
+	     && upstream->total_responses == 0)
+	    || (upstream->conn_completed >= conn_retries &&
 	     upstream->total_responses == 0 && 
 	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
-		upstream->conn_retry_time = time(NULL) + BACKOFF_RETRY;
+		upstream->conn_retry_time = time(NULL) + upstream->upstreams->tls_backoff_time;
 		upstream->total_responses = 0;
 		upstream->total_timeouts = 0;
 		upstream->conn_completed = 0;
@@ -770,7 +770,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->conn_shutdowns = 0;
 		upstream->conn_backoffs++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-		DEBUG_DAEMON("%s %s : !Backing off this upstream    - Will retry as new upstream at %s",
+		DEBUG_DAEMON("%s %-40s : !Backing off this upstream    - Will retry as new upstream at %s",
 		            STUB_DEBUG_DAEMON, upstream->addr_str,
 		            asctime(gmtime(&upstream->conn_retry_time)));
 #endif
@@ -1290,6 +1290,26 @@ NULL_update_callback(
     getdns_context *context, getdns_context_code_t code, void *userarg)
 { (void)context; (void)code; (void)userarg; }
 
+static int
+netreq_expiry_cmp(const void *id1, const void *id2)
+{
+	getdns_network_req *req1 = (getdns_network_req *)id1;
+	getdns_network_req *req2 = (getdns_network_req *)id2;
+
+	return req1->owner->expires < req2->owner->expires ? -1 :
+	       req1->owner->expires > req2->owner->expires ?  1 :
+	       req1 < req2 ? -1 :
+	       req1 > req2 ?  1 : 0;
+}
+
+void _getdns_check_expired_pending_netreqs(
+    getdns_context *context, uint64_t *now_ms);
+static void _getdns_check_expired_pending_netreqs_cb(void *arg)
+{
+	uint64_t now_ms = 0;
+	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
+}
+
 /*
  * getdns_context_create
  *
@@ -1353,6 +1373,15 @@ getdns_context_create_with_extended_memory_functions(
 
 	_getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
 	_getdns_rbtree_init(&result->local_hosts, local_host_cmp);
+	_getdns_rbtree_init(&result->pending_netreqs, netreq_expiry_cmp);
+	result->first_pending_netreq = NULL;
+	result->netreqs_in_flight = 0;
+	result->pending_timeout_event.userarg    = result;
+	result->pending_timeout_event.read_cb    = NULL;
+	result->pending_timeout_event.write_cb   = NULL;
+	result->pending_timeout_event.timeout_cb =
+	    _getdns_check_expired_pending_netreqs_cb;
+	result->pending_timeout_event.ev         = NULL;
 
 	result->server = NULL;
 
@@ -1451,6 +1480,9 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
 	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
+	result->round_robin_upstreams = 0;
+	result->tls_backoff_time = 3600;
+	result->tls_connection_retries = 2;
 	result->limit_outstanding_queries = 0;
 
 	/* unbound context is initialized here */
@@ -2066,6 +2098,62 @@ getdns_context_set_tls_authentication(getdns_context *context,
 
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_tls_authentication_list */
+
+/*
+ * getdns_context_set_round_robin_upstreams
+ *
+ */
+getdns_return_t
+getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow 0 or 1 */
+    if (value != 0 && value != 1) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->round_robin_upstreams = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_round_robin_upstreams */
+
+/*
+ * getdns_context_set_tls_backoff_time
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Value is in seconds. Should we have a lower limit? 1 second?*/
+    context->tls_backoff_time = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_BACKOFF_TIME);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_backoff_time */
+
+/*
+ * getdns_context_set_tls_connection_retries
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_connection_retries(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Should we put a sensible upper limit on this? 10?*/
+    // if (value > 10) {
+    //     return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    // }
+
+    context->tls_connection_retries = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_connection retries */
 
 #ifdef HAVE_LIBUNBOUND
 static void
@@ -3503,7 +3591,13 @@ _get_context_settings(getdns_context* context)
 	    || getdns_dict_set_int(result, "append_name",
 	                           context->append_name)
 	    || getdns_dict_set_int(result, "tls_authentication",
-	                           context->tls_auth))
+	                           context->tls_auth)
+	    || getdns_dict_set_int(result, "round_robin_upstreams",
+	                           context->round_robin_upstreams)
+	    || getdns_dict_set_int(result, "tls_backoff_time",
+	                           context->tls_backoff_time)
+	    || getdns_dict_set_int(result, "tls_connection_retries",
+	                           context->tls_connection_retries))
 		goto error;
 	
 	/* list fields */
@@ -3796,6 +3890,33 @@ getdns_context_get_tls_authentication(getdns_context *context,
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->tls_auth;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_round_robin_upstreams(getdns_context *context,
+    uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->round_robin_upstreams;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_backoff_time(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_backoff_time;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_connection_retries(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_connection_retries;
     return GETDNS_RETURN_GOOD;
 }
 
@@ -4194,6 +4315,9 @@ _getdns_context_config_setting(getdns_context *context,
 
 	CONTEXT_SETTING_INT(edns_client_subnet_private)
 	CONTEXT_SETTING_INT(tls_authentication)
+	CONTEXT_SETTING_INT(round_robin_upstreams)
+	CONTEXT_SETTING_INT(tls_backoff_time)
+	CONTEXT_SETTING_INT(tls_connection_retries)
 	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
 
 	/**************************************/

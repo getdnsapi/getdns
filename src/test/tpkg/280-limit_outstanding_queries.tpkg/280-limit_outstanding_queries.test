@@ -1,0 +1,40 @@
+# #-- 280-limit_outstanding_queries.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+
+QLIMIT=64
+NQUERIES=`wc "./${TPKG_NAME}.queries"|sed 's/ .*$//g'`
+
+# Test will take NQUERIES / QLIMIT * answer delay
+# For current parameters this is 1000 / 64 * 0.3 = 4.6875
+# which is smaller than 5 seconds default query timeout value,
+# so the test should succeed.
+
+make && "./${TPKG_NAME}" | (
+	read PORT
+	${GETDNS_STUB_QUERY} @127.0.0.1:$PORT TXT \
+	    -a -F "./${TPKG_NAME}.queries" \
+	          "{limit_outstanding_queries:$QLIMIT}" 2>&1 > out
+
+	${GETDNS_STUB_QUERY} -q @127.0.0.1:$PORT TXT quit.
+) && grep '"n_requests: [0-9][0-9]*"' out | sed -e 's/^.*n_requests: //g' -e 's/".*$//g' \
+    | awk -vQLIMIT=$QLIMIT -vNQUERIES=$NQUERIES '
+
+BEGIN{
+	max_outstanding = 0;
+}
+{
+	if ($1 > max_outstanding)
+		max_outstanding = $1;
+}
+END{
+	printf("%d of %d queries answered (%.1f%%)\n", NR, NQUERIES, (NR / NQUERIES * 100));
+	if (max_outstanding > QLIMIT) {
+		print "ERROR: More than "QLIMIT" outstanding queries: "max_outstanding;
+		exit(-1);
+	} else
+		print "SUCCESS: No more than "QLIMIT" outstanding queries: "max_outstanding;
+}'

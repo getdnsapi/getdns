@@ -124,7 +124,6 @@ struct getdns_upstream;
 
 #define GETDNS_TRANSPORTS_MAX 3
 #define GETDNS_UPSTREAM_TRANSPORTS 2
-#define GETDNS_CONN_ATTEMPTS 2
 #define GETDNS_TRANSPORT_FAIL_MULT 5
 
 
@@ -313,6 +312,7 @@ typedef struct getdns_dns_req {
 	/* Internally used by return_validation_chain */
 	unsigned dnssec_ok_checking_disabled		: 1;
 	unsigned is_sync_request			: 1;
+	unsigned is_dns_request				: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when
@@ -342,6 +342,11 @@ typedef struct getdns_dns_req {
 
 	/* the transaction id */
 	getdns_transaction_t trans_id;
+
+	/* Absolute time (in miliseconds since epoch),
+	 * after which this dns request is expired; i.e. timed out
+	 */
+	uint64_t expires;
 
 	/* for scheduling timeouts when using libunbound */
 	getdns_eventloop_event timeout;
@@ -413,7 +418,7 @@ extern getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions);
+    const char *name, uint16_t request_type, getdns_dict *extensions, uint64_t *now_ms);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
 

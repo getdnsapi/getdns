@@ -311,6 +311,15 @@ AC_INCLUDES_DEFAULT
 fi
 
 
+AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
+	case "$enable_sha1" in
+	no)
+	;;
+	yes|*)
+	AC_DEFINE([USE_SHA1], [1], [Define this to enable SHA1 support.])
+	;;
+esac
+
 AC_ARG_ENABLE(sha2, AC_HELP_STRING([--disable-sha2], [Disable SHA256 and SHA512 RRSIG support]))
 case "$enable_sha2" in
 	no)
@@ -1002,7 +1011,10 @@ fi
 
 
 #---- check for pthreads library
-AC_SEARCH_LIBS([pthread_mutex_init],[pthread],[AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])], [AC_MSG_WARN([pthreads not available])])
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
+	AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
+	LIBS="-lpthread $LIBS"
+], [AC_MSG_WARN([pthreads not available])])
 
 AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
 AC_LANG_PUSH(C)
