@@ -197,18 +197,7 @@ Stub mode does not support:
 
 # Known Issues
 
-* The synchronous lookup functions will not work when new file descriptors
-  needed for the lookup will be larger than `FD_SETSIZE`.  This is because
-  the synchronous functions use a "default" event loop under the hood
-  which is based on `select()` and thus inherits the limits that `select()` has.
-
-  If you need only slightly more file descriptors, it is possible to enlarge
-  the `FD_SETSIZE` with the `--with-fd-setsize=`*`size`* flag to `configure`.
-
-  To resolve, use the asynchronous functions with an event loop extension for
-  libevent, libev or libuv.  Note that the asynchronous functions will have
-  the same problem when used in combination with `getdns_context_run()`, which
-  also uses the default event loop.
+* None
 
 # Supported Platforms
 
@@ -342,6 +331,7 @@ Contributors
 * Neel Goyal, Verisign, Inc.
 * Bryan Graham, Verisign, Inc.
 * Robert Groenenberg
+* Jim Hague, Sinodun
 * Paul Hoffman
 * Scott Hollenbeck, Verising, Inc.
 * Christian Huitema

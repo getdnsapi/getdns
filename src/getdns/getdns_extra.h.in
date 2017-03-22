@@ -1027,7 +1027,8 @@ getdns_str2list(const char *str, getdns_list **list);
  *               - bindata representation of IP or IPv6 addresses may be
  *                 given in their presentation format.  For example:
  *                 `{ dns_root_servers: [ 2001:7fd::1, 193.0.14.129 ] }`
- *               - Arbitrary binary data may be given with a `0x` prefix.
+ *               - Arbitrary binary data may be given with a `0x` prefix,
+ *                 or in base64 encoding.
  *                 For example:
  *
  *                      { add_opt_parameters:
@@ -1044,7 +1045,7 @@ getdns_str2list(const char *str, getdns_list **list);
  *                        [ { address_data  : 2a04:b900:0:100::37
  *                          , tsig_name     : hmac-md5.tsigs.getdnsapi.net.
  *                          , tsig_algorithm: hmac-md5.sig-alg.reg.int.
- *                          , tsig_secret : 0xD7A1BAF4E4DE5D6EB149
+ *                          , tsig_secret : 16G69OTeXW6xSQ==
  *                          } ]
  *                      }
  *
