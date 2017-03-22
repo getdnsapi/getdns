@@ -30,7 +30,10 @@
 #include <string.h>
 #include <inttypes.h>
 #include <unistd.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #include <check.h>
+#pragma clang diagnostic pop
 #include "getdns/getdns.h"
 #include "check_getdns_common.h"
 #include "check_getdns_address.h"
