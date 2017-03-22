@@ -2,13 +2,13 @@
   * More fine grained control over TLS upstream retry and back off
     behaviour with getdns_context_set_tls_backoff_time() and
     getdns_context_set_tls_connection_retries().
-  * Feature: Round robin over the available upstreams
-    enable with getdns_context_set_round_robin_upstreams()
+  * New round robin over the available upstreams feaure.
+    Enable with getdns_context_set_round_robin_upstreams()
   * Bugfix: Queue requests when no sockets available for outgoing queries.
   * Obey the outstanding query limit with STUB resolution mode too.
   * Updated stubby config file
-  * Basic draft MDNS client support
-    Thanks Christian Huitema
+  * Draft MDNS client implementation by Christian Huitema.
+    Enable with --enable-draft-mdns-support to configure
   * bugfix: Let synchronous queries use fds > MAX_FDSETSIZE;
             By moving default eventloop from select to poll
     Thanks Neil Cook
