@@ -48,6 +48,11 @@ typedef u_short sa_family_t;
 #define TRUE 1
 #endif
 
+/* Define IPV6_ADD_MEMBERSHIP for FreeBSD and Mac OS X */
+#ifndef IPV6_ADD_MEMBERSHIP
+#define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
+#endif
+
 uint64_t _getdns_get_time_as_uintt64();
 
 #include "util/fptr_wlist.h"
