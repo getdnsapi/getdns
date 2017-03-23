@@ -27,7 +27,10 @@
 #ifndef _check_getdns_transport_h_
 #define _check_getdns_transport_h_
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #include <check.h>
+#pragma clang diagnostic pop
 
 Suite *
 getdns_transport_suite (void);

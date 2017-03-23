@@ -77,6 +77,7 @@ uninstall:
 
 clean:
 	for x in $(MANPAGES3); do rm -f $$($(srcdir)/manpgaltnames $$x); done
+	rm -f tagfile
 	rm -rf $(DOCDIRS) $(MANPAGES3)
 
 distclean : clean

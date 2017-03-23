@@ -66,7 +66,6 @@ install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBB
 	$(INSTALL) -m 644 getdns_ext_event.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 $(srcdir)/spec/index.html $(DESTDIR)$(docdir)/spec
-	$(INSTALL) -m 644 $(srcdir)/spec/getdns*tgz $(DESTDIR)$(docdir)/spec || true
 	cd src && $(MAKE) $@
 	cd doc && $(MAKE) $@
 	@echo "***"
@@ -232,12 +231,13 @@ $(distdir):
 	cp $(srcdir)/src/test/*.good $(distdir)/src/test
 	cp $(srcdir)/src/compat/*.[ch] $(distdir)/src/compat
 	cp $(srcdir)/src/util/*.[ch] $(distdir)/src/util
+	cp -r $(srcdir)/src/util/orig-headers $(distdir)/src/util
+	cp -r $(srcdir)/src/util/auxiliary $(distdir)/src/util
 	cp $(srcdir)/src/gldns/*.[ch] $(distdir)/src/gldns
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
 	cp $(srcdir)/doc/*.in $(distdir)/doc
 	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc
 	cp $(srcdir)/spec/*.html $(distdir)/spec
-	cp $(srcdir)/spec/*.tgz $(distdir)/spec || true
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools

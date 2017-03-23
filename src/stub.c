@@ -32,6 +32,13 @@
  */
 
 #include "config.h"
+#ifdef USE_POLL_DEFAULT_EVENTLOOP
+# ifdef HAVE_SYS_POLL_H
+#  include <sys/poll.h>
+# else
+#  include <poll.h>
+# endif
+#endif
 #include "debug.h"
 #include <openssl/err.h>
 #include <openssl/conf.h>
@@ -593,10 +600,10 @@ stub_timeout_cb(void *userarg)
 #endif
 		netreq->upstream->udp_timeouts++;
 #if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	if (netreq->upstream->udp_timeouts % 100 == 0)
-		DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
-		             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
-		             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
+		if (netreq->upstream->udp_timeouts % 100 == 0)
+			DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+			             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
+			             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
 #endif
 		stub_next_upstream(netreq);
 	} else {
@@ -626,7 +633,15 @@ upstream_idle_timeout_cb(void *userarg)
 static void
 upstream_setup_timeout_cb(void *userarg)
 {
+	int ret;
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
+#ifdef USE_POLL_DEFAULT_EVENTLOOP
+	struct pollfd fds;
+#else
+	fd_set fds;
+	struct timeval tval;
+#endif
+
 	DEBUG_STUB("%s %-35s: FD:  %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd);
 	/* Clean up and trigger a write to let the fallback code to its job */
@@ -636,14 +651,17 @@ upstream_setup_timeout_cb(void *userarg)
 	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
 	 * For that case the socket never becomes writable so doesn't trigger any
 	 * callbacks. If so then clear out the queue in one go.*/
-	int ret;
-	fd_set fds;
+#ifdef USE_POLL_DEFAULT_EVENTLOOP
+	fds.fd = upstream->fd;
+	fds.events = POLLOUT;
+	ret = poll(&fds, 1, 0);
+#else
 	FD_ZERO(&fds);
-	FD_SET(FD_SET_T upstream->fd, &fds);
-	struct timeval tval;
+	FD_SET((int)(upstream->fd), &fds);
 	tval.tv_sec = 0;
 	tval.tv_usec = 0;
 	ret = select(upstream->fd+1, NULL, &fds, NULL, &tval);
+#endif
 	if (ret == 0) {
 		DEBUG_STUB("%s %-35s: FD:  %d Cleaning up dangling queue\n",
 		           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd);
@@ -1311,6 +1329,7 @@ _getdns_get_time_as_uintt64() {
 /* UDP callback functions */
 /**************************/
 
+
 static void
 stub_udp_read_cb(void *userarg)
 {
@@ -1330,8 +1349,28 @@ stub_udp_read_cb(void *userarg)
 	                                       */
 	    0, NULL, NULL);
 	if (read == -1 && _getdns_EWOULDBLOCK)
-		return;
+		return; /* Try again later */
 
+	if (read == -1) {
+		DEBUG_STUB("%s %-35s: MSG: %p error while reading from socket:"
+		           " %s\n", STUB_DEBUG_READ, __FUNC__, (void*)netreq
+			   , strerror(errno));
+
+		stub_cleanup(netreq);
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+		/* Handle upstream*/
+		if (netreq->fd >= 0) {
+#ifdef USE_WINSOCK
+			closesocket(netreq->fd);
+#else
+			close(netreq->fd);
+#endif
+			stub_next_upstream(netreq);
+		}
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
+		_getdns_check_dns_req_complete(netreq->owner);
+		return;
+	}
 	if (read < GLDNS_HEADER_SIZE)
 		return; /* Not DNS */
 	
@@ -1853,9 +1892,10 @@ upstream_select(getdns_network_req *netreq)
 		    upstream->back_off)
 			upstream = &upstreams->upstreams[i];
 
-	upstream->back_off++;
+	if (upstream->back_off > 1)
+		upstream->back_off--;
 	upstream->to_retry = 1;
-	upstreams->current_udp = (upstream - upstreams->upstreams) / GETDNS_UPSTREAM_TRANSPORTS;
+	upstreams->current_udp = upstream - upstreams->upstreams;
 	return upstream;
 }
 

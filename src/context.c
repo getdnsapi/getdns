@@ -756,7 +756,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	uint16_t conn_retries = upstream->upstreams->tls_connection_retries;
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
 	if (upstream->conn_setup_failed >= conn_retries
-	    || (upstream->conn_shutdowns >= conn_retries*GETDNS_TRANSPORT_FAIL_MULT
+	    || ((int)upstream->conn_shutdowns >= conn_retries*GETDNS_TRANSPORT_FAIL_MULT
 	     && upstream->total_responses == 0)
 	    || (upstream->conn_completed >= conn_retries &&
 	     upstream->total_responses == 0 && 
@@ -938,7 +938,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
 	/* How is this upstream doing on UDP? */
-	upstream->to_retry =  2;
+	upstream->to_retry =  1;
 	upstream->back_off =  1;
 	upstream->udp_responses = 0;
 	upstream->udp_timeouts = 0;

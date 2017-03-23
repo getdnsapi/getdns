@@ -1,3 +1,20 @@
+* 2017-04-??: Version 1.1.0
+  * More fine grained control over TLS upstream retry and back off
+    behaviour with getdns_context_set_tls_backoff_time() and
+    getdns_context_set_tls_connection_retries().
+  * New round robin over the available upstreams feaure.
+    Enable with getdns_context_set_round_robin_upstreams()
+  * Bugfix: Queue requests when no sockets available for outgoing queries.
+  * Obey the outstanding query limit with STUB resolution mode too.
+  * Updated stubby config file
+  * Draft MDNS client implementation by Christian Huitema.
+    Enable with --enable-draft-mdns-support to configure
+  * bugfix: Let synchronous queries use fds > MAX_FDSETSIZE;
+            By moving default eventloop from select to poll
+    Thanks Neil Cook
+  * bugfix: authentication failure for self signed cert + only pinset
+  * bugfix: issue with session re-use making authentication appear to fail
+	
 * 2017-01-13: Version 1.0.0
   * edns0_cookies extension enabled by default (per RFC7873)
   * dnssec_roadblock_avoidance enabled by default (per RFC8027)
