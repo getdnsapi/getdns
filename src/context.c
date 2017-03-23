@@ -3569,10 +3569,12 @@ _get_context_settings(getdns_context* context)
 		return NULL;
 
 	/* int fields */
+	/* the timeouts are stored as uint64, but the value maximum used in
+	   practice is 6553500ms, so we just trim the value to be on the safe side. */
 	if (   getdns_dict_set_int(result, "timeout",
-	                           context->timeout)
+	                           (context->timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF: (uint32_t) context->timeout)
 	    || getdns_dict_set_int(result, "idle_timeout",
-	                           context->idle_timeout)
+	                           (context->idle_timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF : (uint32_t) context->idle_timeout)
 	    || getdns_dict_set_int(result, "limit_outstanding_queries",
 	                           context->limit_outstanding_queries)
             || getdns_dict_set_int(result, "dnssec_allowed_skew",
