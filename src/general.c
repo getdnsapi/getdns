@@ -305,8 +305,13 @@ _getdns_netreq_change_state(
 	uint64_t now_ms;
 	getdns_network_req *prev;
 
-	if (!netreq || !netreq->owner->is_dns_request)
+	if (!netreq)
 		return;
+
+	if (!netreq->owner->is_dns_request) {
+		netreq->state = new_state;
+		return;
+	}
 
 	context = netreq->owner->context;
 
