@@ -585,12 +585,11 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			/* Check whether the name belongs in the MDNS space */
 			if (!(r = _getdns_mdns_namespace_check(req)))
 			{
-				req->is_dns_request = 1;
+				req->is_dns_request = 0;
 				// Submit the query to the MDNS transport.
 				for (netreq_p = req->netreqs
 					; !r && (netreq = *netreq_p)
 					; netreq_p++) {
-					netreq->owner = req;
 					if ((r = _getdns_submit_mdns_request(netreq))) {
 						if (r == DNS_REQ_FINISHED) {
 							if (return_netreq_p)
