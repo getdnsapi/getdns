@@ -19,7 +19,7 @@ Traditional access to DNS data from applications has several limitations:
 
 * Sophisticated uses of the DNS (things like IDNA and DNSSEC validation) require considerable application work, possibly by application developers with little experience with the vagaries of DNS.
 
-getdns also provides a experimental DNS Privacy enabled client called 'stubby' - see below for more details.
+getdns also provides an experimental DNS Privacy enabled client called 'stubby' - see below for more details.
 
 ## Motivation for providing the API
 
@@ -78,7 +78,7 @@ before building.
 As well as building the getdns library 2 other tools are installed by default by the above process:
 
 * getdns_query: a command line test script wrapper for getdns
-* stubby: a experimental DNS Privacy enabled client
+* stubby: an experimental DNS Privacy enabled client
 
 Note: If you only want to build stubby, then use the `--enable-stub-only` and `--without-libidn` options when running 'configure'.
 
@@ -197,18 +197,7 @@ Stub mode does not support:
 
 # Known Issues
 
-* The synchronous lookup functions will not work when new file descriptors
-  needed for the lookup will be larger than `FD_SETSIZE`.  This is because
-  the synchronous functions use a "default" event loop under the hood
-  which is based on `select()` and thus inherits the limits that `select()` has.
-
-  If you need only slightly more file descriptors, it is possible to enlarge
-  the `FD_SETSIZE` with the `--with-fd-setsize=`*`size`* flag to `configure`.
-
-  To resolve, use the asynchronous functions with an event loop extension for
-  libevent, libev or libuv.  Note that the asynchronous functions will have
-  the same problem when used in combination with `getdns_context_run()`, which
-  also uses the default event loop.
+* None
 
 # Supported Platforms
 
@@ -342,8 +331,10 @@ Contributors
 * Neel Goyal, Verisign, Inc.
 * Bryan Graham, Verisign, Inc.
 * Robert Groenenberg
+* Jim Hague, Sinodun
 * Paul Hoffman
 * Scott Hollenbeck, Verising, Inc.
+* Christian Huitema
 * Shumon Huque, Verisign Labs
 * Jelte Janssen
 * Guillem Jover
@@ -358,6 +349,7 @@ Contributors
 * Joel Purra
 * Tom Pusateri
 * Prithvi Ranganath, Verisign, Inc.
+* Hoda Rohani, NLnet Labs
 * Rushi Shah, Verisign, Inc.
 * Vinay Soni, Verisign, Inc.
 * Melinda Shore, No Mountain Software LLC

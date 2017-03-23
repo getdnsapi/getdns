@@ -756,7 +756,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	uint16_t conn_retries = upstream->upstreams->tls_connection_retries;
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
 	if (upstream->conn_setup_failed >= conn_retries
-	    || (upstream->conn_shutdowns >= conn_retries*((unsigned)GETDNS_TRANSPORT_FAIL_MULT)
+	    || ((int)upstream->conn_shutdowns >= conn_retries*GETDNS_TRANSPORT_FAIL_MULT
 	     && upstream->total_responses == 0)
 	    || (upstream->conn_completed >= conn_retries &&
 	     upstream->total_responses == 0 && 
@@ -938,7 +938,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
 	/* How is this upstream doing on UDP? */
-	upstream->to_retry =  2;
+	upstream->to_retry =  1;
 	upstream->back_off =  1;
 	upstream->udp_responses = 0;
 	upstream->udp_timeouts = 0;
@@ -3569,12 +3569,12 @@ _get_context_settings(getdns_context* context)
 		return NULL;
 
 	/* int fields */
-	/* the timeouts are stored as uint64, but the value maximum used in 
+	/* the timeouts are stored as uint64, but the value maximum used in
 	   practice is 6553500ms, so we just trim the value to be on the safe side. */
 	if (   getdns_dict_set_int(result, "timeout",
-		                       (context->timeout > 0xFFFFFFFFull)? 0xFFFFFFFF: (uint32_t) context->timeout)
+	                           (context->timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF: (uint32_t) context->timeout)
 	    || getdns_dict_set_int(result, "idle_timeout",
-		                       (context->idle_timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF : (uint32_t) context->idle_timeout)
+	                           (context->idle_timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF : (uint32_t) context->idle_timeout)
 	    || getdns_dict_set_int(result, "limit_outstanding_queries",
 	                           context->limit_outstanding_queries)
             || getdns_dict_set_int(result, "dnssec_allowed_skew",

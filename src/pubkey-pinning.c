@@ -382,7 +382,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 			    X509_STORE_CTX *store)
 {
 	getdns_return_t ret = GETDNS_RETURN_GENERIC_ERROR;
-	X509 *x, *prev;
+	X509 *x, *prev = NULL;
 	int i, len;
 	unsigned char raw[4096];
 	unsigned char *next;

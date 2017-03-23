@@ -131,9 +131,32 @@ typedef struct getdns_upstream {
 	char                     addr_str[INET6_ADDRSTRLEN];
 #endif
 
-	/* How is this upstream doing over UDP? */
-	int                      to_retry;
-	int                      back_off;
+	/**
+	 * How is this upstream doing over UDP?
+	 *
+	 * to_retry = 1, back_off = 1, in context.c:upstream_init()
+	 * 
+	 * When querying over UDP, first a upstream is selected which to_retry
+	 * value > 0 in stub.c:upstream_select().
+	 * 
+	 * Every time a udp request times out, to_retry is decreased, and if
+	 * it reaches 0, it is set to minus back_off in
+	 * stub.c:stub_next_upstream().
+	 *
+	 * to_retry will become > 0 again. because each time an upstream is
+	 * selected for a UDP query in stub.c:upstream_select(), all to_retry
+	 * counters <= 0 are incremented.
+	 *
+	 * On continuous failure, the stubs are less likely to be reselected,
+	 * because each time to_retry is set to minus back_off, in 
+	 * stub.c:stub_next_upstream(), the back_off value is doubled.
+	 *
+	 * Finally, if all upstreams are failing, the upstreams with the
+	 * smallest back_off value will be selected, and the back_off value
+	 * decremented by one.
+	 */
+	int                      to_retry;  /* (initialized to 1) */
+	int                      back_off;  /* (initialized to 1) */
 	size_t                   udp_responses;
 	size_t                   udp_timeouts;
 

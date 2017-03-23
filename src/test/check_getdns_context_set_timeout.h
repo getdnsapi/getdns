@@ -27,7 +27,10 @@
 #ifndef _check_getdns_context_set_timeout_h_
 #define _check_getdns_context_set_timeout_h_
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #include <check.h>
+#pragma clang diagnostic pop
 
 Suite *
 getdns_context_set_timeout_suite (void);

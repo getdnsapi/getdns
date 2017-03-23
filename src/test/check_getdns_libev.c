@@ -41,7 +41,10 @@
 #else
 #include <ev.h>
 #endif
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #include <check.h>
+#pragma clang diagnostic pop
 #include "check_getdns_common.h"
 
 void run_event_loop_impl(struct getdns_context* context, void* eventloop) {
