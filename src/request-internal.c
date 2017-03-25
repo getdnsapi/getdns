@@ -110,9 +110,9 @@ network_req_cleanup(getdns_network_req *net_req)
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
-	if (netreq->debug_tls_peer_cert.size &&
-	    netreq->debug_tls_peer_cert.data)
-		OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	if (net_req->debug_tls_peer_cert.size &&
+	    net_req->debug_tls_peer_cert.data)
+		OPENSSL_free(net_req->debug_tls_peer_cert.data);
 }
 
 static uint8_t *
