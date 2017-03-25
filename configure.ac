@@ -201,6 +201,13 @@ case "$enable_debug_server" in
 	no|*)
 		;;
 esac
+case "$enable_debug_anchor" in
+	yes)
+		AC_DEFINE_UNQUOTED([ANCHOR_DEBUG], [1], [Define this enable printing of anchor debugging messages.])
+		;;
+	no|*)
+		;;
+esac
 
 
 dnl  Hidden debugging options
