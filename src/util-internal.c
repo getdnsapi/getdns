@@ -912,7 +912,7 @@ _getdns_create_call_reporting_dict(
 	}
 	netreq->debug_tls_peer_cert.size = 0;
 	OPENSSL_free(netreq->debug_tls_peer_cert.data);
-
+	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
 

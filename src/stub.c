@@ -1673,7 +1673,8 @@ upstream_write_cb(void *userarg)
 		return;
 
 	default:
-		if (netreq->upstream->tls_obj &&
+		if (netreq->owner->return_call_reporting &&
+		    netreq->upstream->tls_obj &&
 		    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
 			assert(netreq->debug_tls_peer_cert.data == NULL);
 
