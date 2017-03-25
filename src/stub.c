@@ -1680,6 +1680,7 @@ upstream_write_cb(void *userarg)
 
 			netreq->debug_tls_peer_cert.size = i2d_X509(
 			    cert, &netreq->debug_tls_peer_cert.data);
+			X509_free(cert);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
