@@ -904,6 +904,15 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_set_bindata(netreq_debug, "tls_peer_cert",
+	    &netreq->debug_tls_peer_cert)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	netreq->debug_tls_peer_cert.size = 0;
+	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
 
