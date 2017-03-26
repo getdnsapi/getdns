@@ -1618,6 +1618,7 @@ upstream_write_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
 	int q;
+	X509 *cert;
 
 	if (!netreq) {
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -1672,6 +1673,15 @@ upstream_write_cb(void *userarg)
 		return;
 
 	default:
+		if (netreq->owner->return_call_reporting &&
+		    netreq->upstream->tls_obj &&
+		    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
+			assert(netreq->debug_tls_peer_cert.data == NULL);
+
+			netreq->debug_tls_peer_cert.size = i2d_X509(
+			    cert, &netreq->debug_tls_peer_cert.data);
+			X509_free(cert);
+		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
 		upstream->queries_sent++;
