@@ -271,7 +271,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback (default)\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
-	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
+	fprintf(out, "\t\t\t U T L for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
 	fprintf(out, "\t-z <listen address>\n");
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
