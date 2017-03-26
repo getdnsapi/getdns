@@ -104,6 +104,7 @@ AX_CHECK_COMPILE_FLAG([-Wall],[CFLAGS="$CFLAGS -Wall"],[],[])
 AX_CHECK_COMPILE_FLAG([-Wextra],[CFLAGS="$CFLAGS -Wextra"],[],[])
 AX_CHECK_COMPILE_FLAG([-Wpedantic],[WPEDANTICFLAG="-Wpedantic"],[],[])
 AX_CHECK_COMPILE_FLAG([-Wno-error=unused-parameter],[WNOERRORFLAG="-Wno-error=unused-parameter"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wno-unused-parameter],[WNOERRORFLAG="$WNOERRORFLAG -Wno-unused-parameter"],[],[])
 AC_SUBST(WPEDANTICFLAG)
 AC_SUBST(WNOERRORFLAG)
 
