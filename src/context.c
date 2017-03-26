@@ -693,9 +693,10 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			upstream->finished_dnsreqs = dnsreq->finished_next;
 			_getdns_context_cancel_request(dnsreq);
 		}
+		if (upstream->tls_session != NULL)
+			SSL_SESSION_free(upstream->tls_session);
+
 		if (upstream->tls_obj != NULL) {
-		    if (upstream->tls_session != NULL)
-				SSL_SESSION_free(upstream->tls_session);
 			SSL_shutdown(upstream->tls_obj);
 			SSL_free(upstream->tls_obj);
 		}
