@@ -36,7 +36,11 @@
 # ifdef HAVE_SYS_POLL_H
 #  include <sys/poll.h>
 # else
+#ifdef USE_WINSOCK
+#define poll(fdarray, nbsockets, timer) WSAPoll(fdarray, nbsockets, timer)
+#else
 #  include <poll.h>
+#endif
 # endif
 #endif
 #include "debug.h"
