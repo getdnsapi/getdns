@@ -1284,12 +1284,15 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 					return STUB_OUT_OF_OPTIONS;
 				netreq->keepalive_sent = 1;
 			}
-			if (netreq->owner->tls_query_padding_blocksize > 1) {
+			if (netreq->owner->tls_query_padding_blocksize > 0) {
+				uint16_t blksz = netreq->owner->tls_query_padding_blocksize;
+				if (blksz == 1) /* use a sensible default policy */
+					blksz = 128;
 				pkt_len = netreq->response - netreq->query;
 				pkt_len += 4; /* this accounts for the OPTION-CODE and OPTION-LENGTH of the padding */
-				padding_sz = pkt_len % netreq->owner->tls_query_padding_blocksize;
+				padding_sz = pkt_len % blksz;
 				if (padding_sz)
-					padding_sz = netreq->owner->tls_query_padding_blocksize - padding_sz;
+					padding_sz = blksz - padding_sz;
 				if (_getdns_network_req_add_upstream_option(netreq,
 									    EDNS_PADDING_OPCODE,
 									    padding_sz, NULL))
