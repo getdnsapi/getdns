@@ -35,6 +35,7 @@
  */
 
 #include "config.h"
+#include "anchor.h"
 
 #ifndef USE_WINSOCK
 #include <arpa/inet.h>
@@ -67,7 +68,6 @@ typedef unsigned short in_port_t;
 #endif
 #include <stdbool.h>
 
-#include "config.h"
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
 #endif
@@ -1428,6 +1428,8 @@ getdns_context_create_with_extended_memory_functions(
 		}
 	} else
 		result->trust_anchors = result->trust_anchors_spc;
+
+	_getdns_context_equip_with_anchor(result);
 
 	result->upstreams = NULL;
 

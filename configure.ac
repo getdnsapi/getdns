@@ -155,6 +155,7 @@ AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub deb
 AC_ARG_ENABLE(debug-daemon, AC_HELP_STRING([--enable-debug-daemon], [Enable daemon debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
+AC_ARG_ENABLE(debug-anchor, AC_HELP_STRING([--enable-debug-anchor], [Enable anchor debugging messages]))
 AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
 case "$enable_all_debugging" in
 	yes)
@@ -163,6 +164,7 @@ case "$enable_all_debugging" in
 		enable_debug_daemon=yes
 		enable_debug_sec=yes
 		enable_debug_server=yes
+		enable_debug_anchor=yes
 		;;
 	no|*)
 		;;
