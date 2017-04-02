@@ -1435,7 +1435,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
 	result->edns_client_subnet_private = 0;
-	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
+	result->tls_query_padding_blocksize = 1; /* default is to pad queries sensibly */
 	result->tls_ctx = NULL;
 
 	result->extension = &result->default_eventloop.loop;
