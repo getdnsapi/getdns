@@ -153,8 +153,6 @@ static getdns_return_t set_ub_dns_transport(struct getdns_context*);
 static void set_ub_limit_outstanding_queries(struct getdns_context*,
     uint16_t);
 static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
-static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
-    int);
 #endif
 
 /* Stuff to make it compile pedantically */
@@ -1797,9 +1795,9 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	    "target-fetch-policy:", "0 0 0 0 0");
 #endif
 	set_ub_dnssec_allowed_skew(context,
-		context->dnssec_allowed_skew);
-	set_ub_edns_maximum_udp_payload_size(context,
-		context->edns_maximum_udp_payload_size);
+	    context->dnssec_allowed_skew);
+    	set_ub_number_opt(context, "edns-buffer-size:",
+	    context->edns_maximum_udp_payload_size);
 	set_ub_dns_transport(context);
 
 	context->ub_event.userarg    = context;
@@ -2832,15 +2830,26 @@ error:
 } /* getdns_context_set_upstream_recursive_servers */
 
 
+/*
+ * getdns_context_unset_edns_maximum_udp_payload_size
+ *
+ */
+getdns_return_t
+getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 #ifdef HAVE_LIBUNBOUND
-static void
-set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
-    int value) {
-    /* edns-buffer-size */
-    if (value >= 512 && value <= 65535)
-    	set_ub_number_opt(context, "edns-buffer-size:", (uint16_t)value);
-}
+    	set_ub_number_opt(context, "edns-buffer-size:", 4096);
 #endif
+	if (context->edns_maximum_udp_payload_size != -1) {
+		context->edns_maximum_udp_payload_size = -1;
+		dispatch_updated(context,
+		    GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE);
+	}
+	return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_edns_maximum_udp_payload_size */
 
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
@@ -2853,12 +2862,8 @@ getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	/* check for < 512.  uint16_t won't let it go above max) */
-	if (value < 512)
-		value = 512;
-
 #ifdef HAVE_LIBUNBOUND
-	set_ub_edns_maximum_udp_payload_size(context, value);
+    	set_ub_number_opt(context, "edns-buffer-size:", value);
 #endif
 	if (value != context->edns_maximum_udp_payload_size) {
 		context->edns_maximum_udp_payload_size = value;
@@ -4151,7 +4156,8 @@ getdns_context_get_edns_maximum_udp_payload_size(getdns_context *context,
     uint16_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = context->edns_maximum_udp_payload_size;
+    *value = context->edns_maximum_udp_payload_size == -1 ? 0
+           : context->edns_maximum_udp_payload_size;
     return GETDNS_RETURN_GOOD;
 }
 
