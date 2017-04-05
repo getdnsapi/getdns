@@ -186,6 +186,14 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			return;
 		}
 	}
+#if defined(REQ_DEBUG) && REQ_DEBUG
+	if (dns_req->internal_cb)
+		debug_req("CB Internal", *dns_req->netreqs);
+	else if (results_found)
+		debug_req("CB Complete", *dns_req->netreqs);
+	else
+		debug_req("CB Error   ", *dns_req->netreqs);
+#endif
 	if (dns_req->internal_cb) {
 		_getdns_context_clear_outbound_request(dns_req);
 		dns_req->internal_cb(dns_req);
@@ -372,6 +380,8 @@ _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 		}
 	}
 	_getdns_netreq_change_state(netreq, NET_REQ_IN_FLIGHT);
+
+	debug_req("Submitting ", netreq);
 
 #ifdef STUB_NATIVE_DNSSEC
 # ifdef DNSSEC_ROADBLOCK_AVOIDANCE

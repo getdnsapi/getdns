@@ -691,6 +691,7 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		while (upstream->finished_dnsreqs) {
 			dnsreq = upstream->finished_dnsreqs;
 			upstream->finished_dnsreqs = dnsreq->finished_next;
+			debug_req("Destroy    ", *dnsreq->netreqs);
 			_getdns_context_cancel_request(dnsreq);
 		}
 		if (upstream->tls_session != NULL)
@@ -3080,6 +3081,7 @@ getdns_cancel_callback(getdns_context *context,
 
 	getdns_context_request_count_changed(context);
 
+	debug_req("CB Cancel  ", *dnsreq->netreqs);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_CANCEL,
@@ -3095,6 +3097,7 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 {
 	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
 
+	debug_req("CB Timeout ", *dnsreq->netreqs);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_TIMEOUT,

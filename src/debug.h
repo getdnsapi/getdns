@@ -36,7 +36,6 @@
 #define DEBUG_H
 
 #include "config.h"
-
 #define STUB_DEBUG_ENTRY     "=> ENTRY:       "
 #define STUB_DEBUG_SETUP     "--- SETUP:      "
 #define STUB_DEBUG_SETUP_TLS "--- SETUP(TLS): "
@@ -94,8 +93,26 @@
 #if defined(REQ_DEBUG) && REQ_DEBUG
 #include <time.h>
 #define DEBUG_REQ(...) DEBUG_ON(__VA_ARGS__)
+#include "gldns/wire2str.h"
+#include "rr-dict.h"
+#include "types-internal.h"
+static inline void debug_req(const char *msg, getdns_network_req *netreq)
+{
+	char str[1024];
+	struct timeval tv;
+	uint64_t t;
+
+	(void) gettimeofday(&tv, NULL);
+	t = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+	t = t >= netreq->owner->expires ? 0 : netreq->owner->expires - t;
+	(void) gldns_wire2str_dname_buf(netreq->owner->name,
+	    netreq->owner->name_len, str, sizeof(str));
+	DEBUG_REQ("NETREQ %s %4"PRIu64" %s %s\n", msg, t,
+	    str, _getdns_rr_type_name(netreq->request_type));
+}
 #else
 #define DEBUG_REQ(...) DEBUG_OFF(__VA_ARGS__)
+#define debug_req(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
