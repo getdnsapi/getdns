@@ -91,6 +91,13 @@
 
 #define DEBUG_OFF(...) do {} while (0)
 
+#if defined(REQ_DEBUG) && REQ_DEBUG
+#include <time.h>
+#define DEBUG_REQ(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_REQ(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 #include <time.h>
 #define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
@@ -139,7 +146,8 @@
 #define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
-#if (defined(SCHED_DEBUG)  && SCHED_DEBUG)  || \
+#if (defined(REQ_DEBUG)    && REQ_DEBUG)    || \
+    (defined(SCHED_DEBUG)  && SCHED_DEBUG)  || \
     (defined(STUB_DEBUG)   && STUB_DEBUG)   || \
     (defined(DAEMON_DEBUG) && DAEMON_DEBUG) || \
     (defined(SEC_DEBUG)    && SEC_DEBUG)    || \
