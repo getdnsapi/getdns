@@ -32,6 +32,12 @@
  */
 
 #include "config.h"
+
+/* Intercept and do not sent out COM DS queries with TLS
+ * For debugging purposes only. Never commit with this turned on.
+ */
+#define INTERCEPT_COM_DS 0
+
 #ifdef USE_POLL_DEFAULT_EVENTLOOP
 # ifdef HAVE_SYS_POLL_H
 #  include <sys/poll.h>
@@ -1306,6 +1312,22 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		
 		/* TODO[TLS]: Handle error cases, partial writes, renegotiation etc. */
 		ERR_clear_error();
+#if INTERCEPT_COM_DS
+		/* Intercept and do not sent out COM DS queries. For debugging
+		 * purposes only. Never commit with this turned on.
+		 */
+		if (netreq->request_type == GETDNS_RRTYPE_DS &&
+		    netreq->owner->name_len == 5 &&
+		    netreq->owner->name[0] == 3 &&
+		    (netreq->owner->name[1] & 0xDF) == 'C' &&
+		    (netreq->owner->name[2] & 0xDF) == 'O' &&
+		    (netreq->owner->name[3] & 0xDF) == 'M' &&
+		    netreq->owner->name[4] == 0) {
+
+			debug_req("Intercepting", netreq);
+			written = pkt_len + 2;
+		} else
+#endif
 		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
 		if (written <= 0)
 			return STUB_TCP_ERROR;

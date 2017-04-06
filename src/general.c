@@ -61,8 +61,9 @@ void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context,
-		    (response ? GETDNS_CALLBACK_COMPLETE
-		              : GETDNS_CALLBACK_ERROR),
+		    ( ! response                ? GETDNS_CALLBACK_ERROR
+		    : dnsreq->request_timed_out ? GETDNS_CALLBACK_TIMEOUT
+		                                : GETDNS_CALLBACK_COMPLETE ),
 		    response, dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
@@ -214,9 +215,22 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
-	    ))
+	    )) {
+		/* Reschedule timeout for this DNS request
+		 */
+		dns_req->timeout.userarg    = dns_req;
+		dns_req->timeout.read_cb    = NULL;
+		dns_req->timeout.write_cb   = NULL;
+		dns_req->timeout.timeout_cb =
+		    (getdns_eventloop_callback)
+		    _getdns_validation_chain_timeout;
+		dns_req->timeout.ev         = NULL;
+		(void) dns_req->loop->vmt->schedule(dns_req->loop, -1,
+		    _getdns_ms_until_expiry2(dns_req->expires, &now_ms),
+		    &dns_req->timeout);
+
 		_getdns_get_validation_chain(dns_req);
-	else
+	} else
 		_getdns_call_user_callback(
 		    dns_req, _getdns_create_getdns_response(dns_req));
 }
