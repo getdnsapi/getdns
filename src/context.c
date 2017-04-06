@@ -2210,18 +2210,38 @@ getdns_context_set_timeout(struct getdns_context *context, uint64_t timeout)
  *
  */
 getdns_return_t
-getdns_context_set_idle_timeout(struct getdns_context *context, uint64_t timeout)
+getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	size_t i;
 
-    /* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
-    /* 0 should be allowed as that is the default.*/
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    context->idle_timeout = timeout;
+	/* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
+	/* 0 should be allowed as that is the default.*/
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+	context->idle_timeout = timeout;
 
-    return GETDNS_RETURN_GOOD;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+
+	if (timeout)
+		return GETDNS_RETURN_GOOD;
+
+	/* If timeout == 0, call scheduled idle timeout events */
+	for (i = 0; i < context->upstreams->count; i++) {
+		getdns_upstream *upstream =
+		    &context->upstreams->upstreams[i];
+
+		if (!upstream->event.ev ||
+		    !upstream->event.timeout_cb ||
+		     upstream->event.read_cb ||
+		     upstream->event.write_cb)
+			continue;
+
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.timeout_cb(upstream->event.userarg);
+	}
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_timeout */
 
 

@@ -1717,9 +1717,8 @@ upstream_write_cb(void *userarg)
 	default:
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj &&
+		    netreq->debug_tls_peer_cert.data == NULL &&
 		    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
-			assert(netreq->debug_tls_peer_cert.data == NULL);
-
 			netreq->debug_tls_peer_cert.size = i2d_X509(
 			    cert, &netreq->debug_tls_peer_cert.data);
 			X509_free(cert);
