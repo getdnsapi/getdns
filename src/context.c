@@ -691,7 +691,10 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		while (upstream->finished_dnsreqs) {
 			dnsreq = upstream->finished_dnsreqs;
 			upstream->finished_dnsreqs = dnsreq->finished_next;
-			_getdns_context_cancel_request(dnsreq);
+			if (!dnsreq->internal_cb) { /* Not part of chain */
+				debug_req("Destroy    ", *dnsreq->netreqs);
+				_getdns_context_cancel_request(dnsreq);
+			}
 		}
 		if (upstream->tls_session != NULL)
 			SSL_SESSION_free(upstream->tls_session);
@@ -3080,13 +3083,17 @@ getdns_cancel_callback(getdns_context *context,
 
 	getdns_context_request_count_changed(context);
 
+	debug_req("CB Cancel  ", *dnsreq->netreqs);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_CANCEL,
 		    NULL, dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
-	_getdns_context_cancel_request(dnsreq);
+	if (!dnsreq->internal_cb) { /* Not part of chain */
+		debug_req("Destroy    ", *dnsreq->netreqs);
+		_getdns_context_cancel_request(dnsreq);
+	}
 	return GETDNS_RETURN_GOOD;
 } /* getdns_cancel_callback */
 
@@ -3095,6 +3102,7 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 {
 	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
 
+	debug_req("CB Timeout ", *dnsreq->netreqs);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_TIMEOUT,

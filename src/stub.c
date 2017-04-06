@@ -32,6 +32,12 @@
  */
 
 #include "config.h"
+
+/* Intercept and do not sent out COM DS queries with TLS
+ * For debugging purposes only. Never commit with this turned on.
+ */
+#define INTERCEPT_COM_DS 0
+
 #ifdef USE_POLL_DEFAULT_EVENTLOOP
 # ifdef HAVE_SYS_POLL_H
 #  include <sys/poll.h>
@@ -1306,10 +1312,39 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		
 		/* TODO[TLS]: Handle error cases, partial writes, renegotiation etc. */
 		ERR_clear_error();
-		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
-		if (written <= 0)
-			return STUB_TCP_ERROR;
+#if INTERCEPT_COM_DS
+		/* Intercept and do not sent out COM DS queries. For debugging
+		 * purposes only. Never commit with this turned on.
+		 */
+		if (netreq->request_type == GETDNS_RRTYPE_DS &&
+		    netreq->owner->name_len == 5 &&
+		    netreq->owner->name[0] == 3 &&
+		    (netreq->owner->name[1] & 0xDF) == 'C' &&
+		    (netreq->owner->name[2] & 0xDF) == 'O' &&
+		    (netreq->owner->name[3] & 0xDF) == 'M' &&
+		    netreq->owner->name[4] == 0) {
 
+			debug_req("Intercepting", netreq);
+			written = pkt_len + 2;
+		} else
+#endif
+		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
+		if (written <= 0) {
+			/* SSL_write will not do partial writes, because 
+			 * SSL_MODE_ENABLE_PARTIAL_WRITE is not default,
+			 * but the write could fail because of renegotiation.
+			 * In that case SSL_get_error()  will return
+			 * SSL_ERROR_WANT_READ or, SSL_ERROR_WANT_WRITE.
+			 * Return for retry in such cases.
+			 */
+			switch (SSL_get_error(tls_obj, written)) {
+			case SSL_ERROR_WANT_READ:
+			case SSL_ERROR_WANT_WRITE:
+				return STUB_TCP_AGAIN;
+			default:
+				return STUB_TCP_ERROR;
+			}
+		}
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
 
@@ -2080,6 +2115,12 @@ upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
 	else {
 		DEBUG_STUB("%s %-35s: FD:  %d Connection idle - timeout is %d\n", 
 			    STUB_DEBUG_SCHEDULE, __FUNC__, upstream->fd, (int)idle_timeout);
+		/* TODO: Schedule a read also anyway,
+		 *       to digest timed out answers.
+		 *       Dont forget to schedule with upstream->fd then!
+		 *
+		 * upstream->event.read_cb = upstream_read_cb;
+		 */
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
 		if (upstream->conn_state != GETDNS_CONN_OPEN)
 			idle_timeout = 0;

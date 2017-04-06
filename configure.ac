@@ -149,20 +149,28 @@ fi
 ])
 ACX_ARG_RPATH
 
-
+AC_ARG_ENABLE(debug-req, AC_HELP_STRING([--enable-debug-req], [Enable request debugging]))
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
 AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
 AC_ARG_ENABLE(debug-daemon, AC_HELP_STRING([--enable-debug-daemon], [Enable daemon debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
-AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
+AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable all debugging messages]))
 case "$enable_all_debugging" in
 	yes)
+		enable_debug_req=yes
 		enable_debug_sched=yes
 		enable_debug_stub=yes
 		enable_debug_daemon=yes
 		enable_debug_sec=yes
 		enable_debug_server=yes
+		;;
+	no|*)
+		;;
+esac
+case "$enable_debug_req" in
+	yes)
+		AC_DEFINE_UNQUOTED([REQ_DEBUG], [1], [Define this to enable printing of request debugging messages.])
 		;;
 	no|*)
 		;;

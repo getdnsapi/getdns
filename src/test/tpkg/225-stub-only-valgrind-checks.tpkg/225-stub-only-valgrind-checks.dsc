@@ -6,7 +6,7 @@ Maintainer: Willem Toorop
 Category: 
 Component:
 CmdDepends: valgrind
-Depends: 110-link.tpkg
+Depends: 210-stub-only-link.tpkg
 Help:
 Pre: 
 Post: 
