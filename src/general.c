@@ -219,16 +219,14 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	    )) {
 		/* Reschedule timeout for this DNS request
 		 */
-		dns_req->timeout.userarg    = dns_req;
-		dns_req->timeout.read_cb    = NULL;
-		dns_req->timeout.write_cb   = NULL;
-		dns_req->timeout.timeout_cb =
-		    (getdns_eventloop_callback)
-		    _getdns_validation_chain_timeout;
-		dns_req->timeout.ev         = NULL;
-		(void) dns_req->loop->vmt->schedule(dns_req->loop, -1,
+		if (dns_req->timeout.timeout_cb && dns_req->timeout.ev)
+			GETDNS_CLEAR_EVENT(dns_req->loop, &dns_req->timeout);
+
+		GETDNS_SCHEDULE_EVENT(dns_req->loop, -1,
 		    _getdns_ms_until_expiry2(dns_req->expires, &now_ms),
-		    &dns_req->timeout);
+		    getdns_eventloop_event_init(&dns_req->timeout, dns_req,
+		    NULL, NULL, (getdns_eventloop_callback)
+		    _getdns_validation_chain_timeout));
 
 		_getdns_get_validation_chain(dns_req);
 	} else
