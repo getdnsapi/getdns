@@ -53,6 +53,7 @@
 #include "stub.h"
 #include "dict.h"
 #include "mdns.h"
+#include "debug.h"
 
 void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 {
