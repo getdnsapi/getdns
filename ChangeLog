@@ -1,4 +1,11 @@
 * 2017-04-??: Version 1.1.0
+  * bugfix: Reschedule request timeout when getting the DNSSEC chain.
+  * Implement sensible default edns0 padding policy.  Thanks DKG.
+  * Keep connections open with sync requests too.
+  * Fix of event loops so they do not give up with naked timers with
+    windows.  Thanks Christian Huitema.
+  * Include peer certificate with DNS-over-TLS in combination with
+    the return_call_reporting extension.
   * More fine grained control over TLS upstream retry and back off
     behaviour with getdns_context_set_tls_backoff_time() and
     getdns_context_set_tls_connection_retries().
@@ -14,7 +21,7 @@
     Thanks Neil Cook
   * bugfix: authentication failure for self signed cert + only pinset
   * bugfix: issue with session re-use making authentication appear to fail
-	
+
 * 2017-01-13: Version 1.0.0
   * edns0_cookies extension enabled by default (per RFC7873)
   * dnssec_roadblock_avoidance enabled by default (per RFC8027)
