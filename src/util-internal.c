@@ -904,6 +904,15 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_set_bindata(netreq_debug, "tls_peer_cert",
+	    &netreq->debug_tls_peer_cert)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	netreq->debug_tls_peer_cert.size = 0;
+	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
 
@@ -1254,6 +1263,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		GETDNS_FREE(context->mf, srvs.rrs);
 	}
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
+	    completed_request->request_timed_out ||
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
 	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :

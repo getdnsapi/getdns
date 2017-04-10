@@ -53,6 +53,7 @@
 #include "stub.h"
 #include "dict.h"
 #include "mdns.h"
+#include "debug.h"
 
 void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 {
@@ -61,8 +62,9 @@ void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context,
-		    (response ? GETDNS_CALLBACK_COMPLETE
-		              : GETDNS_CALLBACK_ERROR),
+		    ( ! response                ? GETDNS_CALLBACK_ERROR
+		    : dnsreq->request_timed_out ? GETDNS_CALLBACK_TIMEOUT
+		                                : GETDNS_CALLBACK_COMPLETE ),
 		    response, dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
@@ -186,6 +188,14 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			return;
 		}
 	}
+#if defined(REQ_DEBUG) && REQ_DEBUG
+	if (dns_req->internal_cb)
+		debug_req("CB Internal", *dns_req->netreqs);
+	else if (results_found)
+		debug_req("CB Complete", *dns_req->netreqs);
+	else
+		debug_req("CB Error   ", *dns_req->netreqs);
+#endif
 	if (dns_req->internal_cb) {
 		_getdns_context_clear_outbound_request(dns_req);
 		dns_req->internal_cb(dns_req);
@@ -206,9 +216,20 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
-	    ))
+	    )) {
+		/* Reschedule timeout for this DNS request
+		 */
+		if (dns_req->timeout.timeout_cb && dns_req->timeout.ev)
+			GETDNS_CLEAR_EVENT(dns_req->loop, &dns_req->timeout);
+
+		GETDNS_SCHEDULE_EVENT(dns_req->loop, -1,
+		    _getdns_ms_until_expiry2(dns_req->expires, &now_ms),
+		    getdns_eventloop_event_init(&dns_req->timeout, dns_req,
+		    NULL, NULL, (getdns_eventloop_callback)
+		    _getdns_validation_chain_timeout));
+
 		_getdns_get_validation_chain(dns_req);
-	else
+	} else
 		_getdns_call_user_callback(
 		    dns_req, _getdns_create_getdns_response(dns_req));
 }
@@ -372,6 +393,8 @@ _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 		}
 	}
 	_getdns_netreq_change_state(netreq, NET_REQ_IN_FLIGHT);
+
+	debug_req("Submitting ", netreq);
 
 #ifdef STUB_NATIVE_DNSSEC
 # ifdef DNSSEC_ROADBLOCK_AVOIDANCE

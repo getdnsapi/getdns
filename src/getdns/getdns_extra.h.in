@@ -275,6 +275,9 @@ getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t v
 
 getdns_return_t
 getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t value);
+
+getdns_return_t
+getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context);
 /** @}
  */
 

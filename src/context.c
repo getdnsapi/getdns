@@ -153,8 +153,6 @@ static getdns_return_t set_ub_dns_transport(struct getdns_context*);
 static void set_ub_limit_outstanding_queries(struct getdns_context*,
     uint16_t);
 static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
-static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
-    int);
 #endif
 
 /* Stuff to make it compile pedantically */
@@ -691,11 +689,15 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		while (upstream->finished_dnsreqs) {
 			dnsreq = upstream->finished_dnsreqs;
 			upstream->finished_dnsreqs = dnsreq->finished_next;
-			_getdns_context_cancel_request(dnsreq);
+			if (!dnsreq->internal_cb) { /* Not part of chain */
+				debug_req("Destroy    ", *dnsreq->netreqs);
+				_getdns_context_cancel_request(dnsreq);
+			}
 		}
+		if (upstream->tls_session != NULL)
+			SSL_SESSION_free(upstream->tls_session);
+
 		if (upstream->tls_obj != NULL) {
-		    if (upstream->tls_session != NULL)
-				SSL_SESSION_free(upstream->tls_session);
 			SSL_shutdown(upstream->tls_obj);
 			SSL_free(upstream->tls_obj);
 		}
@@ -1434,7 +1436,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
 	result->edns_client_subnet_private = 0;
-	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
+	result->tls_query_padding_blocksize = 1; /* default is to pad queries sensibly */
 	result->tls_ctx = NULL;
 
 	result->extension = &result->default_eventloop.loop;
@@ -1796,9 +1798,9 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	    "target-fetch-policy:", "0 0 0 0 0");
 #endif
 	set_ub_dnssec_allowed_skew(context,
-		context->dnssec_allowed_skew);
-	set_ub_edns_maximum_udp_payload_size(context,
-		context->edns_maximum_udp_payload_size);
+	    context->dnssec_allowed_skew);
+    	set_ub_number_opt(context, "edns-buffer-size:",
+	    context->edns_maximum_udp_payload_size);
 	set_ub_dns_transport(context);
 
 	context->ub_event.userarg    = context;
@@ -2208,18 +2210,38 @@ getdns_context_set_timeout(struct getdns_context *context, uint64_t timeout)
  *
  */
 getdns_return_t
-getdns_context_set_idle_timeout(struct getdns_context *context, uint64_t timeout)
+getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	size_t i;
 
-    /* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
-    /* 0 should be allowed as that is the default.*/
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    context->idle_timeout = timeout;
+	/* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
+	/* 0 should be allowed as that is the default.*/
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+	context->idle_timeout = timeout;
 
-    return GETDNS_RETURN_GOOD;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+
+	if (timeout)
+		return GETDNS_RETURN_GOOD;
+
+	/* If timeout == 0, call scheduled idle timeout events */
+	for (i = 0; i < context->upstreams->count; i++) {
+		getdns_upstream *upstream =
+		    &context->upstreams->upstreams[i];
+
+		if (!upstream->event.ev ||
+		    !upstream->event.timeout_cb ||
+		     upstream->event.read_cb ||
+		     upstream->event.write_cb)
+			continue;
+
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.timeout_cb(upstream->event.userarg);
+	}
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_timeout */
 
 
@@ -2831,15 +2853,26 @@ error:
 } /* getdns_context_set_upstream_recursive_servers */
 
 
+/*
+ * getdns_context_unset_edns_maximum_udp_payload_size
+ *
+ */
+getdns_return_t
+getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 #ifdef HAVE_LIBUNBOUND
-static void
-set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
-    int value) {
-    /* edns-buffer-size */
-    if (value >= 512 && value <= 65535)
-    	set_ub_number_opt(context, "edns-buffer-size:", (uint16_t)value);
-}
+    	set_ub_number_opt(context, "edns-buffer-size:", 4096);
 #endif
+	if (context->edns_maximum_udp_payload_size != -1) {
+		context->edns_maximum_udp_payload_size = -1;
+		dispatch_updated(context,
+		    GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE);
+	}
+	return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_edns_maximum_udp_payload_size */
 
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
@@ -2852,12 +2885,8 @@ getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	/* check for < 512.  uint16_t won't let it go above max) */
-	if (value < 512)
-		value = 512;
-
 #ifdef HAVE_LIBUNBOUND
-	set_ub_edns_maximum_udp_payload_size(context, value);
+    	set_ub_number_opt(context, "edns-buffer-size:", value);
 #endif
 	if (value != context->edns_maximum_udp_payload_size) {
 		context->edns_maximum_udp_payload_size = value;
@@ -3079,13 +3108,17 @@ getdns_cancel_callback(getdns_context *context,
 
 	getdns_context_request_count_changed(context);
 
+	debug_req("CB Cancel  ", *dnsreq->netreqs);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_CANCEL,
 		    NULL, dnsreq->user_pointer, dnsreq->trans_id);
 		dnsreq->context->processing = 0;
 	}
-	_getdns_context_cancel_request(dnsreq);
+	if (!dnsreq->internal_cb) { /* Not part of chain */
+		debug_req("Destroy    ", *dnsreq->netreqs);
+		_getdns_context_cancel_request(dnsreq);
+	}
 	return GETDNS_RETURN_GOOD;
 } /* getdns_cancel_callback */
 
@@ -3094,6 +3127,7 @@ _getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 {
 	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
 
+	debug_req("CB Timeout ", *dnsreq->netreqs);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_TIMEOUT,
@@ -4150,7 +4184,8 @@ getdns_context_get_edns_maximum_udp_payload_size(getdns_context *context,
     uint16_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = context->edns_maximum_udp_payload_size;
+    *value = context->edns_maximum_udp_payload_size == -1 ? 0
+           : context->edns_maximum_udp_payload_size;
     return GETDNS_RETURN_GOOD;
 }
 

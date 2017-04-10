@@ -33,6 +33,19 @@ rm -f report.txt
 		echo ""
 	fi
 ) >> report.txt
+(
+ 	cd ${SRCROOT}/src
+	if [ `grep '^#define[ 	]*INTERCEPT_COM_DS[ 	]*1' stub.c | wc -l` -gt 0 ]
+	then
+		echo "*** "
+		echo "*** The repo contained the COM DS queries interception"
+		echo "*** with TLS transports turned on, this should be off"
+		echo "*** "
+		grep -n '^#define[ 	]INTERCEPT_COM_DS[ 	]*1' stub.c
+		echo ""
+	fi
+) >> report.txt
+
 
 if [ -s report.txt ]
 then

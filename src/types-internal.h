@@ -240,6 +240,7 @@ typedef struct getdns_network_req
 	uint64_t                debug_start_time;
 	uint64_t                debug_end_time;
 	getdns_auth_state_t     debug_tls_auth_status;
+	getdns_bindata          debug_tls_peer_cert;
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
@@ -313,6 +314,7 @@ typedef struct getdns_dns_req {
 	unsigned dnssec_ok_checking_disabled		: 1;
 	unsigned is_sync_request			: 1;
 	unsigned is_dns_request				: 1;
+	unsigned request_timed_out			: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when

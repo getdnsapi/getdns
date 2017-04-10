@@ -234,6 +234,16 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_sec  = (long)((timeout - now) / 1000000);
 		tv.tv_usec = (long)((timeout - now) % 1000000);
 	}
+#ifdef USE_WINSOCK
+    if (max_fd == -1)
+    {
+        if (timeout != TIMEOUT_FOREVER)
+        {
+            uint32_t timeout_ms = (tv.tv_usec / 1000) + (tv.tv_sec * 1000);
+            Sleep(timeout_ms);
+        }
+    } else
+#endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
 		perror("select() failed");

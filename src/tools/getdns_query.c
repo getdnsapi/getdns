@@ -54,7 +54,7 @@ static const char *default_stubby_config =
 ", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
 ", idle_timeout: 10000"
 ", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
-", tls_query_padding_blocksize: 256"
+", tls_query_padding_blocksize: 1"
 ", edns_client_subnet_private : 1"
 "}";
 static int clear_listen_list_on_arg = 0;
@@ -243,7 +243,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
-	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
+	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n"
+		"\t\t(special values: 0: no padding, 1: sensible default policy)\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf( out, "\t-r\tSet recursing resolution type%s\n"
 	       , i_am_stubby ? "(default = stub)" : "");
@@ -271,7 +272,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback (default)\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
-	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
+	fprintf(out, "\t\t\t U T L for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
 	fprintf(out, "\t-z <listen address>\n");
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
@@ -1229,6 +1230,7 @@ void read_line_cb(void *userarg)
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
 			    context, NULL, NULL, NULL);
+		(void) getdns_context_set_idle_timeout(context, 0);
 		return;
 	}
 	if (query_file)

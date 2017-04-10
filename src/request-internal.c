@@ -110,6 +110,9 @@ network_req_cleanup(getdns_network_req *net_req)
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
+	if (net_req->debug_tls_peer_cert.size &&
+	    net_req->debug_tls_peer_cert.data)
+		OPENSSL_free(net_req->debug_tls_peer_cert.data);
 }
 
 static uint8_t *
@@ -182,6 +185,8 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
+	net_req->debug_tls_peer_cert.size = 0;
+	net_req->debug_tls_peer_cert.data = NULL;
 	net_req->debug_udp = 0;
 
 	/* Scheduling, touch only via _getdns_netreq_change_state!
@@ -939,6 +944,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->freed = NULL;
 	result->validating = 0;
 	result->is_dns_request = 1;
+	result->request_timed_out = 0;
 	result->chain = NULL;
 
 	network_req_init(result->netreqs[0], result,

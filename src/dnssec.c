@@ -3113,6 +3113,43 @@ static void check_chain_complete(chain_head *chain)
 	_getdns_call_user_callback(dnsreq, response_dict);
 }
 
+void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
+{
+	chain_head *head = dnsreq->chain, *next;
+	chain_node *node;
+	size_t      node_count;
+
+	while (head) {
+		next = head->next;
+
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count
+		    ; node_count--, node = node->parent ) {
+
+			if (!_getdns_netreq_finished(node->dnskey_req)) {
+				_getdns_context_cancel_request(
+				    node->dnskey_req->owner);
+				node->dnskey_req = NULL;
+			}
+
+			if (!_getdns_netreq_finished(node->ds_req)) {
+				_getdns_context_cancel_request(
+				    node->ds_req->owner);
+				node->ds_req = NULL;
+			}
+
+			if (!_getdns_netreq_finished(node->soa_req)) {
+				_getdns_context_cancel_request(
+				    node->soa_req->owner);
+				node->soa_req = NULL;
+			}
+		}
+		head = next;
+	}
+	dnsreq->request_timed_out = 1;
+	check_chain_complete(dnsreq->chain);
+}
+
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
 	chain_head *head = dnsreq->chain, *next;
