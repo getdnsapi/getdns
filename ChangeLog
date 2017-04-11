@@ -1,4 +1,5 @@
 * 2017-04-??: Version 1.1.0
+  * Spelling fixes.  Thanks Andreas Schulze.
   * bugfix: Reschedule request timeout when getting the DNSSEC chain.
   * getdns_context_unset_edns_maximum_udp_payload_size() to reset
     to default IPv4/IPv6 dependent edns max udp payload size.
@@ -176,7 +177,7 @@
     '-1' to append suffix only to single label after failure
     '-M' to append suffix only to multi label name after failure
     '-N' to never append a suffix
-    '-Z <suffixes>' to set suffixes with the given comma separed list
+    '-Z <suffixes>' to set suffixes with the given comma separated list
   * Better help text for getdns_query (printed with the '-h' option)
   * Setting the +specify_class extension with getdns_query
   * Return NOT_IMPLEMENTED for not implemented namespaces, and the

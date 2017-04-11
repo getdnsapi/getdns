@@ -219,7 +219,7 @@ print_usage(FILE *out, const char *progname)
 	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
-	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in milliseconds\n");
 	if (!i_am_stubby)
 		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
@@ -253,7 +253,7 @@ print_usage(FILE *out, const char *progname)
 	       , i_am_stubby ? "" : "(default = recursing)" );
 	if (!i_am_stubby)
 		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
-	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-t <timeout>\tSet timeout in milliseconds\n");
 	fprintf(out, "\t-v\tPrint getdns release version\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
@@ -263,7 +263,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
 	fprintf(out, "\t-M\tAppend suffix only to multi label name after failure\n");
 	fprintf(out, "\t-N\tNever append a suffix\n");
-	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separed list\n");
+	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separated list\n");
 
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
@@ -384,7 +384,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 	}
 
 	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
-		printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successfull.\n",
+		printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successful.\n",
 			trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)

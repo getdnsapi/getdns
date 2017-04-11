@@ -33,7 +33,7 @@
 -- do a getdns DNS lookup
 
 .SH LIBRARY
-DNS Resolver library (libgetdns, -lgetdns)
+DNS Resolver library (libgetdns, \-lgetdns)
 
 .SH SYNOPSIS
 #include <getdns.h>

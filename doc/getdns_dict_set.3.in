@@ -36,7 +36,7 @@
 -- set a value by name in a getdns dict
 
 .SH LIBRARY
-DNS Resolver library (libgetdns, -lgetdns)
+DNS Resolver library (libgetdns, \-lgetdns)
 
 .SH SYNOPSIS
 #include <getdns.h>
