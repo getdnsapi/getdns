@@ -392,36 +392,125 @@ getdns_return_t
 getdns_context_set_update_callback(getdns_context *context, void *userarg,
     void (*value) (getdns_context *, getdns_context_code_t, void *));
 
-/* Enable the return_dnssec_status extension on every request.
-   value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
-   returns GETDNS_RETURN_GOOD on success or GETDNS_RETURN_INVALID_PARAMETER
-   if context or value is invalid */
+/**
+ * Enable the return_dnssec_status extension on every request.
+ * @param context The context to configure
+ * @param value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context or value is invalid
+ */
 getdns_return_t getdns_context_set_return_dnssec_status(
     getdns_context *context, int enabled);
 
-/* tells underlying unbound to use background threads or fork */
+/**
+ * Tell underlying unbound context to use background threads or fork.
+ * This is only relevant for libunbound version before 1.5.9.  After this
+ * version the underlying unbound will share the event loop with getdns
+ * eliminating the use for threads.  Since the need for this function is
+ * doubtful and likely to disappear in the future, use is strongly
+ * discouraged.
+ * @param context The context to configure
+ * @param use_threads is either 1 to use threads, or 0 to use fork
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is NULL
+ */
 getdns_return_t getdns_context_set_use_threads(getdns_context* context,
     int use_threads);
 
+/**
+ * Configure context for oppertunistic or scrict usage profile with DNS
+ * over TLS.
+ * @param context The context to configure
+ * @param value is either GETDNS_AUTHENTICATION_REQUIRED for the strict
+ *              usage profile or GETDNS_AUTHENTICATION_NONE for opportunistic
+ *              profile.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
 getdns_return_t
 getdns_context_set_tls_authentication(
     getdns_context *context, getdns_tls_authentication_t value);
 
+/**
+ * Configure context to round robin queries over the available upstreams
+ * when resolving with the stub resolution type.
+ * @param context The context to configure
+ * @param value is either 1 to enable and 0 to disable round robin.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
 getdns_return_t
 getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value);
 
+/**
+ * Configure the amount of seconds a TLS connection should not be tried with
+ * an upstream when it has never been tried before.  Default is 3600 which is
+ * one hour.
+ * @param context The context to configure
+ * @param value Number of seconds before an attempt to setup DNS over TLS,
+ *              with an upstream for which setting up an TLS connection has
+ *              never been successful before, will be retried.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
+ */
 getdns_return_t
 getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value);
 
+/**
+ * Configure the number of times getdns retries to setup DNS over TLS with a
+ * specific upstream, before it decides to give up for tls_backoff_time
+ * seconds.  The default is 2.
+ * @param context The context to configure
+ * @param value Number of attempts to retry setting up a DNS over TLS
+ *              connection before giving up.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
+ */
 getdns_return_t
 getdns_context_set_tls_connection_retries(getdns_context *context, uint16_t value);
 
+/**
+ * Configure context to sent queries with the EDNS Client Subnet option set
+ * to hide the originating network when resolving in stub resolution.
+ * The default is 0 (disabled).
+ * @param context The context to configure
+ * @param value is either 1 to enable and 0 to disable.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
 getdns_return_t
 getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t value);
 
+/**
+ * Configure context to pad each outgoing query over TLS to a multiple of the
+ * requested blocksizes.  A value of 0 means disable, and a value of 1 means
+ * to "pad using a sensible policy".  The default is 1 (pad using sensible policy).
+ * @param context The context to configure
+ * @param value The requested block size to pad to, or 0 to disable, or 1 to
+ *              indicate that the library should use a sinsible policy.
+ *              Currently that just means to pad to a multiple of 128 octets for
+ *              outgoing queries, but this might change in the future.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
 getdns_return_t
 getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t value);
 
+/**
+ * Configure context to advertise maximum UDP payload size values, that
+ * adhere to the suggestions in RFC 6891 and may follow a scheme that uses
+ * multiple values to maximize receptivity. In practice with our implementation
+ * this means 1432 for IPv4 upstreams and 1232 for IPv6 upstreams.
+ * The default is to have the edns maximum UDP payload size to be unset and
+ * thus use the adaptive scheme.
+ * @param context The context to configure
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
+ */
 getdns_return_t
 getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context);
 /** @}

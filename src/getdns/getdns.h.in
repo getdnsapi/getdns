@@ -1362,6 +1362,9 @@ char *getdns_display_ip_address(const getdns_bindata
 
 /**
  * An application can be notified when the context is changed.
+ * Note that this implementation has an extended version of this function
+ * in which an additional userarg parameter can be registered:
+ * #getdns_context_set_update_callback .
  * @param context The context for which to monitor changes
  * @param value The callback function that will be called when any context is
  *              changed. A update callback function can be deregistered by
