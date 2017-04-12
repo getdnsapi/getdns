@@ -210,6 +210,7 @@ struct getdns_eventloop_event {
 };
 
 typedef struct getdns_eventloop_vmt getdns_eventloop_vmt;
+
 /**
  * The manifestation of the event loop abstraction layer.  Event loop
  * extension implementers should extend this with attributed needed for the
@@ -320,6 +321,7 @@ struct getdns_eventloop_vmt {
  * Configure a context to use the specified event loop abstraction extension.
  * This function must be called with an provisioned eventloop by the
  * event loop extension registration functions.
+ * @see getdns_context_get_eventloop
  * @param context The context to configure
  * @param eventloop The event loop abstraction extension with a completely
  *                  provisioned Virtual Method Table and other associated
@@ -337,6 +339,7 @@ getdns_context_set_eventloop(getdns_context* context,
  * themselves directly to inherit the flexibility being immediately 
  * compatible with all the event loop systems for which there is an extension
  * (i.e. libevent, libev and libuv).
+ * @see getdns_context_set_eventloop
  * @param context [in] The context to get the eventloop from
  * @param eventloop [out] The currently active  event loop abstraction extension
  * @return GETDNS_RETURN_GOOD when successful
@@ -345,17 +348,6 @@ getdns_context_set_eventloop(getdns_context* context,
 getdns_return_t
 getdns_context_get_eventloop(getdns_context* context,
     getdns_eventloop **eventloop);
-
-/**
- * Detach the eventloop from the context.  Resets the context with the default
- * event loop based on poll().  WARNING!  Do not use this function.  It is For
- * internal use only and may disappear in future releases.
- * @param context The context to reset to default event loop usage
- * @return GETDNS_RETURN_GOOD when successful
- * @return GETDNS_RETURN_INVALID_PARAMETER when context is NULL
- */
-getdns_return_t
-getdns_context_detach_eventloop(getdns_context *context);
 
 /**
  * Run the context's event loop until nothing more to do.
@@ -376,8 +368,10 @@ getdns_context_run(getdns_context *context);
  * \defgroup Ucontextset Additional getdns_context_set functions
  *  @{
  */
+
 /**
  * Register a callback function for context changes.
+ * @see getdns_context_set_context_update_callback
  * @param context The context to monitor for changes
  * @param userarg A user defined argument that will be passed to the callback
  *                function.
@@ -395,7 +389,7 @@ getdns_context_set_update_callback(getdns_context *context, void *userarg,
 /**
  * Enable the return_dnssec_status extension on every request.
  * @param context The context to configure
- * @param value is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
+ * @param enabled is either GETDNS_EXTENSION_TRUE or GETDNS_EXTENSION_FALSE
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_INVALID_PARAMETER if context or value is invalid
  */
@@ -403,27 +397,15 @@ getdns_return_t getdns_context_set_return_dnssec_status(
     getdns_context *context, int enabled);
 
 /**
- * Tell underlying unbound context to use background threads or fork.
- * This is only relevant for libunbound version before 1.5.9.  After this
- * version the underlying unbound will share the event loop with getdns
- * eliminating the use for threads.  Since the need for this function is
- * doubtful and likely to disappear in the future, use is strongly
- * discouraged.
- * @param context The context to configure
- * @param use_threads is either 1 to use threads, or 0 to use fork
- * @return GETDNS_RETURN_GOOD on success
- * @return GETDNS_RETURN_INVALID_PARAMETER if context is NULL
- */
-getdns_return_t getdns_context_set_use_threads(getdns_context* context,
-    int use_threads);
-
-/**
  * Configure context for oppertunistic or scrict usage profile with DNS
  * over TLS.
+ * @see getdns_context_get_tls_authentication
  * @param context The context to configure
  * @param value is either GETDNS_AUTHENTICATION_REQUIRED for the strict
  *              usage profile or GETDNS_AUTHENTICATION_NONE for opportunistic
  *              profile.
+ *              See #getdns_context_set_upstream_recursive_servers
+ *              for details on how to configure credentials per upstream.
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
  *         invalid value.
@@ -435,6 +417,7 @@ getdns_context_set_tls_authentication(
 /**
  * Configure context to round robin queries over the available upstreams
  * when resolving with the stub resolution type.
+ * @see getdns_context_get_round_robin_upstreams
  * @param context The context to configure
  * @param value is either 1 to enable and 0 to disable round robin.
  * @return GETDNS_RETURN_GOOD on success
@@ -448,6 +431,7 @@ getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
  * Configure the amount of seconds a TLS connection should not be tried with
  * an upstream when it has never been tried before.  Default is 3600 which is
  * one hour.
+ * @see getdns_context_get_tls_backoff_time
  * @param context The context to configure
  * @param value Number of seconds before an attempt to setup DNS over TLS,
  *              with an upstream for which setting up an TLS connection has
@@ -462,6 +446,7 @@ getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value);
  * Configure the number of times getdns retries to setup DNS over TLS with a
  * specific upstream, before it decides to give up for tls_backoff_time
  * seconds.  The default is 2.
+ * @see getdns_context_get_tls_connection_retries
  * @param context The context to configure
  * @param value Number of attempts to retry setting up a DNS over TLS
  *              connection before giving up.
@@ -475,6 +460,7 @@ getdns_context_set_tls_connection_retries(getdns_context *context, uint16_t valu
  * Configure context to sent queries with the EDNS Client Subnet option set
  * to hide the originating network when resolving in stub resolution.
  * The default is 0 (disabled).
+ * @see getdns_context_get_edns_client_subnet_private
  * @param context The context to configure
  * @param value is either 1 to enable and 0 to disable.
  * @return GETDNS_RETURN_GOOD on success
@@ -488,6 +474,7 @@ getdns_context_set_edns_client_subnet_private(getdns_context *context, uint8_t v
  * Configure context to pad each outgoing query over TLS to a multiple of the
  * requested blocksizes.  A value of 0 means disable, and a value of 1 means
  * to "pad using a sensible policy".  The default is 1 (pad using sensible policy).
+ * @see getdns_context_get_tls_query_padding_blocksize
  * @param context The context to configure
  * @param value The requested block size to pad to, or 0 to disable, or 1 to
  *              indicate that the library should use a sinsible policy.
@@ -507,6 +494,8 @@ getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t
  * this means 1432 for IPv4 upstreams and 1232 for IPv6 upstreams.
  * The default is to have the edns maximum UDP payload size to be unset and
  * thus use the adaptive scheme.
+ * @see getdns_context_set_edns_maximum_udp_payload_size
+ * @see getdns_context_get_edns_maximum_udp_payload_size
  * @param context The context to configure
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
@@ -520,93 +509,345 @@ getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context);
   * \defgroup Ucontextget Additional getdns_context_get functions
   *  @{
   */
-/** begin getters **/
+
+/**
+ * Get the current resolution type setting from this context.
+ * @see getdns_context_set_resolution_type
+ * @param context [in] The context from which to get the setting
+ * @param value [out] The resolution type, either GETDNS_RESOLUTION_RECURSING
+ *              or GETDNS_RESOLUTION_STUB.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_resolution_type(getdns_context *context,
     getdns_resolution_t* value);
 
-/** users must call free on the resulting namespaces if not NULL */
+/**
+ * Get a copy of the namespaces list setting from this context.
+ * Users must call free on the resulting namespaces if not NULL
+ * @see getdns_context_set_namespaces
+ * @param context [in] The context from which to get the setting
+ * @param namespace_count [out] The length of the list.
+ * @param namespaces [out] The returned namespaces list.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when any of the arguments was NULL.
+ */
 getdns_return_t
 getdns_context_get_namespaces(getdns_context *context,
     size_t* namespace_count, getdns_namespace_t **namespaces);
 
+/**
+ * Get what transports are used for DNS lookups.
+ * @see getdns_context_set_dns_transport
+ * @see getdns_context_get_dns_transport_list
+ * @see getdns_context_set_dns_transport_list
+ * @param context [in] The context from which to get the setting
+ * @param value [out] The transport to use for DNS lookups.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when any of the arguments was NULL.
+ */
 getdns_return_t
 getdns_context_get_dns_transport(getdns_context *context,
     getdns_transport_t* value);
 
+/**
+ * Get a copy of the transports list setting from this context.
+ * Users must call free on the resulting transports if not NULL
+ * @see getdns_context_set_dns_transport_list
+ * @see getdns_context_get_dns_transport
+ * @see getdns_context_set_dns_transport
+ * @param context [in] The context from which to get the setting
+ * @param transport_count [out] The length of the list.
+ * @param transports [out] The returned transports list.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when any of the arguments was NULL.
+ */
 getdns_return_t
 getdns_context_get_dns_transport_list(getdns_context *context,
     size_t* transport_count, getdns_transport_list_t **transports);
 
+/**
+ * Get the current limit for oustanding queries setting from this context.
+ * @see getdns_context_set_limit_outstanding_queries
+ * @param context [in] The context from which to get the setting
+ * @param limit [out] The current limit for oustanding queries
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or limit was NULL.
+ */
 getdns_return_t
 getdns_context_get_limit_outstanding_queries(getdns_context *context,
     uint16_t* limit);
 
+/**
+ * Get the current number of milliseconds the API will wait for request
+ * to return setting from this context.
+ * @see getdns_context_set_timeout
+ * @param context [in] The context from which to get the setting
+ * @param timeout [out] The number of milliseconds the API will wait for a
+ *                      response.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or limit was NULL.
+ */
 getdns_return_t
 getdns_context_get_timeout(getdns_context *context, uint64_t* timeout);
 
+/**
+ * Get the current number of milliseconds the API will leave an idle TCP or TLS
+ * connection open for (idle means no outstanding responses and no pending
+ * queries).
+ * @see getdns_context_set_idle_timeout
+ * @param context [in] The context from which to get the setting
+ * @param timeout [out] The number of milliseconds the API will leave an idle TCP
+  *                     or TLS connection open for
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or timeout was NULL.
+ */
 getdns_return_t
 getdns_context_get_idle_timeout(getdns_context *context, uint64_t* timeout);
 
+/**
+ * Get the setting that says whether or not DNS queries follow redirects.
+ * @see getdns_context_set_follow_redirects
+ * @param context [in] The context from which to get the setting
+ * @param value [out] Either GETDNS_REDIRECTS_FOLLOW or GETDNS_REDIRECTS_DO_NOT_FOLLOW
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_follow_redirects(getdns_context *context,
     getdns_redirects_t* value);
 
+/**
+ * Get a copy of the list of addresses in use for looking up top-level domains
+ * in use by the context.
+ * Callers are responsible for deallocating the returned list with
+ * #getdns_list_destroy()
+ * @see getdns_context_set_dns_root_servers
+ * @param context [in] The context from which to get the setting
+ * @param addresses [out] A copy of the list of dns root servers in use for
+ *                        looking up top level domains.  The caller must 
+ *                        destroy this list.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or adresses was NULL.
+ * @return GETDNS_RETURN_MEMORY_ERROR when the copy could not be allocated
+ */
 getdns_return_t
 getdns_context_get_dns_root_servers(getdns_context *context,
     getdns_list **addresses);
 
+/**
+ * Get whether, how and when a suffix is appended to a query string with
+ * the context.
+ * @see getdns_context_set_append_name
+ * @param context [in] The context from which to get the setting
+ * @param value [out] GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST,
+ *              GETDNS_APPEND_NAME_ALWAYS,
+ *              GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE,
+ *              GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE,
+ *              or GETDNS_APPEND_NAME_NEVER
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_append_name(getdns_context *context,
     getdns_append_name_t* value);
 
+/**
+ * Get a copy of the list of suffixes to be appended based on the value off the 
+ * append_name setting in use by context
+ * Callers are responsible for deallocating the returned list with
+ * #getdns_list_destroy()
+ * @see getdns_context_set_suffix
+ * @param context [in] The context from which to get the setting
+ * @param value [out] A copy of the list of suffixes. The caller must destroy
+ *                    this list.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ * @return GETDNS_RETURN_MEMORY_ERROR when the copy could not be allocated
+ */
 getdns_return_t
 getdns_context_get_suffix(getdns_context *context, getdns_list **value);
 
+/**
+ * Get a copy of the list of DNSSEC trust anchors in use by context.
+ * Callers are responsible for deallocating the returned list with
+ * #getdns_list_destroy()
+ * @see getdns_context_set_dnssec_trust_anchors
+ * @param context [in] The context from which to get the setting
+ * @param value [out] A copy of the list of DNSSEC trust anchors.
+ *                    The caller must destroy this list.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ * @return GETDNS_RETURN_MEMORY_ERROR when the copy could not be allocated
+ */
 getdns_return_t
 getdns_context_get_dnssec_trust_anchors(getdns_context *context,
     getdns_list **value);
 
+/**
+ * Get the allowed DNSSEC skew setting from context
+ * @see getdns_context_set_dnssec_allowed_skew
+ * @param context [in] The context from which to get the setting
+ * @param value [out] The number of seconds of skew that is allowed in either
+ *              direction when checking an RRSIG's Expiration and Inception
+ *              fields.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_dnssec_allowed_skew(getdns_context *context,
     uint32_t* value);
 
+/**
+ * Get a copy of the list of upstream that will be targeted in stub resolution
+ * mode.
+ * Callers are responsible for deallocating the returned list with
+ * #getdns_list_destroy()
+ * @see getdns_context_set_upstream_recursive_servers
+ * @param context [in] The context from which to get the setting
+ * @param upstream_list [out] A copy of the list of upstreams.
+ *                    The caller must destroy this list.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ * @return GETDNS_RETURN_MEMORY_ERROR when the copy could not be allocated
+ */
 getdns_return_t
 getdns_context_get_upstream_recursive_servers(getdns_context *context,
     getdns_list **upstream_list);
 
+/**
+ * Get the maximum UDP payload size advertised in an EDNS0 OPT record
+ * setting from context
+ * @see getdns_context_set_edns_maximum_udp_payload_size
+ * @see getdns_context_unset_edns_maximum_udp_payload_size
+ * @param context [in] The context from which to get the setting
+ * @param value [out] the maximum UDP payload size advertised in an EDNS0
+ *                    OPT record.  When the value is unset, 0 is returned.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_edns_maximum_udp_payload_size(getdns_context *context,
     uint16_t* value);
 
+/**
+ * Get the rcode advertised in an EDNS0 OPT record setting from context
+ * @see getdns_context_set_edns_extended_rcode
+ * @param context [in] The context from which to get the setting
+ * @param value [out] The rcode advertised in an EDNS0 OPT record
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_edns_extended_rcode(getdns_context *context,
     uint8_t* value);
 
+/**
+ * Get the version advertised in an EDNS0 OPT record setting from context
+ * @see getdns_context_set_edns_version
+ * @param context [in] The context from which to get the setting
+ * @param value [out] The version advertised in an EDNS0 OPT record
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_edns_version(getdns_context *context, uint8_t* value);
 
+/**
+ * Get the DO bit advertised in an EDNS0 OPT record setting from context
+ * @see getdns_context_set_edns_do_bit
+ * @param context [in] The context from which to get the setting
+ * @param value [out] 1 if the DO bit is advertised in EDNS0 OPT records,
+ *                    0 otherwise.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_edns_do_bit(getdns_context *context, uint8_t* value);
 
+/**
+ * Get whether queries with this context will have the EDNS Client Subnet 
+ * option set to hide the originating network when resolving in stub 
+ * resolution.
+ * @see getdns_context_set_edns_do_bit
+ * @param context [in] The context from which to get the setting
+ * @param value [out] 1 if the setting is on, 0 otherwise
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_edns_client_subnet_private(getdns_context *context, uint8_t* value);
 
+/**
+ * Get the blocksize that will be used to pad outgoing queries over TLS.
+ * @see getdns_context_set_tls_query_padding_blocksize
+ * @param context [in] The context from which to get the setting
+ * @param value [out] The padding blocksize, or 0 if padding is disabled,
+ *                    or 1 if the setting is to pad using a sensible policy.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_tls_query_padding_blocksize(getdns_context *context, uint16_t* value);
 
+/**
+ * Get whether the upstream needs to be authenticated whith DNS over TLS.
+ * @see getdns_context_set_tls_authentication
+ * @param context [in] The context from which to get the setting
+ * @param value [out] is either GETDNS_AUTHENTICATION_REQUIRED if
+ *                    authentication is required, or GETDNS_AUTHENTICATION_NONE
+ *                    if authentication is optional.  When credentials are
+ *                    available, the API will still try to authenticate the
+ *                    upstream.
+ *                    See #getdns_context_set_upstream_recursive_servers
+ *                    for details on how to configure credentials per upstream.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_tls_authentication(getdns_context *context,
     getdns_tls_authentication_t* value);
 
+/**
+ * Get whether the context is configured to round robin queries over the available
+ * upstreams.
+ * @see getdns_context_get_round_robin_upstreams
+ * @param context [in] The context from which to get the setting
+ * @param value [out] 1 if the setting is on, 0 otherwise
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_round_robin_upstreams(getdns_context *context,
     uint8_t* value);
 
+/**
+ * Get the amount of seconds a TLS connection should not be tried with
+ * an upstream when it has never been tried before.
+ * @see getdns_context_set_tls_backoff_time
+ * @param context [in] The context from which to get the setting
+ * @param value [out] Number of seconds before an attempt to setup DNS over TLS,
+ *              with an upstream for which setting up an TLS connection has
+ *              never been successful before, will be retried.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_tls_backoff_time(getdns_context *context,
     uint16_t* value);
 
+/**
+ * Get the number of times getdns retries to setup DNS over TLS with a
+ * specific upstream, before it decides to give up for tls_backoff_time
+ * seconds.
+ * @see getdns_context_set_tls_connection_retries
+ * @param context [in] The context from which to get the setting
+ * @param value [out] Number of attempts to retry setting up a DNS over TLS
+ *              connection before giving up.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or value was NULL.
+ */
 getdns_return_t
 getdns_context_get_tls_connection_retries(getdns_context *context,
     uint16_t* value);
@@ -637,9 +878,36 @@ getdns_context_get_update_callback(getdns_context *context, void **userarg,
  *  @{
  */
 
+/**
+ * Get the version number of this implementation.
+ * @return The version number as string.  For example "@GETDNS_VERSION@".
+ */
 const char *getdns_get_version(void);
+
+/**
+ * Get the version number of this implementation as number.
+ * @return The version number as number.  For example @GETDNS_NUMERIC_VERSION@.
+ *         - The most significant byte of this uint32_t is the Major version.
+ *         - The second most significant byte is the Minor version.
+ *         - The third most significant byte the Patch version.
+ */
 uint32_t getdns_get_version_number(void);
+
+/**
+ * Get the version of the getdns API specification this library implements
+ * as a string.
+ * @return The API specification version as string. For example "@API_VERSION@"
+ */
 const char *getdns_get_api_version(void);
+
+/**
+ * Get the version of the getdns API specification this library implements
+ * as a number.
+ * @return The API specification version as number. For example "@API_NUMERIC_VERSION@"
+ *         - The most significant 16 bits represent the year.
+ *         - The third most significant byte the day.
+ */
+
 uint32_t getdns_get_api_version_number(void);
 
 /**
@@ -651,16 +919,35 @@ uint32_t getdns_get_api_version_number(void);
  */
 const char *getdns_get_errorstr_by_id(uint16_t err);
 
-/* dict util */
-/* set a string as bindata */
-getdns_return_t getdns_dict_util_set_string(getdns_dict * dict,
-    char *name, const char *value);
+/**
+ * Create a new entry in the dictionary, or replace the value of an existing
+ * entry, with a getdns_bindata representing a string.  The string will be
+ * copied.  The size of the bindata will be strlen(value), though there will
+ * be a '\0' byte directly after the size'd position even, though the size
+ * argument suggests that this would not be part of the bindata's date space.
+ * @see getdns_dict_set_bindata
+ * @param dict dictionary in which to add or change the value
+ * @param name key that identifies which item in the dictionary to add/change
+ * @param value string to be copied and stored in the bindata at key
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER when one of the arguments was NULL
+ * @return GETDNS_RETURN_MEMORY_ERROR when the copy could not be allocated
+ */
+getdns_return_t
+getdns_dict_util_set_string(getdns_dict *dict, char *name, const char *value);
 
-/* get a string from a dict.  the result must be freed if valid */
-getdns_return_t getdns_dict_util_get_string(getdns_dict * dict,
-    char *name, char **result);
-
-
+/**
+ * Get the string associated with the speicifed name.  The string should not
+ * be free()'d by the caller.
+ * @see getdns_dict_get_bindata
+ * @param dict dictionary from which to fetch the bindata
+ * @param name a name/key value to look up in the dictionary
+ * @param result The bindata's data value
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_NO_SUCH_DICT_NAME if dict is invalid or name does not exist
+ */
+getdns_return_t
+getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result);
 
 /**
  * Validate replies or resource records.
@@ -1387,18 +1674,55 @@ getdns_reply(getdns_context *context,
  * \defgroup Uutilityfunctionsdeprecated  Additional utility functions (will be deprecated)
  *  @{
  */
-/* WARNING! Function getdns_strerror is not in the API specification and
+/**
+ * WARNING! Function getdns_strerror is not in the API specification and
  * is likely to be removed from future versions of our implementation, to be
  * replaced by getdns_get_errorstr_by_id or something similar.
  * Please use getdns_get_errorstr_by_id instead of getdns_strerror.
  */
 getdns_return_t getdns_strerror(getdns_return_t err, char *buf, size_t buflen);
 
+/**
+ * Runs the event loop once non blocking.
+ * WARNING! Do not use this function.  This function will be removed in
+ * future versions of getdns.
+ */
 getdns_return_t getdns_context_process_async(getdns_context* context);
 
-/* Async support */
+/**
+ * Return the number of pending requests and the point of time of the next
+ * timeout.
+ * WARNING! Do not use this function.  This function will be removed in
+ * future versions of getdns.
+ */
 uint32_t getdns_context_get_num_pending_requests(getdns_context* context,
     struct timeval* next_timeout);
+
+/**
+ * Detach the eventloop from the context.  Resets the context with the default
+ * event loop based on poll().  WARNING!  Do not use this function.  It is For
+ * internal use only and may disappear in future releases.
+ * @param context The context to reset to default event loop usage
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context is NULL
+ */
+getdns_return_t
+getdns_context_detach_eventloop(getdns_context *context);
+
+/**
+ * Tell underlying unbound context to use background threads or fork.
+ * This is only relevant for libunbound version before 1.5.9.  After this
+ * version the underlying unbound will share the event loop with getdns
+ * eliminating the use for threads.  Since the need for this function is
+ * doubtful and likely to disappear in the future, use is strongly
+ * discouraged.
+ * @param context The context to configure
+ * @param use_threads is either 1 to use threads, or 0 to use fork
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is NULL
+ */
+getdns_return_t getdns_context_set_use_threads(getdns_context* context,
+    int use_threads);
 
 /** @}
  */

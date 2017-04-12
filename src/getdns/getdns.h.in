@@ -1382,6 +1382,7 @@ getdns_context_set_context_update_callback(
 /**
  * Specify whether DNS queries are performed with recursive lookups or as a
  * stub resolver. The default value is GETDNS_RESOLUTION_RECURSING.
+ * @see getdns_context_get_resolution_type
  * @param context The context to configure
  * @param value GETDNS_RESOLUTION_RECURSING or GETDNS_RESOLUTION_STUB.
  * @return GETDNS_RETURN_GOOD when successful
@@ -1400,6 +1401,7 @@ getdns_context_set_resolution_type(getdns_context *context,
  * getdns_general_sync functions; it is used for the other funtions. 
  * When a normal lookup is done, the API does the lookups in the order given
  * and stops when it gets the first result
+ * @see getdns_context_get_namespaces
  * @param context The context to configure
  * @param namespace_count The number of values in the namespaces list.
  * @param namespaces An ordered list of namespaces that will be queried.
@@ -1422,8 +1424,11 @@ getdns_context_set_namespaces(getdns_context *context,
 /**
  * Specifies what transport are used for DNS lookups. The default is
  * GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP. Use of this function
- * is discouraged.  Please use getdns_context_set_dns_transport_list()
+ * is discouraged.  Please use #getdns_context_set_dns_transport_list()
  * instead of this function.  
+ * @see getdns_context_get_dns_transport
+ * @see getdns_context_set_dns_transport_list
+ * @see getdns_context_get_dns_transport_list
  * @param context The context to configure
  * @param value The transport to use for DNS lookups.
  *              The value is GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP,
@@ -1444,6 +1449,9 @@ getdns_context_set_dns_transport(getdns_context *context,
  * containing GETDNS_TRANSPORT_UDP then GETDNS_TRANSPORT_TCP.  The API will
  * return information on the actual transport used to fulfill the request in
  * the response dict, when the return_call_reporting extension is used.
+ * @see getdns_context_get_dns_transport_list
+ * @see getdns_context_set_dns_transport
+ * @see getdns_context_get_dns_transport
  * @param context The context to configure
  * @param transport_count The number of values in the transports list.
  * @param transports An ordered list of transports that will be used for DNS
@@ -1470,6 +1478,7 @@ getdns_context_set_dns_transport_list(getdns_context *context,
  * Each new synchronous request, will reset the counter no matter the time
  * in between requests, and thus leave the connection open always.  This
  * setting is thus only meaningful when doing requests asynchronously.
+ * @see getdns_context_get_idle_timeout
  * @param context The context to configure
  * @param timeout The number of milliseconds the API will leave an idle TCP
  *                or TLS connection open for
@@ -1487,6 +1496,7 @@ getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout);
  * unlimited, however, queries will be put on the internal queue too when
  * system resources are exhausted (i.e. number of available sockets).
  * The default value is 0.
+ * @see getdns_context_get_limit_outstanding_queries
  * @param context The context to configure
  * @param limit The maximum number of outstanding DNS queries.
  * @return GETDNS_RETURN_GOOD when successful. 
@@ -1499,6 +1509,7 @@ getdns_context_set_limit_outstanding_queries(getdns_context *context,
 /**
  * Specifies number of milliseconds the API will wait for request to return.
  * The default is 5000 (i.e. 5 seconds).
+ * @see getdns_context_get_timeout
  * @param context The context to configure
  * @param timeout The number of milliseconds the API will wait for request to
  *                return.
@@ -1517,6 +1528,7 @@ getdns_context_set_timeout(getdns_context *context, uint64_t timeout);
  * but the response will be stripped of all resource records that could only be
  * found through following redirects.  The setting will do this with answers
  * provided by an upstream in stub resolution mode too.
+ * @see getdns_context_get_follow_redirects
  * @param context The context to configure
  * @param value GETDNS_REDIRECTS_FOLLOW for normal following of redirects
  *              through CNAME and DNAME; or GETDNS_REDIRECTS_DO_NOT_FOLLOW to
@@ -1533,6 +1545,7 @@ getdns_context_set_follow_redirects(getdns_context *context,
 /**
  * Configure the list of addresses to be used for looking up top-level domains.
  * The default is the list of "normal" IANA root servers
+ * @see getdns_context_get_dns_root_servers
  * @param context The context to configure
  * @param addresses The list contains dicts that are addresses to be used for
  *                  looking up top-level domains. Each dict in the list
@@ -1556,6 +1569,7 @@ getdns_context_set_dns_root_servers(getdns_context *context,
  * Specifies whether, how and when to append a suffix to the query string.
  * The non-standard implementation default is
  * GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST.
+ * @see getdns_context_get_append_name
  * @param context The context to configure
  * @param value GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST,
  *              GETDNS_APPEND_NAME_ALWAYS,
@@ -1574,6 +1588,7 @@ getdns_context_set_append_name(getdns_context *context,
  * Specify the list of suffixes to be appended based on the value off the 
  * append_name setting.  The default is read from OS, or an empty list when
  * the context is not initialized with OS defaults.
+ * @see getdns_context_get_suffix
  * @param context The context to configure
  * @param value A list of bindatas that are strings that are to be appended
  *              based on the value off the append_name setting.
@@ -1587,6 +1602,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value);
 /**
  * Specify the DNSSEC trust anchors.  The default is to read it from 
  * @TRUST_ANCHOR_FILE@.
+ * @see getdns_context_get_dnssec_trust_anchors
  * @param context The context to configure
  * @param value A list of rr_dicts for DS or DNSKEY that are the DNSSEC
  *              trust anchors.
@@ -1600,6 +1616,7 @@ getdns_context_set_dnssec_trust_anchors(getdns_context *context,
 
 /**
  * Specify the DNSSEC allowed skew.  The default is 0.
+ * @see getdns_context_get_dnssec_allowed_skew
  * @param context The context to configure
  * @param value The number of seconds of skew that is allowed in either
  *              direction when checking an RRSIG's Expiration and Inception
@@ -1616,6 +1633,7 @@ getdns_context_set_dnssec_allowed_skew(getdns_context *context,
  * Specify where a stub resolver will send queries.  The default value is set
  * from the OS when the context is created with the set_from_os flag, or
  * empty otherwise.
+ * @see getdns_context_get_upstream_recursive_servers
  * @param context The context to configure
  * @param upstream_list The upstreams are specified either by a getdns_bindata
  *                      containing a IPv4 or IPv6 address in network format
@@ -1656,6 +1674,8 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
  * When not set (the default), outgoing values will adhere to the suggestions
  * in RFC 6891 and may follow a scheme that uses multiple values to maximize
  * receptivity.
+ * @see getdns_context_get_edns_maximum_udp_payload_size
+ * @see getdns_context_unset_edns_maximum_udp_payload_size
  * @param context The context to configure
  * @param value The maximum UDP payload size advertised in a EDNS0 OPT record.
  *              The value must be between 512 and 65536
@@ -1668,6 +1688,7 @@ getdns_context_set_edns_maximum_udp_payload_size(getdns_context *context,
 
 /**
  * Set the rcode advertised in a EDNS0 OPT record.  The default is 0.
+ * @see getdns_context_get_edns_extended_rcode
  * @param context The context to configure
  * @param value  A value between 0 and 255.
  * @return GETDNS_RETURN_GOOD when successful. 
@@ -1679,6 +1700,7 @@ getdns_context_set_edns_extended_rcode(getdns_context *context,
 
 /**
  * Set the version advertised in a EDNS0 OPT record.  The default is 0.
+ * @see getdns_context_get_edns_version
  * @param context The context to configure
  * @param value  A value between 0 and 255.
  * @return GETDNS_RETURN_GOOD when successful. 
@@ -1688,9 +1710,10 @@ getdns_return_t
 getdns_context_set_edns_version(getdns_context *context, uint8_t value);
 
 /**
- * Set the DO advertised in a EDNS0 OPT record.  The default is 0.
+ * Set the DO ibit advertised in a EDNS0 OPT record.  The default is 0.
  * However use of any of the dnssec_* extension will override this setting
  * and set the DO bit.
+ * @see getdns_context_get_edns_do_bit
  * @param context The context to configure
  * @param value  A value between 0 and 1.
  * @return GETDNS_RETURN_GOOD when successful. 
