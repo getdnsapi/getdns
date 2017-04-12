@@ -750,7 +750,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 
 /* stub_tcp_write(fd, tcp, netreq)
  * will return STUB_TCP_AGAIN when we need to come back again,
- * STUB_TCP_ERROR on error and a query_id on successfull sent.
+ * STUB_TCP_ERROR on error and a query_id on successful sent.
  */
 static int
 stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)

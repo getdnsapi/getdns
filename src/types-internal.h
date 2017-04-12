@@ -345,7 +345,7 @@ typedef struct getdns_dns_req {
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
-	/* Absolute time (in miliseconds since epoch),
+	/* Absolute time (in milliseconds since epoch),
 	 * after which this dns request is expired; i.e. timed out
 	 */
 	uint64_t expires;

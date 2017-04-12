@@ -47,7 +47,21 @@ struct uv_loop_s;
 /**
  *  \ingroup eventloops
  */
-/* For libevent, which we are using for these examples */
+/**
+ * Associate the libuv uv_loop with the context, so that all
+ * asynchronous requests will schedule Input/Output with it.
+ * Synchronous requests will still use a default eventloop based on `poll()`.
+ * Applications need to @code #include <getdns/getdns_ext_libuv.h> @endcode 
+ * and link with libgetdns_ext_uv to use this function.
+ * getdns needs to have been configured with --with-libuv for this 
+ * extension to be available.
+ * @param context The context to configure
+ * @param uv_loop The libuv event loop to associate with this context.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_BAD_CONTEXT when context is NULL
+ * @return GETDNS_RETURN_INVALID_PARAMETER when uv_loop is NULL
+ * @return GETDNS_RETURN_MEMORY_ERROR when memory could not be allocated
+ */
 getdns_return_t
 getdns_extension_set_libuv_loop(struct getdns_context *context,
     struct uv_loop_s *uv_loop);

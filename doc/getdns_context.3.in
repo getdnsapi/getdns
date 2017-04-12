@@ -39,7 +39,7 @@
 .ad n
 
 .SH LIBRARY
-DNS Resolver library (libgetdns, -lgetdns)
+DNS Resolver library (libgetdns, \-lgetdns)
 
 .SH SYNOPSIS
 #include <getdns.h>
@@ -141,7 +141,7 @@ in use might have a requirements on this issue. You may need to provide one or
 two functions to allow it to function properly. For example before you call 
 getdns_context_create() you may need to use 
 the openssl functions CRYPTO_set_id_callback and CRYPTO_set_locking_callback to set up
-asyncronous operation (the  application calls these functions once for initialisation).  
+asynchronous operation (the  application calls these functions once for initialisation).
 Openssl 1.0.0 or later uses the CRYPTO_THREADID_set_callback function.
 
 .HP 3
