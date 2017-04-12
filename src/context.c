@@ -3379,7 +3379,7 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 
-#  ifdef HAVE_TLS_CLIENT_METHOD
+#  ifdef HAVE_SSL_CTX_SET_MIN_PROTO_VERSION
 			if (!SSL_CTX_set_min_proto_version(
 			    context->tls_ctx, TLS1_2_VERSION)) {
 				SSL_CTX_free(context->tls_ctx);

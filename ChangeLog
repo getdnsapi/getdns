@@ -1,4 +1,5 @@
 * 2017-04-??: Version 1.1.0
+  * Fix to compile with libressl.  Thanks phicoh.
   * Spelling fixes.  Thanks Andreas Schulze.
   * bugfix: Reschedule request timeout when getting the DNSSEC chain.
   * getdns_context_unset_edns_maximum_udp_payload_size() to reset
