@@ -157,69 +157,215 @@ typedef enum getdns_tls_authentication_t {
  *  @{
  */
 
+/**
+ * The type of callback function that is used by the callbacks in an
+ * getdns_eventloop_event.
+ * @param userarg This will have the value of the userarg attribute of the
+ *                getdns_eventloop_event struct in which this callback was
+ *                present.
+ */
 typedef void (*getdns_eventloop_callback)(void *userarg);
 
-/* context extension event data */
-typedef struct getdns_eventloop_event {
+
+typedef struct getdns_eventloop_event getdns_eventloop_event;
+/**
+ * getdns uses an event loop abstraction layer to interface with event loop
+ * extensions. The extension accepts registration of getdns_eventloop_events
+ * and translates them to the underlying event loop API for which it is an
+ * extension.  Also applications using getdns can use the abstraction layer
+ * themselves and in doing so inherit the flexibility being immediately 
+ * compatible with all the event loop systems for which there is an extension
+ * already (i.e. libevent, libev and libuv).
+ */
+struct getdns_eventloop_event {
+	/**
+	 * The userarg argument that will be passed to the
+	 * getdns_eventloop_callbacks when they are fired.
+	 */
 	void *userarg;
+
+	/**
+	 * When not NULL, it will be fired when the associated file descriptor
+	 * is readable.
+	 */
 	getdns_eventloop_callback read_cb;
+
+	/**
+	 * When not NULL, it will be fired when the associated file descriptor
+	 * is writable.
+	 */
 	getdns_eventloop_callback write_cb;
+
+	/**
+	 * When not NULL, it will be fired when the during scheduling specified
+	 * timeout time has passed.
+	 */
 	getdns_eventloop_callback timeout_cb;
 
-	/* Pointer to the underlying event
-	 * that the eventloop extension will create and free.
+	/**
+	 * Pointer to the underlying event
+	 * that an eventloop extension must manage (i.e. create and free.)
 	 */
 	void *ev;
-} getdns_eventloop_event;
+};
 
 typedef struct getdns_eventloop_vmt getdns_eventloop_vmt;
+/**
+ * The manifestation of the event loop abstraction layer.  Event loop
+ * extension implementers should extend this with attributed needed for the
+ * underlying event loop.
+ * The current event loop extension can be obtained with the
+ * getdns_context_get_eventloop() function.
+ */
 typedef struct getdns_eventloop {
+	/**
+	 * The Virtual Method Table providing the interface for this specific
+	 * event loop extension.
+	 */
 	getdns_eventloop_vmt *vmt;
 } getdns_eventloop;
 
-/* A prototype for a method having no arguments and not return value. */
+/**
+ * The function prototype for the `cleanup` and `run` functions in an getdns
+ * event loop's Virtual Method Table.  These methods have no (extra) arguments
+ * and return nothing.
+ * @param loop The event loop to `run` or `cleanup`
+ */
 typedef void (*getdns_eventloop_noargs)(getdns_eventloop *loop);
 
-/* Call the extension to schedule an event
- *
+/**
+ * The function prototype for the `schedule` function in an event loop
+ * Virtual Method Table.
  * The getdns_eventloop_event must be provided by the caller with the callbacks
  * and userarg therein already supplied (by the caller). This function will set
  * the ev pointer (in the getdns_eventloop_event) to refer to the underlying
  * (extension) event.
+ * @param loop The event loop for which to register the event.
+ * @param fd The file descriptor for which to schedule the read_cb and/or
+ *           write_cb callbacks.
+ * @param timeout The number of milliseconds that must pass without read
+ *        and/or write event after which the timeout_cb callback is fired.
+ * @param ev The event with all attributes provisioned, except for the ev->ev
+ *           attribute, which will be provisioned by the implementation of
+ *           the schedule method.
+ * @return GETDNS_RETURN_GOOD when successful and an error code otherwise.
  */
 typedef getdns_return_t (*getdns_eventloop_schedule)(getdns_eventloop *loop,
     int fd, uint64_t timeout, getdns_eventloop_event *ev);
 
-/* Call the extension to clean a scheduled event */
+/**
+ * The function prototype for the `clean` function in an event loop
+ * Virtual Method Table.
+ * The implementation must clear the event (which is referred to with
+ * ev->ev) in the underlying event loop and make ev->ev NULL when done.
+ * getdns will test for this value to determine if events are scheduled or not.
+ * @param loop The event loop for which to event needs to be cleared.
+ * @param ev [in,out] The event with the ev->ev attribute referring to the
+ *           underlying event. ev->ev must be set to NULL after the event
+ *           was cleared.
+ * @return GETDNS_RETURN_GOOD when successful and an error code otherwise.
+ */
 typedef getdns_return_t (*getdns_eventloop_clear)
     (getdns_eventloop *loop, getdns_eventloop_event *ev);
 
+/**
+ * The function prototype for the `run_once` function in an event loop
+ * Virtual Method Table.  The implementation must do a single round of
+ * firing callbacks, either blocking or not.
+ * @param loop The event loop to run
+ * @param blocking When 0, only callbacks for file descriptors that are
+ *                 immediately readable or writable or timeouts that have
+ *                 passed will be fired. When 1, the eventloop will wait
+ *                 until the first callback can be fired, either because a
+ *                 associated file descriptor has become readable or writeable,
+ *                 or because a timeout time passed.
+ */
 typedef void (*getdns_eventloop_run_once)(getdns_eventloop *loop,int blocking);
 
- /* Virtual Method Table */
+/**
+ * The Virtual Method Table providing the interface for this specific
+ * event loop extension.
+ */
 struct getdns_eventloop_vmt {
+	/**
+	 * Destroy the getdns_eventloop and the associated underlying event
+	 * loop for which it is an extension.
+	 */
 	getdns_eventloop_noargs     cleanup;
+
+	/**
+	 * Schedule a getdns_eventloop_event with a getdns_eventloop.
+	 */
 	getdns_eventloop_schedule   schedule;
+
+	/**
+	 * Clear a getdns_eventloop_event
+	 */
 	getdns_eventloop_clear      clear;
+
+	/**
+	 * Run the getdns_eventloop until it has no getdns_eventloop_events
+	 * scheduled.
+	 */
 	getdns_eventloop_noargs     run;
+
+	/**
+	 * Do a single iteration of firing callbacks for scheduled events
+	 * and then return.
+	 */
 	getdns_eventloop_run_once   run_once;
 };
 
-/* set an event loop extension on the context */
+/**
+ * Configure a context to use the specified event loop abstraction extension.
+ * This function must be called with an provisioned eventloop by the
+ * event loop extension registration functions.
+ * @param context The context to configure
+ * @param eventloop The event loop abstraction extension with a completely
+ *                  provisioned Virtual Method Table and other associated
+ *                  data which is opaque to the user.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or eventloop were NULL.
+ */
 getdns_return_t
 getdns_context_set_eventloop(getdns_context* context,
     getdns_eventloop *eventloop);
 
-/* get the currently active (pluggable) eventloop from the context */
+/**
+ * Get the current event loop abstraction extension from the context
+ * Applications using getdns can use the event loop abstraction extension
+ * themselves directly to inherit the flexibility being immediately 
+ * compatible with all the event loop systems for which there is an extension
+ * (i.e. libevent, libev and libuv).
+ * @param context [in] The context to get the eventloop from
+ * @param eventloop [out] The currently active  event loop abstraction extension
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context or evenloop were NULL
+ */
 getdns_return_t
 getdns_context_get_eventloop(getdns_context* context,
     getdns_eventloop **eventloop);
 
-/* detach the eventloop from the context */
+/**
+ * Detach the eventloop from the context.  Resets the context with the default
+ * event loop based on poll().  WARNING!  Do not use this function.  It is For
+ * internal use only and may disappear in future releases.
+ * @param context The context to reset to default event loop usage
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context is NULL
+ */
 getdns_return_t
 getdns_context_detach_eventloop(getdns_context *context);
 
-/* Run the context's event loop until nothing more to do */
+/**
+ * Run the context's event loop until nothing more to do.
+ * This is equivalend to:
+ * ```c
+ * if (getdns_context_get_eventloop(context, &loop) == GETDNS_RETURN_GOOD)
+ * 	loop->vmt->run(loop);
+ * ```
+ * @param context The context which event loop to run.
+ */
 void
 getdns_context_run(getdns_context *context);
 /** @}
