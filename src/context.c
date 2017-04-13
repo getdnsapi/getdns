@@ -2796,12 +2796,21 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
 				if (dict && (r = getdns_dict_get_bindata(
-					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
-					/*TODO: VALIDATE THIS STRING!*/
+				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
+
+					if (tls_auth_name->size >= sizeof(upstream->tls_auth_name)) {
+						/* tls_auth_name's are just 
+						 * domain names and should
+						 * thus not be larger than 256
+						 * bytes.
+						 */
+						goto invalid_parameter;
+					}
 					memcpy(upstream->tls_auth_name,
 					       (char *)tls_auth_name->data,
 						tls_auth_name->size);
-					upstream->tls_auth_name[tls_auth_name->size] = '\0';
+					upstream->tls_auth_name
+					    [tls_auth_name->size] = '\0';
 				}
 				if (dict && (r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
