@@ -559,7 +559,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 			if (! _dname_is_parent(*label, head->rrset.name))
 				break;
 		}
-		if ((unsigned)(label - labels) > max_labels) {
+		if ((ssize_t)(label - labels) > max_labels) {
 			max_labels = label - labels;
 			max_head = head;
 		}
