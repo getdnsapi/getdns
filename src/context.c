@@ -4297,7 +4297,7 @@ static getdns_return_t _get_list_or_read_file(const getdns_dict *config_dict,
 					break; \
 				X[i] = (getdns_ ## T ## _t)n; \
 			} \
-			r = getdns_context_set_ ##X (context, count, X); \
+			r = getdns_context_set_ ##X (context, i, X); \
 		}
 
 #define EXTENSION_SETTING_BOOL(X) \
