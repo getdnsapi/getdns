@@ -1,4 +1,6 @@
-* 2017-04-??: Version 1.1.0
+* 2017-04-13: Version 1.1.0
+  * bugfix: Check size of tls_auth_name.
+  * Improvements that came from Visual Studio static analysis
   * Fix to compile with libressl.  Thanks phicoh.
   * Spelling fixes.  Thanks Andreas Schulze.
   * bugfix: Reschedule request timeout when getting the DNSSEC chain.
