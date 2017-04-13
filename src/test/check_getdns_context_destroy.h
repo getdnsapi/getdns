@@ -68,6 +68,7 @@
        *  expect: callback should be called before getdns_context_destroy() returns
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_context_destroy };
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
@@ -78,7 +79,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_general(context, "google.com", GETDNS_RRTYPE_A, NULL,
-         verify_getdns_context_destroy, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_general()");
 
        RUN_EVENT_LOOP;
@@ -95,6 +96,7 @@
        *  expect: callback should be called before getdns_context_destroy() returns
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_context_destroy };
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
@@ -105,7 +107,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_address(context, "google.com", NULL,
-         verify_getdns_context_destroy, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;
@@ -122,6 +124,7 @@
        *  expect: callback should be called before getdns_context_destroy() returns
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_context_destroy };
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
@@ -141,7 +144,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_bindata");
 
        ASSERT_RC(getdns_hostname(context, address, NULL,
-         verify_getdns_context_destroy, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;
@@ -159,6 +162,7 @@
        *  expect: callback should be called before getdns_context_destroy() returns
        */
        void verify_getdns_context_destroy(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_context_destroy };
        struct getdns_context *context = NULL;
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
@@ -169,7 +173,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_service(context, "google.com", NULL,
-         verify_getdns_context_destroy, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_service()");
 
        RUN_EVENT_LOOP;
@@ -267,6 +271,7 @@
 
      void verify_getdns_context_destroy(struct extracted_response *ex_response)
      {
+       (void)ex_response;
        /*
         * Sleep for a second to make getdns_context_destroy() wait.
         */

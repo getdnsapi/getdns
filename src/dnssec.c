@@ -256,7 +256,7 @@ static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_l
 {
 	uint8_t *r = dst, i;
 
-	if (!src || *src + 1 > dst_len)
+	if (!src || (size_t)*src + 1 > dst_len)
 		return NULL;
 
 	for (i = (*dst++ = *src++); i ; i--)
@@ -528,7 +528,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	chain_head *head;
 	const uint8_t *labels[128], **last_label, **label;
 
-	size_t      max_labels; /* max labels in common */
+	ssize_t     max_labels; /* max labels in common */
 	chain_head *max_head;
 	chain_node *max_node;
 
@@ -559,7 +559,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 			if (! _dname_is_parent(*label, head->rrset.name))
 				break;
 		}
-		if (label - labels > max_labels) {
+		if ((unsigned)(label - labels) > max_labels) {
 			max_labels = label - labels;
 			max_head = head;
 		}
@@ -616,6 +616,11 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	head->node_count = node_count;
 
 	if (!node_count) {
+		/* When this head has no nodes of itself, it must have found
+		 * another head which has nodes for its labels (i.e. max_head)
+		 */
+		assert(max_head != NULL);
+
 		head->parent = max_head->parent;
 		return head;
 	}
@@ -857,6 +862,7 @@ static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
 	     ? dnssec_ok_checking_disabled_roadblock_avoidance
 	     : dnssec_ok_checking_disabled_avoid_roadblocks;
 #else
+	(void)dnsreq;
 	return dnssec_ok_checking_disabled;
 #endif
 }
@@ -1038,7 +1044,6 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	_getdns_rrsig_iter  *rrsig, rrsig_spc;
 	size_t n_signers;
 
-	_getdns_context_clear_outbound_request(dnsreq);
 	switch (netreq->request_type) {
 	case GETDNS_RRTYPE_DS    : node->ds.pkt     = netreq->response;
 	                           node->ds.pkt_len = netreq->response_len;
@@ -1088,7 +1093,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	_getdns_rrset_iter i_spc, *i;
 	_getdns_rrset *rrset;
 
-	_getdns_context_clear_outbound_request(dnsreq);
+	/* A SOA query is always scheduled with a node as the user argument.
+	 */
+	assert(node != NULL);
 
 	for ( i = _getdns_rrset_iter_init(&i_spc, netreq->response
 	                                        , netreq->response_len
@@ -1097,10 +1104,8 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	    ; i = _getdns_rrset_iter_next(i)) {
 
 		rrset = _getdns_rrset_iter_value(i);
-		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
-			break;
-	}
-	if (i) {
+		if (rrset->rr_type != GETDNS_RRTYPE_SOA)
+			continue;
 
 		while (node &&
 		    ! _dname_equal(node->ds.name, rrset->name))
@@ -1112,11 +1117,14 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 		} else {
 			/* SOA for a different name */
 			node = (chain_node *)dnsreq->user_pointer;
-			node->lock++;
-			val_chain_sched_soa_node(node->parent);
+			if (node->parent) {
+				node->lock++;
+				val_chain_sched_soa_node(node->parent);
+			}
 		}
-
-	} else if (node->parent) {
+		break;
+	}
+	if (!i && node->parent) {
 		node->lock++;
 		val_chain_sched_soa_node(node->parent);
 	}
@@ -1314,7 +1322,7 @@ static int _rr_iter_rdata_cmp(const void *a, const void *b)
  * When the rrset was a wildcard expansion (rrsig labels < labels owner name),
  * nc_name will be set to the next closer (within rrset->name).
  */
-#define VAL_RRSET_SPC_SZ 1024
+#define VAL_RRSET_SPC_SZ 256
 static int _getdns_verify_rrsig(struct mem_funcs *mf,
     _getdns_rrset *rrset, _getdns_rrsig_iter *rrsig, _getdns_rrtype_iter *key, const uint8_t **nc_name)
 {
@@ -1626,7 +1634,7 @@ static int nsec3_iteration_count_high(_getdns_rrtype_iter *dnskey, _getdns_rrset
 		return gldns_read_uint16(rr->rr_i.rr_type + 12) > 150;
 }
 
-static int check_dates(int32_t now, int32_t skew, int32_t exp, int32_t inc)
+static int check_dates(time_t now, int32_t skew, int32_t exp, int32_t inc)
 {
 	return (exp - inc > 0) && (inc - now < skew) && (now - exp < skew);
 }
@@ -1871,7 +1879,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 			max_supported_digest = ds->rr_i.rr_type[13];
 			max_supported_result = 0;
 
-			if (digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
+			if ((int)digest_len != ds->rr_i.nxt - ds->rr_i.rr_type-14
 			    || memcmp(digest, ds->rr_i.rr_type+14, digest_len) != 0) {
 				if (digest != digest_spc)
 					GETDNS_FREE(*mf, digest);
@@ -2687,6 +2695,7 @@ static int chain_head_validate(struct mem_funcs *mf, time_t now, uint32_t skew,
  * evaluated by processing each head in turn.  The worst outcome per network request
  * is the dnssec status for that network request.
  */
+#ifdef STUB_NATIVE_DNSSEC
 static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter *tas)
 {
 	chain_head *head;
@@ -2723,6 +2732,7 @@ static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter
 		}
 	}
 }
+#endif
 
 /* The DNSSEC status of all heads for a chain structure is evaluated by 
  * processing each head in turn.  The worst outcome is the dnssec status for
@@ -3021,6 +3031,7 @@ static void check_chain_complete(chain_head *chain)
 
 		int r = GETDNS_RETURN_GOOD;
 		getdns_network_req **netreq_p, *netreq;
+		uint64_t now_ms = 0;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;
 
@@ -3028,9 +3039,9 @@ static void check_chain_complete(chain_head *chain)
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++) {
 
-			netreq->state = NET_REQ_NOT_SENT;
+			_getdns_netreq_change_state(netreq, NET_REQ_NOT_SENT);
 			netreq->owner = dnsreq;
-			r = _getdns_submit_netreq(netreq);
+			r = _getdns_submit_netreq(netreq, &now_ms);
 		}
 		return;
 	}
@@ -3038,7 +3049,10 @@ static void check_chain_complete(chain_head *chain)
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
-	/* Walk chain to add values to val_chain_list and to cleanup */
+	/* Walk chain to add values to val_chain_list.  We do not cleanup yet.
+	 * The chain will eventually be freed when the dns request is descheduled
+	 * with getdns_context_clear_outbound_request().
+	 */
 	for ( head = chain; head ; head = next ) {
 		next = head->next;
 		if (dnsreq->dnssec_return_full_validation_chain &&
@@ -3065,7 +3079,6 @@ static void check_chain_complete(chain_head *chain)
 					    context, val_chain_list,
 					    node->dnskey_req,
 					    node->dnskey_signer);
-				_getdns_dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
 				if (val_chain_list)
@@ -3083,13 +3096,8 @@ static void check_chain_complete(chain_head *chain)
 					    context, val_chain_list,
 					    &node->ds);
 				}
-				_getdns_dns_req_free(node->ds_req->owner);
-			}
-			if (node->soa_req) {
-				_getdns_dns_req_free(node->soa_req->owner);
 			}
 		}
-		GETDNS_FREE(head->my_mf, head);
 	}
 
 	response_dict = _getdns_create_getdns_response(dnsreq);
@@ -3104,6 +3112,73 @@ static void check_chain_complete(chain_head *chain)
 	_getdns_call_user_callback(dnsreq, response_dict);
 }
 
+void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
+{
+	chain_head *head = dnsreq->chain, *next;
+	chain_node *node;
+	size_t      node_count;
+
+	while (head) {
+		next = head->next;
+
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count
+		    ; node_count--, node = node->parent ) {
+
+			if (!_getdns_netreq_finished(node->dnskey_req)) {
+				_getdns_context_cancel_request(
+				    node->dnskey_req->owner);
+				node->dnskey_req = NULL;
+			}
+
+			if (!_getdns_netreq_finished(node->ds_req)) {
+				_getdns_context_cancel_request(
+				    node->ds_req->owner);
+				node->ds_req = NULL;
+			}
+
+			if (!_getdns_netreq_finished(node->soa_req)) {
+				_getdns_context_cancel_request(
+				    node->soa_req->owner);
+				node->soa_req = NULL;
+			}
+		}
+		head = next;
+	}
+	dnsreq->request_timed_out = 1;
+	check_chain_complete(dnsreq->chain);
+}
+
+void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
+{
+	chain_head *head = dnsreq->chain, *next;
+	chain_node *node;
+	size_t      node_count;
+
+	dnsreq->chain = NULL;
+	while (head) {
+		next = head->next;
+
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count
+		    ; node_count--, node = node->parent ) {
+
+			if (node->dnskey_req)
+				_getdns_context_cancel_request(
+				    node->dnskey_req->owner);
+
+			if (node->ds_req)
+				_getdns_context_cancel_request(
+				    node->ds_req->owner);
+
+			if (node->soa_req)
+				_getdns_context_cancel_request(
+				    node->soa_req->owner);
+		}
+		GETDNS_FREE(head->my_mf, head);
+		head = next;
+	}
+}
 
 void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 {
@@ -3141,6 +3216,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 		for (chain_p = chain; chain_p; chain_p = chain_p->next) {
 			if (chain_p->lock) chain_p->lock--;
 		}
+		dnsreq->chain = chain;
 		check_chain_complete(chain);
 	} else {
 		dnsreq->validating = 0;

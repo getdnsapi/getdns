@@ -43,6 +43,7 @@
 #include "dict.h"
 #include "debug.h"
 #include "convert.h"
+#include "general.h"
 
 /* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
  *                      TSIG type      (uint16_t) :   2
@@ -65,20 +66,20 @@
 
 getdns_dict  dnssec_ok_checking_disabled_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled = &dnssec_ok_checking_disabled_spc;
 
 getdns_dict  dnssec_ok_checking_disabled_roadblock_avoidance_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled_roadblock_avoidance
     = &dnssec_ok_checking_disabled_roadblock_avoidance_spc;
 
 getdns_dict  dnssec_ok_checking_disabled_avoid_roadblocks_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
-	{ 0 }
+	{ NULL, {{ NULL, NULL, NULL }}}
 };
 getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks
     = &dnssec_ok_checking_disabled_avoid_roadblocks_spc;
@@ -109,6 +110,9 @@ network_req_cleanup(getdns_network_req *net_req)
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
+	if (net_req->debug_tls_peer_cert.size &&
+	    net_req->debug_tls_peer_cert.data)
+		OPENSSL_free(net_req->debug_tls_peer_cert.data);
 }
 
 static uint8_t *
@@ -118,7 +122,7 @@ netreq_reset(getdns_network_req *net_req)
 	/* variables that need to be reset on reinit 
 	 */
 	net_req->unbound_id = -1;
-	net_req->state = NET_REQ_NOT_SENT;
+	_getdns_netreq_change_state(net_req, NET_REQ_NOT_SENT);
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->query_id = 0;
@@ -181,7 +185,13 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
+	net_req->debug_tls_peer_cert.size = 0;
+	net_req->debug_tls_peer_cert.data = NULL;
 	net_req->debug_udp = 0;
+
+	/* Scheduling, touch only via _getdns_netreq_change_state!
+	 */
+	net_req->state = NET_REQ_NOT_SENT;
 
 	if (max_query_sz == 0) {
 		net_req->query    = NULL;
@@ -262,10 +272,10 @@ _getdns_network_req_clear_upstream_options(getdns_network_req * req)
 {
   size_t pktlen;
   if (req->opt) {
-	  gldns_write_uint16(req->opt + 9, req->base_query_option_sz);
+	  gldns_write_uint16(req->opt + 9, (uint16_t) req->base_query_option_sz);
 	  req->response = req->opt + 11 + req->base_query_option_sz;
 	  pktlen = req->response - req->query;
-	  gldns_write_uint16(req->query - 2, pktlen);
+	  gldns_write_uint16(req->query - 2, (uint16_t) pktlen);
   }
 }
 
@@ -383,7 +393,7 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 #endif
 	tsig_info = _getdns_get_tsig_info(upstream->tsig_alg);
 
-	gldns_buffer_init_frm_data(&gbuf, req->response, MAXIMUM_TSIG_SPACE);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, req->response, MAXIMUM_TSIG_SPACE);
 	gldns_buffer_write(&gbuf,
 	    upstream->tsig_dname, upstream->tsig_dname_len);	/* Name */
 	gldns_buffer_write_u16(&gbuf, GETDNS_RRCLASS_ANY);	/* Class */
@@ -428,7 +438,7 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer_write_u16(&gbuf, GETDNS_RRCLASS_ANY);	/* Class */
 	gldns_buffer_write_u32(&gbuf, 0);			/* TTL */
 	gldns_buffer_write_u16(&gbuf,
-	    tsig_info->dname_len + 10 + md_len + 6);	/* RdLen */
+	    (uint16_t)(tsig_info->dname_len + 10 + md_len + 6));	/* RdLen */
 	gldns_buffer_write(&gbuf,
 	    tsig_info->dname, tsig_info->dname_len);	/* Algorithm Name */
 	gldns_buffer_write_u48(&gbuf, time(NULL));	/* Time Signed */
@@ -474,7 +484,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	HMAC_CTX ctx_space;
 #endif
 
-	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNCTION__);
+	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNC__);
 	for ( rr = _getdns_rr_iter_init(&rr_spc, req->query,
 	                                (req->response - req->query))
 	    ; rr
@@ -491,7 +501,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	if (request_mac_len != rdf->nxt - rdf->pos - 2)
 		return;
 	DEBUG_STUB("%s %-35s: Request MAC found length %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(request_mac_len));
+	           STUB_DEBUG_TSIG, __FUNC__, (int)(request_mac_len));
 	
 	request_mac = rdf->pos + 2;
 
@@ -548,7 +558,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	if (response_mac_len != rdf->nxt - rdf->pos - 2)
 		return;
 	DEBUG_STUB("%s %-35s: Response MAC found length: %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(response_mac_len));
+	           STUB_DEBUG_TSIG, __FUNC__, (int)(response_mac_len));
 	response_mac = rdf->pos + 2;
 
 	if (!(rdf = _getdns_rdf_iter_next(rdf)) ||
@@ -565,7 +575,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 		return;
 
 	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
-	other_len = gldns_read_uint16(rdf->pos);
+	other_len = (uint8_t) gldns_read_uint16(rdf->pos);
 	if (other_len != rdf->nxt - rdf->pos - 2)
 		return;
 	if (other_len)
@@ -573,7 +583,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 
 	/* TSIG found */
 	DEBUG_STUB("%s %-35s: TSIG found, original ID: %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)original_id);
+	           STUB_DEBUG_TSIG, __FUNC__, (int)original_id);
 
 	gldns_write_uint16(req->response + 10,
 	    gldns_read_uint16(req->response + 10) - 1);
@@ -614,7 +624,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	HMAC_Final(ctx, result_mac, &result_mac_len);
 
 	DEBUG_STUB("%s %-35s: Result MAC length: %d\n",
-	           STUB_DEBUG_TSIG, __FUNCTION__, (int)(result_mac_len));
+	           STUB_DEBUG_TSIG, __FUNC__, (int)(result_mac_len));
 	if (result_mac_len == response_mac_len &&
 	    memcmp(result_mac, response_mac, result_mac_len) == 0)
 		req->tsig_status = GETDNS_DNSSEC_SECURE;
@@ -644,7 +654,7 @@ _getdns_dns_req_free(getdns_dns_req * req)
 		network_req_cleanup(*net_req);
 
 	/* clear timeout event */
-	if (req->timeout.timeout_cb) {
+	if (req->loop && req->loop->vmt && req->timeout.timeout_cb) {
 		req->loop->vmt->clear(req->loop, &req->timeout);
 		req->timeout.timeout_cb = NULL;
 	}
@@ -658,7 +668,8 @@ static const uint8_t no_suffixes[] = { 1, 0 };
 /* create a new dns req to be submitted */
 getdns_dns_req *
 _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions)
+    const char *name, uint16_t request_type, getdns_dict *extensions,
+    uint64_t *now_ms)
 {
 	int dnssec_return_status                 = is_extension_set(
 	    extensions, "dnssec_return_status",
@@ -759,17 +770,26 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		edns_do_bit = context->edns_do_bit;
 
 		if (have_add_opt_parameters) {
-			if (!getdns_dict_get_int(add_opt_parameters,
+			if (getdns_dict_get_int(add_opt_parameters,
 			    "maximum_udp_payload_size",
-			    &get_edns_maximum_udp_payload_size))
+			    &get_edns_maximum_udp_payload_size)) {
+				if (!getdns_dict_get_int(
+				    add_opt_parameters, "udp_payload_size",
+				    &get_edns_maximum_udp_payload_size))
+					edns_maximum_udp_payload_size =
+					    get_edns_maximum_udp_payload_size;
+			} else
 				edns_maximum_udp_payload_size =
 				    get_edns_maximum_udp_payload_size;
+
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "extended_rcode", &edns_extended_rcode);
 			(void) getdns_dict_get_int(add_opt_parameters,
 			    "version", &edns_version);
-			(void) getdns_dict_get_int(add_opt_parameters,
-			    "do_bit", &edns_do_bit);
+			if (getdns_dict_get_int(add_opt_parameters,
+			    "do_bit", &edns_do_bit))
+				(void) getdns_dict_get_int(
+				    add_opt_parameters, "do", &edns_do_bit);
 		}
 	}
 	if (have_add_opt_parameters && getdns_dict_get_list(
@@ -891,9 +911,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	}
 	result->context = context;
 	result->loop = loop;
-	result->canceled = 0;
-	result->trans_id = (((uint64_t)arc4random()) << 32) |
-	                    ((uint64_t)arc4random());
+	result->trans_id = (uint64_t) (intptr_t) result;
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_all_statuses     = dnssec_return_all_statuses;
@@ -935,12 +953,15 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->finished_next = NULL;
 	result->freed = NULL;
 	result->validating = 0;
+	result->is_dns_request = 1;
+	result->request_timed_out = 0;
+	result->chain = NULL;
 
 	network_req_init(result->netreqs[0], result,
 	    request_type, dnssec_extension_set, with_opt,
 	    edns_maximum_udp_payload_size,
 	    edns_extended_rcode, edns_version, edns_do_bit,
-	    opt_options_size, noptions, options,
+	    (uint16_t) opt_options_size, noptions, options,
 	    netreq_sz - sizeof(getdns_network_req), max_query_sz,
 	    extensions);
 
@@ -951,9 +972,14 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		    dnssec_extension_set, with_opt,
 		    edns_maximum_udp_payload_size,
 		    edns_extended_rcode, edns_version, edns_do_bit,
-		    opt_options_size, noptions, options,
+		    (uint16_t) opt_options_size, noptions, options,
 		    netreq_sz - sizeof(getdns_network_req), max_query_sz,
 		    extensions);
+
+	if (*now_ms == 0 && (*now_ms = _getdns_get_now_ms()) == 0)
+		result->expires = 0;
+	else
+		result->expires = *now_ms + context->timeout;
 
 	return result;
 }

@@ -62,6 +62,11 @@ typedef unsigned short in_port_t;
 #include <assert.h>
 #include <ctype.h>
 
+#ifdef HAVE_PTHREAD
+#include <pthread.h>
+#endif
+#include <stdbool.h>
+
 #include "config.h"
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
@@ -84,6 +89,21 @@ typedef unsigned short in_port_t;
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+
+#ifdef HAVE_PTHREAD
+static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
+#endif
+static bool ssl_init=false;
+
+#ifdef HAVE_MDNS_SUPPORT
+/*
+ * Forward declaration of MDNS context init and destroy function.
+ * We do this here instead of including mdns.h, in order to
+ * minimize dependencies.
+ */
+void _getdns_mdns_context_init(struct getdns_context *context);
+void _getdns_mdns_context_destroy(struct getdns_context *context);
+#endif
 
 void *plain_mem_funcs_user_arg = MF_PLAIN;
 
@@ -122,8 +142,7 @@ static getdns_return_t create_default_namespaces(struct getdns_context *context)
 static getdns_return_t create_default_dns_transports(struct getdns_context *context);
 static int transaction_id_cmp(const void *, const void *);
 static void dispatch_updated(struct getdns_context *, uint16_t);
-static void cancel_dns_req(getdns_dns_req *);
-static void cancel_outstanding_requests(struct getdns_context*, int);
+static void cancel_outstanding_requests(getdns_context*);
 
 /* unbound helpers */
 #ifdef HAVE_LIBUNBOUND
@@ -134,8 +153,6 @@ static getdns_return_t set_ub_dns_transport(struct getdns_context*);
 static void set_ub_limit_outstanding_queries(struct getdns_context*,
     uint16_t);
 static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
-static void set_ub_edns_maximum_udp_payload_size(struct getdns_context*,
-    int);
 #endif
 
 /* Stuff to make it compile pedantically */
@@ -152,7 +169,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
 
-	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 		"Adding Windows certificates to CA store");
 
 	/* load just once per context lifetime for this version of getdns
@@ -181,7 +198,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	/* failure if the CA store is empty or the call fails */
 	if ((pTargetCert = CertEnumCertificatesInStore(
 		hSystemStore, pTargetCert)) == 0) {
-		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 			"CA certificate store for Windows is empty.");
 			return 0;
 	}
@@ -193,7 +210,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
 			/* return error if a cert fails */
-			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 				"Unable to parse certificate in memory",
 				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
 			return 0;
@@ -201,7 +218,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		else {
 			/* return error if a cert add to store fails */
 			if (X509_STORE_add_cert(store, cert1) == 0) {
-				DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNCTION__,
+				DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
 					"Error adding certificate", ERR_get_error(),
 					ERR_error_string(ERR_get_error(), NULL));
 				return 0;
@@ -223,6 +240,25 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	return 1;
 }
 #endif
+
+#if !defined(STUB_NATIVE_DNSSEC) || (defined(DAEMON_DEBUG) && DAEMON_DEBUG)
+static uint8_t*
+upstream_addr(getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET
+	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
+	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
+#endif
+
+
+static in_port_t
+upstream_port(getdns_upstream *upstream)
+{
+	return ntohs(upstream->addr.ss_family == AF_INET
+	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
+	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
+}
 
 static void destroy_local_host(_getdns_rbnode_t * node, void *arg)
 {
@@ -418,7 +454,7 @@ sockaddr_dict(getdns_context *context, struct sockaddr *sa)
 			break;
 
 		port = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
-		if (port != GETDNS_PORT_DNS && port != GETDNS_PORT_DNS &&
+		if (port != GETDNS_PORT_ZERO && port != GETDNS_PORT_DNS &&
 		    getdns_dict_set_int(address, "port", (uint32_t)port))
 			break;
 
@@ -616,6 +652,9 @@ upstreams_create(getdns_context *context, size_t size)
 	r->referenced = 1;
 	r->count = 0;
 	r->current_udp = 0;
+	r->current_stateful = 0;
+	r->tls_backoff_time = context->tls_backoff_time;
+	r->tls_connection_retries = context->tls_connection_retries;
 	return r;
 }
 
@@ -650,17 +689,26 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		while (upstream->finished_dnsreqs) {
 			dnsreq = upstream->finished_dnsreqs;
 			upstream->finished_dnsreqs = dnsreq->finished_next;
-			(void) _getdns_context_cancel_request(dnsreq->context,
-			    dnsreq->trans_id, 1);
+			if (!dnsreq->internal_cb) { /* Not part of chain */
+				debug_req("Destroy    ", *dnsreq->netreqs);
+				_getdns_context_cancel_request(dnsreq);
+			}
 		}
+		if (upstream->tls_session != NULL)
+			SSL_SESSION_free(upstream->tls_session);
+
 		if (upstream->tls_obj != NULL) {
-		    if (upstream->tls_session != NULL)
-				SSL_SESSION_free(upstream->tls_session);
 			SSL_shutdown(upstream->tls_obj);
 			SSL_free(upstream->tls_obj);
 		}
 		if (upstream->fd != -1)
+		{
+#ifdef USE_WINSOCK
+			closesocket(upstream->fd);
+#else
 			close(upstream->fd);
+#endif
+		}
 		while (pin) {
 			sha256_pin_t *nextpin = pin->next;
 			GETDNS_FREE(upstreams->mf, pin);
@@ -679,38 +727,62 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	/* Update total stats for the upstream.*/
 	upstream->total_responses+=upstream->responses_received;
 	upstream->total_timeouts+=upstream->responses_timeouts;
-	/* Pick up the auth state if it is of interest*/
-	if (upstream->tls_auth_state != GETDNS_AUTH_NONE)
-		upstream->past_tls_auth_state = upstream->tls_auth_state;
-
-	DEBUG_STUB("%s %-35s: FD:  %d Upstream Stats: Resp=%d,Timeouts=%d,Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Auth=%d\n",
-	           STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd, 
-	           (int)upstream->total_responses, (int)upstream->total_timeouts,
-	           (int)upstream->conn_completed, (int)upstream->conn_setup_failed, 
-	           (int)upstream->conn_shutdowns, upstream->past_tls_auth_state);
+	/* Need the last auth state when using session resumption*/
+	upstream->last_tls_auth_state = upstream->tls_auth_state;
+	/* Keep track of the best auth state this upstream has had*/
+	if (upstream->tls_auth_state > upstream->best_tls_auth_state)
+		upstream->best_tls_auth_state = upstream->tls_auth_state;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	DEBUG_DAEMON("%s %-40s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
+	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
+	             _getdns_auth_str(upstream->tls_auth_state), (int)upstream->keepalive_timeout);
+	DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
+	             (int)upstream->total_responses, (int)upstream->total_timeouts,
+	             _getdns_auth_str(upstream->best_tls_auth_state));
+	DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
+	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
+	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
+#endif
 
 	/* Back off connections that never got up service at all (probably no
 	   TCP service or incompatible TLS version/cipher). 
 	   Leave choice between working upstreams to the stub. 
 	   This back-off should be time based for TLS according to RFC7858. For now,
 	   use the same basis if we simply can't get TCP service either.*/
-
+	uint16_t conn_retries = upstream->upstreams->tls_connection_retries;
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
-	if (upstream->conn_setup_failed >= GETDNS_CONN_ATTEMPTS ||
-	    (upstream->conn_shutdowns >= GETDNS_CONN_ATTEMPTS*GETDNS_TRANSPORT_FAIL_MULT
-	     && upstream->total_responses == 0) ||
-	    (upstream->conn_completed >= GETDNS_CONN_ATTEMPTS &&
+	if (upstream->conn_setup_failed >= conn_retries
+	    || ((int)upstream->conn_shutdowns >= conn_retries*GETDNS_TRANSPORT_FAIL_MULT
+	     && upstream->total_responses == 0)
+	    || (upstream->conn_completed >= conn_retries &&
 	     upstream->total_responses == 0 && 
 	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
-		DEBUG_STUB("%s %-35s: FD:  %d BACKING OFF THIS UPSTREAM! \n", 
-		            STUB_DEBUG_CLEANUP, __FUNCTION__, upstream->fd);
 		upstream->conn_state = GETDNS_CONN_BACKOFF;
-		}
+		upstream->conn_retry_time = time(NULL) + upstream->upstreams->tls_backoff_time;
+		upstream->total_responses = 0;
+		upstream->total_timeouts = 0;
+		upstream->conn_completed = 0;
+		upstream->conn_setup_failed = 0;
+		upstream->conn_shutdowns = 0;
+		upstream->conn_backoffs++;
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+		DEBUG_DAEMON("%s %-40s : !Backing off this upstream    - Will retry as new upstream at %s",
+		            STUB_DEBUG_DAEMON, upstream->addr_str,
+		            asctime(gmtime(&upstream->conn_retry_time)));
+#endif
+	}
 	// Reset per connection counters
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
 	upstream->keepalive_timeout = 0;
+	upstream->keepalive_shutdown = 0;
 
 	/* Now TLS stuff*/
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
@@ -720,7 +792,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->tls_obj = NULL;
 	}
 	if (upstream->fd != -1) {
+#ifdef USE_WINSOCK
+		closesocket(upstream->fd);
+#else
 		close(upstream->fd);
+#endif
 		upstream->fd = -1;
 	}
 	/* Set connection ready for use again*/
@@ -729,8 +805,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 }
 
 static int
-tls_is_in_transports_list(getdns_context *context) {
-	for (int i=0; i< context->dns_transport_count;i++) {
+tls_is_in_transports_list(getdns_context *context)
+{
+	size_t i;
+
+	for (i = 0; i< context->dns_transport_count;i++) {
 		if (context->dns_transports[i] == GETDNS_TRANSPORT_TLS)
 			return 1;
 	}
@@ -750,8 +829,21 @@ tls_only_is_in_transports_list(getdns_context *context) {
 static int
 net_req_query_id_cmp(const void *id1, const void *id2)
 {
-	return (intptr_t)id1 - (intptr_t)id2;
+	/*
+	 * old code was:
+	 * return (intptr_t)id1 - (intptr_t)id2;
+	 *but this is incorrect on 64 bit architectures.
+	 */
+	int ret = 0;
+
+	if (id1 != id2)
+	{
+		ret = ((intptr_t)id1 < (intptr_t)id2) ? -1 : 1;
+	}
+
+	return ret;
 }
+
 
 static getdns_tsig_info const tsig_info[] = {
 	  { GETDNS_NO_TSIG, NULL, 0, NULL, 0, 0, 0 }
@@ -779,7 +871,7 @@ static getdns_tsig_info const * const last_tsig_info =
 
 const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg)
 {
-	return tsig_alg > n_tsig_infos - 1
+	return ((unsigned) tsig_alg > n_tsig_infos - 1)
 	    || tsig_info[tsig_alg].alg == GETDNS_NO_TSIG ? NULL
 	    : &tsig_info[tsig_alg];
 }
@@ -828,17 +920,30 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
+	          upstream->addr_str, INET6_ADDRSTRLEN);
+#endif
 
-	/* How is this upstream doing? */
-	upstream->conn_setup_failed = 0;
+	/* How is this upstream doing on connections? */
+	upstream->conn_completed = 0;
 	upstream->conn_shutdowns = 0;
+	upstream->conn_setup_failed = 0;
+	upstream->conn_retry_time = 0;
+	upstream->conn_backoffs = 0;
+	upstream->total_responses = 0;
+	upstream->total_timeouts = 0;
 	upstream->conn_state = GETDNS_CONN_CLOSED;
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
 	upstream->responses_timeouts = 0;
+	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
-	upstream->to_retry =  2;
+	/* How is this upstream doing on UDP? */
+	upstream->to_retry =  1;
 	upstream->back_off =  1;
+	upstream->udp_responses = 0;
+	upstream->udp_timeouts = 0;
 
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
@@ -848,6 +953,8 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
+	upstream->last_tls_auth_state = GETDNS_AUTH_NONE;
+	upstream->best_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
@@ -950,6 +1057,7 @@ set_os_defaults_windows(struct getdns_context *context)
     getdns_upstream *upstream;
     size_t length;
     int s;
+	uint32_t info_err = 0;
 
     if (context->fchg_resolvconf == NULL) {
 		context->fchg_resolvconf =
@@ -982,15 +1090,16 @@ set_os_defaults_windows(struct getdns_context *context)
     if (info == NULL)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-    if (GetNetworkParams(info, &buflen) == ERROR_BUFFER_OVERFLOW) {
+	if ((info_err = GetNetworkParams(info, &buflen)) == ERROR_BUFFER_OVERFLOW) {
 		free(info);
 		info = (FIXED_INFO *)malloc(buflen);
 		if (info == NULL)
 			return GETDNS_RETURN_GENERIC_ERROR;
+		info_err = GetNetworkParams(info, &buflen);
 	}
 
-	if (GetNetworkParams(info, &buflen) == NO_ERROR) {
-		ptr = info->DnsServerList.Next; 
+	if (info_err == NO_ERROR) {
+		ptr = &info->DnsServerList;
 		*domain = 0;
 		while (ptr) {
 			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
@@ -1007,10 +1116,11 @@ set_os_defaults_windows(struct getdns_context *context)
 				freeaddrinfo(result);
 			}
 			ptr = ptr->Next;
-
 		}
-		free(info);
 	}
+
+	if (info != NULL)
+		free(info);
 
     suffix = getdns_list_create_with_context(context);
 
@@ -1182,6 +1292,26 @@ NULL_update_callback(
     getdns_context *context, getdns_context_code_t code, void *userarg)
 { (void)context; (void)code; (void)userarg; }
 
+static int
+netreq_expiry_cmp(const void *id1, const void *id2)
+{
+	getdns_network_req *req1 = (getdns_network_req *)id1;
+	getdns_network_req *req2 = (getdns_network_req *)id2;
+
+	return req1->owner->expires < req2->owner->expires ? -1 :
+	       req1->owner->expires > req2->owner->expires ?  1 :
+	       req1 < req2 ? -1 :
+	       req1 > req2 ?  1 : 0;
+}
+
+void _getdns_check_expired_pending_netreqs(
+    getdns_context *context, uint64_t *now_ms);
+static void _getdns_check_expired_pending_netreqs_cb(void *arg)
+{
+	uint64_t now_ms = 0;
+	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
+}
+
 /*
  * getdns_context_create
  *
@@ -1245,6 +1375,15 @@ getdns_context_create_with_extended_memory_functions(
 
 	_getdns_rbtree_init(&result->outbound_requests, transaction_id_cmp);
 	_getdns_rbtree_init(&result->local_hosts, local_host_cmp);
+	_getdns_rbtree_init(&result->pending_netreqs, netreq_expiry_cmp);
+	result->first_pending_netreq = NULL;
+	result->netreqs_in_flight = 0;
+	result->pending_timeout_event.userarg    = result;
+	result->pending_timeout_event.read_cb    = NULL;
+	result->pending_timeout_event.write_cb   = NULL;
+	result->pending_timeout_event.timeout_cb =
+	    _getdns_check_expired_pending_netreqs_cb;
+	result->pending_timeout_event.ev         = NULL;
 
 	result->server = NULL;
 
@@ -1267,7 +1406,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
 
-	gldns_buffer_init_frm_data(&gbuf, result->trust_anchors_spc
+	gldns_buffer_init_vfixed_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
 
 	if (!_getdns_parse_ta_file(NULL, &gbuf)) {
@@ -1297,12 +1436,12 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_version = 0;
 	result->edns_do_bit = 0;
 	result->edns_client_subnet_private = 0;
-	result->tls_query_padding_blocksize = 1; /* default is to not try to pad */
+	result->tls_query_padding_blocksize = 1; /* default is to pad queries sensibly */
 	result->tls_ctx = NULL;
 
 	result->extension = &result->default_eventloop.loop;
-	_getdns_default_eventloop_init(&result->default_eventloop);
-	_getdns_default_eventloop_init(&result->sync_eventloop);
+	_getdns_default_eventloop_init(&result->mf, &result->default_eventloop);
+	_getdns_default_eventloop_init(&result->mf, &result->sync_eventloop);
 
 	/* request extension defaults
 	 */
@@ -1348,14 +1487,30 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
 	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
+	result->round_robin_upstreams = 0;
+	result->tls_backoff_time = 3600;
+	result->tls_connection_retries = 2;
 	result->limit_outstanding_queries = 0;
 
 	/* unbound context is initialized here */
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
 	 * don't know that till later so we will have to do this every time. */
 
-	if ((set_from_os & 2) == 0)
+#ifdef HAVE_PTHREAD
+	pthread_mutex_lock(&ssl_init_lock);
+#else
+	/* XXX implement Windows-style lock here */
+#endif
+	/* Only initialise SSL once and ideally in a thread-safe manner */
+	if (ssl_init == false) {
 		SSL_library_init();
+		ssl_init = true;
+	}
+#ifdef HAVE_PTHREAD
+	pthread_mutex_unlock(&ssl_init_lock);
+#else
+	/* XXX implement Windows-style unlock here */
+#endif
 
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
@@ -1363,7 +1518,13 @@ getdns_context_create_with_extended_memory_functions(
 		goto error;
 #endif
 
+
+#ifdef HAVE_MDNS_SUPPORT
+	_getdns_mdns_context_init(result);
+#endif
+
 	create_local_hosts(result);
+
 
 	*context = result;
 	return GETDNS_RETURN_GOOD;
@@ -1426,10 +1587,10 @@ getdns_context_destroy(struct getdns_context *context)
 
 	context->destroying = 1;
 	/* cancel all outstanding requests */
-	cancel_outstanding_requests(context, 1);
+	cancel_outstanding_requests(context);
 
 	/* Destroy listening addresses */
-	(void) getdns_context_set_listen_addresses(context, NULL, NULL);
+	(void) getdns_context_set_listen_addresses(context, NULL, NULL, NULL);
 
 	/* This needs to be done before cleaning the extension, because there
 	 * might be an idle_timeout schedules, which will not get unscheduled
@@ -1442,6 +1603,13 @@ getdns_context_destroy(struct getdns_context *context)
 #ifdef HAVE_LIBUNBOUND
 	if (context->unbound_ctx)
 		ub_ctx_delete(context->unbound_ctx);
+#endif
+
+#ifdef HAVE_MDNS_SUPPORT
+	/*
+	 * Release all ressource allocated for MDNS.
+	 */
+	_getdns_mdns_context_destroy(context);
 #endif
 
 	if (context->namespaces)
@@ -1561,7 +1729,7 @@ getdns_context_request_count_changed(getdns_context *context)
 		if (context->outbound_requests.count && ! context->ub_event.ev){
 			DEBUG_SCHED("gc_request_count_changed "
 			    "-> ub schedule(el_ev = %p, el_ev->ev = %p)\n",
-			    &context->ub_event, context->ub_event.ev);
+			    (void *)&context->ub_event, (void *)context->ub_event.ev);
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
 			if (!_getdns_ub_loop_enabled(&context->ub_loop))
@@ -1575,7 +1743,7 @@ getdns_context_request_count_changed(getdns_context *context)
 		    context->ub_event.ev) {
 			DEBUG_SCHED("gc_request_count_changed "
 			    "-> ub clear(el_ev = %p, el_ev->ev = %p)\n",
-			    &context->ub_event, context->ub_event.ev);
+			    (void *)&context->ub_event, (void *)context->ub_event.ev);
 
 #ifndef USE_WINSOCK
 #ifdef HAVE_UNBOUND_EVENT_API
@@ -1610,7 +1778,7 @@ static getdns_return_t
 rebuild_ub_ctx(struct getdns_context* context) {
 	if (context->unbound_ctx != NULL) {
 		/* cancel all requests and delete */
-		cancel_outstanding_requests(context, 1);
+		cancel_outstanding_requests(context);
 		ub_ctx_delete(context->unbound_ctx);
 		context->unbound_ctx = NULL;
 	}
@@ -1635,9 +1803,9 @@ rebuild_ub_ctx(struct getdns_context* context) {
 	    "target-fetch-policy:", "0 0 0 0 0");
 #endif
 	set_ub_dnssec_allowed_skew(context,
-		context->dnssec_allowed_skew);
-	set_ub_edns_maximum_udp_payload_size(context,
-		context->edns_maximum_udp_payload_size);
+	    context->dnssec_allowed_skew);
+    	set_ub_number_opt(context, "edns-buffer-size:",
+	    context->edns_maximum_udp_payload_size);
 	set_ub_dns_transport(context);
 
 	context->ub_event.userarg    = context;
@@ -1718,12 +1886,17 @@ getdns_context_set_namespaces(getdns_context *context,
 
 	for (i = 0; i < namespace_count; i++) {
 		if (namespaces[i] == GETDNS_NAMESPACE_NETBIOS ||
-		    namespaces[i] == GETDNS_NAMESPACE_MDNS ||
+#ifndef HAVE_MDNS_SUPPORT
+			namespaces[i] == GETDNS_NAMESPACE_MDNS ||
+#endif
 		    namespaces[i] == GETDNS_NAMESPACE_NIS)
 			r = GETDNS_RETURN_NOT_IMPLEMENTED;
 
 		else if (namespaces[i] != GETDNS_NAMESPACE_DNS &&
-		    namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES)
+#ifdef HAVE_MDNS_SUPPORT
+			namespaces[i] != GETDNS_NAMESPACE_MDNS &&
+#endif
+		    namespaces[i] != GETDNS_NAMESPACE_LOCALNAMES )
 			return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 	}
 	GETDNS_FREE(context->my_mf, context->namespaces);
@@ -1933,11 +2106,69 @@ getdns_context_set_tls_authentication(getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_tls_authentication_list */
 
+/*
+ * getdns_context_set_round_robin_upstreams
+ *
+ */
+getdns_return_t
+getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* only allow 0 or 1 */
+    if (value != 0 && value != 1) {
+        return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    }
+
+    context->round_robin_upstreams = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_round_robin_upstreams */
+
+/*
+ * getdns_context_set_tls_backoff_time
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_backoff_time(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Value is in seconds. Should we have a lower limit? 1 second?*/
+    context->tls_backoff_time = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_BACKOFF_TIME);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_backoff_time */
+
+/*
+ * getdns_context_set_tls_connection_retries
+ *
+ */
+getdns_return_t
+getdns_context_set_tls_connection_retries(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    /* Should we put a sensible upper limit on this? 10?*/
+    // if (value > 10) {
+    //     return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+    // }
+
+    context->tls_connection_retries = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_tls_connection retries */
+
+#ifdef HAVE_LIBUNBOUND
 static void
-set_ub_limit_outstanding_queries(struct getdns_context* context, uint16_t value) {
+set_ub_limit_outstanding_queries(getdns_context* context, uint16_t value) {
     /* num-queries-per-thread */
     set_ub_number_opt(context, "num-queries-per-thread:", value);
 }
+#endif
 /*
  * getdns_context_set_limit_outstanding_queries
  *
@@ -1947,7 +2178,9 @@ getdns_context_set_limit_outstanding_queries(struct getdns_context *context,
     uint16_t limit)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+#ifdef HAVE_LIBUNBOUND
     set_ub_limit_outstanding_queries(context, limit);
+#endif
     if (limit != context->limit_outstanding_queries) {
         context->limit_outstanding_queries = limit;
         dispatch_updated(context,
@@ -1982,18 +2215,38 @@ getdns_context_set_timeout(struct getdns_context *context, uint64_t timeout)
  *
  */
 getdns_return_t
-getdns_context_set_idle_timeout(struct getdns_context *context, uint64_t timeout)
+getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout)
 {
-    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	size_t i;
 
-    /* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
-    /* 0 should be allowed as that is the default.*/
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    context->idle_timeout = timeout;
+	/* Shuold we enforce maximum based on edns-tcp-keepalive spec? */
+	/* 0 should be allowed as that is the default.*/
 
-    dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+	context->idle_timeout = timeout;
 
-    return GETDNS_RETURN_GOOD;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_IDLE_TIMEOUT);
+
+	if (timeout)
+		return GETDNS_RETURN_GOOD;
+
+	/* If timeout == 0, call scheduled idle timeout events */
+	for (i = 0; i < context->upstreams->count; i++) {
+		getdns_upstream *upstream =
+		    &context->upstreams->upstreams[i];
+
+		if (!upstream->event.ev ||
+		    !upstream->event.timeout_cb ||
+		     upstream->event.read_cb ||
+		     upstream->event.write_cb)
+			continue;
+
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.timeout_cb(upstream->event.userarg);
+	}
+	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_timeout */
 
 
@@ -2229,7 +2482,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 		context->suffixes_len = sizeof(no_suffixes);
 		return GETDNS_RETURN_GOOD;
 	}
-	gldns_buffer_init_frm_data(&gbuf, buf_spc, sizeof(buf_spc));
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf_spc, sizeof(buf_spc));
 	for (;;) {
 		for ( i = 0
 		    ; !(r = getdns_list_get_bindata(value, i, &bindata))
@@ -2251,7 +2504,7 @@ getdns_context_set_suffix(getdns_context *context, getdns_list *value)
 			if (gldns_str2wire_dname_buf(name, dname, &dname_len))
 				return GETDNS_RETURN_GENERIC_ERROR;
 
-			gldns_buffer_write_u8(&gbuf, dname_len);
+			gldns_buffer_write_u8(&gbuf, (uint8_t) dname_len);
 			gldns_buffer_write(&gbuf, dname, dname_len);
 		}
 		if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
@@ -2319,11 +2572,13 @@ getdns_context_set_dnssec_trust_anchors(
 	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dnssec_trust_anchors */
 
+#ifdef HAVE_LIBUNBOUND
 static void
 set_ub_dnssec_allowed_skew(struct getdns_context* context, uint32_t value) {
     set_ub_number_opt(context, "val-sig-skew-min:", value);
     set_ub_number_opt(context, "val-sig-skew-max:", value);
 }
+#endif
 /*
  * getdns_context_set_dnssec_allowed_skew
  *
@@ -2333,7 +2588,9 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     uint32_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+#ifdef HAVE_LIBUNBOUND
     set_ub_dnssec_allowed_skew(context, value);
+#endif
     if (value != context->dnssec_allowed_skew) {
         context->dnssec_allowed_skew = value;
         dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_ALLOWED_SKEW);
@@ -2544,12 +2801,21 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
 				if (dict && (r = getdns_dict_get_bindata(
-					dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
-					/*TODO: VALIDATE THIS STRING!*/
+				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
+
+					if (tls_auth_name->size >= sizeof(upstream->tls_auth_name)) {
+						/* tls_auth_name's are just 
+						 * domain names and should
+						 * thus not be larger than 256
+						 * bytes.
+						 */
+						goto invalid_parameter;
+					}
 					memcpy(upstream->tls_auth_name,
 					       (char *)tls_auth_name->data,
 						tls_auth_name->size);
-					upstream->tls_auth_name[tls_auth_name->size] = '\0';
+					upstream->tls_auth_name
+					    [tls_auth_name->size] = '\0';
 				}
 				if (dict && (r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
@@ -2601,13 +2867,26 @@ error:
 } /* getdns_context_set_upstream_recursive_servers */
 
 
-static void
-set_ub_edns_maximum_udp_payload_size(struct getdns_context* context,
-    int value) {
-    /* edns-buffer-size */
-    if (value >= 512 && value <= 65535)
-    	set_ub_number_opt(context, "edns-buffer-size:", (uint16_t)value);
-}
+/*
+ * getdns_context_unset_edns_maximum_udp_payload_size
+ *
+ */
+getdns_return_t
+getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+#ifdef HAVE_LIBUNBOUND
+    	set_ub_number_opt(context, "edns-buffer-size:", 4096);
+#endif
+	if (context->edns_maximum_udp_payload_size != -1) {
+		context->edns_maximum_udp_payload_size = -1;
+		dispatch_updated(context,
+		    GETDNS_CONTEXT_CODE_EDNS_MAXIMUM_UDP_PAYLOAD_SIZE);
+	}
+	return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_edns_maximum_udp_payload_size */
 
 /*
  * getdns_context_set_edns_maximum_udp_payload_size
@@ -2620,11 +2899,9 @@ getdns_context_set_edns_maximum_udp_payload_size(struct getdns_context *context,
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	/* check for < 512.  uint16_t won't let it go above max) */
-	if (value < 512)
-		value = 512;
-
-	set_ub_edns_maximum_udp_payload_size(context, value);
+#ifdef HAVE_LIBUNBOUND
+    	set_ub_number_opt(context, "edns-buffer-size:", value);
+#endif
 	if (value != context->edns_maximum_udp_payload_size) {
 		context->edns_maximum_udp_payload_size = value;
 		dispatch_updated(context,
@@ -2770,28 +3047,68 @@ getdns_context_set_memory_functions(struct getdns_context *context,
         context, MF_PLAIN, mf.ext.malloc, mf.ext.realloc, mf.ext.free);
 } /* getdns_context_set_memory_functions*/
 
-/* cancel the request */
-static void
-cancel_dns_req(getdns_dns_req *req)
+void
+_getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
+{
+	/* Called only by getdns_general_ns() after successful allocation */
+	assert(dnsreq);
+
+	dnsreq->node.key = &(dnsreq->trans_id);
+	if (_getdns_rbtree_insert(
+	    &dnsreq->context->outbound_requests, &dnsreq->node))
+		getdns_context_request_count_changed(dnsreq->context);
+}
+
+void
+_getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
+{
+    	if (!dnsreq) return;
+
+	if (dnsreq->loop && dnsreq->loop->vmt && dnsreq->timeout.timeout_cb) {
+		dnsreq->loop->vmt->clear(dnsreq->loop, &dnsreq->timeout);
+		dnsreq->timeout.timeout_cb = NULL;
+	}
+	/* delete the node from the tree */
+	if (_getdns_rbtree_delete(
+	    &dnsreq->context->outbound_requests, &dnsreq->trans_id))
+		getdns_context_request_count_changed(dnsreq->context);
+
+	if (dnsreq->chain)
+		_getdns_cancel_validation_chain(dnsreq);
+}
+
+void
+_getdns_context_cancel_request(getdns_dns_req *dnsreq)
 {
 	getdns_network_req *netreq, **netreq_p;
 
-	for (netreq_p = req->netreqs; (netreq = *netreq_p); netreq_p++)
+	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
+	if (!dnsreq) return;
+
+	_getdns_context_clear_outbound_request(dnsreq);
+
+	/* cancel network requests */
+	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p); netreq_p++)
 #ifdef HAVE_LIBUNBOUND
 		if (netreq->unbound_id != -1) {
-			ub_cancel(req->context->unbound_ctx,
+			ub_cancel(dnsreq->context->unbound_ctx,
 			    netreq->unbound_id);
 			netreq->unbound_id = -1;
 		} else
 #endif
 			_getdns_cancel_stub_request(netreq);
 
-	req->canceled = 1;
+	/* clean up */
+	_getdns_dns_req_free(dnsreq);
 }
 
+/*
+ * getdns_cancel_callback
+ *
+ */
 getdns_return_t
-_getdns_context_cancel_request(getdns_context *context,
-    getdns_transaction_t transaction_id, int fire_callback)
+getdns_cancel_callback(getdns_context *context,
+    getdns_transaction_t transaction_id)
 {
 	getdns_dns_req *dnsreq;
 
@@ -2803,53 +3120,72 @@ _getdns_context_cancel_request(getdns_context *context,
 	    &context->outbound_requests, &transaction_id)))
 		return GETDNS_RETURN_UNKNOWN_TRANSACTION;
 
-	/* do the cancel */
-	cancel_dns_req(dnsreq);
-
-	if (fire_callback) {
-		context->processing = 1;
-		dnsreq->user_callback(context, GETDNS_CALLBACK_CANCEL,
-		    NULL, dnsreq->user_pointer, transaction_id);
-		context->processing = 0;
-	}
-
-	/* clean up */
-	_getdns_dns_req_free(dnsreq);
-	return GETDNS_RETURN_GOOD;
-}
-
-/*
- * getdns_cancel_callback
- *
- */
-getdns_return_t
-getdns_cancel_callback(getdns_context *context,
-    getdns_transaction_t transaction_id)
-{
-	if (!context)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	getdns_return_t r = _getdns_context_cancel_request(context, transaction_id, 1);
 	getdns_context_request_count_changed(context);
-	return r;
+
+	debug_req("CB Cancel  ", *dnsreq->netreqs);
+	if (dnsreq->user_callback) {
+		dnsreq->context->processing = 1;
+		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_CANCEL,
+		    NULL, dnsreq->user_pointer, dnsreq->trans_id);
+		dnsreq->context->processing = 0;
+	}
+	if (!dnsreq->internal_cb) { /* Not part of chain */
+		debug_req("Destroy    ", *dnsreq->netreqs);
+		_getdns_context_cancel_request(dnsreq);
+	}
+	return GETDNS_RETURN_GOOD;
 } /* getdns_cancel_callback */
 
-#ifndef STUB_NATIVE_DNSSEC
-static uint8_t*
-upstream_addr(getdns_upstream *upstream)
+void
+_getdns_context_request_timed_out(getdns_dns_req *dnsreq)
 {
-	return upstream->addr.ss_family == AF_INET
-	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
-	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+	DEBUG_SCHED("%s(%p)\n", __FUNC__, (void *)dnsreq);
+
+	debug_req("CB Timeout ", *dnsreq->netreqs);
+	if (dnsreq->user_callback) {
+		dnsreq->context->processing = 1;
+		dnsreq->user_callback(dnsreq->context, GETDNS_CALLBACK_TIMEOUT,
+		    _getdns_create_getdns_response(dnsreq),
+		     dnsreq->user_pointer, dnsreq->trans_id);
+		dnsreq->context->processing = 0;
+	}
+	_getdns_context_cancel_request(dnsreq);
 }
 
-static in_port_t
-upstream_port(getdns_upstream *upstream)
+static void
+accumulate_outstanding_transactions(_getdns_rbnode_t *node, void* arg)
 {
-	return ntohs(upstream->addr.ss_family == AF_INET
-	    ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	    : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
+	*(*(getdns_transaction_t**)arg)++ = ((getdns_dns_req*)node)->trans_id;
 }
+
+static void
+cancel_outstanding_requests(getdns_context* context)
+{
+	getdns_transaction_t *trans_ids, *tids_a, *tids_i;
+
+	if (context->outbound_requests.count == 0)
+		return;
+
+	tids_i = tids_a = trans_ids = GETDNS_XMALLOC(context->my_mf,
+	    getdns_transaction_t, context->outbound_requests.count);
+
+	_getdns_traverse_postorder(&context->outbound_requests,
+	    accumulate_outstanding_transactions, &tids_a);
+
+	while (tids_i < tids_a) {
+
+		/* We have to cancel by transaction_id because we do not know
+		 * what happens when the user_callback is called.  It might
+		 * delete getdns_dns_req's that were scheduled to be canceled.
+		 * The extra lookup with transaction_id makes sure we do not
+		 * access freed memory.
+		 */
+		(void) getdns_cancel_callback(context, *tids_i++);
+	}
+	GETDNS_FREE(context->my_mf, trans_ids);
+}
+
+#ifndef STUB_NATIVE_DNSSEC
 
 static uint32_t *
 upstream_scope_id(getdns_upstream *upstream)
@@ -3025,7 +3361,7 @@ getdns_return_t
 _getdns_context_prepare_for_resolution(struct getdns_context *context,
     int usenamespaces)
 {
-	int i;
+	size_t i;
 	getdns_return_t r;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
@@ -3057,7 +3393,7 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 
-#  ifdef HAVE_TLS_CLIENT_METHOD
+#  ifdef HAVE_SSL_CTX_SET_MIN_PROTO_VERSION
 			if (!SSL_CTX_set_min_proto_version(
 			    context->tls_ctx, TLS1_2_VERSION)) {
 				SSL_CTX_free(context->tls_ctx);
@@ -3132,54 +3468,6 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 	context->resolution_type_set = context->resolution_type;
 	return r;
 } /* _getdns_context_prepare_for_resolution */
-
-getdns_return_t
-_getdns_context_track_outbound_request(getdns_dns_req *dnsreq)
-{
-    	if (!dnsreq)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	dnsreq->node.key = &(dnsreq->trans_id);
-	if (!_getdns_rbtree_insert(
-	    &dnsreq->context->outbound_requests, &dnsreq->node))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	getdns_context_request_count_changed(dnsreq->context);
-	return GETDNS_RETURN_GOOD;
-}
-
-getdns_return_t
-_getdns_context_clear_outbound_request(getdns_dns_req *dnsreq)
-{
-    	if (!dnsreq)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (!_getdns_rbtree_delete(
-	    &dnsreq->context->outbound_requests, &dnsreq->trans_id))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	getdns_context_request_count_changed(dnsreq->context);
-	return GETDNS_RETURN_GOOD;
-}
-
-getdns_return_t
-_getdns_context_request_timed_out(getdns_dns_req *req)
-{
-	/* Don't use req after callback */
-	getdns_context* context = req->context;
-	getdns_transaction_t trans_id = req->trans_id;
-	getdns_callback_t cb = req->user_callback;
-	void *user_arg = req->user_pointer;
-	getdns_dict *response = _getdns_create_getdns_response(req);
-
-	/* cancel the req - also clears it from outbound and cleans up*/
-	_getdns_context_cancel_request(context, trans_id, 0);
-	context->processing = 1;
-	cb(context, GETDNS_CALLBACK_TIMEOUT, response, user_arg, trans_id);
-	context->processing = 0;
-	getdns_context_request_count_changed(context);
-	return GETDNS_RETURN_GOOD;
-}
 
 char *
 _getdns_strdup(const struct mem_funcs *mfs, const char *s)
@@ -3262,33 +3550,6 @@ getdns_context_run(getdns_context *context)
 	context->extension->vmt->run(context->extension);
 }
 
-typedef struct timeout_accumulator {
-    getdns_transaction_t* ids;
-    int idx;
-} timeout_accumulator;
-
-static void
-accumulate_outstanding_transactions(_getdns_rbnode_t* node, void* arg) {
-    timeout_accumulator* acc = (timeout_accumulator*) arg;
-    acc->ids[acc->idx] = *((getdns_transaction_t*) node->key);
-    acc->idx++;
-}
-
-static void
-cancel_outstanding_requests(struct getdns_context* context, int fire_callback) {
-    if (context->outbound_requests.count > 0) {
-        timeout_accumulator acc;
-        int i;
-        acc.idx = 0;
-        acc.ids = GETDNS_XMALLOC(context->my_mf, getdns_transaction_t, context->outbound_requests.count);
-        _getdns_traverse_postorder(&context->outbound_requests, accumulate_outstanding_transactions, &acc);
-        for (i = 0; i < acc.idx; ++i) {
-            _getdns_context_cancel_request(context, acc.ids[i], fire_callback);
-        }
-        GETDNS_FREE(context->my_mf, acc.ids);
-    }
-}
-
 getdns_return_t
 getdns_context_detach_eventloop(struct getdns_context* context)
 {
@@ -3302,10 +3563,10 @@ getdns_context_detach_eventloop(struct getdns_context* context)
 	 *   and they may destroy the context )
 	 */
 	/* cancel all outstanding requests */
-	cancel_outstanding_requests(context, 1);
+	cancel_outstanding_requests(context);
 	context->extension->vmt->cleanup(context->extension);
 	context->extension = &context->default_eventloop.loop;
-	_getdns_default_eventloop_init(&context->default_eventloop);
+	_getdns_default_eventloop_init(&context->mf, &context->default_eventloop);
 #ifdef HAVE_UNBOUND_EVENT_API
 	if (_getdns_ub_loop_enabled(&context->ub_loop))
 		context->ub_loop.extension = context->extension;
@@ -3320,7 +3581,7 @@ getdns_context_set_eventloop(getdns_context* context, getdns_eventloop* loop)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if (context->extension) {
-		cancel_outstanding_requests(context, 1);
+		cancel_outstanding_requests(context);
 		context->extension->vmt->cleanup(context->extension);
 	}
 	context->extension = loop;
@@ -3345,14 +3606,6 @@ getdns_context_get_eventloop(getdns_context *context, getdns_eventloop **loop)
 	return GETDNS_RETURN_GOOD;
 }
 
-static in_port_t
-upstream_port(getdns_upstream *upstream)
-{
-	return ntohs(upstream->addr.ss_family == AF_INET
-	     ? ((struct sockaddr_in *)&upstream->addr)->sin_port
-	     : ((struct sockaddr_in6*)&upstream->addr)->sin6_port);
-}
-
 static getdns_dict*
 _get_context_settings(getdns_context* context)
 {
@@ -3364,10 +3617,12 @@ _get_context_settings(getdns_context* context)
 		return NULL;
 
 	/* int fields */
+	/* the timeouts are stored as uint64, but the value maximum used in
+	   practice is 6553500ms, so we just trim the value to be on the safe side. */
 	if (   getdns_dict_set_int(result, "timeout",
-	                           context->timeout)
+	                           (context->timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF: (uint32_t) context->timeout)
 	    || getdns_dict_set_int(result, "idle_timeout",
-	                           context->idle_timeout)
+	                           (context->idle_timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF : (uint32_t) context->idle_timeout)
 	    || getdns_dict_set_int(result, "limit_outstanding_queries",
 	                           context->limit_outstanding_queries)
             || getdns_dict_set_int(result, "dnssec_allowed_skew",
@@ -3386,7 +3641,13 @@ _get_context_settings(getdns_context* context)
 	    || getdns_dict_set_int(result, "append_name",
 	                           context->append_name)
 	    || getdns_dict_set_int(result, "tls_authentication",
-	                           context->tls_auth))
+	                           context->tls_auth)
+	    || getdns_dict_set_int(result, "round_robin_upstreams",
+	                           context->round_robin_upstreams)
+	    || getdns_dict_set_int(result, "tls_backoff_time",
+	                           context->tls_backoff_time)
+	    || getdns_dict_set_int(result, "tls_connection_retries",
+	                           context->tls_connection_retries))
 		goto error;
 	
 	/* list fields */
@@ -3511,7 +3772,7 @@ _getdns_context_local_namespace_resolve(
 	getdns_context  *context = dnsreq->context;
 	host_name_addrs *hnas;
 	uint8_t lookup[256];
-	getdns_list    empty_list = { 0 };
+	getdns_list    empty_list = { 0, 0, NULL, { NULL, {{ NULL, NULL, NULL }}}};
 	getdns_bindata bindata;
 	getdns_list   *jaa;
 	size_t         i;
@@ -3683,6 +3944,33 @@ getdns_context_get_tls_authentication(getdns_context *context,
 }
 
 getdns_return_t
+getdns_context_get_round_robin_upstreams(getdns_context *context,
+    uint8_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->round_robin_upstreams;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_backoff_time(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_backoff_time;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_connection_retries(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->tls_connection_retries;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
 getdns_context_get_limit_outstanding_queries(getdns_context *context,
     uint16_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
@@ -3761,8 +4049,7 @@ getdns_context_get_suffix(getdns_context *context, getdns_list **value)
 			r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
 		}
-		if ((r = _getdns_list_append_const_bindata(
-		    list, strlen(name) + 1, name)))
+		if ((r = _getdns_list_append_string(list, name)))
 			break;
 		dname += dname_len;
 		dname_len = *dname++;
@@ -3911,7 +4198,8 @@ getdns_context_get_edns_maximum_udp_payload_size(getdns_context *context,
     uint16_t* value) {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
-    *value = context->edns_maximum_udp_payload_size;
+    *value = context->edns_maximum_udp_payload_size == -1 ? 0
+           : context->edns_maximum_udp_payload_size;
     return GETDNS_RETURN_GOOD;
 }
 
@@ -4023,7 +4311,7 @@ static getdns_return_t _get_list_or_read_file(const getdns_dict *config_dict,
 					break; \
 				X[i] = (getdns_ ## T ## _t)n; \
 			} \
-			r = getdns_context_set_ ##X (context, count, X); \
+			r = getdns_context_set_ ##X (context, i, X); \
 		}
 
 #define EXTENSION_SETTING_BOOL(X) \
@@ -4079,6 +4367,9 @@ _getdns_context_config_setting(getdns_context *context,
 
 	CONTEXT_SETTING_INT(edns_client_subnet_private)
 	CONTEXT_SETTING_INT(tls_authentication)
+	CONTEXT_SETTING_INT(round_robin_upstreams)
+	CONTEXT_SETTING_INT(tls_backoff_time)
+	CONTEXT_SETTING_INT(tls_connection_retries)
 	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
 
 	/**************************************/

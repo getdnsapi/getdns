@@ -123,18 +123,22 @@ getdns_sync_data_cleanup(getdns_sync_data *data)
 			 * synchronous request.
 			 */
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-			(*upstream->event.timeout_cb)(upstream->event.userarg);
-
-			/* This should have cleared the event */
-			assert(!upstream->event.read_cb &&
-			       !upstream->event.write_cb &&
-			       !upstream->event.timeout_cb);
+			if (upstream->conn_state != GETDNS_CONN_OPEN ||
+			    upstream->keepalive_timeout == 0)
+				(*upstream->event.timeout_cb)(upstream->event.userarg);
 		}
 		upstream->loop = data->context->extension;
 		upstream->is_sync_loop = 0;
 		if (upstream->event.read_cb || upstream->event.write_cb)
 			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
 			    TIMEOUT_FOREVER, &upstream->event);
+
+		else if (upstream->event.timeout_cb &&
+		    upstream->conn_state == GETDNS_CONN_OPEN &&
+		    upstream->keepalive_timeout != 0) {
+			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
+			    upstream->keepalive_timeout, &upstream->event);
+		}
 	}
 }
 
@@ -151,6 +155,7 @@ getdns_sync_cb(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t transaction_id)
 {
 	getdns_sync_data *data = (getdns_sync_data *)userarg;
+	(void)context; (void)callback_type; (void)transaction_id;
 
 	assert(data);
 

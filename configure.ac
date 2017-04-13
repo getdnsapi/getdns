@@ -37,7 +37,7 @@ sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
 AC_INIT([getdns], [1.1.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
-AC_SUBST(RELEASE_CANDIDATE, [a1])
+AC_SUBST(RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -47,7 +47,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x0100A100])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01010000])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -77,10 +77,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.5.0 had libversion 4:0:3
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
 # getdns-0.9.0 had libversion 5:0:4
-# getdns-1.0.0 will have libversion 5:1:4
-# getdns-1.1.0 will have libversion 6:0:5
+# getdns-1.0.0 had  libversion 5:1:4
+# getdns-1.1.0 will have libversion 6:0:0
 #
-GETDNS_LIBVERSION=6:0:5
+GETDNS_LIBVERSION=6:0:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -96,9 +96,17 @@ AC_PROG_CPP
 AC_CANONICAL_HOST
 
 CFLAGS="$CFLAGS"
+WPEDANTICFLAG=""
+WNOERRORFLAG=""
 AC_PROG_CC_C99
 AX_CHECK_COMPILE_FLAG([-xc99],[CFLAGS="$CFLAGS -xc99"],[],[])
 AX_CHECK_COMPILE_FLAG([-Wall],[CFLAGS="$CFLAGS -Wall"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wextra],[CFLAGS="$CFLAGS -Wextra"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wpedantic],[WPEDANTICFLAG="-Wpedantic"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wno-error=unused-parameter],[WNOERRORFLAG="-Wno-error=unused-parameter"],[],[])
+AX_CHECK_COMPILE_FLAG([-Wno-unused-parameter],[WNOERRORFLAG="$WNOERRORFLAG -Wno-unused-parameter"],[],[])
+AC_SUBST(WPEDANTICFLAG)
+AC_SUBST(WNOERRORFLAG)
 
 case "$host_os" in
   linux* ) CFLAGS="$CFLAGS -D_BSD_SOURCE -D_DEFAULT_SOURCE"
@@ -141,18 +149,28 @@ fi
 ])
 ACX_ARG_RPATH
 
-
+AC_ARG_ENABLE(debug-req, AC_HELP_STRING([--enable-debug-req], [Enable request debugging]))
 AC_ARG_ENABLE(debug-sched, AC_HELP_STRING([--enable-debug-sched], [Enable scheduling debugging messages]))
 AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub debugging messages]))
+AC_ARG_ENABLE(debug-daemon, AC_HELP_STRING([--enable-debug-daemon], [Enable daemon debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
-AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
+AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable all debugging messages]))
 case "$enable_all_debugging" in
 	yes)
+		enable_debug_req=yes
 		enable_debug_sched=yes
 		enable_debug_stub=yes
+		enable_debug_daemon=yes
 		enable_debug_sec=yes
 		enable_debug_server=yes
+		;;
+	no|*)
+		;;
+esac
+case "$enable_debug_req" in
+	yes)
+		AC_DEFINE_UNQUOTED([REQ_DEBUG], [1], [Define this to enable printing of request debugging messages.])
 		;;
 	no|*)
 		;;
@@ -167,6 +185,13 @@ esac
 case "$enable_debug_stub" in
 	yes)
 		AC_DEFINE_UNQUOTED([STUB_DEBUG], [1], [Define this to enable printing of stub debugging messages.])
+		;;
+	no|*)
+		;;
+esac
+case "$enable_debug_daemon" in
+	yes)
+		AC_DEFINE_UNQUOTED([DAEMON_DEBUG], [1], [Define this to enable printing of daemon debugging messages.])
 		;;
 	no|*)
 		;;
@@ -197,6 +222,30 @@ case "$enable_debug_keep_connections_open" in
 	no)
 		;;
 esac
+
+
+DEFAULT_EVENTLOOP=select_eventloop
+AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h],,, [AC_INCLUDES_DEFAULT])
+AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
+case "$enable_poll_eventloop" in
+	no)
+		;;
+	yes|*)
+AC_MSG_CHECKING(for poll)
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
+], [int rc; rc = poll((struct pollfd *)(0), 0, 0);])], [
+AC_MSG_RESULT(yes)
+AC_DEFINE_UNQUOTED([USE_POLL_DEFAULT_EVENTLOOP], [1], [Define this to enable a default eventloop based on poll().])
+DEFAULT_EVENTLOOP=poll_eventloop
+],[AC_MSG_RESULT(no)])
+		;;
+esac
+AC_SUBST(DEFAULT_EVENTLOOP)
 
 AC_ARG_ENABLE(tcp-fastopen, AC_HELP_STRING([--disable-tcp-fastopen], Disable TCP Fast Open (default=enabled if available)),
     enable_tcp_fastopen="$enableval", enable_tcp_fastopen=yes)
@@ -246,7 +295,8 @@ else
 fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method])
+AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 SSL_CTX_set_min_proto_version])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -269,6 +319,15 @@ AC_INCLUDES_DEFAULT
 ])
 fi
 
+
+AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
+	case "$enable_sha1" in
+	no)
+	;;
+	yes|*)
+	AC_DEFINE([USE_SHA1], [1], [Define this to enable SHA1 support.])
+	;;
+esac
 
 AC_ARG_ENABLE(sha2, AC_HELP_STRING([--disable-sha2], [Disable SHA256 and SHA512 RRSIG support]))
 case "$enable_sha2" in
@@ -433,39 +492,39 @@ case "$enable_dsa" in
       ;;
     *) dnl default
       # detect if DSA is supported, and turn it off if not.
-      AC_CHECK_FUNC(EVP_dss1, [
+      AC_CHECK_FUNC(DSA_SIG_new, [
 	AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
       ], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
 	  fi ])
       ;;
 esac
 
-AC_ARG_ENABLE(draft-dnssec-roadblock-avoidance, AC_HELP_STRING([--enable-draft-dnssec-roadblock-avoidance], [Enable experimental dnssec roadblock avoidance]))
-AC_ARG_ENABLE(draft-edns-cookies, AC_HELP_STRING([--enable-draft-edns-cookies], [Enable experimental edns cookies]))
-AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enable cookies and roadblock avoidance]))
+AC_ARG_ENABLE(all-drafts, AC_HELP_STRING([--enable-all-drafts], [Enables the draft mdns client support]))
 case "$enable_all_drafts" in
 	yes)
-		enable_draft_dnssec_roadblock_avoidance=yes
-		enable_draft_edns_cookies=yes
+		AC_DEFINE_UNQUOTED([HAVE_MDNS_SUPPORT], [1], [Define this to enable the draft mdns client support.])
 		;;
 	no|*)
 		;;
 esac
-case "$enable_draft_dnssec_roadblock_avoidance" in
-	yes)
-		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental draft dnssec roadblock avoidance.])
+AC_ARG_ENABLE(dnssec-roadblock-avoidance, AC_HELP_STRING([--disable-dnssec-roadblock-avoidance], [Disable dnssec roadblock avoidance]))
+case "$enable_dnssec_roadblock_avoidance" in
+	no)
 		;;
-	no|*)
+	yes|*)
+		AC_DEFINE_UNQUOTED([DNSSEC_ROADBLOCK_AVOIDANCE], [1], [Define this to enable the experimental dnssec roadblock avoidance.])
 		;;
 esac
-case "$enable_draft_edns_cookies" in
-	yes)
+
+AC_ARG_ENABLE(edns-cookies, AC_HELP_STRING([--disable-edns-cookies], [Disable edns cookies]))
+case "$enable_edns_cookies" in
+	no)
+		;;
+	yes|*)
 		if test "x_$HAVE_SSL" != "x_yes"; then
-			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun without --enable-draft-edns-cookies])
+			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun with --disable-edns-cookies])
 		fi
-		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental draft edns cookies.])
-		;;
-	no|*)
+		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental edns cookies.])
 		;;
 esac
 AC_DEFINE_UNQUOTED([EDNS_COOKIE_OPCODE], [10], [The edns cookie option code.])
@@ -473,6 +532,15 @@ AC_DEFINE_UNQUOTED([EDNS_COOKIE_ROLLOVER_TIME], [(24 * 60 * 60)], [How often the
 
 AC_DEFINE_UNQUOTED([MAXIMUM_UPSTREAM_OPTION_SPACE], [3000], [limit for dynamically-generated DNS options])
 AC_DEFINE_UNQUOTED([EDNS_PADDING_OPCODE], [12], [The edns padding option code.])
+
+AC_ARG_ENABLE(draft-mdns-support, AC_HELP_STRING([--enable-draft-mdns-support], [Enable draft mdns client support]))
+case "$enable_draft_mdns_support" in
+	yes)
+		AC_DEFINE_UNQUOTED([HAVE_MDNS_SUPPORT], [1], [Define this to enable the draft mdns client support.])
+		;;
+	no|*)
+		;;
+esac
 
 my_with_libunbound=1
 AC_ARG_ENABLE(stub-only, AC_HELP_STRING([--enable-stub-only], [Restricts resolution modes to STUB (which will be the default mode).  Removes the libunbound dependency.]))
@@ -553,10 +621,16 @@ fi
 
 # Checks for libraries.
 found_all_libs=1
+MISSING_DEPS=""
+MISSING_SEP=""
 if test $my_with_libidn = 1
 then
 	AC_MSG_NOTICE([Checking for dependency libidn])
-	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [found_all_libs=0])
+	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
 fi
 
 AC_ARG_ENABLE(unbound-event-api, AC_HELP_STRING([--disable-unbound-event-api], [Disable usage of libunbounds event API]))
@@ -585,12 +659,16 @@ then
 			])
 		fi
 		AC_CHECK_FUNCS([ub_ctx_set_stub])
-	], [found_all_libs=0])
+	], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libunbound"
+		MISSING_SEP=", "
+		found_all_libs=0
+	])
 fi
 
 if test $found_all_libs = 0
 then
-    AC_MSG_ERROR([One more dependencies is missing])
+    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
@@ -607,7 +685,7 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
-AC_CHECK_TYPE([u_char])
+AC_CHECK_TYPES([u_char])
 
 AC_CHECK_FUNCS([fcntl])
 # check ioctlsocket
@@ -692,7 +770,7 @@ AS_IF([test x_$withval = x_no],
                     [AC_MSG_ERROR([event2/event.h and event.h missing, try without libevent])]
                     [have_libevent=0],
                     [AC_INCLUDES_DEFAULT]
-                    [#if HAVE_U_CHAR == 0
+                    [#ifndef HAVE_U_CHAR
                      typedef unsigned char u_char;
                      #endif])],
                 [AC_INCLUDES_DEFAULT])],
@@ -903,6 +981,26 @@ else
 	INSTALL_GETDNS_QUERY="install-getdns_query"
 	UNINSTALL_GETDNS_QUERY="uninstall-getdns_query"
 fi
+AC_SUBST(GETDNS_QUERY)
+AC_SUBST(INSTALL_GETDNS_QUERY)
+AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
+AC_ARG_WITH(stubby, AS_HELP_STRING([--without-stubby],
+	[Do not compile and install stubby, the (stub) resolver daemon]),
+	[], [withval="yes"])
+if test x_$withval = x_no; then
+	STUBBY=""
+	INSTALL_STUBBY=""
+	UNINSTALL_STUBBY=""
+else
+	STUBBY="stubby"
+	INSTALL_STUBBY="install-stubby"
+	UNINSTALL_STUBBY="uninstall-stubby"
+fi
+AC_SUBST(STUBBY)
+AC_SUBST(INSTALL_STUBBY)
+AC_SUBST(UNINSTALL_STUBBY)
+
 AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
 	[Set maximum file descriptor number that can be used by select]),
 	[], [withval="no"])
@@ -915,22 +1013,33 @@ case "$withval" in
 		;;
 esac
 
-AC_SUBST(GETDNS_QUERY)
-AC_SUBST(INSTALL_GETDNS_QUERY)
-AC_SUBST(UNINSTALL_GETDNS_QUERY)
-
 AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
 
 
+#---- check for pthreads library
+AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
+	AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
+	LIBS="-lpthread $LIBS"
+], [AC_MSG_WARN([pthreads not available])])
+
+AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
+AC_LANG_PUSH(C)
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([[char*s=__func__;]],[[]])],
+	[AC_MSG_RESULT([yes])
+	 AC_DEFINE(HAVE___FUNC__, [1], [Whether the C compiler support the __func__ variable])],
+	[AC_MSG_RESULT([no])])
+AC_LANG_POP(C)
+
 dnl -----
 dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -1022,8 +1131,6 @@ if test "$ac_cv_func_arc4random" = "no"; then
 	])
 fi
 
-AC_DEFINE(USE_MINI_EVENT, 1, [Needed for sync stub resolver functions])
-
 AC_TYPE_SIGNAL
 
 case `uname` in
@@ -1040,18 +1147,23 @@ AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname re
 
 AH_BOTTOM([
 
-#ifdef GETDNS_ON_WINDOWS
-/* On windows it is allowed to increase the FD_SETSIZE
- * (and nescessary to make our custom eventloop work)
- * See: https://support.microsoft.com/en-us/kb/111855
- */
-#ifndef FD_SETSIZE
-#define FD_SETSIZE 1024
+#ifdef HAVE___FUNC__
+#define __FUNC__ __func__
+#else
+#define __FUNC__ __FUNCTION__
 #endif
 
-#define PRIsz "%Iu"
+#ifdef GETDNS_ON_WINDOWS
+ /* On windows it is allowed to increase the FD_SETSIZE
+  * (and nescessary to make our custom eventloop work)
+  * See: https://support.microsoft.com/en-us/kb/111855
+  */
+# ifndef FD_SETSIZE
+# define FD_SETSIZE 1024
+# endif
+# define PRIsz "%Iu"
 #else
-#define PRIsz "%zu"
+# define PRIsz "%zu"
 #endif
 
 #include <stdint.h>
@@ -1087,8 +1199,6 @@ AH_BOTTOM([
 #else
 #define FD_SET_T 
 #endif
-
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -1142,6 +1252,12 @@ int inet_pton(int af, const char* src, void* dst);
 
 #ifndef HAVE_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifdef USE_WINSOCK
+static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *format, va_list ap)
+{ int r = vsnprintf(str, size, format, ap); return r == -1 ? _vscprintf(format, ap) : r; }
+# define vsnprintf _gldns_custom_vsnprintf
 #endif
 
 #ifdef __cplusplus

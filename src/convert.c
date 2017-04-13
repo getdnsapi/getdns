@@ -57,8 +57,14 @@
 #include "convert.h"
 #include "debug.h"
 
-/* stuff to make it compile pedantically */
-#define UNUSED_PARAM(x) ((void)(x))
+/* strdup is marked deprecated by the Windows compiler */
+#ifndef STRDUP
+#ifdef GETDNS_ON_WINDOWS
+#define STRDUP(x) _strdup(x)
+#else
+#define STRDUP(x) strdup(x)
+#endif
+#endif
 
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
@@ -154,6 +160,7 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
     free(prepped2);
     return buf;
 #else
+    (void)ulabel;
     return NULL;
 #endif
 }
@@ -183,6 +190,7 @@ getdns_convert_alabel_to_ulabel(const char *alabel)
     }
     return buf;
 #else
+    (void)alabel;
     return NULL;
 #endif
 }
@@ -204,7 +212,7 @@ getdns_display_ip_address(const struct getdns_bindata
 		    buff,
 		    256);
 		if (ipStr) {
-			return strdup(ipStr);
+			return STRDUP(ipStr);
 		}
 	} else if (bindata_of_ipv4_or_ipv6_address->size == 16) {
 		const char *ipStr = inet_ntop(AF_INET6,
@@ -212,7 +220,7 @@ getdns_display_ip_address(const struct getdns_bindata
 		    buff,
 		    256);
 		if (ipStr) {
-			return strdup(ipStr);
+			return STRDUP(ipStr);
 		}
 	}
 	return NULL;
@@ -289,7 +297,7 @@ getdns_rr_dict2wire_scan(
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 
-	gldns_buffer_init_frm_data(&gbuf, *wire, *wire_sz);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, *wire, *wire_sz);
 	if ((r = _getdns_rr_dict2wire(rr_dict, &gbuf)))
 		return r;
 
@@ -439,7 +447,7 @@ getdns_rr_dict2str_scan(
 	if (!rr_dict || !str || !*str || !str_len)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	gldns_buffer_init_frm_data(&gbuf, buf, sizeof(buf_spc));
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf, sizeof(buf_spc));
 	r = _getdns_rr_dict2wire(rr_dict, &gbuf);
 	if (gldns_buffer_position(&gbuf) > sizeof(buf_spc)) {
 		if (!(buf = GETDNS_XMALLOC(
@@ -830,7 +838,6 @@ _getdns_reply_dict2wire(
 		}
 	}
 	remove_dnssec = !getdns_dict_get_int(reply, "/header/do", &n) && n == 0;
-	DEBUG_SERVER("remove_dnssec: %d\n", remove_dnssec);
 
 	if (!getdns_dict_get_list(reply, "answer", &section)) {
 		for ( n = 0, i = 0
@@ -953,7 +960,7 @@ getdns_msg_dict2wire_scan(
 	if (!msg_dict || !wire || !wire_sz || (!*wire && *wire_sz))
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	gldns_buffer_init_frm_data(&gbuf, *wire, *wire_sz);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, *wire, *wire_sz);
 	if ((r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf)))
 		return r;
 
@@ -1029,7 +1036,7 @@ getdns_msg_dict2str_scan(
 	if (!msg_dict || !str || !*str || !str_len)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	gldns_buffer_init_frm_data(&gbuf, buf, sizeof(buf_spc));
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf, sizeof(buf_spc));
 	r = _getdns_msg_dict2wire_buf(msg_dict, &gbuf);
 	if (gldns_buffer_position(&gbuf) > sizeof(buf_spc)) {
 		if (!(buf = GETDNS_XMALLOC(
@@ -1066,7 +1073,7 @@ getdns_msg_dict2str_scan(
 }
 
 static getdns_dict *
-_getdns_ipaddr_dict_mf(struct mem_funcs *mf, char *ipstr)
+_getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 {
 	getdns_dict *r = _getdns_dict_create_with_mf(mf);
 	char *s = strchr(ipstr, '%'), *scope_id_str = "";
@@ -1187,7 +1194,7 @@ static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	char value_str[3072];
 	int size = t->end - t->start;
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1197,21 +1204,81 @@ static int _jsmn_get_ipdict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return *value != NULL;
 }
 
+static int _jsmn_get_base64_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
+    getdns_bindata **value)
+{
+	int e, i;
+	int size = t->end - t->start;
+	char value_str_buf[1025];
+	char *value_str;
+	size_t target_buf_size;
+
+	assert(size >= 4);
+
+	if (size % 4 != 0)
+		return 0;
+
+	e = t->end;
+	if (js[e - 1] == '=') e -= 1;
+	if (js[e - 1] == '=') e -= 1;
+
+	for (i = t->start; i < e; i++)
+		if (!((js[i] >= '0' && js[i] <= '9')
+		    ||(js[i] >= 'a' && js[i] <= 'z')
+		    ||(js[i] >= 'A' && js[i] <= 'Z')
+		    || js[i] == '+' || js[i] == '/'))
+			return 0;
+
+	target_buf_size = gldns_b64_pton_calculate_size(size);
+	if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
+		return 0;
+
+	else if (!((*value)->data = GETDNS_XMALLOC(
+	    *mf, uint8_t, target_buf_size))) {
+		GETDNS_FREE(*mf, *value);
+		return 0;
+	}
+	if ((size_t)size >= sizeof(value_str_buf))
+		value_str = GETDNS_XMALLOC(*mf, char, size + 1);
+	else	value_str = value_str_buf;
+	
+	if (value_str) {
+		(void) memcpy(value_str, js + t->start, size);
+		value_str[size] = '\0';
+
+		e = gldns_b64_pton(value_str, (*value)->data, target_buf_size);
+
+		if (value_str != value_str_buf)
+			GETDNS_FREE(*mf, value_str);
+
+		if (e > 0) {
+			(*value)->size = e;
+			return 1;
+		}
+	}
+	GETDNS_FREE(*mf, (*value)->data);
+	GETDNS_FREE(*mf,  *value);
+	return 0;
+}
+
 static int _jsmn_get_data(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     getdns_bindata **value)
 {
-	size_t i, j;
+	int i;
+	size_t j;
 	uint8_t h, l;
 
-	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1 ||
-	    js[t->start] != '0' || js[t->start + 1] != 'x')
+	if ((t->end - t->start) < 4 || (t->end - t->start) % 2 == 1)
 		return 0;
+
+	if (js[t->start] != '0' || js[t->start + 1] != 'x')
+		return _jsmn_get_base64_data(mf, js, t, value);
 
 	for (i = t->start + 2; i < t->end; i++)
 		if (!((js[i] >= '0' && js[i] <= '9')
 		    ||(js[i] >= 'a' && js[i] <= 'f')
 		    ||(js[i] >= 'A' && js[i] <= 'F')))
-			return 0;
+			return _jsmn_get_base64_data(mf, js, t, value);
 
 	if (!(*value = GETDNS_MALLOC(*mf, getdns_bindata)))
 		return 0;
@@ -1241,8 +1308,9 @@ static int _jsmn_get_dname(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 {
 	char value_str[1025];
 	int size = t->end - t->start;
+	(void)mf; /* TODO: Fix to use  mf */
 
-	if (size <= 0 || size >= sizeof(value_str) || js[t->end - 1] != '.')
+	if (size <= 0 || size >= (int)sizeof(value_str) || js[t->end - 1] != '.')
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1258,7 +1326,7 @@ static int _jsmn_get_ipv4(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	int size = t->end - t->start;
 	uint8_t buf[4];
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1288,7 +1356,7 @@ static int _jsmn_get_ipv6(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	int size = t->end - t->start;
 	uint8_t buf[16];
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1311,14 +1379,13 @@ static int _jsmn_get_ipv6(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return 0;
 }
 
-static int _jsmn_get_int(struct mem_funcs *mf, const char *js, jsmntok_t *t,
-    uint32_t *value)
+static int _jsmn_get_int(const char *js, jsmntok_t *t, uint32_t *value)
 {
 	char value_str[11];
 	int size = t->end - t->start;
 	char *endptr;
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1328,13 +1395,12 @@ static int _jsmn_get_int(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 	return *value_str != '\0' && *endptr == '\0';
 }
 
-static int _jsmn_get_const(struct mem_funcs *mf, const char *js, jsmntok_t *t,
-    uint32_t *value)
+static int _jsmn_get_const(const char *js, jsmntok_t *t, uint32_t *value)
 {
 	char value_str[80];
 	int size = t->end - t->start;
 
-	if (size <= 0 || size >= sizeof(value_str))
+	if (size <= 0 || size >= (int)sizeof(value_str))
 		return 0;
 
 	(void) memcpy(value_str, js + t->start, size);
@@ -1368,7 +1434,8 @@ static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     size_t count, getdns_dict *dict, getdns_return_t *r)
 {
-	size_t i, j = 1;
+	int i;
+	size_t j = 1;
 	char key_spc[1024], *key = NULL;
 	getdns_item child_item;
 
@@ -1388,7 +1455,7 @@ static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 			*r = GETDNS_RETURN_GENERIC_ERROR; /* range error */
 			break;
 		}
-		if (t[j].end - t[j].start < sizeof(key_spc))
+		if (t[j].end - t[j].start < (int)sizeof(key_spc))
 			key = key_spc;
 
 		else if (!(key = GETDNS_XMALLOC(
@@ -1446,7 +1513,8 @@ static int _jsmn_get_dict(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 static int _jsmn_get_list(struct mem_funcs *mf, const char *js, jsmntok_t *t,
     size_t count, getdns_list *list, getdns_return_t *r)
 {
-	size_t i, j = 1, index = 0;
+	int i;
+	size_t j = 1, index = 0;
 	getdns_item child_item;
 
 	if (t->size <= 0)
@@ -1525,8 +1593,8 @@ static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 			*r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
 
-		} else if (_jsmn_get_int(mf, js, t, &item->data.n)
-		    || _jsmn_get_const(mf, js, t, &item->data.n)) {
+		} else if (_jsmn_get_int(js, t, &item->data.n)
+		    || _jsmn_get_const(js, t, &item->data.n)) {
 
 			item->dtype = t_int;
 		}
@@ -1607,6 +1675,21 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 	getdns_item item;
 	getdns_return_t r;
 
+	if (!str || !dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	while (*str && isspace(*str))
+		str++;
+
+	if (*str != '{') {
+		getdns_dict *dict_r = _getdns_ipaddr_dict_mf(
+		    &_getdns_plain_mem_funcs, str);
+
+		if (dict_r) {
+			*dict = dict_r;
+			return GETDNS_RETURN_GOOD;
+		}
+	}
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
@@ -1664,6 +1747,9 @@ getdns_str2list(const char *str, getdns_list **list)
 	getdns_item item;
 	getdns_return_t r;
 
+	if (!str || !list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
@@ -1681,6 +1767,9 @@ getdns_str2bindata(const char *str, getdns_bindata **bindata)
 	getdns_item item;
 	getdns_return_t r;
 
+	if (!str || !bindata)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;
 
@@ -1697,6 +1786,9 @@ getdns_str2int(const char *str, uint32_t *value)
 {
 	getdns_item item;
 	getdns_return_t r;
+
+	if (!str || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	if ((r = _getdns_str2item_mf(&_getdns_plain_mem_funcs, str, &item)))
 		return r;

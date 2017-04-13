@@ -195,7 +195,7 @@ enum gldns_enum_rr_type
         GLDNS_RR_TYPE_TALINK = 58,
 	GLDNS_RR_TYPE_CDS = 59, /** RFC 7344 */
 	GLDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
-	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* draft-ietf-dane-openpgpkey */
+	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	GLDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
 
 	GLDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
@@ -372,6 +372,8 @@ enum gldns_enum_algorithm
         GLDNS_ECC_GOST           = 12,  /* RFC 5933 */
         GLDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
         GLDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+	GLDNS_ED25519		= 15,  /* RFC 8080 */
+	GLDNS_ED448		= 16,  /* RFC 8080 */
         GLDNS_INDIRECT           = 252,
         GLDNS_PRIVATEDNS         = 253,
         GLDNS_PRIVATEOID         = 254

@@ -198,5 +198,25 @@ INLINE void _dname_canonicalize2(uint8_t *dname)
 	_dname_canonicalize(dname, dname);
 }
 
+INLINE uint64_t _getdns_get_now_ms()
+{
+	struct timeval tv;
+
+	(void) gettimeofday(&tv, NULL);
+	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+INLINE uint64_t _getdns_ms_until_expiry(uint64_t expires)
+{
+	uint64_t now_ms = _getdns_get_now_ms();
+	return now_ms >= expires ? 0 : expires - now_ms;
+}
+
+INLINE uint64_t _getdns_ms_until_expiry2(uint64_t expires, uint64_t *now_ms)
+{
+	if (*now_ms == 0) *now_ms = _getdns_get_now_ms();
+	return *now_ms >= expires ? 0 : expires - *now_ms;
+}
+
 #endif
 /* util-internal.h */

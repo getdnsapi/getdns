@@ -13,10 +13,10 @@ Recursive Resolver Cache
 Caching is arguably an important feature for most recursive resolvers.
 In this case we are not intending a replacement for the fully
 functional recursive resolvers already available (BIND, Unbound, etc.)
-so we shoudl limit a cache implementation to behaviors important to
+so we should limit a cache implementation to behaviors important to
 proper operation of a recursive resolver.
 
-DNSSEC validation can potentially triggers more queries than a simple
+DNSSEC validation can potentially trigger more queries than a simple
 request for a A RR so I think it makes sense to cache root and TLD
 data.  Once we have gone that far it isn't much of a reach to cache
 at each layer in the hierarchy (depth will not increase the coding

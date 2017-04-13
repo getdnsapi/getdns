@@ -1,3 +1,56 @@
+* 2017-04-13: Version 1.1.0
+  * bugfix: Check size of tls_auth_name.
+  * Improvements that came from Visual Studio static analysis
+  * Fix to compile with libressl.  Thanks phicoh.
+  * Spelling fixes.  Thanks Andreas Schulze.
+  * bugfix: Reschedule request timeout when getting the DNSSEC chain.
+  * getdns_context_unset_edns_maximum_udp_payload_size() to reset
+    to default IPv4/IPv6 dependent edns max udp payload size.
+  * Implement sensible default edns0 padding policy.  Thanks DKG.
+  * Keep connections open with sync requests too.
+  * Fix of event loops so they do not give up with naked timers with
+    windows.  Thanks Christian Huitema.
+  * Include peer certificate with DNS-over-TLS in combination with
+    the return_call_reporting extension.
+  * More fine grained control over TLS upstream retry and back off
+    behaviour with getdns_context_set_tls_backoff_time() and
+    getdns_context_set_tls_connection_retries().
+  * New round robin over the available upstreams feaure.
+    Enable with getdns_context_set_round_robin_upstreams()
+  * Bugfix: Queue requests when no sockets available for outgoing queries.
+  * Obey the outstanding query limit with STUB resolution mode too.
+  * Updated stubby config file
+  * Draft MDNS client implementation by Christian Huitema.
+    Enable with --enable-draft-mdns-support to configure
+  * bugfix: Let synchronous queries use fds > MAX_FDSETSIZE;
+            By moving default eventloop from select to poll
+    Thanks Neil Cook
+  * bugfix: authentication failure for self signed cert + only pinset
+  * bugfix: issue with session re-use making authentication appear to fail
+
+* 2017-01-13: Version 1.0.0
+  * edns0_cookies extension enabled by default (per RFC7873)
+  * dnssec_roadblock_avoidance enabled by default (per RFC8027)
+  * bugfix: DSA support with OpenSSL 1.1.0
+  * Initialize OpenSSL just once in a thread safe way
+  * Thread safety with arc4random function
+  * Improvements that came from Visual Studio static analysis
+    Thanks Christian Huitema
+  * Conventional RFC3986 IPv6 [address]:port parsing from getdns_query
+  * bugfix: OpenSSL 1.1.0 style crypto locking
+    Thanks volkommenheit
+  * configure tells *which* dependency is missing
+  * bugfix: Exclude terminating '\0' from bindata's returned by
+    getdns_get_suffix(). Thanks Jim Hague
+  * Better README.md.  Thanks Andrew Sullivan
+
+* 2016-10-19: Version 1.1.0-a2
+  * Improved TLS connection management
+  * OpenSSL 1.1 support
+  * Stubby, Server version of getdns_query that by default listens
+    on 127.0.0.1 and ::1 and reads config from /etc/stubby.conf
+    and $HOME/.stubby.conf
+
 * 2016-07-14: Version 1.1.0a1
   * Conversion functions from text strings to getdns native types:
     getdns_str2dict(), getdns_str2list(), getdns_str2bindata() and
@@ -127,7 +180,7 @@
     '-1' to append suffix only to single label after failure
     '-M' to append suffix only to multi label name after failure
     '-N' to never append a suffix
-    '-Z <suffixes>' to set suffixes with the given comma separed list
+    '-Z <suffixes>' to set suffixes with the given comma separated list
   * Better help text for getdns_query (printed with the '-h' option)
   * Setting the +specify_class extension with getdns_query
   * Return NOT_IMPLEMENTED for not implemented namespaces, and the

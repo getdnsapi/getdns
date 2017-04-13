@@ -149,6 +149,7 @@
        *    rcode = 0
        */
        void verify_getdns_address_6(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_address_6 };
        struct getdns_context *context = NULL;   \
        void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -157,7 +158,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_address(context, "google.com", NULL,
-         verify_getdns_address_6, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;
@@ -183,6 +184,7 @@
        *    ancount = 1 (number of records in ANSWER section)
        */
        void verify_getdns_address_7(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_address_7 };
        struct getdns_context *context = NULL;   \
        void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -191,7 +193,7 @@
        EVENT_BASE_CREATE;
 
        ASSERT_RC(getdns_address(context, "localhost", NULL,
-         verify_getdns_address_7, &transaction_id, callbackfn),
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;
@@ -213,6 +215,7 @@
        *    rcode = 3 (NXDOMAIN)
        */
        void verify_getdns_address_8(struct extracted_response *ex_response);
+       fn_cont fn_ref = { verify_getdns_address_8 };
        struct getdns_context *context = NULL;   \
        void* eventloop = NULL;    \
        getdns_transaction_t transaction_id = 0;
@@ -221,8 +224,8 @@
 
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_address(context, "hostnamedoesntexist", NULL,
-         verify_getdns_address_8, &transaction_id, callbackfn),
+       ASSERT_RC(getdns_address(context, "hostnamedoesntexist.", NULL,
+         &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
        RUN_EVENT_LOOP;

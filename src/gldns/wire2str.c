@@ -47,6 +47,8 @@ static gldns_lookup_table gldns_algorithms_data[] = {
 	{ GLDNS_ECC_GOST, "ECC-GOST"},
 	{ GLDNS_ECDSAP256SHA256, "ECDSAP256SHA256"},
 	{ GLDNS_ECDSAP384SHA384, "ECDSAP384SHA384"},
+	{ GLDNS_ED25519, "ED25519"},
+	{ GLDNS_ED448, "ED448"},
 	{ GLDNS_INDIRECT, "INDIRECT" },
 	{ GLDNS_PRIVATEDNS, "PRIVATEDNS" },
 	{ GLDNS_PRIVATEOID, "PRIVATEOID" },
@@ -193,14 +195,22 @@ char* gldns_wire2str_type(uint16_t rrtype)
 {
 	char buf[16];
 	gldns_wire2str_type_buf(rrtype, buf, sizeof(buf));
+#ifndef USE_WINSOCK
 	return strdup(buf);
+#else
+	return _strdup(buf);
+#endif
 }
 
 char* gldns_wire2str_class(uint16_t rrclass)
 {
 	char buf[16];
 	gldns_wire2str_class_buf(rrclass, buf, sizeof(buf));
+#ifndef USE_WINSOCK
 	return strdup(buf);
+#else
+	return _strdup(buf);
+#endif
 }
 
 char* gldns_wire2str_dname(uint8_t* dname, size_t dname_len)
@@ -216,7 +226,11 @@ char* gldns_wire2str_rcode(int rcode)
 {
 	char buf[16];
 	gldns_wire2str_rcode_buf(rcode, buf, sizeof(buf));
+#ifndef USE_WINSOCK
 	return strdup(buf);
+#else
+	return _strdup(buf);
+#endif
 }
 
 int gldns_wire2str_pkt_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
@@ -279,7 +293,7 @@ int gldns_wire2str_dname_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
 
 int gldns_str_vprint(char** str, size_t* slen, const char* format, va_list args)
 {
-	int w = _gldns_vsnprintf(*str, *slen, format, args);
+	int w = vsnprintf(*str, *slen, format, args);
 	if(w < 0) {
 		/* error in printout */
 		return 0;
@@ -668,7 +682,7 @@ int gldns_wire2str_rdata_scan(uint8_t** d, size_t* dlen, char** s,
 	uint8_t* origd = *d;
 	char* origs = *s;
 	size_t origdlen = *dlen, origslen = *slen;
-	uint16_t r_cnt, r_max;
+	size_t r_cnt, r_max;
 	gldns_rdf_type rdftype;
 	int w = 0, n;
 
@@ -789,8 +803,9 @@ int gldns_wire2str_dname_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 		}
 
 		/* spool label characters, end with '.' */
-		if(in_buf && *dlen < labellen) labellen = *dlen;
-		else if(!in_buf && pos+labellen > pkt+pktlen)
+		if(in_buf && *dlen < (size_t)labellen)
+			labellen = (uint8_t)*dlen;
+		else if(!in_buf && pos+(size_t)labellen > pkt+pktlen)
 			labellen = (uint8_t)(pkt + pktlen - pos);
 		for(i=0; i<(unsigned)labellen; i++) {
 			w += dname_char_print(s, slen, *pos++);
@@ -1983,10 +1998,10 @@ int gldns_wire2str_edns_scan(uint8_t** data, size_t* data_len, char** str,
 	w += gldns_str_print(str, str_len, " ; udp: %u", (unsigned)udpsize);
 
 	if(rdatalen) {
-		if(*data_len < rdatalen) {
+		if((size_t)*data_len < rdatalen) {
 			w += gldns_str_print(str, str_len,
 				" ; Error EDNS rdata too short; ");
-			rdatalen = *data_len;
+			rdatalen = (uint16_t)*data_len;
 		}
 		w += print_edns_opts(str, str_len, *data, rdatalen);
 		(*data) += rdatalen;

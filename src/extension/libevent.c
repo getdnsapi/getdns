@@ -95,6 +95,7 @@ static getdns_return_t
 getdns_libevent_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 {
 	struct event *my_ev = (struct event *)el_ev->ev;
+	(void)loop;
 
 	assert(my_ev);
 
@@ -110,6 +111,7 @@ static void
 getdns_libevent_callback(evutil_socket_t fd, short bits, void *arg)
 {
 	getdns_eventloop_event *el_ev = (getdns_eventloop_event *)arg;
+	(void)fd;
 
 	if (bits & EV_READ) {
 		assert(el_ev->read_cb);

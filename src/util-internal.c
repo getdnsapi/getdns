@@ -852,6 +852,16 @@ _getdns_create_call_reporting_dict(
 	   was actually used for the last successful query.*/
 	if (transport == GETDNS_TRANSPORT_TCP && netreq->debug_udp == 1) {
 		transport = GETDNS_TRANSPORT_UDP;
+		if (getdns_dict_set_int( netreq_debug, "udp_responses_for_this_upstream",
+		                         netreq->upstream->udp_responses)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "udp_timeouts_for_this_upstream",
+		                         netreq->upstream->udp_timeouts)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 	}
 	if (getdns_dict_set_int( netreq_debug, "transport", transport)) {
 		getdns_dict_destroy(netreq_debug);
@@ -866,11 +876,35 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		} else{
-			uint32_t idle_timeout = netreq->upstream->keepalive_timeout;
+			uint32_t idle_timeout = (uint32_t) netreq->upstream->keepalive_timeout;
 			if (getdns_dict_set_int( netreq_debug, "idle timeout in ms", idle_timeout)) {
 				getdns_dict_destroy(netreq_debug);
 				return NULL;
 			}
+		}
+		/* The running totals are only updated when a connection is closed.
+		   Since it is open as we have just used it, calcualte the value on the fly */
+		if (getdns_dict_set_int( netreq_debug, "responses_on_this_connection",
+		                         netreq->upstream->responses_received)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "timeouts_on_this_connection",
+		                         netreq->upstream->responses_timeouts)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "responses_for_this_upstream",
+		                         netreq->upstream->responses_received + 
+		                         netreq->upstream->total_responses)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
+		if (getdns_dict_set_int( netreq_debug, "timeouts_for_this_upstream",
+		                         netreq->upstream->responses_timeouts +
+		                         netreq->upstream->total_timeouts)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
 		}
 	}
 
@@ -878,14 +912,21 @@ _getdns_create_call_reporting_dict(
 		return netreq_debug;
 	
 	/* Only include the auth status if TLS was used */
-	/* TODO: output all 3 options */
 	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
-	    netreq->debug_tls_auth_status == GETDNS_AUTH_OK ?
-	    "OK: Server authenticated":"FAILED or NOT TRIED: Server not authenticated")){
+	    _getdns_auth_str(netreq->debug_tls_auth_status))){
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_set_bindata(netreq_debug, "tls_peer_cert",
+	    &netreq->debug_tls_peer_cert)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	netreq->debug_tls_peer_cert.size = 0;
+	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
 
@@ -905,7 +946,7 @@ static int _srv_cmp(const void *a, const void *b)
 
 static void _rfc2782_sort(_srv_rr *start, _srv_rr *end)
 {
-	int running_sum, n;
+	uint32_t running_sum, n;
 	_srv_rr *i, *j, swap;
 
 	/* First move all SRVs with weight 0 to the beginning of the list */
@@ -1242,6 +1283,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		GETDNS_FREE(context->mf, srvs.rrs);
 	}
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
+	    completed_request->request_timed_out ||
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
 	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
@@ -1274,6 +1316,8 @@ getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     int rcode, void *pkt, int pkt_len, int sec, char* why_bogus)
 {
+	(void)why_bogus;
+
 	netreq->dnssec_status = sec == 0 ? GETDNS_DNSSEC_INSECURE
 	                      : sec == 2 ? GETDNS_DNSSEC_SECURE
 			      :            GETDNS_DNSSEC_BOGUS;
@@ -1400,7 +1444,8 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 {
 	getdns_dict *rr_dict, *q_dict, *h_dict;
 	getdns_list *section;
-	size_t i, pkt_start, ancount, nscount;
+	size_t i, pkt_start;
+	uint16_t ancount, nscount;
 	uint32_t qtype, qclass = GETDNS_RRCLASS_IN, rcode = GETDNS_RCODE_NOERROR;
 	getdns_bindata *qname;
 
@@ -1454,7 +1499,8 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 {
 	getdns_dict *rr_dict;
-	size_t i, pkt_start, ancount;
+	size_t i, pkt_start;
+	uint16_t ancount;
 	uint32_t qtype, qclass = GETDNS_RRCLASS_IN;
 	getdns_bindata *qname;
 
@@ -1494,7 +1540,7 @@ uint8_t *_getdns_list2wire(
 	gldns_buffer gbuf;
 	size_t sz;
 
-	gldns_buffer_init_frm_data(&gbuf, buf, *buf_len);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf, *buf_len);
 	_getdns_list2wire_buf(&gbuf, l);
 
 	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len) {
@@ -1515,7 +1561,7 @@ uint8_t *_getdns_reply2wire(
 	gldns_buffer gbuf;
 	size_t sz;
 
-	gldns_buffer_init_frm_data(&gbuf, buf, *buf_len);
+	gldns_buffer_init_vfixed_frm_data(&gbuf, buf, *buf_len);
 	_getdns_reply2wire_buf(&gbuf, r);
 
 	if ((sz = gldns_buffer_position(&gbuf)) <= *buf_len) {
@@ -1544,6 +1590,16 @@ void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
 		if (_getdns_list_append_this_dict(l, rr_dict))
 			getdns_dict_destroy(rr_dict);
 	}
+}
+
+const char * _getdns_auth_str(getdns_auth_state_t auth) {
+	static const char*
+	getdns_auth_str_array[] = {
+		GETDNS_STR_AUTH_NONE,
+		GETDNS_STR_AUTH_FAILED,
+		GETDNS_STR_AUTH_OK
+	};
+	return getdns_auth_str_array[auth];
 }
 
 /* util-internal.c */

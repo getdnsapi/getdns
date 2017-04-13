@@ -30,7 +30,14 @@
 #include <string.h>
 #include <inttypes.h>
 #include <unistd.h>
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#endif
 #include <check.h>
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #include "getdns/getdns.h"
 #include "check_getdns_common.h"
 #include "check_getdns_address.h"
@@ -75,7 +82,7 @@
 
 
 int
-main (int argc, char** argv)
+main ()
 {
   int number_failed;
   SRunner *sr ;

@@ -7,10 +7,10 @@
 rm -fr "${BUILDDIR}/build-event-loops"
 mkdir  "${BUILDDIR}/build-event-loops"
 cd "${BUILDDIR}/build-event-loops"
-"${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libevent --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libevent --with-libev \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libevent --with-libuv \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libevent \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libev \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --enable-all-debugging --with-getdns_query --with-libuv
+"${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev --with-libuv \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libev \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent --with-libuv \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev --with-libuv \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libevent \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libev \
+    || "${SRCROOT}/configure" $* --enable-all-drafts --with-getdns_query --with-libuv
