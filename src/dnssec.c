@@ -1104,10 +1104,8 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	    ; i = _getdns_rrset_iter_next(i)) {
 
 		rrset = _getdns_rrset_iter_value(i);
-		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
-			break;
-	}
-	if (i) {
+		if (rrset->rr_type != GETDNS_RRTYPE_SOA)
+			continue;
 
 		while (node &&
 		    ! _dname_equal(node->ds.name, rrset->name))
@@ -1124,8 +1122,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 				val_chain_sched_soa_node(node->parent);
 			}
 		}
-
-	} else if (node->parent) {
+		break;
+	}
+	if (!i && node->parent) {
 		node->lock++;
 		val_chain_sched_soa_node(node->parent);
 	}
