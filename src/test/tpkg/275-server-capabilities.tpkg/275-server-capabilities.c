@@ -76,6 +76,7 @@ void handler(getdns_context *context, getdns_callback_type_t callback_type,
 	} else {
 		if (getdns_reply(context, request, request_id))
 			getdns_reply(context, NULL, request_id);
+		getdns_dict_destroy(request);
 		return;
 	}
 	getdns_dict_destroy(request);

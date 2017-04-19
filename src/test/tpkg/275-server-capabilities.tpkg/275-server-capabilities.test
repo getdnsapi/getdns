@@ -5,7 +5,7 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 
-make && "./${TPKG_NAME}" | (
+make && "${BUILDDIR}/build/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" | (
 	read PORT
 	read PORT2
 
@@ -15,6 +15,12 @@ make && "./${TPKG_NAME}" | (
 
 	${GETDNS_STUB_QUERY} -s -q @127.0.0.1:$PORT TXT quit.
 )
+if grep -q 'definitely lost: [^0]' valgrind.log
+then
+	cat valgrind.log
+	echo "error: Memory loss!"
+	exit 1
+fi
 if ! grep -q '"status": GETDNS_RESPSTATUS_ALL_TIMEOUT' time_out
 then
 	cat time_out
