@@ -66,7 +66,7 @@ static char *_json_ptr_first(const struct mem_funcs *mf,
 	if (!(next_ref = strchr(jptr, '/')))
 		next_ref = strchr(jptr, '\0');
 
-	if ((unsigned)(next_ref - jptr + 1) > first_sz || !first)
+	if ((ssize_t)(next_ref - jptr + 1) > first_sz || !first)
 		first = GETDNS_XMALLOC(*mf, char, next_ref - jptr + 1);
 
 	for (j = first, k = jptr; k < next_ref; j++, k++)
