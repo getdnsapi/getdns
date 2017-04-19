@@ -1682,8 +1682,18 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 		str++;
 
 	if (*str != '{') {
+		char value_buf[3072], *value_str = value_buf;
+
+		if (strlen(str) > sizeof(value_str) - 1)
+			value_str = STRDUP(str);
+		else
+			(void)strncpy(value_buf, str, sizeof(value_buf));
+
 		getdns_dict *dict_r = _getdns_ipaddr_dict_mf(
-		    &_getdns_plain_mem_funcs, str);
+		    &_getdns_plain_mem_funcs, value_str);
+
+		if (value_str != value_buf)
+			free(value_str);
 
 		if (dict_r) {
 			*dict = dict_r;
