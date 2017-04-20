@@ -27,7 +27,7 @@ The developers are of the opinion that DNSSEC offers a unique global infrastruct
 
 ### API Documentation
 
-Note that this implementation offers additional functionality to supplement that in the [official getdns API](https://getdnsapi.net/documentation/spec/). Some additions are convenient utility functions but other functionality is experimental prior to be being recommended for inclusion in the official API.  The [Modules](https://getdnsapi.net/doxygen/modules.html) page in the Doxygen documentation provides a guide to full API for this implementation.
+Note that this implementation offers additional functionality to supplement that in the [official getdns API](https://getdnsapi.net/documentation/spec/). Some additions are convenient utility functions but other functionality is experimental prior to be being recommended for inclusion in the official API.  The [Doxygen documentation](https://getdnsapi.net/doxygen/modules.html)  provides the details of the full API for this implementation.
 
 ## License
 
@@ -138,20 +138,20 @@ execute the following steps as root:
 Support
 =======
 
-# Mailing lists
+## Mailing lists
 
 We have a [getdns users list](https://getdnsapi.net/mailman/listinfo/users) for this implementation.
 
 The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec) is a good place to engage in discussions regarding the design of the API.
 
-# Tickets and Bug Reports
+## Tickets and Bug Reports
 
 Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/getdnsapi/getdns/issues).
 
 Features of this release
 ========================
 
-# Goals
+## Goals
 
 The goals of this implementation of the getdns API are:
 
@@ -167,13 +167,13 @@ Non-goals (things we will not be doing at least initially) include:
 
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
-# Language Bindings
+## Language Bindings
 
 In parallel, the team is actively developing bindings for various languages.
 For more information, visit the
 [wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
 
-# Unsupported getDNS Features
+## Unsupported getDNS Features
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
@@ -181,7 +181,7 @@ The following API calls are documented in getDNS but *not supported* by the impl
 * Detecting changes to resolv.conf and hosts
 * MDNS, NIS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
-## Minor omissions
+### Minor omissions
 
 The following minor implementation omissions are noted:
 
