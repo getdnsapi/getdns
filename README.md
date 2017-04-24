@@ -177,7 +177,6 @@ For more information, visit the
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
-* Disabling following of `CNAME`s with `getdns_context_set_follow_redirects()`
 * Detecting changes to resolv.conf and hosts
 * MDNS, NIS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
