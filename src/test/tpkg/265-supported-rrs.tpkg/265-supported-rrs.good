@@ -402,6 +402,109 @@
   },
   {
     "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey1.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0xc0000226>,
+      "gateway_type": 1,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey2.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0x20010db8000080020000000020000001>,
+      "gateway_type": 2,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey3.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata for mygateway.example.com.>,
+      "gateway_type": 3,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway_type": 0,
+      "precedence": 2,
+      "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0xc0000226>,
+      "gateway_type": 1,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0x20010db8000080020000000020000001>,
+      "gateway_type": 2,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata for mygateway.example.com.>,
+      "gateway_type": 3,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
     "name": <bindata for isdn.net-dns.org.>,
     "rdata":
     {
@@ -894,109 +997,6 @@
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_X25
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey1.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway": <bindata of 0xc0000226>,
-      "gateway_type": 1,
-      "precedence": 2,
-      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
-      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey2.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway": <bindata of 0x20010db8000080020000000020000001>,
-      "gateway_type": 2,
-      "precedence": 2,
-      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
-      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey3.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway": <bindata for mygateway.example.com.>,
-      "gateway_type": 3,
-      "precedence": 2,
-      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
-      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway_type": 0,
-      "precedence": 2,
-      "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway": <bindata of 0xc0000226>,
-      "gateway_type": 1,
-      "precedence": 2,
-      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
-      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway": <bindata of 0x20010db8000080020000000020000001>,
-      "gateway_type": 2,
-      "precedence": 2,
-      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
-      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
-  },
-  {
-    "class": GETDNS_RRCLASS_IN,
-    "name": <bindata for ipseckey.net-dns.org.>,
-    "rdata":
-    {
-      "algorithm": 10,
-      "gateway": <bindata for mygateway.example.com.>,
-      "gateway_type": 3,
-      "precedence": 2,
-      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
-      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
-    },
-    "ttl": 30,
-    "type": GETDNS_RRTYPE_IPSECKEY
   }
 ]
 ;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 0
@@ -1033,6 +1033,12 @@ eui64.net-dns.org.	30	IN	EUI64	00-00-5e-ef-10-00-00-2a
 gpos.net-dns.org.	30	IN	GPOS	"-32.6882" "116.8652" "10.0"
 hinfo.net-dns.org.	30	IN	HINFO	"CPU" "OS"
 hip.net-dns.org.	30	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
+ipseckey1.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey2.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey3.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 isdn.net-dns.org.	30	IN	ISDN	"150862028003217" "004"
 key.net-dns.org.	30	IN	KEY	256 3 3 BOPdJjdc/ZQWCVA/ONz6LjvugMnB2KKL3F1D2i9GdrpircWRKS2DfRn5KiMM2HQXBHv0ZdkFs/tmjg7rYxrN+bzBNrlwfU5RMjioi67PthD07EHbZjwoZ5sKC2BZ/M596hygfx5JAvbIWBQVF+ztiuCnWCkbGvVXwsmE+odINCur+o+EjA9hF06LqTviUJKqTxisQO5OHM/0ufNenzIbijJPTXbUcF3vW+CMlX+AUPLSag7YnhWaEu7BLCKfg3vJVw9mtaN2W3oWPRdebGUf/QfyVKXoWD6zDLByCZh4wKvpcwgAsel4bO5LVe7s8qstSxqrwzmvaZ5XYOMZFbN7CXtutiswAkb0pkehIYime6IRkDwWDG+14H5yriRuCDK3m7GvwxMo+ggV0k3Po9LD5wWSIi1N
 kx.net-dns.org.	30	IN	KX	10 services.
@@ -1073,12 +1079,6 @@ default._domainkey.net-dns.org.	30	IN	TXT	"v=DKIM1; r=postmaster; g=*; k=rsa; p=
 uri.net-dns.org.	30	IN	URI	10 1 "ftp://ftp1.net-dns.org/public"
 wks.net-dns.org.	30	IN	WKS	195.169.215.155 tcp 53
 x25.net-dns.org.	30	IN	X25	"1234567"
-ipseckey1.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
-ipseckey2.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
-ipseckey3.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
-ipseckey.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
-ipseckey.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
-ipseckey.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 
 ;; AUTHORITY SECTION:
 
