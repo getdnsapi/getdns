@@ -1645,10 +1645,10 @@ int gldns_wire2str_tag_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	if(*dl < 1+n)
 		return -1;
 	for(i=0; i<n; i++)
-		if(!isalnum((unsigned char)(*d)[i]))
+		if(!isalnum((unsigned char)(*d)[1+i]))
 			return -1;
 	for(i=0; i<n; i++)
-		w += gldns_str_print(s, sl, "%c", (char)(*d)[i]);
+		w += gldns_str_print(s, sl, "%c", (char)(*d)[1+i]);
 	(*d)+=n+1;
 	(*dl)-=(n+1);
 	return w;
