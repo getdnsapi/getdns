@@ -70,6 +70,7 @@ int main(int argc, char const * const argv[])
 	FILE           *in;
 	uint8_t         wire_buf[8200];
 	size_t          i;
+	size_t          uavailable;
 	int             available;
 	char            str_buf[10000];
 	int             str_len = sizeof(str_buf);
@@ -300,15 +301,20 @@ int main(int argc, char const * const argv[])
 	 * Then fill a string buffer with those rr_dicts.
 	 */
 	available = wire - wire_buf;
+	if (available < 0) {
+		fprintf(stderr, "Negative sized buffer!\n");
+		exit(EXIT_FAILURE);
+	}
+	uavailable = available;
 	wire = wire_buf;
 
 	str = str_buf;
 	str_len = sizeof(str_buf);
 
-	while (available > 0 && str_len > 0) {
+	while (uavailable > 0 && str_len > 0) {
 		rr_dict = NULL;
 		if ((r = getdns_wire2rr_dict_scan(
-		    (const uint8_t **)&wire, &available, &rr_dict)))
+		    (const uint8_t **)&wire, &uavailable, &rr_dict)))
 			FAIL_r("getdns_wire2rr_dict_scan");
 		
 		if ((r = getdns_rr_dict2str_scan(rr_dict, &str, &str_len)))
