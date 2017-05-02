@@ -1144,6 +1144,7 @@ esac
 AC_SUBST(C99COMPATFLAGS)
 
 AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname referrals.])
+AC_DEFINE_UNQUOTED([DRAFT_RRTYPES], [1], [Define this to enable all rrtypes in gldns.])
 
 AH_BOTTOM([
 
