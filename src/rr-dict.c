@@ -263,13 +263,9 @@ static getdns_return_t
 ipseckey_gateway_2wire(
     const getdns_bindata *value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
 {
-	if (rdf - 2 < rdata)
-		return GETDNS_RETURN_GENERIC_ERROR;
+	assert(rdf - 2 >= rdata && rdf[-2] > 0);
 
 	switch (rdf[-2]) {
-	case 0:	if (value && value->size > 0)
-			return GETDNS_RETURN_INVALID_PARAMETER;
-		break;
 	case 1: if (!value || value->size != 4)
 			return GETDNS_RETURN_INVALID_PARAMETER;
 		if (*rdf_len < 4) {
@@ -310,7 +306,14 @@ ipseckey_gateway_dict2wire(
 	getdns_return_t r;
 	getdns_bindata *value;
 
-	if ((r = getdns_dict_get_bindata(dict, "gateway", &value)))
+	if (rdf - 2 < rdata)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	else if (rdf[-2] == 0) {
+		*rdf_len = 0;
+		return GETDNS_RETURN_GOOD;
+	}
+	else if ((r = getdns_dict_get_bindata(dict, "gateway", &value)))
 		return r;
 	else
 		return ipseckey_gateway_2wire(value, rdata, rdf, rdf_len);
