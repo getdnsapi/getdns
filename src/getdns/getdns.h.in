@@ -377,6 +377,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_ISDN      20
 #define GETDNS_RRTYPE_RT        21
 #define GETDNS_RRTYPE_NSAP      22
+#define GETDNS_RRTYPE_NSAP_PTR  23
 #define GETDNS_RRTYPE_SIG       24
 #define GETDNS_RRTYPE_KEY       25
 #define GETDNS_RRTYPE_PX        26

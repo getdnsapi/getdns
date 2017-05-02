@@ -283,6 +283,7 @@ static struct const_name_info consts_name_info[] = {
 	{ "GETDNS_RRTYPE_NINFO", 56 },
 	{ "GETDNS_RRTYPE_NS", 2 },
 	{ "GETDNS_RRTYPE_NSAP", 22 },
+	{ "GETDNS_RRTYPE_NSAP_PTR", 23 },
 	{ "GETDNS_RRTYPE_NSEC", 47 },
 	{ "GETDNS_RRTYPE_NULL", 10 },
 	{ "GETDNS_RRTYPE_NXT", 30 },

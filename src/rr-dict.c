@@ -487,6 +487,8 @@ static _getdns_rdata_def         rt_rdata[] = {
 	{ "intermediate_host"           , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def       nsap_rdata[] = {
 	{ "nsap"                        , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def   nsap_ptr_rdata[] = {
+	{ "ptrdname"                    , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def        sig_rdata[] = {
 	{ "sig_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        key_rdata[] = {
@@ -675,9 +677,9 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{        "X25",        x25_rdata, ALEN(       x25_rdata) },
 	{       "ISDN",       isdn_rdata, ALEN(      isdn_rdata) },
 	{         "RT",         rt_rdata, ALEN(        rt_rdata) },
-	{       "NSAP",       nsap_rdata, ALEN(      nsap_rdata) }, /* - 22 */
-	{         NULL,             NULL, 0                      },
-	{        "SIG",        sig_rdata, ALEN(       sig_rdata) }, /* 24 - */
+	{       "NSAP",       nsap_rdata, ALEN(      nsap_rdata) },
+	{   "NSAP_PTR",   nsap_ptr_rdata, ALEN(  nsap_ptr_rdata) },
+	{        "SIG",        sig_rdata, ALEN(       sig_rdata) },
 	{        "KEY",        key_rdata, ALEN(       key_rdata) },
 	{         "PX",         px_rdata, ALEN(        px_rdata) },
 	{       "GPOS",       gpos_rdata, ALEN(      gpos_rdata) },

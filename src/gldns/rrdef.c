@@ -72,7 +72,7 @@ static const gldns_rdf_type type_nsap_wireformat[] = {
 	GLDNS_RDF_TYPE_NSAP
 };
 static const gldns_rdf_type type_nsap_ptr_wireformat[] = {
-	GLDNS_RDF_TYPE_STR
+	GLDNS_RDF_TYPE_DNAME
 };
 static const gldns_rdf_type type_sig_wireformat[] = {
 	GLDNS_RDF_TYPE_TYPE, GLDNS_RDF_TYPE_ALG, GLDNS_RDF_TYPE_INT8, GLDNS_RDF_TYPE_INT32,
