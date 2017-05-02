@@ -1478,6 +1478,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
       "algorithm": 10,
       "gateway_type": 0,
       "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
       "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
     },
     "ttl": 30,
@@ -1536,6 +1537,7 @@ apl.net-dns.org.	3600	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.
       "algorithm": 10,
       "gateway_type": 0,
       "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
       "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
     },
     "ttl": 30,

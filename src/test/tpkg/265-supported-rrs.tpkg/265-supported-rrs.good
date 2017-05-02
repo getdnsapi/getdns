@@ -395,6 +395,7 @@
       "algorithm": 10,
       "gateway_type": 0,
       "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
       "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
     },
     "ttl": 30,
@@ -453,6 +454,7 @@
       "algorithm": 10,
       "gateway_type": 0,
       "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
       "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
     },
     "ttl": 30,
@@ -1000,7 +1002,7 @@
   }
 ]
 ;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 0
-;; flags: ; QUERY: 0, ANSWER: 75, AUTHORITY: 0, ADDITIONAL: 0 
+;; flags: ; QUERY: 0, ANSWER: 77, AUTHORITY: 0, ADDITIONAL: 0 
 ;; QUESTION SECTION:
 
 ;; ANSWER SECTION:
@@ -1033,9 +1035,11 @@ eui64.net-dns.org.	30	IN	EUI64	00-00-5e-ef-10-00-00-2a
 gpos.net-dns.org.	30	IN	GPOS	"-32.6882" "116.8652" "10.0"
 hinfo.net-dns.org.	30	IN	HINFO	"CPU" "OS"
 hip.net-dns.org.	30	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
+ipseckey0.net-dns.org.	30	IN	IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 ipseckey1.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 ipseckey2.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 ipseckey3.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 ipseckey.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 ipseckey.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
 ipseckey.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
@@ -1083,5 +1087,5 @@ x25.net-dns.org.	30	IN	X25	"1234567"
 ;; AUTHORITY SECTION:
 
 ;; ADDITIONAL SECTION:
-;; MSG SIZE  rcvd: 5189
+;; MSG SIZE  rcvd: 5328
 
