@@ -488,7 +488,7 @@ static _getdns_rdata_def         rt_rdata[] = {
 static _getdns_rdata_def       nsap_rdata[] = {
 	{ "nsap"                        , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def   nsap_ptr_rdata[] = {
-	{ "ptrdname"                    , GETDNS_RDF_N      , NULL }};
+	{ "owner"                       , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def        sig_rdata[] = {
 	{ "sig_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        key_rdata[] = {

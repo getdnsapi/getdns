@@ -722,8 +722,8 @@
     "name": <bindata for 444433332222111199990123000000ff.net-dns.org.>,
     "rdata":
     {
-      "ptrdname": <bindata for host.net-dns.org.>,
-      "rdata_raw": <bindata for host.net-dns.org.>
+      "owner": <bindata of "host">,
+      "rdata_raw": <bindata of 0x04686f7374>
     },
     "ttl": 30,
     "type": GETDNS_RRTYPE_NSAP_PTR
@@ -1067,7 +1067,7 @@ naptr.net-dns.org.	30	IN	NAPTR	100 100 "s" "http+I2R" "" _https._tcp.net-dns.org
 nid.net-dns.org.	30	IN	NID	10 0014:4fff:ff20:ef64
 nimloc.net-dns.org.	30	IN	NIMLOC	32251B030067
 nsap.net-dns.org.	30	IN	NSAP	0x47000580005A0000000001E133FFFFFF00016100
-444433332222111199990123000000ff.net-dns.org.	30	IN	NSAP-PTR	host.net-dns.org.
+444433332222111199990123000000ff.net-dns.org.	30	IN	NSAP-PTR	"host"
 nsec.net-dns.org.	30	IN	NSEC	host.net-dns.org. A MX NSEC
 nsec3.net-dns.org.	30	IN	NSEC3	1 0 5 FD5EEADE2BA67B64 92qfhk1g2m21l1j89pju33nrm9586bpu A NS SOA MX RRSIG DNSKEY NSEC3PARAM
 nsec3param.net-dns.org.	30	IN	NSEC3PARAM	1 0 5 FD5EEADE2BA67B64
@@ -1093,5 +1093,5 @@ x25.net-dns.org.	30	IN	X25	"1234567"
 ;; AUTHORITY SECTION:
 
 ;; ADDITIONAL SECTION:
-;; MSG SIZE  rcvd: 6574
+;; MSG SIZE  rcvd: 6561
 
