@@ -1,0 +1,51 @@
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+# svnserve resets the path, you may need to adjust it, like this:
+PATH=$PATH:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin:.
+
+# first arg is the build dir
+TPKG_BUILD=$1
+PARAM_XML="dns-parameters.xml"
+PARAM_URL="http://www.iana.org/assignments/dns-parameters/$PARAM_XML"
+
+if [ -f $PARAM_XML ]
+then
+	mv $PARAM_XML ${PARAM_XML}.aandekant
+fi
+if which wget
+then
+	wget "$PARAM_URL"
+elif ! ( echo quit | ftp "$PARAM_URL" )
+then
+	echo "Don't have wget or ftp to get $PARAM_URL"
+	exit -1
+fi
+
+EXIT_STATUS=0
+
+for TYPE_VAL in `awk '/<type>[^<>]*<\/type>/{ a=$1; getline; b=$1; print a""b }' dns-parameters.xml | sed -e 's/<type>//g' -e 's/<\/type>//g' -e 's/<value>/:/g' -e 's/<\/value>//g'|egrep -v '^(Unassigned|Private|Reserved)'`
+do
+	TYPE=${TYPE_VAL%:*}
+	VALUE=${TYPE_VAL#*:}
+	case "x$TYPE" in
+	x\*)		TYPE="ANY"
+			;;
+	xNSAP-PTR)	TYPE="NSAP_PTR"
+			;;
+	esac
+	if ! grep -q "LDNS_RR_TYPE_${TYPE} = ${VALUE}" ${SRCROOT}/src/gldns/rrdef.h
+	then
+		echo "RR type ${TYPE} (value ${VALUE}) not in rrdef.h"
+		EXIT_STATUS=1
+	fi
+	if ! grep -q "GETDNS_RRTYPE_${TYPE}[ 	][ 	]*${VALUE}" ${SRCROOT}/src/getdns/getdns.h.in
+	then
+		echo "RR type ${TYPE} (value ${VALUE}) not in getdns.h.in"
+		EXIT_STATUS=1
+	fi
+done
+
+exit $EXIT_STATUS
+
