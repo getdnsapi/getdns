@@ -507,6 +507,10 @@ static _getdns_rdata_def        loc_rdata[] = {
 	{ "loc_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        nxt_rdata[] = {
 	{ "nxt_obsolete"                , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def        eid_rdata[] = {
+	{ "endpoint_identifier"         , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def     nimloc_rdata[] = {
+	{ "nimrod_locator"              , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        srv_rdata[] = {
 	{ "priority"                    , GETDNS_RDF_I2     , NULL },
 	{ "weight"                      , GETDNS_RDF_I2     , NULL },
@@ -686,8 +690,8 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{       "AAAA",       aaaa_rdata, ALEN(      aaaa_rdata) },
 	{        "LOC",        loc_rdata, ALEN(       loc_rdata) },
 	{        "NXT",        nxt_rdata, ALEN(       nxt_rdata) },
-	{        "EID",    UNKNOWN_RDATA, 0                      },
-	{     "NIMLOC",    UNKNOWN_RDATA, 0                      },
+	{        "EID",        eid_rdata, ALEN(       eid_rdata) },
+	{     "NIMLOC",     nimloc_rdata, ALEN(    nimloc_rdata) },
 	{        "SRV",        srv_rdata, ALEN(       srv_rdata) },
 	{       "ATMA",       atma_rdata, ALEN(      atma_rdata) },
 	{      "NAPTR",      naptr_rdata, ALEN(     naptr_rdata) },
