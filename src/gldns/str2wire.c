@@ -2018,6 +2018,6 @@ int gldns_str2wire_int16_data_buf(const char* str, uint8_t* rd, size_t* len)
 	if(n < 0)
 		return GLDNS_WIREPARSE_ERR_SYNTAX_B64;
 	gldns_write_uint16(rd, (uint16_t)n);
-	*len = (size_t)n;
+	*len = ((size_t)n)+2;
 	return GLDNS_WIREPARSE_ERR_OK;
 }
