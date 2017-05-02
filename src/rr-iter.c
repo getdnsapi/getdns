@@ -518,8 +518,16 @@ rdf_iter_find_nxt(_getdns_rdf_iter *i)
 
 	    /* Empty rdata fields are only allowed in case of non-repeating
 	     * remaining data. So only the GETDNS_RDF_BINDATA bit is set.
+	     *
+	     * There is one exception, the IPSECKEY has an empty special rdata
+	     * field "gateway" when another rdata field, "gateway_type" is 0.
+	     * In general, the special wire2dict or list functions should
+	     * handle this case themselves, so allow for 0 sized RDF_SPECIAL
+	     * typed rdata fields too.
 	     */
-	    (i->nxt >  i->pos || (i->rdd_pos->type == GETDNS_RDF_BINDATA)))
+	    (  i->nxt >  i->pos
+	    || i->rdd_pos->type == GETDNS_RDF_BINDATA 
+	    || i->rdd_pos->type == GETDNS_RDF_SPECIAL))
 		return i;
 done:
 	i->pos = NULL;
