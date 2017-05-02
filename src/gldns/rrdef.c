@@ -175,7 +175,7 @@ static const gldns_rdf_type type_tkey_wireformat[] = {
 	GLDNS_RDF_TYPE_TIME,
 	GLDNS_RDF_TYPE_TIME,
 	GLDNS_RDF_TYPE_INT16,
-	GLDNS_RDF_TYPE_INT16,
+	GLDNS_RDF_TYPE_TSIGERROR,
 	GLDNS_RDF_TYPE_INT16_DATA,
 	GLDNS_RDF_TYPE_INT16_DATA,
 };
@@ -185,7 +185,7 @@ static const gldns_rdf_type type_tsig_wireformat[] = {
 	GLDNS_RDF_TYPE_INT16,
 	GLDNS_RDF_TYPE_INT16_DATA,
 	GLDNS_RDF_TYPE_INT16,
-	GLDNS_RDF_TYPE_INT16,
+	GLDNS_RDF_TYPE_TSIGERROR,
 	GLDNS_RDF_TYPE_INT16_DATA
 };
 static const gldns_rdf_type type_tlsa_wireformat[] = {
@@ -606,7 +606,7 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 	{GLDNS_RR_TYPE_CAA, "CAA", 3, 3, type_caa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 #ifdef DRAFT_RRTYPES
 	/* 258 */
-	{GLDNS_RR_TYPE_AVC, "AVC", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+	{GLDNS_RR_TYPE_TXT, "AVC", 1, 0, NULL, GLDNS_RDF_TYPE_STR, GLDNS_RR_NO_COMPRESS, 0 },
 #else
 {GLDNS_RR_TYPE_NULL, "TYPE258", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 #endif

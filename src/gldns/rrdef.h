@@ -351,6 +351,9 @@ enum gldns_enum_rdf_type
          */
         GLDNS_RDF_TYPE_LONG_STR,
 
+	/** TSIG extended 16bit error value */
+	GLDNS_RDF_TYPE_TSIGERROR,
+
         /* Aliases */
         GLDNS_RDF_TYPE_BITMAP = GLDNS_RDF_TYPE_NSEC
 };
@@ -423,13 +426,22 @@ enum gldns_enum_edns_option
 	GLDNS_EDNS_DAU = 5, /* RFC6975 */
 	GLDNS_EDNS_DHU = 6, /* RFC6975 */
 	GLDNS_EDNS_N3U = 7, /* RFC6975 */
-	GLDNS_EDNS_CLIENT_SUBNET = 8, /* draft-vandergaast-edns-client-subnet */
+	GLDNS_EDNS_CLIENT_SUBNET = 8, /* RFC7871 */
 	GLDNS_EDNS_KEEPALIVE = 11, /* draft-ietf-dnsop-edns-tcp-keepalive*/
 	GLDNS_EDNS_PADDING = 12 /* RFC7830 */
 };
 typedef enum gldns_enum_edns_option gldns_edns_option;
 
 #define GLDNS_EDNS_MASK_DO_BIT 0x8000
+
+/** TSIG and TKEY extended rcodes (16bit), 0-15 are the normal rcodes. */
+#define GLDNS_TSIG_ERROR_NOERROR  0
+#define GLDNS_TSIG_ERROR_BADSIG   16
+#define GLDNS_TSIG_ERROR_BADKEY   17
+#define GLDNS_TSIG_ERROR_BADTIME  18
+#define GLDNS_TSIG_ERROR_BADMODE  19
+#define GLDNS_TSIG_ERROR_BADNAME  20
+#define GLDNS_TSIG_ERROR_BADALG   21
 
 /**
  * Contains all information about resource record types.
