@@ -470,6 +470,30 @@ gldns_buffer_write_at(gldns_buffer *buffer, size_t at, const void *data, size_t 
 }
 
 /**
+ * set the given byte to the buffer at the specified position
+ * \param[in] buffer the buffer
+ * \param[in] at the position (in number of bytes) to write the data at
+ * \param[in] c the byte to set to the buffer
+ * \param[in] count the number of bytes of bytes to write
+ */
+
+INLINE void
+gldns_buffer_set_at(gldns_buffer *buffer, size_t at, int c, size_t count)
+{
+    if (!buffer->_vfixed)
+        assert(gldns_buffer_available_at(buffer, at, count));
+    else if (gldns_buffer_remaining_at(buffer, at) == 0)
+        return;
+    else if (count > gldns_buffer_remaining_at(buffer, at)) {
+        memset(buffer->_data + at, c,
+            gldns_buffer_remaining_at(buffer, at));
+        return;
+    }
+	memset(buffer->_data + at, c, count);
+}
+
+
+/**
  * writes count bytes of data to the current position of the buffer
  * \param[in] buffer the buffer
  * \param[in] data the data to write

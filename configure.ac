@@ -1144,6 +1144,7 @@ esac
 AC_SUBST(C99COMPATFLAGS)
 
 AC_DEFINE_UNQUOTED([MAX_CNAME_REFERRALS], [100], [The maximum number of cname referrals.])
+AC_DEFINE_UNQUOTED([DRAFT_RRTYPES], [1], [Define this to enable all rrtypes in gldns.])
 
 AH_BOTTOM([
 
@@ -1159,9 +1160,14 @@ AH_BOTTOM([
   * See: https://support.microsoft.com/en-us/kb/111855
   */
 # ifndef FD_SETSIZE
-# define FD_SETSIZE 1024
+#  define FD_SETSIZE 1024
 # endif
 # define PRIsz "%Iu"
+
+ /* Windows wants us to use _strdup instead of strdup */
+# ifndef strdup
+#  define strdup _strdup
+# endif
 #else
 # define PRIsz "%zu"
 #endif

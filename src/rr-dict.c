@@ -487,6 +487,8 @@ static _getdns_rdata_def         rt_rdata[] = {
 	{ "intermediate_host"           , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def       nsap_rdata[] = {
 	{ "nsap"                        , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def   nsap_ptr_rdata[] = {
+	{ "owner"                       , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def        sig_rdata[] = {
 	{ "sig_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        key_rdata[] = {
@@ -505,6 +507,10 @@ static _getdns_rdata_def        loc_rdata[] = {
 	{ "loc_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        nxt_rdata[] = {
 	{ "nxt_obsolete"                , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def        eid_rdata[] = {
+	{ "endpoint_identifier"         , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def     nimloc_rdata[] = {
+	{ "nimrod_locator"              , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        srv_rdata[] = {
 	{ "priority"                    , GETDNS_RDF_I2     , NULL },
 	{ "weight"                      , GETDNS_RDF_I2     , NULL },
@@ -598,6 +604,11 @@ static _getdns_rdata_def        hip_rdata[] = {
 	{ "hit"                         , GETDNS_RDF_SPECIAL, &hip_hit },
 	{ "public_key"                  , GETDNS_RDF_SPECIAL, &hip_public_key },
 	{ "rendezvous_servers"          , GETDNS_RDF_N_M    , NULL }};
+static _getdns_rdata_def     talink_rdata[] = {
+	{ "previous"                    , GETDNS_RDF_N      , NULL },
+	{ "next"                        , GETDNS_RDF_N      , NULL }};
+static _getdns_rdata_def   openpgpkey_rdata[] = {
+	{ "transferable_public_key"     , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def        csync_rdata[] = {
 	{ "serial"                      , GETDNS_RDF_I4     , NULL },
 	{ "flags"                       , GETDNS_RDF_I2     , NULL },
@@ -673,17 +684,17 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{        "X25",        x25_rdata, ALEN(       x25_rdata) },
 	{       "ISDN",       isdn_rdata, ALEN(      isdn_rdata) },
 	{         "RT",         rt_rdata, ALEN(        rt_rdata) },
-	{       "NSAP",       nsap_rdata, ALEN(      nsap_rdata) }, /* - 22 */
-	{         NULL,             NULL, 0                      },
-	{        "SIG",        sig_rdata, ALEN(       sig_rdata) }, /* 24 - */
+	{       "NSAP",       nsap_rdata, ALEN(      nsap_rdata) },
+	{   "NSAP_PTR",   nsap_ptr_rdata, ALEN(  nsap_ptr_rdata) },
+	{        "SIG",        sig_rdata, ALEN(       sig_rdata) },
 	{        "KEY",        key_rdata, ALEN(       key_rdata) },
 	{         "PX",         px_rdata, ALEN(        px_rdata) },
 	{       "GPOS",       gpos_rdata, ALEN(      gpos_rdata) },
 	{       "AAAA",       aaaa_rdata, ALEN(      aaaa_rdata) },
 	{        "LOC",        loc_rdata, ALEN(       loc_rdata) },
 	{        "NXT",        nxt_rdata, ALEN(       nxt_rdata) },
-	{        "EID",    UNKNOWN_RDATA, 0                      },
-	{     "NIMLOC",    UNKNOWN_RDATA, 0                      },
+	{        "EID",        eid_rdata, ALEN(       eid_rdata) },
+	{     "NIMLOC",     nimloc_rdata, ALEN(    nimloc_rdata) },
 	{        "SRV",        srv_rdata, ALEN(       srv_rdata) },
 	{       "ATMA",       atma_rdata, ALEN(      atma_rdata) },
 	{      "NAPTR",      naptr_rdata, ALEN(     naptr_rdata) },
@@ -703,16 +714,16 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{      "DHCID",      dhcid_rdata, ALEN(     dhcid_rdata) },
 	{      "NSEC3",      nsec3_rdata, ALEN(     nsec3_rdata) },
 	{ "NSEC3PARAM", nsec3param_rdata, ALEN(nsec3param_rdata) },
-	{       "TLSA",       tlsa_rdata, ALEN(      tlsa_rdata) }, /* - 52 */
-	{         NULL,             NULL, 0                      },
+	{       "TLSA",       tlsa_rdata, ALEN(      tlsa_rdata) },
+	{     "SMIMEA",       tlsa_rdata, ALEN(      tlsa_rdata) }, /* - 53 */
 	{         NULL,             NULL, 0                      },
 	{        "HIP",        hip_rdata, ALEN(       hip_rdata) }, /* 55 - */
 	{      "NINFO",    UNKNOWN_RDATA, 0                      },
 	{       "RKEY",    UNKNOWN_RDATA, 0                      },
-	{     "TALINK",    UNKNOWN_RDATA, 0                      },
+	{     "TALINK",     talink_rdata, ALEN(    talink_rdata) },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* 61 - */
+	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* 61 - */
 	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) }, /* - 62 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
@@ -908,20 +919,21 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{      "MAILA",    UNKNOWN_RDATA, 0                      }, /* - 254 */
 	{         NULL,             NULL, 0                      },
 	{        "URI",        uri_rdata, ALEN(       uri_rdata) }, /* 256 - */
-	{        "CAA",        caa_rdata, ALEN(       caa_rdata) }, /* - 257 */
-	{         "TA",    UNKNOWN_RDATA, 0                      }, /* 32768 */
+	{        "CAA",        caa_rdata, ALEN(       caa_rdata) },
+	{        "AVC",        txt_rdata, ALEN(       txt_rdata) }, /* - 258 */
+	{         "TA",         ds_rdata, ALEN(        ds_rdata) }, /* 32768 */
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
 
 const _getdns_rr_def *
 _getdns_rr_def_lookup(uint16_t rr_type)
 {
-	if (rr_type <= 257)
+	if (rr_type <= 258)
 		return &_getdns_rr_defs[rr_type];
 	else if (rr_type == 32768)
-		return &_getdns_rr_defs[258];
-	else if (rr_type == 32769)
 		return &_getdns_rr_defs[259];
+	else if (rr_type == 32769)
+		return &_getdns_rr_defs[260];
 	return _getdns_rr_defs;
 }
 

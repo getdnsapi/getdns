@@ -57,15 +57,6 @@
 #include "convert.h"
 #include "debug.h"
 
-/* strdup is marked deprecated by the Windows compiler */
-#ifndef STRDUP
-#ifdef GETDNS_ON_WINDOWS
-#define STRDUP(x) _strdup(x)
-#else
-#define STRDUP(x) strdup(x)
-#endif
-#endif
-
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
     const getdns_bindata *dns_name_wire_fmt, char **fqdn_as_string)
@@ -212,7 +203,7 @@ getdns_display_ip_address(const struct getdns_bindata
 		    buff,
 		    256);
 		if (ipStr) {
-			return STRDUP(ipStr);
+			return strdup(ipStr);
 		}
 	} else if (bindata_of_ipv4_or_ipv6_address->size == 16) {
 		const char *ipStr = inet_ntop(AF_INET6,
@@ -220,7 +211,7 @@ getdns_display_ip_address(const struct getdns_bindata
 		    buff,
 		    256);
 		if (ipStr) {
-			return STRDUP(ipStr);
+			return strdup(ipStr);
 		}
 	}
 	return NULL;
@@ -1685,7 +1676,7 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 		char value_buf[3072], *value_str = value_buf;
 
 		if (strlen(str) > sizeof(value_str) - 1)
-			value_str = STRDUP(str);
+			value_str = strdup(str);
 		else
 			(void)strncpy(value_buf, str, sizeof(value_buf));
 
