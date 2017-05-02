@@ -56,11 +56,6 @@ apl_n_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 	return getdns_dict_set_int(dict, "n", (*rdf  >> 7));
 }
 static getdns_return_t
-apl_n_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_int(list, (*rdf  >> 7));
-}
-static getdns_return_t
 apl_n_2wire(uint32_t value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
 {
 	(void)rdata; /* unused parameter */
@@ -85,22 +80,10 @@ apl_n_dict2wire(const getdns_dict *dict,
 	else
 		return apl_n_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-apl_n_list2wire(const getdns_list *list, size_t i,
-    uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	uint32_t        value;
-
-	if ((r = getdns_list_get_int(list, i, &value)))
-		return r;
-	else
-		return apl_n_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special apl_n = {
     apl_n_rdf_end,
-    apl_n_wire2dict, apl_n_wire2list,
-    apl_n_dict2wire, apl_n_list2wire
+    apl_n_wire2dict, NULL,
+    apl_n_dict2wire, NULL 
 };
 
 static const uint8_t *
@@ -116,11 +99,6 @@ apl_afdpart_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(
 	    dict, "afdpart", (rdf[-1] & 0x7F), rdf);
-}
-static getdns_return_t
-apl_afdpart_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_const_bindata(list, (rdf[-1] & 0x7F), rdf);
 }
 static getdns_return_t
 apl_afdpart_2wire(
@@ -156,22 +134,10 @@ apl_afdpart_dict2wire(
 	else
 		return apl_afdpart_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-apl_afdpart_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return apl_afdpart_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special apl_afdpart = {
     apl_afdpart_rdf_end,
-    apl_afdpart_wire2dict, apl_afdpart_wire2list,
-    apl_afdpart_dict2wire, apl_afdpart_list2wire
+    apl_afdpart_wire2dict, NULL,
+    apl_afdpart_dict2wire, NULL 
 };
 
 static const uint8_t *
@@ -246,20 +212,6 @@ ipseckey_gateway_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 		return _getdns_dict_set_const_bindata(dict, "gateway", size, data);
 }
 static getdns_return_t
-ipseckey_gateway_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	size_t size;
-	const uint8_t *data;
-
-	if (ipseckey_gateway_equip_const_bindata(rdf, &size, &data))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	else if (!size)
-		return GETDNS_RETURN_GOOD;
-	else
-		return _getdns_list_append_const_bindata(list, size, data);
-}
-static getdns_return_t
 ipseckey_gateway_2wire(
     const getdns_bindata *value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
 {
@@ -318,22 +270,10 @@ ipseckey_gateway_dict2wire(
 	else
 		return ipseckey_gateway_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-ipseckey_gateway_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return ipseckey_gateway_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
-    ipseckey_gateway_wire2dict, ipseckey_gateway_wire2list,
-    ipseckey_gateway_dict2wire, ipseckey_gateway_list2wire
+    ipseckey_gateway_wire2dict, NULL,
+    ipseckey_gateway_dict2wire, NULL 
 };
 
 static const uint8_t *
@@ -349,11 +289,6 @@ static getdns_return_t
 hip_pk_algorithm_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return getdns_dict_set_int(dict, "pk_algorithm", rdf[1]);
-}
-static getdns_return_t
-hip_pk_algorithm_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_int(list, rdf[1]);
 }
 static getdns_return_t
 hip_pk_algorithm_2wire(uint32_t value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
@@ -382,22 +317,10 @@ hip_pk_algorithm_dict2wire(
 	else
 		return hip_pk_algorithm_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-hip_pk_algorithm_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	uint32_t        value;
-
-	if ((r = getdns_list_get_int(list, i, &value)))
-		return r;
-	else
-		return hip_pk_algorithm_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special hip_pk_algorithm = {
     hip_pk_algorithm_rdf_end,
-    hip_pk_algorithm_wire2dict, hip_pk_algorithm_wire2list,
-    hip_pk_algorithm_dict2wire, hip_pk_algorithm_list2wire
+    hip_pk_algorithm_wire2dict, NULL,
+    hip_pk_algorithm_dict2wire, NULL
 };
 
 static const uint8_t *
@@ -412,11 +335,6 @@ static getdns_return_t
 hip_hit_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(dict, "hit", rdf[-1], rdf + 3);
-}
-static getdns_return_t
-hip_hit_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_const_bindata(list, rdf[-1], rdf + 3);
 }
 static getdns_return_t
 hip_hit_2wire(
@@ -452,22 +370,10 @@ hip_hit_dict2wire(
 	else
 		return hip_hit_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-hip_hit_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return hip_hit_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special hip_hit = {
     hip_hit_rdf_end,
-    hip_hit_wire2dict, hip_hit_wire2list,
-    hip_hit_dict2wire, hip_hit_list2wire
+    hip_hit_wire2dict, NULL,
+    hip_hit_dict2wire, NULL
 };
 
 static const uint8_t *
@@ -484,12 +390,6 @@ hip_public_key_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(
 	    dict, "public_key", gldns_read_uint16(rdf), rdf + 2 + rdf[-2]);
-}
-static getdns_return_t
-hip_public_key_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_const_bindata(
-	    list, gldns_read_uint16(rdf), rdf + 2 + rdf[-2]);
 }
 static getdns_return_t
 hip_public_key_2wire(
@@ -525,22 +425,10 @@ hip_public_key_dict2wire(
 	else
 		return hip_public_key_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-hip_public_key_list2wire(
-    const getdns_list *list, size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return hip_public_key_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special hip_public_key = {
     hip_public_key_rdf_end,
-    hip_public_key_wire2dict, hip_public_key_wire2list,
-    hip_public_key_dict2wire, hip_public_key_list2wire
+    hip_public_key_wire2dict, NULL,
+    hip_public_key_dict2wire, NULL
 };
 
 
@@ -1123,7 +1011,12 @@ write_rdata_field(gldns_buffer *buf, uint8_t *rdata_start,
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	} else if (!(rd_def->type & GETDNS_RDF_REPEAT)) {
-		
+		/*
+		 * Non repetitive special rdatafield,
+		 * We must have a dict2wire function
+		 */
+		assert(rd_def->special->dict2wire);
+
 		rdf_len = gldns_buffer_remaining(buf);
 		r = rd_def->special->dict2wire(rdata, rdata_start,
 		    gldns_buffer_current(buf), &rdf_len);
@@ -1133,12 +1026,21 @@ write_rdata_field(gldns_buffer *buf, uint8_t *rdata_start,
 		if (r)
 			return r;
 
+	/* We do not have repetitive special rdata fields (yet)
+	 *
+	 * LCOV_EXCL_START
+	 */
 	} else if ((r = getdns_dict_get_list(rdata, rd_def->name, &list))) {
 
 		return r == GETDNS_RETURN_NO_SUCH_DICT_NAME
 			  ? GETDNS_RETURN_GOOD : r;
 
 	} else for ( i = 0; r == GETDNS_RETURN_GOOD; i++ ) {
+		/*
+		 * A repetitive special rdata field must have the list2wire
+		 * function.
+		 */
+		assert(rd_def->special->list2wire);
 		
 		rdf_len = gldns_buffer_remaining(buf);
 		r = rd_def->special->list2wire(list, i, rdata_start,
@@ -1147,6 +1049,7 @@ write_rdata_field(gldns_buffer *buf, uint8_t *rdata_start,
 		    r == GETDNS_RETURN_NEED_MORE_SPACE)
 			gldns_buffer_skip(buf, rdf_len);
 	}
+	/* LCOV_EXCL_STOP */
 
 	return r != GETDNS_RETURN_NO_SUCH_LIST_ITEM ? r : GETDNS_RETURN_GOOD;
 }
