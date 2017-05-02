@@ -217,22 +217,14 @@ char* gldns_wire2str_type(uint16_t rrtype)
 {
 	char buf[16];
 	gldns_wire2str_type_buf(rrtype, buf, sizeof(buf));
-#ifndef USE_WINSOCK
 	return strdup(buf);
-#else
-	return _strdup(buf);
-#endif
 }
 
 char* gldns_wire2str_class(uint16_t rrclass)
 {
 	char buf[16];
 	gldns_wire2str_class_buf(rrclass, buf, sizeof(buf));
-#ifndef USE_WINSOCK
 	return strdup(buf);
-#else
-	return _strdup(buf);
-#endif
 }
 
 char* gldns_wire2str_dname(uint8_t* dname, size_t dname_len)
@@ -248,11 +240,7 @@ char* gldns_wire2str_rcode(int rcode)
 {
 	char buf[16];
 	gldns_wire2str_rcode_buf(rcode, buf, sizeof(buf));
-#ifndef USE_WINSOCK
 	return strdup(buf);
-#else
-	return _strdup(buf);
-#endif
 }
 
 int gldns_wire2str_pkt_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
