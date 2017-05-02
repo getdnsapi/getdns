@@ -598,6 +598,8 @@ static _getdns_rdata_def        hip_rdata[] = {
 	{ "hit"                         , GETDNS_RDF_SPECIAL, &hip_hit },
 	{ "public_key"                  , GETDNS_RDF_SPECIAL, &hip_public_key },
 	{ "rendezvous_servers"          , GETDNS_RDF_N_M    , NULL }};
+static _getdns_rdata_def   openpgpkey_rdata[] = {
+	{ "transferable_public_key"     , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def        csync_rdata[] = {
 	{ "serial"                      , GETDNS_RDF_I4     , NULL },
 	{ "flags"                       , GETDNS_RDF_I2     , NULL },
@@ -712,7 +714,7 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{     "TALINK",    UNKNOWN_RDATA, 0                      },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* 61 - */
+	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* 61 - */
 	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) }, /* - 62 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
