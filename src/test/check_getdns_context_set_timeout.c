@@ -282,6 +282,7 @@ START_TEST (getdns_context_set_timeout_3)
   t_data.num_callbacks = 0;
   t_data.num_timeouts = 0;
   t_data.port = 43210;
+  uint64_t timeout;
 
   pthread_create(&thread, NULL, run_server, (void *)&t_data);
 
@@ -323,6 +324,10 @@ START_TEST (getdns_context_set_timeout_3)
                  &t_data, NULL, timeout_3_cb);
 
   RUN_EVENT_LOOP;
+
+  ASSERT_RC(getdns_context_get_timeout(context, &timeout),
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_get_timeout()");
+  ck_assert_msg(timeout == 500, "timeout should be 500, got %d", (int)timeout);
 
   CONTEXT_DESTROY;
 
