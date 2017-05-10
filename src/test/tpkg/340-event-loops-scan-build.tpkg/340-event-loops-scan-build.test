@@ -5,5 +5,5 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-event-loops"
-make clean
-scan-build -o ../scan-build-reports -v --status-bugs make everything
+make -j 4 clean
+scan-build -o ../scan-build-reports -v --status-bugs make -j 4 everything
