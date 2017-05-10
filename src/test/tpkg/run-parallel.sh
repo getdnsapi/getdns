@@ -52,4 +52,4 @@ do
 	TEST_PKG="${RD#result.}"
 	printf '%s: %s %s\n\t"%s" %s exe "%s/%s.tpkg"\n\n' "${RD}" "${OTHERS}" "${RD_TESTS}" "${TPKG}" "$*" "${SRCDIR}" "${TEST_PKG}" >> Makefile
 done
-#make -j 2
+make -j 2
