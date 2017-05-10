@@ -17,4 +17,4 @@ addons:
 script:
   - mkdir tests
   - cd tests
-  - ../src/test/tpkg/run-all.sh
+  - ../src/test/tpkg/run-parallel.sh
