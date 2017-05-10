@@ -94,15 +94,21 @@ END_TEST
 START_TEST (getdns_context_set_idle_timeout_2)
 {
  /*
-  *  timeout is 0
+  *  timeout is 0 and then 100
   *  expect: GETDNS_RETURN_GOOD
   */
 
   struct getdns_context *context = NULL;
+  uint64_t time;
   CONTEXT_CREATE(TRUE);
 
   ASSERT_RC(getdns_context_set_idle_timeout(context, 0),
     GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+  ASSERT_RC(getdns_context_set_idle_timeout(context, 100),
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+  ASSERT_RC(getdns_context_get_idle_timeout(context, &time),
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+  ck_assert_msg(time == 100, "idle_timeout should be 100, got %d", (int)time);
 
   CONTEXT_DESTROY;
 

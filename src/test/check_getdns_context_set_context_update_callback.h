@@ -111,6 +111,8 @@
       */ 
       struct getdns_context *context = NULL;
       getdns_namespace_t namespace_arr[2] = {GETDNS_NAMESPACE_DNS, GETDNS_NAMESPACE_LOCALNAMES};
+      size_t count;
+      getdns_namespace_t *namespaces;
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -118,8 +120,12 @@
 
       expected_changed_item = GETDNS_CONTEXT_CODE_NAMESPACES;
 
-      ASSERT_RC(getdns_context_set_namespaces(context, 2,namespace_arr),
+      ASSERT_RC(getdns_context_set_namespaces(context, 2, namespace_arr),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_namespaces()");
+      ASSERT_RC(getdns_context_get_namespaces(context, &count, &namespaces),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_namespaces()");
+      ck_assert_msg(count == 2 && namespaces[0] == 500 && namespaces[1] == 501, "namespaces are not correctly set");
+
 
       CONTEXT_DESTROY;
        
@@ -207,6 +213,7 @@
       *  expect:  GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS
       */ 
       struct getdns_context *context = NULL;
+      getdns_redirects_t redir;
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -215,6 +222,8 @@
       expected_changed_item = GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS;
 
       (void) getdns_context_set_follow_redirects(context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
+      (void) getdns_context_get_follow_redirects(context, &redir);
+      ck_assert_msg(redir == GETDNS_REDIRECTS_DO_NOT_FOLLOW, "getdns_context_get_follow_redirects failed");
 
       CONTEXT_DESTROY;
        
