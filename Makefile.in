@@ -98,16 +98,16 @@ example:
 	cd spec/example && $(MAKE) $@
 
 test: default
-	cd src && $(MAKE) $@
+	cd src/test && $(MAKE) $@
 
 getdns_query: default
-	cd src && $(MAKE) $@
+	cd src/tools && $(MAKE) $@
 
 stubby: getdns_query
-	cd src && $(MAKE) $@
+	cd src/tools && $(MAKE) $@
 
 scratchpad: default
-	cd src && $(MAKE) $@
+	cd src/test && $(MAKE) $@
 
 pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
