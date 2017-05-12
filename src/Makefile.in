@@ -157,16 +157,16 @@ libgetdns_ext_ev.la: libgetdns.la libev.lo
 libgetdns.la: $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
-test:	all
+test: default
 	cd test && $(MAKE) $@
 
-getdns_query:	all
+getdns_query: default
 	cd tools && $(MAKE) $@
 
-stubby:	all
+stubby:	getdns_query
 	cd tools && $(MAKE) $@
 
-scratchpad:	all
+scratchpad: default
 	cd test && $(MAKE) $@
 
 pad: scratchpad

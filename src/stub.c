@@ -32,11 +32,21 @@
  */
 
 #include "config.h"
+
+/* Intercept and do not sent out COM DS queries with TLS
+ * For debugging purposes only. Never commit with this turned on.
+ */
+#define INTERCEPT_COM_DS 0
+
 #ifdef USE_POLL_DEFAULT_EVENTLOOP
 # ifdef HAVE_SYS_POLL_H
 #  include <sys/poll.h>
 # else
+#ifdef USE_WINSOCK
+#define poll(fdarray, nbsockets, timer) WSAPoll(fdarray, nbsockets, timer)
+#else
 #  include <poll.h>
+#endif
 # endif
 #endif
 #include "debug.h"
@@ -740,7 +750,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 
 /* stub_tcp_write(fd, tcp, netreq)
  * will return STUB_TCP_AGAIN when we need to come back again,
- * STUB_TCP_ERROR on error and a query_id on successfull sent.
+ * STUB_TCP_ERROR on error and a query_id on successful sent.
  */
 static int
 stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
@@ -1280,12 +1290,15 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 					return STUB_OUT_OF_OPTIONS;
 				netreq->keepalive_sent = 1;
 			}
-			if (netreq->owner->tls_query_padding_blocksize > 1) {
+			if (netreq->owner->tls_query_padding_blocksize > 0) {
+				uint16_t blksz = netreq->owner->tls_query_padding_blocksize;
+				if (blksz == 1) /* use a sensible default policy */
+					blksz = 128;
 				pkt_len = netreq->response - netreq->query;
 				pkt_len += 4; /* this accounts for the OPTION-CODE and OPTION-LENGTH of the padding */
-				padding_sz = pkt_len % netreq->owner->tls_query_padding_blocksize;
+				padding_sz = pkt_len % blksz;
 				if (padding_sz)
-					padding_sz = netreq->owner->tls_query_padding_blocksize - padding_sz;
+					padding_sz = blksz - padding_sz;
 				if (_getdns_network_req_add_upstream_option(netreq,
 									    EDNS_PADDING_OPCODE,
 									    padding_sz, NULL))
@@ -1299,10 +1312,39 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		
 		/* TODO[TLS]: Handle error cases, partial writes, renegotiation etc. */
 		ERR_clear_error();
-		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
-		if (written <= 0)
-			return STUB_TCP_ERROR;
+#if INTERCEPT_COM_DS
+		/* Intercept and do not sent out COM DS queries. For debugging
+		 * purposes only. Never commit with this turned on.
+		 */
+		if (netreq->request_type == GETDNS_RRTYPE_DS &&
+		    netreq->owner->name_len == 5 &&
+		    netreq->owner->name[0] == 3 &&
+		    (netreq->owner->name[1] & 0xDF) == 'C' &&
+		    (netreq->owner->name[2] & 0xDF) == 'O' &&
+		    (netreq->owner->name[3] & 0xDF) == 'M' &&
+		    netreq->owner->name[4] == 0) {
 
+			debug_req("Intercepting", netreq);
+			written = pkt_len + 2;
+		} else
+#endif
+		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
+		if (written <= 0) {
+			/* SSL_write will not do partial writes, because 
+			 * SSL_MODE_ENABLE_PARTIAL_WRITE is not default,
+			 * but the write could fail because of renegotiation.
+			 * In that case SSL_get_error()  will return
+			 * SSL_ERROR_WANT_READ or, SSL_ERROR_WANT_WRITE.
+			 * Return for retry in such cases.
+			 */
+			switch (SSL_get_error(tls_obj, written)) {
+			case SSL_ERROR_WANT_READ:
+			case SSL_ERROR_WANT_WRITE:
+				return STUB_TCP_AGAIN;
+			default:
+				return STUB_TCP_ERROR;
+			}
+		}
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
 
@@ -1675,9 +1717,8 @@ upstream_write_cb(void *userarg)
 	default:
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj &&
+		    netreq->debug_tls_peer_cert.data == NULL &&
 		    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
-			assert(netreq->debug_tls_peer_cert.data == NULL);
-
 			netreq->debug_tls_peer_cert.size = i2d_X509(
 			    cert, &netreq->debug_tls_peer_cert.data);
 			X509_free(cert);
@@ -2073,6 +2114,12 @@ upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
 	else {
 		DEBUG_STUB("%s %-35s: FD:  %d Connection idle - timeout is %d\n", 
 			    STUB_DEBUG_SCHEDULE, __FUNC__, upstream->fd, (int)idle_timeout);
+		/* TODO: Schedule a read also anyway,
+		 *       to digest timed out answers.
+		 *       Dont forget to schedule with upstream->fd then!
+		 *
+		 * upstream->event.read_cb = upstream_read_cb;
+		 */
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
 		if (upstream->conn_state != GETDNS_CONN_OPEN)
 			idle_timeout = 0;

@@ -97,16 +97,16 @@ doc:	FORCE
 example:
 	cd spec/example && $(MAKE) $@
 
-test:
+test: default
 	cd src && $(MAKE) $@
 
-getdns_query:
+getdns_query: default
 	cd src && $(MAKE) $@
 
-stubby:
+stubby: getdns_query
 	cd src && $(MAKE) $@
 
-scratchpad:
+scratchpad: default
 	cd src && $(MAKE) $@
 
 pad: scratchpad

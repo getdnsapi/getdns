@@ -32,7 +32,7 @@ libgetdns
 -- an implementation of a modern asynchronous DNS API by and for application developers
 
 .SH LIBRARY
-DNS Resolver library (libgetdns, -lgetdns)
+DNS Resolver library (libgetdns, \-lgetdns)
 
 .SH SYNOPSIS
 .B libgetdns
@@ -230,7 +230,7 @@ Set to GETDNS_EXTENSION_TRUE to include the DNSSEC status for each DNS record in
 .HP 3
 "dnssec_return_only_secure" (int)
 
-Set to GETDNS_EXTENSION_TRUE to cause only records that the API can validate as secure withe DNSSEC to be returned in the
+Set to GETDNS_EXTENSION_TRUE to cause only records that the API can validate as secure with DNSSEC to be returned in the
 .I replies_tree
 and
 .I replies_full lists

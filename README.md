@@ -25,15 +25,23 @@ getdns also provides an experimental DNS Privacy enabled client called 'stubby' 
 
 The developers are of the opinion that DNSSEC offers a unique global infrastructure for establishing and enhancing cryptographic trust relations.  With the development of this API we intend to offer application developers a modern and flexible interface that enables end-to-end trust in the DNS architecture, and which will inspire application developers to implement innovative security solutions in their applications.
 
+### API Documentation
+
+Note that this implementation offers additional functionality to supplement that in the [official getdns API](https://getdnsapi.net/documentation/spec/). Some additions are convenient utility functions but other functionality is experimental prior to be being recommended for inclusion in the official API.  The [Doxygen documentation](https://getdnsapi.net/doxygen/modules.html)  provides the details of the full API for this implementation.
+
 ## License
 
 This implementation is licensed under the New BSD License (BSD-new).
 
 Obtaining and getting started with getdns
 =========================================
-The project home page at [getdnsapi.net](https://getdnsapi.net) provides documentation, binary downloads, and news regarding the getdns API implementation.  This file captures the goals and direction of the project and the current state of the implementation.
+The project home page at [getdnsapi.net](https://getdnsapi.net) provides documentation, binary downloads, and news regarding the getdns API implementation.  This README file captures the goals and direction of the project and the current state of the implementation.
 
-If you are just getting started with the library take a look at the section below that describes building and handling external dependencies for the library.  Once it is built you should take a look at src/examples to see how the library is used.
+If you are just getting started with the library take a look at the section below that describes building and handling external dependencies for the library. 
+
+### Examples
+Once it is built you should take a look at src/examples to see how the library is used.
+
 
 # Download
 
@@ -99,15 +107,9 @@ The implementation works with a variety of event loops, each built as a separate
 
 ## Stubby
 
-* Stubby is an experimental implementation of a DNS Privacy enabled stub resolver. It is currently suitable for advanced/technical users - all feedback is welcome! Also see [dnsprivacy.org](https://dnsprivacy.org) for more information on DNS Privacy and stubby.
-* By default stubby will attempt to use 'Opportunistic' Privacy for DNS queries.
-* A sample configuration file is available in the source code (src/tools/stubby.conf) which uses 'Strict' Privacy and some of the available test DNS Privacy servers to resolve queries. Note these servers are test servers that offer no service guarantees. The location of a configuration file can be specified with the '-C' flag
-* RECOMMENDED: Minimal logging output from Stubby is available  (e.g. which servers are used and connection level statistics) by also using the '--enable-debug-daemon' flag when running 'configure'.
-
-To use stubby
-* Start stubby from the command line
-* Test it by doing, for example, 'dig @127.0.0.1 www.example.com'
-* Alter the default DNS resolvers on your system to point at localhost (127.0.0.1, ::1)
+* Stubby is an experimental implementation of a DNS Privacy enabled stub resolver than encrypts DNS queries using TLS. It is currently suitable for advanced/technical users - all feedback is welcome! 
+* Details on how to use Stubby can be found in the [Stubby Reference Guide](https://getdnsapi.net/blog/dns-privacy-daemon-stubby).
+* Also see [dnsprivacy.org](https://dnsprivacy.org) for more information on DNS Privacy.
 
 ## Regression Tests
 
@@ -136,20 +138,20 @@ execute the following steps as root:
 Support
 =======
 
-# Mailing lists
+## Mailing lists
 
 We have a [getdns users list](https://getdnsapi.net/mailman/listinfo/users) for this implementation.
 
 The [getdns-api mailing list](https://getdnsapi.net/mailman/listinfo/spec) is a good place to engage in discussions regarding the design of the API.
 
-# Tickets and Bug Reports
+## Tickets and Bug Reports
 
 Tickets and bug reports should be reported via the [GitHub issues list](https://github.com/getdnsapi/getdns/issues).
 
 Features of this release
 ========================
 
-# Goals
+## Goals
 
 The goals of this implementation of the getdns API are:
 
@@ -165,25 +167,20 @@ Non-goals (things we will not be doing at least initially) include:
 
 * implementation of the traditional DNS related routines (gethostbyname, etc.)
 
-# Official and Additional API
-
-Note that this implementation offers additional functionality to supplement that in the official getdns API. Some additions are convenient utility functions but other functionality is experimental prior to be being recommended for inclusion in the official API.  The 'Modules' page in the doxygen documentation provides a guide to both the official API and the additional functionality.
-
-# Language Bindings
+## Language Bindings
 
 In parallel, the team is actively developing bindings for various languages.
 For more information, visit the
 [wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
 
-# Unsupported getDNS Features
+## Unsupported getDNS Features
 
 The following API calls are documented in getDNS but *not supported* by the implementation at this time:
 
-* Disabling following of `CNAME`s with `getdns_context_set_follow_redirects()`
 * Detecting changes to resolv.conf and hosts
 * MDNS, NIS and NetBIOS namespaces (only DNS and LOCALFILES are supported)
 
-## Minor omissions
+### Minor omissions
 
 The following minor implementation omissions are noted:
 

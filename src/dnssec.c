@@ -559,7 +559,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 			if (! _dname_is_parent(*label, head->rrset.name))
 				break;
 		}
-		if ((unsigned)(label - labels) > max_labels) {
+		if ((ssize_t)(label - labels) > max_labels) {
 			max_labels = label - labels;
 			max_head = head;
 		}
@@ -1104,10 +1104,8 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 	    ; i = _getdns_rrset_iter_next(i)) {
 
 		rrset = _getdns_rrset_iter_value(i);
-		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
-			break;
-	}
-	if (i) {
+		if (rrset->rr_type != GETDNS_RRTYPE_SOA)
+			continue;
 
 		while (node &&
 		    ! _dname_equal(node->ds.name, rrset->name))
@@ -1124,8 +1122,9 @@ static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
 				val_chain_sched_soa_node(node->parent);
 			}
 		}
-
-	} else if (node->parent) {
+		break;
+	}
+	if (!i && node->parent) {
 		node->lock++;
 		val_chain_sched_soa_node(node->parent);
 	}
@@ -3111,6 +3110,43 @@ static void check_chain_complete(chain_head *chain)
 	/* Final user callback */
 	dnsreq->validating = 0;
 	_getdns_call_user_callback(dnsreq, response_dict);
+}
+
+void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
+{
+	chain_head *head = dnsreq->chain, *next;
+	chain_node *node;
+	size_t      node_count;
+
+	while (head) {
+		next = head->next;
+
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count
+		    ; node_count--, node = node->parent ) {
+
+			if (!_getdns_netreq_finished(node->dnskey_req)) {
+				_getdns_context_cancel_request(
+				    node->dnskey_req->owner);
+				node->dnskey_req = NULL;
+			}
+
+			if (!_getdns_netreq_finished(node->ds_req)) {
+				_getdns_context_cancel_request(
+				    node->ds_req->owner);
+				node->ds_req = NULL;
+			}
+
+			if (!_getdns_netreq_finished(node->soa_req)) {
+				_getdns_context_cancel_request(
+				    node->soa_req->owner);
+				node->soa_req = NULL;
+			}
+		}
+		head = next;
+	}
+	dnsreq->request_timed_out = 1;
+	check_chain_complete(dnsreq->chain);
 }
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)

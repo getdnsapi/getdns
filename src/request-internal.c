@@ -944,6 +944,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->freed = NULL;
 	result->validating = 0;
 	result->is_dns_request = 1;
+	result->request_timed_out = 0;
 	result->chain = NULL;
 
 	network_req_init(result->netreqs[0], result,

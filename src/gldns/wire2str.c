@@ -173,6 +173,28 @@ static gldns_lookup_table gldns_edns_options_data[] = {
 };
 gldns_lookup_table* gldns_edns_options = gldns_edns_options_data;
 
+static gldns_lookup_table gldns_tsig_errors_data[] = {
+	{ GLDNS_TSIG_ERROR_NOERROR, "NOERROR" },
+	{ GLDNS_RCODE_FORMERR, "FORMERR" },
+	{ GLDNS_RCODE_SERVFAIL, "SERVFAIL" },
+	{ GLDNS_RCODE_NXDOMAIN, "NXDOMAIN" },
+	{ GLDNS_RCODE_NOTIMPL, "NOTIMPL" },
+	{ GLDNS_RCODE_REFUSED, "REFUSED" },
+	{ GLDNS_RCODE_YXDOMAIN, "YXDOMAIN" },
+	{ GLDNS_RCODE_YXRRSET, "YXRRSET" },
+	{ GLDNS_RCODE_NXRRSET, "NXRRSET" },
+	{ GLDNS_RCODE_NOTAUTH, "NOTAUTH" },
+	{ GLDNS_RCODE_NOTZONE, "NOTZONE" },
+	{ GLDNS_TSIG_ERROR_BADSIG, "BADSIG" },
+	{ GLDNS_TSIG_ERROR_BADKEY, "BADKEY" },
+	{ GLDNS_TSIG_ERROR_BADTIME, "BADTIME" },
+	{ GLDNS_TSIG_ERROR_BADMODE, "BADMODE" },
+	{ GLDNS_TSIG_ERROR_BADNAME, "BADNAME" },
+	{ GLDNS_TSIG_ERROR_BADALG, "BADALG" },
+	{ 0, NULL }
+};
+gldns_lookup_table* gldns_tsig_errors = gldns_tsig_errors_data;
+
 char* gldns_wire2str_pkt(uint8_t* data, size_t len)
 {
 	size_t slen = (size_t)gldns_wire2str_pkt_buf(data, len, NULL, 0);
@@ -271,6 +293,12 @@ int gldns_wire2str_rcode_buf(int rcode, char* s, size_t slen)
 {
 	/* use arguments as temporary variables */
 	return gldns_wire2str_rcode_print(&s, &slen, rcode);
+}
+
+int gldns_wire2str_opcode_buf(int opcode, char* s, size_t slen)
+{
+	/* use arguments as temporary variables */
+	return gldns_wire2str_opcode_print(&s, &slen, opcode);
 }
 
 int gldns_wire2str_dname_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
@@ -970,6 +998,8 @@ int gldns_wire2str_rdf_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 		return gldns_wire2str_tag_scan(d, dlen, s, slen);
 	case GLDNS_RDF_TYPE_LONG_STR:
 		return gldns_wire2str_long_str_scan(d, dlen, s, slen);
+	case GLDNS_RDF_TYPE_TSIGERROR:
+		return gldns_wire2str_tsigerror_scan(d, dlen, s, slen);
 	}
 	/* unknown rdf type */
 	return -1;
@@ -1568,6 +1598,7 @@ int gldns_wire2str_hip_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 
 int gldns_wire2str_int16_data_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 {
+	int w;
 	uint16_t n;
 	if(*dl < 2)
 		return -1;
@@ -1576,7 +1607,12 @@ int gldns_wire2str_int16_data_scan(uint8_t** d, size_t* dl, char** s, size_t* sl
 		return -1;
 	(*d)+=2;
 	(*dl)-=2;
-	return gldns_wire2str_b64_scan_num(d, dl, s, sl, n);
+	if(n == 0) {
+		return gldns_str_print(s, sl, "0");
+	}
+	w = gldns_str_print(s, sl, "%u ", (unsigned)n);
+	w += gldns_wire2str_b64_scan_num(d, dl, s, sl, n);
+	return w;
 }
 
 int gldns_wire2str_nsec3_next_owner_scan(uint8_t** d, size_t* dl, char** s,
@@ -1633,10 +1669,10 @@ int gldns_wire2str_tag_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	if(*dl < 1+n)
 		return -1;
 	for(i=0; i<n; i++)
-		if(!isalnum((unsigned char)(*d)[i]))
+		if(!isalnum((unsigned char)(*d)[i+1]))
 			return -1;
 	for(i=0; i<n; i++)
-		w += gldns_str_print(s, sl, "%c", (char)(*d)[i]);
+		w += gldns_str_print(s, sl, "%c", (char)(*d)[i+1]);
 	(*d)+=n+1;
 	(*dl)-=(n+1);
 	return w;
@@ -1652,6 +1688,21 @@ int gldns_wire2str_long_str_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	w += gldns_str_print(s, sl, "\"");
 	(*d)+=*dl;
 	(*dl)=0;
+	return w;
+}
+
+int gldns_wire2str_tsigerror_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
+{
+	gldns_lookup_table *lt;
+	int data, w;
+	if(*dl < 2) return -1;
+	data = (int)gldns_read_uint16(*d);
+	lt = gldns_lookup_by_id(gldns_tsig_errors, data);
+	if(lt && lt->name)
+		w = gldns_str_print(s, sl, "%s", lt->name);
+	else 	w = gldns_str_print(s, sl, "%d", data);
+	(*dl)-=2;
+	(*d)+=2;
 	return w;
 }
 

@@ -10,7 +10,7 @@ TLS_SERVER_KEY="foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc9S="
 TLS_SERVER_SS_KEY="pOXrpUt9kgPgbWxBFFcBTbRH2heo2wHwXp1fd4AEVXI="
 TLS_SERVER_WRONG_KEY="foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc1S="
 GOOD_RESULT_SYNC="Status was: At least one response was returned"
-GOOD_RESULT_ASYNC="successfull"
+GOOD_RESULT_ASYNC="successful"
 BAD_RESULT_SYNC="1 'Generic error'"
 BAD_RESULT_ASYNC="callback_type of 703"
 NUM_ARGS=3

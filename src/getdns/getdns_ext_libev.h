@@ -48,7 +48,21 @@ struct ev_loop;
 /**
  *  \ingroup eventloops
  */
-/* For libevent, which we are using for these examples */
+/**
+ * Associate the libev ev_loop with the context, so that all
+ * asynchronous requests will schedule Input/Output with it.
+ * Synchronous requests will still use a default eventloop based on `poll()`.
+ * Applications need to @code #include <getdns/getdns_ext_libev.h> @endcode
+ * and link with libgetdns_ext_ev to use this function.
+ * getdns needs to have been configured with --with-libev for this 
+ * extension to be available.
+ * @param context The context to configure
+ * @param ev_loop The libev event loop to associate with this context.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_BAD_CONTEXT when context is NULL
+ * @return GETDNS_RETURN_INVALID_PARAMETER when ev_loop is NULL
+ * @return GETDNS_RETURN_MEMORY_ERROR when memory could not be allocated
+ */
 getdns_return_t
 getdns_extension_set_libev_loop(struct getdns_context *context,
     struct ev_loop *ev_loop);

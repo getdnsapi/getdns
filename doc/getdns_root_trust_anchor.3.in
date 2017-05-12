@@ -32,7 +32,7 @@
 -- return the getdns list of default root trust anchors
 
 .SH LIBRARY
-DNS Resolver library (libgetdns, -lgetdns)
+DNS Resolver library (libgetdns, \-lgetdns)
 
 .SH SYNOPSIS
 #include <getdns.h>

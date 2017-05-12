@@ -314,6 +314,7 @@ typedef struct getdns_dns_req {
 	unsigned dnssec_ok_checking_disabled		: 1;
 	unsigned is_sync_request			: 1;
 	unsigned is_dns_request				: 1;
+	unsigned request_timed_out			: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when
@@ -344,7 +345,7 @@ typedef struct getdns_dns_req {
 	/* the transaction id */
 	getdns_transaction_t trans_id;
 
-	/* Absolute time (in miliseconds since epoch),
+	/* Absolute time (in milliseconds since epoch),
 	 * after which this dns request is expired; i.e. timed out
 	 */
 	uint64_t expires;

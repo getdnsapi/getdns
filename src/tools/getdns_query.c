@@ -54,7 +54,7 @@ static const char *default_stubby_config =
 ", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
 ", idle_timeout: 10000"
 ", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
-", tls_query_padding_blocksize: 256"
+", tls_query_padding_blocksize: 1"
 ", edns_client_subnet_private : 1"
 "}";
 static int clear_listen_list_on_arg = 0;
@@ -92,7 +92,7 @@ static int get_rrtype(const char *t)
 	if (strlen(t) > sizeof(buf) - 15)
 		return -1;
 	for (i = 14; *t && i < sizeof(buf) - 1; i++, t++)
-		buf[i] = toupper(*t);
+		buf[i] = *t == '-' ? '_' : toupper(*t);
 	buf[i] = '\0';
 
 	if (!getdns_str2int(buf, &rrtype))
@@ -219,7 +219,7 @@ print_usage(FILE *out, const char *progname)
 	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
-	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in milliseconds\n");
 	if (!i_am_stubby)
 		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
@@ -243,7 +243,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
-	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
+	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n"
+		"\t\t(special values: 0: no padding, 1: sensible default policy)\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
 	fprintf( out, "\t-r\tSet recursing resolution type%s\n"
 	       , i_am_stubby ? "(default = stub)" : "");
@@ -252,7 +253,7 @@ print_usage(FILE *out, const char *progname)
 	       , i_am_stubby ? "" : "(default = recursing)" );
 	if (!i_am_stubby)
 		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
-	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-t <timeout>\tSet timeout in milliseconds\n");
 	fprintf(out, "\t-v\tPrint getdns release version\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
@@ -262,7 +263,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
 	fprintf(out, "\t-M\tAppend suffix only to multi label name after failure\n");
 	fprintf(out, "\t-N\tNever append a suffix\n");
-	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separed list\n");
+	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separated list\n");
 
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
@@ -271,7 +272,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback (default)\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
-	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
+	fprintf(out, "\t\t\t U T L for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
 	fprintf(out, "\t-z <listen address>\n");
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
@@ -383,7 +384,7 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 	}
 
 	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
-		printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successfull.\n",
+		printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successful.\n",
 			trans_id);
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
@@ -1229,6 +1230,7 @@ void read_line_cb(void *userarg)
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
 			    context, NULL, NULL, NULL);
+		(void) getdns_context_set_idle_timeout(context, 0);
 		return;
 	}
 	if (query_file)

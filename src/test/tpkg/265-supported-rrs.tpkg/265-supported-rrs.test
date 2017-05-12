@@ -1,0 +1,15 @@
+# #-- 265-supported-rrs.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+if ! make
+then
+	exit 1
+elif ! ( "./${TPKG_NAME}" "${TPKG_NAME}.net-dns.org" | tee out )
+then
+	exit 1
+else
+	diff out "${TPKG_NAME}.good"
+fi

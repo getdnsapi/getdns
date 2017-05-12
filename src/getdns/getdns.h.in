@@ -47,12 +47,12 @@ extern "C" {
 
 #define GETDNS_COMPILATION_COMMENT "@GETDNS_COMPILATION_COMMENT@"
 
-/** \defgroup getdnsAPI Official getdns API 
- *  @{
+/**
+ * \defgroup functions Functions
+ * \defgroup valuesandtexts Values and texts
  */
 
-
-/** \defgroup valuesandtexts Values and texts
+/** \addtogroup valuesandtexts Values and texts
  *  @{
  */
 
@@ -120,6 +120,7 @@ typedef enum getdns_return_t {
  * \defgroup namespacetypestext Namespace types and texts
  * @{
  */
+
 typedef enum getdns_namespace_t {
 	GETDNS_NAMESPACE_DNS = 500,
 	GETDNS_NAMESPACE_LOCALNAMES = 501,
@@ -376,6 +377,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_ISDN      20
 #define GETDNS_RRTYPE_RT        21
 #define GETDNS_RRTYPE_NSAP      22
+#define GETDNS_RRTYPE_NSAP_PTR  23
 #define GETDNS_RRTYPE_SIG       24
 #define GETDNS_RRTYPE_KEY       25
 #define GETDNS_RRTYPE_PX        26
@@ -405,6 +407,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_NSEC3     50
 #define GETDNS_RRTYPE_NSEC3PARAM 51
 #define GETDNS_RRTYPE_TLSA      52
+#define GETDNS_RRTYPE_SMIMEA    53
 #define GETDNS_RRTYPE_HIP       55
 #define GETDNS_RRTYPE_NINFO     56
 #define GETDNS_RRTYPE_RKEY      57
@@ -433,6 +436,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_ANY       255
 #define GETDNS_RRTYPE_URI       256
 #define GETDNS_RRTYPE_CAA       257
+#define GETDNS_RRTYPE_AVC       258
 #define GETDNS_RRTYPE_TA        32768
 #define GETDNS_RRTYPE_DLV       32769
 /** @}
@@ -490,17 +494,40 @@ typedef enum getdns_callback_type_t {
  */
 
 
+/**
+ * Many calls in the DNS API require a DNS context. A DNS context contains
+ * the information that the API needs in order to process DNS calls, such
+ * as the locations of upstream DNS servers, DNSSEC trust anchors, and so on.
+ * The internal structure of the DNS context is opaque, and might be different
+ * on each OS. When a context is passed to any function, it must be an
+ * allocated context; the context must not be NULL.
+ *
+ * Use getdns_context_set_* functions to configure a context.
+ */
 typedef struct getdns_context getdns_context;
+
+/**
+ * When scheduling asynchronous requests, transaction identifiers associated
+ * with the request are returned.  These identifiers are of the type:
+ * getdns_transaction_t.  These identifiers can be used to associate answers
+ * with requests, and also to cancel outstanding requests.
+ */
 typedef uint64_t getdns_transaction_t;
 
 
 /**
- * used to check data types within complex types (dict, list)
+ * getdns_list_get_data_type() and getdns_dict_get_data_type() return the type
+ * of data on an index in a getdns_list, or on a name in a getdns_dict.
  */
 typedef enum getdns_data_type
 {
 	t_dict, t_list, t_int, t_bindata
 } getdns_data_type;
+
+
+/**
+ * A  struct to hold binary data.
+ */
 typedef struct getdns_bindata
 {
 	size_t size;
@@ -523,31 +550,27 @@ typedef struct getdns_list getdns_list;
  */
 
 
-/** \defgroup functions Functions
+/** \addtogroup functions Functions
  *  @{
  */
 /* Specify the order of the following groups manually here so they appear in 
    a better order in doxygen */
 
 /**
- * \defgroup list_create getdns_list creation/destruction functions
- * \defgroup getdns_list_set getdns_list_set functions
- * \defgroup getdns_list_get_functions getdns_list_get functions
- * \defgroup dict_create getdns_dict creation/destruction functions
- * \defgroup getdns_dict_set getdns_dict_set functions
- * \defgroup getdns_dict_get_functions getdns_dict_get functions
- * \defgroup context_create getdns_context creation/destruction functions
- * \defgroup context_set getdns_context_set functions
- * \defgroup callbackfns getdns_callback functions
- * \defgroup eventloops  getdns event loop extension functions
- * \defgroup funcs Asynchronous API functions
- * \defgroup syncfuncs Synchronous API functions that do not use callbacks
+ * \defgroup getdns_context Creating, destroying, configuring and reading configuration from getdns_contexts
+ * \defgroup getdns_dict Creating, destroying, reading from and manipulating getdns_dicts
+ * \defgroup getdns_list Creating, destroying, reading from and manipulating getdns_lists
+ * \defgroup asyncfuncs Scheduling asynchronous requests
+ * \defgroup syncfuncs Performing synchronous requests
+ * \defgroup eventloops  Event loop extension functions
+ * \defgroup versionfuncs Version functions
+ * \defgroup dnssecfuncs DNSSEC functions
  * \defgroup utils Utility functions
  */
 
 
 /**
- * \addtogroup getdns_list_get_functions getdns_list_get functions
+ * \addtogroup getdns_list
  * @{
  */
 
@@ -626,7 +649,7 @@ getdns_return_t getdns_list_get_int(const getdns_list *list, size_t index,
 
 
 /**
- * \addtogroup getdns_dict_get_functions getdns_dict_get functions
+ * \addtogroup getdns_dict
  * @{
  */
 
@@ -700,7 +723,7 @@ getdns_return_t getdns_dict_get_int(const getdns_dict *dict,
 
 
 /**
- * \addtogroup list_create getdns_list creation/destruction functions
+ * \addtogroup getdns_list
  * @{
  */
 
@@ -709,12 +732,46 @@ getdns_return_t getdns_dict_get_int(const getdns_dict *dict,
  * @return pointer to an allocated list, NULL if insufficient memory
  */
 getdns_list *getdns_list_create();
+
+/**
+ * create a new list with no items, creating and initializing it with the
+ * custom memory function from context.  These memory functions will be used
+ * for creating, and inherited by the list members when populating the list.
+ * The custom deallocator will be used for destroying the list.
+ * @param context The context from which the custom memory functions will be
+ *                used to create and initialize the list.
+ * @return pointer to an allocated list, NULL if insufficient memory
+ */
 getdns_list *getdns_list_create_with_context(getdns_context *context);
+
+/**
+ * create a new list with no items, creating and initializing it with the
+ * provided custom memory function.  These memory functions will be used
+ * for creating, and inherited by the list members when populating the list.
+ * The custom deallocator will be used for destroying the list.
+ * @param malloc Custom allocator
+ * @param realloc Custom reallocator
+ * @param free Custom deallocator
+ * @return pointer to an allocated list, NULL if insufficient memory
+ */
 getdns_list *getdns_list_create_with_memory_functions(
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
 );
+
+/**
+ * create a new list with no items, creating and initializing it with the
+ * provided extended custom memory function.  These memory functions will be
+ * used for creating, and inherited by the list members when populating the
+ * list.  The custom deallocator will be used for destroying the list.
+ * @param userarg Will be passed as the first argument to the extended 
+ *                custom malloc, realloc, and free.
+ * @param malloc Custom allocator
+ * @param realloc Custom reallocator
+ * @param free Custom deallocator
+ * @return pointer to an allocated list, NULL if insufficient memory
+ */
 getdns_list *getdns_list_create_with_extended_memory_functions(
     void *userarg,
     void *(*malloc) (void *userarg, size_t),
@@ -736,7 +793,7 @@ void getdns_list_destroy(getdns_list *list);
 
 
 /**
- * \addtogroup getdns_list_set getdns_list_set functions
+ * \addtogroup getdns_list
  * @{
  */
 
@@ -786,7 +843,7 @@ getdns_return_t getdns_list_set_int(getdns_list *list, size_t index,
 
 
 /**
- * \addtogroup dict_create getdns_dict creation/destruction functions
+ * \addtogroup getdns_dict
  * @{
  */
 
@@ -795,12 +852,46 @@ getdns_return_t getdns_list_set_int(getdns_list *list, size_t index,
  * @return pointer to an allocated dictionary, NULL if insufficient memory
  */
 getdns_dict *getdns_dict_create();
+
+/**
+ * create a new dict with no items, creating and initializing it with the
+ * custom memory function from context.  These memory functions will be used
+ * for creating, and inherited by the list members when populating the dict.
+ * The custom deallocator will be used for destroying the dict.
+ * @param context The context from which the custom memory functions will be
+ *                used to create and initialize the dict.
+ * @return pointer to an allocated dict, NULL if insufficient memory
+ */
 getdns_dict *getdns_dict_create_with_context(getdns_context *context);
+
+/**
+ * create a new dict with no items, creating and initializing it with the
+ * provided custom memory function.  These memory functions will be used
+ * for creating, and inherited by the dict members when populating the dict.
+ * The custom deallocator will be used for destroying the dict.
+ * @param malloc Custom allocator
+ * @param realloc Custom reallocator
+ * @param free Custom deallocator
+ * @return pointer to an allocated dict, NULL if insufficient memory
+ */
 getdns_dict *getdns_dict_create_with_memory_functions(
     void *(*malloc) (size_t),
     void *(*realloc) (void *, size_t),
     void (*free) (void *)
 );
+
+/**
+ * create a new dict with no items, creating and initializing it with the
+ * provided extended custom memory function.  These memory functions will be
+ * used for creating, and inherited by the dict members when populating the
+ * dict.  The custom deallocator will be used for destroying the dict.
+ * @param userarg Will be passed as the first argument to the extended 
+ *                custom malloc, realloc, and free.
+ * @param malloc Custom allocator
+ * @param realloc Custom reallocator
+ * @param free Custom deallocator
+ * @return pointer to an allocated dict, NULL if insufficient memory
+ */
 getdns_dict *getdns_dict_create_with_extended_memory_functions(
     void *userarg,
     void *(*malloc) (void *userarg, size_t),
@@ -819,12 +910,21 @@ void getdns_dict_destroy(getdns_dict *dict);
 
 
 /**
- * \addtogroup getdns_dict_set getdns_dict_set functions
+ * \addtogroup getdns_dict
  * @{
  */
 
+/**
+ * create a new entry in the dictionary, or replace the value of an existing entry
+ * this routine makes a copy of the child_dict_
+ * @param dict dictionary in which to add or change the value
+ * @param name key that identifies which item in the dictionary to add/change
+ * @param child_dict value to assign to the node identified by name
+ * @return GETDNS_RETURN_GOOD on success
+ */
 getdns_return_t getdns_dict_set_dict(getdns_dict *dict,
     const char *name, const getdns_dict *child_dict);
+
 /**
  * create a new entry in the dictionary, or replace the value of an existing entry
  * this routine makes a copy of the child_list
@@ -854,6 +954,14 @@ getdns_return_t getdns_dict_set_bindata(getdns_dict *dict,
  */
 getdns_return_t getdns_dict_set_int(getdns_dict *dict, const char *name,
     uint32_t child_uint32);
+
+/**
+ * creates a string that describes the dictionary in a human readable form
+ * one line per item in the dictionary
+ * @param some_dict dictionary to pretty print
+ * @return character array (caller must free this) containing pretty string
+ */
+char *getdns_pretty_print_dict(const getdns_dict *some_dict);
 /** @}
  */
 
@@ -868,23 +976,46 @@ getdns_return_t getdns_dict_set_int(getdns_dict *dict, const char *name,
  */
 getdns_return_t getdns_dict_remove_name(getdns_dict *dict, const char *name);
 
-
 /**
- * \addtogroup callbackfns getdns_callback functions
+ * \addtogroup asyncfuncs
+ * @{
  */
-/* Callback arguments */
+/**
+ * The type of the callback function that must be registered when scheduling
+ * asynchronous requests.  The registered function will be called from the
+ * eventloop with the following parameters.
+ * @see callbacktype
+ * @param context The DNS context that was used in the calling function
+ * @param callback_type Supplies the reason for the callback.
+ *                      This will be one of:
+ *                      - GETDNS_CALLBACK_COMPLETE The response has the
+ *                        requested data in it
+ *                      - GETDNS_CALLBACK_CANCEL The calling program cancelled
+ *                        the callback; response is NULL
+ *                      - GETDNS_CALLBACK_TIMEOUT The requested action timed
+ *                        out; response is filled in with empty structures or
+ *                        will contain additional information about the timeout
+ *                        when used in combination with the
+ *                        return_call_reporting extension.
+ *                      - GETDNS_CALLBACK_ERROR The requested action had an 
+ *                        error; response is NULL.
+ * @param response A response object with the response data. 
+ *                 The application is responsible for cleaning up the response
+ *                 object with getdns_dict_destroy.
+ * @param userarg Identical to the userarg passed to the calling function.
+ * @param transaction_id The transaction identifier that was assigned by the
+ *                       calling function.
+ */
 typedef void (*getdns_callback_t) (getdns_context *context,
     getdns_callback_type_t callback_type,
     getdns_dict * response,
     void *userarg, getdns_transaction_t transaction_id);
 
-/**
- * \addtogroup funcs Asynchronous API functions
- * @{
- */
 
 /**
  * retrieve general DNS data
+ * @see rrtypes
+ * @see getdns_general_sync
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
@@ -904,6 +1035,7 @@ getdns_general(getdns_context *context,
 
 /**
  * retrieve address assigned to a DNS name
+ * @see getdns_address_sync
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param extensions dict data structures, NULL to use no extensions
@@ -921,6 +1053,7 @@ getdns_address(getdns_context *context,
 
 /**
  * retrieve hostname assigned to an IP address
+ * @see getdns_hostname_sync
  * @param context pointer to a previously created context to be used for this call
  * @param address the address to look up
  * @param extensions dict data structures, NULL to use no extensions
@@ -938,6 +1071,7 @@ getdns_hostname(getdns_context *context,
 
 /**
  * retrieve a service assigned to a DNS name
+ * @see getdns_service_sync
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param extensions dict data structures, NULL to use no extensions
@@ -957,7 +1091,7 @@ getdns_service(getdns_context *context,
 
 
 /**
- * \addtogroup context_create getdns_context creation/destruction functions
+ * \addtogroup getdns_context
  * @{
  */
 
@@ -1019,14 +1153,23 @@ getdns_context_create_with_extended_memory_functions(
     void (*free) (void *userarg, void *)
 );
 
+/**
+ * destroy the context.  All outstanding requests will be cancelled with
+ * the getdns_cancel_callback() function.
+ */
 void getdns_context_destroy(getdns_context *context);
 /** @}
  */
 
 
 /**
- * \addtogroup callbackfns getdns_callback functions
+ * \addtogroup asyncfuncs
  * @{
+ */
+/**
+ * Cancel an outstanding asynchronous request.  The callback registered with
+ * the request will be called with the getdns_callback_type_t set to
+ * GETDNS_CALLBACK_CANCEL and the response set to NULL.
  */
 getdns_return_t
 getdns_cancel_callback(getdns_context *context,
@@ -1036,7 +1179,7 @@ getdns_cancel_callback(getdns_context *context,
 
 
 /**
- * \addtogroup syncfuncs Synchronous API functions that do not use callbacks
+ * \addtogroup syncfuncs
  * @{
  */
 /** These functions do not use callbacks, when the application calls one of these
@@ -1047,6 +1190,8 @@ getdns_cancel_callback(getdns_context *context,
 
 /**
  * retrieve general DNS data
+ * @see rrtypes
+ * @see getdns_general
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param request_type RR type for the query, e.g. GETDNS_RR_TYPE_NS
@@ -1063,6 +1208,7 @@ getdns_general_sync(getdns_context *context,
 
 /**
  * retrieve address assigned to a DNS name
+ * @see getdns_address
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param extensions dict data structures, NULL to use no extensions
@@ -1077,6 +1223,7 @@ getdns_address_sync(getdns_context *context,
 
 /**
  * retrieve hostname assigned to an IP address
+ * @see getdns_hostname
  * @param context pointer to a previously created context to be used for this call
  * @param address the address to look up
  * @param extensions dict data structures, NULL to use no extensions
@@ -1091,6 +1238,7 @@ getdns_hostname_sync(getdns_context *context,
 
 /**
  * retrieve a service assigned to a DNS name
+ * @see getdns_service
  * @param context pointer to a previously created context to be used for this call
  * @param name the ASCII based domain name to lookup
  * @param extensions dict data structures, NULL to use no extensions
@@ -1111,36 +1259,119 @@ getdns_service_sync(getdns_context *context,
  * @{
  */
 
+/**
+ * Convert a domain name in DNS wire format to presentation format.
+ * The newly allocated string should be freed with free.
+ * @param dns_name_wire_fmt A bindata to the DNS name in wire format
+ * @param fqdn_as_string A reference to a pointer that will be set
+ *                       to a newly allocated string containing the
+ *                       presentation format of the name.  The caller
+ *                       is responsible for deallocate this space with free().
+ * @return GETDNS_RETURN_GOOD on success or GETDNS_RETURN_GENERIC_ERROR
+ *         when the wireformat name could not be parsed.
+ */
 getdns_return_t
 getdns_convert_dns_name_to_fqdn(
     const getdns_bindata *dns_name_wire_fmt,
     char **fqdn_as_string);
 
+/**
+ * Convert a domain name in presentation format to DNS wire format.
+ * @param fqdn_as_string The name to convert in presentation format.
+ * @param dns_name_wire_fmt A reference to a pointer that will be set
+ *                          to a newly allocated bindata containing the
+ *                          DNS wire format of the name.  The caller
+ *                          is responsible for deallocate this space with free().
+ * @return GETDNS_RETURN_GOOD on success or GETDNS_RETURN_GENERIC_ERROR
+ *         when the presentation format name could not be parsed.
+ */
 getdns_return_t
 getdns_convert_fqdn_to_dns_name(
     const char *fqdn_as_string,
     getdns_bindata **dns_name_wire_fmt);
 
+/**
+ * Convert an Unicode encoded label to ASCII encoding following the
+ * rules for IDNA 2008 described in RFC 5890-5892.
+ * @param ulabel The Unicode encoded label to convert.
+ * @return The ASCII encoding label. The caller is responsible for deallocate
+ * this space with free().
+ */ 
 char *getdns_convert_ulabel_to_alabel(const char *ulabel);
 
+/**
+ * Convert an ASCII encoded label to Unicode encoding following the
+ * rules for IDNA 2008 described in RFC 5890-5892.
+ * @param alabel The ASCII encoded label to convert.
+ * @return The Unicode encoding label. The caller is responsible for
+ * deallocation with free().
+ */ 
 char *getdns_convert_alabel_to_ulabel(const char *alabel);
 
+/** @}
+ */
+
+/**
+ * \addtogroup dnssecfuncs
+ *  @{
+ */
+
+/**
+ * Offline DNSSEC validate Resource Records with the help of support
+ * records and a DNSSEC trust anchor.
+ * @see dnssecvalues
+ * @param to_validate This is a list of reply_dicts to validate (as can
+ *                    be seen under "replies_tree" in a response dict), or
+ *                    an RRset with signatures represented as a list of
+ *                    rr_dicts.  The format of rr_dict can be seen in
+ *                    the sections of reply_dicts in response dicts.
+ *                    It is also possible to validate the non-existance
+ *                    of a query.  Besides all the necessary NSEC(3)s plus
+ *                    signature, the to_validate should then also contain
+ *                    a question rr_dict with a qname, qclass and qtype.
+ * @param support_records A list of all the DNSKEY, DS and NSEC(3) RRsets
+ *                        (in the form of rr_dicts) that may be used to
+ *                        validate the RRsets or replies in to_validate.
+ *                        The value returned under "validation_chain" in a
+ *                        response dict when the dnssec_return_validation_chain
+ *                        extension was used, can be used directly for this.
+ * @param trust_anchors A list of rr_dicts containing the DNSSEC trust anchors.
+ *                      The return value of the getdns_root_trust_anchor()
+ *                      can be used directly for this.
+ * @return The function returns one of GETDNS_DNSSEC_SECURE,
+ * GETDNS_DNSSEC_BOGUS, GETDNS_DNSSEC_INDETERMINATE, or GETDNS_DNSSEC_INSECURE
+ * depending on the validation status.
+ */
 getdns_return_t
 getdns_validate_dnssec(getdns_list *to_validate,
     getdns_list *support_records,
     getdns_list *trust_anchors);
 
-/* Get root trust anchor */
+/**
+ * Get the default list of trust anchor records that is used by the library
+ * to validate DNSSEC.
+ * @param utc_date_of_anchor Set to the number of seconds since epoch
+ *                           the trust anchors were obtained
+ * @return The list of DNSSEC trust anchors, or NULL on error. The  caller is
+ * responsible for deallocating the list with getdns_list_destroy().
+ */
 getdns_list *getdns_root_trust_anchor(time_t *utc_date_of_anchor);
 
-/**
- * creates a string that describes the dictionary in a human readable form
- * one line per item in the dictionary
- * @param some_dict dictionary to pretty print
- * @return character array (caller must free this) containing pretty string
+/** @}
  */
-char *getdns_pretty_print_dict(const getdns_dict *some_dict);
 
+/**
+ * \addtogroup utils
+ *  @{
+ */
+
+/**
+ * Converts a getdns_bindata representing an IPv4 or IPv6 address to a 
+ * textual representation.
+ * @param bindata_of_ipv4_or_ipv6_address The IP address to convert.
+ * @return character array (caller must free this) containing the textual
+ * representation of the address.
+ */
 char *getdns_display_ip_address(const getdns_bindata
     *bindata_of_ipv4_or_ipv6_address);
 
@@ -1149,8 +1380,22 @@ char *getdns_display_ip_address(const getdns_bindata
 
 
 /**
- * \addtogroup context_set getdns_context_set functions
+ * \addtogroup getdns_context
  * @{
+ */
+
+/**
+ * An application can be notified when the context is changed.
+ * Note that this implementation has an extended version of this function
+ * in which an additional userarg parameter can be registered:
+ * #getdns_context_set_update_callback .
+ * @see contextcodetypestext
+ * @param context The context for which to monitor changes
+ * @param value The callback function that will be called when any context is
+ *              changed. A update callback function can be deregistered by
+ *              passing NULL.
+ * @return GETDNS_RETURN_GOOD when succesful.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
  */
 getdns_return_t
 getdns_context_set_context_update_callback(
@@ -1159,73 +1404,366 @@ getdns_context_set_context_update_callback(
                 getdns_context_code_t changed_item)
 );
 
+/**
+ * Specify whether DNS queries are performed with recursive lookups or as a
+ * stub resolver. The default value is GETDNS_RESOLUTION_RECURSING.
+ * @see getdns_context_get_resolution_type
+ * @see resolutiontypestext
+ * @param context The context to configure
+ * @param value GETDNS_RESOLUTION_RECURSING or GETDNS_RESOLUTION_STUB.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL with unknown resolution types
+ * @return GETDNS_RETURN_NOT_IMPLEMENTED when getdns was compiled for stub
+ *         resolution only and recursing resolution type was requested.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
 getdns_return_t
 getdns_context_set_resolution_type(getdns_context *context,
     getdns_resolution_t value);
 
+/**
+ * Sets the ordered list of namespaces that will be queried.
+ * This context setting is ignored for the getdns_general and
+ * getdns_general_sync functions; it is used for the other funtions. 
+ * When a normal lookup is done, the API does the lookups in the order given
+ * and stops when it gets the first result
+ * @see getdns_context_get_namespaces
+ * @see namespacetypestext
+ * @param context The context to configure
+ * @param namespace_count The number of values in the namespaces list.
+ * @param namespaces An ordered list of namespaces that will be queried.
+ *                   The values are: GETDNS_NAMESPACE_DNS,
+ *                   GETDNS_NAMESPACE_LOCALNAMES, GETDNS_NAMESPACE_NETBIOS,
+ *                   GETDNS_NAMESPACE_MDNS, and GETDNS_NAMESPACE_NIS. 
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL with unknown namespace types
+ * @return GETDNS_RETURN_NOT_IMPLEMENTED when unsupported namespaces were
+ *         given.  Currently this implementation supports only
+ *         GETDNS_NAMESPACE_DNS, GETDNS_NAMESPACE_LOCALNAMES and has an
+ *         draft implementation of GETDNS_NAMESPACE_MDNS, which has to be
+ *         enabled at configure time.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
 getdns_return_t
 getdns_context_set_namespaces(getdns_context *context,
     size_t namespace_count, getdns_namespace_t *namespaces);
 
+/**
+ * Specifies what transport are used for DNS lookups. The default is
+ * GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP. Use of this function
+ * is discouraged.  Please use #getdns_context_set_dns_transport_list()
+ * instead of this function.  
+ * @see getdns_context_get_dns_transport
+ * @see transporttypestext
+ * @see getdns_context_set_dns_transport_list
+ * @param context The context to configure
+ * @param value The transport to use for DNS lookups.
+ *              The value is GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP,
+ *              GETDNS_TRANSPORT_UDP_ONLY, GETDNS_TRANSPORT_TCP_ONLY,
+ *              GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN,
+ *              GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN or
+ *              GETDNS_TRANSPORT_TLS_FIRST_AND_FALL_BACK_TO_TCP_KEEP_CONNECTIONS_OPEN.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL with unknown values
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
 getdns_return_t
 getdns_context_set_dns_transport(getdns_context *context,
     getdns_transport_t value);
 
+/**
+ * Specifies what transport is used for DNS lookups. The default is a list
+ * containing GETDNS_TRANSPORT_UDP then GETDNS_TRANSPORT_TCP.  The API will
+ * return information on the actual transport used to fulfill the request in
+ * the response dict, when the return_call_reporting extension is used.
+ * @see getdns_context_get_dns_transport_list
+ * @see transportlisttypestext
+ * @see getdns_context_set_dns_transport
+ * @param context The context to configure
+ * @param transport_count The number of values in the transports list.
+ * @param transports An ordered list of transports that will be used for DNS
+ *                   lookups. If only one transport value is specified it will
+ *                   be the only transport used. Should it not be available
+ *                   basic resolution will fail. Fallback transport options are
+ *                   specified by including multiple values in the list.
+ *                   The values are: GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP,
+ *                   or GETDNS_TRANSPORT_TLS
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL with unknown values
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
 getdns_return_t
 getdns_context_set_dns_transport_list(getdns_context *context,
     size_t transport_count, getdns_transport_list_t *transports);
 
+/**
+ * Specify number of milliseconds the API will leave an idle TCP or TLS
+ * connection open for (idle means no outstanding responses and no pending
+ * queries).  When set to 0, all currently open idle connections will be
+ * closed immediately.  The default is 0.
+ * Note with synchronous queries, idle connections can not reliably be timed.
+ * Each new synchronous request, will reset the counter no matter the time
+ * in between requests, and thus leave the connection open always.  This
+ * setting is thus only meaningful when doing requests asynchronously.
+ * @see getdns_context_get_idle_timeout
+ * @param context The context to configure
+ * @param timeout The number of milliseconds the API will leave an idle TCP
+ *                or TLS connection open for
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
 getdns_return_t
 getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout);
 
+/**
+ * Limit the number of outstanding DNS queries. When more than limit requests
+ * are scheduled, they are kept on an internal queue, to be rescheduled when
+ * the number of outstanding queries drops below the limit again.
+ * A value of 0 indicates that the number of outstanding DNS queries is
+ * unlimited, however, queries will be put on the internal queue too when
+ * system resources are exhausted (i.e. number of available sockets).
+ * The default value is 0.
+ * @see getdns_context_get_limit_outstanding_queries
+ * @param context The context to configure
+ * @param limit The maximum number of outstanding DNS queries.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
 getdns_return_t
 getdns_context_set_limit_outstanding_queries(getdns_context *context,
     uint16_t limit);
 
+/**
+ * Specifies number of milliseconds the API will wait for request to return.
+ * The default is 5000 (i.e. 5 seconds).
+ * @see getdns_context_get_timeout
+ * @param context The context to configure
+ * @param timeout The number of milliseconds the API will wait for request to
+ *                return.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER for a timeout 0,
+ *         or when context was NULL
+ */
 getdns_return_t
 getdns_context_set_timeout(getdns_context *context, uint64_t timeout);
 
+/**
+ * Specifies whether or not DNS queries follow redirects.
+ * The default value is GETDNS_REDIRECTS_FOLLOW.
+ * In this implementation, redirects are only actively followed in the recursing
+ * resolution mode.  The GETDNS_REDIRECTS_DO_NOT_FOLLOW will not prevent this,
+ * but the response will be stripped of all resource records that could only be
+ * found through following redirects.  The setting will do this with answers
+ * provided by an upstream in stub resolution mode too.
+ * @see getdns_context_get_follow_redirects
+ * @see redirectpoliciestext
+ * @param context The context to configure
+ * @param value GETDNS_REDIRECTS_FOLLOW for normal following of redirects
+ *              through CNAME and DNAME; or GETDNS_REDIRECTS_DO_NOT_FOLLOW to
+ *              cause any lookups that would have gone through CNAME and DNAME
+ *              to return the CNAME or DNAME, not the eventual target.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER for an unknown value,
+ *         or when context was NULL
+ */
 getdns_return_t
 getdns_context_set_follow_redirects(getdns_context *context,
     getdns_redirects_t value);
 
+/**
+ * Configure the list of addresses to be used for looking up top-level domains.
+ * The default is the list of "normal" IANA root servers
+ * @see getdns_context_get_dns_root_servers
+ * @param context The context to configure
+ * @param addresses The list contains dicts that are addresses to be used for
+ *                  looking up top-level domains. Each dict in the list
+ *                  contains at least two names: address_type (whose value is
+ *                  a bindata; it is currently either "IPv4" or "IPv6") and
+ *                  address_data (whose value is a bindata).
+ *                  This implementation also accepts a list of addressxi
+ *                  bindatas. Or a list of rr_dicts for address records (i.e.
+ *                  the additional section of a NS query for ".", or a with
+ *                  getdns_fp2rr_list() converted root.hints file).
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_ CONTEXT_UPDATE_FAIL when there were problems
+ *         parsing the provided addresses list.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_dns_root_servers(getdns_context *context,
     getdns_list *addresses);
 
+/**
+ * Specifies whether, how and when to append a suffix to the query string.
+ * The non-standard implementation default is
+ * GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST.
+ * @see getdns_context_get_append_name
+ * @see suffixappendtypestext
+ * @param context The context to configure
+ * @param value GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST,
+ *              GETDNS_APPEND_NAME_ALWAYS,
+ *              GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE,
+ *              GETDNS_APPEND_NAME_ONLY_TO_MULTIPLE_LABEL_NAME_AFTER_FAILURE,
+ *              or GETDNS_APPEND_NAME_NEVER.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_ CONTEXT_UPDATE_FAIL with unknown values.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_append_name(getdns_context *context,
     getdns_append_name_t value);
 
+/**
+ * Specify the list of suffixes to be appended based on the value off the 
+ * append_name setting.  The default is read from OS, or an empty list when
+ * the context is not initialized with OS defaults.
+ * @see getdns_context_get_suffix
+ * @param context The context to configure
+ * @param value A list of bindatas that are strings that are to be appended
+ *              based on the value off the append_name setting.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_ CONTEXT_UPDATE_FAIL with unknown values.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_suffix(getdns_context *context, getdns_list *value);
 
+/**
+ * Specify the DNSSEC trust anchors.  The default is to read it from 
+ * @TRUST_ANCHOR_FILE@.
+ * @see getdns_context_get_dnssec_trust_anchors
+ * @param context The context to configure
+ * @param value A list of rr_dicts for DS or DNSKEY that are the DNSSEC
+ *              trust anchors.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_ CONTEXT_UPDATE_FAIL with unknown values.
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_dnssec_trust_anchors(getdns_context *context,
     getdns_list *value);
 
+/**
+ * Specify the DNSSEC allowed skew.  The default is 0.
+ * @see getdns_context_get_dnssec_allowed_skew
+ * @param context The context to configure
+ * @param value The number of seconds of skew that is allowed in either
+ *              direction when checking an RRSIG's Expiration and Inception
+ *              fields.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_dnssec_allowed_skew(getdns_context *context,
     uint32_t value);
 
+
+/**
+ * Specify where a stub resolver will send queries.  The default value is set
+ * from the OS when the context is created with the set_from_os flag, or
+ * empty otherwise.
+ * @see getdns_context_get_upstream_recursive_servers
+ * @param context The context to configure
+ * @param upstream_list The upstreams are specified either by a getdns_bindata
+ *                      containing a IPv4 or IPv6 address in network format
+ *                      or a `getdns_dict`, containing at least a name
+ *                      `address_data` whose value is the address bindata, and
+ *                      optionally also:
+ *                      - `scode_id` containing an getdns_bindata with the
+ *                        scope ID for IPv6 link-local addresses.
+ *                      - `port` an integer specifying which port to use to
+ *                        contact this upstream over UDP and TCP;
+ *                        the default is 53
+ *                      - `tsig_algorithm` (a bindata) that is the name of the
+ *                        TSIG hash algorithm 
+ *                      - `tsig_name` (a bindata) that is the name of the TSIG key
+ *                      - `tsig_secret` (a bindata) that is the TSIG key
+ *                      - `tls_port` (a integer) that is the port to use to
+ *                        contact this upstream over TLS
+ *                      - `tls_auth_name` (a bindata) that is the name of the
+ *                        upstream (as a bindata containing a string) which
+ *                        must be verified to confirm its identity.
+ *                      - `tls_pubkey_pinset` (a list) containing dicts with
+ *                        - `digest` which must be a bindata containing the
+ *                          text sha256
+ *                        - `value` A SHA256 hash of the `SubjectPublicKeyInfo`
+ *                          of the upstream, which will be used to authenticate
+ *                          it.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when `context` or `upstream_list` was `NULL`
+ * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL when there were problems parsing
+ *         the `upstream_list`.
+ */
 getdns_return_t
 getdns_context_set_upstream_recursive_servers(getdns_context *context,
     getdns_list *upstream_list);
 
+/**
+ * Set the maximum UDP payload size advertised in a EDNS0 OPT record.
+ * When not set (the default), outgoing values will adhere to the suggestions
+ * in RFC 6891 and may follow a scheme that uses multiple values to maximize
+ * receptivity.
+ * @see getdns_context_get_edns_maximum_udp_payload_size
+ * @see getdns_context_unset_edns_maximum_udp_payload_size
+ * @param context The context to configure
+ * @param value The maximum UDP payload size advertised in a EDNS0 OPT record.
+ *              The value must be between 512 and 65536
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_edns_maximum_udp_payload_size(getdns_context *context,
     uint16_t value);
 
+/**
+ * Set the rcode advertised in a EDNS0 OPT record.  The default is 0.
+ * @see getdns_context_get_edns_extended_rcode
+ * @param context The context to configure
+ * @param value  A value between 0 and 255.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_edns_extended_rcode(getdns_context *context,
     uint8_t value);
 
+/**
+ * Set the version advertised in a EDNS0 OPT record.  The default is 0.
+ * @see getdns_context_get_edns_version
+ * @param context The context to configure
+ * @param value  A value between 0 and 255.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_edns_version(getdns_context *context, uint8_t value);
 
+/**
+ * Set the DO ibit advertised in a EDNS0 OPT record.  The default is 0.
+ * However use of any of the dnssec_* extension will override this setting
+ * and set the DO bit.
+ * @see getdns_context_get_edns_do_bit
+ * @param context The context to configure
+ * @param value  A value between 0 and 1.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_edns_do_bit(getdns_context *context, uint8_t value);
 
+/**
+ * Specify custom memory management functions to be used with this context.
+ * The given memory management functions will be used for creating the response
+ * dicts. The response dicts inherit the custom memory management functions
+ * from the context and will deallocate themselves (and their members) with the
+ * custom deallocator. By default, the system `malloc`, `realloc`, and `free` are used.
+ * @param context The context to configure
+ * @param malloc A custom memory allocator.  The default is `malloc`.
+ * @param realloc A custom memory reallocator. The default is `realloc`.
+ * @param free A custom memory deallocator. The default is `free`.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_memory_functions(getdns_context *context,
     void *(*malloc) (size_t),
@@ -1233,6 +1771,22 @@ getdns_context_set_memory_functions(getdns_context *context,
     void (*free) (void *)
     );
 
+/**
+ * Specify custom extended memory management functions to be used with this
+ * context.  The value of `userarg` argument will be passed to the custom
+ * `malloc`, `realloc`, and `free`.
+ * The response dicts inherit the custom memory management functions
+ * from the context and will deallocate themselves (and their members) with the
+ * custom deallocator. By default, the system `malloc`, `realloc`, and `free` are used.
+ * @param context The context to configure
+ * @param userarg This value will be passed as the `userarg` argument to the
+ *                custom `malloc`, `realloc` and `free` function.
+ * @param malloc A custom memory allocator.  The default is a wrapper for `malloc`.
+ * @param realloc A custom memory reallocator. The default is a wrapper for `realloc`.
+ * @param free A custom memory deallocator. The default is a wrapper for `free`.
+ * @return GETDNS_RETURN_GOOD when successful. 
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL
+ */
 getdns_return_t
 getdns_context_set_extended_memory_functions(getdns_context *context,
     void *userarg,
@@ -1243,16 +1797,28 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
 /** @}
  */
 
-/* api information support */
+/**
+ * Retrieve information about the API itself and inspect the current context.
+ * The returned dictionary can be used with getdns_context_config() directly
+ * to configure another context with precisely these settings.
+ * @param context The context from which to get the information
+ * @return A getdns_dict containing the following name/value pairs:
+ *         - `version_string` (a bindata) represents the version string for this version of the DNS API.
+ *         - `implementation_string` (a bindata) is a string showing which
+ *           implementation of the getdns API this is.  In our implementation
+ *           this will always be set to "https://getdnsapi.net"
+ *         - resolution_type (an int) is the type of resolver that the API is
+ *            acting as in this context: GETDNS_RESOLUTION_RECURSING or
+ *            GETDNS_RESOLUTION_STUB.
+ *         - all_context (a dict) with names for all the other settings in
+ *           context.
+ */
 getdns_dict*
 getdns_context_get_api_information(getdns_context* context);
 
 /** @}
  */
  
-/** @}
- */
-
 #ifdef __cplusplus
 }
 #endif
