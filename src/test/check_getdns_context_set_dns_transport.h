@@ -288,7 +288,9 @@
         * suspect them to be a bit more reliable.
         */
        struct getdns_list *root_servers = getdns_list_create();
+       struct getdns_list *root_servers2 = getdns_list_create();
        struct getdns_bindata nlnetlabs_root = { 4, (void *)"\xB9\x31\x8D\x25" };
+       struct getdns_bindata *answer = NULL;
 
        uint32_t status;
        uint32_t type;
@@ -304,10 +306,17 @@
            /* Re-do over TCP */
            ASSERT_RC(getdns_dict_set_int(extensions,"return_call_reporting", GETDNS_EXTENSION_TRUE),
              GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
-           ASSERT_RC(getdns_list_set_bindata(root_servers,0,&nlnetlabs_root),
+           ASSERT_RC(getdns_list_set_bindata(root_servers, 0, &nlnetlabs_root),
              GETDNS_RETURN_GOOD, "Return code from getdns_list_set_bindata()");
+
            ASSERT_RC(getdns_context_set_dns_root_servers(context, root_servers),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_root_servers()");
+           ASSERT_RC(getdns_context_get_dns_root_servers(context, &root_servers2),
+             GETDNS_RETURN_GOOD, "Return code from getdns_context_get_dns_root_servers()");
+           ASSERT_RC(getdns_list_get_bindata(root_servers2, 0, &answer),
+             GETDNS_RETURN_GOOD, "Return code from getdns_list_get_bindata()");
+           ck_assert_msg(strncmp((char *)answer->data, (char *)nlnetlabs_root.data, 4) == 0,
+             "Expected answer data to be 185.49.141.37");
            ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
              GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");
            ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
@@ -375,6 +384,60 @@
      }
      END_TEST
 
+     START_TEST (getdns_context_set_dns_transport_recursing_9)
+     {
+       /*
+        * Check TLS
+       */
+       struct getdns_context *context = NULL;
+       getdns_resolution_t resolution_type;
+       getdns_transport_list_t transport_list[1];
+       getdns_transport_list_t *transport_list2;
+       size_t count;
+       getdns_tls_authentication_t auth;
+       uint16_t backoff;
+       uint16_t retries;
+
+       transport_list[0] = GETDNS_TRANSPORT_TLS;
+
+       CONTEXT_CREATE(TRUE);
+
+       ASSERT_RC(getdns_context_set_resolution_type(context, GETDNS_RESOLUTION_STUB),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_resolution_type()");
+       ASSERT_RC(getdns_context_get_resolution_type(context, &resolution_type),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_get_resolution_type()");
+       ck_assert_msg(resolution_type == GETDNS_RESOLUTION_STUB, "resolution_type should be stub (520), got %d", (int)resolution_type);
+
+       ASSERT_RC(getdns_context_set_dns_transport_list(context, 1, transport_list),
+	 GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport_list()");
+       ASSERT_RC(getdns_context_get_dns_transport_list(context, &count, &transport_list2),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_get_dns_transport_list()");
+       ck_assert_msg(transport_list2[0] == GETDNS_TRANSPORT_TLS, "transport_list should be 1202 but got %d", (int) transport_list2[0]);
+
+       ASSERT_RC(getdns_context_set_tls_authentication(context, GETDNS_AUTHENTICATION_REQUIRED),
+	 GETDNS_RETURN_GOOD, "Return cond from getdns_context_set_tls_authentication()");
+       ASSERT_RC(getdns_context_get_tls_authentication(context, &auth),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_get_tls_authentication()");
+       ck_assert_msg(auth == 1301, "tls_authentication should be 1301, but got %d", (int) auth);
+
+       ASSERT_RC(getdns_context_set_tls_backoff_time(context, 1000),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_tls_backoff_time()");
+       ASSERT_RC(getdns_context_get_tls_backoff_time(context, &backoff),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_get_tls_backoff_time()");
+       ck_assert_msg(backoff == 1000, "backoff should be 1000, but got %d", (int) backoff);
+
+       ASSERT_RC(getdns_context_set_tls_connection_retries(context, 5),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_tls_connection_retries()");
+       ASSERT_RC(getdns_context_get_tls_connection_retries(context, &retries),
+         GETDNS_RETURN_GOOD, "Return code from getdns_context_get_tls_connection_retries()");
+       ck_assert_msg(retries == 5, "retries should be 5 but got %d", (int) retries);
+
+      /*TODO: should extend the test */
+      CONTEXT_DESTROY;
+
+     }
+     END_TEST
+
 
 
 
@@ -399,7 +462,8 @@
        tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_6);     
        tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_7);
        tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_8);
-       /* TODO: TLS... */
+       /*  TLS */
+       tcase_add_test(tc_pos, getdns_context_set_dns_transport_recursing_9);
 
        suite_add_tcase(s, tc_pos);
 
