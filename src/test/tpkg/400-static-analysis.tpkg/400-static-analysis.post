@@ -1,4 +1,4 @@
-# #-- 340-event-loops-scan-build.post --#
+# #-- 400-static-analysis.post --#
 # source the master var file when it's there
 if [ -f ../.tpkg.var.master ]
 then
@@ -15,6 +15,6 @@ fi
 
 for f in `cat restore-srcdir-configure-settings`
 do
-	mv "${SRCROOT}/${f}.build-event-loops" "${SRCROOT}/${f}"
+	mv "${SRCROOT}/${f}.build-static-analysis" "${SRCROOT}/${f}"
 done
 

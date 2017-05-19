@@ -5,4 +5,4 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-stub-only"
-make XTRA_CFLAGS='-Werror'
+make XTRA_CFLAGS='-Werror' -j 4
