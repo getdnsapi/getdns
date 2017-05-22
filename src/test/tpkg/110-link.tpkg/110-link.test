@@ -5,6 +5,6 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build"
-make getdns_query \
+make -j 4 getdns_query \
     &&  echo "export GETDNS_QUERY=\"${BUILDDIR}/build/src/tools/getdns_query\"" \
         >> ../.tpkg.var.master

@@ -6,6 +6,10 @@
 
 rm -f report.txt
 (
+ 	cd ${SRCROOT}
+	find . -type f -executable -and \( -name "*.[ch]" -or -name "*.html" -or -name "*.in" -or -name "*.good" -or -name "*.ac" \) | sed 's/^/*** ERROR! Executable bit found on /g'
+) >> report.txt
+(
  	cd ${SRCROOT}/src
 	if [ `grep '[^!=]=[ 	][ 	]*NET_REQ_' *.[ch] */*.[ch] | wc -l` -gt 1 ]
 	then

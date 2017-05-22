@@ -15,7 +15,7 @@ LCOV_MERGE=""
 for TEST_PKG in ${SRCDIR}/*.tpkg
 do
     # when we run our test, we need to compile with profiling
-    LDFLAGS="-lgcov --coverage" CFLAGS="-fprofile-arcs -ftest-coverage -O0" "${TPKG}" $* exe "${TEST_PKG}"
+    LDFLAGS="-lgcov --coverage" CFLAGS="-g -fprofile-arcs -ftest-coverage -O0" "${TPKG}" $* exe "${TEST_PKG}"
     # after the test is complete, we need to collect the coverage data
     INFO_FILE=`echo $TEST_PKG | sed 's/.tpkg$//'`.info
     geninfo $SRCDIR/.. -o $INFO_FILE
