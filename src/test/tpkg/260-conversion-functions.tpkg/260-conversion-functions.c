@@ -27,6 +27,14 @@ void print_list(getdns_list *rr_list)
 	free(str);
 }
 
+void print_json_list(getdns_list *rr_list, int pretty)
+{
+        char *str = getdns_print_json_list(rr_list, pretty);
+        printf("%s\n", str);
+        free(str);
+}
+
+
 void print_wire(uint8_t *wire, size_t wire_len)
 {
 	size_t pos, i;
@@ -254,6 +262,7 @@ int main(int argc, char const * const argv[])
 	fclose(in);
 
 	print_list(rr_list);
+	print_json_list(rr_list, 1);
 
 
 	/* Fill the wire_buf with wireformat RR's in rr_list

@@ -918,9 +918,23 @@
     "rdata":
     {
       "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
-      "certificate_usage": 3,
+      "certificate_usage": 0,
       "matching_type": 1,
-      "rdata_raw": <bindata of 0x030101274c6f96c9885c8050e8a05ad1...>,
+      "rdata_raw": <bindata of 0x000001274c6f96c9885c8050e8a05ad1...>,
+      "selector": 0
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TLSA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for _443._tcp.ww.net-dns.org.>,
+    "rdata":
+    {
+      "certificate_association_data": <bindata of 0x92003ba34942dc74152e2f2c408d29ec...>,
+      "certificate_usage": 1,
+      "matching_type": 2,
+      "rdata_raw": <bindata of 0x01010292003ba34942dc74152e2f2c40...>,
       "selector": 1
     },
     "ttl": 30,
@@ -1008,7 +1022,7 @@
   }
 ]
 ;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 0
-;; flags: ; QUERY: 0, ANSWER: 77, AUTHORITY: 0, ADDITIONAL: 0 
+;; flags: ; QUERY: 0, ANSWER: 78, AUTHORITY: 0, ADDITIONAL: 0 
 ;; QUESTION SECTION:
 
 ;; ANSWER SECTION:
@@ -1082,7 +1096,8 @@ spf.net-dns.org.	30	IN	SPF	"v=spf1 +mx a:colo.nlnetlabs.nl/28 -all"
 srv.net-dns.org.	30	IN	SRV	0 5 80 www.net-dns.org.
 sshfp.net-dns.org.	30	IN	SSHFP	1 1 450C7D19D5DA9A3A5B7C19992D1FBDE15D8DAD44
 talink.net-dns.org.	30	IN	TALINK	h0.net-dns.org. h2.net-dns.org.
-_443._tcp.net-dns.org.	30	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
+_443._tcp.net-dns.org.	30	IN	TLSA	0 0 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
+_443._tcp.ww.net-dns.org.	30	IN	TLSA	1 1 2 92003BA34942DC74152E2F2C408D29ECA5A520E7F2E06BB944F4DCA346BAF63C1B177615D466F6C4B71C216A50292BD58C9EBDD2F74E38FE51FFD48C43326CBC
 _443._tcp.www.net-dns.org.	30	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
 dynup.net-dns.org.	30	IN	TXT	"fooFoo2" "Bla ; Foo"
 default._domainkey.net-dns.org.	30	IN	TXT	"v=DKIM1; r=postmaster; g=*; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVG/lfF5GtPlMOcSGnfbp5u+EWM+OOg/f6QmbDXOW/zKQkRIRIZ+BtfSYchP8MeFPfMvUZtdRPzCWg1G7OdD7qaTUqc6kV84on6/8kPVMgdDLyLl2DeU/Lts9hfVHVDSpWuChwDAFXnbnW8jpp54zuof9OIbWSWIxZqLL8flgOsQIDAQAB"
@@ -1093,5 +1108,5 @@ x25.net-dns.org.	30	IN	X25	"1234567"
 ;; AUTHORITY SECTION:
 
 ;; ADDITIONAL SECTION:
-;; MSG SIZE  rcvd: 6561
+;; MSG SIZE  rcvd: 6664
 
