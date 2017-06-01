@@ -995,15 +995,16 @@ getdns_return_t getdns_context_set_listen_addresses(
 			connection *conn;
 
 			loop->vmt->clear(loop, &l->to_replace->event);
-			(void) memset(&l->to_replace->event, 0,
-			    sizeof(getdns_eventloop_event));
 
 			l->fd = l->to_replace->fd;
 			l->event = l->to_replace->event;
+			l->event.userarg = l;
 			l->connections = l->to_replace->connections;
 			for (conn = l->connections; conn; conn = conn->next)
 				conn->l = l;
 
+			(void) memset(&l->to_replace->event, 0,
+			    sizeof(getdns_eventloop_event));
 			l->to_replace->connections = NULL;
 			l->to_replace->fd = -1;
 
