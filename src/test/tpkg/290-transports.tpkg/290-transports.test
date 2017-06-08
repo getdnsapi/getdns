@@ -126,7 +126,7 @@ for (( ii = 0; ii < 1; ii++)); do
 	SERVER_IP_TSIG_WRONG_NAME=`echo ${SERVER_IP_TSIG}${TSIG_ALG}":"${TSIG_NAME::${#TSIG_NAME}-1}":"${TSIG_SECRET}`
 	SERVER_IP_TSIG_WRONG_SECRET=`echo ${SERVER_IP_TSIG}${TSIG_ALG}":"${TSIG_NAME}":"${TSIG_SECRET::${#TSIG_SECRET}-1}`
 
-	NUM_GOOD_QUERIES=10
+	NUM_GOOD_QUERIES=9
 	GOOD_QUERIES=(
 	"-s -A  getdnsapi.net -l U        @${SERVER_IP} +edns_cookies"              "U" "-"
 	"-s -A  getdnsapi.net -l T        @${SERVER_IP}"              "T" "-"
@@ -136,8 +136,8 @@ for (( ii = 0; ii < 1; ii++)); do
 	"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP}"          "L" "S"
 	"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
 	"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-	"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_SS_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"" "L" "S"
 	"-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
+#"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_SS_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"" "L" "S"
 
 	NUM_GOOD_FB_QUERIES=6
 	GOOD_FALLBACK_QUERIES=(
@@ -157,8 +157,8 @@ for (( ii = 0; ii < 1; ii++)); do
 	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}    -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\""
 	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP}            -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\""
 	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\""
-	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME} -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\""
-	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_SS_IP}         -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"")
+	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME} -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\"")
+#"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_SS_IP}         -K pin-sha256=\"${TLS_SERVER_SS_KEY}\""
 
 
 	echo "Starting transport test"
