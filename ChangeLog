@@ -4,7 +4,7 @@
   * Bugfix #286 reschedule reused listening addresses
   * Bugfix #166 Allow parallel builds and unit-tests
   * NSAP-PTR, EID and NIMLOC, TALINK, AVC support
-  * bugfix of TA RR type
+  * Bugfix of TA RR type
   * OPENPGPKEY and SMIMEA support
   * Bugfix TAG rdata type presentation format for CAA RR type
   * Bugfix Zero sized gateways with IPSECKEY gateway_type 0
