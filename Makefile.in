@@ -243,7 +243,7 @@ $(distdir):
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
 	cp $(srcdir)/src/tools/stubby.conf $(distdir)/src/tools
-	cp $(srcdir)/src/tools/stubby-setdns.sh $(distdir)/src/tools
+	cp $(srcdir)/src/tools/stubby-setdns-macos.sh $(distdir)/src/tools
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
