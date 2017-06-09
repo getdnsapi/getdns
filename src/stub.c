@@ -362,7 +362,7 @@ process_keepalive(
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
-	DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive recieved: %d ms\n",
+	DEBUG_STUB("%s %-35s: FD:  %d Server Keepalive received: %d ms\n",
            STUB_DEBUG_READ, __FUNC__, upstream->fd, 
            (int)server_keepalive);
 	if (netreq->owner->context->idle_timeout < server_keepalive)
