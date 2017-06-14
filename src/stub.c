@@ -565,14 +565,16 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	} else {
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
+		/*
 		getdns_network_req *netreq;
 		while (upstream->netreq_by_query_id.count) {
 			netreq = (getdns_network_req *)
 			    _getdns_rbtree_first(&upstream->netreq_by_query_id);
 			stub_cleanup(netreq);
-			_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
+			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
+		*/
 	}
 	
 	upstream->conn_state = GETDNS_CONN_TEARDOWN;
@@ -778,6 +780,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
+		netreq->query_id = query_id;
+
 		GLDNS_ID_SET(netreq->query, query_id);
 		if (netreq->opt) {
 			_getdns_network_req_clear_upstream_options(netreq);
@@ -836,8 +840,13 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 			return STUB_TCP_WOULDBLOCK;
 
-		} else if (written == -1)
+		} else if (written == -1) {
+			DEBUG_STUB("%s %-35s: MSG: %p error while writing to TCP socket:"
+				   " %s\n", STUB_DEBUG_WRITE, __FUNC__, (void*)netreq
+				   , strerror(errno));
+
 			return STUB_TCP_ERROR;
+		}
 
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
@@ -856,8 +865,13 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		if (written == -1) {
 			if (_getdns_EWOULDBLOCK)
 				return STUB_TCP_WOULDBLOCK;
-			else
+			else {
+				DEBUG_STUB("%s %-35s: MSG: %p error while writing to TCP socket:"
+					   " %s\n", STUB_DEBUG_WRITE, __FUNC__, (void*)netreq
+					   , strerror(errno));
+
 				return STUB_TCP_ERROR;
+			}
 		}
 		tcp->written += written;
 		if (tcp->written < tcp->write_buf_len)
@@ -1480,6 +1494,7 @@ stub_udp_write_cb(void *userarg)
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req     *dnsreq = netreq->owner;
 	size_t             pkt_len;
+	ssize_t            written;
 	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_WRITE, 
 	             __FUNC__, (void *)netreq);
 
@@ -1504,15 +1519,34 @@ stub_udp_write_cb(void *userarg)
 				return; /* too many upstream options */
 	}
 	pkt_len = _getdns_network_req_add_tsig(netreq);
-	if ((ssize_t)pkt_len != sendto(
+	if ((ssize_t)pkt_len != (written = sendto(
 	    netreq->fd, (const void *)netreq->query, pkt_len, 0,
 	    (struct sockaddr *)&netreq->upstream->addr,
-	                        netreq->upstream->addr_len)) {
-#ifdef USE_WINSOCK
-		closesocket(netreq->fd);
-#else
-		close(netreq->fd);
+	                        netreq->upstream->addr_len))) {
+
+#if defined(STUB_DEBUG) && STUB_DEBUG
+		if (written == -1)
+			DEBUG_STUB( "%s %-35s: MSG: %p error: %s\n"
+				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
+				  , strerror(errno));
+		else
+			DEBUG_STUB( "%s %-35s: MSG: %p returned: %d, expeced: %d\n"
+				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
+				  , (int)written, (int)pkt_len);
 #endif
+		stub_cleanup(netreq);
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+		/* Handle upstream*/
+		if (netreq->fd >= 0) {
+#ifdef USE_WINSOCK
+			closesocket(netreq->fd);
+#else
+			close(netreq->fd);
+#endif
+			stub_next_upstream(netreq);
+		}
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
+		_getdns_check_dns_req_complete(netreq->owner);
 		return;
 	}
 	GETDNS_SCHEDULE_EVENT(dnsreq->loop, netreq->fd,
@@ -1709,7 +1743,7 @@ upstream_write_cb(void *userarg)
 #endif
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
-			_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
+			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
 		return;
