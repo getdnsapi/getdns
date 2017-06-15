@@ -1,4 +1,6 @@
-* 2017-06-??: Version 1.1.1
+* 2017-06-15: Version 1.1.1
+  * Bugfix #306 hanging/segfaulting on certain (IPv6) upstream failures
+  * Spelling fix s/receive/receive.  Thanks Andreas Schulze.
   * Added stubby-setdns-macos.sh script to support Homebrew formula
   * Include stubby.conf in the districution tarball
   * Bugfix #286 reschedule reused listening addresses
