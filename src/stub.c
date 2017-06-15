@@ -540,6 +540,8 @@ stub_cleanup(getdns_network_req *netreq)
 static void
 upstream_failed(getdns_upstream *upstream, int during_setup)
 {
+	getdns_network_req *netreq;
+
 	DEBUG_STUB("%s %-35s: FD:  %d Failure during connection setup = %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd, during_setup);
 	/* Fallback code should take care of queue queries and then close conn
@@ -565,16 +567,14 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	} else {
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
-		getdns_network_req *netreq;
-		while (upstream->netreq_by_query_id.count) {
-			netreq = (getdns_network_req *)
-			    _getdns_rbtree_first(&upstream->netreq_by_query_id);
-			stub_cleanup(netreq);
-			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
-			_getdns_check_dns_req_complete(netreq->owner);
-		}
 	}
-	
+	while (upstream->netreq_by_query_id.count) {
+		netreq = (getdns_network_req *)
+		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
+		stub_cleanup(netreq);
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+		_getdns_check_dns_req_complete(netreq->owner);
+	}
 	upstream->conn_state = GETDNS_CONN_TEARDOWN;
 }
 
@@ -1723,6 +1723,7 @@ upstream_write_cb(void *userarg)
 		 */
 	case STUB_TCP_WOULDBLOCK:
 		return;
+	case STUB_OUT_OF_OPTIONS:
 	case STUB_TCP_ERROR:
 		/* New problem with the TCP connection itself. Need to fallback.*/
 		/* Fall through */
@@ -1730,6 +1731,8 @@ upstream_write_cb(void *userarg)
 		/* Could not complete the set up. Need to fallback.*/
 		DEBUG_STUB("%s %-35s: Upstream: %p ERROR = %d\n", STUB_DEBUG_WRITE,
 		             __FUNC__, (void*)userarg, q);
+		(void) _getdns_rbtree_delete(
+		    &upstream->netreq_by_query_id, (void *)(intptr_t)netreq->query_id);
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1));
 		/* Fall through */
 	case STUB_CONN_GONE:
@@ -1741,8 +1744,7 @@ upstream_write_cb(void *userarg)
 		             STUB_DEBUG_DAEMON, upstream->addr_str,
 		             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
 #endif
-		if (q != STUB_TCP_ERROR &&
-		    fallback_on_write(netreq) == STUB_TCP_ERROR) {
+		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
 			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
