@@ -505,7 +505,6 @@ stub_cleanup(getdns_network_req *netreq)
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_network_req *r, *prev_r;
 	getdns_upstream *upstream;
-	intptr_t query_id_intptr;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -514,9 +513,8 @@ stub_cleanup(getdns_network_req *netreq)
 		return;
 
 	/* Delete from upstream->netreq_by_query_id (if present) */
-	query_id_intptr = (intptr_t)netreq->query_id;
-	(void) _getdns_rbtree_delete(
-	    &upstream->netreq_by_query_id, (void *)query_id_intptr);
+	(void) _getdns_rbtree_delete(&upstream->netreq_by_query_id,
+	    (void *)(intptr_t)GLDNS_ID_WIRE(netreq->query));
 
 	/* Delete from upstream->write_queue (if present) */
 	for (prev_r = NULL, r = upstream->write_queue; r;
@@ -778,7 +776,6 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
-		netreq->query_id = query_id;
 		GLDNS_ID_SET(netreq->query, query_id);
 
 		if (netreq->opt) {
@@ -1280,7 +1277,6 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
-		netreq->query_id = query_id;
 		GLDNS_ID_SET(netreq->query, query_id);
 
 		/* TODO: Review if more EDNS0 handling can be centralised.*/
@@ -1430,7 +1426,7 @@ stub_udp_read_cb(void *userarg)
 	if (read < GLDNS_HEADER_SIZE)
 		return; /* Not DNS */
 	
-	if (GLDNS_ID_WIRE(netreq->response) != netreq->query_id)
+	if (GLDNS_ID_WIRE(netreq->response) != GLDNS_ID_WIRE(netreq->query))
 		return; /* Cache poisoning attempt ;) */
 
 	if (netreq->owner->edns_cookies && match_and_process_server_cookie(
@@ -1502,8 +1498,7 @@ stub_udp_write_cb(void *userarg)
 
 	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	netreq->debug_udp = 1;
-	netreq->query_id = arc4random();
-	GLDNS_ID_SET(netreq->query, netreq->query_id);
+	GLDNS_ID_SET(netreq->query, (uint16_t)arc4random());
 	if (netreq->opt) {
 		_getdns_network_req_clear_upstream_options(netreq);
 		if (netreq->edns_maximum_udp_payload_size == -1)
@@ -1731,8 +1726,8 @@ upstream_write_cb(void *userarg)
 		/* Could not complete the set up. Need to fallback.*/
 		DEBUG_STUB("%s %-35s: Upstream: %p ERROR = %d\n", STUB_DEBUG_WRITE,
 		             __FUNC__, (void*)userarg, q);
-		(void) _getdns_rbtree_delete(
-		    &upstream->netreq_by_query_id, (void *)(intptr_t)netreq->query_id);
+		(void) _getdns_rbtree_delete(&upstream->netreq_by_query_id,
+		    (void *)(intptr_t)GLDNS_ID_WIRE(netreq->query));
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1));
 		/* Fall through */
 	case STUB_CONN_GONE:
