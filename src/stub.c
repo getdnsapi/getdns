@@ -565,7 +565,6 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	} else {
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
-		/*
 		getdns_network_req *netreq;
 		while (upstream->netreq_by_query_id.count) {
 			netreq = (getdns_network_req *)
@@ -574,7 +573,6 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
-		*/
 	}
 	
 	upstream->conn_state = GETDNS_CONN_TEARDOWN;
@@ -781,8 +779,8 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
 		netreq->query_id = query_id;
-
 		GLDNS_ID_SET(netreq->query, query_id);
+
 		if (netreq->opt) {
 			_getdns_network_req_clear_upstream_options(netreq);
 			/* no limits on the max udp payload size with tcp */
@@ -1282,7 +1280,9 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
 
+		netreq->query_id = query_id;
 		GLDNS_ID_SET(netreq->query, query_id);
+
 		/* TODO: Review if more EDNS0 handling can be centralised.*/
 		if (netreq->opt) {
 			_getdns_network_req_clear_upstream_options(netreq);
@@ -1741,7 +1741,8 @@ upstream_write_cb(void *userarg)
 		             STUB_DEBUG_DAEMON, upstream->addr_str,
 		             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
 #endif
-		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
+		if (q != STUB_TCP_ERROR &&
+		    fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
 			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
@@ -1760,7 +1761,7 @@ upstream_write_cb(void *userarg)
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
 		upstream->queries_sent++;
-		netreq->query_id = (uint16_t) q;
+
 		/* Unqueue the netreq from the write_queue */
 		if (!(upstream->write_queue = netreq->write_queue_tail)) {
 			upstream->write_queue_last = NULL;
@@ -2090,6 +2091,8 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 		netreq->transport_current = i;
 		netreq->upstream = upstream;
 		netreq->keepalive_sent = 0;
+
+		DEBUG_STUB("%s %-35s: MSG: %p found upstream %p with transport %d, fd: %d\n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq, (void *)upstream, (int)netreq->transports[i], fd);
 		return fd;
 	}
 	/* Handle better, will give generic error*/
