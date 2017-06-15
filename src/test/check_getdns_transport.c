@@ -529,7 +529,7 @@ getdns_transport_suite(void) {
 
   /* Note that the exact number of messages received depends on if a trust
    * anchor is configured so these tests just check that no messages are
-   * received on the wrong transport and at least one is recieved on the
+   * received on the wrong transport and at least one is received on the
    * expected transport */
 
   /* Positive test cases */

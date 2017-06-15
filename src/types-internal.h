@@ -226,7 +226,6 @@ typedef struct getdns_network_req
 	size_t                  transport_current;
 	getdns_tls_authentication_t  tls_auth_min;
 	getdns_eventloop_event  event;
-	uint16_t                query_id;
 
 	int                     edns_maximum_udp_payload_size;
 	uint16_t                max_udp_payload_size;
