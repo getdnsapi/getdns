@@ -52,7 +52,7 @@ everything: default
 default:
 	cd src && $(MAKE) $@
 
-install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
+install: default getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
