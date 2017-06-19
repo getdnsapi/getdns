@@ -118,7 +118,7 @@ install-getdns_query: getdns_query
 uninstall-getdns_query:
 	cd src/tools && $(MAKE) $@
 
-install-stubby: stubby
+install-stubby: getdns_query
 	cd src/tools && $(MAKE) $@
 
 uninstall-stubby:
