@@ -78,7 +78,7 @@ install-getdns_query: getdns_query
 uninstall-getdns_query:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/getdns_query
 
-install-stubby: getdns_query
+install-stubby: stubby
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp getdns_query $(DESTDIR)$(bindir)/stubby
 

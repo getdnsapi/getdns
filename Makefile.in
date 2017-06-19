@@ -112,13 +112,13 @@ scratchpad: default
 pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
 
-install-getdns_query:
+install-getdns_query: getdns_query
 	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_query:
 	cd src/tools && $(MAKE) $@
 
-install-stubby:
+install-stubby: stubby
 	cd src/tools && $(MAKE) $@
 
 uninstall-stubby:
