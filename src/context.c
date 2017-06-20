@@ -1430,8 +1430,6 @@ getdns_context_create_with_extended_memory_functions(
 	} else
 		result->trust_anchors = result->trust_anchors_spc;
 
-	_getdns_context_equip_with_anchor(result);
-
 	result->upstreams = NULL;
 
 	result->edns_extended_rcode = 0;
@@ -1500,7 +1498,15 @@ getdns_context_create_with_extended_memory_functions(
 #endif
 	/* Only initialise SSL once and ideally in a thread-safe manner */
 	if (ssl_init == false) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+		OpenSSL_add_all_algorithms();
 		SSL_library_init();
+#else
+		OPENSSL_init_crypto( OPENSSL_INIT_ADD_ALL_CIPHERS
+		                   | OPENSSL_INIT_ADD_ALL_DIGESTS
+		                   | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+		(void)OPENSSL_init_ssl(0, NULL);
+#endif
 		ssl_init = true;
 	}
 #ifdef HAVE_PTHREAD
@@ -1508,6 +1514,7 @@ getdns_context_create_with_extended_memory_functions(
 #else
 	/* XXX implement Windows-style unlock here */
 #endif
+	_getdns_context_equip_with_anchor(result);
 
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
