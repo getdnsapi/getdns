@@ -148,13 +148,28 @@ nolibcheck:
 	@echo "***"
 	@false
 
-test:	$(NOLIBCHECK) all
-	(cd $(srcdir)/../.. && find . -type f -executable -and \( -name "*.[ch]" -or -name "*.html" -or -name "*.in" -or -name "*.good" -or -name "*.ac" \) | awk 'BEGIN{e=0}{print("ERROR! Executable bit found on", $$0);e=1}END{exit(e)}')
+test_noeventloop: $(NOLIBCHECK) all
+	rm -f $(CHECK_GETDNS).failed
+	GETDNS_TEST_PORT=43210 CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_GETDNS).log" ./$(CHECK_GETDNS) || echo "$(CHECK_GETDNS) failed" >> $(CHECK_GETDNS).failed
+
+test_libevent: $(NOLIBCHECK) all
+	rm -f $(CHECK_EVENT_PROG).failed
+	if test $(have_libevent) = 1 ; then GETDNS_TEST_PORT=44321 CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_EVENT_PROG).log" ./$(CHECK_EVENT_PROG) || echo "$(CHECK_EVENT_PROG) failed" >> $(CHECK_EVENT_PROG).failed; fi
+
+test_libev: $(NOLIBCHECK) all
+	rm -f $(CHECK_EV_PROG).failed
+	if test $(have_libev) = 1 ; then GETDNS_TEST_PORT=45432 CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_EV_PROG).log" ./$(CHECK_EV_PROG) || echo "$(CHECK_EV_PROG) failed" >> $(CHECK_EV_PROG).failed; fi
+
+test_libuv: $(NOLIBCHECK) all
+	rm -f $(CHECK_UV_PROG).failed
+	if test $(have_libev) = 1 ; then GETDNS_TEST_PORT=46543 CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_UV_PROG).log" ./$(CHECK_UV_PROG) || echo "$(CHECK_UV_PROG) failed" >> $(CHECK_UV_PROG).failed; fi
+
+test: test_noeventloop test_libevent test_libev test_libuv
 	rm -f fails
-	CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_GETDNS).log" ./$(CHECK_GETDNS) || echo "$(CHECK_GETDNS) failed" >> fails
-	if test $(have_libevent) = 1 ; then CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_EVENT_PROG).log" ./$(CHECK_EVENT_PROG) || echo "$(CHECK_EVENT_PROG) failed" >> fails; fi
-	if test $(have_libev) = 1 ; then CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_EV_PROG).log" ./$(CHECK_EV_PROG) || echo "$(CHECK_EV_PROG) failed" >> fails; fi
-	if test $(have_libuv) = 1 ; then CK_TIMEOUT_MULTIPLIER=2 CK_LOG_FILE_NAME="$(CHECK_UV_PROG).log" ./$(CHECK_UV_PROG) || echo "$(CHECK_UV_PROG) failed" >> fails; fi
+	if test -f $(CHECK_GETDNS).failed     ; then cat $(CHECK_GETDNS).failed     >> fails ; fi
+	if test -f $(CHECK_EVENT_PROG).failed ; then cat $(CHECK_EVENT_PROG).failed >> fails ; fi
+	if test -f $(CHECK_EV_PROG).failed    ; then cat $(CHECK_EV_PROG).failed    >> fails ; fi
+	if test -f $(CHECK_UV_PROG).failed    ; then cat $(CHECK_UV_PROG).failed    >> fails ; fi
 	test ! -e fails
 	@echo "All tests OK"
 

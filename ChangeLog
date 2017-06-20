@@ -1,3 +1,19 @@
+* 2017-06-15: Version 1.1.1
+  * Bugfix #306 hanging/segfaulting on certain (IPv6) upstream failures
+  * Spelling fix s/receive/receive.  Thanks Andreas Schulze.
+  * Added stubby-setdns-macos.sh script to support Homebrew formula
+  * Include stubby.conf in the districution tarball
+  * Bugfix #286 reschedule reused listening addresses
+  * Bugfix #166 Allow parallel builds and unit-tests
+  * NSAP-PTR, EID and NIMLOC, TALINK, AVC support
+  * Bugfix of TA RR type
+  * OPENPGPKEY and SMIMEA support
+  * Bugfix TAG rdata type presentation format for CAA RR type
+  * Bugfix Zero sized gateways with IPSECKEY gateway_type 0
+  * Guidance for integration with systemd
+  * Also check for memory leaks with advances server capabilities.
+  * Bugfix convert IP string to IP dict with getdns_str2dict() directly.
+
 * 2017-04-13: Version 1.1.0
   * bugfix: Check size of tls_auth_name.
   * Improvements that came from Visual Studio static analysis

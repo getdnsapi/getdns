@@ -86,7 +86,7 @@ uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
 
 clean:
-	rm -f *.o *.lo $(PROGRAMS)
+	rm -f *.o *.lo $(PROGRAMS) stubby
 	rm -rf .libs
 
 distclean : clean

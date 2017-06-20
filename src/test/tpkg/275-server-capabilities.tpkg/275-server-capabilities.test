@@ -5,13 +5,15 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 
-make && "${BUILDDIR}/build/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" | (
+make && "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" | (
 	read PORT
 	read PORT2
 
 	${GETDNS_STUB_QUERY} -s -t 1000 @127.0.0.1:$PORT TXT cancel. +return_call_reporting 2>&1 > time_out
 
 	${GETDNS_STUB_QUERY} -s @127.0.0.1:$PORT TXT test +return_call_reporting 2>&1 > tcp_out
+
+	${GETDNS_STUB_QUERY} -s -U @127.0.0.1:$PORT2 TXT test +return_call_reporting 2>&1 > udp_out
 
 	${GETDNS_STUB_QUERY} -s -q @127.0.0.1:$PORT TXT quit.
 )
@@ -31,6 +33,12 @@ elif ! grep -q '"transport": GETDNS_TRANSPORT_TCP' tcp_out
 then
 	cat tcp_out
 	echo 'error: Query was not over TCP!'
+	exit 1
+
+elif ! grep -q '"transport": GETDNS_TRANSPORT_UDP' udp_out
+then
+	cat udp_out
+	echo 'error: Query was not over UDP!'
 	exit 1
 
 elif ! grep -q '"Some answer"' tcp_out

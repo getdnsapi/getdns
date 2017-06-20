@@ -36,7 +36,11 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.1.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
+AC_INIT([getdns], [1.1.1], [users@getdnsapi.net], [], [https://getdnsapi.net])
+
+# Dont forget to put a dash in front of the release candidate!!!
+# That is how it is done with semantic versioning!
+#
 AC_SUBST(RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
@@ -47,7 +51,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01010000])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01010100])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -77,10 +81,11 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-0.5.0 had libversion 4:0:3
 # getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
 # getdns-0.9.0 had libversion 5:0:4
-# getdns-1.0.0 had  libversion 5:1:4
-# getdns-1.1.0 will have libversion 6:0:0
+# getdns-1.0.0 had libversion 5:1:4
+# getdns-1.1.0 had libversion 6:0:0
+# getdns-1.1.1 has libversion 6:1:0
 #
-GETDNS_LIBVERSION=6:0:0
+GETDNS_LIBVERSION=6:1:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -305,7 +310,7 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 SSL_CTX_set_min_proto_version])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -505,6 +510,24 @@ case "$enable_dsa" in
 	AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
       ], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
 	  fi ])
+      ;;
+esac
+
+AC_ARG_ENABLE(ed25519, AC_HELP_STRING([--disable-ed25519], [Disable ED25519 support]))
+use_ed25519="no"
+case "$enable_ed25519" in
+    no)
+      ;;
+    *)
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+              AC_CHECK_DECLS([NID_ED25519], [
+                AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
+                use_ed25519="yes"
+              ], [ if test "x$enable_ed25519" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support ED25519 and you used --enable-ed25519.])
+                fi ], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+              ])
+      fi
       ;;
 esac
 

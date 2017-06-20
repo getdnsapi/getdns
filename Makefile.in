@@ -52,7 +52,7 @@ everything: default
 default:
 	cd src && $(MAKE) $@
 
-install: all getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
+install: default getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -98,27 +98,27 @@ example:
 	cd spec/example && $(MAKE) $@
 
 test: default
-	cd src && $(MAKE) $@
+	cd src/test && $(MAKE) $@
 
 getdns_query: default
-	cd src && $(MAKE) $@
+	cd src/tools && $(MAKE) $@
 
 stubby: getdns_query
-	cd src && $(MAKE) $@
+	cd src/tools && $(MAKE) $@
 
 scratchpad: default
-	cd src && $(MAKE) $@
+	cd src/test && $(MAKE) $@
 
 pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
 
-install-getdns_query:
+install-getdns_query: getdns_query
 	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_query:
 	cd src/tools && $(MAKE) $@
 
-install-stubby:
+install-stubby: getdns_query
 	cd src/tools && $(MAKE) $@
 
 uninstall-stubby:
@@ -198,6 +198,7 @@ $(distdir):
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/doc
+	mkdir -p $(distdir)/systemd
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
 	cp $(srcdir)/configure.ac $(distdir)
@@ -240,8 +241,12 @@ $(distdir):
 	cp $(srcdir)/spec/*.html $(distdir)/spec
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
+	cp $(srcdir)/systemd/README.md $(distdir)/systemd
+	cp $(srcdir)/systemd/stubby.* $(distdir)/systemd
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
+	cp $(srcdir)/src/tools/stubby.conf $(distdir)/src/tools
+	cp $(srcdir)/src/tools/stubby-setdns-macos.sh $(distdir)/src/tools
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn

@@ -88,6 +88,68 @@ static const char pretty_expected[] = "{\n"
 "  ]\n"
 "}";
 
+static const char pretty_expected2[] = "{\n"
+"  \"bindata\":\"bindata\",\n"
+"  \"dict\":\n"
+"  {\n"
+"    \"bindata\":\"bindata\",\n"
+"    \"dict\":\n"
+"    {\n"
+"      \"bindata\":\"bindata\",\n"
+"      \"dict\":\n"
+"      {\n"
+"        \"int\": 4\n"
+"      },\n"
+"      \"int\": 3,\n"
+"      \"list\":\n"
+"      [\n"
+"        5\n"
+"      ]\n"
+"    },\n"
+"    \"int\": 2,\n"
+"    \"list\":\n"
+"    [\n"
+"      6,\n"
+"      \"bindata\",\n"
+"      {\n"
+"        \"bindata\":\"bindata\"\n"
+"      },\n"
+"      [\n"
+"        \"bindata\"\n"
+"      ]\n"
+"    ]\n"
+"  },\n"
+"  \"int\": 1,\n"
+"  \"list\":\n"
+"  [\n"
+"    7,\n"
+"    \"bindata\",\n"
+"    {\n"
+"      \"bindata\":\"bindata\",\n"
+"      \"dict\":\n"
+"      {\n"
+"        \"int\": 9\n"
+"      },\n"
+"      \"int\": 8,\n"
+"      \"list\":\n"
+"      [\n"
+"        10\n"
+"      ]\n"
+"    },\n"
+"    [\n"
+"      11,\n"
+"      \"bindata\",\n"
+"      {\n"
+"        \"bindata\":\"bindata\"\n"
+"      },\n"
+"      [\n"
+"        \"bindata\"\n"
+"      ]\n"
+"    ]\n"
+"  ]\n"
+"}";
+
+
     /*
      **************************************************************************
      *                                                                        *
@@ -266,6 +328,11 @@ static const char pretty_expected[] = "{\n"
       ck_assert_msg(pretty != NULL, "NULL returned by getdns_pretty_print_dict()");
       ck_assert_msg(strcmp(pretty_expected, pretty) == 0,
         "Expected:\n%s\ngot:\n%s\n", pretty_expected, pretty);
+
+      pretty = getdns_print_json_dict(dict1, 1);
+      ck_assert_msg(pretty != NULL, "NULL returned by getdns_print_json_dict()");
+      ck_assert_msg(strcmp(pretty_expected2, pretty) == 0,
+        "Expected:\n%s\ngot:\n%s\n", pretty_expected2, pretty);
 
      /*
       *  Destroy all of the sub-dicts and sub-lists

@@ -1746,7 +1746,7 @@ mdns_udp_read_cb(void *userarg)
 	if (read < GLDNS_HEADER_SIZE)
 		return; /* Not DNS */
 
-	if (GLDNS_ID_WIRE(netreq->response) != netreq->query_id)
+	if (GLDNS_ID_WIRE(netreq->response) != GLDNS_ID_WIRE(netreq->query))
 		return; /* Cache poisoning attempt ;) */
 
 	// TODO: check whether EDNS server cookies are required for MDNS
@@ -1788,8 +1788,7 @@ mdns_udp_write_cb(void *userarg)
 
 	netreq->debug_start_time = _getdns_get_time_as_uintt64();
 	netreq->debug_udp = 1;
-	netreq->query_id = (uint16_t) arc4random();
-	GLDNS_ID_SET(netreq->query, netreq->query_id);
+	GLDNS_ID_SET(netreq->query, (uint16_t) arc4random());
 
 	/* do we need to handle options valid in the MDNS context? */
 

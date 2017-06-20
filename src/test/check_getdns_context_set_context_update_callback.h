@@ -111,6 +111,8 @@
       */ 
       struct getdns_context *context = NULL;
       getdns_namespace_t namespace_arr[2] = {GETDNS_NAMESPACE_DNS, GETDNS_NAMESPACE_LOCALNAMES};
+      size_t count;
+      getdns_namespace_t *namespaces;
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -118,8 +120,12 @@
 
       expected_changed_item = GETDNS_CONTEXT_CODE_NAMESPACES;
 
-      ASSERT_RC(getdns_context_set_namespaces(context, 2,namespace_arr),
+      ASSERT_RC(getdns_context_set_namespaces(context, 2, namespace_arr),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_namespaces()");
+      ASSERT_RC(getdns_context_get_namespaces(context, &count, &namespaces),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_namespaces()");
+      ck_assert_msg(count == 2 && namespaces[0] == 500 && namespaces[1] == 501, "namespaces are not correctly set");
+
 
       CONTEXT_DESTROY;
        
@@ -207,6 +213,7 @@
       *  expect:  GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS
       */ 
       struct getdns_context *context = NULL;
+      getdns_redirects_t redir;
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -215,6 +222,8 @@
       expected_changed_item = GETDNS_CONTEXT_CODE_FOLLOW_REDIRECTS;
 
       (void) getdns_context_set_follow_redirects(context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
+      (void) getdns_context_get_follow_redirects(context, &redir);
+      ck_assert_msg(redir == GETDNS_REDIRECTS_DO_NOT_FOLLOW, "getdns_context_get_follow_redirects failed");
 
       CONTEXT_DESTROY;
        
@@ -301,6 +310,8 @@
       *  expect:  GETDNS_CONTEXT_CODE_EDNS_EXTENDED_RCODE
       */ 
       struct getdns_context *context = NULL;
+      uint8_t extended_rcode;
+
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -310,6 +321,9 @@
 
       ASSERT_RC(getdns_context_set_edns_extended_rcode(context, 1),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_extended_rcode()");
+      ASSERT_RC(getdns_context_get_edns_extended_rcode(context, &extended_rcode),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_edns_extended_rcode()");
+      ck_assert_msg(extended_rcode == 1, "extended_rcode should be 1, got %d", (int)extended_rcode);
 
       CONTEXT_DESTROY;
        
@@ -325,6 +339,8 @@
       *  expect:  GETDNS_CONTEXT_CODE_EDNS_VERSION
       */ 
       struct getdns_context *context = NULL;
+      uint8_t version;
+
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -334,6 +350,9 @@
 
       ASSERT_RC(getdns_context_set_edns_version(context, 1),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_version()");
+      ASSERT_RC(getdns_context_get_edns_version(context, &version),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_edns_version()");
+      ck_assert_msg(version == 1, "version should be 1, got %d", (int)version);
 
       CONTEXT_DESTROY;
        
@@ -373,6 +392,8 @@
       *  expect:  GETDNS_CONTEXT_CODE_EDNS_CLIENT_SUBNET_PRIVATE
       */ 
       struct getdns_context *context = NULL;
+      uint8_t client_subnet_private;
+
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -382,6 +403,9 @@
 
       ASSERT_RC(getdns_context_set_edns_client_subnet_private(context, 1),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_client_subnet_private()");
+      ASSERT_RC(getdns_context_get_edns_client_subnet_private(context, &client_subnet_private),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_edns_client_subnet_private()");
+      ck_assert_msg(client_subnet_private == 1, "client_subnet_private should be 1, got %d", (int)client_subnet_private);
 
       CONTEXT_DESTROY;
        
@@ -397,6 +421,8 @@
       *  expect:  GETDNS_CONTEXT_CODE_TLS_QUERY_PADDING_BLOCKSIZE
       */ 
       struct getdns_context *context = NULL;
+      uint16_t pad;
+
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -406,6 +432,9 @@
 
       ASSERT_RC(getdns_context_set_tls_query_padding_blocksize(context, 1400),
         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_tls_query_padding_blocksize()");
+      ASSERT_RC(getdns_context_get_tls_query_padding_blocksize(context, &pad),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_tls_query_padding_blocksize()");
+      ck_assert_msg(pad == 1400, "padding_blocksize should be 1400 but got %d", (int) pad);
 
       CONTEXT_DESTROY;
        
@@ -438,11 +467,12 @@
     START_TEST (getdns_context_set_context_update_callback_23)
     {
      /*
-      *  value is NULL
-      *  expect: GETDNS_RETURN_INVALID_PARAMETER
+      *  expect: GETDNS_RETURN_GOOD
       */
 
       struct getdns_context *context = NULL;
+      uint8_t round_robin;
+
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_context_update_callback(context, update_callbackfn),
@@ -451,7 +481,10 @@
       expected_changed_item = GETDNS_CONTEXT_CODE_ROUND_ROBIN_UPSTREAMS;
 
       ASSERT_RC(getdns_context_set_round_robin_upstreams(context, 1),
-        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_round_robin_upstream()");
+      ASSERT_RC(getdns_context_get_round_robin_upstreams(context, &round_robin),
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_get_round_robin_upstream()");
+      ck_assert_msg( round_robin == 1, "round_robin should be 1, got %d", (int)round_robin);
 
       CONTEXT_DESTROY;
 

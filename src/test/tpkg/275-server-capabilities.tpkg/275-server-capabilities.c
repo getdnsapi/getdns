@@ -119,8 +119,8 @@ int main()
 				    context, listeners, NULL, handler)))
 			; /* pass */
 
-		fprintf(stdout, "%d\n", (int)port2);
 		fprintf(stdout, "%d\n", (int)port1);
+		fprintf(stdout, "%d\n", (int)port2);
 		fflush(stdout);
 		getdns_context_run(context);
 	}
