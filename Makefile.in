@@ -190,13 +190,13 @@ $(distdir):
 	mkdir -p $(distdir)/src
 	mkdir -p $(distdir)/src/getdns
 	mkdir -p $(distdir)/src/test
-	mkdir -p $(distdir)/src/test/jsmn
 	mkdir -p $(distdir)/src/extension
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
 	mkdir -p $(distdir)/src/gldns
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
+	mkdir -p $(distdir)/src/yxml
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/systemd
 	mkdir -p $(distdir)/spec
@@ -250,6 +250,9 @@ $(distdir):
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
+	cp $(srcdir)/src/yxml/*.[ch] $(distdir)/src/yxml
+	cp $(srcdir)/src/yxml/COPYING $(distdir)/src/yxml
+	cp $(srcdir)/src/yxml/yxml.pod $(distdir)/src/yxml
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz
