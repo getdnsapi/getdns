@@ -179,6 +179,9 @@ static inline void debug_req(const char *msg, getdns_network_req *netreq)
     (defined(MDNS_DEBUG)   && MDNS_DEBUG)   || \
     (defined(ANCHOR_DEBUG) && ANCHOR_DEBUG)
 #define DEBUGGING 1
+static inline int
+_getdns_ERR_print_errors_cb_f(const char *str, size_t len, void *u)
+{ DEBUG_ON("%.*s (u: %p)\n", (int)len, str, u); return 1; }
 #endif
 
 #endif

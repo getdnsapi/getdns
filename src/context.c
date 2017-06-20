@@ -4456,4 +4456,37 @@ getdns_context_config(getdns_context *context, const getdns_dict *config_dict)
 	return r;
 }
 
+uint8_t *_getdns_context_get_priv_file(getdns_context *context,
+    const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz)
+{
+	char path[FILENAME_MAX];
+	int n;
+	FILE *f;
+
+	n = snprintf(path, sizeof(path), "%s/.getdns/%s", getenv("HOME"), fn);
+	if (n < 0 || n > FILENAME_MAX)
+		return NULL;
+
+	if (!(f = fopen(path, "r")))
+		return NULL;
+
+	if ((*file_sz = fread(buf, 1, buf_len, f)) < buf_len && feof(f))
+		; /* pass */
+
+	else if (fseek(f, 0, SEEK_END) < 0)
+		buf = NULL;
+
+	else if ((buf = GETDNS_XMALLOC(
+	    context->mf, uint8_t, (buf_len = ftell(f) + 1)))) {
+
+		rewind(f);
+		if ((*file_sz = fread(buf, 1, buf_len, f)) >= buf_len || !feof(f)) {
+			GETDNS_FREE(context->mf, buf);
+			buf = NULL;
+		}
+	}
+	(void) fclose(f);
+	return buf;
+}
+
 /* context.c */
