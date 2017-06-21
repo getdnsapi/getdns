@@ -32,18 +32,21 @@
 #include "config.h"
 #include "debug.h"
 #include "anchor.h"
-#include <expat.h>
 #include <fcntl.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include <strings.h>
+#include <time.h>
 #include "types-internal.h"
 #include "context.h"
+#include "yxml/yxml.h"
+#include "gldns/parseutil.h"
 
 #define P7SIGNER "dnssec@iana.org"
 
 /* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
-static const char* _getdns_builtin_cert = 
+static char* _getdns_builtin_cert = 
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
 "TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
@@ -201,10 +204,381 @@ _getdns_verify_p7sig(BIO* data, BIO* p7s, X509_STORE *store, const char* p7signe
 	return secure;
 }
 
+typedef struct ta_iter {
+	uint8_t yxml_buf[4096];
+	yxml_t x;
+
+	const char *start;
+	const char *ptr;
+	const char *end;
+
+	char  zone[1024];
+
+	time_t validFrom;
+	time_t validUntil;
+
+	char  keytag[6];
+	char  algorithm[4];
+	char  digesttype[4];
+	char  digest[2048];
+} ta_iter;
+
+/**
+ * XML convert DateTime element to time_t.
+ * [-]CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm]
+ * (with optional .ssssss fractional seconds)
+ * @param str: the string
+ * @return a time_t representation or 0 on failure.
+ */
+static time_t
+xml_convertdate(const char* str)
+{
+	time_t t = 0;
+	struct tm tm;
+	const char* s;
+	/* for this application, ignore minus in front;
+	 * only positive dates are expected */
+	s = str;
+	if(s[0] == '-') s++;
+	memset(&tm, 0, sizeof(tm));
+	/* parse initial content of the string (lots of whitespace allowed) */
+	s = strptime(s, "%t%Y%t-%t%m%t-%t%d%tT%t%H%t:%t%M%t:%t%S%t", &tm);
+	if(!s) {
+		DEBUG_ANCHOR("xml_convertdate parse failure %s\n", str);
+		return 0;
+	}
+	/* parse remainder of date string */
+	if(*s == '.') {
+		/* optional '.' and fractional seconds */
+		int frac = 0, n = 0;
+		if(sscanf(s+1, "%d%n", &frac, &n) < 1) {
+			DEBUG_ANCHOR("xml_convertdate f failure %s\n", str);
+			return 0;
+		}
+		/* fraction is not used, time_t has second accuracy */
+		s++;
+		s+=n;
+	}
+	if(*s == 'Z' || *s == 'z') {
+		/* nothing to do for this */
+		s++;
+	} else if(*s == '+' || *s == '-') {
+		/* optional timezone spec: Z or +hh:mm or -hh:mm */
+		int hr = 0, mn = 0, n = 0;
+		if(sscanf(s+1, "%d:%d%n", &hr, &mn, &n) < 2) {
+			DEBUG_ANCHOR("xml_convertdate tz failure %s\n", str);
+			return 0;
+		}
+		if(*s == '+') {
+			tm.tm_hour += hr;
+			tm.tm_min += mn;
+		} else {
+			tm.tm_hour -= hr;
+			tm.tm_min -= mn;
+		}
+		s++;
+		s += n;
+	}
+	if(*s != 0) {
+		/* not ended properly */
+		/* but ignore, (lenient) */
+	}
+
+	t = gldns_mktime_from_utc(&tm);
+	if(t == (time_t)-1) {
+		DEBUG_ANCHOR("xml_convertdate mktime failure\n");
+		return 0;
+	}
+	return t;
+}
+
+
+static inline int ta_iter_done(ta_iter *ta)
+{ return *ta->ptr == 0 || ta->ptr >= ta->end; }
+
+static ta_iter *ta_iter_next(ta_iter *ta)
+{
+	yxml_ret_t r;
+	yxml_t ta_x;
+	const char *ta_start;
+	int level;
+	char value[2048];
+	char *cur, *tmp;
+	enum { VALIDFROM, VALIDUNTIL } attr_type;
+	enum { KEYTAG, ALGORITHM, DIGESTTYPE, DIGEST } elem_type;
+
+	cur = value;
+	value[0] = 0;
+
+	if (!ta->zone[0]) {
+		DEBUG_ANCHOR("Determine start of <TrustAnchor>\n");
+		/* Determine start of <TrustAnchor> */
+		while (!ta_iter_done(ta) &&
+		    (  yxml_parse(&ta->x, *ta->ptr) != YXML_ELEMSTART
+		    || strcasecmp(ta->x.elem, "trustanchor")))
+			ta->ptr++;
+		if (ta_iter_done(ta)) return NULL;
+		ta_start = ta->ptr;
+		ta_x = ta->x;
+
+		DEBUG_ANCHOR("Find <Zone>\n");
+		/* Find <Zone> */
+		level = 0;
+		while (!ta_iter_done(ta) && !ta->zone[0]) {
+			switch ((r = yxml_parse(&ta->x, *ta->ptr))) {
+			case YXML_ELEMSTART:
+				level += 1;
+				if (level == 1 &&
+				    strcasecmp(ta->x.elem, "zone") == 0) {
+					cur = value;
+					*cur = 0;
+				}
+				break;
+
+			case YXML_ELEMEND:
+				level -= 1;
+				if (level < 0)
+					/* End of <TrustAnchor> section,
+					 * try the next <TrustAnchor> section
+					 */
+					return ta_iter_next(ta);
+
+				else if (level == 0 && cur) {
+					/* <Zone> content ready */
+					(void) strncpy( ta->zone, value
+					              , sizeof(ta->zone));
+
+					/* Reset to start of <TrustAnchor> */
+					cur = NULL;
+					ta->ptr = ta_start;
+					ta->x = ta_x;
+				}
+				break;
+
+			case YXML_CONTENT:
+				if (!cur || level != 1)
+					break;
+				tmp = ta->x.data;
+				while (*tmp && cur < value + sizeof(value))
+					*cur++ = *tmp++;
+				if (cur >= value + sizeof(value))
+					cur = NULL;
+				else
+					*cur = 0;
+				break;
+			default:
+				break;
+			}
+			ta->ptr++;
+		}
+		if (ta_iter_done(ta))
+			return NULL;
+	}
+	assert(ta->zone[0]);
+
+	DEBUG_ANCHOR("Zone: %s, Find <KeyDigest>\n", ta->zone);
+	level = 0;
+	while (!ta_iter_done(ta)) {
+		r = yxml_parse(&ta->x, *ta->ptr);
+
+		if (r == YXML_ELEMSTART) {
+			level += 1;
+			DEBUG_ANCHOR("elem start: %s, level: %d\n", ta->x.elem, level);
+			if (level == 1 &&
+			    strcasecmp(ta->x.elem, "keydigest") == 0)
+				break;
+
+		} else if (r == YXML_ELEMEND) {
+			level -= 1;
+			if (level < 0) {
+				/* End of <TrustAnchor> section */
+				ta->zone[0] = 0;
+				return ta_iter_next(ta);
+			}
+		}
+		ta->ptr++;
+	}
+	if (ta_iter_done(ta))
+		return NULL;
+
+	DEBUG_ANCHOR("Found <KeyDigest>, Parse attributes\n");
+
+	ta->validFrom = ta->validUntil = 0;
+	*ta->keytag = *ta->algorithm = *ta->digesttype = *ta->digest = 0;
+
+	cur = NULL;
+	value[0] = 0;
+	attr_type = -1;
+
+	while (!ta_iter_done(ta)) {
+		switch ((r = yxml_parse(&ta->x, *ta->ptr))) {
+		case YXML_ELEMSTART:
+			break;
+
+		case YXML_ELEMEND:
+			/* End of <KeyDigest> section, try next */
+			return ta_iter_next(ta);
+
+		case YXML_ATTRSTART:
+			DEBUG_ANCHOR("attrstart: %s\n", ta->x.attr);
+			if (strcasecmp(ta->x.attr, "validfrom") == 0)
+				attr_type = VALIDFROM;
+
+			else if (strcasecmp(ta->x.attr, "validuntil") == 0)
+				attr_type = VALIDUNTIL;
+			else
+				break;
+
+			cur = value;
+			*cur = 0;
+			break;
+
+		case YXML_ATTREND:
+			if (!cur)
+				break;
+			cur = NULL;
+			DEBUG_ANCHOR("attrval: %s\n", value);
+			switch (attr_type) {
+			case VALIDFROM:
+				ta->validFrom = xml_convertdate(value);
+				break;
+			case VALIDUNTIL:
+				ta->validUntil = xml_convertdate(value);
+				break;
+			}
+			break;
+
+		case YXML_ATTRVAL:
+			if (!cur)
+				break;
+			tmp = ta->x.data;
+			while (*tmp && cur < value + sizeof(value))
+				*cur++ = *tmp++;
+			if (cur >= value + sizeof(value))
+				cur = NULL;
+			else
+				*cur = 0;
+			break;
+		case YXML_OK:
+		case YXML_CONTENT:
+			break;
+		default:
+			DEBUG_ANCHOR("r: %d\n", (int)r);
+			return NULL;
+			break;
+		}
+		if (r == YXML_ELEMSTART)
+			break;
+		ta->ptr++;
+	}
+	if (ta_iter_done(ta))
+		return NULL;
+
+	assert(r == YXML_ELEMSTART);
+	DEBUG_ANCHOR("Within <KeyDigest>, Parse child elements\n");
+
+	cur = NULL;
+	value[0] = 0;
+	elem_type = -1;
+
+	for (;;) {
+		switch (r) {
+		case YXML_ELEMSTART:
+			level += 1;
+			DEBUG_ANCHOR("elem start: %s, level: %d\n", ta->x.elem, level);
+			if (level != 2)
+				break;
+
+			else if (strcasecmp(ta->x.elem, "keytag") == 0)
+				elem_type = KEYTAG;
+
+			else if (strcasecmp(ta->x.elem, "algorithm") == 0)
+				elem_type = ALGORITHM;
+
+			else if (strcasecmp(ta->x.elem, "digesttype") == 0)
+				elem_type = DIGESTTYPE;
+
+			else if (strcasecmp(ta->x.elem, "digest") == 0)
+				elem_type = DIGEST;
+			else
+				break;
+
+			cur = value;
+			*cur = 0;
+			break;
+
+		case YXML_ELEMEND:
+			level -= 1;
+			if (level < 0) {
+				/* End of <TrustAnchor> section */
+				ta->zone[0] = 0;
+				return ta_iter_next(ta);
+
+			} else if (level != 1 || !cur)
+				break;
+
+			cur = NULL;
+			DEBUG_ANCHOR("elem end: %s\n", value);
+			switch (elem_type) {
+			case KEYTAG:
+				(void) strncpy( ta->keytag, value
+				              , sizeof(ta->keytag));
+				break;
+			case ALGORITHM:
+				(void) strncpy( ta->algorithm, value
+				              , sizeof(ta->algorithm));
+				break;
+			case DIGESTTYPE:
+				(void) strncpy( ta->digesttype, value
+				              , sizeof(ta->digesttype));
+				break;
+			case DIGEST:
+				(void) strncpy( ta->digest, value
+				              , sizeof(ta->digest));
+				break;
+			}
+			break;
+
+		case YXML_CONTENT:
+			if (!cur)
+				break;
+			tmp = ta->x.data;
+			while (*tmp && cur < value + sizeof(value))
+				*cur++ = *tmp++;
+			if (cur >= value + sizeof(value))
+				cur = NULL;
+			else
+				*cur = 0;
+			break;
+
+		default:
+			break;
+		}
+		if (level == 0)
+			break;
+		ta->ptr++;
+		if (ta_iter_done(ta))
+			return NULL;
+		r = yxml_parse(&ta->x, *ta->ptr);
+	}
+	return  ta->validFrom
+	    && *ta->keytag     && *ta->algorithm
+	    && *ta->digesttype && *ta->digest ? ta : ta_iter_next(ta);
+}
+
+static ta_iter *ta_iter_init(ta_iter *ta, const char *doc, size_t doc_len)
+{
+	ta->ptr = ta->start = doc;
+	ta->end = ta->start + doc_len;
+	yxml_init(&ta->x, ta->yxml_buf, sizeof(ta->yxml_buf));
+	ta->zone[0] = 0;
+	return ta_iter_next(ta);
+}
+
 void _getdns_context_equip_with_anchor(getdns_context *context)
 {
-	uint8_t xml_spc[16384], *xml_data = xml_spc;
-	uint8_t p7s_spc[16384], *p7s_data = p7s_spc;
+	uint8_t xml_spc[4096], *xml_data = xml_spc;
+	uint8_t p7s_spc[4096], *p7s_data = p7s_spc;
 	size_t xml_len, p7s_len;
 
 	BIO *xml = NULL, *p7s = NULL, *crt = NULL;
@@ -227,7 +601,7 @@ void _getdns_context_equip_with_anchor(getdns_context *context)
 		DEBUG_ANCHOR("ERROR %s(): Failed allocating p7s BIO\n"
 		            , __FUNC__);
 	
-	else if (!(crt = BIO_new_mem_buf(_getdns_builtin_cert, -1)))
+	else if (!(crt = BIO_new_mem_buf((void *)_getdns_builtin_cert, -1)))
 		DEBUG_ANCHOR("ERROR %s(): Failed allocating crt BIO\n"
 		            , __FUNC__);
 
@@ -244,7 +618,19 @@ void _getdns_context_equip_with_anchor(getdns_context *context)
 		            , __FUNC__);
 
 	else if (_getdns_verify_p7sig(xml, p7s, store, "dnssec@iana.org")) {
-		DEBUG_ANCHOR("Verifying trust-anchors SUCCEEDED, Yay!\n");
+		ta_iter ta_spc, *ta;
+
+		for ( ta = ta_iter_init(&ta_spc, (char *)xml_data, xml_len)
+		    ; ta; ta = ta_iter_next(ta)) {
+
+			DEBUG_ANCHOR( "%s IN DS %s %s %s %s\n"
+			            , ta->zone
+				    , ta->keytag
+				    , ta->algorithm
+				    , ta->digesttype
+				    , ta->digest
+				    );
+		}
 	} else {
 		DEBUG_ANCHOR("Verifying trust-anchors failed!\n");
 	}

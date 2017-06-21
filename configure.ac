@@ -114,7 +114,7 @@ AC_SUBST(WPEDANTICFLAG)
 AC_SUBST(WNOERRORFLAG)
 
 case "$host_os" in
-  linux* ) CFLAGS="$CFLAGS -D_BSD_SOURCE -D_DEFAULT_SOURCE"
+  linux* ) CFLAGS="$CFLAGS -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_XOPEN_SOURCE"
   ;;
   solaris* ) CFLAGS="$CFLAGS -D__EXTENSIONS__"  # for strdup() from <string.h>
   ;;
