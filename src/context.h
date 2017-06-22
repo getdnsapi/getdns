@@ -92,6 +92,12 @@ typedef enum getdns_conn_state {
 	GETDNS_CONN_BACKOFF
 } getdns_conn_state_t;
 
+typedef enum getdns_tasrc {
+	GETDNS_TASRC_NONE,
+	GETDNS_TASRC_ZONE,
+	GETDNS_TASRC_XML
+} getdns_tasrc;
+
 typedef enum getdns_tsig_algo {
 	GETDNS_NO_TSIG     = 0, /* Do not use tsig */
 	GETDNS_HMAC_MD5    = 1, /* 128 bits */
@@ -272,6 +278,7 @@ struct getdns_context {
 	size_t               suffixes_len; 
 	uint8_t              *trust_anchors;
 	size_t                trust_anchors_len;
+	getdns_tasrc          trust_anchors_source;
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;

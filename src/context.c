@@ -1406,6 +1406,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
 
+	result->trust_anchors_source = GETDNS_TASRC_NONE;
 	gldns_buffer_init_vfixed_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
 
@@ -1423,12 +1424,16 @@ getdns_context_create_with_extended_memory_functions(
 			                          , result->trust_anchors
 						  , result->trust_anchors_len);
 			if (!_getdns_parse_ta_file(NULL, &gbuf)) {
+				GETDNS_FREE(result->mf, result->trust_anchors);
 				result->trust_anchors = NULL;
 				result->trust_anchors_len = 0;
-			}
+			} else
+				result->trust_anchors_source = GETDNS_TASRC_ZONE;
 		}
-	} else
+	} else {
 		result->trust_anchors = result->trust_anchors_spc;
+		result->trust_anchors_source = GETDNS_TASRC_ZONE;
+	}
 
 	result->upstreams = NULL;
 
@@ -1514,7 +1519,8 @@ getdns_context_create_with_extended_memory_functions(
 #else
 	/* XXX implement Windows-style unlock here */
 #endif
-	_getdns_context_equip_with_anchor(result);
+	if (result->trust_anchors_source == GETDNS_TASRC_NONE)
+		_getdns_context_equip_with_anchor(result, time(NULL));
 
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;

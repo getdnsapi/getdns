@@ -35,8 +35,9 @@
 #define ANCHOR_H_
 
 #include "getdns/getdns.h"
+#include <time.h>
 
-void _getdns_context_equip_with_anchor(getdns_context *context);
+void _getdns_context_equip_with_anchor(getdns_context *context, time_t now);
 
 #endif
 /* anchor.h */

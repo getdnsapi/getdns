@@ -42,6 +42,9 @@
 #include "context.h"
 #include "yxml/yxml.h"
 #include "gldns/parseutil.h"
+#include "gldns/gbuffer.h"
+#include "gldns/str2wire.h"
+#include "gldns/pkthdr.h"
 
 #define P7SIGNER "dnssec@iana.org"
 
@@ -575,7 +578,94 @@ static ta_iter *ta_iter_init(ta_iter *ta, const char *doc, size_t doc_len)
 	return ta_iter_next(ta);
 }
 
-void _getdns_context_equip_with_anchor(getdns_context *context)
+uint16_t _getdns_parse_xml_trust_anchors_buf(
+    gldns_buffer *gbuf, time_t now, char *xml_data, size_t xml_len)
+{
+	ta_iter ta_spc, *ta;
+	uint16_t ta_count = 0;
+	size_t pkt_start = gldns_buffer_position(gbuf);
+
+	/* Empty header */
+	gldns_buffer_write_u32(gbuf, 0);
+	gldns_buffer_write_u32(gbuf, 0);
+	gldns_buffer_write_u32(gbuf, 0);
+
+	for ( ta = ta_iter_init(&ta_spc, (char *)xml_data, xml_len)
+	    ; ta; ta = ta_iter_next(ta)) {
+
+		if (now < ta->validFrom)
+			DEBUG_ANCHOR("Disregarding trust anchor "
+			    "%s for %s which is not yet valid",
+			    ta->keytag, ta->zone);
+
+		else if (ta->validUntil != 0 && now > ta->validUntil)
+			DEBUG_ANCHOR("Disregarding trust anchor "
+			    "%s for %s which is not valid anymore",
+			    ta->keytag, ta->zone);
+
+		else {
+			uint8_t zone[256];
+			size_t zone_len = sizeof(zone);
+			uint8_t digest[sizeof(ta->digest)/2];
+			size_t digest_len = sizeof(digest);
+			uint16_t keytag;
+			uint8_t algorithm;
+			uint8_t digesttype;
+			char *endptr;
+
+			DEBUG_ANCHOR( "Installing trust anchor: "
+			    "%s IN DS %s %s %s %s\n"
+			    , ta->zone
+			    , ta->keytag
+			    , ta->algorithm
+			    , ta->digesttype
+			    , ta->digest
+			    );
+			if (gldns_str2wire_dname_buf(ta->zone, zone, &zone_len)) {
+				DEBUG_ANCHOR("Not installing trust anchor because "
+				    "of unparsable zone: \"%s\"", ta->zone);
+				continue;
+			}
+			keytag = (uint16_t)strtol(ta->keytag, &endptr, 10);
+			if (endptr == ta->keytag || *endptr != 0) {
+				DEBUG_ANCHOR("Not installing trust anchor because "
+				    "of unparsable keytag: \"%s\"", ta->keytag);
+				continue;
+			}
+			algorithm = (uint16_t)strtol(ta->algorithm, &endptr, 10);
+			if (endptr == ta->algorithm || *endptr != 0) {
+				DEBUG_ANCHOR("Not installing trust anchor because "
+				    "of unparsable algorithm: \"%s\"", ta->algorithm);
+				continue;
+			}
+			digesttype = (uint16_t)strtol(ta->digesttype, &endptr, 10);
+			if (endptr == ta->digesttype || *endptr != 0) {
+				DEBUG_ANCHOR("Not installing trust anchor because "
+				    "of unparsable digesttype: \"%s\"", ta->digesttype);
+				continue;
+			}
+			if (gldns_str2wire_hex_buf(ta->digest, digest, &digest_len)) {
+				DEBUG_ANCHOR("Not installing trust anchor because "
+				    "of unparsable digest: \"%s\"", ta->digest);
+				continue;
+			}
+			gldns_buffer_write(gbuf, zone, zone_len);
+			gldns_buffer_write_u16(gbuf, GETDNS_RRTYPE_DS);
+			gldns_buffer_write_u16(gbuf, GETDNS_RRCLASS_IN);
+			gldns_buffer_write_u32(gbuf, 3600);
+			gldns_buffer_write_u16(gbuf, digest_len + 4); /* rdata_len */
+			gldns_buffer_write_u16(gbuf, keytag);
+			gldns_buffer_write_u8(gbuf, algorithm);
+			gldns_buffer_write_u8(gbuf, digesttype);
+			gldns_buffer_write(gbuf, digest, digest_len);
+			ta_count += 1;
+		}
+	}
+	gldns_buffer_write_u16_at(gbuf, pkt_start+GLDNS_ANCOUNT_OFF, ta_count);
+	return ta_count;
+}
+
+void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 {
 	uint8_t xml_spc[4096], *xml_data = xml_spc;
 	uint8_t p7s_spc[4096], *p7s_data = p7s_spc;
@@ -618,19 +708,41 @@ void _getdns_context_equip_with_anchor(getdns_context *context)
 		            , __FUNC__);
 
 	else if (_getdns_verify_p7sig(xml, p7s, store, "dnssec@iana.org")) {
-		ta_iter ta_spc, *ta;
+		uint8_t ta_spc[sizeof(context->trust_anchors_spc)];
+		size_t ta_len;
+		uint8_t *ta = NULL;
+		gldns_buffer gbuf;
 
-		for ( ta = ta_iter_init(&ta_spc, (char *)xml_data, xml_len)
-		    ; ta; ta = ta_iter_next(ta)) {
+		gldns_buffer_init_vfixed_frm_data(
+		    &gbuf, ta_spc, sizeof(ta_spc));
 
-			DEBUG_ANCHOR( "%s IN DS %s %s %s %s\n"
-			            , ta->zone
-				    , ta->keytag
-				    , ta->algorithm
-				    , ta->digesttype
-				    , ta->digest
-				    );
+		if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now, 
+		    (char *)xml_data, xml_len))
+			DEBUG_ANCHOR("Failed to parse trust anchor XML data");
+		else if ((ta_len = gldns_buffer_position(&gbuf)) > sizeof(ta_spc)) {
+			if ((ta = GETDNS_XMALLOC(context->mf, uint8_t, ta_len))) {
+				gldns_buffer_init_frm_data(&gbuf, ta,
+				    gldns_buffer_position(&gbuf));
+				if (!_getdns_parse_xml_trust_anchors_buf(
+				    &gbuf, now, (char *)xml_data, xml_len)) {
+					DEBUG_ANCHOR("Failed to re-parse trust"
+					             " anchor XML data");
+					GETDNS_FREE(context->mf, ta);
+				} else {
+					context->trust_anchors = ta;
+					context->trust_anchors_len = ta_len;
+					context->trust_anchors_source = GETDNS_TASRC_XML;
+				}
+			} else
+				DEBUG_ANCHOR("Could not allocate space for XML file");
+		} else {
+			(void)memcpy(context->trust_anchors_spc, ta_spc, ta_len);
+			context->trust_anchors = context->trust_anchors_spc;
+			context->trust_anchors_len = ta_len;
+			context->trust_anchors_source = GETDNS_TASRC_XML;
 		}
+		DEBUG_ANCHOR("ta: %p, ta_len: %d\n", context->trust_anchors, (int)context->trust_anchors_len);
+		
 	} else {
 		DEBUG_ANCHOR("Verifying trust-anchors failed!\n");
 	}
