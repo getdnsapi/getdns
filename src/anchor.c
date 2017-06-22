@@ -301,7 +301,7 @@ static inline int ta_iter_done(ta_iter *ta)
 
 static ta_iter *ta_iter_next(ta_iter *ta)
 {
-	yxml_ret_t r;
+	yxml_ret_t r = YXML_OK;
 	yxml_t ta_x;
 	const char *ta_start;
 	int level;
