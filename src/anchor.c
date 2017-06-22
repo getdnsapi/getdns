@@ -89,7 +89,7 @@ _getdns_get_usage_of_ex(X509* cert)
 
 /** get valid signers from the list of signers in the signature */
 static STACK_OF(X509)*
-get_valid_signers(PKCS7* p7, const char* p7signer)
+_getdns_get_valid_signers(PKCS7* p7, const char* p7signer)
 {
 	int i;
 	STACK_OF(X509)* validsigners = sk_X509_new_null();
@@ -184,7 +184,7 @@ _getdns_verify_p7sig(BIO* data, BIO* p7s, X509_STORE *store, const char* p7signe
 	}
 	/* check what is in the Subject name of the certificates,
 	 * and build a stack that contains only the right certificates */
-	validsigners = get_valid_signers(p7, p7signer);
+	validsigners = _getdns_get_valid_signers(p7, p7signer);
 	if(!validsigners) {
 		PKCS7_free(p7);
 		return 0;
@@ -231,7 +231,7 @@ typedef struct ta_iter {
  * @return a time_t representation or 0 on failure.
  */
 static time_t
-xml_convertdate(const char* str)
+_getdns_xml_convertdate(const char* str)
 {
 	time_t t = 0;
 	struct tm tm;
@@ -440,10 +440,10 @@ static ta_iter *ta_iter_next(ta_iter *ta)
 			DEBUG_ANCHOR("attrval: %s\n", value);
 			switch (attr_type) {
 			case VALIDFROM:
-				ta->validFrom = xml_convertdate(value);
+				ta->validFrom = _getdns_xml_convertdate(value);
 				break;
 			case VALIDUNTIL:
-				ta->validUntil = xml_convertdate(value);
+				ta->validUntil = _getdns_xml_convertdate(value);
 				break;
 			}
 			break;
