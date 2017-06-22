@@ -668,7 +668,7 @@ uint16_t _getdns_parse_xml_trust_anchors_buf(
 void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 {
 	uint8_t xml_spc[4096], *xml_data;
-	uint8_t p7s_spc[4096], *p7s_data;
+	uint8_t p7s_spc[4096], *p7s_data = NULL;
 	size_t xml_len, p7s_len;
 
 	BIO *xml = NULL, *p7s = NULL, *crt = NULL;
