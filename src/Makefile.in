@@ -228,7 +228,8 @@ anchor.lo anchor.o: $(srcdir)/anchor.c config.h $(srcdir)/debug.h $(srcdir)/anch
  $(srcdir)/types-internal.h getdns/getdns_extra.h getdns/getdns.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/orig-headers/rbtree.h $(srcdir)/context.h $(srcdir)/extension/default_eventloop.h \
  config.h $(srcdir)/extension/poll_eventloop.h getdns/getdns_extra.h \
- $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h
+ $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/yxml/yxml.h $(srcdir)/gldns/parseutil.h \
+ $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h
 const-info.lo const-info.o: $(srcdir)/const-info.c getdns/getdns.h getdns/getdns_extra.h \
  getdns/getdns.h $(srcdir)/const-info.h
 context.lo context.o: $(srcdir)/context.c config.h $(srcdir)/anchor.h getdns/getdns.h $(srcdir)/debug.h \
