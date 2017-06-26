@@ -39,6 +39,7 @@
 #include <sys/time.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -501,13 +502,32 @@ getdns_context_set_tls_query_padding_blocksize(getdns_context *context, uint16_t
  */
 getdns_return_t
 getdns_context_unset_edns_maximum_udp_payload_size(getdns_context *context);
-/** @}
- */
 
- /**
-  * \addtogroup getdns_context
-  *  @{
-  */
+
+typedef enum getdns_loglevel_type {
+	GETDNS_LOG_EMERG   = 0,
+	GETDNS_LOG_ALERT   = 1,
+	GETDNS_LOG_CRIT    = 2,
+	GETDNS_LOG_ERR     = 3,
+	GETDNS_LOG_WARNING = 4,
+	GETDNS_LOG_NOTICE  = 5,
+	GETDNS_LOG_INFO    = 6,
+	GETDNS_LOG_DEBUG   = 7
+} getdns_loglevel_type;
+
+#define GETDNS_SYSTEM_DAEMON 0x100
+#define GETDNS_SYSTEM_STUB   0x200
+#define GETDNS_SYSTEM_MDNS   0x400
+
+typedef void (*getdns_logfunc_type) (void *userarg, uint64_t system,
+    getdns_loglevel_type, const char *, va_list ap);
+
+/**
+ *
+ */
+getdns_return_t
+getdns_context_set_logfunc(getdns_context *context, void *userarg,
+    uint64_t system, getdns_loglevel_type level, getdns_logfunc_type func);
 
 /**
  * Get the current resolution type setting from this context.

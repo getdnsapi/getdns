@@ -1619,6 +1619,14 @@ error:
 		getdns_dict_destroy(response);
 }
 
+static void stubby_log(void *userarg, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, va_list ap)
+{
+	(void)userarg; (void)system; (void)level;
+	(void) vfprintf(stderr, fmt, ap);
+}
+
+
 /**
  * \brief A wrapper script for command line testing of getdns
  *  getdns_query -h provides details of the available options (the syntax is 
@@ -1668,6 +1676,9 @@ main(int argc, char **argv)
 			(void) parse_config_file(home_stubby_conf_fn, 0);
 		}
 		clear_listen_list_on_arg = 1;
+
+		(void) getdns_context_set_logfunc(context, NULL,
+		    GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG, stubby_log);
 	}
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
