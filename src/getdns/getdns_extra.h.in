@@ -515,9 +515,22 @@ typedef enum getdns_loglevel_type {
 	GETDNS_LOG_DEBUG   = 7
 } getdns_loglevel_type;
 
-#define GETDNS_SYSTEM_DAEMON 0x100
-#define GETDNS_SYSTEM_STUB   0x200
-#define GETDNS_SYSTEM_MDNS   0x400
+#define GETDNS_LOG_EMERG_TEXT   "System is unusable"
+#define GETDNS_LOG_ALERT_TEXT   "Action must be taken immediately"
+#define GETDNS_LOG_CRIT_TEXT    "Critical conditions"
+#define GETDNS_LOG_ERR_TEXT     "Error conditions"
+#define GETDNS_LOG_WARNING_TEXT "Warning conditions"
+#define GETDNS_LOG_NOTICE_TEXT  "normal, but significant, condition"
+#define GETDNS_LOG_INFO_TEXT    "Informational message"
+#define GETDNS_LOG_DEBUG_TEXT   "Debug-level message"
+
+#define GETDNS_SYSTEM_DAEMON 4096
+#define GETDNS_SYSTEM_STUB   8192
+#define GETDNS_SYSTEM_MDNS  16384
+
+#define GETDNS_SYSTEM_DAEMON_TEXT "Log messages regarding the daemon system"
+#define GETDNS_SYSTEM_STUB_TEXT   "Log messages regarding the stub system"
+#define GETDNS_SYSTEM_MDNS_TEXT   "Log messages regarding the mdns system"
 
 typedef void (*getdns_logfunc_type) (void *userarg, uint64_t system,
     getdns_loglevel_type, const char *, va_list ap);
