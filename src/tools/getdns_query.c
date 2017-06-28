@@ -1622,7 +1622,22 @@ error:
 static void stubby_log(void *userarg, uint64_t system,
     getdns_loglevel_type level, const char *fmt, va_list ap)
 {
+	struct timeval tv;
+	struct tm tm;
+	char buf[10];
+#ifdef GETDNS_ON_WINDOWS
+	time_t tsec;
+
+	gettimeofday(&tv, NULL);
+	tsec = (time_t) tv.tv_sec;
+	gmtime_s(&tm, (const time_t *) &tsec);
+#else
+	gettimeofday(&tv, NULL);
+	gmtime_r(&tv.tv_sec, &tm);
+#endif
+	strftime(buf, 10, "%H:%M:%S", &tm);
 	(void)userarg; (void)system; (void)level;
+	(void) fprintf(stderr, "[%s.%.6d] STUBBY: ", buf, (int)tv.tv_usec);
 	(void) vfprintf(stderr, fmt, ap);
 }
 
