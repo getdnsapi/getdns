@@ -1,3 +1,10 @@
+* 2017-07-??: Version 1.1.2
+  * Bugfix for parallel make install
+  * A getdns_context_set_logfunc() function with which one may
+    register a callback log function for certain library subsystems
+    at certain levels.  Currently this can only be used for
+    upstream stastistics subsystem.
+
 * 2017-06-15: Version 1.1.1
   * Bugfix #306 hanging/segfaulting on certain (IPv6) upstream failures
   * Spelling fix s/receive/receive.  Thanks Andreas Schulze.
