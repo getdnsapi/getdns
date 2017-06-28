@@ -242,7 +242,6 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 }
 #endif
 
-#if !defined(STUB_NATIVE_DNSSEC) || (defined(DAEMON_DEBUG) && DAEMON_DEBUG)
 static uint8_t*
 upstream_addr(getdns_upstream *upstream)
 {
@@ -250,8 +249,6 @@ upstream_addr(getdns_upstream *upstream)
 	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
 	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
 }
-#endif
-
 
 static in_port_t
 upstream_port(getdns_upstream *upstream)
@@ -939,10 +936,8 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
 	          upstream->addr_str, INET6_ADDRSTRLEN);
-#endif
 
 	/* How is this upstream doing on connections? */
 	upstream->conn_completed = 0;
