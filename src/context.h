@@ -95,7 +95,8 @@ typedef enum getdns_conn_state {
 typedef enum getdns_tasrc {
 	GETDNS_TASRC_NONE,
 	GETDNS_TASRC_ZONE,
-	GETDNS_TASRC_XML
+	GETDNS_TASRC_XML,
+	GETDNS_TASRC_FAILED
 } getdns_tasrc;
 
 typedef enum getdns_tsig_algo {
@@ -370,6 +371,18 @@ struct getdns_context {
 	unsigned return_both_v4_and_v6               : 1;
 	unsigned return_call_reporting               : 1;
 	uint16_t specify_class;
+
+	/*
+	 * Context for doing system queries.
+	 * For example to resolve data.iana.org or to resolver the addresses
+	 * of upstreams without specified addresses.
+	 */
+	getdns_context *sys_ctxt;
+
+	/* List of dnsreqs that want to be notified when we have fetched a
+	 * trust anchor from data.iana.org.
+	 */
+	getdns_dns_req *ta_notify;
 
 	/*
 	 * state data used to detect changes to the system config files

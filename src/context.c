@@ -1467,6 +1467,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->return_call_reporting = 0;
 	result->specify_class = GETDNS_RRCLASS_IN;
 
+	result->sys_ctxt  = NULL;
+	result->ta_notify = NULL;
+
 	/* state data used to detect changes to the system config files
 	 */
 	result->fchg_resolvconf = NULL;
@@ -1596,6 +1599,10 @@ getdns_context_destroy(struct getdns_context *context)
 		return;
 
 	context->destroying = 1;
+
+	if (context->sys_ctxt)
+		getdns_context_destroy(context->sys_ctxt);
+
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context);
 

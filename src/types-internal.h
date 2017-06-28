@@ -324,6 +324,7 @@ typedef struct getdns_dns_req {
 	 * freed      is touched by _getdns_submit_netreq only
 	 */
 	unsigned validating				: 1;
+	unsigned waiting_for_ta                         : 1;
 	int *freed;
 
 	/* Validation chain to be canceled when this request is canceled */
@@ -364,6 +365,11 @@ typedef struct getdns_dns_req {
 	 * more elaborate description.
 	 */
 	struct getdns_dns_req *finished_next;
+
+	/* Linked list pointer for dns requests, which need to validate DNSSEC
+	 * and are waiting for the root trust-anchors fetch.
+	 */
+	struct getdns_dns_req *ta_notify;
 
 	/* network requests for this dns request.
 	 * The array is terminated with NULL.

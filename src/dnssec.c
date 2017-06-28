@@ -2980,6 +2980,14 @@ static void append_empty_ds2val_chain_list(
 		getdns_dict_destroy(rr_dict);
 }
 
+static void data_iana_org_a(getdns_dns_req *dnsreq)
+{
+	getdns_dns_req *orig_dnsreq = (getdns_dns_req *)dnsreq->user_pointer;
+	DEBUG_SEC("Address for data.iana.org. found\n");
+	_getdns_context_cancel_request(dnsreq);
+	check_chain_complete(orig_dnsreq->chain);
+}
+
 static void check_chain_complete(chain_head *chain)
 {
 	getdns_dns_req *dnsreq;
@@ -2999,6 +3007,70 @@ static void check_chain_complete(chain_head *chain)
 	dnsreq = chain->netreq->owner;
 	context = dnsreq->context;
 
+	if (dnsreq->waiting_for_ta) {
+		getdns_dns_req **d;
+
+		for (d = &context->ta_notify; *d; d = &(*d)->ta_notify) {
+			if (*d == dnsreq) {
+				*d = dnsreq->ta_notify;
+				dnsreq->ta_notify = NULL;
+				dnsreq->waiting_for_ta = 0;
+				break;
+			}
+		}
+
+	} else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
+		DEBUG_SEC("Need to fetch a trust anchor\n");
+
+		dnsreq->waiting_for_ta = 1;
+		dnsreq->ta_notify = context->ta_notify;
+		context->ta_notify = dnsreq;
+
+		if (dnsreq->ta_notify)
+			return; /* Wait for the notify callback */
+
+		else if (!context->sys_ctxt) {
+			if (getdns_context_create_with_extended_memory_functions(
+			    &context->sys_ctxt, 1,
+			    context->mf.mf_arg,
+			    context->mf.mf.ext.malloc,
+			    context->mf.mf.ext.realloc,
+			    context->mf.mf.ext.free)) {
+				DEBUG_SEC("TA fetch: Error creating system context\n");
+
+			} else if (getdns_context_set_eventloop(
+			    context->sys_ctxt, context->extension) ||
+			    getdns_context_set_resolution_type(
+			    context->sys_ctxt, GETDNS_RESOLUTION_STUB)
+					) {
+				DEBUG_SEC("TA fetch: Error configuring system context\n");
+
+				getdns_context_destroy(context->sys_ctxt);
+				context->sys_ctxt = NULL;
+			}
+		}
+		if (context->sys_ctxt) {
+			DEBUG_SEC("Start of fetching of root-anchors.xml\n");
+	    		if (!_getdns_general_loop(context->sys_ctxt,
+			    dnsreq->loop, "data.iana.org.", GETDNS_RRTYPE_A,
+			    NULL, dnsreq, NULL, NULL, data_iana_org_a)
+#if 0
+			    || !_getdns_general_loop(context->sys_ctxt,
+			    dnsreq->loop, "data.iana.org.", GETDNS_RRTYPE_AAAA,
+			    NULL, context, NULL, data_iana_org_aaaa)
+#endif
+			    )
+				return;
+
+			DEBUG_SEC("Scheduling of lookup for \"data.iana.org.\" failed\n");
+
+			getdns_context_destroy(context->sys_ctxt);
+			context->sys_ctxt = NULL;
+		}
+		dnsreq->waiting_for_ta = 0;
+		context->ta_notify = dnsreq->ta_notify;
+		dnsreq->ta_notify = NULL;
+	}
 #ifdef STUB_NATIVE_DNSSEC
 	/* Perform validation only on GETDNS_RESOLUTION_STUB (unbound_id == -1)
 	 * Or when asked for the validation chain (to identify the RRSIGs that
