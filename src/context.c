@@ -747,19 +747,19 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	/* Keep track of the best auth state this upstream has had*/
 	if (upstream->tls_auth_state > upstream->best_tls_auth_state)
 		upstream->best_tls_auth_state = upstream->tls_auth_state;
-	_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 	    "%s %-40s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             _getdns_auth_str(upstream->tls_auth_state), (int)upstream->keepalive_timeout);
-	_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 	    "%s %-40s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
 	             _getdns_auth_str(upstream->best_tls_auth_state));
-	_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 	    "%s %-40s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
 	             STUB_DEBUG_DAEMON, upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
@@ -788,7 +788,7 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->conn_shutdowns = 0;
 		upstream->conn_backoffs++;
 
-		_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 		    "%s %-40s : !Backing off this upstream    - Will retry as new upstream at %s",
 		            STUB_DEBUG_DAEMON, upstream->addr_str,
 		            asctime(gmtime(&upstream->conn_retry_time)));

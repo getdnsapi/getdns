@@ -1678,7 +1678,7 @@ main(int argc, char **argv)
 		clear_listen_list_on_arg = 1;
 
 		(void) getdns_context_set_logfunc(context, NULL,
-		    GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG, stubby_log);
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
 	}
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;

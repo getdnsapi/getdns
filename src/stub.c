@@ -608,7 +608,7 @@ stub_timeout_cb(void *userarg)
 #endif
 		netreq->upstream->udp_timeouts++;
 		if (netreq->upstream->udp_timeouts % 100 == 0)
-			_getdns_upstream_log(netreq->upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+			_getdns_upstream_log(netreq->upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 			    "%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 			             STUB_DEBUG_DAEMON, netreq->upstream->addr_str,
 			             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
@@ -908,7 +908,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	            X509_verify_cert_error_string(err));
 #endif
 	if (!preverify_ok && !upstream->tls_fallback_ok)
-		_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 		    "%s %-40s : Verify failed : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
 		    STUB_DEBUG_DAEMON, upstream->addr_str, err,
 		    X509_verify_cert_error_string(err));
@@ -944,7 +944,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
 		else
-			_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 			    "%s %-40s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
 			    STUB_DEBUG_DAEMON, upstream->addr_str);
 	} else {
@@ -957,7 +957,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			preverify_ok = 1;
 			DEBUG_STUB("%s %-35s: FD:  %d, Allowing self-signed (%d) cert since pins match\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err);
-			_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG, 
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, 
 			    "%s %-40s : Verify passed : Transport=TLS - Allowing self-signed cert since pins match\n",
 			    STUB_DEBUG_DAEMON, upstream->addr_str);
 		}
@@ -1472,7 +1472,7 @@ stub_udp_read_cb(void *userarg)
 	upstream->udp_responses++;
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
-		_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 		    "%s %-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 		    STUB_DEBUG_DAEMON, upstream->addr_str,
 		    (int)upstream->udp_responses, (int)upstream->udp_timeouts);
@@ -1729,7 +1729,7 @@ upstream_write_cb(void *userarg)
 	case STUB_NO_AUTH:
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
-		_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 		    "%s %-40s : Conn closed   : Transport=%s - *Failure*\n",
 		    STUB_DEBUG_DAEMON, upstream->addr_str,
 		    (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
@@ -1884,7 +1884,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
-			_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 			    "%s %-40s : Re-instating upstream\n",
 		            STUB_DEBUG_DAEMON, upstreams->upstreams[i].addr_str);
 		}
@@ -2017,7 +2017,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			upstream->tls_hs_state = GETDNS_HS_WRITE;
 		}
 		upstream->conn_state = GETDNS_CONN_SETUP;
-		_getdns_upstream_log(upstream, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 		    "%s %-40s : Conn init     : Transport=%s - Profile=%s\n", STUB_DEBUG_DAEMON, 
 		    upstream->addr_str, transport == GETDNS_TRANSPORT_TLS ? "TLS":"TCP",
 		dnsreq->context->tls_auth_min == GETDNS_AUTHENTICATION_NONE ? "Opportunistic":"Strict");
@@ -2086,7 +2086,7 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	}
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
-	_getdns_context_log(netreq->owner->context, GETDNS_SYSTEM_DAEMON, GETDNS_LOG_DEBUG,
+	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 	    "%s *FAILURE* no valid transports or upstreams available!\n",
 	    STUB_DEBUG_DAEMON);
 	return -1;
