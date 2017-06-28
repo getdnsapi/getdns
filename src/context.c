@@ -1700,7 +1700,7 @@ getdns_return_t
 getdns_context_get_update_callback(getdns_context *context, void **userarg,
     void (**cb)(getdns_context *, getdns_context_code_t, void *))
 {
-	if (!context || userarg || !cb)
+	if (!context || !userarg || !cb)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	*userarg = context->update_userarg;
