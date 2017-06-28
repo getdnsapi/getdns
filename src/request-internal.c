@@ -740,6 +740,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	 */
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
 	uint8_t *region, *suffixes;
+	getdns_bindata *qname = NULL;
 	
 	if (extensions == dnssec_ok_checking_disabled ||
 	    extensions == dnssec_ok_checking_disabled_roadblock_avoidance ||
@@ -862,7 +863,34 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	memcpy(suffixes, context->suffixes, context->suffixes_len);
 
 	result->append_name = context->append_name;
-	if (!strlen(name) || name[strlen(name)-1] == '.' ||
+	result->name_len = sizeof(result->name);
+	if (name) {
+		if (gldns_str2wire_dname_buf(
+		    name, result->name, &result->name_len)) {
+			GETDNS_FREE(result->my_mf, result);
+			return NULL;
+		}
+	} else if (!extensions || (
+	    getdns_dict_get_bindata(extensions, "/question/qname", &qname) &&
+	    getdns_dict_get_bindata(
+	    extensions, "/replies_tree/0/question/qname", &qname)) ||
+	    qname->size > sizeof(result->name)) {
+
+		GETDNS_FREE(result->my_mf, result);
+		return NULL;
+
+	} else {
+		uint32_t qtype = request_type;
+
+		result->name_len = qname->size;
+		(void) memcpy(result->name, qname->data, qname->size);
+		if (!getdns_dict_get_int(
+		    extensions, "/question/qtype", &qtype) ||
+		    !getdns_dict_get_int(
+		    extensions, "/replies_tree/0/question/qtype", &qtype))
+			request_type = qtype;
+	}
+	if (!name || !strlen(name) || name[strlen(name)-1] == '.' ||
 	    result->append_name == GETDNS_APPEND_NAME_NEVER) {
 		/* Absolute query string, no appending */
 		result->suffix_len = no_suffixes[0];
@@ -872,11 +900,6 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		result->suffix_len = suffixes[0];
 		result->suffix = suffixes + 1;
 		result->suffix_appended = 0;
-	}
-	result->name_len = sizeof(result->name);
-	if (gldns_str2wire_dname_buf(name, result->name, &result->name_len)) {
-		GETDNS_FREE(result->my_mf, result);
-		return NULL;
 	}
 	if (result->append_name == GETDNS_APPEND_NAME_ALWAYS ||
 	    (  result->append_name == GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST

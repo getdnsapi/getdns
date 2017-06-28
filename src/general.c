@@ -554,10 +554,10 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	size_t i;
 	uint64_t now_ms = 0;
 
-	if (!context || !name || (!callbackfn && !internal_cb))
+	if (!context || (!name && !extensions) || (!callbackfn && !internal_cb))
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
-	if ((r = _getdns_validate_dname(name)))
+	if (name && (r = _getdns_validate_dname(name)))
 		return r;
 
 	if (extensions && (r = validate_extensions(extensions)))
@@ -685,7 +685,10 @@ _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 	uint32_t value;
 	getdns_network_req *netreq = NULL;
 
-	if (!my_extensions) {
+	if (!name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	else if (!my_extensions) {
 		if (!(my_extensions=getdns_dict_create_with_context(context)))
 			return GETDNS_RETURN_MEMORY_ERROR;
 	} else if (
@@ -806,6 +809,10 @@ _getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
 {
 	getdns_return_t r;
 	getdns_network_req *netreq = NULL;
+
+	if (!name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
 	r = getdns_general_ns(context, loop, name, GETDNS_RRTYPE_SRV,
 	    extensions, userarg, &netreq, callback, NULL, 1);
 	if (netreq && transaction_id)
