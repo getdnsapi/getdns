@@ -62,6 +62,7 @@ typedef unsigned short in_port_t;
 
 #include <assert.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #ifdef HAVE_PTHREAD
 #include <pthread.h>
@@ -241,7 +242,6 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 }
 #endif
 
-#if !defined(STUB_NATIVE_DNSSEC) || (defined(DAEMON_DEBUG) && DAEMON_DEBUG)
 static uint8_t*
 upstream_addr(getdns_upstream *upstream)
 {
@@ -249,8 +249,6 @@ upstream_addr(getdns_upstream *upstream)
 	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
 	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
 }
-#endif
-
 
 static in_port_t
 upstream_port(getdns_upstream *upstream)
@@ -655,6 +653,7 @@ upstreams_create(getdns_context *context, size_t size)
 	r->current_stateful = 0;
 	r->tls_backoff_time = context->tls_backoff_time;
 	r->tls_connection_retries = context->tls_connection_retries;
+	r->log = context->log;
 	return r;
 }
 
@@ -719,6 +718,22 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
 
+void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!upstream || !upstream->upstreams || !upstream->upstreams->log.func
+	    || !(upstream->upstreams->log.system & system)
+	    || level > upstream->upstreams->log.level)
+		return;
+
+	va_start(args, fmt);
+	upstream->upstreams->log.func(
+	    upstream->upstreams->log.userarg, system, level, fmt, args);
+	va_end(args);
+}
+
 void
 _getdns_upstream_shutdown(getdns_upstream *upstream)
 {
@@ -732,23 +747,24 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	/* Keep track of the best auth state this upstream has had*/
 	if (upstream->tls_auth_state > upstream->best_tls_auth_state)
 		upstream->best_tls_auth_state = upstream->tls_auth_state;
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-	DEBUG_DAEMON("%s %-40s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
-	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	    "%-40s : Conn closed   : Transport=%s - Resp=%d,Timeouts=%d,Auth=%s,Keepalive(ms)=%d\n",
+	             upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             _getdns_auth_str(upstream->tls_auth_state), (int)upstream->keepalive_timeout);
-	DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
-	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	    "%-40s : Upstream stats: Transport=%s - Resp=%d,Timeouts=%d,Best_auth=%s\n",
+	             upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
 	             _getdns_auth_str(upstream->best_tls_auth_state));
-	DEBUG_DAEMON("%s %-40s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
-	             STUB_DEBUG_DAEMON, upstream->addr_str,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	    "%-40s : Upstream stats: Transport=%s - Conns=%d,Conn_fails=%d,Conn_shutdowns=%d,Backoffs=%d\n",
+	             upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->conn_completed, (int)upstream->conn_setup_failed,
 	             (int)upstream->conn_shutdowns, (int)upstream->conn_backoffs);
-#endif
 
 	/* Back off connections that never got up service at all (probably no
 	   TCP service or incompatible TLS version/cipher). 
@@ -771,11 +787,11 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 		upstream->conn_setup_failed = 0;
 		upstream->conn_shutdowns = 0;
 		upstream->conn_backoffs++;
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
-		DEBUG_DAEMON("%s %-40s : !Backing off this upstream    - Will retry as new upstream at %s",
-		            STUB_DEBUG_DAEMON, upstream->addr_str,
+
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+		    "%-40s : !Backing off this upstream    - Will retry as new upstream at %s",
+		            upstream->addr_str,
 		            asctime(gmtime(&upstream->conn_retry_time)));
-#endif
 	}
 	// Reset per connection counters
 	upstream->queries_sent = 0;
@@ -920,10 +936,8 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
 	          upstream->addr_str, INET6_ADDRSTRLEN);
-#endif
 
 	/* How is this upstream doing on connections? */
 	upstream->conn_completed = 0;
@@ -1366,6 +1380,11 @@ getdns_context_create_with_extended_memory_functions(
 	result->update_callback2 = NULL_update_callback;
 	result->update_userarg   = NULL;
 
+	result->log.func    = NULL;
+	result->log.userarg = NULL;
+	result->log.system  = 0;
+	result->log.level   = GETDNS_LOG_ERR;
+
 	result->mf.mf_arg         = userarg;
 	result->mf.mf.ext.malloc  = malloc;
 	result->mf.mf.ext.realloc = realloc;
@@ -1709,6 +1728,37 @@ getdns_context_get_update_callback(getdns_context *context, void **userarg,
 	*userarg = context->update_userarg;
 	*cb = context->update_callback2;
 	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_logfunc(getdns_context *context, void *userarg,
+    uint64_t system, getdns_loglevel_type level, getdns_logfunc_type log)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	context->log.func = log;
+	context->log.userarg = userarg;
+	context->log.system = system;
+	context->log.level = level;
+	if (context->upstreams) {
+		context->upstreams->log = context->log;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+void _getdns_context_log(getdns_context *context, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!context || !context->log.func || !(context->log.system & system)
+	    || level > context->log.level)
+		return;
+
+	va_start(args, fmt);
+	context->log.func(context->log.userarg, system, level, fmt, args);
+	va_end(args);
 }
 
 #ifdef HAVE_LIBUNBOUND

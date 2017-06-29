@@ -435,13 +435,13 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
 			poll_loop->pfds[i].fd = -1;
 		}
 		if (poll_loop->fd_events[j].event->write_cb &&
-		    poll_loop->pfds[j].revents & POLLOUT)
+		    poll_loop->pfds[j].revents & (POLLOUT|POLLERR|POLLHUP|POLLNVAL))
 			poll_write_cb( poll_loop->pfds[j].fd
 			             , poll_loop->fd_events[j].event);
 
 		if (poll_loop->fd_events[j].event &&
 		    poll_loop->fd_events[j].event->read_cb &&
-		    poll_loop->pfds[j].revents & POLLIN)
+		    poll_loop->pfds[j].revents & (POLLIN|POLLERR|POLLHUP|POLLNVAL))
 			poll_read_cb( poll_loop->pfds[j].fd
 			            , poll_loop->fd_events[j].event);
 	}
