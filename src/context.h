@@ -48,6 +48,7 @@
 #ifdef HAVE_MDNS_SUPPORT
 #include "util/lruhash.h"
 #endif
+#include "rr-iter.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -95,6 +96,7 @@ typedef enum getdns_conn_state {
 typedef enum getdns_tasrc {
 	GETDNS_TASRC_NONE,
 	GETDNS_TASRC_ZONE,
+	GETDNS_TASRC_FETCHING,
 	GETDNS_TASRC_XML,
 	GETDNS_TASRC_FAILED
 } getdns_tasrc;
@@ -262,6 +264,31 @@ typedef struct getdns_upstreams {
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
+typedef enum tas_state {
+	TAS_LOOKUP_ADDRESSES = 0,
+	TAS_WRITE_GET_XML,
+	TAS_READ_XML_HDR,
+	TAS_READ_XML_DOC,
+	TAS_WRITE_GET_PS7,
+	TAS_READ_PS7_HDR,
+	TAS_READ_PS7_DOC,
+	TAS_DONE
+} tas_state;
+
+typedef struct tas_connection {
+	getdns_eventloop       *loop;
+	getdns_network_req     *req;
+	_getdns_rrset_spc       rrset_spc;
+	_getdns_rrset          *rrset;
+	_getdns_rrtype_iter     rr_spc;
+	_getdns_rrtype_iter    *rr;
+	int                    fd;
+	getdns_eventloop_event event;
+	tas_state              state;
+	getdns_tcp_state       tcp;
+	getdns_bindata         xml;
+} tas_connection;
+
 struct getdns_context {
 	/* Context values */
 	getdns_resolution_t  resolution_type;
@@ -283,9 +310,15 @@ struct getdns_context {
 	const uint8_t        *suffixes;
 	/* Length of all suffixes in the suffix buffer */
 	size_t               suffixes_len; 
+
 	uint8_t              *trust_anchors;
 	size_t                trust_anchors_len;
 	getdns_tasrc          trust_anchors_source;
+
+	tas_connection        a;
+	tas_connection        aaaa;
+	uint8_t               tas_hdr_spc[512];
+
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;

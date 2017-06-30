@@ -1426,6 +1426,10 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffixes_len = sizeof(no_suffixes);
 
 	result->trust_anchors_source = GETDNS_TASRC_NONE;
+
+	(void) memset(&result->a, 0, sizeof(result->a));
+	(void) memset(&result->aaaa, 0, sizeof(result->aaaa));
+
 	gldns_buffer_init_vfixed_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
 

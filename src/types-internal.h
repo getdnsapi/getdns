@@ -171,7 +171,7 @@ typedef enum network_req_state_enum
 /* State for async tcp stub resolving */
 typedef struct getdns_tcp_state {
 
-	uint8_t *write_buf;
+	const uint8_t *write_buf;
 	size_t   write_buf_len;
 	size_t   written;
 

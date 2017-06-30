@@ -54,6 +54,7 @@
 #include "dict.h"
 #include "mdns.h"
 #include "debug.h"
+#include "anchor.h"
 
 void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 {
@@ -577,6 +578,10 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	req->user_callback = callbackfn;
 	req->internal_cb = internal_cb;
 	req->is_sync_request = loop == &context->sync_eventloop.loop;
+
+	if (req->dnssec_return_status &&
+	    context->trust_anchors_source == GETDNS_TASRC_NONE)
+		_getdns_start_fetching_ta(context, loop);
 
 	if (return_netreq_p)
 		*return_netreq_p = req->netreqs[0];
