@@ -4528,12 +4528,12 @@ getdns_context_config(getdns_context *context, const getdns_dict *config_dict)
 uint8_t *_getdns_context_get_priv_file(getdns_context *context,
     const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz)
 {
-	char path[FILENAME_MAX];
+	char path[PATH_MAX];
 	int n;
 	FILE *f;
 
 	n = snprintf(path, sizeof(path), "%s/.getdns/%s", getenv("HOME"), fn);
-	if (n < 0 || n > FILENAME_MAX)
+	if (n < 0 || n > PATH_MAX)
 		return NULL;
 
 	if (!(f = fopen(path, "r")))
@@ -4557,5 +4557,49 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 	(void) fclose(f);
 	return buf;
 }
+
+void _getdns_context_write_priv_file(getdns_context *context,
+    const char *fn, getdns_bindata *content)
+{
+	char path[PATH_MAX], tmpfn[PATH_MAX];
+	int n, fd;
+	FILE *f;
+
+	(void)context;
+
+	DEBUG_ANCHOR("%s\n", __FUNC__);
+
+	n = snprintf( path, sizeof( path), "%s/.getdns/%s"  , getenv("HOME"), fn);
+	if (n < 0 || n > PATH_MAX) {
+		DEBUG_ANCHOR("Could not create filename for writing\n");
+		return;
+	}
+
+	n = snprintf(tmpfn, sizeof(tmpfn), "%s/.getdns/XXXXXX", getenv("HOME"));
+	if (n < 0 || n > PATH_MAX) {
+		DEBUG_ANCHOR("Could not create tmpfn for writing\n");
+		return;
+	}
+
+	if ((fd = mkstemp(tmpfn)) < 0) {
+		DEBUG_ANCHOR("Could not create temporary file from \"%s\": %s\n",
+		    tmpfn, strerror(errno));
+		return;
+	}
+
+	if (!(f = fdopen(fd, "w"))) {
+		close(fd);
+		return;
+	}
+	if (fwrite(content->data, 1, content->size, f) != content->size)
+		fclose(f);
+	else {
+		fclose(f);
+		if (rename(tmpfn, path) == -1)
+			DEBUG_ANCHOR("Could not mv \"%s\" \"%s\": %s\n",
+			    tmpfn, path, strerror(errno));
+	}
+}
+
 
 /* context.c */

@@ -531,4 +531,7 @@ void _getdns_upstream_shutdown(getdns_upstream *upstream);
 uint8_t *_getdns_context_get_priv_file(getdns_context *context,
     const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz);
 
+void _getdns_context_write_priv_file(getdns_context *context,
+    const char *fn, getdns_bindata *content);
+
 #endif /* _GETDNS_CONTEXT_H_ */

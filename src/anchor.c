@@ -1014,7 +1014,10 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		if (tas) {
 			context->trust_anchors = tas;
 			context->trust_anchors_len = tas_len;
-			/* TODO: Try to write xml & p7s */
+			_getdns_context_write_priv_file(
+			    context, "root-anchors.xml", &a->xml);
+			_getdns_context_write_priv_file(
+			    context, "root-anchors.p7s", &p7s_bd);
 			tas_success(context, a);
 		} else
 			tas_fail(context, a);
