@@ -272,7 +272,12 @@ typedef enum tas_state {
 	TAS_WRITE_GET_PS7,
 	TAS_READ_PS7_HDR,
 	TAS_READ_PS7_DOC,
-	TAS_DONE
+	TAS_DONE,
+	TAS_RETRY,
+	TAS_RETRY_GET_PS7,
+	TAS_RETRY_PS7_HDR,
+	TAS_RETRY_PS7_DOC,
+	TAS_RETRY_DONE
 } tas_state;
 
 typedef struct tas_connection {

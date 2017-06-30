@@ -837,13 +837,6 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 		GETDNS_FREE(context->mf, p7s_data);
 }
 
-#if 0
-static const uint8_t tas_write_xml_buf[] =
-"GET /root-anchors/root-anchors.xml HTTP/1.1\r\n"
-"Host: data.iana.org\r\n"
-"\r\n";
-#endif
-
 static const uint8_t tas_write_p7s_buf[] =
 "GET /root-anchors/root-anchors.p7s HTTP/1.1\r\n"
 "Host: data.iana.org\r\n"
@@ -939,6 +932,28 @@ static void tas_timeout_cb(void *userarg)
 	tas_next(context, a);
 }
 
+
+static void tas_reconnect_cb(void *userarg)
+{
+	getdns_dns_req *dnsreq = (getdns_dns_req *)userarg;
+	getdns_context *context = (getdns_context *)dnsreq->user_pointer;
+	tas_connection *a;
+
+	if (dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_A)
+		a = &context->a;
+	else	a = &context->aaaa;
+
+	DEBUG_ANCHOR("Waiting for second document timeout. Reconnecting...\n");
+	GETDNS_CLEAR_EVENT(a->loop, &a->event);
+	close(a->fd);
+	a->fd = -1;
+	if (a->state == TAS_READ_PS7_HDR) {
+		a->state = TAS_RETRY;
+		tas_connect(context, a);
+	} else
+		tas_next(context, a);
+}
+
 static void tas_read_cb(void *userarg);
 static void tas_write_cb(void *userarg);
 static void tas_doc_read(getdns_context *context, tas_connection *a)
@@ -955,11 +970,12 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		a->xml.data = a->tcp.read_buf;
 		a->xml.size = a->tcp.read_buf_len;
 	} else
-		assert(a->state == TAS_READ_PS7_DOC);
+		assert(a->state == TAS_READ_PS7_DOC ||
+		       a->state == TAS_RETRY_PS7_DOC);
 
 	a->state += 1;
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
-	if (a->state == TAS_DONE) {
+	if (a->state == TAS_DONE || a->state == TAS_RETRY_DONE) {
 		getdns_bindata p7s_bd;
 		uint8_t *tas = context->trust_anchors_spc;
 		size_t tas_len = sizeof(context->trust_anchors_spc);
@@ -979,11 +995,6 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 			tas_fail(context, a);
 		return;
 	}
-	assert(a->state == TAS_WRITE_GET_PS7);
-	a->tcp.write_buf = tas_write_p7s_buf;
-	a->tcp.write_buf_len = sizeof(tas_write_p7s_buf) - 1;
-	a->tcp.written = 0;
-
 	/* First try to read signatures immediately */
 	a->state += 1;
 	assert(a->state == TAS_READ_PS7_HDR);
@@ -1001,12 +1012,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 	}
 	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 50,
 	    getdns_eventloop_event_init(&a->event, a->req->owner,
-	    tas_read_cb, NULL, tas_timeout_cb));
-#if 0
-	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
-	    getdns_eventloop_event_init(&a->event, a->req->owner,
-	    NULL, tas_write_cb, tas_timeout_cb));
-#endif
+	    tas_read_cb, NULL, tas_reconnect_cb));
 	return;
 }
 
@@ -1025,8 +1031,21 @@ static void tas_read_cb(void *userarg)
 	            , (int)a->state, (int)a->tcp.to_read);
 
 	n = read(a->fd, a->tcp.read_pos, a->tcp.to_read);
-	if (n >= 0 && (  a->state == TAS_READ_XML_DOC
-	              || a->state == TAS_READ_PS7_DOC)) {
+	if (n == 0) {
+		DEBUG_ANCHOR("Connection closed\n");
+		GETDNS_CLEAR_EVENT(a->loop, &a->event);
+		close(a->fd);
+		a->fd = -1;
+		if (a->state == TAS_READ_PS7_HDR) {
+			a->state = TAS_RETRY;
+			tas_connect(context, a);
+		} else
+			tas_next(context, a);
+		return;
+
+	} else if (n > 0 && (  a->state == TAS_READ_XML_DOC
+	              || a->state == TAS_READ_PS7_DOC
+		      || a->state == TAS_RETRY_PS7_DOC)) {
 
 		assert(n <= (ssize_t)a->tcp.to_read);
 
@@ -1038,7 +1057,7 @@ static void tas_read_cb(void *userarg)
 			tas_doc_read(context, a);
 		return;
 
-	} else if (n >= 0) {
+	} else if (n > 0) {
 		ssize_t p = 0;
 		int doc_len = -1;
 		int len;
@@ -1123,7 +1142,7 @@ static void tas_read_cb(void *userarg)
 	} else if (_getdns_EWOULDBLOCK)
 		return;
 
-	DEBUG_ANCHOR("Read error: %s\n", strerror(errno));
+	DEBUG_ANCHOR("Read error: %d %s\n", (int)n, strerror(errno));
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
 	tas_next(context, a);
 }
@@ -1236,8 +1255,13 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 				   _getdns_EWOULDBLOCK))) {
 
 		a->state += 1;
-		a->tcp.write_buf = tas_write_xml_p7s_buf;
-		a->tcp.write_buf_len = sizeof(tas_write_xml_p7s_buf) - 1;
+		if (a->state == TAS_RETRY_GET_PS7) {
+			a->tcp.write_buf = tas_write_p7s_buf;
+			a->tcp.write_buf_len = sizeof(tas_write_p7s_buf) - 1;
+		} else {
+			a->tcp.write_buf = tas_write_xml_p7s_buf;
+			a->tcp.write_buf_len = sizeof(tas_write_xml_p7s_buf) - 1;
+		}
 		a->tcp.written = 0;
 
 		GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
