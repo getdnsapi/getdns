@@ -2637,9 +2637,11 @@ getdns_context_set_dnssec_trust_anchors(
 		context->trust_anchors = _getdns_list2wire(value,
 		    context->trust_anchors_spc, &context->trust_anchors_len,
 		    &context->mf);
+		context->trust_anchors_source = GETDNS_TASRC_APP;
 	} else {
 		context->trust_anchors = NULL;
 		context->trust_anchors_len = 0;
+		context->trust_anchors_source = GETDNS_TASRC_NONE;
 	}
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
 	return GETDNS_RETURN_GOOD;

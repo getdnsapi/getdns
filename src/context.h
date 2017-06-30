@@ -96,6 +96,7 @@ typedef enum getdns_conn_state {
 typedef enum getdns_tasrc {
 	GETDNS_TASRC_NONE,
 	GETDNS_TASRC_ZONE,
+	GETDNS_TASRC_APP,
 	GETDNS_TASRC_FETCHING,
 	GETDNS_TASRC_XML,
 	GETDNS_TASRC_FAILED
