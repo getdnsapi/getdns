@@ -1118,7 +1118,8 @@ static void tas_read_cb(void *userarg)
 		}
 		if (doc_len > 0) {
 			uint8_t *doc = GETDNS_XMALLOC(
-			    context->mf, uint8_t, doc_len);
+			    context->mf, uint8_t, doc_len + 1);
+			doc[doc_len] = 0;
 
 			DEBUG_ANCHOR("i: %d, n: %d, doc_len: %d\n"
 			            , (int)i, (int)n, doc_len);

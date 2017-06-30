@@ -4539,8 +4539,8 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 	if (!(f = fopen(path, "r")))
 		return NULL;
 
-	if ((*file_sz = fread(buf, 1, buf_len, f)) < buf_len && feof(f))
-		; /* pass */
+	if ((*file_sz = fread(buf, 1, buf_len, f)) < (buf_len  - 1) && feof(f))
+		buf[*file_sz] = 0;
 
 	else if (fseek(f, 0, SEEK_END) < 0)
 		buf = NULL;
@@ -4553,6 +4553,7 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 			GETDNS_FREE(context->mf, buf);
 			buf = NULL;
 		}
+		buf[*file_sz] = 0;
 	}
 	(void) fclose(f);
 	return buf;
