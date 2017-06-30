@@ -837,10 +837,12 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 		GETDNS_FREE(context->mf, p7s_data);
 }
 
+#if 0
 static const uint8_t tas_write_xml_buf[] =
 "GET /root-anchors/root-anchors.xml HTTP/1.1\r\n"
 "Host: data.iana.org\r\n"
 "\r\n";
+#endif
 
 static const uint8_t tas_write_p7s_buf[] =
 "GET /root-anchors/root-anchors.p7s HTTP/1.1\r\n"
@@ -894,8 +896,10 @@ static void tas_success(getdns_context *context, tas_connection *a)
 static void tas_fail(getdns_context *context, tas_connection *a)
 {
 	tas_connection *other = &context->a == a ? &context->aaaa : &context->a;
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
 	uint16_t rt = &context->a == a ? GETDNS_RRTYPE_A : GETDNS_RRTYPE_AAAA;
 	uint16_t ort = rt == GETDNS_RRTYPE_A ? GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A;
+#endif
 	tas_cleanup(context, a);
 
 	if (!tas_busy(other)) {
@@ -1139,7 +1143,9 @@ static void tas_write_cb(void *userarg)
 
 static void tas_connect(getdns_context *context, tas_connection *a)
 {
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
 	char a_buf[40];
+#endif
 	int r;
 
 #ifdef HAVE_FCNTL
