@@ -858,8 +858,10 @@ static const uint8_t tas_write_xml_p7s_buf[] =
 "\r\n";
 
 
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
 static inline const char * rt_str(uint16_t rt)
 { return rt == GETDNS_RRTYPE_A ? "A" : rt == GETDNS_RRTYPE_AAAA ? "AAAA" : "?"; }
+#endif
 
 static int tas_busy(tas_connection *a)
 {
