@@ -1429,6 +1429,8 @@ getdns_context_create_with_extended_memory_functions(
 
 	(void) memset(&result->a, 0, sizeof(result->a));
 	(void) memset(&result->aaaa, 0, sizeof(result->aaaa));
+	result->a.fd = -1;
+	result->aaaa.fd = -1;
 
 	gldns_buffer_init_vfixed_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));

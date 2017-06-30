@@ -881,6 +881,7 @@ static void tas_cleanup(getdns_context *context, tas_connection *a)
 	if (a->tcp.read_buf && a->tcp.read_buf != context->tas_hdr_spc)
 		GETDNS_FREE(context->mf, a->tcp.read_buf);
 	(void) memset(a, 0, sizeof(*a));
+	a->fd = -1;
 }
 
 static void tas_success(getdns_context *context, tas_connection *a)
@@ -945,12 +946,17 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 	DEBUG_ANCHOR("doc (size: %d): \"%.*s\"\n",
 	    (int)a->tcp.read_buf_len,
 	    (int)a->tcp.read_buf_len, (char *)a->tcp.read_buf);
+
+	assert(a->tcp.read_pos == a->tcp.read_buf + a->tcp.read_buf_len);
+
 	if (a->state == TAS_READ_XML_DOC) {
 		if (a->xml.data)
 			GETDNS_FREE(context->mf, a->xml.data);
 		a->xml.data = a->tcp.read_buf;
 		a->xml.size = a->tcp.read_buf_len;
-	}
+	} else
+		assert(a->state == TAS_READ_PS7_DOC);
+
 	a->state += 1;
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
 	if (a->state == TAS_DONE) {
@@ -983,9 +989,16 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 	assert(a->state == TAS_READ_PS7_HDR);
 	a->tcp.read_buf = context->tas_hdr_spc;
 	a->tcp.read_buf_len = sizeof(context->tas_hdr_spc);
-	a->tcp.read_pos = a->tcp.read_buf;
-	a->tcp.to_read = sizeof(context->tas_hdr_spc);
 
+	/* Check for surplus read bytes, for the P7S headers */
+	if (a->tcp.to_read > 0) {
+		a->tcp.read_pos = a->tcp.read_buf + a->tcp.to_read;
+		a->tcp.to_read  = sizeof(context->tas_hdr_spc)
+		                                  - a->tcp.to_read;
+	} else {
+		a->tcp.read_pos = a->tcp.read_buf;
+		a->tcp.to_read = sizeof(context->tas_hdr_spc);
+	}
 	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 50,
 	    getdns_eventloop_event_init(&a->event, a->req->owner,
 	    tas_read_cb, NULL, tas_timeout_cb));
@@ -1065,28 +1078,44 @@ static void tas_read_cb(void *userarg)
 			if (!doc)
 				DEBUG_ANCHOR("Memory error");
 			else {
+				ssize_t surplus = n - i;
+
 				a->state += 1;
-				/* TODO: With pipelined read, the buffer might
+				/* With pipelined read, the buffer might
 				 * contain the full document, plus a piece
 				 * of the headers of the next document!
 				 * Currently context->tas_hdr_spc is kept
 				 * small enough to anticipate this.
 				 */
-				if (n - i > 0) {
-					if ((n - i) > doc_len)
-						n -= (doc_len - i);
-					(void) memcpy(
-					    doc, a->tcp.read_buf + i, (n - i));
-					a->tcp.read_pos = doc + (n - i);
-					a->tcp.to_read = doc_len - (n - i);
-				} else {
+				if (surplus <= 0) {
 					a->tcp.read_pos = doc;
 					a->tcp.to_read = doc_len;
+				} else if (surplus > doc_len) {
+					(void) memcpy(
+					    doc, a->tcp.read_buf + i, doc_len);
+					a->tcp.read_pos = doc + doc_len;
+
+					/* Special value to indicate a begin
+					 * of the next reply is already
+					 * present.  Detectable by:
+					 * (read_pos == read_buf + read_buf_len)
+					 * && to_read > 0;
+					 */
+					a->tcp.to_read = surplus - doc_len;
+					(void) memmove(a->tcp.read_buf,
+					    a->tcp.read_buf + i + doc_len,
+					    surplus - doc_len);
+				} else {
+					assert(surplus <= doc_len);
+					(void) memcpy(
+					    doc, a->tcp.read_buf + i, surplus);
+					a->tcp.read_pos = doc + surplus;
+					a->tcp.to_read = doc_len - surplus;
 				}
 				a->tcp.read_buf = doc;
 				a->tcp.read_buf_len = doc_len;
 
-				if (a->tcp.to_read == 0)
+				if (a->tcp.read_pos == doc + doc_len)
 					tas_doc_read(context, a);
 				return;
 			}
