@@ -861,18 +861,33 @@ static int tas_busy(tas_connection *a)
 	return a->req != NULL;
 }
 
-static void tas_cleanup(getdns_context *context, tas_connection *a)
+static int tas_fetching(tas_connection *a)
 {
-	if (a->req)
-		_getdns_context_cancel_request(a->req->owner);
+	return a->fd >= 0;
+}
+
+static void tas_rinse(getdns_context *context, tas_connection *a)
+{
 	if (a->event.ev)
 		GETDNS_CLEAR_EVENT(a->loop, &a->event);
+	a->event.ev = NULL;
 	if (a->fd >= 0)
 		close(a->fd);
+	a->fd = -1;
 	if (a->xml.data)
 		GETDNS_FREE(context->mf, a->xml.data);
+	a->xml.data = NULL;
+	a->xml.size = 0;
 	if (a->tcp.read_buf && a->tcp.read_buf != context->tas_hdr_spc)
 		GETDNS_FREE(context->mf, a->tcp.read_buf);
+	a->tcp.read_buf = NULL;
+}
+
+static void tas_cleanup(getdns_context *context, tas_connection *a)
+{
+	tas_rinse(context, a);
+	if (a->req)
+		_getdns_context_cancel_request(a->req->owner);
 	(void) memset(a, 0, sizeof(*a));
 	a->fd = -1;
 }
@@ -911,10 +926,20 @@ static void tas_fail(getdns_context *context, tas_connection *a)
 static void tas_connect(getdns_context *context, tas_connection *a);
 static void tas_next(getdns_context *context, tas_connection *a)
 {
+	tas_connection *other = a == &context->a ? &context->aaaa : &context->a;
+
 	DEBUG_ANCHOR("Try next address\n");
-	if (!(a->rr = _getdns_rrtype_iter_next(a->rr)))
-		tas_fail(context, a);
-	else	tas_connect(context, a);
+
+	if (a->rr) {
+		if (!(a->rr = _getdns_rrtype_iter_next(a->rr)))
+			tas_fail(context, a);
+		else	tas_rinse(context, a);
+	}
+	if (other->rr)
+		tas_connect(context, other);
+
+	else if (a->rr)
+		tas_connect(context, a);
 }
 
 static void tas_timeout_cb(void *userarg)
@@ -1275,6 +1300,18 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 	tas_next(context, a);
 }
 
+static void tas_happy_eyeballs_cb(void *userarg)
+{
+	getdns_dns_req *dnsreq = (getdns_dns_req *)userarg;
+	getdns_context *context = (getdns_context *)dnsreq->user_pointer;
+
+	assert(dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_A);
+	if (tas_fetching(&context->aaaa))
+		return;
+	else
+		tas_connect(context, &context->a);
+}
+
 static void data_iana_org(getdns_dns_req *dnsreq)
 {
 	getdns_context *context = (getdns_context *)dnsreq->user_pointer;
@@ -1300,8 +1337,27 @@ static void data_iana_org(getdns_dns_req *dnsreq)
 		DEBUG_ANCHOR("%s lookup for data.iana.org. returned no "
 		             "addresses\n", rt_str(a->req->request_type));
 	else {
+		tas_connection *other = a == &context->a ? &context->aaaa
+		                                         : &context->a;
 		a->loop = dnsreq->loop;
-		tas_connect(context, a);
+
+		if (tas_fetching(other))
+			; /* pass */
+
+		else if (a == &context->a && tas_busy(other)) {
+			DEBUG_ANCHOR("Postponing connection initiation: "
+			             "Happy Eyeballs\n");
+			GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 25,
+			    getdns_eventloop_event_init(&a->event,
+			    a->req->owner, NULL, NULL, tas_happy_eyeballs_cb));
+		} else {
+			if (other->event.ev &&
+			    other->event.timeout_cb == tas_happy_eyeballs_cb) {
+				DEBUG_ANCHOR("Clearing Happy Eyeballs timer\n");
+				GETDNS_CLEAR_EVENT(other->loop, &other->event);
+			}
+			tas_connect(context, a);
+		}
 		return;
 	}
 	tas_fail(context, a);
@@ -1359,7 +1415,7 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		scheduled += 1;
 #endif
 
-#if 0
+#if 1
 	context->aaaa.state = TAS_LOOKUP_ADDRESSES;
 	if ((r = _getdns_general_loop(context->sys_ctxt, loop,
 	    "data.iana.org.", GETDNS_RRTYPE_AAAA, NULL, context,
