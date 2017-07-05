@@ -288,6 +288,33 @@ case "$enable_native_stub_dnssec" in
 		;;
 esac
 
+# check wether strptime also works
+AC_DEFUN([AC_CHECK_STRPTIME_WORKS],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING(whether strptime works)
+if test c${cross_compiling} = cno; then
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#define _XOPEN_SOURCE 600
+#include <time.h>
+int main(void) { struct tm tm; char *res;
+res = strptime("2010-07-15T00:00:00+00:00", "%t%Y%t-%t%m%t-%t%d%tT%t%H%t:%t%M%t:%t%S%t", &tm);
+if (!res) return 2;
+res = strptime("20070207111842", "%Y%m%d%H%M%S", &tm);
+if (!res) return 1; return 0; }
+]])] , [eval "ac_cv_c_strptime_works=yes"], [eval "ac_cv_c_strptime_works=no"])
+else
+eval "ac_cv_c_strptime_works=maybe"
+fi
+AC_MSG_RESULT($ac_cv_c_strptime_works)
+if test $ac_cv_c_strptime_works = no; then
+AC_LIBOBJ(strptime)
+else
+AC_DEFINE_UNQUOTED([STRPTIME_WORKS], 1, [use default strptime.])
+fi
+])dnl
+
+AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
+
 # search to set include and library paths right
 # find libidn (no libidn on windows though)
 AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
@@ -1294,9 +1321,11 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 
 #ifdef USE_WINSOCK
+# ifndef vsnprintf
 static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 { int r = vsnprintf(str, size, format, ap); return r == -1 ? _vscprintf(format, ap) : r; }
-# define vsnprintf _gldns_custom_vsnprintf
+#  define vsnprintf _gldns_custom_vsnprintf
+# endif
 #endif
 
 #ifdef __cplusplus
@@ -1369,6 +1398,12 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 # else
 #  include <time.h>
 # endif
+#endif
+
+#if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
+#define strptime unbound_strptime
+struct tm;
+char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
 #ifdef HAVE_LIBUNBOUND

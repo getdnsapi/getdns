@@ -34,6 +34,7 @@
 #include "config.h"
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
+#include "types-internal.h"
 
 /* No more than select's capability queries can be outstanding,
  * The number of outstanding timeouts should be less or equal then
