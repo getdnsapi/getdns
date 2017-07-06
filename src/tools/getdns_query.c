@@ -380,10 +380,8 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 	    getdns_print_json_dict(response, json == 1)
 	  : getdns_pretty_print_dict(response))) {
 
-		if (verbosity)
-			fprintf(stdout, "ASYNC response:\n%s\n", response_str);
-		else
-			fprintf(stdout, "%s\n", response_str);
+		fprintf(stdout, "%s\n", response_str);
+		if (verbosity) fprintf(stdout, "ASYNC call completed.\n");
 		validate_chain(response);
 		free(response_str);
 	}
@@ -1196,13 +1194,8 @@ getdns_return_t do_the_call(void)
 			    getdns_print_json_dict(response, json == 1)
 			  : getdns_pretty_print_dict(response))) {
 
-				if (verbosity)
-					fprintf( stdout, "SYNC response:\n%s\n"
-					       , response_str);
-				else
-					fprintf( stdout, "%s\n"
-					       , response_str);
-
+				fprintf( stdout, "%s\n", response_str);
+				if (verbosity) fprintf( stdout, "SYNC call completed.\n");
 				validate_chain(response);
 				free(response_str);
 			} else {
