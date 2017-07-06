@@ -81,6 +81,8 @@ static uint16_t request_type = GETDNS_RRTYPE_NS;
 static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
+static int bogus_answers = 0;
+static int check_dnssec = 0;
 
 static int get_rrtype(const char *t)
 {
@@ -317,6 +319,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		break;
 	case GETDNS_DNSSEC_BOGUS:
 		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+		bogus_answers += 1;
 		break;
 	case GETDNS_DNSSEC_INDETERMINATE:
 		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
@@ -346,6 +349,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 			break;
 		case GETDNS_DNSSEC_BOGUS:
 			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+			bogus_answers += 1;
 			break;
 		case GETDNS_DNSSEC_INDETERMINATE:
 			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
@@ -389,6 +393,14 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
 		if (verbosity) printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successful.\n",
 			trans_id);
+		if (check_dnssec) {
+			uint32_t dnssec_status = GETDNS_DNSSEC_SECURE;
+
+	    		(void )getdns_dict_get_int(response,
+			    "/replies_tree/0/dnssec_status", &dnssec_status);
+			if (dnssec_status == GETDNS_DNSSEC_BOGUS)
+				bogus_answers += 1;
+		}
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
@@ -403,7 +415,6 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			getdns_get_errorstr_by_id(callback_type));
 	}
 	getdns_dict_destroy(response);
-	response = NULL;
 }
 
 #define CONTINUE ((getdns_return_t)-2)
@@ -578,6 +589,9 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] == '+') {
+			if (strncmp(arg+1, "dnssec_", 7) == 0)
+				check_dnssec = 1;
+
 			if (arg[1] == 's' && arg[2] == 'i' && arg[3] == 't' &&
 			   (arg[4] == '=' || arg[4] == '\0')) {
 				if ((r = set_cookie(extensions, arg+4))) {
@@ -1196,6 +1210,7 @@ getdns_return_t do_the_call(void)
 
 				fprintf( stdout, "%s\n", response_str);
 				if (verbosity) fprintf( stdout, "SYNC call completed.\n");
+
 				validate_chain(response);
 				free(response_str);
 			} else {
@@ -1208,8 +1223,18 @@ getdns_return_t do_the_call(void)
 		if (verbosity)
 			fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
 			 getdns_get_errorstr_by_id(status));
-		if (response)
+		if (response) {
+			if (check_dnssec) {
+				uint32_t dnssec_status = GETDNS_DNSSEC_SECURE;
+
+				(void )getdns_dict_get_int(response,
+				    "/replies_tree/0/dnssec_status",
+				    &dnssec_status);
+				if (dnssec_status == GETDNS_DNSSEC_BOGUS)
+					bogus_answers += 1;
+			}
 			getdns_dict_destroy(response);
+		}
 	}
 	getdns_dict_destroy(address);
 	return r;
@@ -1790,5 +1815,7 @@ done_destroy_context:
 	if (!i_am_stubby && verbosity)
 		fprintf(stdout, "\nAll done.\n");
 
-	return r;
+	return             r ? r 
+	     : bogus_answers ? GETDNS_DNSSEC_BOGUS
+	     : GETDNS_RETURN_GOOD;
 }
