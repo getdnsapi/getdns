@@ -174,21 +174,21 @@ for (( i = 0; i < 2; i+=1 )); do
 
 	echo "*Success cases:"
 	for (( j = 0; j < $NUM_GOOD_QUERIES; j+=1 )); do
-	  check_good "`$DIR/getdns_query +return_call_reporting $SYNC_MODE ${GOOD_QUERIES[$j*$NUM_ARGS]} 2>/dev/null`" ${GOOD_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_QUERIES[$((j*NUM_ARGS))+2]}
+	  check_good "`$DIR/getdns_query -V +return_call_reporting $SYNC_MODE ${GOOD_QUERIES[$j*$NUM_ARGS]} 2>/dev/null`" ${GOOD_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_QUERIES[$((j*NUM_ARGS))+2]}
 	  echo "getdns_query $SYNC_MODE ${GOOD_QUERIES[$j*$NUM_ARGS]}"
 	  (( COUNT++ ))
 	done
 	
 	echo "*Success fallback cases:"
 	for (( j = 0; j < $NUM_GOOD_FB_QUERIES; j+=1 )); do
-	    check_good "`$DIR/getdns_query +return_call_reporting $SYNC_MODE ${GOOD_FALLBACK_QUERIES[$j*$NUM_ARGS]} 2>/dev/null`" ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+2]}
+	    check_good "`$DIR/getdns_query -V +return_call_reporting $SYNC_MODE ${GOOD_FALLBACK_QUERIES[$j*$NUM_ARGS]} 2>/dev/null`" ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+2]}
 	    echo "getdns_query $SYNC_MODE ${GOOD_FALLBACK_QUERIES[$j*$NUM_ARGS]}  TESTS: ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+2]}"
 	    (( COUNT++ ))
 	done
 	
 	echo "*Transport not available cases:"
 	for (( j = 0; j < ${#NOT_AVAILABLE_QUERIES[@]}; j+=1 )); do
-		check_bad "`$DIR/getdns_query $SYNC_MODE ${NOT_AVAILABLE_QUERIES[${j}]} 2>&1`"
+		check_bad "`$DIR/getdns_query -V $SYNC_MODE ${NOT_AVAILABLE_QUERIES[${j}]} 2>&1`"
 		echo "getdns_query $SYNC_MODE ${NOT_AVAILABLE_QUERIES[${j}]}"
 		(( COUNT++ ))
 	done
