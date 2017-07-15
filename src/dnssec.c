@@ -550,11 +550,26 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		/* Also, try to prevent adding double rrsets */
 		if (   rrset->rr_class == head->rrset.rr_class
 		    && rrset->rr_type  == head->rrset.rr_type
-		    && rrset->pkt      == head->rrset.pkt
-		    && rrset->pkt_len  == head->rrset.pkt_len
-		    && _dname_equal(rrset->name, head->rrset.name))
-			return NULL;
+		    && _dname_equal(rrset->name, head->rrset.name)) {
 
+			if (rrset->pkt == head->rrset.pkt &&
+			    rrset->pkt_len == head->rrset.pkt_len)
+				return NULL;
+			else {
+				/* Anticipate resubmissions due to
+				 * roadblock avoidance */
+				head->rrset.pkt = rrset->pkt;
+				head->rrset.pkt_len = rrset->pkt_len;
+				return head;
+			}
+		}
+
+		if (   rrset->rr_class == head->rrset.rr_class
+		    && rrset->rr_type  == head->rrset.rr_type
+		    && rrset->pkt      != head->rrset.pkt
+		    && _dname_equal(rrset->name, head->rrset.name)) {
+			return NULL;
+		}
 		for (label = labels; label < last_label; label++) {
 			if (! _dname_is_parent(*label, head->rrset.name))
 				break;
@@ -2416,6 +2431,7 @@ static int key_proves_nonexistance(
 	 * ========================+
 	 * First find the closest encloser.
 	 */
+	if (*rrset->name)
 	for ( nc_name = rrset->name, ce_name = rrset->name + *rrset->name + 1
 	    ; *ce_name ; nc_name = ce_name, ce_name += *ce_name + 1) {
 
@@ -3034,14 +3050,18 @@ static void check_chain_complete(chain_head *chain)
 		uint64_t now_ms = 0;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;
+		dnsreq->chain->lock += 1;
 
 		for ( netreq_p = dnsreq->netreqs
-		    ; !r && (netreq = *netreq_p)
+		    ; (netreq = *netreq_p)
 		    ; netreq_p++) {
 
 			_getdns_netreq_change_state(netreq, NET_REQ_NOT_SENT);
+			netreq->dnssec_status = 
+				GETDNS_DNSSEC_INDETERMINATE;
 			netreq->owner = dnsreq;
 			r = _getdns_submit_netreq(netreq, &now_ms);
+			DEBUG_SEC("Resubmitting main netreq returned: %d\n", r);
 		}
 		if (!dnsreq->dnssec_return_validation_chain)
 			return;
@@ -3216,11 +3236,16 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 	getdns_network_req *netreq, **netreq_p;
 	chain_head *chain = NULL, *chain_p;
 
-	if (dnsreq->validating)
+	if (dnsreq->avoid_dnssec_roadblocks) {
+		chain = dnsreq->chain;
+
+	} else if (dnsreq->validating)
 		return;
 	dnsreq->validating = 1;
 
-	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
+	if (dnsreq->avoid_dnssec_roadblocks && chain->lock == 0)
+		; /* pass */
+	else for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		if (!  netreq->response
 		    || netreq->response_len < GLDNS_HEADER_SIZE
 		    || ( GLDNS_RCODE_WIRE(netreq->response)
@@ -3248,6 +3273,9 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 			if (chain_p->lock) chain_p->lock--;
 		}
 		dnsreq->chain = chain;
+		if (dnsreq->avoid_dnssec_roadblocks && chain->lock)
+			chain->lock -= 1;
+
 		check_chain_complete(chain);
 	} else {
 		dnsreq->validating = 0;
