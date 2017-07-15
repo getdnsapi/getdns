@@ -3043,6 +3043,37 @@ static void check_chain_complete(chain_head *chain)
 			netreq->owner = dnsreq;
 			r = _getdns_submit_netreq(netreq, &now_ms);
 		}
+		if (!dnsreq->dnssec_return_validation_chain)
+			return;
+
+		for ( head = chain; head ; head = next ) {
+			next = head->next;
+			for ( node_count = head->node_count
+			    , node = head->parent
+			    ; node_count
+			    ; node_count--, node = node->parent ) {
+
+				if (node->dnskey_req) {
+					_getdns_netreq_change_state(
+					    node->dnskey_req,
+					    NET_REQ_NOT_SENT);
+					node->dnskey_req->owner->
+					    avoid_dnssec_roadblocks = 1;
+					r = _getdns_submit_netreq(
+					    node->dnskey_req, &now_ms);
+				}
+				if (node->ds_req) {
+					_getdns_netreq_change_state(
+					    node->ds_req, NET_REQ_NOT_SENT);
+					node->ds_req->owner->
+					    avoid_dnssec_roadblocks = 1;
+					r = _getdns_submit_netreq(
+					    node->ds_req, &now_ms);
+				}
+			}
+		}
+		DEBUG_SEC("Outstanding requests: %d\n",
+		    (int)count_outstanding_requests(chain));
 		return;
 	}
 #endif
