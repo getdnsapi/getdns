@@ -3045,7 +3045,6 @@ static void check_chain_complete(chain_head *chain)
 	    && !dnsreq->avoid_dnssec_roadblocks
 	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
 
-		int r = GETDNS_RETURN_GOOD;
 		getdns_network_req **netreq_p, *netreq;
 		uint64_t now_ms = 0;
 
@@ -3060,8 +3059,7 @@ static void check_chain_complete(chain_head *chain)
 			netreq->dnssec_status = 
 				GETDNS_DNSSEC_INDETERMINATE;
 			netreq->owner = dnsreq;
-			r = _getdns_submit_netreq(netreq, &now_ms);
-			DEBUG_SEC("Resubmitting main netreq returned: %d\n", r);
+			(void) _getdns_submit_netreq(netreq, &now_ms);
 		}
 		if (!dnsreq->dnssec_return_validation_chain)
 			return;
@@ -3079,7 +3077,7 @@ static void check_chain_complete(chain_head *chain)
 					    NET_REQ_NOT_SENT);
 					node->dnskey_req->owner->
 					    avoid_dnssec_roadblocks = 1;
-					r = _getdns_submit_netreq(
+					(void) _getdns_submit_netreq(
 					    node->dnskey_req, &now_ms);
 				}
 				if (node->ds_req) {
@@ -3087,13 +3085,11 @@ static void check_chain_complete(chain_head *chain)
 					    node->ds_req, NET_REQ_NOT_SENT);
 					node->ds_req->owner->
 					    avoid_dnssec_roadblocks = 1;
-					r = _getdns_submit_netreq(
+					(void) _getdns_submit_netreq(
 					    node->ds_req, &now_ms);
 				}
 			}
 		}
-		DEBUG_SEC("Outstanding requests: %d\n",
-		    (int)count_outstanding_requests(chain));
 		return;
 	}
 #endif
