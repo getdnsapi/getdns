@@ -1962,7 +1962,7 @@ upstream_select(getdns_network_req *netreq)
 			return &upstreams->upstreams[i];
 		}
 		i+=GETDNS_UPSTREAM_TRANSPORTS;
-		if (i > upstreams->count)
+		if (i >= upstreams->count)
 			i = 0;
 	} while (i != upstreams->current_udp);
 
