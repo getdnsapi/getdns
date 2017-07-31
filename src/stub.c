@@ -588,6 +588,7 @@ _getdns_cancel_stub_request(getdns_network_req *netreq)
 #else
 		close(netreq->fd);
 #endif
+		netreq->fd = -1;
 	}
 }
 
@@ -606,6 +607,7 @@ stub_timeout_cb(void *userarg)
 #else
 		close(netreq->fd);
 #endif
+		netreq->fd = -1;
 		netreq->upstream->udp_timeouts++;
 		if (netreq->upstream->udp_timeouts % 100 == 0)
 			_getdns_upstream_log(netreq->upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
@@ -1413,6 +1415,7 @@ stub_udp_read_cb(void *userarg)
 #else
 			close(netreq->fd);
 #endif
+			netreq->fd = -1;
 			stub_next_upstream(netreq);
 		}
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
@@ -1435,8 +1438,8 @@ stub_udp_read_cb(void *userarg)
 	closesocket(netreq->fd);
 #else
 	close(netreq->fd);
-	netreq->fd = -1;
 #endif
+	netreq->fd = -1;
 	while (GLDNS_TC_WIRE(netreq->response)) {
 		DEBUG_STUB("%s %-35s: MSG: %p TC bit set in response \n", STUB_DEBUG_READ, 
 		             __FUNC__, (void*)netreq);
@@ -1533,6 +1536,7 @@ stub_udp_write_cb(void *userarg)
 #else
 			close(netreq->fd);
 #endif
+			netreq->fd = -1;
 			stub_next_upstream(netreq);
 		}
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
