@@ -187,10 +187,10 @@ The following minor implementation omissions are noted:
 Recursive mode does not support:
 * TLS as a transport
 * Non-zero connection idle timeouts or query pipelining
+* Anything other than query_type and resolution_type in the return_call_reporting extension
 
 Stub mode does not support:
 * Non zero idle timeouts for synchronous calls
-* Limit on number of outstanding queries
 
 # Known Issues
 
