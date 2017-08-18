@@ -24,7 +24,7 @@ RUN set -ex \
     && cd /usr/src \
     && git clone https://github.com/getdnsapi/getdns.git \
     && cd /usr/src/getdns \
-    && git checkout release/1.1.1 \
+    && git checkout master \
     && git submodule update --init \
     && libtoolize -ci \
     && autoreconf -fi \
@@ -35,7 +35,7 @@ RUN set -ex \
     && cp src/tools/stubby.conf /etc \
     && mkdir -p /etc/unbound \
     && cd /etc/unbound \
-    && wget http://www.nomountain.net/getdns-root.key
+    && unbound-anchor -a /etc/unbound/getdns-root.key || :
     
 EXPOSE 53
 
