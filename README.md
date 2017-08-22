@@ -99,7 +99,7 @@ Note: If you only want to build stubby, then use the `--enable-stub-only` and `-
 
 ## Extensions and Event loop dependencies
 
-The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
+The implementation works with a variety of event loops, each built as a separate shared library.  See [this Doxygen page](https://getdnsapi.net/doxygen/group__eventloops.html) and [this man page](https://getdnsapi.net/documentation/manpages/#ASYNCHRONOUS USE) for more details.
 
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
 * [libuv](https://github.com/joyent/libuv)
@@ -170,8 +170,8 @@ Non-goals (things we will not be doing at least initially) include:
 ## Language Bindings
 
 In parallel, the team is actively developing bindings for various languages.
-For more information, visit the
-[wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
+For more information, visit this
+[webpage](https://getdnsapi.net/bindings/).
 
 ## Unsupported getDNS Features
 
@@ -187,10 +187,10 @@ The following minor implementation omissions are noted:
 Recursive mode does not support:
 * TLS as a transport
 * Non-zero connection idle timeouts or query pipelining
+* Anything other than query_type and resolution_type in the return_call_reporting extension
 
 Stub mode does not support:
 * Non zero idle timeouts for synchronous calls
-* Limit on number of outstanding queries
 
 # Known Issues
 
@@ -264,7 +264,7 @@ build the packages; this is simply the one we chose to use.
 
 If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.  By default, this will only build the core library without any 3rd party event loop support.
 
-To install the [event loop integration libraries](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support) that enable support for libevent, libuv, and libev, run: `brew install getdns --with-libevent --with-libuv --with-libev`.  All switches are optional.
+To install the [event loop integration libraries](https://getdnsapi.net/doxygen/group__eventloops.html) that enable support for libevent, libuv, and libev, run: `brew install getdns --with-libevent --with-libuv --with-libev`.  All switches are optional.
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
