@@ -5,4 +5,4 @@
 [submodule "stubby"]
 	path = stubby
 	url = https://github.com/getdnsapi/stubby.git
-	branch = master
+	branch = develop
