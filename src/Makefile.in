@@ -35,16 +35,23 @@ libversion = @GETDNS_LIBVERSION@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
+sbindir = @sbindir@
 libdir = @libdir@
 includedir = @includedir@
+sysconfdir = @sysconfdir@
+localstatedir = @localstatedir@
+runstatedir = @runstatedir@
+stubbyconfdir = $(sysconfdir)/stubby
 have_libevent = @have_libevent@
 have_libuv = @have_libuv@
 have_libev = @have_libev@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
 INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
 
 srcdir = @srcdir@
+stubbysrcdir = $(srcdir)/../stubby
 LIBTOOL = ../libtool
 
 CC=@CC@
@@ -75,6 +82,8 @@ GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
 
+PROGRAMS=@STUBBY@
+
 LIBOBJDIR=
 LIBOBJS=@LIBOBJS@
 COMPAT_OBJ=$(LIBOBJS:.o=.lo)
@@ -97,7 +106,7 @@ NON_C99_OBJS=context.lo libuv.lo
 
 default: all
 
-all: libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_LIBEV_LIB)
+all: libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_LIBEV_LIB) $(PROGRAMS)
 
 $(GETDNS_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/$(@:.lo=.c) -o $@
@@ -123,25 +132,35 @@ context.lo:
 libuv.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/extension/libuv.c -o libuv.lo
 
-install:	libgetdns.la
+install-headers: getdns/getdns.h getdns/getdns_extra.h
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)/getdns
 	$(INSTALL) -m 644 getdns/getdns.h $(DESTDIR)$(includedir)/getdns/getdns.h
 	$(INSTALL) -m 644 getdns/getdns_extra.h $(DESTDIR)$(includedir)/getdns/getdns_extra.h
+	if test $(have_libevent) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libevent.h $(DESTDIR)$(includedir)/getdns/ ; fi
+	if test $(have_libuv) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libuv.h $(DESTDIR)$(includedir)/getdns/ ; fi
+	if test $(have_libev) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libev.h $(DESTDIR)$(includedir)/getdns/ ; fi
+
+uninstall-headers:
+	rm -rf $(DESTDIR)$(includedir)/getdns
+
+install-libs: libgetdns.la
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
-	if test $(have_libevent) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libevent.h $(DESTDIR)$(includedir)/getdns/ ; $(LIBTOOL) --mode=install cp $(EXTENSION_LIBEVENT_LIB) $(DESTDIR)$(libdir) ; fi
-	if test $(have_libuv) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libuv.h $(DESTDIR)$(includedir)/getdns/ ; $(LIBTOOL) --mode=install cp $(EXTENSION_LIBUV_LIB) $(DESTDIR)$(libdir) ; fi
-	if test $(have_libev) = 1 ; then $(INSTALL) -m 644 $(srcdir)/getdns/getdns_ext_libev.h $(DESTDIR)$(includedir)/getdns/ ; $(LIBTOOL) --mode=install cp $(EXTENSION_LIBEV_LIB) $(DESTDIR)$(libdir) ; fi
-
+	if test $(have_libevent) = 1 ; then $(LIBTOOL) --mode=install cp $(EXTENSION_LIBEVENT_LIB) $(DESTDIR)$(libdir) ; fi
+	if test $(have_libuv) = 1 ; then $(LIBTOOL) --mode=install cp $(EXTENSION_LIBUV_LIB) $(DESTDIR)$(libdir) ; fi
+	if test $(have_libev) = 1 ; then $(LIBTOOL) --mode=install cp $(EXTENSION_LIBEV_LIB) $(DESTDIR)$(libdir) ; fi
 	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
 
-uninstall:
-	rm -rf $(DESTDIR)$(includedir)/getdns
-	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la
+uninstall-libs:
 	if test $(have_libevent) = 1; then $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$(EXTENSION_LIBEVENT_LIB) ; fi
 	if test $(have_libuv) = 1; then $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$(EXTENSION_LIBUV_LIB) ; fi
 	if test $(have_libev) = 1; then $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$(EXTENSION_LIBEV_LIB) ; fi
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libgetdns.la
+
+install: install-libs install-headers @INSTALL_STUBBY@
+
+uninstall: @UNINSTALL_STUBBY@ uninstall-headers uninstall-libs
 
 libgetdns_ext_event.la: libgetdns.la libevent.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ libevent.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEVENT_LDFLAGS) $(EXTENSION_LIBEVENT_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libevent.symbols
@@ -163,8 +182,24 @@ test: default
 getdns_query: default
 	cd tools && $(MAKE) $@
 
-stubby:	getdns_query
-	cd tools && $(MAKE) $@
+stubby.lo: $(stubbysrcdir)/src/stubby.c
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR=\"$(sysconfdir)/stubby\" -DRUNSTATEDIR=\"$(runstatedir)\" -c $< -o $@
+
+stubby: stubby.lo libgetdns.la 
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ stubby.lo $(LDFLAGS) libgetdns.la
+
+install-stubby: stubby $(stubbysrcdir)/stubby.conf.example $(stubbysrcdir)/stubby-setdns-macos.sh
+	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
+	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(stubbyconfdir)
+	test -f $(DESTDIR)$(stubbyconfdir)/stubby.conf || \
+		$(INSTALL_DATA) $(stubbysrcdir)/stubby.conf.example $(DESTDIR)$(stubbyconfdir)/stubby.conf
+
+uninstall-stubby:
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
+	rm -f $(DESTDIR)$(sbindir)/stubby-setdns-macos.sh
 
 scratchpad: default
 	cd test && $(MAKE) $@
