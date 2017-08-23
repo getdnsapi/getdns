@@ -1009,17 +1009,17 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
-AC_ARG_WITH(stubby, AS_HELP_STRING([--without-stubby],
-	[Do not compile and install stubby, the (stub) resolver daemon]),
-	[], [withval="yes"])
-if test x_$withval = x_no; then
-	STUBBY=""
-	INSTALL_STUBBY=""
-	UNINSTALL_STUBBY=""
-else
+AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],
+	[Compile and install stubby, the (stub) resolver daemon]),
+	[], [withval="no"])
+if test x_$withval = x_yes; then
 	STUBBY="stubby"
 	INSTALL_STUBBY="install-stubby"
 	UNINSTALL_STUBBY="uninstall-stubby"
+else
+	STUBBY=""
+	INSTALL_STUBBY=""
+	UNINSTALL_STUBBY=""
 fi
 AC_SUBST(STUBBY)
 AC_SUBST(INSTALL_STUBBY)
