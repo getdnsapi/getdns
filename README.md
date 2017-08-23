@@ -88,7 +88,7 @@ As well as building the getdns library 2 other tools are installed by default by
 * getdns_query: a command line test script wrapper for getdns
 * stubby: an experimental DNS Privacy enabled client
 
-Note: If you only want to build stubby, then use the `--enable-stub-only` and `--without-libidn` options when running 'configure'.
+Note: If you only want to build stubby, then use the `--with-stubby` option when running 'configure'.
 
 
 ## Minimizing dependencies
