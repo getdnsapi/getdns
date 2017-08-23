@@ -199,7 +199,6 @@ $(distdir):
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/doc
-	mkdir -p $(distdir)/systemd
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
 	mkdir -p $(distdir)/stubby
@@ -244,8 +243,6 @@ $(distdir):
 	cp $(srcdir)/spec/*.html $(distdir)/spec
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
-	cp $(srcdir)/systemd/README.md $(distdir)/systemd
-	cp $(srcdir)/systemd/stubby.* $(distdir)/systemd
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
 	cp $(srcdir)/stubby/stubby.conf.example $(distdir)/stubby
