@@ -819,6 +819,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				goto next;
 			case 'p':
 				json = 0;
+				break;
 			case 'q':
 				quiet = 1;
 				break;

@@ -1065,6 +1065,7 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	                           break;
 	case GETDNS_RRTYPE_DNSKEY: node->dnskey.pkt     = netreq->response;
 	                           node->dnskey.pkt_len = netreq->response_len;
+		                   /* fallthrough */
 	default                  : check_chain_complete(node->chains);
 				   return;
 	}
@@ -2694,6 +2695,7 @@ static int chain_head_validate(struct mem_funcs *mf, time_t now, uint32_t skew,
 	if (_getdns_rrset_has_rrs(&ds_ta)) {
 		switch (chain_head_validate_with_ta(mf,now,skew,head,&ds_ta)) {
 		case GETDNS_DNSSEC_SECURE  : s = GETDNS_DNSSEC_SECURE;
+		                             /* fallthrough */
 		case GETDNS_DNSSEC_INSECURE: if (s != GETDNS_DNSSEC_SECURE)
 						     s = GETDNS_DNSSEC_INSECURE;
 					     break;
