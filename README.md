@@ -65,23 +65,28 @@ The following requirements were met as conditions for the present release:
 
 # Building and External Dependencies
 
+If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.  
+
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.  Please refer to section for building on Windows for separate dependency and build instructions for that platform.
+
+Before building, you must do:
+
+    # git submodule update --init
 
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
 * [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
-If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.  If you checked out from git you need to copy the libtool helper scripts and rebuild configure thus:
+For example, to build on a recent version of Ubuntu, you would need the following packages:
+
+    # apt install build-essential libunbound-dev libidn11-dev libssl-dev libtool m4 autoconf
+
+If you are building from git, you need to do the following before building:
 
     # libtoolize -ci (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
     # autoreconf -fi
 
-If you want to make use of the configuration files that utilise a JSON-like format, you must do 
-
-    # git submodule update --init
-
-before building. 
 
 As well as building the getdns library 2 other tools are installed by default by the above process:
 
