@@ -1,3 +1,24 @@
+* 2017-0?-??: Version 1.1.3
+  * No annotations with the output of getdns_query anymore,
+    unless -V option is given to increase verbosity
+    Thanks Ollivier Robert
+  * getdns_query will now exit with failure status if replies are BOGUS
+  * Bugfix: dnssec_return_validation_chain now also works when fallback
+    to full recursion was needed with dnssec_roadblock_avoidance
+  * More clear build instructions from Paul Hoffman.  Thanks.
+  * Bugfix #320.1: Eliminate multiple closing of file descriptors
+    Thanks Neil Cook
+  * Bugfix #320.2: Array bounds bug in upstream_select
+    Thanks Neil Cook
+  * Bugfix #318: getdnsapi/getdns/README.md links to nonexistent wiki
+    pages.  Thanks James Raftery
+  * Bugfix #322: MacOS 10.10 (Yosemite) provides TCP fastopen interface
+    but does not have it implemented.  Thanks Joel Purra
+  * Compile without Stubby by default.  Stubby now has a git repository
+    of its own.  The new Stubby repository is added as a submodule.
+    Stubby will still be build alongside getdns with the --with-stubby
+    configure option.
+
 * 2017-07-03: Version 1.1.2
   * Bugfix for parallel make install
   * Bugfix to trigger event callbacks on socket errors
