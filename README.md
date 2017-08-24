@@ -69,10 +69,6 @@ If you are installing from packages, you have to install the library and also th
 
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.  Please refer to section for building on Windows for separate dependency and build instructions for that platform.
 
-Before building, you must do:
-
-    # git submodule update --init
-
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
 * [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
@@ -84,7 +80,10 @@ For example, to build on a recent version of Ubuntu, you would need the followin
 
 If you are building from git, you need to do the following before building:
 
-    # libtoolize -ci (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
+
+    # git submodule update --init
+
+    # libtoolize -ci # (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
     # autoreconf -fi
 
 
