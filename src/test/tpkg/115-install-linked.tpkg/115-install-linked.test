@@ -5,4 +5,4 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build"
-make install-getdns_query
+make -j 4 install-getdns_query

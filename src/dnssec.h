@@ -46,6 +46,8 @@
 
 /* Do some additional requests to fetch the complete validation chain */
 void _getdns_get_validation_chain(getdns_dns_req *dns_req);
+void _getdns_cancel_validation_chain(getdns_dns_req *dns_req);
+void _getdns_validation_chain_timeout(getdns_dns_req *dns_req);
 
 uint16_t _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf);
 

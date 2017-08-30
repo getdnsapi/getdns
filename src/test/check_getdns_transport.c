@@ -35,6 +35,8 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <sys/param.h>
+#include <stdlib.h>
+#include <sys/time.h>
 
 
 #define GETDNS_STR_IPV4 "IPv4"
@@ -42,7 +44,23 @@
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
 #define GETDNS_STR_ADDRESS_DATA "address_data"
 #define GETDNS_STR_PORT "port"
-#define TEST_PORT 43210
+#define TEST_PORT 42100
+
+static uint16_t get_test_port(void)
+{
+	char    *test_port_str;
+	uint16_t test_port;
+	struct   timeval tv;
+
+	if (!(test_port_str = getenv("GETDNS_TEST_PORT")) ||
+	    !(test_port = (uint16_t)atoi(test_port_str)))
+		test_port = TEST_PORT;
+
+	(void)gettimeofday(&tv, NULL);
+	srandom((int)getpid() + (int)tv.tv_usec);
+	test_port += random() % 1000;
+	return test_port;
+}
 
 /* utilities to start a junk listener */
 typedef struct transport_thread_data {
@@ -193,6 +211,8 @@ void transport_cb(struct getdns_context *context,
   struct getdns_dict * response,
   void *userarg, getdns_transaction_t transaction_id) {
   /* Don't really care about the answer*/
+  (void)context; (void)callback_type; (void)response;
+  (void)userarg; (void)transaction_id;
   return;
 }
 
@@ -217,7 +237,7 @@ START_TEST(getdns_transport_udp_sync) {
   t_data.running = 0;
   t_data.udp_count = 0;
   t_data.tcp_count = 0;
-  t_data.port = TEST_PORT;
+  t_data.port = get_test_port();
 
   pthread_create(&thread, NULL, run_transport_server, (void *) &t_data);
 
@@ -291,7 +311,7 @@ START_TEST(getdns_transport_tcp_sync) {
   t_data.running = 0;
   t_data.udp_count = 0;
   t_data.tcp_count = 0;
-  t_data.port = TEST_PORT;
+  t_data.port = get_test_port();
 
   pthread_create(&thread, NULL, run_transport_server, (void *) &t_data);
 
@@ -365,7 +385,7 @@ START_TEST(getdns_transport_udp_async) {
   t_data.running = 0;
   t_data.udp_count = 0;
   t_data.tcp_count = 0;
-  t_data.port = TEST_PORT;
+  t_data.port = get_test_port();
 
   pthread_create(&thread, NULL, run_transport_server, (void *) &t_data);
 
@@ -443,7 +463,7 @@ START_TEST(getdns_transport_tcp_async) {
   t_data.running = 0;
   t_data.udp_count = 0;
   t_data.tcp_count = 0;
-  t_data.port = TEST_PORT;
+  t_data.port = get_test_port();
 
   pthread_create(&thread, NULL, run_transport_server, (void *) &t_data);
 
@@ -509,7 +529,7 @@ getdns_transport_suite(void) {
 
   /* Note that the exact number of messages received depends on if a trust
    * anchor is configured so these tests just check that no messages are
-   * received on the wrong transport and at least one is recieved on the
+   * received on the wrong transport and at least one is received on the
    * expected transport */
 
   /* Positive test cases */

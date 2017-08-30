@@ -1,0 +1,14 @@
+# #-- 275-server-capabilities.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+(
+	grep '^CC=' "${BUILDDIR}/build-stub-only/src/Makefile"
+	grep '^LDFLAGS=' "${BUILDDIR}/build-stub-only/src/Makefile"
+
+	BUILDDIR4SED=`echo "${BUILDDIR}/build-stub-only" | sed  's/\//\\\\\//g'`
+	sed -e "s/@BUILDDIR@/${BUILDDIR4SED}/g" \
+	    -e "s/@TPKG_NAME@/${TPKG_NAME}/g" "${TPKG_NAME}.Makefile"
+) > Makefile

@@ -47,17 +47,13 @@
 static const uint8_t *
 apl_n_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
+	(void)pkt;
 	return rdf < pkt_end ? rdf + 1 : NULL;
 }
 static getdns_return_t
 apl_n_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return getdns_dict_set_int(dict, "n", (*rdf  >> 7));
-}
-static getdns_return_t
-apl_n_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_int(list, (*rdf  >> 7));
 }
 static getdns_return_t
 apl_n_2wire(uint32_t value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
@@ -84,22 +80,10 @@ apl_n_dict2wire(const getdns_dict *dict,
 	else
 		return apl_n_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-apl_n_list2wire(const getdns_list *list, size_t i,
-    uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	uint32_t        value;
-
-	if ((r = getdns_list_get_int(list, i, &value)))
-		return r;
-	else
-		return apl_n_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special apl_n = {
     apl_n_rdf_end,
-    apl_n_wire2dict, apl_n_wire2list,
-    apl_n_dict2wire, apl_n_list2wire
+    apl_n_wire2dict, NULL,
+    apl_n_dict2wire, NULL 
 };
 
 static const uint8_t *
@@ -107,6 +91,7 @@ apl_afdpart_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
 	const uint8_t *end = rdf + (rdf[-1] & 0x7F);
+	(void)(pkt);
 	return end <= pkt_end ? end : NULL;
 }
 static getdns_return_t
@@ -114,11 +99,6 @@ apl_afdpart_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(
 	    dict, "afdpart", (rdf[-1] & 0x7F), rdf);
-}
-static getdns_return_t
-apl_afdpart_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_const_bindata(list, (rdf[-1] & 0x7F), rdf);
 }
 static getdns_return_t
 apl_afdpart_2wire(
@@ -154,22 +134,10 @@ apl_afdpart_dict2wire(
 	else
 		return apl_afdpart_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-apl_afdpart_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return apl_afdpart_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special apl_afdpart = {
     apl_afdpart_rdf_end,
-    apl_afdpart_wire2dict, apl_afdpart_wire2list,
-    apl_afdpart_dict2wire, apl_afdpart_list2wire
+    apl_afdpart_wire2dict, NULL,
+    apl_afdpart_dict2wire, NULL 
 };
 
 static const uint8_t *
@@ -244,30 +212,12 @@ ipseckey_gateway_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 		return _getdns_dict_set_const_bindata(dict, "gateway", size, data);
 }
 static getdns_return_t
-ipseckey_gateway_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	size_t size;
-	const uint8_t *data;
-
-	if (ipseckey_gateway_equip_const_bindata(rdf, &size, &data))
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	else if (!size)
-		return GETDNS_RETURN_GOOD;
-	else
-		return _getdns_list_append_const_bindata(list, size, data);
-}
-static getdns_return_t
 ipseckey_gateway_2wire(
     const getdns_bindata *value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
 {
-	if (rdf - 2 < rdata)
-		return GETDNS_RETURN_GENERIC_ERROR;
+	assert(rdf - 2 >= rdata && rdf[-2] > 0);
 
 	switch (rdf[-2]) {
-	case 0:	if (value && value->size > 0)
-			return GETDNS_RETURN_INVALID_PARAMETER;
-		break;
 	case 1: if (!value || value->size != 4)
 			return GETDNS_RETURN_INVALID_PARAMETER;
 		if (*rdf_len < 4) {
@@ -308,33 +258,29 @@ ipseckey_gateway_dict2wire(
 	getdns_return_t r;
 	getdns_bindata *value;
 
-	if ((r = getdns_dict_get_bindata(dict, "gateway", &value)))
-		return r;
-	else
-		return ipseckey_gateway_2wire(value, rdata, rdf, rdf_len);
-}
-static getdns_return_t
-ipseckey_gateway_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
+	if (rdf - 2 < rdata)
+		return GETDNS_RETURN_GENERIC_ERROR;
 
-	if ((r = getdns_list_get_bindata(list, i, &value)))
+	else if (rdf[-2] == 0) {
+		*rdf_len = 0;
+		return GETDNS_RETURN_GOOD;
+	}
+	else if ((r = getdns_dict_get_bindata(dict, "gateway", &value)))
 		return r;
 	else
 		return ipseckey_gateway_2wire(value, rdata, rdf, rdf_len);
 }
 static _getdns_rdf_special ipseckey_gateway = {
     ipseckey_gateway_rdf_end,
-    ipseckey_gateway_wire2dict, ipseckey_gateway_wire2list,
-    ipseckey_gateway_dict2wire, ipseckey_gateway_list2wire
+    ipseckey_gateway_wire2dict, NULL,
+    ipseckey_gateway_dict2wire, NULL 
 };
 
 static const uint8_t *
 hip_pk_algorithm_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
+	(void)(pkt);
 	return rdf + 4 > pkt_end ? NULL
 	     : rdf + 4 + *rdf + gldns_read_uint16(rdf + 2) > pkt_end ? NULL
 	     : rdf + 1;
@@ -343,11 +289,6 @@ static getdns_return_t
 hip_pk_algorithm_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return getdns_dict_set_int(dict, "pk_algorithm", rdf[1]);
-}
-static getdns_return_t
-hip_pk_algorithm_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_int(list, rdf[1]);
 }
 static getdns_return_t
 hip_pk_algorithm_2wire(uint32_t value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
@@ -376,27 +317,16 @@ hip_pk_algorithm_dict2wire(
 	else
 		return hip_pk_algorithm_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-hip_pk_algorithm_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	uint32_t        value;
-
-	if ((r = getdns_list_get_int(list, i, &value)))
-		return r;
-	else
-		return hip_pk_algorithm_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special hip_pk_algorithm = {
     hip_pk_algorithm_rdf_end,
-    hip_pk_algorithm_wire2dict, hip_pk_algorithm_wire2list,
-    hip_pk_algorithm_dict2wire, hip_pk_algorithm_list2wire
+    hip_pk_algorithm_wire2dict, NULL,
+    hip_pk_algorithm_dict2wire, NULL
 };
 
 static const uint8_t *
 hip_hit_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
+	(void)(pkt);
 	return rdf + 3 > pkt_end ? NULL
 	     : rdf + 3 + rdf[-1] + gldns_read_uint16(rdf + 1) > pkt_end ? NULL
 	     : rdf + 1;
@@ -405,11 +335,6 @@ static getdns_return_t
 hip_hit_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(dict, "hit", rdf[-1], rdf + 3);
-}
-static getdns_return_t
-hip_hit_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_const_bindata(list, rdf[-1], rdf + 3);
 }
 static getdns_return_t
 hip_hit_2wire(
@@ -429,7 +354,7 @@ hip_hit_2wire(
 		return GETDNS_RETURN_NEED_MORE_SPACE;
 	}
 	*rdf_len = value->size;
-	rdata[0] = value->size;
+	rdata[0] = (uint8_t) value->size;
 	(void)memcpy(rdf, value->data, value->size);
 	return GETDNS_RETURN_GOOD;
 }
@@ -445,28 +370,17 @@ hip_hit_dict2wire(
 	else
 		return hip_hit_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-hip_hit_list2wire(const getdns_list *list,
-    size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return hip_hit_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special hip_hit = {
     hip_hit_rdf_end,
-    hip_hit_wire2dict, hip_hit_wire2list,
-    hip_hit_dict2wire, hip_hit_list2wire
+    hip_hit_wire2dict, NULL,
+    hip_hit_dict2wire, NULL
 };
 
 static const uint8_t *
 hip_public_key_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
+	(void)(pkt);
 	return rdf + 2 > pkt_end ? NULL
 	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf) > pkt_end ? NULL
 	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf);
@@ -476,12 +390,6 @@ hip_public_key_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
 	return _getdns_dict_set_const_bindata(
 	    dict, "public_key", gldns_read_uint16(rdf), rdf + 2 + rdf[-2]);
-}
-static getdns_return_t
-hip_public_key_wire2list(getdns_list *list, const uint8_t *rdf)
-{
-	return _getdns_list_append_const_bindata(
-	    list, gldns_read_uint16(rdf), rdf + 2 + rdf[-2]);
 }
 static getdns_return_t
 hip_public_key_2wire(
@@ -501,7 +409,7 @@ hip_public_key_2wire(
 		return GETDNS_RETURN_NEED_MORE_SPACE;
 	}
 	*rdf_len = value->size;
-	gldns_write_uint16(rdata + 2, value->size);
+	gldns_write_uint16(rdata + 2, (uint16_t) value->size);
 	(void)memcpy(rdf, value->data, value->size);
 	return GETDNS_RETURN_GOOD;
 }
@@ -517,242 +425,241 @@ hip_public_key_dict2wire(
 	else
 		return hip_public_key_2wire(value, rdata, rdf, rdf_len);
 }
-static getdns_return_t
-hip_public_key_list2wire(
-    const getdns_list *list, size_t i, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
-{
-	getdns_return_t r;
-	getdns_bindata *value;
-
-	if ((r = getdns_list_get_bindata(list, i, &value)))
-		return r;
-	else
-		return hip_public_key_2wire(value, rdata, rdf, rdf_len);
-}
 static _getdns_rdf_special hip_public_key = {
     hip_public_key_rdf_end,
-    hip_public_key_wire2dict, hip_public_key_wire2list,
-    hip_public_key_dict2wire, hip_public_key_list2wire
+    hip_public_key_wire2dict, NULL,
+    hip_public_key_dict2wire, NULL
 };
 
 
 static _getdns_rdata_def          a_rdata[] = {
-	{ "ipv4_address"                , GETDNS_RDF_A    }};
+	{ "ipv4_address"                , GETDNS_RDF_A      , NULL }};
 static _getdns_rdata_def         ns_rdata[] = {
-	{ "nsdname"                     , GETDNS_RDF_N_C  }};
+	{ "nsdname"                     , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def         md_rdata[] = {
-	{ "madname"                     , GETDNS_RDF_N_C  }};
+	{ "madname"                     , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def      cname_rdata[] = {
-	{ "cname"                       , GETDNS_RDF_N_C  }};
+	{ "cname"                       , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def        soa_rdata[] = {
-	{ "mname"                       , GETDNS_RDF_N_C  },
-	{ "rname"                       , GETDNS_RDF_N_C  },
-	{ "serial"                      , GETDNS_RDF_I4   },
-	{ "refresh"                     , GETDNS_RDF_I4   },
-	{ "retry"                       , GETDNS_RDF_I4   },
-	{ "expire"                      , GETDNS_RDF_I4   },
-	{ "minimum"                     , GETDNS_RDF_I4   }};
+	{ "mname"                       , GETDNS_RDF_N_C    , NULL },
+	{ "rname"                       , GETDNS_RDF_N_C    , NULL },
+	{ "serial"                      , GETDNS_RDF_I4     , NULL },
+	{ "refresh"                     , GETDNS_RDF_I4     , NULL },
+	{ "retry"                       , GETDNS_RDF_I4     , NULL },
+	{ "expire"                      , GETDNS_RDF_I4     , NULL },
+	{ "minimum"                     , GETDNS_RDF_I4     , NULL }};
 static _getdns_rdata_def         mg_rdata[] = {
-	{ "mgmname"                     , GETDNS_RDF_N_C  }};
+	{ "mgmname"                     , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def         mr_rdata[] = {
-	{ "newname"                     , GETDNS_RDF_N_C  }};
+	{ "newname"                     , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def       null_rdata[] = {
-	{ "anything"                    , GETDNS_RDF_X    }};
+	{ "anything"                    , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        wks_rdata[] = {
-	{ "address"                     , GETDNS_RDF_A    },
-	{ "protocol"                    , GETDNS_RDF_I1   },
-	{ "bitmap"                      , GETDNS_RDF_X    }};
+	{ "address"                     , GETDNS_RDF_A      , NULL },
+	{ "protocol"                    , GETDNS_RDF_I1     , NULL },
+	{ "bitmap"                      , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        ptr_rdata[] = {
-	{ "ptrdname"                    , GETDNS_RDF_N_C  }};
+	{ "ptrdname"                    , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def      hinfo_rdata[] = {
-	{ "cpu"                         , GETDNS_RDF_S    },
-	{ "os"                          , GETDNS_RDF_S    }};
+	{ "cpu"                         , GETDNS_RDF_S      , NULL },
+	{ "os"                          , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def      minfo_rdata[] = {
-	{ "rmailbx"                     , GETDNS_RDF_N_C  },
-	{ "emailbx"                     , GETDNS_RDF_N_C  }};
+	{ "rmailbx"                     , GETDNS_RDF_N_C    , NULL },
+	{ "emailbx"                     , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def         mx_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "exchange"                    , GETDNS_RDF_N_C  }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "exchange"                    , GETDNS_RDF_N_C    , NULL }};
 static _getdns_rdata_def        txt_rdata[] = {
-	{ "txt_strings"                 , GETDNS_RDF_S_M  }};
+	{ "txt_strings"                 , GETDNS_RDF_S_M    , NULL }};
 static _getdns_rdata_def         rp_rdata[] = {
-	{ "mbox_dname"                  , GETDNS_RDF_N    },
-	{ "txt_dname"                   , GETDNS_RDF_N    }};
+	{ "mbox_dname"                  , GETDNS_RDF_N      , NULL },
+	{ "txt_dname"                   , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def      afsdb_rdata[] = {
-	{ "subtype"                     , GETDNS_RDF_I2   },
-	{ "hostname"                    , GETDNS_RDF_N    }};
+	{ "subtype"                     , GETDNS_RDF_I2     , NULL },
+	{ "hostname"                    , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def        x25_rdata[] = {
-	{ "psdn_address"                , GETDNS_RDF_S    }};
+	{ "psdn_address"                , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def       isdn_rdata[] = {
-	{ "isdn_address"                , GETDNS_RDF_S    },
-	{ "sa"                          , GETDNS_RDF_S    }};
+	{ "isdn_address"                , GETDNS_RDF_S      , NULL },
+	{ "sa"                          , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def         rt_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "intermediate_host"           , GETDNS_RDF_N    }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "intermediate_host"           , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def       nsap_rdata[] = {
-	{ "nsap"                        , GETDNS_RDF_X    }};
+	{ "nsap"                        , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def   nsap_ptr_rdata[] = {
+	{ "owner"                       , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def        sig_rdata[] = {
-	{ "sig_obsolete"                , GETDNS_RDF_X    }};
+	{ "sig_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        key_rdata[] = {
-	{ "key_obsolete"                , GETDNS_RDF_X    }};
+	{ "key_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def         px_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "map822"                      , GETDNS_RDF_N    },
-	{ "mapx400"                     , GETDNS_RDF_N    }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "map822"                      , GETDNS_RDF_N      , NULL },
+	{ "mapx400"                     , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def       gpos_rdata[] = {
-	{ "longitude"                   , GETDNS_RDF_S    },
-	{ "latitude"                    , GETDNS_RDF_S    },
-	{ "altitude"                    , GETDNS_RDF_S    }};
+	{ "longitude"                   , GETDNS_RDF_S      , NULL },
+	{ "latitude"                    , GETDNS_RDF_S      , NULL },
+	{ "altitude"                    , GETDNS_RDF_S      , NULL }};
 static _getdns_rdata_def       aaaa_rdata[] = {
-	{ "ipv6_address"                , GETDNS_RDF_AAAA }};
+	{ "ipv6_address"                , GETDNS_RDF_AAAA   , NULL }};
 static _getdns_rdata_def        loc_rdata[] = {
-	{ "loc_obsolete"                , GETDNS_RDF_X    }};
+	{ "loc_obsolete"                , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        nxt_rdata[] = {
-	{ "nxt_obsolete"                , GETDNS_RDF_X    }};
+	{ "nxt_obsolete"                , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def        eid_rdata[] = {
+	{ "endpoint_identifier"         , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def     nimloc_rdata[] = {
+	{ "nimrod_locator"              , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        srv_rdata[] = {
-	{ "priority"                    , GETDNS_RDF_I2   },
-	{ "weight"                      , GETDNS_RDF_I2   },
-	{ "port"                        , GETDNS_RDF_I2   },
-	{ "target"                      , GETDNS_RDF_N    }};
+	{ "priority"                    , GETDNS_RDF_I2     , NULL },
+	{ "weight"                      , GETDNS_RDF_I2     , NULL },
+	{ "port"                        , GETDNS_RDF_I2     , NULL },
+	{ "target"                      , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def       atma_rdata[] = {
-	{ "format"                      , GETDNS_RDF_X    }};
+	{ "format"                      , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def      naptr_rdata[] = {
-	{ "order"                       , GETDNS_RDF_I2   },
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "flags"                       , GETDNS_RDF_S    },
-	{ "service"                     , GETDNS_RDF_S    },
-	{ "regexp"                      , GETDNS_RDF_S    },
-	{ "replacement"                 , GETDNS_RDF_N    }};
+	{ "order"                       , GETDNS_RDF_I2     , NULL },
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "flags"                       , GETDNS_RDF_S      , NULL },
+	{ "service"                     , GETDNS_RDF_S      , NULL },
+	{ "regexp"                      , GETDNS_RDF_S      , NULL },
+	{ "replacement"                 , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def         kx_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "exchanger"                   , GETDNS_RDF_N    }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "exchanger"                   , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def       cert_rdata[] = {
-	{ "type"                        , GETDNS_RDF_I2   },
-	{ "key_tag"                     , GETDNS_RDF_I2   },
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "certificate_or_crl"          , GETDNS_RDF_B    }};
+	{ "type"                        , GETDNS_RDF_I2     , NULL },
+	{ "key_tag"                     , GETDNS_RDF_I2     , NULL },
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "certificate_or_crl"          , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def         a6_rdata[] = {
-	{ "a6_obsolete"                 , GETDNS_RDF_X    }};
+	{ "a6_obsolete"                 , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def      dname_rdata[] = {
-	{ "target"                      , GETDNS_RDF_N    }};
+	{ "target"                      , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def        opt_rdata[] = {
-	{ "options"                     , GETDNS_RDF_R    },
-	{ "option_code"                 , GETDNS_RDF_I2   },
-	{ "option_data"                 , GETDNS_RDF_X_S  }};
+	{ "options"                     , GETDNS_RDF_R      , NULL },
+	{ "option_code"                 , GETDNS_RDF_I2     , NULL },
+	{ "option_data"                 , GETDNS_RDF_X_S    , NULL }};
 static _getdns_rdata_def        apl_rdata[] = {
-	{ "apitems"                     , GETDNS_RDF_R    },
-	{ "address_family"              , GETDNS_RDF_I2   },
-	{ "prefix"                      , GETDNS_RDF_I1   },
+	{ "apitems"                     , GETDNS_RDF_R      , NULL },
+	{ "address_family"              , GETDNS_RDF_I2     , NULL },
+	{ "prefix"                      , GETDNS_RDF_I1     , NULL },
 	{ "n"                           , GETDNS_RDF_SPECIAL, &apl_n },
 	{ "afdpart"                     , GETDNS_RDF_SPECIAL, &apl_afdpart }};
 static _getdns_rdata_def         ds_rdata[] = {
-	{ "key_tag"                     , GETDNS_RDF_I2   },
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "digest_type"                 , GETDNS_RDF_I1   },
-	{ "digest"                      , GETDNS_RDF_X    }};
+	{ "key_tag"                     , GETDNS_RDF_I2     , NULL },
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "digest_type"                 , GETDNS_RDF_I1     , NULL },
+	{ "digest"                      , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def      sshfp_rdata[] = {
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "fp_type"                     , GETDNS_RDF_I1   },
-	{ "fingerprint"                 , GETDNS_RDF_X    }};
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "fp_type"                     , GETDNS_RDF_I1     , NULL },
+	{ "fingerprint"                 , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def   ipseckey_rdata[] = {
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "gateway_type"                , GETDNS_RDF_I1   },
-	{ "precedence"                  , GETDNS_RDF_I1   },
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "gateway_type"                , GETDNS_RDF_I1     , NULL },
+	{ "precedence"                  , GETDNS_RDF_I1     , NULL },
 	{ "gateway"                     , GETDNS_RDF_SPECIAL, &ipseckey_gateway },
-	{ "public_key"                  , GETDNS_RDF_B    }};
+	{ "public_key"                  , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def      rrsig_rdata[] = {
-	{ "type_covered"                , GETDNS_RDF_I2   },
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "labels"                      , GETDNS_RDF_I1   },
-	{ "original_ttl"                , GETDNS_RDF_I4   },
-	{ "signature_expiration"        , GETDNS_RDF_T    },
-	{ "signature_inception"         , GETDNS_RDF_T    },
-	{ "key_tag"                     , GETDNS_RDF_I2   },
-	{ "signers_name"                , GETDNS_RDF_N    },
-	{ "signature"                   , GETDNS_RDF_B    }};
+	{ "type_covered"                , GETDNS_RDF_I2     , NULL },
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "labels"                      , GETDNS_RDF_I1     , NULL },
+	{ "original_ttl"                , GETDNS_RDF_I4     , NULL },
+	{ "signature_expiration"        , GETDNS_RDF_T      , NULL },
+	{ "signature_inception"         , GETDNS_RDF_T      , NULL },
+	{ "key_tag"                     , GETDNS_RDF_I2     , NULL },
+	{ "signers_name"                , GETDNS_RDF_N      , NULL },
+	{ "signature"                   , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def       nsec_rdata[] = {
-	{ "next_domain_name"            , GETDNS_RDF_N    },
-	{ "type_bit_maps"               , GETDNS_RDF_X    }};
+	{ "next_domain_name"            , GETDNS_RDF_N      , NULL },
+	{ "type_bit_maps"               , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def     dnskey_rdata[] = {
-	{ "flags"                       , GETDNS_RDF_I2   },
-	{ "protocol"                    , GETDNS_RDF_I1   },
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "public_key"                  , GETDNS_RDF_B    }};
+	{ "flags"                       , GETDNS_RDF_I2     , NULL },
+	{ "protocol"                    , GETDNS_RDF_I1     , NULL },
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "public_key"                  , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def      dhcid_rdata[] = {
-	{ "dhcid_opaque"                , GETDNS_RDF_B    }};
+	{ "dhcid_opaque"                , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def      nsec3_rdata[] = {
-	{ "hash_algorithm"              , GETDNS_RDF_I1   },
-	{ "flags"                       , GETDNS_RDF_I1   },
-	{ "iterations"                  , GETDNS_RDF_I2   },
-	{ "salt"                        , GETDNS_RDF_X_C  },
-	{ "next_hashed_owner_name"      , GETDNS_RDF_B32_C},
-	{ "type_bit_maps"               , GETDNS_RDF_X    }};
+	{ "hash_algorithm"              , GETDNS_RDF_I1     , NULL },
+	{ "flags"                       , GETDNS_RDF_I1     , NULL },
+	{ "iterations"                  , GETDNS_RDF_I2     , NULL },
+	{ "salt"                        , GETDNS_RDF_X_C    , NULL },
+	{ "next_hashed_owner_name"      , GETDNS_RDF_B32_C  , NULL },
+	{ "type_bit_maps"               , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def nsec3param_rdata[] = {
-	{ "hash_algorithm"              , GETDNS_RDF_I1   },
-	{ "flags"                       , GETDNS_RDF_I1   },
-	{ "iterations"                  , GETDNS_RDF_I2   },
-	{ "salt"                        , GETDNS_RDF_X_C  }};
+	{ "hash_algorithm"              , GETDNS_RDF_I1     , NULL },
+	{ "flags"                       , GETDNS_RDF_I1     , NULL },
+	{ "iterations"                  , GETDNS_RDF_I2     , NULL },
+	{ "salt"                        , GETDNS_RDF_X_C    , NULL }};
 static _getdns_rdata_def       tlsa_rdata[] = {
-	{ "certificate_usage"           , GETDNS_RDF_I1   },
-	{ "selector"                    , GETDNS_RDF_I1   },
-	{ "matching_type"               , GETDNS_RDF_I1   },
-	{ "certificate_association_data", GETDNS_RDF_X    }};
+	{ "certificate_usage"           , GETDNS_RDF_I1     , NULL },
+	{ "selector"                    , GETDNS_RDF_I1     , NULL },
+	{ "matching_type"               , GETDNS_RDF_I1     , NULL },
+	{ "certificate_association_data", GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        hip_rdata[] = {
 	{ "pk_algorithm"                , GETDNS_RDF_SPECIAL, &hip_pk_algorithm },
 	{ "hit"                         , GETDNS_RDF_SPECIAL, &hip_hit },
 	{ "public_key"                  , GETDNS_RDF_SPECIAL, &hip_public_key },
-	{ "rendezvous_servers"          , GETDNS_RDF_N_M  }};
+	{ "rendezvous_servers"          , GETDNS_RDF_N_M    , NULL }};
+static _getdns_rdata_def     talink_rdata[] = {
+	{ "previous"                    , GETDNS_RDF_N      , NULL },
+	{ "next"                        , GETDNS_RDF_N      , NULL }};
+static _getdns_rdata_def   openpgpkey_rdata[] = {
+	{ "transferable_public_key"     , GETDNS_RDF_B      , NULL }};
 static _getdns_rdata_def        csync_rdata[] = {
-	{ "serial"                      , GETDNS_RDF_I4   },
-	{ "flags"                       , GETDNS_RDF_I2   },
-	{ "type_bit_maps"               , GETDNS_RDF_X    }};
+	{ "serial"                      , GETDNS_RDF_I4     , NULL },
+	{ "flags"                       , GETDNS_RDF_I2     , NULL },
+	{ "type_bit_maps"               , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        spf_rdata[] = {
-	{ "text"                        , GETDNS_RDF_S_M  }};
+	{ "text"                        , GETDNS_RDF_S_M    , NULL }};
 static _getdns_rdata_def        nid_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "node_id"                     , GETDNS_RDF_AA   }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "node_id"                     , GETDNS_RDF_AA     , NULL }};
 static _getdns_rdata_def        l32_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "locator32"                   , GETDNS_RDF_A    }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "locator32"                   , GETDNS_RDF_A      , NULL }};
 static _getdns_rdata_def        l64_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "locator64"                   , GETDNS_RDF_AA   }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "locator64"                   , GETDNS_RDF_AA     , NULL }};
 static _getdns_rdata_def         lp_rdata[] = {
-	{ "preference"                  , GETDNS_RDF_I2   },
-	{ "fqdn"                        , GETDNS_RDF_N    }};
+	{ "preference"                  , GETDNS_RDF_I2     , NULL },
+	{ "fqdn"                        , GETDNS_RDF_N      , NULL }};
 static _getdns_rdata_def      eui48_rdata[] = {
-	{ "eui48_address"               , GETDNS_RDF_X6   }};
+	{ "eui48_address"               , GETDNS_RDF_X6     , NULL }};
 static _getdns_rdata_def      eui64_rdata[] = {
-	{ "eui64_address"               , GETDNS_RDF_X8   }};
+	{ "eui64_address"               , GETDNS_RDF_X8     , NULL }};
 static _getdns_rdata_def       tkey_rdata[] = {
-	{ "algorithm"                   , GETDNS_RDF_N    },
-	{ "inception"                   , GETDNS_RDF_T    },
-	{ "expiration"                  , GETDNS_RDF_T    },
-	{ "mode"                        , GETDNS_RDF_I2   },
-	{ "error"                       , GETDNS_RDF_I2   },
-	{ "key_data"                    , GETDNS_RDF_X_S  },
-	{ "other_data"                  , GETDNS_RDF_X_S  }};
+	{ "algorithm"                   , GETDNS_RDF_N      , NULL },
+	{ "inception"                   , GETDNS_RDF_T      , NULL },
+	{ "expiration"                  , GETDNS_RDF_T      , NULL },
+	{ "mode"                        , GETDNS_RDF_I2     , NULL },
+	{ "error"                       , GETDNS_RDF_I2     , NULL },
+	{ "key_data"                    , GETDNS_RDF_X_S    , NULL },
+	{ "other_data"                  , GETDNS_RDF_X_S    , NULL }};
 static _getdns_rdata_def       tsig_rdata[] = {
-	{ "algorithm"                   , GETDNS_RDF_N    },
-	{ "time_signed"                 , GETDNS_RDF_T6   },
-	{ "fudge"                       , GETDNS_RDF_I2   },
-	{ "mac"                         , GETDNS_RDF_X_S  },
-	{ "original_id"                 , GETDNS_RDF_I2   },
-	{ "error"                       , GETDNS_RDF_I2   },
-	{ "other_data"                  , GETDNS_RDF_X_S  }};
+	{ "algorithm"                   , GETDNS_RDF_N      , NULL },
+	{ "time_signed"                 , GETDNS_RDF_T6     , NULL },
+	{ "fudge"                       , GETDNS_RDF_I2     , NULL },
+	{ "mac"                         , GETDNS_RDF_X_S    , NULL },
+	{ "original_id"                 , GETDNS_RDF_I2     , NULL },
+	{ "error"                       , GETDNS_RDF_I2     , NULL },
+	{ "other_data"                  , GETDNS_RDF_X_S    , NULL }};
 static _getdns_rdata_def        uri_rdata[] = {
-	{ "priority"                    , GETDNS_RDF_I2   },
-	{ "weight"                      , GETDNS_RDF_I2   },
-	{ "target"                      , GETDNS_RDF_S_L  }};
+	{ "priority"                    , GETDNS_RDF_I2     , NULL },
+	{ "weight"                      , GETDNS_RDF_I2     , NULL },
+	{ "target"                      , GETDNS_RDF_S_L    , NULL }};
 static _getdns_rdata_def        caa_rdata[] = {
-	{ "flags"                       , GETDNS_RDF_I1   },
-	{ "tag"                         , GETDNS_RDF_S    },
-	{ "value"                       , GETDNS_RDF_S_L  }};
+	{ "flags"                       , GETDNS_RDF_I1     , NULL },
+	{ "tag"                         , GETDNS_RDF_S      , NULL },
+	{ "value"                       , GETDNS_RDF_S_L    , NULL }};
 static _getdns_rdata_def        dlv_rdata[] = {
-	{ "key_tag"                     , GETDNS_RDF_I2   },
-	{ "algorithm"                   , GETDNS_RDF_I1   },
-	{ "digest_type"                 , GETDNS_RDF_I1   },
-	{ "digest"                      , GETDNS_RDF_X    }};
+	{ "key_tag"                     , GETDNS_RDF_I2     , NULL },
+	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
+	{ "digest_type"                 , GETDNS_RDF_I1     , NULL },
+	{ "digest"                      , GETDNS_RDF_X      , NULL }};
 
 static _getdns_rr_def _getdns_rr_defs[] = {
 	{         NULL,             NULL, 0                      },
@@ -777,17 +684,17 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{        "X25",        x25_rdata, ALEN(       x25_rdata) },
 	{       "ISDN",       isdn_rdata, ALEN(      isdn_rdata) },
 	{         "RT",         rt_rdata, ALEN(        rt_rdata) },
-	{       "NSAP",       nsap_rdata, ALEN(      nsap_rdata) }, /* - 22 */
-	{         NULL,             NULL, 0                      },
-	{        "SIG",        sig_rdata, ALEN(       sig_rdata) }, /* 24 - */
+	{       "NSAP",       nsap_rdata, ALEN(      nsap_rdata) },
+	{   "NSAP_PTR",   nsap_ptr_rdata, ALEN(  nsap_ptr_rdata) },
+	{        "SIG",        sig_rdata, ALEN(       sig_rdata) },
 	{        "KEY",        key_rdata, ALEN(       key_rdata) },
 	{         "PX",         px_rdata, ALEN(        px_rdata) },
 	{       "GPOS",       gpos_rdata, ALEN(      gpos_rdata) },
 	{       "AAAA",       aaaa_rdata, ALEN(      aaaa_rdata) },
 	{        "LOC",        loc_rdata, ALEN(       loc_rdata) },
 	{        "NXT",        nxt_rdata, ALEN(       nxt_rdata) },
-	{        "EID",    UNKNOWN_RDATA, 0                      },
-	{     "NIMLOC",    UNKNOWN_RDATA, 0                      },
+	{        "EID",        eid_rdata, ALEN(       eid_rdata) },
+	{     "NIMLOC",     nimloc_rdata, ALEN(    nimloc_rdata) },
 	{        "SRV",        srv_rdata, ALEN(       srv_rdata) },
 	{       "ATMA",       atma_rdata, ALEN(      atma_rdata) },
 	{      "NAPTR",      naptr_rdata, ALEN(     naptr_rdata) },
@@ -807,16 +714,16 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{      "DHCID",      dhcid_rdata, ALEN(     dhcid_rdata) },
 	{      "NSEC3",      nsec3_rdata, ALEN(     nsec3_rdata) },
 	{ "NSEC3PARAM", nsec3param_rdata, ALEN(nsec3param_rdata) },
-	{       "TLSA",       tlsa_rdata, ALEN(      tlsa_rdata) }, /* - 52 */
-	{         NULL,             NULL, 0                      },
+	{       "TLSA",       tlsa_rdata, ALEN(      tlsa_rdata) },
+	{     "SMIMEA",       tlsa_rdata, ALEN(      tlsa_rdata) }, /* - 53 */
 	{         NULL,             NULL, 0                      },
 	{        "HIP",        hip_rdata, ALEN(       hip_rdata) }, /* 55 - */
 	{      "NINFO",    UNKNOWN_RDATA, 0                      },
 	{       "RKEY",    UNKNOWN_RDATA, 0                      },
-	{     "TALINK",    UNKNOWN_RDATA, 0                      },
+	{     "TALINK",     talink_rdata, ALEN(    talink_rdata) },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY",    UNKNOWN_RDATA, 0                      }, /* 61 - */
+	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* 61 - */
 	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) }, /* - 62 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
@@ -1012,20 +919,21 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{      "MAILA",    UNKNOWN_RDATA, 0                      }, /* - 254 */
 	{         NULL,             NULL, 0                      },
 	{        "URI",        uri_rdata, ALEN(       uri_rdata) }, /* 256 - */
-	{        "CAA",        caa_rdata, ALEN(       caa_rdata) }, /* - 257 */
-	{         "TA",    UNKNOWN_RDATA, 0                      }, /* 32768 */
+	{        "CAA",        caa_rdata, ALEN(       caa_rdata) },
+	{        "AVC",        txt_rdata, ALEN(       txt_rdata) }, /* - 258 */
+	{         "TA",         ds_rdata, ALEN(        ds_rdata) }, /* 32768 */
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
 
 const _getdns_rr_def *
 _getdns_rr_def_lookup(uint16_t rr_type)
 {
-	if (rr_type <= 257)
+	if (rr_type <= 258)
 		return &_getdns_rr_defs[rr_type];
 	else if (rr_type == 32768)
-		return &_getdns_rr_defs[258];
-	else if (rr_type == 32769)
 		return &_getdns_rr_defs[259];
+	else if (rr_type == 32769)
+		return &_getdns_rr_defs[260];
 	return _getdns_rr_defs;
 }
 
@@ -1115,7 +1023,12 @@ write_rdata_field(gldns_buffer *buf, uint8_t *rdata_start,
 		return GETDNS_RETURN_GENERIC_ERROR;
 
 	} else if (!(rd_def->type & GETDNS_RDF_REPEAT)) {
-		
+		/*
+		 * Non repetitive special rdatafield,
+		 * We must have a dict2wire function
+		 */
+		assert(rd_def->special->dict2wire);
+
 		rdf_len = gldns_buffer_remaining(buf);
 		r = rd_def->special->dict2wire(rdata, rdata_start,
 		    gldns_buffer_current(buf), &rdf_len);
@@ -1125,12 +1038,21 @@ write_rdata_field(gldns_buffer *buf, uint8_t *rdata_start,
 		if (r)
 			return r;
 
+	/* We do not have repetitive special rdata fields (yet)
+	 *
+	 * LCOV_EXCL_START
+	 */
 	} else if ((r = getdns_dict_get_list(rdata, rd_def->name, &list))) {
 
 		return r == GETDNS_RETURN_NO_SUCH_DICT_NAME
 			  ? GETDNS_RETURN_GOOD : r;
 
 	} else for ( i = 0; r == GETDNS_RETURN_GOOD; i++ ) {
+		/*
+		 * A repetitive special rdata field must have the list2wire
+		 * function.
+		 */
+		assert(rd_def->special->list2wire);
 		
 		rdf_len = gldns_buffer_remaining(buf);
 		r = rd_def->special->list2wire(list, i, rdata_start,
@@ -1139,6 +1061,7 @@ write_rdata_field(gldns_buffer *buf, uint8_t *rdata_start,
 		    r == GETDNS_RETURN_NEED_MORE_SPACE)
 			gldns_buffer_skip(buf, rdf_len);
 	}
+	/* LCOV_EXCL_STOP */
 
 	return r != GETDNS_RETURN_NO_SUCH_LIST_ITEM ? r : GETDNS_RETURN_GOOD;
 }

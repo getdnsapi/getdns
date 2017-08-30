@@ -55,9 +55,13 @@
        *          GETDNS_RETURN_GOOD
        */
        struct getdns_context *context = NULL;
+       getdns_append_name_t append_name;
 
        CONTEXT_CREATE(TRUE);
        //  TODO:  Do something here to verify set_from_os = TRUE 
+       getdns_context_set_append_name(context, GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST);
+       getdns_context_get_append_name(context, &append_name);
+       ck_assert_msg(append_name == GETDNS_APPEND_NAME_TO_SINGLE_LABEL_FIRST, "suffix is not correct");
        CONTEXT_DESTROY;
      }
      END_TEST

@@ -45,6 +45,9 @@
 #include "util/rbtree.h"
 #include "ub_loop.h"
 #include "server.h"
+#ifdef HAVE_MDNS_SUPPORT
+#include "util/lruhash.h"
+#endif
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -124,10 +127,36 @@ typedef struct getdns_upstream {
 
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
+	char                     addr_str[INET6_ADDRSTRLEN];
 
-	/* How is this upstream doing over UDP? */
-	int                      to_retry;
-	int                      back_off;
+	/**
+	 * How is this upstream doing over UDP?
+	 *
+	 * to_retry = 1, back_off = 1, in context.c:upstream_init()
+	 * 
+	 * When querying over UDP, first a upstream is selected which to_retry
+	 * value > 0 in stub.c:upstream_select().
+	 * 
+	 * Every time a udp request times out, to_retry is decreased, and if
+	 * it reaches 0, it is set to minus back_off in
+	 * stub.c:stub_next_upstream().
+	 *
+	 * to_retry will become > 0 again. because each time an upstream is
+	 * selected for a UDP query in stub.c:upstream_select(), all to_retry
+	 * counters <= 0 are incremented.
+	 *
+	 * On continuous failure, the stubs are less likely to be reselected,
+	 * because each time to_retry is set to minus back_off, in 
+	 * stub.c:stub_next_upstream(), the back_off value is doubled.
+	 *
+	 * Finally, if all upstreams are failing, the upstreams with the
+	 * smallest back_off value will be selected, and the back_off value
+	 * decremented by one.
+	 */
+	int                      to_retry;  /* (initialized to 1) */
+	int                      back_off;  /* (initialized to 1) */
+	size_t                   udp_responses;
+	size_t                   udp_timeouts;
 
 	/* For stateful upstreams, need to share the connection and track the
 	   activity on the connection */
@@ -140,14 +169,18 @@ typedef struct getdns_upstream {
 	size_t                   conn_completed;
 	size_t                   conn_shutdowns;
 	size_t                   conn_setup_failed;
+	time_t                   conn_retry_time;
+	size_t                   conn_backoffs;
 	size_t                   total_responses;
 	size_t                   total_timeouts;
-	getdns_auth_state_t      past_tls_auth_state;
+	getdns_auth_state_t      best_tls_auth_state;
+	getdns_auth_state_t      last_tls_auth_state;
 	/* These are per connection. */
 	getdns_conn_state_t      conn_state;
 	size_t                   queries_sent;
 	size_t                   responses_received;
 	size_t                   responses_timeouts;
+	size_t                   keepalive_shutdown;
 	uint64_t                 keepalive_timeout;
 
 	/* Management of outstanding requests on stateful transports */
@@ -203,11 +236,22 @@ typedef struct getdns_upstream {
 
 } getdns_upstream;
 
+typedef struct getdns_log_config {
+	getdns_logfunc_type  func;
+	void                *userarg;
+	uint64_t             system;
+	getdns_loglevel_type level;
+} getdns_log_config;
+
 typedef struct getdns_upstreams {
 	struct mem_funcs mf;
 	size_t referenced;
 	size_t count;
 	size_t current_udp;
+	size_t current_stateful;
+	uint16_t tls_backoff_time;
+	uint16_t tls_connection_retries;
+	getdns_log_config log;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
@@ -215,7 +259,7 @@ struct getdns_context {
 	/* Context values */
 	getdns_resolution_t  resolution_type;
 	getdns_namespace_t   *namespaces;
-	int                  namespace_count;
+	size_t               namespace_count;
 	uint64_t             timeout;
 	uint64_t             idle_timeout;
 	getdns_redirects_t   follow_redirects;
@@ -239,6 +283,9 @@ struct getdns_context {
 	uint32_t             dnssec_allowed_skew;
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
+	uint8_t              round_robin_upstreams;
+	uint16_t             tls_backoff_time;
+	uint16_t             tls_connection_retries;
 
 	getdns_transport_list_t   *dns_transports;
 	size_t                     dns_transport_count;
@@ -254,6 +301,8 @@ struct getdns_context {
 	getdns_update_callback  update_callback;
 	getdns_update_callback2 update_callback2;
 	void                   *update_userarg;
+
+	getdns_log_config log;
 
 	int processing;
 	int destroying;
@@ -282,6 +331,14 @@ struct getdns_context {
 	 */
 	_getdns_rbtree_t outbound_requests;
 
+	/* network requests
+	 */
+	size_t netreqs_in_flight;
+
+	_getdns_rbtree_t       pending_netreqs;
+	getdns_network_req    *first_pending_netreq;
+	getdns_eventloop_event pending_timeout_event;
+
 	struct listen_set *server;
 
 	/* Event loop extension.  */
@@ -300,19 +357,19 @@ struct getdns_context {
 	/* request extension defaults */
 	getdns_dict *header;
 	getdns_dict *add_opt_parameters;
-	int add_warning_for_bad_dns             : 1;
-	int dnssec_return_all_statuses          : 1;
-	int dnssec_return_full_validation_chain : 1;
-	int dnssec_return_only_secure           : 1;
-	int dnssec_return_status                : 1;
-	int dnssec_return_validation_chain      : 1;
+	unsigned add_warning_for_bad_dns             : 1;
+	unsigned dnssec_return_all_statuses          : 1;
+	unsigned dnssec_return_full_validation_chain : 1;
+	unsigned dnssec_return_only_secure           : 1;
+	unsigned dnssec_return_status                : 1;
+	unsigned dnssec_return_validation_chain      : 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	int dnssec_roadblock_avoidance          : 1;
+	unsigned dnssec_roadblock_avoidance          : 1;
 #endif
-	int edns_cookies                        : 1;
-	int return_api_information              : 1; /* Not used */
-	int return_both_v4_and_v6               : 1;
-	int return_call_reporting               : 1;
+	unsigned edns_cookies                        : 1;
+	unsigned return_api_information              : 1; /* Not used */
+	unsigned return_both_v4_and_v6               : 1;
+	unsigned return_call_reporting               : 1;
 	uint16_t specify_class;
 
 	/*
@@ -327,7 +384,31 @@ struct getdns_context {
 	/* We need to run WSAStartup() to be able to use getaddrinfo() */
 	WSADATA wsaData;
 #endif
+
+	/* MDNS */
+#ifdef HAVE_MDNS_SUPPORT
+	/* 
+	 * If supporting MDNS, context may be instantiated either in basic mode
+	 * or in full mode. If working in extended mode, two multicast sockets are
+	 * left open, for IPv4 and IPv6. Data can be received on either socket.
+	 * The context also keeps a list of open queries, characterized by a 
+	 * name and an RR type, and a list of received answers, characterized
+	 * by name, RR type and data value.
+	 */
+	int mdns_extended_support; /* 0 = no support, 1 = supported, 2 = initialization needed */
+	int mdns_connection_nb; /* typically 0 or 2 for IPv4 and IPv6 */
+	struct mdns_network_connection * mdns_connection;
+	struct lruhash * mdns_cache;
+
+#endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
+
+void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, ...);
+
+void _getdns_context_log(getdns_context *context, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, ...);
+
 
 /** internal functions **/
 /**
@@ -340,19 +421,33 @@ struct getdns_context {
 getdns_return_t _getdns_context_prepare_for_resolution(struct getdns_context *context,
  int usenamespaces);
 
-/* track an outbound request */
-getdns_return_t _getdns_context_track_outbound_request(struct getdns_dns_req
-    *req);
-/* clear the outbound request from being tracked - does not cancel it */
-getdns_return_t _getdns_context_clear_outbound_request(struct getdns_dns_req
-    *req);
+/* Register a getdns_dns_req with context.
+ * - Without pluggable unbound event API,
+ *   ub_fd() is scheduled when this was the first request.
+ */
+void _getdns_context_track_outbound_request(getdns_dns_req *dnsreq);
 
-getdns_return_t _getdns_context_request_timed_out(struct getdns_dns_req
-    *req);
+/* Deregister getdns_dns_req from the context.
+ * - Without pluggable unbound event API,
+ *   ub_fd() is scheduled when this was the first request.
+ * - Potential timeout events will be cleared.
+ * - All associated getdns_dns_reqs (to get the validation chain)
+ *   will be canceled.
+ */
+void _getdns_context_clear_outbound_request(getdns_dns_req *dnsreq);
 
-/* cancel callback internal - flag to indicate if req should be freed and callback fired */
-getdns_return_t _getdns_context_cancel_request(struct getdns_context *context,
-    getdns_transaction_t transaction_id, int fire_callback);
+/* Cancels and frees a getdns_dns_req (without calling user callbacks)
+ * - Deregisters getdns_dns_req with _getdns_context_clear_outbound_request()
+ * - Cancels associated getdns_network_reqs
+ *   (by calling ub_cancel() or _getdns_cancel_stub_request())
+ * - Frees the getdns_dns_req
+ */
+void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
+
+/* Calls user callback (with GETDNS_CALLBACK_TIMEOUT + response dict), then
+ * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()
+ */
+void _getdns_context_request_timed_out(getdns_dns_req *dnsreq);
 
 char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 

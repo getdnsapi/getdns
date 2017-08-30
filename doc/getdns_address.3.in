@@ -33,7 +33,7 @@
 -- get ip address(es) for a name
 
 .SH LIBRARY
-DNS Resolver library (libgetdns, -lgetdns)
+DNS Resolver library (libgetdns, \-lgetdns)
 
 .SH SYNOPSIS
 #include <getdns.h>

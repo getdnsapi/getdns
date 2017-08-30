@@ -13,6 +13,7 @@ addons:
     - libev-dev
     - valgrind
     - clang
+    - wget
 script:
   - mkdir tests
   - cd tests

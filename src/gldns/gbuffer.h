@@ -27,21 +27,6 @@ extern "C" {
 #  endif
 #endif
 
-#ifndef USE_WINSOCK
-#define _gldns_vsnprintf vsnprintf
-#else
-/* Unlike Linux and BSD, vsnprintf on Windows returns -1 on overflow.
- * Here it is redefined to always return the amount printed
- * if enough space had been available.
- */
-INLINE int
-_gldns_vsnprintf(char *str, size_t size, const char *format, va_list ap)
-{
-	int r = vsnprintf(str, size, format, ap);
-	return r == -1 ? _vscprintf(format, ap) : r;
-}
-#endif
-
 /*
  * Copy data allowing for unaligned accesses in network byte order
  * (big endian).
@@ -145,6 +130,17 @@ struct gldns_buffer
 	/** If the buffer is fixed it cannot be resized */
 	unsigned _fixed : 1;
 
+	/** If the buffer is vfixed, no more than capacity bytes willl be
+	 * written to _data, however the _position counter will be updated
+	 * with the amount that would have been written in consecutive
+	 * writes.  This allows for a modus operandi in which a sequence is
+	 * written on a fixed capacity buffer (perhaps with _data on stack).
+	 * When everything could be written, then the _data is immediately
+	 * usable, if not, then a buffer could be allocated sized precisely
+	 * to fit the data for a second attempt.
+	 */
+	unsigned _vfixed : 1;
+
 	/** The current state of the buffer. If writing to the buffer fails
 	 * for any reason, this value is changed. This way, you can perform
 	 * multiple writes in sequence and check for success afterwards. */
@@ -162,9 +158,9 @@ INLINE void
 gldns_buffer_invariant(gldns_buffer *buffer)
 {
 	assert(buffer != NULL);
-	assert(buffer->_position <= buffer->_limit || buffer->_fixed);
+	assert(buffer->_position <= buffer->_limit || buffer->_vfixed);
 	assert(buffer->_limit <= buffer->_capacity);
-	assert(buffer->_data != NULL || (buffer->_capacity == 0 && buffer->_fixed));
+	assert(buffer->_data != NULL || (buffer->_vfixed && buffer->_capacity == 0));
 }
 #endif
 
@@ -195,6 +191,19 @@ void gldns_buffer_new_frm_data(gldns_buffer *buffer, void *data, size_t size);
  * \param[in] size the size of the data
  */
 void gldns_buffer_init_frm_data(gldns_buffer *buffer, void *data, size_t size);
+
+/**
+ * Setup a buffer with the data pointed to. No data copied, no memory allocs.
+ * The buffer is "virtually" fixed.  Writes beyond size (the capacity) will
+ * only update position, but no data will be written beyond capacity.  This
+ * allows to determine how big the buffer should have been to contain all the
+ * written data, by looking at the position with gldns_buffer_position(),
+ * similarly to the return value of POSIX's snprintf.
+ * \param[in] buffer pointer to the buffer to put the data in
+ * \param[in] data the data to encapsulate in the buffer
+ * \param[in] size the size of the data
+ */
+void gldns_buffer_init_vfixed_frm_data(gldns_buffer *buffer, void *data, size_t size);
 
 /**
  * clears the buffer and make it ready for writing.  The buffer's limit
@@ -259,7 +268,7 @@ gldns_buffer_position(gldns_buffer *buffer)
 INLINE void
 gldns_buffer_set_position(gldns_buffer *buffer, size_t mark)
 {
-	assert(mark <= buffer->_limit || buffer->_fixed);
+	assert(mark <= buffer->_limit || buffer->_vfixed);
 	buffer->_position = mark;
 }
 
@@ -273,7 +282,7 @@ gldns_buffer_set_position(gldns_buffer *buffer, size_t mark)
 INLINE void
 gldns_buffer_skip(gldns_buffer *buffer, ssize_t count)
 {
-	assert(buffer->_position + count <= buffer->_limit || buffer->_fixed);
+	assert(buffer->_position + count <= buffer->_limit || buffer->_vfixed);
 	buffer->_position += count;
 }
 
@@ -345,7 +354,7 @@ int gldns_buffer_reserve(gldns_buffer *buffer, size_t amount);
 INLINE uint8_t *
 gldns_buffer_at(const gldns_buffer *buffer, size_t at)
 {
-	assert(at <= buffer->_limit || buffer->_fixed);
+	assert(at <= buffer->_limit || buffer->_vfixed);
 	return buffer->_data + at;
 }
 
@@ -395,6 +404,7 @@ INLINE size_t
 gldns_buffer_remaining_at(gldns_buffer *buffer, size_t at)
 {
 	gldns_buffer_invariant(buffer);
+	assert(at <= buffer->_limit || buffer->_vfixed);
 	return at < buffer->_limit ? buffer->_limit - at : 0;
 }
 
@@ -447,7 +457,7 @@ gldns_buffer_available(gldns_buffer *buffer, size_t count)
 INLINE void
 gldns_buffer_write_at(gldns_buffer *buffer, size_t at, const void *data, size_t count)
 {
-	if (!buffer->_fixed)
+	if (!buffer->_vfixed)
 		assert(gldns_buffer_available_at(buffer, at, count));
 	else if (gldns_buffer_remaining_at(buffer, at) == 0)
 		return;
@@ -458,6 +468,30 @@ gldns_buffer_write_at(gldns_buffer *buffer, size_t at, const void *data, size_t 
 	}
 	memcpy(buffer->_data + at, data, count);
 }
+
+/**
+ * set the given byte to the buffer at the specified position
+ * \param[in] buffer the buffer
+ * \param[in] at the position (in number of bytes) to write the data at
+ * \param[in] c the byte to set to the buffer
+ * \param[in] count the number of bytes of bytes to write
+ */
+
+INLINE void
+gldns_buffer_set_at(gldns_buffer *buffer, size_t at, int c, size_t count)
+{
+    if (!buffer->_vfixed)
+        assert(gldns_buffer_available_at(buffer, at, count));
+    else if (gldns_buffer_remaining_at(buffer, at) == 0)
+        return;
+    else if (count > gldns_buffer_remaining_at(buffer, at)) {
+        memset(buffer->_data + at, c,
+            gldns_buffer_remaining_at(buffer, at));
+        return;
+    }
+	memset(buffer->_data + at, c, count);
+}
+
 
 /**
  * writes count bytes of data to the current position of the buffer
@@ -504,7 +538,7 @@ gldns_buffer_write_string(gldns_buffer *buffer, const char *str)
 INLINE void
 gldns_buffer_write_u8_at(gldns_buffer *buffer, size_t at, uint8_t data)
 {
-	if (buffer->_fixed && at + sizeof(data) > buffer->_limit) return;
+	if (buffer->_vfixed && at + sizeof(data) > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, sizeof(data)));
 	buffer->_data[at] = data;
 }
@@ -530,7 +564,7 @@ gldns_buffer_write_u8(gldns_buffer *buffer, uint8_t data)
 INLINE void
 gldns_buffer_write_u16_at(gldns_buffer *buffer, size_t at, uint16_t data)
 {
-	if (buffer->_fixed && at + sizeof(data) > buffer->_limit) return;
+	if (buffer->_vfixed && at + sizeof(data) > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, sizeof(data)));
 	gldns_write_uint16(buffer->_data + at, data);
 }
@@ -556,7 +590,7 @@ gldns_buffer_write_u16(gldns_buffer *buffer, uint16_t data)
 INLINE void
 gldns_buffer_write_u32_at(gldns_buffer *buffer, size_t at, uint32_t data)
 {
-	if (buffer->_fixed && at + sizeof(data) > buffer->_limit) return;
+	if (buffer->_vfixed && at + sizeof(data) > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, sizeof(data)));
 	gldns_write_uint32(buffer->_data + at, data);
 }
@@ -570,7 +604,7 @@ gldns_buffer_write_u32_at(gldns_buffer *buffer, size_t at, uint32_t data)
 INLINE void
 gldns_buffer_write_u48_at(gldns_buffer *buffer, size_t at, uint64_t data)
 {
-	if (buffer->_fixed && at + 6 > buffer->_limit) return;
+	if (buffer->_vfixed && at + 6 > buffer->_limit) return;
 	assert(gldns_buffer_available_at(buffer, at, 6));
 	gldns_write_uint48(buffer->_data + at, data);
 }

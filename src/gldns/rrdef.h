@@ -38,7 +38,7 @@ extern "C" {
 #define GLDNS_KEY_REVOKE_KEY 0x0080 /* used to revoke KSK, rfc 5011 */
 
 /* The first fields are contiguous and can be referenced instantly */
-#define GLDNS_RDATA_FIELD_DESCRIPTORS_COMMON 258
+#define GLDNS_RDATA_FIELD_DESCRIPTORS_COMMON 259
 
 /** lookuptable for rr classes  */
 extern struct gldns_struct_lookup_table* gldns_rr_classes;
@@ -195,7 +195,7 @@ enum gldns_enum_rr_type
         GLDNS_RR_TYPE_TALINK = 58,
 	GLDNS_RR_TYPE_CDS = 59, /** RFC 7344 */
 	GLDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
-	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* draft-ietf-dane-openpgpkey */
+	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	GLDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
 
 	GLDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
@@ -226,6 +226,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_ANY = 255,
 	GLDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
+	GLDNS_RR_TYPE_AVC = 258,
 
 	/** DNSSEC Trust Authorities */
 	GLDNS_RR_TYPE_TA = 32768,
@@ -350,6 +351,9 @@ enum gldns_enum_rdf_type
          */
         GLDNS_RDF_TYPE_LONG_STR,
 
+	/** TSIG extended 16bit error value */
+	GLDNS_RDF_TYPE_TSIGERROR,
+
         /* Aliases */
         GLDNS_RDF_TYPE_BITMAP = GLDNS_RDF_TYPE_NSEC
 };
@@ -372,6 +376,8 @@ enum gldns_enum_algorithm
         GLDNS_ECC_GOST           = 12,  /* RFC 5933 */
         GLDNS_ECDSAP256SHA256    = 13,  /* RFC 6605 */
         GLDNS_ECDSAP384SHA384    = 14,  /* RFC 6605 */
+	GLDNS_ED25519		= 15,  /* RFC 8080 */
+	GLDNS_ED448		= 16,  /* RFC 8080 */
         GLDNS_INDIRECT           = 252,
         GLDNS_PRIVATEDNS         = 253,
         GLDNS_PRIVATEOID         = 254
@@ -420,13 +426,22 @@ enum gldns_enum_edns_option
 	GLDNS_EDNS_DAU = 5, /* RFC6975 */
 	GLDNS_EDNS_DHU = 6, /* RFC6975 */
 	GLDNS_EDNS_N3U = 7, /* RFC6975 */
-	GLDNS_EDNS_CLIENT_SUBNET = 8, /* draft-vandergaast-edns-client-subnet */
+	GLDNS_EDNS_CLIENT_SUBNET = 8, /* RFC7871 */
 	GLDNS_EDNS_KEEPALIVE = 11, /* draft-ietf-dnsop-edns-tcp-keepalive*/
 	GLDNS_EDNS_PADDING = 12 /* RFC7830 */
 };
 typedef enum gldns_enum_edns_option gldns_edns_option;
 
 #define GLDNS_EDNS_MASK_DO_BIT 0x8000
+
+/** TSIG and TKEY extended rcodes (16bit), 0-15 are the normal rcodes. */
+#define GLDNS_TSIG_ERROR_NOERROR  0
+#define GLDNS_TSIG_ERROR_BADSIG   16
+#define GLDNS_TSIG_ERROR_BADKEY   17
+#define GLDNS_TSIG_ERROR_BADTIME  18
+#define GLDNS_TSIG_ERROR_BADMODE  19
+#define GLDNS_TSIG_ERROR_BADNAME  20
+#define GLDNS_TSIG_ERROR_BADALG   21
 
 /**
  * Contains all information about resource record types.

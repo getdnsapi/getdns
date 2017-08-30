@@ -26,7 +26,14 @@
  */
 
 #include "config.h"
+
+#ifndef USE_WINSOCK
 #include <netdb.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+#endif
+
 #include "getdns/getdns_extra.h"
 #include "context.h"
 #include "types-internal.h"
@@ -65,6 +72,7 @@ struct listener {
  */
 struct listen_set {
 	getdns_context           *context;
+	void                     *userarg;
 	getdns_request_handler_t  handler;
 
 	_getdns_rbtree_t          connections_set;
@@ -100,9 +108,9 @@ typedef struct tcp_connection {
 	getdns_eventloop_event  event;
 
 	uint8_t                *read_buf;
-	size_t                  read_buf_len;
+	ssize_t                 read_buf_len;
 	uint8_t                *read_pos;
-	size_t                  to_read;
+	ssize_t                 to_read;
 
 	tcp_to_write           *to_write;
 	size_t                  to_answer;
@@ -127,7 +135,11 @@ static void tcp_connection_destroy(tcp_connection *conn)
 		loop->vmt->clear(loop, &conn->event);
 
 	if (conn->fd >= 0)
+#ifdef USE_WINSOCK
+		(void) closesocket(conn->fd);
+#else
 		(void) close(conn->fd);
+#endif
 	GETDNS_FREE(*mf, conn->read_buf);
 
 	for (cur = conn->to_write; cur; cur = next) {
@@ -177,8 +189,8 @@ static void tcp_write_cb(void *userarg)
 	}
 	to_write = conn->to_write;
 	if (conn->fd == -1 || 
-	    (written = write(conn->fd, &to_write->write_buf[to_write->written],
-	    to_write->write_buf_len - to_write->written)) == -1) {
+	    (written = send(conn->fd, &to_write->write_buf[to_write->written],
+	    to_write->write_buf_len - to_write->written, 0)) == -1) {
 
 		/* IO error, close connection */
 		conn->event.read_cb = conn->event.write_cb =
@@ -231,7 +243,7 @@ _getdns_cancel_reply(getdns_context *context, connection *conn)
 
 getdns_return_t
 getdns_reply(
-    getdns_context *context, getdns_transaction_t request_id, getdns_dict *reply)
+    getdns_context *context, getdns_dict *reply, getdns_transaction_t request_id)
 {
 	/* TODO: Check request_id at context->outbound_requests */
 	connection *conn = (connection *)(intptr_t)request_id;
@@ -268,11 +280,15 @@ getdns_reply(
 	else if (conn->l->transport == GETDNS_TRANSPORT_UDP) {
 		listener *l = conn->l;
 
-		if (conn->l->fd >= 0 && sendto(conn->l->fd, buf, len, 0,
+		if (conn->l->fd >= 0 && sendto(conn->l->fd, (void *)buf, len, 0,
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1) {
 			/* IO error, cleanup this listener */
 			loop->vmt->clear(loop, &conn->l->event);
+#ifdef USE_WINSOCK
+			closesocket(conn->l->fd);
+#else
 			close(conn->l->fd);
+#endif
 			conn->l->fd = -1;
 		}
 		/* Unlink this connection */
@@ -351,7 +367,7 @@ static void tcp_read_cb(void *userarg)
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 
-	if ((bytes_read = read(conn->fd, conn->read_pos, conn->to_read)) == -1) {
+	if ((bytes_read = recv(conn->fd, conn->read_pos, conn->to_read, 0)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return; /* Come back to do the read later */
 
@@ -400,9 +416,14 @@ static void tcp_read_cb(void *userarg)
 	else {
 		conn->to_answer++;
 
+		/* TODO: wish list item:
+		 * (void) getdns_dict_set_int64(
+		 *     request_dict, "request_id", intptr_t)conn);
+		 */
 		/* Call request handler */
 		conn->super.l->set->handler(
-		    conn->super.l->set->context, request_dict, (intptr_t)conn);
+		    conn->super.l->set->context, GETDNS_CALLBACK_COMPLETE,
+		    request_dict, conn->super.l->set->userarg, (intptr_t)conn);
 
 		conn->read_pos = conn->read_buf;
 		conn->to_read = 2;
@@ -460,7 +481,11 @@ static void tcp_accept_cb(void *userarg)
 	    &conn->super.remote_in, &conn->super.addrlen)) == -1) {
 		/* IO error, cleanup this listener */
 		loop->vmt->clear(loop, &l->event);
+#ifdef USE_WINSOCK
+		closesocket(l->fd);
+#else
 		close(l->fd);
+#endif
 		l->fd = -1;
 		GETDNS_FREE(*mf, conn);
 		return;
@@ -526,11 +551,15 @@ static void udp_read_cb(void *userarg)
 
 	conn->l = l;
 	conn->addrlen = sizeof(conn->remote_in);
-	if ((len = recvfrom(l->fd, buf, sizeof(buf), 0,
+	if ((len = recvfrom(l->fd, (void *)buf, sizeof(buf), 0,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
 		/* IO error, cleanup this listener. */
 		loop->vmt->clear(loop, &l->event);
+#ifdef USE_WINSOCK
+		closesocket(l->fd);
+#else
 		close(l->fd);
+#endif
 		l->fd = -1;
 
 #if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
@@ -618,8 +647,14 @@ static void udp_read_cb(void *userarg)
 		conn->prev_next = &l->connections;
 		l->connections = conn;
 
+		/* TODO: wish list item:
+		 * (void) getdns_dict_set_int64(
+		 *     request_dict, "request_id", (intptr_t)conn);
+		 */
 		/* Call request handler */
-		l->set->handler(l->set->context, request_dict, (intptr_t)conn);
+		l->set->handler(l->set->context, GETDNS_CALLBACK_COMPLETE,
+		    request_dict, l->set->userarg, (intptr_t)conn);
+
 		return;
 	}
 	GETDNS_FREE(*mf, conn);
@@ -636,7 +671,7 @@ static void free_listen_set_when_done(listen_set *set)
 	if (!(mf = &set->context->mf))
 		return;
 
-	DEBUG_SERVER("To free listen set: %p\n", set);
+	DEBUG_SERVER("To free listen set: %p\n", (void *)set);
 	for (i = 0; i < set->count; i++) {
 		listener *l = &set->items[i];
 
@@ -647,7 +682,7 @@ static void free_listen_set_when_done(listen_set *set)
 			return;
 	}
 	GETDNS_FREE(*mf, set);
-	DEBUG_SERVER("Listen set: %p freed\n", set);
+	DEBUG_SERVER("Listen set: %p freed\n", (void *)set);
 }
 
 static void remove_listeners(listen_set *set)
@@ -673,7 +708,11 @@ static void remove_listeners(listen_set *set)
 			continue;
 
 		loop->vmt->clear(loop, &l->event);
+#ifdef USE_WINSOCK
+		closesocket(l->fd);
+#else
 		close(l->fd);
+#endif
 		l->fd = -1;
 
 		if (l->transport != GETDNS_TRANSPORT_TCP)
@@ -692,7 +731,11 @@ static void remove_listeners(listen_set *set)
 
 static getdns_return_t add_listeners(listen_set *set)
 {
+#ifdef USE_WINSOCK
+	static const char enable = 1;
+#else
 	static const int  enable = 1;
+#endif
 
 	struct mem_funcs *mf;
 	getdns_eventloop *loop;
@@ -726,9 +769,9 @@ static getdns_return_t add_listeners(listen_set *set)
 			break;
 
 		if (setsockopt(l->fd, SOL_SOCKET, SO_REUSEADDR,
-		    &enable, sizeof(int)) < 0)
+		    &enable, sizeof(int)) < 0) {
 			; /* Ignore */
-
+		}
 		if (bind(l->fd, (struct sockaddr *)&l->addr,
 		    l->addr_len) == -1)
 			/* IO error */
@@ -765,9 +808,9 @@ ptr_cmp(const void *a, const void *b)
 	return a == b ? 0 : (a < b ? -1 : 1);
 }
 
-getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
-    getdns_request_handler_t request_handler,
-    const getdns_list *listen_addresses)
+getdns_return_t getdns_context_set_listen_addresses(
+    getdns_context *context, const getdns_list *listen_addresses,
+    void *userarg, getdns_request_handler_t request_handler)
 {
 	static const getdns_transport_list_t listen_transports[]
 		= { GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP };
@@ -786,10 +829,9 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	size_t i;
 	struct addrinfo hints;
 
-	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, %p, %p)\n",
-	    context, request_handler,
+	DEBUG_SERVER("getdns_context_set_listen_addresses(%p, <func>, %p)\n",
+	    (void *)context, (void *)listen_addresses);
 
-	    listen_addresses);
 	if (!(mf = &context->mf))
 		return GETDNS_RETURN_GENERIC_ERROR;
 
@@ -826,10 +868,11 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 	_getdns_rbtree_init(&new_set->connections_set, ptr_cmp);
 
 	DEBUG_SERVER("New listen set: %p, current_set: %p\n",
-	    new_set, current_set);
+	    (void *)new_set, (void *)current_set);
 
 	new_set->context = context;
 	new_set->handler = request_handler;
+	new_set->userarg = userarg;
 	new_set->count = new_set_count * n_transports;
 	(void) memset(new_set->items, 0,
 	    sizeof(listener) * new_set_count * n_transports);
@@ -952,15 +995,16 @@ getdns_return_t getdns_context_set_listen_addresses(getdns_context *context,
 			connection *conn;
 
 			loop->vmt->clear(loop, &l->to_replace->event);
-			(void) memset(&l->to_replace->event, 0,
-			    sizeof(getdns_eventloop_event));
 
 			l->fd = l->to_replace->fd;
 			l->event = l->to_replace->event;
+			l->event.userarg = l;
 			l->connections = l->to_replace->connections;
 			for (conn = l->connections; conn; conn = conn->next)
 				conn->l = l;
 
+			(void) memset(&l->to_replace->event, 0,
+			    sizeof(getdns_eventloop_event));
 			l->to_replace->connections = NULL;
 			l->to_replace->fd = -1;
 

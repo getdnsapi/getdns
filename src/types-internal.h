@@ -63,6 +63,10 @@ typedef enum getdns_auth_state {
 	GETDNS_AUTH_OK,        /* Tried and worked (Strict) */
 } getdns_auth_state_t;
 
+#define GETDNS_STR_AUTH_NONE "None"
+#define GETDNS_STR_AUTH_FAILED "Failed"
+#define GETDNS_STR_AUTH_OK "Success"
+
 struct getdns_context;
 struct getdns_upstreams;
 struct getdns_upstream;
@@ -115,12 +119,11 @@ struct getdns_upstream;
 #define GETDNS_STR_KEY_NSCOUNT "nscount"
 #define GETDNS_STR_KEY_ARCOUNT "arcount"
 
-#define TIMEOUT_FOREVER ((int64_t)-1)
+#define TIMEOUT_FOREVER ((uint64_t)0xFFFFFFFFFFFFFFFF)
 #define ASSERT_UNREACHABLE 0
 
 #define GETDNS_TRANSPORTS_MAX 3
 #define GETDNS_UPSTREAM_TRANSPORTS 2
-#define GETDNS_CONN_ATTEMPTS 2
 #define GETDNS_TRANSPORT_FAIL_MULT 5
 
 
@@ -179,7 +182,6 @@ typedef struct getdns_tcp_state {
 
 } getdns_tcp_state;
 
-
 /**
  * Request data
  **/
@@ -187,6 +189,12 @@ typedef struct getdns_network_req
 {
 	/* For storage in upstream->netreq_by_query_id */
 	_getdns_rbnode_t node;
+#ifdef HAVE_MDNS_SUPPORT
+	/*
+	 * for storage of continuous query context in hash table of cached results. 
+	 */
+	struct getdns_network_req * mdns_netreq_next;
+#endif /* HAVE_MDNS_SUPPORT */
 	/* the async_id from unbound */
 	int unbound_id;
 	/* state var */
@@ -218,7 +226,6 @@ typedef struct getdns_network_req
 	size_t                  transport_current;
 	getdns_tls_authentication_t  tls_auth_min;
 	getdns_eventloop_event  event;
-	uint16_t                query_id;
 
 	int                     edns_maximum_udp_payload_size;
 	uint16_t                max_udp_payload_size;
@@ -232,6 +239,7 @@ typedef struct getdns_network_req
 	uint64_t                debug_start_time;
 	uint64_t                debug_end_time;
 	getdns_auth_state_t     debug_tls_auth_status;
+	getdns_bindata          debug_tls_peer_cert;
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
@@ -263,6 +271,7 @@ typedef struct getdns_network_req
 static inline int _getdns_netreq_finished(getdns_network_req *req)
 { return !req || (req->state & NET_REQ_FINISHED); }
 
+struct chain_head;
 /**
  * dns request - manages a number of network requests and
  * the initial data passed to getdns_general
@@ -283,29 +292,28 @@ typedef struct getdns_dns_req {
 	getdns_append_name_t append_name;
 	const uint8_t *suffix;
 	size_t  suffix_len;
-	int suffix_appended			: 1;
-
-	/* canceled flag */
-	int canceled				: 1;
+	unsigned suffix_appended			: 1;
 
 	/* request extensions */
-	int dnssec_return_status		: 1;
-	int dnssec_return_only_secure		: 1;
-	int dnssec_return_all_statuses		: 1;
-	int dnssec_return_validation_chain	: 1;
-	int dnssec_return_full_validation_chain	: 1;
+	unsigned dnssec_return_status			: 1;
+	unsigned dnssec_return_only_secure		: 1;
+	unsigned dnssec_return_all_statuses		: 1;
+	unsigned dnssec_return_validation_chain		: 1;
+	unsigned dnssec_return_full_validation_chain	: 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
-	int dnssec_roadblock_avoidance		: 1;
-	int avoid_dnssec_roadblocks		: 1;
+	unsigned dnssec_roadblock_avoidance		: 1;
+	unsigned avoid_dnssec_roadblocks		: 1;
 #endif
-	int edns_cookies			: 1;
-	int edns_client_subnet_private		: 1;
-	int return_call_reporting		: 1;
-	int add_warning_for_bad_dns		: 1;
+	unsigned edns_cookies				: 1;
+	unsigned edns_client_subnet_private		: 1;
+	unsigned return_call_reporting			: 1;
+	unsigned add_warning_for_bad_dns		: 1;
 
 	/* Internally used by return_validation_chain */
-	int dnssec_ok_checking_disabled		: 1;
-	int is_sync_request			: 1;
+	unsigned dnssec_ok_checking_disabled		: 1;
+	unsigned is_sync_request			: 1;
+	unsigned is_dns_request				: 1;
+	unsigned request_timed_out			: 1;
 
 	/* The validating and freed variables are used to make sure a single
 	 * code path is followed while processing a DNS request, even when
@@ -315,8 +323,11 @@ typedef struct getdns_dns_req {
 	 * validating is touched by _getdns_get_validation_chain only and
 	 * freed      is touched by _getdns_submit_netreq only
 	 */
-	int validating                          : 1;
+	unsigned validating				: 1;
 	int *freed;
+
+	/* Validation chain to be canceled when this request is canceled */
+	struct chain_head *chain;
 
 	uint16_t tls_query_padding_blocksize;
 
@@ -332,6 +343,11 @@ typedef struct getdns_dns_req {
 
 	/* the transaction id */
 	getdns_transaction_t trans_id;
+
+	/* Absolute time (in milliseconds since epoch),
+	 * after which this dns request is expired; i.e. timed out
+	 */
+	uint64_t expires;
 
 	/* for scheduling timeouts when using libunbound */
 	getdns_eventloop_event timeout;
@@ -403,7 +419,7 @@ extern getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions);
+    const char *name, uint16_t request_type, getdns_dict *extensions, uint64_t *now_ms);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
 
@@ -418,6 +434,8 @@ size_t _getdns_network_req_add_tsig(getdns_network_req *req);
 void _getdns_network_validate_tsig(getdns_network_req *req);
 
 void _getdns_netreq_reinit(getdns_network_req *netreq);
+
+const char * _getdns_auth_str(getdns_auth_state_t auth);
 
 #endif
 /* types-internal.h */

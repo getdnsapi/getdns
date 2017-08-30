@@ -1,0 +1,20 @@
+# #-- 400-static-analysis.post --#
+# source the master var file when it's there
+if [ -f ../.tpkg.var.master ]
+then
+	source ../.tpkg.var.master
+else
+	(
+		cd ..
+		[ -f  "${TPKG_SRCDIR}/setup-env.sh" ] \
+		    && sh "${TPKG_SRCDIR}/setup-env.sh"
+	) && source ../.tpkg.var.master
+fi
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+for f in `cat restore-srcdir-configure-settings`
+do
+	mv "${SRCROOT}/${f}.build-static-analysis" "${SRCROOT}/${f}"
+done
+

@@ -1,0 +1,58 @@
+# #-- 070-coding-practice.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+rm -f report.txt
+(
+ 	cd ${SRCROOT}
+	find . -type f -executable -and \( -name "*.[ch]" -or -name "*.html" -or -name "*.in" -or -name "*.good" -or -name "*.ac" \) | sed 's/^/*** ERROR! Executable bit found on /g'
+) >> report.txt
+(
+ 	cd ${SRCROOT}/src
+	if [ `grep '[^!=]=[ 	][ 	]*NET_REQ_' *.[ch] */*.[ch] | wc -l` -gt 1 ]
+	then
+		echo "*** "
+		echo "*** Setting getdns_network_req->state should be done via"
+		echo "*** _getdns_netreq_change_state() only, for anticipating"
+		echo "*** running out of filedescriptors (sockets) and for the"
+		echo "*** limit_outstanding_queries feature."
+		echo "*** "
+		grep -n '[^!=]=[ 	][ 	]*NET_REQ_' *.[ch] */*.[ch] | \
+		    grep -v '^request-internal.c:[12][0-9][0-9]:	*net_req->state = NET_REQ_NOT_SENT;$'
+		echo ""
+	fi
+) >> report.txt
+(
+ 	cd ${SRCROOT}/src
+	if [ `grep '__FUNCTION__' *.[ch] */*.[ch] | wc -l` -gt 0 ]
+	then
+		echo "*** "
+		echo "*** Use __FUNC__ instead of __FUNCTION__ for portability"
+		echo "*** __FUNC__ is aliases in config.h to name to be used"
+		echo "*** for the system with a #define"
+		echo "*** "
+		grep -n '__FUNCTION__' *.[ch] */*.[ch]
+		echo ""
+	fi
+) >> report.txt
+(
+ 	cd ${SRCROOT}/src
+	if [ `grep '^#define[ 	]*INTERCEPT_COM_DS[ 	]*1' stub.c | wc -l` -gt 0 ]
+	then
+		echo "*** "
+		echo "*** The repo contained the COM DS queries interception"
+		echo "*** with TLS transports turned on, this should be off"
+		echo "*** "
+		grep -n '^#define[ 	]INTERCEPT_COM_DS[ 	]*1' stub.c
+		echo ""
+	fi
+) >> report.txt
+
+
+if [ -s report.txt ]
+then
+	cat report.txt
+	false
+fi

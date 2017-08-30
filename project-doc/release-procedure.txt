@@ -1,168 +1,93 @@
-High level release procedure that we follow to make a formal release for the
-getdns API project.  This is a recipe - if you have a better way to do it then
-update this document and share it with us.
+High level release procedure for formal release for the getdns API project.  
 
-- code freeze
-    confirm with core team that all commits are in, from this point forward
-    only bug fixes should be committed to the release branch, once the release
-    is cut nothing should be committed to the release branch (make a new release)
+1) Git branching for a release
+    -- Confirm with core team (preferably via email) that all commits to be included
+    in the release are in the develop branch. Development for the next release can
+    continue on develop.
+    -- Create a release branch. We use the pattern "release/v1.0.0-b3" for naming
+    release branches. This branch is used for testing
+ 	and bug fixing while preparing the release (which can take several days
+    if there are un-foreseen issues). Note that from this point forward _only_ 
+    bug fixes for this release should be committed to the release branch. 
+    -- Once the release is published there should be no further commits on that
+       release branch.
 
-- create a release branch
-    in git repository named for the release, e.g. "v0.1.2"
-    we do this because folks may want to continue to work in the master branch
-    and be free to commit changes without injuring the release process.  Since
-    building and testing binaries for a release takes a few days we don't want to
-    force changes to queue up.
+2) Prepare the release
+	-- Clone the upstream to a _new_ local  directory. (Do NOT re-use and 
+	existing working copy as this can lead to issues).
 
-    One might argue that a release can be cut more quickly, however there are 
-    inevitably little tweaks that need to be made that get uncovered as a result
-    of the binary builds - these tweaks need to be included in the souces for
-    this release so building the source tarball can't be done until all of the
-    binaries have been built and tested.
+    # git clone -b v1.0.0-b3 https://github.com/getdnsapi/getdns.git getdns-1.0.0-b3
 
-- clone repo release branch to a clean local repo
-    this should be a brand spanking new directory - don't try to shortcut it and
-    use a working directory with lots of cruft - crap will find its way into the
-    release and embarass you:
+    -- Update several files to reflect release number/date
+	    ./README.md
+	    ./ChangeLog 
+	    ./configure.ac 
+	      - Check and change the values for:
+	        - AC_INIT
+	        - RELEASE_CANDIDATE
+	        - GETDNS_NUMERIC_VERSION
+		- API_VERSION and API_NUMERUC_VERSION
+		- read the section "Library version" and update GETDNS_LIBVERSION carefully!
 
-    # git clone -b v0.1.2 https://github.com/getdnsapi/getdns.git getdns-0.1.2
+	    # autoreconf -fi
 
-- update files to reflect release number/date
-    ./README.md
-    ./ChangeLog 
-    ./configure.ac (AC_INIT)
-    ./src/Makefile.in (-version-info, follow libtool guidelines)
+	    Commit these changes to the release branch
 
-    # make clean
-    # autoreconf
+	    # git commit -a -m "release number and date updates"
+	    # git push
 
-    commit these changes to the release branch
+3) Test
+	The unit and tpkg tests should be run on all the supported platforms.  They must all
+	be able to fulfil all requirements. So they must have libidn, libev, libuv, libevent,
+	latest libunbound, latest openssl (at least 1.0.2) latest clang compiler
+	(for static analysis), latest valgrind.  The tests can be run using:
 
-    # git commit -a -m "release number and date updates"
-    # git push
+	# ${GETDNS_SRCDIR}/src/test/tpkg/run-all.sh
 
-- prepare to build binaries for each target platform
-  you need to remove libs and headers that might be lingering from previous builds
-  to avoid accidentally including the wrong headers or linking the wrong libs
+	and evaluating the results.
 
-    - create clean local repo
-
-- build source distribution tar
+4) Build and sign source distribution tarball
+    # rm -fr *
+    # git reset --hard
+    # git submodule update --init
+    # autoreconf -fi
+    # libtoolize -ci
     # ./configure
-    # make dist
-    # openssl sha1 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.sha1
-    # openssl md5 getdns-0.1.2.tar.gz > getdns-0.1.2.tar.gz.md5
-    # gpg --armor --detach-sig --default-key gwiley@verisign.com getdns-0.1.2.tar.gz
+    # make pub
 
-    - test the resulting tar by building it and running the regression tests
+    The resulting tarball must be built, installed and tested on all the supported
+	platforms. Be sure to use a user that was NOT used for the build, this will uncover 
+    any issues related to absolute paths in the build
 
-- build CentOS binary
-    # tar -xzvf getdns-0.1.2.tar.gz
-    # cd getdns-0.1.2
-    # ./configure --with-libevent --prefix=$HOME/build
-    # make
-    # make install
-    # cd ~/build
-    - fix the libdir path in the *.la files to point to /usr/local/lib
-    - fix the dependency_libs entry in the *.la files to point to /usr/local/lib
-    # fpm -x "*.la" -a native -s dir --rpm-sign -t rpm -n getdns -v 0.1.2 -d "unbound" -d "ldns" -d "libevent" -d "libidn" --prefix /usr/local --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "http://www.getdnsapi.net" --description "Modern asynchronous API to the DNS" .
-        - make sure your signing key is in the keyring on the build machine
-        - contents of ~/.rpmmacros
-            %_signature gpg
-            %_gpg_path /root/.gnupg
-            %_gpg_name A6B73532
-            %_gpgbin /usr/bin/gpg
+5) Fix any problems
+	-- If a build breaks or an install fails then commit fixes to the release branch.
+	Then re-run steps 3 and 4 for all supported platforms using the new code.
 
-    - name the rpm and checksum files something like this:
-      getdns-0.1.3-1.CentOS_6_5.x86_64.rpm
-      getdns-0.1.3-1.CentOS_6_5.x86_64.rpm.sha1
-      getdns-0.1.3-1.CentOS_6_5.x86_64.rpm.md5
-    - check the signature
-    - install
-    - test
+6) Merge branch changes back into master/develop
+	-- If this is a production release - then the release branch must be merged into master
+	Sign the merge tag if possible. 
+	-- Now the release is ready, all the relevant commits on the release branch
+	should also be merged back into develop. 
 
-- build OSX binary disk image
+7) Create the tarball
+	# make clean
+	# make pub
+	This generates getdns-1.0.0-b3.tar.gz + checksums + signatures.
 
-    - build code (no additional libraries, note that regression tests will not build)
-      if you are building a simple binary tar then something like this works
-      # ./configure --prefix=/Users/gwiley/getdnsox/export
-      # make
-      # make install
-      # tar -C /Users/gwiley/getdnsosx/export -cvf getdns-0.1.2.tar *
+8) Upload source tarball and checksums and signatures to the getdnsapi.net site
 
-    - build code (with libevent)
-      # ./configure --with-libevent2
+  	# scp getdns-1.0.0-b3.tar.gz* getdnsapi.net:/usr/local/www/apache24/data/dist
 
-    - run regression tests and verify that alls well
+9) Create and push signed tags to github
 
-    if you have do do anything even mildly interesting to get the build or install to
-    work then we either have to add it to the README.md or, preferably, fix it
-    and update the branch
+  	# git -s v1.0.0-b3
+  	# git push --tags
 
-    Be careful about tool sets loaded on your build hosts.  You may have 'solved' 
-    problems while you are working that mask issues with the build for more typical
-    users - this is why we want to build on hosts that are representative of
-    our users.
+10) Update getdnsapi.net web site 
+	- Create an entry the the 'Checksum' page using the content of ChangeLog
+	- Create a new 'News' entry
 
-- install on each target platform
-    - make sure and use a user that was NOT used for the build, this will uncover 
-      any silliness related to absolute paths in the build
-
-- if a build breaks or an install fails then commit fixes to the relase branch
-  - rebuild EVERY binary using the changed release branch
-
-- merge branch changes back into master
-
-- once all binaries are built and tested clean, create source tar ball
-  and the actual package for each platform
-
-  you may need to run this as root to permit the chown
-  # make clean
-  # make dist
-  generates getdns-0.1.2.tar.gz
-
-- sign each binary/source tar using one or more developers keys
-    - make sure that the keys you use to sign the release are also up to date 
-      on the getdnsapi.net site
-
-- generate checksums for each binary/source tar
-
-- upload source and binaries to the getdnsapi.net site
-
-- create a release in the github repository
-    - from the main repo choose 'releases'
-    - choose 'Draft a new release'
-    - use tag v0.x.y to match the branch being released
-    - for a release name use v0.x.y
-    - for description cut/paste the ChangeLog entry
-    - check the 'pre-release' checkbox (unless this is a production release)
-
-- update getdnsapi.net web site 
-    - push binaries to getdnsapi.net 
-        /usr/local/www/apache24/data/dist
-    - news entry for the release
-        /usr/local/www/apache24/data/news.html
-    -  download links and checksums
-        /usr/local/www/apache24/data/frontpage.html
-    - rebuild website
-        # ./build.sh
-
-- announce message to
-    getdns mailing list
-    stub-resolvers mailing list
-    Verisign internal via the matrix
-
-- update the 
+11) Announce the release to the lists (make sure to sign the emails)
+    users@getdnsapi.net, spec@getdnsapi.net and maintainers@nlnetlabs.nl
 
 
-List of Build Targets
----------------------
-The naming conventions for each of these build products are specific to the
-platform they target.  The result is that the naming seems a little inconsistent,
-however I felt that it is best to follow naming standards for the platform rather
-than try to impose a project specific standard across platforms.
-
-- source tar: getdns-0.1.2.tar.gz
-- OSX binary package: getdns-0.1.2-OSX_10_8.dmg
-- RHEL/CentOS: getdns-0.1.0-1.CentOS_6_5.x86_64.rpm
-- Debian/Ubuntu:

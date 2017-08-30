@@ -104,6 +104,7 @@ getdns_libuv_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 	poll_timer   *my_ev = (poll_timer *)el_ev->ev;
 	uv_poll_t    *my_poll;
 	uv_timer_t   *my_timer;
+	(void)loop;
 	
 	assert(my_ev);
 
@@ -141,6 +142,7 @@ static void
 getdns_libuv_read_cb(uv_poll_t *poll, int status, int events)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
+	(void)status; (void)events;
         assert(el_ev->read_cb);
 	DEBUG_UV("enter libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
 	        , el_ev, el_ev->ev);
@@ -153,6 +155,7 @@ static void
 getdns_libuv_write_cb(uv_poll_t *poll, int status, int events)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
+	(void)status; (void)events;
         assert(el_ev->write_cb);
 	DEBUG_UV("enter libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
 	        , el_ev, el_ev->ev);

@@ -38,6 +38,9 @@
 #ifndef GETDNS_ON_WINDOWS
 #include <sys/mman.h>
 #endif
+#if defined(GETDNS_ON_WINDOWS) && !defined(MAP_INHERIT_ZERO)
+#define explicit_bzero(rnd, rnd_size) memset(rnd, 0, rnd_size)
+#endif
 
 #define KEYSTREAM_ONLY
 #include "chacha_private.h"
@@ -114,6 +117,9 @@ _rs_stir(void)
 #ifdef SIGKILL
 		raise(SIGKILL);
 #else
+#ifdef GETDNS_ON_WINDOWS
+		DebugBreak();
+#endif
 		exit(9); /* windows */
 #endif
 	}
@@ -125,6 +131,9 @@ _rs_stir(void)
 	explicit_bzero(rnd, sizeof(rnd));	/* discard source seed */
 
 	/* invalidate rs_buf */
+#ifdef GETDNS_ON_WINDOWS
+	_Analysis_assume_(rs != NULL);
+#endif
 	rs->rs_have = 0;
 	memset(rsx->rs_buf, 0, sizeof(rsx->rs_buf));
 
@@ -136,7 +145,15 @@ _rs_stir_if_needed(size_t len)
 {
 #ifndef MAP_INHERIT_ZERO
 	static pid_t _rs_pid = 0;
+#ifdef GETDNS_ON_WINDOWS
+	/* 
+	 * TODO: if compiling for the Windows Runtime, use GetCurrentProcessId(),
+	 * but this requires linking with kernel32.lib
+	 */
+	pid_t pid = _getpid();
+#else
 	pid_t pid = getpid();
+#endif
 
 	/* If a system lacks MAP_INHERIT_ZERO, resort to getpid() */
 	if (_rs_pid == 0 || _rs_pid != pid) {
@@ -147,6 +164,9 @@ _rs_stir_if_needed(size_t len)
 #endif
 	if (!rs || rs->rs_count <= len)
 		_rs_stir();
+#ifdef GETDNS_ON_WINDOWS
+	_Analysis_assume_(rs != NULL);
+#endif
 	if (rs->rs_count <= len)
 		rs->rs_count = 0;
 	else

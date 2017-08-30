@@ -36,7 +36,6 @@
 #define DEBUG_H
 
 #include "config.h"
-
 #define STUB_DEBUG_ENTRY     "=> ENTRY:       "
 #define STUB_DEBUG_SETUP     "--- SETUP:      "
 #define STUB_DEBUG_SETUP_TLS "--- SETUP(TLS): "
@@ -46,6 +45,21 @@
 #define STUB_DEBUG_WRITE     "------- WRITE:  "
 #define STUB_DEBUG_CLEANUP   "--- CLEANUP:    "
 
+#ifdef GETDNS_ON_WINDOWS
+#define DEBUG_ON(...) do { \
+		struct timeval tv; \
+		struct tm tm; \
+		char buf[10]; \
+        time_t tsec; \
+		\
+		gettimeofday(&tv, NULL); \
+		tsec = (time_t) tv.tv_sec; \
+		gmtime_s(&tm, (const time_t *) &tsec); \
+		strftime(buf, 10, "%H:%M:%S", &tm); \
+		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (0)
+#else
 #define DEBUG_ON(...) do { \
 		struct timeval tv; \
 		struct tm tm; \
@@ -57,6 +71,7 @@
 		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
+#endif
 
 #define DEBUG_NL(...) do { \
 		struct timeval tv; \
@@ -74,6 +89,31 @@
 
 #define DEBUG_OFF(...) do {} while (0)
 
+#if defined(REQ_DEBUG) && REQ_DEBUG
+#include <time.h>
+#define DEBUG_REQ(...) DEBUG_ON(__VA_ARGS__)
+#include "gldns/wire2str.h"
+#include "rr-dict.h"
+#include "types-internal.h"
+static inline void debug_req(const char *msg, getdns_network_req *netreq)
+{
+	char str[1024];
+	struct timeval tv;
+	uint64_t t;
+
+	(void) gettimeofday(&tv, NULL);
+	t = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+	t = t >= netreq->owner->expires ? 0 : netreq->owner->expires - t;
+	(void) gldns_wire2str_dname_buf(netreq->owner->name,
+	    netreq->owner->name_len, str, sizeof(str));
+	DEBUG_REQ("NETREQ %s %4"PRIu64" %s %s\n", msg, t,
+	    str, _getdns_rr_type_name(netreq->request_type));
+}
+#else
+#define DEBUG_REQ(...) DEBUG_OFF(__VA_ARGS__)
+#define debug_req(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 #if defined(SCHED_DEBUG) && SCHED_DEBUG
 #include <time.h>
 #define DEBUG_SCHED(...) DEBUG_ON(__VA_ARGS__)
@@ -88,6 +128,13 @@
 #define DEBUG_STUB(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
+#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
+#include <time.h>
+#define DEBUG_DAEMON(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_DAEMON(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 #if defined(SEC_DEBUG) && SEC_DEBUG
 #include <time.h>
 #define DEBUG_SEC(...) DEBUG_ON(__VA_ARGS__)
@@ -100,6 +147,29 @@
 #define DEBUG_SERVER(...) DEBUG_ON(__VA_ARGS__)
 #else
 #define DEBUG_SERVER(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#define MDNS_DEBUG_ENTRY     "-> MDNS ENTRY:  "
+#define MDNS_DEBUG_READ      "-- MDNS READ:   "
+#define MDNS_DEBUG_MREAD      "-- MDNS MREAD:  "
+#define MDNS_DEBUG_WRITE     "-- MDNS WRITE:  "
+#define MDNS_DEBUG_CLEANUP   "-- MDNS CLEANUP:"
+
+#if defined(MDNS_DEBUG) && MDNS_DEBUG
+#include <time.h>
+#define DEBUG_MDNS(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
+#if (defined(REQ_DEBUG)    && REQ_DEBUG)    || \
+    (defined(SCHED_DEBUG)  && SCHED_DEBUG)  || \
+    (defined(STUB_DEBUG)   && STUB_DEBUG)   || \
+    (defined(DAEMON_DEBUG) && DAEMON_DEBUG) || \
+    (defined(SEC_DEBUG)    && SEC_DEBUG)    || \
+    (defined(SERVER_DEBUG) && SERVER_DEBUG) || \
+    (defined(MDNS_DEBUG)   && MDNS_DEBUG)
+#define DEBUGGING 1
 #endif
 
 #endif

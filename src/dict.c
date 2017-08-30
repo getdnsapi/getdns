@@ -51,10 +51,11 @@
 #include "const-info.h"
 #include "gldns/gbuffer.h"
 #include "gldns/wire2str.h"
+#include "gldns/parseutil.h"
 
 
 static char *_json_ptr_first(const struct mem_funcs *mf,
-    const char *jptr, char *first, size_t first_sz)
+    const char *jptr, char *first, ssize_t first_sz)
 {
 	const char *next_ref, *k;
 	char *j;
@@ -65,7 +66,7 @@ static char *_json_ptr_first(const struct mem_funcs *mf,
 	if (!(next_ref = strchr(jptr, '/')))
 		next_ref = strchr(jptr, '\0');
 
-	if (next_ref - jptr + 1 > first_sz || !first)
+	if ((ssize_t)(next_ref - jptr + 1) > first_sz || !first)
 		first = GETDNS_XMALLOC(*mf, char, next_ref - jptr + 1);
 
 	for (j = first, k = jptr; k < next_ref; j++, k++)
@@ -731,18 +732,44 @@ _getdns_bindata_is_dname(getdns_bindata *bindata)
 		bindata->data[bindata->size - 1] == 0;
 }
 
+static int
+getdns_pp_base64(gldns_buffer *buf, getdns_bindata *bindata)
+{
+	size_t p = gldns_buffer_position(buf);
+	size_t base64str_sz;
+	char *target;
+	size_t avail;
+
+	if (gldns_buffer_printf(buf, " <bindata of ") < 0)
+		return -1;
+
+	base64str_sz = gldns_b64_ntop_calculate_size(bindata->size);
+	target = (char *)gldns_buffer_current(buf);
+	avail = gldns_buffer_remaining(buf);
+	if (avail >= base64str_sz)
+		gldns_buffer_skip(buf, gldns_b64_ntop(
+		    bindata->data, bindata->size,
+		    target, base64str_sz));
+	else
+		gldns_buffer_skip(buf, base64str_sz);
+
+	if (gldns_buffer_printf(buf, ">") < 0)
+		return -1;
+
+	return gldns_buffer_position(buf) - p;
+}
+
 /*---------------------------------------- getdns_pp_bindata */
 /**
  * private function to pretty print bindata to a gldns_buffer
  * @param buf     buffer to write to
- * @param indent  number of spaces to append after newline
  * @param bindata the bindata to print
  * @return        on success the number of written characters
  *                if an output error is encountered, a negative value
  */
 static int
-getdns_pp_bindata(gldns_buffer *buf, size_t indent,
-	getdns_bindata *bindata, int rdata_raw, int json)
+getdns_pp_bindata(gldns_buffer *buf, getdns_bindata *bindata,
+    int rdata_raw, int json)
 {
 	size_t i, p = gldns_buffer_position(buf);
 	uint8_t *dptr;
@@ -887,7 +914,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 			    GETDNS_RETURN_GOOD)
 				return -1;
 			if (getdns_pp_bindata(
-			    buf, indent, bindata_item, 0, json) < 0)
+			    buf, bindata_item, 0, json) < 0)
 				return -1;
 			break;
 
@@ -1095,8 +1122,18 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 				              )) < 0)
 					return -1;
 	
+			} else if (!json &&
+			    (strcmp(item->node.key, "pin-sha256") == 0 ||
+			     strcmp(item->node.key, "value") == 0) &&
+			     item->i.data.bindata->size > 0 &&
+			     item->i.data.bindata->size % 4 == 0) {
+
+				if (getdns_pp_base64(buf,
+				    item->i.data.bindata) < 0)
+					return -1;
+
 			} else if (getdns_pp_bindata(
-			    buf, indent, item->i.data.bindata,
+			    buf, item->i.data.bindata,
 			    (strcmp(item->node.key, "rdata_raw") == 0),
 			    json) < 0)
 				return -1;
@@ -1187,9 +1224,9 @@ getdns_pretty_snprint_dict(char *str, size_t size, const getdns_dict *dict)
 
 	if (!dict) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_dict(&buf, 0, dict, 0) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 char *
@@ -1221,9 +1258,9 @@ getdns_pretty_snprint_list(char *str, size_t size, const getdns_list *list)
 
 	if (!list) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, 0) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 char *
@@ -1256,9 +1293,9 @@ getdns_snprint_json_dict(
 
 	if (!dict) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_dict(&buf, 0, dict, pretty ? 1 : 2) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 char *
@@ -1291,9 +1328,9 @@ getdns_snprint_json_list(
 
 	if (!list) return -1;
 
-	gldns_buffer_init_frm_data(&buf, str, size);
+	gldns_buffer_init_vfixed_frm_data(&buf, str, size);
 	return getdns_pp_list(&buf, 0, list, 0, pretty ? 1 : 2) < 0
-	     ? -1 : gldns_buffer_position(&buf);
+	     ? -1 : (int)gldns_buffer_position(&buf);
 }
 
 /* dict.c */

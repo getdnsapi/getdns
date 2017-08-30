@@ -43,18 +43,20 @@
 #include "debug.h"
 
 #ifdef HAVE_UNBOUND_EVENT_H
-#include <unbound-event.h>
+# include <unbound-event.h>
 #else
 struct ub_event_base_vmt;
 struct ub_event_base {
 	unsigned long magic;
         struct ub_event_base_vmt* vmt;
 };
-struct ub_event_base;
+# ifndef _UB_EVENT_PRIMITIVES
+#  define _UB_EVENT_PRIMITIVES
 struct ub_ctx* ub_ctx_create_ub_event(struct ub_event_base* base);
 typedef void (*ub_event_callback_t)(void*, int, void*, int, int, char*);
 int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
         int rrclass, void* mydata, ub_event_callback_t callback, int* async_id);
+# endif
 #endif
 
 typedef struct _getdns_ub_loop {

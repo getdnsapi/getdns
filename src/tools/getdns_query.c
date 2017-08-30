@@ -48,6 +48,20 @@ typedef unsigned short in_port_t;
 
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
+static int verbosity = 0;
+static int i_am_stubby = 0;
+static const char *default_stubby_config =
+"{ resolution_type: GETDNS_RESOLUTION_STUB"
+", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
+", idle_timeout: 10000"
+", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
+", tls_query_padding_blocksize: 1"
+", edns_client_subnet_private : 1"
+"}";
+static int clear_listen_list_on_arg = 0;
+#ifndef GETDNS_ON_WINDOWS
+static int run_in_foreground = 1;
+#endif
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -67,6 +81,8 @@ static uint16_t request_type = GETDNS_RRTYPE_NS;
 static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
+static int bogus_answers = 0;
+static int check_dnssec = 0;
 
 static int get_rrtype(const char *t)
 {
@@ -79,7 +95,7 @@ static int get_rrtype(const char *t)
 	if (strlen(t) > sizeof(buf) - 15)
 		return -1;
 	for (i = 14; *t && i < sizeof(buf) - 1; i++, t++)
-		buf[i] = toupper(*t);
+		buf[i] = *t == '-' ? '_' : toupper(*t);
 	buf[i] = '\0';
 
 	if (!getdns_str2int(buf, &rrtype))
@@ -119,8 +135,8 @@ static int get_rrclass(const char *t)
 }
 
 static getdns_return_t
-fill_transport_list(getdns_context *context, char *transport_list_str, 
-                    getdns_transport_list_t *transports, size_t *transport_count)
+fill_transport_list(char *transport_list_str,
+    getdns_transport_list_t *transports, size_t *transport_count)
 {
 	size_t max_transports = *transport_count;
 	*transport_count = 0;
@@ -151,13 +167,19 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
-	fprintf(out, "\ndefault mode: "
+	if (!i_am_stubby) {
+		fprintf(out, "\ndefault mode: "
 #ifdef HAVE_LIBUNBOUND
-	    "recursive"
+	            "recursive"
 #else
-	    "stub"
+	            "stub"
 #endif
-	    ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	            ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
+	}
+	else {
+		fprintf(out, "\ndefault mode: "
+			    "stub, asynchronous resolution \n\t\tusing TLS with UDP then TCP fallback\n");
+	}
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
@@ -182,26 +204,40 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
 	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
-	fprintf(out, "\t-a\tPerform asynchronous resolution "
-	    "(default = synchronous)\n");
-	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
-	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	if (!i_am_stubby) {
+		fprintf(out, "\t-a\tPerform asynchronous resolution "
+		    "(default = synchronous)\n");
+		fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+		fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
+	}
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
 	fprintf(out, "\t\tThe file must be in json dict format.\n");
+	if (i_am_stubby) {
+		fprintf(out, "\t\tBy default, configuration is first read from");
+		fprintf(out, "\n\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"\n");
+	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
-	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in miliseconds\n");
-	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in milliseconds\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
-	fprintf(out, "\t-G\tgeneral lookup\n");
-	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+#ifndef GETDNS_ON_WINDOWS
+	if (i_am_stubby)
+		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
+#endif
+	if (!i_am_stubby) {
+		fprintf(out, "\t-G\tgeneral lookup\n");
+		fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
+	}
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
-	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	if (!i_am_stubby)
+		fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
@@ -210,13 +246,19 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-p\tPretty print response dict\n");
-	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n");
+	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n"
+		"\t\t(special values: 0: no padding, 1: sensible default policy)\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
-	fprintf(out, "\t-r\tSet recursing resolution type\n");
+	fprintf( out, "\t-r\tSet recursing resolution type%s\n"
+	       , i_am_stubby ? "(default = stub)" : "");
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
-	fprintf(out, "\t-s\tSet stub resolution type (default = recursing)\n");
-	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
-	fprintf(out, "\t-t <timeout>\tSet timeout in miliseconds\n");
+	fprintf(out, "\t-s\tSet stub resolution type%s\n"
+	       , i_am_stubby ? "" : "(default = recursing)" );
+	if (!i_am_stubby)
+		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
+	fprintf(out, "\t-t <timeout>\tSet timeout in milliseconds\n");
+	fprintf(out, "\t-v\tPrint getdns release version\n");
+	fprintf(out, "\t-V\tIncrease verbosity (may be used more than once)\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
 
@@ -225,7 +267,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
 	fprintf(out, "\t-M\tAppend suffix only to multi label name after failure\n");
 	fprintf(out, "\t-N\tNever append a suffix\n");
-	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separed list\n");
+	fprintf(out, "\t-Z <suffixes>\tSet suffixes with the given comma separated list\n");
 
 	fprintf(out, "\t-T\tSet transport to TCP only\n");
 	fprintf(out, "\t-O\tSet transport to TCP only keep connections open\n");
@@ -234,11 +276,13 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-u\tSet transport to UDP with TCP fallback (default)\n");
 	fprintf(out, "\t-U\tSet transport to UDP only\n");
 	fprintf(out, "\t-l <transports>\tSet transport list. List can contain 1 of each of the characters\n");
-	fprintf(out, "\t\t\t U T L S for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
+	fprintf(out, "\t\t\t U T L for UDP, TCP or TLS e.g 'UT' or 'LTU' \n");
 	fprintf(out, "\t-z <listen address>\n");
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
 	fprintf(out, "\t\tThis option can be given more than once.\n");
+	if (i_am_stubby)
+		fprintf(out, "\t\t(default is to listen on 127.0.0.1:53)\n");
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -267,28 +311,29 @@ static getdns_return_t validate_chain(getdns_dict *response)
 	    response, "replies_tree", &replies_tree)))
 		goto error;
 
-	fprintf(stdout, "replies_tree dnssec_status: ");
+	if (verbosity) fprintf(stdout, "replies_tree dnssec_status: ");
 	switch ((s = getdns_validate_dnssec3(
 	    replies_tree, validation_chain, trust_anchor,
 	    time(NULL), 0, new_chain))) {
 
 	case GETDNS_DNSSEC_SECURE:
-		fprintf(stdout, "GETDNS_DNSSEC_SECURE\n");
+		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_SECURE\n");
 		break;
 	case GETDNS_DNSSEC_BOGUS:
-		fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+		bogus_answers += 1;
 		break;
 	case GETDNS_DNSSEC_INDETERMINATE:
-		fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
+		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
 		break;
 	case GETDNS_DNSSEC_INSECURE:
-		fprintf(stdout, "GETDNS_DNSSEC_INSECURE\n");
+		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_INSECURE\n");
 		break;
 	case GETDNS_DNSSEC_NOT_PERFORMED:
-		fprintf(stdout, "GETDNS_DNSSEC_NOT_PERFORMED\n");
+		if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_NOT_PERFORMED\n");
 		break;
 	default:
-		fprintf(stdout, "%d\n", (int)s);
+		if (verbosity) fprintf(stdout, "%d\n", (int)s);
 	}
 	if (new_chain) {
 		char *new_chain_str = getdns_pretty_print_list(new_chain);
@@ -301,27 +346,28 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		if ((r = getdns_list_set_dict(to_validate, 0, reply)))
 			goto error;
 
-		printf("reply "PRIsz", dnssec_status: ", i);
+		if (verbosity) printf("reply "PRIsz", dnssec_status: ", i);
 		switch ((s = getdns_validate_dnssec(
 		    to_validate, validation_chain, trust_anchor))) {
 
 		case GETDNS_DNSSEC_SECURE:
-			fprintf(stdout, "GETDNS_DNSSEC_SECURE\n");
+			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_SECURE\n");
 			break;
 		case GETDNS_DNSSEC_BOGUS:
-			fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_BOGUS\n");
+			bogus_answers += 1;
 			break;
 		case GETDNS_DNSSEC_INDETERMINATE:
-			fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
+			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_INDETERMINATE\n");
 			break;
 		case GETDNS_DNSSEC_INSECURE:
-			fprintf(stdout, "GETDNS_DNSSEC_INSECURE\n");
+			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_INSECURE\n");
 			break;
 		case GETDNS_DNSSEC_NOT_PERFORMED:
-			fprintf(stdout, "GETDNS_DNSSEC_NOT_PERFORMED\n");
+			if (verbosity) fprintf(stdout, "GETDNS_DNSSEC_NOT_PERFORMED\n");
 			break;
 		default:
-			fprintf(stdout, "%d\n", (int)s);
+			if (verbosity) fprintf(stdout, "%d\n", (int)s);
 		}
 	}
 	if (r == GETDNS_RETURN_NO_SUCH_LIST_ITEM)
@@ -337,20 +383,30 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
     getdns_dict *response, void *userarg, getdns_transaction_t trans_id)
 {
 	char *response_str;
+	(void)context; (void)userarg;
 
 	/* This is a callback with data */;
 	if (response && !quiet && (response_str = json ?
 	    getdns_print_json_dict(response, json == 1)
 	  : getdns_pretty_print_dict(response))) {
 
-		fprintf(stdout, "ASYNC response:\n%s\n", response_str);
+		fprintf(stdout, "%s\n", response_str);
+		if (verbosity) fprintf(stdout, "ASYNC call completed.\n");
 		validate_chain(response);
 		free(response_str);
 	}
 
 	if (callback_type == GETDNS_CALLBACK_COMPLETE) {
-		printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successfull.\n",
+		if (verbosity) printf("Response code was: GOOD. Status was: Callback with ID %"PRIu64"  was successful.\n",
 			trans_id);
+		if (check_dnssec) {
+			uint32_t dnssec_status = GETDNS_DNSSEC_SECURE;
+
+	    		(void )getdns_dict_get_int(response,
+			    "/replies_tree/0/dnssec_status", &dnssec_status);
+			if (dnssec_status == GETDNS_DNSSEC_BOGUS)
+				bogus_answers += 1;
+		}
 
 	} else if (callback_type == GETDNS_CALLBACK_CANCEL)
 		fprintf(stderr,
@@ -365,7 +421,6 @@ void callback(getdns_context *context, getdns_callback_type_t callback_type,
 			getdns_get_errorstr_by_id(callback_type));
 	}
 	getdns_dict_destroy(response);
-	response = NULL;
 }
 
 #define CONTINUE ((getdns_return_t)-2)
@@ -475,10 +530,53 @@ static void parse_config(const char *config_str)
 	}
 }
 
+int parse_config_file(const char *fn, int report_open_failure)
+{
+	FILE *fh;
+	char *config_file = NULL;
+	long config_file_sz;
+
+	if (!(fh = fopen(fn, "r"))) {
+		if (report_open_failure)
+			fprintf( stderr, "Could not open \"%s\": %s\n"
+			       , fn, strerror(errno));
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	if (fseek(fh, 0,SEEK_END) == -1) {
+		perror("fseek");
+		fclose(fh);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	config_file_sz = ftell(fh);
+	if (config_file_sz <= 0) {
+		/* Empty config is no config */
+		fclose(fh);
+		return GETDNS_RETURN_GOOD;
+	}
+	if (!(config_file = malloc(config_file_sz + 1))){
+		fclose(fh);
+		fprintf(stderr, "Could not allocate memory for \"%s\"\n", fn);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	rewind(fh);
+	if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
+		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
+		       , fn, strerror(errno));
+		fclose(fh);
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	config_file[config_file_sz] = 0;
+	fclose(fh);
+	parse_config(config_file);
+	free(config_file);
+	return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t parse_args(int argc, char **argv)
 {
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	size_t i, j, klass;
+	size_t j;
+	int i, klass;
 	char *arg, *c, *endptr;
 	int t, print_api_info = 0, print_trust_anchors = 0;
 	getdns_list *upstream_list = NULL;
@@ -489,8 +587,6 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
-	char *config_file = NULL;
-	long config_file_sz;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -499,6 +595,9 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] == '+') {
+			if (strncmp(arg+1, "dnssec_", 7) == 0)
+				check_dnssec = 1;
+
 			if (arg[1] == 's' && arg[2] == 'i' && arg[3] == 't' &&
 			   (arg[4] == '=' || arg[4] == '\0')) {
 				if ((r = set_cookie(extensions, arg+4))) {
@@ -601,42 +700,7 @@ getdns_return_t parse_args(int argc, char **argv)
 					    "after -C\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				if (!(fh = fopen(argv[i], "r"))) {
-					fprintf(stderr, "Could not open \"%s\""
-					    ": %s\n",argv[i], strerror(errno));
-					return GETDNS_RETURN_GENERIC_ERROR;
-				}
-				if (fseek(fh, 0,SEEK_END) == -1) {
-					perror("fseek");
-					fclose(fh);
-					return GETDNS_RETURN_GENERIC_ERROR;
-				}
-				config_file_sz = ftell(fh);
-				if (config_file_sz <= 0) {
-					/* Empty config is no config */
-					fclose(fh);
-					break;
-				}
-				if (!(config_file=malloc(config_file_sz + 1))){
-					fclose(fh);
-					fprintf(stderr, "Could not allocate me"
-					    "mory for \"%s\"\n", argv[i]);
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				rewind(fh);
-				if (fread(config_file, 1, config_file_sz, fh)
-				    != config_file_sz) {
-					fprintf(stderr, "An error occurred whil"
-					    "e reading \"%s\": %s\n",argv[i],
-					    strerror(errno));
-					fclose(fh);
-					return GETDNS_RETURN_MEMORY_ERROR;
-				}
-				config_file[config_file_sz] = 0;
-				fclose(fh);
-				parse_config(config_file);
-				free(config_file);
-				config_file = NULL;
+				(void) parse_config_file(argv[i], 1);
 				break;
 			case 'D':
 				(void) getdns_context_set_edns_do_bit(context, 1);
@@ -761,6 +825,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				goto next;
 			case 'p':
 				json = 0;
+				break;
 			case 'q':
 				quiet = 1;
 				break;
@@ -819,6 +884,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_timeout(
 					context, timeout);
 				goto next;
+			case 'v':
+				fprintf(stdout, "Version %s\n", GETDNS_VERSION);
+				return CONTINUE;
 			case 'x': 
 				getdns_context_set_follow_redirects(
 				    context, GETDNS_REDIRECTS_DO_NOT_FOLLOW);
@@ -916,7 +984,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				getdns_transport_list_t transports[10];
 				size_t transport_count = sizeof(transports);
-				if ((r = fill_transport_list(context, argv[i], transports, &transport_count)) ||
+				if ((r = fill_transport_list(argv[i], transports, &transport_count)) ||
 				    (r = getdns_context_set_dns_transport_list(context, 
 				                                               transport_count, transports))){
 						fprintf(stderr, "Could not set transports\n");
@@ -926,6 +994,9 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'B':
 				batch_mode = 1;
 				break;
+			case 'V':
+				verbosity += 1;
+				break;
 
 			case 'z':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
@@ -933,17 +1004,23 @@ getdns_return_t parse_args(int argc, char **argv)
 					                "expected after -z\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
-				if (argv[i][0] == '-' && argv[i][1] == '\0') {
+				if (clear_listen_list_on_arg ||
+				    (argv[i][0] == '-' && argv[i][1] == '\0')) {
 					if (listen_list && !listen_dict)
 						getdns_list_destroy(
 						    listen_list);
 					listen_list = NULL;
 					listen_count = 0;
-					touched_listen_list = 1;
-					DEBUG_SERVER("Clear listen list\n");
-					break;
+					if (!clear_listen_list_on_arg) {
+						touched_listen_list = 1;
+						DEBUG_SERVER("Clear listen list\n");
+						break;
+					} else if (listen_dict) {
+						getdns_dict_destroy(listen_dict);
+						listen_dict = NULL;
+					}
+					clear_listen_list_on_arg = 0;
 				}
-
 				if ((r = getdns_str2dict(argv[i], &downstream)))
 					fprintf(stderr, "Could not convert \"%s\" to "
 					    "an IP dict: %s\n", argv[i],
@@ -972,6 +1049,12 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				break;
 			default:
+#ifndef GETDNS_ON_WINDOWS
+				if (i_am_stubby && *c == 'g') {
+					run_in_foreground = 0;
+					break;
+				}
+#endif
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
 				for (i = 0; i < argc; i++)
@@ -986,13 +1069,13 @@ next:		;
 	if (pubkey_pinset && upstream_count) {
 		getdns_dict *upstream;
 		/* apply the accumulated pubkey pinset to all upstreams: */
-		for (i = 0; i < upstream_count; i++) {
-			if (r = getdns_list_get_dict(upstream_list, i, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", i);
+		for (j = 0; j < upstream_count; j++) {
+			if (r = getdns_list_get_dict(upstream_list, j, &upstream), r) {
+				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", j);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", i);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", j);
 				return r;
 			}
 		}
@@ -1008,7 +1091,24 @@ next:		;
 	if (print_api_info) {
 		getdns_dict *api_information = 
 		    getdns_context_get_api_information(context);
-		char *api_information_str =
+		char *api_information_str;
+	       
+		if (listen_dict && !getdns_dict_get_list(
+		    listen_dict, "listen_list", &listen_list)) {
+
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+		} else if (listen_list) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+
+		} else if ((listen_list = getdns_list_create())) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+			getdns_list_destroy(listen_list);
+			listen_list = NULL;
+		}
+		api_information_str =
 		    getdns_pretty_print_dict(api_information);
 		fprintf(stdout, "%s\n", api_information_str);
 		free(api_information_str);
@@ -1115,8 +1215,9 @@ getdns_return_t do_the_call(void)
 			    getdns_print_json_dict(response, json == 1)
 			  : getdns_pretty_print_dict(response))) {
 
-				fprintf( stdout, "SYNC response:\n%s\n"
-				       , response_str);
+				fprintf( stdout, "%s\n", response_str);
+				if (verbosity) fprintf( stdout, "SYNC call completed.\n");
+
 				validate_chain(response);
 				free(response_str);
 			} else {
@@ -1126,10 +1227,21 @@ getdns_return_t do_the_call(void)
 			}
 		}
 		getdns_dict_get_int(response, "status", &status);
-		fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
+		if (verbosity)
+			fprintf(stdout, "Response code was: GOOD. Status was: %s\n", 
 			 getdns_get_errorstr_by_id(status));
-		if (response)
+		if (response) {
+			if (check_dnssec) {
+				uint32_t dnssec_status = GETDNS_DNSSEC_SECURE;
+
+				(void )getdns_dict_get_int(response,
+				    "/replies_tree/0/dnssec_status",
+				    &dnssec_status);
+				if (dnssec_status == GETDNS_DNSSEC_BOGUS)
+					bogus_answers += 1;
+			}
 			getdns_dict_destroy(response);
+		}
 	}
 	getdns_dict_destroy(address);
 	return r;
@@ -1138,7 +1250,8 @@ getdns_return_t do_the_call(void)
 getdns_eventloop *loop = NULL;
 FILE *fp;
 static void incoming_request_handler(getdns_context *context,
-    getdns_dict *request, getdns_transaction_t request_id);
+    getdns_callback_type_t callback_type, getdns_dict *request,
+    void *userarg, getdns_transaction_t request_id);
 
 
 void read_line_cb(void *userarg)
@@ -1150,15 +1263,16 @@ void read_line_cb(void *userarg)
 	int linec;
 
 	if (!fgets(line, 1024, fp) || !*line) {
-		if (query_file)
+		if (query_file && verbosity)
 			fprintf(stdout,"End of file.");
 		loop->vmt->clear(loop, read_line_ev);
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
-			    context, NULL, NULL);
+			    context, NULL, NULL, NULL);
+		(void) getdns_context_set_idle_timeout(context, 0);
 		return;
 	}
-	if (query_file)
+	if (query_file && verbosity)
 		fprintf(stdout,"Found query: %s", line);
 
 	linev[0] = __FILE__;
@@ -1171,7 +1285,8 @@ void read_line_cb(void *userarg)
 		return;
 	}
 	if (*token == '#') {
-		fprintf(stdout,"Result:      Skipping comment\n");
+		if (verbosity)
+			fprintf(stdout,"Result:      Skipping comment\n");
 		if (! query_file) {
 			printf("> ");
 			fflush(stdout);
@@ -1185,7 +1300,7 @@ void read_line_cb(void *userarg)
 	r = parse_args(linec, linev);
 	if (!r && touched_listen_list) {
 		r = getdns_context_set_listen_addresses(
-		    context, incoming_request_handler, listen_list);
+		    context, listen_list, NULL, incoming_request_handler);
 	}
 	if ((r || (r = do_the_call())) &&
 	    (r != CONTINUE && r != CONTINUE_ERROR))
@@ -1285,9 +1400,23 @@ static void request_cb(
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 	uint32_t n, rcode, dnssec_status;
 
+#if defined(SERVER_DEBUG) && SERVER_DEBUG
+	getdns_bindata *qname;
+	char *qname_str, *unknown_qname = "<unknown_qname>";
+
+	if (getdns_dict_get_bindata(msg->request, "/question/qname", &qname)
+	||  getdns_convert_dns_name_to_fqdn(qname, &qname_str))
+		qname_str = unknown_qname;
+
 	DEBUG_SERVER("reply for: %p %"PRIu64" %d (edns0: %d, do: %d, ad: %d,"
-	    " cd: %d)\n", msg, transaction_id, (int)callback_type,
-	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit);
+	    " cd: %d, qname: %s)\n", (void *)msg, transaction_id, (int)callback_type,
+	    msg->has_edns0, msg->do_bit, msg->ad_bit, msg->cd_bit, qname_str);
+
+	if (qname_str != unknown_qname)
+		free(qname_str);
+#else
+	(void)transaction_id;
+#endif
 	assert(msg);
 
 #if 0
@@ -1350,11 +1479,11 @@ static void request_cb(
 	else if (n == 0)
 		SERVFAIL("Recursion not available", 0, msg, &response);
 
-	if ((r = getdns_reply(context, msg->request_id, response))) {
+	if ((r = getdns_reply(context, response, msg->request_id))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
 		/* Cancel reply */
-		(void) getdns_reply(context, msg->request_id, NULL);
+		(void) getdns_reply(context, NULL, msg->request_id);
 	}
 	if (msg) {
 		getdns_dict_destroy(msg->request);
@@ -1365,7 +1494,8 @@ static void request_cb(
 }	
 
 static void incoming_request_handler(getdns_context *context,
-    getdns_dict *request, getdns_transaction_t request_id)
+    getdns_callback_type_t callback_type, getdns_dict *request,
+    void *userarg, getdns_transaction_t request_id)
 {
 	getdns_bindata *qname;
 	char *qname_str = NULL;
@@ -1383,6 +1513,9 @@ static void incoming_request_handler(getdns_context *context,
 	getdns_list *additional;
 	getdns_dict *rr;
 	uint32_t rr_type;
+
+	(void)callback_type;
+	(void)userarg;
 
 	if (!query_extensions_spc &&
 	    !(query_extensions_spc = getdns_dict_create()))
@@ -1493,7 +1626,7 @@ static void incoming_request_handler(getdns_context *context,
 		    getdns_get_errorstr_by_id(r));
 	else {
 		DEBUG_SERVER("scheduled: %p %"PRIu64" for %s %d\n",
-		    msg, transaction_id, qname_str, (int)qtype);
+		    (void *)msg, transaction_id, qname_str, (int)qtype);
 		free(qname_str);
 		return;
 	}
@@ -1511,11 +1644,11 @@ error:
 		free(request_str);
 	} while(0);
 #endif
-	if ((r = getdns_reply(context, request_id, response))) {
+	if ((r = getdns_reply(context, response, request_id))) {
 		fprintf(stderr, "Could not reply: %s\n",
 		    getdns_get_errorstr_by_id(r));
 		/* Cancel reply */
-		getdns_reply(context, request_id, NULL);
+		getdns_reply(context, NULL, request_id);
 	}
 	if (msg) {
 		if (msg->request)
@@ -1525,6 +1658,29 @@ error:
 	if (response)
 		getdns_dict_destroy(response);
 }
+
+static void stubby_log(void *userarg, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, va_list ap)
+{
+	struct timeval tv;
+	struct tm tm;
+	char buf[10];
+#ifdef GETDNS_ON_WINDOWS
+	time_t tsec;
+
+	gettimeofday(&tv, NULL);
+	tsec = (time_t) tv.tv_sec;
+	gmtime_s(&tm, (const time_t *) &tsec);
+#else
+	gettimeofday(&tv, NULL);
+	gmtime_r(&tv.tv_sec, &tm);
+#endif
+	strftime(buf, 10, "%H:%M:%S", &tm);
+	(void)userarg; (void)system; (void)level;
+	(void) fprintf(stderr, "[%s.%.6d] STUBBY: ", buf, (int)tv.tv_usec);
+	(void) vfprintf(stderr, fmt, ap);
+}
+
 
 /**
  * \brief A wrapper script for command line testing of getdns
@@ -1537,7 +1693,18 @@ error:
 int
 main(int argc, char **argv)
 {
+	char home_stubby_conf_fn[1024];
 	getdns_return_t r;
+#ifndef USE_WINSOCK
+	char *prg_name = strrchr(argv[0], '/');
+#else
+	char *prg_name = strrchr(argv[0], '\\');
+#endif
+	prg_name = prg_name ? prg_name + 1 : argv[0];
+
+	i_am_stubby = strcasecmp(prg_name, "stubby") == 0
+	           || strcasecmp(prg_name, "lt-stubby") == 0
+	           || strcasecmp(prg_name, "stubby.exe") == 0;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -1552,8 +1719,25 @@ main(int argc, char **argv)
 		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto done_destroy_context;
 	}
+	if (i_am_stubby) {
+		int n_chars = snprintf( home_stubby_conf_fn
+		                      , sizeof(home_stubby_conf_fn)
+		                      , "%s/.stubby.conf"
+		                      , getenv("HOME")
+		                      );
+		(void) parse_config(default_stubby_config);
+		(void) parse_config_file("/etc/stubby.conf", 0);
+		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
+			(void) parse_config_file(home_stubby_conf_fn, 0);
+		}
+		clear_listen_list_on_arg = 1;
+
+		(void) getdns_context_set_logfunc(context, NULL,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
+	}
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
+	clear_listen_list_on_arg = 0;
 
 	if (query_file) {
 		fp = fopen(query_file, "rt");
@@ -1570,8 +1754,10 @@ main(int argc, char **argv)
 		assert(loop);
 	}
 	if (listen_count && (r = getdns_context_set_listen_addresses(
-	    context, incoming_request_handler, listen_list)))
+	    context, listen_list, NULL, incoming_request_handler))) {
+		perror("error: Could not bind on given addresses");
 		goto done_destroy_context;
+	}
 
 	/* Make the call */
 	if (interactive) {
@@ -1590,7 +1776,27 @@ main(int argc, char **argv)
 	}
 	else if (listen_count) {
 		assert(loop);
-		loop->vmt->run(loop);
+#ifndef GETDNS_ON_WINDOWS
+		if (i_am_stubby && !run_in_foreground) {
+			pid_t pid = fork();
+			if (pid == -1) {
+				perror("Could not fork of stubby daemon\n");
+				r = GETDNS_RETURN_GENERIC_ERROR;
+
+			} else if (pid) {
+				FILE *fh = fopen("/var/rub/stubby.pid", "w");
+				if (! fh)
+					fh = fopen("/tmp/stubby.pid", "w");
+				if (fh) {
+					fprintf(fh, "%d", (int)pid);
+					fclose(fh);
+					batch_mode = 0;
+				}
+			} else
+				loop->vmt->run(loop);
+		} else
+#endif
+			loop->vmt->run(loop);
 	} else
 		r = do_the_call();
 
@@ -1612,8 +1818,11 @@ done_destroy_context:
 		return 0;
 	else if (r == CONTINUE_ERROR)
 		return 1;
-	fprintf(stdout, "\nAll done.\n");
-	return r;
+
+	if (!i_am_stubby && verbosity)
+		fprintf(stdout, "\nAll done.\n");
+
+	return             r ? r 
+	     : bogus_answers ? GETDNS_DNSSEC_BOGUS
+	     : GETDNS_RETURN_GOOD;
 }
-
-
