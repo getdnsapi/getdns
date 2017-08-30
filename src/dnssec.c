@@ -3117,6 +3117,7 @@ static void check_chain_complete(chain_head *chain)
 
 		getdns_network_req **netreq_p, *netreq;
 		uint64_t now_ms = 0;
+		chain_head *head, *next;
 
 		dnsreq->avoid_dnssec_roadblocks = 1;
 		dnsreq->chain->lock += 1;
@@ -3135,6 +3136,9 @@ static void check_chain_complete(chain_head *chain)
 			return;
 
 		for ( head = chain; head ; head = next ) {
+			chain_node *node;
+			size_t node_count;
+
 			next = head->next;
 			for ( node_count = head->node_count
 			    , node = head->parent
