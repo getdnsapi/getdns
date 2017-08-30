@@ -228,6 +228,9 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_ECDSAP256SHA256:
 	case LDNS_ECDSAP384SHA384:
 #endif
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+#endif
 #if (defined(HAVE_EVP_SHA256) && defined(USE_SHA2)) || (defined(HAVE_EVP_SHA512) && defined(USE_SHA2)) || defined(USE_ECDSA)
 		return 1;
 #endif
@@ -555,6 +558,17 @@ setup_key_digest(int algo, EVP_PKEY** evp_key, const EVP_MD** digest_type,
 #endif
 			break;
 #endif /* USE_ECDSA */
+#ifdef USE_ED25519
+		case LDNS_ED25519:
+			*evp_key = sldns_ed255192pkey_raw(key, keylen);
+			if(!*evp_key) {
+				verbose(VERB_QUERY, "verify: "
+					"sldns_ed255192pkey_raw failed");
+				return 0;
+			}
+			*digest_type = NULL;
+			break;
+#endif /* USE_ED25519 */
 		default:
 			verbose(VERB_QUERY, "verify: unknown algorithm %d", 
 				algo);
@@ -644,18 +658,29 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
-	if(EVP_VerifyInit(ctx, digest_type) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyInit failed");
+#ifndef HAVE_EVP_DIGESTVERIFY
+	if(EVP_DigestInit(ctx, digest_type) == 0) {
+		verbose(VERB_QUERY, "verify: EVP_DigestInit failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
 		EVP_MD_CTX_destroy(ctx);
+#else
+		EVP_MD_CTX_cleanup(ctx);
+		free(ctx);
+#endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
 		else if(docrypto_free) OPENSSL_free(sigblock);
 		return sec_status_unchecked;
 	}
-	if(EVP_VerifyUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
+	if(EVP_DigestUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
 		(unsigned int)sldns_buffer_limit(buf)) == 0) {
-		verbose(VERB_QUERY, "verify: EVP_VerifyUpdate failed");
+		verbose(VERB_QUERY, "verify: EVP_DigestUpdate failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
 		EVP_MD_CTX_destroy(ctx);
+#else
+		EVP_MD_CTX_cleanup(ctx);
+		free(ctx);
+#endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
 		else if(docrypto_free) OPENSSL_free(sigblock);
@@ -663,6 +688,24 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	}
 
 	res = EVP_VerifyFinal(ctx, sigblock, sigblock_len, evp_key);
+#else /* HAVE_EVP_DIGESTVERIFY */
+	if(EVP_DigestVerifyInit(ctx, NULL, digest_type, NULL, evp_key) == 0) {
+		verbose(VERB_QUERY, "verify: EVP_DigestVerifyInit failed");
+#ifdef HAVE_EVP_MD_CTX_NEW
+		EVP_MD_CTX_destroy(ctx);
+#else
+		EVP_MD_CTX_cleanup(ctx);
+		free(ctx);
+#endif
+		EVP_PKEY_free(evp_key);
+		if(dofree) free(sigblock);
+		else if(docrypto_free) OPENSSL_free(sigblock);
+		return sec_status_unchecked;
+	}
+	res = EVP_DigestVerify(ctx, sigblock, sigblock_len,
+		(unsigned char*)sldns_buffer_begin(buf),
+		sldns_buffer_limit(buf));
+#endif
 #ifdef HAVE_EVP_MD_CTX_NEW
 	EVP_MD_CTX_destroy(ctx);
 #else
@@ -1277,6 +1320,9 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #include "ecdsa.h"
 #include "ecc-curve.h"
 #endif
+#ifdef HAVE_NETTLE_EDDSA_H
+#include "eddsa.h"
+#endif
 
 static int
 _digest_nettle(int algo, uint8_t* buf, size_t len,
@@ -1434,6 +1480,10 @@ dnskey_algo_id_is_supported(int id)
 	case LDNS_ECDSAP384SHA384:
 #endif
 		return 1;
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+		return 1;
+#endif
 	case LDNS_RSAMD5: /* RFC 6725 deprecates RSAMD5 */
 	case LDNS_ECC_GOST:
 	default:
@@ -1675,6 +1725,30 @@ _verify_nettle_ecdsa(sldns_buffer* buf, unsigned int digest_size, unsigned char*
 }
 #endif
 
+#ifdef USE_ED25519
+static char *
+_verify_nettle_ed25519(sldns_buffer* buf, unsigned char* sigblock,
+	unsigned int sigblock_len, unsigned char* key, unsigned int keylen)
+{
+	int res = 0;
+
+	if(sigblock_len != ED25519_SIGNATURE_SIZE) {
+		return "wrong ED25519 signature length";
+	}
+	if(keylen != ED25519_KEY_SIZE) {
+		return "wrong ED25519 key length";
+	}
+
+	res = ed25519_sha512_verify((uint8_t*)key, sldns_buffer_limit(buf),
+		sldns_buffer_begin(buf), (uint8_t*)sigblock);
+
+	if (!res)
+		return "ED25519 signature verification failed";
+	else
+		return NULL;
+}
+#endif
+
 /**
  * Check a canonical sig+rrset and signature against a dnskey
  * @param buf: buffer with data to verify, the first rrsig part and the
@@ -1716,9 +1790,13 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	case LDNS_RSASHA1_NSEC3:
 		digest_size = (digest_size ? digest_size : SHA1_DIGEST_SIZE);
 #endif
+		/* double fallthrough annotation to please gcc parser */
+		/* fallthrough */
 #ifdef USE_SHA2
+		/* fallthrough */
 	case LDNS_RSASHA256:
 		digest_size = (digest_size ? digest_size : SHA256_DIGEST_SIZE);
+		/* fallthrough */
 	case LDNS_RSASHA512:
 		digest_size = (digest_size ? digest_size : SHA512_DIGEST_SIZE);
 
@@ -1733,10 +1811,20 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #ifdef USE_ECDSA
 	case LDNS_ECDSAP256SHA256:
 		digest_size = (digest_size ? digest_size : SHA256_DIGEST_SIZE);
+		/* fallthrough */
 	case LDNS_ECDSAP384SHA384:
 		digest_size = (digest_size ? digest_size : SHA384_DIGEST_SIZE);
 		*reason = _verify_nettle_ecdsa(buf, digest_size, sigblock,
 						sigblock_len, key, keylen);
+		if (*reason != NULL)
+			return sec_status_bogus;
+		else
+			return sec_status_secure;
+#endif
+#ifdef USE_ED25519
+	case LDNS_ED25519:
+		*reason = _verify_nettle_ed25519(buf, sigblock, sigblock_len,
+			key, keylen);
 		if (*reason != NULL)
 			return sec_status_bogus;
 		else

@@ -44,7 +44,6 @@
 #define STUB_DEBUG_READ      "------- READ:   "
 #define STUB_DEBUG_WRITE     "------- WRITE:  "
 #define STUB_DEBUG_CLEANUP   "--- CLEANUP:    "
-#define STUB_DEBUG_DAEMON    "GETDNS_DAEMON:  "
 
 #ifdef GETDNS_ON_WINDOWS
 #define DEBUG_ON(...) do { \

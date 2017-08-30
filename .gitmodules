@@ -2,3 +2,7 @@
 	path = src/jsmn
 	url = https://github.com/getdnsapi/jsmn.git
 	branch = getdns
+[submodule "stubby"]
+	path = stubby
+	url = https://github.com/getdnsapi/stubby.git
+	branch = develop

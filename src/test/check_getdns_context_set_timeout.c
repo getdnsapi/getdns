@@ -94,15 +94,21 @@ END_TEST
 START_TEST (getdns_context_set_idle_timeout_2)
 {
  /*
-  *  timeout is 0
+  *  timeout is 0 and then 100
   *  expect: GETDNS_RETURN_GOOD
   */
 
   struct getdns_context *context = NULL;
+  uint64_t time;
   CONTEXT_CREATE(TRUE);
 
   ASSERT_RC(getdns_context_set_idle_timeout(context, 0),
     GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+  ASSERT_RC(getdns_context_set_idle_timeout(context, 100),
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+  ASSERT_RC(getdns_context_get_idle_timeout(context, &time),
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_set_timeout()");
+  ck_assert_msg(time == 100, "idle_timeout should be 100, got %d", (int)time);
 
   CONTEXT_DESTROY;
 
@@ -114,6 +120,23 @@ END_TEST
 #define GETDNS_STR_ADDRESS_TYPE "address_type"
 #define GETDNS_STR_ADDRESS_DATA "address_data"
 #define GETDNS_STR_PORT "port"
+#define TEST_PORT 43210
+
+static uint16_t get_test_port(void)
+{
+	char    *test_port_str;
+	uint16_t test_port;
+	struct   timeval tv;
+
+	if (!(test_port_str = getenv("GETDNS_TEST_PORT")) ||
+	    !(test_port = (uint16_t)atoi(test_port_str)))
+		test_port = TEST_PORT;
+
+	(void)gettimeofday(&tv, NULL);
+	srandom((int)getpid() + (int)tv.tv_usec);
+	test_port += random() % 1000;
+	return test_port;
+}
 
 /* utilities to start a junk udp listener */
 typedef struct timeout_thread_data {
@@ -281,7 +304,8 @@ START_TEST (getdns_context_set_timeout_3)
   t_data.running = 0;
   t_data.num_callbacks = 0;
   t_data.num_timeouts = 0;
-  t_data.port = 43210;
+  uint64_t timeout;
+  t_data.port = get_test_port();
 
   pthread_create(&thread, NULL, run_server, (void *)&t_data);
 
@@ -301,7 +325,7 @@ START_TEST (getdns_context_set_timeout_3)
   bindata.data = (uint8_t*) &local_addr;
   ASSERT_RC(getdns_dict_set_bindata(server_dict, GETDNS_STR_ADDRESS_DATA, &bindata),
     GETDNS_RETURN_GOOD, "set addr bindata");
-  ASSERT_RC(getdns_dict_set_int(server_dict, GETDNS_STR_PORT, 43210),
+  ASSERT_RC(getdns_dict_set_int(server_dict, GETDNS_STR_PORT, t_data.port),
     GETDNS_RETURN_GOOD, "set addr port");
 
   upstream_list = getdns_list_create_with_context(context);
@@ -323,6 +347,10 @@ START_TEST (getdns_context_set_timeout_3)
                  &t_data, NULL, timeout_3_cb);
 
   RUN_EVENT_LOOP;
+
+  ASSERT_RC(getdns_context_get_timeout(context, &timeout),
+    GETDNS_RETURN_GOOD, "Return code from getdns_context_get_timeout()");
+  ck_assert_msg(timeout == 500, "timeout should be 500, got %d", (int)timeout);
 
   CONTEXT_DESTROY;
 

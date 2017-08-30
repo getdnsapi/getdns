@@ -1,0 +1,108 @@
+; Note that the contents of RRsets are only intended to test the RRType itself and 
+; are not necessarily valid.
+
+$ORIGIN .
+$TTL 30	        ; 30 seconds
+
+net-dns.org	IN		SOA		ns.nlnetlabs.nl. sysadmin.nlnetlabs.nl. (
+						2015081800 ; serial
+						450        ; refresh (7 minutes 30 seconds)
+						600        ; retry (10 minutes)
+						345600     ; expire (4 days)
+						300        ; minimum (5 minutes)
+						)
+				NS		ns.nlnetlabs.nl
+				A		185.49.140.22
+				AAAA		2a04:b900::2:0:0:22
+				MX		10 dicht.nlnetlabs.nl.
+				TXT		"Net::DNS  domain"
+$ORIGIN net-dns.org.
+a				A		10.0.1.128
+;aa				A		010.010.010.11 leading zeros not allowed?
+www				A		185.49.140.22
+aaaa				AAAA		2a04:b900::2:0:0:23
+;a6				A6		0 2345:00C0::    ;obsolete
+afsdb				AFSDB		12 getdnsapi.net-dns.org.
+apl				APL		1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.128/25  1:224.0.0.0/4  2:FF00:0:0:0:0:0:0:0/8
+atm-host			ATMA		47.0079.00010200000000000000.00a03e000002.00
+caa                     	CAA		0 issue "ca.net-dns.org"
+cdnskey				CDNSKEY		256 3 RSASHA1 AQOraLfzarHAlFskVGwAGnX0LRjlcOiO6y5WM4Kz+QvZ9vX28h4lOvnfd5tkxnZm7ERLTAJoFq+1w/wl7VXs2Isz75BSZ7LQh3OT2xXnS6VT5ZxXko/UCOdoGiKZZ63jHZ0jNSTCYy8+5rfvwRD8s3gGuErp5KcHg3V8VLUKSDNNEQ== ; {id = 42860, size = 1024b}
+cds				CDS		13026 DSA 1 0259f20021
+cert				CERT		PKIX 65535 RSAMD5 AQOppkQvFlPFLiWZc0NXX5/QY44jphv3vfX0dscHNmThNtfx0TUgfBb1YQKJX6MNrzu/vvtV3xpLcCJ+tIP8ADDiMaUYT5Gh6kmn22V7FgHPlCHRJ+AcudQbeYgw1KCYS9D46oEvBR8mQ4HFTEkdWg+PETATQk77P1CmmURdogcmzZqZIer+VAs6uusIdxrmWeP8j2aYRvozdjvgzmHXSabDDxrnuIbnL4r4qAoc6Q9DAybYA7Ya52gtH06dFOkaQr1dvHu1iJES16H0SL/OlhsOVrZmM1RFcwDGXcnxiKZ4TdtFeXQ/6VN3JegLR5t2FyKzoKYb4klpdZM8JVuVtc/n
+cname				CNAME		a
+csync				CSYNC		66 3 A NS AAAA
+dhcid				DHCID		( AAIBY2/AuCccgoJbsaxcQc9TUapptP69lOjxfNuVAA2kjEA= )
+dlv				DLV		13026 DSA 1 0259f20021a0f2ff8bbbd8ab6174ac2412fdf363
+dname				DNAME		net-dns.net.
+dnskey				DNSKEY		256 3 RSASHA1 AQOraLfzarHAlFskVGwAGnX0LRjlcOiO6y5WM4Kz+QvZ9vX28h4lOvnfd5tkxnZm7ERLTAJoFq+1w/wl7VXs2Isz75BSZ7LQh3OT2xXnS6VT5ZxXko/UCOdoGiKZZ63jHZ0jNSTCYy8+5rfvwRD8s3gGuErp5KcHg3V8VLUKSDNNEQ== ; {id = 42860, size = 1024b}
+ds				DS		13026 DSA 1 0259f20021a0f2ff8bbbd8ab6174ac2412fdf363
+eid				EID		E32C 6F78 164A 9348
+eui48				EUI48		00-00-5e-00-53-2a
+eui64				EUI64		00-00-5e-ef-10-00-00-2a
+;gid				GID		;IANA-Reserved
+gpos				GPOS		-32.6882 116.8652 10.0
+hinfo				HINFO		"CPU" "OS"
+hip				HIP		( 2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D )
+ipseckey0			IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey1                       IPSECKEY        10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey2                       IPSECKEY        10 2 2 2001:0DB8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey3                       IPSECKEY        10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey                        IPSECKEY        10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+                                IPSECKEY        10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+                                IPSECKEY        10 2 2 2001:0DB8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+                                IPSECKEY        10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+isdn				ISDN		150862028003217 004
+key				KEY		( 256 3 3 BOPdJjdc/ZQWCVA/ONz6LjvugMnB2KKL3F1D2i9GdrpircWRKS2DfRn5KiMM2HQXBHv0ZdkFs/tmjg7rYxrN+bzBNrlwfU5RMjioi67PthD07EHbZjwoZ5sKC2BZ/M596hygfx5JAvbIWBQVF+ztiuCnWCkbGvVXwsmE+odINCur+o+EjA9hF06LqTviUJKqTxisQO5OHM/0ufNenzIbijJPTXbUcF3vW+CMlX+AUPLSag7YnhWaEu7BLCKfg3vJVw9mtaN2W3oWPRdebGUf/QfyVKXoWD6zDLByCZh4wKvpcwgAsel4bO5LVe7s8qstSxqrwzmvaZ5XYOMZFbN7CXtutiswAkb0pkehIYime6IRkDwWDG+14H5yriRuCDK3m7GvwxMo+ggV0k3Po9LD5wWSIi1N ) ; key id = 22004
+kx				KX		10 services.
+loc				LOC		42 21 54.000 N 71 06 18.000 W -24m 30m 10000m 10m
+lp				LP		10 l64-subnet1
+l32				L32		10 10.1.2.0 ;10.1.02.0 example in rfc not working??!!
+l64				L64		10 2001:0DB8:1140:1000
+;maila				MAILA		;obsolete
+;mailb				MAILB		;obsolete
+mb				MB		services
+md				MD		services
+mf				MF		services
+mg				MG		services
+minfo				MINFO		getdnsapi.net-dns.org. info.getdnsapi.net-dns.org.
+mr				MR		services
+mx				MX		10 a
+naptr				NAPTR		100 100 "s" "http+I2R"  ""      _https._tcp
+nid				NID		10 0014:4fff:ff20:ef64
+nimloc				NIMLOC		3225 1B 03 0067
+;ninfo				NINFO		
+nsap				NSAP		0x47.0005.80.005a00.0000.0001.e133.ffffff000161.00
+444433332222111199990123000000ff	NSAP-PTR	host ; instead of name of type number is shown
+nsec				NSEC		host.net-dns.org. ( A MX NSEC )
+nsec3				NSEC3		1 0 5 fd5eeade2ba67b64  92qfhk1g2m21l1j89pju33nrm9586bpu A NS SOA MX RRSIG DNSKEY NSEC3PARAM
+nsec3param			NSEC3PARAM	1 0 5 fd5eeade2ba67b64
+;null				NULL		656D7330312E796F75722D66726565646F6D2E64653B55533B36362E39302E37332E34363B303B313232363B64656661756C742C766F6C756D652C6E6F727468616D65726963612C696E7465726163746976652C766F69702C6F70656E76706E2C707074702C736F636B73353B
+;nxt				NXT		OPENPGPKEY NXT
+3fa2675708e4613939a03a3a8f3517118fe470e519d634a763d89037._openpgpkey	OPENPGPKEY	mQENBFTTiU4BCADdIc4NQ6vZqyDJtKVqXabvj66t3V+OTvoDrceeTjmwtUoFIU2p5xQPmeHQcT+YPLOJC7rKI/raNBe/sQ9+WKanWko9xVzki3l2YqHCuioUAdgbtZMrSnkSTnCyST/rAuxxQYMHo5Ck/0g4b9Z0jZnRIACd8oxX89CRH5zu1KP6X7Df7aGpnNlFBUWTdODTkrUapLXLdn3dHJmsMxwBL1xLJvhWRmIvk27L18ix50IDLw/JHiraCCClyDXfDXkahWAR2GTFxp9iZ0FS1G+f+EFsGhP72LAuiLsBgauDuekPf01xnbn3PgMi8NSNsrJJMFQKfCLx0iPy5KCKvWL2KW7nABEBAAG0H0hvZGEgUm9oYW5pIDxob2RhQG5sbmV0bGFicy5ubD6JATgEEwECACIFAlTTiU4CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEBS2RC1wiYvnD88H/0kwmg5HcisUjwquaOSaybp8MQ46KNVZO+CI3csyhHlmOdYk3BDUDMWTzs0JvHAOIS5tyRBVaXdbxtth7sIbI1CwdHf2jwSs16rApJs4XC5kndF3Z6uk8QHyNanvTxLL+CSZX7I/GAx4dLgN/3v7kx/bKNtXRKy525KHbbl3AqPVRcynqJ/yLuiA47jEUfR5ZI3awrtdlVtmq/9Zv4tw3mRM/GVvOCPBfzWHe57BI4D+PeIgRmTpLCSwtQwfbGvf/wufaVXX+fCqUuGGpNda8F1BQPdoTMIS+rQVjOSFKNWOIRauNsDWQHYQTSafRuCk0p1FSzmsWjXQJCpXIzmwZP+5AQ0EVNOJTgEIALxEVGUggMZFzr732mGrUjmDK25eVwZ5KDaFnn3RvtvbW1Dg7VaeI+V0foLQGqzge1p/kvLQHMY1MJMZYWSK3MqL4hnavSklDnOQTUAeMZ6k2+1njE1kcYM2DeZGqPufRB6jeaa2SYvGLL4EUbaCzW5r0pv3rgewUzmMvzOf+SgsHQFfRPQZOtGGIVrLTn9G9uFIE80RSV316oYTvXgUVbTSGObpfxWY5i9UwMQgsNgzN1TpAj2ktjROY0c85DxoY/HBTEsAh+jHyNKH+z1Dng2luWY1P/w7wAZNEqPrqk3AUkGt9jDbACbcr3Cyu/6GKsxpJbjPIzal33sunwEZ4+EAEQEAAYkBHwQYAQIACQUCVNOJTgIbDAAKCRAUtkQtcImL5/6ZCACj2HPhLyCJNB7ozf39SuuAdI1PgUfNSx3adOZeMQ03itGnY+YKDiSOcWlUwYvbX4PMiXjHiL+bOlMNAN6Lxfsfqj6Lef7r6s5I+m0VW+/wcb0J1+V0ObGDux69kxPwsozu1Khbpamsj1S8AiGtdUA1Qc0/qXzkEjW7MQ5YwYr0vL4nAlOoxD4l/U8PrLIo1ftwShf1cTXu2TlFAzaUzyfSLqkqQLQtMZ/3yx5w4uvRXElbOVbRi9bebAzLrUx12JUTDNzWv3qDH0hJnQxSrpu9gy21VRwlyfWz4Nz3GhsmRn1pbmzaUclEL6Rk/zv4gy6Z/X0CK1eepZ/JAEwkRCvq
+128.1.0.10.in-addr.arpa.	PTR		a
+px				PX		2 map822. mapx400.
+;rkey				RKEY
+rp				RP		a.getdnsapi.net-dns.org. getdnsapi.net-dns.org.
+rrsig				RRSIG		SOA 8 1 3600 20170417161124 20170403085720 13156 net-dns.org. U2lxZcqlOQ6d8pbMAhEZwPTjPpSkXoKcZAb43B6dIRPNPZXvm4VGPB37BbTqq/zCWmNv/E2OoVwFncqq21bnSxrx6t/KnlrO1keFiopS+uTJreCJzI6U1zOhgHViN5Z/5yLJG1w5jjbRmJ3FMEVwfgLwjPOUPtq6/zqAH19mvtU=
+rt				RT		0 services.
+sig				SIG		( A 3 3 1285 20170327122207 20170226122207 22004 net-dns.org. BMTLR80WnKndatr77OirBtprR9SLKoZUiPWXU5kViDi+5amYW/GFCp0= )
+;sink				SINK
+;MNUHE2LT._smimeacert		SMIMEA		( 0 0 1 d2abde240d7cd3ee6b4b28c54df034b97983a1d16e8a410e4561cb106618e971 )
+spf				SPF		"v=spf1 +mx a:colo.nlnetlabs.nl/28 -all"
+srv				SRV		0 5 80 www
+sshfp				SSHFP		1 1 450c7d19d5da9a3a5b7c19992d1fbde15d8dad44
+;ta				TA
+talink				TALINK		h0 h2
+;tkey				TKEY
+_443._tcp			TLSA		0 0 1 274c6f96c9885c8050e8a05ad1c3162c1d51752c35b6196474e3f05ad31cd923
+_443._tcp.ww			TLSA		1 1 2 92003ba34942dc74152e2f2c408d29eca5a520e7f2e06bb944f4dca346baf63c1b177615d466f6c4b71c216a50292bd58c9ebdd2f74e38fe51ffd48c43326cbc
+_443._tcp.www			TLSA		3 1 1 274c6f96c9885c8050e8a05ad1c3162c1d51752c35b6196474e3f05ad31cd923
+;tsig				TSIG
+dynup				TXT		"fooFoo2" "Bla \; Foo"
+default._domainkey		TXT		"v=DKIM1; r=postmaster; g=*; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVG/lfF5GtPlMOcSGnfbp5u+EWM+OOg/f6QmbDXOW/zKQkRIRIZ+BtfSYchP8MeFPfMvUZtdRPzCWg1G7OdD7qaTUqc6kV84on6/8kPVMgdDLyLl2DeU/Lts9hfVHVDSpWuChwDAFXnbnW8jpp54zuof9OIbWSWIxZqLL8flgOsQIDAQAB" ; ----- DKIM default for example.com
+;uid				UID		;IANA-Reserved
+;uinfo				UINFO		;IANA-Reserved
+;unspec				UNSPEC		;IANA-Reserved
+uri				URI		10 1 "ftp://ftp1.net-dns.org/public"
+wks				WKS		195.169.215.155 tcp domain
+x25				X25		"1234567"

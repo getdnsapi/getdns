@@ -340,10 +340,22 @@ _getdns_rr_iter2rr_dict_canonical(
 				    repeat_list, bin_size, bin_data))
 					goto rdata_error;
 				break;
+
+			/* Repetitive special types do not exist (yet)
+			 *
+			 * LCOV_EXCL_START
+			 */
 			case wf_special:
+				/* Repetitive special types
+				 * must have this function
+				 */
+				assert(rdf->rdd_pos->special->wire2list);
+
 				if (rdf->rdd_pos->special->wire2list(
 				    repeat_list, rdf->pos))
 					goto rdata_error;
+			/* LCOV_EXCL_STOP */
+
 			default:
 				break;
 			}

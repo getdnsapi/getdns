@@ -664,6 +664,14 @@ rrinternal_parse_rdata(gldns_buffer* strbuf, char* token, size_t token_len,
 					&pre_data_pos, delimiters,
 					rdftype, &token_strlen))
 					break;
+			} else if(rdftype == GLDNS_RDF_TYPE_INT16_DATA &&
+				strcmp(token, "0")!=0) {
+				/* affix len and b64 fields */
+				if(!gldns_affix_token(strbuf, token,
+					&token_len, &quoted, &parens,
+					&pre_data_pos, delimiters,
+					rdftype, &token_strlen))
+					break;
 			}
 
 			/* normal RR */
@@ -861,6 +869,8 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 	/* we can have the situation, where we've read ok, but still got
 	 * no bytes to play with, in this case size is 0 */
 	if(size == 0) {
+		if(*len > 0)
+			rr[0] = 0;
 		*len = 0;
 		*dname_len = 0;
 		return GLDNS_WIREPARSE_ERR_OK;
@@ -868,6 +878,7 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 
 	if(strncmp(line, "$ORIGIN", 7) == 0 && isspace((unsigned char)line[7])) {
 		int s;
+		strlcpy((char*)rr, line, *len);
 		*len = 0;
 		*dname_len = 0;
 		if(!parse_state) return GLDNS_WIREPARSE_ERR_OK;
@@ -878,12 +889,19 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 		return s;
 	} else if(strncmp(line, "$TTL", 4) == 0 && isspace((unsigned char)line[4])) {
 		const char* end = NULL;
+		strlcpy((char*)rr, line, *len);
 		*len = 0;
 		*dname_len = 0;
 		if(!parse_state) return GLDNS_WIREPARSE_ERR_OK;
 		parse_state->default_ttl = gldns_str2period(
 			gldns_strip_ws(line+5), &end);
 	} else if (strncmp(line, "$INCLUDE", 8) == 0) {
+		strlcpy((char*)rr, line, *len);
+		*len = 0;
+		*dname_len = 0;
+		return GLDNS_WIREPARSE_ERR_INCLUDE;
+	} else if (strncmp(line, "$", 1) == 0) {
+		strlcpy((char*)rr, line, *len);
 		*len = 0;
 		*dname_len = 0;
 		return GLDNS_WIREPARSE_ERR_INCLUDE;
@@ -940,6 +958,8 @@ int gldns_str2wire_rdf_buf(const char* str, uint8_t* rd, size_t* len,
 		return gldns_str2wire_time_buf(str, rd, len);
 	case GLDNS_RDF_TYPE_PERIOD:
 		return gldns_str2wire_period_buf(str, rd, len);
+	case GLDNS_RDF_TYPE_TSIGTIME:
+		return gldns_str2wire_tsigtime_buf(str, rd, len);
 	case GLDNS_RDF_TYPE_LOC:
 		return gldns_str2wire_loc_buf(str, rd, len);
 	case GLDNS_RDF_TYPE_WKS:
@@ -964,6 +984,8 @@ int gldns_str2wire_rdf_buf(const char* str, uint8_t* rd, size_t* len,
 		return gldns_str2wire_tag_buf(str, rd, len);
 	case GLDNS_RDF_TYPE_LONG_STR:
 		return gldns_str2wire_long_str_buf(str, rd, len);
+	case GLDNS_RDF_TYPE_TSIGERROR:
+		return gldns_str2wire_tsigerror_buf(str, rd, len);
 	case GLDNS_RDF_TYPE_HIP:
 		return gldns_str2wire_hip_buf(str, rd, len);
 	case GLDNS_RDF_TYPE_INT16_DATA:
@@ -1168,6 +1190,10 @@ int gldns_str2wire_b64_buf(const char* str, uint8_t* rd, size_t* len)
 {
 	size_t sz = gldns_b64_pton_calculate_size(strlen(str));
 	int n;
+	if(strcmp(str, "0") == 0) {
+		*len = 0;
+		return GLDNS_WIREPARSE_ERR_OK;
+	}
 	if(*len < sz)
 		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 	n = gldns_b64_pton(str, rd, *len);
@@ -1200,6 +1226,10 @@ int gldns_str2wire_hex_buf(const char* str, uint8_t* rd, size_t* len)
 		if(isspace((unsigned char)*s)) {
 			s++;
 			continue;
+		}
+		if(dlen == 0 && *s == '0' && *(s+1) == 0) {
+			*len = 0;
+			return GLDNS_WIREPARSE_ERR_OK;
 		}
 		if(!isxdigit((unsigned char)*s))
 			return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_HEX, s-str);
@@ -1341,6 +1371,21 @@ int gldns_str2wire_alg_buf(const char* str, uint8_t* rd, size_t* len)
 	return GLDNS_WIREPARSE_ERR_OK;
 }
 
+int gldns_str2wire_tsigerror_buf(const char* str, uint8_t* rd, size_t* len)
+{
+	gldns_lookup_table *lt = gldns_lookup_by_name(gldns_tsig_errors, str);
+	if(*len < 2)
+		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
+	if(lt) {
+		gldns_write_uint16(rd, (uint16_t)lt->id);
+		*len = 2;
+	} else {
+		/* try as-is (a number) */
+		return gldns_str2wire_int16_buf(str, rd, len);
+	}
+	return GLDNS_WIREPARSE_ERR_OK;
+}
+
 int gldns_str2wire_time_buf(const char* str, uint8_t* rd, size_t* len)
 {
 	/* convert a time YYYYDDMMHHMMSS to wireformat */
@@ -1380,6 +1425,24 @@ int gldns_str2wire_time_buf(const char* str, uint8_t* rd, size_t* len)
 		gldns_write_uint32(rd, l);
 	}
 	*len = 4;
+	return GLDNS_WIREPARSE_ERR_OK;
+}
+
+int gldns_str2wire_tsigtime_buf(const char* str, uint8_t* rd, size_t* len)
+{
+	char* end;
+	uint64_t t = (uint64_t)strtol((char*)str, &end, 10);
+	uint16_t high;
+	uint32_t low;
+	if(*end != 0)
+		return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_TIME, end-str);
+	if(*len < 6)
+		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
+	high = (uint16_t)(t>>32);
+	low = (uint32_t)(t);
+	gldns_write_uint16(rd, high);
+	gldns_write_uint32(rd+2, low);
+	*len = 6;
 	return GLDNS_WIREPARSE_ERR_OK;
 }
 
@@ -2008,16 +2071,29 @@ int gldns_str2wire_hip_buf(const char* str, uint8_t* rd, size_t* len)
 
 int gldns_str2wire_int16_data_buf(const char* str, uint8_t* rd, size_t* len)
 {
-	size_t sz = gldns_b64_pton_calculate_size(strlen(str));
+	char* s;
 	int n;
-	if(*len < sz+2)
+	n = strtol(str, &s, 10);
+	if(*len < ((size_t)n)+2)
 		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
-	if(sz > 65535)
+	if(n > 65535)
 		return GLDNS_WIREPARSE_ERR_LABEL_OVERFLOW;
-	n = gldns_b64_pton(str, rd+2, (*len)-2);
+
+	if(n == 0) {
+		gldns_write_uint16(rd, 0);
+		*len = 2;
+		return GLDNS_WIREPARSE_ERR_OK;
+	}
+	if(*s != ' ')
+		return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_INT, s-(char*)str);
+	s++;
+	while(*s == ' ')
+		s++;
+
+	n = gldns_b64_pton(s, rd+2, (*len)-2);
 	if(n < 0)
 		return GLDNS_WIREPARSE_ERR_SYNTAX_B64;
 	gldns_write_uint16(rd, (uint16_t)n);
-	*len = (size_t)n;
+	*len = ((size_t)n)+2;
 	return GLDNS_WIREPARSE_ERR_OK;
 }

@@ -1,0 +1,1112 @@
+[
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for net-dns.org.>,
+    "rdata":
+    {
+      "expire": 345600,
+      "minimum": 300,
+      "mname": <bindata for ns.nlnetlabs.nl.>,
+      "rdata_raw": <bindata of 0x026e73096e6c6e65746c616273026e6c...>,
+      "refresh": 450,
+      "retry": 600,
+      "rname": <bindata for sysadmin.nlnetlabs.nl.>,
+      "serial": 2015081800
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_SOA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for net-dns.org.>,
+    "rdata":
+    {
+      "nsdname": <bindata for ns.nlnetlabs.nl.>,
+      "rdata_raw": <bindata for ns.nlnetlabs.nl.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for net-dns.org.>,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 185.49.140.22>,
+      "rdata_raw": <bindata of 0xb9318c16>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for net-dns.org.>,
+    "rdata":
+    {
+      "ipv6_address": <bindata for 2a04:b900::2:0:0:22>,
+      "rdata_raw": <bindata of 0x2a04b900000000000002000000000022>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_AAAA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for net-dns.org.>,
+    "rdata":
+    {
+      "exchange": <bindata for dicht.nlnetlabs.nl.>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a056469636874096e6c6e65746c61...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x104e65743a3a444e532020646f6d6169...>,
+      "txt_strings":
+      [
+         <bindata of "Net::DNS  domain">
+      ]
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for a.net-dns.org.>,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 10.0.1.128>,
+      "rdata_raw": <bindata of 0x0a000180>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for www.net-dns.org.>,
+    "rdata":
+    {
+      "ipv4_address": <bindata for 185.49.140.22>,
+      "rdata_raw": <bindata of 0xb9318c16>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_A
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for aaaa.net-dns.org.>,
+    "rdata":
+    {
+      "ipv6_address": <bindata for 2a04:b900::2:0:0:23>,
+      "rdata_raw": <bindata of 0x2a04b900000000000002000000000023>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_AAAA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for afsdb.net-dns.org.>,
+    "rdata":
+    {
+      "hostname": <bindata for getdnsapi.net-dns.org.>,
+      "rdata_raw": <bindata of 0x000c09676574646e73617069076e6574...>,
+      "subtype": 12
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_AFSDB
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for apl.net-dns.org.>,
+    "rdata":
+    {
+      "apitems":
+      [
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xc0a82a>,
+          "n": 0,
+          "prefix": 26
+        },
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xc0a82a40>,
+          "n": 0,
+          "prefix": 26
+        },
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xc0a82a80>,
+          "n": 1,
+          "prefix": 25
+        },
+        {
+          "address_family": 1,
+          "afdpart": <bindata of 0xe0>,
+          "n": 0,
+          "prefix": 4
+        },
+        {
+          "address_family": 2,
+          "afdpart": <bindata of 0xff>,
+          "n": 0,
+          "prefix": 8
+        }
+      ],
+      "rdata_raw": <bindata of 0x00011a03c0a82a00011a04c0a82a4000...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_APL
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for atm-host.net-dns.org.>,
+    "rdata":
+    {
+      "format": <bindata of 0x4700790001020000000000000000a03e...>,
+      "rdata_raw": <bindata of 0x4700790001020000000000000000a03e...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_ATMA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for caa.net-dns.org.>,
+    "rdata":
+    {
+      "flags": 0,
+      "rdata_raw": <bindata of 0x0005697373756563612e6e65742d646e...>,
+      "tag": <bindata of "issue">,
+      "value": <bindata of "ca.net-dns.org">
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_CAA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for cdnskey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 5,
+      "flags": 256,
+      "protocol": 3,
+      "public_key": <bindata of 0x0103ab68b7f36ab1c0945b24546c001a...>,
+      "rdata_raw": <bindata of 0x010003050103ab68b7f36ab1c0945b24...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_CDNSKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for cds.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 3,
+      "digest": <bindata of 0x0259f20021>,
+      "digest_type": 1,
+      "key_tag": 13026,
+      "rdata_raw": <bindata of 0x32e203010259f20021>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_CDS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for cert.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 1,
+      "certificate_or_crl": <bindata of 0x0103a9a6442f1653c52e25997343575f...>,
+      "key_tag": 65535,
+      "rdata_raw": <bindata of 0x0001ffff010103a9a6442f1653c52e25...>,
+      "type": GETDNS_RRTYPE_A
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_CERT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for cname.net-dns.org.>,
+    "rdata":
+    {
+      "cname": <bindata for a.net-dns.org.>,
+      "rdata_raw": <bindata for a.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_CNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for csync.net-dns.org.>,
+    "rdata":
+    {
+      "flags": 3,
+      "rdata_raw": <bindata of 0x000000420003000460000008>,
+      "serial": 66,
+      "type_bit_maps": <bindata of 0x000460000008>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_CSYNC
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for dhcid.net-dns.org.>,
+    "rdata":
+    {
+      "dhcid_opaque": <bindata of 0x000201636fc0b8271c82825bb1ac5c41...>,
+      "rdata_raw": <bindata of 0x000201636fc0b8271c82825bb1ac5c41...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_DHCID
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for dlv.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 3,
+      "digest": <bindata of 0x0259f20021a0f2ff8bbbd8ab6174ac24...>,
+      "digest_type": 1,
+      "key_tag": 13026,
+      "rdata_raw": <bindata of 0x32e203010259f20021a0f2ff8bbbd8ab...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_DLV
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for dname.net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata for net-dns.net.>,
+      "target": <bindata for net-dns.net.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_DNAME
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for dnskey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 5,
+      "flags": 256,
+      "protocol": 3,
+      "public_key": <bindata of 0x0103ab68b7f36ab1c0945b24546c001a...>,
+      "rdata_raw": <bindata of 0x010003050103ab68b7f36ab1c0945b24...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_DNSKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ds.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 3,
+      "digest": <bindata of 0x0259f20021a0f2ff8bbbd8ab6174ac24...>,
+      "digest_type": 1,
+      "key_tag": 13026,
+      "rdata_raw": <bindata of 0x32e203010259f20021a0f2ff8bbbd8ab...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_DS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for eid.net-dns.org.>,
+    "rdata":
+    {
+      "endpoint_identifier": <bindata of 0xe32c6f78164a9348>,
+      "rdata_raw": <bindata of 0xe32c6f78164a9348>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_EID
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for eui48.net-dns.org.>,
+    "rdata":
+    {
+      "eui48_address": <bindata of 0x00005e00532a>,
+      "rdata_raw": <bindata of 0x00005e00532a>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_EUI48
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for eui64.net-dns.org.>,
+    "rdata":
+    {
+      "eui64_address": <bindata of 0x00005eef1000002a>,
+      "rdata_raw": <bindata of 0x00005eef1000002a>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_EUI64
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for gpos.net-dns.org.>,
+    "rdata":
+    {
+      "altitude": <bindata of "10.0">,
+      "latitude": <bindata of "116.8652">,
+      "longitude": <bindata of "-32.6882">,
+      "rdata_raw": <bindata of 0x082d33322e36383832083131362e3836...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_GPOS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for hinfo.net-dns.org.>,
+    "rdata":
+    {
+      "cpu": <bindata of "CPU">,
+      "os": <bindata of "OS">,
+      "rdata_raw": <bindata of 0x03435055024f53>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_HINFO
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for hip.net-dns.org.>,
+    "rdata":
+    {
+      "hit": <bindata of 0x200100107b1a74df365639cc39f1d578>,
+      "pk_algorithm": 2,
+      "public_key": <bindata of 0x03010001b771ca136e4aeb5ce44333c5...>,
+      "rdata_raw": <bindata of 0x10020084200100107b1a74df365639cc...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_HIP
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey0.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway_type": 0,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey1.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0xc0000226>,
+      "gateway_type": 1,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey2.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0x20010db8000080020000000020000001>,
+      "gateway_type": 2,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey3.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata for mygateway.example.com.>,
+      "gateway_type": 3,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway_type": 0,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0002010351537986ed35533b606447...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0xc0000226>,
+      "gateway_type": 1,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0102c0000226010351537986ed3553...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata of 0x20010db8000080020000000020000001>,
+      "gateway_type": 2,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a020220010db8000080020000000020...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for ipseckey.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 10,
+      "gateway": <bindata for mygateway.example.com.>,
+      "gateway_type": 3,
+      "precedence": 2,
+      "public_key": <bindata of 0x010351537986ed35533b6064478eeeb2...>,
+      "rdata_raw": <bindata of 0x0a0302096d7967617465776179076578...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_IPSECKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for isdn.net-dns.org.>,
+    "rdata":
+    {
+      "isdn_address": <bindata of "150862028003217">,
+      "rdata_raw": <bindata of 0x0f313530383632303238303033323137...>,
+      "sa": <bindata of "004">
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_ISDN
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for key.net-dns.org.>,
+    "rdata":
+    {
+      "key_obsolete": <bindata of 0x0100030304e3dd26375cfd941609503f...>,
+      "rdata_raw": <bindata of 0x0100030304e3dd26375cfd941609503f...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_KEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for kx.net-dns.org.>,
+    "rdata":
+    {
+      "exchanger": <bindata for services.>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a08736572766963657300>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_KX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for loc.net-dns.org.>,
+    "rdata":
+    {
+      "loc_obsolete": <bindata of 0x0033161389172dd070be15f000988d20>,
+      "rdata_raw": <bindata of 0x0033161389172dd070be15f000988d20>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_LOC
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for lp.net-dns.org.>,
+    "rdata":
+    {
+      "fqdn": <bindata for l64-subnet1.net-dns.org.>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a0b6c36342d7375626e657431076e...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_LP
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for l32.net-dns.org.>,
+    "rdata":
+    {
+      "locator32": <bindata of 0x0a010200>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a0a010200>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_L32
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for l64.net-dns.org.>,
+    "rdata":
+    {
+      "locator64": <bindata of 0x20010db811401000>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a20010db811401000>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_L64
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for mb.net-dns.org.>,
+    "rdata":
+    {
+      "madname": <bindata for services.net-dns.org.>,
+      "rdata_raw": <bindata for services.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MB
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for md.net-dns.org.>,
+    "rdata":
+    {
+      "madname": <bindata for services.net-dns.org.>,
+      "rdata_raw": <bindata for services.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MD
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for mf.net-dns.org.>,
+    "rdata":
+    {
+      "madname": <bindata for services.net-dns.org.>,
+      "rdata_raw": <bindata for services.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MF
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for mg.net-dns.org.>,
+    "rdata":
+    {
+      "mgmname": <bindata for services.net-dns.org.>,
+      "rdata_raw": <bindata for services.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MG
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for minfo.net-dns.org.>,
+    "rdata":
+    {
+      "emailbx": <bindata for info.getdnsapi.net-dns.org.>,
+      "rdata_raw": <bindata of 0x09676574646e73617069076e65742d64...>,
+      "rmailbx": <bindata for getdnsapi.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MINFO
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for mr.net-dns.org.>,
+    "rdata":
+    {
+      "newname": <bindata for services.net-dns.org.>,
+      "rdata_raw": <bindata for services.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MR
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for mx.net-dns.org.>,
+    "rdata":
+    {
+      "exchange": <bindata for a.net-dns.org.>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a0161076e65742d646e73036f7267...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_MX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for naptr.net-dns.org.>,
+    "rdata":
+    {
+      "flags": <bindata of "s">,
+      "order": 100,
+      "preference": 100,
+      "rdata_raw": <bindata of 0x00640064017308687474702b49325200...>,
+      "regexp": <bindata of 0x>,
+      "replacement": <bindata for _https._tcp.net-dns.org.>,
+      "service": <bindata of "http+I2R">
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NAPTR
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for nid.net-dns.org.>,
+    "rdata":
+    {
+      "node_id": <bindata of 0x00144fffff20ef64>,
+      "preference": 10,
+      "rdata_raw": <bindata of 0x000a00144fffff20ef64>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NID
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for nimloc.net-dns.org.>,
+    "rdata":
+    {
+      "nimrod_locator": <bindata of 0x32251b030067>,
+      "rdata_raw": <bindata of 0x32251b030067>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NIMLOC
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for nsap.net-dns.org.>,
+    "rdata":
+    {
+      "nsap": <bindata of 0x47000580005a0000000001e133ffffff...>,
+      "rdata_raw": <bindata of 0x47000580005a0000000001e133ffffff...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NSAP
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for 444433332222111199990123000000ff.net-dns.org.>,
+    "rdata":
+    {
+      "owner": <bindata of "host">,
+      "rdata_raw": <bindata of 0x04686f7374>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NSAP_PTR
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for nsec.net-dns.org.>,
+    "rdata":
+    {
+      "next_domain_name": <bindata for host.net-dns.org.>,
+      "rdata_raw": <bindata of 0x04686f7374076e65742d646e73036f72...>,
+      "type_bit_maps": <bindata of 0x0006400100000001>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NSEC
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for nsec3.net-dns.org.>,
+    "rdata":
+    {
+      "flags": 0,
+      "hash_algorithm": 1,
+      "iterations": 5,
+      "next_hashed_owner_name": <bindata of 0x48b4f8d03015841a86684e67e18efbb2...>,
+      "rdata_raw": <bindata of 0x0100000508fd5eeade2ba67b641448b4...>,
+      "salt": <bindata of 0xfd5eeade2ba67b64>,
+      "type_bit_maps": <bindata of 0x000762010000000290>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NSEC3
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for nsec3param.net-dns.org.>,
+    "rdata":
+    {
+      "flags": 0,
+      "hash_algorithm": 1,
+      "iterations": 5,
+      "rdata_raw": <bindata of 0x0100000508fd5eeade2ba67b64>,
+      "salt": <bindata of 0xfd5eeade2ba67b64>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_NSEC3PARAM
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for 3fa2675708e4613939a03a3a8f3517118fe470e519d634a763d89037._openpgpkey.net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x99010d0454d3894e010800dd21ce0d43...>,
+      "transferable_public_key": <bindata of 0x99010d0454d3894e010800dd21ce0d43...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_OPENPGPKEY
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for 128.1.0.10.in-addr.arpa.>,
+    "rdata":
+    {
+      "ptrdname": <bindata for a.net-dns.org.>,
+      "rdata_raw": <bindata for a.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_PTR
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for px.net-dns.org.>,
+    "rdata":
+    {
+      "map822": <bindata for map822.>,
+      "mapx400": <bindata for mapx400.>,
+      "preference": 2,
+      "rdata_raw": <bindata of 0x0002066d617038323200076d61707834...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_PX
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for rp.net-dns.org.>,
+    "rdata":
+    {
+      "mbox_dname": <bindata for a.getdnsapi.net-dns.org.>,
+      "rdata_raw": <bindata of 0x016109676574646e73617069076e6574...>,
+      "txt_dname": <bindata for getdnsapi.net-dns.org.>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_RP
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for rrsig.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 8,
+      "key_tag": 13156,
+      "labels": 1,
+      "original_ttl": 3600,
+      "rdata_raw": <bindata of 0x0006080100000e1058f4e92c58e20e70...>,
+      "signature": <bindata of 0x53697165caa5390e9df296cc021119c0...>,
+      "signature_expiration": 1492445484,
+      "signature_inception": 1491209840,
+      "signers_name": <bindata for net-dns.org.>,
+      "type_covered": GETDNS_RRTYPE_SOA
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_RRSIG
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for rt.net-dns.org.>,
+    "rdata":
+    {
+      "intermediate_host": <bindata for services.>,
+      "preference": 0,
+      "rdata_raw": <bindata of 0x000008736572766963657300>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_RT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for sig.net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x000103030000050558d903ef58b2c86f...>,
+      "sig_obsolete": <bindata of 0x000103030000050558d903ef58b2c86f...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_SIG
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for spf.net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x26763d73706631202b6d7820613a636f...>,
+      "text":
+      [
+         <bindata of "v=spf1 +mx a:colo.nlnetlabs.nl/2"...>
+      ]
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_SPF
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for srv.net-dns.org.>,
+    "rdata":
+    {
+      "port": 80,
+      "priority": 0,
+      "rdata_raw": <bindata of 0x00000005005003777777076e65742d64...>,
+      "target": <bindata for www.net-dns.org.>,
+      "weight": 5
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_SRV
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for sshfp.net-dns.org.>,
+    "rdata":
+    {
+      "algorithm": 1,
+      "fingerprint": <bindata of 0x450c7d19d5da9a3a5b7c19992d1fbde1...>,
+      "fp_type": 1,
+      "rdata_raw": <bindata of 0x0101450c7d19d5da9a3a5b7c19992d1f...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_SSHFP
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for talink.net-dns.org.>,
+    "rdata":
+    {
+      "next": <bindata for h2.net-dns.org.>,
+      "previous": <bindata for h0.net-dns.org.>,
+      "rdata_raw": <bindata of 0x026830076e65742d646e73036f726700...>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TALINK
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for _443._tcp.net-dns.org.>,
+    "rdata":
+    {
+      "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
+      "certificate_usage": 0,
+      "matching_type": 1,
+      "rdata_raw": <bindata of 0x000001274c6f96c9885c8050e8a05ad1...>,
+      "selector": 0
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TLSA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for _443._tcp.ww.net-dns.org.>,
+    "rdata":
+    {
+      "certificate_association_data": <bindata of 0x92003ba34942dc74152e2f2c408d29ec...>,
+      "certificate_usage": 1,
+      "matching_type": 2,
+      "rdata_raw": <bindata of 0x01010292003ba34942dc74152e2f2c40...>,
+      "selector": 1
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TLSA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for _443._tcp.www.net-dns.org.>,
+    "rdata":
+    {
+      "certificate_association_data": <bindata of 0x274c6f96c9885c8050e8a05ad1c3162c...>,
+      "certificate_usage": 3,
+      "matching_type": 1,
+      "rdata_raw": <bindata of 0x030101274c6f96c9885c8050e8a05ad1...>,
+      "selector": 1
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TLSA
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for dynup.net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0x07666f6f466f6f3209426c61203b2046...>,
+      "txt_strings":
+      [
+         <bindata of "fooFoo2">,
+         <bindata of "Bla ; Foo">
+      ]
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for default._domainkey.net-dns.org.>,
+    "rdata":
+    {
+      "rdata_raw": <bindata of 0xfd763d444b494d313b20723d706f7374...>,
+      "txt_strings":
+      [
+         <bindata of "v=DKIM1; r=postmaster; g=*; k=rs"...>
+      ]
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_TXT
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for uri.net-dns.org.>,
+    "rdata":
+    {
+      "priority": 10,
+      "rdata_raw": <bindata of 0x000a00016674703a2f2f667470312e6e...>,
+      "target": <bindata of "ftp://ftp1.net-dns.org/public">,
+      "weight": 1
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_URI
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for wks.net-dns.org.>,
+    "rdata":
+    {
+      "address": <bindata of 0xc3a9d79b>,
+      "bitmap": <bindata of 0x00000000000004>,
+      "protocol": 6,
+      "rdata_raw": <bindata of 0xc3a9d79b0600000000000004>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_WKS
+  },
+  {
+    "class": GETDNS_RRCLASS_IN,
+    "name": <bindata for x25.net-dns.org.>,
+    "rdata":
+    {
+      "psdn_address": <bindata of "1234567">,
+      "rdata_raw": <bindata of 0x0731323334353637>
+    },
+    "ttl": 30,
+    "type": GETDNS_RRTYPE_X25
+  }
+]
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 0
+;; flags: ; QUERY: 0, ANSWER: 78, AUTHORITY: 0, ADDITIONAL: 0 
+;; QUESTION SECTION:
+
+;; ANSWER SECTION:
+net-dns.org.	30	IN	SOA	ns.nlnetlabs.nl. sysadmin.nlnetlabs.nl. 2015081800 450 600 345600 300
+net-dns.org.	30	IN	NS	ns.nlnetlabs.nl.
+net-dns.org.	30	IN	A	185.49.140.22
+net-dns.org.	30	IN	AAAA	2a04:b900::2:0:0:22
+net-dns.org.	30	IN	MX	10 dicht.nlnetlabs.nl.
+net-dns.org.	30	IN	TXT	"Net::DNS  domain"
+a.net-dns.org.	30	IN	A	10.0.1.128
+www.net-dns.org.	30	IN	A	185.49.140.22
+aaaa.net-dns.org.	30	IN	AAAA	2a04:b900::2:0:0:23
+afsdb.net-dns.org.	30	IN	AFSDB	12 getdnsapi.net-dns.org.
+apl.net-dns.org.	30	IN	APL	1:192.168.42.0/26 1:192.168.42.64/26 !1:192.168.42.128/25 1:224.0.0.0/4 2:ff00:0000:0000:0000:0000:0000:0000:0000/8
+atm-host.net-dns.org.	30	IN	ATMA	4700790001020000000000000000A03E00000200
+caa.net-dns.org.	30	IN	CAA	0 issue "ca.net-dns.org"
+cdnskey.net-dns.org.	30	IN	CDNSKEY	256 3 5 AQOraLfzarHAlFskVGwAGnX0LRjlcOiO6y5WM4Kz+QvZ9vX28h4lOvnfd5tkxnZm7ERLTAJoFq+1w/wl7VXs2Isz75BSZ7LQh3OT2xXnS6VT5ZxXko/UCOdoGiKZZ63jHZ0jNSTCYy8+5rfvwRD8s3gGuErp5KcHg3V8VLUKSDNNEQ==
+cds.net-dns.org.	30	IN	CDS	13026 3 1 0259F20021
+cert.net-dns.org.	30	IN	CERT	PKIX 65535 1 AQOppkQvFlPFLiWZc0NXX5/QY44jphv3vfX0dscHNmThNtfx0TUgfBb1YQKJX6MNrzu/vvtV3xpLcCJ+tIP8ADDiMaUYT5Gh6kmn22V7FgHPlCHRJ+AcudQbeYgw1KCYS9D46oEvBR8mQ4HFTEkdWg+PETATQk77P1CmmURdogcmzZqZIer+VAs6uusIdxrmWeP8j2aYRvozdjvgzmHXSabDDxrnuIbnL4r4qAoc6Q9DAybYA7Ya52gtH06dFOkaQr1dvHu1iJES16H0SL/OlhsOVrZmM1RFcwDGXcnxiKZ4TdtFeXQ/6VN3JegLR5t2FyKzoKYb4klpdZM8JVuVtc/n
+cname.net-dns.org.	30	IN	CNAME	a.net-dns.org.
+csync.net-dns.org.	30	IN	CSYNC	66 3 A NS AAAA
+dhcid.net-dns.org.	30	IN	DHCID	AAIBY2/AuCccgoJbsaxcQc9TUapptP69lOjxfNuVAA2kjEA=
+dlv.net-dns.org.	30	IN	DLV	13026 3 1 0259F20021A0F2FF8BBBD8AB6174AC2412FDF363
+dname.net-dns.org.	30	IN	DNAME	net-dns.net.
+dnskey.net-dns.org.	30	IN	DNSKEY	256 3 5 AQOraLfzarHAlFskVGwAGnX0LRjlcOiO6y5WM4Kz+QvZ9vX28h4lOvnfd5tkxnZm7ERLTAJoFq+1w/wl7VXs2Isz75BSZ7LQh3OT2xXnS6VT5ZxXko/UCOdoGiKZZ63jHZ0jNSTCYy8+5rfvwRD8s3gGuErp5KcHg3V8VLUKSDNNEQ== ;{id = 42860 (zsk), size = 1024b}
+ds.net-dns.org.	30	IN	DS	13026 3 1 0259F20021A0F2FF8BBBD8AB6174AC2412FDF363
+eid.net-dns.org.	30	IN	EID	E32C6F78164A9348
+eui48.net-dns.org.	30	IN	EUI48	00-00-5e-00-53-2a
+eui64.net-dns.org.	30	IN	EUI64	00-00-5e-ef-10-00-00-2a
+gpos.net-dns.org.	30	IN	GPOS	"-32.6882" "116.8652" "10.0"
+hinfo.net-dns.org.	30	IN	HINFO	"CPU" "OS"
+hip.net-dns.org.	30	IN	HIP	2 200100107B1A74DF365639CC39F1D578 AwEAAbdxyhNuSutc5EMzxTs9LBPCIkOFH8cIvM4p9+LrV4e19WzK00+CI6zBCQTdtWsuxKbWIy87UOoJTwkUs7lBu+Upr1gsNrut79ryra+bSRGQb1slImA8YVJyuIDsj7kwzG7jnERNqnWxZ48AWkskmdHaVDP4BcelrTI3rMXdXF5D
+ipseckey0.net-dns.org.	30	IN	IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey1.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey2.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey3.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 0 2 . AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 1 2 192.0.2.38 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 2 2 2001:db8:0:8002::2000:1 AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+ipseckey.net-dns.org.	30	IN	IPSECKEY	10 3 2 mygateway.example.com. AQNRU3mG7TVTO2BkR47usntb102uFJtugbo6BSGvgqt4AQ==
+isdn.net-dns.org.	30	IN	ISDN	"150862028003217" "004"
+key.net-dns.org.	30	IN	KEY	256 3 3 BOPdJjdc/ZQWCVA/ONz6LjvugMnB2KKL3F1D2i9GdrpircWRKS2DfRn5KiMM2HQXBHv0ZdkFs/tmjg7rYxrN+bzBNrlwfU5RMjioi67PthD07EHbZjwoZ5sKC2BZ/M596hygfx5JAvbIWBQVF+ztiuCnWCkbGvVXwsmE+odINCur+o+EjA9hF06LqTviUJKqTxisQO5OHM/0ufNenzIbijJPTXbUcF3vW+CMlX+AUPLSag7YnhWaEu7BLCKfg3vJVw9mtaN2W3oWPRdebGUf/QfyVKXoWD6zDLByCZh4wKvpcwgAsel4bO5LVe7s8qstSxqrwzmvaZ5XYOMZFbN7CXtutiswAkb0pkehIYime6IRkDwWDG+14H5yriRuCDK3m7GvwxMo+ggV0k3Po9LD5wWSIi1N
+kx.net-dns.org.	30	IN	KX	10 services.
+loc.net-dns.org.	30	IN	LOC	42 21 54.000 N 71 06 18.000 W -24m 30m 10000m 10m
+lp.net-dns.org.	30	IN	LP	10 l64-subnet1.net-dns.org.
+l32.net-dns.org.	30	IN	L32	10 10.1.2.0
+l64.net-dns.org.	30	IN	L64	10 2001:0db8:1140:1000
+mb.net-dns.org.	30	IN	MB	services.net-dns.org.
+md.net-dns.org.	30	IN	MD	services.net-dns.org.
+mf.net-dns.org.	30	IN	MF	services.net-dns.org.
+mg.net-dns.org.	30	IN	MG	services.net-dns.org.
+minfo.net-dns.org.	30	IN	MINFO	getdnsapi.net-dns.org. info.getdnsapi.net-dns.org.
+mr.net-dns.org.	30	IN	MR	services.net-dns.org.
+mx.net-dns.org.	30	IN	MX	10 a.net-dns.org.
+naptr.net-dns.org.	30	IN	NAPTR	100 100 "s" "http+I2R" "" _https._tcp.net-dns.org.
+nid.net-dns.org.	30	IN	NID	10 0014:4fff:ff20:ef64
+nimloc.net-dns.org.	30	IN	NIMLOC	32251B030067
+nsap.net-dns.org.	30	IN	NSAP	0x47000580005A0000000001E133FFFFFF00016100
+444433332222111199990123000000ff.net-dns.org.	30	IN	NSAP-PTR	"host"
+nsec.net-dns.org.	30	IN	NSEC	host.net-dns.org. A MX NSEC
+nsec3.net-dns.org.	30	IN	NSEC3	1 0 5 FD5EEADE2BA67B64 92qfhk1g2m21l1j89pju33nrm9586bpu A NS SOA MX RRSIG DNSKEY NSEC3PARAM
+nsec3param.net-dns.org.	30	IN	NSEC3PARAM	1 0 5 FD5EEADE2BA67B64
+3fa2675708e4613939a03a3a8f3517118fe470e519d634a763d89037._openpgpkey.net-dns.org.	30	IN	OPENPGPKEY	mQENBFTTiU4BCADdIc4NQ6vZqyDJtKVqXabvj66t3V+OTvoDrceeTjmwtUoFIU2p5xQPmeHQcT+YPLOJC7rKI/raNBe/sQ9+WKanWko9xVzki3l2YqHCuioUAdgbtZMrSnkSTnCyST/rAuxxQYMHo5Ck/0g4b9Z0jZnRIACd8oxX89CRH5zu1KP6X7Df7aGpnNlFBUWTdODTkrUapLXLdn3dHJmsMxwBL1xLJvhWRmIvk27L18ix50IDLw/JHiraCCClyDXfDXkahWAR2GTFxp9iZ0FS1G+f+EFsGhP72LAuiLsBgauDuekPf01xnbn3PgMi8NSNsrJJMFQKfCLx0iPy5KCKvWL2KW7nABEBAAG0H0hvZGEgUm9oYW5pIDxob2RhQG5sbmV0bGFicy5ubD6JATgEEwECACIFAlTTiU4CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEBS2RC1wiYvnD88H/0kwmg5HcisUjwquaOSaybp8MQ46KNVZO+CI3csyhHlmOdYk3BDUDMWTzs0JvHAOIS5tyRBVaXdbxtth7sIbI1CwdHf2jwSs16rApJs4XC5kndF3Z6uk8QHyNanvTxLL+CSZX7I/GAx4dLgN/3v7kx/bKNtXRKy525KHbbl3AqPVRcynqJ/yLuiA47jEUfR5ZI3awrtdlVtmq/9Zv4tw3mRM/GVvOCPBfzWHe57BI4D+PeIgRmTpLCSwtQwfbGvf/wufaVXX+fCqUuGGpNda8F1BQPdoTMIS+rQVjOSFKNWOIRauNsDWQHYQTSafRuCk0p1FSzmsWjXQJCpXIzmwZP+5AQ0EVNOJTgEIALxEVGUggMZFzr732mGrUjmDK25eVwZ5KDaFnn3RvtvbW1Dg7VaeI+V0foLQGqzge1p/kvLQHMY1MJMZYWSK3MqL4hnavSklDnOQTUAeMZ6k2+1njE1kcYM2DeZGqPufRB6jeaa2SYvGLL4EUbaCzW5r0pv3rgewUzmMvzOf+SgsHQFfRPQZOtGGIVrLTn9G9uFIE80RSV316oYTvXgUVbTSGObpfxWY5i9UwMQgsNgzN1TpAj2ktjROY0c85DxoY/HBTEsAh+jHyNKH+z1Dng2luWY1P/w7wAZNEqPrqk3AUkGt9jDbACbcr3Cyu/6GKsxpJbjPIzal33sunwEZ4+EAEQEAAYkBHwQYAQIACQUCVNOJTgIbDAAKCRAUtkQtcImL5/6ZCACj2HPhLyCJNB7ozf39SuuAdI1PgUfNSx3adOZeMQ03itGnY+YKDiSOcWlUwYvbX4PMiXjHiL+bOlMNAN6Lxfsfqj6Lef7r6s5I+m0VW+/wcb0J1+V0ObGDux69kxPwsozu1Khbpamsj1S8AiGtdUA1Qc0/qXzkEjW7MQ5YwYr0vL4nAlOoxD4l/U8PrLIo1ftwShf1cTXu2TlFAzaUzyfSLqkqQLQtMZ/3yx5w4uvRXElbOVbRi9bebAzLrUx12JUTDNzWv3qDH0hJnQxSrpu9gy21VRwlyfWz4Nz3GhsmRn1pbmzaUclEL6Rk/zv4gy6Z/X0CK1eepZ/JAEwkRCvq
+128.1.0.10.in-addr.arpa.	30	IN	PTR	a.net-dns.org.
+px.net-dns.org.	30	IN	PX	2 map822. mapx400.
+rp.net-dns.org.	30	IN	RP	a.getdnsapi.net-dns.org. getdnsapi.net-dns.org.
+rrsig.net-dns.org.	30	IN	RRSIG	SOA 8 1 3600 20170417161124 20170403085720 13156 net-dns.org. U2lxZcqlOQ6d8pbMAhEZwPTjPpSkXoKcZAb43B6dIRPNPZXvm4VGPB37BbTqq/zCWmNv/E2OoVwFncqq21bnSxrx6t/KnlrO1keFiopS+uTJreCJzI6U1zOhgHViN5Z/5yLJG1w5jjbRmJ3FMEVwfgLwjPOUPtq6/zqAH19mvtU= ;{id = 13156}
+rt.net-dns.org.	30	IN	RT	0 services.
+sig.net-dns.org.	30	IN	SIG	A 3 3 1285 20170327122207 20170226122207 22004 net-dns.org. BMTLR80WnKndatr77OirBtprR9SLKoZUiPWXU5kViDi+5amYW/GFCp0=
+spf.net-dns.org.	30	IN	SPF	"v=spf1 +mx a:colo.nlnetlabs.nl/28 -all"
+srv.net-dns.org.	30	IN	SRV	0 5 80 www.net-dns.org.
+sshfp.net-dns.org.	30	IN	SSHFP	1 1 450C7D19D5DA9A3A5B7C19992D1FBDE15D8DAD44
+talink.net-dns.org.	30	IN	TALINK	h0.net-dns.org. h2.net-dns.org.
+_443._tcp.net-dns.org.	30	IN	TLSA	0 0 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
+_443._tcp.ww.net-dns.org.	30	IN	TLSA	1 1 2 92003BA34942DC74152E2F2C408D29ECA5A520E7F2E06BB944F4DCA346BAF63C1B177615D466F6C4B71C216A50292BD58C9EBDD2F74E38FE51FFD48C43326CBC
+_443._tcp.www.net-dns.org.	30	IN	TLSA	3 1 1 274C6F96C9885C8050E8A05AD1C3162C1D51752C35B6196474E3F05AD31CD923
+dynup.net-dns.org.	30	IN	TXT	"fooFoo2" "Bla ; Foo"
+default._domainkey.net-dns.org.	30	IN	TXT	"v=DKIM1; r=postmaster; g=*; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDVG/lfF5GtPlMOcSGnfbp5u+EWM+OOg/f6QmbDXOW/zKQkRIRIZ+BtfSYchP8MeFPfMvUZtdRPzCWg1G7OdD7qaTUqc6kV84on6/8kPVMgdDLyLl2DeU/Lts9hfVHVDSpWuChwDAFXnbnW8jpp54zuof9OIbWSWIxZqLL8flgOsQIDAQAB"
+uri.net-dns.org.	30	IN	URI	10 1 "ftp://ftp1.net-dns.org/public"
+wks.net-dns.org.	30	IN	WKS	195.169.215.155 tcp 53
+x25.net-dns.org.	30	IN	X25	"1234567"
+
+;; AUTHORITY SECTION:
+
+;; ADDITIONAL SECTION:
+;; MSG SIZE  rcvd: 6664
+

@@ -6,7 +6,7 @@ Maintainer: Willem Toorop
 Category: 
 Component:
 CmdDepends: 
-Depends: 300-event-loops-configure.tpkg
+Depends: 310-dependencies.tpkg
 Help:
 Pre: 320-event-loops-compile.pre
 Post: 320-event-loops-compile.post
