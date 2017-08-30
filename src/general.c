@@ -60,6 +60,9 @@ void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 {
 	_getdns_context_clear_outbound_request(dnsreq);
 
+#if defined(REQ_DEBUG) && REQ_DEBUG
+	debug_req(__FUNC__, *dnsreq->netreqs);
+#endif
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context,
@@ -212,6 +215,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 
 #ifdef STUB_NATIVE_DNSSEC
 	    || (dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
+	        && !dns_req->avoid_dnssec_roadblocks
 	        && (dns_req->dnssec_return_status ||
 	            dns_req->dnssec_return_only_secure ||
 	            dns_req->dnssec_return_all_statuses
@@ -229,6 +233,9 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 		    NULL, NULL, (getdns_eventloop_callback)
 		    _getdns_validation_chain_timeout));
 
+#if defined(REQ_DEBUG) && REQ_DEBUG
+		debug_req("getting validation chain for ", *dns_req->netreqs);
+#endif
 		_getdns_get_validation_chain(dns_req);
 	} else
 		_getdns_call_user_callback(

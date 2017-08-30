@@ -44,7 +44,7 @@ libdir = @libdir@
 srcdir = @srcdir@
 INSTALL = @INSTALL@
 
-all : default @GETDNS_QUERY@ @STUBBY@
+all : default @GETDNS_QUERY@
 
 everything: default
 	cd src/test && $(MAKE)
@@ -52,7 +52,10 @@ everything: default
 default:
 	cd src && $(MAKE) $@
 
-install: default getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_STUBBY@
+install-lib:
+	cd src && $(MAKE) install
+
+install: getdns.pc getdns_ext_event.pc install-lib @INSTALL_GETDNS_QUERY@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -66,8 +69,7 @@ install: default getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_S
 	$(INSTALL) -m 644 getdns_ext_event.pc $(DESTDIR)$(libdir)/pkgconfig
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)/spec
 	$(INSTALL) -m 644 $(srcdir)/spec/index.html $(DESTDIR)$(docdir)/spec
-	cd src && $(MAKE) $@
-	cd doc && $(MAKE) $@
+	cd doc && $(MAKE) install
 	@echo "***"
 	@echo "***  !!! IMPORTANT !!!!  libgetdns needs a DNSSEC trust anchor!"
 	@echo "***"
@@ -86,7 +88,7 @@ install: default getdns.pc getdns_ext_event.pc @INSTALL_GETDNS_QUERY@ @INSTALL_S
 	@echo "***  at package installation time from the post-install script."
 	@echo "***"
 
-uninstall: @UNINSTALL_GETDNS_QUERY@ @UNINSTALL_STUBBY@
+uninstall: @UNINSTALL_GETDNS_QUERY@
 	rm -rf $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
@@ -103,8 +105,8 @@ test: default
 getdns_query: default
 	cd src/tools && $(MAKE) $@
 
-stubby: getdns_query
-	cd src/tools && $(MAKE) $@
+stubby:
+	cd src && $(MAKE) $@
 
 scratchpad: default
 	cd src/test && $(MAKE) $@
@@ -112,17 +114,17 @@ scratchpad: default
 pad: scratchpad
 	src/test/scratchpad || ./libtool exec gdb src/test/scratchpad
 
-install-getdns_query: getdns_query
+install-getdns_query: install-lib
 	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_query:
 	cd src/tools && $(MAKE) $@
 
-install-stubby: getdns_query
-	cd src/tools && $(MAKE) $@
+install-stubby:
+	cd src && $(MAKE) $@
 
 uninstall-stubby:
-	cd src/tools && $(MAKE) $@
+	cd src && $(MAKE) $@
 
 clean:
 	cd src && $(MAKE) $@
@@ -198,9 +200,10 @@ $(distdir):
 	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/src/yxml
 	mkdir -p $(distdir)/doc
-	mkdir -p $(distdir)/systemd
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
+	mkdir -p $(distdir)/stubby
+	mkdir -p $(distdir)/stubby/src
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/AUTHORS $(distdir)
@@ -241,12 +244,13 @@ $(distdir):
 	cp $(srcdir)/spec/*.html $(distdir)/spec
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
-	cp $(srcdir)/systemd/README.md $(distdir)/systemd
-	cp $(srcdir)/systemd/stubby.* $(distdir)/systemd
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
-	cp $(srcdir)/src/tools/stubby.conf $(distdir)/src/tools
-	cp $(srcdir)/src/tools/stubby-setdns-macos.sh $(distdir)/src/tools
+	cp $(srcdir)/stubby/stubby.conf.example $(distdir)/stubby
+	cp $(srcdir)/stubby/stubby-setdns-macos.sh $(distdir)/stubby
+	cp $(srcdir)/stubby/src/stubby.c $(distdir)/stubby/src
+	cp $(srcdir)/stubby/COPYING $(distdir)/stubby
+	cp $(srcdir)/stubby/README.md $(distdir)/stubby
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
