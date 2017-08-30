@@ -65,6 +65,8 @@ The following requirements were met as conditions for the present release:
 
 # Building and External Dependencies
 
+If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.  
+
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.  Please refer to section for building on Windows for separate dependency and build instructions for that platform.
 
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
@@ -72,23 +74,25 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
-If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.  If you checked out from git you need to copy the libtool helper scripts and rebuild configure thus:
+For example, to build on a recent version of Ubuntu, you would need the following packages:
 
-    # libtoolize -ci (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
-    # autoreconf -fi
+    # apt install build-essential libunbound-dev libidn11-dev libssl-dev libtool m4 autoconf
 
-If you want to make use of the configuration files that utilise a JSON-like format, you must do 
+If you are building from git, you need to do the following before building:
+
 
     # git submodule update --init
 
-before building. 
+    # libtoolize -ci # (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
+    # autoreconf -fi
+
 
 As well as building the getdns library 2 other tools are installed by default by the above process:
 
 * getdns_query: a command line test script wrapper for getdns
 * stubby: an experimental DNS Privacy enabled client
 
-Note: If you only want to build stubby, then use the `--enable-stub-only` and `--without-libidn` options when running 'configure'.
+Note: If you only want to build stubby, then use the `--with-stubby` option when running 'configure'.
 
 
 ## Minimizing dependencies
@@ -99,7 +103,7 @@ Note: If you only want to build stubby, then use the `--enable-stub-only` and `-
 
 ## Extensions and Event loop dependencies
 
-The implementation works with a variety of event loops, each built as a separate shared library.  See [the wiki](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support#wiki-included-event-loop-integrations) for more details.
+The implementation works with a variety of event loops, each built as a separate shared library.  See [this Doxygen page](https://getdnsapi.net/doxygen/group__eventloops.html) and [this man page](https://getdnsapi.net/documentation/manpages/#ASYNCHRONOUS USE) for more details.
 
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
 * [libuv](https://github.com/joyent/libuv)
@@ -170,8 +174,8 @@ Non-goals (things we will not be doing at least initially) include:
 ## Language Bindings
 
 In parallel, the team is actively developing bindings for various languages.
-For more information, visit the
-[wiki](https://github.com/getdnsapi/getdns/wiki/Language-Bindings).
+For more information, visit this
+[webpage](https://getdnsapi.net/bindings/).
 
 ## Unsupported getDNS Features
 
@@ -187,10 +191,10 @@ The following minor implementation omissions are noted:
 Recursive mode does not support:
 * TLS as a transport
 * Non-zero connection idle timeouts or query pipelining
+* Anything other than query_type and resolution_type in the return_call_reporting extension
 
 Stub mode does not support:
 * Non zero idle timeouts for synchronous calls
-* Limit on number of outstanding queries
 
 # Known Issues
 
@@ -264,7 +268,7 @@ build the packages; this is simply the one we chose to use.
 
 If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.  By default, this will only build the core library without any 3rd party event loop support.
 
-To install the [event loop integration libraries](https://github.com/getdnsapi/getdns/wiki/Asynchronous-Support) that enable support for libevent, libuv, and libev, run: `brew install getdns --with-libevent --with-libuv --with-libev`.  All switches are optional.
+To install the [event loop integration libraries](https://getdnsapi.net/doxygen/group__eventloops.html) that enable support for libevent, libuv, and libev, run: `brew install getdns --with-libevent --with-libuv --with-libev`.  All switches are optional.
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 

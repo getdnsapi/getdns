@@ -127,9 +127,7 @@ typedef struct getdns_upstream {
 
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
-#if defined(DAEMON_DEBUG) && DAEMON_DEBUG
 	char                     addr_str[INET6_ADDRSTRLEN];
-#endif
 
 	/**
 	 * How is this upstream doing over UDP?
@@ -238,6 +236,13 @@ typedef struct getdns_upstream {
 
 } getdns_upstream;
 
+typedef struct getdns_log_config {
+	getdns_logfunc_type  func;
+	void                *userarg;
+	uint64_t             system;
+	getdns_loglevel_type level;
+} getdns_log_config;
+
 typedef struct getdns_upstreams {
 	struct mem_funcs mf;
 	size_t referenced;
@@ -246,6 +251,7 @@ typedef struct getdns_upstreams {
 	size_t current_stateful;
 	uint16_t tls_backoff_time;
 	uint16_t tls_connection_retries;
+	getdns_log_config log;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
@@ -295,6 +301,8 @@ struct getdns_context {
 	getdns_update_callback  update_callback;
 	getdns_update_callback2 update_callback2;
 	void                   *update_userarg;
+
+	getdns_log_config log;
 
 	int processing;
 	int destroying;
@@ -394,6 +402,13 @@ struct getdns_context {
 
 #endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
+
+void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, ...);
+
+void _getdns_context_log(getdns_context *context, uint64_t system,
+    getdns_loglevel_type level, const char *fmt, ...);
+
 
 /** internal functions **/
 /**
