@@ -238,7 +238,8 @@ mdns_util_canonical_flags_and_name(uint8_t *message, int message_length,
 	}
 	else
 	{
-		for (int i = 0; i < nb_octets_to_copy; i++)
+		int i;
+		for (i = 0; i < nb_octets_to_copy; i++)
 		{
 			buffer[buffer_index++] = message[current_index++];
 		}
@@ -702,6 +703,7 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	int current_hole_index = 0;
 	int record_name_length = 0;
 	int record_ttl_index = 0;
+	int i;
 
 	/*
 	 * Skip the query
@@ -716,7 +718,7 @@ mdns_update_cache_ttl_and_prune(struct getdns_context *context,
 	/*
 	 * Examine each record
 	 */
-	for (int i = 0; i < nb_answers; i++)
+	for (i = 0; i < nb_answers; i++)
 	{
 		record_name_length = mdns_util_skip_name(old_record + answer_index);
 		record_ttl_index = answer_index + record_name_length + 2 + 2;
@@ -1489,8 +1491,9 @@ static getdns_return_t mdns_delayed_network_init(struct getdns_context *context)
 				}
 				else
 				{
+					int i;
 					/* TODO: launch the receive loops */
-					for (int i = 0; i < 2; i++)
+					for (i = 0; i < 2; i++)
 					{
 						GETDNS_CLEAR_EVENT(context->extension, &context->mdns_connection[i].event);
 						GETDNS_SCHEDULE_EVENT(
@@ -1503,7 +1506,8 @@ static getdns_return_t mdns_delayed_network_init(struct getdns_context *context)
 
 				if (ret != 0)
 				{
-					for (int i = 0; i < 2; i++)
+					int i;
+					for (i = 0; i < 2; i++)
 					{
 						if (context->mdns_connection[i].fd != -1)
 						{
@@ -1647,7 +1651,8 @@ void _getdns_mdns_context_destroy(struct getdns_context *context)
 	/* Close the connections */
 	if (context->mdns_connection != NULL)
 	{
-		for (int i = 0; i < context->mdns_connection_nb; i++)
+		int i;
+		for (i = 0; i < context->mdns_connection_nb; i++)
 		{
 			/* suppress the receive event */
 			GETDNS_CLEAR_EVENT(context->extension, &context->mdns_connection[i].event);
