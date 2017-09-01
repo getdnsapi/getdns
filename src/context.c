@@ -2699,7 +2699,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		uint8_t          tsig_dname_spc[256], *tsig_dname;
 		size_t           tsig_dname_len;
 
-		size_t           j
+		size_t           j;
 
 		if ((r = getdns_list_get_dict(upstream_list, i, &dict))) {
 			dict = NULL;
