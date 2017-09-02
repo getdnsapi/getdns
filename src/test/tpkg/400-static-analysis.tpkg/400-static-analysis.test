@@ -6,4 +6,9 @@
 
 cd "${BUILDDIR}/build-static-analysis"
 scan-build -o ../scan-build-reports -v --status-bugs make -j 4 everything
-scp -o "StrictHostKeyChecking no" -i ./400-static-analysis -r ../scan-build-reports static-analysis@getdnsapi.net:scan-build-resports-$$-`date +%s`
+cd ..
+pwd
+echo scp -o "StrictHostKeyChecking no" -i ./400-static-analysis -r scan-build-reports static-analysis@getdnsapi.net:scan-build-resports-$$-`date +%s`
+scp -o "StrictHostKeyChecking no" -i ./400-static-analysis -r scan-build-reports static-analysis@getdnsapi.net:scan-build-resports-$$-`date +%s`
+echo Copy done
+

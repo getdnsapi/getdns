@@ -89,9 +89,9 @@ function epoch() {
 function post() {
         if [ -f "${dsc_post}" ]; then 
                 err "[log] Executing post script: ${dsc_post} ${TPKG_ARGS}"
-                echo "--------- Start Post Output ------------------ " >> result.$dsc_basename
-                ${SHELL} ${dsc_post} ${TPKG_ARGS} >> result.$dsc_basename
-                echo "----------- End Post Output ------------------ " >> result.$dsc_basename
+                echo "--------- Start Post Output ------------------ " | tee -a result.$dsc_basename
+                ${SHELL} ${dsc_post} ${TPKG_ARGS} | tee -a result.$dsc_basename
+                echo "----------- End Post Output ------------------ " | tee -a result.$dsc_basename
                 result=$?
                 if [ $result -ne 0 ]; then
                         err "[warning] Post-script executed with errors: $result."
@@ -102,9 +102,9 @@ function post() {
 function pre() {
         if [ -f "${dsc_pre}" ]; then 
                 err "[log] Executing pre script: ${dsc_pre} ${TPKG_ARGS}"
-                echo "--------- Start Pre Output ------------------- " >> result.$dsc_basename
-                ${SHELL} ${dsc_pre} ${TPKG_ARGS} >> result.$dsc_basename
-                echo "----------- End Pre Output ------------------- " >> result.$dsc_basename
+                echo "--------- Start Pre Output ------------------- " | tee -a result.$dsc_basename
+                ${SHELL} ${dsc_pre} ${TPKG_ARGS} | tee -a result.$dsc_basename
+                echo "----------- End Pre Output ------------------- " | tee -a result.$dsc_basename
                 result=$?
                 if [ $result -ne 0 ]; then
                         err "[warning] Pre-script executed with errors: $result."
@@ -838,16 +838,16 @@ fi
 tpkg_log "Starting test: '$dsc_basename'"
 
 epoch  # run before pre()
-echo "BaseName: $dsc_basename" > result.$dsc_basename
-echo "Description: $dsc_description" >> result.$dsc_basename
-echo "DateRunStart: $epoch " >> result.$dsc_basename
-echo "--------------- Test Output ------------------" >> result.$dsc_basename
+echo "BaseName: $dsc_basename" | tee result.$dsc_basename
+echo "Description: $dsc_description" | tee -a result.$dsc_basename
+echo "DateRunStart: $epoch " | tee -a result.$dsc_basename
+echo "--------------- Test Output ------------------" | tee -a result.$dsc_basename
 
 pre
 
 out "[log] Executing test" 
 
-( ${SHELL} $dsc_test ${TPKG_ARGS} 2>&1 ) >> result.$dsc_basename
+( ${SHELL} $dsc_test ${TPKG_ARGS} 2>&1 ) | tee -a result.$dsc_basename
 test_result=$?
 epoch   # would like to run after post, but that is not possible :-(
 if [ $test_result -ne 0 ]; then
