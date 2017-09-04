@@ -1116,7 +1116,8 @@ set_os_defaults_windows(struct getdns_context *context)
 		ptr = &info->DnsServerList;
 		*domain = 0;
 		while (ptr) {
-			for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
+			size_t i;
+			for (i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
 				char *port_str = getdns_port_str_array[i];
 				if ((s = getaddrinfo(ptr->IpAddress.String, port_str, &hints, &result)))
 					continue;
@@ -1209,6 +1210,8 @@ set_os_defaults(struct getdns_context *context)
 
 	*domain = 0;
 	while (fgets(line, (int)sizeof(line), in)) {
+		size_t i;
+
 		line[sizeof(line)-1] = 0;
 		/* parse = line + strspn(line, " \t"); */ /* No leading whitespace */
 		parse = line;
@@ -1248,7 +1251,7 @@ set_os_defaults(struct getdns_context *context)
 		token = parse + strcspn(parse, " \t\r\n");
 		*token = 0;
 
-		for (size_t i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
+		for (i = 0; i < GETDNS_UPSTREAM_TRANSPORTS; i++) {
 			char *port_str = getdns_port_str_array[i];
 			if ((s = getaddrinfo(parse, port_str, &hints, &result)))
 				continue;
@@ -2029,6 +2032,9 @@ getdns_set_base_dns_transports(
 
 static getdns_return_t
 set_ub_dns_transport(struct getdns_context* context) {
+	int fallback;
+	size_t i;
+
     /* These mappings are not exact because Unbound is configured differently,
        so just map as close as possible. Not all options can be supported.*/
     switch (context->dns_transports[0]) {
@@ -2048,8 +2054,8 @@ set_ub_dns_transport(struct getdns_context* context) {
             set_ub_string_opt(context, "do-udp:", "no");
             set_ub_string_opt(context, "do-tcp:", "yes");
             /* Find out if there is a fallback available. */
-            int fallback = 0;
-            for (size_t i = 1; i < context->dns_transport_count; i++) {
+            fallback = 0;
+            for (i = 1; i < context->dns_transport_count; i++) {
                 if (context->dns_transports[i] == GETDNS_TRANSPORT_TCP) {
                     fallback = 1;
                     break;
@@ -2723,6 +2729,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		uint8_t          tsig_dname_spc[256], *tsig_dname;
 		size_t           tsig_dname_len;
 
+		size_t           j;
+
 		if ((r = getdns_list_get_dict(upstream_list, i, &dict))) {
 			dict = NULL;
 
@@ -2844,7 +2852,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		 */
 
 		/* Loop to create upstreams as needed*/
-		for (size_t j = 0; j < GETDNS_UPSTREAM_TRANSPORTS; j++) {
+		for (j = 0; j < GETDNS_UPSTREAM_TRANSPORTS; j++) {
 			uint32_t port;
 			struct addrinfo *ai;
 			port = getdns_port_array[j];

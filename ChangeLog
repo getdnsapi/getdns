@@ -1,4 +1,5 @@
-* 2017-0?-??: Version 1.1.3
+* 2017-09-04: Version 1.1.3
+  * Small bugfixes that came out of static analysis
   * No annotations with the output of getdns_query anymore,
     unless -V option is given to increase verbosity
     Thanks Ollivier Robert

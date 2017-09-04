@@ -2055,8 +2055,10 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 {
 	int fd = -1;
 	getdns_upstream *upstream;
-	for (size_t i = netreq->transport_current; 
-	            i < netreq->transport_count; i++) {
+	size_t i;
+
+	for (i = netreq->transport_current; 
+	     i < netreq->transport_count; i++) {
 		upstream = upstream_find_for_transport(netreq,
 		                                  netreq->transports[i],
 		                                  &fd);

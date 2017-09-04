@@ -155,7 +155,8 @@ main(int argc, char** argv)
 			return_value);
 		return (GETDNS_RETURN_GENERIC_ERROR);
 	}
-	for (size_t i = 0; i < transport_count; i++) {
+	size_t i;
+	for (i = 0; i < transport_count; i++) {
 		fprintf(stderr, "Transport %d is %d\n", (int)i, get_transport_list[i]);
 	}
 	free(get_transport_list);
