@@ -13,6 +13,7 @@ TPKG_BASE="."
 TPKG_ARGS=""
 TPKG_CURRENT=`pwd`
 TPKG_QUIET=0		# only output err() msgs
+TPKG_VERBOSE=0          # Show live output of test execution
 TPKG_KEEP=0		# tpkg create doesn't remove dir/
 TPKG_PASS=0		# how much must succeed
 TPKG_LOG=0		# don't log
@@ -73,6 +74,14 @@ function out() {
         fi
 }
 
+function write_result() {
+	if [[ $TPKG_VERBOSE -gt 0 ]]; then
+		tee -a $1
+	else
+		cat >> $1
+	fi
+}
+
 function epoch() {
         # make this sorta portable allthough not needed now
         epoch=0
@@ -89,9 +98,9 @@ function epoch() {
 function post() {
         if [ -f "${dsc_post}" ]; then 
                 err "[log] Executing post script: ${dsc_post} ${TPKG_ARGS}"
-                echo "--------- Start Post Output ------------------ " | tee -a result.$dsc_basename
-                ${SHELL} ${dsc_post} ${TPKG_ARGS} | tee -a result.$dsc_basename
-                echo "----------- End Post Output ------------------ " | tee -a result.$dsc_basename
+                echo "--------- Start Post Output ------------------ " | write_result result.$dsc_basename
+                ${SHELL} ${dsc_post} ${TPKG_ARGS} | write_result result.$dsc_basename
+                echo "----------- End Post Output ------------------ " | write_result result.$dsc_basename
                 result=$?
                 if [ $result -ne 0 ]; then
                         err "[warning] Post-script executed with errors: $result."
@@ -102,9 +111,9 @@ function post() {
 function pre() {
         if [ -f "${dsc_pre}" ]; then 
                 err "[log] Executing pre script: ${dsc_pre} ${TPKG_ARGS}"
-                echo "--------- Start Pre Output ------------------- " | tee -a result.$dsc_basename
-                ${SHELL} ${dsc_pre} ${TPKG_ARGS} | tee -a result.$dsc_basename
-                echo "----------- End Pre Output ------------------- " | tee -a result.$dsc_basename
+                echo "--------- Start Pre Output ------------------- " | write_result result.$dsc_basename
+                ${SHELL} ${dsc_pre} ${TPKG_ARGS} | write_result result.$dsc_basename
+                echo "----------- End Pre Output ------------------- " | write_result result.$dsc_basename
                 result=$?
                 if [ $result -ne 0 ]; then
                         err "[warning] Pre-script executed with errors: $result."
@@ -179,6 +188,7 @@ function usage() {
 	out " -h\t\tshow this help"
 	out " -v\t\tshow version"
         out " -q\t\tonly print errors"
+	out " -V\t\tshow live output when executing tests"
         out " -l\t\tlog test name to syslog when starting the test (using logger)"
         out " -p PRI\tlog using PRI as priority"
         out " -k\t\tdon't remove test directory when creating/executing a tpkg package"
@@ -407,7 +417,7 @@ function extract_tpkg_to { # <dir>
 
 ### MAIN 
 # check the arguments
-while getopts ":vhkqb:a:n:lp:df" o
+while getopts ":vhkqVb:a:n:lp:df" o
 do case "$o" in
 	b) 	TPKG_BASE="$OPTARG";;
 	h) 	usage; exit 0;;
@@ -422,6 +432,7 @@ do case "$o" in
 		fi
 		;;
         q)      TPKG_QUIET=1;;
+	V)	TPKG_VERBOSE=`expr $TPKG_VERBOSE + 1`;;
         k)      TPKG_KEEP=1;;
         n)      TPKG_PASS=$OPTARG
                 if [ $TPKG_PASS -eq 0 ]; then
@@ -838,16 +849,17 @@ fi
 tpkg_log "Starting test: '$dsc_basename'"
 
 epoch  # run before pre()
-echo "BaseName: $dsc_basename" | tee result.$dsc_basename
-echo "Description: $dsc_description" | tee -a result.$dsc_basename
-echo "DateRunStart: $epoch " | tee -a result.$dsc_basename
-echo "--------------- Test Output ------------------" | tee -a result.$dsc_basename
+: > result.$dsc_basename
+echo "BaseName: $dsc_basename" | write_result result.$dsc_basename
+echo "Description: $dsc_description" | write_result result.$dsc_basename
+echo "DateRunStart: $epoch " | write_result result.$dsc_basename
+echo "--------------- Test Output ------------------" | write_result result.$dsc_basename
 
 pre
 
 out "[log] Executing test" 
 
-( ${SHELL} $dsc_test ${TPKG_ARGS} 2>&1 ) | tee -a result.$dsc_basename
+( ${SHELL} $dsc_test ${TPKG_ARGS} 2>&1 ) | write_result result.$dsc_basename
 test_result=$?
 epoch   # would like to run after post, but that is not possible :-(
 if [ $test_result -ne 0 ]; then
