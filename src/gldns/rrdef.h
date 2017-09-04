@@ -227,6 +227,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 	GLDNS_RR_TYPE_AVC = 258,
+	GLDNS_RR_TYPE_DOA = 259,
 
 	/** DNSSEC Trust Authorities */
 	GLDNS_RR_TYPE_TA = 32768,

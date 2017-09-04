@@ -920,7 +920,8 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{         NULL,             NULL, 0                      },
 	{        "URI",        uri_rdata, ALEN(       uri_rdata) }, /* 256 - */
 	{        "CAA",        caa_rdata, ALEN(       caa_rdata) },
-	{        "AVC",        txt_rdata, ALEN(       txt_rdata) }, /* - 258 */
+	{        "AVC",        txt_rdata, ALEN(       txt_rdata) },
+	{        "DOA",    UNKNOWN_RDATA, 0                      }, /* - 259 */
 	{         "TA",         ds_rdata, ALEN(        ds_rdata) }, /* 32768 */
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
@@ -928,12 +929,12 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 const _getdns_rr_def *
 _getdns_rr_def_lookup(uint16_t rr_type)
 {
-	if (rr_type <= 258)
+	if (rr_type <= 259)
 		return &_getdns_rr_defs[rr_type];
 	else if (rr_type == 32768)
-		return &_getdns_rr_defs[259];
-	else if (rr_type == 32769)
 		return &_getdns_rr_defs[260];
+	else if (rr_type == 32769)
+		return &_getdns_rr_defs[261];
 	return _getdns_rr_defs;
 }
 

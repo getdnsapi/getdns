@@ -328,8 +328,8 @@ _getdns_list_copy(const struct getdns_list * srclist,
 		srclist->mf.mf.ext.realloc,
 		srclist->mf.mf.ext.free
 	);
-	if (!dstlist)
-		return GETDNS_RETURN_GENERIC_ERROR;
+	if (!*dstlist)
+		return GETDNS_RETURN_MEMORY_ERROR;
 
 	for (i = 0; i < srclist->numinuse; i++) {
 		switch (srclist->items[i].dtype) {
