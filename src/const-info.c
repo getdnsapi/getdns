@@ -272,6 +272,7 @@ static struct const_name_info consts_name_info[] = {
 	{ "GETDNS_RRTYPE_DLV", 32769 },
 	{ "GETDNS_RRTYPE_DNAME", 39 },
 	{ "GETDNS_RRTYPE_DNSKEY", 48 },
+	{ "GETDNS_RRTYPE_DOA", 259 },
 	{ "GETDNS_RRTYPE_DS", 43 },
 	{ "GETDNS_RRTYPE_EID", 31 },
 	{ "GETDNS_RRTYPE_GID", 102 },
