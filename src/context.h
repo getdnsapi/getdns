@@ -470,4 +470,6 @@ void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
 void _getdns_upstream_shutdown(getdns_upstream *upstream);
 
+void _getdns_upstream_reset(getdns_upstream *upstream);
+
 #endif /* _GETDNS_CONTEXT_H_ */
