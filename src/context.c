@@ -737,7 +737,17 @@ void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
 void
 upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_state = GETDNS_CONN_BACKOFF;
-	upstream->conn_retry_time = time(NULL) + upstream->upstreams->tls_backoff_time;
+	/* Increase the backoff interval incrementally up to the tls_backoff_time*/
+	if (upstream->conn_backoff_interval < upstream->upstreams->tls_backoff_time) {
+		if (upstream->conn_backoff_interval < (UINT16_MAX-1)/2)
+			upstream->conn_backoff_interval *= 2;
+		else
+			upstream->conn_backoff_interval = upstream->upstreams->tls_backoff_time
+	}
+	if (upstream->conn_backoff_interval < upstream->upstreams->tls_backoff_time)
+		upstream->conn_retry_time = time(NULL) + upstream->conn_backoff_interval;
+	else
+		upstream->conn_retry_time = time(NULL) + upstream->upstreams->tls_backoff_time;
 	upstream->total_responses = 0;
 	upstream->total_timeouts = 0;
 	upstream->conn_completed = 0;
@@ -745,7 +755,7 @@ upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_shutdowns = 0;
 	upstream->conn_backoffs++;
 	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-	    "%-40s : !Backing off this upstream    - Will retry as new upstream at %s",
+	    "%-40s : !Backing off this upstream    - Will retry again at %s",
 	            upstream->addr_str,
 	            asctime(gmtime(&upstream->conn_retry_time)));
 }
@@ -774,6 +784,14 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 
 		upstream_backoff(upstream);
 	}
+
+	/* If we didn't backoff it would be nice to reset the conn_backoff_interval
+	   if the upstream is working well again otherwise it would get stuck at the 
+	   tls_backoff_time forever... How about */
+	if (upstream->conn_state != GETDNS_CONN_BACKOFF && 
+	    upstream->responses_received > 1)
+		upstream->conn_backoff_interval = 1;
+
 	// Reset per connection counters
 	upstream->queries_sent = 0;
 	upstream->responses_received = 0;
@@ -958,6 +976,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->conn_shutdowns = 0;
 	upstream->conn_setup_failed = 0;
 	upstream->conn_retry_time = 0;
+	upstream->conn_backoff_interval = 1;
 	upstream->conn_backoffs = 0;
 	upstream->total_responses = 0;
 	upstream->total_timeouts = 0;
