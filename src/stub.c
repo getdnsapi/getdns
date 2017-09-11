@@ -664,6 +664,7 @@ upstream_setup_timeout_cb(void *userarg)
 		while (upstream->write_queue)
 			upstream_write_cb(upstream);
 	}
+	_getdns_upstream_reset(upstream);
 }
 
 
@@ -1586,6 +1587,8 @@ upstream_read_cb(void *userarg)
 	case STUB_SETUP_ERROR:  /* Can happen for TLS HS*/
 	case STUB_TCP_ERROR:
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1) );
+		if (!upstream->write_queue)
+			_getdns_upstream_shutdown(upstream);
 		return;
 
 	default:
@@ -1688,7 +1691,9 @@ upstream_write_cb(void *userarg)
 	            __FUNC__, (void*)netreq);
 
 	/* Health checks on current connection */
-	if (upstream->conn_state == GETDNS_CONN_TEARDOWN)
+	if (upstream->conn_state == GETDNS_CONN_TEARDOWN ||
+	    upstream->conn_state == GETDNS_CONN_CLOSED ||  
+	    upstream->fd == -1)
 		q = STUB_CONN_GONE;
 	else if (!upstream_working_ok(upstream))
 		q = STUB_TCP_ERROR;
@@ -1729,6 +1734,8 @@ upstream_write_cb(void *userarg)
 			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
+		if (!upstream->write_queue)
+			_getdns_upstream_shutdown(upstream);
 		return;
 
 	default:
@@ -1989,6 +1996,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) {
 			upstream_failed(upstream, 1);
+			_getdns_upstream_reset(upstream);
 			return -1;
 		}
 		upstream->loop = dnsreq->loop;
@@ -1998,6 +2006,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			upstream->tls_obj = tls_create_object(dnsreq, fd, upstream);
 			if (upstream->tls_obj == NULL) {
 				upstream_failed(upstream, 1);
+				_getdns_upstream_reset(upstream);
 #ifdef USE_WINSOCK
 				closesocket(fd);
 #else
@@ -2009,7 +2018,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		}
 		upstream->conn_state = GETDNS_CONN_SETUP;
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-		    "%-40s : Conn init     : Transport=%s - Profile=%s\n", 
+		    "%-40s : Conn opened: %s - %s Profile\n", 
 		    upstream->addr_str, transport == GETDNS_TRANSPORT_TLS ? "TLS":"TCP",
 		dnsreq->context->tls_auth_min == GETDNS_AUTHENTICATION_NONE ? "Opportunistic":"Strict");
 		break;

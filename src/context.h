@@ -535,4 +535,6 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 void _getdns_context_write_priv_file(getdns_context *context,
     const char *fn, getdns_bindata *content);
 
+void _getdns_upstream_reset(getdns_upstream *upstream);
+
 #endif /* _GETDNS_CONTEXT_H_ */
