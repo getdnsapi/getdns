@@ -1689,6 +1689,54 @@ getdns_str2int(const char *str, uint32_t *value);
  */
 
 /**
+ * \defgroup Uyaml2getdns_data Converting YAML input to getdns data structures
+ *  @{
+ */
+
+/**
+ * Convert YAML text to a getdns_dict.
+ *
+ * @param  str   A textual representation of a getdns_dict.
+ * @param  dict The returned getdns_dict.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2dict(const char *str, getdns_dict **dict);
+
+/**
+ * Convert YAML text to a getdns_list.
+ *
+ * @param  str   A textual representation of a getdns_list.
+ * @param  list The returned getdns_list.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2list(const char *str, getdns_list **list);
+
+/**
+ * Convert string text to a getdns_bindata.
+ *
+ * @param  str   A textual representation of a getdns_bindata
+ * @param  bindata The returned getdns_bindata.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2bindata(const char *str, getdns_bindata **bindata);
+
+/**
+ * Convert string text to a getdns 32 bits unsigned integer.
+ *
+ * @param  str   A textual representation of the integer.
+ * @param  value The returned integer.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2int(const char *str, uint32_t *value);
+
+/** @}
+ */
+
+/**
  * \defgroup UServerFunctions Creating simple DNS servers
  *  @{
  */

@@ -54,6 +54,7 @@
 #include "dict.h"
 #include "list.h"
 #include "jsmn/jsmn.h"
+#include "yaml/convert_yaml_to_json.h"
 #include "convert.h"
 #include "debug.h"
 
@@ -1800,5 +1801,101 @@ getdns_str2int(const char *str, uint32_t *value)
 	}
 	*value = item.data.n;
 	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_yaml2dict(const char *str, getdns_dict **dict)
+{
+#ifdef USE_YAML_CONFIG
+	char *jsonstr;
+	
+	if (!str || !dict)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	jsonstr = yaml_string_to_json_string(str);
+	if (jsonstr) {
+		getdns_return_t res = getdns_str2dict(jsonstr, dict);
+		free(jsonstr);
+		return res;
+	} else {
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}	
+#else /* USE_YAML_CONFIG */
+	str = str;
+	dict = dict;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif /* USE_YAML_CONFIG */
+}
+
+getdns_return_t
+getdns_yaml2list(const char *str, getdns_list **list)
+{
+#ifdef USE_YAML_CONFIG
+	char *jsonstr;
+	
+	if (!str || !list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	jsonstr = yaml_string_to_json_string(str);
+	if (jsonstr) {
+		getdns_return_t res = getdns_str2list(jsonstr, list);
+		free(jsonstr);
+		return res;
+	} else {
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}	
+#else /* USE_YAML_CONFIG */
+	str = str;
+	list = list;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif /* USE_YAML_CONFIG */
+}
+
+getdns_return_t
+getdns_yaml2bindata(const char *str, getdns_bindata **bindata)
+{
+#ifdef USE_YAML_CONFIG
+	char *jsonstr;
+	
+	if (!str || !bindata)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	jsonstr = yaml_string_to_json_string(str);
+	if (jsonstr) {
+		getdns_return_t res = getdns_str2bindata(jsonstr, bindata);
+		free(jsonstr);
+		return res;
+	} else {
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}	
+#else /* USE_YAML_CONFIG */
+	str = str;
+	bindata = bindata;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif /* USE_YAML_CONFIG */
+}
+
+getdns_return_t
+getdns_yaml2int(const char *str, uint32_t *value)
+{
+#ifdef USE_YAML_CONFIG
+	char *jsonstr;
+	
+	if (!str || !value)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	jsonstr = yaml_string_to_json_string(str);
+	if (jsonstr) {
+		getdns_return_t res = getdns_str2int(jsonstr, value);
+		free(jsonstr);
+		return res;
+	} else {
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}	
+#else /* USE_YAML_CONFIG */
+	str = str;
+	value = value;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif /* USE_YAML_CONFIG */
 }
 
