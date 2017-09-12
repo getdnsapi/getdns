@@ -754,7 +754,7 @@ upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_setup_failed = 0;
 	upstream->conn_shutdowns = 0;
 	upstream->conn_backoffs++;
-	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
 	    "%-40s : !Backing off this upstream    - Will retry again at %s",
 	            upstream->addr_str,
 	            asctime(gmtime(&upstream->conn_retry_time)));
@@ -836,13 +836,13 @@ _getdns_upstream_shutdown(getdns_upstream *upstream)
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->responses_received, (int)upstream->responses_timeouts,
 	             _getdns_auth_str(upstream->tls_auth_state), (int)upstream->keepalive_timeout);
-	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
 	    "%-40s : Upstream   : %s - Resps=%6d, Timeouts  =%6d, Best_auth =%7s\n",
 	             upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),
 	             (int)upstream->total_responses, (int)upstream->total_timeouts,
 	             _getdns_auth_str(upstream->best_tls_auth_state));
-	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
 	    "%-40s : Upstream   : %s - Conns=%6d, Conn_fails=%6d, Conn_shuts=%7d, Backoffs     =%6d\n",
 	             upstream->addr_str,
 	             (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"),

@@ -609,7 +609,7 @@ stub_timeout_cb(void *userarg)
 		netreq->fd = -1;
 		netreq->upstream->udp_timeouts++;
 		if (netreq->upstream->udp_timeouts % 100 == 0)
-			_getdns_upstream_log(netreq->upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+			_getdns_upstream_log(netreq->upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
 			    "%-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 			             netreq->upstream->addr_str,
 			             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
@@ -910,7 +910,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	            X509_verify_cert_error_string(err));
 #endif
 	if (!preverify_ok && !upstream->tls_fallback_ok)
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
 		    "%-40s : Verify failed : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
 		    upstream->addr_str, err,
 		    X509_verify_cert_error_string(err));
@@ -946,7 +946,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
 		else
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
 			    "%-40s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
 			    upstream->addr_str);
 	} else {
@@ -1475,7 +1475,7 @@ stub_udp_read_cb(void *userarg)
 	upstream->udp_responses++;
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
 		    "%-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
 		    upstream->addr_str,
 		    (int)upstream->udp_responses, (int)upstream->udp_timeouts);
@@ -1900,7 +1900,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
 			upstreams->upstreams[i].conn_backoff_interval = 1;
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
 			    "%-40s : Re-instating upstream\n",
 		            upstreams->upstreams[i].addr_str);
 		}
@@ -1958,7 +1958,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		} while (i != upstreams->current_stateful);
 		upstream->conn_state = GETDNS_CONN_CLOSED;
 		upstream->conn_backoff_interval = 1;
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
 		    "%-40s : No valid upstreams... promoting backed-off upstream %s for re-try...\n",
 	            upstreams->upstreams[i].addr_str);
 		return upstream;
@@ -2142,7 +2142,7 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	}
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
-	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
 	    "*FAILURE* no valid transports or upstreams available!\n");
 	return -1;
 }
