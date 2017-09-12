@@ -1813,12 +1813,15 @@ upstream_active(getdns_upstream *upstream)
 }
 
 static int
-upstream_usable(getdns_upstream *upstream) 
+upstream_usable(getdns_upstream *upstream, int backoff_ok) 
 {
 	if ((upstream->conn_state == GETDNS_CONN_CLOSED || 
 	     upstream->conn_state == GETDNS_CONN_SETUP || 
 	     upstream->conn_state == GETDNS_CONN_OPEN) &&
 	     upstream->keepalive_shutdown == 0)
+		return 1;
+	if (backoff_ok == 1 &&
+	    upstream->conn_state == GETDNS_CONN_BACKOFF)
 		return 1;
 	return 0;
 }
@@ -1835,15 +1838,17 @@ upstream_stats(getdns_upstream *upstream)
 {
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
 	return (upstream->total_responses - upstream->total_timeouts
-	        - upstream->conn_shutdowns*GETDNS_TRANSPORT_FAIL_MULT);
+	        - upstream->conn_shutdowns*GETDNS_TRANSPORT_FAIL_MULT
+	        - upstream->conn_setup_failed);
 }
 
 static int
 upstream_valid(getdns_upstream *upstream,
                           getdns_transport_list_t transport,
-                          getdns_network_req *netreq)
+                          getdns_network_req *netreq,
+                          int backoff_ok)
 {
-	if (!(upstream->transport == transport && upstream_usable(upstream)))
+	if (!(upstream->transport == transport && upstream_usable(upstream, backoff_ok)))
 		return 0;
 	if (transport == GETDNS_TRANSPORT_TCP)
 		return 1;
@@ -1894,6 +1899,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
+			upstreams->upstreams[i].conn_backoff_interval = 1;
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 			    "%-40s : Re-instating upstream\n",
 		            upstreams->upstreams[i].addr_str);
@@ -1910,13 +1916,12 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 
 	/* OK - Find the next one to use. First check we have at least one valid
 	   upstream because we completely back off failed 
-	   upstreams we may have no valid upstream at all (in contrast to UDP). This
-	   will be better communicated to the user when we have better error codes*/
+	   upstreams we may have no valid upstream at all (in contrast to UDP).*/
 	i = upstreams->current_stateful;
 	do {
 		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d\n", STUB_DEBUG_SETUP, 
 	           __FUNC__, (int)i, (int)upstreams->upstreams[i].conn_state);
-		if (upstream_valid(&upstreams->upstreams[i], transport, netreq)) {
+		if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 0)) {
 			upstream = &upstreams->upstreams[i];
 			break;
 		}
@@ -1924,14 +1929,46 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (i >= upstreams->count)
 			i = 0;
 	} while (i != upstreams->current_stateful);
-	if (!upstream)
-		return NULL;
+	if (!upstream) {
+		/* Oh, oh. We have no valid upstreams. Try to find one that might work.
+		   Don't worry about the policy, just use the one with the least bad
+		   stats that still fits the bill (right transport, right authentication)
+		   to try to avoid total failure due to network outages. */
+		do {
+			if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 1)) {
+				upstream = &upstreams->upstreams[i];
+				break;
+			}
+			i++;
+			if (i >= upstreams->count)
+				i = 0;
+		} while (i != upstreams->current_stateful);
+		if (!upstream) {
+			/* We _really_ have nothing that authenticates well enough right now...
+			   leave to regular backoff logic. */
+			return NULL;
+		}
+		do {
+			i++;
+			if (i >= upstreams->count)
+				i = 0;
+			if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 1) &&
+			    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
+				upstream = &upstreams->upstreams[i];
+		} while (i != upstreams->current_stateful);
+		upstream->conn_state = GETDNS_CONN_CLOSED;
+		upstream->conn_backoff_interval = 1;
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+		    "%-40s : No valid upstreams... promoting backed-off upstream %s for re-try...\n",
+	            upstreams->upstreams[i].addr_str);
+		return upstream;
+	}
 
 	/* Now select the specific upstream */
 	if (netreq->owner->context->round_robin_upstreams == 0) {
 		/* Base the decision on the stats, noting we will have started from 0*/
 		for (i++; i < upstreams->count; i++) {
-			if (upstream_valid(&upstreams->upstreams[i], transport, netreq) &&
+			if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 0) &&
 			    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
 				upstream = &upstreams->upstreams[i];
 		}
@@ -2057,12 +2094,17 @@ upstream_find_for_transport(getdns_network_req *netreq,
 	}
 	else {
 		/* For stateful transport we should keep trying until all our transports
-		   are exhausted/backed-off (no upstream)*/
+		   are exhausted/backed-off (no upstream) and until we have tried each
+		   upstream at least once for this netreq in a total backoff scenario */
+		size_t i = 0;
 		do {
 			upstream = upstream_select_stateful(netreq, transport);
 			if (!upstream)
 				return NULL;
 			*fd = upstream_connect(upstream, transport, netreq->owner);
+			if (i >= upstream->upstreams->count)
+				return NULL;
+			i++;
 		} while (*fd == -1);
 		DEBUG_STUB("%s %-35s: FD:  %d Connecting to upstream: %p   No: %d\n", 
 	           STUB_DEBUG_SETUP, __FUNC__, *fd, (void*)upstream,

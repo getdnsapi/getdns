@@ -742,7 +742,7 @@ upstream_backoff(getdns_upstream *upstream) {
 		if (upstream->conn_backoff_interval < (UINT16_MAX-1)/2)
 			upstream->conn_backoff_interval *= 2;
 		else
-			upstream->conn_backoff_interval = upstream->upstreams->tls_backoff_time
+			upstream->conn_backoff_interval = upstream->upstreams->tls_backoff_time;
 	}
 	if (upstream->conn_backoff_interval < upstream->upstreams->tls_backoff_time)
 		upstream->conn_retry_time = time(NULL) + upstream->conn_backoff_interval;
