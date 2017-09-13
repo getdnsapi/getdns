@@ -193,14 +193,14 @@ stubby.lo: $(stubbysrcdir)/src/stubby.c
 stubby: stubby.lo libgetdns.la 
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ stubby.lo $(LDFLAGS) libgetdns.la
 
-install-stubby: stubby $(stubbysrcdir)/stubby.yaml.example $(stubbysrcdir)/stubby-setdns-macos.sh
+install-stubby: stubby $(stubbysrcdir)/stubby.yml.example $(stubbysrcdir)/stubby-setdns-macos.sh
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(stubbyconfdir)
-	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yaml || \
-		$(INSTALL_DATA) $(stubbysrcdir)/stubby.yaml.example $(DESTDIR)$(stubbyconfdir)/stubby.yaml
+	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
+		$(INSTALL_DATA) $(stubbysrcdir)/stubby.yml.example $(DESTDIR)$(stubbyconfdir)/stubby.yml
 
 uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby

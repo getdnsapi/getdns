@@ -215,7 +215,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
-	fprintf(out, "\t\tThe file must be in YAML format (with extension of '.yaml')\n");
+	fprintf(out, "\t\tThe file must be in YAML format (with extension of '.yml')\n");
 	fprintf(out, "\t\tor JSON dict format (with extension '.conf')\n");
 	if (i_am_stubby) {
 		fprintf(out, "\t\tBy default, configuration is first read from");
@@ -571,7 +571,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 	}
 	config_file[config_file_sz] = 0;
 	fclose(fh);
-	parse_config(config_file, strstr(fn, ".yaml") != NULL);
+	parse_config(config_file, strstr(fn, ".yml") != NULL);
 	free(config_file);
 	return GETDNS_RETURN_GOOD;
 }
