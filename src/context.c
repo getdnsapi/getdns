@@ -3699,6 +3699,8 @@ _get_context_settings(getdns_context* context)
 	    || (  context->edns_maximum_udp_payload_size != -1
 	       && getdns_dict_set_int(result, "edns_maximum_udp_payload_size",
 	                              context->edns_maximum_udp_payload_size))
+	    || getdns_dict_set_int(result, "edns_client_subnet_private",
+	                           context->edns_client_subnet_private)
 	    || getdns_dict_set_int(result, "edns_extended_rcode",
 	                           context->edns_extended_rcode)
 	    || getdns_dict_set_int(result, "edns_version",
@@ -3714,7 +3716,9 @@ _get_context_settings(getdns_context* context)
 	    || getdns_dict_set_int(result, "tls_backoff_time",
 	                           context->tls_backoff_time)
 	    || getdns_dict_set_int(result, "tls_connection_retries",
-	                           context->tls_connection_retries))
+	                           context->tls_connection_retries)
+	    || getdns_dict_set_int(result, "tls_query_padding_blocksize",
+	                           context->tls_query_padding_blocksize))
 		goto error;
 	
 	/* list fields */

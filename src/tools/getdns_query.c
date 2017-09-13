@@ -215,7 +215,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
-	fprintf(out, "\t\tThe file must be in JSON or YAML dict format.\n");
+	fprintf(out, "\t\tThe file must be in YAML format (with extension of '.yaml')\n");
+	fprintf(out, "\t\tor JSON dict format (with extension '.conf')\n");
 	if (i_am_stubby) {
 		fprintf(out, "\t\tBy default, configuration is first read from");
 		fprintf(out, "\n\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"\n");
