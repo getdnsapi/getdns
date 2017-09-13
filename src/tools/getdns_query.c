@@ -1779,7 +1779,6 @@ main(int argc, char **argv)
 		loop->vmt->run(loop);
 	}
 	else if (listen_count) {
-		fprintf(stderr, "Starting Stubby DAEMON....\n");
 		assert(loop);
 #ifndef GETDNS_ON_WINDOWS
 		if (i_am_stubby && !run_in_foreground) {
