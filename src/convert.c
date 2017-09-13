@@ -1821,8 +1821,8 @@ getdns_yaml2dict(const char *str, getdns_dict **dict)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	str = str;
-	dict = dict;
+	(void) str;
+	(void) dict;
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1845,8 +1845,8 @@ getdns_yaml2list(const char *str, getdns_list **list)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	str = str;
-	list = list;
+	(void) str;
+	(void) list;
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1869,8 +1869,8 @@ getdns_yaml2bindata(const char *str, getdns_bindata **bindata)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	str = str;
-	bindata = bindata;
+	(void) str;
+	(void) bindata;
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1893,8 +1893,8 @@ getdns_yaml2int(const char *str, uint32_t *value)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	str = str;
-	value = value;
+	(void) str;
+	(void) value;
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }

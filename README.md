@@ -72,6 +72,7 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
 * [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
+* [libyaml](http://pyyaml.org/wiki/LibYAML) version 0.1.6 or later.
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
 For example, to build on a recent version of Ubuntu, you would need the following packages:
@@ -99,6 +100,7 @@ Note: If you only want to build stubby, then use the `--with-stubby` option when
 
 * getdns can be configured for stub resolution mode only with the `--enable-stub-only` option to configure.  This removes the dependency on `libunbound`.
 * Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
+* getdns can be configured to not support YAML configuration with the `--disable-yaml-config` option to configure. This removes the dependency on `libyaml`.
 * When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
 
 ## Extensions and Event loop dependencies
