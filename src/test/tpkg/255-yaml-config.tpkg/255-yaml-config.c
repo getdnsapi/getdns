@@ -32,29 +32,80 @@ int main(int ac, char *av[])
 	buf[bytes_read] = '\0';
 
 	getdns_dict *dict = NULL;
+	getdns_list *list = NULL;
+	getdns_bindata *bindata = NULL;
 	getdns_return_t r;
 
 	if (!(dict = getdns_dict_create())) {
 		fprintf(stderr, "Could not create dict");
-		exit(EXIT_FAILURE);
+		goto fail;
 	}
 
 	r = getdns_yaml2dict(buf, &dict);
 	if (r) {
 		fprintf(stderr, "Error setting dict data: %s", getdns_get_errorstr_by_id(r));
-		getdns_dict_destroy(dict);
-		exit(EXIT_FAILURE);
+		goto fail;
+	}
+
+	/*
+	 * Now add a list, bindata and int to the dict by hand to check
+	 * the other yaml2* functions work.
+	 */
+	if (!(list = getdns_list_create())) {
+		fprintf(stderr, "Could not create list");
+		goto fail;
+	}
+
+	r = getdns_yaml2list("[\"One\", \"two\", \"three\"]", &list);
+	if (r) {
+		fprintf(stderr, "Error setting list data: %s", getdns_get_errorstr_by_id(r));
+		goto fail;
+	}
+
+	r = getdns_dict_set_list(dict, "List entry", list);
+	if (r) {
+		fprintf(stderr, "Error adding list to dict: %s", getdns_get_errorstr_by_id(r));
+		goto fail;
+	}
+
+	r = getdns_yaml2bindata("2001:7fd::1", &bindata);
+	if (r) {
+		fprintf(stderr, "Error setting bindata: %s", getdns_get_errorstr_by_id(r));
+		goto fail;
+	}
+
+	r = getdns_dict_set_bindata(dict, "Bindata entry", bindata);
+	if (r) {
+		fprintf(stderr, "Error adding list to dict: %s", getdns_get_errorstr_by_id(r));
+		goto fail;
+	}
+
+	uint32_t intval;
+	r = getdns_yaml2int("32767", &intval);
+	if (r) {
+		fprintf(stderr, "Error setting int: %s", getdns_get_errorstr_by_id(r));
+		goto fail;
+	}
+	if (intval != 32767) {
+		fprintf(stderr, "Error reading int: wrong value");
+		goto fail;
 	}
 
 	char *dict_str = getdns_pretty_print_dict(dict);
 	if (!dict_str) {
 		fprintf(stderr, "Could not convert dict to string");
-		getdns_dict_destroy(dict);
-		exit(EXIT_FAILURE);
+		goto fail;
 	}
 
 	printf("%s\n", dict_str);
 	free(dict_str);
 	getdns_dict_destroy(dict);
 	exit(EXIT_SUCCESS);
+
+fail:
+	if (dict)
+		getdns_dict_destroy(dict);
+	if (list)
+		getdns_list_destroy(list);
+	exit(EXIT_FAILURE);
 }

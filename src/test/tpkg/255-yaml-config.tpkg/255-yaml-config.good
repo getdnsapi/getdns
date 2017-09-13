@@ -1,4 +1,11 @@
 {
+  "Bindata entry": <bindata of 0x200107fd000000000000000000000001>,
+  "List entry":
+  [
+     <bindata of "One">,
+     <bindata of "two">,
+     <bindata of "three">
+  ],
   "dnssec_return_status": 1000,
   "upstream_recursive_servers":
   [

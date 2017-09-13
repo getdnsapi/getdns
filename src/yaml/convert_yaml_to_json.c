@@ -206,13 +206,23 @@ process_yaml_document(yaml_parser_t *parser, yaml_event_t *event, gldns_buffer *
 			break;
 
 		case YAML_MAPPING_START_EVENT:
-
-			/*
-			 * getdns config data is a dictionary (ie yaml mapping)
-			 * so the document must start with a mapping; scalar
-			 * or sequence would be wrong.
-			 */
+			
 			if (process_yaml_mapping(parser, event, buf) != 0) {
+				return -1;
+			}
+			break;
+
+		case YAML_SEQUENCE_START_EVENT:
+			
+			if (process_yaml_sequence(parser, event, buf) != 0) {
+				return -1;   
+			}
+			break;
+
+		case YAML_SCALAR_EVENT:
+			
+			if (output_scalar(event, buf) != 0) {
+				fprintf(stderr, "Value error: Error outputting scalar\n");
 				return -1;
 			}
 			break;
@@ -221,8 +231,6 @@ process_yaml_document(yaml_parser_t *parser, yaml_event_t *event, gldns_buffer *
 		case YAML_STREAM_END_EVENT:
 		case YAML_DOCUMENT_START_EVENT:
 		case YAML_ALIAS_EVENT:
-		case YAML_SCALAR_EVENT:
-		case YAML_SEQUENCE_START_EVENT:
 		case YAML_SEQUENCE_END_EVENT:
 		case YAML_MAPPING_END_EVENT:
 
