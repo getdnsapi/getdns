@@ -197,6 +197,7 @@ function usage() {
 	out " -b DIR\tuse DIR is a base directory in stead of ."
 	out " -a ARGS\tpass the string ARGS through to the test scripts"
 	out " -d\t\tUse directories instead of tar.gz for tpkg archive format"
+	out " -f\t\tForce test to be re-run if already executed"
         out 
         out " (C) NLnetLabs, Miek Gieben. Licensed under the GPL version 2."
 }
