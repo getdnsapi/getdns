@@ -520,7 +520,7 @@ typedef enum getdns_loglevel_type {
 #define GETDNS_LOG_CRIT_TEXT    "Critical conditions"
 #define GETDNS_LOG_ERR_TEXT     "Error conditions"
 #define GETDNS_LOG_WARNING_TEXT "Warning conditions"
-#define GETDNS_LOG_NOTICE_TEXT  "normal, but significant, condition"
+#define GETDNS_LOG_NOTICE_TEXT  "Normal, but significant, condition"
 #define GETDNS_LOG_INFO_TEXT    "Informational message"
 #define GETDNS_LOG_DEBUG_TEXT   "Debug-level message"
 
