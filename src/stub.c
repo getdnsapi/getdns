@@ -1815,11 +1815,15 @@ upstream_active(getdns_upstream *upstream)
 static int
 upstream_usable(getdns_upstream *upstream, int backoff_ok) 
 {
+	/* If backoff_ok is not true then only use upstreams that are in a healthy
+	   state. */
 	if ((upstream->conn_state == GETDNS_CONN_CLOSED || 
 	     upstream->conn_state == GETDNS_CONN_SETUP || 
 	     upstream->conn_state == GETDNS_CONN_OPEN) &&
 	     upstream->keepalive_shutdown == 0)
 		return 1;
+	/* Otherwise, allow upstreams that are backed off to be used because that
+	   is better that having no upstream at all. */
 	if (backoff_ok == 1 &&
 	    upstream->conn_state == GETDNS_CONN_BACKOFF)
 		return 1;
@@ -1848,6 +1852,11 @@ upstream_valid(getdns_upstream *upstream,
                           getdns_network_req *netreq,
                           int backoff_ok)
 {
+	/* Checking upstreams with backoff_ok true will aslo return upstreams
+	   that are in a backoff state. Otherwise only use upstreams that have
+	   a 'good' connection state. backoff_ok is usefull when no upstreams at all
+	   are valid, for example when the network connection is down and need to 
+	   keep trying to connect before failing completely. */
 	if (!(upstream->transport == transport && upstream_usable(upstream, backoff_ok)))
 		return 0;
 	if (transport == GETDNS_TRANSPORT_TCP)
@@ -1915,7 +1924,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	}
 
 	/* OK - Find the next one to use. First check we have at least one valid
-	   upstream because we completely back off failed 
+	   upstream (not backed-off) because we completely back off failed 
 	   upstreams we may have no valid upstream at all (in contrast to UDP).*/
 	i = upstreams->current_stateful;
 	do {
@@ -1930,7 +1939,8 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 			i = 0;
 	} while (i != upstreams->current_stateful);
 	if (!upstream) {
-		/* Oh, oh. We have no valid upstreams. Try to find one that might work.
+		/* Oh, oh. We have no valid upstreams. Try to find one that might work so
+		   allow backed off upstreams to be considered valid.
 		   Don't worry about the policy, just use the one with the least bad
 		   stats that still fits the bill (right transport, right authentication)
 		   to try to avoid total failure due to network outages. */
@@ -1966,7 +1976,8 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 
 	/* Now select the specific upstream */
 	if (netreq->owner->context->round_robin_upstreams == 0) {
-		/* Base the decision on the stats, noting we will have started from 0*/
+		/* Base the decision on the stats and being not backed-off, 
+		   noting we will have started from 0*/
 		for (i++; i < upstreams->count; i++) {
 			if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 0) &&
 			    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
