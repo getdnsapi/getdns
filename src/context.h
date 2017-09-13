@@ -113,6 +113,7 @@ typedef enum getdns_tsig_algo {
 	GETDNS_HMAC_SHA512 = 7
 } getdns_tsig_algo;
 
+
 typedef struct getdns_tsig_info {
 	getdns_tsig_algo  alg;
 	const char       *name;
@@ -281,6 +282,13 @@ typedef enum tas_state {
 	TAS_RETRY_DONE
 } tas_state;
 
+typedef enum _getdns_property {
+	PROP_INHERIT =  0,
+	PROP_UNKNOWN =  1,
+	PROP_UNABLE  =  2,
+	PROP_ABLE    =  3 
+} _getdns_property;
+
 typedef struct tas_connection {
 	getdns_eventloop       *loop;
 	getdns_network_req     *req;
@@ -292,6 +300,7 @@ typedef struct tas_connection {
 	getdns_eventloop_event event;
 	tas_state              state;
 	getdns_tcp_state       tcp;
+	char                  *http;
 	getdns_bindata         xml;
 } tas_connection;
 
@@ -324,6 +333,12 @@ struct getdns_context {
 	tas_connection        a;
 	tas_connection        aaaa;
 	uint8_t               tas_hdr_spc[512];
+
+	_getdns_property      can_write_appdata : 2;
+
+	const char           *root_anchor_url;
+	const char           *root_anchor_verify_CA;
+	const char           *root_anchor_verify_email;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;

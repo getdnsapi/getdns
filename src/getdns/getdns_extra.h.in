@@ -79,6 +79,13 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TLS_BACKOFF_TIME_TEXT "Change related to getdns_context_set_tls_backoff_time"
 #define GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES 624
 #define GETDNS_CONTEXT_CODE_TLS_CONNECTION_RETRIES_TEXT "Change related to getdns_context_set_tls_connection_retries"
+
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_URL 625
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_URL_TEXT "Change related to getdns_context_set_trust_anchor_url"
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA 626
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA_TEXT "Change related to getdns_context_set_trust_anchor_verify_ca"
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL 627
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL_TEXT "Change related to getdns_context_set_trust_anchor_verify_email"
 /** @}
   */
 
@@ -538,6 +545,28 @@ getdns_context_set_logfunc(getdns_context *context, void *userarg,
     uint64_t system, getdns_loglevel_type level, getdns_logfunc_type func);
 
 /**
+ *
+ */
+getdns_return_t
+getdns_context_set_trust_anchor_url(
+    getdns_context *context, const char *zone, const char *url);
+
+/**
+ *
+ */
+getdns_return_t
+getdns_context_set_trust_anchor_verify_CA(
+    getdns_context *context, const char *zone, const char *verify_CA);
+
+/**
+ *
+ */
+getdns_return_t
+getdns_context_set_trust_anchor_verify_email(
+    getdns_context *context, const char *zone, const char *verify_email);
+
+
+/**
  * Get the current resolution type setting from this context.
  * @see getdns_context_set_resolution_type
  * @see resolutiontypestext
@@ -901,6 +930,28 @@ getdns_context_get_tls_connection_retries(getdns_context *context,
 getdns_return_t
 getdns_context_get_update_callback(getdns_context *context, void **userarg,
     void (**value) (getdns_context *, getdns_context_code_t, void *));
+
+/**
+ *
+ */
+getdns_return_t
+getdns_context_get_trust_anchor_url(
+    getdns_context *context, const char *zone, const char **url);
+
+/**
+ *
+ */
+getdns_return_t
+getdns_context_get_trust_anchor_verify_CA(
+    getdns_context *context, const char *zone, const char **verify_CA);
+
+/**
+ *
+ */
+getdns_return_t
+getdns_context_get_trust_anchor_verify_email(
+    getdns_context *context, const char *zone, const char **verify_email);
+
 
 /** @}
  */

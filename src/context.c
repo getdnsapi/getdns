@@ -1343,6 +1343,37 @@ static void _getdns_check_expired_pending_netreqs_cb(void *arg)
 	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
 }
 
+static const char *_getdns_default_root_anchor_url =
+    "http://data.iana.org/root-anchors/root-anchors.xml";
+
+/* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
+static const char *_getdns_default_root_anchor_verify_CA =
+"-----BEGIN CERTIFICATE-----\n"
+"MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
+"TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
+"BAMTDUlDQU5OIFJvb3QgQ0ExCzAJBgNVBAYTAlVTMB4XDTA5MTIyMzA0MTkxMloX\n"
+"DTI5MTIxODA0MTkxMlowXTEOMAwGA1UEChMFSUNBTk4xJjAkBgNVBAsTHUlDQU5O\n"
+"IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRYwFAYDVQQDEw1JQ0FOTiBSb290IENB\n"
+"MQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKDb\n"
+"cLhPNNqc1NB+u+oVvOnJESofYS9qub0/PXagmgr37pNublVThIzyLPGCJ8gPms9S\n"
+"G1TaKNIsMI7d+5IgMy3WyPEOECGIcfqEIktdR1YWfJufXcMReZwU4v/AdKzdOdfg\n"
+"ONiwc6r70duEr1IiqPbVm5T05l1e6D+HkAvHGnf1LtOPGs4CHQdpIUcy2kauAEy2\n"
+"paKcOcHASvbTHK7TbbvHGPB+7faAztABLoneErruEcumetcNfPMIjXKdv1V1E3C7\n"
+"MSJKy+jAqqQJqjZoQGB0necZgUMiUv7JK1IPQRM2CXJllcyJrm9WFxY0c1KjBO29\n"
+"iIKK69fcglKcBuFShUECAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8B\n"
+"Af8EBAMCAf4wHQYDVR0OBBYEFLpS6UmDJIZSL8eZzfyNa2kITcBQMA0GCSqGSIb3\n"
+"DQEBCwUAA4IBAQAP8emCogqHny2UYFqywEuhLys7R9UKmYY4suzGO4nkbgfPFMfH\n"
+"6M+Zj6owwxlwueZt1j/IaCayoKU3QsrYYoDRolpILh+FPwx7wseUEV8ZKpWsoDoD\n"
+"2JFbLg2cfB8u/OlE4RYmcxxFSmXBg0yQ8/IoQt/bxOcEEhhiQ168H2yE5rxJMt9h\n"
+"15nu5JBSewrCkYqYYmaxyOC3WrVGfHZxVI7MpIFcGdvSb2a1uyuua8l0BKgk3ujF\n"
+"0/wsHNeP22qNyVO+XVBzrM8fk8BSUFuiT/6tZTYXRtEt5aKQZgXbKU5dUF3jT9qg\n"
+"j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
+"-----END CERTIFICATE-----\n";
+
+static const char *_getdns_default_root_anchor_verify_email =
+    "dnssec@iana.org";
+
+
 /*
  * getdns_context_create
  *
@@ -1443,6 +1474,11 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffixes_len = sizeof(no_suffixes);
 
 	result->trust_anchors_source = GETDNS_TASRC_NONE;
+	result->can_write_appdata = PROP_UNKNOWN;
+	result->root_anchor_url = _getdns_default_root_anchor_url;
+	result->root_anchor_verify_email
+	    = _getdns_default_root_anchor_verify_email;
+	result->root_anchor_verify_CA = _getdns_default_root_anchor_verify_CA;
 
 	(void) memset(&result->a, 0, sizeof(result->a));
 	(void) memset(&result->aaaa, 0, sizeof(result->aaaa));
@@ -4624,6 +4660,117 @@ void _getdns_context_write_priv_file(getdns_context *context,
 			DEBUG_ANCHOR("Could not mv \"%s\" \"%s\": %s\n",
 			    tmpfn, path, strerror(errno));
 	}
+}
+
+getdns_return_t
+getdns_context_set_trust_anchor_url(
+    getdns_context *context, const char *zone, const char *url)
+{
+	const char *path;
+	size_t path_len;
+
+	if (!context || !url)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && !(zone[0] == '.' && zone[1] == '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	if (! ((url[0] == 'h' || url[0] == 'H')
+	    && (url[1] == 't' || url[1] == 'T')
+	    && (url[2] == 't' || url[2] == 'T')
+	    && (url[3] == 'p' || url[3] == 'P')
+	    &&  url[4] == ':' && url[5] == '/' && url[6] == '/'
+	    && (path = strchr(url + 7, '/'))))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	path_len = strlen(path);
+	if (! ( path_len >= 4
+	    && (path[path_len - 3] == 'x' || path[path_len - 3] == 'X')
+	    && (path[path_len - 2] == 'm' || path[path_len - 2] == 'm')
+	    && (path[path_len - 1] == 'l' || path[path_len - 1] == 'l')))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	context->root_anchor_url = url;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_URL);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchor_url(
+    getdns_context *context, const char *zone, const char **url)
+{
+	if (!context || !url)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	*url = context && context->root_anchor_url
+	     ?            context->root_anchor_url
+	     :     _getdns_default_root_anchor_url;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_trust_anchor_verify_CA(
+    getdns_context *context, const char *zone, const char *verify_CA)
+{
+	if (!context || !verify_CA)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	context->root_anchor_verify_CA = verify_CA;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchor_verify_CA(
+    getdns_context *context, const char *zone, const char **verify_CA)
+{
+	if (!verify_CA)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	*verify_CA = context && context->root_anchor_verify_CA
+	           ?            context->root_anchor_verify_CA
+	           :     _getdns_default_root_anchor_verify_CA;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_trust_anchor_verify_email(
+    getdns_context *context, const char *zone, const char *verify_email)
+{
+	if (!context || !verify_email)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	context->root_anchor_verify_email = verify_email;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchor_verify_email(
+    getdns_context *context, const char *zone, const char **verify_email)
+{
+	if (!verify_email)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	*verify_email = context && context->root_anchor_verify_email
+	              ?            context->root_anchor_verify_email
+		      :     _getdns_default_root_anchor_verify_email;
+	return GETDNS_RETURN_GOOD;
 }
 
 

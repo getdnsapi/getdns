@@ -50,35 +50,6 @@
 #include "rr-iter.h"
 #include "util-internal.h"
 
-#define P7SIGNER "dnssec@iana.org"
-
-/* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
-static char _getdns_builtin_cert[] = 
-"-----BEGIN CERTIFICATE-----\n"
-"MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
-"TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
-"BAMTDUlDQU5OIFJvb3QgQ0ExCzAJBgNVBAYTAlVTMB4XDTA5MTIyMzA0MTkxMloX\n"
-"DTI5MTIxODA0MTkxMlowXTEOMAwGA1UEChMFSUNBTk4xJjAkBgNVBAsTHUlDQU5O\n"
-"IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRYwFAYDVQQDEw1JQ0FOTiBSb290IENB\n"
-"MQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKDb\n"
-"cLhPNNqc1NB+u+oVvOnJESofYS9qub0/PXagmgr37pNublVThIzyLPGCJ8gPms9S\n"
-"G1TaKNIsMI7d+5IgMy3WyPEOECGIcfqEIktdR1YWfJufXcMReZwU4v/AdKzdOdfg\n"
-"ONiwc6r70duEr1IiqPbVm5T05l1e6D+HkAvHGnf1LtOPGs4CHQdpIUcy2kauAEy2\n"
-"paKcOcHASvbTHK7TbbvHGPB+7faAztABLoneErruEcumetcNfPMIjXKdv1V1E3C7\n"
-"MSJKy+jAqqQJqjZoQGB0necZgUMiUv7JK1IPQRM2CXJllcyJrm9WFxY0c1KjBO29\n"
-"iIKK69fcglKcBuFShUECAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8B\n"
-"Af8EBAMCAf4wHQYDVR0OBBYEFLpS6UmDJIZSL8eZzfyNa2kITcBQMA0GCSqGSIb3\n"
-"DQEBCwUAA4IBAQAP8emCogqHny2UYFqywEuhLys7R9UKmYY4suzGO4nkbgfPFMfH\n"
-"6M+Zj6owwxlwueZt1j/IaCayoKU3QsrYYoDRolpILh+FPwx7wseUEV8ZKpWsoDoD\n"
-"2JFbLg2cfB8u/OlE4RYmcxxFSmXBg0yQ8/IoQt/bxOcEEhhiQ168H2yE5rxJMt9h\n"
-"15nu5JBSewrCkYqYYmaxyOC3WrVGfHZxVI7MpIFcGdvSb2a1uyuua8l0BKgk3ujF\n"
-"0/wsHNeP22qNyVO+XVBzrM8fk8BSUFuiT/6tZTYXRtEt5aKQZgXbKU5dUF3jT9qg\n"
-"j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
-"-----END CERTIFICATE-----\n";
-
-static getdns_bindata _getdns_builtin_cert_bd =
-    { sizeof(_getdns_builtin_cert) - 1, (void *)_getdns_builtin_cert};
-
 /* get key usage out of its extension, returns 0 if no key_usage extension */
 static unsigned long
 _getdns_get_usage_of_ex(X509* cert)
@@ -585,7 +556,7 @@ static ta_iter *ta_iter_init(ta_iter *ta, const char *doc, size_t doc_len)
 	return ta_iter_next(ta);
 }
 
-uint16_t _getdns_parse_xml_trust_anchors_buf(
+static uint16_t _getdns_parse_xml_trust_anchors_buf(
     gldns_buffer *gbuf, time_t now, char *xml_data, size_t xml_len)
 {
 	ta_iter ta_spc, *ta;
@@ -750,18 +721,35 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 	uint8_t xml_spc[4096], *xml_data;
 	uint8_t p7s_spc[4096], *p7s_data = NULL;
 	size_t xml_len, p7s_len;
+	const char *verify_email = NULL;
+	const char *verify_CA = NULL;
+	getdns_return_t r;
 
 	BIO *xml = NULL, *p7s = NULL, *crt = NULL;
 	X509 *x = NULL;
 	X509_STORE *store = NULL;
 
-	if (!(xml_data = _getdns_context_get_priv_file(context,
+	if ((r = getdns_context_get_trust_anchor_verify_CA(
+	    context, ".", &verify_CA)))
+		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
+			     " CA: \"%s\"\n", __FUNC__
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_get_trust_anchor_verify_email(
+	    context, ".", &verify_email)))
+		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify email "
+		             "address: \"%s\"\n", __FUNC__
+		            , getdns_get_errorstr_by_id(r));
+
+	else if (!(xml_data = _getdns_context_get_priv_file(context,
 	    "root-anchors.xml", xml_spc, sizeof(xml_spc), &xml_len)))
-		; /* pass */
+		DEBUG_ANCHOR("DEBUG %s(): root-anchors.xml not present\n"
+		            , __FUNC__);
 
 	else if (!(p7s_data = _getdns_context_get_priv_file(context,
 	    "root-anchors.p7s", p7s_spc, sizeof(p7s_spc), &p7s_len)))
-		; /* pass */
+		DEBUG_ANCHOR("DEBUG %s(): root-anchors.p7s not present\n"
+		            , __FUNC__);
 
 	else if (!(xml = BIO_new_mem_buf(xml_data, xml_len)))
 		DEBUG_ANCHOR("ERROR %s(): Failed allocating xml BIO\n"
@@ -770,8 +758,8 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 	else if (!(p7s = BIO_new_mem_buf(p7s_data, p7s_len)))
 		DEBUG_ANCHOR("ERROR %s(): Failed allocating p7s BIO\n"
 		            , __FUNC__);
-	
-	else if (!(crt = BIO_new_mem_buf((void *)_getdns_builtin_cert, -1)))
+
+	else if (!(crt = BIO_new_mem_buf((void *)verify_CA, -1)))
 		DEBUG_ANCHOR("ERROR %s(): Failed allocating crt BIO\n"
 		            , __FUNC__);
 
@@ -787,7 +775,7 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 		DEBUG_ANCHOR("ERROR %s(): Adding certificate to store\n"
 		            , __FUNC__);
 
-	else if (_getdns_verify_p7sig(xml, p7s, store, "dnssec@iana.org")) {
+	else if (_getdns_verify_p7sig(xml, p7s, store, verify_email)) {
 		uint8_t ta_spc[sizeof(context->trust_anchors_spc)];
 		size_t ta_len;
 		uint8_t *ta = NULL;
@@ -837,17 +825,17 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 		GETDNS_FREE(context->mf, p7s_data);
 }
 
-static const uint8_t tas_write_p7s_buf[] =
-"GET /root-anchors/root-anchors.p7s HTTP/1.1\r\n"
-"Host: data.iana.org\r\n"
+static const char tas_write_p7s_buf[] =
+"GET %s HTTP/1.1\r\n"
+"Host: %s\r\n"
 "\r\n";
 
-static const uint8_t tas_write_xml_p7s_buf[] =
-"GET /root-anchors/root-anchors.xml HTTP/1.1\r\n"
-"Host: data.iana.org\r\n"
+static const char tas_write_xml_p7s_buf[] =
+"GET %s HTTP/1.1\r\n"
+"Host: %s\r\n"
 "\r\n"
-"GET /root-anchors/root-anchors.p7s HTTP/1.1\r\n"
-"Host: data.iana.org\r\n"
+"GET %s HTTP/1.1\r\n"
+"Host: %s\r\n"
 "\r\n";
 
 
@@ -888,6 +876,8 @@ static void tas_cleanup(getdns_context *context, tas_connection *a)
 	tas_rinse(context, a);
 	if (a->req)
 		_getdns_context_cancel_request(a->req->owner);
+	if (a->http)
+		GETDNS_FREE(context->mf, (void *)a->http);
 	(void) memset(a, 0, sizeof(*a));
 	a->fd = -1;
 }
@@ -1004,14 +994,33 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		getdns_bindata p7s_bd;
 		uint8_t *tas = context->trust_anchors_spc;
 		size_t tas_len = sizeof(context->trust_anchors_spc);
+		const char *verify_email = NULL;
+		getdns_bindata verify_CA;
+		getdns_return_t r;
 
 		p7s_bd.data = a->tcp.read_buf;
 		p7s_bd.size = a->tcp.read_buf_len;
-	       	tas = tas_validate(&context->mf, &a->xml, &p7s_bd,
-		    &_getdns_builtin_cert_bd, "dnssec@iana.org",
-		    time(NULL), tas, &tas_len);
 
-		if (tas) {
+		if ((r = getdns_context_get_trust_anchor_verify_CA(
+		    context, ".", (const char **)&verify_CA.data)))
+			DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
+				     " CA: \"%s\"\n", __FUNC__
+				    , getdns_get_errorstr_by_id(r));
+
+		else if (!(verify_CA.size = strlen((const char *)verify_CA.data)))
+			; /* pass */
+
+		else if ((r = getdns_context_get_trust_anchor_verify_email(
+		    context, ".", &verify_email)))
+			DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
+				     " email address: \"%s\"\n", __FUNC__
+				    , getdns_get_errorstr_by_id(r));
+
+		else if (!(tas = tas_validate(&context->mf, &a->xml, &p7s_bd,
+		    &verify_CA, verify_email, time(NULL), tas, &tas_len)))
+			; /* pass */
+
+		else {
 			context->trust_anchors = tas;
 			context->trust_anchors_len = tas_len;
 			_getdns_context_write_priv_file(
@@ -1019,8 +1028,9 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 			_getdns_context_write_priv_file(
 			    context, "root-anchors.p7s", &p7s_bd);
 			tas_success(context, a);
-		} else
-			tas_fail(context, a);
+			return;
+		}
+		tas_fail(context, a);
 		return;
 	}
 	/* First try to read signatures immediately */
@@ -1220,6 +1230,38 @@ static void tas_write_cb(void *userarg)
 	tas_next(context, a);
 }
 
+static getdns_return_t _getdns_get_tas_url_hostname(
+    getdns_context *context, char *hostname, const char **path)
+{
+	getdns_return_t r;
+	const char *url;
+	char *next_slash;
+	size_t s;
+
+	if ((r = getdns_context_get_trust_anchor_url(context, ".", &url)))
+		return r;
+
+	if ((next_slash = strchr(url + 7 /* "http://" */, '/'))) {
+		if (next_slash - url - 7 > 254)
+			return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
+		if (path)
+			*path = next_slash;
+		strncpy(hostname, url + 7, next_slash - url - 7);
+		hostname[next_slash - url - 7] = 0;
+	} else  {
+		if (path)
+			*path = url + strlen(url);
+		strncpy(hostname, url + 7, 254);
+		hostname[254] = 0;
+	}
+	s = strlen(hostname);
+	if (s && s < 255 && hostname[s - 1] != '.') {
+		hostname[s] = '.';
+		hostname[s+1] = '\0';
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
 static void tas_connect(getdns_context *context, tas_connection *a)
 {
 #if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
@@ -1281,16 +1323,74 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 		r = connect(a->fd, (struct sockaddr *)&addr, sizeof(addr));
 	}
 	if (r == 0 || (r == -1 && (_getdns_EINPROGRESS ||
-				   _getdns_EWOULDBLOCK))) {
+	                           _getdns_EWOULDBLOCK))) {
+		char tas_hostname[256];
+		const char *path = "", *fmt;
+		getdns_return_t R;
+		char *write_buf;
+		size_t buf_sz, path_len, hostname_len;
 
 		a->state += 1;
-		if (a->state == TAS_RETRY_GET_PS7) {
-			a->tcp.write_buf = tas_write_p7s_buf;
-			a->tcp.write_buf_len = sizeof(tas_write_p7s_buf) - 1;
-		} else {
-			a->tcp.write_buf = tas_write_xml_p7s_buf;
-			a->tcp.write_buf_len = sizeof(tas_write_xml_p7s_buf) - 1;
+		if (a->http) {
+			GETDNS_FREE(context->mf, (void *)a->http);
+			a->http = NULL;
+			a->tcp.write_buf = NULL;
+			a->tcp.write_buf_len = 0;
+			a->tcp.written = 0;
 		}
+		if ((R = _getdns_get_tas_url_hostname(
+		    context, tas_hostname, &path))) {
+			DEBUG_ANCHOR("ERROR %s(): Could not get_tas_url_hostname"
+				     ": \"%s\"", __FUNC__
+				    , getdns_get_errorstr_by_id(r));
+			goto error;
+		}
+		hostname_len = strlen(tas_hostname);
+		if (hostname_len > 0 && tas_hostname[hostname_len - 1] == '.')
+			tas_hostname[--hostname_len] = '\0';
+		path_len = strlen(path);
+		if (path_len < 4) {
+			DEBUG_ANCHOR("ERROR %s(): path of tas_url \"%s\" too "
+			             "small\n", __FUNC__, path);
+			goto error;
+		}
+		if (a->state == TAS_RETRY_GET_PS7) {
+			buf_sz = sizeof(tas_write_p7s_buf)
+			       + 1 * (hostname_len - 2) + 1 * (path_len - 2) + 1;
+			fmt = tas_write_p7s_buf;
+		} else {
+			buf_sz = sizeof(tas_write_xml_p7s_buf)
+			       + 2 * (hostname_len - 2) + 2 * (path_len - 2) + 1;
+			fmt = tas_write_xml_p7s_buf;
+		}
+		if (!(write_buf = GETDNS_XMALLOC(context->mf, char, buf_sz))) {
+			DEBUG_ANCHOR("ERROR %s(): Could not allocate write "
+			             "buffer\n", __FUNC__);
+			goto error;
+		}
+		if (a->state == TAS_RETRY_GET_PS7) {
+			(void) snprintf( write_buf, buf_sz, fmt
+			               , path, tas_hostname);
+			write_buf[4 + path_len - 3] =
+			write_buf[4 + path_len - 3] == 'X' ? 'P' : 'p';
+			write_buf[4 + path_len - 2] =              '7';
+			write_buf[4 + path_len - 1] = 
+			write_buf[4 + path_len - 1] == 'L' ? 'S' : 's';
+		} else {
+			(void) snprintf( write_buf, buf_sz, fmt
+			               , path, tas_hostname
+			               , path, tas_hostname);
+			write_buf[29 + hostname_len + 2 * path_len - 3] = 
+			write_buf[29 + hostname_len + 2 * path_len - 3] == 'X'
+			                                           ? 'P' : 'p';
+			write_buf[29 + hostname_len + 2 * path_len - 2] =  '7';
+			write_buf[29 + hostname_len + 2 * path_len - 1] =
+			write_buf[29 + hostname_len + 2 * path_len - 1] == 'L'
+			                                           ? 'S' : 's';
+		}
+		DEBUG_ANCHOR("Write buffer: \"%s\"\n", write_buf);
+		a->tcp.write_buf = (uint8_t *)(a->http = write_buf);
+		a->tcp.write_buf_len = buf_sz - 1;
 		a->tcp.written = 0;
 
 		GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
@@ -1301,6 +1401,7 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 	} else
 		DEBUG_ANCHOR("Connect error: %s\n", strerror(errno));
 
+error:
 	tas_next(context, a);
 }
 
@@ -1316,7 +1417,7 @@ static void tas_happy_eyeballs_cb(void *userarg)
 		tas_connect(context, &context->a);
 }
 
-static void data_iana_org(getdns_dns_req *dnsreq)
+static void _tas_hostname_lookup_cb(getdns_dns_req *dnsreq)
 {
 	getdns_context *context = (getdns_context *)dnsreq->user_pointer;
 	tas_connection *a;
@@ -1328,19 +1429,30 @@ static void data_iana_org(getdns_dns_req *dnsreq)
 	a->rrset = _getdns_rrset_answer(
 	    &a->rrset_spc, a->req->response, a->req->response_len);
 
-	if (!a->rrset)
-		DEBUG_ANCHOR("%s lookup for data.iana.org. returned no "
-		             "response\n", rt_str(a->req->request_type));
-
-	else if (a->req->response_len < dnsreq->name_len + 12 ||
+	if (!a->rrset) {
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
+		char tas_hostname[256] = "<no hostname>";
+		(void) _getdns_get_tas_url_hostname(context, tas_hostname, NULL);
+		DEBUG_ANCHOR("%s lookup for %s returned no response\n"
+		            , rt_str(a->req->request_type), tas_hostname);
+#endif
+	} else if (a->req->response_len < dnsreq->name_len + 12 ||
 	    !_getdns_dname_equal(a->req->response + 12, dnsreq->name) ||
-	    a->rrset->rr_type != a->req->request_type)
-		DEBUG_ANCHOR("%s lookup for data.iana.org. returned wrong "
-		             "response\n", rt_str(a->req->request_type));
-	else  if (!(a->rr = _getdns_rrtype_iter_init(&a->rr_spc, a->rrset)))
-		DEBUG_ANCHOR("%s lookup for data.iana.org. returned no "
-		             "addresses\n", rt_str(a->req->request_type));
-	else {
+	    a->rrset->rr_type != a->req->request_type) {
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
+		char tas_hostname[256] = "<no hostname>";
+		(void) _getdns_get_tas_url_hostname(context, tas_hostname, NULL);
+		DEBUG_ANCHOR("%s lookup for %s returned wrong response\n"
+		            , rt_str(a->req->request_type), tas_hostname);
+#endif
+	} else  if (!(a->rr = _getdns_rrtype_iter_init(&a->rr_spc, a->rrset))) {
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
+		char tas_hostname[256] = "<no hostname>";
+		(void) _getdns_get_tas_url_hostname(context, tas_hostname, NULL);
+		DEBUG_ANCHOR("%s lookup for %s returned no addresses\n"
+		            , rt_str(a->req->request_type), tas_hostname);
+#endif
+	} else {
 		tas_connection *other = a == &context->a ? &context->aaaa
 		                                         : &context->a;
 		a->loop = dnsreq->loop;
@@ -1371,11 +1483,44 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 {
 	getdns_return_t r;
 	size_t scheduled;
+	char tas_hostname[256];
+	const char *verify_CA;
+	const char *verify_email;
 
+	if ((r = _getdns_get_tas_url_hostname(context, tas_hostname, NULL))) {
+		DEBUG_ANCHOR("ERROR %s(): Could not get_tas_url_hostname"
+		             ": \"%s\"", __FUNC__
+		            , getdns_get_errorstr_by_id(r));
+		return;
+
+	} else if ((r = getdns_context_get_trust_anchor_verify_CA(
+	    context, ".", &verify_CA))) {
+		DEBUG_ANCHOR("ERROR %s(): Could not get verify CA"
+		             ": \"%s\"", __FUNC__
+		            , getdns_get_errorstr_by_id(r));
+		return;
+
+	} else if (!*verify_CA) {
+		DEBUG_ANCHOR("NOTICE: Trust anchor fetching explicitely "
+		             "disabled by empty verify CA\n");
+		return;
+	} else if ((r = getdns_context_get_trust_anchor_verify_email(
+	    context, ".", &verify_email))) {
+		DEBUG_ANCHOR("ERROR %s(): Could not get verify email address"
+		             ": \"%s\"", __FUNC__
+		            , getdns_get_errorstr_by_id(r));
+		return;
+
+	} else if (!*verify_email) {
+		DEBUG_ANCHOR("NOTICE: Trust anchor fetching explicitely "
+		             "disabled by empty verify email address\n");
+		return;
+	}
+	DEBUG_ANCHOR("Hostname: %s\n", tas_hostname);
 	DEBUG_ANCHOR("%s on the %ssynchronous loop\n", __FUNC__,
 	             loop == &context->sync_eventloop.loop ? "" : "a");
 
-	while (!context->sys_ctxt) {
+	while (!context->sys_ctxt) { /* Used as breakable if. Never repeats. */
 		if ((r = getdns_context_create_with_extended_memory_functions(
 		    &context->sys_ctxt, 1, context->mf.mf_arg,
 		    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
@@ -1411,10 +1556,10 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 #if 1
 	context->a.state = TAS_LOOKUP_ADDRESSES;
 	if ((r = _getdns_general_loop(context->sys_ctxt, loop,
-	    "data.iana.org.", GETDNS_RRTYPE_A, NULL, context,
-	    &context->a.req, NULL, data_iana_org))) {
-		DEBUG_ANCHOR("Error scheduling A lookup for data.iana.org: "
-		             "%s\n", getdns_get_errorstr_by_id(r));
+	    tas_hostname, GETDNS_RRTYPE_A, NULL, context,
+	    &context->a.req, NULL, _tas_hostname_lookup_cb))) {
+		DEBUG_ANCHOR("Error scheduling A lookup for %s: %s\n"
+		            , tas_hostname, getdns_get_errorstr_by_id(r));
 	} else
 		scheduled += 1;
 #endif
@@ -1422,17 +1567,18 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 #if 1
 	context->aaaa.state = TAS_LOOKUP_ADDRESSES;
 	if ((r = _getdns_general_loop(context->sys_ctxt, loop,
-	    "data.iana.org.", GETDNS_RRTYPE_AAAA, NULL, context,
-	    &context->aaaa.req, NULL, data_iana_org))) {
-		DEBUG_ANCHOR("Error scheduling AAAA lookup for data.iana.org: "
-		             "%s\n", getdns_get_errorstr_by_id(r));
+	    tas_hostname, GETDNS_RRTYPE_AAAA, NULL, context,
+	    &context->aaaa.req, NULL, _tas_hostname_lookup_cb))) {
+		DEBUG_ANCHOR("Error scheduling AAAA lookup for %s: %s\n"
+		            , tas_hostname, getdns_get_errorstr_by_id(r));
 	} else
 		scheduled += 1;
 #endif
 
 	if (!scheduled) {
 		DEBUG_ANCHOR("Fatal error fetching trust anchor: Unable to "
-		             "schedule address requests for data.iana.org\n");
+		             "schedule address requests for %s\n"
+		            , tas_hostname);
 		context->trust_anchors_source = GETDNS_TASRC_FAILED;
 		_getdns_ta_notify_dnsreqs(context);
 	} else
