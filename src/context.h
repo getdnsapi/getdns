@@ -181,6 +181,7 @@ typedef struct getdns_upstream {
 	size_t                   conn_shutdowns;
 	size_t                   conn_setup_failed;
 	time_t                   conn_retry_time;
+	uint16_t                 conn_backoff_interval;
 	size_t                   conn_backoffs;
 	size_t                   total_responses;
 	size_t                   total_timeouts;
