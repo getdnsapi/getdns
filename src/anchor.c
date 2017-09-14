@@ -850,7 +850,7 @@ static inline const char * rt_str(uint16_t rt)
 
 static int tas_busy(tas_connection *a)
 {
-	return a->req != NULL;
+	return a && a->req != NULL;
 }
 
 static int tas_fetching(tas_connection *a)
@@ -982,6 +982,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 	    (int)a->tcp.read_buf_len, (char *)a->tcp.read_buf);
 
 	assert(a->tcp.read_pos == a->tcp.read_buf + a->tcp.read_buf_len);
+	assert(context);
 
 	if (a->state == TAS_READ_XML_DOC) {
 		if (a->xml.data)
