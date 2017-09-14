@@ -584,6 +584,28 @@ if test "$USE_WINSOCK" = 1; then
 	LIBS="$LIBS -lgdi32 -liphlpapi"
 fi
 
+dnl Check if -D_POSIX is needed for sigset_t
+
+AC_CHECK_TYPE([sigset_t], [
+	AC_MSG_NOTICE(-D_POSIX is NOT needed for the sigset_t type)
+], [
+	BACKCFLAGS="$CFLAGS"
+	CFLAGS="-D_POSIX $CFLAGS"
+	AC_CHECK_TYPE([sigset_t], [
+		AC_MSG_NOTICE(-D_POSIX is needed for the sigset_t type)
+	], [
+		AC_MSG_NOTICE(Unclear whether -D_POSIX is needed for the sigset_t type)
+		BACKCFLAGS="$CFLAGS"
+	], [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+	])
+], [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+])
 
 my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
