@@ -11,6 +11,7 @@ addons:
     - check
     - libevent-dev
     - libev-dev
+    - libuv-dev
     - valgrind
     - clang
     - wget

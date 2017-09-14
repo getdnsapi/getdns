@@ -812,7 +812,8 @@ void _getdns_context_equip_with_anchor(
 			context->trust_anchors_len = ta_len;
 			context->trust_anchors_source = GETDNS_TASRC_XML;
 		}
-		DEBUG_ANCHOR("ta: %p, ta_len: %d\n", context->trust_anchors, (int)context->trust_anchors_len);
+		DEBUG_ANCHOR("ta: %p, ta_len: %d\n",
+		    (void *)context->trust_anchors, (int)context->trust_anchors_len);
 		
 	} else {
 		DEBUG_ANCHOR("Verifying trust-anchors failed!\n");
@@ -1092,7 +1093,8 @@ static void tas_read_cb(void *userarg)
 		assert(n <= (ssize_t)a->tcp.to_read);
 
 		DEBUG_ANCHOR("read: %d bytes at %p, for doc %p of size %d\n",
-		    (int)n, a->tcp.read_pos, a->tcp.read_buf, (int)a->tcp.read_buf_len);
+		    (int)n, (void *)a->tcp.read_pos
+		          , (void *)a->tcp.read_buf, (int)a->tcp.read_buf_len);
 		a->tcp.read_pos += n;
 		a->tcp.to_read -= n;
 		if (a->tcp.to_read == 0)

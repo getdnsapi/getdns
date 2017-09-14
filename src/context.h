@@ -335,7 +335,7 @@ struct getdns_context {
 	tas_connection        aaaa;
 	uint8_t               tas_hdr_spc[512];
 
-	_getdns_property      can_write_appdata : 2;
+	_getdns_property      can_write_appdata;
 
 	const char           *root_anchor_url;
 	const char           *root_anchor_verify_CA;
