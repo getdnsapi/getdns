@@ -193,6 +193,8 @@ function usage() {
         out " -p PRI\tlog using PRI as priority"
         out " -k\t\tdon't remove test directory when creating/executing a tpkg package"
         out " -n NUM\tif less than NUM of the tests are passed exit with 1"
+        out " \t\tOtherwise exit with 0.  When NUM is -1, no tests may fail"
+	out " \t\tOnly valid when running tpkg report"
         out " \t\tOtherwise exit with 0. Only valid when running tpkg report"
 	out " -b DIR\tuse DIR is a base directory in stead of ."
 	out " -a ARGS\tpass the string ARGS through to the test scripts"
@@ -330,11 +332,12 @@ function report() {
                 if [[ $passed -lt $TPKG_PASS ]]; then
                         exit 1
                 fi
-	elif [[ $failed -gt 0 ]]; then
-		exit 1
-	else
-        	exit 0
+	elif [[  $TPKG_PASS -lt 0 ]]; then
+		if [[ $failed -gt 0 ]]; then
+			exit 1
+		fi
         fi
+	exit 0
 }
 
 # clone test1 to test2

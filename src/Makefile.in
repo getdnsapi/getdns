@@ -501,6 +501,8 @@ sha512.lo sha512.o: $(srcdir)/compat/sha512.c \
  config.h
 strlcpy.lo strlcpy.o: $(srcdir)/compat/strlcpy.c \
  config.h
+strptime.lo strptime.o: $(srcdir)/compat/strptime.c \
+ config.h
 locks.lo locks.o: $(srcdir)/util/locks.c \
  config.h \
  $(srcdir)/util/locks.h $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h
@@ -557,4 +559,4 @@ select_eventloop.lo select_eventloop.o: $(srcdir)/extension/select_eventloop.c \
  $(srcdir)/extension/select_eventloop.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
- $(srcdir)/debug.h $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/util/orig-headers/rbtree.h
+ $(srcdir)/types-internal.h $(srcdir)/util/rbtree.h $(srcdir)/util/orig-headers/rbtree.h $(srcdir)/debug.h

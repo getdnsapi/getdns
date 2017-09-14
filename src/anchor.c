@@ -721,7 +721,7 @@ static uint8_t *tas_validate(struct mem_funcs *mf,
 void _getdns_context_equip_with_anchor(
     getdns_context *context, uint64_t *now_ms)
 {
-	uint8_t xml_spc[4096], *xml_data;
+	uint8_t xml_spc[4096], *xml_data = NULL;
 	uint8_t p7s_spc[4096], *p7s_data = NULL;
 	size_t xml_len, p7s_len;
 	const char *verify_email = NULL;

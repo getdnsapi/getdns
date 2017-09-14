@@ -4629,7 +4629,8 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 			GETDNS_FREE(context->mf, buf);
 			buf = NULL;
 		}
-		buf[*file_sz] = 0;
+		else
+			buf[*file_sz] = 0;
 	}
 	(void) fclose(f);
 	return buf;
