@@ -172,6 +172,9 @@ getdns_libuv_timeout_cb(uv_timer_t *timer, int status)
 #endif
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
+#ifndef HAVE_NEW_UV_TIMER_CB
+	(void)status;
+#endif
         assert(el_ev->timeout_cb);
 	DEBUG_UV("enter libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n"
 	        , el_ev, el_ev->ev);
