@@ -3031,9 +3031,6 @@ static void check_chain_complete(chain_head *chain)
 		}
 
 	} else {
-		if (context->trust_anchors_source == GETDNS_TASRC_NONE)
-			_getdns_start_fetching_ta(context, dnsreq->loop);
-
 		if (context->trust_anchors_source == GETDNS_TASRC_FETCHING) {
 			dnsreq->waiting_for_ta = 1;
 			dnsreq->ta_notify = context->ta_notify;

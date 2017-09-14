@@ -587,9 +587,11 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	req->is_sync_request = loop == &context->sync_eventloop.loop;
 
 	if (req->dnssec_return_status &&
-	    context->trust_anchors_source == GETDNS_TASRC_NONE)
-		_getdns_start_fetching_ta(context, loop);
-
+	    context->trust_anchors_source == GETDNS_TASRC_NONE) {
+		_getdns_context_equip_with_anchor(context, &now_ms);
+		if (context->trust_anchors_source == GETDNS_TASRC_NONE)
+			_getdns_start_fetching_ta(context, loop);
+	}
 	if (return_netreq_p)
 		*return_netreq_p = req->netreqs[0];
 

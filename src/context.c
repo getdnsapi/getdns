@@ -1600,9 +1600,6 @@ getdns_context_create_with_extended_memory_functions(
 #else
 	/* XXX implement Windows-style unlock here */
 #endif
-	if (result->trust_anchors_source == GETDNS_TASRC_NONE)
-		_getdns_context_equip_with_anchor(result, time(NULL));
-
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
 	if ((r = rebuild_ub_ctx(result)))

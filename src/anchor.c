@@ -557,7 +557,7 @@ static ta_iter *ta_iter_init(ta_iter *ta, const char *doc, size_t doc_len)
 }
 
 static uint16_t _getdns_parse_xml_trust_anchors_buf(
-    gldns_buffer *gbuf, time_t now, char *xml_data, size_t xml_len)
+    gldns_buffer *gbuf, uint64_t *now_ms, char *xml_data, size_t xml_len)
 {
 	ta_iter ta_spc, *ta;
 	uint16_t ta_count = 0;
@@ -571,12 +571,14 @@ static uint16_t _getdns_parse_xml_trust_anchors_buf(
 	for ( ta = ta_iter_init(&ta_spc, (char *)xml_data, xml_len)
 	    ; ta; ta = ta_iter_next(ta)) {
 
-		if (now < ta->validFrom)
+		if (*now_ms == 0) *now_ms = _getdns_get_now_ms();
+		if ((time_t)(*now_ms / 1000) < ta->validFrom)
 			DEBUG_ANCHOR("Disregarding trust anchor "
 			    "%s for %s which is not yet valid",
 			    ta->keytag, ta->zone);
 
-		else if (ta->validUntil != 0 && now > ta->validUntil)
+		else if (ta->validUntil != 0
+		     && (time_t)(*now_ms / 1000) > ta->validUntil)
 			DEBUG_ANCHOR("Disregarding trust anchor "
 			    "%s for %s which is not valid anymore",
 			    ta->keytag, ta->zone);
@@ -646,7 +648,7 @@ static uint16_t _getdns_parse_xml_trust_anchors_buf(
 static uint8_t *tas_validate(struct mem_funcs *mf,
     const getdns_bindata *xml_bd, const getdns_bindata *p7s_bd,
     const getdns_bindata *crt_bd, const char *p7signer,
-    time_t now, uint8_t *tas, size_t *tas_len)
+    uint64_t *now_ms, uint8_t *tas, size_t *tas_len)
 {
 	BIO *xml = NULL, *p7s = NULL, *crt = NULL;
 	X509 *x = NULL;
@@ -682,7 +684,7 @@ static uint8_t *tas_validate(struct mem_funcs *mf,
 
 		gldns_buffer_init_vfixed_frm_data(&gbuf, tas, *tas_len);
 
-		if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now, 
+		if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now_ms,
 		    (char *)xml_bd->data, xml_bd->size))
 			DEBUG_ANCHOR("Failed to parse trust anchor XML data");
 
@@ -691,7 +693,7 @@ static uint8_t *tas_validate(struct mem_funcs *mf,
 			if ((success = GETDNS_XMALLOC(*mf, uint8_t, *tas_len))) {
 				gldns_buffer_init_frm_data(&gbuf, success, *tas_len);
 				if (!_getdns_parse_xml_trust_anchors_buf(&gbuf,
-				    now, (char *)xml_bd->data, xml_bd->size)) {
+				    now_ms, (char *)xml_bd->data, xml_bd->size)) {
 
 					DEBUG_ANCHOR("Failed to re-parse trust"
 					             " anchor XML data\n");
@@ -716,7 +718,8 @@ static uint8_t *tas_validate(struct mem_funcs *mf,
 	return success;
 }
 
-void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
+void _getdns_context_equip_with_anchor(
+    getdns_context *context, uint64_t *now_ms)
 {
 	uint8_t xml_spc[4096], *xml_data;
 	uint8_t p7s_spc[4096], *p7s_data = NULL;
@@ -784,7 +787,7 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 		gldns_buffer_init_vfixed_frm_data(
 		    &gbuf, ta_spc, sizeof(ta_spc));
 
-		if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now, 
+		if (!_getdns_parse_xml_trust_anchors_buf(&gbuf, now_ms,
 		    (char *)xml_data, xml_len))
 			DEBUG_ANCHOR("Failed to parse trust anchor XML data");
 		else if ((ta_len = gldns_buffer_position(&gbuf)) > sizeof(ta_spc)) {
@@ -792,7 +795,7 @@ void _getdns_context_equip_with_anchor(getdns_context *context, time_t now)
 				gldns_buffer_init_frm_data(&gbuf, ta,
 				    gldns_buffer_position(&gbuf));
 				if (!_getdns_parse_xml_trust_anchors_buf(
-				    &gbuf, now, (char *)xml_data, xml_len)) {
+				    &gbuf, now_ms, (char *)xml_data, xml_len)) {
 					DEBUG_ANCHOR("Failed to re-parse trust"
 					             " anchor XML data");
 					GETDNS_FREE(context->mf, ta);
@@ -997,6 +1000,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		const char *verify_email = NULL;
 		getdns_bindata verify_CA;
 		getdns_return_t r;
+		uint64_t now_ms = 0;
 
 		p7s_bd.data = a->tcp.read_buf;
 		p7s_bd.size = a->tcp.read_buf_len;
@@ -1017,7 +1021,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 				    , getdns_get_errorstr_by_id(r));
 
 		else if (!(tas = tas_validate(&context->mf, &a->xml, &p7s_bd,
-		    &verify_CA, verify_email, time(NULL), tas, &tas_len)))
+		    &verify_CA, verify_email, &now_ms, tas, &tas_len)))
 			; /* pass */
 
 		else {
