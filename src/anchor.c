@@ -1029,9 +1029,9 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		else {
 			context->trust_anchors = tas;
 			context->trust_anchors_len = tas_len;
-			_getdns_context_write_priv_file(
+			(void) _getdns_context_write_priv_file(
 			    context, "root-anchors.xml", &a->xml);
-			_getdns_context_write_priv_file(
+			(void) _getdns_context_write_priv_file(
 			    context, "root-anchors.p7s", &p7s_bd);
 			tas_success(context, a);
 			return;
@@ -1403,7 +1403,7 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 		GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
 		    getdns_eventloop_event_init(&a->event, a->req->owner,
 		    NULL, tas_write_cb, tas_timeout_cb));
-		DEBUG_ANCHOR("Scheduled write\n");
+		DEBUG_ANCHOR("Scheduled write with event\n");
 		return;
 	} else
 		DEBUG_ANCHOR("Connect error: %s\n", strerror(errno));
@@ -1420,8 +1420,11 @@ static void tas_happy_eyeballs_cb(void *userarg)
 	assert(dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_A);
 	if (tas_fetching(&context->aaaa))
 		return;
-	else
+	else {
+		DEBUG_ANCHOR("AAAA came too late, clearing Happy Eyeballs timer\n");
+		GETDNS_CLEAR_EVENT(context->a.loop, &context->a.event);
 		tas_connect(context, &context->a);
+	}
 }
 
 static void _tas_hostname_lookup_cb(getdns_dns_req *dnsreq)
@@ -1494,7 +1497,12 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 	const char *verify_CA;
 	const char *verify_email;
 
-	if ((r = _getdns_get_tas_url_hostname(context, tas_hostname, NULL))) {
+	if (!_getdns_context_can_write_appdata(context)) {
+		DEBUG_ANCHOR("NOTICE %s(): Not fetching TA, because "
+		             "non writeable appdata directory\n", __FUNC__);
+		return;
+
+	} else if ((r = _getdns_get_tas_url_hostname(context, tas_hostname, NULL))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get_tas_url_hostname"
 		             ": \"%s\"", __FUNC__
 		            , getdns_get_errorstr_by_id(r));

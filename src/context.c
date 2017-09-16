@@ -41,6 +41,7 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <netdb.h>
+#include <pwd.h>
 #else
 #include <winsock2.h>
 #include <iphlpapi.h>
@@ -4601,82 +4602,202 @@ getdns_context_config(getdns_context *context, const getdns_dict *config_dict)
 	return r;
 }
 
+static size_t _getdns_get_appdata(char *path)
+{
+	size_t len;
+
+#ifdef USE_WINSOCK
+# define APPDATA_SUBDIR "getdns"
+
+	if (! SUCCEEDED(SHGetFolderPath(NULL,
+	    CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path)))
+		DEBUG_ANCHOR("ERROR %s(): Could not get \%AppData\% directory\n"
+		            , __FUNC__);
+
+	else if ((len = strlen(path)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
+		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
+		            , __FUNC__);
+#else
+# define APPDATA_SUBDIR ".getdns"
+	struct passwd *p = getpwuid(getuid());
+	char *home = NULL;
+
+	if (!(home = p ? p->pw_dir : getenv("HOME")))
+		DEBUG_ANCHOR("ERROR %s(): Could not get home directory\n"
+		            , __FUNC__);
+
+	else if ((len = strlen(home)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
+		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
+		            , __FUNC__);
+
+	else if (!strcpy(path, home))
+		; /* strcpy returns path always */
+#endif
+	else {
+		if (len == 0 || (  path[len - 1] != '/'
+		                && path[len - 1] != '\\')) {
+			path[len++] = '/';
+			path[len  ] = '\0';
+		}
+		(void) strcpy(path + len, APPDATA_SUBDIR);
+		len += sizeof(APPDATA_SUBDIR) - 1;
+
+		if (mkdir(path, 0755) < 0 && errno != EEXIST)
+			DEBUG_ANCHOR("ERROR %s(): Could not mkdir %s: %s\n"
+				    , __FUNC__, path, strerror(errno));
+		else {
+			path[len++] = '/';
+			path[len  ] = '\0';
+			return len;
+		}
+	}
+	return 0;
+}
+
 uint8_t *_getdns_context_get_priv_file(getdns_context *context,
     const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz)
 {
 	char path[PATH_MAX];
-	int n;
-	FILE *f;
+	FILE *f = NULL;
+	size_t len;
 
-	n = snprintf(path, sizeof(path), "%s/.getdns/%s", getenv("HOME"), fn);
-	if (n < 0 || n > PATH_MAX)
-		return NULL;
+	if (!(len = _getdns_get_appdata(path)))
+		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+		            , __FUNC__);
 
-	if (!(f = fopen(path, "r")))
-		return NULL;
+	else if (len + strlen(fn) >= sizeof(path))
+		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
-	if ((*file_sz = fread(buf, 1, buf_len, f)) < (buf_len  - 1) && feof(f))
+	else if (!strcpy(path + len, fn))
+		; /* strcpy returns path + len always */
+
+	else if (!(f = fopen(path, "r")))
+		DEBUG_ANCHOR("ERROR %s(): Opening \"%s\": %s\n"
+		            , __FUNC__, path, strerror(errno));
+
+	else if ((*file_sz = fread(buf, 1, buf_len, f)) < (buf_len  - 1) && feof(f)) {
 		buf[*file_sz] = 0;
-
+		(void) fclose(f);
+		return buf;
+	}
 	else if (fseek(f, 0, SEEK_END) < 0)
-		buf = NULL;
+		DEBUG_ANCHOR("ERROR %s(): Determining size of \"%s\": %s\n"
+		            , __FUNC__, path, strerror(errno));
 
-	else if ((buf = GETDNS_XMALLOC(
-	    context->mf, uint8_t, (buf_len = ftell(f) + 1)))) {
+	else if (!(buf = GETDNS_XMALLOC(
+	    context->mf, uint8_t, (buf_len = ftell(f) + 1))))
+		DEBUG_ANCHOR("ERROR %s(): Allocating %d memory for \"%s\"\n"
+		            , __FUNC__, (int)buf_len, path);
 
+	else {
 		rewind(f);
 		if ((*file_sz = fread(buf, 1, buf_len, f)) >= buf_len || !feof(f)) {
 			GETDNS_FREE(context->mf, buf);
-			buf = NULL;
+			DEBUG_ANCHOR("ERROR %s(): Reading \"%s\": %s\n"
+				    , __FUNC__, path, strerror(errno));
 		}
-		else
+		else {
 			buf[*file_sz] = 0;
+			(void) fclose(f);
+			return buf;
+		}
 	}
-	(void) fclose(f);
-	return buf;
+	if (f)
+		(void) fclose(f);
+	return NULL;
 }
 
-void _getdns_context_write_priv_file(getdns_context *context,
+
+int _getdns_context_write_priv_file(getdns_context *context,
     const char *fn, getdns_bindata *content)
 {
 	char path[PATH_MAX], tmpfn[PATH_MAX];
-	int n, fd;
-	FILE *f;
+	int fd = -1;
+	FILE *f = NULL;
+	size_t len;
 
-	(void)context;
+	if (!(len = _getdns_get_appdata(path)))
+		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+		            , __FUNC__);
 
-	DEBUG_ANCHOR("%s\n", __FUNC__);
+	else if (len + 6          >= sizeof(tmpfn)
+	     ||  len + strlen(fn) >= sizeof(path))
+		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
-	n = snprintf( path, sizeof( path), "%s/.getdns/%s"  , getenv("HOME"), fn);
-	if (n < 0 || n > PATH_MAX) {
-		DEBUG_ANCHOR("Could not create filename for writing\n");
-		return;
-	}
 
-	n = snprintf(tmpfn, sizeof(tmpfn), "%s/.getdns/XXXXXX", getenv("HOME"));
-	if (n < 0 || n > PATH_MAX) {
-		DEBUG_ANCHOR("Could not create tmpfn for writing\n");
-		return;
-	}
+	else if (snprintf(tmpfn, sizeof(tmpfn), "%sXXXXXX", path) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template\n"
+		            , __FUNC__);
 
-	if ((fd = mkstemp(tmpfn)) < 0) {
-		DEBUG_ANCHOR("Could not create temporary file from \"%s\": %s\n",
-		    tmpfn, strerror(errno));
-		return;
-	}
+	else if (!strcpy(path + len, fn))
+		; /* strcpy returns path + len always */
 
-	if (!(f = fdopen(fd, "w"))) {
-		close(fd);
-		return;
-	}
-	if (fwrite(content->data, 1, content->size, f) != content->size)
-		fclose(f);
+	else if ((fd = mkstemp(tmpfn)) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (!(f = fdopen(fd, "w")))
+		DEBUG_ANCHOR("ERROR %s(): Opening temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (fwrite(content->data, 1, content->size, f) < content->size)
+		DEBUG_ANCHOR("ERROR %s(): Writing temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (fclose(f) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Closing temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (rename(tmpfn, path) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Renaming temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
 	else {
-		fclose(f);
-		if (rename(tmpfn, path) == -1)
-			DEBUG_ANCHOR("Could not mv \"%s\" \"%s\": %s\n",
-			    tmpfn, path, strerror(errno));
+		context->can_write_appdata = PROP_ABLE;
+		return 1;
 	}
+	if (f)
+		(void) fclose(f);
+
+	else if (fd >= 0)
+		(void) close(fd);
+
+	context->can_write_appdata = PROP_UNABLE;
+	return 0;
+}
+
+int _getdns_context_can_write_appdata(getdns_context *context)
+{
+	char test_fn[30], path[PATH_MAX];
+	size_t len;
+	getdns_bindata test_content = { 4, (void *)"TEST" };
+
+	if (context->can_write_appdata == PROP_ABLE)
+		return 1;
+
+	else if (context->can_write_appdata == PROP_UNABLE)
+		return 0;
+
+	(void) snprintf( test_fn, sizeof(test_fn)
+	               , "write-test-%d.tmp", arc4random());
+
+	if (!_getdns_context_write_priv_file(context, test_fn, &test_content))
+		return 0;
+
+	if (!(len = _getdns_get_appdata(path)))
+		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+		            , __FUNC__);
+
+	else if (len + strlen(test_fn) >= sizeof(path))
+		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
+
+	else if (!strcpy(path + len, test_fn))
+		; /* strcpy returns path + len always */
+
+	else if (unlink(path) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Unlinking write test file \"%s\": %s\n"
+		            , __FUNC__, path, strerror(errno));
+
+	return 1;
 }
 
 getdns_return_t
