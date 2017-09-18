@@ -803,6 +803,7 @@ void _getdns_context_equip_with_anchor(
 					context->trust_anchors = ta;
 					context->trust_anchors_len = ta_len;
 					context->trust_anchors_source = GETDNS_TASRC_XML;
+					_getdns_ta_notify_dnsreqs(context);
 				}
 			} else
 				DEBUG_ANCHOR("Could not allocate space for XML file");
@@ -811,6 +812,7 @@ void _getdns_context_equip_with_anchor(
 			context->trust_anchors = context->trust_anchors_spc;
 			context->trust_anchors_len = ta_len;
 			context->trust_anchors_source = GETDNS_TASRC_XML;
+			_getdns_ta_notify_dnsreqs(context);
 		}
 		DEBUG_ANCHOR("ta: %p, ta_len: %d\n",
 		    (void *)context->trust_anchors, (int)context->trust_anchors_len);

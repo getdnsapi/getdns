@@ -571,11 +571,6 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	if (extensions && (r = validate_extensions(extensions)))
 		return r;
 
-	/* Set up the context assuming we won't use the specified namespaces.
-	   This is (currently) identical to setting up a pure DNS namespace */
-	if ((r = _getdns_context_prepare_for_resolution(context, 0)))
-		return r;
-
 	/* create the request */
 	if (!(req = _getdns_dns_req_new(
 	    context, loop, name, request_type, extensions, &now_ms)))
@@ -592,6 +587,11 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		if (context->trust_anchors_source == GETDNS_TASRC_NONE)
 			_getdns_start_fetching_ta(context, loop);
 	}
+	/* Set up the context assuming we won't use the specified namespaces.
+	   This is (currently) identical to setting up a pure DNS namespace */
+	if ((r = _getdns_context_prepare_for_resolution(context, 0)))
+		return r;
+
 	if (return_netreq_p)
 		*return_netreq_p = req->netreqs[0];
 
