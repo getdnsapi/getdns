@@ -738,11 +738,20 @@ void _getdns_context_equip_with_anchor(
 			     " CA: \"%s\"\n", __FUNC__
 			    , getdns_get_errorstr_by_id(r));
 
+	else if (!verify_CA || !*verify_CA)
+		DEBUG_ANCHOR("NOTICE: Trust anchor verification explicitely "
+		             "disabled by empty verify CA\n");
+		return;
+
 	else if ((r = getdns_context_get_trust_anchor_verify_email(
 	    context, ".", &verify_email)))
 		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify email "
 		             "address: \"%s\"\n", __FUNC__
 		            , getdns_get_errorstr_by_id(r));
+
+	else if (!verify_email || !*verify_email)
+		DEBUG_ANCHOR("NOTICE: Trust anchor verification explicitely "
+		             "disabled by empty verify email\n");
 
 	else if (!(xml_data = _getdns_context_get_priv_file(context,
 	    "root-anchors.xml", xml_spc, sizeof(xml_spc), &xml_len)))
@@ -1499,12 +1508,7 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 	const char *verify_CA;
 	const char *verify_email;
 
-	if (!_getdns_context_can_write_appdata(context)) {
-		DEBUG_ANCHOR("NOTICE %s(): Not fetching TA, because "
-		             "non writeable appdata directory\n", __FUNC__);
-		return;
-
-	} else if ((r = _getdns_get_tas_url_hostname(context, tas_hostname, NULL))) {
+	if ((r = _getdns_get_tas_url_hostname(context, tas_hostname, NULL))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get_tas_url_hostname"
 		             ": \"%s\"", __FUNC__
 		            , getdns_get_errorstr_by_id(r));
@@ -1517,10 +1521,11 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		            , getdns_get_errorstr_by_id(r));
 		return;
 
-	} else if (!*verify_CA) {
+	} else if (!verify_CA || !*verify_CA) {
 		DEBUG_ANCHOR("NOTICE: Trust anchor fetching explicitely "
 		             "disabled by empty verify CA\n");
 		return;
+
 	} else if ((r = getdns_context_get_trust_anchor_verify_email(
 	    context, ".", &verify_email))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get verify email address"
@@ -1528,11 +1533,16 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		            , getdns_get_errorstr_by_id(r));
 		return;
 
-	} else if (!*verify_email) {
+	} else if (!verify_email || !*verify_email) {
 		DEBUG_ANCHOR("NOTICE: Trust anchor fetching explicitely "
 		             "disabled by empty verify email address\n");
 		return;
-	}
+
+	} else if (!_getdns_context_can_write_appdata(context)) {
+		DEBUG_ANCHOR("NOTICE %s(): Not fetching TA, because "
+		             "non writeable appdata directory\n", __FUNC__);
+		return;
+	} 
 	DEBUG_ANCHOR("Hostname: %s\n", tas_hostname);
 	DEBUG_ANCHOR("%s on the %ssynchronous loop\n", __FUNC__,
 	             loop == &context->sync_eventloop.loop ? "" : "a");
