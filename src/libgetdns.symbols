@@ -159,5 +159,9 @@ getdns_wire2msg_dict_scan
 getdns_wire2rr_dict
 getdns_wire2rr_dict_buf
 getdns_wire2rr_dict_scan
+getdns_yaml2bindata
+getdns_yaml2dict
+getdns_yaml2int
+getdns_yaml2list
 plain_mem_funcs_user_arg
 priv_getdns_context_mf

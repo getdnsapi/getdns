@@ -245,7 +245,7 @@ $(distdir):
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
-	cp $(srcdir)/stubby/stubby.conf.example $(distdir)/stubby
+	cp $(srcdir)/stubby/stubby.yml.example $(distdir)/stubby
 	cp $(srcdir)/stubby/stubby-setdns-macos.sh $(distdir)/stubby
 	cp $(srcdir)/stubby/src/stubby.c $(distdir)/stubby/src
 	cp $(srcdir)/stubby/COPYING $(distdir)/stubby

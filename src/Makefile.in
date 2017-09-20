@@ -92,6 +92,8 @@ UTIL_OBJ=rbtree.lo val_secalgo.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
 
+YAML_OBJ=convert_yaml_to_json.lo
+
 EXTENSION_OBJ=$(DEFAULT_EVENTLOOP_OBJ) libevent.lo libev.lo
 
 NON_C99_OBJS=context.lo libuv.lo
@@ -122,6 +124,9 @@ $(UTIL_OBJ):
 
 $(JSMN_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -DJSMN_GETDNS -c $(srcdir)/jsmn/$(@:.lo=.c) -o $@
+
+$(YAML_OBJ):
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/yaml/$(@:.lo=.c) -o $@
 
 $(EXTENSION_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/extension/$(@:.lo=.c) -o $@
@@ -173,8 +178,8 @@ libgetdns_ext_ev.la: libgetdns.la libev.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ libev.lo libgetdns.la $(LDFLAGS) $(EXTENSION_LIBEV_LDFLAGS) $(EXTENSION_LIBEV_EXT_LIBS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/extension/libev.symbols
 
 
-libgetdns.la: $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ)
-	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
+libgetdns.la: $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ) $(YAML_OBJ)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ $(GETDNS_OBJ) version.lo context.lo $(DEFAULT_EVENTLOOP_OBJ) $(GLDNS_OBJ) $(COMPAT_OBJ) $(UTIL_OBJ) $(JSMN_OBJ) $(YAML_OBJ) $(LDFLAGS) -rpath $(libdir) -version-info $(libversion) -no-undefined -export-symbols $(srcdir)/libgetdns.symbols
 
 test: default
 	cd test && $(MAKE) $@
@@ -188,14 +193,14 @@ stubby.lo: $(stubbysrcdir)/src/stubby.c
 stubby: stubby.lo libgetdns.la 
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ stubby.lo $(LDFLAGS) libgetdns.la
 
-install-stubby: stubby $(stubbysrcdir)/stubby.conf.example $(stubbysrcdir)/stubby-setdns-macos.sh
+install-stubby: stubby $(stubbysrcdir)/stubby.yml.example $(stubbysrcdir)/stubby-setdns-macos.sh
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(stubbyconfdir)
-	test -f $(DESTDIR)$(stubbyconfdir)/stubby.conf || \
-		$(INSTALL_DATA) $(stubbysrcdir)/stubby.conf.example $(DESTDIR)$(stubbyconfdir)/stubby.conf
+	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
+		$(INSTALL_DATA) $(stubbysrcdir)/stubby.yml.example $(DESTDIR)$(stubbyconfdir)/stubby.yml
 
 uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
@@ -226,13 +231,14 @@ Makefile: $(srcdir)/Makefile.in ../config.status
 
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
-	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iutil/auxiliary *.c gldns/*.c compat/*.c util/*.c jsmn/*.c extension/*.c| \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iutil/auxiliary *.c gldns/*.c compat/*.c util/*.c jsmn/*.c yaml/*.c extension/*.c| \
 		sed -e "s? $$blddir/? ?g" \
 		    -e 's? gldns/? $$(srcdir)/gldns/?g' \
 		    -e 's? compat/? $$(srcdir)/compat/?g' \
 		    -e 's? util/auxiliary/util/? $$(srcdir)/util/auxiliary/util/?g' \
 		    -e 's? util/? $$(srcdir)/util/?g' \
 		    -e 's? jsmn/? $$(srcdir)/jsmn/?g' \
+		    -e 's? yaml/? $$(srcdir)/yaml/?g' \
 		    -e 's? extension/? $$(srcdir)/extension/?g' \
 		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
 		    -e 's? \$$(srcdir)/config\.h? config.h?g' \

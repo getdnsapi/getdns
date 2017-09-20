@@ -1689,6 +1689,98 @@ getdns_str2int(const char *str, uint32_t *value);
  */
 
 /**
+ * \defgroup Uyaml2getdns_data Converting YAML input to getdns data structures
+ *  @{
+ */
+
+/**
+ * Convert YAML text to a getdns_dict.
+ *
+ * @param  str   A textual representation of a getdns_dict.
+ *               The format is similar, but not precisely YAML.
+ *               - When str contains an IP or IPv6 address, it is converted
+ *                 to an getdns dict representation of that address.  This may contain
+ *                 a port, tls_port, tsig spec or tls authentication name in the same
+ *                 way as may be given with the `getdns_query` tool.  For example:
+ *                 `185.49.140.67:80#443` will result in the following getdns_dict:
+ *
+ *                      { address_type: "IPv4"
+ *                      , address_data: "185.49.140.67"
+ *                      , port: 80
+ *                      , tls_port: 443
+ *                      }
+ * @param  dict The returned getdns_dict.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2dict(const char *str, getdns_dict **dict);
+
+/**
+ * Convert YAML text to a getdns_list.
+ *
+ * @param  str   A textual representation of a getdns_list.
+ * @param  list The returned getdns_list.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2list(const char *str, getdns_list **list);
+
+/**
+ * Convert string text to a getdns_bindata.
+ *
+ * @param  str   A textual representation of a getdns_bindata
+ *               The format is similar, but not precisely YAML.
+ *               - Strings between double-quotes will be converted to bindata
+ *                 containers, but *without the trailing null byte*.
+ *                 For example: `{ suffix: [ "nlnetlabs.nl.", "nlnet.nl." ] }`
+ *               - bindata representation of IP or IPv6 addresses may be
+ *                 given in their presentation format.  For example:
+ *                 `{ dns_root_servers: [ 2001:7fd::1, 193.0.14.129 ] }`
+ *               - Arbitrary binary data may be given with a `0x` prefix,
+ *                 or in base64 encoding.
+ *                 For example:
+ *
+ *                      { add_opt_parameters:
+ *                        { options: [ { option_code: 10
+ *                                     , option_data: 0xA9E4EC50C03F5D65
+ *                                     } ]
+ *                        }
+ *                      }
+ *
+ *               - Wireformat domain name bindatas can be given with a trailing dot.
+ *                 For example:
+ *
+ *                      { upstream_recursive_servers:
+ *                        [ { address_data  : 2a04:b900:0:100::37
+ *                          , tsig_name     : hmac-md5.tsigs.getdnsapi.net.
+ *                          , tsig_algorithm: hmac-md5.sig-alg.reg.int.
+ *                          , tsig_secret : 16G69OTeXW6xSQ==
+ *                          } ]
+ *                      }
+ * @param  bindata The returned getdns_bindata.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2bindata(const char *str, getdns_bindata **bindata);
+
+/**
+ * Convert string text to a getdns 32 bits unsigned integer.
+ *
+ * @param  str   A textual representation of the integer.
+ *               The format is similar, but not precisely YAML.
+ *               - integer values may be given by the constant name.
+ *                 For example: `{ resolution_type: GETDNS_RESOLUTION_STUB }`
+ *                 or `{ specify_class: GETDNS_RRCLASS_CH }`
+ * @param  value The returned integer.
+ * @return GETDNS_RETURN_GOOD on success or an error code on failure.
+ */
+getdns_return_t
+getdns_yaml2int(const char *str, uint32_t *value);
+
+/** @}
+ */
+
+/**
  * \defgroup UServerFunctions Creating simple DNS servers
  *  @{
  */

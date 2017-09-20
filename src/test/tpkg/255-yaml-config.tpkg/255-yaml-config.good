@@ -1,0 +1,87 @@
+{
+  "Bindata entry": <bindata of 0x200107fd000000000000000000000001>,
+  "List entry":
+  [
+     <bindata of "One">,
+     <bindata of "two">,
+     <bindata of "three">
+  ],
+  "dnssec_return_status": 1000,
+  "upstream_recursive_servers":
+  [
+    {
+      "address_data": <bindata for 145.100.185.15>,
+      "tls_auth_name": <bindata of "dnsovertls.sinodun.com">,
+      "tls_pubkey_pinset":
+      [
+        {
+          "digest": <bindata of "sha256">,
+          "value": <bindata of 62lKu9HsDVbyiPenApnc4sfmSYTHOVfFgL3pyB+cBL4=>
+        }
+      ]
+    },
+    {
+      "address_data": <bindata for 145.100.185.16>,
+      "tls_auth_name": <bindata of "dnsovertls1.sinodun.com">,
+      "tls_pubkey_pinset":
+      [
+        {
+          "digest": <bindata of "sha256">,
+          "value": <bindata of cE2ecALeE5B+urJhDrJlVFmf38cJLAvqekONvjvpqUA=>
+        }
+      ]
+    },
+    {
+      "address_data": <bindata for 185.49.141.37>,
+      "tls_auth_name": <bindata of "getdnsapi.net">,
+      "tls_pubkey_pinset":
+      [
+        {
+          "digest": <bindata of "sha256">,
+          "value": <bindata of foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc9Q=>
+        }
+      ]
+    },
+    {
+      "address_data": <bindata for 184.105.193.78>,
+      "tls_auth_name": <bindata of "unicast.censurfridns.dk">
+    },
+    {
+      "address_data": <bindata for 2001:610:1:40ba:145:100:185:15>,
+      "tls_auth_name": <bindata of "dnsovertls.sinodun.com">,
+      "tls_pubkey_pinset":
+      [
+        {
+          "digest": <bindata of "sha256">,
+          "value": <bindata of 62lKu9HsDVbyiPenApnc4sfmSYTHOVfFgL3pyB+cBL4=>
+        }
+      ]
+    },
+    {
+      "address_data": <bindata for 2001:610:1:40ba:145:100:185:16>,
+      "tls_auth_name": <bindata of "dnsovertls1.sinodun.com">,
+      "tls_pubkey_pinset":
+      [
+        {
+          "digest": <bindata of "sha256">,
+          "value": <bindata of cE2ecALeE5B+urJhDrJlVFmf38cJLAvqekONvjvpqUA=>
+        }
+      ]
+    },
+    {
+      "address_data": <bindata for 2a04:b900:0:100::38>,
+      "tls_auth_name": <bindata of "getdnsapi.net">,
+      "tls_pubkey_pinset":
+      [
+        {
+          "digest": <bindata of "sha256">,
+          "value": <bindata of foxZRnIh9gZpWnl+zEiKa0EJ2rdCGroMWm02gaxSc9Q=>
+        }
+      ]
+    },
+    {
+      "address_data": <bindata for 2620:ff:c000:0:1:0:64:25>,
+      "tls_auth_name": <bindata of "unicast.censurfridns.dk">
+    }
+  ]
+}
