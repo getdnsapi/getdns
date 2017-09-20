@@ -27,9 +27,9 @@
 
 #include "config.h"
 
-#include "extension/select_eventloop.h"
 #include "debug.h"
 #include "types-internal.h"
+#include "extension/select_eventloop.h"
 
 static uint64_t get_now_plus(uint64_t amount)
 {

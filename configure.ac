@@ -233,7 +233,7 @@ esac
 
 
 DEFAULT_EVENTLOOP=select_eventloop
-AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)
@@ -596,6 +596,28 @@ if test "$USE_WINSOCK" = 1; then
 	LIBS="$LIBS -lgdi32 -liphlpapi"
 fi
 
+dnl Check if -D_POSIX is needed for sigset_t
+
+AC_CHECK_TYPE([sigset_t], [
+	AC_MSG_NOTICE(-D_POSIX is NOT needed for the sigset_t type)
+], [
+	BACKCFLAGS="$CFLAGS"
+	CFLAGS="-D_POSIX $CFLAGS"
+	AC_CHECK_TYPE([sigset_t], [
+		AC_MSG_NOTICE(-D_POSIX is needed for the sigset_t type)
+	], [
+		AC_MSG_NOTICE(Unclear whether -D_POSIX is needed for the sigset_t type)
+		BACKCFLAGS="$CFLAGS"
+	], [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+	])
+], [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+])
 
 my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
@@ -1332,9 +1354,12 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 
 #ifdef USE_WINSOCK
+# ifndef  _CUSTOM_VSNPRINTF
+#  define _CUSTOM_VSNPRINTF
 static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 { int r = vsnprintf(str, size, format, ap); return r == -1 ? _vscprintf(format, ap) : r; }
-# define vsnprintf _gldns_custom_vsnprintf
+#  define vsnprintf _gldns_custom_vsnprintf
+# endif
 #endif
 
 #ifdef __cplusplus
@@ -1359,6 +1384,10 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
+#endif
+
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
