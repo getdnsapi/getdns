@@ -67,6 +67,8 @@ static inline int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
 	    || rr_type == GLDNS_RR_TYPE_DNAME || rr_type == GLDNS_RR_TYPE_RRSIG;
 }
 
+int _getdns_bogus(getdns_dns_req *dns_req);
+
 #endif
 
 /* dnssec.h */

@@ -3036,6 +3036,17 @@ static inline chain_node *_to_the_root(chain_node *node)
 	return node;
 }
 
+int _getdns_bogus(getdns_dns_req *dnsreq)
+{
+	getdns_network_req **netreq_p, *netreq;
+
+	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
+		if (netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
+			return 1;
+	}
+	return 0;
+}
+
 static void check_chain_complete(chain_head *chain)
 {
 	getdns_dns_req *dnsreq;
@@ -3075,22 +3086,13 @@ static void check_chain_complete(chain_head *chain)
 		}
 	}
 #ifdef STUB_NATIVE_DNSSEC
-	/* Perform validation only on GETDNS_RESOLUTION_STUB (unbound_id == -1)
-	 * Or when asked for the validation chain (to identify the RRSIGs that
-	 * signed the RRSETs, so that only those will be included in the
-	 * validation chain)
-	 * In any case we must have a trust anchor.
-	 */
-	if ((   chain->netreq->unbound_id == -1
-	     || dnsreq->dnssec_return_validation_chain)
-	    && context->trust_anchors)
+	if (context->trust_anchors)
 
 		chain_set_netreq_dnssec_status(chain,_getdns_rrset_iter_init(&tas_iter,
 		    context->trust_anchors, context->trust_anchors_len,
 		    SECTION_ANSWER));
 #else
-	if (dnsreq->dnssec_return_validation_chain
-	    && context->trust_anchors)
+	if (context->trust_anchors)
 
 		(void) chain_validate_dnssec(priv_getdns_context_mf(context),
 		    time(NULL), context->dnssec_allowed_skew,
@@ -3104,13 +3106,14 @@ static void check_chain_complete(chain_head *chain)
 		    node->dnskey.name && *node->dnskey.name == 0)
 			_getdns_context_update_root_ksk(context,&node->dnskey);
        	
-	} else if (dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+	} else if (_getdns_bogus(dnsreq)) {
 		DEBUG_ANCHOR("Request was bogus!\n");
+
 		if ((head = chain) && (node = _to_the_root(head->parent))
 		    && node->dnskey.name && *node->dnskey.name == 0
 		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
 
-			DEBUG_ANCHOR("ROOT DNSKEY set was bogus!\n");
+			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
 			if (!dnsreq->waiting_for_ta) {
 				uint64_t now = 0;
 
@@ -3143,7 +3146,7 @@ static void check_chain_complete(chain_head *chain)
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	if (    dnsreq->dnssec_roadblock_avoidance
 	    && !dnsreq->avoid_dnssec_roadblocks
-	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+	    &&  _getdns_bogus(dnsreq)) {
 
 		getdns_network_req **netreq_p, *netreq;
 		uint64_t now_ms = 0;
@@ -3381,6 +3384,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 	if (dnsreq->avoid_dnssec_roadblocks && chain->lock == 0)
 		; /* pass */
+
 	else for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		if (!  netreq->response
 		    || netreq->response_len < GLDNS_HEADER_SIZE
@@ -3391,7 +3395,10 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 			netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
 			continue;
-		}
+
+		} else if (netreq->unbound_id != -1)
+			netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+
 		add_pkt2val_chain( &dnsreq->my_mf, &chain
 		                 , netreq->response, netreq->response_len
 				 , netreq

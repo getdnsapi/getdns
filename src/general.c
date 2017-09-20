@@ -214,13 +214,15 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #endif
 
 #ifdef STUB_NATIVE_DNSSEC
-	    || (dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
+	    || (    dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
 	        && !dns_req->avoid_dnssec_roadblocks
 	        && (dns_req->dnssec_return_status ||
 	            dns_req->dnssec_return_only_secure ||
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
+	    || (  dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	       && _getdns_bogus(dns_req))
 	    )) {
 		/* Reschedule timeout for this DNS request
 		 */
@@ -236,6 +238,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #if defined(REQ_DEBUG) && REQ_DEBUG
 		debug_req("getting validation chain for ", *dns_req->netreqs);
 #endif
+		DEBUG_ANCHOR("Valchain lookup\n");
 		_getdns_get_validation_chain(dns_req);
 	} else
 		_getdns_call_user_callback(
@@ -594,22 +597,18 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			_getdns_context_equip_with_anchor(context, &now_ms);
 			if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
 				_getdns_start_fetching_ta(context, loop);
-				if (context->trust_anchors_source
-						== GETDNS_TASRC_FETCHING
-				    && context->resolution_type
-						== GETDNS_RESOLUTION_RECURSING
-				    && context->resolution_type
-						!= context->resolution_type_set) {
-
-					req->waiting_for_ta = 1;
-					req->ta_notify = context->ta_notify;
-					context->ta_notify = req;
-					return GETDNS_RETURN_GOOD;
-				}
 			}
 		}
 	}
 	if (!usenamespaces) {
+		if (context->trust_anchors_source == GETDNS_TASRC_FETCHING
+		    && context->resolution_type == GETDNS_RESOLUTION_RECURSING
+		    && context->resolution_type != context->resolution_type_set) {
+			req->waiting_for_ta = 1;
+			req->ta_notify = context->ta_notify;
+			context->ta_notify = req;
+			return GETDNS_RETURN_GOOD;
+		}
 		(void) _getdns_context_prepare_for_resolution(context, 0);
 
 		/* issue all network requests */
@@ -660,6 +659,14 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			}
 #endif /* HAVE_MDNS_SUPPORT */
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
+			if (context->trust_anchors_source == GETDNS_TASRC_FETCHING
+			    && context->resolution_type == GETDNS_RESOLUTION_RECURSING
+			    && context->resolution_type != context->resolution_type_set) {
+				req->waiting_for_ta = 1;
+				req->ta_notify = context->ta_notify;
+				context->ta_notify = req;
+				return GETDNS_RETURN_GOOD;
+			}
 			(void) _getdns_context_prepare_for_resolution(context, 0);
 
 			/* TODO: We will get a good return code here even if
