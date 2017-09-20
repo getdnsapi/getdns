@@ -47,41 +47,41 @@
 
 #ifdef GETDNS_ON_WINDOWS
 #define DEBUG_ON(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
-        time_t tsec; \
+		struct timeval tv_dEbUgSyM; \
+		struct tm tm_dEbUgSyM; \
+		char buf_dEbUgSyM[10]; \
+		time_t tsec_dEbUgSyM; \
 		\
-		gettimeofday(&tv, NULL); \
-		tsec = (time_t) tv.tv_sec; \
-		gmtime_s(&tm, (const time_t *) &tsec); \
-		strftime(buf, 10, "%H:%M:%S", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		gettimeofday(&tv_dEbUgSyM, NULL); \
+		tsec = (time_t) tv_dEbUgSyM.tv_sec; \
+		gmtime_s(&tm_dEbUgSyM, (const time_t *) &tsec_dEbUgSyM); \
+		strftime(buf_dEbUgSyM, 10, "%H:%M:%S", &tm_dEbUgSyM); \
+		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
 #else
 #define DEBUG_ON(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
+		struct timeval tv_dEbUgSyM; \
+		struct tm tm_dEbUgSyM; \
+		char buf_dEbUgSyM[10]; \
 		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%H:%M:%S", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		gettimeofday(&tv_dEbUgSyM, NULL); \
+		gmtime_r(&tv_dEbUgSyM.tv_sec, &tm_dEbUgSyM); \
+		strftime(buf_dEbUgSyM, 10, "%H:%M:%S", &tm_dEbUgSyM); \
+		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
 #endif
 
 #define DEBUG_NL(...) do { \
-		struct timeval tv; \
-		struct tm tm; \
-		char buf[10]; \
+		struct timeval tv_dEbUgSyM; \
+		struct tm tm_dEbUgSyM; \
+		char buf_dEbUgSyM[10]; \
 		\
-		gettimeofday(&tv, NULL); \
-		gmtime_r(&tv.tv_sec, &tm); \
-		strftime(buf, 10, "%H:%M:%S", &tm); \
-		fprintf(stderr, "[%s.%.6d] ", buf, (int)tv.tv_usec); \
+		gettimeofday(&tv_dEbUgSyM, NULL); \
+		gmtime_r(&tv_dEbUgSyM.tv_sec, &tm_dEbUgSyM); \
+		strftime(buf_dEbUgSyM, 10, "%H:%M:%S", &tm_dEbUgSyM); \
+		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 		fprintf(stderr, "\n"); \
 	} while (0)
@@ -162,14 +162,25 @@ static inline void debug_req(const char *msg, getdns_network_req *netreq)
 #define DEBUG_MDNS(...) DEBUG_OFF(__VA_ARGS__)
 #endif
 
+#if defined(ANCHOR_DEBUG) && ANCHOR_DEBUG
+#include <time.h>
+#define DEBUG_ANCHOR(...) DEBUG_ON(__VA_ARGS__)
+#else
+#define DEBUG_ANCHOR(...) DEBUG_OFF(__VA_ARGS__)
+#endif
+
 #if (defined(REQ_DEBUG)    && REQ_DEBUG)    || \
     (defined(SCHED_DEBUG)  && SCHED_DEBUG)  || \
     (defined(STUB_DEBUG)   && STUB_DEBUG)   || \
     (defined(DAEMON_DEBUG) && DAEMON_DEBUG) || \
     (defined(SEC_DEBUG)    && SEC_DEBUG)    || \
     (defined(SERVER_DEBUG) && SERVER_DEBUG) || \
-    (defined(MDNS_DEBUG)   && MDNS_DEBUG)
+    (defined(MDNS_DEBUG)   && MDNS_DEBUG)   || \
+    (defined(ANCHOR_DEBUG) && ANCHOR_DEBUG)
 #define DEBUGGING 1
+static inline int
+_getdns_ERR_print_errors_cb_f(const char *str, size_t len, void *u)
+{ DEBUG_ON("%.*s (u: %p)\n", (int)len, str, u); return 1; }
 #endif
 
 #endif

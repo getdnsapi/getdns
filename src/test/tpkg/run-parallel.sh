@@ -31,7 +31,7 @@ do
 	fi
 done
 echo "${ALL}" >> Makefile
-printf '\t"%s" r\n\n' "${TPKG}" >> Makefile
+printf '\t"%s" -n -1 r\n\n' "${TPKG}" >> Makefile
 printf 'clean:\n\t"%s" clean\n\trm -fr build build-stub-only build-event-loops build-static-analysis install scan-build-reports .tpkg.var.master *.info\n\n' "${TPKG}" >> Makefile
 for P in ${OTHERS}
 do

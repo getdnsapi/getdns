@@ -48,6 +48,8 @@
 #ifdef HAVE_MDNS_SUPPORT
 #include "util/lruhash.h"
 #endif
+#include "rr-iter.h"
+#include "anchor.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -92,6 +94,16 @@ typedef enum getdns_conn_state {
 	GETDNS_CONN_BACKOFF
 } getdns_conn_state_t;
 
+typedef enum getdns_tasrc {
+	GETDNS_TASRC_NONE,
+	GETDNS_TASRC_ZONE,
+	GETDNS_TASRC_APP,
+	GETDNS_TASRC_FETCHING,
+	GETDNS_TASRC_XML,
+	GETDNS_TASRC_XML_UPDATE,
+	GETDNS_TASRC_FAILED
+} getdns_tasrc;
+
 typedef enum getdns_tsig_algo {
 	GETDNS_NO_TSIG     = 0, /* Do not use tsig */
 	GETDNS_HMAC_MD5    = 1, /* 128 bits */
@@ -102,6 +114,7 @@ typedef enum getdns_tsig_algo {
 	GETDNS_HMAC_SHA384 = 6,
 	GETDNS_HMAC_SHA512 = 7
 } getdns_tsig_algo;
+
 
 typedef struct getdns_tsig_info {
 	getdns_tsig_algo  alg;
@@ -256,6 +269,44 @@ typedef struct getdns_upstreams {
 	getdns_upstream upstreams[];
 } getdns_upstreams;
 
+typedef enum tas_state {
+	TAS_LOOKUP_ADDRESSES = 0,
+	TAS_WRITE_GET_XML,
+	TAS_READ_XML_HDR,
+	TAS_READ_XML_DOC,
+	TAS_WRITE_GET_PS7,
+	TAS_READ_PS7_HDR,
+	TAS_READ_PS7_DOC,
+	TAS_DONE,
+	TAS_RETRY,
+	TAS_RETRY_GET_PS7,
+	TAS_RETRY_PS7_HDR,
+	TAS_RETRY_PS7_DOC,
+	TAS_RETRY_DONE
+} tas_state;
+
+typedef enum _getdns_property {
+	PROP_INHERIT =  0,
+	PROP_UNKNOWN =  1,
+	PROP_UNABLE  =  2,
+	PROP_ABLE    =  3 
+} _getdns_property;
+
+typedef struct tas_connection {
+	getdns_eventloop       *loop;
+	getdns_network_req     *req;
+	_getdns_rrset_spc       rrset_spc;
+	_getdns_rrset          *rrset;
+	_getdns_rrtype_iter     rr_spc;
+	_getdns_rrtype_iter    *rr;
+	int                    fd;
+	getdns_eventloop_event event;
+	tas_state              state;
+	getdns_tcp_state       tcp;
+	char                  *http;
+	getdns_bindata         xml;
+} tas_connection;
+
 struct getdns_context {
 	/* Context values */
 	getdns_resolution_t  resolution_type;
@@ -277,8 +328,23 @@ struct getdns_context {
 	const uint8_t        *suffixes;
 	/* Length of all suffixes in the suffix buffer */
 	size_t               suffixes_len; 
+
 	uint8_t              *trust_anchors;
 	size_t                trust_anchors_len;
+	getdns_tasrc          trust_anchors_source;
+
+	tas_connection        a;
+	tas_connection        aaaa;
+	uint8_t               tas_hdr_spc[512];
+
+	_getdns_property      can_write_appdata;
+
+	const char           *root_anchor_url;
+	const char           *root_anchor_verify_CA;
+	const char           *root_anchor_verify_email;
+
+	_getdns_ksks          root_ksk;
+
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
@@ -372,6 +438,18 @@ struct getdns_context {
 	unsigned return_both_v4_and_v6               : 1;
 	unsigned return_call_reporting               : 1;
 	uint16_t specify_class;
+
+	/*
+	 * Context for doing system queries.
+	 * For example to resolve data.iana.org or to resolver the addresses
+	 * of upstreams without specified addresses.
+	 */
+	getdns_context *sys_ctxt;
+
+	/* List of dnsreqs that want to be notified when we have fetched a
+	 * trust anchor from data.iana.org.
+	 */
+	getdns_dns_req *ta_notify;
 
 	/*
 	 * state data used to detect changes to the system config files
@@ -470,6 +548,15 @@ void _getdns_context_ub_read_cb(void *userarg);
 void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
 void _getdns_upstream_shutdown(getdns_upstream *upstream);
+
+FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn);
+uint8_t *_getdns_context_get_priv_file(getdns_context *context,
+    const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz);
+
+int _getdns_context_write_priv_file(getdns_context *context,
+    const char *fn, getdns_bindata *content);
+
+int _getdns_context_can_write_appdata(getdns_context *context);
 
 void _getdns_upstream_reset(getdns_upstream *upstream);
 

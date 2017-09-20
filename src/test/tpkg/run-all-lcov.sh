@@ -25,4 +25,4 @@ do
 done
 lcov $LCOV_MERGE -o run-all.info
 genhtml run-all.info --output-directory coverage-html
-"${TPKG}" r
+"${TPKG}" -n -1 r

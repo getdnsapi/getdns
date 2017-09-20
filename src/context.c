@@ -35,11 +35,13 @@
  */
 
 #include "config.h"
+#include "anchor.h"
 
 #ifndef USE_WINSOCK
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <netdb.h>
+#include <pwd.h>
 #else
 #include <winsock2.h>
 #include <iphlpapi.h>
@@ -68,7 +70,6 @@ typedef unsigned short in_port_t;
 #endif
 #include <stdbool.h>
 
-#include "config.h"
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
 #endif
@@ -1362,6 +1363,37 @@ static void _getdns_check_expired_pending_netreqs_cb(void *arg)
 	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
 }
 
+static const char *_getdns_default_root_anchor_url =
+    "http://data.iana.org/root-anchors/root-anchors.xml";
+
+/* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
+static const char *_getdns_default_root_anchor_verify_CA =
+"-----BEGIN CERTIFICATE-----\n"
+"MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
+"TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
+"BAMTDUlDQU5OIFJvb3QgQ0ExCzAJBgNVBAYTAlVTMB4XDTA5MTIyMzA0MTkxMloX\n"
+"DTI5MTIxODA0MTkxMlowXTEOMAwGA1UEChMFSUNBTk4xJjAkBgNVBAsTHUlDQU5O\n"
+"IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRYwFAYDVQQDEw1JQ0FOTiBSb290IENB\n"
+"MQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKDb\n"
+"cLhPNNqc1NB+u+oVvOnJESofYS9qub0/PXagmgr37pNublVThIzyLPGCJ8gPms9S\n"
+"G1TaKNIsMI7d+5IgMy3WyPEOECGIcfqEIktdR1YWfJufXcMReZwU4v/AdKzdOdfg\n"
+"ONiwc6r70duEr1IiqPbVm5T05l1e6D+HkAvHGnf1LtOPGs4CHQdpIUcy2kauAEy2\n"
+"paKcOcHASvbTHK7TbbvHGPB+7faAztABLoneErruEcumetcNfPMIjXKdv1V1E3C7\n"
+"MSJKy+jAqqQJqjZoQGB0necZgUMiUv7JK1IPQRM2CXJllcyJrm9WFxY0c1KjBO29\n"
+"iIKK69fcglKcBuFShUECAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8B\n"
+"Af8EBAMCAf4wHQYDVR0OBBYEFLpS6UmDJIZSL8eZzfyNa2kITcBQMA0GCSqGSIb3\n"
+"DQEBCwUAA4IBAQAP8emCogqHny2UYFqywEuhLys7R9UKmYY4suzGO4nkbgfPFMfH\n"
+"6M+Zj6owwxlwueZt1j/IaCayoKU3QsrYYoDRolpILh+FPwx7wseUEV8ZKpWsoDoD\n"
+"2JFbLg2cfB8u/OlE4RYmcxxFSmXBg0yQ8/IoQt/bxOcEEhhiQ168H2yE5rxJMt9h\n"
+"15nu5JBSewrCkYqYYmaxyOC3WrVGfHZxVI7MpIFcGdvSb2a1uyuua8l0BKgk3ujF\n"
+"0/wsHNeP22qNyVO+XVBzrM8fk8BSUFuiT/6tZTYXRtEt5aKQZgXbKU5dUF3jT9qg\n"
+"j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
+"-----END CERTIFICATE-----\n";
+
+static const char *_getdns_default_root_anchor_verify_email =
+    "dnssec@iana.org";
+
+
 /*
  * getdns_context_create
  *
@@ -1461,6 +1493,20 @@ getdns_context_create_with_extended_memory_functions(
 	result->suffixes = no_suffixes;
 	result->suffixes_len = sizeof(no_suffixes);
 
+	result->trust_anchors_source = GETDNS_TASRC_NONE;
+	result->can_write_appdata = PROP_UNKNOWN;
+	result->root_anchor_url = _getdns_default_root_anchor_url;
+	result->root_anchor_verify_email
+	    = _getdns_default_root_anchor_verify_email;
+	result->root_anchor_verify_CA = _getdns_default_root_anchor_verify_CA;
+
+	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
+
+	(void) memset(&result->a, 0, sizeof(result->a));
+	(void) memset(&result->aaaa, 0, sizeof(result->aaaa));
+	result->a.fd = -1;
+	result->aaaa.fd = -1;
+
 	gldns_buffer_init_vfixed_frm_data(&gbuf, result->trust_anchors_spc
 	                                , sizeof(result->trust_anchors_spc));
 
@@ -1478,12 +1524,16 @@ getdns_context_create_with_extended_memory_functions(
 			                          , result->trust_anchors
 						  , result->trust_anchors_len);
 			if (!_getdns_parse_ta_file(NULL, &gbuf)) {
+				GETDNS_FREE(result->mf, result->trust_anchors);
 				result->trust_anchors = NULL;
 				result->trust_anchors_len = 0;
-			}
+			} else
+				result->trust_anchors_source = GETDNS_TASRC_ZONE;
 		}
-	} else
+	} else {
 		result->trust_anchors = result->trust_anchors_spc;
+		result->trust_anchors_source = GETDNS_TASRC_ZONE;
+	}
 
 	result->upstreams = NULL;
 
@@ -1516,6 +1566,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->return_both_v4_and_v6 = 0;
 	result->return_call_reporting = 0;
 	result->specify_class = GETDNS_RRCLASS_IN;
+
+	result->sys_ctxt  = NULL;
+	result->ta_notify = NULL;
 
 	/* state data used to detect changes to the system config files
 	 */
@@ -1553,7 +1606,15 @@ getdns_context_create_with_extended_memory_functions(
 #endif
 	/* Only initialise SSL once and ideally in a thread-safe manner */
 	if (ssl_init == false) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+		OpenSSL_add_all_algorithms();
 		SSL_library_init();
+#else
+		OPENSSL_init_crypto( OPENSSL_INIT_ADD_ALL_CIPHERS
+		                   | OPENSSL_INIT_ADD_ALL_DIGESTS
+		                   | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+		(void)OPENSSL_init_ssl(0, NULL);
+#endif
 		ssl_init = true;
 	}
 #ifdef HAVE_PTHREAD
@@ -1561,7 +1622,6 @@ getdns_context_create_with_extended_memory_functions(
 #else
 	/* XXX implement Windows-style unlock here */
 #endif
-
 #ifdef HAVE_LIBUNBOUND
 	result->unbound_ctx = NULL;
 	if ((r = rebuild_ub_ctx(result)))
@@ -1636,6 +1696,10 @@ getdns_context_destroy(struct getdns_context *context)
 		return;
 
 	context->destroying = 1;
+
+	if (context->sys_ctxt)
+		getdns_context_destroy(context->sys_ctxt);
+
 	/* cancel all outstanding requests */
 	cancel_outstanding_requests(context);
 
@@ -2648,9 +2712,11 @@ getdns_context_set_dnssec_trust_anchors(
 		context->trust_anchors = _getdns_list2wire(value,
 		    context->trust_anchors_spc, &context->trust_anchors_len,
 		    &context->mf);
+		context->trust_anchors_source = GETDNS_TASRC_APP;
 	} else {
 		context->trust_anchors = NULL;
 		context->trust_anchors_len = 0;
+		context->trust_anchors_source = GETDNS_TASRC_NONE;
 	}
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_DNSSEC_TRUST_ANCHORS);
 	return GETDNS_RETURN_GOOD;
@@ -4541,5 +4607,327 @@ getdns_context_config(getdns_context *context, const getdns_dict *config_dict)
 	getdns_list_destroy(settings);
 	return r;
 }
+
+static size_t _getdns_get_appdata(char *path)
+{
+	size_t len;
+
+#ifdef USE_WINSOCK
+# define APPDATA_SUBDIR "getdns"
+
+	if (! SUCCEEDED(SHGetFolderPath(NULL,
+	    CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path)))
+		DEBUG_ANCHOR("ERROR %s(): Could not get \%AppData\% directory\n"
+		            , __FUNC__);
+
+	else if ((len = strlen(path)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
+		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
+		            , __FUNC__);
+#else
+# define APPDATA_SUBDIR ".getdns"
+	struct passwd *p = getpwuid(getuid());
+	char *home = NULL;
+
+	if (!(home = p ? p->pw_dir : getenv("HOME")))
+		DEBUG_ANCHOR("ERROR %s(): Could not get home directory\n"
+		            , __FUNC__);
+
+	else if ((len = strlen(home)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
+		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
+		            , __FUNC__);
+
+	else if (!strcpy(path, home))
+		; /* strcpy returns path always */
+#endif
+	else {
+		if (len == 0 || (  path[len - 1] != '/'
+		                && path[len - 1] != '\\')) {
+			path[len++] = '/';
+			path[len  ] = '\0';
+		}
+		(void) strcpy(path + len, APPDATA_SUBDIR);
+		len += sizeof(APPDATA_SUBDIR) - 1;
+
+		if (mkdir(path, 0755) < 0 && errno != EEXIST)
+			DEBUG_ANCHOR("ERROR %s(): Could not mkdir %s: %s\n"
+				    , __FUNC__, path, strerror(errno));
+		else {
+			path[len++] = '/';
+			path[len  ] = '\0';
+			return len;
+		}
+	}
+	return 0;
+}
+
+FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn)
+{
+	char path[PATH_MAX];
+	FILE *f = NULL;
+	size_t len;
+
+	(void) context;
+	if (!(len = _getdns_get_appdata(path)))
+		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+		            , __FUNC__);
+
+	else if (len + strlen(fn) >= sizeof(path))
+		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
+
+	else if (!strcpy(path + len, fn))
+		; /* strcpy returns path + len always */
+
+	else if (!(f = fopen(path, "r")))
+		DEBUG_ANCHOR("ERROR %s(): Opening \"%s\": %s\n"
+		            , __FUNC__, path, strerror(errno));
+
+	return f;
+}
+
+uint8_t *_getdns_context_get_priv_file(getdns_context *context,
+    const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz)
+{
+	FILE *f = NULL;
+
+	if (!(f = _getdns_context_get_priv_fp(context, fn)))
+		; /* pass */
+
+	else if ((*file_sz = fread(buf, 1, buf_len, f)) < (buf_len  - 1) && feof(f)) {
+		buf[*file_sz] = 0;
+		(void) fclose(f);
+		return buf;
+	}
+	else if (fseek(f, 0, SEEK_END) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Determining size of \"%s\": %s\n"
+		            , __FUNC__, fn, strerror(errno));
+
+	else if (!(buf = GETDNS_XMALLOC(
+	    context->mf, uint8_t, (buf_len = ftell(f) + 1))))
+		DEBUG_ANCHOR("ERROR %s(): Allocating %d memory for \"%s\"\n"
+		            , __FUNC__, (int)buf_len, fn);
+
+	else {
+		rewind(f);
+		if ((*file_sz = fread(buf, 1, buf_len, f)) >= buf_len || !feof(f)) {
+			GETDNS_FREE(context->mf, buf);
+			DEBUG_ANCHOR("ERROR %s(): Reading \"%s\": %s\n"
+				    , __FUNC__, fn, strerror(errno));
+		}
+		else {
+			buf[*file_sz] = 0;
+			(void) fclose(f);
+			return buf;
+		}
+	}
+	if (f)
+		(void) fclose(f);
+	return NULL;
+}
+
+
+int _getdns_context_write_priv_file(getdns_context *context,
+    const char *fn, getdns_bindata *content)
+{
+	char path[PATH_MAX], tmpfn[PATH_MAX];
+	int fd = -1;
+	FILE *f = NULL;
+	size_t len;
+
+	if (!(len = _getdns_get_appdata(path)))
+		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+		            , __FUNC__);
+
+	else if (len + 6          >= sizeof(tmpfn)
+	     ||  len + strlen(fn) >= sizeof(path))
+		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
+
+
+	else if (snprintf(tmpfn, sizeof(tmpfn), "%sXXXXXX", path) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template\n"
+		            , __FUNC__);
+
+	else if (!strcpy(path + len, fn))
+		; /* strcpy returns path + len always */
+
+	else if ((fd = mkstemp(tmpfn)) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (!(f = fdopen(fd, "w")))
+		DEBUG_ANCHOR("ERROR %s(): Opening temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (fwrite(content->data, 1, content->size, f) < content->size)
+		DEBUG_ANCHOR("ERROR %s(): Writing temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (fclose(f) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Closing temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+
+	else if (rename(tmpfn, path) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Renaming temporary file: %s\n"
+		            , __FUNC__, strerror(errno));
+	else {
+		context->can_write_appdata = PROP_ABLE;
+		return 1;
+	}
+	if (f)
+		(void) fclose(f);
+
+	else if (fd >= 0)
+		(void) close(fd);
+
+	context->can_write_appdata = PROP_UNABLE;
+	return 0;
+}
+
+int _getdns_context_can_write_appdata(getdns_context *context)
+{
+	char test_fn[30], path[PATH_MAX];
+	size_t len;
+	getdns_bindata test_content = { 4, (void *)"TEST" };
+
+	if (context->can_write_appdata == PROP_ABLE)
+		return 1;
+
+	else if (context->can_write_appdata == PROP_UNABLE)
+		return 0;
+
+	(void) snprintf( test_fn, sizeof(test_fn)
+	               , "write-test-%d.tmp", arc4random());
+
+	if (!_getdns_context_write_priv_file(context, test_fn, &test_content))
+		return 0;
+
+	if (!(len = _getdns_get_appdata(path)))
+		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+		            , __FUNC__);
+
+	else if (len + strlen(test_fn) >= sizeof(path))
+		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
+
+	else if (!strcpy(path + len, test_fn))
+		; /* strcpy returns path + len always */
+
+	else if (unlink(path) < 0)
+		DEBUG_ANCHOR("ERROR %s(): Unlinking write test file \"%s\": %s\n"
+		            , __FUNC__, path, strerror(errno));
+
+	return 1;
+}
+
+getdns_return_t
+getdns_context_set_trust_anchor_url(
+    getdns_context *context, const char *zone, const char *url)
+{
+	const char *path;
+	size_t path_len;
+
+	if (!context || !url)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && !(zone[0] == '.' && zone[1] == '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	if (! ((url[0] == 'h' || url[0] == 'H')
+	    && (url[1] == 't' || url[1] == 'T')
+	    && (url[2] == 't' || url[2] == 'T')
+	    && (url[3] == 'p' || url[3] == 'P')
+	    &&  url[4] == ':' && url[5] == '/' && url[6] == '/'
+	    && (path = strchr(url + 7, '/'))))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	path_len = strlen(path);
+	if (! ( path_len >= 5
+	    &&  path[path_len - 4] == '.'
+	    && (path[path_len - 3] == 'x' || path[path_len - 3] == 'X')
+	    && (path[path_len - 2] == 'm' || path[path_len - 2] == 'M')
+	    && (path[path_len - 1] == 'l' || path[path_len - 1] == 'L')))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	context->root_anchor_url = url;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_URL);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchor_url(
+    getdns_context *context, const char *zone, const char **url)
+{
+	if (!context || !url)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	*url = context && context->root_anchor_url
+	     ?            context->root_anchor_url
+	     :     _getdns_default_root_anchor_url;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_trust_anchor_verify_CA(
+    getdns_context *context, const char *zone, const char *verify_CA)
+{
+	if (!context || !verify_CA)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	context->root_anchor_verify_CA = verify_CA;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchor_verify_CA(
+    getdns_context *context, const char *zone, const char **verify_CA)
+{
+	if (!verify_CA)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	*verify_CA = context && context->root_anchor_verify_CA
+	           ?            context->root_anchor_verify_CA
+	           :     _getdns_default_root_anchor_verify_CA;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_trust_anchor_verify_email(
+    getdns_context *context, const char *zone, const char *verify_email)
+{
+	if (!context || !verify_email)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	context->root_anchor_verify_email = verify_email;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchor_verify_email(
+    getdns_context *context, const char *zone, const char **verify_email)
+{
+	if (!verify_email)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (zone && (zone[0] != '.' || zone[1] != '\0'))
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+
+	*verify_email = context && context->root_anchor_verify_email
+	              ?            context->root_anchor_verify_email
+		      :     _getdns_default_root_anchor_verify_email;
+	return GETDNS_RETURN_GOOD;
+}
+
 
 /* context.c */

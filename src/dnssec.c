@@ -209,6 +209,7 @@
 #include "dict.h"
 #include "list.h"
 #include "util/val_secalgo.h"
+#include "anchor.h"
 
 #define SIGNATURE_VERIFIED         0x10000
 #define NSEC3_ITERATION_COUNT_HIGH 0x20000
@@ -2544,8 +2545,13 @@ static int chain_node_get_trusted_keys(
 	} else
 		return GETDNS_DNSSEC_BOGUS;
 
-	if (GETDNS_DNSSEC_SECURE != (s = chain_node_get_trusted_keys(
-	    mf, now, skew, node->parent, ta, keys)))
+	s = chain_node_get_trusted_keys(mf, now, skew, node->parent, ta, keys);
+	/* Set dnssec status on root DNSKEY request (for TA management) */
+	if (!node->parent && node->dnskey_req &&
+	     node->dnskey.name && *node->dnskey.name == 0)
+		node->dnskey_req->dnssec_status = s;
+
+	if (s != GETDNS_DNSSEC_SECURE)
 		return s;
 
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
@@ -2747,6 +2753,33 @@ static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter
 
 		default:
 			break;
+		}
+	}
+}
+
+static void chain_clear_netreq_dnssec_status(chain_head *chain)
+{
+	chain_head *head;
+	size_t      node_count;
+	chain_node *node;
+
+	/* The netreq status is the worst for any head */
+	for (head = chain; head; head = head->next) {
+		if (!head->netreq)
+			continue;
+
+		head->netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+		for ( node_count = head->node_count, node = head->parent
+		    ; node && node_count ; node_count--, node = node->parent ) {
+
+			node->ds_signer = -1;
+			node->dnskey_signer = -1;
+
+			if ( ! node->parent && node->dnskey_req
+			    && node->dnskey.name && !*node->dnskey.name) {
+				node->dnskey_req->dnssec_status =
+				    GETDNS_DNSSEC_INDETERMINATE;
+			}
 		}
 	}
 }
@@ -2997,6 +3030,22 @@ static void append_empty_ds2val_chain_list(
 	if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
 		getdns_dict_destroy(rr_dict);
 }
+static inline chain_node *_to_the_root(chain_node *node)
+{
+	while (node->parent) node = node->parent;
+	return node;
+}
+
+int _getdns_bogus(getdns_dns_req *dnsreq)
+{
+	getdns_network_req **netreq_p, *netreq;
+
+	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
+		if (netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
+			return 1;
+	}
+	return 0;
+}
 
 static void check_chain_complete(chain_head *chain)
 {
@@ -3017,23 +3066,33 @@ static void check_chain_complete(chain_head *chain)
 	dnsreq = chain->netreq->owner;
 	context = dnsreq->context;
 
+	if (dnsreq->waiting_for_ta) {
+		getdns_dns_req **d;
+
+		for (d = &context->ta_notify; *d; d = &(*d)->ta_notify) {
+			if (*d == dnsreq) {
+				*d = dnsreq->ta_notify;
+				dnsreq->ta_notify = NULL;
+				break;
+			}
+		}
+
+	} else {
+		if (context->trust_anchors_source == GETDNS_TASRC_FETCHING) {
+			dnsreq->waiting_for_ta = 1;
+			dnsreq->ta_notify = context->ta_notify;
+			context->ta_notify = dnsreq;
+			return;
+		}
+	}
 #ifdef STUB_NATIVE_DNSSEC
-	/* Perform validation only on GETDNS_RESOLUTION_STUB (unbound_id == -1)
-	 * Or when asked for the validation chain (to identify the RRSIGs that
-	 * signed the RRSETs, so that only those will be included in the
-	 * validation chain)
-	 * In any case we must have a trust anchor.
-	 */
-	if ((   chain->netreq->unbound_id == -1
-	     || dnsreq->dnssec_return_validation_chain)
-	    && context->trust_anchors)
+	if (context->trust_anchors)
 
 		chain_set_netreq_dnssec_status(chain,_getdns_rrset_iter_init(&tas_iter,
 		    context->trust_anchors, context->trust_anchors_len,
 		    SECTION_ANSWER));
 #else
-	if (dnsreq->dnssec_return_validation_chain
-	    && context->trust_anchors)
+	if (context->trust_anchors)
 
 		(void) chain_validate_dnssec(priv_getdns_context_mf(context),
 		    time(NULL), context->dnssec_allowed_skew,
@@ -3042,10 +3101,52 @@ static void check_chain_complete(chain_head *chain)
 		                          , context->trust_anchors_len
 		                          , SECTION_ANSWER));
 #endif
+	if (context->trust_anchors_source == GETDNS_TASRC_XML) {
+		if ((head = chain) && (node = _to_the_root(head->parent)) &&
+		    node->dnskey.name && *node->dnskey.name == 0)
+			_getdns_context_update_root_ksk(context,&node->dnskey);
+       	
+	} else if (_getdns_bogus(dnsreq)) {
+		DEBUG_ANCHOR("Request was bogus!\n");
+
+		if ((head = chain) && (node = _to_the_root(head->parent))
+		    && node->dnskey.name && *node->dnskey.name == 0
+		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
+
+			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
+			if (!dnsreq->waiting_for_ta) {
+				uint64_t now = 0;
+
+				dnsreq->waiting_for_ta = 1;
+				_getdns_context_equip_with_anchor(
+				    context, &now);
+
+				if (context->trust_anchors_source
+				    == GETDNS_TASRC_XML) {
+					chain_clear_netreq_dnssec_status(chain);
+					check_chain_complete(chain);
+					return;
+				}
+				_getdns_start_fetching_ta(
+				    context,  dnsreq->loop);
+
+				if (dnsreq->waiting_for_ta &&
+				    context->trust_anchors_source
+				    == GETDNS_TASRC_FETCHING) {
+
+					chain_clear_netreq_dnssec_status(chain);
+					dnsreq->ta_notify = context->ta_notify;
+					context->ta_notify = dnsreq;
+					return;
+				}
+			}
+		}
+	}
+
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	if (    dnsreq->dnssec_roadblock_avoidance
 	    && !dnsreq->avoid_dnssec_roadblocks
-	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+	    &&  _getdns_bogus(dnsreq)) {
 
 		getdns_network_req **netreq_p, *netreq;
 		uint64_t now_ms = 0;
@@ -3095,6 +3196,7 @@ static void check_chain_complete(chain_head *chain)
 		return;
 	}
 #endif
+	dnsreq->waiting_for_ta = 0;
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
@@ -3159,6 +3261,45 @@ static void check_chain_complete(chain_head *chain)
 	/* Final user callback */
 	dnsreq->validating = 0;
 	_getdns_call_user_callback(dnsreq, response_dict);
+}
+
+void _getdns_ta_notify_dnsreqs(getdns_context *context)
+{
+	getdns_dns_req **dnsreq_p, *dnsreq = NULL;
+	uint64_t now_ms = 0;
+
+	assert(context);
+
+	if (context->trust_anchors_source == GETDNS_TASRC_NONE ||
+	    context->trust_anchors_source == GETDNS_TASRC_FETCHING)
+		return;
+
+	dnsreq_p = &context->ta_notify;
+	while ((dnsreq = *dnsreq_p)) {
+		assert(dnsreq->waiting_for_ta);
+
+		if (dnsreq->chain) 
+			check_chain_complete(dnsreq->chain);
+		else {
+			getdns_network_req *netreq, **netreq_p;
+			int r = GETDNS_RETURN_GOOD;
+
+			 (void) _getdns_context_prepare_for_resolution(context, 0);
+
+			*dnsreq_p = dnsreq->ta_notify;
+			for ( netreq_p = dnsreq->netreqs
+			    ; !r && (netreq = *netreq_p)
+			    ; netreq_p++ ) {
+
+				if (!(r = _getdns_submit_netreq(netreq, &now_ms)))
+					continue;
+				if (r == DNS_REQ_FINISHED)
+					break;
+				_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+			}
+		}
+		assert(*dnsreq_p != dnsreq);
+	}
 }
 
 void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
@@ -3243,6 +3384,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 	if (dnsreq->avoid_dnssec_roadblocks && chain->lock == 0)
 		; /* pass */
+
 	else for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		if (!  netreq->response
 		    || netreq->response_len < GLDNS_HEADER_SIZE
@@ -3253,7 +3395,10 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 			netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
 			continue;
-		}
+
+		} else if (netreq->unbound_id != -1)
+			netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+
 		add_pkt2val_chain( &dnsreq->my_mf, &chain
 		                 , netreq->response, netreq->response_len
 				 , netreq

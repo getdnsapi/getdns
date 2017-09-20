@@ -45,6 +45,8 @@
 #define sec_status_insecure		_getdns_sec_status_insecure
 #define sec_status_unchecked		_getdns_sec_status_unchecked
 #define sec_status_bogus		_getdns_sec_status_bogus
+#define fake_sha1			_getdns_fake_sha1
+#define fake_dsa			_getdns_fake_dsa
 
 enum sec_status { sec_status_bogus     = 0
                 , sec_status_unchecked = 0

@@ -17,4 +17,4 @@ do
 	# trap keyboard interrupt (control-c)
 	trap control_c 2
 done
-"${TPKG}" r
+"${TPKG}" -n -1 r

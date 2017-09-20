@@ -54,6 +54,7 @@
 #include "dict.h"
 #include "mdns.h"
 #include "debug.h"
+#include "anchor.h"
 
 void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 {
@@ -213,13 +214,15 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #endif
 
 #ifdef STUB_NATIVE_DNSSEC
-	    || (dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
+	    || (    dns_req->context->resolution_type == GETDNS_RESOLUTION_STUB
 	        && !dns_req->avoid_dnssec_roadblocks
 	        && (dns_req->dnssec_return_status ||
 	            dns_req->dnssec_return_only_secure ||
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
+	    || (  dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	       && _getdns_bogus(dns_req))
 	    )) {
 		/* Reschedule timeout for this DNS request
 		 */
@@ -235,6 +238,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #if defined(REQ_DEBUG) && REQ_DEBUG
 		debug_req("getting validation chain for ", *dns_req->netreqs);
 #endif
+		DEBUG_ANCHOR("Valchain lookup\n");
 		_getdns_get_validation_chain(dns_req);
 	} else
 		_getdns_call_user_callback(
@@ -570,11 +574,6 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	if (extensions && (r = validate_extensions(extensions)))
 		return r;
 
-	/* Set up the context assuming we won't use the specified namespaces.
-	   This is (currently) identical to setting up a pure DNS namespace */
-	if ((r = _getdns_context_prepare_for_resolution(context, 0)))
-		return r;
-
 	/* create the request */
 	if (!(req = _getdns_dns_req_new(
 	    context, loop, name, request_type, extensions, &now_ms)))
@@ -590,7 +589,28 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 	_getdns_context_track_outbound_request(req);
 
-	if (!usenamespaces)
+	if (req->dnssec_extension_set) {
+		if (context->trust_anchors_source == GETDNS_TASRC_XML_UPDATE)
+			_getdns_start_fetching_ta(context, loop);
+
+		else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
+			_getdns_context_equip_with_anchor(context, &now_ms);
+			if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
+				_getdns_start_fetching_ta(context, loop);
+			}
+		}
+	}
+	if (!usenamespaces) {
+		if (context->trust_anchors_source == GETDNS_TASRC_FETCHING
+		    && context->resolution_type == GETDNS_RESOLUTION_RECURSING
+		    && context->resolution_type != context->resolution_type_set) {
+			req->waiting_for_ta = 1;
+			req->ta_notify = context->ta_notify;
+			context->ta_notify = req;
+			return GETDNS_RETURN_GOOD;
+		}
+		(void) _getdns_context_prepare_for_resolution(context, 0);
+
 		/* issue all network requests */
 		for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
@@ -605,7 +625,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			}
 		}
 
-	else for (i = 0; i < context->namespace_count; i++) {
+	} else for (i = 0; i < context->namespace_count; i++) {
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
 
 			if (!(r = _getdns_context_local_namespace_resolve(
@@ -639,6 +659,15 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			}
 #endif /* HAVE_MDNS_SUPPORT */
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
+			if (context->trust_anchors_source == GETDNS_TASRC_FETCHING
+			    && context->resolution_type == GETDNS_RESOLUTION_RECURSING
+			    && context->resolution_type != context->resolution_type_set) {
+				req->waiting_for_ta = 1;
+				req->ta_notify = context->ta_notify;
+				context->ta_notify = req;
+				return GETDNS_RETURN_GOOD;
+			}
+			(void) _getdns_context_prepare_for_resolution(context, 0);
 
 			/* TODO: We will get a good return code here even if
 			   the name is not found (NXDOMAIN). We should consider

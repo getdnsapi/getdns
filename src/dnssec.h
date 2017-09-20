@@ -48,6 +48,7 @@
 void _getdns_get_validation_chain(getdns_dns_req *dns_req);
 void _getdns_cancel_validation_chain(getdns_dns_req *dns_req);
 void _getdns_validation_chain_timeout(getdns_dns_req *dns_req);
+void _getdns_ta_notify_dnsreqs(getdns_context *context);
 
 uint16_t _getdns_parse_ta_file(time_t *ta_mtime, gldns_buffer *gbuf);
 
@@ -65,6 +66,8 @@ static inline int _dnssec_rdata_to_canonicalize(uint16_t rr_type)
 	    || rr_type == GLDNS_RR_TYPE_KX    || rr_type == GLDNS_RR_TYPE_SRV
 	    || rr_type == GLDNS_RR_TYPE_DNAME || rr_type == GLDNS_RR_TYPE_RRSIG;
 }
+
+int _getdns_bogus(getdns_dns_req *dns_req);
 
 #endif
 

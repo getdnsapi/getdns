@@ -163,7 +163,8 @@ AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub deb
 AC_ARG_ENABLE(debug-daemon, AC_HELP_STRING([--enable-debug-daemon], [Enable daemon debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
-AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable all debugging messages]))
+AC_ARG_ENABLE(debug-anchor, AC_HELP_STRING([--enable-debug-anchor], [Enable anchor debugging messages]))
+AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
 case "$enable_all_debugging" in
 	yes)
 		enable_debug_req=yes
@@ -172,6 +173,7 @@ case "$enable_all_debugging" in
 		enable_debug_daemon=yes
 		enable_debug_sec=yes
 		enable_debug_server=yes
+		enable_debug_anchor=yes
 		;;
 	no|*)
 		;;
@@ -214,6 +216,13 @@ esac
 case "$enable_debug_server" in
 	yes)
 		AC_DEFINE_UNQUOTED([SERVER_DEBUG], [1], [Define this enable printing of server debugging messages.])
+		;;
+	no|*)
+		;;
+esac
+case "$enable_debug_anchor" in
+	yes)
+		AC_DEFINE_UNQUOTED([ANCHOR_DEBUG], [1], [Define this enable printing of anchor debugging messages.])
 		;;
 	no|*)
 		;;
@@ -280,6 +289,33 @@ case "$enable_native_stub_dnssec" in
 		AC_DEFINE_UNQUOTED([STUB_NATIVE_DNSSEC], [1], [Define this to enable native stub DNSSEC support.])
 		;;
 esac
+
+# check wether strptime also works
+AC_DEFUN([AC_CHECK_STRPTIME_WORKS],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING(whether strptime works)
+if test c${cross_compiling} = cno; then
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#define _XOPEN_SOURCE 600
+#include <time.h>
+int main(void) { struct tm tm; char *res;
+res = strptime("2010-07-15T00:00:00+00:00", "%t%Y%t-%t%m%t-%t%d%tT%t%H%t:%t%M%t:%t%S%t", &tm);
+if (!res) return 2;
+res = strptime("20070207111842", "%Y%m%d%H%M%S", &tm);
+if (!res) return 1; return 0; }
+]])] , [eval "ac_cv_c_strptime_works=yes"], [eval "ac_cv_c_strptime_works=no"])
+else
+eval "ac_cv_c_strptime_works=maybe"
+fi
+AC_MSG_RESULT($ac_cv_c_strptime_works)
+if test $ac_cv_c_strptime_works = no; then
+AC_LIBOBJ(strptime)
+else
+AC_DEFINE_UNQUOTED([STRPTIME_WORKS], 1, [use default strptime.])
+fi
+])dnl
+
+AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
 
 # search to set include and library paths right
 # find libidn (no libidn on windows though)
@@ -1436,6 +1472,12 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 # else
 #  include <time.h>
 # endif
+#endif
+
+#if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
+#define strptime unbound_strptime
+struct tm;
+char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
 #ifdef HAVE_LIBUNBOUND

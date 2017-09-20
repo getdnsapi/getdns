@@ -296,7 +296,8 @@ poll_read_cb(int fd, getdns_eventloop_event *event)
 	(void)fd;
 #endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
-	event->read_cb(event->userarg);
+	if (event && event->read_cb)
+		event->read_cb(event->userarg);
 }
 
 static void
@@ -306,14 +307,16 @@ poll_write_cb(int fd, getdns_eventloop_event *event)
 	(void)fd;
 #endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
-	event->write_cb(event->userarg);
+	if (event && event->write_cb)
+		event->write_cb(event->userarg);
 }
 
 static void
 poll_timeout_cb(getdns_eventloop_event *event)
 {
 	DEBUG_SCHED( "%s(event: %p)\n", __FUNC__, (void *)event);
-	event->timeout_cb(event->userarg);
+	if (event && event->timeout_cb)
+		event->timeout_cb(event->userarg);
 }
 
 static void

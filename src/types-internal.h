@@ -171,7 +171,7 @@ typedef enum network_req_state_enum
 /* State for async tcp stub resolving */
 typedef struct getdns_tcp_state {
 
-	uint8_t *write_buf;
+	const uint8_t *write_buf;
 	size_t   write_buf_len;
 	size_t   written;
 
@@ -300,6 +300,7 @@ typedef struct getdns_dns_req {
 	unsigned dnssec_return_all_statuses		: 1;
 	unsigned dnssec_return_validation_chain		: 1;
 	unsigned dnssec_return_full_validation_chain	: 1;
+	unsigned dnssec_extension_set                   : 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	unsigned dnssec_roadblock_avoidance		: 1;
 	unsigned avoid_dnssec_roadblocks		: 1;
@@ -324,6 +325,7 @@ typedef struct getdns_dns_req {
 	 * freed      is touched by _getdns_submit_netreq only
 	 */
 	unsigned validating				: 1;
+	unsigned waiting_for_ta                         : 1;
 	int *freed;
 
 	/* Validation chain to be canceled when this request is canceled */
@@ -364,6 +366,11 @@ typedef struct getdns_dns_req {
 	 * more elaborate description.
 	 */
 	struct getdns_dns_req *finished_next;
+
+	/* Linked list pointer for dns requests, which need to validate DNSSEC
+	 * and are waiting for the root trust-anchors fetch.
+	 */
+	struct getdns_dns_req *ta_notify;
 
 	/* network requests for this dns request.
 	 * The array is terminated with NULL.
