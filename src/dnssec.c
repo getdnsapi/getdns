@@ -2545,8 +2545,13 @@ static int chain_node_get_trusted_keys(
 	} else
 		return GETDNS_DNSSEC_BOGUS;
 
-	if (GETDNS_DNSSEC_SECURE != (s = chain_node_get_trusted_keys(
-	    mf, now, skew, node->parent, ta, keys)))
+	s = chain_node_get_trusted_keys(mf, now, skew, node->parent, ta, keys);
+	/* Set dnssec status on root DNSKEY request (for TA management) */
+	if (!node->parent && node->dnskey_req &&
+	     node->dnskey.name && *node->dnskey.name == 0)
+		node->dnskey_req->dnssec_status = s;
+
+	if (s != GETDNS_DNSSEC_SECURE)
 		return s;
 
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
@@ -2748,6 +2753,33 @@ static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter
 
 		default:
 			break;
+		}
+	}
+}
+
+static void chain_clear_netreq_dnssec_status(chain_head *chain)
+{
+	chain_head *head;
+	size_t      node_count;
+	chain_node *node;
+
+	/* The netreq status is the worst for any head */
+	for (head = chain; head; head = head->next) {
+		if (!head->netreq)
+			continue;
+
+		head->netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count ; node_count--, node = node->parent ) {
+
+			node->ds_signer = -1;
+			node->dnskey_signer = -1;
+
+			if ( ! node->parent && node->dnskey_req
+			    && node->dnskey.name && !*node->dnskey.name) {
+				node->dnskey_req->dnssec_status =
+				    GETDNS_DNSSEC_INDETERMINATE;
+			}
 		}
 	}
 }
@@ -3030,7 +3062,6 @@ static void check_chain_complete(chain_head *chain)
 			if (*d == dnsreq) {
 				*d = dnsreq->ta_notify;
 				dnsreq->ta_notify = NULL;
-				dnsreq->waiting_for_ta = 0;
 				break;
 			}
 		}
@@ -3068,15 +3099,46 @@ static void check_chain_complete(chain_head *chain)
 		                          , context->trust_anchors_len
 		                          , SECTION_ANSWER));
 #endif
-	if (context->trust_anchors_source != GETDNS_TASRC_XML)
-		; /* pass  */
-
-	/* Find root key or query for it in full recursion... */
-	else if (!(head = chain) || !(node = _to_the_root(head->parent)))
-		; /* pass  */
+	if (context->trust_anchors_source == GETDNS_TASRC_XML) {
+		if ((head = chain) && (node = _to_the_root(head->parent)) &&
+		    node->dnskey.name && *node->dnskey.name == 0)
+			_getdns_context_update_root_ksk(context,&node->dnskey);
        	
-	else if (node->dnskey.name && *node->dnskey.name == 0)
-		_getdns_context_update_root_ksk(context, &node->dnskey);
+	} else if (dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+		DEBUG_ANCHOR("Request was bogus!\n");
+		if ((head = chain) && (node = _to_the_root(head->parent))
+		    && node->dnskey.name && *node->dnskey.name == 0
+		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
+
+			DEBUG_ANCHOR("ROOT DNSKEY set was bogus!\n");
+			if (!dnsreq->waiting_for_ta) {
+				uint64_t now = 0;
+
+				dnsreq->waiting_for_ta = 1;
+				_getdns_context_equip_with_anchor(
+				    context, &now);
+
+				if (context->trust_anchors_source
+				    == GETDNS_TASRC_XML) {
+					chain_clear_netreq_dnssec_status(chain);
+					check_chain_complete(chain);
+					return;
+				}
+				_getdns_start_fetching_ta(
+				    context,  dnsreq->loop);
+
+				if (dnsreq->waiting_for_ta &&
+				    context->trust_anchors_source
+				    == GETDNS_TASRC_FETCHING) {
+
+					chain_clear_netreq_dnssec_status(chain);
+					dnsreq->ta_notify = context->ta_notify;
+					context->ta_notify = dnsreq;
+					return;
+				}
+			}
+		}
+	}
 
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	if (    dnsreq->dnssec_roadblock_avoidance
@@ -3131,6 +3193,7 @@ static void check_chain_complete(chain_head *chain)
 		return;
 	}
 #endif
+	dnsreq->waiting_for_ta = 0;
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
