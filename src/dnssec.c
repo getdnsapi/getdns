@@ -2770,7 +2770,7 @@ static void chain_clear_netreq_dnssec_status(chain_head *chain)
 
 		head->netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 		for ( node_count = head->node_count, node = head->parent
-		    ; node_count ; node_count--, node = node->parent ) {
+		    ; node && node_count ; node_count--, node = node->parent ) {
 
 			node->ds_signer = -1;
 			node->dnskey_signer = -1;
