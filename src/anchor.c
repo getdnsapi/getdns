@@ -45,9 +45,10 @@
 #include "gldns/parseutil.h"
 #include "gldns/gbuffer.h"
 #include "gldns/str2wire.h"
+#include "gldns/wire2str.h"
 #include "gldns/pkthdr.h"
+#include "gldns/keyraw.h"
 #include "general.h"
-#include "rr-iter.h"
 #include "util-internal.h"
 
 /* get key usage out of its extension, returns 0 if no key_usage extension */
@@ -741,7 +742,6 @@ void _getdns_context_equip_with_anchor(
 	else if (!verify_CA || !*verify_CA)
 		DEBUG_ANCHOR("NOTICE: Trust anchor verification explicitely "
 		             "disabled by empty verify CA\n");
-		return;
 
 	else if ((r = getdns_context_get_trust_anchor_verify_email(
 	    context, ".", &verify_email)))
@@ -1610,6 +1610,307 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		_getdns_ta_notify_dnsreqs(context);
 	} else
 		context->trust_anchors_source = GETDNS_TASRC_FETCHING;
+}
+
+
+static int _uint16_cmp(const void *a, const void *b)
+{ return (int)*(uint16_t *)a - (int)*(uint16_t *)b; }
+
+static int _uint8x16_cmp(const void *a, const void *b)
+{ return memcmp(a, b, RRSIG_RDATA_LEN); }
+
+static void
+_getdns_init_ksks(_getdns_ksks *ksks, _getdns_rrset *dnskey_set)
+{
+	_getdns_rrtype_iter *rr, rr_space;
+	_getdns_rrsig_iter  *rrsig, rrsig_space;
+
+	assert(ksks);
+	assert(dnskey_set);
+	assert(dnskey_set->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	ksks->n = 0;
+	for ( rr = _getdns_rrtype_iter_init(&rr_space, dnskey_set)
+	    ; rr && ksks->n < MAX_KSKS
+	    ; rr = _getdns_rrtype_iter_next(rr)) {
+
+		if (rr->rr_i.nxt - rr->rr_i.rr_type < 12
+		    || !(rr->rr_i.rr_type[11] & 1))
+			continue; /* Not a KSK */
+
+		ksks->ids[ksks->n++] = gldns_calc_keytag_raw(
+		    rr->rr_i.rr_type + 10,
+		    rr->rr_i.nxt - rr->rr_i.rr_type - 10);
+	}
+	qsort(ksks->ids, ksks->n, sizeof(uint16_t), _uint16_cmp);
+
+	ksks->n_rrsigs = 0;
+	for ( rrsig = _getdns_rrsig_iter_init(&rrsig_space, dnskey_set)
+	    ; rrsig && ksks->n_rrsigs < MAX_KSKS
+	    ; rrsig = _getdns_rrsig_iter_next(rrsig)) {
+		
+		if (rrsig->rr_i.nxt - rrsig->rr_i.rr_type < 28)
+			continue;
+
+		(void) memcpy(ksks->rrsigs[ksks->n_rrsigs++],
+		    rrsig->rr_i.rr_type + 12, RRSIG_RDATA_LEN);
+	}
+	qsort(ksks->rrsigs, ksks->n_rrsigs, RRSIG_RDATA_LEN, _uint8x16_cmp);
+}
+
+
+static int
+_getdns_ksks_equal(_getdns_ksks *a, _getdns_ksks *b)
+{
+	return a == b
+	    || (  a != NULL && b != NULL
+            && a->n == b->n
+	    && memcmp(a->ids, b->ids, a->n * sizeof(uint16_t)) == 0
+	    && a->n_rrsigs == b->n_rrsigs
+	    && memcmp(a->rrsigs, b->rrsigs, a->n_rrsigs * RRSIG_RDATA_LEN) == 0);
+}
+
+static void _getdns_context_read_root_ksk(getdns_context *context)
+{
+	FILE *fp;
+	struct gldns_file_parse_state pst;
+	size_t len, dname_len;
+	uint8_t buf_spc[4096], *buf = buf_spc, *ptr = buf_spc;
+	size_t buf_sz = sizeof(buf_spc);
+	_getdns_rrset root_dnskey;
+	uint8_t *root_dname = (uint8_t *)"\00";
+
+
+	if (!(fp = _getdns_context_get_priv_fp(context, "root.key")))
+		return;
+
+	for (;;) {
+		size_t n_rrs = 0;
+
+		*pst.origin = 0;
+		pst.origin_len = 1;
+		*pst.prev_rr = 0;
+		pst.prev_rr_len = 1;
+		pst.default_ttl = 0;
+		pst.lineno = 1;
+
+		(void) memset(buf, 0, 12);
+		ptr += 12;
+
+		while (!feof(fp)) {
+			len = buf + buf_sz - ptr;
+			dname_len = 0;
+			if (gldns_fp2wire_rr_buf(fp, ptr, &len, &dname_len, &pst))
+				break;
+			if ((ptr += len) > buf + buf_sz)
+				break;
+			if (len)
+				n_rrs += 1;
+			if (dname_len && dname_len < sizeof(pst.prev_rr)) {
+				memcpy(pst.prev_rr, ptr, dname_len);
+				pst.prev_rr_len = dname_len;
+			}
+		}
+		if (ptr <= buf + buf_sz) {
+			gldns_write_uint16(buf + GLDNS_ANCOUNT_OFF, n_rrs);
+			break;
+		}
+		rewind(fp);
+		if (buf == buf_spc)
+			buf_sz = 65536;
+		else {
+			GETDNS_FREE(context->mf, buf);
+			buf_sz *= 2;
+		}
+		if (!(buf = GETDNS_XMALLOC(context->mf, uint8_t, buf_sz))) {
+			DEBUG_ANCHOR("ERROR %s(): Memory error\n", __FUNC__);
+			break;;
+		}
+		ptr = buf;
+	};
+	fclose(fp);
+	if (!buf)
+		return;
+
+	root_dnskey.name     = root_dname;
+	root_dnskey.rr_class = GETDNS_RRCLASS_IN;
+	root_dnskey.rr_type  = GETDNS_RRTYPE_DNSKEY;
+	root_dnskey.pkt      = buf;
+	root_dnskey.pkt_len  = ptr - buf;
+	root_dnskey.sections = SECTION_ANSWER;
+
+	_getdns_init_ksks(&context->root_ksk, &root_dnskey);
+
+	if (buf && buf != buf_spc)
+		GETDNS_FREE(context->mf, buf);
+}
+
+void
+_getdns_context_update_root_ksk(
+    getdns_context *context, _getdns_rrset *dnskey_set)
+{
+	_getdns_ksks root_ksk_seen;
+	_getdns_rrtype_iter *rr, rr_space;
+	_getdns_rrsig_iter  *rrsig, rrsig_space;
+	char str_spc[4096], *str_buf, *str_pos;
+	int sz_needed;
+	int remaining;
+	size_t str_sz = 0;
+	getdns_bindata root_key_bd;
+
+	_getdns_init_ksks(&root_ksk_seen, dnskey_set);
+	if (_getdns_ksks_equal(&context->root_ksk, &root_ksk_seen))
+		return; /* root DNSKEY rrset already known */
+
+	 /* Try to read root DNSKEY rrset from root.key  */
+	_getdns_context_read_root_ksk(context);
+	if (_getdns_ksks_equal(&context->root_ksk, &root_ksk_seen))
+		return; /* root DNSKEY rrset same as the safed one */
+
+	/* Different root DNSKEY rrset.  Perhaps because of failure to read
+	 * from disk.  If we cannot write to our appdata directory, bail out
+	 */
+	if (context->can_write_appdata == PROP_UNABLE)
+		return;
+
+	/* We might be able to write or we do not know whether we can write
+	 * to the appdata directory.  In the latter we'll try to write to
+	 * find out.  The section below converts the wireformat DNSKEY rrset
+	 * to presentationformat.
+	 */
+	str_pos = str_buf = str_spc;
+	remaining = sizeof(str_spc);
+	for (;;) {
+		for ( rr = _getdns_rrtype_iter_init(&rr_space, dnskey_set)
+		    ; rr ; rr = _getdns_rrtype_iter_next(rr)) {
+			
+			sz_needed = gldns_wire2str_rr_buf((uint8_t *)rr->rr_i.pos,
+			    rr->rr_i.nxt - rr->rr_i.pos, str_pos,
+			    (size_t)(remaining > 0 ? remaining : 0));
+
+			str_pos += sz_needed;
+			remaining -= sz_needed;
+		}
+		for ( rrsig = _getdns_rrsig_iter_init(&rrsig_space, dnskey_set)
+		    ; rrsig
+		    ; rrsig = _getdns_rrsig_iter_next(rrsig)) {
+			sz_needed = gldns_wire2str_rr_buf((uint8_t *)rrsig->rr_i.pos,
+			    rrsig->rr_i.nxt - rrsig->rr_i.pos, str_pos,
+			    (size_t)(remaining > 0 ? remaining : 0));
+
+			str_pos += sz_needed;
+			remaining -= sz_needed;
+		}
+		if (remaining > 0) {
+			*str_pos = 0;
+			if (str_buf == str_spc)
+				str_sz = sizeof(str_spc) - remaining;
+			break;
+		}
+		if (str_buf != str_spc) {
+			DEBUG_ANCHOR("ERROR %s(): Buffer size determination "
+			             "error\n", __FUNC__);
+			if (str_buf)
+				GETDNS_FREE(context->mf, str_buf);
+
+			return;
+		}
+		if (!(str_pos = str_buf = GETDNS_XMALLOC( context->mf, char,
+		    (str_sz = sizeof(str_spc) - remaining) + 1))) {
+			DEBUG_ANCHOR("ERROR %s(): Memory error\n", __FUNC__);
+			return;
+		}
+		remaining = str_sz + 1;
+		DEBUG_ANCHOR("Retrying with buf size: %d\n", remaining);
+	};
+
+	/* Write presentation format DNSKEY rrset to "root.key" file */
+	root_key_bd.size = str_sz;
+	root_key_bd.data = (void *)str_buf;
+	if (_getdns_context_write_priv_file(
+	    context, "root.key", &root_key_bd)) {
+		size_t i;
+
+		/* A new "root.key" file was written.  When they contain
+		 * key_id's which are not in "root-anchors.xml", then update
+		 * "root-anchors.xml".
+		 */
+
+		for (i = 0; i < context->root_ksk.n; i++) {
+			_getdns_rrset_iter tas_iter_spc, *ta;
+
+			for ( ta = _getdns_rrset_iter_init(&tas_iter_spc
+						, context->trust_anchors
+			         		, context->trust_anchors_len
+			         		, SECTION_ANSWER)
+			    ; ta ; ta = _getdns_rrset_iter_next(ta)) {
+				_getdns_rrtype_iter *rr, rr_space;
+				_getdns_rrset *rrset;
+
+				if (!(rrset = _getdns_rrset_iter_value(ta)))
+					continue;
+
+				if (*rrset->name != '\0')
+					continue; /* Not a root anchor */
+
+				if (rrset->rr_type == GETDNS_RRTYPE_DS) {
+					for ( rr = _getdns_rrtype_iter_init(
+					           &rr_space, rrset)
+					    ; rr
+					    ; rr = _getdns_rrtype_iter_next(rr)
+					    ) {
+						if (rr->rr_i.nxt -
+						    rr->rr_i.rr_type < 12)
+							continue;
+
+						DEBUG_ANCHOR("DS with id: %d\n"
+						, (int)gldns_read_uint16(rr->rr_i.rr_type + 10));
+						if (gldns_read_uint16(
+						    rr->rr_i.rr_type + 10) ==
+						    context->root_ksk.ids[i])
+							break;
+					}
+					if (rr)
+						break;
+					continue;
+				}
+				if (rrset->rr_type != GETDNS_RRTYPE_DNSKEY)
+					continue;
+
+				for ( rr = _getdns_rrtype_iter_init(&rr_space
+				                                   , rrset)
+				    ; rr ; rr = _getdns_rrtype_iter_next(rr)) {
+
+
+					if (rr->rr_i.nxt-rr->rr_i.rr_type < 12
+					    || !(rr->rr_i.rr_type[11] & 1))
+						continue; /* Not a KSK */
+
+					if (gldns_calc_keytag_raw(
+					    rr->rr_i.rr_type + 10,
+					    rr->rr_i.nxt-rr->rr_i.rr_type - 10)
+					    == context->root_ksk.ids[i])
+						break;
+				}
+				if (rr)
+					break;
+			}
+			if (!ta) {
+				DEBUG_ANCHOR("NOTICE %s(): Key with id %d "
+				             "*not* found in TA.\n"
+				             "\"root-anchors.xml\" need "
+					     "updating.\n", __FUNC__
+				            , context->root_ksk.ids[i]);
+				context->trust_anchors_source =
+				    GETDNS_TASRC_XML_UPDATE;
+				break;
+			}
+			DEBUG_ANCHOR("DEBUG %s(): Key with id %d found in TA\n"
+			            , __FUNC__, context->root_ksk.ids[i]);
+		}
+	}
+	if (str_buf && str_buf != str_spc)
+		GETDNS_FREE(context->mf, str_buf);
 }
 
 /* anchor.c */

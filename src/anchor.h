@@ -37,10 +37,23 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include <time.h>
+#include "rr-iter.h"
 
 void _getdns_context_equip_with_anchor(getdns_context *context, uint64_t *now_ms);
 
 void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop);
+
+#define MAX_KSKS        16
+#define RRSIG_RDATA_LEN 16
+typedef struct _getdns_ksks {
+	size_t   n;
+	uint16_t ids[MAX_KSKS];
+	size_t   n_rrsigs;
+	uint8_t  rrsigs[MAX_KSKS][RRSIG_RDATA_LEN];
+} _getdns_ksks;
+
+void _getdns_context_update_root_ksk(
+    getdns_context *context, _getdns_rrset *dnskey_set);
 
 #endif
 /* anchor.h */

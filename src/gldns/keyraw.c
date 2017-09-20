@@ -95,7 +95,7 @@ gldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
 	}
 }
 
-uint16_t gldns_calc_keytag_raw(uint8_t* key, size_t keysize)
+uint16_t gldns_calc_keytag_raw(const uint8_t* key, size_t keysize)
 {
 	if(keysize < 4) {
 		return 0;

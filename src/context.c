@@ -1500,6 +1500,8 @@ getdns_context_create_with_extended_memory_functions(
 	    = _getdns_default_root_anchor_verify_email;
 	result->root_anchor_verify_CA = _getdns_default_root_anchor_verify_CA;
 
+	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
+
 	(void) memset(&result->a, 0, sizeof(result->a));
 	(void) memset(&result->aaaa, 0, sizeof(result->aaaa));
 	result->a.fd = -1;
@@ -4654,13 +4656,13 @@ static size_t _getdns_get_appdata(char *path)
 	return 0;
 }
 
-uint8_t *_getdns_context_get_priv_file(getdns_context *context,
-    const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz)
+FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn)
 {
 	char path[PATH_MAX];
 	FILE *f = NULL;
 	size_t len;
 
+	(void) context;
 	if (!(len = _getdns_get_appdata(path)))
 		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
 		            , __FUNC__);
@@ -4675,6 +4677,17 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 		DEBUG_ANCHOR("ERROR %s(): Opening \"%s\": %s\n"
 		            , __FUNC__, path, strerror(errno));
 
+	return f;
+}
+
+uint8_t *_getdns_context_get_priv_file(getdns_context *context,
+    const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz)
+{
+	FILE *f = NULL;
+
+	if (!(f = _getdns_context_get_priv_fp(context, fn)))
+		; /* pass */
+
 	else if ((*file_sz = fread(buf, 1, buf_len, f)) < (buf_len  - 1) && feof(f)) {
 		buf[*file_sz] = 0;
 		(void) fclose(f);
@@ -4682,19 +4695,19 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 	}
 	else if (fseek(f, 0, SEEK_END) < 0)
 		DEBUG_ANCHOR("ERROR %s(): Determining size of \"%s\": %s\n"
-		            , __FUNC__, path, strerror(errno));
+		            , __FUNC__, fn, strerror(errno));
 
 	else if (!(buf = GETDNS_XMALLOC(
 	    context->mf, uint8_t, (buf_len = ftell(f) + 1))))
 		DEBUG_ANCHOR("ERROR %s(): Allocating %d memory for \"%s\"\n"
-		            , __FUNC__, (int)buf_len, path);
+		            , __FUNC__, (int)buf_len, fn);
 
 	else {
 		rewind(f);
 		if ((*file_sz = fread(buf, 1, buf_len, f)) >= buf_len || !feof(f)) {
 			GETDNS_FREE(context->mf, buf);
 			DEBUG_ANCHOR("ERROR %s(): Reading \"%s\": %s\n"
-				    , __FUNC__, path, strerror(errno));
+				    , __FUNC__, fn, strerror(errno));
 		}
 		else {
 			buf[*file_sz] = 0;

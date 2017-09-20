@@ -581,11 +581,15 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	req->internal_cb = internal_cb;
 	req->is_sync_request = loop == &context->sync_eventloop.loop;
 
-	if (req->dnssec_return_status &&
-	    context->trust_anchors_source == GETDNS_TASRC_NONE) {
-		_getdns_context_equip_with_anchor(context, &now_ms);
-		if (context->trust_anchors_source == GETDNS_TASRC_NONE)
+	if (req->dnssec_return_status) {
+		if (context->trust_anchors_source == GETDNS_TASRC_XML_UPDATE)
 			_getdns_start_fetching_ta(context, loop);
+
+		else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
+			_getdns_context_equip_with_anchor(context, &now_ms);
+			if (context->trust_anchors_source == GETDNS_TASRC_NONE)
+				_getdns_start_fetching_ta(context, loop);
+		}
 	}
 	/* Set up the context assuming we won't use the specified namespaces.
 	   This is (currently) identical to setting up a pure DNS namespace */

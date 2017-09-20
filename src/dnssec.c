@@ -2998,6 +2998,11 @@ static void append_empty_ds2val_chain_list(
 	if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
 		getdns_dict_destroy(rr_dict);
 }
+static inline chain_node *_to_the_root(chain_node *node)
+{
+	while (node->parent) node = node->parent;
+	return node;
+}
 
 static void check_chain_complete(chain_head *chain)
 {
@@ -3063,6 +3068,16 @@ static void check_chain_complete(chain_head *chain)
 		                          , context->trust_anchors_len
 		                          , SECTION_ANSWER));
 #endif
+	if (context->trust_anchors_source != GETDNS_TASRC_XML)
+		; /* pass  */
+
+	/* Find root key or query for it in full recursion... */
+	else if (!(head = chain) || !(node = _to_the_root(head->parent)))
+		; /* pass  */
+       	
+	else if (node->dnskey.name && *node->dnskey.name == 0)
+		_getdns_context_update_root_ksk(context, &node->dnskey);
+
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	if (    dnsreq->dnssec_roadblock_avoidance
 	    && !dnsreq->avoid_dnssec_roadblocks

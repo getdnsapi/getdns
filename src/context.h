@@ -49,6 +49,7 @@
 #include "util/lruhash.h"
 #endif
 #include "rr-iter.h"
+#include "anchor.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -99,6 +100,7 @@ typedef enum getdns_tasrc {
 	GETDNS_TASRC_APP,
 	GETDNS_TASRC_FETCHING,
 	GETDNS_TASRC_XML,
+	GETDNS_TASRC_XML_UPDATE,
 	GETDNS_TASRC_FAILED
 } getdns_tasrc;
 
@@ -341,6 +343,8 @@ struct getdns_context {
 	const char           *root_anchor_verify_CA;
 	const char           *root_anchor_verify_email;
 
+	_getdns_ksks          root_ksk;
+
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
@@ -545,6 +549,7 @@ void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
 void _getdns_upstream_shutdown(getdns_upstream *upstream);
 
+FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn);
 uint8_t *_getdns_context_get_priv_file(getdns_context *context,
     const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz);
 
