@@ -4835,10 +4835,11 @@ getdns_context_set_trust_anchor_url(
 		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	path_len = strlen(path);
-	if (! ( path_len >= 4
+	if (! ( path_len >= 5
+	    &&  path[path_len - 4] == '.'
 	    && (path[path_len - 3] == 'x' || path[path_len - 3] == 'X')
-	    && (path[path_len - 2] == 'm' || path[path_len - 2] == 'm')
-	    && (path[path_len - 1] == 'l' || path[path_len - 1] == 'l')))
+	    && (path[path_len - 2] == 'm' || path[path_len - 2] == 'M')
+	    && (path[path_len - 1] == 'l' || path[path_len - 1] == 'L')))
 		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	context->root_anchor_url = url;
