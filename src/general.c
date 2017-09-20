@@ -581,27 +581,37 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	req->internal_cb = internal_cb;
 	req->is_sync_request = loop == &context->sync_eventloop.loop;
 
-	if (req->dnssec_return_status) {
-		if (context->trust_anchors_source == GETDNS_TASRC_XML_UPDATE)
-			_getdns_start_fetching_ta(context, loop);
-
-		else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
-			_getdns_context_equip_with_anchor(context, &now_ms);
-			if (context->trust_anchors_source == GETDNS_TASRC_NONE)
-				_getdns_start_fetching_ta(context, loop);
-		}
-	}
-	/* Set up the context assuming we won't use the specified namespaces.
-	   This is (currently) identical to setting up a pure DNS namespace */
-	if ((r = _getdns_context_prepare_for_resolution(context, 0)))
-		return r;
-
 	if (return_netreq_p)
 		*return_netreq_p = req->netreqs[0];
 
 	_getdns_context_track_outbound_request(req);
 
-	if (!usenamespaces)
+	if (req->dnssec_extension_set) {
+		if (context->trust_anchors_source == GETDNS_TASRC_XML_UPDATE)
+			_getdns_start_fetching_ta(context, loop);
+
+		else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
+			_getdns_context_equip_with_anchor(context, &now_ms);
+			if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
+				_getdns_start_fetching_ta(context, loop);
+				if (context->trust_anchors_source
+						== GETDNS_TASRC_FETCHING
+				    && context->resolution_type
+						== GETDNS_RESOLUTION_RECURSING
+				    && context->resolution_type
+						!= context->resolution_type_set) {
+
+					req->waiting_for_ta = 1;
+					req->ta_notify = context->ta_notify;
+					context->ta_notify = req;
+					return GETDNS_RETURN_GOOD;
+				}
+			}
+		}
+	}
+	if (!usenamespaces) {
+		(void) _getdns_context_prepare_for_resolution(context, 0);
+
 		/* issue all network requests */
 		for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
@@ -616,7 +626,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			}
 		}
 
-	else for (i = 0; i < context->namespace_count; i++) {
+	} else for (i = 0; i < context->namespace_count; i++) {
 		if (context->namespaces[i] == GETDNS_NAMESPACE_LOCALNAMES) {
 
 			if (!(r = _getdns_context_local_namespace_resolve(
@@ -650,6 +660,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			}
 #endif /* HAVE_MDNS_SUPPORT */
 		} else if (context->namespaces[i] == GETDNS_NAMESPACE_DNS) {
+			(void) _getdns_context_prepare_for_resolution(context, 0);
 
 			/* TODO: We will get a good return code here even if
 			   the name is not found (NXDOMAIN). We should consider

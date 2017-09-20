@@ -3263,6 +3263,7 @@ static void check_chain_complete(chain_head *chain)
 void _getdns_ta_notify_dnsreqs(getdns_context *context)
 {
 	getdns_dns_req **dnsreq_p, *dnsreq = NULL;
+	uint64_t now_ms = 0;
 
 	assert(context);
 
@@ -3272,14 +3273,29 @@ void _getdns_ta_notify_dnsreqs(getdns_context *context)
 
 	dnsreq_p = &context->ta_notify;
 	while ((dnsreq = *dnsreq_p)) {
+		assert(dnsreq->waiting_for_ta);
 
-		assert(dnsreq->waiting_for_ta && dnsreq->chain);
+		if (dnsreq->chain) 
+			check_chain_complete(dnsreq->chain);
+		else {
+			getdns_network_req *netreq, **netreq_p;
+			int r = GETDNS_RETURN_GOOD;
 
-		check_chain_complete(dnsreq->chain);
+			 (void) _getdns_context_prepare_for_resolution(context, 0);
 
+			*dnsreq_p = dnsreq->ta_notify;
+			for ( netreq_p = dnsreq->netreqs
+			    ; !r && (netreq = *netreq_p)
+			    ; netreq_p++ ) {
+
+				if (!(r = _getdns_submit_netreq(netreq, &now_ms)))
+					continue;
+				if (r == DNS_REQ_FINISHED)
+					break;
+				_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+			}
+		}
 		assert(*dnsreq_p != dnsreq);
-		/* if (*dnsreq_p == dnsreq)
-			dnsreq_p = &dnsreq->ta_notify; */
 	}
 }
 

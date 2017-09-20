@@ -300,6 +300,7 @@ typedef struct getdns_dns_req {
 	unsigned dnssec_return_all_statuses		: 1;
 	unsigned dnssec_return_validation_chain		: 1;
 	unsigned dnssec_return_full_validation_chain	: 1;
+	unsigned dnssec_extension_set                   : 1;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	unsigned dnssec_roadblock_avoidance		: 1;
 	unsigned avoid_dnssec_roadblocks		: 1;

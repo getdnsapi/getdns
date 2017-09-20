@@ -914,6 +914,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		dnssec_return_full_validation_chain;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain
 	     || dnssec_return_full_validation_chain;
+	result->dnssec_extension_set           = dnssec_extension_set;
 	result->edns_cookies                   = edns_cookies;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	result->dnssec_roadblock_avoidance     = dnssec_roadblock_avoidance;
