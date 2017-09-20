@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.1.3], [users@getdnsapi.net], [], [https://getdnsapi.net])
+AC_INIT([getdns], [1.2.0], [users@getdnsapi.net], [rc1], [https://getdnsapi.net])
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
@@ -51,7 +51,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01010300])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x010103c1])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -84,10 +84,11 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-1.0.0 had libversion 5:1:4
 # getdns-1.1.0 had libversion 6:0:0
 # getdns-1.1.1 had libversion 6:1:0
-# getdns-1.1.2 has libversion 7:0:1
-# getdns-1.1.3 will have libversion 7:1:1
+# getdns-1.1.2 had libversion 7:0:1
+# getdns-1.1.3 had libversion 7:1:1
+# getdns-1.2.0 will have libversion 8:0:2
 #
-GETDNS_LIBVERSION=7:1:1
+GETDNS_LIBVERSION=8:0:2
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
