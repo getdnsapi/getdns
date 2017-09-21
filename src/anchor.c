@@ -734,7 +734,7 @@ void _getdns_context_equip_with_anchor(
 	X509_STORE *store = NULL;
 
 	if ((r = getdns_context_get_trust_anchor_verify_CA(
-	    context, ".", &verify_CA)))
+	    context, &verify_CA)))
 		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
 			     " CA: \"%s\"\n", __FUNC__
 			    , getdns_get_errorstr_by_id(r));
@@ -744,7 +744,7 @@ void _getdns_context_equip_with_anchor(
 		             "disabled by empty verify CA\n");
 
 	else if ((r = getdns_context_get_trust_anchor_verify_email(
-	    context, ".", &verify_email)))
+	    context, &verify_email)))
 		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify email "
 		             "address: \"%s\"\n", __FUNC__
 		            , getdns_get_errorstr_by_id(r));
@@ -1017,7 +1017,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		p7s_bd.size = a->tcp.read_buf_len;
 
 		if ((r = getdns_context_get_trust_anchor_verify_CA(
-		    context, ".", (const char **)&verify_CA.data)))
+		    context, (const char **)&verify_CA.data)))
 			DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
 				     " CA: \"%s\"\n", __FUNC__
 				    , getdns_get_errorstr_by_id(r));
@@ -1026,7 +1026,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 			; /* pass */
 
 		else if ((r = getdns_context_get_trust_anchor_verify_email(
-		    context, ".", &verify_email)))
+		    context, &verify_email)))
 			DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
 				     " email address: \"%s\"\n", __FUNC__
 				    , getdns_get_errorstr_by_id(r));
@@ -1264,7 +1264,7 @@ static getdns_return_t _getdns_get_tas_url_hostname(
 	char *next_slash;
 	size_t s;
 
-	if ((r = getdns_context_get_trust_anchor_url(context, ".", &url)))
+	if ((r = getdns_context_get_trust_anchor_url(context, &url)))
 		return r;
 
 	if ((next_slash = strchr(url + 7 /* "http://" */, '/'))) {
@@ -1523,7 +1523,7 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		return;
 
 	} else if ((r = getdns_context_get_trust_anchor_verify_CA(
-	    context, ".", &verify_CA))) {
+	    context, &verify_CA))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get verify CA"
 		             ": \"%s\"", __FUNC__
 		            , getdns_get_errorstr_by_id(r));
@@ -1535,7 +1535,7 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		return;
 
 	} else if ((r = getdns_context_get_trust_anchor_verify_email(
-	    context, ".", &verify_email))) {
+	    context, &verify_email))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get verify email address"
 		             ": \"%s\"", __FUNC__
 		            , getdns_get_errorstr_by_id(r));

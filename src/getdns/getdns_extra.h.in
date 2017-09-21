@@ -548,22 +548,21 @@ getdns_context_set_logfunc(getdns_context *context, void *userarg,
  *
  */
 getdns_return_t
-getdns_context_set_trust_anchor_url(
-    getdns_context *context, const char *zone, const char *url);
+getdns_context_set_trust_anchor_url(getdns_context *context, const char *url);
 
 /**
  *
  */
 getdns_return_t
 getdns_context_set_trust_anchor_verify_CA(
-    getdns_context *context, const char *zone, const char *verify_CA);
+    getdns_context *context, const char *verify_CA);
 
 /**
  *
  */
 getdns_return_t
 getdns_context_set_trust_anchor_verify_email(
-    getdns_context *context, const char *zone, const char *verify_email);
+    getdns_context *context, const char *verify_email);
 
 
 /**
@@ -936,21 +935,21 @@ getdns_context_get_update_callback(getdns_context *context, void **userarg,
  */
 getdns_return_t
 getdns_context_get_trust_anchor_url(
-    getdns_context *context, const char *zone, const char **url);
+    getdns_context *context, const char **url);
 
 /**
  *
  */
 getdns_return_t
 getdns_context_get_trust_anchor_verify_CA(
-    getdns_context *context, const char *zone, const char **verify_CA);
+    getdns_context *context, const char **verify_CA);
 
 /**
  *
  */
 getdns_return_t
 getdns_context_get_trust_anchor_verify_email(
-    getdns_context *context, const char *zone, const char **verify_email);
+    getdns_context *context, const char **verify_email);
 
 
 /** @}
@@ -1775,58 +1774,6 @@ getdns_yaml2dict(const char *str, getdns_dict **dict);
  */
 getdns_return_t
 getdns_yaml2list(const char *str, getdns_list **list);
-
-/**
- * Convert string text to a getdns_bindata.
- *
- * @param  str   A textual representation of a getdns_bindata
- *               The format is similar, but not precisely YAML.
- *               - Strings between double-quotes will be converted to bindata
- *                 containers, but *without the trailing null byte*.
- *                 For example: `{ suffix: [ "nlnetlabs.nl.", "nlnet.nl." ] }`
- *               - bindata representation of IP or IPv6 addresses may be
- *                 given in their presentation format.  For example:
- *                 `{ dns_root_servers: [ 2001:7fd::1, 193.0.14.129 ] }`
- *               - Arbitrary binary data may be given with a `0x` prefix,
- *                 or in base64 encoding.
- *                 For example:
- *
- *                      { add_opt_parameters:
- *                        { options: [ { option_code: 10
- *                                     , option_data: 0xA9E4EC50C03F5D65
- *                                     } ]
- *                        }
- *                      }
- *
- *               - Wireformat domain name bindatas can be given with a trailing dot.
- *                 For example:
- *
- *                      { upstream_recursive_servers:
- *                        [ { address_data  : 2a04:b900:0:100::37
- *                          , tsig_name     : hmac-md5.tsigs.getdnsapi.net.
- *                          , tsig_algorithm: hmac-md5.sig-alg.reg.int.
- *                          , tsig_secret : 16G69OTeXW6xSQ==
- *                          } ]
- *                      }
- * @param  bindata The returned getdns_bindata.
- * @return GETDNS_RETURN_GOOD on success or an error code on failure.
- */
-getdns_return_t
-getdns_yaml2bindata(const char *str, getdns_bindata **bindata);
-
-/**
- * Convert string text to a getdns 32 bits unsigned integer.
- *
- * @param  str   A textual representation of the integer.
- *               The format is similar, but not precisely YAML.
- *               - integer values may be given by the constant name.
- *                 For example: `{ resolution_type: GETDNS_RESOLUTION_STUB }`
- *                 or `{ specify_class: GETDNS_RRCLASS_CH }`
- * @param  value The returned integer.
- * @return GETDNS_RETURN_GOOD on success or an error code on failure.
- */
-getdns_return_t
-getdns_yaml2int(const char *str, uint32_t *value);
 
 /** @}
  */

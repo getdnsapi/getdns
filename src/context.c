@@ -4828,16 +4828,13 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 
 getdns_return_t
 getdns_context_set_trust_anchor_url(
-    getdns_context *context, const char *zone, const char *url)
+    getdns_context *context, const char *url)
 {
 	const char *path;
 	size_t path_len;
 
 	if (!context || !url)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (zone && !(zone[0] == '.' && zone[1] == '\0'))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	if (! ((url[0] == 'h' || url[0] == 'H')
 	    && (url[1] == 't' || url[1] == 'T')
@@ -4862,13 +4859,10 @@ getdns_context_set_trust_anchor_url(
 
 getdns_return_t
 getdns_context_get_trust_anchor_url(
-    getdns_context *context, const char *zone, const char **url)
+    getdns_context *context, const char **url)
 {
 	if (!context || !url)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (zone && (zone[0] != '.' || zone[1] != '\0'))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	*url = context && context->root_anchor_url
 	     ?            context->root_anchor_url
@@ -4878,13 +4872,10 @@ getdns_context_get_trust_anchor_url(
 
 getdns_return_t
 getdns_context_set_trust_anchor_verify_CA(
-    getdns_context *context, const char *zone, const char *verify_CA)
+    getdns_context *context, const char *verify_CA)
 {
 	if (!context || !verify_CA)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (zone && (zone[0] != '.' || zone[1] != '\0'))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	context->root_anchor_verify_CA = verify_CA;
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA);
@@ -4893,13 +4884,10 @@ getdns_context_set_trust_anchor_verify_CA(
 
 getdns_return_t
 getdns_context_get_trust_anchor_verify_CA(
-    getdns_context *context, const char *zone, const char **verify_CA)
+    getdns_context *context, const char **verify_CA)
 {
 	if (!verify_CA)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (zone && (zone[0] != '.' || zone[1] != '\0'))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	*verify_CA = context && context->root_anchor_verify_CA
 	           ?            context->root_anchor_verify_CA
@@ -4909,13 +4897,10 @@ getdns_context_get_trust_anchor_verify_CA(
 
 getdns_return_t
 getdns_context_set_trust_anchor_verify_email(
-    getdns_context *context, const char *zone, const char *verify_email)
+    getdns_context *context, const char *verify_email)
 {
 	if (!context || !verify_email)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (zone && (zone[0] != '.' || zone[1] != '\0'))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	context->root_anchor_verify_email = verify_email;
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL);
@@ -4924,13 +4909,10 @@ getdns_context_set_trust_anchor_verify_email(
 
 getdns_return_t
 getdns_context_get_trust_anchor_verify_email(
-    getdns_context *context, const char *zone, const char **verify_email)
+    getdns_context *context, const char **verify_email)
 {
 	if (!verify_email)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (zone && (zone[0] != '.' || zone[1] != '\0'))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
 
 	*verify_email = context && context->root_anchor_verify_email
 	              ?            context->root_anchor_verify_email
