@@ -1,4 +1,18 @@
 * 2017-09-??: Version 1.2.0
+  * A function to set the location for library specific data,
+    like trust-anchors: getdns_context_set_appdata().
+  * Zero configuration DNSSEC - build upon the scheme
+    described in RFC7958.  The URL from which to fetch
+    the trust anchor, the verification CA and email
+    can be set with the new getdns_context_set_trust_anchor_url(),
+    getdns_context_set_trust_anchor_verify_CA() and
+    getdns_context_set_trust_anchor_verify_email() functions.
+    The default values are to fetch from IANA and to validate
+    with the ICANN CA.
+  * Update of Stubby with yaml configuration file and
+    logging from a certain severity support.
+  * Conversion of yaml to getdns_dict and getdns_list with
+    getdns_yaml2dict() and getdns_yaml2list() functions
   * Fix tpkg exit status on test failure. Thanks Jim Hague.
   * Refined logging levels for upstream statistics
   * Reuse (best behaving) backed-off TLS upstreams when non are usable.
