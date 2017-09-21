@@ -988,9 +988,7 @@ static void tas_read_cb(void *userarg);
 static void tas_write_cb(void *userarg);
 static void tas_doc_read(getdns_context *context, tas_connection *a)
 {
-	DEBUG_ANCHOR("doc (size: %d): \"%.*s\"\n",
-	    (int)a->tcp.read_buf_len,
-	    (int)a->tcp.read_buf_len, (char *)a->tcp.read_buf);
+	DEBUG_ANCHOR("doc (size: %d)\n", (int)a->tcp.read_buf_len);
 
 	assert(a->tcp.read_pos == a->tcp.read_buf + a->tcp.read_buf_len);
 	assert(context);
@@ -1085,7 +1083,11 @@ static void tas_read_cb(void *userarg)
 	DEBUG_ANCHOR( "state: %d, to_read: %d\n"
 	            , (int)a->state, (int)a->tcp.to_read);
 
+#ifdef USE_WINSOCK
+	n = recv(a->fd, (char *)a->tcp.read_pos, a->tcp.to_read, 0);
+#else
 	n = read(a->fd, a->tcp.read_pos, a->tcp.to_read);
+#endif
 	if (n == 0) {
 		DEBUG_ANCHOR("Connection closed\n");
 		GETDNS_CLEAR_EVENT(a->loop, &a->event);
@@ -1218,7 +1220,13 @@ static void tas_write_cb(void *userarg)
 	DEBUG_ANCHOR( "state: %d, to_write: %d\n"
 	            , (int)a->state, (int)a->tcp.write_buf_len);
 
+
+#ifdef USE_WINSOCK
+	DEBUG_ANCHOR("sending to: %d\n", a->fd);
+	written = send(a->fd, (const char *)a->tcp.write_buf, a->tcp.write_buf_len, 0);
+#else
 	written = write(a->fd, a->tcp.write_buf, a->tcp.write_buf_len);
+#endif
 	if (written >= 0) {
 		assert(written <= (ssize_t)a->tcp.write_buf_len);
 
@@ -1240,7 +1248,7 @@ static void tas_write_cb(void *userarg)
 		    tas_read_cb, NULL, tas_timeout_cb));
 		return;
 
-	} else if (_getdns_EWOULDBLOCK)
+	} else if (_getdns_EWOULDBLOCK || _getdns_EINPROGRESS)
 		return;
 
 	DEBUG_ANCHOR("Write error: %s\n", strerror(errno));

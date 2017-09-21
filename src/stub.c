@@ -840,7 +840,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		/* Coming back from an earlier unfinished write or handshake.
 		 * Try to send remaining data */
 #ifdef USE_WINSOCK
-		written = send(fd, tcp->write_buf + tcp->written,
+		written = send(fd, (void *)(tcp->write_buf + tcp->written),
 			tcp->write_buf_len - tcp->written, 0);
 #else
 		written = write(fd, tcp->write_buf     + tcp->written,

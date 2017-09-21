@@ -189,7 +189,8 @@ static void tcp_write_cb(void *userarg)
 	}
 	to_write = conn->to_write;
 	if (conn->fd == -1 || 
-	    (written = send(conn->fd, &to_write->write_buf[to_write->written],
+	    (written = send(conn->fd,
+	    (const void *)&to_write->write_buf[to_write->written],
 	    to_write->write_buf_len - to_write->written, 0)) == -1) {
 
 		/* IO error, close connection */
@@ -367,7 +368,8 @@ static void tcp_read_cb(void *userarg)
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 
-	if ((bytes_read = recv(conn->fd, conn->read_pos, conn->to_read, 0)) < 0) {
+	if ((bytes_read = recv(conn->fd,
+	    (void *)conn->read_pos, conn->to_read, 0)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return; /* Come back to do the read later */
 

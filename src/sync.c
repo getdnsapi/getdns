@@ -76,7 +76,7 @@ getdns_sync_data_init(getdns_context *context, getdns_sync_data *data)
 #  ifdef HAVE_UNBOUND_EVENT_API
 	if (_getdns_ub_loop_enabled(&context->ub_loop)) {
 		context->ub_loop.extension = ext;
-	} else
+	} else 
 #  endif
 #  ifndef USE_WINSOCK
 		return ext->vmt->schedule(ext, ub_fd(context->unbound_ctx),
@@ -85,7 +85,9 @@ getdns_sync_data_init(getdns_context *context, getdns_sync_data *data)
 		/* No sync full recursion requests on windows without 
 		 * UNBOUND_EVENT_API because ub_fd() doesn't work on windows.
 		 */
-		; /* pass */
+#   ifdef HAVE_UNBOUND_EVENT_API
+		{ ; } /* pass */
+#   endif
 #  endif
 #endif
 	return GETDNS_RETURN_GOOD;

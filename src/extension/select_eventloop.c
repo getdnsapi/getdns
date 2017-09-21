@@ -235,20 +235,21 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 		tv.tv_usec = (long)((timeout - now) % 1000000);
 	}
 #ifdef USE_WINSOCK
-    if (max_fd == -1)
-    {
-        if (timeout != TIMEOUT_FOREVER)
-        {
-            uint32_t timeout_ms = (tv.tv_usec / 1000) + (tv.tv_sec * 1000);
-            Sleep(timeout_ms);
-        }
-    } else
+	if (max_fd == -1) {
+		if (timeout != TIMEOUT_FOREVER) {
+			uint32_t timeout_ms = (tv.tv_usec / 1000) + (tv.tv_sec * 1000);
+			Sleep(timeout_ms);
+        	}
+	} else {
 #endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
 		perror("select() failed");
 		exit(EXIT_FAILURE);
 	}
+#ifdef USE_WINSOCK
+	}
+#endif
 	now = get_now_plus(0);
 	for (fd = 0; fd < (int)FD_SETSIZE; fd++) {
 		if (select_loop->fd_events[fd] &&

@@ -341,7 +341,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		if ((r = getdns_list_set_dict(to_validate, 0, reply)))
 			goto error;
 
-		if (verbosity) printf("reply "PRIsz", dnssec_status: ", i);
+		if (verbosity) printf("reply %d, dnssec_status: ", (int)i);
 		switch ((s = getdns_validate_dnssec(
 		    to_validate, validation_chain, trust_anchor))) {
 
@@ -1075,11 +1075,11 @@ next:		;
 		/* apply the accumulated pubkey pinset to all upstreams: */
 		for (j = 0; j < upstream_count; j++) {
 			if (r = getdns_list_get_dict(upstream_list, j, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", j);
+				fprintf(stderr, "Failed to get upstream %d when adding pinset\n", (int)j);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", j);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream %d\n", (int)j);
 				return r;
 			}
 		}

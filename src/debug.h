@@ -53,7 +53,7 @@
 		time_t tsec_dEbUgSyM; \
 		\
 		gettimeofday(&tv_dEbUgSyM, NULL); \
-		tsec = (time_t) tv_dEbUgSyM.tv_sec; \
+		tsec_dEbUgSyM = (time_t) tv_dEbUgSyM.tv_sec; \
 		gmtime_s(&tm_dEbUgSyM, (const time_t *) &tsec_dEbUgSyM); \
 		strftime(buf_dEbUgSyM, 10, "%H:%M:%S", &tm_dEbUgSyM); \
 		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \

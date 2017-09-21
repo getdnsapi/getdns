@@ -54,6 +54,7 @@ typedef unsigned short in_port_t;
 #include <stdio.h>
 #include <windows.h>
 #include <wincrypt.h>
+#include <shlobj.h>
 #endif
 
 #include <sys/stat.h>
@@ -4613,17 +4614,19 @@ static size_t _getdns_get_appdata(char *path)
 	size_t len;
 
 #ifdef USE_WINSOCK
+# define SLASHTOK '\\'
 # define APPDATA_SUBDIR "getdns"
 
 	if (! SUCCEEDED(SHGetFolderPath(NULL,
 	    CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could not get \%AppData\% directory\n"
+		DEBUG_ANCHOR("ERROR %s(): Could not get %%AppData%% directory\n"
 		            , __FUNC__);
 
 	else if ((len = strlen(path)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
 		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
 		            , __FUNC__);
 #else
+# define SLASHTOK '/'
 # define APPDATA_SUBDIR ".getdns"
 	struct passwd *p = getpwuid(getuid());
 	char *home = NULL;
@@ -4642,17 +4645,23 @@ static size_t _getdns_get_appdata(char *path)
 	else {
 		if (len == 0 || (  path[len - 1] != '/'
 		                && path[len - 1] != '\\')) {
-			path[len++] = '/';
+			path[len++] = SLASHTOK;
 			path[len  ] = '\0';
 		}
 		(void) strcpy(path + len, APPDATA_SUBDIR);
 		len += sizeof(APPDATA_SUBDIR) - 1;
 
-		if (mkdir(path, 0755) < 0 && errno != EEXIST)
+		if (0 >
+#ifdef USE_WINSOCK
+		    mkdir(path)
+#else
+		    mkdir(path, 0755)
+#endif
+		    && errno != EEXIST)
 			DEBUG_ANCHOR("ERROR %s(): Could not mkdir %s: %s\n"
 				    , __FUNC__, path, strerror(errno));
 		else {
-			path[len++] = '/';
+			path[len++] = SLASHTOK;
 			path[len  ] = '\0';
 			return len;
 		}
