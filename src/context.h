@@ -337,13 +337,14 @@ struct getdns_context {
 	tas_connection        aaaa;
 	uint8_t               tas_hdr_spc[512];
 
-	_getdns_property      can_write_appdata;
-
-	const char           *root_anchor_url;
-	const char           *root_anchor_verify_CA;
-	const char           *root_anchor_verify_email;
+	char                 *trust_anchor_url;
+	char                 *trust_anchor_verify_CA;
+	char                 *trust_anchor_verify_email;
 
 	_getdns_ksks          root_ksk;
+
+	char                 *appdata_dir;
+	_getdns_property      can_write_appdata;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;

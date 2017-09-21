@@ -1364,11 +1364,11 @@ static void _getdns_check_expired_pending_netreqs_cb(void *arg)
 	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
 }
 
-static const char *_getdns_default_root_anchor_url =
+static const char *_getdns_default_trust_anchor_url =
     "http://data.iana.org/root-anchors/root-anchors.xml";
 
 /* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
-static const char *_getdns_default_root_anchor_verify_CA =
+static const char *_getdns_default_trust_anchor_verify_CA =
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
 "TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
@@ -1391,7 +1391,7 @@ static const char *_getdns_default_root_anchor_verify_CA =
 "j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
 "-----END CERTIFICATE-----\n";
 
-static const char *_getdns_default_root_anchor_verify_email =
+static const char *_getdns_default_trust_anchor_verify_email =
     "dnssec@iana.org";
 
 
@@ -1496,10 +1496,10 @@ getdns_context_create_with_extended_memory_functions(
 
 	result->trust_anchors_source = GETDNS_TASRC_NONE;
 	result->can_write_appdata = PROP_UNKNOWN;
-	result->root_anchor_url = _getdns_default_root_anchor_url;
-	result->root_anchor_verify_email
-	    = _getdns_default_root_anchor_verify_email;
-	result->root_anchor_verify_CA = _getdns_default_root_anchor_verify_CA;
+	result->trust_anchor_url = NULL;
+	result->trust_anchor_verify_email = NULL;
+	result->trust_anchor_verify_CA = NULL;
+	result->appdata_dir = NULL;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
 
@@ -1763,9 +1763,19 @@ getdns_context_destroy(struct getdns_context *context)
 	_getdns_traverse_postorder(&context->local_hosts,
 	    destroy_local_host, context);
 
-
 	getdns_dict_destroy(context->header);
 	getdns_dict_destroy(context->add_opt_parameters);
+
+	if (context->trust_anchor_url)
+		GETDNS_FREE(context->mf, context->trust_anchor_url);
+	if (context->trust_anchor_verify_CA)
+		GETDNS_FREE( context->mf
+		           , context->trust_anchor_verify_CA);
+	if (context->trust_anchor_verify_email)
+		GETDNS_FREE( context->mf
+		           , context->trust_anchor_verify_email);
+	if (context->appdata_dir)
+		GETDNS_FREE(context->mf, context->appdata_dir);
 
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -3626,11 +3636,11 @@ char *
 _getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
     size_t sz = strlen(s) + 1;
-    char *r = GETDNS_XMALLOC(*mfs, char, sz);
-    if (r)
-        return memcpy(r, s, sz);
-    else
+    char *r;
+    if (!s || !(r = GETDNS_XMALLOC(*mfs, char, sz)))
         return NULL;
+    else
+        return memcpy(r, s, sz);
 }
 
 struct getdns_bindata *
@@ -3759,12 +3769,15 @@ getdns_context_get_eventloop(getdns_context *context, getdns_eventloop **loop)
 	return GETDNS_RETURN_GOOD;
 }
 
+static size_t _getdns_get_appdata(getdns_context *context, char *path);
 static getdns_dict*
 _get_context_settings(getdns_context* context)
 {
 	getdns_dict *result = getdns_dict_create_with_context(context);
 	getdns_list *list;
 	size_t       i;
+	const char  *str_value;
+	char         appdata_dir[PATH_MAX] = "";
 
 	if (!result)
 		return NULL;
@@ -3804,7 +3817,10 @@ _get_context_settings(getdns_context* context)
 	    || getdns_dict_set_int(result, "tls_connection_retries",
 	                           context->tls_connection_retries)
 	    || getdns_dict_set_int(result, "tls_query_padding_blocksize",
-	                           context->tls_query_padding_blocksize))
+	                           context->tls_query_padding_blocksize)
+	    || getdns_dict_set_int(result, "resolution_type",
+	                           context->resolution_type)
+	    )
 		goto error;
 	
 	/* list fields */
@@ -3820,6 +3836,14 @@ _get_context_settings(getdns_context* context)
 
 	if (_getdns_dict_set_this_list(
 	    result, "upstream_recursive_servers", list)) {
+		getdns_list_destroy(list);
+		goto error;
+	}
+	if (getdns_context_get_dnssec_trust_anchors(context, &list))
+		; /* pass */
+
+	else if (list && _getdns_dict_set_this_list(
+	    result, "dnssec_trust_anchors", list)) {
 		getdns_list_destroy(list);
 		goto error;
 	}
@@ -3858,6 +3882,15 @@ _get_context_settings(getdns_context* context)
 			return NULL;
 		}
 	}
+	(void) _getdns_get_appdata(context, appdata_dir);
+	(void) getdns_dict_util_set_string(result, "appdata_dir", appdata_dir);
+	if (!getdns_context_get_trust_anchor_url(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "trust_anchor_url", str_value);
+	if (!getdns_context_get_trust_anchor_verify_CA(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "trust_anchor_verify_CA", str_value);
+	if (!getdns_context_get_trust_anchor_verify_email(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "trust_anchor_verify_email", str_value);
+
 	return result;
 error:
 	getdns_dict_destroy(result);
@@ -3875,8 +3908,23 @@ getdns_context_get_api_information(getdns_context* context)
 	    && ! getdns_dict_util_set_string(
 	    result, "version_string", GETDNS_VERSION)
 
+	    && ! getdns_dict_set_int(
+	    result, "version_number", getdns_get_version_number())
+
+	    && ! getdns_dict_util_set_string(
+	    result, "api_version_string", getdns_get_api_version())
+
+	    && ! getdns_dict_set_int(
+	    result, "api_version_number", getdns_get_api_version_number())
+
 	    && ! getdns_dict_util_set_string(
 	    result, "implementation_string", PACKAGE_URL)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "compilation_comment", GETDNS_COMPILATION_COMMENT)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "trust_anchor_file", TRUST_ANCHOR_FILE)
 
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
@@ -4479,6 +4527,12 @@ static getdns_return_t _get_list_or_read_file(const getdns_dict *config_dict,
 			else r = GETDNS_RETURN_INVALID_PARAMETER; \
 		}
 
+#define CONTEXT_SETTING_STRING(X) \
+	} else if (_streq(setting, #X )) { \
+		if (!(r = getdns_dict_get_bindata(config_dict, #X , &bd))) \
+			r = getdns_context_set_ ## X( \
+			    context, (char *)bd->data);
+
 static getdns_return_t
 _getdns_context_config_setting(getdns_context *context,
     const getdns_dict *config_dict, const getdns_bindata *setting)
@@ -4490,6 +4544,7 @@ _getdns_context_config_setting(getdns_context *context,
 	getdns_transport_list_t dns_transport_list[100];
 	size_t count, i;
 	uint32_t n;
+	getdns_bindata *bd;
 	int destroy_list = 0;
 
 	if (_streq(setting, "all_context")) {
@@ -4527,6 +4582,10 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_INT(tls_backoff_time)
 	CONTEXT_SETTING_INT(tls_connection_retries)
 	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
+	CONTEXT_SETTING_STRING(trust_anchor_url)
+	CONTEXT_SETTING_STRING(trust_anchor_verify_CA)
+	CONTEXT_SETTING_STRING(trust_anchor_verify_email)
+	CONTEXT_SETTING_STRING(appdata_dir)
 
 	/**************************************/
 	/****                              ****/
@@ -4579,8 +4638,14 @@ _getdns_context_config_setting(getdns_context *context,
 	/****  Ignored context settings  ****/
 	/****                            ****/
 	/************************************/
-	} else if (!_streq(setting, "implementation_string") &&
-	    !_streq(setting, "version_string")) {
+	} else if (!_streq(setting, "implementation_string")
+	    && !_streq(setting, "version_string")
+	    && !_streq(setting, "version_number")
+	    && !_streq(setting, "api_version_string")
+	    && !_streq(setting, "api_version_number")
+	    && !_streq(setting, "trust_anchor_file")
+	    && !_streq(setting, "compilation_comment")
+	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
 	}
 	return r;
@@ -4609,15 +4674,19 @@ getdns_context_config(getdns_context *context, const getdns_dict *config_dict)
 	return r;
 }
 
-static size_t _getdns_get_appdata(char *path)
+static size_t _getdns_get_appdata(getdns_context *context, char *path)
 {
-	size_t len;
+	size_t len = 0;
 
 #ifdef USE_WINSOCK
 # define SLASHTOK '\\'
 # define APPDATA_SUBDIR "getdns"
 
-	if (! SUCCEEDED(SHGetFolderPath(NULL,
+	if (context->appdata_dir) {
+		(void) strcpy(path, context->appdata_dir);
+		len = strlen(path);
+
+	} else if (! SUCCEEDED(SHGetFolderPath(NULL,
 	    CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path)))
 		DEBUG_ANCHOR("ERROR %s(): Could not get %%AppData%% directory\n"
 		            , __FUNC__);
@@ -4631,7 +4700,11 @@ static size_t _getdns_get_appdata(char *path)
 	struct passwd *p = getpwuid(getuid());
 	char *home = NULL;
 
-	if (!(home = p ? p->pw_dir : getenv("HOME")))
+	if (context->appdata_dir) {
+		(void) strcpy(path, context->appdata_dir);
+		len = strlen(path);
+
+	} else if (!(home = p ? p->pw_dir : getenv("HOME")))
 		DEBUG_ANCHOR("ERROR %s(): Could not get home directory\n"
 		            , __FUNC__);
 
@@ -4650,7 +4723,11 @@ static size_t _getdns_get_appdata(char *path)
 		}
 		(void) strcpy(path + len, APPDATA_SUBDIR);
 		len += sizeof(APPDATA_SUBDIR) - 1;
-
+	}
+	if (len) {
+		if (path[len - 1] == '/' || path[len - 1] == '\\') {
+			path[--len] = '\0';
+		}
 		if (0 >
 #ifdef USE_WINSOCK
 		    mkdir(path)
@@ -4676,7 +4753,7 @@ FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn)
 	size_t len;
 
 	(void) context;
-	if (!(len = _getdns_get_appdata(path)))
+	if (!(len = _getdns_get_appdata(context, path)))
 		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
 		            , __FUNC__);
 
@@ -4742,7 +4819,7 @@ int _getdns_context_write_priv_file(getdns_context *context,
 	FILE *f = NULL;
 	size_t len;
 
-	if (!(len = _getdns_get_appdata(path)))
+	if (!(len = _getdns_get_appdata(context, path)))
 		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
 		            , __FUNC__);
 
@@ -4809,7 +4886,7 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 	if (!_getdns_context_write_priv_file(context, test_fn, &test_content))
 		return 0;
 
-	if (!(len = _getdns_get_appdata(path)))
+	if (!(len = _getdns_get_appdata(context, path)))
 		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
 		            , __FUNC__);
 
@@ -4833,26 +4910,33 @@ getdns_context_set_trust_anchor_url(
 	const char *path;
 	size_t path_len;
 
-	if (!context || !url)
+	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (! ((url[0] == 'h' || url[0] == 'H')
-	    && (url[1] == 't' || url[1] == 'T')
-	    && (url[2] == 't' || url[2] == 'T')
-	    && (url[3] == 'p' || url[3] == 'P')
-	    &&  url[4] == ':' && url[5] == '/' && url[6] == '/'
-	    && (path = strchr(url + 7, '/'))))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
+	if (url) {
+		if (! ((url[0] == 'h' || url[0] == 'H')
+		    && (url[1] == 't' || url[1] == 'T')
+		    && (url[2] == 't' || url[2] == 'T')
+		    && (url[3] == 'p' || url[3] == 'P')
+		    &&  url[4] == ':' && url[5] == '/' && url[6] == '/'
+		    && (path = strchr(url + 7, '/'))))
+			return GETDNS_RETURN_NOT_IMPLEMENTED;
 
-	path_len = strlen(path);
-	if (! ( path_len >= 5
-	    &&  path[path_len - 4] == '.'
-	    && (path[path_len - 3] == 'x' || path[path_len - 3] == 'X')
-	    && (path[path_len - 2] == 'm' || path[path_len - 2] == 'M')
-	    && (path[path_len - 1] == 'l' || path[path_len - 1] == 'L')))
-		return GETDNS_RETURN_NOT_IMPLEMENTED;
+		path_len = strlen(path);
+		if (! ( path_len >= 5
+		    &&    path[path_len - 4] == '.'
+		    && (  path[path_len - 3] == 'x'
+		       || path[path_len - 3] == 'X')
+		    && (  path[path_len - 2] == 'm'
+		       || path[path_len - 2] == 'M')
+		    && (  path[path_len - 1] == 'l'
+		       || path[path_len - 1] == 'L')))
+			return GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
+	if (context->trust_anchor_url)
+		GETDNS_FREE(context->mf, context->trust_anchor_url);
+	context->trust_anchor_url = _getdns_strdup(&context->mf, url);
 
-	context->root_anchor_url = url;
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_URL);
 	return GETDNS_RETURN_GOOD;
 }
@@ -4864,9 +4948,9 @@ getdns_context_get_trust_anchor_url(
 	if (!context || !url)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*url = context && context->root_anchor_url
-	     ?            context->root_anchor_url
-	     :     _getdns_default_root_anchor_url;
+	*url = context && context->trust_anchor_url
+	     ?            context->trust_anchor_url
+	     :     _getdns_default_trust_anchor_url;
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -4874,11 +4958,16 @@ getdns_return_t
 getdns_context_set_trust_anchor_verify_CA(
     getdns_context *context, const char *verify_CA)
 {
-	if (!context || !verify_CA)
+	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	context->root_anchor_verify_CA = verify_CA;
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA);
+	if (context->trust_anchor_verify_CA)
+		GETDNS_FREE(context->mf, context->trust_anchor_verify_CA);
+	context->trust_anchor_verify_CA =
+	    _getdns_strdup(&context->mf, verify_CA);
+
+	dispatch_updated( context
+	                , GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -4889,9 +4978,9 @@ getdns_context_get_trust_anchor_verify_CA(
 	if (!verify_CA)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*verify_CA = context && context->root_anchor_verify_CA
-	           ?            context->root_anchor_verify_CA
-	           :     _getdns_default_root_anchor_verify_CA;
+	*verify_CA = context && context->trust_anchor_verify_CA
+	           ?            context->trust_anchor_verify_CA
+	           :     _getdns_default_trust_anchor_verify_CA;
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -4899,11 +4988,16 @@ getdns_return_t
 getdns_context_set_trust_anchor_verify_email(
     getdns_context *context, const char *verify_email)
 {
-	if (!context || !verify_email)
+	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	context->root_anchor_verify_email = verify_email;
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL);
+	if (context->trust_anchor_verify_email)
+		GETDNS_FREE(context->mf, context->trust_anchor_verify_email);
+	context->trust_anchor_verify_email =
+	    _getdns_strdup(&context->mf, verify_email);
+
+	dispatch_updated( context
+	                , GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -4914,9 +5008,24 @@ getdns_context_get_trust_anchor_verify_email(
 	if (!verify_email)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*verify_email = context && context->root_anchor_verify_email
-	              ?            context->root_anchor_verify_email
-		      :     _getdns_default_root_anchor_verify_email;
+	*verify_email = context && context->trust_anchor_verify_email
+	              ?            context->trust_anchor_verify_email
+		      :     _getdns_default_trust_anchor_verify_email;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_appdata_dir(
+    getdns_context *context, const char *appdata_dir)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (context->appdata_dir)
+		GETDNS_FREE(context->mf, context->appdata_dir);
+	context->appdata_dir = _getdns_strdup(&context->mf, appdata_dir);
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_APPDATA_DIR);
 	return GETDNS_RETURN_GOOD;
 }
 

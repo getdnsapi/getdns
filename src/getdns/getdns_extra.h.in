@@ -86,6 +86,9 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA_TEXT "Change related to getdns_context_set_trust_anchor_verify_ca"
 #define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL 627
 #define GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL_TEXT "Change related to getdns_context_set_trust_anchor_verify_email"
+#define GETDNS_CONTEXT_CODE_APPDATA_DIR 628
+#define GETDNS_CONTEXT_CODE_APPDATA_DIR_TEXT "Change related to getdns_context_set_appdata_dir"
+
 /** @}
   */
 
@@ -564,6 +567,12 @@ getdns_return_t
 getdns_context_set_trust_anchor_verify_email(
     getdns_context *context, const char *verify_email);
 
+/**
+ *
+ */
+getdns_return_t
+getdns_context_set_appdata_dir(
+    getdns_context *context, const char *appdata_dir);
 
 /**
  * Get the current resolution type setting from this context.
