@@ -56,7 +56,7 @@ int main(int ac, char *av[])
 		goto fail;
 	}
 
-	r = getdns_yaml2list("[\"One\", \"two\", \"three\"]", &list);
+	r = getdns_str2list("[\"One\", \"two\", \"three\"]", &list);
 	if (r) {
 		fprintf(stderr, "Error setting list data: %s", getdns_get_errorstr_by_id(r));
 		goto fail;
@@ -68,7 +68,7 @@ int main(int ac, char *av[])
 		goto fail;
 	}
 
-	r = getdns_yaml2bindata("2001:7fd::1", &bindata);
+	r = getdns_str2bindata("2001:7fd::1", &bindata);
 	if (r) {
 		fprintf(stderr, "Error setting bindata: %s", getdns_get_errorstr_by_id(r));
 		goto fail;
@@ -81,7 +81,7 @@ int main(int ac, char *av[])
 	}
 
 	uint32_t intval;
-	r = getdns_yaml2int("32767", &intval);
+	r = getdns_str2int("32767", &intval);
 	if (r) {
 		fprintf(stderr, "Error setting int: %s", getdns_get_errorstr_by_id(r));
 		goto fail;

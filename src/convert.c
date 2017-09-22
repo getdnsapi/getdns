@@ -1827,6 +1827,12 @@ getdns_yaml2dict(const char *str, getdns_dict **dict)
 #endif /* USE_YAML_CONFIG */
 }
 
+/* WT: I am not certain about the value of yaml2list...
+ *     I don't see how yaml2bindata and yaml2int  would be different from
+ *     the str2bindata and str2int ones.
+ */
+#if 0
+
 getdns_return_t
 getdns_yaml2list(const char *str, getdns_list **list)
 {
@@ -1851,10 +1857,6 @@ getdns_yaml2list(const char *str, getdns_list **list)
 #endif /* USE_YAML_CONFIG */
 }
 
-/* WT: I don't see how the two functions below would be different from
- *     the str2bindata and str2int ones.
- */
-#if 0
 getdns_return_t
 getdns_yaml2bindata(const char *str, getdns_bindata **bindata)
 {

@@ -84,7 +84,7 @@ install: getdns.pc getdns_ext_event.pc install-lib @INSTALL_GETDNS_QUERY@
 	@echo "***"
 	@echo "***  - will be preferred and used for DNSSEC validation, however"
 	@echo "***  getdns will fallback to trust-anchors obtained via built-in"
-	@evho "***  trust anchor management when the anchors from the default"
+	@echo "***  trust anchor management when the anchors from the default"
 	@echo "***  location fail to validate the root DNSKEY rrset."
 	@echo "***"
 	@echo "***  To prevent expired DNSSEC trust anchors to be used for"

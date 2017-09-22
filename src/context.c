@@ -3635,9 +3635,9 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 char *
 _getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
-    size_t sz = strlen(s) + 1;
+    size_t sz;
     char *r;
-    if (!s || !(r = GETDNS_XMALLOC(*mfs, char, sz)))
+    if (!s || !(r = GETDNS_XMALLOC(*mfs, char, (sz = strlen(s) + 1))))
         return NULL;
     else
         return memcpy(r, s, sz);
