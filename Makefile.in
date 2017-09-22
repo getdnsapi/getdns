@@ -204,6 +204,7 @@ $(distdir):
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/src/yxml
+	mkdir -p $(distdir)/src/yaml
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
@@ -262,6 +263,7 @@ $(distdir):
 	cp $(srcdir)/src/yxml/*.[ch] $(distdir)/src/yxml
 	cp $(srcdir)/src/yxml/COPYING $(distdir)/src/yxml
 	cp $(srcdir)/src/yxml/yxml.pod $(distdir)/src/yxml
+	cp $(srcdir)/src/yaml/*.[ch] $(distdir)/src/yaml
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz
