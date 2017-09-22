@@ -36,12 +36,12 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.2.0], [users@getdnsapi.net], [rc1], [https://getdnsapi.net])
+AC_INIT([getdns], [1.2.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
-AC_SUBST(RELEASE_CANDIDATE, [])
+AC_SUBST(RELEASE_CANDIDATE, [-rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
