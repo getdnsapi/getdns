@@ -1,4 +1,4 @@
-* 2017-09-??: Version 1.2.0
+* 2017-09-22: Version 1.2.0
   * A function to set the location for library specific data,
     like trust-anchors: getdns_context_set_appdata().
   * Zero configuration DNSSEC - build upon the scheme
