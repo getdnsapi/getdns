@@ -1364,11 +1364,11 @@ static void _getdns_check_expired_pending_netreqs_cb(void *arg)
 	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
 }
 
-static const char *_getdns_default_trust_anchor_url =
+static const char *_getdns_default_trust_anchors_url =
     "http://data.iana.org/root-anchors/root-anchors.xml";
 
 /* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
-static const char *_getdns_default_trust_anchor_verify_CA =
+static const char *_getdns_default_trust_anchors_verify_CA =
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
 "TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
@@ -1391,7 +1391,7 @@ static const char *_getdns_default_trust_anchor_verify_CA =
 "j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
 "-----END CERTIFICATE-----\n";
 
-static const char *_getdns_default_trust_anchor_verify_email =
+static const char *_getdns_default_trust_anchors_verify_email =
     "dnssec@iana.org";
 
 
@@ -1496,9 +1496,9 @@ getdns_context_create_with_extended_memory_functions(
 
 	result->trust_anchors_source = GETDNS_TASRC_NONE;
 	result->can_write_appdata = PROP_UNKNOWN;
-	result->trust_anchor_url = NULL;
-	result->trust_anchor_verify_email = NULL;
-	result->trust_anchor_verify_CA = NULL;
+	result->trust_anchors_url = NULL;
+	result->trust_anchors_verify_email = NULL;
+	result->trust_anchors_verify_CA = NULL;
 	result->appdata_dir = NULL;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
@@ -1766,14 +1766,14 @@ getdns_context_destroy(struct getdns_context *context)
 	getdns_dict_destroy(context->header);
 	getdns_dict_destroy(context->add_opt_parameters);
 
-	if (context->trust_anchor_url)
-		GETDNS_FREE(context->mf, context->trust_anchor_url);
-	if (context->trust_anchor_verify_CA)
+	if (context->trust_anchors_url)
+		GETDNS_FREE(context->mf, context->trust_anchors_url);
+	if (context->trust_anchors_verify_CA)
 		GETDNS_FREE( context->mf
-		           , context->trust_anchor_verify_CA);
-	if (context->trust_anchor_verify_email)
+		           , context->trust_anchors_verify_CA);
+	if (context->trust_anchors_verify_email)
 		GETDNS_FREE( context->mf
-		           , context->trust_anchor_verify_email);
+		           , context->trust_anchors_verify_email);
 	if (context->appdata_dir)
 		GETDNS_FREE(context->mf, context->appdata_dir);
 
@@ -3884,12 +3884,12 @@ _get_context_settings(getdns_context* context)
 	}
 	(void) _getdns_get_appdata(context, appdata_dir);
 	(void) getdns_dict_util_set_string(result, "appdata_dir", appdata_dir);
-	if (!getdns_context_get_trust_anchor_url(context, &str_value) && str_value)
-		(void) getdns_dict_util_set_string(result, "trust_anchor_url", str_value);
-	if (!getdns_context_get_trust_anchor_verify_CA(context, &str_value) && str_value)
-		(void) getdns_dict_util_set_string(result, "trust_anchor_verify_CA", str_value);
-	if (!getdns_context_get_trust_anchor_verify_email(context, &str_value) && str_value)
-		(void) getdns_dict_util_set_string(result, "trust_anchor_verify_email", str_value);
+	if (!getdns_context_get_trust_anchors_url(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "trust_anchors_url", str_value);
+	if (!getdns_context_get_trust_anchors_verify_CA(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "trust_anchors_verify_CA", str_value);
+	if (!getdns_context_get_trust_anchors_verify_email(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "trust_anchors_verify_email", str_value);
 
 	return result;
 error:
@@ -4582,9 +4582,9 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_INT(tls_backoff_time)
 	CONTEXT_SETTING_INT(tls_connection_retries)
 	CONTEXT_SETTING_INT(tls_query_padding_blocksize)
-	CONTEXT_SETTING_STRING(trust_anchor_url)
-	CONTEXT_SETTING_STRING(trust_anchor_verify_CA)
-	CONTEXT_SETTING_STRING(trust_anchor_verify_email)
+	CONTEXT_SETTING_STRING(trust_anchors_url)
+	CONTEXT_SETTING_STRING(trust_anchors_verify_CA)
+	CONTEXT_SETTING_STRING(trust_anchors_verify_email)
 	CONTEXT_SETTING_STRING(appdata_dir)
 
 	/**************************************/
@@ -4904,7 +4904,7 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 }
 
 getdns_return_t
-getdns_context_set_trust_anchor_url(
+getdns_context_set_trust_anchors_url(
     getdns_context *context, const char *url)
 {
 	const char *path;
@@ -4933,84 +4933,84 @@ getdns_context_set_trust_anchor_url(
 		       || path[path_len - 1] == 'L')))
 			return GETDNS_RETURN_NOT_IMPLEMENTED;
 	}
-	if (context->trust_anchor_url)
-		GETDNS_FREE(context->mf, context->trust_anchor_url);
-	context->trust_anchor_url = _getdns_strdup(&context->mf, url);
+	if (context->trust_anchors_url)
+		GETDNS_FREE(context->mf, context->trust_anchors_url);
+	context->trust_anchors_url = _getdns_strdup(&context->mf, url);
 
-	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHOR_URL);
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TRUST_ANCHORS_URL);
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
-getdns_context_get_trust_anchor_url(
+getdns_context_get_trust_anchors_url(
     getdns_context *context, const char **url)
 {
 	if (!context || !url)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*url = context && context->trust_anchor_url
-	     ?            context->trust_anchor_url
-	     :     _getdns_default_trust_anchor_url;
+	*url = context && context->trust_anchors_url
+	     ?            context->trust_anchors_url
+	     :     _getdns_default_trust_anchors_url;
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
-getdns_context_set_trust_anchor_verify_CA(
+getdns_context_set_trust_anchors_verify_CA(
     getdns_context *context, const char *verify_CA)
 {
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (context->trust_anchor_verify_CA)
-		GETDNS_FREE(context->mf, context->trust_anchor_verify_CA);
-	context->trust_anchor_verify_CA =
+	if (context->trust_anchors_verify_CA)
+		GETDNS_FREE(context->mf, context->trust_anchors_verify_CA);
+	context->trust_anchors_verify_CA =
 	    _getdns_strdup(&context->mf, verify_CA);
 
 	dispatch_updated( context
-	                , GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_CA);
+	                , GETDNS_CONTEXT_CODE_TRUST_ANCHORS_VERIFY_CA);
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
-getdns_context_get_trust_anchor_verify_CA(
+getdns_context_get_trust_anchors_verify_CA(
     getdns_context *context, const char **verify_CA)
 {
 	if (!verify_CA)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*verify_CA = context && context->trust_anchor_verify_CA
-	           ?            context->trust_anchor_verify_CA
-	           :     _getdns_default_trust_anchor_verify_CA;
+	*verify_CA = context && context->trust_anchors_verify_CA
+	           ?            context->trust_anchors_verify_CA
+	           :     _getdns_default_trust_anchors_verify_CA;
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
-getdns_context_set_trust_anchor_verify_email(
+getdns_context_set_trust_anchors_verify_email(
     getdns_context *context, const char *verify_email)
 {
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (context->trust_anchor_verify_email)
-		GETDNS_FREE(context->mf, context->trust_anchor_verify_email);
-	context->trust_anchor_verify_email =
+	if (context->trust_anchors_verify_email)
+		GETDNS_FREE(context->mf, context->trust_anchors_verify_email);
+	context->trust_anchors_verify_email =
 	    _getdns_strdup(&context->mf, verify_email);
 
 	dispatch_updated( context
-	                , GETDNS_CONTEXT_CODE_TRUST_ANCHOR_VERIFY_EMAIL);
+	                , GETDNS_CONTEXT_CODE_TRUST_ANCHORS_VERIFY_EMAIL);
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t
-getdns_context_get_trust_anchor_verify_email(
+getdns_context_get_trust_anchors_verify_email(
     getdns_context *context, const char **verify_email)
 {
 	if (!verify_email)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	*verify_email = context && context->trust_anchor_verify_email
-	              ?            context->trust_anchor_verify_email
-		      :     _getdns_default_trust_anchor_verify_email;
+	*verify_email = context && context->trust_anchors_verify_email
+	              ?            context->trust_anchors_verify_email
+		      :     _getdns_default_trust_anchors_verify_email;
 	return GETDNS_RETURN_GOOD;
 }
 

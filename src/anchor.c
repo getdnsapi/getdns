@@ -733,7 +733,7 @@ void _getdns_context_equip_with_anchor(
 	X509 *x = NULL;
 	X509_STORE *store = NULL;
 
-	if ((r = getdns_context_get_trust_anchor_verify_CA(
+	if ((r = getdns_context_get_trust_anchors_verify_CA(
 	    context, &verify_CA)))
 		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
 			     " CA: \"%s\"\n", __FUNC__
@@ -743,7 +743,7 @@ void _getdns_context_equip_with_anchor(
 		DEBUG_ANCHOR("NOTICE: Trust anchor verification explicitely "
 		             "disabled by empty verify CA\n");
 
-	else if ((r = getdns_context_get_trust_anchor_verify_email(
+	else if ((r = getdns_context_get_trust_anchors_verify_email(
 	    context, &verify_email)))
 		DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify email "
 		             "address: \"%s\"\n", __FUNC__
@@ -1016,7 +1016,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		p7s_bd.data = a->tcp.read_buf;
 		p7s_bd.size = a->tcp.read_buf_len;
 
-		if ((r = getdns_context_get_trust_anchor_verify_CA(
+		if ((r = getdns_context_get_trust_anchors_verify_CA(
 		    context, (const char **)&verify_CA.data)))
 			DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
 				     " CA: \"%s\"\n", __FUNC__
@@ -1025,7 +1025,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		else if (!(verify_CA.size = strlen((const char *)verify_CA.data)))
 			; /* pass */
 
-		else if ((r = getdns_context_get_trust_anchor_verify_email(
+		else if ((r = getdns_context_get_trust_anchors_verify_email(
 		    context, &verify_email)))
 			DEBUG_ANCHOR("ERROR %s(): Getting trust anchor verify"
 				     " email address: \"%s\"\n", __FUNC__
@@ -1264,7 +1264,7 @@ static getdns_return_t _getdns_get_tas_url_hostname(
 	char *next_slash;
 	size_t s;
 
-	if ((r = getdns_context_get_trust_anchor_url(context, &url)))
+	if ((r = getdns_context_get_trust_anchors_url(context, &url)))
 		return r;
 
 	if ((next_slash = strchr(url + 7 /* "http://" */, '/'))) {
@@ -1522,7 +1522,7 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		            , getdns_get_errorstr_by_id(r));
 		return;
 
-	} else if ((r = getdns_context_get_trust_anchor_verify_CA(
+	} else if ((r = getdns_context_get_trust_anchors_verify_CA(
 	    context, &verify_CA))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get verify CA"
 		             ": \"%s\"", __FUNC__
@@ -1534,7 +1534,7 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		             "disabled by empty verify CA\n");
 		return;
 
-	} else if ((r = getdns_context_get_trust_anchor_verify_email(
+	} else if ((r = getdns_context_get_trust_anchors_verify_email(
 	    context, &verify_email))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get verify email address"
 		             ": \"%s\"", __FUNC__

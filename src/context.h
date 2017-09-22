@@ -337,9 +337,9 @@ struct getdns_context {
 	tas_connection        aaaa;
 	uint8_t               tas_hdr_spc[512];
 
-	char                 *trust_anchor_url;
-	char                 *trust_anchor_verify_CA;
-	char                 *trust_anchor_verify_email;
+	char                 *trust_anchors_url;
+	char                 *trust_anchors_verify_CA;
+	char                 *trust_anchors_verify_email;
 
 	_getdns_ksks          root_ksk;
 
