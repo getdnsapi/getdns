@@ -210,6 +210,7 @@ $(distdir):
 	mkdir -p $(distdir)/spec/example
 	mkdir -p $(distdir)/stubby
 	mkdir -p $(distdir)/stubby/src
+	mkdir -p $(distdir)/stubby/src/yaml
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/AUTHORS $(distdir)
@@ -254,7 +255,8 @@ $(distdir):
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
 	cp $(srcdir)/stubby/stubby.yml.example $(distdir)/stubby
 	cp $(srcdir)/stubby/stubby-setdns-macos.sh $(distdir)/stubby
-	cp $(srcdir)/stubby/src/stubby.c $(distdir)/stubby/src
+	cp $(srcdir)/stubby/src/*.[ch] $(distdir)/stubby/src
+	cp $(srcdir)/stubby/yaml/*.[ch] $(distdir)/stubby/src/yaml
 	cp $(srcdir)/stubby/COPYING $(distdir)/stubby
 	cp $(srcdir)/stubby/README.md $(distdir)/stubby
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn

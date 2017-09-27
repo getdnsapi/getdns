@@ -46,6 +46,10 @@ typedef unsigned short in_port_t;
 #include <wincrypt.h>
 #endif
 
+#ifdef HAVE_GETDNS_YAML2DICT
+getdns_return_t getdns_yaml2dict(const char *, getdns_dict **dict);
+#endif
+
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 static int verbosity = 0;

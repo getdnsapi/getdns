@@ -1803,10 +1803,10 @@ getdns_str2int(const char *str, uint32_t *value)
 	return GETDNS_RETURN_GOOD;
 }
 
+#ifdef USE_YAML_CONFIG
 getdns_return_t
 getdns_yaml2dict(const char *str, getdns_dict **dict)
 {
-#ifdef USE_YAML_CONFIG
 	char *jsonstr;
 	
 	if (!str || !dict)
@@ -1820,12 +1820,8 @@ getdns_yaml2dict(const char *str, getdns_dict **dict)
 	} else {
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
-#else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) dict;
-	return GETDNS_RETURN_NOT_IMPLEMENTED;
-#endif /* USE_YAML_CONFIG */
 }
+#endif /* USE_YAML_CONFIG */
 
 /* WT: I am not certain about the value of yaml2list...
  *     I don't see how yaml2bindata and yaml2int  would be different from

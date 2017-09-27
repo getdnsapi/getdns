@@ -322,6 +322,34 @@ AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
 AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
 ACX_CHECK_GETADDRINFO_WITH_INCLUDES
 
+AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
+	[Set maximum file descriptor number that can be used by select]),
+	[], [withval="no"])
+case "$withval" in
+no)
+	;;
+*)
+	AC_DEFINE_UNQUOTED([FD_SETSIZE], [$withval], [Alternate value for the FD_SETSIZE])
+	my_enable_unbound_event_api=1
+	;;
+esac
+
+#---- check for pthreads library
+AC_ARG_WITH(libpthread, AS_HELP_STRING([--without-libpthread],
+	[Disable libpthread (default is autodetect)]),
+	[], [withval="yes"])
+
+case "$withval" in
+yes)
+	AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
+		AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
+		LIBS="-lpthread $LIBS"
+	], [AC_MSG_WARN([pthreads not available])])
+	;;
+*)
+	;;
+esac
+
 USE_NSS="no"
 # openssl
 if test $USE_NSS = "no"; then
@@ -614,16 +642,21 @@ case "$enable_stub_only" in
 		;;
 esac
 
-my_with_yaml=1
-AC_ARG_ENABLE(yaml-config, AC_HELP_STRING([--disable-yaml-config], [Remove support for YAML configuration.  Removes the libyaml dependency.]))
+my_with_yaml=0
+AC_ARG_ENABLE(yaml-config,)
 case "$enable_yaml_config" in
-	no)
-		my_with_yaml=0
-		;;
-	yes|*)
+	yes)
 		AC_DEFINE_UNQUOTED([USE_YAML_CONFIG], [1], [Define this to enable YAML config support.])
+		AC_DEFINE_UNQUOTED([HAVE_GETDNS_YAML2DICT], [1], [Define this to enable getdns_yaml2dict function.])
+
+		GETDNS_XTRA_OBJS="convert_yaml_to_json.lo"
+		my_with_yaml=1
+		;;
+	no|*)
+		GETDNS_XTRA_OBJS=""
 		;;
 esac
+AC_SUBST(GETDNS_XTRA_OBJS)
 
 if test "$USE_WINSOCK" = 1; then
 	AC_MSG_NOTICE([ Building on Windows ... YES! ])
@@ -688,30 +721,6 @@ else
 	fi
 fi
 
-if test $my_with_yaml = 1
-then
-	AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
-		[path to libyaml (default: search /usr/local ..)]),
-		[], [withval="yes"])
-	if test x_$withval = x_yes; then
-		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-			if test -f "$dir/include/yaml.h"; then
-				CFLAGS="$CFLAGS -I$dir/include"
-				LDFLAGS="$LDFLAGS -L$dir/lib"
-				AC_MSG_NOTICE([Found libyaml in $dir])
-				break
-			fi
-		done
-	else
-		if test x_$withval != x_no; then
-			CFLAGS="$CFLAGS -I$withval/include"
-			LDFLAGS="$LDFLAGS -L$withval/lib"
-		else
-			my_with_yaml=0
-		fi
-	fi
-fi
-
 if test $my_with_libunbound = 1
 then
 	# find libunbound
@@ -752,16 +761,6 @@ then
 	])
 fi
 
-if test $my_with_yaml = 1
-then
-	AC_MSG_NOTICE([Checking for dependency libyaml])
-	AC_CHECK_LIB([yaml], [yaml_parser_parse], [], [
-		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libyaml"
-		MISSING_SEP=", "
-		found_all_libs=0
-	])
-fi
-
 AC_ARG_ENABLE(unbound-event-api, AC_HELP_STRING([--disable-unbound-event-api], [Disable usage of libunbounds event API]))
 case "$enable_unbound_event_api" in
 	no)
@@ -793,11 +792,6 @@ then
 		MISSING_SEP=", "
 		found_all_libs=0
 	])
-fi
-
-if test $found_all_libs = 0
-then
-    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
@@ -1114,6 +1108,7 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
+stubby_with_yaml=0
 AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],
 	[Compile and install stubby, the (stub) resolver daemon]),
 	[], [withval="no"])
@@ -1121,48 +1116,88 @@ if test x_$withval = x_yes; then
 	STUBBY="stubby"
 	INSTALL_STUBBY="install-stubby"
 	UNINSTALL_STUBBY="uninstall-stubby"
+	if test $my_with_yaml = 0
+	then
+		STUBBY_XTRA_OBJS="convert_yaml_to_json.lo gbuffer.lo"
+		stubby_with_yaml=1
+		my_with_yaml=1
+	fi
 else
 	STUBBY=""
 	INSTALL_STUBBY=""
 	UNINSTALL_STUBBY=""
+	STUBBY_XTRA_OBJS=""
 fi
 AC_SUBST(STUBBY)
 AC_SUBST(INSTALL_STUBBY)
 AC_SUBST(UNINSTALL_STUBBY)
+AC_SUBST(STUBBY_XTRA_OBJS)
 
-AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
-	[Set maximum file descriptor number that can be used by select]),
-	[], [withval="no"])
-case "$withval" in
-	no)
-		;;
-	*)
-		AC_DEFINE_UNQUOTED([FD_SETSIZE], [$withval], [Alternate value for the FD_SETSIZE])
-		my_enable_unbound_event_api=1
-		;;
-esac
+STUBBY_LDFLAGS=""
+STUBBY_LIBS=""
+
+if test $my_with_yaml = 1
+then
+	if test $stubby_with_yaml = 1
+	then
+		getdns_LIBS="$LIBS"
+		getdns_LDFLAGS="$LDFLAGS"
+		LIBS=""
+		LDFLAGS=""
+	fi
+	AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
+		[path to libyaml (default: search /usr/local ..)]),
+		[], [withval="yes"])
+	if test x_$withval = x_yes; then
+		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+			if test -f "$dir/include/yaml.h"; then
+				CFLAGS="$CFLAGS -I$dir/include"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libyaml in $dir])
+				break
+			fi
+		done
+	else
+		if test x_$withval != x_no; then
+			CFLAGS="$CFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		else
+			if test $stubby_with_yaml = 1
+			then
+    				AC_MSG_ERROR([libyaml required for building Stubby])
+			fi
+			my_with_yaml=0
+		fi
+	fi
+	if test $my_with_yaml = 1
+	then
+		AC_MSG_NOTICE([Checking for dependency libyaml])
+		AC_CHECK_LIB([yaml], [yaml_parser_parse], [], [
+			MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libyaml"
+			MISSING_SEP=", "
+			found_all_libs=0
+		])
+	fi
+	if test $stubby_with_yaml = 1
+	then
+		STUBBY_LDFLAGS="$LDFLAGS"
+		STUBBY_LIBS="$LIBS"
+		LIBS="$getdns_LIBS"
+		LDFLAGS="$getdns_LDFLAGS"
+	fi
+fi
+AC_SUBST(STUBBY_LDFLAGS)
+AC_SUBST(STUBBY_LIBS)
+
+if test $found_all_libs = 0
+then
+    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
+fi
 
 AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
-
-
-#---- check for pthreads library
-AC_ARG_WITH(libpthread, AS_HELP_STRING([--without-libpthread],
-	[Disable libpthread (default is autodetect)]),
-	[], [withval="yes"])
-
-case "$withval" in
-	yes)
-		AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
-			AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
-			LIBS="-lpthread $LIBS"
-		], [AC_MSG_WARN([pthreads not available])])
-		;;
-	*)
-		;;
-esac
 
 AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
 AC_LANG_PUSH(C)
@@ -1301,14 +1336,14 @@ AH_BOTTOM([
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
 # endif
-# define PRIsz "%Iu"
+# define PRIsz "Iu"
 
  /* Windows wants us to use _strdup instead of strdup */
 # ifndef strdup
 #  define strdup _strdup
 # endif
 #else
-# define PRIsz "%zu"
+# define PRIsz "zu"
 #endif
 
 #include <stdint.h>

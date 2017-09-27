@@ -1830,28 +1830,6 @@ getdns_msg_dict2str_scan(
  */
 
 /**
- * Convert YAML text to a getdns_dict.
- *
- * @param  str   A textual representation of a getdns_dict.
- *               The format is similar, but not precisely YAML.
- *               - When str contains an IP or IPv6 address, it is converted
- *                 to an getdns dict representation of that address.  This may contain
- *                 a port, tls_port, tsig spec or tls authentication name in the same
- *                 way as may be given with the `getdns_query` tool.  For example:
- *                 `185.49.140.67:80#443` will result in the following getdns_dict:
- *
- *                      { address_type: "IPv4"
- *                      , address_data: "185.49.140.67"
- *                      , port: 80
- *                      , tls_port: 443
- *                      }
- * @param  dict The returned getdns_dict.
- * @return GETDNS_RETURN_GOOD on success or an error code on failure.
- */
-getdns_return_t
-getdns_yaml2dict(const char *str, getdns_dict **dict);
-
-/**
  * Convert string text to a getdns_dict.
  *
  * @param  str   A textual representation of a getdns_dict.
