@@ -602,7 +602,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	dname_len = *labels - last_label[-1] + 1;
 	head_sz = (sizeof(chain_head) + dname_len + 7) / 8 * 8;
 	node_count = last_label - labels - max_labels;
-	DEBUG_SEC( PRIsz" labels in common. "PRIsz" labels to allocate\n"
+	DEBUG_SEC( "%"PRIsz" labels in common. %"PRIsz" labels to allocate\n"
 	         , max_labels, node_count);
 
 	if (! (region = GETDNS_XMALLOC(*mf, uint8_t, head_sz + 
@@ -1424,7 +1424,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 		/* More space needed for val_rrset */
 		val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, n_rrs);
 	}
-	DEBUG_SEC( "sizes: "PRIsz" rrs, "PRIsz" bytes for validation buffer\n"
+	DEBUG_SEC( "sizes: %"PRIsz" rrs, %"PRIsz" bytes for validation buffer\n"
 	         , n_rrs, valbuf_sz);
 
 	qsort(val_rrset, n_rrs, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
@@ -1481,7 +1481,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 		gldns_buffer_write_u16_at(&valbuf, pos, 
 		    (uint16_t)(gldns_buffer_position(&valbuf) - pos - 2));
 	}
-	DEBUG_SEC( "written to valbuf: "PRIsz" bytes\n"
+	DEBUG_SEC( "written to valbuf: %"PRIsz" bytes\n"
 	         , gldns_buffer_position(&valbuf));
 	assert(gldns_buffer_position(&valbuf) <= valbuf_sz);
 
@@ -1903,7 +1903,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 				if (digest_buf != digest_buf_spc)
 					GETDNS_FREE(*mf, digest_buf);
 
-				DEBUG_SEC("HASH length mismatch "PRIsz" != "PRIsz"\n",
+				DEBUG_SEC("HASH length mismatch %"PRIsz" != %"PRIsz"\n",
 					digest_len, ds->rr_i.nxt - ds->rr_i.rr_type-14);
 				continue;
 			}
@@ -1926,7 +1926,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 			max_supported_result = SIGNATURE_VERIFIED | keytag;
 		}
 	}
-	DEBUG_SEC("valid_dsses: "PRIsz", supported_dsses: "PRIsz"\n",
+	DEBUG_SEC("valid_dsses: %"PRIsz", supported_dsses: %"PRIsz"\n",
 			valid_dsses, supported_dsses);
 	if (valid_dsses && !supported_dsses)
 		return NO_SUPPORTED_ALGORITHMS;
@@ -3059,7 +3059,7 @@ static void check_chain_complete(chain_head *chain)
 	_getdns_rrset_iter tas_iter;
 
 	if ((o = count_outstanding_requests(chain)) > 0) {
-		DEBUG_SEC(PRIsz" outstanding requests\n", o);
+		DEBUG_SEC("%"PRIsz" outstanding requests\n", o);
 		return;
 	}
 	DEBUG_SEC("Chain done!\n");
@@ -3561,7 +3561,7 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 
 	for (i = 0; !getdns_list_get_dict(records_to_validate,i,&reply); i++) {
 
-		DEBUG_SEC("REPLY "PRIsz", r: %d\n", i, r);
+		DEBUG_SEC("REPLY %"PRIsz", r: %d\n", i, r);
 		if (to_val != to_val_buf)
 			GETDNS_FREE(*mf, to_val);
 		to_val_len = sizeof(to_val_buf);
@@ -3588,7 +3588,7 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 			break;
 		}
 	}
-	DEBUG_SEC("REPLY "PRIsz", r: %d\n", i, r);
+	DEBUG_SEC("REPLY %"PRIsz", r: %d\n", i, r);
 
 exit_free_to_val:
 	if (to_val != to_val_buf)
