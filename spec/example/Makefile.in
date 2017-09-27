@@ -149,16 +149,24 @@ depend:
 
 # Dependencies for the examples
 example-all-functions.lo example-all-functions.o: $(srcdir)/example-all-functions.c $(srcdir)/getdns_libevent.h \
- ../../src/config.h ../../src/getdns/getdns.h \
- $(srcdir)/../../src/getdns/getdns_ext_libevent.h ../../src/getdns/getdns_extra.h
-example-reverse.lo example-reverse.o: $(srcdir)/example-reverse.c $(srcdir)/getdns_libevent.h ../../src/config.h \
- ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
+ ../../src/config.h \
+ ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
+ ../../src/getdns/getdns_extra.h
+example-reverse.lo example-reverse.o: $(srcdir)/example-reverse.c $(srcdir)/getdns_libevent.h \
+ ../../src/config.h \
+ ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  ../../src/getdns/getdns_extra.h
 example-simple-answers.lo example-simple-answers.o: $(srcdir)/example-simple-answers.c $(srcdir)/getdns_libevent.h \
- ../../src/config.h ../../src/getdns/getdns.h \
- $(srcdir)/../../src/getdns/getdns_ext_libevent.h ../../src/getdns/getdns_extra.h
+ ../../src/config.h \
+ ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
+ ../../src/getdns/getdns_extra.h
 example-synchronous.lo example-synchronous.o: $(srcdir)/example-synchronous.c $(srcdir)/getdns_core_only.h \
  ../../src/getdns/getdns.h
-example-tree.lo example-tree.o: $(srcdir)/example-tree.c $(srcdir)/getdns_libevent.h ../../src/config.h \
- ../../src/getdns/getdns.h $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
+example-tree.lo example-tree.o: $(srcdir)/example-tree.c $(srcdir)/getdns_libevent.h \
+ ../../src/config.h \
+ ../../src/getdns/getdns.h \
+ $(srcdir)/../../src/getdns/getdns_ext_libevent.h \
  ../../src/getdns/getdns_extra.h
