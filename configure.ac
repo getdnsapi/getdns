@@ -101,7 +101,18 @@ AC_PROG_CC
 AC_PROG_CPP
 
 # Checks for programs.
+HOSTOS="unix"
 AC_CANONICAL_HOST
+case "${host_os}" in
+cygwin*|mingw*)
+	HOSTOS=windows
+	;;
+darwin*)
+	HOSTOS=macos
+	;;
+esac
+AC_SUBST(HOSTOS)
+
 
 CFLAGS="$CFLAGS"
 WPEDANTICFLAG=""

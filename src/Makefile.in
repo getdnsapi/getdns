@@ -203,14 +203,26 @@ stubby.lo: $(stubbysrcdir)/src/stubby.c
 stubby: stubby.lo libgetdns.la $(STUBBY_XTRA_OBJS)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ stubby.lo $(STUBBY_XTRA_OBJS) $(STUBBY_LDFLAGS) libgetdns.la
 
-install-stubby: stubby $(stubbysrcdir)/stubby.yml.example $(stubbysrcdir)/stubby-setdns-macos.sh
-	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
-	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
-	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
-	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
+install-stubby-files-unix: $(stubbysrcdir)/stubby.yml.example
 	$(INSTALL) -m 755 -d $(DESTDIR)$(stubbyconfdir)
 	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
 		$(INSTALL_DATA) $(stubbysrcdir)/stubby.yml.example $(DESTDIR)$(stubbyconfdir)/stubby.yml
+
+install-stubby-files-macos: $(stubbysrcdir)/stubby-setdns-macos.sh install-stubby-files-unix
+	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
+
+stubby.yml.windows: $(stubbysrcdir)/stubby.yml.example
+	sed 's/$$'"/`echo \\\r`/" $(stubbysrcdir)/stubby.yml.example > stubby.yml.windows
+
+install-stubby-files-windows: stubby.yml.windows
+	$(INSTALL) -m 755 -d $(DESTDIR)$(stubbyconfdir)
+	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
+		$(INSTALL_DATA) stubby.yml.windows $(DESTDIR)$(stubbyconfdir)/stubby.yml
+
+install-stubby: stubby install-stubby-files-@HOSTOS@
+	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
+	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
 
 uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
