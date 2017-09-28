@@ -437,14 +437,14 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		/* digest the cert with sha256 */
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
 		if (len > (int)sizeof(raw)) {
-			DEBUG_STUB("%s %-35s: Pubkey %d is larger than "PRIsz" octets\n",
+			DEBUG_STUB("%s %-35s: Pubkey %d is larger than %"PRIsz" octets\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, sizeof(raw));
 			continue;
 		}
 		next = raw;
 		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
 		if (next - raw != len) {
-			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed "PRIsz"\n",
+			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed %"PRIsz"\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, len, next - raw);
 			continue;
 		}
@@ -453,7 +453,7 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		/* compare it */
 		for (p = pinset; p; p = p->next)
 			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
-				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p ("PRIsz")\n",
+				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p (%"PRIsz")\n",
 					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p, sizeof(p->pin));
 				return GETDNS_RETURN_GOOD;
 			} else
