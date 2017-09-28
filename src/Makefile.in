@@ -213,7 +213,7 @@ install-stubby-files-macos: $(stubbysrcdir)/stubby-setdns-macos.sh install-stubb
 	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
 
 stubby.yml.windows: $(stubbysrcdir)/stubby.yml.example
-	sed 's/$$'"/`echo \\\r`/" $(stubbysrcdir)/stubby.yml.example > stubby.yml.windows
+	awk "{sub(/$$/,\"\r\")}1" $(stubbysrcdir)/stubby.yml.example > stubby.yml.windows
 
 install-stubby-files-windows: stubby.yml.windows
 	$(INSTALL) -m 755 -d $(DESTDIR)$(stubbyconfdir)
