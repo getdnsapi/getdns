@@ -3521,16 +3521,13 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 }
 
 getdns_return_t
-_getdns_context_prepare_for_resolution(struct getdns_context *context,
-    int usenamespaces)
+_getdns_context_prepare_for_resolution(getdns_context *context)
 {
-	size_t i;
 	getdns_return_t r;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (context->destroying) {
-        return GETDNS_RETURN_BAD_CONTEXT;
-    }
+	if (context->destroying)
+		return GETDNS_RETURN_BAD_CONTEXT;
 
 	/* Transport can in theory be set per query in stub mode */
 	if (context->resolution_type == GETDNS_RESOLUTION_STUB && 
@@ -3607,28 +3604,9 @@ _getdns_context_prepare_for_resolution(struct getdns_context *context,
 	 */
 
 
-	if (! usenamespaces) {
-		r = _getdns_ns_dns_setup(context);
-		if (r == GETDNS_RETURN_GOOD)
-			context->resolution_type_set = context->resolution_type;
-		return r;
-	}
-
-	r = GETDNS_RETURN_GOOD;
-	for (i = 0; i < context->namespace_count; i++) {
-		switch (context->namespaces[i]) {
-		case GETDNS_NAMESPACE_DNS:
-			r = _getdns_ns_dns_setup(context);
-			break;
-
-		default:
-			r = GETDNS_RETURN_BAD_CONTEXT;
-			break;
-		}
-		if (r != GETDNS_RETURN_GOOD)
-			return r; /* try again later (resolution_type_set) */
-	}
-	context->resolution_type_set = context->resolution_type;
+	r = _getdns_ns_dns_setup(context);
+	if (r == GETDNS_RETURN_GOOD)
+		context->resolution_type_set = context->resolution_type;
 	return r;
 } /* _getdns_context_prepare_for_resolution */
 

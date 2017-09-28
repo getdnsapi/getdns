@@ -495,11 +495,9 @@ void _getdns_context_log(getdns_context *context, uint64_t system,
  * Sets up the unbound contexts with stub or recursive behavior
  * if needed.
  * @param context previously initialized getdns_context
- * @param usenamespaces if 0 then only use the DNS, else use context namespace list
  * @return GETDNS_RETURN_GOOD on success
  */
-getdns_return_t _getdns_context_prepare_for_resolution(struct getdns_context *context,
- int usenamespaces);
+getdns_return_t _getdns_context_prepare_for_resolution(getdns_context *context);
 
 /* Register a getdns_dns_req with context.
  * - Without pluggable unbound event API,

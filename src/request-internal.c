@@ -170,7 +170,12 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->transport_count = owner->context->dns_transport_count;
 	memcpy(net_req->transports, owner->context->dns_transports,
 	    net_req->transport_count * sizeof(getdns_transport_list_t));
-	net_req->tls_auth_min = owner->context->tls_auth_min;
+	net_req->tls_auth_min =
+	       owner->context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED
+	    && owner->context->dns_transport_count == 1
+	    && owner->context->dns_transports[0] == GETDNS_TRANSPORT_TLS
+	    ? GETDNS_AUTHENTICATION_REQUIRED
+	    : GETDNS_AUTHENTICATION_NONE;
 
 	net_req->follow_redirects = owner->context->follow_redirects;
 

@@ -3284,7 +3284,7 @@ void _getdns_ta_notify_dnsreqs(getdns_context *context)
 			getdns_network_req *netreq, **netreq_p;
 			int r = GETDNS_RETURN_GOOD;
 
-			 (void) _getdns_context_prepare_for_resolution(context, 0);
+			 (void) _getdns_context_prepare_for_resolution(context);
 
 			*dnsreq_p = dnsreq->ta_notify;
 			for ( netreq_p = dnsreq->netreqs

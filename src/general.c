@@ -609,10 +609,11 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 			context->ta_notify = req;
 			return GETDNS_RETURN_GOOD;
 		}
-		(void) _getdns_context_prepare_for_resolution(context, 0);
+		if ((r = _getdns_context_prepare_for_resolution(context)))
+			; /* pass */
 
 		/* issue all network requests */
-		for ( netreq_p = req->netreqs
+		else for ( netreq_p = req->netreqs
 		    ; !r && (netreq = *netreq_p)
 		    ; netreq_p++) {
 			if ((r = _getdns_submit_netreq(netreq, &now_ms))) {
@@ -667,7 +668,8 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 				context->ta_notify = req;
 				return GETDNS_RETURN_GOOD;
 			}
-			(void) _getdns_context_prepare_for_resolution(context, 0);
+			if ((r =  _getdns_context_prepare_for_resolution(context)))
+				break;
 
 			/* TODO: We will get a good return code here even if
 			   the name is not found (NXDOMAIN). We should consider
