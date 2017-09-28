@@ -3777,7 +3777,7 @@ _get_context_settings(getdns_context* context)
 	getdns_list *list;
 	size_t       i;
 	const char  *str_value;
-	char         appdata_dir[PATH_MAX] = "";
+	char         appdata_dir[_GETDNS_PATH_MAX] = "";
 
 	if (!result)
 		return NULL;
@@ -4691,7 +4691,7 @@ static size_t _getdns_get_appdata(getdns_context *context, char *path)
 		DEBUG_ANCHOR("ERROR %s(): Could not get %%AppData%% directory\n"
 		            , __FUNC__);
 
-	else if ((len = strlen(path)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
+	else if ((len = strlen(path)) + sizeof(APPDATA_SUBDIR) + 2 >= _GETDNS_PATH_MAX)
 		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
 		            , __FUNC__);
 #else
@@ -4708,7 +4708,7 @@ static size_t _getdns_get_appdata(getdns_context *context, char *path)
 		DEBUG_ANCHOR("ERROR %s(): Could not get home directory\n"
 		            , __FUNC__);
 
-	else if ((len = strlen(home)) + sizeof(APPDATA_SUBDIR) + 2 >= PATH_MAX)
+	else if ((len = strlen(home)) + sizeof(APPDATA_SUBDIR) + 2 >= _GETDNS_PATH_MAX)
 		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
 		            , __FUNC__);
 
@@ -4748,7 +4748,7 @@ static size_t _getdns_get_appdata(getdns_context *context, char *path)
 
 FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn)
 {
-	char path[PATH_MAX];
+	char path[_GETDNS_PATH_MAX];
 	FILE *f = NULL;
 	size_t len;
 
@@ -4814,7 +4814,7 @@ uint8_t *_getdns_context_get_priv_file(getdns_context *context,
 int _getdns_context_write_priv_file(getdns_context *context,
     const char *fn, getdns_bindata *content)
 {
-	char path[PATH_MAX], tmpfn[PATH_MAX];
+	char path[_GETDNS_PATH_MAX], tmpfn[_GETDNS_PATH_MAX];
 	int fd = -1;
 	FILE *f = NULL;
 	size_t len;
@@ -4870,7 +4870,7 @@ int _getdns_context_write_priv_file(getdns_context *context,
 
 int _getdns_context_can_write_appdata(getdns_context *context)
 {
-	char test_fn[30], path[PATH_MAX];
+	char test_fn[30], path[_GETDNS_PATH_MAX];
 	size_t len;
 	getdns_bindata test_content = { 4, (void *)"TEST" };
 

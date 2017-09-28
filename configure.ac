@@ -1224,7 +1224,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h limits.h sys/limits.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -1496,6 +1496,20 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef HAVE_SYS_LIMITS_H
+#include <sys/limits.h>
+#endif
+
+#ifdef PATH_MAX
+#define _GETDNS_PATH_MAX PATH_MAX
+#else
+#define _GETDNS_PATH_MAX 2048
 #endif
 
 #ifndef PRIu64
