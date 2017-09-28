@@ -569,7 +569,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 	}
 	rewind(fh);
 	read_sz = fread(config_file, 1, config_file_sz + 1, fh);
-	if (read_sz > config_file_sz || ferror(fh) || !feof(fh)) {
+	if (read_sz > (size_t)config_file_sz || ferror(fh) || !feof(fh)) {
 		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
 		       , fn, strerror(errno));
 		fclose(fh);
