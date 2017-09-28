@@ -1,4 +1,5 @@
-* 2017-09-??: Version 1.2.0
+* 2017-09-28: Version 1.2.0
+  * Bugfix of rc1: authentication of first query with TLS
   * A function to set the location for library specific data,
     like trust-anchors: getdns_context_set_appdata().
   * Zero configuration DNSSEC - build upon the scheme
@@ -11,8 +12,6 @@
     with the ICANN CA.
   * Update of Stubby with yaml configuration file and
     logging from a certain severity support.
-  * Conversion of yaml to getdns_dict and getdns_list with
-    getdns_yaml2dict() and getdns_yaml2list() functions
   * Fix tpkg exit status on test failure. Thanks Jim Hague.
   * Refined logging levels for upstream statistics
   * Reuse (best behaving) backed-off TLS upstreams when non are usable.
