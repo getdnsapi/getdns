@@ -72,7 +72,6 @@ External dependencies are linked outside the getdns API build tree (we rely on c
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
 * [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
-* [libyaml](http://pyyaml.org/wiki/LibYAML) version 0.1.6 or later.
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
 For example, to build on a recent version of Ubuntu, you would need the following packages:
@@ -88,7 +87,7 @@ If you are building from git, you need to do the following before building:
     # autoreconf -fi
 
 
-As well as building the getdns library 2 other tools are installed by default by the above process:
+As well as building the getdns library two other tools may be installed:
 
 * getdns_query: a command line test script wrapper for getdns
 * stubby: an experimental DNS Privacy enabled client
@@ -100,7 +99,6 @@ Note: If you only want to build stubby, then use the `--with-stubby` option when
 
 * getdns can be configured for stub resolution mode only with the `--enable-stub-only` option to configure.  This removes the dependency on `libunbound`.
 * Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
-* getdns can be configured to not support YAML configuration with the `--disable-yaml-config` option to configure. This removes the dependency on `libyaml`.
 * When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
 
 ## Extensions and Event loop dependencies
@@ -114,7 +112,7 @@ The implementation works with a variety of event loops, each built as a separate
 ## Stubby
 
 * Stubby is an experimental implementation of a DNS Privacy enabled stub resolver than encrypts DNS queries using TLS. It is currently suitable for advanced/technical users - all feedback is welcome! 
-* Details on how to use Stubby can be found in the [Stubby Reference Guide](https://getdnsapi.net/blog/dns-privacy-daemon-stubby).
+* Details on how to use Stubby can be found in the [Stubby Reference Guide](https://dnsprivacy.org/wiki/x/JYAT).
 * Also see [dnsprivacy.org](https://dnsprivacy.org) for more information on DNS Privacy.
 
 ## Regression Tests
@@ -122,8 +120,6 @@ The implementation works with a variety of event loops, each built as a separate
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
 to install [libcheck](https://libcheck.github.io/check/).  The check library is also available from many of the package repositories for the more popular operating systems.
-
-The regression tests do not work with --enable-stub-only.
 
 ## DNSSEC dependencies
 
@@ -133,13 +129,16 @@ The library will try to load the root trust anchor from
 or more `DS` or `DNSKEY` resource records in presentation (i.e. zone file)
 format.  Note that this is different than the format of BIND.keys.
 
-The best way to setup or update the root trust anchor is by using
-[`unbound-anchor`](https://www.unbound.net/documentation/unbound-anchor.html).
-To setup the library with the root trust anchor at the default location,
-execute the following steps as root:
+##$ Zero configuration DNSSEC
 
-    # mkdir -p /etc/unbound
-    # unbound-anchor -a /etc/unbound/getdns-root.key
+When the root trust anchor is not installed in the default location and a DNSSEC query is done, getdns will try to use the trust anchors published here: http://data.iana.org/root-anchors/root-anchors.xml .
+It will validate these anchors with the ICANN Certificate Authority certificate following the procedure described in [RFC7958].
+The `root-anchors.xml` and `root-anchors.p7s` S/MIME signature will be cached in the `$HOME/.getdns` directory.
+
+When using trust-anchors from the `root-anchors.xml` file, getdns will track the keys in the root DNSKEY rrset and store a copy in $HOME/.getdns/root.key.
+Only when the KSK DNSKEY's change, a new version of `root-anchors.xml` is tried to be retrieved from [data.iana.org](https://data.iana.org/root-anchors/).
+
+A installed trust-anchor from the default location (`/etc/unbound/getdns-root.key`) that fails to validate the root DNSKEY RRset, will also trigger the "Zero configuration DNSSEC" procedure described above.
 
 Support
 =======
@@ -208,7 +207,7 @@ The primary platforms targeted are Linux and FreeBSD, other platform are support
 
 * RHEL/CentOS 6.4
 * OSX 10.8
-* Ubuntu 14.04
+* Ubuntu 16.04
 * Microsoft Windows 8.1
 
 We intend to add Android and other platforms to future releases as we have time to port it.
@@ -274,7 +273,7 @@ To install the [event loop integration libraries](https://getdnsapi.net/doxygen/
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
-As of the 0.2.0 release, when installing via Homebrew, the trust anchor is expected to be located at `$(brew --prefix)/etc/getdns-root.key`.  Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS certificate authentication should work out of the box.
+Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS certificate authentication should work out of the box.
 
 ### Microsoft Windows 8.1
 
