@@ -699,6 +699,8 @@ AC_CHECK_TYPE([sigset_t], [
 #endif
 ])
 
+AC_CHECK_FUNCS(sigemptyset sigfillset sigaddset)
+
 my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
 	[path to libidn (default: search /usr/local ..)]),
@@ -1544,10 +1546,24 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 # endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
 #define strptime unbound_strptime
 struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
+#endif
+
+#if !defined(HAVE_SIGEMPTYSET)
+#  define sigemptyset(pset)    (*(pset) = 0)
+#endif
+#if !defined(HAVE_SIGFILLSET)
+#  define sigfillset(pset)     (*(pset) = (_sigset_t)-1)
+#endif
+#if !defined(HAVE_SIGADDSET)
+#  define sigaddset(pset, num) (*(pset) |= (1L<<(num)))
 #endif
 
 #ifdef HAVE_LIBUNBOUND
@@ -1566,6 +1582,10 @@ int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 #   endif
 #  endif
 # endif
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 ])
 
