@@ -160,7 +160,7 @@ install-headers: getdns/getdns.h getdns/getdns_extra.h
 uninstall-headers:
 	rm -rf $(DESTDIR)$(includedir)/getdns
 
-install-libs: libgetdns.la
+install-libs: libgetdns.la $(EXTENSION_LIBEVENT_LIB) $(EXTENSION_LIBUV_LIB) $(EXTENSION_LIBEV_LIB)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
 	$(LIBTOOL) --mode=install cp libgetdns.la $(DESTDIR)$(libdir)
 	if test $(have_libevent) = 1 ; then $(LIBTOOL) --mode=install cp $(EXTENSION_LIBEVENT_LIB) $(DESTDIR)$(libdir) ; fi

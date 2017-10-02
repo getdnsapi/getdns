@@ -1,3 +1,7 @@
+* 2017-1?-??: Version 1.2.1
+  * Fix Makefile dependencies for parallel install.
+    Thanks ilovezfs
+
 * 2017-09-29: Version 1.2.0
   * Bugfix of rc1: authentication of first query with TLS
     Thanks Travis Burtrum
