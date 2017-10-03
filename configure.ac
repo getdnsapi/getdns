@@ -1147,8 +1147,8 @@ AC_SUBST(INSTALL_STUBBY)
 AC_SUBST(UNINSTALL_STUBBY)
 AC_SUBST(STUBBY_XTRA_OBJS)
 
-STUBBY_LDFLAGS=""
 STUBBY_LIBS=""
+STUBBY_LDFLAGS=""
 
 if test $my_with_yaml = 1
 then
@@ -1156,8 +1156,8 @@ then
 	then
 		getdns_LIBS="$LIBS"
 		getdns_LDFLAGS="$LDFLAGS"
-		LIBS=""
-		LDFLAGS=""
+		LIBS="$initial_LIBS"
+		LDFLAGS="$initial_LDFLAGS"
 	fi
 	AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
 		[path to libyaml (default: search /usr/local ..)]),
@@ -1350,7 +1350,44 @@ AH_BOTTOM([
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
 # endif
-# define PRIsz "Iu"
+
+/* the version of the windows API enabled */
+# ifndef WINVER
+#  define WINVER 0x0600 // 0x0502
+# endif
+# ifndef _WIN32_WINNT
+#  define _WIN32_WINNT 0x0600 // 0x0502
+# endif
+# ifdef HAVE_WS2TCPIP_H
+#  include <ws2tcpip.h>
+# endif
+
+# ifdef _MSC_VER
+#  if _MSC_VER >= 1800
+#   define PRIsz "zu"
+#  else
+#   define PRIsz "Iu"
+#  endif
+# else
+#  define PRIsz "Iu"
+# endif
+
+# ifdef HAVE_WINSOCK2_H
+#  include <winsock2.h>
+# endif
+
+# ifndef USE_WINSOCK
+#  define ARG_LL "%ll"
+# else
+#  define ARG_LL "%I64"
+# endif
+
+/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
+# ifdef HAVE_WINSOCK2_H
+#  define FD_SET_T (u_int)
+# else
+#  define FD_SET_T 
+# endif
 
  /* Windows wants us to use _strdup instead of strdup */
 # ifndef strdup
@@ -1365,34 +1402,6 @@ AH_BOTTOM([
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-
-/* the version of the windows API enabled */
-#ifndef WINVER
-#define WINVER 0x0600 // 0x0502
-#endif
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600 // 0x0502
-#endif
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#endif
-
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-
-#ifndef USE_WINSOCK
-#define ARG_LL "%ll"
-#else
-#define ARG_LL "%I64"
-#endif
-
-/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
-#ifdef HAVE_WINSOCK2_H
-#define FD_SET_T (u_int)
-#else
-#define FD_SET_T 
-#endif
 
 #ifdef __cplusplus
 extern "C" {
