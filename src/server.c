@@ -544,6 +544,14 @@ static void udp_read_cb(void *userarg)
 	conn->addrlen = sizeof(conn->remote_in);
 	if ((len = recvfrom(l->fd, (void *)buf, sizeof(buf), 0,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
+		if (_getdns_socketerror() == _getdns_ECONNRESET) {
+			/*
+			 * WINSOCK gives ECONNRESET on ICMP Port Unreachable
+			 * being received. Ignore it.
+			 * */
+			GETDNS_FREE(*mf, conn);
+			return;
+		}
 		/* IO error, cleanup this listener. */
 		loop->vmt->clear(loop, &l->event);
 		_getdns_closesocket(l->fd);
