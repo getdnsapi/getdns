@@ -39,6 +39,7 @@
 #include "types-internal.h"
 #include "debug.h"
 #include "util/rbtree.h"
+#include "util-internal.h"
 #include "server.h"
 
 #define DNS_REQUEST_SZ          4096
@@ -135,11 +136,7 @@ static void tcp_connection_destroy(tcp_connection *conn)
 		loop->vmt->clear(loop, &conn->event);
 
 	if (conn->fd >= 0)
-#ifdef USE_WINSOCK
-		(void) closesocket(conn->fd);
-#else
-		(void) close(conn->fd);
-#endif
+		(void) _getdns_closesocket(conn->fd);
 	GETDNS_FREE(*mf, conn->read_buf);
 
 	for (cur = conn->to_write; cur; cur = next) {
@@ -285,11 +282,7 @@ getdns_reply(
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1) {
 			/* IO error, cleanup this listener */
 			loop->vmt->clear(loop, &conn->l->event);
-#ifdef USE_WINSOCK
-			closesocket(conn->l->fd);
-#else
-			close(conn->l->fd);
-#endif
+			_getdns_closesocket(conn->l->fd);
 			conn->l->fd = -1;
 		}
 		/* Unlink this connection */
@@ -483,11 +476,7 @@ static void tcp_accept_cb(void *userarg)
 	    &conn->super.remote_in, &conn->super.addrlen)) == -1) {
 		/* IO error, cleanup this listener */
 		loop->vmt->clear(loop, &l->event);
-#ifdef USE_WINSOCK
-		closesocket(l->fd);
-#else
-		close(l->fd);
-#endif
+		_getdns_closesocket(l->fd);
 		l->fd = -1;
 		GETDNS_FREE(*mf, conn);
 		return;
@@ -557,11 +546,7 @@ static void udp_read_cb(void *userarg)
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
 		/* IO error, cleanup this listener. */
 		loop->vmt->clear(loop, &l->event);
-#ifdef USE_WINSOCK
-		closesocket(l->fd);
-#else
-		close(l->fd);
-#endif
+		_getdns_closesocket(l->fd);
 		l->fd = -1;
 
 #if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
@@ -710,11 +695,7 @@ static void remove_listeners(listen_set *set)
 			continue;
 
 		loop->vmt->clear(loop, &l->event);
-#ifdef USE_WINSOCK
-		closesocket(l->fd);
-#else
-		close(l->fd);
-#endif
+		_getdns_closesocket(l->fd);
 		l->fd = -1;
 
 		if (l->transport != GETDNS_TRANSPORT_TCP)

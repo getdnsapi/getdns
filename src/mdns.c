@@ -30,24 +30,6 @@
 
 #ifdef HAVE_MDNS_SUPPORT
 
-#ifdef USE_WINSOCK
-typedef u_short sa_family_t;
-#define _getdns_EWOULDBLOCK (WSAGetLastError() == WSATRY_AGAIN ||\
-                             WSAGetLastError() == WSAEWOULDBLOCK)
-#define _getdns_EINPROGRESS (WSAGetLastError() == WSAEINPROGRESS)
-#else
-#define _getdns_EWOULDBLOCK (errno == EAGAIN || errno == EWOULDBLOCK)
-#define _getdns_EINPROGRESS (errno == EINPROGRESS)
-#define SOCKADDR struct sockaddr
-#define SOCKADDR_IN struct sockaddr_in
-#define SOCKADDR_IN6 struct sockaddr_in6
-#define SOCKET int
-#define IP_MREQ struct ip_mreq
-#define IPV6_MREQ struct ipv6_mreq
-#define BOOL int
-#define TRUE 1
-#endif
-
 /* Define IPV6_ADD_MEMBERSHIP for FreeBSD and Mac OS X */
 #ifndef IPV6_ADD_MEMBERSHIP
 #define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
@@ -1148,7 +1130,8 @@ mdns_udp_multicast_read_cb(void *userarg)
 		sizeof(cnx->response), 0, NULL, NULL);
 
 
-	if (read == -1 && _getdns_EWOULDBLOCK)
+	if (read == -1 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
+		           _getdns_socketerror() == _getdns_ECONNRESET)
 		return; /* TODO: this will stop the receive loop! */
 
 	if (read >= GLDNS_HEADER_SIZE)
@@ -1353,11 +1336,7 @@ static int mdns_open_ipv4_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 
 	if (ret != 0 && fd4 != -1)
 	{
-#ifdef USE_WINSOCK
-			closesocket(fd4);
-#else
-			close(fd4);
-#endif
+			_getdns_closesocket(fd4);
 			fd4 = -1;
 	}
 
@@ -1428,11 +1407,7 @@ static int mdns_open_ipv6_multicast(SOCKADDR_STORAGE* mcast_dest, int* mcast_des
 
 	if (ret != 0 && fd6 != -1)
 	{
-#ifdef USE_WINSOCK
-		closesocket(fd6);
-#else
-		close(fd6);
-#endif
+		_getdns_closesocket(fd6);
 		fd6 = -1;
 	}
 
@@ -1514,11 +1489,7 @@ static getdns_return_t mdns_delayed_network_init(struct getdns_context *context)
 
 							GETDNS_CLEAR_EVENT(context->extension
 								, &context->mdns_connection[i].event);
-#ifdef USE_WINSOCK
-							closesocket(context->mdns_connection[i].fd);
-#else
-							close(context->mdns_connection[i].fd);
-#endif
+							_getdns_closesocket(context->mdns_connection[i].fd);
 						}
 					}
 
@@ -1657,11 +1628,7 @@ void _getdns_mdns_context_destroy(struct getdns_context *context)
 			/* suppress the receive event */
 			GETDNS_CLEAR_EVENT(context->extension, &context->mdns_connection[i].event);
 			/* close the socket */
-#ifdef USE_WINSOCK
-			closesocket(context->mdns_connection[i].fd);
-#else
-			close(context->mdns_connection[i].fd);
-#endif
+			_getdns_closesocket(context->mdns_connection[i].fd);
 		}
 
 		GETDNS_FREE(context->mf, context->mdns_connection);
@@ -1686,11 +1653,7 @@ _getdns_cancel_mdns_request(getdns_network_req *netreq)
 {
 	mdns_cleanup(netreq);
 	if (netreq->fd >= 0) {
-#ifdef USE_WINSOCK
-		closesocket(netreq->fd);
-#else
-		close(netreq->fd);
-#endif
+		_getdns_closesocket(netreq->fd);
 	}
 }
 
@@ -1706,11 +1669,7 @@ mdns_timeout_cb(void *userarg)
 	/* Check the required cleanup */
 	mdns_cleanup(netreq);
 	if (netreq->fd >= 0)
-#ifdef USE_WINSOCK
-		closesocket(netreq->fd);
-#else
-		close(netreq->fd);
-#endif
+		_getdns_closesocket(netreq->fd);
 	_getdns_netreq_change_state(netreq, NET_REQ_TIMED_OUT);
 	if (netreq->owner->user_callback) {
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
@@ -1745,7 +1704,8 @@ mdns_udp_read_cb(void *userarg)
 										  * i.e. overflow
 										  */
 		0, NULL, NULL);
-	if (read == -1 && _getdns_EWOULDBLOCK)
+	if (read == -1 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
+		           _getdns_socketerror() == _getdns_ECONNRESET)
 		return;
 
 	if (read < GLDNS_HEADER_SIZE)
@@ -1759,11 +1719,7 @@ mdns_udp_read_cb(void *userarg)
 	// TODO: check that the source address originates from the local network.
 	// TODO: check TTL = 255
 
-#ifdef USE_WINSOCK
-	closesocket(netreq->fd);
-#else
-	close(netreq->fd);
-#endif
+	_getdns_closesocket(netreq->fd);
 	/* 
 	 * TODO: how to handle an MDNS response with TC bit set?
 	 * Ignore it for now, as we do not support any kind of TCP fallback
@@ -1814,11 +1770,7 @@ mdns_udp_write_cb(void *userarg)
 		netreq->fd, (const void *)netreq->query, pkt_len, 0,
 		(struct sockaddr *)&mdns_mcast_v4,
 		sizeof(mdns_mcast_v4))) {
-#ifdef USE_WINSOCK
-		closesocket(netreq->fd);
-#else
-		close(netreq->fd);
-#endif
+		_getdns_closesocket(netreq->fd);
 		return;
 	}
 	GETDNS_SCHEDULE_EVENT(

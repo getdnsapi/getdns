@@ -1198,7 +1198,7 @@ static void tas_read_cb(void *userarg)
 				return;
 			}
 		}
-	} else if (_getdns_EWOULDBLOCK)
+	} else if (_getdns_socketerror() == _getdns_EWOULDBLOCK)
 		return;
 
 	DEBUG_ANCHOR("Read error: %d %s\n", (int)n, strerror(errno));
@@ -1248,7 +1248,7 @@ static void tas_write_cb(void *userarg)
 		    tas_read_cb, NULL, tas_timeout_cb));
 		return;
 
-	} else if (_getdns_EWOULDBLOCK || _getdns_EINPROGRESS)
+	} else if (_getdns_socketerror() == _getdns_EWOULDBLOCK || _getdns_socketerror() == _getdns_EINPROGRESS)
 		return;
 
 	DEBUG_ANCHOR("Write error: %s\n", strerror(errno));
@@ -1348,8 +1348,8 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 		addr.sin6_scope_id = 0;
 		r = connect(a->fd, (struct sockaddr *)&addr, sizeof(addr));
 	}
-	if (r == 0 || (r == -1 && (_getdns_EINPROGRESS ||
-	                           _getdns_EWOULDBLOCK))) {
+	if (r == 0 || (r == -1 && (_getdns_socketerror() == _getdns_EINPROGRESS ||
+	                           _getdns_socketerror() == _getdns_EWOULDBLOCK))) {
 		char tas_hostname[256];
 		const char *path = "", *fmt;
 		getdns_return_t R;
