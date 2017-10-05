@@ -1131,7 +1131,7 @@ mdns_udp_multicast_read_cb(void *userarg)
 
 
 	if (read == -1 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
-		           _getdns_socketerror() == _getdns_ECONNRESET)
+		           _getdns_socketerror() == _getdns_ECONNRESET))
 		return; /* TODO: this will stop the receive loop! */
 
 	if (read >= GLDNS_HEADER_SIZE)
@@ -1705,7 +1705,7 @@ mdns_udp_read_cb(void *userarg)
 										  */
 		0, NULL, NULL);
 	if (read == -1 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
-		           _getdns_socketerror() == _getdns_ECONNRESET)
+		           _getdns_socketerror() == _getdns_ECONNRESET))
 		return;
 
 	if (read < GLDNS_HEADER_SIZE)
