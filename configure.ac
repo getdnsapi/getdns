@@ -254,7 +254,7 @@ esac
 
 
 DEFAULT_EVENTLOOP=select_eventloop
-AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)
@@ -677,29 +677,29 @@ if test "$USE_WINSOCK" = 1; then
 	LIBS="$LIBS -lgdi32 -liphlpapi"
 fi
 
-dnl Check if -D_POSIX is needed for sigset_t
-
-AC_CHECK_TYPE([sigset_t], [
-	AC_MSG_NOTICE(-D_POSIX is NOT needed for the sigset_t type)
-], [
-	BACKCFLAGS="$CFLAGS"
-	CFLAGS="-D_POSIX $CFLAGS"
-	AC_CHECK_TYPE([sigset_t], [
-		AC_MSG_NOTICE(-D_POSIX is needed for the sigset_t type)
-	], [
-		AC_MSG_NOTICE(Unclear whether -D_POSIX is needed for the sigset_t type)
-		BACKCFLAGS="$CFLAGS"
-	], [AC_INCLUDES_DEFAULT
+dnl sigset_t or _sigset_t? MinGW is latter by default.
+AC_CHECK_TYPES([sigset_t],
+               [],
+               [AC_CHECK_TYPES([_sigset_t],
+                               [],
+                               [AC_MSG_ERROR([Can't find type `sigset_t' or type `_sigset_t'])],
+                               [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-	])
-], [AC_INCLUDES_DEFAULT
+                               ])
+              ],
+              [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
 ])
-
 AC_CHECK_FUNCS(sigemptyset sigfillset sigaddset)
 
 my_with_libidn=1
@@ -1566,11 +1566,14 @@ struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
+#if !defined(HAVE_SIGSET_T) && defined(HAVE__SIGSET_T)
+typedef _sigset_t sigset_t;
+#endif
 #if !defined(HAVE_SIGEMPTYSET)
 #  define sigemptyset(pset)    (*(pset) = 0)
 #endif
 #if !defined(HAVE_SIGFILLSET)
-#  define sigfillset(pset)     (*(pset) = (_sigset_t)-1)
+#  define sigfillset(pset)     (*(pset) = (sigset_t)-1)
 #endif
 #if !defined(HAVE_SIGADDSET)
 #  define sigaddset(pset, num) (*(pset) |= (1L<<(num)))
