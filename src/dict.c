@@ -34,8 +34,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <ctype.h>
 #include "config.h"
+#include <ctype.h>
 #ifndef USE_WINSOCK
 #include <sys/types.h>
 #include <sys/socket.h>
