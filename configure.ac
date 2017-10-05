@@ -589,7 +589,7 @@ case "$enable_ed25519" in
     no)
       ;;
     *)
-      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+      if test "$USE_NSS" = "no" -a "$USE_NETTLE" = "no"; then
               AC_CHECK_DECLS([NID_ED25519], [
                 AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
                 use_ed25519="yes"
