@@ -1376,12 +1376,6 @@ AH_BOTTOM([
 #  include <winsock2.h>
 # endif
 
-# ifndef USE_WINSOCK
-#  define ARG_LL "%ll"
-# else
-#  define ARG_LL "%I64"
-# endif
-
 /* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
 # ifdef HAVE_WINSOCK2_H
 #  define FD_SET_T (u_int)
