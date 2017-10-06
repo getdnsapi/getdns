@@ -29,6 +29,7 @@
 
 #include "debug.h"
 #include "types-internal.h"
+#include "platform.h"
 #include "extension/select_eventloop.h"
 
 static uint64_t get_now_plus(uint64_t amount)
@@ -244,7 +245,7 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 #endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
-		perror("select() failed");
+		_getdns_perror("select() failed");
 		exit(EXIT_FAILURE);
 	}
 #ifdef USE_WINSOCK
