@@ -28,6 +28,7 @@
 #include "config.h"
 
 #include "util-internal.h"
+#include "platform.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -406,7 +407,7 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
         Sleep(poll_timeout);
     } else
 #endif
-	if (poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
+	if (_getdns_poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 		perror("poll() failed");
 		exit(EXIT_FAILURE);
 	}

@@ -80,6 +80,7 @@ typedef unsigned short in_port_t;
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
+#include "platform.h"
 #include "dnssec.h"
 #include "stub.h"
 #include "list.h"
