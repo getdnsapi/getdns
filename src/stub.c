@@ -52,6 +52,7 @@
 #include "rr-iter.h"
 #include "context.h"
 #include "util-internal.h"
+#include "platform.h"
 #include "general.h"
 #include "pubkey-pinning.h"
 

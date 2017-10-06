@@ -40,6 +40,7 @@
 #include "debug.h"
 #include "util/rbtree.h"
 #include "util-internal.h"
+#include "platform.h"
 #include "server.h"
 
 #define DNS_REQUEST_SZ          4096

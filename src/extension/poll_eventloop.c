@@ -28,6 +28,7 @@
 #include "config.h"
 
 #include "util-internal.h"
+#include "platform.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif

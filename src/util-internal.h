@@ -218,46 +218,5 @@ INLINE uint64_t _getdns_ms_until_expiry2(uint64_t expires, uint64_t *now_ms)
 	return *now_ms >= expires ? 0 : expires - *now_ms;
 }
 
-
-#ifdef USE_WINSOCK
-typedef u_short sa_family_t;
-#define _getdns_EAGAIN      (WSATRY_AGAIN)
-#define _getdns_EWOULDBLOCK (WSAEWOULDBLOCK)
-#define _getdns_EINPROGRESS (WSAEINPROGRESS)
-#define _getdns_EMFILE      (WSAEMFILE)
-#define _getdns_ECONNRESET  (WSAECONNRESET)
-
-#define _getdns_closesocket(fd) closesocket(fd)
-#define _getdns_poll(fdarray, nsockets, timer) WSAPoll(fdarray, nsockets, timer)
-#define _getdns_socketerror() (WSAGetLastError())
-#else
-#ifdef HAVE_SYS_POLL_H
-# include <sys/poll.h>
-#else
-# include <poll.h>
-#endif
-
-#define _getdns_EAGAIN      (EAGAIN)
-#define _getdns_EWOULDBLOCK (EWOULDBLOCK)
-#define _getdns_EINPROGRESS (EINPROGRESS)
-#define _getdns_EMFILE      (EMFILE)
-#define _getdns_ECONNRESET  (ECONNRESET)
-
-#define SOCKADDR struct sockaddr
-#define SOCKADDR_IN struct sockaddr_in
-#define SOCKADDR_IN6 struct sockaddr_in6
-#define SOCKADDR_STORAGE struct sockaddr_storage
-#define SOCKET int
-
-#define IP_MREQ struct ip_mreq
-#define IPV6_MREQ struct ipv6_mreq
-#define BOOL int
-#define TRUE 1
-
-#define _getdns_closesocket(fd) close(fd)
-#define _getdns_poll(fdarray, nsockets, timer) poll(fdarray, nsockets, timer)
-#define _getdns_socketerror() (errno)
-#endif
-
 #endif
 /* util-internal.h */

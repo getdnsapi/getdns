@@ -26,6 +26,7 @@
 #include "gldns/pkthdr.h"
 #include "gldns/rrdef.h"
 #include "util-internal.h"
+#include "platform.h"
 #include "mdns.h"
 
 #ifdef HAVE_MDNS_SUPPORT

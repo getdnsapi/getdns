@@ -50,6 +50,7 @@
 #include "gldns/keyraw.h"
 #include "general.h"
 #include "util-internal.h"
+#include "platform.h"
 
 /* get key usage out of its extension, returns 0 if no key_usage extension */
 static unsigned long
