@@ -589,7 +589,7 @@ case "$enable_ed25519" in
     no)
       ;;
     *)
-      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+      if test "$USE_NSS" = "no" -a "$USE_NETTLE" = "no"; then
               AC_CHECK_DECLS([NID_ED25519], [
                 AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
                 use_ed25519="yes"
@@ -1274,7 +1274,7 @@ CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
 ],[
 AC_MSG_WARN([libbsd not found or usable; using embedded code instead])
 ])
-AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
+AC_CHECK_DECLS([inet_pton,inet_ntop,strlcpy,arc4random,arc4random_uniform])
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(strlcpy)
@@ -1449,11 +1449,11 @@ void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
 unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #endif /* COMPAT_SHA512 */
 
-#ifndef HAVE_INET_PTON
+#ifndef HAVE_DECL_INET_PTON
 int inet_pton(int af, const char* src, void* dst);
 #endif /* HAVE_INET_PTON */
 
-#ifndef HAVE_INET_NTOP
+#ifndef HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 

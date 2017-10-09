@@ -80,6 +80,7 @@ typedef unsigned short in_port_t;
 #include "context.h"
 #include "types-internal.h"
 #include "util-internal.h"
+#include "platform.h"
 #include "dnssec.h"
 #include "stub.h"
 #include "list.h"
@@ -704,11 +705,7 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		}
 		if (upstream->fd != -1)
 		{
-#ifdef USE_WINSOCK
-			closesocket(upstream->fd);
-#else
-			close(upstream->fd);
-#endif
+			_getdns_closesocket(upstream->fd);
 		}
 		while (pin) {
 			sha256_pin_t *nextpin = pin->next;
@@ -809,11 +806,7 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 		upstream->tls_obj = NULL;
 	}
 	if (upstream->fd != -1) {
-#ifdef USE_WINSOCK
-		closesocket(upstream->fd);
-#else
-		close(upstream->fd);
-#endif
+		_getdns_closesocket(upstream->fd);
 		upstream->fd = -1;
 	}
 	/* Set connection ready for use again*/

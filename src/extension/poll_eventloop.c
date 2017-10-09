@@ -27,13 +27,8 @@
 
 #include "config.h"
 
-#ifdef HAVE_SYS_POLL_H
-#include <sys/poll.h>
-#else
-#ifndef USE_WINSOCK
-#include <poll.h>
-#endif
-#endif
+#include "util-internal.h"
+#include "platform.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -411,10 +406,8 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
     {
         Sleep(poll_timeout);
     } else
-	if (WSAPoll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
-#else	
-	if (poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 #endif
+	if (_getdns_poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 		perror("poll() failed");
 		exit(EXIT_FAILURE);
 	}

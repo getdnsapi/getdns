@@ -38,17 +38,6 @@
  */
 #define INTERCEPT_COM_DS 0
 
-#ifdef USE_POLL_DEFAULT_EVENTLOOP
-# ifdef HAVE_SYS_POLL_H
-#  include <sys/poll.h>
-# else
-#ifdef USE_WINSOCK
-#define poll(fdarray, nbsockets, timer) WSAPoll(fdarray, nbsockets, timer)
-#else
-#  include <poll.h>
-#endif
-# endif
-#endif
 #include "debug.h"
 #include <openssl/err.h>
 #include <openssl/conf.h>
@@ -63,6 +52,7 @@
 #include "rr-iter.h"
 #include "context.h"
 #include "util-internal.h"
+#include "platform.h"
 #include "general.h"
 #include "pubkey-pinning.h"
 
@@ -426,13 +416,10 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 #endif
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
-		if (_getdns_EINPROGRESS || _getdns_EWOULDBLOCK)
+		if (_getdns_socketerror() == _getdns_EINPROGRESS ||
+		    _getdns_socketerror() == _getdns_EWOULDBLOCK)
 			return fd;
-#ifdef USE_WINSOCK
-		closesocket(fd);
-#else
-		close(fd);
-#endif
+		_getdns_closesocket(fd);
 		return -1;
 	}
 	return fd;
@@ -443,22 +430,13 @@ tcp_connected(getdns_upstream *upstream) {
 	int error = 0;
 	socklen_t len = (socklen_t)sizeof(error);
 	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
-#ifdef USE_WINSOCK
-	if (error == WSAEINPROGRESS)
+	if (error == _getdns_EINPROGRESS)
 		return STUB_TCP_AGAIN;
-	else if (error == WSAEWOULDBLOCK) 
-		return STUB_TCP_WOULDBLOCK;
-	else if (error != 0)
-		return STUB_SETUP_ERROR;
-#else
-	if (error == EINPROGRESS)
-		return STUB_TCP_AGAIN;
-	else if (error == EWOULDBLOCK || error == EAGAIN) 
+	else if (error == _getdns_EWOULDBLOCK || error == _getdns_EAGAIN) 
 		return STUB_TCP_WOULDBLOCK;
 	else if (error != 0) {
 		return STUB_SETUP_ERROR;
 	}
-#endif
 	if (upstream->transport == GETDNS_TRANSPORT_TCP &&
 	    upstream->queries_sent == 0) {
 			upstream->conn_state = GETDNS_CONN_OPEN;
@@ -570,11 +548,7 @@ _getdns_cancel_stub_request(getdns_network_req *netreq)
 	           STUB_DEBUG_CLEANUP, __FUNC__, (void*)netreq);
 	stub_cleanup(netreq);
 	if (netreq->fd >= 0) {
-#ifdef USE_WINSOCK
-		closesocket(netreq->fd);
-#else
-		close(netreq->fd);
-#endif
+		_getdns_closesocket(netreq->fd);
 		netreq->fd = -1;
 	}
 }
@@ -589,11 +563,7 @@ stub_timeout_cb(void *userarg)
 	_getdns_netreq_change_state(netreq, NET_REQ_TIMED_OUT);
 	/* Handle upstream*/
 	if (netreq->fd >= 0) {
-#ifdef USE_WINSOCK
-		closesocket(netreq->fd);
-#else
-		close(netreq->fd);
-#endif
+		_getdns_closesocket(netreq->fd);
 		netreq->fd = -1;
 		netreq->upstream->udp_timeouts++;
 		if (netreq->upstream->udp_timeouts % 100 == 0)
@@ -650,7 +620,7 @@ upstream_setup_timeout_cb(void *userarg)
 #ifdef USE_POLL_DEFAULT_EVENTLOOP
 	fds.fd = upstream->fd;
 	fds.events = POLLOUT;
-	ret = poll(&fds, 1, 0);
+	ret = _getdns_poll(&fds, 1, 0);
 #else
 	FD_ZERO(&fds);
 	FD_SET((int)(upstream->fd), &fds);
@@ -690,7 +660,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 	}
 	read = recv(fd, (void *)tcp->read_pos, tcp->to_read, 0);
 	if (read < 0) {
-		if (_getdns_EWOULDBLOCK)
+		if (_getdns_socketerror() == _getdns_EWOULDBLOCK)
 			return STUB_TCP_WOULDBLOCK;
 		else
 			return STUB_TCP_ERROR;
@@ -807,11 +777,11 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
 #endif
-		if ((written < 0 && (_getdns_EWOULDBLOCK ||
+		if ((written < 0 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
 		/* Add the error case where the connection is in progress which is when
 		   a cookie is not available (e.g. when doing the first request to an
 		   upstream). We must let the handshake complete since non-blocking. */
-		                       _getdns_EINPROGRESS)) ||
+				     _getdns_socketerror() == _getdns_EINPROGRESS)) ||
 		     (size_t)written < pkt_len + 2) {
 
 			/* We couldn't write the whole packet.
@@ -839,15 +809,10 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 		/* Coming back from an earlier unfinished write or handshake.
 		 * Try to send remaining data */
-#ifdef USE_WINSOCK
 		written = send(fd, (void *)(tcp->write_buf + tcp->written),
 			tcp->write_buf_len - tcp->written, 0);
-#else
-		written = write(fd, tcp->write_buf     + tcp->written,
-		                    tcp->write_buf_len - tcp->written);
-#endif
 		if (written == -1) {
-			if (_getdns_EWOULDBLOCK)
+			if (_getdns_socketerror() == _getdns_EWOULDBLOCK)
 				return STUB_TCP_WOULDBLOCK;
 			else {
 				DEBUG_STUB("%s %-35s: MSG: %p error while writing to TCP socket:"
@@ -1386,7 +1351,8 @@ stub_udp_read_cb(void *userarg)
 	                                       * i.e. overflow
 	                                       */
 	    0, NULL, NULL);
-	if (read == -1 && _getdns_EWOULDBLOCK)
+	if (read == -1 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
+		           _getdns_socketerror() == _getdns_ECONNRESET))
 		return; /* Try again later */
 
 	if (read == -1) {
@@ -1398,11 +1364,7 @@ stub_udp_read_cb(void *userarg)
 		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		/* Handle upstream*/
 		if (netreq->fd >= 0) {
-#ifdef USE_WINSOCK
-			closesocket(netreq->fd);
-#else
-			close(netreq->fd);
-#endif
+			_getdns_closesocket(netreq->fd);
 			netreq->fd = -1;
 			stub_next_upstream(netreq);
 		}
@@ -1422,11 +1384,7 @@ stub_udp_read_cb(void *userarg)
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-#ifdef USE_WINSOCK
-	closesocket(netreq->fd);
-#else
-	close(netreq->fd);
-#endif
+	_getdns_closesocket(netreq->fd);
 	netreq->fd = -1;
 	while (GLDNS_TC_WIRE(netreq->response)) {
 		DEBUG_STUB("%s %-35s: MSG: %p TC bit set in response \n", STUB_DEBUG_READ, 
@@ -1519,11 +1477,7 @@ stub_udp_write_cb(void *userarg)
 		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		/* Handle upstream*/
 		if (netreq->fd >= 0) {
-#ifdef USE_WINSOCK
-			closesocket(netreq->fd);
-#else
-			close(netreq->fd);
-#endif
+			_getdns_closesocket(netreq->fd);
 			netreq->fd = -1;
 			stub_next_upstream(netreq);
 		}
@@ -2055,11 +2009,7 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			if (upstream->tls_obj == NULL) {
 				upstream_failed(upstream, 1);
 				_getdns_upstream_reset(upstream);
-#ifdef USE_WINSOCK
-				closesocket(fd);
-#else
-				close(fd);
-#endif
+				_getdns_closesocket(fd);
 				return -1;
 			}
 			upstream->tls_hs_state = GETDNS_HS_WRITE;
@@ -2128,7 +2078,7 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 			continue;
 
 		if (fd == -1) {
-			if (_getdns_EMFILE)
+			if (_getdns_socketerror() == _getdns_EMFILE)
 				return STUB_TRY_AGAIN_LATER;
 			return -1;
 		}

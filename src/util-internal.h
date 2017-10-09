@@ -218,18 +218,5 @@ INLINE uint64_t _getdns_ms_until_expiry2(uint64_t expires, uint64_t *now_ms)
 	return *now_ms >= expires ? 0 : expires - *now_ms;
 }
 
-
-#ifdef USE_WINSOCK
-typedef u_short sa_family_t;
-#define _getdns_EWOULDBLOCK (WSAGetLastError() == WSATRY_AGAIN ||\
-		                             WSAGetLastError() == WSAEWOULDBLOCK)
-#define _getdns_EINPROGRESS (WSAGetLastError() == WSAEINPROGRESS)
-#define _getdns_EMFILE      (WSAGetLastError() == WSAEMFILE)
-#else
-#define _getdns_EWOULDBLOCK (errno == EAGAIN || errno == EWOULDBLOCK)
-#define _getdns_EINPROGRESS (errno == EINPROGRESS)
-#define _getdns_EMFILE      (errno == EMFILE)
-#endif
-
 #endif
 /* util-internal.h */
