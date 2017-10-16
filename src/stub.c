@@ -463,6 +463,36 @@ stub_next_upstream(getdns_network_req *netreq)
 }
 
 static void
+remove_from_write_queue(getdns_upstream *upstream, getdns_network_req * netreq)
+{
+	getdns_network_req *r, *prev_r;
+
+	for ( r = upstream->write_queue, prev_r = NULL
+	    ; r
+	    ; prev_r = r, r = r->write_queue_tail) {
+
+		if (r != netreq)
+			continue;
+
+		if (prev_r)
+			prev_r->write_queue_tail = r->write_queue_tail;
+		else
+			upstream->write_queue = r->write_queue_tail;
+
+		if (r == upstream->write_queue_last) {
+			/* If r was the last netreq,
+			 * its write_queue tail MUST be NULL
+			 */
+			assert(r->write_queue_tail == NULL);
+			upstream->write_queue_last = prev_r ? prev_r : NULL;
+		}
+
+		netreq->write_queue_tail = NULL;
+		break; /* netreq found and removed */
+	}
+}
+
+static void
 stub_cleanup(getdns_network_req *netreq)
 {
 	DEBUG_STUB("%s %-35s: MSG: %p\n",
@@ -481,22 +511,7 @@ stub_cleanup(getdns_network_req *netreq)
 	(void) _getdns_rbtree_delete(&upstream->netreq_by_query_id,
 	    (void *)(intptr_t)GLDNS_ID_WIRE(netreq->query));
 
-	/* Delete from upstream->write_queue (if present) */
-	for (prev_r = NULL, r = upstream->write_queue; r;
-	     prev_r = r, r = r->write_queue_tail)
-
-		if (r == netreq) {
-			if (prev_r)
-				prev_r->write_queue_tail = r->write_queue_tail;
-			else
-				upstream->write_queue = r->write_queue_tail;
-
-			if (r == upstream->write_queue_last)
-				upstream->write_queue_last =
-				    prev_r ? prev_r : NULL;
-			netreq->write_queue_tail = NULL;
-			break;
-		}
+	remove_from_write_queue(upstream, netreq);
 	upstream_reschedule_events(upstream, upstream->keepalive_timeout);
 }
 
@@ -1706,8 +1721,11 @@ upstream_write_cb(void *userarg)
 		upstream->queries_sent++;
 
 		/* Unqueue the netreq from the write_queue */
-		if (!(upstream->write_queue = netreq->write_queue_tail)) {
-			upstream->write_queue_last = NULL;
+		remove_from_write_queue(upstream, netreq);
+
+		/* Empty write_queue?, then deschedule upstream write_cb */
+		if (upstream->write_queue == NULL) {
+			assert(upstream->write_queue_last == NULL);
 			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 			upstream->event.write_cb = NULL;
 			/* Reschedule (if already reading) to clear writable */
