@@ -498,7 +498,6 @@ stub_cleanup(getdns_network_req *netreq)
 	DEBUG_STUB("%s %-35s: MSG: %p\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, (void*)netreq);
 	getdns_dns_req *dnsreq = netreq->owner;
-	getdns_network_req *r, *prev_r;
 	getdns_upstream *upstream;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
