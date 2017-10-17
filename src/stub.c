@@ -551,10 +551,7 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		_getdns_check_dns_req_complete(netreq->owner);
 	}
-	if (during_setup == 0)
-		return;
-
-	else if (during_setup > 0)
+	if (during_setup > 0)
 		_getdns_upstream_reset(upstream);
 	else
 		_getdns_upstream_shutdown(upstream);
@@ -2118,7 +2115,13 @@ upstream_reschedule_events(getdns_upstream *upstream) {
 
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SCHEDULE, 
 	             __FUNC__, upstream->fd);
-	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+	if (upstream->event.ev)
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+
+	if (upstream->fd == -1 || !(  upstream->conn_state == GETDNS_CONN_SETUP
+	                           || upstream->conn_state == GETDNS_CONN_OPEN ))
+		return;
+
 	if (!upstream->write_queue && upstream->event.write_cb) {
 		upstream->event.write_cb = NULL;
 	}
@@ -2138,16 +2141,11 @@ upstream_reschedule_events(getdns_upstream *upstream) {
 		DEBUG_STUB("%s %-35s: FD:  %d Connection idle - timeout is %d\n", 
 			    STUB_DEBUG_SCHEDULE, __FUNC__, upstream->fd,
 			    (int)upstream->keepalive_timeout);
-		/* TODO: Schedule a read also anyway,
-		 *       to digest timed out answers.
-		 *       Dont forget to schedule with upstream->fd then!
-		 *
-		 * upstream->event.read_cb = upstream_read_cb;
-		 */
+
+		upstream->event.read_cb = upstream_read_cb;
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
-		GETDNS_SCHEDULE_EVENT(upstream->loop, -1, 
-		    ( upstream->conn_state == GETDNS_CONN_OPEN
-		    ? upstream->keepalive_timeout : 0), &upstream->event);
+		GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, 
+		    upstream->keepalive_timeout, &upstream->event);
 	}
 }
 

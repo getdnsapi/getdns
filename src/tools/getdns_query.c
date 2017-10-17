@@ -1279,7 +1279,8 @@ void read_line_cb(void *userarg)
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
 			    context, NULL, NULL, NULL);
-		(void) getdns_context_set_idle_timeout(context, 0);
+		(void) getdns_context_set_upstream_recursive_servers(
+		    context, NULL);
 		return;
 	}
 	if (query_file && verbosity)
@@ -1678,16 +1679,22 @@ static void stubby_log(void *userarg, uint64_t system,
 #ifdef GETDNS_ON_WINDOWS
 	time_t tsec;
 
+	if (!verbosity)
+		return;
+
 	gettimeofday(&tv, NULL);
 	tsec = (time_t) tv.tv_sec;
 	gmtime_s(&tm, (const time_t *) &tsec);
 #else
+	if (!verbosity)
+		return;
+
 	gettimeofday(&tv, NULL);
 	gmtime_r(&tv.tv_sec, &tm);
 #endif
 	strftime(buf, 10, "%H:%M:%S", &tm);
 	(void)userarg; (void)system; (void)level;
-	(void) fprintf(stderr, "[%s.%.6d] STUBBY: ", buf, (int)tv.tv_usec);
+	(void) fprintf(stderr, "[%s.%.6d] UPSTREAM ", buf, (int)tv.tv_usec);
 	(void) vfprintf(stderr, fmt, ap);
 }
 
@@ -1741,10 +1748,10 @@ main(int argc, char **argv)
 			(void) parse_config_file(home_stubby_conf_fn, 0);
 		}
 		clear_listen_list_on_arg = 1;
-
-		(void) getdns_context_set_logfunc(context, NULL,
-		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
 	}
+	(void) getdns_context_set_logfunc(context, NULL,
+	    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
+
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
 	clear_listen_list_on_arg = 0;
