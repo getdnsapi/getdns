@@ -83,8 +83,7 @@ static void upstream_write_cb(void *userarg);
 static void upstream_idle_timeout_cb(void *userarg);
 static void upstream_schedule_netreq(getdns_upstream *upstream, 
                                      getdns_network_req *netreq);
-static void upstream_reschedule_events(getdns_upstream *upstream, 
-                                     uint64_t idle_timeout);
+static void upstream_reschedule_events(getdns_upstream *upstream);
 static int  upstream_working_ok(getdns_upstream *upstream);
 static int  upstream_auth_status_ok(getdns_upstream *upstream, 
                                     getdns_network_req *netreq);
@@ -498,20 +497,20 @@ stub_cleanup(getdns_network_req *netreq)
 	DEBUG_STUB("%s %-35s: MSG: %p\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, (void*)netreq);
 	getdns_dns_req *dnsreq = netreq->owner;
-	getdns_upstream *upstream;
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
-	/* Nothing globally scheduled? Then nothing queued */
-	if (!netreq->upstream || !(upstream = netreq->upstream)->event.ev)
-		return;
-
-	/* Delete from upstream->netreq_by_query_id (if present) */
-	(void) _getdns_rbtree_delete(&upstream->netreq_by_query_id,
-	    (void *)(intptr_t)GLDNS_ID_WIRE(netreq->query));
-
-	remove_from_write_queue(upstream, netreq);
-	upstream_reschedule_events(upstream, upstream->keepalive_timeout);
+	if (netreq->query_id_registered) {
+		(void) _getdns_rbtree_delete(
+		    netreq->query_id_registered, netreq->node.key);
+		netreq->query_id_registered = NULL;
+		netreq->node.key = NULL;
+	}
+	if (netreq->upstream) {
+		remove_from_write_queue(netreq->upstream, netreq);
+		if (netreq->upstream->event.ev)
+			upstream_reschedule_events(netreq->upstream);
+	}
 }
 
 static void
@@ -528,14 +527,6 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	if (during_setup) {
 		/* Reset timeout on setup failure to trigger fallback handling.*/
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-		/* Need this check because if the setup failed because the interface is
-		   not up we get -1 and then a seg fault. Found when using IPv6 address
-		   but IPv6 interface not enabled.*/
-		if (upstream->fd != -1) {
-			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd, TIMEOUT_FOREVER,
-			    getdns_eventloop_event_init(&upstream->event, upstream,
-			     NULL, upstream_write_cb, NULL));
-		}
 		/* Special case if failure was due to authentication issues since this
 		   upstream could be used oppotunistically with no problem.*/
 		if (!(upstream->transport == GETDNS_TRANSPORT_TLS &&
@@ -545,6 +536,14 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
 	}
+	upstream->conn_state = GETDNS_CONN_TEARDOWN;
+
+	if (upstream->write_queue) {
+		if (!during_setup)
+			during_setup = -1;
+		while (upstream->write_queue)
+			upstream_write_cb(upstream);
+	}
 	while (upstream->netreq_by_query_id.count) {
 		netreq = (getdns_network_req *)
 		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
@@ -552,7 +551,13 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		_getdns_check_dns_req_complete(netreq->owner);
 	}
-	upstream->conn_state = GETDNS_CONN_TEARDOWN;
+	if (during_setup == 0)
+		return;
+
+	else if (during_setup > 0)
+		_getdns_upstream_reset(upstream);
+	else
+		_getdns_upstream_shutdown(upstream);
 }
 
 void
@@ -613,42 +618,12 @@ upstream_idle_timeout_cb(void *userarg)
 static void
 upstream_setup_timeout_cb(void *userarg)
 {
-	int ret;
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
-#ifdef USE_POLL_DEFAULT_EVENTLOOP
-	struct pollfd fds;
-#else
-	fd_set fds;
-	struct timeval tval;
-#endif
 
 	DEBUG_STUB("%s %-35s: FD:  %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd);
-	/* Clean up and trigger a write to let the fallback code to its job */
-	upstream_failed(upstream, 1);
 
-	/* Need to handle the case where the far end doesn't respond to a
-	 * TCP SYN and doesn't do a reset (as is the case with e.g. 8.8.8.8@853).
-	 * For that case the socket never becomes writable so doesn't trigger any
-	 * callbacks. If so then clear out the queue in one go.*/
-#ifdef USE_POLL_DEFAULT_EVENTLOOP
-	fds.fd = upstream->fd;
-	fds.events = POLLOUT;
-	ret = _getdns_poll(&fds, 1, 0);
-#else
-	FD_ZERO(&fds);
-	FD_SET((int)(upstream->fd), &fds);
-	tval.tv_sec = 0;
-	tval.tv_usec = 0;
-	ret = select(upstream->fd+1, NULL, &fds, NULL, &tval);
-#endif
-	if (ret == 0) {
-		DEBUG_STUB("%s %-35s: FD:  %d Cleaning up dangling queue\n",
-		           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd);
-		while (upstream->write_queue)
-			upstream_write_cb(upstream);
-	}
-	_getdns_upstream_reset(upstream);
+	upstream_failed(upstream, 1);
 }
 
 
@@ -748,6 +723,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 
 		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
+		netreq->query_id_registered = &netreq->upstream->netreq_by_query_id;
 
 		GLDNS_ID_SET(netreq->query, query_id);
 
@@ -1241,6 +1217,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 		} while (!_getdns_rbtree_insert(
 		    &netreq->upstream->netreq_by_query_id, &netreq->node));
+		netreq->query_id_registered = &netreq->upstream->netreq_by_query_id;
 
 		GLDNS_ID_SET(netreq->query, query_id);
 
@@ -1555,12 +1532,9 @@ upstream_read_cb(void *userarg)
 	case STUB_SETUP_ERROR:  /* Can happen for TLS HS*/
 	case STUB_TCP_ERROR:
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1) );
-		if (!upstream->write_queue)
-			_getdns_upstream_shutdown(upstream);
 		return;
 
 	default:
-
 		/* Lookup netreq */
 		query_id = (uint16_t) q;
 		query_id_intptr = (intptr_t) query_id;
@@ -1572,7 +1546,16 @@ upstream_read_cb(void *userarg)
 			upstream->tcp.to_read = 2;
 			return;
 		}
+		if (netreq->query_id_registered == &upstream->netreq_by_query_id) {
+			netreq->query_id_registered = NULL;
+			netreq->node.key = NULL;
 
+		} else if (netreq->query_id_registered) {
+			(void) _getdns_rbtree_delete(
+			    netreq->query_id_registered, netreq->node.key);
+			netreq->query_id_registered = NULL;
+			netreq->node.key = NULL;
+		}
 		DEBUG_STUB("%s %-35s: MSG: %p (read)\n",
 		    STUB_DEBUG_READ, __FUNC__, (void*)netreq);
 		_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
@@ -1685,10 +1668,8 @@ upstream_write_cb(void *userarg)
 		/* Could not complete the set up. Need to fallback.*/
 		DEBUG_STUB("%s %-35s: Upstream: %p ERROR = %d\n", STUB_DEBUG_WRITE,
 		             __FUNC__, (void*)userarg, q);
-		(void) _getdns_rbtree_delete(&upstream->netreq_by_query_id,
-		    (void *)(intptr_t)GLDNS_ID_WIRE(netreq->query));
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1));
-		/* Fall through */
+		return;
 	case STUB_CONN_GONE:
 	case STUB_NO_AUTH:
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
@@ -1702,11 +1683,12 @@ upstream_write_cb(void *userarg)
 			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 			_getdns_check_dns_req_complete(netreq->owner);
 		}
-		if (!upstream->write_queue)
-			_getdns_upstream_shutdown(upstream);
 		return;
 
 	default:
+		/* Unqueue the netreq from the write_queue */
+		remove_from_write_queue(upstream, netreq);
+
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj &&
 		    netreq->debug_tls_peer_cert.data == NULL &&
@@ -1718,9 +1700,6 @@ upstream_write_cb(void *userarg)
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
 		upstream->queries_sent++;
-
-		/* Unqueue the netreq from the write_queue */
-		remove_from_write_queue(upstream, netreq);
 
 		/* Empty write_queue?, then deschedule upstream write_cb */
 		if (upstream->write_queue == NULL) {
@@ -2015,7 +1994,6 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		fd = tcp_connect(upstream, transport);
 		if (fd == -1) {
 			upstream_failed(upstream, 1);
-			_getdns_upstream_reset(upstream);
 			return -1;
 		}
 		upstream->loop = dnsreq->loop;
@@ -2025,7 +2003,6 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 			upstream->tls_obj = tls_create_object(dnsreq, fd, upstream);
 			if (upstream->tls_obj == NULL) {
 				upstream_failed(upstream, 1);
-				_getdns_upstream_reset(upstream);
 				_getdns_closesocket(fd);
 				return -1;
 			}
@@ -2137,7 +2114,7 @@ fallback_on_write(getdns_network_req *netreq)
 }
 
 static void
-upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
+upstream_reschedule_events(getdns_upstream *upstream) {
 
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SCHEDULE, 
 	             __FUNC__, upstream->fd);
@@ -2159,7 +2136,8 @@ upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
 		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
 	else {
 		DEBUG_STUB("%s %-35s: FD:  %d Connection idle - timeout is %d\n", 
-			    STUB_DEBUG_SCHEDULE, __FUNC__, upstream->fd, (int)idle_timeout);
+			    STUB_DEBUG_SCHEDULE, __FUNC__, upstream->fd,
+			    (int)upstream->keepalive_timeout);
 		/* TODO: Schedule a read also anyway,
 		 *       to digest timed out answers.
 		 *       Dont forget to schedule with upstream->fd then!
@@ -2167,10 +2145,9 @@ upstream_reschedule_events(getdns_upstream *upstream, uint64_t idle_timeout) {
 		 * upstream->event.read_cb = upstream_read_cb;
 		 */
 		upstream->event.timeout_cb = upstream_idle_timeout_cb;
-		if (upstream->conn_state != GETDNS_CONN_OPEN)
-			idle_timeout = 0;
 		GETDNS_SCHEDULE_EVENT(upstream->loop, -1, 
-		    idle_timeout, &upstream->event);
+		    ( upstream->conn_state == GETDNS_CONN_OPEN
+		    ? upstream->keepalive_timeout : 0), &upstream->event);
 	}
 }
 
