@@ -1907,8 +1907,8 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		upstream->conn_state = GETDNS_CONN_CLOSED;
 		upstream->conn_backoff_interval = 1;
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-		    "%-40s : No valid upstreams... promoting backed-off upstream %s for re-try...\n",
-	            upstreams->upstreams[i].addr_str);
+		    "%-40s : No valid upstreams... promoting this backed-off upstream for re-try...\n",
+		    upstream->addr_str);
 		return upstream;
 	}
 
