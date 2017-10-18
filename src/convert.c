@@ -724,7 +724,14 @@ getdns_return_t
 _getdns_wire2msg_dict(struct mem_funcs *mf,
     const uint8_t *wire, size_t wire_len, getdns_dict **msg_dict)
 {
-	return _getdns_wire2msg_dict_scan(mf, &wire, &wire_len, msg_dict);
+	getdns_return_t r;
+
+       	if ((r = _getdns_wire2msg_dict_scan(mf, &wire, &wire_len, msg_dict))
+	    || wire_len == 0)
+		return r;
+	else
+		return _getdns_dict_set_const_bindata(
+		    *msg_dict, "trailing_data", wire_len, wire);
 }
 getdns_return_t
 getdns_wire2msg_dict(
@@ -788,6 +795,7 @@ _getdns_reply_dict2wire(
 	getdns_dict *rr_dict;
 	getdns_bindata *qname;
 	int remove_dnssec;
+	getdns_bindata *trailing;
 
 	pkt_start = gldns_buffer_position(buf);
 	if (reuse_header) {
@@ -874,6 +882,9 @@ _getdns_reply_dict2wire(
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ARCOUNT_OFF, n);
 	}
+	if (!getdns_dict_get_bindata(reply, "trailing_data", &trailing))
+		gldns_buffer_write(buf, trailing->data, trailing->size);
+
 	return GETDNS_RETURN_GOOD;
 }
 
