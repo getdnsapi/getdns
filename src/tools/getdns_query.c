@@ -1279,8 +1279,9 @@ void read_line_cb(void *userarg)
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
 			    context, NULL, NULL, NULL);
-		(void) getdns_context_set_upstream_recursive_servers(
-		    context, NULL);
+		if (interactive && !query_file)
+			(void) getdns_context_set_upstream_recursive_servers(
+			    context, NULL);
 		return;
 	}
 	if (query_file && verbosity)
