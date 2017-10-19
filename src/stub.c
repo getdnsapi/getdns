@@ -551,10 +551,7 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
 		_getdns_check_dns_req_complete(netreq->owner);
 	}
-	if (during_setup > 0)
-		_getdns_upstream_reset(upstream);
-	else
-		_getdns_upstream_shutdown(upstream);
+	_getdns_upstream_shutdown(upstream);
 }
 
 void
@@ -957,8 +954,11 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
 #else
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
-			DEBUG_STUB("%s %-35s: ERROR: TLS Authentication functionality not available\n",
+			DEBUG_STUB("%s %-35s: ERROR: Hostname Authentication not available from TLS library (check library version)\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
+			    "%-40s : ERROR: Hostname Authentication not available from TLS library (check library version)\n",
+			    upstream->addr_str);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			return NULL;
 		}
@@ -1843,7 +1843,6 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
-			upstreams->upstreams[i].conn_backoff_interval = 1;
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
 			    "%-40s : Re-instating upstream\n",
 		            upstreams->upstreams[i].addr_str);
