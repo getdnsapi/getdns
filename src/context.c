@@ -733,7 +733,7 @@ void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
 	va_end(args);
 }
 
-void
+static void
 upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_state = GETDNS_CONN_BACKOFF;
 	/* Increase the backoff interval incrementally up to the tls_backoff_time*/
@@ -760,7 +760,7 @@ upstream_backoff(getdns_upstream *upstream) {
 	            asctime(gmtime(&upstream->conn_retry_time)));
 }
 
-void
+static void
 _getdns_upstream_reset(getdns_upstream *upstream)
 {
 	/* Back off connections that never got up service at all (probably no
