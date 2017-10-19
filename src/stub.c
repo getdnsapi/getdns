@@ -524,9 +524,8 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	   when idle.*/
 	/* [TLS1]TODO: Work out how to re-open the connection and re-try
 	   the queries if there is only one upstream.*/
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (during_setup) {
-		/* Reset timeout on setup failure to trigger fallback handling.*/
-		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		/* Special case if failure was due to authentication issues since this
 		   upstream could be used oppotunistically with no problem.*/
 		if (!(upstream->transport == GETDNS_TRANSPORT_TLS &&
@@ -538,12 +537,9 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	}
 	upstream->conn_state = GETDNS_CONN_TEARDOWN;
 
-	if (upstream->write_queue) {
-		if (!during_setup)
-			during_setup = -1;
-		while (upstream->write_queue)
-			upstream_write_cb(upstream);
-	}
+	while (upstream->write_queue)
+		upstream_write_cb(upstream);
+
 	while (upstream->netreq_by_query_id.count) {
 		netreq = (getdns_network_req *)
 		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
