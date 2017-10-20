@@ -77,7 +77,7 @@ C99COMPATFLAGS=@C99COMPATFLAGS@
 DEFAULT_EVENTLOOP_OBJ=@DEFAULT_EVENTLOOP@.lo
 
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
-	list.lo request-internal.lo pubkey-pinning.lo rr-dict.lo \
+	list.lo request-internal.lo platform.lo pubkey-pinning.lo rr-dict.lo \
 	rr-iter.lo server.lo stub.lo sync.lo ub_loop.lo util-internal.lo \
 	mdns.lo
 
@@ -386,6 +386,8 @@ mdns.lo mdns.o: $(srcdir)/mdns.c \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/anchor.h $(srcdir)/general.h $(srcdir)/gldns/rrdef.h $(srcdir)/util-internal.h \
  $(srcdir)/platform.h $(srcdir)/mdns.h $(srcdir)/util/auxiliary/util/fptr_wlist.h $(srcdir)/util/lookup3.h \
  $(srcdir)/util/orig-headers/lookup3.h
+platform.lo platform.o: $(srcdir)/platform.c $(srcdir)/platform.h \
+ config.h
 pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/pubkey-pinning.c \
  config.h \
  $(srcdir)/debug.h \
@@ -588,7 +590,8 @@ select_eventloop.lo select_eventloop.o: $(srcdir)/extension/select_eventloop.c \
  $(srcdir)/debug.h $(srcdir)/types-internal.h \
  getdns/getdns.h \
  getdns/getdns_extra.h \
- $(srcdir)/util/rbtree.h $(srcdir)/util/orig-headers/rbtree.h $(srcdir)/extension/select_eventloop.h
+ $(srcdir)/util/rbtree.h $(srcdir)/util/orig-headers/rbtree.h $(srcdir)/platform.h \
+ $(srcdir)/extension/select_eventloop.h
 stubby.lo stubby.o: $(stubbysrcdir)/src/stubby.c \
  config.h \
  getdns/getdns.h \
