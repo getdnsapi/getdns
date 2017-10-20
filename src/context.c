@@ -733,7 +733,7 @@ void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
 	va_end(args);
 }
 
-void
+static void
 upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_state = GETDNS_CONN_BACKOFF;
 	/* Increase the backoff interval incrementally up to the tls_backoff_time*/
@@ -754,12 +754,13 @@ upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_shutdowns = 0;
 	upstream->conn_backoffs++;
 	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-	    "%-40s : !Backing off this upstream    - Will retry again at %s",
+	    "%-40s : !Backing off this upstream    - Will retry again in %ds at %s",
 	            upstream->addr_str,
+	            upstream->conn_backoff_interval,
 	            asctime(gmtime(&upstream->conn_retry_time)));
 }
 
-void
+static void
 _getdns_upstream_reset(getdns_upstream *upstream)
 {
 	/* Back off connections that never got up service at all (probably no
@@ -800,6 +801,10 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 
 	/* Now TLS stuff*/
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
+	if (upstream->event.ev && upstream->loop) {
+		upstream->loop->vmt->clear(
+		    upstream->loop, &upstream->event);
+	}
 	if (upstream->tls_obj != NULL) {
 		SSL_shutdown(upstream->tls_obj);
 		SSL_free(upstream->tls_obj);
@@ -2769,11 +2774,14 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 	struct addrinfo hints;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-	RETURN_IF_NULL(upstream_list, GETDNS_RETURN_INVALID_PARAMETER);
 
-	r = getdns_list_get_length(upstream_list, &count);
-	if (count == 0 || r != GETDNS_RETURN_GOOD) {
-		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+	if (  !upstream_list
+	   || (r = getdns_list_get_length(upstream_list, &count))
+	   || count == 0) {
+		_getdns_upstreams_dereference(context->upstreams);
+		context->upstreams = NULL;
+		dispatch_updated(context,
+			GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
 	}
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */

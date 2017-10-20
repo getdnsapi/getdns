@@ -557,6 +557,4 @@ int _getdns_context_write_priv_file(getdns_context *context,
 
 int _getdns_context_can_write_appdata(getdns_context *context);
 
-void _getdns_upstream_reset(getdns_upstream *upstream);
-
 #endif /* _GETDNS_CONTEXT_H_ */

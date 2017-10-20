@@ -116,30 +116,24 @@ getdns_sync_data_cleanup(getdns_sync_data *data)
 		upstream = &ctxt->upstreams->upstreams[i];
 		if (upstream->loop != &data->context->sync_eventloop.loop)
 			continue;
-		if (upstream->event.read_cb || upstream->event.write_cb) {
-			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-
-		} else if (upstream->event.timeout_cb) {
-			/* Timeout's at upstream are idle-timeouts only.
-			 * They should be fired on completion of the
-			 * synchronous request.
-			 */
-			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
-			if (upstream->conn_state != GETDNS_CONN_OPEN ||
-			    upstream->keepalive_timeout == 0)
-				(*upstream->event.timeout_cb)(upstream->event.userarg);
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		if (upstream->event.timeout_cb &&
+		    (  upstream->conn_state != GETDNS_CONN_OPEN
+		    || upstream->keepalive_timeout == 0)) {
+			(*upstream->event.timeout_cb)(upstream->event.userarg);
+			upstream->event.timeout_cb = NULL;
 		}
 		upstream->loop = data->context->extension;
 		upstream->is_sync_loop = 0;
-		if (upstream->event.read_cb || upstream->event.write_cb)
-			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
-			    TIMEOUT_FOREVER, &upstream->event);
 
-		else if (upstream->event.timeout_cb &&
-		    upstream->conn_state == GETDNS_CONN_OPEN &&
-		    upstream->keepalive_timeout != 0) {
-			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
-			    upstream->keepalive_timeout, &upstream->event);
+		if (  upstream->event.read_cb || upstream->event.write_cb
+		   || upstream->event.timeout_cb) {
+			GETDNS_SCHEDULE_EVENT(upstream->loop,
+			    (  upstream->event.read_cb
+			    || upstream->event.write_cb ? upstream->fd : -1),
+			    (  upstream->event.timeout_cb
+			    ?  upstream->keepalive_timeout : TIMEOUT_FOREVER ),
+			    &upstream->event);
 		}
 	}
 }
