@@ -59,6 +59,20 @@
 		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
+
+#define DEBUG_NL(...) do {		    \
+		struct timeval tv_dEbUgSyM; \
+		struct tm tm_dEbUgSyM; \
+		char buf_dEbUgSyM[10]; \
+		time_t tsec_dEbUgSyM; \
+		\
+		gettimeofday(&tv_dEbUgSyM, NULL); \
+		tsec_dEbUgSyM = (time_t) tv_dEbUgSyM.tv_sec; \
+		gmtime_s(&tm_dEbUgSyM, (const time_t *) &tsec_dEbUgSyM); \
+		strftime(buf_dEbUgSyM, 10, "%H:%M:%S", &tm_dEbUgSyM); \
+		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (0)
 #else
 #define DEBUG_ON(...) do { \
 		struct timeval tv_dEbUgSyM; \
@@ -71,9 +85,8 @@
 		fprintf(stderr, "[%s.%.6d] ", buf_dEbUgSyM, (int)tv_dEbUgSyM.tv_usec); \
 		fprintf(stderr, __VA_ARGS__); \
 	} while (0)
-#endif
 
-#define DEBUG_NL(...) do { \
+#define DEBUG_NL(...) do {		    \
 		struct timeval tv_dEbUgSyM; \
 		struct tm tm_dEbUgSyM; \
 		char buf_dEbUgSyM[10]; \
@@ -85,7 +98,7 @@
 		fprintf(stderr, __VA_ARGS__); \
 		fprintf(stderr, "\n"); \
 	} while (0)
-
+#endif
 
 #define DEBUG_OFF(...) do {} while (0)
 
