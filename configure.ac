@@ -1270,6 +1270,7 @@ fi
 # system implementation.
 PKG_CHECK_MODULES([LIBBSD],[libbsd-overlay],[
 LIBS="$LIBS $LIBBSD_LIBS"
+STUBBY_LIBS="$STUBBY_LIBS $LIBBSD_LIBS"
 CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
 ],[
 AC_MSG_WARN([libbsd not found or usable; using embedded code instead])
