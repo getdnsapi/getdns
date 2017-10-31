@@ -38,7 +38,7 @@ static uint64_t get_now_plus(uint64_t amount)
 	uint64_t       now;
 
 	if (gettimeofday(&tv, NULL)) {
-		perror("gettimeofday() failed");
+		_getdns_perror("gettimeofday() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
