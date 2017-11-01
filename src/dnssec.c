@@ -934,6 +934,17 @@ static void val_chain_sched_soa(chain_head *head, const uint8_t *dname)
 		val_chain_sched_soa_node(node);
 }
 
+static chain_head *_dnskey_query(const chain_node *node)
+{
+	chain_head *head;
+
+	for (head = node->chains; head; head = head->next)
+		if (head->rrset.rr_type == GETDNS_RRTYPE_DNSKEY &&
+		    head->parent == node)
+			return head;
+	return NULL;
+}
+
 static void val_chain_node_cb(getdns_dns_req *dnsreq);
 static void val_chain_sched_node(chain_node *node)
 {
@@ -951,13 +962,27 @@ static void val_chain_sched_node(chain_node *node)
 	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
 
 	node->lock++;
-	if (! node->dnskey_req /* not scheduled */ &&
-	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
-	    CD_extension(node->chains->netreq->owner),
-	    node, &node->dnskey_req, NULL, val_chain_node_cb))
+	if (! node->dnskey_req) {
+		chain_head *head;
 
-		node->dnskey_req     = NULL;
+		/* Reuse the DNSKEY query if this node is scheduled in the
+		 * context of validating a DNSKEY query, because libunbound
+		 * does not callback from a callback for the same query.
+		 */
 
+		if ((head = _dnskey_query(node))) {
+			DEBUG_SEC("Found DNSKEY head: %p\n", (void *)head);
+			node->dnskey_req     = head->netreq;
+			node->dnskey.pkt     = head->netreq->response;
+			node->dnskey.pkt_len = head->netreq->response_len;
+
+		} else if (_getdns_general_loop(
+		    context, loop, name, GETDNS_RRTYPE_DNSKEY,
+		    CD_extension(node->chains->netreq->owner),
+		    node, &node->dnskey_req, NULL, val_chain_node_cb))
+
+			node->dnskey_req     = NULL;
+	}
 	if (! node->ds_req && node->parent /* not root */ &&
 	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
 	    CD_extension(node->chains->netreq->owner),
@@ -3341,7 +3366,7 @@ void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
-	chain_head *head = dnsreq->chain, *next;
+	chain_head *head = dnsreq->chain, *next, *dnskey_head;
 	chain_node *node;
 	size_t      node_count;
 
@@ -3353,7 +3378,10 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
-			if (node->dnskey_req)
+			if (node->dnskey_req &&
+			    !( (dnskey_head = _dnskey_query(node))
+			     && dnskey_head->netreq == node->dnskey_req))
+
 				_getdns_context_cancel_request(
 				    node->dnskey_req->owner);
 
