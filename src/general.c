@@ -221,7 +221,10 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
-	    || (  dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	    || (   dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	       && (dns_req->dnssec_return_status ||
+	           dns_req->dnssec_return_only_secure ||
+	           dns_req->dnssec_return_all_statuses)
 	       && _getdns_bogus(dns_req))
 	    )) {
 		/* Reschedule timeout for this DNS request
