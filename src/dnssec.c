@@ -802,11 +802,14 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		if (is_synthesized_cname(rrset))
 			continue;
 
+		if (!(rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset))
+		    && _getdns_rr_iter_section(&i->rr_i) != SECTION_ANSWER)
+			continue; /* No sigs in authority section is okayish */
+
 		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
 			continue;
 
-		for ( rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
-		    ; rrsig
+		for ( n_rrsigs = 0; rrsig
 		    ; rrsig = _getdns_rrsig_iter_next(rrsig), n_rrsigs++) {
 			
 			/* Signature, so lookup DS/DNSKEY at signer's name */
