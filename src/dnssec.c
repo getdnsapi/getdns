@@ -2548,6 +2548,11 @@ static int chain_node_get_trusted_keys(
 			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
+		/* ta is the DNSKEY for this name? */
+		if (_dname_equal(ta->name, node->dnskey.name)) {
+			*keys = ta;
+			return GETDNS_DNSSEC_SECURE;
+		}
 		/* ta is parent's ZSK */
 		if ((keytag = key_proves_nonexistance(
 		    mf, now, skew, ta, &node->ds, NULL))) {
@@ -3565,13 +3570,17 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 	fflush(stdout);
 #endif
 
-	if (!records_to_validate || !support_records || !trust_anchors)
+	if (!records_to_validate || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	mf = &records_to_validate->mf;
 
 	/* First convert everything to wire format
 	 */
-	if (!(support = _getdns_list2wire(support_records,
+	
+	if (!support_records)
+		(void) memset((support = support_buf), 0, GLDNS_HEADER_SIZE);
+
+	else if (!(support = _getdns_list2wire(support_records,
 	    support_buf, &support_len, mf)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
