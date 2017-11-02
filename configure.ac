@@ -38,6 +38,17 @@ sinclude(./m4/pkg.m4)
 
 AC_INIT([getdns], [1.2.1], [users@getdnsapi.net], [], [https://getdnsapi.net])
 
+# Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
+# patched to do the same, but frequently (MacOS) not. So add a with option
+# for pid file location, and default it to runstatedir if present.
+default_piddir=${runstatedir:-"${localstatedir}/run"}
+AC_ARG_WITH([piddir],
+  [AS_HELP_STRING([--with-piddir=DIR],
+                  [directory for pid files @<:@default=RUNSTATEDIR or LOCALSTATEDIR/run@:>@])],
+  [],
+  [with_piddir=${default_piddir}])
+AC_SUBST([runstatedir], [$with_piddir])
+
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
