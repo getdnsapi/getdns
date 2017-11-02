@@ -1,6 +1,9 @@
 * 2017-1?-??: Version 1.2.1
   * Bugfix #348: Fix a linking issue in stubby when libbsd is present
     Thanks Remi Gacogne
+  * More robust scheduling; Eliminating a segfault with long running
+    applications.
+  * Miscellaneous Windows portability fixes from Jim Hague.
   * Fix Makefile dependencies for parallel install.
     Thanks ilovezfs
 
