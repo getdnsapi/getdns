@@ -1269,24 +1269,21 @@ getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result);
  * @param  skew            The numer of seconds of skew that is allowed in 
  *                         either direction when checking an RRSIG's 
  *                         Expiration and Inception fields
- * @param  validation_chain The full DNSSEC authentication chain used to validate
- *                          the RR-dicts to validate, including those records,
- *                          all in canonical form and order.
  * @return The dnssec status of validated records or replies, 
  *         GETDNS_DNSSEC_SECURE, GETDNS_DNSSEC_INSECURE,
  *         GETDNS_DNSSEC_INDETERMINATE or GETDNS_DNSSEC_BOGUS, or an error
  *         return code.
  */
 getdns_return_t
-getdns_validate_dnssec3(const getdns_list *to_validate,
+getdns_validate_dnssec2(const getdns_list *to_validate,
     const getdns_list *support_records,
     const getdns_list *trust_anchors,
-    time_t validation_time, uint32_t skew,
-    getdns_list *validation_chain);
+    time_t validation_time, uint32_t skew);
 
 /**
  * Validate replies or resource records.
  *
+ * @see dnssecvalues
  * @param  to_validate     A list of RR-dicts with companion RRSIG-RR-dicts
  *                         which will be validated.  Or a list of reply-dicts
  *                         that will be validated.  The "replies_tree" list
@@ -1307,16 +1304,22 @@ getdns_validate_dnssec3(const getdns_list *to_validate,
  * @param  skew            The numer of seconds of skew that is allowed in 
  *                         either direction when checking an RRSIG's 
  *                         Expiration and Inception fields
+ * @param  validation_chain The full DNSSEC authentication chain used to validate
+ *                          the RR-dicts to validate, including those records,
+ *                          all in canonical form and order will be appended on this
+ *                          list
  * @return The dnssec status of validated records or replies, 
  *         GETDNS_DNSSEC_SECURE, GETDNS_DNSSEC_INSECURE,
  *         GETDNS_DNSSEC_INDETERMINATE or GETDNS_DNSSEC_BOGUS, or an error
  *         return code.
  */
 getdns_return_t
-getdns_validate_dnssec2(const getdns_list *to_validate,
+getdns_validate_dnssec3(const getdns_list *to_validate,
     const getdns_list *support_records,
     const getdns_list *trust_anchors,
-    time_t validation_time, uint32_t skew);
+    time_t validation_time, uint32_t skew,
+    getdns_list *validation_chain);
+
 
 
 /** @}

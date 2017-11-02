@@ -1527,7 +1527,7 @@ static void _getdns_list2wire_buf(gldns_buffer *buf, const getdns_list *l)
 }
 
 uint8_t *_getdns_list2wire(const getdns_list *l,
-    uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;
@@ -1548,7 +1548,7 @@ uint8_t *_getdns_list2wire(const getdns_list *l,
 }
 
 uint8_t *_getdns_reply2wire(
-    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+    getdns_dict *r, uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;

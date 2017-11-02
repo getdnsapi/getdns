@@ -478,7 +478,7 @@ typedef struct chain_head chain_head;
 typedef struct chain_node chain_node;
 
 struct chain_head {
-	struct mem_funcs  my_mf;
+	struct mem_funcs    my_mf;
 
 	size_t              lock;
 
@@ -523,7 +523,7 @@ static void val_chain_sched_ds(chain_head *head, const uint8_t *dname);
 static void val_chain_sched_signer(chain_head *head, _getdns_rrsig_iter *rrsig);
 static void val_chain_sched_soa(chain_head *head, const uint8_t *dname);
 
-static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
+static chain_head *add_rrset2val_chain(const struct mem_funcs *mf,
     chain_head **chain_p, _getdns_rrset *rrset, getdns_network_req *netreq)
 {
 	chain_head *head;
@@ -771,7 +771,7 @@ static int is_synthesized_cname(_getdns_rrset *cname)
  * When a SOA query was successful, a query for DS will follow for that
  * owner name.
  */
-static void add_pkt2val_chain(struct mem_funcs *mf,
+static void add_pkt2val_chain(const struct mem_funcs *mf,
     chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
     getdns_network_req *netreq)
 {
@@ -833,7 +833,7 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
  * checked eventually.
  * But only if we know the question of course...
  */
-static void add_question2val_chain(struct mem_funcs *mf,
+static void add_question2val_chain(const struct mem_funcs *mf,
     chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
     const uint8_t *qname, uint16_t qtype, uint16_t qclass,
     getdns_network_req *netreq)
@@ -1368,7 +1368,7 @@ static int _rr_iter_rdata_cmp(const void *a, const void *b)
  * nc_name will be set to the next closer (within rrset->name).
  */
 #define VAL_RRSET_SPC_SZ 256
-static int _getdns_verify_rrsig(struct mem_funcs *mf,
+static int _getdns_verify_rrsig(const struct mem_funcs *mf,
     _getdns_rrset *rrset, _getdns_rrsig_iter *rrsig, _getdns_rrtype_iter *key, const uint8_t **nc_name)
 {
 	int r;
@@ -1687,7 +1687,7 @@ static int check_dates(time_t now, int32_t skew, int32_t exp, int32_t inc)
 /* Returns whether dnskey signed rrset.  If the rrset was a valid wildcard
  * expansion, nc_name will point to the next closer part of the name in rrset.
  */
-static int dnskey_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
+static int dnskey_signed_rrset(const struct mem_funcs *mf, time_t now, uint32_t skew,
     _getdns_rrtype_iter *dnskey, _getdns_rrset *rrset, const uint8_t **nc_name)
 {
 	_getdns_rrsig_iter rrsig_spc, *rrsig;
@@ -1756,12 +1756,12 @@ static int dnskey_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
 }
 
 static int find_nsec_covering_name(
-    struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
+    const struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
     _getdns_rrset *rrset, const uint8_t *name, int *opt_out);
 
 /* Returns whether a dnskey for keyset signed rrset. */
-static int a_key_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
-    _getdns_rrset *keyset, _getdns_rrset *rrset)
+static int a_key_signed_rrset(const struct mem_funcs *mf, time_t now,
+    uint32_t skew, _getdns_rrset *keyset, _getdns_rrset *rrset)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
 	const uint8_t *nc_name;
@@ -1800,7 +1800,7 @@ static int a_key_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
 /* Returns whether a DS in ds_set matches a dnskey in dnskey_set which in turn
  * signed the dnskey set.
  */
-static int ds_authenticates_keys(struct mem_funcs *mf,
+static int ds_authenticates_keys(const struct mem_funcs *mf,
     time_t now, uint32_t skew, _getdns_rrset *ds_set, _getdns_rrset *dnskey_set)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
@@ -2086,7 +2086,7 @@ static int nsec3_covers_name(
 }
 
 static int find_nsec_covering_name(
-    struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
+    const struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
     _getdns_rrset *rrset, const uint8_t *name, int *opt_out)
 {
 	_getdns_rrset_iter i_spc, *i;
@@ -2186,7 +2186,7 @@ static int find_nsec_covering_name(
 }
 
 static int nsec3_find_next_closer(
-    struct mem_funcs *mf, time_t now, uint32_t skew,
+    const struct mem_funcs *mf, time_t now, uint32_t skew,
     _getdns_rrset *dnskey, _getdns_rrset *rrset,
     const uint8_t *nc_name, int *opt_out)
 {
@@ -2238,7 +2238,7 @@ static int nsec3_find_next_closer(
  * verifying key: it returns keytag + NSEC3_ITERATION_COUNT_HIGH (0x20000)
  */
 static int key_proves_nonexistance(
-    struct mem_funcs *mf, time_t now, uint32_t skew,
+    const struct mem_funcs *mf, time_t now, uint32_t skew,
     _getdns_rrset *keyset, _getdns_rrset *rrset, int *opt_out)
 {
 	_getdns_rrset nsec_rrset, *cover, *ce;
@@ -2522,7 +2522,7 @@ static int key_proves_nonexistance(
  * non-existence of a DS along the path is proofed, and SECURE otherwise.
  */
 static int chain_node_get_trusted_keys(
-    struct mem_funcs *mf, time_t now, uint32_t skew,
+    const struct mem_funcs *mf, time_t now, uint32_t skew,
     chain_node *node, _getdns_rrset *ta, _getdns_rrset **keys)
 {
 	int s, keytag;
@@ -2633,7 +2633,7 @@ static int chain_node_get_trusted_keys(
  * For this first a secure keyset is looked up, with which the keyset is 
  * evaluated.
  */
-static int chain_head_validate_with_ta(struct mem_funcs *mf,
+static int chain_head_validate_with_ta(const struct mem_funcs *mf,
     time_t now, uint32_t skew, chain_head *head, _getdns_rrset *ta)
 {
 	_getdns_rrset *keys;
@@ -2672,8 +2672,8 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 /* The DNSSEC status of the rrset in head is evaluated by trying the trust
  * anchors in tas in turn.  The best outcome counts.
  */
-static int chain_head_validate(struct mem_funcs *mf, time_t now, uint32_t skew,
-    chain_head *head, _getdns_rrset_iter *tas)
+static int chain_head_validate(const struct mem_funcs *mf, time_t now,
+    uint32_t skew, chain_head *head, _getdns_rrset_iter *tas)
 {
 	_getdns_rrset_iter *i;
 	_getdns_rrset *ta, dnskey_ta, ds_ta;
@@ -2822,7 +2822,7 @@ static void chain_clear_netreq_dnssec_status(chain_head *chain)
  * processing each head in turn.  The worst outcome is the dnssec status for
  * the whole.
  */
-static int chain_validate_dnssec(struct mem_funcs *mf,
+static int chain_validate_dnssec(const struct mem_funcs *mf,
     time_t now, uint32_t skew, chain_head *chain, _getdns_rrset_iter *tas)
 {
 	int s = GETDNS_DNSSEC_INDETERMINATE, t;
@@ -3102,21 +3102,20 @@ int _getdns_bogus(getdns_dns_req *dnsreq)
 	return 0;
 }
 
-static void _cleanup_chain(chain_head *chain,
-    getdns_list *val_chain_list, int full)
+static void _append2val_chain_list(
+    chain_head *chain, getdns_list *val_chain_list, int full)
 {
 	chain_head *head, *next, *same_chain;
 	chain_node *node;
 	size_t node_count;
 
-	if (!val_chain_list) {
-		for ( head = chain; head ; head = next ) {
-			next = head->next;
-			GETDNS_FREE(head->my_mf, head);
-		}
+	if (!val_chain_list)
 		return;
-	}
-	/* Walk chain to add values to val_chain_list and to cleanup */
+
+	/* Walk chain to add values to val_chain_list.  We do not cleanup yet.
+	 * The chain will eventually be freed when the dns request is descheduled
+	 * with getdns_context_clear_outbound_request().
+	 */
 	for ( head = chain; head ; head = next ) {
 		next = head->next;
 		if (full && head->node_count && head->signer > 0) {
@@ -3142,7 +3141,6 @@ static void _cleanup_chain(chain_head *chain,
 					    val_chain_list,
 					    node->dnskey_req,
 					    node->dnskey_signer);
-				_getdns_dns_req_free(node->dnskey_req->owner);
 			}
 			if (node->ds_req) {
 				if (val_chain_list)
@@ -3157,16 +3155,10 @@ static void _cleanup_chain(chain_head *chain,
 					 * below a zone cut (closer to head)
 					 */
 					append_empty_ds2val_chain_list(
-					    val_chain_list,
-					    &node->ds);
+					    val_chain_list, &node->ds);
 				}
-				_getdns_dns_req_free(node->ds_req->owner);
-			}
-			if (node->soa_req) {
-				_getdns_dns_req_free(node->soa_req->owner);
 			}
 		}
-		GETDNS_FREE(head->my_mf, head);
 	}
 }
 
@@ -3175,6 +3167,8 @@ static void check_chain_complete(chain_head *chain)
 	getdns_dns_req *dnsreq;
 	getdns_context *context;
 	size_t o;
+	chain_head *head;
+	chain_node *node;
 	getdns_list *val_chain_list;
 	getdns_dict *response_dict;
 	_getdns_rrset_iter tas_iter;
@@ -3322,11 +3316,10 @@ static void check_chain_complete(chain_head *chain)
 	}
 #endif
 	dnsreq->waiting_for_ta = 0;
-	val_chain_list = dnsreq->dnssec_return_validation_chain
-		? getdns_list_create_with_context(context) : NULL;
-
-	_cleanup_chain(chain, val_chain_list,
-	    dnsreq->dnssec_return_full_validation_chain);
+	if ((val_chain_list = dnsreq->dnssec_return_validation_chain
+	                    ? getdns_list_create_with_context(context) : NULL))
+		_append2val_chain_list(chain, val_chain_list,
+		    dnsreq->dnssec_return_full_validation_chain);
 
 	response_dict = _getdns_create_getdns_response(dnsreq);
 	if (val_chain_list) {
@@ -3512,12 +3505,12 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
  *****************************************************************************/
 
 
-static int wire_validate_dnssec(struct mem_funcs *mf,
+static int wire_validate_dnssec(const struct mem_funcs *mf,
     time_t now, uint32_t skew, uint8_t *to_val, size_t to_val_len,
     uint8_t *support, size_t support_len, uint8_t *tas, size_t tas_len,
     getdns_list *validation_chain)
 {
-	chain_head *chain, *head;
+	chain_head *chain, *head, *next_head;
 	chain_node *node;
 
 	uint8_t qname_spc[256];
@@ -3582,8 +3575,13 @@ static int wire_validate_dnssec(struct mem_funcs *mf,
 	    _getdns_rrset_iter_init(
 		    &tas_iter, tas, tas_len, SECTION_ANSWER));
 
-	_cleanup_chain(chain, validation_chain, 1);
+	_append2val_chain_list(chain, validation_chain, 1);
 
+	/* Cleanup the chain */
+	for (head = chain; head; head = next_head) {
+		next_head = head->next;
+		GETDNS_FREE(*mf, head);
+	}
 	return s;
 }
 
@@ -3607,7 +3605,7 @@ getdns_validate_dnssec3(const getdns_list *records_to_validate,
 	       tas_len = sizeof(tas_buf);
 
 	int r = GETDNS_RETURN_MEMORY_ERROR;
-	struct mem_funcs *mf;
+	const struct mem_funcs *mf;
 
 	size_t i;
 	getdns_dict *reply;
@@ -3618,7 +3616,7 @@ getdns_validate_dnssec3(const getdns_list *records_to_validate,
 
 	if (!records_to_validate || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	mf = (struct mem_funcs *)&records_to_validate->mf;
+	mf = &records_to_validate->mf;
 
 	/* First convert everything to wire format
 	 */
