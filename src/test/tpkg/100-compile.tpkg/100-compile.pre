@@ -25,4 +25,4 @@ done
 rm -fr "${BUILDDIR}/build"
 mkdir  "${BUILDDIR}/build"
 cd "${BUILDDIR}/build"
-"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install"
+"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-debug-anchor

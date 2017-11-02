@@ -36,12 +36,12 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.1.3], [users@getdnsapi.net], [], [https://getdnsapi.net])
+AC_INIT([getdns], [1.2.1], [users@getdnsapi.net], [], [https://getdnsapi.net])
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
-AC_SUBST(RELEASE_CANDIDATE, [])
+AC_SUBST(RELEASE_CANDIDATE, [rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -51,7 +51,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01010300])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x010200C1])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -84,10 +84,12 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-1.0.0 had libversion 5:1:4
 # getdns-1.1.0 had libversion 6:0:0
 # getdns-1.1.1 had libversion 6:1:0
-# getdns-1.1.2 has libversion 7:0:1
-# getdns-1.1.3 will have libversion 7:1:1
+# getdns-1.1.2 had libversion 7:0:1
+# getdns-1.1.3 had libversion 7:1:1
+# getdns-1.2.0 had libversion 8:0:2
+# getdns-1.2.1 will have libversion 8:1:2
 #
-GETDNS_LIBVERSION=7:1:1
+GETDNS_LIBVERSION=8:1:2
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -100,7 +102,18 @@ AC_PROG_CC
 AC_PROG_CPP
 
 # Checks for programs.
+HOSTOS="unix"
 AC_CANONICAL_HOST
+case "${host_os}" in
+cygwin*|mingw*)
+	HOSTOS=windows
+	;;
+darwin*)
+	HOSTOS=macos
+	;;
+esac
+AC_SUBST(HOSTOS)
+
 
 CFLAGS="$CFLAGS"
 WPEDANTICFLAG=""
@@ -162,7 +175,8 @@ AC_ARG_ENABLE(debug-stub, AC_HELP_STRING([--enable-debug-stub], [Enable stub deb
 AC_ARG_ENABLE(debug-daemon, AC_HELP_STRING([--enable-debug-daemon], [Enable daemon debugging messages]))
 AC_ARG_ENABLE(debug-sec, AC_HELP_STRING([--enable-debug-sec], [Enable dnssec debugging messages]))
 AC_ARG_ENABLE(debug-server, AC_HELP_STRING([--enable-debug-server], [Enable server debugging messages]))
-AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable all debugging messages]))
+AC_ARG_ENABLE(debug-anchor, AC_HELP_STRING([--enable-debug-anchor], [Enable anchor debugging messages]))
+AC_ARG_ENABLE(all-debugging, AC_HELP_STRING([--enable-all-debugging], [Enable scheduling, stub and dnssec debugging]))
 case "$enable_all_debugging" in
 	yes)
 		enable_debug_req=yes
@@ -171,6 +185,7 @@ case "$enable_all_debugging" in
 		enable_debug_daemon=yes
 		enable_debug_sec=yes
 		enable_debug_server=yes
+		enable_debug_anchor=yes
 		;;
 	no|*)
 		;;
@@ -217,6 +232,13 @@ case "$enable_debug_server" in
 	no|*)
 		;;
 esac
+case "$enable_debug_anchor" in
+	yes)
+		AC_DEFINE_UNQUOTED([ANCHOR_DEBUG], [1], [Define this enable printing of anchor debugging messages.])
+		;;
+	no|*)
+		;;
+esac
 
 
 dnl  Hidden debugging options
@@ -232,7 +254,7 @@ esac
 
 
 DEFAULT_EVENTLOOP=select_eventloop
-AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)
@@ -280,10 +302,65 @@ case "$enable_native_stub_dnssec" in
 		;;
 esac
 
+# check wether strptime also works
+AC_DEFUN([AC_CHECK_STRPTIME_WORKS],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING(whether strptime works)
+if test c${cross_compiling} = cno; then
+AC_RUN_IFELSE([AC_LANG_SOURCE([[
+#define _XOPEN_SOURCE 600
+#include <time.h>
+int main(void) { struct tm tm; char *res;
+res = strptime("2010-07-15T00:00:00+00:00", "%t%Y%t-%t%m%t-%t%d%tT%t%H%t:%t%M%t:%t%S%t", &tm);
+if (!res) return 2;
+res = strptime("20070207111842", "%Y%m%d%H%M%S", &tm);
+if (!res) return 1; return 0; }
+]])] , [eval "ac_cv_c_strptime_works=yes"], [eval "ac_cv_c_strptime_works=no"])
+else
+eval "ac_cv_c_strptime_works=maybe"
+fi
+AC_MSG_RESULT($ac_cv_c_strptime_works)
+if test $ac_cv_c_strptime_works = no; then
+AC_LIBOBJ(strptime)
+else
+AC_DEFINE_UNQUOTED([STRPTIME_WORKS], 1, [use default strptime.])
+fi
+])dnl
+
+AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
+
 # search to set include and library paths right
 # find libidn (no libidn on windows though)
 AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
 ACX_CHECK_GETADDRINFO_WITH_INCLUDES
+
+AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
+	[Set maximum file descriptor number that can be used by select]),
+	[], [withval="no"])
+case "$withval" in
+no)
+	;;
+*)
+	AC_DEFINE_UNQUOTED([FD_SETSIZE], [$withval], [Alternate value for the FD_SETSIZE])
+	my_enable_unbound_event_api=1
+	;;
+esac
+
+#---- check for pthreads library
+AC_ARG_WITH(libpthread, AS_HELP_STRING([--without-libpthread],
+	[Disable libpthread (default is autodetect)]),
+	[], [withval="yes"])
+
+case "$withval" in
+yes)
+	AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
+		AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
+		LIBS="-lpthread $LIBS"
+	], [AC_MSG_WARN([pthreads not available])])
+	;;
+*)
+	;;
+esac
 
 USE_NSS="no"
 # openssl
@@ -512,7 +589,7 @@ case "$enable_ed25519" in
     no)
       ;;
     *)
-      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+      if test "$USE_NSS" = "no" -a "$USE_NETTLE" = "no"; then
               AC_CHECK_DECLS([NID_ED25519], [
                 AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
                 use_ed25519="yes"
@@ -577,6 +654,22 @@ case "$enable_stub_only" in
 		;;
 esac
 
+my_with_yaml=0
+AC_ARG_ENABLE(yaml-config,)
+case "$enable_yaml_config" in
+	yes)
+		AC_DEFINE_UNQUOTED([USE_YAML_CONFIG], [1], [Define this to enable YAML config support.])
+		AC_DEFINE_UNQUOTED([HAVE_GETDNS_YAML2DICT], [1], [Define this to enable getdns_yaml2dict function.])
+
+		GETDNS_XTRA_OBJS="convert_yaml_to_json.lo"
+		my_with_yaml=1
+		;;
+	no|*)
+		GETDNS_XTRA_OBJS=""
+		;;
+esac
+AC_SUBST(GETDNS_XTRA_OBJS)
+
 if test "$USE_WINSOCK" = 1; then
 	AC_MSG_NOTICE([ Building on Windows ... YES! ])
 	AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
@@ -584,6 +677,30 @@ if test "$USE_WINSOCK" = 1; then
 	LIBS="$LIBS -lgdi32 -liphlpapi"
 fi
 
+dnl sigset_t or _sigset_t? MinGW is latter by default.
+AC_CHECK_TYPES([sigset_t],
+               [],
+               [AC_CHECK_TYPES([_sigset_t],
+                               [],
+                               [AC_MSG_ERROR([Can't find type `sigset_t' or type `_sigset_t'])],
+                               [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+                               ])
+              ],
+              [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+])
+AC_CHECK_FUNCS(sigemptyset sigfillset sigaddset)
 
 my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
@@ -689,11 +806,6 @@ then
 		MISSING_SEP=", "
 		found_all_libs=0
 	])
-fi
-
-if test $found_all_libs = 0
-then
-    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
 fi
 
 AC_PATH_PROG([DOXYGEN], [doxygen])
@@ -1010,6 +1122,7 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
+stubby_with_yaml=0
 AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],
 	[Compile and install stubby, the (stub) resolver daemon]),
 	[], [withval="no"])
@@ -1017,38 +1130,88 @@ if test x_$withval = x_yes; then
 	STUBBY="stubby"
 	INSTALL_STUBBY="install-stubby"
 	UNINSTALL_STUBBY="uninstall-stubby"
+	if test $my_with_yaml = 0
+	then
+		STUBBY_XTRA_OBJS="convert_yaml_to_json.lo gbuffer.lo"
+		stubby_with_yaml=1
+		my_with_yaml=1
+	fi
 else
 	STUBBY=""
 	INSTALL_STUBBY=""
 	UNINSTALL_STUBBY=""
+	STUBBY_XTRA_OBJS=""
 fi
 AC_SUBST(STUBBY)
 AC_SUBST(INSTALL_STUBBY)
 AC_SUBST(UNINSTALL_STUBBY)
+AC_SUBST(STUBBY_XTRA_OBJS)
 
-AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
-	[Set maximum file descriptor number that can be used by select]),
-	[], [withval="no"])
-case "$withval" in
-	no)
-		;;
-	*)
-		AC_DEFINE_UNQUOTED([FD_SETSIZE], [$withval], [Alternate value for the FD_SETSIZE])
-		my_enable_unbound_event_api=1
-		;;
-esac
+STUBBY_LIBS=""
+STUBBY_LDFLAGS=""
+
+if test $my_with_yaml = 1
+then
+	if test $stubby_with_yaml = 1
+	then
+		getdns_LIBS="$LIBS"
+		getdns_LDFLAGS="$LDFLAGS"
+		LIBS="$initial_LIBS"
+		LDFLAGS="$initial_LDFLAGS"
+	fi
+	AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
+		[path to libyaml (default: search /usr/local ..)]),
+		[], [withval="yes"])
+	if test x_$withval = x_yes; then
+		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+			if test -f "$dir/include/yaml.h"; then
+				CFLAGS="$CFLAGS -I$dir/include"
+				LDFLAGS="$LDFLAGS -L$dir/lib"
+				AC_MSG_NOTICE([Found libyaml in $dir])
+				break
+			fi
+		done
+	else
+		if test x_$withval != x_no; then
+			CFLAGS="$CFLAGS -I$withval/include"
+			LDFLAGS="$LDFLAGS -L$withval/lib"
+		else
+			if test $stubby_with_yaml = 1
+			then
+    				AC_MSG_ERROR([libyaml required for building Stubby])
+			fi
+			my_with_yaml=0
+		fi
+	fi
+	if test $my_with_yaml = 1
+	then
+		AC_MSG_NOTICE([Checking for dependency libyaml])
+		AC_CHECK_LIB([yaml], [yaml_parser_parse], [], [
+			MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libyaml"
+			MISSING_SEP=", "
+			found_all_libs=0
+		])
+	fi
+	if test $stubby_with_yaml = 1
+	then
+		STUBBY_LDFLAGS="$LDFLAGS"
+		STUBBY_LIBS="$LIBS"
+		LIBS="$getdns_LIBS"
+		LDFLAGS="$getdns_LDFLAGS"
+	fi
+fi
+AC_SUBST(STUBBY_LDFLAGS)
+AC_SUBST(STUBBY_LIBS)
+
+if test $found_all_libs = 0
+then
+    AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
+fi
 
 AC_CONFIG_FILES([Makefile src/Makefile src/version.c src/getdns/getdns.h src/getdns/getdns_extra.h spec/example/Makefile src/test/Makefile src/tools/Makefile doc/Makefile getdns.pc getdns_ext_event.pc])
 if [ test -n "$DOXYGEN" ]
     then AC_CONFIG_FILES([src/Doxyfile])
 fi
-
-
-#---- check for pthreads library
-AC_SEARCH_LIBS([pthread_mutex_init],[pthread], [
-	AC_DEFINE([HAVE_PTHREAD], [1], [Have pthreads library])
-	LIBS="-lpthread $LIBS"
-], [AC_MSG_WARN([pthreads not available])])
 
 AC_MSG_CHECKING([whether the C compiler (${CC-cc}) supports the __func__ variable])
 AC_LANG_PUSH(C)
@@ -1064,7 +1227,7 @@ dnl ----- Start of "Things needed for gldns" section
 dnl -----
 dnl ---------------------------------------------------------------------------
 
-AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h limits.h sys/limits.h],,, [AC_INCLUDES_DEFAULT])
 
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
@@ -1107,11 +1270,12 @@ fi
 # system implementation.
 PKG_CHECK_MODULES([LIBBSD],[libbsd-overlay],[
 LIBS="$LIBS $LIBBSD_LIBS"
+STUBBY_LIBS="$STUBBY_LIBS $LIBBSD_LIBS"
 CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
 ],[
 AC_MSG_WARN([libbsd not found or usable; using embedded code instead])
 ])
-AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
+AC_CHECK_DECLS([inet_pton,inet_ntop,strlcpy,arc4random,arc4random_uniform])
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(strlcpy)
@@ -1187,14 +1351,45 @@ AH_BOTTOM([
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
 # endif
-# define PRIsz "%Iu"
+
+/* the version of the windows API enabled */
+# ifndef WINVER
+#  define WINVER 0x0600 // 0x0502
+# endif
+# ifndef _WIN32_WINNT
+#  define _WIN32_WINNT 0x0600 // 0x0502
+# endif
+# ifdef HAVE_WS2TCPIP_H
+#  include <ws2tcpip.h>
+# endif
+
+# ifdef _MSC_VER
+#  if _MSC_VER >= 1800
+#   define PRIsz "zu"
+#  else
+#   define PRIsz "Iu"
+#  endif
+# else
+#  define PRIsz "Iu"
+# endif
+
+# ifdef HAVE_WINSOCK2_H
+#  include <winsock2.h>
+# endif
+
+/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
+# ifdef HAVE_WINSOCK2_H
+#  define FD_SET_T (u_int)
+# else
+#  define FD_SET_T 
+# endif
 
  /* Windows wants us to use _strdup instead of strdup */
 # ifndef strdup
 #  define strdup _strdup
 # endif
 #else
-# define PRIsz "%zu"
+# define PRIsz "zu"
 #endif
 
 #include <stdint.h>
@@ -1202,34 +1397,6 @@ AH_BOTTOM([
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-
-/* the version of the windows API enabled */
-#ifndef WINVER
-#define WINVER 0x0600 // 0x0502
-#endif
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600 // 0x0502
-#endif
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#endif
-
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-
-#ifndef USE_WINSOCK
-#define ARG_LL "%ll"
-#else
-#define ARG_LL "%I64"
-#endif
-
-/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
-#ifdef HAVE_WINSOCK2_H
-#define FD_SET_T (u_int)
-#else
-#define FD_SET_T 
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -1277,18 +1444,21 @@ void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
 unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #endif /* COMPAT_SHA512 */
 
-#ifndef HAVE_INET_PTON
+#ifndef HAVE_DECL_INET_PTON
 int inet_pton(int af, const char* src, void* dst);
 #endif /* HAVE_INET_PTON */
 
-#ifndef HAVE_INET_NTOP
+#ifndef HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 
 #ifdef USE_WINSOCK
+# ifndef  _CUSTOM_VSNPRINTF
+#  define _CUSTOM_VSNPRINTF
 static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *format, va_list ap)
 { int r = vsnprintf(str, size, format, ap); return r == -1 ? _vscprintf(format, ap) : r; }
-# define vsnprintf _gldns_custom_vsnprintf
+#  define vsnprintf _gldns_custom_vsnprintf
+# endif
 #endif
 
 #ifdef __cplusplus
@@ -1315,6 +1485,10 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 #include <sys/select.h>
 #endif
 
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -1329,6 +1503,20 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
+#endif
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifdef HAVE_SYS_LIMITS_H
+#include <sys/limits.h>
+#endif
+
+#ifdef PATH_MAX
+#define _GETDNS_PATH_MAX PATH_MAX
+#else
+#define _GETDNS_PATH_MAX 2048
 #endif
 
 #ifndef PRIu64
@@ -1363,6 +1551,29 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 # endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
+#define strptime unbound_strptime
+struct tm;
+char *strptime(const char *s, const char *format, struct tm *tm);
+#endif
+
+#if !defined(HAVE_SIGSET_T) && defined(HAVE__SIGSET_T)
+typedef _sigset_t sigset_t;
+#endif
+#if !defined(HAVE_SIGEMPTYSET)
+#  define sigemptyset(pset)    (*(pset) = 0)
+#endif
+#if !defined(HAVE_SIGFILLSET)
+#  define sigfillset(pset)     (*(pset) = (sigset_t)-1)
+#endif
+#if !defined(HAVE_SIGADDSET)
+#  define sigaddset(pset, num) (*(pset) |= (1L<<(num)))
+#endif
+
 #ifdef HAVE_LIBUNBOUND
 # include <unbound.h>
 # ifdef HAVE_UNBOUND_EVENT_H
@@ -1379,6 +1590,10 @@ int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 #   endif
 #  endif
 # endif
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 ])
 

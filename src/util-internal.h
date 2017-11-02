@@ -203,7 +203,7 @@ INLINE uint64_t _getdns_get_now_ms()
 	struct timeval tv;
 
 	(void) gettimeofday(&tv, NULL);
-	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+	return (uint64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 INLINE uint64_t _getdns_ms_until_expiry(uint64_t expires)

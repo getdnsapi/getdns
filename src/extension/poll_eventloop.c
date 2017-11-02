@@ -27,13 +27,8 @@
 
 #include "config.h"
 
-#ifdef HAVE_SYS_POLL_H
-#include <sys/poll.h>
-#else
-#ifndef USE_WINSOCK
-#include <poll.h>
-#endif
-#endif
+#include "util-internal.h"
+#include "platform.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -148,7 +143,7 @@ static uint64_t get_now_plus(uint64_t amount)
 	uint64_t       now;
 
 	if (gettimeofday(&tv, NULL)) {
-		perror("gettimeofday() failed");
+		_getdns_perror("gettimeofday() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
@@ -296,7 +291,8 @@ poll_read_cb(int fd, getdns_eventloop_event *event)
 	(void)fd;
 #endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
-	event->read_cb(event->userarg);
+	if (event && event->read_cb)
+		event->read_cb(event->userarg);
 }
 
 static void
@@ -306,14 +302,16 @@ poll_write_cb(int fd, getdns_eventloop_event *event)
 	(void)fd;
 #endif
 	DEBUG_SCHED( "%s(fd: %d, event: %p)\n", __FUNC__, fd, (void *)event);
-	event->write_cb(event->userarg);
+	if (event && event->write_cb)
+		event->write_cb(event->userarg);
 }
 
 static void
 poll_timeout_cb(getdns_eventloop_event *event)
 {
 	DEBUG_SCHED( "%s(event: %p)\n", __FUNC__, (void *)event);
-	event->timeout_cb(event->userarg);
+	if (event && event->timeout_cb)
+		event->timeout_cb(event->userarg);
 }
 
 static void
@@ -408,11 +406,9 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
     {
         Sleep(poll_timeout);
     } else
-	if (WSAPoll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
-#else	
-	if (poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 #endif
-		perror("poll() failed");
+	if (_getdns_poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
+		_getdns_perror("poll() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = get_now_plus(0);

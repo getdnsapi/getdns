@@ -8,9 +8,11 @@ addons:
     packages:
     - libunbound-dev
     - libidn11-dev
+    - libyaml-dev
     - check
     - libevent-dev
     - libev-dev
+    - libuv-dev
     - valgrind
     - clang
     - wget

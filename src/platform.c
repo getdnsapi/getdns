@@ -1,10 +1,12 @@
-/*
- * \file select_eventloop.h
- * @brief Build in default eventloop extension that uses select.
+/**
+ *
+ * \file platform.c
+ * @brief general functions with platform-dependent implementations
  *
  */
+
 /*
- * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
+ * Copyright (c) 2017, NLnet Labs, Sinodun
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +31,39 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SELECT_EVENTLOOP_H_
-#define SELECT_EVENTLOOP_H_
-#include "config.h"
-#include "getdns/getdns.h"
-#include "getdns/getdns_extra.h"
-#include "types-internal.h"
 
-/* No more than select's capability queries can be outstanding,
- * The number of outstanding timeouts should be less or equal then
- * the number of outstanding queries, so MAX_TIMEOUTS equal to
- * FD_SETSIZE should be safe.
- */
-#define MAX_TIMEOUTS FD_SETSIZE
+#include "platform.h"
 
-/* Eventloop based on select */
-typedef struct _getdns_select_eventloop {
-	getdns_eventloop        loop;
-	getdns_eventloop_event *fd_events[FD_SETSIZE];
-	uint64_t                fd_timeout_times[FD_SETSIZE];
-	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
-	uint64_t                timeout_times[MAX_TIMEOUTS];
-} _getdns_select_eventloop;
+#include <stdio.h>
 
+#ifdef USE_WINSOCK
 
-void
-_getdns_select_eventloop_init(struct mem_funcs *mf, _getdns_select_eventloop *loop);
+void _getdns_perror(const char *str)
+{
+        char msg[256];
+        int errid = WSAGetLastError();
+
+        *msg = '\0';
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+                          FORMAT_MESSAGE_IGNORE_INSERTS,
+                      NULL,
+                      errid,
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                      msg,
+                      sizeof(msg),
+                      NULL);
+        if (*msg == '\0')
+                sprintf(msg, "Unknown error: %d", errid);
+        if (str && *str != '\0')
+                fprintf(stderr, "%s: ", str);
+        fputs(msg, stderr);
+}
+
+#else
+
+void _getdns_perror(const char *str)
+{
+        perror(str);
+}
 
 #endif

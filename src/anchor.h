@@ -1,10 +1,11 @@
-/*
- * \file select_eventloop.h
- * @brief Build in default eventloop extension that uses select.
+/**
+ *
+ * /brief functions for DNSSEC trust anchor management
  *
  */
+
 /*
- * Copyright (c) 2013, NLNet Labs, Verisign, Inc.
+ * Copyright (c) 2017, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,31 +30,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SELECT_EVENTLOOP_H_
-#define SELECT_EVENTLOOP_H_
-#include "config.h"
+
+#ifndef ANCHOR_H_
+#define ANCHOR_H_
+
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
-#include "types-internal.h"
+#include <time.h>
+#include "rr-iter.h"
 
-/* No more than select's capability queries can be outstanding,
- * The number of outstanding timeouts should be less or equal then
- * the number of outstanding queries, so MAX_TIMEOUTS equal to
- * FD_SETSIZE should be safe.
- */
-#define MAX_TIMEOUTS FD_SETSIZE
+void _getdns_context_equip_with_anchor(getdns_context *context, uint64_t *now_ms);
 
-/* Eventloop based on select */
-typedef struct _getdns_select_eventloop {
-	getdns_eventloop        loop;
-	getdns_eventloop_event *fd_events[FD_SETSIZE];
-	uint64_t                fd_timeout_times[FD_SETSIZE];
-	getdns_eventloop_event *timeout_events[MAX_TIMEOUTS];
-	uint64_t                timeout_times[MAX_TIMEOUTS];
-} _getdns_select_eventloop;
+void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop);
 
+#define MAX_KSKS        16
+#define RRSIG_RDATA_LEN 16
+typedef struct _getdns_ksks {
+	size_t   n;
+	uint16_t ids[MAX_KSKS];
+	size_t   n_rrsigs;
+	uint8_t  rrsigs[MAX_KSKS][RRSIG_RDATA_LEN];
+} _getdns_ksks;
 
-void
-_getdns_select_eventloop_init(struct mem_funcs *mf, _getdns_select_eventloop *loop);
+void _getdns_context_update_root_ksk(
+    getdns_context *context, _getdns_rrset *dnskey_set);
 
 #endif
+/* anchor.h */

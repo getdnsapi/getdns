@@ -46,6 +46,10 @@ typedef unsigned short in_port_t;
 #include <wincrypt.h>
 #endif
 
+#ifdef HAVE_GETDNS_YAML2DICT
+getdns_return_t getdns_yaml2dict(const char *, getdns_dict **dict);
+#endif
+
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 static int verbosity = 0;
@@ -215,7 +219,8 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
-	fprintf(out, "\t\tThe file must be in json dict format.\n");
+	fprintf(out, "\t\tThe file must be in YAML format (with extension of '.yml')\n");
+	fprintf(out, "\t\tor JSON dict format (with extension '.conf')\n");
 	if (i_am_stubby) {
 		fprintf(out, "\t\tBy default, configuration is first read from");
 		fprintf(out, "\n\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"\n");
@@ -346,7 +351,7 @@ static getdns_return_t validate_chain(getdns_dict *response)
 		if ((r = getdns_list_set_dict(to_validate, 0, reply)))
 			goto error;
 
-		if (verbosity) printf("reply "PRIsz", dnssec_status: ", i);
+		if (verbosity) printf("reply %d, dnssec_status: ", (int)i);
 		switch ((s = getdns_validate_dnssec(
 		    to_validate, validation_chain, trust_anchor))) {
 
@@ -478,16 +483,25 @@ done:
 	return r;
 }
 
-static void parse_config(const char *config_str)
+static void parse_config(const char *config_str, int yaml_config)
 {
 	getdns_dict *config_dict;
 	getdns_list *list;
 	getdns_return_t r;
 
-	if ((r = getdns_str2dict(config_str, &config_dict)))
+	if (yaml_config) {
+#ifdef USE_YAML_CONFIG		
+		r = getdns_yaml2dict(config_str, &config_dict);
+#else
+		fprintf(stderr, "Support for YAML configuration files not available.\n");
+		return;
+#endif		
+	} else {
+		r = getdns_str2dict(config_str, &config_dict);
+	}
+	if (r)
 		fprintf(stderr, "Could not parse config file: %s\n",
 		    getdns_get_errorstr_by_id(r));
-
 	else {
 		if (!(r = getdns_dict_get_list(
 		    config_dict, "listen_addresses", &list))) {
@@ -535,6 +549,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 	FILE *fh;
 	char *config_file = NULL;
 	long config_file_sz;
+	size_t read_sz;
 
 	if (!(fh = fopen(fn, "r"))) {
 		if (report_open_failure)
@@ -559,15 +574,16 @@ int parse_config_file(const char *fn, int report_open_failure)
 		return GETDNS_RETURN_MEMORY_ERROR;
 	}
 	rewind(fh);
-	if (fread(config_file, 1, config_file_sz, fh) != (size_t)config_file_sz) {
+	read_sz = fread(config_file, 1, config_file_sz + 1, fh);
+	if (read_sz > (size_t)config_file_sz || ferror(fh) || !feof(fh)) {
 		fprintf( stderr, "An error occurred while reading \"%s\": %s\n"
 		       , fn, strerror(errno));
 		fclose(fh);
 		return GETDNS_RETURN_MEMORY_ERROR;
 	}
-	config_file[config_file_sz] = 0;
+	config_file[read_sz] = 0;
 	fclose(fh);
-	parse_config(config_file);
+	parse_config(config_file, strstr(fn, ".yml") != NULL);
 	free(config_file);
 	return GETDNS_RETURN_GOOD;
 }
@@ -656,7 +672,7 @@ getdns_return_t parse_args(int argc, char **argv)
 			}
 			continue;
 		} else if (arg[0] == '{') {
-			parse_config(arg);
+			parse_config(arg, 0);
 			continue;
 
 		} else if (arg[0] != '-') {
@@ -1071,11 +1087,11 @@ next:		;
 		/* apply the accumulated pubkey pinset to all upstreams: */
 		for (j = 0; j < upstream_count; j++) {
 			if (r = getdns_list_get_dict(upstream_list, j, &upstream), r) {
-				fprintf(stderr, "Failed to get upstream "PRIsz" when adding pinset\n", j);
+				fprintf(stderr, "Failed to get upstream %d when adding pinset\n", (int)j);
 				return r;
 			}
 			if (r = getdns_dict_set_list(upstream, "tls_pubkey_pinset", pubkey_pinset), r) {
-				fprintf(stderr, "Failed to set pubkey pinset on upstream "PRIsz"\n", j);
+				fprintf(stderr, "Failed to set pubkey pinset on upstream %d\n", (int)j);
 				return r;
 			}
 		}
@@ -1269,7 +1285,9 @@ void read_line_cb(void *userarg)
 		if (listen_count)
 			(void) getdns_context_set_listen_addresses(
 			    context, NULL, NULL, NULL);
-		(void) getdns_context_set_idle_timeout(context, 0);
+		if (interactive && !query_file)
+			(void) getdns_context_set_upstream_recursive_servers(
+			    context, NULL);
 		return;
 	}
 	if (query_file && verbosity)
@@ -1668,16 +1686,22 @@ static void stubby_log(void *userarg, uint64_t system,
 #ifdef GETDNS_ON_WINDOWS
 	time_t tsec;
 
+	if (!verbosity)
+		return;
+
 	gettimeofday(&tv, NULL);
 	tsec = (time_t) tv.tv_sec;
 	gmtime_s(&tm, (const time_t *) &tsec);
 #else
+	if (!verbosity)
+		return;
+
 	gettimeofday(&tv, NULL);
 	gmtime_r(&tv.tv_sec, &tm);
 #endif
 	strftime(buf, 10, "%H:%M:%S", &tm);
 	(void)userarg; (void)system; (void)level;
-	(void) fprintf(stderr, "[%s.%.6d] STUBBY: ", buf, (int)tv.tv_usec);
+	(void) fprintf(stderr, "[%s.%.6d] UPSTREAM ", buf, (int)tv.tv_usec);
 	(void) vfprintf(stderr, fmt, ap);
 }
 
@@ -1725,16 +1749,16 @@ main(int argc, char **argv)
 		                      , "%s/.stubby.conf"
 		                      , getenv("HOME")
 		                      );
-		(void) parse_config(default_stubby_config);
+		(void) parse_config(default_stubby_config, 0);
 		(void) parse_config_file("/etc/stubby.conf", 0);
 		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
 			(void) parse_config_file(home_stubby_conf_fn, 0);
 		}
 		clear_listen_list_on_arg = 1;
-
-		(void) getdns_context_set_logfunc(context, NULL,
-		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
 	}
+	(void) getdns_context_set_logfunc(context, NULL,
+	    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
+
 	if ((r = parse_args(argc, argv)))
 		goto done_destroy_context;
 	clear_listen_list_on_arg = 0;

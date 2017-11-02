@@ -107,6 +107,12 @@ network_req_cleanup(getdns_network_req *net_req)
 {
 	assert(net_req);
 
+	if (net_req->query_id_registered) {
+		(void) _getdns_rbtree_delete(
+		    net_req->query_id_registered, net_req->node.key);
+		net_req->query_id_registered = NULL;
+		net_req->node.key = NULL;
+	}
 	if (net_req->response && (net_req->response < net_req->wire_data ||
 	    net_req->response > net_req->wire_data+ net_req->wire_data_sz))
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
@@ -123,6 +129,12 @@ netreq_reset(getdns_network_req *net_req)
 	 */
 	net_req->unbound_id = -1;
 	_getdns_netreq_change_state(net_req, NET_REQ_NOT_SENT);
+	if (net_req->query_id_registered) {
+		(void) _getdns_rbtree_delete(net_req->query_id_registered,
+		    (void *)(intptr_t)GLDNS_ID_WIRE(net_req->query));
+		net_req->query_id_registered = NULL;
+		net_req->node.key = NULL;
+	}
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->response_len = 0;
@@ -170,7 +182,12 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->transport_count = owner->context->dns_transport_count;
 	memcpy(net_req->transports, owner->context->dns_transports,
 	    net_req->transport_count * sizeof(getdns_transport_list_t));
-	net_req->tls_auth_min = owner->context->tls_auth_min;
+	net_req->tls_auth_min =
+	       owner->context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED
+	    && owner->context->dns_transport_count == 1
+	    && owner->context->dns_transports[0] == GETDNS_TRANSPORT_TLS
+	    ? GETDNS_AUTHENTICATION_REQUIRED
+	    : GETDNS_AUTHENTICATION_NONE;
 
 	net_req->follow_redirects = owner->context->follow_redirects;
 
@@ -191,6 +208,11 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	/* Scheduling, touch only via _getdns_netreq_change_state!
 	 */
 	net_req->state = NET_REQ_NOT_SENT;
+	/* A registered netreq (on a statefull transport)
+	 * Deregister on reset and cleanup.
+	 */
+	net_req->query_id_registered = NULL;
+	net_req->node.key = NULL;
 
 	if (max_query_sz == 0) {
 		net_req->query    = NULL;
@@ -914,6 +936,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		dnssec_return_full_validation_chain;
 	result->dnssec_return_validation_chain = dnssec_return_validation_chain
 	     || dnssec_return_full_validation_chain;
+	result->dnssec_extension_set           = dnssec_extension_set;
 	result->edns_cookies                   = edns_cookies;
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	result->dnssec_roadblock_avoidance     = dnssec_roadblock_avoidance;
@@ -940,8 +963,10 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		result->upstreams->referenced++;
 
 	result->finished_next = NULL;
+	result->ta_notify = NULL;
 	result->freed = NULL;
 	result->validating = 0;
+	result->waiting_for_ta = 0;
 	result->is_dns_request = 1;
 	result->request_timed_out = 0;
 	result->chain = NULL;

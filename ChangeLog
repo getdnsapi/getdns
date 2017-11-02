@@ -1,3 +1,33 @@
+* 2017-1?-??: Version 1.2.1
+  * Bugfix #348: Fix a linking issue in stubby when libbsd is present
+    Thanks Remi Gacogne
+  * Fix Makefile dependencies for parallel install.
+    Thanks ilovezfs
+
+* 2017-09-29: Version 1.2.0
+  * Bugfix of rc1: authentication of first query with TLS
+    Thanks Travis Burtrum
+  * A function to set the location for library specific data,
+    like trust-anchors: getdns_context_set_appdata().
+  * Zero configuration DNSSEC - build upon the scheme
+    described in RFC7958.  The URL from which to fetch
+    the trust anchor, the verification CA and email
+    can be set with the new getdns_context_set_trust_anchor_url(),
+    getdns_context_set_trust_anchor_verify_CA() and
+    getdns_context_set_trust_anchor_verify_email() functions.
+    The default values are to fetch from IANA and to validate
+    with the ICANN CA.
+  * Update of Stubby with yaml configuration file and
+    logging from a certain severity support.
+  * Fix tpkg exit status on test failure. Thanks Jim Hague.
+  * Refined logging levels for upstream statistics
+  * Reuse (best behaving) backed-off TLS upstreams when non are usable.
+  * Let TLS upstreams back-off a incremental amount of time.
+    Back-off time starts with 1 second and is doubled each failure, but
+    will not exceed the time given by getdns_context_set_tls_backoff_time()
+  * Make TLS upstream management more resilient to temporary outages
+    (like laptop sleeps)
+
 * 2017-09-04: Version 1.1.3
   * Small bugfixes that came out of static analysis
   * No annotations with the output of getdns_query anymore,

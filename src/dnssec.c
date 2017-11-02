@@ -209,6 +209,7 @@
 #include "dict.h"
 #include "list.h"
 #include "util/val_secalgo.h"
+#include "anchor.h"
 
 #define SIGNATURE_VERIFIED         0x10000
 #define NSEC3_ITERATION_COUNT_HIGH 0x20000
@@ -601,7 +602,7 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	dname_len = *labels - last_label[-1] + 1;
 	head_sz = (sizeof(chain_head) + dname_len + 7) / 8 * 8;
 	node_count = last_label - labels - max_labels;
-	DEBUG_SEC( PRIsz" labels in common. "PRIsz" labels to allocate\n"
+	DEBUG_SEC( "%"PRIsz" labels in common. %"PRIsz" labels to allocate\n"
 	         , max_labels, node_count);
 
 	if (! (region = GETDNS_XMALLOC(*mf, uint8_t, head_sz + 
@@ -801,11 +802,14 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		if (is_synthesized_cname(rrset))
 			continue;
 
+		if (!(rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset))
+		    && _getdns_rr_iter_section(&i->rr_i) != SECTION_ANSWER)
+			continue; /* No sigs in authority section is okayish */
+
 		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
 			continue;
 
-		for ( rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
-		    ; rrsig
+		for ( n_rrsigs = 0; rrsig
 		    ; rrsig = _getdns_rrsig_iter_next(rrsig), n_rrsigs++) {
 			
 			/* Signature, so lookup DS/DNSKEY at signer's name */
@@ -933,6 +937,17 @@ static void val_chain_sched_soa(chain_head *head, const uint8_t *dname)
 		val_chain_sched_soa_node(node);
 }
 
+static chain_head *_dnskey_query(const chain_node *node)
+{
+	chain_head *head;
+
+	for (head = node->chains; head; head = head->next)
+		if (head->rrset.rr_type == GETDNS_RRTYPE_DNSKEY &&
+		    head->parent == node)
+			return head;
+	return NULL;
+}
+
 static void val_chain_node_cb(getdns_dns_req *dnsreq);
 static void val_chain_sched_node(chain_node *node)
 {
@@ -950,13 +965,27 @@ static void val_chain_sched_node(chain_node *node)
 	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
 
 	node->lock++;
-	if (! node->dnskey_req /* not scheduled */ &&
-	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
-	    CD_extension(node->chains->netreq->owner),
-	    node, &node->dnskey_req, NULL, val_chain_node_cb))
+	if (! node->dnskey_req) {
+		chain_head *head;
 
-		node->dnskey_req     = NULL;
+		/* Reuse the DNSKEY query if this node is scheduled in the
+		 * context of validating a DNSKEY query, because libunbound
+		 * does not callback from a callback for the same query.
+		 */
 
+		if ((head = _dnskey_query(node))) {
+			DEBUG_SEC("Found DNSKEY head: %p\n", (void *)head);
+			node->dnskey_req     = head->netreq;
+			node->dnskey.pkt     = head->netreq->response;
+			node->dnskey.pkt_len = head->netreq->response_len;
+
+		} else if (_getdns_general_loop(
+		    context, loop, name, GETDNS_RRTYPE_DNSKEY,
+		    CD_extension(node->chains->netreq->owner),
+		    node, &node->dnskey_req, NULL, val_chain_node_cb))
+
+			node->dnskey_req     = NULL;
+	}
 	if (! node->ds_req && node->parent /* not root */ &&
 	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
 	    CD_extension(node->chains->netreq->owner),
@@ -1423,7 +1452,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 		/* More space needed for val_rrset */
 		val_rrset = GETDNS_XMALLOC(*mf, _getdns_rr_iter, n_rrs);
 	}
-	DEBUG_SEC( "sizes: "PRIsz" rrs, "PRIsz" bytes for validation buffer\n"
+	DEBUG_SEC( "sizes: %"PRIsz" rrs, %"PRIsz" bytes for validation buffer\n"
 	         , n_rrs, valbuf_sz);
 
 	qsort(val_rrset, n_rrs, sizeof(_getdns_rr_iter), _rr_iter_rdata_cmp);
@@ -1480,7 +1509,7 @@ static int _getdns_verify_rrsig(struct mem_funcs *mf,
 		gldns_buffer_write_u16_at(&valbuf, pos, 
 		    (uint16_t)(gldns_buffer_position(&valbuf) - pos - 2));
 	}
-	DEBUG_SEC( "written to valbuf: "PRIsz" bytes\n"
+	DEBUG_SEC( "written to valbuf: %"PRIsz" bytes\n"
 	         , gldns_buffer_position(&valbuf));
 	assert(gldns_buffer_position(&valbuf) <= valbuf_sz);
 
@@ -1902,7 +1931,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 				if (digest_buf != digest_buf_spc)
 					GETDNS_FREE(*mf, digest_buf);
 
-				DEBUG_SEC("HASH length mismatch "PRIsz" != "PRIsz"\n",
+				DEBUG_SEC("HASH length mismatch %"PRIsz" != %"PRIsz"\n",
 					digest_len, ds->rr_i.nxt - ds->rr_i.rr_type-14);
 				continue;
 			}
@@ -1925,7 +1954,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 			max_supported_result = SIGNATURE_VERIFIED | keytag;
 		}
 	}
-	DEBUG_SEC("valid_dsses: "PRIsz", supported_dsses: "PRIsz"\n",
+	DEBUG_SEC("valid_dsses: %"PRIsz", supported_dsses: %"PRIsz"\n",
 			valid_dsses, supported_dsses);
 	if (valid_dsses && !supported_dsses)
 		return NO_SUPPORTED_ALGORITHMS;
@@ -2522,6 +2551,11 @@ static int chain_node_get_trusted_keys(
 			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
+		/* ta is the DNSKEY for this name? */
+		if (_dname_equal(ta->name, node->dnskey.name)) {
+			*keys = ta;
+			return GETDNS_DNSSEC_SECURE;
+		}
 		/* ta is parent's ZSK */
 		if ((keytag = key_proves_nonexistance(
 		    mf, now, skew, ta, &node->ds, NULL))) {
@@ -2544,8 +2578,13 @@ static int chain_node_get_trusted_keys(
 	} else
 		return GETDNS_DNSSEC_BOGUS;
 
-	if (GETDNS_DNSSEC_SECURE != (s = chain_node_get_trusted_keys(
-	    mf, now, skew, node->parent, ta, keys)))
+	s = chain_node_get_trusted_keys(mf, now, skew, node->parent, ta, keys);
+	/* Set dnssec status on root DNSKEY request (for TA management) */
+	if (!node->parent && node->dnskey_req &&
+	     node->dnskey.name && *node->dnskey.name == 0)
+		node->dnskey_req->dnssec_status = s;
+
+	if (s != GETDNS_DNSSEC_SECURE)
 		return s;
 
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
@@ -2750,6 +2789,33 @@ static void chain_set_netreq_dnssec_status(chain_head *chain, _getdns_rrset_iter
 		}
 	}
 }
+
+static void chain_clear_netreq_dnssec_status(chain_head *chain)
+{
+	chain_head *head;
+	size_t      node_count;
+	chain_node *node;
+
+	/* The netreq status is the worst for any head */
+	for (head = chain; head; head = head->next) {
+		if (!head->netreq)
+			continue;
+
+		head->netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+		for ( node_count = head->node_count, node = head->parent
+		    ; node && node_count ; node_count--, node = node->parent ) {
+
+			node->ds_signer = -1;
+			node->dnskey_signer = -1;
+
+			if ( ! node->parent && node->dnskey_req
+			    && node->dnskey.name && !*node->dnskey.name) {
+				node->dnskey_req->dnssec_status =
+				    GETDNS_DNSSEC_INDETERMINATE;
+			}
+		}
+	}
+}
 #endif
 
 /* The DNSSEC status of all heads for a chain structure is evaluated by 
@@ -2905,6 +2971,26 @@ static void append_rrset2val_chain_list(
 	    _getdns_list_append_this_dict(val_chain_list, rr_dict))
 		getdns_dict_destroy(rr_dict);
 
+	/* Append the other RRSIGs, which were not used for validation too,
+	 * because other validators might not have the same algorithm support.
+	 */
+	for ( rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset)
+	    ; rrsig
+	    ; rrsig = _getdns_rrsig_iter_next(rrsig)) {
+
+		if (rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28)
+			continue;
+
+		if (gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+		    == (signer & 0xFFFF))
+			continue;
+
+		orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
+		if ((rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+		    &val_chain_list->mf, &rrsig->rr_i, &orig_ttl)) &&
+		    _getdns_list_append_this_dict(val_chain_list, rr_dict))
+			getdns_dict_destroy(rr_dict);
+	}
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(val_chain_list->mf, val_rrset);
 }
@@ -2999,6 +3085,22 @@ static void append_empty_ds2val_chain_list(
 	if (_getdns_list_append_this_dict(val_chain_list, rr_dict))
 		getdns_dict_destroy(rr_dict);
 }
+static inline chain_node *_to_the_root(chain_node *node)
+{
+	while (node->parent) node = node->parent;
+	return node;
+}
+
+int _getdns_bogus(getdns_dns_req *dnsreq)
+{
+	getdns_network_req **netreq_p, *netreq;
+
+	for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
+		if (netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
+			return 1;
+	}
+	return 0;
+}
 
 static void _cleanup_chain(chain_head *chain,
     getdns_list *val_chain_list, int full)
@@ -3078,30 +3180,40 @@ static void check_chain_complete(chain_head *chain)
 	_getdns_rrset_iter tas_iter;
 
 	if ((o = count_outstanding_requests(chain)) > 0) {
-		DEBUG_SEC(PRIsz" outstanding requests\n", o);
+		DEBUG_SEC("%"PRIsz" outstanding requests\n", o);
 		return;
 	}
 	DEBUG_SEC("Chain done!\n");
 	dnsreq = chain->netreq->owner;
 	context = dnsreq->context;
 
+	if (dnsreq->waiting_for_ta) {
+		getdns_dns_req **d;
+
+		for (d = &context->ta_notify; *d; d = &(*d)->ta_notify) {
+			if (*d == dnsreq) {
+				*d = dnsreq->ta_notify;
+				dnsreq->ta_notify = NULL;
+				break;
+			}
+		}
+
+	} else {
+		if (context->trust_anchors_source == GETDNS_TASRC_FETCHING) {
+			dnsreq->waiting_for_ta = 1;
+			dnsreq->ta_notify = context->ta_notify;
+			context->ta_notify = dnsreq;
+			return;
+		}
+	}
 #ifdef STUB_NATIVE_DNSSEC
-	/* Perform validation only on GETDNS_RESOLUTION_STUB (unbound_id == -1)
-	 * Or when asked for the validation chain (to identify the RRSIGs that
-	 * signed the RRSETs, so that only those will be included in the
-	 * validation chain)
-	 * In any case we must have a trust anchor.
-	 */
-	if ((   chain->netreq->unbound_id == -1
-	     || dnsreq->dnssec_return_validation_chain)
-	    && context->trust_anchors)
+	if (context->trust_anchors)
 
 		chain_set_netreq_dnssec_status(chain,_getdns_rrset_iter_init(&tas_iter,
 		    context->trust_anchors, context->trust_anchors_len,
 		    SECTION_ANSWER));
 #else
-	if (dnsreq->dnssec_return_validation_chain
-	    && context->trust_anchors)
+	if (context->trust_anchors)
 
 		(void) chain_validate_dnssec(priv_getdns_context_mf(context),
 		    time(NULL), context->dnssec_allowed_skew,
@@ -3110,10 +3222,52 @@ static void check_chain_complete(chain_head *chain)
 		                          , context->trust_anchors_len
 		                          , SECTION_ANSWER));
 #endif
+	if (context->trust_anchors_source == GETDNS_TASRC_XML) {
+		if ((head = chain) && (node = _to_the_root(head->parent)) &&
+		    node->dnskey.name && *node->dnskey.name == 0)
+			_getdns_context_update_root_ksk(context,&node->dnskey);
+       	
+	} else if (_getdns_bogus(dnsreq)) {
+		DEBUG_ANCHOR("Request was bogus!\n");
+
+		if ((head = chain) && (node = _to_the_root(head->parent))
+		    && node->dnskey.name && *node->dnskey.name == 0
+		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
+
+			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
+			if (!dnsreq->waiting_for_ta) {
+				uint64_t now = 0;
+
+				dnsreq->waiting_for_ta = 1;
+				_getdns_context_equip_with_anchor(
+				    context, &now);
+
+				if (context->trust_anchors_source
+				    == GETDNS_TASRC_XML) {
+					chain_clear_netreq_dnssec_status(chain);
+					check_chain_complete(chain);
+					return;
+				}
+				_getdns_start_fetching_ta(
+				    context,  dnsreq->loop);
+
+				if (dnsreq->waiting_for_ta &&
+				    context->trust_anchors_source
+				    == GETDNS_TASRC_FETCHING) {
+
+					chain_clear_netreq_dnssec_status(chain);
+					dnsreq->ta_notify = context->ta_notify;
+					context->ta_notify = dnsreq;
+					return;
+				}
+			}
+		}
+	}
+
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	if (    dnsreq->dnssec_roadblock_avoidance
 	    && !dnsreq->avoid_dnssec_roadblocks
-	    &&  dnsreq->netreqs[0]->dnssec_status == GETDNS_DNSSEC_BOGUS) {
+	    &&  _getdns_bogus(dnsreq)) {
 
 		getdns_network_req **netreq_p, *netreq;
 		uint64_t now_ms = 0;
@@ -3167,6 +3321,7 @@ static void check_chain_complete(chain_head *chain)
 		return;
 	}
 #endif
+	dnsreq->waiting_for_ta = 0;
 	val_chain_list = dnsreq->dnssec_return_validation_chain
 		? getdns_list_create_with_context(context) : NULL;
 
@@ -3183,6 +3338,45 @@ static void check_chain_complete(chain_head *chain)
 	/* Final user callback */
 	dnsreq->validating = 0;
 	_getdns_call_user_callback(dnsreq, response_dict);
+}
+
+void _getdns_ta_notify_dnsreqs(getdns_context *context)
+{
+	getdns_dns_req **dnsreq_p, *dnsreq = NULL;
+	uint64_t now_ms = 0;
+
+	assert(context);
+
+	if (context->trust_anchors_source == GETDNS_TASRC_NONE ||
+	    context->trust_anchors_source == GETDNS_TASRC_FETCHING)
+		return;
+
+	dnsreq_p = &context->ta_notify;
+	while ((dnsreq = *dnsreq_p)) {
+		assert(dnsreq->waiting_for_ta);
+
+		if (dnsreq->chain) 
+			check_chain_complete(dnsreq->chain);
+		else {
+			getdns_network_req *netreq, **netreq_p;
+			int r = GETDNS_RETURN_GOOD;
+
+			 (void) _getdns_context_prepare_for_resolution(context);
+
+			*dnsreq_p = dnsreq->ta_notify;
+			for ( netreq_p = dnsreq->netreqs
+			    ; !r && (netreq = *netreq_p)
+			    ; netreq_p++ ) {
+
+				if (!(r = _getdns_submit_netreq(netreq, &now_ms)))
+					continue;
+				if (r == DNS_REQ_FINISHED)
+					break;
+				_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+			}
+		}
+		assert(*dnsreq_p != dnsreq);
+	}
 }
 
 void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
@@ -3224,7 +3418,7 @@ void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
-	chain_head *head = dnsreq->chain, *next;
+	chain_head *head = dnsreq->chain, *next, *dnskey_head;
 	chain_node *node;
 	size_t      node_count;
 
@@ -3236,7 +3430,10 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
-			if (node->dnskey_req)
+			if (node->dnskey_req &&
+			    !( (dnskey_head = _dnskey_query(node))
+			     && dnskey_head->netreq == node->dnskey_req))
+
 				_getdns_context_cancel_request(
 				    node->dnskey_req->owner);
 
@@ -3267,6 +3464,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 	if (dnsreq->avoid_dnssec_roadblocks && chain->lock == 0)
 		; /* pass */
+
 	else for (netreq_p = dnsreq->netreqs; (netreq = *netreq_p) ; netreq_p++) {
 		if (!  netreq->response
 		    || netreq->response_len < GLDNS_HEADER_SIZE
@@ -3277,7 +3475,10 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
 
 			netreq->dnssec_status = GETDNS_DNSSEC_INSECURE;
 			continue;
-		}
+
+		} else if (netreq->unbound_id != -1)
+			netreq->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+
 		add_pkt2val_chain( &dnsreq->my_mf, &chain
 		                 , netreq->response, netreq->response_len
 				 , netreq
@@ -3415,13 +3616,17 @@ getdns_validate_dnssec3(const getdns_list *records_to_validate,
 	fflush(stdout);
 #endif
 
-	if (!records_to_validate || !support_records || !trust_anchors)
+	if (!records_to_validate || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	mf = (struct mem_funcs *)&records_to_validate->mf;
 
 	/* First convert everything to wire format
 	 */
-	if (!(support = _getdns_list2wire(support_records,
+	
+	if (!support_records)
+		(void) memset((support = support_buf), 0, GLDNS_HEADER_SIZE);
+
+	else if (!(support = _getdns_list2wire(support_records,
 	    support_buf, &support_len, mf)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 
@@ -3440,7 +3645,7 @@ getdns_validate_dnssec3(const getdns_list *records_to_validate,
 
 	for (i = 0; !getdns_list_get_dict(records_to_validate,i,&reply); i++) {
 
-		DEBUG_SEC("REPLY "PRIsz", r: %d\n", i, r);
+		DEBUG_SEC("REPLY %"PRIsz", r: %d\n", i, r);
 		if (to_val != to_val_buf)
 			GETDNS_FREE(*mf, to_val);
 		to_val_len = sizeof(to_val_buf);
@@ -3468,7 +3673,7 @@ getdns_validate_dnssec3(const getdns_list *records_to_validate,
 			break;
 		}
 	}
-	DEBUG_SEC("REPLY "PRIsz", r: %d\n", i, r);
+	DEBUG_SEC("REPLY %"PRIsz", r: %d\n", i, r);
 
 exit_free_to_val:
 	if (to_val != to_val_buf)

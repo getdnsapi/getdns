@@ -5,10 +5,43 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-event-loops"
-if make -j 4 test
+make -j 4 test
+if test -e "${BUILDDIR}/build-event-loops/src/test/fails"
 then
-	if test -e "${BUILDDIR}/build-event-loops/src/test/fails"
+	if test -e "${BUILDDIR}/build-event-loops/src/test/check_getdns.failed"
 	then
-		exit 1
+		echo ""
+		echo "********************"
+		echo "*** check_getdns ***"
+		echo "********************"
+		cat "${BUILDDIR}/build-event-loops/src/test/check_getdns.log"
 	fi
+	if test -e "${BUILDDIR}/build-event-loops/src/test/check_getdns_event.failed"
+	then
+		echo ""
+		echo "**************************"
+		echo "*** check_getdns_event ***"
+		echo "**************************"
+		cat "${BUILDDIR}/build-event-loops/src/test/check_getdns_event.log"
+	fi
+	if test -e "${BUILDDIR}/build-event-loops/src/test/check_getdns_ev.failed"
+	then
+		echo ""
+		echo "***********************"
+		echo "*** check_getdns_ev ***"
+		echo "***********************"
+		cat "${BUILDDIR}/build-event-loops/src/test/check_getdns_ev.log"
+	fi
+	if test -e "${BUILDDIR}/build-event-loops/src/test/check_getdns_uv.failed"
+	then
+		echo ""
+		echo "***********************"
+		echo "*** check_getdns_uv ***"
+		echo "***********************"
+		cat "${BUILDDIR}/build-event-loops/src/test/check_getdns_uv.log"
+	fi
+	exit 1
+else
+	exit 0
 fi
+

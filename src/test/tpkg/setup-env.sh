@@ -36,3 +36,4 @@ export TPKG="${TPKG}"
 export LIBTOOL="${LIBTOOL}"
 END_OF_TPKG_VAR_MASTER
 
+${TPKG} f 255-yaml-config.tpkg

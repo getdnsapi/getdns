@@ -39,6 +39,8 @@
 #include "types-internal.h"
 #include "debug.h"
 #include "util/rbtree.h"
+#include "util-internal.h"
+#include "platform.h"
 #include "server.h"
 
 #define DNS_REQUEST_SZ          4096
@@ -135,11 +137,7 @@ static void tcp_connection_destroy(tcp_connection *conn)
 		loop->vmt->clear(loop, &conn->event);
 
 	if (conn->fd >= 0)
-#ifdef USE_WINSOCK
-		(void) closesocket(conn->fd);
-#else
-		(void) close(conn->fd);
-#endif
+		(void) _getdns_closesocket(conn->fd);
 	GETDNS_FREE(*mf, conn->read_buf);
 
 	for (cur = conn->to_write; cur; cur = next) {
@@ -189,7 +187,8 @@ static void tcp_write_cb(void *userarg)
 	}
 	to_write = conn->to_write;
 	if (conn->fd == -1 || 
-	    (written = send(conn->fd, &to_write->write_buf[to_write->written],
+	    (written = send(conn->fd,
+	    (const void *)&to_write->write_buf[to_write->written],
 	    to_write->write_buf_len - to_write->written, 0)) == -1) {
 
 		/* IO error, close connection */
@@ -284,11 +283,7 @@ getdns_reply(
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1) {
 			/* IO error, cleanup this listener */
 			loop->vmt->clear(loop, &conn->l->event);
-#ifdef USE_WINSOCK
-			closesocket(conn->l->fd);
-#else
-			close(conn->l->fd);
-#endif
+			_getdns_closesocket(conn->l->fd);
 			conn->l->fd = -1;
 		}
 		/* Unlink this connection */
@@ -367,7 +362,8 @@ static void tcp_read_cb(void *userarg)
 	(void) loop->vmt->schedule(loop, conn->fd,
 	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 
-	if ((bytes_read = recv(conn->fd, conn->read_pos, conn->to_read, 0)) < 0) {
+	if ((bytes_read = recv(conn->fd,
+	    (void *)conn->read_pos, conn->to_read, 0)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK)
 			return; /* Come back to do the read later */
 
@@ -481,11 +477,7 @@ static void tcp_accept_cb(void *userarg)
 	    &conn->super.remote_in, &conn->super.addrlen)) == -1) {
 		/* IO error, cleanup this listener */
 		loop->vmt->clear(loop, &l->event);
-#ifdef USE_WINSOCK
-		closesocket(l->fd);
-#else
-		close(l->fd);
-#endif
+		_getdns_closesocket(l->fd);
 		l->fd = -1;
 		GETDNS_FREE(*mf, conn);
 		return;
@@ -553,13 +545,17 @@ static void udp_read_cb(void *userarg)
 	conn->addrlen = sizeof(conn->remote_in);
 	if ((len = recvfrom(l->fd, (void *)buf, sizeof(buf), 0,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
+		if (_getdns_socketerror() == _getdns_ECONNRESET) {
+			/*
+			 * WINSOCK gives ECONNRESET on ICMP Port Unreachable
+			 * being received. Ignore it.
+			 * */
+			GETDNS_FREE(*mf, conn);
+			return;
+		}
 		/* IO error, cleanup this listener. */
 		loop->vmt->clear(loop, &l->event);
-#ifdef USE_WINSOCK
-		closesocket(l->fd);
-#else
-		close(l->fd);
-#endif
+		_getdns_closesocket(l->fd);
 		l->fd = -1;
 
 #if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
@@ -708,11 +704,7 @@ static void remove_listeners(listen_set *set)
 			continue;
 
 		loop->vmt->clear(loop, &l->event);
-#ifdef USE_WINSOCK
-		closesocket(l->fd);
-#else
-		close(l->fd);
-#endif
+		_getdns_closesocket(l->fd);
 		l->fd = -1;
 
 		if (l->transport != GETDNS_TRANSPORT_TCP)

@@ -44,7 +44,7 @@ size_t gldns_rr_dnskey_key_size_raw(const unsigned char *keydata,
  * \param[in] keysize length of key data.
  * \return the keytag
  */
-uint16_t gldns_calc_keytag_raw(uint8_t* key, size_t keysize);
+uint16_t gldns_calc_keytag_raw(const uint8_t* key, size_t keysize);
 
 #if GLDNS_BUILD_CONFIG_HAVE_SSL
 /** 
