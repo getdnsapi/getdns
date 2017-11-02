@@ -1,4 +1,10 @@
 * 2017-1?-??: Version 1.2.1
+  * Bugfix: Tolerate unsigned and unused RRsets in the authority section.
+            Fixes DNSSEC with BIND upstream.
+  * Bugfix: DNSSEC validation without support records
+  * Bugfix: Validation of full recursive DNSKEY lookups
+  * Bugfix: Retry to validate full recursion BOGUS replies with zero
+    configuration DNSSEC only when DNSSEC was actually requested
   * Bugfix #348: Fix a linking issue in stubby when libbsd is present
     Thanks Remi Gacogne
   * More robust scheduling; Eliminating a segfault with long running
