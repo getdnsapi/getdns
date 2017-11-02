@@ -2971,6 +2971,26 @@ static void append_rrset2val_chain_list(
 	    _getdns_list_append_this_dict(val_chain_list, rr_dict))
 		getdns_dict_destroy(rr_dict);
 
+	/* Append the other RRSIGs, which were not used for validation too,
+	 * because other validators might not have the same algorithm support.
+	 */
+	for ( rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset)
+	    ; rrsig
+	    ; rrsig = _getdns_rrsig_iter_next(rrsig)) {
+
+		if (rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28)
+			continue;
+
+		if (gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+		    == (signer & 0xFFFF))
+			continue;
+
+		orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
+		if ((rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+		    &val_chain_list->mf, &rrsig->rr_i, &orig_ttl)) &&
+		    _getdns_list_append_this_dict(val_chain_list, rr_dict))
+			getdns_dict_destroy(rr_dict);
+	}
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(val_chain_list->mf, val_rrset);
 }
