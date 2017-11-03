@@ -191,7 +191,7 @@ static void tcp_write_cb(void *userarg)
 	    (const void *)&to_write->write_buf[to_write->written],
 	    to_write->write_buf_len - to_write->written, 0)) == -1) {
 
-		if (_getdns_socket_wants_retry())
+		if (_getdns_socketerror_wants_retry())
 			return;
 
 		DEBUG_SERVER("I/O error from send(): %s\n",
@@ -287,7 +287,7 @@ getdns_reply(
 
 		if (conn->l->fd >= 0 && sendto(conn->l->fd, (void *)buf, len, 0,
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1) {
-			/* TODO: handle _getdns_socket_wants_retry() */
+			/* TODO: handle _getdns_socketerror_wants_retry() */
 
 			/* IO error, never cleanup a listener because of I/O error */
 			DEBUG_SERVER("I/O error from sendto(): %s\n",
@@ -371,7 +371,7 @@ static void tcp_read_cb(void *userarg)
 
 	if ((bytes_read = recv(conn->fd,
 	    (void *)conn->read_pos, conn->to_read, 0)) < 0) {
-		if (_getdns_socket_wants_retry())
+		if (_getdns_socketerror_wants_retry())
 			return; /* Come back to do the read later */
 
 		/* IO error, close connection */
@@ -486,7 +486,7 @@ static void tcp_accept_cb(void *userarg)
 	if ((conn->fd = accept(l->fd, (struct sockaddr *)
 	    &conn->super.remote_in, &conn->super.addrlen)) == -1) {
 
-		if (_getdns_socket_wants_retry() ||
+		if (_getdns_socketerror_wants_retry() ||
 		    _getdns_socketerror() == _getdns_ECONNRESET)
 			; /* pass */
 
@@ -564,7 +564,7 @@ static void udp_read_cb(void *userarg)
 	conn->addrlen = sizeof(conn->remote_in);
 	if ((len = recvfrom(l->fd, (void *)buf, sizeof(buf), 0,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
-		if ( _getdns_socket_wants_retry() &&
+		if ( _getdns_socketerror_wants_retry() &&
 		    _getdns_socketerror() != _getdns_ECONNRESET) {
 			/*
 			 * WINSOCK gives ECONNRESET on ICMP Port Unreachable

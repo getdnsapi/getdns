@@ -143,7 +143,7 @@ void _getdns_perror(const char *str);
                                         || (X) == _getdns_EWOULDBLOCK \
                                         || (X) == _getdns_EINPROGRESS \
                                         || (X) == _getdns_ENOBUFS ))
-#define _getdns_socket_wants_retry() (_getdns_error_wants_retry(_getdns_socketerror()))
+#define _getdns_socketerror_wants_retry() (_getdns_error_wants_retry(_getdns_socketerror()))
 #define _getdns_resource_depletion() (  _getdns_socketerror() != 0 \
                                      && (  _getdns_socketerror() == _getdns_ENFILE \
                                         || _getdns_socketerror() == _getdns_EMFILE ))
