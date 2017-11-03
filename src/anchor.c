@@ -1199,7 +1199,7 @@ static void tas_read_cb(void *userarg)
 				return;
 			}
 		}
-	} else if (_getdns_socket_retry())
+	} else if (_getdns_socket_wants_retry())
 		return;
 
 	DEBUG_ANCHOR("Read error: %d %s\n", (int)n, _getdns_errnostr());
@@ -1249,7 +1249,7 @@ static void tas_write_cb(void *userarg)
 		    tas_read_cb, NULL, tas_timeout_cb));
 		return;
 
-	} else if (_getdns_socket_retry())
+	} else if (_getdns_socket_wants_retry())
 		return;
 
 	DEBUG_ANCHOR("Write error: %s\n", _getdns_errnostr());

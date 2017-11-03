@@ -638,7 +638,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 	}
 	read = recv(fd, (void *)tcp->read_pos, tcp->to_read, 0);
 	if (read < 0) {
-		if (_getdns_socket_retry())
+		if (_getdns_socket_wants_retry())
 			return STUB_TCP_RETRY;
 		else
 			return STUB_TCP_ERROR;
@@ -756,7 +756,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
 #endif
-		if ((written == -1 && _getdns_socket_retry()) ||
+		if ((written == -1 && _getdns_socket_wants_retry()) ||
 		    (size_t)written < pkt_len + 2) {
 
 			/* We couldn't write the whole packet.
@@ -788,7 +788,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		written = send(fd, (void *)(tcp->write_buf + tcp->written),
 			tcp->write_buf_len - tcp->written, 0);
 		if (written == -1) {
-			if (_getdns_socket_retry())
+			if (_getdns_socket_wants_retry())
 				return STUB_TCP_RETRY;
 			else {
 				DEBUG_STUB("%s %-35s: MSG: %p error while writing to TCP socket:"
@@ -1331,7 +1331,7 @@ stub_udp_read_cb(void *userarg)
 	                                       * i.e. overflow
 	                                       */
 	    0, NULL, NULL);
-	if (read == -1 && (_getdns_socket_retry() ||
+	if (read == -1 && (_getdns_socket_wants_retry() ||
 		           _getdns_socketerror() == _getdns_ECONNRESET))
 		return; /* Try again later */
 

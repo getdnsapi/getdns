@@ -46,7 +46,11 @@ typedef u_short sa_family_t;
 #define _getdns_ENOBUFS     (WSAENOBUFS)
 #define _getdns_EPROTO      (0)
 #define _getdns_EMFILE      (WSAEMFILE)
-#define _getdns_ENFILE      (WSAENFILE)
+#ifdef  WSAENFILE
+# define _getdns_ENFILE     (WSAENFILE)
+#else
+# define _getdns_ENFILE     (0)
+#endif
 #define _getdns_ECONNRESET  (WSAECONNRESET)
 #define _getdns_ECONNABORTED (0)
 #define _getdns_EISCONN     (WSAEISCONN)
@@ -138,7 +142,7 @@ void _getdns_perror(const char *str);
                                || (X) == _getdns_EWOULDBLOCK \
                                || (X) == _getdns_EINPROGRESS \
                                || (X) == _getdns_ENOBUFS )
-#define _getdns_socket_retry() (_getdns_errno_retry(_getdns_socketerror()))
+#define _getdns_socket_wants_retry() (_getdns_errno_retry(_getdns_socketerror()))
 #define _getdns_resource_depletion() (  _getdns_socketerror() == _getdns_ENFILE \
                                      || _getdns_socketerror() == _getdns_EMFILE )
 

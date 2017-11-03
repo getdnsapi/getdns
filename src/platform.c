@@ -147,32 +147,6 @@ const char *_getdns_strerror(DWORD errnum)
 	case WSA_QOS_EFLOWSPEC: return "QOS flowspec error.";
 	case WSA_QOS_EPROVSPECBUF: return "Invalid QOS provider buffer.";
 	case WSA_QOS_EFILTERSTYLE: return "Invalid QOS filter style.";
-	case WSAEPROVIDERFAILEDINIT: return "Service provider failed to initialize.";
-	case WSASYSCALLFAILURE: return "System call failure.";
-	case WSASERVICE_NOT_FOUND: return "Service not found.";
-	case WSATYPE_NOT_FOUND: return "Class type not found.";
-	case WSA_E_NO_MORE: return "No more results.";
-	case WSA_E_CANCELLED: return "Call was canceled.";
-	case WSAEREFUSED: return "Database query was refused.";
-	case WSAHOST_NOT_FOUND: return "Host not found.";
-	case WSATRY_AGAIN: return "Nonauthoritative host not found.";
-	case WSANO_RECOVERY: return "This is a nonrecoverable error.";
-	case WSANO_DATA: return "Valid name, no data record of requested type.";
-	case WSA_QOS_RECEIVERS: return "QOS receivers.";
-	case WSA_QOS_SENDERS: return "QOS senders.";
-	case WSA_QOS_NO_SENDERS: return "No QOS senders.";
-	case WSA_QOS_NO_RECEIVERS: return "QOS no receivers.";
-	case WSA_QOS_REQUEST_CONFIRMED: return "QOS request confirmed.";
-	case WSA_QOS_ADMISSION_FAILURE: return "QOS admission error.";
-	case WSA_QOS_POLICY_FAILURE: return "QOS policy failure.";
-	case WSA_QOS_BAD_STYLE: return "QOS bad style.";
-	case WSA_QOS_BAD_OBJECT: return "QOS bad object.";
-	case WSA_QOS_TRAFFIC_CTRL_ERROR: return "QOS traffic control error.";
-	case WSA_QOS_GENERIC_ERROR: return "QOS generic error.";
-	case WSA_QOS_ESERVICETYPE: return "QOS service type error.";
-	case WSA_QOS_EFLOWSPEC: return "QOS flowspec error.";
-	case WSA_QOS_EPROVSPECBUF: return "Invalid QOS provider buffer.";
-	case WSA_QOS_EFILTERSTYLE: return "Invalid QOS filter style.";
 	case WSA_QOS_EFILTERTYPE: return "Invalid QOS filter type.";
 	case WSA_QOS_EFILTERCOUNT: return "Incorrect QOS filter count.";
 	case WSA_QOS_EOBJLENGTH: return "Invalid QOS object length.";
@@ -187,7 +161,7 @@ const char *_getdns_strerror(DWORD errnum)
 	case WSA_QOS_RESERVED_PETYPE: return "Reserved policy QOS element type.";
 	default:
 		snprintf(unknown, sizeof(unknown),
-			"unknown WSA error code %d", (int)err);
+			"unknown WSA error code %d", (int)errnum);
 		return unknown;
 	}
 }
