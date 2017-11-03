@@ -245,8 +245,11 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 #endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
-		_getdns_perror("select() failed");
-		exit(EXIT_FAILURE);
+		if (_getdns_socket_retr())
+			return;
+
+		DEBUG_SCHED("I/O error with select(): %s\n", _getdns_errnostr());
+		return;
 	}
 #ifdef USE_WINSOCK
 	}
