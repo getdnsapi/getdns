@@ -245,7 +245,7 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 #endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
-		if (_getdns_socket_retr())
+		if (_getdns_socket_wants_retry())
 			return;
 
 		DEBUG_SCHED("I/O error with select(): %s\n", _getdns_errnostr());

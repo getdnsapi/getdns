@@ -137,12 +137,12 @@ const char *_getdns_strerror(int errnum);
 void _getdns_perror(const char *str);
 
 #define _getdns_errnostr() (_getdns_strerror(_getdns_socketerror()))
-#define _getdns_errno_retry(X) (  (X) == _getdns_EINTR \
-                               || (X) == _getdns_EAGAIN \
-                               || (X) == _getdns_EWOULDBLOCK \
-                               || (X) == _getdns_EINPROGRESS \
-                               || (X) == _getdns_ENOBUFS )
-#define _getdns_socket_wants_retry() (_getdns_errno_retry(_getdns_socketerror()))
+#define _getdns_error_wants_retry(X) (  (X) == _getdns_EINTR \
+                                     || (X) == _getdns_EAGAIN \
+                                     || (X) == _getdns_EWOULDBLOCK \
+                                     || (X) == _getdns_EINPROGRESS \
+                                     || (X) == _getdns_ENOBUFS )
+#define _getdns_socket_wants_retry() (_getdns_error_wants_retry(_getdns_socketerror()))
 #define _getdns_resource_depletion() (  _getdns_socketerror() == _getdns_ENFILE \
                                      || _getdns_socketerror() == _getdns_EMFILE )
 

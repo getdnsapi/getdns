@@ -430,7 +430,7 @@ tcp_connected(getdns_upstream *upstream) {
 	int error = 0;
 	socklen_t len = (socklen_t)sizeof(error);
 	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
-	if (_getdns_errno_retry(error))
+	if (_getdns_error_wants_retry(error))
 		return STUB_TCP_RETRY;
 	else if (error != 0) {
 		return STUB_SETUP_ERROR;
