@@ -1199,10 +1199,10 @@ static void tas_read_cb(void *userarg)
 				return;
 			}
 		}
-	} else if (_getdns_socketerror() == _getdns_EWOULDBLOCK)
+	} else if (_getdns_socketerror_wants_retry())
 		return;
 
-	DEBUG_ANCHOR("Read error: %d %s\n", (int)n, strerror(errno));
+	DEBUG_ANCHOR("Read error: %d %s\n", (int)n, _getdns_errnostr());
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
 	tas_next(context, a);
 }
@@ -1249,10 +1249,10 @@ static void tas_write_cb(void *userarg)
 		    tas_read_cb, NULL, tas_timeout_cb));
 		return;
 
-	} else if (_getdns_socketerror() == _getdns_EWOULDBLOCK || _getdns_socketerror() == _getdns_EINPROGRESS)
+	} else if (_getdns_socketerror_wants_retry())
 		return;
 
-	DEBUG_ANCHOR("Write error: %s\n", strerror(errno));
+	DEBUG_ANCHOR("Write error: %s\n", _getdns_errnostr());
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
 	tas_next(context, a);
 }
@@ -1316,7 +1316,8 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 
 	if ((a->fd = socket(( a->req->request_type == GETDNS_RRTYPE_A
 	    ? AF_INET : AF_INET6), SOCK_STREAM, IPPROTO_TCP)) == -1) {
-		DEBUG_ANCHOR("Error creating socket: %s\n", strerror(errno));
+		DEBUG_ANCHOR("Error creating socket: %s\n",
+		             _getdns_errnostr());
 		tas_next(context, a);
 		return;
 	}
@@ -1426,7 +1427,7 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 		DEBUG_ANCHOR("Scheduled write with event\n");
 		return;
 	} else
-		DEBUG_ANCHOR("Connect error: %s\n", strerror(errno));
+		DEBUG_ANCHOR("Connect error: %s\n", _getdns_errnostr());
 
 error:
 	tas_next(context, a);

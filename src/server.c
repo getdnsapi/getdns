@@ -191,6 +191,12 @@ static void tcp_write_cb(void *userarg)
 	    (const void *)&to_write->write_buf[to_write->written],
 	    to_write->write_buf_len - to_write->written, 0)) == -1) {
 
+		if (_getdns_socketerror_wants_retry())
+			return;
+
+		DEBUG_SERVER("I/O error from send(): %s\n",
+	        	     _getdns_errnostr());
+
 		/* IO error, close connection */
 		conn->event.read_cb = conn->event.write_cb =
 		    conn->event.timeout_cb = NULL;
@@ -281,10 +287,11 @@ getdns_reply(
 
 		if (conn->l->fd >= 0 && sendto(conn->l->fd, (void *)buf, len, 0,
 		    (struct sockaddr *)&conn->remote_in, conn->addrlen) == -1) {
-			/* IO error, cleanup this listener */
-			loop->vmt->clear(loop, &conn->l->event);
-			_getdns_closesocket(conn->l->fd);
-			conn->l->fd = -1;
+			/* TODO: handle _getdns_socketerror_wants_retry() */
+
+			/* IO error, never cleanup a listener because of I/O error */
+			DEBUG_SERVER("I/O error from sendto(): %s\n",
+				     _getdns_errnostr());
 		}
 		/* Unlink this connection */
 		(void) _getdns_rbtree_delete(
@@ -364,10 +371,13 @@ static void tcp_read_cb(void *userarg)
 
 	if ((bytes_read = recv(conn->fd,
 	    (void *)conn->read_pos, conn->to_read, 0)) < 0) {
-		if (errno == EAGAIN || errno == EWOULDBLOCK)
+		if (_getdns_socketerror_wants_retry())
 			return; /* Come back to do the read later */
 
 		/* IO error, close connection */
+		DEBUG_SERVER("I/O error from recv(): %s\n",
+	        	     _getdns_errnostr());
+
 		tcp_connection_destroy(conn);
 		return;
 	}
@@ -475,10 +485,19 @@ static void tcp_accept_cb(void *userarg)
 	conn->super.addrlen = sizeof(conn->super.remote_in);
 	if ((conn->fd = accept(l->fd, (struct sockaddr *)
 	    &conn->super.remote_in, &conn->super.addrlen)) == -1) {
-		/* IO error, cleanup this listener */
-		loop->vmt->clear(loop, &l->event);
-		_getdns_closesocket(l->fd);
-		l->fd = -1;
+
+		if (_getdns_socketerror_wants_retry() ||
+		    _getdns_socketerror() == _getdns_ECONNRESET)
+			; /* pass */
+
+		else if (_getdns_resource_depletion())
+			; /* TODO: Stop listening for a little while? */
+
+		else
+			DEBUG_SERVER("I/O error during accept: %s\n",
+			             _getdns_errnostr());
+
+		/* Never cleanup a listener because of I/O errors! */
 		GETDNS_FREE(*mf, conn);
 		return;
 	}
@@ -545,18 +564,17 @@ static void udp_read_cb(void *userarg)
 	conn->addrlen = sizeof(conn->remote_in);
 	if ((len = recvfrom(l->fd, (void *)buf, sizeof(buf), 0,
 	    (struct sockaddr *)&conn->remote_in, &conn->addrlen)) == -1) {
-		if (_getdns_socketerror() == _getdns_ECONNRESET) {
+		if ( _getdns_socketerror_wants_retry() &&
+		    _getdns_socketerror() != _getdns_ECONNRESET) {
 			/*
 			 * WINSOCK gives ECONNRESET on ICMP Port Unreachable
 			 * being received. Ignore it.
-			 * */
-			GETDNS_FREE(*mf, conn);
-			return;
+			 */
+			DEBUG_SERVER("I/O error from recvfrom: %s\n",
+		        	     _getdns_errnostr());
+
 		}
-		/* IO error, cleanup this listener. */
-		loop->vmt->clear(loop, &l->event);
-		_getdns_closesocket(l->fd);
-		l->fd = -1;
+		/* Never cleanup a listener because of an I/O error! */
 
 #if 0 && defined(SERVER_DEBUG) && SERVER_DEBUG
 	} else {

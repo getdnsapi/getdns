@@ -408,8 +408,12 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
     } else
 #endif
 	if (_getdns_poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
-		_getdns_perror("poll() failed");
-		exit(EXIT_FAILURE);
+		if (_getdns_socketerror() == _getdns_EAGAIN ||
+		    _getdns_socketerror() == _getdns_EINTR )
+			return;
+
+		DEBUG_SCHED("I/O error with poll(): %s\n", _getdns_errnostr());
+		return;
 	}
 	now = get_now_plus(0);
 

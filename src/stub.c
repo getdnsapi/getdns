@@ -57,16 +57,17 @@
 #include "pubkey-pinning.h"
 
 /* WSA TODO: 
- * STUB_TCP_WOULDBLOCK added to deal with edge triggered event loops (versus
+ * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
  * level triggered).  See also lines containing WSA TODO below...
  */
 #define STUB_TRY_AGAIN_LATER -24 /* EMFILE, i.e. Out of OS resources */
 #define STUB_NO_AUTH -8 /* Existing TLS connection is not authenticated */
 #define STUB_CONN_GONE -7 /* Connection has failed, clear queue*/
-#define STUB_TCP_WOULDBLOCK -6
+#define STUB_TCP_RETRY -6
 #define STUB_OUT_OF_OPTIONS -5 /* upstream options exceeded MAXIMUM_UPSTREAM_OPTION_SPACE */
 #define STUB_SETUP_ERROR -4
-#define STUB_TCP_AGAIN -3
+#define STUB_TCP_MORE_TO_READ -3
+#define STUB_TCP_MORE_TO_WRITE -3
 #define STUB_TCP_ERROR -2
 
 /* Don't currently have access to the context whilst doing handshake */
@@ -407,9 +408,9 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	             NULL, 0, NULL, NULL) == 0) {
 		return fd;
 	}
-	if (errno == EINPROGRESS) {
+	if (_getdns_socketerror() == _getdns_EINPROGRESS ||
+	    _getdns_socketerror() == _getdns_EWOULDBLOCK)
 		return fd;
-	}
 #else
 	(void)transport;
 #endif
@@ -429,10 +430,8 @@ tcp_connected(getdns_upstream *upstream) {
 	int error = 0;
 	socklen_t len = (socklen_t)sizeof(error);
 	getsockopt(upstream->fd, SOL_SOCKET, SO_ERROR, (void*)&error, &len);
-	if (error == _getdns_EINPROGRESS)
-		return STUB_TCP_AGAIN;
-	else if (error == _getdns_EWOULDBLOCK || error == _getdns_EAGAIN) 
-		return STUB_TCP_WOULDBLOCK;
+	if (_getdns_error_wants_retry(error))
+		return STUB_TCP_RETRY;
 	else if (error != 0) {
 		return STUB_SETUP_ERROR;
 	}
@@ -639,8 +638,8 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 	}
 	read = recv(fd, (void *)tcp->read_pos, tcp->to_read, 0);
 	if (read < 0) {
-		if (_getdns_socketerror() == _getdns_EWOULDBLOCK)
-			return STUB_TCP_WOULDBLOCK;
+		if (_getdns_socketerror_wants_retry())
+			return STUB_TCP_RETRY;
 		else
 			return STUB_TCP_ERROR;
 	} else if (read == 0) {
@@ -654,7 +653,7 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 	tcp->read_pos += read;
 	
 	if (tcp->to_read > 0)
-		return STUB_TCP_AGAIN;
+		return STUB_TCP_MORE_TO_READ;
 
 	read = tcp->read_pos - tcp->read_buf;
 	if (read == 2) {
@@ -679,14 +678,14 @@ stub_tcp_read(int fd, getdns_tcp_state *tcp, struct mem_funcs *mf)
 		}
 		/* Ready to start reading the packet */
 		tcp->read_pos = tcp->read_buf;
-		return STUB_TCP_AGAIN;
+		return STUB_TCP_MORE_TO_READ;
 	}
 	return GLDNS_ID_WIRE(tcp->read_buf);
 }
 
 /* stub_tcp_write(fd, tcp, netreq)
- * will return STUB_TCP_AGAIN when we need to come back again,
- * STUB_TCP_ERROR on error and a query_id on successful sent.
+ * will return STUB_TCP_RETRY or STUB_TCP_MORE_TO_WRITE when we need to come
+ * back again, STUB_TCP_ERROR on error and a query_id on successful sent.
  */
 static int
 stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
@@ -749,7 +748,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    netreq->upstream->addr_len);
 		/* If pipelining we will find that the connection is already up so 
 		   just fall back to a 'normal' write. */
-		if (written == -1 && errno == EISCONN) 
+		if (written == -1 && _getdns_socketerror() == _getdns_EISCONN) 
 			written = write(fd, netreq->query - 2, pkt_len + 2);
 #else
 		written = sendto(fd, (const char *)(netreq->query - 2),
@@ -757,27 +756,24 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		    (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
 #endif
-		if ((written < 0 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
-		/* Add the error case where the connection is in progress which is when
-		   a cookie is not available (e.g. when doing the first request to an
-		   upstream). We must let the handshake complete since non-blocking. */
-				     _getdns_socketerror() == _getdns_EINPROGRESS)) ||
-		     (size_t)written < pkt_len + 2) {
+		if ((written == -1 && _getdns_socketerror_wants_retry()) ||
+		    (size_t)written < pkt_len + 2) {
 
 			/* We couldn't write the whole packet.
-			 * We have to return with STUB_TCP_AGAIN.
 			 * Setup tcp to track the state.
 			 */
 			tcp->write_buf = netreq->query - 2;
 			tcp->write_buf_len = pkt_len + 2;
 			tcp->written = written >= 0 ? written : 0;
 
-			return STUB_TCP_WOULDBLOCK;
+			return written == -1
+			     ? STUB_TCP_RETRY
+			     : STUB_TCP_MORE_TO_WRITE;
 
 		} else if (written == -1) {
 			DEBUG_STUB("%s %-35s: MSG: %p error while writing to TCP socket:"
 				   " %s\n", STUB_DEBUG_WRITE, __FUNC__, (void*)netreq
-				   , strerror(errno));
+				   , _getdns_errnostr());
 
 			return STUB_TCP_ERROR;
 		}
@@ -792,12 +788,12 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		written = send(fd, (void *)(tcp->write_buf + tcp->written),
 			tcp->write_buf_len - tcp->written, 0);
 		if (written == -1) {
-			if (_getdns_socketerror() == _getdns_EWOULDBLOCK)
-				return STUB_TCP_WOULDBLOCK;
+			if (_getdns_socketerror_wants_retry())
+				return STUB_TCP_RETRY;
 			else {
 				DEBUG_STUB("%s %-35s: MSG: %p error while writing to TCP socket:"
 					   " %s\n", STUB_DEBUG_WRITE, __FUNC__, (void*)netreq
-					   , strerror(errno));
+					   , _getdns_errnostr());
 
 				return STUB_TCP_ERROR;
 			}
@@ -805,7 +801,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		tcp->written += written;
 		if (tcp->written < tcp->write_buf_len)
 			/* Still more to send */
-			return STUB_TCP_AGAIN;
+			return STUB_TCP_MORE_TO_WRITE;
 
 		query_id = (int)GLDNS_ID_WIRE(tcp->write_buf + 2);
 		/* Done. Start reading */
@@ -1029,7 +1025,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_TLS, &upstream->event);
 				upstream->tls_hs_state = GETDNS_HS_READ;
-				return STUB_TCP_AGAIN;
+				return STUB_TCP_RETRY;
 			case SSL_ERROR_WANT_WRITE:
 				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = NULL;
@@ -1037,7 +1033,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				GETDNS_SCHEDULE_EVENT(upstream->loop,
 				    upstream->fd, TIMEOUT_TLS, &upstream->event);
 				upstream->tls_hs_state = GETDNS_HS_WRITE;
-				return STUB_TCP_AGAIN;
+				return STUB_TCP_RETRY;
 			default:
 				DEBUG_STUB("%s %-35s: FD:  %d Handshake failed %d\n", 
 				            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd,
@@ -1121,7 +1117,7 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		   renegotiation. Need to keep handshake state to do that.*/
 		int want = SSL_get_error(tls_obj, read);
 		if (want == SSL_ERROR_WANT_READ) {
-			return STUB_TCP_AGAIN; /* read more later */
+			return STUB_TCP_RETRY; /* Come back later */
 		} else 
 			return STUB_TCP_ERROR;
 	}
@@ -1129,7 +1125,7 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	tcp->read_pos += read;
 
 	if ((int)tcp->to_read > 0)
-		return STUB_TCP_AGAIN;
+		return STUB_TCP_MORE_TO_READ;
 
 	read = tcp->read_pos - tcp->read_buf;
 	if (read == 2) {
@@ -1161,14 +1157,14 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			   renegotiation. Need to keep handshake state to do that.*/
 			int want = SSL_get_error(tls_obj, read);
 			if (want == SSL_ERROR_WANT_READ) {
-				return STUB_TCP_AGAIN; /* read more later */
+				return STUB_TCP_RETRY; /* read more later */
 			} else 
 				return STUB_TCP_ERROR;
 		}
 		tcp->to_read  -= read;
 		tcp->read_pos += read;
 		if ((int)tcp->to_read > 0)
-			return STUB_TCP_AGAIN;
+			return STUB_TCP_MORE_TO_READ;
 	}
 	return GLDNS_ID_WIRE(tcp->read_buf);
 }
@@ -1285,7 +1281,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			switch (SSL_get_error(tls_obj, written)) {
 			case SSL_ERROR_WANT_READ:
 			case SSL_ERROR_WANT_WRITE:
-				return STUB_TCP_AGAIN;
+				return STUB_TCP_RETRY;
 			default:
 				return STUB_TCP_ERROR;
 			}
@@ -1335,14 +1331,14 @@ stub_udp_read_cb(void *userarg)
 	                                       * i.e. overflow
 	                                       */
 	    0, NULL, NULL);
-	if (read == -1 && (_getdns_socketerror() == _getdns_EWOULDBLOCK ||
+	if (read == -1 && (_getdns_socketerror_wants_retry() ||
 		           _getdns_socketerror() == _getdns_ECONNRESET))
 		return; /* Try again later */
 
 	if (read == -1) {
 		DEBUG_STUB("%s %-35s: MSG: %p error while reading from socket:"
 		           " %s\n", STUB_DEBUG_READ, __FUNC__, (void*)netreq
-			   , strerror(errno));
+			   , _getdns_errnostr());
 
 		stub_cleanup(netreq);
 		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
@@ -1451,7 +1447,7 @@ stub_udp_write_cb(void *userarg)
 		if (written == -1)
 			DEBUG_STUB( "%s %-35s: MSG: %p error: %s\n"
 				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
-				  , strerror(errno));
+				  , _getdns_errnostr());
 		else
 			DEBUG_STUB( "%s %-35s: MSG: %p returned: %d, expeced: %d\n"
 				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
@@ -1517,10 +1513,10 @@ upstream_read_cb(void *userarg)
 		                 &upstream->upstreams->mf);
 
 	switch (q) {
-	case STUB_TCP_AGAIN:
+	case STUB_TCP_MORE_TO_READ:
 		/* WSA TODO: if callback is still upstream_read_cb, do it again
 		 */
-	case STUB_TCP_WOULDBLOCK:
+	case STUB_TCP_RETRY:
 		return;
 	case STUB_SETUP_ERROR:  /* Can happen for TLS HS*/
 	case STUB_TCP_ERROR:
@@ -1648,10 +1644,10 @@ upstream_write_cb(void *userarg)
 		q = stub_tcp_write(upstream->fd, &upstream->tcp, netreq);
 
 	switch (q) {
-	case STUB_TCP_AGAIN:
+	case STUB_TCP_MORE_TO_WRITE:
 		/* WSA TODO: if callback is still upstream_write_cb, do it again
 		 */
-	case STUB_TCP_WOULDBLOCK:
+	case STUB_TCP_RETRY:
 		return;
 	case STUB_OUT_OF_OPTIONS:
 	case STUB_TCP_ERROR:
@@ -2064,7 +2060,7 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 			continue;
 
 		if (fd == -1) {
-			if (_getdns_socketerror() == _getdns_EMFILE)
+			if (_getdns_resource_depletion())
 				return STUB_TRY_AGAIN_LATER;
 			return -1;
 		}
