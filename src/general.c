@@ -221,7 +221,10 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
-	    || (  dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	    || (   dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	       && (dns_req->dnssec_return_status ||
+	           dns_req->dnssec_return_only_secure ||
+	           dns_req->dnssec_return_all_statuses)
 	       && _getdns_bogus(dns_req))
 	    )) {
 		/* Reschedule timeout for this DNS request
@@ -446,14 +449,12 @@ _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 		if (_getdns_ub_loop_enabled(&context->ub_loop))
 			ub_resolve_r = ub_resolve_event(context->unbound_ctx,
 			    name, netreq->request_type, dns_req->request_class,
-			    netreq, ub_resolve_event_callback, &(netreq->unbound_id)) ?
-			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+			    netreq, ub_resolve_event_callback, &(netreq->unbound_id));
 		else
 #endif
 			ub_resolve_r = ub_resolve_async(context->unbound_ctx,
 			    name, netreq->request_type, dns_req->request_class,
-			    netreq, ub_resolve_callback, &(netreq->unbound_id)) ?
-			    GETDNS_RETURN_GENERIC_ERROR : GETDNS_RETURN_GOOD;
+			    netreq, ub_resolve_callback, &(netreq->unbound_id));
 		if (dnsreq_freed)
 			return DNS_REQ_FINISHED;
 		dns_req->freed = NULL;
