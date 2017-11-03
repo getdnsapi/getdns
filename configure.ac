@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.2.1], [users@getdnsapi.net], [], [https://getdnsapi.net])
+AC_INIT([getdns], [1.2.1], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
 
 # Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
 # patched to do the same, but frequently (MacOS) not. So add a with option
@@ -52,7 +52,7 @@ AC_SUBST([runstatedir], [$with_piddir])
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
-AC_SUBST(RELEASE_CANDIDATE, [rc1])
+AC_SUBST(RELEASE_CANDIDATE, [-rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
