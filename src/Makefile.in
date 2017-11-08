@@ -223,7 +223,7 @@ install-stubby-files-windows: stubby.yml.windows
 install-stubby: stubby install-stubby-files-@HOSTOS@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
-	$(INSTALL) -m 755 -d $(runstatedir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(runstatedir)
 
 uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
