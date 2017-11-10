@@ -1,4 +1,4 @@
-* 2017-11-??: Version 1.2.1
+* 2017-11-11: Version 1.2.1
   * Handle more I/O error cases.  Also, when an I/O error does occur,
     never stop listening (with servers), and
     never exit (when running the built-in event loop).
