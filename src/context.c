@@ -3903,7 +3903,7 @@ getdns_context_get_api_information(getdns_context* context)
 	    result, "compilation_comment", GETDNS_COMPILATION_COMMENT)
 
 	    && ! getdns_dict_util_set_string(
-	    result, "trust_anchor_file", TRUST_ANCHOR_FILE)
+	    result, "default_trust_anchor_location", TRUST_ANCHOR_FILE)
 
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
@@ -4623,6 +4623,7 @@ _getdns_context_config_setting(getdns_context *context,
 	    && !_streq(setting, "api_version_string")
 	    && !_streq(setting, "api_version_number")
 	    && !_streq(setting, "trust_anchor_file")
+	    && !_streq(setting, "default_trust_anchor_location")
 	    && !_streq(setting, "compilation_comment")
 	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
