@@ -1083,6 +1083,7 @@ _getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 	uint8_t buf[sizeof(struct in6_addr)];
 	getdns_bindata addr;
 
+	addr.size = 0;
 	addr.data = buf;
 
 	if (!r) return NULL;
@@ -1147,14 +1148,16 @@ _getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 			return NULL;
 		}
 	} else {
-		getdns_dict_util_set_string(r, "address_type", "IPv4");
-		addr.size = 4;
-		if (inet_pton(AF_INET, ipstr, buf) <= 0) {
-			getdns_dict_destroy(r);
-			return NULL;
+		if (inet_pton(AF_INET, ipstr, buf) <= 0) 
+			getdns_dict_util_set_string(r, "name", ipstr);
+		
+		else {
+			addr.size = 4;
+			getdns_dict_util_set_string(r, "address_type", "IPv4");
 		}
 	}
-	getdns_dict_set_bindata(r, "address_data", &addr);
+	if (addr.size)
+		getdns_dict_set_bindata(r, "address_data", &addr);
 	if (*portstr)
 		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
 	if (*tls_portstr)

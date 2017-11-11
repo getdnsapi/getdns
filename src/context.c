@@ -245,14 +245,6 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 }
 #endif
 
-static uint8_t*
-upstream_addr(getdns_upstream *upstream)
-{
-	return upstream->addr.ss_family == AF_INET
-	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
-	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
-}
-
 static in_port_t
 upstream_port(getdns_upstream *upstream)
 {
@@ -966,10 +958,11 @@ upstream_init(getdns_upstream *upstream,
 {
 	upstream->upstreams = parent;
 
-	upstream->addr_len = ai->ai_addrlen;
-	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
-	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
-	          upstream->addr_str, INET6_ADDRSTRLEN);
+	if (ai) {
+		upstream->addr_len = ai->ai_addrlen;
+		(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+	} else
+		upstream->addr_len = 0;
 
 	/* How is this upstream doing on connections? */
 	upstream->conn_completed = 0;
@@ -2763,8 +2756,8 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
  *
  */
 getdns_return_t
-getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
-    struct getdns_list *upstream_list)
+getdns_context_set_upstream_recursive_servers(getdns_context *context,
+    getdns_list *upstream_list)
 {
 	getdns_return_t r;
 	size_t count = 0;
@@ -2798,6 +2791,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		getdns_dict    *dict;
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
+		getdns_bindata *name = NULL;
 		getdns_bindata *tls_auth_name;
 		struct sockaddr_storage  addr;
 
@@ -2829,10 +2823,11 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		    dict, "address_type",&address_type))) {
 			/* Just address_data is also okay */
 			if ((r = getdns_dict_get_bindata(
-			    dict, "address_data", &address_data)))
-				goto error;
-
-			if (address_data->size == 4)
+			    dict, "address_data", &address_data))) {
+				if ((r = getdns_dict_get_bindata(
+				    dict, "name", &name)))
+					goto error;
+			} else if (address_data->size == 4)
 				addr.ss_family = AF_INET;
 			else if (address_data->size == 16)
 				addr.ss_family = AF_INET6;
@@ -2856,7 +2851,13 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			     address_data->size != 16))
 				goto invalid_parameter;
 		}
-		if (inet_ntop(addr.ss_family, address_data->data,
+		if (name) {
+			if (name->size >= sizeof(addrstr))
+				goto invalid_parameter;
+			(void) memcpy(addrstr, name->data, name->size);
+			addrstr[name->size] = 0;
+
+		} else if (inet_ntop(addr.ss_family, address_data->data,
 		    addrstr, 1024) == NULL)
 			goto invalid_parameter;
 
@@ -2949,10 +2950,13 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			}
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
-			if (getaddrinfo(addrstr, portstr, &hints, &ai))
-				goto invalid_parameter;
-			if (!ai)
-				continue;
+			if (!name) {
+				if (getaddrinfo(addrstr, portstr, &hints, &ai))
+					goto invalid_parameter;
+				if (!ai)
+					continue;
+			} else
+				ai = NULL;
 
 			/* TODO[TLS]: Should probably check that the upstream doesn't
 			 * already exist (in case user has specified TLS port explicitly and
@@ -2960,6 +2964,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 
 			upstream = &upstreams->upstreams[upstreams->count];
 			upstream->addr.ss_family = addr.ss_family;
+			(void)strncpy(upstream->addr_str, addrstr
+			             , sizeof(upstream->addr_str));
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
 			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
@@ -3012,7 +3018,8 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				upstream->tsig_size = 0;
 			}
 			upstreams->count++;
-			freeaddrinfo(ai);
+			if (ai)
+				freeaddrinfo(ai);
 		}
 	}
 	_getdns_upstreams_dereference(context->upstreams);
@@ -3350,6 +3357,14 @@ cancel_outstanding_requests(getdns_context* context)
 }
 
 #ifndef STUB_NATIVE_DNSSEC
+
+static uint8_t*
+upstream_addr(getdns_upstream *upstream)
+{
+	return upstream->addr.ss_family == AF_INET
+	    ? (void *)&((struct sockaddr_in*)&upstream->addr)->sin_addr
+	    : (void *)&((struct sockaddr_in6*)&upstream->addr)->sin6_addr;
+}
 
 static uint32_t *
 upstream_scope_id(getdns_upstream *upstream)

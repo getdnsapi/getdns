@@ -604,7 +604,9 @@ getdns_return_t parse_args(int argc, char **argv)
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
-		if ((t = get_rrtype(arg)) >= 0) {
+		if ((  (*arg >= 'a' && *arg <= 'z')
+		    || (*arg >= 'A' && *arg <= 'Z'))
+		    && (t = get_rrtype(arg)) >= 0) {
 			request_type = t;
 			continue;
 
@@ -650,7 +652,9 @@ getdns_return_t parse_args(int argc, char **argv)
 				    getdns_get_errorstr_by_id(r));
 
 			else if ((r = getdns_dict_get_bindata(
-			    upstream, "address_data", &address))) {
+			    upstream, "address_data", &address)) &&
+			    (r = getdns_dict_get_bindata(
+			    upstream, "name", &address))) {
 
 				fprintf(stderr, "\"%s\" did not translate to "
 				    "an IP dict: %s\n", arg + 1,

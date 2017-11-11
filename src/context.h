@@ -140,7 +140,7 @@ typedef struct getdns_upstream {
 
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
-	char                     addr_str[INET6_ADDRSTRLEN];
+	char                     addr_str[1024];
 
 	/**
 	 * How is this upstream doing over UDP?
