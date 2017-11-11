@@ -802,11 +802,14 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		if (is_synthesized_cname(rrset))
 			continue;
 
+		if (!(rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset))
+		    && _getdns_rr_iter_section(&i->rr_i) != SECTION_ANSWER)
+			continue; /* No sigs in authority section is okayish */
+
 		if (!(head = add_rrset2val_chain(mf, chain_p, rrset, netreq)))
 			continue;
 
-		for ( rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset), n_rrsigs = 0
-		    ; rrsig
+		for ( n_rrsigs = 0; rrsig
 		    ; rrsig = _getdns_rrsig_iter_next(rrsig), n_rrsigs++) {
 			
 			/* Signature, so lookup DS/DNSKEY at signer's name */
@@ -934,6 +937,17 @@ static void val_chain_sched_soa(chain_head *head, const uint8_t *dname)
 		val_chain_sched_soa_node(node);
 }
 
+static chain_head *_dnskey_query(const chain_node *node)
+{
+	chain_head *head;
+
+	for (head = node->chains; head; head = head->next)
+		if (head->rrset.rr_type == GETDNS_RRTYPE_DNSKEY &&
+		    head->parent == node)
+			return head;
+	return NULL;
+}
+
 static void val_chain_node_cb(getdns_dns_req *dnsreq);
 static void val_chain_sched_node(chain_node *node)
 {
@@ -951,13 +965,27 @@ static void val_chain_sched_node(chain_node *node)
 	DEBUG_SEC("schedule DS & DNSKEY lookup for %s\n", name);
 
 	node->lock++;
-	if (! node->dnskey_req /* not scheduled */ &&
-	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DNSKEY,
-	    CD_extension(node->chains->netreq->owner),
-	    node, &node->dnskey_req, NULL, val_chain_node_cb))
+	if (! node->dnskey_req) {
+		chain_head *head;
 
-		node->dnskey_req     = NULL;
+		/* Reuse the DNSKEY query if this node is scheduled in the
+		 * context of validating a DNSKEY query, because libunbound
+		 * does not callback from a callback for the same query.
+		 */
 
+		if ((head = _dnskey_query(node))) {
+			DEBUG_SEC("Found DNSKEY head: %p\n", (void *)head);
+			node->dnskey_req     = head->netreq;
+			node->dnskey.pkt     = head->netreq->response;
+			node->dnskey.pkt_len = head->netreq->response_len;
+
+		} else if (_getdns_general_loop(
+		    context, loop, name, GETDNS_RRTYPE_DNSKEY,
+		    CD_extension(node->chains->netreq->owner),
+		    node, &node->dnskey_req, NULL, val_chain_node_cb))
+
+			node->dnskey_req     = NULL;
+	}
 	if (! node->ds_req && node->parent /* not root */ &&
 	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_DS,
 	    CD_extension(node->chains->netreq->owner),
@@ -2523,6 +2551,11 @@ static int chain_node_get_trusted_keys(
 			node->dnskey_signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 		}
+		/* ta is the DNSKEY for this name? */
+		if (_dname_equal(ta->name, node->dnskey.name)) {
+			*keys = ta;
+			return GETDNS_DNSSEC_SECURE;
+		}
 		/* ta is parent's ZSK */
 		if ((keytag = key_proves_nonexistance(
 		    mf, now, skew, ta, &node->ds, NULL))) {
@@ -2938,6 +2971,26 @@ static void append_rrset2val_chain_list(
 	    _getdns_list_append_this_dict(val_chain_list, rr_dict))
 		getdns_dict_destroy(rr_dict);
 
+	/* Append the other RRSIGs, which were not used for validation too,
+	 * because other validators might not have the same algorithm support.
+	 */
+	for ( rrsig = _getdns_rrsig_iter_init(&rrsig_spc, rrset)
+	    ; rrsig
+	    ; rrsig = _getdns_rrsig_iter_next(rrsig)) {
+
+		if (rrsig->rr_i.nxt < rrsig->rr_i.rr_type + 28)
+			continue;
+
+		if (gldns_read_uint16(rrsig->rr_i.rr_type + 26)
+		    == (signer & 0xFFFF))
+			continue;
+
+		orig_ttl = gldns_read_uint32(rrsig->rr_i.rr_type + 14);
+		if ((rr_dict =  _getdns_rr_iter2rr_dict_canonical(
+		    &val_chain_list->mf, &rrsig->rr_i, &orig_ttl)) &&
+		    _getdns_list_append_this_dict(val_chain_list, rr_dict))
+			getdns_dict_destroy(rr_dict);
+	}
 	if (val_rrset != val_rrset_spc)
 		GETDNS_FREE(val_chain_list->mf, val_rrset);
 }
@@ -3341,7 +3394,7 @@ void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
-	chain_head *head = dnsreq->chain, *next;
+	chain_head *head = dnsreq->chain, *next, *dnskey_head;
 	chain_node *node;
 	size_t      node_count;
 
@@ -3353,7 +3406,10 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
-			if (node->dnskey_req)
+			if (node->dnskey_req &&
+			    !( (dnskey_head = _dnskey_query(node))
+			     && dnskey_head->netreq == node->dnskey_req))
+
 				_getdns_context_cancel_request(
 				    node->dnskey_req->owner);
 
@@ -3537,13 +3593,17 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 	fflush(stdout);
 #endif
 
-	if (!records_to_validate || !support_records || !trust_anchors)
+	if (!records_to_validate || !trust_anchors)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	mf = &records_to_validate->mf;
 
 	/* First convert everything to wire format
 	 */
-	if (!(support = _getdns_list2wire(support_records,
+	
+	if (!support_records)
+		(void) memset((support = support_buf), 0, GLDNS_HEADER_SIZE);
+
+	else if (!(support = _getdns_list2wire(support_records,
 	    support_buf, &support_len, mf)))
 		return GETDNS_RETURN_MEMORY_ERROR;
 

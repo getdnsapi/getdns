@@ -29,6 +29,7 @@
 
 #include "debug.h"
 #include "types-internal.h"
+#include "platform.h"
 #include "extension/select_eventloop.h"
 
 static uint64_t get_now_plus(uint64_t amount)
@@ -37,7 +38,7 @@ static uint64_t get_now_plus(uint64_t amount)
 	uint64_t       now;
 
 	if (gettimeofday(&tv, NULL)) {
-		perror("gettimeofday() failed");
+		_getdns_perror("gettimeofday() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
@@ -244,8 +245,11 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 #endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
 	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
-		perror("select() failed");
-		exit(EXIT_FAILURE);
+		if (_getdns_socketerror_wants_retry())
+			return;
+
+		DEBUG_SCHED("I/O error with select(): %s\n", _getdns_errnostr());
+		return;
 	}
 #ifdef USE_WINSOCK
 	}

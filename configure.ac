@@ -36,7 +36,18 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.2.0], [users@getdnsapi.net], [], [https://getdnsapi.net])
+AC_INIT([getdns], [1.2.1], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
+
+# Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
+# patched to do the same, but frequently (MacOS) not. So add a with option
+# for pid file location, and default it to runstatedir if present.
+default_piddir=${runstatedir:-"${localstatedir}/run"}
+AC_ARG_WITH([piddir],
+  [AS_HELP_STRING([--with-piddir=DIR],
+                  [directory for pid files @<:@default=RUNSTATEDIR or LOCALSTATEDIR/run@:>@])],
+  [],
+  [with_piddir=${default_piddir}])
+AC_SUBST([runstatedir], [$with_piddir])
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
@@ -51,7 +62,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01020000])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01020100])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -86,9 +97,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-1.1.1 had libversion 6:1:0
 # getdns-1.1.2 had libversion 7:0:1
 # getdns-1.1.3 had libversion 7:1:1
-# getdns-1.2.0 has libversion 8:0:2
+# getdns-1.2.0 had libversion 8:0:2
+# getdns-1.2.1 has libversion 8:1:2
 #
-GETDNS_LIBVERSION=8:0:2
+GETDNS_LIBVERSION=8:1:2
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -253,7 +265,7 @@ esac
 
 
 DEFAULT_EVENTLOOP=select_eventloop
-AC_CHECK_HEADERS([sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)
@@ -588,7 +600,7 @@ case "$enable_ed25519" in
     no)
       ;;
     *)
-      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+      if test "$USE_NSS" = "no" -a "$USE_NETTLE" = "no"; then
               AC_CHECK_DECLS([NID_ED25519], [
                 AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
                 use_ed25519="yes"
@@ -676,28 +688,30 @@ if test "$USE_WINSOCK" = 1; then
 	LIBS="$LIBS -lgdi32 -liphlpapi"
 fi
 
-dnl Check if -D_POSIX is needed for sigset_t
-
-AC_CHECK_TYPE([sigset_t], [
-	AC_MSG_NOTICE(-D_POSIX is NOT needed for the sigset_t type)
-], [
-	BACKCFLAGS="$CFLAGS"
-	CFLAGS="-D_POSIX $CFLAGS"
-	AC_CHECK_TYPE([sigset_t], [
-		AC_MSG_NOTICE(-D_POSIX is needed for the sigset_t type)
-	], [
-		AC_MSG_NOTICE(Unclear whether -D_POSIX is needed for the sigset_t type)
-		BACKCFLAGS="$CFLAGS"
-	], [AC_INCLUDES_DEFAULT
+dnl sigset_t or _sigset_t? MinGW is latter by default.
+AC_CHECK_TYPES([sigset_t],
+               [],
+               [AC_CHECK_TYPES([_sigset_t],
+                               [],
+                               [AC_MSG_ERROR([Can't find type `sigset_t' or type `_sigset_t'])],
+                               [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-	])
-], [AC_INCLUDES_DEFAULT
+                               ])
+              ],
+              [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
 ])
+AC_CHECK_FUNCS(sigemptyset sigfillset sigaddset)
 
 my_with_libidn=1
 AC_ARG_WITH(libidn, AS_HELP_STRING([--with-libidn=pathname],
@@ -1144,8 +1158,8 @@ AC_SUBST(INSTALL_STUBBY)
 AC_SUBST(UNINSTALL_STUBBY)
 AC_SUBST(STUBBY_XTRA_OBJS)
 
-STUBBY_LDFLAGS=""
 STUBBY_LIBS=""
+STUBBY_LDFLAGS=""
 
 if test $my_with_yaml = 1
 then
@@ -1153,8 +1167,8 @@ then
 	then
 		getdns_LIBS="$LIBS"
 		getdns_LDFLAGS="$LDFLAGS"
-		LIBS=""
-		LDFLAGS=""
+		LIBS="$initial_LIBS"
+		LDFLAGS="$initial_LDFLAGS"
 	fi
 	AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
 		[path to libyaml (default: search /usr/local ..)]),
@@ -1267,11 +1281,12 @@ fi
 # system implementation.
 PKG_CHECK_MODULES([LIBBSD],[libbsd-overlay],[
 LIBS="$LIBS $LIBBSD_LIBS"
+STUBBY_LIBS="$STUBBY_LIBS $LIBBSD_LIBS"
 CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
 ],[
 AC_MSG_WARN([libbsd not found or usable; using embedded code instead])
 ])
-AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
+AC_CHECK_DECLS([inet_pton,inet_ntop,strlcpy,arc4random,arc4random_uniform])
 AC_REPLACE_FUNCS(inet_pton)
 AC_REPLACE_FUNCS(inet_ntop)
 AC_REPLACE_FUNCS(strlcpy)
@@ -1347,7 +1362,38 @@ AH_BOTTOM([
 # ifndef FD_SETSIZE
 #  define FD_SETSIZE 1024
 # endif
-# define PRIsz "Iu"
+
+/* the version of the windows API enabled */
+# ifndef WINVER
+#  define WINVER 0x0600 // 0x0502
+# endif
+# ifndef _WIN32_WINNT
+#  define _WIN32_WINNT 0x0600 // 0x0502
+# endif
+# ifdef HAVE_WS2TCPIP_H
+#  include <ws2tcpip.h>
+# endif
+
+# ifdef _MSC_VER
+#  if _MSC_VER >= 1800
+#   define PRIsz "zu"
+#  else
+#   define PRIsz "Iu"
+#  endif
+# else
+#  define PRIsz "Iu"
+# endif
+
+# ifdef HAVE_WINSOCK2_H
+#  include <winsock2.h>
+# endif
+
+/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
+# ifdef HAVE_WINSOCK2_H
+#  define FD_SET_T (u_int)
+# else
+#  define FD_SET_T 
+# endif
 
  /* Windows wants us to use _strdup instead of strdup */
 # ifndef strdup
@@ -1362,34 +1408,6 @@ AH_BOTTOM([
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
-
-/* the version of the windows API enabled */
-#ifndef WINVER
-#define WINVER 0x0600 // 0x0502
-#endif
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600 // 0x0502
-#endif
-#ifdef HAVE_WINSOCK2_H
-#include <winsock2.h>
-#endif
-
-#ifdef HAVE_WS2TCPIP_H
-#include <ws2tcpip.h>
-#endif
-
-#ifndef USE_WINSOCK
-#define ARG_LL "%ll"
-#else
-#define ARG_LL "%I64"
-#endif
-
-/* detect if we need to cast to unsigned int for FD_SET to avoid warnings */
-#ifdef HAVE_WINSOCK2_H
-#define FD_SET_T (u_int)
-#else
-#define FD_SET_T 
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -1437,11 +1455,11 @@ void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
 unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #endif /* COMPAT_SHA512 */
 
-#ifndef HAVE_INET_PTON
+#ifndef HAVE_DECL_INET_PTON
 int inet_pton(int af, const char* src, void* dst);
 #endif /* HAVE_INET_PTON */
 
-#ifndef HAVE_INET_NTOP
+#ifndef HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif
 
@@ -1544,10 +1562,27 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 # endif
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if !defined(HAVE_STRPTIME) || !defined(STRPTIME_WORKS)
 #define strptime unbound_strptime
 struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
+#endif
+
+#if !defined(HAVE_SIGSET_T) && defined(HAVE__SIGSET_T)
+typedef _sigset_t sigset_t;
+#endif
+#if !defined(HAVE_SIGEMPTYSET)
+#  define sigemptyset(pset)    (*(pset) = 0)
+#endif
+#if !defined(HAVE_SIGFILLSET)
+#  define sigfillset(pset)     (*(pset) = (sigset_t)-1)
+#endif
+#if !defined(HAVE_SIGADDSET)
+#  define sigaddset(pset, num) (*(pset) |= (1L<<(num)))
 #endif
 
 #ifdef HAVE_LIBUNBOUND
@@ -1566,6 +1601,10 @@ int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 #   endif
 #  endif
 # endif
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 ])
 

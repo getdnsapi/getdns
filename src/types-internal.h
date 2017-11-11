@@ -188,7 +188,9 @@ typedef struct getdns_tcp_state {
 typedef struct getdns_network_req
 {
 	/* For storage in upstream->netreq_by_query_id */
-	_getdns_rbnode_t node;
+	_getdns_rbnode_t  node;
+	/* The netreq_by_query_id tree in which this netreq was registered */
+	_getdns_rbtree_t *query_id_registered;
 #ifdef HAVE_MDNS_SUPPORT
 	/*
 	 * for storage of continuous query context in hash table of cached results. 

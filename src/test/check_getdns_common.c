@@ -217,6 +217,7 @@ void assert_address_in_answer(struct extracted_response *ex_response, int a, int
       case GETDNS_RRTYPE_A:
         if(a && type == GETDNS_RRTYPE_A)
           address_records++;
+	/* fallthrough */
       case GETDNS_RRTYPE_AAAA:
         if(aaaa && type == GETDNS_RRTYPE_AAAA)
           address_records++;

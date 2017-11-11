@@ -24,12 +24,10 @@
 #ifdef HAVE_MDNS_SUPPORT
 #include "getdns/getdns.h"
 #include "types-internal.h"
+#include "util-internal.h"
+#include "platform.h"
 #include "util/lruhash.h"
 #include "config.h"
-
-#ifndef USE_WINSOCK
-#define SOCKADDR_STORAGE struct sockaddr_storage
-#endif
 
 getdns_return_t
 _getdns_submit_mdns_request(getdns_network_req *netreq);

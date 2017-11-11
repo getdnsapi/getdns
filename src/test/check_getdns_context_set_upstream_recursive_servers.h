@@ -65,7 +65,7 @@
       CONTEXT_CREATE(TRUE);
 
       ASSERT_RC(getdns_context_set_upstream_recursive_servers(context, NULL),
-        GETDNS_RETURN_INVALID_PARAMETER, "Return code from getdns_context_set_upstream_recursive_servers()");
+        GETDNS_RETURN_GOOD, "Return code from getdns_context_set_upstream_recursive_servers()");
 
 
       CONTEXT_DESTROY;        

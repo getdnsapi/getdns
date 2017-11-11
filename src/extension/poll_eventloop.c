@@ -27,13 +27,8 @@
 
 #include "config.h"
 
-#ifdef HAVE_SYS_POLL_H
-#include <sys/poll.h>
-#else
-#ifndef USE_WINSOCK
-#include <poll.h>
-#endif
-#endif
+#include "util-internal.h"
+#include "platform.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
@@ -148,7 +143,7 @@ static uint64_t get_now_plus(uint64_t amount)
 	uint64_t       now;
 
 	if (gettimeofday(&tv, NULL)) {
-		perror("gettimeofday() failed");
+		_getdns_perror("gettimeofday() failed");
 		exit(EXIT_FAILURE);
 	}
 	now = tv.tv_sec * 1000000 + tv.tv_usec;
@@ -411,12 +406,14 @@ poll_eventloop_run_once(getdns_eventloop *loop, int blocking)
     {
         Sleep(poll_timeout);
     } else
-	if (WSAPoll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
-#else	
-	if (poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
 #endif
-		perror("poll() failed");
-		exit(EXIT_FAILURE);
+	if (_getdns_poll(poll_loop->pfds, poll_loop->fd_events_free, poll_timeout) < 0) {
+		if (_getdns_socketerror() == _getdns_EAGAIN ||
+		    _getdns_socketerror() == _getdns_EINTR )
+			return;
+
+		DEBUG_SCHED("I/O error with poll(): %s\n", _getdns_errnostr());
+		return;
 	}
 	now = get_now_plus(0);
 
