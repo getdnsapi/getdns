@@ -46,6 +46,10 @@ typedef unsigned short in_port_t;
 #include <wincrypt.h>
 #endif
 
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
+
 #ifdef HAVE_GETDNS_YAML2DICT
 getdns_return_t getdns_yaml2dict(const char *, getdns_dict **dict);
 #endif
@@ -1794,27 +1798,10 @@ main(int argc, char **argv)
 	}
 	else if (listen_count) {
 		assert(loop);
-#ifndef GETDNS_ON_WINDOWS
-		if (i_am_stubby && !run_in_foreground) {
-			pid_t pid = fork();
-			if (pid == -1) {
-				perror("Could not fork of stubby daemon\n");
-				r = GETDNS_RETURN_GENERIC_ERROR;
-
-			} else if (pid) {
-				FILE *fh = fopen("/var/rub/stubby.pid", "w");
-				if (! fh)
-					fh = fopen("/tmp/stubby.pid", "w");
-				if (fh) {
-					fprintf(fh, "%d", (int)pid);
-					fclose(fh);
-					batch_mode = 0;
-				}
-			} else
-				loop->vmt->run(loop);
-		} else
+#ifdef SIGPIPE
+		(void) signal(SIGPIPE, SIG_IGN);
 #endif
-			loop->vmt->run(loop);
+		loop->vmt->run(loop);
 	} else
 		r = do_the_call();
 
