@@ -61,6 +61,7 @@
  * level triggered).  See also lines containing WSA TODO below...
  */
 #define STUB_TRY_AGAIN_LATER -24 /* EMFILE, i.e. Out of OS resources */
+#define STUB_RESOLVE_UPSTREAM_NAME -89 /* EDESTADDRREQ, i.e. lookup name */
 #define STUB_NO_AUTH -8 /* Existing TLS connection is not authenticated */
 #define STUB_CONN_GONE -7 /* Connection has failed, clear queue*/
 #define STUB_TCP_RETRY -6
@@ -1750,7 +1751,7 @@ upstream_usable(getdns_upstream *upstream, int backoff_ok)
 	     upstream->keepalive_shutdown == 0)
 		return 1;
 	/* Otherwise, allow upstreams that are backed off to be used because that
-	   is better that having no upstream at all. */
+	   is better than having no upstream at all. */
 	if (backoff_ok == 1 &&
 	    upstream->conn_state == GETDNS_CONN_BACKOFF)
 		return 1;
@@ -1929,7 +1930,7 @@ upstream_select(getdns_network_req *netreq)
 
 	if (!upstreams->count)
 		return NULL;
-	/* First UPD/TCP upstream is always at i=0 and then start of each upstream block*/
+	/* First UDP/TCP upstream is always at i=0 and then start of each upstream block*/
 	/* TODO: Have direct access to sets of upstreams for different transports*/
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
 		if (upstreams->upstreams[i].to_retry <= 0)
@@ -2020,7 +2021,8 @@ upstream_find_for_transport(getdns_network_req *netreq,
 	    no socket is available, in which case that is an error.*/
 	if (transport == GETDNS_TRANSPORT_UDP) {
 		upstream = upstream_select(netreq);
-		*fd = upstream_connect(upstream, transport, netreq->owner);
+		if (upstream->addr_len > 0) /* not an upstream by name */
+			*fd = upstream_connect(upstream, transport, netreq->owner);
 		return upstream;
 	}
 	else {
@@ -2032,6 +2034,8 @@ upstream_find_for_transport(getdns_network_req *netreq,
 			upstream = upstream_select_stateful(netreq, transport);
 			if (!upstream)
 				return NULL;
+			if (upstream->addr_len == 0) /* an upstream by name */
+				return upstream;
 			*fd = upstream_connect(upstream, transport, netreq->owner);
 			if (i >= upstream->upstreams->count)
 				return NULL;
@@ -2059,6 +2063,12 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 		if (!upstream)
 			continue;
 
+		if (upstream->addr_len == 0) { /* upstream by name */
+			netreq->transport_current = i;
+			netreq->upstream = upstream;
+			netreq->keepalive_sent = 0;
+			return STUB_RESOLVE_UPSTREAM_NAME;
+		}
 		if (fd == -1) {
 			if (_getdns_resource_depletion())
 				return STUB_TRY_AGAIN_LATER;
@@ -2191,12 +2201,120 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 	}
 }
 
+static int upstream_address_found(
+    getdns_upstream *upstream, getdns_network_req *netreq)
+{
+	_getdns_rrset_spc   rrset_spc;
+	_getdns_rrset      *rrset;
+	_getdns_rrtype_iter rr_spc, *rr;
+	struct addrinfo hints;
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
+	hints.ai_flags     = AI_NUMERICHOST; /* No reverse name lookups */
+
+	if (!(rrset = _getdns_rrset_answer(
+	    &rrset_spc, netreq->response, netreq->response_len)))
+		; /* FORMERR */
+
+	else if (rrset->rr_type != netreq->request_type)
+		; /* Can this happen? */
+
+	else if (!(rr = _getdns_rrtype_iter_init(&rr_spc, rrset)))
+		; /* NOERROR */
+
+	else for(; rr; rr = _getdns_rrtype_iter_next(rr)) {
+		struct sockaddr_storage  addr;
+		char   addrstr[1024], portstr[11];
+		struct addrinfo *ai;
+
+		if (rr->rr_i.nxt -  (rr->rr_i.rr_type + 10) !=
+		    ( netreq->request_type == GETDNS_RRTYPE_A    ?  4
+		    : netreq->request_type == GETDNS_RRTYPE_AAAA ? 16 : -1))
+			continue;
+
+		addr.ss_family = netreq->request_type == GETDNS_RRTYPE_A
+		               ? AF_INET : AF_INET6;
+		if (inet_ntop(addr.ss_family, rr->rr_i.rr_type + 10,
+		    addrstr, sizeof(addrstr)) == NULL)
+			continue;
+
+		(void) snprintf( portstr, sizeof(portstr)
+		               , "%d", (int)upstream->port);
+
+		if (getaddrinfo(addrstr, portstr, &hints, &ai))
+			continue;
+		
+		(void)strncpy( upstream->addr_str, addrstr
+		             , sizeof(upstream->addr_str));
+		upstream->addr_len = ai->ai_addrlen;
+		(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
+		freeaddrinfo(ai);
+		return 1;
+	}
+	DEBUG_STUB("Some error!\n");
+	return 0; /* Try the other netreq */
+}
+
+static void upstream_name_cb(getdns_dns_req *dnsreq)
+{
+	getdns_upstream *upstream = (getdns_upstream *)dnsreq->user_pointer;
+	uint64_t now_ms = 0;
+	getdns_network_req *addr_notify;		
+
+	DEBUG_STUB("YAY: %d, %d\n", (int)dnsreq->netreqs[0]->response_len
+	                          , (int)dnsreq->netreqs[1]->response_len);
+	DEBUG_STUB("upstream: %p, upstream->addr_notify: %p\n",
+			(void *)upstream, (void *)upstream->addr_notify);
+
+	if (dnsreq->netreqs[0]->response_len &&
+	    upstream_address_found(upstream, dnsreq->netreqs[0]))
+		; /* pass */
+
+	else if (dnsreq->netreqs[1]->response_len &&
+	    upstream_address_found(upstream, dnsreq->netreqs[1]))
+		; /* pass */
+
+	else {
+		/* Fail this upstream */
+		if (upstream->transport == GETDNS_TRANSPORT_UDP) {
+			if (upstream->addr_notify)
+				stub_next_upstream(upstream->addr_notify);
+		} else
+			upstream->conn_setup_failed++;
+
+		addr_notify = upstream->addr_notify;
+		upstream->addr_notify = NULL;
+		while (addr_notify) {
+			DEBUG_STUB("Error netreq: %p", (void *)addr_notify);
+			_getdns_netreq_change_state(
+			    addr_notify, NET_REQ_ERRORED);
+			_getdns_check_dns_req_complete(
+			    addr_notify->owner);
+			addr_notify = addr_notify->addr_notify;
+		}
+		return;
+	}
+	/* Upstream has now changed to an address upstream,
+	 * so reschedule queries.
+	 */
+	addr_notify = upstream->addr_notify;
+	upstream->addr_notify = NULL;
+	while (addr_notify) {
+		DEBUG_STUB("Resubmit netreq: %p", (void *)addr_notify);
+		_getdns_submit_stub_request(addr_notify, &now_ms);
+		addr_notify = addr_notify->addr_notify;
+	}
+}
+
 getdns_return_t
 _getdns_submit_stub_request(getdns_network_req *netreq, uint64_t *now_ms)
 {
 	int fd = -1;
 	getdns_dns_req *dnsreq;
 	getdns_context *context;
+	getdns_return_t r;
+	getdns_context *sys_ctxt;
 
 	DEBUG_STUB("%s %-35s: MSG: %p TYPE: %d\n", STUB_DEBUG_ENTRY, __FUNC__,
 	           (void*)netreq, netreq->request_type);
@@ -2217,6 +2335,30 @@ _getdns_submit_stub_request(getdns_network_req *netreq, uint64_t *now_ms)
 		    &context->pending_netreqs, &netreq->node))
 			return GETDNS_RETURN_GOOD;
 		return GETDNS_RETURN_NO_UPSTREAM_AVAILABLE;
+
+	} else if (fd == STUB_RESOLVE_UPSTREAM_NAME) {
+		assert( netreq->upstream->addr_len == 0);
+		assert(*netreq->upstream->addr_str != 0);
+
+		_getdns_netreq_change_state(netreq, NET_REQ_NOT_SENT);
+		if (netreq->addr_notify) {
+			netreq->addr_notify = netreq->upstream->addr_notify;
+			netreq->upstream->addr_notify = netreq;
+			return GETDNS_RETURN_GOOD;
+		} else
+			netreq->upstream->addr_notify = netreq;
+
+		if (!(sys_ctxt = _getdns_context_get_sys_ctxt(context, dnsreq->loop)))
+			/* TODO: retry something else? */
+			return GETDNS_RETURN_MEMORY_ERROR;
+
+		DEBUG_STUB("Scheduling address lookup for: %s\n", netreq->upstream->addr_str);
+		if ((r =_getdns_address_loop(sys_ctxt, dnsreq->loop,
+		    netreq->upstream->addr_str, NULL, netreq->upstream,
+		    NULL, NULL, upstream_name_cb)))
+			return r;
+		else
+			return GETDNS_RETURN_GOOD;
 	}
 	switch(netreq->transports[netreq->transport_current]) {
 	case GETDNS_TRANSPORT_UDP:

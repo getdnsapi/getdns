@@ -70,8 +70,8 @@ _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
 getdns_return_t
 _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions,
-    void *userarg, getdns_transaction_t *transaction_id,
-    getdns_callback_t callbackfn);
+    void *userarg, getdns_network_req **netreq_p, 
+    getdns_callback_t callbackfn, internal_cb_t internal_cb);
 
 getdns_return_t
 _getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,

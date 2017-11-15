@@ -237,6 +237,11 @@ typedef struct getdns_network_req
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
 
+	/* Network requests subscribed to be notified after me,
+	 * when an address lookup for a "name" upstream completed.
+	 */
+	struct getdns_network_req *addr_notify;
+
 	/* Some fields to record info for return_call_reporting */
 	uint64_t                debug_start_time;
 	uint64_t                debug_end_time;

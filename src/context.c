@@ -37,26 +37,6 @@
 #include "config.h"
 #include "anchor.h"
 
-#ifndef USE_WINSOCK
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <netdb.h>
-#include <pwd.h>
-#else
-#include <winsock2.h>
-#include <iphlpapi.h>
-typedef unsigned short in_port_t;
-
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-#include <openssl/bio.h>
-
-#include <stdio.h>
-#include <windows.h>
-#include <wincrypt.h>
-#include <shlobj.h>
-#endif
-
 #include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
@@ -952,7 +932,7 @@ static getdns_tsig_algo _getdns_get_tsig_algo(getdns_bindata *algo)
 	return GETDNS_NO_TSIG;
 }
 
-static void
+void
 upstream_init(getdns_upstream *upstream,
     getdns_upstreams *parent, struct addrinfo *ai)
 {
@@ -963,6 +943,8 @@ upstream_init(getdns_upstream *upstream,
 		(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
 	} else
 		upstream->addr_len = 0;
+
+	upstream->addr_notify = NULL;
 
 	/* How is this upstream doing on connections? */
 	upstream->conn_completed = 0;
@@ -989,7 +971,6 @@ upstream_init(getdns_upstream *upstream,
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
-	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
 	upstream->tls_auth_state = GETDNS_AUTH_NONE;
@@ -2763,7 +2744,7 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 	size_t count = 0;
 	size_t i;
 	getdns_upstreams *upstreams;
-	char addrstr[1024], portstr[1024], *eos;
+	char addrstr[1024], portstr[11], *eos;
 	struct addrinfo hints;
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
@@ -2827,6 +2808,9 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 				if ((r = getdns_dict_get_bindata(
 				    dict, "name", &name)))
 					goto error;
+				else
+					assert(name);
+
 			} else if (address_data->size == 4)
 				addr.ss_family = AF_INET;
 			else if (address_data->size == 16)
@@ -2935,20 +2919,25 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 
 		/* Loop to create upstreams as needed*/
 		for (j = 0; j < GETDNS_UPSTREAM_TRANSPORTS; j++) {
-			uint32_t port;
 			struct addrinfo *ai;
-			port = getdns_port_array[j];
-			if (port == GETDNS_PORT_ZERO)
+
+			upstream = &upstreams->upstreams[upstreams->count];
+			upstream->port = getdns_port_array[j];
+			if (upstream->port == GETDNS_PORT_ZERO)
 				continue;
+			upstream->addr.ss_family = addr.ss_family;
 
 			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS) {
 				if (dict)
-					(void) getdns_dict_get_int(dict, "port", &port);
+					(void) getdns_dict_get_int(
+					    dict, "port", &upstream->port);
 			} else {
 				if (dict)
-					(void) getdns_dict_get_int(dict, "tls_port", &port);
+					(void) getdns_dict_get_int(
+					    dict, "tls_port", &upstream->port);
 			}
-			(void) snprintf(portstr, 1024, "%d", (int)port);
+			(void) snprintf(
+			    portstr, sizeof(portstr), "%d", (int)upstream->port);
 
 			if (!name) {
 				if (getaddrinfo(addrstr, portstr, &hints, &ai))
@@ -2962,8 +2951,6 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 			 * already exist (in case user has specified TLS port explicitly and
 			 * to prevent duplicates) */
 
-			upstream = &upstreams->upstreams[upstreams->count];
-			upstream->addr.ss_family = addr.ss_family;
 			(void)strncpy(upstream->addr_str, addrstr
 			             , sizeof(upstream->addr_str));
 			upstream_init(upstream, upstreams, ai);
@@ -5024,5 +5011,40 @@ getdns_context_set_appdata_dir(
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_context *_getdns_context_get_sys_ctxt(
+    getdns_context *context, getdns_eventloop *loop)
+{
+	getdns_return_t r;
+
+	if (context->sys_ctxt)
+		return context->sys_ctxt;
+
+	if ((r = getdns_context_create_with_extended_memory_functions(
+	    &context->sys_ctxt, 1, context->mf.mf_arg,
+	    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
+	    context->mf.mf.ext.free)))
+		DEBUG_ANCHOR("Could not create system context: %s\n"
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_set_eventloop(
+	    context->sys_ctxt, loop)))
+		DEBUG_ANCHOR("Could not configure %ssynchronous loop "
+			     "with system context: %s\n"
+			    , ( loop == &context->sync_eventloop.loop
+			      ? "" : "a" )
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_set_resolution_type(
+	    context->sys_ctxt, GETDNS_RESOLUTION_STUB)))
+		DEBUG_ANCHOR("Could not configure system context for "
+			     "stub resolver: %s\n"
+			    , getdns_get_errorstr_by_id(r));
+	else
+		return context->sys_ctxt;
+
+	getdns_context_destroy(context->sys_ctxt);
+	context->sys_ctxt = NULL;
+	return NULL;
+}
 
 /* context.c */

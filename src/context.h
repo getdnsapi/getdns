@@ -37,9 +37,29 @@
 #ifndef _GETDNS_CONTEXT_H_
 #define _GETDNS_CONTEXT_H_
 
+#include "config.h"
+#ifndef USE_WINSOCK
+#include <arpa/inet.h>
+#include <sys/time.h>
+#include <netdb.h>
+#include <pwd.h>
+#else
+#include <winsock2.h>
+#include <iphlpapi.h>
+typedef unsigned short in_port_t;
+
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+
+#include <stdio.h>
+#include <windows.h>
+#include <wincrypt.h>
+#include <shlobj.h>
+#endif
+
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
-#include "config.h"
 #include "types-internal.h"
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
@@ -141,6 +161,8 @@ typedef struct getdns_upstream {
 	socklen_t                addr_len;
 	struct sockaddr_storage  addr;
 	char                     addr_str[1024];
+	getdns_network_req      *addr_notify;
+	uint32_t                 port;
 
 	/**
 	 * How is this upstream doing over UDP?
@@ -556,5 +578,11 @@ int _getdns_context_write_priv_file(getdns_context *context,
     const char *fn, getdns_bindata *content);
 
 int _getdns_context_can_write_appdata(getdns_context *context);
+
+getdns_context *_getdns_context_get_sys_ctxt(
+    getdns_context *context, getdns_eventloop *loop);
+
+void upstream_init(getdns_upstream *upstream,
+    getdns_upstreams *parent, struct addrinfo *ai);
 
 #endif /* _GETDNS_CONTEXT_H_ */

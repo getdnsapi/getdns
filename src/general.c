@@ -717,12 +717,12 @@ _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
 getdns_return_t
 _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
     const char *name, getdns_dict *extensions, void *userarg,
-    getdns_transaction_t *transaction_id, getdns_callback_t callback)
+    getdns_network_req **netreq_p, getdns_callback_t callback,
+    internal_cb_t internal_cb)
 {
 	getdns_dict *my_extensions = extensions;
 	getdns_return_t r;
 	uint32_t value;
-	getdns_network_req *netreq = NULL;
 
 	if (!my_extensions) {
 		if (!(my_extensions=getdns_dict_create_with_context(context)))
@@ -738,9 +738,7 @@ _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 
 	r = getdns_general_ns(context, loop,
 	    name, GETDNS_RRTYPE_AAAA, my_extensions,
-	    userarg, &netreq, callback, NULL, 1);
-	if (netreq && transaction_id)
-		*transaction_id = netreq->owner->trans_id;
+	    userarg, netreq_p, callback, internal_cb, 1);
 
 	if (my_extensions != extensions)
 		getdns_dict_destroy(my_extensions);
@@ -882,10 +880,16 @@ getdns_address(getdns_context *context,
     const char *name, getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
+	getdns_return_t r;
+	getdns_network_req *netreq = NULL;
+
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
-	return _getdns_address_loop(context, context->extension,
-	    name, extensions, userarg,
-	    transaction_id, callbackfn);
+	r = _getdns_address_loop(context, context->extension,
+	    name, extensions, userarg, &netreq, callbackfn, NULL);
+	if (netreq && transaction_id)
+		*transaction_id = netreq->owner->trans_id;
+	return r;
+
 } /* getdns_address */
 
 /*

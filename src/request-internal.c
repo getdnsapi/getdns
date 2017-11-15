@@ -135,6 +135,7 @@ netreq_reset(getdns_network_req *net_req)
 		net_req->query_id_registered = NULL;
 		net_req->node.key = NULL;
 	}
+	net_req->addr_notify = NULL;
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->response_len = 0;

@@ -199,7 +199,7 @@ getdns_address_sync(getdns_context *context, const char *name,
 		return r;
 
 	if ((r = _getdns_address_loop(context, &context->sync_eventloop.loop,
-	    name, extensions, &data, NULL, getdns_sync_cb))) {
+	    name, extensions, &data, NULL, getdns_sync_cb, NULL))) {
 
 		getdns_sync_data_cleanup(&data);
 		return r;
