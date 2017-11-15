@@ -2973,6 +2973,13 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 						tls_auth_name->size);
 					upstream->tls_auth_name
 					    [tls_auth_name->size] = '\0';
+				} else if (upstream->addr_len == 0) {
+					(void)strncpy(upstream->tls_auth_name
+					     , addrstr
+					     , sizeof(upstream->tls_auth_name));
+					if (strlen(addrstr) >=
+					    sizeof(upstream->tls_auth_name))
+						upstream->tls_auth_name[sizeof(upstream->tls_auth_name)-1] = 0;
 				}
 				if (dict && (r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
