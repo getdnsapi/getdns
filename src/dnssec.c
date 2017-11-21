@@ -3164,6 +3164,7 @@ static void check_chain_complete(chain_head *chain)
 
 		if ((head = chain) && (node = _to_the_root(head->parent))
 		    && node->dnskey.name && *node->dnskey.name == 0
+		    && node->dnskey_req
 		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
 
 			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
