@@ -69,7 +69,7 @@ typedef void (*getdns_update_callback2) (struct getdns_context *,
 
 /* internal use only for detecting changes to system files */
 struct filechg {
-	char *fn;
+	const char *fn;
 	int  changes;
 	int  errors;
 	struct stat *prevstat;

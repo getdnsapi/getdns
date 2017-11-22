@@ -378,6 +378,67 @@ getdns_context_run(getdns_context *context);
  */
 
 /**
+ * creates a new getdns context with default settings.
+ * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
+ * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
+ * @param context context that can be used immediately with other API calls
+ * @param resolvconf is the location of the resolv.conf file from which to
+ *        read the OS settings. When NULL, the context will not be
+ *        initialized with the settings herein.
+ * @return GETDNS_RETURN_GOOD on success
+*/
+getdns_return_t
+getdns_context_create2(getdns_context ** context, const char *resolvconf);
+
+
+/**
+ * creates a new getdns context with default settings using custom memory functions.
+ * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
+ * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
+ * @param context context that can be used immediately with other API calls
+ * @param resolvconf is the location of the resolv.conf file from which to
+ *        read the OS settings. When NULL, the context will not be
+ *        initialized with the settings herein.
+ * @param malloc custom malloc function
+ * @param realloc custom realloc function
+ * @param free custom free function
+ * @return GETDNS_RETURN_GOOD on success
+*/
+getdns_return_t
+getdns_context_create_with_memory_functions2(
+    getdns_context ** context,
+    const char *resolvconf,
+    void *(*malloc) (size_t),
+    void *(*realloc) (void *, size_t),
+    void (*free) (void *)
+);
+
+
+/**
+ * creates a new getdns context with default settings using extended custom memory functions.
+ * If used multi-threaded, user must define appropriate OpenSSL callback locking functions
+ * (e.g. CRYPTO_THREADID_set_call) depending on the library version used.
+ * @param context context that can be used immediately with other API calls
+ * @param resolvconf is the location of the resolv.conf file from which to
+ *        read the OS settings. When NULL, the context will not be
+ *        initialized with the settings herein.
+ * @param userarg parameter passed to the custom malloc, realloc and free functions
+ * @param malloc custom malloc function
+ * @param realloc custom realloc function
+ * @param free custom free function
+ * @return GETDNS_RETURN_GOOD on success
+*/
+getdns_return_t
+getdns_context_create_with_extended_memory_functions2(
+    getdns_context **context,
+    const char *resolvconf,
+    void *userarg,
+    void *(*malloc) (void *userarg, size_t),
+    void *(*realloc) (void *userarg, void *, size_t),
+    void (*free) (void *userarg, void *)
+);
+
+/**
  * Register a callback function for context changes.
  * @see getdns_context_set_context_update_callback
  * @see contextcodetypestext

@@ -1090,7 +1090,7 @@ static int get_dns_suffix_windows(getdns_list *suffix, char* domain)
 
 
 static getdns_return_t
-set_os_defaults_windows(struct getdns_context *context)
+set_os_defaults(getdns_context *context, const char *resolvconf_file)
 {
     char domain[1024] = "";
     size_t upstreams_limit = 10;
@@ -1107,7 +1107,7 @@ set_os_defaults_windows(struct getdns_context *context)
 			GETDNS_MALLOC(context->my_mf, struct filechg);
 		if (context->fchg_resolvconf == NULL)
 			return GETDNS_RETURN_MEMORY_ERROR;
-		context->fchg_resolvconf->fn = "InvalidOnWindows";
+		context->fchg_resolvconf->fn = resolvconf_file;
 		context->fchg_resolvconf->prevstat = NULL;
 		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
 		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
@@ -1186,7 +1186,7 @@ set_os_defaults_windows(struct getdns_context *context)
 #else
 
 static getdns_return_t
-set_os_defaults(struct getdns_context *context)
+set_os_defaults(getdns_context *context, const char *resolvconf_file)
 {
 	FILE *in;
 	char line[1024], domain[1024];
@@ -1203,7 +1203,7 @@ set_os_defaults(struct getdns_context *context)
 		    GETDNS_MALLOC(context->my_mf, struct filechg);
 		if(context->fchg_resolvconf == NULL)
 			return GETDNS_RETURN_MEMORY_ERROR;
-		context->fchg_resolvconf->fn       = GETDNS_FN_RESOLVCONF;
+		context->fchg_resolvconf->fn       = resolvconf_file;
 		context->fchg_resolvconf->prevstat = NULL;
 		context->fchg_resolvconf->changes  = GETDNS_FCHG_NOCHANGES;
 		context->fchg_resolvconf->errors   = GETDNS_FCHG_NOERROR;
@@ -1395,9 +1395,9 @@ static const char *_getdns_default_trust_anchors_verify_email =
  * Call this to initialize the context that is used in other getdns calls.
  */
 getdns_return_t
-getdns_context_create_with_extended_memory_functions(
-    struct getdns_context ** context,
-    int set_from_os,
+getdns_context_create_with_extended_memory_functions2(
+    getdns_context **context,
+    const char *resolvconf_file,
     void *userarg,
     void *(*malloc)(void *userarg, size_t),
     void *(*realloc)(void *userarg, void *, size_t),
@@ -1571,13 +1571,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->fchg_hosts      = NULL;
 
 	// resolv.conf does not exist on Windows, handle differently
-#ifndef USE_WINSOCK 
-	if ((set_from_os & 1) && (r = set_os_defaults(result)))
+	if (resolvconf_file && (r = set_os_defaults(result, resolvconf_file)))
 		goto error;
-#else
-	if ((set_from_os & 1) && (r = set_os_defaults_windows(result)))
-		goto error;
-#endif
 
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
@@ -1638,6 +1633,21 @@ error:
 	return r;
 } /* getdns_context_create_with_extended_memory_functions */
 
+getdns_return_t
+getdns_context_create_with_extended_memory_functions(
+    getdns_context **context,
+    int set_from_os,
+    void *userarg,
+    void *(*malloc)(void *userarg, size_t),
+    void *(*realloc)(void *userarg, void *, size_t),
+    void (*free)(void *userarg, void *)
+    )
+{
+	return getdns_context_create_with_extended_memory_functions2(context,
+	    ((set_from_os & 1) ? GETDNS_FN_RESOLVCONF : NULL), userarg,
+	    malloc, realloc, free);
+}
+
 /*
  * getdns_context_create
  *
@@ -1672,6 +1682,29 @@ getdns_context_create(struct getdns_context ** context, int set_from_os)
             set_from_os, malloc, realloc, free);
 }               /* getdns_context_create */
 
+getdns_return_t
+getdns_context_create_with_memory_functions2(getdns_context **context,
+    const char *resolvconf_file,
+    void *(*malloc)(size_t),
+    void *(*realloc)(void *, size_t),
+    void (*free)(void *)
+    )
+{
+    mf_union mf;
+    mf.pln.malloc = malloc;
+    mf.pln.realloc = realloc;
+    mf.pln.free = free;
+    return getdns_context_create_with_extended_memory_functions2(
+        context, resolvconf_file, MF_PLAIN,
+        mf.ext.malloc, mf.ext.realloc, mf.ext.free);
+}
+
+getdns_return_t
+getdns_context_create2(getdns_context **context, const char *resolvconf_file)
+{
+    return getdns_context_create_with_memory_functions2(context,
+            resolvconf_file, malloc, realloc, free);
+}
 
 /*
  * getdns_context_destroy
