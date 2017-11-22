@@ -345,6 +345,22 @@ AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
 AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
 ACX_CHECK_GETADDRINFO_WITH_INCLUDES
 
+AC_ARG_WITH(resolvconf, AS_HELP_STRING([--with-resolvconf=PATH],
+	[Set the resolver configuration file path.  Defaults to /etc/resolv.conf or values retrieved via GetNetworkParams() on Windows]),
+	[], [withval="/etc/resolv.conf"])
+AC_DEFINE_UNQUOTED([GETDNS_FN_RESOLVCONF], ["$withval"], [Path to resolver configuration file])
+
+AC_ARG_WITH(hosts, AS_HELP_STRING([--with-hosts=PATH],
+	[Set the static table lookup for hostnames path.  Defaults to /etc/hosts or C:\Windows\System32\Drivers\etc\hosts on Windows]),
+	[], [
+if test "$USE_WINSOCK" = 1; then
+	withval="C:\\\\Windows\\\\System32\\\\Drivers\\\\etc\\\\hosts"
+else
+	withval="/etc/hosts"
+fi
+])
+AC_DEFINE_UNQUOTED([GETDNS_FN_HOSTS], ["$withval"], [Path to static table lookup for hostnames])
+
 AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
 	[Set maximum file descriptor number that can be used by select]),
 	[], [withval="no"])

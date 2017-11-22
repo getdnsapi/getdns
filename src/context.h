@@ -54,9 +54,6 @@
 struct getdns_dns_req;
 struct ub_ctx;
 
-#define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
-#define GETDNS_FN_HOSTS      "/etc/hosts"
-
 enum filechgs { GETDNS_FCHG_ERRORS = -1
  , GETDNS_FCHG_NOERROR   = 0
  , GETDNS_FCHG_NOCHANGES = 0

@@ -505,11 +505,7 @@ create_local_hosts(getdns_context *context)
 	int start_of_line = 1;
 	getdns_dict *address = NULL;
 
-#ifdef USE_WINSOCK
-	in = fopen("c:\\WINDOWS\\system32\\drivers\\etc\\hosts", "r");
-#else
-	in = fopen("/etc/hosts", "r");
-#endif
+	in = fopen(GETDNS_FN_HOSTS, "r");
 	while (fgets(pos, (int)(sizeof(buf) - (pos - buf)), in)) {
 		pos = buf;
 		/* Break out of for to read more */
@@ -1207,7 +1203,7 @@ set_os_defaults(struct getdns_context *context)
 		    GETDNS_MALLOC(context->my_mf, struct filechg);
 		if(context->fchg_resolvconf == NULL)
 			return GETDNS_RETURN_MEMORY_ERROR;
-		context->fchg_resolvconf->fn       = "/etc/resolv.conf";
+		context->fchg_resolvconf->fn       = GETDNS_FN_RESOLVCONF;
 		context->fchg_resolvconf->prevstat = NULL;
 		context->fchg_resolvconf->changes  = GETDNS_FCHG_NOCHANGES;
 		context->fchg_resolvconf->errors   = GETDNS_FCHG_NOERROR;
@@ -3869,6 +3865,8 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "trust_anchors_verify_CA", str_value);
 	if (!getdns_context_get_trust_anchors_verify_email(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "trust_anchors_verify_email", str_value);
+	if (context->fchg_resolvconf && context->fchg_resolvconf->fn)
+		(void) getdns_dict_util_set_string(result, "resolvconf_file", context->fchg_resolvconf->fn);
 
 	return result;
 error:
@@ -3904,6 +3902,12 @@ getdns_context_get_api_information(getdns_context* context)
 
 	    && ! getdns_dict_util_set_string(
 	    result, "default_trust_anchor_location", TRUST_ANCHOR_FILE)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "default_resolvconf_location", GETDNS_FN_RESOLVCONF)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "default_hosts_location", GETDNS_FN_HOSTS)
 
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
@@ -4624,6 +4628,8 @@ _getdns_context_config_setting(getdns_context *context,
 	    && !_streq(setting, "api_version_number")
 	    && !_streq(setting, "trust_anchor_file")
 	    && !_streq(setting, "default_trust_anchor_location")
+	    && !_streq(setting, "default_resolvconf_location")
+	    && !_streq(setting, "default_hosts_location")
 	    && !_streq(setting, "compilation_comment")
 	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
