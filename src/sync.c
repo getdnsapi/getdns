@@ -112,7 +112,10 @@ getdns_sync_data_cleanup(getdns_sync_data *data)
 	/* If statefull upstream have events scheduled against the sync loop,
 	 * reschedule against the async loop.
 	 */
-	for (i = 0; i < ctxt->upstreams->count; i++) {
+	if (!ctxt->upstreams)
+		; /* pass */
+
+	else for (i = 0; i < ctxt->upstreams->count; i++) {
 		upstream = &ctxt->upstreams->upstreams[i];
 		if (upstream->loop != &data->context->sync_eventloop.loop)
 			continue;

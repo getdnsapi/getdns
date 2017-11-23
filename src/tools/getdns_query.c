@@ -91,6 +91,8 @@ static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 static int bogus_answers = 0;
 static int check_dnssec = 0;
+static char *resolvconf = NULL;
+static int print_api_info = 0, print_trust_anchors = 0;
 
 static int get_rrtype(const char *t)
 {
@@ -252,9 +254,11 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
 	fprintf(out, "\t-K <pin>\tPin a public key for TLS connections (can repeat)\n");
 	fprintf(out, "\t\t(should look like '" EXAMPLE_PIN "')\n");
-	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
-	fprintf(out, "\t-p\tPretty print response dict\n");
+	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
+	fprintf(out, "\t-o <filename>\tSet resolver configuration file path\n");
+	fprintf(out, "\t\t(default = %s)\n", GETDNS_FN_RESOLVCONF);
+	fprintf(out, "\t-p\tPretty print response dict (default)\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n"
 		"\t\t(special values: 0: no padding, 1: sensible default policy)\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
@@ -592,7 +596,7 @@ getdns_return_t parse_args(int argc, char **argv)
 	size_t j;
 	int i, klass;
 	char *arg, *c, *endptr;
-	int t, print_api_info = 0, print_trust_anchors = 0;
+	int t;
 	getdns_list *upstream_list = NULL;
 	getdns_list *tas = NULL, *hints = NULL;
 	getdns_dict *pubkey_pin = NULL;
@@ -819,6 +823,14 @@ getdns_return_t parse_args(int argc, char **argv)
 			case 'm':
 				getdns_context_set_tls_authentication(context,
 				                 GETDNS_AUTHENTICATION_REQUIRED);
+				break;
+			case 'o':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "<filename>"
+					    "expected after -o\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				resolvconf = argv[i];
 				break;
 			case 'P':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
@@ -1102,44 +1114,6 @@ next:		;
 	if (upstream_list)
 		getdns_list_destroy(upstream_list);
 
-	if (print_api_info) {
-		getdns_dict *api_information = 
-		    getdns_context_get_api_information(context);
-		char *api_information_str;
-	       
-		if (listen_dict && !getdns_dict_get_list(
-		    listen_dict, "listen_list", &listen_list)) {
-
-			(void) getdns_dict_set_list(api_information,
-			    "listen_addresses", listen_list);
-		} else if (listen_list) {
-			(void) getdns_dict_set_list(api_information,
-			    "listen_addresses", listen_list);
-
-		} else if ((listen_list = getdns_list_create())) {
-			(void) getdns_dict_set_list(api_information,
-			    "listen_addresses", listen_list);
-			getdns_list_destroy(listen_list);
-			listen_list = NULL;
-		}
-		api_information_str =
-		    getdns_pretty_print_dict(api_information);
-		fprintf(stdout, "%s\n", api_information_str);
-		free(api_information_str);
-		getdns_dict_destroy(api_information);
-		return CONTINUE;
-	}
-	if (print_trust_anchors) {
-		if (!getdns_context_get_dnssec_trust_anchors(context, &tas)) {
-		/* if ((tas = getdns_root_trust_anchor(NULL))) { */
-			char *tas_str = getdns_pretty_print_list(tas);
-			fprintf(stdout, "%s\n", tas_str);
-			free(tas_str);
-			getdns_list_destroy(tas);
-			return CONTINUE;
-		} else
-			return CONTINUE_ERROR;
-	}
 	return r;
 }
 
@@ -1757,8 +1731,68 @@ main(int argc, char **argv)
 	(void) getdns_context_set_logfunc(context, NULL,
 	    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
 
-	if ((r = parse_args(argc, argv)))
+	if ((r = parse_args(argc, argv)) && r != CONTINUE)
 		goto done_destroy_context;
+	fprintf(stderr, "resolvconf: %s\n", resolvconf);
+	if (resolvconf) {
+		getdns_context_destroy(context);
+		if ((r = getdns_context_create2(&context, resolvconf))) {
+			fprintf(stderr, "Create context failed: %d\n", (int)r);
+			context = NULL;
+			goto done_destroy_context;
+		}
+		if ((r = parse_args(argc, argv)))
+			goto done_destroy_context;
+	}
+	if (print_api_info) {
+		getdns_dict *api_information = 
+		    getdns_context_get_api_information(context);
+		char *api_information_str;
+	       
+		if (listen_dict && !getdns_dict_get_list(
+		    listen_dict, "listen_list", &listen_list)) {
+
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+		} else if (listen_list) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+
+		} else if ((listen_list = getdns_list_create())) {
+			(void) getdns_dict_set_list(api_information,
+			    "listen_addresses", listen_list);
+			getdns_list_destroy(listen_list);
+			listen_list = NULL;
+		}
+		api_information_str = json
+		    ? getdns_print_json_dict(api_information, json == 1)
+		    : getdns_pretty_print_dict(api_information);
+		fprintf(stdout, "%s\n", api_information_str);
+		free(api_information_str);
+		getdns_dict_destroy(api_information);
+	}
+	if (print_trust_anchors) {
+		getdns_list *tas = NULL;
+
+		if (!getdns_context_get_dnssec_trust_anchors(context, &tas)) {
+		/* if ((tas = getdns_root_trust_anchor(NULL))) { */
+			char *tas_str;
+
+			tas_str = json
+			    ? getdns_print_json_list(tas, json == 1)
+			    : getdns_pretty_print_list(tas);
+
+			fprintf(stdout, "%s\n", tas_str);
+			free(tas_str);
+			getdns_list_destroy(tas);
+		}
+	}
+	if (!r && (print_trust_anchors || print_api_info)) {
+		r = CONTINUE;
+	}
+	if (r)
+		goto done_destroy_context;
+
 	clear_listen_list_on_arg = 0;
 
 	if (query_file) {
