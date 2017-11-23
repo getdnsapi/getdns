@@ -5056,7 +5056,7 @@ getdns_context *_getdns_context_get_sys_ctxt(
 	if (context->sys_ctxt)
 		return context->sys_ctxt;
 
-	if ((r = getdns_context_create_with_extended_memory_functions2(
+	if ((r = getdns_context_create_with_extended_memory_functions2(&context->sys_ctxt,
 	    ( context->fchg_resolvconf && context->fchg_resolvconf->fn
 	    ? context->fchg_resolvconf->fn : NULL ),
 	    context->mf.mf_arg, context->mf.mf.ext.malloc,
