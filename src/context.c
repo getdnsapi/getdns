@@ -2774,9 +2774,9 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 		getdns_bindata *address_data;
 		getdns_bindata *name = NULL;
 		getdns_bindata *tls_auth_name;
-		struct sockaddr_storage  addr;
 
 		getdns_bindata  *scope_id;
+		int              af = AF_UNSPEC;
 		getdns_upstream *upstream;
 
 		getdns_bindata  *tsig_alg_name, *tsig_name, *tsig_key;
@@ -2795,9 +2795,9 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 				goto error;
 
 			if (address_data->size == 4)
-				addr.ss_family = AF_INET;
+				af = AF_INET;
 			else if (address_data->size == 16)
-				addr.ss_family = AF_INET6;
+				af = AF_INET6;
 			else	goto invalid_parameter;
 
 		} else if ((r = getdns_dict_get_bindata(
@@ -2812,26 +2812,26 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 					assert(name);
 
 			} else if (address_data->size == 4)
-				addr.ss_family = AF_INET;
+				af = AF_INET;
 			else if (address_data->size == 16)
-				addr.ss_family = AF_INET6;
+				af = AF_INET6;
 			else	goto invalid_parameter;
 
 		} else {
 			if (address_type->size < 4)
 				goto invalid_parameter;
 			else if (!strncmp((char*)address_type->data,"IPv4",4))
-				addr.ss_family = AF_INET;
+				af = AF_INET;
 			else if (!strncmp((char*)address_type->data,"IPv6",4))
-				addr.ss_family = AF_INET6;
+				af = AF_INET6;
 			else	goto invalid_parameter;
 
 			if ((r = getdns_dict_get_bindata(
 			    dict, "address_data", &address_data)))
 				goto error;
-			if ((addr.ss_family == AF_INET &&
+			if ((af == AF_INET &&
 			     address_data->size != 4) ||
-			    (addr.ss_family == AF_INET6 &&
+			    (af == AF_INET6 &&
 			     address_data->size != 16))
 				goto invalid_parameter;
 		}
@@ -2841,8 +2841,8 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 			(void) memcpy(addrstr, name->data, name->size);
 			addrstr[name->size] = 0;
 
-		} else if (inet_ntop(addr.ss_family, address_data->data,
-		    addrstr, 1024) == NULL)
+		} else if (inet_ntop(
+		    af, address_data->data, addrstr, 1024) == NULL)
 			goto invalid_parameter;
 
 		if (dict && getdns_dict_get_bindata(dict,"scope_id",&scope_id)
@@ -2925,7 +2925,6 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 			upstream->port = getdns_port_array[j];
 			if (upstream->port == GETDNS_PORT_ZERO)
 				continue;
-			upstream->addr.ss_family = addr.ss_family;
 
 			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS) {
 				if (dict)
@@ -2940,6 +2939,7 @@ getdns_context_set_upstream_recursive_servers(getdns_context *context,
 			    portstr, sizeof(portstr), "%d", (int)upstream->port);
 
 			if (!name) {
+				upstream->addr.ss_family = af;
 				if (getaddrinfo(addrstr, portstr, &hints, &ai))
 					goto invalid_parameter;
 				if (!ai)
