@@ -5056,10 +5056,11 @@ getdns_context *_getdns_context_get_sys_ctxt(
 	if (context->sys_ctxt)
 		return context->sys_ctxt;
 
-	if ((r = getdns_context_create_with_extended_memory_functions(
-	    &context->sys_ctxt, 1, context->mf.mf_arg,
-	    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
-	    context->mf.mf.ext.free)))
+	if ((r = getdns_context_create_with_extended_memory_functions2(
+	    ( context->fchg_resolvconf && context->fchg_resolvconf->fn
+	    ? context->fchg_resolvconf->fn : NULL ),
+	    context->mf.mf_arg, context->mf.mf.ext.malloc,
+	    context->mf.mf.ext.realloc, context->mf.mf.ext.free)))
 		DEBUG_ANCHOR("Could not create system context: %s\n"
 			    , getdns_get_errorstr_by_id(r));
 
