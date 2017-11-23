@@ -554,4 +554,7 @@ int _getdns_context_write_priv_file(getdns_context *context,
 
 int _getdns_context_can_write_appdata(getdns_context *context);
 
+getdns_context *_getdns_context_get_sys_ctxt(
+    getdns_context *context, getdns_eventloop *loop);
+
 #endif /* _GETDNS_CONTEXT_H_ */

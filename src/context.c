@@ -5048,5 +5048,40 @@ getdns_context_set_appdata_dir(
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_context *_getdns_context_get_sys_ctxt(
+    getdns_context *context, getdns_eventloop *loop)
+{
+	getdns_return_t r;
+
+	if (context->sys_ctxt)
+		return context->sys_ctxt;
+
+	if ((r = getdns_context_create_with_extended_memory_functions(
+	    &context->sys_ctxt, 1, context->mf.mf_arg,
+	    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
+	    context->mf.mf.ext.free)))
+		DEBUG_ANCHOR("Could not create system context: %s\n"
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_set_eventloop(
+	    context->sys_ctxt, loop)))
+		DEBUG_ANCHOR("Could not configure %ssynchronous loop "
+			     "with system context: %s\n"
+			    , ( loop == &context->sync_eventloop.loop
+			      ? "" : "a" )
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_set_resolution_type(
+	    context->sys_ctxt, GETDNS_RESOLUTION_STUB)))
+		DEBUG_ANCHOR("Could not configure system context for "
+			     "stub resolver: %s\n"
+			    , getdns_get_errorstr_by_id(r));
+	else
+		return context->sys_ctxt;
+
+	getdns_context_destroy(context->sys_ctxt);
+	context->sys_ctxt = NULL;
+	return NULL;
+}
 
 /* context.c */
