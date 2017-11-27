@@ -3395,10 +3395,21 @@ void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
-	chain_head *head = dnsreq->chain, *next, *dnskey_head;
+	chain_head *head, *next;
 	chain_node *node;
 	size_t      node_count;
 
+	/* Clear nodes under direct DNSKEY queries.
+	 * They share the DNSKEY lookup netreq, but _dnskey_query() can not
+	 * be used because we're free'ing the heads.
+	 */
+	for (head = dnsreq->chain; head; head = head->next) {
+		if (  head->rrset.rr_type == GETDNS_RRTYPE_DNSKEY
+		   && head->node_count
+		   && head->netreq == head->parent->dnskey_req)
+			head->parent->dnskey_req = NULL;
+	}
+	head = dnsreq->chain;
 	dnsreq->chain = NULL;
 	while (head) {
 		next = head->next;
@@ -3407,10 +3418,7 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
-			if (node->dnskey_req &&
-			    !( (dnskey_head = _dnskey_query(node))
-			     && dnskey_head->netreq == node->dnskey_req))
-
+			if (node->dnskey_req)
 				_getdns_context_cancel_request(
 				    node->dnskey_req->owner);
 
