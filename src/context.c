@@ -1574,15 +1574,6 @@ getdns_context_create_with_extended_memory_functions(
 	result->fchg_resolvconf = NULL;
 	result->fchg_hosts      = NULL;
 
-	// resolv.conf does not exist on Windows, handle differently
-#ifndef USE_WINSOCK 
-	if ((set_from_os & 1) && (r = set_os_defaults(result)))
-		goto error;
-#else
-	if ((set_from_os & 1) && (r = set_os_defaults_windows(result)))
-		goto error;
-#endif
-
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
 	if ((r = create_default_dns_transports(result)))
@@ -1634,6 +1625,14 @@ getdns_context_create_with_extended_memory_functions(
 
 	create_local_hosts(result);
 
+	// resolv.conf does not exist on Windows, handle differently
+#ifndef USE_WINSOCK 
+	if ((set_from_os & 1) && (r = set_os_defaults(result)))
+		goto error;
+#else
+	if ((set_from_os & 1) && (r = set_os_defaults_windows(result)))
+		goto error;
+#endif
 
 	*context = result;
 	return GETDNS_RETURN_GOOD;
