@@ -8,3 +8,4 @@ ONE_TEST=$1
 shift
 
 "${TPKG}" $* exe ${SRCDIR}/${ONE_TEST}.tpkg
+"${TPKG}" -n -1 r
