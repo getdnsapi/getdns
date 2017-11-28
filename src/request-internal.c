@@ -866,6 +866,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	if (! (region = GETDNS_XMALLOC(context->mf, uint8_t, 
 	    dnsreq_base_sz + (a_aaaa_query ? 2 : 1) * netreq_sz)))
 		return NULL;
+	(void) memset(region, 0, sizeof(getdns_dns_req));
 
 	result = (getdns_dns_req *)region;
 	result->netreqs[0] = (getdns_network_req *)(region + dnsreq_base_sz);
