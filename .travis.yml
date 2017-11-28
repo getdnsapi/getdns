@@ -20,5 +20,5 @@ addons:
 script:
   - mkdir tests
   - cd tests
-  - ../src/test/tpkg/run-all.sh
-# - ../src/test/tpkg/run-one.sh 400-static-analysis -V
+# - ../src/test/tpkg/run-all.sh
+  - ../src/test/tpkg/run-one.sh 225-stub-only-valgrind-checks
