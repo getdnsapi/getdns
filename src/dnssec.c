@@ -3160,12 +3160,19 @@ static void check_chain_complete(chain_head *chain)
 			_getdns_context_update_root_ksk(context,&node->dnskey);
        	
 	} else if (_getdns_bogus(dnsreq)) {
+		_getdns_rrsig_iter rrsig_spc;
 		DEBUG_ANCHOR("Request was bogus!\n");
 
 		if ((head = chain) && (node = _to_the_root(head->parent))
+ 		    /* The root DNSKEY rrset */
 		    && node->dnskey.name && *node->dnskey.name == 0
+		    /* We queried it and had a response */
 		    && node->dnskey_req
-		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
+		    /* The response was bogus */
+		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS
+		    /* The response was bogus, but not because it has no rrsigs */
+		    && _getdns_rrsig_iter_init(&rrsig_spc, &node->dnskey)
+		    ){
 
 			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
 			if (!dnsreq->waiting_for_ta) {
