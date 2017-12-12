@@ -265,7 +265,7 @@ esac
 
 
 DEFAULT_EVENTLOOP=select_eventloop
-AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h sys/stat.h],,, [AC_INCLUDES_DEFAULT])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)
@@ -1514,6 +1514,10 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H
