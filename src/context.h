@@ -69,10 +69,10 @@ typedef void (*getdns_update_callback2) (struct getdns_context *,
 
 /* internal use only for detecting changes to system files */
 struct filechg {
-	const char *fn;
+	char fn[_GETDNS_PATH_MAX];
 	int  changes;
 	int  errors;
-	struct stat *prevstat;
+	struct stat prevstat;
 };
 
 typedef enum getdns_tls_hs_state {
@@ -452,8 +452,8 @@ struct getdns_context {
 	/*
 	 * state data used to detect changes to the system config files
 	 */
-	struct filechg *fchg_resolvconf;
-	struct filechg *fchg_hosts;
+	struct filechg fchg_resolvconf;
+	struct filechg fchg_hosts;
 
 	uint8_t trust_anchors_spc[1024];
 
@@ -536,8 +536,6 @@ void _getdns_bindata_destroy(
 /* perform name resolution in /etc/hosts */
 getdns_return_t _getdns_context_local_namespace_resolve(
     getdns_dns_req* req, struct getdns_dict **response);
-
-int _getdns_filechg_check(struct getdns_context *context, struct filechg *fchg);
 
 void _getdns_context_ub_read_cb(void *userarg);
 

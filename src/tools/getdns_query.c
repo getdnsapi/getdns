@@ -1735,10 +1735,8 @@ main(int argc, char **argv)
 		goto done_destroy_context;
 	fprintf(stderr, "resolvconf: %s\n", resolvconf);
 	if (resolvconf) {
-		getdns_context_destroy(context);
-		if ((r = getdns_context_create2(&context, resolvconf))) {
-			fprintf(stderr, "Create context failed: %d\n", (int)r);
-			context = NULL;
+		if ((r = getdns_context_set_resolvconf(context, resolvconf))) {
+			fprintf(stderr, "Problem initializing with resolvconf: %d\n", (int)r);
 			goto done_destroy_context;
 		}
 		if ((r = parse_args(argc, argv)))
