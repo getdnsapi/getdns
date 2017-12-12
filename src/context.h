@@ -346,6 +346,9 @@ struct getdns_context {
 	char                 *appdata_dir;
 	_getdns_property      can_write_appdata;
 
+	char                 *CApath;
+	char                 *CAfile;
+
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;

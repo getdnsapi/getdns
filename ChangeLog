@@ -1,4 +1,6 @@
 * 201?-??-??: Version 1.?.?
+  * Specify locations at which CA certificates for verification purposes
+    are located: getdns_context_set_CApath() getdns_context_set_CAfile()
   * Bugfix #359: edns_client_subnet_private should set family
     Thanks Daniel Areiza
 
