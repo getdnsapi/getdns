@@ -18,6 +18,8 @@
   * GETDNS_RETURN_IO_ERROR return error code
   * Bugfix #359: edns_client_subnet_private should set family
     Thanks Daniel Areiza
+  * Bugfix getdnsapi/stubby#34: Segfault issue with native DNSSEC
+    validation.  Thanks Bruno Pagani
 
 * 2017-11-11: Version 1.2.1
   * Handle more I/O error cases.  Also, when an I/O error does occur,
