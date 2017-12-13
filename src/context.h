@@ -54,9 +54,6 @@
 struct getdns_dns_req;
 struct ub_ctx;
 
-#define GETDNS_FN_RESOLVCONF "/etc/resolv.conf"
-#define GETDNS_FN_HOSTS      "/etc/hosts"
-
 enum filechgs { GETDNS_FCHG_ERRORS = -1
  , GETDNS_FCHG_NOERROR   = 0
  , GETDNS_FCHG_NOCHANGES = 0
@@ -72,10 +69,10 @@ typedef void (*getdns_update_callback2) (struct getdns_context *,
 
 /* internal use only for detecting changes to system files */
 struct filechg {
-	char *fn;
+	char fn[_GETDNS_PATH_MAX];
 	int  changes;
 	int  errors;
-	struct stat *prevstat;
+	struct stat prevstat;
 };
 
 typedef enum getdns_tls_hs_state {
@@ -455,8 +452,8 @@ struct getdns_context {
 	/*
 	 * state data used to detect changes to the system config files
 	 */
-	struct filechg *fchg_resolvconf;
-	struct filechg *fchg_hosts;
+	struct filechg fchg_resolvconf;
+	struct filechg fchg_hosts;
 
 	uint8_t trust_anchors_spc[1024];
 
@@ -540,8 +537,6 @@ void _getdns_bindata_destroy(
 getdns_return_t _getdns_context_local_namespace_resolve(
     getdns_dns_req* req, struct getdns_dict **response);
 
-int _getdns_filechg_check(struct getdns_context *context, struct filechg *fchg);
-
 void _getdns_context_ub_read_cb(void *userarg);
 
 void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
@@ -556,5 +551,8 @@ int _getdns_context_write_priv_file(getdns_context *context,
     const char *fn, getdns_bindata *content);
 
 int _getdns_context_can_write_appdata(getdns_context *context);
+
+getdns_context *_getdns_context_get_sys_ctxt(
+    getdns_context *context, getdns_eventloop *loop);
 
 #endif /* _GETDNS_CONTEXT_H_ */

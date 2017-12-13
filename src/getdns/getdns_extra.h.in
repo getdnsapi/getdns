@@ -53,6 +53,8 @@ extern "C" {
  * \addtogroup returntypestext Return values and texts
  *  @{
  */
+#define GETDNS_RETURN_IO_ERROR ((getdns_return_t) 397 )
+#define GETDNS_RETURN_IO_ERROR_TEXT "An input/output error occurred. Inspect errno for details."
 #define GETDNS_RETURN_NO_UPSTREAM_AVAILABLE ((getdns_return_t) 398 )
 #define GETDNS_RETURN_NO_UPSTREAM_AVAILABLE_TEXT "None of the configured upstreams could be used to send queries on the specified transports"
 #define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t) 399 )
@@ -88,6 +90,11 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TRUST_ANCHORS_VERIFY_EMAIL_TEXT "Change related to getdns_context_set_trust_anchors_verify_email"
 #define GETDNS_CONTEXT_CODE_APPDATA_DIR 628
 #define GETDNS_CONTEXT_CODE_APPDATA_DIR_TEXT "Change related to getdns_context_set_appdata_dir"
+#define GETDNS_CONTEXT_CODE_RESOLVCONF 629
+#define GETDNS_CONTEXT_CODE_RESOLVCONF_TEXT "Change related to getdns_context_set_resolvconf"
+#define GETDNS_CONTEXT_CODE_HOSTS 630
+#define GETDNS_CONTEXT_CODE_HOSTS_TEXT "Change related to getdns_context_set_hosts"
+
 
 /** @}
   */
@@ -681,6 +688,30 @@ getdns_context_set_trust_anchors_verify_email(
     getdns_context *context, const char *verify_email);
 
 /**
+ * Initialized the context's upstream recursive servers and suffixes
+ * with the values from the given resolv.conf file.
+ * @see getdns_context_get_resolvconf
+ * @see getdns_context_set_hosts
+ * @param[in] context      The context to configure
+ * @param[in] resolvonf    Defaults to /etc/resolv.conf
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_set_resolvconf(getdns_context *context, const char *resolvconf);
+
+/**
+ * Initialized the context's GETDNS_NAMESPACE_LOCALNAMES namespace with
+ * values from the given hosts file.
+ * @see getdns_context_get_hosts
+ * @see getdns_context_set_resolvconf
+ * @param[in] context      The context to configure
+ * @param[in] hosts        Defaults to /etc/hosts
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_set_hosts(getdns_context *context, const char *hosts);
+
+/**
  * Get the current resolution type setting from this context.
  * @see getdns_context_set_resolution_type
  * @see resolutiontypestext
@@ -1134,6 +1165,31 @@ getdns_return_t
 getdns_context_get_trust_anchors_verify_email(
     getdns_context *context, const char **verify_email);
 
+/**
+ * Get the value with which the context's upstream recursive servers
+ * and suffixes were initialized.
+ * @see getdns_context_set_resolvconf
+ * @see getdns_context_get_hosts
+ * @param[in]  context      The context to configure
+ * @param[out] resolvonf    NULL if the context was not initialized with a
+ *                          resolv.conf file.
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_get_resolvconf(getdns_context *context, const char **resolvconf);
+
+/**
+ * Get the value with which the context's GETDNS_NAMESPACE_LOCALNAMES namespace 
+ * was initialized.
+ * @see getdns_context_set_hosts
+ * @see getdns_context_get_resolvconf
+ * @param[in]  context     The context to configure
+ * @param[out] hosts       NULL when GETDNS_NAMESPACE_LOCALNAMES namespace
+ *                         was not initialized.
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_get_hosts(getdns_context *context, const char **hosts);
 
 /** @}
  */
