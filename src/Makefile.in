@@ -208,9 +208,9 @@ install-stubby-files-unix: $(stubbysrcdir)/stubby.yml.example
 	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
 		$(INSTALL_DATA) $(stubbysrcdir)/stubby.yml.example $(DESTDIR)$(stubbyconfdir)/stubby.yml
 
-install-stubby-files-macos: $(stubbysrcdir)/stubby-setdns-macos.sh install-stubby-files-unix
+install-stubby-files-macos: $(stubbysrcdir)/macos/stubby-setdns-macos.sh install-stubby-files-unix
 	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
-	$(INSTALL) -m 755  $(stubbysrcdir)/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 755  $(stubbysrcdir)/macos/stubby-setdns-macos.sh $(DESTDIR)$(sbindir)
 
 stubby.yml.windows: $(stubbysrcdir)/stubby.yml.example
 	awk "{sub(/$$/,\"\r\")}1" $(stubbysrcdir)/stubby.yml.example > stubby.yml.windows
