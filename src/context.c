@@ -3876,6 +3876,64 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "resolvconf", str_value);
 	if (!getdns_context_get_hosts(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "hosts", str_value);
+
+	/* Default settings for extensions */
+	(void)getdns_dict_set_int(
+	    result, "add_warning_for_bad_dns",
+	    context->add_warning_for_bad_dns ? GETDNS_EXTENSION_TRUE
+	                                     : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_all_statuses",
+	    context->dnssec_return_all_statuses ? GETDNS_EXTENSION_TRUE
+	                                        : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_full_validation_chain",
+	    context->dnssec_return_full_validation_chain ? GETDNS_EXTENSION_TRUE
+	                                                 : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_only_secure",
+	    context->dnssec_return_only_secure ? GETDNS_EXTENSION_TRUE
+	                                       : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_status",
+	    context->dnssec_return_status ? GETDNS_EXTENSION_TRUE
+	                                  : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_validation_chain",
+	    context->dnssec_return_validation_chain ? GETDNS_EXTENSION_TRUE
+	                                            : GETDNS_EXTENSION_FALSE);
+
+#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
+	(void)getdns_dict_set_int(
+	    result, "dnssec_roadblock_avoidance",
+	    context->dnssec_roadblock_avoidance ? GETDNS_EXTENSION_TRUE
+	                                        : GETDNS_EXTENSION_FALSE);
+#endif
+#ifdef EDNS_COOKIES
+	(void)getdns_dict_set_int(
+	    result, "edns_cookies",
+	    context->edns_cookies ? GETDNS_EXTENSION_TRUE
+	                          : GETDNS_EXTENSION_FALSE);
+#endif
+	(void)getdns_dict_set_int(
+	    result, "return_both_v4_and_v6",
+	    context->return_both_v4_and_v6 ? GETDNS_EXTENSION_TRUE
+	                                   : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "return_call_reporting",
+	    context->return_call_reporting ? GETDNS_EXTENSION_TRUE
+	                                   : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(result, "specify_class",
+	    (uint32_t)context->specify_class);
+
+	if (context->add_opt_parameters)
+		(void)getdns_dict_set_dict(
+		    result, "add_opt_parameters", context->add_opt_parameters);
+
+	if (context->header)
+		(void)getdns_dict_set_dict(
+		    result, "header", context->add_opt_parameters);
+
 	return result;
 error:
 	getdns_dict_destroy(result);
