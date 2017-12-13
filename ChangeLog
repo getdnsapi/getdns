@@ -1,4 +1,6 @@
 * 2017-12-??: Version 1.2.2
+  * Specify locations at which CA certificates for verification purposes
+    are located: getdns_context_set_CApath() getdns_context_set_CAfile()
   * getdns_context_set_resolvconf() function to initialize a context 
     upstreams and suffices with a resolv.conf file.
     getdns_context_get_resolvconf() to get the file used to initialize

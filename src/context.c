@@ -1513,6 +1513,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->trust_anchors_verify_email = NULL;
 	result->trust_anchors_verify_CA = NULL;
 	result->appdata_dir = NULL;
+	result->CApath = NULL;
+	result->CAfile = NULL;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
 
@@ -1777,6 +1779,11 @@ getdns_context_destroy(struct getdns_context *context)
 		           , context->trust_anchors_verify_email);
 	if (context->appdata_dir)
 		GETDNS_FREE(context->mf, context->appdata_dir);
+	if (context->CApath)
+		GETDNS_FREE(context->mf, context->CApath);
+	if (context->CAfile)
+		GETDNS_FREE(context->mf, context->CAfile);
+
 
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -3572,10 +3579,14 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/
+			if ((context->CAfile || context->CApath) &&
+			    SSL_CTX_load_verify_locations(context->tls_ctx
+				    , context->CAfile, context->CApath))
+				; /* pass */
 #  ifndef USE_WINSOCK
-			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
+			else if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
 #  else
-			if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
+			else if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
 #  endif /* USE_WINSOCK */
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
@@ -3876,6 +3887,11 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "resolvconf", str_value);
 	if (!getdns_context_get_hosts(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "hosts", str_value);
+	if (!getdns_context_get_CApath(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "CApath", str_value);
+	if (!getdns_context_get_CAfile(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "CAfile", str_value);
+
 	return result;
 error:
 	getdns_dict_destroy(result);
@@ -4606,6 +4622,8 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(appdata_dir)
 	CONTEXT_SETTING_STRING(resolvconf)
 	CONTEXT_SETTING_STRING(hosts)
+	CONTEXT_SETTING_STRING(CApath)
+	CONTEXT_SETTING_STRING(CAfile)
 
 	/**************************************/
 	/****                              ****/
@@ -5108,6 +5126,52 @@ getdns_context *_getdns_context_get_sys_ctxt(
 	getdns_context_destroy(context->sys_ctxt);
 	context->sys_ctxt = NULL;
 	return NULL;
+}
+
+getdns_return_t
+getdns_context_set_CApath(getdns_context *context, const char *CApath)
+{
+	if (!context || !CApath)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (context->CApath)
+		GETDNS_FREE(context->mf, context->CApath);
+	context->CApath = _getdns_strdup(&context->mf, CApath);
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_CAPATH);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_CApath(getdns_context *context, const char **CApath)
+{
+	if (!context || !CApath)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*CApath = context->CApath;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_CAfile(getdns_context *context, const char *CAfile)
+{
+	if (!context || !CAfile)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (context->CAfile)
+		GETDNS_FREE(context->mf, context->CAfile);
+	context->CAfile = _getdns_strdup(&context->mf, CAfile);
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_CAFILE);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_CAfile(getdns_context *context, const char **CAfile)
+{
+	if (!context || !CAfile)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*CAfile = context->CAfile;
+	return GETDNS_RETURN_GOOD;
 }
 
 /* context.c */
