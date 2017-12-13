@@ -1,4 +1,6 @@
 * 201?-??-??: Version 1.?.?
+  * Bugfix #356: Do Zero configuration DNSSEC meta queries over on the
+    context configured upstreams.
   * Report default extension settings with
     getdns_context_get_api_information()
   * getdns_context_set_resolvconf() function to initialize a context 
