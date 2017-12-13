@@ -84,11 +84,12 @@ getdns_dict  dnssec_ok_checking_disabled_avoid_roadblocks_spc = {
 getdns_dict *dnssec_ok_checking_disabled_avoid_roadblocks
     = &dnssec_ok_checking_disabled_avoid_roadblocks_spc;
 
-getdns_dict  no_dnssec_checking_disabled_spc = {
+getdns_dict  no_dnssec_checking_disabled_opportunistic_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
 	{ NULL, {{ NULL, NULL, NULL }}}
 };
-getdns_dict *no_dnssec_checking_disabled = &no_dnssec_checking_disabled_spc;
+getdns_dict *no_dnssec_checking_disabled_opportunistic
+    = &no_dnssec_checking_disabled_opportunistic_spc;
 
 static int
 is_extension_set(getdns_dict *extensions, const char *name, int default_value)
@@ -100,7 +101,7 @@ is_extension_set(getdns_dict *extensions, const char *name, int default_value)
 	    || extensions == dnssec_ok_checking_disabled
 	    || extensions == dnssec_ok_checking_disabled_roadblock_avoidance
 	    || extensions == dnssec_ok_checking_disabled_avoid_roadblocks
-	    || extensions == no_dnssec_checking_disabled)
+	    || extensions == no_dnssec_checking_disabled_opportunistic)
 		return 0;
 
 	r = getdns_dict_get_int(extensions, name, &value);
@@ -161,8 +162,8 @@ netreq_reset(getdns_network_req *net_req)
 
 static int
 network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
-    uint16_t request_type, int checking_disabled, int with_opt,
-    int edns_maximum_udp_payload_size,
+    uint16_t request_type, int checking_disabled, int opportunistic,
+    int with_opt, int edns_maximum_udp_payload_size,
     uint8_t edns_extended_rcode, uint8_t edns_version, int edns_do_bit,
     uint16_t opt_options_size, size_t noptions, getdns_list *options,
     size_t wire_data_sz, size_t max_query_sz, getdns_dict *extensions)
@@ -192,6 +193,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	       owner->context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED
 	    && owner->context->dns_transport_count == 1
 	    && owner->context->dns_transports[0] == GETDNS_TRANSPORT_TLS
+	    && !opportunistic
 	    ? GETDNS_AUTHENTICATION_REQUIRED
 	    : GETDNS_AUTHENTICATION_NONE;
 
@@ -769,8 +771,9 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
 	uint8_t *region, *suffixes;
 	int    checking_disabled = dnssec_extension_set;
+	int    opportunistic = 0;
 	
-	if (extensions == no_dnssec_checking_disabled) {
+	if (extensions == no_dnssec_checking_disabled_opportunistic) {
 		dnssec_return_status = 0;
 		dnssec_return_only_secure = 0;
 		dnssec_return_all_statuses = 0;
@@ -783,6 +786,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 #endif
 		extensions = NULL;
 		checking_disabled = 1;
+		opportunistic = 1;
 	} else if (extensions == dnssec_ok_checking_disabled ||
 	    extensions == dnssec_ok_checking_disabled_roadblock_avoidance ||
 	    extensions == dnssec_ok_checking_disabled_avoid_roadblocks)
@@ -993,8 +997,8 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->chain = NULL;
 
 	network_req_init(result->netreqs[0], result,
-	    request_type, checking_disabled, with_opt,
-	    edns_maximum_udp_payload_size,
+	    request_type, checking_disabled, opportunistic,
+	    with_opt, edns_maximum_udp_payload_size,
 	    edns_extended_rcode, edns_version, edns_do_bit,
 	    (uint16_t) opt_options_size, noptions, options,
 	    netreq_sz - sizeof(getdns_network_req), max_query_sz,
@@ -1004,7 +1008,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 		network_req_init(result->netreqs[1], result,
 		    ( request_type == GETDNS_RRTYPE_A
 		    ? GETDNS_RRTYPE_AAAA : GETDNS_RRTYPE_A ),
-		    checking_disabled, with_opt,
+		    checking_disabled, opportunistic, with_opt,
 		    edns_maximum_udp_payload_size,
 		    edns_extended_rcode, edns_version, edns_do_bit,
 		    (uint16_t) opt_options_size, noptions, options,

@@ -1561,7 +1561,8 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 #if 1
 	context->a.state = TAS_LOOKUP_ADDRESSES;
 	if ((r = _getdns_general_loop(context, loop,
-	    tas_hostname, GETDNS_RRTYPE_A, no_dnssec_checking_disabled,
+	    tas_hostname, GETDNS_RRTYPE_A,
+	    no_dnssec_checking_disabled_opportunistic,
 	    context, &context->a.req, NULL, _tas_hostname_lookup_cb))) {
 		DEBUG_ANCHOR("Error scheduling A lookup for %s: %s\n"
 		            , tas_hostname, getdns_get_errorstr_by_id(r));
@@ -1572,7 +1573,8 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 #if 1
 	context->aaaa.state = TAS_LOOKUP_ADDRESSES;
 	if ((r = _getdns_general_loop(context, loop,
-	    tas_hostname, GETDNS_RRTYPE_AAAA, no_dnssec_checking_disabled,
+	    tas_hostname, GETDNS_RRTYPE_AAAA,
+	    no_dnssec_checking_disabled_opportunistic,
 	    context, &context->aaaa.req, NULL, _tas_hostname_lookup_cb))) {
 		DEBUG_ANCHOR("Error scheduling AAAA lookup for %s: %s\n"
 		            , tas_hostname, getdns_get_errorstr_by_id(r));
