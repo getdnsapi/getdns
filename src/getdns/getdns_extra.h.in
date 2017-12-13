@@ -94,9 +94,9 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_RESOLVCONF_TEXT "Change related to getdns_context_set_resolvconf"
 #define GETDNS_CONTEXT_CODE_HOSTS 630
 #define GETDNS_CONTEXT_CODE_HOSTS_TEXT "Change related to getdns_context_set_hosts"
-#define GETDNS_CONTEXT_CODE_CAPATH 630
+#define GETDNS_CONTEXT_CODE_CAPATH 631
 #define GETDNS_CONTEXT_CODE_CAPATH_TEXT "Change related to getdns_context_set_CApath"
-#define GETDNS_CONTEXT_CODE_CAFILE 631
+#define GETDNS_CONTEXT_CODE_CAFILE 632
 #define GETDNS_CONTEXT_CODE_CAFILE_TEXT "Change related to getdns_context_set_CAfile"
 
 /** @}
