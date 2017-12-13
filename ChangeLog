@@ -1,4 +1,8 @@
 * 2017-12-??: Version 1.2.2
+  * Bugfix #356: Do Zero configuration DNSSEC meta queries over on the
+    context configured upstreams.
+  * Report default extension settings with
+    getdns_context_get_api_information()
   * Specify locations at which CA certificates for verification purposes
     are located: getdns_context_set_CApath() getdns_context_set_CAfile()
   * getdns_context_set_resolvconf() function to initialize a context 

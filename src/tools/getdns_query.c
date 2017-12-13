@@ -1733,7 +1733,6 @@ main(int argc, char **argv)
 
 	if ((r = parse_args(argc, argv)) && r != CONTINUE)
 		goto done_destroy_context;
-	fprintf(stderr, "resolvconf: %s\n", resolvconf);
 	if (resolvconf) {
 		if ((r = getdns_context_set_resolvconf(context, resolvconf))) {
 			fprintf(stderr, "Problem initializing with resolvconf: %d\n", (int)r);

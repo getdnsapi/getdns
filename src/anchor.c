@@ -1517,7 +1517,6 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 	char tas_hostname[256];
 	const char *verify_CA;
 	const char *verify_email;
-	getdns_context *sys_ctxt;
 
 	if ((r = _getdns_get_tas_url_hostname(context, tas_hostname, NULL))) {
 		DEBUG_ANCHOR("ERROR %s(): Could not get_tas_url_hostname"
@@ -1558,19 +1557,13 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 	DEBUG_ANCHOR("%s on the %ssynchronous loop\n", __FUNC__,
 	             loop == &context->sync_eventloop.loop ? "" : "a");
 
-	if (!(sys_ctxt = _getdns_context_get_sys_ctxt(context, loop))) {
-		DEBUG_ANCHOR("Fatal error fetching trust anchor: "
-		             "missing system context\n");
-		context->trust_anchors_source = GETDNS_TASRC_FAILED;
-		_getdns_ta_notify_dnsreqs(context);
-		return;
-	}
 	scheduled = 0;
 #if 1
 	context->a.state = TAS_LOOKUP_ADDRESSES;
-	if ((r = _getdns_general_loop(sys_ctxt, loop,
-	    tas_hostname, GETDNS_RRTYPE_A, NULL, context,
-	    &context->a.req, NULL, _tas_hostname_lookup_cb))) {
+	if ((r = _getdns_general_loop(context, loop,
+	    tas_hostname, GETDNS_RRTYPE_A,
+	    no_dnssec_checking_disabled_opportunistic,
+	    context, &context->a.req, NULL, _tas_hostname_lookup_cb))) {
 		DEBUG_ANCHOR("Error scheduling A lookup for %s: %s\n"
 		            , tas_hostname, getdns_get_errorstr_by_id(r));
 	} else
@@ -1579,9 +1572,10 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 
 #if 1
 	context->aaaa.state = TAS_LOOKUP_ADDRESSES;
-	if ((r = _getdns_general_loop(sys_ctxt, loop,
-	    tas_hostname, GETDNS_RRTYPE_AAAA, NULL, context,
-	    &context->aaaa.req, NULL, _tas_hostname_lookup_cb))) {
+	if ((r = _getdns_general_loop(context, loop,
+	    tas_hostname, GETDNS_RRTYPE_AAAA,
+	    no_dnssec_checking_disabled_opportunistic,
+	    context, &context->aaaa.req, NULL, _tas_hostname_lookup_cb))) {
 		DEBUG_ANCHOR("Error scheduling AAAA lookup for %s: %s\n"
 		            , tas_hostname, getdns_get_errorstr_by_id(r));
 	} else
