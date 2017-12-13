@@ -1,4 +1,6 @@
 * 201?-??-??: Version 1.?.?
+  * Report default extension settings with
+    getdns_context_get_api_information()
   * getdns_context_set_resolvconf() function to initialize a context 
     upstreams and suffices with a resolv.conf file.
     getdns_context_get_resolvconf() to get the file used to initialize
