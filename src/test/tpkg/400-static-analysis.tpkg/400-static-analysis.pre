@@ -25,11 +25,11 @@ done
 rm -fr "${BUILDDIR}/build-static-analysis"
 mkdir  "${BUILDDIR}/build-static-analysis"
 cd "${BUILDDIR}/build-static-analysis"
-"${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libevent --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libevent --with-libev \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libevent --with-libuv \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libevent \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libev \
-    || "${SRCROOT}/configure" $* --enable-all-drafts --with-stubby --with-libuv
+"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libev --with-libuv \
+    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libev \
+    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libuv \
+    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libev --with-libuv \
+    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent \
+    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libev \
+    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libuv
    
