@@ -4677,7 +4677,9 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(trust_anchors_verify_CA)
 	CONTEXT_SETTING_STRING(trust_anchors_verify_email)
 	CONTEXT_SETTING_STRING(appdata_dir)
+#ifndef USE_WINSOCK
 	CONTEXT_SETTING_STRING(resolvconf)
+#endif
 	CONTEXT_SETTING_STRING(hosts)
 	CONTEXT_SETTING_STRING(CApath)
 	CONTEXT_SETTING_STRING(CAfile)
@@ -5149,14 +5151,14 @@ getdns_context *_getdns_context_get_sys_ctxt(
 	    context->mf.mf.ext.free)))
 		DEBUG_ANCHOR("Could not create system context: %s\n"
 			    , getdns_get_errorstr_by_id(r));
-
+#ifndef USE_WINSOCK
 	else if (*context->fchg_resolvconf.fn &&
 	    (r = getdns_context_set_resolvconf(
 	    context->sys_ctxt, context->fchg_resolvconf.fn)))
 		DEBUG_ANCHOR("Could initialize system context with resolvconf "
 		             "\"%s\": %s\n", context->fchg_resolvconf.fn
 			    , getdns_get_errorstr_by_id(r));
-
+#endif
 	else if (*context->fchg_hosts.fn &&
 	    (r = getdns_context_set_hosts(
 	    context->sys_ctxt, context->fchg_hosts.fn)))
