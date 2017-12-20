@@ -1,4 +1,6 @@
 * 2017-12-??: Version 1.3.0
+  * Specify available cipher suites for authenticated TLS upstreams
+    with getdns_context_set_ciphers_list()
   * PR #366: Add support for TLS 1.3 and Chacha20-Poly1305
     Thanks Pascal Ernster
   * Bugfix #356: Do Zero configuration DNSSEC meta queries over on the

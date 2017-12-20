@@ -1377,11 +1377,11 @@ static void _getdns_check_expired_pending_netreqs_cb(void *arg)
 	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
 }
 
-static const char *_getdns_default_trust_anchors_url =
+static char const * const _getdns_default_trust_anchors_url =
     "http://data.iana.org/root-anchors/root-anchors.xml";
 
 /* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
-static const char *_getdns_default_trust_anchors_verify_CA =
+static char const * const _getdns_default_trust_anchors_verify_CA =
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
 "TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
@@ -1404,9 +1404,12 @@ static const char *_getdns_default_trust_anchors_verify_CA =
 "j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
 "-----END CERTIFICATE-----\n";
 
-static const char *_getdns_default_trust_anchors_verify_email =
+static char const * const _getdns_default_trust_anchors_verify_email =
     "dnssec@iana.org";
 
+static char const * const _getdns_default_cipher_list = 
+	"TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
+	"TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
 
 /*
  * getdns_context_create
@@ -1515,6 +1518,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->appdata_dir = NULL;
 	result->CApath = NULL;
 	result->CAfile = NULL;
+	result->cipher_list = NULL;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
 
@@ -1783,7 +1787,8 @@ getdns_context_destroy(struct getdns_context *context)
 		GETDNS_FREE(context->mf, context->CApath);
 	if (context->CAfile)
 		GETDNS_FREE(context->mf, context->CAfile);
-
+	if (context->cipher_list)
+		GETDNS_FREE(context->mf, context->cipher_list);
 
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -3574,8 +3579,9 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 #  endif
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
-			const char* const PREFERRED_CIPHERS = "TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
-			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx,
+			    context->cipher_list ? context->cipher_list
+			                         : _getdns_default_cipher_list))
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/
@@ -3891,6 +3897,8 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "CApath", str_value);
 	if (!getdns_context_get_CAfile(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "CAfile", str_value);
+	if (!getdns_context_get_cipher_list(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "cipher_list", str_value);
 
 	/* Default settings for extensions */
 	(void)getdns_dict_set_int(
@@ -4683,6 +4691,7 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(hosts)
 	CONTEXT_SETTING_STRING(CApath)
 	CONTEXT_SETTING_STRING(CAfile)
+	CONTEXT_SETTING_STRING(cipher_list)
 
 	/**************************************/
 	/****                              ****/
@@ -5232,5 +5241,33 @@ getdns_context_get_CAfile(getdns_context *context, const char **CAfile)
 	*CAfile = context->CAfile;
 	return GETDNS_RETURN_GOOD;
 }
+
+getdns_return_t
+getdns_context_set_cipher_list(getdns_context *context, const char *cipher_list)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (context->cipher_list)
+		GETDNS_FREE(context->mf, context->cipher_list);
+	context->cipher_list = cipher_list
+	                     ? _getdns_strdup(&context->mf, cipher_list)
+	                     : NULL;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_CIPHER_LIST);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_cipher_list(getdns_context *context, const char **cipher_list)
+{
+	if (!context || !cipher_list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*cipher_list = context->cipher_list
+	             ? context->cipher_list
+	             : _getdns_default_cipher_list;
+	return GETDNS_RETURN_GOOD;
+}
+
 
 /* context.c */

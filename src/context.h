@@ -345,6 +345,7 @@ struct getdns_context {
 
 	char                 *CApath;
 	char                 *CAfile;
+	char                 *cipher_list;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
