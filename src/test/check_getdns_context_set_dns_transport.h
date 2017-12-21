@@ -187,8 +187,9 @@
        ASSERT_RC(type, GETDNS_RESOLUTION_STUB, "Query did not use stub mode");
        ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
          GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
-       ASSERT_RC(tc, 1, "Packet not trucated as expected");
-
+       if (!getenv("SKIP_DNSMASQ_ISSUE")) {
+         ASSERT_RC(tc, 1, "Packet not truncated as expected");
+       }
        /* Re-do over TCP */
        ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   

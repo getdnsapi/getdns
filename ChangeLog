@@ -1,4 +1,6 @@
 * 2017-12-??: Version 1.3.0
+  * Skip unit tests that fail with dnsmasq when the SKIP_DNSMASQ_ISSUE
+    variable is set.  Thanks Konomi Kitten
   * Specify default available cipher suites for authenticated TLS
     upstreams with getdns_context_set_tls_ciphers_list()
     An upstream specific available cipher suite may also be given
