@@ -52,7 +52,7 @@ AC_SUBST([runstatedir], [$with_piddir])
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
-AC_SUBST(RELEASE_CANDIDATE, [-rc2])
+AC_SUBST(RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -62,7 +62,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x010201c2])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01030000])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -98,8 +98,8 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-1.1.2 had libversion 7:0:1
 # getdns-1.1.3 had libversion 7:1:1
 # getdns-1.2.0 had libversion 8:0:2
-# getdns-1.2.1 has libversion 8:1:2
-# getdns-1.3.0 will have libversion 9:0:3
+# getdns-1.2.1 had libversion 8:1:2
+# getdns-1.3.0 has libversion 9:0:3
 #
 GETDNS_LIBVERSION=9:0:3
 
