@@ -1687,6 +1687,8 @@ getdns_context_set_dnssec_allowed_skew(getdns_context *context,
  *                        - `value` A SHA256 hash of the `SubjectPublicKeyInfo`
  *                          of the upstream, which will be used to authenticate
  *                          it.
+ *                      - `tls_cipher_list` (a bindata) that is the string
+ *                        of available ciphers specific for this upstream.
  * @return GETDNS_RETURN_GOOD when successful. 
  * @return GETDNS_RETURN_INVALID_PARAMETER when `context` or `upstream_list` was `NULL`
  * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL when there were problems parsing

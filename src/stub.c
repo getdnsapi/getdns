@@ -986,9 +986,12 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		SSL_set_cipher_list(ssl, "DEFAULT");
 		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
-	} else
+	} else {
+		if (upstream->tls_cipher_list)
+			SSL_set_cipher_list(ssl, upstream->tls_cipher_list);
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
+	}
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 
 	SSL_set_connect_state(ssl);

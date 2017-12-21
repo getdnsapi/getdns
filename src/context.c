@@ -165,6 +165,17 @@ static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
+static char *
+_getdns_strdup2(const struct mem_funcs *mfs, const getdns_bindata *s)
+{
+    char *r;
+    if (!s || !(r = GETDNS_XMALLOC(*mfs, char, s->size + 1)))
+        return NULL;
+    else {
+	r[s->size] = '\0';
+        return memcpy(r, s, s->size);
+    }
+}
 
 #ifdef USE_WINSOCK
 /* For windows, the CA trust store is not read by openssl. 
@@ -723,6 +734,8 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			pin = nextpin;
 		}
 		upstream->tls_pubkey_pinset = NULL;
+		if (upstream->tls_cipher_list)
+			GETDNS_FREE(upstreams->mf, upstream->tls_cipher_list);
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
@@ -1006,6 +1019,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
+	upstream->tls_cipher_list = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
@@ -2977,16 +2991,19 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
-				if (dict && (r = getdns_dict_get_bindata(
+				getdns_bindata *tls_cipher_list = NULL;
+
+				if ((r = getdns_dict_get_bindata(
 				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 
 					if (tls_auth_name->size >= sizeof(upstream->tls_auth_name)) {
-						/* tls_auth_name's are just 
-						 * domain names and should
-						 * thus not be larger than 256
-						 * bytes.
+						/* tls_auth_name's are 
+						 * domain names in presentation
+						 * format and, taking escaping
+						 * into account, should not
+						 * be larger than 1024 bytes.
 						 */
 						goto invalid_parameter;
 					}
@@ -2996,7 +3013,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					upstream->tls_auth_name
 					    [tls_auth_name->size] = '\0';
 				}
-				if (dict && (r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
+				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
 			   /* TODO: what if the user supplies tls_pubkey_pinset with
 			    * something other than a list? */
@@ -3006,6 +3023,12 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					if (r != GETDNS_RETURN_GOOD)
 						goto invalid_parameter;
 				}
+				(void) getdns_dict_get_bindata(
+				    dict, "tls_cipher_list", &tls_cipher_list);
+				upstream->tls_cipher_list = tls_cipher_list
+				    ? _getdns_strdup2(&upstreams->mf
+				                     , tls_cipher_list)
+				    : NULL;
 			}
 			if ((upstream->tsig_alg = tsig_alg)) {
 				if (tsig_name) {
@@ -3631,7 +3654,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 	return r;
 } /* _getdns_context_prepare_for_resolution */
 
-char *
+static char *
 _getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
     size_t sz;
@@ -4482,6 +4505,11 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 						getdns_list_destroy(pins);
 						break;
 					}
+				}
+				if (upstream->tls_cipher_list) {
+					(void) getdns_dict_util_set_string(
+					    d, "tls_cipher_list",
+					    upstream->tls_cipher_list);
 				}
 			}
 		}
