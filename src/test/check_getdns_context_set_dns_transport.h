@@ -189,34 +189,34 @@
          GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
        if (!getenv("SKIP_DNSMASQ_ISSUE")) {
          ASSERT_RC(tc, 1, "Packet not truncated as expected");
+
+         /* Re-do over TCP */
+         ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
+           GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
+  
+         ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
+           GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+
+         ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
+           GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
+         ASSERT_RC(transport, GETDNS_TRANSPORT_TCP, "Query did not go over TCP");
+         ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
+           GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
+         ASSERT_RC(tc, 0, "Packet trucated - not as expected");
+
+         /* Now let it fall back to TCP */
+         ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP),
+           GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
+         ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
+           GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+
+         ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
+           GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
+         ASSERT_RC(transport, GETDNS_TRANSPORT_TCP, "Query did not go over TCP");
+         ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
+           GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
+         ASSERT_RC(tc, 0, "Packet trucated - not as expected");
        }
-       /* Re-do over TCP */
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_TCP_ONLY),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
-
-       ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-
-       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
-         GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
-       ASSERT_RC(transport, GETDNS_TRANSPORT_TCP, "Query did not go over TCP");
-       ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
-         GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
-       ASSERT_RC(tc, 0, "Packet trucated - not as expected");
-
-       /* Now let it fall back to TCP */
-       ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_FIRST_AND_FALL_BACK_TO_TCP),
-         GETDNS_RETURN_GOOD, "Return code from getdns_context_set_dns_transport()");   
-       ASSERT_RC(getdns_general_sync(context, "large.getdnsapi.net", GETDNS_RRTYPE_TXT, extensions, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-
-       ASSERT_RC(getdns_dict_get_int(response, "/call_reporting/0/transport", &transport),
-         GETDNS_RETURN_GOOD, "Failed to extract \"transport\"");
-       ASSERT_RC(transport, GETDNS_TRANSPORT_TCP, "Query did not go over TCP");
-       ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
-         GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
-       ASSERT_RC(tc, 0, "Packet trucated - not as expected");
-
        ASSERT_RC(getdns_context_unset_edns_maximum_udp_payload_size(context),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_unset_edns_maximum_udp_payload_size()");
 
