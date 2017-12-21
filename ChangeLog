@@ -11,7 +11,8 @@
   * Report default extension settings with
     getdns_context_get_api_information()
   * Specify locations at which CA certificates for verification purposes
-    are located: getdns_context_set_CApath() getdns_context_set_CAfile()
+    are located: getdns_context_set_tls_ca_path()
+    getdns_context_set_tls_ca_file()
   * getdns_context_set_resolvconf() function to initialize a context 
     upstreams and suffices with a resolv.conf file.
     getdns_context_get_resolvconf() to get the file used to initialize
