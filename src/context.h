@@ -344,8 +344,8 @@ struct getdns_context {
 	char                 *appdata_dir;
 	_getdns_property      can_write_appdata;
 
-	char                 *CApath;
-	char                 *CAfile;
+	char                 *tls_ca_path;
+	char                 *tls_ca_file;
 	char                 *tls_cipher_list;
 
 	getdns_upstreams     *upstreams;
