@@ -205,6 +205,7 @@ typedef struct getdns_upstream {
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_auth_state_t      tls_auth_state;
 	unsigned                 tls_fallback_ok : 1;
+	char                    *tls_cipher_list;
 	/* Auth credentials*/
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
@@ -345,6 +346,7 @@ struct getdns_context {
 
 	char                 *CApath;
 	char                 *CAfile;
+	char                 *tls_cipher_list;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
@@ -526,8 +528,6 @@ void _getdns_context_cancel_request(getdns_dns_req *dnsreq);
  * cancels and frees the getdns_dns_req with _getdns_context_cancel_request()
  */
 void _getdns_context_request_timed_out(getdns_dns_req *dnsreq);
-
-char *_getdns_strdup(const struct mem_funcs *mfs, const char *str);
 
 struct getdns_bindata *_getdns_bindata_copy(
     struct mem_funcs *mfs, size_t size, const uint8_t *data);
