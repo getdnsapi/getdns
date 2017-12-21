@@ -157,17 +157,7 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_resolution_type()");
        ASSERT_RC(getdns_dict_set_int(extensions,"return_call_reporting", GETDNS_EXTENSION_TRUE),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
-       ASSERT_RC(getdns_dict_set_int(extensions,"specify_class", GETDNS_RRCLASS_CH),
-         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
-       ASSERT_RC(getdns_general_sync(context, "version.bind.", GETDNS_RRTYPE_TXT, extensions, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-       (void) getdns_dict_get_bindata(response, "/replies_tree/0/answer/0/rdata/txt_strings/0", &version_str);
-       upstream_is_dnsmasq = version_str && version_str->size > 7 &&
-                             strncmp((char *)version_str->data, "dnsmasq", 7) == 0;
-
-       ASSERT_RC(getdns_dict_set_int(extensions,"specify_class", GETDNS_RRCLASS_IN),
-         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
        /* Request a response that should be truncated over UDP */
        ASSERT_RC(getdns_context_set_dns_transport(context, GETDNS_TRANSPORT_UDP_ONLY),
@@ -176,6 +166,15 @@
          GETDNS_RETURN_GOOD, "Return code from getdns_context_get_dns_transport()");
        ck_assert_msg(trans == 541, "dns_transport should be 541(GETDNS_TRANSPORT_UDP_ONLY) but got %d", (int)trans);
 
+       ASSERT_RC(getdns_dict_set_int(extensions,"specify_class", GETDNS_RRCLASS_CH),
+         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
+       ASSERT_RC(getdns_general_sync(context, "version.bind.", GETDNS_RRTYPE_TXT, extensions, &response), 
+         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+       (void) getdns_dict_get_bindata(response, "/replies_tree/0/answer/0/rdata/txt_strings/0", &version_str);
+       upstream_is_dnsmasq = version_str && version_str->size > 7 &&
+                             strncmp((char *)version_str->data, "dnsmasq", 7) == 0;
+       ASSERT_RC(getdns_dict_set_int(extensions,"specify_class", GETDNS_RRCLASS_IN),
+         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
        ASSERT_RC(getdns_context_set_edns_maximum_udp_payload_size(context, 512),
            GETDNS_RETURN_GOOD, "Return code from getdns_context_set_edns_maximum_udp_payload_size()");
