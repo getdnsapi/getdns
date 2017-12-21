@@ -728,6 +728,8 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		{
 			_getdns_closesocket(upstream->fd);
 		}
+		if (upstream->tcp.read_buf)
+			GETDNS_FREE(upstreams->mf, upstream->tcp.read_buf);
 		while (pin) {
 			sha256_pin_t *nextpin = pin->next;
 			GETDNS_FREE(upstreams->mf, pin);
