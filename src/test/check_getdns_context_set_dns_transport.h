@@ -144,6 +144,8 @@
        uint16_t payload_size;
        uint8_t do_bit;
        getdns_transport_t trans;
+       int upstream_is_dnsmasq = 0;
+       getdns_bindata *version_str = NULL;
 
        /* Note that stricly this test just establishes that the requested transport
           and the reported transport are consistent, it does not guarentee which
@@ -154,6 +156,17 @@
        ASSERT_RC(getdns_context_set_resolution_type(context, GETDNS_RESOLUTION_STUB),
          GETDNS_RETURN_GOOD, "Return code from getdns_context_set_resolution_type()");
        ASSERT_RC(getdns_dict_set_int(extensions,"return_call_reporting", GETDNS_EXTENSION_TRUE),
+         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
+       ASSERT_RC(getdns_dict_set_int(extensions,"specify_class", GETDNS_RRCLASS_CH),
+         GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
+
+       ASSERT_RC(getdns_general_sync(context, "version.bind.", GETDNS_RRTYPE_TXT, extensions, &response), 
+         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+       (void) getdns_dict_get_bindata(response, "/replies_tree/0/answer/0/rdata/txt_strings/0", &version_str);
+       upstream_is_dnsmasq = version_str && version_str->size > 7 &&
+                             strncmp((char *)version_str->data, "dnsmasq", 7) == 0;
+
+       ASSERT_RC(getdns_dict_set_int(extensions,"specify_class", GETDNS_RRCLASS_IN),
          GETDNS_RETURN_GOOD, "Return code from getdns_dict_set_int()");
 
        /* Request a response that should be truncated over UDP */
@@ -187,7 +200,7 @@
        ASSERT_RC(type, GETDNS_RESOLUTION_STUB, "Query did not use stub mode");
        ASSERT_RC(getdns_dict_get_int(response, "/replies_tree/0/header/tc", &tc),
          GETDNS_RETURN_GOOD, "Failed to extract \"tc\"");
-       if (!getenv("SKIP_DNSMASQ_ISSUE")) {
+       if (!upstream_is_dnsmasq) {
          ASSERT_RC(tc, 1, "Packet not truncated as expected");
 
          /* Re-do over TCP */
