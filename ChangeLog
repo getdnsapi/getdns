@@ -1,3 +1,36 @@
+* 2017-12-21: Version 1.3.0
+  * Bugfix #300: Detect dnsmasq and skip unit test that fails with it.
+    Thanks Tim Rühsen and Konomi Kitten
+  * Specify default available cipher suites for authenticated TLS
+    upstreams with getdns_context_set_tls_ciphers_list()
+    An upstream specific available cipher suite may also be given
+    with the tls_cipher_list setting in the upstream dict with
+    getdns_context_set_upstream_recursive_servers()
+  * PR #366: Add support for TLS 1.3 and Chacha20-Poly1305
+    Thanks Pascal Ernster
+  * Bugfix #356: Do Zero configuration DNSSEC meta queries over on the
+    context configured upstreams.  Thanks Andreas Schulze
+  * Report default extension settings with
+    getdns_context_get_api_information()
+  * Specify locations at which CA certificates for verification purposes
+    are located: getdns_context_set_tls_ca_path()
+    getdns_context_set_tls_ca_file()
+  * getdns_context_set_resolvconf() function to initialize a context 
+    upstreams and suffices with a resolv.conf file.
+    getdns_context_get_resolvconf() to get the file used to initialize
+    the context's upstreams and suffixes.
+    getdns_context_set_hosts() function to initialize a context's
+    LOCALNAMES namespace.
+    getdns_context_get_hosts() function to get the file used to initialize
+    the context's LOCALNAMES namespace.
+  * get which version of OpenSSL was used at build time and at run time
+    when available with getdns_context_get_api_information()
+  * GETDNS_RETURN_IO_ERROR return error code
+  * Bugfix #359: edns_client_subnet_private should set family
+    Thanks Daniel Areiza & Andreas Schulze
+  * Bugfix getdnsapi/stubby#34: Segfault issue with native DNSSEC
+    validation.  Thanks Bruno Pagani
+
 * 2017-11-11: Version 1.2.1
   * Handle more I/O error cases.  Also, when an I/O error does occur,
     never stop listening (with servers), and

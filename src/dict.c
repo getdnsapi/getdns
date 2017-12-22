@@ -1082,7 +1082,25 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "follow_redirects") == 0 ||
 			     strcmp(item->node.key, "transport") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0 ||
-			     strcmp(item->node.key, "tls_authentication") == 0 ) &&
+			     strcmp(item->node.key, "tls_authentication") == 0 ||
+
+			     /* extensions */
+			     strcmp(item->node.key, "add_warning_for_bad_dns") == 0 ||
+			     strcmp(item->node.key, "dnssec_return_all_statuses") == 0 ||
+			     strcmp(item->node.key, "dnssec_return_full_validation_chain") == 0 ||
+			     strcmp(item->node.key, "dnssec_return_only_secure") == 0 ||
+			     strcmp(item->node.key, "dnssec_return_status") == 0 ||
+			     strcmp(item->node.key, "dnssec_return_validation_chain") == 0 ||
+#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
+			     strcmp(item->node.key, "dnssec_roadblock_avoidance") == 0 ||
+#endif
+#ifdef EDNS_COOKIES
+			     strcmp(item->node.key, "edns_cookies") == 0 ||
+#endif
+			     strcmp(item->node.key, "return_api_information") == 0 ||
+			     strcmp(item->node.key, "return_both_v4_and_v6") == 0 ||
+			     strcmp(item->node.key, "return_call_reporting") == 0
+			     ) &&
 			    (strval =
 			     _getdns_get_const_info(item->i.data.n)->name)) {
 				if (gldns_buffer_printf(buf, " %s", strval) < 0)

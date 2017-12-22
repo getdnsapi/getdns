@@ -1557,44 +1557,13 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 	DEBUG_ANCHOR("%s on the %ssynchronous loop\n", __FUNC__,
 	             loop == &context->sync_eventloop.loop ? "" : "a");
 
-	while (!context->sys_ctxt) { /* Used as breakable if. Never repeats. */
-		if ((r = getdns_context_create_with_extended_memory_functions(
-		    &context->sys_ctxt, 1, context->mf.mf_arg,
-		    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
-		    context->mf.mf.ext.free)))
-			DEBUG_ANCHOR("Could not create system context: %s\n"
-			            , getdns_get_errorstr_by_id(r));
-
-		else if ((r = getdns_context_set_eventloop(
-		    context->sys_ctxt, loop)))
-			DEBUG_ANCHOR("Could not configure %ssynchronous loop "
-			             "with system context: %s\n"
-			            , ( loop == &context->sync_eventloop.loop
-			              ? "" : "a" )
-			            , getdns_get_errorstr_by_id(r));
-
-		else if ((r = getdns_context_set_resolution_type(
-		    context->sys_ctxt, GETDNS_RESOLUTION_STUB)))
-			DEBUG_ANCHOR("Could not configure system context for "
-			             "stub resolver: %s\n"
-			            , getdns_get_errorstr_by_id(r));
-		else
-			break;
-
-		getdns_context_destroy(context->sys_ctxt);
-		context->sys_ctxt = NULL;
-		DEBUG_ANCHOR("Fatal error fetching trust anchor: "
-		             "missing system context\n");
-		context->trust_anchors_source = GETDNS_TASRC_FAILED;
-		_getdns_ta_notify_dnsreqs(context);
-		return;
-	}
 	scheduled = 0;
 #if 1
 	context->a.state = TAS_LOOKUP_ADDRESSES;
-	if ((r = _getdns_general_loop(context->sys_ctxt, loop,
-	    tas_hostname, GETDNS_RRTYPE_A, NULL, context,
-	    &context->a.req, NULL, _tas_hostname_lookup_cb))) {
+	if ((r = _getdns_general_loop(context, loop,
+	    tas_hostname, GETDNS_RRTYPE_A,
+	    no_dnssec_checking_disabled_opportunistic,
+	    context, &context->a.req, NULL, _tas_hostname_lookup_cb))) {
 		DEBUG_ANCHOR("Error scheduling A lookup for %s: %s\n"
 		            , tas_hostname, getdns_get_errorstr_by_id(r));
 	} else
@@ -1603,9 +1572,10 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 
 #if 1
 	context->aaaa.state = TAS_LOOKUP_ADDRESSES;
-	if ((r = _getdns_general_loop(context->sys_ctxt, loop,
-	    tas_hostname, GETDNS_RRTYPE_AAAA, NULL, context,
-	    &context->aaaa.req, NULL, _tas_hostname_lookup_cb))) {
+	if ((r = _getdns_general_loop(context, loop,
+	    tas_hostname, GETDNS_RRTYPE_AAAA,
+	    no_dnssec_checking_disabled_opportunistic,
+	    context, &context->aaaa.req, NULL, _tas_hostname_lookup_cb))) {
 		DEBUG_ANCHOR("Error scheduling AAAA lookup for %s: %s\n"
 		            , tas_hostname, getdns_get_errorstr_by_id(r));
 	} else

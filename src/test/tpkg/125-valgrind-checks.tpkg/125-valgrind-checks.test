@@ -32,3 +32,9 @@ then
 	cat output
 	exit 1
 fi
+if ! awk '/^==.* ERROR SUMMARY/{print;if($4>0)exit(1)}' valgrind.log
+then
+	cat valgrind.log
+	cat output
+	exit 1
+fi

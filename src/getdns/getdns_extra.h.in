@@ -53,6 +53,8 @@ extern "C" {
  * \addtogroup returntypestext Return values and texts
  *  @{
  */
+#define GETDNS_RETURN_IO_ERROR ((getdns_return_t) 397 )
+#define GETDNS_RETURN_IO_ERROR_TEXT "An input/output error occurred. Inspect errno for details."
 #define GETDNS_RETURN_NO_UPSTREAM_AVAILABLE ((getdns_return_t) 398 )
 #define GETDNS_RETURN_NO_UPSTREAM_AVAILABLE_TEXT "None of the configured upstreams could be used to send queries on the specified transports"
 #define GETDNS_RETURN_NEED_MORE_SPACE ((getdns_return_t) 399 )
@@ -88,6 +90,16 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TRUST_ANCHORS_VERIFY_EMAIL_TEXT "Change related to getdns_context_set_trust_anchors_verify_email"
 #define GETDNS_CONTEXT_CODE_APPDATA_DIR 628
 #define GETDNS_CONTEXT_CODE_APPDATA_DIR_TEXT "Change related to getdns_context_set_appdata_dir"
+#define GETDNS_CONTEXT_CODE_RESOLVCONF 629
+#define GETDNS_CONTEXT_CODE_RESOLVCONF_TEXT "Change related to getdns_context_set_resolvconf"
+#define GETDNS_CONTEXT_CODE_HOSTS 630
+#define GETDNS_CONTEXT_CODE_HOSTS_TEXT "Change related to getdns_context_set_hosts"
+#define GETDNS_CONTEXT_CODE_TLS_CA_PATH 631
+#define GETDNS_CONTEXT_CODE_TLS_CA_PATH_TEXT "Change related to getdns_context_set_tls_ca_path"
+#define GETDNS_CONTEXT_CODE_TLS_CA_FILE 632
+#define GETDNS_CONTEXT_CODE_TLS_CA_FILE_TEXT "Change related to getdns_context_set_tls_ca_file"
+#define GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST 633
+#define GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST_TEXT "Change related to getdns_context_set_tls_cipher_list"
 
 /** @}
   */
@@ -681,6 +693,67 @@ getdns_context_set_trust_anchors_verify_email(
     getdns_context *context, const char *verify_email);
 
 /**
+ * Initialized the context's upstream recursive servers and suffixes
+ * with the values from the given resolv.conf file.
+ * @see getdns_context_get_resolvconf
+ * @see getdns_context_set_hosts
+ * @param[in] context      The context to configure
+ * @param[in] resolvonf    Defaults to /etc/resolv.conf
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_set_resolvconf(getdns_context *context, const char *resolvconf);
+
+/**
+ * Initialized the context's GETDNS_NAMESPACE_LOCALNAMES namespace with
+ * values from the given hosts file.
+ * @see getdns_context_get_hosts
+ * @see getdns_context_set_resolvconf
+ * @param[in] context      The context to configure
+ * @param[in] hosts        Defaults to /etc/hosts
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_set_hosts(getdns_context *context, const char *hosts);
+
+/**
+ * Specify where the location for CA certificates for verification purposes
+ * are located.
+ * @see getdns_context_get_tls_ca_path
+ * @see getdns_context_set_tls_ca_file
+ * @param[in] context      The context to configure
+ * @param[in] tls_ca_path       Directory with Certificate Authority certificates.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_set_tls_ca_path(getdns_context *context, const char *tls_ca_path);
+
+/**
+ * Specify the file with CA certificates for verification purposes.
+ * @see getdns_context_get_tls_ca_file
+ * @see getdns_context_set_tls_ca_path
+ * @param[in] context      The context to configure
+ * @param[in] tls_ca_file       The file with Certificate Authority certificates.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_set_tls_ca_file(getdns_context *context, const char *tls_ca_file);
+
+/**
+ * Sets the list of available ciphers for authenticated TLS upstreams.
+ * @see getdns_context_get_tls_cipher_list
+ * @param[in] context      The context to configure
+ * @param[in] cipher_list  The cipher list
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_set_tls_cipher_list(
+    getdns_context *context, const char *cipher_list);
+
+/**
  * Get the current resolution type setting from this context.
  * @see getdns_context_set_resolution_type
  * @see resolutiontypestext
@@ -1133,6 +1206,71 @@ getdns_context_get_trust_anchors_verify_CA(
 getdns_return_t
 getdns_context_get_trust_anchors_verify_email(
     getdns_context *context, const char **verify_email);
+
+/**
+ * Get the value with which the context's upstream recursive servers
+ * and suffixes were initialized.
+ * @see getdns_context_set_resolvconf
+ * @see getdns_context_get_hosts
+ * @param[in]  context      The context to configure
+ * @param[out] resolvonf    NULL if the context was not initialized with a
+ *                          resolv.conf file.
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_get_resolvconf(getdns_context *context, const char **resolvconf);
+
+/**
+ * Get the value with which the context's GETDNS_NAMESPACE_LOCALNAMES namespace 
+ * was initialized.
+ * @see getdns_context_set_hosts
+ * @see getdns_context_get_resolvconf
+ * @param[in]  context     The context to configure
+ * @param[out] hosts       NULL when GETDNS_NAMESPACE_LOCALNAMES namespace
+ *                         was not initialized.
+ * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
+ */
+getdns_return_t
+getdns_context_get_hosts(getdns_context *context, const char **hosts);
+
+/**
+ * Get the location of the directory for CA certificates for verification
+ * purposes.
+ * @see getdns_context_set_tls_ca_path
+ * @see getdns_context_get_tls_ca_file
+ * @param[in]  context      The context to configure
+ * @param[out] tls_ca_path       Directory with Certificate Authority certificates
+ *                          or NULL when one was not configured.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_get_tls_ca_path(getdns_context *context, const char **tls_ca_path);
+
+/**
+ * Get the file location with CA certificates for verification purposes.
+ * @see getdns_context_set_tls_ca_file
+ * @see getdns_context_get_tls_ca_path
+ * @param[in]  context      The context to configure
+ * @param[out] tls_ca_file       The file with Certificate Authority certificates
+ *                          or NULL when one was not configured.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_get_tls_ca_file(getdns_context *context, const char **tls_ca_file);
+
+/**
+ * Get the list of available ciphers for authenticated TLS upstreams.
+ * @see getdns_context_set_tls_cipher_list
+ * @param[in]  context      The context configure
+ * @param[out] cipher_list  The cipher list
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_get_tls_cipher_list(
+    getdns_context *context, const char **cipher_list);
 
 
 /** @}

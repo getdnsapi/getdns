@@ -151,15 +151,19 @@ calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
 static getdns_return_t
 attach_edns_client_subnet_private(getdns_network_req *req)
 {
-	/* see
-	 * https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-04#section-6 */
-	/* all-zeros is a request to not leak the data further: */
-	/* "\x00\x00"  FAMILY: 0 (because no address) */
-	/* "\x00"  SOURCE PREFIX-LENGTH: 0 */ 
-	/* "\x00";  SCOPE PREFIX-LENGTH: 0 */
-	return _getdns_network_req_add_upstream_option(req,
-						       GLDNS_EDNS_CLIENT_SUBNET,
-						       4, NULL);
+	/* see https://tools.ietf.org/html/rfc7871#section-7.1.2
+	 * all-zeros is a request to not leak the data further:
+	 * A two byte FAMILY field is a SHOULD even when SOURCE
+	 * and SCOPE are 0.
+	 * "\x00\x02"  FAMILY: 2 for IPv6 upstreams in network byte order, or
+	 * "\x00\x01"  FAMILY: 1 for IPv4 upstreams in network byte order, then:
+	 * "\x00"  SOURCE PREFIX-LENGTH: 0
+	 * "\x00";  SCOPE PREFIX-LENGTH: 0
+	 */
+	return _getdns_network_req_add_upstream_option(
+	    req, GLDNS_EDNS_CLIENT_SUBNET, 4,
+	    ( req->upstream->addr.ss_family == AF_INET6
+	    ?  "\x00\x02\x00\x00" : "\x00\x01\x00\x00" ));
 }
 
 static getdns_return_t
@@ -982,9 +986,12 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		SSL_set_cipher_list(ssl, "DEFAULT");
 		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
-	} else
+	} else {
+		if (upstream->tls_cipher_list)
+			SSL_set_cipher_list(ssl, upstream->tls_cipher_list);
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
+	}
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
 
 	SSL_set_connect_state(ssl);

@@ -57,6 +57,9 @@ typedef unsigned short in_port_t;
 #include <shlobj.h>
 #endif
 
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+
 #include <sys/stat.h>
 #include <string.h>
 #include <stdio.h>
@@ -162,6 +165,17 @@ static void set_ub_dnssec_allowed_skew(struct getdns_context*, uint32_t);
 /* Stuff to make it compile pedantically */
 #define RETURN_IF_NULL(ptr, code) if(ptr == NULL) return code;
 
+static char *
+_getdns_strdup2(const struct mem_funcs *mfs, const getdns_bindata *s)
+{
+    char *r;
+    if (!s || !(r = GETDNS_XMALLOC(*mfs, char, s->size + 1)))
+        return NULL;
+    else {
+	r[s->size] = '\0';
+        return memcpy(r, s, s->size);
+    }
+}
 
 #ifdef USE_WINSOCK
 /* For windows, the CA trust store is not read by openssl. 
@@ -495,8 +509,45 @@ str_addr_dict(getdns_context *context, const char *str)
 	return address;
 }
 
-static void
-create_local_hosts(getdns_context *context)
+/**
+ * check a file for changes since the last check
+ * and refresh the current data if changes are detected
+ * @param context pointer to a previously created context to be used for this call
+ * @param fchg file to check
+ * @returns changes as OR'd list of GETDNS_FCHG_* values
+ * @returns GETDNS_FCHG_NONE if no changes
+ * @returns GETDNS_FCHG_ERRORS if problems (see fchg->errors for details)
+ */
+static int
+_getdns_filechg_check(struct filechg *fchg)
+{
+	struct stat finfo;
+
+	if(fchg == NULL)
+		return 0;
+
+	fchg->errors  = GETDNS_FCHG_NOERROR;
+	fchg->changes = GETDNS_FCHG_NOCHANGES;
+
+	if(stat(fchg->fn, &finfo) != 0) {
+		fchg->errors = errno;
+		return GETDNS_FCHG_ERRORS;
+	}
+
+	/* we want to consider a file that previously returned error for stat() as a
+	   change */
+
+	if(fchg->prevstat.st_mtime != finfo.st_mtime)
+		fchg->changes |= GETDNS_FCHG_MTIME;
+	if(fchg->prevstat.st_ctime != finfo.st_ctime)
+		fchg->changes |= GETDNS_FCHG_CTIME;
+
+	fchg->prevstat = finfo;
+	return fchg->changes;
+} /* filechg */
+
+getdns_return_t
+getdns_context_set_hosts(getdns_context *context, const char *hosts)
 {
 	/* enough space in buf for longest allowed domain name */
 	char buf[1024];
@@ -505,11 +556,21 @@ create_local_hosts(getdns_context *context)
 	int start_of_line = 1;
 	getdns_dict *address = NULL;
 
-#ifdef USE_WINSOCK
-	in = fopen("c:\\WINDOWS\\system32\\drivers\\etc\\hosts", "r");
-#else
-	in = fopen("/etc/hosts", "r");
-#endif
+	if (!context || !hosts)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!(in = fopen(hosts, "r")))
+		return GETDNS_RETURN_IO_ERROR;
+
+	(void)strlcpy(context->fchg_hosts.fn, hosts, _GETDNS_PATH_MAX);
+	(void) memset(&context->fchg_hosts.prevstat, 0, sizeof(struct stat));
+	context->fchg_hosts.changes = GETDNS_FCHG_NOCHANGES;
+	context->fchg_hosts.errors = GETDNS_FCHG_NOERROR;
+	(void) _getdns_filechg_check(&context->fchg_hosts);
+	_getdns_traverse_postorder(&context->local_hosts,
+	    destroy_local_host, context);
+	_getdns_rbtree_init(&context->local_hosts, local_host_cmp);
+
 	while (fgets(pos, (int)(sizeof(buf) - (pos - buf)), in)) {
 		pos = buf;
 		/* Break out of for to read more */
@@ -589,59 +650,19 @@ read_more:	;
 				address = NULL;
 		getdns_dict_destroy(address);
 	}
+	return GETDNS_RETURN_GOOD;
 }
 
-/**
- * check a file for changes since the last check
- * and refresh the current data if changes are detected
- * @param context pointer to a previously created context to be used for this call
- * @param fchg file to check
- * @returns changes as OR'd list of GETDNS_FCHG_* values
- * @returns GETDNS_FCHG_NONE if no changes
- * @returns GETDNS_FCHG_ERRORS if problems (see fchg->errors for details)
- */
-int
-_getdns_filechg_check(struct getdns_context *context, struct filechg *fchg)
+getdns_return_t
+getdns_context_get_hosts(getdns_context *context, const char **hosts)
 {
-    struct stat *finfo;
+	if (!context || !hosts)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-    if(fchg == NULL)
-        return 0;
+	*hosts = *context->fchg_hosts.fn ? context->fchg_hosts.fn : NULL;
+	return GETDNS_RETURN_GOOD;
+}
 
-    fchg->errors  = GETDNS_FCHG_NOERROR;
-    fchg->changes = GETDNS_FCHG_NOCHANGES;
-
-    finfo = GETDNS_MALLOC(context->my_mf, struct stat);
-    if(finfo == NULL)
-    {
-        fchg->errors = errno;
-        return GETDNS_FCHG_ERRORS;
-	}
-
-    if(stat(fchg->fn, finfo) != 0)
-    {
-		GETDNS_FREE(context->my_mf, finfo);
-        fchg->errors = errno;
-        return GETDNS_FCHG_ERRORS;
-    }
-
-    /* we want to consider a file that previously returned error for stat() as a
-       change */
-
-    if(fchg->prevstat == NULL)
-        fchg->changes = GETDNS_FCHG_MTIME | GETDNS_FCHG_CTIME;
-    else
-    {
-        if(fchg->prevstat->st_mtime != finfo->st_mtime)
-            fchg->changes |= GETDNS_FCHG_MTIME;
-        if(fchg->prevstat->st_ctime != finfo->st_ctime)
-            fchg->changes |= GETDNS_FCHG_CTIME;
-    	GETDNS_FREE(context->my_mf, fchg->prevstat);
-    }
-    fchg->prevstat = finfo;
-
-    return fchg->changes;
-} /* filechg */
 
 static getdns_upstreams *
 upstreams_create(getdns_context *context, size_t size)
@@ -707,12 +728,16 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		{
 			_getdns_closesocket(upstream->fd);
 		}
+		if (upstream->tcp.read_buf)
+			GETDNS_FREE(upstreams->mf, upstream->tcp.read_buf);
 		while (pin) {
 			sha256_pin_t *nextpin = pin->next;
 			GETDNS_FREE(upstreams->mf, pin);
 			pin = nextpin;
 		}
 		upstream->tls_pubkey_pinset = NULL;
+		if (upstream->tls_cipher_list)
+			GETDNS_FREE(upstreams->mf, upstream->tls_cipher_list);
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
@@ -996,6 +1021,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->fd       = -1;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
+	upstream->tls_cipher_list = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
@@ -1094,7 +1120,7 @@ static int get_dns_suffix_windows(getdns_list *suffix, char* domain)
 
 
 static getdns_return_t
-set_os_defaults_windows(struct getdns_context *context)
+set_os_defaults_windows(getdns_context *context)
 {
     char domain[1024] = "";
     size_t upstreams_limit = 10;
@@ -1106,19 +1132,8 @@ set_os_defaults_windows(struct getdns_context *context)
     int s;
 	uint32_t info_err = 0;
 
-    if (context->fchg_resolvconf == NULL) {
-		context->fchg_resolvconf =
-			GETDNS_MALLOC(context->my_mf, struct filechg);
-		if (context->fchg_resolvconf == NULL)
-			return GETDNS_RETURN_MEMORY_ERROR;
-		context->fchg_resolvconf->fn = "InvalidOnWindows";
-		context->fchg_resolvconf->prevstat = NULL;
-		context->fchg_resolvconf->changes = GETDNS_FCHG_NOCHANGES;
-		context->fchg_resolvconf->errors = GETDNS_FCHG_NOERROR;
-    }
-    _getdns_filechg_check(context, context->fchg_resolvconf);
-
-    context->upstreams = upstreams_create(context, upstreams_limit);
+    if (!(context->upstreams = upstreams_create(context, upstreams_limit)))
+	    return GETDNS_RETURN_MEMORY_ERROR;
 
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
@@ -1189,8 +1204,8 @@ set_os_defaults_windows(struct getdns_context *context)
 
 #else
 
-static getdns_return_t
-set_os_defaults(struct getdns_context *context)
+getdns_return_t
+getdns_context_set_resolvconf(getdns_context *context, const char *resolvconf)
 {
 	FILE *in;
 	char line[1024], domain[1024];
@@ -1202,21 +1217,18 @@ set_os_defaults(struct getdns_context *context)
 	getdns_list     *suffix;
 	int s;
 
-	if(context->fchg_resolvconf == NULL) {
-		context->fchg_resolvconf =
-		    GETDNS_MALLOC(context->my_mf, struct filechg);
-		if(context->fchg_resolvconf == NULL)
-			return GETDNS_RETURN_MEMORY_ERROR;
-		context->fchg_resolvconf->fn       = "/etc/resolv.conf";
-		context->fchg_resolvconf->prevstat = NULL;
-		context->fchg_resolvconf->changes  = GETDNS_FCHG_NOCHANGES;
-		context->fchg_resolvconf->errors   = GETDNS_FCHG_NOERROR;
-	}
-	_getdns_filechg_check(context, context->fchg_resolvconf);
+	if (!context || !resolvconf)
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	in = fopen(context->fchg_resolvconf->fn, "r");
-	if (!in)
-		return GETDNS_RETURN_GOOD;
+
+	(void) strlcpy( context->fchg_resolvconf.fn, resolvconf, _GETDNS_PATH_MAX);
+	(void) memset(&context->fchg_resolvconf.prevstat, 0, sizeof(struct stat));
+	context->fchg_resolvconf.changes = GETDNS_FCHG_NOCHANGES;
+	context->fchg_resolvconf.errors = GETDNS_FCHG_NOERROR;
+	(void) _getdns_filechg_check(&context->fchg_resolvconf);
+
+	if (!(in = fopen(context->fchg_resolvconf.fn, "r")))
+		return GETDNS_RETURN_IO_ERROR;
 
 	upstream_count = 0;
 	while (fgets(line, (int)sizeof(line), in))
@@ -1225,12 +1237,16 @@ set_os_defaults(struct getdns_context *context)
 	fclose(in);
 
 	suffix = getdns_list_create_with_context(context);
-	context->upstreams = upstreams_create(
-	    context, upstream_count * GETDNS_UPSTREAM_TRANSPORTS);
-
-	in = fopen(context->fchg_resolvconf->fn, "r");
-	if (!in)
-		return GETDNS_RETURN_GOOD;
+	if (context->upstreams) {
+		_getdns_upstreams_dereference(context->upstreams);
+		context->upstreams = NULL;
+	}
+	if (!(context->upstreams = upstreams_create(
+	    context, upstream_count * GETDNS_UPSTREAM_TRANSPORTS))) {
+		return GETDNS_RETURN_MEMORY_ERROR;
+	}
+	if (!(in = fopen(context->fchg_resolvconf.fn, "r")))
+		return GETDNS_RETURN_IO_ERROR;
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family    = AF_UNSPEC;      /* Allow IPv4 or IPv6 */
@@ -1306,9 +1322,24 @@ set_os_defaults(struct getdns_context *context)
 	(void )getdns_context_set_suffix(context, suffix);
 	getdns_list_destroy(suffix);
 
+	dispatch_updated(context,
+		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+
 	return GETDNS_RETURN_GOOD;
 } /* set_os_defaults */
 #endif
+
+getdns_return_t
+getdns_context_get_resolvconf(getdns_context *context, const char **resolvconf)
+{
+	if (!context || !resolvconf)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*resolvconf = *context->fchg_resolvconf.fn
+	            ?  context->fchg_resolvconf.fn : NULL;
+	return GETDNS_RETURN_GOOD;
+}
+
 
 /* compare of transaction ids in DESCENDING order
    so that 0 comes last
@@ -1362,11 +1393,11 @@ static void _getdns_check_expired_pending_netreqs_cb(void *arg)
 	_getdns_check_expired_pending_netreqs((getdns_context *)arg, &now_ms);
 }
 
-static const char *_getdns_default_trust_anchors_url =
+static char const * const _getdns_default_trust_anchors_url =
     "http://data.iana.org/root-anchors/root-anchors.xml";
 
 /* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
-static const char *_getdns_default_trust_anchors_verify_CA =
+static char const * const _getdns_default_trust_anchors_verify_CA =
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
 "TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
@@ -1389,9 +1420,12 @@ static const char *_getdns_default_trust_anchors_verify_CA =
 "j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
 "-----END CERTIFICATE-----\n";
 
-static const char *_getdns_default_trust_anchors_verify_email =
+static char const * const _getdns_default_trust_anchors_verify_email =
     "dnssec@iana.org";
 
+static char const * const _getdns_default_tls_cipher_list = 
+	"TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
+	"TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
 
 /*
  * getdns_context_create
@@ -1400,7 +1434,7 @@ static const char *_getdns_default_trust_anchors_verify_email =
  */
 getdns_return_t
 getdns_context_create_with_extended_memory_functions(
-    struct getdns_context ** context,
+    getdns_context **context,
     int set_from_os,
     void *userarg,
     void *(*malloc)(void *userarg, size_t),
@@ -1498,6 +1532,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->trust_anchors_verify_email = NULL;
 	result->trust_anchors_verify_CA = NULL;
 	result->appdata_dir = NULL;
+	result->tls_ca_path = NULL;
+	result->tls_ca_file = NULL;
+	result->tls_cipher_list = NULL;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
 
@@ -1571,17 +1608,8 @@ getdns_context_create_with_extended_memory_functions(
 
 	/* state data used to detect changes to the system config files
 	 */
-	result->fchg_resolvconf = NULL;
-	result->fchg_hosts      = NULL;
-
-	// resolv.conf does not exist on Windows, handle differently
-#ifndef USE_WINSOCK 
-	if ((set_from_os & 1) && (r = set_os_defaults(result)))
-		goto error;
-#else
-	if ((set_from_os & 1) && (r = set_os_defaults_windows(result)))
-		goto error;
-#endif
+	(void)memset(&result->fchg_resolvconf, 0, sizeof(struct filechg));
+	(void)memset(&result->fchg_hosts     , 0, sizeof(struct filechg));
 
 	result->dnssec_allowed_skew = 0;
 	result->edns_maximum_udp_payload_size = -1;
@@ -1632,8 +1660,16 @@ getdns_context_create_with_extended_memory_functions(
 	_getdns_mdns_context_init(result);
 #endif
 
-	create_local_hosts(result);
-
+	// resolv.conf does not exist on Windows, handle differently
+#ifndef USE_WINSOCK 
+	if ((set_from_os & 1)) {
+		(void) getdns_context_set_resolvconf(result, GETDNS_FN_RESOLVCONF);
+		(void) getdns_context_set_hosts(result, GETDNS_FN_HOSTS);
+	}
+#else
+	if ((set_from_os & 1) && (r = set_os_defaults_windows(result)))
+		goto error;
+#endif
 
 	*context = result;
 	return GETDNS_RETURN_GOOD;
@@ -1675,7 +1711,6 @@ getdns_context_create(struct getdns_context ** context, int set_from_os)
     return getdns_context_create_with_memory_functions(context,
             set_from_os, malloc, realloc, free);
 }               /* getdns_context_create */
-
 
 /*
  * getdns_context_destroy
@@ -1731,16 +1766,6 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->dns_transports)
 		GETDNS_FREE(context->my_mf, context->dns_transports);
 
-	if(context->fchg_resolvconf) {
-		if(context->fchg_resolvconf->prevstat)
-			GETDNS_FREE(context->my_mf, context->fchg_resolvconf->prevstat);
-		GETDNS_FREE(context->my_mf, context->fchg_resolvconf);
-	}
-	if(context->fchg_hosts) {
-		if(context->fchg_hosts->prevstat)
-			GETDNS_FREE(context->my_mf, context->fchg_hosts->prevstat);
-		GETDNS_FREE(context->my_mf, context->fchg_hosts);
-	}
 	if (context->tls_ctx)
 		SSL_CTX_free(context->tls_ctx);
 
@@ -1774,6 +1799,12 @@ getdns_context_destroy(struct getdns_context *context)
 		           , context->trust_anchors_verify_email);
 	if (context->appdata_dir)
 		GETDNS_FREE(context->mf, context->appdata_dir);
+	if (context->tls_ca_path)
+		GETDNS_FREE(context->mf, context->tls_ca_path);
+	if (context->tls_ca_file)
+		GETDNS_FREE(context->mf, context->tls_ca_file);
+	if (context->tls_cipher_list)
+		GETDNS_FREE(context->mf, context->tls_cipher_list);
 
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -2962,16 +2993,19 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
-				if (dict && (r = getdns_dict_get_bindata(
+				getdns_bindata *tls_cipher_list = NULL;
+
+				if ((r = getdns_dict_get_bindata(
 				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 
 					if (tls_auth_name->size >= sizeof(upstream->tls_auth_name)) {
-						/* tls_auth_name's are just 
-						 * domain names and should
-						 * thus not be larger than 256
-						 * bytes.
+						/* tls_auth_name's are 
+						 * domain names in presentation
+						 * format and, taking escaping
+						 * into account, should not
+						 * be larger than 1024 bytes.
 						 */
 						goto invalid_parameter;
 					}
@@ -2981,7 +3015,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					upstream->tls_auth_name
 					    [tls_auth_name->size] = '\0';
 				}
-				if (dict && (r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
+				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
 			   /* TODO: what if the user supplies tls_pubkey_pinset with
 			    * something other than a list? */
@@ -2991,6 +3025,12 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					if (r != GETDNS_RETURN_GOOD)
 						goto invalid_parameter;
 				}
+				(void) getdns_dict_get_bindata(
+				    dict, "tls_cipher_list", &tls_cipher_list);
+				upstream->tls_cipher_list = tls_cipher_list
+				    ? _getdns_strdup2(&upstreams->mf
+				                     , tls_cipher_list)
+				    : NULL;
 			}
 			if ((upstream->tsig_alg = tsig_alg)) {
 				if (tsig_name) {
@@ -3564,15 +3604,20 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 #  endif
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
-			const char* const PREFERRED_CIPHERS = "EECDH+aRSA+AESGCM:EECDH+aECDSA+AESGCM:EDH+aRSA+AESGCM";
-			if (!SSL_CTX_set_cipher_list(context->tls_ctx, PREFERRED_CIPHERS))
+			if (!SSL_CTX_set_cipher_list(context->tls_ctx,
+			    context->tls_cipher_list ? context->tls_cipher_list
+			                             : _getdns_default_tls_cipher_list))
 				return GETDNS_RETURN_BAD_CONTEXT;
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/
+			if ((context->tls_ca_file || context->tls_ca_path) &&
+			    SSL_CTX_load_verify_locations(context->tls_ctx
+				    , context->tls_ca_file, context->tls_ca_path))
+				; /* pass */
 #  ifndef USE_WINSOCK
-			if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
+			else if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
 #  else
-			if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
+			else if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
 #  endif /* USE_WINSOCK */
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
@@ -3611,7 +3656,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 	return r;
 } /* _getdns_context_prepare_for_resolution */
 
-char *
+static char *
 _getdns_strdup(const struct mem_funcs *mfs, const char *s)
 {
     size_t sz;
@@ -3869,6 +3914,73 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "trust_anchors_verify_CA", str_value);
 	if (!getdns_context_get_trust_anchors_verify_email(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "trust_anchors_verify_email", str_value);
+	if (!getdns_context_get_resolvconf(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "resolvconf", str_value);
+	if (!getdns_context_get_hosts(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "hosts", str_value);
+	if (!getdns_context_get_tls_ca_path(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "tls_ca_path", str_value);
+	if (!getdns_context_get_tls_ca_file(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "tls_ca_file", str_value);
+	if (!getdns_context_get_tls_cipher_list(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "tls_cipher_list", str_value);
+
+	/* Default settings for extensions */
+	(void)getdns_dict_set_int(
+	    result, "add_warning_for_bad_dns",
+	    context->add_warning_for_bad_dns ? GETDNS_EXTENSION_TRUE
+	                                     : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_all_statuses",
+	    context->dnssec_return_all_statuses ? GETDNS_EXTENSION_TRUE
+	                                        : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_full_validation_chain",
+	    context->dnssec_return_full_validation_chain ? GETDNS_EXTENSION_TRUE
+	                                                 : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_only_secure",
+	    context->dnssec_return_only_secure ? GETDNS_EXTENSION_TRUE
+	                                       : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_status",
+	    context->dnssec_return_status ? GETDNS_EXTENSION_TRUE
+	                                  : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "dnssec_return_validation_chain",
+	    context->dnssec_return_validation_chain ? GETDNS_EXTENSION_TRUE
+	                                            : GETDNS_EXTENSION_FALSE);
+
+#if defined(DNSSEC_ROADBLOCK_AVOIDANCE) && defined(HAVE_LIBUNBOUND)
+	(void)getdns_dict_set_int(
+	    result, "dnssec_roadblock_avoidance",
+	    context->dnssec_roadblock_avoidance ? GETDNS_EXTENSION_TRUE
+	                                        : GETDNS_EXTENSION_FALSE);
+#endif
+#ifdef EDNS_COOKIES
+	(void)getdns_dict_set_int(
+	    result, "edns_cookies",
+	    context->edns_cookies ? GETDNS_EXTENSION_TRUE
+	                          : GETDNS_EXTENSION_FALSE);
+#endif
+	(void)getdns_dict_set_int(
+	    result, "return_both_v4_and_v6",
+	    context->return_both_v4_and_v6 ? GETDNS_EXTENSION_TRUE
+	                                   : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(
+	    result, "return_call_reporting",
+	    context->return_call_reporting ? GETDNS_EXTENSION_TRUE
+	                                   : GETDNS_EXTENSION_FALSE);
+	(void)getdns_dict_set_int(result, "specify_class",
+	    (uint32_t)context->specify_class);
+
+	if (context->add_opt_parameters)
+		(void)getdns_dict_set_dict(
+		    result, "add_opt_parameters", context->add_opt_parameters);
+
+	if (context->header)
+		(void)getdns_dict_set_dict(
+		    result, "header", context->add_opt_parameters);
 
 	return result;
 error:
@@ -3904,6 +4016,39 @@ getdns_context_get_api_information(getdns_context* context)
 
 	    && ! getdns_dict_util_set_string(
 	    result, "default_trust_anchor_location", TRUST_ANCHOR_FILE)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "default_resolvconf_location", GETDNS_FN_RESOLVCONF)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "default_hosts_location", GETDNS_FN_HOSTS)
+
+	    && ! getdns_dict_set_int(
+	    result, "openssl_build_version_number", OPENSSL_VERSION_NUMBER)
+
+#ifdef HAVE_OPENSSL_VERSION_NUM
+	    && ! getdns_dict_set_int(
+	    result, "openssl_version_number", OpenSSL_version_num())
+#endif
+#ifdef HAVE_OPENSSL_VERSION
+	    && ! getdns_dict_util_set_string(
+	    result, "openssl_version_string", OpenSSL_version(OPENSSL_VERSION))
+	    
+	    && ! getdns_dict_util_set_string(
+	    result, "openssl_cflags", OpenSSL_version(OPENSSL_CFLAGS))
+
+	    && ! getdns_dict_util_set_string(
+	    result, "openssl_built_on", OpenSSL_version(OPENSSL_BUILT_ON))
+
+	    && ! getdns_dict_util_set_string(
+	    result, "openssl_platform", OpenSSL_version(OPENSSL_PLATFORM))
+
+	    && ! getdns_dict_util_set_string(
+	    result, "openssl_dir", OpenSSL_version(OPENSSL_DIR))
+
+	    && ! getdns_dict_util_set_string(
+	    result, "openssl_engines_dir", OpenSSL_version(OPENSSL_ENGINES_DIR))
+#endif
 
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
@@ -4363,6 +4508,11 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 						break;
 					}
 				}
+				if (upstream->tls_cipher_list) {
+					(void) getdns_dict_util_set_string(
+					    d, "tls_cipher_list",
+					    upstream->tls_cipher_list);
+				}
 			}
 		}
 		if (!r)
@@ -4565,6 +4715,13 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(trust_anchors_verify_CA)
 	CONTEXT_SETTING_STRING(trust_anchors_verify_email)
 	CONTEXT_SETTING_STRING(appdata_dir)
+#ifndef USE_WINSOCK
+	CONTEXT_SETTING_STRING(resolvconf)
+#endif
+	CONTEXT_SETTING_STRING(hosts)
+	CONTEXT_SETTING_STRING(tls_ca_path)
+	CONTEXT_SETTING_STRING(tls_ca_file)
+	CONTEXT_SETTING_STRING(tls_cipher_list)
 
 	/**************************************/
 	/****                              ****/
@@ -4624,7 +4781,17 @@ _getdns_context_config_setting(getdns_context *context,
 	    && !_streq(setting, "api_version_number")
 	    && !_streq(setting, "trust_anchor_file")
 	    && !_streq(setting, "default_trust_anchor_location")
+	    && !_streq(setting, "default_resolvconf_location")
+	    && !_streq(setting, "default_hosts_location")
 	    && !_streq(setting, "compilation_comment")
+	    && !_streq(setting, "openssl_build_version_number")
+	    && !_streq(setting, "openssl_version_number")
+	    && !_streq(setting, "openssl_version_string")
+	    && !_streq(setting, "openssl_cflags")
+	    && !_streq(setting, "openssl_built_on")
+	    && !_streq(setting, "openssl_platform")
+	    && !_streq(setting, "openssl_dir")
+	    && !_streq(setting, "openssl_engines_dir")
 	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
 	}
@@ -5006,6 +5173,131 @@ getdns_context_set_appdata_dir(
 	context->appdata_dir = _getdns_strdup(&context->mf, appdata_dir);
 
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_APPDATA_DIR);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_context *_getdns_context_get_sys_ctxt(
+    getdns_context *context, getdns_eventloop *loop)
+{
+	getdns_return_t r;
+
+	if (context->sys_ctxt)
+		return context->sys_ctxt;
+
+	if ((r = getdns_context_create_with_extended_memory_functions(
+	   &context->sys_ctxt, 1, context->mf.mf_arg,
+	    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
+	    context->mf.mf.ext.free)))
+		DEBUG_ANCHOR("Could not create system context: %s\n"
+			    , getdns_get_errorstr_by_id(r));
+#ifndef USE_WINSOCK
+	else if (*context->fchg_resolvconf.fn &&
+	    (r = getdns_context_set_resolvconf(
+	    context->sys_ctxt, context->fchg_resolvconf.fn)))
+		DEBUG_ANCHOR("Could initialize system context with resolvconf "
+		             "\"%s\": %s\n", context->fchg_resolvconf.fn
+			    , getdns_get_errorstr_by_id(r));
+#endif
+	else if (*context->fchg_hosts.fn &&
+	    (r = getdns_context_set_hosts(
+	    context->sys_ctxt, context->fchg_hosts.fn)))
+		DEBUG_ANCHOR("Could initialize system context with hosts "
+		             "\"%s\": %s\n", context->fchg_resolvconf.fn
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_set_eventloop(
+	    context->sys_ctxt, loop)))
+		DEBUG_ANCHOR("Could not configure %ssynchronous loop "
+			     "with system context: %s\n"
+			    , ( loop == &context->sync_eventloop.loop
+			      ? "" : "a" )
+			    , getdns_get_errorstr_by_id(r));
+
+	else if ((r = getdns_context_set_resolution_type(
+	    context->sys_ctxt, GETDNS_RESOLUTION_STUB)))
+		DEBUG_ANCHOR("Could not configure system context for "
+			     "stub resolver: %s\n"
+			    , getdns_get_errorstr_by_id(r));
+	else
+		return context->sys_ctxt;
+
+	getdns_context_destroy(context->sys_ctxt);
+	context->sys_ctxt = NULL;
+	return NULL;
+}
+
+getdns_return_t
+getdns_context_set_tls_ca_path(getdns_context *context, const char *tls_ca_path)
+{
+	if (!context || !tls_ca_path)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (context->tls_ca_path)
+		GETDNS_FREE(context->mf, context->tls_ca_path);
+	context->tls_ca_path = _getdns_strdup(&context->mf, tls_ca_path);
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CA_PATH);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_ca_path(getdns_context *context, const char **tls_ca_path)
+{
+	if (!context || !tls_ca_path)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*tls_ca_path = context->tls_ca_path;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_tls_ca_file(getdns_context *context, const char *tls_ca_file)
+{
+	if (!context || !tls_ca_file)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (context->tls_ca_file)
+		GETDNS_FREE(context->mf, context->tls_ca_file);
+	context->tls_ca_file = _getdns_strdup(&context->mf, tls_ca_file);
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CA_FILE);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_ca_file(getdns_context *context, const char **tls_ca_file)
+{
+	if (!context || !tls_ca_file)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*tls_ca_file = context->tls_ca_file;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_tls_cipher_list(
+    getdns_context *context, const char *tls_cipher_list)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (context->tls_cipher_list)
+		GETDNS_FREE(context->mf, context->tls_cipher_list);
+	context->tls_cipher_list = tls_cipher_list
+	                         ? _getdns_strdup(&context->mf, tls_cipher_list)
+	                         : NULL;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_cipher_list(
+    getdns_context *context, const char **tls_cipher_list)
+{
+	if (!context || !tls_cipher_list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*tls_cipher_list = context->tls_cipher_list
+	                 ? context->tls_cipher_list
+	                 : _getdns_default_tls_cipher_list;
 	return GETDNS_RETURN_GOOD;
 }
 

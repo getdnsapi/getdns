@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.2.1], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
+AC_INIT([getdns], [1.3.0], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
 
 # Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
 # patched to do the same, but frequently (MacOS) not. So add a with option
@@ -62,7 +62,7 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01020100])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01030000])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
@@ -98,9 +98,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-1.1.2 had libversion 7:0:1
 # getdns-1.1.3 had libversion 7:1:1
 # getdns-1.2.0 had libversion 8:0:2
-# getdns-1.2.1 has libversion 8:1:2
+# getdns-1.2.1 had libversion 8:1:2
+# getdns-1.3.0 has libversion 9:0:3
 #
-GETDNS_LIBVERSION=8:1:2
+GETDNS_LIBVERSION=9:0:3
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -265,7 +266,7 @@ esac
 
 
 DEFAULT_EVENTLOOP=select_eventloop
-AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([signal.h sys/poll.h poll.h sys/resource.h sys/types.h sys/stat.h],,, [AC_INCLUDES_DEFAULT])
 AC_ARG_ENABLE(poll-eventloop, AC_HELP_STRING([--disable-poll-eventloop], [Disable default eventloop based on poll (default=enabled if available)]))
 case "$enable_poll_eventloop" in
 	no)
@@ -345,6 +346,22 @@ AC_CHECK_FUNCS([strptime],[AC_CHECK_STRPTIME_WORKS],[AC_LIBOBJ([strptime])])
 AC_CHECK_HEADERS([windows.h winsock.h stdio.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
 ACX_CHECK_GETADDRINFO_WITH_INCLUDES
 
+AC_ARG_WITH(resolvconf, AS_HELP_STRING([--with-resolvconf=PATH],
+	[Set the resolver configuration file path.  Defaults to /etc/resolv.conf or values retrieved via GetNetworkParams() on Windows]),
+	[], [withval="/etc/resolv.conf"])
+AC_DEFINE_UNQUOTED([GETDNS_FN_RESOLVCONF], ["$withval"], [Path to resolver configuration file])
+
+AC_ARG_WITH(hosts, AS_HELP_STRING([--with-hosts=PATH],
+	[Set the static table lookup for hostnames path.  Defaults to /etc/hosts or C:\Windows\System32\Drivers\etc\hosts on Windows]),
+	[], [
+if test "$USE_WINSOCK" = 1; then
+	withval="C:\\\\Windows\\\\System32\\\\Drivers\\\\etc\\\\hosts"
+else
+	withval="/etc/hosts"
+fi
+])
+AC_DEFINE_UNQUOTED([GETDNS_FN_HOSTS], ["$withval"], [Path to static table lookup for hostnames])
+
 AC_ARG_WITH(fd-setsize, AS_HELP_STRING([--with-fd-setsize=size],
 	[Set maximum file descriptor number that can be used by select]),
 	[], [withval="no"])
@@ -391,7 +408,7 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -1498,6 +1515,10 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 
 #ifdef HAVE_NETINET_IN_H

@@ -116,7 +116,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 
 	/* Do we have to check more suffixes on nxdomain/nodata?
 	 */
-	if (dns_req->is_dns_request &&
+	if (dns_req->is_dns_request == 1 &&
 	    dns_req->suffix_appended && /* Something was appended */
 	    dns_req->suffix_len > 1 &&  /* Next suffix available */
 	    no_answer(dns_req)) {
@@ -153,7 +153,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 			return;
 		}
 	} else if (
-	    dns_req->is_dns_request &&
+	    dns_req->is_dns_request == 1 &&
 	    ( dns_req->append_name ==
 	      GETDNS_APPEND_NAME_ONLY_TO_SINGLE_LABEL_AFTER_FAILURE ||
 	      dns_req->append_name ==
@@ -206,7 +206,7 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	} else if (! results_found)
 		_getdns_call_user_callback(dns_req, NULL);
 	else if (
-	    dns_req->is_dns_request &&
+	    dns_req->is_dns_request == 1 &&
 	    (dns_req->dnssec_return_validation_chain
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 	    || (   dns_req->dnssec_roadblock_avoidance 
@@ -343,7 +343,7 @@ _getdns_netreq_change_state(
 	if (!netreq)
 		return;
 
-	if (!netreq->owner->is_dns_request) {
+	if (netreq->owner->is_dns_request == 0) {
 		netreq->state = new_state;
 		return;
 	}

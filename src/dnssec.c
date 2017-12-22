@@ -3160,11 +3160,19 @@ static void check_chain_complete(chain_head *chain)
 			_getdns_context_update_root_ksk(context,&node->dnskey);
        	
 	} else if (_getdns_bogus(dnsreq)) {
+		_getdns_rrsig_iter rrsig_spc;
 		DEBUG_ANCHOR("Request was bogus!\n");
 
 		if ((head = chain) && (node = _to_the_root(head->parent))
+ 		    /* The root DNSKEY rrset */
 		    && node->dnskey.name && *node->dnskey.name == 0
-		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS){
+		    /* We queried it and had a response */
+		    && node->dnskey_req
+		    /* The response was bogus */
+		    && node->dnskey_req->dnssec_status == GETDNS_DNSSEC_BOGUS
+		    /* The response was bogus, but not because it has no rrsigs */
+		    && _getdns_rrsig_iter_init(&rrsig_spc, &node->dnskey)
+		    ){
 
 			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
 			if (!dnsreq->waiting_for_ta) {
@@ -3394,10 +3402,21 @@ void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 
 void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 {
-	chain_head *head = dnsreq->chain, *next, *dnskey_head;
+	chain_head *head, *next;
 	chain_node *node;
 	size_t      node_count;
 
+	/* Clear nodes under direct DNSKEY queries.
+	 * They share the DNSKEY lookup netreq, but _dnskey_query() can not
+	 * be used because we're free'ing the heads.
+	 */
+	for (head = dnsreq->chain; head; head = head->next) {
+		if (  head->rrset.rr_type == GETDNS_RRTYPE_DNSKEY
+		   && head->node_count
+		   && head->netreq == head->parent->dnskey_req)
+			head->parent->dnskey_req = NULL;
+	}
+	head = dnsreq->chain;
 	dnsreq->chain = NULL;
 	while (head) {
 		next = head->next;
@@ -3406,10 +3425,7 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 		    ; node_count
 		    ; node_count--, node = node->parent ) {
 
-			if (node->dnskey_req &&
-			    !( (dnskey_head = _dnskey_query(node))
-			     && dnskey_head->netreq == node->dnskey_req))
-
+			if (node->dnskey_req)
 				_getdns_context_cancel_request(
 				    node->dnskey_req->owner);
 
