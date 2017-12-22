@@ -91,7 +91,9 @@ static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
 static int bogus_answers = 0;
 static int check_dnssec = 0;
+#ifndef USE_WINSOCK
 static char *resolvconf = NULL;
+#endif
 static int print_api_info = 0, print_trust_anchors = 0;
 
 static int get_rrtype(const char *t)
@@ -256,8 +258,10 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\t(should look like '" EXAMPLE_PIN "')\n");
 	fprintf(out, "\t-m\tSet TLS authentication mode to REQUIRED\n");
 	fprintf(out, "\t-n\tSet TLS authentication mode to NONE (default)\n");
+#ifndef USE_WINSOCK
 	fprintf(out, "\t-o <filename>\tSet resolver configuration file path\n");
 	fprintf(out, "\t\t(default = %s)\n", GETDNS_FN_RESOLVCONF);
+#endif
 	fprintf(out, "\t-p\tPretty print response dict (default)\n");
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n"
 		"\t\t(special values: 0: no padding, 1: sensible default policy)\n");
@@ -824,6 +828,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_tls_authentication(context,
 				                 GETDNS_AUTHENTICATION_REQUIRED);
 				break;
+#ifndef USE_WINSOCK
 			case 'o':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "<filename>"
@@ -832,6 +837,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				resolvconf = argv[i];
 				break;
+#endif
 			case 'P':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "tls_query_padding_blocksize "
@@ -1733,6 +1739,7 @@ main(int argc, char **argv)
 
 	if ((r = parse_args(argc, argv)) && r != CONTINUE)
 		goto done_destroy_context;
+#ifndef USE_WINSOCK
 	if (resolvconf) {
 		if ((r = getdns_context_set_resolvconf(context, resolvconf))) {
 			fprintf(stderr, "Problem initializing with resolvconf: %d\n", (int)r);
@@ -1741,6 +1748,7 @@ main(int argc, char **argv)
 		if ((r = parse_args(argc, argv)))
 			goto done_destroy_context;
 	}
+#endif
 	if (print_api_info) {
 		getdns_dict *api_information = 
 		    getdns_context_get_api_information(context);
