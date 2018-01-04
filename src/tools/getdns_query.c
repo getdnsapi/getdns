@@ -57,19 +57,7 @@ getdns_return_t getdns_yaml2dict(const char *, getdns_dict **dict);
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 static int verbosity = 0;
-static int i_am_stubby = 0;
-static const char *default_stubby_config =
-"{ resolution_type: GETDNS_RESOLUTION_STUB"
-", dns_transport_list: [ GETDNS_TRANSPORT_TLS, GETDNS_TRANSPORT_UDP, GETDNS_TRANSPORT_TCP ]"
-", idle_timeout: 10000"
-", listen_addresses: [ 127.0.0.1@53, 0::1@53 ]"
-", tls_query_padding_blocksize: 1"
-", edns_client_subnet_private : 1"
-"}";
 static int clear_listen_list_on_arg = 0;
-#ifndef GETDNS_ON_WINDOWS
-static int run_in_foreground = 1;
-#endif
 static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
@@ -95,6 +83,8 @@ static int check_dnssec = 0;
 static char *resolvconf = NULL;
 #endif
 static int print_api_info = 0, print_trust_anchors = 0;
+static int log_level = 0;
+static uint64_t log_systems = 0xFFFFFFFFFFFFFFFF;
 
 static int get_rrtype(const char *t)
 {
@@ -179,19 +169,14 @@ print_usage(FILE *out, const char *progname)
 {
 	fprintf(out, "usage: %s [<option> ...] \\\n"
 	    "\t[@<upstream> ...] [+<extension> ...] [\'{ <settings> }\'] [<name>] [<type>]\n", progname);
-	if (!i_am_stubby) {
-		fprintf(out, "\ndefault mode: "
+
 #ifdef HAVE_LIBUNBOUND
-	            "recursive"
+# define DEFAULT_RESOLUTION_TYPE "recursive"
 #else
-	            "stub"
+# define DEFAULT_RESOLUTION_TYPE "stub"
 #endif
-	            ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
-	}
-	else {
-		fprintf(out, "\ndefault mode: "
-			    "stub, asynchronous resolution \n\t\tusing TLS with UDP then TCP fallback\n");
-	}
+	fprintf(out, "\ndefault mode: " DEFAULT_RESOLUTION_TYPE
+            ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
 	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
@@ -216,12 +201,9 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t+0\t\t\tClear all extensions\n");
 	fprintf(out, "\nsettings in json dict format (like outputted by -i option).\n");
 	fprintf(out, "\noptions:\n");
-	if (!i_am_stubby) {
-		fprintf(out, "\t-a\tPerform asynchronous resolution "
-		    "(default = synchronous)\n");
-		fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
-		fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
-	}
+	fprintf(out, "\t-a\tPerform asynchronous resolution (default = synchronous)\n");
+	fprintf(out, "\t-A\taddress lookup (<type> is ignored)\n");
+	fprintf(out, "\t-B\tBatch mode. Schedule all messages before processing responses.\n");
 	fprintf(out, "\t-b <bufsize>\tSet edns0 max_udp_payload size\n");
 	fprintf(out, "\t-c\tSend Client Subnet privacy request\n");
 	fprintf(out, "\t-C\t<filename>\n");
@@ -229,28 +211,16 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
 	fprintf(out, "\t\tThe file must be in YAML format (with extension of '.yml')\n");
 	fprintf(out, "\t\tor JSON dict format (with extension '.conf')\n");
-	if (i_am_stubby) {
-		fprintf(out, "\t\tBy default, configuration is first read from");
-		fprintf(out, "\n\t\t\"/etc/stubby.conf\" and then from \"$HOME/.stubby.conf\"\n");
-	}
 	fprintf(out, "\t-D\tSet edns0 do bit\n");
 	fprintf(out, "\t-d\tclear edns0 do bit\n");
 	fprintf(out, "\t-e <idle_timeout>\tSet idle timeout in milliseconds\n");
-	if (!i_am_stubby)
-		fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
+	fprintf(out, "\t-F <filename>\tread the queries from the specified file\n");
 	fprintf(out, "\t-f <filename>\tRead DNSSEC trust anchors from <filename>\n");
-#ifndef GETDNS_ON_WINDOWS
-	if (i_am_stubby)
-		fprintf(out, "\t-g\tRun stubby in background (default is foreground)\n");
-#endif
-	if (!i_am_stubby) {
-		fprintf(out, "\t-G\tgeneral lookup\n");
-		fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
-	}
+	fprintf(out, "\t-G\tgeneral lookup\n");
+	fprintf(out, "\t-H\thostname lookup. (<name> must be an IP address; <type> is ignored)\n");
 	fprintf(out, "\t-h\tPrint this help\n");
 	fprintf(out, "\t-i\tPrint api information\n");
-	if (!i_am_stubby)
-		fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
+	fprintf(out, "\t-I\tInteractive mode (> 1 queries on same context)\n");
 	fprintf(out, "\t-j\tOutput json response dict\n");
 	fprintf(out, "\t-J\tPretty print json response dict\n");
 	fprintf(out, "\t-k\tPrint root trust anchors\n");
@@ -266,19 +236,21 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-P <blocksize>\tPad TLS queries to a multiple of blocksize\n"
 		"\t\t(special values: 0: no padding, 1: sensible default policy)\n");
 	fprintf(out, "\t-q\tQuiet mode - don't print response\n");
-	fprintf( out, "\t-r\tSet recursing resolution type%s\n"
-	       , i_am_stubby ? "(default = stub)" : "");
+	fprintf( out, "\t-r\tSet recursing resolution type (default = "
+	    DEFAULT_RESOLUTION_TYPE ")\n");
 	fprintf(out, "\t-R <filename>\tRead root hints from <filename>\n");
-	fprintf(out, "\t-s\tSet stub resolution type%s\n"
-	       , i_am_stubby ? "" : "(default = recursing)" );
-	if (!i_am_stubby)
-		fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
+	fprintf(out, "\t-s\tSet stub resolution type (default = "
+	    DEFAULT_RESOLUTION_TYPE ")\n");
+	fprintf(out, "\t-S\tservice lookup (<type> is ignored)\n");
 	fprintf(out, "\t-t <timeout>\tSet timeout in milliseconds\n");
 	fprintf(out, "\t-v\tPrint getdns release version\n");
 	fprintf(out, "\t-V\tIncrease verbosity (may be used more than once)\n");
 	fprintf(out, "\t-x\tDo not follow redirects\n");
 	fprintf(out, "\t-X\tFollow redirects (default)\n");
-
+	fprintf(out, "\t-y <log level>\tPrint log messages with"
+	    "severity <= <log level> (default = 0)\n");
+	fprintf(out, "\t-Y <log systems>\tBitwise or'ed set of systems for "
+	    " which to print log messages (default == -1 (= all))\n");
 	fprintf(out, "\t-0\tAppend suffix to single label first (default)\n");
 	fprintf(out, "\t-W\tAppend suffix always\n");
 	fprintf(out, "\t-1\tAppend suffix only to single label after failure\n");
@@ -298,8 +270,6 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t\tListen for DNS requests on the given IP address\n");
 	fprintf(out, "\t\t<listen address> is in the same format as upstreams.\n");
 	fprintf(out, "\t\tThis option can be given more than once.\n");
-	if (i_am_stubby)
-		fprintf(out, "\t\t(default is to listen on 127.0.0.1:53)\n");
 }
 
 static getdns_return_t validate_chain(getdns_dict *response)
@@ -609,6 +579,7 @@ getdns_return_t parse_args(int argc, char **argv)
 	getdns_bindata bindata;
 	size_t upstream_count = 0;
 	FILE *fh;
+	int int_value;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
@@ -927,17 +898,49 @@ getdns_return_t parse_args(int argc, char **argv)
 				getdns_context_set_follow_redirects(
 				    context, GETDNS_REDIRECTS_FOLLOW);
 				break;
+			case 'y':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "log level expected "
+					    "after -y\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				int_value = strtol(argv[i], &endptr, 10);
+				if (*endptr || int_value < 0) {
+					fprintf(stderr, "positive "
+					    "numeric log level expected "
+					    "after -y\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				} else
+					log_level = int_value;
+				goto next;
+
+			case 'Y':
+				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
+					fprintf(stderr, "log systems expected "
+					    "after -y\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				}
+				int_value = strtol(argv[i], &endptr, 10);
+				if (*endptr || int_value < 0) {
+					fprintf(stderr, "positive "
+					    "numeric log systems expected "
+					    "after -Y\n");
+					return GETDNS_RETURN_GENERIC_ERROR;
+				} else
+					log_systems = (uint64_t)int_value;
+				goto next;
+
 			case 'e':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
 					fprintf(stderr, "idle timeout expected "
-					    "after -t\n");
+					    "after -e\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				timeout = strtol(argv[i], &endptr, 10);
 				if (*endptr || timeout < 0) {
 					fprintf(stderr, "positive "
 					    "numeric idle timeout expected "
-					    "after -t\n");
+					    "after -e\n");
 					return GETDNS_RETURN_GENERIC_ERROR;
 				}
 				getdns_context_set_idle_timeout(
@@ -1081,12 +1084,6 @@ getdns_return_t parse_args(int argc, char **argv)
 				}
 				break;
 			default:
-#ifndef GETDNS_ON_WINDOWS
-				if (i_am_stubby && *c == 'g') {
-					run_in_foreground = 0;
-					break;
-				}
-#endif
 				fprintf(stderr, "Unknown option "
 				    "\"%c\"\n", *c);
 				for (i = 0; i < argc; i++)
@@ -1655,7 +1652,7 @@ error:
 		getdns_dict_destroy(response);
 }
 
-static void stubby_log(void *userarg, uint64_t system,
+static void _getdns_query_log(void *userarg, uint64_t system,
     getdns_loglevel_type level, const char *fmt, va_list ap)
 {
 	struct timeval tv;
@@ -1664,16 +1661,10 @@ static void stubby_log(void *userarg, uint64_t system,
 #ifdef GETDNS_ON_WINDOWS
 	time_t tsec;
 
-	if (!verbosity)
-		return;
-
 	gettimeofday(&tv, NULL);
 	tsec = (time_t) tv.tv_sec;
 	gmtime_s(&tm, (const time_t *) &tsec);
 #else
-	if (!verbosity)
-		return;
-
 	gettimeofday(&tv, NULL);
 	gmtime_r(&tv.tv_sec, &tm);
 #endif
@@ -1695,18 +1686,7 @@ static void stubby_log(void *userarg, uint64_t system,
 int
 main(int argc, char **argv)
 {
-	char home_stubby_conf_fn[1024];
 	getdns_return_t r;
-#ifndef USE_WINSOCK
-	char *prg_name = strrchr(argv[0], '/');
-#else
-	char *prg_name = strrchr(argv[0], '\\');
-#endif
-	prg_name = prg_name ? prg_name + 1 : argv[0];
-
-	i_am_stubby = strcasecmp(prg_name, "stubby") == 0
-	           || strcasecmp(prg_name, "lt-stubby") == 0
-	           || strcasecmp(prg_name, "stubby.exe") == 0;
 
 	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
@@ -1721,22 +1701,6 @@ main(int argc, char **argv)
 		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto done_destroy_context;
 	}
-	if (i_am_stubby) {
-		int n_chars = snprintf( home_stubby_conf_fn
-		                      , sizeof(home_stubby_conf_fn)
-		                      , "%s/.stubby.conf"
-		                      , getenv("HOME")
-		                      );
-		(void) parse_config(default_stubby_config, 0);
-		(void) parse_config_file("/etc/stubby.conf", 0);
-		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
-			(void) parse_config_file(home_stubby_conf_fn, 0);
-		}
-		clear_listen_list_on_arg = 1;
-	}
-	(void) getdns_context_set_logfunc(context, NULL,
-	    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, stubby_log);
-
 	if ((r = parse_args(argc, argv)) && r != CONTINUE)
 		goto done_destroy_context;
 #ifndef USE_WINSOCK
@@ -1749,6 +1713,9 @@ main(int argc, char **argv)
 			goto done_destroy_context;
 	}
 #endif
+	(void) getdns_context_set_logfunc(context, NULL,
+	    log_systems, log_level, _getdns_query_log);
+
 	if (print_api_info) {
 		getdns_dict *api_information = 
 		    getdns_context_get_api_information(context);
@@ -1863,7 +1830,7 @@ done_destroy_context:
 	else if (r == CONTINUE_ERROR)
 		return 1;
 
-	if (!i_am_stubby && verbosity)
+	if (verbosity)
 		fprintf(stdout, "\nAll done.\n");
 
 	return             r ? r 
