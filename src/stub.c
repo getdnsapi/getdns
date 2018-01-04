@@ -1120,12 +1120,8 @@ tls_do_handshake(getdns_upstream *upstream)
 		else
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-			    "%-40s : Verify passed : Transport=TLS - %s -  "
-			    "(%d) \"%s\"\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Allowed because of Opportunistic profile"
-			    : "*Failure*" ), verify_result,
-			    X509_verify_cert_error_string(verify_result));
+			    "%-40s : Verify passed : Transport=TLS\n",
+			    upstream->addr_str);
 
 		if (upstream->tls_auth_state == GETDNS_AUTH_FAILED
 		    && !upstream->tls_fallback_ok)
