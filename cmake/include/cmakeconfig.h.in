@@ -4,6 +4,7 @@
 #cmakedefine PACKAGE            "@PACKAGE@"
 #cmakedefine PACKAGE_NAME       "@PACKAGE_NAME@"
 #cmakedefine PACKAGE_VERSION    "@PACKAGE_VERSION@"
+#cmakedefine PACKAGE_URL        "@PACKAGE_URL@"
 #cmakedefine PACKAGE_BUGREPORT  "@PACKAGE_BUGREPORT@"
 
 #cmakedefine PACKAGE_STRING     "@PACKAGE_STRING@"
@@ -53,10 +54,13 @@
 #cmakedefine HAVE_PTHREAD               1
 #cmakedefine HAVE_WINDOWS_THREADS       1
 
-#cmakedefine RUNSTATEDIR        "@RUNSTATEDIR@"
-#cmakedefine TRUST_ANCHOR_FILE  "@TRUST_ANCHOR_FILE@"
+#cmakedefine RUNSTATEDIR                "@RUNSTATEDIR@"
+#cmakedefine TRUST_ANCHOR_FILE          "@TRUST_ANCHOR_FILE@"
+#cmakedefine GETDNS_FN_RESOLVCONF       "@GETDNS_FN_RESOLVCONF@"
+#cmakedefine GETDNS_FN_HOSTS            "@GETDNS_FN_HOSTS@"
 
 #cmakedefine DNSSEC_ROADBLOCK_AVOIDANCE         1
+#cmakedefine STUB_NATIVE_DNSSEC                 1
 #cmakedefine MAXIMUM_UPSTREAM_OPTION_SPACE      @MAXIMUM_UPSTREAM_OPTION_SPACE@
 #cmakedefine EDNS_PADDING_OPCODE                @EDNS_PADDING_OPCODE@
 #cmakedefine MAX_CNAME_REFERRALS                @MAX_CNAME_REFERRALS@
@@ -66,20 +70,31 @@
 
 #cmakedefine HAVE_DECL_INET_PTON        1
 #cmakedefine HAVE_DECL_INET_NTOP        1
-#cmakedefine HAVE_DECL_STRLCPY          1
 #cmakedefine HAVE_DECL_SIGEMPTYSET      1
 #cmakedefine HAVE_DECL_SIGFILLSET       1
 #cmakedefine HAVE_DECL_SIGADDSET        1
+#cmakedefine HAVE_DECL_STRPTIME         1
 
 #cmakedefine HAVE_INET_PTON             1
 #cmakedefine HAVE_INET_NTOP             1
-#cmakedefine HAVE_STRLCPY               1
 #cmakedefine HAVE_SIGEMPTYSET           1
 #cmakedefine HAVE_SIGFILLSET            1
 #cmakedefine HAVE_SIGADDSET             1
+#cmakedefine HAVE_STRPTIME              1
 
 #cmakedefine HAVE_SIGSET_T              1
 #cmakedefine HAVE__SIGSET_T             1
+
+#cmakedefine HAVE_DECL_STRLCPY                  1
+#cmakedefine HAVE_DECL_ARC4RANDOM               1
+#cmakedefine HAVE_DECL_ARC4RANDOM_UNIFORM       1
+
+#cmakedefine HAVE_STRLCPY               1
+#cmakedefine HAVE_ARC4RANDOM            1
+#cmakedefine HAVE_ARC4RANDOM_UNIFORM    1
+
+#cmakedefine DEFAULT_EVENTLOOP          "@DEFAULT_EVENTLOOP@"
+#cmakedefine USE_POLL_DEFAULT_EVENTLOOP 1
 
 #ifdef HAVE___FUNC__
 #define __FUNC__ __func__

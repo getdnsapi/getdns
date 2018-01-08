@@ -13,6 +13,7 @@ set(PACKAGE "getdns")
 set(PACKAGE_NAME "getdns")
 set(PACKAGE_VERSION "1.3.0")
 set(PACKAGE_BUGREPORT "team@getdnsapi.net")
+set(PACKAGE_URL "https://getdnsapi.net")
 
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}")
@@ -37,7 +38,7 @@ include(CheckTypeSize)
 
 project(getdns VERSION ${PACKAGE_VERSION})
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 find_package(PkgConfig)
 
@@ -63,18 +64,6 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
   )
 
-# File locations
-set(TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/unbound/getdns-root.key")
-
-# Options.
-set(DNSSEC_ROADBLOCK_AVOIDANCE 1)        # Nail on, as build fails if off.
-set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
-set(EDNS_PADDING_OPCODE 12)
-set(MAX_CNAME_REFERRALS 100)
-set(DRAFT_RRTYPES 1)
-set(EDNS_COOKIE_OPCODE 10)
-set(EDNS_COOKIE_ROLLOVER_TIME "(24*60*60)")
-
 # Platform
 if (WIN32 OR MINGW OR MSYS OR CYGWIN)
   set(HOSTOS "windows")
@@ -93,15 +82,35 @@ elseif (UNIX)
   endif()
 endif ()
 
+# File locations
+set(TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/unbound/getdns-root.key")
+set(GETDNS_FN_RESOLVCONF "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/resolv.conf")
+if (WIN32)
+  # BUG! Don't hardcode the Windows directory and drive.
+  set(GETDNS_FN_HOSTS "C:/Windows/System32/Drivers/etc/hosts")
+else()
+  set(GETDNS_FN_HOSTS "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/hosts")
+endif()
+
+# Options.
+set(DNSSEC_ROADBLOCK_AVOIDANCE 1)        # Nail on, as build fails if off.
+set(STUB_NATIVE_DNSSEC 1)                # Nail on for now.
+set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
+set(EDNS_PADDING_OPCODE 12)
+set(MAX_CNAME_REFERRALS 100)
+set(DRAFT_RRTYPES 1)
+set(EDNS_COOKIE_OPCODE 10)
+set(EDNS_COOKIE_ROLLOVER_TIME "(24*60*60)")
+
 # Does the compiler accept the "format" attribute?
 try_compile(HAVE_ATTR_FORMAT
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_SOURCE_DIR}/cmake/tests/test_format_attr.c
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_format_attr.c
   )
 # Does the compiler accept the "unused" attribute?
 try_compile(HAVE_ATTR_UNUSED
-  ${CMAKE_BINARY_DIR}
-  ${CMAKE_SOURCE_DIR}/cmake/tests/test_unused_attr.c
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_unused_attr.c
   )
 
 # Compiler flags
@@ -142,18 +151,18 @@ check_include_file(ws2tcpip.h HAVE_WS2TCPIP_H)
 # Check for include declarations
 check_symbol_exists(inet_pton arpa/inet.h HAVE_DECL_INET_PTON)
 check_symbol_exists(inet_ntop arpa/inet.h HAVE_DECL_INET_NTOP)
-check_symbol_exists(strlcpy string.h HAVE_DECL_STRLCPY)
 check_symbol_exists(sigemptyset signal.h HAVE_DECL_SIGEMPTYSET)
 check_symbol_exists(sigfillset signal.h HAVE_DECL_SIGFILLSET)
 check_symbol_exists(sigaddset signal.h HAVE_DECL_SIGADDSET)
+check_symbol_exists(strptime time.h HAVE_DECL_STRPTIME)
 
 # Check for functions
 check_function_exists(inet_pton HAVE_INET_PTON)
 check_function_exists(inet_ntop HAVE_INET_NTOP)
-check_function_exists(strlcpy HAVE_STRLCPY)
 check_function_exists(sigemptyset HAVE_SIGEMPTYSET)
 check_function_exists(sigfillset HAVE_SIGFILLSET)
 check_function_exists(sigaddset HAVE_SIGADDSET)
+check_function_exists(strptime HAVE_STRPTIME)
 
 # Check for types
 check_type_size(sigset_t SIGSET_T)
@@ -164,6 +173,7 @@ find_package(OpenSSL "0.9.7" REQUIRED)
 
 set(HAVE_SSL 1)
 
+set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
 check_include_file(openssl/ssl.h HAVE_OPENSSL_SSL_H)
 check_include_file(openssl/evp.h HAVE_OPENSSL_EVP_H)
 check_include_file(openssl/err.h HAVE_OPENSSL_ERR_H)
@@ -183,11 +193,57 @@ else()
   message(WARNING "Neither pthreads nor Windows threading available.")
 endif()
 
+# Stuff that might be in a BSD library
+check_symbol_exists(strlcpy string.h HAVE_DECL_STRLCPY)
+check_symbol_exists(arc4random stdlib.h HAVE_DECL_ARC4RANDOM)
+check_symbol_exists(arc4random_uniform stdlib.h HAVE_DECL_ARC4RANDOM_UNIFORM)
+
+check_function_exists(strlcpy HAVE_STRLCPY)
+check_function_exists(arc4random HAVE_ARC4RANDOM)
+check_function_exists(arc4random_uniform HAVE_ARC4RANDOM_UNIFORM)
+
+if (NOT
+    (HAVE_STRLCPY AND HAVE_DECL_STRLCPY AND
+     HAVE_ARC4RANDOM AND HAVE_DECL_ARC4RANDOM AND
+     HAVE_ARC4RANDOM_UNIFORM AND HAVE_DECL_ARC4RANDOM_UNIFORM))
+  pkg_check_modules(LIBBSD libbsd)
+  set(CMAKE_REQUIRED_FLAGS "${LIBBSD_CFLAGS} ${LIBBSD_LDFLAGS}")
+  set(CMAKE_REQUIRED_INCLUDES ${LIBBSD_INCLUDE_DIRS})
+  set(CMAKE_REQUIRED_LIBRARIES ${LIBBSD_LIBRARIES})
+
+  check_symbol_exists(strlcpy bsd/string.h HAVE_DECL_STRLCPY)
+  check_symbol_exists(arc4random bsd/stdlib.h HAVE_DECL_ARC4RANDOM)
+  check_symbol_exists(arc4random_uniform bsd/stdlib.h HAVE_DECL_ARC4RANDOM_UNIFORM)
+
+  check_function_exists(strlcpy HAVE_STRLCPY)
+  check_function_exists(arc4random HAVE_ARC4RANDOM)
+  check_function_exists(arc4random_uniform HAVE_ARC4RANDOM_UNIFORM)
+
+  # TODO: Make module optional and fallback to compat versions for arc4random.
+endif()
+
+# Event loop extension
+# TODO: other event loops
+set(DEFAULT_EVENTLOOP "select_eventloop")
+if (HAVE_SYS_POLL_H)
+  set(TEST_CFLAG "HAVE_SYS_POLL_H=1")
+endif()
+try_compile(USE_POLL_DEFAULT_EVENTLOOP
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_poll.c
+  COMPILE_DEFINITIONS "${TEST_CFLAG}"
+  )
+if (USE_POLL_DEFAULT_EVENTLOOP)
+  set(DEFAULT_EVENTLOOP "poll_eventloop")
+endif()
+
 # Main library
 
 add_library(getdns
+  src/anchor.c
   src/const-info.c
   src/convert.c
+  src/context.c
   src/dict.c
   src/dnssec.c
   src/general.c
@@ -203,6 +259,14 @@ add_library(getdns
   src/sync.c
   src/ub_loop.c
   src/util-internal.c
+
+  src/compat/gettimeofday.c
+  src/compat/inet_pton.c
+  src/compat/inet_ntop.c
+  src/compat/strlcpy.c
+  src/compat/strptime.c
+
+  src/extension/${DEFAULT_EVENTLOOP}.c
 
   src/gldns/keyraw.c
   src/gldns/gbuffer.c
@@ -221,6 +285,8 @@ add_library(getdns
   src/jsmn/jsmn.c
 
   src/yxml/yxml.c
+
+  ${CMAKE_CURRENT_BINARY_DIR}/version.c
   )
 
 target_include_directories(getdns
@@ -230,16 +296,20 @@ target_include_directories(getdns
   PRIVATE stubby/src    # Wrong, wrong, wrong.
 
   PRIVATE ${OPENSSL_INCLUDE_DIR}
+  PRIVATE ${LIBBSD_INCLUDE_DIRS}
   PRIVATE Threads::Threads
   )
 
 target_link_libraries(getdns
-  PRIVATE ${OPENSSL_LIBRARIES}
+  PUBLIC ${OPENSSL_LIBRARIES}
   PUBLIC Threads::Threads
+  PUBLIC ${LIBBSD_LDFLAGS}
+  PUBLIC ${LIBBSD_LIBRARIES}
   )
 
 set_property(TARGET getdns PROPERTY C_STANDARD 11)
 
-configure_file(${CMAKE_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-configure_file(${CMAKE_SOURCE_DIR}/src/getdns/getdns.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns.h)
-configure_file(${CMAKE_SOURCE_DIR}/src/getdns/getdns_extra.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns_extra.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns_extra.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns_extra.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c)
