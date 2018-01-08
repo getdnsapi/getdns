@@ -763,6 +763,39 @@ else
 	fi
 fi
 
+my_with_libidn2=1
+AC_ARG_WITH(libidn2, AS_HELP_STRING([--with-libidn2=pathname],
+	[path to libidn2 (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/idn2.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn2 in $dir])
+			break
+		fi
+		if test -f "$dir/include/idn2/idn2.h"; then
+			CFLAGS="$CFLAGS -I$dir/include/idn2"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn2 in $dir])
+			break
+		fi
+	done
+	if test -f "/usr/include/idn2/idn2.h"; then
+		CFLAGS="$CFLAGS -I/usr/include/idn2"
+		#LDFLAGS="$LDFLAGS -L/usr/lib"
+		AC_MSG_NOTICE([Found libidn2 in /usr])
+	fi
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		my_with_libidn2=0
+	fi
+fi
+
 if test $my_with_libunbound = 1
 then
 	# find libunbound
@@ -793,14 +826,36 @@ fi
 found_all_libs=1
 MISSING_DEPS=""
 MISSING_SEP=""
-if test $my_with_libidn = 1
+
+working_libidn2=0
+if test $my_with_libidn2 = 1
 then
-	AC_MSG_NOTICE([Checking for dependency libidn])
-	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
-		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+	AC_MSG_NOTICE([Checking for dependency libidn2])
+	AC_CHECK_LIB([idn2], [idn2_to_unicode_8z8z], [
+		working_libidn2=1
+		LIBS="-lidn2 $LIBS"
+		AC_DEFINE_UNQUOTED([HAVE_LIBIDN2], [1], [Define to 1 if you have the `idn2' library (-lidn).]) dnl `
+	], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn2"
 		MISSING_SEP=", "
-		found_all_libs=0
 	])
+fi
+if test $working_libidn2 = 0
+then
+	if test $my_with_libidn = 1
+	then
+		AC_MSG_NOTICE([Checking for dependency libidn])
+		AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
+			MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+			MISSING_SEP=", "
+			found_all_libs=0
+		])
+	else
+		if test $my_with_libidn2 = 1
+		then
+			found_all_libs=0
+		fi
+	fi
 fi
 
 AC_ARG_ENABLE(unbound-event-api, AC_HELP_STRING([--disable-unbound-event-api], [Disable usage of libunbounds event API]))
