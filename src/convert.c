@@ -175,9 +175,9 @@ getdns_convert_alabel_to_ulabel(const char *alabel)
 	if (!alabel) return NULL;
 
 # if defined(HAVE_LIBIDN2)
-	if (idn2_to_unicode_8z8z(alabel, &ulabel, 0) != IDN2_OK)
+	if (idn2_to_unicode_8z8z(alabel, &ulabel, 0) == IDN2_OK)
 # else
-	if (idna_to_unicode_8z8z(alabel, &ulabel, 0) != IDNA_SUCCESS)
+	if (idna_to_unicode_8z8z(alabel, &ulabel, 0) == IDNA_SUCCESS)
 # endif
 		return ulabel;
 #else
