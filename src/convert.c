@@ -39,7 +39,9 @@
 #ifndef USE_WINSOCK
 #include <arpa/inet.h>
 #endif
-#ifdef HAVE_LIBIDN
+#if defined(HAVE_LIBIDN2)
+#include <idn2.h>
+#elif defined(HAVE_LIBIDN)
 #include <stringprep.h>
 #include <idna.h>
 #endif
@@ -113,48 +115,44 @@ getdns_convert_fqdn_to_dns_name(
 char *
 getdns_convert_ulabel_to_alabel(const char *ulabel)
 {
-#ifdef HAVE_LIBIDN
-    int ret;
-    char *buf;
-    char *prepped;
-    char *prepped2;
+#if defined(HAVE_LIBIDN2)
+	char *alabel;
 
-    if (ulabel == NULL)
-	return 0;
-    prepped2 = malloc(BUFSIZ);
-    if(!prepped2)
-	    return 0;
-    setlocale(LC_ALL, "");
-    if ((prepped = stringprep_locale_to_utf8(ulabel)) == 0) {
-	/* convert to utf8 fails, which it can, but continue anyway */
-	if(strlen(ulabel)+1 > BUFSIZ) {
-	    free(prepped2);
-	    return 0;
-	}
-	memcpy(prepped2, ulabel, strlen(ulabel)+1);
-    } else {
-	if(strlen(prepped)+1 > BUFSIZ) {
-	    free(prepped);
-	    free(prepped2);
-	    return 0;
-	}
-	memcpy(prepped2, prepped, strlen(prepped)+1);
-	free(prepped);
-    }
-    if ((ret = stringprep(prepped2, BUFSIZ, 0, stringprep_nameprep)) != STRINGPREP_OK) {
-	free(prepped2);
-	return 0;
-    }
-    if ((ret = idna_to_ascii_8z(prepped2, &buf, 0)) != IDNA_SUCCESS)  {
-	free(prepped2);
-	return 0;
-    }
-    free(prepped2);
-    return buf;
+	if (!ulabel) return NULL;
+
+	if (idn2_lookup_ul(ulabel, &alabel, IDN2_NONTRANSITIONAL) == IDN2_OK
+	||  idn2_lookup_ul(ulabel, &alabel, IDN2_TRANSITIONAL)    == IDN2_OK)
+		return alabel;
+
+#elif defined(HAVE_LIBIDN)
+	char *alabel;
+	char *prepped;
+	char  prepped2[BUFSIZ];
+
+	if (!ulabel) return NULL;
+
+	setlocale(LC_ALL, "");
+	if ((prepped = stringprep_locale_to_utf8(ulabel))) {
+		if(strlen(prepped)+1 > BUFSIZ) {
+			free(prepped);
+			return NULL;
+		}
+		memcpy(prepped2, prepped, strlen(prepped)+1);
+		free(prepped);
+
+		/* convert to utf8 fails, which it can, but continue anyway */
+	} else if (strlen(ulabel)+1 > BUFSIZ)
+		return NULL;
+	else
+		memcpy(prepped2, ulabel, strlen(ulabel)+1);
+
+	if (stringprep(prepped2, BUFSIZ, 0, stringprep_nameprep) == STRINGPREP_OK
+	&&  idna_to_ascii_8z(prepped2, &alabel, 0) == IDNA_SUCCESS)
+		return alabel;
 #else
-    (void)ulabel;
-    return NULL;
+	(void)ulabel;
 #endif
+	return NULL;
 }
 
 /*---------------------------------------- getdns_convert_alabel_to_ulabel */
@@ -171,20 +169,21 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
 char *
 getdns_convert_alabel_to_ulabel(const char *alabel)
 {
-#ifdef HAVE_LIBIDN
-    int  ret;              /* just in case we might want to use it someday */
-    char *buf;
+#if defined(HAVE_LIBIDN2) || defined(HAVE_LIBIDN)
+	char *ulabel;
 
-    if (alabel == NULL)
-        return 0;
-    if ((ret = idna_to_unicode_8z8z(alabel, &buf, 0)) != IDNA_SUCCESS)  {
-        return NULL;
-    }
-    return buf;
+	if (!alabel) return NULL;
+
+# if defined(HAVE_LIBIDN2)
+	if (idn2_to_unicode_8z8z(alabel, &ulabel, 0) == IDN2_OK)
+# else
+	if (idna_to_unicode_8z8z(alabel, &ulabel, 0) == IDNA_SUCCESS)
+# endif
+		return ulabel;
 #else
-    (void)alabel;
-    return NULL;
+	(void)alabel;
 #endif
+	return NULL;
 }
 
 
