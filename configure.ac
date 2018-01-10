@@ -431,6 +431,26 @@ AC_INCLUDES_DEFAULT
 ])
 fi
 
+AC_MSG_CHECKING([whether we need to compile/link DANE support])
+DANESSL_XTRA_OBJS=""
+AC_LANG_PUSH(C)
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([
+		[#include <openssl/opensslv.h>]
+		[#if OPENSSL_VERSION_NUMBER <  0x1000000fL]
+		[#error "OpenSSL 1.0.0 or higher required for DANE library"]
+		[#elif defined(HAVE_SSL_DANE_ENABLE)]
+		[#error "OpenSSL has native DANE support"]
+		[#endif]
+	],[[]])],
+	[
+		AC_MSG_RESULT([yes])
+		AC_DEFINE([USE_DANESSL], [1], [Define this to use DANE functions from the ssl_dane/danessl library.])
+		DANESSL_XTRA_OBJS="danessl.lo"
+	],
+	[AC_MSG_RESULT([no])])
+AC_LANG_POP(C)
+AC_SUBST(DANESSL_XTRA_OBJS)
 
 AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
 	case "$enable_sha1" in

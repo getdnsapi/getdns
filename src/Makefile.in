@@ -96,7 +96,9 @@ JSMN_OBJ=jsmn.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
-GETDNS_XTRA_OBJS=@GETDNS_XTRA_OBJS@
+DANESSL_OBJ=danessl.lo
+
+GETDNS_XTRA_OBJS=@GETDNS_XTRA_OBJS@ @DANESSL_XTRA_OBJS@
 STUBBY_XTRA_OBJS=@STUBBY_XTRA_OBJS@
 
 EXTENSION_OBJ=$(DEFAULT_EVENTLOOP_OBJ) libevent.lo libev.lo
@@ -132,6 +134,9 @@ $(JSMN_OBJ):
 
 $(YAML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(stubbysrcdir)/src/yaml/$(@:.lo=.c) -o $@
+
+$(DANESSL_OBJ):
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WNOERRORFLAG) -c $(srcdir)/ssl_dane/$(@:.lo=.c) -o $@
 
 $(YXML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -I$(srcdir)/yxml -DYXML_GETDNS -Wno-unused-parameter -c $(srcdir)/yxml/$(@:.lo=.c) -o $@
