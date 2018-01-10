@@ -1002,7 +1002,13 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		             __FUNC__);
 	}
 #if defined(HAVE_SSL_DANE_ENABLE)
-	int osr = SSL_dane_enable(ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
+	int osr;
+# if defined(STUB_DEBUG) && STUB_DEBUG
+	osr =
+# else
+	(void)
+# endif
+		SSL_dane_enable(ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
 	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
 	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
@@ -1025,7 +1031,13 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 #elif defined(USE_DANESSL)
 	if (upstream->tls_pubkey_pinset) {
 		const char *auth_names[2] = { upstream->tls_auth_name, NULL };
-		int osr = DANESSL_init(ssl,
+		int osr;
+# if defined(STUB_DEBUG) && STUB_DEBUG
+		osr =
+# else
+		(void)
+# endif
+			DANESSL_init(ssl,
 		    *upstream->tls_auth_name ? upstream->tls_auth_name : NULL,
 		    *upstream->tls_auth_name ? auth_names : NULL
 		    );
