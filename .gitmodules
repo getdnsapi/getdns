@@ -11,4 +11,4 @@
 	branch = develop
 [submodule "src/ssl_dane"]
 	path = src/ssl_dane
-	url = https://github.com/vdukhovni/ssl_dane
+	url = https://github.com/getdnsapi/ssl_dane
