@@ -46,6 +46,12 @@
 
 #define APP_NAME "getdns_server_mon"
 
+#define CERT_EXPIRY_CRITICAL_DAYS       7
+#define CERT_EXPIRY_WARNING_DAYS        14
+
+#define DEFAULT_LOOKUP_NAME             "getdnsapi.net"
+#define DEFAULT_LOOKUP_TYPE             GETDNS_RRTYPE_AAAA
+
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 /* Plugin exit values */
@@ -197,14 +203,52 @@ static void version()
  ** Functions used by tests.
  **/
 
+static exit_value_t get_cert_valid_thresholds(char ***av,
+					      int *critical_days,
+					      int *warning_days)
+{
+	*critical_days = CERT_EXPIRY_CRITICAL_DAYS;
+	*warning_days = CERT_EXPIRY_WARNING_DAYS;
+
+	if (**av) {
+		char *comma = strchr(**av, ',');
+		if (!comma)
+			return EXIT_UNKNOWN;
+
+		char *end;
+		long w,c;
+
+		c = strtol(**av, &end, 10);
+		/*
+		 * If the number doesn't end at a comma, this isn't a
+		 * properly formatted thresholds arg. Pass over it.
+		 */
+		if (end != comma)
+			return EXIT_UNKNOWN;
+
+		/*
+		 * Similarly, if the number doesn't end at the end of the
+		 * argument, this isn't a properly formatted arg.
+		 */
+		w = strtol(comma + 1, &end, 10);
+		if (*end != '\0')
+			return EXIT_UNKNOWN;
+
+		/* Got two numbers, so consume the argument. */
+		*critical_days = (int) c;
+		*warning_days = (int) w;
+		++*av;
+		return EXIT_OK;
+	}
+
+	return EXIT_UNKNOWN;
+}
+
 static exit_value_t get_name_type_args(const struct test_info_s *test_info,
 				       char ***av,
 				       const char **lookup_name,
 				       uint32_t *lookup_type)
 {
-	*lookup_name = "getdnsapi.net";
-	*lookup_type = GETDNS_RRTYPE_AAAA;
-
 	if (**av) {
 		if (strlen(**av) > 0) {
 			*lookup_name = **av;
@@ -477,8 +521,8 @@ static exit_value_t check_answer_type(const struct test_info_s *test_info,
 static exit_value_t test_authenticate(const struct test_info_s *test_info,
 				      char ** av)
 {
-	const char *lookup_name;
-	uint32_t lookup_type;
+	const char *lookup_name = DEFAULT_LOOKUP_NAME;
+	uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
 	exit_value_t xit;
 
 	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
@@ -511,6 +555,76 @@ static exit_value_t test_authenticate(const struct test_info_s *test_info,
 		fputs("Authentication succeeded", test_info->errout);
 		return EXIT_OK;
 	}
+}
+
+static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
+					   char **av)
+{
+	const char *lookup_name = DEFAULT_LOOKUP_NAME;
+	uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
+	exit_value_t xit;
+	int warning_days;
+	int critical_days;
+
+	/* Is first arg the threshold? */
+	if (get_cert_valid_thresholds(&av, &critical_days, &warning_days) != EXIT_OK) {
+		if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+			return xit;
+
+		if (*av)
+			get_cert_valid_thresholds(&av, &critical_days, &warning_days);
+	}
+
+        if (*av) {
+                fputs("cert-valid takes arguments [<name> [<type>]] [warn-days,crit-days]",
+                      test_info->errout);
+                return EXIT_UNKNOWN;
+        }
+
+        getdns_dict *response;
+        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_result(test_info, response)) != EXIT_OK)
+                return xit;
+
+	time_t expire_time;
+        if ((xit = get_report_info(test_info, response, NULL, NULL, &expire_time)) != EXIT_OK)
+                return xit;
+
+	if (expire_time == 0) {
+		fputs("No PKIX certificate", test_info->errout);
+		return EXIT_CRITICAL;
+	}
+
+	if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+		return xit;
+
+	time_t now = time(NULL);
+	int days_to_expiry = (expire_time - now) / 86400;
+
+	if (days_to_expiry < 0) {
+		fprintf(test_info->errout,
+			"Certificate expired %d day%s ago",
+			-days_to_expiry,
+			(days_to_expiry < -1) ? "s" : "");
+		return EXIT_CRITICAL;
+	}
+	if (days_to_expiry == 0) {
+		fputs("Certificate expires today", test_info->errout);
+		return EXIT_CRITICAL;
+	}
+	fprintf(test_info->errout,
+		"Certificate will expire in %d day%s",
+		days_to_expiry,
+		(days_to_expiry > 1) ? "s" : "");
+	if (days_to_expiry <= critical_days) {
+		return EXIT_CRITICAL;
+	}
+	if (days_to_expiry <= warning_days) {
+		return EXIT_WARNING;
+	}
+	return EXIT_OK;
 }
 
 static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
@@ -601,6 +715,7 @@ static struct test_funcs_s
 } TESTS[] =
 {
         { "auth", test_authenticate },
+        { "cert-valid", test_certificate_valid },
         { "qname-min", test_qname_minimisation },
         { NULL, NULL }
 };
