@@ -1150,6 +1150,22 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
+AC_ARG_WITH(getdns_server_mon, AS_HELP_STRING([--without-getdns_server_mon],
+	[Do not compile and install the getdns_server_mon tool]),
+	[], [withval="yes"])
+if test x_$withval = x_no; then
+	GETDNS_SERVER_MON=""
+	INSTALL_GETDNS_SERVER_MON=""
+	UNINSTALL_GETDNS_SERVER_MON=""
+else
+	GETDNS_SERVER_MON="getdns_server_mon"
+	INSTALL_GETDNS_SERVER_MON="install-getdns_server_mon"
+	UNINSTALL_GETDNS_SERVER_MON="uninstall-getdns_server_mon"
+fi
+AC_SUBST(GETDNS_SERVER_MON)
+AC_SUBST(INSTALL_GETDNS_SERVER_MON)
+AC_SUBST(UNINSTALL_GETDNS_SERVER_MON)
+
 stubby_with_yaml=0
 AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],
 	[Compile and install stubby, the (stub) resolver daemon]),

@@ -197,6 +197,9 @@ test: default
 getdns_query: default
 	cd tools && $(MAKE) $@
 
+getdns_server_mon: default
+	cd tools && $(MAKE) $@
+
 stubby.lo: $(stubbysrcdir)/src/stubby.c
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR=\"$(sysconfdir)/stubby\" -DRUNSTATEDIR=\"$(runstatedir)\" -c $< -o $@
 
