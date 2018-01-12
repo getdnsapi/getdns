@@ -28,6 +28,7 @@
 #include "config.h"
 #include "debug.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -75,6 +76,31 @@ static struct test_info_s
         /* Test config info */
         bool fail_on_dns_errors;
 } test_info;
+
+static int get_rrtype(const char *t)
+{
+        char buf[1024] = "GETDNS_RRTYPE_";
+        uint32_t rrtype;
+        long int l;
+        size_t i;
+        char *endptr;
+
+        if (strlen(t) > sizeof(buf) - 15)
+                return -1;
+        for (i = 14; *t && i < sizeof(buf) - 1; i++, t++)
+                buf[i] = *t == '-' ? '_' : toupper(*t);
+        buf[i] = '\0';
+
+        if (!getdns_str2int(buf, &rrtype))
+                return (int)rrtype;
+
+        if (strncasecmp(buf + 14, "TYPE", 4) == 0) {
+                l = strtol(buf + 18, &endptr, 10);
+                if (!*endptr && l >= 0 && l < 65536)
+                        return l;
+        }
+        return -1;
+}
 
 static const char *rcode_text(int rcode)
 {
@@ -165,6 +191,39 @@ static void version()
         fputs(APP_NAME ": getdns " GETDNS_VERSION " , API " GETDNS_API_VERSION ".\n",
               test_info.errout);
         exit(EXIT_UNKNOWN);
+}
+
+/**
+ ** Functions used by tests.
+ **/
+
+static exit_value_t get_name_type_args(const struct test_info_s *test_info,
+				       char ***av,
+				       const char **lookup_name,
+				       uint32_t *lookup_type)
+{
+	*lookup_name = "getdnsapi.net";
+	*lookup_type = GETDNS_RRTYPE_AAAA;
+
+	if (**av) {
+		if (strlen(**av) > 0) {
+			*lookup_name = **av;
+		} else {
+			fputs("Empty name not valid", test_info->errout);
+			return EXIT_UNKNOWN;
+		}
+		++*av;
+
+		if (**av) {
+			int rrtype = get_rrtype(**av);
+			if (rrtype >= 0) {
+				*lookup_type = (uint32_t) rrtype;
+				++*av;
+			}
+		}
+	}
+
+	return EXIT_OK;
 }
 
 static exit_value_t search(const struct test_info_s *test_info,
@@ -340,15 +399,125 @@ static exit_value_t get_report_info(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
+static exit_value_t get_answers(const struct test_info_s *test_info,
+				const getdns_dict *response,
+				getdns_list **answers,
+				size_t *no_answers)
+{
+	getdns_return_t ret;
+
+	if ((ret = getdns_dict_get_list(response, "/replies_tree/0/answer", answers)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get answers: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+	}
+
+	if ((ret = getdns_list_get_length(*answers, no_answers)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get number of answers: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+	}
+	if (*no_answers <= 0) {
+		fputs("Got zero answers", test_info->errout);
+		return EXIT_WARNING;
+	}
+
+	return EXIT_OK;
+}
+
+static exit_value_t check_answer_type(const struct test_info_s *test_info,
+				      const getdns_dict *response,
+				      uint32_t rrtype)
+{
+	getdns_list *answers;
+	size_t no_answers;
+	exit_value_t xit;
+
+	if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
+		return xit;
+
+	for (size_t i = 0; i < no_answers; ++i) {
+		getdns_dict *answer;
+		getdns_return_t ret;
+
+		if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
+			fprintf(test_info->errout,
+				"Cannot get answer number %zu: %s (%d)",
+				i,
+				getdns_get_errorstr_by_id(ret),
+				ret);
+			return EXIT_UNKNOWN;
+		}
+
+		uint32_t rtype;
+
+		if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
+			fprintf(test_info->errout,
+				"Cannot get answer type: %s (%d)",
+				getdns_get_errorstr_by_id(ret),
+				ret);
+			return EXIT_UNKNOWN;
+		}
+		if (rtype == rrtype)
+			return EXIT_OK;
+	}
+
+	fputs("Answer does not contain expected type", test_info->errout);
+        return EXIT_UNKNOWN;
+}
+
 /**
- * Test routines.
- */
+ ** Test routines.
+ **/
+
+static exit_value_t test_authenticate(const struct test_info_s *test_info,
+				      char ** av)
+{
+	const char *lookup_name;
+	uint32_t lookup_type;
+	exit_value_t xit;
+
+	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+		return xit;
+
+        if (*av) {
+                fputs("auth takes arguments [<name> [<type>]]",
+                      test_info->errout);
+                return EXIT_UNKNOWN;
+        }
+
+        getdns_dict *response;
+        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_result(test_info, response)) != EXIT_OK)
+                return xit;
+
+	getdns_bindata *auth_status;
+        if ((xit = get_report_info(test_info, response, NULL, &auth_status, NULL)) != EXIT_OK)
+                return xit;
+
+	if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+		return xit;
+
+	if (!auth_status || strcmp((char *) auth_status->data, "Success") != 0) {
+		fputs("Authentication failed", test_info->errout);
+		return EXIT_CRITICAL;
+	} else {
+		fputs("Authentication succeeded", test_info->errout);
+		return EXIT_OK;
+	}
+}
 
 static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
                                             char ** av)
 {
         if (*av) {
-                fputs("qname-minimisation takes no arguments",
+                fputs("qname-min takes no arguments",
                       test_info->errout);
                 return EXIT_UNKNOWN;
         }
@@ -368,31 +537,14 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
                 return xit;
 
 	getdns_list *answers;
-	getdns_return_t ret;
-
-	if ((ret = getdns_dict_get_list(response, "/replies_tree/0/answer", &answers)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get answers: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
-                return EXIT_UNKNOWN;
-	}
-
 	size_t no_answers;
-	if ((ret = getdns_list_get_length(answers, &no_answers)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get number of answers: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
-                return EXIT_UNKNOWN;
-	}
-	if (no_answers <= 0) {
-		fputs("Got zero answers", test_info->errout);
-		return EXIT_WARNING;
-	}
+
+	if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
+		return xit;
 
 	for (size_t i = 0; i < no_answers; ++i) {
 		getdns_dict *answer;
+		getdns_return_t ret;
 
 		if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
 			fprintf(test_info->errout,
@@ -448,6 +600,7 @@ static struct test_funcs_s
         exit_value_t (*func)(const struct test_info_s *test_info, char **av);
 } TESTS[] =
 {
+        { "auth", test_authenticate },
         { "qname-min", test_qname_minimisation },
         { NULL, NULL }
 };
