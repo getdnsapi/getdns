@@ -64,9 +64,10 @@ include_directories(
   ${CMAKE_CURRENT_BINARY_DIR}
   )
 
-# Platform
+# Target Platform
 if (WIN32 OR MINGW OR MSYS OR CYGWIN)
   set(HOSTOS "windows")
+  set(GETDNS_ON_WINDOWS 1)
 elseif (APPLE)
   set(HOSTOS "macos")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE")
@@ -126,6 +127,7 @@ check_include_file(stdio.h HAVE_STDIO_H)
 check_include_file(stdlib.h HAVE_STDLIB_H)
 check_include_file(string.h HAVE_STRING_H)
 check_include_file(time.h HAVE_TIME_H)
+check_include_file(unistd.h HAVE_UNISTD_H)
 
 check_include_file(signal.h HAVE_SIGNAL_H)
 check_include_file(sys/poll.h HAVE_SYS_POLL_H)
