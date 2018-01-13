@@ -181,7 +181,7 @@ static void usage()
 "                                provided, both must authenticate for this test\n"
 "                                to pass.\n"
 "  qname-min                     Check whether server supports QNAME minimisation\n"
-"  cert-valid [<name> [type]] [warn-days,crit-days]\n"
+"  cert-valid [warn-days,crit-days] [<name> [type]]\n"
 "                                Check server certificate validity, report\n"
 "                                warning or critical if days to expiry at\n"
 "                                or below thresholds (default 14,7).\n"
@@ -203,9 +203,9 @@ static void version()
  ** Functions used by tests.
  **/
 
-static exit_value_t get_cert_valid_thresholds(char ***av,
-					      int *critical_days,
-					      int *warning_days)
+static void get_cert_valid_thresholds(char ***av,
+				      int *critical_days,
+				      int *warning_days)
 {
 	*critical_days = CERT_EXPIRY_CRITICAL_DAYS;
 	*warning_days = CERT_EXPIRY_WARNING_DAYS;
@@ -213,7 +213,7 @@ static exit_value_t get_cert_valid_thresholds(char ***av,
 	if (**av) {
 		char *comma = strchr(**av, ',');
 		if (!comma)
-			return EXIT_UNKNOWN;
+			return;
 
 		char *end;
 		long w,c;
@@ -224,7 +224,7 @@ static exit_value_t get_cert_valid_thresholds(char ***av,
 		 * properly formatted thresholds arg. Pass over it.
 		 */
 		if (end != comma)
-			return EXIT_UNKNOWN;
+			return;
 
 		/*
 		 * Similarly, if the number doesn't end at the end of the
@@ -232,16 +232,16 @@ static exit_value_t get_cert_valid_thresholds(char ***av,
 		 */
 		w = strtol(comma + 1, &end, 10);
 		if (*end != '\0')
-			return EXIT_UNKNOWN;
+			return;
 
 		/* Got two numbers, so consume the argument. */
 		*critical_days = (int) c;
 		*warning_days = (int) w;
 		++*av;
-		return EXIT_OK;
+		return;
 	}
 
-	return EXIT_UNKNOWN;
+	return;
 }
 
 static exit_value_t get_name_type_args(const struct test_info_s *test_info,
@@ -566,17 +566,13 @@ static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
 	int warning_days;
 	int critical_days;
 
-	/* Is first arg the threshold? */
-	if (get_cert_valid_thresholds(&av, &critical_days, &warning_days) != EXIT_OK) {
-		if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
-			return xit;
+	get_cert_valid_thresholds(&av, &critical_days, &warning_days);
 
-		if (*av)
-			get_cert_valid_thresholds(&av, &critical_days, &warning_days);
-	}
+	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+		return xit;
 
         if (*av) {
-                fputs("cert-valid takes arguments [<name> [<type>]] [warn-days,crit-days]",
+                fputs("cert-valid takes arguments [warn-days,crit-days] [<name> [<type>]]",
                       test_info->errout);
                 return EXIT_UNKNOWN;
         }
