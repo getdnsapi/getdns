@@ -205,70 +205,70 @@ static void version()
  **/
 
 static void get_cert_valid_thresholds(char ***av,
-				      int *critical_days,
-				      int *warning_days)
+                                      int *critical_days,
+                                      int *warning_days)
 {
-	*critical_days = CERT_EXPIRY_CRITICAL_DAYS;
-	*warning_days = CERT_EXPIRY_WARNING_DAYS;
+        *critical_days = CERT_EXPIRY_CRITICAL_DAYS;
+        *warning_days = CERT_EXPIRY_WARNING_DAYS;
 
-	if (**av) {
-		char *comma = strchr(**av, ',');
-		if (!comma)
-			return;
+        if (**av) {
+                char *comma = strchr(**av, ',');
+                if (!comma)
+                        return;
 
-		char *end;
-		long w,c;
+                char *end;
+                long w,c;
 
-		c = strtol(**av, &end, 10);
-		/*
-		 * If the number doesn't end at a comma, this isn't a
-		 * properly formatted thresholds arg. Pass over it.
-		 */
-		if (end != comma)
-			return;
+                c = strtol(**av, &end, 10);
+                /*
+                 * If the number doesn't end at a comma, this isn't a
+                 * properly formatted thresholds arg. Pass over it.
+                 */
+                if (end != comma)
+                        return;
 
-		/*
-		 * Similarly, if the number doesn't end at the end of the
-		 * argument, this isn't a properly formatted arg.
-		 */
-		w = strtol(comma + 1, &end, 10);
-		if (*end != '\0')
-			return;
+                /*
+                 * Similarly, if the number doesn't end at the end of the
+                 * argument, this isn't a properly formatted arg.
+                 */
+                w = strtol(comma + 1, &end, 10);
+                if (*end != '\0')
+                        return;
 
-		/* Got two numbers, so consume the argument. */
-		*critical_days = (int) c;
-		*warning_days = (int) w;
-		++*av;
-		return;
-	}
+                /* Got two numbers, so consume the argument. */
+                *critical_days = (int) c;
+                *warning_days = (int) w;
+                ++*av;
+                return;
+        }
 
-	return;
+        return;
 }
 
 static exit_value_t get_name_type_args(const struct test_info_s *test_info,
-				       char ***av,
-				       const char **lookup_name,
-				       uint32_t *lookup_type)
+                                       char ***av,
+                                       const char **lookup_name,
+                                       uint32_t *lookup_type)
 {
-	if (**av) {
-		if (strlen(**av) > 0) {
-			*lookup_name = **av;
-		} else {
-			fputs("Empty name not valid", test_info->errout);
-			return EXIT_UNKNOWN;
-		}
-		++*av;
+        if (**av) {
+                if (strlen(**av) > 0) {
+                        *lookup_name = **av;
+                } else {
+                        fputs("Empty name not valid", test_info->errout);
+                        return EXIT_UNKNOWN;
+                }
+                ++*av;
 
-		if (**av) {
-			int rrtype = get_rrtype(**av);
-			if (rrtype >= 0) {
-				*lookup_type = (uint32_t) rrtype;
-				++*av;
-			}
-		}
-	}
+                if (**av) {
+                        int rrtype = get_rrtype(**av);
+                        if (rrtype >= 0) {
+                                *lookup_type = (uint32_t) rrtype;
+                                ++*av;
+                        }
+                }
+        }
 
-	return EXIT_OK;
+        return EXIT_OK;
 }
 
 static exit_value_t search(const struct test_info_s *test_info,
@@ -445,73 +445,73 @@ static exit_value_t get_report_info(const struct test_info_s *test_info,
 }
 
 static exit_value_t get_answers(const struct test_info_s *test_info,
-				const getdns_dict *response,
-				getdns_list **answers,
-				size_t *no_answers)
+                                const getdns_dict *response,
+                                getdns_list **answers,
+                                size_t *no_answers)
 {
-	getdns_return_t ret;
+        getdns_return_t ret;
 
-	if ((ret = getdns_dict_get_list(response, "/replies_tree/0/answer", answers)) != GETDNS_RETURN_GOOD) {
+        if ((ret = getdns_dict_get_list(response, "/replies_tree/0/answer", answers)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Cannot get answers: %s (%d)",
                         getdns_get_errorstr_by_id(ret),
                         ret);
                 return EXIT_UNKNOWN;
-	}
+        }
 
-	if ((ret = getdns_list_get_length(*answers, no_answers)) != GETDNS_RETURN_GOOD) {
+        if ((ret = getdns_list_get_length(*answers, no_answers)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Cannot get number of answers: %s (%d)",
                         getdns_get_errorstr_by_id(ret),
                         ret);
                 return EXIT_UNKNOWN;
-	}
-	if (*no_answers <= 0) {
-		fputs("Got zero answers", test_info->errout);
-		return EXIT_WARNING;
-	}
+        }
+        if (*no_answers <= 0) {
+                fputs("Got zero answers", test_info->errout);
+                return EXIT_WARNING;
+        }
 
-	return EXIT_OK;
+        return EXIT_OK;
 }
 
 static exit_value_t check_answer_type(const struct test_info_s *test_info,
-				      const getdns_dict *response,
-				      uint32_t rrtype)
+                                      const getdns_dict *response,
+                                      uint32_t rrtype)
 {
-	getdns_list *answers;
-	size_t no_answers;
-	exit_value_t xit;
+        getdns_list *answers;
+        size_t no_answers;
+        exit_value_t xit;
 
-	if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
-		return xit;
+        if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
+                return xit;
 
-	for (size_t i = 0; i < no_answers; ++i) {
-		getdns_dict *answer;
-		getdns_return_t ret;
+        for (size_t i = 0; i < no_answers; ++i) {
+                getdns_dict *answer;
+                getdns_return_t ret;
 
-		if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
-			fprintf(test_info->errout,
-				"Cannot get answer number %zu: %s (%d)",
-				i,
-				getdns_get_errorstr_by_id(ret),
-				ret);
-			return EXIT_UNKNOWN;
-		}
+                if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get answer number %zu: %s (%d)",
+                                i,
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
 
-		uint32_t rtype;
+                uint32_t rtype;
 
-		if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
-			fprintf(test_info->errout,
-				"Cannot get answer type: %s (%d)",
-				getdns_get_errorstr_by_id(ret),
-				ret);
-			return EXIT_UNKNOWN;
-		}
-		if (rtype == rrtype)
-			return EXIT_OK;
-	}
+                if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get answer type: %s (%d)",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
+                if (rtype == rrtype)
+                        return EXIT_OK;
+        }
 
-	fputs("Answer does not contain expected type", test_info->errout);
+        fputs("Answer does not contain expected type", test_info->errout);
         return EXIT_UNKNOWN;
 }
 
@@ -520,14 +520,14 @@ static exit_value_t check_answer_type(const struct test_info_s *test_info,
  **/
 
 static exit_value_t test_lookup(const struct test_info_s *test_info,
-				char ** av)
+                                char ** av)
 {
-	const char *lookup_name = DEFAULT_LOOKUP_NAME;
-	uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
-	exit_value_t xit;
+        const char *lookup_name = DEFAULT_LOOKUP_NAME;
+        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
+        exit_value_t xit;
 
-	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
-		return xit;
+        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+                return xit;
 
         if (*av) {
                 fputs("lookup takes arguments [<name> [<type>]]",
@@ -545,22 +545,22 @@ static exit_value_t test_lookup(const struct test_info_s *test_info,
         if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
                 return xit;
 
-	if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
-		return xit;
+        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+                return xit;
 
-	fputs("lookup succeeded", test_info->errout);
-	return EXIT_OK;
+        fputs("lookup succeeded", test_info->errout);
+        return EXIT_OK;
 }
 
 static exit_value_t test_authenticate(const struct test_info_s *test_info,
-				      char ** av)
+                                      char ** av)
 {
-	const char *lookup_name = DEFAULT_LOOKUP_NAME;
-	uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
-	exit_value_t xit;
+        const char *lookup_name = DEFAULT_LOOKUP_NAME;
+        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
+        exit_value_t xit;
 
-	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
-		return xit;
+        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+                return xit;
 
         if (*av) {
                 fputs("auth takes arguments [<name> [<type>]]",
@@ -575,35 +575,35 @@ static exit_value_t test_authenticate(const struct test_info_s *test_info,
         if ((xit = check_result(test_info, response)) != EXIT_OK)
                 return xit;
 
-	getdns_bindata *auth_status;
+        getdns_bindata *auth_status;
         if ((xit = get_report_info(test_info, response, NULL, &auth_status, NULL)) != EXIT_OK)
                 return xit;
 
-	if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
-		return xit;
+        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+                return xit;
 
-	if (!auth_status || strcmp((char *) auth_status->data, "Success") != 0) {
-		fputs("Authentication failed", test_info->errout);
-		return EXIT_CRITICAL;
-	} else {
-		fputs("Authentication succeeded", test_info->errout);
-		return EXIT_OK;
-	}
+        if (!auth_status || strcmp((char *) auth_status->data, "Success") != 0) {
+                fputs("Authentication failed", test_info->errout);
+                return EXIT_CRITICAL;
+        } else {
+                fputs("Authentication succeeded", test_info->errout);
+                return EXIT_OK;
+        }
 }
 
 static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
-					   char **av)
+                                           char **av)
 {
-	const char *lookup_name = DEFAULT_LOOKUP_NAME;
-	uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
-	exit_value_t xit;
-	int warning_days;
-	int critical_days;
+        const char *lookup_name = DEFAULT_LOOKUP_NAME;
+        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
+        exit_value_t xit;
+        int warning_days;
+        int critical_days;
 
-	get_cert_valid_thresholds(&av, &critical_days, &warning_days);
+        get_cert_valid_thresholds(&av, &critical_days, &warning_days);
 
-	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
-		return xit;
+        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+                return xit;
 
         if (*av) {
                 fputs("cert-valid takes arguments [warn-days,crit-days] [<name> [<type>]]",
@@ -618,43 +618,43 @@ static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
         if ((xit = check_result(test_info, response)) != EXIT_OK)
                 return xit;
 
-	time_t expire_time;
+        time_t expire_time;
         if ((xit = get_report_info(test_info, response, NULL, NULL, &expire_time)) != EXIT_OK)
                 return xit;
 
-	if (expire_time == 0) {
-		fputs("No PKIX certificate", test_info->errout);
-		return EXIT_CRITICAL;
-	}
+        if (expire_time == 0) {
+                fputs("No PKIX certificate", test_info->errout);
+                return EXIT_CRITICAL;
+        }
 
-	if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
-		return xit;
+        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+                return xit;
 
-	time_t now = time(NULL);
-	int days_to_expiry = (expire_time - now) / 86400;
+        time_t now = time(NULL);
+        int days_to_expiry = (expire_time - now) / 86400;
 
-	if (days_to_expiry < 0) {
-		fprintf(test_info->errout,
-			"Certificate expired %d day%s ago",
-			-days_to_expiry,
-			(days_to_expiry < -1) ? "s" : "");
-		return EXIT_CRITICAL;
-	}
-	if (days_to_expiry == 0) {
-		fputs("Certificate expires today", test_info->errout);
-		return EXIT_CRITICAL;
-	}
-	fprintf(test_info->errout,
-		"Certificate will expire in %d day%s",
-		days_to_expiry,
-		(days_to_expiry > 1) ? "s" : "");
-	if (days_to_expiry <= critical_days) {
-		return EXIT_CRITICAL;
-	}
-	if (days_to_expiry <= warning_days) {
-		return EXIT_WARNING;
-	}
-	return EXIT_OK;
+        if (days_to_expiry < 0) {
+                fprintf(test_info->errout,
+                        "Certificate expired %d day%s ago",
+                        -days_to_expiry,
+                        (days_to_expiry < -1) ? "s" : "");
+                return EXIT_CRITICAL;
+        }
+        if (days_to_expiry == 0) {
+                fputs("Certificate expires today", test_info->errout);
+                return EXIT_CRITICAL;
+        }
+        fprintf(test_info->errout,
+                "Certificate will expire in %d day%s",
+                days_to_expiry,
+                (days_to_expiry > 1) ? "s" : "");
+        if (days_to_expiry <= critical_days) {
+                return EXIT_CRITICAL;
+        }
+        if (days_to_expiry <= warning_days) {
+                return EXIT_WARNING;
+        }
+        return EXIT_OK;
 }
 
 static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
@@ -680,61 +680,61 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         if (xit != EXIT_OK)
                 return xit;
 
-	getdns_list *answers;
-	size_t no_answers;
+        getdns_list *answers;
+        size_t no_answers;
 
-	if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
-		return xit;
+        if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
+                return xit;
 
-	for (size_t i = 0; i < no_answers; ++i) {
-		getdns_dict *answer;
-		getdns_return_t ret;
+        for (size_t i = 0; i < no_answers; ++i) {
+                getdns_dict *answer;
+                getdns_return_t ret;
 
-		if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
-			fprintf(test_info->errout,
-				"Cannot get answer number %zu: %s (%d)",
-				i,
-				getdns_get_errorstr_by_id(ret),
-				ret);
-			return EXIT_UNKNOWN;
-		}
+                if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get answer number %zu: %s (%d)",
+                                i,
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
 
-		uint32_t rtype;
+                uint32_t rtype;
 
-		if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
-			fprintf(test_info->errout,
-				"Cannot get answer type: %s (%d)",
-				getdns_get_errorstr_by_id(ret),
-				ret);
-			return EXIT_UNKNOWN;
-		}
-		if (rtype != GETDNS_RRTYPE_TXT)
-			continue;
+                if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get answer type: %s (%d)",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
+                if (rtype != GETDNS_RRTYPE_TXT)
+                        continue;
 
-		getdns_bindata *rtxt;
-		if ((ret = getdns_dict_get_bindata(answer, "/rdata/txt_strings/0", &rtxt)) != GETDNS_RETURN_GOOD) {
-			fputs("No answer text", test_info->errout);
-			return EXIT_WARNING;
-		}
+                getdns_bindata *rtxt;
+                if ((ret = getdns_dict_get_bindata(answer, "/rdata/txt_strings/0", &rtxt)) != GETDNS_RETURN_GOOD) {
+                        fputs("No answer text", test_info->errout);
+                        return EXIT_WARNING;
+                }
 
-		if (rtxt->size > 0 ) {
-			switch(rtxt->data[0]) {
-			case 'H':
-				fputs("QNAME minimisation ON", test_info->errout);
-				return EXIT_OK;
+                if (rtxt->size > 0 ) {
+                        switch(rtxt->data[0]) {
+                        case 'H':
+                                fputs("QNAME minimisation ON", test_info->errout);
+                                return EXIT_OK;
 
-			case 'N':
-				fputs("QNAME minimisation OFF", test_info->errout);
-				return EXIT_WARNING;
+                        case 'N':
+                                fputs("QNAME minimisation OFF", test_info->errout);
+                                return EXIT_WARNING;
 
-			default:
-				/* Unrecognised message. */
-				break;
-			}
-		}
-	}
+                        default:
+                                /* Unrecognised message. */
+                                break;
+                        }
+                }
+        }
 
-	fputs("No valid QNAME minimisation data", test_info->errout);
+        fputs("No valid QNAME minimisation data", test_info->errout);
         return EXIT_UNKNOWN;
 }
 
@@ -757,7 +757,7 @@ int main(int ATTR_UNUSED(ac), char *av[])
         getdns_list *pinset = NULL;
         size_t pinset_size = 0;
         bool strict_usage_profile = false;
-	bool use_tls = false;
+        bool use_tls = false;
 
         test_info.errout = stderr;
         atexit(exit_tidy);
@@ -783,7 +783,7 @@ int main(int ATTR_UNUSED(ac), char *av[])
                 } else if (strcmp(*av, "-S") == 0 ||
                            strcmp(*av, "--strict-usage-profile") == 0 ) {
                         strict_usage_profile = true;
-			use_tls = true;
+                        use_tls = true;
                 } else if (strcmp(*av, "-K") == 0 ||
                            strcmp(*av, "--spki-pin") == 0 ) {
                         ++av;
@@ -816,7 +816,7 @@ int main(int ATTR_UNUSED(ac), char *av[])
                                 exit(EXIT_UNKNOWN);
 
                         }
-			use_tls = true;
+                        use_tls = true;
                 } else if (strcmp(*av, "-v") == 0 ||
                            strcmp(*av, "--verbose") == 0) {
                         ++test_info.verbosity;
@@ -903,16 +903,16 @@ int main(int ATTR_UNUSED(ac), char *av[])
         }
 
         /* Set other context parameters. */
-	if (use_tls) {
-		getdns_transport_list_t t[] = { GETDNS_TRANSPORT_TLS };
-		if ((ret = getdns_context_set_dns_transport_list(test_info.context, 1, t)) != GETDNS_RETURN_GOOD) {
-			fprintf(test_info.errout,
-				"Unable to set TLS transport: %s (%d)\n",
-				getdns_get_errorstr_by_id(ret),
-				ret);
-			exit(EXIT_UNKNOWN);
-		}
-	}
+        if (use_tls) {
+                getdns_transport_list_t t[] = { GETDNS_TRANSPORT_TLS };
+                if ((ret = getdns_context_set_dns_transport_list(test_info.context, 1, t)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info.errout,
+                                "Unable to set TLS transport: %s (%d)\n",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        exit(EXIT_UNKNOWN);
+                }
+        }
 
         if (strict_usage_profile) {
                 ret = getdns_context_set_tls_authentication(test_info.context, GETDNS_AUTHENTICATION_REQUIRED);
