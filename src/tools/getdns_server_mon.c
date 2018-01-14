@@ -161,7 +161,7 @@ static void usage()
 "Usage: " APP_NAME " [-MEr] @upstream testname [<name>] [<type>]\n"
 "  -M|--monitoring               Make output suitable for monitoring tools\n"
 "  -E|--fail-on-dns-errors       Fail on DNS error (NXDOMAIN, SERVFAIL)\n"
-"  -T|--tls     		 Use TLS transport\n"
+"  -T|--tls                      Use TLS transport\n"
 "  -S|--strict-usage-profile     Use strict profile (require authentication)\n"
 "  -K|--spki-pin <spki-pin>      SPKI pin for TLS connections (can repeat)\n"
 "  -v|--verbose                  Increase output verbosity\n"
@@ -176,6 +176,7 @@ static void usage()
 "tsig spec: [<algorithm>:]<name>:<secret in Base64>\n"
 "\n"
 "Tests:\n"
+"  lookup [<name> [<type>]]      Check lookup on server\n"
 "  auth [<name> [<type>]]        Check authentication of TLS server\n"
 "                                If both a SPKI pin and authentication name are\n"
 "                                provided, both must authenticate for this test\n"
@@ -518,6 +519,39 @@ static exit_value_t check_answer_type(const struct test_info_s *test_info,
  ** Test routines.
  **/
 
+static exit_value_t test_lookup(const struct test_info_s *test_info,
+				char ** av)
+{
+	const char *lookup_name = DEFAULT_LOOKUP_NAME;
+	uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
+	exit_value_t xit;
+
+	if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+		return xit;
+
+        if (*av) {
+                fputs("lookup takes arguments [<name> [<type>]]",
+                      test_info->errout);
+                return EXIT_UNKNOWN;
+        }
+
+        getdns_dict *response;
+        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_result(test_info, response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
+                return xit;
+
+	if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+		return xit;
+
+	fputs("lookup succeeded", test_info->errout);
+	return EXIT_OK;
+}
+
 static exit_value_t test_authenticate(const struct test_info_s *test_info,
 				      char ** av)
 {
@@ -710,6 +744,7 @@ static struct test_funcs_s
         exit_value_t (*func)(const struct test_info_s *test_info, char **av);
 } TESTS[] =
 {
+        { "lookup", test_lookup },
         { "auth", test_authenticate },
         { "cert-valid", test_certificate_valid },
         { "qname-min", test_qname_minimisation },
