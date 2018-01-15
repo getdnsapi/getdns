@@ -889,6 +889,12 @@ int main(int ATTR_UNUSED(ac), char *av[])
                         ret);
                 exit(EXIT_UNKNOWN);
         }
+
+        /* If the resolver info include TLS auth name, use TLS. */
+        getdns_bindata *tls_auth_name;
+        if (getdns_dict_get_bindata(resolver, "tls_auth_name", &tls_auth_name) == GETDNS_RETURN_GOOD)
+                use_tls = true;
+
         if ((ret = getdns_dict_get_bindata(resolver, "address_data", &address)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info.errout,
                         "\"%s\" did not translate to an IP dict: %s (%d)\n",
