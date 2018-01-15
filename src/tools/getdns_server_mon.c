@@ -406,6 +406,33 @@ static exit_value_t get_report_info(const struct test_info_s *test_info,
                         ret);
                 return EXIT_UNKNOWN;
         }
+        if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
+                uint32_t transport;
+                if ((ret = getdns_dict_get_int(d, "transport", &transport)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get transport: %s (%d)",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
+                switch(transport) {
+                case GETDNS_TRANSPORT_UDP:
+                        fputs("UDP, ", test_info->errout);
+                        break;
+
+                case GETDNS_TRANSPORT_TCP:
+                        fputs("TCP, ", test_info->errout);
+                        break;
+
+                case GETDNS_TRANSPORT_TLS:
+                        fputs("TLS, ", test_info->errout);
+                        break;
+
+                default:
+                        fputs("???, ", test_info->errout);
+                        break;
+                }
+        }
         if ((ret = getdns_dict_get_int(d, "run_time/ms", &rtt_val)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Cannot get RTT: %s (%d)",
@@ -797,6 +824,8 @@ int main(int ac, char *av[])
         getdns_list *pinset = NULL;
         size_t pinset_size = 0;
         bool strict_usage_profile = false;
+        bool use_udp = false;
+        bool use_tcp = false;
         bool use_tls = false;
 
         (void) ac;
@@ -819,6 +848,12 @@ int main(int ac, char *av[])
                 } else if (strcmp(*av, "-E") == 0 ||
                            strcmp(*av, "--fail-on-dns-errors") == 0) {
                         test_info.fail_on_dns_errors = true;
+                } else if (strcmp(*av, "-u") == 0 ||
+                           strcmp(*av, "--udp") == 0 ) {
+                        use_udp = true;
+                } else if (strcmp(*av, "-t") == 0 ||
+                           strcmp(*av, "--tcp") == 0 ) {
+                        use_tcp = true;
                 } else if (strcmp(*av, "-T") == 0 ||
                            strcmp(*av, "--tls") == 0 ) {
                         use_tls = true;
@@ -980,11 +1015,29 @@ int main(int ac, char *av[])
                 exit(EXIT_UNKNOWN);
         }
 
-        if (use_tls || f->implies_tls) {
-                getdns_transport_list_t t[] = { GETDNS_TRANSPORT_TLS };
-                if ((ret = getdns_context_set_dns_transport_list(test_info.context, 1, t)) != GETDNS_RETURN_GOOD) {
+        if (f->implies_tls) {
+                if (use_udp | use_tcp) {
+                        fputs("Test requires TLS, or TLS authentication specified\n", test_info.errout);
+                        exit(EXIT_UNKNOWN);
+                }
+                use_tls = true;
+        }
+
+        if ((use_tls + use_udp + use_tcp) > 1) {
+                fputs("Specify one only of -u, -t, -T\n", test_info.errout);
+                exit(EXIT_UNKNOWN);
+        }
+
+        if (use_tls || use_udp || use_tcp) {
+                getdns_transport_list_t udp[] = { GETDNS_TRANSPORT_UDP };
+                getdns_transport_list_t tcp[] = { GETDNS_TRANSPORT_TCP };
+                getdns_transport_list_t tls[] = { GETDNS_TRANSPORT_TLS };
+                getdns_transport_list_t *transport =
+                        (use_tls) ? tls : (use_tcp) ? tcp : udp;
+                if ((ret = getdns_context_set_dns_transport_list(test_info.context, 1, transport)) != GETDNS_RETURN_GOOD) {
                         fprintf(test_info.errout,
-                                "Unable to set TLS transport: %s (%d)\n",
+                                "Unable to set %s transport: %s (%d)\n",
+                                (use_tls) ? "TLS" : (use_tcp) ? "TCP" : "UDP",
                                 getdns_get_errorstr_by_id(ret),
                                 ret);
                         exit(EXIT_UNKNOWN);
