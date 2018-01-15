@@ -158,9 +158,12 @@ static void exit_tidy()
 static void usage()
 {
         fputs(
-"Usage: " APP_NAME " [-MEr] @upstream testname [<name>] [<type>]\n"
+"Usage: " APP_NAME " [-M] [-E] [(-u|-t|-T)] [-S] [-K <spki-pin>]\n"
+"        [-v [-v [-v]]] [-V] @upstream testname [<name>] [<type>]\n"
 "  -M|--monitoring               Make output suitable for monitoring tools\n"
 "  -E|--fail-on-dns-errors       Fail on DNS error (NXDOMAIN, SERVFAIL)\n"
+"  -u|--udp                      Use UDP transport\n"
+"  -t|--tcp                      Use TCP transport\n"
 "  -T|--tls                      Use TLS transport\n"
 "  -S|--strict-usage-profile     Use strict profile (require authentication)\n"
 "  -K|--spki-pin <spki-pin>      SPKI pin for TLS connections (can repeat)\n"
