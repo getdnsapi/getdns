@@ -983,6 +983,24 @@ int main(int ATTR_UNUSED(ac), char *av[])
              ++f) {
                 if (strcmp(testname, f->name) == 0) {
                         exit_value_t xit = f->func(&test_info, av);
+                        switch(xit) {
+                        case 0:
+                                fputs(" OK", test_info.errout);
+                                break;
+
+                        case 1:
+                                fputs(" WARNING", test_info.errout);
+                                break;
+
+                        case 2:
+                                fputs(" CRITICAL", test_info.errout);
+                                break;
+
+                        default:
+                                fputs(" UNKNOWN", test_info.errout);
+                                break;
+
+                        }
                         fputc('\n', test_info.errout);
                         exit(xit);
                 }
