@@ -517,12 +517,41 @@ static exit_value_t check_answer_type(const struct test_info_s *test_info,
         return EXIT_UNKNOWN;
 }
 
-/**
- ** Test routines.
- **/
+static exit_value_t search_check(const struct test_info_s *test_info,
+                                 const char *lookup_name,
+                                 uint16_t lookup_type,
+                                 getdns_dict **response,
+                                 uint32_t *rtt,
+                                 getdns_bindata **auth_status,
+                                 time_t *cert_expire_time)
+{
+        exit_value_t xit;
+        getdns_dict *resp;
 
-static exit_value_t test_lookup(const struct test_info_s *test_info,
-                                char ** av)
+        if ((xit = search(test_info, lookup_name, lookup_type, &resp)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_result(test_info, resp)) != EXIT_OK)
+                return xit;
+
+        if ((xit = get_report_info(test_info, resp, rtt, auth_status, cert_expire_time)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_answer_type(test_info, resp, lookup_type)) != EXIT_OK)
+                return xit;
+
+        if (response)
+                *response = resp;
+        return xit;
+}
+
+static exit_value_t parse_search_check(const struct test_info_s *test_info,
+                                       char **av,
+                                       const char *usage,
+                                       getdns_dict **response,
+                                       uint32_t *rtt,
+                                       getdns_bindata **auth_status,
+                                       time_t *cert_expire_time)
 {
         const char *lookup_name = DEFAULT_LOOKUP_NAME;
         uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
@@ -532,22 +561,32 @@ static exit_value_t test_lookup(const struct test_info_s *test_info,
                 return xit;
 
         if (*av) {
-                fputs("lookup takes arguments [<name> [<type>]]",
-                      test_info->errout);
+                fputs(usage, test_info->errout);
                 return EXIT_UNKNOWN;
         }
 
-        getdns_dict *response;
-        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
-                return xit;
+        return search_check(test_info,
+                            lookup_name, lookup_type,
+                            response,
+                            rtt, auth_status, cert_expire_time);
+}
 
-        if ((xit = check_result(test_info, response)) != EXIT_OK)
-                return xit;
+/**
+ ** Test routines.
+ **/
 
-        if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
-                return xit;
+static exit_value_t test_lookup(const struct test_info_s *test_info,
+                                char ** av)
+{
+        exit_value_t xit;
 
-        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+        if ((xit = parse_search_check(test_info,
+                                      av,
+                                      "lookup takes arguments [<name> [<type>]]",
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      NULL)) != EXIT_OK)
                 return xit;
 
         fputs("Lookup succeeded", test_info->errout);
@@ -557,8 +596,6 @@ static exit_value_t test_lookup(const struct test_info_s *test_info,
 static exit_value_t test_rtt(const struct test_info_s *test_info,
                              char ** av)
 {
-        const char *lookup_name = DEFAULT_LOOKUP_NAME;
-        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
         exit_value_t xit;
         int critical_ms = RTT_CRITICAL_MS;
         int warning_ms = RTT_WARNING_MS;
@@ -566,26 +603,13 @@ static exit_value_t test_rtt(const struct test_info_s *test_info,
 
         get_thresholds(&av, &critical_ms, &warning_ms);
 
-        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
-                return xit;
-
-        if (*av) {
-                fputs("rtt takes arguments [warn-ms,crit-ms] [<name> [<type>]]",
-                      test_info->errout);
-                return EXIT_UNKNOWN;
-        }
-
-        getdns_dict *response;
-        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
-                return xit;
-
-        if ((xit = check_result(test_info, response)) != EXIT_OK)
-                return xit;
-
-        if ((xit = get_report_info(test_info, response, &rtt_val, NULL, NULL)) != EXIT_OK)
-                return xit;
-
-        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+        if ((xit = parse_search_check(test_info,
+                                      av,
+                                      "rtt takes arguments [warn-ms,crit-ms] [<name> [<type>]]",
+                                      NULL,
+                                      &rtt_val,
+                                      NULL,
+                                      NULL)) != EXIT_OK)
                 return xit;
 
         fputs("RTT lookup succeeded", test_info->errout);
@@ -600,31 +624,16 @@ static exit_value_t test_rtt(const struct test_info_s *test_info,
 static exit_value_t test_authenticate(const struct test_info_s *test_info,
                                       char ** av)
 {
-        const char *lookup_name = DEFAULT_LOOKUP_NAME;
-        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
         exit_value_t xit;
-
-        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
-                return xit;
-
-        if (*av) {
-                fputs("auth takes arguments [<name> [<type>]]",
-                      test_info->errout);
-                return EXIT_UNKNOWN;
-        }
-
-        getdns_dict *response;
-        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
-                return xit;
-
-        if ((xit = check_result(test_info, response)) != EXIT_OK)
-                return xit;
-
         getdns_bindata *auth_status;
-        if ((xit = get_report_info(test_info, response, NULL, &auth_status, NULL)) != EXIT_OK)
-                return xit;
 
-        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+        if ((xit = parse_search_check(test_info,
+                                      av,
+                                      "auth takes arguments [<name> [<type>]]",
+                                      NULL,
+                                      NULL,
+                                      &auth_status,
+                                      NULL)) != EXIT_OK)
                 return xit;
 
         if (!auth_status || strcmp((char *) auth_status->data, "Success") != 0) {
@@ -639,41 +648,27 @@ static exit_value_t test_authenticate(const struct test_info_s *test_info,
 static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
                                            char **av)
 {
-        const char *lookup_name = DEFAULT_LOOKUP_NAME;
-        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
         exit_value_t xit;
         int warning_days = CERT_EXPIRY_WARNING_DAYS;
         int critical_days = CERT_EXPIRY_CRITICAL_DAYS;
+        time_t expire_time;
 
         get_thresholds(&av, &critical_days, &warning_days);
 
-        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+        if ((xit = parse_search_check(test_info,
+                                      av,
+                                      "cert-valid takes arguments [warn-days,crit-days] [<name> [<type>]]",
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      &expire_time)) != EXIT_OK)
                 return xit;
 
-        if (*av) {
-                fputs("cert-valid takes arguments [warn-days,crit-days] [<name> [<type>]]",
-                      test_info->errout);
-                return EXIT_UNKNOWN;
-        }
-
-        getdns_dict *response;
-        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
-                return xit;
-
-        if ((xit = check_result(test_info, response)) != EXIT_OK)
-                return xit;
-
-        time_t expire_time;
-        if ((xit = get_report_info(test_info, response, NULL, NULL, &expire_time)) != EXIT_OK)
-                return xit;
 
         if (expire_time == 0) {
                 fputs("No PKIX certificate", test_info->errout);
                 return EXIT_CRITICAL;
         }
-
-        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
-                return xit;
 
         time_t now = time(NULL);
         int days_to_expiry = (expire_time - now) / 86400;
@@ -712,17 +707,15 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         }
 
         getdns_dict *response;
-        exit_value_t xit = search(test_info, "qnamemintest.internet.nl", GETDNS_RRTYPE_TXT, &response);
-        if (xit != EXIT_OK)
-                return xit;
+        exit_value_t xit;
 
-        xit = check_result(test_info, response);
-        if (xit != EXIT_OK)
-                return xit;
-
-        /* Don't need any of this, but do want check and verbosity reporting. */
-        xit = get_report_info(test_info, response, NULL, NULL, NULL);
-        if (xit != EXIT_OK)
+        if ((xit = search_check(test_info,
+                                "qnamemintest.internet.nl",
+                                GETDNS_RRTYPE_TXT,
+                                &response,
+                                NULL,
+                                NULL,
+                                NULL)) != EXIT_OK)
                 return xit;
 
         getdns_list *answers;
