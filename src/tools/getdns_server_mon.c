@@ -204,13 +204,10 @@ static void version()
  ** Functions used by tests.
  **/
 
-static void get_cert_valid_thresholds(char ***av,
-                                      int *critical_days,
-                                      int *warning_days)
+static void get_thresholds(char ***av,
+                           int *critical,
+                           int *warning)
 {
-        *critical_days = CERT_EXPIRY_CRITICAL_DAYS;
-        *warning_days = CERT_EXPIRY_WARNING_DAYS;
-
         if (**av) {
                 char *comma = strchr(**av, ',');
                 if (!comma)
@@ -219,7 +216,7 @@ static void get_cert_valid_thresholds(char ***av,
                 char *end;
                 long w,c;
 
-                c = strtol(**av, &end, 10);
+                w = strtol(**av, &end, 10);
                 /*
                  * If the number doesn't end at a comma, this isn't a
                  * properly formatted thresholds arg. Pass over it.
@@ -231,13 +228,13 @@ static void get_cert_valid_thresholds(char ***av,
                  * Similarly, if the number doesn't end at the end of the
                  * argument, this isn't a properly formatted arg.
                  */
-                w = strtol(comma + 1, &end, 10);
+                c = strtol(comma + 1, &end, 10);
                 if (*end != '\0')
                         return;
 
                 /* Got two numbers, so consume the argument. */
-                *critical_days = (int) c;
-                *warning_days = (int) w;
+                *critical = (int) c;
+                *warning = (int) w;
                 ++*av;
                 return;
         }
@@ -597,10 +594,10 @@ static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
         const char *lookup_name = DEFAULT_LOOKUP_NAME;
         uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
         exit_value_t xit;
-        int warning_days;
-        int critical_days;
+        int warning_days = CERT_EXPIRY_WARNING_DAYS;
+        int critical_days = CERT_EXPIRY_CRITICAL_DAYS;
 
-        get_cert_valid_thresholds(&av, &critical_days, &warning_days);
+        get_thresholds(&av, &critical_days, &warning_days);
 
         if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
                 return xit;
@@ -642,12 +639,12 @@ static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
         }
         if (days_to_expiry == 0) {
                 fputs("Certificate expires today", test_info->errout);
-                return EXIT_CRITICAL;
+        } else {
+                fprintf(test_info->errout,
+                        "Certificate will expire in %d day%s",
+                        days_to_expiry,
+                        (days_to_expiry > 1) ? "s" : "");
         }
-        fprintf(test_info->errout,
-                "Certificate will expire in %d day%s",
-                days_to_expiry,
-                (days_to_expiry > 1) ? "s" : "");
         if (days_to_expiry <= critical_days) {
                 return EXIT_CRITICAL;
         }
