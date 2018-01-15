@@ -179,12 +179,13 @@ static void usage()
 "  lookup [<name> [<type>]]      Check lookup on server\n"
 "  rtt [warn-ms,crit-ms] [<name> [<type>]]\n"
 "                                Check server round trip time (default 500,250)\n"
-"  auth [<name> [<type>]]        Check authentication of TLS server\n"
+"  qname-min                     Check whether server supports QNAME minimisation\n"
+"\n"
+"  tls_auth [<name> [<type>]]    Check authentication of TLS server\n"
 "                                If both a SPKI pin and authentication name are\n"
 "                                provided, both must authenticate for this test\n"
 "                                to pass.\n"
-"  qname-min                     Check whether server supports QNAME minimisation\n"
-"  cert-valid [warn-days,crit-days] [<name> [type]]\n"
+"  tls_cert-valid [warn-days,crit-days] [<name> [type]]\n"
 "                                Check server certificate validity, report\n"
 "                                warning or critical if days to expiry at\n"
 "                                or below thresholds (default 14,7).\n"
@@ -784,9 +785,9 @@ static struct test_funcs_s
 {
         { "lookup", false, test_lookup },
         { "rtt", false, test_rtt },
-        { "auth", true, test_authenticate },
-        { "cert-valid", true, test_certificate_valid },
         { "qname-min", false, test_qname_minimisation },
+        { "tls-auth", true, test_authenticate },
+        { "tls-cert-valid", true, test_certificate_valid },
         { NULL, false, NULL }
 };
 
