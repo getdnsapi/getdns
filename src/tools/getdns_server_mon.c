@@ -25,9 +25,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "debug.h"
-
 #include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -200,8 +197,10 @@ static void usage()
 
 static void version()
 {
-        fputs(APP_NAME ": getdns " GETDNS_VERSION " , API " GETDNS_API_VERSION ".\n",
-              test_info.errout);
+        fprintf(test_info.errout,
+                APP_NAME ": getdns version %s, API version '%s'.\n",
+                getdns_get_version(),
+                getdns_get_api_version());
         exit(EXIT_UNKNOWN);
 }
 
@@ -791,13 +790,15 @@ static struct test_funcs_s
         { NULL, false, NULL }
 };
 
-int main(int ATTR_UNUSED(ac), char *av[])
+int main(int ac, char *av[])
 {
         getdns_return_t ret;
         getdns_list *pinset = NULL;
         size_t pinset_size = 0;
         bool strict_usage_profile = false;
         bool use_tls = false;
+
+        (void) ac;
 
         test_info.errout = stderr;
         atexit(exit_tidy);
