@@ -786,15 +786,16 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
 static struct test_funcs_s
 {
         const char *name;
+        bool implies_tls;
         exit_value_t (*func)(const struct test_info_s *test_info, char **av);
 } TESTS[] =
 {
-        { "lookup", test_lookup },
-        { "rtt", test_rtt },
-        { "auth", test_authenticate },
-        { "cert-valid", test_certificate_valid },
-        { "qname-min", test_qname_minimisation },
-        { NULL, NULL }
+        { "lookup", false, test_lookup },
+        { "rtt", false, test_rtt },
+        { "auth", true, test_authenticate },
+        { "cert-valid", true, test_certificate_valid },
+        { "qname-min", false, test_qname_minimisation },
+        { NULL, false, NULL }
 };
 
 int main(int ATTR_UNUSED(ac), char *av[])
@@ -955,17 +956,6 @@ int main(int ATTR_UNUSED(ac), char *av[])
         }
 
         /* Set other context parameters. */
-        if (use_tls) {
-                getdns_transport_list_t t[] = { GETDNS_TRANSPORT_TLS };
-                if ((ret = getdns_context_set_dns_transport_list(test_info.context, 1, t)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info.errout,
-                                "Unable to set TLS transport: %s (%d)\n",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
-                        exit(EXIT_UNKNOWN);
-                }
-        }
-
         if (strict_usage_profile) {
                 ret = getdns_context_set_tls_authentication(test_info.context, GETDNS_AUTHENTICATION_REQUIRED);
                 if (ret != GETDNS_RETURN_GOOD) {
@@ -984,33 +974,47 @@ int main(int ATTR_UNUSED(ac), char *av[])
                 usage();
         ++av;
 
-        for (const struct test_funcs_s *f = TESTS;
-             f->name != NULL;
-             ++f) {
-                if (strcmp(testname, f->name) == 0) {
-                        exit_value_t xit = f->func(&test_info, av);
-                        switch(xit) {
-                        case 0:
-                                fputs(" OK", test_info.errout);
-                                break;
+        const struct test_funcs_s *f;
+        for (f = TESTS; f->name != NULL; ++f) {
+                if (strcmp(testname, f->name) == 0)
+                        break;
+        }
 
-                        case 1:
-                                fputs(" WARNING", test_info.errout);
-                                break;
+        if (f->name == NULL) {
+                fprintf(test_info.errout, "Unknown test %s\n", testname);
+                exit(EXIT_UNKNOWN);
+        }
 
-                        case 2:
-                                fputs(" CRITICAL", test_info.errout);
-                                break;
-
-                        default:
-                                fputs(" UNKNOWN", test_info.errout);
-                                break;
-
-                        }
-                        fputc('\n', test_info.errout);
-                        exit(xit);
+        if (use_tls || f->implies_tls) {
+                getdns_transport_list_t t[] = { GETDNS_TRANSPORT_TLS };
+                if ((ret = getdns_context_set_dns_transport_list(test_info.context, 1, t)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info.errout,
+                                "Unable to set TLS transport: %s (%d)\n",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        exit(EXIT_UNKNOWN);
                 }
         }
-        fprintf(test_info.errout, "Unknown test %s\n", testname);
-        exit(EXIT_UNKNOWN);
+
+        exit_value_t xit = f->func(&test_info, av);
+        switch(xit) {
+        case 0:
+                fputs(" OK", test_info.errout);
+                break;
+
+        case 1:
+                fputs(" WARNING", test_info.errout);
+                break;
+
+        case 2:
+                fputs(" CRITICAL", test_info.errout);
+                break;
+
+        default:
+                fputs(" UNKNOWN", test_info.errout);
+                break;
+
+        }
+        fputc('\n', test_info.errout);
+        exit(xit);
 }
