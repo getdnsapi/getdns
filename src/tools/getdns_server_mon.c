@@ -46,6 +46,9 @@
 
 #define APP_NAME "getdns_server_mon"
 
+#define RTT_CRITICAL_MS                 250
+#define RTT_WARNING_MS                  500
+
 #define CERT_EXPIRY_CRITICAL_DAYS       7
 #define CERT_EXPIRY_WARNING_DAYS        14
 
@@ -177,6 +180,8 @@ static void usage()
 "\n"
 "Tests:\n"
 "  lookup [<name> [<type>]]      Check lookup on server\n"
+"  rtt [warn-ms,crit-ms] [<name> [<type>]]\n"
+"                                Check server round trip time (default 500,250)\n"
 "  auth [<name> [<type>]]        Check authentication of TLS server\n"
 "                                If both a SPKI pin and authentication name are\n"
 "                                provided, both must authenticate for this test\n"
@@ -549,6 +554,49 @@ static exit_value_t test_lookup(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
+static exit_value_t test_rtt(const struct test_info_s *test_info,
+                             char ** av)
+{
+        const char *lookup_name = DEFAULT_LOOKUP_NAME;
+        uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
+        exit_value_t xit;
+        int critical_ms = RTT_CRITICAL_MS;
+        int warning_ms = RTT_WARNING_MS;
+        uint32_t rtt_val;
+
+        get_thresholds(&av, &critical_ms, &warning_ms);
+
+        if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
+                return xit;
+
+        if (*av) {
+                fputs("lookup takes arguments [<name> [<type>]]",
+                      test_info->errout);
+                return EXIT_UNKNOWN;
+        }
+
+        getdns_dict *response;
+        if ((xit = search(test_info, lookup_name, lookup_type, &response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_result(test_info, response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = get_report_info(test_info, response, &rtt_val, NULL, NULL)) != EXIT_OK)
+                return xit;
+
+        if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
+                return xit;
+
+        fputs("lookup succeeded", test_info->errout);
+
+        if ((int) rtt_val > critical_ms)
+                return EXIT_CRITICAL;
+        else if ((int) rtt_val > warning_ms)
+                return EXIT_WARNING;
+        return EXIT_OK;
+}
+
 static exit_value_t test_authenticate(const struct test_info_s *test_info,
                                       char ** av)
 {
@@ -742,6 +790,7 @@ static struct test_funcs_s
 } TESTS[] =
 {
         { "lookup", test_lookup },
+        { "rtt", test_rtt },
         { "auth", test_authenticate },
         { "cert-valid", test_certificate_valid },
         { "qname-min", test_qname_minimisation },
