@@ -550,7 +550,7 @@ static exit_value_t test_lookup(const struct test_info_s *test_info,
         if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
                 return xit;
 
-        fputs("lookup succeeded", test_info->errout);
+        fputs("Lookup succeeded", test_info->errout);
         return EXIT_OK;
 }
 
@@ -570,7 +570,7 @@ static exit_value_t test_rtt(const struct test_info_s *test_info,
                 return xit;
 
         if (*av) {
-                fputs("lookup takes arguments [<name> [<type>]]",
+                fputs("rtt takes arguments [warn-ms,crit-ms] [<name> [<type>]]",
                       test_info->errout);
                 return EXIT_UNKNOWN;
         }
@@ -588,7 +588,7 @@ static exit_value_t test_rtt(const struct test_info_s *test_info,
         if ((xit = check_answer_type(test_info, response, lookup_type)) != EXIT_OK)
                 return xit;
 
-        fputs("lookup succeeded", test_info->errout);
+        fputs("RTT lookup succeeded", test_info->errout);
 
         if ((int) rtt_val > critical_ms)
                 return EXIT_CRITICAL;
