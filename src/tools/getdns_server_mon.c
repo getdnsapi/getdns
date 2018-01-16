@@ -284,6 +284,8 @@ static void usage()
 "  rtt [warn-ms,crit-ms] [<name> [<type>]]\n"
 "                                Check server round trip time (default 500,250)\n"
 "\n"
+"  dnssec-validate               Check whether server does DNSSEC validation\n"
+"\n"
 "  tls-auth [<name> [<type>]]    Check authentication of TLS server\n"
 "                                If both a SPKI pin and authentication name are\n"
 "                                provided, both must authenticate for this test\n"
@@ -427,13 +429,14 @@ static exit_value search(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value check_result(const struct test_info_s *test_info,
-                               const getdns_dict *response)
+static exit_value get_result(const struct test_info_s *test_info,
+                             const getdns_dict *response,
+                             uint32_t *error_id,
+                             uint32_t *rcode)
 {
         getdns_return_t ret;
-        uint32_t error_id;
 
-        if ((ret = getdns_dict_get_int(response, "status", &error_id)) != GETDNS_RETURN_GOOD) {
+        if ((ret = getdns_dict_get_int(response, "status", error_id)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Cannot get result status: %s (%d)",
                         getdns_get_errorstr_by_id(ret),
@@ -441,29 +444,53 @@ static exit_value check_result(const struct test_info_s *test_info,
                 return EXIT_UNKNOWN;
         }
 
-        if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
-                fprintf(test_info->errout,
-                        "result: %s (%d), ",
-                        getdns_get_errorstr_by_id(error_id),
-                        error_id);
+        if (*error_id != GETDNS_RESPSTATUS_GOOD && *error_id != GETDNS_RESPSTATUS_NO_NAME) {
+                *rcode = 0;
+                return EXIT_OK;
         }
 
-        if (error_id == GETDNS_RESPSTATUS_GOOD)
-                return EXIT_OK;
-
-        uint32_t rcode;
-
-        ret = getdns_dict_get_int(response, "/replies_tree/0/header/rcode", &rcode);
-        if (ret == GETDNS_RETURN_NO_SUCH_DICT_NAME ||
-            ret == GETDNS_RETURN_NO_SUCH_LIST_ITEM) {
-                fputs("Search had no results, timeout?", test_info->errout);
-                return EXIT_CRITICAL;
-        } else if (ret != GETDNS_RETURN_GOOD) {
+        if ((ret = getdns_dict_get_int(response, "/replies_tree/0/header/rcode", rcode)) !=  GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Cannot get DNS return code: %s (%d)",
                         getdns_get_errorstr_by_id(ret),
                         ret);
                 return EXIT_UNKNOWN;
+        }
+
+        return EXIT_OK;
+}
+
+static exit_value check_result(const struct test_info_s *test_info,
+                               const getdns_dict *response)
+{
+        exit_value xit;
+        uint32_t error_id, rcode;
+
+        if ((xit = get_result(test_info, response, &error_id, &rcode)) != EXIT_OK)
+                return xit;
+
+        switch(error_id) {
+        case GETDNS_RESPSTATUS_ALL_TIMEOUT:
+                fputs("Search timed out", test_info->errout);
+                return EXIT_CRITICAL;
+
+        case GETDNS_RESPSTATUS_NO_SECURE_ANSWERS:
+                fputs("No secure answers", test_info->errout);
+                return EXIT_CRITICAL;
+
+        case GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS:
+                fputs("All answers are bogus", test_info->errout);
+                return EXIT_CRITICAL;
+
+        default:
+                break;
+        }
+
+        if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
+                fprintf(test_info->errout,
+                        "result: %s (%d), ",
+                        getdns_get_errorstr_by_id(error_id),
+                        error_id);
         }
 
         if (test_info->fail_on_dns_errors && rcode > 0) {
@@ -1122,6 +1149,51 @@ static exit_value test_keepalive(const struct test_info_s *test_info,
         }
 }
 
+static exit_value test_dnssec_validate(const struct test_info_s *test_info,
+                                       char ** av)
+{
+        if (*av) {
+                fputs("dnssec-validate takes no arguments",
+                      test_info->errout);
+                return EXIT_USAGE;
+        }
+
+        getdns_dict *response;
+        exit_value xit;
+
+        if ((xit = search(test_info,
+                          "dnssec-failed.org",
+                          GETDNS_RRTYPE_A,
+                          &response)) != EXIT_OK)
+                return xit;
+
+        if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
+                return xit;
+
+        uint32_t error_id, rcode;
+
+        if ((xit = get_result(test_info, response, &error_id, &rcode)) != EXIT_OK)
+                return xit;
+
+        switch(error_id) {
+        case GETDNS_RESPSTATUS_ALL_TIMEOUT:
+                fputs("Search timed out", test_info->errout);
+                return EXIT_CRITICAL;
+
+        case GETDNS_RESPSTATUS_NO_SECURE_ANSWERS:
+        case GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS:
+        case GETDNS_RESPSTATUS_NO_NAME:
+                fputs("Server validates DNSSEC", test_info->errout);
+                return EXIT_OK;
+
+        default:
+                break;
+        }
+
+        fputs("Server does NOT validate DNSSEC", test_info->errout);
+        return EXIT_CRITICAL;
+}
+
 static struct test_funcs_s
 {
         const char *name;
@@ -1137,6 +1209,7 @@ static struct test_funcs_s
         { "tls-cert-valid", true, false, test_certificate_valid },
         { "tls-padding", true, false, test_padding },
         { "keepalive", false, true, test_keepalive },
+        { "dnssec-validate", false, true, test_dnssec_validate },
         { NULL, false, false, NULL }
 };
 
