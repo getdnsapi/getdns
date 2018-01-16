@@ -183,9 +183,12 @@ static void usage()
 "\n"
 "Tests:\n"
 "  lookup [<name> [<type>]]      Check lookup on server\n"
+"  keepalive <timeout-ms> [<name> [<type>]]\n"
+"                                Check server support for EDNS0 keepalive in TCP/TLS\n"
+"                                Timeout of 0 is off.\n"
+"  qname-min                     Check whether server supports QNAME minimisation\n"
 "  rtt [warn-ms,crit-ms] [<name> [<type>]]\n"
 "                                Check server round trip time (default 500,250)\n"
-"  qname-min                     Check whether server supports QNAME minimisation\n"
 "\n"
 "  tls-auth [<name> [<type>]]    Check authentication of TLS server\n"
 "                                If both a SPKI pin and authentication name are\n"
@@ -938,20 +941,109 @@ no_padding:
         return EXIT_CRITICAL;
 }
 
+static exit_value_t test_keepalive(const struct test_info_s *test_info,
+                                   char ** av)
+{
+        getdns_dict *response;
+        exit_value_t xit;
+        long long timeout;
+        char *endptr;
+        const char USAGE[] = "keepalive takes arguments <timeout-ms> [<name> [<type>]]";
+
+        if (!*av || (timeout = strtoll(*av, &endptr, 10), *endptr != '\0' || timeout < 0)) {
+                fputs(USAGE, test_info->errout);
+                return EXIT_USAGE;
+        }
+        ++av;
+
+        getdns_return_t ret;
+        if ((ret = getdns_context_set_idle_timeout(test_info->context, (uint64_t) timeout)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot set keepalive timeout: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        if ((xit = parse_search_check(test_info,
+                                      av,
+                                      USAGE,
+                                      &response,
+                                      NULL,
+                                      NULL,
+                                      NULL)) != EXIT_OK)
+                return xit;
+
+        getdns_list *l;
+
+        if ((ret = getdns_dict_get_list(response, "call_reporting", &l)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get call report: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        getdns_dict *d;
+        if ((ret = getdns_list_get_dict(l, 0, &d)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get call report first item: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        /* Search is forced to be TCP or TLS, so server keepalive flag must exist. */
+        uint32_t server_keepalive_received;
+        if ((ret = getdns_dict_get_int(d, "server_keepalive_received", &server_keepalive_received)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get server keepalive flag: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        if (server_keepalive_received) {
+                uint32_t t;
+                bool overflow = false;
+
+                if (!((ret = getdns_dict_get_int(d, "idle timeout in ms", &t)) == GETDNS_RETURN_GOOD ||
+                      (overflow = true, ret = getdns_dict_get_int(d, "idle timeout in ms (overflow)", &t)) == GETDNS_RETURN_GOOD)) {
+                fprintf(test_info->errout,
+                        "Cannot get idle timeout: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+                }
+
+                if (overflow) {
+                        fputs("Server sent keepalive, idle timeout now (overflow)", test_info->errout);
+                } else {
+                        fprintf(test_info->errout, "Server sent keepalive, idle timeout now %ums", t);
+                }
+                return EXIT_OK;
+        } else {
+                fputs("Server did not send keepalive", test_info->errout);
+                return EXIT_CRITICAL;
+        }
+}
+
 static struct test_funcs_s
 {
         const char *name;
         bool implies_tls;
+        bool implies_tcp;
         exit_value_t (*func)(const struct test_info_s *test_info, char **av);
 } TESTS[] =
 {
-        { "lookup", false, test_lookup },
-        { "rtt", false, test_rtt },
-        { "qname-min", false, test_qname_minimisation },
-        { "tls-auth", true, test_authenticate },
-        { "tls-cert-valid", true, test_certificate_valid },
-        { "tls-padding", true, test_padding },
-        { NULL, false, NULL }
+        { "lookup", false, false, test_lookup },
+        { "rtt", false, false, test_rtt },
+        { "qname-min", false, false, test_qname_minimisation },
+        { "tls-auth", true, false, test_authenticate },
+        { "tls-cert-valid", true, false, test_certificate_valid },
+        { "tls-padding", true, false, test_padding },
+        { "keepalive", false, true, test_keepalive },
+        { NULL, false, false, NULL }
 };
 
 int main(int ac, char *av[])
@@ -1149,6 +1241,15 @@ int main(int ac, char *av[])
         if (f->name == NULL) {
                 fprintf(test_info.errout, "Unknown test %s\n", testname);
                 exit(EXIT_UNKNOWN);
+        }
+
+        if (f->implies_tcp) {
+                if (use_udp) {
+                        fputs("Test requires TCP or TLS\n", test_info.errout);
+                        exit(EXIT_UNKNOWN);
+                }
+                if (!use_tls)
+                        use_tcp = true;
         }
 
         if (f->implies_tls) {

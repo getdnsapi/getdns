@@ -341,6 +341,7 @@ process_keepalive(
 		}
 		return;
 	}
+	upstream->server_keepalive_received = 1;
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;

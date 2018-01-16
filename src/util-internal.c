@@ -880,6 +880,10 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		}
+		if (getdns_dict_set_int( netreq_debug, "server_keepalive_received", netreq->upstream->server_keepalive_received)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 		/* The running totals are only updated when a connection is closed.
 		   Since it is open as we have just used it, calcualte the value on the fly */
 		if (getdns_dict_set_int( netreq_debug, "responses_on_this_connection",
