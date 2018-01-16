@@ -52,6 +52,8 @@
 #define DEFAULT_LOOKUP_NAME             "getdnsapi.net"
 #define DEFAULT_LOOKUP_TYPE             GETDNS_RRTYPE_AAAA
 
+#define EDNS0_PADDING_CODE              12
+
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 /* Plugin exit values */
@@ -193,6 +195,10 @@ static void usage()
 "                                Check server certificate validity, report\n"
 "                                warning or critical if days to expiry at\n"
 "                                or below thresholds (default 14,7).\n"
+"  tls-padding <blocksize> [<name> [<type>]]\n"
+"                                Check server support for EDNS0 padding in TLS\n"
+"                                Special blocksize values are 0 = off,\n"
+"                                1 = sensible default.\n"
 "\n"
 "Enabling monitoring mode ensures output messages and exit statuses conform\n"
 "to the requirements of monitoring plugins (www.monitoring-plugins.org).\n",
@@ -471,14 +477,19 @@ static exit_value_t get_report_info(const struct test_info_s *test_info,
 
 static exit_value_t get_answers(const struct test_info_s *test_info,
                                 const getdns_dict *response,
+                                const char *section,
                                 getdns_list **answers,
                                 size_t *no_answers)
 {
         getdns_return_t ret;
+        char buf[40];
 
-        if ((ret = getdns_dict_get_list(response, "/replies_tree/0/answer", answers)) != GETDNS_RETURN_GOOD) {
+        snprintf(buf, sizeof(buf), "/replies_tree/0/%s", section);
+
+        if ((ret = getdns_dict_get_list(response, buf, answers)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
-                        "Cannot get answers: %s (%d)",
+                        "Cannot get section '%s': %s (%d)",
+                        section,
                         getdns_get_errorstr_by_id(ret),
                         ret);
                 return EXIT_UNKNOWN;
@@ -486,13 +497,16 @@ static exit_value_t get_answers(const struct test_info_s *test_info,
 
         if ((ret = getdns_list_get_length(*answers, no_answers)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
-                        "Cannot get number of answers: %s (%d)",
+                        "Cannot get number of items in '%s': %s (%d)",
+                        section,
                         getdns_get_errorstr_by_id(ret),
                         ret);
                 return EXIT_UNKNOWN;
         }
         if (*no_answers <= 0) {
-                fputs("Got zero answers", test_info->errout);
+                fprintf(test_info->errout,
+                        "Zero entries in '%s'",
+                        section);
                 return EXIT_WARNING;
         }
 
@@ -507,7 +521,7 @@ static exit_value_t check_answer_type(const struct test_info_s *test_info,
         size_t no_answers;
         exit_value_t xit;
 
-        if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
+        if ((xit = get_answers(test_info, response, "answer", &answers, &no_answers)) != EXIT_OK)
                 return xit;
 
         for (size_t i = 0; i < no_answers; ++i) {
@@ -744,7 +758,7 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         getdns_list *answers;
         size_t no_answers;
 
-        if ((xit = get_answers(test_info, response, &answers, &no_answers)) != EXIT_OK)
+        if ((xit = get_answers(test_info, response, "answer", &answers, &no_answers)) != EXIT_OK)
                 return xit;
 
         for (size_t i = 0; i < no_answers; ++i) {
@@ -773,6 +787,7 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
                         continue;
 
                 getdns_bindata *rtxt;
+
                 if ((ret = getdns_dict_get_bindata(answer, "/rdata/txt_strings/0", &rtxt)) != GETDNS_RETURN_GOOD) {
                         fputs("No answer text", test_info->errout);
                         return EXIT_WARNING;
@@ -799,6 +814,130 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         return EXIT_UNKNOWN;
 }
 
+static exit_value_t test_padding(const struct test_info_s *test_info,
+                                 char ** av)
+{
+        getdns_dict *response;
+        exit_value_t xit;
+        long blocksize;
+        char *endptr;
+        const char USAGE[] = "padding takes arguments <blocksize> [<name> [<type>]]";
+
+        if (!*av || (blocksize = strtol(*av, &endptr, 10), *endptr != '\0' || blocksize < 0)) {
+                fputs(USAGE, test_info->errout);
+                return EXIT_USAGE;
+        }
+        ++av;
+
+        getdns_return_t ret;
+        if ((ret = getdns_context_set_tls_query_padding_blocksize(test_info->context, (uint16_t) blocksize)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot set padding blocksize: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        if ((xit = parse_search_check(test_info,
+                                      av,
+                                      USAGE,
+                                      &response,
+                                      NULL,
+                                      NULL,
+                                      NULL)) != EXIT_OK)
+                return xit;
+
+        getdns_list *answers;
+        size_t no_answers;
+
+        if ((xit = get_answers(test_info, response, "additional", &answers, &no_answers)) != EXIT_OK)
+                return xit;
+
+        for (size_t i = 0; i < no_answers; ++i) {
+                getdns_dict *answer;
+                getdns_return_t ret;
+
+                if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get answer number %zu: %s (%d)",
+                                i,
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
+
+                uint32_t rtype;
+
+                if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get answer type: %s (%d)",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
+                if (rtype != GETDNS_RRTYPE_OPT)
+                        continue;
+
+                getdns_list *options;
+                size_t no_options;
+
+                if ((ret = getdns_dict_get_list(answer, "/rdata/options", &options)) != GETDNS_RETURN_GOOD) {
+                        goto no_padding;
+                }
+                if ((ret = getdns_list_get_length(options, &no_options)) != GETDNS_RETURN_GOOD) {
+                        fprintf(test_info->errout,
+                                "Cannot get number of options: %s (%d)",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
+                }
+
+                for (size_t j = 0; j < no_options; ++j) {
+                        getdns_dict *option;
+                        uint32_t code;
+
+                        if ((ret = getdns_list_get_dict(options, j, &option)) != GETDNS_RETURN_GOOD) {
+                                fprintf(test_info->errout,
+                                        "Cannot get option number %zu: %s (%d)",
+                                        j,
+                                        getdns_get_errorstr_by_id(ret),
+                                        ret);
+                                return EXIT_UNKNOWN;
+                        }
+                        if ((ret = getdns_dict_get_int(option, "option_code", &code)) != GETDNS_RETURN_GOOD) {
+                                fprintf(test_info->errout,
+                                        "Cannot get option code: %s (%d)",
+                                        getdns_get_errorstr_by_id(ret),
+                                        ret);
+                                return EXIT_UNKNOWN;
+                        }
+
+                        if (code != EDNS0_PADDING_CODE)
+                                continue;
+
+                        /* Yes, we have padding! */
+                        getdns_bindata *data;
+
+                        if ((ret = getdns_dict_get_bindata(option, "option_data", &data)) != GETDNS_RETURN_GOOD) {
+                                fprintf(test_info->errout,
+                                        "Cannot get option code: %s (%d)",
+                                        getdns_get_errorstr_by_id(ret),
+                                        ret);
+                                return EXIT_UNKNOWN;
+                        }
+
+                        fprintf(test_info->errout,
+                                "Padding found, length %zu",
+                                data->size);
+                        return EXIT_OK;
+                }
+        }
+
+no_padding:
+        fputs("No padding found", test_info->errout);
+        return EXIT_CRITICAL;
+}
+
 static struct test_funcs_s
 {
         const char *name;
@@ -811,6 +950,7 @@ static struct test_funcs_s
         { "qname-min", false, test_qname_minimisation },
         { "tls-auth", true, test_authenticate },
         { "tls-cert-valid", true, test_certificate_valid },
+        { "tls-padding", true, test_padding },
         { NULL, false, NULL }
 };
 
