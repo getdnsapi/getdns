@@ -59,7 +59,8 @@ typedef enum {
         EXIT_OK = 0,
         EXIT_WARNING,
         EXIT_CRITICAL,
-        EXIT_UNKNOWN
+        EXIT_UNKNOWN,
+        EXIT_USAGE              /* Special case - internal only. */
 } exit_value_t;
 
 /* Plugin verbosity values */
@@ -184,11 +185,11 @@ static void usage()
 "                                Check server round trip time (default 500,250)\n"
 "  qname-min                     Check whether server supports QNAME minimisation\n"
 "\n"
-"  tls_auth [<name> [<type>]]    Check authentication of TLS server\n"
+"  tls-auth [<name> [<type>]]    Check authentication of TLS server\n"
 "                                If both a SPKI pin and authentication name are\n"
 "                                provided, both must authenticate for this test\n"
 "                                to pass.\n"
-"  tls_cert-valid [warn-days,crit-days] [<name> [type]]\n"
+"  tls-cert-valid [warn-days,crit-days] [<name> [type]]\n"
 "                                Check server certificate validity, report\n"
 "                                warning or critical if days to expiry at\n"
 "                                or below thresholds (default 14,7).\n"
@@ -592,7 +593,7 @@ static exit_value_t parse_search_check(const struct test_info_s *test_info,
 
         if (*av) {
                 fputs(usage, test_info->errout);
-                return EXIT_UNKNOWN;
+                return EXIT_USAGE;
         }
 
         return search_check(test_info,
@@ -733,7 +734,7 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         if (*av) {
                 fputs("qname-min takes no arguments",
                       test_info->errout);
-                return EXIT_UNKNOWN;
+                return EXIT_USAGE;
         }
 
         getdns_dict *response;
@@ -1049,22 +1050,29 @@ int main(int ac, char *av[])
 
         exit_value_t xit = f->func(&test_info, av);
         switch(xit) {
-        case 0:
+        case EXIT_OK:
                 fputs(" OK", test_info.errout);
                 break;
 
-        case 1:
+        case EXIT_WARNING:
                 fputs(" WARNING", test_info.errout);
                 break;
 
-        case 2:
+        case EXIT_CRITICAL:
                 fputs(" CRITICAL", test_info.errout);
                 break;
 
-        default:
+        case EXIT_UNKNOWN:
                 fputs(" UNKNOWN", test_info.errout);
                 break;
 
+        case EXIT_USAGE:
+                xit = EXIT_UNKNOWN;
+                break;
+
+        default:
+                fputs(" ???", test_info.errout);
+                break;
         }
         fputc('\n', test_info.errout);
         exit(xit);
