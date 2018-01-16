@@ -293,14 +293,6 @@ static exit_value_t search(const struct test_info_s *test_info,
                 getdns_dict_destroy(extensions);
                 return EXIT_UNKNOWN;
         }
-        if ((ret = getdns_dict_set_int(extensions, "return_both_v4_and_v6", GETDNS_EXTENSION_TRUE)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot set return both IPv4 and IPv6: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
-                getdns_dict_destroy(extensions);
-                return EXIT_UNKNOWN;
-        }
 
         if (test_info->verbosity >= VERBOSITY_DEBUG) {
                 fprintf(test_info->errout,
