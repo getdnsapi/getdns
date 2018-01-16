@@ -1284,19 +1284,19 @@ int main(int ac, char *av[])
         exit_value_t xit = f->func(&test_info, av);
         switch(xit) {
         case EXIT_OK:
-                fputs(" OK", test_info.errout);
+                fputs(" (OK)", test_info.errout);
                 break;
 
         case EXIT_WARNING:
-                fputs(" WARNING", test_info.errout);
+                fputs(" (WARNING)", test_info.errout);
                 break;
 
         case EXIT_CRITICAL:
-                fputs(" CRITICAL", test_info.errout);
+                fputs(" (CRITICAL)", test_info.errout);
                 break;
 
         case EXIT_UNKNOWN:
-                fputs(" UNKNOWN", test_info.errout);
+                fputs(" (UNKNOWN)", test_info.errout);
                 break;
 
         case EXIT_USAGE:
@@ -1304,7 +1304,7 @@ int main(int ac, char *av[])
                 break;
 
         default:
-                fputs(" ???", test_info.errout);
+                fputs(" (\?\?\?)", test_info.errout);
                 break;
         }
         fputc('\n', test_info.errout);
