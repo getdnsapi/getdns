@@ -56,7 +56,9 @@
 #include "dict.h"
 #include "list.h"
 #include "jsmn/jsmn.h"
+#ifdef USE_YAML_CONFIG
 #include "yaml/convert_yaml_to_json.h"
+#endif
 #include "convert.h"
 #include "debug.h"
 

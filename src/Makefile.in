@@ -323,7 +323,7 @@ convert.lo convert.o: $(srcdir)/convert.c \
  $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/rr-iter.h \
  $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/anchor.h $(srcdir)/gldns/wire2str.h \
  $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h $(srcdir)/const-info.h $(srcdir)/dict.h \
- $(srcdir)/list.h $(srcdir)/jsmn/jsmn.h $(stubbysrcdir)/src/yaml/convert_yaml_to_json.h $(srcdir)/convert.h
+ $(srcdir)/list.h $(srcdir)/jsmn/jsmn.h $(srcdir)/convert.h
 dict.lo dict.o: $(srcdir)/dict.c \
  config.h \
  $(srcdir)/types-internal.h \
