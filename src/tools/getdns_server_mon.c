@@ -63,7 +63,7 @@ typedef enum {
         EXIT_CRITICAL,
         EXIT_UNKNOWN,
         EXIT_USAGE              /* Special case - internal only. */
-} exit_value_t;
+} exit_value;
 
 /* Plugin verbosity values */
 typedef enum {
@@ -71,7 +71,7 @@ typedef enum {
         VERBOSITY_ADDITIONAL,
         VERBOSITY_CONFIG,
         VERBOSITY_DEBUG
-} verbosity_t;
+} plugin_verbosity;
 
 static struct test_info_s
 {
@@ -80,7 +80,7 @@ static struct test_info_s
         /* Output control */
         bool monitoring;
         FILE *errout;
-        verbosity_t verbosity;
+        plugin_verbosity verbosity;
 
         /* Test config info */
         bool fail_on_dns_errors;
@@ -260,7 +260,7 @@ static void get_thresholds(char ***av,
         return;
 }
 
-static exit_value_t get_name_type_args(const struct test_info_s *test_info,
+static exit_value get_name_type_args(const struct test_info_s *test_info,
                                        char ***av,
                                        const char **lookup_name,
                                        uint32_t *lookup_type)
@@ -286,7 +286,7 @@ static exit_value_t get_name_type_args(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t search(const struct test_info_s *test_info,
+static exit_value search(const struct test_info_s *test_info,
                            const char *name,
                            uint16_t type,
                            getdns_dict **response)
@@ -333,7 +333,7 @@ static exit_value_t search(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t check_result(const struct test_info_s *test_info,
+static exit_value check_result(const struct test_info_s *test_info,
                                  const getdns_dict *response)
 {
         getdns_return_t ret;
@@ -383,7 +383,7 @@ static exit_value_t check_result(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t get_report_info(const struct test_info_s *test_info,
+static exit_value get_report_info(const struct test_info_s *test_info,
                                     const getdns_dict *response,
                                     uint32_t *rtt,
                                     getdns_bindata **auth_status,
@@ -478,7 +478,7 @@ static exit_value_t get_report_info(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t get_answers(const struct test_info_s *test_info,
+static exit_value get_answers(const struct test_info_s *test_info,
                                 const getdns_dict *response,
                                 const char *section,
                                 getdns_list **answers,
@@ -516,13 +516,13 @@ static exit_value_t get_answers(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t check_answer_type(const struct test_info_s *test_info,
+static exit_value check_answer_type(const struct test_info_s *test_info,
                                       const getdns_dict *response,
                                       uint32_t rrtype)
 {
         getdns_list *answers;
         size_t no_answers;
-        exit_value_t xit;
+        exit_value xit;
 
         if ((xit = get_answers(test_info, response, "answer", &answers, &no_answers)) != EXIT_OK)
                 return xit;
@@ -557,7 +557,7 @@ static exit_value_t check_answer_type(const struct test_info_s *test_info,
         return EXIT_UNKNOWN;
 }
 
-static exit_value_t search_check(const struct test_info_s *test_info,
+static exit_value search_check(const struct test_info_s *test_info,
                                  const char *lookup_name,
                                  uint16_t lookup_type,
                                  getdns_dict **response,
@@ -565,7 +565,7 @@ static exit_value_t search_check(const struct test_info_s *test_info,
                                  getdns_bindata **auth_status,
                                  time_t *cert_expire_time)
 {
-        exit_value_t xit;
+        exit_value xit;
         getdns_dict *resp;
 
         if ((xit = search(test_info, lookup_name, lookup_type, &resp)) != EXIT_OK)
@@ -585,7 +585,7 @@ static exit_value_t search_check(const struct test_info_s *test_info,
         return xit;
 }
 
-static exit_value_t parse_search_check(const struct test_info_s *test_info,
+static exit_value parse_search_check(const struct test_info_s *test_info,
                                        char **av,
                                        const char *usage,
                                        getdns_dict **response,
@@ -595,7 +595,7 @@ static exit_value_t parse_search_check(const struct test_info_s *test_info,
 {
         const char *lookup_name = DEFAULT_LOOKUP_NAME;
         uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
-        exit_value_t xit;
+        exit_value xit;
 
         if ((xit = get_name_type_args(test_info, &av, &lookup_name, &lookup_type)) != EXIT_OK)
                 return xit;
@@ -615,10 +615,10 @@ static exit_value_t parse_search_check(const struct test_info_s *test_info,
  ** Test routines.
  **/
 
-static exit_value_t test_lookup(const struct test_info_s *test_info,
+static exit_value test_lookup(const struct test_info_s *test_info,
                                 char ** av)
 {
-        exit_value_t xit;
+        exit_value xit;
 
         if ((xit = parse_search_check(test_info,
                                       av,
@@ -633,10 +633,10 @@ static exit_value_t test_lookup(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t test_rtt(const struct test_info_s *test_info,
+static exit_value test_rtt(const struct test_info_s *test_info,
                              char ** av)
 {
-        exit_value_t xit;
+        exit_value xit;
         int critical_ms = RTT_CRITICAL_MS;
         int warning_ms = RTT_WARNING_MS;
         uint32_t rtt_val;
@@ -661,10 +661,10 @@ static exit_value_t test_rtt(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t test_authenticate(const struct test_info_s *test_info,
+static exit_value test_authenticate(const struct test_info_s *test_info,
                                       char ** av)
 {
-        exit_value_t xit;
+        exit_value xit;
         getdns_bindata *auth_status;
 
         if ((xit = parse_search_check(test_info,
@@ -685,10 +685,10 @@ static exit_value_t test_authenticate(const struct test_info_s *test_info,
         }
 }
 
-static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
+static exit_value test_certificate_valid(const struct test_info_s *test_info,
                                            char **av)
 {
-        exit_value_t xit;
+        exit_value xit;
         int warning_days = CERT_EXPIRY_WARNING_DAYS;
         int critical_days = CERT_EXPIRY_CRITICAL_DAYS;
         time_t expire_time;
@@ -737,7 +737,7 @@ static exit_value_t test_certificate_valid(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
+static exit_value test_qname_minimisation(const struct test_info_s *test_info,
                                             char ** av)
 {
         if (*av) {
@@ -747,7 +747,7 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         }
 
         getdns_dict *response;
-        exit_value_t xit;
+        exit_value xit;
 
         if ((xit = search_check(test_info,
                                 "qnamemintest.internet.nl",
@@ -817,11 +817,11 @@ static exit_value_t test_qname_minimisation(const struct test_info_s *test_info,
         return EXIT_UNKNOWN;
 }
 
-static exit_value_t test_padding(const struct test_info_s *test_info,
+static exit_value test_padding(const struct test_info_s *test_info,
                                  char ** av)
 {
         getdns_dict *response;
-        exit_value_t xit;
+        exit_value xit;
         long blocksize;
         char *endptr;
         const char USAGE[] = "padding takes arguments <blocksize> [<name> [<type>]]";
@@ -941,11 +941,11 @@ no_padding:
         return EXIT_CRITICAL;
 }
 
-static exit_value_t test_keepalive(const struct test_info_s *test_info,
+static exit_value test_keepalive(const struct test_info_s *test_info,
                                    char ** av)
 {
         getdns_dict *response;
-        exit_value_t xit;
+        exit_value xit;
         long long timeout;
         char *endptr;
         const char USAGE[] = "keepalive takes arguments <timeout-ms> [<name> [<type>]]";
@@ -1033,7 +1033,7 @@ static struct test_funcs_s
         const char *name;
         bool implies_tls;
         bool implies_tcp;
-        exit_value_t (*func)(const struct test_info_s *test_info, char **av);
+        exit_value (*func)(const struct test_info_s *test_info, char **av);
 } TESTS[] =
 {
         { "lookup", false, false, test_lookup },
@@ -1281,7 +1281,7 @@ int main(int ac, char *av[])
                 }
         }
 
-        exit_value_t xit = f->func(&test_info, av);
+        exit_value xit = f->func(&test_info, av);
         switch(xit) {
         case EXIT_OK:
                 fputs(" (OK)", test_info.errout);
