@@ -139,6 +139,64 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
 
         ASN1_TIME *not_after = X509_get_notAfter(cert);
 
+#if OPENSSL_VERSION_NUMBER < 0x10002000
+        /*
+         * OpenSSL before 1.0.2 does not support ASN1_TIME_diff().
+         * So work around by using ASN1_TIME_print() to print to a buffer
+         * and parsing that. This does not do any kind of sane format,
+         * but 'Mar 15 11:58:50 2018 GMT'. Note the month name is not
+         * locale-dependent but always English, so strptime() to parse
+         * isn't going to work. It also *appears* to always end 'GMT'.
+         * timegm() is a glibc-ism, but there is no sensible
+         * alternative. Patches welcome...
+         */
+
+        char buf[40];
+        BIO *b = BIO_new(BIO_s_mem());
+        if (ASN1_TIME_print(b, not_after) <= 0) {
+                BIO_free(b);
+                X509_free(cert);
+                return false;
+        }
+        if (BIO_gets(b, buf, sizeof(buf)) <= 0) {
+                BIO_free(b);
+                X509_free(cert);
+                return false;
+        }
+        BIO_free(b);
+        X509_free(cert);
+
+        struct tm tm;
+        char month[4];
+        char tz[4];
+        memset(&tm, 0, sizeof(tm));
+        if (sscanf(buf,
+                   "%3s %d %d:%d:%d %d %3s",
+                   month,
+                   &tm.tm_mday,
+                   &tm.tm_hour,
+                   &tm.tm_min,
+                   &tm.tm_sec,
+                   &tm.tm_year,
+                   tz) != 7)
+                return false;
+        tm.tm_year -= 1900;
+        if (strcmp(tz, "GMT") != 0)
+                return false;
+
+        const char *mon[] = {
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        };
+
+        while(tm.tm_mon < 12 && strcmp(mon[tm.tm_mon], month) != 0)
+                ++tm.tm_mon;
+        if (tm.tm_mon > 11)
+                return false;
+
+        *t = timegm(&tm);
+        return true;
+#else
         /*
          * Use ASN1_TIME_diff to get a time delta between now and expiry.
          * This is much easier than trying to parse the time.
@@ -150,6 +208,7 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
 
         X509_free(cert);
         return true;
+#endif
 }
 
 static void exit_tidy()
@@ -468,7 +527,7 @@ static exit_value get_report_info(const struct test_info_s *test_info,
                 if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
                         struct tm *tm = gmtime(&cert_expire_time_val);
                         char buf[25];
-                        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+                        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", tm);
                         fprintf(test_info->errout, "cert expiry %s, ", buf);
                 }
         }
