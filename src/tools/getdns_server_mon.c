@@ -385,17 +385,21 @@ static exit_value get_name_type_args(const struct test_info_s *test_info,
 static exit_value search(const struct test_info_s *test_info,
                          const char *name,
                          uint16_t type,
+                         getdns_dict *extensions,
                          getdns_dict **response)
 {
         getdns_return_t ret;
-        getdns_dict *extensions = getdns_dict_create();
+        getdns_dict *search_extensions =
+                (extensions) ? extensions : getdns_dict_create();
 
-        if ((ret = getdns_dict_set_int(extensions, "return_call_reporting", GETDNS_EXTENSION_TRUE)) != GETDNS_RETURN_GOOD) {
+        /* We always turn on the return_call_reporting extension. */
+        if ((ret = getdns_dict_set_int(search_extensions, "return_call_reporting", GETDNS_EXTENSION_TRUE)) != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Cannot set return call reporting: %s (%d)",
                         getdns_get_errorstr_by_id(ret),
                         ret);
-                getdns_dict_destroy(extensions);
+                if (!extensions)
+                        getdns_dict_destroy(search_extensions);
                 return EXIT_UNKNOWN;
         }
 
@@ -408,9 +412,10 @@ static exit_value search(const struct test_info_s *test_info,
         ret = getdns_general_sync(test_info->context,
                                   name,
                                   type,
-                                  extensions,
+                                  search_extensions,
                                   response);
-        getdns_dict_destroy(extensions);
+        if (!extensions)
+                getdns_dict_destroy(search_extensions);
         if (ret != GETDNS_RETURN_GOOD) {
                 fprintf(test_info->errout,
                         "Error resolving '%s': %s (%d)",
@@ -689,7 +694,7 @@ static exit_value search_check(const struct test_info_s *test_info,
         exit_value xit;
         getdns_dict *resp;
 
-        if ((xit = search(test_info, lookup_name, lookup_type, &resp)) != EXIT_OK)
+        if ((xit = search(test_info, lookup_name, lookup_type, NULL, &resp)) != EXIT_OK)
                 return xit;
 
         if ((xit = check_result(test_info, resp)) != EXIT_OK)
@@ -1164,10 +1169,8 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
         if ((xit = search(test_info,
                           "dnssec-failed.org",
                           GETDNS_RRTYPE_A,
+                          NULL,
                           &response)) != EXIT_OK)
-                return xit;
-
-        if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
                 return xit;
 
         uint32_t error_id, rcode;
@@ -1175,23 +1178,64 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
         if ((xit = get_result(test_info, response, &error_id, &rcode)) != EXIT_OK)
                 return xit;
 
-        switch(error_id) {
-        case GETDNS_RESPSTATUS_ALL_TIMEOUT:
+        if (error_id == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
                 fputs("Search timed out", test_info->errout);
                 return EXIT_CRITICAL;
-
-        case GETDNS_RESPSTATUS_NO_SECURE_ANSWERS:
-        case GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS:
-        case GETDNS_RESPSTATUS_NO_NAME:
-                fputs("Server validates DNSSEC", test_info->errout);
-                return EXIT_OK;
-
-        default:
-                break;
         }
 
-        fputs("Server does NOT validate DNSSEC", test_info->errout);
-        return EXIT_CRITICAL;
+        if (rcode != GETDNS_RCODE_SERVFAIL) {
+                fputs("Server does NOT validate DNSSEC", test_info->errout);
+                return EXIT_CRITICAL;
+        }
+
+        /*
+         * Rerun the query, but this time set the CD bit. The lookup should
+         * succeed.
+         */
+        getdns_return_t ret;
+        getdns_dict *response2;
+        getdns_dict *extensions = getdns_dict_create();
+
+        if ((ret = getdns_dict_set_int(extensions, "/header/cd", 1)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot set CD bit: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                getdns_dict_destroy(extensions);
+                return EXIT_UNKNOWN;
+        }
+
+        if ((xit = search(test_info,
+                          "dnssec-failed.org",
+                          GETDNS_RRTYPE_A,
+                          extensions,
+                          &response2)) != EXIT_OK)
+                return xit;
+
+        getdns_dict_destroy(extensions);
+
+        /*
+         * Only now get report info from the first search, so that any
+         * verbose output appears after the context/reponse dumps.
+         */
+        if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
+                return xit;
+
+        if ((xit = get_result(test_info, response2, &error_id, &rcode)) != EXIT_OK)
+                return xit;
+
+        if (error_id == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
+                fputs("Search timed out", test_info->errout);
+                return EXIT_CRITICAL;
+        }
+
+        if (error_id != GETDNS_RESPSTATUS_GOOD || rcode != GETDNS_RCODE_NOERROR) {
+                fputs("Server error - cannot determine DNSSEC status", test_info->errout);
+                return EXIT_UNKNOWN;
+        }
+
+        fputs("Server validates DNSSEC", test_info->errout);
+        return EXIT_OK;
 }
 
 static struct test_funcs_s
@@ -1209,7 +1253,7 @@ static struct test_funcs_s
         { "tls-cert-valid", true, false, test_certificate_valid },
         { "tls-padding", true, false, test_padding },
         { "keepalive", false, true, test_keepalive },
-        { "dnssec-validate", false, true, test_dnssec_validate },
+        { "dnssec-validate", false, false, test_dnssec_validate },
         { NULL, false, false, NULL }
 };
 
@@ -1471,6 +1515,7 @@ int main(int ac, char *av[])
                 break;
 
         default:
+                /* ??? is a trigraph... */
                 fputs(" (\?\?\?)", test_info.errout);
                 break;
         }
