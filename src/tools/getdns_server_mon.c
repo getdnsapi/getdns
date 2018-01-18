@@ -355,9 +355,9 @@ static void get_thresholds(char ***av,
 }
 
 static exit_value get_name_type_args(const struct test_info_s *test_info,
-                                       char ***av,
-                                       const char **lookup_name,
-                                       uint32_t *lookup_type)
+                                     char ***av,
+                                     const char **lookup_name,
+                                     uint32_t *lookup_type)
 {
         if (**av) {
                 if (strlen(**av) > 0) {
@@ -381,9 +381,9 @@ static exit_value get_name_type_args(const struct test_info_s *test_info,
 }
 
 static exit_value search(const struct test_info_s *test_info,
-                           const char *name,
-                           uint16_t type,
-                           getdns_dict **response)
+                         const char *name,
+                         uint16_t type,
+                         getdns_dict **response)
 {
         getdns_return_t ret;
         getdns_dict *extensions = getdns_dict_create();
@@ -428,7 +428,7 @@ static exit_value search(const struct test_info_s *test_info,
 }
 
 static exit_value check_result(const struct test_info_s *test_info,
-                                 const getdns_dict *response)
+                               const getdns_dict *response)
 {
         getdns_return_t ret;
         uint32_t error_id;
@@ -478,10 +478,10 @@ static exit_value check_result(const struct test_info_s *test_info,
 }
 
 static exit_value get_report_info(const struct test_info_s *test_info,
-                                    const getdns_dict *response,
-                                    uint32_t *rtt,
-                                    getdns_bindata **auth_status,
-                                    time_t *cert_expire_time)
+                                  const getdns_dict *response,
+                                  uint32_t *rtt,
+                                  getdns_bindata **auth_status,
+                                  time_t *cert_expire_time)
 {
         getdns_return_t ret;
         getdns_list *l;
@@ -573,10 +573,10 @@ static exit_value get_report_info(const struct test_info_s *test_info,
 }
 
 static exit_value get_answers(const struct test_info_s *test_info,
-                                const getdns_dict *response,
-                                const char *section,
-                                getdns_list **answers,
-                                size_t *no_answers)
+                              const getdns_dict *response,
+                              const char *section,
+                              getdns_list **answers,
+                              size_t *no_answers)
 {
         getdns_return_t ret;
         char buf[40];
@@ -611,8 +611,8 @@ static exit_value get_answers(const struct test_info_s *test_info,
 }
 
 static exit_value check_answer_type(const struct test_info_s *test_info,
-                                      const getdns_dict *response,
-                                      uint32_t rrtype)
+                                    const getdns_dict *response,
+                                    uint32_t rrtype)
 {
         getdns_list *answers;
         size_t no_answers;
@@ -652,12 +652,12 @@ static exit_value check_answer_type(const struct test_info_s *test_info,
 }
 
 static exit_value search_check(const struct test_info_s *test_info,
-                                 const char *lookup_name,
-                                 uint16_t lookup_type,
-                                 getdns_dict **response,
-                                 uint32_t *rtt,
-                                 getdns_bindata **auth_status,
-                                 time_t *cert_expire_time)
+                               const char *lookup_name,
+                               uint16_t lookup_type,
+                               getdns_dict **response,
+                               uint32_t *rtt,
+                               getdns_bindata **auth_status,
+                               time_t *cert_expire_time)
 {
         exit_value xit;
         getdns_dict *resp;
@@ -680,12 +680,12 @@ static exit_value search_check(const struct test_info_s *test_info,
 }
 
 static exit_value parse_search_check(const struct test_info_s *test_info,
-                                       char **av,
-                                       const char *usage,
-                                       getdns_dict **response,
-                                       uint32_t *rtt,
-                                       getdns_bindata **auth_status,
-                                       time_t *cert_expire_time)
+                                     char **av,
+                                     const char *usage,
+                                     getdns_dict **response,
+                                     uint32_t *rtt,
+                                     getdns_bindata **auth_status,
+                                     time_t *cert_expire_time)
 {
         const char *lookup_name = DEFAULT_LOOKUP_NAME;
         uint32_t lookup_type = DEFAULT_LOOKUP_TYPE;
@@ -710,7 +710,7 @@ static exit_value parse_search_check(const struct test_info_s *test_info,
  **/
 
 static exit_value test_lookup(const struct test_info_s *test_info,
-                                char ** av)
+                              char ** av)
 {
         exit_value xit;
 
@@ -728,7 +728,7 @@ static exit_value test_lookup(const struct test_info_s *test_info,
 }
 
 static exit_value test_rtt(const struct test_info_s *test_info,
-                             char ** av)
+                           char ** av)
 {
         exit_value xit;
         int critical_ms = RTT_CRITICAL_MS;
@@ -756,7 +756,7 @@ static exit_value test_rtt(const struct test_info_s *test_info,
 }
 
 static exit_value test_authenticate(const struct test_info_s *test_info,
-                                      char ** av)
+                                    char ** av)
 {
         exit_value xit;
         getdns_bindata *auth_status;
@@ -780,7 +780,7 @@ static exit_value test_authenticate(const struct test_info_s *test_info,
 }
 
 static exit_value test_certificate_valid(const struct test_info_s *test_info,
-                                           char **av)
+                                         char **av)
 {
         exit_value xit;
         int warning_days = CERT_EXPIRY_WARNING_DAYS;
@@ -832,7 +832,7 @@ static exit_value test_certificate_valid(const struct test_info_s *test_info,
 }
 
 static exit_value test_qname_minimisation(const struct test_info_s *test_info,
-                                            char ** av)
+                                          char ** av)
 {
         if (*av) {
                 fputs("qname-min takes no arguments",
@@ -912,7 +912,7 @@ static exit_value test_qname_minimisation(const struct test_info_s *test_info,
 }
 
 static exit_value test_padding(const struct test_info_s *test_info,
-                                 char ** av)
+                               char ** av)
 {
         getdns_dict *response;
         exit_value xit;
@@ -1036,7 +1036,7 @@ no_padding:
 }
 
 static exit_value test_keepalive(const struct test_info_s *test_info,
-                                   char ** av)
+                                 char ** av)
 {
         getdns_dict *response;
         exit_value xit;
@@ -1103,11 +1103,11 @@ static exit_value test_keepalive(const struct test_info_s *test_info,
 
                 if (!((ret = getdns_dict_get_int(d, "idle timeout in ms", &t)) == GETDNS_RETURN_GOOD ||
                       (overflow = true, ret = getdns_dict_get_int(d, "idle timeout in ms (overflow)", &t)) == GETDNS_RETURN_GOOD)) {
-                fprintf(test_info->errout,
-                        "Cannot get idle timeout: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
-                return EXIT_UNKNOWN;
+                        fprintf(test_info->errout,
+                                "Cannot get idle timeout: %s (%d)",
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                        return EXIT_UNKNOWN;
                 }
 
                 if (overflow) {
