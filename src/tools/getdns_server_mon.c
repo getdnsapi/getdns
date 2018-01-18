@@ -128,7 +128,33 @@ static const char *rcode_text(int rcode)
                 return text[rcode];
 }
 
-/* Thanks to:
+#if OPENSSL_VERSION_NUMBER < 0x10002000
+/*
+ * Convert date to Julian day.
+ * See https://en.wikipedia.org/wiki/Julian_day
+ */
+static long julian_day(const struct tm *tm)
+{
+        long dd, mm, yyyy;
+
+        dd = tm->tm_mday;
+        mm = tm->tm_mon + 1;
+        yyyy = tm->tm_year + 1900;
+
+        return (1461 * (yyyy + 4800 + (mm - 14) / 12)) / 4 +
+                (367 * (mm - 2 - 12 * ((mm - 14) / 12))) / 12 -
+                (3 * ((yyyy + 4900 + (mm - 14) / 12) / 100)) / 4 +
+                dd - 32075;
+}
+
+static long secs_in_day(const struct tm *tm)
+{
+        return ((tm->tm_hour * 60) + tm->tm_min) * 60 + tm->tm_sec;
+}
+#endif
+
+/*
+ * Thanks to:
  * https://zakird.com/2013/10/13/certificate-parsing-with-openssl
  */
 static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t)
@@ -137,7 +163,11 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
         if (!cert)
                 return false;
 
+        int day_diff, sec_diff;
+        const long SECS_IN_DAY = 60 * 60 * 24;
         ASN1_TIME *not_after = X509_get_notAfter(cert);
+
+        *t = time(NULL);
 
 #if OPENSSL_VERSION_NUMBER < 0x10002000
         /*
@@ -147,8 +177,9 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
          * but 'Mar 15 11:58:50 2018 GMT'. Note the month name is not
          * locale-dependent but always English, so strptime() to parse
          * isn't going to work. It also *appears* to always end 'GMT'.
-         * timegm() is a glibc-ism, but there is no sensible
-         * alternative. Patches welcome...
+         * Ideally one could then convert this UTC time to a time_t, but
+         * there's no way to do that in standard C/POSIX. So follow the
+         * lead of OpenSSL, convert to Julian days and use the difference.
          */
 
         char buf[40];
@@ -194,21 +225,25 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
         if (tm.tm_mon > 11)
                 return false;
 
-        *t = timegm(&tm);
-        return true;
+        struct tm tm_now;
+        gmtime_r(t, &tm_now);
+
+        day_diff = julian_day(&tm) - julian_day(&tm_now);
+        sec_diff = secs_in_day(&tm) - secs_in_day(&tm_now);
+        if (sec_diff < 0) {
+                sec_diff += SECS_IN_DAY;
+                --day_diff;
+        }
 #else
         /*
          * Use ASN1_TIME_diff to get a time delta between now and expiry.
          * This is much easier than trying to parse the time.
          */
-        int day, sec;
-        *t = time(NULL);
-        ASN1_TIME_diff(&day, &sec, NULL, not_after);
-        *t += day * 86400 + sec;
-
+        ASN1_TIME_diff(&day_diff, &sec_diff, NULL, not_after);
         X509_free(cert);
-        return true;
 #endif
+        *t += day_diff * SECS_IN_DAY + sec_diff;
+        return true;
 }
 
 static void exit_tidy()
