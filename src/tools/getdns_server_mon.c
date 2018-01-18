@@ -887,7 +887,7 @@ static exit_value test_qname_minimisation(const struct test_info_s *test_info,
 
                 if ((ret = getdns_dict_get_bindata(answer, "/rdata/txt_strings/0", &rtxt)) != GETDNS_RETURN_GOOD) {
                         fputs("No answer text", test_info->errout);
-                        return EXIT_WARNING;
+                        return EXIT_UNKNOWN;
                 }
 
                 if (rtxt->size > 0 ) {
