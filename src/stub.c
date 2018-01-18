@@ -1687,12 +1687,14 @@ upstream_write_cb(void *userarg)
 		remove_from_write_queue(upstream, netreq);
 
 		if (netreq->owner->return_call_reporting &&
-		    netreq->upstream->tls_obj &&
-		    netreq->debug_tls_peer_cert.data == NULL &&
-		    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
-			netreq->debug_tls_peer_cert.size = i2d_X509(
-			    cert, &netreq->debug_tls_peer_cert.data);
-			X509_free(cert);
+		    netreq->upstream->tls_obj) {
+			if (netreq->debug_tls_peer_cert.data == NULL &&
+			    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
+				netreq->debug_tls_peer_cert.size = i2d_X509(
+					cert, &netreq->debug_tls_peer_cert.data);
+				X509_free(cert);
+			}
+			netreq->debug_tls_version = SSL_get_version(netreq->upstream->tls_obj);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;

@@ -920,6 +920,12 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_util_set_string(netreq_debug, "tls_version",
+	    netreq->debug_tls_version)){
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	if (getdns_dict_set_bindata(netreq_debug, "tls_peer_cert",
 	    &netreq->debug_tls_peer_cert)) {
 

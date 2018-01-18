@@ -54,6 +54,13 @@
 
 #define EDNS0_PADDING_CODE              12
 
+static const char TLS13_CIPHER_SUITE[] =
+        "TLS13-AES-256-GCM-SHA384:"
+        "TLS13-CHACHA20-POLY1305-SHA256:"
+        "TLS13-AES-128-GCM-SHA256:"
+        "TLS13-AES-128-CCM-8-SHA256:"
+        "TLS13-AES-128-CCM-SHA256";
+
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 /* Plugin exit values */
@@ -298,6 +305,7 @@ static void usage()
 "                                Check server support for EDNS0 padding in TLS\n"
 "                                Special blocksize values are 0 = off,\n"
 "                                1 = sensible default.\n"
+"  tls-1.3                       Check whether server supports TLS 1.3\n"
 "\n"
 "Enabling monitoring mode ensures output messages and exit statuses conform\n"
 "to the requirements of monitoring plugins (www.monitoring-plugins.org).\n",
@@ -386,7 +394,8 @@ static exit_value search(const struct test_info_s *test_info,
                          const char *name,
                          uint16_t type,
                          getdns_dict *extensions,
-                         getdns_dict **response)
+                         getdns_dict **response,
+                         getdns_return_t *getdns_return)
 {
         getdns_return_t ret;
         getdns_dict *search_extensions =
@@ -394,6 +403,8 @@ static exit_value search(const struct test_info_s *test_info,
 
         /* We always turn on the return_call_reporting extension. */
         if ((ret = getdns_dict_set_int(search_extensions, "return_call_reporting", GETDNS_EXTENSION_TRUE)) != GETDNS_RETURN_GOOD) {
+                if (getdns_return)
+                        *getdns_return = ret;
                 fprintf(test_info->errout,
                         "Cannot set return call reporting: %s (%d)",
                         getdns_get_errorstr_by_id(ret),
@@ -417,11 +428,15 @@ static exit_value search(const struct test_info_s *test_info,
         if (!extensions)
                 getdns_dict_destroy(search_extensions);
         if (ret != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Error resolving '%s': %s (%d)",
-                        name,
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                if (getdns_return) {
+                        *getdns_return = ret;
+                } else {
+                        fprintf(test_info->errout,
+                                "Error resolving '%s': %s (%d)",
+                                name,
+                                getdns_get_errorstr_by_id(ret),
+                                ret);
+                }
                 return EXIT_CRITICAL;
         }
 
@@ -431,6 +446,8 @@ static exit_value search(const struct test_info_s *test_info,
                         getdns_pretty_print_dict(*response));
         }
 
+        if (getdns_return)
+                *getdns_return = ret;
         return EXIT_OK;
 }
 
@@ -694,7 +711,7 @@ static exit_value search_check(const struct test_info_s *test_info,
         exit_value xit;
         getdns_dict *resp;
 
-        if ((xit = search(test_info, lookup_name, lookup_type, NULL, &resp)) != EXIT_OK)
+        if ((xit = search(test_info, lookup_name, lookup_type, NULL, &resp, NULL)) != EXIT_OK)
                 return xit;
 
         if ((xit = check_result(test_info, resp)) != EXIT_OK)
@@ -1170,7 +1187,8 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
                           "dnssec-failed.org",
                           GETDNS_RRTYPE_A,
                           NULL,
-                          &response)) != EXIT_OK)
+                          &response,
+                          NULL)) != EXIT_OK)
                 return xit;
 
         uint32_t error_id, rcode;
@@ -1209,7 +1227,8 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
                           "dnssec-failed.org",
                           GETDNS_RRTYPE_A,
                           extensions,
-                          &response2)) != EXIT_OK)
+                          &response2,
+                          NULL)) != EXIT_OK)
                 return xit;
 
         getdns_dict_destroy(extensions);
@@ -1238,6 +1257,100 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
+static exit_value test_tls13(const struct test_info_s *test_info,
+                             char ** av)
+{
+        exit_value xit;
+        getdns_return_t ret;
+
+        if (*av) {
+                fputs("tls-1.3 takes no arguments", test_info->errout);
+                return EXIT_USAGE;
+        }
+
+        /*
+         * Set cipher list to TLS 1.3-only ciphers. If we are using
+         * an OpenSSL version that doesn't support TLS 1.3 this will cause
+         * a Bad Context error on the lookup.
+         */
+        if ((ret = getdns_context_set_tls_cipher_list(test_info->context, TLS13_CIPHER_SUITE)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot set TLS 1.3 cipher list: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+        }
+
+        getdns_dict *response;
+
+        if ((xit = search(test_info,
+                          DEFAULT_LOOKUP_NAME,
+                          DEFAULT_LOOKUP_TYPE,
+                          NULL,
+                          &response,
+                          &ret)) != EXIT_OK) {
+                if (xit == EXIT_CRITICAL) {
+                        if (ret == GETDNS_RETURN_BAD_CONTEXT) {
+                                fputs("Your version of OpenSSL does not support TLS 1.3 ciphers. You need at least OpenSSL 1.1.1.",
+                                      test_info->errout);
+                                return EXIT_UNKNOWN;
+                        } else {
+                                fputs("Cannot establish TLS 1.3 connection.",
+                                      test_info->errout);
+                                return EXIT_CRITICAL;
+                        }
+                } else {
+                        return xit;
+                }
+        }
+
+        if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
+                return xit;
+
+        getdns_list *l;
+
+        if ((ret = getdns_dict_get_list(response, "call_reporting", &l)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get call report: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        getdns_dict *d;
+
+        if ((ret = getdns_list_get_dict(l, 0, &d)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get call report first item: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        /* Search is forced TLS, so tls_version flag must exist. */
+        getdns_bindata *version;
+
+        if ((ret = getdns_dict_get_bindata(d, "tls_version", &version)) != GETDNS_RETURN_GOOD) {
+                fprintf(test_info->errout,
+                        "Cannot get TLS version: %s (%d)",
+                        getdns_get_errorstr_by_id(ret),
+                        ret);
+                return EXIT_UNKNOWN;
+        }
+
+        const char TLS_1_3_SIG[] = "TLSv1.3";
+
+        if (strncmp((const char *)version->data, TLS_1_3_SIG, sizeof(TLS_1_3_SIG) - 1) != 0) {
+                fputs("Server does not support TLS 1.3", test_info->errout);
+                return EXIT_CRITICAL;
+        }
+
+        if ((xit = check_result(test_info, response)) != EXIT_OK)
+                return xit;
+
+        fputs("Server supports TLS 1.3", test_info->errout);
+        return EXIT_OK;
+}
+
 static struct test_funcs_s
 {
         const char *name;
@@ -1254,6 +1367,7 @@ static struct test_funcs_s
         { "tls-padding", true, false, test_padding },
         { "keepalive", false, true, test_keepalive },
         { "dnssec-validate", false, false, test_dnssec_validate },
+        { "tls-1.3", true, false, test_tls13 },
         { NULL, false, false, NULL }
 };
 
