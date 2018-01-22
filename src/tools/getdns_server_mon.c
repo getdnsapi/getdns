@@ -26,6 +26,7 @@
  */
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -80,18 +81,38 @@ typedef enum {
         VERBOSITY_DEBUG
 } plugin_verbosity;
 
+#define MAX_BASE_OUTPUT_LEN             256
+#define MAX_PERF_OUTPUT_LEN             256
+
 static struct test_info_s
 {
         getdns_context *context;
 
-        /* Output control */
+        /* Output */
         bool monitoring;
         FILE *errout;
         plugin_verbosity verbosity;
+        bool debug_output;
+        char base_output[MAX_BASE_OUTPUT_LEN + 1];
+        char perf_output[MAX_PERF_OUTPUT_LEN + 1];
 
         /* Test config info */
         bool fail_on_dns_errors;
 } test_info;
+
+static void snprintcat(char *buf, size_t buflen, const char *format, ...)
+{
+        va_list ap;
+        int l = strlen(buf);
+
+        buf += l;
+        buflen -= l;
+
+        va_start(ap, format);
+        vsnprintf(buf, buflen, format, ap);
+        va_end(ap);
+        buf[buflen] = '\0';
+}
 
 static int get_rrtype(const char *t)
 {
@@ -263,7 +284,7 @@ static void usage()
 {
         fputs(
 "Usage: " APP_NAME " [-M] [-E] [(-u|-t|-T)] [-S] [-K <spki-pin>]\n"
-"        [-v [-v [-v]]] [-V] @upstream testname [<name>] [<type>]\n"
+"        [-v [-v [-v]]] [-V] @upstream testname [<test args>]\n"
 "  -M|--monitoring               Make output suitable for monitoring tools\n"
 "  -E|--fail-on-dns-errors       Fail on DNS error (NXDOMAIN, SERVFAIL)\n"
 "  -u|--udp                      Use UDP transport\n"
@@ -272,6 +293,7 @@ static void usage()
 "  -S|--strict-usage-profile     Use strict profile (require authentication)\n"
 "  -K|--spki-pin <spki-pin>      SPKI pin for TLS connections (can repeat)\n"
 "  -v|--verbose                  Increase output verbosity\n"
+"  -D|--debug                    Enable debugging output\n"
 "  -V|--version                  Report GetDNS version\n"
 "\n"
 "spki-pin: Should look like '" EXAMPLE_PIN "'\n"
@@ -364,7 +386,7 @@ static void get_thresholds(char ***av,
         return;
 }
 
-static exit_value get_name_type_args(const struct test_info_s *test_info,
+static exit_value get_name_type_args(struct test_info_s *test_info,
                                      char ***av,
                                      const char **lookup_name,
                                      uint32_t *lookup_type)
@@ -373,7 +395,7 @@ static exit_value get_name_type_args(const struct test_info_s *test_info,
                 if (strlen(**av) > 0) {
                         *lookup_name = **av;
                 } else {
-                        fputs("Empty name not valid", test_info->errout);
+                        strcpy(test_info->base_output, "Empty name not valid");
                         return EXIT_UNKNOWN;
                 }
                 ++*av;
@@ -390,7 +412,7 @@ static exit_value get_name_type_args(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value search(const struct test_info_s *test_info,
+static exit_value search(struct test_info_s *test_info,
                          const char *name,
                          uint16_t type,
                          getdns_dict *extensions,
@@ -405,19 +427,24 @@ static exit_value search(const struct test_info_s *test_info,
         if ((ret = getdns_dict_set_int(search_extensions, "return_call_reporting", GETDNS_EXTENSION_TRUE)) != GETDNS_RETURN_GOOD) {
                 if (getdns_return)
                         *getdns_return = ret;
-                fprintf(test_info->errout,
-                        "Cannot set return call reporting: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot set return call reporting: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 if (!extensions)
                         getdns_dict_destroy(search_extensions);
                 return EXIT_UNKNOWN;
         }
 
-        if (test_info->verbosity >= VERBOSITY_DEBUG) {
-                fprintf(test_info->errout,
-                        "Context: %s\n",
-                        getdns_pretty_print_dict(getdns_context_get_api_information(test_info->context)));
+        if (test_info->verbosity >= VERBOSITY_ADDITIONAL &&
+            !test_info->monitoring) {
+                printf("Lookup:\t\t\t%s %u\n", name, type);
+        }
+
+        if (test_info->debug_output) {
+                printf("Context: %s\n",
+                       getdns_pretty_print_dict(getdns_context_get_api_information(test_info->context)));
         }
 
         ret = getdns_general_sync(test_info->context,
@@ -431,19 +458,19 @@ static exit_value search(const struct test_info_s *test_info,
                 if (getdns_return) {
                         *getdns_return = ret;
                 } else {
-                        fprintf(test_info->errout,
-                                "Error resolving '%s': %s (%d)",
-                                name,
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Error resolving '%s': %s (%d)",
+                                 name,
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                 }
                 return EXIT_CRITICAL;
         }
 
-        if (test_info->verbosity >= VERBOSITY_DEBUG) {
-                fprintf(test_info->errout,
-                        "Response: %s\n",
-                        getdns_pretty_print_dict(*response));
+        if (test_info->debug_output) {
+                printf("Response: %s\n",
+                       getdns_pretty_print_dict(*response));
         }
 
         if (getdns_return)
@@ -451,7 +478,7 @@ static exit_value search(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value get_result(const struct test_info_s *test_info,
+static exit_value get_result(struct test_info_s *test_info,
                              const getdns_dict *response,
                              uint32_t *error_id,
                              uint32_t *rcode)
@@ -459,10 +486,11 @@ static exit_value get_result(const struct test_info_s *test_info,
         getdns_return_t ret;
 
         if ((ret = getdns_dict_get_int(response, "status", error_id)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get result status: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get result status: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
@@ -472,17 +500,18 @@ static exit_value get_result(const struct test_info_s *test_info,
         }
 
         if ((ret = getdns_dict_get_int(response, "/replies_tree/0/header/rcode", rcode)) !=  GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get DNS return code: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get DNS return code: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         return EXIT_OK;
 }
 
-static exit_value check_result(const struct test_info_s *test_info,
+static exit_value check_result(struct test_info_s *test_info,
                                const getdns_dict *response)
 {
         exit_value xit;
@@ -493,15 +522,15 @@ static exit_value check_result(const struct test_info_s *test_info,
 
         switch(error_id) {
         case GETDNS_RESPSTATUS_ALL_TIMEOUT:
-                fputs("Search timed out", test_info->errout);
+                strcpy(test_info->base_output, "Search timed out");
                 return EXIT_CRITICAL;
 
         case GETDNS_RESPSTATUS_NO_SECURE_ANSWERS:
-                fputs("No secure answers", test_info->errout);
+                strcpy(test_info->base_output, "No secure answers");
                 return EXIT_CRITICAL;
 
         case GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS:
-                fputs("All answers are bogus", test_info->errout);
+                strcpy(test_info->base_output, "All answers are bogus");
                 return EXIT_CRITICAL;
 
         default:
@@ -509,24 +538,31 @@ static exit_value check_result(const struct test_info_s *test_info,
         }
 
         if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
-                fprintf(test_info->errout,
-                        "result: %s (%d), ",
-                        getdns_get_errorstr_by_id(error_id),
-                        error_id);
+                if (test_info->monitoring) {
+                        snprintcat(test_info->perf_output,
+                                   MAX_PERF_OUTPUT_LEN,
+                                   "result=%d;",
+                                   error_id);
+                } else {
+                        printf("DNS result:\t\t%s (%d)\n",
+                                   getdns_get_errorstr_by_id(error_id),
+                                   error_id);
+                }
         }
 
         if (test_info->fail_on_dns_errors && rcode > 0) {
-                fprintf(test_info->errout,
-                        "DNS error %s (%d)",
-                        rcode_text(rcode),
-                        rcode);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "DNS error %s (%d)",
+                         rcode_text(rcode),
+                         rcode);
                 return EXIT_CRITICAL;
         }
 
         return EXIT_OK;
 }
 
-static exit_value get_report_info(const struct test_info_s *test_info,
+static exit_value get_report_info(struct test_info_s *test_info,
                                   const getdns_dict *response,
                                   uint32_t *rtt,
                                   getdns_bindata **auth_status,
@@ -539,80 +575,120 @@ static exit_value get_report_info(const struct test_info_s *test_info,
         time_t cert_expire_time_val = 0;
 
         if ((ret = getdns_dict_get_list(response, "call_reporting", &l)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get call report: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get call report: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         getdns_dict *d;
+
         if ((ret = getdns_list_get_dict(l, 0, &d)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get call report first item: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get call report first item: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
         if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
                 uint32_t transport;
+                const char *transport_text = "???";
+
                 if ((ret = getdns_dict_get_int(d, "transport", &transport)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get transport: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get transport: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
+
                 switch(transport) {
                 case GETDNS_TRANSPORT_UDP:
-                        fputs("UDP, ", test_info->errout);
+                        transport_text = "UDP";
                         break;
 
                 case GETDNS_TRANSPORT_TCP:
-                        fputs("TCP, ", test_info->errout);
+                        transport_text = "TCP";
                         break;
 
                 case GETDNS_TRANSPORT_TLS:
-                        fputs("TLS, ", test_info->errout);
-                        break;
-
-                default:
-                        fputs("???, ", test_info->errout);
+                        transport_text = "TLS";
                         break;
                 }
+
+                if (test_info->monitoring) {
+                        snprintcat(test_info->perf_output,
+                                   MAX_PERF_OUTPUT_LEN,
+                                   "transport=%s;",
+                                   transport_text);
+                } else {
+                        printf("Transport:\t\t%s\n", transport_text);
+                }
         }
+
         if ((ret = getdns_dict_get_int(d, "run_time/ms", &rtt_val)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get RTT: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get RTT: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
         if (rtt)
                 *rtt = rtt_val;
-        if (test_info->verbosity >= VERBOSITY_ADDITIONAL)
-                fprintf(test_info->errout, "RTT %dms, ", rtt_val);
+        if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
+                if (test_info->monitoring) {
+                        snprintcat(test_info->perf_output,
+                                   MAX_PERF_OUTPUT_LEN,
+                                   "rtt=%dms;",
+                                   rtt_val);
+                } else {
+                        printf("RTT:\t\t\t%dms\n", rtt_val);
+                }
+        }
 
         if (getdns_dict_get_bindata(d, "tls_auth_status", &auth_status_val) == GETDNS_RETURN_GOOD) {
+                const char *auth_status_text = (char *) auth_status_val->data;
+
                 /* Just in case - not sure this is necessary */
                 auth_status_val->data[auth_status_val->size] = '\0';
-                if (test_info->verbosity >= VERBOSITY_ADDITIONAL)
-                        fprintf(test_info->errout, "auth. %s, ", (char *) auth_status_val->data);
+                if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
+                        if (test_info->monitoring) {
+                        snprintcat(test_info->perf_output,
+                                   MAX_PERF_OUTPUT_LEN,
+                                   "auth=%s;",
+                                   auth_status_text);
+                        } else {
+                                printf("Authentication:\t\t%s\n", auth_status_text);
+                        }
+                }
         }
         if (auth_status)
                 *auth_status = auth_status_val;
 
         getdns_bindata *cert;
+
         if (getdns_dict_get_bindata(d, "tls_peer_cert", &cert) == GETDNS_RETURN_GOOD) {
                 if (!extract_cert_expiry(cert->data, cert->size, &cert_expire_time_val)) {
-                        fputs("Cannot parse PKIX certificate", test_info->errout);
+                        strcpy(test_info->base_output, "Cannot parse PKIX certificate");
                         return EXIT_UNKNOWN;
                 }
                 if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
                         struct tm *tm = gmtime(&cert_expire_time_val);
                         char buf[25];
-                        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", tm);
-                        fprintf(test_info->errout, "cert expiry %s, ", buf);
+                        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm);
+                        if (test_info->monitoring) {
+                                snprintcat(test_info->perf_output,
+                                           MAX_PERF_OUTPUT_LEN,
+                                           "expire=%s;",
+                                           buf);
+                        } else {
+                                printf("Certicate expires:\t%s UTC\n", buf);
+                        }
                 }
         }
         if (cert_expire_time)
@@ -621,7 +697,7 @@ static exit_value get_report_info(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value get_answers(const struct test_info_s *test_info,
+static exit_value get_answers(struct test_info_s *test_info,
                               const getdns_dict *response,
                               const char *section,
                               getdns_list **answers,
@@ -633,33 +709,36 @@ static exit_value get_answers(const struct test_info_s *test_info,
         snprintf(buf, sizeof(buf), "/replies_tree/0/%s", section);
 
         if ((ret = getdns_dict_get_list(response, buf, answers)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get section '%s': %s (%d)",
-                        section,
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get section '%s': %s (%d)",
+                         section,
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         if ((ret = getdns_list_get_length(*answers, no_answers)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get number of items in '%s': %s (%d)",
-                        section,
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get number of items in '%s': %s (%d)",
+                         section,
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
         if (*no_answers <= 0) {
-                fprintf(test_info->errout,
-                        "Zero entries in '%s'",
-                        section);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Zero entries in '%s'",
+                         section);
                 return EXIT_WARNING;
         }
 
         return EXIT_OK;
 }
 
-static exit_value check_answer_type(const struct test_info_s *test_info,
+static exit_value check_answer_type(struct test_info_s *test_info,
                                     const getdns_dict *response,
                                     uint32_t rrtype)
 {
@@ -675,32 +754,34 @@ static exit_value check_answer_type(const struct test_info_s *test_info,
                 getdns_return_t ret;
 
                 if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get answer number %zu: %s (%d)",
-                                i,
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get answer number %zu: %s (%d)",
+                                 i,
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
 
                 uint32_t rtype;
 
                 if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get answer type: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get answer type: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
                 if (rtype == rrtype)
                         return EXIT_OK;
         }
 
-        fputs("Answer does not contain expected type", test_info->errout);
+        strcpy(test_info->base_output, "Answer does not contain expected type");
         return EXIT_UNKNOWN;
 }
 
-static exit_value search_check(const struct test_info_s *test_info,
+static exit_value search_check(struct test_info_s *test_info,
                                const char *lookup_name,
                                uint16_t lookup_type,
                                getdns_dict **response,
@@ -728,7 +809,7 @@ static exit_value search_check(const struct test_info_s *test_info,
         return xit;
 }
 
-static exit_value parse_search_check(const struct test_info_s *test_info,
+static exit_value parse_search_check(struct test_info_s *test_info,
                                      char **av,
                                      const char *usage,
                                      getdns_dict **response,
@@ -744,7 +825,7 @@ static exit_value parse_search_check(const struct test_info_s *test_info,
                 return xit;
 
         if (*av) {
-                fputs(usage, test_info->errout);
+                strcpy(test_info->base_output, usage);
                 return EXIT_USAGE;
         }
 
@@ -758,7 +839,7 @@ static exit_value parse_search_check(const struct test_info_s *test_info,
  ** Test routines.
  **/
 
-static exit_value test_lookup(const struct test_info_s *test_info,
+static exit_value test_lookup(struct test_info_s *test_info,
                               char ** av)
 {
         exit_value xit;
@@ -772,11 +853,11 @@ static exit_value test_lookup(const struct test_info_s *test_info,
                                       NULL)) != EXIT_OK)
                 return xit;
 
-        fputs("Lookup succeeded", test_info->errout);
+        strcpy(test_info->base_output, "Lookup succeeded");
         return EXIT_OK;
 }
 
-static exit_value test_rtt(const struct test_info_s *test_info,
+static exit_value test_rtt(struct test_info_s *test_info,
                            char ** av)
 {
         exit_value xit;
@@ -795,7 +876,10 @@ static exit_value test_rtt(const struct test_info_s *test_info,
                                       NULL)) != EXIT_OK)
                 return xit;
 
-        fputs("RTT lookup succeeded", test_info->errout);
+        snprintf(test_info->base_output,
+                 MAX_BASE_OUTPUT_LEN,
+                 "RTT lookup succeeded in %dms",
+                 rtt_val);
 
         if ((int) rtt_val > critical_ms)
                 return EXIT_CRITICAL;
@@ -804,7 +888,7 @@ static exit_value test_rtt(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value test_authenticate(const struct test_info_s *test_info,
+static exit_value test_authenticate(struct test_info_s *test_info,
                                     char ** av)
 {
         exit_value xit;
@@ -820,15 +904,15 @@ static exit_value test_authenticate(const struct test_info_s *test_info,
                 return xit;
 
         if (!auth_status || strcmp((char *) auth_status->data, "Success") != 0) {
-                fputs("Authentication failed", test_info->errout);
+                strcpy(test_info->base_output, "Authentication failed");
                 return EXIT_CRITICAL;
         } else {
-                fputs("Authentication succeeded", test_info->errout);
+                strcpy(test_info->base_output, "Authentication succeeded");
                 return EXIT_OK;
         }
 }
 
-static exit_value test_certificate_valid(const struct test_info_s *test_info,
+static exit_value test_certificate_valid(struct test_info_s *test_info,
                                          char **av)
 {
         exit_value xit;
@@ -849,7 +933,7 @@ static exit_value test_certificate_valid(const struct test_info_s *test_info,
 
 
         if (expire_time == 0) {
-                fputs("No PKIX certificate", test_info->errout);
+                strcpy(test_info->base_output, "No PKIX certificate");
                 return EXIT_CRITICAL;
         }
 
@@ -857,19 +941,21 @@ static exit_value test_certificate_valid(const struct test_info_s *test_info,
         int days_to_expiry = (expire_time - now) / 86400;
 
         if (days_to_expiry < 0) {
-                fprintf(test_info->errout,
-                        "Certificate expired %d day%s ago",
-                        -days_to_expiry,
-                        (days_to_expiry < -1) ? "s" : "");
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Certificate expired %d day%s ago",
+                         -days_to_expiry,
+                         (days_to_expiry < -1) ? "s" : "");
                 return EXIT_CRITICAL;
         }
         if (days_to_expiry == 0) {
-                fputs("Certificate expires today", test_info->errout);
+                strcpy(test_info->base_output, "Certificate expires today");
         } else {
-                fprintf(test_info->errout,
-                        "Certificate will expire in %d day%s",
-                        days_to_expiry,
-                        (days_to_expiry > 1) ? "s" : "");
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Certificate will expire in %d day%s",
+                         days_to_expiry,
+                         (days_to_expiry > 1) ? "s" : "");
         }
         if (days_to_expiry <= critical_days) {
                 return EXIT_CRITICAL;
@@ -880,12 +966,11 @@ static exit_value test_certificate_valid(const struct test_info_s *test_info,
         return EXIT_OK;
 }
 
-static exit_value test_qname_minimisation(const struct test_info_s *test_info,
+static exit_value test_qname_minimisation(struct test_info_s *test_info,
                                           char ** av)
 {
         if (*av) {
-                fputs("qname-min takes no arguments",
-                      test_info->errout);
+                strcpy(test_info->base_output, "qname-min takes no arguments");
                 return EXIT_USAGE;
         }
 
@@ -912,21 +997,23 @@ static exit_value test_qname_minimisation(const struct test_info_s *test_info,
                 getdns_return_t ret;
 
                 if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get answer number %zu: %s (%d)",
-                                i,
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get answer number %zu: %s (%d)",
+                                 i,
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
 
                 uint32_t rtype;
 
                 if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get answer type: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get answer type: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
                 if (rtype != GETDNS_RRTYPE_TXT)
@@ -935,19 +1022,19 @@ static exit_value test_qname_minimisation(const struct test_info_s *test_info,
                 getdns_bindata *rtxt;
 
                 if ((ret = getdns_dict_get_bindata(answer, "/rdata/txt_strings/0", &rtxt)) != GETDNS_RETURN_GOOD) {
-                        fputs("No answer text", test_info->errout);
+                        strcpy(test_info->base_output, "No answer text");
                         return EXIT_UNKNOWN;
                 }
 
                 if (rtxt->size > 0 ) {
                         switch(rtxt->data[0]) {
                         case 'H':
-                                fputs("QNAME minimisation ON", test_info->errout);
+                                strcpy(test_info->base_output, "QNAME minimisation ON");
                                 return EXIT_OK;
 
                         case 'N':
-                                fputs("QNAME minimisation OFF", test_info->errout);
-                                return EXIT_WARNING;
+                                strcpy(test_info->base_output, "QNAME minimisation OFF");
+                                return EXIT_CRITICAL;
 
                         default:
                                 /* Unrecognised message. */
@@ -956,11 +1043,11 @@ static exit_value test_qname_minimisation(const struct test_info_s *test_info,
                 }
         }
 
-        fputs("No valid QNAME minimisation data", test_info->errout);
+        strcpy(test_info->base_output, "No valid QNAME minimisation data");
         return EXIT_UNKNOWN;
 }
 
-static exit_value test_padding(const struct test_info_s *test_info,
+static exit_value test_padding(struct test_info_s *test_info,
                                char ** av)
 {
         getdns_dict *response;
@@ -970,17 +1057,18 @@ static exit_value test_padding(const struct test_info_s *test_info,
         const char USAGE[] = "padding takes arguments <blocksize> [<name> [<type>]]";
 
         if (!*av || (blocksize = strtol(*av, &endptr, 10), *endptr != '\0' || blocksize < 0)) {
-                fputs(USAGE, test_info->errout);
+                strcpy(test_info->base_output, USAGE);
                 return EXIT_USAGE;
         }
         ++av;
 
         getdns_return_t ret;
         if ((ret = getdns_context_set_tls_query_padding_blocksize(test_info->context, (uint16_t) blocksize)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot set padding blocksize: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot set padding blocksize: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
@@ -1004,21 +1092,23 @@ static exit_value test_padding(const struct test_info_s *test_info,
                 getdns_return_t ret;
 
                 if ((ret = getdns_list_get_dict(answers, i, &answer)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get answer number %zu: %s (%d)",
-                                i,
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get answer number %zu: %s (%d)",
+                                 i,
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
 
                 uint32_t rtype;
 
                 if ((ret = getdns_dict_get_int(answer, "type", &rtype)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get answer type: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get answer type: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
                 if (rtype != GETDNS_RRTYPE_OPT)
@@ -1031,10 +1121,11 @@ static exit_value test_padding(const struct test_info_s *test_info,
                         goto no_padding;
                 }
                 if ((ret = getdns_list_get_length(options, &no_options)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Cannot get number of options: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get number of options: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
 
@@ -1043,18 +1134,20 @@ static exit_value test_padding(const struct test_info_s *test_info,
                         uint32_t code;
 
                         if ((ret = getdns_list_get_dict(options, j, &option)) != GETDNS_RETURN_GOOD) {
-                                fprintf(test_info->errout,
-                                        "Cannot get option number %zu: %s (%d)",
-                                        j,
-                                        getdns_get_errorstr_by_id(ret),
-                                        ret);
+                                snprintf(test_info->base_output,
+                                         MAX_BASE_OUTPUT_LEN,
+                                         "Cannot get option number %zu: %s (%d)",
+                                         j,
+                                         getdns_get_errorstr_by_id(ret),
+                                         ret);
                                 return EXIT_UNKNOWN;
                         }
                         if ((ret = getdns_dict_get_int(option, "option_code", &code)) != GETDNS_RETURN_GOOD) {
-                                fprintf(test_info->errout,
-                                        "Cannot get option code: %s (%d)",
-                                        getdns_get_errorstr_by_id(ret),
-                                        ret);
+                                snprintf(test_info->base_output,
+                                         MAX_BASE_OUTPUT_LEN,
+                                         "Cannot get option code: %s (%d)",
+                                         getdns_get_errorstr_by_id(ret),
+                                         ret);
                                 return EXIT_UNKNOWN;
                         }
 
@@ -1065,26 +1158,28 @@ static exit_value test_padding(const struct test_info_s *test_info,
                         getdns_bindata *data;
 
                         if ((ret = getdns_dict_get_bindata(option, "option_data", &data)) != GETDNS_RETURN_GOOD) {
-                                fprintf(test_info->errout,
-                                        "Cannot get option code: %s (%d)",
-                                        getdns_get_errorstr_by_id(ret),
-                                        ret);
+                                snprintf(test_info->base_output,
+                                         MAX_BASE_OUTPUT_LEN,
+                                         "Cannot get option code: %s (%d)",
+                                         getdns_get_errorstr_by_id(ret),
+                                         ret);
                                 return EXIT_UNKNOWN;
                         }
 
-                        fprintf(test_info->errout,
-                                "Padding found, length %zu",
-                                data->size);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Padding found, length %zu",
+                                 data->size);
                         return EXIT_OK;
                 }
         }
 
 no_padding:
-        fputs("No padding found", test_info->errout);
+        strcpy(test_info->base_output, "No padding found");
         return EXIT_CRITICAL;
 }
 
-static exit_value test_keepalive(const struct test_info_s *test_info,
+static exit_value test_keepalive(struct test_info_s *test_info,
                                  char ** av)
 {
         getdns_dict *response;
@@ -1094,17 +1189,18 @@ static exit_value test_keepalive(const struct test_info_s *test_info,
         const char USAGE[] = "keepalive takes arguments <timeout-ms> [<name> [<type>]]";
 
         if (!*av || (timeout = strtoll(*av, &endptr, 10), *endptr != '\0' || timeout < 0)) {
-                fputs(USAGE, test_info->errout);
+                strcpy(test_info->base_output, USAGE);
                 return EXIT_USAGE;
         }
         ++av;
 
         getdns_return_t ret;
         if ((ret = getdns_context_set_idle_timeout(test_info->context, (uint64_t) timeout)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot set keepalive timeout: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot set keepalive timeout: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
@@ -1120,29 +1216,32 @@ static exit_value test_keepalive(const struct test_info_s *test_info,
         getdns_list *l;
 
         if ((ret = getdns_dict_get_list(response, "call_reporting", &l)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get call report: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get call report: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         getdns_dict *d;
         if ((ret = getdns_list_get_dict(l, 0, &d)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get call report first item: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get call report first item: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         /* Search is forced to be TCP or TLS, so server keepalive flag must exist. */
         uint32_t server_keepalive_received;
         if ((ret = getdns_dict_get_int(d, "server_keepalive_received", &server_keepalive_received)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get server keepalive flag: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get server keepalive flag: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
@@ -1152,31 +1251,34 @@ static exit_value test_keepalive(const struct test_info_s *test_info,
 
                 if (!((ret = getdns_dict_get_int(d, "idle timeout in ms", &t)) == GETDNS_RETURN_GOOD ||
                       (overflow = true, ret = getdns_dict_get_int(d, "idle timeout in ms (overflow)", &t)) == GETDNS_RETURN_GOOD)) {
-                        fprintf(test_info->errout,
-                                "Cannot get idle timeout: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Cannot get idle timeout: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
                 }
 
                 if (overflow) {
-                        fputs("Server sent keepalive, idle timeout now (overflow)", test_info->errout);
+                        strcpy(test_info->base_output, "Server sent keepalive, idle timeout now (overflow)");
                 } else {
-                        fprintf(test_info->errout, "Server sent keepalive, idle timeout now %ums", t);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Server sent keepalive, idle timeout now %ums",
+                                 t);
                 }
                 return EXIT_OK;
         } else {
-                fputs("Server did not send keepalive", test_info->errout);
+                strcpy(test_info->base_output, "Server did not send keepalive");
                 return EXIT_CRITICAL;
         }
 }
 
-static exit_value test_dnssec_validate(const struct test_info_s *test_info,
+static exit_value test_dnssec_validate(struct test_info_s *test_info,
                                        char ** av)
 {
         if (*av) {
-                fputs("dnssec-validate takes no arguments",
-                      test_info->errout);
+                strcpy(test_info->base_output, "dnssec-validate takes no arguments");
                 return EXIT_USAGE;
         }
 
@@ -1197,12 +1299,12 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
                 return xit;
 
         if (error_id == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
-                fputs("Search timed out", test_info->errout);
+                strcpy(test_info->base_output, "Search timed out");
                 return EXIT_CRITICAL;
         }
 
         if (rcode != GETDNS_RCODE_SERVFAIL) {
-                fputs("Server does NOT validate DNSSEC", test_info->errout);
+                strcpy(test_info->base_output, "Server does NOT validate DNSSEC");
                 return EXIT_CRITICAL;
         }
 
@@ -1215,10 +1317,11 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
         getdns_dict *extensions = getdns_dict_create();
 
         if ((ret = getdns_dict_set_int(extensions, "/header/cd", 1)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot set CD bit: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot set CD bit: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 getdns_dict_destroy(extensions);
                 return EXIT_UNKNOWN;
         }
@@ -1244,27 +1347,27 @@ static exit_value test_dnssec_validate(const struct test_info_s *test_info,
                 return xit;
 
         if (error_id == GETDNS_RESPSTATUS_ALL_TIMEOUT) {
-                fputs("Search timed out", test_info->errout);
+                strcpy(test_info->base_output, "Search timed out");
                 return EXIT_CRITICAL;
         }
 
         if (error_id != GETDNS_RESPSTATUS_GOOD || rcode != GETDNS_RCODE_NOERROR) {
-                fputs("Server error - cannot determine DNSSEC status", test_info->errout);
+                strcpy(test_info->base_output, "Server error - cannot determine DNSSEC status");
                 return EXIT_UNKNOWN;
         }
 
-        fputs("Server validates DNSSEC", test_info->errout);
+        strcpy(test_info->base_output, "Server validates DNSSEC");
         return EXIT_OK;
 }
 
-static exit_value test_tls13(const struct test_info_s *test_info,
+static exit_value test_tls13(struct test_info_s *test_info,
                              char ** av)
 {
         exit_value xit;
         getdns_return_t ret;
 
         if (*av) {
-                fputs("tls-1.3 takes no arguments", test_info->errout);
+                strcpy(test_info->base_output, "tls-1.3 takes no arguments");
                 return EXIT_USAGE;
         }
 
@@ -1274,10 +1377,12 @@ static exit_value test_tls13(const struct test_info_s *test_info,
          * a Bad Context error on the lookup.
          */
         if ((ret = getdns_context_set_tls_cipher_list(test_info->context, TLS13_CIPHER_SUITE)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot set TLS 1.3 cipher list: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot set TLS 1.3 cipher list: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
+                return EXIT_UNKNOWN;
         }
 
         getdns_dict *response;
@@ -1290,12 +1395,10 @@ static exit_value test_tls13(const struct test_info_s *test_info,
                           &ret)) != EXIT_OK) {
                 if (xit == EXIT_CRITICAL) {
                         if (ret == GETDNS_RETURN_BAD_CONTEXT) {
-                                fputs("Your version of OpenSSL does not support TLS 1.3 ciphers. You need at least OpenSSL 1.1.1.",
-                                      test_info->errout);
+                                strcpy(test_info->base_output, "Your version of OpenSSL does not support TLS 1.3 ciphers. You need at least OpenSSL 1.1.1.");
                                 return EXIT_UNKNOWN;
                         } else {
-                                fputs("Cannot establish TLS 1.3 connection.",
-                                      test_info->errout);
+                                strcpy(test_info->base_output, "Cannot establish TLS 1.3 connection.");
                                 return EXIT_CRITICAL;
                         }
                 } else {
@@ -1309,20 +1412,22 @@ static exit_value test_tls13(const struct test_info_s *test_info,
         getdns_list *l;
 
         if ((ret = getdns_dict_get_list(response, "call_reporting", &l)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get call report: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get call report: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         getdns_dict *d;
 
         if ((ret = getdns_list_get_dict(l, 0, &d)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get call report first item: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get call report first item: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
@@ -1330,24 +1435,25 @@ static exit_value test_tls13(const struct test_info_s *test_info,
         getdns_bindata *version;
 
         if ((ret = getdns_dict_get_bindata(d, "tls_version", &version)) != GETDNS_RETURN_GOOD) {
-                fprintf(test_info->errout,
-                        "Cannot get TLS version: %s (%d)",
-                        getdns_get_errorstr_by_id(ret),
-                        ret);
+                snprintf(test_info->base_output,
+                         MAX_BASE_OUTPUT_LEN,
+                         "Cannot get TLS version: %s (%d)",
+                         getdns_get_errorstr_by_id(ret),
+                         ret);
                 return EXIT_UNKNOWN;
         }
 
         const char TLS_1_3_SIG[] = "TLSv1.3";
 
         if (strncmp((const char *)version->data, TLS_1_3_SIG, sizeof(TLS_1_3_SIG) - 1) != 0) {
-                fputs("Server does not support TLS 1.3", test_info->errout);
+                strcpy(test_info->base_output, "Server does not support TLS 1.3");
                 return EXIT_CRITICAL;
         }
 
         if ((xit = check_result(test_info, response)) != EXIT_OK)
                 return xit;
 
-        fputs("Server supports TLS 1.3", test_info->errout);
+        strcpy(test_info->base_output, "Server supports TLS 1.3");
         return EXIT_OK;
 }
 
@@ -1356,7 +1462,7 @@ static struct test_funcs_s
         const char *name;
         bool implies_tls;
         bool implies_tcp;
-        exit_value (*func)(const struct test_info_s *test_info, char **av);
+        exit_value (*func)(struct test_info_s *test_info, char **av);
 } TESTS[] =
 {
         { "lookup", false, false, test_lookup },
@@ -1398,6 +1504,9 @@ int main(int ac, char *av[])
                     strcmp(*av, "--monitoring") == 0) {
                         test_info.monitoring = true;
                         test_info.errout = stdout;
+                } else if (strcmp(*av, "-D") == 0 ||
+                           strcmp(*av, "--debug") == 0) {
+                        test_info.debug_output = true;
                 } else if (strcmp(*av, "-E") == 0 ||
                            strcmp(*av, "--fail-on-dns-errors") == 0) {
                         test_info.fail_on_dns_errors = true;
@@ -1607,32 +1716,40 @@ int main(int ac, char *av[])
         }
 
         exit_value xit = f->func(&test_info, av);
+        const char *xit_text = "(\?\?\?)";
+        FILE *out = stdout;
+
         switch(xit) {
         case EXIT_OK:
-                fputs(" (OK)", test_info.errout);
+                xit_text = "OK";
                 break;
 
         case EXIT_WARNING:
-                fputs(" (WARNING)", test_info.errout);
+                xit_text = "WARNING";
                 break;
 
         case EXIT_CRITICAL:
-                fputs(" (CRITICAL)", test_info.errout);
+                xit_text = "CRITICAL";
                 break;
 
         case EXIT_UNKNOWN:
-                fputs(" (UNKNOWN)", test_info.errout);
-                break;
-
         case EXIT_USAGE:
                 xit = EXIT_UNKNOWN;
-                break;
-
-        default:
-                /* ??? is a trigraph... */
-                fputs(" (\?\?\?)", test_info.errout);
+                xit_text = "UNKNOWN";
+                out = test_info.errout;
                 break;
         }
-        fputc('\n', test_info.errout);
+
+        if (test_info.monitoring)
+                fprintf(out, "DNS SERVER %s - ", xit_text);
+        fputs(test_info.base_output, out);
+
+        if (test_info.verbosity >= VERBOSITY_ADDITIONAL &&
+            test_info.monitoring &&
+            strlen(test_info.perf_output) > 0) {
+                fprintf(out, "|%s", test_info.perf_output);
+        }
+
+        fputc('\n', out);
         exit(xit);
 }
