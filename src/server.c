@@ -138,11 +138,18 @@ static void tcp_connection_destroy(tcp_connection *conn)
 
 	if (conn->fd >= 0)
 		(void) _getdns_closesocket(conn->fd);
-	GETDNS_FREE(*mf, conn->read_buf);
 
-	for (cur = conn->to_write; cur; cur = next) {
-		next = cur->next;
-		GETDNS_FREE(*mf, cur);
+	if (conn->read_buf) {
+		GETDNS_FREE(*mf, conn->read_buf);
+		conn->read_buf = NULL;
+	}
+	if ((cur = conn->to_write)) {
+		while (cur) {
+			next = cur->next;
+			GETDNS_FREE(*mf, cur);
+			cur = next;
+		}
+		conn->to_write = NULL;
 	}
 	if (conn->to_answer > 0)
 		return;
