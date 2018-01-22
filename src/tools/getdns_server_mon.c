@@ -1482,38 +1482,36 @@ static void concurrent_callback(getdns_context          *context,
 
         query->done_order = ++callback_no;
         query->error = (callback_type != GETDNS_CALLBACK_COMPLETE);
-}
 
-static exit_value test_concurrent(const struct test_info_s *test_info,
-                                char ** av)
-{
-        if (*av) {
-                fputs("concurrent takes no arguments",
-                      test_info->errout);
-                return EXIT_USAGE;
+        if (test_info.verbosity >= VERBOSITY_ADDITIONAL) {
+                if (test_info.monitoring) {
+                        snprintcat(test_info.perf_output,
+                                   MAX_PERF_OUTPUT_LEN,
+                                   "->%s;",
+                                   query->name);
+                } else {
+                        printf("Result:\t\t\t%s", query->name);
+                        if (query->error)
+                                printf(" (callback %d)\n", callback_type);
+                        else
+                                putchar('\n');
+                }
         }
 
-        /* Three names with random TLDs. */
-        #define NAMELEN 30
-        char names[3][NAMELEN + 1];
+}
 
-        srandom((unsigned int) time(NULL));
-
-        for (int i = 0; i < 3; ++i) {
-                const char ROOT[] = "getdnsapi.dx";
-                strcpy(names[i], ROOT);
-                for (int j = sizeof(ROOT) - 1; j < NAMELEN; ++j) {
-                        names[i][j] = 'a' + random() % ('z' - 'a');
-                }
-                names[i][NAMELEN] = '\0';
+static exit_value test_concurrent(struct test_info_s *test_info,
+                                  char ** av)
+{
+        if (*av) {
+                strcpy(test_info->base_output, "concurrent takes no arguments");
+                return EXIT_USAGE;
         }
 
         /* A set of asynchronous queries to send. One exists. */
         const char GOOD_NAME[] = "getdnsapi.net";
         struct async_query async_queries[] = {
-                { names[0], 0, false },
-                { names[1], 0, false },
-                { names[2], 0, false },
+                { "1000.delay.getdnsapi.net", 0, false },
                 { GOOD_NAME, 0, false }
         };
         unsigned NQUERIES = sizeof(async_queries) / sizeof(async_queries[0]);
@@ -1532,11 +1530,19 @@ static exit_value test_concurrent(const struct test_info_s *test_info,
                 return xit;
 
         /* Now launch async searches for all the above. */
-        if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
-                fputs("concurrent search: ", test_info->errout);
-        }
         for (unsigned i = 0; i < NQUERIES; ++i) {
                 getdns_return_t ret;
+
+                if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
+                        if (test_info->monitoring) {
+                                snprintcat(test_info->perf_output,
+                                           MAX_PERF_OUTPUT_LEN,
+                                           "%s->;",
+                                           async_queries[i].name);
+                        } else {
+                                printf("Search:\t\t\t%s\n", async_queries[i].name);
+                        }
+                }
 
                 if ((ret = getdns_general(test_info->context,
                                           async_queries[i].name,
@@ -1545,43 +1551,30 @@ static exit_value test_concurrent(const struct test_info_s *test_info,
                                           &async_queries[i],
                                           NULL,
                                           concurrent_callback)) != GETDNS_RETURN_GOOD) {
-                        fprintf(test_info->errout,
-                                "Async search failed: %s (%d)",
-                                getdns_get_errorstr_by_id(ret),
-                                ret);
+                        snprintf(test_info->base_output,
+                                 MAX_BASE_OUTPUT_LEN,
+                                 "Async search failed: %s (%d)",
+                                 getdns_get_errorstr_by_id(ret),
+                                 ret);
                         return EXIT_UNKNOWN;
-                }
-                if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
-                        fprintf(test_info->errout,
-                                "[%u] %s, ",
-                                i, async_queries[i].name);
                 }
         }
 
         /* And wait for them to complete. */
         getdns_context_run(test_info->context);
-        if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
-                fputs("concurrent result: ", test_info->errout);
-        }
 
         for (unsigned i = 0; i < NQUERIES; ++i) {
                 if (async_queries[i].error) {
-                        fputs("Query did not complete", test_info->errout);
+                        strcpy(test_info->base_output, "Query did not complete");
                         return EXIT_UNKNOWN;
-                }
-                if (test_info->verbosity >= VERBOSITY_ADDITIONAL){
-                        fprintf(test_info->errout,
-                                "[%u] %s, ",
-                                async_queries[i].done_order,
-                                async_queries[i].name);
                 }
         }
 
         if (async_queries[NQUERIES - 1].done_order == NQUERIES) {
-                fputs("Queries are not concurrent", test_info->errout);
+                strcpy(test_info->base_output, "Queries are not concurrent");
                 return EXIT_CRITICAL;
         } else {
-                fputs("Queries are concurrent", test_info->errout);
+                strcpy(test_info->base_output, "Queries are concurrent");
                 return EXIT_OK;
         }
 }
