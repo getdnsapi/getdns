@@ -1494,7 +1494,7 @@ static exit_value test_concurrent(const struct test_info_s *test_info,
         }
 
         /* Three names with random TLDs. */
-        const int NAMELEN = 30;
+        #define NAMELEN 30
         char names[3][NAMELEN + 1];
 
         srandom((unsigned int) time(NULL));
