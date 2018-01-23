@@ -44,8 +44,8 @@
 
 #define APP_NAME "getdns_server_mon"
 
-#define RTT_CRITICAL_MS                 250
-#define RTT_WARNING_MS                  500
+#define RTT_CRITICAL_MS                 500
+#define RTT_WARNING_MS                  250
 
 #define CERT_EXPIRY_CRITICAL_DAYS       7
 #define CERT_EXPIRY_WARNING_DAYS        14
@@ -338,7 +338,8 @@ static void usage()
 "                                query order on a TCP or TLS connection\n"
 "  qname-min                     Check whether server supports QNAME minimisation\n"
 "  rtt [warn-ms,crit-ms] [<name> [<type>]]\n"
-"                                Check server round trip time (default 500,250)\n"
+"                                Check if server round trip time exceeds\n"
+"                                thresholds (default 250,500)\n"
 "\n"
 "  dnssec-validate               Check whether server does DNSSEC validation\n"
 "\n"
