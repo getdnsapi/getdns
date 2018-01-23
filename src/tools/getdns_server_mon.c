@@ -568,10 +568,10 @@ static exit_value check_result(struct test_info_s *test_info,
                 if (test_info->monitoring) {
                         snprintcat(test_info->perf_output,
                                    MAX_PERF_OUTPUT_LEN,
-                                   "result=%d;",
+                                   "getdns=%d;",
                                    error_id);
                 } else {
-                        printf("DNS result:\t\t%s (%d)\n",
+                        printf("getdns result:\t\t%s (%d)\n",
                                    getdns_get_errorstr_by_id(error_id),
                                    error_id);
                 }
@@ -720,6 +720,55 @@ static exit_value get_report_info(struct test_info_s *test_info,
         }
         if (cert_expire_time)
                 *cert_expire_time = cert_expire_time_val;
+
+        getdns_bindata *tls_version;
+
+        if (getdns_dict_get_bindata(d, "tls_version", &tls_version) == GETDNS_RETURN_GOOD) {
+                const char *version_text = (char *) tls_version->data;
+
+                if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
+                        if (test_info->monitoring) {
+                        snprintcat(test_info->perf_output,
+                                   MAX_PERF_OUTPUT_LEN,
+                                   "tls=%s;",
+                                   version_text);
+                        } else {
+                                printf("TLS version:\t\t%s\n", version_text);
+                        }
+                }
+
+                /*
+                 * This is always in the context, so show only if we got
+                 * TLS info in the call reporting.
+                 */
+                uint32_t tls_auth;
+                getdns_dict *context_dict = getdns_context_get_api_information(test_info->context);
+
+                if (getdns_dict_get_int(context_dict, "/all_context/tls_authentication", &tls_auth) == GETDNS_RETURN_GOOD) {
+                        const char *auth_text = "???";
+
+                        switch(tls_auth) {
+                        case GETDNS_AUTHENTICATION_NONE:
+                                auth_text = "Opportunistic";
+                                break;
+
+                        case GETDNS_AUTHENTICATION_REQUIRED:
+                                auth_text = "Strict";
+                                break;
+                        }
+
+                        if (test_info->verbosity >= VERBOSITY_ADDITIONAL) {
+                                if (test_info->monitoring) {
+                                        snprintcat(test_info->perf_output,
+                                                   MAX_PERF_OUTPUT_LEN,
+                                                   "%s;",
+                                                   auth_text);
+                                } else {
+                                        printf("TLS authentication:\t%s\n", auth_text);
+                                }
+                        }
+                }
+        }
 
         return EXIT_OK;
 }
@@ -1717,6 +1766,10 @@ int main(int ac, char *av[])
 
         if (*av == NULL || *av[0] != '@')
                 usage();
+
+        /* Non-monitoring output is chatty by default. */
+        if (!test_info.monitoring)
+                ++test_info.verbosity;
 
         const char *upstream = *av++;
         getdns_dict *resolver;
