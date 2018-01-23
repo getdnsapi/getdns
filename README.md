@@ -19,8 +19,6 @@ Traditional access to DNS data from applications has several limitations:
 
 * Sophisticated uses of the DNS (things like IDNA and DNSSEC validation) require considerable application work, possibly by application developers with little experience with the vagaries of DNS.
 
-getdns also provides an experimental DNS Privacy enabled client called 'stubby' - see below for more details.
-
 ## Motivation for providing the API
 
 The developers are of the opinion that DNSSEC offers a unique global infrastructure for establishing and enhancing cryptographic trust relations.  With the development of this API we intend to offer application developers a modern and flexible interface that enables end-to-end trust in the DNS architecture, and which will inspire application developers to implement innovative security solutions in their applications.
@@ -87,13 +85,9 @@ If you are building from git, you need to do the following before building:
     # autoreconf -fi
 
 
-As well as building the getdns library two other tools may be installed:
+As well as building the getdns library one other tool may be installed:
 
 * getdns_query: a command line test script wrapper for getdns
-* stubby: an experimental DNS Privacy enabled client
-
-Note: If you only want to build stubby, then use the `--with-stubby` option when running 'configure'.
-
 
 ## Minimizing dependencies
 
@@ -108,12 +102,6 @@ The implementation works with a variety of event loops, each built as a separate
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
 * [libuv](https://github.com/joyent/libuv)
 * [libev](http://software.schmorp.de/pkg/libev.html)
-
-## Stubby
-
-* Stubby is an experimental implementation of a DNS Privacy enabled stub resolver than encrypts DNS queries using TLS. It is currently suitable for advanced/technical users - all feedback is welcome! 
-* Details on how to use Stubby can be found in the [Stubby Reference Guide](https://dnsprivacy.org/wiki/x/JYAT).
-* Also see [dnsprivacy.org](https://dnsprivacy.org) for more information on DNS Privacy.
 
 ## Regression Tests
 

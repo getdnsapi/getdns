@@ -68,21 +68,12 @@ $(ALL_OBJS):
 getdns_query: getdns_query.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
 
-stubby:
-	cd .. && $(MAKE) $@
-
 install-getdns_query: getdns_query
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp getdns_query $(DESTDIR)$(bindir)
 
 uninstall-getdns_query:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/getdns_query
-
-install-stubby:
-	cd .. && $(MAKE) $@
-
-uninstall-stubby:
-	cd .. && $(MAKE) $@
 
 clean:
 	rm -f *.o *.lo $(PROGRAMS)

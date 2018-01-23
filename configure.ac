@@ -682,22 +682,6 @@ case "$enable_stub_only" in
 		;;
 esac
 
-my_with_yaml=0
-AC_ARG_ENABLE(yaml-config,)
-case "$enable_yaml_config" in
-	yes)
-		AC_DEFINE_UNQUOTED([USE_YAML_CONFIG], [1], [Define this to enable YAML config support.])
-		AC_DEFINE_UNQUOTED([HAVE_GETDNS_YAML2DICT], [1], [Define this to enable getdns_yaml2dict function.])
-
-		GETDNS_XTRA_OBJS="convert_yaml_to_json.lo"
-		my_with_yaml=1
-		;;
-	no|*)
-		GETDNS_XTRA_OBJS=""
-		;;
-esac
-AC_SUBST(GETDNS_XTRA_OBJS)
-
 if test "$USE_WINSOCK" = 1; then
 	AC_MSG_NOTICE([ Building on Windows ... YES! ])
 	AC_DEFINE_UNQUOTED([GETDNS_ON_WINDOWS], [1], [Define this to enable Windows build.])
@@ -1205,87 +1189,6 @@ AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
 
-stubby_with_yaml=0
-AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],
-	[Compile and install stubby, the (stub) resolver daemon]),
-	[], [withval="no"])
-if test x_$withval = x_yes; then
-	STUBBY="stubby"
-	INSTALL_STUBBY="install-stubby"
-	UNINSTALL_STUBBY="uninstall-stubby"
-	if test $my_with_yaml = 0
-	then
-		STUBBY_XTRA_OBJS="convert_yaml_to_json.lo gbuffer.lo"
-		stubby_with_yaml=1
-		my_with_yaml=1
-	fi
-else
-	STUBBY=""
-	INSTALL_STUBBY=""
-	UNINSTALL_STUBBY=""
-	STUBBY_XTRA_OBJS=""
-fi
-AC_SUBST(STUBBY)
-AC_SUBST(INSTALL_STUBBY)
-AC_SUBST(UNINSTALL_STUBBY)
-AC_SUBST(STUBBY_XTRA_OBJS)
-
-STUBBY_LIBS=""
-STUBBY_LDFLAGS=""
-
-if test $my_with_yaml = 1
-then
-	if test $stubby_with_yaml = 1
-	then
-		getdns_LIBS="$LIBS"
-		getdns_LDFLAGS="$LDFLAGS"
-		LIBS="$initial_LIBS"
-		LDFLAGS="$initial_LDFLAGS"
-	fi
-	AC_ARG_WITH(libyaml, AS_HELP_STRING([--with-libyaml=pathname],
-		[path to libyaml (default: search /usr/local ..)]),
-		[], [withval="yes"])
-	if test x_$withval = x_yes; then
-		for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
-			if test -f "$dir/include/yaml.h"; then
-				CFLAGS="$CFLAGS -I$dir/include"
-				LDFLAGS="$LDFLAGS -L$dir/lib"
-				AC_MSG_NOTICE([Found libyaml in $dir])
-				break
-			fi
-		done
-	else
-		if test x_$withval != x_no; then
-			CFLAGS="$CFLAGS -I$withval/include"
-			LDFLAGS="$LDFLAGS -L$withval/lib"
-		else
-			if test $stubby_with_yaml = 1
-			then
-    				AC_MSG_ERROR([libyaml required for building Stubby])
-			fi
-			my_with_yaml=0
-		fi
-	fi
-	if test $my_with_yaml = 1
-	then
-		AC_MSG_NOTICE([Checking for dependency libyaml])
-		AC_CHECK_LIB([yaml], [yaml_parser_parse], [], [
-			MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libyaml"
-			MISSING_SEP=", "
-			found_all_libs=0
-		])
-	fi
-	if test $stubby_with_yaml = 1
-	then
-		STUBBY_LDFLAGS="$LDFLAGS"
-		STUBBY_LIBS="$LIBS"
-		LIBS="$getdns_LIBS"
-		LDFLAGS="$getdns_LDFLAGS"
-	fi
-fi
-AC_SUBST(STUBBY_LDFLAGS)
-AC_SUBST(STUBBY_LIBS)
-
 if test $found_all_libs = 0
 then
     AC_MSG_ERROR([Missing dependencies: $MISSING_DEPS])
@@ -1353,7 +1256,6 @@ fi
 # system implementation.
 PKG_CHECK_MODULES([LIBBSD],[libbsd-overlay],[
 LIBS="$LIBS $LIBBSD_LIBS"
-STUBBY_LIBS="$STUBBY_LIBS $LIBBSD_LIBS"
 CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
 ],[
 AC_MSG_WARN([libbsd not found or usable; using embedded code instead])

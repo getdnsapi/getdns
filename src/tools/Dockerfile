@@ -32,11 +32,8 @@ RUN set -ex \
     && make \
     && make install \
     && ldconfig \
-    && cp src/tools/stubby.conf /etc \
     && mkdir -p /etc/unbound \
     && cd /etc/unbound \
     && unbound-anchor -a /etc/unbound/getdns-root.key || :
     
 EXPOSE 53
-
-CMD ["/usr/local/bin/stubby"]

@@ -5,7 +5,3 @@
 [submodule "src/yxml"]
 	path = src/yxml
 	url = git://g.blicky.net/yxml.git
-[submodule "stubby"]
-	path = stubby
-	url = https://github.com/getdnsapi/stubby.git
-	branch = develop

@@ -110,9 +110,6 @@ test: default
 getdns_query: default
 	cd src/tools && $(MAKE) $@
 
-stubby:
-	cd src && $(MAKE) $@
-
 scratchpad: default
 	cd src/test && $(MAKE) $@
 
@@ -124,12 +121,6 @@ install-getdns_query: install-lib
 
 uninstall-getdns_query:
 	cd src/tools && $(MAKE) $@
-
-install-stubby:
-	cd src && $(MAKE) $@
-
-uninstall-stubby:
-	cd src && $(MAKE) $@
 
 clean:
 	cd src && $(MAKE) $@
@@ -207,9 +198,6 @@ $(distdir):
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
-	mkdir -p $(distdir)/stubby
-	mkdir -p $(distdir)/stubby/src
-	mkdir -p $(distdir)/stubby/src/yaml
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/AUTHORS $(distdir)
@@ -252,12 +240,6 @@ $(distdir):
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
-	cp $(srcdir)/stubby/stubby.yml.example $(distdir)/stubby
-	cp $(srcdir)/stubby/macos/stubby-setdns-macos.sh $(distdir)/stubby
-	cp $(srcdir)/stubby/src/*.[ch] $(distdir)/stubby/src
-	cp $(srcdir)/stubby/src/yaml/*.[ch] $(distdir)/stubby/src/yaml
-	cp $(srcdir)/stubby/COPYING $(distdir)/stubby
-	cp $(srcdir)/stubby/README.md $(distdir)/stubby
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn

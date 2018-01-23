@@ -50,10 +50,6 @@ typedef unsigned short in_port_t;
 #include <signal.h>
 #endif
 
-#ifdef HAVE_GETDNS_YAML2DICT
-getdns_return_t getdns_yaml2dict(const char *, getdns_dict **dict);
-#endif
-
 #define EXAMPLE_PIN "pin-sha256=\"E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g=\""
 
 static int verbosity = 0;
@@ -227,7 +223,6 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\t-C\t<filename>\n");
 	fprintf(out, "\t\tRead settings from config file <filename>\n");
 	fprintf(out, "\t\tThe getdns context will be configured with these settings\n");
-	fprintf(out, "\t\tThe file must be in YAML format (with extension of '.yml')\n");
 	fprintf(out, "\t\tor JSON dict format (with extension '.conf')\n");
 	if (i_am_stubby) {
 		fprintf(out, "\t\tBy default, configuration is first read from");
@@ -489,22 +484,13 @@ done:
 	return r;
 }
 
-static void parse_config(const char *config_str, int yaml_config)
+static void parse_config(const char *config_str)
 {
 	getdns_dict *config_dict;
 	getdns_list *list;
 	getdns_return_t r;
 
-	if (yaml_config) {
-#ifdef USE_YAML_CONFIG		
-		r = getdns_yaml2dict(config_str, &config_dict);
-#else
-		fprintf(stderr, "Support for YAML configuration files not available.\n");
-		return;
-#endif		
-	} else {
-		r = getdns_str2dict(config_str, &config_dict);
-	}
+	r = getdns_str2dict(config_str, &config_dict);
 	if (r)
 		fprintf(stderr, "Could not parse config file: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -589,7 +575,7 @@ int parse_config_file(const char *fn, int report_open_failure)
 	}
 	config_file[read_sz] = 0;
 	fclose(fh);
-	parse_config(config_file, strstr(fn, ".yml") != NULL);
+	parse_config(config_file);
 	free(config_file);
 	return GETDNS_RETURN_GOOD;
 }
@@ -678,7 +664,7 @@ getdns_return_t parse_args(int argc, char **argv)
 			}
 			continue;
 		} else if (arg[0] == '{') {
-			parse_config(arg, 0);
+			parse_config(arg);
 			continue;
 
 		} else if (arg[0] != '-') {
@@ -1727,7 +1713,7 @@ main(int argc, char **argv)
 		                      , "%s/.stubby.conf"
 		                      , getenv("HOME")
 		                      );
-		(void) parse_config(default_stubby_config, 0);
+		(void) parse_config(default_stubby_config);
 		(void) parse_config_file("/etc/stubby.conf", 0);
 		if (n_chars > 0 && n_chars < (int)sizeof(home_stubby_conf_fn)){
 			(void) parse_config_file(home_stubby_conf_fn, 0);
