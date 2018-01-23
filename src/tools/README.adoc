@@ -183,7 +183,7 @@ Several tests take optional name and RR type parameters. If these are not suppli
 default values of `getdnsapi.net` and `AAAA` are used. If the lookup returns no
 answering records, `getdns_server_mon` reports a status of WARNING.
 
-[%header]
+[cols="1,3a,1" options="header"]
 |===
 | Test name | Test description | Default connection type
 | `lookup`
@@ -243,7 +243,7 @@ This test is currently experimental, and may give false negative results.
 |===
 === Exit status
 
-[%header]
+[cols="^1,^1,3a" options="header"]
 |===
 | Numeric value | Service Status | Status Description
 | 0
