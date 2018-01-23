@@ -116,7 +116,7 @@ static void snprintcat(char *buf, size_t buflen, const char *format, ...)
 
 static int get_rrtype(const char *t)
 {
-        char buf[1024] = "GETDNS_RRTYPE_";
+        char buf[128] = "GETDNS_RRTYPE_";
         uint32_t rrtype;
         long int l;
         size_t i;
@@ -139,21 +139,45 @@ static int get_rrtype(const char *t)
         return -1;
 }
 
+static const char *getdns_intval_text(int val, const char *name, const char *prefix)
+{
+        getdns_dict *d = getdns_dict_create();
+        char buf[128];
+        static char res[20];
+
+        if (getdns_dict_set_int(d, name, val) != GETDNS_RETURN_GOOD)
+                goto err;
+
+        getdns_pretty_snprint_dict(buf, sizeof(buf), d);
+
+        const char *p = strstr(buf, prefix);
+
+        if (!p)
+                goto err;
+        p += strlen(prefix);
+
+        char *q = res;
+
+        while (*p && *p != '\n')
+                *q++ = *p++;
+
+        getdns_dict_destroy(d);
+        return res;
+
+err:
+        getdns_dict_destroy(d);
+        snprintf(res, sizeof(res), "%d", val);
+        return res;
+}
+
+static const char *rrtype_text(int rrtype)
+{
+        return getdns_intval_text(rrtype, "type", "GETDNS_RRTYPE_");
+}
+
 static const char *rcode_text(int rcode)
 {
-        const char *text[] = {
-                "OK",
-                "FORMERR",
-                "SERVFAIL",
-                "NXDOMAIN",
-                "NOTIMP",
-                "REFUSED"
-        };
-
-        if ((size_t) rcode >= sizeof(text) / sizeof(text[0]))
-                return "(?)";
-        else
-                return text[rcode];
+        return getdns_intval_text(rcode, "rcode", "GETDNS_RCODE_");
 }
 
 #if OPENSSL_VERSION_NUMBER < 0x10002000
@@ -441,7 +465,8 @@ static exit_value search(struct test_info_s *test_info,
 
         if (test_info->verbosity >= VERBOSITY_ADDITIONAL &&
             !test_info->monitoring) {
-                printf("Lookup:\t\t\t%s %u\n", name, type);
+                printf("DNS Lookup name:\t%s\n", name);
+                printf("DNS Lookup RR type:\t%s\n", rrtype_text(type));
         }
 
         if (test_info->debug_output) {
