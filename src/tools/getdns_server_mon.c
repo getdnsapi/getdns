@@ -305,12 +305,12 @@ static void usage()
 "tsig spec: [<algorithm>:]<name>:<secret in Base64>\n"
 "\n"
 "Tests:\n"
-"  concurrent                    Check server support for concurrent query\n"
-"                                processing\n"
 "  lookup [<name> [<type>]]      Check lookup on server\n"
 "  keepalive <timeout-ms> [<name> [<type>]]\n"
 "                                Check server support for EDNS0 keepalive in TCP/TLS\n"
 "                                Timeout of 0 is off.\n"
+"  OOOR                          Check whether server delivers responses out of\n"
+"                                query order on a TCP or TLS connection\n"
 "  qname-min                     Check whether server supports QNAME minimisation\n"
 "  rtt [warn-ms,crit-ms] [<name> [<type>]]\n"
 "                                Check server round trip time (default 500,250)\n"
@@ -1466,11 +1466,11 @@ struct async_query
         bool error;
 };
 
-static void concurrent_callback(getdns_context          *context,
-                                getdns_callback_type_t  callback_type,
-                                getdns_dict             *response,
-                                void                    *userarg,
-                                getdns_transaction_t    transaction_id)
+static void out_of_order_callback(getdns_context          *context,
+                                  getdns_callback_type_t  callback_type,
+                                  getdns_dict             *response,
+                                  void                    *userarg,
+                                  getdns_transaction_t    transaction_id)
 {
         (void) context;
         (void) callback_type;
@@ -1500,11 +1500,11 @@ static void concurrent_callback(getdns_context          *context,
 
 }
 
-static exit_value test_concurrent(struct test_info_s *test_info,
-                                  char ** av)
+static exit_value test_out_of_order(struct test_info_s *test_info,
+                                    char ** av)
 {
         if (*av) {
-                strcpy(test_info->base_output, "concurrent takes no arguments");
+                strcpy(test_info->base_output, "OOOR takes no arguments");
                 return EXIT_USAGE;
         }
 
@@ -1550,7 +1550,7 @@ static exit_value test_concurrent(struct test_info_s *test_info,
                                           NULL,
                                           &async_queries[i],
                                           NULL,
-                                          concurrent_callback)) != GETDNS_RETURN_GOOD) {
+                                          out_of_order_callback)) != GETDNS_RETURN_GOOD) {
                         snprintf(test_info->base_output,
                                  MAX_BASE_OUTPUT_LEN,
                                  "Async search failed: %s (%d)",
@@ -1571,10 +1571,10 @@ static exit_value test_concurrent(struct test_info_s *test_info,
         }
 
         if (async_queries[NQUERIES - 1].done_order == NQUERIES) {
-                strcpy(test_info->base_output, "Queries are not concurrent");
+                strcpy(test_info->base_output, "Responses are in query order");
                 return EXIT_CRITICAL;
         } else {
-                strcpy(test_info->base_output, "Queries are concurrent");
+                strcpy(test_info->base_output, "Responses are not in query order");
                 return EXIT_OK;
         }
 }
@@ -1596,7 +1596,7 @@ static struct test_funcs_s
         { "keepalive", false, true, test_keepalive },
         { "dnssec-validate", false, false, test_dnssec_validate },
         { "tls-1.3", true, false, test_tls13 },
-        { "concurrent", false, true, test_concurrent },
+        { "OOOR", false, true, test_out_of_order },
         { NULL, false, false, NULL }
 };
 
