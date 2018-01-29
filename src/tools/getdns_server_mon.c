@@ -1587,7 +1587,7 @@ static exit_value test_out_of_order(struct test_info_s *test_info,
         /* A set of asynchronous queries to send. One exists. */
         const char GOOD_NAME[] = "getdnsapi.net";
         struct async_query async_queries[] = {
-                { "1000.delay.getdnsapi.net", 0, false },
+                { "400.delay.getdnsapi.net", 0, false },
                 { GOOD_NAME, 0, false }
         };
         unsigned NQUERIES = sizeof(async_queries) / sizeof(async_queries[0]);
