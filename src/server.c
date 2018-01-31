@@ -34,6 +34,10 @@
 #include <iphlpapi.h>
 #endif
 
+#if defined(HAVE_FCNTL)
+#include <fcntl.h>
+#endif
+
 #include "getdns/getdns_extra.h"
 #include "context.h"
 #include "types-internal.h"
@@ -118,6 +122,25 @@ typedef struct tcp_connection {
 	size_t                  to_answer;
 } tcp_connection;
 
+/** best effort to set nonblocking */
+static void
+getdns_sock_nonblock(int sockfd)
+{
+#if defined(HAVE_FCNTL)
+	int flag;
+	if((flag = fcntl(sockfd, F_GETFL)) != -1) {
+		flag |= O_NONBLOCK;
+		if(fcntl(sockfd, F_SETFL, flag) == -1) {
+			/* ignore error, continue blockingly */
+		}
+	}
+#elif defined(HAVE_IOCTLSOCKET)
+	unsigned long on = 1;
+	if(ioctlsocket(sockfd, FIONBIO, &on) != 0) {
+		/* ignore error, continue blockingly */
+	}
+#endif
+}
 
 static void free_listen_set_when_done(listen_set *set);
 static void tcp_connection_destroy(tcp_connection *conn)
@@ -203,9 +226,11 @@ static void tcp_write_cb(void *userarg)
 	    to_write->write_buf_len - to_write->written, 0)) == -1) {
 
 		if (conn->fd != -1) {
-			if (_getdns_socketerror_wants_retry())
+			if (_getdns_socketerror_wants_retry()) {
+				(void) loop->vmt->schedule(loop, conn->fd,
+				    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 				return;
-
+			}
 			DEBUG_SERVER("I/O error from send(): %s\n",
 	        	     	_getdns_errnostr());
 		}
@@ -340,19 +365,27 @@ getdns_reply(
 		to_write->next = NULL;
 		(void) memcpy(to_write->write_buf + 2, buf, len);
 
-		/* Appen to_write to conn->to_write list */
+		/* Append to_write to conn->to_write list */
 		for ( to_write_p = &conn->to_write
 		    ; *to_write_p
 		    ; to_write_p = &(*to_write_p)->next)
 			; /* pass */
 		*to_write_p = to_write;
 
-		conn->event.write_cb = tcp_write_cb;
 		if (conn->to_answer > 0)
 			conn->to_answer--;
-		(void) loop->vmt->schedule(loop,
-		    conn->fd, DOWNSTREAM_IDLE_TIMEOUT,
-		    &conn->event);
+
+		/* When event is scheduled, and doesn't have tcp_write_cb:
+		 * reschedule.
+		 */
+		if (conn->event.write_cb == NULL) {
+			if (conn->event.ev)
+				loop->vmt->clear(loop, &conn->event);
+			conn->event.write_cb = tcp_write_cb;
+			(void) loop->vmt->schedule(loop,
+			    conn->fd, DOWNSTREAM_IDLE_TIMEOUT,
+			    &conn->event);
+		}
 	}
 	/* TODO: other transport types */
 
@@ -382,9 +415,11 @@ static void tcp_read_cb(void *userarg)
 	    (bytes_read = recv(conn->fd,
 	    (void *)conn->read_pos, conn->to_read, 0)) < 0) {
 		if (conn->fd != -1) {
-			if (_getdns_socketerror_wants_retry())
+			if (_getdns_socketerror_wants_retry()) {
+				(void) loop->vmt->schedule(loop, conn->fd,
+				    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
 				return; /* Come back to do the read later */
-
+			}
 			/* IO error, close connection */
 			DEBUG_SERVER("I/O error from recv(): %s\n",
 				     _getdns_errnostr());
@@ -439,18 +474,29 @@ static void tcp_read_cb(void *userarg)
 			 *     request_dict, "request_id", intptr_t)conn);
 			 */
 			/* Call request handler */
+
+			conn->to_answer += 1; /* conn removal protection */
 			conn->super.l->set->handler(
 			    conn->super.l->set->context,
 			    GETDNS_CALLBACK_COMPLETE, request_dict,
 			    conn->super.l->set->userarg, (intptr_t)conn);
+			conn->to_answer -= 1; /* conn removal protection */
+
+			if (conn->fd == -1) {
+				tcp_connection_destroy(conn);
+				return;
+			}
 		}
 		conn->read_pos = conn->read_buf;
 		conn->to_read = 2;
 		; /* Schedule for more reading */
 	}
 	 /* Read more requests */
-	(void) loop->vmt->schedule(loop, conn->fd,
-	    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+	if (!conn->event.ev) { /* event not scheduled */
+		conn->event.write_cb = conn->to_write ? tcp_write_cb : NULL;
+		(void) loop->vmt->schedule(loop, conn->fd,
+		    DOWNSTREAM_IDLE_TIMEOUT, &conn->event);
+	}
 }
 
 static void tcp_timeout_cb(void *userarg)
@@ -514,8 +560,10 @@ static void tcp_accept_cb(void *userarg)
 		GETDNS_FREE(*mf, conn);
 		return;
 	}
+	getdns_sock_nonblock(conn->fd);
 	if (!(conn->read_buf = malloc(DNS_REQUEST_SZ))) {
 		/* Memory error */
+		(void) _getdns_closesocket(conn->fd);
 		GETDNS_FREE(*mf, conn);
 		return;
 	}
@@ -531,6 +579,7 @@ static void tcp_accept_cb(void *userarg)
 	if (!_getdns_rbtree_insert(
 	    &l->set->connections_set, &conn->super.super)) {
 		/* Memory error */
+		(void) _getdns_closesocket(conn->fd);
 		GETDNS_FREE(*mf, conn);
 		return;
 	}
