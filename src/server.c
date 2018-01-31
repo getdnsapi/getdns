@@ -345,7 +345,6 @@ getdns_reply(
 		tcp_to_write **to_write_p;
 		tcp_to_write *to_write;
 
-		loop->vmt->clear(loop, &conn->event);
 		if (conn->fd == -1) {
 			if (conn->to_answer > 0)
 				--conn->to_answer;
