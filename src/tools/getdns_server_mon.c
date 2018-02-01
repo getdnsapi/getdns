@@ -330,8 +330,7 @@ static void usage()
 "\n"
 "Tests:\n"
 "  lookup [<name> [<type>]]      Check lookup on server\n"
-"  keepalive <timeout-ms> [<name> [<type>]]\n"
-"                                Check server support for EDNS0 keepalive in\n"
+"  keepalive [<name> [<type>]]   Check server support for EDNS0 keepalive in\n"
 "                                TCP or TLS connections\n"
 "                                Timeout of 0 is off.\n"
 "  OOOR                          Check whether server delivers responses out of\n"
@@ -1262,18 +1261,9 @@ static exit_value test_keepalive(struct test_info_s *test_info,
 {
         getdns_dict *response;
         exit_value xit;
-        long long timeout;
-        char *endptr;
-        const char USAGE[] = "keepalive takes arguments <timeout-ms> [<name> [<type>]]";
-
-        if (!*av || (timeout = strtoll(*av, &endptr, 10), *endptr != '\0' || timeout < 0)) {
-                strcpy(test_info->base_output, USAGE);
-                return EXIT_USAGE;
-        }
-        ++av;
 
         getdns_return_t ret;
-        if ((ret = getdns_context_set_idle_timeout(test_info->context, (uint64_t) timeout)) != GETDNS_RETURN_GOOD) {
+        if ((ret = getdns_context_set_idle_timeout(test_info->context, 1)) != GETDNS_RETURN_GOOD) {
                 snprintf(test_info->base_output,
                          MAX_BASE_OUTPUT_LEN,
                          "Cannot set keepalive timeout: %s (%d)",
@@ -1284,7 +1274,7 @@ static exit_value test_keepalive(struct test_info_s *test_info,
 
         if ((xit = parse_search_check(test_info,
                                       av,
-                                      USAGE,
+                                      "keepalive takes arguments [<name> [<type>]]",
                                       &response,
                                       NULL,
                                       NULL,
