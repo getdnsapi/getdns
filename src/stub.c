@@ -109,7 +109,7 @@ rollover_secret()
 		return;
 
 	/* Remember previous secret, in to keep answering on rollover
-	 * boundry with old cookie.
+	 * boundary with old cookie.
 	 */
 	prev_secret = secret;
 	secret = arc4random();
@@ -883,7 +883,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			    "%-40s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
 			    upstream->addr_str);
 	} else {
-		/* If we _only_ had a pinset and it is good then force succesful
+		/* If we _only_ had a pinset and it is good then force successful
 		   authentication when the cert self-signed
 		   TODO: We need to check for other error cases here, not blindly accept the cert!! */
 		if ((upstream->tls_pubkey_pinset && upstream->tls_auth_name[0] == '\0') &&
@@ -898,7 +898,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		}
 	}
 
-	/* If nothing has failed yet and we had credentials, we have succesfully authenticated*/
+	/* If nothing has failed yet and we had credentials, we have successfully authenticated*/
 	if (preverify_ok == 0)
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
@@ -1456,7 +1456,7 @@ stub_udp_write_cb(void *userarg)
 				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
 				  , _getdns_errnostr());
 		else
-			DEBUG_STUB( "%s %-35s: MSG: %p returned: %d, expeced: %d\n"
+			DEBUG_STUB( "%s %-35s: MSG: %p returned: %d, expected: %d\n"
 				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
 				  , (int)written, (int)pkt_len);
 #endif
@@ -1786,9 +1786,9 @@ upstream_valid(getdns_upstream *upstream,
                           getdns_network_req *netreq,
                           int backoff_ok)
 {
-	/* Checking upstreams with backoff_ok true will aslo return upstreams
+	/* Checking upstreams with backoff_ok true will also return upstreams
 	   that are in a backoff state. Otherwise only use upstreams that have
-	   a 'good' connection state. backoff_ok is usefull when no upstreams at all
+	   a 'good' connection state. backoff_ok is useful when no upstreams at all
 	   are valid, for example when the network connection is down and need to 
 	   keep trying to connect before failing completely. */
 	if (!(upstream->transport == transport && upstream_usable(upstream, backoff_ok)))
