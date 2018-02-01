@@ -53,9 +53,9 @@ Local configuration via API or local file (e.g. /etc/getdns.conf, ~/.getdnsrc)
     - max TTL/TTL override (separate for pos/neg cache entries)
     - inclusions (use cache for specified domains) (maybe over-eng)
     - exceptions (avoid ache for specified domains) (maybe over-eng)
-    - persistant vs. transitory cache
+    - persistent vs. transitory cache
 
-- cache data store via Berkely db to allow for persistance
+- cache data store via Berkely db to allow for persistence
 
 - negative cache TTL derived from SOA
 

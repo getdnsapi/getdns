@@ -497,7 +497,7 @@ gldns_buffer_set_at(gldns_buffer *buffer, size_t at, int c, size_t count)
  * writes count bytes of data to the current position of the buffer
  * \param[in] buffer the buffer
  * \param[in] data the data to write
- * \param[in] count the lenght of the data to write
+ * \param[in] count the length of the data to write
  */
 INLINE void
 gldns_buffer_write(gldns_buffer *buffer, const void *data, size_t count)

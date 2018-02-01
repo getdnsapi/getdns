@@ -79,8 +79,8 @@
 /* Outline of operations in this file
  * ==================================
  *
- * Data structure to represent the delegation/referal hierarchy
- * ------------------------------------------------------------
+ * Data structure to represent the delegation/referral hierarchy
+ * -------------------------------------------------------------
  * Both the "dnssec_return_validation_chain" extension, and the 
  * getdns_validate_dnssec() function use the same structs to represent the 
  * involved pieces of the DNS in a hierarchical manner.
@@ -134,7 +134,7 @@
  * in a _getdns_rrset, and the rrsig_iter to iterate over the RRSIGs covering
  * the RRs in the _getdns_rrset.
  *
- * The _getdns_rrsets are already equiped with name/rr_class and rr_type when
+ * The _getdns_rrsets are already equipped with name/rr_class and rr_type when
  * constructing the linked list of chain_nodes up to the root for a chain_head.
  * They are substantiated with the wireformat packets that are returned with 
  * the queries that were sheduled in the context of the 
@@ -146,7 +146,7 @@
  * of non-existance.
  *
  * The getdns_validate_dnssec() function, after it constructed the chain_heads
- * hierarchy, creates an artifical packet for the support records and equips
+ * hierarchy, creates an artificial packet for the support records and equips
  * all the ds and dnskey _getdns_rrsets on the chain_nodes with this packet.
  *
  * The _getdns_rrset + support function and data types are defined in section:

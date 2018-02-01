@@ -1392,7 +1392,7 @@ char *getdns_display_ip_address(const getdns_bindata
  * @param value The callback function that will be called when any context is
  *              changed. A update callback function can be deregistered by
  *              passing NULL.
- * @return GETDNS_RETURN_GOOD when succesful.
+ * @return GETDNS_RETURN_GOOD when successful.
  * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
  */
 getdns_return_t

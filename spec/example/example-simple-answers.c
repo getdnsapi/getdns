@@ -35,7 +35,7 @@ void callback(getdns_context        *context,
 	assert( callback_type == GETDNS_CALLBACK_COMPLETE );
 
 	if ((r = getdns_dict_get_int(response, "status", &status)))
-		fprintf(stderr, "Could not get \"status\" from reponse");
+		fprintf(stderr, "Could not get \"status\" from response");
 
 	else if (status != GETDNS_RESPSTATUS_GOOD)
 		fprintf(stderr, "The search had no results, and a return value of %"PRIu32".\n", status);

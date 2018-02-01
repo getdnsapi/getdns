@@ -1638,7 +1638,7 @@ void _getdns_mdns_context_destroy(struct getdns_context *context)
 	}
 }
 
-/* TODO: actualy delete what is required.. */
+/* TODO: actually delete what is required.. */
 static void
 mdns_cleanup(getdns_network_req *netreq)
 {
