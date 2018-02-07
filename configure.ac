@@ -408,7 +408,7 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -431,6 +431,28 @@ AC_INCLUDES_DEFAULT
 ])
 fi
 
+AC_MSG_CHECKING([whether we need to compile/link DANE support])
+DANESSL_XTRA_OBJS=""
+AC_LANG_PUSH(C)
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([
+		[#include <openssl/opensslv.h>]
+		[#if OPENSSL_VERSION_NUMBER <  0x1000000fL]
+		[#error "OpenSSL 1.0.0 or higher required for DANE library"]
+		[#elif defined(HAVE_SSL_DANE_ENABLE)]
+		[#error "OpenSSL has native DANE support"]
+		[#elif defined(LIBRESSL_VERSION_NUMBER)]
+		[#error "dane_ssl library does not work with LibreSSL"]
+		[#endif]
+	],[[]])],
+	[
+		AC_MSG_RESULT([yes])
+		AC_DEFINE([USE_DANESSL], [1], [Define this to use DANE functions from the ssl_dane/danessl library.])
+		DANESSL_XTRA_OBJS="danessl.lo"
+	],
+	[AC_MSG_RESULT([no])])
+AC_LANG_POP(C)
+AC_SUBST(DANESSL_XTRA_OBJS)
 
 AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
 	case "$enable_sha1" in

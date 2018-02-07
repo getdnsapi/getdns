@@ -96,7 +96,9 @@ JSMN_OBJ=jsmn.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
-GETDNS_XTRA_OBJS=@GETDNS_XTRA_OBJS@
+DANESSL_OBJ=danessl.lo
+
+GETDNS_XTRA_OBJS=@GETDNS_XTRA_OBJS@ @DANESSL_XTRA_OBJS@
 STUBBY_XTRA_OBJS=@STUBBY_XTRA_OBJS@
 
 EXTENSION_OBJ=$(DEFAULT_EVENTLOOP_OBJ) libevent.lo libev.lo
@@ -132,6 +134,9 @@ $(JSMN_OBJ):
 
 $(YAML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(stubbysrcdir)/src/yaml/$(@:.lo=.c) -o $@
+
+$(DANESSL_OBJ):
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WNOERRORFLAG) -c $(srcdir)/ssl_dane/$(@:.lo=.c) -o $@
 
 $(YXML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -I$(srcdir)/yxml -DYXML_GETDNS -Wno-unused-parameter -c $(srcdir)/yxml/$(@:.lo=.c) -o $@
@@ -255,7 +260,7 @@ Makefile: $(srcdir)/Makefile.in ../config.status
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
 
-	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iyxml -Iutil/auxiliary -I../stubby/src *.c gldns/*.c compat/*.c util/*.c jsmn/*.c yxml/*.c extension/*.c ../stubby/src/*.c | \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iyxml -Iutil/auxiliary -I../stubby/src *.c gldns/*.c compat/*.c util/*.c jsmn/*.c yxml/*.c ssl_dane/danessl.c extension/*.c ../stubby/src/*.c | \
 		sed -e "s? $$blddir/? ?g" \
 		    -e 's? gldns/? $$(srcdir)/gldns/?g' \
 		    -e 's? compat/? $$(srcdir)/compat/?g' \
@@ -263,6 +268,7 @@ depend:
 		    -e 's? util/? $$(srcdir)/util/?g' \
 		    -e 's? jsmn/? $$(srcdir)/jsmn/?g' \
 		    -e 's? yxml/? $$(srcdir)/yxml/?g' \
+		    -e 's? ssl_dane/? $$(srcdir)/ssl_dane/?g' \
 		    -e 's? extension/? $$(srcdir)/extension/?g' \
 		    -e 's? \.\./stubby/? $$(stubbysrcdir)/?g' \
 		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
@@ -311,7 +317,7 @@ context.lo context.o: $(srcdir)/context.c \
  $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/util/lruhash.h \
  $(srcdir)/util/orig-headers/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/orig-headers/locks.h \
  $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/util-internal.h $(srcdir)/platform.h $(srcdir)/dnssec.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/stub.h $(srcdir)/list.h $(srcdir)/dict.h $(srcdir)/pubkey-pinning.h
+ $(srcdir)/gldns/rrdef.h $(srcdir)/stub.h $(srcdir)/list.h $(srcdir)/dict.h $(srcdir)/pubkey-pinning.h $(srcdir)/ssl_dane/danessl.h
 convert.lo convert.o: $(srcdir)/convert.c \
  config.h \
  getdns/getdns.h \
@@ -450,7 +456,7 @@ stub.lo stub.o: $(srcdir)/stub.c \
  $(srcdir)/extension/poll_eventloop.h $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h \
  $(srcdir)/util/lruhash.h $(srcdir)/util/orig-headers/lruhash.h $(srcdir)/util/locks.h \
  $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/anchor.h \
- $(srcdir)/util-internal.h $(srcdir)/platform.h $(srcdir)/general.h $(srcdir)/pubkey-pinning.h
+ $(srcdir)/util-internal.h $(srcdir)/platform.h $(srcdir)/general.h $(srcdir)/pubkey-pinning.h $(srcdir)/ssl_dane/danessl.h
 sync.lo sync.o: $(srcdir)/sync.c \
  getdns/getdns.h \
  config.h \
@@ -557,6 +563,7 @@ val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c \
  $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
 jsmn.lo jsmn.o: $(srcdir)/jsmn/jsmn.c $(srcdir)/jsmn/jsmn.h
 yxml.lo yxml.o: $(srcdir)/yxml/yxml.c $(srcdir)/yxml/yxml.h
+danessl.lo danessl.o: $(srcdir)/ssl_dane/danessl.c $(srcdir)/ssl_dane/danessl.h
 libev.lo libev.o: $(srcdir)/extension/libev.c \
  config.h \
  $(srcdir)/types-internal.h \
