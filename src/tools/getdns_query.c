@@ -1613,7 +1613,43 @@ static void incoming_request_handler(getdns_context *context,
 		fprintf(stderr, "Could set class from query: %s\n",
 		    getdns_get_errorstr_by_id(r));
 
-	else if ((r = getdns_general(context, qname_str, qtype,
+	else if (qtype == GETDNS_RRTYPE_TXT && qclass == GETDNS_RRCLASS_CH &&
+	    strcasecmp(qname_str, "version.bind.") == 0) {
+		const char *getdns_query_version = "getdns_query " GETDNS_VERSION;
+		char getdns_version[100] = "getdns ";
+		char getdns_api_version[100] = "getdns API ";
+
+		response = request;
+		(void) getdns_dict_set_bindata(response, "/answer/0/name", qname);
+		(void) getdns_dict_set_int(response, "/answer/0/type",  qtype);
+		(void) getdns_dict_set_int(response, "/answer/0/class", qclass);
+		(void) getdns_dict_set_int(response, "/answer/0/ttl",   0);
+		(void) getdns_dict_util_set_string(response,
+		    "/answer/0/rdata/txt_strings/0", getdns_query_version);
+
+		(void) getdns_dict_set_bindata(response, "/answer/1/name", qname);
+		(void) getdns_dict_set_int(response, "/answer/1/type",  qtype);
+		(void) getdns_dict_set_int(response, "/answer/1/class", qclass);
+		(void) getdns_dict_set_int(response, "/answer/1/ttl",   0);
+		(void) strncat(getdns_version + 7,
+		    getdns_get_version(), sizeof(getdns_version) - 8);
+		(void) getdns_dict_util_set_string(response,
+		    "/answer/1/rdata/txt_strings/0",getdns_version);
+
+		(void) getdns_dict_set_bindata(response, "/answer/2/name", qname);
+		(void) getdns_dict_set_int(response, "/answer/2/type",  qtype);
+		(void) getdns_dict_set_int(response, "/answer/2/class", qclass);
+		(void) getdns_dict_set_int(response, "/answer/2/ttl",   0);
+		(void) strncat(getdns_api_version + 11,
+		    getdns_get_api_version(), sizeof(getdns_api_version) - 12);
+		(void) getdns_dict_util_set_string(response,
+		    "/answer/2/rdata/txt_strings/0",getdns_api_version);
+
+		(void) getdns_dict_set_int(response, "/header/ancount", 3);
+
+		goto answer_request;
+
+	} else if ((r = getdns_general(context, qname_str, qtype,
 	    qext, msg, &transaction_id, request_cb)))
 		fprintf(stderr, "Could not schedule query: %s\n",
 		    getdns_get_errorstr_by_id(r));
@@ -1624,9 +1660,8 @@ static void incoming_request_handler(getdns_context *context,
 		return;
 	}
 error:
-	if (qname_str)
-		free(qname_str);
 	servfail(msg, &response);
+answer_request:
 #if defined(SERVER_DEBUG) && SERVER_DEBUG
 	do {
 		char *request_str = getdns_pretty_print_dict(request);
@@ -1643,13 +1678,17 @@ error:
 		/* Cancel reply */
 		getdns_reply(context, NULL, request_id);
 	}
+	if (response && response != request)
+		getdns_dict_destroy(response);
+
+	if (qname_str)
+		free(qname_str);
+
 	if (msg) {
 		if (msg->request)
 			getdns_dict_destroy(msg->request);
 		free(msg);
 	}
-	if (response)
-		getdns_dict_destroy(response);
 }
 
 static void _getdns_query_log(void *userarg, uint64_t system,

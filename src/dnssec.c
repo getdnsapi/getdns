@@ -1755,6 +1755,26 @@ static int dnskey_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
 	return 0;
 }
 
+/* Returns whether a dnskey for keyset signed a non wildcard rrset. */
+static int a_key_signed_rrset_no_wc(struct mem_funcs *mf, time_t now,
+    uint32_t skew, _getdns_rrset *keyset, _getdns_rrset *rrset)
+{
+	_getdns_rrtype_iter dnskey_spc, *dnskey;
+	const uint8_t *nc_name;
+	int keytag;
+
+	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
+
+	for ( dnskey = _getdns_rrtype_iter_init(&dnskey_spc, keyset)
+	    ; dnskey ; dnskey = _getdns_rrtype_iter_next(dnskey) ) {
+
+		if ((keytag = dnskey_signed_rrset(mf, now, skew,
+		    dnskey, rrset, &nc_name)) && !nc_name)
+			return keytag;
+	}
+	return 0;
+}
+
 static int find_nsec_covering_name(
     struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
     _getdns_rrset *rrset, const uint8_t *name, int *opt_out);
@@ -2110,7 +2130,8 @@ static int find_nsec_covering_name(
 		    && (bitmap = _getdns_rdf_iter_init_at(
 				    &bitmap_spc, &nsec_rr->rr_i, 5))
 
-		    && (keytag = a_key_signed_rrset(mf, now, skew, dnskey, n))
+		    && (keytag = a_key_signed_rrset_no_wc(
+				    mf, now, skew, dnskey, n))
 		    && (   keytag & NSEC3_ITERATION_COUNT_HIGH
 
 		        || (   nsec3_covers_name(n, name, opt_out)
@@ -2174,7 +2195,8 @@ static int find_nsec_covering_name(
 		           )
 		       )
 
-		    && (keytag = a_key_signed_rrset(mf,now,skew, dnskey, n))) {
+		    && (keytag = a_key_signed_rrset_no_wc(
+					    mf, now, skew, dnskey, n))) {
 
 			debug_sec_print_rrset("NSEC:   ", n);
 			debug_sec_print_dname("covered: ", name);
@@ -2297,7 +2319,8 @@ static int key_proves_nonexistance(
 		||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
 
 	    /* And a valid signature please */
-	    && (keytag = a_key_signed_rrset(mf,now,skew,keyset,&nsec_rrset))) {
+	    && (keytag = a_key_signed_rrset_no_wc(
+				    mf, now, skew, keyset, &nsec_rrset))) {
 
 		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
 		return keytag;
@@ -2353,7 +2376,7 @@ static int key_proves_nonexistance(
 		       )
 
 		    /* And a valid signature please (as always) */
-		    || !(keytag = a_key_signed_rrset(
+		    || !(keytag = a_key_signed_rrset_no_wc(
 					    mf, now, skew, keyset, cover)))
 			continue;
 
@@ -2437,7 +2460,8 @@ static int key_proves_nonexistance(
 			||  bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
 
 		    /* It must have a valid signature */
-		    && (keytag = a_key_signed_rrset(mf, now, skew, keyset, ce))
+		    && (keytag = a_key_signed_rrset_no_wc(
+					    mf, now, skew, keyset, ce))
 
 		    /* The qname must match the NSEC3 */
 		    && (   keytag & NSEC3_ITERATION_COUNT_HIGH
@@ -2493,7 +2517,7 @@ static int key_proves_nonexistance(
 			        && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA)
 			       )
 
-			    || !(keytag = a_key_signed_rrset(
+			    || !(keytag = a_key_signed_rrset_no_wc(
 						    mf, now, skew, keyset, ce))
 			    || (   !(keytag & NSEC3_ITERATION_COUNT_HIGH)
 			        && !nsec3_matches_name(ce, ce_name)))
@@ -2545,7 +2569,7 @@ static int chain_node_get_trusted_keys(
 	} else if (ta->rr_type == GETDNS_RRTYPE_DNSKEY) {
 
 		/* ta is KSK */
-		if ((keytag = a_key_signed_rrset(
+		if ((keytag = a_key_signed_rrset_no_wc(
 		    mf, now, skew, ta, &node->dnskey))) {
 			*keys = &node->dnskey;
 			node->dnskey_signer = keytag;
@@ -2563,7 +2587,8 @@ static int chain_node_get_trusted_keys(
 			return GETDNS_DNSSEC_INSECURE;
 		}
 
-		if ((keytag = a_key_signed_rrset(mf,now,skew,ta,&node->ds))) {
+		if ((keytag = a_key_signed_rrset_no_wc(
+					mf, now, skew, ta, &node->ds))) {
 			node->ds_signer = keytag;
 			if ((keytag = ds_authenticates_keys(
 			    mf, now, skew, &node->ds, &node->dnskey))) {
@@ -2597,7 +2622,7 @@ static int chain_node_get_trusted_keys(
 	}
 	if (key_matches_signer(ta, &node->ds)) {
 		
-		if ((node->ds_signer = a_key_signed_rrset(
+		if ((node->ds_signer = a_key_signed_rrset_no_wc(
 						mf, now, skew, ta, &node->ds))
 		   && (keytag = ds_authenticates_keys(
 				mf, now, skew, &node->ds, &node->dnskey))){

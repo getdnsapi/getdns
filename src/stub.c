@@ -965,6 +965,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			    "%-40s : ERROR: Hostname Authentication not available from TLS library (check library version)\n",
 			    upstream->addr_str);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			SSL_free(ssl);
 			return NULL;
 		}
 #endif
@@ -982,6 +983,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				DEBUG_STUB("%s %-35s: ERROR: No host name or pubkey pinset provided for TLS authentication\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
+				SSL_free(ssl);
 				return NULL;
 			}
 		} else {
