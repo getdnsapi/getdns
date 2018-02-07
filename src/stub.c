@@ -1227,6 +1227,7 @@ tls_do_handshake(getdns_upstream *upstream)
 		    && !upstream->tls_fallback_ok)
 			return STUB_SETUP_ERROR;
 	}
+#endif /* defined(USE_DANESSL) || defined(HAVE_SSL_HN_AUTH) */
 	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %s. Session is %s.\n", 
 		         STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, 
 		         _getdns_auth_str(upstream->tls_auth_state),
@@ -1246,7 +1247,6 @@ tls_do_handshake(getdns_upstream *upstream)
 	     NULL, upstream_write_cb, NULL));
 	return 0;
 }
-#endif /* defined(USE_DANESSL) || defined(HAVE_SSL_HN_AUTH) */
 
 static int
 tls_connected(getdns_upstream* upstream)

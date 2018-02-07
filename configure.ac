@@ -441,6 +441,8 @@ AC_COMPILE_IFELSE(
 		[#error "OpenSSL 1.0.0 or higher required for DANE library"]
 		[#elif defined(HAVE_SSL_DANE_ENABLE)]
 		[#error "OpenSSL has native DANE support"]
+		[#elif defined(LIBRESSL_VERSION_NUMBER)]
+		[#error "dane_ssl library does not work with LibreSSL"]
 		[#endif]
 	],[[]])],
 	[
