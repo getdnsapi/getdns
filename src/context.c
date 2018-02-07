@@ -810,8 +810,9 @@ upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_shutdowns = 0;
 	upstream->conn_backoffs++;
 	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-	    "%-40s : !Backing off this upstream    - Will retry again in %ds at %s",
+	    "%-40s : Upstream   : !Backing off %s on this upstream    - Will retry again in %ds at %s",
 	            upstream->addr_str,
+	            upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP",
 	            upstream->conn_backoff_interval,
 	            asctime(gmtime(&upstream->conn_retry_time)));
 }
