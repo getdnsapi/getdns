@@ -1574,10 +1574,20 @@ static exit_value test_out_of_order(struct test_info_s *test_info,
                 return EXIT_USAGE;
         }
 
-        /* A set of asynchronous queries to send. One exists. */
+        /*
+         * A set of asynchronous queries to send. One exists.
+         *
+         * Replies from delay.getdns.api come back with a 1s TTL. It turns out
+         * that delay.getdns.api will ignore all leftmost labels bar the first,
+         * so to further mitigate any cache effects insert a random string
+         * into the name.
+         */
         const char GOOD_NAME[] = "getdnsapi.net";
+        char delay_name[50];
+        srand(time(NULL));
+        snprintf(delay_name, sizeof(delay_name) - 1, "400.n%04d.delay.getdnsapi.net", rand() % 10000);
         struct async_query async_queries[] = {
-                { "400.delay.getdnsapi.net", 0, false },
+                { delay_name, 0, false },
                 { GOOD_NAME, 0, false }
         };
         unsigned NQUERIES = sizeof(async_queries) / sizeof(async_queries[0]);
