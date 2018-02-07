@@ -1159,6 +1159,35 @@ tls_do_handshake(getdns_upstream *upstream)
 			    ? "Tolerated because of Opportunistic profile"
 			    : "*Failure*" ));
 
+		/* Since we don't have DANE validation yet, DANE validation
+		 * failures are always pinset validation failures
+		 */
+# if defined(HAVE_SSL_DANE_ENABLE)
+		else if (verify_result == X509_V_ERR_DANE_NO_MATCH)
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "Pinset validation failure\n", upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ));
+# elif defined(USE_DANESSL)
+		else if (verify_result == X509_V_ERR_CERT_UNTRUSTED
+		    && upstream->tls_pubkey_pinset
+		    && !DANESSL_get_match_cert(
+			    upstream->tls_obj, NULL, NULL, NULL))
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "Pinset validation failure\n", upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ));
+# endif
 		else if (verify_result != X509_V_OK)
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,

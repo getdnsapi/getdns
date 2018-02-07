@@ -686,7 +686,7 @@ upstreams_create(getdns_context *context, size_t size)
 }
 
 
-#if defined(STUB_DEBUG) && STUB_DEBUG
+#if defined(USE_DANESSL) && defined(STUB_DEBUG) && STUB_DEBUG
 static void _stub_debug_print_openssl_errors(void)
 {
     unsigned long err;
