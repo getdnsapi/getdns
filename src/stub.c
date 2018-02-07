@@ -1153,7 +1153,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Remote did not offer certificate\n",
 			    upstream->addr_str,
 			    ( upstream->tls_fallback_ok
@@ -1169,7 +1169,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Pinset validation failure\n", upstream->addr_str,
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
@@ -1183,7 +1183,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Pinset validation failure\n", upstream->addr_str,
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
@@ -1194,7 +1194,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "(%d) \"%s\"\n", upstream->addr_str,
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
@@ -1206,7 +1206,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Hostname Authentication not available from TLS "
 			    "library (check library version)\n",
 			    upstream->addr_str,
@@ -1220,7 +1220,7 @@ tls_do_handshake(getdns_upstream *upstream)
 		else
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-			    "%-40s : Verify passed : Transport=TLS\n",
+			    "%-40s : Verify passed : TLS\n",
 			    upstream->addr_str);
 
 		X509_free(peer_cert);
