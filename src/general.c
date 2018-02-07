@@ -697,6 +697,8 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 		/* clean up the request */
 		_getdns_context_clear_outbound_request(req);
 		_getdns_dns_req_free(req);
+		if (return_netreq_p)
+			*return_netreq_p = NULL;
 		return r;
 	}
 	return GETDNS_RETURN_GOOD;
