@@ -211,6 +211,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
 	net_req->debug_tls_peer_cert.size = 0;
 	net_req->debug_tls_peer_cert.data = NULL;
+	net_req->debug_tls_version = NULL;
 	net_req->debug_udp = 0;
 
 	/* Scheduling, touch only via _getdns_netreq_change_state!

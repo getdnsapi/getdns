@@ -44,7 +44,7 @@ libdir = @libdir@
 srcdir = @srcdir@
 INSTALL = @INSTALL@
 
-all : default @GETDNS_QUERY@
+all : default @GETDNS_QUERY@ @GETDNS_SERVER_MON@
 
 everything: default
 	cd src/test && $(MAKE)
@@ -55,7 +55,7 @@ default:
 install-lib:
 	cd src && $(MAKE) install
 
-install: getdns.pc getdns_ext_event.pc install-lib @INSTALL_GETDNS_QUERY@
+install: getdns.pc getdns_ext_event.pc install-lib @INSTALL_GETDNS_QUERY@ @INSTALL_GETDNS_SERVER_MON@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/AUTHORS $(DESTDIR)$(docdir)
 	$(INSTALL) -m 644 $(srcdir)/ChangeLog $(DESTDIR)$(docdir)
@@ -93,7 +93,7 @@ install: getdns.pc getdns_ext_event.pc install-lib @INSTALL_GETDNS_QUERY@
 	@echo "***  trust anchor management keeping it up-to-date."
 	@echo "***"
 
-uninstall: @UNINSTALL_GETDNS_QUERY@
+uninstall: @UNINSTALL_GETDNS_QUERY@ @UNINSTALL_GETDNS_SERVER_MON@
 	rm -rf $(DESTDIR)$(docdir)
 	cd doc && $(MAKE) $@
 	cd src && $(MAKE) $@
@@ -110,6 +110,9 @@ test: default
 getdns_query: default
 	cd src/tools && $(MAKE) $@
 
+getdns_server_mon: default
+	cd src/tools && $(MAKE) $@
+
 stubby:
 	cd src && $(MAKE) $@
 
@@ -123,6 +126,12 @@ install-getdns_query: install-lib
 	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_query:
+	cd src/tools && $(MAKE) $@
+
+install-getdns_server_mon: install-lib
+	cd src/tools && $(MAKE) $@
+
+uninstall-getdns_server_mon:
 	cd src/tools && $(MAKE) $@
 
 install-stubby:
