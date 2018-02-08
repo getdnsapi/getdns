@@ -1261,9 +1261,10 @@ static exit_value test_keepalive(struct test_info_s *test_info,
 {
         getdns_dict *response;
         exit_value xit;
+        const uint64_t MAX_TIMEOUT_VALUE = 0xffff * 10000;
 
         getdns_return_t ret;
-        if ((ret = getdns_context_set_idle_timeout(test_info->context, 1)) != GETDNS_RETURN_GOOD) {
+        if ((ret = getdns_context_set_idle_timeout(test_info->context, MAX_TIMEOUT_VALUE)) != GETDNS_RETURN_GOOD) {
                 snprintf(test_info->base_output,
                          MAX_BASE_OUTPUT_LEN,
                          "Cannot set keepalive timeout: %s (%d)",
