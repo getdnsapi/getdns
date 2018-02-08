@@ -2082,52 +2082,49 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (i >= upstreams->count)
 			i = 0;
 	} while (i != upstreams->current_stateful);
-
 	if (!upstream) {
 		/* Oh, oh. We have no valid upstreams for this transport. */
 		/* If there are other fallback transports that are working, we should 
-		use them before forcilby promoting failed upstreams for re-try, since 
-		waiting for the the re-try timer to re-instate them is the right thing 
-		in this case. */
-		if (other_transports_working(netreq, upstreams, transport)) {
+		   use them before forcibly promoting failed upstreams for re-try, since 
+		   waiting for the the re-try timer to re-instate them is the right thing 
+		   in this case. */
+		if (other_transports_working(netreq, upstreams, transport))
+			return NULL;
+
+		/* Try to find one that might work so
+		   allow backed off upstreams to be considered valid.
+		   Don't worry about the policy, just use the one with the least bad
+		   stats that still fits the bill (right transport, right authentication)
+		   to try to avoid total failure due to network outages. */
+		do {
+			if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 1)) {
+				upstream = &upstreams->upstreams[i];
+				break;
+			}
+			i++;
+			if (i >= upstreams->count)
+				i = 0;
+		} while (i != upstreams->current_stateful);
+		if (!upstream) {
+			/* We _really_ have nothing that authenticates well enough right now...
+			   leave to regular backoff logic. */
 			return NULL;
 		}
-		else {
-			/* Try to find one that might work so
-			   allow backed off upstreams to be considered valid.
-			   Don't worry about the policy, just use the one with the least bad
-			   stats that still fits the bill (right transport, right authentication)
-			   to try to avoid total failure due to network outages. */
-			do {
-				if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 1)) {
-					upstream = &upstreams->upstreams[i];
-					break;
-				}
-				i++;
-				if (i >= upstreams->count)
-					i = 0;
-			} while (i != upstreams->current_stateful);
-			if (!upstream) {
-				/* We _really_ have nothing that authenticates well enough right now...
-				   leave to regular backoff logic. */
-				return NULL;
-			}
-			do {
-				i++;
-				if (i >= upstreams->count)
-					i = 0;
-				if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 1) &&
-				    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
-					upstream = &upstreams->upstreams[i];
-			} while (i != upstreams->current_stateful);
-			upstream->conn_state = GETDNS_CONN_CLOSED;
-			upstream->conn_backoff_interval = 1;
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-			    "%-40s : Upstream   : No valid upstreams for %s... promoting this backed-off upstream for re-try...\n",
-			    upstream->addr_str,
-			    upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
-			return upstream;
-		}
+		do {
+			i++;
+			if (i >= upstreams->count)
+				i = 0;
+			if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 1) &&
+			    upstream_stats(&upstreams->upstreams[i]) > upstream_stats(upstream))
+				upstream = &upstreams->upstreams[i];
+		} while (i != upstreams->current_stateful);
+		upstream->conn_state = GETDNS_CONN_CLOSED;
+		upstream->conn_backoff_interval = 1;
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
+		    "%-40s : Upstream   : No valid upstreams for %s... promoting this backed-off upstream for re-try...\n",
+		    upstream->addr_str,
+		    upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
+		return upstream;
 	}
 
 	/* Now select the specific upstream */
