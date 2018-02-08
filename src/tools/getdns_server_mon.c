@@ -180,7 +180,7 @@ static const char *rcode_text(int rcode)
         return getdns_intval_text(rcode, "rcode", "GETDNS_RCODE_");
 }
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000
+#if OPENSSL_VERSION_NUMBER < 0x10002000 || defined(LIBRESSL_VERSION_NUMBER)
 /*
  * Convert date to Julian day.
  * See https://en.wikipedia.org/wiki/Julian_day
@@ -221,7 +221,7 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
 
         *t = time(NULL);
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000
+#if OPENSSL_VERSION_NUMBER < 0x10002000 || defined(LIBRESSL_VERSION_NUMBER)
         /*
          * OpenSSL before 1.0.2 does not support ASN1_TIME_diff().
          * So work around by using ASN1_TIME_print() to print to a buffer
