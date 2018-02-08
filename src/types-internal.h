@@ -242,6 +242,7 @@ typedef struct getdns_network_req
 	uint64_t                debug_end_time;
 	getdns_auth_state_t     debug_tls_auth_status;
 	getdns_bindata          debug_tls_peer_cert;
+	const char             *debug_tls_version;
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is

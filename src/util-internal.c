@@ -880,6 +880,10 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		}
+		if (getdns_dict_set_int( netreq_debug, "server_keepalive_received", netreq->upstream->server_keepalive_received)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 		/* The running totals are only updated when a connection is closed.
 		   Since it is open as we have just used it, calcualte the value on the fly */
 		if (getdns_dict_set_int( netreq_debug, "responses_on_this_connection",
@@ -912,6 +916,12 @@ _getdns_create_call_reporting_dict(
 	/* Only include the auth status if TLS was used */
 	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
 	    _getdns_auth_str(netreq->debug_tls_auth_status))){
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	if (getdns_dict_util_set_string(netreq_debug, "tls_version",
+	    netreq->debug_tls_version)){
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
