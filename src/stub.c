@@ -533,11 +533,7 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	   the queries if there is only one upstream.*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (during_setup) {
-		/* Special case if failure was due to authentication issues since this
-		   upstream could be used oppotunistically with no problem.*/
-		if (!(upstream->transport == GETDNS_TRANSPORT_TLS &&
-		    upstream->tls_auth_state == GETDNS_AUTH_FAILED))
-			upstream->conn_setup_failed++;
+		upstream->conn_setup_failed++;
 	} else {
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
@@ -584,7 +580,7 @@ stub_timeout_cb(void *userarg)
 		netreq->upstream->udp_timeouts++;
 		if (netreq->upstream->udp_timeouts % 100 == 0)
 			_getdns_upstream_log(netreq->upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
-			    "%-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+			    "%-40s : Upstream   : UDP - Resps=%6d, Timeouts  =%6d (logged every 100 responses)\n",
 			             netreq->upstream->addr_str,
 			             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
 		stub_next_upstream(netreq);
@@ -878,7 +874,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 # endif
 	if (!preverify_ok && !upstream->tls_fallback_ok)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-		    "%-40s : Verify failed : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
+		    "%-40s : Verify failed: TLS - *Failure* -  (%d) \"%s\"\n",
 		    upstream->addr_str, err,
 		    X509_verify_cert_error_string(err));
 
@@ -900,7 +896,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
 		else
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-			    "%-40s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
+			    "%-40s : Conn failed: TLS - *Failure* - Pinset validation failure\n",
 			    upstream->addr_str);
 	}
 	/* If nothing has failed yet and we had credentials, we have succesfully authenticated*/
@@ -967,6 +963,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			    upstream->addr_str);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
 			SSL_free(ssl);
+			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 			return NULL;
 		}
 #endif
@@ -981,10 +978,14 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				DEBUG_STUB("%s %-35s: Proceeding with only pubkey pinning authentication\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
 			} else {
-				DEBUG_STUB("%s %-35s: ERROR: No host name or pubkey pinset provided for TLS authentication\n",
+				DEBUG_STUB("%s %-35s: ERROR:No auth name or pinset provided for this upstream for Strict TLS authentication\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
+				_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
+				    "%-40s : Verify fail: *CONFIG ERROR* - No auth name or pinset provided for this upstream for Strict TLS authentication\n",
+				    upstream->addr_str);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
 				SSL_free(ssl);
+				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 				return NULL;
 			}
 		} else {
@@ -1153,7 +1154,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Remote did not offer certificate\n",
 			    upstream->addr_str,
 			    ( upstream->tls_fallback_ok
@@ -1169,7 +1170,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Pinset validation failure\n", upstream->addr_str,
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
@@ -1183,7 +1184,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Pinset validation failure\n", upstream->addr_str,
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
@@ -1194,7 +1195,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "(%d) \"%s\"\n", upstream->addr_str,
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
@@ -1206,7 +1207,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
 			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : Transport=TLS - %s -  "
+			    "%-40s : Verify failed : TLS - %s -  "
 			    "Hostname Authentication not available from TLS "
 			    "library (check library version)\n",
 			    upstream->addr_str,
@@ -1220,7 +1221,7 @@ tls_do_handshake(getdns_upstream *upstream)
 		else
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-			    "%-40s : Verify passed : Transport=TLS\n",
+			    "%-40s : Verify passed : TLS\n",
 			    upstream->addr_str);
 
 		X509_free(peer_cert);
@@ -1587,7 +1588,7 @@ stub_udp_read_cb(void *userarg)
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
-		    "%-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+		    "%-40s : Upstream   : UDP - Resps=%6d, Timeouts  =%6d (logged every 100 responses)\n",
 		    upstream->addr_str,
 		    (int)upstream->udp_responses, (int)upstream->udp_timeouts);
 	_getdns_check_dns_req_complete(dnsreq);
@@ -1849,7 +1850,7 @@ upstream_write_cb(void *userarg)
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-		    "%-40s : Conn closed   : Transport=%s - *Failure*\n",
+		    "%-40s : Conn closed: %s - *Failure*\n",
 		    upstream->addr_str,
 		    (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
@@ -2006,6 +2007,34 @@ upstream_valid_and_open(getdns_upstream *upstream,
 	 return 1;
 }
 
+static int
+other_transports_working(getdns_network_req *netreq,
+                         getdns_upstreams *upstreams,
+                         getdns_transport_list_t transport)
+{
+	size_t i,j;
+	for (i = 0; i< netreq->transport_count;i++) {
+		if (netreq->transports[i] == transport)
+			continue;
+		if (netreq->transports[i] == GETDNS_TRANSPORT_UDP) {
+			for (j = 0; j < upstreams->count; j+=GETDNS_UPSTREAM_TRANSPORTS) {
+				if (upstreams->upstreams[j].back_off == 1)
+					return 1;
+			}
+		}
+		else if (netreq->transports[i] == GETDNS_TRANSPORT_TCP ||
+		         netreq->transports[i] == GETDNS_TRANSPORT_TLS) {
+			for (j = 0; j < upstreams->count; j++) {
+				if (netreq->transports[i] == upstreams->upstreams[j].transport &&
+				    upstream_valid(&upstreams->upstreams[j], netreq->transports[i],
+					netreq, 0))
+					return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 static getdns_upstream *
 upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t transport)
 {
@@ -2023,8 +2052,9 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-			    "%-40s : Re-instating upstream\n",
-		            upstreams->upstreams[i].addr_str);
+			    "%-40s : Upstream   : Re-instating %s for this upstream\n",
+			     upstreams->upstreams[i].addr_str,
+			     upstreams->upstreams[i].transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
 		}
 	}
 
@@ -2037,12 +2067,13 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	}
 
 	/* OK - Find the next one to use. First check we have at least one valid
-	   upstream (not backed-off) because we completely back off failed 
+	   upstream (not backed-off). Because we completely back off failed 
 	   upstreams we may have no valid upstream at all (in contrast to UDP).*/
 	i = upstreams->current_stateful;
 	do {
-		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d\n", STUB_DEBUG_SETUP, 
-	           __FUNC__, (int)i, (int)upstreams->upstreams[i].conn_state);
+		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d for transport %d \n",
+	            STUB_DEBUG_SETUP, __FUNC__, (int)i,
+	            (int)upstreams->upstreams[i].conn_state, transport);
 		if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 0)) {
 			upstream = &upstreams->upstreams[i];
 			break;
@@ -2052,7 +2083,15 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 			i = 0;
 	} while (i != upstreams->current_stateful);
 	if (!upstream) {
-		/* Oh, oh. We have no valid upstreams. Try to find one that might work so
+		/* Oh, oh. We have no valid upstreams for this transport. */
+		/* If there are other fallback transports that are working, we should 
+		   use them before forcibly promoting failed upstreams for re-try, since 
+		   waiting for the the re-try timer to re-instate them is the right thing 
+		   in this case. */
+		if (other_transports_working(netreq, upstreams, transport))
+			return NULL;
+
+		/* Try to find one that might work so
 		   allow backed off upstreams to be considered valid.
 		   Don't worry about the policy, just use the one with the least bad
 		   stats that still fits the bill (right transport, right authentication)
@@ -2082,8 +2121,9 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		upstream->conn_state = GETDNS_CONN_CLOSED;
 		upstream->conn_backoff_interval = 1;
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-		    "%-40s : No valid upstreams... promoting this backed-off upstream for re-try...\n",
-		    upstream->addr_str);
+		    "%-40s : Upstream   : No valid upstreams for %s... promoting this backed-off upstream for re-try...\n",
+		    upstream->addr_str,
+		    upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
 		return upstream;
 	}
 
@@ -2261,7 +2301,7 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
 	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-	    "*FAILURE* no valid transports or upstreams available!\n");
+	    "   *FAILURE* no valid transports or upstreams available!\n");
 	return -1;
 }
 
