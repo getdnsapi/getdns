@@ -945,8 +945,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name);
 		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
-#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(HAVE_LIBRESSL)
-# if defined(HAVE_SSL_HN_AUTH)
+#if defined(HAVE_SSL_HN_AUTH)
 		/* Set up native OpenSSL hostname verification
 		 * ( doesn't work with USE_DANESSL, but we verify the
 		 *   name afterwards in such cases )
@@ -955,7 +954,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		param = SSL_get0_param(ssl);
 		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
-# else
+#elif !defined(HAVE_X509_CHECK_HOST)
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
 			DEBUG_STUB("%s %-35s: ERROR: Hostname Authentication not available from TLS library (check library version)\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
@@ -967,7 +966,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 			return NULL;
 		}
-# endif
 #endif
 		/* Allow fallback to opportunistic if settings permit it*/
 		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
@@ -1133,7 +1131,6 @@ tls_do_handshake(getdns_upstream *upstream)
 	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
 		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj);
 		long verify_result = SSL_get_verify_result(upstream->tls_obj);
-		int xch;
 
 /* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
  * we need to verify auth_name explicitely (otherwise it will not be checked,
@@ -1141,10 +1138,11 @@ tls_do_handshake(getdns_upstream *upstream)
  * This is not needed with native OpenSSL DANE, because EE name checks have
  * to be disabled explicitely.
  */
-#if defined(USE_DANESSL) || OPENSSL_VERSION_NUMBER < 0x10002000L || defined(HAVE_LIBRESSL)
+#if defined(USE_DANESSL) || (!defined(HAVE_SSL_HN_AUTH) && defined(HAVE_X509_CHECK_HOST))
+		int xch;
 		if (peer_cert && verify_result == X509_V_OK
 		    && upstream->tls_auth_name[0]
-# if defined(USE_DANESSL) && !(OPENSSL_VERSION_NUMBER < 0x10002000L || defined(HAVE_LIBRESSL))
+# if defined(USE_DANESSL) && defined(HAVE_SSL_HN_AUTH)
 		    && upstream->tls_pubkey_pinset
 # endif
 		    && (xch = X509_check_host(peer_cert,
@@ -1208,7 +1206,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    ? "Tolerated because of Opportunistic profile"
 			    : "*Failure*" ), verify_result,
 			    X509_verify_cert_error_string(verify_result));
-#if !defined(HAVE_SSL_HN_AUTH) && !(OPENSSL_VERSION_NUMBER < 0x10002000L || defined(HAVE_LIBRESSL))
+#if !defined(HAVE_SSL_HN_AUTH) && !defined(HAVE_X509_CHECK_HOST)
 		else if (*upstream->tls_auth_name) {
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,
