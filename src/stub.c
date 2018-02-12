@@ -1138,13 +1138,10 @@ tls_do_handshake(getdns_upstream *upstream)
  * This is not needed with native OpenSSL DANE, because EE name checks have
  * to be disabled explicitely.
  */
-#if defined(USE_DANESSL) || (!defined(HAVE_SSL_HN_AUTH) && defined(HAVE_X509_CHECK_HOST))
+#if defined(HAVE_X509_CHECK_HOST) && (defined(USE_DANESSL) || !defined(HAVE_SSL_HN_AUTH))
 		int xch;
 		if (peer_cert && verify_result == X509_V_OK
 		    && upstream->tls_auth_name[0]
-# if defined(USE_DANESSL) && defined(HAVE_SSL_HN_AUTH)
-		    && upstream->tls_pubkey_pinset
-# endif
 		    && (xch = X509_check_host(peer_cert,
 				    upstream->tls_auth_name,
 				    strlen(upstream->tls_auth_name),
