@@ -836,7 +836,7 @@ const char* gldns_get_errorstr_parse(int e)
 }
 
 /* Strip whitespace from the start and the end of <line>.  */
-static char *
+char *
 gldns_strip_ws(char *line)
 {
         char *s = line, *e;
@@ -906,7 +906,7 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 		*dname_len = 0;
 		return GLDNS_WIREPARSE_ERR_INCLUDE;
 	} else {
-		return gldns_str2wire_rr_buf(line, rr, len, dname_len,
+		int r = gldns_str2wire_rr_buf(line, rr, len, dname_len,
 			parse_state?parse_state->default_ttl:0,
 			(parse_state&&parse_state->origin_len)?
 				parse_state->origin:NULL,
@@ -914,6 +914,13 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 			(parse_state&&parse_state->prev_rr_len)?
 				parse_state->prev_rr:NULL,
 			parse_state?parse_state->prev_rr_len:0);
+		if(r == GLDNS_WIREPARSE_ERR_OK && (*dname_len) != 0 &&
+			parse_state &&
+			(*dname_len) <= sizeof(parse_state->prev_rr)) {
+			memmove(parse_state->prev_rr, rr, *dname_len);
+			parse_state->prev_rr_len = (*dname_len);
+		}
+		return r;
 	}
 	return GLDNS_WIREPARSE_ERR_OK;
 }
@@ -1541,7 +1548,7 @@ int gldns_str2wire_loc_buf(const char* str, uint8_t* rd, size_t* len)
 		s = strtod(my_str, &my_str);
 	}
 
-	/* skip blanks before norterness */
+	/* skip blanks before northerness */
 	while (isblank((unsigned char) *my_str)) {
 		my_str++;
 	}
@@ -1693,12 +1700,15 @@ int gldns_str2wire_wks_buf(const char* str, uint8_t* rd, size_t* len)
 			struct protoent *p = getprotobyname(token);
 			have_proto = 1;
 			if(p) rd[0] = (uint8_t)p->p_proto;
+			else if(strcasecmp(token, "tcp")==0) rd[0]=6;
+			else if(strcasecmp(token, "udp")==0) rd[0]=17;
 			else rd[0] = (uint8_t)atoi(token);
 			(void)strlcpy(proto_str, token, sizeof(proto_str));
 		} else {
 			int serv_port;
 			struct servent *serv = getservbyname(token, proto_str);
 			if(serv) serv_port=(int)ntohs((uint16_t)serv->s_port);
+			else if(strcasecmp(token, "domain")==0) serv_port=53;
 			else {
 				serv_port = atoi(token);
 				if(serv_port == 0 && strcmp(token, "0") != 0) {
