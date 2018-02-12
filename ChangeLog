@@ -1,4 +1,8 @@
 * 2018-0?-??: Version 1.?.?
+  * Specify the supported curves with getdns_context_set_tls_curves_list()
+    An upstream specific list of supported curves may also be given
+    with the tls_curves_list setting in the upstream dict with
+    getdns_context_set_upstream_recursive_servers()
   * libidn2 support.  Thanks Paul Wouters
 
 * 2017-12-21: Version 1.3.0
