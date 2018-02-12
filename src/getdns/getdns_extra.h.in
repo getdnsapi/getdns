@@ -100,6 +100,8 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TLS_CA_FILE_TEXT "Change related to getdns_context_set_tls_ca_file"
 #define GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST 633
 #define GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST_TEXT "Change related to getdns_context_set_tls_cipher_list"
+#define GETDNS_CONTEXT_CODE_TLS_CURVES_LIST 634
+#define GETDNS_CONTEXT_CODE_TLS_CURVES_LIST_TEXT "Change related to getdns_context_set_tls_curves_list"
 
 /** @}
   */
@@ -754,6 +756,20 @@ getdns_context_set_tls_cipher_list(
     getdns_context *context, const char *cipher_list);
 
 /**
+ * Sets the supported curves TLS upstreams.
+ * @see getdns_context_get_tls_curves_list
+ * @param[in] context      The context to configure
+ * @param[in] curves_list  The string is a colon separated list of curve
+ *                         NIDs or names, for example "P-521:P-384:P-256".
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_set_tls_curves_list(
+    getdns_context *context, const char *curves_list);
+
+
+/**
  * Get the current resolution type setting from this context.
  * @see getdns_context_set_resolution_type
  * @see resolutiontypestext
@@ -1271,6 +1287,21 @@ getdns_context_get_tls_ca_file(getdns_context *context, const char **tls_ca_file
 getdns_return_t
 getdns_context_get_tls_cipher_list(
     getdns_context *context, const char **cipher_list);
+
+/**
+ * Get the supported curves list if one has been set earlier.
+ * @see getdns_context_set_tls_curves_list
+ * @param[in]  context      The configured context
+ * @param[out] curves_list  The string is a colon separated list of curve
+ *                          NIDs or names, for example "P-521:P-384:P-256",
+ *                          when one has been configured on the context,
+ *                          or NULL when none has been set before.
+ * @return GETDNS_RETURN_GOOD when successful
+ * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
+ */
+getdns_return_t
+getdns_context_get_tls_curves_list(
+    getdns_context *context, const char **curves_list);
 
 
 /** @}

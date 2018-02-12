@@ -925,6 +925,10 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		SSL_free(ssl);
 		return NULL;
 	}
+#if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
+	if (upstream->tls_curves_list)
+		(void) SSL_set1_curves_list(ssl, upstream->tls_curves_list);
+#endif
 	/* make sure we'll be able to find the context again when we need it */
 	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
 		SSL_free(ssl);
