@@ -1,8 +1,30 @@
-* 2018-0?-??: Version 1.?.?
+* 2018-02-??: Version 1.4.0
+  * .so revision bump to please fedora packaging system.
+    Thanks Paul Wouters
   * Specify the supported curves with getdns_context_set_tls_curves_list()
     An upstream specific list of supported curves may also be given
     with the tls_curves_list setting in the upstream dict with
     getdns_context_set_upstream_recursive_servers()
+  * New tool getdns_server_mon for checking upstream recursive
+    resolver's capabilities.
+  * Improved handling of opportunistic back-off.  If other transports
+    are working, don’t forcibly promote failed upstreams just wait for
+    the re-try timer.
+  * Hostname authentication with libressl
+    Thanks Norbert Copones
+  * Security bugfix in response to CVE-2017-15105.  Although getdns was
+    not vulnerable for this specific issue, as a precaution code has been
+    adapted so that signatures of DNSKEYs, DSs, NSECs and NSEC3s can not
+    be wildcard expansions when used with DNSSEC proofs.  Only direct
+    queries for those types are allowed to be wildcard expansions.
+  * Bugfix PR#379: Miscelleneous double free or corruption, and corrupted
+    memory double linked list detected issue, whith serving functionality.
+    Thanks maddie and Bruno Pagani
+  * Security Bugfix PR#293: Check sha256 pinset's
+    with OpenSSL native DANE functions for OpenSSL >= 1.1.0
+    with Viktor Dukhovni's danessl library for OpenSSL >= 1.0.0
+    don't allow for authentication exceptions (like self-signed
+    certificates) otherwise.  Thanks Viktor Dukhovni
   * libidn2 support.  Thanks Paul Wouters
 
 * 2017-12-21: Version 1.3.0
