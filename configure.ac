@@ -67,6 +67,8 @@ AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE], ["stubby"], [Stubby package])
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$RELEASE_CANDIDATE"], [Stubby package string])
 
 # Library version
 # ---------------

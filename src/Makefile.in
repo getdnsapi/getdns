@@ -47,6 +47,7 @@ have_libuv = @have_libuv@
 have_libev = @have_libev@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
+mandir=@mandir@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 
@@ -205,6 +206,9 @@ getdns_query: default
 getdns_server_mon: default
 	cd tools && $(MAKE) $@
 
+stubby.1: $(stubbysrcdir)/doc/stubby.1.in
+	sed -e "s|@ETCDIR@|$(stubbyconfdir)|g" $< > $@
+
 stubby.lo: $(stubbysrcdir)/src/stubby.c
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR=\"$(sysconfdir)/stubby\" -DRUNSTATEDIR=\"$(runstatedir)\" -c $< -o $@
 
@@ -228,14 +232,18 @@ install-stubby-files-windows: stubby.yml.windows
 	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
 		$(INSTALL_DATA) stubby.yml.windows $(DESTDIR)$(stubbyconfdir)/stubby.yml
 
-install-stubby: stubby install-stubby-files-@HOSTOS@
+install-stubby: stubby stubby.1 install-stubby-files-@HOSTOS@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(runstatedir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -m 644 stubby\.1 $(DESTDIR)$(mandir)/man1
 
 uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
 	rm -f $(DESTDIR)$(sbindir)/stubby-setdns-macos.sh
+	rm -f $(DESTDIR)$(mandir)/man1/stubby.1
 
 scratchpad: default
 	cd test && $(MAKE) $@

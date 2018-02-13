@@ -213,12 +213,14 @@ $(distdir):
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/src/yxml
+	mkdir -p $(distdir)/src/ssl_dane
 	mkdir -p $(distdir)/doc
 	mkdir -p $(distdir)/spec
 	mkdir -p $(distdir)/spec/example
 	mkdir -p $(distdir)/stubby
 	mkdir -p $(distdir)/stubby/src
 	mkdir -p $(distdir)/stubby/src/yaml
+	mkdir -p $(distdir)/stubby/doc
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/AUTHORS $(distdir)
@@ -267,12 +269,15 @@ $(distdir):
 	cp $(srcdir)/stubby/src/yaml/*.[ch] $(distdir)/stubby/src/yaml
 	cp $(srcdir)/stubby/COPYING $(distdir)/stubby
 	cp $(srcdir)/stubby/README.md $(distdir)/stubby
+	cp $(srcdir)/stubby/doc/stubby.1.in $(distdir)/stubby/doc
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
 	cp $(srcdir)/src/yxml/*.[ch] $(distdir)/src/yxml
 	cp $(srcdir)/src/yxml/COPYING $(distdir)/src/yxml
 	cp $(srcdir)/src/yxml/yxml.pod $(distdir)/src/yxml
+	cp $(srcdir)/src/ssl_dane/danessl.[ch] $(distdir)/src/ssl_dane
+	cp $(srcdir)/src/ssl_dane/README.md $(distdir)/src/ssl_dane
 	rm -f $(distdir)/Makefile $(distdir)/src/Makefile $(distdir)/src/getdns/getdns.h $(distdir)/spec/example/Makefile $(distdir)/src/test/Makefile $(distdir)/doc/Makefile $(distdir)/src/config.h
 
 distcheck: $(distdir).tar.gz
