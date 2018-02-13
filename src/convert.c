@@ -118,13 +118,12 @@ char *
 getdns_convert_ulabel_to_alabel(const char *ulabel)
 {
 #if defined(HAVE_LIBIDN2)
-	char *alabel;
+	uint8_t *alabel;
 
 	if (!ulabel) return NULL;
 
-	if (idn2_lookup_ul(ulabel, &alabel, IDN2_NONTRANSITIONAL) == IDN2_OK
-	||  idn2_lookup_ul(ulabel, &alabel, IDN2_TRANSITIONAL)    == IDN2_OK)
-		return alabel;
+	if (idn2_lookup_u8((uint8_t *)ulabel, &alabel, IDN2_TRANSITIONAL) == IDN2_OK)
+		return (char *)alabel;
 
 #elif defined(HAVE_LIBIDN)
 	char *alabel;
