@@ -1,4 +1,4 @@
-* 2018-02-??: Version 1.4.0
+* 2018-02-21: Version 1.4.0
   * .so revision bump to please fedora packaging system.
     Thanks Paul Wouters
   * Specify the supported curves with getdns_context_set_tls_curves_list()
