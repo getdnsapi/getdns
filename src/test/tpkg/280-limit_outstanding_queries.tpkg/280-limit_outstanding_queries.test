@@ -5,21 +5,27 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 
+LOCALHOST=`${GETDNS_STUB_QUERY} '{namespaces:[GETDNS_NAMESPACE_LOCALNAMES]}' -A localhost. -J \
+         | awk -F: '/\"address_data\".*\"127/{print $2}' \
+         | sed -e 's/^[^"]*"//g' -e 's/"[^"]*$//g'`
+echo "localhost: $LOCALHOST"
+
 QLIMIT=64
-NQUERIES=`wc "./${TPKG_NAME}.queries"|sed 's/ .*$//g'`
+NQUERIES=`wc "./${TPKG_NAME}.queries"|sed -e 's/^ *//g' -e 's/ .*$//g'`
+echo "# queries: $NQUERIES"
 
 # Test will take NQUERIES / QLIMIT * answer delay
 # For current parameters this is 1000 / 64 * 0.3 = 4.6875
 # which is smaller than 5 seconds default query timeout value,
 # so the test should succeed.
 
-make && "./${TPKG_NAME}" | (
+make && "./${TPKG_NAME}" ${LOCALHOST} | (
 	read PORT
-	${GETDNS_STUB_QUERY} @127.0.0.1:$PORT TXT \
+	${GETDNS_STUB_QUERY} @${LOCALHOST}:$PORT TXT \
 	    -a -F "./${TPKG_NAME}.queries" \
 	          "{limit_outstanding_queries:$QLIMIT}" 2>&1 > out
 
-	${GETDNS_STUB_QUERY} -q @127.0.0.1:$PORT TXT quit.
+	${GETDNS_STUB_QUERY} -q @${LOCALHOST}:$PORT TXT quit.
 ) && grep '"n_requests: [0-9][0-9]*"' out | sed -e 's/^.*n_requests: //g' -e 's/".*$//g' \
     | awk -vQLIMIT=$QLIMIT -vNQUERIES=$NQUERIES '
 

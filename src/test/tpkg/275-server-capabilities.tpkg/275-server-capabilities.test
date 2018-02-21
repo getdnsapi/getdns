@@ -4,18 +4,22 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
+LOCALHOST=`${GETDNS_STUB_QUERY} '{namespaces:[GETDNS_NAMESPACE_LOCALNAMES]}' -A localhost. -J \
+	 | awk -F: '/\"address_data\".*\"127/{print $2}' \
+	 | sed -e 's/^[^"]*"//g' -e 's/"[^"]*$//g'`
+echo "localhost: $LOCALHOST"
 
-make && "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" | (
+make && "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" ${LOCALHOST} | (
 	read PORT
 	read PORT2
 
-	${GETDNS_STUB_QUERY} -s -t 1000 @127.0.0.1:$PORT TXT cancel. +return_call_reporting 2>&1 > time_out
+	${GETDNS_STUB_QUERY} -s -t 1000 @${LOCALHOST}:$PORT TXT cancel. +return_call_reporting 2>&1 > time_out
 
-	${GETDNS_STUB_QUERY} -s @127.0.0.1:$PORT TXT test +return_call_reporting 2>&1 > tcp_out
+	${GETDNS_STUB_QUERY} -s @${LOCALHOST}:$PORT TXT test +return_call_reporting 2>&1 > tcp_out
 
-	${GETDNS_STUB_QUERY} -s -U @127.0.0.1:$PORT2 TXT test +return_call_reporting 2>&1 > udp_out
+	${GETDNS_STUB_QUERY} -s -U @${LOCALHOST}:$PORT2 TXT test +return_call_reporting 2>&1 > udp_out
 
-	${GETDNS_STUB_QUERY} -s -q @127.0.0.1:$PORT TXT quit.
+	${GETDNS_STUB_QUERY} -s -q @${LOCALHOST}:$PORT TXT quit.
 )
 if grep -q 'definitely lost: [^0]' valgrind.log
 then
