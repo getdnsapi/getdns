@@ -128,7 +128,7 @@ install-getdns_query: install-lib
 uninstall-getdns_query:
 	cd src/tools && $(MAKE) $@
 
-install-getdns_server_mon: install-lib
+install-getdns_server_mon: install-lib @INSTALL_GETDNS_QUERY@
 	cd src/tools && $(MAKE) $@
 
 uninstall-getdns_server_mon:
