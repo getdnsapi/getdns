@@ -6,7 +6,7 @@ Maintainer: Willem Toorop
 Category: 
 Component:
 CmdDepends: 
-Depends: 210-stub-only-link.tpkg
+Depends: 200-stub-only-compile-install.tpkg
 Help:
 Pre: 
 Post: 
