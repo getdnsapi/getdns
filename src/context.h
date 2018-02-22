@@ -193,6 +193,7 @@ typedef struct getdns_upstream {
 	size_t                   responses_timeouts;
 	size_t                   keepalive_shutdown;
 	uint64_t                 keepalive_timeout;
+	int                      server_keepalive_received;
 
 	/* Management of outstanding requests on stateful transports */
 	getdns_network_req      *write_queue;
@@ -206,6 +207,7 @@ typedef struct getdns_upstream {
 	getdns_auth_state_t      tls_auth_state;
 	unsigned                 tls_fallback_ok : 1;
 	char                    *tls_cipher_list;
+	char                    *tls_curves_list;
 	/* Auth credentials*/
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
@@ -347,6 +349,7 @@ struct getdns_context {
 	char                 *tls_ca_path;
 	char                 *tls_ca_file;
 	char                 *tls_cipher_list;
+	char                 *tls_curves_list;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;

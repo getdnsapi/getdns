@@ -165,20 +165,20 @@ gldns_gmtime64_r(int64_t clock, struct tm *result)
 #endif /* SIZEOF_TIME_T <= 4 */
 
 static int64_t
-gldns_serial_arithmitics_time(int32_t time, time_t now)
+gldns_serial_arithmetics_time(int32_t time, time_t now)
 {
 	int32_t offset = time - (int32_t) now;
 	return (int64_t) now + offset;
 }
 
 struct tm *
-gldns_serial_arithmitics_gmtime_r(int32_t time, time_t now, struct tm *result)
+gldns_serial_arithmetics_gmtime_r(int32_t time, time_t now, struct tm *result)
 {
 #if SIZEOF_TIME_T <= 4
-	int64_t secs_since_epoch = gldns_serial_arithmitics_time(time, now);
+	int64_t secs_since_epoch = gldns_serial_arithmetics_time(time, now);
 	return  gldns_gmtime64_r(secs_since_epoch, result);
 #else
-	time_t  secs_since_epoch = gldns_serial_arithmitics_time(time, now);
+	time_t  secs_since_epoch = gldns_serial_arithmetics_time(time, now);
 	return  gmtime_r(&secs_since_epoch, result);
 #endif
 }

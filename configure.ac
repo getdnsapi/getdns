@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.3.0], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
+AC_INIT([getdns], [1.4.0], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
 
 # Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
 # patched to do the same, but frequently (MacOS) not. So add a with option
@@ -62,11 +62,13 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01030000])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01040000])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE], ["stubby"], [Stubby package])
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$RELEASE_CANDIDATE"], [Stubby package string])
 
 # Library version
 # ---------------
@@ -99,9 +101,10 @@ GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRE
 # getdns-1.1.3 had libversion 7:1:1
 # getdns-1.2.0 had libversion 8:0:2
 # getdns-1.2.1 had libversion 8:1:2
-# getdns-1.3.0 has libversion 9:0:3
+# getdns-1.3.0 had libversion 9:0:3
+# getdns-1.4.0 has libversion 10:0:0
 #
-GETDNS_LIBVERSION=9:0:3
+GETDNS_LIBVERSION=10:0:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -408,8 +411,8 @@ fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version])
-AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto], [], [], [
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host])
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set1_curves_list,SSL_set1_curves_list], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
@@ -431,6 +434,28 @@ AC_INCLUDES_DEFAULT
 ])
 fi
 
+AC_MSG_CHECKING([whether we need to compile/link DANE support])
+DANESSL_XTRA_OBJS=""
+AC_LANG_PUSH(C)
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([
+		[#include <openssl/opensslv.h>]
+		[#if OPENSSL_VERSION_NUMBER <  0x1000000fL]
+		[#error "OpenSSL 1.0.0 or higher required for DANE library"]
+		[#elif defined(HAVE_SSL_DANE_ENABLE)]
+		[#error "OpenSSL has native DANE support"]
+		[#elif defined(LIBRESSL_VERSION_NUMBER)]
+		[#error "dane_ssl library does not work with LibreSSL"]
+		[#endif]
+	],[[]])],
+	[
+		AC_MSG_RESULT([yes])
+		AC_DEFINE([USE_DANESSL], [1], [Define this to use DANE functions from the ssl_dane/danessl library.])
+		DANESSL_XTRA_OBJS="danessl.lo"
+	],
+	[AC_MSG_RESULT([no])])
+AC_LANG_POP(C)
+AC_SUBST(DANESSL_XTRA_OBJS)
 
 AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
 	case "$enable_sha1" in
@@ -763,6 +788,39 @@ else
 	fi
 fi
 
+my_with_libidn2=1
+AC_ARG_WITH(libidn2, AS_HELP_STRING([--with-libidn2=pathname],
+	[path to libidn2 (default: search /usr/local ..)]),
+	[], [withval="yes"])
+if test x_$withval = x_yes; then
+	for dir in /usr/local /opt/local /usr/pkg /usr/sfw; do
+		if test -f "$dir/include/idn2.h"; then
+			CFLAGS="$CFLAGS -I$dir/include"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn2 in $dir])
+			break
+		fi
+		if test -f "$dir/include/idn2/idn2.h"; then
+			CFLAGS="$CFLAGS -I$dir/include/idn2"
+			LDFLAGS="$LDFLAGS -L$dir/lib"
+			AC_MSG_NOTICE([Found libidn2 in $dir])
+			break
+		fi
+	done
+	if test -f "/usr/include/idn2/idn2.h"; then
+		CFLAGS="$CFLAGS -I/usr/include/idn2"
+		#LDFLAGS="$LDFLAGS -L/usr/lib"
+		AC_MSG_NOTICE([Found libidn2 in /usr])
+	fi
+else
+	if test x_$withval != x_no; then
+		CFLAGS="$CFLAGS -I$withval/include"
+		LDFLAGS="$LDFLAGS -L$withval/lib"
+	else
+		my_with_libidn2=0
+	fi
+fi
+
 if test $my_with_libunbound = 1
 then
 	# find libunbound
@@ -793,14 +851,36 @@ fi
 found_all_libs=1
 MISSING_DEPS=""
 MISSING_SEP=""
-if test $my_with_libidn = 1
+
+working_libidn2=0
+if test $my_with_libidn2 = 1
 then
-	AC_MSG_NOTICE([Checking for dependency libidn])
-	AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
-		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+	AC_MSG_NOTICE([Checking for dependency libidn2])
+	AC_CHECK_LIB([idn2], [idn2_to_unicode_8z8z], [
+		working_libidn2=1
+		LIBS="-lidn2 $LIBS"
+		AC_DEFINE_UNQUOTED([HAVE_LIBIDN2], [1], [Define to 1 if you have the `idn2' library (-lidn).]) dnl `
+	], [
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn2"
 		MISSING_SEP=", "
-		found_all_libs=0
 	])
+fi
+if test $working_libidn2 = 0
+then
+	if test $my_with_libidn = 1
+	then
+		AC_MSG_NOTICE([Checking for dependency libidn])
+		AC_CHECK_LIB([idn], [idna_to_ascii_8z], [], [
+			MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn"
+			MISSING_SEP=", "
+			found_all_libs=0
+		])
+	else
+		if test $my_with_libidn2 = 1
+		then
+			found_all_libs=0
+		fi
+	fi
 fi
 
 AC_ARG_ENABLE(unbound-event-api, AC_HELP_STRING([--disable-unbound-event-api], [Disable usage of libunbounds event API]))
@@ -1149,6 +1229,22 @@ fi
 AC_SUBST(GETDNS_QUERY)
 AC_SUBST(INSTALL_GETDNS_QUERY)
 AC_SUBST(UNINSTALL_GETDNS_QUERY)
+
+AC_ARG_WITH(getdns_server_mon, AS_HELP_STRING([--without-getdns_server_mon],
+	[Do not compile and install the getdns_server_mon tool]),
+	[], [withval="yes"])
+if test x_$withval = x_no; then
+	GETDNS_SERVER_MON=""
+	INSTALL_GETDNS_SERVER_MON=""
+	UNINSTALL_GETDNS_SERVER_MON=""
+else
+	GETDNS_SERVER_MON="getdns_server_mon"
+	INSTALL_GETDNS_SERVER_MON="install-getdns_server_mon"
+	UNINSTALL_GETDNS_SERVER_MON="uninstall-getdns_server_mon"
+fi
+AC_SUBST(GETDNS_SERVER_MON)
+AC_SUBST(INSTALL_GETDNS_SERVER_MON)
+AC_SUBST(UNINSTALL_GETDNS_SERVER_MON)
 
 stubby_with_yaml=0
 AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],

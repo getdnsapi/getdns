@@ -59,6 +59,7 @@ typedef unsigned short in_port_t;
 
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 
 #include <sys/stat.h>
 #include <string.h>
@@ -89,6 +90,9 @@ typedef unsigned short in_port_t;
 #include "list.h"
 #include "dict.h"
 #include "pubkey-pinning.h"
+#ifdef USE_DANESSL
+# include "ssl_dane/danessl.h"
+#endif
 
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
@@ -681,6 +685,27 @@ upstreams_create(getdns_context *context, size_t size)
 	return r;
 }
 
+
+#if defined(USE_DANESSL) && defined(STUB_DEBUG) && STUB_DEBUG
+static void _stub_debug_print_openssl_errors(void)
+{
+    unsigned long err;
+    char buffer[1024];
+    const char *file;
+    const char *data;
+    int line;
+    int flags;
+
+    while ((err = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
+        ERR_error_string_n(err, buffer, sizeof(buffer));
+        if (flags & ERR_TXT_STRING)
+            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d:%s\n", buffer, file, line, data);
+        else
+            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d\n", buffer, file, line);
+    }
+}
+#endif
+
 void
 _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
@@ -722,6 +747,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 
 		if (upstream->tls_obj != NULL) {
 			SSL_shutdown(upstream->tls_obj);
+#ifdef USE_DANESSL
+# if defined(STUB_DEBUG) && STUB_DEBUG
+			_stub_debug_print_openssl_errors();
+# endif
+			DANESSL_cleanup(upstream->tls_obj);
+#endif
 			SSL_free(upstream->tls_obj);
 		}
 		if (upstream->fd != -1)
@@ -738,6 +769,8 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		upstream->tls_pubkey_pinset = NULL;
 		if (upstream->tls_cipher_list)
 			GETDNS_FREE(upstreams->mf, upstream->tls_cipher_list);
+		if (upstream->tls_curves_list)
+			GETDNS_FREE(upstreams->mf, upstream->tls_curves_list);
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
 }
@@ -779,8 +812,9 @@ upstream_backoff(getdns_upstream *upstream) {
 	upstream->conn_shutdowns = 0;
 	upstream->conn_backoffs++;
 	_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-	    "%-40s : !Backing off this upstream    - Will retry again in %ds at %s",
+	    "%-40s : Upstream   : !Backing off %s on this upstream    - Will retry again in %ds at %s",
 	            upstream->addr_str,
+	            upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP",
 	            upstream->conn_backoff_interval,
 	            asctime(gmtime(&upstream->conn_retry_time)));
 }
@@ -832,6 +866,12 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 	}
 	if (upstream->tls_obj != NULL) {
 		SSL_shutdown(upstream->tls_obj);
+#ifdef USE_DANESSL
+# if defined(STUB_DEBUG) && STUB_DEBUG
+		_stub_debug_print_openssl_errors();
+# endif
+		DANESSL_cleanup(upstream->tls_obj);
+#endif
 		SSL_free(upstream->tls_obj);
 		upstream->tls_obj = NULL;
 	}
@@ -1011,6 +1051,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->responses_timeouts = 0;
 	upstream->keepalive_shutdown = 0;
 	upstream->keepalive_timeout = 0;
+	upstream->server_keepalive_received = 0;
 	/* How is this upstream doing on UDP? */
 	upstream->to_retry =  1;
 	upstream->back_off =  1;
@@ -1022,6 +1063,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
 	upstream->tls_cipher_list = NULL;
+	upstream->tls_curves_list = NULL;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
@@ -1535,6 +1577,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_ca_path = NULL;
 	result->tls_ca_file = NULL;
 	result->tls_cipher_list = NULL;
+	result->tls_curves_list = NULL;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
 
@@ -1636,6 +1679,9 @@ getdns_context_create_with_extended_memory_functions(
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 		OpenSSL_add_all_algorithms();
 		SSL_library_init();
+# ifdef USE_DANESSL
+		(void) DANESSL_library_init();
+# endif
 #else
 		OPENSSL_init_crypto( OPENSSL_INIT_ADD_ALL_CIPHERS
 		                   | OPENSSL_INIT_ADD_ALL_DIGESTS
@@ -1805,6 +1851,8 @@ getdns_context_destroy(struct getdns_context *context)
 		GETDNS_FREE(context->mf, context->tls_ca_file);
 	if (context->tls_cipher_list)
 		GETDNS_FREE(context->mf, context->tls_cipher_list);
+	if (context->tls_curves_list)
+		GETDNS_FREE(context->mf, context->tls_curves_list);
 
 #ifdef USE_WINSOCK
 	WSACleanup();
@@ -2996,6 +3044,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
 				getdns_bindata *tls_cipher_list = NULL;
+				getdns_bindata *tls_curves_list = NULL;
 
 				if ((r = getdns_dict_get_bindata(
 				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
@@ -3007,6 +3056,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 						 * into account, should not
 						 * be larger than 1024 bytes.
 						 */
+						freeaddrinfo(ai);
 						goto invalid_parameter;
 					}
 					memcpy(upstream->tls_auth_name,
@@ -3022,8 +3072,10 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					r = _getdns_get_pubkey_pinset_from_list(pubkey_pinset,
 										&(upstreams->mf),
 										&(upstream->tls_pubkey_pinset));
-					if (r != GETDNS_RETURN_GOOD)
+					if (r != GETDNS_RETURN_GOOD) {
+						freeaddrinfo(ai);
 						goto invalid_parameter;
+					}
 				}
 				(void) getdns_dict_get_bindata(
 				    dict, "tls_cipher_list", &tls_cipher_list);
@@ -3031,6 +3083,19 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				    ? _getdns_strdup2(&upstreams->mf
 				                     , tls_cipher_list)
 				    : NULL;
+				(void) getdns_dict_get_bindata(
+				    dict, "tls_curves_list", &tls_curves_list);
+				if (tls_curves_list) {
+#if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
+					upstream->tls_curves_list = 
+					    _getdns_strdup2(&upstreams->mf
+					                   , tls_curves_list);
+#else
+					freeaddrinfo(ai);
+					goto not_implemented;
+#endif
+				} else
+					upstream->tls_curves_list = NULL;
 			}
 			if ((upstream->tsig_alg = tsig_alg)) {
 				if (tsig_name) {
@@ -3068,6 +3133,11 @@ invalid_parameter:
 error:
 	_getdns_upstreams_dereference(upstreams);
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+#if !defined(HAVE_DECL_SSL_SET1_CURVES_LIST) || !HAVE_DECL_SSL_SET1_CURVES_LIST
+not_implemented:
+	_getdns_upstreams_dereference(upstreams);
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif
 } /* getdns_context_set_upstream_recursive_servers */
 
 
@@ -3608,6 +3678,12 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			    context->tls_cipher_list ? context->tls_cipher_list
 			                             : _getdns_default_tls_cipher_list))
 				return GETDNS_RETURN_BAD_CONTEXT;
+
+#  if defined(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST) && HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
+			if (context->tls_curves_list &&
+			    !SSL_CTX_set1_curves_list(context->tls_ctx, context->tls_curves_list))
+				return GETDNS_RETURN_BAD_CONTEXT;
+#  endif
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/
 			if ((context->tls_ca_file || context->tls_ca_path) &&
@@ -3622,6 +3698,25 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}
+#  if defined(HAVE_SSL_CTX_DANE_ENABLE)
+#   if defined(STUB_DEBUG) && STUB_DEBUG
+			int osr =
+#   else
+			(void)
+#   endif
+				SSL_CTX_dane_enable(context->tls_ctx);
+			DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
+			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+#  elif defined(USE_DANESSL)
+#   if defined(STUB_DEBUG) && STUB_DEBUG
+			int osr =
+#   else
+			(void)
+#   endif
+				DANESSL_CTX_init(context->tls_ctx);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_CTX_init() -> %d\n"
+			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+#  endif
 #else /* HAVE_TLS_v1_2 */
 			if (tls_only_is_in_transports_list(context) == 1)
 				return GETDNS_RETURN_BAD_CONTEXT;
@@ -3924,6 +4019,8 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "tls_ca_file", str_value);
 	if (!getdns_context_get_tls_cipher_list(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "tls_cipher_list", str_value);
+	if (!getdns_context_get_tls_curves_list(context, &str_value) && str_value)
+		(void) getdns_dict_util_set_string(result, "tls_curves_list", str_value);
 
 	/* Default settings for extensions */
 	(void)getdns_dict_set_int(
@@ -4513,6 +4610,11 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 					    d, "tls_cipher_list",
 					    upstream->tls_cipher_list);
 				}
+				if (upstream->tls_curves_list) {
+					(void) getdns_dict_util_set_string(
+					    d, "tls_curves_list",
+					    upstream->tls_curves_list);
+				}
 			}
 		}
 		if (!r)
@@ -4722,6 +4824,7 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(tls_ca_path)
 	CONTEXT_SETTING_STRING(tls_ca_file)
 	CONTEXT_SETTING_STRING(tls_cipher_list)
+	CONTEXT_SETTING_STRING(tls_curves_list)
 
 	/**************************************/
 	/****                              ****/
@@ -5301,5 +5404,35 @@ getdns_context_get_tls_cipher_list(
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t
+getdns_context_set_tls_curves_list(
+    getdns_context *context, const char *tls_curves_list)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+#if defined(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST) && HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
+	if (context->tls_curves_list)
+		GETDNS_FREE(context->mf, context->tls_curves_list);
+	context->tls_curves_list = tls_curves_list
+	                         ? _getdns_strdup(&context->mf, tls_curves_list)
+	                         : NULL;
+
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST);
+	return GETDNS_RETURN_GOOD;
+#else
+	(void)tls_curves_list;
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif
+}
+
+getdns_return_t
+getdns_context_get_tls_curves_list(
+    getdns_context *context, const char **tls_curves_list)
+{
+	if (!context || !tls_curves_list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	*tls_curves_list = context->tls_curves_list;
+	return GETDNS_RETURN_GOOD;
+}
 
 /* context.c */

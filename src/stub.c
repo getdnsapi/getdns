@@ -55,6 +55,9 @@
 #include "platform.h"
 #include "general.h"
 #include "pubkey-pinning.h"
+#ifdef USE_DANESSL
+# include "ssl_dane/danessl.h"
+#endif
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -341,6 +344,7 @@ process_keepalive(
 		}
 		return;
 	}
+	upstream->server_keepalive_received = 1;
 	/* Use server sent value unless the client specified a shorter one.
 	   Convert to ms first (wire value has units of 100ms) */
 	uint64_t server_keepalive = ((uint64_t)gldns_read_uint16(position))*100;
@@ -529,11 +533,7 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	   the queries if there is only one upstream.*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (during_setup) {
-		/* Special case if failure was due to authentication issues since this
-		   upstream could be used oppotunistically with no problem.*/
-		if (!(upstream->transport == GETDNS_TRANSPORT_TLS &&
-		    upstream->tls_auth_state == GETDNS_AUTH_FAILED))
-			upstream->conn_setup_failed++;
+		upstream->conn_setup_failed++;
 	} else {
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
@@ -580,7 +580,7 @@ stub_timeout_cb(void *userarg)
 		netreq->upstream->udp_timeouts++;
 		if (netreq->upstream->udp_timeouts % 100 == 0)
 			_getdns_upstream_log(netreq->upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
-			    "%-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+			    "%-40s : Upstream   : UDP - Resps=%6d, Timeouts  =%6d (logged every 100 responses)\n",
 			             netreq->upstream->addr_str,
 			             (int)netreq->upstream->udp_responses, (int)netreq->upstream->udp_timeouts);
 		stub_next_upstream(netreq);
@@ -827,7 +827,37 @@ tls_requested(getdns_network_req *netreq)
 	        1 : 0;
 }
 
-int
+
+#if defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL)
+
+static int
+_getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
+{ 
+# if defined(STUB_DEBUG) && STUB_DEBUG
+	char	buf[8192];
+	X509   *cert;
+	int	 err;
+	int	 depth;
+
+	cert = X509_STORE_CTX_get_current_cert(ctx);
+	err = X509_STORE_CTX_get_error(ctx);
+	depth = X509_STORE_CTX_get_error_depth(ctx);
+
+	if (cert)
+		X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
+	else
+		strcpy(buf, "<unknown>");
+	DEBUG_STUB("DEBUG Cert verify: depth=%d verify=%d err=%d subject=%s errorstr=%s\n", depth, ok, err, buf, X509_verify_cert_error_string(err));
+# else /* defined(STUB_DEBUG) && STUB_DEBUG */
+	(void)ok;
+	(void)ctx;
+# endif /* #else defined(STUB_DEBUG) && STUB_DEBUG */
+	return 1; 
+}
+
+#else /* defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
+
+static int
 tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 {
 	getdns_upstream *upstream;
@@ -837,36 +867,22 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 		return 0;
 
 	int err = X509_STORE_CTX_get_error(ctx);
-#if defined(STUB_DEBUG) && STUB_DEBUG
+# if defined(STUB_DEBUG) && STUB_DEBUG
 	DEBUG_STUB("%s %-35s: FD:  %d Verify result: (%d) \"%s\"\n",
 	            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err,
 	            X509_verify_cert_error_string(err));
-#endif
+# endif
 	if (!preverify_ok && !upstream->tls_fallback_ok)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-		    "%-40s : Verify failed : Transport=TLS - *Failure* -  (%d) \"%s\"\n",
+		    "%-40s : Verify failed: TLS - *Failure* -  (%d) \"%s\"\n",
 		    upstream->addr_str, err,
 		    X509_verify_cert_error_string(err));
 
-	/* First deal with the hostname authentication done by OpenSSL. */
-#ifdef X509_V_ERR_HOSTNAME_MISMATCH
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	/*Report if error is hostname mismatch*/
-	if (err == X509_V_ERR_HOSTNAME_MISMATCH && upstream->tls_fallback_ok)
-			DEBUG_STUB("%s %-35s: FD:  %d WARNING: Proceeding even though hostname validation failed!\n",
-		                STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
-# endif
-#else
-	/* if we weren't built against OpenSSL with hostname matching we
-	 * could not have matched the hostname, so this would be an automatic
-	 * tls_auth_fail if there is a hostname provided*/
-	if (upstream->tls_auth_name[0]) {
-		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		preverify_ok = 0;
-	}
-#endif
+	/* No need to deal with hostname authentication, since this will be
+	 * dealt with in the DANE preprocessor paths.
+	 */
 
-	/* Now deal with the pinset validation*/
+	/* Deal with the pinset validation */
 	if (upstream->tls_pubkey_pinset)
 		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
 
@@ -880,24 +896,9 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
 		else
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-			    "%-40s : Conn failed   : Transport=TLS - *Failure* - Pinset validation failure\n",
+			    "%-40s : Conn failed: TLS - *Failure* - Pinset validation failure\n",
 			    upstream->addr_str);
-	} else {
-		/* If we _only_ had a pinset and it is good then force succesful
-		   authentication when the cert self-signed
-		   TODO: We need to check for other error cases here, not blindly accept the cert!! */
-		if ((upstream->tls_pubkey_pinset && upstream->tls_auth_name[0] == '\0') &&
-		     (err == X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN ||
-		      err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT)) {
-			preverify_ok = 1;
-			DEBUG_STUB("%s %-35s: FD:  %d, Allowing self-signed (%d) cert since pins match\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err);
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG, 
-			    "%-40s : Verify passed : Transport=TLS - Allowing self-signed cert since pins match\n",
-			    upstream->addr_str);
-		}
 	}
-
 	/* If nothing has failed yet and we had credentials, we have succesfully authenticated*/
 	if (preverify_ok == 0)
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
@@ -909,6 +910,8 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 	   (might not be hostname or pinset related) */
 	return (upstream->tls_fallback_ok) ? 1 : preverify_ok;
 }
+
+#endif /* #else defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
 
 static SSL*
 tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
@@ -925,6 +928,10 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		SSL_free(ssl);
 		return NULL;
 	}
+#if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
+	if (upstream->tls_curves_list)
+		(void) SSL_set1_curves_list(ssl, upstream->tls_curves_list);
+#endif
 	/* make sure we'll be able to find the context again when we need it */
 	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
 		SSL_free(ssl);
@@ -942,13 +949,16 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name);
 		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
-#ifdef HAVE_SSL_HN_AUTH
-		/* Set up native OpenSSL hostname verification*/
+#if defined(HAVE_SSL_HN_AUTH)
+		/* Set up native OpenSSL hostname verification
+		 * ( doesn't work with USE_DANESSL, but we verify the
+		 *   name afterwards in such cases )
+		 */
 		X509_VERIFY_PARAM *param;
 		param = SSL_get0_param(ssl);
 		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
-#else
+#elif !defined(HAVE_X509_CHECK_HOST)
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
 			DEBUG_STUB("%s %-35s: ERROR: Hostname Authentication not available from TLS library (check library version)\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
@@ -956,6 +966,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			    "%-40s : ERROR: Hostname Authentication not available from TLS library (check library version)\n",
 			    upstream->addr_str);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
+			SSL_free(ssl);
+			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 			return NULL;
 		}
 #endif
@@ -970,9 +982,14 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				DEBUG_STUB("%s %-35s: Proceeding with only pubkey pinning authentication\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
 			} else {
-				DEBUG_STUB("%s %-35s: ERROR: No host name or pubkey pinset provided for TLS authentication\n",
+				DEBUG_STUB("%s %-35s: ERROR:No auth name or pinset provided for this upstream for Strict TLS authentication\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
+				_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
+				    "%-40s : Verify fail: *CONFIG ERROR* - No auth name or pinset provided for this upstream for Strict TLS authentication\n",
+				    upstream->addr_str);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
+				SSL_free(ssl);
+				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 				return NULL;
 			}
 		} else {
@@ -992,7 +1009,71 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
 	}
+#if defined(HAVE_SSL_DANE_ENABLE)
+	int osr;
+# if defined(STUB_DEBUG) && STUB_DEBUG
+	osr =
+# else
+	(void)
+# endif
+		SSL_dane_enable(ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
+	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
+	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
+	SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	sha256_pin_t *pin_p;
+	size_t n_pins = 0;
+	for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
+		osr = SSL_dane_tlsa_add(ssl, 2, 1, 1,
+		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+		if (osr > 0)
+			++n_pins;
+		osr = SSL_dane_tlsa_add(ssl, 3, 1, 1,
+		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+		if (osr > 0)
+			++n_pins;
+	}
+#elif defined(USE_DANESSL)
+	if (upstream->tls_pubkey_pinset) {
+		const char *auth_names[2] = { upstream->tls_auth_name, NULL };
+		int osr;
+# if defined(STUB_DEBUG) && STUB_DEBUG
+		osr =
+# else
+		(void)
+# endif
+			DANESSL_init(ssl,
+		    *upstream->tls_auth_name ? upstream->tls_auth_name : NULL,
+		    *upstream->tls_auth_name ? auth_names : NULL
+		    );
+		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
+		SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+		sha256_pin_t *pin_p;
+		size_t n_pins = 0;
+		for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
+			osr = DANESSL_add_tlsa(ssl, 3, 1, "sha256",
+			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
+				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (osr > 0)
+				++n_pins;
+			osr = DANESSL_add_tlsa(ssl, 2, 1, "sha256",
+			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
+				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (osr > 0)
+				++n_pins;
+		}
+	} else {
+		SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	}
+#else
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
+#endif
 
 	SSL_set_connect_state(ssl);
 	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
@@ -1009,7 +1090,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			            __FUNC__);
 			}
 	}
-
 	return ssl;
 }
 
@@ -1048,16 +1128,120 @@ tls_do_handshake(getdns_upstream *upstream)
 				return STUB_SETUP_ERROR;
 	   }
 	}
-	upstream->tls_hs_state = GETDNS_HS_DONE;
-	upstream->conn_state = GETDNS_CONN_OPEN;
-	upstream->conn_completed++;
 	/* A re-used session is not verified so need to fix up state in that case */
 	if (SSL_session_reused(upstream->tls_obj))
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
+
+	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
+		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj);
+		long verify_result = SSL_get_verify_result(upstream->tls_obj);
+
+/* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
+ * we need to verify auth_name explicitely (otherwise it will not be checked,
+ * because this is not required with DANE with an EE match).
+ * This is not needed with native OpenSSL DANE, because EE name checks have
+ * to be disabled explicitely.
+ */
+#if defined(HAVE_X509_CHECK_HOST) && (defined(USE_DANESSL) || !defined(HAVE_SSL_HN_AUTH))
+		int xch;
+		if (peer_cert && verify_result == X509_V_OK
+		    && upstream->tls_auth_name[0]
+		    && (xch = X509_check_host(peer_cert,
+				    upstream->tls_auth_name,
+				    strlen(upstream->tls_auth_name),
+				    X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS,
+				    NULL)) <= 0)
+			verify_result = X509_V_ERR_HOSTNAME_MISMATCH;
+#endif
+		upstream->tls_auth_state = peer_cert && verify_result == X509_V_OK
+		                         ? GETDNS_AUTH_OK : GETDNS_AUTH_FAILED;
+		if (!peer_cert)
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : TLS - %s -  "
+			    "Remote did not offer certificate\n",
+			    upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ));
+
+		/* Since we don't have DANE validation yet, DANE validation
+		 * failures are always pinset validation failures
+		 */
+#if defined(HAVE_SSL_DANE_ENABLE)
+		else if (verify_result == X509_V_ERR_DANE_NO_MATCH)
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : TLS - %s -  "
+			    "Pinset validation failure\n", upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ));
+#elif defined(USE_DANESSL)
+		else if (verify_result == X509_V_ERR_CERT_UNTRUSTED
+		    && upstream->tls_pubkey_pinset
+		    && !DANESSL_get_match_cert(
+			    upstream->tls_obj, NULL, NULL, NULL))
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : TLS - %s -  "
+			    "Pinset validation failure\n", upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ));
+#endif
+		else if (verify_result != X509_V_OK)
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : TLS - %s -  "
+			    "(%d) \"%s\"\n", upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ), verify_result,
+			    X509_verify_cert_error_string(verify_result));
+#if !defined(HAVE_SSL_HN_AUTH) && !defined(HAVE_X509_CHECK_HOST)
+		else if (*upstream->tls_auth_name) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS,
+			    ( upstream->tls_fallback_ok
+			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+			    "%-40s : Verify failed : TLS - %s -  "
+			    "Hostname Authentication not available from TLS "
+			    "library (check library version)\n",
+			    upstream->addr_str,
+			    ( upstream->tls_fallback_ok
+			    ? "Tolerated because of Opportunistic profile"
+			    : "*Failure*" ));
+
+			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
+		}
+#endif
+		else
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+			    "%-40s : Verify passed : TLS\n",
+			    upstream->addr_str);
+
+		X509_free(peer_cert);
+		if (upstream->tls_auth_state == GETDNS_AUTH_FAILED
+		    && !upstream->tls_fallback_ok)
+			return STUB_SETUP_ERROR;
+	}
 	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %s. Session is %s.\n", 
 		         STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, 
 		         _getdns_auth_str(upstream->tls_auth_state),
 		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
+	upstream->tls_hs_state = GETDNS_HS_DONE;
+	upstream->conn_state = GETDNS_CONN_OPEN;
+	upstream->conn_completed++;
 	if (upstream->tls_session != NULL)
 	    SSL_SESSION_free(upstream->tls_session);
 	upstream->tls_session = SSL_get1_session(upstream->tls_obj);
@@ -1409,7 +1593,7 @@ stub_udp_read_cb(void *userarg)
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
-		    "%-40s : Upstream stats: Transport=UDP - Resp=%d,Timeouts=%d\n",
+		    "%-40s : Upstream   : UDP - Resps=%6d, Timeouts  =%6d (logged every 100 responses)\n",
 		    upstream->addr_str,
 		    (int)upstream->udp_responses, (int)upstream->udp_timeouts);
 	_getdns_check_dns_req_complete(dnsreq);
@@ -1671,7 +1855,7 @@ upstream_write_cb(void *userarg)
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
 		stub_cleanup(netreq);
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-		    "%-40s : Conn closed   : Transport=%s - *Failure*\n",
+		    "%-40s : Conn closed: %s - *Failure*\n",
 		    upstream->addr_str,
 		    (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
@@ -1686,12 +1870,14 @@ upstream_write_cb(void *userarg)
 		remove_from_write_queue(upstream, netreq);
 
 		if (netreq->owner->return_call_reporting &&
-		    netreq->upstream->tls_obj &&
-		    netreq->debug_tls_peer_cert.data == NULL &&
-		    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
-			netreq->debug_tls_peer_cert.size = i2d_X509(
-			    cert, &netreq->debug_tls_peer_cert.data);
-			X509_free(cert);
+		    netreq->upstream->tls_obj) {
+			if (netreq->debug_tls_peer_cert.data == NULL &&
+			    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
+				netreq->debug_tls_peer_cert.size = i2d_X509(
+					cert, &netreq->debug_tls_peer_cert.data);
+				X509_free(cert);
+			}
+			netreq->debug_tls_version = SSL_get_version(netreq->upstream->tls_obj);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
@@ -1826,6 +2012,34 @@ upstream_valid_and_open(getdns_upstream *upstream,
 	 return 1;
 }
 
+static int
+other_transports_working(getdns_network_req *netreq,
+                         getdns_upstreams *upstreams,
+                         getdns_transport_list_t transport)
+{
+	size_t i,j;
+	for (i = 0; i< netreq->transport_count;i++) {
+		if (netreq->transports[i] == transport)
+			continue;
+		if (netreq->transports[i] == GETDNS_TRANSPORT_UDP) {
+			for (j = 0; j < upstreams->count; j+=GETDNS_UPSTREAM_TRANSPORTS) {
+				if (upstreams->upstreams[j].back_off == 1)
+					return 1;
+			}
+		}
+		else if (netreq->transports[i] == GETDNS_TRANSPORT_TCP ||
+		         netreq->transports[i] == GETDNS_TRANSPORT_TLS) {
+			for (j = 0; j < upstreams->count; j++) {
+				if (netreq->transports[i] == upstreams->upstreams[j].transport &&
+				    upstream_valid(&upstreams->upstreams[j], netreq->transports[i],
+					netreq, 0))
+					return 1;
+			}
+		}
+	}
+	return 0;
+}
+
 static getdns_upstream *
 upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t transport)
 {
@@ -1843,8 +2057,9 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-			    "%-40s : Re-instating upstream\n",
-		            upstreams->upstreams[i].addr_str);
+			    "%-40s : Upstream   : Re-instating %s for this upstream\n",
+			     upstreams->upstreams[i].addr_str,
+			     upstreams->upstreams[i].transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
 		}
 	}
 
@@ -1857,12 +2072,13 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	}
 
 	/* OK - Find the next one to use. First check we have at least one valid
-	   upstream (not backed-off) because we completely back off failed 
+	   upstream (not backed-off). Because we completely back off failed 
 	   upstreams we may have no valid upstream at all (in contrast to UDP).*/
 	i = upstreams->current_stateful;
 	do {
-		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d\n", STUB_DEBUG_SETUP, 
-	           __FUNC__, (int)i, (int)upstreams->upstreams[i].conn_state);
+		DEBUG_STUB("%s %-35s: Testing upstreams  %d %d for transport %d \n",
+	            STUB_DEBUG_SETUP, __FUNC__, (int)i,
+	            (int)upstreams->upstreams[i].conn_state, transport);
 		if (upstream_valid(&upstreams->upstreams[i], transport, netreq, 0)) {
 			upstream = &upstreams->upstreams[i];
 			break;
@@ -1872,7 +2088,15 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 			i = 0;
 	} while (i != upstreams->current_stateful);
 	if (!upstream) {
-		/* Oh, oh. We have no valid upstreams. Try to find one that might work so
+		/* Oh, oh. We have no valid upstreams for this transport. */
+		/* If there are other fallback transports that are working, we should 
+		   use them before forcibly promoting failed upstreams for re-try, since 
+		   waiting for the the re-try timer to re-instate them is the right thing 
+		   in this case. */
+		if (other_transports_working(netreq, upstreams, transport))
+			return NULL;
+
+		/* Try to find one that might work so
 		   allow backed off upstreams to be considered valid.
 		   Don't worry about the policy, just use the one with the least bad
 		   stats that still fits the bill (right transport, right authentication)
@@ -1902,8 +2126,9 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		upstream->conn_state = GETDNS_CONN_CLOSED;
 		upstream->conn_backoff_interval = 1;
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
-		    "%-40s : No valid upstreams... promoting this backed-off upstream for re-try...\n",
-		    upstream->addr_str);
+		    "%-40s : Upstream   : No valid upstreams for %s... promoting this backed-off upstream for re-try...\n",
+		    upstream->addr_str,
+		    upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
 		return upstream;
 	}
 
@@ -2081,7 +2306,7 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 	/* Handle better, will give generic error*/
 	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
 	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-	    "*FAILURE* no valid transports or upstreams available!\n");
+	    "   *FAILURE* no valid transports or upstreams available!\n");
 	return -1;
 }
 

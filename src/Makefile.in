@@ -47,6 +47,7 @@ have_libuv = @have_libuv@
 have_libev = @have_libev@
 # datarootdir is here to please some checkers
 datarootdir=@datarootdir@
+mandir=@mandir@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 
@@ -96,7 +97,9 @@ JSMN_OBJ=jsmn.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
-GETDNS_XTRA_OBJS=@GETDNS_XTRA_OBJS@
+DANESSL_OBJ=danessl.lo
+
+GETDNS_XTRA_OBJS=@GETDNS_XTRA_OBJS@ @DANESSL_XTRA_OBJS@
 STUBBY_XTRA_OBJS=@STUBBY_XTRA_OBJS@
 
 EXTENSION_OBJ=$(DEFAULT_EVENTLOOP_OBJ) libevent.lo libev.lo
@@ -132,6 +135,9 @@ $(JSMN_OBJ):
 
 $(YAML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(stubbysrcdir)/src/yaml/$(@:.lo=.c) -o $@
+
+$(DANESSL_OBJ):
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WNOERRORFLAG) -c $(srcdir)/ssl_dane/$(@:.lo=.c) -o $@
 
 $(YXML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -I$(srcdir)/yxml -DYXML_GETDNS -Wno-unused-parameter -c $(srcdir)/yxml/$(@:.lo=.c) -o $@
@@ -197,8 +203,14 @@ test: default
 getdns_query: default
 	cd tools && $(MAKE) $@
 
+getdns_server_mon: default
+	cd tools && $(MAKE) $@
+
+stubby.1: $(stubbysrcdir)/doc/stubby.1.in
+	sed -e "s|@ETCDIR@|$(stubbyconfdir)|g" $(stubbysrcdir)/doc/stubby.1.in > $@
+
 stubby.lo: $(stubbysrcdir)/src/stubby.c
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR=\"$(sysconfdir)/stubby\" -DRUNSTATEDIR=\"$(runstatedir)\" -c $< -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR=\"$(sysconfdir)/stubby\" -DRUNSTATEDIR=\"$(runstatedir)\" -c $(stubbysrcdir)/src/stubby.c -o $@
 
 stubby: stubby.lo libgetdns.la $(STUBBY_XTRA_OBJS)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ stubby.lo $(STUBBY_XTRA_OBJS) $(STUBBY_LDFLAGS) libgetdns.la
@@ -220,14 +232,18 @@ install-stubby-files-windows: stubby.yml.windows
 	test -f $(DESTDIR)$(stubbyconfdir)/stubby.yml || \
 		$(INSTALL_DATA) stubby.yml.windows $(DESTDIR)$(stubbyconfdir)/stubby.yml
 
-install-stubby: stubby install-stubby-files-@HOSTOS@
+install-stubby: stubby stubby.1 install-stubby-files-@HOSTOS@
 	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
 	$(LIBTOOL) --mode=install cp stubby $(DESTDIR)$(bindir)
 	$(INSTALL) -m 755 -d $(DESTDIR)$(runstatedir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -m 644 stubby\.1 $(DESTDIR)$(mandir)/man1
 
 uninstall-stubby:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/stubby
 	rm -f $(DESTDIR)$(sbindir)/stubby-setdns-macos.sh
+	rm -f $(DESTDIR)$(mandir)/man1/stubby.1
 
 scratchpad: default
 	cd test && $(MAKE) $@
@@ -255,7 +271,7 @@ Makefile: $(srcdir)/Makefile.in ../config.status
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
 
-	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iyxml -Iutil/auxiliary -I../stubby/src *.c gldns/*.c compat/*.c util/*.c jsmn/*.c yxml/*.c extension/*.c ../stubby/src/*.c | \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iyxml -Iutil/auxiliary -I../stubby/src *.c gldns/*.c compat/*.c util/*.c jsmn/*.c yxml/*.c ssl_dane/danessl.c extension/*.c ../stubby/src/*.c | \
 		sed -e "s? $$blddir/? ?g" \
 		    -e 's? gldns/? $$(srcdir)/gldns/?g' \
 		    -e 's? compat/? $$(srcdir)/compat/?g' \
@@ -263,6 +279,7 @@ depend:
 		    -e 's? util/? $$(srcdir)/util/?g' \
 		    -e 's? jsmn/? $$(srcdir)/jsmn/?g' \
 		    -e 's? yxml/? $$(srcdir)/yxml/?g' \
+		    -e 's? ssl_dane/? $$(srcdir)/ssl_dane/?g' \
 		    -e 's? extension/? $$(srcdir)/extension/?g' \
 		    -e 's? \.\./stubby/? $$(stubbysrcdir)/?g' \
 		    -e 's? \([a-z_-]*\)\.\([ch]\)? $$(srcdir)/\1.\2?g' \
@@ -311,7 +328,7 @@ context.lo context.o: $(srcdir)/context.c \
  $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/util/lruhash.h \
  $(srcdir)/util/orig-headers/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/orig-headers/locks.h \
  $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/util-internal.h $(srcdir)/platform.h $(srcdir)/dnssec.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/stub.h $(srcdir)/list.h $(srcdir)/dict.h $(srcdir)/pubkey-pinning.h
+ $(srcdir)/gldns/rrdef.h $(srcdir)/stub.h $(srcdir)/list.h $(srcdir)/dict.h $(srcdir)/pubkey-pinning.h $(srcdir)/ssl_dane/danessl.h
 convert.lo convert.o: $(srcdir)/convert.c \
  config.h \
  getdns/getdns.h \
@@ -323,7 +340,7 @@ convert.lo convert.o: $(srcdir)/convert.c \
  $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/rr-iter.h \
  $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/pkthdr.h $(srcdir)/anchor.h $(srcdir)/gldns/wire2str.h \
  $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/parseutil.h $(srcdir)/const-info.h $(srcdir)/dict.h \
- $(srcdir)/list.h $(srcdir)/jsmn/jsmn.h $(stubbysrcdir)/src/yaml/convert_yaml_to_json.h $(srcdir)/convert.h
+ $(srcdir)/list.h $(srcdir)/jsmn/jsmn.h $(srcdir)/convert.h
 dict.lo dict.o: $(srcdir)/dict.c \
  config.h \
  $(srcdir)/types-internal.h \
@@ -450,7 +467,7 @@ stub.lo stub.o: $(srcdir)/stub.c \
  $(srcdir)/extension/poll_eventloop.h $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h \
  $(srcdir)/util/lruhash.h $(srcdir)/util/orig-headers/lruhash.h $(srcdir)/util/locks.h \
  $(srcdir)/util/orig-headers/locks.h $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/anchor.h \
- $(srcdir)/util-internal.h $(srcdir)/platform.h $(srcdir)/general.h $(srcdir)/pubkey-pinning.h
+ $(srcdir)/util-internal.h $(srcdir)/platform.h $(srcdir)/general.h $(srcdir)/pubkey-pinning.h $(srcdir)/ssl_dane/danessl.h
 sync.lo sync.o: $(srcdir)/sync.c \
  getdns/getdns.h \
  config.h \
@@ -557,6 +574,7 @@ val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c \
  $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
 jsmn.lo jsmn.o: $(srcdir)/jsmn/jsmn.c $(srcdir)/jsmn/jsmn.h
 yxml.lo yxml.o: $(srcdir)/yxml/yxml.c $(srcdir)/yxml/yxml.h
+danessl.lo danessl.o: $(srcdir)/ssl_dane/danessl.c $(srcdir)/ssl_dane/danessl.h
 libev.lo libev.o: $(srcdir)/extension/libev.c \
  config.h \
  $(srcdir)/types-internal.h \
