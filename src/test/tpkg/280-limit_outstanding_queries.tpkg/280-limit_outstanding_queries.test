@@ -19,13 +19,13 @@ echo "# queries: $NQUERIES"
 # which is smaller than 5 seconds default query timeout value,
 # so the test should succeed.
 
-make && "./${TPKG_NAME}" ${LOCALHOST} | (
+make && "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" ${LOCALHOST} | (
 	read PORT
-	${GETDNS_STUB_QUERY} @${LOCALHOST}:$PORT TXT \
+	${GETDNS_STUB_QUERY} -s @${LOCALHOST}:$PORT TXT \
 	    -a -F "./${TPKG_NAME}.queries" \
 	          "{limit_outstanding_queries:$QLIMIT}" 2>&1 > out
 
-	${GETDNS_STUB_QUERY} -q @${LOCALHOST}:$PORT TXT quit.
+	${GETDNS_STUB_QUERY} -s -q @${LOCALHOST}:$PORT TXT quit.
 ) && grep '"n_requests: [0-9][0-9]*"' out | sed -e 's/^.*n_requests: //g' -e 's/".*$//g' \
     | awk -vQLIMIT=$QLIMIT -vNQUERIES=$NQUERIES '
 
@@ -43,4 +43,15 @@ END{
 		exit(-1);
 	} else
 		print "SUCCESS: No more than "QLIMIT" outstanding queries: "max_outstanding;
-}'
+}' && (
+	if ! awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' valgrind.log
+	then
+		cat valgrind.log
+		exit 1
+	fi
+	if ! awk '/^==.* ERROR SUMMARY/{print;if($4>0)exit(1)}' valgrind.log
+	then
+		cat valgrind.log
+		exit 1
+	fi
+)
