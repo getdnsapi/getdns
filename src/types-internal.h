@@ -246,7 +246,7 @@ typedef struct getdns_network_req
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
-	 * available in wire_data[], it will be allocated seperately.
+	 * available in wire_data[], it will be allocated separately.
 	 * response will then not point to wire_data anymore.
 	 */
 	uint8_t *query;
@@ -380,8 +380,8 @@ typedef struct getdns_dns_req {
 	 *
 	 * Memory for these netreqs has been allocated by the same malloc
 	 * operation that reserved space for this getdns_dns_req.
-	 * They will thus be freed as part of the desctruction of this struct,
-	 * and do not need to be freed seperately.
+	 * They will thus be freed as part of the destruction of this struct,
+	 * and do not need to be freed separately.
 	 */
 	getdns_network_req *netreqs[];
 

@@ -83,7 +83,7 @@ function write_result() {
 }
 
 function epoch() {
-        # make this sorta portable allthough not needed now
+        # make this sorta portable although not needed now
         epoch=0
         case $OSTYPE in
                 linux*)
@@ -819,7 +819,7 @@ done
 
 # this enhances the template from above
 ## Post Processing of some of these variables
-# dsc_aux is a comma seperated list of files, max 8 files
+# dsc_aux is a comma separated list of files, max 8 files
 i=$( echo $dsc_aux | awk -F', ?' '{ print $1 "\n" $2 "\n" $3 "\n" $4 "\n" \
 $5 "\n" $6 "\n" $7 "\n" $8 }' )
 dsc_aux_files=($i)
@@ -833,7 +833,7 @@ dsc_cmddepends_files_total=${#dsc_cmddepends_files[*]}
 for i in ${dsc_cmddepends_files[*]}; do
         find_cmd $i
 done
-# depends can also be a comma seperated list of package
+# depends can also be a comma separated list of package
 # TODO 
 
 # check is the aux files are also really in the shar

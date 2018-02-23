@@ -148,7 +148,7 @@
        getdns_bindata *version_str = NULL;
 
        /* Note that stricly this test just establishes that the requested transport
-          and the reported transport are consistent, it does not guarentee which
+          and the reported transport are consistent, it does not guarantee which
           transport is used on the wire...*/
 
        CONTEXT_CREATE(TRUE);
