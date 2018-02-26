@@ -2158,6 +2158,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	return upstream;
 }
 
+/* Used for UDP only */
 static getdns_upstream *
 upstream_select(getdns_network_req *netreq)
 {
@@ -2167,6 +2168,7 @@ upstream_select(getdns_network_req *netreq)
 
 	if (!upstreams->count)
 		return NULL;
+
 	/* First UPD/TCP upstream is always at i=0 and then start of each upstream block*/
 	/* TODO: Have direct access to sets of upstreams for different transports*/
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
@@ -2184,14 +2186,17 @@ upstream_select(getdns_network_req *netreq)
 			i = 0;
 	} while (i != upstreams->current_udp);
 
+    /* Select upstream with the lowest back_off value */
 	upstream = upstreams->upstreams;
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
-		if (upstreams->upstreams[i].back_off <
-		    upstream->back_off)
+		if (upstreams->upstreams[i].back_off < upstream->back_off)
 			upstream = &upstreams->upstreams[i];
 
-	if (upstream->back_off > 1)
-		upstream->back_off--;
+    /* Restrict back_off in case no upstream is available to achieve
+       (more or less) round-robin retry on all upstreams. */
+    if (upstream->back_off > 4)
+        for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
+            upstreams->upstreams[i].back_off = 2;
 	upstream->to_retry = 1;
 	upstreams->current_udp = upstream - upstreams->upstreams;
 	return upstream;
