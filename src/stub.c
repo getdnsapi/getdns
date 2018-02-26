@@ -460,8 +460,13 @@ stub_next_upstream(getdns_network_req *netreq)
 {
 	getdns_dns_req *dnsreq = netreq->owner;
 
-	if (! --netreq->upstream->to_retry) 
-		netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+	if (! --netreq->upstream->to_retry) {
+        /* Limit back_off value to configured maximum */
+        if (netreq->upstream->back_off * 2 > dnsreq->context->max_backoff_value)
+            netreq->upstream->to_retry = -(dnsreq->context->max_backoff_value);
+        else
+            netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+    }
 
 	dnsreq->upstreams->current_udp+=GETDNS_UPSTREAM_TRANSPORTS;
 	if (dnsreq->upstreams->current_udp >= dnsreq->upstreams->count)
