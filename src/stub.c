@@ -1595,6 +1595,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	upstream->udp_responses++;
+    upstream->back_off = 1;
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
