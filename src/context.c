@@ -679,6 +679,7 @@ upstreams_create(getdns_context *context, size_t size)
 	r->count = 0;
 	r->current_udp = 0;
 	r->current_stateful = 0;
+    r->max_backoff_value = context->max_backoff_value;
 	r->tls_backoff_time = context->tls_backoff_time;
 	r->tls_connection_retries = context->tls_connection_retries;
 	r->log = context->log;
@@ -1664,6 +1665,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_backoff_time = 3600;
 	result->tls_connection_retries = 2;
 	result->limit_outstanding_queries = 0;
+    result->max_backoff_value = 1000;
 
 	/* unbound context is initialized here */
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
@@ -2361,6 +2363,22 @@ getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
 
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_round_robin_upstreams */
+
+/*
+ * getdns_context_set_max_backoff_value
+ *
+ */
+getdns_return_t
+getdns_context_set_max_backoff_value(getdns_context *context, uint16_t value)
+{
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+
+    context->max_backoff_value = value;
+
+    dispatch_updated(context, GETDNS_CONTEXT_CODE_MAX_BACKOFF_VALUE);
+
+    return GETDNS_RETURN_GOOD;
+}               /* getdns_context_set_max_backoff_value */
 
 /*
  * getdns_context_set_tls_backoff_time
@@ -3931,6 +3949,8 @@ _get_context_settings(getdns_context* context)
 	                           context->tls_auth)
 	    || getdns_dict_set_int(result, "round_robin_upstreams",
 	                           context->round_robin_upstreams)
+	    || getdns_dict_set_int(result, "max_backoff_value",
+	                           context->max_backoff_value)
 	    || getdns_dict_set_int(result, "tls_backoff_time",
 	                           context->tls_backoff_time)
 	    || getdns_dict_set_int(result, "tls_connection_retries",
@@ -4375,6 +4395,15 @@ getdns_context_get_round_robin_upstreams(getdns_context *context,
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
     RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
     *value = context->round_robin_upstreams;
+    return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_max_backoff_value(getdns_context *context,
+    uint16_t* value) {
+    RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+    RETURN_IF_NULL(value, GETDNS_RETURN_INVALID_PARAMETER);
+    *value = context->max_backoff_value;
     return GETDNS_RETURN_GOOD;
 }
 

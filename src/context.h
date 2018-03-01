@@ -263,6 +263,7 @@ typedef struct getdns_upstreams {
 	size_t count;
 	size_t current_udp;
 	size_t current_stateful;
+    uint16_t max_backoff_value;
 	uint16_t tls_backoff_time;
 	uint16_t tls_connection_retries;
 	getdns_log_config log;
@@ -357,6 +358,7 @@ struct getdns_context {
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
 	uint8_t              round_robin_upstreams;
+    uint16_t             max_backoff_value;
 	uint16_t             tls_backoff_time;
 	uint16_t             tls_connection_retries;
 
