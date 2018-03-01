@@ -56,20 +56,14 @@
 
 /* OpenSSL implementation */
 #ifdef HAVE_SSL
-#ifdef HAVE_OPENSSL_ERR_H
+
+#ifndef OPENSSL_NO_ERR
 #include <openssl/err.h>
 #endif
 
-#ifdef HAVE_OPENSSL_RAND_H
-#include <openssl/rand.h>
-#endif
-
-#ifdef HAVE_OPENSSL_CONF_H
-#include <openssl/conf.h>
-#endif
-
-#ifdef HAVE_OPENSSL_ENGINE_H
-#include <openssl/engine.h>
+#ifndef OPENSSL_NO_DSA
+#include <openssl/bn.h>
+#include <openssl/dsa.h>
 #endif
 
 /** fake DSA support for unit tests */
