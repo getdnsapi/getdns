@@ -838,6 +838,10 @@ static void add_question2val_chain(struct mem_funcs *mf,
     const uint8_t *qname, uint16_t qtype, uint16_t qclass,
     getdns_network_req *netreq)
 {
+	_getdns_rrset_iter *i, i_spc;
+	_getdns_rrset *rrset;
+	_getdns_rrsig_iter rrsig_spc;
+
 	_getdns_rrset_spc q_rrset;
 	chain_head *head;
 
@@ -864,8 +868,25 @@ static void add_question2val_chain(struct mem_funcs *mf,
 	head = add_rrset2val_chain(mf, chain_p, &q_rrset.rrset, netreq);
 
 	/* On empty packet, find SOA (zonecut) for the qname */
-	if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
+	if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0) {
 		val_chain_sched_soa(head, q_rrset.rrset.name);
+		return;
+	}
+	/* Insecure SOA indicating a zonecut in the authority section?
+	 * Then schedule a DS query at the zonecut for insecure proof.
+	 */
+	for ( i = _getdns_rrset_iter_init(&i_spc, pkt, pkt_len
+	                                        , SECTION_AUTHORITY)
+	    ; i ; i = _getdns_rrset_iter_next(i)) {
+		rrset = _getdns_rrset_iter_value(i);
+		debug_sec_print_rrset("rrset: ", rrset);
+
+		if (rrset->rr_type != GETDNS_RRTYPE_SOA ||
+		    _getdns_rrsig_iter_init(&rrsig_spc, rrset))
+			continue;
+
+		val_chain_sched_ds(head, rrset->name);
+	}
 }
 
 
