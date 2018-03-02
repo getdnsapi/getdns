@@ -201,6 +201,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 
 	/* state variables from the resolver, don't touch
 	 */
+	net_req->first_upstream = NULL;
 	net_req->upstream = NULL;
 	net_req->fd = -1;
 	net_req->transport_current = 0;

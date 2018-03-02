@@ -221,6 +221,7 @@ typedef struct getdns_network_req
 	getdns_redirects_t      follow_redirects;
 
 	/* For stub resolving */
+	struct getdns_upstream *first_upstream;
 	struct getdns_upstream *upstream;
 	int                     fd;
 	getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];

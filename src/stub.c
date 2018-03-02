@@ -2296,8 +2296,13 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 				return STUB_TRY_AGAIN_LATER;
 			return -1;
 		}
+		if (upstream == netreq->first_upstream)
+			continue;
+
 		netreq->transport_current = i;
 		netreq->upstream = upstream;
+		if (!netreq->first_upstream)
+			netreq->first_upstream = upstream;
 		netreq->keepalive_sent = 0;
 
 		DEBUG_STUB("%s %-35s: MSG: %p found upstream %p with transport %d, fd: %d\n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq, (void *)upstream, (int)netreq->transports[i], fd);
