@@ -134,6 +134,7 @@ netreq_reset(getdns_network_req *net_req)
 	uint8_t *buf;
 	/* variables that need to be reset on reinit 
 	 */
+	net_req->first_upstream = NULL;
 	net_req->unbound_id = -1;
 	_getdns_netreq_change_state(net_req, NET_REQ_NOT_SENT);
 	if (net_req->query_id_registered) {
@@ -201,7 +202,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 
 	/* state variables from the resolver, don't touch
 	 */
-	net_req->first_upstream = NULL;
 	net_req->upstream = NULL;
 	net_req->fd = -1;
 	net_req->transport_current = 0;
