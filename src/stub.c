@@ -2260,10 +2260,22 @@ upstream_find_for_transport(getdns_network_req *netreq,
 		   are exhausted/backed-off (no upstream) and until we have tried each
 		   upstream at least once for this netreq in a total backoff scenario */
 		size_t i = 0;
+        getdns_upstreams *upstreams;
 		do {
 			upstream = upstream_select_stateful(netreq, transport);
 			if (!upstream)
 				return NULL;
+            upstreams = netreq->owner->upstreams;
+            if (netreq->first_stateful < 0) {
+                netreq->first_stateful = upstream - upstreams->upstreams;
+            } else {
+                if (upstream == &upstreams->upstreams[netreq->first_stateful]) {
+                    /* Wrapped, looks like we tried all */
+                    DEBUG_STUB("%s %-35s: No more upstreams to try\n", 
+                               STUB_DEBUG_SETUP, __FUNC__);
+                    return NULL;
+                }
+            }
 			*fd = upstream_connect(upstream, transport, netreq->owner);
 			if (i >= upstream->upstreams->count)
 				return NULL;
