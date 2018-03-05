@@ -93,6 +93,7 @@ typedef unsigned short in_port_t;
 #ifdef USE_DANESSL
 # include "ssl_dane/danessl.h"
 #endif
+#include "const-info.h"
 
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
@@ -679,7 +680,7 @@ upstreams_create(getdns_context *context, size_t size)
 	r->count = 0;
 	r->current_udp = 0;
 	r->current_stateful = 0;
-    r->max_backoff_value = context->max_backoff_value;
+	r->max_backoff_value = context->max_backoff_value;
 	r->tls_backoff_time = context->tls_backoff_time;
 	r->tls_connection_retries = context->tls_connection_retries;
 	r->log = context->log;
@@ -1665,7 +1666,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_backoff_time = 3600;
 	result->tls_connection_retries = 2;
 	result->limit_outstanding_queries = 0;
-    result->max_backoff_value = 1000;
+	result->max_backoff_value = UDP_MAX_BACKOFF;
 
 	/* unbound context is initialized here */
 	/* Unbound needs SSL to be init'ed this early when TLS is used. However we
@@ -2364,9 +2365,15 @@ getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_round_robin_upstreams */
 
-/*
- * getdns_context_set_max_backoff_value
- *
+/**
+ * Set the maximum number of messages that can be sent to other upstreams
+ * before the upstream which has previously timed out will be tried again.
+ * @see getdns_context_get_max_backoff_value
+ * @param[in] context  The context to configure
+ * @param[in[ value    Number of messages sent to other upstreams before 
+ *                     retrying the upstream which had timed out.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
  */
 getdns_return_t
 getdns_context_set_max_backoff_value(getdns_context *context, uint16_t value)
@@ -4398,6 +4405,16 @@ getdns_context_get_round_robin_upstreams(getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }
 
+/**
+ * Get the maximum number of messages that can be sent to other upstreams
+ * before the upstream which has previously timed out will be tried again.
+ * @see getdns_context_set_max_backoff_value
+ * @param[in]  context  The context from which to get the setting
+ * @param[out] value    Number of messages sent to other upstreams before 
+ *                      retrying the upstream which had timed out.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
+ */
 getdns_return_t
 getdns_context_get_max_backoff_value(getdns_context *context,
     uint16_t* value) {

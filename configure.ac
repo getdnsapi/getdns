@@ -379,6 +379,10 @@ no)
 	;;
 esac
 
+AC_ARG_WITH(max-udp-backoff, AS_HELP_STRING([--with-max-udp-backoff=<number of queries>],
+    [Set the maximum number of messages that can be sent to other upstreams before the upstream which has previously timed out will be tried again. (defaults to 1000)]),, [withval="1000"])
+AC_DEFINE_UNQUOTED([UDP_MAX_BACKOFF], [$withval], [Maximum number of queries an failed UDP upstream passes before it will retry])
+
 #---- check for pthreads library
 AC_ARG_WITH(libpthread, AS_HELP_STRING([--without-libpthread],
 	[Disable libpthread (default is autodetect)]),
