@@ -1,4 +1,8 @@
 * 2018-03-??: Version 1.4.1
+  * Bugfix: Find zonecut with DS queries (instead of SOA queries).
+    Thanks Elmer Lastdrager
+  * Bugfix #385: Verifying insecure NODATA answers (broken since 1.2.1).
+    Thanks hanvinke
   * PR #384: Fix minor spelling and formatting.  Thanks dkg.
   * Bugfix #382: Parallel install of getdns_query and getdns_server_mon
 
