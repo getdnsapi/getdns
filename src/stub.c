@@ -460,8 +460,13 @@ stub_next_upstream(getdns_network_req *netreq)
 {
 	getdns_dns_req *dnsreq = netreq->owner;
 
-	if (! --netreq->upstream->to_retry) 
-		netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+	if (! --netreq->upstream->to_retry) {
+        /* Limit back_off value to configured maximum */
+        if (netreq->upstream->back_off * 2 > dnsreq->context->max_backoff_value)
+            netreq->upstream->to_retry = -(dnsreq->context->max_backoff_value);
+        else
+            netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+    }
 
 	dnsreq->upstreams->current_udp+=GETDNS_UPSTREAM_TRANSPORTS;
 	if (dnsreq->upstreams->current_udp >= dnsreq->upstreams->count)
@@ -1590,6 +1595,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	upstream->udp_responses++;
+    upstream->back_off = 1;
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
@@ -2152,6 +2158,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	return upstream;
 }
 
+/* Used for UDP only */
 static getdns_upstream *
 upstream_select(getdns_network_req *netreq)
 {
@@ -2161,6 +2168,7 @@ upstream_select(getdns_network_req *netreq)
 
 	if (!upstreams->count)
 		return NULL;
+
 	/* First UPD/TCP upstream is always at i=0 and then start of each upstream block*/
 	/* TODO: Have direct access to sets of upstreams for different transports*/
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
@@ -2178,14 +2186,18 @@ upstream_select(getdns_network_req *netreq)
 			i = 0;
 	} while (i != upstreams->current_udp);
 
+	/* Select upstream with the lowest back_off value */
 	upstream = upstreams->upstreams;
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
-		if (upstreams->upstreams[i].back_off <
-		    upstream->back_off)
+		if (upstreams->upstreams[i].back_off < upstream->back_off)
 			upstream = &upstreams->upstreams[i];
 
-	if (upstream->back_off > 1)
-		upstream->back_off--;
+	/* Restrict back_off in case no upstream is available to achieve
+	   (more or less) round-robin retry on all upstreams. */
+	if (upstream->back_off > 4) {
+		for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
+			upstreams->upstreams[i].back_off = 2;
+	}
 	upstream->to_retry = 1;
 	upstreams->current_udp = upstream - upstreams->upstreams;
 	return upstream;

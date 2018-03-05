@@ -768,7 +768,6 @@ getdns_return_t
 getdns_context_set_tls_curves_list(
     getdns_context *context, const char *curves_list);
 
-
 /**
  * Get the current resolution type setting from this context.
  * @see getdns_context_set_resolution_type
@@ -1076,7 +1075,7 @@ getdns_context_get_tls_authentication(getdns_context *context,
 /**
  * Get whether the context is configured to round robin queries over the available
  * upstreams.
- * @see getdns_context_get_round_robin_upstreams
+ * @see getdns_context_set_round_robin_upstreams
  * @param[in]  context The context from which to get the setting
  * @param[out] value 1 if the setting is on, 0 otherwise
  * @return GETDNS_RETURN_GOOD when successful
@@ -1302,7 +1301,6 @@ getdns_context_get_tls_cipher_list(
 getdns_return_t
 getdns_context_get_tls_curves_list(
     getdns_context *context, const char **curves_list);
-
 
 /** @}
  */
