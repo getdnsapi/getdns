@@ -591,7 +591,7 @@ getdns_context_set_logfunc(getdns_context *context, void *userarg,
  *                        to be created if it does not exist.  When NULL is
  *                        given, the default location is used which is
  *                        ${HOME}/.getdns/ on Unix line systems (Linux, BSD's,
- *                        MacOS), and %AppData%\getnds\ on Windows.
+ *                        MacOS), and %AppData%\getdns\ on Windows.
  * @return GETDNS_RETURN_GOOD when successful
  * @return GETDNS_RETURN_INVALID_PARAMETER when context was NULL.
  */
@@ -700,7 +700,7 @@ getdns_context_set_trust_anchors_verify_email(
  * @see getdns_context_get_resolvconf
  * @see getdns_context_set_hosts
  * @param[in] context      The context to configure
- * @param[in] resolvonf    Defaults to /etc/resolv.conf
+ * @param[in] resolvconf   Defaults to /etc/resolv.conf
  * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
  */
 getdns_return_t
@@ -1228,7 +1228,7 @@ getdns_context_get_trust_anchors_verify_email(
  * @see getdns_context_set_resolvconf
  * @see getdns_context_get_hosts
  * @param[in]  context      The context to configure
- * @param[out] resolvonf    NULL if the context was not initialized with a
+ * @param[out] resolvconf   NULL if the context was not initialized with a
  *                          resolv.conf file.
  * @return GETDNS_RETURN_GOOD when successful and error code otherwise.
  */
