@@ -506,8 +506,6 @@ struct chain_node {
 	getdns_network_req *ds_req;
 	int                 ds_signer;
 
-	getdns_network_req *soa_req;
-
 	chain_head  *chains;
 };
 
@@ -521,7 +519,6 @@ struct chain_node {
 static void val_chain_sched(chain_head *head, const uint8_t *dname);
 static void val_chain_sched_ds(chain_head *head, const uint8_t *dname);
 static void val_chain_sched_signer(chain_head *head, _getdns_rrsig_iter *rrsig);
-static void val_chain_sched_soa(chain_head *head, const uint8_t *dname);
 
 static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
     chain_head **chain_p, _getdns_rrset *rrset, getdns_network_req *netreq)
@@ -663,7 +660,6 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 		node->dnskey.sections = head->rrset.sections;
 		node->ds_req          = NULL;
 		node->dnskey_req      = NULL;
-		node->soa_req         = NULL;
 		node->ds_signer       = -1;
 		node->dnskey_signer   = -1;
 
@@ -822,9 +818,9 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
 		if (rrset->rr_type == GETDNS_RRTYPE_SOA)
 			val_chain_sched_ds(head, rrset->name);
 		else if (rrset->rr_type == GETDNS_RRTYPE_CNAME)
-			val_chain_sched_soa(head, rrset->name + *rrset->name + 1);
+			val_chain_sched_ds(head, rrset->name + *rrset->name + 1);
 		else
-			val_chain_sched_soa(head, rrset->name);
+			val_chain_sched_ds(head, rrset->name);
 	}
 }
 
@@ -838,6 +834,11 @@ static void add_question2val_chain(struct mem_funcs *mf,
     const uint8_t *qname, uint16_t qtype, uint16_t qclass,
     getdns_network_req *netreq)
 {
+	_getdns_rrset_iter *i, i_spc;
+	_getdns_rrset *rrset;
+	_getdns_rrsig_iter rrsig_spc;
+	size_t n_soas;
+
 	_getdns_rrset_spc q_rrset;
 	chain_head *head;
 
@@ -863,9 +864,29 @@ static void add_question2val_chain(struct mem_funcs *mf,
 	debug_sec_print_rrset("Adding NX rrset: ", &q_rrset.rrset);
 	head = add_rrset2val_chain(mf, chain_p, &q_rrset.rrset, netreq);
 
-	/* On empty packet, find SOA (zonecut) for the qname */
-	if (head && GLDNS_ANCOUNT(pkt) == 0 && GLDNS_NSCOUNT(pkt) == 0)
-		val_chain_sched_soa(head, q_rrset.rrset.name);
+	/* Insecure SOA indicating a zonecut in the authority section?
+	 * Then schedule a DS query at the zonecut for insecure proof.
+	 */
+	n_soas = 0;
+	for ( i = _getdns_rrset_iter_init(&i_spc, pkt, pkt_len
+	                                        , SECTION_AUTHORITY)
+	    ; i ; i = _getdns_rrset_iter_next(i)) {
+		rrset = _getdns_rrset_iter_value(i);
+		debug_sec_print_rrset("rrset: ", rrset);
+
+		if (rrset->rr_type != GETDNS_RRTYPE_SOA)
+			continue;
+
+		n_soas += 1;
+
+		if (_getdns_rrsig_iter_init(&rrsig_spc, rrset))
+			continue;
+
+		val_chain_sched_ds(head, rrset->name);
+	}
+	/* No answer and no SOA indicating a zonecut? Find zonecut */
+	if (n_soas == 0)
+		val_chain_sched_ds(head, q_rrset.rrset.name);
 }
 
 
@@ -887,55 +908,6 @@ static getdns_dict *CD_extension(getdns_dns_req *dnsreq)
 }
 
 static void check_chain_complete(chain_head *chain);
-static void val_chain_node_soa_cb(getdns_dns_req *dnsreq);
-static void val_chain_sched_soa_node(chain_node *node)
-{
-	getdns_context *context;
-	getdns_eventloop *loop;
-	char  name[1024];
-
-	context = node->chains->netreq->owner->context;
-	loop    = node->chains->netreq->owner->loop;
-
-	if (!gldns_wire2str_dname_buf(
-	    (UNCONST_UINT8_p)node->ds.name, 256, name, sizeof(name)))
-		return;
-
-	DEBUG_SEC("schedule SOA lookup for %s\n", name);
-
-	node->lock++;
-	if (! node->soa_req &&
-	    _getdns_general_loop(context, loop, name, GETDNS_RRTYPE_SOA,
-	    CD_extension(node->chains->netreq->owner), node, &node->soa_req,
-	    NULL, val_chain_node_soa_cb))
-
-		node->soa_req     = NULL;
-
-	if (node->lock) node->lock--;
-}
-
-/* A SOA lookup is scheduled as a last resort.  No signatures were found and
- * no SOA in the authority section.  If a SOA query returns an actual SOA
- * answer, then a DS/DNSKEY lookup will follow the acquire the link of the
- * authentication chain.
- */
-static void val_chain_sched_soa(chain_head *head, const uint8_t *dname)
-{
-	chain_node *node;
-
-	if (!head->netreq)
-		return;
-
-	if (!*dname)
-		return;
-
-	for ( node = head->parent
-	    ; node && !_dname_equal(dname, node->ds.name)
-	    ; node = node->parent);
-
-	if (node)
-		val_chain_sched_soa_node(node);
-}
 
 static chain_head *_dnskey_query(const chain_node *node)
 {
@@ -1124,55 +1096,8 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 		/* No signed DS and no signed proof of non-existance.
 		 * Search further up the tree...
 		 */
-		val_chain_sched_soa_node(node->parent);
+		val_chain_sched_ds_node(node->parent);
 
-	if (node->lock) node->lock--;
-	check_chain_complete(node->chains);
-}
-
-
-static void val_chain_node_soa_cb(getdns_dns_req *dnsreq)
-{
-	chain_node *node = (chain_node *)dnsreq->user_pointer;
-	getdns_network_req *netreq = dnsreq->netreqs[0];
-	_getdns_rrset_iter i_spc, *i;
-	_getdns_rrset *rrset;
-
-	/* A SOA query is always scheduled with a node as the user argument.
-	 */
-	assert(node != NULL);
-
-	for ( i = _getdns_rrset_iter_init(&i_spc, netreq->response
-	                                        , netreq->response_len
-	                                        , SECTION_ANSWER)
-	    ; i
-	    ; i = _getdns_rrset_iter_next(i)) {
-
-		rrset = _getdns_rrset_iter_value(i);
-		if (rrset->rr_type != GETDNS_RRTYPE_SOA)
-			continue;
-
-		while (node &&
-		    ! _dname_equal(node->ds.name, rrset->name))
-			node = node->parent;
-
-		if (node) {
-			node->lock++;
-			val_chain_sched_ds_node(node);
-		} else {
-			/* SOA for a different name */
-			node = (chain_node *)dnsreq->user_pointer;
-			if (node->parent) {
-				node->lock++;
-				val_chain_sched_soa_node(node->parent);
-			}
-		}
-		break;
-	}
-	if (!i && node->parent) {
-		node->lock++;
-		val_chain_sched_soa_node(node->parent);
-	}
 	if (node->lock) node->lock--;
 	check_chain_complete(node->chains);
 }
@@ -2902,9 +2827,6 @@ static size_t count_outstanding_requests(chain_head *head)
 
 		if (!_getdns_netreq_finished(node->ds_req))
 			count++;
-
-		if (!_getdns_netreq_finished(node->soa_req))
-			count++;
 	}
 	return count + count_outstanding_requests(head->next);
 }
@@ -3412,12 +3334,6 @@ void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 				    node->ds_req->owner);
 				node->ds_req = NULL;
 			}
-
-			if (!_getdns_netreq_finished(node->soa_req)) {
-				_getdns_context_cancel_request(
-				    node->soa_req->owner);
-				node->soa_req = NULL;
-			}
 		}
 		head = next;
 	}
@@ -3457,10 +3373,6 @@ void _getdns_cancel_validation_chain(getdns_dns_req *dnsreq)
 			if (node->ds_req)
 				_getdns_context_cancel_request(
 				    node->ds_req->owner);
-
-			if (node->soa_req)
-				_getdns_context_cancel_request(
-				    node->soa_req->owner);
 		}
 		GETDNS_FREE(head->my_mf, head);
 		head = next;
