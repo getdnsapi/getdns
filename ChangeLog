@@ -1,6 +1,12 @@
 * 2018-03-??: Version 1.4.1
+  * PR #386: UDP failover improvements:
+    - When all UDP upstreams fail, retry them (more or less) equally
+    - Limit maximum UDP backoff (default to 1000)
+      This is configurable with the --with-max-udp-backoff configure
+      option.
+    Thanks Robert Groenenberg
   * Bugfix #388: Prevent fallback to an earlier tries upstream within a
-    single query.  Thanks Robert Groenenberg.
+    single query.  Thanks Robert Groenenberg
   * Bugfix: Find zonecut with DS queries (instead of SOA queries).
     Thanks Elmer Lastdrager
   * Bugfix #385: Verifying insecure NODATA answers (broken since 1.2.1).
