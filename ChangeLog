@@ -1,5 +1,5 @@
 * 2018-03-??: Version 1.4.1
-  * 
+  * Bugfix #382: Parallel install of getdns_query and getdns_server_mon
 
 * 2018-02-21: Version 1.4.0
   * .so revision bump to please fedora packaging system.
