@@ -715,7 +715,7 @@ static exit_value get_report_info(struct test_info_s *test_info,
                                            "expire=%s;",
                                            buf);
                         } else {
-                                printf("Certicate expires:\t%s UTC\n", buf);
+                                printf("Certificate expires:\t%s UTC\n", buf);
                         }
                 }
         }
@@ -1407,7 +1407,7 @@ static exit_value test_dnssec_validate(struct test_info_s *test_info,
 
         /*
          * Only now get report info from the first search, so that any
-         * verbose output appears after the context/reponse dumps.
+         * verbose output appears after the context/response dumps.
          */
         if ((xit = get_report_info(test_info, response, NULL, NULL, NULL)) != EXIT_OK)
                 return xit;

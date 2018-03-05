@@ -21,7 +21,7 @@
     be wildcard expansions when used with DNSSEC proofs.  Only direct
     queries for those types are allowed to be wildcard expansions.
   * Bugfix PR#379: Miscelleneous double free or corruption, and corrupted
-    memory double linked list detected issue, whith serving functionality.
+    memory double linked list detected issue, with serving functionality.
     Thanks maddie and Bruno Pagani
   * Security Bugfix PR#293: Check sha256 pinset's
     with OpenSSL native DANE functions for OpenSSL >= 1.1.0
@@ -238,7 +238,7 @@
     Allow misshing "address_type" in address dicts.
   * TLS session resumption
   * -C <config file> option to getdns_query to configure context 
-    from a json like formated file.  The output of -i (print API
+    from a json like formatted file.  The output of -i (print API
     information) can be used as config file directly.
     Settings may also be given in this format as arguments of
     the getdns_query command directly.
@@ -387,7 +387,7 @@
 * 2015-09-04: Version 0.3.2
   * Fix returned upstreams list by getdns_context_get_api_information()
   * Fix some autoconf issues when srcdir != builddir
-  * Fix remove build date from manpage version for reproducable builds
+  * Fix remove build date from manpage version for reproducible builds
   * Fix transport fallback issues plus transport fallback unit test script
   * Fix string bindata's need not contain trailing zero byte
   * --enable-stub-only configure option for stub only operation.
@@ -540,7 +540,7 @@
   * Build from separate build directory
   * Anticipate libunbound not returning the answer packet
   * Pretty print bindata's representing IP addresses
-  * Anticipate absense of implicit DSO linking
+  * Anticipate absence of implicit DSO linking
   * Mention getdns specific options to configure in INSTALL
     Thanks Paul Hoffman
   * Mac OSX package built instructions for generic user in README.md

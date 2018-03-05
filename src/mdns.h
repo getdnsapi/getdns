@@ -59,7 +59,7 @@ typedef struct getdns_mdns_known_record
  * The data part contains:
  * - 64 bit time stamp
  * - 32 bit word describing the record size
- * - 32 bit word describing teh allocated memory size
+ * - 32 bit word describing the allocated memory size
  * - valid DNS response, including 1 query and N answers, 0 AUTH, 0 AD.
  * For economy, the names of all answers are encoded using header compression, pointing
  * to the name in the query, i.e. offset 12 from beginning of message.

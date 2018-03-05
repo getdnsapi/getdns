@@ -332,13 +332,13 @@ enum gldns_enum_rdf_type
         GLDNS_RDF_TYPE_NSEC3_NEXT_OWNER,
 
         /** 4 shorts represented as 4 * 16 bit hex numbers
-         *  seperated by colons. For NID and L64.
+         *  separated by colons. For NID and L64.
          */
         GLDNS_RDF_TYPE_ILNP64,
 
-        /** 6 * 8 bit hex numbers seperated by dashes. For EUI48. */
+        /** 6 * 8 bit hex numbers separated by dashes. For EUI48. */
         GLDNS_RDF_TYPE_EUI48,
-        /** 8 * 8 bit hex numbers seperated by dashes. For EUI64. */
+        /** 8 * 8 bit hex numbers separated by dashes. For EUI64. */
         GLDNS_RDF_TYPE_EUI64,
 
         /** A non-zero sequence of US-ASCII letters and numbers in lower case.

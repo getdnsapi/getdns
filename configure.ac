@@ -49,7 +49,7 @@ AC_ARG_WITH([piddir],
   [with_piddir=${default_piddir}])
 AC_SUBST([runstatedir], [$with_piddir])
 
-# Dont forget to put a dash in front of the release candidate!!!
+# Don't forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
 AC_SUBST(RELEASE_CANDIDATE, [rc1])
@@ -1471,7 +1471,7 @@ AH_BOTTOM([
 
 #ifdef GETDNS_ON_WINDOWS
  /* On windows it is allowed to increase the FD_SETSIZE
-  * (and nescessary to make our custom eventloop work)
+  * (and necessary to make our custom eventloop work)
   * See: https://support.microsoft.com/en-us/kb/111855
   */
 # ifndef FD_SETSIZE

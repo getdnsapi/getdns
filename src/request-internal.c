@@ -767,7 +767,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	      request_type == GETDNS_RRTYPE_AAAA );
 	/* Reserve for the buffer at least one more byte
 	 * (to test for udp overflow) (hence the + 1),
-	 * And align on the 8 byte boundry  (hence the (x + 7) / 8 * 8)
+	 * And align on the 8 byte boundary  (hence the (x + 7) / 8 * 8)
 	 */
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
 	uint8_t *region, *suffixes;
