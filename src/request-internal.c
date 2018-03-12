@@ -134,6 +134,7 @@ netreq_reset(getdns_network_req *net_req)
 	uint8_t *buf;
 	/* variables that need to be reset on reinit 
 	 */
+	net_req->first_upstream = NULL;
 	net_req->unbound_id = -1;
 	_getdns_netreq_change_state(net_req, NET_REQ_NOT_SENT);
 	if (net_req->query_id_registered) {
@@ -767,7 +768,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	      request_type == GETDNS_RRTYPE_AAAA );
 	/* Reserve for the buffer at least one more byte
 	 * (to test for udp overflow) (hence the + 1),
-	 * And align on the 8 byte boundry  (hence the (x + 7) / 8 * 8)
+	 * And align on the 8 byte boundary  (hence the (x + 7) / 8 * 8)
 	 */
 	size_t max_query_sz, max_response_sz, netreq_sz, dnsreq_base_sz;
 	uint8_t *region, *suffixes;

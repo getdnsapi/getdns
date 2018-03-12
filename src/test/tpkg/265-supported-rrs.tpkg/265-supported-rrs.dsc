@@ -6,7 +6,7 @@ Maintainer: Hoda Rohani
 Category: 
 Component:
 CmdDepends: 
-Depends: 200-stub-only-compile.tpkg
+Depends: 200-stub-only-compile-install.tpkg
 Help:
 Pre: 265-supported-rrs.pre
 Post: 

@@ -4,7 +4,8 @@
 	branch = getdns
 [submodule "src/yxml"]
 	path = src/yxml
-	url = git://g.blicky.net/yxml.git
+	url = https://github.com/getdnsapi/yxml.git
+	branch = master
 [submodule "stubby"]
 	path = stubby
 	url = https://github.com/getdnsapi/stubby.git
@@ -12,3 +13,4 @@
 [submodule "src/ssl_dane"]
 	path = src/ssl_dane
 	url = https://github.com/getdnsapi/ssl_dane
+	branch = getdns

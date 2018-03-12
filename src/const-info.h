@@ -39,6 +39,14 @@
 #ifndef CONST_INFO_H_
 #define CONST_INFO_H_
 
+#include "getdns/getdns.h"
+#include "getdns/getdns_extra.h"
+
+#ifndef GETDNS_CONTEXT_CODE_MAX_BACKOFF_VALUE
+#define GETDNS_CONTEXT_CODE_MAX_BACKOFF_VALUE 699
+#define GETDNS_CONTEXT_CODE_MAX_BACKOFF_VALUE_TEXT "Change related to getdns_context_set_max_backoff_value"
+#endif
+
 struct const_info {
 	int code;
 	const char *name;

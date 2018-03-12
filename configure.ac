@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.4.0], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
+AC_INIT([getdns], [1.4.1], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
 
 # Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
 # patched to do the same, but frequently (MacOS) not. So add a with option
@@ -49,10 +49,11 @@ AC_ARG_WITH([piddir],
   [with_piddir=${default_piddir}])
 AC_SUBST([runstatedir], [$with_piddir])
 
-# Dont forget to put a dash in front of the release candidate!!!
+# Don't forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
 AC_SUBST(RELEASE_CANDIDATE, [])
+AC_SUBST(STUBBY_RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -62,13 +63,13 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01040000])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01040100])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
 AC_DEFINE_UNQUOTED([STUBBY_PACKAGE], ["stubby"], [Stubby package])
-AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$RELEASE_CANDIDATE"], [Stubby package string])
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$STUBBY_RELEASE_CANDIDATE"], [Stubby package string])
 
 # Library version
 # ---------------
@@ -102,9 +103,10 @@ AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$RELEASE_CANDIDATE"], [Stubby
 # getdns-1.2.0 had libversion 8:0:2
 # getdns-1.2.1 had libversion 8:1:2
 # getdns-1.3.0 had libversion 9:0:3
-# getdns-1.4.0 has libversion 10:0:0
+# getdns-1.4.0 had libversion 10:0:0
+# getdns-1.4.1 has libversion 10:1:0
 #
-GETDNS_LIBVERSION=10:0:0
+GETDNS_LIBVERSION=10:1:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
@@ -377,6 +379,10 @@ no)
 	;;
 esac
 
+AC_ARG_WITH(max-udp-backoff, AS_HELP_STRING([--with-max-udp-backoff=<number of queries>],
+    [Set the maximum number of messages that can be sent to other upstreams before the upstream which has previously timed out will be tried again. (defaults to 1000)]),, [withval="1000"])
+AC_DEFINE_UNQUOTED([UDP_MAX_BACKOFF], [$withval], [Maximum number of queries an failed UDP upstream passes before it will retry])
+
 #---- check for pthreads library
 AC_ARG_WITH(libpthread, AS_HELP_STRING([--without-libpthread],
 	[Disable libpthread (default is autodetect)]),
@@ -630,7 +636,27 @@ case "$enable_dsa" in
     *) dnl default
       # detect if DSA is supported, and turn it off if not.
       AC_CHECK_FUNC(DSA_SIG_new, [
-	AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
+	AC_CHECK_TYPE(DSA_SIG*, [
+		AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
+	], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
+	  fi ], [
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_OPENSSL_ENGINE_H
+# include <openssl/engine.h>
+#endif
+
+#ifdef HAVE_OPENSSL_RAND_H
+#include <openssl/rand.h>
+#endif
+
+#ifdef HAVE_OPENSSL_CONF_H
+#include <openssl/conf.h>
+#endif
+
+#ifdef HAVE_OPENSSL_ENGINE_H
+#include <openssl/engine.h>
+#endif
+])
       ], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
 	  fi ])
       ;;
@@ -1469,7 +1495,7 @@ AH_BOTTOM([
 
 #ifdef GETDNS_ON_WINDOWS
  /* On windows it is allowed to increase the FD_SETSIZE
-  * (and nescessary to make our custom eventloop work)
+  * (and necessary to make our custom eventloop work)
   * See: https://support.microsoft.com/en-us/kb/111855
   */
 # ifndef FD_SETSIZE

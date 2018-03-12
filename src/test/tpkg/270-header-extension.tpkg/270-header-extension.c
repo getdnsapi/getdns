@@ -85,7 +85,7 @@ int main()
 		fprintf(stderr, "Could not do lookup");
 
 	else if ((r = getdns_dict_remove_name(response, "replies_full")))
-		fprintf(stderr, "Could not remove reponse['replies_full']");
+		fprintf(stderr, "Could not remove response['replies_full']");
 
 	else if ((r = getdns_dict_remove_name(response, "/replies_tree/0/header/id")))
 		fprintf(stderr, "Could not remove ID from response");

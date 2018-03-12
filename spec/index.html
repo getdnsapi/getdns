@@ -173,7 +173,7 @@ extensions. See <a href="#Extensions">the section below</a> for information on h
 the extensions used for a request.</p>
 
 <p class=define><code><b>*userarg</b></code></p>
-<p class=descrip>A void* that is passed to the function, which the funciton
+<p class=descrip>A void* that is passed to the function, which the function
 returns to the callback function untouched. <code>userarg</code> can be used by the callback
 function for any user-specific data needed. This can be NULL.</p>
 
@@ -1507,7 +1507,7 @@ function.</p>
     <span class="n">assert</span><span class="p">(</span> <span class="n">callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_COMPLETE</span> <span class="p">);</span>
 
     <span class="k">if</span> <span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">getdns_dict_get_int</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;status&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">status</span><span class="p">)))</span>
-        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get </span><span class="se">\&quot;</span><span class="s">status</span><span class="se">\&quot;</span><span class="s"> from reponse&quot;</span><span class="p">);</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get </span><span class="se">\&quot;</span><span class="s">status</span><span class="se">\&quot;</span><span class="s"> from response&quot;</span><span class="p">);</span>
 
     <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">status</span> <span class="o">!=</span> <span class="n">GETDNS_RESPSTATUS_GOOD</span><span class="p">)</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;The search had no results, and a return value of %&quot;</span><span class="n">PRIu32</span><span class="s">&quot;.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">status</span><span class="p">);</span>
@@ -1622,7 +1622,7 @@ their TTLs.</p>
     <span class="n">assert</span><span class="p">(</span> <span class="n">callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_COMPLETE</span> <span class="p">);</span>
 
     <span class="k">if</span> <span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;replies_tree&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">replies_tree</span><span class="p">)))</span>
-        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get </span><span class="se">\&quot;</span><span class="s">replies_tree</span><span class="se">\&quot;</span><span class="s"> from reponse&quot;</span><span class="p">);</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get </span><span class="se">\&quot;</span><span class="s">replies_tree</span><span class="se">\&quot;</span><span class="s"> from response&quot;</span><span class="p">);</span>
 
     <span class="k">else</span> <span class="k">if</span> <span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">replies_tree</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">n_replies</span><span class="p">)))</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get replies_tree</span><span class="se">\&#39;</span><span class="s">s length&quot;</span><span class="p">);</span>
@@ -1854,7 +1854,7 @@ as it is for the synchronous example, it is just done in <code>main()</code>.</p
     <span class="n">assert</span><span class="p">(</span> <span class="n">callback_type</span> <span class="o">==</span> <span class="n">GETDNS_CALLBACK_COMPLETE</span> <span class="p">);</span>
 
     <span class="k">if</span> <span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">getdns_dict_get_list</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="s">&quot;/replies_tree/0/answer&quot;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">answer</span><span class="p">)))</span>
-        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get </span><span class="se">\&quot;</span><span class="s">answer</span><span class="se">\&quot;</span><span class="s"> section from first reply in the reponse&quot;</span><span class="p">);</span>
+        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get </span><span class="se">\&quot;</span><span class="s">answer</span><span class="se">\&quot;</span><span class="s"> section from first reply in the response&quot;</span><span class="p">);</span>
 
     <span class="k">else</span> <span class="k">if</span> <span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">getdns_list_get_length</span><span class="p">(</span><span class="n">answer</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">n_answers</span><span class="p">)))</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Could not get replies_tree</span><span class="se">\&#39;</span><span class="s">s length&quot;</span><span class="p">);</span>

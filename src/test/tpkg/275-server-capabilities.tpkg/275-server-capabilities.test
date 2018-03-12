@@ -21,10 +21,14 @@ make && "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgri
 
 	${GETDNS_STUB_QUERY} -s -q @${LOCALHOST}:$PORT TXT quit.
 )
-if grep -q 'definitely lost: [^0]' valgrind.log
+if ! awk '/^==.*(definitely|indirectly|possibly) lost/{print;if($4>0)exit(1)}' valgrind.log
 then
 	cat valgrind.log
-	echo "error: Memory loss!"
+	exit 1
+fi
+if ! awk '/^==.* ERROR SUMMARY/{print;if($4>0)exit(1)}' valgrind.log
+then
+	cat valgrind.log
 	exit 1
 fi
 if ! grep -q '"status": GETDNS_RESPSTATUS_ALL_TIMEOUT' time_out

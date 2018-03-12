@@ -25,4 +25,4 @@ done
 rm -fr "${BUILDDIR}/build-stub-only"
 mkdir  "${BUILDDIR}/build-stub-only"
 cd "${BUILDDIR}/build-stub-only"
-"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install-stub-only" --enable-stub-only
+"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install-stub-only" --enable-stub-only --enable-debug-server --enable-debug-anchor

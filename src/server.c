@@ -255,7 +255,12 @@ _getdns_cancel_reply(getdns_context *context, connection *conn)
 {
 	struct mem_funcs *mf;
 
-	if (!context || !conn)
+	if (!conn)
+		return;
+
+	if (context && context->server &&
+	    _getdns_rbtree_search(&context->server->connections_set, conn)
+	    != &conn->super)
 		return;
 
 	if (conn->l->transport == GETDNS_TRANSPORT_TCP) {
@@ -293,13 +298,14 @@ getdns_reply(
 	size_t len;
 	getdns_return_t r;
 
-	if (!context || !conn)
+	if (!conn)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	if (!context->server)
-		return GETDNS_RETURN_GENERIC_ERROR;;
+	if (!context || !context->server) {
+		if (!context)
+			context = conn->l->set->context;
 
-	if (_getdns_rbtree_search(&context->server->connections_set, conn)
+	} else if (_getdns_rbtree_search(&context->server->connections_set, conn)
 	    != &conn->super)
 		return GETDNS_RETURN_NO_SUCH_LIST_ITEM;
 
@@ -750,11 +756,16 @@ static void free_listen_set_when_done(listen_set *set)
 	for (i = 0; i < set->count; i++) {
 		listener *l = &set->items[i];
 
-		if (l->fd >= 0)
+		if (l->fd >= 0) {
+			DEBUG_SERVER("Listener %d still listening on %d\n",
+			    (int)i, l->fd);
 			return;
-
-		if (l->connections)
+		}
+		if (l->connections) {
+			DEBUG_SERVER("Listener %d still has connections %p\n",
+			    (int)i, (void *)l->connections);
 			return;
+		}
 	}
 	GETDNS_FREE(*mf, set);
 	DEBUG_SERVER("Listen set: %p freed\n", (void *)set);

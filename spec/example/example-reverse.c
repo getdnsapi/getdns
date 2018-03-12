@@ -31,7 +31,7 @@ void callback(getdns_context        *context,
 	assert( callback_type == GETDNS_CALLBACK_COMPLETE );
 
 	if ((r = getdns_dict_get_list(response, "/replies_tree/0/answer", &answer)))
-		fprintf(stderr, "Could not get \"answer\" section from first reply in the reponse");
+		fprintf(stderr, "Could not get \"answer\" section from first reply in the response");
 
 	else if ((r = getdns_list_get_length(answer, &n_answers)))
 		fprintf(stderr, "Could not get replies_tree\'s length");

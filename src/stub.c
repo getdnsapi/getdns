@@ -112,7 +112,7 @@ rollover_secret()
 		return;
 
 	/* Remember previous secret, in to keep answering on rollover
-	 * boundry with old cookie.
+	 * boundary with old cookie.
 	 */
 	prev_secret = secret;
 	secret = arc4random();
@@ -460,8 +460,13 @@ stub_next_upstream(getdns_network_req *netreq)
 {
 	getdns_dns_req *dnsreq = netreq->owner;
 
-	if (! --netreq->upstream->to_retry) 
-		netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+	if (! --netreq->upstream->to_retry) {
+        /* Limit back_off value to configured maximum */
+        if (netreq->upstream->back_off * 2 > dnsreq->context->max_backoff_value)
+            netreq->upstream->to_retry = -(dnsreq->context->max_backoff_value);
+        else
+            netreq->upstream->to_retry = -(netreq->upstream->back_off *= 2);
+    }
 
 	dnsreq->upstreams->current_udp+=GETDNS_UPSTREAM_TRANSPORTS;
 	if (dnsreq->upstreams->current_udp >= dnsreq->upstreams->count)
@@ -899,7 +904,7 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 			    "%-40s : Conn failed: TLS - *Failure* - Pinset validation failure\n",
 			    upstream->addr_str);
 	}
-	/* If nothing has failed yet and we had credentials, we have succesfully authenticated*/
+	/* If nothing has failed yet and we had credentials, we have successfully authenticated*/
 	if (preverify_ok == 0)
 		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
@@ -1590,6 +1595,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	upstream->udp_responses++;
+    upstream->back_off = 1;
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
@@ -1640,7 +1646,7 @@ stub_udp_write_cb(void *userarg)
 				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
 				  , _getdns_errnostr());
 		else
-			DEBUG_STUB( "%s %-35s: MSG: %p returned: %d, expeced: %d\n"
+			DEBUG_STUB( "%s %-35s: MSG: %p returned: %d, expected: %d\n"
 				  , STUB_DEBUG_WRITE, __FUNC__, (void *)netreq
 				  , (int)written, (int)pkt_len);
 #endif
@@ -1972,9 +1978,9 @@ upstream_valid(getdns_upstream *upstream,
                           getdns_network_req *netreq,
                           int backoff_ok)
 {
-	/* Checking upstreams with backoff_ok true will aslo return upstreams
+	/* Checking upstreams with backoff_ok true will also return upstreams
 	   that are in a backoff state. Otherwise only use upstreams that have
-	   a 'good' connection state. backoff_ok is usefull when no upstreams at all
+	   a 'good' connection state. backoff_ok is useful when no upstreams at all
 	   are valid, for example when the network connection is down and need to 
 	   keep trying to connect before failing completely. */
 	if (!(upstream->transport == transport && upstream_usable(upstream, backoff_ok)))
@@ -2152,6 +2158,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 	return upstream;
 }
 
+/* Used for UDP only */
 static getdns_upstream *
 upstream_select(getdns_network_req *netreq)
 {
@@ -2161,6 +2168,7 @@ upstream_select(getdns_network_req *netreq)
 
 	if (!upstreams->count)
 		return NULL;
+
 	/* First UPD/TCP upstream is always at i=0 and then start of each upstream block*/
 	/* TODO: Have direct access to sets of upstreams for different transports*/
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
@@ -2178,14 +2186,18 @@ upstream_select(getdns_network_req *netreq)
 			i = 0;
 	} while (i != upstreams->current_udp);
 
+	/* Select upstream with the lowest back_off value */
 	upstream = upstreams->upstreams;
 	for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
-		if (upstreams->upstreams[i].back_off <
-		    upstream->back_off)
+		if (upstreams->upstreams[i].back_off < upstream->back_off)
 			upstream = &upstreams->upstreams[i];
 
-	if (upstream->back_off > 1)
-		upstream->back_off--;
+	/* Restrict back_off in case no upstream is available to achieve
+	   (more or less) round-robin retry on all upstreams. */
+	if (upstream->back_off > 4) {
+		for (i = 0; i < upstreams->count; i+=GETDNS_UPSTREAM_TRANSPORTS)
+			upstreams->upstreams[i].back_off = 2;
+	}
 	upstream->to_retry = 1;
 	upstreams->current_udp = upstream - upstreams->upstreams;
 	return upstream;
@@ -2296,8 +2308,13 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 				return STUB_TRY_AGAIN_LATER;
 			return -1;
 		}
+		if (upstream == netreq->first_upstream)
+			continue;
+
 		netreq->transport_current = i;
 		netreq->upstream = upstream;
+		if (!netreq->first_upstream)
+			netreq->first_upstream = upstream;
 		netreq->keepalive_sent = 0;
 
 		DEBUG_STUB("%s %-35s: MSG: %p found upstream %p with transport %d, fd: %d\n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq, (void *)upstream, (int)netreq->transports[i], fd);
