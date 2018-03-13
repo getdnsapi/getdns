@@ -223,6 +223,7 @@ typedef struct getdns_network_req
 	/* For stub resolving */
 	struct getdns_upstream *first_upstream;
 	struct getdns_upstream *upstream;
+	int                     first_stateful;
 	int                     fd;
 	getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
 	size_t                  transport_count;
