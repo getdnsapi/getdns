@@ -361,7 +361,7 @@
        struct getdns_context *context = NULL;
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
-       struct getdns_bindata address_data = { 4, (void *)"\x01\x01\x01\x01" };
+       struct getdns_bindata address_data = { 4, (void *)"\xb9\x31\x8c\x00" };
        void* eventloop = NULL;
        getdns_transaction_t transaction_id = 0;
 
