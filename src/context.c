@@ -4806,9 +4806,19 @@ static getdns_return_t _get_list_or_read_file(const getdns_dict *config_dict,
 
 #define CONTEXT_SETTING_STRING(X) \
 	} else if (_streq(setting, #X )) { \
-		if (!(r = getdns_dict_get_bindata(config_dict, #X , &bd))) \
-			r = getdns_context_set_ ## X( \
-			    context, (char *)bd->data);
+		if (!(r = getdns_dict_get_bindata(config_dict, #X , &bd))) { \
+			if (bd->size < sizeof(str_buf)) { \
+				(void) memcpy(str_buf, (char *)bd->data, bd->size); \
+				str_buf[bd->size] = '\0'; \
+				r = getdns_context_set_ ## X( \
+				    context, str_buf); \
+			} else if ((tmp_str = _getdns_strdup2(&context->mf, bd))) { \
+				r = getdns_context_set_ ## X( \
+				    context, tmp_str); \
+				GETDNS_FREE(context->mf, tmp_str); \
+			} else \
+				r = GETDNS_RETURN_MEMORY_ERROR; \
+		}
 
 static getdns_return_t
 _getdns_context_config_setting(getdns_context *context,
@@ -4823,6 +4833,7 @@ _getdns_context_config_setting(getdns_context *context,
 	uint32_t n;
 	getdns_bindata *bd;
 	int destroy_list = 0;
+	char str_buf[1024], *tmp_str;
 
 	if (_streq(setting, "all_context")) {
 		if (!(r = getdns_dict_get_dict(config_dict, "all_context", &dict)))
