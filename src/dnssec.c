@@ -244,13 +244,16 @@ static inline int _dname_equal(const uint8_t *left, const uint8_t *right)
 static int _dname_is_parent(
     const uint8_t * const parent, const uint8_t *subdomain)
 {
-	while (*subdomain) {
+	if (*parent == 0)
+		return 1;
+
+	else while (*subdomain) {
 		if (_dname_equal(parent, subdomain))
 			return 1;
 
 		subdomain += *subdomain + 1;
 	}
-	return *parent == 0;
+	return 0;
 }
 
 static uint8_t *_dname_label_copy(uint8_t *dst, const uint8_t *src, size_t dst_len)
@@ -668,8 +671,16 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	/* On the first chain, max_node == NULL.
 	 * Schedule a root DNSKEY query, we always need that.
 	 */
-	if (!(node[-1].parent = max_node))
+	if (!(node[-1].parent = max_node)) {
 		val_chain_sched(head, (uint8_t *)"\0");
+		if (head->node_count > 1)
+			val_chain_sched(head, node[-2].ds.name);
+		if (head->node_count > 2)
+			val_chain_sched(head, node[-3].ds.name);
+	} else if ((max_labels == 1 || max_labels == 2) && head->node_count > 0)
+		val_chain_sched(head, node[-1].ds.name);
+	if (max_labels == 1 && head->node_count > 1)
+		val_chain_sched(head, node[-2].ds.name);
 
 	return head;
 }
@@ -1051,6 +1062,46 @@ static void val_chain_sched_signer(chain_head *head, _getdns_rrsig_iter *rrsig)
 	val_chain_sched_signer_node(head->parent, rrsig);
 }
 
+/* Cancel all DS and DNSKEY for subdomains of parent_dname,
+ * and also the DNSKEY query at the parent_dname
+ */
+static void cancel_requests_for_subdomains_of(
+    chain_head *head, const uint8_t *parent_dname)
+{
+	chain_head *next;
+	chain_node *node;
+	size_t      node_count;
+
+	while (head) {
+		next = head->next;
+
+		if (!_dname_is_parent(parent_dname, head->rrset.name)) {
+			head = next;
+			continue;
+		}
+		for ( node_count = head->node_count, node = head->parent
+		    ; node_count
+		    ; node_count--, node = node->parent ) {
+
+			if (!_getdns_netreq_finished(node->dnskey_req)) {
+				_getdns_context_cancel_request(
+				    node->dnskey_req->owner);
+				node->dnskey_req = NULL;
+			}
+
+			if (_dname_equal(parent_dname, node->ds.name))
+				break;
+
+			if (!_getdns_netreq_finished(node->ds_req)) {
+				_getdns_context_cancel_request(
+				    node->ds_req->owner);
+				node->ds_req = NULL;
+			}
+		}
+		head = next;
+	}
+}
+
 static void val_chain_node_cb(getdns_dns_req *dnsreq)
 {
 	chain_node *node = (chain_node *)dnsreq->user_pointer;
@@ -1092,12 +1143,22 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 			n_signers++;
 		}
 	}
-	if (netreq->request_type == GETDNS_RRTYPE_DS && n_signers == 0)
+	if (netreq->request_type != GETDNS_RRTYPE_DS)
+		; /* pass */
+	else if (n_signers) {
+		_getdns_rrtype_iter ds_spc;
+
+		if (!_getdns_rrtype_iter_init(&ds_spc, &node->ds)) {
+			debug_sec_print_rrset("A DS NX proof for ", &node->ds);
+			DEBUG_SEC("Cancel all more specific requests\n");
+			cancel_requests_for_subdomains_of(node->chains, node->ds.name);
+		}
+	} else {
 		/* No signed DS and no signed proof of non-existance.
 		 * Search further up the tree...
 		 */
 		val_chain_sched_ds_node(node->parent);
-
+	}
 	if (node->lock) node->lock--;
 	check_chain_complete(node->chains);
 }
@@ -3323,31 +3384,7 @@ void _getdns_ta_notify_dnsreqs(getdns_context *context)
 
 void _getdns_validation_chain_timeout(getdns_dns_req *dnsreq)
 {
-	chain_head *head = dnsreq->chain, *next;
-	chain_node *node;
-	size_t      node_count;
-
-	while (head) {
-		next = head->next;
-
-		for ( node_count = head->node_count, node = head->parent
-		    ; node_count
-		    ; node_count--, node = node->parent ) {
-
-			if (!_getdns_netreq_finished(node->dnskey_req)) {
-				_getdns_context_cancel_request(
-				    node->dnskey_req->owner);
-				node->dnskey_req = NULL;
-			}
-
-			if (!_getdns_netreq_finished(node->ds_req)) {
-				_getdns_context_cancel_request(
-				    node->ds_req->owner);
-				node->ds_req = NULL;
-			}
-		}
-		head = next;
-	}
+	cancel_requests_for_subdomains_of(dnsreq->chain, (uint8_t *)"\0");
 	dnsreq->request_timed_out = 1;
 	check_chain_complete(dnsreq->chain);
 }
