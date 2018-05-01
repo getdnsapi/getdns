@@ -1685,7 +1685,7 @@ static int a_key_signed_rrset_no_wc(struct mem_funcs *mf, time_t now,
     uint32_t skew, _getdns_rrset *keyset, _getdns_rrset *rrset)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
-	const uint8_t *nc_name;
+	const uint8_t *nc_name; /* Initialized by dnskey_signed_rrset() */
 	int keytag;
 
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
@@ -1693,8 +1693,17 @@ static int a_key_signed_rrset_no_wc(struct mem_funcs *mf, time_t now,
 	for ( dnskey = _getdns_rrtype_iter_init(&dnskey_spc, keyset)
 	    ; dnskey ; dnskey = _getdns_rrtype_iter_next(dnskey) ) {
 
-		if ((keytag = dnskey_signed_rrset(mf, now, skew,
-		    dnskey, rrset, &nc_name)) && !nc_name)
+		if (!(keytag = dnskey_signed_rrset(mf, now, skew,
+		    dnskey, rrset, &nc_name)))
+			continue;
+
+		if (!nc_name) /* Not a wildcard, then success! */
+			return keytag;
+
+ 		/* Not a wildcard expansion, but the wildcard name itself. */
+		if (rrset->rr_type == GETDNS_RRTYPE_NSEC &&
+		    rrset->name[0] == 1 && rrset->name[1] == '*' &&
+		    nc_name == rrset->name)
 			return keytag;
 	}
 	return 0;
@@ -1709,7 +1718,8 @@ static int a_key_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
     _getdns_rrset *keyset, _getdns_rrset *rrset)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
-	const uint8_t *nc_name;
+	const uint8_t *nc_name; /* Initialized by dnskey_signed_rrset() */
+
 	int keytag;
 
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
@@ -1728,7 +1738,8 @@ static int a_key_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
 		 * There is no more specific!
 		 */
 		if (rrset->rr_type == GETDNS_RRTYPE_NSEC &&
-		    rrset->name[0] == 1 && rrset->name[1] == '*')
+		    rrset->name[0] == 1 && rrset->name[1] == '*' &&
+		    nc_name == rrset->name)
 			return keytag;
 
 		debug_sec_print_rrset("wildcard expanded to: ", rrset);
@@ -1751,7 +1762,7 @@ static int ds_authenticates_keys(struct mem_funcs *mf,
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
 	_getdns_rrtype_iter ds_spc, *ds;
 	uint16_t keytag;
-	const uint8_t *nc_name;
+	const uint8_t *nc_name; /* Initialized by dnskey_signed_rrset() */
 	size_t valid_dsses = 0, supported_dsses = 0;
 	uint8_t max_supported_digest = 0;
 	int max_supported_result = 0;
