@@ -887,7 +887,7 @@ then
 		LIBS="-lidn2 $LIBS"
 		AC_DEFINE_UNQUOTED([HAVE_LIBIDN2], [1], [Define to 1 if you have the `idn2' library (-lidn).]) dnl `
 	], [
-		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn2"
+		MISSING_DEPS="${MISSING_DEPS}${MISSING_SEP}libidn2 (version 2.0.0 or higher)"
 		MISSING_SEP=", "
 	])
 fi

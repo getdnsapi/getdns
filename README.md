@@ -70,7 +70,7 @@ If you are installing from packages, you have to install the library and also th
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.  Please refer to section for building on Windows for separate dependency and build instructions for that platform.
 
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
-* [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1 or 2.  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
+* [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1 or 2 (from version 2.0.0 and higher).  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 

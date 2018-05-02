@@ -1,3 +1,7 @@
+* 2018-05-??: Version 1.4.2
+  * Bugfix: #395. Clarify that libidn2 dependency is for version 2.0.0
+    or higher. Thanks mire3212
+
 * 2018-03-12: Version 1.4.1
   * Bugfix #388: Prevent fallback to an earlier tries upstream within a
     single query.  Thanks Robert Groenenberg
