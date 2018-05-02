@@ -1,5 +1,8 @@
 * 2018-05-??: Version 1.4.2
-  * Bugfix: #395. Clarify that libidn2 dependency is for version 2.0.0
+  * Bugfix #394: Update src/compat/getentropy_linux.c in order to
+    handle ENOSYS (not implemented) fallback.
+    Thanks Brent Blood
+  * Bugfix #395: Clarify that libidn2 dependency is for version 2.0.0
     or higher. Thanks mire3212
 
 * 2018-03-12: Version 1.4.1
