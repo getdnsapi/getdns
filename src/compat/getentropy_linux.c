@@ -19,12 +19,10 @@
  * Emulation of getentropy(2) as documented at:
  * http://man.openbsd.org/getentropy.2
  */
+#define	_GNU_SOURCE     1
+#define	_POSIX_C_SOURCE 199309L
 #include "config.h"
 
-/*
-#define	_POSIX_C_SOURCE 199309L
-*/
-#define	_GNU_SOURCE     1
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
