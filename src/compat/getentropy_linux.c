@@ -19,8 +19,12 @@
  * Emulation of getentropy(2) as documented at:
  * http://man.openbsd.org/getentropy.2
  */
+/* #define WITH_DL_ITERATE_PHDR 1 */
+
+#ifdef WITH_DL_ITERATE_PHDR
 #define	_GNU_SOURCE     1
 #define	_POSIX_C_SOURCE 199309L
+#endif
 #include "config.h"
 
 #include <sys/types.h>
@@ -40,7 +44,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#ifdef WITH_DL_ITERATE_PHDR
 #include <link.h>
+#endif
 #include <termios.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -102,7 +108,9 @@ static int getentropy_urandom(void *buf, size_t len);
 static int getentropy_sysctl(void *buf, size_t len);
 #endif
 static int getentropy_fallback(void *buf, size_t len);
+#ifdef WITH_DL_ITERATE_PHDR
 static int getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data);
+#endif
 
 int
 getentropy(void *buf, size_t len)
@@ -347,6 +355,7 @@ static const int cl[] = {
 #endif
 };
 
+#ifdef WITH_DL_ITERATE_PHDR
 static int
 getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data)
 {
@@ -355,6 +364,7 @@ getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data)
 	CRYPTO_SHA512_UPDATE(ctx, &info->dlpi_addr, sizeof (info->dlpi_addr));
 	return (0);
 }
+#endif
 
 static int
 getentropy_fallback(void *buf, size_t len)
@@ -392,7 +402,9 @@ getentropy_fallback(void *buf, size_t len)
 				cnt += (int)tv.tv_usec;
 			}
 
+#ifdef WITH_DL_ITERATE_PHDR
 			dl_iterate_phdr(getentropy_phdr, &ctx);
+#endif
 
 			for (ii = 0; ii < sizeof(cl)/sizeof(cl[0]); ii++)
 				HX(clock_gettime(cl[ii], &ts) == -1, ts);
