@@ -359,6 +359,7 @@ static int
 getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data)
 {
 	CRYPTO_SHA512_CTX *ctx = data;
+	(void)size;
 
 	CRYPTO_SHA512_UPDATE(ctx, &info->dlpi_addr, sizeof (info->dlpi_addr));
 	return (0);
