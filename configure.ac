@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.4.1], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
+AC_INIT([getdns], [1.4.2], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
 
 # Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
 # patched to do the same, but frequently (MacOS) not. So add a with option
@@ -52,8 +52,8 @@ AC_SUBST([runstatedir], [$with_piddir])
 # Don't forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
 #
-AC_SUBST(RELEASE_CANDIDATE, [])
-AC_SUBST(STUBBY_RELEASE_CANDIDATE, [])
+AC_SUBST(RELEASE_CANDIDATE, [-rc1])
+AC_SUBST(STUBBY_RELEASE_CANDIDATE, [-rc1])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
@@ -63,13 +63,13 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x01040100])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x010401c1])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
 AC_DEFINE_UNQUOTED([STUBBY_PACKAGE], ["stubby"], [Stubby package])
-AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$STUBBY_RELEASE_CANDIDATE"], [Stubby package string])
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.3$STUBBY_RELEASE_CANDIDATE"], [Stubby package string])
 
 # Library version
 # ---------------
@@ -105,8 +105,8 @@ AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.2$STUBBY_RELEASE_CANDIDATE"], 
 # getdns-1.3.0 had libversion 9:0:3
 # getdns-1.4.0 had libversion 10:0:0
 # getdns-1.4.1 has libversion 10:1:0
-#
-GETDNS_LIBVERSION=10:1:0
+# getdns-1.4.2 has libversion 10:2:0
+GETDNS_LIBVERSION=10:2:0
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
