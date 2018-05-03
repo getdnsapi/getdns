@@ -19,11 +19,10 @@
  * Emulation of getentropy(2) as documented at:
  * http://man.openbsd.org/getentropy.2
  */
-/* #define WITH_DL_ITERATE_PHDR 1 */
-
-#ifdef WITH_DL_ITERATE_PHDR
+#define WITH_DL_ITERATE_PHDR 1
+#ifdef  WITH_DL_ITERATE_PHDR
 #define	_GNU_SOURCE     1
-#define	_POSIX_C_SOURCE 199309L
+/* #define	_POSIX_C_SOURCE 199309L */
 #endif
 #include "config.h"
 
@@ -44,7 +43,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#ifdef WITH_DL_ITERATE_PHDR
+#ifdef  WITH_DL_ITERATE_PHDR
 #include <link.h>
 #endif
 #include <termios.h>
@@ -82,7 +81,7 @@
 #if defined(HAVE_SSL)
 #define CRYPTO_SHA512_CTX		SHA512_CTX
 #define CRYPTO_SHA512_INIT(x)		SHA512_Init(x)
-#define CRYPTO_SHA512_UPDATE(c, x, l)  (SHA512_Update((c), (char *)(x), (l))
+#define CRYPTO_SHA512_UPDATE(c, x, l)  (SHA512_Update((c), (char *)(x), (l)))
 #define CRYPTO_SHA512_FINAL(r, c)	SHA512_Final(r, c)
 #define HR(x, l) (SHA512_Update(&ctx, (char *)(x), (l)))
 #define HD(x)	 (SHA512_Update(&ctx, (char *)&(x), sizeof (x)))
@@ -90,7 +89,7 @@
 #elif defined(HAVE_NETTLE)
 #define CRYPTO_SHA512_CTX		struct sha512_ctx
 #define CRYPTO_SHA512_INIT(x)		sha512_init(x)
-#define CRYPTO_SHA512_UPDATE(c, x, l)  (sha512_update((c), (l), (uint8_t *)(x))
+#define CRYPTO_SHA512_UPDATE(c, x, l)  (sha512_update((c), (l), (uint8_t *)(x)))
 #define CRYPTO_SHA512_FINAL(r, c)	sha512_digest(c, SHA512_DIGEST_SIZE, r)
 #define HR(x, l) (sha512_update(&ctx, (l), (uint8_t *)(x)))
 #define HD(x)	 (sha512_update(&ctx, sizeof (x), (uint8_t *)&(x)))
@@ -108,7 +107,7 @@ static int getentropy_urandom(void *buf, size_t len);
 static int getentropy_sysctl(void *buf, size_t len);
 #endif
 static int getentropy_fallback(void *buf, size_t len);
-#ifdef WITH_DL_ITERATE_PHDR
+#ifdef  WITH_DL_ITERATE_PHDR
 static int getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data);
 #endif
 
@@ -355,7 +354,7 @@ static const int cl[] = {
 #endif
 };
 
-#ifdef WITH_DL_ITERATE_PHDR
+#ifdef  WITH_DL_ITERATE_PHDR
 static int
 getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data)
 {
@@ -402,7 +401,7 @@ getentropy_fallback(void *buf, size_t len)
 				cnt += (int)tv.tv_usec;
 			}
 
-#ifdef WITH_DL_ITERATE_PHDR
+#ifdef  WITH_DL_ITERATE_PHDR
 			dl_iterate_phdr(getentropy_phdr, &ctx);
 #endif
 
