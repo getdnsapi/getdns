@@ -23,8 +23,8 @@
 
 /*
 #define	_POSIX_C_SOURCE 199309L
-#define	_GNU_SOURCE     1
 */
+#define	_GNU_SOURCE     1
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
