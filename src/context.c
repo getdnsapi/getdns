@@ -5050,6 +5050,7 @@ static size_t _getdns_get_appdata(getdns_context *context, char *path)
 			return len;
 		}
 	}
+	path[0] = '\0';
 	return 0;
 }
 
@@ -5146,15 +5147,15 @@ int _getdns_context_write_priv_file(getdns_context *context,
 
 
 	else if (snprintf(tmpfn, sizeof(tmpfn), "%sXXXXXX", path) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template\n"
-		            , __FUNC__);
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template: \"%s\"\n"
+		            , __FUNC__, tmpfn);
 
 	else if (!strcpy(path + len, fn))
 		; /* strcpy returns path + len always */
 
 	else if ((fd = mkstemp(tmpfn)) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Creating temporary file: %s\n"
-		            , __FUNC__, strerror(errno));
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary file \"%s\": %s\n"
+		            , __FUNC__, tmpfn, strerror(errno));
 
 	else if (!(f = fdopen(fd, "w")))
 		DEBUG_ANCHOR("ERROR %s(): Opening temporary file: %s\n"
@@ -5203,11 +5204,18 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 	if (!_getdns_context_write_priv_file(context, test_fn, &test_content))
 		return 0;
 
-	if (!(len = _getdns_get_appdata(context, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
-		            , __FUNC__);
-
-	else if (len + strlen(test_fn) >= sizeof(path))
+	len = _getdns_get_appdata(context, path);
+/*
+ * Commented out to enable fallback to current directory
+ *
+ *
+ *	if (!(len = _getdns_get_appdata(context, path)))
+ *		DEBUG_ANCHOR("ERROR %s(): Could not get application data path\n"
+ *		            , __FUNC__);
+ *
+ *	else
+ */
+	if (len + strlen(test_fn) >= sizeof(path))
 		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
 	else if (!strcpy(path + len, test_fn))
