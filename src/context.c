@@ -5057,14 +5057,19 @@ FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn)
 {
 	char path[_GETDNS_PATH_MAX];
 	FILE *f = NULL;
-	size_t len;
+	size_t len = _getdns_get_appdata(context, path);
 
 	(void) context;
-	if (!(len = _getdns_get_appdata(context, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
-		            , __FUNC__);
-
-	else if (len + strlen(fn) >= sizeof(path))
+/*
+ * Commented out to enable fallback to current directory
+ *
+ *	if (!(len = _getdns_get_appdata(context, path)))
+ *		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+ *		            , __FUNC__);
+ *
+ *	else
+ */
+	if (len + strlen(fn) >= sizeof(path))
 		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
 	else if (!strcpy(path + len, fn))
@@ -5124,13 +5129,18 @@ int _getdns_context_write_priv_file(getdns_context *context,
 	char path[_GETDNS_PATH_MAX], tmpfn[_GETDNS_PATH_MAX];
 	int fd = -1;
 	FILE *f = NULL;
-	size_t len;
+	size_t len = _getdns_get_appdata(context, path);
 
-	if (!(len = _getdns_get_appdata(context, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
-		            , __FUNC__);
-
-	else if (len + 6          >= sizeof(tmpfn)
+/*
+ * Commented out to enable fallback to current directory
+ *
+ *	if (!(len = _getdns_get_appdata(context, path)))
+ *		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+ *		            , __FUNC__);
+ *
+ *	else
+ */
+	if (len + 6          >= sizeof(tmpfn)
 	     ||  len + strlen(fn) >= sizeof(path))
 		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
