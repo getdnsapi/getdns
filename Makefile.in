@@ -221,6 +221,8 @@ $(distdir):
 	mkdir -p $(distdir)/stubby/src
 	mkdir -p $(distdir)/stubby/src/yaml
 	mkdir -p $(distdir)/stubby/doc
+	mkdir -p $(distdir)/stubby/systemd
+	mkdir -p $(distdir)/stubby/contrib/upstart
 	cp $(srcdir)/configure.ac $(distdir)
 	cp $(srcdir)/configure $(distdir)
 	cp $(srcdir)/AUTHORS $(distdir)
@@ -270,6 +272,10 @@ $(distdir):
 	cp $(srcdir)/stubby/COPYING $(distdir)/stubby
 	cp $(srcdir)/stubby/README.md $(distdir)/stubby
 	cp $(srcdir)/stubby/doc/stubby.1.in $(distdir)/stubby/doc
+	cp $(srcdir)/stubby/systemd/README.md $(distdir)/stubby/systemd
+	cp $(srcdir)/stubby/systemd/stubby.conf $(distdir)/stubby/systemd
+	cp $(srcdir)/stubby/systemd/stubby.service $(distdir)/stubby/systemd
+	cp $(srcdir)/stubby/contrib/upstart/stubby.conf $(distdir)/stubby/contrib/upstart
 	cp $(srcdir)/src/jsmn/*.[ch] $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/LICENSE $(distdir)/src/jsmn
 	cp $(srcdir)/src/jsmn/README.md $(distdir)/src/jsmn
