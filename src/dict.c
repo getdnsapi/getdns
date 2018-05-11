@@ -737,21 +737,16 @@ getdns_pp_base64(gldns_buffer *buf, getdns_bindata *bindata)
 {
 	size_t p = gldns_buffer_position(buf);
 	size_t base64str_sz;
-	char *target;
-	size_t avail;
 
 	if (gldns_buffer_printf(buf, " <bindata of ") < 0)
 		return -1;
 
 	base64str_sz = gldns_b64_ntop_calculate_size(bindata->size);
-	target = (char *)gldns_buffer_current(buf);
-	avail = gldns_buffer_remaining(buf);
-	if (avail >= base64str_sz)
-		gldns_buffer_skip(buf, gldns_b64_ntop(
-		    bindata->data, bindata->size,
-		    target, base64str_sz));
-	else
-		gldns_buffer_skip(buf, base64str_sz);
+	if (!gldns_buffer_reserve(buf, base64str_sz))
+		return -1;
+
+	gldns_buffer_skip(buf, gldns_b64_ntop(bindata->data, bindata->size,
+	    (char *)gldns_buffer_current(buf), base64str_sz));
 
 	if (gldns_buffer_printf(buf, ">") < 0)
 		return -1;

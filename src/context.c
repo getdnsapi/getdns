@@ -3787,13 +3787,14 @@ _getdns_strdup(const struct mem_funcs *mfs, const char *s)
         return memcpy(r, s, sz);
 }
 
+static uint8_t _getdns_bindata_nodata[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
 struct getdns_bindata *
 _getdns_bindata_copy(struct mem_funcs *mfs, size_t size, const uint8_t *data)
 {
 	/* Don't know why, but nodata allows
 	 * empty bindatas with the python bindings
 	 */
-	static uint8_t nodata[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	struct getdns_bindata *dst;
 
 	if (!(dst = GETDNS_MALLOC(*mfs, struct getdns_bindata)))
@@ -3807,7 +3808,7 @@ _getdns_bindata_copy(struct mem_funcs *mfs, size_t size, const uint8_t *data)
 		}
 		(void) memcpy(dst->data, data, size);
 	} else {
-		dst->data = nodata;
+		dst->data = _getdns_bindata_nodata;
 	}
 	return dst;
 }
@@ -3819,7 +3820,8 @@ _getdns_bindata_destroy(struct mem_funcs *mfs,
 	if (!bindata)
 		return;
 
-	if (bindata->size) GETDNS_FREE(*mfs, bindata->data);
+	if (bindata->data && bindata->data != _getdns_bindata_nodata)
+		GETDNS_FREE(*mfs, bindata->data);
 	GETDNS_FREE(*mfs, bindata);
 }
 
@@ -4806,9 +4808,19 @@ static getdns_return_t _get_list_or_read_file(const getdns_dict *config_dict,
 
 #define CONTEXT_SETTING_STRING(X) \
 	} else if (_streq(setting, #X )) { \
-		if (!(r = getdns_dict_get_bindata(config_dict, #X , &bd))) \
-			r = getdns_context_set_ ## X( \
-			    context, (char *)bd->data);
+		if (!(r = getdns_dict_get_bindata(config_dict, #X , &bd))) { \
+			if (bd->size < sizeof(str_buf)) { \
+				(void) memcpy(str_buf, (char *)bd->data, bd->size); \
+				str_buf[bd->size] = '\0'; \
+				r = getdns_context_set_ ## X( \
+				    context, str_buf); \
+			} else if ((tmp_str = _getdns_strdup2(&context->mf, bd))) { \
+				r = getdns_context_set_ ## X( \
+				    context, tmp_str); \
+				GETDNS_FREE(context->mf, tmp_str); \
+			} else \
+				r = GETDNS_RETURN_MEMORY_ERROR; \
+		}
 
 static getdns_return_t
 _getdns_context_config_setting(getdns_context *context,
@@ -4823,6 +4835,7 @@ _getdns_context_config_setting(getdns_context *context,
 	uint32_t n;
 	getdns_bindata *bd;
 	int destroy_list = 0;
+	char str_buf[1024], *tmp_str;
 
 	if (_streq(setting, "all_context")) {
 		if (!(r = getdns_dict_get_dict(config_dict, "all_context", &dict)))
@@ -5039,6 +5052,7 @@ static size_t _getdns_get_appdata(getdns_context *context, char *path)
 			return len;
 		}
 	}
+	path[0] = '\0';
 	return 0;
 }
 
@@ -5046,14 +5060,19 @@ FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn)
 {
 	char path[_GETDNS_PATH_MAX];
 	FILE *f = NULL;
-	size_t len;
+	size_t len = _getdns_get_appdata(context, path);
 
 	(void) context;
-	if (!(len = _getdns_get_appdata(context, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
-		            , __FUNC__);
-
-	else if (len + strlen(fn) >= sizeof(path))
+/*
+ * Commented out to enable fallback to current directory
+ *
+ *	if (!(len = _getdns_get_appdata(context, path)))
+ *		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+ *		            , __FUNC__);
+ *
+ *	else
+ */
+	if (len + strlen(fn) >= sizeof(path))
 		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
 	else if (!strcpy(path + len, fn))
@@ -5113,27 +5132,32 @@ int _getdns_context_write_priv_file(getdns_context *context,
 	char path[_GETDNS_PATH_MAX], tmpfn[_GETDNS_PATH_MAX];
 	int fd = -1;
 	FILE *f = NULL;
-	size_t len;
+	size_t len = _getdns_get_appdata(context, path);
 
-	if (!(len = _getdns_get_appdata(context, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
-		            , __FUNC__);
-
-	else if (len + 6          >= sizeof(tmpfn)
+/*
+ * Commented out to enable fallback to current directory
+ *
+ *	if (!(len = _getdns_get_appdata(context, path)))
+ *		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
+ *		            , __FUNC__);
+ *
+ *	else
+ */
+	if (len + 6          >= sizeof(tmpfn)
 	     ||  len + strlen(fn) >= sizeof(path))
 		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
 
 	else if (snprintf(tmpfn, sizeof(tmpfn), "%sXXXXXX", path) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template\n"
-		            , __FUNC__);
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template: \"%s\"\n"
+		            , __FUNC__, tmpfn);
 
 	else if (!strcpy(path + len, fn))
 		; /* strcpy returns path + len always */
 
 	else if ((fd = mkstemp(tmpfn)) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Creating temporary file: %s\n"
-		            , __FUNC__, strerror(errno));
+		DEBUG_ANCHOR("ERROR %s(): Creating temporary file \"%s\": %s\n"
+		            , __FUNC__, tmpfn, strerror(errno));
 
 	else if (!(f = fdopen(fd, "w")))
 		DEBUG_ANCHOR("ERROR %s(): Opening temporary file: %s\n"
@@ -5182,11 +5206,18 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 	if (!_getdns_context_write_priv_file(context, test_fn, &test_content))
 		return 0;
 
-	if (!(len = _getdns_get_appdata(context, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
-		            , __FUNC__);
-
-	else if (len + strlen(test_fn) >= sizeof(path))
+	len = _getdns_get_appdata(context, path);
+/*
+ * Commented out to enable fallback to current directory
+ *
+ *
+ *	if (!(len = _getdns_get_appdata(context, path)))
+ *		DEBUG_ANCHOR("ERROR %s(): Could not get application data path\n"
+ *		            , __FUNC__);
+ *
+ *	else
+ */
+	if (len + strlen(test_fn) >= sizeof(path))
 		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
 
 	else if (!strcpy(path + len, test_fn))
