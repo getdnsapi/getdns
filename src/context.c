@@ -3787,13 +3787,14 @@ _getdns_strdup(const struct mem_funcs *mfs, const char *s)
         return memcpy(r, s, sz);
 }
 
+static uint8_t _getdns_bindata_nodata[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
 struct getdns_bindata *
 _getdns_bindata_copy(struct mem_funcs *mfs, size_t size, const uint8_t *data)
 {
 	/* Don't know why, but nodata allows
 	 * empty bindatas with the python bindings
 	 */
-	static uint8_t nodata[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	struct getdns_bindata *dst;
 
 	if (!(dst = GETDNS_MALLOC(*mfs, struct getdns_bindata)))
@@ -3807,7 +3808,7 @@ _getdns_bindata_copy(struct mem_funcs *mfs, size_t size, const uint8_t *data)
 		}
 		(void) memcpy(dst->data, data, size);
 	} else {
-		dst->data = nodata;
+		dst->data = _getdns_bindata_nodata;
 	}
 	return dst;
 }
@@ -3819,7 +3820,8 @@ _getdns_bindata_destroy(struct mem_funcs *mfs,
 	if (!bindata)
 		return;
 
-	if (bindata->size) GETDNS_FREE(*mfs, bindata->data);
+	if (bindata->data && bindata->data != _getdns_bindata_nodata)
+		GETDNS_FREE(*mfs, bindata->data);
 	GETDNS_FREE(*mfs, bindata);
 }
 
