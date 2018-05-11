@@ -1,4 +1,4 @@
-* 2018-05-??: Version 1.4.2
+* 2018-05-11: Version 1.4.2
   * Bugfix getdnsapi/stubby#106: Core dump when printing certain
     configuration. Thanks Han Vinke
   * Bugfix getdnsapi/stubby#99: Partly trace DNSSEC from the root
