@@ -193,7 +193,7 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 	PCCERT_CONTEXT  pTargetCert = NULL;
 
 	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-		"Adding Windows certificates to CA store");
+		"Adding Windows certificates from system root store to CA store");
 
 	/* load just once per context lifetime for this version of getdns
 	   TODO: dynamically update CA trust changes as they are available */
@@ -241,10 +241,18 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		else {
 			/* return error if a cert add to store fails */
 			if (X509_STORE_add_cert(store, cert1) == 0) {
-				DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-					"Error adding certificate", ERR_get_error(),
-					ERR_error_string(ERR_get_error(), NULL));
-				return 0;
+				unsigned long error = ERR_peek_last_error();
+ 
+				/* Ignore error X509_R_CERT_ALREADY_IN_HASH_TABLE which means the
+				* certificate is already in the store.  */ 
+				if(ERR_GET_LIB(error) != ERR_LIB_X509 ||
+				   ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+					DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
+					    "Error adding certificate", ERR_get_error(),
+					     ERR_error_string(ERR_get_error(), NULL));
+					X509_free(cert1);
+					return 0;
+				}
 			}
 			X509_free(cert1);
 		}
@@ -260,6 +268,8 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			hSystemStore, 0))
 			return 0;
 	}
+	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
+		"Completed adding Windows certificates to CA store successfully");
 	return 1;
 }
 #endif
