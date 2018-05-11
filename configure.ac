@@ -53,7 +53,7 @@ AC_SUBST([runstatedir], [$with_piddir])
 # That is how it is done with semantic versioning!
 #
 AC_SUBST(RELEASE_CANDIDATE, [-rc1])
-AC_SUBST(STUBBY_RELEASE_CANDIDATE, [-rc1])
+AC_SUBST(STUBBY_RELEASE_CANDIDATE, [])
 
 # Set current date from system if not set
 AC_ARG_WITH([current-date],
