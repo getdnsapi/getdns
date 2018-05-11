@@ -1,4 +1,8 @@
 * 2018-05-11: Version 1.4.2
+  * Bugfix getdnsapi/stubby#87: Detect and ignore duplicate certs
+    in the Windows root CA store.
+  * PR #397: No TCP sendto without TCP_FASTOPEN
+    Thanks Emery Hemingway
   * Bugfix getdnsapi/stubby#106: Core dump when printing certain
     configuration. Thanks Han Vinke
   * Bugfix getdnsapi/stubby#99: Partly trace DNSSEC from the root

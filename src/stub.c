@@ -760,10 +760,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		if (written == -1 && _getdns_socketerror() == _getdns_EISCONN) 
 			written = write(fd, netreq->query - 2, pkt_len + 2);
 #else
-		written = sendto(fd, (const char *)(netreq->query - 2),
-		    pkt_len + 2, 0,
-		    (struct sockaddr *)&(netreq->upstream->addr),
-		    netreq->upstream->addr_len);
+		written = send(fd, (const char *)(netreq->query - 2), pkt_len + 2, 0);
 #endif
 		if ((written == -1 && _getdns_socketerror_wants_retry()) ||
 		    (size_t)written < pkt_len + 2) {
