@@ -62,6 +62,7 @@
 
 #include <linux/types.h>
 #include <linux/random.h>
+#include <linux/sysctl.h>
 #ifdef HAVE_GETAUXVAL
 #include <sys/auxv.h>
 #endif
