@@ -16,8 +16,8 @@ then
 	mv sbuffer.h gbuffer.h
 	mv sbuffer.c gbuffer.c
 else
-	svn co http://unbound.net/svn/trunk/ldns/
-	for f in ldns/*.[ch]
+	svn co http://unbound.net/svn/trunk/sldns/
+	for f in sldns/*.[ch]
 	do
 		sed -e 's/sldns_/gldns_/g' \
 		    -e 's/LDNS_/GLDNS_/g' \
@@ -27,5 +27,5 @@ else
 	done
 	mv sbuffer.h gbuffer.h
 	mv sbuffer.c gbuffer.c
-	rm -r ldns
+	rm -fr sldns
 fi
