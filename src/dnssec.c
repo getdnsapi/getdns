@@ -178,7 +178,7 @@
  * "DNSSEC Validation".
  *
  * Many functions are of key verification boolean return type; e.g.
- * key_proves_non_existance(), ds_authenticates_keys(), a_key_signed_rrset()
+ * key_proves_nonexistance(), ds_authenticates_keys(), a_key_signed_rrset()
  * These will return the keytag identifying the key that was used to 
  * authenticate + 0x10000 to allow keytag 0.
  *
@@ -671,8 +671,18 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	/* On the first chain, max_node == NULL.
 	 * Schedule a root DNSKEY query, we always need that.
 	 */
-	if (!(node[-1].parent = max_node)) {
+	if (!(node[-1].parent = max_node))
 		val_chain_sched(head, (uint8_t *)"\0");
+
+	/* For an NSEC or NSEC3 query, stop at that.  If it is valid it will
+	 * have a signature which will be chased.
+	 */
+	if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC ||
+	    head->rrset.rr_type == GETDNS_RRTYPE_NSEC3)
+		return head;
+
+	/* Otherwise, schedule key lookups for the tld and sld too. */
+	if (!max_node) {
 		if (head->node_count > 1)
 			val_chain_sched(head, node[-2].ds.name);
 		if (head->node_count > 2)
@@ -2270,6 +2280,7 @@ static int key_proves_nonexistance(
 
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
 
+	debug_sec_print_rrset("Commencing NX proof for: ", rrset);
 	if (opt_out)
 		*opt_out = 0;
 
@@ -2318,6 +2329,14 @@ static int key_proves_nonexistance(
 	    /* And a valid signature please */
 	    && (keytag = a_key_signed_rrset_no_wc(
 				    mf, now, skew, keyset, &nsec_rrset))) {
+
+		/* Flag an insecure delegation via opt_out.
+		 * See usage of key_proves_nonexistance() from
+		 * chain_node_get_trusted_keys() for explanation.
+		 */
+		if (opt_out && rrset->rr_type == GETDNS_RRTYPE_DS)
+			*opt_out =  bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+			        && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA);
 
 		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
 		return keytag;
@@ -2464,6 +2483,15 @@ static int key_proves_nonexistance(
 		    && (   keytag & NSEC3_ITERATION_COUNT_HIGH
 		        || nsec3_matches_name(ce, rrset->name))) {
 
+			/* Flag an insecure delegation via opt_out.
+			 * See usage of key_proves_nonexistance() from
+			 * chain_node_get_trusted_keys() for explanation.
+			 */
+			if (opt_out && rrset->rr_type == GETDNS_RRTYPE_DS)
+				*opt_out =
+				    bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+				&& !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA);
+
 			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
 			return keytag;
 		}
@@ -2547,6 +2575,7 @@ static int chain_node_get_trusted_keys(
     chain_node *node, _getdns_rrset *ta, _getdns_rrset **keys)
 {
 	int s, keytag;
+	int opt_out;
 
 	/* Ascend up to the root */
 	if (! node)
@@ -2579,11 +2608,22 @@ static int chain_node_get_trusted_keys(
 		}
 		/* ta is parent's ZSK */
 		if ((keytag = key_proves_nonexistance(
-		    mf, now, skew, ta, &node->ds, NULL))) {
+		    mf, now, skew, ta, &node->ds, &opt_out))) {
 			node->ds_signer = keytag;
-			return GETDNS_DNSSEC_INSECURE;
-		}
 
+			/* When the proof is in an opt_out span, result will
+			 * be INSECURE regardless the purpose of the searched
+			 * for key.
+			 *
+			 * Otherwise, INSECURE only when this is a zonecut.
+			 * i.e. a NODATA proof, with the NS bit and no SOA bit.
+			 *
+			 * key_proves_nonexistance() will set opt_out also for
+			 * these conditions.
+			 */
+			return opt_out ? GETDNS_DNSSEC_INSECURE
+			               : GETDNS_DNSSEC_SECURE;
+		}
 		if ((keytag = a_key_signed_rrset_no_wc(
 					mf, now, skew, ta, &node->ds))) {
 			node->ds_signer = keytag;
@@ -2612,10 +2652,22 @@ static int chain_node_get_trusted_keys(
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
 	ta = *keys;
 	/* Back down to the head */
+	/*************************/
 	if ((keytag = key_proves_nonexistance(
-	    mf, now, skew, ta, &node->ds, NULL))) {
+	    mf, now, skew, ta, &node->ds, &opt_out))) {
 		node->ds_signer = keytag;
-		return GETDNS_DNSSEC_INSECURE;
+
+		/* When the proof is in an opt_out span, result will be
+		 * INSECURE regardless the purpose of the searched for key.
+		 *
+		 * Otherwise, INSECURE only when this is a zonecut.
+		 * i.e. a NODATA proof, with the NS bit, but no SOA bit.
+		 *
+		 * key_proves_nonexistance() will set opt_out also for these
+		 * conditions. (NODATA of DS with NS bit and wihout SOA bit)
+		 */
+		return opt_out ? GETDNS_DNSSEC_INSECURE
+		               : GETDNS_DNSSEC_SECURE;
 	}
 	if (key_matches_signer(ta, &node->ds)) {
 		
@@ -2661,16 +2713,54 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 	_getdns_rrset *keys;
 	int s, keytag, opt_out;
 
-	debug_sec_print_rrset("validating ", &head->rrset);
-	debug_sec_print_rrset("with trust anchor ", ta);
+	_getdns_rrtype_iter nsec_spc, *nsec_rr;
+	_getdns_rdf_iter bitmap_spc, *bitmap;
+	chain_node *parent;
+
+	debug_sec_print_rrset("Validating ", &head->rrset);
+	debug_sec_print_rrset("\twith trust anchor ", ta);
+
+	/* Only at the apex, a NSEC is signed with a DNSKEY with the same
+	 * owner name.  All other are signed by the parent domain or higher.
+	 * Besides a shortcut, choosing to search for a trusted key from the
+	 * parent is essential for NSECs at a delagation point! (which would
+	 * otherwise turn out BOGUS).
+	 */
+	if (    head->rrset.rr_type == GETDNS_RRTYPE_NSEC
+	    &&  head->parent->parent
+	    && (nsec_rr = _getdns_rrtype_iter_init(&nsec_spc, &head->rrset))
+	    && (bitmap = _getdns_rdf_iter_init_at(
+			    &bitmap_spc, &nsec_rr->rr_i, 1))
+	    && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
+		parent = head->parent->parent;
+
+	/* NSEC3 is always signed by the parent domain!
+	 * ( the ownername of the NSEC3 itself is not in the original zone!
+	 *   so a search for a trusted key at that name gives either INSECURE
+	 *   (with opt-out) or BOGUS! )
+	 */
+	else
+		if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC3
+	    && head->parent->parent)
+		parent = head->parent->parent;
+	else
+		parent = head->parent;
 
 	if ((s = chain_node_get_trusted_keys(
-	    mf, now, skew, head->parent, ta, &keys)) != GETDNS_DNSSEC_SECURE)
+	    mf, now, skew, parent, ta, &keys)) != GETDNS_DNSSEC_SECURE) {
+		debug_sec_print_rrset("Could not get trusted keys "
+		                      "for validating ", &head->rrset);
+		DEBUG_SEC("\tstatus: %d\n", (int)s);
 		return s;
+	}
+	debug_sec_print_rrset("Validating ", &head->rrset);
+	debug_sec_print_rrset("\twith keys ", keys);
 
 	if (_getdns_rrset_has_rrs(&head->rrset)) {
 		if ((keytag = a_key_signed_rrset(
 		    mf, now, skew, keys, &head->rrset))) {
+			DEBUG_SEC("Key %d proved\n", (int)keytag);
+			debug_sec_print_rrset("\tSECURE: ", &head->rrset);
 			head->signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 
@@ -2679,15 +2769,21 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 					skew, keys, &head->rrset, &opt_out))
 				&& opt_out) {
 
+			DEBUG_SEC("Key %d proved (optout)\n", (int)keytag);
+			debug_sec_print_rrset("\tINSECURE: ", &head->rrset);
 			head->signer = keytag;
 			return GETDNS_DNSSEC_INSECURE;
 		}
 	} else if ((keytag = key_proves_nonexistance(mf, now, skew,
 					keys, &head->rrset, &opt_out))) {
+		DEBUG_SEC("Key %d proved (NX)\n", (int)keytag);
+		debug_sec_print_rrset("\tSECURE: ", &head->rrset);
 		head->signer = keytag;
 		return opt_out || (keytag & NSEC3_ITERATION_COUNT_HIGH)
 		     ? GETDNS_DNSSEC_INSECURE : GETDNS_DNSSEC_SECURE;
 	}
+	debug_sec_print_rrset("BOGUS: ", &head->rrset);
+	debug_sec_print_rrset("\twith trust anchor: ", ta);
 	return GETDNS_DNSSEC_BOGUS;
 }
 

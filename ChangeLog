@@ -1,3 +1,8 @@
+* 2018-0?-??: Version 1.4.3
+  * Bugfix finding signer for validating NSEC and NSEC3s, which
+    caused trouble with the partly tracing DNSSEC from the root
+    up, introduced in 1.4.2.  Thanks Philip Homburg
+
 * 2018-05-11: Version 1.4.2
   * Bugfix getdnsapi/stubby#87: Detect and ignore duplicate certs
     in the Windows root CA store.
