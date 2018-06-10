@@ -2720,13 +2720,18 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 	debug_sec_print_rrset("Validating ", &head->rrset);
 	debug_sec_print_rrset("\twith trust anchor ", ta);
 
+	/* A DS is never at the apex */
+	if (   head->rrset.rr_type == GETDNS_RRTYPE_DS
+	    && head->parent->parent)
+		parent = head->parent->parent;
+
 	/* Only at the apex, a NSEC is signed with a DNSKEY with the same
 	 * owner name.  All other are signed by the parent domain or higher.
 	 * Besides a shortcut, choosing to search for a trusted key from the
 	 * parent is essential for NSECs at a delagation point! (which would
 	 * otherwise turn out BOGUS).
 	 */
-	if (    head->rrset.rr_type == GETDNS_RRTYPE_NSEC
+	else if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC
 	    &&  head->parent->parent
 	    && (nsec_rr = _getdns_rrtype_iter_init(&nsec_spc, &head->rrset))
 	    && (bitmap = _getdns_rdf_iter_init_at(
@@ -2739,8 +2744,7 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 	 *   so a search for a trusted key at that name gives either INSECURE
 	 *   (with opt-out) or BOGUS! )
 	 */
-	else
-		if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC3
+	else if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC3
 	    && head->parent->parent)
 		parent = head->parent->parent;
 	else
