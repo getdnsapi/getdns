@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -217,8 +218,11 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
 
         int day_diff, sec_diff;
         const long SECS_IN_DAY = 60 * 60 * 24;
-        ASN1_TIME *not_after = X509_get_notAfter(cert);
-
+#if defined(X509_get_notAfter) || defined(HAVE_X509_GET_NOTAFTER)
+        const ASN1_TIME *not_after = X509_get_notAfter(cert);
+#elif defined(X509_get0_notAfter) || defined(HAVE_X509_GET0_NOTAFTER)
+        const ASN1_TIME *not_after = X509_get0_notAfter(cert);
+#endif
         *t = time(NULL);
 
 #if OPENSSL_VERSION_NUMBER < 0x10002000 || defined(LIBRESSL_VERSION_NUMBER)
