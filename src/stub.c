@@ -915,28 +915,23 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 
 #endif /* #else defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
 
-static SSL*
+static _getdns_tls_connection*
 tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 {
-	/* Create SSL instance */
+	/* Create SSL instance and connect with a file descriptor */
 	getdns_context *context = dnsreq->context;
 	if (context->tls_ctx == NULL)
 		return NULL;
-	SSL* ssl = SSL_new(context->tls_ctx);
-	if(!ssl) 
+	_getdns_tls_connection* tls = _getdns_tls_connection_new(context->tls_ctx, fd);
+	if(!tls) 
 		return NULL;
-	/* Connect the SSL object with a file descriptor */
-	if(!SSL_set_fd(ssl,fd)) {
-		SSL_free(ssl);
-		return NULL;
-	}
 #if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
 	if (upstream->tls_curves_list)
-		(void) SSL_set1_curves_list(ssl, upstream->tls_curves_list);
+		_getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
 #endif
 	/* make sure we'll be able to find the context again when we need it */
-	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
-		SSL_free(ssl);
+	if (_getdns_associate_upstream_with_SSL(tls->ssl, upstream) != GETDNS_RETURN_GOOD) {
+		_getdns_tls_connection_free(tls);
 		return NULL;
 	}
 
@@ -950,14 +945,14 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		/*Request certificate for the auth_name*/
 		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name);
-		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
+		SSL_set_tlsext_host_name(tls->ssl, upstream->tls_auth_name);
 #if defined(HAVE_SSL_HN_AUTH)
 		/* Set up native OpenSSL hostname verification
 		 * ( doesn't work with USE_DANESSL, but we verify the
 		 *   name afterwards in such cases )
 		 */
 		X509_VERIFY_PARAM *param;
-		param = SSL_get0_param(ssl);
+		param = SSL_get0_param(tls->ssl);
 		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
 #elif !defined(HAVE_X509_CHECK_HOST)
@@ -968,7 +963,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			    "%-40s : ERROR: Hostname Authentication not available from TLS library (check library version)\n",
 			    upstream->addr_str);
 			upstream->tls_hs_state = GETDNS_HS_FAILED;
-			SSL_free(ssl);
+			_getdns_tls_connection_free(tls);
 			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 			return NULL;
 		}
@@ -990,7 +985,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				    "%-40s : Verify fail: *CONFIG ERROR* - No auth name or pinset provided for this upstream for Strict TLS authentication\n",
 				    upstream->addr_str);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
-				SSL_free(ssl);
+				_getdns_tls_connection_free(tls);
 				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 				return NULL;
 			}
@@ -1002,12 +997,12 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		}
 	}
 	if (upstream->tls_fallback_ok) {
-		SSL_set_cipher_list(ssl, "DEFAULT");
+		_getdns_tls_connection_set_cipher_list(tls, "DEFAULT");
 		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
 	} else {
 		if (upstream->tls_cipher_list)
-			SSL_set_cipher_list(ssl, upstream->tls_cipher_list);
+			_getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list);
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
 	}
@@ -1018,20 +1013,20 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 # else
 	(void)
 # endif
-		SSL_dane_enable(ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
+		SSL_dane_enable(tls->ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
 	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
 	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
-	SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
 	sha256_pin_t *pin_p;
 	size_t n_pins = 0;
 	for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
-		osr = SSL_dane_tlsa_add(ssl, 2, 1, 1,
+		osr = SSL_dane_tlsa_add(tls->ssl, 2, 1, 1,
 		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
 		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
 			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
 		if (osr > 0)
 			++n_pins;
-		osr = SSL_dane_tlsa_add(ssl, 3, 1, 1,
+		osr = SSL_dane_tlsa_add(tls->ssl, 3, 1, 1,
 		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
 		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
 			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
@@ -1047,23 +1042,23 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 # else
 		(void)
 # endif
-			DANESSL_init(ssl,
+			DANESSL_init(tls->ssl,
 		    *upstream->tls_auth_name ? upstream->tls_auth_name : NULL,
 		    *upstream->tls_auth_name ? auth_names : NULL
 		    );
 		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
 			  , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
-		SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+		SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
 		sha256_pin_t *pin_p;
 		size_t n_pins = 0;
 		for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
-			osr = DANESSL_add_tlsa(ssl, 3, 1, "sha256",
+			osr = DANESSL_add_tlsa(tls->ssl, 3, 1, "sha256",
 			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
 			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
 				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
 			if (osr > 0)
 				++n_pins;
-			osr = DANESSL_add_tlsa(ssl, 2, 1, "sha256",
+			osr = DANESSL_add_tlsa(tls->ssl, 2, 1, "sha256",
 			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
 			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
 				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
@@ -1071,14 +1066,14 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				++n_pins;
 		}
 	} else {
-		SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+		SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
 	}
 #else
-	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
+	SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, tls_verify_callback);
 #endif
 
-	SSL_set_connect_state(ssl);
-	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	SSL_set_connect_state(tls->ssl);
+	(void) SSL_set_mode(tls->ssl, SSL_MODE_AUTO_RETRY);
 
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change
@@ -1087,12 +1082,12 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		if ((upstream->tls_fallback_ok == 0 &&
 		     upstream->last_tls_auth_state == GETDNS_AUTH_OK) ||
 		     upstream->tls_fallback_ok == 1) {
-			SSL_set_session(ssl, upstream->tls_session);
+			SSL_set_session(tls->ssl, upstream->tls_session->ssl);
 			DEBUG_STUB("%s %-35s: Attempting session re-use\n", STUB_DEBUG_SETUP_TLS, 
 			            __FUNC__);
 			}
 	}
-	return ssl;
+	return tls;
 }
 
 static int
@@ -1103,9 +1098,9 @@ tls_do_handshake(getdns_upstream *upstream)
 	int r;
 	int want;
 	ERR_clear_error();
-	while ((r = SSL_do_handshake(upstream->tls_obj)) != 1)
+	while ((r = SSL_do_handshake(upstream->tls_obj->ssl)) != 1)
 	{
-		want = SSL_get_error(upstream->tls_obj, r);
+		want = SSL_get_error(upstream->tls_obj->ssl, r);
 		switch (want) {
 			case SSL_ERROR_WANT_READ:
 				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -1131,12 +1126,12 @@ tls_do_handshake(getdns_upstream *upstream)
 	   }
 	}
 	/* A re-used session is not verified so need to fix up state in that case */
-	if (SSL_session_reused(upstream->tls_obj))
+	if (SSL_session_reused(upstream->tls_obj->ssl))
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
 
 	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
-		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj);
-		long verify_result = SSL_get_verify_result(upstream->tls_obj);
+		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj->ssl);
+		long verify_result = SSL_get_verify_result(upstream->tls_obj->ssl);
 
 /* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
  * we need to verify auth_name explicitely (otherwise it will not be checked,
@@ -1187,7 +1182,7 @@ tls_do_handshake(getdns_upstream *upstream)
 		else if (verify_result == X509_V_ERR_CERT_UNTRUSTED
 		    && upstream->tls_pubkey_pinset
 		    && !DANESSL_get_match_cert(
-			    upstream->tls_obj, NULL, NULL, NULL))
+			    upstream->tls_obj->ssl, NULL, NULL, NULL))
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
@@ -1245,8 +1240,8 @@ tls_do_handshake(getdns_upstream *upstream)
 	upstream->conn_state = GETDNS_CONN_OPEN;
 	upstream->conn_completed++;
 	if (upstream->tls_session != NULL)
-	    SSL_SESSION_free(upstream->tls_session);
-	upstream->tls_session = SSL_get1_session(upstream->tls_obj);
+	    _getdns_tls_session_free(upstream->tls_session);
+	upstream->tls_session = _getdns_tls_connection_get_session(upstream->tls_obj);
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1287,7 +1282,7 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	ssize_t  read;
 	uint8_t *buf;
 	size_t   buf_size;
-	SSL* tls_obj = upstream->tls_obj;
+	SSL* tls_obj = upstream->tls_obj->ssl;
 
 	int q = tls_connected(upstream);
 	if (q != 0)
@@ -1370,7 +1365,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 	ssize_t         written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
-	SSL* tls_obj = upstream->tls_obj;
+	SSL* tls_obj = upstream->tls_obj->ssl;
 	uint16_t        padding_sz;
 
 	int q = tls_connected(upstream);
@@ -1875,12 +1870,12 @@ upstream_write_cb(void *userarg)
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj) {
 			if (netreq->debug_tls_peer_cert.data == NULL &&
-			    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
+			    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj->ssl))) {
 				netreq->debug_tls_peer_cert.size = i2d_X509(
 					cert, &netreq->debug_tls_peer_cert.data);
 				X509_free(cert);
 			}
-			netreq->debug_tls_version = SSL_get_version(netreq->upstream->tls_obj);
+			netreq->debug_tls_version = SSL_get_version(netreq->upstream->tls_obj->ssl);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
