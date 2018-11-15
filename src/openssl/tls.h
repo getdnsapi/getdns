@@ -105,6 +105,21 @@ getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn
  */
 getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection* conn);
 
+/**
+ * Read from TLS.
+ *
+ * @param conn	  the connection.
+ * @param buf	  the buffer to read to.
+ * @param to_read the number of bytes to read.
+ * @param read	  pointer to holder for the number of bytes read.
+ * @return GETDNS_RETURN_GOOD if some bytes were read.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ * @return GETDNS_RETURN_TLS_WANT_READ if the read needs to be retried.
+ * @return GETDNS_RETURN_TLS_WANT_WRITE if handshake isn't finished.
+ * @return GETDNS_RETURN_GENERIC_ERROR if read failed.
+ */
+getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_t* buf, size_t to_read, size_t* read);
+
 getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s);
 
 getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict);

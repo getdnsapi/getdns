@@ -1273,10 +1273,10 @@ static int
 stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
               struct mem_funcs *mf)
 {
-	ssize_t  read;
+	size_t  read;
 	uint8_t *buf;
 	size_t   buf_size;
-	SSL* tls_obj = upstream->tls_obj->ssl;
+	_getdns_tls_connection* tls_obj = upstream->tls_obj;
 
 	int q = tls_connected(upstream);
 	if (q != 0)
@@ -1292,16 +1292,17 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		tcp->to_read = 2; /* Packet size */
 	}
 
-	ERR_clear_error();
-	read = SSL_read(tls_obj, tcp->read_pos, tcp->to_read);
-	if (read <= 0) {
-		/* TODO[TLS]: Handle SSL_ERROR_WANT_WRITE which means handshake
-		   renegotiation. Need to keep handshake state to do that.*/
-		int want = SSL_get_error(tls_obj, read);
-		if (want == SSL_ERROR_WANT_READ) {
+	switch ((int)_getdns_tls_connection_read(tls_obj, tcp->read_pos, tcp->to_read, &read)) {
+	case GETDNS_RETURN_GOOD:
+		break;
+
+	case GETDNS_RETURN_TLS_WANT_READ:
 			return STUB_TCP_RETRY; /* Come back later */
-		} else 
-			return STUB_TCP_ERROR;
+
+	default:
+		/* TODO[TLS]: Handle GETDNS_RETURN_TLS_WANT_WRITE which means handshake
+		   renegotiation. Need to keep handshake state to do that.*/
+		return STUB_TCP_ERROR;
 	}
 	tcp->to_read  -= read;
 	tcp->read_pos += read;
@@ -1333,15 +1334,17 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 		/* Ready to start reading the packet */
 		tcp->read_pos = tcp->read_buf;
-		read = SSL_read(tls_obj, tcp->read_pos, tcp->to_read);
-		if (read <= 0) {
-			/* TODO[TLS]: Handle SSL_ERROR_WANT_WRITE which means handshake
+		switch ((int)_getdns_tls_connection_read(tls_obj, tcp->read_pos, tcp->to_read, &read)) {
+		case GETDNS_RETURN_GOOD:
+			break;
+
+		case GETDNS_RETURN_TLS_WANT_READ:
+			return STUB_TCP_RETRY; /* Come back later */
+
+		default:
+			/* TODO[TLS]: Handle GETDNS_RETURN_TLS_WANT_WRITE which means handshake
 			   renegotiation. Need to keep handshake state to do that.*/
-			int want = SSL_get_error(tls_obj, read);
-			if (want == SSL_ERROR_WANT_READ) {
-				return STUB_TCP_RETRY; /* read more later */
-			} else 
-				return STUB_TCP_ERROR;
+			return STUB_TCP_ERROR;
 		}
 		tcp->to_read  -= read;
 		tcp->read_pos += read;
