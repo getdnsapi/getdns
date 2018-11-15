@@ -404,6 +404,39 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written)
+{
+	int swritten;
+
+	if (!conn || !conn->ssl || !written)
+		return -GETDNS_RETURN_INVALID_PARAMETER;
+
+	ERR_clear_error();
+	swritten = SSL_write(conn->ssl, buf, to_write);
+	if (swritten <= 0) {
+		switch(SSL_get_error(conn->ssl, swritten)) {
+		case SSL_ERROR_WANT_READ:
+			/* SSL_write will not do partial writes, because
+			 * SSL_MODE_ENABLE_PARTIAL_WRITE is not default,
+			 * but the write could fail because of renegotiation.
+			 * In that case SSL_get_error()  will return
+			 * SSL_ERROR_WANT_READ or, SSL_ERROR_WANT_WRITE.
+			 * Return for retry in such cases.
+			 */
+			return GETDNS_RETURN_TLS_WANT_READ;
+
+		case SSL_ERROR_WANT_WRITE:
+			return GETDNS_RETURN_TLS_WANT_WRITE;
+
+		default:
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+	}
+
+	*written = swritten;
+	return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s)
 {
 	if (!s || !s->ssl)

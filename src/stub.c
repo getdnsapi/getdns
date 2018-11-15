@@ -1359,10 +1359,10 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
                getdns_network_req *netreq)
 {
 	size_t          pkt_len;
-	ssize_t         written;
+	size_t          written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
-	SSL* tls_obj = upstream->tls_obj->ssl;
+	_getdns_tls_connection* tls_obj = upstream->tls_obj;
 	uint16_t        padding_sz;
 
 	int q = tls_connected(upstream);
@@ -1437,7 +1437,6 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		 * Lets see how much of it we can write */
 		
 		/* TODO[TLS]: Handle error cases, partial writes, renegotiation etc. */
-		ERR_clear_error();
 #if INTERCEPT_COM_DS
 		/* Intercept and do not sent out COM DS queries. For debugging
 		 * purposes only. Never commit with this turned on.
@@ -1454,22 +1453,16 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 			written = pkt_len + 2;
 		} else
 #endif
-		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
-		if (written <= 0) {
-			/* SSL_write will not do partial writes, because 
-			 * SSL_MODE_ENABLE_PARTIAL_WRITE is not default,
-			 * but the write could fail because of renegotiation.
-			 * In that case SSL_get_error()  will return
-			 * SSL_ERROR_WANT_READ or, SSL_ERROR_WANT_WRITE.
-			 * Return for retry in such cases.
-			 */
-			switch (SSL_get_error(tls_obj, written)) {
-			case SSL_ERROR_WANT_READ:
-			case SSL_ERROR_WANT_WRITE:
-				return STUB_TCP_RETRY;
-			default:
-				return STUB_TCP_ERROR;
-			}
+			switch ((int)_getdns_tls_connection_write(tls_obj, netreq->query - 2, pkt_len + 2, &written)) {
+		case GETDNS_RETURN_GOOD:
+			break;
+
+		case GETDNS_RETURN_TLS_WANT_READ:
+		case GETDNS_RETURN_TLS_WANT_WRITE:
+			return STUB_TCP_RETRY;
+
+		default:
+			return STUB_TCP_ERROR;
 		}
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
