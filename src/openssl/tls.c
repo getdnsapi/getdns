@@ -261,6 +261,11 @@ _getdns_tls_connection* _getdns_tls_connection_new(_getdns_tls_context* ctx, int
 		return NULL;
 	}
 
+	/* Connection is a client. */
+	SSL_set_connect_state(res->ssl);
+
+	/* If non-application data received, retry read. */
+	SSL_set_mode(res->ssl, SSL_MODE_AUTO_RETRY);
 	return res;
 }
 
@@ -306,6 +311,15 @@ getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* c
 #else
 	(void) list;
 #endif
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s)
+{
+	if (!conn || !conn->ssl || !s || !s->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!SSL_set_session(conn->ssl, s->ssl))
+		return GETDNS_RETURN_GENERIC_ERROR;
 	return GETDNS_RETURN_GOOD;
 }
 

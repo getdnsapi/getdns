@@ -925,7 +925,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	_getdns_tls_connection* tls = _getdns_tls_connection_new(context->tls_ctx, fd);
 	if(!tls) 
 		return NULL;
-#if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
+#if HAVE_TLS_CONN_CURVES_LIST
 	if (upstream->tls_curves_list)
 		_getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
 #endif
@@ -1072,9 +1072,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, tls_verify_callback);
 #endif
 
-	SSL_set_connect_state(tls->ssl);
-	(void) SSL_set_mode(tls->ssl, SSL_MODE_AUTO_RETRY);
-
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change
 	   to the upstream auth info creates a new upstream so never re-uses.*/
@@ -1082,7 +1079,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		if ((upstream->tls_fallback_ok == 0 &&
 		     upstream->last_tls_auth_state == GETDNS_AUTH_OK) ||
 		     upstream->tls_fallback_ok == 1) {
-			SSL_set_session(tls->ssl, upstream->tls_session->ssl);
+			_getdns_tls_connection_set_session(tls, upstream->tls_session);
 			DEBUG_STUB("%s %-35s: Attempting session re-use\n", STUB_DEBUG_SETUP_TLS, 
 			            __FUNC__);
 			}

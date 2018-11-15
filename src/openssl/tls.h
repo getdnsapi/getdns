@@ -75,9 +75,10 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn);
 
 getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* conn, const char* list);
 getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* conn, const char* list);
+getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s);
 _getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* conn);
 
-getdns_return_t _getdns_tls_session_free(_getdns_tls_session* ctx);
+getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s);
 
 getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict);
 
