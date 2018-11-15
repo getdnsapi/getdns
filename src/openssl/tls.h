@@ -47,6 +47,11 @@
 #define HAVE_TLS_CONN_CURVES_LIST	(HAVE_DECL_SSL_SET1_CURVES_LIST)
 #endif
 
+/* Additional return codes required by TLS abstraction. Internal use only. */
+#define GETDNS_RETURN_TLS_WANT_READ		((getdns_return_t) 420)
+#define GETDNS_RETURN_TLS_WANT_WRITE		((getdns_return_t) 421)
+#define GETDNS_RETURN_TLS_CONNECTION_FRESH	((getdns_return_t) 422)
+
 typedef struct _getdns_tls_context {
 	SSL_CTX* ssl;
 } _getdns_tls_context;
@@ -77,6 +82,28 @@ getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* c
 getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* conn, const char* list);
 getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s);
 _getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* conn);
+
+/**
+ * Attempt TLS handshake.
+ *
+ * @param conn	the connection.
+ * @return GETDNS_RETURN_GOOD if handshake is complete.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ * @return GETDNS_RETURN_TLS_WANT_READ if handshake needs to read to proceed.
+ * @return GETDNS_RETURN_TLS_WANT_WRITE if handshake needs to write to proceed.
+ * @return GETDNS_RETURN_GENERIC_ERROR if handshake failed.
+ */
+getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn);
+
+/**
+ * See whether the connection is reusing a session.
+ *
+ * @param conn	the connection.
+ * @return GETDNS_RETURN_GOOD if connection is being reused.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ * @return GETDNS_RETURN_TLS_CONNECTION_FRESH if connection is not being reused.
+ */
+getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection* conn);
 
 getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s);
 

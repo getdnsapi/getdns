@@ -1093,13 +1093,10 @@ tls_do_handshake(getdns_upstream *upstream)
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SETUP_TLS, 
 	             __FUNC__, upstream->fd);
 	int r;
-	int want;
-	ERR_clear_error();
-	while ((r = SSL_do_handshake(upstream->tls_obj->ssl)) != 1)
+	while ((r = _getdns_tls_connection_do_handshake(upstream->tls_obj)) != GETDNS_RETURN_GOOD)
 	{
-		want = SSL_get_error(upstream->tls_obj->ssl, r);
-		switch (want) {
-			case SSL_ERROR_WANT_READ:
+		switch (r) {
+			case GETDNS_RETURN_TLS_WANT_READ:
 				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = upstream_read_cb;
 				upstream->event.write_cb = NULL;
@@ -1107,7 +1104,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				    upstream->fd, TIMEOUT_TLS, &upstream->event);
 				upstream->tls_hs_state = GETDNS_HS_READ;
 				return STUB_TCP_RETRY;
-			case SSL_ERROR_WANT_WRITE:
+			case GETDNS_RETURN_TLS_WANT_WRITE:
 				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = NULL;
 				upstream->event.write_cb = upstream_write_cb;
@@ -1123,7 +1120,7 @@ tls_do_handshake(getdns_upstream *upstream)
 	   }
 	}
 	/* A re-used session is not verified so need to fix up state in that case */
-	if (SSL_session_reused(upstream->tls_obj->ssl))
+	if (!_getdns_tls_connection_is_session_reused(upstream->tls_obj))
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
 
 	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
@@ -1232,7 +1229,7 @@ tls_do_handshake(getdns_upstream *upstream)
 	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %s. Session is %s.\n", 
 		         STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, 
 		         _getdns_auth_str(upstream->tls_auth_state),
-		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
+		   _getdns_tls_connection_is_session_reused(upstream->tls_obj) ? "new" : "re-used");
 	upstream->tls_hs_state = GETDNS_HS_DONE;
 	upstream->conn_state = GETDNS_CONN_OPEN;
 	upstream->conn_completed++;

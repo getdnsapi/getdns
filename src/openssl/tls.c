@@ -33,6 +33,7 @@
 
 #include "config.h"
 
+#include <openssl/err.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
@@ -340,6 +341,43 @@ _getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* 
 	}
 
 	return res;
+}
+
+getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn)
+{
+	int r;
+	int err;
+
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	ERR_clear_error();
+	r = SSL_do_handshake(conn->ssl);
+	if (r == 1)
+		return GETDNS_RETURN_GOOD;
+	err = SSL_get_error(conn->ssl, r);
+	switch(err)
+	{
+	case SSL_ERROR_WANT_READ:
+		return GETDNS_RETURN_TLS_WANT_READ;
+
+	case SSL_ERROR_WANT_WRITE:
+		return GETDNS_RETURN_TLS_WANT_WRITE;
+
+	default:
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+}
+
+getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (SSL_session_reused(conn->ssl))
+		return GETDNS_RETURN_GOOD;
+	else
+		return GETDNS_RETURN_TLS_CONNECTION_FRESH;
 }
 
 getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s)
