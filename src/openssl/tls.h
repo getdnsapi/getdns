@@ -84,6 +84,14 @@ getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn,
 _getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* conn);
 
 /**
+ * Report the TLS version of the connection.
+ *
+ * @param conn	the connection.
+ * @return string with the connection description, NULL on error.
+ */
+const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn);
+
+/**
  * Attempt TLS handshake.
  *
  * @param conn	the connection.

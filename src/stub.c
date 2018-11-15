@@ -1865,7 +1865,7 @@ upstream_write_cb(void *userarg)
 					cert, &netreq->debug_tls_peer_cert.data);
 				X509_free(cert);
 			}
-			netreq->debug_tls_version = SSL_get_version(netreq->upstream->tls_obj->ssl);
+			netreq->debug_tls_version = _getdns_tls_connection_get_version(netreq->upstream->tls_obj);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;

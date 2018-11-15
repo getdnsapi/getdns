@@ -342,6 +342,13 @@ _getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* 
 	return res;
 }
 
+const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return NULL;
+	return SSL_get_version(conn->ssl);
+}
+
 getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn)
 {
 	int r;
