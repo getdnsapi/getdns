@@ -55,9 +55,6 @@
 #include "platform.h"
 #include "general.h"
 #include "pubkey-pinning.h"
-#ifdef USE_DANESSL
-# include "ssl_dane/danessl.h"
-#endif
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -829,9 +826,6 @@ tls_requested(getdns_network_req *netreq)
 	        1 : 0;
 }
 
-
-#if defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL)
-
 static int
 _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 { 
@@ -856,64 +850,6 @@ _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 # endif /* #else defined(STUB_DEBUG) && STUB_DEBUG */
 	return 1; 
 }
-
-#else /* defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
-
-static int
-tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
-{
-	getdns_upstream *upstream;
-	getdns_return_t pinset_ret = GETDNS_RETURN_GOOD;
-	upstream = _getdns_upstream_from_x509_store(ctx);
-	if (!upstream)
-		return 0;
-
-	int err = X509_STORE_CTX_get_error(ctx);
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	DEBUG_STUB("%s %-35s: FD:  %d Verify result: (%d) \"%s\"\n",
-	            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err,
-	            X509_verify_cert_error_string(err));
-# endif
-	if (!preverify_ok && !upstream->tls_fallback_ok)
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-		    "%-40s : Verify failed: TLS - *Failure* -  (%d) \"%s\"\n",
-		    upstream->addr_str, err,
-		    X509_verify_cert_error_string(err));
-
-	/* No need to deal with hostname authentication, since this will be
-	 * dealt with in the DANE preprocessor paths.
-	 */
-
-	/* Deal with the pinset validation */
-	if (upstream->tls_pubkey_pinset)
-		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
-
-	if (pinset_ret != GETDNS_RETURN_GOOD) {
-		DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Pinset validation failure!\n",
-	           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
-		preverify_ok = 0;
-		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		if (upstream->tls_fallback_ok)
-			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
-			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
-		else
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-			    "%-40s : Conn failed: TLS - *Failure* - Pinset validation failure\n",
-			    upstream->addr_str);
-	}
-	/* If nothing has failed yet and we had credentials, we have successfully authenticated*/
-	if (preverify_ok == 0)
-		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
-	         (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]))
-		upstream->tls_auth_state = GETDNS_AUTH_OK;
-
-	/* If fallback is allowed, proceed regardless of what the auth error is
-	   (might not be hostname or pinset related) */
-	return (upstream->tls_fallback_ok) ? 1 : preverify_ok;
-}
-
-#endif /* #else defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
 
 static _getdns_tls_connection*
 tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
@@ -946,28 +882,11 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name);
 		SSL_set_tlsext_host_name(tls->ssl, upstream->tls_auth_name);
-#if defined(HAVE_SSL_HN_AUTH)
-		/* Set up native OpenSSL hostname verification
-		 * ( doesn't work with USE_DANESSL, but we verify the
-		 *   name afterwards in such cases )
-		 */
+		/* Set up native OpenSSL hostname verification */
 		X509_VERIFY_PARAM *param;
 		param = SSL_get0_param(tls->ssl);
 		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
-#elif !defined(HAVE_X509_CHECK_HOST)
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
-			DEBUG_STUB("%s %-35s: ERROR: Hostname Authentication not available from TLS library (check library version)\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__);
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
-			    "%-40s : ERROR: Hostname Authentication not available from TLS library (check library version)\n",
-			    upstream->addr_str);
-			upstream->tls_hs_state = GETDNS_HS_FAILED;
-			_getdns_tls_connection_free(tls);
-			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-			return NULL;
-		}
-#endif
 		/* Allow fallback to opportunistic if settings permit it*/
 		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 			upstream->tls_fallback_ok = 1;
@@ -1006,7 +925,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
 	}
-#if defined(HAVE_SSL_DANE_ENABLE)
+
 	int osr;
 # if defined(STUB_DEBUG) && STUB_DEBUG
 	osr =
@@ -1033,44 +952,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		if (osr > 0)
 			++n_pins;
 	}
-#elif defined(USE_DANESSL)
-	if (upstream->tls_pubkey_pinset) {
-		const char *auth_names[2] = { upstream->tls_auth_name, NULL };
-		int osr;
-# if defined(STUB_DEBUG) && STUB_DEBUG
-		osr =
-# else
-		(void)
-# endif
-			DANESSL_init(tls->ssl,
-		    *upstream->tls_auth_name ? upstream->tls_auth_name : NULL,
-		    *upstream->tls_auth_name ? auth_names : NULL
-		    );
-		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
-			  , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
-		SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
-		sha256_pin_t *pin_p;
-		size_t n_pins = 0;
-		for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
-			osr = DANESSL_add_tlsa(tls->ssl, 3, 1, "sha256",
-			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
-				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-			if (osr > 0)
-				++n_pins;
-			osr = DANESSL_add_tlsa(tls->ssl, 2, 1, "sha256",
-			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
-				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-			if (osr > 0)
-				++n_pins;
-		}
-	} else {
-		SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
-	}
-#else
-	SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, tls_verify_callback);
-#endif
 
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change
@@ -1127,23 +1008,6 @@ tls_do_handshake(getdns_upstream *upstream)
 		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj->ssl);
 		long verify_result = SSL_get_verify_result(upstream->tls_obj->ssl);
 
-/* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
- * we need to verify auth_name explicitely (otherwise it will not be checked,
- * because this is not required with DANE with an EE match).
- * This is not needed with native OpenSSL DANE, because EE name checks have
- * to be disabled explicitely.
- */
-#if defined(HAVE_X509_CHECK_HOST) && (defined(USE_DANESSL) || !defined(HAVE_SSL_HN_AUTH))
-		int xch;
-		if (peer_cert && verify_result == X509_V_OK
-		    && upstream->tls_auth_name[0]
-		    && (xch = X509_check_host(peer_cert,
-				    upstream->tls_auth_name,
-				    strlen(upstream->tls_auth_name),
-				    X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS,
-				    NULL)) <= 0)
-			verify_result = X509_V_ERR_HOSTNAME_MISMATCH;
-#endif
 		upstream->tls_auth_state = peer_cert && verify_result == X509_V_OK
 		                         ? GETDNS_AUTH_OK : GETDNS_AUTH_FAILED;
 		if (!peer_cert)
@@ -1161,7 +1025,6 @@ tls_do_handshake(getdns_upstream *upstream)
 		/* Since we don't have DANE validation yet, DANE validation
 		 * failures are always pinset validation failures
 		 */
-#if defined(HAVE_SSL_DANE_ENABLE)
 		else if (verify_result == X509_V_ERR_DANE_NO_MATCH)
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,
@@ -1172,21 +1035,6 @@ tls_do_handshake(getdns_upstream *upstream)
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
 			    : "*Failure*" ));
-#elif defined(USE_DANESSL)
-		else if (verify_result == X509_V_ERR_CERT_UNTRUSTED
-		    && upstream->tls_pubkey_pinset
-		    && !DANESSL_get_match_cert(
-			    upstream->tls_obj->ssl, NULL, NULL, NULL))
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "Pinset validation failure\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ));
-#endif
 		else if (verify_result != X509_V_OK)
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,
@@ -1198,23 +1046,6 @@ tls_do_handshake(getdns_upstream *upstream)
 			    ? "Tolerated because of Opportunistic profile"
 			    : "*Failure*" ), verify_result,
 			    X509_verify_cert_error_string(verify_result));
-#if !defined(HAVE_SSL_HN_AUTH) && !defined(HAVE_X509_CHECK_HOST)
-		else if (*upstream->tls_auth_name) {
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "Hostname Authentication not available from TLS "
-			    "library (check library version)\n",
-			    upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ));
-
-			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		}
-#endif
 		else
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,

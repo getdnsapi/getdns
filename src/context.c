@@ -82,9 +82,6 @@ typedef unsigned short in_port_t;
 #include "list.h"
 #include "dict.h"
 #include "pubkey-pinning.h"
-#ifdef USE_DANESSL
-# include "ssl_dane/danessl.h"
-#endif
 #include "const-info.h"
 #include "tls.h"
 
@@ -599,26 +596,6 @@ upstreams_create(getdns_context *context, size_t size)
 }
 
 
-#if defined(USE_DANESSL) && defined(STUB_DEBUG) && STUB_DEBUG
-static void _stub_debug_print_openssl_errors(void)
-{
-    unsigned long err;
-    char buffer[1024];
-    const char *file;
-    const char *data;
-    int line;
-    int flags;
-
-    while ((err = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
-        ERR_error_string_n(err, buffer, sizeof(buffer));
-        if (flags & ERR_TXT_STRING)
-            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d:%s\n", buffer, file, line, data);
-        else
-            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d\n", buffer, file, line);
-    }
-}
-#endif
-
 void
 _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
@@ -660,12 +637,6 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 
 		if (upstream->tls_obj != NULL) {
 			_getdns_tls_connection_shutdown(upstream->tls_obj);
-#ifdef USE_DANESSL
-# if defined(STUB_DEBUG) && STUB_DEBUG
-			_stub_debug_print_openssl_errors();
-# endif
-			DANESSL_cleanup(upstream->tls_obj->ssl);
-#endif
 			_getdns_tls_connection_free(upstream->tls_obj);
 		}
 		if (upstream->fd != -1)
@@ -779,12 +750,6 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 	}
 	if (upstream->tls_obj != NULL) {
 		_getdns_tls_connection_shutdown(upstream->tls_obj);
-#ifdef USE_DANESSL
-# if defined(STUB_DEBUG) && STUB_DEBUG
-		_stub_debug_print_openssl_errors();
-# endif
-		DANESSL_cleanup(upstream->tls_obj->ssl);
-#endif
 		_getdns_tls_connection_free(upstream->tls_obj);
 		upstream->tls_obj = NULL;
 	}
@@ -3579,7 +3544,6 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 		}
 
 		if (context->tls_ctx == NULL) {
-#ifdef HAVE_TLS_v1_2
 			context->tls_ctx = _getdns_tls_context_new();
 			if (context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
@@ -3608,7 +3572,6 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}
-#  if defined(HAVE_SSL_CTX_DANE_ENABLE)
 #   if defined(STUB_DEBUG) && STUB_DEBUG
 			int osr =
 #   else
@@ -3617,22 +3580,6 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				SSL_CTX_dane_enable(context->tls_ctx->ssl);
 			DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
 			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-#  elif defined(USE_DANESSL)
-#   if defined(STUB_DEBUG) && STUB_DEBUG
-			int osr =
-#   else
-			(void)
-#   endif
-				DANESSL_CTX_init(context->tls_ctx->ssl);
-			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_CTX_init() -> %d\n"
-			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-#  endif
-#else /* HAVE_TLS_v1_2 */
-			if (tls_only_is_in_transports_list(context) == 1)
-				return GETDNS_RETURN_BAD_CONTEXT;
-			/* A null tls_ctx will make TLS fail and fallback to the other
-			   transports will kick-in.*/
-#endif /* HAVE_TLS_v1_2 */
 		}
 	}
 

@@ -44,10 +44,6 @@
 
 #include "tls.h"
 
-#ifdef USE_DANESSL
-# include "ssl_dane/danessl.h"
-#endif
-
 static _getdns_tls_x509* _getdns_tls_x509_new(X509* cert)
 {
 	_getdns_tls_x509* res;
@@ -156,19 +152,10 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 
 void _getdns_tls_init()
 {
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-	OpenSSL_add_all_algorithms();
-	SSL_library_init();
-
-# ifdef USE_DANESSL
-		(void) DANESSL_library_init();
-# endif
-#else
 	OPENSSL_init_crypto( OPENSSL_INIT_ADD_ALL_CIPHERS
 	                   | OPENSSL_INIT_ADD_ALL_DIGESTS
 	                   | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 	(void)OPENSSL_init_ssl(0, NULL);
-#endif
 }
 
 _getdns_tls_context* _getdns_tls_context_new()

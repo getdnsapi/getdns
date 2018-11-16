@@ -232,15 +232,6 @@ gldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		BN_free(Y);
 		return NULL;
 	}
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-#ifndef S_SPLINT_S
-	dsa->p = P;
-	dsa->q = Q;
-	dsa->g = G;
-	dsa->pub_key = Y;
-#endif /* splint */
-
-#else /* OPENSSL_VERSION_NUMBER */
 	if (!DSA_set0_pqg(dsa, P, Q, G)) {
 		/* QPG not yet attached, need to free */
 		BN_free(Q);
@@ -257,7 +248,6 @@ gldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		BN_free(Y);
 		return NULL;
 	}
-#endif
 
 	return dsa;
 }
@@ -310,20 +300,12 @@ gldns_key_buf2rsa_raw(unsigned char* key, size_t len)
 		BN_free(modulus);
 		return NULL;
 	}
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-#ifndef S_SPLINT_S
-	rsa->n = modulus;
-	rsa->e = exponent;
-#endif /* splint */
-
-#else /* OPENSSL_VERSION_NUMBER */
 	if (!RSA_set0_key(rsa, modulus, exponent, NULL)) {
 		BN_free(exponent);
 		BN_free(modulus);
 		RSA_free(rsa);
 		return NULL;
 	}
-#endif
 
 	return rsa;
 }

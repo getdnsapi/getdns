@@ -10,7 +10,3 @@
 	path = stubby
 	url = https://github.com/getdnsapi/stubby.git
 	branch = develop
-[submodule "src/ssl_dane"]
-	path = src/ssl_dane
-	url = https://github.com/getdnsapi/ssl_dane
-	branch = getdns
