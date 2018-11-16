@@ -48,6 +48,20 @@
 # include "ssl_dane/danessl.h"
 #endif
 
+static _getdns_tls_x509* _getdns_tls_x509_new(X509* cert)
+{
+	_getdns_tls_x509* res;
+
+	if (!cert)
+		return NULL;
+
+	res = malloc(sizeof(_getdns_tls_x509));
+	if (res)
+		res->ssl = cert;
+
+	return res;
+}
+
 #ifdef USE_WINSOCK
 /* For windows, the CA trust store is not read by openssl.
    Add code to open the trust store using wincrypt API and add
@@ -374,6 +388,14 @@ getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn
 	}
 }
 
+_getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return NULL;
+
+	return _getdns_tls_x509_new(SSL_get_peer_certificate(conn->ssl));
+}
+
 getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection* conn)
 {
 	if (!conn || !conn->ssl)
@@ -484,6 +506,21 @@ getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict)
 		)
 		return GETDNS_RETURN_GOOD;
 	return GETDNS_RETURN_GENERIC_ERROR;
+}
+
+void _getdns_tls_x509_free(_getdns_tls_x509* cert)
+{
+	if (cert && cert->ssl)
+		X509_free(cert->ssl);
+	free(cert);
+}
+
+int _getdns_tls_x509_to_der(_getdns_tls_x509* cert, uint8_t** buf)
+{
+	if (!cert || !cert->ssl)
+		return 0;
+
+	return i2d_X509(cert->ssl, buf);
 }
 
 /* tls.c */

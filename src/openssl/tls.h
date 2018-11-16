@@ -64,6 +64,11 @@ typedef struct _getdns_tls_session {
 	SSL_SESSION* ssl;
 } _getdns_tls_session;
 
+typedef struct _getdns_tls_x509
+{
+	X509* ssl;
+} _getdns_tls_x509;
+
 void _getdns_tls_init();
 
 _getdns_tls_context* _getdns_tls_context_new();
@@ -102,6 +107,14 @@ const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn);
  * @return GETDNS_RETURN_GENERIC_ERROR if handshake failed.
  */
 getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn);
+
+/**
+ * Get the connection peer certificate.
+ *
+ * @param conn	the connection.
+ * @return certificate or NULL on error.
+ */
+_getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(_getdns_tls_connection* conn);
 
 /**
  * See whether the connection is reusing a session.
@@ -144,6 +157,22 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
 getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written);
 
 getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s);
+
+/**
+ * Free X509 certificate.
+ *
+ * @param cert	the certificate.
+ */
+void _getdns_tls_x509_free(_getdns_tls_x509* cert);
+
+/**
+ * Convert X509 to DER.
+ *
+ * @param cert	the certificate.
+ * @param buf	buffer to receive conversion. NULL to just get the length.
+ * @return length of conversion, 0 on error.
+ */
+int _getdns_tls_x509_to_der(_getdns_tls_x509* cert, uint8_t** buf);
 
 getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict);
 

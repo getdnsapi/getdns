@@ -1797,7 +1797,7 @@ upstream_write_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
 	int q;
-	X509 *cert;
+	_getdns_tls_x509 *cert;
 
 	if (!netreq) {
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -1860,10 +1860,10 @@ upstream_write_cb(void *userarg)
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj) {
 			if (netreq->debug_tls_peer_cert.data == NULL &&
-			    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj->ssl))) {
-				netreq->debug_tls_peer_cert.size = i2d_X509(
+			    (cert = _getdns_tls_connection_get_peer_certificate(netreq->upstream->tls_obj))) {
+				netreq->debug_tls_peer_cert.size = _getdns_tls_x509_to_der(
 					cert, &netreq->debug_tls_peer_cert.data);
-				X509_free(cert);
+				_getdns_tls_x509_free(cert);
 			}
 			netreq->debug_tls_version = _getdns_tls_connection_get_version(netreq->upstream->tls_obj);
 		}
