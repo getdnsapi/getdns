@@ -36,38 +36,12 @@
 
 #include "getdns/getdns.h"
 
-#ifndef HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
-#define HAVE_TLS_CTX_CURVES_LIST	0
-#else
-#define HAVE_TLS_CTX_CURVES_LIST	(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
-#endif
-#ifndef HAVE_DECL_SSL_SET1_CURVES_LIST
-#define HAVE_TLS_CONN_CURVES_LIST	0
-#else
-#define HAVE_TLS_CONN_CURVES_LIST	(HAVE_DECL_SSL_SET1_CURVES_LIST)
-#endif
+#include "tls-internal.h"
 
 /* Additional return codes required by TLS abstraction. Internal use only. */
 #define GETDNS_RETURN_TLS_WANT_READ		((getdns_return_t) 420)
 #define GETDNS_RETURN_TLS_WANT_WRITE		((getdns_return_t) 421)
 #define GETDNS_RETURN_TLS_CONNECTION_FRESH	((getdns_return_t) 422)
-
-typedef struct _getdns_tls_context {
-	SSL_CTX* ssl;
-} _getdns_tls_context;
-
-typedef struct _getdns_tls_connection {
-	SSL* ssl;
-} _getdns_tls_connection;
-
-typedef struct _getdns_tls_session {
-	SSL_SESSION* ssl;
-} _getdns_tls_session;
-
-typedef struct _getdns_tls_x509
-{
-	X509* ssl;
-} _getdns_tls_x509;
 
 void _getdns_tls_init();
 
