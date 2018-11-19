@@ -78,7 +78,7 @@ C99COMPATFLAGS=@C99COMPATFLAGS@
 DEFAULT_EVENTLOOP_OBJ=@DEFAULT_EVENTLOOP@.lo
 
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
-	list.lo request-internal.lo platform.lo pubkey-pinning.lo rr-dict.lo \
+	list.lo request-internal.lo platform.lo rr-dict.lo \
 	rr-iter.lo server.lo stub.lo sync.lo ub_loop.lo util-internal.lo \
 	mdns.lo
 
@@ -94,7 +94,7 @@ COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 UTIL_OBJ=rbtree.lo val_secalgo.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
-TLS_OBJ=tls.lo
+TLS_OBJ=tls.lo pubkey-pinning.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
