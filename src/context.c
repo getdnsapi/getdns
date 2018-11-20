@@ -3568,7 +3568,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/
-			if (!_getdns_tls_context_set_ca(context->tls_ctx, context->tls_ca_file, context->tls_ca_path)) {
+			if (_getdns_tls_context_set_ca(context->tls_ctx, context->tls_ca_file, context->tls_ca_path)) {
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}
