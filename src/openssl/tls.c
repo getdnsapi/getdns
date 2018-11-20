@@ -34,7 +34,9 @@
 #include "config.h"
 
 #include <openssl/err.h>
+#include <openssl/conf.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
@@ -42,7 +44,34 @@
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
 
+#include "debug.h"
+#include "context.h"
+
 #include "tls.h"
+
+static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
+{
+# if defined(STUB_DEBUG) && STUB_DEBUG
+	char	buf[8192];
+	X509   *cert;
+	int	 err;
+	int	 depth;
+
+	cert = X509_STORE_CTX_get_current_cert(ctx);
+	err = X509_STORE_CTX_get_error(ctx);
+	depth = X509_STORE_CTX_get_error_depth(ctx);
+
+	if (cert)
+		X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
+	else
+		strcpy(buf, "<unknown>");
+	DEBUG_STUB("DEBUG Cert verify: depth=%d verify=%d err=%d subject=%s errorstr=%s\n", depth, ok, err, buf, X509_verify_cert_error_string(err));
+# else /* defined(STUB_DEBUG) && STUB_DEBUG */
+	(void)ok;
+	(void)ctx;
+# endif /* #else defined(STUB_DEBUG) && STUB_DEBUG */
+	return 1;
+}
 
 static _getdns_tls_x509* _getdns_tls_x509_new(X509* cert)
 {
@@ -393,6 +422,76 @@ getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection*
 	else
 		return GETDNS_RETURN_TLS_CONNECTION_FRESH;
 }
+
+getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connection* conn, const char* auth_name)
+{
+	if (!conn || !conn->ssl || !auth_name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	SSL_set_tlsext_host_name(conn->ssl, auth_name);
+	/* Set up native OpenSSL hostname verification */
+	X509_VERIFY_PARAM *param;
+	param = SSL_get0_param(conn->ssl);
+	X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+	X509_VERIFY_PARAM_set1_host(param, auth_name, 0);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* conn, const char* auth_name, const sha256_pin_t* pinset)
+{
+	if (!conn || !conn->ssl || !auth_name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	int osr = SSL_dane_enable(conn->ssl, *auth_name ? auth_name : NULL);
+	(void) osr;
+	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
+	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
+	SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	const sha256_pin_t *pin_p;
+	size_t n_pins = 0;
+	for (pin_p = pinset; pin_p; pin_p = pin_p->next) {
+		osr = SSL_dane_tlsa_add(conn->ssl, 2, 1, 1,
+		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+		if (osr > 0)
+			++n_pins;
+		osr = SSL_dane_tlsa_add(conn->ssl, 3, 1, 1,
+		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+		if (osr > 0)
+			++n_pins;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t _getdns_tls_connection_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg)
+{
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	long verify_result = SSL_get_verify_result(conn->ssl);
+	switch (verify_result) {
+	case X509_V_OK:
+		return GETDNS_RETURN_GOOD;
+
+	case X509_V_ERR_DANE_NO_MATCH:
+		if (errnum)
+			*errnum = 0;
+		if (errmsg)
+			*errmsg = "Pinset validation failure";
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	default:
+		if (errnum)
+			*errnum = verify_result;
+		if (errmsg)
+			*errmsg = X509_verify_cert_error_string(verify_result);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+}
+
 
 getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_t* buf, size_t to_read, size_t* read)
 {

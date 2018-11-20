@@ -38,6 +38,10 @@
 
 #include "tls-internal.h"
 
+/* Forward declare type. */
+struct sha256_pin;
+typedef struct sha256_pin sha256_pin_t;
+
 /* Additional return codes required by TLS abstraction. Internal use only. */
 #define GETDNS_RETURN_TLS_WANT_READ		((getdns_return_t) 420)
 #define GETDNS_RETURN_TLS_WANT_WRITE		((getdns_return_t) 421)
@@ -99,6 +103,38 @@ _getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(_getdns_tls_connec
  * @return GETDNS_RETURN_TLS_CONNECTION_FRESH if connection is not being reused.
  */
 getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection* conn);
+
+/**
+ * Set up host name verification.
+ *
+ * @param conn		the connection.
+ * @param auth_name	the hostname.
+ * @return GETDNS_RETURN_GOOD if all OK.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ */
+getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connection* conn, const char* auth_name);
+
+/**
+ * Set host pinset.
+ *
+ * @param conn		the connection.
+ * @param auth_name	the hostname.
+ * @return GETDNS_RETURN_GOOD if all OK.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ */
+getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* conn, const char* auth_name, const sha256_pin_t* pinset);
+
+/**
+ * Get result of certificate verification.
+ *
+ * @param conn		the connection.
+ * @param errno		failure error number.
+ * @param errmsg	failure error message.
+ * @return GETDNS_RETURN_GOOD if all OK.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ * @return GETDNS_RETURN_GENERIC_ERROR if verification failed.
+ */
+getdns_return_t _getdns_tls_connection_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg);
 
 /**
  * Read from TLS.

@@ -39,9 +39,6 @@
 #define INTERCEPT_COM_DS 0
 
 #include "debug.h"
-#include <openssl/err.h>
-#include <openssl/conf.h>
-#include <openssl/x509v3.h>
 #include <fcntl.h>
 #include "stub.h"
 #include "gldns/gbuffer.h"
@@ -826,31 +823,6 @@ tls_requested(getdns_network_req *netreq)
 	        1 : 0;
 }
 
-static int
-_getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
-{ 
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	char	buf[8192];
-	X509   *cert;
-	int	 err;
-	int	 depth;
-
-	cert = X509_STORE_CTX_get_current_cert(ctx);
-	err = X509_STORE_CTX_get_error(ctx);
-	depth = X509_STORE_CTX_get_error_depth(ctx);
-
-	if (cert)
-		X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
-	else
-		strcpy(buf, "<unknown>");
-	DEBUG_STUB("DEBUG Cert verify: depth=%d verify=%d err=%d subject=%s errorstr=%s\n", depth, ok, err, buf, X509_verify_cert_error_string(err));
-# else /* defined(STUB_DEBUG) && STUB_DEBUG */
-	(void)ok;
-	(void)ctx;
-# endif /* #else defined(STUB_DEBUG) && STUB_DEBUG */
-	return 1; 
-}
-
 static _getdns_tls_connection*
 tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 {
@@ -881,12 +853,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		/*Request certificate for the auth_name*/
 		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name);
-		SSL_set_tlsext_host_name(tls->ssl, upstream->tls_auth_name);
-		/* Set up native OpenSSL hostname verification */
-		X509_VERIFY_PARAM *param;
-		param = SSL_get0_param(tls->ssl);
-		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
+		_getdns_tls_connection_setup_hostname_auth(tls, upstream->tls_auth_name);
 		/* Allow fallback to opportunistic if settings permit it*/
 		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 			upstream->tls_fallback_ok = 1;
@@ -926,32 +893,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		             __FUNC__);
 	}
 
-	int osr;
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	osr =
-# else
-	(void)
-# endif
-		SSL_dane_enable(tls->ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
-	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
-	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
-	SSL_set_verify(tls->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
-	sha256_pin_t *pin_p;
-	size_t n_pins = 0;
-	for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
-		osr = SSL_dane_tlsa_add(tls->ssl, 2, 1, 1,
-		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
-			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-		if (osr > 0)
-			++n_pins;
-		osr = SSL_dane_tlsa_add(tls->ssl, 3, 1, 1,
-		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
-			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-		if (osr > 0)
-			++n_pins;
-	}
+	_getdns_tls_connection_set_host_pinset(tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
 
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change
@@ -1005,12 +947,9 @@ tls_do_handshake(getdns_upstream *upstream)
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
 
 	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
-		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj->ssl);
-		long verify_result = SSL_get_verify_result(upstream->tls_obj->ssl);
+		_getdns_tls_x509* peer_cert = _getdns_tls_connection_get_peer_certificate(upstream->tls_obj);
 
-		upstream->tls_auth_state = peer_cert && verify_result == X509_V_OK
-		                         ? GETDNS_AUTH_OK : GETDNS_AUTH_FAILED;
-		if (!peer_cert)
+		if (!peer_cert) {
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
@@ -1021,38 +960,42 @@ tls_do_handshake(getdns_upstream *upstream)
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
 			    : "*Failure*" ));
+			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
+		} else {
+			long verify_errno;
+			const char* verify_errmsg;
 
-		/* Since we don't have DANE validation yet, DANE validation
-		 * failures are always pinset validation failures
-		 */
-		else if (verify_result == X509_V_ERR_DANE_NO_MATCH)
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "Pinset validation failure\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ));
-		else if (verify_result != X509_V_OK)
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "(%d) \"%s\"\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ), verify_result,
-			    X509_verify_cert_error_string(verify_result));
-		else
+			if (!_getdns_tls_connection_verify(upstream->tls_obj, &verify_errno, &verify_errmsg)) {
+				upstream->tls_auth_state = GETDNS_AUTH_OK;
+				if (verify_errno != 0) {
+					_getdns_upstream_log(upstream,
+					    GETDNS_LOG_UPSTREAM_STATS,
+					     ( upstream->tls_fallback_ok
+					       ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),					     "%-40s : Verify failed : TLS - %s -  "
+					     "(%d) \"%s\"\n", upstream->addr_str,
+					     ( upstream->tls_fallback_ok
+					       ? "Tolerated because of Opportunistic profile"
+					       : "*Failure*" ),
+					     verify_errno, verify_errmsg);
+				} else {
+					_getdns_upstream_log(upstream,
+					    GETDNS_LOG_UPSTREAM_STATS,
+					     ( upstream->tls_fallback_ok
+					       ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),					     "%-40s : Verify failed : TLS - %s -  "
+					     "%s\n", upstream->addr_str,
+					     ( upstream->tls_fallback_ok
+					       ? "Tolerated because of Opportunistic profile"
+					       : "*Failure*" ),
+					     verify_errno, verify_errmsg);
+				}
+			} else {
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 			    "%-40s : Verify passed : TLS\n",
 			    upstream->addr_str);
-
-		X509_free(peer_cert);
+			}
+			_getdns_tls_x509_free(peer_cert);
+		}
 		if (upstream->tls_auth_state == GETDNS_AUTH_FAILED
 		    && !upstream->tls_fallback_ok)
 			return STUB_SETUP_ERROR;
