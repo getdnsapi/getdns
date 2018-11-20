@@ -838,7 +838,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		_getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
 #endif
 	/* make sure we'll be able to find the context again when we need it */
-	if (_getdns_associate_upstream_with_SSL(tls->ssl, upstream) != GETDNS_RETURN_GOOD) {
+	if (_getdns_associate_upstream_with_connection(tls, upstream) != GETDNS_RETURN_GOOD) {
 		_getdns_tls_connection_free(tls);
 		return NULL;
 	}

@@ -361,15 +361,18 @@ _getdns_upstream_from_x509_store(X509_STORE_CTX *store)
 }
 
 getdns_return_t
-_getdns_associate_upstream_with_SSL(SSL *ssl,
-				    getdns_upstream *upstream)
+_getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
+					   getdns_upstream *upstream)
 {
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 	int uidx = _get_ssl_getdns_upstream_idx();
 #else
-	int uidx = _get_ssl_getdns_upstream_idx(SSL_CTX_get_cert_store(SSL_get_SSL_CTX(ssl)));
+	int uidx = _get_ssl_getdns_upstream_idx(SSL_CTX_get_cert_store(SSL_get_SSL_CTX(conn->ssl)));
 #endif
-	if (SSL_set_ex_data(ssl, uidx, upstream))
+	if (SSL_set_ex_data(conn->ssl, uidx, upstream))
 		return GETDNS_RETURN_GOOD;
 	else
 		return GETDNS_RETURN_GENERIC_ERROR;

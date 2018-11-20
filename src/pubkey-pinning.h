@@ -34,6 +34,7 @@
 #ifndef PUBKEY_PINNING_H_
 #define PUBKEY_PINNING_H_
 
+#include "tls.h"
 
 /* create and populate a pinset linked list from a getdns_list pinset */
 getdns_return_t
@@ -57,8 +58,8 @@ _getdns_upstream_from_x509_store(X509_STORE_CTX *store);
 
 
 getdns_return_t
-_getdns_associate_upstream_with_SSL(SSL *ssl,
-				    getdns_upstream *upstream);
+_getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
+					   getdns_upstream *upstream);
 
 getdns_return_t
 _getdns_verify_pinset_match(const sha256_pin_t *pinset,
