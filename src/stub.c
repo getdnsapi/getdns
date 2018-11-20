@@ -1006,11 +1006,24 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
 	} else {
-		if (upstream->tls_cipher_list)
-			SSL_set_cipher_list(ssl, upstream->tls_cipher_list);
+		if (upstream->tls_cipher_list &&
+		    !SSL_set_cipher_list(ssl, upstream->tls_cipher_list))
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
+			    "%-40s : Error configuring cipher_list\"%s\"\n",
+			    upstream->addr_str, upstream->tls_cipher_list);
+
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
 	}
+#if defined(HAVE_DECL_SSL_SET_CIPHERSUITES) && HAVE_DECL_SSL_SET_CIPHERSUITES
+	if (upstream->tls_ciphersuites &&
+	   !SSL_set_ciphersuites(ssl, upstream->tls_ciphersuites)) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : Error configuring ciphersuites "
+		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
+	}
+#endif
 #if defined(HAVE_SSL_DANE_ENABLE)
 	int osr;
 # if defined(STUB_DEBUG) && STUB_DEBUG
