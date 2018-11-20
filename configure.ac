@@ -1434,6 +1434,7 @@ if test "$ac_cv_func_arc4random" = "no"; then
 	    if test "$USE_WINSOCK" = 1; then
 		AC_LIBOBJ(getentropy_win)
 	    else
+                AC_MSG_ERROR([Function getentropy missing.])
 		case `uname` in
 		Darwin)
 			AC_LIBOBJ(getentropy_osx)
