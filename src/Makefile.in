@@ -91,10 +91,10 @@ LIBOBJDIR=
 LIBOBJS=@LIBOBJS@
 COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 
-UTIL_OBJ=rbtree.lo val_secalgo.lo lruhash.lo lookup3.lo locks.lo
+UTIL_OBJ=rbtree.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
-TLS_OBJ=tls.lo pubkey-pinning.lo
+TLS_OBJ=tls.lo pubkey-pinning.lo val_secalgo.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
@@ -508,14 +508,6 @@ rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c \
  $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/util/auxiliary/fptr_wlist.h \
  $(srcdir)/util/auxiliary/util/fptr_wlist.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/orig-headers/rbtree.h
-val_secalgo.lo val_secalgo.o: $(srcdir)/util/val_secalgo.c \
- config.h \
- $(srcdir)/util/auxiliary/util/data/packed_rrset.h \
- $(srcdir)/util/auxiliary/validator/val_secalgo.h $(srcdir)/util/val_secalgo.h \
- $(srcdir)/util/orig-headers/val_secalgo.h $(srcdir)/util/auxiliary/validator/val_nsec3.h \
- $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/util/auxiliary/sldns/rrdef.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/util/auxiliary/sldns/keyraw.h $(srcdir)/gldns/keyraw.h \
- $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
 jsmn.lo jsmn.o: $(srcdir)/jsmn/jsmn.c $(srcdir)/jsmn/jsmn.h
 pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/openssl/pubkey-pinning.c \
  config.h $(srcdir)/debug.h \
@@ -534,6 +526,14 @@ tls.lo tls.o: $(srcdir)/openssl/tls.c config.h \
  $(srcdir)/extension/default_eventloop.h $(srcdir)/extension/poll_eventloop.h \
  $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/anchor.h $(srcdir)/tls.h $(srcdir)/openssl/tls-internal.h $(srcdir)/tls.h
+val_secalgo.lo val_secalgo.o: $(srcdir)/openssl/val_secalgo.c \
+ config.h \
+ $(srcdir)/util/auxiliary/util/data/packed_rrset.h \
+ $(srcdir)/util/auxiliary/validator/val_secalgo.h $(srcdir)/util/val_secalgo.h \
+ $(srcdir)/util/orig-headers/val_secalgo.h $(srcdir)/util/auxiliary/validator/val_nsec3.h \
+ $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/util/auxiliary/sldns/rrdef.h \
+ $(srcdir)/gldns/rrdef.h $(srcdir)/util/auxiliary/sldns/keyraw.h $(srcdir)/gldns/keyraw.h \
+ $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
 yxml.lo yxml.o: $(srcdir)/yxml/yxml.c $(srcdir)/yxml/yxml.h
 libev.lo libev.o: $(srcdir)/extension/libev.c \
  config.h $(srcdir)/types-internal.h \
