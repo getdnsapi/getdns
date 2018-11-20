@@ -94,7 +94,7 @@ COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 UTIL_OBJ=rbtree.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
-TLS_OBJ=tls.lo pubkey-pinning.lo val_secalgo.lo
+TLS_OBJ=tls.lo pubkey-pinning.lo keyraw-internal.lo val_secalgo.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
@@ -308,8 +308,8 @@ anchor.lo anchor.o: $(srcdir)/anchor.c config.h \
  $(srcdir)/extension/default_eventloop.h $(srcdir)/extension/poll_eventloop.h \
  $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/tls.h $(srcdir)/openssl/tls-internal.h \
  $(srcdir)/dnssec.h $(srcdir)/gldns/rrdef.h $(srcdir)/yxml/yxml.h $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/str2wire.h \
- $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/keyraw.h $(srcdir)/general.h $(srcdir)/util-internal.h \
- $(srcdir)/platform.h
+ $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h $(srcdir)/gldns/keyraw.h $(srcdir)/openssl/keyraw-internal.h \
+ $(srcdir)/general.h $(srcdir)/util-internal.h $(srcdir)/platform.h
 const-info.lo const-info.o: $(srcdir)/const-info.c \
  getdns/getdns.h \
  getdns/getdns_extra.h \
@@ -352,8 +352,8 @@ dnssec.lo dnssec.o: $(srcdir)/dnssec.c config.h \
  $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/anchor.h $(srcdir)/tls.h $(srcdir)/openssl/tls-internal.h $(srcdir)/util-internal.h \
  $(srcdir)/dnssec.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/wire2str.h \
- $(srcdir)/gldns/keyraw.h $(srcdir)/gldns/parseutil.h $(srcdir)/general.h $(srcdir)/dict.h $(srcdir)/list.h \
- $(srcdir)/util/val_secalgo.h $(srcdir)/util/orig-headers/val_secalgo.h
+ $(srcdir)/gldns/keyraw.h $(srcdir)/openssl/keyraw-internal.h $(srcdir)/gldns/parseutil.h $(srcdir)/general.h \
+ $(srcdir)/dict.h $(srcdir)/list.h $(srcdir)/util/val_secalgo.h $(srcdir)/util/orig-headers/val_secalgo.h
 general.lo general.o: $(srcdir)/general.c config.h \
  $(srcdir)/general.h getdns/getdns.h \
  $(srcdir)/types-internal.h \
@@ -447,7 +447,7 @@ gbuffer.lo gbuffer.o: $(srcdir)/gldns/gbuffer.c \
  config.h $(srcdir)/gldns/gbuffer.h
 keyraw.lo keyraw.o: $(srcdir)/gldns/keyraw.c \
  config.h $(srcdir)/gldns/keyraw.h \
- $(srcdir)/gldns/rrdef.h
+ $(srcdir)/openssl/keyraw-internal.h
 parse.lo parse.o: $(srcdir)/gldns/parse.c \
  config.h $(srcdir)/gldns/parse.h \
  $(srcdir)/gldns/parseutil.h $(srcdir)/gldns/gbuffer.h
@@ -463,7 +463,7 @@ str2wire.lo str2wire.o: $(srcdir)/gldns/str2wire.c \
 wire2str.lo wire2str.o: $(srcdir)/gldns/wire2str.c \
  config.h $(srcdir)/gldns/wire2str.h \
  $(srcdir)/gldns/str2wire.h $(srcdir)/gldns/rrdef.h $(srcdir)/gldns/pkthdr.h $(srcdir)/gldns/parseutil.h \
- $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/keyraw.h
+ $(srcdir)/gldns/gbuffer.h $(srcdir)/gldns/keyraw.h $(srcdir)/openssl/keyraw-internal.h
 arc4_lock.lo arc4_lock.o: $(srcdir)/compat/arc4_lock.c \
  config.h
 arc4random.lo arc4random.o: $(srcdir)/compat/arc4random.c \
@@ -509,6 +509,9 @@ rbtree.lo rbtree.o: $(srcdir)/util/rbtree.c \
  $(srcdir)/util/auxiliary/util/fptr_wlist.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/orig-headers/rbtree.h
 jsmn.lo jsmn.o: $(srcdir)/jsmn/jsmn.c $(srcdir)/jsmn/jsmn.h
+keyraw-internal.lo keyraw-internal.o: $(srcdir)/openssl/keyraw-internal.c \
+ config.h $(srcdir)/gldns/keyraw.h \
+ $(srcdir)/openssl/keyraw-internal.h $(srcdir)/gldns/rrdef.h
 pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/openssl/pubkey-pinning.c \
  config.h $(srcdir)/debug.h \
  getdns/getdns.h $(srcdir)/context.h \
@@ -533,7 +536,7 @@ val_secalgo.lo val_secalgo.o: $(srcdir)/openssl/val_secalgo.c \
  $(srcdir)/util/orig-headers/val_secalgo.h $(srcdir)/util/auxiliary/validator/val_nsec3.h \
  $(srcdir)/util/auxiliary/util/log.h $(srcdir)/debug.h $(srcdir)/util/auxiliary/sldns/rrdef.h \
  $(srcdir)/gldns/rrdef.h $(srcdir)/util/auxiliary/sldns/keyraw.h $(srcdir)/gldns/keyraw.h \
- $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
+ $(srcdir)/openssl/keyraw-internal.h $(srcdir)/util/auxiliary/sldns/sbuffer.h $(srcdir)/gldns/gbuffer.h
 yxml.lo yxml.o: $(srcdir)/yxml/yxml.c $(srcdir)/yxml/yxml.h
 libev.lo libev.o: $(srcdir)/extension/libev.c \
  config.h $(srcdir)/types-internal.h \
