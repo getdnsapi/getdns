@@ -194,7 +194,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <openssl/sha.h>
 #include "getdns/getdns.h"
 #include "context.h"
 #include "util-internal.h"
