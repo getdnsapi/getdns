@@ -399,7 +399,7 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
 	int sread;
 
 	if (!conn || !conn->ssl || !read)
-		return -GETDNS_RETURN_INVALID_PARAMETER;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	ERR_clear_error();
 	sread = SSL_read(conn->ssl, buf, to_read);
@@ -425,7 +425,7 @@ getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8
 	int swritten;
 
 	if (!conn || !conn->ssl || !written)
-		return -GETDNS_RETURN_INVALID_PARAMETER;
+		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	ERR_clear_error();
 	swritten = SSL_write(conn->ssl, buf, to_write);
