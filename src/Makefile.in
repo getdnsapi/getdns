@@ -525,7 +525,7 @@ pubkey-pinning.lo pubkey-pinning.o: $(srcdir)/openssl/pubkey-pinning.c \
  $(srcdir)/extension/default_eventloop.h $(srcdir)/extension/poll_eventloop.h \
  $(srcdir)/types-internal.h $(srcdir)/ub_loop.h $(srcdir)/server.h $(srcdir)/rr-iter.h $(srcdir)/rr-dict.h $(srcdir)/gldns/gbuffer.h \
  $(srcdir)/gldns/pkthdr.h $(srcdir)/anchor.h $(srcdir)/tls.h $(srcdir)/openssl/tls-internal.h $(srcdir)/util-internal.h \
- $(srcdir)/context.h
+ $(srcdir)/context.h $(srcdir)/openssl/pubkey-pinning-internal.h
 tls.lo tls.o: $(srcdir)/openssl/tls.c config.h \
  $(srcdir)/debug.h $(srcdir)/context.h \
  getdns/getdns.h \

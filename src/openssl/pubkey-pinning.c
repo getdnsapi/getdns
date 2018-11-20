@@ -56,6 +56,8 @@
 #include "context.h"
 #include "util-internal.h"
 
+#include "pubkey-pinning-internal.h"
+
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #define X509_STORE_CTX_get0_untrusted(store) store->untrusted
 #endif
