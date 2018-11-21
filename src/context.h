@@ -200,16 +200,21 @@ typedef struct getdns_upstream {
 	getdns_network_req      *write_queue_last;
 	_getdns_rbtree_t         netreq_by_query_id;
 
-    /* TLS specific connection handling*/
+	/* TLS specific connection handling */
 	SSL*                     tls_obj;
 	SSL_SESSION*             tls_session;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_auth_state_t      tls_auth_state;
 	unsigned                 tls_fallback_ok : 1;
+
+	/* TLS settings */
 	char                    *tls_cipher_list;
 	char                    *tls_ciphersuites;
 	char                    *tls_curves_list;
-	/* Auth credentials*/
+	getdns_tls_version_t     tls_min_version;
+	getdns_tls_version_t     tls_max_version;
+
+	/* Auth credentials */
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
 
@@ -353,6 +358,8 @@ struct getdns_context {
 	char                 *tls_cipher_list;
 	char                 *tls_ciphersuites;
 	char                 *tls_curves_list;
+	getdns_tls_version_t  tls_min_version;
+	getdns_tls_version_t  tls_max_version;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
@@ -360,7 +367,7 @@ struct getdns_context {
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
 	uint8_t              round_robin_upstreams;
-    uint16_t             max_backoff_value;
+	uint16_t             max_backoff_value;
 	uint16_t             tls_backoff_time;
 	uint16_t             tls_connection_retries;
 

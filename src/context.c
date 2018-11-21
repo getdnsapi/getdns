@@ -1079,6 +1079,8 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_cipher_list = NULL;
 	upstream->tls_ciphersuites = NULL;
 	upstream->tls_curves_list = NULL;
+	upstream->tls_min_version = (getdns_tls_version_t)0;
+	upstream->tls_max_version = (getdns_tls_version_t)0;
 	upstream->transport = GETDNS_TRANSPORT_TCP;
 	upstream->tls_hs_state = GETDNS_HS_NONE;
 	upstream->tls_auth_name[0] = '\0';
@@ -1597,6 +1599,8 @@ getdns_context_create_with_extended_memory_functions(
 	result->tls_cipher_list = NULL;
 	result->tls_ciphersuites = NULL;
 	result->tls_curves_list = NULL;
+	result->tls_min_version = GETDNS_TLS1_2;
+	result->tls_max_version = (getdns_tls_version_t)0;
 
 	(void) memset(&result->root_ksk, 0, sizeof(result->root_ksk));
 
@@ -3090,6 +3094,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				getdns_bindata *tls_cipher_list = NULL;
 				getdns_bindata *tls_ciphersuites = NULL;
 				getdns_bindata *tls_curves_list = NULL;
+				uint32_t        tls_version;
 
 				if ((r = getdns_dict_get_bindata(
 				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
@@ -3137,16 +3142,17 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				(void) getdns_dict_get_bindata(
 				    dict, "tls_curves_list", &tls_curves_list);
 				if (tls_curves_list) {
-#if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
 					upstream->tls_curves_list = 
 					    _getdns_strdup2(&upstreams->mf
 					                   , tls_curves_list);
-#else
-					freeaddrinfo(ai);
-					goto not_implemented;
-#endif
 				} else
 					upstream->tls_curves_list = NULL;
+				if (!getdns_dict_get_int(
+				    dict, "tls_min_version", &tls_version))
+					upstream->tls_min_version = tls_version;
+				if (!getdns_dict_get_int(
+				    dict, "tls_max_version", &tls_version))
+					upstream->tls_max_version = tls_version;
 			}
 			if ((upstream->tsig_alg = tsig_alg)) {
 				if (tsig_name) {
@@ -3715,9 +3721,17 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 
-#  ifdef HAVE_SSL_CTX_SET_MIN_PROTO_VERSION
-			if (!SSL_CTX_set_min_proto_version(
-			    context->tls_ctx, TLS1_2_VERSION)) {
+#  if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+			fprintf(stderr, "SSL_CTX_set_min_proto_version(%d)\n", context->tls_min_version);
+			if (!SSL_CTX_set_min_proto_version(context->tls_ctx,
+			    _getdns_tls_version2openssl_version(context->tls_min_version))) {
+				SSL_CTX_free(context->tls_ctx);
+				context->tls_ctx = NULL;
+				return GETDNS_RETURN_BAD_CONTEXT;
+			}
+			if (context->tls_max_version
+			&& !SSL_CTX_set_max_proto_version(context->tls_ctx,
+			    _getdns_tls_version2openssl_version(context->tls_max_version))) {
 				SSL_CTX_free(context->tls_ctx);
 				context->tls_ctx = NULL;
 				return GETDNS_RETURN_BAD_CONTEXT;
@@ -3729,7 +3743,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			    context->tls_cipher_list ? context->tls_cipher_list
 			                             : _getdns_default_tls_cipher_list))
 				return GETDNS_RETURN_BAD_CONTEXT;
-#  if defined(HAVE_DECL_SSL_CTX_SET_CIPHERSUITES) && HAVE_DECL_SSL_CTX_SET_CIPHERSUITES
+#  ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
 			if (!SSL_CTX_set_ciphersuites(context->tls_ctx,
 			    context->tls_ciphersuites ? context->tls_ciphersuites
 			                             : _getdns_default_tls_ciphersuites))
@@ -4083,6 +4097,12 @@ _get_context_settings(getdns_context* context)
 		(void) getdns_dict_util_set_string(result, "tls_ciphersuites", str_value);
 	if (!getdns_context_get_tls_curves_list(context, &str_value) && str_value)
 		(void) getdns_dict_util_set_string(result, "tls_curves_list", str_value);
+	if (context->tls_min_version)
+		(void) getdns_dict_set_int( result, "tls_min_version"
+		                          , context->tls_min_version);
+	if (context->tls_max_version)
+		(void) getdns_dict_set_int( result, "tls_max_version"
+		                          , context->tls_max_version);
 
 	/* Default settings for extensions */
 	(void)getdns_dict_set_int(
@@ -4701,6 +4721,16 @@ getdns_context_get_upstream_recursive_servers(getdns_context *context,
 					    d, "tls_curves_list",
 					    upstream->tls_curves_list);
 				}
+				if (upstream->tls_min_version) {
+					(void) getdns_dict_set_int(
+					    d, "tls_min_version",
+					    upstream->tls_min_version);
+				}
+				if (upstream->tls_max_version) {
+					(void) getdns_dict_set_int(
+					    d, "tls_max_version",
+					    upstream->tls_max_version);
+				}
 			}
 		}
 		if (!r)
@@ -4923,6 +4953,8 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(tls_cipher_list)
 	CONTEXT_SETTING_STRING(tls_ciphersuites)
 	CONTEXT_SETTING_STRING(tls_curves_list)
+	CONTEXT_SETTING_INT(tls_min_version)
+	CONTEXT_SETTING_INT(tls_max_version)
 
 	/**************************************/
 	/****                              ****/
@@ -5577,6 +5609,48 @@ getdns_context_get_tls_curves_list(
 	if (!context || !tls_curves_list)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	*tls_curves_list = context->tls_curves_list;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_tls_min_version(
+    getdns_context *context, getdns_tls_version_t tls_min_version)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	context->tls_min_version = tls_min_version;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_MIN_VERSION);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_min_version(
+    getdns_context *context, getdns_tls_version_t *tls_min_version)
+{
+	if (!context || !tls_min_version)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	*tls_min_version = context->tls_min_version;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_tls_max_version(
+    getdns_context *context, getdns_tls_version_t tls_max_version)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	context->tls_max_version = tls_max_version;
+	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_MAX_VERSION);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_tls_max_version(
+    getdns_context *context, getdns_tls_version_t *tls_max_version)
+{
+	if (!context || !tls_max_version)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	*tls_max_version = context->tls_max_version;
 	return GETDNS_RETURN_GOOD;
 }
 

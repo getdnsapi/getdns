@@ -1,4 +1,15 @@
 * 2018-0?-??: Version 1.4.3
+  * Enhancement getdnsapi/stubby#56 & getdnsapi/stubby#130:
+    Configurable minimum and maximum TLS versions with
+    getdns_context_set_tls_min_version() and
+    getdns_context_set_tls_max_version() functions and
+    tls_min_version and tls_max_version configuration parameters
+    for upstreams.
+  * Configurable TLS1.3 ciphersuites with the
+    getdns_context_set_tls_ciphersuites() function and
+    tls_ciphersuites config parameter for upstreams.
+  * Bugfix in upstream string configurations: tls_cipher_list and
+    tls_curve_list
   * Bugfix finding signer for validating NSEC and NSEC3s, which
     caused trouble with the partly tracing DNSSEC from the root
     up, introduced in 1.4.2.  Thanks Philip Homburg

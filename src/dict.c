@@ -1078,6 +1078,8 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "transport") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0 ||
 			     strcmp(item->node.key, "tls_authentication") == 0 ||
+			     strcmp(item->node.key, "tls_min_version") == 0 ||
+			     strcmp(item->node.key, "tls_max_version") == 0 ||
 
 			     /* extensions */
 			     strcmp(item->node.key, "add_warning_for_bad_dns") == 0 ||

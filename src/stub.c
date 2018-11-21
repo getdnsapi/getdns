@@ -931,8 +931,50 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		return NULL;
 	}
 #if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
-	if (upstream->tls_curves_list)
-		(void) SSL_set1_curves_list(ssl, upstream->tls_curves_list);
+	if (upstream->tls_curves_list
+	&& !SSL_set1_curves_list(ssl, upstream->tls_curves_list)) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_curves_list"
+		    "\"%s\"\n", upstream->addr_str, upstream->tls_curves_list);
+	}
+#endif
+#ifdef HAVE_SSL_SET_CIPHERSUITES
+	if (upstream->tls_ciphersuites &&
+	   !SSL_set_ciphersuites(ssl, upstream->tls_ciphersuites)) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_ciphersuites "
+		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
+	}
+#endif
+#ifdef defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+	if (upstream->tls_min_version && !SSL_set_min_proto_version(ssl,
+	    _getdns_tls_version2openssl_version(upstream->tls_min_version))) {
+		struct const_info *ci = _getdns_get_const_info(int value);
+		if (ci && *ci->name)
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_min_version \"%s\"\n", upstream->addr_str,
+			    ci->name);
+		else
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_min_version \"%d\"\n", upstream->addr_str,
+			    upstream->tls_min_version);
+	}
+	if (upstream->tls_max_version && !SSL_set_max_proto_version(ssl,
+	    _getdns_tls_version2openssl_version(upstream->tls_max_version))) {
+		struct const_info *ci = _getdns_get_const_info(int value);
+		if (ci && *ci->name)
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_max_version \"%s\"\n", upstream->addr_str,
+			    ci->name);
+		else
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_max_version \"%d\"\n", upstream->addr_str,
+			    upstream->tls_max_version);
+	}
 #endif
 	/* make sure we'll be able to find the context again when we need it */
 	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
@@ -1016,14 +1058,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
 	}
-#if defined(HAVE_DECL_SSL_SET_CIPHERSUITES) && HAVE_DECL_SSL_SET_CIPHERSUITES
-	if (upstream->tls_ciphersuites &&
-	   !SSL_set_ciphersuites(ssl, upstream->tls_ciphersuites)) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : Error configuring ciphersuites "
-		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
-	}
-#endif
 #if defined(HAVE_SSL_DANE_ENABLE)
 	int osr;
 # if defined(STUB_DEBUG) && STUB_DEBUG

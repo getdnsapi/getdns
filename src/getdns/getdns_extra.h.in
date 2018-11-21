@@ -104,6 +104,11 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TLS_CURVES_LIST_TEXT "Change related to getdns_context_set_tls_curves_list"
 #define GETDNS_CONTEXT_CODE_TLS_CIPHERSUITES 635
 #define GETDNS_CONTEXT_CODE_TLS_CIPHERSUITES_TEXT "Change related to getdns_context_set_tls_ciphersuites"
+#define GETDNS_CONTEXT_CODE_TLS_MIN_VERSION 636
+#define GETDNS_CONTEXT_CODE_TLS_MIN_VERSION_TEXT "Change related to getdns_context_set_tls_min_version"
+#define GETDNS_CONTEXT_CODE_TLS_MAX_VERSION 637
+#define GETDNS_CONTEXT_CODE_TLS_MAX_VERSION_TEXT "Change related to getdns_context_set_tls_max_version"
+
 
 
 /** @}
@@ -782,6 +787,80 @@ getdns_context_set_tls_ciphersuites(
 getdns_return_t
 getdns_context_set_tls_curves_list(
     getdns_context *context, const char *curves_list);
+
+typedef enum getdns_tls_version_t {
+	GETDNS_SSL3 = 1400,
+	GETDNS_TLS1 = 1401,
+	GETDNS_TLS1_1 = 1402,
+	GETDNS_TLS1_2 = 1403,
+	GETDNS_TLS1_3 = 1404
+} getdns_tls_version_t;
+
+#define GETDNS_SSL3_TEXT   "See getdns_context_(set|get)_tls_(min|max)_version()"
+#define GETDNS_TLS1_TEXT   "See getdns_context_(set|get)_tls_(min|max)_version()"
+#define GETDNS_TLS1_1_TEXT "See getdns_context_(set|get)_tls_(min|max)_version()"
+#define GETDNS_TLS1_2_TEXT "See getdns_context_(set|get)_tls_(min|max)_version()"
+#define GETDNS_TLS1_3_TEXT "See getdns_context_(set|get)_tls_(min|max)_version()"
+
+/**
+ * Configure context for minimum supported TLS version.
+ * @see getdns_context_set_tls_max_version
+ * @see getdns_context_get_tls_min_version
+ * @param context The context to configure
+ * @param min_version is one of GETDNS_SSL3, GETDNS_TLS1, GETDNS_TLS1_1,
+ *                    GETDNS_TLS1_2, GETDNS_TLS1_3
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
+getdns_return_t
+getdns_context_set_tls_min_version(
+    getdns_context *context, getdns_tls_version_t min_version);
+
+/**
+ * Get configured minimum supported TLS version.
+ * @see getdns_context_get_tls_max_version
+ * @see getdns_context_set_tls_min_version
+ * @param context The context to configure
+ * @param min_version is one of GETDNS_SSL3, GETDNS_TLS1, GETDNS_TLS1_1,
+ *                    GETDNS_TLS1_2, GETDNS_TLS1_3
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
+getdns_return_t
+getdns_context_get_tls_min_version(
+    getdns_context *context, getdns_tls_version_t *min_version);
+
+/**
+ * Configure context for maximum supported TLS version.
+ * @see getdns_context_set_tls_min_version
+ * @see getdns_context_get_tls_max_version
+ * @param context The context to configure
+ * @param max_version is one of GETDNS_SSL3, GETDNS_TLS1, GETDNS_TLS1_1,
+ *                    GETDNS_TLS1_2, GETDNS_TLS1_3
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
+getdns_return_t
+getdns_context_set_tls_max_version(
+    getdns_context *context, getdns_tls_version_t max_version);
+
+/**
+ * Get configured maximum supported TLS version.
+ * @see getdns_context_get_tls_min_version
+ * @see getdns_context_set_tls_max_version
+ * @param context The context to configure
+ * @param max_version is one of GETDNS_SSL3, GETDNS_TLS1, GETDNS_TLS1_1,
+ *                    GETDNS_TLS1_2, GETDNS_TLS1_3
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null or value has an
+ *         invalid value.
+ */
+getdns_return_t
+getdns_context_get_tls_max_version(
+    getdns_context *context, getdns_tls_version_t *max_version);
 
 /**
  * Get the current resolution type setting from this context.
