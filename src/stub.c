@@ -58,6 +58,7 @@
 #ifdef USE_DANESSL
 # include "ssl_dane/danessl.h"
 #endif
+#include "const-info.h"
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -946,10 +947,11 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
 	}
 #endif
-#ifdef defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
 	if (upstream->tls_min_version && !SSL_set_min_proto_version(ssl,
 	    _getdns_tls_version2openssl_version(upstream->tls_min_version))) {
-		struct const_info *ci = _getdns_get_const_info(int value);
+		struct const_info *ci =
+		    _getdns_get_const_info(upstream->tls_min_version);
 		if (ci && *ci->name)
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
 			    GETDNS_LOG_ERR, "%-40s : Error configuring "
@@ -963,7 +965,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	}
 	if (upstream->tls_max_version && !SSL_set_max_proto_version(ssl,
 	    _getdns_tls_version2openssl_version(upstream->tls_max_version))) {
-		struct const_info *ci = _getdns_get_const_info(int value);
+		struct const_info *ci =
+		    _getdns_get_const_info(upstream->tls_max_version);
 		if (ci && *ci->name)
 			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
 			    GETDNS_LOG_ERR, "%-40s : Error configuring "
