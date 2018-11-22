@@ -3095,6 +3095,9 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				getdns_bindata *tls_ciphersuites = NULL;
 				getdns_bindata *tls_curves_list = NULL;
 				uint32_t        tls_version;
+				/* Missing support in TLS library is
+				 * detected and reported during connection setup.
+				 */
 
 				if ((r = getdns_dict_get_bindata(
 				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
@@ -3190,11 +3193,6 @@ invalid_parameter:
 error:
 	_getdns_upstreams_dereference(upstreams);
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
-#if !defined(HAVE_DECL_SSL_SET1_CURVES_LIST) || !HAVE_DECL_SSL_SET1_CURVES_LIST
-not_implemented:
-	_getdns_upstreams_dereference(upstreams);
-	return GETDNS_RETURN_NOT_IMPLEMENTED;
-#endif
 } /* getdns_context_set_upstream_recursive_servers */
 
 
@@ -3721,8 +3719,8 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			if(context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 
-#  if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
-			fprintf(stderr, "SSL_CTX_set_min_proto_version(%d)\n", context->tls_min_version);
+#  if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
+           && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
 			if (!SSL_CTX_set_min_proto_version(context->tls_ctx,
 			    _getdns_tls_version2openssl_version(context->tls_min_version))) {
 				SSL_CTX_free(context->tls_ctx);
@@ -3736,6 +3734,14 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				context->tls_ctx = NULL;
 				return GETDNS_RETURN_BAD_CONTEXT;
 			}
+#  else
+#   ifndef HAVE_TLS_CLIENT_METHOD
+			if ((  context->tls_min_version
+			    && context->tls_min_version != GETDNS_TLS1_2)
+			||     context->tls_max_version) {
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
+			}
+#   endif
 #  endif
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
@@ -3748,11 +3754,17 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			    context->tls_ciphersuites ? context->tls_ciphersuites
 			                             : _getdns_default_tls_ciphersuites))
 				return GETDNS_RETURN_BAD_CONTEXT;
+#  else
+			if (context->tls_ciphersuites)
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
 #  endif
 #  if defined(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST) && HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
 			if (context->tls_curves_list &&
 			    !SSL_CTX_set1_curves_list(context->tls_ctx, context->tls_curves_list))
 				return GETDNS_RETURN_BAD_CONTEXT;
+#  else
+			if (context->tls_curves_list)
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
 #  endif
 			/* For strict authentication, we must have local root certs available
 		       Set up is done only when the tls_ctx is created (per getdns_context)*/

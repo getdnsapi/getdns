@@ -935,8 +935,18 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	if (upstream->tls_curves_list
 	&& !SSL_set1_curves_list(ssl, upstream->tls_curves_list)) {
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_curves_list"
+		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_curves_list "
 		    "\"%s\"\n", upstream->addr_str, upstream->tls_curves_list);
+		SSL_free(ssl);
+		return NULL;
+	}
+#else
+	if (upstream->tls_curves_list) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_curves_list not supported "
+		    "in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
 	}
 #endif
 #ifdef HAVE_SSL_SET_CIPHERSUITES
@@ -946,8 +956,17 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_ciphersuites "
 		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
 	}
+#else
+	if (upstream->tls_ciphersuites) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_ciphersuites not "
+		    "supported in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
+	}
 #endif
-#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
+         && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
 	if (upstream->tls_min_version && !SSL_set_min_proto_version(ssl,
 	    _getdns_tls_version2openssl_version(upstream->tls_min_version))) {
 		struct const_info *ci =
@@ -977,6 +996,21 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			    GETDNS_LOG_ERR, "%-40s : Error configuring "
 			    "tls_max_version \"%d\"\n", upstream->addr_str,
 			    upstream->tls_max_version);
+	}
+#else
+	if (upstream->tls_min_version) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_min_version not "
+		    "supported in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
+	}
+	if (upstream->tls_max_version) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_max_version not "
+		    "supported in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
 	}
 #endif
 	/* make sure we'll be able to find the context again when we need it */
