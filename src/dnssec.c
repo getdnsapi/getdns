@@ -2606,7 +2606,7 @@ static int chain_node_get_trusted_keys(
 			*keys = ta;
 			return GETDNS_DNSSEC_SECURE;
 		}
-		/* ta is parent's ZSK */
+		/* ta is parent's ZSK proving insecurity below this node? */
 		if ((keytag = key_proves_nonexistance(
 		    mf, now, skew, ta, &node->ds, &opt_out))) {
 			node->ds_signer = keytag;
@@ -2621,12 +2621,18 @@ static int chain_node_get_trusted_keys(
 			 * key_proves_nonexistance() will set opt_out also for
 			 * these conditions.
 			 */
-			return opt_out ? GETDNS_DNSSEC_INSECURE
-			               : GETDNS_DNSSEC_SECURE;
-		}
-		if ((keytag = a_key_signed_rrset_no_wc(
+			if (opt_out)
+				return GETDNS_DNSSEC_INSECURE;
+
+			/* If this is not an insecurity proof,
+			 * continue searching one label up.
+			 */
+
+		/* ta is parent's ZSK authenticating DS? */
+		} else if ((keytag = a_key_signed_rrset_no_wc(
 					mf, now, skew, ta, &node->ds))) {
 			node->ds_signer = keytag;
+			/* DS should authenticate the DNSKEY rrset now */
 			if ((keytag = ds_authenticates_keys(
 			    mf, now, skew, &node->ds, &node->dnskey))) {
 				*keys = &node->dnskey;
@@ -2635,6 +2641,7 @@ static int chain_node_get_trusted_keys(
 				     ? GETDNS_DNSSEC_INSECURE
 				     : GETDNS_DNSSEC_SECURE;
 			}
+			/* DS without DNSKEY rrset == BOGUS */
 			return GETDNS_DNSSEC_BOGUS;
 		}
 	} else

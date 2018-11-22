@@ -1,4 +1,8 @@
 * 2018-0?-??: Version 1.4.3
+  * Fix for DNSSEC bug in finding most specific key when
+    trust anchor proves non-existance of one of the labels
+    along the authentication chain other than the non-
+    existance of a DS record on a zonecut.
   * Enhancement getdnsapi/stubby#56 & getdnsapi/stubby#130:
     Configurable minimum and maximum TLS versions with
     getdns_context_set_tls_min_version() and
