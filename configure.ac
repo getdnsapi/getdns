@@ -399,11 +399,26 @@ yes)
 	;;
 esac
 
+# Which TLS and crypto libs to use.
+AC_ARG_WITH([gnutls],
+    [AS_HELP_STRING([--with-gnutls],
+        [use GnuTLS instead of OpenSSL])],
+    [
+        PKG_CHECK_MODULES([libgnutls], [gnutls >= 3.5.0])
+        LIBS="$libgnutls_LIBS $LIBS"
+        CFLAGS="$libgnutls_CFLAGS $CFLAGS"
+        AC_SUBST([TLSDIR], 'gnutls')
+        AC_DEFINE([USE_GNUTLS], [1], [Use the GnuTLS library])
+    ],
+    [
+        ACX_WITH_SSL_OPTIONAL
+        ACX_LIB_SSL
+        AC_SUBST([TLSDIR], 'openssl')
+    ])
+
 USE_NSS="no"
 # openssl
 if test $USE_NSS = "no"; then
-ACX_WITH_SSL_OPTIONAL
-ACX_LIB_SSL
 AC_MSG_CHECKING([for LibreSSL])
 if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
 	AC_MSG_RESULT([yes])

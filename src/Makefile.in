@@ -52,11 +52,12 @@ INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 
 srcdir = @srcdir@
+tlsdir = @TLSDIR@
 stubbysrcdir = $(srcdir)/../stubby
 LIBTOOL = ../libtool
 
 CC=@CC@
-CFLAGS=-I$(srcdir) -I. -I$(srcdir)/util/auxiliary -I$(srcdir)/openssl -I$(stubbysrcdir)/src @CFLAGS@ @CPPFLAGS@ $(XTRA_CFLAGS)
+CFLAGS=-I$(srcdir) -I. -I$(srcdir)/util/auxiliary -I$(srcdir)/$(tlsdir) -I$(stubbysrcdir)/src @CFLAGS@ @CPPFLAGS@ $(XTRA_CFLAGS)
 WPEDANTICFLAG=@WPEDANTICFLAG@
 WNOERRORFLAG=@WNOERRORFLAG@
 LDFLAGS=@LDFLAGS@ @LIBS@
@@ -134,7 +135,7 @@ $(JSMN_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -DJSMN_GETDNS -c $(srcdir)/jsmn/$(@:.lo=.c) -o $@
 
 $(TLS_OBJ):
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/openssl/$(@:.lo=.c) -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(srcdir)/$(tlsdir)/$(@:.lo=.c) -o $@
 
 $(YAML_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) -c $(stubbysrcdir)/src/yaml/$(@:.lo=.c) -o $@
@@ -146,7 +147,7 @@ $(EXTENSION_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/extension/$(@:.lo=.c) -o $@
 
 anchor.lo:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/openssl/anchor.c -o anchor.lo
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/$(tlsdir)/anchor.c -o anchor.lo
 
 context.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/context.c -o context.lo
@@ -271,14 +272,14 @@ Makefile: $(srcdir)/Makefile.in ../config.status
 depend:
 	(cd $(srcdir) ; awk 'BEGIN{P=1}{if(P)print}/^# Dependencies/{P=0}' Makefile.in > Makefile.in.new )
 
-	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -Iopenssl -Iyxml -Iutil/auxiliary -I../stubby/src *.c gldns/*.c compat/*.c util/*.c jsmn/*.c openssl/*.c yxml/*.c extension/*.c ../stubby/src/*.c | \
+	(blddir=`pwd`; cd $(srcdir) ; gcc -MM -I. -I"$$blddir" -I$(tlsdir) -Iyxml -Iutil/auxiliary -I../stubby/src *.c gldns/*.c compat/*.c util/*.c jsmn/*.c $(tlsdir)/*.c yxml/*.c extension/*.c ../stubby/src/*.c | \
 		sed -e "s? $$blddir/? ?g" \
 		    -e 's? gldns/? $$(srcdir)/gldns/?g' \
 		    -e 's? compat/? $$(srcdir)/compat/?g' \
 		    -e 's? util/auxiliary/util/? $$(srcdir)/util/auxiliary/util/?g' \
 		    -e 's? util/? $$(srcdir)/util/?g' \
 		    -e 's? jsmn/? $$(srcdir)/jsmn/?g' \
-		    -e 's? openssl/? $$(srcdir)/openssl/?g' \
+		    -e 's? $$(tlsdir)/? $$(srcdir)/$$(tlsdir)/?g' \
 		    -e 's? yxml/? $$(srcdir)/yxml/?g' \
 		    -e 's? extension/? $$(srcdir)/extension/?g' \
 		    -e 's? \.\./stubby/? $$(stubbysrcdir)/?g' \
