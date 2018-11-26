@@ -47,23 +47,146 @@ typedef struct sha256_pin sha256_pin_t;
 #define GETDNS_RETURN_TLS_WANT_WRITE		((getdns_return_t) 421)
 #define GETDNS_RETURN_TLS_CONNECTION_FRESH	((getdns_return_t) 422)
 
+/**
+ * Global initialisation of the TLS interface.
+ */
 void _getdns_tls_init();
 
+/**
+ * Create a new TLS context.
+ *
+ * @return pointer to new context or NULL on error.
+ */
 _getdns_tls_context* _getdns_tls_context_new();
+
+/**
+ * Free a TLS context.
+ *
+ * @param ctx	the context to free.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if <code>ctx</code> is invalid.
+ */
 getdns_return_t _getdns_tls_context_free(_getdns_tls_context* ctx);
 
+/**
+ * Set TLS 1.2 as minimum TLS version.
+ *
+ * @param ctx	the context.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_NOT_IMPLEMENTED if not implemented.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
 getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx);
+
+/**
+ * Set list of allowed ciphers.
+ *
+ * @param ctx	the context.
+ * @param list 	the list of cipher identifiers.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
 getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, const char* list);
+
+/**
+ * Set list of allowed curves.
+ *
+ * @param ctx	the context.
+ * @param list 	the list of curve identifiers.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
 getdns_return_t _getdns_tls_context_set_curves_list(_getdns_tls_context* ctx, const char* list);
+
+
+/**
+ * Set certificate authority details.
+ *
+ * Load CA from either a file or a directory. If both <code>file</code>
+ * and <code>path</code> are <code>NULL</code>, use default locations.
+ *
+ * @param ctx	the context.
+ * @param file	a file of CA certificates in PEM format.
+ * @param path	a directory containing CA certificates in PEM format.
+ * 		Files are looked up by CA subject name hash value.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_GENERIC_ERROR on failure.
+ */
 getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char* file, const char* path);
 
+/**
+ * Create a new TLS connection and associate it with a file descriptior.
+ *
+ * @param ctx	the context.
+ * @param fd	the file descriptor to associate with the connection.
+ * @return pointer to new connection or NULL on error.
+ */
 _getdns_tls_connection* _getdns_tls_connection_new(_getdns_tls_context* ctx, int fd);
+
+/**
+ * Free a TLS connection.
+ *
+ * @param conn	the connection to free.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if <code>conn</code> is invalid.
+ */
 getdns_return_t _getdns_tls_connection_free(_getdns_tls_connection* ctx);
+
+/**
+ * Shut down a TLS connection.
+ *
+ * @param conn	the connection to shut down.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if <code>conn</code> is invalid.
+ * @return GETDNS_RETURN_CONTEXT_UPDATE_FAIL if shutdown is not finished,
+ * 	   and this routine should be called again.
+ * @return GETDNS_RETURN_GENERIC_ERROR on error.
+ */
 getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn);
 
+/**
+ * Set list of allowed ciphers on this connection.
+ *
+ * @param conn	the connection.
+ * @param list 	the list of cipher identifiers.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad connection pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
 getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* conn, const char* list);
+
+/**
+ * Set list of allowed curves on this connection.
+ *
+ * @param conn	the connection.
+ * @param list 	the list of curve identifiers.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad connection pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
 getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* conn, const char* list);
+
+/**
+ * Set the session for this connection.
+ *
+ * @param conn	the connection.
+ * @param s 	the session.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad connection pointer.
+ * @return GETDNS_RETURN_GENERIC_ERROR on failure.
+ */
 getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s);
+
+/**
+ * Get the session for this connection.
+ *
+ * @param conn	the connection.
+ * @return pointer to the session or NULL on error.
+ */
 _getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* conn);
 
 /**
@@ -184,6 +307,13 @@ void _getdns_tls_x509_free(_getdns_tls_x509* cert);
  */
 int _getdns_tls_x509_to_der(_getdns_tls_x509* cert, uint8_t** buf);
 
+/**
+ * Fill in dictionary with TLS API information.
+ *
+ * @param dict	the dictionary to add to.
+ * @return GETDNS_RETURN_GOOD if some bytes were read.
+ * @return GETDNS_RETURN_GENERIC_ERROR if items cannot be set.
+ */
 getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict);
 
 #endif /* _GETDNS_TLS_H */
