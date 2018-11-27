@@ -216,6 +216,18 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 	return GETDNS_RETURN_GOOD;
 }
 
+void _getdns_tls_context_dane_init(_getdns_tls_context* ctx)
+{
+#   if defined(STUB_DEBUG) && STUB_DEBUG
+	int osr =
+#   else
+	(void)
+#   endif
+		SSL_CTX_dane_enable(ctx->ssl);
+		DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
+		          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+}
+
 getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx)
 {
 #ifdef HAVE_SSL_CTX_SET_MIN_PROTO_VERSION

@@ -3572,14 +3572,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}
-#   if defined(STUB_DEBUG) && STUB_DEBUG
-			int osr =
-#   else
-			(void)
-#   endif
-				SSL_CTX_dane_enable(context->tls_ctx->ssl);
-			DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
-			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			_getdns_tls_context_dane_init(context->tls_ctx);
 		}
 	}
 

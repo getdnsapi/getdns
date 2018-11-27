@@ -71,6 +71,13 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs);
 getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_context* ctx);
 
 /**
+ * Initialise any shared state for DANE checking.
+ *
+ * @param ctx	the context to initialise.
+ */
+void _getdns_tls_context_dane_init(_getdns_tls_context* ctx);
+
+/**
  * Set TLS 1.2 as minimum TLS version.
  *
  * @param ctx	the context.
@@ -102,7 +109,6 @@ getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, co
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
  */
 getdns_return_t _getdns_tls_context_set_curves_list(_getdns_tls_context* ctx, const char* list);
-
 
 /**
  * Set certificate authority details.
