@@ -933,7 +933,7 @@ _getdns_create_call_reporting_dict(
 		return NULL;
 	}
 	netreq->debug_tls_peer_cert.size = 0;
-	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	GETDNS_FREE(context->my_mf, netreq->debug_tls_peer_cert.data);
 	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }

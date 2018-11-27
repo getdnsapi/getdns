@@ -633,11 +633,11 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			}
 		}
 		if (upstream->tls_session != NULL)
-			_getdns_tls_session_free(upstream->tls_session);
+			_getdns_tls_session_free(&upstreams->mf, upstream->tls_session);
 
 		if (upstream->tls_obj != NULL) {
 			_getdns_tls_connection_shutdown(upstream->tls_obj);
-			_getdns_tls_connection_free(upstream->tls_obj);
+			_getdns_tls_connection_free(&upstreams->mf, upstream->tls_obj);
 		}
 		if (upstream->fd != -1)
 		{
@@ -750,7 +750,7 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 	}
 	if (upstream->tls_obj != NULL) {
 		_getdns_tls_connection_shutdown(upstream->tls_obj);
-		_getdns_tls_connection_free(upstream->tls_obj);
+		_getdns_tls_connection_free(&upstream->upstreams->mf, upstream->tls_obj);
 		upstream->tls_obj = NULL;
 	}
 	if (upstream->fd != -1) {
@@ -1681,7 +1681,7 @@ getdns_context_destroy(struct getdns_context *context)
 		GETDNS_FREE(context->my_mf, context->dns_transports);
 
 	if (context->tls_ctx)
-		_getdns_tls_context_free(context->tls_ctx);
+		_getdns_tls_context_free(&context->my_mf, context->tls_ctx);
 
 	getdns_list_destroy(context->dns_root_servers);
 
@@ -3544,13 +3544,13 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 		}
 
 		if (context->tls_ctx == NULL) {
-			context->tls_ctx = _getdns_tls_context_new();
+			context->tls_ctx = _getdns_tls_context_new(&context->my_mf);
 			if (context->tls_ctx == NULL)
 				return GETDNS_RETURN_BAD_CONTEXT;
 
 			r = _getdns_tls_context_set_min_proto_1_2(context->tls_ctx);
 			if (r && r != GETDNS_RETURN_NOT_IMPLEMENTED) {
-				_getdns_tls_context_free(context->tls_ctx);
+				_getdns_tls_context_free(&context->my_mf, context->tls_ctx);
 				context->tls_ctx = NULL;
 				return GETDNS_RETURN_BAD_CONTEXT;
 			}

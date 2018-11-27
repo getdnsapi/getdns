@@ -125,7 +125,7 @@ network_req_cleanup(getdns_network_req *net_req)
 		GETDNS_FREE(net_req->owner->my_mf, net_req->response);
 	if (net_req->debug_tls_peer_cert.size &&
 	    net_req->debug_tls_peer_cert.data)
-		OPENSSL_free(net_req->debug_tls_peer_cert.data);
+		GETDNS_FREE(net_req->owner->my_mf, net_req->debug_tls_peer_cert.data);
 }
 
 static uint8_t *
@@ -435,7 +435,7 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer_write_u16(&gbuf, 0);		/* Error */
 	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
 
-	md_buf = _getdns_tls_hmac_hash(upstream->tsig_alg, upstream->tsig_key, upstream->tsig_size, (void *)req->query, gldns_buffer_current(&gbuf) - req->query, &md_len);
+	md_buf = _getdns_tls_hmac_hash(&req->owner->my_mf, upstream->tsig_alg, upstream->tsig_key, upstream->tsig_size, (void *)req->query, gldns_buffer_current(&gbuf) - req->query, &md_len);
 	if (!md_buf)
 		return req->response - req->query;
 
@@ -457,7 +457,7 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer_write_u16(&gbuf, 0);		/* Error */
 	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
 
-	free(md_buf);
+	GETDNS_FREE(req->owner->my_mf, md_buf);
 
 	if (gldns_buffer_position(&gbuf) > gldns_buffer_limit(&gbuf))
 		return req->response - req->query;
@@ -595,14 +595,14 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	    gldns_read_uint16(req->response + 10) - 1);
 	gldns_write_uint16(req->response, original_id);
 
-	hmac = _getdns_tls_hmac_new(req->upstream->tsig_alg, req->upstream->tsig_key, req->upstream->tsig_size);
+	hmac = _getdns_tls_hmac_new(&req->owner->my_mf, req->upstream->tsig_alg, req->upstream->tsig_key, req->upstream->tsig_size);
 	if (!hmac)
 		return;
 
 	_getdns_tls_hmac_add(hmac, request_mac - 2, request_mac_len + 2);
 	_getdns_tls_hmac_add(hmac, req->response, rr->pos - req->response);
 	_getdns_tls_hmac_add(hmac, tsig_vars, gldns_buffer_position(&gbuf));
-	result_mac = _getdns_tls_hmac_end(hmac, &result_mac_len);
+	result_mac = _getdns_tls_hmac_end(&req->owner->my_mf, hmac, &result_mac_len);
 	if (!result_mac)
 		return;
 
@@ -611,6 +611,8 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	if (result_mac_len == response_mac_len &&
 	    memcmp(result_mac, response_mac, result_mac_len) == 0)
 		req->tsig_status = GETDNS_DNSSEC_SECURE;
+
+	GETDNS_FREE(req->owner->my_mf, result_mac);
 
 	gldns_write_uint16(req->response, gldns_read_uint16(req->query));
 	gldns_write_uint16(req->response + 10,

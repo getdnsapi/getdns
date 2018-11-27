@@ -55,18 +55,20 @@ void _getdns_tls_init();
 /**
  * Create a new TLS context.
  *
+ * @param mfs	point to getdns memory functions.
  * @return pointer to new context or NULL on error.
  */
-_getdns_tls_context* _getdns_tls_context_new();
+_getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs);
 
 /**
  * Free a TLS context.
  *
+ * @param mfs	point to getdns memory functions.
  * @param ctx	the context to free.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER if <code>ctx</code> is invalid.
  */
-getdns_return_t _getdns_tls_context_free(_getdns_tls_context* ctx);
+getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_context* ctx);
 
 /**
  * Set TLS 1.2 as minimum TLS version.
@@ -121,20 +123,22 @@ getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char*
 /**
  * Create a new TLS connection and associate it with a file descriptior.
  *
+ * @param mfs	pointer to getdns memory functions.
  * @param ctx	the context.
  * @param fd	the file descriptor to associate with the connection.
  * @return pointer to new connection or NULL on error.
  */
-_getdns_tls_connection* _getdns_tls_connection_new(_getdns_tls_context* ctx, int fd);
+_getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd);
 
 /**
  * Free a TLS connection.
  *
+ * @param mfs	pointer to getdns memory functions.
  * @param conn	the connection to free.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER if <code>conn</code> is invalid.
  */
-getdns_return_t _getdns_tls_connection_free(_getdns_tls_connection* ctx);
+getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_connection* conn);
 
 /**
  * Shut down a TLS connection.
@@ -184,10 +188,11 @@ getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn,
 /**
  * Get the session for this connection.
  *
+ * @param mfs	pointer to getdns memory functions.
  * @param conn	the connection.
  * @return pointer to the session or NULL on error.
  */
-_getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* conn);
+_getdns_tls_session* _getdns_tls_connection_get_session(struct mem_funcs* mfs, _getdns_tls_connection* conn);
 
 /**
  * Report the TLS version of the connection.
@@ -212,10 +217,11 @@ getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn
 /**
  * Get the connection peer certificate.
  *
+ * @param mfs	pointer to getdns memory functions.
  * @param conn	the connection.
  * @return certificate or NULL on error.
  */
-_getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(_getdns_tls_connection* conn);
+_getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(struct mem_funcs* mfs, _getdns_tls_connection* conn);
 
 /**
  * See whether the connection is reusing a session.
@@ -289,23 +295,32 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
  */
 getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written);
 
-getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s);
+/**
+ * Free a session.
+ *
+ * @param mfs	pointer to getdns memory functions.
+ * @param s	the session.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if s is null or has no SSL.
+ */
+getdns_return_t _getdns_tls_session_free(struct mem_funcs* mfs, _getdns_tls_session* s);
 
 /**
  * Free X509 certificate.
  *
+ * @param mfs	pointer to getdns memory functions.
  * @param cert	the certificate.
  */
-void _getdns_tls_x509_free(_getdns_tls_x509* cert);
+void _getdns_tls_x509_free(struct mem_funcs* mfs, _getdns_tls_x509* cert);
 
 /**
  * Convert X509 to DER.
  *
  * @param cert	the certificate.
- * @param buf	buffer to receive conversion. NULL to just get the length.
+ * @param buf	buffer to receive conversion.
  * @return length of conversion, 0 on error.
  */
-int _getdns_tls_x509_to_der(_getdns_tls_x509* cert, uint8_t** buf);
+int _getdns_tls_x509_to_der(struct mem_funcs* mfs, _getdns_tls_x509* cert, getdns_bindata* bindata);
 
 /**
  * Fill in dictionary with TLS API information.
@@ -319,6 +334,7 @@ getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict);
 /**
  * Return buffer with HMAC hash.
  *
+ * @param mfs		pointer to getdns memory functions.
  * @param algorithm	hash algorithm to use (<code>GETDNS_HMAC_?</code>).
  * @param key		the key.
  * @param key_size	the key size.
@@ -327,17 +343,18 @@ getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict);
  * @param output_size	the output size will be written here if not NULL.
  * @return output	malloc'd buffer with output, NULL on error.
  */
-unsigned char* _getdns_tls_hmac_hash(int algorithm, const void* key, size_t key_size, const void* data, size_t data_size, size_t* output_size);
+unsigned char* _getdns_tls_hmac_hash(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size, const void* data, size_t data_size, size_t* output_size);
 
 /**
  * Return a new HMAC handle.
  *
+ * @param mfs		pointer to getdns memory functions.
  * @param algorithm	hash algorithm to use (<code>GETDNS_HMAC_?</code>).
  * @param key		the key.
  * @param key_size	the key size.
  * @return HMAC handle or NULL on error.
  */
-_getdns_tls_hmac* _getdns_tls_hmac_new(int algorithm, const void* key, size_t key_size);
+_getdns_tls_hmac* _getdns_tls_hmac_new(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size);
 
 /**
  * Add data to a HMAC.
@@ -354,10 +371,11 @@ getdns_return_t _getdns_tls_hmac_add(_getdns_tls_hmac* h, const void* data, size
 /**
  * Return the HMAC digest and free the handle.
  *
+ * @param mfs		pointer to getdns memory functions.
  * @param h		the HMAC.
  * @param output_size	the output size will be written here if not NULL.
  * @return output	malloc'd buffer with output, NULL on error.
  */
-unsigned char* _getdns_tls_hmac_end(_getdns_tls_hmac* h, size_t* output_size);
+unsigned char* _getdns_tls_hmac_end(struct mem_funcs* mfs, _getdns_tls_hmac* h, size_t* output_size);
 
 #endif /* _GETDNS_TLS_H */

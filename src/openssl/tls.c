@@ -73,14 +73,14 @@ static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 	return 1;
 }
 
-static _getdns_tls_x509* _getdns_tls_x509_new(X509* cert)
+static _getdns_tls_x509* _getdns_tls_x509_new(struct mem_funcs* mfs, X509* cert)
 {
 	_getdns_tls_x509* res;
 
 	if (!cert)
 		return NULL;
 
-	res = malloc(sizeof(_getdns_tls_x509));
+	res = GETDNS_MALLOC(*mfs, _getdns_tls_x509);
 	if (res)
 		res->ssl = cert;
 
@@ -187,11 +187,11 @@ void _getdns_tls_init()
 	(void)OPENSSL_init_ssl(0, NULL);
 }
 
-_getdns_tls_context* _getdns_tls_context_new()
+_getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
 {
 	_getdns_tls_context* res;
 
-	if (!(res = malloc(sizeof(struct _getdns_tls_context))))
+	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_context)))
 		return NULL;
 
 	/* Create client context, use TLS v1.2 only for now */
@@ -201,18 +201,18 @@ _getdns_tls_context* _getdns_tls_context_new()
 	res->ssl = SSL_CTX_new(TLSv1_2_client_method());
 #  endif
 	if(res->ssl == NULL) {
-		free(res);
+		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
 	return res;
 }
 
-getdns_return_t _getdns_tls_context_free(_getdns_tls_context* ctx)
+getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_context* ctx)
 {
 	if (!ctx || !ctx->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	SSL_CTX_free(ctx->ssl);
-	free(ctx);
+	GETDNS_FREE(*mfs, ctx);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -270,25 +270,25 @@ getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char*
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
-_getdns_tls_connection* _getdns_tls_connection_new(_getdns_tls_context* ctx, int fd)
+_getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd)
 {
 	_getdns_tls_connection* res;
 
 	if (!ctx || !ctx->ssl)
 		return NULL;
 
-	if (!(res = malloc(sizeof(struct _getdns_tls_connection))))
+	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_connection)))
 		return NULL;
 
 	res->ssl = SSL_new(ctx->ssl);
 	if (!res->ssl) {
-		free(res);
+		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
 
 	if (!SSL_set_fd(res->ssl, fd)) {
 		SSL_free(res->ssl);
-		free(res);
+		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
 
@@ -300,12 +300,12 @@ _getdns_tls_connection* _getdns_tls_connection_new(_getdns_tls_context* ctx, int
 	return res;
 }
 
-getdns_return_t _getdns_tls_connection_free(_getdns_tls_connection* conn)
+getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_connection* conn)
 {
 	if (!conn || !conn->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	SSL_free(conn->ssl);
-	free(conn);
+	GETDNS_FREE(*mfs, conn);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -353,19 +353,19 @@ getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn,
 	return GETDNS_RETURN_GOOD;
 }
 
-_getdns_tls_session* _getdns_tls_connection_get_session(_getdns_tls_connection* conn)
+_getdns_tls_session* _getdns_tls_connection_get_session(struct mem_funcs* mfs, _getdns_tls_connection* conn)
 {
 	_getdns_tls_session* res;
 
 	if (!conn || !conn->ssl)
 		return NULL;
 
-	if (!(res = malloc(sizeof(struct _getdns_tls_session))))
+	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_session)))
 		return NULL;
 
 	res->ssl = SSL_get1_session(conn->ssl);
 	if (!res->ssl) {
-		free(res);
+		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
 
@@ -404,12 +404,12 @@ getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn
 	}
 }
 
-_getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(_getdns_tls_connection* conn)
+_getdns_tls_x509* _getdns_tls_connection_get_peer_certificate(struct mem_funcs* mfs, _getdns_tls_connection* conn)
 {
 	if (!conn || !conn->ssl)
 		return NULL;
 
-	return _getdns_tls_x509_new(SSL_get_peer_certificate(conn->ssl));
+	return _getdns_tls_x509_new(mfs, SSL_get_peer_certificate(conn->ssl));
 }
 
 getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection* conn)
@@ -552,12 +552,12 @@ getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8
 	return GETDNS_RETURN_GOOD;
 }
 
-getdns_return_t _getdns_tls_session_free(_getdns_tls_session* s)
+getdns_return_t _getdns_tls_session_free(struct mem_funcs* mfs, _getdns_tls_session* s)
 {
 	if (!s || !s->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	SSL_SESSION_free(s->ssl);
-	free(s);
+	GETDNS_FREE(*mfs, s);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -594,22 +594,38 @@ getdns_return_t _getdns_tls_get_api_information(getdns_dict* dict)
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
-void _getdns_tls_x509_free(_getdns_tls_x509* cert)
+void _getdns_tls_x509_free(struct mem_funcs* mfs, _getdns_tls_x509* cert)
 {
 	if (cert && cert->ssl)
 		X509_free(cert->ssl);
-	free(cert);
+	GETDNS_FREE(*mfs, cert);
 }
 
-int _getdns_tls_x509_to_der(_getdns_tls_x509* cert, uint8_t** buf)
+int _getdns_tls_x509_to_der(struct mem_funcs* mfs, _getdns_tls_x509* cert, getdns_bindata* bindata)
 {
-	if (!cert || !cert->ssl)
+	unsigned char* buf = NULL;
+	int len;
+
+	if (!cert || !cert->ssl )
 		return 0;
 
-	return i2d_X509(cert->ssl, buf);
+	if (bindata == NULL)
+		return i2d_X509(cert->ssl, NULL);
+
+	len = i2d_X509(cert->ssl, &buf);
+	if (len == 0 || (bindata->data = GETDNS_XMALLOC(*mfs, uint8_t, len)) == NULL) {
+		bindata->size = 0;
+		bindata->data = NULL;
+	} else {
+		bindata->size = len;
+		(void) memcpy(bindata->data, buf, len);
+		OPENSSL_free(buf);
+	}
+
+	return len;
 }
 
-unsigned char* _getdns_tls_hmac_hash(int algorithm, const void* key, size_t key_size, const void* data, size_t data_size, size_t* output_size)
+unsigned char* _getdns_tls_hmac_hash(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size, const void* data, size_t data_size, size_t* output_size)
 {
 	const EVP_MD* digester;
 	unsigned char* res;
@@ -637,7 +653,7 @@ unsigned char* _getdns_tls_hmac_hash(int algorithm, const void* key, size_t key_
 	default                : return NULL;
 	}
 
-	res = (unsigned char*) malloc(EVP_MAX_MD_SIZE);
+	res = (unsigned char*) GETDNS_XMALLOC(*mfs, unsigned char, EVP_MAX_MD_SIZE);
 	if (!res)
 		return NULL;
 
@@ -648,7 +664,7 @@ unsigned char* _getdns_tls_hmac_hash(int algorithm, const void* key, size_t key_
 	return res;
 }
 
-_getdns_tls_hmac* _getdns_tls_hmac_new(int algorithm, const void* key, size_t key_size)
+_getdns_tls_hmac* _getdns_tls_hmac_new(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size)
 {
 	const EVP_MD *digester;
 	_getdns_tls_hmac* res;
@@ -675,13 +691,13 @@ _getdns_tls_hmac* _getdns_tls_hmac_new(int algorithm, const void* key, size_t ke
 	default                : return NULL;
 	}
 
-	if (!(res = malloc(sizeof(struct _getdns_tls_hmac))))
+	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_hmac)))
 		return NULL;
 
 #ifdef HAVE_HMAC_CTX_NEW
 	res->ctx = HMAC_CTX_new();
 	if (!res->ctx) {
-		free(res);
+		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
 #else
@@ -692,7 +708,7 @@ _getdns_tls_hmac* _getdns_tls_hmac_new(int algorithm, const void* key, size_t ke
 #ifdef HAVE_HMAC_CTX_NEW
 		HMAC_CTX_free(res->ctx);
 #endif
-		free(res);
+		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
 
@@ -710,12 +726,12 @@ getdns_return_t _getdns_tls_hmac_add(_getdns_tls_hmac* h, const void* data, size
 		return GETDNS_RETURN_GOOD;
 }
 
-unsigned char* _getdns_tls_hmac_end(_getdns_tls_hmac* h, size_t* output_size)
+unsigned char* _getdns_tls_hmac_end(struct mem_funcs* mfs, _getdns_tls_hmac* h, size_t* output_size)
 {
 	unsigned char* res;
 	unsigned int md_len;
 
-	res = (unsigned char*) malloc(EVP_MAX_MD_SIZE);
+	res = (unsigned char*) GETDNS_XMALLOC(*mfs, unsigned char, EVP_MAX_MD_SIZE);
 	if (!res)
 		return NULL;
 
@@ -724,7 +740,7 @@ unsigned char* _getdns_tls_hmac_end(_getdns_tls_hmac* h, size_t* output_size)
 #ifdef HAVE_HMAC_CTX_NEW
 	HMAC_CTX_free(h->ctx);
 #endif
-	free(h);
+	GETDNS_FREE(*mfs, h);
 
 	if (output_size)
 		*output_size = md_len;

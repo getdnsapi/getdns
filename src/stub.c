@@ -830,7 +830,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	getdns_context *context = dnsreq->context;
 	if (context->tls_ctx == NULL)
 		return NULL;
-	_getdns_tls_connection* tls = _getdns_tls_connection_new(context->tls_ctx, fd);
+	_getdns_tls_connection* tls = _getdns_tls_connection_new(&context->my_mf, context->tls_ctx, fd);
 	if(!tls) 
 		return NULL;
 #if HAVE_TLS_CONN_CURVES_LIST
@@ -839,7 +839,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 #endif
 	/* make sure we'll be able to find the context again when we need it */
 	if (_getdns_associate_upstream_with_connection(tls, upstream) != GETDNS_RETURN_GOOD) {
-		_getdns_tls_connection_free(tls);
+		_getdns_tls_connection_free(&context->my_mf, tls);
 		return NULL;
 	}
 
@@ -871,7 +871,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				    "%-40s : Verify fail: *CONFIG ERROR* - No auth name or pinset provided for this upstream for Strict TLS authentication\n",
 				    upstream->addr_str);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
-				_getdns_tls_connection_free(tls);
+				_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
 				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 				return NULL;
 			}
@@ -947,7 +947,7 @@ tls_do_handshake(getdns_upstream *upstream)
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
 
 	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
-		_getdns_tls_x509* peer_cert = _getdns_tls_connection_get_peer_certificate(upstream->tls_obj);
+		_getdns_tls_x509* peer_cert = _getdns_tls_connection_get_peer_certificate(&upstream->upstreams->mf, upstream->tls_obj);
 
 		if (!peer_cert) {
 			_getdns_upstream_log(upstream,
@@ -994,7 +994,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			    "%-40s : Verify passed : TLS\n",
 			    upstream->addr_str);
 			}
-			_getdns_tls_x509_free(peer_cert);
+			_getdns_tls_x509_free(&upstream->upstreams->mf, peer_cert);
 		}
 		if (upstream->tls_auth_state == GETDNS_AUTH_FAILED
 		    && !upstream->tls_fallback_ok)
@@ -1008,8 +1008,8 @@ tls_do_handshake(getdns_upstream *upstream)
 	upstream->conn_state = GETDNS_CONN_OPEN;
 	upstream->conn_completed++;
 	if (upstream->tls_session != NULL)
-	    _getdns_tls_session_free(upstream->tls_session);
-	upstream->tls_session = _getdns_tls_connection_get_session(upstream->tls_obj);
+		_getdns_tls_session_free(&upstream->upstreams->mf, upstream->tls_session);
+	upstream->tls_session = _getdns_tls_connection_get_session(&upstream->upstreams->mf, upstream->tls_obj);
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1634,10 +1634,9 @@ upstream_write_cb(void *userarg)
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj) {
 			if (netreq->debug_tls_peer_cert.data == NULL &&
-			    (cert = _getdns_tls_connection_get_peer_certificate(netreq->upstream->tls_obj))) {
-				netreq->debug_tls_peer_cert.size = _getdns_tls_x509_to_der(
-					cert, &netreq->debug_tls_peer_cert.data);
-				_getdns_tls_x509_free(cert);
+			    (cert = _getdns_tls_connection_get_peer_certificate(&upstream->upstreams->mf, netreq->upstream->tls_obj))) {
+				_getdns_tls_x509_to_der(&upstream->upstreams->mf, cert, &netreq->debug_tls_peer_cert);
+				_getdns_tls_x509_free(&upstream->upstreams->mf, cert);
 			}
 			netreq->debug_tls_version = _getdns_tls_connection_get_version(netreq->upstream->tls_obj);
 		}
