@@ -747,4 +747,9 @@ unsigned char* _getdns_tls_hmac_end(struct mem_funcs* mfs, _getdns_tls_hmac* h, 
 	return res;
 }
 
+void _getdns_tls_sha1(const void* data, size_t data_size, unsigned char* buf)
+{
+	SHA1(data, data_size, buf);
+}
+
 /* tls.c */

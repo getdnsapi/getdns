@@ -209,6 +209,7 @@
 #include "list.h"
 #include "util/val_secalgo.h"
 #include "anchor.h"
+#include "tls.h"
 
 #define SIGNATURE_VERIFIED         0x10000
 #define NSEC3_ITERATION_COUNT_HIGH 0x20000
@@ -1582,12 +1583,12 @@ static uint8_t *_getdns_nsec3_hash_label(uint8_t *label, size_t label_len,
 	(void)memcpy(dst, salt + 1, *salt);
 	dst += *salt;
 
-	(void)SHA1(buf, dst - buf, md);
+	_getdns_tls_sha1(buf, dst - buf, md);
 	if (iterations) {
 		(void)memcpy(buf + SHA_DIGEST_LENGTH, salt + 1, *salt);
 		while (iterations--) {
 			(void)memcpy(buf, md, SHA_DIGEST_LENGTH);
-			SHA1(buf, SHA_DIGEST_LENGTH + *salt, md);
+			_getdns_tls_sha1(buf, SHA_DIGEST_LENGTH + *salt, md);
 		}
 	}
 	*label = gldns_b32_ntop_extended_hex(

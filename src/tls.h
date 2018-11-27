@@ -378,4 +378,14 @@ getdns_return_t _getdns_tls_hmac_add(_getdns_tls_hmac* h, const void* data, size
  */
 unsigned char* _getdns_tls_hmac_end(struct mem_funcs* mfs, _getdns_tls_hmac* h, size_t* output_size);
 
+/**
+ * Calculate a SHA1 hash.
+ *
+ * @param data		the data to hash.
+ * @param data_size	the size of the data to hash.
+ * @param buf		the buffer to receive the hash. Must be at least
+ * 			SHA_DIGEST_LENGTH bytes.
+ */
+void _getdns_tls_sha1(const void* data, size_t data_size, unsigned char* buf);
+
 #endif /* _GETDNS_TLS_H */
