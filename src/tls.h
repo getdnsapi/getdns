@@ -388,4 +388,15 @@ unsigned char* _getdns_tls_hmac_end(struct mem_funcs* mfs, _getdns_tls_hmac* h, 
  */
 void _getdns_tls_sha1(const void* data, size_t data_size, unsigned char* buf);
 
+/**
+ * Calculate SHA256 for cookie.
+ *
+ * @param secret	the secret.
+ * @param addr		the address.
+ * @param addrlen	the address length.
+ * @param buf		buffer to receive hash.
+ * @param buflen	receive the hash length.
+ */
+void _getdns_tls_cookie_sha256(uint32_t secret, void* addr, size_t addrlen, unsigned char* buf, size_t* buflen);
+
 #endif /* _GETDNS_TLS_H */

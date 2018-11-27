@@ -121,10 +121,8 @@ rollover_secret()
 static void
 calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
 {
-        const EVP_MD *md;
-        EVP_MD_CTX *mdctx;
-        unsigned char md_value[EVP_MAX_MD_SIZE];
-        unsigned int md_len;
+        unsigned char md_value[GETDNS_TLS_MAX_DIGEST_LENGTH];
+        size_t md_len;
         size_t i;
         sa_family_t af = upstream->addr.ss_family;
         void *sa_addr = ((struct sockaddr*)&upstream->addr)->sa_data;
@@ -132,13 +130,7 @@ calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
 	                  : af == AF_INET  ? sizeof(struct sockaddr_in)
 	                  : 0 ) - sizeof(sa_family_t);
 
-        md = EVP_sha256();
-        mdctx = EVP_MD_CTX_create();
-        EVP_DigestInit_ex(mdctx, md, NULL);
-        EVP_DigestUpdate(mdctx, &secret, sizeof(secret));
-        EVP_DigestUpdate(mdctx, sa_addr, addr_len);
-        EVP_DigestFinal_ex(mdctx, md_value, &md_len);
-        EVP_MD_CTX_destroy(mdctx);
+	_getdns_tls_cookie_sha256(secret, sa_addr, addr_len, md_value, &md_len);
 
         (void) memset(cookie, 0, 8);
         for (i = 0; i < md_len; i++)
