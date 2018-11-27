@@ -36,6 +36,8 @@
 
 #include "getdns/getdns.h"
 
+#include "types-internal.h"
+
 #include "tls-internal.h"
 
 /* Forward declare type. */
