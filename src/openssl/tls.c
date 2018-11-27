@@ -87,6 +87,35 @@ static _getdns_tls_x509* _getdns_tls_x509_new(struct mem_funcs* mfs, X509* cert)
 	return res;
 }
 
+static const EVP_MD* get_digester(int algorithm)
+{
+	const EVP_MD* digester;
+
+	switch (algorithm) {
+#ifdef HAVE_EVP_MD5
+	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
+#endif
+#ifdef HAVE_EVP_SHA1
+	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
+#endif
+#ifdef HAVE_EVP_SHA224
+	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
+#endif
+#ifdef HAVE_EVP_SHA256
+	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
+#endif
+#ifdef HAVE_EVP_SHA384
+	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
+#endif
+#ifdef HAVE_EVP_SHA512
+	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
+#endif
+	default                : digester = NULL;
+	}
+
+	return digester;
+}
+
 #ifdef USE_WINSOCK
 /* For windows, the CA trust store is not read by openssl.
    Add code to open the trust store using wincrypt API and add
@@ -639,31 +668,12 @@ int _getdns_tls_x509_to_der(struct mem_funcs* mfs, _getdns_tls_x509* cert, getdn
 
 unsigned char* _getdns_tls_hmac_hash(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size, const void* data, size_t data_size, size_t* output_size)
 {
-	const EVP_MD* digester;
+	const EVP_MD* digester = get_digester(algorithm);
 	unsigned char* res;
 	unsigned int md_len;
 
-	switch (algorithm) {
-#ifdef HAVE_EVP_MD5
-	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
-#endif
-#ifdef HAVE_EVP_SHA1
-	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
-#endif
-#ifdef HAVE_EVP_SHA224
-	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
-#endif
-#ifdef HAVE_EVP_SHA256
-	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
-#endif
-#ifdef HAVE_EVP_SHA384
-	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
-#endif
-#ifdef HAVE_EVP_SHA512
-	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
-#endif
-	default                : return NULL;
-	}
+	if (!digester)
+		return NULL;
 
 	res = (unsigned char*) GETDNS_XMALLOC(*mfs, unsigned char, GETDNS_TLS_MAX_DIGEST_LENGTH);
 	if (!res)
@@ -678,30 +688,11 @@ unsigned char* _getdns_tls_hmac_hash(struct mem_funcs* mfs, int algorithm, const
 
 _getdns_tls_hmac* _getdns_tls_hmac_new(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size)
 {
-	const EVP_MD *digester;
+	const EVP_MD *digester = get_digester(algorithm);
 	_getdns_tls_hmac* res;
 
-	switch (algorithm) {
-#ifdef HAVE_EVP_MD5
-	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
-#endif
-#ifdef HAVE_EVP_SHA1
-	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
-#endif
-#ifdef HAVE_EVP_SHA224
-	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
-#endif
-#ifdef HAVE_EVP_SHA256
-	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
-#endif
-#ifdef HAVE_EVP_SHA384
-	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
-#endif
-#ifdef HAVE_EVP_SHA512
-	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
-#endif
-	default                : return NULL;
-	}
+	if (!digester)
+		return NULL;
 
 	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_hmac)))
 		return NULL;
