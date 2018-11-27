@@ -34,6 +34,7 @@
 #ifndef _GETDNS_TLS_INTERNAL_H
 #define _GETDNS_TLS_INTERNAL_H
 
+#include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
@@ -50,6 +51,8 @@
 #else
 #define HAVE_TLS_CONN_CURVES_LIST	(HAVE_DECL_SSL_SET1_CURVES_LIST)
 #endif
+
+#define GETDNS_TLS_MAX_DIGEST_LENGTH	(EVP_MAX_MD_SIZE)
 
 typedef struct _getdns_tls_context {
 	SSL_CTX* ssl;

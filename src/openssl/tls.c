@@ -653,7 +653,7 @@ unsigned char* _getdns_tls_hmac_hash(struct mem_funcs* mfs, int algorithm, const
 	default                : return NULL;
 	}
 
-	res = (unsigned char*) GETDNS_XMALLOC(*mfs, unsigned char, EVP_MAX_MD_SIZE);
+	res = (unsigned char*) GETDNS_XMALLOC(*mfs, unsigned char, GETDNS_TLS_MAX_DIGEST_LENGTH);
 	if (!res)
 		return NULL;
 

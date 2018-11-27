@@ -44,6 +44,7 @@
 #include "debug.h"
 #include "convert.h"
 #include "general.h"
+#include "tls.h"
 
 /* MAXIMUM_TSIG_SPACE = TSIG name      (dname)    : 256
  *                      TSIG type      (uint16_t) :   2
@@ -54,15 +55,15 @@
  *                      Time Signed    (uint48_t) :   6
  *                      Fudge          (uint16_t) :   2
  *                      Mac Size       (uint16_t) :   2
- *                      Mac            (variable) :   EVP_MAX_MD_SIZE
+ *                      Mac            (variable) :   GETDNS_TLS_MAX_DIGEST_LENGTH
  *                      Original Id    (uint16_t) :   2
  *                      Error          (uint16_t) :   2
  *                      Other Len      (uint16_t) :   2
  *                      Other Data     (nothing)  :   0
  *                                                 ---- +
- *                                                  538 + EVP_MAX_MD_SIZE
+ *                                                  538 + GETDNS_TLS_MAX_DIGEST_LENGTH
  */
-#define MAXIMUM_TSIG_SPACE (538 + EVP_MAX_MD_SIZE)
+#define MAXIMUM_TSIG_SPACE (538 + GETDNS_TLS_MAX_DIGEST_LENGTH)
 
 getdns_dict  dnssec_ok_checking_disabled_spc = {
 	{ RBTREE_NULL, 0, (int (*)(const void *, const void *)) strcmp },
