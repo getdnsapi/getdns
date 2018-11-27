@@ -92,7 +92,7 @@ getdns_dict *no_dnssec_checking_disabled_opportunistic
     = &no_dnssec_checking_disabled_opportunistic_spc;
 
 static int
-is_extension_set(getdns_dict *extensions, const char *name, int default_value)
+is_extension_set(const getdns_dict *extensions, const char *name, int default_value)
 {
 	getdns_return_t r;
 	uint32_t value;
@@ -167,7 +167,7 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
     int with_opt, int edns_maximum_udp_payload_size,
     uint8_t edns_extended_rcode, uint8_t edns_version, int edns_do_bit,
     uint16_t opt_options_size, size_t noptions, getdns_list *options,
-    size_t wire_data_sz, size_t max_query_sz, getdns_dict *extensions)
+    size_t wire_data_sz, size_t max_query_sz, const getdns_dict *extensions)
 {
 	uint8_t *buf;
 	getdns_dict    *option;
@@ -699,7 +699,7 @@ static const uint8_t no_suffixes[] = { 1, 0 };
 /* create a new dns req to be submitted */
 getdns_dns_req *
 _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     uint64_t *now_ms)
 {
 	int dnssec_return_status                 = is_extension_set(

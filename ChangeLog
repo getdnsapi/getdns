@@ -1,4 +1,5 @@
 * 2018-0?-??: Version 1.4.3
+  * Issue #410: Unspecified ownership of get_api_information()
   * Fix for DNSSEC bug in finding most specific key when
     trust anchor proves non-existance of one of the labels
     along the authentication chain other than the non-

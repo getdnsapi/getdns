@@ -2132,7 +2132,7 @@ getdns_context_set_resolution_type(struct getdns_context *context,
  */
 getdns_return_t
 getdns_context_set_namespaces(getdns_context *context,
-    size_t namespace_count, getdns_namespace_t *namespaces)
+    size_t namespace_count, const getdns_namespace_t *namespaces)
 {
 	size_t i;
 	getdns_return_t r = GETDNS_RETURN_GOOD;

@@ -1030,7 +1030,7 @@ getdns_return_t
 getdns_general(getdns_context *context,
     const char *name,
     uint16_t request_type,
-    getdns_dict *extensions,
+    const getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 
@@ -1048,7 +1048,7 @@ getdns_general(getdns_context *context,
 getdns_return_t
 getdns_address(getdns_context *context,
     const char *name,
-    getdns_dict *extensions,
+    const getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 
@@ -1065,8 +1065,8 @@ getdns_address(getdns_context *context,
  */
 getdns_return_t
 getdns_hostname(getdns_context *context,
-    getdns_dict *address,
-    getdns_dict *extensions,
+    const getdns_dict *address,
+    const getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 
@@ -1084,7 +1084,7 @@ getdns_hostname(getdns_context *context,
 getdns_return_t
 getdns_service(getdns_context *context,
     const char *name,
-    getdns_dict *extensions,
+    const getdns_dict *extensions,
     void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
 /** @}
@@ -1201,7 +1201,7 @@ getdns_return_t
 getdns_general_sync(getdns_context *context,
     const char *name,
     uint16_t request_type,
-    getdns_dict *extensions,
+    const getdns_dict *extensions,
     getdns_dict **response);
 
 /**
@@ -1216,7 +1216,7 @@ getdns_general_sync(getdns_context *context,
 getdns_return_t
 getdns_address_sync(getdns_context *context,
     const char *name,
-    getdns_dict *extensions,
+    const getdns_dict *extensions,
     getdns_dict **response);
 
 /**
@@ -1230,8 +1230,8 @@ getdns_address_sync(getdns_context *context,
  */
 getdns_return_t
 getdns_hostname_sync(getdns_context *context,
-    getdns_dict *address,
-    getdns_dict *extensions,
+    const getdns_dict *address,
+    const getdns_dict *extensions,
     getdns_dict **response);
 
 /**
@@ -1246,7 +1246,7 @@ getdns_hostname_sync(getdns_context *context,
 getdns_return_t
 getdns_service_sync(getdns_context *context,
     const char *name,
-    getdns_dict *extensions,
+    const getdns_dict *extensions,
     getdns_dict **response);
 
 /** @}
@@ -1444,7 +1444,7 @@ getdns_context_set_resolution_type(getdns_context *context,
  */
 getdns_return_t
 getdns_context_set_namespaces(getdns_context *context,
-    size_t namespace_count, getdns_namespace_t *namespaces);
+    size_t namespace_count, const getdns_namespace_t *namespaces);
 
 /**
  * Specifies what transport are used for DNS lookups. The default is
@@ -1812,6 +1812,8 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
  *            GETDNS_RESOLUTION_STUB.
  *         - all_context (a dict) with names for all the other settings in
  *           context.
+ *         The application is responsible for cleaning up the returned dictionary 
+ *         object with getdns_dict_destroy.
  */
 getdns_dict*
 getdns_context_get_api_information(getdns_context* context);

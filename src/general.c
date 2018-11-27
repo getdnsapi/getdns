@@ -492,7 +492,7 @@ extformatcmp(const void *a, const void *b)
 
 /*---------------------------------------- validate_extensions */
 static getdns_return_t
-validate_extensions(struct getdns_dict * extensions)
+validate_extensions(const getdns_dict * extensions)
 {
 	/**
 	  * this is a comprehensive list of extensions and their data types
@@ -555,7 +555,7 @@ validate_extensions(struct getdns_dict * extensions)
 
 static getdns_return_t
 getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_network_req **return_netreq_p,
     getdns_callback_t callbackfn, internal_cb_t internal_cb, int usenamespaces)
 {
@@ -706,7 +706,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_network_req **netreq_p,
     getdns_callback_t callback, internal_cb_t internal_cb)
 {
@@ -718,33 +718,33 @@ _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
-	getdns_dict *my_extensions = extensions;
+	getdns_dict *my_extensions = NULL;
 	getdns_return_t r;
 	uint32_t value;
 	getdns_network_req *netreq = NULL;
 
-	if (!my_extensions) {
+	if (!extensions) {
 		if (!(my_extensions=getdns_dict_create_with_context(context)))
 			return GETDNS_RETURN_MEMORY_ERROR;
 	} else if (
-	    getdns_dict_get_int(my_extensions, "return_both_v4_and_v6", &value)
+	    getdns_dict_get_int(extensions, "return_both_v4_and_v6", &value)
 	    && (r = _getdns_dict_copy(extensions, &my_extensions)))
 		return r;
 
-	if (my_extensions != extensions && (r = getdns_dict_set_int(
+	if (my_extensions && (r = getdns_dict_set_int(
 	    my_extensions, "return_both_v4_and_v6", GETDNS_EXTENSION_TRUE)))
 		return r;
 
 	r = getdns_general_ns(context, loop,
-	    name, GETDNS_RRTYPE_AAAA, my_extensions,
+	    name, GETDNS_RRTYPE_AAAA, my_extensions ? my_extensions : extensions,
 	    userarg, &netreq, callback, NULL, 1);
 	if (netreq && transaction_id)
 		*transaction_id = netreq->owner->trans_id;
 
-	if (my_extensions != extensions)
+	if (my_extensions)
 		getdns_dict_destroy(my_extensions);
 
 	return r;
@@ -752,7 +752,7 @@ _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
-    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    const getdns_dict *address, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
 	struct getdns_bindata *address_data;
@@ -842,7 +842,7 @@ _getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
 	getdns_return_t r;
@@ -859,7 +859,7 @@ _getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
  */
 getdns_return_t
 getdns_general(getdns_context *context,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_transaction_t * transaction_id,
     getdns_callback_t callbackfn)
 {
@@ -881,7 +881,7 @@ getdns_general(getdns_context *context,
  */
 getdns_return_t
 getdns_address(getdns_context *context,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
@@ -896,7 +896,7 @@ getdns_address(getdns_context *context,
  */
 getdns_return_t
 getdns_hostname(getdns_context *context,
-    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    const getdns_dict *address, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
@@ -910,7 +910,7 @@ getdns_hostname(getdns_context *context,
  */
 getdns_return_t
 getdns_service(getdns_context *context,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;

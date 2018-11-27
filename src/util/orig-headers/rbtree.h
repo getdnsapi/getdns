@@ -143,7 +143,7 @@ int rbtree_find_less_equal(rbtree_type *rbtree, const void *key,
  * @param rbtree: tree
  * @return: smallest element or NULL if tree empty.
  */
-rbnode_type *rbtree_first(rbtree_type *rbtree);
+rbnode_type *rbtree_first(const rbtree_type *rbtree);
 
 /**
  * Returns last (largest) node in the tree
