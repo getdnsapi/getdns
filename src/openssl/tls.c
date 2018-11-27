@@ -609,4 +609,126 @@ int _getdns_tls_x509_to_der(_getdns_tls_x509* cert, uint8_t** buf)
 	return i2d_X509(cert->ssl, buf);
 }
 
+unsigned char* _getdns_tls_hmac_hash(int algorithm, const void* key, size_t key_size, const void* data, size_t data_size, size_t* output_size)
+{
+	const EVP_MD* digester;
+	unsigned char* res;
+	unsigned int md_len;
+
+	switch (algorithm) {
+#ifdef HAVE_EVP_MD5
+	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
+#endif
+#ifdef HAVE_EVP_SHA1
+	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
+#endif
+#ifdef HAVE_EVP_SHA224
+	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
+#endif
+#ifdef HAVE_EVP_SHA256
+	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
+#endif
+#ifdef HAVE_EVP_SHA384
+	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
+#endif
+#ifdef HAVE_EVP_SHA512
+	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
+#endif
+	default                : return NULL;
+	}
+
+	res = (unsigned char*) malloc(EVP_MAX_MD_SIZE);
+	if (!res)
+		return NULL;
+
+	(void) HMAC(digester, key, key_size, data, data_size, res, &md_len);
+
+	if (output_size)
+		*output_size = md_len;
+	return res;
+}
+
+_getdns_tls_hmac* _getdns_tls_hmac_new(int algorithm, const void* key, size_t key_size)
+{
+	const EVP_MD *digester;
+	_getdns_tls_hmac* res;
+
+	switch (algorithm) {
+#ifdef HAVE_EVP_MD5
+	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
+#endif
+#ifdef HAVE_EVP_SHA1
+	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
+#endif
+#ifdef HAVE_EVP_SHA224
+	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
+#endif
+#ifdef HAVE_EVP_SHA256
+	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
+#endif
+#ifdef HAVE_EVP_SHA384
+	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
+#endif
+#ifdef HAVE_EVP_SHA512
+	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
+#endif
+	default                : return NULL;
+	}
+
+	if (!(res = malloc(sizeof(struct _getdns_tls_hmac))))
+		return NULL;
+
+#ifdef HAVE_HMAC_CTX_NEW
+	res->ctx = HMAC_CTX_new();
+	if (!res->ctx) {
+		free(res);
+		return NULL;
+	}
+#else
+	res->ctx = &res->ctx_space;
+	HMAC_CTX_init(res->ctx);
+#endif
+	if (!HMAC_Init_ex(res->ctx, key, key_size, digester, NULL)) {
+#ifdef HAVE_HMAC_CTX_NEW
+		HMAC_CTX_free(res->ctx);
+#endif
+		free(res);
+		return NULL;
+	}
+
+	return res;
+}
+
+getdns_return_t _getdns_tls_hmac_add(_getdns_tls_hmac* h, const void* data, size_t data_size)
+{
+	if (!h || !h->ctx || !data)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!HMAC_Update(h->ctx, data, data_size))
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else
+		return GETDNS_RETURN_GOOD;
+}
+
+unsigned char* _getdns_tls_hmac_end(_getdns_tls_hmac* h, size_t* output_size)
+{
+	unsigned char* res;
+	unsigned int md_len;
+
+	res = (unsigned char*) malloc(EVP_MAX_MD_SIZE);
+	if (!res)
+		return NULL;
+
+	(void) HMAC_Final(h->ctx, res, &md_len);
+
+#ifdef HAVE_HMAC_CTX_NEW
+	HMAC_CTX_free(h->ctx);
+#endif
+	free(h);
+
+	if (output_size)
+		*output_size = md_len;
+	return res;
+}
+
 /* tls.c */

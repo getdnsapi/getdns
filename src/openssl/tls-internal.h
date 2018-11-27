@@ -34,6 +34,10 @@
 #ifndef _GETDNS_TLS_INTERNAL_H
 #define _GETDNS_TLS_INTERNAL_H
 
+#include <openssl/hmac.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+
 #include "getdns/getdns.h"
 
 #ifndef HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
@@ -63,5 +67,13 @@ typedef struct _getdns_tls_x509
 {
 	X509* ssl;
 } _getdns_tls_x509;
+
+typedef struct _getdns_tls_hmac
+{
+	HMAC_CTX *ctx;
+#ifndef HAVE_HMAC_CTX_NEW
+	HMAC_CTX ctx_space;
+#endif
+} _getdns_tls_hmac;
 
 #endif /* _GETDNS_TLS_INTERNAL_H */

@@ -401,9 +401,8 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer gbuf;
 	uint16_t arcount;
 	const getdns_tsig_info *tsig_info;
-	uint8_t md_buf[EVP_MAX_MD_SIZE];
-	unsigned int md_len = EVP_MAX_MD_SIZE;
-	const EVP_MD *digester;
+	unsigned char* md_buf;
+	size_t md_len;
 
 	/* Should only be called when in stub mode */
 	assert(req->query);
@@ -436,31 +435,9 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer_write_u16(&gbuf, 0);		/* Error */
 	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
 
-	switch (upstream->tsig_alg) {
-#ifdef HAVE_EVP_MD5
-	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
-#endif
-#ifdef HAVE_EVP_SHA1
-	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
-#endif
-#ifdef HAVE_EVP_SHA224
-	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
-#endif
-#ifdef HAVE_EVP_SHA256
-	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
-#endif
-#ifdef HAVE_EVP_SHA384
-	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
-#endif
-#ifdef HAVE_EVP_SHA512
-	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
-#endif
-	default                : return req->response - req->query;
-	}
-
-	(void) HMAC(digester, upstream->tsig_key, upstream->tsig_size,
-	    (void *)req->query, gldns_buffer_current(&gbuf) - req->query,
-	    md_buf, &md_len);
+	md_buf = _getdns_tls_hmac_hash(upstream->tsig_alg, upstream->tsig_key, upstream->tsig_size, (void *)req->query, gldns_buffer_current(&gbuf) - req->query, &md_len);
+	if (!md_buf)
+		return req->response - req->query;
 
 	gldns_buffer_rewind(&gbuf);
 	gldns_buffer_write(&gbuf,
@@ -479,6 +456,8 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 	gldns_buffer_write(&gbuf, req->query, 2);	/* Original ID */
 	gldns_buffer_write_u16(&gbuf, 0);		/* Error */
 	gldns_buffer_write_u16(&gbuf, 0);		/* Other len */
+
+	free(md_buf);
 
 	if (gldns_buffer_position(&gbuf) > gldns_buffer_limit(&gbuf))
 		return req->response - req->query;
@@ -506,14 +485,10 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	const uint8_t  *response_mac;
 	uint16_t  response_mac_len;
 	uint8_t   other_len;
-	uint8_t   result_mac[EVP_MAX_MD_SIZE];
-	unsigned int result_mac_len = EVP_MAX_MD_SIZE;
+	unsigned char  *result_mac;
+	size_t result_mac_len;
 	uint16_t original_id;
-	const EVP_MD *digester;
-	HMAC_CTX *ctx;
-#ifndef HAVE_HMAC_CTX_NEW
-	HMAC_CTX ctx_space;
-#endif
+	_getdns_tls_hmac *hmac;
 
 	DEBUG_STUB("%s %-35s: Validate TSIG\n", STUB_DEBUG_TSIG, __FUNC__);
 	for ( rr = _getdns_rr_iter_init(&rr_spc, req->query,
@@ -620,39 +595,16 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	    gldns_read_uint16(req->response + 10) - 1);
 	gldns_write_uint16(req->response, original_id);
 
-	switch (req->upstream->tsig_alg) {
-#ifdef HAVE_EVP_MD5
-	case GETDNS_HMAC_MD5   : digester = EVP_md5()   ; break;
-#endif
-#ifdef HAVE_EVP_SHA1
-	case GETDNS_HMAC_SHA1  : digester = EVP_sha1()  ; break;
-#endif
-#ifdef HAVE_EVP_SHA224
-	case GETDNS_HMAC_SHA224: digester = EVP_sha224(); break;
-#endif
-#ifdef HAVE_EVP_SHA256
-	case GETDNS_HMAC_SHA256: digester = EVP_sha256(); break;
-#endif
-#ifdef HAVE_EVP_SHA384
-	case GETDNS_HMAC_SHA384: digester = EVP_sha384(); break;
-#endif
-#ifdef HAVE_EVP_SHA512
-	case GETDNS_HMAC_SHA512: digester = EVP_sha512(); break;
-#endif
-	default                : return;
-	}
-#ifdef HAVE_HMAC_CTX_NEW
-	ctx = HMAC_CTX_new();
-#else
-	ctx = &ctx_space;
-	HMAC_CTX_init(ctx);
-#endif	
-	(void) HMAC_Init_ex(ctx, req->upstream->tsig_key,
-	    req->upstream->tsig_size, digester, NULL);
-	(void) HMAC_Update(ctx, request_mac - 2, request_mac_len + 2);
-	(void) HMAC_Update(ctx, req->response, rr->pos - req->response);
-	(void) HMAC_Update(ctx, tsig_vars, gldns_buffer_position(&gbuf));
-	HMAC_Final(ctx, result_mac, &result_mac_len);
+	hmac = _getdns_tls_hmac_new(req->upstream->tsig_alg, req->upstream->tsig_key, req->upstream->tsig_size);
+	if (!hmac)
+		return;
+
+	_getdns_tls_hmac_add(hmac, request_mac - 2, request_mac_len + 2);
+	_getdns_tls_hmac_add(hmac, req->response, rr->pos - req->response);
+	_getdns_tls_hmac_add(hmac, tsig_vars, gldns_buffer_position(&gbuf));
+	result_mac = _getdns_tls_hmac_end(hmac, &result_mac_len);
+	if (!result_mac)
+		return;
 
 	DEBUG_STUB("%s %-35s: Result MAC length: %d\n",
 	           STUB_DEBUG_TSIG, __FUNC__, (int)(result_mac_len));
@@ -660,11 +612,6 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	    memcmp(result_mac, response_mac, result_mac_len) == 0)
 		req->tsig_status = GETDNS_DNSSEC_SECURE;
 
-#ifdef HAVE_HMAC_CTX_FREE
-	HMAC_CTX_free(ctx);
-#else
-	HMAC_CTX_cleanup(ctx);
-#endif
 	gldns_write_uint16(req->response, gldns_read_uint16(req->query));
 	gldns_write_uint16(req->response + 10,
 	    gldns_read_uint16(req->response + 10) + 1);
