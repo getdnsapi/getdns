@@ -39,7 +39,7 @@ arc4random_uniform(uint32_t upper_bound)
 		return 0;
 
 	/* 2**32 % x == (2**32 - x) % x */
-	min = ((uint32_t)(-(int32_t)upper_bound)) % upper_bound;
+	min = -upper_bound % upper_bound;
 
 	/*
 	 * This could theoretically loop forever but each retry has
