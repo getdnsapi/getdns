@@ -1655,6 +1655,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->header = NULL;
 	result->add_opt_parameters = NULL;
 	result->add_warning_for_bad_dns = 0;
+	result->dnssec = 0;
 	result->dnssec_return_all_statuses = 0;
 	result->dnssec_return_full_validation_chain = 0;
 	result->dnssec_return_only_secure = 0;
@@ -4130,6 +4131,10 @@ _get_context_settings(getdns_context* context)
 	    context->dnssec_return_full_validation_chain ? GETDNS_EXTENSION_TRUE
 	                                                 : GETDNS_EXTENSION_FALSE);
 	(void)getdns_dict_set_int(
+	    result, "dnssec",
+	    context->dnssec ? GETDNS_EXTENSION_TRUE : GETDNS_EXTENSION_FALSE);
+
+	(void)getdns_dict_set_int(
 	    result, "dnssec_return_only_secure",
 	    context->dnssec_return_only_secure ? GETDNS_EXTENSION_TRUE
 	                                       : GETDNS_EXTENSION_FALSE);
@@ -4974,6 +4979,7 @@ _getdns_context_config_setting(getdns_context *context,
 	/****                              ****/
 	/**************************************/
 	EXTENSION_SETTING_BOOL(add_warning_for_bad_dns)
+	EXTENSION_SETTING_BOOL(dnssec)
 	EXTENSION_SETTING_BOOL(dnssec_return_all_statuses)
 	EXTENSION_SETTING_BOOL(dnssec_return_full_validation_chain)
 	EXTENSION_SETTING_BOOL(dnssec_return_only_secure)

@@ -183,6 +183,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
+	fprintf(out, "\t+dnssec\n");
 	fprintf(out, "\t+dnssec_return_status\n");
 	fprintf(out, "\t+dnssec_return_only_secure\n");
 	fprintf(out, "\t+dnssec_return_all_statuses\n");

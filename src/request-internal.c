@@ -702,6 +702,9 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
     const char *name, uint16_t request_type, const getdns_dict *extensions,
     uint64_t *now_ms)
 {
+	int dnssec                               = is_extension_set(
+	    extensions, "dnssec",
+	        context->dnssec);
 	int dnssec_return_status                 = is_extension_set(
 	    extensions, "dnssec_return_status",
 	        context->dnssec_return_status);
@@ -728,7 +731,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	    || is_extension_set(extensions, "dnssec_roadblock_avoidance",
 	                            context->dnssec_roadblock_avoidance);
 #endif
-	int dnssec_extension_set = dnssec_return_status
+	int dnssec_extension_set = dnssec || dnssec_return_status
 	    || dnssec_return_only_secure || dnssec_return_all_statuses
 	    || dnssec_return_validation_chain
 	    || dnssec_return_full_validation_chain
@@ -776,6 +779,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	int    opportunistic = 0;
 	
 	if (extensions == no_dnssec_checking_disabled_opportunistic) {
+		dnssec = 0;
 		dnssec_return_status = 0;
 		dnssec_return_only_secure = 0;
 		dnssec_return_all_statuses = 0;
@@ -956,6 +960,7 @@ _getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
 	result->context = context;
 	result->loop = loop;
 	result->trans_id = (uint64_t) (intptr_t) result;
+	result->dnssec                         = dnssec;
 	result->dnssec_return_status           = dnssec_return_status;
 	result->dnssec_return_only_secure      = dnssec_return_only_secure;
 	result->dnssec_return_all_statuses     = dnssec_return_all_statuses;

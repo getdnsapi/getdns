@@ -299,6 +299,7 @@ typedef struct getdns_dns_req {
 	unsigned suffix_appended			: 1;
 
 	/* request extensions */
+	unsigned dnssec					: 1;
 	unsigned dnssec_return_status			: 1;
 	unsigned dnssec_return_only_secure		: 1;
 	unsigned dnssec_return_all_statuses		: 1;

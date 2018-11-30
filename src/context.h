@@ -442,6 +442,7 @@ struct getdns_context {
 	getdns_dict *header;
 	getdns_dict *add_opt_parameters;
 	unsigned add_warning_for_bad_dns             : 1;
+	unsigned dnssec                              : 1;
 	unsigned dnssec_return_all_statuses          : 1;
 	unsigned dnssec_return_full_validation_chain : 1;
 	unsigned dnssec_return_only_secure           : 1;
