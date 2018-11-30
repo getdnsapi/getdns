@@ -1133,7 +1133,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (!(result = getdns_dict_create_with_context(context)))
 		return NULL;
 
-	dnssec_return_status = completed_request->dnssec_return_status ||
+	dnssec_return_status = completed_request->dnssec ||
+	                       completed_request->dnssec_return_status ||
 	                       completed_request->dnssec_return_only_secure ||
 	                       completed_request->dnssec_return_all_statuses
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
@@ -1209,6 +1210,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 				continue;
 			else if (completed_request->dnssec_return_only_secure
 			    && netreq->dnssec_status != GETDNS_DNSSEC_SECURE)
+				continue;
+			else if (completed_request->dnssec &&
+			    netreq->dnssec_status == GETDNS_DNSSEC_INDETERMINATE)
 				continue;
 			else if (netreq->tsig_status == GETDNS_DNSSEC_BOGUS)
 				continue;
@@ -1287,9 +1291,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    completed_request->request_timed_out ||
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
-	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
+	    (  completed_request->dnssec_return_only_secure
+	    || completed_request->dnssec ) && nsecure == 0 && ninsecure > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
-	    completed_request->dnssec_return_only_secure && nsecure == 0 && nbogus > 0
+	    (  completed_request->dnssec_return_only_secure
+	    || completed_request->dnssec ) && nsecure == 0 && nbogus > 0
 	                    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS :
 	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
 	                    : GETDNS_RESPSTATUS_GOOD))

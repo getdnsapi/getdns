@@ -1083,6 +1083,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 
 			     /* extensions */
 			     strcmp(item->node.key, "add_warning_for_bad_dns") == 0 ||
+			     strcmp(item->node.key, "dnssec") == 0 ||
 			     strcmp(item->node.key, "dnssec_return_all_statuses") == 0 ||
 			     strcmp(item->node.key, "dnssec_return_full_validation_chain") == 0 ||
 			     strcmp(item->node.key, "dnssec_return_only_secure") == 0 ||
