@@ -108,7 +108,8 @@ extern "C" {
 #define GETDNS_CONTEXT_CODE_TLS_MIN_VERSION_TEXT "Change related to getdns_context_set_tls_min_version"
 #define GETDNS_CONTEXT_CODE_TLS_MAX_VERSION 637
 #define GETDNS_CONTEXT_CODE_TLS_MAX_VERSION_TEXT "Change related to getdns_context_set_tls_max_version"
-
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHORS_BACKOFF_TIME 638
+#define GETDNS_CONTEXT_CODE_TRUST_ANCHORS_BACKOFF_TIME_TEXT "Change related to getdns_context_set_trust_anchors_backoff_time"
 
 
 /** @}
@@ -701,6 +702,22 @@ getdns_context_set_trust_anchors_verify_CA(
 getdns_return_t
 getdns_context_set_trust_anchors_verify_email(
     getdns_context *context, const char *verify_email);
+
+/**
+ * Configure the amount of milliseconds the trust anchors should not be tried
+ * to be fetched after failure.  Default is 2500 which is two and a half seconds.
+ * Setting the trust anchors backoff time will cause fetching to be retried
+ * immediatly.
+ * @see getdns_context_get_trust_anchors_backoff_time
+ * @param context The context to configure
+ * @param value Number of milliseconds before fetch trust anchors
+ *              will be retried.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
+ */
+getdns_return_t
+getdns_context_set_trust_anchors_backoff_time(
+    getdns_context *context, uint64_t value);
 
 /**
  * Initialized the context's upstream recursive servers and suffixes
@@ -1315,6 +1332,20 @@ getdns_context_get_trust_anchors_verify_CA(
 getdns_return_t
 getdns_context_get_trust_anchors_verify_email(
     getdns_context *context, const char **verify_email);
+
+/**
+ * Get the amount of milliseconds the trust anchors will not be tried to be
+ * fetched after failure.
+ * @see getdns_context_set_trust_anchors_backoff_time
+ * @param context The context to configure
+ * @param value Number of milliseconds before fetch trust anchors
+ *              will be retried.
+ * @return GETDNS_RETURN_GOOD on success
+ * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
+ */
+getdns_return_t
+getdns_context_get_trust_anchors_backoff_time(
+    getdns_context *context, uint64_t *value);
 
 /**
  * Get the value with which the context's upstream recursive servers

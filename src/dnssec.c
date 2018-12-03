@@ -3302,11 +3302,11 @@ static void check_chain_complete(chain_head *chain)
 
 			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
 			if (!dnsreq->waiting_for_ta) {
-				uint64_t now = 0;
+				uint64_t now_ms = 0;
 
 				dnsreq->waiting_for_ta = 1;
 				_getdns_context_equip_with_anchor(
-				    context, &now);
+				    context, &now_ms);
 
 				if (context->trust_anchors_source
 				    == GETDNS_TASRC_XML) {
@@ -3314,9 +3314,19 @@ static void check_chain_complete(chain_head *chain)
 					check_chain_complete(chain);
 					return;
 				}
-				_getdns_start_fetching_ta(
-				    context,  dnsreq->loop);
-
+				if (context->trust_anchors_source ==
+						GETDNS_TASRC_FAILED
+				&& 0 == _getdns_ms_until_expiry2(
+				    context->trust_anchors_backoff_expiry,
+				    &now_ms)) {
+					context->trust_anchors_source =
+					    GETDNS_TASRC_NONE;
+				}
+				if (context->trust_anchors_source
+				!=  GETDNS_TASRC_FAILED) {
+					_getdns_start_fetching_ta(
+					    context,  dnsreq->loop, &now_ms);
+				}
 				if (dnsreq->waiting_for_ta &&
 				    context->trust_anchors_source
 				    == GETDNS_TASRC_FETCHING) {

@@ -269,7 +269,7 @@ typedef struct getdns_upstreams {
 	size_t count;
 	size_t current_udp;
 	size_t current_stateful;
-    uint16_t max_backoff_value;
+	uint16_t max_backoff_value;
 	uint16_t tls_backoff_time;
 	uint16_t tls_connection_retries;
 	getdns_log_config log;
@@ -347,6 +347,8 @@ struct getdns_context {
 	char                 *trust_anchors_url;
 	char                 *trust_anchors_verify_CA;
 	char                 *trust_anchors_verify_email;
+	uint64_t              trust_anchors_backoff_time;
+	uint64_t              trust_anchors_backoff_expiry;
 
 	_getdns_ksks          root_ksk;
 
