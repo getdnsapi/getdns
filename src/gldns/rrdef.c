@@ -341,12 +341,9 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 	{GLDNS_RR_TYPE_NSEC3PARAM, "NSEC3PARAM", 4, 4, type_nsec3param_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 	/* 52 */
 	{GLDNS_RR_TYPE_TLSA, "TLSA", 4, 4, type_tlsa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-	/*53 */
-#ifdef DRAFT_RRTYPES
+	/* 53 */
 	{GLDNS_RR_TYPE_SMIMEA, "SMIMEA", 4, 4, type_tlsa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-#else
-{GLDNS_RR_TYPE_NULL, "TYPE53", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-#endif
+	/* 54 */
 {GLDNS_RR_TYPE_NULL, "TYPE54", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
         /* 55
 	 * Hip ends with 0 or more Rendezvous Servers represented as dname's.

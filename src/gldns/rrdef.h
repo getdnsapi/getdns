@@ -182,9 +182,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	GLDNS_RR_TYPE_NSEC3PARAMS = 51,
 	GLDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
-	GLDNS_RR_TYPE_SMIMEA = 53, /* draft-ietf-dane-smime, TLSA-like but may
-				     be extended */
-
+	GLDNS_RR_TYPE_SMIMEA = 53, /* RFC 8162 */
 	GLDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
 
 	/** draft-reid-dnsext-zs */
