@@ -1593,6 +1593,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->trust_anchors_url = NULL;
 	result->trust_anchors_verify_email = NULL;
 	result->trust_anchors_verify_CA = NULL;
+	result->trust_anchors_backoff_time = 2500;
 	result->appdata_dir = NULL;
 	result->tls_ca_path = NULL;
 	result->tls_ca_file = NULL;
@@ -4026,6 +4027,8 @@ _get_context_settings(getdns_context* context)
 	                           context->tls_query_padding_blocksize)
 	    || getdns_dict_set_int(result, "resolution_type",
 	                           context->resolution_type)
+	    || getdns_dict_set_int(result, "trust_anchors_backoff_time",
+	                           context->trust_anchors_backoff_time)
 	    )
 		goto error;
 	
@@ -4960,6 +4963,7 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_STRING(trust_anchors_url)
 	CONTEXT_SETTING_STRING(trust_anchors_verify_CA)
 	CONTEXT_SETTING_STRING(trust_anchors_verify_email)
+	CONTEXT_SETTING_INT(trust_anchors_backoff_time)
 	CONTEXT_SETTING_STRING(appdata_dir)
 #ifndef USE_WINSOCK
 	CONTEXT_SETTING_STRING(resolvconf)
@@ -5427,6 +5431,32 @@ getdns_context_get_trust_anchors_verify_email(
 	*verify_email = context && context->trust_anchors_verify_email
 	              ?            context->trust_anchors_verify_email
 		      :     _getdns_default_trust_anchors_verify_email;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_set_trust_anchors_backoff_time(
+    getdns_context *context, uint64_t backoff_time)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	context->trust_anchors_backoff_time = backoff_time;
+	if (context->trust_anchors_source == GETDNS_TASRC_FAILED)
+		context->trust_anchors_source = GETDNS_TASRC_NONE;
+	dispatch_updated( context
+	                , GETDNS_CONTEXT_CODE_TRUST_ANCHORS_BACKOFF_TIME);
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
+getdns_context_get_trust_anchors_backoff_time(
+    getdns_context *context, uint64_t *backoff_time)
+{
+	if (!backoff_time)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	*backoff_time = context->trust_anchors_backoff_time;
 	return GETDNS_RETURN_GOOD;
 }
 

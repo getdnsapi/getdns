@@ -923,6 +923,8 @@ static void tas_fail(getdns_context *context, tas_connection *a)
 		DEBUG_ANCHOR("Fatal error fetching trust anchor: "
 		             "%s connection failed too\n", rt_str(rt));
 		context->trust_anchors_source = GETDNS_TASRC_FAILED;
+		context->trust_anchors_backoff_expiry = 
+		    _getdns_get_now_ms() + context->trust_anchors_backoff_time;
 		_getdns_ta_notify_dnsreqs(context);
 	} else
 		DEBUG_ANCHOR("%s connection failed, waiting for %s\n"
@@ -1510,7 +1512,8 @@ static void _tas_hostname_lookup_cb(getdns_dns_req *dnsreq)
 	tas_fail(context, a);
 }
 
-void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
+void _getdns_start_fetching_ta(
+    getdns_context *context, getdns_eventloop *loop, uint64_t *now_ms)
 {
 	getdns_return_t r;
 	size_t scheduled;
@@ -1587,6 +1590,13 @@ void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
 		             "schedule address requests for %s\n"
 		            , tas_hostname);
 		context->trust_anchors_source = GETDNS_TASRC_FAILED;
+		if (now_ms) {
+			if (*now_ms == 0) *now_ms = _getdns_get_now_ms();
+			context->trust_anchors_backoff_expiry = 
+			    *now_ms + context->trust_anchors_backoff_time;
+		} else
+			context->trust_anchors_backoff_expiry = 
+			    _getdns_get_now_ms() + context->trust_anchors_backoff_time;
 		_getdns_ta_notify_dnsreqs(context);
 	} else
 		context->trust_anchors_source = GETDNS_TASRC_FETCHING;

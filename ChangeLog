@@ -1,7 +1,11 @@
 * 2018-??-??: Version 1.4.3
+  * RFE #408: Fetching of trust anchors will be retried
+    after failure, after a certain backoff time. The time
+    can be configured with
+    getdns_context_set_trust_anchors_backoff_time().
   * RFE #408: A "dnssec" extension that requires DNSSEC
     verification.  When this extension is set, Indeterminate
-    DNSSEC status will noging be returned.
+    DNSSEC status will not be returned.
   * Issue #410: Unspecified ownership of get_api_information()
   * Fix for DNSSEC bug in finding most specific key when
     trust anchor proves non-existance of one of the labels

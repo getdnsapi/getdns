@@ -595,13 +595,18 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	_getdns_context_track_outbound_request(req);
 
 	if (req->dnssec_extension_set) {
+		if (context->trust_anchors_source == GETDNS_TASRC_FAILED
+		&&  _getdns_ms_until_expiry2(
+		    context->trust_anchors_backoff_expiry, &now_ms) == 0) {
+			context->trust_anchors_source = GETDNS_TASRC_NONE;
+		}
 		if (context->trust_anchors_source == GETDNS_TASRC_XML_UPDATE)
-			_getdns_start_fetching_ta(context, loop);
+			_getdns_start_fetching_ta(context, loop, &now_ms);
 
 		else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
 			_getdns_context_equip_with_anchor(context, &now_ms);
 			if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
-				_getdns_start_fetching_ta(context, loop);
+				_getdns_start_fetching_ta(context, loop, &now_ms);
 			}
 		}
 	}

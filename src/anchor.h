@@ -41,7 +41,8 @@
 
 void _getdns_context_equip_with_anchor(getdns_context *context, uint64_t *now_ms);
 
-void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop);
+void _getdns_start_fetching_ta(
+    getdns_context *context, getdns_eventloop *loop, uint64_t *now_ms);
 
 #define MAX_KSKS        16
 #define RRSIG_RDATA_LEN 16
