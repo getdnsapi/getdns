@@ -1119,7 +1119,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
 	getdns_bindata *canonical_name = NULL;
-	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
+	int nreplies = 0, nanswers = 0;
+	int nsecure = 0, ninsecure = 0, nindeterminate = 0, nbogus = 0;
 	getdns_dict   *netreq_debug;
 	_srvs srvs = { 0, 0, NULL };
 
@@ -1193,16 +1194,18 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			_getdns_network_validate_tsig(netreq);
 
 		nreplies++;
-		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
-			nsecure++;
-		else if (netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
-			ninsecure++;
-
-		if (dnssec_return_status &&
-		    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
-			nbogus++;
-
-
+		switch (netreq->dnssec_status) {
+		case GETDNS_DNSSEC_SECURE       : nsecure++;
+						  break;
+		case GETDNS_DNSSEC_INSECURE     : ninsecure++;
+						  break;
+		case GETDNS_DNSSEC_INDETERMINATE: nindeterminate++;
+						  ninsecure++;
+						  break;
+		case GETDNS_DNSSEC_BOGUS        : if (dnssec_return_status)
+							  nbogus++;
+						  break;
+		}
 		if (! completed_request->dnssec_return_all_statuses &&
 		    ! completed_request->dnssec_return_validation_chain) {
 			if (dnssec_return_status &&
@@ -1291,8 +1294,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    completed_request->request_timed_out ||
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
+	    (  completed_request->dnssec
+	    && nsecure == 0 && nindeterminate ) > 0
+	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
 	    (  completed_request->dnssec_return_only_secure
-	    || completed_request->dnssec ) && nsecure == 0 && ninsecure > 0
+	    && nsecure == 0 && ninsecure ) > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
 	    (  completed_request->dnssec_return_only_secure
 	    || completed_request->dnssec ) && nsecure == 0 && nbogus > 0

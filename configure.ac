@@ -400,48 +400,49 @@ yes)
 esac
 
 USE_NSS="no"
-AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
-        [use libnss instead of openssl, installed at path.]),
-        [
-        USE_NSS="yes"
-        AC_DEFINE(HAVE_NSS, 1, [Use libnss for crypto])
-        if test "$withval" != "" -a "$withval" != "yes"; then
-                CPPFLAGS="$CPPFLAGS -I$withval/include/nss3"
-                LDFLAGS="$LDFLAGS -L$withval/lib"
-                ACX_RUNTIME_PATH_ADD([$withval/lib])
-                CPPFLAGS="-I$withval/include/nspr4 $CPPFLAGS"
-        else
-                CPPFLAGS="$CPPFLAGS -I/usr/include/nss3"
-                CPPFLAGS="-I/usr/include/nspr4 $CPPFLAGS"
-        fi
-        LIBS="$LIBS -lnss3 -lnspr4"
-        SSLLIB=""
-        ]
-)
+dnl AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
+dnl         [use libnss instead of openssl, installed at path.]),
+dnl         [
+dnl         USE_NSS="yes"
+dnl         AC_DEFINE(HAVE_NSS, 1, [Use libnss for crypto])
+dnl         if test "$withval" != "" -a "$withval" != "yes"; then
+dnl                 CPPFLAGS="$CPPFLAGS -I$withval/include/nss3"
+dnl                 LDFLAGS="$LDFLAGS -L$withval/lib"
+dnl                 ACX_RUNTIME_PATH_ADD([$withval/lib])
+dnl                 CPPFLAGS="-I$withval/include/nspr4 $CPPFLAGS"
+dnl         else
+dnl                 CPPFLAGS="$CPPFLAGS -I/usr/include/nss3"
+dnl                 CPPFLAGS="-I/usr/include/nspr4 $CPPFLAGS"
+dnl         fi
+dnl         LIBS="$LIBS -lnss3 -lnspr4"
+dnl         SSLLIB=""
+dnl         ]
+dnl )
 
 # libnettle
 USE_NETTLE="no"
-AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
-        [use libnettle as crypto library, installed at path.]),
-        [
-        USE_NETTLE="yes"
-        AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
-        AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
-        if test "$withval" != "" -a "$withval" != "yes"; then
-                CPPFLAGS="$CPPFLAGS -I$withval/include/nettle"
-                LDFLAGS="$LDFLAGS -L$withval/lib"
-                ACX_RUNTIME_PATH_ADD([$withval/lib])
-        else
-                CPPFLAGS="$CPPFLAGS -I/usr/include/nettle"
-        fi
-        LIBS="$LIBS -lhogweed -lnettle -lgmp"
-        SSLLIB=""
-        ]
-)
+dnl AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
+dnl         [use libnettle as crypto library, installed at path.]),
+dnl         [
+dnl         USE_NETTLE="yes"
+dnl         AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
+dnl         AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
+dnl         if test "$withval" != "" -a "$withval" != "yes"; then
+dnl                 CPPFLAGS="$CPPFLAGS -I$withval/include/nettle"
+dnl                 LDFLAGS="$LDFLAGS -L$withval/lib"
+dnl                 ACX_RUNTIME_PATH_ADD([$withval/lib])
+dnl         else
+dnl                 CPPFLAGS="$CPPFLAGS -I/usr/include/nettle"
+dnl         fi
+dnl         LIBS="$LIBS -lhogweed -lnettle -lgmp"
+dnl         SSLLIB=""
+dnl         ]
+dnl )
 
 # openssl
 if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
-ACX_WITH_SSL_OPTIONAL
+ACX_WITH_SSL
+fi
 ACX_LIB_SSL
 AC_MSG_CHECKING([for LibreSSL])
 if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
@@ -453,7 +454,7 @@ if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/
 else
 	AC_MSG_RESULT([no])
 fi
-AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([openssl/conf.h openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host X509_get_notAfter X509_get0_notAfter SSL_CTX_set_ciphersuites SSL_set_ciphersuites])
@@ -477,7 +478,6 @@ AC_INCLUDES_DEFAULT
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
 ])
-fi
 
 AC_MSG_CHECKING([whether we need to compile/link DANE support])
 DANESSL_XTRA_OBJS=""

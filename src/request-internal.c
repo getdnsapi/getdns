@@ -495,6 +495,9 @@ _getdns_network_req_add_tsig(getdns_network_req *req)
 void
 _getdns_network_validate_tsig(getdns_network_req *req)
 {
+#if defined(HAVE_NSS) || defined(HAVE_NETTLE)
+	(void)req;
+#else
 	_getdns_rr_iter  rr_spc, *rr;
 	_getdns_rdf_iter rdf_spc, *rdf;
 	const uint8_t *request_mac;
@@ -668,6 +671,7 @@ _getdns_network_validate_tsig(getdns_network_req *req)
 	gldns_write_uint16(req->response, gldns_read_uint16(req->query));
 	gldns_write_uint16(req->response + 10,
 	    gldns_read_uint16(req->response + 10) + 1);
+#endif
 }
 
 void
