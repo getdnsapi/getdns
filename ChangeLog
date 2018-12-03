@@ -1,4 +1,6 @@
 * 2018-??-??: Version 1.4.3
+  * getdns_query queries for addresses when a query name
+    without a type is given.
   * RFE #408: Fetching of trust anchors will be retried
     after failure, after a certain backoff time. The time
     can be configured with
