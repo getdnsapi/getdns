@@ -36,7 +36,7 @@ sinclude(./m4/acx_getaddrinfo.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
-AC_INIT([getdns], [1.4.3], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
+AC_INIT([getdns], [1.5.0], [team@getdnsapi.net], [getdns], [https://getdnsapi.net])
 
 # Autoconf 2.70 will have set up runstatedir. 2.69 is frequently (Debian)
 # patched to do the same, but frequently (MacOS) not. So add a with option
@@ -63,13 +63,13 @@ AC_ARG_WITH([current-date],
   [CURRENT_DATE="`date -u +%Y-%m-%dT%H:%M:%SZ`"])
 
 AC_SUBST(GETDNS_VERSION, ["AC_PACKAGE_VERSION$RELEASE_CANDIDATE"])
-AC_SUBST(GETDNS_NUMERIC_VERSION, [0x010402c1])
+AC_SUBST(GETDNS_NUMERIC_VERSION, [0x0104ffc1])
 AC_SUBST(API_VERSION, ["December 2015"])
 AC_SUBST(API_NUMERIC_VERSION, [0x07df0c00])
 GETDNS_COMPILATION_COMMENT="AC_PACKAGE_NAME $GETDNS_VERSION configured on $CURRENT_DATE for the $API_VERSION version of the API"
 
 AC_DEFINE_UNQUOTED([STUBBY_PACKAGE], ["stubby"], [Stubby package])
-AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.3$STUBBY_RELEASE_CANDIDATE"], [Stubby package string])
+AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.4$STUBBY_RELEASE_CANDIDATE"], [Stubby package string])
 
 # Library version
 # ---------------
@@ -106,7 +106,8 @@ AC_DEFINE_UNQUOTED([STUBBY_PACKAGE_STRING], ["0.2.3$STUBBY_RELEASE_CANDIDATE"], 
 # getdns-1.4.0 had libversion 10:0:0
 # getdns-1.4.1 had libversion 10:1:0
 # getdns-1.4.2 has libversion 10:2:0
-GETDNS_LIBVERSION=10:2:0
+# getdns-1.5.0 will have libversion 11:0:1
+GETDNS_LIBVERSION=11:0:1
 
 AC_SUBST(GETDNS_COMPILATION_COMMENT)
 AC_SUBST(GETDNS_LIBVERSION)
