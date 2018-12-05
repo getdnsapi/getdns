@@ -304,9 +304,16 @@ getdns_return_t _getdns_tls_connection_is_session_reused(_getdns_tls_connection*
 
 getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connection* conn, const char* auth_name)
 {
+	int r;
+
 	if (!conn || !conn->tls || !auth_name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+	r = gnutls_server_name_set(conn->tls, GNUTLS_NAME_DNS, auth_name, strlen(auth_name));
+	if (r != GNUTLS_E_SUCCESS)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	gnutls_session_set_verify_cert(conn->tls, auth_name, 0);
 	return GETDNS_RETURN_GOOD;
 }
 
