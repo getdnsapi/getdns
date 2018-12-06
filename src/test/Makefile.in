@@ -305,7 +305,8 @@ tests_list.lo tests_list.o: $(srcdir)/tests_list.c $(srcdir)/testmessages.h \
 tests_namespaces.lo tests_namespaces.o: $(srcdir)/tests_namespaces.c $(srcdir)/testmessages.h \
  ../getdns/getdns.h
 tests_stub_async.lo tests_stub_async.o: $(srcdir)/tests_stub_async.c \
- ../config.h $(srcdir)/testmessages.h \
+ ../config.h \
+ $(srcdir)/testmessages.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 tests_stub_sync.lo tests_stub_sync.o: $(srcdir)/tests_stub_sync.c $(srcdir)/testmessages.h \

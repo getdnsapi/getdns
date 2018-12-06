@@ -123,7 +123,8 @@ depend:
 
 # Dependencies for getdns_query
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
- ../config.h $(srcdir)/../debug.h \
+ ../config.h \
+ $(srcdir)/../debug.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
 getdns_server_mon.lo getdns_server_mon.o: $(srcdir)/getdns_server_mon.c \
