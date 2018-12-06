@@ -34,15 +34,15 @@
 #include "config.h"
 #include "anchor.h"
 
-void _getdns_context_equip_with_anchor(getdns_context *context, uint64_t *now_ms)
+void _getdns_context_equip_with_anchor(
+        getdns_context *context, uint64_t *now_ms)
 {
 }
 
-void _getdns_start_fetching_ta(getdns_context *context, getdns_eventloop *loop)
+uint8_t *_getdns_tas_validate(struct mem_funcs *mf,
+    const getdns_bindata *xml_bd, const getdns_bindata *p7s_bd,
+    const getdns_bindata *crt_bd, const char *p7signer,
+                      uint64_t *now_ms, uint8_t *tas, size_t *tas_len)
 {
-}
-
-void _getdns_context_update_root_ksk(
-    getdns_context *context, _getdns_rrset *dnskey_set)
-{
+        return NULL;
 }

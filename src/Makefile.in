@@ -95,7 +95,7 @@ COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 UTIL_OBJ=rbtree.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
-TLS_OBJ=tls.lo pubkey-pinning.lo keyraw-internal.lo val_secalgo.lo
+TLS_OBJ=tls.lo pubkey-pinning.lo keyraw-internal.lo val_secalgo.lo anchor-internal.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo
@@ -147,7 +147,7 @@ $(EXTENSION_OBJ):
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -c $(srcdir)/extension/$(@:.lo=.c) -o $@
 
 anchor.lo:
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/$(tlsdir)/anchor.c -o anchor.lo
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/anchor.c -o anchor.lo
 
 context.lo:
 	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) $(C99COMPATFLAGS) -c $(srcdir)/context.c -o context.lo
