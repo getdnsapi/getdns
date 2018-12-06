@@ -957,7 +957,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			long verify_errno;
 			const char* verify_errmsg;
 
-			if (!_getdns_tls_connection_verify(upstream->tls_obj, &verify_errno, &verify_errmsg)) {
+			if (_getdns_tls_connection_verify(upstream->tls_obj, &verify_errno, &verify_errmsg)) {
 				upstream->tls_auth_state = GETDNS_AUTH_OK;
 				if (verify_errno != 0) {
 					_getdns_upstream_log(upstream,
