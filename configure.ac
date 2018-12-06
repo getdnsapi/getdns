@@ -33,6 +33,7 @@ AC_PREREQ([2.68])
 AC_CONFIG_MACRO_DIRS([m4])
 sinclude(./m4/acx_openssl.m4)
 sinclude(./m4/acx_getaddrinfo.m4)
+sinclude(./m4/ac_lib_nettle.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
@@ -409,6 +410,7 @@ AC_ARG_WITH([gnutls],
         CFLAGS="$libgnutls_CFLAGS $CFLAGS"
         AC_SUBST([TLSDIR], 'gnutls')
         AC_DEFINE([USE_GNUTLS], [1], [Use the GnuTLS library])
+        AX_LIB_NETTLE(yes)
     ],
     [
         ACX_WITH_SSL_OPTIONAL

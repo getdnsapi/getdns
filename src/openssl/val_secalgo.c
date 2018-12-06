@@ -1321,21 +1321,21 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 
 #elif defined(HAVE_NETTLE)
 
-#include "sha.h"
-#include "bignum.h"
-#include "macros.h"
-#include "rsa.h"
-#include "dsa.h"
+#include <nettle/sha.h>
+#include <nettle/bignum.h>
+#include <nettle/macros.h>
+#include <nettle/rsa.h>
+#include <nettle/dsa.h>
 #ifdef HAVE_NETTLE_DSA_COMPAT_H
-#include "dsa-compat.h"
+#include <nettle/dsa-compat.h>
 #endif
-#include "asn1.h"
+#include <nettle/asn1.h>
 #ifdef USE_ECDSA
-#include "ecdsa.h"
-#include "ecc-curve.h"
+#include <nettle/ecdsa.h>
+#include <nettle/ecc-curve.h>
 #endif
 #ifdef HAVE_NETTLE_EDDSA_H
-#include "eddsa.h"
+#include <nettle/eddsa.h>
 #endif
 
 static int
