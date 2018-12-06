@@ -81,7 +81,7 @@ DEFAULT_EVENTLOOP_OBJ=@DEFAULT_EVENTLOOP@.lo
 GETDNS_OBJ=const-info.lo convert.lo dict.lo dnssec.lo general.lo \
 	list.lo request-internal.lo platform.lo rr-dict.lo \
 	rr-iter.lo server.lo stub.lo sync.lo ub_loop.lo util-internal.lo \
-	mdns.lo
+	mdns.lo pubkey-pinning.lo
 
 GLDNS_OBJ=keyraw.lo gbuffer.lo wire2str.lo parse.lo parseutil.lo rrdef.lo \
 	str2wire.lo
@@ -95,7 +95,7 @@ COMPAT_OBJ=$(LIBOBJS:.o=.lo)
 UTIL_OBJ=rbtree.lo lruhash.lo lookup3.lo locks.lo
 
 JSMN_OBJ=jsmn.lo
-TLS_OBJ=tls.lo pubkey-pinning.lo keyraw-internal.lo val_secalgo.lo anchor-internal.lo
+TLS_OBJ=tls.lo pubkey-pinning-internal.lo keyraw-internal.lo val_secalgo.lo anchor-internal.lo
 YXML_OBJ=yxml.lo
 
 YAML_OBJ=convert_yaml_to_json.lo

@@ -36,6 +36,15 @@
 
 #include "tls.h"
 
+/**
+ ** Internal functions, implemented in pubkey-pinning-internal.c.
+ **/
+getdns_dict* getdns_pubkey_pin_create_from_string(getdns_context* context, const char* str);
+
+/**
+ ** Public interface.
+ **/
+
 /* create and populate a pinset linked list from a getdns_list pinset */
 getdns_return_t
 _getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,

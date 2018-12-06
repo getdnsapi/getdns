@@ -40,26 +40,6 @@
  ** Interfaces from pubkey-pinning.h
  **/
 
-/* create and populate a pinset linked list from a getdns_list pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
-				    struct mem_funcs *mf,
-				    sha256_pin_t **pinset_out)
-{
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
-
-
-
-/* create a getdns_list version of the pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_list(getdns_context *ctx,
-			       const sha256_pin_t *pinset_in,
-			       getdns_list **pinset_list)
-{
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
-
 getdns_return_t
 _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 					   getdns_upstream *upstream)
@@ -73,12 +53,6 @@ _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 
 getdns_dict*
 getdns_pubkey_pin_create_from_string(getdns_context* context, const char* str)
-{
-	return GETDNS_RETURN_GENERIC_ERROR;
-}
-
-getdns_return_t
-getdns_pubkey_pinset_sanity_check(const getdns_list* pinset, getdns_list* errorlist)
 {
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
