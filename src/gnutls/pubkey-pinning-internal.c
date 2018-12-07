@@ -54,5 +54,5 @@ _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 getdns_dict*
 getdns_pubkey_pin_create_from_string(getdns_context* context, const char* str)
 {
-	return GETDNS_RETURN_GENERIC_ERROR;
+	return NULL;
 }
