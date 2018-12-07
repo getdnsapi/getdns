@@ -590,8 +590,9 @@ void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
 void _getdns_upstream_shutdown(getdns_upstream *upstream);
 
-FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn);
-uint8_t *_getdns_context_get_priv_file(getdns_context *context,
+FILE *_getdns_context_get_priv_fp(
+    const getdns_context *context, const char *fn);
+uint8_t *_getdns_context_get_priv_file(const getdns_context *context,
     const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz);
 
 int _getdns_context_write_priv_file(getdns_context *context,
