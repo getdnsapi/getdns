@@ -34,6 +34,8 @@
 #ifndef _GETDNS_TLS_INTERNAL_H
 #define _GETDNS_TLS_INTERNAL_H
 
+#include <stdbool.h>
+
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
 
@@ -52,13 +54,14 @@
 
 
 typedef struct _getdns_tls_context {
-	int unused;
+	bool min_proto_1_2;
 } _getdns_tls_context;
 
 typedef struct _getdns_tls_connection {
 	gnutls_session_t tls;
 	gnutls_certificate_credentials_t cred;
 	int shutdown;
+	_getdns_tls_context* ctx;
 } _getdns_tls_connection;
 
 typedef struct _getdns_tls_session {

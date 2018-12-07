@@ -95,6 +95,7 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
 	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_context)))
 		return NULL;
 
+	res->min_proto_1_2 = false;
 	return res;
 }
 
@@ -113,7 +114,9 @@ void _getdns_tls_context_dane_init(_getdns_tls_context* ctx)
 
 getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx)
 {
-	(void) ctx;
+	if (!ctx)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	ctx->min_proto_1_2 = true;
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 }
 
@@ -157,6 +160,7 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 		return NULL;
 
 	res->shutdown = 0;
+	res->ctx = ctx;
 
 	r = gnutls_certificate_allocate_credentials(&res->cred);
 	if (r == GNUTLS_E_SUCCESS)
@@ -270,8 +274,12 @@ getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	r = gnutls_handshake(conn->tls);
-	if (r == GNUTLS_E_SUCCESS)
+	if (r == GNUTLS_E_SUCCESS) {
+		if (conn->ctx->min_proto_1_2 &&
+		    gnutls_protocol_get_version(conn->tls) < GNUTLS_TLS1_2)
+			return GETDNS_RETURN_GENERIC_ERROR;
 		return GETDNS_RETURN_GOOD;
+	}
 	else
 		return error_may_want_read_write(conn, r);
 }
