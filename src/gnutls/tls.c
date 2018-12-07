@@ -327,7 +327,7 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	return GETDNS_RETURN_GOOD;
 }
 
-getdns_return_t _getdns_tls_connection_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg)
+getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg)
 {
 	(void) errnum;
 	(void) errmsg;
