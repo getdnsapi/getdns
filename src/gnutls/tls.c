@@ -40,6 +40,75 @@
 
 #include "tls.h"
 
+/*
+ * Cipher suites recommended in RFC7525.
+ *
+ * The GnuTLS 3.5.19 being used for this proof of concept doesn't have
+ * TLS 1.3 support, as in the OpenSSL equivalent. Fall back for now to
+ * a known working priority string.
+ */
+char const * const _getdns_tls_context_default_cipher_list =
+	"SECURE192:-VERS-ALL:+VERS-TLS1.2";
+
+static char const * const _getdns_tls_connection_opportunistic_cipher_list =
+	"NORMAL";
+
+static char* getdns_strdup(struct mem_funcs* mfs, const char* s)
+{
+	char* res;
+
+	if (!s)
+		return NULL;
+
+	res = GETDNS_XMALLOC(*mfs, char, strlen(s) + 1);
+	if (!res)
+		return NULL;
+	strcpy(res, s);
+	return res;
+}
+
+static char* getdns_priappend(struct mem_funcs* mfs, char* s1, const char* s2)
+{
+	char* res;
+
+	if (!s1)
+		return getdns_strdup(mfs, s2);
+	if (!s2)
+		return s1;
+
+	res = GETDNS_XMALLOC(*mfs, char, strlen(s1) + strlen(s2) + 2);
+	if (!res)
+		return NULL;
+	strcpy(res, s1);
+	strcat(res, ":");
+	strcat(res, s2);
+	GETDNS_FREE(*mfs, s1);
+	return res;
+}
+
+static int set_connection_ciphers(_getdns_tls_connection* conn)
+{
+	char* pri = NULL;
+	int res;
+
+	if (conn->cipher_list)
+		pri = getdns_priappend(conn->mfs, pri, conn->cipher_list);
+	else if (conn->ctx->cipher_list)
+		pri = getdns_priappend(conn->mfs, pri, conn->ctx->cipher_list);
+
+	if (conn->curve_list)
+		pri = getdns_priappend(conn->mfs, pri, conn->curve_list);
+	else if (conn->ctx->curve_list)
+		pri = getdns_priappend(conn->mfs, pri, conn->ctx->curve_list);
+
+	if (pri)
+		res = gnutls_priority_set_direct(conn->tls, pri, NULL);
+	else
+		res = gnutls_set_default_priority(conn->tls);
+	GETDNS_FREE(*conn->mfs, pri);
+	return res;
+}
+
 static getdns_return_t error_may_want_read_write(_getdns_tls_connection* conn, int err)
 {
 	switch (err) {
@@ -95,7 +164,9 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
 	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_context)))
 		return NULL;
 
+	res->mfs = mfs;
 	res->min_proto_1_2 = false;
+	res->cipher_list = res->curve_list = NULL;
 	return res;
 }
 
@@ -103,6 +174,8 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 {
 	if (!ctx)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+	GETDNS_FREE(*mfs, ctx->curve_list);
+	GETDNS_FREE(*mfs, ctx->cipher_list);
 	GETDNS_FREE(*mfs, ctx);
 	return GETDNS_RETURN_GOOD;
 }
@@ -122,19 +195,24 @@ getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx)
 
 getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, const char* list)
 {
-	(void) list;
-
 	if (!ctx)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!list)
+		list = _getdns_tls_context_default_cipher_list;
+
+	GETDNS_FREE(*ctx->mfs, ctx->cipher_list);
+	ctx->cipher_list = getdns_strdup(ctx->mfs, list);
 	return GETDNS_RETURN_GOOD;
 }
 
 getdns_return_t _getdns_tls_context_set_curves_list(_getdns_tls_context* ctx, const char* list)
 {
-	(void) list;
-
 	if (!ctx)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	GETDNS_FREE(*ctx->mfs, ctx->curve_list);
+	ctx->curve_list = getdns_strdup(ctx->mfs, list);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -161,6 +239,9 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 
 	res->shutdown = 0;
 	res->ctx = ctx;
+	res->mfs = mfs;
+	res->cipher_list = NULL;
+	res->curve_list = NULL;
 
 	r = gnutls_certificate_allocate_credentials(&res->cred);
 	if (r == GNUTLS_E_SUCCESS)
@@ -168,7 +249,7 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 	if (r == GNUTLS_E_SUCCESS)
 		r = gnutls_init(&res->tls, GNUTLS_CLIENT | GNUTLS_NONBLOCK);
 	if (r == GNUTLS_E_SUCCESS)
-		r = gnutls_set_default_priority(res->tls);
+		r = set_connection_ciphers(res);
 	if (r == GNUTLS_E_SUCCESS)
 		r = gnutls_credentials_set(res->tls, GNUTLS_CRD_CERTIFICATE, res->cred);
 	if (r != GNUTLS_E_SUCCESS) {
@@ -187,6 +268,8 @@ getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_c
 
 	gnutls_deinit(conn->tls);
 	gnutls_certificate_free_credentials(conn->cred);
+	GETDNS_FREE(*mfs, conn->curve_list);
+	GETDNS_FREE(*mfs, conn->cipher_list);
 	GETDNS_FREE(*mfs, conn);
 	return GETDNS_RETURN_GOOD;
 }
@@ -209,20 +292,31 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn)
 
 getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* conn, const char* list)
 {
-	(void) list;
-
 	if (!conn || !conn->tls)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	return GETDNS_RETURN_GOOD;
+
+	if (!list)
+		list = _getdns_tls_connection_opportunistic_cipher_list;
+
+	GETDNS_FREE(*conn->mfs, conn->cipher_list);
+	conn->cipher_list = getdns_strdup(conn->mfs, list);
+	if (set_connection_ciphers(conn) == GNUTLS_E_SUCCESS)
+		return GETDNS_RETURN_GOOD;
+	else
+		return GETDNS_RETURN_GENERIC_ERROR;
 }
 
 getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* conn, const char* list)
 {
-	(void) list;
-
 	if (!conn || !conn->tls)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	return GETDNS_RETURN_GOOD;
+
+	GETDNS_FREE(*conn->mfs, conn->curve_list);
+	conn->curve_list = getdns_strdup(conn->mfs, list);
+	if (set_connection_ciphers(conn) == GNUTLS_E_SUCCESS)
+		return GETDNS_RETURN_GOOD;
+	else
+		return GETDNS_RETURN_GENERIC_ERROR;
 }
 
 getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s)

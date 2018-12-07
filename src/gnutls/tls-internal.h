@@ -54,6 +54,9 @@
 
 
 typedef struct _getdns_tls_context {
+	struct mem_funcs* mfs;
+	char* cipher_list;
+	char* curve_list;
 	bool min_proto_1_2;
 } _getdns_tls_context;
 
@@ -62,6 +65,9 @@ typedef struct _getdns_tls_connection {
 	gnutls_certificate_credentials_t cred;
 	int shutdown;
 	_getdns_tls_context* ctx;
+	struct mem_funcs* mfs;
+	char* cipher_list;
+	char* curve_list;
 } _getdns_tls_connection;
 
 typedef struct _getdns_tls_session {

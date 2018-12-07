@@ -49,6 +49,14 @@
 
 #include "tls.h"
 
+/* Cipher suites recommended in RFC7525. */
+char const * const _getdns_tls_context_default_cipher_list =
+	"TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
+	"TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
+
+static char const * const _getdns_tls_connection_opportunistic_cipher_list =
+	"DEFAULT";
+
 static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 {
 # if defined(STUB_DEBUG) && STUB_DEBUG
@@ -275,6 +283,10 @@ getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, co
 {
 	if (!ctx || !ctx->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!list)
+		list = _getdns_tls_context_default_cipher_list;
+
 	if (!SSL_CTX_set_cipher_list(ctx->ssl, list))
 		return GETDNS_RETURN_BAD_CONTEXT;
 	return GETDNS_RETURN_GOOD;
@@ -366,6 +378,10 @@ getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* c
 {
 	if (!conn || !conn->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!list)
+		list = _getdns_tls_connection_opportunistic_cipher_list;
+
 	if (!SSL_set_cipher_list(conn->ssl, list))
 		return GETDNS_RETURN_BAD_CONTEXT;
 	return GETDNS_RETURN_GOOD;

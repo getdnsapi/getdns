@@ -94,7 +94,7 @@ getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx);
  * Set list of allowed ciphers.
  *
  * @param ctx	the context.
- * @param list 	the list of cipher identifiers.
+ * @param list 	the list of cipher identifiers. NULL for default setting.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
@@ -105,7 +105,7 @@ getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, co
  * Set list of allowed curves.
  *
  * @param ctx	the context.
- * @param list 	the list of curve identifiers.
+ * @param list 	the list of curve identifiers. NULL for default setting.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
@@ -164,7 +164,7 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn);
  * Set list of allowed ciphers on this connection.
  *
  * @param conn	the connection.
- * @param list 	the list of cipher identifiers.
+ * @param list 	the list of cipher identifiers. NULL for opportunistic setting.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER on bad connection pointer.
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
@@ -175,7 +175,7 @@ getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* c
  * Set list of allowed curves on this connection.
  *
  * @param conn	the connection.
- * @param list 	the list of curve identifiers.
+ * @param list 	the list of curve identifiers. NULL for default setting.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER on bad connection pointer.
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
@@ -406,5 +406,10 @@ void _getdns_tls_sha1(const void* data, size_t data_size, unsigned char* buf);
  * @param buflen	receive the hash length.
  */
 void _getdns_tls_cookie_sha256(uint32_t secret, void* addr, size_t addrlen, unsigned char* buf, size_t* buflen);
+
+/**
+ * Default context cipher list.
+ */
+const char* const _getdns_tls_context_default_cipher_list;
 
 #endif /* _GETDNS_TLS_H */

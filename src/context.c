@@ -1343,10 +1343,6 @@ static char const * const _getdns_default_trust_anchors_verify_CA =
 static char const * const _getdns_default_trust_anchors_verify_email =
     "dnssec@iana.org";
 
-static char const * const _getdns_default_tls_cipher_list = 
-	"TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
-	"TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
-
 /*
  * getdns_context_create
  *
@@ -3556,9 +3552,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			}
 			/* Be strict and only use the cipher suites recommended in RFC7525
 			   Unless we later fallback to opportunistic. */
-			if (_getdns_tls_context_set_cipher_list(context->tls_ctx,
-			    context->tls_cipher_list ? context->tls_cipher_list
-			                             : _getdns_default_tls_cipher_list))
+			if (_getdns_tls_context_set_cipher_list(context->tls_ctx, context->tls_cipher_list))
 				return GETDNS_RETURN_BAD_CONTEXT;
 
 			if (context->tls_curves_list &&
@@ -5277,7 +5271,7 @@ getdns_context_get_tls_cipher_list(
 
 	*tls_cipher_list = context->tls_cipher_list
 	                 ? context->tls_cipher_list
-	                 : _getdns_default_tls_cipher_list;
+		         : _getdns_tls_context_default_cipher_list;
 	return GETDNS_RETURN_GOOD;
 }
 
