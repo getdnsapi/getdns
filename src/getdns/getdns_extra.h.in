@@ -557,8 +557,11 @@ typedef enum getdns_loglevel_type {
 #define GETDNS_LOG_INFO_TEXT    "Informational message"
 #define GETDNS_LOG_DEBUG_TEXT   "Debug-level message"
 
-#define GETDNS_LOG_UPSTREAM_STATS 4096
+#define GETDNS_LOG_UPSTREAM_STATS 0x1000
 #define GETDNS_LOG_UPSTREAM_STATS_TEXT "Log messages about upstream statistics"
+#define GETDNS_LOG_SYS_STUB       0x2000
+#define GETDNS_LOG_SYS_STUB_TEXT "Log messages involving non upstream specific stub matters"
+
 
 typedef void (*getdns_logfunc_type) (void *userarg, uint64_t log_systems,
     getdns_loglevel_type, const char *, va_list ap);

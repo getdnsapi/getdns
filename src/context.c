@@ -187,18 +187,19 @@ _getdns_strdup2(const struct mem_funcs *mfs, const getdns_bindata *s)
    Add code to open the trust store using wincrypt API and add
    the root certs into openssl trust store */
 static int 
-add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
+add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 {
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
-
-	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-		"Adding Windows certificates from system root store to CA store");
+	
+	_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
+	    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+	    , "Adding Windows certificates from system root store to CA store")
+	    ;
 
 	/* load just once per context lifetime for this version of getdns
 	   TODO: dynamically update CA trust changes as they are available */
-	if (!tls_ctx)
-		return 0;
+	assert(tls_ctx);
 
 	/* Call wincrypt's CertOpenStore to open the CA root store. */
 
@@ -211,19 +212,27 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		1 << 16,
 		L"root")) == 0)
 	{
+		_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+		    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+		    , "Could not CertOpenStore()");
 		return 0;
 	}
 
 	X509_STORE* store = SSL_CTX_get_cert_store(tls_ctx);
-	if (!store)
+	if (!store) {
+		_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+		    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+		    , "Could not SSL_CTX_get_cert_store()");
 		return 0;
+	}
 
 	/* failure if the CA store is empty or the call fails */
 	if ((pTargetCert = CertEnumCertificatesInStore(
-		hSystemStore, pTargetCert)) == 0) {
-		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-			"CA certificate store for Windows is empty.");
-			return 0;
+	    hSystemStore, pTargetCert)) == 0) {
+		_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_NOTICE
+		    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+		    , "CA certificate store for Windows is empty.");
+		return 0;
 	}
 	/* iterate over the windows cert store and add to openssl store */
 	do 
@@ -233,9 +242,13 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
 			/* return error if a cert fails */
-			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-				"Unable to parse certificate in memory",
-				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
+			_getdns_log(&ctxt->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR,
+			    , "%s %-35s: %s %d:%s\n"
+			    , STUB_DEBUG_SETUP_TLS, __FUNC__
+			    , "Unable to parse certificate in memory"
+			    , ERR_get_error()
+			    , ERR_error_string(ERR_get_error(), NULL));
 			return 0;
 		}
 		else {
@@ -247,9 +260,16 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 				* certificate is already in the store.  */ 
 				if(ERR_GET_LIB(error) != ERR_LIB_X509 ||
 				   ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
-					DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-					    "Error adding certificate", ERR_get_error(),
-					     ERR_error_string(ERR_get_error(), NULL));
+					_getdns_log(&ctxt->log
+					    , GETDNS_LOG_SYS_STUB
+					    , GETDNS_LOG_ERR
+					    , "%s %-35s: %s %d:%s\n"
+					    , STUB_DEBUG_SETUP_TLS, __FUNC__
+					    , "Error adding certificate"
+					    , ERR_get_error()
+					    , ERR_error_string( ERR_get_error()
+					                      , NULL)
+					    );
 					X509_free(cert1);
 					return 0;
 				}
@@ -264,12 +284,18 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		CertFreeCertificateContext(pTargetCert);
 	if (hSystemStore)
 	{
-		if (!CertCloseStore(
-			hSystemStore, 0))
+		if (!CertCloseStore(hSystemStore, 0)) {
+			_getdns_log(&ctxt->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+			    , "Could not CertCloseStore()");
 			return 0;
+		}
 	}
-	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-		"Completed adding Windows certificates to CA store successfully");
+	_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_INFO
+	    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+	    , "Completed adding Windows certificates to CA store successfully")
+	    ;
 	return 1;
 }
 #endif
@@ -698,26 +724,6 @@ upstreams_create(getdns_context *context, size_t size)
 }
 
 
-#if defined(USE_DANESSL) && defined(STUB_DEBUG) && STUB_DEBUG
-static void _stub_debug_print_openssl_errors(void)
-{
-    unsigned long err;
-    char buffer[1024];
-    const char *file;
-    const char *data;
-    int line;
-    int flags;
-
-    while ((err = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
-        ERR_error_string_n(err, buffer, sizeof(buffer));
-        if (flags & ERR_TXT_STRING)
-            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d:%s\n", buffer, file, line, data);
-        else
-            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d\n", buffer, file, line);
-    }
-}
-#endif
-
 void
 _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 {
@@ -760,9 +766,6 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 		if (upstream->tls_obj != NULL) {
 			SSL_shutdown(upstream->tls_obj);
 #ifdef USE_DANESSL
-# if defined(STUB_DEBUG) && STUB_DEBUG
-			_stub_debug_print_openssl_errors();
-# endif
 			DANESSL_cleanup(upstream->tls_obj);
 #endif
 			SSL_free(upstream->tls_obj);
@@ -787,22 +790,6 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			GETDNS_FREE(upstreams->mf, upstream->tls_curves_list);
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
-}
-
-void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
-    getdns_loglevel_type level, const char *fmt, ...)
-{
-	va_list args;
-
-	if (!upstream || !upstream->upstreams || !upstream->upstreams->log.func
-	    || !(upstream->upstreams->log.system & system)
-	    || level > upstream->upstreams->log.level)
-		return;
-
-	va_start(args, fmt);
-	upstream->upstreams->log.func(
-	    upstream->upstreams->log.userarg, system, level, fmt, args);
-	va_end(args);
 }
 
 static void
@@ -881,9 +868,6 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 	if (upstream->tls_obj != NULL) {
 		SSL_shutdown(upstream->tls_obj);
 #ifdef USE_DANESSL
-# if defined(STUB_DEBUG) && STUB_DEBUG
-		_stub_debug_print_openssl_errors();
-# endif
 		DANESSL_cleanup(upstream->tls_obj);
 #endif
 		SSL_free(upstream->tls_obj);
@@ -1939,20 +1923,6 @@ getdns_context_set_logfunc(getdns_context *context, void *userarg,
 		context->upstreams->log = context->log;
 	}
 	return GETDNS_RETURN_GOOD;
-}
-
-void _getdns_context_log(getdns_context *context, uint64_t system,
-    getdns_loglevel_type level, const char *fmt, ...)
-{
-	va_list args;
-
-	if (!context || !context->log.func || !(context->log.system & system)
-	    || level > context->log.level)
-		return;
-
-	va_start(args, fmt);
-	context->log.func(context->log.userarg, system, level, fmt, args);
-	va_end(args);
 }
 
 #ifdef HAVE_LIBUNBOUND
@@ -3692,8 +3662,11 @@ getdns_return_t
 _getdns_context_prepare_for_resolution(getdns_context *context)
 {
 	getdns_return_t r;
+#if defined(HAVE_SSL_CTX_DANE_ENABLE) || defined(USE_DANESSL)
+	int osr;
+#endif
 
-	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+	assert(context);
 	if (context->destroying)
 		return GETDNS_RETURN_BAD_CONTEXT;
 
@@ -3777,29 +3750,23 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 #  ifndef USE_WINSOCK
 			else if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
 #  else
-			else if (!add_WIN_cacerts_to_openssl_store(context->tls_ctx)) {
+			else if (!add_WIN_cacerts_to_openssl_store(context, context->tls_ctx)) {
 #  endif /* USE_WINSOCK */
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}
 #  if defined(HAVE_SSL_CTX_DANE_ENABLE)
-#   if defined(STUB_DEBUG) && STUB_DEBUG
-			int osr =
-#   else
-			(void)
-#   endif
-				SSL_CTX_dane_enable(context->tls_ctx);
-			DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
-			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			osr = SSL_CTX_dane_enable(context->tls_ctx);
+			_getdns_log(&context->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
+			    , "%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
+			    , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
 #  elif defined(USE_DANESSL)
-#   if defined(STUB_DEBUG) && STUB_DEBUG
-			int osr =
-#   else
-			(void)
-#   endif
-				DANESSL_CTX_init(context->tls_ctx);
-			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_CTX_init() -> %d\n"
-			          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			osr = DANESSL_CTX_init(context->tls_ctx);
+			_getdns_log(&context->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
+			    , "%s %-35s: DEBUG: DANESSL_CTX_init() returned "
+			      "%d\n", STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
 #  endif
 #else /* HAVE_TLS_v1_2 */
 			if (tls_only_is_in_transports_list(context) == 1)

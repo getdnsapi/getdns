@@ -127,7 +127,7 @@ const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg);
 
 /* for doing public key pinning of TLS-capable upstreams: */
 typedef struct sha256_pin {
-	char pin[SHA256_DIGEST_LENGTH];
+	uint8_t pin[SHA256_DIGEST_LENGTH];
 	struct sha256_pin *next;
 } sha256_pin_t;
 
@@ -502,11 +502,38 @@ struct getdns_context {
 #endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
 
-void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
-    getdns_loglevel_type level, const char *fmt, ...);
+static inline int _getdns_check_log(const getdns_log_config *log,
+    uint64_t system, getdns_loglevel_type level)
+{ assert(log)
+; return log->func && (log->system & system) && level <= log->level; }
 
-void _getdns_context_log(getdns_context *context, uint64_t system,
-    getdns_loglevel_type level, const char *fmt, ...);
+static inline void _getdns_log(const getdns_log_config *log,
+    uint64_t system, getdns_loglevel_type level, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!_getdns_check_log(log, system, level))
+		return;
+
+	va_start(args, fmt);
+	log->func(log->userarg, system, level, fmt, args);
+	va_end(args);
+}
+
+static inline void _getdns_upstream_log(const getdns_upstream *up,
+    uint64_t system, getdns_loglevel_type level, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!up || !up->upstreams
+	||  !_getdns_check_log(&up->upstreams->log, system, level))
+		return;
+
+	va_start(args, fmt);
+	up->upstreams->log.func(
+	    up->upstreams->log.userarg, system, level, fmt, args);
+	va_end(args);
+}
 
 
 /** internal functions **/
