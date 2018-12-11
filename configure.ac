@@ -791,8 +791,8 @@ case "$enable_edns_cookies" in
 	no)
 		;;
 	yes|*)
-		if test "x_$HAVE_SSL" != "x_yes"; then
-			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun with --disable-edns-cookies])
+		if test "x_$HAVE_SSL" != "x_yes" -a $USE_NETTLE = "no"; then
+			AC_MSG_ERROR([edns cookies needs crypto library which is not available, please rerun with --disable-edns-cookies])
 		fi
 		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental edns cookies.])
 		;;
