@@ -445,8 +445,9 @@ AC_ARG_WITH([gnutls],
         [use GnuTLS instead of OpenSSL])],
     [
         PKG_CHECK_MODULES([libgnutls], [gnutls >= 3.5.0])
-        LIBS="$libgnutls_LIBS $LIBS"
-        CFLAGS="$libgnutls_CFLAGS $CFLAGS"
+        PKG_CHECK_MODULES([libgnutlsdane], [gnutls-dane >= 3.5.0])
+        LIBS="$libgnutls_LIBS $libgnutlsdane_LIBS $LIBS"
+        CFLAGS="$libgnutls_CFLAGS $libgnutlsdane_CFLAGS $CFLAGS"
         AC_SUBST([TLSDIR], 'gnutls')
         AC_DEFINE([USE_GNUTLS], [1], [Use the GnuTLS library])
 	if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
