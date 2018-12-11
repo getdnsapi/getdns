@@ -400,6 +400,45 @@ yes)
 	;;
 esac
 
+USE_NSS="no"
+AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
+        [use libnss instead of openssl, installed at path.]),
+        [
+        USE_NSS="yes"
+        AC_DEFINE(HAVE_NSS, 1, [Use libnss for crypto])
+        if test "$withval" != "" -a "$withval" != "yes"; then
+                CPPFLAGS="$CPPFLAGS -I$withval/include/nss3"
+                LDFLAGS="$LDFLAGS -L$withval/lib"
+                ACX_RUNTIME_PATH_ADD([$withval/lib])
+                CPPFLAGS="-I$withval/include/nspr4 $CPPFLAGS"
+        else
+                CPPFLAGS="$CPPFLAGS -I/usr/include/nss3"
+                CPPFLAGS="-I/usr/include/nspr4 $CPPFLAGS"
+        fi
+        LIBS="$LIBS -lnss3 -lnspr4"
+        SSLLIB=""
+        ]
+)
+
+# libnettle
+USE_NETTLE="no"
+AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
+        [use libnettle as crypto library, installed at path.]),
+        [
+        USE_NETTLE="yes"
+        AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
+        AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
+        if test "$withval" != "" -a "$withval" != "yes"; then
+                CPPFLAGS="$CPPFLAGS -I$withval/include/nettle"
+                LDFLAGS="$LDFLAGS -L$withval/lib"
+                ACX_RUNTIME_PATH_ADD([$withval/lib])
+        else
+                CPPFLAGS="$CPPFLAGS -I/usr/include/nettle"
+        fi
+        LIBS="$LIBS -lhogweed -lnettle -lgmp"
+        SSLLIB=""
+        ]
+)
 # Which TLS and crypto libs to use.
 AC_ARG_WITH([gnutls],
     [AS_HELP_STRING([--with-gnutls],
@@ -410,17 +449,25 @@ AC_ARG_WITH([gnutls],
         CFLAGS="$libgnutls_CFLAGS $CFLAGS"
         AC_SUBST([TLSDIR], 'gnutls')
         AC_DEFINE([USE_GNUTLS], [1], [Use the GnuTLS library])
-        AX_LIB_NETTLE(yes)
+	if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+		
+	        AX_LIB_NETTLE(yes)
+		USE_NETTLE="yes"
+		AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
+        	AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
+	fi
     ],
     [
-        ACX_WITH_SSL_OPTIONAL
+	if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+        ACX_WITH_SSL
+	fi
         ACX_LIB_SSL
         AC_SUBST([TLSDIR], 'openssl')
     ])
 
-USE_NSS="no"
+
 # openssl
-if test $USE_NSS = "no"; then
+if test $USE_NSS = "no" -a $USE_NETTLE = "no" ; then
 AC_MSG_CHECKING([for LibreSSL])
 if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
 	AC_MSG_RESULT([yes])
@@ -431,11 +478,11 @@ if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/
 else
 	AC_MSG_RESULT([no])
 fi
-AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([openssl/conf.h openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host X509_get_notAfter X509_get0_notAfter])
-AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set1_curves_list,SSL_set1_curves_list], [], [], [
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host X509_get_notAfter X509_get0_notAfter SSL_CTX_set_ciphersuites SSL_set_ciphersuites])
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set1_curves_list,SSL_set1_curves_list,SSL_set_min_proto_version,SSL_get_min_proto_version], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
@@ -594,7 +641,7 @@ AC_MSG_RESULT($ac_cv_c_gost_works)
 
 AC_ARG_ENABLE(gost, AC_HELP_STRING([--disable-gost], [Disable GOST support]))
 use_gost="no"
-if test $USE_NSS = "no"; then
+if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 case "$enable_gost" in
 	no)
 	;;
@@ -608,7 +655,7 @@ case "$enable_gost" in
 	fi
 	;;
 esac
-fi dnl !USE_NSS
+fi dnl !USE_NSS && !USE_NETTLE
 
 AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--disable-ecdsa], [Disable ECDSA support]))
 use_ecdsa="no"
@@ -616,7 +663,7 @@ case "$enable_ecdsa" in
     no)
       ;;
     *)
-      if test $USE_NSS = "no"; then
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 	      AC_CHECK_FUNC(ECDSA_sign, [], [AC_MSG_ERROR([OpenSSL does not support ECDSA: please upgrade or rerun with --disable-ecdsa])])
 	      AC_CHECK_FUNC(SHA384_Init, [], [AC_MSG_ERROR([OpenSSL does not support SHA384: please upgrade or rerun with --disable-ecdsa])])
 	      AC_CHECK_DECLS([NID_X9_62_prime256v1, NID_secp384r1], [], [AC_MSG_ERROR([OpenSSL does not support the ECDSA curves: please upgrade or rerun with --disable-ecdsa])], [AC_INCLUDES_DEFAULT
@@ -648,6 +695,7 @@ case "$enable_dsa" in
       ;;
     *) dnl default
       # detect if DSA is supported, and turn it off if not.
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
       AC_CHECK_FUNC(DSA_SIG_new, [
 	AC_CHECK_TYPE(DSA_SIG*, [
 		AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
@@ -672,6 +720,9 @@ AC_INCLUDES_DEFAULT
 ])
       ], [if test "x$enable_dsa" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support DSA and you used --enable-dsa.])
 	  fi ])
+      else
+      AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
+      fi
       ;;
 esac
 
@@ -681,14 +732,39 @@ case "$enable_ed25519" in
     no)
       ;;
     *)
-      if test "$USE_NSS" = "no" -a "$USE_NETTLE" = "no"; then
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
               AC_CHECK_DECLS([NID_ED25519], [
-                AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
                 use_ed25519="yes"
               ], [ if test "x$enable_ed25519" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support ED25519 and you used --enable-ed25519.])
                 fi ], [AC_INCLUDES_DEFAULT
 #include <openssl/evp.h>
               ])
+      fi
+      if test $USE_NETTLE = "yes"; then
+                AC_CHECK_HEADERS([nettle/eddsa.h], use_ed25519="yes",, [AC_INCLUDES_DEFAULT])
+      fi
+      if test $use_ed25519 = "yes"; then
+                AC_DEFINE_UNQUOTED([USE_ED25519], [1], [Define this to enable ED25519 support.])
+      fi
+      ;;
+esac
+
+AC_ARG_ENABLE(ed448, AC_HELP_STRING([--disable-ed448], [Disable ED448 support]))
+use_ed448="no"
+case "$enable_ed448" in
+    no)
+      ;;
+    *)
+      if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+              AC_CHECK_DECLS([NID_ED448], [
+                use_ed448="yes"
+              ], [ if test "x$enable_ed448" = "xyes"; then AC_MSG_ERROR([OpenSSL does not support ED448 and you used --enable-ed448.])
+                fi ], [AC_INCLUDES_DEFAULT
+#include <openssl/evp.h>
+              ])
+      fi
+      if test $use_ed448 = "yes"; then
+                AC_DEFINE_UNQUOTED([USE_ED448], [1], [Define this to enable ED448 support.])
       fi
       ;;
 esac
@@ -715,8 +791,8 @@ case "$enable_edns_cookies" in
 	no)
 		;;
 	yes|*)
-		if test "x_$HAVE_SSL" != "x_yes"; then
-			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun with --disable-edns-cookies])
+		if test "x_$HAVE_SSL" != "x_yes" -a $USE_NETTLE = "no"; then
+			AC_MSG_ERROR([edns cookies needs crypto library which is not available, please rerun with --disable-edns-cookies])
 		fi
 		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental edns cookies.])
 		;;
