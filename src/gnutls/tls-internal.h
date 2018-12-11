@@ -38,6 +38,7 @@
 
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
+#include <gnutls/dane.h>
 
 #include "getdns/getdns.h"
 
@@ -68,6 +69,9 @@ typedef struct _getdns_tls_connection {
 	struct mem_funcs* mfs;
 	char* cipher_list;
 	char* curve_list;
+	dane_query_t dane_query;
+	dane_state_t dane_state;
+	char* tlsa;
 } _getdns_tls_connection;
 
 typedef struct _getdns_tls_session {

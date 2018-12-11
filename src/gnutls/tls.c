@@ -242,6 +242,8 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 	res->mfs = mfs;
 	res->cipher_list = NULL;
 	res->curve_list = NULL;
+	res->dane_query = NULL;
+	res->tlsa = NULL;
 
 	r = gnutls_certificate_allocate_credentials(&res->cred);
 	if (r == GNUTLS_E_SUCCESS)
@@ -252,7 +254,9 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 		r = set_connection_ciphers(res);
 	if (r == GNUTLS_E_SUCCESS)
 		r = gnutls_credentials_set(res->tls, GNUTLS_CRD_CERTIFICATE, res->cred);
-	if (r != GNUTLS_E_SUCCESS) {
+	if (r == GNUTLS_E_SUCCESS)
+		r = dane_state_init(&res->dane_state, DANE_F_INSECURE | DANE_F_IGNORE_DNSSEC);
+	if (r != DANE_E_SUCCESS) {
 		_getdns_tls_connection_free(mfs, res);
 		return NULL;
 	}
@@ -266,8 +270,11 @@ getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_c
 	if (!conn || !conn->tls)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+	dane_query_deinit(conn->dane_query);
+	dane_state_deinit(conn->dane_state);
 	gnutls_deinit(conn->tls);
 	gnutls_certificate_free_credentials(conn->cred);
+	GETDNS_FREE(*mfs, conn->tlsa);
 	GETDNS_FREE(*mfs, conn->curve_list);
 	GETDNS_FREE(*mfs, conn->cipher_list);
 	GETDNS_FREE(*mfs, conn);
@@ -421,12 +428,59 @@ getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connectio
 
 getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* conn, const char* auth_name, const sha256_pin_t* pinset)
 {
-	(void) pinset;
+	int r;
 
 	if (!conn || !conn->tls || !auth_name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	return GETDNS_RETURN_GOOD;
+	size_t tlsa_len = 0;
+	size_t npins = 0;
+	for (const sha256_pin_t* pin = pinset; pin; pin = pin->next)
+		npins++;
+	tlsa_len += (SHA256_DIGEST_LENGTH + 3) * 2;
+
+	GETDNS_FREE(*conn->mfs, conn->tlsa);
+	conn->tlsa = GETDNS_XMALLOC(*conn->mfs, char, npins * (SHA256_DIGEST_LENGTH + 3) * 2);
+	if (!conn->tlsa)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	char** dane_data = GETDNS_XMALLOC(*conn->mfs, char*, npins * 2 + 1);
+	if (!dane_data)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	int* dane_data_len = GETDNS_XMALLOC(*conn->mfs, int, npins * 2 + 1);
+	if (!dane_data_len) {
+		GETDNS_FREE(*conn->mfs, dane_data);
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+
+	char** dane_p = dane_data;
+	int* dane_len_p = dane_data_len;
+	char* p = conn->tlsa;
+	for (const sha256_pin_t* pin = pinset; pin; pin = pin->next) {
+		*dane_p++ = p;
+		*dane_len_p++ = SHA_DIGEST_LENGTH + 3;
+		p[0] = 2;
+		p[1] = 1;
+		p[2] = 1;
+		memcpy(&p[3], pin->pin, SHA256_DIGEST_LENGTH);
+		p += SHA256_DIGEST_LENGTH + 3;
+
+		*dane_p++ = p;
+		*dane_len_p++ = SHA_DIGEST_LENGTH + 3;
+		p[0] = 3;
+		p[1] = 1;
+		p[2] = 1;
+		memcpy(&p[3], pin->pin, SHA256_DIGEST_LENGTH);
+		p += SHA256_DIGEST_LENGTH + 3;
+	}
+	*dane_p = NULL;
+
+	dane_query_deinit(conn->dane_query);
+	r = dane_raw_tlsa(conn->dane_state, &conn->dane_query, dane_data, dane_data_len, 0, 0);
+	GETDNS_FREE(*conn->mfs, dane_data_len);
+	GETDNS_FREE(*conn->mfs, dane_data);
+
+	return (r == DANE_E_SUCCESS) ? GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
 
 getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg)
