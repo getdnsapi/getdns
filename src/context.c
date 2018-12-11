@@ -3566,7 +3566,7 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
 					return GETDNS_RETURN_BAD_CONTEXT;
 			}
-			_getdns_tls_context_dane_init(context->tls_ctx);
+			_getdns_tls_context_pinset_init(context->tls_ctx);
 		}
 	}
 

@@ -180,7 +180,7 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 	return GETDNS_RETURN_GOOD;
 }
 
-void _getdns_tls_context_dane_init(_getdns_tls_context* ctx)
+void _getdns_tls_context_pinset_init(_getdns_tls_context* ctx)
 {
 	(void) ctx;
 }
