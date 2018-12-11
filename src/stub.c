@@ -958,7 +958,7 @@ tls_do_handshake(getdns_upstream *upstream)
 			const char* verify_errmsg;
 
 			if (_getdns_tls_connection_certificate_verify(upstream->tls_obj, &verify_errno, &verify_errmsg)) {
-				upstream->tls_auth_state = GETDNS_AUTH_OK;
+				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 				if (verify_errno != 0) {
 					_getdns_upstream_log(upstream,
 					    GETDNS_LOG_UPSTREAM_STATS,
@@ -978,13 +978,14 @@ tls_do_handshake(getdns_upstream *upstream)
 					     ( upstream->tls_fallback_ok
 					       ? "Tolerated because of Opportunistic profile"
 					       : "*Failure*" ),
-					     verify_errno, verify_errmsg);
+					     verify_errmsg);
 				}
 			} else {
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-			    "%-40s : Verify passed : TLS\n",
-			    upstream->addr_str);
+				upstream->tls_auth_state = GETDNS_AUTH_OK;
+				_getdns_upstream_log(upstream,
+						     GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+						     "%-40s : Verify passed : TLS\n",
+						     upstream->addr_str);
 			}
 			_getdns_tls_x509_free(&upstream->upstreams->mf, peer_cert);
 		}
