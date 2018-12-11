@@ -18,6 +18,7 @@
 #define fake_sha1                       _getdns_fake_sha1
 #define fake_dsa                        _getdns_fake_dsa
 
+
 #define NSEC3_HASH_SHA1                 0x01
 
 #define LDNS_SHA1                       GLDNS_SHA1
@@ -34,6 +35,10 @@
 #define LDNS_ECDSAP256SHA256            GLDNS_ECDSAP256SHA256
 #define LDNS_ECDSAP384SHA384            GLDNS_ECDSAP384SHA384
 #define LDNS_ECC_GOST                   GLDNS_ECC_GOST
+#define LDNS_ED25519                    GLDNS_ED25519
+#define LDNS_ED448                      GLDNS_ED448
+#define sldns_ed255192pkey_raw          gldns_ed255192pkey_raw
+#define sldns_ed4482pkey_raw            gldns_ed4482pkey_raw
 #define sldns_key_EVP_load_gost_id      gldns_key_EVP_load_gost_id
 #define sldns_digest_evp                gldns_digest_evp
 #define sldns_key_buf2dsa_raw           gldns_key_buf2dsa_raw
