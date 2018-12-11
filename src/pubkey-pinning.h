@@ -39,7 +39,7 @@
 /**
  ** Internal functions, implemented in pubkey-pinning-internal.c.
  **/
-getdns_dict* getdns_pubkey_pin_create_from_string(getdns_context* context, const char* str);
+getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size);
 
 /**
  ** Public interface.
@@ -61,6 +61,8 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 getdns_return_t
 _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 					   getdns_upstream *upstream);
+
+getdns_dict* getdns_pubkey_pin_create_from_string(getdns_context* context, const char* str);
 
 #endif
 /* pubkey-pinning.h */

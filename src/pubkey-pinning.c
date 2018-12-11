@@ -52,6 +52,7 @@
 #include "context.h"
 #include "util-internal.h"
 
+#include "pubkey-pinning.h"
 #include "pubkey-pinning-internal.h"
 
 /* we only support sha256 at the moment.  adding support for another
@@ -67,6 +68,67 @@ static const getdns_bindata sha256 = {
 	.data = (uint8_t*)"sha256"
 };
   
+#define PIN_PREFIX "pin-sha256=\""
+#define PIN_PREFIX_LENGTH (sizeof(PIN_PREFIX) - 1)
+/* b64 turns every 3 octets (or fraction thereof) into 4 octets */
+#define B64_ENCODED_SHA256_LENGTH (((SHA256_DIGEST_LENGTH + 2)/3)  * 4)
+/* convert an HPKP-style pin description to an appropriate getdns data
+   structure.  An example string is: (with the quotes, without any
+   leading or trailing whitespace):
+
+      pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="
+
+   getdns_build_pin_from_string returns a dict created from ctx, or
+   NULL if the string did not match.  If ctx is NULL, the dict is
+   created via getdns_dict_create().
+
+   It is the caller's responsibility to call getdns_dict_destroy when
+   it is no longer needed.
+ */
+getdns_dict* getdns_pubkey_pin_create_from_string(
+	getdns_context* context,
+	const char* str)
+{
+	size_t i;
+	uint8_t buf[SHA256_DIGEST_LENGTH];
+	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
+	getdns_dict* out = NULL;
+	
+	/* we only do sha256 right now, make sure this is well-formed */
+	if (!str || strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
+		return NULL;
+	for (i = PIN_PREFIX_LENGTH; i < PIN_PREFIX_LENGTH + B64_ENCODED_SHA256_LENGTH - 1; i++)
+		if (!((str[i] >= 'a' && str[i] <= 'z') ||
+		      (str[i] >= 'A' && str[i] <= 'Z') ||
+		      (str[i] >= '0' && str[i] <= '9') ||
+		      (str[i] == '+') || (str[i] == '/')))
+			return NULL;
+	if (str[i++] != '=')
+		return NULL;
+	if (str[i++] != '"')
+		return NULL;
+	if (str[i++] != '\0')
+		return NULL;
+
+	if (_getdns_decode_base64(str + PIN_PREFIX_LENGTH, buf, sizeof(buf)) != GETDNS_RETURN_GOOD)
+	    goto fail;
+	    
+	if (context)
+		out = getdns_dict_create_with_context(context);
+	else
+		out = getdns_dict_create();
+	if (out == NULL)
+		goto fail;
+	if (getdns_dict_set_bindata(out, "digest", &sha256))
+		goto fail;
+	if (getdns_dict_set_bindata(out, "value", &value))
+		goto fail;
+	return out;
+
+ fail:
+	getdns_dict_destroy(out);
+	return NULL;
+}
 
 /* Test whether a given pinset is reasonable, including:
 

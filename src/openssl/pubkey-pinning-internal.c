@@ -70,82 +70,25 @@
    updated and follow the guidance in rfc7469bis)
 */
 
-static const getdns_bindata sha256 = {
-	.size = sizeof("sha256") - 1,
-	.data = (uint8_t*)"sha256"
-};
-  
-
-#define PIN_PREFIX "pin-sha256=\""
-#define PIN_PREFIX_LENGTH (sizeof(PIN_PREFIX) - 1)
 /* b64 turns every 3 octets (or fraction thereof) into 4 octets */
 #define B64_ENCODED_SHA256_LENGTH (((SHA256_DIGEST_LENGTH + 2)/3)  * 4)
-
-/* convert an HPKP-style pin description to an appropriate getdns data
-   structure.  An example string is: (with the quotes, without any
-   leading or trailing whitespace):
-
-      pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="
-
-   getdns_build_pin_from_string returns a dict created from ctx, or
-   NULL if the string did not match.  If ctx is NULL, the dict is
-   created via getdns_dict_create().
-
-   It is the caller's responsibility to call getdns_dict_destroy when
-   it is no longer needed.
- */
-getdns_dict* getdns_pubkey_pin_create_from_string(
-	getdns_context* context,
-	const char* str)
+getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size)
 {
 	BIO *bio = NULL;
-	size_t i;
-	uint8_t buf[SHA256_DIGEST_LENGTH];
 	char inbuf[B64_ENCODED_SHA256_LENGTH + 1];
-	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
-	getdns_dict* out = NULL;
-	
-	/* we only do sha256 right now, make sure this is well-formed */
-	if (!str || strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
-		return NULL;
-	for (i = PIN_PREFIX_LENGTH; i < PIN_PREFIX_LENGTH + B64_ENCODED_SHA256_LENGTH - 1; i++)
-		if (!((str[i] >= 'a' && str[i] <= 'z') ||
-		      (str[i] >= 'A' && str[i] <= 'Z') ||
-		      (str[i] >= '0' && str[i] <= '9') ||
-		      (str[i] == '+') || (str[i] == '/')))
-			return NULL;
-	if (str[i++] != '=')
-		return NULL;
-	if (str[i++] != '"')
-		return NULL;
-	if (str[i++] != '\0')
-		return NULL;
+	getdns_return_t ret = GETDNS_RETURN_GOOD;
 
 	/* openssl needs a trailing newline to base64 decode */
-	memcpy(inbuf, str + PIN_PREFIX_LENGTH, B64_ENCODED_SHA256_LENGTH);
+	memcpy(inbuf, str, B64_ENCODED_SHA256_LENGTH);
 	inbuf[B64_ENCODED_SHA256_LENGTH] = '\n';
 	
 	bio = BIO_push(BIO_new(BIO_f_base64()),
 		       BIO_new_mem_buf(inbuf, sizeof(inbuf)));
-	if (BIO_read(bio, buf, sizeof(buf)) != sizeof(buf))
-		goto fail;
-	
-	if (context)
-		out = getdns_dict_create_with_context(context);
-	else
-		out = getdns_dict_create();
-	if (out == NULL)
-		goto fail;
-	if (getdns_dict_set_bindata(out, "digest", &sha256))
-		goto fail;
-	if (getdns_dict_set_bindata(out, "value", &value))
-		goto fail;
-	return out;
+	if (BIO_read(bio, res, res_size) != (int) res_size)
+		ret = GETDNS_RETURN_GENERIC_ERROR;
 
- fail:
 	BIO_free_all(bio);
-	getdns_dict_destroy(out);
-	return NULL;
+	return ret;
 }
 
 /* this should only happen once ever in the life of the library. it's

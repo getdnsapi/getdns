@@ -47,12 +47,7 @@ _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 	return GETDNS_RETURN_GOOD;
 }
 
-/**
- ** Interfaces from getdns_extra.h.
- **/
-
-getdns_dict*
-getdns_pubkey_pin_create_from_string(getdns_context* context, const char* str)
+getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size)
 {
-	return NULL;
+	return GETDNS_RETURN_GENERIC_ERROR;
 }

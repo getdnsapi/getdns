@@ -485,11 +485,115 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 
 getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg)
 {
-	(void) errnum;
-	(void) errmsg;
-
 	if (!conn || !conn->tls)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	/* Most of the internals of dane_verify_session_crt() */
+
+	const gnutls_datum_t* cert_list;
+	unsigned int cert_list_size = 0;
+	unsigned int type;
+	int ret;
+	const gnutls_datum_t* cl;
+	gnutls_datum_t* new_cert_list = NULL;
+	int clsize;
+	unsigned int verify;
+
+	cert_list = gnutls_certificate_get_peers(conn->tls, &cert_list_size);
+	if (cert_list_size == 0) {
+		*errnum = 1;
+		*errmsg = "No peer certificate";
+		return GETDNS_RETURN_GENERIC_ERROR;
+        }
+	cl = cert_list;
+
+        type = gnutls_certificate_type_get(conn->tls);
+
+        /* this list may be incomplete, try to get the self-signed CA if any */
+        if (cert_list_size > 0) {
+                gnutls_x509_crt_t crt, ca;
+                gnutls_certificate_credentials_t sc;
+
+                ret = gnutls_x509_crt_init(&crt);
+                if (ret < 0)
+                        goto failsafe;
+
+                ret = gnutls_x509_crt_import(crt, &cert_list[cert_list_size-1], GNUTLS_X509_FMT_DER);
+                if (ret < 0) {
+                        gnutls_x509_crt_deinit(crt);
+                        goto failsafe;
+                }
+
+                /* if it is already self signed continue normally */
+                ret = gnutls_x509_crt_check_issuer(crt, crt);
+                if (ret != 0) {
+                        gnutls_x509_crt_deinit(crt);
+                        goto failsafe;
+                }
+
+                /* chain does not finish in a self signed cert, try to obtain the issuer */
+                ret = gnutls_credentials_get(conn->tls, GNUTLS_CRD_CERTIFICATE, (void**)&sc);
+                if (ret < 0) {
+                        gnutls_x509_crt_deinit(crt);
+                        goto failsafe;
+                }
+
+                ret = gnutls_certificate_get_issuer(sc, crt, &ca, 0);
+                if (ret < 0) {
+                        gnutls_x509_crt_deinit(crt);
+                        goto failsafe;
+                }
+
+                /* make the new list */
+                new_cert_list = GETDNS_XMALLOC(*conn->mfs, gnutls_datum_t, cert_list_size + 1);
+                if (new_cert_list == NULL) {
+                        gnutls_x509_crt_deinit(crt);
+                        goto failsafe;
+                }
+
+                memcpy(new_cert_list, cert_list, cert_list_size*sizeof(gnutls_datum_t));
+		cl = new_cert_list;
+
+                ret = gnutls_x509_crt_export2(ca, GNUTLS_X509_FMT_DER, &new_cert_list[cert_list_size]);
+                if (ret < 0) {
+                        GETDNS_FREE(*conn->mfs, new_cert_list);
+                        gnutls_x509_crt_deinit(crt);
+                        goto failsafe;
+                }
+	}
+
+failsafe:
+
+	clsize = cert_list_size;
+	if (cl == new_cert_list)
+		clsize += 1;
+
+	ret = dane_verify_crt_raw(NULL, cl, clsize, type, conn->dane_query, 0, 0, &verify);
+
+	if (new_cert_list) {
+		gnutls_free(new_cert_list[cert_list_size].data);
+		GETDNS_FREE(*conn->mfs, new_cert_list);
+	}
+
+	if (ret != DANE_E_SUCCESS)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	switch (verify) {
+	case DANE_VERIFY_CA_CONSTRAINTS_VIOLATED:
+		*errnum = 2;
+		*errmsg = "CA constraints violated";
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	case DANE_VERIFY_CERT_DIFFERS:
+		*errnum = 3;
+		*errmsg = "Certificate differs";
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	case DANE_VERIFY_UNKNOWN_DANE_INFO:
+		*errnum = 4;
+		*errmsg = "Unknown DANE info";
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
 
 	return GETDNS_RETURN_GOOD;
 }
