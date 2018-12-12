@@ -963,8 +963,9 @@ tls_do_handshake(getdns_upstream *upstream)
 					_getdns_upstream_log(upstream,
 					    GETDNS_LOG_UPSTREAM_STATS,
 					     ( upstream->tls_fallback_ok
-					       ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),					     "%-40s : Verify failed : TLS - %s -  "
-					     "(%d) \"%s\"\n", upstream->addr_str,
+					       ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+					     "%-40s : Verify failed : TLS - %s - "
+					     "(%ld) \"%s\"\n", upstream->addr_str,
 					     ( upstream->tls_fallback_ok
 					       ? "Tolerated because of Opportunistic profile"
 					       : "*Failure*" ),
