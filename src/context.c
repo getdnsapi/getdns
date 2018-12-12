@@ -127,15 +127,15 @@ typedef struct host_name_addrs {
 } host_name_addrs;
 
 
-/*  If changing these lists also remember to 
+/*  If changing these lists also remember to
     change the value of GETDNS_UPSTREAM_TRANSPORTS */
-static getdns_transport_list_t 
+static getdns_transport_list_t
 getdns_upstream_transports[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_TRANSPORT_TCP,
 	GETDNS_TRANSPORT_TLS,
 };
 
-static in_port_t 
+static in_port_t
 getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_PORT_DNS,
 	GETDNS_PORT_DNS_OVER_TLS
@@ -183,17 +183,17 @@ _getdns_strdup2(const struct mem_funcs *mfs, const getdns_bindata *s)
 }
 
 #ifdef USE_WINSOCK
-/* For windows, the CA trust store is not read by openssl. 
+/* For windows, the CA trust store is not read by openssl.
    Add code to open the trust store using wincrypt API and add
    the root certs into openssl trust store */
-static int 
+static int
 add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 {
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
 	
 	_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
-	    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+	    , "%s: %s\n", STUB_DEBUG_SETUP_TLS,
 	    , "Adding Windows certificates from system root store to CA store")
 	    ;
 
@@ -207,13 +207,13 @@ add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 		CERT_STORE_PROV_SYSTEM,
 		0,
 		0,
-		/* NOTE: mingw does not have this const: replace with 1 << 16 from code 
+		/* NOTE: mingw does not have this const: replace with 1 << 16 from code
 		   CERT_SYSTEM_STORE_CURRENT_USER, */
 		1 << 16,
 		L"root")) == 0)
 	{
 		_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
-		    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+		    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
 		    , "Could not CertOpenStore()");
 		return 0;
 	}
@@ -221,7 +221,7 @@ add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 	X509_STORE* store = SSL_CTX_get_cert_store(tls_ctx);
 	if (!store) {
 		_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
-		    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+		    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
 		    , "Could not SSL_CTX_get_cert_store()");
 		return 0;
 	}
@@ -230,22 +230,22 @@ add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 	if ((pTargetCert = CertEnumCertificatesInStore(
 	    hSystemStore, pTargetCert)) == 0) {
 		_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_NOTICE
-		    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+		    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
 		    , "CA certificate store for Windows is empty.");
 		return 0;
 	}
 	/* iterate over the windows cert store and add to openssl store */
-	do 
+	do
 	{
-		X509 *cert1 = d2i_X509(NULL, 
+		X509 *cert1 = d2i_X509(NULL,
 			(const unsigned char **)&pTargetCert->pbCertEncoded,
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
 			/* return error if a cert fails */
 			_getdns_log(&ctxt->log
 			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR,
-			    , "%s %-35s: %s %d:%s\n"
-			    , STUB_DEBUG_SETUP_TLS, __FUNC__
+			    , "%s: %s %d:%s\n"
+			    , STUB_DEBUG_SETUP_TLS
 			    , "Unable to parse certificate in memory"
 			    , ERR_get_error()
 			    , ERR_error_string(ERR_get_error(), NULL));
@@ -255,16 +255,16 @@ add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 			/* return error if a cert add to store fails */
 			if (X509_STORE_add_cert(store, cert1) == 0) {
 				unsigned long error = ERR_peek_last_error();
- 
+
 				/* Ignore error X509_R_CERT_ALREADY_IN_HASH_TABLE which means the
-				* certificate is already in the store.  */ 
+				* certificate is already in the store.  */
 				if(ERR_GET_LIB(error) != ERR_LIB_X509 ||
 				   ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
 					_getdns_log(&ctxt->log
 					    , GETDNS_LOG_SYS_STUB
 					    , GETDNS_LOG_ERR
-					    , "%s %-35s: %s %d:%s\n"
-					    , STUB_DEBUG_SETUP_TLS, __FUNC__
+					    , "%s: %s %d:%s\n"
+					    , STUB_DEBUG_SETUP_TLS
 					    , "Error adding certificate"
 					    , ERR_get_error()
 					    , ERR_error_string( ERR_get_error()
@@ -287,13 +287,13 @@ add_WIN_cacerts_to_openssl_store(getdns_context *ctxt, SSL_CTX* tls_ctx)
 		if (!CertCloseStore(hSystemStore, 0)) {
 			_getdns_log(&ctxt->log
 			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
-			    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+			    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
 			    , "Could not CertCloseStore()");
 			return 0;
 		}
 	}
 	_getdns_log(&ctxt->log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_INFO
-	    , "%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__
+	    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
 	    , "Completed adding Windows certificates to CA store successfully")
 	    ;
 	return 1;
@@ -615,7 +615,7 @@ getdns_context_set_hosts(getdns_context *context, const char *hosts)
 		/* Break out of for to read more */
 		for (;;) {
 			/* Skip whitespace */
-			while (*pos == ' '  || *pos == '\f' 
+			while (*pos == ' '  || *pos == '\f'
 			    || *pos == '\t' || *pos == '\v')
 				pos++;
 
@@ -654,7 +654,7 @@ getdns_context_set_hosts(getdns_context *context, const char *hosts)
 			*pos = '\0';
 			if (start_of_line) {
 				start_of_line = 0;
-				if (address) 
+				if (address)
 					getdns_dict_destroy(address);
 				if (!(address =
 				    str_addr_dict(context, start_of_word)))
@@ -709,15 +709,18 @@ upstreams_create(getdns_context *context, size_t size)
 	getdns_upstreams *r = (void *) GETDNS_XMALLOC(context->mf, char,
 	    sizeof(getdns_upstreams) +
 	    sizeof(getdns_upstream) * size);
-	r->mf = context->mf;
-	r->referenced = 1;
-	r->count = 0;
-	r->current_udp = 0;
-	r->current_stateful = 0;
-	r->max_backoff_value = context->max_backoff_value;
-	r->tls_backoff_time = context->tls_backoff_time;
-	r->tls_connection_retries = context->tls_connection_retries;
-	r->log = context->log;
+
+	if (r) {
+		r->mf = context->mf;
+		r->referenced = 1;
+		r->count = 0;
+		r->current_udp = 0;
+		r->current_stateful = 0;
+		r->max_backoff_value = context->max_backoff_value;
+		r->tls_backoff_time = context->tls_backoff_time;
+		r->tls_connection_retries = context->tls_connection_retries;
+		r->log = context->log;
+	}
 	return r;
 }
 
@@ -822,8 +825,8 @@ static void
 _getdns_upstream_reset(getdns_upstream *upstream)
 {
 	/* Back off connections that never got up service at all (probably no
-	   TCP service or incompatible TLS version/cipher). 
-	   Leave choice between working upstreams to the stub. 
+	   TCP service or incompatible TLS version/cipher).
+	   Leave choice between working upstreams to the stub.
 	   This back-off should be time based for TLS according to RFC7858. For now,
 	   use the same basis if we simply can't get TCP service either.*/
 	/* [TLS1]TODO: This arbitrary logic at the moment - review and improve!*/
@@ -837,16 +840,16 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 	     && upstream->total_responses == 0)
 
 	    || (upstream->conn_completed >= conn_retries &&
-	     upstream->total_responses == 0 && 
+	     upstream->total_responses == 0 &&
 	     upstream->total_timeouts > GETDNS_TRANSPORT_FAIL_MULT)) {
 
 		upstream_backoff(upstream);
 	}
 
 	/* If we didn't backoff it would be nice to reset the conn_backoff_interval
-	   if the upstream is working well again otherwise it would get stuck at the 
+	   if the upstream is working well again otherwise it would get stuck at the
 	   tls_backoff_time forever... How about */
-	if (upstream->conn_state != GETDNS_CONN_BACKOFF && 
+	if (upstream->conn_state != GETDNS_CONN_BACKOFF &&
 	    upstream->responses_received > 1)
 		upstream->conn_backoff_interval = 1;
 
@@ -1029,7 +1032,7 @@ upstream_init(getdns_upstream *upstream,
 
 	upstream->addr_len = ai->ai_addrlen;
 	(void) memcpy(&upstream->addr, ai->ai_addr, ai->ai_addrlen);
-	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream), 
+	inet_ntop(upstream->addr.ss_family, upstream_addr(upstream),
 	          upstream->addr_str, INET6_ADDRSTRLEN);
 
 	/* How is this upstream doing on connections? */
@@ -1125,7 +1128,7 @@ static int get_dns_suffix_windows(getdns_list *suffix, char* domain)
     {
         returnStatus = RegQueryValueEx(hKey,
              TEXT("SearchList"), 0, &dwType,(LPBYTE)&lszValue, &dwSize);
-        if (returnStatus == ERROR_SUCCESS) 
+        if (returnStatus == ERROR_SUCCESS)
         {
            if ((strlen(lszValue)) > 0) {
            parse = lszValue;
@@ -1465,11 +1468,11 @@ static char const * const _getdns_default_trust_anchors_verify_CA =
 static char const * const _getdns_default_trust_anchors_verify_email =
     "dnssec@iana.org";
 
-static char const * const _getdns_default_tls_cipher_list = 
+static char const * const _getdns_default_tls_cipher_list =
     "TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
     "TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
 
-static char const * const _getdns_default_tls_ciphersuites = 
+static char const * const _getdns_default_tls_ciphersuites =
   "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 
 /*
@@ -1666,7 +1669,7 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_maximum_udp_payload_size = -1;
 	if ((r = create_default_dns_transports(result)))
 		goto error;
-	result->tls_auth = GETDNS_AUTHENTICATION_NONE; 
+	result->tls_auth = GETDNS_AUTHENTICATION_NONE;
 	result->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
 	result->round_robin_upstreams = 0;
 	result->tls_backoff_time = 3600;
@@ -1716,7 +1719,7 @@ getdns_context_create_with_extended_memory_functions(
 #endif
 
 	// resolv.conf does not exist on Windows, handle differently
-#ifndef USE_WINSOCK 
+#ifndef USE_WINSOCK
 	if ((set_from_os & 1)) {
 		(void) getdns_context_set_resolvconf(result, GETDNS_FN_RESOLVCONF);
 		(void) getdns_context_set_hosts(result, GETDNS_FN_HOSTS);
@@ -2222,7 +2225,7 @@ set_ub_dns_transport(struct getdns_context* context) {
                     break;
                 }
             }
-            if (fallback == 0) 
+            if (fallback == 0)
                 /* Use TLS if it is the only thing.*/
                 set_ub_string_opt(context, "ssl-upstream:", "yes");
             break;
@@ -2329,7 +2332,7 @@ getdns_context_set_tls_authentication(getdns_context *context,
                                       getdns_tls_authentication_t value)
 {
     RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
-    if (value != GETDNS_AUTHENTICATION_NONE && 
+    if (value != GETDNS_AUTHENTICATION_NONE &&
         value != GETDNS_AUTHENTICATION_REQUIRED) {
         return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
     }
@@ -2365,7 +2368,7 @@ getdns_context_set_round_robin_upstreams(getdns_context *context, uint8_t value)
  * before the upstream which has previously timed out will be tried again.
  * @see getdns_context_get_max_backoff_value
  * @param[in] context  The context to configure
- * @param[in[ value    Number of messages sent to other upstreams before 
+ * @param[in[ value    Number of messages sent to other upstreams before
  *                     retrying the upstream which had timed out.
  * @return GETDNS_RETURN_GOOD on success
  * @return GETDNS_RETURN_INVALID_PARAMETER if context is null.
@@ -3075,7 +3078,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				    dict, "tls_auth_name", &tls_auth_name)) == GETDNS_RETURN_GOOD) {
 
 					if (tls_auth_name->size >= sizeof(upstream->tls_auth_name)) {
-						/* tls_auth_name's are 
+						/* tls_auth_name's are
 						 * domain names in presentation
 						 * format and, taking escaping
 						 * into account, should not
@@ -3117,7 +3120,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 				(void) getdns_dict_get_bindata(
 				    dict, "tls_curves_list", &tls_curves_list);
 				if (tls_curves_list) {
-					upstream->tls_curves_list = 
+					upstream->tls_curves_list =
 					    _getdns_strdup2(&upstreams->mf
 					                   , tls_curves_list);
 				} else
@@ -3523,18 +3526,36 @@ ub_setup_stub(struct ub_ctx *ctx, getdns_context *context)
 	getdns_upstream *upstream;
 	char addr[1024];
 	getdns_upstreams *upstreams = context->upstreams;
+	int r;
 
-	(void) ub_ctx_set_fwd(ctx, NULL);
+	if ((r = ub_ctx_set_fwd(ctx, NULL))) {
+		_getdns_log(&context->log
+		    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_WARNING
+		    , "%s: %s (%s)\n"
+		    , STUB_DEBUG_SETUP
+		    , "Error while clearing forwarding modus on unbound context"
+		    , ub_strerror(r));
+	}
 	for (i = 0; i < upstreams->count; i++) {
 		upstream = &upstreams->upstreams[i];
-		/*[TLS]: Use only the TLS subset of upstreams when TLS is the only thing
-		 * used. All other cases must currently fallback to TCP for libunbound.*/
+		/* [TLS]: Use only the TLS subset of upstreams when TLS is the
+		 * only thing used. All other cases must currently fallback to
+		 * TCP for libunbound.*/
 		if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS &&
 		    context->dns_transport_count ==1 &&
 			upstream->transport !=  GETDNS_TRANSPORT_TLS)
 				continue;
 		upstream_ntop_buf(upstream, addr, 1024);
-		ub_ctx_set_fwd(ctx, addr);
+		if ((r = ub_ctx_set_fwd(ctx, addr))) {
+			_getdns_log(&context->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_WARNING
+			    , "%s: %s '%s' (%s)\n"
+			    , STUB_DEBUG_SETUP
+			    , "Error while setting up unbound context for "
+			      "forwarding to"
+			    , addr
+			    , ub_strerror(r));
+		}
 	}
 
 	/* Allow lookups of:
@@ -3604,8 +3625,16 @@ ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 {
 	_getdns_rr_iter rr_spc, *rr;
 	char ta_str[8192];
+	int r;
 
-	(void) ub_ctx_set_fwd(ctx, NULL);
+	if ((r = ub_ctx_set_fwd(ctx, NULL))) {
+		_getdns_log(&context->log
+		    , GETDNS_LOG_SYS_RECURSING, GETDNS_LOG_WARNING
+		    , "%s: %s (%s)\n"
+		    , STUB_DEBUG_SETUP
+		    , "Error while clearing forwarding modus on unbound context"
+		    , ub_strerror(r));
+	}
 	if (!context->unbound_ta_set && context->trust_anchors) {
 		for ( rr = _getdns_rr_iter_init( &rr_spc
 		                               , context->trust_anchors
@@ -3614,7 +3643,17 @@ ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 
 			(void) gldns_wire2str_rr_buf((UNCONST_UINT8_p)rr->pos,
 			    rr->nxt - rr->pos, ta_str, sizeof(ta_str));
-			(void) ub_ctx_add_ta(ctx, ta_str);
+			if ((r = ub_ctx_add_ta(ctx, ta_str))) {
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_RECURSING
+				    , GETDNS_LOG_WARNING
+				    , "%s: %s '%s' (%s)\n"
+				    , STUB_DEBUG_SETUP
+				    , "Error while equiping unbound context "
+				      "with trust anchor"
+				    , ta_str
+				    , ub_strerror(r));
+			}
 		}
 		context->unbound_ta_set = 1;
 	}
@@ -3629,8 +3668,15 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 
 	switch (context->resolution_type) {
 	case GETDNS_RESOLUTION_STUB:
-		if (!context->upstreams || !context->upstreams->count)
-			return GETDNS_RETURN_GENERIC_ERROR;
+		if (!context->upstreams || !context->upstreams->count) {
+			_getdns_log(&context->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s\n"
+			    , STUB_DEBUG_SETUP
+			    , "Stub resolution requested, but no upstreams "
+			      "configured");
+			return GETDNS_RETURN_BAD_CONTEXT;
+		}
 #ifdef STUB_NATIVE_DNSSEC
 # ifdef DNSSEC_ROADBLOCK_AVOIDANCE
 #  ifdef HAVE_LIBUNBOUND
@@ -3655,6 +3701,12 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 		return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif
 	}
+	_getdns_log(&context->log
+	    , GETDNS_LOG_SYS_RESOLVING
+	    , GETDNS_LOG_ERR
+	    , "%s: %s (%d)\n", STUB_DEBUG_SETUP
+	    , "Unknown resolution type: "
+	    , context->resolution_type);
 	return GETDNS_RETURN_BAD_CONTEXT;
 }
 
@@ -3662,22 +3714,23 @@ getdns_return_t
 _getdns_context_prepare_for_resolution(getdns_context *context)
 {
 	getdns_return_t r;
-#if defined(HAVE_SSL_CTX_DANE_ENABLE) || defined(USE_DANESSL)
+	char ssl_err[256];
 	int osr;
-#endif
 
 	assert(context);
 	if (context->destroying)
 		return GETDNS_RETURN_BAD_CONTEXT;
 
 	/* Transport can in theory be set per query in stub mode */
-	if (context->resolution_type == GETDNS_RESOLUTION_STUB && 
+	if (context->resolution_type == GETDNS_RESOLUTION_STUB &&
 	    tls_is_in_transports_list(context) == 1) {
 		/* Check minimum require authentication level*/
-		if (tls_only_is_in_transports_list(context) == 1 && 
+		if (tls_only_is_in_transports_list(context) == 1 &&
 		    context->tls_auth == GETDNS_AUTHENTICATION_REQUIRED) {
 			context->tls_auth_min = GETDNS_AUTHENTICATION_REQUIRED;
-			/* TODO: If no auth data provided for any upstream, fail here */
+			/* TODO: If no auth data provided for any upstream,
+			 * fail here
+			 */
 		}
 		else {
 			context->tls_auth_min = GETDNS_AUTHENTICATION_NONE;
@@ -3691,22 +3744,52 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 #  else
 			context->tls_ctx = SSL_CTX_new(TLSv1_2_client_method());
 #  endif
-			if(context->tls_ctx == NULL)
+			if(context->tls_ctx == NULL) {
+				ERR_error_string_n( ERR_get_error()
+				                  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Error creating TLS context"
+				    , ssl_err);
 				return GETDNS_RETURN_BAD_CONTEXT;
+			}
 
 #  if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
            && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
 			if (!SSL_CTX_set_min_proto_version(context->tls_ctx,
-			    _getdns_tls_version2openssl_version(context->tls_min_version))) {
+			    _getdns_tls_version2openssl_version(
+			    context->tls_min_version))) {
 				SSL_CTX_free(context->tls_ctx);
 				context->tls_ctx = NULL;
+				ERR_error_string_n( ERR_get_error()
+				                  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Error configuring TLS context with "
+				      "minimum TLS version"
+				    , ssl_err);
 				return GETDNS_RETURN_BAD_CONTEXT;
 			}
 			if (context->tls_max_version
 			&& !SSL_CTX_set_max_proto_version(context->tls_ctx,
-			    _getdns_tls_version2openssl_version(context->tls_max_version))) {
+			    _getdns_tls_version2openssl_version(
+			    context->tls_max_version))) {
 				SSL_CTX_free(context->tls_ctx);
 				context->tls_ctx = NULL;
+				ERR_error_string_n( ERR_get_error()
+				                  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Error configuring TLS context with "
+				      "maximum TLS version"
+				    , ssl_err);
+
 				return GETDNS_RETURN_BAD_CONTEXT;
 			}
 #  else
@@ -3714,65 +3797,181 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			if ((  context->tls_min_version
 			    && context->tls_min_version != GETDNS_TLS1_2)
 			||     context->tls_max_version) {
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "This version of OpenSSL does not "
+				      "support setting of mimum or maximum "
+				      "TLS versions");
 				return GETDNS_RETURN_NOT_IMPLEMENTED;
 			}
 #   endif
 #  endif
-			/* Be strict and only use the cipher suites recommended in RFC7525
-			   Unless we later fallback to opportunistic. */
+			/* Be strict and only use the cipher suites recommended
+			 * in RFC7525 Unless we later fallback to opportunistic.
+			 */
 			if (!SSL_CTX_set_cipher_list(context->tls_ctx,
-			    context->tls_cipher_list ? context->tls_cipher_list
-			                             : _getdns_default_tls_cipher_list))
+			    context->tls_cipher_list
+			  ? context->tls_cipher_list
+			  : _getdns_default_tls_cipher_list)) {
+				ERR_error_string_n( ERR_get_error()
+				                  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Error configuring TLS context with "
+				      "cipher list"
+				    , ssl_err);
+
 				return GETDNS_RETURN_BAD_CONTEXT;
+			}
 #  ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
 			if (!SSL_CTX_set_ciphersuites(context->tls_ctx,
-			    context->tls_ciphersuites ? context->tls_ciphersuites
-			                             : _getdns_default_tls_ciphersuites))
+			    context->tls_ciphersuites
+			  ? context->tls_ciphersuites
+			  : _getdns_default_tls_ciphersuites)) {
+				ERR_error_string_n( ERR_get_error()
+				                  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Error configuring TLS context with "
+				      "cipher suites"
+				    , ssl_err);
+
 				return GETDNS_RETURN_BAD_CONTEXT;
-#  else
-			if (context->tls_ciphersuites)
-				return GETDNS_RETURN_NOT_IMPLEMENTED;
-#  endif
-#  if defined(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST) && HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
-			if (context->tls_curves_list &&
-			    !SSL_CTX_set1_curves_list(context->tls_ctx, context->tls_curves_list))
-				return GETDNS_RETURN_BAD_CONTEXT;
-#  else
-			if (context->tls_curves_list)
-				return GETDNS_RETURN_NOT_IMPLEMENTED;
-#  endif
-			/* For strict authentication, we must have local root certs available
-		       Set up is done only when the tls_ctx is created (per getdns_context)*/
-			if ((context->tls_ca_file || context->tls_ca_path) &&
-			    SSL_CTX_load_verify_locations(context->tls_ctx
-				    , context->tls_ca_file, context->tls_ca_path))
-				; /* pass */
-#  ifndef USE_WINSOCK
-			else if (!SSL_CTX_set_default_verify_paths(context->tls_ctx)) {
-#  else
-			else if (!add_WIN_cacerts_to_openssl_store(context, context->tls_ctx)) {
-#  endif /* USE_WINSOCK */
-				if (context->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) 
-					return GETDNS_RETURN_BAD_CONTEXT;
 			}
+#  else
+			if (context->tls_ciphersuites) {
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "This version of OpenSSL does not "
+				      "support configuring cipher suites");
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
+			}
+#  endif
+#  if defined(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST) \
+           && HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
+			if (context->tls_curves_list &&
+			    !SSL_CTX_set1_curves_list(context->tls_ctx,
+			    context->tls_curves_list)) {
+				ERR_error_string_n( ERR_get_error()
+				                  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Error configuring TLS context with "
+				      "curves list"
+				    , ssl_err);
+				return GETDNS_RETURN_BAD_CONTEXT;
+			}
+#  else
+			if (context->tls_curves_list) {
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "This version of OpenSSL does not "
+				      "support configuring curves list");
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
+			}
+#  endif
+			/* For strict authentication, we must have local root
+			 * certs available. Set up is done only when the tls_ctx
+			 * is created (per getdns_context)
+			 */
+			osr = 0;
+			if (context->tls_ca_file || context->tls_ca_path) {
+				osr = SSL_CTX_load_verify_locations(
+				      context->tls_ctx
+				    , context->tls_ca_file
+				    , context->tls_ca_path );
+				if (!osr) {
+					ERR_error_string_n( ERR_get_error()
+							  , ssl_err
+							  , sizeof(ssl_err));
+					_getdns_log(&context->log
+					    , GETDNS_LOG_SYS_STUB
+					    , GETDNS_LOG_WARNING
+					    , "%s: %s (%s)\n"
+					    , STUB_DEBUG_SETUP_TLS
+					    , "Could not load verify locations"
+					    , ssl_err);
+				} else {
+					_getdns_log(&context->log
+					    , GETDNS_LOG_SYS_STUB
+					    , GETDNS_LOG_DEBUG
+					    , "%s: %s\n"
+					    , STUB_DEBUG_SETUP_TLS
+					    , "Verify locations loaded");
+				}
+			}
+			if (osr)
+				; /* verify locations loaded: pass */
+#  ifndef USE_WINSOCK
+			else if (!SSL_CTX_set_default_verify_paths(
+						context->tls_ctx) &&
+#  else
+			else if (!add_WIN_cacerts_to_openssl_store(
+						context, context->tls_ctx) &&
+#  endif /* USE_WINSOCK */
+			    context->tls_auth_min
+			 == GETDNS_AUTHENTICATION_REQUIRED) {
+				ERR_error_string_n( ERR_get_error()
+						  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB
+				    , GETDNS_LOG_ERR
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Authentication is needed but no default "
+				      "verify location could be loaded"
+				    , ssl_err);
+				return GETDNS_RETURN_BAD_CONTEXT;
+			}
+
 #  if defined(HAVE_SSL_CTX_DANE_ENABLE)
-			osr = SSL_CTX_dane_enable(context->tls_ctx);
-			_getdns_log(&context->log
-			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
-			    , "%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
-			    , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (!SSL_CTX_dane_enable(context->tls_ctx)) {
+				ERR_error_string_n( ERR_get_error()
+						  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_WARNING
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Could not enable DANE on TLX context"
+				    , ssl_err);
+			}
 #  elif defined(USE_DANESSL)
-			osr = DANESSL_CTX_init(context->tls_ctx);
-			_getdns_log(&context->log
-			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
-			    , "%s %-35s: DEBUG: DANESSL_CTX_init() returned "
-			      "%d\n", STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (!DANESSL_CTX_init(context->tls_ctx)) {
+				ERR_error_string_n( ERR_get_error()
+						  , ssl_err, sizeof(ssl_err));
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_WARNING
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Could not enable DANE on TLX context"
+				    , ssl_err);
+			}
 #  endif
 #else /* HAVE_TLS_v1_2 */
-			if (tls_only_is_in_transports_list(context) == 1)
-				return GETDNS_RETURN_BAD_CONTEXT;
-			/* A null tls_ctx will make TLS fail and fallback to the other
-			   transports will kick-in.*/
+			if (tls_only_is_in_transports_list(context) == 1) {
+				_getdns_log(&context->log
+				    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+				    , "%s: %s\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "This version of OpenSSL does not "
+				      "support authenticated TLS");
+				return GETDNS_RETURN_NOT_IMPLEMENTED;
+			}
+			/* A null tls_ctx will make TLS fail and fallback to
+			 * the other transports will kick-in.
+			 */
 #endif /* HAVE_TLS_v1_2 */
 		}
 	}
@@ -3780,10 +3979,16 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 	/* Block use of TLS ONLY in recursive mode as it won't work */
     /* Note: If TLS is used in recursive mode this will try TLS on port
      * 53 so it is blocked here. */
-	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING &&
-		tls_only_is_in_transports_list(context) == 1)
-		return GETDNS_RETURN_BAD_CONTEXT;
-
+	if (context->resolution_type == GETDNS_RESOLUTION_RECURSING
+	&&  tls_only_is_in_transports_list(context) == 1) {
+		_getdns_log(&context->log
+		    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+		    , "%s: %s\n"
+		    , STUB_DEBUG_SETUP_TLS
+		    , "TLS only transport is not supported for the recursing "
+		      "resolution type");
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
 	if (context->resolution_type_set == context->resolution_type)
         	/* already set and no config changes
 		 * have caused this to be bad.
@@ -3794,8 +3999,6 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 	 * the spec calls for us to treat the namespace list as ordered
 	 * so we need to respect that order
 	 */
-
-
 	r = _getdns_ns_dns_setup(context);
 	if (r == GETDNS_RETURN_GOOD)
 		context->resolution_type_set = context->resolution_type;
@@ -4200,7 +4403,7 @@ getdns_context_get_api_information(const getdns_context* context)
 #ifdef HAVE_OPENSSL_VERSION
 	    && ! getdns_dict_util_set_string(
 	    result, "openssl_version_string", OpenSSL_version(OPENSSL_VERSION))
-	    
+	
 	    && ! getdns_dict_util_set_string(
 	    result, "openssl_cflags", OpenSSL_version(OPENSSL_CFLAGS))
 
@@ -4268,7 +4471,7 @@ _getdns_context_local_namespace_resolve(
 	getdns_context  *context = dnsreq->context;
 	host_name_addrs *hnas;
 	uint8_t lookup[256];
-	getdns_list    empty_list = { 0, 0, NULL, { NULL, {{ NULL, NULL, NULL }}}};
+	getdns_list    empty_list = { 0, 0, NULL, { NULL, {{ NULL,NULL,NULL}}}};
 	getdns_bindata bindata;
 	getdns_list   *jaa;
 	size_t         i;
@@ -4279,9 +4482,10 @@ _getdns_context_local_namespace_resolve(
 	int ipv6 = dnsreq->netreqs[0]->request_type == GETDNS_RRTYPE_AAAA ||
 	    (dnsreq->netreqs[1] &&
 	     dnsreq->netreqs[1]->request_type == GETDNS_RRTYPE_AAAA);
+	getdns_return_t r;
 
 	if (!ipv4 && !ipv6)
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 
 	/*Do the lookup*/
 	(void)memcpy(lookup, dnsreq->name, dnsreq->name_len);
@@ -4289,59 +4493,61 @@ _getdns_context_local_namespace_resolve(
 
 	if (!(hnas = (host_name_addrs *)
 	    _getdns_rbtree_search(&context->local_hosts, lookup)))
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	if (!hnas->ipv4addrs && (!ipv6 || !hnas->ipv6addrs))
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	if (!hnas->ipv6addrs && (!ipv4 || !hnas->ipv4addrs))
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_NO_SUCH_DICT_NAME;
 
 	if (!(*response = getdns_dict_create_with_context(context)))
-		return GETDNS_RETURN_GENERIC_ERROR;
+		return GETDNS_RETURN_MEMORY_ERROR;
 
 	bindata.size = dnsreq->name_len;
 	bindata.data = dnsreq->name;
-	if (getdns_dict_set_bindata(*response, "canonical_name", &bindata))
+	if ((r = getdns_dict_set_bindata(*response,"canonical_name",&bindata)))
 		goto error;
 
 	empty_list.mf = context->mf;
-	if (getdns_dict_set_list(*response, "replies_full", &empty_list))
+	if ((r = getdns_dict_set_list(*response, "replies_full", &empty_list)))
 		goto error;
 
-	if (getdns_dict_set_list(*response, "replies_tree", &empty_list))
+	if ((r = getdns_dict_set_list(*response, "replies_tree", &empty_list)))
 		goto error;
 
-	if (getdns_dict_set_int(*response, "status", GETDNS_RESPSTATUS_GOOD))
+	if ((r=getdns_dict_set_int(*response,"status",GETDNS_RESPSTATUS_GOOD)))
 		goto error;
 
 	if (!ipv4 || !hnas->ipv4addrs) {
-		if (getdns_dict_set_list(*response,
-		    "just_address_answers", hnas->ipv6addrs))
+		if ((r = getdns_dict_set_list(*response,
+		    "just_address_answers", hnas->ipv6addrs)))
 			goto error;
 		return GETDNS_RETURN_GOOD;
 	} else if (!ipv6 || !hnas->ipv6addrs) {
-		if (getdns_dict_set_list(*response,
-		    "just_address_answers", hnas->ipv4addrs))
+		if ((r = getdns_dict_set_list(*response,
+		    "just_address_answers", hnas->ipv4addrs)))
 			goto error;
 		return GETDNS_RETURN_GOOD;
 	}
-	if (!(jaa = getdns_list_create_with_context(context)))
+	if (!(jaa = getdns_list_create_with_context(context))) {
+		r = GETDNS_RETURN_MEMORY_ERROR;
 		goto error;
+	}
 
 	for (i = 0; !getdns_list_get_dict(hnas->ipv4addrs, i, &addr); i++)
-		if (_getdns_list_append_dict(jaa, addr))
+		if ((r = _getdns_list_append_dict(jaa, addr)))
 			break;
 	for (i = 0; !getdns_list_get_dict(hnas->ipv6addrs, i, &addr); i++)
-		if (_getdns_list_append_dict(jaa, addr))
+		if ((r = _getdns_list_append_dict(jaa, addr)))
 			break;
-	if (!_getdns_dict_set_this_list(*response, "just_address_answers", jaa))
+	if (!(r = _getdns_dict_set_this_list(*response, "just_address_answers", jaa)))
 		return GETDNS_RETURN_GOOD;
 	else
 		getdns_list_destroy(jaa);
 error:
 	getdns_dict_destroy(*response);
-	return GETDNS_RETURN_GENERIC_ERROR;
+	return r;
 }
 
 struct mem_funcs *
@@ -4394,7 +4600,7 @@ getdns_context_get_dns_transport(
 
 	/* Best effort mapping for backwards compatibility*/
 	if (context->dns_transports[0] == GETDNS_TRANSPORT_UDP) {
-		if (context->dns_transport_count == 1) 
+		if (context->dns_transport_count == 1)
 			*value = GETDNS_TRANSPORT_UDP_ONLY;
 		else if (context->dns_transport_count == 2
 		     &&  context->dns_transports[1] == GETDNS_TRANSPORT_TCP)
@@ -4403,11 +4609,11 @@ getdns_context_get_dns_transport(
 			return GETDNS_RETURN_WRONG_TYPE_REQUESTED;
 	}
 	if (context->dns_transports[0] == GETDNS_TRANSPORT_TCP) {
-		if (context->dns_transport_count == 1) 
+		if (context->dns_transport_count == 1)
 			*value = GETDNS_TRANSPORT_TCP_ONLY_KEEP_CONNECTIONS_OPEN;
 	}
 	if (context->dns_transports[0] == GETDNS_TRANSPORT_TLS) {
-		if (context->dns_transport_count == 1) 
+		if (context->dns_transport_count == 1)
 			*value = GETDNS_TRANSPORT_TLS_ONLY_KEEP_CONNECTIONS_OPEN;
 		else if (context->dns_transport_count == 2
 		     &&  context->dns_transports[1] == GETDNS_TRANSPORT_TCP)
