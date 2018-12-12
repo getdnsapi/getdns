@@ -270,7 +270,8 @@ getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_c
 	if (!conn || !conn->tls)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	dane_query_deinit(conn->dane_query);
+	if (conn->dane_query)
+		dane_query_deinit(conn->dane_query);
 	dane_state_deinit(conn->dane_state);
 	gnutls_deinit(conn->tls);
 	gnutls_certificate_free_credentials(conn->cred);
@@ -475,7 +476,8 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	}
 	*dane_p = NULL;
 
-	dane_query_deinit(conn->dane_query);
+	if (conn->dane_query)
+		dane_query_deinit(conn->dane_query);
 	r = dane_raw_tlsa(conn->dane_state, &conn->dane_query, dane_data, dane_data_len, 0, 0);
 	GETDNS_FREE(*conn->mfs, dane_data_len);
 	GETDNS_FREE(*conn->mfs, dane_data);
@@ -578,20 +580,17 @@ failsafe:
 	if (ret != DANE_E_SUCCESS)
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	switch (verify) {
-	case DANE_VERIFY_CA_CONSTRAINTS_VIOLATED:
-		*errnum = 2;
-		*errmsg = "CA constraints violated";
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	case DANE_VERIFY_CERT_DIFFERS:
-		*errnum = 3;
-		*errmsg = "Certificate differs";
-		return GETDNS_RETURN_GENERIC_ERROR;
-
-	case DANE_VERIFY_UNKNOWN_DANE_INFO:
-		*errnum = 4;
-		*errmsg = "Unknown DANE info";
+	if (verify != 0) {
+		if (verify & DANE_VERIFY_CERT_DIFFERS) {
+			*errnum = 3;
+			*errmsg = "Certificate differs";
+		} else if (verify &  DANE_VERIFY_CA_CONSTRAINTS_VIOLATED) {
+			*errnum = 2;
+			*errmsg = "CA constraints violated";
+		} else {
+			*errnum = 4;
+			*errmsg = "Unknown DANE info";
+		}
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
 
