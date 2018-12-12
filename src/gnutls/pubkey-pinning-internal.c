@@ -32,6 +32,8 @@
  */
 
 #include "context.h"
+#include <nettle/base64.h>
+
 #include "types-internal.h"
 
 #include "pubkey-pinning.h"
@@ -49,5 +51,16 @@ _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 
 getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size)
 {
-	return GETDNS_RETURN_GENERIC_ERROR;
+	struct base64_decode_ctx ctx;
+	uint8_t* lim = res + res_size;
+
+	base64_decode_init(&ctx);
+
+	for(; *str != '\0' && res < lim; ++str) {
+		int r = base64_decode_single(&ctx, res, *str);
+		if (r == -1 )
+			return GETDNS_RETURN_GENERIC_ERROR;
+		res += r;
+	}
+	return (res == lim) ? GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
 }
