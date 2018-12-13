@@ -255,7 +255,7 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 	if (r == GNUTLS_E_SUCCESS)
 		r = gnutls_credentials_set(res->tls, GNUTLS_CRD_CERTIFICATE, res->cred);
 	if (r == GNUTLS_E_SUCCESS)
-		r = dane_state_init(&res->dane_state, DANE_F_INSECURE | DANE_F_IGNORE_DNSSEC);
+		r = dane_state_init(&res->dane_state, DANE_F_IGNORE_DNSSEC);
 	if (r != DANE_E_SUCCESS) {
 		_getdns_tls_connection_free(mfs, res);
 		return NULL;
@@ -434,11 +434,9 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	if (!conn || !conn->tls || !auth_name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	size_t tlsa_len = 0;
 	size_t npins = 0;
 	for (const sha256_pin_t* pin = pinset; pin; pin = pin->next)
 		npins++;
-	tlsa_len += (SHA256_DIGEST_LENGTH + 3) * 2;
 
 	GETDNS_FREE(*conn->mfs, conn->tlsa);
 	conn->tlsa = GETDNS_XMALLOC(*conn->mfs, char, npins * (SHA256_DIGEST_LENGTH + 3) * 2);
@@ -459,18 +457,18 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	char* p = conn->tlsa;
 	for (const sha256_pin_t* pin = pinset; pin; pin = pin->next) {
 		*dane_p++ = p;
-		*dane_len_p++ = SHA_DIGEST_LENGTH + 3;
-		p[0] = 2;
-		p[1] = 1;
-		p[2] = 1;
+		*dane_len_p++ = SHA256_DIGEST_LENGTH + 3;
+		p[0] = DANE_CERT_USAGE_LOCAL_CA;
+		p[1] = DANE_CERT_PK;
+		p[2] = DANE_MATCH_SHA2_256;
 		memcpy(&p[3], pin->pin, SHA256_DIGEST_LENGTH);
 		p += SHA256_DIGEST_LENGTH + 3;
 
 		*dane_p++ = p;
-		*dane_len_p++ = SHA_DIGEST_LENGTH + 3;
-		p[0] = 3;
-		p[1] = 1;
-		p[2] = 1;
+		*dane_len_p++ = SHA256_DIGEST_LENGTH + 3;
+		p[0] = DANE_CERT_USAGE_LOCAL_EE;
+		p[1] = DANE_CERT_PK;
+		p[2] = DANE_MATCH_SHA2_256;
 		memcpy(&p[3], pin->pin, SHA256_DIGEST_LENGTH);
 		p += SHA256_DIGEST_LENGTH + 3;
 	}
@@ -489,6 +487,10 @@ getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection
 {
 	if (!conn || !conn->tls)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	/* If no pinset, no DANE info to check. */
+	if (!conn->dane_query)
+		return GETDNS_RETURN_GOOD;
 
 	/* Most of the internals of dane_verify_session_crt() */
 
@@ -570,7 +572,7 @@ failsafe:
 	if (cl == new_cert_list)
 		clsize += 1;
 
-	ret = dane_verify_crt_raw(NULL, cl, clsize, type, conn->dane_query, 0, 0, &verify);
+	ret = dane_verify_crt_raw(conn->dane_state, cl, clsize, type, conn->dane_query, 0, 0, &verify);
 
 	if (new_cert_list) {
 		gnutls_free(new_cert_list[cert_list_size].data);
@@ -583,13 +585,13 @@ failsafe:
 	if (verify != 0) {
 		if (verify & DANE_VERIFY_CERT_DIFFERS) {
 			*errnum = 3;
-			*errmsg = "Certificate differs";
+			*errmsg = "Pinset validation: Certificate differs";
 		} else if (verify &  DANE_VERIFY_CA_CONSTRAINTS_VIOLATED) {
 			*errnum = 2;
-			*errmsg = "CA constraints violated";
+			*errmsg = "Pinset validation: CA constraints violated";
 		} else {
 			*errnum = 4;
-			*errmsg = "Unknown DANE info";
+			*errmsg = "Pinset validation: Unknown DANE info";
 		}
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
