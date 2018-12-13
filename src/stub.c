@@ -876,7 +876,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	}
 	if (upstream->tls_fallback_ok) {
 		_getdns_tls_connection_set_cipher_list(tls, NULL);
-		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
+		DEBUG_STUB("%s %-35s: WARNING: Using Opportunistic TLS (fallback allowed)!\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
 	} else {
 		if (upstream->tls_cipher_list)
