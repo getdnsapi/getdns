@@ -243,7 +243,6 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #if defined(REQ_DEBUG) && REQ_DEBUG
 		debug_req("getting validation chain for ", *dns_req->netreqs);
 #endif
-		DEBUG_ANCHOR("Valchain lookup\n");
 		_getdns_get_validation_chain(dns_req);
 	} else
 		_getdns_call_user_callback(

@@ -5148,12 +5148,15 @@ static size_t _getdns_get_appdata(const getdns_context *context, char *path)
 
 	} else if (! SUCCEEDED(SHGetFolderPath(NULL,
 	    CSIDL_APPDATA | CSIDL_FLAG_CREATE, NULL, 0, path)))
-		DEBUG_ANCHOR("ERROR %s(): Could not get %%AppData%% directory\n"
-		            , __FUNC__);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_NOTICE
+			   , "Could not get %%AppData%% directory\n");
 
-	else if ((len = strlen(path)) + sizeof(APPDATA_SUBDIR) + 2 >= _GETDNS_PATH_MAX)
-		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
-		            , __FUNC__);
+	else if ((len = strlen(path))
+			+ sizeof(APPDATA_SUBDIR) + 2 >= _GETDNS_PATH_MAX)
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Path name for appdata directory too long\n");
 #else
 # define SLASHTOK '/'
 # define APPDATA_SUBDIR ".getdns"
@@ -5165,12 +5168,14 @@ static size_t _getdns_get_appdata(const getdns_context *context, char *path)
 		len = strlen(path);
 
 	} else if (!(home = p ? p->pw_dir : getenv("HOME")))
-		DEBUG_ANCHOR("ERROR %s(): Could not get home directory\n"
-		            , __FUNC__);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_NOTICE
+		           , "Unable to determine home directory location\n");
 
 	else if ((len = strlen(home)) + sizeof(APPDATA_SUBDIR) + 2 >= _GETDNS_PATH_MAX)
-		DEBUG_ANCHOR("ERROR %s(): Home path too long for appdata\n"
-		            , __FUNC__);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Path name for appdata directory too long\n");
 
 	else if (!strcpy(path, home))
 		; /* strcpy returns path always */
@@ -5195,8 +5200,10 @@ static size_t _getdns_get_appdata(const getdns_context *context, char *path)
 		    mkdir(path, 0755)
 #endif
 		    && errno != EEXIST)
-			DEBUG_ANCHOR("ERROR %s(): Could not mkdir %s: %s\n"
-				    , __FUNC__, path, strerror(errno));
+			_getdns_log(&context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+				   , "mkdir(\"%s\") failed: %s\n"
+				   , path, _getdns_errnostr());
 		else {
 			path[len++] = SLASHTOK;
 			path[len  ] = '\0';
@@ -5214,26 +5221,20 @@ FILE *_getdns_context_get_priv_fp(
 	FILE *f = NULL;
 	size_t len = _getdns_get_appdata(context, path);
 
-	(void) context;
-/*
- * Commented out to enable fallback to current directory
- *
- *	if (!(len = _getdns_get_appdata(context, path)))
- *		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
- *		            , __FUNC__);
- *
- *	else
- */
 	if (len + strlen(fn) >= sizeof(path))
-		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Path name for appdata directory too long\n");
+
 
 	else if (!strcpy(path + len, fn))
 		; /* strcpy returns path + len always */
 
 	else if (!(f = fopen(path, "r")))
-		DEBUG_ANCHOR("ERROR %s(): Opening \"%s\": %s\n"
-		            , __FUNC__, path, strerror(errno));
-
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
+		           , "Error opening \"%s\": %s\n"
+			   , path, _getdns_errnostr());
 	return f;
 }
 
@@ -5251,20 +5252,26 @@ uint8_t *_getdns_context_get_priv_file(const getdns_context *context,
 		return buf;
 	}
 	else if (fseek(f, 0, SEEK_END) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Determining size of \"%s\": %s\n"
-		            , __FUNC__, fn, strerror(errno));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error determining size of \"%s\": %s\n"
+			   , fn, _getdns_errnostr());
 
 	else if (!(buf = GETDNS_XMALLOC(
 	    context->mf, uint8_t, (buf_len = ftell(f) + 1))))
-		DEBUG_ANCHOR("ERROR %s(): Allocating %d memory for \"%s\"\n"
-		            , __FUNC__, (int)buf_len, fn);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error allocating %d bytes of memory for \"%s\"\n"
+			   , (int)buf_len, fn);
 
 	else {
 		rewind(f);
 		if ((*file_sz = fread(buf, 1, buf_len, f)) >= buf_len || !feof(f)) {
 			GETDNS_FREE(context->mf, buf);
-			DEBUG_ANCHOR("ERROR %s(): Reading \"%s\": %s\n"
-				    , __FUNC__, fn, strerror(errno));
+			_getdns_log(&context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+				   , "Error reding \"%s\": %s\n"
+				   , fn, _getdns_errnostr());
 		}
 		else {
 			buf[*file_sz] = 0;
@@ -5286,46 +5293,51 @@ int _getdns_context_write_priv_file(getdns_context *context,
 	FILE *f = NULL;
 	size_t len = _getdns_get_appdata(context, path);
 
-/*
- * Commented out to enable fallback to current directory
- *
- *	if (!(len = _getdns_get_appdata(context, path)))
- *		DEBUG_ANCHOR("ERROR %s(): Could nog get application data path\n"
- *		            , __FUNC__);
- *
- *	else
- */
 	if (len + 6          >= sizeof(tmpfn)
 	     ||  len + strlen(fn) >= sizeof(path))
-		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
-
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Application data filename \"%s\" too long\n"
+			   , fn);
 
 	else if (snprintf(tmpfn, sizeof(tmpfn), "%sXXXXXX", path) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Creating temporary filename template: \"%s\"\n"
-		            , __FUNC__, tmpfn);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error creating temporary file template \"%s\"\n"
+			   , tmpfn);
 
 	else if (!strcpy(path + len, fn))
 		; /* strcpy returns path + len always */
 
 	else if ((fd = mkstemp(tmpfn)) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Creating temporary file \"%s\": %s\n"
-		            , __FUNC__, tmpfn, strerror(errno));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
+		           , "Could not create temporary file \"%s\": %s\n"
+			   , tmpfn, _getdns_errnostr());
 
 	else if (!(f = fdopen(fd, "w")))
-		DEBUG_ANCHOR("ERROR %s(): Opening temporary file: %s\n"
-		            , __FUNC__, strerror(errno));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error opening temporary file \"%s\": %s\n"
+			   , tmpfn, _getdns_errnostr());
 
 	else if (fwrite(content->data, 1, content->size, f) < content->size)
-		DEBUG_ANCHOR("ERROR %s(): Writing temporary file: %s\n"
-		            , __FUNC__, strerror(errno));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error writing to temporary file \"%s\": %s\n"
+			   , tmpfn, _getdns_errnostr());
 
 	else if (fclose(f) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Closing temporary file: %s\n"
-		            , __FUNC__, strerror(errno));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error closing temporary file \"%s\": %s\n"
+			   , tmpfn, _getdns_errnostr());
 
 	else if (rename(tmpfn, path) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Renaming temporary file: %s\n"
-		            , __FUNC__, strerror(errno));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error renaming temporary file \"%s\" to \"%s\""
+			     ": %s\n", tmpfn, path, _getdns_errnostr());
 	else {
 		context->can_write_appdata = PROP_ABLE;
 		return 1;
@@ -5359,26 +5371,21 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 		return 0;
 
 	len = _getdns_get_appdata(context, path);
-/*
- * Commented out to enable fallback to current directory
- *
- *
- *	if (!(len = _getdns_get_appdata(context, path)))
- *		DEBUG_ANCHOR("ERROR %s(): Could not get application data path\n"
- *		            , __FUNC__);
- *
- *	else
- */
+
 	if (len + strlen(test_fn) >= sizeof(path))
-		DEBUG_ANCHOR("ERROR %s(): Application data too long\n", __FUNC__);
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Application data too long \"%s\" + \"%s\"\n"
+			   , path, test_fn);
 
 	else if (!strcpy(path + len, test_fn))
 		; /* strcpy returns path + len always */
 
 	else if (unlink(path) < 0)
-		DEBUG_ANCHOR("ERROR %s(): Unlinking write test file \"%s\": %s\n"
-		            , __FUNC__, path, strerror(errno));
-
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Error unlinking write test file: \"%s\": %s\n"
+			   , path, _getdns_errnostr());
 	return 1;
 }
 
@@ -5537,26 +5544,36 @@ getdns_context *_getdns_context_get_sys_ctxt(
 	   &context->sys_ctxt, 1, context->mf.mf_arg,
 	    context->mf.mf.ext.malloc, context->mf.mf.ext.realloc,
 	    context->mf.mf.ext.free)))
-		DEBUG_ANCHOR("Could not create system context: %s\n"
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Could not create system context: %s\n"
 			    , getdns_get_errorstr_by_id(r));
 #ifndef USE_WINSOCK
 	else if (*context->fchg_resolvconf.fn &&
 	    (r = getdns_context_set_resolvconf(
 	    context->sys_ctxt, context->fchg_resolvconf.fn)))
-		DEBUG_ANCHOR("Could initialize system context with resolvconf "
-		             "\"%s\": %s\n", context->fchg_resolvconf.fn
-			    , getdns_get_errorstr_by_id(r));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Could not initialize system context with "
+			     "resolvconf \"%s\": %s\n"
+			   , context->fchg_resolvconf.fn
+			   , getdns_get_errorstr_by_id(r));
 #endif
 	else if (*context->fchg_hosts.fn &&
 	    (r = getdns_context_set_hosts(
 	    context->sys_ctxt, context->fchg_hosts.fn)))
-		DEBUG_ANCHOR("Could initialize system context with hosts "
-		             "\"%s\": %s\n", context->fchg_resolvconf.fn
-			    , getdns_get_errorstr_by_id(r));
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Could not initialize system context with "
+			     "hosts \"%s\": %s\n"
+			   , context->fchg_hosts.fn
+			   , getdns_get_errorstr_by_id(r));
 
 	else if ((r = getdns_context_set_eventloop(
 	    context->sys_ctxt, loop)))
-		DEBUG_ANCHOR("Could not configure %ssynchronous loop "
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Could not configure %ssynchronous loop "
 			     "with system context: %s\n"
 			    , ( loop == &context->sync_eventloop.loop
 			      ? "" : "a" )
@@ -5564,7 +5581,9 @@ getdns_context *_getdns_context_get_sys_ctxt(
 
 	else if ((r = getdns_context_set_resolution_type(
 	    context->sys_ctxt, GETDNS_RESOLUTION_STUB)))
-		DEBUG_ANCHOR("Could not configure system context for "
+		_getdns_log(&context->log
+		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
+		           , "Could not configure system context for "
 			     "stub resolver: %s\n"
 			    , getdns_get_errorstr_by_id(r));
 	else

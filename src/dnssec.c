@@ -3289,7 +3289,6 @@ static void check_chain_complete(chain_head *chain)
        	
 	} else if (_getdns_bogus(dnsreq)) {
 		_getdns_rrsig_iter rrsig_spc;
-		DEBUG_ANCHOR("Request was bogus!\n");
 
 		if ((head = chain) && (node = _to_the_root(head->parent))
  		    /* The root DNSKEY rrset */
@@ -3302,7 +3301,9 @@ static void check_chain_complete(chain_head *chain)
 		    && _getdns_rrsig_iter_init(&rrsig_spc, &node->dnskey)
 		    ){
 
-			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
+			_getdns_log( &context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_NOTICE
+				   , "root DNSKEY set was bogus!\n");
 			if (!dnsreq->waiting_for_ta) {
 				uint64_t now_ms = 0;
 

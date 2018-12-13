@@ -565,6 +565,9 @@ typedef enum getdns_loglevel_type {
 #define GETDNS_LOG_SYS_RECURSING_TEXT "Log messages about recursive resolving"
 #define GETDNS_LOG_SYS_RESOLVING 0x6000
 #define GETDNS_LOG_SYS_RESOLVING_TEXT "Log messages about resolving"
+#define GETDNS_LOG_SYS_ANCHOR 0x8000
+#define GETDNS_LOG_SYS_ANCHOR_TEXT "Log messages about fetching trust anchors"
+
 
 
 typedef void (*getdns_logfunc_type) (void *userarg, uint64_t log_systems,
