@@ -48,7 +48,7 @@
  * a known working priority string.
  */
 char const * const _getdns_tls_context_default_cipher_list =
-	"SECURE192:-VERS-ALL:+VERS-TLS1.2";
+	"SECURE128:SECURE192:-VERS-TLS1.0:-VERS-TLS1.1";
 
 static char const * const _getdns_tls_connection_opportunistic_cipher_list =
 	"NORMAL";
