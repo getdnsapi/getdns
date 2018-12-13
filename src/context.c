@@ -4637,9 +4637,9 @@ getdns_context_get_dns_transport_list(const getdns_context *context,
 	}
 	// use normal malloc here so users can do normal free
 	*transports = malloc(
-	    context->dns_transport_count * sizeof(getdns_transport_t));
+	    context->dns_transport_count * sizeof(getdns_transport_list_t));
 	memcpy(*transports, context->dns_transports,
-	    context->dns_transport_count * sizeof(getdns_transport_t));
+	    context->dns_transport_count * sizeof(getdns_transport_list_t));
 	return GETDNS_RETURN_GOOD;
 }
 
