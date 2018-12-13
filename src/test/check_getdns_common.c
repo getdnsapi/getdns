@@ -70,7 +70,7 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
    * If it is absent, do not try to decompose the replies_tree, because the
    * answer most likely came not from DNS.
    */
-  ex_response->reponse = response;
+  ex_response->response = response;
   have_answer_type = getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type) ==
     GETDNS_RETURN_GOOD;
 
