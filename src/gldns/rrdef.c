@@ -150,6 +150,9 @@ static const gldns_rdf_type type_openpgpkey_wireformat[] = {
 static const gldns_rdf_type type_csync_wireformat[] = {
 	GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT16, GLDNS_RDF_TYPE_NSEC
 };
+static const gldns_rdf_type type_zonemd_wireformat[] = {
+	GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT8, GLDNS_RDF_TYPE_INT8, GLDNS_RDF_TYPE_HEX
+};
 /* nsec3 is some vars, followed by same type of data of nsec */
 static const gldns_rdf_type type_nsec3_wireformat[] = {
 /*	GLDNS_RDF_TYPE_NSEC3_VARS, GLDNS_RDF_TYPE_NSEC3_NEXT_OWNER, GLDNS_RDF_TYPE_NSEC*/
@@ -372,7 +375,8 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 {GLDNS_RR_TYPE_OPENPGPKEY, "OPENPGPKEY", 1, 1, type_openpgpkey_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 	/* 62 */
 	{GLDNS_RR_TYPE_CSYNC, "CSYNC", 3, 3, type_csync_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-{GLDNS_RR_TYPE_NULL, "TYPE63", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+	/* 63 */
+	{GLDNS_RR_TYPE_ZONEMD, "ZONEMD", 4, 4, type_zonemd_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {GLDNS_RR_TYPE_NULL, "TYPE64", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {GLDNS_RR_TYPE_NULL, "TYPE65", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {GLDNS_RR_TYPE_NULL, "TYPE66", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },

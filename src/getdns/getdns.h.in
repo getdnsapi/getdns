@@ -416,6 +416,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_CDNSKEY   60
 #define GETDNS_RRTYPE_OPENPGPKEY 61
 #define GETDNS_RRTYPE_CSYNC     62
+#define GETDNS_RRTYPE_ZONEMD    63
 #define GETDNS_RRTYPE_SPF       99
 #define GETDNS_RRTYPE_UINFO     100
 #define GETDNS_RRTYPE_UID       101

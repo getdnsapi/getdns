@@ -195,6 +195,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
 	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	GLDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
+	GLDNS_RR_TYPE_ZONEMD = 63, /* draft-wessels-dns-zone-digest */
 
 	GLDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
