@@ -167,6 +167,9 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
 	res->mfs = mfs;
 	res->min_proto_1_2 = false;
 	res->cipher_list = res->curve_list = NULL;
+	res->ca_trust_file = NULL;
+	res->ca_trust_path = NULL;
+
 	return res;
 }
 
@@ -174,6 +177,9 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 {
 	if (!ctx)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	GETDNS_FREE(*mfs, ctx->ca_trust_path);
+	GETDNS_FREE(*mfs, ctx->ca_trust_file);
 	GETDNS_FREE(*mfs, ctx->curve_list);
 	GETDNS_FREE(*mfs, ctx->cipher_list);
 	GETDNS_FREE(*mfs, ctx);
@@ -218,18 +224,19 @@ getdns_return_t _getdns_tls_context_set_curves_list(_getdns_tls_context* ctx, co
 
 getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char* file, const char* path)
 {
-	(void) file;
-	(void) path;
-
 	if (!ctx)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	GETDNS_FREE(*ctx->mfs, ctx->ca_trust_file);
+	ctx->ca_trust_file = getdns_strdup(ctx->mfs, file);
+	GETDNS_FREE(*ctx->mfs, ctx->ca_trust_path);
+	ctx->ca_trust_path = getdns_strdup(ctx->mfs, path);
 	return GETDNS_RETURN_GOOD;
 }
 
 _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd)
 {
 	_getdns_tls_connection* res;
-	int r;
 
 	if (!ctx)
 		return NULL;
@@ -245,24 +252,33 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 	res->dane_query = NULL;
 	res->tlsa = NULL;
 
-	r = gnutls_certificate_allocate_credentials(&res->cred);
-	if (r == GNUTLS_E_SUCCESS)
+	if (gnutls_certificate_allocate_credentials(&res->cred) != GNUTLS_E_SUCCESS)
+		goto failed;
+
+	if (!ctx->ca_trust_file && !ctx->ca_trust_path)
 		gnutls_certificate_set_x509_system_trust(res->cred);
-	if (r == GNUTLS_E_SUCCESS)
-		r = gnutls_init(&res->tls, GNUTLS_CLIENT | GNUTLS_NONBLOCK);
-	if (r == GNUTLS_E_SUCCESS)
-		r = set_connection_ciphers(res);
-	if (r == GNUTLS_E_SUCCESS)
-		r = gnutls_credentials_set(res->tls, GNUTLS_CRD_CERTIFICATE, res->cred);
-	if (r == GNUTLS_E_SUCCESS)
-		r = dane_state_init(&res->dane_state, DANE_F_IGNORE_DNSSEC);
-	if (r != DANE_E_SUCCESS) {
-		_getdns_tls_connection_free(mfs, res);
-		return NULL;
+	else {
+		if (ctx->ca_trust_file)
+			gnutls_certificate_set_x509_trust_file(res->cred, ctx->ca_trust_file, GNUTLS_X509_FMT_PEM);
+		if (ctx->ca_trust_path)
+			gnutls_certificate_set_x509_trust_dir(res->cred, ctx->ca_trust_path, GNUTLS_X509_FMT_PEM);
 	}
+
+	if (gnutls_init(&res->tls, GNUTLS_CLIENT | GNUTLS_NONBLOCK) != GNUTLS_E_SUCCESS)
+		goto failed;
+	if (set_connection_ciphers(res) != GNUTLS_E_SUCCESS)
+		goto failed;
+	if (gnutls_credentials_set(res->tls, GNUTLS_CRD_CERTIFICATE, res->cred) != GNUTLS_E_SUCCESS)
+		goto failed;
+	if (dane_state_init(&res->dane_state, DANE_F_IGNORE_DNSSEC) != DANE_E_SUCCESS)
+		goto failed;
 
 	gnutls_transport_set_int(res->tls, fd);
 	return res;
+
+failed:
+	_getdns_tls_connection_free(mfs, res);
+	return NULL;
 }
 
 getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_connection* conn)

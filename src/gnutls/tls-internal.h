@@ -59,6 +59,8 @@ typedef struct _getdns_tls_context {
 	char* cipher_list;
 	char* curve_list;
 	bool min_proto_1_2;
+	char* ca_trust_file;
+	char* ca_trust_path;
 } _getdns_tls_context;
 
 typedef struct _getdns_tls_connection {
