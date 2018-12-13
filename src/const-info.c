@@ -128,6 +128,7 @@ static struct const_info consts_info[] = {
 	{   12288, "GETDNS_LOG_UPSTREAM_STATS", GETDNS_LOG_UPSTREAM_STATS_TEXT },
 	{   16384, "GETDNS_LOG_SYS_RECURSING", GETDNS_LOG_SYS_RECURSING_TEXT },
 	{   24576, "GETDNS_LOG_SYS_RESOLVING", GETDNS_LOG_SYS_RESOLVING_TEXT },
+	{   32768, "GETDNS_LOG_SYS_ANCHOR", GETDNS_LOG_SYS_ANCHOR_TEXT },
 };
 
 static int const_info_cmp(const void *a, const void *b)
@@ -228,6 +229,7 @@ static struct const_name_info consts_name_info[] = {
 	{ "GETDNS_LOG_ERR", 3 },
 	{ "GETDNS_LOG_INFO", 6 },
 	{ "GETDNS_LOG_NOTICE", 5 },
+	{ "GETDNS_LOG_SYS_ANCHOR", 32768 },
 	{ "GETDNS_LOG_SYS_RECURSING", 16384 },
 	{ "GETDNS_LOG_SYS_RESOLVING", 24576 },
 	{ "GETDNS_LOG_SYS_STUB", 8192 },
@@ -382,6 +384,7 @@ static struct const_name_info consts_name_info[] = {
 	{ "GETDNS_RRTYPE_URI", 256 },
 	{ "GETDNS_RRTYPE_WKS", 11 },
 	{ "GETDNS_RRTYPE_X25", 19 },
+	{ "GETDNS_RRTYPE_ZONEMD", 63 },
 	{ "GETDNS_SSL3", 1400 },
 	{ "GETDNS_TLS1", 1401 },
 	{ "GETDNS_TLS1_1", 1402 },
