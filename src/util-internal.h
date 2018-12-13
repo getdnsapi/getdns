@@ -226,7 +226,6 @@ INLINE int _getdns_tls_version2openssl_version(getdns_tls_version_t v)
 	case GETDNS_TLS1  : return TLS1_VERSION;
 	case GETDNS_TLS1_1: return TLS1_1_VERSION;
 	case GETDNS_TLS1_2: return TLS1_2_VERSION;
-	case GETDNS_TLS1_3: return TLS1_3_VERSION;
 	default           : return TLS_MAX_VERSION;
 	}
 }
