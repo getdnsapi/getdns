@@ -248,6 +248,7 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 	res->shutdown = 0;
 	res->ctx = ctx;
 	res->mfs = mfs;
+	res->cred = NULL;
 	res->tls = NULL;
 	res->cipher_list = NULL;
 	res->curve_list = NULL;
@@ -295,7 +296,8 @@ getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_c
 		dane_state_deinit(conn->dane_state);
 	if (conn->tls)
 		gnutls_deinit(conn->tls);
-	gnutls_certificate_free_credentials(conn->cred);
+	if (conn->cred)
+		gnutls_certificate_free_credentials(conn->cred);
 	GETDNS_FREE(*mfs, conn->tlsa);
 	GETDNS_FREE(*mfs, conn->curve_list);
 	GETDNS_FREE(*mfs, conn->cipher_list);
