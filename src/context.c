@@ -5349,6 +5349,8 @@ int _getdns_context_write_priv_file(getdns_context *context,
 		(void) close(fd);
 
 	context->can_write_appdata = PROP_UNABLE;
+	context->trust_anchors_backoff_expiry =
+	    _getdns_get_now_ms() + context->trust_anchors_backoff_time;
 	return 0;
 }
 
@@ -5361,9 +5363,12 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 	if (context->can_write_appdata == PROP_ABLE)
 		return 1;
 
-	else if (context->can_write_appdata == PROP_UNABLE)
-		return 0;
-
+	else if (context->can_write_appdata == PROP_UNABLE) {
+		if (_getdns_ms_until_expiry(
+		    context->trust_anchors_backoff_expiry) > 0)
+			return 0;
+		context->can_write_appdata = PROP_UNKNOWN;
+	}
 	(void) snprintf( test_fn, sizeof(test_fn)
 	               , "write-test-%d.tmp", arc4random());
 
