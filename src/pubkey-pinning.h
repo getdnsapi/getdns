@@ -44,7 +44,7 @@ _getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
 
 /* create a getdns_list version of the pinset */
 getdns_return_t
-_getdns_get_pubkey_pinset_list(getdns_context *ctx,
+_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list);
 
@@ -61,8 +61,8 @@ _getdns_associate_upstream_with_SSL(SSL *ssl,
 				    getdns_upstream *upstream);
 
 getdns_return_t
-_getdns_verify_pinset_match(const sha256_pin_t *pinset,
-			    X509_STORE_CTX *store);
+_getdns_verify_pinset_match(const getdns_upstream *upstream,
+    const sha256_pin_t *pinset, X509_STORE_CTX *store);
 
 #endif
 /* pubkey-pinning.h */

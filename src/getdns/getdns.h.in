@@ -416,6 +416,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_CDNSKEY   60
 #define GETDNS_RRTYPE_OPENPGPKEY 61
 #define GETDNS_RRTYPE_CSYNC     62
+#define GETDNS_RRTYPE_ZONEMD    63
 #define GETDNS_RRTYPE_SPF       99
 #define GETDNS_RRTYPE_UINFO     100
 #define GETDNS_RRTYPE_UID       101
@@ -743,7 +744,7 @@ getdns_list *getdns_list_create();
  *                used to create and initialize the list.
  * @return pointer to an allocated list, NULL if insufficient memory
  */
-getdns_list *getdns_list_create_with_context(getdns_context *context);
+getdns_list *getdns_list_create_with_context(const getdns_context *context);
 
 /**
  * create a new list with no items, creating and initializing it with the
@@ -863,7 +864,7 @@ getdns_dict *getdns_dict_create();
  *                used to create and initialize the dict.
  * @return pointer to an allocated dict, NULL if insufficient memory
  */
-getdns_dict *getdns_dict_create_with_context(getdns_context *context);
+getdns_dict *getdns_dict_create_with_context(const getdns_context *context);
 
 /**
  * create a new dict with no items, creating and initializing it with the
@@ -1032,7 +1033,7 @@ getdns_general(getdns_context *context,
     uint16_t request_type,
     const getdns_dict *extensions,
     void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn);
 
 /**
  * retrieve address assigned to a DNS name
@@ -1050,7 +1051,7 @@ getdns_address(getdns_context *context,
     const char *name,
     const getdns_dict *extensions,
     void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn);
 
 /**
  * retrieve hostname assigned to an IP address
@@ -1068,7 +1069,7 @@ getdns_hostname(getdns_context *context,
     const getdns_dict *address,
     const getdns_dict *extensions,
     void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn);
 
 /**
  * retrieve a service assigned to a DNS name
@@ -1086,7 +1087,7 @@ getdns_service(getdns_context *context,
     const char *name,
     const getdns_dict *extensions,
     void *userarg,
-    getdns_transaction_t * transaction_id, getdns_callback_t callbackfn);
+    getdns_transaction_t *transaction_id, getdns_callback_t callbackfn);
 /** @}
  */
 
@@ -1341,9 +1342,8 @@ char *getdns_convert_alabel_to_ulabel(const char *alabel);
  * depending on the validation status.
  */
 getdns_return_t
-getdns_validate_dnssec(getdns_list *to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors);
+getdns_validate_dnssec(const getdns_list *to_validate,
+    const getdns_list *support_records, const getdns_list *trust_anchors);
 
 /**
  * Get the default list of trust anchor records that is used by the library
@@ -1816,7 +1816,7 @@ getdns_context_set_extended_memory_functions(getdns_context *context,
  *         object with getdns_dict_destroy.
  */
 getdns_dict*
-getdns_context_get_api_information(getdns_context* context);
+getdns_context_get_api_information(const getdns_context *context);
 
 /** @}
  */

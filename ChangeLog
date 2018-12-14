@@ -1,4 +1,5 @@
-* 2018-??-??: Version 1.4.3
+* 2018-12-??: Version 1.5.0
+  * ZONEMD rr-type
   * getdns_query queries for addresses when a query name
     without a type is given.
   * RFE #408: Fetching of trust anchors will be retried

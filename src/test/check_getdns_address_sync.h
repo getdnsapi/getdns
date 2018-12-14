@@ -127,7 +127,7 @@
      
        CONTEXT_CREATE(TRUE);
 
-       ASSERT_RC(getdns_address_sync(context, "localhost", NULL, &response), 
+       ASSERT_RC(getdns_address_sync(context, "localhost.", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
 
        EXTRACT_LOCAL_RESPONSE;

@@ -434,7 +434,7 @@ getdns_dict_create_with_memory_functions(void *(*malloc)(size_t),
 
 /*-------------------------- getdns_dict_create_with_context */
 struct getdns_dict *
-getdns_dict_create_with_context(struct getdns_context *context)
+getdns_dict_create_with_context(const getdns_context *context)
 {
 	if (context)
 		return getdns_dict_create_with_extended_memory_functions(
@@ -655,7 +655,8 @@ getdns_dict_set_bindata(
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
-getdns_dict_util_set_string(getdns_dict *dict, char *name, const char *value)
+getdns_dict_util_set_string(getdns_dict *dict,
+    const char *name, const char *value)
 {
 	getdns_item    *item;
 	getdns_bindata *newbindata;

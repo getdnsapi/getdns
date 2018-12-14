@@ -54,7 +54,8 @@
 
 
 getdns_return_t
-getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result)
+getdns_dict_util_get_string(const getdns_dict *dict,
+    const char *name, char **result)
 {
 	struct getdns_bindata *bindata = NULL;
 	if (!result) {
@@ -1454,7 +1455,7 @@ _getdns_validate_dname(const char* dname) {
 } /* _getdns_validate_dname */
 
 
-static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
+static void _getdns_reply2wire_buf(gldns_buffer *buf, const getdns_dict *reply)
 {
 	getdns_dict *rr_dict, *q_dict, *h_dict;
 	getdns_list *section;
@@ -1510,7 +1511,7 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 	}
 }
 
-static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
+static void _getdns_list2wire_buf(gldns_buffer *buf, const getdns_list *l)
 {
 	getdns_dict *rr_dict;
 	size_t i, pkt_start;
@@ -1548,8 +1549,8 @@ static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
 }
 
-uint8_t *_getdns_list2wire(
-    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+uint8_t *_getdns_list2wire(const getdns_list *l,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;
@@ -1569,8 +1570,8 @@ uint8_t *_getdns_list2wire(
 	return buf;
 }
 
-uint8_t *_getdns_reply2wire(
-    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+uint8_t *_getdns_reply2wire(const getdns_dict *r,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;
@@ -1590,7 +1591,7 @@ uint8_t *_getdns_reply2wire(
 	return buf;
 }
 
-void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
+void _getdns_wire2list(const uint8_t *pkt, size_t pkt_len, getdns_list *l)
 {
 	_getdns_rr_iter rr_spc, *rr;
 	getdns_dict *rr_dict;

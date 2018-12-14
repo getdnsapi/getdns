@@ -55,6 +55,7 @@
 #include <string.h>
 #include "context.h"
 #include "util-internal.h"
+#include "gldns/parseutil.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
 #define X509_STORE_CTX_get0_untrusted(store) store->untrusted
@@ -92,16 +93,15 @@ static const getdns_bindata sha256 = {
    It is the caller's responsibility to call getdns_dict_destroy when
    it is no longer needed.
  */
-getdns_dict* getdns_pubkey_pin_create_from_string(
-	getdns_context* context,
-	const char* str)
+getdns_dict *getdns_pubkey_pin_create_from_string(
+   const getdns_context *context, const char *str)
 {
 	BIO *bio = NULL;
 	size_t i;
 	uint8_t buf[SHA256_DIGEST_LENGTH];
 	char inbuf[B64_ENCODED_SHA256_LENGTH + 1];
 	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
-	getdns_dict* out = NULL;
+	getdns_dict *out = NULL;
 	
 	/* we only do sha256 right now, make sure this is well-formed */
 	if (!str || strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
@@ -270,7 +270,7 @@ _getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
 }
 
 getdns_return_t
-_getdns_get_pubkey_pinset_list(getdns_context *ctx,
+_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list)
 {
@@ -378,20 +378,20 @@ _getdns_associate_upstream_with_SSL(SSL *ssl,
 }
 
 getdns_return_t
-_getdns_verify_pinset_match(const sha256_pin_t *pinset,
-			    X509_STORE_CTX *store)
+_getdns_verify_pinset_match(const getdns_upstream *upstream,
+    const sha256_pin_t *pinset, X509_STORE_CTX *store)
 {
-	getdns_return_t ret = GETDNS_RETURN_GENERIC_ERROR;
 	X509 *x, *prev = NULL;
+	char x_name_spc[1024], *x_name, prev_name_spc[1024];
 	int i, len;
 	unsigned char raw[4096];
 	unsigned char *next;
 	unsigned char buf[sizeof(pinset->pin)];
 	const sha256_pin_t *p;
 
-	if (pinset == NULL || store == NULL)
-		return GETDNS_RETURN_GENERIC_ERROR;
-	
+	assert(pinset);
+	assert(store);
+
 	/* start at the base of the chain (the end-entity cert) and
 	 * make sure that some valid element of the chain does match
 	 * the pinset. */
@@ -407,29 +407,74 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 
 	/* TODO: how do we handle raw public keys? */
 
-	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++, prev = x) {
-
+	for ( i = 0
+	    ; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store))
+	    ; i++, prev = x) {
 		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
-#if defined(STUB_DEBUG) && STUB_DEBUG
-		DEBUG_STUB("%s %-35s: Name of cert: %d ",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__, i);
-		X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
-		fprintf(stderr, "\n");
-#endif
+		x_name = NULL;
+
+		if (upstream->upstreams
+		&& _getdns_check_log(&upstream->upstreams->log,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG)) {
+
+			x_name = X509_NAME_oneline( X509_get_subject_name(x)
+			                          , x_name_spc
+			                          , sizeof(x_name_spc));
+			_getdns_upstream_log( upstream
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG
+			    , "%-40s : Verifying pinsets with cert: %d %s\n"
+			    , upstream->addr_str, i, x_name);
+		}
 		if (i > 0) {
-		/* we ensure that "prev" is signed by "x" */
+			/* we ensure that "prev" is signed by "x" */
 			EVP_PKEY *pkey = X509_get_pubkey(x);
 			int verified;
+
 			if (!pkey) {
-				DEBUG_STUB("%s %-35s: Could not get pubkey from cert %d (%p)\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)x);
+				if (!upstream->upstreams
+				||  !_getdns_check_log(
+				      &upstream->upstreams->log
+				    , GETDNS_LOG_UPSTREAM_STATS
+				    , GETDNS_LOG_ERR
+				    ))
+					return GETDNS_RETURN_GENERIC_ERROR;
+
+				if (!x_name)
+					x_name = X509_NAME_oneline(
+					      X509_get_subject_name(x)
+					    , x_name_spc, sizeof(x_name_spc));
+				_getdns_upstream_log( upstream
+				    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+				    , "%-40s : Could not get pubkey from cert "
+				      "cert: %d %s\n"
+				    , upstream->addr_str, i, x_name);
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 			verified = X509_verify(prev, pkey);
 			EVP_PKEY_free(pkey);
 			if (!verified) {
-				DEBUG_STUB("%s %-35s: cert %d (%p) was not signed by cert %d\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i-1, (void*)prev, i);
+				if (!upstream->upstreams
+				||  !_getdns_check_log(
+				      &upstream->upstreams->log
+				    , GETDNS_LOG_UPSTREAM_STATS
+				    , GETDNS_LOG_ERR
+				    ))
+					return GETDNS_RETURN_GENERIC_ERROR;
+
+				if (!x_name)
+					x_name = X509_NAME_oneline(
+					      X509_get_subject_name(x)
+					    , x_name_spc, sizeof(x_name_spc));
+				_getdns_upstream_log( upstream
+				    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+				    , "%-40s : Cert: %d %swas not signed "
+				      "by cert %d %s\n", upstream->addr_str
+				    , i - 1
+				    , X509_NAME_oneline(
+				            X509_get_subject_name(prev)
+					  , prev_name_spc
+				          , sizeof(prev_name_spc) )
+				    , i, x_name);
 				return GETDNS_RETURN_GENERIC_ERROR;
 			}
 		}
@@ -437,31 +482,85 @@ _getdns_verify_pinset_match(const sha256_pin_t *pinset,
 		/* digest the cert with sha256 */
 		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
 		if (len > (int)sizeof(raw)) {
-			DEBUG_STUB("%s %-35s: Pubkey %d is larger than %"PRIsz" octets\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, sizeof(raw));
+			if (!upstream->upstreams
+			||  !_getdns_check_log( &upstream->upstreams->log
+			                      , GETDNS_LOG_UPSTREAM_STATS
+			                      , GETDNS_LOG_WARNING ))
+				continue;
+
+			if (!x_name)
+				x_name = X509_NAME_oneline(
+				      X509_get_subject_name(x)
+				    , x_name_spc, sizeof(x_name_spc));
+			_getdns_upstream_log( upstream
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING
+			    , "%-40s : Skipping cert %d %s, because pubkey is "
+			      "larger than buffer size (%"PRIsz" octets)\n"
+			    , upstream->addr_str, i, x_name, sizeof(raw));
 			continue;
 		}
 		next = raw;
 		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
 		if (next - raw != len) {
-			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed %"PRIsz"\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, len, next - raw);
+			if (!upstream->upstreams
+			||  !_getdns_check_log( &upstream->upstreams->log
+			                      , GETDNS_LOG_UPSTREAM_STATS
+			                      , GETDNS_LOG_WARNING ))
+				continue;
+
+			if (!x_name)
+				x_name = X509_NAME_oneline(
+				      X509_get_subject_name(x)
+				    , x_name_spc, sizeof(x_name_spc));
+			_getdns_upstream_log( upstream
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING
+			    , "%-40s : Skipping cert %d %s, because pubkey si"
+			      "ze %"PRIsz" differs from earlier reported %d\n"
+			    , upstream->addr_str, i, x_name, next - raw, len);
 			continue;
 		}
 		SHA256(raw, len, buf);
 
 		/* compare it */
-		for (p = pinset; p; p = p->next)
-			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
-				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p (%"PRIsz")\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p, sizeof(p->pin));
-				return GETDNS_RETURN_GOOD;
-			} else
-				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p);
-	}
+		for (p = pinset; p; p = p->next) {
+			char pin_str[1024];
+			
+			if (x_name) /* only when debugging */
+				gldns_b64_ntop( p->pin , sizeof(p->pin)
+				              , pin_str, sizeof(pin_str) );
 
-	return ret;
+			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
+				if (!upstream->upstreams
+				||  !_getdns_check_log(
+				      &upstream->upstreams->log
+				    , GETDNS_LOG_UPSTREAM_STATS
+				    , GETDNS_LOG_INFO))
+					return GETDNS_RETURN_GOOD;
+
+				if (!x_name) {
+					x_name = X509_NAME_oneline(
+					      X509_get_subject_name(x)
+					    , x_name_spc, sizeof(x_name_spc));
+					gldns_b64_ntop( p->pin , sizeof(p->pin)
+					              , pin_str
+						      , sizeof(pin_str) );
+				}
+				_getdns_upstream_log( upstream
+				    , GETDNS_LOG_UPSTREAM_STATS
+				    , GETDNS_LOG_INFO
+				    , "%-40s : Pubkey of cert %d %s matched "
+				      "pin %s\n", upstream->addr_str
+				    , i, x_name, pin_str);
+				return GETDNS_RETURN_GOOD;
+			}
+			_getdns_upstream_log( upstream
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG
+			    , "%-40s : Pubkey of cert %d %s did not match"
+			      " pin %s\n", upstream->addr_str
+			    , i, x_name, pin_str);
+		}
+	}
+	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
 /* pubkey-pinning.c */

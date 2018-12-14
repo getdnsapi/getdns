@@ -887,7 +887,8 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 
 	/* Deal with the pinset validation */
 	if (upstream->tls_pubkey_pinset)
-		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
+		pinset_ret = _getdns_verify_pinset_match(
+		    upstream, upstream->tls_pubkey_pinset, ctx);
 
 	if (pinset_ret != GETDNS_RETURN_GOOD) {
 		DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Pinset validation failure!\n",
@@ -2402,9 +2403,9 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 		return fd;
 	}
 	/* Handle better, will give generic error*/
-	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
-	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-	    "   *FAILURE* no valid transports or upstreams available!\n");
+	_getdns_log(&netreq->owner->context->log
+	    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+	    , "   *FAILURE* no valid transports or upstreams available!\n");
 	return -1;
 }
 
