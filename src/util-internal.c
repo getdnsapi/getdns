@@ -711,7 +711,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	else	goto error;
 
 	/* other stuff
-	 * Note that spec doesn't explicitely mention these.
+	 * Note that spec doesn't explicitly mention these.
 	 * They are only showcased in the response dict example */
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;

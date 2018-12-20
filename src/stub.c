@@ -1224,10 +1224,10 @@ tls_do_handshake(getdns_upstream *upstream)
 		long verify_result = SSL_get_verify_result(upstream->tls_obj);
 
 /* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
- * we need to verify auth_name explicitely (otherwise it will not be checked,
+ * we need to verify auth_name explicitly (otherwise it will not be checked,
  * because this is not required with DANE with an EE match).
  * This is not needed with native OpenSSL DANE, because EE name checks have
- * to be disabled explicitely.
+ * to be disabled explicitly.
  */
 #if defined(HAVE_X509_CHECK_HOST) && (defined(USE_DANESSL) || !defined(HAVE_SSL_HN_AUTH))
 		int xch;
