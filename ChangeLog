@@ -1,4 +1,8 @@
-* 2018-12-??: Version 1.5.0
+* 2018-12-21: Version 1.5.0
+  * RFE getdnsapi/stubby#121 log re-instantiating TLS
+    upstreams (because they reached tls_backoff_time) at
+    log level 4 (WARNING)
+  * GETDNS_RESPSTATUS_NO_NAME for NODATA answers too
   * ZONEMD rr-type
   * getdns_query queries for addresses when a query name
     without a type is given.

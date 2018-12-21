@@ -744,7 +744,7 @@ void _getdns_context_equip_with_anchor(
 	else if (!verify_CA || !*verify_CA)
 		_getdns_log( &context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
-		           , "Trust anchor verification explicitely "
+		           , "Trust anchor verification explicitly "
 		             "disabled by empty verify CA\n");
 
 	else if ((r = getdns_context_get_trust_anchors_verify_email(
@@ -757,7 +757,7 @@ void _getdns_context_equip_with_anchor(
 	else if (!verify_email || !*verify_email)
 		_getdns_log( &context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
-		           , "Trust anchor verification explicitely "
+		           , "Trust anchor verification explicitly "
 		             "disabled by empty verify email\n");
 
 	else if (!(xml_data = _getdns_context_get_priv_file(context,
@@ -1599,7 +1599,7 @@ void _getdns_start_fetching_ta(
 	} else if (!verify_CA || !*verify_CA) {
 		_getdns_log( &context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
-		           , "Trust anchor verification explicitely "
+		           , "Trust anchor verification explicitly "
 		             "disabled by empty verify CA\n");
 		return;
 
@@ -1614,7 +1614,7 @@ void _getdns_start_fetching_ta(
 	} else if (!verify_email || !*verify_email) {
 		_getdns_log( &context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
-		           , "Trust anchor verification explicitely "
+		           , "Trust anchor verification explicitly "
 		             "disabled by empty verify email\n");
 		return;
 

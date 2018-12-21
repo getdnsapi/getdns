@@ -711,7 +711,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	else	goto error;
 
 	/* other stuff
-	 * Note that spec doesn't explicitely mention these.
+	 * Note that spec doesn't explicitly mention these.
 	 * They are only showcased in the response dict example */
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;
@@ -1124,6 +1124,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	int nsecure = 0, ninsecure = 0, nindeterminate = 0, nbogus = 0;
 	getdns_dict   *netreq_debug;
 	_srvs srvs = { 0, 0, NULL };
+	_getdns_rrset_spc answer_spc;
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
@@ -1235,8 +1236,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		/* TODO: Check instead if canonical_name for request_type
 		 *       is in the answer section.
 		 */
-		if (GLDNS_RCODE_NOERROR ==
-		    GLDNS_RCODE_WIRE(netreq->response))
+		if (_getdns_rrset_answer(&answer_spc, netreq->response
+		                                    , netreq->response_len))
 			nanswers++;
 
 		if (dnssec_return_status ||
