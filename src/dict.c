@@ -434,7 +434,7 @@ getdns_dict_create_with_memory_functions(void *(*malloc)(size_t),
 
 /*-------------------------- getdns_dict_create_with_context */
 struct getdns_dict *
-getdns_dict_create_with_context(struct getdns_context *context)
+getdns_dict_create_with_context(const getdns_context *context)
 {
 	if (context)
 		return getdns_dict_create_with_extended_memory_functions(
@@ -655,7 +655,8 @@ getdns_dict_set_bindata(
 
 /*---------------------------------------- getdns_dict_set_bindata */
 getdns_return_t
-getdns_dict_util_set_string(getdns_dict *dict, char *name, const char *value)
+getdns_dict_util_set_string(getdns_dict *dict,
+    const char *name, const char *value)
 {
 	getdns_item    *item;
 	getdns_bindata *newbindata;
@@ -1078,9 +1079,12 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			     strcmp(item->node.key, "transport") == 0 ||
 			     strcmp(item->node.key, "resolution_type") == 0 ||
 			     strcmp(item->node.key, "tls_authentication") == 0 ||
+			     strcmp(item->node.key, "tls_min_version") == 0 ||
+			     strcmp(item->node.key, "tls_max_version") == 0 ||
 
 			     /* extensions */
 			     strcmp(item->node.key, "add_warning_for_bad_dns") == 0 ||
+			     strcmp(item->node.key, "dnssec") == 0 ||
 			     strcmp(item->node.key, "dnssec_return_all_statuses") == 0 ||
 			     strcmp(item->node.key, "dnssec_return_full_validation_chain") == 0 ||
 			     strcmp(item->node.key, "dnssec_return_only_secure") == 0 ||

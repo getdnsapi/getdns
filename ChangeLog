@@ -1,3 +1,38 @@
+* 2018-12-21: Version 1.5.0
+  * RFE getdnsapi/stubby#121 log re-instantiating TLS
+    upstreams (because they reached tls_backoff_time) at
+    log level 4 (WARNING)
+  * GETDNS_RESPSTATUS_NO_NAME for NODATA answers too
+  * ZONEMD rr-type
+  * getdns_query queries for addresses when a query name
+    without a type is given.
+  * RFE #408: Fetching of trust anchors will be retried
+    after failure, after a certain backoff time. The time
+    can be configured with
+    getdns_context_set_trust_anchors_backoff_time().
+  * RFE #408: A "dnssec" extension that requires DNSSEC
+    verification.  When this extension is set, Indeterminate
+    DNSSEC status will not be returned.
+  * Issue #410: Unspecified ownership of get_api_information()
+  * Fix for DNSSEC bug in finding most specific key when
+    trust anchor proves non-existance of one of the labels
+    along the authentication chain other than the non-
+    existance of a DS record on a zonecut.
+  * Enhancement getdnsapi/stubby#56 & getdnsapi/stubby#130:
+    Configurable minimum and maximum TLS versions with
+    getdns_context_set_tls_min_version() and
+    getdns_context_set_tls_max_version() functions and
+    tls_min_version and tls_max_version configuration parameters
+    for upstreams.
+  * Configurable TLS1.3 ciphersuites with the
+    getdns_context_set_tls_ciphersuites() function and
+    tls_ciphersuites config parameter for upstreams.
+  * Bugfix in upstream string configurations: tls_cipher_list and
+    tls_curve_list
+  * Bugfix finding signer for validating NSEC and NSEC3s, which
+    caused trouble with the partly tracing DNSSEC from the root
+    up, introduced in 1.4.2.  Thanks Philip Homburg
+
 * 2018-05-11: Version 1.4.2
   * Bugfix getdnsapi/stubby#87: Detect and ignore duplicate certs
     in the Windows root CA store.

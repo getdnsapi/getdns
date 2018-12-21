@@ -182,9 +182,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	GLDNS_RR_TYPE_NSEC3PARAMS = 51,
 	GLDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
-	GLDNS_RR_TYPE_SMIMEA = 53, /* draft-ietf-dane-smime, TLSA-like but may
-				     be extended */
-
+	GLDNS_RR_TYPE_SMIMEA = 53, /* RFC 8162 */
 	GLDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
 
 	/** draft-reid-dnsext-zs */
@@ -197,6 +195,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
 	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	GLDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
+	GLDNS_RR_TYPE_ZONEMD = 63, /* draft-wessels-dns-zone-digest */
 
 	GLDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 

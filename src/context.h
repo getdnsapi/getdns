@@ -127,7 +127,7 @@ const getdns_tsig_info *_getdns_get_tsig_info(getdns_tsig_algo tsig_alg);
 
 /* for doing public key pinning of TLS-capable upstreams: */
 typedef struct sha256_pin {
-	char pin[SHA256_DIGEST_LENGTH];
+	uint8_t pin[SHA256_DIGEST_LENGTH];
 	struct sha256_pin *next;
 } sha256_pin_t;
 
@@ -200,15 +200,21 @@ typedef struct getdns_upstream {
 	getdns_network_req      *write_queue_last;
 	_getdns_rbtree_t         netreq_by_query_id;
 
-    /* TLS specific connection handling*/
+	/* TLS specific connection handling */
 	SSL*                     tls_obj;
 	SSL_SESSION*             tls_session;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_auth_state_t      tls_auth_state;
 	unsigned                 tls_fallback_ok : 1;
+
+	/* TLS settings */
 	char                    *tls_cipher_list;
+	char                    *tls_ciphersuites;
 	char                    *tls_curves_list;
-	/* Auth credentials*/
+	getdns_tls_version_t     tls_min_version;
+	getdns_tls_version_t     tls_max_version;
+
+	/* Auth credentials */
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
 
@@ -263,7 +269,7 @@ typedef struct getdns_upstreams {
 	size_t count;
 	size_t current_udp;
 	size_t current_stateful;
-    uint16_t max_backoff_value;
+	uint16_t max_backoff_value;
 	uint16_t tls_backoff_time;
 	uint16_t tls_connection_retries;
 	getdns_log_config log;
@@ -341,6 +347,8 @@ struct getdns_context {
 	char                 *trust_anchors_url;
 	char                 *trust_anchors_verify_CA;
 	char                 *trust_anchors_verify_email;
+	uint64_t              trust_anchors_backoff_time;
+	uint64_t              trust_anchors_backoff_expiry;
 
 	_getdns_ksks          root_ksk;
 
@@ -350,7 +358,10 @@ struct getdns_context {
 	char                 *tls_ca_path;
 	char                 *tls_ca_file;
 	char                 *tls_cipher_list;
+	char                 *tls_ciphersuites;
 	char                 *tls_curves_list;
+	getdns_tls_version_t  tls_min_version;
+	getdns_tls_version_t  tls_max_version;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
@@ -358,7 +369,7 @@ struct getdns_context {
 	getdns_tls_authentication_t  tls_auth;  /* What user requested for TLS*/
 	getdns_tls_authentication_t  tls_auth_min; /* Derived minimum auth allowed*/
 	uint8_t              round_robin_upstreams;
-    uint16_t             max_backoff_value;
+	uint16_t             max_backoff_value;
 	uint16_t             tls_backoff_time;
 	uint16_t             tls_connection_retries;
 
@@ -433,6 +444,7 @@ struct getdns_context {
 	getdns_dict *header;
 	getdns_dict *add_opt_parameters;
 	unsigned add_warning_for_bad_dns             : 1;
+	unsigned dnssec                              : 1;
 	unsigned dnssec_return_all_statuses          : 1;
 	unsigned dnssec_return_full_validation_chain : 1;
 	unsigned dnssec_return_only_secure           : 1;
@@ -490,11 +502,38 @@ struct getdns_context {
 #endif /* HAVE_MDNS_SUPPORT */
 }; /* getdns_context */
 
-void _getdns_upstream_log(getdns_upstream *upstream, uint64_t system,
-    getdns_loglevel_type level, const char *fmt, ...);
+static inline int _getdns_check_log(const getdns_log_config *log,
+    uint64_t system, getdns_loglevel_type level)
+{ assert(log)
+; return log->func && (log->system & system) && level <= log->level; }
 
-void _getdns_context_log(getdns_context *context, uint64_t system,
-    getdns_loglevel_type level, const char *fmt, ...);
+static inline void _getdns_log(const getdns_log_config *log,
+    uint64_t system, getdns_loglevel_type level, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!_getdns_check_log(log, system, level))
+		return;
+
+	va_start(args, fmt);
+	log->func(log->userarg, system, level, fmt, args);
+	va_end(args);
+}
+
+static inline void _getdns_upstream_log(const getdns_upstream *up,
+    uint64_t system, getdns_loglevel_type level, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!up || !up->upstreams
+	||  !_getdns_check_log(&up->upstreams->log, system, level))
+		return;
+
+	va_start(args, fmt);
+	up->upstreams->log.func(
+	    up->upstreams->log.userarg, system, level, fmt, args);
+	va_end(args);
+}
 
 
 /** internal functions **/
@@ -551,8 +590,9 @@ void _getdns_upstreams_dereference(getdns_upstreams *upstreams);
 
 void _getdns_upstream_shutdown(getdns_upstream *upstream);
 
-FILE *_getdns_context_get_priv_fp(getdns_context *context, const char *fn);
-uint8_t *_getdns_context_get_priv_file(getdns_context *context,
+FILE *_getdns_context_get_priv_fp(
+    const getdns_context *context, const char *fn);
+uint8_t *_getdns_context_get_priv_file(const getdns_context *context,
     const char *fn, uint8_t *buf, size_t buf_len, size_t *file_sz);
 
 int _getdns_context_write_priv_file(getdns_context *context,

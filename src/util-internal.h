@@ -147,17 +147,18 @@ _getdns_rr_iter2rr_dict_canonical(
     struct mem_funcs *mf, _getdns_rr_iter *i, uint32_t *orig_ttl);
 
 struct getdns_dns_req;
-struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *completed_request);
+struct getdns_dict *_getdns_create_getdns_response(
+    struct getdns_dns_req *completed_request);
 
 getdns_return_t _getdns_validate_dname(const char* dname);
 
-uint8_t *_getdns_list2wire(
-    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+uint8_t *_getdns_list2wire(const getdns_list *l,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf);
 
-uint8_t *_getdns_reply2wire(
-    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+uint8_t *_getdns_reply2wire(const getdns_dict *r,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf);
 
-void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
+void _getdns_wire2list(const uint8_t *pkt, size_t pkt_len, getdns_list *l);
 
 
 /**
@@ -217,6 +218,47 @@ INLINE uint64_t _getdns_ms_until_expiry2(uint64_t expires, uint64_t *now_ms)
 	if (*now_ms == 0) *now_ms = _getdns_get_now_ms();
 	return *now_ms >= expires ? 0 : expires - *now_ms;
 }
+
+#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
+	 && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+
+INLINE int _getdns_tls_version2openssl_version(getdns_tls_version_t v)
+{
+	switch (v) {
+# ifdef SSL3_VERSION
+	case GETDNS_SSL3  : return SSL3_VERSION;
+# endif
+# ifdef TLS1_VERSION
+	case GETDNS_TLS1  : return TLS1_VERSION;
+# endif
+# ifdef TLS1_1_VERSION
+	case GETDNS_TLS1_1: return TLS1_1_VERSION;
+# endif
+# ifdef TLS1_2_VERSION
+	case GETDNS_TLS1_2: return TLS1_2_VERSION;
+# endif
+# ifdef TLS1_3_VERSION
+	case GETDNS_TLS1_3: return TLS1_3_VERSION;
+# endif
+	default           :
+# if   defined(TLS_MAX_VERSION)
+			    return TLS_MAX_VERSION;
+# elif defined(TLS1_3_VERSION)
+			    return TLS1_3_VERSION;
+# elif defined(TLS1_2_VERSION)
+			    return TLS1_2_VERSION;
+# elif defined(TLS1_1_VERSION)
+			    return TLS1_1_VERSION;
+# elif defined(TLS1_VERSION)
+			    return TLS1_VERSION;
+# elif defined(SSL3_VERSION)
+			    return SSL3_VERSION;
+# else
+			    return -1;
+# endif
+	}
+}
+#endif
 
 #endif
 /* util-internal.h */

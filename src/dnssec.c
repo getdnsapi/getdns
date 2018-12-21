@@ -178,7 +178,7 @@
  * "DNSSEC Validation".
  *
  * Many functions are of key verification boolean return type; e.g.
- * key_proves_non_existance(), ds_authenticates_keys(), a_key_signed_rrset()
+ * key_proves_nonexistance(), ds_authenticates_keys(), a_key_signed_rrset()
  * These will return the keytag identifying the key that was used to 
  * authenticate + 0x10000 to allow keytag 0.
  *
@@ -523,7 +523,7 @@ static void val_chain_sched(chain_head *head, const uint8_t *dname);
 static void val_chain_sched_ds(chain_head *head, const uint8_t *dname);
 static void val_chain_sched_signer(chain_head *head, _getdns_rrsig_iter *rrsig);
 
-static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
+static chain_head *add_rrset2val_chain(const struct mem_funcs *mf,
     chain_head **chain_p, _getdns_rrset *rrset, getdns_network_req *netreq)
 {
 	chain_head *head;
@@ -671,8 +671,18 @@ static chain_head *add_rrset2val_chain(struct mem_funcs *mf,
 	/* On the first chain, max_node == NULL.
 	 * Schedule a root DNSKEY query, we always need that.
 	 */
-	if (!(node[-1].parent = max_node)) {
+	if (!(node[-1].parent = max_node))
 		val_chain_sched(head, (uint8_t *)"\0");
+
+	/* For an NSEC or NSEC3 query, stop at that.  If it is valid it will
+	 * have a signature which will be chased.
+	 */
+	if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC ||
+	    head->rrset.rr_type == GETDNS_RRTYPE_NSEC3)
+		return head;
+
+	/* Otherwise, schedule key lookups for the tld and sld too. */
+	if (!max_node) {
 		if (head->node_count > 1)
 			val_chain_sched(head, node[-2].ds.name);
 		if (head->node_count > 2)
@@ -778,7 +788,7 @@ static int is_synthesized_cname(_getdns_rrset *cname)
  * When a SOA query was successful, a query for DS will follow for that
  * owner name.
  */
-static void add_pkt2val_chain(struct mem_funcs *mf,
+static void add_pkt2val_chain(const struct mem_funcs *mf,
     chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
     getdns_network_req *netreq)
 {
@@ -840,7 +850,7 @@ static void add_pkt2val_chain(struct mem_funcs *mf,
  * checked eventually.
  * But only if we know the question of course...
  */
-static void add_question2val_chain(struct mem_funcs *mf,
+static void add_question2val_chain(const struct mem_funcs *mf,
     chain_head **chain_p, uint8_t *pkt, size_t pkt_len,
     const uint8_t *qname, uint16_t qtype, uint16_t qclass,
     getdns_network_req *netreq)
@@ -1354,8 +1364,9 @@ static int _rr_iter_rdata_cmp(const void *a, const void *b)
  * nc_name will be set to the next closer (within rrset->name).
  */
 #define VAL_RRSET_SPC_SZ 256
-static int _getdns_verify_rrsig(struct mem_funcs *mf,
-    _getdns_rrset *rrset, _getdns_rrsig_iter *rrsig, _getdns_rrtype_iter *key, const uint8_t **nc_name)
+static int _getdns_verify_rrsig(const struct mem_funcs *mf,
+    _getdns_rrset *rrset, _getdns_rrsig_iter *rrsig, _getdns_rrtype_iter *key,
+    const uint8_t **nc_name)
 {
 	int r;
 	int to_skip;
@@ -1673,8 +1684,9 @@ static int check_dates(time_t now, int32_t skew, int32_t exp, int32_t inc)
 /* Returns whether dnskey signed rrset.  If the rrset was a valid wildcard
  * expansion, nc_name will point to the next closer part of the name in rrset.
  */
-static int dnskey_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
-    _getdns_rrtype_iter *dnskey, _getdns_rrset *rrset, const uint8_t **nc_name)
+static int dnskey_signed_rrset(const struct mem_funcs *mf, time_t now,
+    uint32_t skew, _getdns_rrtype_iter *dnskey, _getdns_rrset *rrset,
+    const uint8_t **nc_name)
 {
 	_getdns_rrsig_iter rrsig_spc, *rrsig;
 	_getdns_rdf_iter rdf_spc, *rdf;
@@ -1742,7 +1754,7 @@ static int dnskey_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
 }
 
 /* Returns whether a dnskey for keyset signed a non wildcard rrset. */
-static int a_key_signed_rrset_no_wc(struct mem_funcs *mf, time_t now,
+static int a_key_signed_rrset_no_wc(const struct mem_funcs *mf, time_t now,
     uint32_t skew, _getdns_rrset *keyset, _getdns_rrset *rrset)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
@@ -1770,13 +1782,13 @@ static int a_key_signed_rrset_no_wc(struct mem_funcs *mf, time_t now,
 	return 0;
 }
 
-static int find_nsec_covering_name(
-    struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
+static int find_nsec_covering_name(const struct mem_funcs *mf,
+    time_t now, uint32_t skew, _getdns_rrset *dnskey,
     _getdns_rrset *rrset, const uint8_t *name, int *opt_out);
 
 /* Returns whether a dnskey for keyset signed rrset. */
-static int a_key_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
-    _getdns_rrset *keyset, _getdns_rrset *rrset)
+static int a_key_signed_rrset(const struct mem_funcs *mf, time_t now,
+    uint32_t skew, _getdns_rrset *keyset, _getdns_rrset *rrset)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
 	const uint8_t *nc_name; /* Initialized by dnskey_signed_rrset() */
@@ -1817,7 +1829,7 @@ static int a_key_signed_rrset(struct mem_funcs *mf, time_t now, uint32_t skew,
 /* Returns whether a DS in ds_set matches a dnskey in dnskey_set which in turn
  * signed the dnskey set.
  */
-static int ds_authenticates_keys(struct mem_funcs *mf,
+static int ds_authenticates_keys(const struct mem_funcs *mf,
     time_t now, uint32_t skew, _getdns_rrset *ds_set, _getdns_rrset *dnskey_set)
 {
 	_getdns_rrtype_iter dnskey_spc, *dnskey;
@@ -2102,8 +2114,8 @@ static int nsec3_covers_name(
 	}
 }
 
-static int find_nsec_covering_name(
-    struct mem_funcs *mf, time_t now, uint32_t skew, _getdns_rrset *dnskey,
+static int find_nsec_covering_name(const struct mem_funcs *mf, time_t now,
+    uint32_t skew, _getdns_rrset *dnskey,
     _getdns_rrset *rrset, const uint8_t *name, int *opt_out)
 {
 	_getdns_rrset_iter i_spc, *i;
@@ -2205,7 +2217,7 @@ static int find_nsec_covering_name(
 }
 
 static int nsec3_find_next_closer(
-    struct mem_funcs *mf, time_t now, uint32_t skew,
+    const struct mem_funcs *mf, time_t now, uint32_t skew,
     _getdns_rrset *dnskey, _getdns_rrset *rrset,
     const uint8_t *nc_name, int *opt_out)
 {
@@ -2257,7 +2269,7 @@ static int nsec3_find_next_closer(
  * verifying key: it returns keytag + NSEC3_ITERATION_COUNT_HIGH (0x20000)
  */
 static int key_proves_nonexistance(
-    struct mem_funcs *mf, time_t now, uint32_t skew,
+    const struct mem_funcs *mf, time_t now, uint32_t skew,
     _getdns_rrset *keyset, _getdns_rrset *rrset, int *opt_out)
 {
 	_getdns_rrset nsec_rrset, *cover, *ce;
@@ -2270,6 +2282,7 @@ static int key_proves_nonexistance(
 
 	assert(keyset->rr_type == GETDNS_RRTYPE_DNSKEY);
 
+	debug_sec_print_rrset("Commencing NX proof for: ", rrset);
 	if (opt_out)
 		*opt_out = 0;
 
@@ -2318,6 +2331,14 @@ static int key_proves_nonexistance(
 	    /* And a valid signature please */
 	    && (keytag = a_key_signed_rrset_no_wc(
 				    mf, now, skew, keyset, &nsec_rrset))) {
+
+		/* Flag an insecure delegation via opt_out.
+		 * See usage of key_proves_nonexistance() from
+		 * chain_node_get_trusted_keys() for explanation.
+		 */
+		if (opt_out && rrset->rr_type == GETDNS_RRTYPE_DS)
+			*opt_out =  bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+			        && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA);
 
 		debug_sec_print_rrset("NSEC NODATA proof for: ", rrset);
 		return keytag;
@@ -2464,6 +2485,15 @@ static int key_proves_nonexistance(
 		    && (   keytag & NSEC3_ITERATION_COUNT_HIGH
 		        || nsec3_matches_name(ce, rrset->name))) {
 
+			/* Flag an insecure delegation via opt_out.
+			 * See usage of key_proves_nonexistance() from
+			 * chain_node_get_trusted_keys() for explanation.
+			 */
+			if (opt_out && rrset->rr_type == GETDNS_RRTYPE_DS)
+				*opt_out =
+				    bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+				&& !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA);
+
 			debug_sec_print_rrset("NSEC3 No Data for: ", rrset);
 			return keytag;
 		}
@@ -2543,10 +2573,11 @@ static int key_proves_nonexistance(
  * non-existence of a DS along the path is proofed, and SECURE otherwise.
  */
 static int chain_node_get_trusted_keys(
-    struct mem_funcs *mf, time_t now, uint32_t skew,
+    const struct mem_funcs *mf, time_t now, uint32_t skew,
     chain_node *node, _getdns_rrset *ta, _getdns_rrset **keys)
 {
 	int s, keytag;
+	int opt_out;
 
 	/* Ascend up to the root */
 	if (! node)
@@ -2577,16 +2608,33 @@ static int chain_node_get_trusted_keys(
 			*keys = ta;
 			return GETDNS_DNSSEC_SECURE;
 		}
-		/* ta is parent's ZSK */
+		/* ta is parent's ZSK proving insecurity below this node? */
 		if ((keytag = key_proves_nonexistance(
-		    mf, now, skew, ta, &node->ds, NULL))) {
+		    mf, now, skew, ta, &node->ds, &opt_out))) {
 			node->ds_signer = keytag;
-			return GETDNS_DNSSEC_INSECURE;
-		}
 
-		if ((keytag = a_key_signed_rrset_no_wc(
+			/* When the proof is in an opt_out span, result will
+			 * be INSECURE regardless the purpose of the searched
+			 * for key.
+			 *
+			 * Otherwise, INSECURE only when this is a zonecut.
+			 * i.e. a NODATA proof, with the NS bit and no SOA bit.
+			 *
+			 * key_proves_nonexistance() will set opt_out also for
+			 * these conditions.
+			 */
+			if (opt_out)
+				return GETDNS_DNSSEC_INSECURE;
+
+			/* If this is not an insecurity proof,
+			 * continue searching one label up.
+			 */
+
+		/* ta is parent's ZSK authenticating DS? */
+		} else if ((keytag = a_key_signed_rrset_no_wc(
 					mf, now, skew, ta, &node->ds))) {
 			node->ds_signer = keytag;
+			/* DS should authenticate the DNSKEY rrset now */
 			if ((keytag = ds_authenticates_keys(
 			    mf, now, skew, &node->ds, &node->dnskey))) {
 				*keys = &node->dnskey;
@@ -2595,6 +2643,7 @@ static int chain_node_get_trusted_keys(
 				     ? GETDNS_DNSSEC_INSECURE
 				     : GETDNS_DNSSEC_SECURE;
 			}
+			/* DS without DNSKEY rrset == BOGUS */
 			return GETDNS_DNSSEC_BOGUS;
 		}
 	} else
@@ -2612,10 +2661,22 @@ static int chain_node_get_trusted_keys(
 	/* keys is an authenticated dnskey rrset always now (i.e. ZSK) */
 	ta = *keys;
 	/* Back down to the head */
+	/*************************/
 	if ((keytag = key_proves_nonexistance(
-	    mf, now, skew, ta, &node->ds, NULL))) {
+	    mf, now, skew, ta, &node->ds, &opt_out))) {
 		node->ds_signer = keytag;
-		return GETDNS_DNSSEC_INSECURE;
+
+		/* When the proof is in an opt_out span, result will be
+		 * INSECURE regardless the purpose of the searched for key.
+		 *
+		 * Otherwise, INSECURE only when this is a zonecut.
+		 * i.e. a NODATA proof, with the NS bit, but no SOA bit.
+		 *
+		 * key_proves_nonexistance() will set opt_out also for these
+		 * conditions. (NODATA of DS with NS bit and wihout SOA bit)
+		 */
+		return opt_out ? GETDNS_DNSSEC_INSECURE
+		               : GETDNS_DNSSEC_SECURE;
 	}
 	if (key_matches_signer(ta, &node->ds)) {
 		
@@ -2655,22 +2716,64 @@ static int chain_node_get_trusted_keys(
  * For this first a secure keyset is looked up, with which the keyset is 
  * evaluated.
  */
-static int chain_head_validate_with_ta(struct mem_funcs *mf,
+static int chain_head_validate_with_ta(const struct mem_funcs *mf,
     time_t now, uint32_t skew, chain_head *head, _getdns_rrset *ta)
 {
 	_getdns_rrset *keys;
 	int s, keytag, opt_out;
 
-	debug_sec_print_rrset("validating ", &head->rrset);
-	debug_sec_print_rrset("with trust anchor ", ta);
+	_getdns_rrtype_iter nsec_spc, *nsec_rr;
+	_getdns_rdf_iter bitmap_spc, *bitmap;
+	chain_node *parent;
+
+	debug_sec_print_rrset("Validating ", &head->rrset);
+	debug_sec_print_rrset("\twith trust anchor ", ta);
+
+	/* A DS is never at the apex */
+	if (   head->rrset.rr_type == GETDNS_RRTYPE_DS
+	    && head->parent->parent)
+		parent = head->parent->parent;
+
+	/* Only at the apex, a NSEC is signed with a DNSKEY with the same
+	 * owner name.  All other are signed by the parent domain or higher.
+	 * Besides a shortcut, choosing to search for a trusted key from the
+	 * parent is essential for NSECs at a delagation point! (which would
+	 * otherwise turn out BOGUS).
+	 */
+	else if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC
+	    &&  head->parent->parent
+	    && (nsec_rr = _getdns_rrtype_iter_init(&nsec_spc, &head->rrset))
+	    && (bitmap = _getdns_rdf_iter_init_at(
+			    &bitmap_spc, &nsec_rr->rr_i, 1))
+	    && !bitmap_has_type(bitmap, GETDNS_RRTYPE_SOA))
+		parent = head->parent->parent;
+
+	/* NSEC3 is always signed by the parent domain!
+	 * ( the ownername of the NSEC3 itself is not in the original zone!
+	 *   so a search for a trusted key at that name gives either INSECURE
+	 *   (with opt-out) or BOGUS! )
+	 */
+	else if (head->rrset.rr_type == GETDNS_RRTYPE_NSEC3
+	    && head->parent->parent)
+		parent = head->parent->parent;
+	else
+		parent = head->parent;
 
 	if ((s = chain_node_get_trusted_keys(
-	    mf, now, skew, head->parent, ta, &keys)) != GETDNS_DNSSEC_SECURE)
+	    mf, now, skew, parent, ta, &keys)) != GETDNS_DNSSEC_SECURE) {
+		debug_sec_print_rrset("Could not get trusted keys "
+		                      "for validating ", &head->rrset);
+		DEBUG_SEC("\tstatus: %d\n", (int)s);
 		return s;
+	}
+	debug_sec_print_rrset("Validating ", &head->rrset);
+	debug_sec_print_rrset("\twith keys ", keys);
 
 	if (_getdns_rrset_has_rrs(&head->rrset)) {
 		if ((keytag = a_key_signed_rrset(
 		    mf, now, skew, keys, &head->rrset))) {
+			DEBUG_SEC("Key %d proved\n", (int)keytag);
+			debug_sec_print_rrset("\tSECURE: ", &head->rrset);
 			head->signer = keytag;
 			return GETDNS_DNSSEC_SECURE;
 
@@ -2679,23 +2782,29 @@ static int chain_head_validate_with_ta(struct mem_funcs *mf,
 					skew, keys, &head->rrset, &opt_out))
 				&& opt_out) {
 
+			DEBUG_SEC("Key %d proved (optout)\n", (int)keytag);
+			debug_sec_print_rrset("\tINSECURE: ", &head->rrset);
 			head->signer = keytag;
 			return GETDNS_DNSSEC_INSECURE;
 		}
 	} else if ((keytag = key_proves_nonexistance(mf, now, skew,
 					keys, &head->rrset, &opt_out))) {
+		DEBUG_SEC("Key %d proved (NX)\n", (int)keytag);
+		debug_sec_print_rrset("\tSECURE: ", &head->rrset);
 		head->signer = keytag;
 		return opt_out || (keytag & NSEC3_ITERATION_COUNT_HIGH)
 		     ? GETDNS_DNSSEC_INSECURE : GETDNS_DNSSEC_SECURE;
 	}
+	debug_sec_print_rrset("BOGUS: ", &head->rrset);
+	debug_sec_print_rrset("\twith trust anchor: ", ta);
 	return GETDNS_DNSSEC_BOGUS;
 }
 
 /* The DNSSEC status of the rrset in head is evaluated by trying the trust
  * anchors in tas in turn.  The best outcome counts.
  */
-static int chain_head_validate(struct mem_funcs *mf, time_t now, uint32_t skew,
-    chain_head *head, _getdns_rrset_iter *tas)
+static int chain_head_validate(const struct mem_funcs *mf, time_t now,
+    uint32_t skew, chain_head *head, _getdns_rrset_iter *tas)
 {
 	_getdns_rrset_iter *i;
 	_getdns_rrset *ta, dnskey_ta, ds_ta;
@@ -2844,7 +2953,7 @@ static void chain_clear_netreq_dnssec_status(chain_head *chain)
  * processing each head in turn.  The worst outcome is the dnssec status for
  * the whole.
  */
-static int chain_validate_dnssec(struct mem_funcs *mf,
+static int chain_validate_dnssec(const struct mem_funcs *mf,
     time_t now, uint32_t skew, chain_head *chain, _getdns_rrset_iter *tas)
 {
 	int s = GETDNS_DNSSEC_INDETERMINATE, t;
@@ -3180,7 +3289,6 @@ static void check_chain_complete(chain_head *chain)
        	
 	} else if (_getdns_bogus(dnsreq)) {
 		_getdns_rrsig_iter rrsig_spc;
-		DEBUG_ANCHOR("Request was bogus!\n");
 
 		if ((head = chain) && (node = _to_the_root(head->parent))
  		    /* The root DNSKEY rrset */
@@ -3193,13 +3301,15 @@ static void check_chain_complete(chain_head *chain)
 		    && _getdns_rrsig_iter_init(&rrsig_spc, &node->dnskey)
 		    ){
 
-			DEBUG_ANCHOR("root DNSKEY set was bogus!\n");
+			_getdns_log( &context->log
+				   , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_NOTICE
+				   , "root DNSKEY set was bogus!\n");
 			if (!dnsreq->waiting_for_ta) {
-				uint64_t now = 0;
+				uint64_t now_ms = 0;
 
 				dnsreq->waiting_for_ta = 1;
 				_getdns_context_equip_with_anchor(
-				    context, &now);
+				    context, &now_ms);
 
 				if (context->trust_anchors_source
 				    == GETDNS_TASRC_XML) {
@@ -3207,9 +3317,19 @@ static void check_chain_complete(chain_head *chain)
 					check_chain_complete(chain);
 					return;
 				}
-				_getdns_start_fetching_ta(
-				    context,  dnsreq->loop);
-
+				if (context->trust_anchors_source ==
+						GETDNS_TASRC_FAILED
+				&& 0 == _getdns_ms_until_expiry2(
+				    context->trust_anchors_backoff_expiry,
+				    &now_ms)) {
+					context->trust_anchors_source =
+					    GETDNS_TASRC_NONE;
+				}
+				if (context->trust_anchors_source
+				!=  GETDNS_TASRC_FAILED) {
+					_getdns_start_fetching_ta(
+					    context,  dnsreq->loop, &now_ms);
+				}
 				if (dnsreq->waiting_for_ta &&
 				    context->trust_anchors_source
 				    == GETDNS_TASRC_FETCHING) {
@@ -3364,7 +3484,7 @@ void _getdns_ta_notify_dnsreqs(getdns_context *context)
 			getdns_network_req *netreq, **netreq_p;
 			int r = GETDNS_RETURN_GOOD;
 
-			 (void) _getdns_context_prepare_for_resolution(context);
+			(void) _getdns_context_prepare_for_resolution(context);
 
 			*dnsreq_p = dnsreq->ta_notify;
 			for ( netreq_p = dnsreq->netreqs
@@ -3489,7 +3609,7 @@ void _getdns_get_validation_chain(getdns_dns_req *dnsreq)
  *****************************************************************************/
 
 
-static int wire_validate_dnssec(struct mem_funcs *mf,
+static int wire_validate_dnssec(const struct mem_funcs *mf,
     time_t now, uint32_t skew, uint8_t *to_val, size_t to_val_len,
     uint8_t *support, size_t support_len, uint8_t *tas, size_t tas_len)
 {
@@ -3571,9 +3691,9 @@ static int wire_validate_dnssec(struct mem_funcs *mf,
  *
  */
 getdns_return_t
-getdns_validate_dnssec2(getdns_list *records_to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors,
+getdns_validate_dnssec2(const getdns_list *records_to_validate,
+    const getdns_list *support_records,
+    const getdns_list *trust_anchors,
     time_t now, uint32_t skew)
 {
 	uint8_t to_val_buf[4096], *to_val,
@@ -3585,7 +3705,7 @@ getdns_validate_dnssec2(getdns_list *records_to_validate,
 	       tas_len = sizeof(tas_buf);
 
 	int r = GETDNS_RETURN_MEMORY_ERROR;
-	struct mem_funcs *mf;
+	const struct mem_funcs *mf;
 
 	size_t i;
 	getdns_dict *reply;
@@ -3666,9 +3786,9 @@ exit_free_support:
 
 
 getdns_return_t
-getdns_validate_dnssec(getdns_list *records_to_validate,
-    getdns_list *support_records,
-    getdns_list *trust_anchors)
+getdns_validate_dnssec(const getdns_list *records_to_validate,
+    const getdns_list *support_records,
+    const getdns_list *trust_anchors)
 {
 	return getdns_validate_dnssec2(records_to_validate, support_records,
 	    trust_anchors, time(NULL), 0);

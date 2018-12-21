@@ -20,8 +20,11 @@
 #include <openssl/rand.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>
+#ifdef HAVE_OPENSSL_CONF_H
+# include <openssl/conf.h>
+#endif
 #ifdef HAVE_OPENSSL_ENGINE_H
-#  include <openssl/engine.h>
+# include <openssl/engine.h>
 #endif
 #ifdef HAVE_OPENSSL_BN_H
 #include <openssl/bn.h>
@@ -90,6 +93,14 @@ gldns_rr_dnskey_key_size_raw(const unsigned char* keydata,
         case GLDNS_ECDSAP384SHA384:
                 return 384;
 #endif
+#ifdef USE_ED25519
+	case GLDNS_ED25519:
+		return 256;
+#endif
+#ifdef USE_ED448
+	case GLDNS_ED448:
+		return 456;
+#endif
 	default:
 		return 0;
 	}
@@ -122,6 +133,16 @@ uint16_t gldns_calc_keytag_raw(const uint8_t* key, size_t keysize)
 #ifdef HAVE_SSL
 #ifdef USE_GOST
 /** store GOST engine reference loaded into OpenSSL library */
+#ifdef OPENSSL_NO_ENGINE
+int
+gldns_key_EVP_load_gost_id(void)
+{
+	return 0;
+}
+void gldns_key_EVP_unload_gost(void)
+{
+}
+#else
 ENGINE* gldns_gost_engine = NULL;
 
 int
@@ -181,6 +202,7 @@ void gldns_key_EVP_unload_gost(void)
                 gldns_gost_engine = NULL;
         }
 }
+#endif /* ifndef OPENSSL_NO_ENGINE */
 #endif /* USE_GOST */
 
 DSA *
@@ -408,6 +430,27 @@ gldns_ed255192pkey_raw(const unsigned char* key, size_t keylen)
 	return evp_key;
 }
 #endif /* USE_ED25519 */
+
+#ifdef USE_ED448
+EVP_PKEY*
+gldns_ed4482pkey_raw(const unsigned char* key, size_t keylen)
+{
+	/* ASN1 for ED448 is 3043300506032b6571033a00 <57byteskey> */
+	uint8_t pre[] = {0x30, 0x43, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65,
+		0x71, 0x03, 0x3a, 0x00};
+        int pre_len = 12;
+	uint8_t buf[256];
+        EVP_PKEY *evp_key;
+	/* pp gets modified by d2i() */
+        const unsigned char* pp = (unsigned char*)buf;
+	if(keylen != 57 || keylen + pre_len > sizeof(buf))
+		return NULL; /* wrong length */
+	memmove(buf, pre, pre_len);
+	memmove(buf+pre_len, key, keylen);
+	evp_key = d2i_PUBKEY(NULL, &pp, (int)(pre_len+keylen));
+        return evp_key;
+}
+#endif /* USE_ED448 */
 
 int
 gldns_digest_evp(unsigned char* data, unsigned int len, unsigned char* dest,

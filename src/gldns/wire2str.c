@@ -1065,7 +1065,11 @@ int gldns_wire2str_tsigtime_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	d4 = (*d)[4];
 	d5 = (*d)[5];
 	tsigtime = (d0<<40) | (d1<<32) | (d2<<24) | (d3<<16) | (d4<<8) | d5;
-	w = gldns_str_print(s, sl, "%"PRIu64, (uint64_t)tsigtime);
+#ifndef USE_WINSOCK
+	w = gldns_str_print(s, sl, "%llu", (long long)tsigtime);
+#else
+	w = gldns_str_print(s, sl, "%I64u", (long long)tsigtime);
+#endif
 	(*d)+=6;
 	(*dl)-=6;
 	return w;
@@ -1752,8 +1756,13 @@ int gldns_wire2str_edns_llq_print(char** s, size_t* sl, uint8_t* data,
 	if(error_code < llq_errors_num)
 		w += gldns_str_print(s, sl, " %s", llq_errors[error_code]);
 	else	w += gldns_str_print(s, sl, " error %d", (int)error_code);
-	w += gldns_str_print(s, sl, " id %"PRIx64" lease-life %lu",
-		(uint64_t)llq_id, (unsigned long)lease_life);
+#ifndef USE_WINSOCK
+	w += gldns_str_print(s, sl, " id %llx lease-life %lu",
+		(unsigned long long)llq_id, (unsigned long)lease_life);
+#else
+	w += gldns_str_print(s, sl, " id %I64x lease-life %lu",
+		(unsigned long long)llq_id, (unsigned long)lease_life);
+#endif
 	return w;
 }
 

@@ -58,6 +58,7 @@
 #ifdef USE_DANESSL
 # include "ssl_dane/danessl.h"
 #endif
+#include "const-info.h"
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -886,7 +887,8 @@ tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
 
 	/* Deal with the pinset validation */
 	if (upstream->tls_pubkey_pinset)
-		pinset_ret = _getdns_verify_pinset_match(upstream->tls_pubkey_pinset, ctx);
+		pinset_ret = _getdns_verify_pinset_match(
+		    upstream, upstream->tls_pubkey_pinset, ctx);
 
 	if (pinset_ret != GETDNS_RETURN_GOOD) {
 		DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Pinset validation failure!\n",
@@ -931,8 +933,86 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		return NULL;
 	}
 #if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
-	if (upstream->tls_curves_list)
-		(void) SSL_set1_curves_list(ssl, upstream->tls_curves_list);
+	if (upstream->tls_curves_list
+	&& !SSL_set1_curves_list(ssl, upstream->tls_curves_list)) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_curves_list "
+		    "\"%s\"\n", upstream->addr_str, upstream->tls_curves_list);
+		SSL_free(ssl);
+		return NULL;
+	}
+#else
+	if (upstream->tls_curves_list) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_curves_list not supported "
+		    "in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
+	}
+#endif
+#ifdef HAVE_SSL_SET_CIPHERSUITES
+	if (upstream->tls_ciphersuites &&
+	   !SSL_set_ciphersuites(ssl, upstream->tls_ciphersuites)) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_ciphersuites "
+		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
+	}
+#else
+	if (upstream->tls_ciphersuites) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_ciphersuites not "
+		    "supported in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
+	}
+#endif
+#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
+         && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+	if (upstream->tls_min_version && !SSL_set_min_proto_version(ssl,
+	    _getdns_tls_version2openssl_version(upstream->tls_min_version))) {
+		struct const_info *ci =
+		    _getdns_get_const_info(upstream->tls_min_version);
+		if (ci && *ci->name)
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_min_version \"%s\"\n", upstream->addr_str,
+			    ci->name);
+		else
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_min_version \"%d\"\n", upstream->addr_str,
+			    upstream->tls_min_version);
+	}
+	if (upstream->tls_max_version && !SSL_set_max_proto_version(ssl,
+	    _getdns_tls_version2openssl_version(upstream->tls_max_version))) {
+		struct const_info *ci =
+		    _getdns_get_const_info(upstream->tls_max_version);
+		if (ci && *ci->name)
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_max_version \"%s\"\n", upstream->addr_str,
+			    ci->name);
+		else
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+			    GETDNS_LOG_ERR, "%-40s : Error configuring "
+			    "tls_max_version \"%d\"\n", upstream->addr_str,
+			    upstream->tls_max_version);
+	}
+#else
+	if (upstream->tls_min_version) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_min_version not "
+		    "supported in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
+	}
+	if (upstream->tls_max_version) {
+		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
+		    GETDNS_LOG_ERR, "%-40s : tls_max_version not "
+		    "supported in tls library\n", upstream->addr_str);
+		SSL_free(ssl);
+		return NULL;
+	}
 #endif
 	/* make sure we'll be able to find the context again when we need it */
 	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
@@ -1006,8 +1086,13 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__);
 	} else {
-		if (upstream->tls_cipher_list)
-			SSL_set_cipher_list(ssl, upstream->tls_cipher_list);
+		if (upstream->tls_cipher_list &&
+		    !SSL_set_cipher_list(ssl, upstream->tls_cipher_list))
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
+			    "%-40s : Error configuring cipher_list\"%s\"\n",
+			    upstream->addr_str, upstream->tls_cipher_list);
+
 		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
 		             __FUNC__);
 	}
@@ -1139,10 +1224,10 @@ tls_do_handshake(getdns_upstream *upstream)
 		long verify_result = SSL_get_verify_result(upstream->tls_obj);
 
 /* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
- * we need to verify auth_name explicitely (otherwise it will not be checked,
+ * we need to verify auth_name explicitly (otherwise it will not be checked,
  * because this is not required with DANE with an EE match).
  * This is not needed with native OpenSSL DANE, because EE name checks have
- * to be disabled explicitely.
+ * to be disabled explicitly.
  */
 #if defined(HAVE_X509_CHECK_HOST) && (defined(USE_DANESSL) || !defined(HAVE_SSL_HN_AUTH))
 		int xch;
@@ -2059,7 +2144,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
 			    "%-40s : Upstream   : Re-instating %s for this upstream\n",
 			     upstreams->upstreams[i].addr_str,
 			     upstreams->upstreams[i].transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
@@ -2318,9 +2403,9 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 		return fd;
 	}
 	/* Handle better, will give generic error*/
-	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
-	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-	    "   *FAILURE* no valid transports or upstreams available!\n");
+	_getdns_log(&netreq->owner->context->log
+	    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+	    , "   *FAILURE* no valid transports or upstreams available!\n");
 	return -1;
 }
 

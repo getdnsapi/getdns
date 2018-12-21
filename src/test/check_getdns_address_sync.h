@@ -127,7 +127,7 @@
      
        CONTEXT_CREATE(TRUE);
 
-       ASSERT_RC(getdns_address_sync(context, "localhost", NULL, &response), 
+       ASSERT_RC(getdns_address_sync(context, "localhost.", NULL, &response), 
          GETDNS_RETURN_GOOD, "Return code from getdns_address_sync()");
 
        EXTRACT_LOCAL_RESPONSE;
@@ -147,7 +147,7 @@
       /*
        *  name = "willem.getdnsapi.net"  need to replace this with domain from unbound zone
        *  expect: NOERROR/NODATA response:
-       *    status = GETDNS_RESPSTATUS_GOOD
+       *    status = GETDNS_RESPSTATUS_NO_DATA
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
@@ -162,6 +162,7 @@
        EXTRACT_RESPONSE;
 
        assert_noerror(&ex_response);
+       assert_nodata(&ex_response);
        //assert_soa_in_authority(&ex_response);
 
        CONTEXT_DESTROY;

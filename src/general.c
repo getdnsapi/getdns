@@ -218,12 +218,14 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 	        && !dns_req->avoid_dnssec_roadblocks
 	        && (dns_req->dnssec_return_status ||
 	            dns_req->dnssec_return_only_secure ||
+	            dns_req->dnssec ||
 	            dns_req->dnssec_return_all_statuses
 	           ))
 #endif
 	    || (   dns_req->context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	       && (dns_req->dnssec_return_status ||
 	           dns_req->dnssec_return_only_secure ||
+	           dns_req->dnssec ||
 	           dns_req->dnssec_return_all_statuses)
 	       && _getdns_bogus(dns_req))
 	    )) {
@@ -241,7 +243,6 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 #if defined(REQ_DEBUG) && REQ_DEBUG
 		debug_req("getting validation chain for ", *dns_req->netreqs);
 #endif
-		DEBUG_ANCHOR("Valchain lookup\n");
 		_getdns_get_validation_chain(dns_req);
 	} else
 		_getdns_call_user_callback(
@@ -423,6 +424,7 @@ _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms)
 	if ( context->resolution_type == GETDNS_RESOLUTION_RECURSING
 	    || dns_req->dnssec_return_status
 	    || dns_req->dnssec_return_only_secure
+	    || dns_req->dnssec
 	    || dns_req->dnssec_return_all_statuses
 	    || dns_req->dnssec_return_validation_chain) {
 #endif
@@ -492,7 +494,7 @@ extformatcmp(const void *a, const void *b)
 
 /*---------------------------------------- validate_extensions */
 static getdns_return_t
-validate_extensions(struct getdns_dict * extensions)
+validate_extensions(const getdns_dict * extensions)
 {
 	/**
 	  * this is a comprehensive list of extensions and their data types
@@ -503,6 +505,7 @@ validate_extensions(struct getdns_dict * extensions)
 	static getdns_extension_format extformats[] = {
 		{"add_opt_parameters"            , t_dict, 1},
 		{"add_warning_for_bad_dns"       , t_int , 1},
+		{"dnssec"                        , t_int , 1},
 		{"dnssec_return_all_statuses"    , t_int , 1},
 		{"dnssec_return_full_validation_chain", t_int , 1},
 		{"dnssec_return_only_secure"     , t_int , 1},
@@ -555,7 +558,7 @@ validate_extensions(struct getdns_dict * extensions)
 
 static getdns_return_t
 getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_network_req **return_netreq_p,
     getdns_callback_t callbackfn, internal_cb_t internal_cb, int usenamespaces)
 {
@@ -591,13 +594,18 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 	_getdns_context_track_outbound_request(req);
 
 	if (req->dnssec_extension_set) {
+		if (context->trust_anchors_source == GETDNS_TASRC_FAILED
+		&&  _getdns_ms_until_expiry2(
+		    context->trust_anchors_backoff_expiry, &now_ms) == 0) {
+			context->trust_anchors_source = GETDNS_TASRC_NONE;
+		}
 		if (context->trust_anchors_source == GETDNS_TASRC_XML_UPDATE)
-			_getdns_start_fetching_ta(context, loop);
+			_getdns_start_fetching_ta(context, loop, &now_ms);
 
 		else if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
 			_getdns_context_equip_with_anchor(context, &now_ms);
 			if (context->trust_anchors_source == GETDNS_TASRC_NONE) {
-				_getdns_start_fetching_ta(context, loop);
+				_getdns_start_fetching_ta(context, loop, &now_ms);
 			}
 		}
 	}
@@ -706,7 +714,7 @@ getdns_general_ns(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_network_req **netreq_p,
     getdns_callback_t callback, internal_cb_t internal_cb)
 {
@@ -718,33 +726,33 @@ _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
-	getdns_dict *my_extensions = extensions;
+	getdns_dict *my_extensions = NULL;
 	getdns_return_t r;
 	uint32_t value;
 	getdns_network_req *netreq = NULL;
 
-	if (!my_extensions) {
+	if (!extensions) {
 		if (!(my_extensions=getdns_dict_create_with_context(context)))
 			return GETDNS_RETURN_MEMORY_ERROR;
 	} else if (
-	    getdns_dict_get_int(my_extensions, "return_both_v4_and_v6", &value)
+	    getdns_dict_get_int(extensions, "return_both_v4_and_v6", &value)
 	    && (r = _getdns_dict_copy(extensions, &my_extensions)))
 		return r;
 
-	if (my_extensions != extensions && (r = getdns_dict_set_int(
+	if (my_extensions && (r = getdns_dict_set_int(
 	    my_extensions, "return_both_v4_and_v6", GETDNS_EXTENSION_TRUE)))
 		return r;
 
 	r = getdns_general_ns(context, loop,
-	    name, GETDNS_RRTYPE_AAAA, my_extensions,
+	    name, GETDNS_RRTYPE_AAAA, my_extensions ? my_extensions : extensions,
 	    userarg, &netreq, callback, NULL, 1);
 	if (netreq && transaction_id)
 		*transaction_id = netreq->owner->trans_id;
 
-	if (my_extensions != extensions)
+	if (my_extensions)
 		getdns_dict_destroy(my_extensions);
 
 	return r;
@@ -752,7 +760,7 @@ _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
-    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    const getdns_dict *address, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callback)
 {
 	struct getdns_bindata *address_data;
@@ -842,7 +850,7 @@ _getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
 
 getdns_return_t
 _getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t * transaction_id, getdns_callback_t callback)
 {
 	getdns_return_t r;
@@ -859,7 +867,7 @@ _getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
  */
 getdns_return_t
 getdns_general(getdns_context *context,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_transaction_t * transaction_id,
     getdns_callback_t callbackfn)
 {
@@ -881,7 +889,7 @@ getdns_general(getdns_context *context,
  */
 getdns_return_t
 getdns_address(getdns_context *context,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
@@ -896,7 +904,7 @@ getdns_address(getdns_context *context,
  */
 getdns_return_t
 getdns_hostname(getdns_context *context,
-    getdns_dict *address, getdns_dict *extensions, void *userarg,
+    const getdns_dict *address, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;
@@ -910,7 +918,7 @@ getdns_hostname(getdns_context *context,
  */
 getdns_return_t
 getdns_service(getdns_context *context,
-    const char *name, getdns_dict *extensions, void *userarg,
+    const char *name, const getdns_dict *extensions, void *userarg,
     getdns_transaction_t *transaction_id, getdns_callback_t callbackfn)
 {
 	if (!context) return GETDNS_RETURN_INVALID_PARAMETER;

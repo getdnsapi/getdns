@@ -178,7 +178,7 @@
      {
       /*
        *  name = "localhost"   name should be resolved from host file
-       *  expect: NOERROR/NODATA response:
+       *  expect: NOERROR response:
        *    status = GETDNS_RESPSTATUS_GOOD
        *    rcode = 0
        *    ancount = 1 (number of records in ANSWER section)
@@ -192,7 +192,7 @@
        CONTEXT_CREATE(TRUE);
        EVENT_BASE_CREATE;
 
-       ASSERT_RC(getdns_address(context, "localhost", NULL,
+       ASSERT_RC(getdns_address(context, "localhost.", NULL,
          &fn_ref, &transaction_id, callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 

@@ -546,7 +546,7 @@ rbtree_find_less_equal(rbtree_type *rbtree, const void *key,
  *
  */
 rbnode_type *
-rbtree_first (rbtree_type *rbtree)
+rbtree_first (const rbtree_type *rbtree)
 {
 	rbnode_type *node;
 
