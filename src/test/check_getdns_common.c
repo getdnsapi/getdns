@@ -160,10 +160,15 @@ void extract_local_response(struct getdns_dict *response, struct extracted_respo
 void assert_noerror(struct extracted_response *ex_response)
 {
   uint32_t rcode;
+  uint32_t ancount = 0;
 
-  ASSERT_RC(ex_response->status, GETDNS_RESPSTATUS_GOOD, "Unexpected value for \"status\"");
   ASSERT_RC(getdns_dict_get_int(ex_response->header, "rcode", &rcode), GETDNS_RETURN_GOOD, "Failed to extract \"rcode\"");
   ck_assert_msg(rcode == 0, "Expected rcode == 0, got %d", rcode);
+
+  ASSERT_RC(getdns_dict_get_int(ex_response->header, "ancount", &ancount),
+    GETDNS_RETURN_GOOD, "Failed to extract \"ancount\"");
+
+  ASSERT_RC(ex_response->status, ((ancount > 0) ? GETDNS_RESPSTATUS_GOOD : GETDNS_RESPSTATUS_NO_NAME), "Unexpected value for \"status\"");
 }
 
 /*
@@ -182,6 +187,8 @@ void assert_nodata(struct extracted_response *ex_response)
   ASSERT_RC(getdns_list_get_length(ex_response->answer, &length),
     GETDNS_RETURN_GOOD, "Failed to extract \"answer\" length");
   ck_assert_msg(length == 0, "Expected \"answer\" length == 0, got %d", length);
+
+  ASSERT_RC(ex_response->status, GETDNS_RESPSTATUS_NO_NAME, "Unexpected value for \"status\"");
 }
 
 /*
