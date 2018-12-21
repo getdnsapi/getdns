@@ -1,4 +1,5 @@
 * 2018-12-??: Version 1.5.0
+  * GETDNS_RESPSTATUS_NO_NAME for NODATA answers too
   * ZONEMD rr-type
   * getdns_query queries for addresses when a query name
     without a type is given.
