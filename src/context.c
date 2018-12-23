@@ -1469,8 +1469,7 @@ static char const * const _getdns_default_trust_anchors_verify_email =
     "dnssec@iana.org";
 
 static char const * const _getdns_default_tls_cipher_list =
-    "TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
-    "TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
+    "EECDH+AESGCM:EECDH+CHACHA20";
 
 static char const * const _getdns_default_tls_ciphersuites =
   "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
