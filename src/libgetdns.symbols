@@ -1,7 +1,6 @@
 getdns_address
 getdns_address_sync
 getdns_cancel_callback
-getdns_context_
 getdns_context_config
 getdns_context_create
 getdns_context_create_with_extended_memory_functions
