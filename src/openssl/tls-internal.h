@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2018, NLnet Labs
+ * Copyright (c) 2018-2019, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,12 +54,18 @@
 
 #define GETDNS_TLS_MAX_DIGEST_LENGTH	(EVP_MAX_MD_SIZE)
 
+typedef struct sha256_pin sha256_pin_t;
+
 typedef struct _getdns_tls_context {
 	SSL_CTX* ssl;
 } _getdns_tls_context;
 
 typedef struct _getdns_tls_connection {
 	SSL* ssl;
+#if defined(USE_DANESSL)
+	const char* auth_name;
+	sha256_pin_t* pinset;
+#endif
 } _getdns_tls_connection;
 
 typedef struct _getdns_tls_session {

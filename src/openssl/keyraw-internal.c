@@ -140,6 +140,8 @@ gldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		BN_free(Y);
 		return NULL;
 	}
+
+#if defined(HAVE_DSA_SET0_PQG) && defined(HAVE_DSA_SET0_KEY)
 	if (!DSA_set0_pqg(dsa, P, Q, G)) {
 		/* QPG not yet attached, need to free */
 		BN_free(Q);
@@ -156,6 +158,14 @@ gldns_key_buf2dsa_raw(unsigned char* key, size_t len)
 		BN_free(Y);
 		return NULL;
 	}
+#else
+#  ifndef S_SPLINT_S
+	dsa->p = P;
+	dsa->q = Q;
+	dsa->g = G;
+	dsa->pub_key = Y;
+#  endif /* splint */
+#endif
 
 	return dsa;
 }
@@ -208,12 +218,20 @@ gldns_key_buf2rsa_raw(unsigned char* key, size_t len)
 		BN_free(modulus);
 		return NULL;
 	}
+
+#if defined(HAVE_RSA_SET0_KEY)	
 	if (!RSA_set0_key(rsa, modulus, exponent, NULL)) {
 		BN_free(exponent);
 		BN_free(modulus);
 		RSA_free(rsa);
 		return NULL;
 	}
+#else	
+#  ifndef S_SPLINT_S
+	rsa->n = modulus;
+	rsa->e = exponent;
+#  endif /* splint */
+#endif
 
 	return rsa;
 }

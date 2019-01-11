@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2018, NLnet Labs
+ * Copyright (c) 2018-2019, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,19 @@
 #include "debug.h"
 #include "context.h"
 
+#ifdef USE_DANESSL
+# include "ssl_dane/danessl.h"
+#endif
+
 #include "tls.h"
+
+/* Double check configure has worked as expected. */
+#if defined(USE_DANESSL) && \
+	(defined(HAVE_SSL_DANE_ENABLE) || \
+	 defined(HAVE_OPENSSL_INIT_CRYPTO) || \
+	 defined(HAVE_SSL_CTX_DANE_ENABLE))
+#error Configure error USE_DANESSL defined with OpenSSL 1.1 functions!
+#endif
 
 /* Cipher suites recommended in RFC7525. */
 char const * const _getdns_tls_context_default_cipher_list =
@@ -56,6 +68,26 @@ char const * const _getdns_tls_context_default_cipher_list =
 
 static char const * const _getdns_tls_connection_opportunistic_cipher_list =
 	"DEFAULT";
+
+#if defined(USE_DANESSL) && defined(STUB_DEBUG) && STUB_DEBUG
+static void _stub_debug_print_openssl_errors(void)
+{
+    unsigned long err;
+    char buffer[1024];
+    const char *file;
+    const char *data;
+    int line;
+    int flags;
+
+    while ((err = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
+        ERR_error_string_n(err, buffer, sizeof(buffer));
+        if (flags & ERR_TXT_STRING)
+            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d:%s\n", buffer, file, line, data);
+        else
+            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d\n", buffer, file, line);
+    }
+}
+#endif
 
 static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 {
@@ -218,10 +250,19 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 
 void _getdns_tls_init()
 {
+#ifdef HAVE_OPENSSL_INIT_CRYPTO
 	OPENSSL_init_crypto( OPENSSL_INIT_ADD_ALL_CIPHERS
 	                   | OPENSSL_INIT_ADD_ALL_DIGESTS
 	                   | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 	(void)OPENSSL_init_ssl(0, NULL);
+#else
+	OpenSSL_add_all_algorithms();
+	SSL_library_init();
+
+# ifdef USE_DANESSL
+		(void) DANESSL_library_init();
+# endif
+#endif
 }
 
 _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
@@ -255,14 +296,20 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 
 void _getdns_tls_context_pinset_init(_getdns_tls_context* ctx)
 {
-#   if defined(STUB_DEBUG) && STUB_DEBUG
-	int osr =
-#   else
-	(void)
-#   endif
-		SSL_CTX_dane_enable(ctx->ssl);
-		DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n"
-		          , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+	int osr;
+	(void) osr;
+
+#if defined(HAVE_SSL_CTX_DANE_ENABLE)
+	osr = SSL_CTX_dane_enable(ctx->ssl);
+	DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n",
+		   STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+#elif defined(USE_DANESSL)
+	osr = DANESSL_CTX_init(ctx->ssl);
+	DEBUG_STUB("%s %-35s: DEBUG: DANESSL_CTX_init() -> %d\n",
+		   STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+#else
+#error Must have either DANE SSL or OpenSSL v1.1.
+#endif
 }
 
 getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx)
@@ -366,6 +413,13 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn)
 {
 	if (!conn || !conn->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+#ifdef USE_DANESSL
+# if defined(STUB_DEBUG) && STUB_DEBUG
+	_stub_debug_print_openssl_errors();
+# endif
+	DANESSL_cleanup(conn->ssl);
+#endif
 
 	switch (SSL_shutdown(conn->ssl)) {
 	case 0:		return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
@@ -485,12 +539,19 @@ getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connectio
 	if (!conn || !conn->ssl || !auth_name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+#if defined(HAVE_SSL_DANE_ENABLE)
 	SSL_set_tlsext_host_name(conn->ssl, auth_name);
 	/* Set up native OpenSSL hostname verification */
 	X509_VERIFY_PARAM *param;
 	param = SSL_get0_param(conn->ssl);
 	X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 	X509_VERIFY_PARAM_set1_host(param, auth_name, 0);
+#elif defined(USE_DANESSL)
+	/* Stash auth name away for use in cert verification. */
+	conn->auth_name = auth_name;
+#else
+#error Must have either DANE SSL or OpenSSL v1.1.
+#endif
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -499,6 +560,13 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	if (!conn || !conn->ssl || !auth_name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
+#if defined(USE_DANE_SSL)
+	/* Stash auth name and pinset away for use in cert verification. */
+	conn->auth_name = auth_name;
+	conn->pinset = pinset;
+#endif
+
+#if defined(HAVE_SSL_DANE_ENABLE)
 	int osr = SSL_dane_enable(conn->ssl, *auth_name ? auth_name : NULL);
 	(void) osr;
 	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
@@ -520,6 +588,38 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 		if (osr > 0)
 			++n_pins;
 	}
+#elif defined(USE_DANESSL)
+	if (pinset) {
+		const char *auth_names[2] = { auth_name, NULL };
+		int osr = DANESSL_init(conn->ssl,
+				       *auth_name ? auth_name : NULL,
+				       *auth_name ? auth_names : NULL);
+		(void) osr;
+		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, auth_name, osr);
+		SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+		const sha256_pin_t *pin_p;
+		size_t n_pins = 0;
+		for (pin_p = pinset; pin_p; pin_p = pin_p->next) {
+			osr = DANESSL_add_tlsa(conn->ssl, 3, 1, "sha256",
+			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
+				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (osr > 0)
+				++n_pins;
+			osr = DANESSL_add_tlsa(conn->ssl, 2, 1, "sha256",
+			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
+				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (osr > 0)
+				++n_pins;
+		}
+	} else {
+		SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	}
+#else
+#error Must have either DANE SSL or OpenSSL v1.1.
+#endif
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -529,10 +629,38 @@ getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	long verify_result = SSL_get_verify_result(conn->ssl);
+
+	/* Since we don't have DANE validation yet, DANE validation
+	 * failures are always pinset validation failures */
+
 	switch (verify_result) {
 	case X509_V_OK:
+#if defined(USE_DANESSL)
+	{
+		getdns_return_t res = GETDNS_RETURN_GOOD;
+		X509* peer_cert = SSL_get_peer_certificate(conn->ssl);
+		if (peer_cert) {
+			if (conn->auth_name[0] &&
+			    X509_check_host(peer_cert,
+					    conn->auth_name,
+					    strlen(conn->auth_name),
+					    X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS,
+					    NULL) <= 0) {
+				if (errnum)
+					*errnum = 1;
+				if (errmsg)
+					*errmsg = "Hostname mismatch";
+				res = GETDNS_RETURN_GENERIC_ERROR;
+			}
+			X509_free(peer_cert);
+		}
+		return res;
+	}
+#else
 		return GETDNS_RETURN_GOOD;
+#endif
 
+#if defined(HAVE_SSL_DANE_ENABLE)
 	case X509_V_ERR_DANE_NO_MATCH:
 		if (errnum)
 			*errnum = 0;
@@ -540,13 +668,28 @@ getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection
 			*errmsg = "Pinset validation failure";
 		return GETDNS_RETURN_GENERIC_ERROR;
 
-	default:
-		if (errnum)
-			*errnum = verify_result;
-		if (errmsg)
-			*errmsg = X509_verify_cert_error_string(verify_result);
-		return GETDNS_RETURN_GENERIC_ERROR;
+#elif defined(USE_DANESSL)
+	case X509_V_ERR_CERT_UNTRUSTED:
+		if (conn->pinset &&
+		    !DANESSL_get_match_cert(conn->ssl, NULL, NULL, NULL)) {
+			if (errnum)
+				*errnum = 0;
+			if (errmsg)
+				*errmsg = "Pinset validation failure";
+			return GETDNS_RETURN_GENERIC_ERROR;
+		}
+		break;
+#else
+#error Must have either DANE SSL or OpenSSL v1.1.
+#endif
 	}
+
+	/* General error if we get here. */
+	if (errnum)
+		*errnum = verify_result;
+	if (errmsg)
+		*errmsg = X509_verify_cert_error_string(verify_result);
+	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
 
