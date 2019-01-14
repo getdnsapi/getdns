@@ -58,7 +58,7 @@
 
 #include "pubkey-pinning-internal.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000 
 #define X509_STORE_CTX_get0_untrusted(store) store->untrusted
 #endif
 
@@ -106,7 +106,7 @@ _get_ssl_getdns_upstream_idx(X509_STORE *store)
 {
 	static volatile int idx = -1;
 	if (idx < 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000
 		CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
 #else
 		X509_STORE_lock(store);
@@ -114,34 +114,13 @@ _get_ssl_getdns_upstream_idx(X509_STORE *store)
 		if (idx < 0)
 			idx = SSL_get_ex_new_index(0, "associated getdns upstream",
 						   NULL,NULL,NULL);
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000
 		CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
 #else
 		X509_STORE_unlock(store);
 #endif
 	}
 	return idx;
-}
-
-getdns_upstream*
-_getdns_upstream_from_x509_store(X509_STORE_CTX *store)
-{
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-	int uidx = _get_ssl_getdns_upstream_idx();
-#else
-	int uidx = _get_ssl_getdns_upstream_idx(X509_STORE_CTX_get0_store(store));
-#endif
-	int sslidx = SSL_get_ex_data_X509_STORE_CTX_idx();
-	const SSL *ssl;
-
-	/* all *_get_ex_data() should return NULL on failure anyway */
-	ssl = X509_STORE_CTX_get_ex_data(store, sslidx);
-	if (ssl)
-		return (getdns_upstream*) SSL_get_ex_data(ssl, uidx);
-	else
-		return NULL;
-	/* TODO: if we want more details about errors somehow, we
-	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
 }
 
 getdns_return_t
@@ -151,7 +130,7 @@ _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 	if (!conn || !conn->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 	
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000
 	int uidx = _get_ssl_getdns_upstream_idx();
 #else
 	int uidx = _get_ssl_getdns_upstream_idx(SSL_CTX_get_cert_store(SSL_get_SSL_CTX(conn->ssl)));
@@ -162,93 +141,6 @@ _getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
 		return GETDNS_RETURN_GENERIC_ERROR;
 	/* TODO: if we want more details about errors somehow, we
 	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
-}
-
-getdns_return_t
-_getdns_verify_pinset_match(const sha256_pin_t *pinset,
-			    X509_STORE_CTX *store)
-{
-	getdns_return_t ret = GETDNS_RETURN_GENERIC_ERROR;
-	X509 *x, *prev = NULL;
-	int i, len;
-	unsigned char raw[4096];
-	unsigned char *next;
-	unsigned char buf[sizeof(pinset->pin)];
-	const sha256_pin_t *p;
-
-	if (pinset == NULL || store == NULL)
-		return GETDNS_RETURN_GENERIC_ERROR;
-	
-	/* start at the base of the chain (the end-entity cert) and
-	 * make sure that some valid element of the chain does match
-	 * the pinset. */
-
-	/* Testing with OpenSSL 1.0.1e-1 on debian indicates that
-	 * store->untrusted holds the chain offered by the server in
-	 * the order that the server offers it.  If the server offers
-	 * bogus certificates (that is, matching and valid certs that
-	 * belong to private keys that the server does not control),
-	 * the the verification will succeed (including this pinset
-	 * check), but the handshake will fail outside of this
-	 * verification. */
-
-	/* TODO: how do we handle raw public keys? */
-
-	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++, prev = x) {
-
-		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
-#if defined(STUB_DEBUG) && STUB_DEBUG
-		DEBUG_STUB("%s %-35s: Name of cert: %d ",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__, i);
-		X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
-		fprintf(stderr, "\n");
-#endif
-		if (i > 0) {
-		/* we ensure that "prev" is signed by "x" */
-			EVP_PKEY *pkey = X509_get_pubkey(x);
-			int verified;
-			if (!pkey) {
-				DEBUG_STUB("%s %-35s: Could not get pubkey from cert %d (%p)\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)x);
-				return GETDNS_RETURN_GENERIC_ERROR;
-			}
-			verified = X509_verify(prev, pkey);
-			EVP_PKEY_free(pkey);
-			if (!verified) {
-				DEBUG_STUB("%s %-35s: cert %d (%p) was not signed by cert %d\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i-1, (void*)prev, i);
-				return GETDNS_RETURN_GENERIC_ERROR;
-			}
-		}
-
-		/* digest the cert with sha256 */
-		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
-		if (len > (int)sizeof(raw)) {
-			DEBUG_STUB("%s %-35s: Pubkey %d is larger than %"PRIsz" octets\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, sizeof(raw));
-			continue;
-		}
-		next = raw;
-		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
-		if (next - raw != len) {
-			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed %"PRIsz"\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, len, next - raw);
-			continue;
-		}
-		SHA256(raw, len, buf);
-
-		/* compare it */
-		for (p = pinset; p; p = p->next)
-			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
-				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p (%"PRIsz")\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p, sizeof(p->pin));
-				return GETDNS_RETURN_GOOD;
-			} else
-				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p);
-	}
-
-	return ret;
 }
 
 /* pubkey-pinning.c */

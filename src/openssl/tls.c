@@ -46,6 +46,7 @@
 
 #include "debug.h"
 #include "context.h"
+#include "const-info.h"
 
 #ifdef USE_DANESSL
 # include "ssl_dane/danessl.h"
@@ -62,32 +63,19 @@
 #endif
 
 /* Cipher suites recommended in RFC7525. */
-char const * const _getdns_tls_context_default_cipher_list =
-	"TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
-	"TLS13-CHACHA20-POLY1305-SHA256:EECDH+AESGCM:EECDH+CHACHA20";
+static char const * const _getdns_tls_context_default_cipher_list =
+#ifndef HAVE_SSL_CTX_SET_CIPHERSUITES
+    "TLS13-AES-256-GCM-SHA384:TLS13-AES-128-GCM-SHA256:"
+    "TLS13-CHACHA20-POLY1305-SHA256:"
+#endif
+    "EECDH+AESGCM:EECDH+CHACHA20";
+
+static char const * const _getdns_tls_context_default_cipher_suites =
+	"TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:"
+	"TLS_CHACHA20_POLY1305_SHA256";
 
 static char const * const _getdns_tls_connection_opportunistic_cipher_list =
 	"DEFAULT";
-
-#if defined(USE_DANESSL) && defined(STUB_DEBUG) && STUB_DEBUG
-static void _stub_debug_print_openssl_errors(void)
-{
-    unsigned long err;
-    char buffer[1024];
-    const char *file;
-    const char *data;
-    int line;
-    int flags;
-
-    while ((err = ERR_get_error_line_data(&file, &line, &data, &flags)) != 0) {
-        ERR_error_string_n(err, buffer, sizeof(buffer));
-        if (flags & ERR_TXT_STRING)
-            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d:%s\n", buffer, file, line, data);
-        else
-            DEBUG_STUB("DEBUG OpenSSL Error: %s:%s:%d\n", buffer, file, line);
-    }
-}
-#endif
 
 static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 {
@@ -156,23 +144,63 @@ static const EVP_MD* get_digester(int algorithm)
 	return digester;
 }
 
+#if HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+static int _getdns_tls_version2openssl_version(getdns_tls_version_t v)
+{
+	switch (v) {
+# ifdef SSL3_VERSION
+	case GETDNS_SSL3  : return SSL3_VERSION;
+# endif
+# ifdef TLS1_VERSION
+	case GETDNS_TLS1  : return TLS1_VERSION;
+# endif
+# ifdef TLS1_1_VERSION
+	case GETDNS_TLS1_1: return TLS1_1_VERSION;
+# endif
+# ifdef TLS1_2_VERSION
+	case GETDNS_TLS1_2: return TLS1_2_VERSION;
+# endif
+# ifdef TLS1_3_VERSION
+	case GETDNS_TLS1_3: return TLS1_3_VERSION;
+# endif
+	default           :
+# if   defined(TLS_MAX_VERSION)
+			    return TLS_MAX_VERSION;
+# elif defined(TLS1_3_VERSION)
+			    return TLS1_3_VERSION;
+# elif defined(TLS1_2_VERSION)
+			    return TLS1_2_VERSION;
+# elif defined(TLS1_1_VERSION)
+			    return TLS1_1_VERSION;
+# elif defined(TLS1_VERSION)
+			    return TLS1_VERSION;
+# elif defined(SSL3_VERSION)
+			    return SSL3_VERSION;
+# else
+			    return -1;
+# endif
+	}
+}
+#endif
+
 #ifdef USE_WINSOCK
 /* For windows, the CA trust store is not read by openssl.
    Add code to open the trust store using wincrypt API and add
    the root certs into openssl trust store */
 static int
-add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
+add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx, const getdns_log_config* log)
 {
 	HCERTSTORE      hSystemStore;
 	PCCERT_CONTEXT  pTargetCert = NULL;
 
-	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-		"Adding Windows certificates from system root store to CA store");
+	_getdns_log(log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_DEBUG
+	    , "%s: %s\n", STUB_DEBUG_SETUP_TLS,
+	    , "Adding Windows certificates from system root store to CA store")
+	    ;
 
 	/* load just once per context lifetime for this version of getdns
 	   TODO: dynamically update CA trust changes as they are available */
-	if (!tls_ctx)
-		return 0;
+	assert(tls_ctx);
 
 	/* Call wincrypt's CertOpenStore to open the CA root store. */
 
@@ -185,19 +213,27 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		1 << 16,
 		L"root")) == 0)
 	{
+		_getdns_log(log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+		    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
+		    , "Could not CertOpenStore()");
 		return 0;
 	}
 
 	X509_STORE* store = SSL_CTX_get_cert_store(tls_ctx);
-	if (!store)
+	if (!store) {
+		_getdns_log(log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+		    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
+		    , "Could not SSL_CTX_get_cert_store()");
 		return 0;
+	}
 
 	/* failure if the CA store is empty or the call fails */
 	if ((pTargetCert = CertEnumCertificatesInStore(
-		hSystemStore, pTargetCert)) == 0) {
-		DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-			"CA certificate store for Windows is empty.");
-			return 0;
+	    hSystemStore, pTargetCert)) == 0) {
+		_getdns_log(log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_NOTICE
+		    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
+		    , "CA certificate store for Windows is empty.");
+		return 0;
 	}
 	/* iterate over the windows cert store and add to openssl store */
 	do
@@ -207,9 +243,13 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 			pTargetCert->cbCertEncoded);
 		if (!cert1) {
 			/* return error if a cert fails */
-			DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-				"Unable to parse certificate in memory",
-				ERR_get_error(), ERR_error_string(ERR_get_error(), NULL));
+			_getdns_log(log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR,
+			    , "%s: %s %d:%s\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Unable to parse certificate in memory"
+			    , ERR_get_error()
+			    , ERR_error_string(ERR_get_error(), NULL));
 			return 0;
 		}
 		else {
@@ -221,9 +261,16 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 				* certificate is already in the store.  */
 				if(ERR_GET_LIB(error) != ERR_LIB_X509 ||
 				   ERR_GET_REASON(error) != X509_R_CERT_ALREADY_IN_HASH_TABLE) {
-					DEBUG_STUB("%s %-35s: %s %d:%s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-					    "Error adding certificate", ERR_get_error(),
-					     ERR_error_string(ERR_get_error(), NULL));
+					_getdns_log(log
+					    , GETDNS_LOG_SYS_STUB
+					    , GETDNS_LOG_ERR
+					    , "%s: %s %d:%s\n"
+					    , STUB_DEBUG_SETUP_TLS
+					    , "Error adding certificate"
+					    , ERR_get_error()
+					    , ERR_error_string( ERR_get_error()
+					                      , NULL)
+					    );
 					X509_free(cert1);
 					return 0;
 				}
@@ -238,12 +285,18 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx)
 		CertFreeCertificateContext(pTargetCert);
 	if (hSystemStore)
 	{
-		if (!CertCloseStore(
-			hSystemStore, 0))
+		if (!CertCloseStore(hSystemStore, 0)) {
+			_getdns_log(log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
+			    , "Could not CertCloseStore()");
 			return 0;
+		}
 	}
-	DEBUG_STUB("%s %-35s: %s\n", STUB_DEBUG_SETUP_TLS, __FUNC__,
-		"Completed adding Windows certificates to CA store successfully");
+	_getdns_log(log, GETDNS_LOG_SYS_STUB, GETDNS_LOG_INFO
+	    , "%s: %s\n", STUB_DEBUG_SETUP_TLS
+	    , "Completed adding Windows certificates to CA store successfully")
+	    ;
 	return 1;
 }
 #endif
@@ -265,12 +318,14 @@ void _getdns_tls_init()
 #endif
 }
 
-_getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
+_getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs, const getdns_log_config* log)
 {
 	_getdns_tls_context* res;
 
 	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_context)))
 		return NULL;
+
+	res->log = log;
 
 	/* Create client context, use TLS v1.2 only for now */
 #  ifdef HAVE_TLS_CLIENT_METHOD
@@ -279,6 +334,15 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs)
 	res->ssl = SSL_CTX_new(TLSv1_2_client_method());
 #  endif
 	if(res->ssl == NULL) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error creating TLS context"
+			    , ssl_err);
 		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
@@ -297,33 +361,88 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 void _getdns_tls_context_pinset_init(_getdns_tls_context* ctx)
 {
 	int osr;
-	(void) osr;
 
 #if defined(HAVE_SSL_CTX_DANE_ENABLE)
 	osr = SSL_CTX_dane_enable(ctx->ssl);
-	DEBUG_STUB("%s %-35s: DEBUG: SSL_CTX_dane_enable() -> %d\n",
-		   STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
 #elif defined(USE_DANESSL)
 	osr = DANESSL_CTX_init(ctx->ssl);
-	DEBUG_STUB("%s %-35s: DEBUG: DANESSL_CTX_init() -> %d\n",
-		   STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
 #else
 #error Must have either DANE SSL or OpenSSL v1.1.
 #endif
+	if (!osr) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_WARNING
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Could not enable DANE on TLX context"
+			    , ssl_err);
+	}
 }
 
-getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx)
+getdns_return_t _getdns_tls_context_set_min_max_tls_version(_getdns_tls_context* ctx, getdns_tls_version_t min, getdns_tls_version_t max)
 {
-#ifdef HAVE_SSL_CTX_SET_MIN_PROTO_VERSION
+#if HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+	char ssl_err[256];
+	int min_ssl = _getdns_tls_version2openssl_version(min);
+	int max_ssl = _getdns_tls_version2openssl_version(max);
+
 	if (!ctx || !ctx->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	if (!SSL_CTX_set_min_proto_version(ctx->ssl, TLS1_2_VERSION))
+	if (min && !SSL_CTX_set_min_proto_version(ctx->ssl, min_ssl)) {
+		struct const_info* ci = _getdns_get_const_info(min);
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS context with "
+			    "minimum TLS version"
+			    , ci->name
+			    , ssl_err);
 		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+	if (max && !SSL_CTX_set_max_proto_version(ctx->ssl, max_ssl)) {
+		struct const_info* ci = _getdns_get_const_info(min);
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS context with "
+			    "minimum TLS version"
+			    , ci->name
+			    , ssl_err);
+		return GETDNS_RETURN_BAD_CONTEXT;
+	}
 	return GETDNS_RETURN_GOOD;
 #else
+	/*
+	 * We've used TLSv1_2_client_method() creating the context, so
+	 * error if they asked for anything other than TLS 1.2 or better.
+	 */
 	(void) ctx;
+	if ((!min || min == GETDNS_TLS1_2) && !max)
+		return GETDNS_RETURN_GOOD;
+
+	_getdns_log(ctx->log
+		    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+		    , "%s: %s\n"
+		    , STUB_DEBUG_SETUP_TLS
+		    , "This version of OpenSSL does not "
+		    "support setting of minimum or maximum "
+		    "TLS versions");
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif
+}
+
+const char* _getdns_tls_context_get_default_cipher_list()
+{
+	return _getdns_tls_context_default_cipher_list;
 }
 
 getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, const char* list)
@@ -334,8 +453,60 @@ getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, co
 	if (!list)
 		list = _getdns_tls_context_default_cipher_list;
 
-	if (!SSL_CTX_set_cipher_list(ctx->ssl, list))
+	if (!SSL_CTX_set_cipher_list(ctx->ssl, list)) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS context with "
+			    "cipher list"
+			    , ssl_err);
 		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+const char* _getdns_tls_context_get_default_cipher_suites()
+{
+	return _getdns_tls_context_default_cipher_suites;
+}
+
+getdns_return_t _getdns_tls_context_set_cipher_suites(_getdns_tls_context* ctx, const char* list)
+{
+	if (!ctx || !ctx->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+#ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
+	if (!list)
+		list = _getdns_tls_context_default_cipher_suites;
+
+	if (!SSL_CTX_set_ciphersuites(ctx->ssl, list)) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS context with "
+			    "cipher suites"
+			    , ssl_err);
+		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+#else
+	if (list) {
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "This version of OpenSSL does not "
+			    "support configuring cipher suites");
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
+#endif
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -345,10 +516,29 @@ getdns_return_t _getdns_tls_context_set_curves_list(_getdns_tls_context* ctx, co
 		return GETDNS_RETURN_INVALID_PARAMETER;
 #if HAVE_TLS_CTX_CURVES_LIST
 	if (list &&
-	    !SSL_CTX_set1_curves_list(ctx->ssl, list))
+	    !SSL_CTX_set1_curves_list(ctx->ssl, list)) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS context with "
+			    "curves list"
+			    , ssl_err);
 		return GETDNS_RETURN_BAD_CONTEXT;
+	}
 #else
-	(void) list;
+	if (list) {
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB, GETDNS_LOG_ERR
+			    , "%s: %s\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "This version of OpenSSL does not "
+			    "support configuring curves list");
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
 #endif
 	return GETDNS_RETURN_GOOD;
 }
@@ -357,20 +547,53 @@ getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char*
 {
 	if (!ctx || !ctx->ssl)
 		return GETDNS_RETURN_INVALID_PARAMETER;
-	if ((file || path) &&
-	    SSL_CTX_load_verify_locations(ctx->ssl, file, path))
+	if (file || path) {
+		if (!SSL_CTX_load_verify_locations(ctx->ssl, file, path)) {
+			char ssl_err[256];
+			ERR_error_string_n( ERR_get_error()
+					    , ssl_err
+					    , sizeof(ssl_err));
+			_getdns_log(ctx->log
+				    , GETDNS_LOG_SYS_STUB
+				    , GETDNS_LOG_WARNING
+				    , "%s: %s (%s)\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Could not load verify locations"
+				    , ssl_err);
+		} else {
+			_getdns_log(ctx->log
+				    , GETDNS_LOG_SYS_STUB
+				    , GETDNS_LOG_DEBUG
+				    , "%s: %s\n"
+				    , STUB_DEBUG_SETUP_TLS
+				    , "Verify locations loaded");
+		}
 		return GETDNS_RETURN_GOOD; /* pass */
+	}
 #ifndef USE_WINSOCK
 	else if (SSL_CTX_set_default_verify_paths(ctx->ssl))
 		return GETDNS_RETURN_GOOD;
+	else {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err
+				    , sizeof(ssl_err));
+		_getdns_log(ctx->log
+			    , GETDNS_LOG_SYS_STUB
+			    , GETDNS_LOG_WARNING
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Could not load default verify locations"
+			    , ssl_err);
+	}
 #else
-	else if (add_WIN_cacerts_to_openssl_store(ctx->ssl))
+	else if (add_WIN_cacerts_to_openssl_store(ctx->ssl, ctx->log))
 		return GETDNS_RETURN_GOOD;
 #endif /* USE_WINSOCK */
 	return GETDNS_RETURN_GENERIC_ERROR;
 }
 
-_getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd)
+_getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd, const getdns_log_config* log)
 {
 	_getdns_tls_connection* res;
 
@@ -391,6 +614,8 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
+
+	res->log = log;
 
 	/* Connection is a client. */
 	SSL_set_connect_state(res->ssl);
@@ -415,9 +640,6 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 #ifdef USE_DANESSL
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	_stub_debug_print_openssl_errors();
-# endif
 	DANESSL_cleanup(conn->ssl);
 #endif
 
@@ -428,6 +650,64 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn)
 	}
 }
 
+getdns_return_t _getdns_tls_connection_set_min_max_tls_version(_getdns_tls_connection* conn, getdns_tls_version_t min, getdns_tls_version_t max)
+{
+#if HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
+	char ssl_err[256];
+	int min_ssl = _getdns_tls_version2openssl_version(min);
+	int max_ssl = _getdns_tls_version2openssl_version(max);
+
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (min && !SSL_set_min_proto_version(conn->ssl, min_ssl)) {
+		struct const_info* ci = _getdns_get_const_info(min);
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS connection with "
+			    "minimum TLS version"
+			    , ci->name
+			    , ssl_err);
+		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+	if (max && !SSL_set_max_proto_version(conn->ssl, max_ssl)) {
+		struct const_info* ci = _getdns_get_const_info(min);
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS connection with "
+			    "minimum TLS version"
+			    , ci->name
+			    , ssl_err);
+		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+	return GETDNS_RETURN_GOOD;
+#else
+	/*
+	 * We've used TLSv1_2_client_method() creating the context, so
+	 * error if they asked for anything other than TLS 1.2 or better.
+	 */
+	(void) conn;
+	if ((!min || min == GETDNS_TLS1_2) && !max)
+		return GETDNS_RETURN_GOOD;
+
+	_getdns_log(conn->log
+		    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+		    , "%s: %s\n"
+		    , STUB_DEBUG_SETUP_TLS
+		    , "This version of OpenSSL does not "
+		    "support setting of minimum or maximum "
+		    "TLS versions");
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+#endif
+}
+
 getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* conn, const char* list)
 {
 	if (!conn || !conn->ssl)
@@ -436,8 +716,53 @@ getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* c
 	if (!list)
 		list = _getdns_tls_connection_opportunistic_cipher_list;
 
-	if (!SSL_set_cipher_list(conn->ssl, list))
+	if (!SSL_set_cipher_list(conn->ssl, list)) {
+
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS connection with "
+			    "cipher list"
+			    , ssl_err);
 		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t _getdns_tls_connection_set_cipher_suites(_getdns_tls_connection* conn, const char* list)
+{
+	if (!conn || !conn->ssl || !list)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+#ifdef HAVE_SSL_SET_CIPHERSUITES
+	if (!SSL_set_ciphersuites(conn->ssl, list)) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS connection with "
+			    "cipher suites"
+			    , ssl_err);
+		return GETDNS_RETURN_BAD_CONTEXT;
+	}
+#else
+	if (list) {
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "This version of OpenSSL does not "
+			    "support configuring cipher suites");
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
+#endif
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -447,10 +772,29 @@ getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* c
 		return GETDNS_RETURN_INVALID_PARAMETER;
 #if HAVE_TLS_CONN_CURVES_LIST
 	if (list &&
-	    !SSL_set1_curves_list(conn->ssl, list))
+	    !SSL_set1_curves_list(conn->ssl, list)) {
+		char ssl_err[256];
+		ERR_error_string_n( ERR_get_error()
+				    , ssl_err, sizeof(ssl_err));
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Error configuring TLS connection with "
+			    "curves list"
+			    , ssl_err);
 		return GETDNS_RETURN_BAD_CONTEXT;
+	}
 #else
-	(void) list;
+	if (list) {
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+			    , "%s: %s\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "This version of OpenSSL does not "
+			    "support configuring curves list");
+		return GETDNS_RETURN_NOT_IMPLEMENTED;
+	}
 #endif
 	return GETDNS_RETURN_GOOD;
 }

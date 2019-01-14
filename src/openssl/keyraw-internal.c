@@ -20,6 +20,9 @@
 #include <openssl/rand.h>
 #include <openssl/err.h>
 #include <openssl/md5.h>
+#ifdef HAVE_OPENSSL_CONF_H
+# include <openssl/conf.h>
+#endif
 #ifdef HAVE_OPENSSL_ENGINE_H
 #  include <openssl/engine.h>
 #endif
@@ -38,6 +41,16 @@
 #ifdef USE_GOST
 
 /** store GOST engine reference loaded into OpenSSL library */
+#ifdef OPENSSL_NO_ENGINE
+int
+gldns_key_EVP_load_gost_id(void)
+{
+	return 0;
+}
+void gldns_key_EVP_unload_gost(void)
+{
+}
+#else
 ENGINE* gldns_gost_engine = NULL;
 
 int
@@ -97,6 +110,7 @@ void gldns_key_EVP_unload_gost(void)
                 gldns_gost_engine = NULL;
         }
 }
+#endif /* ifndef OPENSSL_NO_ENGINE */
 #endif /* USE_GOST */
 
 DSA *

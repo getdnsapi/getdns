@@ -299,6 +299,7 @@ typedef struct getdns_dns_req {
 	unsigned suffix_appended			: 1;
 
 	/* request extensions */
+	unsigned dnssec					: 1;
 	unsigned dnssec_return_status			: 1;
 	unsigned dnssec_return_only_secure		: 1;
 	unsigned dnssec_return_all_statuses		: 1;
@@ -431,7 +432,8 @@ extern getdns_dict *no_dnssec_checking_disabled_opportunistic;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions, uint64_t *now_ms);
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
+    uint64_t *now_ms);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
 

@@ -41,6 +41,7 @@
 
      struct extracted_response {
        uint32_t top_answer_type;
+       struct getdns_dict *response;
        struct getdns_bindata *top_canonical_name;
        struct getdns_list *just_address_answers;
        struct getdns_list *replies_full;

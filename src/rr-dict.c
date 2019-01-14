@@ -613,6 +613,11 @@ static _getdns_rdata_def        csync_rdata[] = {
 	{ "serial"                      , GETDNS_RDF_I4     , NULL },
 	{ "flags"                       , GETDNS_RDF_I2     , NULL },
 	{ "type_bit_maps"               , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def     zonemd_rdata[] = {
+	{ "serial"                      , GETDNS_RDF_I4     , NULL },
+	{ "digest_type"                 , GETDNS_RDF_I1     , NULL },
+	{ "reserved"                    , GETDNS_RDF_I1     , NULL },
+	{ "digest"                      , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        spf_rdata[] = {
 	{ "text"                        , GETDNS_RDF_S_M    , NULL }};
 static _getdns_rdata_def        nid_rdata[] = {
@@ -723,9 +728,9 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{     "TALINK",     talink_rdata, ALEN(    talink_rdata) },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* 61 - */
-	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) }, /* - 62 */
-	{         NULL,             NULL, 0                      },
+	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) },
+	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) },
+	{     "ZONEMD",     zonemd_rdata, ALEN(    zonemd_rdata) }, /* - 63 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },

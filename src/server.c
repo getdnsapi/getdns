@@ -287,8 +287,8 @@ _getdns_cancel_reply(getdns_context *context, connection *conn)
 }
 
 getdns_return_t
-getdns_reply(
-    getdns_context *context, getdns_dict *reply, getdns_transaction_t request_id)
+getdns_reply(getdns_context *context,
+    const getdns_dict *reply, getdns_transaction_t request_id)
 {
 	/* TODO: Check request_id at context->outbound_requests */
 	connection *conn = (connection *)(intptr_t)request_id;

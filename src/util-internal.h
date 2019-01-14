@@ -147,17 +147,18 @@ _getdns_rr_iter2rr_dict_canonical(
     struct mem_funcs *mf, _getdns_rr_iter *i, uint32_t *orig_ttl);
 
 struct getdns_dns_req;
-struct getdns_dict *_getdns_create_getdns_response(struct getdns_dns_req *completed_request);
+struct getdns_dict *_getdns_create_getdns_response(
+    struct getdns_dns_req *completed_request);
 
 getdns_return_t _getdns_validate_dname(const char* dname);
 
-uint8_t *_getdns_list2wire(
-    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+uint8_t *_getdns_list2wire(const getdns_list *l,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf);
 
-uint8_t *_getdns_reply2wire(
-    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf);
+uint8_t *_getdns_reply2wire(const getdns_dict *r,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf);
 
-void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l);
+void _getdns_wire2list(const uint8_t *pkt, size_t pkt_len, getdns_list *l);
 
 
 /**

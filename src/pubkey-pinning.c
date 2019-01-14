@@ -51,6 +51,7 @@
 #include <string.h>
 #include "context.h"
 #include "util-internal.h"
+#include "gldns/parseutil.h"
 
 #include "pubkey-pinning.h"
 #include "pubkey-pinning-internal.h"
@@ -85,14 +86,13 @@ static const getdns_bindata sha256 = {
    It is the caller's responsibility to call getdns_dict_destroy when
    it is no longer needed.
  */
-getdns_dict* getdns_pubkey_pin_create_from_string(
-	getdns_context* context,
-	const char* str)
+getdns_dict *getdns_pubkey_pin_create_from_string(
+   const getdns_context *context, const char *str)
 {
 	size_t i;
 	uint8_t buf[SHA256_DIGEST_LENGTH];
 	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
-	getdns_dict* out = NULL;
+	getdns_dict *out = NULL;
 	
 	/* we only do sha256 right now, make sure this is well-formed */
 	if (!str || strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
@@ -253,7 +253,7 @@ _getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
 }
 
 getdns_return_t
-_getdns_get_pubkey_pinset_list(getdns_context *ctx,
+_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list)
 {
@@ -289,5 +289,3 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 	getdns_list_destroy(out);
 	return r;
 }
-
-/* pubkey-pinning.c */

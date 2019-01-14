@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2018, NLnet Labs
+ * Copyright (c) 2018-2019, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,10 +57,11 @@ void _getdns_tls_init();
 /**
  * Create a new TLS context.
  *
- * @param mfs	point to getdns memory functions.
+ * @param mfs	pointer to getdns memory functions.
+ * @paam log	pointer to context log config.
  * @return pointer to new context or NULL on error.
  */
-_getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs);
+_getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs, const getdns_log_config* log);
 
 /**
  * Free a TLS context.
@@ -80,15 +81,25 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 void _getdns_tls_context_pinset_init(_getdns_tls_context* ctx);
 
 /**
- * Set TLS 1.2 as minimum TLS version.
+ * Set minimum and maximum TLS versions.
+ * If max or min are 0, that boundary is not set.
  *
  * @param ctx	the context.
+ * @param min	the minimum TLS version.
+ * @param max	the maximum TLS version.
  * @return GETDNS_RETURN_GOOD on success.
  * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
  * @return GETDNS_RETURN_NOT_IMPLEMENTED if not implemented.
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
  */
-getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx);
+getdns_return_t _getdns_tls_context_set_min_max_tls_version(_getdns_tls_context* ctx, getdns_tls_version_t min, getdns_tls_version_t max);
+
+/**
+ * Get the default context cipher list.
+ *
+ * @return the default context cipher list.
+ */
+const char* _getdns_tls_context_get_default_cipher_list();
 
 /**
  * Set list of allowed ciphers.
@@ -100,6 +111,24 @@ getdns_return_t _getdns_tls_context_set_min_proto_1_2(_getdns_tls_context* ctx);
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
  */
 getdns_return_t _getdns_tls_context_set_cipher_list(_getdns_tls_context* ctx, const char* list);
+
+/**
+ * Get the default context cipher suites.
+ *
+ * @return the default context cipher suites.
+ */
+const char* _getdns_tls_context_get_default_cipher_suites();
+
+/**
+ * Set list of allowed cipher suites.
+ *
+ * @param ctx	the context.
+ * @param list 	the list of cipher suites. NULL for default setting.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
+getdns_return_t _getdns_tls_context_set_cipher_suites(_getdns_tls_context* ctx, const char* list);
 
 /**
  * Set list of allowed curves.
@@ -134,9 +163,10 @@ getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char*
  * @param mfs	pointer to getdns memory functions.
  * @param ctx	the context.
  * @param fd	the file descriptor to associate with the connection.
+ * @paam log	pointer to connection log config.
  * @return pointer to new connection or NULL on error.
  */
-_getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd);
+_getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd, const getdns_log_config* log);
 
 /**
  * Free a TLS connection.
@@ -161,6 +191,20 @@ getdns_return_t _getdns_tls_connection_free(struct mem_funcs* mfs, _getdns_tls_c
 getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn);
 
 /**
+ * Set minimum and maximum TLS versions for this connection.
+ * If max or min are 0, that boundary is not set.
+ *
+ * @param conn	the connection.
+ * @param min	the minimum TLS version.
+ * @param max	the maximum TLS version.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_NOT_IMPLEMENTED if not implemented.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
+getdns_return_t _getdns_tls_connection_set_min_max_tls_version(_getdns_tls_connection* conn, getdns_tls_version_t min, getdns_tls_version_t max);
+
+/**
  * Set list of allowed ciphers on this connection.
  *
  * @param conn	the connection.
@@ -170,6 +214,17 @@ getdns_return_t _getdns_tls_connection_shutdown(_getdns_tls_connection* conn);
  * @return GETDNS_RETURN_BAD_CONTEXT on failure.
  */
 getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* conn, const char* list);
+
+/**
+ * Set list of allowed cipher suites on this connection.
+ *
+ * @param conn	the connection.
+ * @param list 	the list of cipher suites. NULL for default setting.
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
+getdns_return_t _getdns_tls_connection_set_cipher_suites(_getdns_tls_connection* conn, const char* list);
 
 /**
  * Set list of allowed curves on this connection.
@@ -406,10 +461,5 @@ void _getdns_tls_sha1(const void* data, size_t data_size, unsigned char* buf);
  * @param buflen	receive the hash length.
  */
 void _getdns_tls_cookie_sha256(uint32_t secret, void* addr, size_t addrlen, unsigned char* buf, size_t* buflen);
-
-/**
- * Default context cipher list.
- */
-const char* const _getdns_tls_context_default_cipher_list;
 
 #endif /* _GETDNS_TLS_H */

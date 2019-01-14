@@ -822,17 +822,43 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	getdns_context *context = dnsreq->context;
 	if (context->tls_ctx == NULL)
 		return NULL;
-	_getdns_tls_connection* tls = _getdns_tls_connection_new(&context->my_mf, context->tls_ctx, fd);
+	_getdns_tls_connection* tls = _getdns_tls_connection_new(&context->my_mf, context->tls_ctx, fd, &upstream->upstreams->log);
 	if(!tls) 
 		return NULL;
-#if HAVE_TLS_CONN_CURVES_LIST
+
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+
 	if (upstream->tls_curves_list)
-		_getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
-#endif
+		r = _getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
+	if (!r && upstream->tls_ciphersuites)
+		r = _getdns_tls_connection_set_cipher_suites(tls, upstream->tls_ciphersuites);
+	if (!r)
+		r = _getdns_tls_connection_set_min_max_tls_version(tls, upstream->tls_min_version, upstream->tls_max_version);
+
+	if (!r)
+	{
+		if (upstream->tls_fallback_ok)
+			r = _getdns_tls_connection_set_cipher_list(tls, NULL);
+		else if (upstream->tls_cipher_list)
+			r = _getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list);
+	}
+	
 	/* make sure we'll be able to find the context again when we need it */
-	if (_getdns_associate_upstream_with_connection(tls, upstream) != GETDNS_RETURN_GOOD) {
-		_getdns_tls_connection_free(&context->my_mf, tls);
+	if (!r)
+		r = _getdns_associate_upstream_with_connection(tls, upstream);
+
+	if (r) {
+		_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
+		upstream->tls_auth_state = r;
 		return NULL;
+	}
+
+	if (upstream->tls_fallback_ok) {
+		DEBUG_STUB("%s %-35s: WARNING: Using Opportunistic TLS (fallback allowed)!\n",
+			   STUB_DEBUG_SETUP_TLS, __FUNC__);
+	} else {
+		DEBUG_STUB("%s %-35s: Using Strict TLS \n",
+			   STUB_DEBUG_SETUP_TLS, __FUNC__);
 	}
 
 	/* NOTE: this code will fallback on a given upstream, without trying
@@ -873,16 +899,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
 			upstream->tls_fallback_ok = 1;
 		}
-	}
-	if (upstream->tls_fallback_ok) {
-		_getdns_tls_connection_set_cipher_list(tls, NULL);
-		DEBUG_STUB("%s %-35s: WARNING: Using Opportunistic TLS (fallback allowed)!\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__);
-	} else {
-		if (upstream->tls_cipher_list)
-			_getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list);
-		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
-		             __FUNC__);
 	}
 
 	_getdns_tls_connection_set_host_pinset(tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
@@ -1811,7 +1827,7 @@ upstream_select_stateful(getdns_network_req *netreq, getdns_transport_list_t tra
 		if (upstreams->upstreams[i].conn_state == GETDNS_CONN_BACKOFF &&
 		    upstreams->upstreams[i].conn_retry_time < now) {
 			upstreams->upstreams[i].conn_state = GETDNS_CONN_CLOSED;
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_NOTICE,
+			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
 			    "%-40s : Upstream   : Re-instating %s for this upstream\n",
 			     upstreams->upstreams[i].addr_str,
 			     upstreams->upstreams[i].transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP");
@@ -2070,9 +2086,9 @@ upstream_find_for_netreq(getdns_network_req *netreq)
 		return fd;
 	}
 	/* Handle better, will give generic error*/
-	DEBUG_STUB("%s %-35s: MSG: %p No valid upstream! \n", STUB_DEBUG_SCHEDULE, __FUNC__, (void*)netreq);
-	_getdns_context_log(netreq->owner->context, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-	    "   *FAILURE* no valid transports or upstreams available!\n");
+	_getdns_log(&netreq->owner->context->log
+	    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+	    , "   *FAILURE* no valid transports or upstreams available!\n");
 	return -1;
 }
 

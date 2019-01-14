@@ -63,25 +63,25 @@ int _getdns_submit_netreq(getdns_network_req *netreq, uint64_t *now_ms);
 
 getdns_return_t
 _getdns_general_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions,
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
     void *userarg, getdns_network_req **netreq_p,
     getdns_callback_t callbackfn, internal_cb_t internal_cb);
 
 getdns_return_t
 _getdns_address_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, getdns_dict *extensions,
+    const char *name, const getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
 
 getdns_return_t
 _getdns_hostname_loop(getdns_context *context, getdns_eventloop *loop,
-    getdns_dict *address, getdns_dict *extensions,
+    const getdns_dict *address, const getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
 
 getdns_return_t
 _getdns_service_loop(getdns_context *context, getdns_eventloop *loop,
-    const char *name, getdns_dict *extensions,
+    const char *name, const getdns_dict *extensions,
     void *userarg, getdns_transaction_t *transaction_id,
     getdns_callback_t callbackfn);
 

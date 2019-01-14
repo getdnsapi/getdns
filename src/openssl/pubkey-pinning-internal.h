@@ -36,16 +36,7 @@
 
 #include <openssl/x509.h>
 
-/* internal functions for associating X.509 verification processes in
- * OpenSSL with getdns_upstream objects. */
-
-getdns_upstream*
-_getdns_upstream_from_x509_store(X509_STORE_CTX *store);
-
-
-getdns_return_t
-_getdns_verify_pinset_match(const sha256_pin_t *pinset,
-			    X509_STORE_CTX *store);
+getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size);
 
 #endif
 /* pubkey-pinning-internal.h */

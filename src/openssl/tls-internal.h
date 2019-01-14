@@ -55,13 +55,16 @@
 #define GETDNS_TLS_MAX_DIGEST_LENGTH	(EVP_MAX_MD_SIZE)
 
 typedef struct sha256_pin sha256_pin_t;
+typedef struct getdns_log_config getdns_log_config;
 
 typedef struct _getdns_tls_context {
 	SSL_CTX* ssl;
+	const getdns_log_config* log;
 } _getdns_tls_context;
 
 typedef struct _getdns_tls_connection {
 	SSL* ssl;
+	const getdns_log_config* log;
 #if defined(USE_DANESSL)
 	const char* auth_name;
 	sha256_pin_t* pinset;

@@ -146,7 +146,7 @@
        *  name = "google.com"
        *  request_type = 0 (minimum valid RRTYPE)
        *  expect: NOERROR/NODATA response:
-       *    status = GETDNS_RESPSTATUS_GOOD
+       *    status = GETDNS_RESPSTATUS_NO_NAME
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
@@ -180,7 +180,7 @@
        *  name = "google.com"
        *  request_type = 65279 (maximum unassigned RRTYPE)
        *  expect: NOERROR/NODATA response:
-       *    status = GETDNS_RESPSTATUS_GOOD
+       *    status = GETDNS_RESPSTATUS_NO_NAME
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */
@@ -322,7 +322,7 @@
        *  name = "willem.getdnsapi.net"  and unbound zone
        *  request_type = GETDNS_RRTYPE_MX
        *  expect: NOERROR/NODATA response:
-       *    status = GETDNS_RESPSTATUS_GOOD
+       *    status = GETDNS_RESPSTATUS_NO_NAME
        *    rcode = 0
        *    ancount = 0 (number of records in ANSWER section)
        */

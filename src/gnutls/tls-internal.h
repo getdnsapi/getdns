@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2018, NLnet Labs
+ * Copyright (c) 2018-2019, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,14 +53,18 @@
 #define HAVE_TLS_CTX_CURVES_LIST	0
 #define HAVE_TLS_CONN_CURVES_LIST	0
 
+typedef struct getdns_log_config getdns_log_config;
 
 typedef struct _getdns_tls_context {
 	struct mem_funcs* mfs;
 	char* cipher_list;
+	char* cipher_suites;
 	char* curve_list;
-	bool min_proto_1_2;
+	gnutls_protocol_t min_tls;
+	gnutls_protocol_t max_tls;
 	char* ca_trust_file;
 	char* ca_trust_path;
+	const getdns_log_config* log;
 } _getdns_tls_context;
 
 typedef struct _getdns_tls_connection {
@@ -70,10 +74,14 @@ typedef struct _getdns_tls_connection {
 	_getdns_tls_context* ctx;
 	struct mem_funcs* mfs;
 	char* cipher_list;
+	char* cipher_suites;
 	char* curve_list;
+	gnutls_protocol_t min_tls;
+	gnutls_protocol_t max_tls;
 	dane_query_t dane_query;
 	dane_state_t dane_state;
 	char* tlsa;
+	const getdns_log_config* log;
 } _getdns_tls_connection;
 
 typedef struct _getdns_tls_session {

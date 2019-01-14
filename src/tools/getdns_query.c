@@ -183,6 +183,7 @@ print_usage(FILE *out, const char *progname)
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
 	fprintf(out, "\nextensions:\n");
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
+	fprintf(out, "\t+dnssec\n");
 	fprintf(out, "\t+dnssec_return_status\n");
 	fprintf(out, "\t+dnssec_return_only_secure\n");
 	fprintf(out, "\t+dnssec_return_all_statuses\n");
@@ -580,11 +581,15 @@ getdns_return_t parse_args(int argc, char **argv)
 	size_t upstream_count = 0;
 	FILE *fh;
 	int int_value;
+	int got_rrtype = 0;
+	int got_calltype = 0;
+	int got_qname = 0;
 
 	for (i = 1; i < argc; i++) {
 		arg = argv[i];
 		if ((t = get_rrtype(arg)) >= 0) {
 			request_type = t;
+			got_rrtype = 1;
 			continue;
 
 		} else if (arg[0] == '+') {
@@ -653,6 +658,7 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] != '-') {
+			got_qname = 1;
 			name = arg;
 			continue;
 		}
@@ -666,6 +672,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'A':
 				calltype = ADDRESS;
+				got_calltype = 1;
 				break;
 			case 'b':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
@@ -739,9 +746,11 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'G':
 				calltype = GENERAL;
+				got_calltype = 1;
 				break;
 			case 'H':
 				calltype = HOSTNAME;
+				got_calltype = 1;
 				break;
 			case 'h':
 				print_usage(stdout, argv[0]);
@@ -870,6 +879,7 @@ getdns_return_t parse_args(int argc, char **argv)
 				break;
 			case 'S':
 				calltype = SERVICE;
+				got_calltype = 1;
 				break;
 			case 't':
 				if (c[1] != 0 || ++i >= argc || !*argv[i]) {
@@ -1092,6 +1102,9 @@ getdns_return_t parse_args(int argc, char **argv)
 			}
 		}
 next:		;
+	}
+	if (!got_calltype && !got_rrtype && got_qname) {
+		calltype = ADDRESS;
 	}
 	if (r)
 		return r;

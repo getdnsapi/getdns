@@ -14,7 +14,7 @@ cat > const-info.c << END_OF_HEAD
 static struct const_info consts_info[] = {
 	{   -1, NULL, "/* <unknown getdns value> */" },
 END_OF_HEAD
-gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%7d", $3); consts[key] = $1; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/^#define GETDNS_RRTYPE/ && !/^#define GETDNS_RRCLASS/ && !/^#define GETDNS_OPCODE/  && !/^#define GETDNS_RCODE/ && !/_TEXT/{ key = sprintf("%7d", $3); consts[key] = $2; }/^#define GETDNS_[A-Z_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%7d", $4); consts[key] = $2; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ "val", \""name"\", "name"_TEXT },"}}' getdns/getdns_extra.h.in getdns/getdns.h.in const-info.h| sed 's/,,/,/g' >> const-info.c
+gawk --non-decimal-data '/^[ 	]+GETDNS_[A-Z0-9_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%7d", $3); consts[key] = $1; }/^#define GETDNS_[A-Z0-9_]+[ 	]+(0[xX][0-9a-fA-F]+|[0-9]+)/ && !/^#define GETDNS_RRTYPE/ && !/^#define GETDNS_RRCLASS/ && !/^#define GETDNS_OPCODE/  && !/^#define GETDNS_RCODE/ && !/_TEXT/{ key = sprintf("%7d", $3); consts[key] = $2; }/^#define GETDNS_[A-Z0-9_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%7d", $4); consts[key] = $2; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ "val", \""name"\", "name"_TEXT },"}}' getdns/getdns_extra.h.in getdns/getdns.h.in const-info.h| sed 's/,,/,/g' >> const-info.c
 cat >> const-info.c << END_OF_TAIL
 };
 
@@ -49,7 +49,7 @@ getdns_get_errorstr_by_id(uint16_t err)
 
 static struct const_name_info consts_name_info[] = {
 END_OF_TAIL
-gawk '/^[ 	]+GETDNS_[A-Z_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%d", $3); consts[$1] = key; }/^#define GETDNS_[A-Z_]+[ 	]+[0-9]+/ && !/_TEXT/{ key = sprintf("%d", $3); consts[$2] = key; }/^#define GETDNS_[A-Z_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%d", $4); consts[$2] = key; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ \""val"\", "name" },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in const-info.h| sed 's/,,/,/g' >> const-info.c
+gawk --non-decimal-data '/^[ 	]+GETDNS_[A-Z0-9_]+[ 	]+=[ 	]+[0-9]+/{ key = sprintf("%d", $3); consts[$1] = key; }/^#define GETDNS_[A-Z0-9_]+[ 	]+(0[xX][0-9a-fA-F]+|[0-9]+)/ && !/_TEXT/{ key = sprintf("%d", $3); consts[$2] = key; }/^#define GETDNS_[A-Z0-9_]+[ 	]+\(\(getdns_(return|append_name)_t) [0-9]+ \)/{ key = sprintf("%d", $4); consts[$2] = key; }END{ n = asorti(consts, const_vals); for ( i = 1; i <= n; i++) { val = const_vals[i]; name = consts[val]; print "\t{ \""val"\", "name" },"}}' getdns/getdns.h.in getdns/getdns_extra.h.in const-info.h| sed 's/,,/,/g' >> const-info.c
 cat >> const-info.c << END_OF_TAIL
 };
 

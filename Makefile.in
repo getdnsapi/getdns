@@ -165,7 +165,7 @@ distclean:
 	rm -f m4/ltoptions.m4
 	rm -f m4/ltsugar.m4
 	rm -f m4/ltversion.m4
-	rm -f $(distdir).tar.gz $(distdir).tar.gz.sha256
+	rm -f $(distdir).tar.gz $(distdir).tar.gz.sha256 $(distdir).tar.gz.sha1
 	rm -f $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
 
 megaclean:
@@ -177,10 +177,13 @@ autoclean: megaclean
 
 dist: $(distdir).tar.gz
 
-pub: $(distdir).tar.gz.sha256 $(distdir).tar.gz.md5 $(distdir).tar.gz.asc
+pub: $(distdir).tar.gz.sha256 $(distdir).tar.gz.md5 $(distdir).tar.gz.asc $(distdir).tar.gz.sha1
 
 $(distdir).tar.gz.sha256: $(distdir).tar.gz
 	openssl sha256 $(distdir).tar.gz >$@
+
+$(distdir).tar.gz.sha1: $(distdir).tar.gz
+	openssl sha1 $(distdir).tar.gz >$@
 
 $(distdir).tar.gz.md5: $(distdir).tar.gz
 	openssl md5 $(distdir).tar.gz >$@
