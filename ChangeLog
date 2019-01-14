@@ -1,4 +1,7 @@
-* 2019-01-??: Version 1.5.1
+* 2019-01-11: Version 1.5.1
+  * PR #414: remove TLS13 ciphers from cipher_list, but
+    only when SSL_CTX_set_ciphersuites is available.
+    Thanks Bruno Pagani
   * Issue #415: Filter out #defines etc. when creating
     symbols file.  Thanks Zero King
   * Be consistent and always fail connection setup if setting ciphers/curves/
