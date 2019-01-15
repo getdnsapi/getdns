@@ -1072,18 +1072,14 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		tcp->to_read = 2; /* Packet size */
 	}
 
-	switch ((int)_getdns_tls_connection_read(tls_obj, tcp->read_pos, tcp->to_read, &read)) {
-	case GETDNS_RETURN_GOOD:
-		break;
-
-	case GETDNS_RETURN_TLS_WANT_READ:
-			return STUB_TCP_RETRY; /* Come back later */
-
-	default:
-		/* TODO[TLS]: Handle GETDNS_RETURN_TLS_WANT_WRITE which means handshake
-		   renegotiation. Need to keep handshake state to do that.*/
+	getdns_return_t r = _getdns_tls_connection_read(tls_obj, tcp->read_pos, tcp->to_read, &read);
+	/* TODO[TLS]: Handle GETDNS_RETURN_TLS_WANT_WRITE which means handshake
+	   renegotiation. Need to keep handshake state to do that.*/
+	if (r == GETDNS_RETURN_TLS_WANT_READ)
+		return STUB_TCP_RETRY;
+	else if (r != GETDNS_RETURN_GOOD)
 		return STUB_TCP_ERROR;
-	}
+
 	tcp->to_read  -= read;
 	tcp->read_pos += read;
 
@@ -1217,6 +1213,8 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		 * Lets see how much of it we can write */
 		
 		/* TODO[TLS]: Handle error cases, partial writes, renegotiation etc. */
+		getdns_return_t r;
+		
 #if INTERCEPT_COM_DS
 		/* Intercept and do not sent out COM DS queries. For debugging
 		 * purposes only. Never commit with this turned on.
@@ -1231,19 +1229,16 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 			debug_req("Intercepting", netreq);
 			written = pkt_len + 2;
+			r = GETDNS_RETURN_GOOD;
 		} else
 #endif
-			switch ((int)_getdns_tls_connection_write(tls_obj, netreq->query - 2, pkt_len + 2, &written)) {
-		case GETDNS_RETURN_GOOD:
-			break;
-
-		case GETDNS_RETURN_TLS_WANT_READ:
-		case GETDNS_RETURN_TLS_WANT_WRITE:
+		r = _getdns_tls_connection_write(tls_obj, netreq->query - 2, pkt_len + 2, &written);
+		if (r == GETDNS_RETURN_TLS_WANT_READ ||
+		    r == GETDNS_RETURN_TLS_WANT_WRITE)
 			return STUB_TCP_RETRY;
-
-		default:
+		else if (r != GETDNS_RETURN_GOOD)
 			return STUB_TCP_ERROR;
-		}
+
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
 
