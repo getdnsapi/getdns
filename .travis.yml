@@ -1,4 +1,5 @@
 sudo: false
+dist: xenial
 language: c
 compiler:
   - gcc
@@ -6,6 +7,7 @@ compiler:
 addons:
   apt:
     packages:
+    - libssl-dev
     - libunbound-dev
     - libidn11-dev
     - libyaml-dev
