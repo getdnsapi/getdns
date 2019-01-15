@@ -193,6 +193,9 @@ static gnutls_protocol_t _getdns_tls_version2gnutls_version(getdns_tls_version_t
 	case GETDNS_TLS1  : return GNUTLS_TLS1;
 	case GETDNS_TLS1_1: return GNUTLS_TLS1_1;
 	case GETDNS_TLS1_2: return GNUTLS_TLS1_2;
+#if GNUTLS_VERSION_NUMBER >= 0x030605
+	case GETDNS_TLS1_3: return GNUTLS_TLS1_3;
+#endif
 	default           : return GNUTLS_TLS_VERSION_MAX;
 	}
 }
