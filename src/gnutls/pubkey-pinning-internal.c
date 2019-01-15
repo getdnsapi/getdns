@@ -42,13 +42,6 @@
  ** Interfaces from pubkey-pinning.h
  **/
 
-getdns_return_t
-_getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
-					   getdns_upstream *upstream)
-{
-	return GETDNS_RETURN_GOOD;
-}
-
 getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size)
 {
 	struct base64_decode_ctx ctx;

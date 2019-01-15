@@ -843,10 +843,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			r = _getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list);
 	}
 	
-	/* make sure we'll be able to find the context again when we need it */
-	if (!r)
-		r = _getdns_associate_upstream_with_connection(tls, upstream);
-
 	if (r) {
 		_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
 		upstream->tls_auth_state = r;

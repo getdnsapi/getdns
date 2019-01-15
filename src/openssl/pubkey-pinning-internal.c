@@ -58,10 +58,6 @@
 
 #include "pubkey-pinning-internal.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000 
-#define X509_STORE_CTX_get0_untrusted(store) store->untrusted
-#endif
-
 /* we only support sha256 at the moment.  adding support for another
    digest is more complex than just adding another entry here. in
    particular, you'll probably need a match for a particular cert
@@ -89,58 +85,6 @@ getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_
 
 	BIO_free_all(bio);
 	return ret;
-}
-
-/* this should only happen once ever in the life of the library. it's
-   used to associate a getdns_context_t with an SSL_CTX, to be able to
-   do custom verification.
-   
-   see doc/HOWTO/proxy_certificates.txt as an example
-*/
-static int
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-_get_ssl_getdns_upstream_idx(void)
-#else
-_get_ssl_getdns_upstream_idx(X509_STORE *store)
-#endif
-{
-	static volatile int idx = -1;
-	if (idx < 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000
-		CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
-#else
-		X509_STORE_lock(store);
-#endif
-		if (idx < 0)
-			idx = SSL_get_ex_new_index(0, "associated getdns upstream",
-						   NULL,NULL,NULL);
-#if OPENSSL_VERSION_NUMBER < 0x10100000
-		CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
-#else
-		X509_STORE_unlock(store);
-#endif
-	}
-	return idx;
-}
-
-getdns_return_t
-_getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
-					   getdns_upstream *upstream)
-{
-	if (!conn || !conn->ssl)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-	
-#if OPENSSL_VERSION_NUMBER < 0x10100000
-	int uidx = _get_ssl_getdns_upstream_idx();
-#else
-	int uidx = _get_ssl_getdns_upstream_idx(SSL_CTX_get_cert_store(SSL_get_SSL_CTX(conn->ssl)));
-#endif
-	if (SSL_set_ex_data(conn->ssl, uidx, upstream))
-		return GETDNS_RETURN_GOOD;
-	else
-		return GETDNS_RETURN_GENERIC_ERROR;
-	/* TODO: if we want more details about errors somehow, we
-	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
 }
 
 /* pubkey-pinning.c */

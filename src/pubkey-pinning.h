@@ -52,9 +52,5 @@ _getdns_get_pubkey_pinset_list(const getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list);
 
-getdns_return_t
-_getdns_associate_upstream_with_connection(_getdns_tls_connection *conn,
-					   getdns_upstream *upstream);
-
 #endif
 /* pubkey-pinning.h */
