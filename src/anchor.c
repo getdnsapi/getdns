@@ -68,6 +68,15 @@ typedef struct ta_iter {
 	char  digest[2048];
 } ta_iter;
 
+static void strcpytrunc(char* dst, const char* src, size_t dstsize)
+{
+	size_t to_copy = strlen(src);
+	if (to_copy >= dstsize)
+		to_copy = dstsize -1;
+	memcpy(dst, src, to_copy);
+	dst[to_copy] = '\0';
+}
+
 /**
  * XML convert DateTime element to time_t.
  * [-]CCYY-MM-DDThh:mm:ss[Z|(+|-)hh:mm]
@@ -190,8 +199,8 @@ static ta_iter *ta_iter_next(ta_iter *ta)
 
 				else if (level == 0 && cur) {
 					/* <Zone> content ready */
-					(void) strncpy( ta->zone, value
-					              , sizeof(ta->zone));
+					strcpytrunc( ta->zone, value
+						     , sizeof(ta->zone));
 
 					/* Reset to start of <TrustAnchor> */
 					cur = NULL;
@@ -366,20 +375,20 @@ static ta_iter *ta_iter_next(ta_iter *ta)
 			DEBUG_ANCHOR("elem end: %s\n", value);
 			switch (elem_type) {
 			case KEYTAG:
-				(void) strncpy( ta->keytag, value
-				              , sizeof(ta->keytag));
+				strcpytrunc( ta->keytag, value
+					     , sizeof(ta->keytag));
 				break;
 			case ALGORITHM:
-				(void) strncpy( ta->algorithm, value
-				              , sizeof(ta->algorithm));
+				strcpytrunc( ta->algorithm, value
+					     , sizeof(ta->algorithm));
 				break;
 			case DIGESTTYPE:
-				(void) strncpy( ta->digesttype, value
-				              , sizeof(ta->digesttype));
+				strcpytrunc( ta->digesttype, value
+					     , sizeof(ta->digesttype));
 				break;
 			case DIGEST:
-				(void) strncpy( ta->digest, value
-				              , sizeof(ta->digest));
+				strcpytrunc( ta->digest, value
+					     , sizeof(ta->digest));
 				break;
 			}
 			break;
