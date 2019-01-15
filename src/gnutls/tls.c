@@ -57,7 +57,7 @@ static char const * const _getdns_tls_connection_opportunistic_cipher_list =
 
 static char const * const _getdns_tls_priorities[] = {
 	NULL,			/* No protocol */
-	"+VERS-TLS1.0",	/* SSL3 */
+	NULL,		/* SSL3 - no available keyword. */
 	"+VERS-TLS1.0",	/* TLS1.0 */
 	"+VERS-TLS1.1",	/* TLS1.1 */
 	"+VERS-TLS1.2",	/* TLS1.2 */
