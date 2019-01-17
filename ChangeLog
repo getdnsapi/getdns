@@ -1,11 +1,17 @@
 * 2019-01-11: Version 1.5.1
+  * Introduce proof of concept GnuTLS implementation. Incomplete support
+    for Trust Anchor validation. Requires GnuTLS DANE library. Currently
+    untested with GnuTLS prior to 3.5.19, so configure demands a minumum
+    version of 3.5.0.
+  * Be consistent and always fail connection setup if setting ciphers/curves/
+    TLS version/cipher suites fails.
+  * Refactor OpenSSL usage into modules under src/openssl.
+    Drop support for LibreSSL and versions of OpenSSL prior to 1.0.2.
   * PR #414: remove TLS13 ciphers from cipher_list, but
     only when SSL_CTX_set_ciphersuites is available.
     Thanks Bruno Pagani
   * Issue #415: Filter out #defines etc. when creating
     symbols file.  Thanks Zero King
-  * Be consistent and always fail connection setup if setting ciphers/curves/
-    TLS version/cipher suites fails.
 
 * 2018-12-21: Version 1.5.0
   * RFE getdnsapi/stubby#121 log re-instantiating TLS
