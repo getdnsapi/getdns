@@ -98,7 +98,7 @@ void handler(getdns_context *context, getdns_callback_type_t callback_type,
 		trans->ev.timeout_cb = delay_cb;
 
 		if (getdns_context_get_eventloop(context, &trans->loop)
-		||  trans->loop->vmt->schedule(trans->loop, -1, 200, &trans->ev))
+		||  trans->loop->vmt->schedule(trans->loop, -1, 300, &trans->ev))
 			fprintf(stderr, "Could not schedule delay\n");
 		else	return;
 	}
