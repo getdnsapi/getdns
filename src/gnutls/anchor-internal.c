@@ -1,11 +1,11 @@
 /**
  *
- * /brief functions for dealing with pubkey pinsets
+ * /brief functions for DNSSEC trust anchor management
  *
  */
 
 /*
- * Copyright (c) 2015 ACLU
+ * Copyright (c) 2017, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PUBKEY_PINNING_H_
-#define PUBKEY_PINNING_H_
+#include "config.h"
+#include "anchor.h"
 
-/* getdns_pubkey_pin_create_from_string() is implemented in pubkey-pinning.c */
-#include "getdns/getdns_extra.h"
+void _getdns_context_equip_with_anchor(
+        getdns_context *context, uint64_t *now_ms)
+{
+}
 
-#include "tls.h"
-
-/* create and populate a pinset linked list from a getdns_list pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
-				    struct mem_funcs *mf,
-				    sha256_pin_t **pinset_out);
-
-
-/* create a getdns_list version of the pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
-			       const sha256_pin_t *pinset_in,
-			       getdns_list **pinset_list);
-
-#endif
-/* pubkey-pinning.h */
+uint8_t *_getdns_tas_validate(struct mem_funcs *mf,
+    const getdns_bindata *xml_bd, const getdns_bindata *p7s_bd,
+    const getdns_bindata *crt_bd, const char *p7signer,
+                      uint64_t *now_ms, uint8_t *tas, size_t *tas_len)
+{
+        return NULL;
+}

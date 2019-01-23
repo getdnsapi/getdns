@@ -219,46 +219,5 @@ INLINE uint64_t _getdns_ms_until_expiry2(uint64_t expires, uint64_t *now_ms)
 	return *now_ms >= expires ? 0 : expires - *now_ms;
 }
 
-#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
-	 && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
-
-INLINE int _getdns_tls_version2openssl_version(getdns_tls_version_t v)
-{
-	switch (v) {
-# ifdef SSL3_VERSION
-	case GETDNS_SSL3  : return SSL3_VERSION;
-# endif
-# ifdef TLS1_VERSION
-	case GETDNS_TLS1  : return TLS1_VERSION;
-# endif
-# ifdef TLS1_1_VERSION
-	case GETDNS_TLS1_1: return TLS1_1_VERSION;
-# endif
-# ifdef TLS1_2_VERSION
-	case GETDNS_TLS1_2: return TLS1_2_VERSION;
-# endif
-# ifdef TLS1_3_VERSION
-	case GETDNS_TLS1_3: return TLS1_3_VERSION;
-# endif
-	default           :
-# if   defined(TLS_MAX_VERSION)
-			    return TLS_MAX_VERSION;
-# elif defined(TLS1_3_VERSION)
-			    return TLS1_3_VERSION;
-# elif defined(TLS1_2_VERSION)
-			    return TLS1_2_VERSION;
-# elif defined(TLS1_1_VERSION)
-			    return TLS1_1_VERSION;
-# elif defined(TLS1_VERSION)
-			    return TLS1_VERSION;
-# elif defined(SSL3_VERSION)
-			    return SSL3_VERSION;
-# else
-			    return -1;
-# endif
-	}
-}
-#endif
-
 #endif
 /* util-internal.h */

@@ -127,10 +127,7 @@ getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
  $(srcdir)/../debug.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
-
-# Dependencies for getdns_server_mon
 getdns_server_mon.lo getdns_server_mon.o: $(srcdir)/getdns_server_mon.c \
  ../config.h \
- $(srcdir)/../debug.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h
