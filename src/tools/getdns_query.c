@@ -74,9 +74,11 @@ static getdns_dict *listen_dict = NULL;
 static size_t pincount = 0;
 static size_t listen_count = 0;
 static uint16_t request_type = GETDNS_RRTYPE_NS;
+static int got_rrtype = 0;
 static int timeout, edns0_size, padding_blocksize;
 static int async = 0, interactive = 0;
 static enum { GENERAL, ADDRESS, HOSTNAME, SERVICE } calltype = GENERAL;
+static int got_calltype = 0;
 static int bogus_answers = 0;
 static int check_dnssec = 0;
 #ifndef USE_WINSOCK
@@ -581,8 +583,6 @@ getdns_return_t parse_args(int argc, char **argv)
 	size_t upstream_count = 0;
 	FILE *fh;
 	int int_value;
-	int got_rrtype = 0;
-	int got_calltype = 0;
 	int got_qname = 0;
 
 	for (i = 1; i < argc; i++) {
@@ -1271,12 +1271,15 @@ void read_line_tiny_delay_cb(void *userarg)
 
 void read_line_cb(void *userarg)
 {
+	static int n = 0;
 	getdns_eventloop_event *read_line_ev = userarg;
 	getdns_return_t r;
 
 	char line[1024], *token, *linev[256];
 	int linec;
 
+	assert(n == 0);
+	n += 1;
 	if (!fgets(line, 1024, fp) || !*line) {
 		if (query_file && verbosity)
 			fprintf(stdout,"End of file.");
@@ -1287,6 +1290,7 @@ void read_line_cb(void *userarg)
 		if (interactive && !query_file)
 			(void) getdns_context_set_upstream_recursive_servers(
 			    context, NULL);
+		n -= 1;
 		return;
 	}
 	if (query_file && verbosity)
@@ -1299,6 +1303,7 @@ void read_line_cb(void *userarg)
 			printf("> ");
 			fflush(stdout);
 		}
+		n -= 1;
 		return;
 	}
 	if (*token == '#') {
@@ -1308,6 +1313,7 @@ void read_line_cb(void *userarg)
 			printf("> ");
 			fflush(stdout);
 		}
+		n -= 1;
 		return;
 	}
 	do linev[linec++] = token;
@@ -1324,18 +1330,22 @@ void read_line_cb(void *userarg)
 		loop->vmt->clear(loop, read_line_ev);
 
 	else {
+#if 0
 		/* Tiny delay, to make sending queries less bursty with
 		 * -F parameter.
+		 *
 		 */
 		loop->vmt->clear(loop, read_line_ev);
 		read_line_ev->read_cb = NULL;
 		read_line_ev->timeout_cb = read_line_tiny_delay_cb;
 		loop->vmt->schedule(loop, fileno(fp), 1, read_line_ev);
+#endif
 		if (! query_file) {
 			printf("> ");
 			fflush(stdout);
 		}
 	}
+	n -= 1;
 }
 
 typedef struct dns_msg {
