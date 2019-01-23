@@ -1181,7 +1181,7 @@ getdns_return_t do_the_call(void)
 			r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
 		}
-		if (r == GETDNS_RETURN_GOOD && !batch_mode) 
+		if (r == GETDNS_RETURN_GOOD && !batch_mode && !interactive) 
 			getdns_context_run(context);
 		if (r != GETDNS_RETURN_GOOD)
 			fprintf(stderr, "An error occurred: %d '%s'\n", (int)r,
@@ -1258,6 +1258,17 @@ static void incoming_request_handler(getdns_context *context,
     void *userarg, getdns_transaction_t request_id);
 
 
+void read_line_cb(void *userarg);
+void read_line_tiny_delay_cb(void *userarg)
+{
+	getdns_eventloop_event *read_line_ev = userarg;
+
+	loop->vmt->clear(loop, read_line_ev);
+	read_line_ev->timeout_cb = NULL;
+	read_line_ev->read_cb = read_line_cb;
+	loop->vmt->schedule(loop, fileno(fp), -1, read_line_ev);
+}
+
 void read_line_cb(void *userarg)
 {
 	getdns_eventloop_event *read_line_ev = userarg;
@@ -1312,9 +1323,18 @@ void read_line_cb(void *userarg)
 	    (r != CONTINUE && r != CONTINUE_ERROR))
 		loop->vmt->clear(loop, read_line_ev);
 
-	else if (! query_file) {
-		printf("> ");
-		fflush(stdout);
+	else {
+		/* Tiny delay, to make sending queries less bursty with
+		 * -F parameter.
+		 */
+		loop->vmt->clear(loop, read_line_ev);
+		read_line_ev->read_cb = NULL;
+		read_line_ev->timeout_cb = read_line_tiny_delay_cb;
+		loop->vmt->schedule(loop, fileno(fp), 1, read_line_ev);
+		if (! query_file) {
+			printf("> ");
+			fflush(stdout);
+		}
 	}
 }
 
