@@ -657,12 +657,15 @@ getdns_return_t parse_args(int argc, char **argv)
 			continue;
 
 		} else if (arg[0] != '-') {
+			size_t arg_len = strlen(arg);
+
 			got_qname = 1;
-			if (strlen(arg) > sizeof(name)) {
+			if (arg_len > sizeof(name) - 1) {
 				fprintf(stderr, "Query name too long\n");
 				return GETDNS_RETURN_BAD_DOMAIN_NAME;
 			}
-			(void) strlcpy(name, arg, sizeof(name));
+			(void) memcpy(name, arg, arg_len);
+			name[arg_len] = 0;
 			continue;
 		}
 		for (c = arg+1; *c; c++) {
