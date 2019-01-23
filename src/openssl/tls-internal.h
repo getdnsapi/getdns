@@ -67,7 +67,7 @@ typedef struct _getdns_tls_connection {
 	const getdns_log_config* log;
 #if defined(USE_DANESSL)
 	const char* auth_name;
-	sha256_pin_t* pinset;
+	const sha256_pin_t* pinset;
 #endif
 } _getdns_tls_connection;
 
