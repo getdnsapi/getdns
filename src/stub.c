@@ -845,7 +845,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	
 	if (r) {
 		_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
-		upstream->tls_auth_state = r;
+		upstream->tls_auth_state = GETDNS_AUTH_NONE;
 		return NULL;
 	}
 
