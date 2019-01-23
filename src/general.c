@@ -251,10 +251,18 @@ _getdns_check_dns_req_complete(getdns_dns_req *dns_req)
 
 #ifdef HAVE_LIBUNBOUND
 #ifdef HAVE_UNBOUND_EVENT_API
+#if UNBOUND_VERSION_MAJOR > 1 || (UNBOUND_VERSION_MAJOR == 1 && UNBOUND_VERSION_MINOR >= 8)
+static void
+ub_resolve_event_callback(void* arg, int rcode, void *pkt, int pkt_len,
+    int sec, char* why_bogus, int was_ratelimited)
+{
+	(void) was_ratelimited;
+#else
 static void
 ub_resolve_event_callback(void* arg, int rcode, void *pkt, int pkt_len,
     int sec, char* why_bogus)
 {
+#endif
 	getdns_network_req *netreq = (getdns_network_req *) arg;
 	getdns_dns_req *dns_req = netreq->owner;
 

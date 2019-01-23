@@ -33,6 +33,7 @@ AC_PREREQ([2.68])
 AC_CONFIG_MACRO_DIRS([m4])
 sinclude(./m4/acx_openssl.m4)
 sinclude(./m4/acx_getaddrinfo.m4)
+sinclude(./m4/ac_lib_nettle.m4)
 sinclude(./m4/ax_check_compile_flag.m4)
 sinclude(./m4/pkg.m4)
 
@@ -441,25 +442,65 @@ dnl         SSLLIB=""
 dnl         ]
 dnl )
 
+# Which TLS and crypto libs to use.
+AC_ARG_WITH([gnutls],
+    [AS_HELP_STRING([--with-gnutls],
+        [use GnuTLS instead of OpenSSL])],
+    [
+        PKG_CHECK_MODULES([libgnutls], [gnutls >= 3.5.0])
+        PKG_CHECK_MODULES([libgnutlsdane], [gnutls-dane >= 3.5.0])
+        LIBS="$libgnutls_LIBS $libgnutlsdane_LIBS $LIBS"
+        CFLAGS="$libgnutls_CFLAGS $libgnutlsdane_CFLAGS $CFLAGS"
+        AC_SUBST([TLSDIR], 'gnutls')
+        AC_DEFINE([USE_GNUTLS], [1], [Use the GnuTLS library])
+	if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+		
+	        AX_LIB_NETTLE(yes)
+		USE_NETTLE="yes"
+		AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
+        	AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
+	fi
+    ],
+    [
+	if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
+        ACX_WITH_SSL
+	fi
+        ACX_LIB_SSL
+        AC_SUBST([TLSDIR], 'openssl')
+
+        # Verify OpenSSL is at least version 1.0.2.
+        # We also check it's not LibreSSL, but that's a little later, not here.
+        AC_CHECK_FUNCS([X509_check_host SSL_dane_enable])
+        if test "x$ac_cv_func_X509_check_host" != xyes; then
+           AC_MSG_ERROR([getdns requires OpenSSL version 1.0.2 or later])
+        fi
+        
+        AC_MSG_CHECKING([whether we need to compile/link DANE support])
+        DANESSL_XTRA_OBJS=""
+        if test "x$ac_cv_func_SSL_dane_enable" = xyes; then
+            AC_MSG_RESULT([no])
+        else
+            AC_MSG_RESULT([yes])
+            AC_DEFINE([USE_DANESSL], [1], [Define this to use DANE functions from the ssl_dane/danessl library.])
+            DANESSL_XTRA_OBJS="danessl.lo"
+        fi
+        AC_SUBST(DANESSL_XTRA_OBJS)
+    ])
+
+
 # openssl
-if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
-ACX_WITH_SSL
-fi
-ACX_LIB_SSL
+if test $USE_NSS = "no" -a $USE_NETTLE = "no" ; then
 AC_MSG_CHECKING([for LibreSSL])
 if grep VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
 	AC_MSG_RESULT([yes])
-	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
-	# libressl provides these compat functions, but they may also be
-	# declared by the OS in libc.  See if they have been declared.
-	AC_CHECK_DECLS([strlcpy,arc4random,arc4random_uniform])
+        AC_MSG_ERROR([getdns does not support LibreSSL])
 else
 	AC_MSG_RESULT([no])
 fi
 AC_CHECK_HEADERS([openssl/conf.h openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify SSL_CTX_set_min_proto_version OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host X509_get_notAfter X509_get0_notAfter SSL_CTX_set_ciphersuites SSL_set_ciphersuites])
+AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host X509_get_notAfter X509_get0_notAfter SSL_CTX_set_ciphersuites SSL_set_ciphersuites OPENSSL_init_crypto DSA_set0_pqg DSA_set0_key RSA_set0_key])
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set1_curves_list,SSL_set1_curves_list,SSL_set_min_proto_version,SSL_get_min_proto_version], [], [], [
 AC_INCLUDES_DEFAULT
 #ifdef HAVE_OPENSSL_ERR_H
@@ -480,29 +521,7 @@ AC_INCLUDES_DEFAULT
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
 ])
-
-AC_MSG_CHECKING([whether we need to compile/link DANE support])
-DANESSL_XTRA_OBJS=""
-AC_LANG_PUSH(C)
-AC_COMPILE_IFELSE(
-	[AC_LANG_PROGRAM([
-		[#include <openssl/opensslv.h>]
-		[#if OPENSSL_VERSION_NUMBER <  0x1000000fL]
-		[#error "OpenSSL 1.0.0 or higher required for DANE library"]
-		[#elif defined(HAVE_SSL_DANE_ENABLE)]
-		[#error "OpenSSL has native DANE support"]
-		[#elif defined(LIBRESSL_VERSION_NUMBER)]
-		[#error "dane_ssl library does not work with LibreSSL"]
-		[#endif]
-	],[[]])],
-	[
-		AC_MSG_RESULT([yes])
-		AC_DEFINE([USE_DANESSL], [1], [Define this to use DANE functions from the ssl_dane/danessl library.])
-		DANESSL_XTRA_OBJS="danessl.lo"
-	],
-	[AC_MSG_RESULT([no])])
-AC_LANG_POP(C)
-AC_SUBST(DANESSL_XTRA_OBJS)
+fi
 
 AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
 	case "$enable_sha1" in
@@ -772,8 +791,8 @@ case "$enable_edns_cookies" in
 	no)
 		;;
 	yes|*)
-		if test "x_$HAVE_SSL" != "x_yes"; then
-			AC_MSG_ERROR([edns cookies need openssl libcrypto which is not available, please rerun with --disable-edns-cookies])
+		if test "x_$HAVE_SSL" != "x_yes" -a $USE_NETTLE = "no"; then
+			AC_MSG_ERROR([edns cookies needs crypto library which is not available, please rerun with --disable-edns-cookies])
 		fi
 		AC_DEFINE_UNQUOTED([EDNS_COOKIES], [1], [Define this to enable the experimental edns cookies.])
 		;;

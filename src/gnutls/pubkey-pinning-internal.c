@@ -31,26 +31,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PUBKEY_PINNING_H_
-#define PUBKEY_PINNING_H_
+#include "context.h"
+#include <nettle/base64.h>
 
-/* getdns_pubkey_pin_create_from_string() is implemented in pubkey-pinning.c */
-#include "getdns/getdns_extra.h"
+#include "types-internal.h"
 
-#include "tls.h"
+#include "pubkey-pinning.h"
 
-/* create and populate a pinset linked list from a getdns_list pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
-				    struct mem_funcs *mf,
-				    sha256_pin_t **pinset_out);
+/**
+ ** Interfaces from pubkey-pinning.h
+ **/
 
+getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size)
+{
+	struct base64_decode_ctx ctx;
+	uint8_t* lim = res + res_size;
 
-/* create a getdns_list version of the pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
-			       const sha256_pin_t *pinset_in,
-			       getdns_list **pinset_list);
+	base64_decode_init(&ctx);
 
-#endif
-/* pubkey-pinning.h */
+	for(; *str != '\0' && res < lim; ++str) {
+		int r = base64_decode_single(&ctx, res, *str);
+		if (r == -1 )
+			return GETDNS_RETURN_GENERIC_ERROR;
+		res += r;
+	}
+	return (res == lim) ? GETDNS_RETURN_GOOD : GETDNS_RETURN_GENERIC_ERROR;
+}
