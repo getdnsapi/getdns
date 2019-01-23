@@ -11,7 +11,8 @@ control_c()
 }
 
 
-for TEST_PKG in ${SRCDIR}/*.tpkg
+# for TEST_PKG in ${SRCDIR}/*.tpkg
+for TEST_PKG in ${SRCDIR}/400-static-analysis.tpkg
 do
 	"${TPKG}" $* exe "${TEST_PKG}"
 	# trap keyboard interrupt (control-c)

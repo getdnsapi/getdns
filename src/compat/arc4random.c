@@ -171,6 +171,9 @@ _rs_init(u_char *buf, size_t n)
 		if(!rsx)
 			abort();
 #endif
+		/* Pleast older clang scan-build */
+		if (!buf)
+			buf = rsx->rs_buf;
 	}
 
 	chacha_keysetup(&rsx->rs_chacha, buf, KEYSZ * 8, 0);
