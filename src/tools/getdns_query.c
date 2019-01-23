@@ -62,8 +62,7 @@ static int quiet = 0;
 static int batch_mode = 0;
 static char *query_file = NULL;
 static int json = 0;
-static char *the_root = ".";
-static char *name;
+static char name[2048] = ".";
 static getdns_context *context;
 static getdns_dict *extensions;
 static getdns_dict *query_extensions_spc = NULL;
@@ -659,7 +658,11 @@ getdns_return_t parse_args(int argc, char **argv)
 
 		} else if (arg[0] != '-') {
 			got_qname = 1;
-			name = arg;
+			if (strlen(arg) > sizeof(name)) {
+				fprintf(stderr, "Query name too long\n");
+				return GETDNS_RETURN_BAD_DOMAIN_NAME;
+			}
+			(void) strlcpy(name, arg, sizeof(name));
 			continue;
 		}
 		for (c = arg+1; *c; c++) {
@@ -1770,7 +1773,6 @@ main(int argc, char **argv)
 {
 	getdns_return_t r;
 
-	name = the_root;
 	if ((r = getdns_context_create(&context, 1))) {
 		fprintf(stderr, "Create context failed: %d\n", (int)r);
 		return r;
