@@ -1670,7 +1670,7 @@ getdns_str2dict(const char *str, getdns_dict **dict)
 	if (!str || !dict)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-	while (*str && isspace(*str))
+	while (*str && isspace((unsigned char)*str))
 		str++;
 
 	if (*str != '{') {
