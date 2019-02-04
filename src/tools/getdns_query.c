@@ -98,7 +98,7 @@ static int get_rrtype(const char *t)
 	if (strlen(t) > sizeof(buf) - 15)
 		return -1;
 	for (i = 14; *t && i < sizeof(buf) - 1; i++, t++)
-		buf[i] = *t == '-' ? '_' : toupper(*t);
+		buf[i] = *t == '-' ? '_' : toupper((unsigned char)*t);
 	buf[i] = '\0';
 
 	if (!getdns_str2int(buf, &rrtype))
@@ -123,7 +123,7 @@ static int get_rrclass(const char *t)
 	if (strlen(t) > sizeof(buf) - 16)
 		return -1;
 	for (i = 15; *t && i < sizeof(buf) - 1; i++, t++)
-		buf[i] = toupper(*t);
+		buf[i] = toupper((unsigned char)*t);
 	buf[i] = '\0';
 
 	if (!getdns_str2int(buf, &rrclass))

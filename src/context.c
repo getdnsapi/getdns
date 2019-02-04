@@ -55,6 +55,7 @@ typedef unsigned short in_port_t;
 
 #include <sys/stat.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 

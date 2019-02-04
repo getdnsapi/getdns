@@ -904,7 +904,7 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	if (!conn || !conn->ssl || !auth_name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
-#if defined(USE_DANE_SSL)
+#if defined(USE_DANESSL)
 	/* Stash auth name and pinset away for use in cert verification. */
 	conn->auth_name = auth_name;
 	conn->pinset = pinset;
