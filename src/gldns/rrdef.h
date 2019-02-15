@@ -227,7 +227,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 	GLDNS_RR_TYPE_AVC = 258,
 	GLDNS_RR_TYPE_DOA = 259, /* draft-durand-doa-over-dns */
-	GLDNS_RR_TYPE_AMTRELAY= 260, /* draft-ietf-mboned-driad-amt-discovery */
+	GLDNS_RR_TYPE_AMTRELAY = 260, /* draft-ietf-mboned-driad-amt-discovery */
 
 	/** DNSSEC Trust Authorities */
 	GLDNS_RR_TYPE_TA = 32768,
