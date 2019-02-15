@@ -471,12 +471,13 @@ static const uint8_t *
 amtrelay_rtype_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
+	(void)pkt; (void)pkt_end;
 	return rdf;
 }
 static getdns_return_t
 amtrelay_rtype_wire2dict(getdns_dict *dict, const uint8_t *rdf)
 {
-	return _getdns_dict_set_int(
+	return getdns_dict_set_int(
 	    dict, "replay_type", (rdf[-1] & 0x7F));
 }
 static getdns_return_t
