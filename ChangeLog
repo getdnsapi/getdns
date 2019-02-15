@@ -1,6 +1,8 @@
 * 2019-??-??: Version 1.?.?
   * Issue #419: Escape backslashed when printing in JSON format.
     Thanks boB Rudis
+  * DOA rr-type
+  * AMTRELAY rr-type
 
 * 2019-01-11: Version 1.5.1
   * Introduce proof of concept GnuTLS implementation. Incomplete support

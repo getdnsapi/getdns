@@ -303,6 +303,7 @@ static struct const_name_info consts_name_info[] = {
 	{ "GETDNS_RRTYPE_A6", 38 },
 	{ "GETDNS_RRTYPE_AAAA", 28 },
 	{ "GETDNS_RRTYPE_AFSDB", 18 },
+	{ "GETDNS_RRTYPE_AMTRELAY", 260 },
 	{ "GETDNS_RRTYPE_ANY", 255 },
 	{ "GETDNS_RRTYPE_APL", 42 },
 	{ "GETDNS_RRTYPE_ATMA", 34 },

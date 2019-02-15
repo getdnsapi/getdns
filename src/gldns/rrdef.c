@@ -232,6 +232,15 @@ static const gldns_rdf_type type_caa_wireformat[] = {
 	GLDNS_RDF_TYPE_TAG,
 	GLDNS_RDF_TYPE_LONG_STR
 };
+#ifdef DRAFT_RRTYPES
+static const gldns_rdf_type type_doa_wireformat[] = {
+	GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT8,
+	GLDNS_RDF_TYPE_STR, GLDNS_RDF_TYPE_B64
+};
+static const gldns_rdf_type type_amtrelay_wireformat[] = {
+	GLDNS_RDF_TYPE_AMTRELAY
+};
+#endif
 
 /* All RR's defined in 1035 are well known and can thus
  * be compressed. See RFC3597. These RR's are:
@@ -608,8 +617,14 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 #ifdef DRAFT_RRTYPES
 	/* 258 */
 	{GLDNS_RR_TYPE_AVC, "AVC", 1, 0, NULL, GLDNS_RDF_TYPE_STR, GLDNS_RR_NO_COMPRESS, 0 },
+	/* 259 */
+	{GLDNS_RR_TYPE_DOA, "DOA", 1, 0, type_doa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+	/* 260 */
+	{GLDNS_RR_TYPE_AMTRELAY, "AMTRELAY", 1, 0, type_amtrelay_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 #else
 {GLDNS_RR_TYPE_NULL, "TYPE258", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+{GLDNS_RR_TYPE_NULL, "TYPE259", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+{GLDNS_RR_TYPE_NULL, "TYPE260", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 #endif
 
 /* split in array, no longer contiguous */

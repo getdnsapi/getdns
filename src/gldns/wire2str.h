@@ -917,6 +917,21 @@ int gldns_wire2str_long_str_scan(uint8_t** data, size_t* data_len, char** str,
 	size_t* str_len);
 
 /**
+ * Scan wireformat AMTRELAY field to string, with user buffers.
+ * It shifts the arguments to move along (see gldns_wire2str_pkt_scan).
+ * @param data: wireformat data.
+ * @param data_len: length of data buffer.
+ * @param str: string buffer.
+ * @param str_len: length of string buffer.
+ * @param pkt: packet for decompression, if NULL no decompression.
+ * @param pktlen: length of packet buffer.
+ * @return number of characters (except null) needed to print.
+ * 	Can return -1 on failure.
+ */
+int gldns_wire2str_amtrelay_scan(uint8_t** data, size_t* data_len, char** str,
+	size_t* str_len, uint8_t* pkt, size_t pktlen);
+
+/**
  * Print EDNS LLQ option data to string.  User buffers, moves string pointers.
  * @param str: string buffer.
  * @param str_len: length of string buffer.
