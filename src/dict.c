@@ -790,12 +790,18 @@ getdns_pp_bindata(gldns_buffer *buf, getdns_bindata *bindata,
 			if (!gldns_buffer_reserve(buf, (e - s) + 2))
 				return -1;
 			gldns_buffer_write_u8(buf, '"');
-			while ((b = memchr(s, '\\', e - s))) {
+			for (;;) {
+				for ( b = s
+				    ; b < e && *b != '\\' && *b != '"'
+				    ; b++)
+					; /* pass */
+				if (b == e)
+					break;
 				if (!gldns_buffer_reserve(buf, (b - s) + 3))
 					return -1;
 				gldns_buffer_write(buf, s, b - s);
 				gldns_buffer_write_u8(buf, '\\');
-				gldns_buffer_write_u8(buf, '\\');
+				gldns_buffer_write_u8(buf, *b);
 				s = b + 1;
 			}
 			if (s < e)
