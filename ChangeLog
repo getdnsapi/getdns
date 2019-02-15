@@ -1,3 +1,7 @@
+* 2019-??-??: Version 1.?.?
+  * Issue #419: Escape backslashed when printing in JSON format.
+    Thanks boB Rudis
+
 * 2019-01-11: Version 1.5.1
   * Introduce proof of concept GnuTLS implementation. Incomplete support
     for Trust Anchor validation. Requires GnuTLS DANE library. Currently
