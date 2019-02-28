@@ -215,7 +215,7 @@ stubby.1: $(stubbysrcdir)/doc/stubby.1.in
 	sed -e "s|@ETCDIR@|$(stubbyconfdir)|g" $(stubbysrcdir)/doc/stubby.1.in > $@
 
 stubby.lo: $(stubbysrcdir)/src/stubby.c
-	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR=\"$(sysconfdir)/stubby\" -DRUNSTATEDIR=\"$(runstatedir)\" -c $(stubbysrcdir)/src/stubby.c -o $@
+	$(LIBTOOL) --quiet --tag=CC --mode=compile $(CC) $(CFLAGS) $(WPEDANTICFLAG) -DSTUBBYCONFDIR='"$(sysconfdir)/stubby"' -DRUNSTATEDIR='"$(runstatedir)"' -c $(stubbysrcdir)/src/stubby.c -o $@
 
 stubby: stubby.lo libgetdns.la $(STUBBY_XTRA_OBJS)
 	$(LIBTOOL) --tag=CC --mode=link $(CC) -o $@ stubby.lo $(STUBBY_XTRA_OBJS) $(STUBBY_LDFLAGS) libgetdns.la

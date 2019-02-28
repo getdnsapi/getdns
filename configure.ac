@@ -1514,9 +1514,20 @@ CFLAGS="$CFLAGS $LIBBSD_CFLAGS"
 ],[
 AC_MSG_WARN([libbsd not found or usable; using embedded code instead])
 ])
-AC_CHECK_DECLS([inet_pton,inet_ntop,strlcpy,arc4random,arc4random_uniform])
-AC_REPLACE_FUNCS(inet_pton)
-AC_REPLACE_FUNCS(inet_ntop)
+AC_CHECK_DECLS([inet_pton,inet_ntop,strlcpy,arc4random,arc4random_uniform], [], [], [
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_WS2TCPIP_H
+#include <ws2tcpip.h>
+#endif
+])
+AS_IF([test "x$ac_cv_have_decl_inet_pton" = xyes],
+    [],
+    [AC_REPLACE_FUNCS(inet_pton)]
+)
+AS_IF([test "x$ac_cv_have_decl_inet_ntop" = xyes],
+    [],
+    [AC_REPLACE_FUNCS(inet_ntop)]
+)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(arc4random)
 AC_REPLACE_FUNCS(arc4random_uniform)
