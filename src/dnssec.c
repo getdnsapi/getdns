@@ -1110,6 +1110,65 @@ static void cancel_requests_for_subdomains_of(
 		}
 		head = next;
 	}
+
+}
+
+static int nsec3_matches_name(_getdns_rrset *nsec3, const uint8_t *name);
+static int nsec3_covers_name(
+    _getdns_rrset *nsec3, const uint8_t *name, int *opt_out);
+
+static int insecure_delegation(_getdns_rrset *ds_rrset)
+{
+	_getdns_rrset        nsec_rrset;
+	_getdns_rrtype_iter *rr, rr_spc;
+	_getdns_rrsig_iter   rrsig_spc;
+	_getdns_rdf_iter     bitmap_spc, *bitmap;
+	_getdns_rrset_iter  *i, i_spc;
+
+	/* For NSEC, an insecure delegation is a NODATA proof for DS */
+	nsec_rrset = *ds_rrset;
+	nsec_rrset.rr_type = GETDNS_RRTYPE_NSEC;
+	if (!_getdns_rrsig_iter_init(&rrsig_spc, &nsec_rrset))
+		; /* pass */
+	else for ( rr = _getdns_rrtype_iter_init(&rr_spc, &nsec_rrset)
+	         ; rr ; rr = _getdns_rrtype_iter_next(rr)) {
+
+		if ((bitmap = _getdns_rdf_iter_init_at( &bitmap_spc
+		                                      , &rr->rr_i, 1))
+		    &&  bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+		    && !bitmap_has_type(bitmap, GETDNS_RRTYPE_DS)
+		    && _getdns_rrsig_iter_init(&rrsig_spc, &nsec_rrset))
+			return 1;
+	}
+
+	/* For NSEC3 it is either a NODATA proof with a delegation,
+           or a NSEC3 opt-out coverage  */
+	for ( i = _getdns_rrset_iter_init(&i_spc, ds_rrset->pkt
+	                                        , ds_rrset->pkt_len
+	                                        , SECTION_NO_ADDITIONAL)
+	    ; i ; i = _getdns_rrset_iter_next(i)) {
+		_getdns_rrset *nsec3_rrset = _getdns_rrset_iter_value(i);
+		int opt_out;
+
+		if (  !nsec3_rrset
+		    || nsec3_rrset->rr_type != GETDNS_RRTYPE_NSEC3
+		    ||!(rr = _getdns_rrtype_iter_init(&rr_spc, nsec3_rrset)))
+			continue;
+
+		if (!nsec3_covers_name(nsec3_rrset, ds_rrset->name, &opt_out))
+			continue;
+
+		if (nsec3_matches_name(nsec3_rrset, ds_rrset->name)) {
+			bitmap = _getdns_rdf_iter_init_at( &bitmap_spc
+			                                 , &rr->rr_i, 5);
+			return  bitmap
+			    &&  bitmap_has_type(bitmap, GETDNS_RRTYPE_NS)
+			    && !bitmap_has_type(bitmap, GETDNS_RRTYPE_DS);
+		}
+		else if (opt_out)
+			return 1;
+	}
+	return 0;
 }
 
 static void val_chain_node_cb(getdns_dns_req *dnsreq)
@@ -1158,10 +1217,16 @@ static void val_chain_node_cb(getdns_dns_req *dnsreq)
 	else if (n_signers) {
 		_getdns_rrtype_iter ds_spc;
 
-		if (!_getdns_rrtype_iter_init(&ds_spc, &node->ds)) {
-			debug_sec_print_rrset("A DS NX proof for ", &node->ds);
-			DEBUG_SEC("Cancel all more specific requests\n");
-			cancel_requests_for_subdomains_of(node->chains, node->ds.name);
+		if (_getdns_rrtype_iter_init(&ds_spc, &node->ds))
+			; /* pass */
+
+		else if (insecure_delegation(&node->ds)) {
+			debug_sec_print_rrset("Insecure delegation. "
+			    "Canceling requests below ", &node->ds);
+			cancel_requests_for_subdomains_of(
+			    node->chains, node->ds.name);
+		} else {
+			debug_sec_print_rrset("No DS at ", &node->ds);
 		}
 	} else {
 		/* No signed DS and no signed proof of non-existance.

@@ -1,4 +1,5 @@
 * 2019-??-??: Version 1.?.?
+  * Issue #423: Fix insecure delegation detection while scheduling.
   * Issue #419: Escape backslashed when printing in JSON format.
     Thanks boB Rudis
   * DOA rr-type
