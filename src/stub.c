@@ -375,22 +375,23 @@ getdns_sock_nonblock(int sockfd)
 static int
 tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport) 
 {
+#if defined(TCP_FASTOPEN) || defined(TCP_FASTOPEN_CONNECT)
+# ifdef USE_WINSOCK
+	static const char enable = 1;
+# else
+	static const int  enable = 1;
+# endif
+#endif
 	int fd = -1;
+
+
 	DEBUG_STUB("%s %-35s: Creating TCP connection:      %p\n", STUB_DEBUG_SETUP, 
 	           __FUNC__, (void*)upstream);
 	if ((fd = socket(upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
 		return -1;
 
 	getdns_sock_nonblock(fd);
-	/* Note that error detection is different with TFO. Since the handshake
-	   doesn't start till the sendto() lack of connection is often delayed until
-	   then or even the subsequent event depending on the error and platform.*/
-#ifdef USE_TCP_FASTOPEN
-	/* Leave the connect to the later call to sendto() if using TCP*/
-	if (transport == GETDNS_TRANSPORT_TCP)
-		return fd;
-#elif USE_OSX_TCP_FASTOPEN
-	(void)transport;
+#ifdef USE_OSX_TCP_FASTOPEN
 	sa_endpoints_t endpoints;
 	endpoints.sae_srcif = 0;
 	endpoints.sae_srcaddr = NULL;
@@ -405,9 +406,29 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	if (_getdns_socketerror() == _getdns_EINPROGRESS ||
 	    _getdns_socketerror() == _getdns_EWOULDBLOCK)
 		return fd;
-#else
+
 	(void)transport;
-#endif
+#else	/* USE_OSX_TCP_FASTOPEN */
+	/* Note that error detection is different with TFO. Since the handshake
+	   doesn't start till the sendto() lack of connection is often delayed until
+	   then or even the subsequent event depending on the error and platform.*/
+# ifdef     HAVE_DECL_TCP_FASTOPEN_CONNECT
+	(void)setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT
+	                , (void *)&enable, sizeof(enable));
+# else	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
+#  ifdef  HAVE_DECL_TCP_FASTOPEN
+	(void)setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
+	                , (void *)&enable, sizeof(enable));
+#  endif/* HAVE_DECL_TCP_FASTOPEN*/
+# endif	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
+# ifdef    HAVE_DECL_MSG_FASTOPEN
+	/* Leave the connect to the later call to sendto() if using TCP*/
+	if (transport == GETDNS_TRANSPORT_TCP)
+		return fd;
+# else  /* HAVE_DECL_MSG_FASTOPEN */
+	(void)transport;
+# endif /* HAVE_DECL_MSG_FASTOPEN */
+#endif	/* USE_OSX_TCP_FASTOPEN */
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
 		if (_getdns_socketerror() == _getdns_EINPROGRESS ||
@@ -739,7 +760,12 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		/* We use sendto() here which will do both a connect and send */
 #ifdef USE_TCP_FASTOPEN
 		written = sendto(fd, netreq->query - 2, pkt_len + 2,
-		    MSG_FASTOPEN, (struct sockaddr *)&(netreq->upstream->addr),
+# ifdef HAVE_DECL_MSG_FASTOPEN
+		    MSG_FASTOPEN,
+# else
+		    0,
+# endif
+		    (struct sockaddr *)&(netreq->upstream->addr),
 		    netreq->upstream->addr_len);
 		/* If pipelining we will find that the connection is already up so 
 		   just fall back to a 'normal' write. */

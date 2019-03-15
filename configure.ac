@@ -302,13 +302,31 @@ if test "x$enable_tcp_fastopen" = xno; then
         AC_MSG_WARN([TCP Fast Open is disabled])
 else
     case `uname` in
-        Linux) AC_CHECK_DECL([MSG_FASTOPEN], [AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
-                          [AC_MSG_WARN([TCP Fast Open is not available, continuing without])], [#include <sys/socket.h>])
-          ;;
         Darwin) AC_CHECK_DECL([CONNECT_RESUME_ON_READ_WRITE], [AC_DEFINE_UNQUOTED([USE_OSX_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])],
                       [AC_MSG_WARN([TCP Fast Open is not available, continuing without])], [#include <sys/socket.h>])
           ;;
-        *) AC_MSG_WARN([TCP Fast Open is not available, continuing without])
+        *)
+		AC_CHECK_HEADERS([sys/socket.h netinet/tcp.h],,, [AC_INCLUDES_DEFAULT])
+		AC_CHECK_DECL([TCP_FASTOPEN], [
+			AC_DEFINE_UNQUOTED([USE_TCP_FASTOPEN], [1], [Define this to enable TCP fast open.])
+			AC_CHECK_DECLS([TCP_FASTOPEN,MSG_FASTOPEN,TCP_FASTOPEN_CONNECT], [], [], [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_TCP_H
+# include <netinet/tcp.h>
+#endif
+])
+		], [
+			AC_MSG_WARN([TCP Fast Open is not available, continuing without])
+		], [AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+#ifdef HAVE_NETINET_TCP_H
+# include <netinet/tcp.h>
+#endif
+])
           ;;
     esac
 fi
@@ -1729,6 +1747,10 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
 #endif
 
 #ifdef HAVE_SYS_SELECT_H

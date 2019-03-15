@@ -1,5 +1,8 @@
 * 2019-??-??: Version 1.?.?
+  * Issue #422: Enable server side and update client side TCP Fast
+    Open implementation. Thanks Craig Andrews
   * Issue #423: Fix insecure delegation detection while scheduling.
+    Thanks Charles Milette
   * Issue #419: Escape backslashed when printing in JSON format.
     Thanks boB Rudis
   * DOA rr-type
