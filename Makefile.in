@@ -213,6 +213,8 @@ $(distdir):
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
 	mkdir -p $(distdir)/src/gldns
+	mkdir -p $(distdir)/src/tls/validator
+	mkdir -p $(distdir)/src/gnutls
 	mkdir -p $(distdir)/src/openssl
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
@@ -261,13 +263,16 @@ $(distdir):
 	cp -r $(srcdir)/src/util/orig-headers $(distdir)/src/util
 	cp -r $(srcdir)/src/util/auxiliary $(distdir)/src/util
 	cp $(srcdir)/src/gldns/*.[ch] $(distdir)/src/gldns
+	cp $(srcdir)/src/tls/*.[ch] $(distdir)/src/tls
+	cp $(srcdir)/src/tls/validator/*.[ch] $(distdir)/src/tls/validator
+	cp $(srcdir)/src/gnutls/*.[ch] $(distdir)/src/gnutls
+	cp $(srcdir)/src/openssl/*.[ch] $(distdir)/src/openssl
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
 	cp $(srcdir)/doc/*.in $(distdir)/doc
 	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc
 	cp $(srcdir)/spec/*.html $(distdir)/spec
 	cp $(srcdir)/spec/example/Makefile.in $(distdir)/spec/example
 	cp $(srcdir)/spec/example/*.[ch] $(distdir)/spec/example
-	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/openssl
 	cp $(srcdir)/src/tools/Makefile.in $(distdir)/src/tools
 	cp $(srcdir)/src/tools/*.[ch] $(distdir)/src/tools
 	cp $(srcdir)/stubby/stubby.yml.example $(distdir)/stubby
