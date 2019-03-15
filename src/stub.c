@@ -412,16 +412,16 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	/* Note that error detection is different with TFO. Since the handshake
 	   doesn't start till the sendto() lack of connection is often delayed until
 	   then or even the subsequent event depending on the error and platform.*/
-# ifdef     HAVE_DECL_TCP_FASTOPEN_CONNECT
+# if  defined(HAVE_DECL_TCP_FASTOPEN_CONNECT) && HAVE_DECL_TCP_FASTOPEN_CONNECT
 	(void)setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT
 	                , (void *)&enable, sizeof(enable));
 # else	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
-#  ifdef  HAVE_DECL_TCP_FASTOPEN
+#  if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
 	(void)setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
 	                , (void *)&enable, sizeof(enable));
 #  endif/* HAVE_DECL_TCP_FASTOPEN*/
 # endif	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
-# ifdef    HAVE_DECL_MSG_FASTOPEN
+# if  defined(HAVE_DECL_MSG_FASTOPEN) && HAVE_DECL_MSG_FASTOPEN
 	/* Leave the connect to the later call to sendto() if using TCP*/
 	if (transport == GETDNS_TRANSPORT_TCP)
 		return fd;
@@ -760,7 +760,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		/* We use sendto() here which will do both a connect and send */
 #ifdef USE_TCP_FASTOPEN
 		written = sendto(fd, netreq->query - 2, pkt_len + 2,
-# ifdef HAVE_DECL_MSG_FASTOPEN
+# if   defined(HAVE_DECL_MSG_FASTOPEN) && HAVE_DECL_MSG_FASTOPEN
 		    MSG_FASTOPEN,
 # else
 		    0,

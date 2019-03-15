@@ -863,7 +863,7 @@ static getdns_return_t add_listeners(listen_set *set)
 		    &enable, sizeof(enable)) < 0) {
 			; /* Ignore */
 		}
-#ifdef HAVE_DECL_TCP_FASTOPEN
+#if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
 		if (setsockopt(l->fd, IPPROTO_TCP, TCP_FASTOPEN,
 		    &enable, sizeof(enable)) < 0) {
 			; /* Ignore */
