@@ -478,6 +478,14 @@ AC_ARG_WITH([gnutls],
 		AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
         	AC_CHECK_HEADERS([nettle/dsa-compat.h],,, [AC_INCLUDES_DEFAULT])
 	fi
+	# Zero configuration DNSSEC we still need libcrypto
+	AC_CHECK_HEADERS([openssl/x509.h],,, [AC_INCLUDES_DEFAULT])
+	AC_CHECK_LIB([crypto], [X509_STORE_new], [
+	AC_DEFINE_UNQUOTED([HAVE_LIBCRYPTO], [2], [Define to 1 if you have the `crypto' library (-lcrypto).]) dnl
+		LIBS="-lcrypto $LIBS"
+	], [
+	AC_MSG_ERROR([libcrypto still needed for Zero configuration DNSSEC])
+	])
     ],
     [
 	if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
@@ -1771,10 +1779,6 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
-#endif
-
-#ifdef HAVE_OPENSSL_SSL_H
-#include <openssl/ssl.h>
 #endif
 
 #ifdef HAVE_INTTYPES_H

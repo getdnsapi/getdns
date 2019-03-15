@@ -55,7 +55,7 @@
 #endif
 
 /* OpenSSL implementation */
-#ifdef HAVE_SSL
+#if defined(HAVE_SSL) && !defined(HAVE_NETTLE)
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
 #endif
