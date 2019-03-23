@@ -1086,11 +1086,11 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 		}
 		if (a->state == TAS_RETRY_GET_PS7) {
 			buf_sz = sizeof(tas_write_p7s_buf)
-			       + 1 * (hostname_len - 2) + 1 * (path_len - 2) + 1;
+			       + 1 * (hostname_len - 2) + 1 * (path_len - 2);
 			fmt = tas_write_p7s_buf;
 		} else {
 			buf_sz = sizeof(tas_write_xml_p7s_buf)
-			       + 2 * (hostname_len - 2) + 2 * (path_len - 2) + 1;
+			       + 2 * (hostname_len - 2) + 2 * (path_len - 2);
 			fmt = tas_write_xml_p7s_buf;
 		}
 		if (!(write_buf = GETDNS_XMALLOC(context->mf, char, buf_sz))) {
