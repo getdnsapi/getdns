@@ -750,7 +750,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		a->tcp.read_pos = a->tcp.read_buf;
 		a->tcp.to_read = sizeof(context->tas_hdr_spc);
 	}
-	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 50,
+	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
 	    getdns_eventloop_event_init(&a->event, a->req->owner,
 	    tas_read_cb, NULL, tas_reconnect_cb));
 	return;
