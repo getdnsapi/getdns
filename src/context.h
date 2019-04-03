@@ -201,12 +201,14 @@ typedef struct getdns_upstream {
 	getdns_network_req      *write_queue_last;
 	_getdns_rbtree_t         netreq_by_query_id;
 
-    /* TLS specific connection handling*/
+	/* TCP specific connection handling*/
+	unsigned                 tfo_use_sendto  : 1;
+	/* TLS specific connection handling*/
+	unsigned                 tls_fallback_ok : 1;
 	_getdns_tls_connection*  tls_obj;
 	_getdns_tls_session*     tls_session;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_auth_state_t      tls_auth_state;
-	unsigned                 tls_fallback_ok : 1;
 
 	/* TLS settings */
 	char                    *tls_cipher_list;

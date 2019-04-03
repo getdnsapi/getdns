@@ -385,6 +385,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	int fd = -1;
 
 
+	upstream->tfo_use_sendto = 0;
 	DEBUG_STUB("%s %-35s: Creating TCP connection:      %p\n", STUB_DEBUG_SETUP, 
 	           __FUNC__, (void*)upstream);
 	if ((fd = socket(upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
@@ -413,21 +414,50 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	   doesn't start till the sendto() lack of connection is often delayed until
 	   then or even the subsequent event depending on the error and platform.*/
 # if  defined(HAVE_DECL_TCP_FASTOPEN_CONNECT) && HAVE_DECL_TCP_FASTOPEN_CONNECT
-	(void)setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT
-	                , (void *)&enable, sizeof(enable));
+	if (setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT
+	              , (void *)&enable, sizeof(enable)) < 0) {
+		/* runtime fallback to TCP_FASTOPEN option */
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : "
+		    "Could not setup TLS capable TFO connect\n",
+		     upstream->addr_str);
+#  if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
+		/* TCP_FASTOPEN works for TCP only (not TLS) */
+		if (transport != GETDNS_TRANSPORT_TCP)
+			; /* This variant of TFO doesn't work with TLS */
+		else if (setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
+		                   , (void *)&enable, sizeof(enable)) >= 0) {
+
+			upstream->tfo_use_sendto = 1;
+			return fd;
+		} else
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+			    "%-40s : Upstream   : "
+			    "Could not fallback to TCP TFO\n",
+			     upstream->addr_str);
+#  endif/* HAVE_DECL_TCP_FASTOPEN*/
+	}
+	/* On success regular connect is fine, TFO will happen automagically */
 # else	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
 #  if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
-	(void)setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
-	                , (void *)&enable, sizeof(enable));
+	/* TCP_FASTOPEN works for TCP only (not TLS) */
+	if (transport != GETDNS_TRANSPORT_TCP)
+		; /* This variant of TFO doesn't work with TLS */
+	else if (setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
+	                  , (void *)&enable, sizeof(enable)) >= 0) {
+
+		upstream->tfo_use_sendto = 1;
+		return fd;
+	} else
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : Could not setup TCP TFO\n",
+		     upstream->addr_str);
+
 #  endif/* HAVE_DECL_TCP_FASTOPEN*/
 # endif	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
-# if  defined(HAVE_DECL_MSG_FASTOPEN) && HAVE_DECL_MSG_FASTOPEN
-	/* Leave the connect to the later call to sendto() if using TCP*/
-	if (transport == GETDNS_TRANSPORT_TCP)
-		return fd;
-# else  /* HAVE_DECL_MSG_FASTOPEN */
-	(void)transport;
-# endif /* HAVE_DECL_MSG_FASTOPEN */
 #endif	/* USE_OSX_TCP_FASTOPEN */
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
@@ -758,22 +788,24 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		 * Lets see how much of it we can write
 		 */
 		/* We use sendto() here which will do both a connect and send */
-#ifdef USE_TCP_FASTOPEN
-		written = sendto(fd, netreq->query - 2, pkt_len + 2,
+		if (netreq->upstream->tfo_use_sendto) {
+			written = sendto(fd, netreq->query - 2, pkt_len + 2,
 # if   defined(HAVE_DECL_MSG_FASTOPEN) && HAVE_DECL_MSG_FASTOPEN
-		    MSG_FASTOPEN,
+			    MSG_FASTOPEN,
 # else
-		    0,
+			    0,
 # endif
-		    (struct sockaddr *)&(netreq->upstream->addr),
-		    netreq->upstream->addr_len);
-		/* If pipelining we will find that the connection is already up so 
-		   just fall back to a 'normal' write. */
-		if (written == -1 && _getdns_socketerror() == _getdns_EISCONN) 
-			written = write(fd, netreq->query - 2, pkt_len + 2);
-#else
-		written = send(fd, (const char *)(netreq->query - 2), pkt_len + 2, 0);
-#endif
+			    (struct sockaddr *)&(netreq->upstream->addr),
+			    netreq->upstream->addr_len);
+			/* If pipelining we will find that the connection is already up so 
+			   just fall back to a 'normal' write. */
+			if (written == -1
+			&&  _getdns_socketerror() == _getdns_EISCONN) 
+				written = write(fd, netreq->query - 2
+				                  , pkt_len + 2);
+		} else
+			written = send(fd, (const char *)(netreq->query - 2)
+			                 , pkt_len + 2, 0);
 		if ((written == -1 && _getdns_socketerror_wants_retry()) ||
 		    (size_t)written < pkt_len + 2) {
 
