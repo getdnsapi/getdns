@@ -1,10 +1,15 @@
-* 2019-??-??: Version 1.?.?
+* 2019-04-03: Version 1.5.2
+  * PR #424: Two small trust anchor fetcher fixes
+    Thanks Maciej S. Szmigiero
   * Issue #422: Enable server side and update client side TCP Fast
     Open implementation. Thanks Craig Andrews
   * Issue #423: Fix insecure delegation detection while scheduling.
     Thanks Charles Milette
   * Issue #419: Escape backslashed when printing in JSON format.
     Thanks boB Rudis
+  * Use GnuTLS instead of OpenSSL for TLS with the --with-gnutls
+    option to configure.  libcrypto (from OpenSSL) still needed
+    for Zero configuration DNSSEC.
   * DOA rr-type
   * AMTRELAY rr-type
 
