@@ -39,9 +39,6 @@
 #define INTERCEPT_COM_DS 0
 
 #include "debug.h"
-#include <openssl/err.h>
-#include <openssl/conf.h>
-#include <openssl/x509v3.h>
 #include <fcntl.h>
 #include "stub.h"
 #include "gldns/gbuffer.h"
@@ -55,10 +52,6 @@
 #include "platform.h"
 #include "general.h"
 #include "pubkey-pinning.h"
-#ifdef USE_DANESSL
-# include "ssl_dane/danessl.h"
-#endif
-#include "const-info.h"
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -128,10 +121,8 @@ rollover_secret()
 static void
 calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
 {
-        const EVP_MD *md;
-        EVP_MD_CTX *mdctx;
-        unsigned char md_value[EVP_MAX_MD_SIZE];
-        unsigned int md_len;
+        unsigned char md_value[GETDNS_TLS_MAX_DIGEST_LENGTH];
+        size_t md_len;
         size_t i;
         sa_family_t af = upstream->addr.ss_family;
         void *sa_addr = ((struct sockaddr*)&upstream->addr)->sa_data;
@@ -139,13 +130,7 @@ calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
 	                  : af == AF_INET  ? sizeof(struct sockaddr_in)
 	                  : 0 ) - sizeof(sa_family_t);
 
-        md = EVP_sha256();
-        mdctx = EVP_MD_CTX_create();
-        EVP_DigestInit_ex(mdctx, md, NULL);
-        EVP_DigestUpdate(mdctx, &secret, sizeof(secret));
-        EVP_DigestUpdate(mdctx, sa_addr, addr_len);
-        EVP_DigestFinal_ex(mdctx, md_value, &md_len);
-        EVP_MD_CTX_destroy(mdctx);
+	_getdns_tls_cookie_sha256(secret, sa_addr, addr_len, md_value, &md_len);
 
         (void) memset(cookie, 0, 8);
         for (i = 0; i < md_len; i++)
@@ -390,22 +375,24 @@ getdns_sock_nonblock(int sockfd)
 static int
 tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport) 
 {
+#if defined(TCP_FASTOPEN) || defined(TCP_FASTOPEN_CONNECT)
+# ifdef USE_WINSOCK
+	static const char enable = 1;
+# else
+	static const int  enable = 1;
+# endif
+#endif
 	int fd = -1;
+
+
+	upstream->tfo_use_sendto = 0;
 	DEBUG_STUB("%s %-35s: Creating TCP connection:      %p\n", STUB_DEBUG_SETUP, 
 	           __FUNC__, (void*)upstream);
 	if ((fd = socket(upstream->addr.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1)
 		return -1;
 
 	getdns_sock_nonblock(fd);
-	/* Note that error detection is different with TFO. Since the handshake
-	   doesn't start till the sendto() lack of connection is often delayed until
-	   then or even the subsequent event depending on the error and platform.*/
-#ifdef USE_TCP_FASTOPEN
-	/* Leave the connect to the later call to sendto() if using TCP*/
-	if (transport == GETDNS_TRANSPORT_TCP)
-		return fd;
-#elif USE_OSX_TCP_FASTOPEN
-	(void)transport;
+#ifdef USE_OSX_TCP_FASTOPEN
 	sa_endpoints_t endpoints;
 	endpoints.sae_srcif = 0;
 	endpoints.sae_srcaddr = NULL;
@@ -420,9 +407,58 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 	if (_getdns_socketerror() == _getdns_EINPROGRESS ||
 	    _getdns_socketerror() == _getdns_EWOULDBLOCK)
 		return fd;
-#else
+
 	(void)transport;
-#endif
+#else	/* USE_OSX_TCP_FASTOPEN */
+	/* Note that error detection is different with TFO. Since the handshake
+	   doesn't start till the sendto() lack of connection is often delayed until
+	   then or even the subsequent event depending on the error and platform.*/
+# if  defined(HAVE_DECL_TCP_FASTOPEN_CONNECT) && HAVE_DECL_TCP_FASTOPEN_CONNECT
+	if (setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT
+	              , (void *)&enable, sizeof(enable)) < 0) {
+		/* runtime fallback to TCP_FASTOPEN option */
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : "
+		    "Could not setup TLS capable TFO connect\n",
+		     upstream->addr_str);
+#  if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
+		/* TCP_FASTOPEN works for TCP only (not TLS) */
+		if (transport != GETDNS_TRANSPORT_TCP)
+			; /* This variant of TFO doesn't work with TLS */
+		else if (setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
+		                   , (void *)&enable, sizeof(enable)) >= 0) {
+
+			upstream->tfo_use_sendto = 1;
+			return fd;
+		} else
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+			    "%-40s : Upstream   : "
+			    "Could not fallback to TCP TFO\n",
+			     upstream->addr_str);
+#  endif/* HAVE_DECL_TCP_FASTOPEN*/
+	}
+	/* On success regular connect is fine, TFO will happen automagically */
+# else	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
+#  if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
+	/* TCP_FASTOPEN works for TCP only (not TLS) */
+	if (transport != GETDNS_TRANSPORT_TCP)
+		; /* This variant of TFO doesn't work with TLS */
+	else if (setsockopt( fd, IPPROTO_TCP, TCP_FASTOPEN
+	                  , (void *)&enable, sizeof(enable)) >= 0) {
+
+		upstream->tfo_use_sendto = 1;
+		return fd;
+	} else
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : Could not setup TCP TFO\n",
+		     upstream->addr_str);
+
+#  endif/* HAVE_DECL_TCP_FASTOPEN*/
+# endif	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
+#endif	/* USE_OSX_TCP_FASTOPEN */
 	if (connect(fd, (struct sockaddr *)&upstream->addr,
 	    upstream->addr_len) == -1) {
 		if (_getdns_socketerror() == _getdns_EINPROGRESS ||
@@ -752,17 +788,24 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 		 * Lets see how much of it we can write
 		 */
 		/* We use sendto() here which will do both a connect and send */
-#ifdef USE_TCP_FASTOPEN
-		written = sendto(fd, netreq->query - 2, pkt_len + 2,
-		    MSG_FASTOPEN, (struct sockaddr *)&(netreq->upstream->addr),
-		    netreq->upstream->addr_len);
-		/* If pipelining we will find that the connection is already up so 
-		   just fall back to a 'normal' write. */
-		if (written == -1 && _getdns_socketerror() == _getdns_EISCONN) 
-			written = write(fd, netreq->query - 2, pkt_len + 2);
-#else
-		written = send(fd, (const char *)(netreq->query - 2), pkt_len + 2, 0);
-#endif
+		if (netreq->upstream->tfo_use_sendto) {
+			written = sendto(fd, netreq->query - 2, pkt_len + 2,
+# if   defined(HAVE_DECL_MSG_FASTOPEN) && HAVE_DECL_MSG_FASTOPEN
+			    MSG_FASTOPEN,
+# else
+			    0,
+# endif
+			    (struct sockaddr *)&(netreq->upstream->addr),
+			    netreq->upstream->addr_len);
+			/* If pipelining we will find that the connection is already up so 
+			   just fall back to a 'normal' write. */
+			if (written == -1
+			&&  _getdns_socketerror() == _getdns_EISCONN) 
+				written = write(fd, netreq->query - 2
+				                  , pkt_len + 2);
+		} else
+			written = send(fd, (const char *)(netreq->query - 2)
+			                 , pkt_len + 2, 0);
 		if ((written == -1 && _getdns_socketerror_wants_retry()) ||
 		    (size_t)written < pkt_len + 2) {
 
@@ -830,194 +873,46 @@ tls_requested(getdns_network_req *netreq)
 	        1 : 0;
 }
 
-
-#if defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL)
-
-static int
-_getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
-{ 
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	char	buf[8192];
-	X509   *cert;
-	int	 err;
-	int	 depth;
-
-	cert = X509_STORE_CTX_get_current_cert(ctx);
-	err = X509_STORE_CTX_get_error(ctx);
-	depth = X509_STORE_CTX_get_error_depth(ctx);
-
-	if (cert)
-		X509_NAME_oneline(X509_get_subject_name(cert), buf, sizeof(buf));
-	else
-		strcpy(buf, "<unknown>");
-	DEBUG_STUB("DEBUG Cert verify: depth=%d verify=%d err=%d subject=%s errorstr=%s\n", depth, ok, err, buf, X509_verify_cert_error_string(err));
-# else /* defined(STUB_DEBUG) && STUB_DEBUG */
-	(void)ok;
-	(void)ctx;
-# endif /* #else defined(STUB_DEBUG) && STUB_DEBUG */
-	return 1; 
-}
-
-#else /* defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
-
-static int
-tls_verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
-{
-	getdns_upstream *upstream;
-	getdns_return_t pinset_ret = GETDNS_RETURN_GOOD;
-	upstream = _getdns_upstream_from_x509_store(ctx);
-	if (!upstream)
-		return 0;
-
-	int err = X509_STORE_CTX_get_error(ctx);
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	DEBUG_STUB("%s %-35s: FD:  %d Verify result: (%d) \"%s\"\n",
-	            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, err,
-	            X509_verify_cert_error_string(err));
-# endif
-	if (!preverify_ok && !upstream->tls_fallback_ok)
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-		    "%-40s : Verify failed: TLS - *Failure* -  (%d) \"%s\"\n",
-		    upstream->addr_str, err,
-		    X509_verify_cert_error_string(err));
-
-	/* No need to deal with hostname authentication, since this will be
-	 * dealt with in the DANE preprocessor paths.
-	 */
-
-	/* Deal with the pinset validation */
-	if (upstream->tls_pubkey_pinset)
-		pinset_ret = _getdns_verify_pinset_match(
-		    upstream, upstream->tls_pubkey_pinset, ctx);
-
-	if (pinset_ret != GETDNS_RETURN_GOOD) {
-		DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Pinset validation failure!\n",
-	           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
-		preverify_ok = 0;
-		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		if (upstream->tls_fallback_ok)
-			DEBUG_STUB("%s %-35s: FD:  %d, WARNING: Proceeding even though pinset validation failed!\n",
-			            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd);
-		else
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-			    "%-40s : Conn failed: TLS - *Failure* - Pinset validation failure\n",
-			    upstream->addr_str);
-	}
-	/* If nothing has failed yet and we had credentials, we have successfully authenticated*/
-	if (preverify_ok == 0)
-		upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-	else if (upstream->tls_auth_state == GETDNS_AUTH_NONE &&
-	         (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]))
-		upstream->tls_auth_state = GETDNS_AUTH_OK;
-
-	/* If fallback is allowed, proceed regardless of what the auth error is
-	   (might not be hostname or pinset related) */
-	return (upstream->tls_fallback_ok) ? 1 : preverify_ok;
-}
-
-#endif /* #else defined(HAVE_SSL_DANE_ENABLE) || defined(USE_DANESSL) */
-
-static SSL*
+static _getdns_tls_connection*
 tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 {
-	/* Create SSL instance */
+	/* Create SSL instance and connect with a file descriptor */
 	getdns_context *context = dnsreq->context;
 	if (context->tls_ctx == NULL)
 		return NULL;
-	SSL* ssl = SSL_new(context->tls_ctx);
-	if(!ssl) 
+	_getdns_tls_connection* tls = _getdns_tls_connection_new(&context->my_mf, context->tls_ctx, fd, &upstream->upstreams->log);
+	if(!tls) 
 		return NULL;
-	/* Connect the SSL object with a file descriptor */
-	if(!SSL_set_fd(ssl,fd)) {
-		SSL_free(ssl);
-		return NULL;
+
+	getdns_return_t r = GETDNS_RETURN_GOOD;
+
+	if (upstream->tls_curves_list)
+		r = _getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
+	if (!r && upstream->tls_ciphersuites)
+		r = _getdns_tls_connection_set_cipher_suites(tls, upstream->tls_ciphersuites);
+	if (!r)
+		r = _getdns_tls_connection_set_min_max_tls_version(tls, upstream->tls_min_version, upstream->tls_max_version);
+
+	if (!r)
+	{
+		if (upstream->tls_fallback_ok)
+			r = _getdns_tls_connection_set_cipher_list(tls, NULL);
+		else if (upstream->tls_cipher_list)
+			r = _getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list);
 	}
-#if defined(HAVE_DECL_SSL_SET1_CURVES_LIST) && HAVE_DECL_SSL_SET1_CURVES_LIST
-	if (upstream->tls_curves_list
-	&& !SSL_set1_curves_list(ssl, upstream->tls_curves_list)) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_curves_list "
-		    "\"%s\"\n", upstream->addr_str, upstream->tls_curves_list);
-		SSL_free(ssl);
-		return NULL;
-	}
-#else
-	if (upstream->tls_curves_list) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : tls_curves_list not supported "
-		    "in tls library\n", upstream->addr_str);
-		SSL_free(ssl);
-		return NULL;
-	}
-#endif
-#ifdef HAVE_SSL_SET_CIPHERSUITES
-	if (upstream->tls_ciphersuites &&
-	   !SSL_set_ciphersuites(ssl, upstream->tls_ciphersuites)) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : Error configuring tls_ciphersuites "
-		    "\"%s\"\n", upstream->addr_str, upstream->tls_ciphersuites);
-	}
-#else
-	if (upstream->tls_ciphersuites) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : tls_ciphersuites not "
-		    "supported in tls library\n", upstream->addr_str);
-		SSL_free(ssl);
+	
+	if (r) {
+		_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
+		upstream->tls_auth_state = GETDNS_AUTH_NONE;
 		return NULL;
 	}
-#endif
-#if defined(HAVE_DECL_SSL_SET_MIN_PROTO_VERSION) \
-         && HAVE_DECL_SSL_SET_MIN_PROTO_VERSION
-	if (upstream->tls_min_version && !SSL_set_min_proto_version(ssl,
-	    _getdns_tls_version2openssl_version(upstream->tls_min_version))) {
-		struct const_info *ci =
-		    _getdns_get_const_info(upstream->tls_min_version);
-		if (ci && *ci->name)
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-			    GETDNS_LOG_ERR, "%-40s : Error configuring "
-			    "tls_min_version \"%s\"\n", upstream->addr_str,
-			    ci->name);
-		else
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-			    GETDNS_LOG_ERR, "%-40s : Error configuring "
-			    "tls_min_version \"%d\"\n", upstream->addr_str,
-			    upstream->tls_min_version);
-	}
-	if (upstream->tls_max_version && !SSL_set_max_proto_version(ssl,
-	    _getdns_tls_version2openssl_version(upstream->tls_max_version))) {
-		struct const_info *ci =
-		    _getdns_get_const_info(upstream->tls_max_version);
-		if (ci && *ci->name)
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-			    GETDNS_LOG_ERR, "%-40s : Error configuring "
-			    "tls_max_version \"%s\"\n", upstream->addr_str,
-			    ci->name);
-		else
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-			    GETDNS_LOG_ERR, "%-40s : Error configuring "
-			    "tls_max_version \"%d\"\n", upstream->addr_str,
-			    upstream->tls_max_version);
-	}
-#else
-	if (upstream->tls_min_version) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : tls_min_version not "
-		    "supported in tls library\n", upstream->addr_str);
-		SSL_free(ssl);
-		return NULL;
-	}
-	if (upstream->tls_max_version) {
-		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS,
-		    GETDNS_LOG_ERR, "%-40s : tls_max_version not "
-		    "supported in tls library\n", upstream->addr_str);
-		SSL_free(ssl);
-		return NULL;
-	}
-#endif
-	/* make sure we'll be able to find the context again when we need it */
-	if (_getdns_associate_upstream_with_SSL(ssl, upstream) != GETDNS_RETURN_GOOD) {
-		SSL_free(ssl);
-		return NULL;
+
+	if (upstream->tls_fallback_ok) {
+		DEBUG_STUB("%s %-35s: WARNING: Using Opportunistic TLS (fallback allowed)!\n",
+			   STUB_DEBUG_SETUP_TLS, __FUNC__);
+	} else {
+		DEBUG_STUB("%s %-35s: Using Strict TLS \n",
+			   STUB_DEBUG_SETUP_TLS, __FUNC__);
 	}
 
 	/* NOTE: this code will fallback on a given upstream, without trying
@@ -1030,29 +925,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		/*Request certificate for the auth_name*/
 		DEBUG_STUB("%s %-35s: Hostname verification requested for: %s\n",
 		           STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name);
-		SSL_set_tlsext_host_name(ssl, upstream->tls_auth_name);
-#if defined(HAVE_SSL_HN_AUTH)
-		/* Set up native OpenSSL hostname verification
-		 * ( doesn't work with USE_DANESSL, but we verify the
-		 *   name afterwards in such cases )
-		 */
-		X509_VERIFY_PARAM *param;
-		param = SSL_get0_param(ssl);
-		X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-		X509_VERIFY_PARAM_set1_host(param, upstream->tls_auth_name, 0);
-#elif !defined(HAVE_X509_CHECK_HOST)
-		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
-			DEBUG_STUB("%s %-35s: ERROR: Hostname Authentication not available from TLS library (check library version)\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__);
-			_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
-			    "%-40s : ERROR: Hostname Authentication not available from TLS library (check library version)\n",
-			    upstream->addr_str);
-			upstream->tls_hs_state = GETDNS_HS_FAILED;
-			SSL_free(ssl);
-			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-			return NULL;
-		}
-#endif
+		_getdns_tls_connection_setup_hostname_auth(tls, upstream->tls_auth_name);
 		/* Allow fallback to opportunistic if settings permit it*/
 		if (dnsreq->netreqs[0]->tls_auth_min != GETDNS_AUTHENTICATION_REQUIRED)
 			upstream->tls_fallback_ok = 1;
@@ -1070,7 +943,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 				    "%-40s : Verify fail: *CONFIG ERROR* - No auth name or pinset provided for this upstream for Strict TLS authentication\n",
 				    upstream->addr_str);
 				upstream->tls_hs_state = GETDNS_HS_FAILED;
-				SSL_free(ssl);
+				_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
 				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 				return NULL;
 			}
@@ -1081,89 +954,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			upstream->tls_fallback_ok = 1;
 		}
 	}
-	if (upstream->tls_fallback_ok) {
-		SSL_set_cipher_list(ssl, "DEFAULT");
-		DEBUG_STUB("%s %-35s: WARNING: Using Oppotunistic TLS (fallback allowed)!\n",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__);
-	} else {
-		if (upstream->tls_cipher_list &&
-		    !SSL_set_cipher_list(ssl, upstream->tls_cipher_list))
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
-			    "%-40s : Error configuring cipher_list\"%s\"\n",
-			    upstream->addr_str, upstream->tls_cipher_list);
 
-		DEBUG_STUB("%s %-35s: Using Strict TLS \n", STUB_DEBUG_SETUP_TLS, 
-		             __FUNC__);
-	}
-#if defined(HAVE_SSL_DANE_ENABLE)
-	int osr;
-# if defined(STUB_DEBUG) && STUB_DEBUG
-	osr =
-# else
-	(void)
-# endif
-		SSL_dane_enable(ssl, *upstream->tls_auth_name ? upstream->tls_auth_name : NULL);
-	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
-	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
-	SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
-	sha256_pin_t *pin_p;
-	size_t n_pins = 0;
-	for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
-		osr = SSL_dane_tlsa_add(ssl, 2, 1, 1,
-		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
-			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-		if (osr > 0)
-			++n_pins;
-		osr = SSL_dane_tlsa_add(ssl, 3, 1, 1,
-		    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
-			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-		if (osr > 0)
-			++n_pins;
-	}
-#elif defined(USE_DANESSL)
-	if (upstream->tls_pubkey_pinset) {
-		const char *auth_names[2] = { upstream->tls_auth_name, NULL };
-		int osr;
-# if defined(STUB_DEBUG) && STUB_DEBUG
-		osr =
-# else
-		(void)
-# endif
-			DANESSL_init(ssl,
-		    *upstream->tls_auth_name ? upstream->tls_auth_name : NULL,
-		    *upstream->tls_auth_name ? auth_names : NULL
-		    );
-		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
-			  , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
-		SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
-		sha256_pin_t *pin_p;
-		size_t n_pins = 0;
-		for (pin_p = upstream->tls_pubkey_pinset; pin_p; pin_p = pin_p->next) {
-			osr = DANESSL_add_tlsa(ssl, 3, 1, "sha256",
-			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
-				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-			if (osr > 0)
-				++n_pins;
-			osr = DANESSL_add_tlsa(ssl, 2, 1, "sha256",
-			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
-			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
-				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
-			if (osr > 0)
-				++n_pins;
-		}
-	} else {
-		SSL_set_verify(ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
-	}
-#else
-	SSL_set_verify(ssl, SSL_VERIFY_PEER, tls_verify_callback);
-#endif
-
-	SSL_set_connect_state(ssl);
-	(void) SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	_getdns_tls_connection_set_host_pinset(tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
 
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change
@@ -1172,12 +964,12 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		if ((upstream->tls_fallback_ok == 0 &&
 		     upstream->last_tls_auth_state == GETDNS_AUTH_OK) ||
 		     upstream->tls_fallback_ok == 1) {
-			SSL_set_session(ssl, upstream->tls_session);
+			_getdns_tls_connection_set_session(tls, upstream->tls_session);
 			DEBUG_STUB("%s %-35s: Attempting session re-use\n", STUB_DEBUG_SETUP_TLS, 
 			            __FUNC__);
 			}
 	}
-	return ssl;
+	return tls;
 }
 
 static int
@@ -1186,13 +978,10 @@ tls_do_handshake(getdns_upstream *upstream)
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_SETUP_TLS, 
 	             __FUNC__, upstream->fd);
 	int r;
-	int want;
-	ERR_clear_error();
-	while ((r = SSL_do_handshake(upstream->tls_obj)) != 1)
+	while ((r = _getdns_tls_connection_do_handshake(upstream->tls_obj)) != GETDNS_RETURN_GOOD)
 	{
-		want = SSL_get_error(upstream->tls_obj, r);
-		switch (want) {
-			case SSL_ERROR_WANT_READ:
+		switch (r) {
+			case GETDNS_RETURN_TLS_WANT_READ:
 				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = upstream_read_cb;
 				upstream->event.write_cb = NULL;
@@ -1200,7 +989,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				    upstream->fd, TIMEOUT_TLS, &upstream->event);
 				upstream->tls_hs_state = GETDNS_HS_READ;
 				return STUB_TCP_RETRY;
-			case SSL_ERROR_WANT_WRITE:
+			case GETDNS_RETURN_TLS_WANT_WRITE:
 				GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 				upstream->event.read_cb = NULL;
 				upstream->event.write_cb = upstream_write_cb;
@@ -1210,39 +999,18 @@ tls_do_handshake(getdns_upstream *upstream)
 				return STUB_TCP_RETRY;
 			default:
 				DEBUG_STUB("%s %-35s: FD:  %d Handshake failed %d\n", 
-				            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd,
-				            want);
+				            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, r);
 				return STUB_SETUP_ERROR;
 	   }
 	}
 	/* A re-used session is not verified so need to fix up state in that case */
-	if (SSL_session_reused(upstream->tls_obj))
+	if (!_getdns_tls_connection_is_session_reused(upstream->tls_obj))
 		upstream->tls_auth_state = upstream->last_tls_auth_state;
 
 	else if (upstream->tls_pubkey_pinset || upstream->tls_auth_name[0]) {
-		X509 *peer_cert = SSL_get_peer_certificate(upstream->tls_obj);
-		long verify_result = SSL_get_verify_result(upstream->tls_obj);
+		_getdns_tls_x509* peer_cert = _getdns_tls_connection_get_peer_certificate(&upstream->upstreams->mf, upstream->tls_obj);
 
-/* In case of DANESSL use, and a tls_auth_name was given alongside a pinset,
- * we need to verify auth_name explicitly (otherwise it will not be checked,
- * because this is not required with DANE with an EE match).
- * This is not needed with native OpenSSL DANE, because EE name checks have
- * to be disabled explicitly.
- */
-#if defined(HAVE_X509_CHECK_HOST) && (defined(USE_DANESSL) || !defined(HAVE_SSL_HN_AUTH))
-		int xch;
-		if (peer_cert && verify_result == X509_V_OK
-		    && upstream->tls_auth_name[0]
-		    && (xch = X509_check_host(peer_cert,
-				    upstream->tls_auth_name,
-				    strlen(upstream->tls_auth_name),
-				    X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS,
-				    NULL)) <= 0)
-			verify_result = X509_V_ERR_HOSTNAME_MISMATCH;
-#endif
-		upstream->tls_auth_state = peer_cert && verify_result == X509_V_OK
-		                         ? GETDNS_AUTH_OK : GETDNS_AUTH_FAILED;
-		if (!peer_cert)
+		if (!peer_cert) {
 			_getdns_upstream_log(upstream,
 			    GETDNS_LOG_UPSTREAM_STATS,
 			    ( upstream->tls_fallback_ok
@@ -1253,71 +1021,44 @@ tls_do_handshake(getdns_upstream *upstream)
 			    ( upstream->tls_fallback_ok
 			    ? "Tolerated because of Opportunistic profile"
 			    : "*Failure*" ));
-
-		/* Since we don't have DANE validation yet, DANE validation
-		 * failures are always pinset validation failures
-		 */
-#if defined(HAVE_SSL_DANE_ENABLE)
-		else if (verify_result == X509_V_ERR_DANE_NO_MATCH)
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "Pinset validation failure\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ));
-#elif defined(USE_DANESSL)
-		else if (verify_result == X509_V_ERR_CERT_UNTRUSTED
-		    && upstream->tls_pubkey_pinset
-		    && !DANESSL_get_match_cert(
-			    upstream->tls_obj, NULL, NULL, NULL))
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "Pinset validation failure\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ));
-#endif
-		else if (verify_result != X509_V_OK)
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "(%d) \"%s\"\n", upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ), verify_result,
-			    X509_verify_cert_error_string(verify_result));
-#if !defined(HAVE_SSL_HN_AUTH) && !defined(HAVE_X509_CHECK_HOST)
-		else if (*upstream->tls_auth_name) {
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS,
-			    ( upstream->tls_fallback_ok
-			    ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
-			    "%-40s : Verify failed : TLS - %s -  "
-			    "Hostname Authentication not available from TLS "
-			    "library (check library version)\n",
-			    upstream->addr_str,
-			    ( upstream->tls_fallback_ok
-			    ? "Tolerated because of Opportunistic profile"
-			    : "*Failure*" ));
-
 			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
-		}
-#endif
-		else
-			_getdns_upstream_log(upstream,
-			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
-			    "%-40s : Verify passed : TLS\n",
-			    upstream->addr_str);
+		} else {
+			long verify_errno;
+			const char* verify_errmsg;
 
-		X509_free(peer_cert);
+			if (_getdns_tls_connection_certificate_verify(upstream->tls_obj, &verify_errno, &verify_errmsg)) {
+				upstream->tls_auth_state = GETDNS_AUTH_FAILED;
+				if (verify_errno != 0) {
+					_getdns_upstream_log(upstream,
+					    GETDNS_LOG_UPSTREAM_STATS,
+					     ( upstream->tls_fallback_ok
+					       ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),
+					     "%-40s : Verify failed : TLS - %s - "
+					     "(%ld) \"%s\"\n", upstream->addr_str,
+					     ( upstream->tls_fallback_ok
+					       ? "Tolerated because of Opportunistic profile"
+					       : "*Failure*" ),
+					     verify_errno, verify_errmsg);
+				} else {
+					_getdns_upstream_log(upstream,
+					    GETDNS_LOG_UPSTREAM_STATS,
+					     ( upstream->tls_fallback_ok
+					       ? GETDNS_LOG_INFO : GETDNS_LOG_ERR),					     "%-40s : Verify failed : TLS - %s -  "
+					     "%s\n", upstream->addr_str,
+					     ( upstream->tls_fallback_ok
+					       ? "Tolerated because of Opportunistic profile"
+					       : "*Failure*" ),
+					     verify_errmsg);
+				}
+			} else {
+				upstream->tls_auth_state = GETDNS_AUTH_OK;
+				_getdns_upstream_log(upstream,
+						     GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+						     "%-40s : Verify passed : TLS\n",
+						     upstream->addr_str);
+			}
+			_getdns_tls_x509_free(&upstream->upstreams->mf, peer_cert);
+		}
 		if (upstream->tls_auth_state == GETDNS_AUTH_FAILED
 		    && !upstream->tls_fallback_ok)
 			return STUB_SETUP_ERROR;
@@ -1325,13 +1066,13 @@ tls_do_handshake(getdns_upstream *upstream)
 	DEBUG_STUB("%s %-35s: FD:  %d Handshake succeeded with auth state %s. Session is %s.\n", 
 		         STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, 
 		         _getdns_auth_str(upstream->tls_auth_state),
-		         SSL_session_reused(upstream->tls_obj) ?"re-used":"new");
+		   _getdns_tls_connection_is_session_reused(upstream->tls_obj) ? "new" : "re-used");
 	upstream->tls_hs_state = GETDNS_HS_DONE;
 	upstream->conn_state = GETDNS_CONN_OPEN;
 	upstream->conn_completed++;
 	if (upstream->tls_session != NULL)
-	    SSL_SESSION_free(upstream->tls_session);
-	upstream->tls_session = SSL_get1_session(upstream->tls_obj);
+		_getdns_tls_session_free(&upstream->upstreams->mf, upstream->tls_session);
+	upstream->tls_session = _getdns_tls_connection_get_session(&upstream->upstreams->mf, upstream->tls_obj);
 	/* Reset timeout on success*/
 	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	upstream->event.read_cb = NULL;
@@ -1369,10 +1110,10 @@ static int
 stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
               struct mem_funcs *mf)
 {
-	ssize_t  read;
+	size_t  read;
 	uint8_t *buf;
 	size_t   buf_size;
-	SSL* tls_obj = upstream->tls_obj;
+	_getdns_tls_connection* tls_obj = upstream->tls_obj;
 
 	int q = tls_connected(upstream);
 	if (q != 0)
@@ -1388,17 +1129,14 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		tcp->to_read = 2; /* Packet size */
 	}
 
-	ERR_clear_error();
-	read = SSL_read(tls_obj, tcp->read_pos, tcp->to_read);
-	if (read <= 0) {
-		/* TODO[TLS]: Handle SSL_ERROR_WANT_WRITE which means handshake
-		   renegotiation. Need to keep handshake state to do that.*/
-		int want = SSL_get_error(tls_obj, read);
-		if (want == SSL_ERROR_WANT_READ) {
-			return STUB_TCP_RETRY; /* Come back later */
-		} else 
-			return STUB_TCP_ERROR;
-	}
+	getdns_return_t r = _getdns_tls_connection_read(tls_obj, tcp->read_pos, tcp->to_read, &read);
+	/* TODO[TLS]: Handle GETDNS_RETURN_TLS_WANT_WRITE which means handshake
+	   renegotiation. Need to keep handshake state to do that.*/
+	if (r == GETDNS_RETURN_TLS_WANT_READ)
+		return STUB_TCP_RETRY;
+	else if (r != GETDNS_RETURN_GOOD)
+		return STUB_TCP_ERROR;
+
 	tcp->to_read  -= read;
 	tcp->read_pos += read;
 
@@ -1429,15 +1167,17 @@ stub_tls_read(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 		/* Ready to start reading the packet */
 		tcp->read_pos = tcp->read_buf;
-		read = SSL_read(tls_obj, tcp->read_pos, tcp->to_read);
-		if (read <= 0) {
-			/* TODO[TLS]: Handle SSL_ERROR_WANT_WRITE which means handshake
+		switch ((int)_getdns_tls_connection_read(tls_obj, tcp->read_pos, tcp->to_read, &read)) {
+		case GETDNS_RETURN_GOOD:
+			break;
+
+		case GETDNS_RETURN_TLS_WANT_READ:
+			return STUB_TCP_RETRY; /* Come back later */
+
+		default:
+			/* TODO[TLS]: Handle GETDNS_RETURN_TLS_WANT_WRITE which means handshake
 			   renegotiation. Need to keep handshake state to do that.*/
-			int want = SSL_get_error(tls_obj, read);
-			if (want == SSL_ERROR_WANT_READ) {
-				return STUB_TCP_RETRY; /* read more later */
-			} else 
-				return STUB_TCP_ERROR;
+			return STUB_TCP_ERROR;
 		}
 		tcp->to_read  -= read;
 		tcp->read_pos += read;
@@ -1452,10 +1192,10 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
                getdns_network_req *netreq)
 {
 	size_t          pkt_len;
-	ssize_t         written;
+	size_t          written;
 	uint16_t        query_id;
 	intptr_t        query_id_intptr;
-	SSL* tls_obj = upstream->tls_obj;
+	_getdns_tls_connection* tls_obj = upstream->tls_obj;
 	uint16_t        padding_sz;
 
 	int q = tls_connected(upstream);
@@ -1530,7 +1270,8 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 		 * Lets see how much of it we can write */
 		
 		/* TODO[TLS]: Handle error cases, partial writes, renegotiation etc. */
-		ERR_clear_error();
+		getdns_return_t r;
+		
 #if INTERCEPT_COM_DS
 		/* Intercept and do not sent out COM DS queries. For debugging
 		 * purposes only. Never commit with this turned on.
@@ -1545,25 +1286,16 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 			debug_req("Intercepting", netreq);
 			written = pkt_len + 2;
+			r = GETDNS_RETURN_GOOD;
 		} else
 #endif
-		written = SSL_write(tls_obj, netreq->query - 2, pkt_len + 2);
-		if (written <= 0) {
-			/* SSL_write will not do partial writes, because 
-			 * SSL_MODE_ENABLE_PARTIAL_WRITE is not default,
-			 * but the write could fail because of renegotiation.
-			 * In that case SSL_get_error()  will return
-			 * SSL_ERROR_WANT_READ or, SSL_ERROR_WANT_WRITE.
-			 * Return for retry in such cases.
-			 */
-			switch (SSL_get_error(tls_obj, written)) {
-			case SSL_ERROR_WANT_READ:
-			case SSL_ERROR_WANT_WRITE:
-				return STUB_TCP_RETRY;
-			default:
-				return STUB_TCP_ERROR;
-			}
-		}
+		r = _getdns_tls_connection_write(tls_obj, netreq->query - 2, pkt_len + 2, &written);
+		if (r == GETDNS_RETURN_TLS_WANT_READ ||
+		    r == GETDNS_RETURN_TLS_WANT_WRITE)
+			return STUB_TCP_RETRY;
+		else if (r != GETDNS_RETURN_GOOD)
+			return STUB_TCP_ERROR;
+
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
 
@@ -1897,7 +1629,7 @@ upstream_write_cb(void *userarg)
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
 	int q;
-	X509 *cert;
+	_getdns_tls_x509 *cert;
 
 	if (!netreq) {
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -1960,12 +1692,11 @@ upstream_write_cb(void *userarg)
 		if (netreq->owner->return_call_reporting &&
 		    netreq->upstream->tls_obj) {
 			if (netreq->debug_tls_peer_cert.data == NULL &&
-			    (cert = SSL_get_peer_certificate(netreq->upstream->tls_obj))) {
-				netreq->debug_tls_peer_cert.size = i2d_X509(
-					cert, &netreq->debug_tls_peer_cert.data);
-				X509_free(cert);
+			    (cert = _getdns_tls_connection_get_peer_certificate(&upstream->upstreams->mf, netreq->upstream->tls_obj))) {
+				_getdns_tls_x509_to_der(&upstream->upstreams->mf, cert, &netreq->debug_tls_peer_cert);
+				_getdns_tls_x509_free(&upstream->upstreams->mf, cert);
 			}
-			netreq->debug_tls_version = SSL_get_version(netreq->upstream->tls_obj);
+			netreq->debug_tls_version = _getdns_tls_connection_get_version(netreq->upstream->tls_obj);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;

@@ -106,6 +106,8 @@ int
 gldns_buffer_reserve(gldns_buffer *buffer, size_t amount)
 {
 	gldns_buffer_invariant(buffer);
+	if (buffer->_vfixed)
+		return 1;
 	assert(!buffer->_fixed);
 	if (buffer->_capacity < buffer->_position + amount) {
 		size_t new_capacity = buffer->_capacity * 3 / 2;

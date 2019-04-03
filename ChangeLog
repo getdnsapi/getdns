@@ -1,4 +1,27 @@
+* 2019-04-03: Version 1.5.2
+  * PR #424: Two small trust anchor fetcher fixes
+    Thanks Maciej S. Szmigiero
+  * Issue #422: Enable server side and update client side TCP Fast
+    Open implementation. Thanks Craig Andrews
+  * Issue #423: Fix insecure delegation detection while scheduling.
+    Thanks Charles Milette
+  * Issue #419: Escape backslashed when printing in JSON format.
+    Thanks boB Rudis
+  * Use GnuTLS instead of OpenSSL for TLS with the --with-gnutls
+    option to configure.  libcrypto (from OpenSSL) still needed
+    for Zero configuration DNSSEC.
+  * DOA rr-type
+  * AMTRELAY rr-type
+
 * 2019-01-11: Version 1.5.1
+  * Introduce proof of concept GnuTLS implementation. Incomplete support
+    for Trust Anchor validation. Requires GnuTLS DANE library. Currently
+    untested with GnuTLS prior to 3.5.19, so configure demands a minumum
+    version of 3.5.0.
+  * Be consistent and always fail connection setup if setting ciphers/curves/
+    TLS version/cipher suites fails.
+  * Refactor OpenSSL usage into modules under src/openssl.
+    Drop support for LibreSSL and versions of OpenSSL prior to 1.0.2.
   * PR #414: remove TLS13 ciphers from cipher_list, but
     only when SSL_CTX_set_ciphersuites is available.
     Thanks Bruno Pagani

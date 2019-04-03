@@ -1,6 +1,6 @@
 /**
  *
- * /brief functions for dealing with pubkey pinsets
+ * /brief internal functions for dealing with pubkey pinsets
  *
  */
 
@@ -31,26 +31,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PUBKEY_PINNING_H_
-#define PUBKEY_PINNING_H_
+#ifndef PUBKEY_PINNING_INTERNAL_H_
+#define PUBKEY_PINNING_INTERNAL_H_
 
-/* getdns_pubkey_pin_create_from_string() is implemented in pubkey-pinning.c */
-#include "getdns/getdns_extra.h"
+#include <openssl/x509.h>
 
-#include "tls.h"
-
-/* create and populate a pinset linked list from a getdns_list pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
-				    struct mem_funcs *mf,
-				    sha256_pin_t **pinset_out);
-
-
-/* create a getdns_list version of the pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
-			       const sha256_pin_t *pinset_in,
-			       getdns_list **pinset_list);
+getdns_return_t _getdns_decode_base64(const char* str, uint8_t* res, size_t res_size);
 
 #endif
-/* pubkey-pinning.h */
+/* pubkey-pinning-internal.h */

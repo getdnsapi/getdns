@@ -50,6 +50,7 @@
 #endif
 #include "rr-iter.h"
 #include "anchor.h"
+#include "tls.h"
 
 struct getdns_dns_req;
 struct ub_ctx;
@@ -200,12 +201,14 @@ typedef struct getdns_upstream {
 	getdns_network_req      *write_queue_last;
 	_getdns_rbtree_t         netreq_by_query_id;
 
-	/* TLS specific connection handling */
-	SSL*                     tls_obj;
-	SSL_SESSION*             tls_session;
+	/* TCP specific connection handling*/
+	unsigned                 tfo_use_sendto  : 1;
+	/* TLS specific connection handling*/
+	unsigned                 tls_fallback_ok : 1;
+	_getdns_tls_connection*  tls_obj;
+	_getdns_tls_session*     tls_session;
 	getdns_tls_hs_state_t    tls_hs_state;
 	getdns_auth_state_t      tls_auth_state;
-	unsigned                 tls_fallback_ok : 1;
 
 	/* TLS settings */
 	char                    *tls_cipher_list;
@@ -382,7 +385,7 @@ struct getdns_context {
 	int edns_maximum_udp_payload_size; /* -1 is unset */
 	uint8_t edns_client_subnet_private;
 	uint16_t tls_query_padding_blocksize;
-	SSL_CTX* tls_ctx;
+	_getdns_tls_context* tls_ctx;
 
 	getdns_update_callback  update_callback;
 	getdns_update_callback2 update_callback2;

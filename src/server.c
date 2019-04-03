@@ -860,9 +860,15 @@ static getdns_return_t add_listeners(listen_set *set)
 			break;
 
 		if (setsockopt(l->fd, SOL_SOCKET, SO_REUSEADDR,
-		    &enable, sizeof(int)) < 0) {
+		    &enable, sizeof(enable)) < 0) {
 			; /* Ignore */
 		}
+#if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN
+		if (setsockopt(l->fd, IPPROTO_TCP, TCP_FASTOPEN,
+		    &enable, sizeof(enable)) < 0) {
+			; /* Ignore */
+		}
+#endif
 		if (bind(l->fd, (struct sockaddr *)&l->addr,
 		    l->addr_len) == -1)
 			/* IO error */

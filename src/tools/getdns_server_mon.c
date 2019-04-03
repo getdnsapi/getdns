@@ -36,9 +36,13 @@
 #include <string.h>
 #include <time.h>
 
+#ifdef USE_GNUTLS
+#include <gnutls/x509.h>
+#else
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/bio.h>
+#endif
 
 #include <getdns/getdns.h>
 #include <getdns/getdns_extra.h>
@@ -126,7 +130,7 @@ static int get_rrtype(const char *t)
         if (strlen(t) > sizeof(buf) - 15)
                 return -1;
         for (i = 14; *t && i < sizeof(buf) - 1; i++, t++)
-                buf[i] = *t == '-' ? '_' : toupper(*t);
+                buf[i] = *t == '-' ? '_' : toupper((unsigned char)*t);
         buf[i] = '\0';
 
         if (!getdns_str2int(buf, &rrtype))
@@ -181,7 +185,7 @@ static const char *rcode_text(int rcode)
         return getdns_intval_text(rcode, "rcode", "GETDNS_RCODE_");
 }
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000 || defined(LIBRESSL_VERSION_NUMBER)
+#if !defined(USE_GNUTLS) && (OPENSSL_VERSION_NUMBER < 0x10002000 || defined(LIBRESSL_VERSION_NUMBER))
 /*
  * Convert date to Julian day.
  * See https://en.wikipedia.org/wiki/Julian_day
@@ -212,6 +216,27 @@ static long secs_in_day(const struct tm *tm)
  */
 static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t)
 {
+#ifdef USE_GNUTLS
+        gnutls_x509_crt_t cert;
+        gnutls_datum_t datum;
+        bool res = false;
+
+        datum.data = (unsigned char*) data;
+        datum.size = len;
+
+        if (gnutls_x509_crt_init(&cert) != GNUTLS_E_SUCCESS)
+                return false;
+
+        if (gnutls_x509_crt_import(cert, &datum, GNUTLS_X509_FMT_DER) == GNUTLS_E_SUCCESS) {
+                time_t expiry = gnutls_x509_crt_get_expiration_time(cert);
+                if (expiry != GNUTLS_X509_NO_WELL_DEFINED_EXPIRATION) {
+                        res = true;
+                        *t = expiry;
+                }
+        }
+        gnutls_x509_crt_deinit(cert);
+        return res;
+#else
         X509 *cert = d2i_X509(NULL, &data, len);
         if (!cert)
                 return false;
@@ -299,6 +324,7 @@ static bool extract_cert_expiry(const unsigned char *data, size_t len, time_t *t
         X509_free(cert);
 #endif
         *t += day_diff * SECS_IN_DAY + sec_diff;
+#endif /* USE_GNUTLS */
         return true;
 }
 

@@ -439,6 +439,7 @@ typedef enum getdns_callback_type_t {
 #define GETDNS_RRTYPE_CAA       257
 #define GETDNS_RRTYPE_AVC       258
 #define GETDNS_RRTYPE_DOA       259
+#define GETDNS_RRTYPE_AMTRELAY  260
 #define GETDNS_RRTYPE_TA        32768
 #define GETDNS_RRTYPE_DLV       32769
 /** @}

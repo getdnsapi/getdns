@@ -213,6 +213,9 @@ $(distdir):
 	mkdir -p $(distdir)/src/compat
 	mkdir -p $(distdir)/src/util
 	mkdir -p $(distdir)/src/gldns
+	mkdir -p $(distdir)/src/tls/validator
+	mkdir -p $(distdir)/src/gnutls
+	mkdir -p $(distdir)/src/openssl
 	mkdir -p $(distdir)/src/tools
 	mkdir -p $(distdir)/src/jsmn
 	mkdir -p $(distdir)/src/yxml
@@ -260,6 +263,10 @@ $(distdir):
 	cp -r $(srcdir)/src/util/orig-headers $(distdir)/src/util
 	cp -r $(srcdir)/src/util/auxiliary $(distdir)/src/util
 	cp $(srcdir)/src/gldns/*.[ch] $(distdir)/src/gldns
+	cp $(srcdir)/src/tls/*.[ch] $(distdir)/src/tls
+	cp $(srcdir)/src/tls/validator/*.[ch] $(distdir)/src/tls/validator
+	cp $(srcdir)/src/gnutls/*.[ch] $(distdir)/src/gnutls
+	cp $(srcdir)/src/openssl/*.[ch] $(distdir)/src/openssl
 	cp $(srcdir)/doc/Makefile.in $(distdir)/doc
 	cp $(srcdir)/doc/*.in $(distdir)/doc
 	cp $(srcdir)/doc/manpgaltnames $(distdir)/doc

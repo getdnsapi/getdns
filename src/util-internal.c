@@ -934,7 +934,7 @@ _getdns_create_call_reporting_dict(
 		return NULL;
 	}
 	netreq->debug_tls_peer_cert.size = 0;
-	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	GETDNS_FREE(context->my_mf, netreq->debug_tls_peer_cert.data);
 	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
@@ -1428,9 +1428,9 @@ _getdns_validate_dname(const char* dname) {
                 break;
 	    case '\\':
 		s += 1;
-		if (isdigit(s[0])) {
+		if (isdigit((unsigned char)s[0])) {
 			/* octet value */
-			if (! isdigit(s[1]) && ! isdigit(s[2]))
+			if (! isdigit((unsigned char)s[1]) && ! isdigit((unsigned char)s[2]))
 				return GETDNS_RETURN_BAD_DOMAIN_NAME;
 
 			if ((s[0] - '0') * 100 +

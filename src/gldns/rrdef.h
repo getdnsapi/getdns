@@ -38,7 +38,7 @@ extern "C" {
 #define GLDNS_KEY_REVOKE_KEY 0x0080 /* used to revoke KSK, rfc 5011 */
 
 /* The first fields are contiguous and can be referenced instantly */
-#define GLDNS_RDATA_FIELD_DESCRIPTORS_COMMON 259
+#define GLDNS_RDATA_FIELD_DESCRIPTORS_COMMON 260
 
 /** lookuptable for rr classes  */
 extern struct gldns_struct_lookup_table* gldns_rr_classes;
@@ -226,7 +226,8 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 	GLDNS_RR_TYPE_AVC = 258,
-	GLDNS_RR_TYPE_DOA = 259,
+	GLDNS_RR_TYPE_DOA = 259, /* draft-durand-doa-over-dns */
+	GLDNS_RR_TYPE_AMTRELAY = 260, /* draft-ietf-mboned-driad-amt-discovery */
 
 	/** DNSSEC Trust Authorities */
 	GLDNS_RR_TYPE_TA = 32768,
@@ -350,6 +351,9 @@ enum gldns_enum_rdf_type
          * For CAA, URI.
          */
         GLDNS_RDF_TYPE_LONG_STR,
+
+	/* draft-ietf-mboned-driad-amt-discovery */
+	GLDNS_RDF_TYPE_AMTRELAY,
 
 	/** TSIG extended 16bit error value */
 	GLDNS_RDF_TYPE_TSIGERROR,

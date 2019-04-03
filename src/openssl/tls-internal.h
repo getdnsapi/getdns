@@ -1,11 +1,11 @@
 /**
  *
- * /brief functions for dealing with pubkey pinsets
- *
+ * \file tls-internal.h
+ * @brief getdns TLS implementation-specific items
  */
 
 /*
- * Copyright (c) 2015 ACLU
+ * Copyright (c) 2018-2019, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,61 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PUBKEY_PINNING_H_
-#define PUBKEY_PINNING_H_
+#ifndef _GETDNS_TLS_INTERNAL_H
+#define _GETDNS_TLS_INTERNAL_H
 
-/* getdns_pubkey_pin_create_from_string() is implemented in pubkey-pinning.c */
-#include "getdns/getdns_extra.h"
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
 
-#include "tls.h"
+#include "getdns/getdns.h"
 
-/* create and populate a pinset linked list from a getdns_list pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
-				    struct mem_funcs *mf,
-				    sha256_pin_t **pinset_out);
-
-
-/* create a getdns_list version of the pinset */
-getdns_return_t
-_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
-			       const sha256_pin_t *pinset_in,
-			       getdns_list **pinset_list);
-
+#ifndef HAVE_DECL_SSL_CTX_SET1_CURVES_LIST
+#define HAVE_TLS_CTX_CURVES_LIST	0
+#else
+#define HAVE_TLS_CTX_CURVES_LIST	(HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
 #endif
-/* pubkey-pinning.h */
+#ifndef HAVE_DECL_SSL_SET1_CURVES_LIST
+#define HAVE_TLS_CONN_CURVES_LIST	0
+#else
+#define HAVE_TLS_CONN_CURVES_LIST	(HAVE_DECL_SSL_SET1_CURVES_LIST)
+#endif
+
+#define GETDNS_TLS_MAX_DIGEST_LENGTH	(EVP_MAX_MD_SIZE)
+
+typedef struct sha256_pin sha256_pin_t;
+typedef struct getdns_log_config getdns_log_config;
+
+typedef struct _getdns_tls_context {
+	SSL_CTX* ssl;
+	const getdns_log_config* log;
+} _getdns_tls_context;
+
+typedef struct _getdns_tls_connection {
+	SSL* ssl;
+	const getdns_log_config* log;
+#if defined(USE_DANESSL)
+	const char* auth_name;
+	const sha256_pin_t* pinset;
+#endif
+} _getdns_tls_connection;
+
+typedef struct _getdns_tls_session {
+	SSL_SESSION* ssl;
+} _getdns_tls_session;
+
+typedef struct _getdns_tls_x509
+{
+	X509* ssl;
+} _getdns_tls_x509;
+
+typedef struct _getdns_tls_hmac
+{
+	HMAC_CTX *ctx;
+#ifndef HAVE_HMAC_CTX_NEW
+	HMAC_CTX ctx_space;
+#endif
+} _getdns_tls_hmac;
+
+#endif /* _GETDNS_TLS_INTERNAL_H */

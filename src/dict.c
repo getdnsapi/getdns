@@ -782,13 +782,37 @@ getdns_pp_bindata(gldns_buffer *buf, getdns_bindata *bindata,
 
 	if (bindata->size > 0 && i == bindata->size) {     /* all printable? */
 
-		if (json)
-			(void)snprintf(spc, sizeof(spc), "\"%%.%ds\"", (int)i);
-		else
+		if (json) {
+			const uint8_t *s = bindata->data;
+			const uint8_t *e = s + bindata->size;
+			const uint8_t *b;
+
+			if (!gldns_buffer_reserve(buf, (e - s) + 2))
+				return -1;
+			gldns_buffer_write_u8(buf, '"');
+			for (;;) {
+				for ( b = s
+				    ; b < e && *b != '\\' && *b != '"'
+				    ; b++)
+					; /* pass */
+				if (b == e)
+					break;
+				if (!gldns_buffer_reserve(buf, (b - s) + 3))
+					return -1;
+				gldns_buffer_write(buf, s, b - s);
+				gldns_buffer_write_u8(buf, '\\');
+				gldns_buffer_write_u8(buf, *b);
+				s = b + 1;
+			}
+			if (s < e)
+			       	gldns_buffer_write(buf, s, e - s);
+			gldns_buffer_write_u8(buf, '"');
+		} else {
 			(void)snprintf(spc, sizeof(spc), "of \"%%.%ds\"%s>",
 			    (int)(i > 32 ? 32 : i), (i > 32 ? "..." : ""));
-		if (gldns_buffer_printf(buf, spc, bindata->data) < 0)
-			return -1;
+			if (gldns_buffer_printf(buf, spc, bindata->data) < 0)
+				return -1;
+		}
 
 	} else if (bindata->size > 1 &&         /* null terminated printable */
 	    i == bindata->size - 1 && bindata->data[i] == 0) {
