@@ -967,8 +967,7 @@ tls_do_handshake(getdns_upstream *upstream)
 				return STUB_TCP_RETRY;
 			default:
 				DEBUG_STUB("%s %-35s: FD:  %d Handshake failed %d\n", 
-				            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd,
-				            want);
+				            STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->fd, r);
 				return STUB_SETUP_ERROR;
 	   }
 	}

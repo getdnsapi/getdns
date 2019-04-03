@@ -914,7 +914,7 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	int osr = SSL_dane_enable(conn->ssl, *auth_name ? auth_name : NULL);
 	(void) osr;
 	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
-	          , STUB_DEBUG_SETUP_TLS, __FUNC__, upstream->tls_auth_name, osr);
+	          , STUB_DEBUG_SETUP_TLS, __FUNC__, auth_name, osr);
 	SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
 	const sha256_pin_t *pin_p;
 	size_t n_pins = 0;
