@@ -750,7 +750,7 @@ static void tas_doc_read(getdns_context *context, tas_connection *a)
 		a->tcp.read_pos = a->tcp.read_buf;
 		a->tcp.to_read = sizeof(context->tas_hdr_spc);
 	}
-	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 50,
+	GETDNS_SCHEDULE_EVENT(a->loop, a->fd, 2000,
 	    getdns_eventloop_event_init(&a->event, a->req->owner,
 	    tas_read_cb, NULL, tas_reconnect_cb));
 	return;
@@ -1086,11 +1086,11 @@ static void tas_connect(getdns_context *context, tas_connection *a)
 		}
 		if (a->state == TAS_RETRY_GET_PS7) {
 			buf_sz = sizeof(tas_write_p7s_buf)
-			       + 1 * (hostname_len - 2) + 1 * (path_len - 2) + 1;
+			       + 1 * (hostname_len - 2) + 1 * (path_len - 2);
 			fmt = tas_write_p7s_buf;
 		} else {
 			buf_sz = sizeof(tas_write_xml_p7s_buf)
-			       + 2 * (hostname_len - 2) + 2 * (path_len - 2) + 1;
+			       + 2 * (hostname_len - 2) + 2 * (path_len - 2);
 			fmt = tas_write_xml_p7s_buf;
 		}
 		if (!(write_buf = GETDNS_XMALLOC(context->mf, char, buf_sz))) {
