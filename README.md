@@ -107,7 +107,7 @@ Note: If you only want to build stubby, then use the `--with-stubby` option when
 The implementation works with a variety of event loops, each built as a separate shared library.  See [this Doxygen page](https://getdnsapi.net/doxygen/group__eventloops.html) and [this man page](https://getdnsapi.net/documentation/manpages/#ASYNCHRONOUS USE) for more details.
 
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
-* [libuv](https://github.com/joyent/libuv)
+* [libuv](https://libuv.org/)
 * [libev](http://software.schmorp.de/pkg/libev.html)
 
 ## Stubby
