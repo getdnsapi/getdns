@@ -150,6 +150,9 @@ static const gldns_rdf_type type_openpgpkey_wireformat[] = {
 static const gldns_rdf_type type_csync_wireformat[] = {
 	GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT16, GLDNS_RDF_TYPE_NSEC
 };
+static const gldns_rdf_type type_zonemd_wireformat[] = {
+	GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT8, GLDNS_RDF_TYPE_INT8, GLDNS_RDF_TYPE_HEX
+};
 /* nsec3 is some vars, followed by same type of data of nsec */
 static const gldns_rdf_type type_nsec3_wireformat[] = {
 /*	GLDNS_RDF_TYPE_NSEC3_VARS, GLDNS_RDF_TYPE_NSEC3_NEXT_OWNER, GLDNS_RDF_TYPE_NSEC*/
@@ -229,6 +232,15 @@ static const gldns_rdf_type type_caa_wireformat[] = {
 	GLDNS_RDF_TYPE_TAG,
 	GLDNS_RDF_TYPE_LONG_STR
 };
+#ifdef DRAFT_RRTYPES
+static const gldns_rdf_type type_doa_wireformat[] = {
+	GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT32, GLDNS_RDF_TYPE_INT8,
+	GLDNS_RDF_TYPE_STR, GLDNS_RDF_TYPE_B64
+};
+static const gldns_rdf_type type_amtrelay_wireformat[] = {
+	GLDNS_RDF_TYPE_AMTRELAY
+};
+#endif
 
 /* All RR's defined in 1035 are well known and can thus
  * be compressed. See RFC3597. These RR's are:
@@ -341,12 +353,9 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 	{GLDNS_RR_TYPE_NSEC3PARAM, "NSEC3PARAM", 4, 4, type_nsec3param_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 	/* 52 */
 	{GLDNS_RR_TYPE_TLSA, "TLSA", 4, 4, type_tlsa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-	/*53 */
-#ifdef DRAFT_RRTYPES
+	/* 53 */
 	{GLDNS_RR_TYPE_SMIMEA, "SMIMEA", 4, 4, type_tlsa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-#else
-{GLDNS_RR_TYPE_NULL, "TYPE53", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-#endif
+	/* 54 */
 {GLDNS_RR_TYPE_NULL, "TYPE54", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
         /* 55
 	 * Hip ends with 0 or more Rendezvous Servers represented as dname's.
@@ -375,7 +384,8 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 {GLDNS_RR_TYPE_OPENPGPKEY, "OPENPGPKEY", 1, 1, type_openpgpkey_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 	/* 62 */
 	{GLDNS_RR_TYPE_CSYNC, "CSYNC", 3, 3, type_csync_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
-{GLDNS_RR_TYPE_NULL, "TYPE63", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+	/* 63 */
+	{GLDNS_RR_TYPE_ZONEMD, "ZONEMD", 4, 4, type_zonemd_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {GLDNS_RR_TYPE_NULL, "TYPE64", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {GLDNS_RR_TYPE_NULL, "TYPE65", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {GLDNS_RR_TYPE_NULL, "TYPE66", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
@@ -607,8 +617,14 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 #ifdef DRAFT_RRTYPES
 	/* 258 */
 	{GLDNS_RR_TYPE_AVC, "AVC", 1, 0, NULL, GLDNS_RDF_TYPE_STR, GLDNS_RR_NO_COMPRESS, 0 },
+	/* 259 */
+	{GLDNS_RR_TYPE_DOA, "DOA", 1, 0, type_doa_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+	/* 260 */
+	{GLDNS_RR_TYPE_AMTRELAY, "AMTRELAY", 1, 0, type_amtrelay_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 #else
 {GLDNS_RR_TYPE_NULL, "TYPE258", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+{GLDNS_RR_TYPE_NULL, "TYPE259", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
+{GLDNS_RR_TYPE_NULL, "TYPE260", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 #endif
 
 /* split in array, no longer contiguous */

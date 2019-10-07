@@ -255,6 +255,12 @@ int gldns_wire2str_rr_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
 	return gldns_wire2str_rr_scan(&d, &dlen, &s, &slen, NULL, 0);
 }
 
+int gldns_wire2str_rrquestion_buf(uint8_t* d, size_t dlen, char* s, size_t slen)
+{
+	/* use arguments as temporary variables */
+	return gldns_wire2str_rrquestion_scan(&d, &dlen, &s, &slen, NULL, 0);
+}
+
 int gldns_wire2str_rdata_buf(uint8_t* rdata, size_t rdata_len, char* str,
 	size_t str_len, uint16_t rrtype)
 {
@@ -998,6 +1004,9 @@ int gldns_wire2str_rdf_scan(uint8_t** d, size_t* dlen, char** s, size_t* slen,
 		return gldns_wire2str_tag_scan(d, dlen, s, slen);
 	case GLDNS_RDF_TYPE_LONG_STR:
 		return gldns_wire2str_long_str_scan(d, dlen, s, slen);
+	case GLDNS_RDF_TYPE_AMTRELAY:
+		return gldns_wire2str_amtrelay_scan(d, dlen, s, slen, pkt,
+			pktlen);
 	case GLDNS_RDF_TYPE_TSIGERROR:
 		return gldns_wire2str_tsigerror_scan(d, dlen, s, slen);
 	}
@@ -1059,7 +1068,11 @@ int gldns_wire2str_tsigtime_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	d4 = (*d)[4];
 	d5 = (*d)[5];
 	tsigtime = (d0<<40) | (d1<<32) | (d2<<24) | (d3<<16) | (d4<<8) | d5;
-	w = gldns_str_print(s, sl, "%"PRIu64, (uint64_t)tsigtime);
+#ifndef USE_WINSOCK
+	w = gldns_str_print(s, sl, "%llu", (long long)tsigtime);
+#else
+	w = gldns_str_print(s, sl, "%I64u", (long long)tsigtime);
+#endif
 	(*d)+=6;
 	(*dl)-=6;
 	return w;
@@ -1331,7 +1344,7 @@ int gldns_wire2str_time_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	if(*dl < 4) return -1;
 	t = gldns_read_uint32(*d);
 	date_buf[15]=0;
-	if(gldns_serial_arithmitics_gmtime_r(t, time(NULL), &tm) &&
+	if(gldns_serial_arithmetics_gmtime_r(t, time(NULL), &tm) &&
 		strftime(date_buf, 15, "%Y%m%d%H%M%S", &tm)) {
 		(*d) += 4;
 		(*dl) -= 4;
@@ -1467,6 +1480,10 @@ int gldns_wire2str_wks_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	if(protocol && (protocol->p_name != NULL)) {
 		w += gldns_str_print(s, sl, "%s", protocol->p_name);
 		proto_name = protocol->p_name;
+	} else if(protocol_nr == 6) {
+		w += gldns_str_print(s, sl, "tcp");
+	} else if(protocol_nr == 17) {
+		w += gldns_str_print(s, sl, "udp");
 	} else	{
 		w += gldns_str_print(s, sl, "%u", (unsigned)protocol_nr);
 	}
@@ -1693,6 +1710,61 @@ int gldns_wire2str_long_str_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 	return w;
 }
 
+/* internal scan routine that can modify arguments on failure */
+static int gldns_wire2str_amtrelay_scan_internal(uint8_t** d, size_t* dl,
+	char** s, size_t* sl, uint8_t* pkt, size_t pktlen)
+{
+	/* https://www.ietf.org/id/draft-ietf-mboned-driad-amt-discovery-01.txt */
+	uint8_t precedence, discovery_optional, relay_type;
+	int w = 0;
+
+	if(*dl < 2) return -1;
+	precedence = (*d)[0];
+	discovery_optional= (*d)[1] >> 7;
+	relay_type = (*d)[1] % 0x7F;
+	if(relay_type > 3)
+		return -1; /* unknown */
+	(*d)+=2;
+	(*dl)-=2;
+	w += gldns_str_print(s, sl, "%d %d %d ",
+		(int)precedence, (int)discovery_optional, (int)relay_type);
+
+	switch(relay_type) {
+	case 0: /* no relay */
+		break;
+	case 1: /* ip4 */
+		w += gldns_wire2str_a_scan(d, dl, s, sl);
+		break;
+	case 2: /* ip6 */
+		w += gldns_wire2str_aaaa_scan(d, dl, s, sl);
+		break;
+	case 3: /* dname */
+		w += gldns_wire2str_dname_scan(d, dl, s, sl, pkt, pktlen);
+		break;
+	default: /* unknown */
+		return -1;
+	}
+	return w;
+}
+
+int gldns_wire2str_amtrelay_scan(uint8_t** d, size_t* dl, char** s, size_t* sl,
+	uint8_t* pkt, size_t pktlen)
+{
+	uint8_t* od = *d;
+	char* os = *s;
+	size_t odl = *dl, osl = *sl;
+	int w=gldns_wire2str_amtrelay_scan_internal(d, dl, s, sl, pkt, pktlen);
+	if(w == -1) {
+		*d = od;
+		*s = os;
+		*dl = odl;
+		*sl = osl;
+		return -1;
+	}
+	return w;
+}
+
+
 int gldns_wire2str_tsigerror_scan(uint8_t** d, size_t* dl, char** s, size_t* sl)
 {
 	gldns_lookup_table *lt;
@@ -1742,8 +1814,13 @@ int gldns_wire2str_edns_llq_print(char** s, size_t* sl, uint8_t* data,
 	if(error_code < llq_errors_num)
 		w += gldns_str_print(s, sl, " %s", llq_errors[error_code]);
 	else	w += gldns_str_print(s, sl, " error %d", (int)error_code);
-	w += gldns_str_print(s, sl, " id %"PRIx64" lease-life %lu",
-		(uint64_t)llq_id, (unsigned long)lease_life);
+#ifndef USE_WINSOCK
+	w += gldns_str_print(s, sl, " id %llx lease-life %lu",
+		(unsigned long long)llq_id, (unsigned long)lease_life);
+#else
+	w += gldns_str_print(s, sl, " id %I64x lease-life %lu",
+		(unsigned long long)llq_id, (unsigned long)lease_life);
+#endif
 	return w;
 }
 

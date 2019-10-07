@@ -431,6 +431,215 @@ static _getdns_rdf_special hip_public_key = {
     hip_public_key_dict2wire, NULL
 };
 
+static const uint8_t *
+amtrelay_D_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
+{
+	(void)pkt;
+	return rdf < pkt_end ? rdf + 1 : NULL;
+}
+static getdns_return_t
+amtrelay_D_wire2dict(getdns_dict *dict, const uint8_t *rdf)
+{
+	return getdns_dict_set_int(dict, "discovery_optional", (*rdf  >> 7));
+}
+static getdns_return_t
+amtrelay_D_dict2wire(const getdns_dict *dict,
+    uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
+{
+	getdns_return_t r;
+	uint32_t        value;
+	(void)rdata; /* unused parameter */
+
+	if ((r = getdns_dict_get_int(dict, "discovery_optional", &value)))
+		return r;
+
+	*rdf_len = 1;
+	if (*rdf_len < 1)
+		return GETDNS_RETURN_NEED_MORE_SPACE;
+
+	*rdf_len = 1;
+	*rdf = value ? 0x80 : 0x00;
+	return GETDNS_RETURN_GOOD;
+}
+static _getdns_rdf_special amtrelay_D = {
+    amtrelay_D_rdf_end,
+    amtrelay_D_wire2dict, NULL,
+    amtrelay_D_dict2wire, NULL 
+};
+
+static const uint8_t *
+amtrelay_rtype_rdf_end(
+    const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
+{
+	(void)pkt; (void)pkt_end;
+	return rdf;
+}
+static getdns_return_t
+amtrelay_rtype_wire2dict(getdns_dict *dict, const uint8_t *rdf)
+{
+	return getdns_dict_set_int(
+	    dict, "replay_type", (rdf[-1] & 0x7F));
+}
+static getdns_return_t
+amtrelay_rtype_dict2wire(
+    const getdns_dict *dict, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
+{
+	getdns_return_t r;
+	uint32_t value;
+
+	if ((r = getdns_dict_get_int(dict, "relay_type", &value)))
+		return r;
+
+	if (rdf - 1 < rdata)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	*rdf_len = 0;
+	rdf[-1] |= (value & 0x7F);
+
+	return GETDNS_RETURN_GOOD;
+}
+static _getdns_rdf_special amtrelay_rtype = {
+    amtrelay_rtype_rdf_end,
+    amtrelay_rtype_wire2dict, NULL,
+    amtrelay_rtype_dict2wire, NULL 
+};
+
+static const uint8_t *
+amtrelay_relay_rdf_end(
+    const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
+{
+	const uint8_t *end;
+
+	if (rdf - 4 < pkt)
+		return NULL;
+	switch (rdf[-1] & 0x7F) {
+	case 0:	end = rdf;
+		break;
+	case 1: end = rdf + 4;
+		break;
+	case 2: end = rdf + 16;
+		break;
+	case 3: for (end = rdf; end < pkt_end; end += *end + 1)
+			if ((*end & 0xC0) == 0xC0)
+				end  += 2;
+			else if (*end & 0xC0)
+				return NULL;
+			else if (!*end) {
+				end += 1;
+				break;
+			}
+		break;
+	default:
+		return NULL;
+	}
+	return end <= pkt_end ? end : NULL;
+}
+static getdns_return_t
+amtrelay_relay_equip_const_bindata(
+    const uint8_t *rdf, size_t *size, const uint8_t **data)
+{
+	*data = rdf;
+	switch (rdf[-1] & 0x7F) {
+	case 0:	*size = 0;
+		break;
+	case 1: *size = 4;
+		break;
+	case 2: *size = 16;
+		break;
+	case 3: while (*rdf)
+			if ((*rdf & 0xC0) == 0xC0)
+				rdf += 2;
+			else if (*rdf & 0xC0)
+				return GETDNS_RETURN_GENERIC_ERROR;
+			else
+				rdf += *rdf + 1;
+		*size = rdf + 1 - *data;
+		break;
+	default:
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
+static getdns_return_t
+amtrelay_relay_wire2dict(getdns_dict *dict, const uint8_t *rdf)
+{
+	size_t size;
+	const uint8_t *data;
+
+	if (amtrelay_relay_equip_const_bindata(rdf, &size, &data))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	else if (! size)
+		return GETDNS_RETURN_GOOD;
+	else
+		return _getdns_dict_set_const_bindata(dict, "relay", size, data);
+}
+static getdns_return_t
+amtrelay_relay_2wire(
+    const getdns_bindata *value, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
+{
+	assert(rdf - 1 >= rdata && (rdf[-1] & 0x7F) > 0);
+
+	switch (rdf[-1] & 0x7F) {
+	case 1: if (!value || value->size != 4)
+			return GETDNS_RETURN_INVALID_PARAMETER;
+		if (*rdf_len < 4) {
+			*rdf_len = 4;
+			return GETDNS_RETURN_NEED_MORE_SPACE;
+		}
+		*rdf_len = 4;
+		(void)memcpy(rdf, value->data, 4);
+		return GETDNS_RETURN_GOOD;
+	case 2: if (!value || value->size != 16)
+			return GETDNS_RETURN_INVALID_PARAMETER;
+		if (*rdf_len < 16) {
+			*rdf_len = 16;
+			return GETDNS_RETURN_NEED_MORE_SPACE;
+		}
+		*rdf_len = 16;
+		(void)memcpy(rdf, value->data, 16);
+		return GETDNS_RETURN_GOOD;
+	case 3: if (!value || value->size == 0)
+			return GETDNS_RETURN_INVALID_PARAMETER;
+		/* Assume bindata is a valid dname; garbage in, garbage out */
+		if (*rdf_len < value->size) {
+			*rdf_len = value->size;
+			return GETDNS_RETURN_NEED_MORE_SPACE;
+		}
+		*rdf_len = value->size;
+		(void)memcpy(rdf, value->data, value->size);
+		return GETDNS_RETURN_GOOD;
+	default:
+		return GETDNS_RETURN_GENERIC_ERROR;
+	}
+	return GETDNS_RETURN_GOOD;
+}
+static getdns_return_t
+amtrelay_relay_dict2wire(
+    const getdns_dict *dict, uint8_t *rdata, uint8_t *rdf, size_t *rdf_len)
+{
+	getdns_return_t r;
+	getdns_bindata *value;
+
+	if (rdf - 1 < rdata)
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	else if ((rdf[-1] & 0x7F) == 0) {
+		*rdf_len = 0;
+		return GETDNS_RETURN_GOOD;
+	}
+	else if ((r = getdns_dict_get_bindata(dict, "relay", &value)))
+		return r;
+	else
+		return amtrelay_relay_2wire(value, rdata, rdf, rdf_len);
+}
+static _getdns_rdf_special amtrelay_relay = {
+    amtrelay_relay_rdf_end,
+    amtrelay_relay_wire2dict, NULL,
+    amtrelay_relay_dict2wire, NULL 
+};
+
 
 static _getdns_rdata_def          a_rdata[] = {
 	{ "ipv4_address"                , GETDNS_RDF_A      , NULL }};
@@ -613,6 +822,11 @@ static _getdns_rdata_def        csync_rdata[] = {
 	{ "serial"                      , GETDNS_RDF_I4     , NULL },
 	{ "flags"                       , GETDNS_RDF_I2     , NULL },
 	{ "type_bit_maps"               , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def     zonemd_rdata[] = {
+	{ "serial"                      , GETDNS_RDF_I4     , NULL },
+	{ "digest_type"                 , GETDNS_RDF_I1     , NULL },
+	{ "reserved"                    , GETDNS_RDF_I1     , NULL },
+	{ "digest"                      , GETDNS_RDF_X      , NULL }};
 static _getdns_rdata_def        spf_rdata[] = {
 	{ "text"                        , GETDNS_RDF_S_M    , NULL }};
 static _getdns_rdata_def        nid_rdata[] = {
@@ -660,6 +874,17 @@ static _getdns_rdata_def        dlv_rdata[] = {
 	{ "algorithm"                   , GETDNS_RDF_I1     , NULL },
 	{ "digest_type"                 , GETDNS_RDF_I1     , NULL },
 	{ "digest"                      , GETDNS_RDF_X      , NULL }};
+static _getdns_rdata_def        doa_rdata[] = {
+	{ "enterprise"                  , GETDNS_RDF_I4     , NULL },
+	{ "type"                        , GETDNS_RDF_I4     , NULL },
+	{ "location"                    , GETDNS_RDF_I1     , NULL },
+	{ "media_type"                  , GETDNS_RDF_S      , NULL },
+	{ "data"                        , GETDNS_RDF_B      , NULL }};
+static _getdns_rdata_def   amtrelay_rdata[] = {
+	{ "precedence"                  , GETDNS_RDF_I1     , NULL },
+	{ "discovery_optional"          , GETDNS_RDF_SPECIAL, &amtrelay_D},
+	{ "relay_type"                  , GETDNS_RDF_SPECIAL, &amtrelay_rtype },
+	{ "relay"                       , GETDNS_RDF_SPECIAL, &amtrelay_relay }};
 
 static _getdns_rr_def _getdns_rr_defs[] = {
 	{         NULL,             NULL, 0                      },
@@ -723,9 +948,9 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{     "TALINK",     talink_rdata, ALEN(    talink_rdata) },
 	{        "CDS",         ds_rdata, ALEN(        ds_rdata) },
 	{    "CDNSKEY",     dnskey_rdata, ALEN(    dnskey_rdata) },
-	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) }, /* 61 - */
-	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) }, /* - 62 */
-	{         NULL,             NULL, 0                      },
+	{ "OPENPGPKEY", openpgpkey_rdata, ALEN(openpgpkey_rdata) },
+	{      "CSYNC",      csync_rdata, ALEN(     csync_rdata) },
+	{     "ZONEMD",     zonemd_rdata, ALEN(    zonemd_rdata) }, /* - 63 */
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
 	{         NULL,             NULL, 0                      },
@@ -921,7 +1146,8 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 	{        "URI",        uri_rdata, ALEN(       uri_rdata) }, /* 256 - */
 	{        "CAA",        caa_rdata, ALEN(       caa_rdata) },
 	{        "AVC",        txt_rdata, ALEN(       txt_rdata) },
-	{        "DOA",    UNKNOWN_RDATA, 0                      }, /* - 259 */
+	{        "DOA",        doa_rdata, ALEN(       doa_rdata) },
+	{   "AMTRELAY",   amtrelay_rdata, ALEN(  amtrelay_rdata) }, /* - 260 */
 	{         "TA",         ds_rdata, ALEN(        ds_rdata) }, /* 32768 */
 	{        "DLV",        dlv_rdata, ALEN(       dlv_rdata) }  /* 32769 */
 };
@@ -929,12 +1155,12 @@ static _getdns_rr_def _getdns_rr_defs[] = {
 const _getdns_rr_def *
 _getdns_rr_def_lookup(uint16_t rr_type)
 {
-	if (rr_type <= 259)
+	if (rr_type <= 260)
 		return &_getdns_rr_defs[rr_type];
 	else if (rr_type == 32768)
-		return &_getdns_rr_defs[260];
-	else if (rr_type == 32769)
 		return &_getdns_rr_defs[261];
+	else if (rr_type == 32769)
+		return &_getdns_rr_defs[262];
 	return _getdns_rr_defs;
 }
 

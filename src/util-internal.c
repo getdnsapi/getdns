@@ -54,7 +54,8 @@
 
 
 getdns_return_t
-getdns_dict_util_get_string(getdns_dict * dict, char *name, char **result)
+getdns_dict_util_get_string(const getdns_dict *dict,
+    const char *name, char **result)
 {
 	struct getdns_bindata *bindata = NULL;
 	if (!result) {
@@ -710,7 +711,7 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 	else	goto error;
 
 	/* other stuff
-	 * Note that spec doesn't explicitely mention these.
+	 * Note that spec doesn't explicitly mention these.
 	 * They are only showcased in the response dict example */
 	if (getdns_dict_set_int(result, "answer_type", GETDNS_NAMETYPE_DNS))
 		goto error;
@@ -880,6 +881,10 @@ _getdns_create_call_reporting_dict(
 				return NULL;
 			}
 		}
+		if (getdns_dict_set_int( netreq_debug, "server_keepalive_received", netreq->upstream->server_keepalive_received)) {
+			getdns_dict_destroy(netreq_debug);
+			return NULL;
+		}
 		/* The running totals are only updated when a connection is closed.
 		   Since it is open as we have just used it, calcualte the value on the fly */
 		if (getdns_dict_set_int( netreq_debug, "responses_on_this_connection",
@@ -916,6 +921,12 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_util_set_string(netreq_debug, "tls_version",
+	    netreq->debug_tls_version)){
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	if (getdns_dict_set_bindata(netreq_debug, "tls_peer_cert",
 	    &netreq->debug_tls_peer_cert)) {
 
@@ -923,7 +934,7 @@ _getdns_create_call_reporting_dict(
 		return NULL;
 	}
 	netreq->debug_tls_peer_cert.size = 0;
-	OPENSSL_free(netreq->debug_tls_peer_cert.data);
+	GETDNS_FREE(context->my_mf, netreq->debug_tls_peer_cert.data);
 	netreq->debug_tls_peer_cert.data = NULL;
 	return netreq_debug;
 }
@@ -1109,9 +1120,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
 	getdns_bindata *canonical_name = NULL;
-	int nreplies = 0, nanswers = 0, nsecure = 0, ninsecure = 0, nbogus = 0;
+	int nreplies = 0, nanswers = 0;
+	int nsecure = 0, ninsecure = 0, nindeterminate = 0, nbogus = 0;
 	getdns_dict   *netreq_debug;
 	_srvs srvs = { 0, 0, NULL };
+	_getdns_rrset_spc answer_spc;
 
 	/* info (bools) about dns_req */
 	int dnssec_return_status;
@@ -1123,7 +1136,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (!(result = getdns_dict_create_with_context(context)))
 		return NULL;
 
-	dnssec_return_status = completed_request->dnssec_return_status ||
+	dnssec_return_status = completed_request->dnssec ||
+	                       completed_request->dnssec_return_status ||
 	                       completed_request->dnssec_return_only_secure ||
 	                       completed_request->dnssec_return_all_statuses
 #ifdef DNSSEC_ROADBLOCK_AVOIDANCE
@@ -1182,16 +1196,18 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 			_getdns_network_validate_tsig(netreq);
 
 		nreplies++;
-		if (netreq->dnssec_status == GETDNS_DNSSEC_SECURE)
-			nsecure++;
-		else if (netreq->dnssec_status != GETDNS_DNSSEC_BOGUS)
-			ninsecure++;
-
-		if (dnssec_return_status &&
-		    netreq->dnssec_status == GETDNS_DNSSEC_BOGUS)
-			nbogus++;
-
-
+		switch (netreq->dnssec_status) {
+		case GETDNS_DNSSEC_SECURE       : nsecure++;
+						  break;
+		case GETDNS_DNSSEC_INSECURE     : ninsecure++;
+						  break;
+		case GETDNS_DNSSEC_INDETERMINATE: nindeterminate++;
+						  ninsecure++;
+						  break;
+		case GETDNS_DNSSEC_BOGUS        : if (dnssec_return_status)
+							  nbogus++;
+						  break;
+		}
 		if (! completed_request->dnssec_return_all_statuses &&
 		    ! completed_request->dnssec_return_validation_chain) {
 			if (dnssec_return_status &&
@@ -1199,6 +1215,9 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 				continue;
 			else if (completed_request->dnssec_return_only_secure
 			    && netreq->dnssec_status != GETDNS_DNSSEC_SECURE)
+				continue;
+			else if (completed_request->dnssec &&
+			    netreq->dnssec_status == GETDNS_DNSSEC_INDETERMINATE)
 				continue;
 			else if (netreq->tsig_status == GETDNS_DNSSEC_BOGUS)
 				continue;
@@ -1217,8 +1236,8 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		/* TODO: Check instead if canonical_name for request_type
 		 *       is in the answer section.
 		 */
-		if (GLDNS_RCODE_NOERROR ==
-		    GLDNS_RCODE_WIRE(netreq->response))
+		if (_getdns_rrset_answer(&answer_spc, netreq->response
+		                                    , netreq->response_len))
 			nanswers++;
 
 		if (dnssec_return_status ||
@@ -1277,9 +1296,14 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
 	    completed_request->request_timed_out ||
 	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
-	    completed_request->dnssec_return_only_secure && nsecure == 0 && ninsecure > 0
+	    (  completed_request->dnssec
+	    && nsecure == 0 && nindeterminate ) > 0
 	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
-	    completed_request->dnssec_return_only_secure && nsecure == 0 && nbogus > 0
+	    (  completed_request->dnssec_return_only_secure
+	    && nsecure == 0 && ninsecure ) > 0
+	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
+	    (  completed_request->dnssec_return_only_secure
+	    || completed_request->dnssec ) && nsecure == 0 && nbogus > 0
 	                    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS :
 	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
 	                    : GETDNS_RESPSTATUS_GOOD))
@@ -1404,9 +1428,9 @@ _getdns_validate_dname(const char* dname) {
                 break;
 	    case '\\':
 		s += 1;
-		if (isdigit(s[0])) {
+		if (isdigit((unsigned char)s[0])) {
 			/* octet value */
-			if (! isdigit(s[1]) && ! isdigit(s[2]))
+			if (! isdigit((unsigned char)s[1]) && ! isdigit((unsigned char)s[2]))
 				return GETDNS_RETURN_BAD_DOMAIN_NAME;
 
 			if ((s[0] - '0') * 100 +
@@ -1432,7 +1456,7 @@ _getdns_validate_dname(const char* dname) {
 } /* _getdns_validate_dname */
 
 
-static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
+static void _getdns_reply2wire_buf(gldns_buffer *buf, const getdns_dict *reply)
 {
 	getdns_dict *rr_dict, *q_dict, *h_dict;
 	getdns_list *section;
@@ -1488,7 +1512,7 @@ static void _getdns_reply2wire_buf(gldns_buffer *buf, getdns_dict *reply)
 	}
 }
 
-static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
+static void _getdns_list2wire_buf(gldns_buffer *buf, const getdns_list *l)
 {
 	getdns_dict *rr_dict;
 	size_t i, pkt_start;
@@ -1526,8 +1550,8 @@ static void _getdns_list2wire_buf(gldns_buffer *buf, getdns_list *l)
 	gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, ancount);
 }
 
-uint8_t *_getdns_list2wire(
-    getdns_list *l, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+uint8_t *_getdns_list2wire(const getdns_list *l,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;
@@ -1547,8 +1571,8 @@ uint8_t *_getdns_list2wire(
 	return buf;
 }
 
-uint8_t *_getdns_reply2wire(
-    getdns_dict *r, uint8_t *buf, size_t *buf_len, struct mem_funcs *mf)
+uint8_t *_getdns_reply2wire(const getdns_dict *r,
+    uint8_t *buf, size_t *buf_len, const struct mem_funcs *mf)
 {
 	gldns_buffer gbuf;
 	size_t sz;
@@ -1568,7 +1592,7 @@ uint8_t *_getdns_reply2wire(
 	return buf;
 }
 
-void _getdns_wire2list(uint8_t *pkt, size_t pkt_len, getdns_list *l)
+void _getdns_wire2list(const uint8_t *pkt, size_t pkt_len, getdns_list *l)
 {
 	_getdns_rr_iter rr_spc, *rr;
 	getdns_dict *rr_dict;

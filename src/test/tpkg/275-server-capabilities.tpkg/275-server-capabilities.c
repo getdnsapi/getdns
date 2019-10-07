@@ -83,7 +83,7 @@ void handler(getdns_context *context, getdns_callback_type_t callback_type,
 	exit(EXIT_FAILURE);
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	getdns_context   *context   = NULL;
 	getdns_list      *listeners = NULL;
@@ -92,9 +92,20 @@ int main()
 	uint32_t          port1     = 18000;
 	uint32_t          port2     = 18000;
 	getdns_return_t   r;
+	char listenliststr[1024];
+	char listendictstr[1024];
 
-	if ((r = getdns_str2list("[ 127.0.0.1:18000 ]", &listeners)) ||
-	    (r = getdns_str2dict("127.0.0.1:18000", &address2)) ||
+	if (argc != 2) {
+		fprintf(stderr, "usage: %s <localhost ipv4>\n", argv[0]);
+		return 1;
+	}
+	(void) snprintf(listenliststr, sizeof(listenliststr),
+	    "[ %s:18000 ]", argv[1]);
+	(void) snprintf(listendictstr, sizeof(listendictstr),
+	    "%s:18000", argv[1]);
+
+	if ((r = getdns_str2list(listenliststr, &listeners)) ||
+	    (r = getdns_str2dict(listendictstr, &address2)) ||
 	    (r = getdns_list_get_dict(listeners, 0, &address)) ||
 	    (r = getdns_context_create(&context, 0)))
 		fprintf(stderr, "Error initializing: ");

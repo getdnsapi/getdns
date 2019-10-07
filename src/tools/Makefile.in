@@ -45,9 +45,9 @@ CFLAGS=-I$(srcdir)/.. -I$(srcdir) -I.. $(cflags) @CFLAGS@ @CPPFLAGS@ $(WPEDANTIC
 LDFLAGS=-L.. @LDFLAGS@
 LDLIBS=../libgetdns.la @LIBS@
 
-ALL_OBJS=getdns_query.lo
+ALL_OBJS=getdns_query.lo getdns_server_mon.lo
 
-PROGRAMS=getdns_query
+PROGRAMS=getdns_query getdns_server_mon
 
 
 .SUFFIXES: .c .o .a .lo .h
@@ -68,6 +68,9 @@ $(ALL_OBJS):
 getdns_query: getdns_query.lo
 	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_query.lo $(LDFLAGS) $(LDLIBS)
 
+getdns_server_mon: getdns_server_mon.lo
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ getdns_server_mon.lo $(LDFLAGS) $(LDLIBS)
+
 stubby:
 	cd .. && $(MAKE) $@
 
@@ -77,6 +80,13 @@ install-getdns_query: getdns_query
 
 uninstall-getdns_query:
 	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/getdns_query
+
+install-getdns_server_mon: getdns_server_mon
+	$(INSTALL) -m 755 -d $(DESTDIR)$(bindir)
+	$(LIBTOOL) --mode=install cp getdns_server_mon $(DESTDIR)$(bindir)
+
+uninstall-getdns_server_mon:
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(bindir)/getdns_server_mon
 
 install-stubby:
 	cd .. && $(MAKE) $@
@@ -115,5 +125,9 @@ depend:
 getdns_query.lo getdns_query.o: $(srcdir)/getdns_query.c \
  ../config.h \
  $(srcdir)/../debug.h \
+ ../getdns/getdns.h \
+ ../getdns/getdns_extra.h
+getdns_server_mon.lo getdns_server_mon.o: $(srcdir)/getdns_server_mon.c \
+ ../config.h \
  ../getdns/getdns.h \
  ../getdns/getdns_extra.h

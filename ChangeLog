@@ -1,3 +1,135 @@
+* 2019-04-03: Version 1.5.2
+  * PR #424: Two small trust anchor fetcher fixes
+    Thanks Maciej S. Szmigiero
+  * Issue #422: Enable server side and update client side TCP Fast
+    Open implementation. Thanks Craig Andrews
+  * Issue #423: Fix insecure delegation detection while scheduling.
+    Thanks Charles Milette
+  * Issue #419: Escape backslashed when printing in JSON format.
+    Thanks boB Rudis
+  * Use GnuTLS instead of OpenSSL for TLS with the --with-gnutls
+    option to configure.  libcrypto (from OpenSSL) still needed
+    for Zero configuration DNSSEC.
+  * DOA rr-type
+  * AMTRELAY rr-type
+
+* 2019-01-11: Version 1.5.1
+  * Introduce proof of concept GnuTLS implementation. Incomplete support
+    for Trust Anchor validation. Requires GnuTLS DANE library. Currently
+    untested with GnuTLS prior to 3.5.19, so configure demands a minumum
+    version of 3.5.0.
+  * Be consistent and always fail connection setup if setting ciphers/curves/
+    TLS version/cipher suites fails.
+  * Refactor OpenSSL usage into modules under src/openssl.
+    Drop support for LibreSSL and versions of OpenSSL prior to 1.0.2.
+  * PR #414: remove TLS13 ciphers from cipher_list, but
+    only when SSL_CTX_set_ciphersuites is available.
+    Thanks Bruno Pagani
+  * Issue #415: Filter out #defines etc. when creating
+    symbols file.  Thanks Zero King
+
+* 2018-12-21: Version 1.5.0
+  * RFE getdnsapi/stubby#121 log re-instantiating TLS
+    upstreams (because they reached tls_backoff_time) at
+    log level 4 (WARNING)
+  * GETDNS_RESPSTATUS_NO_NAME for NODATA answers too
+  * ZONEMD rr-type
+  * getdns_query queries for addresses when a query name
+    without a type is given.
+  * RFE #408: Fetching of trust anchors will be retried
+    after failure, after a certain backoff time. The time
+    can be configured with
+    getdns_context_set_trust_anchors_backoff_time().
+  * RFE #408: A "dnssec" extension that requires DNSSEC
+    verification.  When this extension is set, Indeterminate
+    DNSSEC status will not be returned.
+  * Issue #410: Unspecified ownership of get_api_information()
+  * Fix for DNSSEC bug in finding most specific key when
+    trust anchor proves non-existance of one of the labels
+    along the authentication chain other than the non-
+    existance of a DS record on a zonecut.
+  * Enhancement getdnsapi/stubby#56 & getdnsapi/stubby#130:
+    Configurable minimum and maximum TLS versions with
+    getdns_context_set_tls_min_version() and
+    getdns_context_set_tls_max_version() functions and
+    tls_min_version and tls_max_version configuration parameters
+    for upstreams.
+  * Configurable TLS1.3 ciphersuites with the
+    getdns_context_set_tls_ciphersuites() function and
+    tls_ciphersuites config parameter for upstreams.
+  * Bugfix in upstream string configurations: tls_cipher_list and
+    tls_curve_list
+  * Bugfix finding signer for validating NSEC and NSEC3s, which
+    caused trouble with the partly tracing DNSSEC from the root
+    up, introduced in 1.4.2.  Thanks Philip Homburg
+
+* 2018-05-11: Version 1.4.2
+  * Bugfix getdnsapi/stubby#87: Detect and ignore duplicate certs
+    in the Windows root CA store.
+  * PR #397: No TCP sendto without TCP_FASTOPEN
+    Thanks Emery Hemingway
+  * Bugfix getdnsapi/stubby#106: Core dump when printing certain
+    configuration. Thanks Han Vinke
+  * Bugfix getdnsapi/stubby#99: Partly trace DNSSEC from the root
+    up (for tld and sld), to find insecure delegations quicker.
+    Thanks UniverseXXX
+  * Bugfix: Allow NSEC spans starting from (unexpanded) wildcards
+    Bug was introduced when dealing with CVE-2017-15105
+  * Bugfix getdnsapi/stubby#46: Don't assume trailing zero with
+    string bindata's.  Thanks Lonnie Abelbeck
+  * Bugfix #394: Update src/compat/getentropy_linux.c in order to
+    handle ENOSYS (not implemented) fallback.
+    Thanks Brent Blood
+  * Bugfix #395: Clarify that libidn2 dependency is for version 2.0.0
+    or higher. Thanks mire3212
+
+* 2018-03-12: Version 1.4.1
+  * Bugfix #388: Prevent fallback to an earlier tries upstream within a
+    single query.  Thanks Robert Groenenberg
+  * PR #387: Compile with OpenSSL with deprecated APIs disabled.
+    Thanks Rosen Penev
+  * PR #386: UDP failover improvements:
+    - When all UDP upstreams fail, retry them (more or less) equally
+    - Limit maximum UDP backoff (default to 1000)
+      This is configurable with the --with-max-udp-backoff configure
+      option.
+    Thanks Robert Groenenberg
+  * Bugfix: Find zonecut with DS queries (instead of SOA queries).
+    Thanks Elmer Lastdrager
+  * Bugfix #385: Verifying insecure NODATA answers (broken since 1.2.1).
+    Thanks hanvinke
+  * PR #384: Fix minor spelling and formatting.  Thanks dkg.
+  * Bugfix #382: Parallel install of getdns_query and getdns_server_mon
+
+* 2018-02-21: Version 1.4.0
+  * .so revision bump to please fedora packaging system.
+    Thanks Paul Wouters
+  * Specify the supported curves with getdns_context_set_tls_curves_list()
+    An upstream specific list of supported curves may also be given
+    with the tls_curves_list setting in the upstream dict with
+    getdns_context_set_upstream_recursive_servers()
+  * New tool getdns_server_mon for checking upstream recursive
+    resolver's capabilities.
+  * Improved handling of opportunistic back-off.  If other transports
+    are working, don’t forcibly promote failed upstreams just wait for
+    the re-try timer.
+  * Hostname authentication with libressl
+    Thanks Norbert Copones
+  * Security bugfix in response to CVE-2017-15105.  Although getdns was
+    not vulnerable for this specific issue, as a precaution code has been
+    adapted so that signatures of DNSKEYs, DSs, NSECs and NSEC3s can not
+    be wildcard expansions when used with DNSSEC proofs.  Only direct
+    queries for those types are allowed to be wildcard expansions.
+  * Bugfix PR#379: Miscelleneous double free or corruption, and corrupted
+    memory double linked list detected issue, with serving functionality.
+    Thanks maddie and Bruno Pagani
+  * Security Bugfix PR#293: Check sha256 pinset's
+    with OpenSSL native DANE functions for OpenSSL >= 1.1.0
+    with Viktor Dukhovni's danessl library for OpenSSL >= 1.0.0
+    don't allow for authentication exceptions (like self-signed
+    certificates) otherwise.  Thanks Viktor Dukhovni
+  * libidn2 support.  Thanks Paul Wouters
+
 * 2017-12-21: Version 1.3.0
   * Bugfix #300: Detect dnsmasq and skip unit test that fails with it.
     Thanks Tim Rühsen and Konomi Kitten
@@ -206,7 +338,7 @@
     Allow misshing "address_type" in address dicts.
   * TLS session resumption
   * -C <config file> option to getdns_query to configure context 
-    from a json like formated file.  The output of -i (print API
+    from a json like formatted file.  The output of -i (print API
     information) can be used as config file directly.
     Settings may also be given in this format as arguments of
     the getdns_query command directly.
@@ -355,7 +487,7 @@
 * 2015-09-04: Version 0.3.2
   * Fix returned upstreams list by getdns_context_get_api_information()
   * Fix some autoconf issues when srcdir != builddir
-  * Fix remove build date from manpage version for reproducable builds
+  * Fix remove build date from manpage version for reproducible builds
   * Fix transport fallback issues plus transport fallback unit test script
   * Fix string bindata's need not contain trailing zero byte
   * --enable-stub-only configure option for stub only operation.
@@ -508,7 +640,7 @@
   * Build from separate build directory
   * Anticipate libunbound not returning the answer packet
   * Pretty print bindata's representing IP addresses
-  * Anticipate absense of implicit DSO linking
+  * Anticipate absence of implicit DSO linking
   * Mention getdns specific options to configure in INSTALL
     Thanks Paul Hoffman
   * Mac OSX package built instructions for generic user in README.md

@@ -10,8 +10,8 @@ then
 else
 	HAVE_SSL_HN_AUTH=0
 fi
-SERVER_IP="8.8.8.8"
-SERVER_IPv6="2001:4860:4860::8888"
+SERVER_IP="64.6.64.6"
+SERVER_IPv6="2620:74:1b::1:1"
 
 SERVER_IP_TSIG="185.49.141.37^"
 SERVER_IPv6_TSIG="2a04:b900:0:100::37^"
@@ -134,7 +134,7 @@ for (( ii = 0; ii < 1; ii++)); do
 
 	if [[ $HAVE_SSL_HN_AUTH = 1 ]]
 	then
-		NUM_GOOD_QUERIES=9
+		NUM_GOOD_QUERIES=8
 		GOOD_QUERIES=(
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP} +edns_cookies"              "U" "-"
 		"-s -A  getdnsapi.net -l T        @${SERVER_IP}"              "T" "-"
@@ -143,18 +143,18 @@ for (( ii = 0; ii < 1; ii++)); do
 		"-s -A  getdnsapi.net -l L        @${TLS_SERVER_IP_NO_NAME}"  "L" "N"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP}"          "L" "S"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
+		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S")
+# "-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
 	else
-		NUM_GOOD_QUERIES=7
+		NUM_GOOD_QUERIES=6
 		GOOD_QUERIES=(
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP} +edns_cookies"              "U" "-"
 		"-s -A  getdnsapi.net -l T        @${SERVER_IP}"              "T" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_ALG}:${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l L        @${TLS_SERVER_IP_NO_NAME}"  "L" "N"
-		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
+		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S")
+# "-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
 	fi
 #"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_SS_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"" "L" "S"
 

@@ -70,6 +70,7 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
    * If it is absent, do not try to decompose the replies_tree, because the
    * answer most likely came not from DNS.
    */
+  ex_response->response = response;
   have_answer_type = getdns_dict_get_int(response, "answer_type", &ex_response->top_answer_type) ==
     GETDNS_RETURN_GOOD;
 
@@ -159,10 +160,15 @@ void extract_local_response(struct getdns_dict *response, struct extracted_respo
 void assert_noerror(struct extracted_response *ex_response)
 {
   uint32_t rcode;
+  uint32_t ancount = 0;
 
-  ASSERT_RC(ex_response->status, GETDNS_RESPSTATUS_GOOD, "Unexpected value for \"status\"");
   ASSERT_RC(getdns_dict_get_int(ex_response->header, "rcode", &rcode), GETDNS_RETURN_GOOD, "Failed to extract \"rcode\"");
   ck_assert_msg(rcode == 0, "Expected rcode == 0, got %d", rcode);
+
+  ASSERT_RC(getdns_dict_get_int(ex_response->header, "ancount", &ancount),
+    GETDNS_RETURN_GOOD, "Failed to extract \"ancount\"");
+
+  ASSERT_RC(ex_response->status, ((ancount > 0) ? GETDNS_RESPSTATUS_GOOD : GETDNS_RESPSTATUS_NO_NAME), "Unexpected value for \"status\"");
 }
 
 /*
@@ -181,6 +187,8 @@ void assert_nodata(struct extracted_response *ex_response)
   ASSERT_RC(getdns_list_get_length(ex_response->answer, &length),
     GETDNS_RETURN_GOOD, "Failed to extract \"answer\" length");
   ck_assert_msg(length == 0, "Expected \"answer\" length == 0, got %d", length);
+
+  ASSERT_RC(ex_response->status, GETDNS_RESPSTATUS_NO_NAME, "Unexpected value for \"status\"");
 }
 
 /*
@@ -233,11 +241,14 @@ void assert_address_in_answer(struct extracted_response *ex_response, int a, int
  */
 void assert_address_in_just_address_answers(struct extracted_response *ex_response)
 {
-  size_t length;
+  size_t length = 0;
+  char *resp_str = "";
   ASSERT_RC(getdns_list_get_length(ex_response->just_address_answers, &length),
     GETDNS_RETURN_GOOD, "Failed to extract \"just_address_answers\" length");
-
-  ck_assert_msg(length > 0, "Expected \"just_address_answers\" length > 0, got %d", length);
+  
+  if (length == 0) resp_str = getdns_pretty_print_dict(ex_response->response);
+  ck_assert_msg(length > 0, "Expected \"just_address_answers\" length > 0, got %d\n%s", length, resp_str);
+  if (length == 0) free(resp_str);
 }
 
 /*

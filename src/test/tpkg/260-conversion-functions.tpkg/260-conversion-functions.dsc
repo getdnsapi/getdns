@@ -6,7 +6,7 @@ Maintainer: Willem Toorop
 Category: 
 Component:
 CmdDepends: 
-Depends: 200-stub-only-compile.tpkg
+Depends: 200-stub-only-compile-install.tpkg
 Help: 260-conversion-functions.help
 Pre: 260-conversion-functions.pre
 Post: 

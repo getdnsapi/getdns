@@ -221,6 +221,7 @@ typedef struct getdns_network_req
 	getdns_redirects_t      follow_redirects;
 
 	/* For stub resolving */
+	struct getdns_upstream *first_upstream;
 	struct getdns_upstream *upstream;
 	int                     fd;
 	getdns_transport_list_t transports[GETDNS_TRANSPORTS_MAX];
@@ -242,10 +243,11 @@ typedef struct getdns_network_req
 	uint64_t                debug_end_time;
 	getdns_auth_state_t     debug_tls_auth_status;
 	getdns_bindata          debug_tls_peer_cert;
+	const char             *debug_tls_version;
 	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
-	 * available in wire_data[], it will be allocated seperately.
+	 * available in wire_data[], it will be allocated separately.
 	 * response will then not point to wire_data anymore.
 	 */
 	uint8_t *query;
@@ -297,6 +299,7 @@ typedef struct getdns_dns_req {
 	unsigned suffix_appended			: 1;
 
 	/* request extensions */
+	unsigned dnssec					: 1;
 	unsigned dnssec_return_status			: 1;
 	unsigned dnssec_return_only_secure		: 1;
 	unsigned dnssec_return_all_statuses		: 1;
@@ -379,8 +382,8 @@ typedef struct getdns_dns_req {
 	 *
 	 * Memory for these netreqs has been allocated by the same malloc
 	 * operation that reserved space for this getdns_dns_req.
-	 * They will thus be freed as part of the desctruction of this struct,
-	 * and do not need to be freed seperately.
+	 * They will thus be freed as part of the destruction of this struct,
+	 * and do not need to be freed separately.
 	 */
 	getdns_network_req *netreqs[];
 
@@ -429,7 +432,8 @@ extern getdns_dict *no_dnssec_checking_disabled_opportunistic;
 
 /* dns request utils */
 getdns_dns_req *_getdns_dns_req_new(getdns_context *context, getdns_eventloop *loop,
-    const char *name, uint16_t request_type, getdns_dict *extensions, uint64_t *now_ms);
+    const char *name, uint16_t request_type, const getdns_dict *extensions,
+    uint64_t *now_ms);
 
 void _getdns_dns_req_free(getdns_dns_req * req);
 

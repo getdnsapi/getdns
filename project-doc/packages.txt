@@ -1,0 +1,17 @@
+Some notes about packages and maintainers.
+
+For Homebrew, created and maintained by ilovezfs
+https://github.com/Homebrew/homebrew-core/Formula/getdns.rb
+https://github.com/Homebrew/homebrew-core/Formula/stubby.rb
+
+For Arch, created and maintained by Bruno Pagani (ArchangeGabriel)
+
+For OpenWRT, created and maintained by David Mora (iamperson347)
+https://github.com/openwrt/packages/tree/master/libs/getdns
+https://github.com/openwrt/packages/tree/master/net/stubby
+
+For AstLinux Project, created and maintained by Lonnie Abelbeck (abelbeck)
+https://github.com/astlinux-project/astlinux/tree/master/package/getdns
+
+For Genode, created and maintained by Emery Hemingway (ehmry)
+https://github.com/genodelabs/genode/blob/master/repos/ports/ports/getdns.port

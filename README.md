@@ -70,13 +70,13 @@ If you are installing from packages, you have to install the library and also th
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.  Please refer to section for building on Windows for separate dependency and build instructions for that platform.
 
 * [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
-* [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1.  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
+* [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1 or 2 (from version 2.0.0 and higher).  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
 * [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
 For example, to build on a recent version of Ubuntu, you would need the following packages:
 
-    # apt install build-essential libunbound-dev libidn11-dev libssl-dev libtool m4 autoconf
+    # apt install build-essential libunbound-dev libidn2-dev libssl-dev libtool m4 autoconf
 
 If you are building from git, you need to do the following before building:
 
@@ -87,10 +87,11 @@ If you are building from git, you need to do the following before building:
     # autoreconf -fi
 
 
-As well as building the getdns library two other tools may be installed:
+As well as building the getdns library three other tools may be installed:
 
 * getdns_query: a command line test script wrapper for getdns
 * stubby: an experimental DNS Privacy enabled client
+* getdns_server_mon: test DNS server function and capabilities
 
 Note: If you only want to build stubby, then use the `--with-stubby` option when running 'configure'.
 
@@ -98,15 +99,15 @@ Note: If you only want to build stubby, then use the `--with-stubby` option when
 ## Minimizing dependencies
 
 * getdns can be configured for stub resolution mode only with the `--enable-stub-only` option to configure.  This removes the dependency on `libunbound`.
-* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` option to configure.
-* When both `--enable-stub-only` and `--without-libidn` options are used, getdns has only one dependency left, which is OpenSSL.
+* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` and `--without-libidn2` options to configure.
+* When `--enable-stub-only`, `--without-libidn` and `--without-libidn2` options are used, getdns has only one dependency left, which is OpenSSL.
 
 ## Extensions and Event loop dependencies
 
 The implementation works with a variety of event loops, each built as a separate shared library.  See [this Doxygen page](https://getdnsapi.net/doxygen/group__eventloops.html) and [this man page](https://getdnsapi.net/documentation/manpages/#ASYNCHRONOUS USE) for more details.
 
 * [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
-* [libuv](https://github.com/joyent/libuv)
+* [libuv](https://libuv.org/)
 * [libev](http://software.schmorp.de/pkg/libev.html)
 
 ## Stubby
@@ -133,9 +134,9 @@ format.  Note that this is different than the format of BIND.keys.
 
 When the root trust anchor is not installed in the default location and a DNSSEC query is done, getdns will try to use the trust anchors published here: http://data.iana.org/root-anchors/root-anchors.xml .
 It will validate these anchors with the ICANN Certificate Authority certificate following the procedure described in [RFC7958].
-The `root-anchors.xml` and `root-anchors.p7s` S/MIME signature will be cached in the `$HOME/.getdns` directory.
+The `root-anchors.xml` and `root-anchors.p7s` S/MIME signature will be cached in the `$HOME/.getdns` directory on Unixes, and the `%appdata%\getdns` directory on Windows.
 
-When using trust-anchors from the `root-anchors.xml` file, getdns will track the keys in the root DNSKEY rrset and store a copy in $HOME/.getdns/root.key.
+When using trust-anchors from the `root-anchors.xml` file, getdns will track the keys in the root DNSKEY rrset and store a copy in `$HOME/.getdns/root.key` on Unixes, and `%appdata%\getdns\root.key` on Windows.
 Only when the KSK DNSKEY's change, a new version of `root-anchors.xml` is tried to be retrieved from [data.iana.org](https://data.iana.org/root-anchors/).
 
 A installed trust-anchor from the default location (`/etc/unbound/getdns-root.key`) that fails to validate the root DNSKEY RRset, will also trigger the "Zero configuration DNSSEC" procedure described above.

@@ -38,7 +38,7 @@ extern "C" {
 #define GLDNS_KEY_REVOKE_KEY 0x0080 /* used to revoke KSK, rfc 5011 */
 
 /* The first fields are contiguous and can be referenced instantly */
-#define GLDNS_RDATA_FIELD_DESCRIPTORS_COMMON 259
+#define GLDNS_RDATA_FIELD_DESCRIPTORS_COMMON 260
 
 /** lookuptable for rr classes  */
 extern struct gldns_struct_lookup_table* gldns_rr_classes;
@@ -182,9 +182,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	GLDNS_RR_TYPE_NSEC3PARAMS = 51,
 	GLDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
-	GLDNS_RR_TYPE_SMIMEA = 53, /* draft-ietf-dane-smime, TLSA-like but may
-				     be extended */
-
+	GLDNS_RR_TYPE_SMIMEA = 53, /* RFC 8162 */
 	GLDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
 
 	/** draft-reid-dnsext-zs */
@@ -197,6 +195,7 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_CDNSKEY = 60, /** RFC 7344 */
 	GLDNS_RR_TYPE_OPENPGPKEY = 61, /* RFC 7929 */
 	GLDNS_RR_TYPE_CSYNC = 62, /* RFC 7477 */
+	GLDNS_RR_TYPE_ZONEMD = 63, /* draft-wessels-dns-zone-digest */
 
 	GLDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
@@ -227,7 +226,8 @@ enum gldns_enum_rr_type
 	GLDNS_RR_TYPE_URI = 256, /* RFC 7553 */
 	GLDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 	GLDNS_RR_TYPE_AVC = 258,
-	GLDNS_RR_TYPE_DOA = 259,
+	GLDNS_RR_TYPE_DOA = 259, /* draft-durand-doa-over-dns */
+	GLDNS_RR_TYPE_AMTRELAY = 260, /* draft-ietf-mboned-driad-amt-discovery */
 
 	/** DNSSEC Trust Authorities */
 	GLDNS_RR_TYPE_TA = 32768,
@@ -332,13 +332,13 @@ enum gldns_enum_rdf_type
         GLDNS_RDF_TYPE_NSEC3_NEXT_OWNER,
 
         /** 4 shorts represented as 4 * 16 bit hex numbers
-         *  seperated by colons. For NID and L64.
+         *  separated by colons. For NID and L64.
          */
         GLDNS_RDF_TYPE_ILNP64,
 
-        /** 6 * 8 bit hex numbers seperated by dashes. For EUI48. */
+        /** 6 * 8 bit hex numbers separated by dashes. For EUI48. */
         GLDNS_RDF_TYPE_EUI48,
-        /** 8 * 8 bit hex numbers seperated by dashes. For EUI64. */
+        /** 8 * 8 bit hex numbers separated by dashes. For EUI64. */
         GLDNS_RDF_TYPE_EUI64,
 
         /** A non-zero sequence of US-ASCII letters and numbers in lower case.
@@ -351,6 +351,9 @@ enum gldns_enum_rdf_type
          * For CAA, URI.
          */
         GLDNS_RDF_TYPE_LONG_STR,
+
+	/* draft-ietf-mboned-driad-amt-discovery */
+	GLDNS_RDF_TYPE_AMTRELAY,
 
 	/** TSIG extended 16bit error value */
 	GLDNS_RDF_TYPE_TSIGERROR,

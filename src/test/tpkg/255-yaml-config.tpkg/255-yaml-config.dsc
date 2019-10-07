@@ -6,7 +6,7 @@ Maintainer: Jim Hague
 Category: 
 Component:
 CmdDepends: 
-Depends: 200-stub-only-compile.tpkg
+Depends: 200-stub-only-compile-install.tpkg
 Help:
 Pre: 255-yaml-config.pre
 Post: 

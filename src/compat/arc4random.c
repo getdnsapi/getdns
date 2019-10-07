@@ -51,6 +51,9 @@
 #else				/* !__GNUC__ */
 #define inline
 #endif				/* !__GNUC__ */
+#ifndef MAP_ANON
+#define MAP_ANON MAP_ANONYMOUS
+#endif
 
 #define KEYSZ	32
 #define IVSZ	8
@@ -70,6 +73,72 @@ static struct {
 } *rsx;
 
 static inline void _rs_rekey(u_char *dat, size_t datlen);
+
+/*
+ * Basic sanity checking; wish we could do better.
+ */
+static int
+fallback_gotdata(char *buf, size_t len)
+{
+	char	any_set = 0;
+	size_t	i;
+
+	for (i = 0; i < len; ++i)
+		any_set |= buf[i];
+	if (any_set == 0)
+		return -1;
+	return 0;
+}
+
+/* fallback for getentropy in case libc returns failure */
+static int
+fallback_getentropy_urandom(void *buf, size_t len)
+{
+	size_t i;
+	int fd, flags;
+	int save_errno = errno;
+
+start:
+
+	flags = O_RDONLY;
+#ifdef O_NOFOLLOW
+	flags |= O_NOFOLLOW;
+#endif
+#ifdef O_CLOEXEC
+	flags |= O_CLOEXEC;
+#endif
+	fd = open("/dev/urandom", flags, 0);
+	if (fd == -1) {
+		if (errno == EINTR)
+			goto start;
+		goto nodevrandom;
+	}
+#ifndef O_CLOEXEC
+#  ifdef HAVE_FCNTL
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+#  endif
+#endif
+	for (i = 0; i < len; ) {
+		size_t wanted = len - i;
+		ssize_t ret = read(fd, (char*)buf + i, wanted);
+
+		if (ret == -1) {
+			if (errno == EAGAIN || errno == EINTR)
+				continue;
+			close(fd);
+			goto nodevrandom;
+		}
+		i += ret;
+	}
+	close(fd);
+	if (fallback_gotdata(buf, len) == 0) {
+		errno = save_errno;
+		return 0;		/* satisfied */
+	}
+nodevrandom:
+	errno = EIO;
+	return -1;
+}
 
 static inline void
 _rs_init(u_char *buf, size_t n)
@@ -102,6 +171,9 @@ _rs_init(u_char *buf, size_t n)
 		if(!rsx)
 			abort();
 #endif
+		/* Pleast older clang scan-build */
+		if (!buf)
+			buf = rsx->rs_buf;
 	}
 
 	chacha_keysetup(&rsx->rs_chacha, buf, KEYSZ * 8, 0);
@@ -114,14 +186,14 @@ _rs_stir(void)
 	u_char rnd[KEYSZ + IVSZ];
 
 	if (getentropy(rnd, sizeof rnd) == -1) {
+		if(errno != ENOSYS ||
+			fallback_getentropy_urandom(rnd, sizeof rnd) == -1) {
 #ifdef SIGKILL
-		raise(SIGKILL);
+			raise(SIGKILL);
 #else
-#ifdef GETDNS_ON_WINDOWS
-		DebugBreak();
+			exit(9); /* windows */
 #endif
-		exit(9); /* windows */
-#endif
+		}
 	}
 
 	if (!rs)
@@ -131,9 +203,6 @@ _rs_stir(void)
 	explicit_bzero(rnd, sizeof(rnd));	/* discard source seed */
 
 	/* invalidate rs_buf */
-#ifdef GETDNS_ON_WINDOWS
-	_Analysis_assume_(rs != NULL);
-#endif
 	rs->rs_have = 0;
 	memset(rsx->rs_buf, 0, sizeof(rsx->rs_buf));
 
@@ -145,15 +214,7 @@ _rs_stir_if_needed(size_t len)
 {
 #ifndef MAP_INHERIT_ZERO
 	static pid_t _rs_pid = 0;
-#ifdef GETDNS_ON_WINDOWS
-	/* 
-	 * TODO: if compiling for the Windows Runtime, use GetCurrentProcessId(),
-	 * but this requires linking with kernel32.lib
-	 */
-	pid_t pid = _getpid();
-#else
 	pid_t pid = getpid();
-#endif
 
 	/* If a system lacks MAP_INHERIT_ZERO, resort to getpid() */
 	if (_rs_pid == 0 || _rs_pid != pid) {
@@ -164,9 +225,6 @@ _rs_stir_if_needed(size_t len)
 #endif
 	if (!rs || rs->rs_count <= len)
 		_rs_stir();
-#ifdef GETDNS_ON_WINDOWS
-	_Analysis_assume_(rs != NULL);
-#endif
 	if (rs->rs_count <= len)
 		rs->rs_count = 0;
 	else

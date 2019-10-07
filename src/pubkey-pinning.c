@@ -48,17 +48,13 @@
 #include "config.h"
 #include "debug.h"
 #include <getdns/getdns.h>
-#include <openssl/evp.h>
-#include <openssl/bio.h>
-#include <openssl/sha.h>
-#include <openssl/x509.h>
 #include <string.h>
 #include "context.h"
 #include "util-internal.h"
+#include "gldns/parseutil.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-#define X509_STORE_CTX_get0_untrusted(store) store->untrusted
-#endif
+#include "pubkey-pinning.h"
+#include "pubkey-pinning-internal.h"
 
 /* we only support sha256 at the moment.  adding support for another
    digest is more complex than just adding another entry here. in
@@ -73,12 +69,10 @@ static const getdns_bindata sha256 = {
 	.data = (uint8_t*)"sha256"
 };
   
-
 #define PIN_PREFIX "pin-sha256=\""
 #define PIN_PREFIX_LENGTH (sizeof(PIN_PREFIX) - 1)
 /* b64 turns every 3 octets (or fraction thereof) into 4 octets */
 #define B64_ENCODED_SHA256_LENGTH (((SHA256_DIGEST_LENGTH + 2)/3)  * 4)
-
 /* convert an HPKP-style pin description to an appropriate getdns data
    structure.  An example string is: (with the quotes, without any
    leading or trailing whitespace):
@@ -92,16 +86,13 @@ static const getdns_bindata sha256 = {
    It is the caller's responsibility to call getdns_dict_destroy when
    it is no longer needed.
  */
-getdns_dict* getdns_pubkey_pin_create_from_string(
-	getdns_context* context,
-	const char* str)
+getdns_dict *getdns_pubkey_pin_create_from_string(
+   const getdns_context *context, const char *str)
 {
-	BIO *bio = NULL;
 	size_t i;
 	uint8_t buf[SHA256_DIGEST_LENGTH];
-	char inbuf[B64_ENCODED_SHA256_LENGTH + 1];
 	getdns_bindata value = { .size = SHA256_DIGEST_LENGTH, .data = buf };
-	getdns_dict* out = NULL;
+	getdns_dict *out = NULL;
 	
 	/* we only do sha256 right now, make sure this is well-formed */
 	if (!str || strncmp(PIN_PREFIX, str, PIN_PREFIX_LENGTH))
@@ -119,15 +110,9 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 	if (str[i++] != '\0')
 		return NULL;
 
-	/* openssl needs a trailing newline to base64 decode */
-	memcpy(inbuf, str + PIN_PREFIX_LENGTH, B64_ENCODED_SHA256_LENGTH);
-	inbuf[B64_ENCODED_SHA256_LENGTH] = '\n';
-	
-	bio = BIO_push(BIO_new(BIO_f_base64()),
-		       BIO_new_mem_buf(inbuf, sizeof(inbuf)));
-	if (BIO_read(bio, buf, sizeof(buf)) != sizeof(buf))
-		goto fail;
-	
+	if (_getdns_decode_base64(str + PIN_PREFIX_LENGTH, buf, sizeof(buf)) != GETDNS_RETURN_GOOD)
+	    goto fail;
+	    
 	if (context)
 		out = getdns_dict_create_with_context(context);
 	else
@@ -141,11 +126,9 @@ getdns_dict* getdns_pubkey_pin_create_from_string(
 	return out;
 
  fail:
-	BIO_free_all(bio);
 	getdns_dict_destroy(out);
 	return NULL;
 }
-
 
 /* Test whether a given pinset is reasonable, including:
 
@@ -270,7 +253,7 @@ _getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
 }
 
 getdns_return_t
-_getdns_get_pubkey_pinset_list(getdns_context *ctx,
+_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list)
 {
@@ -306,162 +289,3 @@ _getdns_get_pubkey_pinset_list(getdns_context *ctx,
 	getdns_list_destroy(out);
 	return r;
 }
-
-/* this should only happen once ever in the life of the library. it's
-   used to associate a getdns_context_t with an SSL_CTX, to be able to
-   do custom verification.
-   
-   see doc/HOWTO/proxy_certificates.txt as an example
-*/
-static int
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-_get_ssl_getdns_upstream_idx(void)
-#else
-_get_ssl_getdns_upstream_idx(X509_STORE *store)
-#endif
-{
-	static volatile int idx = -1;
-	if (idx < 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-		CRYPTO_w_lock(CRYPTO_LOCK_X509_STORE);
-#else
-		X509_STORE_lock(store);
-#endif
-		if (idx < 0)
-			idx = SSL_get_ex_new_index(0, "associated getdns upstream",
-						   NULL,NULL,NULL);
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-		CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
-#else
-		X509_STORE_unlock(store);
-#endif
-	}
-	return idx;
-}
-
-getdns_upstream*
-_getdns_upstream_from_x509_store(X509_STORE_CTX *store)
-{
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-	int uidx = _get_ssl_getdns_upstream_idx();
-#else
-	int uidx = _get_ssl_getdns_upstream_idx(X509_STORE_CTX_get0_store(store));
-#endif
-	int sslidx = SSL_get_ex_data_X509_STORE_CTX_idx();
-	const SSL *ssl;
-
-	/* all *_get_ex_data() should return NULL on failure anyway */
-	ssl = X509_STORE_CTX_get_ex_data(store, sslidx);
-	if (ssl)
-		return (getdns_upstream*) SSL_get_ex_data(ssl, uidx);
-	else
-		return NULL;
-	/* TODO: if we want more details about errors somehow, we
-	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
-}
-
-getdns_return_t
-_getdns_associate_upstream_with_SSL(SSL *ssl,
-				    getdns_upstream *upstream)
-{
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(HAVE_LIBRESSL)
-	int uidx = _get_ssl_getdns_upstream_idx();
-#else
-	int uidx = _get_ssl_getdns_upstream_idx(SSL_CTX_get_cert_store(SSL_get_SSL_CTX(ssl)));
-#endif
-	if (SSL_set_ex_data(ssl, uidx, upstream))
-		return GETDNS_RETURN_GOOD;
-	else
-		return GETDNS_RETURN_GENERIC_ERROR;
-	/* TODO: if we want more details about errors somehow, we
-	 * might call ERR_get_error (see CRYPTO_set_ex_data(3ssl))*/
-}
-
-getdns_return_t
-_getdns_verify_pinset_match(const sha256_pin_t *pinset,
-			    X509_STORE_CTX *store)
-{
-	getdns_return_t ret = GETDNS_RETURN_GENERIC_ERROR;
-	X509 *x, *prev = NULL;
-	int i, len;
-	unsigned char raw[4096];
-	unsigned char *next;
-	unsigned char buf[sizeof(pinset->pin)];
-	const sha256_pin_t *p;
-
-	if (pinset == NULL || store == NULL)
-		return GETDNS_RETURN_GENERIC_ERROR;
-	
-	/* start at the base of the chain (the end-entity cert) and
-	 * make sure that some valid element of the chain does match
-	 * the pinset. */
-
-	/* Testing with OpenSSL 1.0.1e-1 on debian indicates that
-	 * store->untrusted holds the chain offered by the server in
-	 * the order that the server offers it.  If the server offers
-	 * bogus certificates (that is, matching and valid certs that
-	 * belong to private keys that the server does not control),
-	 * the the verification will succeed (including this pinset
-	 * check), but the handshake will fail outside of this
-	 * verification. */
-
-	/* TODO: how do we handle raw public keys? */
-
-	for (i = 0; i < sk_X509_num(X509_STORE_CTX_get0_untrusted(store)); i++, prev = x) {
-
-		x = sk_X509_value(X509_STORE_CTX_get0_untrusted(store), i);
-#if defined(STUB_DEBUG) && STUB_DEBUG
-		DEBUG_STUB("%s %-35s: Name of cert: %d ",
-		           STUB_DEBUG_SETUP_TLS, __FUNC__, i);
-		X509_NAME_print_ex_fp(stderr, X509_get_subject_name(x), 1, XN_FLAG_ONELINE);
-		fprintf(stderr, "\n");
-#endif
-		if (i > 0) {
-		/* we ensure that "prev" is signed by "x" */
-			EVP_PKEY *pkey = X509_get_pubkey(x);
-			int verified;
-			if (!pkey) {
-				DEBUG_STUB("%s %-35s: Could not get pubkey from cert %d (%p)\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)x);
-				return GETDNS_RETURN_GENERIC_ERROR;
-			}
-			verified = X509_verify(prev, pkey);
-			EVP_PKEY_free(pkey);
-			if (!verified) {
-				DEBUG_STUB("%s %-35s: cert %d (%p) was not signed by cert %d\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i-1, (void*)prev, i);
-				return GETDNS_RETURN_GENERIC_ERROR;
-			}
-		}
-
-		/* digest the cert with sha256 */
-		len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), NULL);
-		if (len > (int)sizeof(raw)) {
-			DEBUG_STUB("%s %-35s: Pubkey %d is larger than %"PRIsz" octets\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, sizeof(raw));
-			continue;
-		}
-		next = raw;
-		i2d_X509_PUBKEY(X509_get_X509_PUBKEY(x), &next);
-		if (next - raw != len) {
-			DEBUG_STUB("%s %-35s: Pubkey %d claimed it needed %d octets, really needed %"PRIsz"\n",
-			           STUB_DEBUG_SETUP_TLS, __FUNC__, i, len, next - raw);
-			continue;
-		}
-		SHA256(raw, len, buf);
-
-		/* compare it */
-		for (p = pinset; p; p = p->next)
-			if (0 == memcmp(buf, p->pin, sizeof(p->pin))) {
-				DEBUG_STUB("%s %-35s: Pubkey %d matched pin %p (%"PRIsz")\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p, sizeof(p->pin));
-				return GETDNS_RETURN_GOOD;
-			} else
-				DEBUG_STUB("%s %-35s: Pubkey %d did not match pin %p\n",
-					   STUB_DEBUG_SETUP_TLS, __FUNC__, i, (void*)p);
-	}
-
-	return ret;
-}
-
-/* pubkey-pinning.c */

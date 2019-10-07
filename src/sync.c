@@ -164,7 +164,7 @@ getdns_sync_cb(getdns_context *context, getdns_callback_type_t callback_type,
 
 getdns_return_t
 getdns_general_sync(getdns_context *context, const char *name,
-    uint16_t request_type, getdns_dict *extensions, getdns_dict **response)
+    uint16_t request_type, const getdns_dict *extensions, getdns_dict **response)
 {
 	getdns_sync_data data;
 	getdns_return_t r;
@@ -190,7 +190,7 @@ getdns_general_sync(getdns_context *context, const char *name,
 
 getdns_return_t
 getdns_address_sync(getdns_context *context, const char *name,
-    getdns_dict *extensions, getdns_dict **response)
+    const getdns_dict *extensions, getdns_dict **response)
 {
 	getdns_sync_data data;
 	getdns_return_t r;
@@ -215,8 +215,8 @@ getdns_address_sync(getdns_context *context, const char *name,
 }
 
 getdns_return_t
-getdns_hostname_sync(getdns_context *context, getdns_dict *address,
-    getdns_dict *extensions, getdns_dict **response)
+getdns_hostname_sync(getdns_context *context, const getdns_dict *address,
+    const getdns_dict *extensions, getdns_dict **response)
 {
 	getdns_sync_data data;
 	getdns_return_t r;
@@ -242,7 +242,7 @@ getdns_hostname_sync(getdns_context *context, getdns_dict *address,
 
 getdns_return_t
 getdns_service_sync(getdns_context *context, const char *name,
-    getdns_dict *extensions, getdns_dict **response)
+    const getdns_dict *extensions, getdns_dict **response)
 {
 	getdns_sync_data data;
 	getdns_return_t r;

@@ -359,6 +359,22 @@ int gldns_wire2str_rr_buf(uint8_t* rr, size_t rr_len, char* str,
 	size_t str_len);
 
 /**
+ * Convert question RR to string presentation format, on one line.  User buffer.
+ * @param rr: wireformat RR data
+ * @param rr_len: length of the rr wire data.
+ * @param str: the string buffer to write to.
+ * 	If you pass NULL as the str, the return value of the function is
+ * 	the str_len you need for the entire packet.  It does not include
+ * 	the 0 byte at the end.
+ * @param str_len: the size of the string buffer.  If more is needed, it'll
+ * 	silently truncate the output to fit in the buffer.
+ * @return the number of characters for this element, excluding zerobyte.
+ * 	Is larger or equal than str_len if output was truncated.
+ */
+int gldns_wire2str_rrquestion_buf(uint8_t* rr, size_t rr_len, char* str,
+	size_t str_len);
+
+/**
  * 3597 printout of an RR in unknown rr format.
  * There are more format and comment options available for printout
  * with the function: TBD(TODO)
@@ -899,6 +915,21 @@ int gldns_wire2str_tag_scan(uint8_t** data, size_t* data_len, char** str,
  */
 int gldns_wire2str_long_str_scan(uint8_t** data, size_t* data_len, char** str,
 	size_t* str_len);
+
+/**
+ * Scan wireformat AMTRELAY field to string, with user buffers.
+ * It shifts the arguments to move along (see gldns_wire2str_pkt_scan).
+ * @param data: wireformat data.
+ * @param data_len: length of data buffer.
+ * @param str: string buffer.
+ * @param str_len: length of string buffer.
+ * @param pkt: packet for decompression, if NULL no decompression.
+ * @param pktlen: length of packet buffer.
+ * @return number of characters (except null) needed to print.
+ * 	Can return -1 on failure.
+ */
+int gldns_wire2str_amtrelay_scan(uint8_t** data, size_t* data_len, char** str,
+	size_t* str_len, uint8_t* pkt, size_t pktlen);
 
 /**
  * Print EDNS LLQ option data to string.  User buffers, moves string pointers.

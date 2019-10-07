@@ -1,6 +1,6 @@
 /**
  *
- * /brief internal functions for dealing with pubkey pinsets
+ * /brief functions for dealing with pubkey pinsets
  *
  */
 
@@ -34,6 +34,10 @@
 #ifndef PUBKEY_PINNING_H_
 #define PUBKEY_PINNING_H_
 
+/* getdns_pubkey_pin_create_from_string() is implemented in pubkey-pinning.c */
+#include "getdns/getdns_extra.h"
+
+#include "tls.h"
 
 /* create and populate a pinset linked list from a getdns_list pinset */
 getdns_return_t
@@ -44,25 +48,9 @@ _getdns_get_pubkey_pinset_from_list(const getdns_list *pinset_list,
 
 /* create a getdns_list version of the pinset */
 getdns_return_t
-_getdns_get_pubkey_pinset_list(getdns_context *ctx,
+_getdns_get_pubkey_pinset_list(const getdns_context *ctx,
 			       const sha256_pin_t *pinset_in,
 			       getdns_list **pinset_list);
-
-
-/* internal functions for associating X.509 verification processes in
- * OpenSSL with getdns_upstream objects. */
-
-getdns_upstream*
-_getdns_upstream_from_x509_store(X509_STORE_CTX *store);
-
-
-getdns_return_t
-_getdns_associate_upstream_with_SSL(SSL *ssl,
-				    getdns_upstream *upstream);
-
-getdns_return_t
-_getdns_verify_pinset_match(const sha256_pin_t *pinset,
-			    X509_STORE_CTX *store);
 
 #endif
 /* pubkey-pinning.h */

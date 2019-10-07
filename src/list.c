@@ -418,7 +418,7 @@ getdns_list_create_with_memory_functions(void *(*malloc)(size_t),
 
 /*-------------------------- getdns_list_create_with_context */
 struct getdns_list *
-getdns_list_create_with_context(struct getdns_context *context)
+getdns_list_create_with_context(const getdns_context *context)
 {
 	if (context)
 		return getdns_list_create_with_extended_memory_functions(
