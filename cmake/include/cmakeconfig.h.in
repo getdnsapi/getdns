@@ -20,6 +20,9 @@
 #cmakedefine HAVE_STDLIB_H      1
 #cmakedefine HAVE_STRING_H      1
 #cmakedefine HAVE_TIME_H        1
+#cmakedefine HAVE_UNISTD_H	1
+
+#cmakedefine HAVE_FCNTL_H	1
 
 #cmakedefine HAVE_SIGNAL_H      1
 #cmakedefine HAVE_SYS_POLL_H    1
@@ -44,6 +47,7 @@
 #cmakedefine GETDNS_ON_WINDOWS  1
 
 #cmakedefine HAVE_SSL           1
+#cmakedefine USE_DANESSL	1
 
 #cmakedefine HAVE_OPENSSL_SSL_H         1
 #cmakedefine HAVE_OPENSSL_EVP_H         1
@@ -68,6 +72,7 @@
 #cmakedefine DRAFT_RRTYPES                      @DRAFT_RRTYPES@
 #cmakedefine EDNS_COOKIE_OPCODE                 @EDNS_COOKIE_OPCODE@
 #cmakedefine EDNS_COOKIE_ROLLOVER_TIME          @EDNS_COOKIE_ROLLOVER_TIME@
+#cmakedefine UDP_MAX_BACKOFF			@UDP_MAX_BACKOFF@
 
 #cmakedefine HAVE_DECL_INET_PTON        1
 #cmakedefine HAVE_DECL_INET_NTOP        1
@@ -76,8 +81,10 @@
 #cmakedefine HAVE_DECL_SIGADDSET        1
 #cmakedefine HAVE_DECL_STRPTIME         1
 
+#cmakedefine HAVE_FCNTL		        1
 #cmakedefine HAVE_INET_PTON             1
 #cmakedefine HAVE_INET_NTOP             1
+#cmakedefine HAVE_IOCTLSOCKET		1
 #cmakedefine HAVE_SIGEMPTYSET           1
 #cmakedefine HAVE_SIGFILLSET            1
 #cmakedefine HAVE_SIGADDSET             1

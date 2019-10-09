@@ -11,7 +11,7 @@ endif()
 
 set(PACKAGE "getdns")
 set(PACKAGE_NAME "getdns")
-set(PACKAGE_VERSION "1.3.0")
+set(PACKAGE_VERSION "1.5.2")
 set(PACKAGE_BUGREPORT "team@getdnsapi.net")
 set(PACKAGE_URL "https://getdnsapi.net")
 
@@ -23,12 +23,12 @@ set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}")
 set(RELEASE_CANDIDATE "")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
-set(GETDNS_NUMERIC_VERSION 0x01030000)
+set(GETDNS_NUMERIC_VERSION 0x01050200)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on <date> for the ${API_VERSION} of the API")
 
-set(GETDNS_LIBVERSION "9:0:3")
+set(GETDNS_LIBVERSION "11:2:1")
 
 include(CheckFunctionExists)
 include(CheckLibraryExists)
@@ -102,6 +102,7 @@ set(MAX_CNAME_REFERRALS 100)
 set(DRAFT_RRTYPES 1)
 set(EDNS_COOKIE_OPCODE 10)
 set(EDNS_COOKIE_ROLLOVER_TIME "(24*60*60)")
+set(UDP_MAX_BACKOFF 1000)
 
 # Does the compiler accept the "format" attribute?
 try_compile(HAVE_ATTR_FORMAT
@@ -128,6 +129,8 @@ check_include_file(stdlib.h HAVE_STDLIB_H)
 check_include_file(string.h HAVE_STRING_H)
 check_include_file(time.h HAVE_TIME_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
+
+check_include_file(fcntl.h HAVE_FCNTL_H)
 
 check_include_file(signal.h HAVE_SIGNAL_H)
 check_include_file(sys/poll.h HAVE_SYS_POLL_H)
@@ -159,8 +162,10 @@ check_symbol_exists(sigaddset signal.h HAVE_DECL_SIGADDSET)
 check_symbol_exists(strptime time.h HAVE_DECL_STRPTIME)
 
 # Check for functions
+check_function_exists(fcntl HAVE_FCNTL)
 check_function_exists(inet_pton HAVE_INET_PTON)
 check_function_exists(inet_ntop HAVE_INET_NTOP)
+check_function_exists(ioctlsocket HAVE_IOCTLSOCKET)
 check_function_exists(sigemptyset HAVE_SIGEMPTYSET)
 check_function_exists(sigfillset HAVE_SIGFILLSET)
 check_function_exists(sigaddset HAVE_SIGADDSET)
@@ -171,7 +176,7 @@ check_type_size(sigset_t SIGSET_T)
 check_type_size(_sigset_t _SIGSET_T)
 
 # SSL library
-find_package(OpenSSL "0.9.7" REQUIRED)
+find_package(OpenSSL "1.0.2" REQUIRED)
 
 set(HAVE_SSL 1)
 
@@ -182,6 +187,8 @@ check_include_file(openssl/err.h HAVE_OPENSSL_ERR_H)
 check_include_file(openssl/rand.h HAVE_OPENSSL_RAND_H)
 check_include_file(openssl/conf.h HAVE_OPENSSL_CONF_H)
 check_include_file(openssl/engine.h HAVE_OPENSSL_ENGINE_H)
+
+check_symbol_exists("SSL_dane_enable" "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
 
 # Threading library
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -241,7 +248,7 @@ endif()
 
 # Main library
 
-add_library(getdns
+set(getdns_SOURCES
   src/anchor.c
   src/const-info.c
   src/convert.c
@@ -279,7 +286,6 @@ add_library(getdns
   src/gldns/str2wire.c
 
   src/util/rbtree.c
-  src/util/val_secalgo.c
   src/util/lruhash.c
   src/util/lookup3.c
   src/util/locks.c
@@ -288,12 +294,21 @@ add_library(getdns
 
   src/yxml/yxml.c
 
+  src/tls/val_secalgo.c
+  src/tls/anchor-internal.c
+
+  src/openssl/tls.c
+  src/openssl/pubkey-pinning-internal.c
+  src/openssl/keyraw-internal.c
+
   ${CMAKE_CURRENT_BINARY_DIR}/version.c
   )
 
-target_include_directories(getdns
+set(getdns_INCLUDES
   PRIVATE src
   PRIVATE src/util/auxiliary
+  PRIVATE src/openssl
+  PRIVATE src/tls
   PRIVATE src/yxml
   PRIVATE stubby/src    # Wrong, wrong, wrong.
 
@@ -302,12 +317,28 @@ target_include_directories(getdns
   PRIVATE Threads::Threads
   )
 
-target_link_libraries(getdns
+set(getdns_LIBS
   PUBLIC ${OPENSSL_LIBRARIES}
   PUBLIC Threads::Threads
   PUBLIC ${LIBBSD_LDFLAGS}
   PUBLIC ${LIBBSD_LIBRARIES}
   )
+
+if (NOT HAVE_SSL_DANE_ENABLE)
+  set(getdns_SOURCES
+    ${getdns_SOURCES}
+    src/ssl_dane/danessl.c
+    )
+  set(getdns_INCLUDES
+    ${getdns_INCLUDES}
+    PRIVATE src/ssl_dane
+    )
+  set(USE_DANESSL 1)
+endif()
+
+add_library(getdns ${getdns_SOURCES})
+target_include_directories(getdns ${getdns_INCLUDES})
+target_link_libraries(getdns ${getdns_LIBS})
 
 set_property(TARGET getdns PROPERTY C_STANDARD 11)
 
