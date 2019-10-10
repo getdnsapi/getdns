@@ -56,6 +56,44 @@
 #cmakedefine HAVE_OPENSSL_CONF_H        1
 #cmakedefine HAVE_OPENSSL_ENGINE_H      1
 
+#cmakedefine HAVE_DSA_SIG_SET0		1
+#cmakedefine HAVE_DSA_SET0_PQG		1
+#cmakedefine HAVE_DSA_SET0_KEY		1
+
+#cmakedefine HAVE_RSA_SET0_KEY		1
+
+#cmakedefine HAVE_EVP_MD5		1
+#cmakedefine HAVE_EVP_SHA1		1
+#cmakedefine HAVE_EVP_SHA224		1
+#cmakedefine HAVE_EVP_SHA256		1
+#cmakedefine HAVE_EVP_SHA384		1
+#cmakedefine HAVE_EVP_SHA512		1
+
+#cmakedefine HAVE_EVP_DSS1		1
+#cmakedefine HAVE_EVP_DIGESTVERIFY	1
+
+#cmakedefine HAVE_EVP_MD_CTX_NEW	1
+
+#cmakedefine HAVE_HMAC_CTX_NEW		1
+
+#cmakedefine HAVE_TLS_CLIENT_METHOD	1
+
+#cmakedefine HAVE_OPENSSL_VERSION_NUM	1
+#cmakedefine HAVE_OPENSSL_VERSION	1
+
+#cmakedefine HAVE_SSL_CTX_DANE_ENABLE	1
+#cmakedefine HAVE_SSL_CTX_SET_CIPHERSUITS	1
+#cmakedefine HAVE_SSL_SET_CIPHERSUITS	1
+
+#cmakedefine HAVE_OPENSSL_INIT_CRYPTO	1
+
+#cmakedefine HAVE_SSL_DANE_ENABLE			1
+#cmakedefine HAVE_DECL_SSL_CTX_SET1_CURVES_LIST		1
+#cmakedefine HAVE_DECL_SSL_SET1_CURVES_LIST		1
+#cmakedefine HAVE_DECL_SSL_SET_MIN_PROTO_VERSION	1
+#cmakedefine HAVE_X509_GET_NOTAFTER			1
+#cmakedefine HAVE_X509_GET0_NOTAFTER			1
+
 #cmakedefine HAVE_PTHREAD               1
 #cmakedefine HAVE_WINDOWS_THREADS       1
 

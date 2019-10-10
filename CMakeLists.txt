@@ -188,7 +188,46 @@ check_include_file(openssl/rand.h HAVE_OPENSSL_RAND_H)
 check_include_file(openssl/conf.h HAVE_OPENSSL_CONF_H)
 check_include_file(openssl/engine.h HAVE_OPENSSL_ENGINE_H)
 
-check_symbol_exists("SSL_dane_enable" "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
+set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
+check_function_exists(DSA_SIG_set0 HAVE_DSA_SIG_SET0)
+check_function_exists(DSA_set0_pqg HAVE_DSA_SET0_PQG)
+check_function_exists(DSA_set0_key HAVE_DSA_SET0_KEY)
+
+check_function_exists(RSA_set0_key HAVE_RSA_SET0_KEY)
+
+check_function_exists(EVP_md5 HAVE_EVP_MD5)
+check_function_exists(EVP_sha1 HAVE_EVP_SHA1)
+check_function_exists(EVP_sha224 HAVE_EVP_SHA224)
+check_function_exists(EVP_sha256 HAVE_EVP_SHA256)
+check_function_exists(EVP_sha384 HAVE_EVP_SHA384)
+check_function_exists(EVP_sha512 HAVE_EVP_SHA512)
+
+check_function_exists(EVP_dss1 HAVE_EVP_DSS1)
+check_function_exists(EVP_DigestVerify HAVE_EVP_DIGESTVERIFY)
+
+check_function_exists(EVP_MD_CTX_new HAVE_EVP_MD_CTX_NEW)
+
+check_function_exists(HMAC_CTX_new HAVE_HMAC_CTX_NEW)
+
+check_function_exists(TLS_client_method HAVE_TLS_CLIENT_METHOD)
+
+check_function_exists(OpenSSL_version_num HAVE_OPENSSL_VERSION_NUM)
+check_function_exists(OpenSSL_version HAVE_OPENSSL_VERSION)
+
+check_function_exists(SSL_CTX_dane_enable HAVE_SSL_CTX_DANE_ENABLE)
+
+check_function_exists(SSL_CTX_set_ciphersuites HAVE_SSL_CTX_SET_CIPHERSUITES)
+check_function_exists(SSL_set_ciphersuites HAVE_SSL_SET_CIPHERSUITES)
+
+check_function_exists(OPENSSL_init_crypto HAVE_OPENSSL_INIT_CRYPTO)
+
+check_symbol_exists(SSL_dane_enable "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
+check_symbol_exists(SSL_CTX_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
+check_symbol_exists(SSL_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_SET1_CURVES_LIST)
+check_symbol_exists(SSL_set_min_proto_version "openssl/ssl.h" HAVE_DECL_SSL_SET_MIN_PROTO_VERSION)
+check_symbol_exists(X509_get_notAfter "openssl/x509.h" HAVE_X509_GET_NOTAFTER)
+check_symbol_exists(X509_get0_notAfter "openssl/x509.h" HAVE_X509_GET0_NOTAFTER)
+
 
 # Threading library
 set(THREADS_PREFER_PTHREAD_FLAG ON)
