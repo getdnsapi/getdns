@@ -117,6 +117,12 @@ try_compile(HAVE_ATTR_UNUSED
 
 # Compiler flags
 
+if (MSVC)
+  add_compile_options(/W4 /WX)
+else()
+  add_compile_options(-Wall -Wextra)
+endif()
+
 # Check for include files
 check_include_file(assert.h HAVE_ASSERT_H)
 check_include_file(inttypes.h HAVE_INTTYPES_H)
