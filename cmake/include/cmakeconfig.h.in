@@ -45,6 +45,7 @@
 #cmakedefine HAVE_WINSOCK2_H    1
 #cmakedefine HAVE_WS2TCPIP_H    1
 #cmakedefine GETDNS_ON_WINDOWS  1
+#cmakedefine USE_WINSOCK	1
 
 #cmakedefine HAVE_SSL           1
 #cmakedefine USE_DANESSL	1
@@ -114,14 +115,24 @@
 
 #cmakedefine HAVE_DECL_INET_PTON        1
 #cmakedefine HAVE_DECL_INET_NTOP        1
+#cmakedefine HAVE_WIN_DECL_INET_PTON    1
+#cmakedefine HAVE_WIN_DECL_INET_NTOP    1
 #cmakedefine HAVE_DECL_SIGEMPTYSET      1
 #cmakedefine HAVE_DECL_SIGFILLSET       1
 #cmakedefine HAVE_DECL_SIGADDSET        1
 #cmakedefine HAVE_DECL_STRPTIME         1
 
+#if defined(HAVE_DECL_INET_PTON) || defined(HAVE_WIN_DECL_INET_PTON)
+#undef HAVE_DECL_INET_PTON
+#define HAVE_DECL_INET_PTON 1
+#endif
+#if defined(HAVE_DECL_INET_NTOP) || defined(HAVE_WIN_DECL_INET_NTOP)
+#undef HAVE_DECL_INET_NTOP
+#define HAVE_DECL_INET_NTOP 1
+#endif
+
 #cmakedefine HAVE_FCNTL		        1
-#cmakedefine HAVE_INET_PTON             1
-#cmakedefine HAVE_INET_NTOP             1
+#cmakedefine HAVE_GETTIMEOFDAY		1
 #cmakedefine HAVE_IOCTLSOCKET		1
 #cmakedefine HAVE_SIGEMPTYSET           1
 #cmakedefine HAVE_SIGFILLSET            1
@@ -141,6 +152,8 @@
 
 #cmakedefine DEFAULT_EVENTLOOP          "@DEFAULT_EVENTLOOP@"
 #cmakedefine USE_POLL_DEFAULT_EVENTLOOP 1
+
+#cmakedefine STRPTIME_WORKS		1
 
 #ifdef HAVE___FUNC__
 #define __FUNC__ __func__
@@ -174,6 +187,8 @@
 #  else
 #   define PRIsz "Iu"
 #  endif
+#  include <BaseTsd.h>
+   typedef SSIZE_T ssize_t;
 # else
 #  define PRIsz "Iu"
 # endif
@@ -193,6 +208,10 @@
 # ifndef strdup
 #  define strdup _strdup
 # endif
+
+/* Windows doesn't have strcasecmp and strncasecmp. */
+# define strcasecmp _stricmp
+# define strncasecmp _strnicmp
 #else
 # define PRIsz "zu"
 #endif
@@ -262,14 +281,6 @@ void SHA512_Update(SHA512_CTX*, void*, size_t);
 void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
 unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
 #endif /* COMPAT_SHA512 */
-
-#ifndef HAVE_DECL_INET_PTON
-int inet_pton(int af, const char* src, void* dst);
-#endif /* HAVE_INET_PTON */
-
-#ifndef HAVE_DECL_INET_NTOP
-const char *inet_ntop(int af, const void *src, char *dst, size_t size);
-#endif
 
 #ifdef USE_WINSOCK
 # ifndef  _CUSTOM_VSNPRINTF
@@ -441,6 +452,18 @@ int ub_resolve_event(struct ub_ctx* ctx, const char* name, int rrtype,
 #   endif
 #  endif
 # endif
+#endif
+
+#ifndef HAVE_DECL_INET_PTON
+int inet_pton(int af, const char* src, void* dst);
+#endif
+
+#ifndef HAVE_DECL_INET_NTOP
+const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifndef HAVE_GETTIMEOFDAY
+int gettimeofday(struct timeval* tv, void* tz);
 #endif
 
 #ifdef __cplusplus

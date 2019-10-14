@@ -30,6 +30,7 @@ set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on 
 
 set(GETDNS_LIBVERSION "11:2:1")
 
+include(CheckCSourceRuns)
 include(CheckFunctionExists)
 include(CheckLibraryExists)
 include(CheckIncludeFile)
@@ -68,6 +69,7 @@ include_directories(
 if (WIN32 OR MINGW OR MSYS OR CYGWIN)
   set(HOSTOS "windows")
   set(GETDNS_ON_WINDOWS 1)
+  set(USE_WINSOCK 1)
 elseif (APPLE)
   set(HOSTOS "macos")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE")
@@ -116,11 +118,17 @@ try_compile(HAVE_ATTR_UNUSED
   )
 
 # Compiler flags
-
 if (MSVC)
-  add_compile_options(/W4 /WX)
+  # The Visual Studio C compiler is C90 with some of C99 and C11.
+  # So full on warnings are not appropriate.
+  add_compile_options(/W2)
 else()
   add_compile_options(-Wall -Wextra)
+endif()
+
+# Windows. Uh-oh.
+if (DEFINED GETDNS_ON_WINDOWS)
+  set(extra_libraries "ws2_32;crypt32")
 endif()
 
 # Check for include files
@@ -160,8 +168,14 @@ check_include_file(winsock2.h HAVE_WINSOCK2_H)
 check_include_file(ws2tcpip.h HAVE_WS2TCPIP_H)
 
 # Check for include declarations
-check_symbol_exists(inet_pton arpa/inet.h HAVE_DECL_INET_PTON)
-check_symbol_exists(inet_ntop arpa/inet.h HAVE_DECL_INET_NTOP)
+if (DEFINED GETDNS_ON_WINDOWS)
+  set(CMAKE_REQUIRED_LIBRARIES ${extra_libraries})
+  check_symbol_exists(inet_pton ws2tcpip.h HAVE_DECL_INET_PTON)
+  check_symbol_exists(inet_ntop ws2tcpip.h HAVE_DECL_INET_NTOP)
+else()
+  check_symbol_exists(inet_pton arpa/inet.h HAVE_DECL_INET_PTON)
+  check_symbol_exists(inet_ntop arpa/inet.h HAVE_DECL_INET_NTOP)
+endif()
 check_symbol_exists(sigemptyset signal.h HAVE_DECL_SIGEMPTYSET)
 check_symbol_exists(sigfillset signal.h HAVE_DECL_SIGFILLSET)
 check_symbol_exists(sigaddset signal.h HAVE_DECL_SIGADDSET)
@@ -169,8 +183,7 @@ check_symbol_exists(strptime time.h HAVE_DECL_STRPTIME)
 
 # Check for functions
 check_function_exists(fcntl HAVE_FCNTL)
-check_function_exists(inet_pton HAVE_INET_PTON)
-check_function_exists(inet_ntop HAVE_INET_NTOP)
+check_function_exists(gettimeofday HAVE_GETTIMEOFDAY)
 check_function_exists(ioctlsocket HAVE_IOCTLSOCKET)
 check_function_exists(sigemptyset HAVE_SIGEMPTYSET)
 check_function_exists(sigfillset HAVE_SIGFILLSET)
@@ -215,8 +228,6 @@ check_function_exists(EVP_MD_CTX_new HAVE_EVP_MD_CTX_NEW)
 
 check_function_exists(HMAC_CTX_new HAVE_HMAC_CTX_NEW)
 
-check_function_exists(TLS_client_method HAVE_TLS_CLIENT_METHOD)
-
 check_function_exists(OpenSSL_version_num HAVE_OPENSSL_VERSION_NUM)
 check_function_exists(OpenSSL_version HAVE_OPENSSL_VERSION)
 
@@ -231,6 +242,7 @@ check_symbol_exists(SSL_dane_enable "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
 check_symbol_exists(SSL_CTX_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
 check_symbol_exists(SSL_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_SET1_CURVES_LIST)
 check_symbol_exists(SSL_set_min_proto_version "openssl/ssl.h" HAVE_DECL_SSL_SET_MIN_PROTO_VERSION)
+check_symbol_exists(TLS_client_method "openssl/ssl.h" HAVE_TLS_CLIENT_METHOD)
 check_symbol_exists(X509_get_notAfter "openssl/x509.h" HAVE_X509_GET_NOTAFTER)
 check_symbol_exists(X509_get0_notAfter "openssl/x509.h" HAVE_X509_GET0_NOTAFTER)
 
@@ -289,6 +301,20 @@ try_compile(USE_POLL_DEFAULT_EVENTLOOP
   )
 if (USE_POLL_DEFAULT_EVENTLOOP)
   set(DEFAULT_EVENTLOOP "poll_eventloop")
+endif()
+
+# Custom checks
+set(STRPTIME_TEST_SOURCE "\n
+  #define _XOPEN_SOURCE 600\n
+  #include <time.h>\n
+  int main(void) { struct tm tm; char *res;\n
+  res = strptime(\"2010-07-15T00:00:00+00:00\", \"%t%Y%t-%t%m%t-%t%d%tT%t%H%t:%t%M%t:%t%S%t\", &tm);\n
+  if (!res) return 2;\n
+  res = strptime(\"20070207111842\", \"%Y%m%d%H%M%S\", &tm);\n
+  if (!res) return 1; return 0; }")
+
+if (HAVE_STRPTIME)
+  check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
 endif()
 
 # Main library
@@ -370,12 +396,10 @@ set(getdns_LIBS
   )
 
 if (NOT HAVE_SSL_DANE_ENABLE)
-  set(getdns_SOURCES
-    ${getdns_SOURCES}
+  list(APPEND getdns_SOURCES
     src/ssl_dane/danessl.c
     )
-  set(getdns_INCLUDES
-    ${getdns_INCLUDES}
+  list(APPEND getdns_INCLUDES
     PRIVATE src/ssl_dane
     )
   set(USE_DANESSL 1)
