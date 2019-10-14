@@ -36,6 +36,7 @@ include(CheckLibraryExists)
 include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CheckTypeSize)
+include(TestBigEndian)
 
 project(getdns VERSION ${PACKAGE_VERSION})
 
@@ -87,6 +88,9 @@ elseif (UNIX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__EXTENSIONS_")
   endif()
 endif ()
+
+test_big_endian(TARGET_IS_BIG_ENDIAN)
+set(HAVE_TARGET_ENDIANNESS 1)
 
 # File locations
 set(TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/unbound/getdns-root.key")

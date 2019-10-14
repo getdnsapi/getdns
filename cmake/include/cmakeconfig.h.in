@@ -155,6 +155,9 @@
 
 #cmakedefine STRPTIME_WORKS		1
 
+#cmakedefine HAVE_TARGET_ENDIANNESS
+#cmakedefine TARGET_IS_BIG_ENDIAN
+
 #ifdef HAVE___FUNC__
 #define __FUNC__ __func__
 #else
