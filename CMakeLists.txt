@@ -135,7 +135,7 @@ endif()
 
 # Windows. Uh-oh.
 if (DEFINED GETDNS_ON_WINDOWS)
-  set(extra_libraries "ws2_32;crypt32")
+  set(extra_libraries "ws2_32;crypt32;gdi32;iphlpapi")
 endif()
 
 # Check for include files
@@ -160,13 +160,14 @@ check_include_file(resource.h HAVE_RESOURCE_H)
 check_include_file(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file(sys/stat.h HAVE_SYS_STAT_H)
 
-check_include_file(netinet/in.h HAVE_NETINET_IN_H)
-check_include_file(arpa/inet.h HAVE_ARPA_INET_H)
-check_include_file(netdb.h HAVE_NETDB_H)
-check_include_file(sys/socket.h HAVE_SYS_SOCKET_H)
-check_include_file(sys/time.h HAVE_SYS_TIME_H)
-check_include_file(sys/select.h HAVE_SYS_SELECT_H)
 check_include_file(endian.h HAVE_ENDIAN_H)
+check_include_file(netdb.h HAVE_NETDB_H)
+check_include_file(arpa/inet.h HAVE_ARPA_INET_H)
+check_include_file(netinet/in.h HAVE_NETINET_IN_H)
+check_include_file(sys/select.h HAVE_SYS_SELECT_H)
+check_include_file(sys/socket.h HAVE_SYS_SOCKET_H)
+check_include_file(sys/sysctl.h HAVE_SYS_SYSCTL_H)
+check_include_file(sys/time.h HAVE_SYS_TIME_H)
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 
 check_include_file(windows.h HAVE_WINDOWS_H)
@@ -175,6 +176,7 @@ check_include_file(winsock2.h HAVE_WINSOCK2_H)
 check_include_file(ws2tcpip.h HAVE_WS2TCPIP_H)
 
 # Check for include declarations
+check_symbol_exists(getentropy unistd.h HAVE_DECL_GETENTROPY)
 if (DEFINED GETDNS_ON_WINDOWS)
   set(CMAKE_REQUIRED_LIBRARIES ${extra_libraries})
   check_symbol_exists(inet_pton ws2tcpip.h HAVE_DECL_INET_PTON)
@@ -190,6 +192,7 @@ check_symbol_exists(strptime time.h HAVE_DECL_STRPTIME)
 
 # Check for functions
 check_function_exists(fcntl HAVE_FCNTL)
+check_function_exists(getauxval HAVE_GETAUXVAL)
 check_function_exists(gettimeofday HAVE_GETTIMEOFDAY)
 check_function_exists(ioctlsocket HAVE_IOCTLSOCKET)
 check_function_exists(sigemptyset HAVE_SIGEMPTYSET)
@@ -347,12 +350,6 @@ set(getdns_SOURCES
   src/ub_loop.c
   src/util-internal.c
 
-  src/compat/gettimeofday.c
-  src/compat/inet_pton.c
-  src/compat/inet_ntop.c
-  src/compat/strlcpy.c
-  src/compat/strptime.c
-
   src/extension/${DEFAULT_EVENTLOOP}.c
 
   src/gldns/keyraw.c
@@ -382,6 +379,60 @@ set(getdns_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/version.c
   )
 
+if (NOT HAVE_GETTIMEOFDAY)
+  list(APPEND getdns_SOURCES
+    src/compat/gettimeofday.c
+    )
+endif()
+if (NOT HAVE_DECL_INET_PTON)
+  list(APPEND getdns_SOURCES
+    src/compat/inet_pton.c
+    )
+endif()
+if (NOT HAVE_DECL_INET_NTOP)
+  list(APPEND getdns_SOURCES
+    src/compat/inet_ntop.c
+    )
+endif()
+if (NOT HAVE_DECL_STRLCPY)
+  list(APPEND getdns_SOURCES
+    src/compat/strlcpy.c
+    )
+endif()
+if (NOT HAVE_DECL_ARC4RANDOM)
+  list(APPEND getdns_SOURCES
+    src/compat/arc4random.c
+    src/compat/explicit_bzero.c
+    src/compat/arc4_lock.c
+    )
+
+  if (NOT HAVE_DECL_GETENTROPY)
+    if (DEFINED GETDNS_ON_WINDOWS)
+      list(APPEND getdns_SOURCES
+        src/compat/getentropy_win.c
+        )
+    elseif (APPLE)
+      list(APPEND getdns_SOURCES
+        src/compat/getentropy_osx.c
+        )
+    elseif (DEFINED LINUX)
+      list(APPEND getdns_SOURCES
+        src/compat/getentropy_linux.c
+        )
+    endif()
+  endif()
+endif()
+if (NOT HAVE_DECL_ARC4RANDOM_UNIFORM)
+  list(APPEND getdns_SOURCES
+    src/compat/arc4random_uniform.c
+    )
+endif()
+if (NOT STRPTIME_WORKS)
+  list(APPEND getdns_SOURCES
+    src/compat/strptime.c
+    )
+endif()
+
 set(getdns_INCLUDES
   PRIVATE src
   PRIVATE src/util/auxiliary
@@ -400,6 +451,7 @@ set(getdns_LIBS
   PUBLIC Threads::Threads
   PUBLIC ${LIBBSD_LDFLAGS}
   PUBLIC ${LIBBSD_LIBRARIES}
+  PUBLIC ${extra_libraries}
   )
 
 if (NOT HAVE_SSL_DANE_ENABLE)
