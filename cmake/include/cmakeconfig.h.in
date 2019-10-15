@@ -145,9 +145,15 @@
 #cmakedefine HAVE_SIGSET_T              1
 #cmakedefine HAVE__SIGSET_T             1
 
+#cmakedefine HAVE_BSD_STDLIB_H		1
+#cmakedefine HAVE_BSD_STRING_H		1
+
 #cmakedefine HAVE_DECL_STRLCPY                  1
 #cmakedefine HAVE_DECL_ARC4RANDOM               1
 #cmakedefine HAVE_DECL_ARC4RANDOM_UNIFORM       1
+#cmakedefine HAVE_BSD_DECL_STRLCPY              1
+#cmakedefine HAVE_BSD_DECL_ARC4RANDOM           1
+#cmakedefine HAVE_BSD_DECL_ARC4RANDOM_UNIFORM   1
 
 #cmakedefine HAVE_STRLCPY               1
 #cmakedefine HAVE_ARC4RANDOM            1
@@ -249,6 +255,14 @@ extern "C" {
 #if STDC_HEADERS
 #include <stdlib.h>
 #include <stddef.h>
+#endif
+
+#ifdef HAVE_BSD_STDLIB_H
+#include <bsd/stdlib.h>
+#endif
+
+#ifdef HAVE_BSD_STRING_H
+#include <bsd/string.h>
 #endif
 
 #if !defined(HAVE_STRLCPY) || !HAVE_DECL_STRLCPY || !defined(strlcpy)

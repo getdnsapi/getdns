@@ -42,8 +42,6 @@ project(getdns VERSION ${PACKAGE_VERSION})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-find_package(PkgConfig)
-
 # Directories
 include(GNUInstallDirs)
 
@@ -134,8 +132,14 @@ else()
 endif()
 
 # Windows. Uh-oh.
+set(extra_libraries "")
 if (DEFINED GETDNS_ON_WINDOWS)
-  set(extra_libraries "ws2_32;crypt32;gdi32;iphlpapi")
+  list(APPEND extra_libraries
+    "ws2_32"
+    "crypt32"
+    "gdi32"
+    "iphlpapi"
+    )
 endif()
 
 # Check for include files
@@ -283,20 +287,28 @@ if (NOT
     (HAVE_STRLCPY AND HAVE_DECL_STRLCPY AND
      HAVE_ARC4RANDOM AND HAVE_DECL_ARC4RANDOM AND
      HAVE_ARC4RANDOM_UNIFORM AND HAVE_DECL_ARC4RANDOM_UNIFORM))
-  pkg_check_modules(LIBBSD libbsd)
-  set(CMAKE_REQUIRED_FLAGS "${LIBBSD_CFLAGS} ${LIBBSD_LDFLAGS}")
-  set(CMAKE_REQUIRED_INCLUDES ${LIBBSD_INCLUDE_DIRS})
-  set(CMAKE_REQUIRED_LIBRARIES ${LIBBSD_LIBRARIES})
+ find_library(BSD_LIB bsd)
+ if (BSD_LIB)
+   list(APPEND extra_libraries "bsd")
+   set(CMAKE_REQUIRED_LIBRARIES "bsd")
 
-  check_symbol_exists(strlcpy bsd/string.h HAVE_DECL_STRLCPY)
-  check_symbol_exists(arc4random bsd/stdlib.h HAVE_DECL_ARC4RANDOM)
-  check_symbol_exists(arc4random_uniform bsd/stdlib.h HAVE_DECL_ARC4RANDOM_UNIFORM)
+   check_include_file(bsd/stdlib.h HAVE_BSD_STDLIB_H)
+   check_include_file(bsd/string.h HAVE_BSD_STRING_H)
 
-  check_function_exists(strlcpy HAVE_STRLCPY)
-  check_function_exists(arc4random HAVE_ARC4RANDOM)
-  check_function_exists(arc4random_uniform HAVE_ARC4RANDOM_UNIFORM)
+   check_symbol_exists(strlcpy "bsd/string.h" HAVE_BSD_DECL_STRLCPY)
+   set(HAVE_DECL_STRLCPY ${HAVE_BSD_DECL_STRLCPY})
+   check_symbol_exists(arc4random "bsd/stdlib.h" HAVE_BSD_DECL_ARC4RANDOM)
+   set(HAVE_DECL_ARC4RANDOM ${HAVE_BSD_DECL_ARC4RANDOM})
+   check_symbol_exists(arc4random_uniform "bsd/stdlib.h" HAVE_BSD_DECL_ARC4RANDOM_UNIFORM)
+   set(HAVE_DECL_ARC4RANDOM_UNIFORM ${HAVE_BSD_DECL_ARC4RANDOM_UNIFORM})
 
-  # TODO: Make module optional and fallback to compat versions for arc4random.
+   check_function_exists(strlcpy HAVE_BSD_STRLCPY)
+   set(HAVE_STRLCPY ${HAVE_BSD_STRLCPY})
+   check_function_exists(arc4random HAVE_BSD_ARC4RANDOM)
+   set(HAVE_ARC4RANDOM ${HAVE_BSD_ARC4RANDOM})
+   check_function_exists(arc4random_uniform HAVE_BSD_ARC4RANDOM_UNIFORM)
+   set(HAVE_ARC4RANDOM_UNIFORM ${HAVE_BSD_ARC4RANDOM_UNIFORM})
+ endif()
 endif()
 
 # Event loop extension
