@@ -16,6 +16,8 @@
 #include "gldns/rrdef.h"
 #include "gldns/parseutil.h"
 
+#include <stdlib.h>
+
 /* classes  */
 static gldns_lookup_table gldns_rr_classes_data[] = {
         { GLDNS_RR_CLASS_IN, "IN" },

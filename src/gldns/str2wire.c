@@ -24,6 +24,7 @@
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
+#include <stdlib.h>
 
 /** return an error */
 #define RET_ERR(e, off) ((int)((e)|((off)<<GLDNS_WIREPARSE_SHIFT)))

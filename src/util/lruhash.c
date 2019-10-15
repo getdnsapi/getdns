@@ -40,6 +40,8 @@
  *
  */
 
+#include <stdlib.h>
+
 #include "config.h"
 #include "util/storage/lruhash.h"
 #include "util/fptr_wlist.h"
