@@ -33,7 +33,7 @@
 #include "debug.h"
 #include "anchor.h"
 #include <fcntl.h>
-#include <strings.h>
+#include <string.h>
 #include <time.h>
 #include "types-internal.h"
 #include "context.h"

@@ -25,7 +25,9 @@
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #include <stdarg.h>
 #include <ctype.h>
 #ifdef HAVE_NETDB_H

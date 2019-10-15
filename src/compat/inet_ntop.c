@@ -19,7 +19,7 @@
 
 #include <config.h>
 
-#ifndef HAVE_INET_NTOP
+#ifndef HAVE_DECL_INET_NTOP
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -215,4 +215,4 @@ inet_ntop6(const u_char *src, char *dst, size_t size)
 	return (dst);
 }
 
-#endif /* !HAVE_INET_NTOP */
+#endif /* !HAVE_DECL_INET_NTOP */

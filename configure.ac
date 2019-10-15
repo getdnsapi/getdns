@@ -1495,6 +1495,8 @@ dnl ---------------------------------------------------------------------------
 
 AC_CHECK_HEADERS([stdarg.h stdint.h netinet/in.h arpa/inet.h netdb.h sys/socket.h time.h sys/time.h sys/select.h endian.h limits.h sys/limits.h],,, [AC_INCLUDES_DEFAULT])
 
+AC_REPLACE_FUNCS(gettimeofday)
+
 dnl Check the printf-format attribute (if any)
 dnl result in HAVE_ATTR_FORMAT.  
 dnl
@@ -1727,6 +1729,10 @@ int inet_pton(int af, const char* src, void* dst);
 
 #ifndef HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifndef HAVE_GETTIMEOFDAY
+int gettimeofday(struct timeval* tv, void* tz);
 #endif
 
 #ifdef USE_WINSOCK

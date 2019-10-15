@@ -18,6 +18,8 @@
 
 #include <config.h>
 
+#ifndef HAVE_DECL_INET_PTON
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -228,3 +230,4 @@ inet_pton6(src, dst)
 	memcpy(dst, tmp, NS_IN6ADDRSZ);
 	return (1);
 }
+#endif /* HAVE_DECL_INET_PTON */
