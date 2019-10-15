@@ -119,6 +119,7 @@
 #cmakedefine HAVE_DECL_INET_NTOP        1
 #cmakedefine HAVE_WIN_DECL_INET_PTON    1
 #cmakedefine HAVE_WIN_DECL_INET_NTOP    1
+#cmakedefine HAVE_DECL_MKSTEMP          1
 #cmakedefine HAVE_DECL_SIGEMPTYSET      1
 #cmakedefine HAVE_DECL_SIGFILLSET       1
 #cmakedefine HAVE_DECL_SIGADDSET        1
@@ -465,6 +466,10 @@ int inet_pton(int af, const char* src, void* dst);
 
 #ifndef HAVE_DECL_INET_NTOP
 const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+#endif
+
+#ifndef HAVE_DECL_MKSTEMP
+int mkstemp(char *template);
 #endif
 
 #ifndef HAVE_GETTIMEOFDAY

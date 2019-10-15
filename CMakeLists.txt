@@ -185,6 +185,7 @@ else()
   check_symbol_exists(inet_pton arpa/inet.h HAVE_DECL_INET_PTON)
   check_symbol_exists(inet_ntop arpa/inet.h HAVE_DECL_INET_NTOP)
 endif()
+check_symbol_exists(mkstemp stdlib.h HAVE_DECL_MKSTEMP)
 check_symbol_exists(sigemptyset signal.h HAVE_DECL_SIGEMPTYSET)
 check_symbol_exists(sigfillset signal.h HAVE_DECL_SIGFILLSET)
 check_symbol_exists(sigaddset signal.h HAVE_DECL_SIGADDSET)
@@ -392,6 +393,11 @@ endif()
 if (NOT HAVE_DECL_INET_NTOP)
   list(APPEND getdns_SOURCES
     src/compat/inet_ntop.c
+    )
+endif()
+if (NOT HAVE_DECL_MKSTEMP)
+  list(APPEND getdns_SOURCES
+    src/compat/mkstemp.c
     )
 endif()
 if (NOT HAVE_DECL_STRLCPY)
