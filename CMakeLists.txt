@@ -491,6 +491,16 @@ add_executable(getdns_query src/tools/getdns_query.c)
 target_include_directories(getdns_query PRIVATE getdns)
 target_link_libraries(getdns_query PRIVATE getdns)
 
+add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
+target_include_directories(getdns_server_mon
+  PRIVATE getdns
+  PRIVATE ${OPENSSL_INCLUDE_DIR}
+  )
+target_link_libraries(getdns_server_mon
+  PRIVATE getdns
+  PUBLIC ${OPENSSL_LIBRARIES}
+  )
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns_extra.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns_extra.h)
