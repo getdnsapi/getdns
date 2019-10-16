@@ -528,26 +528,7 @@ AC_CHECK_HEADERS([openssl/conf.h openssl/ssl.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/bn.h openssl/rsa.h openssl/dsa.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_md5 EVP_sha1 EVP_sha224 EVP_sha256 EVP_sha384 EVP_sha512 FIPS_mode ENGINE_load_cryptodev EVP_PKEY_keygen ECDSA_SIG_get0 EVP_MD_CTX_new EVP_PKEY_base_id HMAC_CTX_new HMAC_CTX_free TLS_client_method DSA_SIG_set0 EVP_dss1 EVP_DigestVerify OpenSSL_version_num OpenSSL_version SSL_CTX_dane_enable SSL_dane_enable SSL_dane_tlsa_add X509_check_host X509_get_notAfter X509_get0_notAfter SSL_CTX_set_ciphersuites SSL_set_ciphersuites OPENSSL_init_crypto DSA_set0_pqg DSA_set0_key RSA_set0_key])
-AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set1_curves_list,SSL_set1_curves_list,SSL_set_min_proto_version,SSL_get_min_proto_version], [], [], [
-AC_INCLUDES_DEFAULT
-#ifdef HAVE_OPENSSL_ERR_H
-#include <openssl/err.h>
-#endif
-
-#ifdef HAVE_OPENSSL_RAND_H
-#include <openssl/rand.h>
-#endif
-
-#ifdef HAVE_OPENSSL_CONF_H
-#include <openssl/conf.h>
-#endif
-
-#ifdef HAVE_OPENSSL_ENGINE_H
-#include <openssl/engine.h>
-#endif
-#include <openssl/ssl.h>
-#include <openssl/evp.h>
-])
+AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set1_curves_list,SSL_set1_curves_list,SSL_set_min_proto_version,SSL_get_min_proto_version], [], [], [])
 fi
 
 AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
