@@ -488,15 +488,8 @@ target_link_libraries(getdns ${getdns_LIBS})
 set_property(TARGET getdns PROPERTY C_STANDARD 11)
 
 add_executable(getdns_query src/tools/getdns_query.c)
-target_include_directories(getdns_query
-  PRIVATE getdns
-  # The followingis only needed because getdns_query.c includes config.h,
-  # and that includes OpenSSL header files.
-  PRIVATE ${OPENSSL_INCLUDE_DIR}
-  )
-target_link_libraries(getdns_query
-  PRIVATE getdns
-  )
+target_include_directories(getdns_query PRIVATE getdns)
+target_link_libraries(getdns_query PRIVATE getdns)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns.h)
