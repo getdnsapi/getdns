@@ -132,9 +132,9 @@ else()
 endif()
 
 # Windows. Uh-oh.
-set(extra_libraries "")
+set(getdns_system_libs "")
 if (DEFINED GETDNS_ON_WINDOWS)
-  list(APPEND extra_libraries
+  list(APPEND getdns_system_libs
     "ws2_32"
     "crypt32"
     "gdi32"
@@ -182,7 +182,7 @@ check_include_file(ws2tcpip.h HAVE_WS2TCPIP_H)
 # Check for include declarations
 check_symbol_exists(getentropy unistd.h HAVE_DECL_GETENTROPY)
 if (DEFINED GETDNS_ON_WINDOWS)
-  set(CMAKE_REQUIRED_LIBRARIES ${extra_libraries})
+  set(CMAKE_REQUIRED_LIBRARIES ${getdns_system_libs})
   check_symbol_exists(inet_pton ws2tcpip.h HAVE_DECL_INET_PTON)
   check_symbol_exists(inet_ntop ws2tcpip.h HAVE_DECL_INET_NTOP)
 else()
@@ -289,7 +289,7 @@ if (NOT
      HAVE_ARC4RANDOM_UNIFORM AND HAVE_DECL_ARC4RANDOM_UNIFORM))
  find_library(BSD_LIB bsd)
  if (BSD_LIB)
-   list(APPEND extra_libraries "bsd")
+   list(APPEND getdns_system_libs "bsd")
    set(CMAKE_REQUIRED_LIBRARIES "bsd")
 
    check_include_file(bsd/stdlib.h HAVE_BSD_STDLIB_H)
@@ -452,7 +452,8 @@ if (NOT STRPTIME_WORKS)
 endif()
 
 set(getdns_INCLUDES
-  PRIVATE src
+  PUBLIC src
+
   PRIVATE src/util/auxiliary
   PRIVATE src/openssl
   PRIVATE src/tls
@@ -467,9 +468,7 @@ set(getdns_INCLUDES
 set(getdns_LIBS
   PUBLIC ${OPENSSL_LIBRARIES}
   PUBLIC Threads::Threads
-  PUBLIC ${LIBBSD_LDFLAGS}
-  PUBLIC ${LIBBSD_LIBRARIES}
-  PUBLIC ${extra_libraries}
+  PUBLIC ${getdns_system_libs}
   )
 
 if (NOT HAVE_SSL_DANE_ENABLE)
@@ -490,12 +489,13 @@ set_property(TARGET getdns PROPERTY C_STANDARD 11)
 
 add_executable(getdns_query src/tools/getdns_query.c)
 target_include_directories(getdns_query
-  PUBLIC src
+  PRIVATE getdns
+  # The followingis only needed because getdns_query.c includes config.h,
+  # and that includes OpenSSL header files.
   PRIVATE ${OPENSSL_INCLUDE_DIR}
   )
 target_link_libraries(getdns_query
-  PUBLIC getdns
-  PUBLIC ${OPENSSL_LIBRARIES}
+  PRIVATE getdns
   )
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
