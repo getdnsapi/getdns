@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif ()
+
 set(CMAKE_VERBOSE_MAKEFILE_ON)
 
 # The following must be set BEFORE doing project() or enable_language().
