@@ -77,6 +77,11 @@ static char const * const _getdns_tls_context_default_cipher_suites =
 static char const * const _getdns_tls_connection_opportunistic_cipher_list =
 	"DEFAULT";
 
+#ifdef HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+/* The fp for the open SSLKEYLOGFILE, or NULL if not open */
+static FILE *keylog_file;
+#endif
+
 static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 {
 # if defined(STUB_DEBUG) && STUB_DEBUG
@@ -301,6 +306,34 @@ add_WIN_cacerts_to_openssl_store(SSL_CTX* tls_ctx, const getdns_log_config* log)
 }
 #endif
 
+#ifdef HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+static void _getdns_keylog_callback(const SSL *ssl, const char *line)
+{
+	(void)ssl;
+
+	if (keylog_file && line && *line) {
+		char stackbuf[256];
+		char *buf;
+		size_t linelen = strlen(line);
+
+		if (linelen <= sizeof(stackbuf) - 2)
+			buf = stackbuf;
+		else {
+			buf = malloc(linelen + 2);
+			if(!buf)
+				return;
+		}
+		memcpy(buf, line, linelen);
+		buf[linelen] = '\n';
+		buf[linelen + 1] = '\0';
+
+		fputs(buf, keylog_file);
+		if (buf != stackbuf)
+			free(buf);
+	}
+}
+#endif
+
 void _getdns_tls_init()
 {
 #ifdef HAVE_OPENSSL_INIT_CRYPTO
@@ -315,6 +348,26 @@ void _getdns_tls_init()
 # ifdef USE_DANESSL
 		(void) DANESSL_library_init();
 # endif
+#endif
+
+#ifdef HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+	if (!keylog_file) {
+		char  *keylog_file_name;
+		keylog_file_name = getenv("SSLKEYLOGFILE");
+		if (keylog_file_name) {
+			keylog_file = fopen(keylog_file_name, "a");
+			if (keylog_file) {
+#ifdef GETDNS_ON_WINDOWS
+				if(setvbuf(keylog_file, NULL, _IONBF, 0)) {
+#else
+				if(setvbuf(keylog_file, NULL, _IOLBF, 4096)) {
+#endif
+					fclose(keylog_file);
+					keylog_file = NULL;
+				}
+			}
+		}
+	}
 #endif
 }
 
@@ -346,6 +399,13 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs, const getdns
 		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
+
+#ifdef HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+	/* Set up key logging if requested */
+	if (keylog_file)
+		SSL_CTX_set_keylog_callback(res->ssl, _getdns_keylog_callback);
+#endif
+
 	return res;
 }
 
