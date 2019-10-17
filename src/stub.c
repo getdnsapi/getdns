@@ -907,14 +907,6 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		return NULL;
 	}
 
-	if (upstream->tls_fallback_ok) {
-		DEBUG_STUB("%s %-35s: WARNING: Using Opportunistic TLS (fallback allowed)!\n",
-			   STUB_DEBUG_SETUP_TLS, __FUNC__);
-	} else {
-		DEBUG_STUB("%s %-35s: Using Strict TLS \n",
-			   STUB_DEBUG_SETUP_TLS, __FUNC__);
-	}
-
 	/* NOTE: this code will fallback on a given upstream, without trying
 	   authentication on other upstreams first. This is non-optimal and but avoids
 	   multiple TLS handshakes before getting a usable connection. */
@@ -953,6 +945,19 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
 			upstream->tls_fallback_ok = 1;
 		}
+	}
+
+	if (upstream->tls_fallback_ok) {
+		if (_getdns_tls_connection_set_cipher_list(tls, NULL)) {
+			_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
+			upstream->tls_auth_state = GETDNS_AUTH_NONE;
+			return NULL;
+		}
+		DEBUG_STUB("%s %-35s: WARNING: Using Opportunistic TLS (fallback allowed)!\n",
+		           STUB_DEBUG_SETUP_TLS, __FUNC__);
+	} else {
+		DEBUG_STUB("%s %-35s: Using Strict TLS \n",
+			   STUB_DEBUG_SETUP_TLS, __FUNC__);
 	}
 
 	_getdns_tls_connection_set_host_pinset(tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
