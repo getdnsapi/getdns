@@ -102,7 +102,7 @@ static int set_connection_ciphers(_getdns_tls_connection* conn)
 	char* pri = NULL;
 	int res;
 
-	pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-RSA-SHA384");
+	pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-ALL");
 
 	if (conn->cipher_suites)
 		pri = getdns_priappend(conn->mfs, pri, conn->cipher_suites);
