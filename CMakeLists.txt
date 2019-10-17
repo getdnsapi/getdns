@@ -7,7 +7,7 @@ if (NOT CMAKE_BUILD_TYPE)
   message(STATUS "No build type defined; defaulting to 'Debug'")
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
     "The type of build. Possible values are: Debug, Release, RelWithDebInfo and MinSizeRel.")
-endif()
+endif ()
 
 set(PACKAGE "getdns")
 set(PACKAGE_NAME "getdns")
@@ -77,14 +77,14 @@ elseif (UNIX)
 
   if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600")
-  endif()
+  endif ()
   if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     set(LINUX 1)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_BSD_SOURCE -D_DEFAULT_SOURCE")
   elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Solaris")
     set(SOLARIS 1)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__EXTENSIONS_")
-  endif()
+  endif ()
 endif ()
 
 test_big_endian(TARGET_IS_BIG_ENDIAN)
@@ -96,9 +96,9 @@ set(GETDNS_FN_RESOLVCONF "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/resolv.conf")
 if (WIN32)
   # BUG! Don't hardcode the Windows directory and drive.
   set(GETDNS_FN_HOSTS "C:/Windows/System32/Drivers/etc/hosts")
-else()
+else ()
   set(GETDNS_FN_HOSTS "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/hosts")
-endif()
+endif ()
 
 # Options.
 set(DNSSEC_ROADBLOCK_AVOIDANCE 1)        # Nail on, as build fails if off.
@@ -127,9 +127,9 @@ if (MSVC)
   # The Visual Studio C compiler is C90 with some of C99 and C11.
   # So full on warnings are not appropriate.
   add_compile_options(/W2)
-else()
+else ()
   add_compile_options(-Wall -Wextra)
-endif()
+endif ()
 
 # Windows. Uh-oh.
 set(getdns_system_libs "")
@@ -140,7 +140,7 @@ if (DEFINED GETDNS_ON_WINDOWS)
     "gdi32"
     "iphlpapi"
     )
-endif()
+endif ()
 
 # Check for include files
 check_include_file(assert.h HAVE_ASSERT_H)
@@ -185,10 +185,10 @@ if (DEFINED GETDNS_ON_WINDOWS)
   set(CMAKE_REQUIRED_LIBRARIES ${getdns_system_libs})
   check_symbol_exists(inet_pton ws2tcpip.h HAVE_DECL_INET_PTON)
   check_symbol_exists(inet_ntop ws2tcpip.h HAVE_DECL_INET_NTOP)
-else()
+else ()
   check_symbol_exists(inet_pton arpa/inet.h HAVE_DECL_INET_PTON)
   check_symbol_exists(inet_ntop arpa/inet.h HAVE_DECL_INET_NTOP)
-endif()
+endif ()
 check_symbol_exists(mkstemp stdlib.h HAVE_DECL_MKSTEMP)
 check_symbol_exists(sigemptyset signal.h HAVE_DECL_SIGEMPTYSET)
 check_symbol_exists(sigfillset signal.h HAVE_DECL_SIGFILLSET)
@@ -270,9 +270,9 @@ if (CMAKE_USE_PTHREADS_INIT)
   set(HAVE_PTHREAD 1)
 elseif (CMAKE_USE_WIN32_THREADS_INIT)
   set(HAVE_WINDOWS_THREADS 1)
-else()
+else ()
   message(WARNING "Neither pthreads nor Windows threading available.")
-endif()
+endif ()
 
 # Stuff that might be in a BSD library
 check_symbol_exists(strlcpy string.h HAVE_DECL_STRLCPY)
@@ -308,15 +308,15 @@ if (NOT
    set(HAVE_ARC4RANDOM ${HAVE_BSD_ARC4RANDOM})
    check_function_exists(arc4random_uniform HAVE_BSD_ARC4RANDOM_UNIFORM)
    set(HAVE_ARC4RANDOM_UNIFORM ${HAVE_BSD_ARC4RANDOM_UNIFORM})
- endif()
-endif()
+ endif ()
+endif ()
 
 # Event loop extension
 # TODO: other event loops
 set(DEFAULT_EVENTLOOP "select_eventloop")
 if (HAVE_SYS_POLL_H)
   set(TEST_CFLAG "HAVE_SYS_POLL_H=1")
-endif()
+endif ()
 try_compile(USE_POLL_DEFAULT_EVENTLOOP
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_poll.c
@@ -324,7 +324,7 @@ try_compile(USE_POLL_DEFAULT_EVENTLOOP
   )
 if (USE_POLL_DEFAULT_EVENTLOOP)
   set(DEFAULT_EVENTLOOP "poll_eventloop")
-endif()
+endif ()
 
 # Custom checks
 set(STRPTIME_TEST_SOURCE "\n
@@ -338,7 +338,7 @@ set(STRPTIME_TEST_SOURCE "\n
 
 if (HAVE_STRPTIME)
   check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
-endif()
+endif ()
 
 # Main library
 
@@ -396,27 +396,27 @@ if (NOT HAVE_GETTIMEOFDAY)
   list(APPEND getdns_SOURCES
     src/compat/gettimeofday.c
     )
-endif()
+endif ()
 if (NOT HAVE_DECL_INET_PTON)
   list(APPEND getdns_SOURCES
     src/compat/inet_pton.c
     )
-endif()
+endif ()
 if (NOT HAVE_DECL_INET_NTOP)
   list(APPEND getdns_SOURCES
     src/compat/inet_ntop.c
     )
-endif()
+endif ()
 if (NOT HAVE_DECL_MKSTEMP)
   list(APPEND getdns_SOURCES
     src/compat/mkstemp.c
     )
-endif()
+endif ()
 if (NOT HAVE_DECL_STRLCPY)
   list(APPEND getdns_SOURCES
     src/compat/strlcpy.c
     )
-endif()
+endif ()
 if (NOT HAVE_DECL_ARC4RANDOM)
   list(APPEND getdns_SOURCES
     src/compat/arc4random.c
@@ -437,19 +437,19 @@ if (NOT HAVE_DECL_ARC4RANDOM)
       list(APPEND getdns_SOURCES
         src/compat/getentropy_linux.c
         )
-    endif()
-  endif()
-endif()
+    endif ()
+  endif ()
+endif ()
 if (NOT HAVE_DECL_ARC4RANDOM_UNIFORM)
   list(APPEND getdns_SOURCES
     src/compat/arc4random_uniform.c
     )
-endif()
+endif ()
 if (NOT STRPTIME_WORKS)
   list(APPEND getdns_SOURCES
     src/compat/strptime.c
     )
-endif()
+endif ()
 
 set(getdns_INCLUDES
   PUBLIC src
@@ -479,7 +479,7 @@ if (NOT HAVE_SSL_DANE_ENABLE)
     PRIVATE src/ssl_dane
     )
   set(USE_DANESSL 1)
-endif()
+endif ()
 
 add_library(getdns ${getdns_SOURCES})
 target_include_directories(getdns ${getdns_INCLUDES})
