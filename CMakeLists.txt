@@ -456,23 +456,26 @@ if (NOT STRPTIME_WORKS)
 endif ()
 
 set(getdns_INCLUDES
-  PUBLIC src
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SRC_DIR}/src>
 
-  PRIVATE src/util/auxiliary
-  PRIVATE src/openssl
-  PRIVATE src/tls
-  PRIVATE src/yxml
-  PRIVATE stubby/src    # Wrong, wrong, wrong.
+  PRIVATE
+    src/util/auxiliary
+    src/openssl
+    src/tls
+    src/yxml
+    stubby/src    # Wrong, wrong, wrong.
 
-  PRIVATE ${OPENSSL_INCLUDE_DIR}
-  PRIVATE ${LIBBSD_INCLUDE_DIRS}
-  PRIVATE Threads::Threads
+    ${OPENSSL_INCLUDE_DIR}
+    ${LIBBSD_INCLUDE_DIRS}
+    Threads::Threads
   )
 
 set(getdns_LIBS
-  PUBLIC ${OPENSSL_LIBRARIES}
-  PUBLIC Threads::Threads
-  PUBLIC ${getdns_system_libs}
+  PUBLIC
+    ${OPENSSL_LIBRARIES}
+    Threads::Threads
+    ${getdns_system_libs}
   )
 
 if (NOT HAVE_SSL_DANE_ENABLE)
@@ -497,12 +500,15 @@ target_link_libraries(getdns_query PRIVATE getdns)
 
 add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
 target_include_directories(getdns_server_mon
-  PRIVATE getdns
-  PRIVATE ${OPENSSL_INCLUDE_DIR}
+  PRIVATE
+    getdns
+    ${OPENSSL_INCLUDE_DIR}
   )
 target_link_libraries(getdns_server_mon
-  PRIVATE getdns
-  PUBLIC ${OPENSSL_LIBRARIES}
+  PUBLIC
+    ${OPENSSL_LIBRARIES}
+  PRIVATE
+    getdns
   )
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
