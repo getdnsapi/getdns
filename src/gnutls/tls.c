@@ -126,8 +126,9 @@ static int set_connection_ciphers(_getdns_tls_connection* conn)
 	if (!min) min = conn->ctx->min_tls;
 	if (!max) max = conn->ctx->max_tls;
 
+	pri = getdns_priappend(conn->mfs, pri, "-VERS-ALL");
 	if (!min && !max) {
-		pri = getdns_priappend(conn->mfs, pri, "+VERS-TLS-ALL");
+		pri = getdns_priappend(conn->mfs, pri, "+VERS-TLS1.2:+VERS-TLS1.3");
 	} else {
 		if (!max) max = GNUTLS_TLS_VERSION_MAX;
 
