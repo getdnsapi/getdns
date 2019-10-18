@@ -33,6 +33,8 @@ set(API_NUMERIC_VERSION 0x07df0c00)
 set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on <date> for the ${API_VERSION} of the API")
 
 set(GETDNS_LIBVERSION "11:2:1")
+set(GETDNS_SHAREDLIBVERSION "10.1.2")
+set(GETDNS_DLLVERSION "10.1")          # Windows permits major.minor only.
 
 include(CheckCSourceRuns)
 include(CheckFunctionExists)
@@ -137,7 +139,9 @@ endif ()
 
 # Windows. Uh-oh.
 set(getdns_system_libs "")
+set(static_lib_suffix "")
 if (DEFINED GETDNS_ON_WINDOWS)
+  set(static_lib_suffix "_static")
   list(APPEND getdns_system_libs
     "ws2_32"
     "crypt32"
@@ -457,7 +461,7 @@ endif ()
 
 set(getdns_INCLUDES
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SRC_DIR}/src>
+    src
 
   PRIVATE
     src/util/auxiliary
@@ -488,13 +492,63 @@ if (NOT HAVE_SSL_DANE_ENABLE)
   set(USE_DANESSL 1)
 endif ()
 
-add_library(getdns ${getdns_SOURCES})
+# Don't compile separate objects for shared and static libraries.
+# Yes, -fPIC is slightly suboptimal for static libraries, but it looks
+# to me that it's the behaviour the autoconf build follows.
+add_library(getdns_objects OBJECT ${getdns_SOURCES})
+target_include_directories(getdns_objects ${getdns_INCLUDES})
+set_property(TARGET getdns_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+add_library(getdns STATIC $<TARGET_OBJECTS:getdns_objects>)
 target_include_directories(getdns ${getdns_INCLUDES})
 target_link_libraries(getdns ${getdns_LIBS})
+set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
+
+# Generate either a Win32 .def file with DLL exports, or a GNU ld
+# link file specifying the exports.
+file(STRINGS src/libgetdns.symbols symbols)
+set(getdns_EXTRA_LINK "")
+set(getdns_EXTRA_LINK_FLAGS "")
+if (WIN32)
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "LIBRARY GETDNS\n  VERSION ${GETDNS_DLLVERSION}\n  EXPORTS\n")
+  foreach (symbol IN LISTS symbols)
+    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "    ${symbol}\n")
+  endforeach ()
+  set(getdns_EXTRA_LINK "${CMAKE_CURRENT_BINARY_DIR}/getdns.def")
+elseif (APPLE)
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "")
+  foreach (symbol IN LISTS symbols)
+    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "_${symbol}\n")
+  endforeach ()
+  set(getdns_EXTRA_LINK_FLAGS "-exported_symbols_list getdns.syms")
+else ()
+  # Assume GNU ld.
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "{ global:\n")
+  foreach (symbol IN LISTS symbols)
+    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "  ${symbol};\n")
+  endforeach ()
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "local:\n  *;\n};\n")
+  set(getdns_EXTRA_LINK_FLAGS "-Wl,--version-script=getdns.ver")
+endif ()
+
+add_library(getdns_shared SHARED $<TARGET_OBJECTS:getdns_objects> ${getdns_EXTRA_LINK})
+target_include_directories(getdns_shared ${getdns_INCLUDES})
+target_link_libraries(getdns_shared ${getdns_LIBS} ${getdns_EXTRA_LINK_FLAGS})
+set_target_properties(getdns_shared PROPERTIES VERSION ${GETDNS_SHAREDLIBVERSION})
+set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
 
 set_property(TARGET getdns PROPERTY C_STANDARD 11)
 
-add_executable(getdns_query src/tools/getdns_query.c)
+set(getdns_query_SOURCES
+  src/tools/getdns_query.c
+  )
+if (NOT HAVE_GETTIMEOFDAY)
+  list(APPEND getdns_query_SOURCES
+    src/compat/gettimeofday.c
+    )
+endif ()
+
+add_executable(getdns_query ${getdns_query_SOURCES})
 target_include_directories(getdns_query PRIVATE getdns)
 target_link_libraries(getdns_query PRIVATE getdns)
 
