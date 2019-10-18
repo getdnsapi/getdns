@@ -1112,6 +1112,12 @@ set_os_defaults_windows(getdns_context *context)
     return GETDNS_RETURN_GOOD;
 } /* set_os_defaults_windows */
 
+getdns_return_t
+getdns_context_set_resolvconf(getdns_context *context, const char *resolvconf)
+{
+	return GETDNS_RETURN_NOT_IMPLEMENTED;
+}
+
 #else
 
 getdns_return_t
