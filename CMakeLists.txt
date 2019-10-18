@@ -42,7 +42,7 @@ include(CheckSymbolExists)
 include(CheckTypeSize)
 include(TestBigEndian)
 
-project(getdns VERSION ${PACKAGE_VERSION})
+project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
