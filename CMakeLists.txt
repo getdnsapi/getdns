@@ -488,8 +488,6 @@ set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
 
 # Generate platform-specific link file with the export symbols.
 file(STRINGS src/libgetdns.symbols symbols)
-set(getdns_EXTRA_LINK "")
-set(getdns_EXTRA_LINK_FLAGS "")
 if (WIN32)
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "LIBRARY GETDNS\n  VERSION ${GETDNS_VERSION_CURRENT}.${GETDNS_VERSION_REVISION}\n  EXPORTS\n")
   foreach (symbol IN LISTS symbols)
