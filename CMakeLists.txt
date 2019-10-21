@@ -32,9 +32,10 @@ set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on <date> for the ${API_VERSION} of the API")
 
-set(GETDNS_LIBVERSION "11:2:1")
-set(GETDNS_SHAREDLIBVERSION "10.1.2")
-set(GETDNS_DLLVERSION "10.1")          # Windows permits major.minor only.
+# Version 11:2:1 in libtool-speak.
+set(GETDNS_VERSION_CURRENT 11)
+set(GETDNS_VERSION_REVISION 2)
+set(GETDNS_VERSION_AGE 1)
 
 include(CheckCSourceRuns)
 include(CheckFunctionExists)
@@ -483,16 +484,14 @@ target_link_libraries(getdns_shared
   Threads::Threads
   ${getdns_system_libs}
   )
-set_target_properties(getdns_shared PROPERTIES VERSION ${GETDNS_SHAREDLIBVERSION})
 set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
 
 # Generate platform-specific link file with the export symbols.
-# link file specifying the exports.
 file(STRINGS src/libgetdns.symbols symbols)
 set(getdns_EXTRA_LINK "")
 set(getdns_EXTRA_LINK_FLAGS "")
 if (WIN32)
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "LIBRARY GETDNS\n  VERSION ${GETDNS_DLLVERSION}\n  EXPORTS\n")
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "LIBRARY GETDNS\n  VERSION ${GETDNS_VERSION_CURRENT}.${GETDNS_VERSION_REVISION}\n  EXPORTS\n")
   foreach (symbol IN LISTS symbols)
     file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "    ${symbol}\n")
   endforeach ()
@@ -504,6 +503,14 @@ elseif (APPLE)
   endforeach ()
   target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms")
   target_link_libraries(getdns_shared PRIVATE "-exported_symbols_list getdns.syms")
+
+  # Follow libtool. Add one to major version, as version 0 doesn't work.
+  # But tag dynlib name with current-age.
+  math(EXPR major_version "${GETDNS_VERSION_CURRENT}+1")
+  math(EXPR dynlib_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
+  set_target_properties(getdns_shared PROPERTIES VERSION "${dynlib_version}")
+  target_link_libraries(getdns_shared PRIVATE "-compatibility_version ${major_version}")
+  target_link_libraries(getdns_shared PRIVATE "-current_version ${major_version}.${GETDNS_VERSION_REVISION}")
 else ()
   # Assume GNU ld.
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "{ global:\n")
@@ -512,6 +519,10 @@ else ()
   endforeach ()
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "local:\n  *;\n};\n")
   target_link_libraries(getdns_shared PRIVATE "-Wl,--version-script=getdns.ver")
+
+  # Again, follow libtool. Major version is current-age.
+  math(EXPR compat_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
+  set_target_properties(getdns_shared PROPERTIES VERSION "${compat_version}.${GETDNS_VERSION_AGE}.${GETDNS_VERSION_REVISION}")
 endif ()
 
 
