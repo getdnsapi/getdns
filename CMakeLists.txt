@@ -520,7 +520,7 @@ else ()
 
   # Again, follow libtool. Major version is current-age.
   math(EXPR compat_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
-  set_target_properties(getdns_shared PROPERTIES VERSION "${compat_version}.${GETDNS_VERSION_AGE}.${GETDNS_VERSION_REVISION}")
+  set_target_properties(getdns_shared PROPERTIES VERSION "${compat_version}.${GETDNS_VERSION_AGE}.${GETDNS_VERSION_REVISION}" SOVERSION "${compat_version}")
 endif ()
 
 
