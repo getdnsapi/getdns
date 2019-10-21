@@ -349,8 +349,7 @@ if (HAVE_STRPTIME)
 endif ()
 
 # Main library
-
-set(getdns_SOURCES
+add_library(getdns_objects OBJECT
   src/anchor.c
   src/const-info.c
   src/convert.c
@@ -399,34 +398,23 @@ set(getdns_SOURCES
 
   ${CMAKE_CURRENT_BINARY_DIR}/version.c
   )
-
 if (NOT HAVE_GETTIMEOFDAY)
-  list(APPEND getdns_SOURCES
-    src/compat/gettimeofday.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/gettimeofday.c)
 endif ()
 if (NOT HAVE_DECL_INET_PTON)
-  list(APPEND getdns_SOURCES
-    src/compat/inet_pton.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/inet_pton.c)
 endif ()
 if (NOT HAVE_DECL_INET_NTOP)
-  list(APPEND getdns_SOURCES
-    src/compat/inet_ntop.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/inet_ntop.c)
 endif ()
 if (NOT HAVE_DECL_MKSTEMP)
-  list(APPEND getdns_SOURCES
-    src/compat/mkstemp.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/mkstemp.c)
 endif ()
 if (NOT HAVE_DECL_STRLCPY)
-  list(APPEND getdns_SOURCES
-    src/compat/strlcpy.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/strlcpy.c)
 endif ()
 if (NOT HAVE_DECL_ARC4RANDOM)
-  list(APPEND getdns_SOURCES
+  target_sources(getdns_objects PRIVATE
     src/compat/arc4random.c
     src/compat/explicit_bzero.c
     src/compat/arc4_lock.c
@@ -434,77 +422,71 @@ if (NOT HAVE_DECL_ARC4RANDOM)
 
   if (NOT HAVE_DECL_GETENTROPY)
     if (DEFINED GETDNS_ON_WINDOWS)
-      list(APPEND getdns_SOURCES
-        src/compat/getentropy_win.c
-        )
+      target_sources(getdns_objects PRIVATE src/compat/getentropy_win.c)
     elseif (APPLE)
-      list(APPEND getdns_SOURCES
-        src/compat/getentropy_osx.c
-        )
+      target_sources(getdns_objects PRIVATE src/compat/getentropy_osx.c)
     elseif (DEFINED LINUX)
-      list(APPEND getdns_SOURCES
-        src/compat/getentropy_linux.c
-        )
+      target_sources(getdns_objects PRIVATE src/compat/getentropy_linux.c)
     endif ()
   endif ()
 endif ()
 if (NOT HAVE_DECL_ARC4RANDOM_UNIFORM)
-  list(APPEND getdns_SOURCES
-    src/compat/arc4random_uniform.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/arc4random_uniform.c)
 endif ()
 if (NOT STRPTIME_WORKS)
-  list(APPEND getdns_SOURCES
-    src/compat/strptime.c
-    )
+  target_sources(getdns_objects PRIVATE src/compat/strptime.c)
 endif ()
-
-set(getdns_INCLUDES
+target_include_directories(getdns_objects
   PUBLIC
-    src
+  src
 
   PRIVATE
-    src/util/auxiliary
-    src/openssl
-    src/tls
-    src/yxml
-    stubby/src    # Wrong, wrong, wrong.
+  src/util/auxiliary
+  src/openssl
+  src/tls
+  src/yxml
+  stubby/src    # Wrong, wrong, wrong.
 
-    ${OPENSSL_INCLUDE_DIR}
-    ${LIBBSD_INCLUDE_DIRS}
-    Threads::Threads
+  ${OPENSSL_INCLUDE_DIR}
   )
-
-set(getdns_LIBS
-  PUBLIC
-    ${OPENSSL_LIBRARIES}
-    Threads::Threads
-    ${getdns_system_libs}
-  )
-
 if (NOT HAVE_SSL_DANE_ENABLE)
-  list(APPEND getdns_SOURCES
-    src/ssl_dane/danessl.c
-    )
-  list(APPEND getdns_INCLUDES
-    PRIVATE src/ssl_dane
-    )
+  target_sources(getdns_objects PRIVATE src/ssl_dane/danessl.c)
+  target_include_directories(getdns_objects PRIVATE src/ssl_dane)
   set(USE_DANESSL 1)
 endif ()
 
 # Don't compile separate objects for shared and static libraries.
 # Yes, -fPIC is slightly suboptimal for static libraries, but it looks
 # to me that it's the behaviour the autoconf build follows.
-add_library(getdns_objects OBJECT ${getdns_SOURCES})
-target_include_directories(getdns_objects ${getdns_INCLUDES})
 set_property(TARGET getdns_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
+set_property(TARGET getdns_objects PROPERTY C_STANDARD 11)
 
+# Static library version of main library.
 add_library(getdns STATIC $<TARGET_OBJECTS:getdns_objects>)
-target_include_directories(getdns ${getdns_INCLUDES})
-target_link_libraries(getdns ${getdns_LIBS})
+target_include_directories(getdns PUBLIC src)
+target_link_libraries(getdns
+  PUBLIC
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  Threads::Threads
+  ${getdns_system_libs}
+  )
 set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
 
-# Generate either a Win32 .def file with DLL exports, or a GNU ld
+# Shared library version of main library.
+add_library(getdns_shared SHARED $<TARGET_OBJECTS:getdns_objects>)
+target_include_directories(getdns PUBLIC src)
+target_link_libraries(getdns_shared
+  PUBLIC
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  Threads::Threads
+  ${getdns_system_libs}
+  )
+set_target_properties(getdns_shared PROPERTIES VERSION ${GETDNS_SHAREDLIBVERSION})
+set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
+
+# Generate platform-specific link file with the export symbols.
 # link file specifying the exports.
 file(STRINGS src/libgetdns.symbols symbols)
 set(getdns_EXTRA_LINK "")
@@ -514,13 +496,14 @@ if (WIN32)
   foreach (symbol IN LISTS symbols)
     file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "    ${symbol}\n")
   endforeach ()
-  set(getdns_EXTRA_LINK "${CMAKE_CURRENT_BINARY_DIR}/getdns.def")
+  target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def")
 elseif (APPLE)
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "")
   foreach (symbol IN LISTS symbols)
     file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "_${symbol}\n")
   endforeach ()
-  set(getdns_EXTRA_LINK_FLAGS "-exported_symbols_list getdns.syms")
+  target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms")
+  target_link_libraries(getdns_shared PRIVATE "-exported_symbols_list getdns.syms")
 else ()
   # Assume GNU ld.
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "{ global:\n")
@@ -528,41 +511,31 @@ else ()
     file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "  ${symbol};\n")
   endforeach ()
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "local:\n  *;\n};\n")
-  set(getdns_EXTRA_LINK_FLAGS "-Wl,--version-script=getdns.ver")
+  target_link_libraries(getdns_shared PRIVATE "-Wl,--version-script=getdns.ver")
 endif ()
 
-add_library(getdns_shared SHARED $<TARGET_OBJECTS:getdns_objects> ${getdns_EXTRA_LINK})
-target_include_directories(getdns_shared ${getdns_INCLUDES})
-target_link_libraries(getdns_shared ${getdns_LIBS} ${getdns_EXTRA_LINK_FLAGS})
-set_target_properties(getdns_shared PROPERTIES VERSION ${GETDNS_SHAREDLIBVERSION})
-set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
 
-set_property(TARGET getdns PROPERTY C_STANDARD 11)
-
-set(getdns_query_SOURCES
-  src/tools/getdns_query.c
-  )
+# The tools.
+add_executable(getdns_query src/tools/getdns_query.c)
 if (NOT HAVE_GETTIMEOFDAY)
-  list(APPEND getdns_query_SOURCES
-    src/compat/gettimeofday.c
-    )
+  target_sources(getdns_query PRIVATE src/compat/gettimeofday.c)
 endif ()
-
-add_executable(getdns_query ${getdns_query_SOURCES})
 target_include_directories(getdns_query PRIVATE getdns)
 target_link_libraries(getdns_query PRIVATE getdns)
 
 add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
 target_include_directories(getdns_server_mon
   PRIVATE
-    getdns
-    ${OPENSSL_INCLUDE_DIR}
+  getdns
+  OpenSSL:SSL
+  OpenSSL:Crypto
   )
 target_link_libraries(getdns_server_mon
   PUBLIC
-    ${OPENSSL_LIBRARIES}
+  OpenSSL::SSL
+  OpenSSL::Crypto
   PRIVATE
-    getdns
+  getdns
   )
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
