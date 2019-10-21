@@ -533,6 +533,7 @@ if (NOT HAVE_GETTIMEOFDAY)
 endif ()
 target_include_directories(getdns_query PRIVATE getdns)
 target_link_libraries(getdns_query PRIVATE getdns)
+set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 
 add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
 target_include_directories(getdns_server_mon
@@ -548,6 +549,7 @@ target_link_libraries(getdns_server_mon
   PRIVATE
   getdns
   )
+set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns.h)
