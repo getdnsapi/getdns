@@ -464,7 +464,9 @@ set_property(TARGET getdns_objects PROPERTY C_STANDARD 11)
 
 # Static library version of main library.
 add_library(getdns STATIC $<TARGET_OBJECTS:getdns_objects>)
-target_include_directories(getdns PUBLIC src)
+target_include_directories(getdns PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+  )
 target_link_libraries(getdns
   PUBLIC
   OpenSSL::SSL
@@ -476,7 +478,9 @@ set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
 
 # Shared library version of main library.
 add_library(getdns_shared SHARED $<TARGET_OBJECTS:getdns_objects>)
-target_include_directories(getdns PUBLIC src)
+target_include_directories(getdns_shared PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+  )
 target_link_libraries(getdns_shared
   PUBLIC
   OpenSSL::SSL
@@ -529,14 +533,12 @@ add_executable(getdns_query src/tools/getdns_query.c)
 if (NOT HAVE_GETTIMEOFDAY)
   target_sources(getdns_query PRIVATE src/compat/gettimeofday.c)
 endif ()
-target_include_directories(getdns_query PRIVATE getdns)
 target_link_libraries(getdns_query PRIVATE getdns)
 set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 
 add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
 target_include_directories(getdns_server_mon
   PRIVATE
-  getdns
   OpenSSL:SSL
   OpenSSL:Crypto
   )
