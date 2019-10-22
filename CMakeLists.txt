@@ -549,7 +549,76 @@ target_link_libraries(getdns_server_mon
   )
 set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/cmakeconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns.h)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/getdns/getdns_extra.h.in ${CMAKE_CURRENT_BINARY_DIR}/getdns/getdns_extra.h)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.c.in ${CMAKE_CURRENT_BINARY_DIR}/version.c)
+# Substitutions in files.
+configure_file(cmake/include/cmakeconfig.h.in config.h)
+configure_file(src/getdns/getdns.h.in getdns/getdns.h)
+configure_file(src/getdns/getdns_extra.h.in getdns/getdns_extra.h)
+configure_file(src/version.c.in version.c)
+
+set(version ${PACKAGE_VERSION})
+set(date ${API_VERSION})
+file(GLOB mans doc/*.3.in)
+file(MAKE_DIRECTORY man3)
+foreach (man ${mans})
+  get_filename_component(out ${man} NAME_WE)
+  configure_file(${man} man3/${out}.3 @ONLY)
+
+  # Look through the page and make copies of the page for all APIs
+  # defined in that page. Defined means listed in a line ".B <name>"
+  # between lines ".SH NAME" and ".SH LIBRARY". Ignore terminating ","
+  # or spaces in .B line.
+  file(STRINGS ${man} manpage REGEX "^.(SH|B) ")
+  set(in_list 0)
+  foreach (line ${manpage})
+    if ("${line}" STREQUAL ".SH NAME")
+      set(in_list 1)
+    elseif ("${line}" STREQUAL ".SH LIBRARY")
+      set(in_list 0)
+    elseif (${in_list})
+      string(REGEX REPLACE ".B *([^ ,]+).*" "\\1" alt "${line}")
+      configure_file(${man} man3/${alt}.3 @ONLY)
+    endif ()
+  endforeach()
+endforeach()
+
+set(prefix ${CMAKE_INSTALL_PREFIX})
+configure_file(getdns.pc.in getdns.pc @ONLY)
+
+# Installing.
+install(TARGETS getdns getdns_shared getdns_query getdns_server_mon
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  )
+
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/getdns DESTINATION include)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man3 DESTINATION share/man)
+
+set(docdir share/doc/getdns)
+install(FILES AUTHORS ChangeLog COPYING INSTALL LICENSE NEWS README.md DESTINATION ${docdir})
+install(FILES spec/index.html DESTINATION ${docdir}/spec)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/getdns.pc DESTINATION lib/pkgconfig)
+
+install(CODE "message(\"\
+***\n\
+***  !!! IMPORTANT !!!!\n\
+***\n\
+***  From release 1.2.0, getdns comes with built-in DNSSEC\n\
+***  trust anchor management.  External trust anchor management,\n\
+***  for example with unbound-anchor, is no longer necessary\n\
+***  and no longer recommended.\n\
+***\n\
+***  Previously installed trust anchors, in the default location -\n\
+***\n\
+***        /etc/unbound/getdns-root.key\n\
+***\n\
+***  - will be preferred and used for DNSSEC validation, however\n\
+***  getdns will fallback to trust-anchors obtained via built-in\n\
+***  trust anchor management when the anchors from the default\n\
+***  location fail to validate the root DNSKEY rrset.\n\
+***\n\
+***  To prevent expired DNSSEC trust anchors to be used for\n\
+***  validation, we strongly recommend removing the trust anchors\n\
+***  on the default location when there is no active external\n\
+***  trust anchor management keeping it up-to-date.\n\
+***\")")
