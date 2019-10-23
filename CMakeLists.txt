@@ -4,6 +4,8 @@ if (POLICY CMP0075)
   cmake_policy(SET CMP0075 NEW)
 endif ()
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
+
 set(CMAKE_VERBOSE_MAKEFILE_ON)
 
 # The following must be set BEFORE doing project() or enable_language().
@@ -545,6 +547,57 @@ target_link_libraries(getdns_server_mon
   getdns
   )
 set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
+
+find_package(Check "0.9.6")
+
+if (NOT Check_FOUND)
+  message(WARNING "check library not found, not building test programs")
+else ()
+  add_executable(check_getdns
+    src/test/check_getdns_common.c
+    src/test/check_getdns_context_set_timeout.c
+    src/test/check_getdns_transport.c
+    src/test/check_getdns_selectloop.c
+    src/test/check_getdns.c
+    )
+  target_link_libraries(check_getdns
+    PRIVATE
+    getdns
+    Check::Check
+    Threads::Threads
+    )
+
+  add_executable(tests_dict
+    src/test/tests_dict.c
+    src/test/testmessages.c
+    )
+  target_link_libraries(tests_dict PRIVATE getdns Check::Check)
+
+  add_executable(tests_list
+    src/test/tests_list.c
+    src/test/testmessages.c
+    )
+  target_link_libraries(tests_list PRIVATE getdns Check::Check)
+
+  add_executable(tests_namespaces src/test/tests_namespaces.c)
+  target_link_libraries(tests_namespaces PRIVATE getdns Check::Check)
+
+  add_executable(tests_stub_async
+    src/test/tests_stub_async.c
+    src/test/testmessages.c
+    )
+  target_link_libraries(tests_stub_async PRIVATE getdns Check::Check)
+
+  add_executable(tests_stub_sync src/test/tests_stub_sync.c)
+  target_link_libraries(tests_stub_sync PRIVATE getdns Check::Check)
+
+  include(CTest)
+
+  add_test(NAME test_noeventloop COMMAND check_getdns)
+  set_property(TEST test_noeventloop PROPERTY
+    ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
+    )
+endif ()
 
 # Substitutions in files.
 configure_file(cmake/include/cmakeconfig.h.in config.h)
