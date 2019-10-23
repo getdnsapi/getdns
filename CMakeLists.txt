@@ -537,11 +537,6 @@ target_link_libraries(getdns_query PRIVATE getdns)
 set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 
 add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
-target_include_directories(getdns_server_mon
-  PRIVATE
-  OpenSSL:SSL
-  OpenSSL:Crypto
-  )
 target_link_libraries(getdns_server_mon
   PUBLIC
   OpenSSL::SSL
