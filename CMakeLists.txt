@@ -99,7 +99,7 @@ set(HAVE_TARGET_ENDIANNESS 1)
 
 # File locations
 set(TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/unbound/getdns-root.key")
-set(GETDNS_FN_RESOLVCONF "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/resolv.conf")
+set(GETDNS_FN_RESOLVCONF "/etc/resolv.conf")
 if (WIN32)
   # BUG! Don't hardcode the Windows directory and drive.
   set(GETDNS_FN_HOSTS "C:/Windows/System32/Drivers/etc/hosts")
