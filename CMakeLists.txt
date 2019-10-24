@@ -113,6 +113,15 @@ cmake_dependent_option(ENABLE_DEBUG_DAEMON "Enable daemon debugging messages." O
 cmake_dependent_option(ENABLE_DEBUG_DNSSEC "Enable DNSSEC debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
 cmake_dependent_option(ENABLE_DEBUG_SERVER "Enable server debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
 cmake_dependent_option(ENABLE_DEBUG_ANCHOR "Enable anchor debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+
+option(ENABLE_SHA1 "Enable SHA1 RRSIG support." ON)
+option(ENABLE_SHA2 "Enable SHA256 and SHA512 RRSIG support." ON)
+option(ENABLE_GOST "Enable GOST support." ON)
+option(ENABLE_ECDSA "Enable ECDSA support." ON)
+option(ENABLE_DSA "Enable DSA support." ON)
+option(ENABLE_ED25519 "Enable ED25519 support." ON)
+option(ENABLE_ED448 "Enable ED448 support." ON)
+
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
 set(SCHED_DEBUG ${ENABLE_DEBUG_SCHED})
@@ -121,6 +130,14 @@ set(DAEMON_DEBUG ${ENABLE_DEBUG_DAEMON})
 set(SEC_DEBUG ${ENABLE_DEBUG_DNSSEC})
 set(SERVER_DEBUG ${ENABLE_DEBUG_SERVER})
 set(ANCHOR_DEBUG ${ENABLE_DEBUG_ANCHOR})
+
+set(USE_SHA1 ${ENABLE_SHA1})
+set(USE_SHA2 ${ENABLE_SHA2})
+set(USE_GOST ${ENABLE_GOST})
+set(USE_ECDSA ${ENABLE_ECDSA})
+set(USE_DSA ${ENABLE_DSA})
+set(USE_ED25519 ${ENABLE_ED25519})
+set(USE_ED448 ${ENABLE_ED448})
 
 option(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN "Disable connection idle timeout. Do not enable.")
 mark_as_advanced(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN)

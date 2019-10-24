@@ -175,6 +175,14 @@
 #cmakedefine ANCHOR_DEBUG		1
 #cmakedefine KEEP_CONNECTIONS_OPEN_DEBUG  1
 
+#cmakedefine USE_SHA1			1
+#cmakedefine USE_SHA2			1
+#cmakedefine USE_GOST			1
+#cmakedefine USE_ECDSA			1
+#cmakedefine USE_DSA			1
+#cmakedefine USE_ED25519		1
+#cmakedefine USE_ED448			1
+
 #cmakedefine HAVE_TARGET_ENDIANNESS
 #cmakedefine TARGET_IS_BIG_ENDIAN
 
