@@ -143,6 +143,12 @@ set(PATH_RESOLVCONF "/etc/resolv.conf" CACHE STRING "Set the resolver configurat
 set(PATH_TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONFDIR}/unbound/getdns-root.key" CACHE STRING "Default location of the trust anchor file.")
 set(STUB_NATIVE_DNSSEC ON CACHE BOOL "Enable/disable native stub DNSSEC support.")
 
+# Ensure option variables are defined that receive values from the above.
+set(GETDNS_FN_HOSTS 1)
+set(GETDNS_FN_RESOLVCONF 1)
+set(TRUST_ANCHOR_FILE 1)
+set(UDP_MAX_BACKOFF 1)
+
 # Options not exposed in autoconf.
 set(DRAFT_RRTYPES 1)
 set(EDNS_COOKIE_OPCODE 10)
