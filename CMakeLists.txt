@@ -306,8 +306,9 @@ if (NOT
     (HAVE_STRLCPY AND HAVE_DECL_STRLCPY AND
      HAVE_ARC4RANDOM AND HAVE_DECL_ARC4RANDOM AND
      HAVE_ARC4RANDOM_UNIFORM AND HAVE_DECL_ARC4RANDOM_UNIFORM))
- find_library(BSD_LIB bsd)
- if (BSD_LIB)
+ find_library(BSD_LIBRARY bsd)
+ if (BSD_LIBRARY)
+   mark_as_advanced(BSD_LIBRARY)
    list(APPEND getdns_system_libs "bsd")
    set(CMAKE_REQUIRED_LIBRARIES "bsd")
 
