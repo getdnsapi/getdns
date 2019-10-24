@@ -361,9 +361,10 @@ if (NOT
      HAVE_ARC4RANDOM_UNIFORM AND HAVE_DECL_ARC4RANDOM_UNIFORM))
  find_library(BSD_LIBRARY bsd)
  if (BSD_LIBRARY)
+   unset(CMAKE_REQUIRED_LIBRARIES)
+   set(CMAKE_REQUIRED_LIBRARIES ${BSD_LIBRARY})
    mark_as_advanced(BSD_LIBRARY)
-   list(APPEND getdns_system_libs "bsd")
-   set(CMAKE_REQUIRED_LIBRARIES "bsd")
+   list(APPEND getdns_system_libs ${BSD_LIBRARY})
 
    check_include_file(bsd/stdlib.h HAVE_BSD_STDLIB_H)
    check_include_file(bsd/string.h HAVE_BSD_STRING_H)
@@ -383,6 +384,7 @@ if (NOT
    set(HAVE_ARC4RANDOM_UNIFORM ${HAVE_BSD_ARC4RANDOM_UNIFORM})
  endif ()
 endif ()
+mark_as_advanced(BSD_LIBRARY)
 
 # Event loop extension
 # TODO: other event loops
