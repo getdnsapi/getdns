@@ -100,9 +100,9 @@
 #cmakedefine HAVE_WINDOWS_THREADS       1
 
 #cmakedefine RUNSTATEDIR                "@RUNSTATEDIR@"
-#cmakedefine TRUST_ANCHOR_FILE          "@TRUST_ANCHOR_FILE@"
-#cmakedefine GETDNS_FN_RESOLVCONF       "@GETDNS_FN_RESOLVCONF@"
-#cmakedefine GETDNS_FN_HOSTS            "@GETDNS_FN_HOSTS@"
+#cmakedefine TRUST_ANCHOR_FILE          "@PATH_TRUST_ANCHOR_FILE@"
+#cmakedefine GETDNS_FN_RESOLVCONF       "@PATH_RESOLVCONF@"
+#cmakedefine GETDNS_FN_HOSTS            "@PATH_HOSTS@"
 
 #cmakedefine DNSSEC_ROADBLOCK_AVOIDANCE         1
 #cmakedefine STUB_NATIVE_DNSSEC                 1

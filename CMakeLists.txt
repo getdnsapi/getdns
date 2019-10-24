@@ -99,16 +99,6 @@ endif ()
 test_big_endian(TARGET_IS_BIG_ENDIAN)
 set(HAVE_TARGET_ENDIANNESS 1)
 
-# File locations
-set(TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/unbound/getdns-root.key")
-set(GETDNS_FN_RESOLVCONF "/etc/resolv.conf")
-if (WIN32)
-  # BUG! Don't hardcode the Windows directory and drive.
-  set(GETDNS_FN_HOSTS "C:/Windows/System32/Drivers/etc/hosts")
-else ()
-  set(GETDNS_FN_HOSTS "${CMAKE_INSTALL_FULL_SYSCONF_DIR}/hosts")
-endif ()
-
 # Options.
 option(ENABLE_SHARED "Build shared libraries." ON)
 option(ENABLE_STATIC "Build static libraries." ON)
@@ -116,9 +106,19 @@ if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
   message(FATAL_ERROR "You must build either static or shared libraries.")
 endif ()
 
+# Options variables.
 set(DNSSEC_ROADBLOCK_AVOIDANCE ON CACHE BOOL "Enable/disable DNSSEC roadblock avoidance.")
 set(FD_SETSIZE "" CACHE STRING "Set maximum file descriptor number that can be used by select.")
 set(MAX_UDP_BACKOFF 1000 CACHE STRING "Set the maximum number of messages that can be sent to other upstreams before the upstream which has previously timed out will be tried again.")
+if (WIN32)
+  # BUG! Don't hardcode the Windows directory and drive.
+  set(hostsfile "C:/Windows/System32/Drivers/etc/hosts")
+else ()
+  set(hostsfile "${CMAKE_INSTALL_FULL_SYSCONFDIR}/hosts")
+endif ()
+set(PATH_HOSTS "${hostsfile}" CACHE STRING "Set the static table lookup for hostnames path.")
+set(PATH_RESOLVCONF "/etc/resolv.conf" CACHE STRING "Set the resolver configuration file path. Not used on Windows, where values are retrieved via GetNetworkParams().")
+set(PATH_TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONFDIR}/unbound/getdns-root.key" CACHE STRING "Default location of the trust anchor file.")
 set(STUB_NATIVE_DNSSEC ON CACHE BOOL "Enable/disable native stub DNSSEC support.")
 
 # Options not exposed in autoconf.
