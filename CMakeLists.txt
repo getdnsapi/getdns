@@ -38,6 +38,10 @@ set(GETDNS_VERSION_CURRENT 11)
 set(GETDNS_VERSION_REVISION 2)
 set(GETDNS_VERSION_AGE 1)
 
+project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 include(CheckCSourceRuns)
 include(CheckFunctionExists)
 include(CheckIncludeFile)
@@ -48,10 +52,6 @@ include(CMakeDependentOption)
 include(CTest)
 include(GNUInstallDirs)
 include(TestBigEndian)
-
-project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Directories
 if (DEFINED CMAKE_INSTALL_FULL_RUNSTATEDIR)
