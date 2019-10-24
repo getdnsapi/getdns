@@ -122,6 +122,8 @@ option(ENABLE_DSA "Enable DSA support." ON)
 option(ENABLE_ED25519 "Enable ED25519 support." ON)
 option(ENABLE_ED448 "Enable ED448 support." ON)
 
+option(ENABLE_NATIVE_STUB_DNSSEC "Enable/disable native stub DNSSEC support." ON)
+
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
 set(SCHED_DEBUG ${ENABLE_DEBUG_SCHED})
@@ -138,6 +140,8 @@ set(USE_ECDSA ${ENABLE_ECDSA})
 set(USE_DSA ${ENABLE_DSA})
 set(USE_ED25519 ${ENABLE_ED25519})
 set(USE_ED448 ${ENABLE_ED448})
+
+set(STUB_NATIVE_DNSSEC ${ENABLE_NATIVE_STUB_DNSSEC})
 
 option(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN "Disable connection idle timeout. Do not enable.")
 mark_as_advanced(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN)
@@ -158,9 +162,9 @@ endif ()
 set(PATH_HOSTS "${hostsfile}" CACHE STRING "Set the static table lookup for hostnames path.")
 set(PATH_RESOLVCONF "/etc/resolv.conf" CACHE STRING "Set the resolver configuration file path. Not used on Windows, where values are retrieved via GetNetworkParams().")
 set(PATH_TRUST_ANCHOR_FILE "${CMAKE_INSTALL_FULL_SYSCONFDIR}/unbound/getdns-root.key" CACHE STRING "Default location of the trust anchor file.")
-set(STUB_NATIVE_DNSSEC ON CACHE BOOL "Enable/disable native stub DNSSEC support.")
 
-# Ensure option variables are defined that receive values from the above.
+# Ensure option variables in config.h that get values from the above are
+# defined, and so will actually appear in config.h.
 set(GETDNS_FN_HOSTS 1)
 set(GETDNS_FN_RESOLVCONF 1)
 set(TRUST_ANCHOR_FILE 1)
