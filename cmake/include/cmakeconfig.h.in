@@ -166,6 +166,15 @@
 
 #cmakedefine FD_SETSIZE			@FD_SETSIZE@
 
+#cmakedefine REQ_DEBUG			1
+#cmakedefine SCHED_DEBUG		1
+#cmakedefine STUB_DEBUG			1
+#cmakedefine DAEMON_DEBUG		1
+#cmakedefine SEC_DEBUG			1
+#cmakedefine SERVER_DEBUG		1
+#cmakedefine ANCHOR_DEBUG		1
+#cmakedefine KEEP_CONNECTIONS_OPEN_DEBUG  1
+
 #cmakedefine HAVE_TARGET_ENDIANNESS
 #cmakedefine TARGET_IS_BIG_ENDIAN
 

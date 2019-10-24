@@ -104,6 +104,28 @@ if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
   message(FATAL_ERROR "You must build either static or shared libraries.")
 endif ()
 
+include(CMakeDependentOption)
+option(ENABLE_DEBUG_ALL "Enable all debugging messages.")
+cmake_dependent_option(ENABLE_DEBUG_REQ "Enable request debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+cmake_dependent_option(ENABLE_DEBUG_SCHED "Enable scheduling debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+cmake_dependent_option(ENABLE_DEBUG_STUB "Enable stub debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+cmake_dependent_option(ENABLE_DEBUG_DAEMON "Enable daemon debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+cmake_dependent_option(ENABLE_DEBUG_DNSSEC "Enable DNSSEC debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+cmake_dependent_option(ENABLE_DEBUG_SERVER "Enable server debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+cmake_dependent_option(ENABLE_DEBUG_ANCHOR "Enable anchor debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
+# Above names chosen for user consistency. Now define substituted names.
+set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
+set(SCHED_DEBUG ${ENABLE_DEBUG_SCHED})
+set(STUB_DEBUG ${ENABLE_DEBUG_STUB})
+set(DAEMON_DEBUG ${ENABLE_DEBUG_DAEMON})
+set(SEC_DEBUG ${ENABLE_DEBUG_DNSSEC})
+set(SERVER_DEBUG ${ENABLE_DEBUG_SERVER})
+set(ANCHOR_DEBUG ${ENABLE_DEBUG_ANCHOR})
+
+option(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN "Disable connection idle timeout. Do not enable.")
+mark_as_advanced(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN)
+set(KEEP_CONNECTIONS_OPEN_DEBUG ${ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN})
+
 # Options variables.
 string(TIMESTAMP timestamp "%Y-%m-%dT%H:%M:%SZ")
 set(CURRENT_DATE "${timestamp}" CACHE STRING "Current date of the compilation, set to fixed date for reproducible builds.")
