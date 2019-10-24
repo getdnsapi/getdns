@@ -32,7 +32,6 @@ set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 set(GETDNS_NUMERIC_VERSION 0x01050200)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
-set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on <date> for the ${API_VERSION} of the API")
 
 # Version 11:2:1 in libtool-speak.
 set(GETDNS_VERSION_CURRENT 11)
@@ -106,6 +105,8 @@ if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
 endif ()
 
 # Options variables.
+string(TIMESTAMP timestamp "%Y-%m-%dT%H:%M:%SZ")
+set(CURRENT_DATE "${timestamp}" CACHE STRING "Current date of the compilation, set to fixed date for reproducible builds.")
 set(DNSSEC_ROADBLOCK_AVOIDANCE ON CACHE BOOL "Enable/disable DNSSEC roadblock avoidance.")
 set(FD_SETSIZE "" CACHE STRING "Set maximum file descriptor number that can be used by select.")
 set(MAX_UDP_BACKOFF 1000 CACHE STRING "Set the maximum number of messages that can be sent to other upstreams before the upstream which has previously timed out will be tried again.")
@@ -127,6 +128,9 @@ set(EDNS_COOKIE_ROLLOVER_TIME "(24*60*60)")
 set(EDNS_PADDING_OPCODE 12)
 set(MAX_CNAME_REFERRALS 100)
 set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
+
+# Values derived from options.
+set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on ${CURRENT_DATE} for the ${API_VERSION} version of the API")
 
 # Does the compiler accept the "format" attribute?
 try_compile(HAVE_ATTR_FORMAT
