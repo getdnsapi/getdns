@@ -112,7 +112,7 @@
 #cmakedefine DRAFT_RRTYPES                      @DRAFT_RRTYPES@
 #cmakedefine EDNS_COOKIE_OPCODE                 @EDNS_COOKIE_OPCODE@
 #cmakedefine EDNS_COOKIE_ROLLOVER_TIME          @EDNS_COOKIE_ROLLOVER_TIME@
-#cmakedefine UDP_MAX_BACKOFF			@UDP_MAX_BACKOFF@
+#cmakedefine UDP_MAX_BACKOFF			@MAX_UDP_BACKOFF@
 
 #cmakedefine HAVE_DECL_GETENTROPY       1
 #cmakedefine HAVE_DECL_INET_PTON        1

@@ -110,21 +110,23 @@ else ()
 endif ()
 
 # Options.
-option(ENABLE_SHARED "build shared libraries" ON)
-option(ENABLE_STATIC "build static libraries" ON)
+option(ENABLE_SHARED "Build shared libraries." ON)
+option(ENABLE_STATIC "Build static libraries." ON)
 if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
   message(FATAL_ERROR "You must build either static or shared libraries.")
 endif ()
 
-set(DNSSEC_ROADBLOCK_AVOIDANCE 1)        # Nail on, as build fails if off.
-set(STUB_NATIVE_DNSSEC 1)                # Nail on for now.
-set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
-set(EDNS_PADDING_OPCODE 12)
-set(MAX_CNAME_REFERRALS 100)
+set(DNSSEC_ROADBLOCK_AVOIDANCE ON CACHE BOOL "Enable/disable DNSSEC roadblock avoidance.")
+set(MAX_UDP_BACKOFF 1000 CACHE STRING "Set the maximum number of messages that can be sent to other upstreams before the upstream which has previously timed out will be tried again.")
+set(STUB_NATIVE_DNSSEC ON CACHE BOOL "Enable/disable native stub DNSSEC support.")
+
+# Options not exposed in autoconf.
 set(DRAFT_RRTYPES 1)
 set(EDNS_COOKIE_OPCODE 10)
 set(EDNS_COOKIE_ROLLOVER_TIME "(24*60*60)")
-set(UDP_MAX_BACKOFF 1000)
+set(EDNS_PADDING_OPCODE 12)
+set(MAX_CNAME_REFERRALS 100)
+set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
 
 # Does the compiler accept the "format" attribute?
 try_compile(HAVE_ATTR_FORMAT
