@@ -159,6 +159,11 @@
 #cmakedefine HAVE_ARC4RANDOM            1
 #cmakedefine HAVE_ARC4RANDOM_UNIFORM    1
 
+#cmakedefine HAVE_LIBUNBOUND		1
+#cmakedefine HAVE_UNBOUND_EVENT_H	1
+#cmakedefine HAVE_UNBOUND_EVENT_API	1
+#cmakedefine HAVE_UB_CTX_SET_STUB	1
+
 #cmakedefine DEFAULT_EVENTLOOP          "@DEFAULT_EVENTLOOP@"
 #cmakedefine USE_POLL_DEFAULT_EVENTLOOP 1
 

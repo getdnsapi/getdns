@@ -123,6 +123,8 @@ option(ENABLE_ED25519 "Enable ED25519 support." ON)
 option(ENABLE_ED448 "Enable ED448 support." ON)
 
 option(ENABLE_NATIVE_STUB_DNSSEC "Enable/disable native stub DNSSEC support." ON)
+option(ENABLE_STUB_ONLY "Restricts resolution modes to STUB." ON)
+option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
 
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
@@ -385,6 +387,19 @@ if (NOT
  endif ()
 endif ()
 mark_as_advanced(BSD_LIBRARY)
+
+# If we're not stub only, we need libunbound.
+if (NOT ENABLE_STUB_ONLY)
+  find_package(Libunbound REQUIRED)
+  set(HAVE_LIBUNBOUND 1)
+  list(APPEND getdns_system_libs Libunbound::Libunbound)
+
+  set(CMAKE_REQUIRED_INCLUDES ${LIBUNBOUND_INCLUDE_DIR})
+  set(CMAKE_REQUIRED_LIBRARIES ${LIBUNBOUND_LIBRARIES})
+  check_include_file(unbound-event.h HAVE_UNBOUND_EVENT_H)
+  check_symbol_exists(ub_ctx_create_ub_event "unbound-event.h" HAVE_UNBOUND_EVENT_API)
+  check_symbol_exists(ub_ctx_set_stub "unbound-event.h" HAVE_UB_CTX_SET_STUB)
+endif ()
 
 # Event loop extension
 # TODO: other event loops
