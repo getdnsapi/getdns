@@ -164,6 +164,8 @@
 
 #cmakedefine STRPTIME_WORKS		1
 
+#cmakedefine FD_SETSIZE			@FD_SETSIZE@
+
 #cmakedefine HAVE_TARGET_ENDIANNESS
 #cmakedefine TARGET_IS_BIG_ENDIAN
 

@@ -117,6 +117,7 @@ if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
 endif ()
 
 set(DNSSEC_ROADBLOCK_AVOIDANCE ON CACHE BOOL "Enable/disable DNSSEC roadblock avoidance.")
+set(FD_SETSIZE "" CACHE STRING "Set maximum file descriptor number that can be used by select.")
 set(MAX_UDP_BACKOFF 1000 CACHE STRING "Set the maximum number of messages that can be sent to other upstreams before the upstream which has previously timed out will be tried again.")
 set(STUB_NATIVE_DNSSEC ON CACHE BOOL "Enable/disable native stub DNSSEC support.")
 
