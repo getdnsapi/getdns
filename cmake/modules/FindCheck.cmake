@@ -33,23 +33,23 @@ This module will set the following variables in your project:
 
 find_path(CHECK_INCLUDE_DIR check.h
   HINTS
-    ${PC_CHECK_INCLUDEDIR}
-    ${PC_CHECK_INCLUDE_DIRS}
+  "${CHECK_DIR}"
+  "${CHECK_DIR}/include"
   )
 
 # Check for PIC and non-PIC libraries. If PIC present, use that
 # in preference (as per Debian check.pc).
 find_library(CHECK_LIBRARY NAMES check_pic libcheck_pic
   HINTS
-    ${PC_CHECK_LIBDIR}
-    ${PC_CHECK_LIBRARY_DIRS}
+  "${CHECK_DIR}"
+  "${CHECK_DIR}/lib"
   )
 
 if (NOT CHECK_LIBRARY)
   find_library(CHECK_LIBRARY NAMES check libcheck
     HINTS
-      ${PC_CHECK_LIBDIR}
-      ${PC_CHECK_LIBRARY_DIRS}
+    "${CHECK_DIR}"
+    "${CHECK_DIR}/lib"
     )
 endif ()
 
