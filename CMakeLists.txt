@@ -110,6 +110,12 @@ else ()
 endif ()
 
 # Options.
+option(ENABLE_SHARED "build shared libraries" ON)
+option(ENABLE_STATIC "build static libraries" ON)
+if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
+  message(FATAL_ERROR "You must build either static or shared libraries.")
+endif ()
+
 set(DNSSEC_ROADBLOCK_AVOIDANCE 1)        # Nail on, as build fails if off.
 set(STUB_NATIVE_DNSSEC 1)                # Nail on for now.
 set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
@@ -465,68 +471,76 @@ set_property(TARGET getdns_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
 set_property(TARGET getdns_objects PROPERTY C_STANDARD 11)
 
 # Static library version of main library.
-add_library(getdns STATIC $<TARGET_OBJECTS:getdns_objects>)
-target_include_directories(getdns PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
-  )
-target_link_libraries(getdns
-  PUBLIC
-  OpenSSL::SSL
-  OpenSSL::Crypto
-  Threads::Threads
-  ${getdns_system_libs}
-  )
-set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
+if (ENABLE_STATIC)
+  add_library(getdns STATIC $<TARGET_OBJECTS:getdns_objects>)
+  target_include_directories(getdns PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+    )
+  target_link_libraries(getdns
+    PUBLIC
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    Threads::Threads
+    ${getdns_system_libs}
+    )
+  set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
+endif ()
 
 # Shared library version of main library.
-add_library(getdns_shared SHARED $<TARGET_OBJECTS:getdns_objects>)
-target_include_directories(getdns_shared PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
-  )
-target_link_libraries(getdns_shared
-  PUBLIC
-  OpenSSL::SSL
-  OpenSSL::Crypto
-  Threads::Threads
-  ${getdns_system_libs}
-  )
-set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
+if (ENABLE_SHARED)
+  add_library(getdns_shared SHARED $<TARGET_OBJECTS:getdns_objects>)
+  target_include_directories(getdns_shared PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+    )
+  target_link_libraries(getdns_shared
+    PUBLIC
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    Threads::Threads
+    ${getdns_system_libs}
+    )
+  set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
 
-# Generate platform-specific link file with the export symbols.
-file(STRINGS src/libgetdns.symbols symbols)
-if (WIN32)
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "LIBRARY GETDNS\n  VERSION ${GETDNS_VERSION_CURRENT}.${GETDNS_VERSION_REVISION}\n  EXPORTS\n")
-  foreach (symbol IN LISTS symbols)
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "    ${symbol}\n")
-  endforeach ()
-  target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def")
-elseif (APPLE)
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "")
-  foreach (symbol IN LISTS symbols)
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "_${symbol}\n")
-  endforeach ()
-  target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms")
-  target_link_libraries(getdns_shared PRIVATE "-exported_symbols_list getdns.syms")
+  if (NOT ENABLE_STATIC)
+    add_library(getdns ALIAS getdns_shared)
+  endif ()
 
-  # Follow libtool. Add one to major version, as version 0 doesn't work.
-  # But tag dynlib name with current-age.
-  math(EXPR major_version "${GETDNS_VERSION_CURRENT}+1")
-  math(EXPR dynlib_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
-  set_target_properties(getdns_shared PROPERTIES VERSION "${dynlib_version}")
-  target_link_libraries(getdns_shared PRIVATE "-compatibility_version ${major_version}")
-  target_link_libraries(getdns_shared PRIVATE "-current_version ${major_version}.${GETDNS_VERSION_REVISION}")
-else ()
-  # Assume GNU ld.
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "{ global:\n")
-  foreach (symbol IN LISTS symbols)
-    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "  ${symbol};\n")
-  endforeach ()
-  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "local:\n  *;\n};\n")
-  target_link_libraries(getdns_shared PRIVATE "-Wl,--version-script=getdns.ver")
+  # Generate platform-specific link file with the export symbols.
+  file(STRINGS src/libgetdns.symbols symbols)
+  if (WIN32)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "LIBRARY GETDNS\n  VERSION ${GETDNS_VERSION_CURRENT}.${GETDNS_VERSION_REVISION}\n  EXPORTS\n")
+    foreach (symbol IN LISTS symbols)
+      file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.def" "    ${symbol}\n")
+    endforeach ()
+    target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.def")
+  elseif (APPLE)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "")
+    foreach (symbol IN LISTS symbols)
+      file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms" "_${symbol}\n")
+    endforeach ()
+    target_sources(getdns_shared PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/getdns.syms")
+    target_link_libraries(getdns_shared PRIVATE "-exported_symbols_list getdns.syms")
 
-  # Again, follow libtool. Major version is current-age.
-  math(EXPR compat_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
-  set_target_properties(getdns_shared PROPERTIES VERSION "${compat_version}.${GETDNS_VERSION_AGE}.${GETDNS_VERSION_REVISION}" SOVERSION "${compat_version}")
+    # Follow libtool. Add one to major version, as version 0 doesn't work.
+    # But tag dynlib name with current-age.
+    math(EXPR major_version "${GETDNS_VERSION_CURRENT}+1")
+    math(EXPR dynlib_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
+    set_target_properties(getdns_shared PROPERTIES VERSION "${dynlib_version}")
+    target_link_libraries(getdns_shared PRIVATE "-compatibility_version ${major_version}")
+    target_link_libraries(getdns_shared PRIVATE "-current_version ${major_version}.${GETDNS_VERSION_REVISION}")
+  else ()
+    # Assume GNU ld.
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "{ global:\n")
+    foreach (symbol IN LISTS symbols)
+      file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "  ${symbol};\n")
+    endforeach ()
+    file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/getdns.ver" "local:\n  *;\n};\n")
+    target_link_libraries(getdns_shared PRIVATE "-Wl,--version-script=getdns.ver")
+
+    # Again, follow libtool. Major version is current-age.
+    math(EXPR compat_version "${GETDNS_VERSION_CURRENT}-${GETDNS_VERSION_AGE}")
+    set_target_properties(getdns_shared PROPERTIES VERSION "${compat_version}.${GETDNS_VERSION_AGE}.${GETDNS_VERSION_REVISION}" SOVERSION "${compat_version}")
+  endif ()
 endif ()
 
 
@@ -635,11 +649,13 @@ set(prefix ${CMAKE_INSTALL_PREFIX})
 configure_file(getdns.pc.in getdns.pc @ONLY)
 
 # Installing.
-install(TARGETS getdns getdns_shared getdns_query getdns_server_mon
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-  )
+if (ENABLE_STATIC)
+  install(TARGETS getdns LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+endif ()
+if (ENABLE_SHARED)
+  install(TARGETS getdns_shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+endif ()
+install(TARGETS getdns_query getdns_server_mon RUNTIME DESTINATION bin)
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/getdns DESTINATION include)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man3 DESTINATION share/man)
