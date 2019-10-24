@@ -40,10 +40,13 @@ set(GETDNS_VERSION_AGE 1)
 
 include(CheckCSourceRuns)
 include(CheckFunctionExists)
-include(CheckLibraryExists)
 include(CheckIncludeFile)
+include(CheckLibraryExists)
 include(CheckSymbolExists)
 include(CheckTypeSize)
+include(CMakeDependentOption)
+include(CTest)
+include(GNUInstallDirs)
 include(TestBigEndian)
 
 project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
@@ -51,8 +54,6 @@ project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Directories
-include(GNUInstallDirs)
-
 if (DEFINED CMAKE_INSTALL_FULL_RUNSTATEDIR)
   set(RUNSTATEDIR "${CMAKE_INSTALL_FULL_RUNSTATEDIR}")
 else ()
@@ -104,7 +105,6 @@ if ((NOT ENABLE_SHARED) AND (NOT ENABLE_STATIC))
   message(FATAL_ERROR "You must build either static or shared libraries.")
 endif ()
 
-include(CMakeDependentOption)
 option(ENABLE_DEBUG_ALL "Enable all debugging messages.")
 cmake_dependent_option(ENABLE_DEBUG_REQ "Enable request debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
 cmake_dependent_option(ENABLE_DEBUG_SCHED "Enable scheduling debugging messages." OFF "NOT ENABLE_DEBUG_ALL" ON)
@@ -618,55 +618,55 @@ target_link_libraries(getdns_server_mon
   )
 set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
 
-find_package(Check "0.9.6")
+if (BUILD_TESTING)
+  find_package(Check "0.9.6")
 
-if (NOT Check_FOUND)
-  message(WARNING "check library not found, not building test programs")
-else ()
-  add_executable(check_getdns
-    src/test/check_getdns_common.c
-    src/test/check_getdns_context_set_timeout.c
-    src/test/check_getdns_transport.c
-    src/test/check_getdns_selectloop.c
-    src/test/check_getdns.c
-    )
-  target_link_libraries(check_getdns
-    PRIVATE
-    getdns
-    Check::Check
-    Threads::Threads
-    )
+  if (NOT Check_FOUND)
+    message(WARNING "check library not found, not building test programs")
+  else ()
+    add_executable(check_getdns
+      src/test/check_getdns_common.c
+      src/test/check_getdns_context_set_timeout.c
+      src/test/check_getdns_transport.c
+      src/test/check_getdns_selectloop.c
+      src/test/check_getdns.c
+      )
+    target_link_libraries(check_getdns
+      PRIVATE
+      getdns
+      Check::Check
+      Threads::Threads
+      )
 
-  add_executable(tests_dict
-    src/test/tests_dict.c
-    src/test/testmessages.c
-    )
-  target_link_libraries(tests_dict PRIVATE getdns Check::Check)
+    add_executable(tests_dict
+      src/test/tests_dict.c
+      src/test/testmessages.c
+      )
+    target_link_libraries(tests_dict PRIVATE getdns Check::Check)
 
-  add_executable(tests_list
-    src/test/tests_list.c
-    src/test/testmessages.c
-    )
-  target_link_libraries(tests_list PRIVATE getdns Check::Check)
+    add_executable(tests_list
+      src/test/tests_list.c
+      src/test/testmessages.c
+      )
+    target_link_libraries(tests_list PRIVATE getdns Check::Check)
 
-  add_executable(tests_namespaces src/test/tests_namespaces.c)
-  target_link_libraries(tests_namespaces PRIVATE getdns Check::Check)
+    add_executable(tests_namespaces src/test/tests_namespaces.c)
+    target_link_libraries(tests_namespaces PRIVATE getdns Check::Check)
 
-  add_executable(tests_stub_async
-    src/test/tests_stub_async.c
-    src/test/testmessages.c
-    )
-  target_link_libraries(tests_stub_async PRIVATE getdns Check::Check)
+    add_executable(tests_stub_async
+      src/test/tests_stub_async.c
+      src/test/testmessages.c
+      )
+    target_link_libraries(tests_stub_async PRIVATE getdns Check::Check)
 
-  add_executable(tests_stub_sync src/test/tests_stub_sync.c)
-  target_link_libraries(tests_stub_sync PRIVATE getdns Check::Check)
+    add_executable(tests_stub_sync src/test/tests_stub_sync.c)
+    target_link_libraries(tests_stub_sync PRIVATE getdns Check::Check)
 
-  include(CTest)
-
-  add_test(NAME test_noeventloop COMMAND check_getdns)
-  set_property(TEST test_noeventloop PROPERTY
-    ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
-    )
+    add_test(NAME test_noeventloop COMMAND check_getdns)
+    set_property(TEST test_noeventloop PROPERTY
+      ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
+      )
+  endif ()
 endif ()
 
 # Substitutions in files.
