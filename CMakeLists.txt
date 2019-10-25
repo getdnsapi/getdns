@@ -4,10 +4,6 @@ if (POLICY CMP0075)
   cmake_policy(SET CMP0075 NEW)
 endif ()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
-
-set(CMAKE_VERBOSE_MAKEFILE_ON)
-
 # The following must be set BEFORE doing project() or enable_language().
 if (NOT CMAKE_BUILD_TYPE)
   message(STATUS "No build type defined; defaulting to 'Debug'")
@@ -40,7 +36,7 @@ set(GETDNS_VERSION_AGE 1)
 
 project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
 include(CheckCSourceRuns)
 include(CheckFunctionExists)
