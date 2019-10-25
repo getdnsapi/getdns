@@ -63,11 +63,6 @@ install(DIRECTORY
   WORLD_READ WORLD_EXECUTE
   )
 
-# Always have build dir as an include directory.
-include_directories(
-  ${CMAKE_CURRENT_BINARY_DIR}
-  )
-
 # Target Platform
 if (WIN32 OR MINGW OR MSYS OR CYGWIN)
   set(HOSTOS "windows")
@@ -523,8 +518,8 @@ target_include_directories(getdns_objects
   src/openssl
   src/tls
   src/yxml
-  stubby/src    # Wrong, wrong, wrong.
 
+  ${CMAKE_CURRENT_BINARY_DIR}
   ${OPENSSL_INCLUDE_DIR}
   )
 if (NOT HAVE_SSL_DANE_ENABLE)
@@ -618,10 +613,12 @@ add_executable(getdns_query src/tools/getdns_query.c)
 if (NOT HAVE_GETTIMEOFDAY)
   target_sources(getdns_query PRIVATE src/compat/gettimeofday.c)
 endif ()
+target_include_directories(getdns_query PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(getdns_query PRIVATE getdns)
 set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 
 add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
+target_include_directories(getdns_server_mon PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(getdns_server_mon
   PUBLIC
   OpenSSL::SSL
@@ -644,6 +641,7 @@ if (BUILD_TESTING)
       src/test/check_getdns_selectloop.c
       src/test/check_getdns.c
       )
+    target_include_directories(check_getdns PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(check_getdns
       PRIVATE
       getdns
@@ -655,24 +653,29 @@ if (BUILD_TESTING)
       src/test/tests_dict.c
       src/test/testmessages.c
       )
+    target_include_directories(tests_dict PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(tests_dict PRIVATE getdns Check::Check)
 
     add_executable(tests_list
       src/test/tests_list.c
       src/test/testmessages.c
       )
+    target_include_directories(tests_list PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(tests_list PRIVATE getdns Check::Check)
 
     add_executable(tests_namespaces src/test/tests_namespaces.c)
+    target_include_directories(tests_namespaces PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(tests_namespaces PRIVATE getdns Check::Check)
 
     add_executable(tests_stub_async
       src/test/tests_stub_async.c
       src/test/testmessages.c
       )
+    target_include_directories(tests_stub_async PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(tests_stub_async PRIVATE getdns Check::Check)
 
     add_executable(tests_stub_sync src/test/tests_stub_sync.c)
+    target_include_directories(tests_stub_sync PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(tests_stub_sync PRIVATE getdns Check::Check)
 
     add_test(NAME test_noeventloop COMMAND check_getdns)
