@@ -105,6 +105,7 @@
 #cmakedefine GETDNS_FN_HOSTS            "@PATH_HOSTS@"
 
 #cmakedefine DNSSEC_ROADBLOCK_AVOIDANCE         1
+#cmakedefine HAVE_MDNS_SUPPORT			1
 #cmakedefine STUB_NATIVE_DNSSEC                 1
 #cmakedefine MAXIMUM_UPSTREAM_OPTION_SPACE      @MAXIMUM_UPSTREAM_OPTION_SPACE@
 #cmakedefine EDNS_PADDING_OPCODE                @EDNS_PADDING_OPCODE@

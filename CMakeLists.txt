@@ -99,6 +99,7 @@ option(ENABLE_DSA "Enable DSA support." ON)
 option(ENABLE_ED25519 "Enable ED25519 support." ON)
 option(ENABLE_ED448 "Enable ED448 support." ON)
 
+option(ENABLE_DRAFT_MDNS_SUPPORT "Enable draft mdns client support.")
 option(ENABLE_NATIVE_STUB_DNSSEC "Enable/disable native stub DNSSEC support." ON)
 option(ENABLE_STUB_ONLY "Restricts resolution modes to STUB." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
@@ -122,6 +123,7 @@ set(USE_DSA ${ENABLE_DSA})
 set(USE_ED25519 ${ENABLE_ED25519})
 set(USE_ED448 ${ENABLE_ED448})
 
+set(HAVE_MDNS_SUPPORT ${ENABLE_DRAFT_MDNS_SUPPORT})
 set(STUB_NATIVE_DNSSEC ${ENABLE_NATIVE_STUB_DNSSEC})
 
 option(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN "Disable connection idle timeout. Do not enable.")
