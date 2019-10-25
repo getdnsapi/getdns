@@ -49,20 +49,6 @@ include(CTest)
 include(GNUInstallDirs)
 include(TestBigEndian)
 
-# Directories
-if (DEFINED CMAKE_INSTALL_FULL_RUNSTATEDIR)
-  set(RUNSTATEDIR "${CMAKE_INSTALL_FULL_RUNSTATEDIR}")
-else ()
-  set(RUNSTATEDIR "${CMAKE_INSTALL_FULL_LOCALSTATEDIR}/run")
-endif ()
-install(DIRECTORY
-  DESTINATION ${RUNSTATEDIR}
-  DIRECTORY_PERMISSIONS
-  OWNER_READ OWNER_WRITE OWNER_EXECUTE
-  GROUP_READ GROUP_EXECUTE
-  WORLD_READ WORLD_EXECUTE
-  )
-
 # Target Platform
 if (WIN32 OR MINGW OR MSYS OR CYGWIN)
   set(HOSTOS "windows")
@@ -116,6 +102,8 @@ option(ENABLE_ED448 "Enable ED448 support." ON)
 option(ENABLE_NATIVE_STUB_DNSSEC "Enable/disable native stub DNSSEC support." ON)
 option(ENABLE_STUB_ONLY "Restricts resolution modes to STUB." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
+
+option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OFF)
 
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
@@ -173,17 +161,6 @@ set(MAXIMUM_UPSTREAM_OPTION_SPACE 3000)
 
 # Values derived from options.
 set(GETDNS_COMPILATION_COMMENT "${PACKAGE_NAME} ${GETDNS_VERSION} configured on ${CURRENT_DATE} for the ${API_VERSION} version of the API")
-
-# Does the compiler accept the "format" attribute?
-try_compile(HAVE_ATTR_FORMAT
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_format_attr.c
-  )
-# Does the compiler accept the "unused" attribute?
-try_compile(HAVE_ATTR_UNUSED
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_unused_attr.c
-  )
 
 # Compiler flags
 if (MSVC)
@@ -760,3 +737,7 @@ install(CODE "message(\"\
 ***  on the default location when there is no active external\n\
 ***  trust anchor management keeping it up-to-date.\n\
 ***\")")
+
+if (BUILD_STUBBY)
+  add_subdirectory(stubby)
+endif ()
