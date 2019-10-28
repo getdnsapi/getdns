@@ -111,6 +111,7 @@ option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
 option(BUILD_GETDNS_SERVER_MON "Compile and install the getdns_server_mon tool." ON)
 option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OFF)
 
+option(USE_LIBEVENT2 "Use libevent2 if available." ON)
 option(USE_LIBIDN "Use libidn if available." ON)
 option(USE_LIBIDN2 "Use libidn2 if available." ON)
 
@@ -384,7 +385,11 @@ mark_as_advanced(BSD_LIBRARY)
 
 # If we're not stub only, we need libunbound.
 if (NOT ENABLE_STUB_ONLY)
-  find_package(Libunbound REQUIRED)
+  # libunbound up to version 1.3.22 can't be linked against a program that also
+  # links libevent because of a symbol clash. Rather than work around this
+  # problem with libunbounds prior to November 2014, just insist on a
+  # modern enough libunbound.
+  find_package(Libunbound "1.5.0" REQUIRED)
   set(HAVE_LIBUNBOUND 1)
   list(APPEND getdns_system_libs Libunbound::Libunbound)
 
@@ -598,6 +603,50 @@ if (ENABLE_SHARED)
   endif ()
 endif ()
 
+# libevent2 extension.
+if (USE_LIBEVENT2)
+  find_package(Libevent2)
+  if (Libevent2_FOUND)
+    # Given libevent2, set defines required by source.
+    set(HAVE_EVENT2_EVENT_H 1)
+    set(HAVE_EVENT_BASE_FREE 1)
+    set(HAVE_EVENT_BASE_NEW 1)
+
+    # Copy module header to getdns include dir.
+    file(COPY src/getdns/getdns_ext_libevent.h DESTINATION getdns)
+
+    add_library(event2_objects OBJECT src/extension/libevent.c)
+    target_include_directories(event2_objects
+      PRIVATE
+      src
+      ${CMAKE_CURRENT_BINARY_DIR}
+      )
+    set_property(TARGET event2_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
+    set_property(TARGET event2_objects PROPERTY C_STANDARD 11)
+    if (ENABLE_STATIC)
+      add_library(getdns_ex_event STATIC $<TARGET_OBJECTS:event2_objects>)
+      target_include_directories(getdns_ex_event PRIVATE Libevent2::Libevent_code)
+      target_link_libraries(getdns_ex_event PUBLIC getdns Libevent2::Libevent_core)
+      set_target_properties(getdns_ex_event PROPERTIES OUTPUT_NAME getdns_ex_event${static_lib_suffix})
+    endif ()
+    if (ENABLE_SHARED)
+      add_library(getdns_ex_event_shared SHARED $<TARGET_OBJECTS:event2_objects>)
+      target_include_directories(getdns_ex_event_shared PRIVATE Libevent2::Libevent_code)
+      target_link_libraries(getdns_ex_event_shared PUBLIC getdns_shared Libevent2::Libevent_core)
+      set_target_properties(getdns_ex_event_shared PROPERTIES OUTPUT_NAME getdns_ex_event)
+      target_shared_library_version(getdns_ex_event_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})
+      file(STRINGS src/extension/libevent.symbols symbols)
+      target_shared_library_exports(getdns_ex_event_shared getdns_ex_event "${symbols}")
+      if (NOT ENABLE_STATIC)
+        add_library(getdns_ex_event ALIAS getdns_ex_event_shared)
+      endif ()
+    endif ()
+  else ()
+    message(WARNING "Libevent2 not found, libevent extension not built.")
+    set(USE_LIBEVENT2 OFF)
+  endif ()
+endif ()
+
 # The tools.
 if (BUILD_GETDNS_QUERY)
   add_executable(getdns_query src/tools/getdns_query.c)
@@ -717,9 +766,15 @@ configure_file(getdns.pc.in getdns.pc @ONLY)
 # Installing.
 if (ENABLE_STATIC)
   install(TARGETS getdns LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+  if (USE_LIBEVENT2)
+    install(TARGETS getdns_ex_event LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+  endif ()
 endif ()
 if (ENABLE_SHARED)
   install(TARGETS getdns_shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+  if (USE_LIBEVENT2)
+    install(TARGETS getdns_ex_event_shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+  endif ()
 endif ()
 if (BUILD_GETDNS_QUERY)
   install(TARGETS getdns_query RUNTIME DESTINATION bin)
