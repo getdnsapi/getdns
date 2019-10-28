@@ -165,6 +165,9 @@
 #cmakedefine HAVE_UNBOUND_EVENT_API	1
 #cmakedefine HAVE_UB_CTX_SET_STUB	1
 
+#cmakedefine HAVE_LIBIDN		1
+#cmakedefine HAVE_LIBIDN2		1
+
 #cmakedefine DEFAULT_EVENTLOOP          "@DEFAULT_EVENTLOOP@"
 #cmakedefine USE_POLL_DEFAULT_EVENTLOOP 1
 

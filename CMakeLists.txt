@@ -318,6 +318,18 @@ else ()
   message(WARNING "Neither pthreads nor Windows threading available.")
 endif ()
 
+# Libidn
+find_package(Libidn)
+if (Libidn_FOUND)
+  set(HAVE_LIBIDN 1)
+endif()
+
+# Libidn2
+find_package(Libidn2 "2.0.0")
+if (Libidn2_FOUND)
+  set(HAVE_LIBIDN2 1)
+endif()
+
 # Stuff that might be in a BSD library
 check_symbol_exists(strlcpy string.h HAVE_DECL_STRLCPY)
 check_symbol_exists(arc4random stdlib.h HAVE_DECL_ARC4RANDOM)
@@ -499,6 +511,8 @@ target_include_directories(getdns_objects
   src/yxml
 
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${LIBIDN_INCLUDE_DIR}
+  ${LIBIDN2_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   )
 if (NOT HAVE_SSL_DANE_ENABLE)
@@ -526,6 +540,12 @@ if (ENABLE_STATIC)
     Threads::Threads
     ${getdns_system_libs}
     )
+  if (Libidn_FOUND)
+    target_link_libraries(getdns INTERFACE Libidn::Libidn)
+  endif ()
+  if (Libidn2_FOUND)
+    target_link_libraries(getdns INTERFACE Libidn2::Libidn2)
+  endif ()
   set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
 endif ()
 
@@ -542,6 +562,12 @@ if (ENABLE_SHARED)
     Threads::Threads
     ${getdns_system_libs}
     )
+  if (Libidn_FOUND)
+    target_link_libraries(getdns INTERFACE Libidn::Libidn)
+  endif ()
+  if (Libidn2_FOUND)
+    target_link_libraries(getdns INTERFACE Libidn2::Libidn2)
+  endif ()
   set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
 
   if (NOT ENABLE_STATIC)
