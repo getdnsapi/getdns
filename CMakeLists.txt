@@ -520,14 +520,18 @@ target_include_directories(getdns_objects
   src/yxml
 
   ${CMAKE_CURRENT_BINARY_DIR}
-  ${LIBIDN_INCLUDE_DIR}
-  ${LIBIDN2_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   )
 if (NOT HAVE_SSL_DANE_ENABLE)
   target_sources(getdns_objects PRIVATE src/ssl_dane/danessl.c)
   target_include_directories(getdns_objects PRIVATE src/ssl_dane)
   set(USE_DANESSL 1)
+endif ()
+if (Libidn_FOUND)
+  target_include_directories(getdns_objects PRIVATE Libidn::Libidn)
+endif ()
+if (Libidn2_FOUND)
+  target_include_directories(getdns_objects PRIVATE Libidn2::Libidn2)
 endif ()
 
 # Don't compile separate objects for shared and static libraries.
