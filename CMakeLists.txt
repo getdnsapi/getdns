@@ -104,6 +104,8 @@ option(ENABLE_NATIVE_STUB_DNSSEC "Enable/disable native stub DNSSEC support." ON
 option(ENABLE_STUB_ONLY "Restricts resolution modes to STUB." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
 
+option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
+option(BUILD_GETDNS_SERVER_MON "Compile and install the getdns_server_mon tool." ON)
 option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OFF)
 
 # Above names chosen for user consistency. Now define substituted names.
@@ -614,24 +616,28 @@ endif ()
 
 
 # The tools.
-add_executable(getdns_query src/tools/getdns_query.c)
-if (NOT HAVE_GETTIMEOFDAY)
-  target_sources(getdns_query PRIVATE src/compat/gettimeofday.c)
+if (BUILD_GETDNS_QUERY)
+  add_executable(getdns_query src/tools/getdns_query.c)
+  if (NOT HAVE_GETTIMEOFDAY)
+    target_sources(getdns_query PRIVATE src/compat/gettimeofday.c)
+  endif ()
+  target_include_directories(getdns_query PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(getdns_query PRIVATE getdns)
+  set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 endif ()
-target_include_directories(getdns_query PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(getdns_query PRIVATE getdns)
-set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 
-add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
-target_include_directories(getdns_server_mon PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(getdns_server_mon
-  PUBLIC
-  OpenSSL::SSL
-  OpenSSL::Crypto
-  PRIVATE
-  getdns
-  )
-set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
+if (BUILD_GETDNS_SERVER_MON)
+  add_executable(getdns_server_mon src/tools/getdns_server_mon.c)
+  target_include_directories(getdns_server_mon PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+  target_link_libraries(getdns_server_mon
+    PUBLIC
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    PRIVATE
+    getdns
+    )
+  set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
+endif ()
 
 if (BUILD_TESTING)
   find_package(Check "0.9.6")
@@ -732,7 +738,12 @@ endif ()
 if (ENABLE_SHARED)
   install(TARGETS getdns_shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 endif ()
-install(TARGETS getdns_query getdns_server_mon RUNTIME DESTINATION bin)
+if (BUILD_GETDNS_QUERY)
+  install(TARGETS getdns_query RUNTIME DESTINATION bin)
+endif ()
+if (BUILD_GETDNS_SERVER_MON)
+  install(TARGETS getdns_server_mon RUNTIME DESTINATION bin)
+endif ()
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/getdns DESTINATION include)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man3 DESTINATION share/man)
