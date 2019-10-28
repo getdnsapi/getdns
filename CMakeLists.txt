@@ -108,6 +108,9 @@ option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
 option(BUILD_GETDNS_SERVER_MON "Compile and install the getdns_server_mon tool." ON)
 option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OFF)
 
+option(USE_LIBIDN "Use libidn if available." ON)
+option(USE_LIBIDN2 "Use libidn2 if available." ON)
+
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
 set(SCHED_DEBUG ${ENABLE_DEBUG_SCHED})
@@ -321,15 +324,19 @@ else ()
 endif ()
 
 # Libidn
-find_package(Libidn)
-if (Libidn_FOUND)
-  set(HAVE_LIBIDN 1)
+if (USE_LIBIDN)
+  find_package(Libidn)
+  if (Libidn_FOUND)
+    set(HAVE_LIBIDN 1)
+  endif()
 endif()
 
 # Libidn2
-find_package(Libidn2 "2.0.0")
-if (Libidn2_FOUND)
-  set(HAVE_LIBIDN2 1)
+if (USE_LIBIDN2)
+  find_package(Libidn2 "2.0.0")
+  if (Libidn2_FOUND)
+    set(HAVE_LIBIDN2 1)
+  endif()
 endif()
 
 # Stuff that might be in a BSD library
