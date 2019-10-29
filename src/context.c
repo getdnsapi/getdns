@@ -2395,7 +2395,15 @@ getdns_context_set_dns_root_servers(
 {
 #ifdef HAVE_LIBUNBOUND
 #  ifndef HAVE_UB_CTX_SET_STUB
-	char tmpfn[FILENAME_MAX] = P_tmpdir "/getdns-root-dns-servers-XXXXXX";
+	char tmpfn[FILENAME_MAX];
+
+#    ifdef USE_WINSOCK
+	GetTempPathA(FILENAME_MAX, tmpfn);
+	strncat_s(tmpfn, FILENAME_MAX, "/getdns-root-dns-servers-XXXXXX", _TRUNCATE);
+#    else
+	strlcpy(tmpfn, P_tmpdir "/getdns-root-dns-servers-XXXXXX", FILENAME_MAX);
+#    endif
+
 	FILE *fh;
 	int fd;
 	size_t dst_len;
