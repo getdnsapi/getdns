@@ -194,6 +194,8 @@ if (DEFINED GETDNS_ON_WINDOWS)
     "crypt32"
     "gdi32"
     "iphlpapi"
+    "psapi"
+    "userenv"
     )
 endif ()
 
