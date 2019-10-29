@@ -530,6 +530,9 @@ target_include_directories(getdns_objects
   src/yxml
 
   ${CMAKE_CURRENT_BINARY_DIR}
+
+  # Note - CMake 3.5 doesn't like target_link_libraries on objects,
+  # which would be preferred way to add an include dependency.
   ${OPENSSL_INCLUDE_DIR}
   )
 if (NOT HAVE_SSL_DANE_ENABLE)
@@ -538,10 +541,13 @@ if (NOT HAVE_SSL_DANE_ENABLE)
   set(USE_DANESSL 1)
 endif ()
 if (Libidn_FOUND)
-  target_include_directories(getdns_objects PRIVATE Libidn::Libidn)
+  target_include_directories(getdns_objects PRIVATE ${LIBIDN_INCLUDE_DIR})
 endif ()
 if (Libidn2_FOUND)
-  target_include_directories(getdns_objects PRIVATE Libidn2::Libidn2)
+  target_include_directories(getdns_objects PRIVATE ${LIBIDN2_INCLUDE_DIR})
+endif ()
+if (Libunbound_FOUND)
+  target_include_directories(getdns_objects PRIVATE ${LIBUNBOUND_INCLUDE_DIR})
 endif ()
 
 # Don't compile separate objects for shared and static libraries.
@@ -617,7 +623,11 @@ if (USE_LIBEV)
       PRIVATE
       src
       ${CMAKE_CURRENT_BINARY_DIR}
+      ${LIBEV_INCLUDE_DIR}
       )
+    if (Libunbound_FOUND)
+      target_link_libraries(ev_objects PUBLIC Libunbound::Libunbound)
+    endif ()
     set_property(TARGET ev_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
     set_property(TARGET ev_objects PROPERTY C_STANDARD 11)
     if (ENABLE_STATIC)
@@ -661,7 +671,11 @@ if (USE_LIBEVENT2)
       PRIVATE
       src
       ${CMAKE_CURRENT_BINARY_DIR}
+      ${LIBEVENT2_INCLUDE_DIR}
       )
+    if (Libunbound_FOUND)
+      target_link_libraries(event2_objects PUBLIC Libunbound::Libunbound)
+    endif ()
     set_property(TARGET event2_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
     set_property(TARGET event2_objects PROPERTY C_STANDARD 11)
     if (ENABLE_STATIC)
@@ -700,7 +714,11 @@ if (USE_LIBUV)
       PRIVATE
       src
       ${CMAKE_CURRENT_BINARY_DIR}
+      ${LIBUV_INCLUDE_DIR}
       )
+    if (Libunbound_FOUND)
+      target_link_libraries(uv_objects PUBLIC Libunbound::Libunbound)
+    endif ()
     set_property(TARGET uv_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
     set_property(TARGET uv_objects PROPERTY C_STANDARD 11)
     if (ENABLE_STATIC)
@@ -754,8 +772,10 @@ endif ()
 if (BUILD_TESTING)
   find_package(Check "0.9.6")
 
-  if (NOT Check_FOUND)
-    message(WARNING "check library not found, not building test programs")
+  if (WIN32)
+    message(WARNING "test programs do not build on Windows, skipping.")
+  elseif (NOT Check_FOUND)
+    message(WARNING "check library not found, not building test programs.")
   else ()
     add_executable(check_getdns
       src/test/check_getdns_common.c
