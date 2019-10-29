@@ -571,6 +571,9 @@ if (ENABLE_STATIC)
     Threads::Threads
     ${getdns_system_libs}
     )
+  if (Libunbound_FOUND)
+    target_link_libraries(getdns PUBLIC Libunbound::Libunbound)
+  endif ()
   if (Libidn_FOUND)
     target_link_libraries(getdns PUBLIC Libidn::Libidn)
   endif ()
@@ -593,6 +596,9 @@ if (ENABLE_SHARED)
     Threads::Threads
     ${getdns_system_libs}
     )
+  if (Libunbound_FOUND)
+    target_link_libraries(getdns_shared PUBLIC Libunbound::Libunbound)
+  endif ()
   if (Libidn_FOUND)
     target_link_libraries(getdns_shared PUBLIC Libidn::Libidn)
   endif ()
@@ -755,6 +761,9 @@ if (BUILD_GETDNS_QUERY)
   endif ()
   target_include_directories(getdns_query PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(getdns_query PRIVATE getdns)
+  if (Libunbound_FOUND)
+    target_link_libraries(getdns_query PUBLIC Libunbound::Libunbound)
+  endif ()
   set_property(TARGET getdns_query PROPERTY C_STANDARD 11)
 endif ()
 
@@ -768,6 +777,9 @@ if (BUILD_GETDNS_SERVER_MON)
     PRIVATE
     getdns
     )
+  if (Libunbound_FOUND)
+    target_link_libraries(getdns_server_mon PUBLIC Libunbound::Libunbound)
+  endif ()
   set_property(TARGET getdns_server_mon PROPERTY C_STANDARD 11)
 endif ()
 
