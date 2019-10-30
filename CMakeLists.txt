@@ -446,7 +446,6 @@ if (NOT ENABLE_STUB_ONLY)
 endif ()
 
 # Event loop extension
-# TODO: other event loops
 set(DEFAULT_EVENTLOOP "select_eventloop")
 if (HAVE_SYS_POLL_H)
   set(TEST_CFLAG "HAVE_SYS_POLL_H=1")
