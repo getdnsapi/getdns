@@ -111,6 +111,7 @@
 #cmakedefine EDNS_PADDING_OPCODE                @EDNS_PADDING_OPCODE@
 #cmakedefine MAX_CNAME_REFERRALS                @MAX_CNAME_REFERRALS@
 #cmakedefine DRAFT_RRTYPES                      @DRAFT_RRTYPES@
+#cmakedefine EDNS_COOKIES			1
 #cmakedefine EDNS_COOKIE_OPCODE                 @EDNS_COOKIE_OPCODE@
 #cmakedefine EDNS_COOKIE_ROLLOVER_TIME          @EDNS_COOKIE_ROLLOVER_TIME@
 #cmakedefine UDP_MAX_BACKOFF			@MAX_UDP_BACKOFF@
