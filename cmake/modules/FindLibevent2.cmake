@@ -20,7 +20,7 @@ This module will set the following variables in your project:
 ``Libevent2_FOUND``
   If false, do not try to use Libevent2.
 ``LIBEVENT2_INCLUDE_DIR``
-  where to find check.h, etc.
+  where to find libevent headers.
 ``LIBEVENT2_LIBRARIES``
   the libraries needed to use Libevent2.
 ``LIBEVENT2_VERSION``

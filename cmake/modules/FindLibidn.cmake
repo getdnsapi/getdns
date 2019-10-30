@@ -20,7 +20,7 @@ This module will set the following variables in your project:
 ``Libidn_FOUND``
   If false, do not try to use Libidn.
 ``LIBIDN_INCLUDE_DIR``
-  where to find check.h, etc.
+  where to find libidn headers.
 ``LIBIDN_LIBRARIES``
   the libraries needed to use Libidn.
 

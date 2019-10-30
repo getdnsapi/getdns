@@ -20,7 +20,7 @@ This module will set the following variables in your project:
 ``Libuv_FOUND``
   If false, do not try to use Libuv.
 ``LIBUV_INCLUDE_DIR``
-  where to find check.h, etc.
+  where to find libuv headers.
 ``LIBUV_LIBRARIES``
   the libraries needed to use Libuv.
 ``LIBUV_VERSION``

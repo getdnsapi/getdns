@@ -20,7 +20,7 @@ This module will set the following variables in your project:
 ``Libunbound_FOUND``
   If false, do not try to use Libunbound.
 ``LIBUNBOUND_INCLUDE_DIR``
-  where to find check.h, etc.
+  where to find libunbound headers.
 ``LIBUNBOUND_LIBRARIES``
   the libraries needed to use Libunbound.
 ``LIBUNBOUND_VERSION``

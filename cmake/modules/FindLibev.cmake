@@ -20,7 +20,7 @@ This module will set the following variables in your project:
 ``Libev_FOUND``
   If false, do not try to use Libev.
 ``LIBEV_INCLUDE_DIR``
-  where to find check.h, etc.
+  where to find libev headers.
 ``LIBEV_LIBRARIES``
   the libraries needed to use Libev.
 ``LIBEV_VERSION``
