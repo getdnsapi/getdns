@@ -104,7 +104,8 @@ option(ENABLE_ED448 "Enable ED448 support." ON)
 
 option(ENABLE_DRAFT_MDNS_SUPPORT "Enable draft mdns client support.")
 option(ENABLE_EDNS_COOKIES "Enable EDNS cookies." ON)
-option(ENABLE_NATIVE_STUB_DNSSEC "Enable/disable native stub DNSSEC support." ON)
+option(ENABLE_NATIVE_STUB_DNSSEC "Enable native stub DNSSEC support." ON)
+option(ENABLE_POLL_EVENTLOOP "Enable default eventloop based on poll." ON)
 option(ENABLE_STUB_ONLY "Restricts resolution modes to STUB." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
 
@@ -449,16 +450,18 @@ endif ()
 
 # Event loop extension
 set(DEFAULT_EVENTLOOP "select_eventloop")
-if (HAVE_SYS_POLL_H)
-  set(TEST_CFLAG "HAVE_SYS_POLL_H=1")
-endif ()
-try_compile(USE_POLL_DEFAULT_EVENTLOOP
-  ${CMAKE_CURRENT_BINARY_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_poll.c
-  COMPILE_DEFINITIONS "${TEST_CFLAG}"
-  )
-if (USE_POLL_DEFAULT_EVENTLOOP)
-  set(DEFAULT_EVENTLOOP "poll_eventloop")
+if (ENABLE_POLL_EVENTLOOP)
+  if (HAVE_SYS_POLL_H)
+    set(TEST_CFLAG "-DHAVE_SYS_POLL_H=1")
+  endif ()
+  try_compile(USE_POLL_DEFAULT_EVENTLOOP
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_poll.c
+    COMPILE_DEFINITIONS "${TEST_CFLAG}"
+    )
+  if (USE_POLL_DEFAULT_EVENTLOOP)
+    set(DEFAULT_EVENTLOOP "poll_eventloop")
+  endif ()
 endif ()
 
 # Custom checks
