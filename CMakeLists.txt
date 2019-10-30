@@ -106,7 +106,8 @@ option(ENABLE_DRAFT_MDNS_SUPPORT "Enable draft mdns client support.")
 option(ENABLE_EDNS_COOKIES "Enable EDNS cookies." ON)
 option(ENABLE_NATIVE_STUB_DNSSEC "Enable native stub DNSSEC support." ON)
 option(ENABLE_POLL_EVENTLOOP "Enable default eventloop based on poll." ON)
-option(ENABLE_STUB_ONLY "Restricts resolution modes to STUB." ON)
+option(ENABLE_STUB_ONLY "Restrict resolution modes to STUB." ON)
+option(ENABLE_TCP_FAST_OPEN "Enable use of TCP Fast Open." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
 
 option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
@@ -476,6 +477,25 @@ set(STRPTIME_TEST_SOURCE "\n
 
 if (HAVE_STRPTIME)
   check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
+endif ()
+
+# TCP Fast Open.
+if (NOT ENABLE_TCP_FAST_OPEN)
+  message(WARNING "TCP Fast Open disabled.")
+else ()
+  if (APPLE AND HAVE_SYS_SOCKET_H)
+    check_symbol_exists(CONNECT_RESUME_ON_READ_WRITE "sys/socket.h" USE_OSX_TCP_FASTOPEN)
+    if (NOT USE_OSX_TCP_FASTOPEN)
+      message(WARNING "TCP Fast Open not available, continuing without.")
+    endif ()
+  else ()
+    check_symbol_exists(TCP_FASTOPEN "sys/socket.h;netinet/tcp.h" HAVE_DECL_TCP_FASTOPEN)
+    check_symbol_exists(TCP_FASTOPEN_CONNECT "sys/socket.h;netinet/tcp.h" HAVE_DECL_TCP_FASTOPEN_CONNECT)
+    check_symbol_exists(MSG_FASTOPEN "sys/socket.h;netinet/tcp.h" HAVE_DECL_MSG_FASTOPEN)
+    if (NOT TCP_FASTOPEN)
+      message(WARNING "TCP Fast Open not available, continuing without.")
+    endif ()
+  endif ()
 endif ()
 
 # Main library

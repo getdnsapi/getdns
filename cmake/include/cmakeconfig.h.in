@@ -127,6 +127,10 @@
 #cmakedefine HAVE_DECL_SIGADDSET        1
 #cmakedefine HAVE_DECL_STRPTIME         1
 
+#cmakedefine USE_DECL_TCP_FASTOPEN		1
+#cmakedefine USE_DECL_TCP_FASTOPEN_CONNECT	1
+#cmakedefine USE_DECL_MSG_FASTOPEN		1
+
 #if defined(HAVE_DECL_INET_PTON) || defined(HAVE_WIN_DECL_INET_PTON)
 #undef HAVE_DECL_INET_PTON
 #define HAVE_DECL_INET_PTON 1
@@ -200,6 +204,8 @@
 #cmakedefine USE_DSA			1
 #cmakedefine USE_ED25519		1
 #cmakedefine USE_ED448			1
+
+#cmakedefine USE_OSX_TCP_FASTOPEN	1
 
 #cmakedefine HAVE_TARGET_ENDIANNESS
 #cmakedefine TARGET_IS_BIG_ENDIAN
