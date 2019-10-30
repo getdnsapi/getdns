@@ -116,6 +116,7 @@ option(USE_LIBEVENT2 "Use libevent2 if available." ON)
 option(USE_LIBUV "Use libuv if available." ON)
 option(USE_LIBIDN "Use libidn if available." ON)
 option(USE_LIBIDN2 "Use libidn2 if available." ON)
+option(USE_GNUTLS "Use GnuTLS for TLS connections." OFF)
 
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
@@ -270,6 +271,7 @@ check_type_size(_sigset_t _SIGSET_T)
 find_package(OpenSSL "1.0.2" REQUIRED)
 
 set(HAVE_SSL 1)
+set(tlsdir "openssl")
 
 set(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
 check_include_file(openssl/ssl.h HAVE_OPENSSL_SSL_H)
@@ -318,6 +320,8 @@ check_symbol_exists(TLS_client_method "openssl/ssl.h" HAVE_TLS_CLIENT_METHOD)
 check_symbol_exists(X509_get_notAfter "openssl/x509.h" HAVE_X509_GET_NOTAFTER)
 check_symbol_exists(X509_get0_notAfter "openssl/x509.h" HAVE_X509_GET0_NOTAFTER)
 
+check_symbol_exists(NID_ED25519 "openssl/obj_mac.h" HAVE_SSL_ED25519)
+check_symbol_exists(NID_ED448 "openssl/obj_mac.h" HAVE_SSL_ED448)
 
 # Threading library
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -346,6 +350,43 @@ if (USE_LIBIDN2)
     set(HAVE_LIBIDN2 1)
   endif()
 endif()
+
+# GnuTLS and Nettle. If using GnuTLS, we need the Nettle dev stuff to
+# handle digital signature algorithms. GnuTLS uses Nettle internally.
+if (USE_GNUTLS)
+  find_package(GnuTLS "3.5.0" REQUIRED)
+  find_package(Nettle REQUIRED)
+
+  set(tlsdir "gnutls")
+  set(HAVE_NETTLE 1)
+
+  set(CMAKE_REQUIRED_INCLUDES ${NETTLE_INCLUDE_DIR})
+  check_include_file(nettle/dsa-compat.h HAVE_NETTLE_DSA_COMPAT_H)
+  check_include_file(nettle/eddsa.h HAVE_NETTLE_EDDSA_H)
+endif()
+
+# Sort out what signature algorithms can be used.
+if (USE_ED25519)
+  if (USE_GNUTLS)
+    if (NOT HAVE_NETTLE_EDDSA_H)
+      message(WARNING "ED25519 enabled and Nettle does not support it. Disabled.")
+      unset(USE_ED25519)
+    endif ()
+  elseif (NOT HAVE_SSL_ED25519)
+    message(WARNING "ED25519 enabled and OpenSSL does not support it. Disabled.")
+    unset(USE_ED25519)
+  endif ()
+endif ()
+
+if (USE_ED448)
+  if (USE_GNUTLS)
+    message(WARNING "ED448 enabled and Nettle does not support it. Disabled.")
+    unset(USE_ED448)
+  elseif (NOT HAVE_SSL_ED448)
+    message(WARNING "ED448 enabled and OpenSSL does not support it. Disabled.")
+    unset(USE_ED448)
+  endif ()
+endif ()
 
 # Stuff that might be in a BSD library
 check_symbol_exists(strlcpy string.h HAVE_DECL_STRLCPY)
@@ -477,9 +518,9 @@ add_library(getdns_objects OBJECT
   src/tls/val_secalgo.c
   src/tls/anchor-internal.c
 
-  src/openssl/tls.c
-  src/openssl/pubkey-pinning-internal.c
-  src/openssl/keyraw-internal.c
+  src/${tlsdir}/tls.c
+  src/${tlsdir}/pubkey-pinning-internal.c
+  src/${tlsdir}/keyraw-internal.c
 
   ${CMAKE_CURRENT_BINARY_DIR}/version.c
   )
@@ -527,7 +568,7 @@ target_include_directories(getdns_objects
 
   PRIVATE
   src/util/auxiliary
-  src/openssl
+  src/${tlsdir}
   src/tls
   src/yxml
 
@@ -550,6 +591,9 @@ if (Libidn2_FOUND)
 endif ()
 if (Libunbound_FOUND)
   target_include_directories(getdns_objects PRIVATE ${LIBUNBOUND_INCLUDE_DIR})
+endif ()
+if (GnuTLS_FOUND)
+  target_include_directories(getdns_objects PRIVATE ${GNUTLS_INCLUDE_DIR})
 endif ()
 
 # Don't compile separate objects for shared and static libraries.
@@ -580,6 +624,12 @@ if (ENABLE_STATIC)
   if (Libidn2_FOUND)
     target_link_libraries(getdns PUBLIC Libidn2::Libidn2)
   endif ()
+  if (GnuTLS_FOUND)
+    target_link_libraries(getdns PUBLIC GnuTLS::GnuTLS GnuTLS::Dane)
+  endif ()
+  if (Nettle_FOUND)
+    target_link_libraries(getdns PUBLIC Nettle::Nettle Nettle::Hogweed)
+  endif ()
   set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
 endif ()
 
@@ -604,6 +654,12 @@ if (ENABLE_SHARED)
   endif ()
   if (Libidn2_FOUND)
     target_link_libraries(getdns_shared PUBLIC Libidn2::Libidn2)
+  endif ()
+  if (GnuTLS_FOUND)
+    target_link_libraries(getdns_shared PUBLIC GnuTLS::GnuTLS GnuTLS::Dane)
+  endif ()
+  if (Nettle_FOUND)
+    target_link_libraries(getdns_shared PUBLIC Nettle::Nettle Nettle::Hogweed)
   endif ()
   set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
   target_shared_library_version(getdns_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})

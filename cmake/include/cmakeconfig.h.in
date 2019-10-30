@@ -168,6 +168,10 @@
 #cmakedefine HAVE_LIBIDN		1
 #cmakedefine HAVE_LIBIDN2		1
 
+#cmakedefine HAVE_NETTLE		1
+#cmakedefine HAVE_NETTLE_DSA_COMPAT_H	1
+#cmakedefine HAVE_NETTLE_EDDSA_H	1
+
 #cmakedefine HAVE_EVENT2_EVENT_H	1
 #cmakedefine HAVE_EVENT_BASE_NEW	1
 #cmakedefine HAVE_EVENT_BASE_FREE	1
