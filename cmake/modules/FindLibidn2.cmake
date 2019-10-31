@@ -34,7 +34,7 @@ find_path(LIBIDN2_INCLUDE_DIR idn2.h
   "${LIBIDN2_DIR}/include"
 )
 
-find_library(LIBIDN2_LIBRARY NAMES idn2
+find_library(LIBIDN2_LIBRARY NAMES idn2 libidn2
   HINTS
   "${LIBIDN2_DIR}"
   "${LIBIDN2_DIR}/lib"
