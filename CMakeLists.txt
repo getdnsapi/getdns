@@ -110,6 +110,7 @@ option(ENABLE_STUB_ONLY "Restrict resolution modes to STUB." ON)
 option(ENABLE_TCP_FAST_OPEN "Enable use of TCP Fast Open." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
 
+option(BUILD_DOXYGEN "Build source documentation." OFF)
 option(BUILD_EXAMPLES "Compile the example programs." OFF)
 option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
 option(BUILD_GETDNS_SERVER_MON "Compile and install the getdns_server_mon tool." ON)
@@ -1053,4 +1054,16 @@ libevent was not found or usable at compile time. \
 To compile and run all examples from the spec, make sure \
 libevent is available and usable during configuration.")
   endif ()
+endif ()
+
+if (BUILD_DOXYGEN)
+  find_package(Doxygen REQUIRED)
+
+  set(srcdir ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  configure_file(src/Doxyfile.in Doxyfile @ONLY)
+  add_custom_command(OUTPUT doc/html/index.html
+    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+    MAIN_DEPENDENCY Doxyfile
+    COMMENT "Generating Doxygen docs.")
+  add_custom_target(doc ALL DEPENDS doc/html/index.html)
 endif ()
