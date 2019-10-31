@@ -110,6 +110,7 @@ option(ENABLE_STUB_ONLY "Restrict resolution modes to STUB." ON)
 option(ENABLE_TCP_FAST_OPEN "Enable use of TCP Fast Open." ON)
 option(ENABLE_UNBOUND_EVENT_API "Enable usage of libunbound's event API." ON)
 
+option(BUILD_EXAMPLES "Compile the example programs." OFF)
 option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
 option(BUILD_GETDNS_SERVER_MON "Compile and install the getdns_server_mon tool." ON)
 option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OFF)
@@ -1017,4 +1018,39 @@ install(CODE "message(\"\
 
 if (BUILD_STUBBY)
   add_subdirectory(stubby)
+endif ()
+
+if (BUILD_EXAMPLES)
+  add_executable(example-all-functions spec/example/example-all-functions.c)
+  target_include_directories(example-all-functions PRIVATE spec/example)
+  target_link_libraries(example-all-functions PRIVATE getdns)
+  set_property(TARGET example-all-functions PROPERTY C_STANDARD 11)
+
+  add_executable(example-synchronous spec/example/example-synchronous.c)
+  target_include_directories(example-synchronous PRIVATE spec/example)
+  target_link_libraries(example-synchronous PRIVATE getdns)
+  set_property(TARGET example-synchronous PROPERTY C_STANDARD 11)
+
+  if (USE_LIBEVENT2)
+    add_executable(example-simple-answers spec/example/example-simple-answers.c)
+    target_include_directories(example-simple-answers PRIVATE spec/example)
+    target_link_libraries(example-simple-answers PRIVATE getdns getdns_ex_event)
+    set_property(TARGET example-simple-answers PROPERTY C_STANDARD 11)
+
+    add_executable(example-tree spec/example/example-tree.c)
+    target_include_directories(example-tree PRIVATE spec/example)
+    target_link_libraries(example-tree PRIVATE getdns getdns_ex_event)
+    set_property(TARGET example-tree PROPERTY C_STANDARD 11)
+
+    add_executable(example-reverse spec/example/example-reverse.c)
+    target_include_directories(example-reverse PRIVATE spec/example)
+    target_link_libraries(example-reverse PRIVATE getdns getdns_ex_event)
+    set_property(TARGET example-reverse PROPERTY C_STANDARD 11)
+  else ()
+    message(WARNING "\
+Three examples from the specification need libevent. \
+libevent was not found or usable at compile time. \
+To compile and run all examples from the spec, make sure \
+libevent is available and usable during configuration.")
+  endif ()
 endif ()
