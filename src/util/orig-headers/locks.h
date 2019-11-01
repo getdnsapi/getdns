@@ -36,6 +36,8 @@
 #ifndef UTIL_LOCKS_H
 #define UTIL_LOCKS_H
 
+#include <string.h>
+
 /**
  * \file
  * Locking primitives.
