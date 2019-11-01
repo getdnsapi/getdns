@@ -436,11 +436,7 @@ mark_as_advanced(BSD_LIBRARY)
 
 # If we're not stub only, we need libunbound.
 if (NOT ENABLE_STUB_ONLY)
-  # libunbound up to version 1.3.22 can't be linked against a program that also
-  # links libevent because of a symbol clash. Rather than work around this
-  # problem with libunbounds prior to November 2014, just insist on a
-  # modern enough libunbound.
-  find_package(Libunbound "1.5.0" REQUIRED)
+  find_package(Libunbound "1.5.9" REQUIRED)
   set(HAVE_LIBUNBOUND 1)
   list(APPEND getdns_system_libs Libunbound::Libunbound)
 
