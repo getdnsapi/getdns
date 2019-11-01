@@ -37,10 +37,10 @@ Obtaining and getting started with getdns
 =========================================
 The project home page at [getdnsapi.net](https://getdnsapi.net) provides documentation, binary downloads, and news regarding the getdns API implementation.  This README file captures the goals and direction of the project and the current state of the implementation.
 
-If you are just getting started with the library take a look at the section below that describes building and handling external dependencies for the library. 
+If you are just getting started with the library take a look at the section below that describes building and handling external dependencies for the library.
 
 ### Examples
-Once it is built you should take a look at src/examples to see how the library is used.
+Once it is built you should take a look at `spec/example` to see how the library is used.
 
 
 # Download
@@ -50,7 +50,7 @@ or from [getdnsapi.net](https://getdnsapi.net) and verify the download using
 the checksums (SHA1 or MD5) or using gpg to verify the signature.  Our keys are
 available from the [pgp keyservers](https://keyserver.pgp.com)
 
-* willem@nlnetlabs.nl, key id E5F8F8212F77A498
+* `willem@nlnetlabs.nl`, key id E5F8F8212F77A498
 
 # Releases
 
@@ -65,27 +65,22 @@ The following requirements were met as conditions for the present release:
 
 # Building and External Dependencies
 
-If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.  
+If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.
 
 External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short.  Please refer to section for building on Windows for separate dependency and build instructions for that platform.
 
-* [libunbound from NLnet Labs](https://unbound.net/) version 1.4.16 or later.
+* [libunbound from NLnet Labs](https://unbound.net/) version 1.5.9 or later.
 * [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1 or 2 (from version 2.0.0 and higher).  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
-* [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 0.9.7 or later. (Note: version 1.0.1 or later is required for TLS support, version 1.0.2 or later is required for TLS hostname authentication)
+* [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 1.0.2 or later.
 * Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
 For example, to build on a recent version of Ubuntu, you would need the following packages:
 
-    # apt install build-essential libunbound-dev libidn2-dev libssl-dev libtool m4 autoconf
+    # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake
 
 If you are building from git, you need to do the following before building:
 
-
     # git submodule update --init
-
-    # libtoolize -ci # (use glibtoolize for OS X, libtool is installed as glibtool to avoid name conflict on OS X)
-    # autoreconf -fi
-
 
 As well as building the getdns library three other tools may be installed:
 
@@ -93,26 +88,26 @@ As well as building the getdns library three other tools may be installed:
 * stubby: an experimental DNS Privacy enabled client
 * getdns_server_mon: test DNS server function and capabilities
 
-Note: If you only want to build stubby, then use the `--with-stubby` option when running 'configure'.
+Note: If you only want to build stubby, then use the `BUILD_STUBBY` option when running `cmake`.
 
 
 ## Minimizing dependencies
 
-* getdns can be configured for stub resolution mode only with the `--enable-stub-only` option to configure.  This removes the dependency on `libunbound`.
-* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `--without-libidn` and `--without-libidn2` options to configure.
-* When `--enable-stub-only`, `--without-libidn` and `--without-libidn2` options are used, getdns has only one dependency left, which is OpenSSL.
+* getdns can be configured for stub resolution mode only with the `ENABLE_STUB_ONLY` option to `cmake`.  This removes the dependency on `libunbound`.
+* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `USE_LIBIDN` and `USE_LIBIDN2` options to `cmake`.
+* When `ENABLE_STUB_ONLY` is ON, and `USE_LIBIDN` and `USE_LIBIDN2` options are OFF, getdns has only one dependency left, which is OpenSSL.
 
 ## Extensions and Event loop dependencies
 
 The implementation works with a variety of event loops, each built as a separate shared library.  See [this Doxygen page](https://getdnsapi.net/doxygen/group__eventloops.html) and [this man page](https://getdnsapi.net/documentation/manpages/#ASYNCHRONOUS USE) for more details.
 
-* [libevent](http://libevent.org).  Note: the examples *require* this and should work with either libevent 1.x or 2.x.  2.x is preferred.
+* [libevent](http://libevent.org).  Note: the examples *require* this. libevent 2.x is required.
 * [libuv](https://libuv.org/)
 * [libev](http://software.schmorp.de/pkg/libev.html)
 
 ## Stubby
 
-* Stubby is an experimental implementation of a DNS Privacy enabled stub resolver than encrypts DNS queries using TLS. It is currently suitable for advanced/technical users - all feedback is welcome! 
+* Stubby is an experimental implementation of a DNS Privacy enabled stub resolver than encrypts DNS queries using TLS. It is currently suitable for advanced/technical users - all feedback is welcome!
 * Details on how to use Stubby can be found in the [Stubby Reference Guide](https://dnsprivacy.org/wiki/x/JYAT).
 * Also see [dnsprivacy.org](https://dnsprivacy.org) for more information on DNS Privacy.
 
@@ -163,7 +158,7 @@ The goals of this implementation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API by getdns API team at <https://getdnsapi.net/spec.html>
 * Support FreeBSD, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
-* Support Windows 8.1 
+* Support Windows 8.1
 * Include examples and tests as part of the build
 * Document code using doxygen
 * Leverage github as much as possible for project coordination
