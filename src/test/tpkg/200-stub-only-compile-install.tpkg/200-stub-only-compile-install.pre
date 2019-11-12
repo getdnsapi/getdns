@@ -13,16 +13,8 @@ fi
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-echo "" > restore-srcdir-configure-settings
-for f in `grep 'CONFIG_[FH][IE][LA][ED][SE]' "${SRCROOT}/configure.ac" | sed -e 's/^.*(\[//g' -e 's/\])//g'`
-do
-	if [ -f "${SRCROOT}/$f" ]
-	then
-		mv "${SRCROOT}/${f}" "${SRCROOT}/${f}.build-stub-only" && \
-			echo "$f" >> restore-srcdir-configure-settings
-	fi
-done
 rm -fr "${BUILDDIR}/build-stub-only"
 mkdir  "${BUILDDIR}/build-stub-only"
 cd "${BUILDDIR}/build-stub-only"
-"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install-stub-only" --enable-stub-only --enable-debug-server --enable-debug-anchor
+rm -f CMakeCache.txt
+cmake -DENABLE_STUB_ONLY=ON -DENABLE_DEBUG_SERVER=ON -DENABLE_DEBUG_ANCHOR=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only $* ${SRCROOT}

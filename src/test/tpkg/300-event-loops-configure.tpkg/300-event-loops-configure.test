@@ -7,10 +7,10 @@
 rm -fr "${BUILDDIR}/build-event-loops"
 mkdir  "${BUILDDIR}/build-event-loops"
 cd "${BUILDDIR}/build-event-loops"
-"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libev \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libuv \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libev \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libuv
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON -DUSE_LIBUV=ON  $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only -DUSE_LIBEVENT2=ON                 -DUSE_LIBUV=ON $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only                    -DUSE_LIBEV=ON  -DUSE_LIBUV=ON $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only -DUSE_LIBEVENT2=ON                                $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only                    -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only                                    -DUSE_LIBUV=ON $* ${SRCROOT})

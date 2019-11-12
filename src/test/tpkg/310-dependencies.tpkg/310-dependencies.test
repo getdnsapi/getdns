@@ -4,6 +4,12 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
+if test "`hostname`" != "bonobo"
+then
+	echo Sorry, running dependency test on bonobo only
+	exit 0
+fi
+
 export TPKG_HERE=`pwd`
 # Temporarily copy Makefile.in files
 find . -type f -name "Makefile.in" -print0 | xargs -0 rm -f  && (
@@ -15,11 +21,6 @@ find . -type f -name "Makefile.in" -print0 | xargs -0 rm -f  && (
 )
 (
 	cd "${BUILDDIR}/build-event-loops"
-	if test "`hostname`" != "bonobo"
-	then
-		echo Sorry, running dependency test on bonobo only
-		exit 0
-	fi
 	if ! ./config.status --config | grep -q 'enable-all-drafts.*--with-libevent.*--with-libev.*--with-libuv'
 	then
 		echo Skipping because not covering enough code

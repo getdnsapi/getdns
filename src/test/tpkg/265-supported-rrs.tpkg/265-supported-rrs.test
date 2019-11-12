@@ -4,7 +4,7 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-if ! make
+if ! (cmake . && make)
 then
 	exit 1
 elif ! ( "./${TPKG_NAME}" "${TPKG_NAME}.net-dns.org" | tee out )

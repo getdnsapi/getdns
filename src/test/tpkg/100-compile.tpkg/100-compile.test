@@ -5,4 +5,4 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build"
-make XTRA_CFLAGS='-g -Werror' -j 4
+make XTRA_CFLAGS='-g -WError' -j 4
