@@ -1,6 +1,6 @@
 *~
 .DS_Store
-build/
+build*/
 getdns*.tar.gz
 *.o
 *.so
