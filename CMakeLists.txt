@@ -600,6 +600,7 @@ target_include_directories(getdns_objects
   # which would be preferred way to add an include dependency.
   ${OPENSSL_INCLUDE_DIR}
   )
+target_compile_definitions(getdns_objects PRIVATE JSMN_GETDNS YXML_GETDNS)
 if (NOT HAVE_SSL_DANE_ENABLE)
   target_sources(getdns_objects PRIVATE src/ssl_dane/danessl.c)
   target_include_directories(getdns_objects PRIVATE src/ssl_dane)
