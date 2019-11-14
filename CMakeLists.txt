@@ -792,6 +792,12 @@ endif ()
 if (USE_LIBUV)
   find_package(Libuv)
   if (Libuv_FOUND)
+    # Check for new-style callbacks.
+    try_compile(HAVE_NEW_UV_TIMER_CB
+      ${CMAKE_CURRENT_BINARY_DIR}
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test_uv_cb.c
+    )
+
     # Copy module header to getdns include dir.
     file(COPY src/getdns/getdns_ext_libuv.h DESTINATION getdns)
 

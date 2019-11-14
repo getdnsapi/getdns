@@ -207,6 +207,8 @@
 
 #cmakedefine USE_OSX_TCP_FASTOPEN	1
 
+#cmakedefine HAVE_NEW_UV_TIMER_CB	1
+
 #cmakedefine HAVE_TARGET_ENDIANNESS
 #cmakedefine TARGET_IS_BIG_ENDIAN
 
