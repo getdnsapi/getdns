@@ -9,3 +9,7 @@
 	sed -e "s/@BUILDDIR@/${BUILDDIR4SED}/g" \
 	    -e "s/@TPKG_NAME@/${TPKG_NAME}/g" "${TPKG_NAME}.cmake"
 ) > CMakeLists.txt
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' -e "s/libgetdns.so/libgetdns.dylib/g" CMakeLists.txt 
+fi
