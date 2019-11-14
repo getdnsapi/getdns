@@ -19,7 +19,7 @@ echo "# queries: $NQUERIES"
 # which is smaller than 5 seconds default query timeout value,
 # so the test should succeed.
 
-make && "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" ${LOCALHOST} | (
+cmake . && make && valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" ${LOCALHOST} | (
 	read PORT
 	${GETDNS_STUB_QUERY} -s @${LOCALHOST}:$PORT TXT \
 	    -a -F "./${TPKG_NAME}.queries" \
