@@ -13,23 +13,13 @@ fi
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-echo "" > restore-srcdir-configure-settings
-for f in `grep 'CONFIG_[FH][IE][LA][ED][SE]' "${SRCROOT}/configure.ac" | sed -e 's/^.*(\[//g' -e 's/\])//g'`
-do
-	if [ -f "${SRCROOT}/$f" ]
-	then
-		mv "${SRCROOT}/${f}" "${SRCROOT}/${f}.build-static-analysis" && \
-			echo "$f" >> restore-srcdir-configure-settings
-	fi
-done
 rm -fr "${BUILDDIR}/build-static-analysis"
 mkdir  "${BUILDDIR}/build-static-analysis"
 cd "${BUILDDIR}/build-static-analysis"
-"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libev \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent --with-libuv \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libev --with-libuv \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libevent \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libev \
-    || "${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install" --enable-all-drafts --with-stubby --with-libuv
-   
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON -DUSE_LIBUV=ON  $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON                 -DUSE_LIBUV=ON $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                    -DUSE_LIBEV=ON  -DUSE_LIBUV=ON $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON                                $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                    -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
+(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                                    -DUSE_LIBUV=ON $* ${SRCROOT})

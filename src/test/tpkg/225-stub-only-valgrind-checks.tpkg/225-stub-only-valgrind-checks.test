@@ -14,7 +14,7 @@ qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
 -A _acme-challenge.getdnsapi.net
 EOT
 (
-	if !  "${BUILDDIR}/build-stub-only/libtool" exec valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_STUB_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
+	if ! valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_STUB_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
 	then
 		exit 1
 	fi

@@ -7,8 +7,8 @@
 (
 	BUILDDIR4SED=`echo "${BUILDDIR}/build-stub-only" | sed  's/\//\\\\\//g'`
 	sed -e "s/@BUILDDIR@/${BUILDDIR4SED}/g" \
-	    -e "s/@TPKG_NAME@/${TPKG_NAME}/g" "${TPKG_NAME}.Makefile"
-) > Makefile
+	    -e "s/@TPKG_NAME@/${TPKG_NAME}/g" "${TPKG_NAME}.cmake"
+) > CMakeLists.txt
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   sed -i '' -e "s/libgetdns.so/libgetdns.dylib/g" CMakeLists.txt 
