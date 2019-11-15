@@ -5,4 +5,6 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-event-loops"
-make XTRA_CFLAGS="-g -Werror" -j 4 install
+make XTRA_CFLAGS="-g -Werror" -j 4 install \
+    && echo "export STUBBY=\"${BUILDDIR}/build-event-loops/stubby/stubby\"" \
+       >> ../.tpkg.var.master
