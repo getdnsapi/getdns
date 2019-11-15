@@ -5,7 +5,7 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build-event-loops"
-make -j 4 test
+CTEST_OUTPUT_ON_FAILURE=1 make -j 4 test
 if test -e "${BUILDDIR}/build-event-loops/src/test/fails"
 then
 	if test -e "${BUILDDIR}/build-event-loops/src/test/check_getdns.failed"
