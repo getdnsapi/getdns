@@ -158,7 +158,7 @@ if (WIN32)
   # BUG! Don't hardcode the Windows directory and drive.
   set(hostsfile "C:/Windows/System32/Drivers/etc/hosts")
 else ()
-  set(hostsfile "${CMAKE_INSTALL_FULL_SYSCONFDIR}/hosts")
+  set(hostsfile "/etc/hosts")
 endif ()
 set(PATH_HOSTS "${hostsfile}" CACHE STRING "Set the static table lookup for hostnames path.")
 set(PATH_RESOLVCONF "/etc/resolv.conf" CACHE STRING "Set the resolver configuration file path. Not used on Windows, where values are retrieved via GetNetworkParams().")
