@@ -290,7 +290,24 @@ Additionally, getdns is linked against the the OpenSSL library installed by Home
 
 ## Microsoft Windows 10
 
-TODO: Update with latest build instructions...
+You will need CMake for Windows. Installers can be downloaded from https://cmake.org/download/.
+
+Windows versions of the following libraries are available using [the vcpkg package manager](https://docs.microsoft.com/en-us/cpp/build/vcpkg).
+
+* OpenSSL
+* libevent
+* libiconv
+* libidn2
+* libyaml
+* libuv
+
+Once these are installed, set CMake variables CMAKE_INCLUDE_PATH and CMAKE_LIBRARY_PATH to the vcpkg include and library directories e.g. `../vcpkg/installed/x64-windows/include` and `../vcpkg/installed/x64-windows/lib`.
+
+At present, no Windows version of libunbound exists; getdns must therefore be configured with ENABLE_STUB_ONLY.
+
+The getdns test suite is not currently supported on Windows. Enabling BUILD_TESTING will result in a build failure.
+
+To generate a project suitable for use in Visual Studio, select the appropriate Visual Studio generator in CMake. Once generated, the cmake-gui Open Project button can be used to load the project into Visual Studio.
 
 ### Dependencies
 
