@@ -271,7 +271,7 @@ build the packages; this is simply the one we chose to use.
 
 ## Ubuntu
 
-getdns should also work on Ubuntu 16.04, however if you require IDN functionally you will have to install a recent version of libidn2 via a ppa e.g. from https://launchpad.net/~ondrej/+archive/ubuntu/php
+getdns should also work on Ubuntu 16.04, however if you require IDN functionality you will have to install a recent version of libidn2 via a ppa e.g. from https://launchpad.net/~ondrej/+archive/ubuntu/php
 
 ## OSX
 
