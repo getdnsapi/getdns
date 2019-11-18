@@ -59,59 +59,62 @@ approach.  The code is currently under active development.
 
 The following requirements were met as conditions for the present release:
 
-QUESTION: The code does not currently compile cleanly on any platform......
-
 * code compiles cleanly on at least the primary target platforms: OSX, RHEL/CentOS Linux, FreeBSD
 * examples must compile and run cleanly
 * there must be clear documentation of supported and unsupported elements of the API
 
-# Building and External Dependencies
+# External Dependencies
 
 If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.
 
-External dependencies are linked outside the getdns API build tree (we rely on configure to find them).  We would like to keep the dependency tree short, see (#minimizing-dependancies) for more details.
+External dependencies are linked outside the getdns API build tree (we rely on cmake to find them).  We would like to keep the dependency tree short, see (#minimizing-dependancies) for more details.
 
 Required for all builds:
-* [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 1.0.2 or later.
 
-Required for all builds including recursive functionality:
-* [libunbound from NLnet Labs](https://unbound.net/) version 1.5.9 or later.
+* [libssl and libcrypto from the OpenSSL Project](https://www.openssl.org/) version 1.0.2 or later. Using OpenSSL 1.1 is recommended due to TSL 1.3 support.
 
-Required for all builds including IDN functionality:
-* [libidn from the FSF](https://www.gnu.org/software/libidn/) version 1 or 2 (from version 2.0.0 and higher).  (Note that the libidn version means the conversions between A-labels and U-labels may permit conversion of formally invalid labels under IDNA2008.)
+Required for all builds that include recursive functionality:
+
+* [libunbound from NLnet Labs](https://unbound.net/) version 1.5.9 or later. (Note: linking to libunbound is not yet supported on Windows, see (#microsoft-windows-10))
+
+Required for all builds that include IDN functionality:
+
+* [libidn2 from the FSF](https://www.gnu.org/software/libidn/) from version 2.0.0 and higher.
 
 Required to build the documentation:
-* Doxygen is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
+
+* [Doxygen](http://www.doxygen.nl) is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
 For example, to build on a recent version of Ubuntu, you would need the following packages for a full build:
 
     # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake
 
+# Building
+
 If you are building from git, you need to do the following before building:
 
     # git submodule update --init
 
-From release 1.6.0 getdns uses cmake (previous versions used autoconf/libtool) and so to build from this release use
+From release 1.6.0 getdns uses cmake (previous versions used autoconf/libtool). To build from this release and later use:
 
     # cmake .
     # make
 
-If you are unfamiliar with cmake, see our [cmake Quick Start](https://getdnsapi.net/blog/cmake_quick_start/) for how to use cmake options to customise the build.
+If you are unfamiliar with cmake, see our [cmake Quick Start](https://getdnsapi.net/blog/cmake_quick_start/) for how to use cmake options to customise the getdns build.
 
-As well as building the getdns library three other tools may be installed:
+As well as building the getdns library two other tools are installed by default:
 
 * getdns_query: a command line test script wrapper for getdns. This can be used to quickly check the functionality of the library, see (#using-getdnsquery)
-* stubby: a DNS Privacy enabled client
 * getdns_server_mon: test DNS server function and capabilities
 
-Note: If you only want to build stubby, then use the `BUILD_STUBBY` option when running `cmake`.
+Additionally `Stubby` a DNS Privacy enabled client can also be built and installed by using the `BUILD_STUBBY` option when running `cmake`, see (#stubby).
 
 
 ## Minimizing dependencies
 
 * getdns can be configured for stub resolution mode only with the `ENABLE_STUB_ONLY` option to `cmake`.  This removes the dependency on `libunbound`.
-* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them with the `USE_LIBIDN` and `USE_LIBIDN2` options to `cmake`.
-* When `ENABLE_STUB_ONLY` is ON, and `USE_LIBIDN` and `USE_LIBIDN2` options are OFF, getdns has only one dependency left, which is OpenSSL.
+* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them by setting the`USE_LIBIDN2` option to `cmake` to OFF.
+* When `ENABLE_STUB_ONLY` is ON, and `USE_LIBIDN2` is OFF, getdns has only one dependency left, which is OpenSSL.
 
 ## Extensions and Event loop dependencies
 
@@ -145,6 +148,7 @@ A project to allow user selection of either OpenSSL or GnuTLS is currently a wor
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
 to install [libcheck](https://libcheck.github.io/check/).  The check library is also available from many of the package repositories for the more popular operating systems.
+Note: The tests currently only run on Linuxes because of a dependancy on bash.
 
 ## DNSSEC dependencies
 
@@ -237,42 +241,40 @@ The platforms listed here are intended to help ensure that we catch platform spe
 * OSX 10.14 and 10.15
 
 
-##  Platform Specific Build Reports
+###  Platform Specific Build Reports
 
 [![Build Status](https://travis-ci.org/getdnsapi/getdns.png?branch=master)](https://travis-ci.org/getdnsapi/getdns)
 
-### FreeBSD
+## FreeBSD
 
 If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via the [ports tree](https://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
-### CentOS and RHEL 8
+## CentOS and RHEL 8
 
 We rely on the most excellent package manager fpm to build the linux packages, which
 means that the packaging platform requires ruby 2.1.0.  There are other ways to
 build the packages; this is simply the one we chose to use.
 
-TODO: REDO WITHOUT SPECIFIC VERSION
-
     # cat /etc/redhat-release
     CentOS release 6.5 (Final)
     # uname -a
     Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-    # cd getdns-0.2.0rc1
+    # cd getdns-<version>
     # ./configure --prefix=/home/deploy/build
     # make; make install
     # cd /home/deploy/build
     # mv lib lib64
     # . /usr/local/rvm/config/alias
-    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v 0.2.0rc1 -d "unbound" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
+    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v <version> -d "unbound" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
-### OSX
+## OSX
 
-    A self-compiled version of OpenSSL or the version installed via Homebrew is required.
+    A self-compiled version of OpenSSL or the version installed via Homebrew is required and the options OPENSSL_ROOT_DIR, OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY can be used to specify the location of the libraries.
     Note: If using a self-compiled version, manual configuration of certificates into /usr/local/etc/openssl/certs is required for TLS authentication to work.
 
-#### Homebrew
+### Homebrew
 
 If you're using [Homebrew](http://brew.sh/), you may run `brew install getdns`.  By default, this will only build the core library without any 3rd party event loop support.
 
@@ -280,20 +282,24 @@ To install the [event loop integration libraries](https://getdnsapi.net/doxygen/
 
 Note that in order to compile the examples, the `--with-libevent` switch is required.
 
-Additionally, the OpenSSL library installed by Homebrew is linked against. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS certificate authentication should work out of the box.
+Additionally, getdns is linked against the the OpenSSL library installed by Homebrew. Note that the Homebrew OpenSSL installation clones the Keychain certificates to the default OpenSSL location so TLS certificate authentication should work out of the box.
 
-### Microsoft Windows 10
+## Microsoft Windows 10
 
 TODO: Update with latest build instructions...
 
-The build has been tested using the following:
-32 bit only Mingw: [Mingw(3.21.0) and Msys 1.0](http://www.mingw.org/) on Windows 8.1
-32 bit build on a 64 bit Mingw [Download latest from: http://mingw-w64.org/doku.php/download/mingw-builds and http://msys2.github.io/]. IMPORTANT: Install tested ONLY on the  "x86_64" for 64-bit installer of msys2.
-
-#### Dependencies
+### Dependencies
 The following dependencies are 
 * openssl-1.0.2j
 * libidn
+
+### Limitations
+
+Full support for Windows is a work in progress. The following limitations will hopefully be addresses in future:
+
+  * Since no natively built libunbound DLL is available, support for linking against libunbound is not currently available.
+  * The regression tests do not currently run natively on Windows (they require `bash`)
+  * The detection of the location of the `hosts` file should be optimised - it currently assumes Windows is installed in the default directory on the C: drive
 
 
 Contributors

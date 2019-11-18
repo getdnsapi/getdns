@@ -119,7 +119,6 @@ option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OF
 option(USE_LIBEV "Use libev if available." OFF)
 option(USE_LIBEVENT2 "Use libevent2 if available." OFF)
 option(USE_LIBUV "Use libuv if available." OFF)
-option(USE_LIBIDN "Use libidn if available." ON)
 option(USE_LIBIDN2 "Use libidn2 if available." ON)
 option(USE_GNUTLS "Use GnuTLS for TLS connections." OFF)
 
@@ -341,19 +340,13 @@ else ()
   message(WARNING "Neither pthreads nor Windows threading available.")
 endif ()
 
-# Libidn
-if (USE_LIBIDN)
-  find_package(Libidn)
-  if (Libidn_FOUND)
-    set(HAVE_LIBIDN 1)
-  endif()
-endif()
-
 # Libidn2
 if (USE_LIBIDN2)
   find_package(Libidn2 "2.0.0")
   if (Libidn2_FOUND)
     set(HAVE_LIBIDN2 1)
+  else()
+      message(FATAL_ERROR "Libidn2 required but not found. Disable with USE_LIBIDN2 option.")
   endif()
 endif()
 
