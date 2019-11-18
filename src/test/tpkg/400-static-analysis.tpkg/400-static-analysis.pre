@@ -16,10 +16,10 @@ fi
 rm -fr "${BUILDDIR}/build-static-analysis"
 mkdir  "${BUILDDIR}/build-static-analysis"
 cd "${BUILDDIR}/build-static-analysis"
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON -DUSE_LIBUV=ON  $* ${SRCROOT}) || \
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON                 -DUSE_LIBUV=ON $* ${SRCROOT}) || \
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                    -DUSE_LIBEV=ON  -DUSE_LIBUV=ON $* ${SRCROOT}) || \
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON                                $* ${SRCROOT}) || \
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                    -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
-(rm CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                                    -DUSE_LIBUV=ON $* ${SRCROOT})
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON -DUSE_LIBUV=ON  $* ${SRCROOT}) || \
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON                 -DUSE_LIBUV=ON $* ${SRCROOT}) || \
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                    -DUSE_LIBEV=ON  -DUSE_LIBUV=ON $* ${SRCROOT}) || \
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install -DUSE_LIBEVENT2=ON                                $* ${SRCROOT}) || \
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                    -DUSE_LIBEV=ON                 $* ${SRCROOT}) || \
+(rm -f CMakeCache.txt & cmake -DENABLE_DRAFT_MDNS_SUPPORT=ON -DBUILD_STUBBY=ON -DCMAKE_INSTALL_PREFIX=../install                                    -DUSE_LIBUV=ON $* ${SRCROOT})

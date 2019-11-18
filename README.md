@@ -67,7 +67,7 @@ The following requirements were met as conditions for the present release:
 
 If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.
 
-External dependencies are linked outside the getdns API build tree (we rely on cmake to find them).  We would like to keep the dependency tree short, see [Minimising Dependancies](#minimizing-dependancies) for more details.
+External dependencies are linked outside the getdns API build tree (we rely on CMake to find them).  We would like to keep the dependency tree short, see [Minimising Dependancies](#minimizing-dependancies) for more details.
 
 Required for all builds:
 
@@ -95,12 +95,12 @@ If you are building from git, you need to do the following before building:
 
     # git submodule update --init
 
-From release 1.6.0 getdns uses cmake (previous versions used autoconf/libtool). To build from this release and later use:
+From release 1.6.0 getdns uses CMake (previous versions used autoconf/libtool). To build from this release and later use:
 
     # cmake .
     # make
 
-If you are unfamiliar with cmake, see our [cmake Quick Start](https://getdnsapi.net/blog/cmake_quick_start/) for how to use cmake options to customise the getdns build.
+If you are unfamiliar with CMake, see our [CMake Quick Start](https://getdnsapi.net/blog/cmake_quick_start/) for how to use CMake options to customise the getdns build.
 
 As well as building the getdns library two other tools are installed by default:
 
@@ -303,26 +303,17 @@ Windows versions of the following libraries are available using [the vcpkg packa
 
 Once these are installed, set CMake variables CMAKE_INCLUDE_PATH and CMAKE_LIBRARY_PATH to the vcpkg include and library directories e.g. `../vcpkg/installed/x64-windows/include` and `../vcpkg/installed/x64-windows/lib`.
 
-At present, no Windows version of libunbound exists; getdns must therefore be configured with ENABLE_STUB_ONLY.
-
-The getdns test suite is not currently supported on Windows. Enabling BUILD_TESTING will result in a build failure.
-
 To generate a project suitable for use in Visual Studio, select the appropriate Visual Studio generator in CMake. Once generated, the cmake-gui Open Project button can be used to load the project into Visual Studio.
 
-### Dependencies
+### Limitations on Windows
 
-The following dependencies are 
+Full support for Windows is a work in progress. The following limitations will  be addresses in future:
 
-* openssl-1.0.2j
-* libidn
+* At present, no native Windows DLL version of libunbound exists; support for linking against libunbound is not currently available. The default build option for ENABLE_STUB_ONLY_ is ON for Windows.
 
-### Limitations
+* The getdns tpkg test suite is not currently supported on Windows.
 
-Full support for Windows is a work in progress. The following limitations will hopefully be addresses in future:
-
-  * Since no natively built libunbound DLL is available, support for linking against libunbound is not currently available. The default build option for ENABLE_STUB_ONLY_ is ON for Windows.
-  * The regression tests do not currently run natively on Windows (they require `bash`)
-  * The detection of the location of the `hosts` file should be optimised - it currently assumes Windows is installed in the default directory on the C: drive
+* The detection of the location of the `/etc/hosts` file should be optimised - it currently assumes Windows is installed in the default directory on the C: drive
 
 
 Contributors
