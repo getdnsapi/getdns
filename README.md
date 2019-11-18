@@ -67,7 +67,7 @@ The following requirements were met as conditions for the present release:
 
 If you are installing from packages, you have to install the library and also the library-devel (or -dev) for your package management system to get the the necessary compile time files.
 
-External dependencies are linked outside the getdns API build tree (we rely on cmake to find them).  We would like to keep the dependency tree short, see (#minimizing-dependancies) for more details.
+External dependencies are linked outside the getdns API build tree (we rely on cmake to find them).  We would like to keep the dependency tree short, see [Minimising Dependancies](#minimizing-dependancies) for more details.
 
 Required for all builds:
 
@@ -75,11 +75,11 @@ Required for all builds:
 
 Required for all builds that include recursive functionality:
 
-* [libunbound from NLnet Labs](https://unbound.net/) version 1.5.9 or later. (Note: linking to libunbound is not yet supported on Windows, see (#microsoft-windows-10))
+* [libunbound from NLnet Labs](https://unbound.net/) version 1.5.9 or later. (Note: linking to libunbound is not yet supported on Windows, see [Windows 10](#microsoft-windows-10))
 
 Required for all builds that include IDN functionality:
 
-* [libidn2 from the FSF](https://www.gnu.org/software/libidn/) from version 2.0.0 and higher.
+* [libidn2 from the FSF](https://www.gnu.org/software/libidn/) version 2.0.0 and higher.
 
 Required to build the documentation:
 
@@ -107,7 +107,7 @@ As well as building the getdns library two other tools are installed by default:
 * getdns_query: a command line test script wrapper for getdns. This can be used to quickly check the functionality of the library, see (#using-getdnsquery)
 * getdns_server_mon: test DNS server function and capabilities
 
-Additionally `Stubby` a DNS Privacy enabled client can also be built and installed by using the `BUILD_STUBBY` option when running `cmake`, see (#stubby).
+Additionally `Stubby` a DNS Privacy enabled client can also be built and installed by using the `BUILD_STUBBY` option when running `cmake`, see [Stubby](#stubby).
 
 
 ## Minimizing dependencies
@@ -158,7 +158,7 @@ The library will try to load the root trust anchor from
 or more `DS` or `DNSKEY` resource records in presentation (i.e. zone file)
 format.  Note that this is different than the format of BIND.keys.
 
-##$ Zero configuration DNSSEC
+## Zero configuration DNSSEC
 
 When the root trust anchor is not installed in the default location and a DNSSEC query is done, getdns will try to use the trust anchors published here: http://data.iana.org/root-anchors/root-anchors.xml .
 It will validate these anchors with the ICANN Certificate Authority certificate following the procedure described in [RFC7958].
@@ -269,6 +269,10 @@ build the packages; this is simply the one we chose to use.
     # . /usr/local/rvm/config/alias
     # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v <version> -d "unbound" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
 
+## Ubuntu
+
+getdns should also work on Ubuntu 16.04, however if you require IDN functionally you will have to install a recent version of libidn2 via a ppa e.g. from https://launchpad.net/~ondrej/+archive/ubuntu/php
+
 ## OSX
 
     A self-compiled version of OpenSSL or the version installed via Homebrew is required and the options OPENSSL_ROOT_DIR, OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY can be used to specify the location of the libraries.
@@ -289,7 +293,9 @@ Additionally, getdns is linked against the the OpenSSL library installed by Home
 TODO: Update with latest build instructions...
 
 ### Dependencies
+
 The following dependencies are 
+
 * openssl-1.0.2j
 * libidn
 
@@ -297,7 +303,7 @@ The following dependencies are
 
 Full support for Windows is a work in progress. The following limitations will hopefully be addresses in future:
 
-  * Since no natively built libunbound DLL is available, support for linking against libunbound is not currently available.
+  * Since no natively built libunbound DLL is available, support for linking against libunbound is not currently available. The default build option for ENABLE_STUB_ONLY_ is ON for Windows.
   * The regression tests do not currently run natively on Windows (they require `bash`)
   * The detection of the location of the `hosts` file should be optimised - it currently assumes Windows is installed in the default directory on the C: drive
 

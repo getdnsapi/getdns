@@ -1,5 +1,5 @@
 sudo: false
-dist: xenial
+dist: bionic
 language: c
 compiler:
   - gcc
@@ -9,7 +9,7 @@ addons:
     packages:
     - libssl-dev
     - libunbound-dev
-    - libidn11-dev
+    - libidn2-0-dev 
     - libyaml-dev
     - check
     - libevent-dev
