@@ -1,0 +1,22 @@
+
+; <<>> DiG 9.11.5-P4-5.1ubuntu2-Ubuntu <<>> @ns1.dns.nl. nlnetlabs.nl. DS +norec +dnssec
+; (2 servers found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 42249
+;; flags: qr aa; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 4096
+;; QUESTION SECTION:
+;nlnetlabs.nl.			IN	DS
+
+;; ANSWER SECTION:
+nlnetlabs.nl.		3600	IN	DS	50602 8 2 FA8EE175C47325F4BD46D8A4083C3EBEB11C977D689069F2B41F1A29 B22446B1
+nlnetlabs.nl.		3600	IN	RRSIG	DS 8 2 3600 20191202032133 20191117183802 34498 nl. eXc0Vv3F9t8+5H777EX2nJBg8KqyvVgGvco3ou7Mw4IlZx0+6v9m3HVE cM7NPdJxjCmRcxj95i5om4r6ujG5Q891Dqxcj/Waa3fGnxPAGKE97fkI wTGDYWHdpcB3TjKmYpjDOl1wQDWfq8kYs0ECO6h2MOaQjTnAfO7HEC/F 0XE=
+
+;; Query time: 235 msec
+;; SERVER: 194.0.28.53#53(194.0.28.53)
+;; WHEN: di nov 19 15:09:29 +08 2019
+;; MSG SIZE  rcvd: 251
+

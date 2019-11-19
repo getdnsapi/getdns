@@ -7,4 +7,5 @@
 cd "${BUILDDIR}/build"
 make -j 4 install \
     && echo "export GETDNS_QUERY=\"${BUILDDIR}/build/src/tools/getdns_query\"" \
+    && echo "export GETDNS_VALIDATE=\"${BUILDDIR}/build/src/tools/getdns_validate\"" \
        >> ../.tpkg.var.master

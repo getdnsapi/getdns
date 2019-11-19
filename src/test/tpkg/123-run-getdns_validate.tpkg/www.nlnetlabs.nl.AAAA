@@ -1,0 +1,26 @@
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 25594
+;; flags: qr aa rd ; QUERY: 1, ANSWER: 2, AUTHORITY: 4, ADDITIONAL: 4 
+;; QUESTION SECTION:
+;; www.nlnetlabs.nl.	IN	AAAA
+
+;; ANSWER SECTION:
+www.nlnetlabs.nl.	10200	IN	AAAA	2a04:b900::1:0:0:10
+www.nlnetlabs.nl.	10200	IN	RRSIG	AAAA 8 3 10200 20191213015013 20191115015013 42393 nlnetlabs.nl. BkUJq5ci/gPcWKJU8cePmFl/Lixk3z4anlkX14/bcjpcs6dBnbE3By81ZMBPDuDNMdRuKS/cE7uZAXFpLjIZJVNnJhVVTE6OLTGdw7zJesy3F0un9rM7XGSB+Ti5oaxLu+rtDZ1aFPj+caJfIB4PPFQN7SOrJtDYduTwiJyk5B4=
+
+;; AUTHORITY SECTION:
+nlnetlabs.nl.	10200	IN	NS	ns.nlnetlabs.nl.
+nlnetlabs.nl.	10200	IN	NS	anyns.pch.net.
+nlnetlabs.nl.	10200	IN	NS	ns-ext1.sidn.nl.
+nlnetlabs.nl.	10200	IN	RRSIG	NS 8 2 10200 20191213015013 20191115015013 42393 nlnetlabs.nl. aYhxQ6Hjdgrw0JT4dn8jqvSYqPLw76Dv3fUoGh2702PVGdBa6wZtjTt4cSp8vMayFaUZvkP1fYhRv3bjGFLGNI+L7fNBJE4f/DF98rdlMDCU8J9It1esQcZgSLeq13ZJ2g3OqWty/rzMYDuxJyzyODue2x4ZovKo0g1QIukG3II=
+
+;; ADDITIONAL SECTION:
+ns.nlnetlabs.nl.	10200	IN	A	185.49.140.60
+ns.nlnetlabs.nl.	10200	IN	RRSIG	A 8 3 10200 20191213015013 20191115015013 42393 nlnetlabs.nl. XsiFSEVmth4jDDUskmpQsZXtaiFAigl44PET9aKfER9x7e0GsaDHhyQx/HWR9l5hytvqOZPVBadcWkA87uvuBktnRySjkDUV3m5tlhXW5LtB8jeTMPOPp9uwAH9xa9QRAbd2wUOdvcaN2J+o91avHV2VQ9uFclRezaPF2XYWzJk=
+ns.nlnetlabs.nl.	10200	IN	AAAA	2a04:b900::8:0:0:60
+ns.nlnetlabs.nl.	10200	IN	RRSIG	AAAA 8 3 10200 20191213015013 20191115015013 42393 nlnetlabs.nl. 0JjWwWhI+qE3LSpZvb/DzEUIe6l8hkRZkswidVGWBcUAwz3/Ipp66C6ToO/c7Osakbb8iW3ZsnE/IGCmDKsHFm22XB0TNrSrwEWoCrtNdksn/tYGIyWfzHhfH4EL3cTXwIZmNtjSl+kiI3wxFc1g5mDc5kTaoXR9lQIvSTAeXmY=
+
+;; Query time: 167 msec
+;; EDNS: version 0; flags: do ; udp: 4096
+;; SERVER: 185.49.140.60
+;; WHEN: Tue Nov 19 15:00:45 2019
+;; MSG SIZE  rcvd: 876

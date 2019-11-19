@@ -1,0 +1,13 @@
+# #-- 123-run-getdns_validate.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+"${GETDNS_VALIDATE}" -k root.ds -s root.keys -d 2019-11-19 www.test.heggggg.A www.test.heggggg
+"${GETDNS_VALIDATE}" -k root.ds -s root.keys -d 2019-11-19 nl.DS
+cat root.keys nl.DS nl.keys >support
+"${GETDNS_VALIDATE}" -k root.ds -s support -d 2019-11-19 nlnetlabs.DS
+cat root.keys nl.DS nl.keys nlnetlabs.DS  nlnetlabs.keys >support
+"${GETDNS_VALIDATE}" -k root.ds -s support -d 2019-11-19 www.nlnetlabs.nl.AAAA
+
