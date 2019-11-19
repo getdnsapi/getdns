@@ -44,7 +44,7 @@
 /* root_first is needed to route around a bug in the current version of the
  * getdns API that requires non RRSIG records in the root to be first.
  * It scans a getdns_list of resource records, and returns a new list rotated
- * to make the root non RRSIG record first.
+ * to make a root non-RRSIG record first, if such a record exists.
  * Without root records, no new list is created and the input list is returned.
  * All failures are returned early.
  */
