@@ -4,10 +4,22 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-"${GETDNS_VALIDATE}" -k root.ds -s root.keys -d 2019-11-19 www.test.heggggg.A www.test.heggggg
-"${GETDNS_VALIDATE}" -k root.ds -s root.keys -d 2019-11-19 nl.DS
+function FAIL () {
+	echo FAIL: $*
+	exit 1
+}
+
+"${GETDNS_VALIDATE}" -k root.ds -s root.keys -d 2019-11-19 www.test.heggggg.A www.test.heggggg \
+| grep ^400  || FAIL -k root.ds -s root.keys -d 2019-11-19 www.test.heggggg.A www.test.heggggg
+
+"${GETDNS_VALIDATE}" -k root.ds -s root.keys -d 2019-11-19 nl.DS \
+| grep ^400  || FAIL -k root.ds -s root.keys -d 2019-11-19 nl.DS
+
 cat root.keys nl.DS nl.keys >support
-"${GETDNS_VALIDATE}" -k root.ds -s support -d 2019-11-19 nlnetlabs.DS
+"${GETDNS_VALIDATE}" -k root.ds -s support -d 2019-11-19 nlnetlabs.DS \
+| grep ^400  || FAIL -k root.ds -s support -d 2019-11-19 nlnetlabs.DS
+
 cat root.keys nl.DS nl.keys nlnetlabs.DS  nlnetlabs.keys >support
-"${GETDNS_VALIDATE}" -k root.ds -s support -d 2019-11-19 www.nlnetlabs.nl.AAAA
+"${GETDNS_VALIDATE}" -k root.ds -s support -d 2019-11-19 www.nlnetlabs.nl.AAAA \
+| grep ^400  || FAIL -k root.ds -s support -d 2019-11-19 www.nlnetlabs.nl.AAAA
 
