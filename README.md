@@ -92,6 +92,7 @@ As well as building the getdns library three other tools may be installed:
 * getdns_query: a command line test script wrapper for getdns
 * stubby: an experimental DNS Privacy enabled client
 * getdns_server_mon: test DNS server function and capabilities
+* getdns_validate: validate DNSSEC responses off-line
 
 Note: If you only want to build stubby, then use the `--with-stubby` option when running 'configure'.
 

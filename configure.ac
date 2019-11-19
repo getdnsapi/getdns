@@ -1388,6 +1388,22 @@ AC_SUBST(GETDNS_SERVER_MON)
 AC_SUBST(INSTALL_GETDNS_SERVER_MON)
 AC_SUBST(UNINSTALL_GETDNS_SERVER_MON)
 
+AC_ARG_WITH(getdns_validate, AS_HELP_STRING([--without-getdns_validate],
+	[Do not compile and install the getdns_validate tool]),
+	[], [withval="yes"])
+if test x_$withval = x_no; then
+	GETDNS_VALIDATE=""
+	INSTALL_GETDNS_VALIDATE=""
+	UNINSTALL_GETDNS_VALIDATE=""
+else
+	GETDNS_VALIDATE="getdns_validate"
+	INSTALL_GETDNS_VALIDATE="install-getdns_validate"
+	UNINSTALL_GETDNS_VALIDATE="uninstall-getdns_validate"
+fi
+AC_SUBST(GETDNS_VALIDATE)
+AC_SUBST(INSTALL_GETDNS_VALIDATE)
+AC_SUBST(UNINSTALL_GETDNS_VALIDATE)
+
 stubby_with_yaml=0
 AC_ARG_WITH(stubby, AS_HELP_STRING([--with-stubby],
 	[Compile and install stubby, the (stub) resolver daemon]),
