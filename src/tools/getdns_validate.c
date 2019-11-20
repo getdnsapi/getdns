@@ -108,7 +108,7 @@ getdns_return_t print_dnssec_status(int status)
 	case GETDNS_DNSSEC_INSECURE:
 	case GETDNS_DNSSEC_INDETERMINATE:
 	case GETDNS_DNSSEC_BOGUS:
-		printf("%i %s\n", status, getdns_get_errorstr_by_id(status));
+		printf("{\"code\": %i, \"desc\": \"%s\"}\n", status, getdns_get_errorstr_by_id(status));
 		return GETDNS_RETURN_GOOD;
 	default:
 		fprintf(stderr, "Error validating");
