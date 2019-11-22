@@ -19,6 +19,7 @@ addons:
     - clang
     - wget
     - openssh-client
+    - jq
 script:
   - mkdir tests
   - cd tests
