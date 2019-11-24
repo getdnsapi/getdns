@@ -120,25 +120,25 @@ getdns_return_t print_dnssec_status(int status)
 void print_usage(FILE *out)
 {
 	fprintf(out, "usage: getdns_validate [<option> ...] "
-	    "<to_validate> [<qname>] [<qtype>]\n\n");
-	fprintf(out,"\tDNSSEC validate RRsets in <to_validate>. "
+	    "<to_validate_file> [<qname>] [<qtype>]\n\n");
+	fprintf(out,"\tValidate DNSSEC RRsets in <to_validate_file>. "
 	    "When <qname> and <qtype>\n");
-	fprintf(out, "\tare specified, the non existence proof is validated "
+	fprintf(out, "\tare specified, the non-existence proof is validated "
 	    "for that query\n");
 	fprintf(out, "\tname and type with the NSEC or NSEC3 records in "
-	    "<to_validate>\n\n");
+	    "<to_validate_file>.\n\n");
 	fprintf(out, "options:\n");
 	fprintf(out, "\t-h\tprint this text\n");
 	fprintf(out, "\t-d <time>\n\t\tSet validation time.\n"
-	    "\t\t<date> should be in ISO 8601 format.\n"
+	    "\t\t<time> should be in ISO 8601 format\n"
 	    "\t\tyyyy-mm-dd or yyyy-mm-ddThh:mm:ssZ\n\n");
-	fprintf(out, "\t-k <trust acnhors file>\n"
+	fprintf(out, "\t-k <trust_acnhors_file>\n"
 	    "\t\tFile containing trust anchor RRsets.\n"
-	    "\t\tThese may be of type DNSKEY or DS\n\n");
-	fprintf(out, "\t-s <support records file>\n"
+	    "\t\tThese may be of type DNSKEY or DS.\n\n");
+	fprintf(out, "\t-s <support_records_file>\n"
 	    "\t\tFile containing the necessary RRsets to build the chain\n"
 	    "\t\tof trust from one of the trust anchors up to the RRsets\n"
-	    "\t\tin <to_validate>\n");
+	    "\t\tin <to_validate_file>.\n");
 }
 
 const char *fqdn(const char *qname)
