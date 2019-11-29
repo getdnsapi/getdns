@@ -876,19 +876,50 @@ if (BUILD_TESTING)
     message(WARNING "Test programs require libcheck and so do not build on Windows, skipping.")
   else ()
     find_package(Check "0.9.6" REQUIRED)
-    add_executable(check_getdns
+    set(GETDNS_TEST_SOURCE_FILES 
       src/test/check_getdns_common.c
       src/test/check_getdns_context_set_timeout.c
       src/test/check_getdns_transport.c
       src/test/check_getdns_selectloop.c
-      src/test/check_getdns.c
-      )
-    target_link_libraries(check_getdns
-      PRIVATE
+      src/test/check_getdns.c)
+    set(GETDNS_TEST_LINK_LIBS
       getdns
       Check::Check
-      Threads::Threads
+      Threads::Threads)
+
+    add_executable(check_getdns ${GETDNS_TEST_SOURCE_FILES})
+    target_link_libraries(check_getdns PRIVATE ${GETDNS_TEST_LINK_LIBS})
+    add_test(NAME test_noeventloop COMMAND check_getdns)
+    set_property(TEST test_noeventloop PROPERTY
+      ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
+    )
+
+    if (USE_LIBEVENT2)
+      add_executable(check_getdns_event ${GETDNS_TEST_SOURCE_FILES})
+      target_link_libraries(check_getdns_event PRIVATE ${GETDNS_TEST_LINK_LIBS} getdns_ex_event)
+      add_test(NAME test_libevent COMMAND check_getdns_event)
+      set_property(TEST test_libevent PROPERTY
+        ENVIRONMENT "GETDNS_TEST_PORT=44321;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns_event.log"
       )
+    endif()
+
+    if (USE_LIBEV)
+      add_executable(check_getdns_ev ${GETDNS_TEST_SOURCE_FILES})
+      target_link_libraries(check_getdns_ev PRIVATE ${GETDNS_TEST_LINK_LIBS} getdns_ex_ev)
+      add_test(NAME test_libev COMMAND check_getdns_ev)
+      set_property(TEST test_libev PROPERTY
+        ENVIRONMENT "GETDNS_TEST_PORT=45321;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns_ev.log"
+      )
+    endif()
+
+    if (USE_LIBUV)
+      add_executable(check_getdns_uv ${GETDNS_TEST_SOURCE_FILES})
+      target_link_libraries(check_getdns_uv PRIVATE ${GETDNS_TEST_LINK_LIBS} getdns_ex_uv)
+      add_test(NAME test_libuv COMMAND check_getdns_uv)
+      set_property(TEST test_libuv PROPERTY
+        ENVIRONMENT "GETDNS_TEST_PORT=46321;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns_uv.log"
+      )
+    endif()
 
     add_executable(tests_dict
       src/test/tests_dict.c
@@ -913,11 +944,6 @@ if (BUILD_TESTING)
 
     add_executable(tests_stub_sync src/test/tests_stub_sync.c)
     target_link_libraries(tests_stub_sync PRIVATE getdns Check::Check)
-
-    add_test(NAME test_noeventloop COMMAND check_getdns)
-    set_property(TEST test_noeventloop PROPERTY
-      ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
-      )
   endif()
 endif ()
 

@@ -27,6 +27,3 @@ export BUILDROOT="${BUILDROOT}"
 export TPKG="${TPKG}"
 END_OF_TPKG_VAR_MASTER
 
-# This line disables running of this test. Need to add a build-with-stubby test
-# and then re-enable this.
-${TPKG} f 255-yaml-config.tpkg

@@ -122,32 +122,32 @@
      }
      END_TEST
      
-     START_TEST (getdns_general_sync_6)
-     {
-      /*
-       *  name = "google.com"
-       *  request_type = 0 (minimum valid RRTYPE)
-       *  expect: NOERROR/NODATA response:
-       *    status = GETDNS_RESPSTATUS_NO_NAME
-       *    rcode = 0
-       *    ancount = 0 (number of records in ANSWER section)
-       */
-       struct getdns_context *context = NULL;   
-       struct getdns_dict *response = NULL;
-     
-       CONTEXT_CREATE(TRUE);
-
-       ASSERT_RC(getdns_general_sync(context, "google.com", 0, NULL, &response), 
-         GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
-
-       EXTRACT_RESPONSE;
-
-       assert_noerror(&ex_response);
-       assert_nodata(&ex_response);
-
-       CONTEXT_DESTROY;
-     }
-     END_TEST
+     // START_TEST (getdns_general_sync_6)
+     // {
+     //  /*
+     //   *  name = "google.com"
+     //   *  request_type = 0 (minimum valid RRTYPE)
+     //   *  expect: NOERROR/NODATA response:
+     //   *    status = GETDNS_RESPSTATUS_NO_NAME
+     //   *    rcode = 0
+     //   *    ancount = 0 (number of records in ANSWER section)
+     //   */
+     //   struct getdns_context *context = NULL;   
+     //   struct getdns_dict *response = NULL;
+     // 
+     //   CONTEXT_CREATE(TRUE);
+     // 
+     //   ASSERT_RC(getdns_general_sync(context, "google.com", 0, NULL, &response), 
+     //     GETDNS_RETURN_GOOD, "Return code from getdns_general_sync()");
+     // 
+     //   EXTRACT_RESPONSE;
+     // 
+     //   assert_noerror(&ex_response);
+     //   assert_nodata(&ex_response);
+     // 
+     //   CONTEXT_DESTROY;
+     // }
+     // END_TEST
      
      START_TEST (getdns_general_sync_7)
      {

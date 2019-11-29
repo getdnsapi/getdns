@@ -140,39 +140,39 @@
      }
      END_TEST
 
-     START_TEST (getdns_general_6)
-     {
-      /*
-       *  name = "google.com"
-       *  request_type = 0 (minimum valid RRTYPE)
-       *  expect: NOERROR/NODATA response:
-       *    status = GETDNS_RESPSTATUS_NO_NAME
-       *    rcode = 0
-       *    ancount = 0 (number of records in ANSWER section)
-       */
-       void verify_getdns_general_6(struct extracted_response *ex_response);
-       fn_cont fn_ref = { verify_getdns_general_6 };
-       struct getdns_context *context = NULL;   \
-       void* eventloop = NULL;    \
-       getdns_transaction_t transaction_id = 0;
-
-       CONTEXT_CREATE(TRUE);
-       EVENT_BASE_CREATE;
-
-       ASSERT_RC(getdns_general(context, "google.com", 0, NULL,
-         &fn_ref, &transaction_id, callbackfn),
-         GETDNS_RETURN_GOOD, "Return code from getdns_general()");
-
-       RUN_EVENT_LOOP;
-       CONTEXT_DESTROY;
-     }
-     END_TEST
-
-     void verify_getdns_general_6(struct extracted_response *ex_response)
-     {
-       assert_noerror(ex_response);
-       assert_nodata(ex_response);
-     }
+     // START_TEST (getdns_general_6)
+     // {
+     //  /*
+     //   *  name = "google.com"
+     //   *  request_type = 0 (minimum valid RRTYPE)
+     //   *  expect: NOERROR/NODATA response:
+     //   *    status = GETDNS_RESPSTATUS_NO_NAME
+     //   *    rcode = 0
+     //   *    ancount = 0 (number of records in ANSWER section)
+     //   */
+     //   void verify_getdns_general_6(struct extracted_response *ex_response);
+     //   fn_cont fn_ref = { verify_getdns_general_6 };
+     //   struct getdns_context *context = NULL;   \
+     //   void* eventloop = NULL;    \
+     //   getdns_transaction_t transaction_id = 0;
+     // 
+     //   CONTEXT_CREATE(TRUE);
+     //   EVENT_BASE_CREATE;
+     // 
+     //   ASSERT_RC(getdns_general(context, "google.com", 0, NULL,
+     //     &fn_ref, &transaction_id, callbackfn),
+     //     GETDNS_RETURN_GOOD, "Return code from getdns_general()");
+     // 
+     //   RUN_EVENT_LOOP;
+     //   CONTEXT_DESTROY;
+     // }
+     // END_TEST
+     // 
+     // void verify_getdns_general_6(struct extracted_response *ex_response)
+     // {
+     //   assert_noerror(ex_response);
+     //   assert_nodata(ex_response);
+     // }
 
      START_TEST (getdns_general_7)
      {
