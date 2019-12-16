@@ -484,10 +484,11 @@ else ()
       message(WARNING "TCP Fast Open not available, continuing without.")
     endif ()
   else ()
+    check_include_file(netinet/tcp.h HAVE_NETINET_TCP_H)
     check_symbol_exists(TCP_FASTOPEN "sys/socket.h;netinet/tcp.h" HAVE_DECL_TCP_FASTOPEN)
     check_symbol_exists(TCP_FASTOPEN_CONNECT "sys/socket.h;netinet/tcp.h" HAVE_DECL_TCP_FASTOPEN_CONNECT)
     check_symbol_exists(MSG_FASTOPEN "sys/socket.h;netinet/tcp.h" HAVE_DECL_MSG_FASTOPEN)
-    if (NOT TCP_FASTOPEN)
+    if (NOT HAVE_DECL_TCP_FASTOPEN)
       message(WARNING "TCP Fast Open not available, continuing without.")
     endif ()
   endif ()
@@ -711,21 +712,24 @@ if (USE_LIBEV)
       ${CMAKE_CURRENT_BINARY_DIR}
       ${LIBEV_INCLUDE_DIR}
       )
-    if (Libunbound_FOUND)
-      target_link_libraries(ev_objects PUBLIC Libunbound::Libunbound)
-    endif ()
     set_property(TARGET ev_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
     set_property(TARGET ev_objects PROPERTY C_STANDARD 11)
     if (ENABLE_STATIC)
       add_library(getdns_ex_ev STATIC $<TARGET_OBJECTS:ev_objects>)
       target_include_directories(getdns_ex_ev PRIVATE Libev::Libev)
       target_link_libraries(getdns_ex_ev PUBLIC getdns Libev::Libev)
+      if (Libunbound_FOUND)
+        target_link_libraries(getdns_ex_ev PUBLIC Libunbound::Libunbound)
+      endif ()
       set_target_properties(getdns_ex_ev PROPERTIES OUTPUT_NAME getdns_ex_ev${static_lib_suffix})
     endif ()
     if (ENABLE_SHARED)
       add_library(getdns_ex_ev_shared SHARED $<TARGET_OBJECTS:ev_objects>)
       target_include_directories(getdns_ex_ev_shared PRIVATE Libev::Libev)
       target_link_libraries(getdns_ex_ev_shared PUBLIC getdns_shared Libev::Libev)
+      if (Libunbound_FOUND)
+        target_link_libraries(getdns_ex_ev_shared PUBLIC Libunbound::Libunbound)
+      endif ()
       set_target_properties(getdns_ex_ev_shared PROPERTIES OUTPUT_NAME getdns_ex_ev)
       target_shared_library_version(getdns_ex_ev_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})
       file(STRINGS src/extension/libev.symbols symbols)
@@ -758,21 +762,24 @@ if (USE_LIBEVENT2)
       ${CMAKE_CURRENT_BINARY_DIR}
       ${LIBEVENT2_INCLUDE_DIR}
       )
-    if (Libunbound_FOUND)
-      target_link_libraries(event2_objects PUBLIC Libunbound::Libunbound)
-    endif ()
     set_property(TARGET event2_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
     set_property(TARGET event2_objects PROPERTY C_STANDARD 11)
     if (ENABLE_STATIC)
       add_library(getdns_ex_event STATIC $<TARGET_OBJECTS:event2_objects>)
       target_include_directories(getdns_ex_event PRIVATE Libevent2::Libevent_code)
       target_link_libraries(getdns_ex_event PUBLIC getdns Libevent2::Libevent_core)
+      if (Libunbound_FOUND)
+        target_link_libraries(getdns_ex_event PUBLIC Libunbound::Libunbound)
+      endif ()
       set_target_properties(getdns_ex_event PROPERTIES OUTPUT_NAME getdns_ex_event${static_lib_suffix})
     endif ()
     if (ENABLE_SHARED)
       add_library(getdns_ex_event_shared SHARED $<TARGET_OBJECTS:event2_objects>)
       target_include_directories(getdns_ex_event_shared PRIVATE Libevent2::Libevent_code)
       target_link_libraries(getdns_ex_event_shared PUBLIC getdns_shared Libevent2::Libevent_core)
+      if (Libunbound_FOUND)
+        target_link_libraries(getdns_ex_event_shared PUBLIC Libunbound::Libunbound)
+      endif ()
       set_target_properties(getdns_ex_event_shared PROPERTIES OUTPUT_NAME getdns_ex_event)
       target_shared_library_version(getdns_ex_event_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})
       file(STRINGS src/extension/libevent.symbols symbols)
@@ -806,21 +813,24 @@ if (USE_LIBUV)
       ${CMAKE_CURRENT_BINARY_DIR}
       ${LIBUV_INCLUDE_DIR}
       )
-    if (Libunbound_FOUND)
-      target_link_libraries(uv_objects PUBLIC Libunbound::Libunbound)
-    endif ()
     set_property(TARGET uv_objects PROPERTY POSITION_INDEPENDENT_CODE 1)
     set_property(TARGET uv_objects PROPERTY C_STANDARD 11)
     if (ENABLE_STATIC)
       add_library(getdns_ex_uv STATIC $<TARGET_OBJECTS:uv_objects>)
       target_include_directories(getdns_ex_uv PRIVATE Libuv::Libuv)
       target_link_libraries(getdns_ex_uv PUBLIC getdns Libuv::Libuv)
+      if (Libunbound_FOUND)
+        target_link_libraries(getdns_ex_uv PUBLIC Libunbound::Libunbound)
+      endif ()
       set_target_properties(getdns_ex_uv PROPERTIES OUTPUT_NAME getdns_ex_uv${static_lib_suffix})
     endif ()
     if (ENABLE_SHARED)
       add_library(getdns_ex_uv_shared SHARED $<TARGET_OBJECTS:uv_objects>)
       target_include_directories(getdns_ex_uv_shared PRIVATE Libuv::Libuv)
       target_link_libraries(getdns_ex_uv_shared PUBLIC getdns_shared Libuv::Libuv)
+      if (Libunbound_FOUND)
+        target_link_libraries(getdns_ex_uv_shared PUBLIC Libunbound::Libunbound)
+      endif ()
       set_target_properties(getdns_ex_uv_shared PROPERTIES OUTPUT_NAME getdns_ex_uv)
       target_shared_library_version(getdns_ex_uv_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})
       file(STRINGS src/extension/libuv.symbols symbols)
@@ -863,26 +873,54 @@ if (BUILD_GETDNS_SERVER_MON)
 endif ()
 
 if (BUILD_TESTING)
-  find_package(Check "0.9.6" REQUIRED)
-
   if (WIN32)
-    message(WARNING "test programs do not build on Windows, skipping.")
-  elseif (NOT Check_FOUND)
-    message(WARNING "check library not found, not building test programs.")
+    message(WARNING "Test programs require libcheck and so do not build on Windows, skipping.")
   else ()
-    add_executable(check_getdns
+    find_package(Check "0.9.6" REQUIRED)
+    set(GETDNS_TEST_SOURCE_FILES 
       src/test/check_getdns_common.c
       src/test/check_getdns_context_set_timeout.c
       src/test/check_getdns_transport.c
       src/test/check_getdns_selectloop.c
-      src/test/check_getdns.c
-      )
-    target_link_libraries(check_getdns
-      PRIVATE
+      src/test/check_getdns.c)
+    set(GETDNS_TEST_LINK_LIBS
       getdns
       Check::Check
-      Threads::Threads
+      Threads::Threads)
+
+    add_executable(check_getdns ${GETDNS_TEST_SOURCE_FILES})
+    target_link_libraries(check_getdns PRIVATE ${GETDNS_TEST_LINK_LIBS})
+    add_test(NAME test_noeventloop COMMAND check_getdns)
+    set_property(TEST test_noeventloop PROPERTY
+      ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
+    )
+
+    if (USE_LIBEVENT2)
+      add_executable(check_getdns_event ${GETDNS_TEST_SOURCE_FILES})
+      target_link_libraries(check_getdns_event PRIVATE ${GETDNS_TEST_LINK_LIBS} getdns_ex_event)
+      add_test(NAME test_libevent COMMAND check_getdns_event)
+      set_property(TEST test_libevent PROPERTY
+        ENVIRONMENT "GETDNS_TEST_PORT=44321;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns_event.log"
       )
+    endif()
+
+    if (USE_LIBEV)
+      add_executable(check_getdns_ev ${GETDNS_TEST_SOURCE_FILES})
+      target_link_libraries(check_getdns_ev PRIVATE ${GETDNS_TEST_LINK_LIBS} getdns_ex_ev)
+      add_test(NAME test_libev COMMAND check_getdns_ev)
+      set_property(TEST test_libev PROPERTY
+        ENVIRONMENT "GETDNS_TEST_PORT=45321;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns_ev.log"
+      )
+    endif()
+
+    if (USE_LIBUV)
+      add_executable(check_getdns_uv ${GETDNS_TEST_SOURCE_FILES})
+      target_link_libraries(check_getdns_uv PRIVATE ${GETDNS_TEST_LINK_LIBS} getdns_ex_uv)
+      add_test(NAME test_libuv COMMAND check_getdns_uv)
+      set_property(TEST test_libuv PROPERTY
+        ENVIRONMENT "GETDNS_TEST_PORT=46321;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns_uv.log"
+      )
+    endif()
 
     add_executable(tests_dict
       src/test/tests_dict.c
@@ -907,12 +945,7 @@ if (BUILD_TESTING)
 
     add_executable(tests_stub_sync src/test/tests_stub_sync.c)
     target_link_libraries(tests_stub_sync PRIVATE getdns Check::Check)
-
-    add_test(NAME test_noeventloop COMMAND check_getdns)
-    set_property(TEST test_noeventloop PROPERTY
-      ENVIRONMENT "GETDNS_TEST_PORT=43210;CK_TIMEOUT_MULTIPLIER=2;CK_LOG_FILE_NAME=check_getdns.log"
-      )
-  endif ()
+  endif()
 endif ()
 
 # Substitutions in files.

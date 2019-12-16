@@ -5,7 +5,7 @@
       * libunbound 1.5.9 is now required
       * Only libidn2 2.0.0 and later is supported (not libidn)
       * Windows uses ENABLE_STUB_ONLY=ON as the default
-      * Regression tests work on Linux/macOS (not Windows yet)
+      * Unit and regression tests work on Linux/macOS (but not Windows yet)
 
 * 2019-04-03: Version 1.5.2
   * PR #424: Two small trust anchor fetcher fixes

@@ -85,7 +85,7 @@ Required to build the documentation:
 
 * [Doxygen](http://www.doxygen.nl) is used to generate documentation; while this is not technically necessary for the build it makes things a lot more pleasant.
 
-For example, to build on a recent version of Ubuntu, you would need the following packages for a full build:
+For example, to build on Ubuntu 18.04 or later, you would need the following packages for a full build:
 
     # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake
 
@@ -273,6 +273,8 @@ build the packages; this is simply the one we chose to use.
 
 getdns should also work on Ubuntu 16.04, however if you require IDN functionality you will have to install a recent version of libidn2 via a ppa e.g. from https://launchpad.net/~ondrej/+archive/ubuntu/php
 
+You will also have to build Unbound from source code to provide libunbound at version >= 1.5.9.
+
 ## OSX
 
     A self-compiled version of OpenSSL or the version installed via Homebrew is required and the options OPENSSL_ROOT_DIR, OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY can be used to specify the location of the libraries.
@@ -296,7 +298,7 @@ Windows versions of the following libraries are available using [the vcpkg packa
 
 * OpenSSL
 * libevent
-* libiconv
+* libiconv (required for libidn2)
 * libidn2
 * libyaml
 * libuv
@@ -310,6 +312,8 @@ To generate a project suitable for use in Visual Studio, select the appropriate 
 Full support for Windows is a work in progress. The following limitations will  be addresses in future:
 
 * At present, no native Windows DLL version of libunbound exists; support for linking against libunbound is not currently available. The default build option for ENABLE_STUB_ONLY_ is ON for Windows.
+
+* The getdns unit tests (built with `make test`) require libcheck which is not currently available for Windows and so cannot be built.
 
 * The getdns tpkg test suite is not currently supported on Windows.
 
