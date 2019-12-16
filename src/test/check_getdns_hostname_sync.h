@@ -304,7 +304,7 @@
        struct getdns_context *context = NULL;   
        struct getdns_dict *address = NULL;
        struct getdns_bindata address_type = { 5, (void *)"IPv4" };
-       struct getdns_bindata address_data = { 4, (void *)"\xb9\x31\x8c\x00" };
+       struct getdns_bindata address_data = { 4, (void *)"\x08\x08\x08\x00" };
        struct getdns_dict *response = NULL;
      
        CONTEXT_CREATE(TRUE);
