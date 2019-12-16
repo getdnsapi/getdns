@@ -5,9 +5,8 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 LOCALHOST=`${GETDNS_STUB_QUERY} '{namespaces:[GETDNS_NAMESPACE_LOCALNAMES]}' -A localhost. -J \
-	 | awk -F: '/\"address_data\".*\"127/{print $2}' \
-	 | sed -e 's/^[^"]*"//g' -e 's/"[^"]*$//g'` \
-	 | head -1
+	 | awk -F: '/\"address_data\".*\"127/{print $2;exit}' \
+	 | sed -e 's/^[^"]*"//g' -e 's/"[^"]*$//g'`
 echo "localhost: $LOCALHOST"
 
 cmake . && make && valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "./${TPKG_NAME}" ${LOCALHOST} | (
