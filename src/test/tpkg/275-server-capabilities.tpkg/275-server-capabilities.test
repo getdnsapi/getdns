@@ -15,9 +15,9 @@ cmake . && make && valgrind -v --log-file=valgrind.log --leak-check=full --error
 
 	${GETDNS_STUB_QUERY} -s -t 1000 @${LOCALHOST}:$PORT TXT cancel. +return_call_reporting 2>&1 > time_out
 
-	${GETDNS_STUB_QUERY} -s @${LOCALHOST}:$PORT TXT test +return_call_reporting 2>&1 > tcp_out
+	${GETDNS_STUB_QUERY} -s @${LOCALHOST}:$PORT TXT test. +return_call_reporting 2>&1 > tcp_out
 
-	${GETDNS_STUB_QUERY} -s -U @${LOCALHOST}:$PORT2 TXT test +return_call_reporting 2>&1 > udp_out
+	${GETDNS_STUB_QUERY} -s -U @${LOCALHOST}:$PORT2 TXT test. +return_call_reporting 2>&1 > udp_out
 
 	${GETDNS_STUB_QUERY} -s -q @${LOCALHOST}:$PORT TXT quit.
 )
