@@ -13,7 +13,7 @@ endif ()
 
 set(PACKAGE "getdns")
 set(PACKAGE_NAME "getdns")
-set(PACKAGE_VERSION "1.5.2")
+set(PACKAGE_VERSION "1.6.0")
 set(PACKAGE_BUGREPORT "team@getdnsapi.net")
 set(PACKAGE_URL "https://getdnsapi.net")
 
@@ -22,16 +22,17 @@ set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}")
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
-set(RELEASE_CANDIDATE "")
+set(RELEASE_CANDIDATE "-b1")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
-set(GETDNS_NUMERIC_VERSION 0x01050200)
+set(GETDNS_NUMERIC_VERSION 0x0105ffc1)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 
+
 # Version 11:2:1 in libtool-speak.
 set(GETDNS_VERSION_CURRENT 11)
-set(GETDNS_VERSION_REVISION 2)
+set(GETDNS_VERSION_REVISION 3)
 set(GETDNS_VERSION_AGE 1)
 
 project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
