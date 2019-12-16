@@ -9,7 +9,6 @@ CmdDepends:
 Depends: 
 Help:
 Pre: 100-compile.pre
-Post: 100-compile.post
 Test: 100-compile.test
 AuxFiles: 
 Passed:

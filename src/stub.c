@@ -455,7 +455,8 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
 		    "%-40s : Upstream   : Could not setup TCP TFO\n",
 		     upstream->addr_str);
-
+#  else
+	(void)transport;
 #  endif/* HAVE_DECL_TCP_FASTOPEN*/
 # endif	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
 #endif	/* USE_OSX_TCP_FASTOPEN */

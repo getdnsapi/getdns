@@ -14,7 +14,6 @@
 
 #include "config.h"
 #include "gldns/parseutil.h"
-#include <sys/time.h>
 #include <time.h>
 #include <ctype.h>
 

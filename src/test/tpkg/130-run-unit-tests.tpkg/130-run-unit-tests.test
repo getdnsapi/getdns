@@ -5,4 +5,4 @@
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
 cd "${BUILDDIR}/build"
-make test
+CTEST_OUTPUT_ON_FAILURE=1 make test
