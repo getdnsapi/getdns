@@ -252,6 +252,17 @@ If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via 
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
+## CentOS and RHEL 8
+
+The `libidn2-devel` package can be found in the PowerTools repo on CentOS 8.
+
+    # dnf config-manager --set-enabled PowerTools
+
+On RHEL 8, `libidn2-devel` is in the CodeReady Linux Builder channel.
+
+    # ARCH=$( /bin/arch )
+    # subscription-manager repos --enable "codeready-builder-for-rhel-8-${ARCH}-rpms"
+
 ## Ubuntu
 
 getdns should also work on Ubuntu 16.04, however if you require IDN functionality you will have to install a recent version of libidn2 via a ppa e.g. from https://launchpad.net/~ondrej/+archive/ubuntu/php
