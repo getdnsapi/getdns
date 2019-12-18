@@ -1020,7 +1020,7 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/getdns DESTINATION include)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man3 DESTINATION share/man)
 
 set(docdir share/doc/getdns)
-install(FILES AUTHORS ChangeLog COPYING INSTALL LICENSE NEWS README.md DESTINATION ${docdir})
+install(FILES AUTHORS ChangeLog COPYING LICENSE NEWS README.md DESTINATION ${docdir})
 install(FILES spec/index.html DESTINATION ${docdir}/spec)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/getdns.pc DESTINATION lib/pkgconfig)
 
