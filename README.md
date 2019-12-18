@@ -87,7 +87,7 @@ Required to build the documentation:
 
 For example, to build on Ubuntu 18.04 or later, you would need the following packages for a full build:
 
-    # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake
+    # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake check
 
 # Building
 
@@ -113,8 +113,9 @@ Additionally `Stubby` a DNS Privacy enabled client can also be built and install
 ## Minimizing dependencies
 
 * getdns can be configured for stub resolution mode only with the `ENABLE_STUB_ONLY` option to `cmake`.  This removes the dependency on `libunbound`.
-* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them by setting the`USE_LIBIDN2` option to `cmake` to OFF.
+* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them by setting the `USE_LIBIDN2` option to `cmake` to OFF.
 * When `ENABLE_STUB_ONLY` is ON, and `USE_LIBIDN2` is OFF, getdns has only one dependency left, which is OpenSSL.
+* By default unit tests are built. These have a dependency on `check`. To disable building unit tests, set option `BUILD_TESTING` to OFF.
 
 ## Extensions and Event loop dependencies
 
