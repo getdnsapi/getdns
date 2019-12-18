@@ -20,8 +20,20 @@ localhost.
 -S
 -X
 EOT
+cat >125.supp <<EOT
+{
+   <bionic_leak_nettle_ecc_point_init>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__gmp_default_allocate
+   fun:_nettle_gmp_alloc_limbs
+   fun:nettle_ecc_point_init
+   obj:/usr/lib/x86_64-linux-gnu/libunbound.so.2.5.6
+}
+EOT
 (
-	if ! valgrind -v --log-file=valgrind.log --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
+	if ! valgrind -v --log-file=valgrind.log --suppressions=125.supp --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_QUERY}" -F queries -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
 	then
 		exit 1
 	fi
