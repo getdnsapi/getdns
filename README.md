@@ -59,7 +59,7 @@ approach.  The code is currently under active development.
 
 The following requirements were met as conditions for the present release:
 
-* code compiles cleanly on at least the primary target platforms: OSX, RHEL/CentOS Linux, FreeBSD
+* code compiles cleanly on at least the primary target platforms: OSX, Linux (RHEL/CentOS, Ubuntu), FreeBSD
 * examples must compile and run cleanly
 * there must be clear documentation of supported and unsupported elements of the API
 
@@ -100,7 +100,7 @@ From release 1.6.0 getdns uses CMake (previous versions used autoconf/libtool). 
     # cmake .
     # make
 
-If you are unfamiliar with CMake, see our [CMake Quick Start](https://getdnsapi.net/blog/cmake_quick_start/) for how to use CMake options to customise the getdns build.
+If you are unfamiliar with CMake, see our [CMake Quick Start](https://getdnsapi.net/quick-start/cmake-quick-start/) for how to use CMake options to customise the getdns build.
 
 As well as building the getdns library two other tools are installed by default:
 
@@ -148,7 +148,7 @@ A project to allow user selection of either OpenSSL or GnuTLS is currently a wor
 A suite of regression tests are included with the library, if you make changes or just
 want to sanity check things on your system take a look at src/test.  You will need
 to install [libcheck](https://libcheck.github.io/check/).  The check library is also available from many of the package repositories for the more popular operating systems.
-Note: The tests currently only run on Linuxes because of a dependancy on bash.
+Note: The tests currently do not run on Windows because of a dependancy on bash.
 
 ## DNSSEC dependencies
 
@@ -190,8 +190,8 @@ Features of this release
 The goals of this implementation of the getdns API are:
 
 * Provide an open source implementation, in C, of the formally described getdns API by getdns API team at <https://getdnsapi.net/spec.html>
-* Support FreeBSD, OSX, Linux (CentOS/RHEL, Ubuntu) via functional "configure" script
-* Support Windows 8.1
+* Support FreeBSD, OSX, Linux (CentOS/RHEL, Ubuntu)
+* Support Windows 10
 * Include examples and tests as part of the build
 * Document code using doxygen
 * Leverage github as much as possible for project coordination
@@ -241,7 +241,7 @@ The platforms listed here are intended to help ensure that we catch platform spe
 * OSX 10.14 and 10.15
 
 
-###  Platform Specific Build Reports
+###  Platform Specific Build Notes
 
 [![Build Status](https://travis-ci.org/getdnsapi/getdns.png?branch=master)](https://travis-ci.org/getdnsapi/getdns)
 
@@ -251,24 +251,6 @@ If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via 
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
 
-## CentOS and RHEL 8
-
-We rely on the most excellent package manager fpm to build the linux packages, which
-means that the packaging platform requires ruby 2.1.0.  There are other ways to
-build the packages; this is simply the one we chose to use.
-
-    # cat /etc/redhat-release
-    CentOS release 6.5 (Final)
-    # uname -a
-    Linux host-10-1-1-6 2.6.32-358.el6.x86_64 #1 SMP Fri Feb 22 00:31:26 UTC 2013 x86_64 x86_64 x86_64 GNU/Linux
-    # cd getdns-<version>
-    # ./configure --prefix=/home/deploy/build
-    # make; make install
-    # cd /home/deploy/build
-    # mv lib lib64
-    # . /usr/local/rvm/config/alias
-    # fpm -x "*.la" -a native -s dir -t rpm -n getdns -v <version> -d "unbound" -d "libevent" -d "libidn" --prefix /usr --vendor "Verisign Inc., NLnet Labs" --license "BSD New" --url "https://getdnsapi.net" --description "Modern asynchronous API to the DNS" .
-
 ## Ubuntu
 
 getdns should also work on Ubuntu 16.04, however if you require IDN functionality you will have to install a recent version of libidn2 via a ppa e.g. from https://launchpad.net/~ondrej/+archive/ubuntu/php
@@ -277,8 +259,8 @@ You will also have to build Unbound from source code to provide libunbound at ve
 
 ## OSX
 
-    A self-compiled version of OpenSSL or the version installed via Homebrew is required and the options OPENSSL_ROOT_DIR, OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY can be used to specify the location of the libraries.
-    Note: If using a self-compiled version, manual configuration of certificates into /usr/local/etc/openssl/certs is required for TLS authentication to work.
+A self-compiled version of OpenSSL or the version installed via Homebrew is required and the options OPENSSL_ROOT_DIR, OPENSSL_CRYPTO_LIBRARY and OPENSSL_SSL_LIBRARY can be used to specify the location of the libraries.
+Note: If using a self-compiled version, manual configuration of certificates into /usr/local/etc/openssl/certs is required for TLS authentication to work.
 
 ### Homebrew
 
