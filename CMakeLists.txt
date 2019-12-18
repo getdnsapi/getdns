@@ -22,7 +22,7 @@ set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}")
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
-set(RELEASE_CANDIDATE "-b1")
+set(RELEASE_CANDIDATE "-beta.1")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 set(GETDNS_NUMERIC_VERSION 0x0105ffc1)
