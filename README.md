@@ -100,7 +100,7 @@ From release 1.6.0 getdns uses CMake (previous versions used autoconf/libtool). 
     # cmake .
     # make
 
-If you are unfamiliar with CMake, see our [CMake Quick Start](https://getdnsapi.net/blog/cmake_quick_start/) for how to use CMake options to customise the getdns build.
+If you are unfamiliar with CMake, see our [CMake Quick Start](https://getdnsapi.net/quick-start/cmake-quick-start/) for how to use CMake options to customise the getdns build.
 
 As well as building the getdns library two other tools are installed by default:
 
