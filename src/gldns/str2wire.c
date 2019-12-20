@@ -151,6 +151,10 @@ int gldns_str2wire_dname_buf_origin(const char* str, uint8_t* buf, size_t* len,
 	if(s) return s;
 
 	if(rel && origin && dlen > 0) {
+		if((unsigned)dlen >= 0x00ffffffU ||
+			(unsigned)origin_len >= 0x00ffffffU)
+			/* guard against integer overflow in addition */
+			return RET_ERR(GLDNS_WIREPARSE_ERR_GENERAL, *len);
 		if(dlen + origin_len - 1 > GLDNS_MAX_DOMAINLEN)
 			return RET_ERR(GLDNS_WIREPARSE_ERR_DOMAINNAME_OVERFLOW,
 				GLDNS_MAX_DOMAINLEN);
@@ -169,7 +173,9 @@ uint8_t* gldns_str2wire_dname(const char* str, size_t* len)
 	uint8_t dname[GLDNS_MAX_DOMAINLEN+1];
 	*len = sizeof(dname);
 	if(gldns_str2wire_dname_buf(str, dname, len) == 0) {
-		uint8_t* r = (uint8_t*)malloc(*len);
+		uint8_t* r;
+		if(*len > sizeof(dname)) return NULL;
+		r = (uint8_t*)malloc(*len);
 		if(r) return memcpy(r, dname, *len);
 	}
 	*len = 0;
@@ -188,7 +194,10 @@ rrinternal_get_owner(gldns_buffer* strbuf, uint8_t* rr, size_t* len,
 			gldns_buffer_position(strbuf));
 	}
 
-	if(strcmp(token, "@") == 0) {
+	if(token_len < 2) /* make sure there is space to read "@" or "" */
+		return RET_ERR(GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL,
+			gldns_buffer_position(strbuf));
+	if(token[0]=='@' && token[1]=='\0') {
 		uint8_t* tocopy;
 		if (origin) {
 			*dname_len = origin_len;
@@ -1097,7 +1106,7 @@ int gldns_str2wire_str_buf(const char* str, uint8_t* rd, size_t* len)
 	while(gldns_parse_char(&ch, &s)) {
 		if(sl >= 255)
 			return RET_ERR(GLDNS_WIREPARSE_ERR_INVALID_STR, s-str);
-		if(*len < sl+1)
+		if(*len < sl+2)
 			return RET_ERR(GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL,
 				s-str);
 		rd[++sl] = ch;
@@ -2098,6 +2107,8 @@ int gldns_str2wire_int16_data_buf(const char* str, uint8_t* rd, size_t* len)
 	char* s;
 	int n;
 	n = strtol(str, &s, 10);
+	if(n < 0) /* negative number not allowed */
+		return GLDNS_WIREPARSE_ERR_SYNTAX;
 	if(*len < ((size_t)n)+2)
 		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 	if(n > 65535)
