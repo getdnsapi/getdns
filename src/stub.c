@@ -241,7 +241,7 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 	uint8_t *data = (uint8_t *)rr_iter->pos;
 	size_t data_len = rr_iter->nxt - rr_iter->pos;
 	(void) gldns_wire2str_rr_scan(
-	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt);
+	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt, NULL);
 	DEBUG_STUB("%s %-35s: OPT RR: %s",
 	           STUB_DEBUG_READ, __FUNC__, str_spc);
 #endif
@@ -2228,6 +2228,14 @@ upstream_schedule_netreq(getdns_upstream *upstream, getdns_network_req *netreq)
 			GETDNS_SCHEDULE_EVENT(upstream->loop, upstream->fd,
 			    _getdns_ms_until_expiry(netreq->owner->expires)/2,
 			    &upstream->event);
+#if defined(HAVE_DECL_TCP_FASTOPEN) && HAVE_DECL_TCP_FASTOPEN \
+ && !(defined(HAVE_DECL_TCP_FASTOPEN_CONNECT) && HAVE_DECL_TCP_FASTOPEN_CONNECT) \
+ && !(defined(HAVE_DECL_MSG_FASTOPEN) && HAVE_DECL_MSG_FASTOPEN)
+			if (upstream->transport == GETDNS_TRANSPORT_TCP) {
+				/* Write immediately! */
+				upstream_write_cb(upstream);
+			}
+#endif
 		} else {
 			GETDNS_SCHEDULE_EVENT(upstream->loop,
 			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
@@ -2293,78 +2301,14 @@ _getdns_submit_stub_request(getdns_network_req *netreq, uint64_t *now_ms)
 
 	case GETDNS_TRANSPORT_TLS:
 	case GETDNS_TRANSPORT_TCP:
-		upstream_schedule_netreq(netreq->upstream, netreq);
-		/* For TLS, set a short timeout to catch setup problems. This is reset
-		   when the connection is successful.*/
 		GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-		/*************************************************************
-		 ******                                                  *****
-		 ******            Scheduling differences of             *****
-		 ******      synchronous and asynchronous requests       *****
-		 ******                                                  *****
-		 *************************************************************
-		 *
-		 * Besides the asynchronous event loop, which is typically
-		 * shared with the application, every getdns context also
-		 * has another event loop (not registered by the user) which
-		 * is used specifically and only for synchronous requests:
-		 * context->sync_eventloop.
-		 *
-		 * We do not use the asynchronous loop for the duration of the
-		 * synchronous query, because:
-		 * - Callbacks for outstanding (and thus asynchronous) queries
-		 *   might fire as a side effect.
-		 * - But worse, since the asynchronous loop is created and 
-		 *   managed by the user, which may well have her own non-dns
-		 *   related events scheduled against it, they will fire as
-		 *   well as a side effect of doing the synchronous request!
-		 *
-		 *
-		 * Transports that keep connections open, have their own event
-		 * structure to keep their connection state.  The event is 
-		 * associated with the upstream struct.  Note that there is a
-		 * separate upstream struct for each state full transport, so
-		 * each upstream has multiple transport structs!
-		 *
-		 *     side note: The upstream structs have their own reference
-		 *                to the "context's" event loop so they can,
-		 *                in theory, be detached (to finish running 
-		 *                queries for example).
-		 *
-		 * If a synchronous request is scheduled for such a transport,
-		 * then the sync-loop temporarily has to "run" that 
-		 * upstream/transport's event!  Outstanding requests for that
-		 * upstream/transport might come in while processing the 
-		 * synchronous call.  When this happens, they are queued up
-		 * (at upstream->finished_queue) and an timeout event of 1
-		 * will be scheduled against the asynchronous loop to start
-		 * processing those received request as soon as the 
-		 * asynchronous loop will be run.
-		 *
-		 *
-		 * When getdns is linked with libunbound 1.5.8 or older, then
-		 * when a RECURSING synchronous request is made then 
-		 * outstanding asynchronously scheduled RECURSING requests
-		 * may fire as a side effect, as we reuse the same code path 
-		 * For both synchronous and asynchronous calls,
-		 * ub_resolve_async() is used under the hood.
-		 *
-		 * With libunbound versions newer than 1.5.8, libunbound will
-		 * share the event loops used with getdns which will prevent
-		 * these side effects from happening.
-		 *
-		 *
-		 * The event loop used for a specific request is in 
-		 * dnsreq->loop.  The asynchronous is always also available
-		 * at the upstream as upstream->loop. 
-		 */
 		GETDNS_SCHEDULE_EVENT(
 		    dnsreq->loop, -1,
 		    _getdns_ms_until_expiry2(dnsreq->expires, now_ms),
 		    getdns_eventloop_event_init(
 		    &netreq->event, netreq, NULL, NULL,
 		    stub_timeout_cb));
-
+		upstream_schedule_netreq(netreq->upstream, netreq);
 		return GETDNS_RETURN_GOOD;
 	default:
 		return GETDNS_RETURN_GENERIC_ERROR;

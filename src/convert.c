@@ -427,7 +427,7 @@ getdns_rr_dict2str_scan(
 	prev_str_len = *str_len;
 	sz = (size_t)*str_len;
 	sz_needed = gldns_wire2str_rr_scan(
-	    &scan_buf, &scan_sz, str, &sz, NULL, 0);
+	    &scan_buf, &scan_sz, str, &sz, NULL, 0, NULL);
 
 	if (sz_needed > prev_str_len) {
 		*str = prev_str + sz_needed;
@@ -1356,7 +1356,7 @@ static int _jsmn_get_int(const char *js, jsmntok_t *t, uint32_t *value)
 
 static int _jsmn_get_const(const char *js, jsmntok_t *t, uint32_t *value)
 {
-	char value_str[80];
+	char value_str[80] = "";
 	int size = t->end - t->start;
 
 	if (size <= 0 || size >= (int)sizeof(value_str))

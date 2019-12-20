@@ -5,7 +5,7 @@ CreationDate: Tue Mar 14 10:43:45 CET 2017
 Maintainer: Willem Toorop
 Category: Resource depletion
 Component:
-CmdDepends: 
+CmdDepends: valgrind
 Depends: 200-stub-only-compile-install.tpkg
 Help:
 Pre: 280-limit_outstanding_queries.pre

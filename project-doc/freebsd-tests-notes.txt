@@ -1,0 +1,10 @@
+pkg update
+pkg upgrade
+pkg install -y gawk unbound valgrind bash check cmake git libyaml libevent libuv
+git clone git@github.com:getdnsapi/getdns.git
+cd getdns/
+git checkout remotes/origin/release/1.6.0-beta.1
+mkdir test
+cd test/
+../src/test/tpkg/run-all.sh
+

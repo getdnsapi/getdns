@@ -13,25 +13,26 @@ endif ()
 
 set(PACKAGE "getdns")
 set(PACKAGE_NAME "getdns")
-set(PACKAGE_VERSION "1.5.2")
+set(PACKAGE_VERSION "1.6.0")
 set(PACKAGE_BUGREPORT "team@getdnsapi.net")
 set(PACKAGE_URL "https://getdnsapi.net")
 
-set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
-set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}")
-
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
-set(RELEASE_CANDIDATE "")
+set(RELEASE_CANDIDATE "-beta.1")
+
+set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
+set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
-set(GETDNS_NUMERIC_VERSION 0x01050200)
+set(GETDNS_NUMERIC_VERSION 0x0105ffc1)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 
+
 # Version 11:2:1 in libtool-speak.
 set(GETDNS_VERSION_CURRENT 11)
-set(GETDNS_VERSION_REVISION 2)
+set(GETDNS_VERSION_REVISION 3)
 set(GETDNS_VERSION_AGE 1)
 
 project(getdns VERSION ${PACKAGE_VERSION} LANGUAGES C)
@@ -219,6 +220,7 @@ check_include_file(stdint.h HAVE_STDINT_H)
 check_include_file(stdio.h HAVE_STDIO_H)
 check_include_file(stdlib.h HAVE_STDLIB_H)
 check_include_file(string.h HAVE_STRING_H)
+check_include_file(strings.h HAVE_STRINGS_H)
 check_include_file(time.h HAVE_TIME_H)
 check_include_file(unistd.h HAVE_UNISTD_H)
 
@@ -1019,7 +1021,7 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/getdns DESTINATION include)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man3 DESTINATION share/man)
 
 set(docdir share/doc/getdns)
-install(FILES AUTHORS ChangeLog COPYING INSTALL LICENSE NEWS README.md DESTINATION ${docdir})
+install(FILES AUTHORS ChangeLog COPYING LICENSE NEWS README.md DESTINATION ${docdir})
 install(FILES spec/index.html DESTINATION ${docdir}/spec)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/getdns.pc DESTINATION lib/pkgconfig)
 

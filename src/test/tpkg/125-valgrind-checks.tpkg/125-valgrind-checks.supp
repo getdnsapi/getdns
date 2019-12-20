@@ -1,0 +1,80 @@
+{
+   <bionic_leak_nettle_ecc_point_init>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__gmp_default_allocate
+   fun:_nettle_gmp_alloc_limbs
+   fun:nettle_ecc_point_init
+   obj:/usr/lib/x86_64-linux-gnu/libunbound.so.2.5.6
+}
+{
+   <freebsd113_leak_pthread_attr_init>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:pthread_attr_init
+   obj:/usr/local/lib/libunbound.so.8.1.5
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/lib/libc.so.7
+   obj:/lib/libc.so.7
+   obj:/lib/libc.so.7
+   obj:/root/getdns/tests/build/getdns_query
+   obj:/lib/libc.so.7
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   fun:_getdns_submit_netreq
+   fun:getdns_general_ns
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   fun:_getdns_submit_netreq
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+}

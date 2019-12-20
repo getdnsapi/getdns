@@ -1,0 +1,102 @@
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/lib/libc.so.7
+   obj:/lib/libc.so.7
+   obj:/lib/libc.so.7
+   obj:/root/getdns/tests/build-stub-only/getdns_query
+   obj:/lib/libc.so.7
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/lib/libc.so.7
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   fun:strcpytrunc
+   fun:ta_iter_next
+   fun:ta_iter_init
+   fun:_getdns_parse_xml_trust_anchors_buf
+   fun:_getdns_context_equip_with_anchor
+   fun:getdns_general_ns
+   fun:_getdns_general_loop
+   fun:getdns_general_sync
+   fun:do_the_call
+   fun:read_line_cb
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   fun:strcpytrunc
+   fun:ta_iter_next
+   fun:_getdns_parse_xml_trust_anchors_buf
+   fun:_getdns_context_equip_with_anchor
+   fun:getdns_general_ns
+   fun:_getdns_general_loop
+   fun:getdns_general_sync
+   fun:do_the_call
+   fun:read_line_cb
+   fun:poll_read_cb
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   fun:_getdns_submit_netreq
+   fun:getdns_general_ns
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   fun:_getdns_submit_netreq
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+   obj:/usr/local/lib/libunbound.so.8.1.5
+}

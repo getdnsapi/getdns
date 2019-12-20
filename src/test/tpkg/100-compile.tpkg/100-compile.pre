@@ -17,4 +17,4 @@ rm -fr "${BUILDDIR}/build"
 mkdir  "${BUILDDIR}/build"
 cd "${BUILDDIR}/build"
 rm -f CMakeCache.txt
-cmake  -DCMAKE_INSTALL_PREFIX=../install $* ${SRCROOT}
+cmake -E env CXXFLAGS="-g" cmake  -DCMAKE_INSTALL_PREFIX=../install $* ${SRCROOT}

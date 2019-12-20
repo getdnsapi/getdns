@@ -5,7 +5,7 @@ CreationDate: wo 19 apr 2017 10:01:58 CEST
 Maintainer: Hoda Rohani
 Category: 
 Component:
-CmdDepends: 
+CmdDepends: valgrind
 Depends: 200-stub-only-compile-install.tpkg
 Help:
 Pre: 275-server-capabilities.pre
