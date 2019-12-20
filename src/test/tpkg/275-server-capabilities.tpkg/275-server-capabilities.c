@@ -92,8 +92,8 @@ int main(int argc, char **argv)
 	uint32_t          port1     = 18000;
 	uint32_t          port2     = 18000;
 	getdns_return_t   r;
-	char listenliststr[1024];
-	char listendictstr[1024];
+	char listenliststr[1024] = "";
+	char listendictstr[1024] = "";
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <localhost ipv4>\n", argv[0]);

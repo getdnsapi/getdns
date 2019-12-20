@@ -1356,7 +1356,7 @@ static int _jsmn_get_int(const char *js, jsmntok_t *t, uint32_t *value)
 
 static int _jsmn_get_const(const char *js, jsmntok_t *t, uint32_t *value)
 {
-	char value_str[80];
+	char value_str[80] = "";
 	int size = t->end - t->start;
 
 	if (size <= 0 || size >= (int)sizeof(value_str))

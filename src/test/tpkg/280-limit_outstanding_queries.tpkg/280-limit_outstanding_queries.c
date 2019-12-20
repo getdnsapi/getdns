@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 	getdns_dict      *address   = NULL;
 	uint32_t          port      = 18000;
 	getdns_return_t   r;
-	char              listenliststr[1024];
+	char              listenliststr[1024] = "";
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <localhost ipv4>\n", argv[0]);

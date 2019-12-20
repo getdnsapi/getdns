@@ -1,0 +1,7 @@
+NS .
+-A getdnsapi.net
+qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
+-G TXT bogus.nlnetlabs.nl
+-H 8.8.8.8
+-H 2a04:b900:0:100::37
+-A _acme-challenge.getdnsapi.net

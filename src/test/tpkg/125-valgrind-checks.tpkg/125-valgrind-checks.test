@@ -4,6 +4,15 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
+## To add suppressions:
+##
+#
+# valgrind -v --log-file=valgrind.log --suppressions="${TPKG_NAME}.supp" --leak-check=full --error-exitcode=1 --track-origins=yes --gen-suppressions=all "${GETDNS_QUERY}" -F "${TPKG_NAME}.queries" -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
+# ./${PKG_NAME}.parse_valgrind_suppressions.sh > new_supps
+# cat ${PKG_NAME}.supp new_supps > tmp_supps
+# mv tmp_supps ${PKG_NAME}.supp
+#
+
 (
 	if ! valgrind -v --log-file=valgrind.log --suppressions="${TPKG_NAME}.supp" --leak-check=full --error-exitcode=1 --track-origins=yes "${GETDNS_QUERY}" -F "${TPKG_NAME}.queries" -f "${TPKG_NAME}.ds" +dnssec_return_validation_chain
 	then

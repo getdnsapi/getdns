@@ -3486,7 +3486,7 @@ static getdns_return_t
 ub_setup_recursing(struct ub_ctx *ctx, getdns_context *context)
 {
 	_getdns_rr_iter rr_spc, *rr;
-	char ta_str[8192];
+	char ta_str[8192] = "";
 	int r;
 
 	if ((r = ub_ctx_set_fwd(ctx, NULL))) {

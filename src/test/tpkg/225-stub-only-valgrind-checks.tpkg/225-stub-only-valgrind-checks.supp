@@ -1,21 +1,4 @@
-{
-   <bionic_leak_nettle_ecc_point_init>
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:malloc
-   fun:__gmp_default_allocate
-   fun:_nettle_gmp_alloc_limbs
-   fun:nettle_ecc_point_init
-   obj:/usr/lib/x86_64-linux-gnu/libunbound.so.2.5.6
-}
-{
-   <freebsd113_leak_pthread_attr_init>
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:malloc
-   fun:pthread_attr_init
-   obj:/usr/local/lib/libunbound.so.8.1.5
-}
+
 {
    <insert_a_suppression_name_here>
    Memcheck:Cond
@@ -27,8 +10,47 @@
    obj:/lib/libc.so.7
    obj:/lib/libc.so.7
    obj:/lib/libc.so.7
-   obj:/root/getdns/tests/build/getdns_query
+   obj:/root/getdns/tests/build-stub-only/getdns_query
    obj:/lib/libc.so.7
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   obj:/lib/libc.so.7
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   fun:strcpytrunc
+   fun:ta_iter_next
+   fun:ta_iter_init
+   fun:_getdns_parse_xml_trust_anchors_buf
+   fun:_getdns_context_equip_with_anchor
+   fun:getdns_general_ns
+   fun:_getdns_general_loop
+   fun:getdns_general_sync
+   fun:do_the_call
+   fun:read_line_cb
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/lib/libc.so.7
+   obj:*
+   fun:strcpytrunc
+   fun:ta_iter_next
+   fun:_getdns_parse_xml_trust_anchors_buf
+   fun:_getdns_context_equip_with_anchor
+   fun:getdns_general_ns
+   fun:_getdns_general_loop
+   fun:getdns_general_sync
+   fun:do_the_call
+   fun:read_line_cb
+   fun:poll_read_cb
 }
 {
    <insert_a_suppression_name_here>
