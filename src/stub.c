@@ -241,7 +241,7 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 	uint8_t *data = (uint8_t *)rr_iter->pos;
 	size_t data_len = rr_iter->nxt - rr_iter->pos;
 	(void) gldns_wire2str_rr_scan(
-	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt);
+	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt, NULL);
 	DEBUG_STUB("%s %-35s: OPT RR: %s",
 	           STUB_DEBUG_READ, __FUNC__, str_spc);
 #endif
