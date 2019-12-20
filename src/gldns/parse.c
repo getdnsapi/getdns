@@ -14,7 +14,9 @@
 
 #include <limits.h>
 #include <stdlib.h>
+#ifdef HAVE_STRING_H
 #include <strings.h>
+#endif
 
 gldns_lookup_table gldns_directive_types[] = {
         { GLDNS_DIR_TTL, "$TTL" },
