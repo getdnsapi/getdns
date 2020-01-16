@@ -9,7 +9,7 @@
 [submodule "stubby"]
 	path = stubby
 	url = https://github.com/getdnsapi/stubby.git
-	branch = feature/cmake2
+	branch = develop
 [submodule "src/ssl_dane"]
 	path = src/ssl_dane
 	url = https://github.com/banburybill/ssl_dane
