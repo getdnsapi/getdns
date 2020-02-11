@@ -87,7 +87,7 @@ Required to build the documentation:
 
 For example, to build on Ubuntu 18.04 or later, you would need the following packages for a full build:
 
-    # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake
+    # apt install build-essential libunbound-dev libidn2-dev libssl-dev cmake check
 
 # Building
 
@@ -113,8 +113,9 @@ Additionally `Stubby` a DNS Privacy enabled client can also be built and install
 ## Minimizing dependencies
 
 * getdns can be configured for stub resolution mode only with the `ENABLE_STUB_ONLY` option to `cmake`.  This removes the dependency on `libunbound`.
-* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them by setting the`USE_LIBIDN2` option to `cmake` to OFF.
+* Currently getdns only offers two helper functions to deal with IDN: `getdns_convert_ulabel_to_alabel` and `getdns_convert_alabel_to_ulabel`.  If you do not need these functions, getdns can be configured to compile without them by setting the `USE_LIBIDN2` option to `cmake` to OFF.
 * When `ENABLE_STUB_ONLY` is ON, and `USE_LIBIDN2` is OFF, getdns has only one dependency left, which is OpenSSL.
+* By default unit tests are built. These have a dependency on `check`. To disable building unit tests, set option `BUILD_TESTING` to OFF.
 
 ## Extensions and Event loop dependencies
 
@@ -250,6 +251,17 @@ The platforms listed here are intended to help ensure that we catch platform spe
 If you're using [FreeBSD](https://www.freebsd.org/), you may install getdns via the [ports tree](https://www.freshports.org/dns/getdns/) by running: `cd /usr/ports/dns/getdns && make install clean`
 
 If you are using FreeBSD 10 getdns can be intalled via 'pkg install getdns'.
+
+## CentOS and RHEL 8
+
+The `libidn2-devel` package can be found in the PowerTools repo on CentOS 8.
+
+    # dnf config-manager --set-enabled PowerTools
+
+On RHEL 8, `libidn2-devel` is in the CodeReady Linux Builder channel.
+
+    # ARCH=$( /bin/arch )
+    # subscription-manager repos --enable "codeready-builder-for-rhel-8-${ARCH}-rpms"
 
 ## Ubuntu
 
