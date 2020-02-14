@@ -2,6 +2,8 @@
   * Issue #432: answer_ipv4_address and answer_ipv6_address in reply
     and response dicts.
   * Issue #430: Record and guard UDP max payload size with servers.
+  * Issue #407: Run only offline-tests option with:
+    src/test/tpkg/run-offline-only.sh (only with git checkouts).
 
 * 2019-12-20: Version 1.6.0-beta.1
   * Migration of build system to cmake. Build now works on Ubuntu,

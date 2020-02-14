@@ -15,3 +15,6 @@ https://github.com/astlinux-project/astlinux/tree/master/package/getdns
 
 For Genode, created and maintained by Emery Hemingway (ehmry)
 https://github.com/genodelabs/genode/blob/master/repos/ports/ports/getdns.port
+
+For Gentoo, created and maintained by CaseOf (Quentin R.?)
+https://packages.gentoo.org/packages/net-dns/getdns
