@@ -51,6 +51,7 @@
 #include "gldns/gbuffer.h"
 #include "gldns/pkthdr.h"
 #include "dnssec.h"
+#include "convert.h"
 
 
 getdns_return_t
@@ -820,6 +821,9 @@ _getdns_create_call_reporting_dict(
 	getdns_bindata  qname;
 	getdns_dict    *netreq_debug;
 	getdns_dict    *address_debug = NULL;
+	getdns_dict    *query_dict = NULL;
+	const uint8_t  *wire;
+	size_t          wire_len;
 
 	assert(netreq);
 
@@ -856,6 +860,23 @@ _getdns_create_call_reporting_dict(
 		return NULL;
 	}
 	/* Stub resolver debug data */
+	wire = netreq->query;
+	wire_len = netreq->response - netreq->query;
+	if (!wire)
+	       ; /* pass */
+
+	else if(_getdns_wire2msg_dict_scan(
+	    &netreq_debug->mf, &wire, &wire_len, &query_dict)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+
+	} else if (_getdns_dict_set_this_dict(
+	    netreq_debug, "query", query_dict)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	_getdns_sockaddr_to_dict(
 	    context, &netreq->upstream->addr, &address_debug);
 
