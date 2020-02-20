@@ -481,6 +481,11 @@ if (HAVE_STRPTIME)
   check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
 endif ()
 
+try_compile(HAVE___FUNC__
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/test___func__.c
+)
+
 # TCP Fast Open.
 if (NOT ENABLE_TCP_FAST_OPEN)
   message(WARNING "TCP Fast Open disabled.")
