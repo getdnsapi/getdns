@@ -1,4 +1,4 @@
-* 2020-02-??: Versopm 1.6.0
+* 2020-02-??: Version 1.6.0
   * Issue #432: answer_ipv4_address and answer_ipv6_address in reply
     and response dicts.
   * Issue #430: Record and guard UDP max payload size with servers.
