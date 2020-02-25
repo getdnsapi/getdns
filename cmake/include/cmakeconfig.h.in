@@ -79,6 +79,9 @@
 
 #cmakedefine HAVE_HMAC_CTX_NEW		1
 
+#cmakedefine HAVE_NETTLE_GET_SECP_256R1	1
+#cmakedefine HAVE_NETTLE_GET_SECP_384R1	1
+
 #cmakedefine HAVE_TLS_CLIENT_METHOD	1
 
 #cmakedefine HAVE_OPENSSL_VERSION_NUM	1
