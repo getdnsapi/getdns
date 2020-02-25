@@ -365,14 +365,19 @@ endif()
 # handle digital signature algorithms. GnuTLS uses Nettle internally.
 if (USE_GNUTLS)
   find_package(GnuTLS "3.5.0" REQUIRED)
-  find_package(Nettle REQUIRED)
+  find_package(Nettle "3.2" REQUIRED)
 
   set(tlsdir "gnutls")
   set(HAVE_NETTLE 1)
 
   set(CMAKE_REQUIRED_INCLUDES ${NETTLE_INCLUDE_DIR})
+set(CMAKE_REQUIRED_LIBRARIES ${NETTLE_LIBRARIES})
   check_include_file(nettle/dsa-compat.h HAVE_NETTLE_DSA_COMPAT_H)
   check_include_file(nettle/eddsa.h HAVE_NETTLE_EDDSA_H)
+
+  # API change in Nettle 3.4.
+  check_symbol_exists(nettle_get_secp_256r1 "nettle/ecc-curve.h" HAVE_NETTLE_GET_SECP_256R1)
+  check_symbol_exists(nettle_get_secp_384r1 "nettle/ecc-curve.h" HAVE_NETTLE_GET_SECP_384R1)
 endif()
 
 # Sort out what signature algorithms can be used.
@@ -390,7 +395,7 @@ endif ()
 
 if (USE_ED448)
   if (USE_GNUTLS)
-    message(WARNING "ED448 enabled and Nettle does not support it. Disabled.")
+    message(WARNING "ED448 enabled and Nettle support not implemented. Disabled.")
     unset(USE_ED448)
   elseif (NOT HAVE_SSL_ED448)
     message(WARNING "ED448 enabled and OpenSSL does not support it. Disabled.")
