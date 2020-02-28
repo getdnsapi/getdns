@@ -1,4 +1,6 @@
-* 2020-02-??: Version 1.6.0
+* 2020-02-28: Version 1.6.0
+  * Issues #457, #458, #461: New symbols with libnettle >= 3.4.
+    Thanks hanvinke & kometchtech for testing & reporting.
   * Issue #432: answer_ipv4_address and answer_ipv6_address in reply
     and response dicts.
   * Issue #430: Record and guard UDP max payload size with servers.

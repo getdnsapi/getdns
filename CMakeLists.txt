@@ -19,18 +19,56 @@ set(PACKAGE_URL "https://getdnsapi.net")
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
-set(RELEASE_CANDIDATE "-rc.1")
+set(RELEASE_CANDIDATE "")
 
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
-set(GETDNS_NUMERIC_VERSION 0x0105ffd1)
+set(GETDNS_NUMERIC_VERSION 0x01060000)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 
 
-# Version 11:2:1 in libtool-speak.
+# Library version
+# ---------------
+# current:revision:age
+# (binary-api-number):(which-binary-api-version):(how-many-nrs-backwardscompat)
+# if source code changes increment revision
+# if any interfaces have been added/removed/changed since last update then
+#   increment current and set revision to 0
+# if any interfaces have been added since the last public release then increment age
+# if any interfaces have been removed or changed since the last public release then
+#   set age to 0
+#
+# getdns-0.1.4 had libversion 0:0:0
+# getdns-0.1.5 had libversion 1:0:0
+# getdns-0.1.6 had libversion 1:1:0
+# getdns-0.1.7 had libversion 1:2:1 (but should have had 2:0:1)
+# getdns-0.1.8 had libversion 1:3:0 (but should have had 2:1:1)
+# getdns-0.2.0 had libversion 2:2:1
+# getdns-0.3.0 had libversion 3:3:2
+# getdns-0.3.1 had libversion 3:4:2
+# getdns-0.3.2 had libversion 3:5:2
+# getdns-0.3.3 had libversion 3:6:2
+# getdns-0.5.0 had libversion 4:0:3
+# getdns-0.5.1 had libversion 4:1:3 (but should have been getdns-0.6.0)
+# getdns-0.9.0 had libversion 5:0:4
+# getdns-1.0.0 had libversion 5:1:4
+# getdns-1.1.0 had libversion 6:0:0
+# getdns-1.1.1 had libversion 6:1:0
+# getdns-1.1.2 had libversion 7:0:1
+# getdns-1.1.3 had libversion 7:1:1
+# getdns-1.2.0 had libversion 8:0:2
+# getdns-1.2.1 had libversion 8:1:2
+# getdns-1.3.0 had libversion 9:0:3
+# getdns-1.4.0 had libversion 10:0:0
+# getdns-1.4.1 had libversion 10:1:0
+# getdns-1.4.2 had libversion 10:2:0
+# getdns-1.5.0 had libversion 11:0:1
+# getdns-1.5.1 had libversion 11:1:1
+# getdns-1.5.2 had libversion 11:2:1
+# getdns-1.6.0 has libversion 11:3:1
 set(GETDNS_VERSION_CURRENT 11)
 set(GETDNS_VERSION_REVISION 3)
 set(GETDNS_VERSION_AGE 1)
