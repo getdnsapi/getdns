@@ -9,7 +9,6 @@ CmdDepends:
 Depends: 
 Help:
 Pre: 200-stub-only-compile-install.pre
-Post: 200-stub-only-compile-install.post
 Test: 200-stub-only-compile-install.test
 AuxFiles: 
 Passed:

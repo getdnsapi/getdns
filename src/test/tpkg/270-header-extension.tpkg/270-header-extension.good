@@ -1,4 +1,5 @@
 {
+  "answer_ipv4_address": <bindata for 185.49.140.60>,
   "answer_type": GETDNS_NAMETYPE_DNS,
   "canonical_name": <bindata for bogus.nlnetlabs.nl.>,
   "replies_tree":
@@ -6,6 +7,7 @@
     {
       "additional": [],
       "answer": [],
+      "answer_ipv4_address": <bindata for 185.49.140.60>,
       "answer_type": GETDNS_NAMETYPE_DNS,
       "authority": [],
       "header":

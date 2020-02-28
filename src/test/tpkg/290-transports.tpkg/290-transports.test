@@ -4,17 +4,17 @@
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-if grep -q '^#define HAVE_SSL_HN_AUTH 1' "${BUILDDIR}/build-stub-only/src/config.h"
-then
+#if grep -q '^#define HAVE_SSL_HN_AUTH 1' "${BUILDDIR}/build-stub-only/config.h"
+#then
 	HAVE_SSL_HN_AUTH=1
-else
-	HAVE_SSL_HN_AUTH=0
-fi
+#else
+#	HAVE_SSL_HN_AUTH=0
+#fi
 SERVER_IP="64.6.64.6"
 SERVER_IPv6="2620:74:1b::1:1"
 
-SERVER_IP_TSIG="185.49.141.37^"
-SERVER_IPv6_TSIG="2a04:b900:0:100::37^"
+SERVER_IP_TSIG="185.49.141.53^"
+SERVER_IPv6_TSIG="2a04:b900:0:100::53^"
 TSIG_ALG="hmac-md5.sig-alg.reg.int"
 TSIG_NAME="hmac-md5.tsigs.getdnsapi.net"
 TSIG_SECRET="16G69OTeXW6xSQ=="
@@ -143,8 +143,8 @@ for (( ii = 0; ii < 1; ii++)); do
 		"-s -A  getdnsapi.net -l L        @${TLS_SERVER_IP_NO_NAME}"  "L" "N"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP}"          "L" "S"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S")
-# "-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
+		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
+		"-s -G TXT large.getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
 	else
 		NUM_GOOD_QUERIES=6
 		GOOD_QUERIES=(
@@ -153,10 +153,10 @@ for (( ii = 0; ii < 1; ii++)); do
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_ALG}:${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l L        @${TLS_SERVER_IP_NO_NAME}"  "L" "N"
-		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S")
-# "-s -G DNSKEY getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
+		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
+		"-s -G TXT large.getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-"
+		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_SS_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"" "L" "S")
 	fi
-#"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_SS_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"" "L" "S"
 
 	NUM_GOOD_FB_QUERIES=6
 	GOOD_FALLBACK_QUERIES=(
@@ -165,7 +165,7 @@ for (( ii = 0; ii < 1; ii++)); do
 	"-s -A getdnsapi.net -l LT     @${TLS_SERVER_IP_NO_NAME}" "L" "N"
 	"-s -A getdnsapi.net -l LT -m  @${TLS_SERVER_IP_NO_NAME}" "L" "N"
 	"-s -A getdnsapi.net -l L      @${SERVER_IP} @${TLS_SERVER_IP_NO_NAME}" "L" "-"
-	"-s -G DNSKEY getdnsapi.net -l UT  @${SERVER_IP} -b 512 -D" "T" "-")
+	"-s -G TXT large.getdnsapi.net -l UT  @${SERVER_IP} -b 512 -D" "T" "-")
 
 	NOT_AVAILABLE_QUERIES=(
 	"-s -A getdnsapi.net -l L      @${SERVER_IP}"
@@ -176,8 +176,8 @@ for (( ii = 0; ii < 1; ii++)); do
 	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_NO_NAME}    -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\""
 	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP}            -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\""
 	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\""
-	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME} -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\"")
-#"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_SS_IP}         -K pin-sha256=\"${TLS_SERVER_SS_KEY}\""
+	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_IP_WRONG_NAME} -K pin-sha256=\"${TLS_SERVER_WRONG_KEY}\""
+	"-s -A getdnsapi.net -l L -m   @${TLS_SERVER_SS_IP}         -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"")
 
 
 	echo "Starting transport test"

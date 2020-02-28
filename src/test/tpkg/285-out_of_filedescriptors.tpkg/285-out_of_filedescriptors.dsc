@@ -5,7 +5,7 @@ CreationDate: ma 20 mrt 2017 15:17:45 CET
 Maintainer: Willem Toorop
 Category: Resource depletion
 Component:
-CmdDepends: 
+CmdDepends: valgrind
 Depends: 200-stub-only-compile-install.tpkg
 Help:
 Pre: 285-out_of_filedescriptors.pre

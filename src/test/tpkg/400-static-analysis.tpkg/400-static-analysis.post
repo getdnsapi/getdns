@@ -12,9 +12,3 @@ else
 fi
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
-
-for f in `cat restore-srcdir-configure-settings`
-do
-	mv "${SRCROOT}/${f}.build-static-analysis" "${SRCROOT}/${f}"
-done
-

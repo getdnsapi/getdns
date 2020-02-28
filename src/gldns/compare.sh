@@ -3,7 +3,7 @@
 # Meant to be run from this directory
 rm -fr gldns
 mkdir gldns
-svn co https://nlnetlabs.nl/svn/unbound/trunk/sldns/
+svn co https://github.com/NLnetLabs/unbound/trunk/sldns/
 mv gbuffer.h sbuffer.h
 mv gbuffer.c sbuffer.c
 for f in sldns/*.[ch]

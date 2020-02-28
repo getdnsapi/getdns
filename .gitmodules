@@ -12,5 +12,5 @@
 	branch = develop
 [submodule "src/ssl_dane"]
 	path = src/ssl_dane
-	url = https://github.com/getdnsapi/ssl_dane
-	branch = getdns
+	url = https://github.com/banburybill/ssl_dane
+	branch = feature/windows-native-build

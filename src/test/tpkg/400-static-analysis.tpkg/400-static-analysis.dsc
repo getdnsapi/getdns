@@ -9,7 +9,7 @@ CmdDepends: scan-build
 Depends:
 Help:
 Pre: 400-static-analysis.pre
-Post: 400-static-analysis.post
+Post: 
 Test: 400-static-analysis.test
 AuxFiles: 
 Passed:

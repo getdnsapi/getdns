@@ -6,5 +6,5 @@
 
 cd "${BUILDDIR}/build-stub-only"
 make XTRA_CFLAGS='-g -Werror' -j 4 install \
-    && echo "export GETDNS_STUB_QUERY=\"${BUILDDIR}/build-stub-only/src/tools/getdns_query\"" \
+    && echo "export GETDNS_STUB_QUERY=\"${BUILDDIR}/build-stub-only/getdns_query\"" \
        >> ../.tpkg.var.master

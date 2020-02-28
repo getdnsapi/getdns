@@ -1,0 +1,14 @@
+NS .
+localhost
+localhost.
+A localhost.
+-A getdnsapi.net
+qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
+localhost.
+-G TXT bogus.nlnetlabs.nl
+-H 8.8.8.8
+-H 2a04:b900:0:100::37
+-a -A -x www.microsoft.com
+-s
+-S
+-X

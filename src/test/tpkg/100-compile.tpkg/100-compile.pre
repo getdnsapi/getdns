@@ -13,16 +13,8 @@ fi
 # use .tpkg.var.test for in test variable passing
 [ -f .tpkg.var.test ] && source .tpkg.var.test
 
-echo "" > restore-srcdir-configure-settings
-for f in `grep 'CONFIG_[FH][IE][LA][ED][SE]' "${SRCROOT}/configure.ac" | sed -e 's/^.*(\[//g' -e 's/\])//g'`
-do
-	if [ -f "${SRCROOT}/$f" ]
-	then
-		mv "${SRCROOT}/${f}" "${SRCROOT}/${f}.build" && \
-			echo "$f" >> restore-srcdir-configure-settings
-	fi
-done
 rm -fr "${BUILDDIR}/build"
 mkdir  "${BUILDDIR}/build"
 cd "${BUILDDIR}/build"
-"${SRCROOT}/configure" $* --prefix "${BUILDDIR}/install"
+rm -f CMakeCache.txt
+cmake -E env CXXFLAGS="-g" cmake  -DCMAKE_INSTALL_PREFIX=../install $* ${SRCROOT}

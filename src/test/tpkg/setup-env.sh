@@ -5,20 +5,12 @@ export SRCROOT=`(cd "${SRCDIR}/../../.."; pwd)`
 export TPKG="${SRCDIR}/tpkg"
 export BUILDDIR=`pwd`
 export BUILDROOT=`(cd "${BUILDDIR}/../../.."; pwd)`
-export LIBTOOL="${BUILDROOT}/libtool"
 
 if [ ! -f "${SRCROOT}/src/test/jsmn/jsmn.c" ]
 then
 	(cd "${SRCROOT}"; git submodule update --init)
 fi
-if [ ! -f "${SRCROOT}/libtool" ]
-then
-	(cd "${SRCROOT}"; (glibtoolize -fic || libtoolize -fic))
-fi
-if [ ! -f "${SRCROOT}/configure" ]
-then
-	(cd "${SRCROOT}"; autoreconf -fi)
-fi
+
 if [ -f .tpkg.var.master ]
 then
 	cat .tpkg.var.master \
@@ -33,7 +25,5 @@ export SRCROOT="${SRCROOT}"
 export BUILDDIR="${BUILDDIR}"
 export BUILDROOT="${BUILDROOT}"
 export TPKG="${TPKG}"
-export LIBTOOL="${LIBTOOL}"
 END_OF_TPKG_VAR_MASTER
 
-${TPKG} f 255-yaml-config.tpkg
