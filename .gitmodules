@@ -8,7 +8,7 @@
 	branch = master
 [submodule "stubby"]
 	path = stubby
-	url = https://github.com/getdnsapi/stubby.git
+	url = https://github.com/banburybill/stubby.git
 	branch = develop
 [submodule "src/ssl_dane"]
 	path = src/ssl_dane
