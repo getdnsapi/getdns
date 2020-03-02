@@ -1035,8 +1035,8 @@ tls_do_handshake(getdns_upstream *upstream)
 			    : "*Failure*" ));
 			upstream->tls_auth_state = GETDNS_AUTH_FAILED;
 		} else {
-			long verify_errno;
-			const char* verify_errmsg;
+			long verify_errno = 0;
+			const char* verify_errmsg = "Unknown verify error (fix reporting!)";
 
 			if (_getdns_tls_connection_certificate_verify(upstream->tls_obj, &verify_errno, &verify_errmsg)) {
 				upstream->tls_auth_state = GETDNS_AUTH_FAILED;

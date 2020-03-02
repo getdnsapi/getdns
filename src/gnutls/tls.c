@@ -712,8 +712,11 @@ failsafe:
 		GETDNS_FREE(*conn->mfs, new_cert_list);
 	}
 
-	if (ret != DANE_E_SUCCESS)
+	if (ret != DANE_E_SUCCESS) {
+		*errnum = ret;
+		*errmsg = dane_strerror(ret);
 		return GETDNS_RETURN_GENERIC_ERROR;
+	}
 
 	if (verify != 0) {
 		if (verify & DANE_VERIFY_CERT_DIFFERS) {
