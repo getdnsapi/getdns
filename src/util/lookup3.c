@@ -1,4 +1,7 @@
 /*
+  May 2019(Wouter) patch to enable the valgrind clean implementation all the
+     time.  This enables better security audit and checks, which is better
+     than the speedup.  Git issue #30.  Renamed the define ARRAY_CLEAN_ACCESS.
   February 2013(Wouter) patch defines for BSD endianness, from Brad Smith.
   January 2012(Wouter) added randomised initial value, fallout from 28c3.
   March 2007(Wouter) adapted from lookup3.c original, add config.h include.
@@ -44,21 +47,14 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 -------------------------------------------------------------------------------
 */
 /*#define SELF_TEST 1*/
+#define ARRAY_CLEAN_ACCESS 1
 
 #include "config.h"
 #include "util/storage/lookup3.h"
 #include <stdio.h>      /* defines printf for tests */
 #include <time.h>       /* defines time_t for timings in the test */
-
-#if defined(HAVE_TARGET_ENDIANNESS)
-# if defined(TARGET_IS_BIG_ENDIAN)
-#  define HASH_LITTLE_ENDIAN 0
-#  define HASH_BIG_ENDIAN 1
-# else
-#  define HASH_LITTLE_ENDIAN 1
-#  define HASH_BIG_ENDIAN 0
-# endif
-#else
+/*#include <stdint.h>     defines uint32_t etc  (from config.h) */
+#include <sys/param.h>  /* attempt to define endianness */
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h> /* attempt to define endianness (solaris) */
 #endif
@@ -72,6 +68,15 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
 #include <sys/endian.h> /* attempt to define endianness */
 #endif
+
+/* random initial value */
+static uint32_t raninit = (uint32_t)0xdeadbeef;
+
+void
+hash_set_raninit(uint32_t v)
+{
+	raninit = v;
+}
 
 /*
  * My best guess at if you are big-endian or little-endian.  This may
@@ -102,16 +107,6 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 # define HASH_LITTLE_ENDIAN 0
 # define HASH_BIG_ENDIAN 0
 #endif
-#endif /* defined(TARGET_IS_BIG_ENDIAN) */
-
-/* random initial value */
-static uint32_t raninit = (uint32_t)0xdeadbeef;
-
-void
-hash_set_raninit(uint32_t v)
-{
-	raninit = v;
-}
 
 #define hashsize(n) ((uint32_t)1<<(n))
 #define hashmask(n) (hashsize(n)-1)
@@ -345,7 +340,7 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
   u.ptr = key;
   if (HASH_LITTLE_ENDIAN && ((u.i & 0x3) == 0)) {
     const uint32_t *k = (const uint32_t *)key;         /* read 32-bit chunks */
-#ifdef VALGRIND
+#ifdef ARRAY_CLEAN_ACCESS
     const uint8_t  *k8;
 #endif
 
@@ -370,7 +365,7 @@ uint32_t hashlittle( const void *key, size_t length, uint32_t initval)
      * still catch it and complain.  The masking trick does make the hash
      * noticeably faster for short strings (like English words).
      */
-#ifndef VALGRIND
+#ifndef ARRAY_CLEAN_ACCESS
 
     switch(length)
     {
