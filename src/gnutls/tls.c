@@ -767,6 +767,8 @@ getdns_return_t _getdns_tls_session_free(struct mem_funcs* mfs, _getdns_tls_sess
 {
 	if (!s)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (s->tls.data)
+		gnutls_free(s->tls.data);
 	GETDNS_FREE(*mfs, s);
 	return GETDNS_RETURN_GOOD;
 }
