@@ -165,6 +165,9 @@ static getdns_return_t error_may_want_read_write(_getdns_tls_connection* conn, i
 			return GETDNS_RETURN_TLS_WANT_READ;
 		else
 			return GETDNS_RETURN_TLS_WANT_WRITE;
+	case GNUTLS_E_FATAL_ALERT_RECEIVED:
+		DEBUG_STUB("GNUTLS fatal alert: \"%s\"\n",
+		    gnutls_alert_get_name(gnutls_alert_get(conn->tls)));
 
 	default:
 		return GETDNS_RETURN_GENERIC_ERROR;
