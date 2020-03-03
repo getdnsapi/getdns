@@ -5,3 +5,5 @@ qwerlkjhasdfpuiqwyerm.1234kjhrqwersv.com
 -H 8.8.8.8
 -H 2a04:b900:0:100::37
 -A _acme-challenge.getdnsapi.net
+@185.49.141.38 nlnetlabs.nl +edns_cookies
+-L dnsprivacy.org

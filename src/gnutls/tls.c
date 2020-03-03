@@ -165,6 +165,9 @@ static getdns_return_t error_may_want_read_write(_getdns_tls_connection* conn, i
 			return GETDNS_RETURN_TLS_WANT_READ;
 		else
 			return GETDNS_RETURN_TLS_WANT_WRITE;
+	case GNUTLS_E_FATAL_ALERT_RECEIVED:
+		DEBUG_STUB("GNUTLS fatal alert: \"%s\"\n",
+		    gnutls_alert_get_name(gnutls_alert_get(conn->tls)));
 
 	default:
 		return GETDNS_RETURN_GENERIC_ERROR;
@@ -709,8 +712,11 @@ failsafe:
 		GETDNS_FREE(*conn->mfs, new_cert_list);
 	}
 
-	if (ret != DANE_E_SUCCESS)
+	if (ret != DANE_E_SUCCESS) {
+		*errnum = ret;
+		*errmsg = dane_strerror(ret);
 		return GETDNS_RETURN_GENERIC_ERROR;
+	}
 
 	if (verify != 0) {
 		if (verify & DANE_VERIFY_CERT_DIFFERS) {
@@ -764,6 +770,8 @@ getdns_return_t _getdns_tls_session_free(struct mem_funcs* mfs, _getdns_tls_sess
 {
 	if (!s)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (s->tls.data)
+		gnutls_free(s->tls.data);
 	GETDNS_FREE(*mfs, s);
 	return GETDNS_RETURN_GOOD;
 }
