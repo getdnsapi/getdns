@@ -14,6 +14,7 @@
  * Contains functions to translate the wireformat to text
  * representation, as well as functions to print them.
  */
+#include <stdlib.h>
 #include "config.h"
 #include "gldns/wire2str.h"
 #include "gldns/str2wire.h"
