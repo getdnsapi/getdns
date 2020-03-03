@@ -957,7 +957,9 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		}
 	}
 
-	_getdns_tls_connection_set_host_pinset(tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
+	if (upstream->tls_pubkey_pinset)
+		_getdns_tls_connection_set_host_pinset(
+		    tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
 
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change
