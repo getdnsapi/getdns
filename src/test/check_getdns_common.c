@@ -57,6 +57,8 @@ int event_loop_type = 0;
 void extract_response(struct getdns_dict *response, struct extracted_response *ex_response)
 {
   int have_answer_type = 0;
+  int get_reply = 0;
+  uint32_t rcode;
 
   ck_assert_msg(response != NULL, "Response should not be NULL");
   /* fprintf(stderr, "%s\n", getdns_pretty_print_dict(response)); */
@@ -103,10 +105,18 @@ void extract_response(struct getdns_dict *response, struct extracted_response *e
     ex_response->question = NULL;
     return;
   }
+  /* Work around dnsmasq issue in which NXDOMAIN AAAA responses
+   * are returned as NODATA. In such cases use the other A response
+   * which does have rcode NXDOMAIN.
+   */
+  if (ex_response->status == GETDNS_RESPSTATUS_NO_NAME
+  && !getdns_dict_get_int(response, "/replies_tree/1/header/rcode", &rcode)
+  && rcode == GETDNS_RCODE_NXDOMAIN)
+    get_reply = 1;
 
-  ASSERT_RC(getdns_list_get_dict(ex_response->replies_tree, 0, &ex_response->replies_tree_sub_dict),
-    GETDNS_RETURN_GOOD, "Failed to extract \"replies_tree[0]\"");
-  ck_assert_msg(ex_response->replies_tree_sub_dict != NULL, "replies_tree[0] dict should not be NULL");
+  ASSERT_RC(getdns_list_get_dict(ex_response->replies_tree, get_reply, &ex_response->replies_tree_sub_dict),
+    GETDNS_RETURN_GOOD, "Failed to extract \"replies_tree[#]\"");
+  ck_assert_msg(ex_response->replies_tree_sub_dict != NULL, "replies_tree[#] dict should not be NULL");
 
   ASSERT_RC(getdns_dict_get_list(ex_response->replies_tree_sub_dict, "additional", &ex_response->additional),
     GETDNS_RETURN_GOOD, "Failed to extract \"additional\"");
