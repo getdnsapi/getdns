@@ -166,9 +166,15 @@ static getdns_return_t error_may_want_read_write(_getdns_tls_connection* conn, i
 		else
 			return GETDNS_RETURN_TLS_WANT_WRITE;
 	case GNUTLS_E_FATAL_ALERT_RECEIVED:
-		DEBUG_STUB("GNUTLS fatal alert: \"%s\"\n",
-		    gnutls_alert_get_name(gnutls_alert_get(conn->tls)));
-
+		_getdns_log( conn->log
+		           , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
+		           , "%s %s %d (%s)\n"
+		           , STUB_DEBUG_SETUP_TLS
+		           , "Error in TLS handshake"
+		           , (int)gnutls_alert_get(conn->tls)
+			   , gnutls_alert_get_name(gnutls_alert_get(conn->tls))
+			   );
+		/* fallthrough */
 	default:
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}
@@ -322,6 +328,11 @@ getdns_return_t _getdns_tls_context_set_ca(_getdns_tls_context* ctx, const char*
 	return GETDNS_RETURN_GOOD;
 }
 
+void _getdns_gnutls_stub_log(int level, const char *msg)
+{
+	DEBUG_STUB("GnuTLS log (%.2d): %s", level, msg);
+}
+
 _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdns_tls_context* ctx, int fd, const getdns_log_config* log)
 {
 	_getdns_tls_connection* res;
@@ -356,6 +367,8 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 			gnutls_certificate_set_x509_trust_dir(res->cred, ctx->ca_trust_path, GNUTLS_X509_FMT_PEM);
 	}
 
+	gnutls_global_set_log_level(99);
+	gnutls_global_set_log_function(_getdns_gnutls_stub_log);
 	if (gnutls_init(&res->tls, GNUTLS_CLIENT | GNUTLS_NONBLOCK) != GNUTLS_E_SUCCESS)
 		goto failed;
 	if (set_connection_ciphers(res) != GNUTLS_E_SUCCESS) {
