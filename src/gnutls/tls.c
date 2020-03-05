@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2018-2019, NLnet Labs
+ * Copyright (c) 2018-2020, NLnet Labs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,7 +102,7 @@ static int set_connection_ciphers(_getdns_tls_connection* conn)
 	char* pri = NULL;
 	int res;
 
-	pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-RSA-SHA384");
+	pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-ALL");
 
 	if (conn->cipher_suites)
 		pri = getdns_priappend(conn->mfs, pri, conn->cipher_suites);
@@ -119,7 +119,11 @@ static int set_connection_ciphers(_getdns_tls_connection* conn)
 	else if (conn->ctx->curve_list)
 		pri = getdns_priappend(conn->mfs, pri, conn->ctx->curve_list);
 	else
+#if GNUTLS_VERSION_NUMBER >= 0x030605
+		pri = getdns_priappend(conn->mfs, pri, "+GROUP-EC-ALL");
+#else
 		pri = getdns_priappend(conn->mfs, pri, "+CURVE-ALL");
+#endif
 
 	gnutls_protocol_t min = conn->min_tls;
 	gnutls_protocol_t max = conn->max_tls;
