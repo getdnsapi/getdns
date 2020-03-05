@@ -102,7 +102,15 @@ static int set_connection_ciphers(_getdns_tls_connection* conn)
 	char* pri = NULL;
 	int res;
 
-	pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-RSA-SHA384");
+	//pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-ALL");
+	pri = getdns_priappend(conn->mfs, pri, "NONE:+COMP-ALL:+SIGN-ALL"
+	    /* Remove all the weak ones */
+	    ":-SIGN-RSA-MD5"
+	    ":-SIGN-RSA-SHA1:-SIGN-RSA-SHA224:-SIGN-RSA-SHA256"
+	    ":-SIGN-DSA-SHA1:-SIGN-DSA-SHA224:-SIGN-DSA-SHA256"
+	    ":-SIGN-ECDSA-SHA1:-SIGN-ECDSA-SHA224:-SIGN-ECDSA-SHA256"
+	    ":-SIGN-RSA-PSS-SHA256"
+	);
 
 	if (conn->cipher_suites)
 		pri = getdns_priappend(conn->mfs, pri, conn->cipher_suites);
@@ -134,18 +142,16 @@ static int set_connection_ciphers(_getdns_tls_connection* conn)
 		for (gnutls_protocol_t i = min; i <= max; ++i)
 			pri = getdns_priappend(conn->mfs, pri, _getdns_tls_priorities[i]);
 	}
-
 	if (pri) {
 		res = gnutls_priority_set_direct(conn->tls, pri, NULL);
-		if (res != GNUTLS_E_SUCCESS) {
-			_getdns_log(conn->log
-				    , GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR
-				    , "%s: %s %s (%s)\n"
-				    , STUB_DEBUG_SETUP_TLS
-				    , "Error configuring TLS connection with "
-				    , pri
-				    , gnutls_strerror(res));
-		}
+		_getdns_log(conn->log
+			    , GETDNS_LOG_UPSTREAM_STATS
+			    , (res == GNUTLS_E_SUCCESS ? GETDNS_LOG_DEBUG : GETDNS_LOG_ERR)
+			    , "%s: %s %s (%s)\n"
+			    , STUB_DEBUG_SETUP_TLS
+			    , "Configuring TLS connection with "
+			    , pri
+			    , gnutls_strerror(res));
 	}
 	else
 		res = gnutls_set_default_priority(conn->tls);
