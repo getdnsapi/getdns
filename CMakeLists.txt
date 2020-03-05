@@ -489,9 +489,19 @@ if (NOT ENABLE_STUB_ONLY)
 
   set(CMAKE_REQUIRED_INCLUDES ${LIBUNBOUND_INCLUDE_DIR})
   set(CMAKE_REQUIRED_LIBRARIES ${LIBUNBOUND_LIBRARIES})
-  check_include_file(unbound-event.h HAVE_UNBOUND_EVENT_H)
-  check_symbol_exists(ub_ctx_create_ub_event "unbound-event.h" HAVE_UNBOUND_EVENT_API)
-  check_symbol_exists(ub_ctx_set_stub "unbound-event.h" HAVE_UB_CTX_SET_STUB)
+
+  check_symbol_exists(ub_ctx_set_stub "unbound.h" HAVE_UB_CTX_SET_STUB)
+
+  if (ENABLE_UNBOUND_EVENT_API)
+    check_include_file(unbound-event.h HAVE_UNBOUND_EVENT_H)
+    check_symbol_exists(ub_ctx_create_ub_event "unbound-event.h" HAVE_UNBOUND_EVENT_API)
+  endif ()
+else ()
+  # Ensure we're not using libunbound items.
+  set(HAVE_LIBUNBOUND 0)
+  set(HAVE_UNBOUND_EVENT_H 0)
+  set(HAVE_UNBOUND_EVENT_API 0)
+  set(HAVE_UB_CTX_SET_STUB 0)
 endif ()
 
 # Event loop extension
