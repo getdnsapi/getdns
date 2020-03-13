@@ -317,6 +317,9 @@ _getdns_netreq_reinit(getdns_network_req *netreq)
 	uint8_t *base_opt_backup;
 	size_t base_opt_rr_sz;
 
+	if (netreq->response && (netreq->response < netreq->wire_data ||
+	    netreq->response > netreq->wire_data+ netreq->wire_data_sz))
+		GETDNS_NULL_FREE(netreq->owner->my_mf, netreq->response);
 	if (!netreq->query) {
 		(void) netreq_reset(netreq);
 		return;

@@ -1,3 +1,7 @@
+* 2020-0?-??: Version 1.6.1-rc.1
+  * Issue #466: Memory leak with retrying queries (for examples
+    with search paths). Thanks doublez13.
+
 * 2020-02-28: Version 1.6.0
   * Issues #457, #458, #461: New symbols with libnettle >= 3.4.
     Thanks hanvinke & kometchtech for testing & reporting.
