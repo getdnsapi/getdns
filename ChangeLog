@@ -1,4 +1,8 @@
 * 2020-0?-??: Version 1.6.1-rc.1
+  * Make TLS Handshake timeout max 4/5th of timeout for the query,
+    just like connection setup timeout was, so fallback transport
+    have a chance too when TCP connection setup is less well
+    detectable (as with TCP_FASTOPEN on MacOS).
   * Issue #466: Memory leak with retrying queries (for examples
     with search paths). Thanks doublez13.
 

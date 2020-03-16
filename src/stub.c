@@ -984,7 +984,7 @@ tls_do_handshake(getdns_upstream *upstream)
 	int r;
 	while ((r = _getdns_tls_connection_do_handshake(upstream->tls_obj)) != GETDNS_RETURN_GOOD)
 	{
-		uint64_t timeout_tls = _getdns_ms_until_expiry(upstream->expires);
+		uint64_t timeout_tls = _getdns_ms_until_expiry(upstream->expires)/5*4;
 
 		if (timeout_tls < MIN_TLS_HS_TIMEOUT)
 			timeout_tls = MIN_TLS_HS_TIMEOUT;
