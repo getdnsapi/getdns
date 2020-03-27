@@ -892,6 +892,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 	struct getdns_bindata *bindata_item;
 	uint32_t int_item;
 	const char *strval;
+	char abuf[80];
 
 	if (list == NULL)
 		return 0;
@@ -933,7 +934,21 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 			if (getdns_list_get_bindata(list, i, &bindata_item) !=
 			    GETDNS_RETURN_GOOD)
 				return -1;
-			if (getdns_pp_bindata(
+
+			if (for_literals && (bindata_item->size == 4  ||
+			                     bindata_item->size == 16 )) {
+
+				if (gldns_buffer_printf(buf, 
+				    (json ? "\"%s\"" : " <bindata for %s>"),
+				    inet_ntop(( bindata_item->size == 4
+				              ? AF_INET : AF_INET6)
+				              , bindata_item->data
+				              , abuf
+				              , sizeof(abuf) - 1
+				              )) < 0)
+					return -1;
+
+			} else if (getdns_pp_bindata(
 			    buf, bindata_item, 0, json) < 0)
 				return -1;
 			break;
@@ -1164,7 +1179,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 				              , 40
 				              )) < 0)
 					return -1;
-	
+
 			} else if (!json &&
 			    (strcmp(item->node.key, "pin-sha256") == 0 ||
 			     strcmp(item->node.key, "value") == 0) &&
@@ -1199,8 +1214,9 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (getdns_pp_list(buf, indent, item->i.data.list, 
 			    (strcmp(item->node.key, "namespaces") == 0 ||
 			     strcmp(item->node.key, "dns_transport_list") == 0
-			     || strcmp(item->node.key, "bad_dns") == 0),
-			    json) < 0)
+			     || strcmp(item->node.key, "bad_dns") == 0 ||
+			     strcmp(item->node.key, "dns_root_servers") == 0
+			    ), json) < 0)
 				return -1;
 			break;
 

@@ -3896,6 +3896,14 @@ _get_context_settings(const getdns_context* context)
 		getdns_list_destroy(list);
 		goto error;
 	}
+	if (getdns_context_get_dns_root_servers(context, &list))
+		; /* pass */
+
+	else if (list && _getdns_dict_set_this_list(
+	    result, "dns_root_servers", list)) {
+		getdns_list_destroy(list);
+		goto error;
+	}
 	if (context->dns_transport_count > 0) {
 		/* create a namespace list */
 		if (!(list = getdns_list_create_with_context(context)))
