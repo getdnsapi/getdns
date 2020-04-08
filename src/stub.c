@@ -210,62 +210,73 @@ attach_edns_cookie(getdns_network_req *req)
  *     and 1 on FORMERR
  */
 static int
-match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
+match_edns_opt_rr(uint16_t code, getdns_network_req *netreq,
                   const uint8_t **position, uint16_t *option_len)
 {
-	_getdns_rr_iter rr_iter_storage, *rr_iter;
-	const uint8_t *pos;
+	const uint8_t *pos, *rdata_end;
 	uint16_t rdata_len, opt_code = 0, opt_len = 0;
+	static uint8_t *NO_OPT_RR = (uint8_t *)"\x00\x00";
 
 	/* Search for the OPT RR (if any) */
-	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
-	                                        , response, response_len)
-	    ; rr_iter
-	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+	if (!netreq->response_opt) {
+		_getdns_rr_iter rr_iter_storage, *rr_iter;
+		for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage
+		              , netreq->response, netreq->response_len)
+		    ; rr_iter
+		    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
 
-		if (_getdns_rr_iter_section(rr_iter) != SECTION_ADDITIONAL)
-			continue;
+			if (_getdns_rr_iter_section(rr_iter) != SECTION_ADDITIONAL)
+				continue;
 
-		if (gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_OPT)
-			continue;
-
-		break;
-	}
-	if (! rr_iter)
-		return 0; /* No OPT, no cookie */
-
-	pos = rr_iter->rr_type + 8;
+			if (gldns_read_uint16(rr_iter->rr_type) != GETDNS_RRTYPE_OPT)
+				continue;
+			break;
+		}
+		if (! rr_iter) {
+			netreq->response_opt = NO_OPT_RR;
+			return 0; /* No OPT, no options cookie */
+		}
+		pos = netreq->response_opt = rr_iter->rr_type + 8;
 
 #if defined(STUB_DEBUG) && STUB_DEBUG
-	char str_spc[8192], *str = str_spc;
-	size_t str_len = sizeof(str_spc);
-	uint8_t *data = (uint8_t *)rr_iter->pos;
-	size_t data_len = rr_iter->nxt - rr_iter->pos;
-	(void) gldns_wire2str_rr_scan(
-	    &data, &data_len, &str, &str_len, (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt, NULL);
-	DEBUG_STUB("%s %-35s: OPT RR: %s",
-	           STUB_DEBUG_READ, __FUNC__, str_spc);
+		char str_spc[8192], *str = str_spc;
+		size_t str_len = sizeof(str_spc);
+		uint8_t *data = (uint8_t *)rr_iter->pos;
+		size_t data_len = rr_iter->nxt - rr_iter->pos;
+		(void) gldns_wire2str_rr_scan(&data, &data_len, &str, &str_len,
+		    (uint8_t *)rr_iter->pkt, rr_iter->pkt_end - rr_iter->pkt,
+		    NULL);
+		DEBUG_STUB("%s %-35s: OPT RR: %s",
+			   STUB_DEBUG_READ, __FUNC__, str_spc);
 #endif
+		/* Check limits only the first time*/
+		if (pos + 2 > rr_iter->nxt
+		||  pos + 2 + gldns_read_uint16(pos) > rr_iter->nxt) {
+			netreq->response_opt = NO_OPT_RR;
+			return 1; /* FORMERR */
+		}
+	} else if (netreq->response_opt == NO_OPT_RR)
+		return 0;  /* No OPT, no options */
+	else
+		/* Reuse earlier found option */
+		pos = netreq->response_opt;;
 
-	/* OPT found, now search for the specified option */
-	if (pos + 2 > rr_iter->nxt)
-		return 1; /* FORMERR */
+	rdata_len = gldns_read_uint16(pos);
+	pos += 2;
+	rdata_end = pos + rdata_len;
 
-	rdata_len = gldns_read_uint16(pos); pos += 2;
-	if (pos + rdata_len > rr_iter->nxt)
-		return 1; /* FORMERR */
-
-	while (pos < rr_iter->nxt) {
+	while (pos < rdata_end) {
 		opt_code = gldns_read_uint16(pos); pos += 2;
 		opt_len  = gldns_read_uint16(pos); pos += 2;
-		if (pos + opt_len > rr_iter->nxt)
+		if (pos + opt_len > rdata_end)
 			return 1; /* FORMERR */
 		if (opt_code == code)
 			break;
 		pos += opt_len; /* Skip unknown options */
 	}
-	if (pos >= rr_iter->nxt || opt_code != code)
-		return 0; /* Everything OK, just no cookie found. */
+	if (pos >= rdata_end || opt_code != code)
+		return 0; /* Everything OK,
+		           * the searched for option was just not found. */
 	*position = pos;
 	*option_len = opt_len;
 	return 2;
@@ -274,12 +285,12 @@ match_edns_opt_rr(uint16_t code, uint8_t *response, size_t response_len,
 /* TODO: Test combinations of EDNS0 options*/
 static int
 match_and_process_server_cookie(
-    getdns_upstream *upstream, uint8_t *response, size_t response_len) 
+    getdns_upstream *upstream, getdns_network_req *netreq) 
 {
 	const uint8_t *position = NULL;
 	uint16_t option_len = 0;
-	int found = match_edns_opt_rr(EDNS_COOKIE_OPCODE, response, 
-	                              response_len, &position, &option_len);
+	int found = match_edns_opt_rr(EDNS_COOKIE_OPCODE, netreq, 
+	                              &position, &option_len);
 	if (found != 2)
 		return found;
 
@@ -309,14 +320,12 @@ match_and_process_server_cookie(
 }
 
 static void
-process_keepalive(
-    getdns_upstream *upstream, getdns_network_req *netreq, 
-    uint8_t *response, size_t response_len) 
+process_keepalive( getdns_upstream *upstream, getdns_network_req *netreq)
 {
 	const uint8_t *position = NULL;
 	uint16_t option_len = 0;
-	int found = match_edns_opt_rr(GLDNS_EDNS_KEEPALIVE, response, 
-	                              response_len, &position, &option_len);
+	int found = match_edns_opt_rr(GLDNS_EDNS_KEEPALIVE, netreq, 
+	                              &position, &option_len);
 	if (found != 2 || option_len != 2) {
 		if (netreq->keepalive_sent == 1) {
 			/* For TCP if no keepalive sent back, then we must use 0 idle timeout
@@ -1342,12 +1351,14 @@ _getdns_get_time_as_uintt64() {
 /**************************/
 
 
+static void stub_udp_write_cb(void *userarg);
 static void
 stub_udp_read_cb(void *userarg)
 {
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_upstream *upstream = netreq->upstream;
+	int prev_server_cookie = 0;
 	ssize_t       read;
 	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_READ, 
 	             __FUNC__, (void*)netreq);
@@ -1387,14 +1398,16 @@ stub_udp_read_cb(void *userarg)
 	if (GLDNS_ID_WIRE(netreq->response) != GLDNS_ID_WIRE(netreq->query))
 		return; /* Cache poisoning attempt ;) */
 
-	if (netreq->owner->edns_cookies && match_and_process_server_cookie(
-	    upstream, netreq->response, read))
-		return; /* Client cookie didn't match? */
-
+	if (netreq->owner->edns_cookies) {
+		prev_server_cookie = upstream->has_server_cookie;
+		netreq->response_len = read;
+		if (match_and_process_server_cookie(upstream, netreq)) {
+			netreq->response_len = 0; /* 0 means error */
+			return; /* Client cookie didn't match? */
+		}
+		netreq->response_len = 0; /* 0 means error */
+	}
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
-
-	_getdns_closesocket(netreq->fd);
-	netreq->fd = -1;
 	while (GLDNS_TC_WIRE(netreq->response)) {
 		DEBUG_STUB("%s %-35s: MSG: %p TC bit set in response \n", STUB_DEBUG_READ, 
 		             __FUNC__, (void*)netreq);
@@ -1405,6 +1418,9 @@ stub_udp_read_cb(void *userarg)
 		if (next_transport != GETDNS_TRANSPORT_TCP &&
 		    next_transport != GETDNS_TRANSPORT_TLS)
 			break;
+
+		_getdns_closesocket(netreq->fd);
+		netreq->fd = -1;
 		/* For now, special case where fallback should be on the same upstream*/
 		if ((netreq->fd = upstream_connect(upstream, next_transport,
 		                                   dnsreq)) == -1)
@@ -1414,10 +1430,27 @@ stub_udp_read_cb(void *userarg)
 		    _getdns_ms_until_expiry(dnsreq->expires),
 		    getdns_eventloop_event_init(&netreq->event,
 		    netreq, NULL, NULL, stub_timeout_cb));
-
 		return;
 	}
 	netreq->response_len = read;
+	if (netreq->owner->edns_cookies
+	&&  !prev_server_cookie
+	&&  upstream->has_server_cookie  /* newly learned server cookie */
+	&&  netreq->response_opt /* actually: assert(netreq->response_opt) */
+	&& (netreq->response_opt[-4] << 4 | GLDNS_RCODE_WIRE(netreq->response))
+	    == GETDNS_RCODE_BADCOOKIE
+	&&  netreq->fd >= 0) {
+
+		/* Retry over UDP with the newly learned Cookie */
+		GETDNS_SCHEDULE_EVENT(dnsreq->loop, netreq->fd,
+		    _getdns_ms_until_expiry(dnsreq->expires),
+		    getdns_eventloop_event_init(&netreq->event, netreq,
+		    NULL, stub_udp_write_cb, stub_timeout_cb));
+		return;
+	}
+	_getdns_closesocket(netreq->fd);
+	netreq->fd = -1;
+
 	if (!dnsreq->context->round_robin_upstreams)
 		dnsreq->upstreams->current_udp = 0;
 	else {
@@ -1428,7 +1461,7 @@ stub_udp_read_cb(void *userarg)
 	netreq->debug_end_time = _getdns_get_time_as_uintt64();
 	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
 	upstream->udp_responses++;
-    upstream->back_off = 1;
+	upstream->back_off = 1;
 	if (upstream->udp_responses == 1 || 
 	    upstream->udp_responses % 100 == 0)
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
@@ -1584,16 +1617,12 @@ upstream_read_cb(void *userarg)
 		upstream->tcp.read_buf = NULL;
 		upstream->responses_received++;
 		
-		/* !THIS CODE NEEDS TESTING! */
 		if (netreq->owner->edns_cookies &&
-		    match_and_process_server_cookie(
-		    netreq->upstream, upstream->tcp.read_buf,
-		    upstream->tcp.read_pos - upstream->tcp.read_buf))
+		    match_and_process_server_cookie(netreq->upstream, netreq))
 			return; /* Client cookie didn't match (or FORMERR) */
 
 		if (netreq->owner->context->idle_timeout != 0)
-		     process_keepalive(netreq->upstream, netreq, netreq->response,
-		                       netreq->response_len);
+		     process_keepalive(netreq->upstream, netreq);
 
 		netreq->debug_end_time = _getdns_get_time_as_uintt64();
 		/* This also reschedules events for the upstream*/

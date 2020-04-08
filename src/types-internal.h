@@ -267,6 +267,7 @@ typedef struct getdns_network_req
 	size_t   base_query_option_sz;
 	size_t   response_len;
 	uint8_t *response;
+	const uint8_t *response_opt; /* offset of OPT RR in response */
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
 	
