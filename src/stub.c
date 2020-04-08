@@ -1358,7 +1358,6 @@ stub_udp_read_cb(void *userarg)
 	getdns_network_req *netreq = (getdns_network_req *)userarg;
 	getdns_dns_req *dnsreq = netreq->owner;
 	getdns_upstream *upstream = netreq->upstream;
-	int prev_server_cookie = 0;
 	ssize_t       read;
 	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_READ, 
 	             __FUNC__, (void*)netreq);
@@ -1399,7 +1398,6 @@ stub_udp_read_cb(void *userarg)
 		return; /* Cache poisoning attempt ;) */
 
 	if (netreq->owner->edns_cookies) {
-		prev_server_cookie = upstream->has_server_cookie;
 		netreq->response_len = read;
 		if (match_and_process_server_cookie(upstream, netreq)) {
 			netreq->response_len = 0; /* 0 means error */
@@ -1434,14 +1432,14 @@ stub_udp_read_cb(void *userarg)
 	}
 	netreq->response_len = read;
 	if (netreq->owner->edns_cookies
-	&&  !prev_server_cookie
-	&&  upstream->has_server_cookie  /* newly learned server cookie */
+	&&  !netreq->badcookie_retry
 	&&  netreq->response_opt /* actually: assert(netreq->response_opt) */
 	&& (netreq->response_opt[-4] << 4 | GLDNS_RCODE_WIRE(netreq->response))
 	    == GETDNS_RCODE_BADCOOKIE
 	&&  netreq->fd >= 0) {
 
 		/* Retry over UDP with the newly learned Cookie */
+		netreq->badcookie_retry = 1;
 		GETDNS_SCHEDULE_EVENT(dnsreq->loop, netreq->fd,
 		    _getdns_ms_until_expiry(dnsreq->expires),
 		    getdns_eventloop_event_init(&netreq->event, netreq,
