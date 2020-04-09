@@ -210,6 +210,8 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	net_req->keepalive_sent = 0;
 	net_req->badcookie_retry = 0;
+	net_req->cookie_sent = 0;
+	memset(&net_req->client_cookie, 0, sizeof(net_req->client_cookie));
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;

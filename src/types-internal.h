@@ -247,6 +247,8 @@ typedef struct getdns_network_req
 	unsigned                debug_udp      : 1;
 	unsigned                keepalive_sent : 1;
 	unsigned                badcookie_retry: 1;
+	unsigned                cookie_sent    : 1;
+	uint8_t                 client_cookie[8];
 
 	/* When more space is needed for the wire_data response than is
 	 * available in wire_data[], it will be allocated separately.

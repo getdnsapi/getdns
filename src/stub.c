@@ -33,6 +33,10 @@
 
 #include "config.h"
 
+#ifndef USE_WINSOCK
+#include <netdb.h>
+#endif
+
 /* Intercept and do not sent out COM DS queries with TLS
  * For debugging purposes only. Never commit with this turned on.
  */
@@ -52,6 +56,7 @@
 #include "platform.h"
 #include "general.h"
 #include "pubkey-pinning.h"
+
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -73,10 +78,6 @@
 /* Arbritray number of message for EDNS keepalive resend*/
 #define EDNS_KEEPALIVE_RESEND 5
 
-static time_t secret_rollover_time = 0;
-static uint32_t secret = 0;
-static uint32_t prev_secret = 0;
-
 static void upstream_read_cb(void *userarg);
 static void upstream_write_cb(void *userarg);
 static void upstream_idle_timeout_cb(void *userarg);
@@ -96,47 +97,6 @@ uint64_t _getdns_get_time_as_uintt64();
 /*****************************/
 /* General utility functions */
 /*****************************/
-
-static void
-rollover_secret()
-{
-	time_t now = 0;
-
-	/* Create and roll server secrets */
-	if (time(&now) <= secret_rollover_time)
-		return;
-
-	/* Remember previous secret, in to keep answering on rollover
-	 * boundary with old cookie.
-	 */
-	prev_secret = secret;
-	secret = arc4random();
-
-	/* Next rollover over EDNS_COOKIE_ROLLOVER_TIME with 30% jitter,
-	 * I.e. some offset + or - 15% of the future point in time.
-	 */
-	secret_rollover_time = now + (EDNS_COOKIE_ROLLOVER_TIME / 20 * 17)
-		 + arc4random_uniform(EDNS_COOKIE_ROLLOVER_TIME / 10 * 3);
-}
-
-static void
-calc_new_cookie(getdns_upstream *upstream, uint8_t *cookie)
-{
-        unsigned char md_value[GETDNS_TLS_MAX_DIGEST_LENGTH];
-        size_t md_len;
-        size_t i;
-        sa_family_t af = upstream->addr.ss_family;
-        void *sa_addr = ((struct sockaddr*)&upstream->addr)->sa_data;
-	size_t addr_len = ( af == AF_INET6 ? sizeof(struct sockaddr_in6)
-	                  : af == AF_INET  ? sizeof(struct sockaddr_in)
-	                  : 0 ) - sizeof(sa_family_t);
-
-	_getdns_tls_cookie_sha256(secret, sa_addr, addr_len, md_value, &md_len);
-
-        (void) memset(cookie, 0, 8);
-        for (i = 0; i < md_len; i++)
-                cookie[i % 8] ^= md_value[i];
-}
 
 static getdns_return_t
 attach_edns_client_subnet_private(getdns_network_req *req)
@@ -169,46 +129,59 @@ static getdns_return_t
 attach_edns_cookie(getdns_network_req *req)
 {
 	getdns_upstream *upstream = req->upstream;
-	uint16_t sz;
-	void* val;
-	uint8_t buf[8 + 32]; /* server cookies can be no larger than 32 bytes */
-	rollover_secret();
 
-	if (!upstream->has_client_cookie) {
-		calc_new_cookie(upstream, upstream->client_cookie);
-		upstream->secret = secret;
-		upstream->has_client_cookie = 1;
+	if (upstream->server_cookie_len) {
+		if (!req->badcookie_retry && bind(req->fd, (struct sockaddr *)
+		    &upstream->src_addr, upstream->src_addr_len)) {
 
-		sz = 8;
-		val = upstream->client_cookie;
-	} else if (upstream->secret != secret) {
-		memcpy( upstream->prev_client_cookie
-		      , upstream->client_cookie, 8);
-		upstream->has_prev_client_cookie = 1;
-		calc_new_cookie(upstream, upstream->client_cookie);
-		upstream->secret = secret;
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
+			    "%-40s : Upstream   : %s with source address: %s. "
+			    "Renewing Client Cookie.\n", upstream->addr_str,
+			    strerror(errno), upstream->src_addr_str);
 
-		sz = 8;
-		val = upstream->client_cookie;
-	} else if (!upstream->has_server_cookie) {
-		sz = 8;
-		val = upstream->client_cookie;
-	} else {
-		sz = 8 + upstream->server_cookie_len;
-		memcpy(buf, upstream->client_cookie, 8);
-		memcpy(buf+8, upstream->server_cookie, upstream->server_cookie_len);
-		val = buf;
+			upstream->server_cookie_len = 0;
+			upstream->src_addr_checked = 0;
+		} else
+			return _getdns_network_req_add_upstream_option(
+			    req, EDNS_COOKIE_OPCODE,
+			    upstream->server_cookie_len,
+			    upstream->server_cookie);
 	}
-	return _getdns_network_req_add_upstream_option(req, EDNS_COOKIE_OPCODE, sz, val);
+	if (_getdns_get_now_ms() - upstream->src_addr_checked < 3600000) {
+		/* This upstream has been registered to *not* support cookies.
+		 * We will recheck one hour after this was registered.
+		 */
+		return 0;
+	}
+	/* Try to get a new server cookie for this upstream
+	 * Explicitly connect on UDP only.
+	 */
+	if (req->fd >= 0 && connect(req->fd,
+	    (struct sockaddr*)&upstream->addr, upstream->addr_len)) {
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : Could not connect(): %s. "
+		    "Required for privacy aware Cookies. Cookies disabled.\n",
+		     upstream->addr_str, strerror(errno));
 
+		/* Don't recheck for another hour */
+		upstream->src_addr_checked = _getdns_get_now_ms();
+		return 0;
+	}
+	/* Create new client cookie */
+	req->cookie_sent = 1;
+	gldns_write_uint32(req->client_cookie, arc4random());
+	gldns_write_uint32(req->client_cookie + 4, arc4random());
+	return _getdns_network_req_add_upstream_option(
+	    req, EDNS_COOKIE_OPCODE, 8, req->client_cookie);
 }
 
 /* Will find a matching OPT RR, but leaves the caller to validate it
- *
- * Returns 2 when found
- *         0 when not found
- *     and 1 on FORMERR
  */
+#define MATCH_OPT_FOUND     2
+#define MATCH_OPT_NOT_FOUND 0
+#define MATCH_OPT_ERROR     1 
 static int
 match_edns_opt_rr(uint16_t code, getdns_network_req *netreq,
                   const uint8_t **position, uint16_t *option_len)
@@ -234,7 +207,7 @@ match_edns_opt_rr(uint16_t code, getdns_network_req *netreq,
 		}
 		if (! rr_iter) {
 			netreq->response_opt = NO_OPT_RR;
-			return 0; /* No OPT, no options cookie */
+			return MATCH_OPT_NOT_FOUND;
 		}
 		pos = netreq->response_opt = rr_iter->rr_type + 8;
 
@@ -253,10 +226,10 @@ match_edns_opt_rr(uint16_t code, getdns_network_req *netreq,
 		if (pos + 2 > rr_iter->nxt
 		||  pos + 2 + gldns_read_uint16(pos) > rr_iter->nxt) {
 			netreq->response_opt = NO_OPT_RR;
-			return 1; /* FORMERR */
+			return MATCH_OPT_ERROR;
 		}
 	} else if (netreq->response_opt == NO_OPT_RR)
-		return 0;  /* No OPT, no options */
+		return MATCH_OPT_NOT_FOUND;
 	else
 		/* Reuse earlier found option */
 		pos = netreq->response_opt;;
@@ -269,17 +242,17 @@ match_edns_opt_rr(uint16_t code, getdns_network_req *netreq,
 		opt_code = gldns_read_uint16(pos); pos += 2;
 		opt_len  = gldns_read_uint16(pos); pos += 2;
 		if (pos + opt_len > rdata_end)
-			return 1; /* FORMERR */
+			return MATCH_OPT_ERROR;
 		if (opt_code == code)
 			break;
 		pos += opt_len; /* Skip unknown options */
 	}
 	if (pos >= rdata_end || opt_code != code)
-		return 0; /* Everything OK,
-		           * the searched for option was just not found. */
+		return MATCH_OPT_NOT_FOUND;
+
 	*position = pos;
 	*option_len = opt_len;
-	return 2;
+	return MATCH_OPT_FOUND;
 }
 
 /* TODO: Test combinations of EDNS0 options*/
@@ -289,33 +262,126 @@ match_and_process_server_cookie(
 {
 	const uint8_t *position = NULL;
 	uint16_t option_len = 0;
+	int gai_r;
 	int found = match_edns_opt_rr(EDNS_COOKIE_OPCODE, netreq, 
 	                              &position, &option_len);
-	if (found != 2)
-		return found;
+	if (found == MATCH_OPT_ERROR) {
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : Error getting Cookie option.\n",
+		    upstream->addr_str);
 
-	if (option_len < 16 || option_len > 40)
-		return 1; /* FORMERR */
-
-	if (!upstream->has_client_cookie)
-		return 1; /* Cookie reply, but we didn't sent one */
-
-	if (memcmp(upstream->client_cookie, position, 8) != 0) {
-		if (!upstream->has_prev_client_cookie)
-			return 1; /* Cookie didn't match */
-		if (memcmp(upstream->prev_client_cookie, position, 8) != 0)
-			return 1; /* Previous cookie didn't match either */
-
-		upstream->has_server_cookie = 0;
-		return 0; /* Don't store server cookie, because it
-		           * is for our previous client cookie
-			   */
+		return 1; /* Discard and wait for better response */
 	}
-	position += 8;
-	option_len -= 8;
-	upstream->has_server_cookie = 1;
-	upstream->server_cookie_len = option_len;
-	(void) memcpy(upstream->server_cookie, position, option_len);
+	else if (found == MATCH_OPT_NOT_FOUND) {
+		/* Option not found, server does not support cookies */
+		if (upstream->server_cookie_len > 8) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR,
+			    "%-40s : Upstream   : Server did not return "
+			    " DNS Cookie. Response discarded.\n",
+			    upstream->addr_str);
+
+			return 1; /* Discard response */
+
+		} else if (netreq->cookie_sent) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_INFO,
+			    "%-40s : Upstream   : Does not support DNS Cookies"
+			    ". Retrying in one hour.\n", upstream->addr_str);
+
+			upstream->src_addr_checked = _getdns_get_now_ms();
+		}
+		return 0; /* Use response */
+	}
+	assert(found == MATCH_OPT_FOUND);
+		
+	if (option_len < 16 || option_len > 40) {
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : "
+		    "Unsupported Server Cookie size: %d.\n",
+		    upstream->addr_str, (int)option_len);
+
+		return 1; /* Discard and wait for better response */
+	}
+
+	if (upstream->server_cookie_len > 8) {
+		if (memcmp(upstream->server_cookie, position, 8)) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+			    "%-40s : Upstream   : DNS Cookie did not match.\n",
+			     upstream->addr_str);
+
+			return 1; /* Discard and wait for better response */
+		}
+		/* Update server cookie */
+		upstream->server_cookie_len = option_len;
+		(void) memcpy(upstream->server_cookie, position, option_len);
+		return 0; /* Use response */
+
+	} else if (!netreq->cookie_sent) {
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : "
+		    "DNS Cookie received but none sent.\n",upstream->addr_str);
+
+		return 1; /* Discard and wait for better response */
+	}
+	if (memcmp(netreq->client_cookie, position, 8)) {
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : DNS Cookie did not match.\n",
+		     upstream->addr_str);
+
+		return 1; /* Discard and wait for better response */
+	}
+	/* A new client cookie matched, store server cookie but only if we
+	 * can get the source IP address.
+	 */
+	upstream->src_addr_checked = _getdns_get_now_ms();
+
+	upstream->src_addr_len = sizeof(upstream->src_addr);
+	if (getsockname(netreq->fd,(struct sockaddr*)
+	    &upstream->src_addr, &upstream->src_addr_len)) {
+
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : Could not get source address: %s. "
+		    "Privacy aware DNS Cookies not supported.\n",
+		    upstream->addr_str, strerror(errno));
+
+	} else if ((gai_r = getnameinfo((struct sockaddr *)
+	    &upstream->src_addr, upstream->src_addr_len,
+	    upstream->src_addr_str, sizeof(upstream->src_addr_str),
+	    NULL, 0, NI_NUMERICHOST))) {
+
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : Could not print source address: %s. "
+		    "Privacy aware DNS Cookies not supported.\n",
+		    upstream->addr_str, gai_strerror(gai_r));
+	} else {
+		switch (upstream->src_addr.ss_family) {
+		case AF_INET:
+			((struct sockaddr_in *)&upstream->src_addr)->sin_port = 0;
+			break;
+		case AF_INET6:
+			((struct sockaddr_in6*)&upstream->src_addr)->sin6_port = 0;
+			break;
+		default:
+			return 0;
+		}
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+		    "%-40s : Upstream   : "
+		    "Registering new Server Cookie for source address: %s.\n",
+		    upstream->addr_str, upstream->src_addr_str);
+
+		upstream->server_cookie_len = option_len;
+		(void) memcpy(upstream->server_cookie, position, option_len);
+		return 0;
+	}
 	return 0;
 }
 
