@@ -953,9 +953,12 @@ upstream_init(getdns_upstream *upstream,
 	(void) getdns_eventloop_event_init(
 	    &upstream->finished_event, upstream, NULL, NULL, NULL);
 
-	upstream->has_client_cookie = 0;
-	upstream->has_prev_client_cookie = 0;
-	upstream->has_server_cookie = 0;
+	upstream->server_cookie_len = 0;
+	(void) memset(&upstream->server_cookie, 0,
+	        sizeof(upstream->server_cookie));
+	upstream->src_addr_checked = 0;
+	(void) memset(&upstream->src_addr, 0, sizeof(upstream->src_addr));
+	upstream->src_addr_len = 0;
 
 	upstream->tsig_alg  = GETDNS_NO_TSIG;
 	upstream->tsig_dname_len = 0;

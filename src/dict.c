@@ -1036,21 +1036,21 @@ static int
 _getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
 {
 	static const char *rcodes[] = {
-		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR" ,
-		" GETDNS_RCODE_SERVFAIL", " GETDNS_RCODE_NXDOMAIN",
-		" GETDNS_RCODE_NOTIMP"  , " GETDNS_RCODE_REFUSED" ,
-		" GETDNS_RCODE_YXDOMAIN", " GETDNS_RCODE_YXRRSET" ,
-		" GETDNS_RCODE_NXRRSET" , " GETDNS_RCODE_NOTAUTH" ,
+		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR"  ,
+		" GETDNS_RCODE_SERVFAIL", " GETDNS_RCODE_NXDOMAIN" ,
+		" GETDNS_RCODE_NOTIMP"  , " GETDNS_RCODE_REFUSED"  ,
+		" GETDNS_RCODE_YXDOMAIN", " GETDNS_RCODE_YXRRSET"  ,
+		" GETDNS_RCODE_NXRRSET" , " GETDNS_RCODE_NOTAUTH"  ,
 		" GETDNS_RCODE_NOTZONE" ,
-		" GETDNS_RCODE_BADSIG"  , " GETDNS_RCODE_BADKEY"  ,
-		" GETDNS_RCODE_BADTIME" , " GETDNS_RCODE_BADMODE" ,
-		" GETDNS_RCODE_BADNAME" , " GETDNS_RCODE_BADALG"  ,
-		" GETDNS_RCODE_BADTRUNC"
+		" GETDNS_RCODE_BADSIG"  , " GETDNS_RCODE_BADKEY"   ,
+		" GETDNS_RCODE_BADTIME" , " GETDNS_RCODE_BADMODE"  ,
+		" GETDNS_RCODE_BADNAME" , " GETDNS_RCODE_BADALG"   ,
+		" GETDNS_RCODE_BADTRUNC", " GETDNS_RCODE_BADCOOKIE"
 	};
 	if (rcode <= 10)
 		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode]);
-	else if (rcode >= 16 && rcode <= 22)
-		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode-6]);
+	else if (rcode >= 16 && rcode <= 23)
+		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode-5]);
 	else
 		return 0;
 	return 1;
@@ -1154,6 +1154,11 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			    _getdns_print_opcode(buf, item->i.data.n))
 				break;
 			if (!json && strcmp(item->node.key, "rcode") == 0 &&
+			    _getdns_print_rcode(buf, item->i.data.n))
+				break;
+			if (!json &&
+			    strcmp(item->node.key, "extended_rcode") == 0 &&
+			    item->i.data.n >= 16 &&
 			    _getdns_print_rcode(buf, item->i.data.n))
 				break;
 			if (gldns_buffer_printf(
