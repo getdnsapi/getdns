@@ -530,7 +530,7 @@ set(STRPTIME_TEST_SOURCE "\n
   res = strptime(\"20070207111842\", \"%Y%m%d%H%M%S\", &tm);\n
   if (!res) return 1; return 0; }")
 
-if (HAVE_STRPTIME)
+if (HAVE_STRPTIME AND NOT CMAKE_CROSSCOMPILING)
   check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
 endif ()
 
