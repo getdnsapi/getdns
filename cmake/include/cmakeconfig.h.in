@@ -58,6 +58,9 @@
 #cmakedefine HAVE_OPENSSL_RAND_H        1
 #cmakedefine HAVE_OPENSSL_CONF_H        1
 #cmakedefine HAVE_OPENSSL_ENGINE_H      1
+#cmakedefine HAVE_OPENSSL_BN_H          1
+#cmakedefine HAVE_OPENSSL_DSA_H         1
+#cmakedefine HAVE_OPENSSL_RSA_H         1
 
 #cmakedefine HAVE_DSA_SIG_SET0		1
 #cmakedefine HAVE_DSA_SET0_PQG		1

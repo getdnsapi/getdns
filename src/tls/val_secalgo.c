@@ -72,6 +72,10 @@
 #include <openssl/engine.h>
 #endif
 
+#if defined(HAVE_OPENSSL_DSA_H) && defined(USE_DSA)
+#include <openssl/dsa.h>
+#endif
+
 /** fake DSA support for unit tests */
 int fake_dsa = 0;
 /** fake SHA1 support for unit tests */
