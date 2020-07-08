@@ -559,6 +559,8 @@ else ()
   endif ()
 endif ()
 
+check_symbol_exists(TCP_USER_TIMEOUT "sys/socket.h;netinet/tcp.h" HAVE_DECL_TCP_USER_TIMEOUT)
+
 # Main library
 add_library(getdns_objects OBJECT
   src/anchor.c

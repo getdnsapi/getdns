@@ -448,8 +448,27 @@ getdns_sock_nonblock(int sockfd)
 #endif
 }
 
+/** best effort to set TCP send timeout */
+static void
+getdns_sock_tcp_send_timeout(getdns_upstream *upstream, int sockfd,
+                             int send_timeout)
+{
+#if defined(HAVE_DECL_TCP_USER_TIMEOUT)
+	unsigned int val = send_timeout;
+	if (setsockopt(sockfd, IPPROTO_TCP, TCP_USER_TIMEOUT,
+	    &val, sizeof(val)) != 0) {
+		_getdns_upstream_log(upstream,
+		    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_WARNING,
+		    "%-40s : Upstream   : "
+		    "Could not enable TCP send timeout\n",
+		     upstream->addr_str);
+	}
+#endif
+}
+
 static int
-tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport) 
+tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
+            int send_timeout)
 {
 #if defined(TCP_FASTOPEN) || defined(TCP_FASTOPEN_CONNECT)
 # ifdef USE_WINSOCK
@@ -468,6 +487,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport)
 		return -1;
 
 	getdns_sock_nonblock(fd);
+	getdns_sock_tcp_send_timeout(upstream, fd, send_timeout);
 #ifdef USE_OSX_TCP_FASTOPEN
 	sa_endpoints_t endpoints;
 	endpoints.sae_srcif = 0;
@@ -2148,7 +2168,8 @@ upstream_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		/* Use existing if available*/
 		if (upstream->fd != -1)
 			return upstream->fd;
-		fd = tcp_connect(upstream, transport);
+		fd = tcp_connect(upstream, transport,
+				 dnsreq->context->tcp_send_timeout);
 		if (fd == -1) {
 			upstream_failed(upstream, 1);
 			return -1;
