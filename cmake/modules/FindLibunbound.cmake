@@ -91,7 +91,7 @@ else()
   endif()
   
   list(APPEND LIBUNBOUND_LIBRARIES "${LIBUNBOUND_LIBRARY}")
-endif
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Libunbound
