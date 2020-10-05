@@ -134,24 +134,25 @@ static void
 getdns_libuv_cb(uv_poll_t *poll, int status, int events)
 {
 	getdns_eventloop_event *el_ev = (getdns_eventloop_event *)poll->data;
-	(void)status;
 
-	if (events & UV_READABLE) {
-		assert(el_ev->read_cb);
-		DEBUG_UV("enter libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
-				, el_ev, el_ev->ev);
-		el_ev->read_cb(el_ev->userarg);
-		DEBUG_UV("exit  libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
-				, el_ev, el_ev->ev);
-	} else if (events & UV_WRITABLE) {
-		assert(el_ev->write_cb);
-		DEBUG_UV("enter libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
-				, el_ev, el_ev->ev);
-		el_ev->write_cb(el_ev->userarg);
-		DEBUG_UV("exit  libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
-				, el_ev, el_ev->ev);
-	} else {
-		assert(ASSERT_UNREACHABLE);
+	if (status == 0) {
+		if (events & UV_READABLE) {
+			assert(el_ev->read_cb);
+			DEBUG_UV("enter libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
+					, el_ev, el_ev->ev);
+			el_ev->read_cb(el_ev->userarg);
+			DEBUG_UV("exit  libuv_read_cb(el_ev = %p, el_ev->ev = %p)\n"
+					, el_ev, el_ev->ev);
+		} else if (events & UV_WRITABLE) {
+			assert(el_ev->write_cb);
+			DEBUG_UV("enter libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
+					, el_ev, el_ev->ev);
+			el_ev->write_cb(el_ev->userarg);
+			DEBUG_UV("exit  libuv_write_cb(el_ev = %p, el_ev->ev = %p)\n"
+					, el_ev, el_ev->ev);
+		} else {
+			assert(ASSERT_UNREACHABLE);
+		}
 	}
 }
 
