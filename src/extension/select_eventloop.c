@@ -244,7 +244,7 @@ select_eventloop_run_once(getdns_eventloop *loop, int blocking)
 	} else {
 #endif
 	if (select(max_fd + 1, &readfds, &writefds, NULL,
-	    (timeout == TIMEOUT_FOREVER ? NULL : &tv)) < 0) {
+		   ((blocking && timeout == TIMEOUT_FOREVER) ? NULL : &tv)) < 0) {
 		if (_getdns_socketerror_wants_retry())
 			return;
 

@@ -48,18 +48,20 @@
 #include "context.h"
 #include "const-info.h"
 
-#ifdef USE_DANESSL
+#if defined(USE_DANESSL) || defined(LIBRESSL_VERSION_NUMBER)
 # include "ssl_dane/danessl.h"
 #endif
 
 #include "tls.h"
 
 /* Double check configure has worked as expected. */
+#ifndef LIBRESSL_VERSION_NUMBER
 #if defined(USE_DANESSL) && \
 	(defined(HAVE_SSL_DANE_ENABLE) || \
 	 defined(HAVE_OPENSSL_INIT_CRYPTO) || \
 	 defined(HAVE_SSL_CTX_DANE_ENABLE))
 #error Configure error USE_DANESSL defined with OpenSSL 1.1 functions!
+#endif
 #endif
 
 /* Cipher suites recommended in RFC7525. */

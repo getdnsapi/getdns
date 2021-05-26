@@ -5,6 +5,11 @@
     detectable (as with TCP_FASTOPEN on MacOS).
   * Issue #466: Memory leak with retrying queries (for examples
     with search paths). Thanks doublez13.
+  * Issue #480: Cross compiling is broken with CMake
+  * Setting of the number of milliseconds send data may remain
+    unacknowledged by the peer in a TCP connection (when supported 
+    by the OS) with getdns_context_set_tcp_send_timeout()
+    Thanks maciejsszmigiero.
 
 * 2020-02-28: Version 1.6.0
   * Issues #457, #458, #461: New symbols with libnettle >= 3.4.
