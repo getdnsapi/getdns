@@ -199,7 +199,7 @@ for (( ii = 0; ii < 1; ii++)); do
 		
 		echo "*Success fallback cases:"
 		for (( j = 0; j < $NUM_GOOD_FB_QUERIES; j+=1 )); do
-		    check_good "`"${GETDNS_STUB_QUERY}" -V +return_call_reporting $SYNC_MODE ${GOOD_FALLBACK_QUERIES[$j*$NUM_ARGS]} 2>/dev/null`" ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+2]}
+		    check_good "`"${GETDNS_STUB_QUERY}" '{tcp_send_timeout:1000}' -y 7 -V +return_call_reporting $SYNC_MODE ${GOOD_FALLBACK_QUERIES[$j*$NUM_ARGS]} 2>/dev/null`" ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+2]}
 		    echo "getdns_query $SYNC_MODE ${GOOD_FALLBACK_QUERIES[$j*$NUM_ARGS]}  TESTS: ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+1]} ${GOOD_FALLBACK_QUERIES[$((j*NUM_ARGS))+2]}"
 		    (( COUNT++ ))
 		done
