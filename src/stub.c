@@ -487,7 +487,8 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		return -1;
 
 	getdns_sock_nonblock(fd);
-	getdns_sock_tcp_send_timeout(upstream, fd, send_timeout);
+	if (send_timeout != -1)
+		getdns_sock_tcp_send_timeout(upstream, fd, send_timeout);
 #ifdef USE_OSX_TCP_FASTOPEN
 	sa_endpoints_t endpoints;
 	endpoints.sae_srcif = 0;
