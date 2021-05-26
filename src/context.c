@@ -1435,6 +1435,7 @@ getdns_context_create_with_extended_memory_functions(
 
 	result->timeout = 5000;
 	result->idle_timeout = 0;
+	result->tcp_send_timeout = -1;
 	result->follow_redirects = GETDNS_REDIRECTS_FOLLOW;
 	result->dns_root_servers = NULL;
 #if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
@@ -2367,6 +2368,34 @@ getdns_context_set_idle_timeout(getdns_context *context, uint64_t timeout)
 	return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_timeout */
 
+/*
+ * getdns_context_unset_tcp_send_timeout
+ *
+ */
+getdns_return_t
+getdns_context_unset_tcp_send_timeout(getdns_context *context)
+{
+	if (!context)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	context->tcp_send_timeout = -1;
+	return GETDNS_RETURN_GOOD;
+}
+
+/*
+ * getdns_context_set_tcp_send_timeout
+ *
+ */
+getdns_return_t
+getdns_context_set_tcp_send_timeout(struct getdns_context *context,
+    uint32_t value)
+{
+	if (!context || value > INT_MAX)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	context->tcp_send_timeout = value;
+	return GETDNS_RETURN_GOOD;
+}
 
 /*
  * getdns_context_set_follow_redirects
@@ -3837,6 +3866,9 @@ _get_context_settings(const getdns_context* context)
 	                           (context->timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF: (uint32_t) context->timeout)
 	    || getdns_dict_set_int(result, "idle_timeout",
 	                           (context->idle_timeout > 0xFFFFFFFFull) ? 0xFFFFFFFF : (uint32_t) context->idle_timeout)
+	    || (  context->tcp_send_timeout != -1
+	       && getdns_dict_set_int(result, "tcp_send_timeout",
+	                              context->tcp_send_timeout))
 	    || getdns_dict_set_int(result, "limit_outstanding_queries",
 	                           context->limit_outstanding_queries)
             || getdns_dict_set_int(result, "dnssec_allowed_skew",
@@ -4309,6 +4341,16 @@ CONTEXT_GETTER(idle_timeout               , uint64_t)
 CONTEXT_GETTER(follow_redirects           , getdns_redirects_t)
 
 getdns_return_t
+getdns_context_get_tcp_send_timeout(
+    const getdns_context *context, uint32_t* value)
+{
+	if (!context || !value) return GETDNS_RETURN_INVALID_PARAMETER;
+	*value = context->tcp_send_timeout == -1 ? 0
+	       : context->tcp_send_timeout;
+	return GETDNS_RETURN_GOOD;
+}
+
+getdns_return_t
 getdns_context_get_dns_root_servers(
     const getdns_context *context, getdns_list **value)
 {
@@ -4647,6 +4689,7 @@ _getdns_context_config_setting(getdns_context *context,
 	CONTEXT_SETTING_INT(dns_transport)
 	CONTEXT_SETTING_ARRAY(dns_transport_list, transport_list)
 	CONTEXT_SETTING_INT(idle_timeout)
+	CONTEXT_SETTING_INT(tcp_send_timeout)
 	CONTEXT_SETTING_INT(limit_outstanding_queries)
 	CONTEXT_SETTING_INT(timeout)
 	CONTEXT_SETTING_INT(follow_redirects)

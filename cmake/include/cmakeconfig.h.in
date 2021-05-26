@@ -211,6 +211,8 @@
 
 #cmakedefine USE_OSX_TCP_FASTOPEN	1
 
+#cmakedefine HAVE_DECL_TCP_USER_TIMEOUT	1
+
 #cmakedefine HAVE_NEW_UV_TIMER_CB	1
 
 #cmakedefine HAVE_TARGET_ENDIANNESS
