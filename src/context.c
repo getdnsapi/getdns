@@ -4932,7 +4932,7 @@ FILE *_getdns_context_get_priv_fp(
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
 		           , "Error opening \"%s\": %s\n"
-			   , path, _getdns_errnostr());
+			   , path, _getdns_fileerrnostr());
 	return f;
 }
 
@@ -5011,31 +5011,31 @@ int _getdns_context_write_priv_file(getdns_context *context,
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_INFO
 		           , "Could not create temporary file \"%s\": %s\n"
-			   , tmpfn, _getdns_errnostr());
+			   , tmpfn, _getdns_fileerrnostr());
 
 	else if (!(f = fdopen(fd, "w")))
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
 		           , "Error opening temporary file \"%s\": %s\n"
-			   , tmpfn, _getdns_errnostr());
+			   , tmpfn, _getdns_fileerrnostr());
 
 	else if (fwrite(content->data, 1, content->size, f) < content->size)
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
 		           , "Error writing to temporary file \"%s\": %s\n"
-			   , tmpfn, _getdns_errnostr());
+			   , tmpfn, _getdns_fileerrnostr());
 
-	else if (fclose(f) < 0)
+	else if (fclose(f))
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
-		           , "Error closing temporary file \"%s\": %s\n"
-			   , tmpfn, _getdns_errnostr());
+		           , "Error closing temporary file \"%s\": %s (%p)\n"
+			    , tmpfn, _getdns_fileerrnostr(), f);
 
 	else if (rename(tmpfn, path) < 0)
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
 		           , "Error renaming temporary file \"%s\" to \"%s\""
-			     ": %s\n", tmpfn, path, _getdns_errnostr());
+			     ": %s\n", tmpfn, path, _getdns_fileerrnostr());
 	else {
 		context->can_write_appdata = PROP_ABLE;
 		return 1;
@@ -5088,7 +5088,7 @@ int _getdns_context_can_write_appdata(getdns_context *context)
 		_getdns_log(&context->log
 		           , GETDNS_LOG_SYS_ANCHOR, GETDNS_LOG_ERR
 		           , "Error unlinking write test file: \"%s\": %s\n"
-			   , path, _getdns_errnostr());
+			   , path, _getdns_fileerrnostr());
 	return 1;
 }
 
