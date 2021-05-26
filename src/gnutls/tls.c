@@ -382,7 +382,7 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 
 	gnutls_global_set_log_level(99);
 	gnutls_global_set_log_function(_getdns_gnutls_stub_log);
-	if (gnutls_init(&res->tls, GNUTLS_CLIENT | GNUTLS_NONBLOCK) != GNUTLS_E_SUCCESS)
+	if (gnutls_init(&res->tls, GNUTLS_CLIENT | GNUTLS_NONBLOCK | GNUTLS_NO_SIGNAL) != GNUTLS_E_SUCCESS)
 		goto failed;
 	if (set_connection_ciphers(res) != GNUTLS_E_SUCCESS) {
 
