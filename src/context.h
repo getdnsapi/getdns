@@ -325,6 +325,7 @@ struct getdns_context {
 	size_t               namespace_count;
 	uint64_t             timeout;
 	uint64_t             idle_timeout;
+	int                  tcp_send_timeout; /* -1 is unset */
 	getdns_redirects_t   follow_redirects;
 	getdns_list          *dns_root_servers;
 
