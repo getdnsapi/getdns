@@ -17,4 +17,4 @@ rm -fr "${BUILDDIR}/build-stub-only"
 mkdir  "${BUILDDIR}/build-stub-only"
 cd "${BUILDDIR}/build-stub-only"
 rm -f CMakeCache.txt
-cmake -E env CXXFLAGS="-g" cmake -DUSE_GNUTLS=ON -DENABLE_STUB_ONLY=ON -DENABLE_DEBUG_SERVER=ON -DENABLE_DEBUG_ANCHOR=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only $* ${SRCROOT}
+cmake -E env CXXFLAGS="-g" cmake -DUSE_GNUTLS=OFF -DENABLE_STUB_ONLY=ON -DENABLE_DEBUG_SERVER=ON -DENABLE_DEBUG_ANCHOR=ON -DCMAKE_INSTALL_PREFIX=../install-stub-only $* ${SRCROOT}
