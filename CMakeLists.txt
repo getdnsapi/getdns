@@ -167,6 +167,8 @@ option(BUILD_LIBUV "Build libuv support library available." ON)
 option(USE_LIBIDN2 "Use libidn2 if available." ON)
 option(USE_GNUTLS "Use GnuTLS for TLS connections." OFF)
 
+option(FORCE_COMPAT_STRPTIME "Force use of internal strptime when cross-compiling." OFF)
+
 # Above names chosen for user consistency. Now define substituted names.
 set(REQ_DEBUG ${ENABLE_DEBUG_REQ})
 set(SCHED_DEBUG ${ENABLE_DEBUG_SCHED})
@@ -534,8 +536,15 @@ set(STRPTIME_TEST_SOURCE "\n
   res = strptime(\"20070207111842\", \"%Y%m%d%H%M%S\", &tm);\n
   if (!res) return 1; return 0; }")
 
-if (HAVE_STRPTIME AND NOT CMAKE_CROSSCOMPILING)
-  check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
+if (HAVE_STRPTIME)
+  if (CMAKE_CROSSCOMPILING)
+    if (NOT FORCE_COMPAT_STRPTIME)
+      message(WARNING "Assuming strptime() is POSIX compliant with %t matching any white space. Specify FORCE_COMPAT_STRPTIME on non-compliant platforms e.g. BSD derived.")
+      set(STRPTIME_WORKS 1)
+    endif ()
+  else ()
+    check_c_source_runs("${STRPTIME_TEST_SOURCE}" STRPTIME_WORKS)
+  endif ()
 endif ()
 
 try_compile(HAVE___FUNC__
