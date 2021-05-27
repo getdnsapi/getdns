@@ -823,6 +823,7 @@ _getdns_reply_dict2wire(
 	getdns_list *section;
 	getdns_dict *rr_dict;
 	getdns_bindata *qname;
+	name_cache_t name_cache = {0};
 	int remove_dnssec;
 
 	pkt_start = gldns_buffer_position(buf);
@@ -852,7 +853,7 @@ _getdns_reply_dict2wire(
 	if (!getdns_dict_get_bindata(reply, "/question/qname", &qname) &&
 	    !getdns_dict_get_int(reply, "/question/qtype", &qtype)) {
 		(void)getdns_dict_get_int(reply, "/question/qclass", &qclass);
-		gldns_buffer_write(buf, qname->data, qname->size);
+		_getdns_rr_buffer_write_cached_name(buf, qname, &name_cache);
 		gldns_buffer_write_u16(buf, (uint16_t)qtype);
 		gldns_buffer_write_u16(buf, (uint16_t)qclass);
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
@@ -875,7 +876,7 @@ _getdns_reply_dict2wire(
 			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
 			    rr_type == GETDNS_RRTYPE_RRSIG)
 				continue;
-			if (!_getdns_rr_dict2wire(rr_dict, buf))
+			if (!_getdns_rr_dict2wire_cache(rr_dict, buf, &name_cache))
 				 n++;
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, n);
