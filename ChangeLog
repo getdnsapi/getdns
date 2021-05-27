@@ -1,4 +1,4 @@
-* 2020-0?-??: Version 1.6.1-rc.1
+* 2021-05-28: Version 1.6.1-rc.1
   * Make TLS Handshake timeout max 4/5th of timeout for the query,
     just like connection setup timeout was, so fallback transport
     have a chance too when TCP connection setup is less well
@@ -10,6 +10,8 @@
     unacknowledged by the peer in a TCP connection (when supported 
     by the OS) with getdns_context_set_tcp_send_timeout()
     Thanks maciejsszmigiero.
+  * Issue #497: Fix typo in CMAKE included files, so Stubby can use
+    TLS v1.3 with chipersuites options ON. Thanks har-riz.
 
 * 2020-02-28: Version 1.6.0
   * Issues #457, #458, #461: New symbols with libnettle >= 3.4.
