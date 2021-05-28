@@ -30,19 +30,20 @@ This module will set the following variables in your project:
 
 #]=======================================================================]
 
-include(FindPkgConfig)
-if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PkgGnuTLS IMPORTED_TARGET GLOBAL QUIET gnutls)
-    pkg_check_modules(PkgGnuTLSDane IMPORTED_TARGET GLOBAL QUIET gnutls-dane)
-endif()
+find_package(PkgConfig QUIET)
+if (PKG_CONFIG_FOUND)
+  pkg_check_modules(PkgGnuTLS IMPORTED_TARGET GLOBAL QUIET gnutls)
+  pkg_check_modules(PkgGnuTLSDane IMPORTED_TARGET GLOBAL QUIET gnutls-dane)
+endif ()
 
-if(PkgGnuTLS_FOUND AND PkgGnuTLSDane_FOUND)
-  set(GNUTLS_INCLUDE_DIR ${PkgGnuTLS_INCLUDE_DIRS} $PkgGnuTLSDane_INCLUDE_DIRS})
-  set(NETTLE_LIBRARIES ${PkgGnuTLS_LIBRARIES} ${PkgGnuTLSDane_LIBRARIES})
+if (PkgGnuTLS_FOUND AND PkgGnuTLSDane_FOUND)
+  set(GNUTLS_INCLUDE_DIR ${PkgGnuTLS_INCLUDE_DIRS} $PkgGnuTLSDane_INCLUDE_DIRS} CACHE FILEPATH "GnuTLS include path")
+  set(NETTLE_LIBRARIES ${PkgGnuTLS_LIBRARIES} ${PkgGnuTLSDane_LIBRARIES} CACHE STRING "GnuTLS libraries")
   set(NETTLE_VERSION ${PkgGnuTLS_VERSION})
   add_library(GnuTLS::GnuTLS ALIAS PkgConfig::PkgGnuTLS)
   add_library(GnuTLS::Dane ALIAS PkgConfig::PkgGnuTLSDane)
-else()
+  set(GnuTLS_FOUND ON)
+else ()
   find_path(GNUTLS_INCLUDE_DIR gnutls/gnutls.h
     HINTS
     "${GNUTLS_DIR}"
@@ -61,7 +62,7 @@ else()
     "${GNUTLS_DIR}/lib"
   )
   
-  set(GNUTLS_LIBRARIES "")
+  set(_GNUTLS_LIBRARIES "")
   
   if (GNUTLS_INCLUDE_DIR AND GNUTLS_LIBRARY AND GNUTLS_DANE_LIBRARY)
     if (NOT TARGET GnuTLS::GnuTLS)
@@ -85,15 +86,16 @@ else()
       file(STRINGS "${GNUTLS_INCLUDE_DIR}/gnutls/gnutls.h" GNUTLS_VER_H REGEX "^#define GNUTLS_VERSION_(MAJOR|MINOR|PATCH) ")
       string(REGEX REPLACE "^.*_MAJOR ([0-9]+).*_MINOR ([0-9]+).*_PATCH ([0-9]+).*$" "\\1.\\2.\\3c" GNUTLS_VERSION "${GNUTLS_VER_H}")
     endif ()
-  endif()
+  endif ()
   
-  list(APPEND GNUTLS_LIBRARIES "${GNUTLS_LIBRARY}" "${GNUTLS_DANE_LIBRARY}")
-endif()
+  list(APPEND _GNUTLS_LIBRARIES "${GNUTLS_LIBRARY}" "${GNUTLS_DANE_LIBRARY}")
+  set(GNUTLS_LIBRARIES ${_GNUTLS_LIBRARIES} CACHE STRING "GnuTLS libraries")
 
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(GnuTLS
-  REQUIRED_VARS GNUTLS_LIBRARIES GNUTLS_INCLUDE_DIR
-  VERSION_VAR GNUTLS_VERSION
-  )
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(GnuTLS
+    REQUIRED_VARS GNUTLS_LIBRARIES GNUTLS_INCLUDE_DIR
+    VERSION_VAR GNUTLS_VERSION
+    )
+endif ()
 
 mark_as_advanced(GNUTLS_INCLUDE_DIR GNUTLS_LIBRARIES GNUTLS_LIBRARY GNUTLS_DANE_LIBRARY)

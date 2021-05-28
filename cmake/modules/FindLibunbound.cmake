@@ -28,17 +28,18 @@ This module will set the following variables in your project:
 
 #]=======================================================================]
 
-include(FindPkgConfig)
-if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PkgLibunbound IMPORTED_TARGET GLOBAL QUIET libunbound)
-endif()
+find_package(PkgConfig QUIET)
+if (PKG_CONFIG_FOUND)
+  pkg_check_modules(PkgLibunbound IMPORTED_TARGET GLOBAL QUIET libunbound)
+endif ()
 
-if(PkgLibunbound_FOUND)
-  set(LIBUNBOUND_INCLUDE_DIR ${PkgLibunbound_INCLUDE_DIRS})
-  set(LIBUNBOUND_LIBRARIES ${PkgLibunbound_LIBRARIES})
+if (PkgLibunbound_FOUND)
+  set(LIBUNBOUND_INCLUDE_DIR ${PkgLibunbound_INCLUDE_DIRS} CACHE FILEPATH "libunbound include path")
+  set(LIBUNBOUND_LIBRARIES ${PkgLibunbound_LIBRARIES} CACHE STRING "libunbound libraries")
   set(LIBUNBOUND_VERSION ${PkgLibunbound_VERSION})
   add_library(Libunbound::Libunbound ALIAS PkgConfig::PkgLibunbound)
-else()
+  set(Libunbound_FOUND ON)
+else ()
   find_path(LIBUNBOUND_INCLUDE_DIR unbound.h
     HINTS
     "${LIBUNBOUND_DIR}"
@@ -51,14 +52,14 @@ else()
     "${LIBUNBOUND_DIR}/lib"
   )
   
-  set(LIBUNBOUND_LIBRARIES "")
+  set(_LIBUNBOUND_LIBRARIES "")
   
   if (UNIX)
     find_package(Threads REQUIRED)
     find_package(OpenSSL REQUIRED)
   
-    list(APPEND LIBUNBOUND_LIBRARIES "${CMAKE_THREAD_LIBS_INIT}")
-    list(APPEND LIBUNBOUND_LIBRARIES "${OPENSSL_LIBRARIES}")
+    list(APPEND _LIBUNBOUND_LIBRARIES "${CMAKE_THREAD_LIBS_INIT}")
+    list(APPEND _LIBUNBOUND_LIBRARIES "${OPENSSL_LIBRARIES}")
   endif()
   
   if (LIBUNBOUND_INCLUDE_DIR AND LIBUNBOUND_LIBRARY)
@@ -88,15 +89,16 @@ else()
       file(STRINGS "${LIBUNBOUND_INCLUDE_DIR}/unbound.h" LIBUNBOUND_H REGEX "^#define UNBOUND_VERSION_M[A-Z]+")
       string(REGEX REPLACE "^.*MAJOR ([0-9]+).*MINOR ([0-9]+).*MICRO ([0-9]+).*$" "\\1.\\2.\\3" LIBUNBOUND_VERSION "${LIBUNBOUND_H}")
     endif ()
-  endif()
+  endif ()
   
-  list(APPEND LIBUNBOUND_LIBRARIES "${LIBUNBOUND_LIBRARY}")
-endif()
+  list(APPEND _LIBUNBOUND_LIBRARIES "${LIBUNBOUND_LIBRARY}")
+  set(LIBUNBOUND_LIBRARIES ${_LIBUNBOUND_LIBRARIES} CACHE STRING "libunbound libraries")
 
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Libunbound
-  REQUIRED_VARS LIBUNBOUND_LIBRARIES LIBUNBOUND_INCLUDE_DIR
-  VERSION_VAR LIBUNBOUND_VERSION
-  )
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Libunbound
+    REQUIRED_VARS LIBUNBOUND_LIBRARIES LIBUNBOUND_INCLUDE_DIR
+    VERSION_VAR LIBUNBOUND_VERSION
+    )
+endif ()
 
 mark_as_advanced(LIBUNBOUND_INCLUDE_DIR LIBUNBOUND_LIBRARIES LIBUNBOUND_LIBRARY)

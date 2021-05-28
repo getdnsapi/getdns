@@ -28,30 +28,29 @@ This module will set the following variables in your project:
 
 #]=======================================================================]
 
-include(FindPkgConfig)
+find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
     pkg_check_modules(PkgLibuv IMPORTED_TARGET GLOBAL QUIET libuv)
 endif()
 
-if(PkgLibuv_FOUND)
-  set(LIBUV_INCLUDE_DIR ${PkgLibuv_INCLUDE_DIRS})
-  set(LIBUV_LIBRARIES ${PkgLibuv_LIBRARIES})
+if (PkgLibuv_FOUND)
+  set(LIBUV_INCLUDE_DIR ${PkgLibuv_INCLUDE_DIRS} CACHE FILEPATH "libuv include path")
+  set(LIBUV_LIBRARIES ${PkgLibuv_LIBRARIES} CACHE STRING "libuv libraries")
   set(LIBUV_VERSION ${PkgLibuv_VERSION})
   add_library(Libuv::Libuv ALIAS PkgConfig::PkgLibuv)
-else()
+  set(Libuv_FOUND ON)
+else ()
   find_path(LIBUV_INCLUDE_DIR uv.h
     HINTS
     "${LIBUV_DIR}"
     "${LIBUV_DIR}/include"
   )
   
-  find_library(LIBUV_LIBRARY NAMES uv libuv
+  find_library(LIBUV_LIBRARIES NAMES uv libuv
     HINTS
     "${LIBUV_DIR}"
     "${LIBUV_DIR}/lib"
   )
-  
-  set(LIBUV_LIBRARIES "")
   
   if (LIBUV_INCLUDE_DIR AND LIBUV_LIBRARY)
     if (NOT TARGET Libuv::Libuv)
@@ -59,7 +58,7 @@ else()
       set_target_properties(Libuv::Libuv PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${LIBUV_INCLUDE_DIR}"
         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-        IMPORTED_LOCATION "${LIBUV_LIBRARY}"
+        IMPORTED_LOCATION "${LIBUV_LIBRARIES}"
         )
     endif ()
   
@@ -71,15 +70,13 @@ else()
       endif ()
       string(REGEX REPLACE "^.*_MAJOR ([0-9]+).*_MINOR ([0-9]+).*_PATCH ([0-9]+).*$" "\\1.\\2.\\3" LIBUV_VERSION "${LIBUV_VER_H}")
     endif ()
-  endif()
-  
-  list(APPEND LIBUV_LIBRARIES "${LIBUV_LIBRARY}")
-endif()
+  endif ()
 
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Libuv
-  REQUIRED_VARS LIBUV_LIBRARIES LIBUV_INCLUDE_DIR
-  VERSION_VAR LIBUV_VERSION
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Libuv
+    REQUIRED_VARS LIBUV_LIBRARIES LIBUV_INCLUDE_DIR
+    VERSION_VAR LIBUV_VERSION
   )
+endif ()
 
-mark_as_advanced(LIBUV_INCLUDE_DIR LIBUV_LIBRARIES LIBUV_LIBRARY)
+mark_as_advanced(LIBUV_INCLUDE_DIR LIBUV_LIBRARIES)

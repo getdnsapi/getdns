@@ -28,38 +28,37 @@ This module will set the following variables in your project:
 
 #]=======================================================================]
 
-include(FindPkgConfig)
-if(PKG_CONFIG_FOUND)
+find_package(PkgConfig QUIET)
+if (PKG_CONFIG_FOUND)
     pkg_check_modules(PkgLibIdn2 IMPORTED_TARGET GLOBAL libidn2)
-endif()
+endif ()
 
-if(PkgLibIdn2_FOUND)
-  set(LIBIDN2_INCLUDE_DIR ${PkgLibIdn2_INCLUDE_DIRS})
-  set(LIBIDN2_LIBRARIES ${PkgLibIdn2_LIBRARIES})
+if (PkgLibIdn2_FOUND)
+  set(LIBIDN2_INCLUDE_DIR ${PkgLibIdn2_INCLUDE_DIRS} CACHE FILEPATH "libidn2 include path")
+  set(LIBIDN2_LIBRARIES ${PkgLibIdn2_LIBRARIES} CACHE STRING "libidn2 libraries")
   set(LIBIDN2_VERSION ${PkgLibIdn2_VERSION})
   add_library(Libidn2::Libidn2 ALIAS PkgConfig::PkgLibIdn2)
-else()
+  set(Libidn2_FOUND ON)
+else ()
   find_path(LIBIDN2_INCLUDE_DIR idn2.h
     HINTS
       "${LIBIDN2_DIR}"
       "${LIBIDN2_DIR}/include"
   )
 
-  find_library(LIBIDN2_LIBRARY NAMES idn2 libidn2
+  find_library(LIBIDN2_LIBRARIES NAMES idn2 libidn2
     HINTS
       "${LIBIDN2_DIR}"
       "${LIBIDN2_DIR}/lib"
   )
 
-  set(LIBIDN2_LIBRARIES "")
-
-  if (LIBIDN2_INCLUDE_DIR AND LIBIDN2_LIBRARY)
+  if (LIBIDN2_INCLUDE_DIR AND LIBIDN2_LIBRARIES)
     if (NOT TARGET Libidn2::Libidn2)
       add_library(Libidn2::Libidn2 UNKNOWN IMPORTED)
       set_target_properties(Libidn2::Libidn2 PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${LIBIDN2_INCLUDE_DIR}"
         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-        IMPORTED_LOCATION "${LIBIDN2_LIBRARY}"
+        IMPORTED_LOCATION "${LIBIDN2_LIBRARIES}"
       )
     endif ()
 
@@ -67,15 +66,12 @@ else()
       file(STRINGS "${LIBIDN2_INCLUDE_DIR}/idn2.h" LIBIDN2_H REGEX "^#define IDN2_VERSION ")
       string(REGEX REPLACE "^.*IDN2_VERSION \"([0-9.]+)\".*$" "\\1" LIBIDN2_VERSION "${LIBIDN2_H}")
     endif ()
-
-    list(APPEND LIBIDN2_LIBRARIES "${LIBIDN2_LIBRARY}")
-  endif()
-endif()
-
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Libidn2
-  REQUIRED_VARS LIBIDN2_LIBRARIES LIBIDN2_INCLUDE_DIR
-  VERSION_VAR LIBIDN2_VERSION
+  endif ()
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Libidn2
+    REQUIRED_VARS LIBIDN2_LIBRARIES LIBIDN2_INCLUDE_DIR
+    VERSION_VAR LIBIDN2_VERSION
   )
+endif ()
 
-mark_as_advanced(LIBIDN2_INCLUDE_DIR LIBIDN2_LIBRARIES LIBIDN2_LIBRARY)
+mark_as_advanced(LIBIDN2_INCLUDE_DIR LIBIDN2_LIBRARIES)

@@ -30,18 +30,19 @@ This module will set the following variables in your project:
 
 #]=======================================================================]
 
-include(FindPkgConfig)
+find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PkgNettle IMPORTED_TARGET GLOBAL nettle)
-    pkg_check_modules(PkgHogweed IMPORTED_TARGET GLOBAL QUIET hogweed)
+  pkg_check_modules(PkgNettle IMPORTED_TARGET GLOBAL nettle)
+  pkg_check_modules(PkgHogweed IMPORTED_TARGET GLOBAL QUIET hogweed)
 endif()
 
 if(PkgNettle_FOUND AND PkHogweed_FOUND)
-  set(NETTLE_INCLUDE_DIR ${PkgNettle_INCLUDE_DIRS} ${PkgHogweed_INCLUDE_DIRS})
-  set(NETTLE_LIBRARIES ${PkgNettle_LIBRARIES} ${PkgHogweed_LIBRARIES})
+  set(NETTLE_INCLUDE_DIR ${PkgNettle_INCLUDE_DIRS} ${PkgHogweed_INCLUDE_DIRS} CACHE FILEPATH "Nettle include path")
+  set(NETTLE_LIBRARIES ${PkgNettle_LIBRARIES} ${PkgHogweed_LIBRARIES} CACHE STRING "Nettle libraries")
   set(NETTLE_VERSION ${PkgNettle_VERSION})
   add_library(Nettle::Nettle ALIAS PkgConfig::PkgNettle)
   add_library(Nettle::Hogweed ALIAS PkgConfig::PkgHogweed)
+  set(Nettle_FOUND ON)
 else()
   find_path(NETTLE_INCLUDE_DIR nettle/version.h
     HINTS
@@ -60,17 +61,18 @@ else()
     "${NETTLE_DIR}"
     "${NETTLE_DIR}/lib"
   )
-  
-  set(NETTLE_LIBRARIES "")
+
+  set(_NETTLE_LIBRARIES ${NETTLE_LIBRARY} ${HOGWEED_LIBRARY})
   
   # May need gmp library on Unix.
   if (UNIX)
     find_library(NETTLE_GMP_LIBRARY gmp)
-  
-    if (NETTLE_GMP_LIBRARY)
-      list(APPEND NETTLE_LIBRARIES "${NETTLE_GMP_LIBRARY}")
-    endif ()
   endif ()
+  if (NETTLE_GMP_LIBRARY)
+    list(APPEND _NETTLE_LIBRARIES "${NETTLE_GMP_LIBRARY}")
+ endif ()
+  set(NETTLE_LIBRARIES ${_NETTLE_LIBRARIES} CACHE STRING "nettle libraries")
+
   
   if (NETTLE_INCLUDE_DIR AND NETTLE_LIBRARY AND HOGWEED_LIBRARY)
     if (NOT TARGET Nettle::Nettle)
@@ -98,12 +100,12 @@ else()
   endif()
   
   list(APPEND NETTLE_LIBRARIES "${NETTLE_LIBRARY}" "${HOGWEED_LIBRARY}")
+
+  include(FindPackageHandleStandardArgs)
+  find_package_handle_standard_args(Nettle
+    REQUIRED_VARS NETTLE_LIBRARIES NETTLE_INCLUDE_DIR
+    VERSION_VAR NETTLE_VERSION
+  )
 endif()
 
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Nettle
-  REQUIRED_VARS NETTLE_LIBRARIES NETTLE_INCLUDE_DIR
-  VERSION_VAR NETTLE_VERSION
-  )
-
-mark_as_advanced(NETTLE_INCLUDE_DIR NETTLE_LIBRARIES NETTLE_LIBRARY HOGWEED_LIBRARY)
+mark_as_advanced(NETTLE_INCLUDE_DIR NETTLE_LIBRARIES NETTLE_LIBRARY HOGWEED_LIBRARY NETTLE_GMP_LIBRARY)
