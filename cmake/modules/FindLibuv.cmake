@@ -29,9 +29,9 @@ This module will set the following variables in your project:
 #]=======================================================================]
 
 find_package(PkgConfig QUIET)
-if(PKG_CONFIG_FOUND)
-    pkg_check_modules(PkgLibuv IMPORTED_TARGET GLOBAL QUIET libuv)
-endif()
+if (PKG_CONFIG_FOUND)
+  pkg_check_modules(PkgLibuv IMPORTED_TARGET GLOBAL libuv)
+endif ()
 
 if (PkgLibuv_FOUND)
   set(LIBUV_INCLUDE_DIR ${PkgLibuv_INCLUDE_DIRS} CACHE FILEPATH "libuv include path")
