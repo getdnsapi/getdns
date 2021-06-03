@@ -452,7 +452,7 @@ static inline int _gldns_custom_vsnprintf(char *str, size_t size, const char *fo
 #  define ATTR_UNUSED(x)  x
 #elif defined(__cplusplus)
 #  define ATTR_UNUSED(x)
-#elif defined(HAVE_ATTR_UNUSED)
+#elif defined(__GNUC__)
 #  define ATTR_UNUSED(x)  x __attribute__((unused))
 #else /* !HAVE_ATTR_UNUSED */
 #  define ATTR_UNUSED(x)  x

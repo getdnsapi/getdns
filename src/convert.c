@@ -122,7 +122,7 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
 	if (idn2_lookup_u8((uint8_t *)ulabel, &alabel, IDN2_TRANSITIONAL) == IDN2_OK)
 		return (char *)alabel;
 #else
-	(void)ulabel;
+	(void)ulabel; /* unused parameter */
 #endif
 	return NULL;
 }
@@ -149,7 +149,7 @@ getdns_convert_alabel_to_ulabel(const char *alabel)
 	if (idn2_to_unicode_8z8z(alabel, &ulabel, 0) == IDN2_OK)
 		return ulabel;
 #else
-	(void)alabel;
+	(void)alabel; /* unused parameter */
 #endif
 	return NULL;
 }
@@ -1901,8 +1901,8 @@ getdns_yaml2list(const char *str, getdns_list **list)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) list;
+	(void) str; /* unused parameter */
+	(void) list; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1925,8 +1925,8 @@ getdns_yaml2bindata(const char *str, getdns_bindata **bindata)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) bindata;
+	(void) str; /* unused parameter */
+	(void) bindata; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1949,8 +1949,8 @@ getdns_yaml2int(const char *str, uint32_t *value)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) value;
+	(void) str; /* unused parameter */
+	(void) value; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }

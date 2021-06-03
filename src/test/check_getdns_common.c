@@ -349,7 +349,7 @@ void destroy_callbackfn(struct getdns_context *context,
                         void *userarg,
                         getdns_transaction_t transaction_id) {
     int* flag = (int*)userarg;
-    (void)callback_type; (void)transaction_id;
+    (void)callback_type; (void)transaction_id; /* unused parameters */
     *flag = 1;
     getdns_dict_destroy(response);
     getdns_context_destroy(context);
@@ -369,7 +369,7 @@ void callbackfn(struct getdns_context *context,
 {
   typedef void (*fn_ptr)(struct extracted_response *ex_response);
   fn_ptr fn = ((fn_cont *)userarg)->fn;
-  (void)context; (void)transaction_id;
+  (void)context; (void)transaction_id; /* unused parameters */
 
   /*
    *  If userarg is NULL, either a negative test case
@@ -409,7 +409,7 @@ void callbackfn(struct getdns_context *context,
 void update_callbackfn(struct getdns_context *context,
                 getdns_context_code_t changed_item)
 {
-  (void)context;
+  (void)context; /* unused parameter */
   ck_assert_msg(changed_item == expected_changed_item,
     "Expected changed_item == %d, got %d",
     changed_item, expected_changed_item);

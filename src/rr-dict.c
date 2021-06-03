@@ -47,7 +47,7 @@
 static const uint8_t *
 apl_n_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
-	(void)pkt;
+	(void)pkt; /* unused parameter */
 	return rdf < pkt_end ? rdf + 1 : NULL;
 }
 static getdns_return_t
@@ -91,7 +91,7 @@ apl_afdpart_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
 	const uint8_t *end = rdf + (rdf[-1] & 0x7F);
-	(void)(pkt);
+	(void)pkt; /* unused parameter */
 	return end <= pkt_end ? end : NULL;
 }
 static getdns_return_t
@@ -217,6 +217,7 @@ ipseckey_gateway_2wire(
 {
 	assert(rdf - 2 >= rdata && rdf[-2] > 0);
 
+	(void)rdata; /* unused parameter */
 	switch (rdf[-2]) {
 	case 1: if (!value || value->size != 4)
 			return GETDNS_RETURN_INVALID_PARAMETER;
@@ -280,7 +281,7 @@ static const uint8_t *
 hip_pk_algorithm_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
-	(void)(pkt);
+	(void)pkt; /* unused parameter */
 	return rdf + 4 > pkt_end ? NULL
 	     : rdf + 4 + *rdf + gldns_read_uint16(rdf + 2) > pkt_end ? NULL
 	     : rdf + 1;
@@ -326,7 +327,7 @@ static _getdns_rdf_special hip_pk_algorithm = {
 static const uint8_t *
 hip_hit_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
-	(void)(pkt);
+	(void)pkt; /* unused parameter */
 	return rdf + 3 > pkt_end ? NULL
 	     : rdf + 3 + rdf[-1] + gldns_read_uint16(rdf + 1) > pkt_end ? NULL
 	     : rdf + 1;
@@ -380,7 +381,7 @@ static const uint8_t *
 hip_public_key_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
-	(void)(pkt);
+	(void)pkt; /* unused parameter */
 	return rdf + 2 > pkt_end ? NULL
 	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf) > pkt_end ? NULL
 	     : rdf + 2 + rdf[-2] + gldns_read_uint16(rdf);
@@ -434,7 +435,7 @@ static _getdns_rdf_special hip_public_key = {
 static const uint8_t *
 amtrelay_D_rdf_end(const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
-	(void)pkt;
+	(void)pkt; /* unused parameter */
 	return rdf < pkt_end ? rdf + 1 : NULL;
 }
 static getdns_return_t
@@ -471,7 +472,8 @@ static const uint8_t *
 amtrelay_rtype_rdf_end(
     const uint8_t *pkt, const uint8_t *pkt_end, const uint8_t *rdf)
 {
-	(void)pkt; (void)pkt_end;
+	(void)pkt; /* unused parameter */
+	(void)pkt_end; /* unused parameter */
 	return rdf;
 }
 static getdns_return_t
@@ -581,6 +583,7 @@ amtrelay_relay_2wire(
 {
 	assert(rdf - 1 >= rdata && (rdf[-1] & 0x7F) > 0);
 
+	(void)rdata; /* unused parameter */
 	switch (rdf[-1] & 0x7F) {
 	case 1: if (!value || value->size != 4)
 			return GETDNS_RETURN_INVALID_PARAMETER;

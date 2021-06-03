@@ -103,7 +103,7 @@ getdns_libuv_clear(getdns_eventloop *loop, getdns_eventloop_event *el_ev)
 	poll_timer   *my_ev = (poll_timer *)el_ev->ev;
 	uv_poll_t    *my_poll;
 	uv_timer_t   *my_timer;
-	(void)loop;
+	(void)loop; /* unused parameter */
 	
 	assert(my_ev);
 
@@ -165,7 +165,7 @@ getdns_libuv_timeout_cb(uv_timer_t *timer, int status)
 {
         getdns_eventloop_event *el_ev = (getdns_eventloop_event *)timer->data;
 #ifndef HAVE_NEW_UV_TIMER_CB
-	(void)status;
+	(void)status; /* unused parameter */
 #endif
         assert(el_ev->timeout_cb);
 	DEBUG_UV("enter libuv_timeout_cb(el_ev = %p, el_ev->ev = %p)\n"

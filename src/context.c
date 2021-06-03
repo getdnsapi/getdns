@@ -1293,7 +1293,7 @@ transaction_id_cmp(const void *id1, const void *id2)
 static void
 NULL_update_callback(
     getdns_context *context, getdns_context_code_t code, void *userarg)
-{ (void)context; (void)code; (void)userarg; }
+{ (void)context; (void)code; (void)userarg; /* unused parameters */ }
 
 static int
 netreq_expiry_cmp(const void *id1, const void *id2)
@@ -3761,7 +3761,7 @@ uint32_t
 getdns_context_get_num_pending_requests(const getdns_context* context,
     struct timeval* next_timeout)
 {
-	(void)next_timeout;
+	(void)next_timeout; /* unused parameter */
 
 	if (!context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
@@ -4146,7 +4146,7 @@ getdns_context_set_use_threads(getdns_context* context, int use_threads) {
     else
         r = ub_ctx_async(context->unbound_ctx, 0);
 #else
-    (void)use_threads;
+    (void)use_threads; /* unused parameter */
 #endif
     return r == 0 ? GETDNS_RETURN_GOOD : GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 }
@@ -5401,7 +5401,7 @@ getdns_context_set_tls_curves_list(
 	dispatch_updated(context, GETDNS_CONTEXT_CODE_TLS_CIPHER_LIST);
 	return GETDNS_RETURN_GOOD;
 #else
-	(void)tls_curves_list;
+	(void)tls_curves_list; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif
 }

@@ -457,7 +457,7 @@
          void *userarg,
          getdns_transaction_t transaction_id)
      {
-       (void)context; (void)response; (void)userarg;
+       (void)context; (void)response; (void)userarg; /* unused parameters */
 
        callback_called++;
 
@@ -491,7 +491,7 @@
      */
      void verify_getdns_cancel_callback(struct extracted_response *ex_response)
      {
-       (void)ex_response;
+       (void)ex_response; /* unused parameter */
        /*
         *  increment callback_called global to prove callback was called.
         */

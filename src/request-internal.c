@@ -484,7 +484,7 @@ void
 _getdns_network_validate_tsig(getdns_network_req *req)
 {
 #if defined(HAVE_NSS) || defined(HAVE_NETTLE)
-	(void)req;
+	(void)req; /* unused parameter */
 #else
 	_getdns_rr_iter  rr_spc, *rr;
 	_getdns_rdf_iter rdf_spc, *rdf;

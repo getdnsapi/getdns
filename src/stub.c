@@ -505,7 +505,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 	    _getdns_socketerror() == _getdns_EWOULDBLOCK)
 		return fd;
 
-	(void)transport;
+	(void)transport; /* unused parameter */
 #else	/* USE_OSX_TCP_FASTOPEN */
 	/* Note that error detection is different with TFO. Since the handshake
 	   doesn't start till the sendto() lack of connection is often delayed until
@@ -553,7 +553,7 @@ tcp_connect(getdns_upstream *upstream, getdns_transport_list_t transport,
 		    "%-40s : Upstream   : Could not setup TCP TFO\n",
 		     upstream->addr_str);
 #  else
-	(void)transport;
+	(void)transport; /* unused parameter */
 #  endif/* HAVE_DECL_TCP_FASTOPEN*/
 # endif	/* HAVE_DECL_TCP_FASTOPEN_CONNECT */
 #endif	/* USE_OSX_TCP_FASTOPEN */

@@ -271,7 +271,7 @@ getdns_return_t _getdns_tls_context_free(struct mem_funcs* mfs, _getdns_tls_cont
 
 void _getdns_tls_context_pinset_init(_getdns_tls_context* ctx)
 {
-	(void) ctx;
+	(void) ctx; /* unused parameter */
 }
 
 getdns_return_t _getdns_tls_context_set_min_max_tls_version(_getdns_tls_context* ctx, getdns_tls_version_t min, getdns_tls_version_t max)

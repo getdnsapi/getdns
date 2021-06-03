@@ -299,9 +299,10 @@ _getdns_rr_iter2rr_dict_canonical(
 			}
 		} else if (rdf->rdd_pos->type == GETDNS_RDF_SPECIAL)
 			val_type = wf_special;
-		else
-			assert(((val_type = wf_int), 0));
-
+		else {
+			val_type = wf_int;
+			assert(0);
+		}
 		if (! rdf->rdd_repeat) {
 			switch (val_type) {
 			case wf_int:
@@ -1408,7 +1409,7 @@ getdns_return_t
 getdns_apply_network_result(getdns_network_req* netreq,
     int rcode, void *pkt, int pkt_len, int sec, char* why_bogus)
 {
-	(void)why_bogus;
+	(void)why_bogus; /* unused parameter */
 
 	netreq->dnssec_status = sec == 0 ? GETDNS_DNSSEC_INSECURE
 	                      : sec == 2 ? GETDNS_DNSSEC_SECURE

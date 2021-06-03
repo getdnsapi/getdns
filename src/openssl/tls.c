@@ -97,8 +97,8 @@ static int _getdns_tls_verify_always_ok(int ok, X509_STORE_CTX *ctx)
 		strcpy(buf, "<unknown>");
 	DEBUG_STUB("DEBUG Cert verify: depth=%d verify=%d err=%d subject=%s errorstr=%s\n", depth, ok, err, buf, X509_verify_cert_error_string(err));
 # else /* defined(STUB_DEBUG) && STUB_DEBUG */
-	(void)ok;
-	(void)ctx;
+	(void)ok; /* unused parameter */
+	(void)ctx; /* unused parameter */
 # endif /* #else defined(STUB_DEBUG) && STUB_DEBUG */
 	return 1;
 }
@@ -427,7 +427,7 @@ getdns_return_t _getdns_tls_context_set_min_max_tls_version(_getdns_tls_context*
 	 * We've used TLSv1_2_client_method() creating the context, so
 	 * error if they asked for anything other than TLS 1.2 or better.
 	 */
-	(void) ctx;
+	(void) ctx; /* unused parameter */
 	if ((!min || min == GETDNS_TLS1_2) && !max)
 		return GETDNS_RETURN_GOOD;
 
@@ -695,7 +695,7 @@ getdns_return_t _getdns_tls_connection_set_min_max_tls_version(_getdns_tls_conne
 	 * We've used TLSv1_2_client_method() creating the context, so
 	 * error if they asked for anything other than TLS 1.2 or better.
 	 */
-	(void) conn;
+	(void) conn; /* unused parameter */
 	if ((!min || min == GETDNS_TLS1_2) && !max)
 		return GETDNS_RETURN_GOOD;
 
@@ -914,7 +914,7 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 
 #if defined(HAVE_SSL_DANE_ENABLE)
 	int osr = SSL_dane_enable(conn->ssl, *auth_name ? auth_name : NULL);
-	(void) osr;
+	(void) osr; /* unused parameter */
 	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
 	          , STUB_DEBUG_SETUP_TLS, __FUNC__, auth_name, osr);
 	SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
@@ -940,7 +940,7 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 		int osr = DANESSL_init(conn->ssl,
 				       *auth_name ? auth_name : NULL,
 				       *auth_name ? auth_names : NULL);
-		(void) osr;
+		(void) osr; /* unused parameter */
 		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
 			  , STUB_DEBUG_SETUP_TLS, __FUNC__, auth_name, osr);
 		SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
