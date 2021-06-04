@@ -19,13 +19,13 @@ set(PACKAGE_URL "https://getdnsapi.net")
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
-set(RELEASE_CANDIDATE "-rc.1")
+set(RELEASE_CANDIDATE "")
 
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
-set(GETDNS_NUMERIC_VERSION 0x010600C1)
+set(GETDNS_NUMERIC_VERSION 0x01070000)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 
@@ -69,7 +69,7 @@ set(API_NUMERIC_VERSION 0x07df0c00)
 # getdns-1.5.1 had libversion 11:1:1
 # getdns-1.5.2 had libversion 11:2:1
 # getdns-1.6.0 had libversion 11:3:1
-# getdns-1.7.0 will have libversion 12:0:2
+# getdns-1.7.0 has libversion 12:0:2
 set(GETDNS_VERSION_CURRENT 12)
 set(GETDNS_VERSION_REVISION 0)
 set(GETDNS_VERSION_AGE 2)

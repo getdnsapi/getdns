@@ -1,4 +1,4 @@
-* 2021-06-??: Version 1.7.0
+* 2021-06-04: Version 1.7.0
   * Make TLS Handshake timeout max 4/5th of timeout for the query,
     just like connection setup timeout was, so fallback transport
     have a chance too when TCP connection setup is less well
@@ -20,6 +20,7 @@
     #320 .
   * Eventloop extensions back to the old names libgetdns_ext_event,
     libgetdns_ext_ev and libgetdns_ext_uv.
+  * Compilation warning fixes. Thanks Andreas!
 
 * 2020-02-28: Version 1.6.0
   * Issues #457, #458, #461: New symbols with libnettle >= 3.4.
