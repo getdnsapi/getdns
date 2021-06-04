@@ -9,10 +9,6 @@ int main()
 	getdns_return_t r;
 	getdns_context *ctx = NULL;
 	getdns_dict *extensions = NULL;
-	getdns_bindata ipv4 = { 4, (uint8_t*)"IPv4" };
-	/* 185.49.141.37 */
-	getdns_bindata nsip = { 4, (uint8_t*)"\xb9\x31\x8c\x3c" };
-	getdns_dict *upstream = NULL;
 	getdns_list *upstreams = NULL;
 	getdns_dict *response = NULL;
 	uint32_t value;
@@ -21,38 +17,19 @@ int main()
 	if ((r = getdns_context_create(&ctx, 1)))
 		fprintf(stderr, "Could not create context");
 
-	else if (!(extensions = getdns_dict_create_with_context(ctx))) {
-		fprintf(stderr, "Could not create dictionary");
-		r = GETDNS_RETURN_MEMORY_ERROR;
-
-	} else if ((r = getdns_dict_set_int(extensions, "/header/rd", 0)))
-		fprintf(stderr, "Could not set RD bit");
-
-	else if ((r = getdns_dict_set_int(extensions, "/add_opt_parameters/do_bit", 1)))
-		fprintf(stderr, "Could not set qtype");
-
-	else if (!(upstream = getdns_dict_create_with_context(ctx))) {
-		fprintf(stderr, "Could not create upstream dictionary");
-		r = GETDNS_RETURN_MEMORY_ERROR;
-
-	} else if ((r = getdns_dict_set_bindata(upstream, "address_type", &ipv4)))
-		fprintf(stderr, "Could set \"address_type\"");
-
-	else if ((r = getdns_dict_set_bindata(upstream, "address_data", &nsip)))
-		fprintf(stderr, "Could set \"address_data\"");
-
-	else if (!(upstreams = getdns_list_create_with_context(ctx))) {
-		fprintf(stderr, "Could not create upstreams list");
-		r = GETDNS_RETURN_MEMORY_ERROR;
-
-	} else if ((r = getdns_list_set_dict(upstreams, 0, upstream)))
-		fprintf(stderr, "Could not append upstream to upstreams list");
-
 	else if ((r = getdns_context_set_resolution_type(ctx, GETDNS_RESOLUTION_STUB)))	
 		fprintf(stderr, "Could not set stub mode");
 
+	else if ((r = getdns_str2list("[ 185.49.140.60 ]", &upstreams)))
+		fprintf(stderr, "Could not make upstreams list");
+
 	else if ((r = getdns_context_set_upstream_recursive_servers(ctx, upstreams)))	
 		fprintf(stderr, "Could not set upstreams list");
+
+	else if ((r = getdns_str2dict("{ header: { rd: 0 }"
+	                              ", add_opt_parameters: { do_bit: 1 }"
+				      "}", &extensions)))
+		fprintf(stderr, "Could not create extensions");
 
 	else if ((r = getdns_general_sync(ctx, "bogus.nlnetlabs.nl.", GETDNS_RRTYPE_TXT, extensions, &response)))
 		fprintf(stderr, "Could not do lookup");
@@ -61,7 +38,8 @@ int main()
 		fprintf(stderr, "Could not get status from response");
 
 	else if (value != GETDNS_RESPSTATUS_GOOD) {
-		fprintf(stderr, "response['status'] != GETDNS_RESPSTATUS_GOOD");
+		fprintf(stderr, "response['status'] != GETDNS_RESPSTATUS_GOOD: %s"
+		              , getdns_get_errorstr_by_id(value));
 		r = GETDNS_RETURN_GENERIC_ERROR;
 
 	} else if ((r = getdns_dict_get_int(response, "/replies_tree/0/header/rd", &value)))
@@ -100,8 +78,6 @@ int main()
 		getdns_dict_destroy(response);
 	if (upstreams)
 		getdns_list_destroy(upstreams);
-	if (upstream)
-		getdns_dict_destroy(upstream);
 	if (extensions)
 		getdns_dict_destroy(extensions);
 	if (ctx)

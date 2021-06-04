@@ -11,5 +11,5 @@ elif ! ( "./${TPKG_NAME}" "${TPKG_NAME}.net-dns.org" | tee out )
 then
 	exit 1
 else
-	diff out "${TPKG_NAME}.good"
+	diff out "${TPKG_NAME}.good" --ignore-matching-lines=";; MSG SIZE  rcvd: "
 fi

@@ -100,3 +100,19 @@
    obj:/usr/local/lib/libunbound.so.8.1.5
    obj:/usr/local/lib/libunbound.so.8.1.5
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Cond
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.*
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.*
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.*
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.*
+   obj:/usr/lib/x86_64-linux-gnu/libgnutls.so.*
+   fun:gnutls_x509_ext_import_subject_alt_names
+   fun:gnutls_x509_crt_import
+   fun:gnutls_x509_crt_list_import
+   fun:gnutls_x509_crt_list_import2
+   fun:gnutls_x509_trust_list_add_trust_mem
+   fun:gnutls_x509_trust_list_add_trust_file
+   fun:gnutls_x509_trust_list_add_system_trust
+}

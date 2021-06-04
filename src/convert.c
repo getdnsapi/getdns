@@ -122,7 +122,7 @@ getdns_convert_ulabel_to_alabel(const char *ulabel)
 	if (idn2_lookup_u8((uint8_t *)ulabel, &alabel, IDN2_TRANSITIONAL) == IDN2_OK)
 		return (char *)alabel;
 #else
-	(void)ulabel;
+	(void)ulabel; /* unused parameter */
 #endif
 	return NULL;
 }
@@ -149,7 +149,7 @@ getdns_convert_alabel_to_ulabel(const char *alabel)
 	if (idn2_to_unicode_8z8z(alabel, &ulabel, 0) == IDN2_OK)
 		return ulabel;
 #else
-	(void)alabel;
+	(void)alabel; /* unused parameter */
 #endif
 	return NULL;
 }
@@ -744,6 +744,75 @@ getdns_wire2msg_dict_scan(
 		else   GLDNS_ ## Y ## _CLR(header); \
 	}
 
+static getdns_return_t
+_getdns_reply_dict2wire_hdr(
+    const getdns_dict *reply, gldns_buffer *gbuf, getdns_bindata *wf_reply)
+{
+	size_t          pkt_start = gldns_buffer_position(gbuf);
+	size_t          pkt_len = wf_reply->size;
+	uint8_t        *header = gldns_buffer_current(gbuf);
+	uint8_t        *pkt_end = header + pkt_len;
+	getdns_list    *sec;
+	size_t          sec_len;
+	uint32_t        n, i;
+	_getdns_rr_iter rr_iter_storage, *rr_iter;
+	getdns_list    *section;
+	size_t          rrs2skip;
+	getdns_dict    *rr_dict;
+
+	gldns_buffer_write(gbuf, wf_reply->data, wf_reply->size);
+
+	if (GLDNS_QDCOUNT(header) != 1
+	|| (GLDNS_ARCOUNT(header) != 0 && GLDNS_ARCOUNT(header) != 1))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	sec_len = 0;
+	if (!getdns_dict_get_list(reply, "answer", &sec))
+		(void) getdns_list_get_length(sec, &sec_len);
+	if (sec_len != GLDNS_ANCOUNT(header))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	sec_len = 0;
+	if (!getdns_dict_get_list(reply, "authority", &sec))
+		(void) getdns_list_get_length(sec, &sec_len);
+	if (sec_len != GLDNS_NSCOUNT(header))
+		return GETDNS_RETURN_GENERIC_ERROR;
+
+	rrs2skip = 1 + GLDNS_ANCOUNT(header) +  GLDNS_NSCOUNT(header);
+
+	SET_HEADER_INT(id, ID);
+	SET_HEADER_BIT(qr, QR);
+	SET_HEADER_BIT(aa, AA);
+	SET_HEADER_BIT(tc, TC);
+	SET_HEADER_BIT(rd, RD);
+	SET_HEADER_BIT(cd, CD);
+	SET_HEADER_BIT(ra, RA);
+	SET_HEADER_BIT(ad, AD);
+	SET_HEADER_INT(opcode, OPCODE);
+	SET_HEADER_INT(rcode, RCODE);
+	SET_HEADER_BIT(z, Z);
+
+	for ( rr_iter = _getdns_rr_iter_init(&rr_iter_storage, header, pkt_len)
+	    ; rr_iter
+	    ; rr_iter = _getdns_rr_iter_next(rr_iter)) {
+		if (rr_iter->nxt > pkt_end)
+			return GETDNS_RETURN_GENERIC_ERROR;
+		if (!--rrs2skip)
+			break;
+		/* TODO: Delete sigs when do bit was off */
+	}
+	gldns_buffer_set_position(gbuf, rr_iter->nxt - header);
+	if (!getdns_dict_get_list(reply, "additional", &section)) {
+		for ( n = 0, i = 0
+		    ; !getdns_list_get_dict(section, i, &rr_dict); i++) {
+			 if (!_getdns_rr_dict2wire(rr_dict, gbuf))
+				 n++;
+		}
+		gldns_buffer_write_u16_at(gbuf, pkt_start+GLDNS_ARCOUNT_OFF, n);
+	}
+	return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t
 _getdns_reply_dict2wire(
     const getdns_dict *reply, gldns_buffer *buf, int reuse_header)
@@ -754,6 +823,7 @@ _getdns_reply_dict2wire(
 	getdns_list *section;
 	getdns_dict *rr_dict;
 	getdns_bindata *qname;
+	name_cache_t name_cache = {0};
 	int remove_dnssec;
 
 	pkt_start = gldns_buffer_position(buf);
@@ -783,7 +853,7 @@ _getdns_reply_dict2wire(
 	if (!getdns_dict_get_bindata(reply, "/question/qname", &qname) &&
 	    !getdns_dict_get_int(reply, "/question/qtype", &qtype)) {
 		(void)getdns_dict_get_int(reply, "/question/qclass", &qclass);
-		gldns_buffer_write(buf, qname->data, qname->size);
+		_getdns_rr_buffer_write_cached_name(buf, qname, &name_cache);
 		gldns_buffer_write_u16(buf, (uint16_t)qtype);
 		gldns_buffer_write_u16(buf, (uint16_t)qclass);
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_QDCOUNT_OFF, 1);
@@ -806,7 +876,7 @@ _getdns_reply_dict2wire(
 			    !getdns_dict_get_int(rr_dict, "type", &rr_type) &&
 			    rr_type == GETDNS_RRTYPE_RRSIG)
 				continue;
-			if (!_getdns_rr_dict2wire(rr_dict, buf))
+			if (!_getdns_rr_dict2wire_cache(rr_dict, buf, &name_cache))
 				 n++;
 		}
 		gldns_buffer_write_u16_at(buf, pkt_start+GLDNS_ANCOUNT_OFF, n);
@@ -848,8 +918,10 @@ getdns_return_t
 _getdns_msg_dict2wire_buf(const getdns_dict *msg_dict, gldns_buffer *gbuf)
 {
 	getdns_return_t r;
-	getdns_list *replies;
-	getdns_dict *reply;
+	getdns_list    *replies;
+	getdns_dict    *reply;
+	getdns_list    *wf_replies = NULL;
+	getdns_bindata *wf_reply;
 	size_t i;
 
 	if ((r = getdns_dict_get_list(msg_dict, "replies_tree", &replies))) {
@@ -857,8 +929,23 @@ _getdns_msg_dict2wire_buf(const getdns_dict *msg_dict, gldns_buffer *gbuf)
 			return r;
 		return _getdns_reply_dict2wire(msg_dict, gbuf, 0);
 	}
+	(void) getdns_dict_get_list(msg_dict, "replies_full", &wf_replies);
 	for (i = 0; r == GETDNS_RETURN_GOOD; i++) {
-		if (!(r = getdns_list_get_dict(replies, i, &reply)))
+		if ((r = getdns_list_get_dict(replies, i, &reply)))
+			;
+		else if (wf_replies
+		     && !getdns_list_get_bindata(wf_replies, i, &wf_reply)) {
+			size_t pkt_start = gldns_buffer_position(gbuf);
+
+			if (!gldns_buffer_reserve(gbuf, wf_reply->size))
+				return GETDNS_RETURN_NEED_MORE_SPACE;
+
+			if ((r = _getdns_reply_dict2wire_hdr( reply, gbuf
+			                                    , wf_reply))) {
+				gldns_buffer_set_position(gbuf, pkt_start);
+				r = _getdns_reply_dict2wire(reply, gbuf, 0);
+			}
+		} else
 			r = _getdns_reply_dict2wire(reply, gbuf, 0);
 	}
 	return r == GETDNS_RETURN_NO_SUCH_LIST_ITEM ? GETDNS_RETURN_GOOD : r;
@@ -1814,8 +1901,8 @@ getdns_yaml2list(const char *str, getdns_list **list)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) list;
+	(void) str; /* unused parameter */
+	(void) list; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1838,8 +1925,8 @@ getdns_yaml2bindata(const char *str, getdns_bindata **bindata)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) bindata;
+	(void) str; /* unused parameter */
+	(void) bindata; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
@@ -1862,8 +1949,8 @@ getdns_yaml2int(const char *str, uint32_t *value)
 		return GETDNS_RETURN_GENERIC_ERROR;
 	}	
 #else /* USE_YAML_CONFIG */
-	(void) str;
-	(void) value;
+	(void) str; /* unused parameter */
+	(void) value; /* unused parameter */
 	return GETDNS_RETURN_NOT_IMPLEMENTED;
 #endif /* USE_YAML_CONFIG */
 }
