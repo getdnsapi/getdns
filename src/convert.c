@@ -1612,6 +1612,11 @@ static int _jsmn_get_item(struct mem_funcs *mf, const char *js, jsmntok_t *t,
 		if (t->end < t->start)
 			*r = GETDNS_RETURN_GENERIC_ERROR;
 
+		else if (_jsmn_get_ipdict(mf, js, t, &item->data.dict)) {
+			item->dtype = t_dict;
+			*r = GETDNS_RETURN_GOOD;
+			return 1;
+                }
 		else if (!(item->data.bindata =
 		    GETDNS_MALLOC(*mf, getdns_bindata)))
 			*r = GETDNS_RETURN_MEMORY_ERROR;
