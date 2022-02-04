@@ -372,6 +372,8 @@ check_function_exists(SSL_set_ciphersuites HAVE_SSL_SET_CIPHERSUITES)
 
 check_function_exists(OPENSSL_init_crypto HAVE_OPENSSL_INIT_CRYPTO)
 
+check_function_exists(OSSL_PARAM_BLD_new HAVE_OSSL_PARAM_BLD_NEW)
+
 check_symbol_exists(SSL_dane_enable "openssl/ssl.h" HAVE_SSL_DANE_ENABLE)
 check_symbol_exists(SSL_CTX_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_CTX_SET1_CURVES_LIST)
 check_symbol_exists(SSL_set1_curves_list "openssl/ssl.h" HAVE_DECL_SSL_SET1_CURVES_LIST)
