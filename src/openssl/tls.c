@@ -320,6 +320,10 @@ void _getdns_tls_init()
 #endif
 }
 
+#define DOT_PROTO_ALPN_ID     "dot"
+#define DOT_PROTO_ALPN	   "\x3" DOT_PROTO_ALPN_ID
+#define DOT_PROTO_ALPN_LEN (sizeof(DOT_PROTO_ALPN) - 1)
+
 _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs, const getdns_log_config* log)
 {
 	_getdns_tls_context* res;
@@ -348,6 +352,8 @@ _getdns_tls_context* _getdns_tls_context_new(struct mem_funcs* mfs, const getdns
 		GETDNS_FREE(*mfs, res);
 		return NULL;
 	}
+	SSL_CTX_set_alpn_protos(res->ssl, (const uint8_t *)DOT_PROTO_ALPN,
+				DOT_PROTO_ALPN_LEN);
 	return res;
 }
 

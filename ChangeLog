@@ -1,3 +1,6 @@
+* 2022-06-: Version 1.7.1
+  * Always send the `dot` ALPN when using DoT
+
 * 2021-06-04: Version 1.7.0
   * Make TLS Handshake timeout max 4/5th of timeout for the query,
     just like connection setup timeout was, so fallback transport
