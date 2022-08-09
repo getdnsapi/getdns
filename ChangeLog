@@ -1,4 +1,5 @@
-* 2022-07-20
+* 2022-08-12: Version 1.7.1
+  * Always send the `dot` ALPN when using DoT
   * Strengthen version determination for Libidn2 during cmake processing (thanks
     jpbion).
 
