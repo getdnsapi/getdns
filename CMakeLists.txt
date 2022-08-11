@@ -340,6 +340,7 @@ check_include_file(openssl/engine.h HAVE_OPENSSL_ENGINE_H)
 check_include_file(openssl/bn.h HAVE_OPENSSL_BN_H)
 check_include_file(openssl/dsa.h HAVE_OPENSSL_DSA_H)
 check_include_file(openssl/rsa.h HAVE_OPENSSL_RSA_H)
+check_include_file(openssl/param_build.h HAVE_OPENSSL_PARAM_BUILD_H)
 
 set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES} ${getdns_system_libs})
 check_function_exists(DSA_SIG_set0 HAVE_DSA_SIG_SET0)

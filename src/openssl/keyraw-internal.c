@@ -51,7 +51,7 @@
 #ifdef USE_GOST
 
 /** store GOST engine reference loaded into OpenSSL library */
-#ifdef OPENSSL_NO_ENGINE
+#if defined(OPENSSL_NO_ENGINE) || OPENSSL_VERSION_NUMBER > 0x30000000
 int
 gldns_key_EVP_load_gost_id(void)
 {
