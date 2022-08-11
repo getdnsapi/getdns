@@ -6,8 +6,8 @@ endif ()
 
 # The following must be set BEFORE doing project() or enable_language().
 if (NOT CMAKE_BUILD_TYPE)
-  message(STATUS "No build type defined; defaulting to 'Debug'")
-  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING
+  message(STATUS "No build type defined; defaulting to 'RelWithDebInfo'")
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
     "The type of build. Possible values are: Debug, Release, RelWithDebInfo and MinSizeRel.")
 endif ()
 
@@ -1026,6 +1026,8 @@ if (BUILD_TESTING)
 endif ()
 
 # Substitutions in files.
+string(TOUPPER "${CMAKE_BUILD_TYPE}" GETDNS_BUILD_RELTYPE)
+string(REPLACE "\"" "\\\"" GETDNS_BUILD_CFLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${GETDNS_BUILD_RELTYPE}}")
 configure_file(cmake/include/cmakeconfig.h.in config.h)
 configure_file(src/getdns/getdns.h.in getdns/getdns.h)
 configure_file(src/getdns/getdns_extra.h.in getdns/getdns_extra.h)

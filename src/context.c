@@ -4097,6 +4097,9 @@ getdns_context_get_api_information(const getdns_context* context)
 	    result, "compilation_comment", GETDNS_COMPILATION_COMMENT)
 
 	    && ! getdns_dict_util_set_string(
+	    result, "build_cflags", GETDNS_BUILD_CFLAGS)
+
+	    && ! getdns_dict_util_set_string(
 	    result, "default_trust_anchor_location", TRUST_ANCHOR_FILE)
 
 	    && ! getdns_dict_util_set_string(
