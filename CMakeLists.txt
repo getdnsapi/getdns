@@ -13,19 +13,19 @@ endif ()
 
 set(PACKAGE "getdns")
 set(PACKAGE_NAME "getdns")
-set(PACKAGE_VERSION "1.7.0")
+set(PACKAGE_VERSION "1.7.1")
 set(PACKAGE_BUGREPORT "team@getdnsapi.net")
 set(PACKAGE_URL "https://getdnsapi.net")
 
 # Dont forget to put a dash in front of the release candidate!!!
 # That is how it is done with semantic versioning!
-set(RELEASE_CANDIDATE "")
+set(RELEASE_CANDIDATE "-rc.1")
 
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 set(PACKAGE_TARNAME "${PACKAGE}-${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
 
 set(GETDNS_VERSION "${PACKAGE_VERSION}${RELEASE_CANDIDATE}")
-set(GETDNS_NUMERIC_VERSION 0x01070000)
+set(GETDNS_NUMERIC_VERSION 0x010700c1)
 set(API_VERSION "December 2015")
 set(API_NUMERIC_VERSION 0x07df0c00)
 
