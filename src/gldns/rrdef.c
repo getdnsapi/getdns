@@ -392,9 +392,9 @@ static gldns_rr_descriptor rdata_field_descriptors[] = {
 	/* 63 */
 	{GLDNS_RR_TYPE_ZONEMD, "ZONEMD", 4, 4, type_zonemd_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 	/* 64 */
-	{GLDNS_RR_TYPE_SVCB, "SVCB", 2, 2, type_svcb_wireformat, GLDNS_RDF_TYPE_SVCPARAM, GLDNS_RR_NO_COMPRESS, 0 },
+	{GLDNS_RR_TYPE_SVCB, "SVCB", 2, 2, type_svcb_wireformat, GLDNS_RDF_TYPE_SVCPARAM, GLDNS_RR_NO_COMPRESS, 1 },
 	/* 65 */
-	{GLDNS_RR_TYPE_HTTPS, "HTTPS", 2, 2, type_svcb_wireformat, GLDNS_RDF_TYPE_SVCPARAM, GLDNS_RR_NO_COMPRESS, 0 },
+	{GLDNS_RR_TYPE_HTTPS, "HTTPS", 2, 2, type_svcb_wireformat, GLDNS_RDF_TYPE_SVCPARAM, GLDNS_RR_NO_COMPRESS, 1 },
 {(enum gldns_enum_rr_type)0, "TYPE66", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {(enum gldns_enum_rr_type)0, "TYPE67", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },
 {(enum gldns_enum_rr_type)0, "TYPE68", 1, 1, type_0_wireformat, GLDNS_RDF_TYPE_NONE, GLDNS_RR_NO_COMPRESS, 0 },

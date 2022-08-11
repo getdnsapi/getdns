@@ -196,6 +196,7 @@ static gldns_lookup_table gldns_edns_options_data[] = {
 	{ 8, "edns-client-subnet" },
 	{ 11, "edns-tcp-keepalive"},
 	{ 12, "Padding" },
+	{ 15, "EDE"},
 	{ 0, NULL}
 };
 gldns_lookup_table* gldns_edns_options = gldns_edns_options_data;
@@ -1072,7 +1073,7 @@ static int gldns_wire2str_svcparam_mandatory2str(char** s,
 	assert(data_len > 0);
 
 	if (data_len % sizeof(uint16_t))
-		return -1; // wireformat error, data_len must be multiple of shorts
+		return -1; /* wireformat error, data_len must be multiple of shorts */
 	w += gldns_str_print(s, slen, "=");
 	w += gldns_print_svcparamkey(s, slen, gldns_read_uint16(data));
 	data += 2;

@@ -250,11 +250,16 @@ rrinternal_get_ttl(gldns_buffer* strbuf, char* token, size_t token_len,
 	int* not_there, uint32_t* ttl, uint32_t default_ttl)
 {
 	const char* endptr;
+	int overflow;
 	if(gldns_bget_token(strbuf, token, "\t\n ", token_len) == -1) {
 		return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_TTL,
 			gldns_buffer_position(strbuf));
 	}
-	*ttl = (uint32_t) gldns_str2period(token, &endptr);
+	*ttl = (uint32_t) gldns_str2period(token, &endptr, &overflow);
+	if(overflow) {
+		return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_INTEGER_OVERFLOW,
+			gldns_buffer_position(strbuf));
+	}
 
 	if (strlen(token) > 0 && !isdigit((unsigned char)token[0])) {
 		*not_there = 1;
@@ -374,7 +379,8 @@ rrinternal_get_quoted(gldns_buffer* strbuf, const char** delimiters,
 
 		/* skip spaces */
 		while(gldns_buffer_remaining(strbuf) > 0 &&
-			*(gldns_buffer_current(strbuf)) == ' ') {
+			(*(gldns_buffer_current(strbuf)) == ' ' ||
+			*(gldns_buffer_current(strbuf)) == '\t')) {
 			gldns_buffer_skip(strbuf, 1);
 		}
 
@@ -607,7 +613,7 @@ gldns_affix_token(gldns_buffer* strbuf, char* token, size_t* token_len,
 	/* add space */
 	/* when addlen < 2, the token buffer is full considering the NULL byte
 	 * from strlen and will lead to buffer overflow with the second
-	 * assignement below. */
+	 * assignment below. */
 	if(addlen < 2) return 0;
 	token[*token_strlen] = ' ';
 	token[++(*token_strlen)] = 0;
@@ -671,10 +677,10 @@ static int gldns_str2wire_check_svcbparams(uint8_t* rdata, uint16_t rdata_len)
 	     ,gldns_str2wire_svcparam_key_cmp);
 
 
-	/* The code below revolves around sematic errors in the SVCParam set.
+	/* The code below revolves around semantic errors in the SVCParam set.
 	 * So long as we do not distinguish between running Unbound as a primary
 	 * or as a secondary, we default to secondary behavior and we ignore the
-	 * sematic errors. */
+	 * semantic errors. */
 
 #ifdef SVCB_SEMANTIC_ERRORS
 	{
@@ -776,7 +782,8 @@ rrinternal_parse_rdata(gldns_buffer* strbuf, char* token, size_t token_len,
 
 		/* unknown RR data */
 		if(token_strlen>=2 && strncmp(token, "\\#", 2) == 0 &&
-			!quoted && (token_strlen == 2 || token[2]==' ')) {
+			!quoted && (token_strlen == 2 || token[2]==' ' ||
+			token[2]=='\t')) {
 			was_unknown_rr_format = 1;
 			if((status=rrinternal_parse_unknown(strbuf, token,
 				token_len, rr, rr_len, &rr_cur_len, 
@@ -894,7 +901,7 @@ gldns_str2wire_rr_buf_internal(const char* str, uint8_t* rr, size_t* len,
 {
 	int status;
 	int not_there = 0;
-	char token[GLDNS_MAX_RDFLEN+1] = "";
+	char token[GLDNS_MAX_RDFLEN+1];
 	uint32_t ttl = 0;
 	uint16_t tp = 0, cl = 0;
 	size_t ddlen = 0;
@@ -1056,12 +1063,15 @@ int gldns_fp2wire_rr_buf(FILE* in, uint8_t* rr, size_t* len, size_t* dname_len,
 		return s;
 	} else if(strncmp(line, "$TTL", 4) == 0 && isspace((unsigned char)line[4])) {
 		const char* end = NULL;
+		int overflow = 0;
 		strlcpy((char*)rr, line, *len);
 		*len = 0;
 		*dname_len = 0;
 		if(!parse_state) return GLDNS_WIREPARSE_ERR_OK;
 		parse_state->default_ttl = gldns_str2period(
-			gldns_strip_ws(line+5), &end);
+			gldns_strip_ws(line+5), &end, &overflow);
+		if(overflow)
+			return GLDNS_WIREPARSE_ERR_SYNTAX_INTEGER_OVERFLOW;
 	} else if (strncmp(line, "$INCLUDE", 8) == 0) {
 		strlcpy((char*)rr, line, *len);
 		*len = 0;
@@ -1118,7 +1128,7 @@ gldns_str2wire_svcparam_key_lookup(const char *key, size_t key_len)
 		if (!strncmp(key, "mandatory", sizeof("mandatory")-1))
 			return SVCB_KEY_MANDATORY;
 		if (!strncmp(key, "echconfig", sizeof("echconfig")-1))
-			return SVCB_KEY_ECH; /* allow "echconfig as well as "ech" */
+			return SVCB_KEY_ECH; /* allow "echconfig" as well as "ech" */
 		break;
 
 	case sizeof("alpn")-1:
@@ -1357,7 +1367,7 @@ gldns_str2wire_svcbparam_mandatory(const char* val, uint8_t* rd, size_t* rd_len)
 	 */
 	qsort((void *)(rd + 4), count, sizeof(uint16_t), gldns_network_uint16_cmp);
 
-	/* The code below revolves around sematic errors in the SVCParam set.
+	/* The code below revolves around semantic errors in the SVCParam set.
 	 * So long as we do not distinguish between running Unbound as a primary
 	 * or as a secondary, we default to secondary behavior and we ignore the
 	 * semantic errors. */
@@ -1589,12 +1599,12 @@ static int gldns_str2wire_svcparam_buf(const char* str, uint8_t* rd, size_t* rd_
 		if (*val_in == '"') {
 			val_in++;
 			while (*val_in != '"'
-			&& (unsigned)(val_out - unescaped_val + 1) < sizeof(unescaped_val)
+			&& (size_t)(val_out - unescaped_val + 1) < sizeof(unescaped_val)
 			&& gldns_parse_char( (uint8_t*) val_out, &val_in)) {
 				val_out++;
 			}
 		} else {
-			while ((unsigned)(val_out - unescaped_val + 1) < sizeof(unescaped_val)
+			while ((size_t)(val_out - unescaped_val + 1) < sizeof(unescaped_val)
 			&& gldns_parse_char( (uint8_t*) val_out, &val_in)) {
 				val_out++;
 			}
@@ -2160,9 +2170,13 @@ int gldns_str2wire_tsigtime_buf(const char* str, uint8_t* rd, size_t* len)
 int gldns_str2wire_period_buf(const char* str, uint8_t* rd, size_t* len)
 {
 	const char* end;
-	uint32_t p = gldns_str2period(str, &end);
+	int overflow;
+	uint32_t p = gldns_str2period(str, &end, &overflow);
 	if(*end != 0)
 		return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_PERIOD, end-str);
+	if(overflow)
+		return RET_ERR(GLDNS_WIREPARSE_ERR_SYNTAX_INTEGER_OVERFLOW,
+			end-str);
 	if(*len < 4)
 		return GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 	gldns_write_uint32(rd, p);
