@@ -869,55 +869,6 @@ unsigned char* _getdns_tls_hmac_hash(struct mem_funcs* mfs, int algorithm, const
 	return res;
 }
 
-_getdns_tls_hmac* _getdns_tls_hmac_new(struct mem_funcs* mfs, int algorithm, const void* key, size_t key_size)
-{
-	gnutls_mac_algorithm_t alg;
-	_getdns_tls_hmac* res;
-
-	if (get_gnu_mac_algorithm(algorithm, &alg) != GETDNS_RETURN_GOOD)
-		return NULL;
-
-	if (!(res = GETDNS_MALLOC(*mfs, struct _getdns_tls_hmac)))
-		return NULL;
-
-	if (gnutls_hmac_init(&res->tls, alg, key, key_size) < 0) {
-		GETDNS_FREE(*mfs, res);
-		return NULL;
-	}
-	res->md_len = gnutls_hmac_get_len(alg);
-	return res;
-}
-
-getdns_return_t _getdns_tls_hmac_add(_getdns_tls_hmac* h, const void* data, size_t data_size)
-{
-	if (!h || !h->tls || !data)
-		return GETDNS_RETURN_INVALID_PARAMETER;
-
-	if (gnutls_hmac(h->tls, data, data_size) < 0)
-		return GETDNS_RETURN_GENERIC_ERROR;
-	else
-		return GETDNS_RETURN_GOOD;
-}
-
-unsigned char* _getdns_tls_hmac_end(struct mem_funcs* mfs, _getdns_tls_hmac* h, size_t* output_size)
-{
-	unsigned char* res;
-
-	if (!h || !h->tls)
-		return NULL;
-
-	res = (unsigned char*) GETDNS_XMALLOC(*mfs, unsigned char, h->md_len);
-	if (!res)
-		return NULL;
-
-	gnutls_hmac_deinit(h->tls, res);
-	if (output_size)
-		*output_size = h->md_len;
-
-	GETDNS_FREE(*mfs, h);
-	return res;
-}
-
 void _getdns_tls_sha1(const void* data, size_t data_size, unsigned char* buf)
 {
 	gnutls_hash_fast(GNUTLS_DIG_SHA1, data, data_size, buf);
