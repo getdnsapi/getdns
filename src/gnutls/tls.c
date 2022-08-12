@@ -393,6 +393,12 @@ _getdns_tls_connection* _getdns_tls_connection_new(struct mem_funcs* mfs, _getdn
 	if (dane_state_init(&res->dane_state, DANE_F_IGNORE_DNSSEC) != DANE_E_SUCCESS)
 		goto failed;
 
+	gnutls_datum_t proto;
+	proto.data = (unsigned char *)"dot";
+	proto.size = 3;
+	if (gnutls_alpn_set_protocols(res->tls, &proto, 1, 0) != GNUTLS_E_SUCCESS)
+		goto failed;
+
 	gnutls_transport_set_int(res->tls, fd);
 	return res;
 
