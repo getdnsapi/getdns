@@ -669,13 +669,6 @@ proxy_policies_create(getdns_context *context, size_t count)
 	    sizeof(getdns_proxy_policies) +
 	    sizeof(getdns_proxy_policy) * count);
 
-#if 0
-fprintf(stderr, "proxy_policies_create: alloc %d + %d * %d = %d\n",
-	sizeof(getdns_proxy_policies), count, sizeof(getdns_proxy_policy),
-	sizeof(getdns_proxy_policies) +
-            sizeof(getdns_proxy_policy) * count);
-#endif
-
 	if (r) {
 		r->mf = context->mf;
 		r->referenced = 1;
@@ -3602,7 +3595,6 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	if (!proxy_policy) {
 		_getdns_proxy_policies_dereference(context->proxy_policies);
 		context->proxy_policies = NULL;
@@ -3612,7 +3604,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		return GETDNS_RETURN_GOOD;
 	}
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	if ((r = getdns_dict_get_list(proxy_policy, "resolvers", 
 		&resolvers))) {
 		goto error;
@@ -3621,7 +3612,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		goto error;
 	}
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	if (count == 0) {
 		_getdns_upstreams_dereference(context->upstreams);
 		context->upstreams = NULL;
@@ -3630,7 +3620,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		return GETDNS_RETURN_GOOD;
 	}
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	policies = proxy_policies_create( context, count);
 	for (i = 0; i < count; i++) {
 		uint32_t	u32;
@@ -3653,6 +3642,7 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 			goto error;
 		}
 		/* flags */
+		policies->policies[i].flags = 0;
 		for (j= 0; policy_flags[j].name != NULL; j++)
 		{
 			if ((r = getdns_dict_get_int(dict,
@@ -3662,40 +3652,31 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		}
 
 		/* addrs */
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		if ((r = getdns_dict_get_list(
 		    dict, "addrs", &addrs)) == GETDNS_RETURN_GOOD) {
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 			if ((r = getdns_list_get_length(addrs, &addr_count)))
 				goto error;
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 			if (addr_count > POLICY_N_ADDR)
 				goto error;
 			policies->policies[i].addr_count = addr_count;
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 			for (j = 0; j < addr_count; j++) {
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 				if ((r = getdns_list_get_dict(addrs, j, 
 					&addr_dict))) {
 					goto error;
 				}
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 				if ((r = getdns_dict_get_bindata(addr_dict,
 					"address-type", &addr_type))) {
 					goto error;
 				}
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 				if ((r = getdns_dict_get_bindata(addr_dict,
 					"address-data", &addr_data))) {
 					goto error;
 				}
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 				if (addr_type->size == 4 &&
 					memcmp(addr_type->data, "IPv4", 4)
 					== 0) {
 					if (addr_data->size != 4)
 						goto error;
-fprintf(stderr, "getdns_context_set_local_proxy_policy: should store IPv4 address\n");
 				}
 				else if (addr_type->size == 4 &&
 					memcmp(addr_type->data, "IPv6", 4)
@@ -3716,7 +3697,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: should store IPv4 addres
 		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
 			goto error;
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		/* domain-name */
 		if ((r = getdns_dict_get_bindata(
 		    dict, "domain-name", &domain_name)) == GETDNS_RETURN_GOOD) {
@@ -3731,7 +3711,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
 			goto error;
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 
 		/* svcparams */
 		if ((r = getdns_dict_get_dict(
@@ -3745,7 +3724,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 				getdns_list_get_bindata(svcnames, j, &bindata);
 				key = _getdns_strdup2(&context->mf, bindata);
 				policies->policies[i].svcparams[j].key = key;
-fprintf(stderr, "getdns_context_set_local_proxy_policy: key %s\n", key);
 				if (getdns_dict_get_int(svcparams, key, &u32)
 					== GETDNS_RETURN_GOOD)
 				{
@@ -3762,7 +3740,6 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: key %s\n", key);
 						bindata);
 					policies->policies[i].svcparams[j].
 						value = value;
-fprintf(stderr, "getdns_context_set_local_proxy_policy: value %s\n", value);
 				}
 				else
 					goto error;
@@ -3771,11 +3748,9 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: value %s\n", value);
 		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
 		{
 			fprintf(stderr, "getdns_context_set_local_proxy_policy: r = %d\n", r);
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 			goto error;
 		}
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		/* interface */
 		if ((r = getdns_dict_get_bindata(
 		    dict, "interface", &interface)) == GETDNS_RETURN_GOOD) {
@@ -3788,16 +3763,13 @@ fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 		}
 		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
 			goto error;
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	}
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	_getdns_proxy_policies_dereference(context->proxy_policies);
 	context->proxy_policies = policies;
 	update_proxy_policy_opts(context);
 	dispatch_updated(context,
 		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
 
-fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
 	return GETDNS_RETURN_GOOD;
 
 #if 0
