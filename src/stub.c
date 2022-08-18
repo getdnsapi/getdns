@@ -177,6 +177,15 @@ attach_edns_cookie(getdns_network_req *req)
 	    req, EDNS_COOKIE_OPCODE, 8, req->client_cookie);
 }
 
+static getdns_return_t
+attach_proxy_policies_opt(getdns_network_req *req)
+{
+fprintf(stderr, "attach_proxy_policies_opt: adding option\n");
+	return _getdns_network_req_add_upstream_options(req,
+		req->owner->context->proxy_policies->policy_opts,
+		req->owner->context->proxy_policies->policy_opts_size);
+}
+
 /* Will find a matching OPT RR, but leaves the caller to validate it
  */
 #define MATCH_OPT_FOUND     2
@@ -845,6 +854,7 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 	intptr_t        query_id_intptr;
 
 	int q = tcp_connected(netreq->upstream);
+fprintf(stderr, "in stub_tcp_write\n");
 	if (q != 0)
 		return q;
 
@@ -874,6 +884,10 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 					return STUB_OUT_OF_OPTIONS;
 			if (netreq->owner->edns_client_subnet_private)
 				if (attach_edns_client_subnet_private(netreq))
+					return STUB_OUT_OF_OPTIONS;
+fprintf(stderr, "stub_tcp_write: before proxy_policies check\n");
+			if (netreq->owner->context->proxy_policies)
+				if (attach_proxy_policies_opt(netreq))
 					return STUB_OUT_OF_OPTIONS;
 			if (netreq->upstream->queries_sent == 0 && 
 				netreq->owner->context->idle_timeout != 0) {
@@ -1314,6 +1328,7 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 	int q;
        
+fprintf(stderr, "in stub_tls_write\n");
 	if (netreq->owner->expires > upstream->expires)
 		upstream->expires = netreq->owner->expires;
 
@@ -1569,6 +1584,7 @@ stub_udp_write_cb(void *userarg)
 	ssize_t            written;
 	DEBUG_STUB("%s %-35s: MSG: %p \n", STUB_DEBUG_WRITE, 
 	             __FUNC__, (void *)netreq);
+fprintf(stderr, "in stub_udp_write_cb\n");
 
 	GETDNS_CLEAR_EVENT(dnsreq->loop, &netreq->event);
 
@@ -1587,6 +1603,9 @@ stub_udp_write_cb(void *userarg)
 				return; /* too many upstream options */
 		if (netreq->owner->edns_client_subnet_private)
 			if (attach_edns_client_subnet_private(netreq))
+				return; /* too many upstream options */
+		if (netreq->owner->context->proxy_policies)
+			if (attach_proxy_policies_opt(netreq))
 				return; /* too many upstream options */
 	}
 	pkt_len = _getdns_network_req_add_tsig(netreq);

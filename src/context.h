@@ -260,6 +260,22 @@ typedef struct getdns_upstream {
 
 } getdns_upstream;
 
+#define POLICY_N_ADDR		3
+#define POLICY_N_SVCPARAMS	8
+
+typedef struct getdns_proxy_policy {
+	unsigned flags;
+	int addr_count;
+	struct sockaddr_storage addrs[POLICY_N_ADDR];
+	char *domainname;
+	struct
+	{
+		char *key;
+		char *value;
+	} svcparams[POLICY_N_SVCPARAMS];
+	char *interface;
+} getdns_proxy_policy;
+
 typedef struct getdns_log_config {
 	getdns_logfunc_type  func;
 	void                *userarg;
@@ -279,6 +295,15 @@ typedef struct getdns_upstreams {
 	getdns_log_config log;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
+
+typedef struct getdns_proxy_policies {
+	struct mem_funcs mf;
+	size_t referenced;
+	size_t count;
+	uint8_t *policy_opts;
+	size_t policy_opts_size;
+	getdns_proxy_policy policies[];
+} getdns_proxy_policies;
 
 typedef enum tas_state {
 	TAS_LOOKUP_ADDRESSES = 0,
@@ -367,6 +392,8 @@ struct getdns_context {
 	char                 *tls_curves_list;
 	getdns_tls_version_t  tls_min_version;
 	getdns_tls_version_t  tls_max_version;
+
+	getdns_proxy_policies *proxy_policies;
 
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
