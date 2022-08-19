@@ -28,6 +28,7 @@
 #define _check_getdns_context_destroy_h_
 
 #include <signal.h>
+extern int context_destroyed;
 
     /*
      **************************************************************************
@@ -202,10 +203,12 @@
          &flag, &transaction_id, destroy_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
+       context_destroyed = 0;
        RUN_EVENT_LOOP;
 
-       CONTEXT_DESTROY;
-
+       if (!context_destroyed) {
+         CONTEXT_DESTROY;
+       }
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST
@@ -229,10 +232,11 @@
          &flag, &transaction_id, destroy_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
        getdns_cancel_callback(context, transaction_id);
+       context_destroyed = 0;
        RUN_EVENT_LOOP;
-
-       CONTEXT_DESTROY;
-
+       if (!context_destroyed) {
+         CONTEXT_DESTROY;
+       }
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST
@@ -261,10 +265,12 @@
          &flag, &transaction_id, destroy_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
+       context_destroyed = 0;
        RUN_EVENT_LOOP;
 
-       CONTEXT_DESTROY;
-
+       if (!context_destroyed) {
+         CONTEXT_DESTROY;
+       }
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST

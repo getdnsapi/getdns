@@ -1390,6 +1390,7 @@ getdns_context_create_with_extended_memory_functions(
 #endif
 	result->processing = 0;
 	result->destroying = 0;
+	result->to_destroy = 0;
 	result->my_mf.mf_arg         = userarg;
 	result->my_mf.mf.ext.malloc  = malloc;
 	result->my_mf.mf.ext.realloc = realloc;
@@ -1644,6 +1645,10 @@ getdns_context_destroy(struct getdns_context *context)
 
 	/*  If being destroyed during getdns callback, fail via assert */
 	assert(context->processing == 0);
+	if (context->processing == 1) {
+		context->to_destroy = 1;
+		return;
+	}
 	if (context->destroying)
 		return;
 
@@ -3768,7 +3773,10 @@ getdns_context_get_num_pending_requests(const getdns_context* context,
 
 	if (context->outbound_requests.count)
 		context->extension->vmt->run_once(context->extension, 0);
-
+	if (context->to_destroy) {
+		getdns_context_destroy((getdns_context *)context);
+		return 0;
+	}
 	return context->outbound_requests.count;
 }
 
@@ -3780,6 +3788,8 @@ getdns_context_process_async(getdns_context *context)
 		return GETDNS_RETURN_INVALID_PARAMETER;
 
 	context->extension->vmt->run_once(context->extension, 0);
+	if (context->to_destroy)
+		getdns_context_destroy(context);
 	return GETDNS_RETURN_GOOD;
 }
 
@@ -3787,6 +3797,8 @@ void
 getdns_context_run(getdns_context *context)
 {
 	context->extension->vmt->run(context->extension);
+	if (context->to_destroy)
+		getdns_context_destroy(context);
 }
 
 getdns_return_t
