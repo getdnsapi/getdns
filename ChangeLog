@@ -1,4 +1,4 @@
-* 2022-08-??: Version 1.7.1
+* 2022-08-19: Version 1.7.1
   * Always send the `dot` ALPN when using DoT
   * Strengthen version determination for Libidn2 during cmake processing
     (thanks jpbion).
@@ -13,7 +13,7 @@
     Thanks Johnnyslee
   * Issue #517: Allow Absolute path CMAKE_INSTALL_{INCLUDE,LIB}DIR in
     pkg-config files. Thanks Alex Shpilkin
-  * Issue #512: Update README.md to show PGP key location.
+  * Issue #512: Update README.md to show correct PGP key location.
     Thanks Katze Prior.
 
 * 2021-06-04: Version 1.7.0
