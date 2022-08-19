@@ -134,38 +134,39 @@ for (( ii = 0; ii < 1; ii++)); do
 
 	if [[ $HAVE_SSL_HN_AUTH = 1 ]]
 	then
-		NUM_GOOD_QUERIES=8
+		NUM_GOOD_QUERIES=7
 		GOOD_QUERIES=(
-		"-s -A  getdnsapi.net -l U        @${SERVER_IP} +edns_cookies"              "U" "-"
 		"-s -A  getdnsapi.net -l T        @${SERVER_IP}"              "T" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_ALG}:${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l L        @${TLS_SERVER_IP_NO_NAME}"  "L" "N"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP}"          "L" "S"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -G TXT large.getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-")
+		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S")
+		#"-s -A  getdnsapi.net -l U        @185.49.141.38 +edns_cookies"              "U" "-"
+		#"-s -G TXT large.getdnsapi.net -l U  @8.8.8.8 -b 512 -D" "U" "-"
 	else
 		NUM_GOOD_QUERIES=6
 		GOOD_QUERIES=(
-		"-s -A  getdnsapi.net -l U        @${SERVER_IP} +edns_cookies"              "U" "-"
 		"-s -A  getdnsapi.net -l T        @${SERVER_IP}"              "T" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_ALG}:${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l U        @${SERVER_IP_TSIG}${TSIG_NAME}:${TSIG_SECRET}" "U" "-"
 		"-s -A  getdnsapi.net -l L        @${TLS_SERVER_IP_NO_NAME}"  "L" "N"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_KEY}\"" "L" "S"
-		"-s -G TXT large.getdnsapi.net -l U  @${SERVER_IP} -b 512 -D" "U" "-"
 		"-s -A  getdnsapi.net -l L -m     @${TLS_SERVER_SS_IP_NO_NAME} -K pin-sha256=\"${TLS_SERVER_SS_KEY}\"" "L" "S")
+
+		#"-s -A  getdnsapi.net -l U        @185.49.141.38 +edns_cookies"              "U" "-"
+		# "-s -G TXT large.getdnsapi.net -l U  @8.8.8.8 -b 512 -D" "U" "-"
 	fi
 
-	NUM_GOOD_FB_QUERIES=6
+	NUM_GOOD_FB_QUERIES=4
 	GOOD_FALLBACK_QUERIES=(
-	"-s -A getdnsapi.net -l LU     @${SERVER_IP}" "U" "-"
 	"-s -A getdnsapi.net -l LT     @${SERVER_IP}" "T" "-" 
 	"-s -A getdnsapi.net -l LT     @${TLS_SERVER_IP_NO_NAME}" "L" "N"
 	"-s -A getdnsapi.net -l LT -m  @${TLS_SERVER_IP_NO_NAME}" "L" "N"
-	"-s -A getdnsapi.net -l L      @${SERVER_IP} @${TLS_SERVER_IP_NO_NAME}" "L" "-"
-	"-s -G TXT large.getdnsapi.net -l UT  @${SERVER_IP} -b 512 -D" "T" "-")
+	"-s -A getdnsapi.net -l L      @${SERVER_IP} @${TLS_SERVER_IP_NO_NAME}" "L" "-")
+	#"-s -A getdnsapi.net -l LU     @${SERVER_IP}" "U" "-"
+	#"-s -G TXT large.getdnsapi.net -l UT  @$8.8.8.8 -b 512 -D" "T" "-"
 
 	NOT_AVAILABLE_QUERIES=(
 	"-s -A getdnsapi.net -l L      @${SERVER_IP}"
