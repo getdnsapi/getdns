@@ -343,7 +343,6 @@ void assert_ptr_in_answer(struct extracted_response *ex_response)
   ck_assert_msg(ptr_records > 0, "Answer did not contain any PTR records");
 }
 
-int context_destroyed = 0;
 void destroy_callbackfn(struct getdns_context *context,
                         getdns_callback_type_t callback_type,
                         struct getdns_dict *response,
@@ -354,7 +353,6 @@ void destroy_callbackfn(struct getdns_context *context,
     *flag = 1;
     getdns_dict_destroy(response);
     getdns_context_destroy(context);
-    context_destroyed = 1;
 }
 
 /*

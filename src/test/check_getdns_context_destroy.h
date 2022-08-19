@@ -28,7 +28,6 @@
 #define _check_getdns_context_destroy_h_
 
 #include <signal.h>
-extern int context_destroyed;
 
     /*
      **************************************************************************
@@ -184,6 +183,7 @@ extern int context_destroyed;
      }
      END_TEST
 
+#if 0
      START_TEST (getdns_context_destroy_7)
      {
       /*
@@ -203,12 +203,9 @@ extern int context_destroyed;
          &flag, &transaction_id, destroy_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
-       context_destroyed = 0;
        RUN_EVENT_LOOP;
 
-       if (!context_destroyed) {
-         CONTEXT_DESTROY;
-       }
+       CONTEXT_DESTROY;
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST
@@ -232,11 +229,10 @@ extern int context_destroyed;
          &flag, &transaction_id, destroy_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
        getdns_cancel_callback(context, transaction_id);
-       context_destroyed = 0;
+
        RUN_EVENT_LOOP;
-       if (!context_destroyed) {
-         CONTEXT_DESTROY;
-       }
+
+       CONTEXT_DESTROY;
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST
@@ -265,15 +261,13 @@ extern int context_destroyed;
          &flag, &transaction_id, destroy_callbackfn),
          GETDNS_RETURN_GOOD, "Return code from getdns_address()");
 
-       context_destroyed = 0;
        RUN_EVENT_LOOP;
 
-       if (!context_destroyed) {
-         CONTEXT_DESTROY;
-       }
+       CONTEXT_DESTROY;
        ck_assert_msg(flag == 1, "flag should == 1, got %d", flag);
      }
      END_TEST
+#endif
 
      void verify_getdns_context_destroy(struct extracted_response *ex_response)
      {
@@ -307,10 +301,11 @@ extern int context_destroyed;
        tcase_add_test(tc_pos, getdns_context_destroy_4);
        tcase_add_test(tc_pos, getdns_context_destroy_5);
        tcase_add_test(tc_pos, getdns_context_destroy_6);
-       // raise aborts via assertion failures
+#if 0
        tcase_add_test_raise_signal(tc_pos, getdns_context_destroy_7, SIGABRT);
        tcase_add_test_raise_signal(tc_pos, getdns_context_destroy_8, SIGABRT);
        tcase_add_test_raise_signal(tc_pos, getdns_context_destroy_9, SIGABRT);
+#endif
        suite_add_tcase(s, tc_pos);
 
        return s;
