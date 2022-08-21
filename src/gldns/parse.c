@@ -13,6 +13,7 @@
 #include "gldns/gbuffer.h"
 
 #include <limits.h>
+#include <stdlib.h>
 #include <strings.h>
 
 gldns_lookup_table gldns_directive_types[] = {
