@@ -3589,6 +3589,7 @@ getdns_context_set_local_proxy_policy(getdns_context *context,
 	size_t i, j;
 	getdns_proxy_policies *policies;
 	getdns_list *resolvers;
+	struct sockaddr_in *sin4p;
 	struct sockaddr_in6 *sin6p;
 
 fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
@@ -3677,6 +3678,12 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 					== 0) {
 					if (addr_data->size != 4)
 						goto error;
+					sin4p= (struct sockaddr_in *)
+						&policies->policies[i].addrs[j];
+					sin4p->sin_family= AF_INET;
+					memcpy(&sin4p->sin_addr,
+						addr_data->data, 
+						sizeof(sin4p->sin_addr));
 				}
 				else if (addr_type->size == 4 &&
 					memcmp(addr_type->data, "IPv6", 4)
