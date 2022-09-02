@@ -536,6 +536,23 @@ const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn)
 	return gnutls_protocol_get_name(gnutls_protocol_get_version(conn->tls));
 }
 
+/* CBN:TODO Implement! */
+int _getdns_tls_connection_get_pkix_auth(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return 0;
+
+	return 2 /* 2 is unknown */;
+}
+
+/* CBN:TODO Implement! */
+int _getdns_tls_connection_get_pin_auth(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return 0;
+	return 0;
+}
+
 getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn)
 {
 	int r;

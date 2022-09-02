@@ -218,6 +218,11 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->debug_tls_peer_cert.size = 0;
 	net_req->debug_tls_peer_cert.data = NULL;
 	net_req->debug_tls_version = NULL;
+	net_req->debug_pkix_auth = 0; /* 1 == authenticated with PKIX
+                                       * 0 == not authenticated with PKIX
+                                       * 2 == unknown
+	                               */
+	net_req->debug_pin_auth = 0;  /* == 1 if authenticated with pinset */
 	net_req->debug_udp = 0;
 
 	/* Scheduling, touch only via _getdns_netreq_change_state!

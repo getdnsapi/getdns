@@ -842,6 +842,26 @@ const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn)
 	return SSL_get_version(conn->ssl);
 }
 
+int _getdns_tls_connection_get_pkix_auth(_getdns_tls_connection* conn)
+{
+	uint8_t usage = 255; /* 0 and 1 for also PKIX, 2 and 3 for DANE only */
+
+	if (!conn || !conn->ssl)
+		return 0;
+
+	if (SSL_get0_dane_tlsa(conn->ssl, &usage, NULL, NULL, NULL, NULL) < 0)
+		return SSL_get_verify_result(conn->ssl) == X509_V_OK  ? 1 : 0;
+
+	return usage <= 1 ? 1 : 2 /* 2 is unknown */;
+}
+
+int _getdns_tls_connection_get_pin_auth(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return 0;
+	return SSL_get0_dane_authority(conn->ssl, NULL, NULL) >= 0;
+}
+
 getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn)
 {
 	int r;

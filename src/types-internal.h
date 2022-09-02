@@ -244,6 +244,9 @@ typedef struct getdns_network_req
 	const char             *debug_tls_version;
 
 	/* Some booleans */
+	unsigned                debug_pkix_auth: 2; /* 1 if TLS connection is PKIX valid 
+	                                               2 if this is unknown */
+	unsigned                debug_pin_auth : 1; /* 1 if one of the pinset's matched */
 	unsigned                debug_udp      : 1;
 	unsigned                keepalive_sent : 1;
 	unsigned                badcookie_retry: 1;

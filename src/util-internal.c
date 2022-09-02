@@ -966,6 +966,18 @@ _getdns_create_call_reporting_dict(
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
 	}
+	if (getdns_dict_set_int(netreq_debug, "tls_auth_pin",
+	    netreq->debug_pin_auth)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	if (getdns_dict_set_int(netreq_debug, "tls_auth_pkix",
+	    netreq->debug_pkix_auth)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
 	if (getdns_dict_util_set_string(netreq_debug, "tls_version",
 	    netreq->debug_tls_version)){
 

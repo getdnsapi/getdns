@@ -266,6 +266,22 @@ _getdns_tls_session* _getdns_tls_connection_get_session(struct mem_funcs* mfs, _
 const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn);
 
 /**
+ * Return whether or not the peer cert PKIX validated
+ *
+ * @param conn  the connection
+ * @return 1 when the peer cert PKIX validated, 0 if it did not validate, 2 otherwise
+ */
+int _getdns_tls_connection_get_pkix_auth(_getdns_tls_connection* conn);
+
+/**
+ * Return whether or not a pin from the pinset matched
+ *
+ * @param conn  the connection
+ * @return 1 when the peer cert matched a pinset, 0 otherwise
+ */
+int _getdns_tls_connection_get_pin_auth(_getdns_tls_connection* conn);
+
+/**
  * Attempt TLS handshake.
  *
  * @param conn	the connection.

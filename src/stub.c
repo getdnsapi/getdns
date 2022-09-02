@@ -1853,6 +1853,8 @@ upstream_write_cb(void *userarg)
 				_getdns_tls_x509_free(&upstream->upstreams->mf, cert);
 			}
 			netreq->debug_tls_version = _getdns_tls_connection_get_version(netreq->upstream->tls_obj);
+			netreq->debug_pkix_auth = _getdns_tls_connection_get_pkix_auth(netreq->upstream->tls_obj);
+			netreq->debug_pin_auth = _getdns_tls_connection_get_pin_auth(netreq->upstream->tls_obj);
 		}
 		/* Need this because auth status is reset on connection close */
 		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
