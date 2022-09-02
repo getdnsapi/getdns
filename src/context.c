@@ -3705,6 +3705,7 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 			goto error;
 
 		/* domain-name */
+		policies->policies[i].domainname = NULL;
 		if ((r = getdns_dict_get_bindata(
 		    dict, "domain-name", &domain_name)) == GETDNS_RETURN_GOOD) {
 			policies->policies[i].domainname=
