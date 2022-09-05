@@ -119,6 +119,16 @@ extern "C" {
 /** @}
   */
 
+/**
+ * \addtogroup respstatus Status Codes for responses and texts
+ *  @{
+ */
+
+#define GETDNS_RESPSTATUS_ALL_ERRED 950
+#define GETDNS_RESPSTATUS_ALL_ERRED_TEXT "All queries for the name erred"
+
+/** @}
+  */
 
 /**
  * \defgroup versions Version values

@@ -1780,12 +1780,41 @@ upstream_read_cb(void *userarg)
 }
 
 static void
+netreq_equip_tls_debug_info(getdns_network_req *netreq)
+{
+	_getdns_tls_x509 *cert;
+
+	if (!netreq || !netreq->upstream)
+		return;
+	netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
+	if (!netreq->upstream->tls_obj)
+		return;
+	if (netreq->debug_tls_peer_cert.data) {
+		GETDNS_FREE( netreq->owner->my_mf
+		           , netreq->debug_tls_peer_cert.data);
+		netreq->debug_tls_peer_cert.data = NULL;
+		netreq->debug_tls_peer_cert.size = 0;
+	}
+	if ((cert = _getdns_tls_connection_get_peer_certificate(
+			&netreq->owner->my_mf, netreq->upstream->tls_obj))) {
+		_getdns_tls_x509_to_der( &netreq->owner->my_mf, cert
+		                       , &netreq->debug_tls_peer_cert);
+		_getdns_tls_x509_free(&netreq->owner->my_mf, cert);
+	}
+	netreq->debug_tls_version = _getdns_tls_connection_get_version(
+						netreq->upstream->tls_obj);
+	netreq->debug_pkix_auth   = _getdns_tls_connection_get_pkix_auth(
+						netreq->upstream->tls_obj);
+	netreq->debug_pin_auth    = _getdns_tls_connection_get_pin_auth(
+						netreq->upstream->tls_obj);
+}
+
+static void
 upstream_write_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
 	int q;
-	_getdns_tls_x509 *cert;
 
 	if (!netreq) {
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
@@ -1834,6 +1863,8 @@ upstream_write_cb(void *userarg)
 		    "%-40s : Conn closed: %s - *Failure*\n",
 		    upstream->addr_str,
 		    (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
+		if (netreq->owner->return_call_reporting)
+			netreq_equip_tls_debug_info(netreq);
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {
 			/* TODO: Need new state to report transport unavailable*/
 			_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
@@ -1844,20 +1875,8 @@ upstream_write_cb(void *userarg)
 	default:
 		/* Unqueue the netreq from the write_queue */
 		remove_from_write_queue(upstream, netreq);
-
-		if (netreq->owner->return_call_reporting &&
-		    netreq->upstream->tls_obj) {
-			if (netreq->debug_tls_peer_cert.data == NULL &&
-			    (cert = _getdns_tls_connection_get_peer_certificate(&upstream->upstreams->mf, netreq->upstream->tls_obj))) {
-				_getdns_tls_x509_to_der(&upstream->upstreams->mf, cert, &netreq->debug_tls_peer_cert);
-				_getdns_tls_x509_free(&upstream->upstreams->mf, cert);
-			}
-			netreq->debug_tls_version = _getdns_tls_connection_get_version(netreq->upstream->tls_obj);
-			netreq->debug_pkix_auth = _getdns_tls_connection_get_pkix_auth(netreq->upstream->tls_obj);
-			netreq->debug_pin_auth = _getdns_tls_connection_get_pin_auth(netreq->upstream->tls_obj);
-		}
-		/* Need this because auth status is reset on connection close */
-		netreq->debug_tls_auth_status = netreq->upstream->tls_auth_state;
+		if (netreq->owner->return_call_reporting)
+			netreq_equip_tls_debug_info(netreq);
 		upstream->queries_sent++;
 
 		/* Empty write_queue?, then deschedule upstream write_cb */
