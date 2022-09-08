@@ -3771,6 +3771,8 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 		}
 		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
 			goto error;
+		else
+			policies->policies[i].interface = NULL;
 	}
 	_getdns_proxy_policies_dereference(context->proxy_policies);
 	context->proxy_policies = policies;
