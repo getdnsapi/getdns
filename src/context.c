@@ -3233,7 +3233,10 @@ static struct proxy_control_flags
 	{ 0, 0 }
 };
 
-#define SVC_KEY_ALPN	1
+#define SVC_KEY_MANDATORY	0
+#define SVC_KEY_ALPN		1
+#define SVC_KEY_NDA		2
+#define SVC_KEY_PORT		3
 
 /* Note: this table must be kept sort based on 'value' */
 struct
@@ -3242,7 +3245,10 @@ struct
 	char *key;
 } svckeys[] = 
 {
-	{ SVC_KEY_ALPN, "alpn" },	/* 1 */
+	{ SVC_KEY_MANDATORY, "mandatory" },	/* 0 */
+	{ SVC_KEY_ALPN, "alpn" },		/* 1 */
+	{ SVC_KEY_NDA, "no-default-alpn" },	/* 2 */
+	{ SVC_KEY_PORT, "port" },		/* 3 */
 	{ 0, NULL }
 };
 
@@ -3250,11 +3256,12 @@ static void proxy_policy2opt(getdns_proxy_policy *policy, int do_ipv6,
 	uint8_t *buf, size_t *sizep)
 {
 	uint8_t inflen;
-	uint16_t flags1, flags2, key16, len16;
-	int i, j, addr_count;
+	uint16_t flags1, flags2, key16, len16, u16;
+	int i, j, k, addr_count;
 	ptrdiff_t len, totlen;
-	size_t datalen;
-	char *l, *dot, *key, *v, *vp, *comma;
+	size_t datalen, slen;
+	unsigned long port;
+	char *l, *dot, *key, *mkey, *v, *vp, *comma, *check;
 	uint8_t *bp, *addr_type, *addr_len, *addrp, *domainlenp,
 		*domainp, *svclenp, *svcp, *inflenp, *infp, *lastp, *endp,
 		*datap, *wire_keyp, *wire_lenp, *wire_datap;
@@ -3432,10 +3439,12 @@ static void proxy_policy2opt(getdns_proxy_policy *policy, int do_ipv6,
 		for (i = 0; svckeys[i].key != NULL; i++)
 		{
 			key = svckeys[i].key;
+fprintf(stderr, "i %d, key %s\n", i, key);
 			for (j = 0; j<POLICY_N_SVCPARAMS; j++)
 			{
 				if (policy->svcparams[j].key == NULL)
 					break;
+fprintf(stderr, "j %d, key %s\n", j, policy->svcparams[j].key);
 				if (strcmp(key, policy->svcparams[j].key) == 0)
 					break;
 			}
@@ -3448,6 +3457,50 @@ static void proxy_policy2opt(getdns_proxy_policy *policy, int do_ipv6,
 
 			switch(svckeys[i].value)
 			{
+			case SVC_KEY_MANDATORY:
+				bp = wirebuf;
+
+				/* Check each of the keys we know if it is
+				 * in the value. Not very efficient, but
+				 * we don't need that many keys.
+				 */
+				for (k = 0; svckeys[k].key != NULL; k++)
+				{
+					mkey = svckeys[k].key;
+					v = policy->svcparams[j].value;
+					while (v)
+					{
+						comma = strchr(v, ',');
+						if (comma)
+							slen = comma-v;
+						else
+							slen = strlen(v);
+						if (slen == strlen(mkey) &&
+							memcmp(mkey, v, slen)
+							== 0)
+						{
+							break;
+						}
+						if (comma)
+							v = comma+1;
+						else
+							v = NULL;
+					}
+					if (!v)
+					{
+						fprintf(stderr,
+					"proxy_policy2opt: skipping key %s\n",
+							mkey);
+						continue;
+					}
+					u16 = htons(svckeys[k].value);
+					memcpy(bp, &u16, sizeof(u16));
+					bp += sizeof(u16);
+				}
+				datap = wirebuf;
+				datalen = bp-wirebuf;
+				break;
+
 			case SVC_KEY_ALPN:
 				v = policy->svcparams[j].value;
 				if (v == NULL)
@@ -3486,6 +3539,26 @@ static void proxy_policy2opt(getdns_proxy_policy *policy, int do_ipv6,
 				}
 				datap = wirebuf;
 				datalen = bp-wirebuf;
+				break;
+
+			case SVC_KEY_NDA:
+				datap = wirebuf;
+				datalen = 0;
+				break;
+
+			case SVC_KEY_PORT:
+				port = strtoul(policy->svcparams[j].value,
+					&check, 10);
+				if (check[0] != '\0' || port > 65535)
+				{
+				fprintf(stderr,
+				"proxy_policy2opt: bad port value %s\n",
+					policy->svcparams[j].value);
+					abort();
+				}
+				u16= htons(port);
+				datap= (uint8_t *)&u16;
+				datalen = sizeof(u16);
 				break;
 
 			default:
@@ -3596,6 +3669,7 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 
 	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
 
+	policies = NULL;
 	if (!proxy_policy) {
 		_getdns_proxy_policies_dereference(context->proxy_policies);
 		context->proxy_policies = NULL;
@@ -3721,6 +3795,8 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 
 
 		/* svcparams */
+		for (j = 0; j<POLICY_N_SVCPARAMS; j++)
+			policies->policies[i].svcparams[j].key = NULL;
 		if ((r = getdns_dict_get_dict(
 		    dict, "svcparams", &svcparams)) == GETDNS_RETURN_GOOD) {
 			getdns_dict_get_names(svcparams, &svcnames);
@@ -3760,6 +3836,7 @@ fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
 		}
 
 		/* interface */
+		policies->policies[i].interface= NULL;
 		if ((r = getdns_dict_get_bindata(
 		    dict, "interface", &interface)) == GETDNS_RETURN_GOOD) {
 			policies->policies[i].interface=
