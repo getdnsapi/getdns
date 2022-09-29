@@ -3150,14 +3150,15 @@ fprintf(stderr, "update_proxy_policy_opts: policy_count %d\n", policy_count);
 			size= sizeof(buf)-off;
 			proxy_policy2opt(policy, 1 /*do_ipv6*/, buf.buf+off,
 				&size);
-			off= size;
+			off += size;
 		}
 		if (has_v4)
 		{
 			size= sizeof(buf)-off;
 			proxy_policy2opt(policy, 0 /*!do_ipv6*/, buf.buf+off,					&size);
-			off= size;
+			off += size;
 		}
+		fprintf(stderr, "update_proxy_policy_opts: off %lu\n", off);
 	}
 
 	opt= NULL;
