@@ -43,6 +43,7 @@
 /* Forward declare type. */
 struct sha256_pin;
 struct getdns_log_config;
+struct dane_record;
 
 /* Additional return codes required by TLS abstraction. Internal use only. */
 #define GETDNS_RETURN_TLS_WANT_READ		((getdns_return_t) 420)
@@ -331,6 +332,17 @@ getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connectio
  * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
  */
 getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* conn, const char* auth_name, const struct sha256_pin* pinset);
+
+/**
+ * Set host pinset.
+ *
+ * @param conn		the connection.
+ * @param auth_name	the hostname.
+ * @param dane_records  the DANE records that must match.
+ * @return GETDNS_RETURN_GOOD if all OK.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ */
+getdns_return_t _getdns_tls_connection_set_dane_records(_getdns_tls_connection* conn, const char* auth_name, const struct dane_record* dane_records);
 
 /**
  * Get result of certificate verification.

@@ -1049,8 +1049,9 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 		/* Lack of host name is OK unless only authenticated
 		 * TLS is specified and we have no pubkey_pinset */
 		if (dnsreq->netreqs[0]->tls_auth_min == GETDNS_AUTHENTICATION_REQUIRED) {
-			if (upstream->tls_pubkey_pinset) {
-				DEBUG_STUB("%s %-35s: Proceeding with only pubkey pinning authentication\n",
+			if (upstream->tls_pubkey_pinset
+			||  upstream->tls_dane_records) {
+				DEBUG_STUB("%s %-35s: Proceeding with only pubkey pinning and/or DANE authentication\n",
 			           STUB_DEBUG_SETUP_TLS, __FUNC__);
 			} else {
 				DEBUG_STUB("%s %-35s: ERROR:No auth name or pinset provided for this upstream for Strict TLS authentication\n",
@@ -1074,6 +1075,10 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	if (upstream->tls_pubkey_pinset)
 		_getdns_tls_connection_set_host_pinset(
 		    tls, upstream->tls_auth_name, upstream->tls_pubkey_pinset);
+
+	if (upstream->tls_dane_records)
+		_getdns_tls_connection_set_dane_records(
+		    tls, upstream->tls_auth_name, upstream->tls_dane_records);
 
 	/* Session resumption. There are trade-offs here. Want to do it when
 	   possible only if we have the right type of connection. Note a change

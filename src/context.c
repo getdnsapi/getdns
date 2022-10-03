@@ -611,6 +611,8 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	    ; upstreams->count--, upstream++ ) {
 
 		sha256_pin_t *pin = upstream->tls_pubkey_pinset;
+		dane_record_t *dane_record = upstream->tls_dane_records;
+
 		if (upstream->loop && (   upstream->event.read_cb
 		                       || upstream->event.write_cb
 		                       || upstream->event.timeout_cb) ) {
@@ -652,6 +654,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			pin = nextpin;
 		}
 		upstream->tls_pubkey_pinset = NULL;
+		while (dane_record) {
+			dane_record_t *next_dane_record = dane_record->next;
+			GETDNS_FREE(upstreams->mf, dane_record);
+			dane_record = next_dane_record;
+		}
+		upstream->tls_dane_records = NULL;
 		if (upstream->tls_cipher_list)
 			GETDNS_FREE(upstreams->mf, upstream->tls_cipher_list);
 		if (upstream->tls_ciphersuites)
@@ -966,6 +974,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->last_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->best_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
+	upstream->tls_dane_records = NULL;
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -2786,6 +2795,52 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dnssec_allowed_skew */
 
+static getdns_return_t
+_getdns_list2dane_records(struct mem_funcs *mf, const getdns_list *dr_list,
+		dane_record_t **tls_dane_records)
+{
+	size_t i;
+	getdns_return_t r;
+	getdns_dict *dr_dict;
+
+	assert(tls_dane_records);
+
+	for (i = 0; !(r = getdns_list_get_dict(dr_list, i, &dr_dict)); i++) {
+		uint32_t usage;
+		uint32_t selector;
+		uint32_t type;
+		getdns_bindata *data;
+		getdns_dict *rdata;
+		dane_record_t *dane_record;
+
+		if (!getdns_dict_get_dict(dr_dict, "rdata", &rdata)) {
+			/* only scan TLSA RRs */
+			if (!getdns_dict_get_int(dr_dict, "type", &type)
+			&&  type != GETDNS_RRTYPE_TLSA)
+				continue;
+			dr_dict = rdata;
+		}
+		if ((r = getdns_dict_get_int(dr_dict, "certificate_usage", &usage))
+		||  (r = getdns_dict_get_int(dr_dict, "selector", &selector))
+		||  (r = getdns_dict_get_int(dr_dict, "matching_type", &type))
+		||  (r = getdns_dict_get_bindata(dr_dict,
+				"certificate_association_data", &data)))
+			return r;
+
+		if (!(dane_record = (dane_record_t *)GETDNS_XMALLOC(
+		    *mf, uint8_t, sizeof(dane_record_t) + data->size)))
+			return GETDNS_RETURN_MEMORY_ERROR;
+		dane_record->next     = *tls_dane_records;
+		dane_record->usage    = (uint8_t)usage;
+		dane_record->selector = (uint8_t)selector;
+		dane_record->type     = (uint8_t)type;
+		dane_record->size     = data->size;
+		memcpy(dane_record->data, data->data, data->size);
+		*tls_dane_records     = dane_record;
+	}
+	return r == GETDNS_RETURN_NO_SUCH_LIST_ITEM ? GETDNS_RETURN_GOOD : r;
+}
+
 /*
  * getdns_context_set_upstream_recursive_servers
  *
@@ -2992,6 +3047,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->transport = getdns_upstream_transports[j];
 			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
+				getdns_list *dane_records = NULL;
 				getdns_bindata *tls_cipher_list = NULL;
 				getdns_bindata *tls_ciphersuites = NULL;
 				getdns_bindata *tls_curves_list = NULL;
@@ -3031,6 +3087,30 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 						goto invalid_parameter;
 					}
 				}
+				if (!(r = getdns_dict_get_list(
+				    dict, "dane_records", &dane_records))) {
+					if ((r = _getdns_list2dane_records(
+					    &(upstreams->mf), dane_records,
+					    &(upstream->tls_dane_records)))) {
+						_getdns_upstream_log(upstream,
+						    GETDNS_LOG_UPSTREAMS,
+						    GETDNS_LOG_ERR,
+						    "%-40s : Upstream   : could"
+						    " not parse dane_records: "
+						    "%s\n", upstream->addr_str,
+						    getdns_get_errorstr_by_id(r));
+						freeaddrinfo(ai);
+						goto invalid_parameter;
+					}
+				} else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+					_getdns_upstream_log(upstream,
+					    GETDNS_LOG_UPSTREAMS,
+					    GETDNS_LOG_ERR,
+					    "%-40s : Upstream   : could not "
+					    "get dane_records: %s\n",
+					    upstream->addr_str,
+					    getdns_get_errorstr_by_id(r));
+
 				(void) getdns_dict_get_bindata(
 				    dict, "tls_cipher_list", &tls_cipher_list);
 				upstream->tls_cipher_list = tls_cipher_list

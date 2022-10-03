@@ -132,6 +132,16 @@ typedef struct sha256_pin {
 	struct sha256_pin *next;
 } sha256_pin_t;
 
+/* for doing DANE authentication of TLS-capable upstreams: */
+typedef struct dane_record {
+	struct  dane_record *next;
+	uint8_t usage;
+	uint8_t selector;
+	uint8_t type;
+	size_t  size;
+	uint8_t data[];
+} dane_record_t;
+
 typedef struct getdns_upstream {
 	/* backpointer to containing upstreams structure */
 	struct getdns_upstreams *upstreams;
@@ -223,6 +233,7 @@ typedef struct getdns_upstream {
 	/* Auth credentials */
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
+	dane_record_t           *tls_dane_records;
 
 	/* When requests have been scheduled asynchronously on an upstream
 	 * that is kept open, and a synchronous call is then done with the
