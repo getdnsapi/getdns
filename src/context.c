@@ -70,6 +70,9 @@ typedef unsigned short in_port_t;
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
 #endif
+#ifdef HAVE_LIBNGHTTP2
+#include <nghttp2/nghttp2.h>
+#endif
 #include "debug.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
@@ -4993,6 +4996,17 @@ getdns_context_get_api_information(const getdns_context* context)
 
 	    && ! _getdns_tls_get_api_information(result)
 
+#ifdef HAVE_LIBNGHTTP2
+	    && ! getdns_dict_set_int(
+	    result, "nghttp2_version_number", nghttp2_version(0)->version_num)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "nghttp2_version_string", nghttp2_version(0)->version_str)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "nghttp2_protocol_string", nghttp2_version(0)->proto_str)
+#endif
+
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
 
@@ -5689,6 +5703,9 @@ _getdns_context_config_setting(getdns_context *context,
 	    && !_streq(setting, "openssl_platform")
 	    && !_streq(setting, "openssl_dir")
 	    && !_streq(setting, "openssl_engines_dir")
+	    && !_streq(setting, "nghttp2_version_number")
+	    && !_streq(setting, "nghttp2_version_string")
+	    && !_streq(setting, "nghttp2_protocol_string")
 	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
 	}
