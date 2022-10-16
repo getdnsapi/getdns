@@ -70,9 +70,6 @@ typedef unsigned short in_port_t;
 #ifdef HAVE_LIBUNBOUND
 #include <unbound.h>
 #endif
-#ifdef HAVE_LIBNGHTTP2
-#include <nghttp2/nghttp2.h>
-#endif
 #include "debug.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
@@ -640,6 +637,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 				_getdns_context_cancel_request(dnsreq);
 			}
 		}
+#ifdef HAVE_LIBNGHTTP2
+		if (upstream->doh_session != NULL) {
+			nghttp2_session_del(upstream->doh_session);
+			upstream->doh_session = NULL;
+		}
+#endif
 		if (upstream->tls_session != NULL)
 			_getdns_tls_session_free(&upstreams->mf, upstream->tls_session);
 
@@ -773,6 +776,12 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 		upstream->loop->vmt->clear(
 		    upstream->loop, &upstream->event);
 	}
+#ifdef HAVE_LIBNGHTTP2
+	if (upstream->doh_session != NULL) {
+		nghttp2_session_del(upstream->doh_session);
+		upstream->doh_session = NULL;
+	}
+#endif
 	if (upstream->tls_obj != NULL) {
 		_getdns_tls_connection_shutdown(upstream->tls_obj);
 		_getdns_tls_connection_free(&upstream->upstreams->mf, upstream->tls_obj);
@@ -967,6 +976,9 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_fallback_ok = 0;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
+#ifdef HAVE_LIBNGHTTP2
+	upstream->doh_session = NULL;
+#endif
 	upstream->tls_cipher_list = NULL;
 	upstream->tls_ciphersuites = NULL;
 	upstream->tls_curves_list = NULL;
@@ -981,7 +993,7 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_pubkey_pinset = NULL;
 	upstream->tls_dane_records = NULL;
 	upstream->alpn = NULL;
-	upstream->doh_path[0] = '\0';
+	strcpy(upstream->doh_path, "dns-query");
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -1546,7 +1558,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_client_subnet_private = 0;
 	result->tls_query_padding_blocksize = 1; /* default is to pad queries sensibly */
 	result->tls_ctx = NULL;
-
+#ifdef HAVE_LIBNGHTTP2
+	result->doh_callbacks = NULL;
+#endif
 	result->extension = &result->default_eventloop.loop;
 	_getdns_default_eventloop_init(&result->mf, &result->default_eventloop);
 	_getdns_default_eventloop_init(&result->mf, &result->sync_eventloop);
@@ -1733,6 +1747,10 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->tls_ctx)
 		_getdns_tls_context_free(&context->my_mf, context->tls_ctx);
 
+#ifdef HAVE_LIBNGHTTP2
+	if (context->doh_callbacks)
+		nghttp2_session_callbacks_del(context->doh_callbacks);
+#endif
 	getdns_list_destroy(context->dns_root_servers);
 
 #if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
@@ -4538,6 +4556,22 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 	return GETDNS_RETURN_BAD_CONTEXT;
 }
 
+#ifdef HAVE_LIBNGHTTP2
+ssize_t
+_doh_send_callback(nghttp2_session *session, const uint8_t *data, size_t length,
+    int flags, void *user_data);
+ssize_t
+_doh_recv_callback(nghttp2_session *session, uint8_t *buf, size_t length,
+    int flags,  void *user_data);
+int
+_doh_on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
+    int32_t stream_id, const uint8_t *data, size_t len, void *user_data);
+int
+_doh_on_header_callback (nghttp2_session *session, const nghttp2_frame *frame,
+    const uint8_t *name, size_t namelen, const uint8_t *value, size_t valuelen,
+    uint8_t flags, void *user_data);
+#endif
+
 getdns_return_t
 _getdns_context_prepare_for_resolution(getdns_context *context)
 {
@@ -4605,6 +4639,22 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			}
 			_getdns_tls_context_pinset_init(context->tls_ctx);
 		}
+#ifdef HAVE_LIBNGHTTP2
+		if (!context->doh_callbacks) {
+			if (nghttp2_session_callbacks_new(&context->doh_callbacks)) {
+				context->doh_callbacks = NULL;
+				return GETDNS_RETURN_MEMORY_ERROR;
+			}
+			nghttp2_session_callbacks_set_send_callback(
+			 context->doh_callbacks, _doh_send_callback);
+			nghttp2_session_callbacks_set_recv_callback(
+			 context->doh_callbacks, _doh_recv_callback);
+			nghttp2_session_callbacks_set_on_data_chunk_recv_callback(
+			 context->doh_callbacks, _doh_on_data_chunk_recv_callback);
+			nghttp2_session_callbacks_set_on_header_callback(
+			 context->doh_callbacks, _doh_on_header_callback);
+		}
+#endif
 	}
 
 	/* Block use of TLS ONLY in recursive mode as it won't work */
@@ -5501,7 +5551,7 @@ getdns_context_get_upstream_recursive_servers(
 				    d, "tls_max_version",
 				    upstream->tls_max_version);
 			}
-			if (upstream->doh_path[0] != '\0'
+			if (strcmp(upstream->doh_path, "dns-query")
 			&& (r = getdns_dict_util_set_string(
 					d, "doh_path",
 					upstream->doh_path)))

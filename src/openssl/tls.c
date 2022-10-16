@@ -1174,7 +1174,7 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
 	return GETDNS_RETURN_GOOD;
 }
 
-getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written)
+getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, const uint8_t* buf, size_t to_write, size_t* written)
 {
 	int swritten;
 

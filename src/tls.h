@@ -396,7 +396,7 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
  * @return GETDNS_RETURN_TLS_WANT_WRITE if the write needs to be retried.
  * @return GETDNS_RETURN_GENERIC_ERROR if write failed.
  */
-getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written);
+getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, const uint8_t* buf, size_t to_write, size_t* written);
 
 /**
  * Free a session.
