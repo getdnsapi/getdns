@@ -1007,6 +1007,8 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 	if (!r && upstream->tls_ciphersuites)
 		r = _getdns_tls_connection_set_cipher_suites(tls, upstream->tls_ciphersuites);
 	if (!r)
+		r = _getdns_tls_connection_set_alpn(tls, upstream->alpn);
+	if (!r)
 		r = _getdns_tls_connection_set_min_max_tls_version(tls, upstream->tls_min_version, upstream->tls_max_version);
 
 	if (!r)

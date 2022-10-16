@@ -230,6 +230,10 @@ typedef struct getdns_upstream {
 	getdns_tls_version_t     tls_min_version;
 	getdns_tls_version_t     tls_max_version;
 
+	/* DoH settings */
+	const char              *alpn;
+	char                     doh_path[256];
+
 	/* Auth credentials */
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
@@ -270,6 +274,10 @@ typedef struct getdns_upstream {
 	getdns_tsig_algo tsig_alg;
 
 } getdns_upstream;
+
+INLINE int is_doh_upstream(getdns_upstream *u)
+{ return u && u->alpn &&  u->alpn[0] == 'h'
+                      && (u->alpn[1] == '2' || u->alpn[1] == '3'); }
 
 #define POLICY_N_ADDR		3
 #define POLICY_N_SVCPARAMS	8

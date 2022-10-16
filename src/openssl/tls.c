@@ -807,6 +807,25 @@ getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* c
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t _getdns_tls_connection_set_alpn(_getdns_tls_connection* conn, const char* alpn)
+{
+	uint8_t protos[] = "\x03" "dot";
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!alpn)
+		;
+	else if (strlen(alpn) > sizeof(protos) - 2)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else {
+		strcpy((char *)(protos + 1), alpn);
+		protos[0] = (uint8_t)strlen(alpn);
+	}
+	if (SSL_set_alpn_protos(conn->ssl, protos, protos[0] + 1))
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else
+		return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s)
 {
 	if (!conn || !conn->ssl || !s || !s->ssl)

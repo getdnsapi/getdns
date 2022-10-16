@@ -91,9 +91,11 @@ typedef unsigned short in_port_t;
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
 #define GETDNS_PORT_DNS_OVER_TLS 853
+#define GETDNS_PORT_DNS_OVER_HTTPS 443
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+#define GETDNS_STR_PORT_DNS_OVER_HTTPS "443"
 
 #ifdef HAVE_PTHREAD
 static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -135,7 +137,7 @@ getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 };
 
 static char*
-getdns_port_str_array[] = {
+getdns_port_str_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_STR_PORT_DNS,
 	GETDNS_STR_PORT_DNS_OVER_TLS
 };
@@ -978,6 +980,8 @@ upstream_init(getdns_upstream *upstream,
 	upstream->best_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
 	upstream->tls_dane_records = NULL;
+	upstream->alpn = NULL;
+	upstream->doh_path[0] = '\0';
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -2885,6 +2889,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
 		getdns_bindata *tls_auth_name;
+		getdns_bindata *doh_path;
 		struct sockaddr_storage  addr;
 
 		getdns_bindata  *scope_id;
@@ -3022,17 +3027,30 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		for (j = 0; j < GETDNS_UPSTREAM_TRANSPORTS; j++) {
 			uint32_t port;
 			struct addrinfo *ai;
+			getdns_bindata *alpn = NULL;
+
+			static const char *alpn_dot = "dot";
+			static const char *alpn_h2 = "h2";
+
 			port = getdns_port_array[j];
 			if (port == GETDNS_PORT_ZERO)
 				continue;
 
-			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS) {
-				if (dict)
-					(void) getdns_dict_get_int(dict, "port", &port);
-			} else {
-				if (dict)
-					(void) getdns_dict_get_int(dict, "tls_port", &port);
-			}
+			if (!dict)
+				; /* pass */
+
+			else if (getdns_upstream_transports[j]
+					!= GETDNS_TRANSPORT_TLS)
+				getdns_dict_get_int(dict, "port", &port);
+
+			else if (!getdns_dict_get_bindata(dict, "alpn", &alpn)
+			     &&  alpn->size == 2 && alpn->data[0] == 'h'
+			                         && alpn->data[1] == '2') {
+				port = GETDNS_PORT_DNS_OVER_HTTPS;
+				getdns_dict_get_int(dict, "tls_port", &port);
+			} else
+				getdns_dict_get_int(dict, "tls_port", &port);
+
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
@@ -3048,7 +3066,21 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+			if (!alpn)
+				; /* pass */
+
+			else if (alpn->size == 3      && alpn->data[0] == 'd'
+			     &&  alpn->data[1] == 'o' && alpn->data[2] == 't')
+				upstream->alpn = alpn_dot;
+
+			else if (alpn->size == 2      && alpn->data[0] == 'h'
+			                              && alpn->data[1] == '2')
+				upstream->alpn = alpn_h2;
+			else
+				goto invalid_parameter;
+
+			if (dict && getdns_upstream_transports[j] ==
+					GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
 				getdns_list *dane_records = NULL;
 				getdns_bindata *tls_cipher_list = NULL;
@@ -3077,6 +3109,19 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 						tls_auth_name->size);
 					upstream->tls_auth_name
 					    [tls_auth_name->size] = '\0';
+				}
+				if ((r = getdns_dict_get_bindata(
+				    dict, "doh_path", &doh_path)) == GETDNS_RETURN_GOOD) {
+
+					if (doh_path->size >= sizeof(upstream->doh_path)) {
+						freeaddrinfo(ai);
+						goto invalid_parameter;
+					}
+					memcpy(upstream->doh_path,
+					       (char *)doh_path->data,
+						doh_path->size);
+					upstream->doh_path
+					    [doh_path->size] = '\0';
 				}
 				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
@@ -5396,52 +5441,71 @@ getdns_context_get_upstream_recursive_servers(
 			    (uint32_t)upstream_port(upstream))))
 				break;
 
-			if (upstream->transport == GETDNS_TRANSPORT_TLS) {
-				if (upstream_port(upstream) != getdns_port_array[j] &&
-					(r = getdns_dict_set_int(d, "tls_port",
-								   (uint32_t) upstream_port(upstream))))
+			if (upstream->transport != GETDNS_TRANSPORT_TLS)
+				continue;
+
+			if (!is_doh_upstream(upstream)
+			&&  upstream_port(upstream) != GETDNS_PORT_DNS_OVER_TLS
+			&&  (r = getdns_dict_set_int(d, "tls_port",
+					(uint32_t) upstream_port(upstream))))
+				break;
+
+			if (is_doh_upstream(upstream)
+			&&  upstream_port(upstream) != GETDNS_PORT_DNS_OVER_HTTPS
+			&&  (r = getdns_dict_set_int(d, "tls_port",
+					(uint32_t) upstream_port(upstream))))
+				break;
+
+			if (upstream->alpn
+			&&  (r = getdns_dict_util_set_string(
+					d, "alpn", upstream->alpn)))
+				break;
+
+			if (upstream->tls_auth_name[0] != '\0' &&
+			    (r = getdns_dict_util_set_string(d,
+							     "tls_auth_name",
+							     upstream->tls_auth_name)))
+				break;
+			if (upstream->tls_pubkey_pinset) {
+				getdns_list *pins = NULL;
+				if ((_getdns_get_pubkey_pinset_list(context,
+								   upstream->tls_pubkey_pinset,
+								   &pins) == GETDNS_RETURN_GOOD) &&
+					(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
+					getdns_list_destroy(pins);
 					break;
-				if (upstream->tls_auth_name[0] != '\0' &&
-				    (r = getdns_dict_util_set_string(d,
-				                                     "tls_auth_name",
-				                                     upstream->tls_auth_name)))
-					break;
-				if (upstream->tls_pubkey_pinset) {
-					getdns_list *pins = NULL;
-					if ((_getdns_get_pubkey_pinset_list(context,
-									   upstream->tls_pubkey_pinset,
-									   &pins) == GETDNS_RETURN_GOOD) &&
-						(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
-						getdns_list_destroy(pins);
-						break;
-					}
-				}
-				if (upstream->tls_cipher_list) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_cipher_list",
-					    upstream->tls_cipher_list);
-				}
-				if (upstream->tls_ciphersuites) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_ciphersuites",
-					    upstream->tls_ciphersuites);
-				}
-				if (upstream->tls_curves_list) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_curves_list",
-					    upstream->tls_curves_list);
-				}
-				if (upstream->tls_min_version) {
-					(void) getdns_dict_set_int(
-					    d, "tls_min_version",
-					    upstream->tls_min_version);
-				}
-				if (upstream->tls_max_version) {
-					(void) getdns_dict_set_int(
-					    d, "tls_max_version",
-					    upstream->tls_max_version);
 				}
 			}
+			if (upstream->tls_cipher_list) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_cipher_list",
+				    upstream->tls_cipher_list);
+			}
+			if (upstream->tls_ciphersuites) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_ciphersuites",
+				    upstream->tls_ciphersuites);
+			}
+			if (upstream->tls_curves_list) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_curves_list",
+				    upstream->tls_curves_list);
+			}
+			if (upstream->tls_min_version) {
+				(void) getdns_dict_set_int(
+				    d, "tls_min_version",
+				    upstream->tls_min_version);
+			}
+			if (upstream->tls_max_version) {
+				(void) getdns_dict_set_int(
+				    d, "tls_max_version",
+				    upstream->tls_max_version);
+			}
+			if (upstream->doh_path[0] != '\0'
+			&& (r = getdns_dict_util_set_string(
+					d, "doh_path",
+					upstream->doh_path)))
+				break;
 		}
 		if (!r)
 			if (!(r = _getdns_list_append_this_dict(upstreams, d)))
