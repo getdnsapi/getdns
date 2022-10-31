@@ -846,9 +846,11 @@ _getdns_create_call_reporting_dict(
 	                       , netreq->request_type ) ||
 
 	    /* Safe, because uint32_t facilitates RRT's of almost 50 days*/
-	    getdns_dict_set_int(netreq_debug, "run_time/ms",
-		    (uint32_t)(( netreq->debug_end_time
-	                       - netreq->debug_start_time)/1000))) {
+	    getdns_dict_set_int(netreq_debug, "run_time/ms", 
+		      (uint32_t) ( netreq->debug_end_time
+	                         - netreq->debug_start_time) >= 1000
+		    ? (uint32_t)(( netreq->debug_end_time                         
+                                 - netreq->debug_start_time) /  1000) : 0 )) {
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
@@ -962,6 +964,18 @@ _getdns_create_call_reporting_dict(
 	/* Only include the auth status if TLS was used */
 	if (getdns_dict_util_set_string(netreq_debug, "tls_auth_status",
 	    _getdns_auth_str(netreq->debug_tls_auth_status))){
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	if (getdns_dict_set_int(netreq_debug, "tls_auth_pin",
+	    netreq->debug_pin_auth)) {
+
+		getdns_dict_destroy(netreq_debug);
+		return NULL;
+	}
+	if (getdns_dict_set_int(netreq_debug, "tls_auth_pkix",
+	    netreq->debug_pkix_auth)) {
 
 		getdns_dict_destroy(netreq_debug);
 		return NULL;
@@ -1165,7 +1179,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 	int rrsigs_in_answer = 0;
 	getdns_dict *reply;
 	getdns_bindata *canonical_name = NULL;
-	int nreplies = 0, nanswers = 0;
+	int nreplies = 0, nerred = 0, ntimedout = 0, nanswers = 0;
 	int nsecure = 0, ninsecure = 0, nindeterminate = 0, nbogus = 0;
 	getdns_dict   *netreq_debug;
 	_srvs srvs = { 0, 0, NULL };
@@ -1225,8 +1239,7 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		getdns_bindata *tmp_ipv4_address;
 		getdns_bindata *tmp_ipv6_address;
 
-		if (call_reporting && (  netreq->response_len
-		                      || netreq->state == NET_REQ_TIMED_OUT)) {
+		if (call_reporting) {
 			if (!(netreq_debug =
 			   _getdns_create_call_reporting_dict(context,netreq)))
 				goto error;
@@ -1236,6 +1249,11 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 				goto error;
 
 			netreq_debug = NULL;
+		}
+		switch (netreq->state) {
+		case NET_REQ_TIMED_OUT: ntimedout++; break;
+		case NET_REQ_ERRORED  : nerred++   ; break;
+		default               :              break;
 		}
 		if (! netreq->response_len)
 			continue;
@@ -1371,19 +1389,20 @@ _getdns_create_getdns_response(getdns_dns_req *completed_request)
 		GETDNS_FREE(context->mf, srvs.rrs);
 	}
 	if (getdns_dict_set_int(result, GETDNS_STR_KEY_STATUS,
-	    completed_request->request_timed_out ||
-	    nreplies == 0   ? GETDNS_RESPSTATUS_ALL_TIMEOUT :
-	    (  completed_request->dnssec
-	    && nsecure == 0 && nindeterminate ) > 0
-	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
-	    (  completed_request->dnssec_return_only_secure
-	    && nsecure == 0 && ninsecure ) > 0
-	                    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS :
-	    (  completed_request->dnssec_return_only_secure
-	    || completed_request->dnssec ) && nsecure == 0 && nbogus > 0
-	                    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS :
-	    nanswers == 0   ? GETDNS_RESPSTATUS_NO_NAME
-	                    : GETDNS_RESPSTATUS_GOOD))
+	      completed_request->request_timed_out || nreplies == 0
+	    ? ( nerred > ntimedout ? GETDNS_RESPSTATUS_ALL_ERRED
+	                           : GETDNS_RESPSTATUS_ALL_TIMEOUT )
+	    : completed_request->dnssec && nsecure == 0 && nindeterminate > 0
+	    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS
+	    : completed_request->dnssec_return_only_secure && nsecure == 0
+	                                                   && ninsecure > 0
+	    ? GETDNS_RESPSTATUS_NO_SECURE_ANSWERS
+	    : (  completed_request->dnssec_return_only_secure
+	      || completed_request->dnssec ) && nsecure == 0 && nbogus > 0
+	    ? GETDNS_RESPSTATUS_ALL_BOGUS_ANSWERS
+	    : nanswers == 0
+	    ? GETDNS_RESPSTATUS_NO_NAME
+	    : GETDNS_RESPSTATUS_GOOD))
 		goto error_free_result;
 
 	return result;

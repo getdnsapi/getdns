@@ -178,10 +178,12 @@ print_usage(FILE *out, const char *progname)
 #endif
 	fprintf(out, "\ndefault mode: " DEFAULT_RESOLUTION_TYPE
             ", synchronous resolution of NS record\n\t\tusing UDP with TCP fallback\n");
-	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]");
+	fprintf(out, "\nupstreams: @<ip>[%%<scope_id>][@<port>][^<tsig spec>]");
+	fprintf(out, "\n                [#<tls port>][~<tls name>][_<alpn>][/<doh path>]");
 	fprintf(out, "\n            <ip>@<port> may be given as <IPv4>:<port>");
 	fprintf(out, "\n                  or \'[\'<IPv6>[%%<scope_id>]\']\':<port> too\n");
 	fprintf(out, "\ntsig spec: [<algorithm>:]<name>:<secret in Base64>\n");
+	fprintf(out, "\nalpn: [dot | h2]\n");
 	fprintf(out, "\nextensions:\n");
 	fprintf(out, "\t+add_warning_for_bad_dns\n");
 	fprintf(out, "\t+dnssec\n");

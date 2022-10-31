@@ -1719,6 +1719,10 @@ getdns_return_t
 getdns_context_set_upstream_recursive_servers(getdns_context *context,
     getdns_list *upstream_list);
 
+getdns_return_t
+getdns_context_set_local_proxy_policy(getdns_context *context,
+    getdns_dict *proxy_policy);
+
 /**
  * Set the maximum UDP payload size advertised in a EDNS0 OPT record.
  * When not set (the default), outgoing values will adhere to the suggestions

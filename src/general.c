@@ -63,6 +63,8 @@ void _getdns_call_user_callback(getdns_dns_req *dnsreq, getdns_dict *response)
 #if defined(REQ_DEBUG) && REQ_DEBUG
 	debug_req(__FUNC__, *dnsreq->netreqs);
 #endif
+	if (!response && dnsreq->return_call_reporting)
+		response = _getdns_create_getdns_response(dnsreq);
 	if (dnsreq->user_callback) {
 		dnsreq->context->processing = 1;
 		dnsreq->user_callback(dnsreq->context,

@@ -441,7 +441,9 @@ enum gldns_enum_edns_option
 	GLDNS_EDNS_KEEPALIVE = 11, /* draft-ietf-dnsop-edns-tcp-keepalive*/
 	GLDNS_EDNS_PADDING = 12, /* RFC7830 */
 	GLDNS_EDNS_EDE = 15, /* RFC8914 */
-	GLDNS_EDNS_CLIENT_TAG = 16 /* draft-bellis-dnsop-edns-tags-01 */
+	GLDNS_EDNS_CLIENT_TAG = 16, /* draft-bellis-dnsop-edns-tags-01 */
+
+	GLDNS_EDNS_PROXY_CONTROL = 42 /* XXX unassigned */
 };
 typedef enum gldns_enum_edns_option gldns_edns_option;
 

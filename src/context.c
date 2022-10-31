@@ -88,9 +88,11 @@ typedef unsigned short in_port_t;
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
 #define GETDNS_PORT_DNS_OVER_TLS 853
+#define GETDNS_PORT_DNS_OVER_HTTPS 443
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+#define GETDNS_STR_PORT_DNS_OVER_HTTPS "443"
 
 #ifdef HAVE_PTHREAD
 static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -132,7 +134,7 @@ getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 };
 
 static char*
-getdns_port_str_array[] = {
+getdns_port_str_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_STR_PORT_DNS,
 	GETDNS_STR_PORT_DNS_OVER_TLS
 };
@@ -611,6 +613,8 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 	    ; upstreams->count--, upstream++ ) {
 
 		sha256_pin_t *pin = upstream->tls_pubkey_pinset;
+		dane_record_t *dane_record = upstream->tls_dane_records;
+
 		if (upstream->loop && (   upstream->event.read_cb
 		                       || upstream->event.write_cb
 		                       || upstream->event.timeout_cb) ) {
@@ -633,6 +637,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 				_getdns_context_cancel_request(dnsreq);
 			}
 		}
+#ifdef HAVE_LIBNGHTTP2
+		if (upstream->doh_session != NULL) {
+			nghttp2_session_del(upstream->doh_session);
+			upstream->doh_session = NULL;
+		}
+#endif
 		if (upstream->tls_session != NULL)
 			_getdns_tls_session_free(&upstreams->mf, upstream->tls_session);
 
@@ -652,6 +662,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			pin = nextpin;
 		}
 		upstream->tls_pubkey_pinset = NULL;
+		while (dane_record) {
+			dane_record_t *next_dane_record = dane_record->next;
+			GETDNS_FREE(upstreams->mf, dane_record);
+			dane_record = next_dane_record;
+		}
+		upstream->tls_dane_records = NULL;
 		if (upstream->tls_cipher_list)
 			GETDNS_FREE(upstreams->mf, upstream->tls_cipher_list);
 		if (upstream->tls_ciphersuites)
@@ -660,6 +676,31 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 			GETDNS_FREE(upstreams->mf, upstream->tls_curves_list);
 	}
 	GETDNS_FREE(upstreams->mf, upstreams);
+}
+
+static getdns_proxy_policies *
+proxy_policies_create(getdns_context *context, size_t count)
+{
+	getdns_proxy_policies *r = (void *) GETDNS_XMALLOC(context->mf, char,
+	    sizeof(getdns_proxy_policies) +
+	    sizeof(getdns_proxy_policy) * count);
+
+	if (r) {
+		r->mf = context->mf;
+		r->referenced = 1;
+		r->count = count;
+		r->policy_opts = NULL;
+	}
+	return r;
+}
+
+void
+_getdns_proxy_policies_dereference(getdns_proxy_policies *policies)
+{
+	if (!policies || --policies->referenced > 0)
+		return;
+
+	GETDNS_FREE(policies->mf, policies);
 }
 
 static void
@@ -735,6 +776,12 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 		upstream->loop->vmt->clear(
 		    upstream->loop, &upstream->event);
 	}
+#ifdef HAVE_LIBNGHTTP2
+	if (upstream->doh_session != NULL) {
+		nghttp2_session_del(upstream->doh_session);
+		upstream->doh_session = NULL;
+	}
+#endif
 	if (upstream->tls_obj != NULL) {
 		_getdns_tls_connection_shutdown(upstream->tls_obj);
 		_getdns_tls_connection_free(&upstream->upstreams->mf, upstream->tls_obj);
@@ -929,6 +976,9 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_fallback_ok = 0;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
+#ifdef HAVE_LIBNGHTTP2
+	upstream->doh_session = NULL;
+#endif
 	upstream->tls_cipher_list = NULL;
 	upstream->tls_ciphersuites = NULL;
 	upstream->tls_curves_list = NULL;
@@ -941,6 +991,9 @@ upstream_init(getdns_upstream *upstream,
 	upstream->last_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->best_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
+	upstream->tls_dane_records = NULL;
+	upstream->alpn = NULL;
+	strcpy(upstream->doh_path, "dns-query");
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -1497,6 +1550,7 @@ getdns_context_create_with_extended_memory_functions(
 	}
 
 	result->upstreams = NULL;
+	result->proxy_policies = NULL;
 
 	result->edns_extended_rcode = 0;
 	result->edns_version = 0;
@@ -1504,7 +1558,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_client_subnet_private = 0;
 	result->tls_query_padding_blocksize = 1; /* default is to pad queries sensibly */
 	result->tls_ctx = NULL;
-
+#ifdef HAVE_LIBNGHTTP2
+	result->doh_callbacks = NULL;
+#endif
 	result->extension = &result->default_eventloop.loop;
 	_getdns_default_eventloop_init(&result->mf, &result->default_eventloop);
 	_getdns_default_eventloop_init(&result->mf, &result->sync_eventloop);
@@ -1691,6 +1747,10 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->tls_ctx)
 		_getdns_tls_context_free(&context->my_mf, context->tls_ctx);
 
+#ifdef HAVE_LIBNGHTTP2
+	if (context->doh_callbacks)
+		nghttp2_session_callbacks_del(context->doh_callbacks);
+#endif
 	getdns_list_destroy(context->dns_root_servers);
 
 #if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
@@ -2760,6 +2820,52 @@ getdns_context_set_dnssec_allowed_skew(struct getdns_context *context,
     return GETDNS_RETURN_GOOD;
 }               /* getdns_context_set_dnssec_allowed_skew */
 
+static getdns_return_t
+_getdns_list2dane_records(struct mem_funcs *mf, const getdns_list *dr_list,
+		dane_record_t **tls_dane_records)
+{
+	size_t i;
+	getdns_return_t r;
+	getdns_dict *dr_dict;
+
+	assert(tls_dane_records);
+
+	for (i = 0; !(r = getdns_list_get_dict(dr_list, i, &dr_dict)); i++) {
+		uint32_t usage;
+		uint32_t selector;
+		uint32_t type;
+		getdns_bindata *data;
+		getdns_dict *rdata;
+		dane_record_t *dane_record;
+
+		if (!getdns_dict_get_dict(dr_dict, "rdata", &rdata)) {
+			/* only scan TLSA RRs */
+			if (!getdns_dict_get_int(dr_dict, "type", &type)
+			&&  type != GETDNS_RRTYPE_TLSA)
+				continue;
+			dr_dict = rdata;
+		}
+		if ((r = getdns_dict_get_int(dr_dict, "certificate_usage", &usage))
+		||  (r = getdns_dict_get_int(dr_dict, "selector", &selector))
+		||  (r = getdns_dict_get_int(dr_dict, "matching_type", &type))
+		||  (r = getdns_dict_get_bindata(dr_dict,
+				"certificate_association_data", &data)))
+			return r;
+
+		if (!(dane_record = (dane_record_t *)GETDNS_XMALLOC(
+		    *mf, uint8_t, sizeof(dane_record_t) + data->size)))
+			return GETDNS_RETURN_MEMORY_ERROR;
+		dane_record->next     = *tls_dane_records;
+		dane_record->usage    = (uint8_t)usage;
+		dane_record->selector = (uint8_t)selector;
+		dane_record->type     = (uint8_t)type;
+		dane_record->size     = data->size;
+		memcpy(dane_record->data, data->data, data->size);
+		*tls_dane_records     = dane_record;
+	}
+	return r == GETDNS_RETURN_NO_SUCH_LIST_ITEM ? GETDNS_RETURN_GOOD : r;
+}
+
 /*
  * getdns_context_set_upstream_recursive_servers
  *
@@ -2801,6 +2907,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
 		getdns_bindata *tls_auth_name;
+		getdns_bindata *doh_path;
 		struct sockaddr_storage  addr;
 
 		getdns_bindata  *scope_id;
@@ -2938,17 +3045,30 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		for (j = 0; j < GETDNS_UPSTREAM_TRANSPORTS; j++) {
 			uint32_t port;
 			struct addrinfo *ai;
+			getdns_bindata *alpn = NULL;
+
+			static const char *alpn_dot = "dot";
+			static const char *alpn_h2 = "h2";
+
 			port = getdns_port_array[j];
 			if (port == GETDNS_PORT_ZERO)
 				continue;
 
-			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS) {
-				if (dict)
-					(void) getdns_dict_get_int(dict, "port", &port);
-			} else {
-				if (dict)
-					(void) getdns_dict_get_int(dict, "tls_port", &port);
-			}
+			if (!dict)
+				; /* pass */
+
+			else if (getdns_upstream_transports[j]
+					!= GETDNS_TRANSPORT_TLS)
+				getdns_dict_get_int(dict, "port", &port);
+
+			else if (!getdns_dict_get_bindata(dict, "alpn", &alpn)
+			     &&  alpn->size == 2 && alpn->data[0] == 'h'
+			                         && alpn->data[1] == '2') {
+				port = GETDNS_PORT_DNS_OVER_HTTPS;
+				getdns_dict_get_int(dict, "tls_port", &port);
+			} else
+				getdns_dict_get_int(dict, "tls_port", &port);
+
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
@@ -2964,8 +3084,23 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+			if (!alpn)
+				; /* pass */
+
+			else if (alpn->size == 3      && alpn->data[0] == 'd'
+			     &&  alpn->data[1] == 'o' && alpn->data[2] == 't')
+				upstream->alpn = alpn_dot;
+
+			else if (alpn->size == 2      && alpn->data[0] == 'h'
+			                              && alpn->data[1] == '2')
+				upstream->alpn = alpn_h2;
+			else
+				goto invalid_parameter;
+
+			if (dict && getdns_upstream_transports[j] ==
+					GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
+				getdns_list *dane_records = NULL;
 				getdns_bindata *tls_cipher_list = NULL;
 				getdns_bindata *tls_ciphersuites = NULL;
 				getdns_bindata *tls_curves_list = NULL;
@@ -2993,6 +3128,19 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 					upstream->tls_auth_name
 					    [tls_auth_name->size] = '\0';
 				}
+				if ((r = getdns_dict_get_bindata(
+				    dict, "doh_path", &doh_path)) == GETDNS_RETURN_GOOD) {
+
+					if (doh_path->size >= sizeof(upstream->doh_path)) {
+						freeaddrinfo(ai);
+						goto invalid_parameter;
+					}
+					memcpy(upstream->doh_path,
+					       (char *)doh_path->data,
+						doh_path->size);
+					upstream->doh_path
+					    [doh_path->size] = '\0';
+				}
 				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
 			   /* TODO: what if the user supplies tls_pubkey_pinset with
@@ -3005,6 +3153,30 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 						goto invalid_parameter;
 					}
 				}
+				if (!(r = getdns_dict_get_list(
+				    dict, "dane_records", &dane_records))) {
+					if ((r = _getdns_list2dane_records(
+					    &(upstreams->mf), dane_records,
+					    &(upstream->tls_dane_records)))) {
+						_getdns_upstream_log(upstream,
+						    GETDNS_LOG_UPSTREAMS,
+						    GETDNS_LOG_ERR,
+						    "%-40s : Upstream   : could"
+						    " not parse dane_records: "
+						    "%s\n", upstream->addr_str,
+						    getdns_get_errorstr_by_id(r));
+						freeaddrinfo(ai);
+						goto invalid_parameter;
+					}
+				} else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+					_getdns_upstream_log(upstream,
+					    GETDNS_LOG_UPSTREAMS,
+					    GETDNS_LOG_ERR,
+					    "%-40s : Upstream   : could not "
+					    "get dane_records: %s\n",
+					    upstream->addr_str,
+					    getdns_get_errorstr_by_id(r));
+
 				(void) getdns_dict_get_bindata(
 				    dict, "tls_cipher_list", &tls_cipher_list);
 				upstream->tls_cipher_list = tls_cipher_list
@@ -3070,6 +3242,780 @@ error:
 	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
 } /* getdns_context_set_upstream_recursive_servers */
 
+
+/* Note: buf has to be 16-bit aligned */
+static void proxy_policy2opt(getdns_proxy_policy *policy, int do_ipv6,
+	uint8_t *buf, size_t *sizep);
+			
+static void update_proxy_policy_opts(struct getdns_context *context)
+{
+	int i, j, addr_count, policy_count, has_v4, has_v6;
+	size_t off, size;
+	getdns_proxy_policy *policy;
+	uint8_t *opt;
+	union
+	{
+		uint16_t u16;	/* For alignment */
+		uint8_t buf[2048];
+	} buf;
+
+
+	/* Compute a list of proxy control options that correspond to
+	 * the policy.
+	 */
+	
+	/* Loop over policies. If an entry has both IPv4 and IPv6 addresses
+	 * then we need 2 options.
+	 */
+	off= 0;
+	policy_count = context->proxy_policies->count;
+fprintf(stderr, "update_proxy_policy_opts: policy_count %d\n", policy_count);
+	for (i = 0, policy = &context->proxy_policies->policies[0];
+		i<policy_count; i++, policy++)
+	{
+		/* Check whether we have IPv4 and/or IPv6 addresses */
+		has_v4= 0;
+		has_v6= 0;
+
+		addr_count= policy->addr_count;
+		for (j = 0; j<addr_count; j++)
+		{
+			if (policy->addrs[j].ss_family == AF_INET)
+				has_v4 = 1;
+			else if (policy->addrs[j].ss_family == AF_INET6)
+				has_v6 = 1;
+			else
+			{
+				/* Bad family. Ignore? */
+			}
+			
+		}
+
+		if (has_v6 || addr_count == 0)
+		{
+			size= sizeof(buf)-off;
+			proxy_policy2opt(policy, 1 /*do_ipv6*/, buf.buf+off,
+				&size);
+			off += size;
+		}
+		if (has_v4)
+		{
+			size= sizeof(buf)-off;
+			proxy_policy2opt(policy, 0 /*!do_ipv6*/, buf.buf+off,					&size);
+			off += size;
+		}
+		fprintf(stderr, "update_proxy_policy_opts: off %lu\n", off);
+	}
+
+	opt= NULL;
+	if (off)
+	{
+		opt = GETDNS_XMALLOC(context->my_mf, uint8_t, off);
+		memcpy(opt, buf.buf, off);
+	}
+	if (context->proxy_policies->policy_opts)
+		GETDNS_FREE(context->mf, context->proxy_policies->policy_opts);
+	context->proxy_policies->policy_opts= opt;
+	context->proxy_policies->policy_opts_size= off;
+}
+
+#define PROXY_POLICY_UNENCRYPTED 			(1 << 0)
+#define PROXY_POLICY_UNAUTHENTICATED_ENCRYPTION		(1 << 1)
+#define PROXY_POLICY_AUTHENTICATED_ENCRYPTION		(1 << 2)
+#define PROXY_POLICY_PKIX_AUTH_REQUIRED			(1 << 3)
+#define PROXY_POLICY_DANE_AUTH_REQUIRED			(1 << 4)
+#define PROXY_POLICY_DEFAULT_DISALLOW_OTHER_TRANSPORTS	(1 << 5)
+#define PROXY_POLICY_A53				(1 << 6)
+#define PROXY_POLICY_D53				(1 << 7)
+#define PROXY_POLICY_AT					(1 << 8)
+#define PROXY_POLICY_DT					(1 << 9)
+#define PROXY_POLICY_AH2				(1 << 10)
+#define PROXY_POLICY_DH2				(1 << 11)
+#define PROXY_POLICY_AH3				(1 << 12)
+#define PROXY_POLICY_DH3				(1 << 13)
+#define PROXY_POLICY_AQ					(1 << 14)
+#define PROXY_POLICY_DQ					(1 << 15)
+
+#define PROXY_CONTROL_OPT_FLAGS1_UNENCRYPTED			(1 << 15)
+#define PROXY_CONTROL_OPT_FLAGS1_UNAUTHENTICATED_ENCRYPTION	(1 << 14)
+#define PROXY_CONTROL_OPT_FLAGS1_AUTHENTICATED_ENCRYPTION	(1 << 13)
+#define PROXY_CONTROL_OPT_FLAGS1_PKIX_AUTH_REQUIRED		(1 << 12)
+#define PROXY_CONTROL_OPT_FLAGS1_DANE_AUTH_REQUIRED		(1 << 11)
+#define PROXY_CONTROL_OPT_FLAGS1_DEFAULT_DISALLOW_OTHER_TRANSPORTS (1 << 10)
+
+#define PROXY_CONTROL_OPT_FLAGS2_A53				(1 << 15)
+#define PROXY_CONTROL_OPT_FLAGS2_D53				(1 << 14)
+#define PROXY_CONTROL_OPT_FLAGS2_AT				(1 << 13)
+#define PROXY_CONTROL_OPT_FLAGS2_DT				(1 << 12)
+#define PROXY_CONTROL_OPT_FLAGS2_AH2				(1 << 11)
+#define PROXY_CONTROL_OPT_FLAGS2_DH2				(1 << 10)
+#define PROXY_CONTROL_OPT_FLAGS2_AH3				(1 <<  9)
+#define PROXY_CONTROL_OPT_FLAGS2_DH3				(1 <<  8)
+#define PROXY_CONTROL_OPT_FLAGS2_AQ				(1 <<  7)
+#define PROXY_CONTROL_OPT_FLAGS2_DQ				(1 <<  6)
+
+static struct proxy_control_flags
+{
+	unsigned policy_flags;
+	uint16_t control_flags;
+} proxy_control_flags1[] = {
+	{ PROXY_POLICY_UNENCRYPTED, PROXY_CONTROL_OPT_FLAGS1_UNENCRYPTED },
+	{ PROXY_POLICY_UNAUTHENTICATED_ENCRYPTION, PROXY_CONTROL_OPT_FLAGS1_UNAUTHENTICATED_ENCRYPTION },
+	{ PROXY_POLICY_AUTHENTICATED_ENCRYPTION, PROXY_CONTROL_OPT_FLAGS1_AUTHENTICATED_ENCRYPTION },
+	{ PROXY_POLICY_PKIX_AUTH_REQUIRED, PROXY_CONTROL_OPT_FLAGS1_PKIX_AUTH_REQUIRED },
+	{ PROXY_POLICY_DANE_AUTH_REQUIRED, PROXY_CONTROL_OPT_FLAGS1_DANE_AUTH_REQUIRED },
+	{ PROXY_POLICY_DEFAULT_DISALLOW_OTHER_TRANSPORTS, PROXY_CONTROL_OPT_FLAGS1_DEFAULT_DISALLOW_OTHER_TRANSPORTS },
+	{ 0, 0 }
+}, proxy_control_flags2[] = {
+	{ PROXY_POLICY_A53, PROXY_CONTROL_OPT_FLAGS2_A53 },
+	{ PROXY_POLICY_D53, PROXY_CONTROL_OPT_FLAGS2_D53 },
+	{ PROXY_POLICY_AT, PROXY_CONTROL_OPT_FLAGS2_AT },
+	{ PROXY_POLICY_DT, PROXY_CONTROL_OPT_FLAGS2_DT },
+	{ PROXY_POLICY_AH2, PROXY_CONTROL_OPT_FLAGS2_AH2 },
+	{ PROXY_POLICY_DH2, PROXY_CONTROL_OPT_FLAGS2_DH2 },
+	{ PROXY_POLICY_AH3, PROXY_CONTROL_OPT_FLAGS2_AH3 },
+	{ PROXY_POLICY_DH3, PROXY_CONTROL_OPT_FLAGS2_DH3 },
+	{ PROXY_POLICY_AQ, PROXY_CONTROL_OPT_FLAGS2_AQ },
+	{ PROXY_POLICY_DQ, PROXY_CONTROL_OPT_FLAGS2_DQ },
+	{ 0, 0 }
+};
+
+#define SVC_KEY_MANDATORY	0
+#define SVC_KEY_ALPN		1
+#define SVC_KEY_NDA		2
+#define SVC_KEY_PORT		3
+
+/* Note: this table must be kept sort based on 'value' */
+struct
+{
+	uint16_t value;
+	char *key;
+} svckeys[] = 
+{
+	{ SVC_KEY_MANDATORY, "mandatory" },	/* 0 */
+	{ SVC_KEY_ALPN, "alpn" },		/* 1 */
+	{ SVC_KEY_NDA, "no-default-alpn" },	/* 2 */
+	{ SVC_KEY_PORT, "port" },		/* 3 */
+	{ 0, NULL }
+};
+
+static void proxy_policy2opt(getdns_proxy_policy *policy, int do_ipv6,
+	uint8_t *buf, size_t *sizep)
+{
+	uint8_t inflen;
+	uint16_t flags1, flags2, key16, len16, u16;
+	int i, j, k, addr_count;
+	ptrdiff_t len, totlen;
+	size_t datalen, slen;
+	unsigned long port;
+	char *l, *dot, *key, *mkey, *v, *vp, *comma, *check;
+	uint8_t *bp, *addr_type, *addr_len, *addrp, *domainlenp,
+		*domainp, *svclenp, *svcp, *inflenp, *infp, *lastp, *endp,
+		*datap, *wire_keyp, *wire_lenp, *wire_datap;
+	uint16_t *codep, *lenp, *flags1p, *flags2p;
+	struct sockaddr_in *sin4p;
+	struct sockaddr_in6 *sin6p;
+	uint8_t wirebuf[256];
+
+	endp= buf + *sizep;
+
+	codep= (uint16_t *)buf;
+	*codep= htons(GLDNS_EDNS_PROXY_CONTROL);
+	lenp= &codep[1];
+	flags1p= &lenp[1];
+	flags2p= &flags1p[1];
+
+	addr_type= (uint8_t *)&flags2p[1];
+	addr_len= &addr_type[1];
+
+	/* Flags1 */
+	flags1 = 0;
+	for (i= 0; proxy_control_flags1[i].policy_flags != 0; i++)
+	{
+		if (policy->flags & proxy_control_flags1[i].policy_flags)
+			flags1 |= proxy_control_flags1[i].control_flags;
+	}
+	*flags1p= htons(flags1);
+
+	/* Flags2 */
+	flags2 = 0;
+	for (i= 0; proxy_control_flags2[i].policy_flags != 0; i++)
+	{
+		if (policy->flags & proxy_control_flags2[i].policy_flags)
+			flags2 |= proxy_control_flags2[i].control_flags;
+	}
+	*flags2p= htons(flags2);
+
+	/* Count the number of addresses to include */
+	addr_count= 0;
+	for (i= 0; i<policy->addr_count; i++)
+	{
+		if (!do_ipv6 && policy->addrs[i].ss_family == AF_INET)
+			addr_count++;
+		if (do_ipv6 && policy->addrs[i].ss_family == AF_INET6)
+			addr_count++;
+	}
+
+	if (addr_count)
+	{
+		if (do_ipv6)
+		{
+			*addr_type = 2;
+			*addr_len = addr_count * sizeof(struct in6_addr);
+			addrp= &addr_len[1];
+			if (endp - addrp < *addr_len)
+			{
+				fprintf(stderr,
+				"proxy_policy2opt: not enogh space\n");
+				abort();
+			}
+			for (i= 0; i<policy->addr_count; i++)
+			{
+				if (policy->addrs[i].ss_family != AF_INET6)
+					continue;
+				sin6p = (struct sockaddr_in6 *)
+					&policy->addrs[i];
+				memcpy(addrp, &sin6p->sin6_addr, 
+					sizeof(sin6p->sin6_addr));
+				addrp += sizeof(sin6p->sin6_addr);
+			}
+		}
+		else
+		{
+			*addr_type = 1;
+			*addr_len = addr_count * sizeof(struct in_addr);
+			addrp= &addr_len[1];
+			if (endp - addrp < *addr_len)
+			{
+				fprintf(stderr,
+				"proxy_policy2opt: not enogh space\n");
+				abort();
+			}
+			for (i= 0; i<policy->addr_count; i++)
+			{
+				if (policy->addrs[i].ss_family != AF_INET)
+					continue;
+				sin4p = (struct sockaddr_in *)
+					&policy->addrs[i];
+				memcpy(addrp, &sin4p->sin_addr, 
+					sizeof(sin4p->sin_addr));
+				addrp += sizeof(sin4p->sin_addr);
+			}
+		}
+		assert (addrp - &addr_len[1] == *addr_len);
+		domainlenp= addrp;
+	}
+	else 
+	{
+		*addr_type = 0;
+		*addr_len = 0;
+		domainlenp= &addr_len[1];
+	}
+
+	if (endp - domainlenp < 1)
+	{
+		fprintf(stderr,
+		"proxy_policy2opt: not enough space\n");
+		abort();
+	}
+	*domainlenp = 0;
+	domainp= &domainlenp[1];
+	if (policy->domainname)
+	{
+		l= policy->domainname;
+		while(l)
+		{
+			dot= strchr(l, '.');
+			if (dot)
+				len= dot-l;
+			else
+				len= strlen(l);
+			if (len > 63)
+			{
+				fprintf(stderr,
+					"proxy_policy2opt: bad label length\n");
+				abort();
+			}
+			if (endp - domainlenp < 1)
+			{
+				fprintf(stderr,
+				"proxy_policy2opt: not enough space\n");
+				abort();
+			}
+			*domainp= len;
+			domainp++;
+			if (endp - domainlenp < len)
+			{
+				fprintf(stderr,
+				"proxy_policy2opt: not enough space\n");
+				abort();
+			}
+			memcpy(domainp, l, len);
+			domainp += len;
+
+			if (!dot)
+				break;
+			l= dot+1;
+			if (l[0] == '\0')
+				break;
+		}
+
+		/* Add trailing label */
+		if (endp - domainlenp < 1)
+		{
+			fprintf(stderr, "proxy_policy2opt: not enough space\n");
+			abort();
+		}
+		*domainp= 0;
+		domainp++;
+
+		*domainlenp = domainp - &domainlenp[1];
+	}
+
+	svclenp = domainp;
+	if (endp - svclenp < 1)
+	{
+		fprintf(stderr,
+		"proxy_policy2opt: not enough space\n");
+		abort();
+	}
+	*svclenp = 0;
+	svcp = &svclenp[1];
+	if (policy->svcparams[0].key != NULL)
+	{
+		for (i = 0; svckeys[i].key != NULL; i++)
+		{
+			key = svckeys[i].key;
+fprintf(stderr, "i %d, key %s\n", i, key);
+			for (j = 0; j<POLICY_N_SVCPARAMS; j++)
+			{
+				if (policy->svcparams[j].key == NULL)
+					break;
+fprintf(stderr, "j %d, key %s\n", j, policy->svcparams[j].key);
+				if (strcmp(key, policy->svcparams[j].key) == 0)
+					break;
+			}
+			if (j >= POLICY_N_SVCPARAMS ||
+				policy->svcparams[j].key == NULL)
+			{
+				/* Key not needed */
+				continue;
+			}
+
+			switch(svckeys[i].value)
+			{
+			case SVC_KEY_MANDATORY:
+				bp = wirebuf;
+
+				/* Check each of the keys we know if it is
+				 * in the value. Not very efficient, but
+				 * we don't need that many keys.
+				 */
+				for (k = 0; svckeys[k].key != NULL; k++)
+				{
+					mkey = svckeys[k].key;
+					v = policy->svcparams[j].value;
+					while (v)
+					{
+						comma = strchr(v, ',');
+						if (comma)
+							slen = comma-v;
+						else
+							slen = strlen(v);
+						if (slen == strlen(mkey) &&
+							memcmp(mkey, v, slen)
+							== 0)
+						{
+							break;
+						}
+						if (comma)
+							v = comma+1;
+						else
+							v = NULL;
+					}
+					if (!v)
+					{
+						fprintf(stderr,
+					"proxy_policy2opt: skipping key %s\n",
+							mkey);
+						continue;
+					}
+					u16 = htons(svckeys[k].value);
+					memcpy(bp, &u16, sizeof(u16));
+					bp += sizeof(u16);
+				}
+				datap = wirebuf;
+				datalen = bp-wirebuf;
+				break;
+
+			case SVC_KEY_ALPN:
+				v = policy->svcparams[j].value;
+				if (v == NULL)
+				{
+					fprintf(stderr,
+				"proxy_policy2opt: value expected for alpn\n");
+					abort();
+				}
+				if (strlen(v) + 1 > sizeof(wirebuf))
+				{
+					fprintf(stderr,
+				"proxy_policy2opt: alpn list too long\n");
+					abort();
+				}
+				vp= v;
+				bp= wirebuf;
+				while (vp)
+				{
+					comma = strchr(vp, ',');
+					if (comma)
+					{
+						len = comma - vp;
+						*bp = len;
+						bp++;
+						memcpy(bp, vp, len);
+						bp += len;
+						vp = comma + 1;
+						continue;
+					}
+					len = strlen(vp);
+					*bp = len;
+					bp++;
+					memcpy(bp, vp, len);
+					bp += len;
+					break;;
+				}
+				datap = wirebuf;
+				datalen = bp-wirebuf;
+				break;
+
+			case SVC_KEY_NDA:
+				datap = wirebuf;
+				datalen = 0;
+				break;
+
+			case SVC_KEY_PORT:
+				port = strtoul(policy->svcparams[j].value,
+					&check, 10);
+				if (check[0] != '\0' || port > 65535)
+				{
+				fprintf(stderr,
+				"proxy_policy2opt: bad port value %s\n",
+					policy->svcparams[j].value);
+					abort();
+				}
+				u16= htons(port);
+				datap= (uint8_t *)&u16;
+				datalen = sizeof(u16);
+				break;
+
+			default:
+				fprintf(stderr,
+				"proxy_policy2opt: unknown svc key value\n");
+				abort();
+			}
+
+			totlen = 4 + datalen;
+			if (endp - svcp < totlen)
+			{
+				fprintf(stderr,
+				"proxy_policy2opt: not enough space\n");
+				abort();
+			}
+			wire_keyp = svcp;
+			wire_lenp = &wire_keyp[2];
+			wire_datap = &wire_lenp[2];
+
+			key16 = htons(svckeys[i].value);
+			memcpy(wire_keyp, &key16, 2);
+			len16 = htons(datalen);
+			memcpy(wire_lenp, &len16, 2);
+			if (datalen)
+				memcpy(wire_datap, datap, datalen);
+			svcp = wire_datap + datalen;
+		}
+	}
+	len = svcp - &svclenp[1];
+	if (len > 255)
+	{
+		fprintf(stderr, "svc too large\n");
+		abort();
+	}
+	*svclenp = len;
+
+	inflenp = svcp;
+	if (endp - inflenp < 1)
+	{
+		fprintf(stderr,
+		"proxy_policy2opt: not enough space\n");
+		abort();
+	}
+
+	inflen = 0;
+	if (policy->interface)
+	{
+		inflen= strlen(policy->interface);
+	}
+	*inflenp = inflen;
+	infp= &inflenp[1];
+	if (inflen)
+	{
+		if (endp - infp < inflen)
+		{
+			fprintf(stderr,
+			"proxy_policy2opt: not enough space\n");
+			abort();
+		}
+		memcpy(infp, policy->interface, inflen);
+	}
+fprintf(stderr, "inflen %d, interface %s\n", inflen, policy->interface);
+
+	lastp = &infp[inflen];
+
+	*lenp = htons(lastp - (uint8_t *)flags1p);
+	*sizep= lastp - buf;
+}
+
+
+static struct policy_flags
+{
+	char *name;
+	unsigned value;
+} policy_flags[] = {
+	{ "unencrypted", PROXY_POLICY_UNENCRYPTED },
+	{ "unauthenticated-encryption", PROXY_POLICY_UNAUTHENTICATED_ENCRYPTION },
+	{ "authenticated-encryption", PROXY_POLICY_AUTHENTICATED_ENCRYPTION },
+	{ "pkix-auth-required", PROXY_POLICY_PKIX_AUTH_REQUIRED },
+	{ "dane-auth-required", PROXY_POLICY_DANE_AUTH_REQUIRED },
+	{ "default-disallow-other-transports", PROXY_POLICY_DEFAULT_DISALLOW_OTHER_TRANSPORTS },
+	{ "allow-do53", PROXY_POLICY_A53 },
+	{ "disallow-do53", PROXY_POLICY_D53 },
+	{ "allow-dot", PROXY_POLICY_AT },
+	{ "disallow-dot", PROXY_POLICY_DT },
+	{ "allow-doh2", PROXY_POLICY_AH2 },
+	{ "disallow-doh2", PROXY_POLICY_DH2 },
+	{ "allow-doh3", PROXY_POLICY_AH3 },
+	{ "disallow-doh3", PROXY_POLICY_DH3 },
+	{ "allow-doq", PROXY_POLICY_AQ },
+	{ "disallow-doq", PROXY_POLICY_DQ },
+	{ NULL, 0 }
+};
+
+getdns_return_t
+getdns_context_set_local_proxy_policy(getdns_context *context,
+	getdns_dict *proxy_policy)
+{
+	getdns_return_t r;
+	size_t count = 0, addr_count;
+	size_t i, j;
+	getdns_proxy_policies *policies;
+	getdns_list *resolvers;
+	struct sockaddr_in *sin4p;
+	struct sockaddr_in6 *sin6p;
+
+fprintf(stderr, "in getdns_context_set_local_proxy_policy\n");
+
+	RETURN_IF_NULL(context, GETDNS_RETURN_INVALID_PARAMETER);
+
+	policies = NULL;
+	if (!proxy_policy) {
+		_getdns_proxy_policies_dereference(context->proxy_policies);
+		context->proxy_policies = NULL;
+		update_proxy_policy_opts(context);
+		dispatch_updated(context,
+			GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+		return GETDNS_RETURN_GOOD;
+	}
+
+	if ((r = getdns_dict_get_list(proxy_policy, "resolvers", 
+		&resolvers))) {
+		goto error;
+	}
+	if ((r = getdns_list_get_length(resolvers, &count))) {
+		goto error;
+	}
+
+	if (count == 0) {
+		_getdns_upstreams_dereference(context->upstreams);
+		context->upstreams = NULL;
+		dispatch_updated(context,
+			GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+		return GETDNS_RETURN_GOOD;
+	}
+
+	policies = proxy_policies_create( context, count);
+	for (i = 0; i < count; i++) {
+		uint32_t	u32;
+		size_t		svccount;
+		char           *key;
+		char           *value;
+		getdns_dict    *dict;
+		getdns_dict    *addr_dict;
+		getdns_dict    *svcparams;
+		getdns_list    *addrs;
+		getdns_list    *svcnames;
+		getdns_bindata *addr_type;
+		getdns_bindata *addr_data;
+		getdns_bindata *domain_name;
+		getdns_bindata *interface;
+		getdns_bindata *bindata;
+
+		if ((r = getdns_list_get_dict(resolvers, i, &dict))) {
+			dict = NULL;
+			goto error;
+		}
+		/* flags */
+		policies->policies[i].flags = 0;
+		for (j= 0; policy_flags[j].name != NULL; j++)
+		{
+			if ((r = getdns_dict_get_int(dict,
+				policy_flags[j].name, &u32)) ==
+				GETDNS_RETURN_GOOD && u32 == 1)
+			policies->policies[i].flags |= policy_flags[j].value;
+		}
+
+		/* addrs */
+		if ((r = getdns_dict_get_list(
+		    dict, "addrs", &addrs)) == GETDNS_RETURN_GOOD) {
+			if ((r = getdns_list_get_length(addrs, &addr_count)))
+				goto error;
+			if (addr_count > POLICY_N_ADDR)
+				goto error;
+			policies->policies[i].addr_count = addr_count;
+			for (j = 0; j < addr_count; j++) {
+				if ((r = getdns_list_get_dict(addrs, j, 
+					&addr_dict))) {
+					goto error;
+				}
+				if ((r = getdns_dict_get_bindata(addr_dict,
+					"address-type", &addr_type))) {
+					goto error;
+				}
+				if ((r = getdns_dict_get_bindata(addr_dict,
+					"address-data", &addr_data))) {
+					goto error;
+				}
+				if (addr_type->size == 4 &&
+					memcmp(addr_type->data, "IPv4", 4)
+					== 0) {
+					if (addr_data->size != 4)
+						goto error;
+					sin4p= (struct sockaddr_in *)
+						&policies->policies[i].addrs[j];
+					sin4p->sin_family= AF_INET;
+					memcpy(&sin4p->sin_addr,
+						addr_data->data, 
+						sizeof(sin4p->sin_addr));
+				}
+				else if (addr_type->size == 4 &&
+					memcmp(addr_type->data, "IPv6", 4)
+					== 0) {
+					if (addr_data->size != 16)
+						goto error;
+					sin6p= (struct sockaddr_in6 *)
+						&policies->policies[i].addrs[j];
+					sin6p->sin6_family= AF_INET6;
+					memcpy(&sin6p->sin6_addr,
+						addr_data->data, 
+						sizeof(sin6p->sin6_addr));
+				}
+				else
+					goto error;
+			}
+		}
+		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+			goto error;
+
+		/* domain-name */
+		policies->policies[i].domainname = NULL;
+		if ((r = getdns_dict_get_bindata(
+		    dict, "domain-name", &domain_name)) == GETDNS_RETURN_GOOD) {
+			policies->policies[i].domainname=
+				GETDNS_XMALLOC(context->mf,
+				char, domain_name->size+1);
+			memcpy(policies->policies[i].domainname,
+				domain_name->data, domain_name->size);
+			policies->policies[i].domainname[domain_name->size]=
+				'\0';
+		}
+		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+			goto error;
+
+
+		/* svcparams */
+		for (j = 0; j<POLICY_N_SVCPARAMS; j++)
+			policies->policies[i].svcparams[j].key = NULL;
+		if ((r = getdns_dict_get_dict(
+		    dict, "svcparams", &svcparams)) == GETDNS_RETURN_GOOD) {
+			getdns_dict_get_names(svcparams, &svcnames);
+			getdns_list_get_length(svcnames, &svccount);
+			if (svccount > POLICY_N_SVCPARAMS)
+				goto error;
+			for (j= 0; j<svccount; j++)
+			{
+				getdns_list_get_bindata(svcnames, j, &bindata);
+				key = _getdns_strdup2(&context->mf, bindata);
+				policies->policies[i].svcparams[j].key = key;
+				if (getdns_dict_get_int(svcparams, key, &u32)
+					== GETDNS_RETURN_GOOD)
+				{
+					/* Keywoard without value */
+					if (u32 != 1)
+						goto error;
+					policies->policies[i].svcparams[j].
+						value = NULL;
+				}
+				else if (getdns_dict_get_bindata(svcparams,
+					key, &bindata) == GETDNS_RETURN_GOOD)
+				{
+					value = _getdns_strdup2(&context->mf,
+						bindata);
+					policies->policies[i].svcparams[j].
+						value = value;
+				}
+				else
+					goto error;
+			}
+		}
+		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+		{
+			fprintf(stderr, "getdns_context_set_local_proxy_policy: r = %d\n", r);
+			goto error;
+		}
+
+		/* interface */
+		policies->policies[i].interface= NULL;
+		if ((r = getdns_dict_get_bindata(
+		    dict, "interface", &interface)) == GETDNS_RETURN_GOOD) {
+			policies->policies[i].interface=
+				GETDNS_XMALLOC(context->mf,
+				char, interface->size+1);
+			memcpy(policies->policies[i].interface,
+				interface->data, interface->size);
+			policies->policies[i].interface[interface->size]= '\0';
+		}
+		else if (r != GETDNS_RETURN_NO_SUCH_DICT_NAME)
+			goto error;
+		else
+			policies->policies[i].interface = NULL;
+	}
+	_getdns_proxy_policies_dereference(context->proxy_policies);
+	context->proxy_policies = policies;
+	update_proxy_policy_opts(context);
+	dispatch_updated(context,
+		GETDNS_CONTEXT_CODE_UPSTREAM_RECURSIVE_SERVERS);
+
+	return GETDNS_RETURN_GOOD;
+
+#if 0
+invalid_parameter:
+	_getdns_proxy_policies_dereference(policies);
+	return GETDNS_RETURN_INVALID_PARAMETER;
+#endif
+error:
+	_getdns_proxy_policies_dereference(policies);
+fprintf(stderr, "getdns_context_set_local_proxy_policy: line %d\n", __LINE__);
+	return GETDNS_RETURN_CONTEXT_UPDATE_FAIL;
+}
 
 /*
  * getdns_context_unset_edns_maximum_udp_payload_size
@@ -3610,6 +4556,22 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 	return GETDNS_RETURN_BAD_CONTEXT;
 }
 
+#ifdef HAVE_LIBNGHTTP2
+ssize_t
+_doh_send_callback(nghttp2_session *session, const uint8_t *data, size_t length,
+    int flags, void *user_data);
+ssize_t
+_doh_recv_callback(nghttp2_session *session, uint8_t *buf, size_t length,
+    int flags,  void *user_data);
+int
+_doh_on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
+    int32_t stream_id, const uint8_t *data, size_t len, void *user_data);
+int
+_doh_on_header_callback (nghttp2_session *session, const nghttp2_frame *frame,
+    const uint8_t *name, size_t namelen, const uint8_t *value, size_t valuelen,
+    uint8_t flags, void *user_data);
+#endif
+
 getdns_return_t
 _getdns_context_prepare_for_resolution(getdns_context *context)
 {
@@ -3677,6 +4639,22 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			}
 			_getdns_tls_context_pinset_init(context->tls_ctx);
 		}
+#ifdef HAVE_LIBNGHTTP2
+		if (!context->doh_callbacks) {
+			if (nghttp2_session_callbacks_new(&context->doh_callbacks)) {
+				context->doh_callbacks = NULL;
+				return GETDNS_RETURN_MEMORY_ERROR;
+			}
+			nghttp2_session_callbacks_set_send_callback(
+			 context->doh_callbacks, _doh_send_callback);
+			nghttp2_session_callbacks_set_recv_callback(
+			 context->doh_callbacks, _doh_recv_callback);
+			nghttp2_session_callbacks_set_on_data_chunk_recv_callback(
+			 context->doh_callbacks, _doh_on_data_chunk_recv_callback);
+			nghttp2_session_callbacks_set_on_header_callback(
+			 context->doh_callbacks, _doh_on_header_callback);
+		}
+#endif
 	}
 
 	/* Block use of TLS ONLY in recursive mode as it won't work */
@@ -4113,6 +5091,17 @@ getdns_context_get_api_information(const getdns_context* context)
 
 	    && ! _getdns_tls_get_api_information(result)
 
+#ifdef HAVE_LIBNGHTTP2
+	    && ! getdns_dict_set_int(
+	    result, "nghttp2_version_number", nghttp2_version(0)->version_num)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "nghttp2_version_string", nghttp2_version(0)->version_str)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "nghttp2_protocol_string", nghttp2_version(0)->proto_str)
+#endif
+
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
 
@@ -4502,52 +5491,71 @@ getdns_context_get_upstream_recursive_servers(
 			    (uint32_t)upstream_port(upstream))))
 				break;
 
-			if (upstream->transport == GETDNS_TRANSPORT_TLS) {
-				if (upstream_port(upstream) != getdns_port_array[j] &&
-					(r = getdns_dict_set_int(d, "tls_port",
-								   (uint32_t) upstream_port(upstream))))
+			if (upstream->transport != GETDNS_TRANSPORT_TLS)
+				continue;
+
+			if (!is_doh_upstream(upstream)
+			&&  upstream_port(upstream) != GETDNS_PORT_DNS_OVER_TLS
+			&&  (r = getdns_dict_set_int(d, "tls_port",
+					(uint32_t) upstream_port(upstream))))
+				break;
+
+			if (is_doh_upstream(upstream)
+			&&  upstream_port(upstream) != GETDNS_PORT_DNS_OVER_HTTPS
+			&&  (r = getdns_dict_set_int(d, "tls_port",
+					(uint32_t) upstream_port(upstream))))
+				break;
+
+			if (upstream->alpn
+			&&  (r = getdns_dict_util_set_string(
+					d, "alpn", upstream->alpn)))
+				break;
+
+			if (upstream->tls_auth_name[0] != '\0' &&
+			    (r = getdns_dict_util_set_string(d,
+							     "tls_auth_name",
+							     upstream->tls_auth_name)))
+				break;
+			if (upstream->tls_pubkey_pinset) {
+				getdns_list *pins = NULL;
+				if ((_getdns_get_pubkey_pinset_list(context,
+								   upstream->tls_pubkey_pinset,
+								   &pins) == GETDNS_RETURN_GOOD) &&
+					(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
+					getdns_list_destroy(pins);
 					break;
-				if (upstream->tls_auth_name[0] != '\0' &&
-				    (r = getdns_dict_util_set_string(d,
-				                                     "tls_auth_name",
-				                                     upstream->tls_auth_name)))
-					break;
-				if (upstream->tls_pubkey_pinset) {
-					getdns_list *pins = NULL;
-					if ((_getdns_get_pubkey_pinset_list(context,
-									   upstream->tls_pubkey_pinset,
-									   &pins) == GETDNS_RETURN_GOOD) &&
-						(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
-						getdns_list_destroy(pins);
-						break;
-					}
-				}
-				if (upstream->tls_cipher_list) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_cipher_list",
-					    upstream->tls_cipher_list);
-				}
-				if (upstream->tls_ciphersuites) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_ciphersuites",
-					    upstream->tls_ciphersuites);
-				}
-				if (upstream->tls_curves_list) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_curves_list",
-					    upstream->tls_curves_list);
-				}
-				if (upstream->tls_min_version) {
-					(void) getdns_dict_set_int(
-					    d, "tls_min_version",
-					    upstream->tls_min_version);
-				}
-				if (upstream->tls_max_version) {
-					(void) getdns_dict_set_int(
-					    d, "tls_max_version",
-					    upstream->tls_max_version);
 				}
 			}
+			if (upstream->tls_cipher_list) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_cipher_list",
+				    upstream->tls_cipher_list);
+			}
+			if (upstream->tls_ciphersuites) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_ciphersuites",
+				    upstream->tls_ciphersuites);
+			}
+			if (upstream->tls_curves_list) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_curves_list",
+				    upstream->tls_curves_list);
+			}
+			if (upstream->tls_min_version) {
+				(void) getdns_dict_set_int(
+				    d, "tls_min_version",
+				    upstream->tls_min_version);
+			}
+			if (upstream->tls_max_version) {
+				(void) getdns_dict_set_int(
+				    d, "tls_max_version",
+				    upstream->tls_max_version);
+			}
+			if (strcmp(upstream->doh_path, "dns-query")
+			&& (r = getdns_dict_util_set_string(
+					d, "doh_path",
+					upstream->doh_path)))
+				break;
 		}
 		if (!r)
 			if (!(r = _getdns_list_append_this_dict(upstreams, d)))
@@ -4809,6 +5817,9 @@ _getdns_context_config_setting(getdns_context *context,
 	    && !_streq(setting, "openssl_platform")
 	    && !_streq(setting, "openssl_dir")
 	    && !_streq(setting, "openssl_engines_dir")
+	    && !_streq(setting, "nghttp2_version_number")
+	    && !_streq(setting, "nghttp2_version_string")
+	    && !_streq(setting, "nghttp2_protocol_string")
 	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
 	}

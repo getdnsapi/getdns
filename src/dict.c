@@ -658,12 +658,16 @@ getdns_return_t
 getdns_dict_util_set_string(getdns_dict *dict,
     const char *name, const char *value)
 {
+	static const char *nill_value = "<nil>";
 	getdns_item    *item;
 	getdns_bindata *newbindata;
 	getdns_return_t r;
 
-	if (!dict || !name || !value)
+	if (!dict || !name)
 		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	if (!value)
+		value = nill_value;
 
 	if (!(newbindata = _getdns_bindata_copy(
 	    &dict->mf, strlen(value) + 1, (uint8_t *)value)))

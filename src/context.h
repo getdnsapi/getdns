@@ -40,6 +40,9 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "config.h"
+#ifdef HAVE_LIBNGHTTP2
+#include <nghttp2/nghttp2.h>
+#endif
 #include "types-internal.h"
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
@@ -132,6 +135,16 @@ typedef struct sha256_pin {
 	struct sha256_pin *next;
 } sha256_pin_t;
 
+/* for doing DANE authentication of TLS-capable upstreams: */
+typedef struct dane_record {
+	struct  dane_record *next;
+	uint8_t usage;
+	uint8_t selector;
+	uint8_t type;
+	size_t  size;
+	uint8_t data[];
+} dane_record_t;
+
 typedef struct getdns_upstream {
 	/* backpointer to containing upstreams structure */
 	struct getdns_upstreams *upstreams;
@@ -213,6 +226,9 @@ typedef struct getdns_upstream {
 	                                   * This is how long a handshake may
 	                                   * take.
 	                                   */
+#ifdef HAVE_LIBNGHTTP2
+	nghttp2_session*         doh_session;
+#endif
 	/* TLS settings */
 	char                    *tls_cipher_list;
 	char                    *tls_ciphersuites;
@@ -220,9 +236,14 @@ typedef struct getdns_upstream {
 	getdns_tls_version_t     tls_min_version;
 	getdns_tls_version_t     tls_max_version;
 
+	/* DoH settings */
+	const char              *alpn;
+	char                     doh_path[256];
+
 	/* Auth credentials */
 	char                     tls_auth_name[256];
 	sha256_pin_t            *tls_pubkey_pinset;
+	dane_record_t           *tls_dane_records;
 
 	/* When requests have been scheduled asynchronously on an upstream
 	 * that is kept open, and a synchronous call is then done with the
@@ -260,6 +281,26 @@ typedef struct getdns_upstream {
 
 } getdns_upstream;
 
+INLINE int is_doh_upstream(getdns_upstream *u)
+{ return u && u->alpn &&  u->alpn[0] == 'h'
+                      && (u->alpn[1] == '2' || u->alpn[1] == '3'); }
+
+#define POLICY_N_ADDR		3
+#define POLICY_N_SVCPARAMS	8
+
+typedef struct getdns_proxy_policy {
+	unsigned flags;
+	int addr_count;
+	struct sockaddr_storage addrs[POLICY_N_ADDR];
+	char *domainname;
+	struct
+	{
+		char *key;
+		char *value;
+	} svcparams[POLICY_N_SVCPARAMS];
+	char *interface;
+} getdns_proxy_policy;
+
 typedef struct getdns_log_config {
 	getdns_logfunc_type  func;
 	void                *userarg;
@@ -279,6 +320,15 @@ typedef struct getdns_upstreams {
 	getdns_log_config log;
 	getdns_upstream upstreams[];
 } getdns_upstreams;
+
+typedef struct getdns_proxy_policies {
+	struct mem_funcs mf;
+	size_t referenced;
+	size_t count;
+	uint8_t *policy_opts;
+	size_t policy_opts_size;
+	getdns_proxy_policy policies[];
+} getdns_proxy_policies;
 
 typedef enum tas_state {
 	TAS_LOOKUP_ADDRESSES = 0,
@@ -368,6 +418,8 @@ struct getdns_context {
 	getdns_tls_version_t  tls_min_version;
 	getdns_tls_version_t  tls_max_version;
 
+	getdns_proxy_policies *proxy_policies;
+
 	getdns_upstreams     *upstreams;
 	uint16_t             limit_outstanding_queries;
 	uint32_t             dnssec_allowed_skew;
@@ -388,6 +440,9 @@ struct getdns_context {
 	uint8_t edns_client_subnet_private;
 	uint16_t tls_query_padding_blocksize;
 	_getdns_tls_context* tls_ctx;
+#ifdef HAVE_LIBNGHTTP2
+	nghttp2_session_callbacks* doh_callbacks;
+#endif
 
 	getdns_update_callback  update_callback;
 	getdns_update_callback2 update_callback2;

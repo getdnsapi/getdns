@@ -244,6 +244,9 @@ typedef struct getdns_network_req
 	const char             *debug_tls_version;
 
 	/* Some booleans */
+	unsigned                debug_pkix_auth: 2; /* 1 if TLS connection is PKIX valid 
+	                                               2 if this is unknown */
+	unsigned                debug_pin_auth : 1; /* 1 if one of the pinset's matched */
 	unsigned                debug_udp      : 1;
 	unsigned                keepalive_sent : 1;
 	unsigned                badcookie_retry: 1;
@@ -445,6 +448,8 @@ void _getdns_dns_req_free(getdns_dns_req * req);
 /* network request utils */
 getdns_return_t _getdns_network_req_add_upstream_option(getdns_network_req * req,
 					     uint16_t code, uint16_t sz, const void* data);
+getdns_return_t _getdns_network_req_add_upstream_options(getdns_network_req * req,
+					     const void* data, size_t sz);
 void _getdns_network_req_clear_upstream_options(getdns_network_req * req);
 
 /* Adds TSIG signature (if needed) and returns query length */

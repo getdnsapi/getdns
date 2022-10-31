@@ -119,6 +119,16 @@ extern "C" {
 /** @}
   */
 
+/**
+ * \addtogroup respstatus Status Codes for responses and texts
+ *  @{
+ */
+
+#define GETDNS_RESPSTATUS_ALL_ERRED 950
+#define GETDNS_RESPSTATUS_ALL_ERRED_TEXT "All queries for the name erred"
+
+/** @}
+  */
 
 /**
  * \defgroup versions Version values
@@ -574,6 +584,8 @@ typedef enum getdns_loglevel_type {
 #define GETDNS_LOG_INFO_TEXT    "Informational message"
 #define GETDNS_LOG_DEBUG_TEXT   "Debug-level message"
 
+#define GETDNS_LOG_UPSTREAMS 0x1000
+#define GETDNS_LOG_UPSTREAMS_TEXT "Log messages about upstreams"
 #define GETDNS_LOG_UPSTREAM_STATS 0x3000
 #define GETDNS_LOG_UPSTREAM_STATS_TEXT "Log messages about upstream statistics"
 #define GETDNS_LOG_SYS_STUB 0x2000

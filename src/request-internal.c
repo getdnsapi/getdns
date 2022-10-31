@@ -218,6 +218,11 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->debug_tls_peer_cert.size = 0;
 	net_req->debug_tls_peer_cert.data = NULL;
 	net_req->debug_tls_version = NULL;
+	net_req->debug_pkix_auth = 0; /* 1 == authenticated with PKIX
+                                       * 0 == not authenticated with PKIX
+                                       * 2 == unknown
+	                               */
+	net_req->debug_pin_auth = 0;  /* == 1 if authenticated with pinset */
 	net_req->debug_udp = 0;
 
 	/* Scheduling, touch only via _getdns_netreq_change_state!
@@ -392,6 +397,51 @@ _getdns_network_req_add_upstream_option(getdns_network_req * req, uint16_t code,
 	  memcpy(req->opt + 11 + oldlen + 4, data, sz);
   else
 	  memset(req->opt + 11 + oldlen + 4, 0, sz);
+  gldns_write_uint16(req->opt + 9, newlen);
+
+  /* the response should start right after the options end: */
+  req->response = req->opt + 11 + newlen;
+  
+  /* for TCP, adjust the size of the wire format itself: */
+  gldns_write_uint16(req->query - 2, pktlen);
+  
+  return GETDNS_RETURN_GOOD;
+}
+
+/* add_upstream_options appends multiple options. */
+getdns_return_t
+_getdns_network_req_add_upstream_options(getdns_network_req * req, const void* data, size_t sz)
+{
+  uint16_t oldlen;
+  uint32_t newlen;
+  uint32_t pktlen;
+  size_t cur_upstream_option_sz;
+
+  /* if no options are set, we can't add upstream options */
+  if (!req->opt)
+	  return GETDNS_RETURN_GENERIC_ERROR;
+  
+  /* if TCP, no overflow allowed for length field
+     https://tools.ietf.org/html/rfc1035#section-4.2.2 */
+  pktlen = req->response - req->query;
+  pktlen += sz;
+  if (pktlen > UINT16_MAX)
+    return GETDNS_RETURN_GENERIC_ERROR;
+  
+  /* no overflow allowed for OPT size either (maybe this is overkill
+     given the above check?) */
+  oldlen = gldns_read_uint16(req->opt + 9);
+  newlen = oldlen + sz;
+  if (newlen > UINT16_MAX)
+    return GETDNS_RETURN_GENERIC_ERROR;
+
+  /* avoid overflowing MAXIMUM_UPSTREAM_OPTION_SPACE */
+  cur_upstream_option_sz = (size_t)oldlen - req->base_query_option_sz;
+  if (cur_upstream_option_sz  + sz > MAXIMUM_UPSTREAM_OPTION_SPACE)
+    return GETDNS_RETURN_GENERIC_ERROR;
+
+  /* actually add the option: */
+  memcpy(req->opt + 11 + oldlen, data, sz);
   gldns_write_uint16(req->opt + 9, newlen);
 
   /* the response should start right after the options end: */

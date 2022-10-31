@@ -807,6 +807,25 @@ getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* c
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t _getdns_tls_connection_set_alpn(_getdns_tls_connection* conn, const char* alpn)
+{
+	uint8_t protos[] = "\x03" "dot";
+	if (!conn || !conn->ssl)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+	if (!alpn)
+		;
+	else if (strlen(alpn) > sizeof(protos) - 2)
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else {
+		strcpy((char *)(protos + 1), alpn);
+		protos[0] = (uint8_t)strlen(alpn);
+	}
+	if (SSL_set_alpn_protos(conn->ssl, protos, protos[0] + 1))
+		return GETDNS_RETURN_GENERIC_ERROR;
+	else
+		return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t _getdns_tls_connection_set_session(_getdns_tls_connection* conn, _getdns_tls_session* s)
 {
 	if (!conn || !conn->ssl || !s || !s->ssl)
@@ -840,6 +859,26 @@ const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn)
 	if (!conn || !conn->ssl)
 		return NULL;
 	return SSL_get_version(conn->ssl);
+}
+
+int _getdns_tls_connection_get_pkix_auth(_getdns_tls_connection* conn)
+{
+	uint8_t usage = 255; /* 0 and 1 for also PKIX, 2 and 3 for DANE only */
+
+	if (!conn || !conn->ssl)
+		return 0;
+
+	if (SSL_get0_dane_tlsa(conn->ssl, &usage, NULL, NULL, NULL, NULL) < 0)
+		return SSL_get_verify_result(conn->ssl) == X509_V_OK  ? 1 : 0;
+
+	return usage <= 1 ? 1 : 2 /* 2 is unknown */;
+}
+
+int _getdns_tls_connection_get_pin_auth(_getdns_tls_connection* conn)
+{
+	if (!conn || !conn->ssl)
+		return 0;
+	return SSL_get0_dane_authority(conn->ssl, NULL, NULL) >= 0;
 }
 
 getdns_return_t _getdns_tls_connection_do_handshake(_getdns_tls_connection* conn)
@@ -975,6 +1014,70 @@ getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* c
 	return GETDNS_RETURN_GOOD;
 }
 
+getdns_return_t _getdns_tls_connection_set_dane_records(_getdns_tls_connection* conn, const char* auth_name, const dane_record_t* dane_records)
+{
+	if (!conn || !conn->ssl || !auth_name)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+#if 0 && defined(USE_DANESSL)
+	/* Stash auth name and pinset away for use in cert verification. */
+	conn->auth_name = auth_name;
+	conn->dane_records = dane_records;
+#endif
+
+#if defined(HAVE_SSL_DANE_ENABLE)
+	int osr = SSL_dane_enable(conn->ssl, *auth_name ? auth_name : NULL);
+	(void) osr; /* unused parameter */
+	DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_enable(\"%s\") -> %d\n"
+	          , STUB_DEBUG_SETUP_TLS, __FUNC__, auth_name, osr);
+	SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	const dane_record_t *dane_p;
+	size_t n_records= 0;
+	for (dane_p = dane_records; dane_p; dane_p = dane_p->next) {
+		osr = SSL_dane_tlsa_add(conn->ssl, dane_p->usage,
+		    dane_p->selector, dane_p->type, dane_p->data, dane_p->size);
+		DEBUG_STUB("%s %-35s: DEBUG: SSL_dane_tlsa_add() -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+		if (osr > 0)
+			++n_records;
+	}
+#elif 0 && defined(USE_DANESSL)
+	conn->pinset = pinset;
+	if (pinset) {
+		const char *auth_names[2] = { auth_name, NULL };
+		int osr = DANESSL_init(conn->ssl,
+				       *auth_name ? auth_name : NULL,
+				       *auth_name ? auth_names : NULL);
+		(void) osr; /* unused parameter */
+		DEBUG_STUB("%s %-35s: DEBUG: DANESSL_init(\"%s\") -> %d\n"
+			  , STUB_DEBUG_SETUP_TLS, __FUNC__, auth_name, osr);
+		SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+		const sha256_pin_t *pin_p;
+		size_t n_pins = 0;
+		for (pin_p = pinset; pin_p; pin_p = pin_p->next) {
+			osr = DANESSL_add_tlsa(conn->ssl, 3, 1, "sha256",
+			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
+				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (osr > 0)
+				++n_pins;
+			osr = DANESSL_add_tlsa(conn->ssl, 2, 1, "sha256",
+			    (unsigned char *)pin_p->pin, SHA256_DIGEST_LENGTH);
+			DEBUG_STUB("%s %-35s: DEBUG: DANESSL_add_tlsa() -> %d\n"
+				  , STUB_DEBUG_SETUP_TLS, __FUNC__, osr);
+			if (osr > 0)
+				++n_pins;
+		}
+	} else {
+		SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, _getdns_tls_verify_always_ok);
+	}
+#else
+#error Must have either DANE SSL or OpenSSL v1.1.
+#endif
+	return GETDNS_RETURN_GOOD;
+}
+
+
 getdns_return_t _getdns_tls_connection_certificate_verify(_getdns_tls_connection* conn, long* errnum, const char** errmsg)
 {
 	if (!conn || !conn->ssl)
@@ -1071,7 +1174,7 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
 	return GETDNS_RETURN_GOOD;
 }
 
-getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written)
+getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, const uint8_t* buf, size_t to_write, size_t* written)
 {
 	int swritten;
 

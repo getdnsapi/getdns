@@ -43,6 +43,7 @@
 /* Forward declare type. */
 struct sha256_pin;
 struct getdns_log_config;
+struct dane_record;
 
 /* Additional return codes required by TLS abstraction. Internal use only. */
 #define GETDNS_RETURN_TLS_WANT_READ		((getdns_return_t) 420)
@@ -227,6 +228,18 @@ getdns_return_t _getdns_tls_connection_set_cipher_list(_getdns_tls_connection* c
 getdns_return_t _getdns_tls_connection_set_cipher_suites(_getdns_tls_connection* conn, const char* list);
 
 /**
+ * Set alpn to send on this connection.
+ *
+ * @param conn	the connection.
+ * @param alpn  the application layer protocol negotiation (alpn) value.
+                NULL for default setting (dot).
+ * @return GETDNS_RETURN_GOOD on success.
+ * @return GETDNS_RETURN_INVALID_PARAMETER on bad context pointer.
+ * @return GETDNS_RETURN_BAD_CONTEXT on failure.
+ */
+getdns_return_t _getdns_tls_connection_set_alpn(_getdns_tls_connection* conn, const char* alpn);
+
+/**
  * Set list of allowed curves on this connection.
  *
  * @param conn	the connection.
@@ -264,6 +277,22 @@ _getdns_tls_session* _getdns_tls_connection_get_session(struct mem_funcs* mfs, _
  * @return string with the connection description, NULL on error.
  */
 const char* _getdns_tls_connection_get_version(_getdns_tls_connection* conn);
+
+/**
+ * Return whether or not the peer cert PKIX validated
+ *
+ * @param conn  the connection
+ * @return 1 when the peer cert PKIX validated, 0 if it did not validate, 2 otherwise
+ */
+int _getdns_tls_connection_get_pkix_auth(_getdns_tls_connection* conn);
+
+/**
+ * Return whether or not a pin from the pinset matched
+ *
+ * @param conn  the connection
+ * @return 1 when the peer cert matched a pinset, 0 otherwise
+ */
+int _getdns_tls_connection_get_pin_auth(_getdns_tls_connection* conn);
 
 /**
  * Attempt TLS handshake.
@@ -317,6 +346,17 @@ getdns_return_t _getdns_tls_connection_setup_hostname_auth(_getdns_tls_connectio
 getdns_return_t _getdns_tls_connection_set_host_pinset(_getdns_tls_connection* conn, const char* auth_name, const struct sha256_pin* pinset);
 
 /**
+ * Set host pinset.
+ *
+ * @param conn		the connection.
+ * @param auth_name	the hostname.
+ * @param dane_records  the DANE records that must match.
+ * @return GETDNS_RETURN_GOOD if all OK.
+ * @return GETDNS_RETURN_INVALID_PARAMETER if conn is null or has no SSL.
+ */
+getdns_return_t _getdns_tls_connection_set_dane_records(_getdns_tls_connection* conn, const char* auth_name, const struct dane_record* dane_records);
+
+/**
  * Get result of certificate verification.
  *
  * @param conn		the connection.
@@ -356,7 +396,7 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
  * @return GETDNS_RETURN_TLS_WANT_WRITE if the write needs to be retried.
  * @return GETDNS_RETURN_GENERIC_ERROR if write failed.
  */
-getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written);
+getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, const uint8_t* buf, size_t to_write, size_t* written);
 
 /**
  * Free a session.
