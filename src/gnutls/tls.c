@@ -482,6 +482,21 @@ getdns_return_t _getdns_tls_connection_set_cipher_suites(_getdns_tls_connection*
 		return GETDNS_RETURN_GENERIC_ERROR;
 }
 
+getdns_return_t
+_getdns_tls_connection_set_alpn(_getdns_tls_connection* conn, const char* alpn)
+{
+	if (!conn || !conn->tls)
+		return GETDNS_RETURN_INVALID_PARAMETER;
+
+	gnutls_datum_t proto;
+	proto.data = (unsigned char *)alpn;
+	proto.size = strlen(alpn);
+	if (gnutls_alpn_set_protocols(res->tls, &proto, 1, 0) != GNUTLS_E_SUCCESS)
+		goto GETDNS_RETURN_GENERIC_ERROR;
+
+	return GETDNS_RETURN_GOOD;
+}
+
 getdns_return_t _getdns_tls_connection_set_curves_list(_getdns_tls_connection* conn, const char* list)
 {
 	if (!conn || !conn->tls)
@@ -800,7 +815,7 @@ getdns_return_t _getdns_tls_connection_read(_getdns_tls_connection* conn, uint8_
 	return GETDNS_RETURN_GOOD;
 }
 
-getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, uint8_t* buf, size_t to_write, size_t* written)
+getdns_return_t _getdns_tls_connection_write(_getdns_tls_connection* conn, const uint8_t* buf, size_t to_write, size_t* written)
 {
 	int swritten;
 

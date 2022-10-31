@@ -164,6 +164,8 @@ option(BUILD_LIBEV "Build libev support library if available." ON)
 option(BUILD_LIBEVENT2 "Build libevent2 support library if available." ON)
 option(BUILD_LIBUV "Build libuv support library available." ON)
 
+option(BUILD_DOH "Build DNS-over-HTTPS support if libnghttp2 library is available." ON)
+
 option(USE_LIBIDN2 "Use libidn2 if available." ON)
 option(USE_GNUTLS "Use GnuTLS for TLS connections." OFF)
 
@@ -193,6 +195,7 @@ set(STUB_NATIVE_DNSSEC ${ENABLE_NATIVE_STUB_DNSSEC})
 set(USE_LIBEV ${BUILD_LIBEV})
 set(USE_LIBEVENT2 ${BUILD_LIBEVENT2})
 set(USE_LIBUV ${BUILD_LIBUV})
+set(USE_DOH ${BUILD_DOH})
 
 option(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN "Disable connection idle timeout. Do not enable.")
 mark_as_advanced(ENABLE_DEBUG_KEEP_CONNECTIONS_OPEN)
@@ -408,6 +411,17 @@ if (USE_LIBIDN2)
       message(FATAL_ERROR "Libidn2 required but not found. Disable with USE_LIBIDN2 option.")
   endif()
 endif()
+
+# DNS-over-HTTPS support
+if (USE_DOH)
+  find_package(Libnghttp2)
+  if (Libnghttp2_FOUND)
+    set(HAVE_LIBNGHTTP2 1)
+  else()
+    message(WARNING "DNS-over-HTTPS support build requested, but libnghttp2 not found. Disabled.")
+    unset(USE_DOH)
+  endif()
+endif ()
 
 # GnuTLS and Nettle. If using GnuTLS, we need the Nettle dev stuff to
 # handle digital signature algorithms. GnuTLS uses Nettle internally.
@@ -697,6 +711,9 @@ endif ()
 if (GnuTLS_FOUND)
   target_include_directories(getdns_objects PRIVATE ${GNUTLS_INCLUDE_DIR})
 endif ()
+if (Libnghttp2_FOUND)
+  target_include_directories(getdns_objects PRIVATE ${LIBNGHTTP2_INCLUDE_DIR})
+endif ()
 
 # Don't compile separate objects for shared and static libraries.
 # Yes, -fPIC is slightly suboptimal for static libraries, but it looks
@@ -730,6 +747,9 @@ if (ENABLE_STATIC)
   if (Nettle_FOUND)
     target_link_libraries(getdns PUBLIC Nettle::Nettle Nettle::Hogweed)
   endif ()
+  if (Libnghttp2_FOUND)
+    target_link_libraries(getdns PUBLIC Libnghttp2::Libnghttp2)
+  endif ()
   set_target_properties(getdns PROPERTIES OUTPUT_NAME getdns${static_lib_suffix})
 endif ()
 
@@ -758,6 +778,9 @@ if (ENABLE_SHARED)
   endif ()
   if (Nettle_FOUND)
     target_link_libraries(getdns_shared PUBLIC Nettle::Nettle Nettle::Hogweed)
+  endif ()
+  if (Libnghttp2_FOUND)
+    target_link_libraries(getdns_shared PUBLIC Libnghttp2::Libnghttp2)
   endif ()
   set_target_properties(getdns_shared PROPERTIES OUTPUT_NAME getdns)
   target_shared_library_version(getdns_shared ${GETDNS_VERSION_CURRENT} ${GETDNS_VERSION_REVISION} ${GETDNS_VERSION_AGE})

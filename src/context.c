@@ -88,9 +88,11 @@ typedef unsigned short in_port_t;
 #define GETDNS_PORT_ZERO 0
 #define GETDNS_PORT_DNS 53
 #define GETDNS_PORT_DNS_OVER_TLS 853
+#define GETDNS_PORT_DNS_OVER_HTTPS 443
 #define GETDNS_STR_PORT_ZERO "0"
 #define GETDNS_STR_PORT_DNS "53"
 #define GETDNS_STR_PORT_DNS_OVER_TLS "853"
+#define GETDNS_STR_PORT_DNS_OVER_HTTPS "443"
 
 #ifdef HAVE_PTHREAD
 static pthread_mutex_t ssl_init_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -132,7 +134,7 @@ getdns_port_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 };
 
 static char*
-getdns_port_str_array[] = {
+getdns_port_str_array[GETDNS_UPSTREAM_TRANSPORTS] = {
 	GETDNS_STR_PORT_DNS,
 	GETDNS_STR_PORT_DNS_OVER_TLS
 };
@@ -635,6 +637,12 @@ _getdns_upstreams_dereference(getdns_upstreams *upstreams)
 				_getdns_context_cancel_request(dnsreq);
 			}
 		}
+#ifdef HAVE_LIBNGHTTP2
+		if (upstream->doh_session != NULL) {
+			nghttp2_session_del(upstream->doh_session);
+			upstream->doh_session = NULL;
+		}
+#endif
 		if (upstream->tls_session != NULL)
 			_getdns_tls_session_free(&upstreams->mf, upstream->tls_session);
 
@@ -768,6 +776,12 @@ _getdns_upstream_reset(getdns_upstream *upstream)
 		upstream->loop->vmt->clear(
 		    upstream->loop, &upstream->event);
 	}
+#ifdef HAVE_LIBNGHTTP2
+	if (upstream->doh_session != NULL) {
+		nghttp2_session_del(upstream->doh_session);
+		upstream->doh_session = NULL;
+	}
+#endif
 	if (upstream->tls_obj != NULL) {
 		_getdns_tls_connection_shutdown(upstream->tls_obj);
 		_getdns_tls_connection_free(&upstream->upstreams->mf, upstream->tls_obj);
@@ -962,6 +976,9 @@ upstream_init(getdns_upstream *upstream,
 	upstream->tls_fallback_ok = 0;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
+#ifdef HAVE_LIBNGHTTP2
+	upstream->doh_session = NULL;
+#endif
 	upstream->tls_cipher_list = NULL;
 	upstream->tls_ciphersuites = NULL;
 	upstream->tls_curves_list = NULL;
@@ -975,6 +992,8 @@ upstream_init(getdns_upstream *upstream,
 	upstream->best_tls_auth_state = GETDNS_AUTH_NONE;
 	upstream->tls_pubkey_pinset = NULL;
 	upstream->tls_dane_records = NULL;
+	upstream->alpn = NULL;
+	strcpy(upstream->doh_path, "dns-query");
 	upstream->loop = NULL;
 	(void) getdns_eventloop_event_init(
 	    &upstream->event, upstream, NULL, NULL, NULL);
@@ -1539,7 +1558,9 @@ getdns_context_create_with_extended_memory_functions(
 	result->edns_client_subnet_private = 0;
 	result->tls_query_padding_blocksize = 1; /* default is to pad queries sensibly */
 	result->tls_ctx = NULL;
-
+#ifdef HAVE_LIBNGHTTP2
+	result->doh_callbacks = NULL;
+#endif
 	result->extension = &result->default_eventloop.loop;
 	_getdns_default_eventloop_init(&result->mf, &result->default_eventloop);
 	_getdns_default_eventloop_init(&result->mf, &result->sync_eventloop);
@@ -1726,6 +1747,10 @@ getdns_context_destroy(struct getdns_context *context)
 	if (context->tls_ctx)
 		_getdns_tls_context_free(&context->my_mf, context->tls_ctx);
 
+#ifdef HAVE_LIBNGHTTP2
+	if (context->doh_callbacks)
+		nghttp2_session_callbacks_del(context->doh_callbacks);
+#endif
 	getdns_list_destroy(context->dns_root_servers);
 
 #if defined(HAVE_LIBUNBOUND) && !defined(HAVE_UB_CTX_SET_STUB)
@@ -2882,6 +2907,7 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		getdns_bindata *address_type;
 		getdns_bindata *address_data;
 		getdns_bindata *tls_auth_name;
+		getdns_bindata *doh_path;
 		struct sockaddr_storage  addr;
 
 		getdns_bindata  *scope_id;
@@ -3019,17 +3045,30 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 		for (j = 0; j < GETDNS_UPSTREAM_TRANSPORTS; j++) {
 			uint32_t port;
 			struct addrinfo *ai;
+			getdns_bindata *alpn = NULL;
+
+			static const char *alpn_dot = "dot";
+			static const char *alpn_h2 = "h2";
+
 			port = getdns_port_array[j];
 			if (port == GETDNS_PORT_ZERO)
 				continue;
 
-			if (getdns_upstream_transports[j] != GETDNS_TRANSPORT_TLS) {
-				if (dict)
-					(void) getdns_dict_get_int(dict, "port", &port);
-			} else {
-				if (dict)
-					(void) getdns_dict_get_int(dict, "tls_port", &port);
-			}
+			if (!dict)
+				; /* pass */
+
+			else if (getdns_upstream_transports[j]
+					!= GETDNS_TRANSPORT_TLS)
+				getdns_dict_get_int(dict, "port", &port);
+
+			else if (!getdns_dict_get_bindata(dict, "alpn", &alpn)
+			     &&  alpn->size == 2 && alpn->data[0] == 'h'
+			                         && alpn->data[1] == '2') {
+				port = GETDNS_PORT_DNS_OVER_HTTPS;
+				getdns_dict_get_int(dict, "tls_port", &port);
+			} else
+				getdns_dict_get_int(dict, "tls_port", &port);
+
 			(void) snprintf(portstr, 1024, "%d", (int)port);
 
 			if (getaddrinfo(addrstr, portstr, &hints, &ai))
@@ -3045,7 +3084,21 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 			upstream->addr.ss_family = addr.ss_family;
 			upstream_init(upstream, upstreams, ai);
 			upstream->transport = getdns_upstream_transports[j];
-			if (dict && getdns_upstream_transports[j] == GETDNS_TRANSPORT_TLS) {
+			if (!alpn)
+				; /* pass */
+
+			else if (alpn->size == 3      && alpn->data[0] == 'd'
+			     &&  alpn->data[1] == 'o' && alpn->data[2] == 't')
+				upstream->alpn = alpn_dot;
+
+			else if (alpn->size == 2      && alpn->data[0] == 'h'
+			                              && alpn->data[1] == '2')
+				upstream->alpn = alpn_h2;
+			else
+				goto invalid_parameter;
+
+			if (dict && getdns_upstream_transports[j] ==
+					GETDNS_TRANSPORT_TLS) {
 				getdns_list *pubkey_pinset = NULL;
 				getdns_list *dane_records = NULL;
 				getdns_bindata *tls_cipher_list = NULL;
@@ -3074,6 +3127,19 @@ getdns_context_set_upstream_recursive_servers(struct getdns_context *context,
 						tls_auth_name->size);
 					upstream->tls_auth_name
 					    [tls_auth_name->size] = '\0';
+				}
+				if ((r = getdns_dict_get_bindata(
+				    dict, "doh_path", &doh_path)) == GETDNS_RETURN_GOOD) {
+
+					if (doh_path->size >= sizeof(upstream->doh_path)) {
+						freeaddrinfo(ai);
+						goto invalid_parameter;
+					}
+					memcpy(upstream->doh_path,
+					       (char *)doh_path->data,
+						doh_path->size);
+					upstream->doh_path
+					    [doh_path->size] = '\0';
 				}
 				if ((r = getdns_dict_get_list(dict, "tls_pubkey_pinset",
 							      &pubkey_pinset)) == GETDNS_RETURN_GOOD) {
@@ -4490,6 +4556,22 @@ _getdns_ns_dns_setup(struct getdns_context *context)
 	return GETDNS_RETURN_BAD_CONTEXT;
 }
 
+#ifdef HAVE_LIBNGHTTP2
+ssize_t
+_doh_send_callback(nghttp2_session *session, const uint8_t *data, size_t length,
+    int flags, void *user_data);
+ssize_t
+_doh_recv_callback(nghttp2_session *session, uint8_t *buf, size_t length,
+    int flags,  void *user_data);
+int
+_doh_on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
+    int32_t stream_id, const uint8_t *data, size_t len, void *user_data);
+int
+_doh_on_header_callback (nghttp2_session *session, const nghttp2_frame *frame,
+    const uint8_t *name, size_t namelen, const uint8_t *value, size_t valuelen,
+    uint8_t flags, void *user_data);
+#endif
+
 getdns_return_t
 _getdns_context_prepare_for_resolution(getdns_context *context)
 {
@@ -4557,6 +4639,22 @@ _getdns_context_prepare_for_resolution(getdns_context *context)
 			}
 			_getdns_tls_context_pinset_init(context->tls_ctx);
 		}
+#ifdef HAVE_LIBNGHTTP2
+		if (!context->doh_callbacks) {
+			if (nghttp2_session_callbacks_new(&context->doh_callbacks)) {
+				context->doh_callbacks = NULL;
+				return GETDNS_RETURN_MEMORY_ERROR;
+			}
+			nghttp2_session_callbacks_set_send_callback(
+			 context->doh_callbacks, _doh_send_callback);
+			nghttp2_session_callbacks_set_recv_callback(
+			 context->doh_callbacks, _doh_recv_callback);
+			nghttp2_session_callbacks_set_on_data_chunk_recv_callback(
+			 context->doh_callbacks, _doh_on_data_chunk_recv_callback);
+			nghttp2_session_callbacks_set_on_header_callback(
+			 context->doh_callbacks, _doh_on_header_callback);
+		}
+#endif
 	}
 
 	/* Block use of TLS ONLY in recursive mode as it won't work */
@@ -4993,6 +5091,17 @@ getdns_context_get_api_information(const getdns_context* context)
 
 	    && ! _getdns_tls_get_api_information(result)
 
+#ifdef HAVE_LIBNGHTTP2
+	    && ! getdns_dict_set_int(
+	    result, "nghttp2_version_number", nghttp2_version(0)->version_num)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "nghttp2_version_string", nghttp2_version(0)->version_str)
+
+	    && ! getdns_dict_util_set_string(
+	    result, "nghttp2_protocol_string", nghttp2_version(0)->proto_str)
+#endif
+
 	    && ! getdns_dict_set_int(
 	    result, "resolution_type", context->resolution_type)
 
@@ -5382,52 +5491,71 @@ getdns_context_get_upstream_recursive_servers(
 			    (uint32_t)upstream_port(upstream))))
 				break;
 
-			if (upstream->transport == GETDNS_TRANSPORT_TLS) {
-				if (upstream_port(upstream) != getdns_port_array[j] &&
-					(r = getdns_dict_set_int(d, "tls_port",
-								   (uint32_t) upstream_port(upstream))))
+			if (upstream->transport != GETDNS_TRANSPORT_TLS)
+				continue;
+
+			if (!is_doh_upstream(upstream)
+			&&  upstream_port(upstream) != GETDNS_PORT_DNS_OVER_TLS
+			&&  (r = getdns_dict_set_int(d, "tls_port",
+					(uint32_t) upstream_port(upstream))))
+				break;
+
+			if (is_doh_upstream(upstream)
+			&&  upstream_port(upstream) != GETDNS_PORT_DNS_OVER_HTTPS
+			&&  (r = getdns_dict_set_int(d, "tls_port",
+					(uint32_t) upstream_port(upstream))))
+				break;
+
+			if (upstream->alpn
+			&&  (r = getdns_dict_util_set_string(
+					d, "alpn", upstream->alpn)))
+				break;
+
+			if (upstream->tls_auth_name[0] != '\0' &&
+			    (r = getdns_dict_util_set_string(d,
+							     "tls_auth_name",
+							     upstream->tls_auth_name)))
+				break;
+			if (upstream->tls_pubkey_pinset) {
+				getdns_list *pins = NULL;
+				if ((_getdns_get_pubkey_pinset_list(context,
+								   upstream->tls_pubkey_pinset,
+								   &pins) == GETDNS_RETURN_GOOD) &&
+					(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
+					getdns_list_destroy(pins);
 					break;
-				if (upstream->tls_auth_name[0] != '\0' &&
-				    (r = getdns_dict_util_set_string(d,
-				                                     "tls_auth_name",
-				                                     upstream->tls_auth_name)))
-					break;
-				if (upstream->tls_pubkey_pinset) {
-					getdns_list *pins = NULL;
-					if ((_getdns_get_pubkey_pinset_list(context,
-									   upstream->tls_pubkey_pinset,
-									   &pins) == GETDNS_RETURN_GOOD) &&
-						(r = _getdns_dict_set_this_list(d, "tls_pubkey_pinset", pins))) {
-						getdns_list_destroy(pins);
-						break;
-					}
-				}
-				if (upstream->tls_cipher_list) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_cipher_list",
-					    upstream->tls_cipher_list);
-				}
-				if (upstream->tls_ciphersuites) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_ciphersuites",
-					    upstream->tls_ciphersuites);
-				}
-				if (upstream->tls_curves_list) {
-					(void) getdns_dict_util_set_string(
-					    d, "tls_curves_list",
-					    upstream->tls_curves_list);
-				}
-				if (upstream->tls_min_version) {
-					(void) getdns_dict_set_int(
-					    d, "tls_min_version",
-					    upstream->tls_min_version);
-				}
-				if (upstream->tls_max_version) {
-					(void) getdns_dict_set_int(
-					    d, "tls_max_version",
-					    upstream->tls_max_version);
 				}
 			}
+			if (upstream->tls_cipher_list) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_cipher_list",
+				    upstream->tls_cipher_list);
+			}
+			if (upstream->tls_ciphersuites) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_ciphersuites",
+				    upstream->tls_ciphersuites);
+			}
+			if (upstream->tls_curves_list) {
+				(void) getdns_dict_util_set_string(
+				    d, "tls_curves_list",
+				    upstream->tls_curves_list);
+			}
+			if (upstream->tls_min_version) {
+				(void) getdns_dict_set_int(
+				    d, "tls_min_version",
+				    upstream->tls_min_version);
+			}
+			if (upstream->tls_max_version) {
+				(void) getdns_dict_set_int(
+				    d, "tls_max_version",
+				    upstream->tls_max_version);
+			}
+			if (strcmp(upstream->doh_path, "dns-query")
+			&& (r = getdns_dict_util_set_string(
+					d, "doh_path",
+					upstream->doh_path)))
+				break;
 		}
 		if (!r)
 			if (!(r = _getdns_list_append_this_dict(upstreams, d)))
@@ -5689,6 +5817,9 @@ _getdns_context_config_setting(getdns_context *context,
 	    && !_streq(setting, "openssl_platform")
 	    && !_streq(setting, "openssl_dir")
 	    && !_streq(setting, "openssl_engines_dir")
+	    && !_streq(setting, "nghttp2_version_number")
+	    && !_streq(setting, "nghttp2_version_string")
+	    && !_streq(setting, "nghttp2_protocol_string")
 	    ) {
 		r = GETDNS_RETURN_NOT_IMPLEMENTED;
 	}

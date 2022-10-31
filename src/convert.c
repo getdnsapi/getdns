@@ -1126,6 +1126,8 @@ _getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 	char *p = strchr(ipstr, '@'), *portstr = "";
 	char *t = strchr(ipstr, '#'), *tls_portstr = "";
 	char *n = strchr(ipstr, '~'), *tls_namestr = "";
+	char *P = strchr(ipstr, '/'), *doh_pathstr = "";
+	char *A = strchr(ipstr, '_'), *alpnstr = "";
 	/* ^[alg:]name:key */
 	char *T = strchr(ipstr, '^'), *tsig_name_str = ""
 	                            , *tsig_secret_str = ""
@@ -1173,6 +1175,14 @@ _getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 		*n = 0;
 		tls_namestr = n + 1;
 	}
+	if (P) {
+		*P = 0;
+		doh_pathstr = P + 1;
+	}
+	if (A) {
+		*A = 0;
+		alpnstr = A + 1;
+	}
 	if (T) {
 		*T = 0;
 		tsig_name_str = T + 1;
@@ -1213,9 +1223,12 @@ _getdns_ipaddr_dict_mf(struct mem_funcs *mf, const char *ipstr)
 		getdns_dict_set_int(r, "port", (int32_t)atoi(portstr));
 	if (*tls_portstr)
 		getdns_dict_set_int(r, "tls_port", (int32_t)atoi(tls_portstr));
-	if (*tls_namestr) {
+	if (*tls_namestr)
 		getdns_dict_util_set_string(r, "tls_auth_name", tls_namestr);
-	}
+	if (*doh_pathstr)
+		getdns_dict_util_set_string(r, "doh_path", doh_pathstr);
+	if (*alpnstr)
+		getdns_dict_util_set_string(r, "alpn", alpnstr);
 	if (*scope_id_str)
 		getdns_dict_util_set_string(r, "scope_id", scope_id_str);
 	if (*tsig_name_str)

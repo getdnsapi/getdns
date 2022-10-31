@@ -50,6 +50,7 @@
 #include "gldns/rrdef.h"
 #include "gldns/str2wire.h"
 #include "gldns/wire2str.h"
+#include "gldns/parseutil.h"
 #include "rr-iter.h"
 #include "context.h"
 #include "util-internal.h"
@@ -57,6 +58,15 @@
 #include "general.h"
 #include "pubkey-pinning.h"
 
+#ifdef HAVE_LIBNGHTTP2
+#define MAKE_NV(NAME, VALUE, VALUELEN) { (uint8_t *)NAME, (uint8_t *)VALUE, \
+    sizeof(NAME) - 1, VALUELEN, NGHTTP2_NV_FLAG_NONE }
+
+#define MAKE_NV2(NAME, VALUE) { (uint8_t *)NAME, (uint8_t *)VALUE, \
+    sizeof(NAME) - 1, sizeof(VALUE) - 1, NGHTTP2_NV_FLAG_NONE }
+
+#define ARRLEN(x) (sizeof(x) / sizeof(x[0]))
+#endif
 
 /* WSA TODO: 
  * STUB_TCP_RETRY added to deal with edge triggered event loops (versus
@@ -71,6 +81,7 @@
 #define STUB_TCP_MORE_TO_READ -3
 #define STUB_TCP_MORE_TO_WRITE -3
 #define STUB_TCP_ERROR -2
+#define STUB_NOOP -1
 
 /* Don't currently have access to the context whilst doing handshake */
 #define MIN_TLS_HS_TIMEOUT 2500
@@ -94,6 +105,10 @@ static int  fallback_on_write(getdns_network_req *netreq);
 
 static void stub_timeout_cb(void *userarg);
 uint64_t _getdns_get_time_as_uintt64();
+static void netreq_equip_tls_debug_info(getdns_network_req *netreq);
+static void process_finished_cb(void *userarg);
+
+
 /*****************************/
 /* General utility functions */
 /*****************************/
@@ -670,9 +685,28 @@ stub_cleanup(getdns_network_req *netreq)
 }
 
 static void
+upstream_teardown(getdns_upstream *upstream)
+{
+	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+	upstream->conn_state = GETDNS_CONN_TEARDOWN;
+
+	while (upstream->write_queue)
+		upstream_write_cb(upstream);
+
+	while (upstream->netreq_by_query_id.count) {
+		getdns_network_req *netreq = (getdns_network_req *)
+		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
+
+		stub_cleanup(netreq);
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+		_getdns_check_dns_req_complete(netreq->owner);
+	}
+	_getdns_upstream_shutdown(upstream);
+}
+
+static void
 upstream_failed(getdns_upstream *upstream, int during_setup)
 {
-	getdns_network_req *netreq;
 
 	DEBUG_STUB("%s %-35s: FD:  %d Failure during connection setup = %d\n",
 	           STUB_DEBUG_CLEANUP, __FUNC__, upstream->fd, during_setup);
@@ -680,26 +714,13 @@ upstream_failed(getdns_upstream *upstream, int during_setup)
 	   when idle.*/
 	/* [TLS1]TODO: Work out how to re-open the connection and re-try
 	   the queries if there is only one upstream.*/
-	GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 	if (during_setup) {
 		upstream->conn_setup_failed++;
 	} else {
 		upstream->conn_shutdowns++;
 		/* [TLS1]TODO: Re-try these queries if possible.*/
 	}
-	upstream->conn_state = GETDNS_CONN_TEARDOWN;
-
-	while (upstream->write_queue)
-		upstream_write_cb(upstream);
-
-	while (upstream->netreq_by_query_id.count) {
-		netreq = (getdns_network_req *)
-		    _getdns_rbtree_first(&upstream->netreq_by_query_id);
-		stub_cleanup(netreq);
-		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
-		_getdns_check_dns_req_complete(netreq->owner);
-	}
-	_getdns_upstream_shutdown(upstream);
+	upstream_teardown(upstream);
 }
 
 void
@@ -994,6 +1015,7 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 {
 	/* Create SSL instance and connect with a file descriptor */
 	getdns_context *context = dnsreq->context;
+
 	if (context->tls_ctx == NULL)
 		return NULL;
 	_getdns_tls_connection* tls = _getdns_tls_connection_new(&context->my_mf, context->tls_ctx, fd, &upstream->upstreams->log);
@@ -1002,21 +1024,46 @@ tls_create_object(getdns_dns_req *dnsreq, int fd, getdns_upstream *upstream)
 
 	getdns_return_t r = GETDNS_RETURN_GOOD;
 
-	if (upstream->tls_curves_list)
-		r = _getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list);
-	if (!r && upstream->tls_ciphersuites)
-		r = _getdns_tls_connection_set_cipher_suites(tls, upstream->tls_ciphersuites);
-	if (!r)
-		r = _getdns_tls_connection_set_min_max_tls_version(tls, upstream->tls_min_version, upstream->tls_max_version);
+	if (upstream->tls_curves_list
+	&&  (r = _getdns_tls_connection_set_curves_list(tls, upstream->tls_curves_list)))
+		; /* pass */
+	else if (upstream->tls_ciphersuites
+	     &&  (r = _getdns_tls_connection_set_cipher_suites(tls, upstream->tls_ciphersuites)))
+		; /* pass */
+	else if ((r =_getdns_tls_connection_set_min_max_tls_version(tls, upstream->tls_min_version, upstream->tls_max_version)))
+		; /* pass */
+	else if (upstream->tls_fallback_ok
+	     &&  (r = _getdns_tls_connection_set_cipher_list(tls, NULL)))
+		; /* pass */
+	else if (upstream->tls_cipher_list
+	     &&  (r = _getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list)))
+		; /* pass */
+	else if ((r = _getdns_tls_connection_set_alpn(tls, upstream->alpn)))
+		; /* pass */
+#ifdef HAVE_LIBNGHTTP2
+	else if (!is_doh_upstream(upstream) || !context->doh_callbacks)
+		; /* pass */
+	else if (nghttp2_session_client_new(&upstream->doh_session
+	                                   ,  context->doh_callbacks
+					   , upstream))
+		r = GETDNS_RETURN_MEMORY_ERROR;
+	else {
+		int rv;
+		nghttp2_settings_entry iv[1] = {
+			{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 100}};
 
-	if (!r)
-	{
-		if (upstream->tls_fallback_ok)
-			r = _getdns_tls_connection_set_cipher_list(tls, NULL);
-		else if (upstream->tls_cipher_list)
-			r = _getdns_tls_connection_set_cipher_list(tls, upstream->tls_cipher_list);
+		/* client 24 bytes magic string will be sent by nghttp2 library */
+		if ((rv = nghttp2_submit_settings(upstream->doh_session,
+					NGHTTP2_FLAG_NONE, iv, ARRLEN(iv)))) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
+			    "%-40s : Could not submit DoH settings: %s\n",
+			    upstream->addr_str,
+			    nghttp2_strerror(rv));
+			r = GETDNS_RETURN_GENERIC_ERROR;
+		}
 	}
-	
+#endif
 	if (r) {
 		_getdns_tls_connection_free(&upstream->upstreams->mf, tls);
 		upstream->tls_auth_state = GETDNS_AUTH_NONE;
@@ -1235,6 +1282,182 @@ tls_connected(getdns_upstream* upstream)
 	return tls_do_handshake(upstream);
 }
 
+#ifdef HAVE_LIBNGHTTP2
+ssize_t
+_doh_send_callback(nghttp2_session *session, const uint8_t *data, size_t length,
+    int flags, void *user_data)
+{
+	getdns_upstream *upstream = (getdns_upstream *)user_data;
+	size_t written;
+	getdns_return_t r;
+
+	(void)session;
+	(void)flags;
+
+	if (!upstream || !upstream->doh_session || !upstream->tls_obj)
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	if (!(r = _getdns_tls_connection_write(
+			upstream->tls_obj, data, length, &written)))
+		return (ssize_t)written;
+	return (  r == GETDNS_RETURN_TLS_WANT_READ
+	       || r == GETDNS_RETURN_TLS_WANT_WRITE )
+	       ?  NGHTTP2_ERR_WOULDBLOCK
+	       :  NGHTTP2_ERR_CALLBACK_FAILURE;
+}
+
+ssize_t
+_doh_recv_callback(nghttp2_session *session, uint8_t *buf, size_t length,
+    int flags,  void *user_data)
+{
+	getdns_upstream *upstream = (getdns_upstream *)user_data;
+	size_t read;
+	getdns_return_t r;
+
+	(void)session;
+	(void)flags;
+
+	if (!upstream || !upstream->doh_session || !upstream->tls_obj)
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+
+	if (!(r = _getdns_tls_connection_read(
+			upstream->tls_obj, buf, length, &read)))
+		return (ssize_t)read;
+	return (  r == GETDNS_RETURN_TLS_WANT_READ
+	       || r == GETDNS_RETURN_TLS_WANT_WRITE )
+	       ?  NGHTTP2_ERR_WOULDBLOCK
+	       :  NGHTTP2_ERR_CALLBACK_FAILURE;
+	return 0;
+}
+
+int
+_doh_on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
+    int32_t stream_id, const uint8_t *data, size_t len, void *user_data)
+{
+	getdns_upstream *upstream = (getdns_upstream *)user_data;
+	intptr_t stream_id_intptr = (intptr_t)stream_id;
+	getdns_network_req *netreq;
+	getdns_dns_req *dnsreq;
+
+	(void)session;
+        (void)flags;
+
+	netreq = (getdns_network_req *)_getdns_rbtree_search(
+	    &upstream->netreq_by_query_id, (void *)stream_id_intptr);
+	if (!netreq) /* Netreq might have been canceled (so okay!) */
+		return 0;
+
+	if (netreq->query_id_registered == &upstream->netreq_by_query_id) {
+		netreq->query_id_registered = NULL;
+		netreq->node.key = NULL;
+
+	} else if (netreq->query_id_registered) {
+		(void) _getdns_rbtree_delete(
+		    netreq->query_id_registered, netreq->node.key);
+		netreq->query_id_registered = NULL;
+		netreq->node.key = NULL;
+	}
+	DEBUG_STUB("%s %-35s: MSG: %p (read)\n",
+	    STUB_DEBUG_READ, __FUNC__, (void*)netreq);
+	_getdns_netreq_change_state(netreq, NET_REQ_FINISHED);
+	if (netreq->response < netreq->wire_data
+	||  netreq->response + len > netreq->wire_data + netreq->wire_data_sz)
+		netreq->response = GETDNS_XMALLOC(
+				upstream->upstreams->mf, uint8_t, len);
+	memcpy(netreq->response, data, (netreq->response_len = len));
+	upstream->responses_received++;
+	
+	if (netreq->owner->edns_cookies &&
+	    match_and_process_server_cookie(netreq->upstream, netreq))
+		return 0; /* Client cookie didn't match (or FORMERR) */
+
+	if (netreq->owner->context->idle_timeout != 0)
+	     process_keepalive(netreq->upstream, netreq);
+
+	netreq->debug_end_time = _getdns_get_time_as_uintt64();
+	/* This also reschedules events for the upstream */
+	stub_cleanup(netreq);
+
+	if (!upstream->is_sync_loop || netreq->owner->is_sync_request)
+		_getdns_check_dns_req_complete(netreq->owner);
+
+	else {
+		assert(upstream->is_sync_loop &&
+		    !netreq->owner->is_sync_request);
+
+		/* We have a result for an asynchronously scheduled
+		 * netreq, while processing the synchronous loop.
+		 * Queue dns_req_complete checks.
+		 */
+
+		/* First check if one for the dns_req already exists */
+		for ( dnsreq = upstream->finished_dnsreqs
+		    ; dnsreq && dnsreq != netreq->owner
+		    ; dnsreq = dnsreq->finished_next)
+			; /* pass */
+
+		if (!dnsreq) {
+			/* Schedule dns_req_complete check for this
+			 * netreq's owner
+			 */
+			dnsreq = netreq->owner;
+			dnsreq->finished_next =
+			    upstream->finished_dnsreqs;
+			upstream->finished_dnsreqs = dnsreq;
+		
+			if (!upstream->finished_event.timeout_cb) {
+				upstream->finished_event.timeout_cb
+				    = process_finished_cb;
+				GETDNS_SCHEDULE_EVENT(
+				    dnsreq->context->extension,
+				    -1, 1, &upstream->finished_event);
+			}
+		}
+	}
+	return 0;
+}
+
+int
+_doh_on_header_callback (nghttp2_session *session, const nghttp2_frame *frame,
+    const uint8_t *name, size_t namelen, const uint8_t *value, size_t valuelen,
+    uint8_t flags, void *user_data)
+{
+	getdns_upstream *upstream = (getdns_upstream *)user_data;
+	intptr_t stream_id_intptr;
+	getdns_network_req *netreq;
+
+	(void)session;
+        (void)flags;
+
+	if (frame->hd.type != NGHTTP2_HEADERS
+	||  frame->headers.cat != NGHTTP2_HCAT_RESPONSE)
+		return 0;
+#if 0
+	fprintf(stderr, "incoming header: ");
+	fwrite(name, 1, namelen, stderr);
+	fprintf(stderr, ": ");
+	fwrite(value, 1, valuelen, stderr);
+	fprintf(stderr, "\n");
+#endif
+	if (namelen == 7 && !strncasecmp((const char *)name, ":status", 7)) {
+		if (valuelen == 3 && !strncmp((const char *)value, "200", 3))
+			return 0;
+
+		stream_id_intptr = (intptr_t)frame->hd.stream_id;
+		netreq = (getdns_network_req *)_getdns_rbtree_search(
+		    &upstream->netreq_by_query_id, (void *)stream_id_intptr);
+		if (!netreq) /* Netreq might have been canceled (so okay!) */
+			return 0;
+
+		stub_cleanup(netreq);
+		_getdns_netreq_change_state(netreq, NET_REQ_ERRORED);
+		netreq->debug_end_time = _getdns_get_time_as_uintt64();
+		_getdns_check_dns_req_complete(netreq->owner);
+		return 0;
+	}
+	return 0;
+}
+#endif
+
 /***************************/
 /* TLS read/write functions*/
 /***************************/
@@ -1333,8 +1556,8 @@ stub_tls_write(getdns_upstream *upstream, getdns_tcp_state *tcp,
 
 	int q;
        
-fprintf(stderr, "in stub_tls_write\n");
-	if (netreq->owner->expires > upstream->expires)
+	fprintf(stderr, "in stub_tls_write\n");
+	if (netreq && netreq->owner->expires > upstream->expires)
 		upstream->expires = netreq->owner->expires;
 
 	q = tls_connected(upstream);
@@ -1351,21 +1574,6 @@ fprintf(stderr, "in stub_tls_write\n");
 	if (! tcp->write_buf) {
 		/* No, this is an initial write. Try to send
 		 */
-
-		 /* Find a unique query_id not already written (or in
-		 * the write_queue) for that upstream.  Register this netreq 
-		 * by query_id in the process.
-		 */
-		do {
-			query_id = arc4random();
-			query_id_intptr = (intptr_t)query_id;
-			netreq->node.key = (void *)query_id_intptr;
-
-		} while (!_getdns_rbtree_insert(
-		    &netreq->upstream->netreq_by_query_id, &netreq->node));
-		netreq->query_id_registered = &netreq->upstream->netreq_by_query_id;
-
-		GLDNS_ID_SET(netreq->query, query_id);
 
 		/* TODO: Review if more EDNS0 handling can be centralised.*/
 		if (netreq->opt) {
@@ -1428,7 +1636,96 @@ fprintf(stderr, "in stub_tls_write\n");
 			r = GETDNS_RETURN_GOOD;
 		} else
 #endif
+
+#ifdef HAVE_LIBNGHTTP2
+		if (upstream->doh_session) {
+			size_t i;
+			nghttp2_nv hdrs[5];
+			const char *authority = upstream->tls_auth_name[0]
+			                      ? upstream->tls_auth_name
+			                      : upstream->addr_str;
+			char path_spc[2048], *path = path_spc;
+			size_t url_sz, path_sz;
+			int32_t stream_id;
+
+			url_sz = sizeof("/") - 1
+			       + strlen(upstream->doh_path)
+			       + sizeof("?dns=") - 1;
+			path_sz = url_sz
+				+ gldns_b64_ntop_calculate_size(pkt_len);
+
+			if (path_sz > sizeof(path_spc)
+			&&  !(path = malloc(path_sz)))
+				return STUB_TCP_ERROR;
+
+			strcat(strcat( strcpy(path, "/")
+			             , upstream->doh_path), "?dns=");
+
+			path_sz = url_sz + gldns_b64url_ntop(netreq->query,
+			    pkt_len, path + url_sz, path_sz - url_sz);
+			path[path_sz] = 0;
+
+			GLDNS_ID_SET(netreq->query, 0);
+
+			hdrs[0].name  = (uint8_t*)":method";
+			hdrs[0].value = (uint8_t*)"GET";
+			hdrs[1].name  = (uint8_t*)":scheme";
+			hdrs[1].value = (uint8_t*)"https";
+			hdrs[2].name  = (uint8_t*)":authority";
+			hdrs[2].value = (uint8_t*)authority;
+			hdrs[3].name  = (uint8_t*)":path";
+			hdrs[3].value = (uint8_t*)path;
+			hdrs[4].name  = (uint8_t*)"content-type";
+			hdrs[4].value = (uint8_t*)"application/dns-message";
+			for (i = 0; i < ARRLEN(hdrs); i++) {
+				hdrs[i].namelen  = strlen((char*)hdrs[i].name);
+				hdrs[i].valuelen = strlen((char*)hdrs[i].value);
+				hdrs[i].flags = NGHTTP2_NV_FLAG_NONE;
+				fprintf(stderr, "HEADER[%d] %s: %s\n"
+				              , (int)i
+				              , (char*)hdrs[i].name
+				              , (char*)hdrs[i].value);
+			}
+			stream_id = nghttp2_submit_request(
+			    upstream->doh_session, NULL,
+			    hdrs, ARRLEN(hdrs), NULL, upstream);
+
+			if (stream_id < 0) {
+				/* TODO: Log error */
+				return STUB_TCP_ERROR;
+			}
+			query_id_intptr = (intptr_t)stream_id;
+			netreq->node.key = (void *)query_id_intptr;
+			_getdns_rbtree_insert(
+			    &netreq->upstream->netreq_by_query_id,
+			    &netreq->node);
+			netreq->query_id_registered =
+			    &netreq->upstream->netreq_by_query_id;
+			/* Unqueue the netreq from the write_queue */
+			remove_from_write_queue(upstream, netreq);
+			if (netreq->owner->return_call_reporting)
+				netreq_equip_tls_debug_info(netreq);
+			upstream->queries_sent++;
+			return STUB_NOOP;
+		} else {
+#endif
+		 /* Find a unique query_id not already written (or in
+		 * the write_queue) for that upstream.  Register this netreq 
+		 * by query_id in the process.
+		 */
+		do {
+			query_id = arc4random();
+			query_id_intptr = (intptr_t)query_id;
+			netreq->node.key = (void *)query_id_intptr;
+
+		} while (!_getdns_rbtree_insert(
+		    &netreq->upstream->netreq_by_query_id, &netreq->node));
+		netreq->query_id_registered = &netreq->upstream->netreq_by_query_id;
+		GLDNS_ID_SET(netreq->query, query_id);
 		r = _getdns_tls_connection_write(tls_obj, netreq->query - 2, pkt_len + 2, &written);
+#ifdef HAVE_LIBNGHTTP2
+		}
+#endif
 		if (r == GETDNS_RETURN_TLS_WANT_READ ||
 		    r == GETDNS_RETURN_TLS_WANT_WRITE)
 			return STUB_TCP_RETRY;
@@ -1437,9 +1734,7 @@ fprintf(stderr, "in stub_tls_write\n");
 
 		/* We were able to write everything!  Start reading. */
 		return (int) query_id;
-
 	} 
-
 	return STUB_TCP_ERROR;
 }
 
@@ -1676,12 +1971,57 @@ upstream_read_cb(void *userarg)
 	DEBUG_STUB("%s %-35s: FD:  %d \n", STUB_DEBUG_READ, __FUNC__,
 	            upstream->fd);
 	getdns_network_req *netreq;
-	int q;
+	int q = STUB_NOOP;
 	uint16_t query_id;
 	intptr_t query_id_intptr;
 	getdns_dns_req *dnsreq;
 
-	if (upstream->transport == GETDNS_TRANSPORT_TLS)
+#ifdef HAVE_LIBNGHTTP2
+	if (!upstream->doh_session)
+		; /* pass */
+
+	else if ((q = tls_connected(upstream)))
+		; /* pass */
+
+	else if (nghttp2_session_want_read(upstream->doh_session)) {
+		int rv = nghttp2_session_recv(upstream->doh_session);
+
+		if (rv) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
+			    "%-40s : Could not receive from  DoH connection: %s\n",
+			    upstream->addr_str,
+			    nghttp2_strerror(rv));
+			q = STUB_TCP_ERROR;
+
+		} else if (nghttp2_session_want_read(upstream->doh_session))
+			return;
+
+		else if (nghttp2_session_want_write(upstream->doh_session)) {
+			/* Reschedule for reading */
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+			upstream->event.read_cb = upstream_read_cb;
+			upstream->event.write_cb = upstream_write_cb;
+			GETDNS_SCHEDULE_EVENT(upstream->loop,
+			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+			return;
+		} else
+			q = STUB_CONN_GONE;
+
+	} else if (nghttp2_session_want_write(upstream->doh_session)) {
+		/* Reschedule for reading */
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.read_cb = upstream_read_cb;
+		upstream->event.write_cb = upstream_write_cb;
+		GETDNS_SCHEDULE_EVENT(upstream->loop,
+		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+		return;
+	} else
+		q = STUB_CONN_GONE;
+#endif
+	if (q != STUB_NOOP)
+		; /* pass */
+	else if (upstream->transport == GETDNS_TRANSPORT_TLS)
 		q = stub_tls_read(upstream, &upstream->tcp,
 		                 &upstream->upstreams->mf);
 	else
@@ -1698,7 +2038,9 @@ upstream_read_cb(void *userarg)
 	case STUB_TCP_ERROR:
 		upstream_failed(upstream, (q == STUB_TCP_ERROR ? 0:1) );
 		return;
-
+	case STUB_CONN_GONE:
+		upstream_teardown(upstream);
+		return;
 	default:
 		/* Lookup netreq */
 		query_id = (uint16_t) q;
@@ -1819,18 +2161,22 @@ upstream_write_cb(void *userarg)
 {
 	getdns_upstream *upstream = (getdns_upstream *)userarg;
 	getdns_network_req *netreq = upstream->write_queue;
-	int q;
+	int q = STUB_NOOP;
 
-	if (!netreq) {
+	if (!netreq
+#ifdef HAVE_LIBNGHTTP2
+	&&  !upstream->doh_session
+#endif
+	   ) {
 		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
 		upstream->event.write_cb = NULL;
 		return;
 	}
-
-	netreq->debug_start_time = _getdns_get_time_as_uintt64();
-	DEBUG_STUB("%s %-35s: MSG: %p (writing)\n", STUB_DEBUG_WRITE,
-	            __FUNC__, (void*)netreq);
-
+	if (netreq) {
+		netreq->debug_start_time = _getdns_get_time_as_uintt64();
+		DEBUG_STUB("%s %-35s: MSG: %p (writing)\n", STUB_DEBUG_WRITE,
+			    __FUNC__, (void*)netreq);
+	}
 	/* Health checks on current connection */
 	if (upstream->conn_state == GETDNS_CONN_TEARDOWN ||
 	    upstream->conn_state == GETDNS_CONN_CLOSED ||  
@@ -1839,11 +2185,57 @@ upstream_write_cb(void *userarg)
 	else if (!upstream_working_ok(upstream))
 		q = STUB_TCP_ERROR;
 	/* Seems ok, now try to write */
-	else if (tls_requested(netreq))
+	else if (netreq && tls_requested(netreq))
 		q = stub_tls_write(upstream, &upstream->tcp, netreq);
-	else
+	else if (netreq)
 		q = stub_tcp_write(upstream->fd, &upstream->tcp, netreq);
 
+#ifdef HAVE_LIBNGHTTP2
+	if (!upstream->doh_session || q != STUB_NOOP)
+		; /* pass */
+
+	else if (nghttp2_session_want_write(upstream->doh_session)) {
+		int rv = nghttp2_session_send(upstream->doh_session);
+
+		if (rv) {
+			_getdns_upstream_log(upstream,
+			    GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_ERR, 
+			    "%-40s : Could not send to DoH connection: %s\n",
+			    upstream->addr_str,
+			    nghttp2_strerror(rv));
+			q = STUB_TCP_ERROR;
+
+		} else if (nghttp2_session_want_write(upstream->doh_session))
+			return;
+
+		else if (upstream->write_queue)
+			return;
+
+		else if (nghttp2_session_want_read(upstream->doh_session)) {
+			/* Reschedule for reading */
+			GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+			upstream->event.read_cb = upstream_read_cb;
+			upstream->event.write_cb = NULL;
+			GETDNS_SCHEDULE_EVENT(upstream->loop,
+			    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+			return;
+		} else
+			q = STUB_CONN_GONE;
+
+	} else if (upstream->write_queue)
+		return;
+
+	else if (nghttp2_session_want_read(upstream->doh_session)) {
+		/* Reschedule for reading */
+		GETDNS_CLEAR_EVENT(upstream->loop, &upstream->event);
+		upstream->event.read_cb = upstream_read_cb;
+		upstream->event.write_cb = NULL;
+		GETDNS_SCHEDULE_EVENT(upstream->loop,
+		    upstream->fd, TIMEOUT_FOREVER, &upstream->event);
+		return;
+	} else
+		q = STUB_CONN_GONE;
+#endif
 	switch (q) {
 	case STUB_TCP_MORE_TO_WRITE:
 		/* WSA TODO: if callback is still upstream_write_cb, do it again
@@ -1863,11 +2255,13 @@ upstream_write_cb(void *userarg)
 	case STUB_CONN_GONE:
 	case STUB_NO_AUTH:
 		/* Cleaning up after connection or auth check failure. Need to fallback. */
-		stub_cleanup(netreq);
 		_getdns_upstream_log(upstream, GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
 		    "%-40s : Conn closed: %s - *Failure*\n",
 		    upstream->addr_str,
 		    (upstream->transport == GETDNS_TRANSPORT_TLS ? "TLS" : "TCP"));
+		if (!netreq)
+			return;
+		stub_cleanup(netreq);
 		if (netreq->owner->return_call_reporting)
 			netreq_equip_tls_debug_info(netreq);
 		if (fallback_on_write(netreq) == STUB_TCP_ERROR) {

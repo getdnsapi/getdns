@@ -40,6 +40,9 @@
 #include "getdns/getdns.h"
 #include "getdns/getdns_extra.h"
 #include "config.h"
+#ifdef HAVE_LIBNGHTTP2
+#include <nghttp2/nghttp2.h>
+#endif
 #include "types-internal.h"
 #include "extension/default_eventloop.h"
 #include "util/rbtree.h"
@@ -223,12 +226,19 @@ typedef struct getdns_upstream {
 	                                   * This is how long a handshake may
 	                                   * take.
 	                                   */
+#ifdef HAVE_LIBNGHTTP2
+	nghttp2_session*         doh_session;
+#endif
 	/* TLS settings */
 	char                    *tls_cipher_list;
 	char                    *tls_ciphersuites;
 	char                    *tls_curves_list;
 	getdns_tls_version_t     tls_min_version;
 	getdns_tls_version_t     tls_max_version;
+
+	/* DoH settings */
+	const char              *alpn;
+	char                     doh_path[256];
 
 	/* Auth credentials */
 	char                     tls_auth_name[256];
@@ -270,6 +280,10 @@ typedef struct getdns_upstream {
 	getdns_tsig_algo tsig_alg;
 
 } getdns_upstream;
+
+INLINE int is_doh_upstream(getdns_upstream *u)
+{ return u && u->alpn &&  u->alpn[0] == 'h'
+                      && (u->alpn[1] == '2' || u->alpn[1] == '3'); }
 
 #define POLICY_N_ADDR		3
 #define POLICY_N_SVCPARAMS	8
@@ -426,6 +440,9 @@ struct getdns_context {
 	uint8_t edns_client_subnet_private;
 	uint16_t tls_query_padding_blocksize;
 	_getdns_tls_context* tls_ctx;
+#ifdef HAVE_LIBNGHTTP2
+	nghttp2_session_callbacks* doh_callbacks;
+#endif
 
 	getdns_update_callback  update_callback;
 	getdns_update_callback2 update_callback2;
