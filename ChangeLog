@@ -1,3 +1,9 @@
+* 2022-12-22: Version 1.7.3
+  * PR #532: Increase CMake required version 3.5 -> 3.20, because we
+    need cmake_path for Absolute paths in pkg-config (See Issue #517)
+    Thanks Gabriel Ganne
+  * Updated to Stubby 0.4.3 quickfix release
+
 * 2022-08-19: Version 1.7.2
   * Updated to Stubby 0.4.2 quickfix release
 
