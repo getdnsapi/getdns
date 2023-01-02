@@ -1,3 +1,7 @@
+* 2023-??-??: Version 1.7.4
+  * Issue #536: Broken trust anchor files are silently ignored
+    Thanks Stéphane Bortzmeyer
+
 * 2022-12-22: Version 1.7.3
   * PR #532: Increase CMake required version 3.5 -> 3.20, because we
     need cmake_path for Absolute paths in pkg-config (See Issue #517)

@@ -529,8 +529,10 @@ _getdns_fp2rr_list(struct mem_funcs *mf,
 	else while (r == GETDNS_RETURN_GOOD && !feof(in)) {
 		len = GLDNS_RR_BUF_SIZE;
 		dname_len = 0;
-		if (gldns_fp2wire_rr_buf(in, rr, &len, &dname_len, &pst))
+		if (gldns_fp2wire_rr_buf(in, rr, &len, &dname_len, &pst)) {
+			r = GETDNS_RETURN_GENERIC_ERROR;
 			break;
+		}
 		if (dname_len && dname_len < sizeof(pst.prev_rr)) {
 			memcpy(pst.prev_rr, rr, dname_len);
 			pst.prev_rr_len = dname_len;
