@@ -903,8 +903,13 @@ stub_tcp_write(int fd, getdns_tcp_state *tcp, getdns_network_req *netreq)
 			   just fall back to a 'normal' write. */
 			if (written == -1
 			&&  _getdns_socketerror() == _getdns_EISCONN) 
+#ifdef USE_WINSOCK
+				written = send(fd, (const char *)(netreq->query - 2)
+				                 , pkt_len + 2, 0);
+#else
 				written = write(fd, netreq->query - 2
 				                  , pkt_len + 2);
+#endif
 		} else
 			written = send(fd, (const char *)(netreq->query - 2)
 			                 , pkt_len + 2, 0);
