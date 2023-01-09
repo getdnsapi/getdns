@@ -551,7 +551,11 @@ static void tas_rinse(getdns_context *context, tas_connection *a)
 		GETDNS_CLEAR_EVENT(a->loop, &a->event);
 	a->event.ev = NULL;
 	if (a->fd >= 0)
+#ifdef USE_WINSOCK
+		closesocket(a->fd);
+#else
 		close(a->fd);
+#endif
 	a->fd = -1;
 	if (a->xml.data)
 		GETDNS_FREE(context->mf, a->xml.data);
@@ -662,7 +666,11 @@ static void tas_reconnect_cb(void *userarg)
 	           , "Waiting for second document timeout. Reconnecting...\n");
 
 	GETDNS_CLEAR_EVENT(a->loop, &a->event);
+#ifdef USE_WINSOCK
+	closesocket(a->fd);
+#else
 	close(a->fd);
+#endif
 	a->fd = -1;
 	if (a->state == TAS_READ_PS7_HDR) {
 		a->state = TAS_RETRY;
@@ -778,7 +786,11 @@ static void tas_read_cb(void *userarg)
 	if (n == 0) {
 		DEBUG_ANCHOR("Connection closed\n");
 		GETDNS_CLEAR_EVENT(a->loop, &a->event);
+#ifdef USE_WINSOCK
+		closesocket(a->fd);
+#else
 		close(a->fd);
+#endif
 		a->fd = -1;
 		if (a->state == TAS_READ_PS7_HDR) {
 			a->state = TAS_RETRY;
