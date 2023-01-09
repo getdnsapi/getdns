@@ -52,7 +52,7 @@ else ()
     "${LIBUV_DIR}/lib"
   )
   
-  if (LIBUV_INCLUDE_DIR AND LIBUV_LIBRARY)
+  if (LIBUV_INCLUDE_DIR AND LIBUV_LIBRARIES)
     if (NOT TARGET Libuv::Libuv)
       add_library(Libuv::Libuv UNKNOWN IMPORTED)
       set_target_properties(Libuv::Libuv PROPERTIES
