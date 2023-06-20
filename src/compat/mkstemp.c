@@ -30,14 +30,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <fcntl.h>
-#include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <io.h>
 
 int mkstemp(char *template)
 {
 		if (_mktemp_s(template, strlen(template) + 1) != 0)
 				return -1;
-		return open(template, _O_CREAT | _O_EXCL | _O_RDWR, _S_IWRITE | _S_IREAD);
+		return _open(template, _O_CREAT | _O_EXCL | _O_RDWR, _S_IWRITE | _S_IREAD);
 }
