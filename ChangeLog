@@ -1,4 +1,9 @@
-* 2023-??-??: Version 1.7.4
+* 2023-07-26: Version 1.7.4-rc1
+  * Multiple fixes for Windows build
+     * Merge PR #538 (thanks AstralStorm) to fix Windows API issues
+     * Update Stubby to 0.4.4rc1 to fix Windows build issues there (thanks 
+       AstralStorm)
+     * Fix typo in FindLibuv.cmake
   * Issue #536: Broken trust anchor files are silently ignored
     Thanks Stéphane Bortzmeyer
 
