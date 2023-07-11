@@ -1,0 +1,114 @@
+= getdns_query(1)
+:doctype: manpage
+:manmanual: getdns
+
+== Name
+
+getdns_query - a command line wrapper for _getdns_ library
+
+== Synopsis
+
+*getdns_query* [<option> ...] \
+        [@<upstream> ...] [+<extension> ...] ['{ <settings> }'] [<name>] [<type>]
+
+default mode: recursive, synchronous resolution of NS record
+                using UDP with TCP fallback
+
+upstreams: @<ip>[%<scope_id>][@<port>][#<tls port>][~<tls name>][^<tsig spec>]
+            <ip>@<port> may be given as <IPv4>:<port>
+                  or '['<IPv6>[%<scope_id>]']':<port> too
+
+tsig spec: [<algorithm>:]<name>:<secret in Base64>
+
+== Description
+
+`getdns_query` is a command line wrapper for `getdns` exposing the
+features of this implementation (both in the official API and the
+additional API functions).
+
+
+
+== Extensions
+
+// TODO: Get descriptions for each extension and use ::
+----
++add_warning_for_bad_dns    Warn on bad DNS
++dnssec_return_status       Include dnssec_status
++dnssec_return_only_secure
++dnssec_return_all_statuses
++dnssec_return_validation_chain
++dnssec_return_full_validation_chain
++dnssec_roadblock_avoidance
++edns_cookies
++return_both_v4_and_v6
++return_call_reporting
++sit=<cookie>    Send along cookie OPT with value <cookie>
++specify_class=<class>
++0
+    Clear all extensions
+----
+
+settings in json dict format (like outputted by -i option).
+
+== Options
+
+*-a*::    Perform asynchronous resolution (default = synchronous)
+*-A*::    address lookup (<type> is ignored)
+*-B*::    Batch mode. Schedule all messages before processing responses.
+*-b <bufsize>*::     Set edns0 max_udp_payload size
+*-c*::     Send Client Subnet privacy request
+*-C <filename>*::
+                Read settings from config file <filename>
+                The getdns context will be configured with these settings
+                The file must be in YAML format (with extension of '.yml')
+                or JSON dict format (with extension '.conf')
+*-D*::      Set edns0 do bit
+*-d*::      clear edns0 do bit
+*-e <idle_timeout>*::       Set idle timeout in milliseconds
+*-F <filename>*::   read the queries from the specified file
+*-f <filename>*::   Read DNSSEC trust anchors from <filename>
+*-G*::      general lookup
+*-H*::      hostname lookup. (<name> must be an IP address; <type> is ignored)
+*-h*::      Print this help
+*-i*::      Print api information
+*-I*::      Interactive mode (> 1 queries on same context)
+*-j*::      Output json response dict
+*-J*::      Pretty print json response dict
+*-k*::      Print root trust anchors
+*-K <pin>*::        Pin a public key for TLS connections (can repeat)
+        (should look like 'pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="')
+*-m*::      Set TLS authentication mode to REQUIRED
+*-n*::      Set TLS authentication mode to NONE (default)
+*-o <filename>*::   Set resolver configuration file path
+        (default = /etc/resolv.conf)
+*-p*::      Pretty print response dict (default)
+*-P <blocksize>*::  Pad TLS queries to a multiple of blocksize
+        (special values: 0: no padding, 1: sensible default policy)
+*-q*::      Quiet mode - don't print response
+*-r*::      Set recursing resolution type
+*-R <filename>*::   Read root hints from <filename>
+*-s*::      Set stub resolution type(default = recursing)
+*-S*::      service lookup (<type> is ignored)
+*-t <timeout>*::    Set timeout in milliseconds
+*-v*::      Print getdns release version
+*-V*::      Increase verbosity (may be used more than once)
+*-x*::      Do not follow redirects
+*-X*::      Follow redirects (default)
+*-0*::      Append suffix to single label first (default)
+*-W*::      Append suffix always
+*-1*::      Append suffix only to single label after failure
+*-M*::      Append suffix only to multi label name after failure
+*-N*::      Never append a suffix
+*-Z <suffixes>*::   Set suffixes with the given comma separated list
+*-T*::      Set transport to TCP only
+*-O*::      Set transport to TCP only keep connections open
+*-L*::      Set transport to TLS only keep connections open
+*-E*::      Set transport to TLS with TCP fallback only keep connections open
+*-u*::      Set transport to UDP with TCP fallback (default)
+*-U*::      Set transport to UDP only
+*-l <transports>*:: Set transport list. List can contain 1 of each of the characters
+                 U T L for UDP, TCP or TLS e.g 'UT' or 'LTU'
+*-z <listen address>*::
+        Listen for DNS requests on the given IP address
+        <listen address> is in the same format as upstreams.
+        This option can be given more than once.

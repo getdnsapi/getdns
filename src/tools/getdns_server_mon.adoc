@@ -1,0 +1,163 @@
+= getdns_server_mon(1)
+:doctype: manpage
+:manmanual: getdns
+
+== Name
+
+getdns_server_mon - a collection of DNS server tests
+
+== Synopsis
+
+*getdns_server_mon* [-M] [-E] [(-u|-t|-T)] [-S] [-K <spki-pin>]
+        [-v [-v [-v]]] [-V] @upstream testname [<test args>]
+
+spki-pin: Should look like 'pin-sha256="E9CZ9INDbd+2eRQozYqqbQ2yXLVKB9+xcprMF+44U1g="'
+
+upstream: @<ip>[%<scope_id][@<port>][#<tls_port>][~tls name>][^<tsig spec>]
+          <ip>@<port> may be given as <IPv4>:<port> or
+                      '['<IPv6>[%<scope_id>]']':<port>
+
+tsig spec: [<algorithm>:]<name>:<secret in Base64>
+
+== Description
+
+The tests examine both server function and server capability.
+
+`get_server_mon` can optionally be run in Monitoring mode. In this mode,
+the tool output is modified to enable it to function as a plugin for
+popular monitoring systems such as https://www.icinga.org[Icinga],
+http://naemon.github.io/[Naemon], http://www.nagios.org[Nagios],
+http://www.shinken-monitoring.org/[Shinken], http://sensuapp.org/[Sensu]
+and others.
+
+== Options
+
+-M|--monitoring::               Make output suitable for monitoring tools
+-E|--fail-on-dns-errors::       Fail on DNS error (NXDOMAIN, SERVFAIL)
+-u|--udp::                      Use UDP transport
+-t|--tcp::                      Use TCP transport
+-T|--tls::                      Use TLS transport
+-S|--strict-usage-profile::     Use strict profile (require authentication)
+-K|--spki-pin <spki-pin>::      SPKI pin for TLS connections (can repeat)
+-v|--verbose::                  Increase output verbosity
+-D|--debug::                    Enable debugging output
+-V|--version::                  Report GetDNS version
+
+=== Test parameters
+lookup [<name> [<type>]]::      Check lookup on server
+keepalive <timeout-ms> [<name> [<type>]]::
+                              Check server support for EDNS0 keepalive in
+                              TCP or TLS connections
+                              Timeout of 0 is off.
+OOOR::                          Check whether server delivers responses out of
+                              query order on a TCP or TLS connection
+qname-min::                     Check whether server supports QNAME minimisation
+rtt [warn-ms,crit-ms] [<name> [<type>]]::
+                              Check if server round trip time exceeds
+                              thresholds (default 250,500)
+
+dnssec-validate::               Check whether server does DNSSEC validation
+
+tls-auth [<name> [<type>]]::    Check authentication of TLS server
+                              If both a SPKI pin and authentication name are
+                              provided, both must authenticate for this test
+                              to pass.
+tls-cert-valid [warn-days,crit-days] [<name> [type]]::
+                              Check server certificate validity, report
+                              warning or critical if days to expiry at
+                              or below thresholds (default 14,7).
+tls-padding <blocksize> [<name> [<type>]]::
+                              Check server support for EDNS0 padding in TLS
+                              Special blocksize values are 0 = off,
+                              1 = sensible default.
+tls-1.3::                       Check whether server supports TLS 1.3
+
+Enabling monitoring mode ensures output messages and exit statuses conform
+to the requirements of monitoring plugins (www.monitoring-plugins.org).
+
+Note that the server must currently be specified with an IPv4 or an IPv6 address.
+
+=== The tests
+
+Several tests take optional name and RR type parameters. If these are not supplied,
+default values of `getdnsapi.net` and `AAAA` are used. If the lookup returns no
+answering records, `getdns_server_mon` reports a status of WARNING.
+
+[cols="1,3a,1" options="header"]
+|===
+| Test name | Test description | Default connection type
+| `lookup`
+| Check a name lookup succeeds.
+  | UDP with TCP fallback
+
+| `keepalive`
+| See if the server supports EDNS0 keepalive in TCP or TLS
+  connections. Specify a non-zero timeout to set the keepalive timeout
+  in milliseconds, or 0 to disable it.
+| TCP
+
+| `OOOR`
+| Out Of Order Responses. See if the server will send responses to
+  multiple queries in a single TCP or TLS connection in a different
+  order to the order of queries.
+
+This test is currently experimental, and may give false negative results.
+| TCP
+
+| `qname-min`
+| Does the server support QNAME minimisation?
+| UDP with TCP fallback
+
+|`rtt`
+| Check a lookup round trip time exceeds warning and critical levels in milliseconds.
+If thresholds are not specified, defaults of 500ms (critical) and 250ms (warning) are used.
+| UDP with TCP fallback
+
+|`dnssec-validate`
+| See if the server is doing DNSSEC validation.
+| UDP with TCP fallback
+
+|`tls-auth`
+| Check if a TLS lookup authenticates successfully. You must specify
+  either a SPKI pin, an authentication name, or both. If you supply
+  both, both must authenticate for the test to succeed.
+| TLS
+
+|`tls-cert-valid`
+| Check the server certificate against warning and critical days to
+expiry.  If thresholds are not specified, defaults of 7 days
+(critical) and 14 days (warning) are used.
+| TLS
+
+|`tls-padding`
+| Does the server support EDNS0 padding? Specify a non-zero blocksize to set
+the padding. A padding size of 1 specifies padding of a sensible default size.
+| TLS
+
+|`tls-1.3`
+| Does the server support TLS 1.3? To enable this test,
+  `getdns_server_mon` must be compiled with OpenSSL v1.1.1 or later.
+
+This test is currently experimental, and may give false negative results.
+| TLS
+|===
+=== Exit status
+
+[cols="^1,^1,3a" options="header"]
+|===
+| Numeric value | Service Status | Status Description
+| 0
+| OK
+| The service was functioning properly
+
+| 1
+| WARNING
+| The service fell below a warning threshold
+
+|2
+| CRITICAL
+| The service was not working or fell below a critical threshold
+
+|3
+| UNKNOWN | Invalid arguments or an internal low-level failure
+|===
