@@ -158,6 +158,7 @@ option(BUILD_DOXYGEN "Build source documentation." OFF)
 option(BUILD_EXAMPLES "Compile the example programs." OFF)
 option(BUILD_GETDNS_QUERY "Compile and install the getdns_query tool." ON)
 option(BUILD_GETDNS_SERVER_MON "Compile and install the getdns_server_mon tool." ON)
+option(BUILD_TOOL_MANUALS "Build manuals for tools." OFF)
 option(BUILD_STUBBY "Compile and install stubby, the (stub) resolver daemon." OFF)
 
 option(BUILD_LIBEV "Build libev support library if available." ON)
@@ -1178,3 +1179,40 @@ if (BUILD_DOXYGEN)
     COMMENT "Generating Doxygen docs.")
   add_custom_target(doc ALL DEPENDS doc/html/index.html)
 endif ()
+
+if (BUILD_TOOL_MANUALS)
+    find_program(ASCIIDOCTOR asciidoctor)
+    if (NOT ASCIIDOCTOR)
+	message(SEND_ERROR "Failed to find asciidoctor")
+    else()
+	set(ASCIIDOCTOR_MAN ${ASCIIDOCTOR} -d manpage -b manpage -D ${CMAKE_CURRENT_BINARY_DIR}/man1)
+	set(ASCIIDOCTOR_HTML ${ASCIIDOCTOR} -D ${CMAKE_CURRENT_BINARY_DIR}/doc/html)
+	set(SRC_TOOLS ${CMAKE_CURRENT_SOURCE_DIR}/src/tools)
+	if (BUILD_GETDNS_QUERY)
+		add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/getdns_query.1
+			COMMAND ${ASCIIDOCTOR_MAN} ${SRC_TOOLS}/getdns_query.adoc
+			    -o ${CMAKE_CURRENT_BINARY_DIR}/man1/getdns_query.1
+			    VERBATIM DEPENDS ${SRC_TOOLS}/getdns_query.adoc)
+	endif()
+	if (BUILD_GETDNS_SERVER_MON)
+		add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/getdns_server_mon.1
+			COMMAND ${ASCIIDOCTOR_MAN} ${SRC_TOOLS}/getdns_server_mon.adoc
+			    -o ${CMAKE_CURRENT_BINARY_DIR}/man1/getdns_server_mon.1
+		    VERBATIM DEPENDS ${SRC_TOOLS}/getdns_server_mon.adoc)
+		add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/doc/html/getdns_server_mon.html
+			COMMAND ${ASCIIDOCTOR_HTML} ${SRC_TOOLS}/getdns_server_mon.adoc
+			    -o ${CMAKE_CURRENT_BINARY_DIR}/doc/html/getdns_server_mon.html
+		    VERBATIM DEPENDS ${SRC_TOOLS}/getdns_server_mon.adoc)
+	endif()
+	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/doc/html/tools.html
+		COMMAND ${ASCIIDOCTOR_HTML} ${SRC_TOOLS}/README.adoc
+			    -o ${CMAKE_CURRENT_BINARY_DIR}/doc/html/tools.html
+			    VERBATIM DEPENDS ${SRC_TOOLS}/README.adoc)
+	add_custom_target(man1 ALL DEPENDS
+		${CMAKE_CURRENT_BINARY_DIR}/man1/getdns_server_mon.1
+		${CMAKE_CURRENT_BINARY_DIR}/man1/getdns_query.1
+		${CMAKE_CURRENT_BINARY_DIR}/doc/html/tools.html)
+
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man1 DESTINATION ${CMAKE_INSTALL_MANDIR})
+    endif()
+endif()
