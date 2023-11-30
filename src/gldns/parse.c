@@ -13,7 +13,7 @@
 #include "gldns/gbuffer.h"
 
 #include <limits.h>
-#include <strings.h>
+#include <stdlib.h>
 
 gldns_lookup_table gldns_directive_types[] = {
         { GLDNS_DIR_TTL, "$TTL" },
