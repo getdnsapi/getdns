@@ -56,6 +56,7 @@
 
 /* OpenSSL implementation */
 #if defined(HAVE_SSL) && !defined(HAVE_NETTLE)
+#include <openssl/opensslv.h>
 #ifdef HAVE_OPENSSL_ERR_H
 #include <openssl/err.h>
 #endif
@@ -157,13 +158,21 @@ static struct secalgo_hash* secalgo_hash_create_md(const EVP_MD* md)
 	h = calloc(1, sizeof(*h));
 	if(!h)
 		return NULL;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	h->ctx = EVP_MD_CTX_create();
+#else
+	h->ctx = EVP_MD_CTX_new();
+#endif
 	if(!h->ctx) {
 		free(h);
 		return NULL;
 	}
 	if(!EVP_DigestInit_ex(h->ctx, md, NULL)) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		EVP_MD_CTX_destroy(h->ctx);
+#else
+		EVP_MD_CTX_free(h->ctx);
+#endif
 		free(h);
 		return NULL;
 	}
@@ -201,7 +210,11 @@ int secalgo_hash_final(struct secalgo_hash* hash, uint8_t* result,
 void secalgo_hash_delete(struct secalgo_hash* hash)
 {
 	if(!hash) return;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_MD_CTX_destroy(hash->ctx);
+#else
+	EVP_MD_CTX_free(hash->ctx);
+#endif
 	free(hash);
 }
 
@@ -395,8 +408,13 @@ setup_dsa_sig(unsigned char** sig, unsigned int* len)
 	if(!DSA_SIG_set0(dsasig, R, S)) return 0;
 #else
 #  ifndef S_SPLINT_S
+#    if OPENSSL_VERSION_NUMBER < 0x10100000L
 	dsasig->r = R;
 	dsasig->s = S;
+#    else
+	/* OpenSSL 1.1.0+ requires DSA_SIG_set0 */
+	if(!DSA_SIG_set0(dsasig, R, S)) return 0;
+#    endif
 #  endif /* S_SPLINT_S */
 #endif
 	*sig = NULL;
@@ -721,11 +739,11 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #endif /* USE_ECDSA */
 
 	/* do the signature cryptography work */
-#ifdef HAVE_EVP_MD_CTX_NEW
-	ctx = EVP_MD_CTX_new();
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	ctx = (EVP_MD_CTX*)malloc(sizeof(*ctx));
 	if(ctx) EVP_MD_CTX_init(ctx);
+#else
+	ctx = EVP_MD_CTX_new();
 #endif
 	if(!ctx) {
 		log_err("EVP_MD_CTX_new: malloc failure");
@@ -737,11 +755,11 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #ifndef HAVE_EVP_DIGESTVERIFY
 	if(EVP_DigestInit(ctx, digest_type) == 0) {
 		verbose(VERB_QUERY, "verify: EVP_DigestInit failed");
-#ifdef HAVE_EVP_MD_CTX_NEW
-		EVP_MD_CTX_destroy(ctx);
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		EVP_MD_CTX_cleanup(ctx);
 		free(ctx);
+#else
+		EVP_MD_CTX_free(ctx);
 #endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
@@ -751,11 +769,11 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 	if(EVP_DigestUpdate(ctx, (unsigned char*)sldns_buffer_begin(buf), 
 		(unsigned int)sldns_buffer_limit(buf)) == 0) {
 		verbose(VERB_QUERY, "verify: EVP_DigestUpdate failed");
-#ifdef HAVE_EVP_MD_CTX_NEW
-		EVP_MD_CTX_destroy(ctx);
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		EVP_MD_CTX_cleanup(ctx);
 		free(ctx);
+#else
+		EVP_MD_CTX_free(ctx);
 #endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
@@ -767,11 +785,11 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 #else /* HAVE_EVP_DIGESTVERIFY */
 	if(EVP_DigestVerifyInit(ctx, NULL, digest_type, NULL, evp_key) == 0) {
 		verbose(VERB_QUERY, "verify: EVP_DigestVerifyInit failed");
-#ifdef HAVE_EVP_MD_CTX_NEW
-		EVP_MD_CTX_destroy(ctx);
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		EVP_MD_CTX_cleanup(ctx);
 		free(ctx);
+#else
+		EVP_MD_CTX_free(ctx);
 #endif
 		EVP_PKEY_free(evp_key);
 		if(dofree) free(sigblock);
@@ -782,11 +800,11 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		(unsigned char*)sldns_buffer_begin(buf),
 		sldns_buffer_limit(buf));
 #endif
-#ifdef HAVE_EVP_MD_CTX_NEW
-	EVP_MD_CTX_destroy(ctx);
-#else
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_MD_CTX_cleanup(ctx);
 	free(ctx);
+#else
+	EVP_MD_CTX_free(ctx);
 #endif
 	EVP_PKEY_free(evp_key);
 
