@@ -60,10 +60,12 @@ _getdns_get_usage_of_ex(X509* cert)
 	ASN1_BIT_STRING* s;
 
 	if((s=X509_get_ext_d2i(cert, NID_key_usage, NULL, NULL))) {
-		if(s->length > 0) {
-			val = s->data[0];
-			if(s->length > 1)
-				val |= s->data[1] << 8;
+		const unsigned char *data = ASN1_STRING_get0_data(s);
+		int len = ASN1_STRING_length(s);
+		if(len > 0) {
+			val = data[0];
+			if(len > 1)
+				val |= data[1] << 8;
 		}
 		ASN1_BIT_STRING_free(s);
 	}
